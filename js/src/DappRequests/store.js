@@ -19,16 +19,16 @@ import store from 'store';
 
 import { sha3 } from '@parity/api/lib/util/sha3';
 
-import methodGroups, { methodGroupFromMethod } from './methodGroups';
+import { methodGroupFromMethod } from './methodGroups';
 
 const LS_PERMISSIONS = '_parity::dapps::methods';
 
 export default class Store {
-  @observable requests = {}; // Maps `${method}:${appId}` to request (if multiple requests for same app+method, then only store last)
+  @observable requests = {}; // Maps requestId to request
 
   middleware = [];
   permissions = {}; // Maps `${method}:${appId}` to true/false
-  sources = {}; // Maps `${method}:${appId}` to a postMessage source
+  sources = {}; // Maps requestId to a postMessage source
   tokens = {}; // Maps token to appId
 
   constructor (provider) {
@@ -38,61 +38,43 @@ export default class Store {
     window.addEventListener('message', this.receiveMessage, false);
   }
 
-  getRequestId = (method, appId) => `${method}:${appId}` // Create an id to identify requests based on appId and method
-
   @computed get hasRequests () {
     return Object.keys(this.requests).length !== 0;
   }
 
   @computed get groupedRequests () {
     // Group by appId on top level, and by methodGroup on 2nd level
-    return Object.values(this.requests).reduce((accumulator, request) => {
-      const { data: { method, params, token } } = request;
-      const appId = this.tokens[token];
+    return Object.keys(this.requests).reduce((accumulator, requestId) => {
+      const { data } = this.requests[requestId];
+      const appId = this.tokens[data.token];
+      const method = this.getMethodFromRequest(requestId);
+      const methodGroup = methodGroupFromMethod[method]; // Get the methodGroup the current request belongs to
 
       accumulator[appId] = accumulator[appId] || {};
-
-      const methodGroup = methodGroupFromMethod[method || params[0]]; // Get the methodGroup the current request belongs to
-
       accumulator[appId][methodGroup] = accumulator[appId][methodGroup] || [];
-      accumulator[appId][methodGroup].push(request);
+      accumulator[appId][methodGroup].push({ data, requestId }); // Append the requestId field in the request object
 
       return accumulator;
     }, {});
   }
 
-  @action createToken = appId => {
-    const token = sha3(`${appId}:${Date.now()}`);
-
-    this.tokens[token] = appId;
-
-    return token;
-  };
-
-  @action queueRequest = ({ data, origin, source }) => {
-    const { method, token } = data;
-    const appId = this.tokens[token];
-
-    this.sources = {
-      ...this.sources,
-      [this.getRequestId(method, appId)]: source
-    };
+  @action queueRequest = (requestId, { data, source }) => {
+    this.sources[requestId] = source;
+    // Create a new this.requests object to update mobx store
     this.requests = {
       ...this.requests,
-      [this.getRequestId(method, appId)]: {
-        data,
-        origin
-      }
+      [requestId]: { data }
     };
   };
 
-  @action approveRequest = (method, appId) => {
-    const requestId = this.getRequestId(method, appId);
+  @action approveRequest = requestId => {
     const { data } = this.requests[requestId];
+    const method = this.getMethodFromRequest(requestId);
+    const appId = this.tokens[data.token];
     const source = this.sources[requestId];
 
     this.addAppPermission(method, appId);
-    this.removeRequest(method, appId);
+    this.removeRequest(requestId);
 
     if (data.api) {
       this.executePubsubCall(data, source);
@@ -101,47 +83,31 @@ export default class Store {
     }
   };
 
-  @action approveRequestGroup = (groupId, appId) => {
-    // Get methods of this requestGroup
-    const { methods } = methodGroups[groupId];
-
-    methods
-      .filter(method => this.requests[this.getRequestId(method, appId)])
-      .forEach(method => {
-        this.approveRequest(method, appId);
-      });
-  };
-
-  @action rejectRequest = (method, appId) => {
-    const requestId = this.getRequestId(method, appId);
+  @action rejectRequest = requestId => {
     const { data } = this.requests[requestId];
     const source = this.sources[requestId];
 
-    this.removeRequest(method, appId);
+    this.removeRequest(requestId);
     this.rejectMessage(source, data);
   };
 
-  @action rejectRequestGroup = (groupId, appId) => {
-    // Get methods of this requestGroup
-    const { methods } = methodGroups[groupId];
-
-    methods
-      .filter(method => this.requests[this.getRequestId(method, appId)])
-      .forEach(method => {
-        this.rejectRequest(method, appId);
-      });
-  };
-
-  @action removeRequest = (method, appId) => {
-    const requestId = this.getRequestId(method, appId);
-
+  @action removeRequest = requestId => {
     delete this.requests[requestId];
     delete this.sources[requestId];
 
+    // Create a new object to update mobx store
     this.requests = { ...this.requests };
   };
 
-  @action rejectMessage = (source, { id, from, method, token }) => {
+  getPermissionId = (method, appId) => `${method}:${appId}` // Create an id to identify permissions based on method and appId
+
+  getMethodFromRequest = requestId => {
+    const { data: { method, params } } = this.requests[requestId];
+
+    return method || params[0];
+  }
+
+  rejectMessage = (source, { id, from, method, token }) => {
     if (!source) {
       return;
     }
@@ -159,12 +125,12 @@ export default class Store {
     );
   };
 
-  @action addAppPermission = (method, appId) => {
-    this.permissions[this.getRequestId(method, appId)] = true;
+  addAppPermission = (method, appId) => {
+    this.permissions[this.getPermissionId(method, appId)] = true;
     this.savePermissions();
   };
 
-  @action setPermissions = _permissions => {
+  setPermissions = _permissions => {
     const permissions = {};
 
     Object.keys(_permissions).forEach(id => {
@@ -187,6 +153,13 @@ export default class Store {
     return true;
   }
 
+  createToken = appId => {
+    const token = sha3(`${appId}:${Date.now()}`);
+
+    this.tokens[token] = appId;
+    return token;
+  };
+
   hasValidToken = (method, appId, token) => {
     if (!token) {
       return method === 'shell_requestNewToken';
@@ -200,7 +173,7 @@ export default class Store {
   };
 
   hasAppPermission = (method, appId) => {
-    return this.permissions[this.getRequestId(method, appId)] || false;
+    return !!this.permissions[this.getPermissionId(method, appId)];
   };
 
   savePermissions = () => {
@@ -212,7 +185,6 @@ export default class Store {
       if (!source) {
         return;
       }
-
       source.postMessage(
         {
           error: error ? error.message : null,
@@ -238,7 +210,7 @@ export default class Store {
   executeMethodCall = ({ id, from, method, params, token }, source) => {
     try {
       const callback = this._methodCallbackPost(id, from, source, token);
-      const isHandled = this.middleware.find(middleware => {
+      const isHandled = this.middleware.some(middleware => {
         try {
           return middleware(from, method, params, callback);
         } catch (error) {
@@ -256,7 +228,7 @@ export default class Store {
     }
   };
 
-  receiveMessage = ({ data, origin, source }) => {
+  receiveMessage = ({ data, source }) => {
     try {
       if (!data) {
         return;
@@ -281,9 +253,8 @@ export default class Store {
           methodGroupFromMethod[params[0]] &&
           !this.hasTokenPermission(method, token))
       ) {
-        this.queueRequest({
+        this.queueRequest(id, { // The requestId of a request is the id inside data
           data,
-          origin,
           source
         });
         return;

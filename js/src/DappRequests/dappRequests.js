@@ -15,33 +15,43 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observer } from 'mobx-react';
-import React from 'react';
+import React, { PureComponent } from 'react';
 
 import RequestGroups from './RequestGroups';
 import Store from './store';
 import styles from './dappRequests.css';
 
-function DappRequests () {
-  const store = Store.get();
+class DappRequests extends PureComponent {
+  store = Store.get();
 
-  if (!store || !store.hasRequests) {
-    return null;
+  handleApproveRequestGroup = requestIds => {
+    requestIds.forEach(this.store.approveRequest);
   }
 
-  return (
-    <div className={ styles.requests }>
-      {Object.keys(store.groupedRequests)
-        .map(appId => (
-          <RequestGroups
-            key={ appId }
-            appId={ appId }
-            onApproveRequestGroup={ store.approveRequestGroup }
-            onRejectRequestGroup={ store.rejectRequestGroup }
-            requestGroups={ store.groupedRequests[appId] }
-          />
-        ))}
-    </div>
-  );
+  handleRejectRequestGroup = requestIds => {
+    requestIds.forEach(this.store.rejectRequest);
+  }
+
+  render () {
+    if (!this.store || !this.store.hasRequests) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.requests }>
+        {Object.keys(this.store.groupedRequests)
+          .map(appId => (
+            <RequestGroups
+              key={ appId }
+              appId={ appId }
+              onApproveRequestGroup={ this.handleApproveRequestGroup }
+              onRejectRequestGroup={ this.handleRejectRequestGroup }
+              requestGroups={ this.store.groupedRequests[appId] }
+            />
+          ))}
+      </div>
+    );
+  }
 }
 
 export default observer(DappRequests);

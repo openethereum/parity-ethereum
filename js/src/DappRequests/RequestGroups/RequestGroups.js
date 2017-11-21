@@ -30,12 +30,33 @@ export default class RequestGroups extends PureComponent {
     opened: false
   };
 
+  handleApproveRequestGroup = groupId => {
+    const { requestGroups, onApproveRequestGroup } = this.props;
+
+    onApproveRequestGroup(Object.values(requestGroups[groupId].map(({ requestId }) => requestId)));
+  }
+
+  handleRejectRequestGroup = groupId => {
+    const { requestGroups, onRejectRequestGroup } = this.props;
+
+    onRejectRequestGroup(Object.values(requestGroups[groupId].map(({ requestId }) => requestId)));
+  }
+
+  renderPopupContent = groupId => {
+    const { requestGroups } = this.props;
+    // Get unique list of methods in that request group
+    const requestedMethods = [...new Set(
+      Object.values(requestGroups[groupId])
+        .map(request => request.data.method || request.data.params[0])
+    )];
+
+    return `Requested methods: ${requestedMethods.join(', ')}`;
+  }
+
   render () {
     const {
       appId,
-      requestGroups,
-      onApproveRequestGroup,
-      onRejectRequestGroup
+      requestGroups
     } = this.props;
 
     const app = DappsStore.get().getAppById(appId);
@@ -56,11 +77,7 @@ export default class RequestGroups extends PureComponent {
               Permission for{' '}
               <Popup
                 trigger={ <span>{groupId}</span> }
-                content={ `Allowed methods: ${Object.values(
-                  requestGroups[groupId]
-                )
-                  .map(request => request.data.method || request.data.params[0])
-                  .join(', ')}` }
+                content={ this.renderPopupContent(groupId) }
               />
             </span>
             <Button
@@ -71,7 +88,7 @@ export default class RequestGroups extends PureComponent {
                   defaultMessage='Approve'
                 />
               }
-              onClick={ () => onApproveRequestGroup(groupId, appId) }
+              onClick={ () => this.handleApproveRequestGroup(groupId) }
             />
             <Button
               size='mini'
@@ -81,7 +98,7 @@ export default class RequestGroups extends PureComponent {
                   defaultMessage='Reject'
                 />
               }
-              onClick={ () => onRejectRequestGroup(groupId, appId) }
+              onClick={ () => this.handleRejectRequestGroup(groupId) }
             />
           </div>
         ))}
