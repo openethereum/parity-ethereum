@@ -36,8 +36,8 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	Nonce, Balance, ChainInfo, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
-	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
+	Nonce, Balance, ChainInfo, BlockInfo, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus,
+	BlockId, TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient,
 };
 use db::{NUM_COLUMNS, COL_STATE};
@@ -452,6 +452,19 @@ impl ChainInfo for TestBlockChainClient {
 	}
 }
 
+impl BlockInfo for TestBlockChainClient {
+	fn best_block_header(&self) -> encoded::Header {
+		self.block_header(BlockId::Hash(self.chain_info().best_block_hash))
+			.expect("Best block always has header.")
+	}
+
+	fn block(&self, id: BlockId) -> Option<encoded::Block> {
+		self.block_hash(id)
+			.and_then(|hash| self.blocks.read().get(&hash).cloned())
+			.map(encoded::Block::new)
+	}
+}
+
 impl BlockChainClient for TestBlockChainClient {
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
@@ -546,11 +559,6 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn best_block_header(&self) -> encoded::Header {
-		self.block_header(BlockId::Hash(self.chain_info().best_block_hash))
-			.expect("Best block always has header.")
-	}
-
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		self.block_hash(id)
 			.and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
@@ -568,12 +576,6 @@ impl BlockChainClient for TestBlockChainClient {
 			stream.append_raw(Rlp::new(r).at(2).as_raw(), 1);
 			encoded::Body::new(stream.out())
 		}))
-	}
-
-	fn block(&self, id: BlockId) -> Option<encoded::Block> {
-		self.block_hash(id)
-			.and_then(|hash| self.blocks.read().get(&hash).cloned())
-			.map(encoded::Block::new)
 	}
 
 	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>> {

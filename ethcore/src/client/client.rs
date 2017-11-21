@@ -41,8 +41,8 @@ use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	BlockId, TransactionId, UncleId, TraceId, ClientConfig, Nonce, Balance, ChainInfo, BlockChainClient,
-	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
+	BlockId, TransactionId, UncleId, TraceId, ClientConfig, Nonce, Balance, ChainInfo, BlockInfo,
+	BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, PruningInfo, ProvingBlockChainClient,
 };
 use encoded;
@@ -1298,6 +1298,28 @@ impl ChainInfo for Client {
 	}
 }
 
+impl BlockInfo for Client {
+	fn best_block_header(&self) -> encoded::Header {
+		self.chain.read().best_block_header()
+	}
+
+	fn block(&self, id: BlockId) -> Option<encoded::Block> {
+		let chain = self.chain.read();
+
+		if let BlockId::Pending = id {
+			if let Some(block) = self.importer.miner.pending_block(chain.best_block_number()) {
+				return Some(encoded::Block::new(block.rlp_bytes(Seal::Without)));
+			}
+			// fall back to latest
+			return self.block(BlockId::Latest);
+		}
+
+		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| {
+			chain.block(&hash)
+		})
+	}
+}
+
 impl BlockChainClient for Client {
 	fn call(&self, transaction: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError> {
 		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
@@ -1465,10 +1487,6 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn best_block_header(&self) -> encoded::Header {
-		self.chain.read().best_block_header()
-	}
-
 	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
 		let chain = self.chain.read();
 
@@ -1499,22 +1517,6 @@ impl BlockChainClient for Client {
 		}
 
 		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| chain.block_body(&hash))
-	}
-
-	fn block(&self, id: BlockId) -> Option<encoded::Block> {
-		let chain = self.chain.read();
-
-		if let BlockId::Pending = id {
-			if let Some(block) = self.importer.miner.pending_block(chain.best_block_number()) {
-				return Some(encoded::Block::new(block.rlp_bytes(Seal::Without)));
-			}
-			// fall back to latest
-			return self.block(BlockId::Latest);
-		}
-
-		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| {
-			chain.block(&hash)
-		})
 	}
 
 	fn block_status(&self, id: BlockId) -> BlockStatus {

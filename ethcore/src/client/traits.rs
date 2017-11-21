@@ -84,8 +84,17 @@ pub trait ChainInfo {
 	fn chain_info(&self) -> BlockChainInfo;
 }
 
+/// Provides verious information on a block by it's ID
+pub trait BlockInfo {
+	/// Get the best block header.
+	fn best_block_header(&self) -> encoded::Header;
+
+	/// Get raw block data by block header hash.
+	fn block(&self, id: BlockId) -> Option<encoded::Block>;
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo {
+pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockInfo {
 
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
@@ -98,7 +107,7 @@ pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo {
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body>;
 
 	/// Get raw block data by block header hash.
-	fn block(&self, id: BlockId) -> Option<encoded::Block>;
+	// fn block(&self, id: BlockId) -> Option<encoded::Block>;
 
 	/// Get block status by block header hash.
 	fn block_status(&self, id: BlockId) -> BlockStatus;
@@ -187,7 +196,7 @@ pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo {
 	fn additional_params(&self) -> BTreeMap<String, String>;
 
 	/// Get the best block header.
-	fn best_block_header(&self) -> encoded::Header;
+	// fn best_block_header(&self) -> encoded::Header;
 
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
