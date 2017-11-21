@@ -26,8 +26,6 @@ function initProvider () {
 
   let appId = path[1] || query.appId;
 
-  console.log('appId', appId, path, qs);
-
   if (appId === 'dapps') {
     appId = path[2];
   } else if (!Api.util.isHex(appId)) {
