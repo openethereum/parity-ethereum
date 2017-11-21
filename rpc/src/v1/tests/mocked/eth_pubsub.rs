@@ -82,7 +82,7 @@ fn should_subscribe_to_new_heads() {
 fn should_subscribe_to_logs() {
 	use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 	use ethcore::ids::BlockId;
-	use ethcore::client::BlockChainClient;
+	use ethcore::client::BlockInfo;
 
 	// given
 	let el = EventLoop::spawn();

@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use client::{Client, BlockChainClient};
+use client::{Client, BlockInfo};
 use ids::BlockId;
 use snapshot::service::{Service, ServiceParams};
 use snapshot::{self, ManifestData, SnapshotService};
