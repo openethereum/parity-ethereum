@@ -1,3 +1,5 @@
+#!/bin/sh
+
 linux-stable(){
      cargo build -j $(nproc) --release --features final $CARGOFLAGS
      cargo build -j $(nproc) --release -p evmbin

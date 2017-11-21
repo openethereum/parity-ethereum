@@ -248,7 +248,7 @@ windows:
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS%
-    - ./scripts/gitlab-ci.sh windows
+    - scripts/gitlab-ci.sh windows
   tags:
    - rust-windows
   artifacts:
