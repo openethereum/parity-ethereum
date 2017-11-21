@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, computed, observable } from 'mobx';
+import { action, computed, observable, toJS } from 'mobx';
 import store from 'store';
 
 import { sha3 } from '@parity/api/lib/util/sha3';
@@ -29,6 +29,7 @@ export default class Store {
   @observable tokens = {}; // Maps token to appId
 
   middleware = [];
+  sources = {};
 
   constructor (provider) {
     this.provider = provider;
@@ -55,6 +56,7 @@ export default class Store {
 
       accumulator[appId][methodGroup] = accumulator[appId][methodGroup] || [];
       accumulator[appId][methodGroup].push(request);
+
       return accumulator;
     }, {});
   }
@@ -70,19 +72,27 @@ export default class Store {
     return token;
   };
 
-  @action queueRequest = request => {
-    const { data: { method, token } } = request;
+  @action queueRequest = ({ data, origin, source }) => {
+    const { method, token } = data;
     const appId = this.tokens[token];
 
-    // Add a new request in this.requests
+    this.sources = {
+      ...this.sources,
+      [this.getMethodAppId(method, appId)]: source
+    };
     this.requests = {
       ...this.requests,
-      [this.getMethodAppId(method, appId)]: request
+      [this.getMethodAppId(method, appId)]: {
+        data,
+        origin
+      }
     };
   };
 
   @action approveRequest = (method, appId) => {
-    const { source, data } = this.requests[this.getMethodAppId(method, appId)];
+    const requestId = this.getMethodAppId(method, appId);
+    const { data } = this.requests[requestId];
+    const source = this.sources[requestId];
 
     this.addAppPermission(method, appId);
     this.removeRequest(method, appId);
@@ -106,7 +116,9 @@ export default class Store {
   };
 
   @action rejectRequest = (method, appId) => {
-    const { source, data } = this.requests[this.getMethodAppId(method, appId)];
+    const requestId = this.getMethodAppId(method, appId);
+    const { data } = this.requests[requestId];
+    const source = this.sources[requestId];
 
     this.removeRequest(method, appId);
     this.rejectMessage(source, data);
@@ -124,7 +136,11 @@ export default class Store {
   };
 
   @action removeRequest = (method, appId) => {
-    delete this.requests[this.getMethodAppId(method, appId)];
+    const requestId = this.getMethodAppId(method, appId);
+
+    delete this.requests[requestId];
+    delete this.sources[requestId];
+
     this.requests = { ...this.requests };
   };
 
@@ -230,10 +246,6 @@ export default class Store {
 
   executeMethodCall = ({ id, from, method, params, token }, source) => {
     try {
-      if (/^shell/.test(method)) {
-        console.error('*** ', method);
-      }
-
       const callback = this._methodCallbackPost(id, from, source, token);
       const isHandled = this.middleware.find(middleware => {
         try {
@@ -278,7 +290,11 @@ export default class Store {
           methodGroupFromMethod[params[0]] &&
           !this.hasTokenPermission(method, token))
       ) {
-        this.queueRequest({ data, origin, source });
+        this.queueRequest({
+          data,
+          origin,
+          source
+        });
         return;
       }
 
