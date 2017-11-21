@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, computed, observable, toJS } from 'mobx';
+import { action, computed, observable } from 'mobx';
 import store from 'store';
 
 import { sha3 } from '@parity/api/lib/util/sha3';
@@ -24,12 +24,12 @@ import methodGroups, { methodGroupFromMethod } from './methodGroups';
 const LS_PERMISSIONS = '_parity::dapps::methods';
 
 export default class Store {
-  @observable permissions = {}; // Maps `${method}:${appId}` to true/false
   @observable requests = {}; // Maps `${method}:${appId}` to request (if multiple requests for same app+method, then only store last)
-  @observable tokens = {}; // Maps token to appId
 
   middleware = [];
-  sources = {};
+  permissions = {}; // Maps `${method}:${appId}` to true/false
+  sources = {}; // Maps `${method}:${appId}` to a postMessage source
+  tokens = {}; // Maps token to appId
 
   constructor (provider) {
     this.provider = provider;
@@ -38,7 +38,7 @@ export default class Store {
     window.addEventListener('message', this.receiveMessage, false);
   }
 
-  getMethodAppId = (method, appId) => `${method}:${appId}` // Create an id to identify permissions/requests based on appId and method
+  getRequestId = (method, appId) => `${method}:${appId}` // Create an id to identify requests based on appId and method
 
   @computed get hasRequests () {
     return Object.keys(this.requests).length !== 0;
@@ -64,10 +64,7 @@ export default class Store {
   @action createToken = appId => {
     const token = sha3(`${appId}:${Date.now()}`);
 
-    this.tokens = {
-      ...this.tokens,
-      [token]: appId
-    };
+    this.tokens[token] = appId;
 
     return token;
   };
@@ -78,11 +75,11 @@ export default class Store {
 
     this.sources = {
       ...this.sources,
-      [this.getMethodAppId(method, appId)]: source
+      [this.getRequestId(method, appId)]: source
     };
     this.requests = {
       ...this.requests,
-      [this.getMethodAppId(method, appId)]: {
+      [this.getRequestId(method, appId)]: {
         data,
         origin
       }
@@ -90,7 +87,7 @@ export default class Store {
   };
 
   @action approveRequest = (method, appId) => {
-    const requestId = this.getMethodAppId(method, appId);
+    const requestId = this.getRequestId(method, appId);
     const { data } = this.requests[requestId];
     const source = this.sources[requestId];
 
@@ -109,14 +106,14 @@ export default class Store {
     const { methods } = methodGroups[groupId];
 
     methods
-      .filter(method => this.requests[this.getMethodAppId(method, appId)])
+      .filter(method => this.requests[this.getRequestId(method, appId)])
       .forEach(method => {
         this.approveRequest(method, appId);
       });
   };
 
   @action rejectRequest = (method, appId) => {
-    const requestId = this.getMethodAppId(method, appId);
+    const requestId = this.getRequestId(method, appId);
     const { data } = this.requests[requestId];
     const source = this.sources[requestId];
 
@@ -129,14 +126,14 @@ export default class Store {
     const { methods } = methodGroups[groupId];
 
     methods
-      .filter(method => this.requests[this.getMethodAppId(method, appId)])
+      .filter(method => this.requests[this.getRequestId(method, appId)])
       .forEach(method => {
         this.rejectRequest(method, appId);
       });
   };
 
   @action removeRequest = (method, appId) => {
-    const requestId = this.getMethodAppId(method, appId);
+    const requestId = this.getRequestId(method, appId);
 
     delete this.requests[requestId];
     delete this.sources[requestId];
@@ -163,10 +160,7 @@ export default class Store {
   };
 
   @action addAppPermission = (method, appId) => {
-    this.permissions = {
-      ...this.permissions,
-      [this.getMethodAppId(method, appId)]: true
-    };
+    this.permissions[this.getRequestId(method, appId)] = true;
     this.savePermissions();
   };
 
@@ -177,10 +171,7 @@ export default class Store {
       permissions[id] = !!_permissions[id];
     });
 
-    this.permissions = {
-      ...this.permissions,
-      ...permissions
-    };
+    this.permissions = permissions;
     this.savePermissions();
 
     return true;
@@ -209,7 +200,7 @@ export default class Store {
   };
 
   hasAppPermission = (method, appId) => {
-    return this.permissions[this.getMethodAppId(method, appId)] || false;
+    return this.permissions[this.getRequestId(method, appId)] || false;
   };
 
   savePermissions = () => {
