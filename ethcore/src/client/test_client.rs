@@ -36,8 +36,8 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus,
-	BlockId, TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
+	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, 
+	BlockStatus, BlockId, TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient,
 };
 use db::{NUM_COLUMNS, COL_STATE};
@@ -364,6 +364,12 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 	}
 }
 
+impl ReopenBlock for TestBlockChainClient {
+	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock {
+		block.reopen(&*self.spec.engine)
+	}
+}
+
 impl MiningBlockChainClient for TestBlockChainClient {
 	fn latest_schedule(&self) -> Schedule {
 		Schedule::new_post_eip150(24576, true, true, true)
@@ -391,10 +397,6 @@ impl MiningBlockChainClient for TestBlockChainClient {
 		// TODO [todr] Override timestamp for predictability (set_timestamp_now kind of sucks)
 		open_block.set_timestamp(*self.latest_block_timestamp.read());
 		open_block
-	}
-
-	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock {
-		block.reopen(&*self.spec.engine)
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {

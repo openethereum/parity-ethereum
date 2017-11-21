@@ -43,7 +43,7 @@ use client::Error as ClientError;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, Nonce, Balance, ChainInfo, BlockInfo,
 	BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient,
+	ChainNotify, PruningInfo, ProvingBlockChainClient, ReopenBlock
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
@@ -1925,6 +1925,35 @@ impl BlockChainClient for Client {
 	}
 }
 
+impl ReopenBlock for Client {
+	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock {
+		let engine = &*self.engine;
+		let mut block = block.reopen(engine);
+		let max_uncles = engine.maximum_uncle_count();
+		if block.uncles().len() < max_uncles {
+			let chain = self.chain.read();
+			let h = chain.best_block_hash();
+			// Add new uncles
+			let uncles = chain
+				.find_uncle_hashes(&h, engine.maximum_uncle_age())
+				.unwrap_or_else(Vec::new);
+
+			for h in uncles {
+				if !block.uncles().iter().any(|header| header.hash() == h) {
+					let uncle = chain.block_header(&h).expect("find_uncle_hashes only returns hashes for existing headers; qed");
+					block.push_uncle(uncle).expect("pushing up to maximum_uncle_count;
+												push_uncle is not ok only if more than maximum_uncle_count is pushed;
+												so all push_uncle are Ok;
+												qed");
+					if block.uncles().len() >= max_uncles { break }
+				}
+			}
+
+		}
+		block
+	}
+}
+
 impl MiningBlockChainClient for Client {
 	fn latest_schedule(&self) -> Schedule {
 		self.engine.schedule(self.latest_env_info().number)
@@ -1966,33 +1995,6 @@ impl MiningBlockChainClient for Client {
 			});
 
 		open_block
-	}
-
-	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock {
-		let engine = &*self.engine;
-		let mut block = block.reopen(engine);
-		let max_uncles = engine.maximum_uncle_count();
-		if block.uncles().len() < max_uncles {
-			let chain = self.chain.read();
-			let h = chain.best_block_hash();
-			// Add new uncles
-			let uncles = chain
-				.find_uncle_hashes(&h, engine.maximum_uncle_age())
-				.unwrap_or_else(Vec::new);
-
-			for h in uncles {
-				if !block.uncles().iter().any(|header| header.hash() == h) {
-					let uncle = chain.block_header(&h).expect("find_uncle_hashes only returns hashes for existing headers; qed");
-					block.push_uncle(uncle).expect("pushing up to maximum_uncle_count;
-												push_uncle is not ok only if more than maximum_uncle_count is pushed;
-												so all push_uncle are Ok;
-												qed");
-					if block.uncles().len() >= max_uncles { break }
-				}
-			}
-
-		}
-		block
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {

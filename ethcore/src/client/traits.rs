@@ -303,8 +303,14 @@ pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockIn
 	fn eip86_transition(&self) -> u64;
 }
 
+/// Provides `reopen_block` method
+pub trait ReopenBlock {
+	/// Reopens an OpenBlock and updates uncles.
+	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
+}
+
 /// Extended client interface used for mining
-pub trait MiningBlockChainClient: BlockChainClient {
+pub trait MiningBlockChainClient: BlockChainClient + ReopenBlock {
 	/// Returns OpenBlock prepared for closing.
 	fn prepare_open_block(&self,
 		author: Address,
@@ -313,7 +319,7 @@ pub trait MiningBlockChainClient: BlockChainClient {
 	) -> OpenBlock;
 
 	/// Reopens an OpenBlock and updates uncles.
-	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
+	// fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
 
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;
