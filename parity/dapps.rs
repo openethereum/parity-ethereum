@@ -295,6 +295,7 @@ mod server {
 					version: app.version,
 					author: app.author,
 					icon_url: app.icon_url,
+					local_url: app.local_url,
 				})
 				.collect()
 		}
