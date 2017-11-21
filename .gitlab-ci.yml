@@ -24,7 +24,7 @@ linux-stable:
   script:
     - rustup default stable
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh linux-stable
+    - ./scripts/gitlab-ci.sh linux_stable
   tags:
     - rust
     - rust-stable
@@ -46,7 +46,7 @@ linux-snap:
     - triggers
   script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh linux-snap
+    - ./scripts/gitlab-ci.sh linux_snap
   tags:
     - rust
     - rust-stable
@@ -66,7 +66,7 @@ linux-stable-debian:
     - triggers
   script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh linux-stable-debian
+    - ./scripts/gitlab-ci.sh linux_stable_debian
   tags:
     - rust
     - rust-debian
@@ -85,7 +85,7 @@ linux-beta:
     - triggers
   script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh linux-beta
+    - ./scripts/gitlab-ci.sh linux_beta
   tags:
     - rust
     - rust-beta
@@ -105,7 +105,7 @@ linux-nightly:
     - triggers
   script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh linux-nightly
+    - ./scripts/gitlab-ci.sh linux_nightly
   tags:
     - rust
     - rust-nightly
@@ -125,7 +125,7 @@ linux-centos:
     - triggers
   script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh linux-centos
+    - ./scripts/gitlab-ci.sh linux_centos
   tags:
     - rust
     - rust-centos
@@ -144,7 +144,7 @@ linux-i686:
     - triggers
   script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh linux-i686
+    - ./scripts/gitlab-ci.sh linux_i686
   tags:
     - rust
     - rust-i686
@@ -164,7 +164,7 @@ linux-armv7:
     - triggers
   script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh linux-armv7
+    - ./scripts/gitlab-ci.sh linux_armv7
 
   tags:
     - rust
@@ -185,7 +185,7 @@ linux-arm:
     - triggers
   script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh linux-arm
+    - ./scripts/gitlab-ci.sh linux_arm
   tags:
     - rust
     - rust-arm
@@ -205,7 +205,7 @@ linux-aarch64:
     - triggers
   script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh linux-aarch64
+    - ./scripts/gitlab-ci.sh linux_aarch64
   tags:
     - rust
     - rust-arm
@@ -224,7 +224,7 @@ darwin:
     - triggers
   script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh linux-arm
+    - ./scripts/gitlab-ci.sh darwin
   tags:
     - osx
   artifacts:
@@ -267,7 +267,7 @@ docker-build:
     - docker info
   script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh docker-build
+    - ./scripts/gitlab-ci.sh docker_build
   tags:
     - docker
 
@@ -318,9 +318,9 @@ test-rust-stable:
   image: parity/rust:gitlab-ci
   before_script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh test-rust-stable_before_script
+    - ./scripts/gitlab-ci.sh test_rust_stable_before_script
   script:
-    - ./scripts/gitlab-ci.sh test-rust-stable
+    - ./scripts/gitlab-ci.sh test_rust_stable
   tags:
     - rust
     - rust-stable
@@ -330,9 +330,9 @@ js-test:
   image: parity/rust:gitlab-ci
   before_script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh js-test_before_script
+    - ./scripts/gitlab-ci.sh js_test_before_script
   script:
-    - ./scripts/gitlab-ci.sh js-test
+    - ./scripts/gitlab-ci.sh js_test
   tags:
     - rust
     - rust-stable
@@ -345,9 +345,9 @@ test-rust-beta:
   image: parity/rust:gitlab-ci
   before_script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh test-rust-beta_before_script
+    - ./scripts/gitlab-ci.sh test_rust_beta_before_script
   script:
-    - ./scripts/gitlab-ci.sh test-rust-beta
+    - ./scripts/gitlab-ci.sh test_rust_beta
   tags:
     - rust
     - rust-beta
@@ -361,9 +361,9 @@ test-rust-nightly:
   image: parity/rust:gitlab-ci
   before_script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh test-rust-nightly_before_script
+    - ./scripts/gitlab-ci.sh test_rust_nightly_before_script
   script:
-    - ./scripts/gitlab-ci.sh test-rust-nightly
+    - ./scripts/gitlab-ci.sh test_rust_nightly
   tags:
     - rust
     - rust-nightly
@@ -380,9 +380,9 @@ js-release:
   image: parity/rust:gitlab-ci
   before_script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh js-release_before_script
+    - ./scripts/gitlab-ci.sh js_release_before_script
   script:
-    - ./scripts/gitlab-ci.sh js-release
+    - ./scripts/gitlab-ci.sh js_release
   tags:
     - javascript
 
@@ -394,6 +394,6 @@ push-release:
   image: parity/rust:gitlab-ci
   script:
     - chmod +x ./scripts/gitlab-ci.sh
-    - ./scripts/gitlab-ci.sh push-release
+    - ./scripts/gitlab-ci.sh push_release
   tags:
     - curl

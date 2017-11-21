@@ -1,6 +1,6 @@
 #!/bin/sh
 
-linux-stable(){
+linux_stable(){
      cargo build -j $(nproc) --release --features final $CARGOFLAGS
      cargo build -j $(nproc) --release -p evmbin
      cargo build -j $(nproc) --release -p ethstore-cli
@@ -31,7 +31,7 @@ linux-stable(){
      curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu
 }
 
-linux-snap(){
+linux_snap(){
      export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
      cd snap
      rm -rf *snap
@@ -50,7 +50,7 @@ linux-snap(){
      curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu
 }
 
-linux-stable-debian(){
+linux_stable_debian(){
      cargo build -j $(nproc) --release --features final $CARGOFLAGS
      cargo build -j $(nproc) --release -p evmbin
      cargo build -j $(nproc) --release -p ethstore-cli
@@ -81,19 +81,19 @@ linux-stable-debian(){
      curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/x86_64-unknown-debian-gnu
 }
 
-linux-beta(){
+linux_beta(){
      rustup default beta
      cargo build -j $(nproc) --release $CARGOFLAGS
      strip target/release/parity
 }
 
-linux-nightly(){
+linux_nightly(){
      rustup default nightly
      cargo build -j $(nproc) --release $CARGOFLAGS
      strip target/release/parity
 }
 
-linux-centos(){
+linux_centos(){
      export CXX="g++"
      export CC="gcc"
      export PLATFORM=x86_64-unknown-centos-gnu
@@ -126,7 +126,7 @@ linux-centos(){
      curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$PLATFORM
 }
 
-linux-i686(){
+linux_i686(){
      export HOST_CC=gcc
      export HOST_CXX=g++
      export COMMIT=$(git rev-parse HEAD)
@@ -162,7 +162,7 @@ linux-i686(){
      curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$PLATFORM
 }
 
-linux-armv7(){
+linux_armv7(){
      export CC=arm-linux-gnueabihf-gcc
      export CXX=arm-linux-gnueabihf-g++
      export HOST_CC=gcc
@@ -206,7 +206,7 @@ linux-armv7(){
      curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$PLATFORM
 }
 
-linux-arm(){
+linux_arm(){
      export CC=arm-linux-gnueabihf-gcc
      export CXX=arm-linux-gnueabihf-g++
      export HOST_CC=gcc
@@ -247,7 +247,7 @@ linux-arm(){
      curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$PLATFORM
 }
 
-linux-aarch64(){
+linux_aarch64(){
      export CC=aarch64-linux-gnu-gcc
      export CXX=aarch64-linux-gnu-g++
      export HOST_CC=gcc
@@ -366,7 +366,7 @@ windows(){
      curl --data "commit=%CI_BUILD_REF%&sha3=%SHA3%&filename=parity.exe&secret=%RELEASES_SECRET%" http://update.parity.io:1338/push-build/%CI_BUILD_REF_NAME%/%PLATFORM%
 }
 
-docker-build(){
+docker_build(){
      if [ "$CI_BUILD_REF_NAME" == "beta-release" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
      echo "Tag:" $DOCKER_TAG
      docker login -u $Docker_Hub_User_Parity -p $Docker_Hub_Pass_Parity
@@ -374,19 +374,19 @@ docker-build(){
      docker logout
 }
 
-test-rust-stable_before_script(){
+test_rust_stable_before_script(){
      git submodule update --init --recursive
      export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
 }
 
-test-rust-stable(){
+test_rust_stable(){
      rustup show
      export RUST_BACKTRACE=1
      if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
      if [ "$CI_BUILD_REF_NAME" == "nightly" ]; then sh scripts/aura-test.sh; fi
 }
 
-js-test_before_script(){
+js_test_before_script(){
      git submodule update --init --recursive
      export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
      if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
@@ -394,34 +394,34 @@ js-test_before_script(){
      if [ $JS_OLD_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS (old) deps install since no JS files modified."; else ./js-old/scripts/install-deps.sh;fi
 }
 
-js-test(){
+js_test(){
      if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS lint since no JS files modified."; else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
      if [ $JS_OLD_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS (old) lint since no JS files modified."; else ./js-old/scripts/lint.sh && ./js-old/scripts/test.sh && ./js-old/scripts/build.sh; fi
 }
 
-test-rust-beta_before_script(){
+test_rust_beta_before_script(){
      git submodule update --init --recursive
      export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
 }
 
-test-rust-beta(){
+test_rust_beta(){
      rustup default beta
      export RUST_BACKTRACE=1
      if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
 }
 
-test-rust-nightly_before_script(){
+test_rust_nightly_before_script(){
      git submodule update --init --recursive
      export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
 }
 
-test-rust-nightly(){
+test_rust_nightly(){
      rustup default nightly
      export RUST_BACKTRACE=1
      if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
 }
 
-js-release_before_script(){
+js_release_before_script(){
      export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
      echo $JS_FILES_MODIFIED
      if [ $JS_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
@@ -430,7 +430,7 @@ js-release_before_script(){
      if [ $JS_OLD_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS (old) deps install since no JS files modified."; else ./js-old/scripts/install-deps.sh;fi
 }
 
-js-release(){
+js_release(){
      rustup default stable
      echo $JS_FILES_MODIFIED
      if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS rebuild since no JS files modified."; else ./js/scripts/build.sh && ./js/scripts/push-precompiled.sh; fi
@@ -439,7 +439,7 @@ js-release(){
      if [ $JS_FILES_MODIFIED -eq 0 ] && [ $JS_OLD_FILES_MODIFIED -eq 0 ]; then echo "Skipping Cargo update since no JS files modified."; else ./js/scripts/push-cargo.sh; fi
 }
 
-push-release(){
+push_release(){
      rustup default stable
      curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
      curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
