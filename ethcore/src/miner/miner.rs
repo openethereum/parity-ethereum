@@ -1252,7 +1252,7 @@ mod tests {
 	use block::IsBlock;
 	use bigint::prelude::U256;
 	use ethkey::{Generator, Random};
-	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith, TransactionImportResult, ChainInfo};
+	use client::{TestBlockChainClient, EachBlockWith, TransactionImportResult, ChainInfo};
 	use header::BlockNumber;
 	use transaction::{SignedTransaction, Transaction, PendingTransaction, Action};
 	use spec::Spec;

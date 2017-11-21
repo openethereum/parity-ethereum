@@ -2240,7 +2240,7 @@ mod tests {
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::header::*;
-	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
+	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo};
 	use ethcore::transaction::UnverifiedTransaction;
 	use ethcore::miner::MinerService;
 

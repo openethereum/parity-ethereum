@@ -23,7 +23,7 @@ use hash::{KECCAK_NULL_RLP};
 use account_db::AccountDBMut;
 use basic_account::BasicAccount;
 use blockchain::BlockChain;
-use client::{BlockChainClient, Client, ChainInfo};
+use client::{Client, ChainInfo};
 use engines::EthEngine;
 use snapshot::{StateRebuilder};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};

@@ -23,7 +23,7 @@ use bigint::hash::H256;
 use bigint::prelude::U256;
 use ethcore::account_provider::AccountProvider;
 use ethcore::block::Block;
-use ethcore::client::{BlockChainClient, Client, ClientConfig};
+use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo};
 use ethcore::ethereum;
 use ethcore::ids::BlockId;
 use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, ExternalMiner, Miner, PendingSet, PrioritizationStrategy, GasLimit};
