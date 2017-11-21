@@ -21,7 +21,7 @@ use std::sync::Arc;
 use std::str::FromStr;
 
 use account_provider::AccountProvider;
-use client::{Client, BlockChainClient};
+use client::{Client, BlockChainClient, ChainInfo};
 use ethkey::Secret;
 use futures::Future;
 use native_contracts::test_contracts::ValidatorSet;

@@ -20,7 +20,7 @@ use bigint::prelude::U256;
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use bytes::Bytes;
-use client::{BlockChainClient, Client, ClientConfig};
+use client::{BlockChainClient, Client, ClientConfig, ChainInfo};
 use ethereum::ethash::EthashParams;
 use ethkey::KeyPair;
 use evm::Factory as EvmFactory;

@@ -2164,7 +2164,7 @@ mod tests {
 
 	#[test]
 	fn should_not_cache_details_before_commit() {
-		use client::BlockChainClient;
+		use client::{BlockChainClient, ChainInfo};
 		use tests::helpers::*;
 
 		use std::thread;

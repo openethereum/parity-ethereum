@@ -782,7 +782,7 @@ mod tests {
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
-	use client::ChainNotify;
+	use client::{ChainNotify, ChainInfo};
 	use miner::MinerService;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;

@@ -476,7 +476,7 @@ mod tests {
 	use spec::Spec;
 	use account_provider::AccountProvider;
 	use transaction::{Transaction, Action};
-	use client::BlockChainClient;
+	use client::{BlockChainClient, ChainInfo};
 	use ethkey::Secret;
 	use miner::MinerService;
 	use tests::helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
