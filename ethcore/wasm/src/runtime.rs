@@ -168,7 +168,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		self.ext.set_storage(key, val).map_err(|_| UserTrap::StorageUpdateError)?;
 
-		Ok(Some(0i32.into()))
+		Ok(None)
 	}
 
 	/// Read from the storage to wasm memory
@@ -184,7 +184,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		self.memory.set(val_ptr as u32, &*val)?;
 
-		Ok(Some(0.into()))
+		Ok(None)
 	}
 
 	/// Fetches balance for address
