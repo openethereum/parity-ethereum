@@ -15,29 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Api from '@parity/api';
+import qs from 'query-string';
 import Web3 from 'web3';
 
 import web3extensions from './web3.extensions';
 
 function initProvider () {
   const path = window.location.pathname.split('/');
-  const qs = ((query) => {
-    if (!query) {
-      return {};
-    }
+  const query = qs.parse(window.location.search);
 
-    return query.split('&').reduce((result, combined) => {
-      const [name, value] = combined.split('=', 2);
-
-      result[name] = !name
-        ? ''
-        : decodeURIComponent(value.replace(/\+/g, ' '));
-
-      return result;
-    }, {});
-  })(window.location.search.substr(1));
-
-  let appId = path[1] || qs.appId;
+  let appId = path[1] || query.appId;
 
   console.log('appId', appId, path, qs);
 
