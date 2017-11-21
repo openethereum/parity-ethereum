@@ -27,9 +27,8 @@
   ],
   "scripts": {
     "install": "napa",
-    "build": "npm run build:lib && npm run build:dll && npm run build:app",
+    "build": "npm run build:dll && npm run build:app",
     "build:app": "webpack --config webpack/app",
-    "build:lib": "webpack --config webpack/libraries",
     "build:dll": "webpack --config webpack/vendor",
     "ci:build": "cross-env NODE_ENV=production npm run build",
     "clean": "rimraf ./.build ./.coverage ./.happypack ./.npmjs ./build ./node_modules/.cache",
@@ -135,6 +134,7 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
+    "@parity/abi": "2.1.x",
     "@parity/api": "2.1.x",
     "@parity/wordlist": "1.1.x",
     "base32.js": "0.1.0",

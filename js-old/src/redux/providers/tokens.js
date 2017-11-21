@@ -16,7 +16,7 @@
 
 import { updateTokensFilter } from './balancesActions';
 import { loadTokens, fetchTokens } from './tokensActions';
-import { padRight } from '~/api/util/format';
+import { padRight } from '@parity/api/lib/util/format';
 
 import { LOG_KEYS, getLogger } from '~/config';
 import Contracts from '~/contracts';
