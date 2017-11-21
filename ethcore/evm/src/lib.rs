@@ -22,7 +22,7 @@ extern crate ethcore_bigint as bigint;
 extern crate parking_lot;
 extern crate heapsize;
 extern crate vm;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate memory_cache;
 
 #[macro_use]

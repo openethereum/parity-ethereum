@@ -101,7 +101,7 @@ extern crate tiny_keccak;
 extern crate rlp;
 extern crate heapsize;
 extern crate ethcore_logger;
-extern crate hash as keccak;
+extern crate keccak_hash as keccak;
 extern crate hashdb;
 extern crate memorydb;
 extern crate patricia_trie as trie;

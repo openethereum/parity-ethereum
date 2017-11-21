@@ -19,19 +19,17 @@ import store from 'store';
 
 import { sha3 } from '@parity/api/lib/util/sha3';
 
-import filteredRequests from './filteredRequests';
+import { methodGroupFromMethod } from './methodGroups';
 
 const LS_PERMISSIONS = '_parity::dapps::methods';
 
-let nextQueueId = 0;
-
 export default class Store {
-  @observable permissions = {};
-  @observable requests = [];
-  @observable tokens = {};
+  @observable requests = {}; // Maps requestId to request
 
   middleware = [];
-  sources = {};
+  permissions = {}; // Maps `${method}:${appId}` to true/false
+  sources = {}; // Maps requestId to a postMessage source
+  tokens = {}; // Maps token to appId
 
   constructor (provider) {
     this.provider = provider;
@@ -41,131 +39,112 @@ export default class Store {
   }
 
   @computed get hasRequests () {
-    return this.requests.length !== 0;
+    return Object.keys(this.requests).length !== 0;
   }
 
-  @computed get squashedRequests () {
-    const duplicates = {};
+  @computed get groupedRequests () {
+    // Group by appId on top level, and by methodGroup on 2nd level
+    return Object.keys(this.requests).reduce((accumulator, requestId) => {
+      const { data } = this.requests[requestId];
+      const appId = this.tokens[data.token];
+      const method = this.getMethodFromRequest(requestId);
+      const methodGroup = methodGroupFromMethod[method]; // Get the methodGroup the current request belongs to
 
-    return this.requests.filter(({ request: { data: { method, token } } }) => {
-      const section = this.getFilteredSectionName(method);
-      const id = `${token}:${section}`;
+      accumulator[appId] = accumulator[appId] || {};
+      accumulator[appId][methodGroup] = accumulator[appId][methodGroup] || [];
+      accumulator[appId][methodGroup].push({ data, requestId }); // Append the requestId field in the request object
 
-      if (!duplicates[id]) {
-        duplicates[id] = true;
-        return true;
-      }
-
-      return false;
-    });
+      return accumulator;
+    }, {});
   }
 
-  @action createToken = (appId) => {
-    const token = sha3(`${appId}:${Date.now()}`);
+  @action queueRequest = (requestId, { data, source }) => {
+    this.sources[requestId] = source;
+    // Create a new this.requests object to update mobx store
+    this.requests = {
+      ...this.requests,
+      [requestId]: { data }
+    };
+  };
 
-    this.tokens = Object.assign({}, this.tokens, {
-      [token]: appId
-    });
-
-    return token;
-  }
-
-  @action removeRequest = (_queueId) => {
-    this.requests = this.requests.filter(({ queueId }) => queueId !== _queueId);
-    delete this.sources[_queueId];
-  }
-
-  @action queueRequest = (request) => {
-    const { data, origin, source } = request;
+  @action approveRequest = requestId => {
+    const { data } = this.requests[requestId];
+    const method = this.getMethodFromRequest(requestId);
     const appId = this.tokens[data.token];
+    const source = this.sources[requestId];
 
-    let queueId = ++nextQueueId;
-
-    this.sources[queueId] = source;
-    this.requests = this.requests.concat([{
-      appId,
-      queueId,
-      request: {
-        data,
-        origin
-      }
-    }]);
-  }
-
-  @action addTokenPermission = (method, token) => {
-    const id = `${method}:${this.tokens[token]}`;
-
-    this.permissions = Object.assign({}, this.permissions, {
-      [id]: true
-    });
-    this.savePermissions();
-  }
-
-  @action approveSingleRequest = ({ queueId, request: { data } }) => {
-    const source = this.sources[queueId];
-
-    this.removeRequest(queueId);
+    this.addAppPermission(method, appId);
+    this.removeRequest(requestId);
 
     if (data.api) {
       this.executePubsubCall(data, source);
     } else {
       this.executeMethodCall(data, source);
     }
-  }
+  };
 
-  @action approveRequest = (queueId, approveAll) => {
-    const queued = this.findRequest(queueId);
+  @action rejectRequest = requestId => {
+    const { data } = this.requests[requestId];
+    const source = this.sources[requestId];
 
-    if (approveAll) {
-      const { request: { data: { method, token, params } } } = queued;
-
-      this.getFilteredSection(method || params[0]).methods.forEach((m) => {
-        this.addTokenPermission(m, token);
-        this.findMatchingRequests(m, token).forEach(this.approveSingleRequest);
-      });
-    } else {
-      this.approveSingleRequest(queued);
-    }
-  }
-
-  @action rejectRequest = (queueId) => {
-    const { request: { data } } = this.findRequest(queueId);
-    const source = this.sources[queueId];
-
-    this.removeRequest(queueId);
+    this.removeRequest(requestId);
     this.rejectMessage(source, data);
+  };
+
+  @action removeRequest = requestId => {
+    delete this.requests[requestId];
+    delete this.sources[requestId];
+
+    // Create a new object to update mobx store
+    this.requests = { ...this.requests };
+  };
+
+  getPermissionId = (method, appId) => `${method}:${appId}` // Create an id to identify permissions based on method and appId
+
+  getMethodFromRequest = requestId => {
+    const { data: { method, params } } = this.requests[requestId];
+
+    return method || params[0];
   }
 
-  @action rejectMessage = (source, { id, from, method, token }) => {
+  rejectMessage = (source, { id, from, method, token }) => {
     if (!source) {
       return;
     }
 
-    source.postMessage({
-      error: `Method ${method} not allowed`,
-      id,
-      from: 'shell',
-      result: null,
-      to: from,
-      token
-    }, '*');
-  }
+    source.postMessage(
+      {
+        error: `Method ${method} not allowed`,
+        id,
+        from: 'shell',
+        result: null,
+        to: from,
+        token
+      },
+      '*'
+    );
+  };
 
-  @action setPermissions = (_permissions) => {
+  addAppPermission = (method, appId) => {
+    this.permissions[this.getPermissionId(method, appId)] = true;
+    this.savePermissions();
+  };
+
+  setPermissions = _permissions => {
     const permissions = {};
 
-    Object.keys(_permissions).forEach((id) => {
+    Object.keys(_permissions).forEach(id => {
       permissions[id] = !!_permissions[id];
     });
 
-    this.permissions = Object.assign({}, this.permissions, permissions);
+    this.permissions = permissions;
     this.savePermissions();
 
     return true;
-  }
+  };
 
   addMiddleware (middleware) {
-    if (!middleware || (typeof middleware !== 'function')) {
+    if (!middleware || typeof middleware !== 'function') {
       throw new Error('Interceptor middleware does not implement a function');
     }
 
@@ -174,114 +153,131 @@ export default class Store {
     return true;
   }
 
+  createToken = appId => {
+    const token = sha3(`${appId}:${Date.now()}`);
+
+    this.tokens[token] = appId;
+    return token;
+  };
+
   hasValidToken = (method, appId, token) => {
     if (!token) {
       return method === 'shell_requestNewToken';
     }
 
     return this.tokens[token] === appId;
-  }
+  };
 
   hasTokenPermission = (method, token) => {
     return this.hasAppPermission(method, this.tokens[token]);
-  }
+  };
 
   hasAppPermission = (method, appId) => {
-    return this.permissions[`${method}:${appId}`] || false;
-  }
+    return !!this.permissions[this.getPermissionId(method, appId)];
+  };
 
   savePermissions = () => {
     store.set(LS_PERMISSIONS, this.permissions);
-  }
-
-  findRequest (_queueId) {
-    return this.requests.find(({ queueId }) => queueId === _queueId);
-  }
-
-  findMatchingRequests (_method, _token) {
-    return this.requests.filter(({ request: { data: { method, token, params } } }) => (method === _method || (params && params[0] === _method)) && token === _token);
-  }
+  };
 
   _methodCallbackPost = (id, from, source, token) => {
     return (error, result) => {
       if (!source) {
         return;
       }
-
-      source.postMessage({
-        error: error
-          ? error.message
-          : null,
-        id,
-        from: 'shell',
-        to: from,
-        result,
-        token
-      }, '*');
+      source.postMessage(
+        {
+          error: error ? error.message : null,
+          id,
+          from: 'shell',
+          to: from,
+          result,
+          token
+        },
+        '*'
+      );
     };
-  }
+  };
 
   executePubsubCall = ({ api, id, from, token, params }, source) => {
     const callback = this._methodCallbackPost(id, from, source, token);
 
-    this.provider
-      .subscribe(api, callback, params)
-      .then((result, error) => {
-        this._methodCallbackPost(id, from, source, token)(null, result);
-      });
-  }
+    this.provider.subscribe(api, callback, params).then((result, error) => {
+      this._methodCallbackPost(id, from, source, token)(null, result);
+    });
+  };
 
   executeMethodCall = ({ id, from, method, params, token }, source) => {
-    const callback = this._methodCallbackPost(id, from, source, token);
-    const isHandled = this.middleware.find((middleware) => middleware(from, method, params, callback));
+    try {
+      const callback = this._methodCallbackPost(id, from, source, token);
+      const isHandled = this.middleware.some(middleware => {
+        try {
+          return middleware(from, method, params, callback);
+        } catch (error) {
+          console.error(`Middleware error handling '${method}'`, error);
+        }
 
-    if (!isHandled) {
-      this.provider.send(method, params, callback);
+        return false;
+      });
+
+      if (!isHandled) {
+        this.provider.send(method, params, callback);
+      }
+    } catch (error) {
+      console.error(`Execution error handling '${method}'`, error);
     }
-  }
+  };
 
-  getFilteredSectionName = (method) => {
-    return Object.keys(filteredRequests).find((key) => {
-      return filteredRequests[key].methods.includes(method);
-    });
-  }
+  receiveMessage = ({ data, source }) => {
+    try {
+      if (!data) {
+        return;
+      }
 
-  getFilteredSection = (method) => {
-    return filteredRequests[this.getFilteredSectionName(method)];
-  }
+      const { from, method, to, token, params, api, subId, id } = data;
 
-  receiveMessage = ({ data, origin, source }) => {
-    if (!data) {
-      return;
+      if (to !== 'shell' || !from || from === 'shell') {
+        return;
+      }
+
+      if (!this.hasValidToken(method, from, token)) {
+        this.rejectMessage(source, data);
+        return;
+      }
+
+      if (
+        (method &&
+          methodGroupFromMethod[method] &&
+          !this.hasTokenPermission(method, token)) ||
+        (api &&
+          methodGroupFromMethod[params[0]] &&
+          !this.hasTokenPermission(method, token))
+      ) {
+        this.queueRequest(id, { // The requestId of a request is the id inside data
+          data,
+          source
+        });
+        return;
+      }
+
+      if (api) {
+        this.executePubsubCall(data, source);
+      } else if (subId) {
+        const unsubscribePromise = subId === '*'
+          ? this.provider.unsubscribeAll()
+          : this.provider.unsubscribe(subId);
+
+        unsubscribePromise
+          .then(v =>
+            this._methodCallbackPost(id, from, source, token)(null, v)
+          );
+      } else {
+        this.executeMethodCall(data, source);
+      }
+    } catch (error) {
+      console.error('Exception handling data', data, error);
     }
-
-    const { from, method, to, token, params, api, subId, id } = data;
-
-    if (to !== 'shell' || !from || from === 'shell') {
-      return;
-    }
-
-    if (!this.hasValidToken(method, from, token)) {
-      this.rejectMessage(source, data);
-      return;
-    }
-
-    if ((method && this.getFilteredSection(method) && !this.hasTokenPermission(method, token)) ||
-        (api && this.getFilteredSection(params[0]) && !this.hasTokenPermission(method, token))) {
-      this.queueRequest({ data, origin, source });
-      return;
-    }
-
-    if (api) {
-      this.executePubsubCall(data, source);
-    } else if (subId) {
-      subId === '*'
-        ? this.provider.unsubscribeAll().then(v => this._methodCallbackPost(id, from, source, token)(null, v))
-        : this.provider.unsubscribe(subId).then(v => this._methodCallbackPost(id, from, source, token)(null, v));
-    } else {
-      this.executeMethodCall(data, source);
-    }
-  }
+  };
 
   static instance = null;
 
