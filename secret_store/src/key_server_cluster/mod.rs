@@ -28,6 +28,8 @@ pub use super::key_server_set::KeyServerSet;
 pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic, SerializableMessageHash};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
 pub use self::cluster_sessions::{ClusterSession, ClusterSessionsListener};
+#[cfg(test)]
+pub use self::cluster::tests::DummyClusterClient;
 
 #[cfg(test)]
 pub use super::node_key_pair::PlainNodeKeyPair;

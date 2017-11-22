@@ -204,6 +204,7 @@ pub mod tests {
 	use std::collections::BTreeSet;
 	use std::time;
 	use std::sync::Arc;
+	use std::sync::atomic::{AtomicUsize, Ordering};
 	use std::net::SocketAddr;
 	use std::collections::BTreeMap;
 	use ethcrypto;
@@ -219,7 +220,10 @@ pub mod tests {
 	use traits::{AdminSessionsServer, ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
 	use super::KeyServerImpl;
 
-	pub struct DummyKeyServer;
+	#[derive(Default)]
+	pub struct DummyKeyServer {
+		pub generation_requests_count: AtomicUsize,
+	}
 
 	impl KeyServer for DummyKeyServer {}
 
@@ -231,7 +235,8 @@ pub mod tests {
 
 	impl ServerKeyGenerator for DummyKeyServer {
 		fn generate_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _threshold: usize) -> Result<Public, Error> {
-			unimplemented!()
+			self.generation_requests_count.fetch_add(1, Ordering::Relaxed);
+			Err(Error::Internal("test error".into()))
 		}
 	}
 

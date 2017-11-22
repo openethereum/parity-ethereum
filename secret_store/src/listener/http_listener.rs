@@ -334,7 +334,7 @@ mod tests {
 
 	#[test]
 	fn http_listener_successfully_drops() {
-		let key_server = Arc::new(DummyKeyServer);
+		let key_server = Arc::new(DummyKeyServer::default());
 		let address = NodeAddress { address: "127.0.0.1".into(), port: 9000 };
 		let listener = KeyServerHttpListener::start(address, key_server).unwrap();
 		drop(listener);

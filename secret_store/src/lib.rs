@@ -85,15 +85,16 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<No
 		Some(listener_address) => Some(listener::http_listener::KeyServerHttpListener::start(listener_address, key_server.clone())?),
 		None => None,
 	};
+	let service_contract = Arc::new(listener::service_contract::OnChainServiceContract::new(&client, &sync, self_key_pair.clone()));
 	let contract_listener = listener::service_contract_listener::ServiceContractListener::new(listener::service_contract_listener::ServiceContractListenerParams {
-		client: Arc::downgrade(&client),
-		sync: Arc::downgrade(&sync),
+		contract: service_contract,
 		key_server: key_server.clone(),
 		self_key_pair: self_key_pair,
-		key_servers_set: key_server_set,
+		key_server_set: key_server_set,
 		cluster: cluster,
 		key_storage: key_storage,
 	});
+	client.add_notify(contract_listener.clone());
 	let listener = listener::Listener::new(key_server, http_listener, Some(contract_listener));
 	Ok(Box::new(listener))
 }
