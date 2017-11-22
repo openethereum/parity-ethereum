@@ -30,7 +30,7 @@ pub use self::error::Error;
 pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactResult};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::chain_notify::ChainNotify;
-pub use self::traits::{Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, BlockChainClient, MiningBlockChainClient, EngineClient};
+pub use self::traits::{Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, EngineClient};
 
 pub use self::traits::ProvingBlockChainClient;
 

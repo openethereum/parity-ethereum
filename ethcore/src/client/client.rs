@@ -43,7 +43,7 @@ use client::Error as ClientError;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, Nonce, Balance, ChainInfo, BlockInfo,
 	BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, ReopenBlock
+	ChainNotify, PruningInfo, ProvingBlockChainClient, ReopenBlock, PrepareOpenBlock
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
@@ -1954,11 +1954,7 @@ impl ReopenBlock for Client {
 	}
 }
 
-impl MiningBlockChainClient for Client {
-	fn latest_schedule(&self) -> Schedule {
-		self.engine.schedule(self.latest_env_info().number)
-	}
-
+impl PrepareOpenBlock for Client {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.engine;
 		let chain = self.chain.read();
@@ -1995,6 +1991,12 @@ impl MiningBlockChainClient for Client {
 			});
 
 		open_block
+	}
+}
+
+impl MiningBlockChainClient for Client {
+	fn latest_schedule(&self) -> Schedule {
+		self.engine.schedule(self.latest_env_info().number)
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {

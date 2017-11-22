@@ -36,9 +36,9 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, 
-	BlockStatus, BlockId, TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
-	ProvingBlockChainClient,
+	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, BlockChainClient, MiningBlockChainClient,
+	BlockChainInfo, BlockStatus, BlockId, TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
+	BlockImportError, ProvingBlockChainClient,
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -370,11 +370,7 @@ impl ReopenBlock for TestBlockChainClient {
 	}
 }
 
-impl MiningBlockChainClient for TestBlockChainClient {
-	fn latest_schedule(&self) -> Schedule {
-		Schedule::new_post_eip150(24576, true, true, true)
-	}
-
+impl PrepareOpenBlock for TestBlockChainClient {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
@@ -397,6 +393,12 @@ impl MiningBlockChainClient for TestBlockChainClient {
 		// TODO [todr] Override timestamp for predictability (set_timestamp_now kind of sucks)
 		open_block.set_timestamp(*self.latest_block_timestamp.read());
 		open_block
+	}
+}
+
+impl MiningBlockChainClient for TestBlockChainClient {
+	fn latest_schedule(&self) -> Schedule {
+		Schedule::new_post_eip150(24576, true, true, true)
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {

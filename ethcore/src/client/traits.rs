@@ -309,15 +309,18 @@ pub trait ReopenBlock {
 	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
 }
 
-/// Extended client interface used for mining
-pub trait MiningBlockChainClient: BlockChainClient + ReopenBlock {
+/// Provides `prepare_open_block` method
+pub trait PrepareOpenBlock {
 	/// Returns OpenBlock prepared for closing.
 	fn prepare_open_block(&self,
 		author: Address,
 		gas_range_target: (U256, U256),
 		extra_data: Bytes
 	) -> OpenBlock;
+}
 
+/// Extended client interface used for mining
+pub trait MiningBlockChainClient: BlockChainClient + ReopenBlock + PrepareOpenBlock {
 	/// Reopens an OpenBlock and updates uncles.
 	// fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
 
