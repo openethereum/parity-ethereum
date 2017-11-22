@@ -741,11 +741,6 @@ impl ClusterData {
 		self.connections.get(node)
 	}
 
-	/// Get sessions reference.
-	pub fn sessions(&self) -> &ClusterSessions {
-		&self.sessions
-	}
-
 	/// Spawns a future using thread pool and schedules execution of it with event loop handle.
 	pub fn spawn<F>(&self, f: F) where F: Future + Send + 'static, F::Item: Send + 'static, F::Error: Send + 'static {
 		let pool_work = self.pool.spawn(f);

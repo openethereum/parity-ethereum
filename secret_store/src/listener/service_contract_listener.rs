@@ -351,8 +351,8 @@ impl ServiceContractListener {
 	}
 
 	/// Restore server key.
-	fn restore_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId) -> Result<Public, String> {
-		unimplemented!()
+	fn restore_server_key(_data: &Arc<ServiceContractListenerData>, _server_key_id: &ServerKeyId) -> Result<Public, String> {
+		unimplemented!() // TODO
 	}
 
 	/// Publish server key.
@@ -433,7 +433,9 @@ impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 		if !is_processed_by_this_key_server(&*self.data.params.key_servers_set, &*self.data.params.self_key_pair, &session.id()) {
 			// by this time sesion must already be completed - either successfully, or not
 			debug_assert!(session.is_finished());
-			session.wait(Some(Default::default()))
+
+			// ignore result - the only thing that we can do is to log the error
+			let _ = session.wait(Some(Default::default()))
 				.map_err(|e| format!("{}", e))
 				.and_then(|server_key| Self::publish_server_key(&self.data, &session.id(), &server_key))
 				.map(|_| {

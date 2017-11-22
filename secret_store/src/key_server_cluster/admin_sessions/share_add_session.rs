@@ -179,17 +179,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		})
 	}
 
-	/// Wait for session completion.
-	pub fn wait(&self) -> Result<(), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.clone()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
-	}
-
 	/// Set pre-established consensus data.
 	pub fn set_consensus_output(&self, version: &H256, consensus_group: BTreeSet<NodeId>, mut new_nodes_map: BTreeMap<NodeId, Option<Secret>>) -> Result<(), Error> {
 		let mut data = self.data.lock();

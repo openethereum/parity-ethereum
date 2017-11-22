@@ -20,18 +20,18 @@ use std::sync::atomic::AtomicBool;
 use std::collections::{VecDeque, BTreeMap};
 use parking_lot::{Mutex, RwLock};
 use bigint::hash::H256;
-use ethkey::{Public, Secret, Signature};
-use key_server_cluster::{Error, NodeId, SessionId, EncryptedDocumentKeyShadow};
+use ethkey::{Secret, Signature};
+use key_server_cluster::{Error, NodeId, SessionId};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterConfiguration, ClusterView};
 use key_server_cluster::message::{self, Message};
-use key_server_cluster::generation_session::{SessionImpl as GenerationSessionImpl, SessionState as GenerationSessionState};
+use key_server_cluster::generation_session::{SessionImpl as GenerationSessionImpl};
 use key_server_cluster::decryption_session::{SessionImpl as DecryptionSessionImpl};
-use key_server_cluster::encryption_session::{SessionImpl as EncryptionSessionImpl, SessionState as EncryptionSessionState};
+use key_server_cluster::encryption_session::{SessionImpl as EncryptionSessionImpl};
 use key_server_cluster::signing_session::{SessionImpl as SigningSessionImpl};
 use key_server_cluster::share_add_session::{SessionImpl as ShareAddSessionImpl, IsolatedSessionTransport as ShareAddTransport};
 use key_server_cluster::servers_set_change_session::{SessionImpl as ServersSetChangeSessionImpl};
 use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVersionNegotiationSessionImpl,
-	IsolatedSessionTransport as VersionNegotiationTransport, ContinueAction};
+	IsolatedSessionTransport as VersionNegotiationTransport};
 
 use key_server_cluster::cluster_sessions_creator::{GenerationSessionCreator, EncryptionSessionCreator, DecryptionSessionCreator, SigningSessionCreator,
 	KeyVersionNegotiationSessionCreator, AdminSessionCreator, SessionCreatorCore, ClusterSessionCreator};

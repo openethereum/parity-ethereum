@@ -130,11 +130,6 @@ impl SessionImpl {
 		&self.self_node_id
 	}
 
-	/// Get session state.
-	pub fn state(&self) -> SessionState {
-		self.data.lock().state.clone()
-	}
-
 	/// Wait for session completion.
 	pub fn wait(&self, timeout: Option<time::Duration>) -> Result<(), Error> {
 		let mut data = self.data.lock();
