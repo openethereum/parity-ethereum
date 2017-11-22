@@ -22,6 +22,7 @@ import { FormattedMessage } from 'react-intl';
 import BlockNumber from '@parity/ui/lib/BlockNumber';
 import ClientVersion from '@parity/ui/lib/ClientVersion';
 import GradientBg from '@parity/ui/lib/GradientBg';
+import { HomeIcon } from '@parity/ui/lib/Icons';
 import IdentityIcon from '@parity/ui/lib/IdentityIcon';
 import NetChain from '@parity/ui/lib/NetChain';
 import NetPeers from '@parity/ui/lib/NetPeers';
@@ -47,6 +48,9 @@ function Status ({ className = '', upgradeStore }, { api }) {
     <div className={ `${styles.container} ${className}` }>
       <GradientBg className={ styles.fixed }>
         <div className={ styles.status }>
+          <a href='#/' className={ styles.home }>
+            <HomeIcon />
+          </a>
           <ClientVersion className={ styles.version } />
           <div className={ styles.upgrade }>
             <Consensus upgradeStore={ upgradeStore } />
