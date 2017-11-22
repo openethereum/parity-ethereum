@@ -773,6 +773,8 @@ pub struct KeyShareCommon {
 	pub threshold: usize,
 	/// Author of key share entry.
 	pub author: SerializablePublic,
+	/// Joint public.
+	pub joint_public: SerializablePublic,
 	/// Common (shared) encryption point.
 	pub common_point: Option<SerializablePublic>,
 	/// Encrypted point.

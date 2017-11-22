@@ -517,10 +517,17 @@ impl SessionImpl {
 				return Err(Error::InvalidMessage);
 			}
 
+			// calculate joint public key
+			let joint_public = {
+				let public_shares = data.nodes.values().map(|n| n.public_share.as_ref().expect("keys received on KD phase; KG phase follows KD phase; qed"));
+				math::compute_joint_public(public_shares)?
+			};
+
 			// save encrypted data to key storage
 			let encrypted_data = DocumentKeyShare {
 				author: data.author.as_ref().expect("author is filled in initialization phase; KG phase follows initialization phase; qed").clone(),
 				threshold: data.threshold.expect("threshold is filled in initialization phase; KG phase follows initialization phase; qed"),
+				public: joint_public,
 				common_point: None,
 				encrypted_point: None,
 				versions: vec![DocumentKeyShareVersion::new(
@@ -677,7 +684,7 @@ impl SessionImpl {
 	fn complete_generation(&self) -> Result<(), Error> {
 		let mut data = self.data.lock();
 		
-		// else - calculate joint public key
+		// calculate joint public key
 		let joint_public = {
 			let public_shares = data.nodes.values().map(|n| n.public_share.as_ref().expect("keys received on KD phase; KG phase follows KD phase; qed"));
 			math::compute_joint_public(public_shares)?
@@ -687,6 +694,7 @@ impl SessionImpl {
 		let encrypted_data = DocumentKeyShare {
 			author: data.author.as_ref().expect("author is filled in initialization phase; KG phase follows initialization phase; qed").clone(),
 			threshold: data.threshold.expect("threshold is filled in initialization phase; KG phase follows initialization phase; qed"),
+			public: joint_public.clone(),
 			common_point: None,
 			encrypted_point: None,
 			versions: vec![DocumentKeyShareVersion::new(

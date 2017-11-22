@@ -700,6 +700,7 @@ mod tests {
 		nodes.values().nth(0).unwrap().insert(Default::default(), DocumentKeyShare {
 			author: Default::default(),
 			threshold: 1,
+			public: Default::default(),
 			common_point: None,
 			encrypted_point: None,
 			versions: vec![DocumentKeyShareVersion {

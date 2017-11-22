@@ -685,6 +685,7 @@ mod tests {
 		let encrypted_datas: Vec<_> = (0..5).map(|i| DocumentKeyShare {
 			author: Public::default(),
 			threshold: 3,
+			public: Default::default(),
 			common_point: Some(common_point.clone()),
 			encrypted_point: Some(encrypted_point.clone()),
 			versions: vec![DocumentKeyShareVersion {
@@ -756,6 +757,7 @@ mod tests {
 			key_share: Some(DocumentKeyShare {
 				author: Public::default(),
 				threshold: 0,
+				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 				versions: vec![DocumentKeyShareVersion {
@@ -809,6 +811,7 @@ mod tests {
 			key_share: Some(DocumentKeyShare {
 				author: Public::default(),
 				threshold: 2,
+				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 				versions: vec![DocumentKeyShareVersion {

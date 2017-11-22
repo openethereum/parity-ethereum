@@ -90,6 +90,8 @@ struct SessionData<T: SessionTransport> {
 	pub key_share_threshold: Option<usize>,
 	/// NewKeyShare: author.
 	pub key_share_author: Option<Public>,
+	/// NewKeyShare: joint public.
+	pub key_share_joint_public: Option<Public>,
 	/// NewKeyShare: Common (shared) encryption point.
 	pub key_share_common_point: Option<Public>,
 	/// NewKeyShare: Encrypted point.
@@ -167,6 +169,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				consensus_session: None,
 				key_share_threshold: None,
 				key_share_author: None,
+				key_share_joint_public: None,
 				key_share_common_point: None,
 				key_share_encrypted_point: None,
 				id_numbers: None,
@@ -435,7 +438,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		// we only expect this message once
-		if data.key_share_threshold.is_some() || data.key_share_author.is_some() || data.key_share_common_point.is_some() || data.key_share_encrypted_point.is_some() {
+		if data.key_share_threshold.is_some() || data.key_share_author.is_some() ||
+			data.key_share_common_point.is_some() || data.key_share_encrypted_point.is_some() ||
+			data.key_share_joint_public.is_some() {
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -452,6 +457,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		data.state = SessionState::WaitingForKeysDissemination;
 		data.key_share_threshold = Some(message.threshold);
 		data.key_share_author = Some(message.author.clone().into());
+		data.key_share_joint_public = Some(message.joint_public.clone().into());
 		data.key_share_common_point = message.common_point.clone().map(Into::into);
 		data.key_share_encrypted_point = message.encrypted_point.clone().map(Into::into);
 
@@ -624,6 +630,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				session_nonce: core.nonce,
 				threshold: old_key_share.threshold,
 				author: old_key_share.author.clone().into(),
+				joint_public: old_key_share.public.clone().into(),
 				common_point: old_key_share.common_point.clone().map(Into::into),
 				encrypted_point: old_key_share.encrypted_point.clone().map(Into::into),
 				id_numbers: old_key_version.id_numbers.iter().map(|(k, v)| (k.clone().into(), v.clone().into())).collect(),
@@ -702,6 +709,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			author: data.key_share_author.clone()
 				.expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed"),
 			threshold: data.key_share_threshold.clone()
+				.expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed"),
+			public: data.key_share_joint_public.clone()
 				.expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed"),
 			common_point: data.key_share_common_point.clone(),
 			encrypted_point: data.key_share_encrypted_point.clone(),

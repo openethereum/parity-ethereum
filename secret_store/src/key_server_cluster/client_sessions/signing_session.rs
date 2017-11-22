@@ -978,6 +978,7 @@ mod tests {
 			key_share: Some(DocumentKeyShare {
 				author: Public::default(),
 				threshold: 0,
+				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 				versions: vec![DocumentKeyShareVersion {
@@ -1031,6 +1032,7 @@ mod tests {
 			key_share: Some(DocumentKeyShare {
 				author: Public::default(),
 				threshold: 2,
+				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 				versions: vec![DocumentKeyShareVersion {
