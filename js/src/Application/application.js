@@ -35,7 +35,7 @@ import Snackbar from '../Snackbar';
 import Status from '../Status';
 import UpgradeParity from '../UpgradeParity';
 
-import parityLogo from '../../assets/parity-logo-black.png';
+import { appLogoDark as parityLogo } from '../config';
 import Store from './store';
 import styles from './application.css';
 
