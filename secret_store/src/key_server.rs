@@ -31,6 +31,10 @@ use traits::{AdminSessionsServer, ServerKeyGenerator, DocumentKeyServer, Message
 use types::all::{Error, Public, RequestSignature, ServerKeyId, EncryptedDocumentKey, EncryptedDocumentKeyShadow,
 	ClusterConfiguration, MessageHash, EncryptedMessageSignature, NodeId};
 use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration};
+use key_server_cluster::generation_session::Session as GenerationSession;
+use key_server_cluster::encryption_session::Session as EncryptionSession;
+use key_server_cluster::decryption_session::Session as DecryptionSession;
+use key_server_cluster::signing_session::Session as SigningSession;
 
 /// Secret store key server implementation
 pub struct KeyServerImpl {
@@ -53,7 +57,6 @@ impl KeyServerImpl {
 	}
 
 	/// Get cluster client reference.
-	#[cfg(test)]
 	pub fn cluster(&self) -> Arc<ClusterClient> {
 		self.data.lock().cluster.clone()
 	}

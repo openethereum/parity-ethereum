@@ -120,12 +120,22 @@ pub struct ClusterSessions {
 	creator_core: Arc<SessionCreatorCore>,
 }
 
+/// Active sessions container listener.
+pub trait ClusterSessionsListener<S: ClusterSession>: Send + Sync {
+	/// When new session is inserted to the container.
+	fn on_session_inserted(&self, session: Arc<S>);
+	/// When session is removed from the container.
+	fn on_session_removed(&self, session: Arc<S>);
+}
+
 /// Active sessions container.
 pub struct ClusterSessionsContainer<S: ClusterSession, SC: ClusterSessionCreator<S, D>, D> {
 	/// Sessions creator.
 	pub creator: SC,
 	/// Active sessions.
 	sessions: RwLock<BTreeMap<S::Id, QueuedSession<S>>>,
+	/// Listeners. Lock order: sessions -> listeners.
+	listeners: Mutex<Vec<Weak<ClusterSessionsListener<S>>>>,
 	/// Sessions container state.
 	container_state: Arc<Mutex<ClusterSessionsContainerState>>,
 	/// Phantom data.
@@ -294,9 +304,14 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 		ClusterSessionsContainer {
 			creator: creator,
 			sessions: RwLock::new(BTreeMap::new()),
+			listeners: Mutex::new(Vec::new()),
 			container_state: container_state,
 			_pd: Default::default(),
 		}
+	}
+
+	pub fn add_listener(&self, listener: Arc<ClusterSessionsListener<S>>) {
+		self.listeners.lock().push(Arc::downgrade(&listener));
 	}
 
 	pub fn is_empty(&self) -> bool {
@@ -342,12 +357,51 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 			queue: VecDeque::new(),
 		};
 		sessions.insert(session_id, queued_session);
+
+		// notify listeners
+		let mut listeners = self.listeners.lock();
+		let mut listener_index = 0;
+		loop {
+			if listener_index >= listeners.len() {
+				break;
+			}
+
+			match listeners[listener_index].upgrade() {
+				Some(listener) => {
+					listener.on_session_inserted(session.clone());
+					listener_index += 1;
+				},
+				None => {
+					listeners.swap_remove(listener_index);
+				},
+			}
+		}
+
 		Ok(session)
 	}
 
 	pub fn remove(&self, session_id: &S::Id) {
-		if self.sessions.write().remove(session_id).is_some() {
+		if let Some(session) = self.sessions.write().remove(session_id) {
 			self.container_state.lock().on_session_completed();
+
+			// notify listeners
+			let mut listeners = self.listeners.lock();
+			let mut listener_index = 0;
+			loop {
+				if listener_index >= listeners.len() {
+					break;
+				}
+
+				match listeners[listener_index].upgrade() {
+					Some(listener) => {
+						listener.on_session_removed(session.session.clone());
+						listener_index += 1;
+					},
+					None => {
+						listeners.swap_remove(listener_index);
+					},
+				}
+			}
 		}
 	}
 

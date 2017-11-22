@@ -31,6 +31,8 @@ use bigint::hash::H256;
 use bigint::prelude::U256;
 use util::Address;
 use key_server_set::KeyServerSet;
+use key_server_cluster::{ClusterClient, ClusterSessionsListener, ClusterSession};
+use key_server_cluster::generation_session::{SessionImpl as GenerationSession, Session as GenerationSessionTrait};
 use {ServerKeyId, NodeKeyPair, KeyServer};
 
 /// Name of the SecretStore contract in the registry.
@@ -108,15 +110,17 @@ enum ServiceTask {
 	Retry,
 	/// Generate server key (server_key_id, threshold).
 	GenerateServerKey(H256, H256),
+	/// Confirm server key (server_key_id).
+	ConfirmServerKey(H256),
 	/// Shutdown listener.
 	Shutdown,
 }
 
 impl ServiceContractListener {
-	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, key_server: Arc<KeyServer>, self_key_pair: Arc<NodeKeyPair>, key_servers_set: Arc<KeyServerSet>) -> Arc<ServiceContractListener> {
+	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, key_server: Arc<KeyServer>, cluster: Arc<ClusterClient>, self_key_pair: Arc<NodeKeyPair>, key_servers_set: Arc<KeyServerSet>) -> Arc<ServiceContractListener> {
 		let contract_addr = client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned())
 			.map(|a| {
-				trace!(target: "secretstore", "Installing service contract from address {}", a);
+				trace!(target: "secretstore", "{}: installing service contract from address {}", self_key_pair.public(), a);
 				a
 			})
 			.unwrap_or_default();
@@ -146,6 +150,7 @@ impl ServiceContractListener {
 			service_handle: Some(service_handle),
 		});
 		client.add_notify(contract.clone());
+		cluster.add_generation_listener(contract.clone());
 		contract
 	}
 
@@ -186,7 +191,7 @@ impl ServiceContractListener {
 	fn run_service_thread(data: Arc<ServiceContractListenerData>) {
 		loop {
 			let task = data.tasks_queue.wait();
-			trace!(target: "secretstore", "Processing {:?} task", task);
+			trace!(target: "secretstore", "{}: processing {:?} task",data.self_key_pair.public(), task);
 
 			match task {
 				ServiceTask::Shutdown => break,
@@ -204,28 +209,29 @@ impl ServiceContractListener {
 				Self::retry_pending_requests(&data)
 					.map(|processed_requests| {
 						if processed_requests != 0 {
-							trace!(target: "secretstore", "Successfully retried {} pending requests",
-								processed_requests);
+							trace!(target: "secretstore", "{}: successfully retried {} pending requests",
+								data.self_key_pair.public(), processed_requests);
 						}
 						()
 					})
 					.map_err(|error| {
-						warn!(target: "secretstore", "Retrying pending requests has failed with: {}",
-							error);
+						warn!(target: "secretstore", "{}: retrying pending requests has failed with: {}",
+							data.self_key_pair.public(), error);
 						error
 					}),
+			ServiceTask::ConfirmServerKey(_) => Err("not implemented".to_owned()), // TODO
 			ServiceTask::GenerateServerKey(server_key_id, threshold) => {
 				data.retry_data.lock().generated_keys.insert(server_key_id.clone());
 				Self::generate_server_key(&data, &server_key_id, &threshold)
 					.and_then(|server_key| Self::publish_server_key(&data, &server_key_id, &server_key))
 					.map(|_| {
-						trace!(target: "secretstore", "GenerateServerKey({}, {}) request has completed",
-							server_key_id, threshold);
+						trace!(target: "secretstore", "{}: started processing GenerateServerKey({}, {}) request",
+							data.self_key_pair.public(), server_key_id, threshold);
 						()
 					})
 					.map_err(|error| {
-						warn!(target: "secretstore", "GenerateServerKey({}, {}) request has failed with: {}",
-							server_key_id, threshold, error);
+						warn!(target: "secretstore", "{}: failed to start processing GenerateServerKey({}, {}) request with: {}",
+							data.self_key_pair.public(), server_key_id, threshold, error);
 						error
 					})
 			},
@@ -263,19 +269,23 @@ impl ServiceContractListener {
 			if is_confirmed {
 				continue;
 			}
+
 			// only process request, which haven't been processed recently
 			// there could be a lag when we've just generated server key && retrying on the same block
 			// (or before our tx is mined) - state is not updated yet
 			if retry_data.generated_keys.contains(&server_key_id){
 				continue;
 			}
-			// only process requests that are intended to be processed by this server
-			if !is_processed_by_this_key_server(&*data.key_servers_set, &*data.self_key_pair, &server_key_id) {
-				continue;
-			}
 
 			// process request
-			match Self::process_service_task(data, ServiceTask::GenerateServerKey(server_key_id, threshold.into())) {
+			let is_own_request = is_processed_by_this_key_server(&*data.key_servers_set, &*data.self_key_pair, &server_key_id);
+			let request_result = Self::process_service_task(data, match is_own_request {
+				true => ServiceTask::GenerateServerKey(server_key_id, threshold.into()),
+				false => ServiceTask::ConfirmServerKey(server_key_id),
+			});
+
+			// process request result
+			match request_result {
 				Ok(_) => processed_requests += 1,
 				Err(_) => {
 					failed_requests += 1;
@@ -351,7 +361,7 @@ impl ChainNotify for ServiceContractListener {
 				// update contract address from registry
 				if let Some(service_contract_addr) = client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned()) {
 					if self.data.contract.read().address != service_contract_addr {
-						trace!(target: "secretstore", "Installing service contract from address {}", service_contract_addr);
+						trace!(target: "secretstore", "{}: installing service contract from address {}", self.data.self_key_pair.public(), service_contract_addr);
 						*self.data.contract.write() = SecretStoreService::new(service_contract_addr.clone());
 					}
 
@@ -366,6 +376,31 @@ impl ChainNotify for ServiceContractListener {
 					self.data.last_retry.store(0, Ordering::Relaxed);
 				}
 			}
+		}
+	}
+}
+
+impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
+	fn on_session_inserted(&self, _session: Arc<GenerationSession>) {
+	}
+
+	fn on_session_removed(&self, session: Arc<GenerationSession>) {
+		// TODO: only start if session started via the contract
+		// only publish when the session is started by another node
+		if !is_processed_by_this_key_server(&*self.data.key_servers_set, &*self.data.self_key_pair, &session.id()) {
+			session.wait(Some(Default::default()))
+				.map_err(|e| format!("{}", e))
+				.and_then(|server_key| Self::publish_server_key(&self.data, &session.id(), &server_key))
+				.map(|_| {
+					trace!(target: "secretstore", "{}: completed foreign GenerateServerKey({}) request",
+						self.data.self_key_pair.public(), session.id());
+					()
+				})
+				.map_err(|error| {
+					warn!(target: "secretstore", "{}: failed to process GenerateServerKey({}) request with: {}",
+						self.data.self_key_pair.public(), session.id(), error);
+					error
+				});
 		}
 	}
 }
