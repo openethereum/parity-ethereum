@@ -2938,8 +2938,8 @@ dependencies = [
 name = "snappy"
 version = "0.1.0"
 dependencies = [
+ "kvdb-rocksdb 0.1.0",
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
- "rocksdb 0.4.5 (git+https://github.com/paritytech/rust-rocksdb)",
 ]
 
 [[package]]
