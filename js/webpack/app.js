@@ -217,7 +217,7 @@ module.exports = {
                     : Api.util.sha3(dapp.url);
 
                   return [
-                    'index.html', 'dist.css', 'dist.js',
+                    'icon.png', 'index.html', 'dist.css', 'dist.js',
                     isProd ? null : 'dist.css.map',
                     isProd ? null : 'dist.js.map'
                   ]
