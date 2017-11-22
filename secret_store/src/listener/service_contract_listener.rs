@@ -32,7 +32,7 @@ use bigint::prelude::U256;
 use util::Address;
 use key_server_set::KeyServerSet;
 use key_server_cluster::{ClusterClient, ClusterSessionsListener, ClusterSession};
-use key_server_cluster::generation_session::{SessionImpl as GenerationSession, Session as GenerationSessionTrait};
+use key_server_cluster::generation_session::SessionImpl as GenerationSession;
 use {ServerKeyId, NodeKeyPair, KeyServer};
 
 /// Name of the SecretStore contract in the registry.

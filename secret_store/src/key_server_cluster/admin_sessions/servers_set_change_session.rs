@@ -33,7 +33,7 @@ use key_server_cluster::share_change_session::{ShareChangeSession, ShareChangeSe
 	prepare_share_change_session_plan};
 use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVersionNegotiationSessionImpl,
 	SessionParams as KeyVersionNegotiationSessionParams, LargestSupportResultComputer,
-	SessionTransport as KeyVersionNegotiationTransport, Session as KeyVersionNegotiationSession};
+	SessionTransport as KeyVersionNegotiationTransport};
 use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::servers_set_change_access_job::{ServersSetChangeAccessJob, ServersSetChangeAccessRequest};
 use key_server_cluster::jobs::unknown_sessions_job::{UnknownSessionsJob};
@@ -43,12 +43,6 @@ use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// Maximal number of active share change sessions.
 const MAX_ACTIVE_KEY_SESSIONS: usize = 64;
-
-/// Servers set change session API.
-pub trait Session: Send + Sync + 'static {
-	/// Wait until session is completed.
-	fn wait(&self) -> Result<(), Error>;
-}
 
 /// Servers set change session.
 /// Brief overview:
@@ -209,6 +203,17 @@ impl SessionImpl {
 	/// Get session id.
 	pub fn id(&self) -> &SessionId {
 		&self.core.meta.id
+	}
+
+	/// Wait for session completion.
+	pub fn wait(&self) -> Result<(), Error> {
+		let mut data = self.data.lock();
+		if !data.result.is_some() {
+			self.core.completed.wait(&mut data);
+		}
+
+		data.result.clone()
+			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
 	}
 
 	/// Initialize servers set change session on master node.
@@ -874,18 +879,6 @@ impl SessionImpl {
 		core.completed.notify_all();
 
 		Ok(())
-	}
-}
-
-impl Session for SessionImpl {
-	fn wait(&self) -> Result<(), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.clone()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
 	}
 }
 

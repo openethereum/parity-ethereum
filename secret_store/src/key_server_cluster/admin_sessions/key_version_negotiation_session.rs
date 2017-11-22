@@ -31,16 +31,6 @@ use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 /// Number of versions sent in single message.
 const VERSIONS_PER_MESSAGE: usize = 32;
 
-/// Key version negotiation session API.
-pub trait Session: Send + Sync + 'static {
-	/// Set continue action.
-	fn set_continue_action(&self, action: ContinueAction);
-	/// Get continue action.
-	fn continue_action(&self) -> Option<ContinueAction>;
-	/// Wait until session is completed.
-	fn wait(&self) -> Result<(H256, NodeId), Error>;
-}
-
 /// Key version negotiation transport.
 pub trait SessionTransport {
 	/// Send message to given node.
@@ -194,6 +184,28 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		Ok(self.data.lock().versions.as_ref().ok_or(Error::InvalidStateForRequest)?
 			.get(version).ok_or(Error::KeyStorage("key version not found".into()))?
 			.clone())
+	}
+
+	/// Set continue action.
+	pub fn set_continue_action(&self, action: ContinueAction) {
+		self.data.lock().continue_with = Some(action);
+	}
+
+	/// Get continue action.
+	pub fn continue_action(&self) -> Option<ContinueAction> {
+		self.data.lock().continue_with.clone()
+	}
+
+	/// Wait for session completion.
+	pub fn wait(&self) -> Result<(H256, NodeId), Error> {
+		let mut data = self.data.lock();
+		if !data.result.is_some() {
+			self.core.completed.wait(&mut data);
+		}
+
+		data.result.as_ref()
+			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
+			.clone()
 	}
 
 	/// Initialize session.
@@ -352,27 +364,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			data.result = Some(result);
 			core.completed.notify_all();
 		}
-	}
-}
-
-impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'static {
-	fn set_continue_action(&self, action: ContinueAction) {
-		self.data.lock().continue_with = Some(action);
-	}
-
-	fn continue_action(&self) -> Option<ContinueAction> {
-		self.data.lock().continue_with.clone()
-	}
-
-	fn wait(&self) -> Result<(H256, NodeId), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
-			.clone()
 	}
 }
 

@@ -29,17 +29,16 @@ use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use bigint::hash::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
-use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
-	DecryptionSessionWrapper, SigningSessionWrapper, AdminSessionWrapper, KeyNegotiationSessionWrapper, SessionIdWithSubSession,
+use key_server_cluster::cluster_sessions::{ClusterSession, AdminSession, ClusterSessions, SessionIdWithSubSession,
 	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID, create_cluster_view, AdminSessionCreationData, ClusterSessionsListener};
 use key_server_cluster::cluster_sessions_creator::{ClusterSessionCreator, IntoSessionId};
 use key_server_cluster::message::{self, Message, ClusterMessage};
-use key_server_cluster::generation_session::{SessionImpl as GenerationSession, Session as GenerationSessionTrait};
-use key_server_cluster::decryption_session::{SessionImpl as DecryptionSession, Session as DecryptionSessionTrait};
-use key_server_cluster::encryption_session::{SessionImpl as EncryptionSession, Session as EncryptionSessionTrait};
-use key_server_cluster::signing_session::{SessionImpl as SigningSession, Session as SigningSessionTrait};
+use key_server_cluster::generation_session::{SessionImpl as GenerationSession};
+use key_server_cluster::decryption_session::{SessionImpl as DecryptionSession};
+use key_server_cluster::encryption_session::{SessionImpl as EncryptionSession};
+use key_server_cluster::signing_session::{SessionImpl as SigningSession};
 use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVersionNegotiationSession,
-	IsolatedSessionTransport as KeyVersionNegotiationSessionTransport, ContinueAction, Session as KeyVersionNegotiationSessionTrait};
+	IsolatedSessionTransport as KeyVersionNegotiationSessionTransport, ContinueAction};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 
@@ -74,7 +73,7 @@ pub trait ClusterClient: Send + Sync {
 	/// Start new key version negotiation session.
 	fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error>;
 	/// Start new servers set change session.
-	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error>;
+	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSession>, Error>;
 
 	/// Listen for new generation sessions.
 	fn add_generation_listener(&self, listener: Arc<ClusterSessionsListener<GenerationSession>>);
@@ -959,7 +958,7 @@ impl ClusterClient for ClusterClientImpl {
 		Ok(session)
 	}
 
-	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {
+	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
@@ -975,7 +974,7 @@ impl ClusterClient for ClusterClientImpl {
 			.initialize(new_nodes_set, old_set_signature, new_set_signature);
 
 		match initialization_result {
-			Ok(()) => Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session)),
+			Ok(()) => Ok(session),
 			Err(error) => {
 				self.data.sessions.admin_sessions.remove(&session.id());
 				Err(error)
@@ -1025,8 +1024,7 @@ pub mod tests {
 	use key_server_cluster::message::Message;
 	use key_server_cluster::cluster::{Cluster, ClusterCore, ClusterConfiguration};
 	use key_server_cluster::cluster_sessions::ClusterSession;
-	use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
-	use key_server_cluster::signing_session::Session as SigningSession;
+	use key_server_cluster::generation_session::SessionState as GenerationSessionState;
 
 	#[derive(Debug)]
 	pub struct DummyCluster {

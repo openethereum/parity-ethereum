@@ -30,12 +30,6 @@ use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 use key_server_cluster::jobs::decryption_job::{PartialDecryptionRequest, PartialDecryptionResponse, DecryptionJob};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
 
-/// Decryption session API.
-pub trait Session: Send + Sync + 'static {
-	/// Wait until session is completed. Returns distributely restored secret key.
-	fn wait(&self) -> Result<EncryptedDocumentKeyShadow, Error>;
-}
-
 /// Distributed decryption session.
 /// Based on "ECDKG: A Distributed Key Generation Protocol Based on Elliptic Curve Discrete Logarithm" paper:
 /// http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.124.4128&rep=rep1&type=pdf
@@ -204,6 +198,18 @@ impl SessionImpl {
 	#[cfg(test)]
 	pub fn decrypted_secret(&self) -> Option<Result<EncryptedDocumentKeyShadow, Error>> {
 		self.data.lock().result.clone()
+	}
+
+	/// Wait for session completion.
+	pub fn wait(&self) -> Result<EncryptedDocumentKeyShadow, Error> {
+		let mut data = self.data.lock();
+		if !data.result.is_some() {
+			self.core.completed.wait(&mut data);
+		}
+
+		data.result.as_ref()
+			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
+			.clone()
 	}
 
 	/// Delegate session to other node.
@@ -552,19 +558,6 @@ impl ClusterSession for SessionImpl {
 			Message::Decryption(ref message) => self.process_message(sender, message),
 			_ => unreachable!("cluster checks message to be correct before passing; qed"),
 		}
-	}
-}
-
-impl Session for SessionImpl {
-	fn wait(&self) -> Result<EncryptedDocumentKeyShadow, Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
-			.clone()
 	}
 }
 

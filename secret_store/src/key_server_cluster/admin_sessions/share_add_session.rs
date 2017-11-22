@@ -32,12 +32,6 @@ use key_server_cluster::jobs::servers_set_change_access_job::{ServersSetChangeAc
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
-/// Share addition session API.
-pub trait Session: Send + Sync + 'static {
-	/// Wait until session is completed.
-	fn wait(&self) -> Result<(), Error>;
-}
-
 /// Share addition session transport.
 pub trait SessionTransport: Clone + JobTransport<PartialJobRequest=ServersSetChangeAccessRequest, PartialJobResponse=bool> {
 	/// Get all connected nodes. Since ShareAdd session requires all cluster nodes to be connected, this set equals to all known cluster nodes set.
@@ -180,6 +174,17 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				result: None,
 			}),
 		})
+	}
+
+	/// Wait for session completion.
+	pub fn wait(&self) -> Result<(), Error> {
+		let mut data = self.data.lock();
+		if !data.result.is_some() {
+			self.core.completed.wait(&mut data);
+		}
+
+		data.result.clone()
+			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
 	}
 
 	/// Set pre-established consensus data.
@@ -718,18 +723,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		core.completed.notify_all();
 
 		Ok(())
-	}
-}
-
-impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'static {
-	fn wait(&self) -> Result<(), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.clone()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
 	}
 }
 

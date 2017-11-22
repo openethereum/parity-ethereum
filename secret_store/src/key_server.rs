@@ -31,10 +31,6 @@ use traits::{AdminSessionsServer, ServerKeyGenerator, DocumentKeyServer, Message
 use types::all::{Error, Public, RequestSignature, ServerKeyId, EncryptedDocumentKey, EncryptedDocumentKeyShadow,
 	ClusterConfiguration, MessageHash, EncryptedMessageSignature, NodeId};
 use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration};
-use key_server_cluster::generation_session::Session as GenerationSession;
-use key_server_cluster::encryption_session::Session as EncryptionSession;
-use key_server_cluster::decryption_session::Session as DecryptionSession;
-use key_server_cluster::signing_session::Session as SigningSession;
 
 /// Secret store key server implementation
 pub struct KeyServerImpl {
@@ -68,7 +64,9 @@ impl AdminSessionsServer for KeyServerImpl {
 	fn change_servers_set(&self, old_set_signature: RequestSignature, new_set_signature: RequestSignature, new_servers_set: BTreeSet<NodeId>) -> Result<(), Error> {
 		let servers_set_change_session = self.data.lock().cluster
 			.new_servers_set_change_session(None, new_servers_set, old_set_signature, new_set_signature)?;
-		servers_set_change_session.wait().map_err(Into::into)
+		servers_set_change_session.as_servers_set_change()
+			.expect("new_servers_set_change_session creates servers_set_change_session; qed")
+			.wait().map_err(Into::into)
 	}
 }
 

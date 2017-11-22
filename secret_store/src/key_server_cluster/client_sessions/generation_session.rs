@@ -27,16 +27,6 @@ use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{Message, GenerationMessage, InitializeSession, ConfirmInitialization, CompleteInitialization,
 	KeysDissemination, PublicKeyShare, SessionError, SessionCompleted};
 
-/// Key generation session API.
-pub trait Session: Send + Sync + 'static {
-	/// Get generation session state.
-	fn state(&self) -> SessionState;
-	/// Wait until session is completed. Returns public portion of generated server key.
-	fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error>;
-	/// Get joint public key (if it is known).
-	fn joint_public_and_secret(&self) -> Option<Result<(Public, Secret), Error>>;
-}
-
 /// Distributed key generation session.
 /// Based on "ECDKG: A Distributed Key Generation Protocol Based on Elliptic Curve Discrete Logarithm" paper:
 /// http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.124.4128&rep=rep1&type=pdf
@@ -224,6 +214,31 @@ impl SessionImpl {
 	/// Simulate faulty generation session behaviour.
 	pub fn simulate_faulty_behaviour(&self) {
 		self.data.lock().simulate_faulty_behaviour = true;
+	}
+
+	/// Get session state.
+	pub fn state(&self) -> SessionState {
+		self.data.lock().state.clone()
+	}
+
+	/// Wait for session completion.
+	pub fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error> {
+		let mut data = self.data.lock();
+		if !data.joint_public_and_secret.is_some() {
+			match timeout {
+				None => self.completed.wait(&mut data),
+				Some(timeout) => { self.completed.wait_for(&mut data, timeout); },
+			}
+		}
+
+		data.joint_public_and_secret.clone()
+			.expect("checked above or waited for completed; completed is only signaled when joint_public.is_some(); qed")
+			.map(|p| p.0)
+	}
+
+	/// Get generated public and secret (if any).
+	pub fn joint_public_and_secret(&self) -> Option<Result<(Public, Secret), Error>> {
+		self.data.lock().joint_public_and_secret.clone()
 	}
 
 	/// Start new session initialization. This must be called on master node.
@@ -782,30 +797,6 @@ impl ClusterSession for SessionImpl {
 	}
 }
 
-impl Session for SessionImpl {
-	fn state(&self) -> SessionState {
-		self.data.lock().state.clone()
-	}
-
-	fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error> {
-		let mut data = self.data.lock();
-		if !data.joint_public_and_secret.is_some() {
-			match timeout {
-				None => self.completed.wait(&mut data),
-				Some(timeout) => { self.completed.wait_for(&mut data, timeout); },
-			}
-		}
-
-		data.joint_public_and_secret.clone()
-			.expect("checked above or waited for completed; completed is only signaled when joint_public.is_some(); qed")
-			.map(|p| p.0)
-	}
-
-	fn joint_public_and_secret(&self) -> Option<Result<(Public, Secret), Error>> {
-		self.data.lock().joint_public_and_secret.clone()
-	}
-}
-
 impl EveryOtherNodeVisitor {
 	pub fn new<I>(self_id: &NodeId, nodes: I) -> Self where I: Iterator<Item=NodeId> {
 		EveryOtherNodeVisitor {
@@ -883,7 +874,7 @@ pub mod tests {
 	use key_server_cluster::message::{self, Message, GenerationMessage};
 	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, run_clusters, loop_until, all_connections_established};
 	use key_server_cluster::cluster_sessions::ClusterSession;
-	use key_server_cluster::generation_session::{Session, SessionImpl, SessionState, SessionParams};
+	use key_server_cluster::generation_session::{SessionImpl, SessionState, SessionParams};
 	use key_server_cluster::math;
 	use key_server_cluster::math::tests::do_encryption_and_decryption;
 
