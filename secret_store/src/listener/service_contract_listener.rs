@@ -351,8 +351,11 @@ impl ServiceContractListener {
 	}
 
 	/// Restore server key.
-	fn restore_server_key(_data: &Arc<ServiceContractListenerData>, _server_key_id: &ServerKeyId) -> Result<Public, String> {
-		unimplemented!() // TODO
+	fn restore_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId) -> Result<Public, String> {
+		data.params.key_storage.get(server_key_id)
+			.map_err(|e| format!("{}", e))
+			.and_then(|ks| ks.ok_or("missing key".to_owned()))
+			.map(|ks| ks.public)
 	}
 
 	/// Publish server key.
