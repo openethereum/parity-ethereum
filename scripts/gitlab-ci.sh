@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 linux_stable(){
      cargo build -j $(nproc) --release --features final $CARGOFLAGS
