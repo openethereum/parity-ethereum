@@ -51,7 +51,6 @@ use evm::{Factory as EvmFactory, VMType};
 use vm::Schedule;
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
-use private_transactions::Provider as PrivateTransactionsProvider;
 use types::basic_account::BasicAccount;
 use types::mode::Mode;
 use types::pruning_info::PruningInfo;
@@ -420,10 +419,6 @@ impl BlockChainClient for TestBlockChainClient {
 			res.push(self.call(tx, analytics, block)?);
 		}
 		Ok(res)
-	}
-
-	fn private_transactions_provider(&self) -> Arc<PrivateTransactionsProvider> {
-		unimplemented!();
 	}
 
 	fn estimate_gas(&self, _t: &SignedTransaction, _block: BlockId) -> Result<U256, CallError> {

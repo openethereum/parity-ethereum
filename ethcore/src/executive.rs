@@ -757,8 +757,7 @@ mod tests {
 		assert_eq!(state.storage_at(&address, &H256::new()).unwrap(), H256::from(&U256::from(0xf9u64)));
 		assert_eq!(state.balance(&sender).unwrap(), U256::from(0xf9));
 		assert_eq!(state.balance(&address).unwrap(), U256::from(0x7));
-		// 0 cause contract hasn't returned
-		assert_eq!(substate.contracts_created.len(), 0);
+		assert_eq!(substate.contracts_created.len(), 1);
 
 		// TODO: just test state root.
 	}
@@ -808,7 +807,8 @@ mod tests {
 
 		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &machine);
-			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
+			let output = BytesRef::Fixed(&mut[0u8;0]);
+			ex.call(params, &mut substate, output, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -1064,7 +1064,7 @@ mod tests {
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
-		assert_eq!(substate.contracts_created.len(), 0);
+		assert_eq!(substate.contracts_created.len(), 1);
 	}
 
 	evm_test!{test_create_contract_without_max_depth: test_create_contract_without_max_depth_jit, test_create_contract_without_max_depth_int}
@@ -1114,8 +1114,8 @@ mod tests {
 			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap();
 		}
 
-		assert_eq!(substate.contracts_created.len(), 1);
-		assert_eq!(substate.contracts_created[0], next_address);
+		assert_eq!(substate.contracts_created.len(), 2);
+		assert_eq!(substate.contracts_created[1], next_address);
 	}
 
 	// test is incorrect, mk

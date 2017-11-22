@@ -147,7 +147,7 @@ fn send_private_transaction() {
 	private_tx.gas = 120000.into();
 	private_tx.nonce = 1.into();
 	let private_tx = private_tx.sign(&s0.secret(), None);
-	assert!(provider0.create_private_transaction(private_tx, &address).is_ok());
+	assert!(provider0.create_private_transaction(private_tx).is_ok());
 
 	//Exchange with signature and create corresponding public transaction
 	net.sync();

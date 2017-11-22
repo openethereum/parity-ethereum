@@ -360,6 +360,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		geth_compatibility: cmd.geth_compatibility,
 		remote: event_loop.remote(),
 		whisper_rpc: whisper_factory,
+		private_tx_manager: None, //TODO: add this to client.
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -664,6 +665,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		net_conf.clone().into(),
 		client.clone(),
 		snapshot_service.clone(),
+		client.private_transactions_provider(),
 		client.clone(),
 		&cmd.logger_config,
 		attached_protos,
@@ -768,6 +770,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		fetch: fetch.clone(),
 		remote: event_loop.remote(),
 		whisper_rpc: whisper_factory,
+		private_tx_manager: Some(client.private_transactions_provider()),
 	});
 
 	let dependencies = rpc::Dependencies {

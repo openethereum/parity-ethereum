@@ -43,6 +43,7 @@ mod transaction_request;
 mod transaction_condition;
 mod uint;
 mod work;
+mod private_receipt;
 
 pub mod pubsub;
 
@@ -78,6 +79,7 @@ pub use self::transaction_request::TransactionRequest;
 pub use self::transaction_condition::TransactionCondition;
 pub use self::uint::{U128, U256, U64};
 pub use self::work::Work;
+pub use self::private_receipt::PrivateTransactionReceipt;
 
 // TODO [ToDr] Refactor to a proper type Vec of enums?
 /// Expected tracing type.

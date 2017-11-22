@@ -118,6 +118,7 @@ extern crate kvdb_memorydb;
 extern crate util_error;
 extern crate snappy;
 extern crate migration;
+extern crate ethabi;
 
 #[macro_use]
 extern crate rlp_derive;

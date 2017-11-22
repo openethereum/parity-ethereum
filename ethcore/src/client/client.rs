@@ -60,7 +60,7 @@ use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService, TransactionImportResult};
 use native_contracts::Registry;
 use parking_lot::{Mutex, RwLock, MutexGuard};
-use private_transactions::{Provider as PrivateTransactionsProvider};
+use private_transactions::Provider as PrivateTransactionsProvider;
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
 use rlp::UntrustedRlp;
@@ -159,7 +159,7 @@ pub struct Client {
 	import_lock: Mutex<()>,
 	verifier: Box<Verifier>,
 	miner: Arc<Miner>,
-	provider: Arc<PrivateTransactionsProvider>,
+	private_tx_provider: Arc<PrivateTransactionsProvider>,
 	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
 	io_channel: Arc<Mutex<IoChannel<ClientIoMessage>>>,
@@ -251,7 +251,7 @@ impl Client {
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
 			miner: miner,
-			provider: provider.clone(),
+			private_tx_provider: provider.clone(),
 			io_channel: Arc::new(Mutex::new(message_channel)),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
@@ -1192,6 +1192,11 @@ impl Client {
 			BlockId::Pending => Some(self.chain.read().best_block_number() + 1),
 		}
 	}
+
+	/// Get private transaction manager.
+	pub fn private_transactions_provider(&self) -> Arc<PrivateTransactionsProvider> {
+		self.private_tx_provider.clone()
+	}
 }
 
 impl snapshot::DatabaseRestore for Client {
@@ -1241,10 +1246,6 @@ impl BlockChainClient for Client {
 		}
 
 		Ok(results)
-	}
-
-	fn private_transactions_provider(&self) -> Arc<PrivateTransactionsProvider> {
-		self.provider.clone()
 	}
 
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {

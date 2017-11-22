@@ -19,6 +19,7 @@ use network::{NetworkContext, PeerId, PacketId, NetworkError, SessionInfo, Proto
 use bytes::Bytes;
 use ethcore::client::BlockChainClient;
 use ethcore::header::BlockNumber;
+use ethcore::private_transactions::Provider as PrivateTransactionProvider;
 use ethcore::snapshot::SnapshotService;
 use parking_lot::RwLock;
 
@@ -40,6 +41,8 @@ pub trait SyncIo {
 	fn chain(&self) -> &BlockChainClient;
 	/// Get the snapshot service.
 	fn snapshot_service(&self) -> &SnapshotService;
+	/// Get the private transaction provider.
+	fn private_transactions_provider(&self) -> &PrivateTransactionProvider;
 	/// Returns peer identifier string
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		peer_id.to_string()
@@ -66,6 +69,7 @@ pub struct NetSyncIo<'s, 'h> where 'h: 's {
 	chain: &'s BlockChainClient,
 	snapshot_service: &'s SnapshotService,
 	chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>,
+	private_tx_provider: &'s PrivateTransactionProvider,
 }
 
 impl<'s, 'h> NetSyncIo<'s, 'h> {
@@ -73,12 +77,14 @@ impl<'s, 'h> NetSyncIo<'s, 'h> {
 	pub fn new(network: &'s NetworkContext<'h>,
 		chain: &'s BlockChainClient,
 		snapshot_service: &'s SnapshotService,
+		private_tx_provider: &'s PrivateTransactionProvider,
 		chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>) -> NetSyncIo<'s, 'h> {
 		NetSyncIo {
 			network: network,
 			chain: chain,
 			snapshot_service: snapshot_service,
 			chain_overlay: chain_overlay,
+			private_tx_provider: private_tx_provider,
 		}
 	}
 }
@@ -114,6 +120,10 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 
 	fn snapshot_service(&self) -> &SnapshotService {
 		self.snapshot_service
+	}
+
+	fn private_transactions_provider(&self) -> &PrivateTransactionProvider {
+		self.private_tx_provider
 	}
 
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo> {

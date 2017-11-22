@@ -23,6 +23,7 @@ use light::Provider;
 
 pub use ethsync::{EthSync, SyncProvider, ManageNetwork};
 pub use ethcore::client::ChainNotify;
+pub use ethcore::private_transactions::Provider as PrivateTransactionProvider;
 use ethcore_logger::Config as LogConfig;
 
 pub type SyncModules = (Arc<SyncProvider>, Arc<ManageNetwork>, Arc<ChainNotify>);
@@ -32,6 +33,7 @@ pub fn sync(
 	net_cfg: NetworkConfiguration,
 	client: Arc<BlockChainClient>,
 	snapshot_service: Arc<SnapshotService>,
+	private_tx_provider: Arc<PrivateTransactionProvider>,
 	provider: Arc<Provider>,
 	_log_settings: &LogConfig,
 	attached_protos: Vec<AttachedProtocol>,
@@ -42,6 +44,7 @@ pub fn sync(
 		chain: client,
 		provider: provider,
 		snapshot_service: snapshot_service,
+		private_tx_provider: private_tx_provider,
 		network_config: net_cfg,
 		attached_protos: attached_protos,
 	},

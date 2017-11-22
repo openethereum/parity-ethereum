@@ -25,7 +25,7 @@ use bytes::Bytes;
 use io::*;
 use spec::Spec;
 use error::*;
-use client::{Client, ClientConfig, ChainNotify, BlockChainClient};
+use client::{Client, ClientConfig, ChainNotify};
 use miner::Miner;
 
 use snapshot::{ManifestData, RestorationStatus};
