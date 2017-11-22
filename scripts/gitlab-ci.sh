@@ -367,7 +367,7 @@ windows(){
 }
 
 docker_build(){
-     if [ "$CI_BUILD_REF_NAME" == "beta-release" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
+     if [[ "$CI_BUILD_REF_NAME" == "beta-release" ]]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
      echo "Tag:" $DOCKER_TAG
      docker login -u $Docker_Hub_User_Parity -p $Docker_Hub_Pass_Parity
      sh scripts/docker-build.sh $DOCKER_TAG
@@ -382,21 +382,21 @@ test_rust_stable_before_script(){
 test_rust_stable(){
      rustup show
      export RUST_BACKTRACE=1
-     if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
-     if [ "$CI_BUILD_REF_NAME" == "nightly" ]; then sh scripts/aura-test.sh; fi
+     if [[ $RUST_FILES_MODIFIED -eq 0 ]]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
+     if [[ "$CI_BUILD_REF_NAME" == "nightly" ]]; then sh scripts/aura-test.sh; fi
 }
 
 js_test_before_script(){
      git submodule update --init --recursive
      export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
-     if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
+     if [[ $JS_FILES_MODIFIED -eq 0 ]]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
      export JS_OLD_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js-old/ | wc -l)
-     if [ $JS_OLD_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS (old) deps install since no JS files modified."; else ./js-old/scripts/install-deps.sh;fi
+     if [[ $JS_OLD_FILES_MODIFIED -eq 0  ]]; then echo "Skipping JS (old) deps install since no JS files modified."; else ./js-old/scripts/install-deps.sh;fi
 }
 
 js_test(){
-     if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS lint since no JS files modified."; else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
-     if [ $JS_OLD_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS (old) lint since no JS files modified."; else ./js-old/scripts/lint.sh && ./js-old/scripts/test.sh && ./js-old/scripts/build.sh; fi
+     if [[ $JS_FILES_MODIFIED -eq 0 ]]; then echo "Skipping JS lint since no JS files modified."; else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
+     if [[ $JS_OLD_FILES_MODIFIED -eq 0 ]]; then echo "Skipping JS (old) lint since no JS files modified."; else ./js-old/scripts/lint.sh && ./js-old/scripts/test.sh && ./js-old/scripts/build.sh; fi
 }
 
 test_rust_beta_before_script(){
@@ -407,7 +407,7 @@ test_rust_beta_before_script(){
 test_rust_beta(){
      rustup default beta
      export RUST_BACKTRACE=1
-     if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
+     if [[ $RUST_FILES_MODIFIED -eq 0 ]]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
 }
 
 test_rust_nightly_before_script(){
@@ -418,25 +418,25 @@ test_rust_nightly_before_script(){
 test_rust_nightly(){
      rustup default nightly
      export RUST_BACKTRACE=1
-     if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
+     if [[ $RUST_FILES_MODIFIED -eq 0 ]]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
 }
 
 js_release_before_script(){
      export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
      echo $JS_FILES_MODIFIED
-     if [ $JS_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
+     if [[ $JS_FILES_MODIFIED -eq 0  ]]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
      export JS_OLD_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js-old/ | wc -l)
      echo $JS_OLD_FILES_MODIFIED
-     if [ $JS_OLD_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS (old) deps install since no JS files modified."; else ./js-old/scripts/install-deps.sh;fi
+     if [[ $JS_OLD_FILES_MODIFIED -eq 0  ]]; then echo "Skipping JS (old) deps install since no JS files modified."; else ./js-old/scripts/install-deps.sh;fi
 }
 
 js_release(){
      rustup default stable
      echo $JS_FILES_MODIFIED
-     if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS rebuild since no JS files modified."; else ./js/scripts/build.sh && ./js/scripts/push-precompiled.sh; fi
+     if [[ $JS_FILES_MODIFIED -eq 0 ]]; then echo "Skipping JS rebuild since no JS files modified."; else ./js/scripts/build.sh && ./js/scripts/push-precompiled.sh; fi
      echo $JS_OLD_FILES_MODIFIED
-     if [ $JS_OLD_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS (old) rebuild since no JS files modified."; else ./js-old/scripts/build.sh && ./js-old/scripts/push-precompiled.sh; fi
-     if [ $JS_FILES_MODIFIED -eq 0 ] && [ $JS_OLD_FILES_MODIFIED -eq 0 ]; then echo "Skipping Cargo update since no JS files modified."; else ./js/scripts/push-cargo.sh; fi
+     if [[ $JS_OLD_FILES_MODIFIED -eq 0 ]]; then echo "Skipping JS (old) rebuild since no JS files modified."; else ./js-old/scripts/build.sh && ./js-old/scripts/push-precompiled.sh; fi
+     if [[ $JS_FILES_MODIFIED -eq 0 ]] && [[ $JS_OLD_FILES_MODIFIED -eq 0 ]]; then echo "Skipping Cargo update since no JS files modified."; else ./js/scripts/push-cargo.sh; fi
 }
 
 push_release(){
