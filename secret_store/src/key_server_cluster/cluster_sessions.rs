@@ -120,9 +120,9 @@ pub struct ClusterSessions {
 /// Active sessions container listener.
 pub trait ClusterSessionsListener<S: ClusterSession>: Send + Sync {
 	/// When new session is inserted to the container.
-	fn on_session_inserted(&self, session: Arc<S>);
+	fn on_session_inserted(&self, _session: Arc<S>) {}
 	/// When session is removed from the container.
-	fn on_session_removed(&self, session: Arc<S>);
+	fn on_session_removed(&self, _session: Arc<S>) {}
 }
 
 /// Active sessions container.
