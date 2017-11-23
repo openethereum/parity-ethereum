@@ -187,10 +187,30 @@ impl ServiceContract for OnChainServiceContract {
 	}
 
 	fn publish_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
+		// only publish if contract address is set && client is online
+		let contract = self.contract.read();
+		if contract.address == Default::default() {
+			// it is not an error, because key could be generated even without contract
+			return Ok(());
+		}
+		let client = match self.client.upgrade() {
+			Some(client) => client,
+			None => return Err("client is required to publish key".into()),
+		};
+
+		// only publish key if contract waits for publication
+		// failing is ok here - it could be that enough confirmations have been recevied
+		// or key has been requested using HTTP API
+		let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
+		let self_address = public_to_address(self.self_key_pair.public());
+		if contract.get_server_key_confirmation_status(&do_call, server_key_id.clone(), self_address).wait().unwrap_or(false) {
+			return Ok(());
+		}
+
+		// prepare transaction data
 		let server_key_hash = keccak(server_key);
 		let signed_server_key = self.self_key_pair.sign(&server_key_hash).map_err(|e| format!("{}", e))?;
 		let signed_server_key: Signature = signed_server_key.into_electrum().into();
-		let contract = self.contract.read();
 		let transaction_data = contract.encode_server_key_generated_input(server_key_id.clone(),
 			server_key.to_vec(),
 			signed_server_key.v(),
@@ -198,13 +218,12 @@ impl ServiceContract for OnChainServiceContract {
 			signed_server_key.s().into()
 		)?;
 
+		// send transaction
 		if contract.address != Default::default() {
-			if let Some(client) = self.client.upgrade() {
-				client.transact_contract(
-					contract.address.clone(),
-					transaction_data
-				).map_err(|e| format!("{}", e))?;
-			} // else we will read this in the next refresh cycle
+			client.transact_contract(
+				contract.address.clone(),
+				transaction_data
+			).map_err(|e| format!("{}", e))?;
 		}
 
 		Ok(())
@@ -218,24 +237,27 @@ impl Iterator for PendingRequestsIterator {
 		if self.index >= self.length {
 			return None;
 		}
+
+		let index = self.index.clone();
 		self.index = self.index + 1.into();
 
+		let self_address = public_to_address(self.self_key_pair.public());
 		let do_call = |a, d| future::done(self.client.call_contract(BlockId::Latest, a, d));
-		let key_generation_request = self.contract.get_server_key_generation_request(&do_call,
-			public_to_address(self.self_key_pair.public()),
-			(self.index - 1.into()).clone().into()).wait();
-		let (server_key_id, threshold, is_confirmed) = match key_generation_request {
-			Ok((server_key_id, threshold, is_confirmed)) => {
-				(server_key_id, threshold, is_confirmed)
-			},
-			Err(error) => {
-				warn!(target: "secretstore", "{}: call to get_server_key_generation_request failed: {}",
+		self.contract.get_server_key_id(&do_call, index).wait()
+			.and_then(|server_key_id|
+				self.contract.get_server_key_threshold(&do_call, server_key_id.clone()).wait()
+					.map(|threshold| (server_key_id, threshold)))
+			.and_then(|(server_key_id, threshold)|
+				self.contract.get_server_key_confirmation_status(&do_call, server_key_id.clone(), self_address).wait()
+					.map(|is_confirmed| (server_key_id, threshold, is_confirmed)))
+			.map(|(server_key_id, threshold, is_confirmed)|
+				Some((is_confirmed, ServiceTask::GenerateServerKey(server_key_id, threshold.into()))))
+			.map_err(|error| {
+				warn!(target: "secretstore", "{}: reading service contract request failed: {}",
 					self.self_key_pair.public(), error);
-				return None;
-			},
-		};
-
-		Some((is_confirmed, ServiceTask::GenerateServerKey(server_key_id, threshold.into())))
+				()
+			})
+			.unwrap_or(None)
 	}
 }
 

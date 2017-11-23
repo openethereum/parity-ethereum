@@ -336,9 +336,10 @@ impl ChainNotify for ServiceContractListener {
 			return;
 		}
 
+		let reason = "enacted.len() != 0; qed";
 		self.process_service_contract_events(
-			enacted.first().expect("TODO").clone(),
-			enacted.last().expect("TODO").clone());
+			enacted.first().expect(reason).clone(),
+			enacted.last().expect(reason).clone());
 
 		// schedule retry if received enough blocks since last retry
 		// it maybe inaccurate when switching syncing/synced states, but that's ok
@@ -351,8 +352,6 @@ impl ChainNotify for ServiceContractListener {
 
 impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 	fn on_session_removed(&self, session: Arc<GenerationSession>) {
-		// TODO: only start if session started via the contract
-
 		// only publish when the session is started by another node
 		// when it is started by this node, it is published from process_service_task
 		if !is_processed_by_this_key_server(&*self.data.key_server_set, &*self.data.self_key_pair, &session.id()) {
