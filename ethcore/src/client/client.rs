@@ -41,9 +41,12 @@ use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	BlockId, TransactionId, UncleId, TraceId, ClientConfig, Nonce, Balance, ChainInfo, BlockInfo,
-	BlockChainClient, MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, ReopenBlock, PrepareOpenBlock
+	Nonce, Balance, ChainInfo, BlockInfo, CallContract, ReopenBlock, PrepareOpenBlock,
+};
+use client::{
+	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
+	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
+	ChainNotify, PruningInfo, ProvingBlockChainClient,
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
@@ -1320,6 +1323,16 @@ impl BlockInfo for Client {
 	}
 }
 
+impl CallContract for Client {
+	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
+		let transaction = self.contract_call_tx(block_id, address, data);
+
+		self.call(&transaction, Default::default(), block_id)
+			.map_err(|e| format!("{:?}", e))
+			.map(|executed| executed.output)
+	}
+}
+
 impl BlockChainClient for Client {
 	fn call(&self, transaction: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError> {
 		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
@@ -1878,16 +1891,6 @@ impl BlockChainClient for Client {
 			earliest_chain: self.chain.read().first_block_number().unwrap_or(1),
 			earliest_state: self.state_db.lock().journal_db().earliest_era().unwrap_or(0),
 		}
-	}
-
-	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
-		let transaction = self.contract_call_tx(block_id, address, data);
-
-		self.call(&transaction, Default::default(), block_id)
-			.map_err(|e| format!("{:?}", e))
-			.map(|executed| {
-				executed.output
-			})
 	}
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {

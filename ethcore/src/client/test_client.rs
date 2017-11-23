@@ -36,7 +36,7 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, BlockChainClient, MiningBlockChainClient,
+	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, PrepareOpenBlock, BlockChainClient, MiningBlockChainClient,
 	BlockChainInfo, BlockStatus, BlockId, TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
 	BlockImportError, ProvingBlockChainClient,
 };
@@ -469,6 +469,10 @@ impl BlockInfo for TestBlockChainClient {
 	}
 }
 
+impl CallContract for TestBlockChainClient {
+	fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+}
+
 impl BlockChainClient for TestBlockChainClient {
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
@@ -775,8 +779,6 @@ impl BlockChainClient for TestBlockChainClient {
 			earliest_state: self.history.read().as_ref().map(|x| best_num - x).unwrap_or(0),
 		}
 	}
-
-	fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
 		let transaction = Transaction {

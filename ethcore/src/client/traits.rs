@@ -93,8 +93,14 @@ pub trait BlockInfo {
 	fn block(&self, id: BlockId) -> Option<encoded::Block>;
 }
 
+/// Provides `call_contract` method
+pub trait CallContract {
+	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
+	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockInfo {
+pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockInfo + CallContract {
 
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
@@ -286,9 +292,6 @@ pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockIn
 
 	/// Returns information about pruning/data availability.
 	fn pruning_info(&self) -> PruningInfo;
-
-	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
-	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
 
 	/// Import a transaction: used for misbehaviour reporting.
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError>;
