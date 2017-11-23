@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { padRight, padLeft } from '~/api/util/format';
+import { padRight, padLeft } from '@parity/api/lib/util/format';
 
 /**
  * Bytecode of this contract:

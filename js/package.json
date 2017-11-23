@@ -1,6 +1,6 @@
 {
   "name": "Parity",
-  "version": "1.9.10",
+  "version": "1.9.13",
   "main": "src/index.parity.js",
   "jsnext:main": "src/index.parity.js",
   "author": "Parity Team <admin@parity.io>",
@@ -158,6 +158,7 @@
     "lodash.uniq": "4.5.0",
     "material-ui": "0.16.5",
     "prop-types": "15.5.10",
+    "query-string": "5.0.1",
     "react": "15.6.1",
     "react-dom": "15.6.1",
     "react-intl": "2.1.5",

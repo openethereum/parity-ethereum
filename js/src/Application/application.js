@@ -35,7 +35,7 @@ import Snackbar from '../Snackbar';
 import Status from '../Status';
 import UpgradeParity from '../UpgradeParity';
 
-import parityLogo from '../../assets/parity-logo-black.png';
+import { appLogoDark as parityLogo } from '../config';
 import Store from './store';
 import styles from './application.css';
 
@@ -78,6 +78,11 @@ class Application extends Component {
     return (
       <div className={ styles.application }>
         {
+          blockNumber
+            ? <Status upgradeStore={ this.upgradeStore } />
+            : null
+        }
+        {
           isMinimized
             ? this.renderMinimized()
             : this.renderApp()
@@ -99,11 +104,6 @@ class Application extends Component {
           alwaysHidden
           dapp={ isMinimized }
         />
-        {
-          blockNumber
-            ? <Status upgradeStore={ this.upgradeStore } />
-            : null
-        }
       </div>
     );
   }

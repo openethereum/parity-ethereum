@@ -14,45 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-import { shallow } from 'enzyme';
-import sinon from 'sinon';
+import appLogoDark from '../assets/parity-logo-black.png';
+import appLogoDarkNoText from '@parity/shared/assets/images/parity-logo-black-no-text.svg';
+import appLogoLight from '@parity/shared/assets/images/parity-logo-white.svg';
 
-import Api from '@parity/api';
-
-import TxList from './txList';
-
-const api = new Api({
-  send: sinon.stub(),
-  on: sinon.stub()
-});
-
-const STORE = {
-  dispatch: sinon.stub(),
-  subscribe: sinon.stub(),
-  getState: () => {
-    return {
-      nodeStatus: {
-        netVersion: '42'
-      }
-    };
-  }
+export {
+  appLogoDark,
+  appLogoDarkNoText,
+  appLogoLight
 };
-
-function render (props) {
-  return shallow(
-    <TxList
-      store={ STORE }
-      { ...props }
-    />,
-    { context: { api } }
-  );
-}
-
-describe('ui/TxList', () => {
-  describe('rendering', () => {
-    it('renders defaults', () => {
-      expect(render({ address: '0x123', hashes: [] })).to.be.ok;
-    });
-  });
-});

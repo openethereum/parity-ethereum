@@ -25,12 +25,12 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	Static(
 		"_storage_read",
 		&[I32; 2],
-		Some(I32),
+		None,
 	),
 	Static(
 		"_storage_write",
 		&[I32; 2],
-		Some(I32),
+		None,
 	),
 	Static(
 		"_balance",
