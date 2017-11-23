@@ -14,28 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{VecDeque, HashSet};
 use std::sync::{Arc, Weak};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::thread;
 use futures::{future, Future};
-use parking_lot::{RwLock, Mutex, Condvar};	
+use parking_lot::RwLock;
 use ethcore::filter::Filter;
-use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
-use ethkey::{Random, Generator, Public, Signature, sign, public_to_address};
+use ethcore::client::{Client, BlockChainClient, BlockId};
+use ethkey::{Public, Signature, public_to_address};
 use ethsync::SyncProvider;
 use native_contracts::SecretStoreService;
-use bytes::Bytes;
 use hash::keccak;
 use bigint::hash::H256;
 use bigint::prelude::U256;
-use util::Address;
-use key_server_set::KeyServerSet;
-use key_server_cluster::{ClusterClient, ClusterSessionsListener, ClusterSession};
-use key_server_cluster::generation_session::SessionImpl as GenerationSession;
-use key_storage::KeyStorage;
-use listener::service_contract_listener::{ServiceTask, ServiceContractListenerParams};
-use {ServerKeyId, NodeKeyPair, KeyServer};
+use listener::service_contract_listener::ServiceTask;
+use {ServerKeyId, NodeKeyPair};
 
 /// Name of the SecretStore contract in the registry.
 const SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service";
@@ -250,28 +241,11 @@ impl Iterator for PendingRequestsIterator {
 
 #[cfg(test)]
 pub mod tests {
-	use std::collections::{VecDeque, HashSet};
-	use std::sync::{Arc, Weak};
-	use std::sync::atomic::{AtomicUsize, Ordering};
-	use std::thread;
-	use futures::{future, Future};
-	use parking_lot::{RwLock, Mutex, Condvar};	
-	use ethcore::filter::Filter;
-	use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
-	use ethkey::{Random, Generator, Public, Signature, sign, public_to_address};
-	use ethsync::SyncProvider;
-	use native_contracts::SecretStoreService;
-	use bytes::Bytes;
-	use hash::keccak;
+	use parking_lot::Mutex;	
+	use ethkey::Public;
 	use bigint::hash::H256;
-	use bigint::prelude::U256;
-	use util::Address;
-	use key_server_set::KeyServerSet;
-	use key_server_cluster::{ClusterClient, ClusterSessionsListener, ClusterSession};
-	use key_server_cluster::generation_session::SessionImpl as GenerationSession;
-	use key_storage::KeyStorage;
-	use listener::service_contract_listener::{ServiceTask, ServiceContractListenerParams};
-	use {ServerKeyId, NodeKeyPair, KeyServer};
+	use listener::service_contract_listener::ServiceTask;
+	use ServerKeyId;
 	use super::ServiceContract;
 
 	#[derive(Default)]
@@ -290,7 +264,7 @@ pub mod tests {
 			self.is_actual
 		}
 
-		fn read_logs(&self, first_block: H256, last_block: H256) -> Box<Iterator<Item=Vec<H256>>> {
+		fn read_logs(&self, _first_block: H256, _last_block: H256) -> Box<Iterator<Item=Vec<H256>>> {
 			Box::new(self.logs.clone().into_iter())
 		}
 

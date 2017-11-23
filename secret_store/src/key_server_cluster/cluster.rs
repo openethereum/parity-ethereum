@@ -1025,7 +1025,7 @@ pub mod tests {
 	use key_server_cluster::encryption_session::{SessionImpl as EncryptionSession};
 	use key_server_cluster::signing_session::{SessionImpl as SigningSession};
 	use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVersionNegotiationSession,
-		IsolatedSessionTransport as KeyVersionNegotiationSessionTransport, ContinueAction};
+		IsolatedSessionTransport as KeyVersionNegotiationSessionTransport};
 
 	#[derive(Default)]
 	pub struct DummyClusterClient;
@@ -1044,17 +1044,17 @@ pub mod tests {
 
 	impl ClusterClient for DummyClusterClient {
 		fn cluster_state(&self) -> ClusterState { unimplemented!() }
-		fn new_generation_session(&self, session_id: SessionId, author: Public, threshold: usize) -> Result<Arc<GenerationSession>, Error> { unimplemented!() }
-		fn new_encryption_session(&self, session_id: SessionId, requestor_signature: Signature, common_point: Public, encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error> { unimplemented!() }
-		fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> { unimplemented!() }
-		fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, version: Option<H256>, message_hash: H256) -> Result<Arc<SigningSession>, Error> { unimplemented!() }
-		fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error> { unimplemented!() }
-		fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> { unimplemented!() }
+		fn new_generation_session(&self, _session_id: SessionId, _author: Public, _threshold: usize) -> Result<Arc<GenerationSession>, Error> { unimplemented!() }
+		fn new_encryption_session(&self, _session_id: SessionId, _requestor_signature: Signature, _common_point: Public, _encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error> { unimplemented!() }
+		fn new_decryption_session(&self, _session_id: SessionId, _requestor_signature: Signature, _version: Option<H256>, _is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> { unimplemented!() }
+		fn new_signing_session(&self, _session_id: SessionId, _requestor_signature: Signature, _version: Option<H256>, _message_hash: H256) -> Result<Arc<SigningSession>, Error> { unimplemented!() }
+		fn new_key_version_negotiation_session(&self, _session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error> { unimplemented!() }
+		fn new_servers_set_change_session(&self, _session_id: Option<SessionId>, _new_nodes_set: BTreeSet<NodeId>, _old_set_signature: Signature, _new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> { unimplemented!() }
 
-		fn add_generation_listener(&self, listener: Arc<ClusterSessionsListener<GenerationSession>>) {}
+		fn add_generation_listener(&self, _listener: Arc<ClusterSessionsListener<GenerationSession>>) {}
 
 		fn make_faulty_generation_sessions(&self) { unimplemented!() }
-		fn generation_session(&self, session_id: &SessionId) -> Option<Arc<GenerationSession>> { unimplemented!() }
+		fn generation_session(&self, _session_id: &SessionId) -> Option<Arc<GenerationSession>> { unimplemented!() }
 		fn connect(&self) { unimplemented!() }
 		fn key_storage(&self) -> Arc<KeyStorage> { unimplemented!() }
 	}

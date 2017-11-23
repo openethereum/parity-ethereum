@@ -15,21 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{VecDeque, HashSet};
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
-use futures::{future, Future};
-use parking_lot::{RwLock, Mutex, Condvar};	
-use ethcore::filter::Filter;
-use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
-use ethkey::{Random, Generator, Public, Signature, sign, public_to_address};
-use ethsync::SyncProvider;
-use native_contracts::SecretStoreService;
+use parking_lot::{Mutex, Condvar};	
+use ethcore::client::ChainNotify;
+use ethkey::{Random, Generator, Public, sign};
 use bytes::Bytes;
-use hash::keccak;
 use bigint::hash::H256;
 use bigint::prelude::U256;
-use util::Address;
 use key_server_set::KeyServerSet;
 use key_server_cluster::{ClusterClient, ClusterSessionsListener, ClusterSession};
 use key_server_cluster::generation_session::SessionImpl as GenerationSession;
@@ -744,7 +738,7 @@ mod tests {
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(vec![Default::default(), Default::default(), Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
-		listener.data.key_storage.insert(Default::default(), Default::default());
+		listener.data.key_storage.insert(Default::default(), Default::default()).unwrap();
 		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
 		listener.process_service_contract_events(Default::default(), Default::default());
 		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 2);
@@ -775,7 +769,7 @@ mod tests {
 		let key_storage = Arc::new(DummyKeyStorage::default());
 		let mut key_share = DocumentKeyShare::default();
 		key_share.public = KeyPair::from_secret("0000000000000000000000000000000000000000000000000000000000000001".parse().unwrap()).unwrap().public().clone();
-		key_storage.insert(Default::default(), key_share.clone());
+		key_storage.insert(Default::default(), key_share.clone()).unwrap();
 		let listener = make_service_contract_listener(Some(contract.clone()), None, Some(key_storage));
 		ServiceContractListener::process_service_task(&listener.data, ServiceTask::RestoreServerKey(Default::default())).unwrap();
 		assert_eq!(*contract.published_keys.lock(), vec![(Default::default(), key_share.public)]);
@@ -788,7 +782,7 @@ mod tests {
 		let key_server = Arc::new(DummyKeyServer::default());
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), Some(key_server.clone()), None);
 		listener.data.retry_data.lock().generated_keys.insert(Default::default());
-		ServiceContractListener::retry_pending_requests(&listener.data);
+		ServiceContractListener::retry_pending_requests(&listener.data).unwrap();
 		assert_eq!(key_server.generation_requests_count.load(Ordering::Relaxed), 0);
 	}
 }
