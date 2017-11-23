@@ -392,11 +392,11 @@ impl ChainNotify for ServiceContractListener {
 			return;
 		}
 
+		self.data.contract.update();
 		if !self.data.contract.is_actual() {
 			return;
 		}
 
-		self.data.contract.update();
 		self.process_service_contract_events(
 			enacted.first().expect("TODO").clone(),
 			enacted.last().expect("TODO").clone());
