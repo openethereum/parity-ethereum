@@ -36,9 +36,10 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, PrepareOpenBlock, 
-	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId, 
-	UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError, ProvingBlockChainClient,
+	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
+	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId, 
+	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError, 
+	ProvingBlockChainClient,
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -479,6 +480,10 @@ impl TransactionInfo for TestBlockChainClient {
 	}
 }
 
+impl RegistryInfo for TestBlockChainClient {
+	fn registry_address(&self, _name: String) -> Option<Address> { None }
+}
+
 impl BlockChainClient for TestBlockChainClient {
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
@@ -798,8 +803,6 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn registrar_address(&self) -> Option<Address> { None }
-
-	fn registry_address(&self, _name: String) -> Option<Address> { None }
 
 	fn eip86_transition(&self) -> u64 { u64::max_value() }
 }

@@ -41,7 +41,7 @@ use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, ReopenBlock, PrepareOpenBlock,
+	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock,
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -1329,6 +1329,19 @@ impl TransactionInfo for Client {
 	}
 }
 
+impl RegistryInfo for Client {
+	fn registry_address(&self, name: String) -> Option<Address> {
+		self.registrar.lock().as_ref()
+			.and_then(|r| {
+				let dispatch = move |reg_addr, data| {
+					future::done(self.call_contract(BlockId::Latest, reg_addr, data))
+				};
+				r.get_address(dispatch, keccak(name.as_bytes()), "A".to_string()).wait().ok()
+			})
+			.and_then(|a| if a.is_zero() { None } else { Some(a) })
+	}
+}
+
 impl CallContract for Client {
 	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let transaction = self.contract_call_tx(block_id, address, data);
@@ -1912,17 +1925,6 @@ impl BlockChainClient for Client {
 
 	fn registrar_address(&self) -> Option<Address> {
 		self.registrar.lock().as_ref().map(|r| r.address)
-	}
-
-	fn registry_address(&self, name: String) -> Option<Address> {
-		self.registrar.lock().as_ref()
-			.and_then(|r| {
-				let dispatch = move |reg_addr, data| {
-					future::done(self.call_contract(BlockId::Latest, reg_addr, data))
-				};
-				r.get_address(dispatch, keccak(name.as_bytes()), "A".to_string()).wait().ok()
-			})
-			.and_then(|a| if a.is_zero() { None } else { Some(a) })
 	}
 
 	fn eip86_transition(&self) -> u64 {

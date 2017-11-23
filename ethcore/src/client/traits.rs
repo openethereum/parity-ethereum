@@ -105,8 +105,14 @@ pub trait TransactionInfo {
 	fn transaction_block(&self, id: TransactionId) -> Option<H256>;
 }
 
+/// Provides information on a blockchain service and it's registry
+pub trait RegistryInfo {
+	/// Get the address of a particular blockchain service, if available.
+	fn registry_address(&self, name: String) -> Option<Address>;
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockInfo + CallContract + TransactionInfo {
+pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockInfo + CallContract + TransactionInfo + RegistryInfo {
 
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
@@ -301,9 +307,6 @@ pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockIn
 
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;
-
-	/// Get the address of a particular blockchain service, if available.
-	fn registry_address(&self, name: String) -> Option<Address>;
 
 	/// Get the EIP-86 transition block number.
 	fn eip86_transition(&self) -> u64;
