@@ -32,6 +32,7 @@ impl DappsService for TestDappsService {
 			version: "0.1".into(),
 			author: "Parity Technologies Ltd".into(),
 			icon_url: "title.png".into(),
+			local_url: None,
 		}]
 	}
 
