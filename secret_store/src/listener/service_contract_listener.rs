@@ -780,4 +780,15 @@ mod tests {
 		ServiceContractListener::process_service_task(&listener.data, ServiceTask::RestoreServerKey(Default::default())).unwrap();
 		assert_eq!(*contract.published_keys.lock(), vec![(Default::default(), key_share.public)]);
 	}
+
+	#[test]
+	fn generation_is_not_retried_if_tried_in_the_same_cycle() {
+		let mut contract = DummyServiceContract::default();
+		contract.pending_requests.push((false, ServiceTask::GenerateServerKey(Default::default(), Default::default())));
+		let key_server = Arc::new(DummyKeyServer::default());
+		let listener = make_service_contract_listener(Some(Arc::new(contract)), Some(key_server.clone()), None);
+		listener.data.retry_data.lock().generated_keys.insert(Default::default());
+		ServiceContractListener::retry_pending_requests(&listener.data);
+		assert_eq!(key_server.generation_requests_count.load(Ordering::Relaxed), 0);
+	}
 }
