@@ -537,14 +537,16 @@ mod tests {
 	use listener::service_contract::tests::DummyServiceContract;
 	use key_server_cluster::DummyClusterClient;
 	use key_server::tests::DummyKeyServer;
+	use key_storage::{KeyStorage, DocumentKeyShare};
 	use key_storage::tests::DummyKeyStorage;
 	use key_server_set::tests::MapKeyServerSet;
 	use PlainNodeKeyPair;
 	use super::{ServiceTask, ServiceContractListener, ServiceContractListenerParams, is_processed_by_this_key_server};
 
-	fn make_service_contract_listener(contract: Option<Arc<ServiceContract>>, key_server: Option<Arc<DummyKeyServer>>) -> Arc<ServiceContractListener> {
+	fn make_service_contract_listener(contract: Option<Arc<ServiceContract>>, key_server: Option<Arc<DummyKeyServer>>, key_storage: Option<Arc<KeyStorage>>) -> Arc<ServiceContractListener> {
 		let contract = contract.unwrap_or_else(|| Arc::new(DummyServiceContract::default()));
 		let key_server = key_server.unwrap_or_else(|| Arc::new(DummyKeyServer::default()));
+		let key_storage = key_storage.unwrap_or_else(|| Arc::new(DummyKeyStorage::default()));
 		let servers_set = Arc::new(MapKeyServerSet::new(vec![
 			("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8".parse().unwrap(),
 				"127.0.0.1:8080".parse().unwrap()),
@@ -560,7 +562,7 @@ mod tests {
 			self_key_pair: self_key_pair,
 			key_server_set: servers_set,
 			cluster: Arc::new(DummyClusterClient::default()),
-			key_storage: Arc::new(DummyKeyStorage::default()),
+			key_storage: key_storage,
 		})
 	}
 
@@ -709,7 +711,7 @@ mod tests {
 
 	#[test]
 	fn no_tasks_scheduled_when_no_contract_events() {
-		let listener = make_service_contract_listener(None, None);
+		let listener = make_service_contract_listener(None, None, None);
 		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
 		listener.process_service_contract_events(Default::default(), Default::default());
 		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
@@ -719,7 +721,7 @@ mod tests {
 	fn server_key_generation_is_scheduled_when_requested_key_is_unknnown() {
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(vec![Default::default(), Default::default(), Default::default()]);
-		let listener = make_service_contract_listener(Some(Arc::new(contract)), None);
+		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
 		listener.process_service_contract_events(Default::default(), Default::default());
 		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 2);
@@ -731,7 +733,7 @@ mod tests {
 		let server_key_id = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse().unwrap();
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(vec![Default::default(), server_key_id, Default::default()]);
-		let listener = make_service_contract_listener(Some(Arc::new(contract)), None);
+		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
 		listener.process_service_contract_events(Default::default(), Default::default());
 		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
@@ -741,7 +743,7 @@ mod tests {
 	fn server_key_restore_is_scheduled_when_requested_key_is_knnown() {
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(vec![Default::default(), Default::default(), Default::default()]);
-		let listener = make_service_contract_listener(Some(Arc::new(contract)), None);
+		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		listener.data.key_storage.insert(Default::default(), Default::default());
 		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
 		listener.process_service_contract_events(Default::default(), Default::default());
@@ -753,7 +755,7 @@ mod tests {
 	fn no_new_tasks_scheduled_when_wrong_number_of_topics_in_log() {
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(vec![Default::default(), Default::default()]);
-		let listener = make_service_contract_listener(Some(Arc::new(contract)), None);
+		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
 		listener.process_service_contract_events(Default::default(), Default::default());
 		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
@@ -762,8 +764,20 @@ mod tests {
 	#[test]
 	fn generation_session_is_created_when_processing_generate_server_key_task() {
 		let key_server = Arc::new(DummyKeyServer::default());
-		let listener = make_service_contract_listener(None, Some(key_server.clone()));
+		let listener = make_service_contract_listener(None, Some(key_server.clone()), None);
 		ServiceContractListener::process_service_task(&listener.data, ServiceTask::GenerateServerKey(Default::default(), Default::default())).unwrap_err();
 		assert_eq!(key_server.generation_requests_count.load(Ordering::Relaxed), 1);
+	}
+
+	#[test]
+	fn key_is_read_and_published_when_processing_restore_server_key_task() {
+		let contract = Arc::new(DummyServiceContract::default());
+		let key_storage = Arc::new(DummyKeyStorage::default());
+		let mut key_share = DocumentKeyShare::default();
+		key_share.public = KeyPair::from_secret("0000000000000000000000000000000000000000000000000000000000000001".parse().unwrap()).unwrap().public().clone();
+		key_storage.insert(Default::default(), key_share.clone());
+		let listener = make_service_contract_listener(Some(contract.clone()), None, Some(key_storage));
+		ServiceContractListener::process_service_task(&listener.data, ServiceTask::RestoreServerKey(Default::default())).unwrap();
+		assert_eq!(*contract.published_keys.lock(), vec![(Default::default(), key_share.public)]);
 	}
 }
