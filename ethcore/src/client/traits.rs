@@ -99,8 +99,14 @@ pub trait CallContract {
 	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
 }
 
+/// Provides various information on a transaction by it's ID
+pub trait TransactionInfo {
+	/// Get the hash of block that contains the transaction, if any.
+	fn transaction_block(&self, id: TransactionId) -> Option<H256>;
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockInfo + CallContract {
+pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockInfo + CallContract + TransactionInfo {
 
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
@@ -163,9 +169,6 @@ pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockIn
 
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
-
-	/// Get the hash of block that contains the transaction, if any.
-	fn transaction_block(&self, id: TransactionId) -> Option<H256>;
 
 	/// Get uncle with given id.
 	fn uncle(&self, id: UncleId) -> Option<encoded::Header>;

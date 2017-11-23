@@ -41,7 +41,7 @@ use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, CallContract, ReopenBlock, PrepareOpenBlock,
+	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, ReopenBlock, PrepareOpenBlock,
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -1323,6 +1323,12 @@ impl BlockInfo for Client {
 	}
 }
 
+impl TransactionInfo for Client {
+	fn transaction_block(&self, id: TransactionId) -> Option<H256> {
+		self.transaction_address(id).map(|addr| addr.block_hash)
+	}
+}
+
 impl CallContract for Client {
 	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let transaction = self.contract_call_tx(block_id, address, data);
@@ -1665,10 +1671,6 @@ impl BlockChainClient for Client {
 
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
 		self.transaction_address(id).and_then(|address| self.chain.read().transaction(&address))
-	}
-
-	fn transaction_block(&self, id: TransactionId) -> Option<H256> {
-		self.transaction_address(id).map(|addr| addr.block_hash)
 	}
 
 	fn uncle(&self, id: UncleId) -> Option<encoded::Header> {

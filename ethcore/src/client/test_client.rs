@@ -36,9 +36,9 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, PrepareOpenBlock, BlockChainClient, MiningBlockChainClient,
-	BlockChainInfo, BlockStatus, BlockId, TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics,
-	BlockImportError, ProvingBlockChainClient,
+	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, PrepareOpenBlock, 
+	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId, 
+	UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError, ProvingBlockChainClient,
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -473,6 +473,12 @@ impl CallContract for TestBlockChainClient {
 	fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
 }
 
+impl TransactionInfo for TestBlockChainClient {
+	fn transaction_block(&self, _id: TransactionId) -> Option<H256> {
+		None	// Simple default.
+	}
+}
+
 impl BlockChainClient for TestBlockChainClient {
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
@@ -535,10 +541,6 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 	fn transaction(&self, _id: TransactionId) -> Option<LocalizedTransaction> {
-		None	// Simple default.
-	}
-
-	fn transaction_block(&self, _id: TransactionId) -> Option<H256> {
 		None	// Simple default.
 	}
 
