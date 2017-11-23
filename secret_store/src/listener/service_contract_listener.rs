@@ -170,45 +170,6 @@ impl ServiceContractListener {
 					None
 				},
 			}));
-
-/*		debug_assert!(!blocks.is_empty());
-
-		// read server key generation requests
-		let request_logs = client.logs(Filter {
-			from_block: BlockId::Hash(blocks.first().expect("!block.is_empty(); qed").clone()),
-			to_block: BlockId::Hash(blocks.last().expect("!block.is_empty(); qed").clone()),
-			address: Some(vec![service_contract]),
-			topics: vec![
-				Some(vec![*SERVER_KEY_REQUESTED_EVENT_NAME_HASH]),
-				None,
-				None,
-				None,
-			],
-			limit: None,
-		});
-
-		// schedule correct requests if they're intended to be processed by this KeyServer
-		self.data.tasks_queue.push(request_logs.into_iter()
-			.filter_map(|r| match r.entry.topics.len() {
-				// when key is already generated && we have this key
-				3 if self.data.key_storage.get(&r.entry.topics[1]).map(|k| k.is_some()).unwrap_or_default() => {
-					Some(ServiceTask::RestoreServerKey(
-						r.entry.topics[1],
-					))
-				}
-				// when key is not yet generated && this node should be master of this key generation session
-				3 if is_processed_by_this_key_server(&*self.data.key_server_set, &*self.data.self_key_pair, &r.entry.topics[1]) => {
-					Some(ServiceTask::GenerateServerKey(
-						r.entry.topics[1],
-						r.entry.topics[2],
-					))
-				},
-				3 => None,
-				l @ _ => {
-					warn!(target: "secretstore", "Ignoring ServerKeyRequested event with wrong number of params {}", l);
-					None
-				},
-			}));*/
 	}
 
 	/// Service thread procedure.
@@ -350,28 +311,6 @@ impl ServiceContractListener {
 	/// Publish server key.
 	fn publish_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
 		data.contract.publish_server_key(server_key_id, server_key)
-		/*let server_key_hash = keccak(server_key);
-		let signed_server_key = data.self_key_pair.sign(&server_key_hash).map_err(|e| format!("{}", e))?;
-		let signed_server_key: Signature = signed_server_key.into_electrum().into();
-		let transaction_data = data.contract.read().encode_server_key_generated_input(server_key_id.clone(),
-			server_key.to_vec(),
-			signed_server_key.v(),
-			signed_server_key.r().into(),
-			signed_server_key.s().into()
-		)?;
-
-		let contract = data.contract.read();
-		if contract.address != Default::default() {
-			if let Some(client) = data.client.upgrade() {
-				client.transact_contract(
-					contract.address.clone(),
-					transaction_data
-				).map_err(|e| format!("{}", e))?;
-			} // else we will read this in the next refresh cycle
-		}
-
-		Ok(())
-		unimplemented!()*/
 	}
 }
 
@@ -407,33 +346,6 @@ impl ChainNotify for ServiceContractListener {
 			self.data.tasks_queue.push(::std::iter::once(ServiceTask::Retry));
 			self.data.last_retry.store(0, Ordering::Relaxed);
 		}
-
-
-/*		if let (Some(client), Some(sync)) = (self.data.client.upgrade(), self.data.sync.upgrade()) {
-			// do nothing until synced
-			if sync.status().is_syncing(client.queue_info()) {
-				return;
-			}
-
-			// update contract address from registry
-			if let Some(service_contract_addr) = client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned()) {
-				if self.data.contract.read().address != service_contract_addr {
-					trace!(target: "secretstore", "{}: installing service contract from address {}",
-						self.data.self_key_pair.public(), service_contract_addr);
-					*self.data.contract.write() = SecretStoreService::new(service_contract_addr.clone());
-				}
-
-				// and process contract events
-				self.process_service_contract_events(&*client, service_contract_addr, enacted);
-			}
-
-			// schedule retry if received enough blocks since last retry
-			// it maybe inaccurate when switching syncing/synced states, but that's ok
-			if self.data.last_retry.fetch_add(enacted_len, Ordering::Relaxed) >= RETRY_INTEVAL_BLOCKS {
-				self.data.tasks_queue.push(::std::iter::once(ServiceTask::Retry));
-				self.data.last_retry.store(0, Ordering::Relaxed);
-			}
-		}*/
 	}
 }
 
