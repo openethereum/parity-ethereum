@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use dir::default_data_path;
-use ethcore::client::{Client, BlockChainClient, BlockId};
+use ethcore::client::{Client, BlockChainClient, BlockId, CallContract};
 use ethcore::transaction::{Transaction, Action};
 use ethsync::LightSync;
 use futures::{future, IntoFuture, Future};

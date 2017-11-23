@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 use futures::{future, Future};
 use parking_lot::Mutex;
 use ethcore::filter::Filter;
-use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
+use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify, CallContract};
 use native_contracts::KeyServerSet as KeyServerSetContract;
 use hash::keccak;
 use bigint::hash::H256;

@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet};
 use futures::{future, Future};
 use parking_lot::{Mutex, RwLock};
 use ethkey::public_to_address;
-use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
+use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify, CallContract};
 use native_contracts::SecretStoreAclStorage;
 use bigint::hash::H256;
 use util::Address;
