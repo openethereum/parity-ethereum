@@ -5,8 +5,7 @@ set -e
 PVER="1-9"
 PTYPE="v1"
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
-BRANCH=$CI_BUILD_REF_NAME
-PRE_REPO="js-dist-paritytech/parity-${BRANCH}-${PVER}-${PTYPE}.git"
+PRE_REPO="js-dist-paritytech/parity-${CI_BUILD_REF_NAME}-${PVER}-${PTYPE}.git"
 PRE_REPO_TOKEN="https://${GITHUB_JS_PRECOMPILED}:@github.com/${PRE_REPO}"
 BASEDIR=`dirname $0`
 
@@ -22,11 +21,8 @@ git config user.email "$GITHUB_EMAIL"
 git config user.name "GitLab Build Bot"
 git remote set-url origin $PRE_REPO_TOKEN > /dev/null 2>&1
 
-echo "*** [$PRE_REPO] Copying src & build"
-rm -rf build src
-mkdir -p src
-cp -f ../*.rs* ../*.toml .
-cp -f ../src/*.rs* src
+echo "*** [$PRE_REPO] Copying build"
+rm -rf build
 cp -rf ../.dist/build .
 
 echo "*** [$PRE_REPO] Adding to git"
