@@ -306,7 +306,7 @@ mod tests {
 			version: "".into(),
 			author: "".into(),
 			icon_url: "".into(),
-			local_url: "".into(),
+			local_url: Some("".into()),
 		}, Default::default(), None);
 
 		// when
