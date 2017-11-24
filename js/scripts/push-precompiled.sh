@@ -3,7 +3,7 @@ set -e
 
 # variables
 PVER="1-9"
-PTYPE="v1"
+PTYPE="shell"
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
 PRE_REPO="js-dist-paritytech/parity-${CI_BUILD_REF_NAME}-${PVER}-${PTYPE}.git"
 PRE_REPO_TOKEN="https://${GITHUB_JS_PRECOMPILED}:@github.com/${PRE_REPO}"
