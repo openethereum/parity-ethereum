@@ -17,7 +17,7 @@
 use std::io;
 use std::time::{Duration, SystemTime};
 use hyper::{self, header, StatusCode};
-use hyper::mime::{mime, Mime};
+use hyper::mime::{self, Mime};
 
 use apps;
 use handlers::{Reader, ContentHandler, add_security_headers};
