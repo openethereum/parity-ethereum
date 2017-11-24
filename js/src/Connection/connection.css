@@ -53,9 +53,9 @@
 }
 
 .form {
-  margin-top: 0.75em;
+  margin-top: 1em;
   padding: 0 4em;
-  text-align: left;
+  text-align: center;
 }
 
 .timestamp {
@@ -71,14 +71,15 @@
 }
 
 .icons {
-  padding-top: 1.5em;
+  margin-top: 2em;
+  margin-bottom: 0px;
 }
 
 .icon,
 .iconSmall {
   display: inline-block;
-  padding: 1em;
-  padding-bottom: 1em;
+  margin-top: 2em;
+  padding: 0 1.5em;
   vertical-align: middle;
 }
 
@@ -92,10 +93,13 @@
 }
 
 .console {
+  width: 80%;
   font-family: 'Roboto Mono', monospace;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.65);
   font-size: 16px;
-  padding: 0 0.25em;
+  padding: 0.5em 0.25em;
+  margin: 1em auto;
+  border-radius: 3px;
 }
 
 @keyframes pulse {
@@ -123,10 +127,11 @@
   color: rgb(208, 208, 208);
 }
 
-.formInput input {
+.formInput input[type=text] {
   background: rgba(0, 0, 0, 0.25) !important;
+  text-align: center;
 }
 
-.formInput input:focus {
+.formInput input[type=text]:focus {
   background: rgba(0, 0, 0, 0.25) !important;
 }
