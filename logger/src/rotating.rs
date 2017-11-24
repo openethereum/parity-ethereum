@@ -66,7 +66,11 @@ impl RotatingLogger {
 
 	/// Append new log entry
 	pub fn append(&self, log: String) {
-		self.logs.write().insert(0, log);
+		let mut logs = self.logs.write();
+		if logs.is_full() {
+			logs.pop();
+		}
+		logs.insert(0, log);
 	}
 
 	/// Return levels
