@@ -21,6 +21,7 @@ use futures::{future, Future};
 use parking_lot::Mutex;
 use ethcore::filter::Filter;
 use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
+use ethsync::SyncProvider;
 use native_contracts::KeyServerSet as KeyServerSetContract;
 use hash::keccak;
 use bigint::hash::H256;
@@ -56,6 +57,8 @@ pub struct OnChainKeyServerSet {
 struct CachedContract {
 	/// Blockchain client.
 	client: Weak<Client>,
+	/// Sync provider.
+	sync: Weak<SyncProvider>,
 	/// Contract address.
 	contract_addr: Option<Address>,
 	/// Active set of key servers.
@@ -63,8 +66,8 @@ struct CachedContract {
 }
 
 impl OnChainKeyServerSet {
-	pub fn new(client: &Arc<Client>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
-		let mut cached_contract = CachedContract::new(client, key_servers)?;
+	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
+		let mut cached_contract = CachedContract::new(client, sync, key_servers)?;
 		let key_server_contract_address = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
 		// only initialize from contract if it is installed. otherwise - use default nodes
 		// once the contract is installed, all default nodes are lost (if not in the contract' set)
@@ -95,9 +98,10 @@ impl ChainNotify for OnChainKeyServerSet {
 }
 
 impl CachedContract {
-	pub fn new(client: &Arc<Client>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
+	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
 		Ok(CachedContract {
 			client: Arc::downgrade(client),
+			sync: Arc::downgrade(sync),
 			contract_addr: None,
 			key_servers: key_servers.into_iter()
 				.map(|(p, addr)| {
@@ -110,7 +114,12 @@ impl CachedContract {
 	}
 
 	pub fn update(&mut self, enacted: Vec<H256>, retracted: Vec<H256>) {
-		if let Some(client) = self.client.upgrade() {
+		if let (Some(client), Some(sync)) = (self.client.upgrade(), self.sync.upgrade()) {
+			// do not update initial server set until fully synchronized
+			if sync.status().is_syncing(client.queue_info()) {
+				return;
+			}
+
 			let new_contract_addr = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
 
 			// new contract installed => read nodes set from the contract
