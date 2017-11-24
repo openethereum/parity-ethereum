@@ -449,9 +449,12 @@ fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u6
 	} else {
 		block_number / era_rounds
 	};
+	let mut divi = U256::from(1);
 	for _ in 0..eras {
-		reward = reward / U256::from(5) * U256::from(4);
+		reward = reward * U256::from(4);
+		divi = divi * U256::from(5);
 	}
+	reward = reward / divi;
 	(eras, reward)
 }
 
@@ -517,6 +520,11 @@ mod tests {
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(15, eras);
 		assert_eq!(U256::from_str("271000000000000").unwrap(), reward);
+		
+		let block_number = 250000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
+		assert_eq!(49, eras);
+		assert_eq!(U256::from_str("51212FFBAF0A").unwrap(), reward);
 	}
 
 	#[test]
