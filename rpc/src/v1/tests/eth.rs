@@ -26,7 +26,7 @@ use ethcore::block::Block;
 use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo};
 use ethcore::ethereum;
 use ethcore::ids::BlockId;
-use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, ExternalMiner, Miner, PendingSet, PrioritizationStrategy, GasLimit};
+use ethcore::miner::{MinerOptions, Banning, GasPricer, ExternalMiner, Miner, PendingSet, PrioritizationStrategy, GasLimit};
 use ethcore::spec::{Genesis, Spec};
 use ethcore::views::BlockView;
 use ethjson::blockchain::BlockChain;
@@ -101,7 +101,7 @@ fn make_spec(chain: &BlockChain) -> Spec {
 
 struct EthTester {
 	client: Arc<Client>,
-	_miner: Arc<MinerService>,
+	_miner: Arc<Miner>,
 	_snapshot: Arc<TestSnapshotService>,
 	accounts: Arc<AccountProvider>,
 	handler: IoHandler<Metadata>,

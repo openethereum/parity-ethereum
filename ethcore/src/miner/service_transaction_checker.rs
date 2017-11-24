@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
-use client::MiningBlockChainClient;
+use client::{CallContract, RegistryInfo};
 use transaction::SignedTransaction;
 use types::ids::BlockId;
 
@@ -33,7 +33,8 @@ pub struct ServiceTransactionChecker {
 
 impl ServiceTransactionChecker {
 	/// Try to create instance, reading contract address from given chain client.
-	pub fn update_from_chain_client(&self, client: &MiningBlockChainClient) {
+	pub fn update_from_chain_client<C: RegistryInfo>(&self, client: &C)
+	{
 		let mut contract = self.contract.lock();
 		if contract.is_none() {
 			*contract = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned())
@@ -46,7 +47,8 @@ impl ServiceTransactionChecker {
 	}
 
 	/// Checks if service transaction can be appended to the transaction queue.
-	pub fn check(&self, client: &MiningBlockChainClient, tx: &SignedTransaction) -> Result<bool, String> {
+	pub fn check<C: CallContract>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String>
+	{
 		debug_assert_eq!(tx.gas_price, U256::zero());
 
 		if let Some(ref contract) = *self.contract.lock() {

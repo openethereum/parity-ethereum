@@ -24,7 +24,7 @@ use util::Address;
 use bytes::Bytes;
 use parking_lot::{RwLock, Mutex};
 use ethcore::error::Error;
-use ethcore::client::MiningBlockChainClient;
+use ethcore::client::{MiningBlockChainClient, Nonce, PrepareOpenBlock};
 use ethcore::block::ClosedBlock;
 use ethcore::header::BlockNumber;
 use ethcore::transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction};
@@ -165,7 +165,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_external_transactions(&self, _chain: &MiningBlockChainClient, transactions: Vec<UnverifiedTransaction>) ->
+	fn import_external_transactions<C>(&self, _chain: &C, transactions: Vec<UnverifiedTransaction>) ->
 		Vec<Result<TransactionImportResult, Error>> {
 		// lets assume that all txs are valid
 		let transactions: Vec<_> = transactions.into_iter().map(|tx| SignedTransaction::new(tx).unwrap()).collect();
@@ -182,7 +182,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_own_transaction(&self, chain: &MiningBlockChainClient, pending: PendingTransaction) ->
+	fn import_own_transaction<C: Nonce>(&self, chain: &C, pending: PendingTransaction) ->
 		Result<TransactionImportResult, Error> {
 
 		// keep the pending nonces up to date
@@ -202,12 +202,12 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Removes all transactions from the queue and restart mining operation.
-	fn clear_and_reset(&self, _chain: &MiningBlockChainClient) {
+	fn clear_and_reset<C>(&self, _chain: &C) {
 		unimplemented!();
 	}
 
 	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks(&self, _chain: &MiningBlockChainClient, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
+	fn chain_new_blocks<C>(&self, _chain: &C, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
 		unimplemented!();
 	}
 
@@ -217,11 +217,11 @@ impl MinerService for TestMinerService {
 	}
 
 	/// New chain head event. Restart mining operation.
-	fn update_sealing(&self, _chain: &MiningBlockChainClient) {
+	fn update_sealing<C>(&self, _chain: &C) {
 		unimplemented!();
 	}
 
-	fn map_sealing_work<F, T>(&self, chain: &MiningBlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
+	fn map_sealing_work<C: PrepareOpenBlock, F, T>(&self, chain: &C, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
 		let open_block = chain.prepare_open_block(self.author(), *self.gas_range_target.write(), self.extra_data());
 		Some(f(&open_block.close()))
 	}
