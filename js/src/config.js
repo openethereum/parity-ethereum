@@ -14,29 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Test implementation of dapps service.
+import appLogoDark from '../assets/parity-logo-black.png';
+import appLogoDarkNoText from '@parity/shared/assets/images/parity-logo-black-no-text.svg';
+import appLogoLight from '@parity/shared/assets/images/parity-logo-white.svg';
 
-use v1::types::LocalDapp;
-use v1::helpers::dapps::DappsService;
-
-/// Test implementation of dapps service. Will always return the same list of dapps.
-#[derive(Default, Clone)]
-pub struct TestDappsService;
-
-impl DappsService for TestDappsService {
-	fn list_dapps(&self) -> Vec<LocalDapp> {
-		vec![LocalDapp {
-			id: "skeleton".into(),
-			name: "Skeleton".into(),
-			description: "A skeleton dapp".into(),
-			version: "0.1".into(),
-			author: "Parity Technologies Ltd".into(),
-			icon_url: "title.png".into(),
-			local_url: None,
-		}]
-	}
-
-	fn refresh_local_dapps(&self) -> bool {
-		true
-	}
-}
+export {
+  appLogoDark,
+  appLogoDarkNoText,
+  appLogoLight
+};

@@ -52,7 +52,7 @@ mod tests {
 			version: "0.1".into(),
 			author: "Parity Technologies Ltd".into(),
 			icon_url: "title.png".into(),
-			local_url: "http://localhost:5000".into(),
+			local_url: Some("http://localhost:5000".into()),
 		};
 
 		let serialized = serde_json::to_string(&dapp).unwrap();

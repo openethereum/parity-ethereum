@@ -17,6 +17,12 @@
 
 $textColor: #ccc;
 
+.home {
+  color: $textColor !important;
+  font-size: 1.2em;
+  margin-right: 1em;
+}
+
 .container {
   flex: 0;
   box-sizing: border-box;
