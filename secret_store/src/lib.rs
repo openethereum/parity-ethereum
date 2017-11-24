@@ -73,7 +73,7 @@ pub use self::node_key_pair::{PlainNodeKeyPair, KeyStoreNodeKeyPair};
 /// Start new key server instance
 pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>, config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
 	let acl_storage: Arc<acl_storage::AclStorage> = if config.acl_check_enabled {
-			acl_storage::OnChainAclStorage::new(&client/*, &sync*/) // TODO: return false until fully synced
+			acl_storage::OnChainAclStorage::new(&client, &sync)
 		} else {
 			Arc::new(acl_storage::DummyAclStorage::default())
 		};

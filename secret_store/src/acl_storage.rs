@@ -20,6 +20,7 @@ use futures::{future, Future};
 use parking_lot::{Mutex, RwLock};
 use ethkey::public_to_address;
 use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
+use ethsync::SyncProvider;
 use native_contracts::SecretStoreAclStorage;
 use bigint::hash::H256;
 use util::Address;
@@ -44,6 +45,8 @@ pub struct OnChainAclStorage {
 struct CachedContract {
 	/// Blockchain client.
 	client: Weak<Client>,
+	/// Sync provider.
+	sync: Weak<SyncProvider>,
 	/// Contract address.
 	contract_addr: Option<Address>,
 	/// Contract at given address.
@@ -57,9 +60,9 @@ pub struct DummyAclStorage {
 }
 
 impl OnChainAclStorage {
-	pub fn new(client: &Arc<Client>) -> Arc<Self> {
+	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>) -> Arc<Self> {
 		let acl_storage = Arc::new(OnChainAclStorage {
-			contract: Mutex::new(CachedContract::new(client)),
+			contract: Mutex::new(CachedContract::new(client, sync)),
 		});
 		client.add_notify(acl_storage.clone());
 		acl_storage
@@ -81,9 +84,10 @@ impl ChainNotify for OnChainAclStorage {
 }
 
 impl CachedContract {
-	pub fn new(client: &Arc<Client>) -> Self {
+	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>) -> Self {
 		CachedContract {
 			client: Arc::downgrade(client),
+			sync: Arc::downgrade(sync),
 			contract_addr: None,
 			contract: None,
 		}
@@ -105,19 +109,26 @@ impl CachedContract {
 	}
 
 	pub fn check(&mut self, public: &Public, document: &ServerKeyId) -> Result<bool, Error> {
-		match self.contract.as_ref() {
-			Some(contract) => {
-				let address = public_to_address(&public);
-				let do_call = |a, d| future::done(
-					self.client
-						.upgrade()
-						.ok_or("Calling contract without client".into())
-						.and_then(|c| c.call_contract(BlockId::Latest, a, d)));
-				contract.check_permissions(do_call, address, document.clone())
-					.map_err(|err| Error::Internal(err))
-					.wait()
+		match (self.client.upgrade(), self.sync.upgrade()) {
+			(Some(client), Some(sync)) => {
+				// we can not tell if access to document is allowed until fully synchronized
+				if sync.status().is_syncing(client.queue_info()) {
+					return Err(Error::Internal("Trying to check access by non-synchronized client".to_owned()));
+				}
+
+				// call contract to check accesss
+				match self.contract.as_ref() {
+					Some(contract) => {
+						let address = public_to_address(&public);
+						let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
+						contract.check_permissions(do_call, address, document.clone())
+							.map_err(|err| Error::Internal(err))
+							.wait()
+					},
+					None => Err(Error::Internal("ACL checker contract is not configured".to_owned())),
+				}
 			},
-			None => Err(Error::Internal("ACL checker contract is not configured".to_owned())),
+			_ => Err(Error::Internal("Calling ACL contract without client".into())),
 		}
 	}
 }
