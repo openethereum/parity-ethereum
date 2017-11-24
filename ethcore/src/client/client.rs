@@ -41,7 +41,7 @@ use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock
+	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -2043,11 +2043,7 @@ impl ImportSealedBlock for Client {
 	}
 }
 
-impl MiningBlockChainClient for Client {
-	fn vm_factory(&self) -> &EvmFactory {
-		&self.factories.vm
-	}
-
+impl BroadcastProposalBlock for Client {
 	fn broadcast_proposal_block(&self, block: SealedBlock) {
 		self.notify(|notify| {
 			notify.new_blocks(
@@ -2060,6 +2056,12 @@ impl MiningBlockChainClient for Client {
 				0,
 			);
 		});
+	}
+}
+
+impl MiningBlockChainClient for Client {
+	fn vm_factory(&self) -> &EvmFactory {
+		&self.factories.vm
 	}
 }
 

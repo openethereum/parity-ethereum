@@ -340,16 +340,19 @@ pub trait ImportSealedBlock {
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;
 }
 
+/// Provides `broadcast_proposal_block` method
+pub trait BroadcastProposalBlock {
+	/// Broadcast a block proposal.
+	fn broadcast_proposal_block(&self, block: SealedBlock);
+}
+
 /// Extended client interface used for mining
-pub trait MiningBlockChainClient: BlockChainClient + ReopenBlock + PrepareOpenBlock + ScheduleInfo + ImportSealedBlock {
+pub trait MiningBlockChainClient: BlockChainClient + ReopenBlock + PrepareOpenBlock + ScheduleInfo + ImportSealedBlock + BroadcastProposalBlock {
 	/// Reopens an OpenBlock and updates uncles.
 	// fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
 
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;
-
-	/// Broadcast a block proposal.
-	fn broadcast_proposal_block(&self, block: SealedBlock);
 }
 
 /// Client facilities used by internally sealing Engines.

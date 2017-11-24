@@ -39,7 +39,7 @@ use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
 	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId, 
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError, 
-	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock
+	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -409,12 +409,14 @@ impl ImportSealedBlock for TestBlockChainClient {
 	}
 }
 
+impl BroadcastProposalBlock for TestBlockChainClient {
+	fn broadcast_proposal_block(&self, _block: SealedBlock) {}
+}
+
 impl MiningBlockChainClient for TestBlockChainClient {
 	fn vm_factory(&self) -> &EvmFactory {
 		&self.vm_factory
 	}
-
-	fn broadcast_proposal_block(&self, _block: SealedBlock) {}
 }
 
 impl Nonce for TestBlockChainClient {
