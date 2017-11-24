@@ -328,8 +328,14 @@ pub trait PrepareOpenBlock {
 	) -> OpenBlock;
 }
 
+/// Provides `latest_schedule` method
+pub trait ScheduleInfo {
+	/// Returns latest schedule.
+	fn latest_schedule(&self) -> Schedule;
+}
+
 /// Extended client interface used for mining
-pub trait MiningBlockChainClient: BlockChainClient + ReopenBlock + PrepareOpenBlock {
+pub trait MiningBlockChainClient: BlockChainClient + ReopenBlock + PrepareOpenBlock + ScheduleInfo {
 	/// Reopens an OpenBlock and updates uncles.
 	// fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
 
@@ -341,9 +347,6 @@ pub trait MiningBlockChainClient: BlockChainClient + ReopenBlock + PrepareOpenBl
 
 	/// Import sealed block. Skips all verifications.
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;
-
-	/// Returns latest schedule.
-	fn latest_schedule(&self) -> Schedule;
 }
 
 /// Client facilities used by internally sealing Engines.

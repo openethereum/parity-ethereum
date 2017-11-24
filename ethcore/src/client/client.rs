@@ -41,7 +41,7 @@ use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock,
+	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -2001,11 +2001,13 @@ impl PrepareOpenBlock for Client {
 	}
 }
 
-impl MiningBlockChainClient for Client {
+impl ScheduleInfo for Client {
 	fn latest_schedule(&self) -> Schedule {
 		self.engine.schedule(self.latest_env_info().number)
 	}
+}
 
+impl MiningBlockChainClient for Client {
 	fn vm_factory(&self) -> &EvmFactory {
 		&self.factories.vm
 	}

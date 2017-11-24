@@ -39,7 +39,7 @@ use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
 	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId, 
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError, 
-	ProvingBlockChainClient,
+	ProvingBlockChainClient, ScheduleInfo
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -397,11 +397,13 @@ impl PrepareOpenBlock for TestBlockChainClient {
 	}
 }
 
-impl MiningBlockChainClient for TestBlockChainClient {
+impl ScheduleInfo for TestBlockChainClient {
 	fn latest_schedule(&self) -> Schedule {
 		Schedule::new_post_eip150(24576, true, true, true)
 	}
+}
 
+impl MiningBlockChainClient for TestBlockChainClient {
 	fn vm_factory(&self) -> &EvmFactory {
 		&self.vm_factory
 	}
