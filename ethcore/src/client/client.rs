@@ -41,7 +41,7 @@ use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo
+	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -2007,25 +2007,7 @@ impl ScheduleInfo for Client {
 	}
 }
 
-impl MiningBlockChainClient for Client {
-	fn vm_factory(&self) -> &EvmFactory {
-		&self.factories.vm
-	}
-
-	fn broadcast_proposal_block(&self, block: SealedBlock) {
-		self.notify(|notify| {
-			notify.new_blocks(
-				vec![],
-				vec![],
-				vec![],
-				vec![],
-				vec![],
-				vec![block.rlp_bytes()],
-				0,
-			);
-		});
-	}
-
+impl ImportSealedBlock for Client {
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult {
 		let h = block.header().hash();
 		let start = precise_time_ns();
@@ -2058,6 +2040,26 @@ impl MiningBlockChainClient for Client {
 		});
 		self.db.read().flush().expect("DB flush failed.");
 		Ok(h)
+	}
+}
+
+impl MiningBlockChainClient for Client {
+	fn vm_factory(&self) -> &EvmFactory {
+		&self.factories.vm
+	}
+
+	fn broadcast_proposal_block(&self, block: SealedBlock) {
+		self.notify(|notify| {
+			notify.new_blocks(
+				vec![],
+				vec![],
+				vec![],
+				vec![],
+				vec![],
+				vec![block.rlp_bytes()],
+				0,
+			);
+		});
 	}
 }
 

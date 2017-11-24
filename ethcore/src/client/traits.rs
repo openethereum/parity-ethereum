@@ -334,8 +334,14 @@ pub trait ScheduleInfo {
 	fn latest_schedule(&self) -> Schedule;
 }
 
+///Provides `import_sealed_block` method
+pub trait ImportSealedBlock {
+	/// Import sealed block. Skips all verifications.
+	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;
+}
+
 /// Extended client interface used for mining
-pub trait MiningBlockChainClient: BlockChainClient + ReopenBlock + PrepareOpenBlock + ScheduleInfo {
+pub trait MiningBlockChainClient: BlockChainClient + ReopenBlock + PrepareOpenBlock + ScheduleInfo + ImportSealedBlock {
 	/// Reopens an OpenBlock and updates uncles.
 	// fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
 
@@ -344,9 +350,6 @@ pub trait MiningBlockChainClient: BlockChainClient + ReopenBlock + PrepareOpenBl
 
 	/// Broadcast a block proposal.
 	fn broadcast_proposal_block(&self, block: SealedBlock);
-
-	/// Import sealed block. Skips all verifications.
-	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;
 }
 
 /// Client facilities used by internally sealing Engines.
