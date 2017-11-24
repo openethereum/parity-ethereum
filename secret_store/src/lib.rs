@@ -66,7 +66,7 @@ use ethcore::client::Client;
 use ethsync::SyncProvider;
 
 pub use types::all::{ServerKeyId, EncryptedDocumentKey, RequestSignature, Public,
-	Error, NodeAddress, ServiceConfiguration, ClusterConfiguration};
+	Error, NodeAddress, ContractAddress, ServiceConfiguration, ClusterConfiguration};
 pub use traits::{NodeKeyPair, KeyServer};
 pub use self::node_key_pair::{PlainNodeKeyPair, KeyStoreNodeKeyPair};
 
@@ -81,20 +81,24 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<No
 	let key_storage = Arc::new(key_storage::PersistentKeyStorage::new(&config)?);
 	let key_server = Arc::new(key_server::KeyServerImpl::new(&config.cluster_config, key_server_set.clone(), self_key_pair.clone(), acl_storage, key_storage.clone())?);
 	let cluster = key_server.cluster();
+
+	// prepare listeners
 	let http_listener = match config.listener_address {
 		Some(listener_address) => Some(listener::http_listener::KeyServerHttpListener::start(listener_address, key_server.clone())?),
 		None => None,
 	};
-	let service_contract = Arc::new(listener::service_contract::OnChainServiceContract::new(&client, &sync, self_key_pair.clone()));
-	let contract_listener = listener::service_contract_listener::ServiceContractListener::new(listener::service_contract_listener::ServiceContractListenerParams {
-		contract: service_contract,
-		key_server: key_server.clone(),
-		self_key_pair: self_key_pair,
-		key_server_set: key_server_set,
-		cluster: cluster,
-		key_storage: key_storage,
+	let contract_listener = config.service_contract_address.map(|service_contract_address| {
+		let service_contract = Arc::new(listener::service_contract::OnChainServiceContract::new(&client, &sync, service_contract_address, self_key_pair.clone()));
+		let contract_listener = listener::service_contract_listener::ServiceContractListener::new(listener::service_contract_listener::ServiceContractListenerParams {
+			contract: service_contract,
+			key_server: key_server.clone(),
+			self_key_pair: self_key_pair,
+			key_server_set: key_server_set,
+			cluster: cluster,
+			key_storage: key_storage,
+		});
+		client.add_notify(contract_listener.clone());
+		contract_listener
 	});
-	client.add_notify(contract_listener.clone());
-	let listener = listener::Listener::new(key_server, http_listener, Some(contract_listener));
-	Ok(Box::new(listener))
+	Ok(Box::new(listener::Listener::new(key_server, http_listener, contract_listener)))
 }

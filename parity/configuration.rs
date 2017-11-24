@@ -45,7 +45,7 @@ use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
-use secretstore::{Configuration as SecretStoreConfiguration, NodeSecretKey};
+use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
@@ -606,6 +606,7 @@ impl Configuration {
 			enabled: self.secretstore_enabled(),
 			http_enabled: self.secretstore_http_enabled(),
 			acl_check_enabled: self.secretstore_acl_check_enabled(),
+			service_contract_address: self.secretstore_service_contract_address()?,
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
 			interface: self.secretstore_interface(),
@@ -1074,6 +1075,14 @@ impl Configuration {
 
 	fn secretstore_acl_check_enabled(&self) -> bool {
 		!self.args.flag_no_secretstore_acl_check
+	}
+
+	fn secretstore_service_contract_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
+		Ok(match self.args.arg_secretstore_contract.as_ref() {
+			"none" => None,
+			"registry" => Some(SecretStoreContractAddress::Registry),
+			a @ _ => Some(SecretStoreContractAddress::Address(a.parse().map_err(|e| format!("{}", e))?)),
+		})
 	}
 
 	fn ui_enabled(&self) -> bool {

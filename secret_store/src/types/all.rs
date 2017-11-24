@@ -61,11 +61,22 @@ pub struct NodeAddress {
 	pub port: u16,
 }
 
+/// Contract address.
+#[derive(Debug, Clone)]
+pub enum ContractAddress {
+	/// Address is read from registry.
+	Registry,
+	/// Address is specified.
+	Address(ethkey::Address),
+}
+
 /// Secret store configuration
 #[derive(Debug)]
 pub struct ServiceConfiguration {
 	/// HTTP listener address. If None, HTTP API is disabled.
 	pub listener_address: Option<NodeAddress>,
+	/// Service contract address. If None, service contract API is disabled.
+	pub service_contract_address: Option<ContractAddress>,
 	/// Is ACL check enabled. If false, everyone has access to all keys. Useful for tests only.
 	pub acl_check_enabled: bool,
 	/// Data directory path for secret store

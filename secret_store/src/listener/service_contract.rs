@@ -26,7 +26,7 @@ use hash::keccak;
 use bigint::hash::H256;
 use bigint::prelude::U256;
 use listener::service_contract_listener::ServiceTask;
-use {ServerKeyId, NodeKeyPair};
+use {ServerKeyId, NodeKeyPair, ContractAddress};
 
 /// Name of the SecretStore contract in the registry.
 const SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service";
@@ -60,6 +60,8 @@ pub struct OnChainServiceContract {
 	sync: Weak<SyncProvider>,
 	/// This node key pair.
 	self_key_pair: Arc<NodeKeyPair>,
+	/// Contract addresss.
+	address: ContractAddress,
 	/// Contract.
 	contract: RwLock<Arc<SecretStoreService>>,
 }
@@ -80,19 +82,27 @@ struct PendingRequestsIterator {
 
 impl OnChainServiceContract {
 	/// Create new on-chain service contract.
-	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>) -> Self {
-		let contract_addr = client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned())
-			.map(|address| {
+	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, address: ContractAddress, self_key_pair: Arc<NodeKeyPair>) -> Self {
+		let contract_addr = match &address {
+			&ContractAddress::Registry => client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned())
+				.map(|address| {
+					trace!(target: "secretstore", "{}: installing service contract from address {}",
+						self_key_pair.public(), address);
+					address
+				})
+				.unwrap_or_default(),
+			&ContractAddress::Address(ref address) => {
 				trace!(target: "secretstore", "{}: installing service contract from address {}",
 					self_key_pair.public(), address);
-				address
-			})
-			.unwrap_or_default();
+				address.clone()
+			},
+		};
 
 		OnChainServiceContract {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),
 			self_key_pair: self_key_pair,
+			address: address,
 			contract: RwLock::new(Arc::new(SecretStoreService::new(contract_addr))),
 		}
 	}
@@ -100,18 +110,20 @@ impl OnChainServiceContract {
 
 impl ServiceContract for OnChainServiceContract {
 	fn update(&self) {
-		if let (Some(client), Some(sync)) = (self.client.upgrade(), self.sync.upgrade()) {
-			// do nothing until synced
-			if sync.status().is_syncing(client.queue_info()) {
-				return;
-			}
+		if let &ContractAddress::Registry = &self.address {
+			if let (Some(client), Some(sync)) = (self.client.upgrade(), self.sync.upgrade()) {
+				// do nothing until synced
+				if sync.status().is_syncing(client.queue_info()) {
+					return;
+				}
 
-			// update contract address from registry
-			let service_contract_addr = client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned()).unwrap_or_default();
-			if self.contract.read().address != service_contract_addr {
-				trace!(target: "secretstore", "{}: installing service contract from address {}",
-					self.self_key_pair.public(), service_contract_addr);
-				*self.contract.write() = Arc::new(SecretStoreService::new(service_contract_addr));
+				// update contract address from registry
+				let service_contract_addr = client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned()).unwrap_or_default();
+				if self.contract.read().address != service_contract_addr {
+					trace!(target: "secretstore", "{}: installing service contract from address {}",
+						self.self_key_pair.public(), service_contract_addr);
+					*self.contract.write() = Arc::new(SecretStoreService::new(service_contract_addr));
+				}
 			}
 		}
 	}

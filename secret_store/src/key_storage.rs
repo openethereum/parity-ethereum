@@ -433,6 +433,7 @@ pub mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let config = ServiceConfiguration {
 			listener_address: None,
+			service_contract_address: None,
 			acl_check_enabled: true,
 			data_path: tempdir.path().display().to_string(),
 			cluster_config: ClusterConfiguration {

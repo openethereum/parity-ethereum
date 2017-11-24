@@ -24,13 +24,22 @@ use ethsync::SyncProvider;
 use helpers::replace_home;
 use util::Address;
 
-#[derive(Debug, PartialEq, Clone)]
 /// This node secret key.
+#[derive(Debug, PartialEq, Clone)]
 pub enum NodeSecretKey {
 	/// Stored as plain text in configuration file.
 	Plain(Secret),
 	/// Stored as account in key store.
 	KeyStore(Address),
+}
+
+/// Secret store service contract address.
+#[derive(Debug, PartialEq, Clone)]
+pub enum ContractAddress {
+	/// Contract address is read from registry.
+	Registry,
+	/// Contract address is specified.
+	Address(Address),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -42,6 +51,8 @@ pub struct Configuration {
 	pub http_enabled: bool,
 	/// Is ACL check enabled.
 	pub acl_check_enabled: bool,
+	/// Service contract address.
+	pub service_contract_address: Option<ContractAddress>,
 	/// This node secret.
 	pub self_secret: Option<NodeSecretKey>,
 	/// Other nodes IDs + addresses.
@@ -93,7 +104,7 @@ mod server {
 	use ethcore_secretstore;
 	use ethkey::KeyPair;
 	use ansi_term::Colour::Red;
-	use super::{Configuration, Dependencies, NodeSecretKey};
+	use super::{Configuration, Dependencies, NodeSecretKey, ContractAddress};
 
 	/// Key server
 	pub struct KeyServer {
@@ -137,6 +148,10 @@ mod server {
 					address: conf.http_interface.clone(),
 					port: conf.http_port,
 				}) } else { None },
+				service_contract_address: conf.service_contract_address.map(|c| match c {
+					ContractAddress::Registry => ethcore_secretstore::ContractAddress::Registry,
+					ContractAddress::Address(address) => ethcore_secretstore::ContractAddress::Address(address),
+				}),
 				data_path: conf.data_path.clone(),
 				acl_check_enabled: conf.acl_check_enabled,
 				cluster_config: ethcore_secretstore::ClusterConfiguration {
@@ -175,6 +190,7 @@ impl Default for Configuration {
 			enabled: true,
 			http_enabled: true,
 			acl_check_enabled: true,
+			service_contract_address: None,
 			self_secret: None,
 			admin_public: None,
 			nodes: BTreeMap::new(),
