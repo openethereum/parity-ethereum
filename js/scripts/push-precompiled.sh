@@ -2,50 +2,39 @@
 set -e
 
 # variables
+PVER="1-9"
+PTYPE="v1"
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
-BRANCH=$CI_BUILD_REF_NAME
-GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/js-precompiled.git"
+PRE_REPO="js-dist-paritytech/parity-${CI_BUILD_REF_NAME}-${PVER}-${PTYPE}.git"
+PRE_REPO_TOKEN="https://${GITHUB_JS_PRECOMPILED}:@github.com/${PRE_REPO}"
 BASEDIR=`dirname $0`
-GITLOG=./.git/.git-release.log
 
-# setup the git user defaults for the current repo
-function setup_git_user {
-  git config push.default simple
-  git config merge.ours.driver true
-  git config user.email "$GITHUB_EMAIL"
-  git config user.name "GitLab Build Bot"
-}
+pushd $BASEDIR/..
 
-# change into the build directory
-pushd $BASEDIR
-cd ../.dist
+echo "*** [$PRE_REPO] Cloning repo"
+rm -rf precompiled
+git clone https://github.com/$PRE_REPO precompiled
+cd precompiled
+git config push.default simple
+git config merge.ours.driver true
+git config user.email "$GITHUB_EMAIL"
+git config user.name "GitLab Build Bot"
+git remote set-url origin $PRE_REPO_TOKEN > /dev/null 2>&1
 
-# add local files and send it up
-echo "*** [v2 precompiled] Setting up GitHub config"
-rm -rf ./.git
-git init
-setup_git_user
-
-echo "*** [v2 precompiled] Checking out $BRANCH branch"
-git remote add origin $GIT_JS_PRECOMPILED
-git fetch origin 2>$GITLOG
-git checkout -b $BRANCH
-
-echo "*** [v2 precompiled] Committing compiled files for $UTCDATE"
-mv build ../build.new
-git add .
-git commit -m "$UTCDATE [update]"
-git merge origin/$BRANCH -X ours --commit -m "$UTCDATE [merge]"
-git rm -r build
+echo "*** [$PRE_REPO] Copying build"
 rm -rf build
-git commit -m "$UTCDATE [cleanup]"
-mv ../build.new build
+cp -rf ../.dist/build .
+
+echo "*** [$PRE_REPO] Adding to git"
+echo "$UTCDATE" >README.md
 git add .
-git commit -m "$UTCDATE [release]"
+git commit -m "$UTCDATE"
 
-echo "*** [v2 precompiled] Merging remote"
-git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG
+echo "*** [$PRE_REPO] Pushing upstream"
+git push --quiet origin HEAD:refs/heads/master > /dev/null 2>&1
 
+cd ..
+rm -rf precompiled
 popd
 
 # exit with exit code
