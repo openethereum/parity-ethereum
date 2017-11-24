@@ -520,6 +520,12 @@ mod tests {
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(15, eras);
 		assert_eq!(U256::from_str("271000000000000").unwrap(), reward);
+		
+		let block_number = 250000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
+		assert_eq!(48, eras);
+		assert!(U256::from_str("65697BFA9ACB").unwrap() != reward);
+		assert_eq!(U256::from_str("65697BFA9ACD").unwrap(), reward);
 	}
 
 	#[test]
