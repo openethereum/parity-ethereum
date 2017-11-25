@@ -2478,6 +2478,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pwasm-run-test"
+version = "0.1.0"
+dependencies = [
+ "clap 2.26.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-bigint 0.2.1",
+ "ethcore-logger 1.9.0",
+ "ethjson 0.1.0",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "vm 0.1.0",
+ "wasm 0.1.0",
+]
+
+[[package]]
 name = "quasi"
 version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
