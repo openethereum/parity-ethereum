@@ -115,7 +115,7 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	Static(
 		"_blockhash",
 		&[I64, I32],
-		Some(I32),
+		None,
 	),
 	Static(
 		"_coinbase",
