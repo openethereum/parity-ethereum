@@ -47,7 +47,7 @@
     "@parity/dapp-console": "paritytech/dapp-console",
     "@parity/dapp-dapp-accounts": "paritytech/dapp-dapp-accounts",
     "@parity/dapp-dapp-methods": "js-dist-paritytech/dapp-dapp-methods",
-    "@parity/dapp-dapp-visible": "paritytech/dapp-dapp-visible",
+    "@parity/dapp-dapp-visible": "js-dist-paritytech/dapp-dapp-visible",
     "@parity/dapp-dappreg": "paritytech/dapp-dappreg",
     "@parity/dapp-githubhint": "paritytech/dapp-githubhint",
     "@parity/dapp-localtx": "paritytech/dapp-localtx",
