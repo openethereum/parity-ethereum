@@ -3,7 +3,7 @@ use std::sync::{Arc};
 use api::{EthSync, NetworkConfiguration, Params};
 use ethcore::client::{TestBlockChainClient};
 use ethcore::spec::Spec;
-use network::NetworkError;
+use network::Error as NetworkError;
 use test_snapshot::TestSnapshotService;
 
 /// Test wrapper around EthSync
