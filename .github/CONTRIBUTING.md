@@ -22,7 +22,7 @@ Also, try to include **steps to reproduce** the issue and expand on the **actual
 
 ## Contribute!
 
-If you would like to contribute to Parity, please [fork it](https://github.com/paritytech/parity/#fork-destination-box), fix bugs or implement features, and [propose a pull request](https://github.com/paritytech/parity/compare).
+If you would like to contribute to Parity, please **fork it**, fix bugs or implement features, and [propose a pull request](https://github.com/paritytech/parity/compare).
 
 Please, refer to the [Coding Guide](https://github.com/paritytech/parity/wiki/Coding-guide) in our wiki for more details about hacking on Parity.
 
