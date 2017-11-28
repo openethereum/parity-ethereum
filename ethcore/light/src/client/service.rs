@@ -120,7 +120,6 @@ impl<T: ChainDataFetcher> IoHandler<ClientIoMessage> for ImportBlocks<T> {
 #[cfg(test)]
 mod tests {
 	use super::Service;
-	use devtools::RandomTempPath;
 	use ethcore::spec::Spec;
 
 	use std::sync::Arc;
@@ -128,13 +127,14 @@ mod tests {
 	use client::fetch;
 	use time::Duration;
 	use parking_lot::Mutex;
+	use tempdir::TempDir;
 
 	#[test]
 	fn it_works() {
+		let tempdir = TempDir::new("").unwrap();
 		let spec = Spec::new_test();
-		let temp_path = RandomTempPath::new();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		Service::start(Default::default(), &spec, fetch::unavailable(), temp_path.as_path(), cache).unwrap();
+		Service::start(Default::default(), &spec, fetch::unavailable(), tempdir.path(), cache).unwrap();
 	}
 }

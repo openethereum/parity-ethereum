@@ -4,7 +4,7 @@ use serde;
 use serde_json::{Value as JsonValue, to_value};
 use std::path::PathBuf;
 use futures::{Canceled};
-use jsonrpc_core::BoxFuture;
+use {BoxFuture};
 
 pub struct SignerRpc {
 	rpc: Rpc,

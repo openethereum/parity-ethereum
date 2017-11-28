@@ -62,7 +62,7 @@ module.exports = {
       },
       {
         test: /\.js$/,
-        include: /node_modules\/(ethereumjs-tx|@parity\/wordlist)/,
+        include: /(ethereumjs-tx|wordlist)/,
         use: 'babel-loader'
       },
       {

@@ -19,7 +19,7 @@ import { observable, computed, action, transaction } from 'mobx';
 import BigNumber from 'bignumber.js';
 
 import { eip20 as tokenAbi } from '~/contracts/abi';
-import { fromWei } from '~/api/util/wei';
+import { fromWei } from '@parity/api/lib/util/wei';
 import ERRORS from './errors';
 import { DEFAULT_GAS } from '~/util/constants';
 import { ETH_TOKEN } from '~/util/tokens';
@@ -133,8 +133,8 @@ export default class TransferStore {
   }
 
   @action handleClose = () => {
-    this.stage = 0;
     this.onClose();
+    this.stage = 0;
   }
 
   @action onUpdateDetails = (type, value) => {
@@ -169,7 +169,6 @@ export default class TransferStore {
   }
 
   @action onSend = () => {
-    this.onNext();
     this.sending = true;
 
     this

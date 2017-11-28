@@ -23,17 +23,17 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import qs from 'querystring';
 
-import ContractInstances from '@parity/shared/contracts';
-import { initStore } from '@parity/shared/redux';
-import ContextProvider from '@parity/ui/ContextProvider';
+import ContractInstances from '@parity/shared/lib/contracts';
+import { initStore } from '@parity/shared/lib/redux';
+import ContextProvider from '@parity/ui/lib/ContextProvider';
 
-import '@parity/shared/environment';
+import '@parity/shared/lib/environment';
 
 import Application from './Application';
 import Dapp from './Dapp';
 import Dapps from './Dapps';
 import { setupProviderFilters } from './DappRequests';
-import { injectExternalScript } from './ShellExtend';
+// import { injectExternalScript } from './ShellExtend';
 import SecureApi from './secureApi';
 
 injectTapEventPlugin();
@@ -82,7 +82,7 @@ ReactDOM.render(
 );
 
 // testing, priceTicker gist
-injectExternalScript('https://cdn.rawgit.com/jacogr/396fc583e81b9404e21195a48dc862ca/raw/33e5058a4c0028cf9acf4b0662d75298e41ca6fa/priceTicker.js');
+// injectExternalScript('https://cdn.rawgit.com/jacogr/396fc583e81b9404e21195a48dc862ca/raw/33e5058a4c0028cf9acf4b0662d75298e41ca6fa/priceTicker.js');
 
 // testing, signer plugins
 import '@parity/plugin-signer-account';

@@ -15,27 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$backgroundOne: #f80;
-$backgroundTwo: #e57a00;
-
 .requests {
-  color: white;
   position: fixed;
   left: 0;
   right: 0;
-  top: 2.75em;
-  z-index: 760; /* sits above requests */
-
-  .request {
-    align-items: center;
-    background: $backgroundOne;
-    background: linear-gradient($backgroundOne, $backgroundTwo);
-    display: flex;
-    justify-content: flex-end;
-    padding: 0.5em;
-
-    > span {
-      margin-right: 1em;
-    }
-  }
+  bottom: 0;
+  z-index: 1001; /* sits above sync warning */
 }

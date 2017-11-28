@@ -15,17 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import HistoryStore from '~/mobx/historyStore';
-import {
-  Accounts, Account, Addresses, Address, Application,
-  Contract, Contracts, Dapp, Dapps, Home,
-  Settings, SettingsBackground, SettingsParity, SettingsProxy,
-  SettingsViews, Signer, Status,
-  Vaults, Wallet, Web, WriteContract
-} from '~/views';
-import builtinDapps from '~/views/Dapps/builtin.json';
+import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Home, Settings, SettingsBackground, SettingsParity, SettingsProxy, SettingsViews, Status, Vaults, Wallet, Web, WriteContract } from '~/views';
+// import builtinDapps from '~/views/Dapps/builtin.json';
 
 const accountsHistory = HistoryStore.get('accounts');
-const dappsHistory = HistoryStore.get('dapps');
+// const dappsHistory = HistoryStore.get('dapps');
 
 function handleDeprecatedRoute (nextState, replace) {
   const { address } = nextState.params;
@@ -125,20 +119,20 @@ const childRoutes = [
     component: Settings,
     childRoutes: settingsRoutes
   },
-  {
-    path: 'app/:id',
-    component: Dapp,
-    onEnter: ({ params }) => {
-      if (!builtinDapps[params.id] || !builtinDapps[params.id].skipHistory) {
-        dappsHistory.add(params.id);
-      }
-    }
-  },
-  { path: 'apps', component: Dapps },
+  // {
+  //   path: 'app/:id',
+  //   component: Dapp,
+  //   onEnter: ({ params }) => {
+  //     if (!builtinDapps[params.id] || !builtinDapps[params.id].skipHistory) {
+  //       dappsHistory.add(params.id);
+  //     }
+  //   }
+  // },
+  // { path: 'apps', component: Dapps },
   { path: 'home', component: Home },
   { path: 'web', component: Web },
-  { path: 'web/:url', component: Web },
-  { path: 'signer', component: Signer }
+  { path: 'web/:url', component: Web }
+  // { path: 'signer', component: Signer }
 ];
 
 // TODO : use ES6 imports when supported

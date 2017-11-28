@@ -1,0 +1,19 @@
+[package]
+name = "pwasm-run-test"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+serde = "1"
+serde_json = "1"
+serde_derive = "1"
+ethcore-bigint = { path = "../../../util/bigint" }
+ethjson = { path = "../../../json" }
+vm = { path = "../../vm" }
+wasm = { path = "../" }
+clap = "2.24"
+ethcore-logger = { path = "../../../logger" }
+rustc-hex = "1"
+
+[features]
+default = ["ethcore-bigint/std"]

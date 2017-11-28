@@ -37,6 +37,10 @@ impl fmt::Display for Deprecated {
 pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 	let mut result = vec![];
 
+	if args.flag_warp {
+		result.push(Deprecated::DoesNothing("--warp"));
+	}
+
 	if args.flag_jsonrpc {
 		result.push(Deprecated::DoesNothing("--jsonrpc"));
 	}
@@ -117,6 +121,7 @@ mod tests {
 		assert_eq!(find_deprecated(&Args::default()), vec![]);
 		assert_eq!(find_deprecated(&{
 			let mut args = Args::default();
+			args.flag_warp = true;
 			args.flag_jsonrpc = true;
 			args.flag_rpc = true;
 			args.flag_jsonrpc_off = true;
@@ -135,6 +140,7 @@ mod tests {
 			args.flag_dapps_apis_all = true;
 			args
 		}), vec![
+			Deprecated::DoesNothing("--warp"),
 			Deprecated::DoesNothing("--jsonrpc"),
 			Deprecated::DoesNothing("--rpc"),
 			Deprecated::Replaced("--jsonrpc-off", "--no-jsonrpc"),

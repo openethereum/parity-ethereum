@@ -19,7 +19,7 @@ import { FormattedMessage } from 'react-intl';
 import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
 
-import SignerLayout from '@parity/ui/Signer/Layout';
+import SignerLayout from '@parity/ui/lib/Signer/Layout';
 
 import PluginStore from '../pluginStore';
 import styles from './pendingItem.css';

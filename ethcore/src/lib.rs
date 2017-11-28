@@ -103,7 +103,7 @@ extern crate price_info;
 extern crate rand;
 extern crate rayon;
 extern crate rlp;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate heapsize;
 extern crate memorydb;
 extern crate patricia_trie as trie;

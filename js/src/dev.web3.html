@@ -6,7 +6,6 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <link rel="icon" href="/parity-logo-black-no-text.png" type="image/png">
     <title>dev::Web3</title>
-    <script src="/parity-utils/web3.js"></script>
     <style>
       .box {
         font-size: 1.5em;
@@ -22,9 +21,18 @@
     <div class="box">
       best block #<span id="blockNumber">unknown</span>
     </div>
+    <script src="/parity-utils/inject.js"></script>
+    <script src="https://rawgit.com/ethereum/web3.js/develop/dist/web3.min.js"></script>
     <script>
+      console.log('window.ethereum', window.ethereum);
+      console.log('window.ethereum.isParity', window.ethereum.isParity);
+      console.log('window.web3.currentProvider', window.web3.currentProvider, window.web3.currentProvider.send, window.web3.currentProvider.sendAsync);
+      console.log('window.web3.currentProvider.isParity', window.web3.currentProvider.isParity);
+
+      const web3 = new Web3(window.web3.currentProvider);
+
       window.setInterval(function () {
-        window.web3.eth.getBlockNumber(function (error, blockNumber) {
+        web3.eth.getBlockNumber(function (error, blockNumber) {
           if (error) {
             console.error('error', error);
             return;

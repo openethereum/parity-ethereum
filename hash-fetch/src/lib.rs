@@ -25,7 +25,7 @@ extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
 extern crate futures;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate mime;
 extern crate mime_guess;
 extern crate native_contracts;
