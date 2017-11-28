@@ -23,3 +23,9 @@ Also, try to include **steps to reproduce** the issue and expand on the **actual
 If you would like to contribute to Parity, please [fork it](https://github.com/paritytech/parity/#fork-destination-box), fix bugs or implement features, and [propose a pull request](https://github.com/paritytech/parity/compare).
 
 Please, refer to the [Coding Guide](https://github.com/paritytech/parity/wiki/Coding-guide) in our wiki for more details about hacking on Parity.
+
+### License
+
+By contributing to Parity, you agree that your contributions will be licensed under the [GPLv3 License](LICENSE).
+
+Each contributor has to sign our Contributor License Agreement. The purpose of the CLA is to ensure that the guardian of a project's outputs has the necessary ownership or grants of rights over all contributions to allow them to distribute under the chosen license. You can read and sign our full Contributor License Agreement at [cla.parity.io](https://cla.parity.io) before submitting a pull request.
