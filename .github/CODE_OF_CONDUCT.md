@@ -57,7 +57,7 @@ If you are subject to or witness unacceptable behavior, or have any other concer
 
 Link to reporting guidelines: [CONTRIBUTING.md](CONTRIBUTING.md)
 
-Link to security policy: [SECURITY.md](SECURITY.md)
+Link to security policy: [SECURITY.md](../SECURITY.md)
 
 Additionally, community organizers are available to help community members engage with local law enforcement or to otherwise help those experiencing unacceptable behavior feel safe. In the context of in-person events, organizers will also provide escorts as desired by the person experiencing distress.
 
