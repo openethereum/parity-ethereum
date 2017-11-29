@@ -166,7 +166,7 @@
     "react-intl": "2.4.0",
     "react-markdown": "3.0.2",
     "react-redux": "^5.0.6",
-    "react-router": "4.2.0",
+    "react-router": "3.2.0",
     "react-router-redux": "4.0.8",
     "react-tap-event-plugin": "3.0.2",
     "react-transition-group": "2.2.1",
