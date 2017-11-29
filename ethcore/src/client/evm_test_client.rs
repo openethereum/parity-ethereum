@@ -23,7 +23,7 @@ use bigint::hash::{H160, H256};
 use journaldb;
 use {trie, kvdb_memorydb, bytes};
 use kvdb::{self, KeyValueDB};
-use {state, state_db, client, executive, trace, transaction, db, spec, pod_state};
+use {state, state_db, client, executive, trace, transaction, db, spec, pod_state, log_entry};
 use factory::Factories;
 use evm::{self, VMType, FinalizationResult};
 use vm::{self, ActionParams};
@@ -239,6 +239,7 @@ impl<'a> EvmTestClient<'a> {
 					output: result.output,
 					trace: result.trace,
 					vm_trace: result.vm_trace,
+					logs: result.receipt.logs,
 					contract_address: if let transaction::Action::Create = transaction.action {
 						Some(executive::contract_address(scheme, &transaction.sender(), &transaction.nonce, &transaction.data).0)
 					} else {
@@ -271,6 +272,8 @@ pub enum TransactResult<T, V> {
 		vm_trace: Option<V>,
 		/// Created contract address (if any)
 		contract_address: Option<H160>,
+		/// Generated logs
+		logs: Vec<log_entry::LogEntry>,
 	},
 	/// Transaction failed to run
 	Err {
