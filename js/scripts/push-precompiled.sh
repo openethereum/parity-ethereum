@@ -34,7 +34,7 @@ echo "*** [$PRE_REPO] Pushing upstream"
 git push --quiet origin HEAD:refs/heads/master > /dev/null 2>&1
 
 cd ..
-rm -rf precompiled
+rm -rf .dist .build .happypack precompiled
 popd
 
 # exit with exit code
