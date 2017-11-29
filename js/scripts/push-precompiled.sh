@@ -27,7 +27,7 @@ cp -rf ../.dist/build .
 
 echo "*** [$PRE_REPO] Adding to git"
 echo "$UTCDATE" >README.md
-git add .
+git add --all .
 git commit -m "$UTCDATE"
 
 echo "*** [$PRE_REPO] Pushing upstream"
