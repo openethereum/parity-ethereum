@@ -24,6 +24,8 @@ git remote set-url origin $PRE_REPO_TOKEN > /dev/null 2>&1
 echo "*** [$PRE_REPO] Copying build"
 rm -rf build
 cp -rf ../.dist/build .
+find . -name "*.css.map" -type f -delete
+find . -name "*.js.map" -type f -delete
 
 echo "*** [$PRE_REPO] Adding to git"
 echo "$UTCDATE" >README.md
