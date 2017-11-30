@@ -19,60 +19,28 @@ use std::collections::HashSet;
 use edit_distance::edit_distance;
 use parity_wordlist;
 
-use super::{Address, Error, Brain, Generator};
+use super::{Address, Brain, Generator};
 
+
+/// Tries to find a phrase for address, given the number
+/// of expected words and a partial phrase.
+///
+/// Returns `None` if phrase couldn't be found.
 pub fn brain_recover(
 	address: &Address,
 	known_phrase: &str,
 	expected_words: usize,
-	filter: Option<(usize, usize)>,
-) -> Result<String, Error> {
-	let known_words = parity_wordlist::WORDS.iter().cloned().collect::<HashSet<_>>();
-	let mut words = known_phrase.split(' ')
-		.map(|word| match known_words.get(word) {
-			None => {
-				info!("Invalid word '{}', looking for potential substitutions.", word);
-				let substitutions = generate_substitutions(word);
-				info!("Closest words: {:?}", &substitutions[..10]);
-				substitutions
-			},
-			Some(word) => vec![*word],
-		})
-		.collect::<Vec<_>>();
-
-	// add missing words
-	if words.len() < expected_words {
-		let to_add = expected_words - words.len();
-		info!("Number of words is insuficcient adding {} more.", to_add);
-		for _ in 0..to_add {
-			words.push(parity_wordlist::WORDS.iter().cloned().collect());
-		}
-	}
-
-	// start searching
-	let it = PhrasesIterator::new(words);
-	let combinations = it.combinations();
-	info!("Starting to test {} possible combinations.", combinations);
-
-	let mut idx = 0usize;
-	let it = it.filter(move |_| match filter {
-		None => true,
-		Some((step, max)) => {
-			let ok = idx == step;
-			idx = if idx + 1 >= max { 0 } else { idx + 1};
-			ok
-		}
-	});
-
+) -> Option<String> {
+	let it = PhrasesIterator::from_known_phrase(known_phrase, expected_words);
 	for phrase in it {
 		let keypair = Brain::new(phrase.clone()).generate().expect("Brain wallets are infallible; qed");
 		trace!("Testing: {}, got: {:?}", phrase, keypair.address());
 		if &keypair.address() == address {
-			return Ok(phrase);
+			return Some(phrase);
 		}
 	}
 
-	Err(Error::Custom(format!("Couldn't find a solution. Tested {} phrases.", combinations)))
+	None
 }
 
 fn generate_substitutions(word: &str) -> Vec<&'static str> {
@@ -86,7 +54,8 @@ fn generate_substitutions(word: &str) -> Vec<&'static str> {
 		.collect()
 }
 
-struct PhrasesIterator {
+/// Iterator over possible
+pub struct PhrasesIterator {
 	words: Vec<Vec<&'static str>>,
 	combinations: u64,
 	indexes: Vec<usize>,
@@ -94,9 +63,38 @@ struct PhrasesIterator {
 }
 
 impl PhrasesIterator {
+	pub fn from_known_phrase(known_phrase: &str, expected_words: usize) -> Self {
+		let known_words = parity_wordlist::WORDS.iter().cloned().collect::<HashSet<_>>();
+		let mut words = known_phrase.split(' ')
+			.map(|word| match known_words.get(word) {
+				None => {
+					info!("Invalid word '{}', looking for potential substitutions.", word);
+					let substitutions = generate_substitutions(word);
+					info!("Closest words: {:?}", &substitutions[..10]);
+					substitutions
+				},
+				Some(word) => vec![*word],
+			})
+		.collect::<Vec<_>>();
+
+		// add missing words
+		if words.len() < expected_words {
+			let to_add = expected_words - words.len();
+			info!("Number of words is insuficcient adding {} more.", to_add);
+			for _ in 0..to_add {
+				words.push(parity_wordlist::WORDS.iter().cloned().collect());
+			}
+		}
+
+		// start searching
+		PhrasesIterator::new(words)
+	}
+
 	pub fn new(words: Vec<Vec<&'static str>>) -> Self {
 		let combinations = words.iter().fold(1u64, |acc, x| acc * x.len() as u64);
 		let indexes = words.iter().map(|_| 0).collect();
+		info!("Starting to test {} possible combinations.", combinations);
+
 		PhrasesIterator {
 			words,
 			combinations,

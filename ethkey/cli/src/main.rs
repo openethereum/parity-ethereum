@@ -17,16 +17,17 @@
 extern crate docopt;
 extern crate env_logger;
 extern crate ethkey;
-extern crate num_cpus;
 extern crate panic_hook;
 extern crate parity_wordlist;
 extern crate rustc_hex;
 extern crate serde;
+extern crate threadpool;
+
 #[macro_use]
 extern crate serde_derive;
 
 use std::num::ParseIntError;
-use std::{env, fmt, process, io, thread, sync};
+use std::{env, fmt, process, io, sync};
 
 use docopt::Docopt;
 use ethkey::{KeyPair, Random, Brain, BrainPrefix, Prefix, Error as EthkeyError, Generator, sign, verify_public, verify_address, brain_recover};
@@ -215,19 +216,23 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 			}
 		} else if args.cmd_prefix {
 			let prefix = args.arg_prefix.from_hex()?;
-			let iterations = usize::max_value();
 			let brain = args.flag_brain;
-			in_threads(move |_, _| {
+			in_threads(move || {
+				let iterations = 1024;
 				let prefix = prefix.clone();
 				move || {
-					if brain {
+					let prefix = prefix.clone();
+					let res = if brain {
 						let mut brain = BrainPrefix::new(prefix, iterations, BRAIN_WORDS);
 						let result = brain.generate();
 						let phrase = format!("recovery phrase: {}", brain.phrase());
 						result.map(|keypair| (keypair, Some(phrase)))
 					} else {
-						Ok((Prefix::new(prefix, iterations).generate()?, None))
-					}
+						let result = Prefix::new(prefix, iterations).generate();
+						result.map(|res| (res, None))
+					};
+
+					Ok(res.map(Some).unwrap_or(None))
 				}
 			})?
 		} else {
@@ -256,11 +261,26 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let display_mode = DisplayMode::new(&args);
 		let known_phrase = args.arg_known_phrase;
 		let address = args.arg_address.parse().map_err(|_| EthkeyError::InvalidAddress)?;
-		let phrase = in_threads(move |idx, max| {
-			let known_phrase = known_phrase.clone();
-			move || brain_recover(&address, &known_phrase, BRAIN_WORDS, Some((idx, max)))
+		let (phrase, keypair) = in_threads(move || {
+			let mut it = brain_recover::PhrasesIterator::from_known_phrase(&known_phrase, BRAIN_WORDS);
+			move || {
+				let mut i = 0;
+				while let Some(phrase) = it.next() {
+					i += 1;
+
+					let keypair = Brain::new(phrase.clone()).generate().unwrap();
+					if keypair.address() == address {
+						return Ok(Some((phrase, keypair)))
+					}
+
+					if i >= 1024 {
+						return Ok(None)
+					}
+				}
+
+				Err(EthkeyError::Custom("Couldn't find any results.".into()))
+			}
 		})?;
-		let keypair = Brain::new(phrase.clone()).generate().expect("Brain wallet generator is infallible; qed");
 		Ok(display((keypair, Some(phrase)), display_mode))
 	} else {
 		Ok(format!("{}", USAGE))
@@ -276,35 +296,42 @@ fn validate_phrase(phrase: &str) -> String {
 	}
 }
 
-fn in_threads<F, X, O>(task: F) -> Result<O, EthkeyError> where
+fn in_threads<F, X, O>(prepare: F) -> Result<O, EthkeyError> where
 	O: Send + 'static,
 	X: Send + 'static,
-	F: Fn(usize, usize) -> X,
-	X: FnOnce() -> Result<O, EthkeyError>,
+	F: Fn() -> X,
+	X: FnMut() -> Result<Option<O>, EthkeyError>,
 {
-	let mut handles = Vec::new();
-	let max = num_cpus::get();
+	let pool = threadpool::Builder::new().build();
 
 	let (tx, rx) = sync::mpsc::sync_channel(1);
-	for i in 0..max {
-		let t = task(i, max);
+	let is_done = sync::Arc::new(sync::atomic::AtomicBool::default());
+
+	for _ in 0..pool.max_count() {
+		let is_done = is_done.clone();
 		let tx = tx.clone();
-		handles.push(thread::spawn(move || match t() {
-			Ok(solution) => {
-				tx.send(solution).expect("Receiving end never dropped.");
-				Ok(())
-			},
-			Err(err) => Err(err),
-		}));
+		let mut task = prepare();
+		pool.execute(move || {
+			loop {
+				if is_done.load(sync::atomic::Ordering::SeqCst) {
+					return;
+				}
+
+				let res = match task() {
+					Ok(None) => continue,
+					Ok(Some(v)) => Ok(v),
+					Err(err) => Err(err),
+				};
+
+				// We are interested only in the first response.
+				let _ = tx.send(res);
+			}
+		});
 	}
 
 	if let Ok(solution) = rx.recv() {
-		return Ok(solution);
-	}
-
-	for handle in handles {
-		handle.join()
-			.map_err(|err| EthkeyError::Custom(format!("Failed to wait for thread: {:?}", err)))??;
+		is_done.store(true, sync::atomic::Ordering::SeqCst);
+		return solution;
 	}
 
 	Err(EthkeyError::Custom("No results found.".into()))

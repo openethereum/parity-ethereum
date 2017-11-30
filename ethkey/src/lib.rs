@@ -33,7 +33,6 @@ extern crate log;
 
 mod brain;
 mod brain_prefix;
-mod brain_recover;
 mod error;
 mod keypair;
 mod keccak;
@@ -43,12 +42,12 @@ mod signature;
 mod secret;
 mod extended;
 
+pub mod brain_recover;
 pub mod math;
 
 pub use self::parity_wordlist::Error as WordlistError;
 pub use self::brain::Brain;
 pub use self::brain_prefix::BrainPrefix;
-pub use self::brain_recover::brain_recover;
 pub use self::error::Error;
 pub use self::keypair::{KeyPair, public_to_address};
 pub use self::math::public_is_valid;
