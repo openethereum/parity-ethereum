@@ -16,7 +16,8 @@
 
 //! SecretStore-specific rpc interface.
 
-use jsonrpc_core::Error;
+use std::collections::BTreeSet;
+use jsonrpc_core::Result;
 
 use v1::types::{H160, H512, Bytes};
 
@@ -26,16 +27,21 @@ build_rpc_trait! {
 		/// Encrypt data with key, received from secret store.
 		/// Arguments: `account`, `password`, `key`, `data`.
 		#[rpc(name = "secretstore_encrypt")]
-		fn encrypt(&self, H160, String, Bytes, Bytes) -> Result<Bytes, Error>;
+		fn encrypt(&self, H160, String, Bytes, Bytes) -> Result<Bytes>;
 
 		/// Decrypt data with key, received from secret store.
 		/// Arguments: `account`, `password`, `key`, `data`.
 		#[rpc(name = "secretstore_decrypt")]
-		fn decrypt(&self, H160, String, Bytes, Bytes) -> Result<Bytes, Error>;
+		fn decrypt(&self, H160, String, Bytes, Bytes) -> Result<Bytes>;
 
 		/// Decrypt data with shadow key, received from secret store.
 		/// Arguments: `account`, `password`, `decrypted_secret`, `common_point`, `decrypt_shadows`, `data`.
 		#[rpc(name = "secretstore_shadowDecrypt")]
-		fn shadow_decrypt(&self, H160, String, H512, H512, Vec<Bytes>, Bytes) -> Result<Bytes, Error>;
+		fn shadow_decrypt(&self, H160, String, H512, H512, Vec<Bytes>, Bytes) -> Result<Bytes>;
+
+		/// Sign servers set for use in ServersSetChange session.
+		/// Arguments: `account`, `password`, `servers_set`.
+		#[rpc(name = "secretstore_signServersSet")]
+		fn sign_servers_set(&self, H160, String, BTreeSet<H512>) -> Result<Bytes>;
 	}
 }

@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use parking_lot::{Mutex, Condvar};
 use bigint::hash::H256;
@@ -243,14 +244,19 @@ impl SessionImpl {
 
 		let mut data = self.data.lock();
 		let non_isolated_nodes = self.core.cluster.nodes();
-		data.consensus_session.consensus_job_mut().transport_mut().version = Some(version.clone());
-		data.version = Some(version.clone());
-		data.is_shadow_decryption = Some(is_shadow_decryption);
-		data.consensus_session.initialize(key_version.id_numbers.keys()
+		let mut consensus_nodes: BTreeSet<_> = key_version.id_numbers.keys()
 			.filter(|n| non_isolated_nodes.contains(*n))
 			.cloned()
 			.chain(::std::iter::once(self.core.meta.self_node_id.clone()))
-			.collect())?;
+			.collect();
+		if let Some(&DelegationStatus::DelegatedFrom(delegation_master, _)) = data.delegation_status.as_ref() {
+			consensus_nodes.remove(&delegation_master);
+		}
+
+		data.consensus_session.consensus_job_mut().transport_mut().version = Some(version.clone());
+		data.version = Some(version.clone());
+		data.is_shadow_decryption = Some(is_shadow_decryption);
+		data.consensus_session.initialize(consensus_nodes)?;
 
 		if data.consensus_session.state() == ConsensusSessionState::ConsensusEstablished {
 			self.core.disseminate_jobs(&mut data.consensus_session, &version, is_shadow_decryption)?;
@@ -502,7 +508,10 @@ impl ClusterSession for SessionImpl {
 	}
 
 	fn is_finished(&self) -> bool {
-		self.data.lock().result.is_some()
+		let data = self.data.lock();
+		data.consensus_session.state() == ConsensusSessionState::Failed
+			|| data.consensus_session.state() == ConsensusSessionState::Finished
+			|| data.result.is_some()
 	}
 
 	fn on_node_timeout(&self, node: &NodeId) {
@@ -1146,7 +1155,7 @@ mod tests {
 
 		// now check that:
 		// 1) 4 of 5 sessions are in Finished state
-		assert_eq!(sessions.iter().filter(|s| s.state() == ConsensusSessionState::Finished).count(), 5);
+		assert_eq!(sessions.iter().filter(|s| s.state() == ConsensusSessionState::Finished).count(), 4);
 		// 2) 1 session has decrypted key value
 		assert_eq!(sessions[1].decrypted_secret().unwrap().unwrap(), EncryptedDocumentKeyShadow {
 			decrypted_secret: SECRET_PLAIN.into(),

@@ -21,13 +21,13 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { createIdentityImg } from '@parity/api/util/identity';
-import { newError } from '@parity/shared/redux/actions';
-import Button from '@parity/ui/Button';
-import Portal from '@parity/ui/Portal';
-import { CheckIcon, DoneIcon, NextIcon, PrintIcon, ReplayIcon } from '@parity/ui/Icons';
+import { createIdentityImg } from '@parity/api/lib/util/identity';
+import { newError } from '@parity/shared/lib/redux/actions';
+import Button from '@parity/ui/lib/Button';
+import Portal from '@parity/ui/lib/Portal';
+import { CheckIcon, DoneIcon, NextIcon, PrintIcon, ReplayIcon } from '@parity/ui/lib/Icons';
 
-import ParityLogo from '@parity/shared/assets/images/parity-logo-black-no-text.svg';
+import { appLogoDarkNoText as parityLogo } from '../config';
 import { NewAccount, AccountDetails } from '@parity/dapp-accounts/src/CreateAccount';
 import print from '@parity/dapp-accounts/src/CreateAccount/print';
 import recoveryPage from '@parity/dapp-accounts/src/CreateAccount/recoveryPage.ejs';
@@ -341,7 +341,7 @@ class FirstRun extends Component {
     print(recoveryPage({
       address,
       identity,
-      logo: ParityLogo,
+      logo: parityLogo,
       name,
       phrase
     }));

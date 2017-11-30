@@ -321,6 +321,11 @@ impl TransactionQueue {
 			self.by_hash.remove(&hash);
 		}
 	}
+
+	/// Get a transaction by hash.
+	pub fn get(&self, hash: &H256) -> Option<&PendingTransaction> {
+		self.by_hash.get(&hash)
+	}
 }
 
 #[cfg(test)]

@@ -25,7 +25,7 @@ mod platform {
 	use std::process::Command;
 
 	pub static NPM_CMD: &'static str = "npm";
-	pub fn handle_fd(cmd: &mut Command) -> &mut Command {
+	pub fn handle_cmd(cmd: &mut Command) -> &mut Command {
 		cmd
 	}
 }
@@ -34,14 +34,14 @@ mod platform {
 mod platform {
 	use std::process::{Command, Stdio};
 
-	pub static NPM_CMD: &'static str = "npm.cmd";
+	pub static NPM_CMD: &'static str = "cmd.exe";
 	// NOTE [ToDr] For some reason on windows
-	// We cannot have any file descriptors open when running a child process
-	// during build phase.
-	pub fn handle_fd(cmd: &mut Command) -> &mut Command {
+	// The command doesn't have %~dp0 set properly
+	// and it cannot load globally installed node.exe
+	pub fn handle_cmd(cmd: &mut Command) -> &mut Command {
 		cmd.stdin(Stdio::null())
-			.stdout(Stdio::null())
-			.stderr(Stdio::null())
+			.arg("/c")
+			.arg("npm.cmd")
 	}
 }
 
@@ -58,7 +58,7 @@ pub fn build(_path: &str, _dest: &str) {
 
 #[cfg(not(feature = "use-precompiled-js"))]
 pub fn build(path: &str, dest: &str) {
-	let child = platform::handle_fd(&mut Command::new(platform::NPM_CMD))
+	let child = platform::handle_cmd(&mut Command::new(platform::NPM_CMD))
 		.arg("install")
 		.arg("--no-progress")
 		.current_dir(path)
@@ -66,7 +66,7 @@ pub fn build(path: &str, dest: &str) {
 		.unwrap_or_else(|e| die("Installing node.js dependencies with npm", e));
 	assert!(child.success(), "There was an error installing dependencies.");
 
-	let child = platform::handle_fd(&mut Command::new(platform::NPM_CMD))
+	let child = platform::handle_cmd(&mut Command::new(platform::NPM_CMD))
 		.arg("run")
 		.arg("build")
 		.env("NODE_ENV", "production")

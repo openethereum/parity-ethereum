@@ -14,19 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import 'whatwg-fetch';
-
 import Api from '@parity/api';
+import qs from 'query-string';
 import Web3 from 'web3';
 
 import web3extensions from './web3.extensions';
 
 function initProvider () {
-  const parts = window.location.pathname.split('/');
-  let appId = parts[1];
+  const path = window.location.pathname.split('/');
+  const query = qs.parse(window.location.search);
+
+  let appId = path[1] || query.appId;
 
   if (appId === 'dapps') {
-    appId = parts[2];
+    appId = path[2];
   } else if (!Api.util.isHex(appId)) {
     appId = Api.util.sha3(appId);
   }
@@ -52,8 +53,12 @@ function initProvider () {
 
 function initWeb3 (ethereum) {
   // FIXME: Use standard provider for web3
-  const http = new Web3.providers.HttpProvider('/rpc/');
-  const web3 = new Web3(http);
+  const provider = new Api.Provider.SendAsync(ethereum);
+  const web3 = new Web3(provider);
+
+  if (!web3.currentProvider) {
+    web3.currentProvider = provider;
+  }
 
   // set default account
   web3.eth.getAccounts((error, accounts) => {
@@ -78,9 +83,11 @@ function initParity (ethereum) {
   });
 }
 
-const ethereum = initProvider();
+if (typeof window !== 'undefined' && !window.isParity) {
+  const ethereum = initProvider();
 
-initWeb3(ethereum);
-initParity(ethereum);
+  initWeb3(ethereum);
+  initParity(ethereum);
 
-console.warn('Deprecation: Dapps should only used the exposed EthereumProvider on `window.ethereum`, the use of `window.parity` and `window.web3` will be removed in future versions of this injector');
+  console.warn('Deprecation: Dapps should only used the exposed EthereumProvider on `window.ethereum`, the use of `window.parity` and `window.web3` will be removed in future versions of this injector');
+}

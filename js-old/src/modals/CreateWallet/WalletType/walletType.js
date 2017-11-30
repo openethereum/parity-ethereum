@@ -17,35 +17,35 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { walletSourceURL } from '~/contracts/code/wallet';
+// import { walletSourceURL } from '~/contracts/code/wallet';
 import { RadioButtons } from '~/ui';
 
 const TYPES = [
-  {
-    label: (
-      <FormattedMessage
-        id='createWallet.type.multisig.label'
-        defaultMessage='Multi-Sig wallet'
-      />
-    ),
-    key: 'MULTISIG',
-    description: (
-      <FormattedMessage
-        id='createWallet.type.multisig.description'
-        defaultMessage='Create/Deploy a {link} Wallet'
-        values={ {
-          link: (
-            <a href={ walletSourceURL } target='_blank'>
-              <FormattedMessage
-                id='createWallet.type.multisig.link'
-                defaultMessage='standard multi-signature'
-              />
-            </a>
-          )
-        } }
-      />
-    )
-  },
+  // {
+  //   label: (
+  //     <FormattedMessage
+  //       id='createWallet.type.multisig.label'
+  //       defaultMessage='Multi-Sig wallet'
+  //     />
+  //   ),
+  //   key: 'MULTISIG',
+  //   description: (
+  //     <FormattedMessage
+  //       id='createWallet.type.multisig.description'
+  //       defaultMessage='Create/Deploy a {link} Wallet'
+  //       values={ {
+  //         link: (
+  //           <a href={ walletSourceURL } target='_blank'>
+  //             <FormattedMessage
+  //               id='createWallet.type.multisig.link'
+  //               defaultMessage='standard multi-signature'
+  //             />
+  //           </a>
+  //         )
+  //       } }
+  //     />
+  //   )
+  // },
   {
     label: (
       <FormattedMessage
@@ -57,7 +57,7 @@ const TYPES = [
     description: (
       <FormattedMessage
         id='createWallet.type.watch.description'
-        defaultMessage='Add an existing wallet to your accounts'
+        defaultMessage='Add an existing multisig wallet to your accounts'
       />
     )
   }

@@ -92,17 +92,6 @@ class Views extends Component {
               )
             }
             {
-              this.renderView('apps',
-                <FormattedMessage
-                  id='settings.views.apps.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.apps.description'
-                  defaultMessage='Decentralized applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
-                />
-              )
-            }
-            {
               this.renderView('contracts',
                 <FormattedMessage
                   id='settings.views.contracts.label'
@@ -110,17 +99,6 @@ class Views extends Component {
                 <FormattedMessage
                   id='settings.views.contracts.description'
                   defaultMessage='Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focused environment, specifically for advanced users that understand the inner working of certain contracts.'
-                />
-              )
-            }
-            {
-              this.renderView('signer',
-                <FormattedMessage
-                  id='settings.views.signer.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.signer.description'
-                  defaultMessage='The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by decentralized applications.'
                 />
               )
             }

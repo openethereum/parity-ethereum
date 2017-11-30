@@ -22,7 +22,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { confirmOperation, revokeOperation } from '~/redux/providers/walletActions';
-import { bytesToHex } from '~/api/util/format';
+import { bytesToHex } from '@parity/api/lib/util/format';
 import { Container, InputAddress, Button, IdentityIcon } from '~/ui';
 import TxRow from '~/ui/TxList/TxRow';
 

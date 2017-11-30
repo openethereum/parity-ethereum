@@ -16,7 +16,7 @@
 
 //! Eth PUB-SUB rpc interface.
 
-use jsonrpc_core::Error;
+use jsonrpc_core::Result;
 use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::Subscriber;
 use jsonrpc_pubsub::SubscriptionId;
@@ -35,7 +35,7 @@ build_rpc_trait! {
 
 			/// Unsubscribe from existing Eth subscription.
 			#[rpc(name = "eth_unsubscribe")]
-			fn unsubscribe(&self, SubscriptionId) -> Result<bool, Error>;
+			fn unsubscribe(&self, SubscriptionId) -> Result<bool>;
 		}
 	}
 }

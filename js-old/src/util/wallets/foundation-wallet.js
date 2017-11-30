@@ -16,9 +16,9 @@
 
 import { range, uniq } from 'lodash';
 
-import Abi from '~/abi';
-import Contract from '~/api/contract';
-import { bytesToHex, toHex } from '~/api/util/format';
+import Abi from '@parity/abi';
+import Contract from '@parity/api/lib/contract';
+import { bytesToHex, toHex } from '@parity/api/lib/util/format';
 import { validateAddress } from '~/util/validation';
 
 import WalletAbi from '~/contracts/abi/foundation-multisig-wallet.json';
@@ -130,27 +130,67 @@ export default class FoundationWalletUtils {
       .ConfirmationNeeded
       .getAllLogs()
       .then((logs) => {
-        return logs.map((log) => ({
-          initiator: log.params.initiator.value,
-          to: log.params.to.value,
-          data: log.params.data.value,
-          value: log.params.value.value,
-          operation: bytesToHex(log.params.operation.value),
-          transactionIndex: log.transactionIndex,
-          transactionHash: log.transactionHash,
-          blockNumber: log.blockNumber,
-          confirmedBy: []
-        }));
+        return logs
+          .filter((log) => {
+            if (!log.blockNumber) {
+              console.warn('got a log without blockNumber', log);
+              return false;
+            }
+
+            if (!log.transactionIndex) {
+              console.warn('got a log without transactionIndex', log);
+              return false;
+            }
+
+            return true;
+          })
+          .map((log) => ({
+            initiator: log.params.initiator.value,
+            to: log.params.to.value,
+            data: log.params.data.value,
+            value: log.params.value.value,
+            operation: bytesToHex(log.params.operation.value),
+            transactionIndex: log.transactionIndex,
+            transactionHash: log.transactionHash,
+            blockNumber: log.blockNumber,
+            confirmedBy: []
+          }));
       })
       .then((logs) => {
         return logs.sort((logA, logB) => {
-          const comp = logA.blockNumber.comparedTo(logB.blockNumber);
+          const bnA = logA.blockNumber;
+          const bnB = logA.blockNumber;
+
+          if (!bnA) {
+            console.warn('could not find block number in log', logA);
+            return 1;
+          }
+
+          if (!bnB) {
+            console.warn('could not find block number in log', logB);
+            return -1;
+          }
+
+          const comp = bnA.comparedTo(bnB);
 
           if (comp !== 0) {
             return comp;
           }
 
-          return logA.transactionIndex.comparedTo(logB.transactionIndex);
+          const txIdxA = logA.transactionIndex;
+          const txIdxB = logB.transactionIndex;
+
+          if (!txIdxA) {
+            console.warn('could not find transaction index in log', logA);
+            return 1;
+          }
+
+          if (!txIdxB) {
+            console.warn('could not find transaction index in log', logB);
+            return -1;
+          }
+
+          return txIdxA.comparedTo(txIdxB);
         });
       })
       .then((pendingTxs) => {
@@ -205,40 +245,48 @@ export default class FoundationWalletUtils {
         ] ]
       })
       .then((logs) => {
-        const transactions = logs.map((log) => {
-          const signature = toHex(log.topics[0]);
+        const transactions = logs
+          .map((log) => {
+            const signature = toHex(log.topics[0]);
 
-          const value = log.params.value.value;
-          const from = signature === WalletSignatures.Deposit
-            ? log.params['_from'].value
-            : walletContract.address;
+            const value = log.params.value.value;
+            const from = signature === WalletSignatures.Deposit
+              ? log.params['_from'].value
+              : walletContract.address;
 
-          const to = signature === WalletSignatures.Deposit
-            ? walletContract.address
-            : log.params.to.value;
+            const to = signature === WalletSignatures.Deposit
+              ? walletContract.address
+              : log.params.to.value;
 
-          const transaction = {
-            transactionHash: log.transactionHash,
-            blockNumber: log.blockNumber,
-            from, to, value
-          };
+            const transaction = {
+              transactionHash: log.transactionHash,
+              transactionIndex: log.transactionIndex,
+              blockNumber: log.blockNumber,
+              from, to, value
+            };
 
-          if (log.params.created && log.params.created.value && !/^(0x)?0*$/.test(log.params.created.value)) {
-            transaction.creates = log.params.created.value;
-            delete transaction.to;
-          }
+            if (!transaction.blockNumber) {
+              console.warn('log without block number', log);
+              return null;
+            }
 
-          if (log.params.operation) {
-            transaction.operation = bytesToHex(log.params.operation.value);
-            checkPendingOperation(api, log, transaction.operation);
-          }
+            if (log.params.created && log.params.created.value && !/^(0x)?0*$/.test(log.params.created.value)) {
+              transaction.creates = log.params.created.value;
+              delete transaction.to;
+            }
 
-          if (log.params.data) {
-            transaction.data = log.params.data.value;
-          }
+            if (log.params.operation) {
+              transaction.operation = bytesToHex(log.params.operation.value);
+              checkPendingOperation(api, log, transaction.operation);
+            }
 
-          return transaction;
-        });
+            if (log.params.data) {
+              transaction.data = log.params.data.value;
+            }
+
+            return transaction;
+          })
+          .filter((tx) => tx);
 
         return transactions;
       });

@@ -20,11 +20,10 @@ import { FormattedMessage } from 'react-intl';
 import PropTypes from 'prop-types';
 
 import Api from '@parity/api';
-import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
-import viewsDapps from '@parity/shared/config/dappsViews.json';
-import DappsStore from '@parity/shared/mobx/dappsStore';
-import HistoryStore from '@parity/shared/mobx/historyStore';
-// import { Bond } from 'oo7';
+import builtinDapps from '@parity/shared/lib/config/dappsBuiltin.json';
+import viewsDapps from '@parity/shared/lib/config/dappsViews.json';
+import DappsStore from '@parity/shared/lib/mobx/dappsStore';
+import HistoryStore from '@parity/shared/lib/mobx/historyStore';
 
 import styles from './dapp.css';
 
@@ -111,7 +110,9 @@ export default class Dapp extends Component {
 
     switch (app.type) {
       case 'local':
-        src = `${dappsUrl}/${app.id}/`;
+        src = app.localUrl
+          ? `${app.localUrl}?appId=${app.id}`
+          : `${dappsUrl}/${app.id}/`;
         break;
 
       case 'network':
@@ -163,6 +164,5 @@ export default class Dapp extends Component {
     const frame = document.getElementById('dappFrame');
 
     frame.style.opacity = 1;
-    // frame.contentWindow.injectedBondCache = Bond.cache;
   }
 }
