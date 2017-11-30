@@ -151,7 +151,7 @@
     "@parity/plugin-signer-hardware": "js-dist-paritytech/plugin-signer-hardware",
     "@parity/plugin-signer-qr": "js-dist-paritytech/plugin-signer-qr",
     "@parity/shared": "2.2.x",
-    "@parity/ui": "3.0.2",
+    "@parity/ui": "3.0.x",
     "keythereum": "1.0.2",
     "lodash.flatten": "4.4.0",
     "lodash.omitby": "4.6.0",
