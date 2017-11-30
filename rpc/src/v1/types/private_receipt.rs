@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use v1::types::{H160, H256};
+use v1::types::{H160, H256, TransactionRequest};
 use ethcore::private_transactions::{Receipt as EthPrivateReceipt};
 
 /// Receipt
@@ -39,5 +39,16 @@ impl From<EthPrivateReceipt> for PrivateTransactionReceipt {
 			status_code: r.status_code.into(),
 		}
 	}
+}
+
+/// Receipt and Transaction
+#[derive(Debug, Serialize)]
+pub struct PrivateTransactionReceiptAndTransaction {
+	/// Receipt
+	#[serde(rename="receipt")]
+	pub receipt: PrivateTransactionReceipt,
+	/// Transaction
+	#[serde(rename="transaction")]
+	pub transaction: TransactionRequest,
 }
 

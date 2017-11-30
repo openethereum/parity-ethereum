@@ -435,11 +435,12 @@ impl Provider {
 		if last {
 			let mut signatures = desc.received_signatures.clone();
 			signatures.push(tx.signature());
+			let rsv: Vec<Signature> = signatures.into_iter().map(|sign| sign.into_electrum().into()).collect();
 			//Create public transaction
 			let public_tx = self.public_transaction(
 				desc.state.clone(),
 				&desc.original_transaction.clone(),
-				&signatures,
+				&rsv,
 				desc.original_transaction.nonce,
 				desc.original_transaction.gas_price
 			)?;

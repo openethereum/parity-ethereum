@@ -890,7 +890,7 @@ impl Configuration {
 	fn private_provider_config(&self) -> Result<ProviderConfig, String> {
 		let conf = ProviderConfig {
 			validator_accounts: to_addresses(&self.args.arg_private_validators)?,
-			signer_account: self.args.arg_private_signer.clone().and(to_address(self.args.arg_private_signer.clone()).ok()),
+			signer_account: self.args.arg_private_signer.clone().and_then(|account| to_address(Some(account)).ok()),
 			passwords: match self.args.arg_private_passwords.clone() {
 				Some(file) => passwords_from_files(&vec![file].as_slice())?,
 				None => Vec::new(),
