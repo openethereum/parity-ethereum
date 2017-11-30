@@ -20,7 +20,7 @@ import { push } from 'react-router-redux';
 import { notifyTransaction } from '~/util/notifications';
 import { ETH_TOKEN, fetchAccountsBalances } from '~/util/tokens';
 import { LOG_KEYS, getLogger } from '~/config';
-import { sha3 } from '~/api/util/sha3';
+import { sha3 } from '@parity/api/lib/util/sha3';
 
 import { fetchTokens } from './tokensActions';
 

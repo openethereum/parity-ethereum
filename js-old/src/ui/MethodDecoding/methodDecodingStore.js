@@ -15,10 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Contracts from '~/contracts';
-import Abi from '~/abi';
+import Abi from '@parity/abi';
 import * as abis from '~/contracts/abi';
 
-import { decodeMethodInput } from '~/api/util/decode';
+import { decodeMethodInput } from '@parity/api/lib/util/decode';
 
 const CONTRACT_CREATE = '0x60606040';
 

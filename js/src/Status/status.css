@@ -17,13 +17,28 @@
 
 $textColor: #ccc;
 
+.home {
+  color: $textColor !important;
+  font-size: 1.2em;
+  margin-right: 1em;
+}
+
 .container {
-  color: $textColor;
-  left: 0;
-  position: fixed;
-  right: 0;
-  top: 0;
-  z-index: 1000;
+  flex: 0;
+  box-sizing: border-box;
+  height: 2.75em;
+
+  .fixed {
+    box-sizing: border-box;
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 2.75em;
+    z-index: 1000;
+    border-bottom: 1px solid #405161;
+    color: $textColor;
+  }
 
   .status,
   .warning {

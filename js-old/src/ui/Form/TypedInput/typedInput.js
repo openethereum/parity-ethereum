@@ -23,8 +23,8 @@ import IconButton from 'material-ui/IconButton';
 import AddIcon from 'material-ui/svg-icons/content/add';
 import RemoveIcon from 'material-ui/svg-icons/content/remove';
 
-import { fromWei, toWei } from '~/api/util/wei';
-import { bytesToHex } from '~/api/util/format';
+import { fromWei, toWei } from '@parity/api/lib/util/wei';
+import { bytesToHex } from '@parity/api/lib/util/format';
 import Input from '~/ui/Form/Input';
 import InputAddressSelect from '~/ui/Form/InputAddressSelect';
 import Select from '~/ui/Form/Select';

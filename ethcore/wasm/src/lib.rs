@@ -31,6 +31,7 @@ mod result;
 #[cfg(test)]
 mod tests;
 mod env;
+mod panic_payload;
 
 const DEFAULT_STACK_SPACE: u32 = 5 * 1024 * 1024;
 

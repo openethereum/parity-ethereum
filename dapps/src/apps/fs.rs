@@ -56,6 +56,7 @@ fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
 				version: "0.0.0".into(),
 				author: "?".into(),
 				icon_url: "icon.png".into(),
+				local_url: None,
 			}
 		})
 }

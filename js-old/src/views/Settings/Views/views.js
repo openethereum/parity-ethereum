@@ -103,17 +103,6 @@ class Views extends Component {
               )
             }
             {
-              this.renderView('signer',
-                <FormattedMessage
-                  id='settings.views.signer.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.signer.description'
-                  defaultMessage='The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by decentralized applications.'
-                />
-              )
-            }
-            {
               this.renderView('settings',
                 <FormattedMessage
                   id='settings.views.settings.label'
