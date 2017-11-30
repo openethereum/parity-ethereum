@@ -26,6 +26,7 @@ rm -rf build
 cp -rf ../.dist/build .
 find . -name "*.css.map" -type f -delete
 find . -name "*.js.map" -type f -delete
+find . -name "package.json" -type f -delete
 
 echo "*** [$PRE_REPO] Adding to git"
 echo "$UTCDATE" >README.md
