@@ -399,6 +399,11 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "edit-distance"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "either"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -488,8 +493,8 @@ dependencies = [
  "ethcore-stratum 1.9.0",
  "ethcore-util 1.9.0",
  "ethjson 0.1.0",
- "ethkey 0.2.0",
- "ethstore 0.1.0",
+ "ethkey 0.3.0",
+ "ethstore 0.2.0",
  "evm 0.1.0",
  "futures 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "hardware-wallet 1.9.0",
@@ -512,7 +517,7 @@ dependencies = [
  "migration 0.1.0",
  "native-contracts 0.1.0",
  "num 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
- "num_cpus 1.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-machine 0.1.0",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.1.0",
@@ -645,7 +650,7 @@ dependencies = [
  "ethcore-logger 1.9.0",
  "ethcore-util 1.9.0",
  "ethcrypto 0.1.0",
- "ethkey 0.2.0",
+ "ethkey 0.3.0",
  "igd 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ipnetwork 0.12.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.0",
@@ -677,7 +682,7 @@ dependencies = [
  "ethcore-logger 1.9.0",
  "ethcore-util 1.9.0",
  "ethcrypto 0.1.0",
- "ethkey 0.2.0",
+ "ethkey 0.3.0",
  "futures 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -757,7 +762,7 @@ version = "0.1.0"
 dependencies = [
  "eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1)",
  "ethcore-bigint 0.2.1",
- "ethkey 0.2.0",
+ "ethkey 0.3.0",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "subtle 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -777,12 +782,15 @@ dependencies = [
 
 [[package]]
 name = "ethkey"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "edit-distance 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1)",
  "ethcore-bigint 0.2.1",
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-wordlist 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -794,24 +802,27 @@ name = "ethkey-cli"
 version = "0.1.0"
 dependencies = [
  "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethkey 0.2.0",
+ "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethkey 0.3.0",
  "panic_hook 0.1.0",
+ "parity-wordlist 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "threadpool 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "ethstore"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ethcore-bigint 0.2.1",
  "ethcrypto 0.1.0",
- "ethkey 0.2.0",
+ "ethkey 0.3.0",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-wordlist 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-wordlist 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -830,8 +841,10 @@ name = "ethstore-cli"
 version = "0.1.0"
 dependencies = [
  "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethstore 0.1.0",
+ "ethstore 0.2.0",
+ "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "panic_hook 0.1.0",
+ "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -850,7 +863,7 @@ dependencies = [
  "ethcore-light 1.9.0",
  "ethcore-network 1.9.0",
  "ethcore-util 1.9.0",
- "ethkey 0.2.0",
+ "ethkey 0.3.0",
  "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ipnetwork 0.12.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.0",
@@ -970,7 +983,7 @@ version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "futures 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "num_cpus 1.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1013,7 +1026,7 @@ name = "hardware-wallet"
 version = "1.9.0"
 dependencies = [
  "ethcore-bigint 0.2.1",
- "ethkey 0.2.0",
+ "ethkey 0.3.0",
  "hidapi 0.3.1 (git+https://github.com/paritytech/hidapi-rs)",
  "libusb 0.3.0 (git+https://github.com/paritytech/libusb-rs)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1095,7 +1108,7 @@ dependencies = [
  "language-tags 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "num_cpus 1.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
  "traitobject 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "typeable 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1817,7 +1830,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "num_cpus"
-version = "1.6.2"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1920,7 +1933,7 @@ dependencies = [
  "ethcore-secretstore 1.0.0",
  "ethcore-stratum 1.9.0",
  "ethcore-util 1.9.0",
- "ethkey 0.2.0",
+ "ethkey 0.3.0",
  "ethsync 1.9.0",
  "fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1936,7 +1949,7 @@ dependencies = [
  "migration 0.1.0",
  "node-filter 1.9.0",
  "node-health 0.1.0",
- "num_cpus 1.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "number_prefix 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "panic_hook 0.1.0",
  "parity-dapps 1.9.0",
@@ -2074,7 +2087,7 @@ version = "0.1.0"
 dependencies = [
  "ethcore 1.9.0",
  "ethcore-io 1.9.0",
- "ethkey 0.2.0",
+ "ethkey 0.3.0",
  "kvdb 0.1.0",
  "kvdb-memorydb 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2119,8 +2132,8 @@ dependencies = [
  "ethcore-util 1.9.0",
  "ethcrypto 0.1.0",
  "ethjson 0.1.0",
- "ethkey 0.2.0",
- "ethstore 0.1.0",
+ "ethkey 0.3.0",
+ "ethstore 0.2.0",
  "ethsync 1.9.0",
  "fetch 0.1.0",
  "futures 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2274,7 +2287,7 @@ dependencies = [
  "ethcore-bigint 0.2.1",
  "ethcore-network 1.9.0",
  "ethcrypto 0.1.0",
- "ethkey 0.2.0",
+ "ethkey 0.3.0",
  "hex 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
  "jsonrpc-macros 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
@@ -2296,7 +2309,7 @@ dependencies = [
 
 [[package]]
 name = "parity-wordlist"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2570,7 +2583,7 @@ dependencies = [
  "futures 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
- "num_cpus 1.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -3112,6 +3125,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "threadpool"
+version = "1.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "time"
 version = "0.1.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3571,6 +3592,7 @@ dependencies = [
 "checksum difference 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b3304d19798a8e067e48d8e69b2c37f0b5e9b4e462504ad9e27e9f3fce02bba8"
 "checksum docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3b5b93718f8b3e5544fcc914c43de828ca6c6ace23e0332c6080a2977b49787a"
 "checksum dtoa 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "09c3753c3db574d215cba4ea76018483895d7bff25a31b49ba45db21c48e50ab"
+"checksum edit-distance 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6a34f5204fbc13582de418611cf3a7dcdd07c6d312a5b631597ba72c06b9d9c9"
 "checksum either 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "18785c1ba806c258137c937e44ada9ee7e69a37e3c72077542cd2f069d78562a"
 "checksum elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "258ff6a9a94f648d0379dbd79110e057edbb53eb85cc237e33eadf8e5a30df85"
 "checksum env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3ddf21e73e016298f5cb37d6ef8e8da8e39f91f9ec8b0df44b7deb16a9f8cd5b"
@@ -3656,7 +3678,7 @@ dependencies = [
 "checksum num-iter 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)" = "7485fcc84f85b4ecd0ea527b14189281cf27d60e583ae65ebc9c088b13dffe01"
 "checksum num-rational 0.1.39 (registry+https://github.com/rust-lang/crates.io-index)" = "288629c76fac4b33556f4b7ab57ba21ae202da65ba8b77466e6d598e31990790"
 "checksum num-traits 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)" = "99843c856d68d8b4313b03a17e33c4bb42ae8f6610ea81b28abe076ac721b9b0"
-"checksum num_cpus 1.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "aec53c34f2d0247c5ca5d32cca1478762f301740468ee9ee6dcb7a0dd7a0c584"
+"checksum num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "514f0d73e64be53ff320680ca671b64fe3fb91da01e1ae2ddc99eb51d453b20d"
 "checksum number_prefix 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)" = "59a14be9c211cb9c602bad35ac99f41e9a84b44d71b8cbd3040e3bd02a214902"
 "checksum odds 0.2.25 (registry+https://github.com/rust-lang/crates.io-index)" = "c3df9b730298cea3a1c3faa90b7e2f9df3a9c400d0936d6015e6165734eefcba"
 "checksum ole32-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "5d2c49021782e5233cd243168edfa8037574afed4eba4bbaf538b3d8d1789d8c"
@@ -3670,7 +3692,7 @@ dependencies = [
 "checksum parity-ui-old-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-9-v1.git)" = "<none>"
 "checksum parity-ui-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-9-shell.git)" = "<none>"
 "checksum parity-wasm 0.15.3 (registry+https://github.com/rust-lang/crates.io-index)" = "8431a184ad88cfbcd71a792aaca319cc7203a94300c26b8dce2d0df0681ea87d"
-"checksum parity-wordlist 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "81451bfab101d186f8fc4a0aa13cb5539b31b02c4ed96425a0842e2a413daba6"
+"checksum parity-wordlist 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1d0dec124478845b142f68b446cbee953d14d4b41f1bc0425024417720dce693"
 "checksum parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)" = "149d8f5b97f3c1133e3cfcd8886449959e856b557ff281e292b733d7c69e005e"
 "checksum parking_lot_core 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "4f610cb9664da38e417ea3225f23051f589851999535290e077939838ab7a595"
 "checksum percent-encoding 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "de154f638187706bde41d9b4738748933d64e6b37bdbffc0b47a97d16a6ae356"
@@ -3758,6 +3780,7 @@ dependencies = [
 "checksum term_size 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e2b6b55df3198cc93372e85dd2ed817f0e38ce8cc0f22eb32391bfad9c4bf209"
 "checksum textwrap 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "df8e08afc40ae3459e4838f303e465aa50d823df8d7f83ca88108f6d3afe7edd"
 "checksum thread_local 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "1697c4b57aeeb7a536b647165a2825faddffb1d3bad386d507709bd51a90bb14"
+"checksum threadpool 1.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e2f0c90a5f3459330ac8bc0d2f879c693bb7a2f59689c1083fc4ef83834da865"
 "checksum time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)" = "d5d788d3aa77bc0ef3e9621256885555368b47bd495c13dd2e7413c89f845520"
 "checksum tiny-keccak 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d52d12ad79e4063e0cb0ca5efa202ed7244b6ce4d25f4d3abe410b2a66128292"
 "checksum tokio-core 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "e85d419699ec4b71bfe35bbc25bb8771e52eff0471a7f75c853ad06e200b4f86"
