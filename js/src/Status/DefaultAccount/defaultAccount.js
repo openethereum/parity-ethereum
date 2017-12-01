@@ -15,13 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
 
 import List from 'semantic-ui-react/dist/commonjs/elements/List';
 import Popup from 'semantic-ui-react/dist/commonjs/modules/Popup';
 import IdentityIcon from '@parity/ui/lib/IdentityIcon';
 
-import AccountStore from '../../ParityBar/accountStore';
 import AccountItem from './AccountItem';
 import styles from './defaultAccount.css';
 
@@ -31,10 +31,8 @@ class DefaultAccount extends Component {
     isOpen: false
   }
 
-  componentWillMount () {
-    const { api } = this.context;
-
-    this.accountStore = AccountStore.get(api);
+  static propTypes = {
+    accountStore: PropTypes.object.isRequired
   }
 
   handleOpen = () => {
@@ -47,12 +45,12 @@ class DefaultAccount extends Component {
 
   handleMakeDefault = (address) => {
     this.handleClose();
-    if (address === this.accountStore.defaultAddress) { return; }
-    this.accountStore.makeDefaultAccount(address);
+    if (address === this.props.accountStore.defaultAddress) { return; }
+    this.props.accountStore.makeDefaultAccount(address);
   }
 
   render () {
-    const { accounts, defaultAccount: defaultAddress } = this.accountStore;
+    const { accounts, defaultAccount: defaultAddress } = this.props.accountStore;
     const defaultAccount = accounts.find(({ address }) => address === defaultAddress);
 
     if (!accounts || !defaultAccount) { return null; }

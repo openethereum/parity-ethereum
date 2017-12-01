@@ -69,10 +69,7 @@ function Status ({ className = '', upgradeStore }, { api }) {
             />
 
             <DefaultAccount
-              address={ accountStore.defaultAccount }
-              button
-              center
-              className={ styles.defaultAccount }
+              accountStore={ accountStore }
             />
             <StatusIndicator
               className={ styles.health }
