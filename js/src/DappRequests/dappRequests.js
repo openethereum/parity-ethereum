@@ -15,13 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observer } from 'mobx-react';
-import React, { PureComponent } from 'react';
+import React, { Component } from 'react';
 
 import RequestGroups from './RequestGroups';
 import Store from './store';
 import styles from './dappRequests.css';
 
-class DappRequests extends PureComponent {
+class DappRequests extends Component {
   store = Store.get();
 
   handleApproveRequestGroup = requestIds => {
