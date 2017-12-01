@@ -1,7 +1,9 @@
 [package]
+description = "Generic transaction pool."
 name = "transaction-pool"
-version = "0.1.0"
-authors = ["Tomasz Drwięga <tomasz@parity.io>"]
+version = "1.9.0"
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 error-chain = "0.11"

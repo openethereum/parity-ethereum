@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{fmt, mem};
-use std::marker::PhantomData;
 use std::sync::Arc;
 
 use smallvec::SmallVec;
@@ -48,7 +47,6 @@ pub struct Transactions<T, S: Scoring<T>> {
 	// TODO [ToDr] Consider using something that doesn't require shifting all records.
 	transactions: SmallVec<[Arc<T>; PER_SENDER]>,
 	scores: SmallVec<[S::Score; PER_SENDER]>,
-	_score: PhantomData<S>,
 }
 
 impl<T, S: Scoring<T>> Default for Transactions<T, S> {
@@ -56,7 +54,6 @@ impl<T, S: Scoring<T>> Default for Transactions<T, S> {
 		Transactions {
 			transactions: Default::default(),
 			scores: Default::default(),
-			_score: PhantomData,
 		}
 	}
 }
@@ -195,7 +192,7 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 			}
 		}
 
-		// reverse the vectors to allow
+		// reverse the vectors to easily remove first elements.
 		self.transactions.reverse();
 		self.scores.reverse();
 

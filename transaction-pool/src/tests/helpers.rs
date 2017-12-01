@@ -26,8 +26,8 @@ pub struct DummyScoring;
 impl Scoring<Transaction> for DummyScoring {
 	type Score = U256;
 
-	fn compare(&self, old: &Transaction, other: &Transaction) -> cmp::Ordering {
-		old.nonce.cmp(&other.nonce)
+	fn compare(&self, old: &Transaction, new: &Transaction) -> cmp::Ordering {
+		old.nonce.cmp(&new.nonce)
 	}
 
 	fn choose(&self, old: &Transaction, new: &Transaction) -> scoring::Choice {
