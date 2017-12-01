@@ -16,7 +16,7 @@
 
 module.exports = {
   test: /\.js$/,
-  include: /(dapp-|oo7)/,
+  include: /(dapp-|plugin-|oo7)/,
   use: [ {
     loader: 'happypack/loader',
     options: {
