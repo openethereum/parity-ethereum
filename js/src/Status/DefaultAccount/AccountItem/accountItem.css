@@ -15,6 +15,22 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.isDefault {
-  color: rgba(0, 0, 0, 0.8) !important;
+.defaultContent {
+  color: rgba(0, 0, 0, 0.8);
+  vertical-align: middle !important;
+}
+
+.avatarWrapper {
+  width: 4.2em !important;
+  display: flex;
+  justify-content: center;
+}
+
+.bigAvatar {
+  width: 4em !important;
+  height: 4em !important;
+}
+
+.description {
+  margin-top: 0.5em;
 }

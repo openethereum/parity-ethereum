@@ -24,30 +24,37 @@ import styles from './accountItem.css';
 
 class AccountItem extends PureComponent {
   static propTypes = {
-    address: PropTypes.string.isRequired,
+    account: PropTypes.object.isRequired,
     isDefault: PropTypes.bool,
-    name: PropTypes.string.isRequired,
     onClick: PropTypes.func
   }
 
   handleClick = () => {
-    this.props.onClick(this.props.address);
+    this.props.onClick(this.props.account.address);
   }
 
   render () {
-    const { address, name, isDefault } = this.props;
+    const { account, isDefault } = this.props;
 
     return (
       <List.Item
-        key={ address }
         onClick={ this.handleClick }
         disabled={ isDefault }
-        className={ isDefault ? styles.isDefault : '' }
       >
-        <Image avatar as={ IdentityIcon } address={ address } alt={ address } />
-        <List.Content>
-          <List.Header>{name}</List.Header>
-          {address}
+        <Image avatar>
+          <div className={ styles.avatarWrapper }>
+            <IdentityIcon address={ account.address }
+              alt={ account.address }
+              className={ isDefault ? styles.bigAvatar : '' }
+            />
+          </div>
+        </Image>
+        <List.Content className={ isDefault ? styles.defaultContent : '' }>
+          <List.Header>
+            {account.name}
+          </List.Header>
+          {account.address}
+          {isDefault && <p className={ styles.description }>{account.meta.description}</p>}
         </List.Content>
       </List.Item>
     );

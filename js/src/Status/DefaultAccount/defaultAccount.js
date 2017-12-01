@@ -52,36 +52,48 @@ class DefaultAccount extends Component {
   }
 
   render () {
-    const { accounts, defaultAccount } = this.accountStore;
+    const { accounts, defaultAccount: defaultAddress } = this.accountStore;
+    const defaultAccount = accounts.find(({ address }) => address === defaultAddress);
 
     if (!accounts || !defaultAccount) { return null; }
 
     return (
       <Popup
         wide='very'
+        className={ styles.popup }
         trigger={
           <IdentityIcon
-            address={ defaultAccount } button
+            address={ defaultAddress } button
             center
             className={ styles.defaultAccount }
           />
         }
         content={
-          <List divided relaxed='very' selection>
-            {accounts
-              .map(account => (
-                <AccountItem
-                  key={ account.address }
-                  isDefault={ account.address === defaultAccount }
-                  address={ account.address }
-                  name={ account.name }
-                  onClick={ this.handleMakeDefault }
-                />
-              ))}
-          </List>
+          <div>
+            <List relaxed='very' selection className={ [styles.list, styles.isDefault, accounts.length > 1 && styles.hasOtherAccounts].join(' ') }>
+              <AccountItem
+                isDefault
+                account={ defaultAccount }
+              />
+            </List>
+            {accounts.length > 1 &&
+              <List relaxed='very' selection className={ styles.list } divided>
+                {accounts
+                  .filter(({ address }) => address !== defaultAddress)
+                  .map(account => (
+                    <AccountItem
+                      key={ account.address }
+                      account={ account }
+                      onClick={ this.handleMakeDefault }
+                    />
+                  ))}
+              </List>
+            }
+          </div>
         }
         offset={ 13 } // Empirically looks better
         on='click'
+        hideOnScroll
         open={ this.state.isOpen }
         onClose={ this.handleClose }
         onOpen={ this.handleOpen }

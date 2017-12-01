@@ -18,3 +18,21 @@
 .defaultAccount {
   cursor: pointer;
 }
+
+.popup {
+  padding: 0 !important;
+}
+
+.list {
+  margin: 0 !important;
+  padding: 1em 1em !important;
+  background-color: #f5f5f5;
+}
+
+.isDefault {
+  background-color: white;
+}
+
+.hasOtherAccounts {
+  border-bottom: 1px solid #D4D4D5;
+}
