@@ -4,10 +4,31 @@ use ethjson::hash::{Address, H256};
 use ethjson::bytes::Bytes;
 
 #[derive(Deserialize)]
+#[serde(untagged)]
+pub enum Source {
+	Raw(Cow<'static, String>),
+	Constructor {
+		#[serde(rename="constructor")]
+		source: Cow<'static, String>,
+		arguments: Bytes,
+		sender: Address,
+		at: Address,
+	},
+}
+
+impl Source {
+	pub fn as_ref(&self) -> &str {
+		match *self {
+			Source::Raw(ref r) => r.as_ref(),
+			Source::Constructor { ref source, .. } => source.as_ref(),
+		}
+	}
+}
+
+#[derive(Deserialize)]
 pub struct Fixture {
 	pub caption: Cow<'static, String>,
-	#[serde(rename="wasm")]
-	pub wasm_file: Cow<'static, String>,
+	pub source: Source,
 	pub address: Option<Address>,
 	pub sender: Option<Address>,
 	pub value: Option<Uint>,

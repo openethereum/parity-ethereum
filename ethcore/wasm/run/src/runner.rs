@@ -1,6 +1,6 @@
-use fixture::{Fixture, Assert, CallLocator};
+use fixture::{Fixture, Assert, CallLocator, Source};
 use wasm::WasmInterpreter;
-use vm::{self, Vm, GasLeft, ActionParams, ActionValue};
+use vm::{self, Vm, GasLeft, ActionParams, ActionValue, ParamsType};
 use vm::tests::FakeExt;
 use std::io::{self, Read};
 use std::{fs, path, fmt};
@@ -20,6 +20,11 @@ fn wasm_interpreter() -> WasmInterpreter {
 }
 
 #[derive(Debug)]
+pub enum SpecNonconformity {
+	Address,
+}
+
+#[derive(Debug)]
 pub enum Fail {
 	Return { expected: Vec<u8>, actual: Vec<u8> },
 	UsedGas { expected: u64, actual: u64 },
@@ -27,6 +32,7 @@ pub enum Fail {
 	Load(io::Error),
 	NoCall(CallLocator),
 	StorageMismatch { key: H256, expected: H256, actual: Option<H256> },
+	Nonconformity(SpecNonconformity)
 }
 
 impl Fail {
@@ -36,6 +42,10 @@ impl Fail {
 
 	fn load(err: io::Error) -> Vec<Fail> {
 		vec![Fail::Load(err)]
+	}
+
+	fn nononformity(kind: SpecNonconformity) -> Vec<Fail> {
+		vec![Fail::Nonconformity(kind)]
 	}
 }
 
@@ -52,6 +62,7 @@ impl fmt::Display for Fail {
 					actual.to_hex(),
 					actual.len()
 				),
+
 			UsedGas { expected, actual } =>
 				write!(f, "Expected to use gas: {}, but got actual gas used: {}", expected, actual),
 
@@ -80,22 +91,69 @@ impl fmt::Display for Fail {
 					key.as_ref().to_vec().to_hex(),
 					expected.as_ref().to_vec().to_hex(),
 				),
+
+			Nonconformity(SpecNonconformity::Address) =>
+				write!(f, "Cannot use address when constructor is specified!"),
 		}
 	}
+}
+
+pub fn construct(
+	ext: &mut vm::Ext,
+	source: Vec<u8>,
+	arguments: Vec<u8>,
+	sender: H160,
+	at: H160,
+) -> Result<Vec<u8>, vm::Error> {
+
+	let mut params = ActionParams::default();
+	params.sender = sender;
+	params.address = at;
+	params.gas = U256::from(100_000_000);
+	params.data = Some(arguments);
+	params.code = Some(Arc::new(source));
+	params.params_type = ParamsType::Separate;
+
+	Ok(
+		match wasm_interpreter().exec(params, ext)? {
+			GasLeft::Known(_) => Vec::new(),
+			GasLeft::NeedsReturn { data, .. } => data.to_vec(),
+		}
+	)
 }
 
 pub fn run_fixture(fixture: &Fixture) -> Vec<Fail> {
 	let mut params = ActionParams::default();
 
+	let source = match load_code(fixture.source.as_ref()) {
+		Ok(code) => code,
+		Err(e) => { return Fail::load(e); },
+	};
+
+	let mut ext = FakeExt::new();
 	params.code = Some(Arc::new(
-		match load_code(fixture.wasm_file.as_ref()) {
-			Ok(code) => code,
-			Err(e) => { return Fail::load(e); },
+		if let Source::Constructor { ref arguments, ref sender, ref at, .. } = fixture.source {
+			match construct(&mut ext, source, arguments.clone().into(), sender.clone().into(), at.clone().into()) {
+				Ok(code) => code,
+				Err(e) => { return Fail::runtime(e); }
+			}
+		} else {
+			source
 		}
 	));
 
+	if let Some(ref sender) = fixture.sender {
+		params.sender = sender.clone().into();
+	}
+
 	if let Some(ref address) = fixture.address {
+		if let Source::Constructor { .. } = fixture.source {
+			return Fail::nononformity(SpecNonconformity::Address);
+		}
+
 		params.address = address.clone().into();
+	} else if let Source::Constructor { ref at, .. } = fixture.source {
+		params.address = at.clone().into();
 	}
 
 	if let Some(gas_limit) = fixture.gas_limit {
@@ -110,7 +168,6 @@ pub fn run_fixture(fixture: &Fixture) -> Vec<Fail> {
 		params.value = ActionValue::Transfer(value.clone().into())
 	}
 
-	let mut ext = FakeExt::new();
 	if let Some(ref storage) = fixture.storage {
 		for storage_entry in storage.iter() {
 			let key: U256 = storage_entry.key.into();
