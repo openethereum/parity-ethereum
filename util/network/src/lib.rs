@@ -59,7 +59,6 @@
 #![recursion_limit="128"]
 
 extern crate ethcore_io as io;
-extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes;
 extern crate parking_lot;
