@@ -25,7 +25,7 @@ use cli::{Args, ArgsError};
 use hash::keccak;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{version_data, Address};
+use util::{version_data, Address, version};
 use bytes::Bytes;
 use ansi_term::Colour;
 use ethsync::{NetworkConfiguration, validate_node_url, self};
@@ -751,6 +751,7 @@ impl Configuration {
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = self.init_reserved_nodes()?;
 		ret.allow_non_reserved = !self.args.flag_reserved_only;
+		ret.client_version = version();
 		Ok(ret)
 	}
 
