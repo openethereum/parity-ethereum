@@ -16,50 +16,15 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
-import sinon from 'sinon';
 
 import Home from './';
 
-const TEST_APP_HISTORY = [];
-
-let api;
 let component;
-let instance;
-let store;
-
-function createStore () {
-  store = {
-    dispatch: sinon.stub(),
-    subscribe: sinon.stub(),
-    getState: () => {
-      return {
-        nodeStatus: {
-          nodeKind: {
-            'availability': 'personal'
-          }
-        }
-      };
-    }
-  };
-
-  return store;
-}
-
-function createApi () {
-  api = {
-    parity: {
-      listRecentDapps: sinon.stub().resolves(TEST_APP_HISTORY)
-    }
-  };
-
-  return api;
-}
 
 function render () {
   component = shallow(
     <Home />
   );
-  instance = component.instance();
 
   return component;
 }
