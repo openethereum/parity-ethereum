@@ -633,6 +633,8 @@ pub struct ServersSetChangeConsensusMessage {
 	pub session: MessageSessionId,
 	/// Session-level nonce.
 	pub session_nonce: u64,
+	/// Block hash for which new server set is actual. Filled only when running in auto-migrate mode.
+	pub block: Option<SerializableH256>,
 	/// Consensus message.
 	pub message: ConsensusMessageWithServersSet,
 }

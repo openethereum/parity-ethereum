@@ -51,6 +51,8 @@ pub struct Configuration {
 	pub http_enabled: bool,
 	/// Is ACL check enabled.
 	pub acl_check_enabled: bool,
+	/// Is auto migrate enabled.
+	pub auto_migrate_enabled: bool,
 	/// Service contract address.
 	pub service_contract_address: Option<ContractAddress>,
 	/// This node secret.
@@ -154,6 +156,7 @@ mod server {
 				}),
 				data_path: conf.data_path.clone(),
 				acl_check_enabled: conf.acl_check_enabled,
+				auto_migrate_enabled: conf.auto_migrate_enabled,
 				cluster_config: ethcore_secretstore::ClusterConfiguration {
 					threads: 4,
 					listener_address: ethcore_secretstore::NodeAddress {
@@ -190,6 +193,7 @@ impl Default for Configuration {
 			enabled: true,
 			http_enabled: true,
 			acl_check_enabled: true,
+			auto_migrate_enabled: true,
 			service_contract_address: None,
 			self_secret: None,
 			admin_public: None,

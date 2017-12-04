@@ -187,6 +187,7 @@ pub use self::client_sessions::signing_session;
 mod cluster;
 mod cluster_sessions;
 mod cluster_sessions_creator;
+mod connection_trigger;
 mod io;
 mod jobs;
 pub mod math;

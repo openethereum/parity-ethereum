@@ -551,6 +551,10 @@ usage! {
 			"--no-acl-check",
 			"Disable ACL check (useful for test environments).",
 
+			FLAG flag_no_secretstore_auto_migrate: (bool) = false, or |c: &Config| otry!(c.secretstore).disable_auto_migrate.clone(),
+			"--no-secretstore-auto-migrate",
+			"Do not run servers set change session automatically when servers set changes. This option has no effect when servers set is read from configuration file.",
+
 			ARG arg_secretstore_contract: (String) = "none", or |c: &Config| otry!(c.secretstore).service_contract.clone(),
 			"--secretstore-contract=[SOURCE]",
 			"Secret Store Service contract source: none, registry (contract address is read from registry) or address.",
@@ -584,7 +588,7 @@ usage! {
 			"Hex-encoded secret key of this node.",
 
 			ARG arg_secretstore_admin_public: (Option<String>) = None, or |c: &Config| otry!(c.secretstore).admin_public.clone(),
-			"--secretstore-admin-public=[PUBLIC]",
+			"--secretstore-admin=[PUBLIC]",
 			"Hex-encoded public key of secret store administrator.",
 
 		["Sealing/Mining options"]
@@ -1092,6 +1096,7 @@ struct SecretStore {
 	disable: Option<bool>,
 	disable_http: Option<bool>,
 	disable_acl_check: Option<bool>,
+	disable_auto_migrate: Option<bool>,
 	service_contract: Option<String>,
 	self_secret: Option<String>,
 	admin_public: Option<String>,
@@ -1736,6 +1741,7 @@ mod tests {
 				disable: None,
 				disable_http: None,
 				disable_acl_check: None,
+				disable_auto_migrate: None,
 				service_contract: None,
 				self_secret: None,
 				admin_public: None,
