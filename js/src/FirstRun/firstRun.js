@@ -55,7 +55,7 @@ export default class FirstRun extends Component {
         title={
           <FormattedMessage
             id='firstRun.title.termsOnly'
-            defaultMessage='Terms & Conditions'
+            defaultMessage='Terms &amp; Conditions'
           />
         }
         open
