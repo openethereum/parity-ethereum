@@ -534,7 +534,13 @@ impl Miner {
 	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient, block: ClosedBlock) -> bool {
 		if !block.transactions().is_empty() || self.forced_sealing() || Instant::now() > *self.next_mandatory_reseal.read() {
 			trace!(target: "miner", "seal_block_internally: attempting internal seal.");
-			match self.engine.generate_seal(block.block()) {
+
+			let parent_header = match chain.block_header(BlockId::Hash(*block.header().parent_hash())) {
+				Some(hdr) => hdr.decode(),
+				None => return false,
+			};
+
+			match self.engine.generate_seal(block.block(), &parent_header) {
 				// Save proposal for later seal submission and broadcast it.
 				Seal::Proposal(seal) => {
 					trace!(target: "miner", "Received a Proposal seal.");
