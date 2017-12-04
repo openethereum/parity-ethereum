@@ -885,7 +885,7 @@ mod tests {
 	fn checks_difficulty_in_generate_seal() {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
-		let addr2 = tap.insert_account(keccak("2").into(), "2").unwrap();
+		let addr2 = tap.insert_account(keccak("0").into(), "0").unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
@@ -906,7 +906,7 @@ mod tests {
 			Seal::Regular(_) => {
 				engine.step();
 
-				engine.set_signer(tap.clone(), addr2, "2".into());
+				engine.set_signer(tap.clone(), addr2, "0".into());
 				match engine.generate_seal(b2.block(), &genesis_header) {
 					Seal::Regular(_) | Seal::Proposal(_) => panic!("sealed despite wrong difficulty"),
 					Seal::None => {}
