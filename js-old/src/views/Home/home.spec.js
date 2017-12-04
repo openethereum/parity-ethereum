@@ -57,17 +57,8 @@ function createApi () {
 
 function render () {
   component = shallow(
-    <Home />,
-    {
-      context: {
-        store: createStore()
-      }
-    }
-  ).find('Home').shallow({
-    context: {
-      api: createApi()
-    }
-  });
+    <Home />
+  );
   instance = component.instance();
 
   return component;
@@ -82,38 +73,9 @@ describe('views/Home', () => {
     expect(component).to.be.ok;
   });
 
-  describe('lifecycle', () => {
-    describe('componentWillMount', () => {
-      beforeEach(() => {
-        sinon.stub(instance.webStore, 'loadHistory');
-        return instance.componentWillMount();
-      });
-
-      afterEach(() => {
-        instance.webStore.loadHistory.restore();
-      });
-
-      it('calls into webStore loadHistory', () => {
-        expect(instance.webStore.loadHistory).to.have.been.called;
-      });
-    });
-  });
-
   describe('components', () => {
-    it('renders Accounts', () => {
-      expect(component.find('Connect(Accounts)').length).to.equal(1);
-    });
-
-    it('renders Dapps', () => {
-      expect(component.find('Dapps').length).to.equal(1);
-    });
-
     it('renders News', () => {
       expect(component.find('News').length).to.equal(1);
-    });
-
-    it('renders Urls', () => {
-      expect(component.find('Urls').length).to.equal(1);
     });
   });
 });
