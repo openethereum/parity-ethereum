@@ -34,6 +34,7 @@ export default function TnC ({ hasAccepted, onAccept }) {
     <div className={ styles.tnc }>
       <ReactMarkdown
         className={ styles.markdown }
+        escapeHtml={ false }
         source={ tnc }
       />
       <Checkbox

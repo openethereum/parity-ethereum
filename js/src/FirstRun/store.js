@@ -27,7 +27,7 @@ export default class Store {
   }
 
   @action close = () => {
-    this.toggleFirstrun(false);
+    this.toggle(false);
   }
 
   @action toggle = (visible = false) => {

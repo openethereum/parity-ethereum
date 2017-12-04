@@ -40,8 +40,6 @@ export default class FirstRun extends Component {
       return null;
     }
 
-    return (<Portal open />);
-
     return (
       <Portal
         buttons={
@@ -49,7 +47,7 @@ export default class FirstRun extends Component {
             disabled={ !hasAcceptedTnc }
             icon={ <DoneIcon /> }
             key='accept'
-            label='Accept & Close'
+            label='Close'
             onClick={ this.store.close }
           />
         }
