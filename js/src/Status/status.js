@@ -23,13 +23,13 @@ import BlockNumber from '@parity/ui/lib/BlockNumber';
 import ClientVersion from '@parity/ui/lib/ClientVersion';
 import GradientBg from '@parity/ui/lib/GradientBg';
 import { HomeIcon } from '@parity/ui/lib/Icons';
-import IdentityIcon from '@parity/ui/lib/IdentityIcon';
 import NetChain from '@parity/ui/lib/NetChain';
 import NetPeers from '@parity/ui/lib/NetPeers';
 import SignerPending from '@parity/ui/lib/SignerPending';
 import StatusIndicator from '@parity/ui/lib/StatusIndicator';
 
 import Consensus from './Consensus';
+import DefaultAccount from './DefaultAccount';
 import AccountStore from '../ParityBar/accountStore';
 import ParityBarStore from '../ParityBar/store';
 import SyncWarning from '../SyncWarning';
@@ -67,12 +67,9 @@ function Status ({ className = '', upgradeStore }, { api }) {
               className={ styles.signerPending }
               onClick={ parityBarStore.toggleOpenSigner }
             />
-            <IdentityIcon
-              address={ accountStore.defaultAccount }
-              button
-              center
-              className={ styles.defaultAccount }
-              onClick={ parityBarStore.toggleOpenAccounts }
+
+            <DefaultAccount
+              accountStore={ accountStore }
             />
             <StatusIndicator
               className={ styles.health }
