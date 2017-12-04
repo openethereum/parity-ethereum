@@ -151,7 +151,7 @@
     "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware",
     "@parity/plugin-signer-qr": "paritytech/plugin-signer-qr",
     "@parity/shared": "2.2.x",
-    "@parity/ui": "3.0.x",
+    "@parity/ui": "~3.0.4",
     "keythereum": "1.0.2",
     "lodash.flatten": "4.4.0",
     "lodash.omitby": "4.6.0",
@@ -172,6 +172,7 @@
     "react-tap-event-plugin": "3.0.2",
     "react-transition-group": "2.2.1",
     "redux": "3.7.2",
+    "semantic-ui-react": "0.77.0",
     "solc": "ngotchac/solc-js",
     "store": "1.3.20",
     "web3": "0.17.0-beta"

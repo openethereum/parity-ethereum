@@ -75,7 +75,6 @@ $textColor: #ccc;
     opacity: 0.75;
   }
 
-  .defaultAccount,
   .signerPending {
     cursor: pointer;
   }
