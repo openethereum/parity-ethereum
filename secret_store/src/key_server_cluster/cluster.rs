@@ -58,7 +58,7 @@ const KEEP_ALIVE_SEND_INTERVAL: u64 = 30;
 const KEEP_ALIVE_DISCONNECT_INTERVAL: u64 = 60;
 
 /// Empty future.
-type BoxedEmptyFuture = Box<Future<Item = (), Error = ()> + Send>;
+pub type BoxedEmptyFuture = Box<Future<Item = (), Error = ()> + Send>;
 
 /// Cluster interface for external clients.
 pub trait ClusterClient: Send + Sync {
@@ -179,6 +179,7 @@ pub struct ClusterConnections {
 	pub self_node_id: NodeId,
 	/// All known other key servers.
 	pub key_server_set: Arc<KeyServerSet>,
+	/// Current
 	/// Connections data.
 	pub data: RwLock<ClusterConnectionsDataWithTrigger>,
 }
@@ -397,7 +398,7 @@ impl ClusterCore {
 		}
 
 		// and call connections.maintain
-		data.connections.maintain(&ClusterClientImpl::new(data.clone())); // TODO: save client instead of recreating???
+		data.connections.maintain(&data, Arc::new(ClusterClientImpl::new(data.clone()))); // TODO: save client instead of recreating???
 	}
 
 	/// Process connection future result.
@@ -717,15 +718,21 @@ impl ClusterConnections {
 	}
 
 	pub fn update_nodes_set(&self, sessions: &ClusterSessions) {
-		let mut new_nodes = self.key_server_set.get();
+		let new_nodes = self.key_server_set.get();
 		// we do not need to connect to self
 		// + we do not need to try to connect to any other node if we are not the part of a cluster
-		if new_nodes.remove(&self.self_node_id).is_none() {
+		/*let includes_this_node = new_nodes.contains_key(&self.self_node_id);
+		if !includes_this_node {
 			new_nodes.clear();
-		}
+		}*/
+
+		/*
+		TODO: different master on different nodes!!!
+		*/
 
 		let mut data = self.data.write();
-		let change = match compute_servers_set_change(&data.data.nodes, &new_nodes) {
+		let self_node_id = if includes_this_node { Some(self.self_node_id.clone()) } else { None };
+		let change = match compute_servers_set_change(&data.data.nodes, &new_nodes, self_node_id) {
 			Some(change) => change,
 			None => return,
 		};
@@ -774,10 +781,12 @@ impl ClusterConnections {
 		}*/
 	}
 
-	pub fn maintain(&self, client: &ClusterClient) {
+	pub fn maintain(&self, cluster_data: &Arc<ClusterData>, client: Arc<ClusterClient>) {
 		let mut data = self.data.write();
 		let data = &mut *data;
-		data.trigger.maintain(client, &mut data.data)
+		if let Some(maintain_result) = data.trigger.maintain(&client, &mut data.data) {
+			cluster_data.spawn(maintain_result);
+		}
 	}
 }
 
@@ -1019,19 +1028,24 @@ impl ClusterClient for ClusterClientImpl {
 			Some(_) => return Err(Error::InvalidMessage),
 			None => *SERVERS_SET_CHANGE_SESSION_ID,
 		};
-
+println!("=== CREATING1");
 		let cluster = create_cluster_view(&self.data, true)?;
+println!("=== CREATING2");
 		let creation_data = Some(AdminSessionCreationData::ServersSetChange(new_nodes_set.clone()));
+println!("=== CREATING3");
 		let session = self.data.sessions.admin_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, true, creation_data)?;
+println!("=== CREATING4");
 		let initialization_result = session.as_servers_set_change().expect("servers set change session is created; qed")
 			.initialize(new_nodes_set, old_set_signature, new_set_signature);
-
+println!("=== CREATING5");
 		match initialization_result {
 			Ok(()) => {
+println!("=== CREATING6");
 				self.data.connections.servers_set_change_creator_connector().set_key_servers_set_change_session(session.clone());
 				Ok(session)
 			},
 			Err(error) => {
+println!("=== CREATING7");
 				self.data.sessions.admin_sessions.remove(&session.id());
 				Err(error)
 			},
