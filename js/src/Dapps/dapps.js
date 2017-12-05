@@ -14,19 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import omitBy from 'lodash.omitby';
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 
-import DappCard from '@parity/ui/lib/DappCard';
 import Checkbox from '@parity/ui/lib/Form/Checkbox';
 import Page from '@parity/ui/lib/Page';
-import SectionList from '@parity/ui/lib/SectionList';
 
 import DappsStore from '@parity/shared/lib/mobx/dappsStore';
+
+import DappCard from './DappCard';
 
 import styles from './dapps.css';
 
@@ -48,6 +47,7 @@ class Dapps extends Component {
   }
 
   render () {
+    const { availability } = this.props;
     let externalOverlay = null;
 
     if (this.store.externalOverlayVisible) {
@@ -76,72 +76,36 @@ class Dapps extends Component {
       );
     }
 
+    const applications = [].concat(this.store.visibleLocal, this.store.visibleViews, this.store.visibleBuiltin, this.store.visibleNetwork);
+
     return (
-      <Page
-        title={
-          <FormattedMessage
-            id='dapps.label'
-            defaultMessage='Decentralized Applications'
-          />
-        }
-      >
-        { this.renderList(this.store.visibleLocal) }
-        { this.renderList(this.store.visibleViews) }
-        { this.renderList(this.store.visibleBuiltin) }
-        { this.renderList(this.store.visibleNetwork, externalOverlay) }
+      <Page>
+        <div className={ styles.dapps }>
+          {
+            applications.map((app, index) => (
+              <DappCard
+                app={ app }
+                availability={ availability }
+                className={ styles.dapp }
+                key={ `${index}_${app.id}` }
+              />
+            ))
+          }
+        </div>
+        { externalOverlay }
       </Page>
-    );
-  }
-
-  renderList (items, overlay) {
-    return (
-      <SectionList
-        items={ items }
-        noStretch
-        overlay={ overlay }
-        renderItem={ this.renderApp }
-      />
-    );
-  }
-
-  renderApp = (app) => {
-    if (app.onlyPersonal && this.props.availability !== 'personal') {
-      return null;
-    }
-
-    return (
-      <DappCard
-        app={ app }
-        key={ app.id }
-        showLink
-      />
     );
   }
 
   onClickAcceptExternal = () => {
     this.store.closeExternalOverlay();
   }
-
-  openPermissionsModal = () => {
-    const { accounts } = this.props;
-
-    this.permissionStore.openModal(accounts);
-  }
 }
 
 function mapStateToProps (state) {
-  const { accounts } = state.personal;
   const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
 
-  /**
-   * Do not show the Wallet Accounts in the Dapps
-   * Permissions Modal. This will come in v1.6, but
-   * for now it would break dApps using Web3...
-   */
-  const _accounts = omitBy(accounts, (account) => account.wallet);
-
   return {
-    accounts: _accounts,
     availability
   };
 }
