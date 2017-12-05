@@ -142,14 +142,13 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/api": "2.1.x",
-    "@parity/dapp-accounts": "paritytech/dapp-accounts",
+    "@parity/api": "~2.1.1",
     "@parity/plugin-signer-account": "paritytech/plugin-signer-account",
     "@parity/plugin-signer-default": "paritytech/plugin-signer-default",
     "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware",
     "@parity/plugin-signer-qr": "paritytech/plugin-signer-qr",
-    "@parity/shared": "2.2.x",
-    "@parity/ui": "~3.0.4",
+    "@parity/shared": "~2.2.1",
+    "@parity/ui": "~3.0.7",
     "keythereum": "1.0.2",
     "lodash.flatten": "4.4.0",
     "lodash.omitby": "4.6.0",

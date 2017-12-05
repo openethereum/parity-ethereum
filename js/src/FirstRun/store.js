@@ -14,29 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
-import sinon from 'sinon';
+import { action, observable } from 'mobx';
+import store from 'store';
 
-import FirstRun from './';
+const LS_FIRST_RUN_KEY = '_parity::showFirstRun';
 
-let component;
-let onClose;
+export default class Store {
+  @observable visible = false;
 
-function render (props = { visible: true }) {
-  onClose = sinon.stub();
-  component = shallow(
-    <FirstRun
-      { ...props }
-      onClose={ onClose }
-    />
-  );
+  constructor (api) {
+    this.toggle(store.get(LS_FIRST_RUN_KEY) !== false);
+  }
 
-  return component;
+  @action close = () => {
+    this.toggle(false);
+  }
+
+  @action toggle = (visible = false) => {
+    this.visible = visible;
+
+    // There's no need to write to storage that the
+    // First Run should be visible
+    if (!visible) {
+      store.set(LS_FIRST_RUN_KEY, !!visible);
+    }
+  }
 }
-
-describe('FirstRun', () => {
-  it('renders defaults', () => {
-    expect(render()).to.be.ok;
-  });
-});
