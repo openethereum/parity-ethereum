@@ -19,18 +19,17 @@ import { observer } from 'mobx-react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
-import IdentityIcon from '@parity/ui/lib/IdentityIcon';
-import Button from 'semantic-ui-react/dist/commonjs/elements/Button';
+import MethodDecodingStore from '@parity/ui/lib/MethodDecoding/methodDecodingStore';
 import Container from 'semantic-ui-react/dist/commonjs/elements/Container';
 import Header from 'semantic-ui-react/dist/commonjs/elements/Header';
 import Icon from 'semantic-ui-react/dist/commonjs/elements/Icon';
-import Image from 'semantic-ui-react/dist/commonjs/elements/Image';
 import Label from 'semantic-ui-react/dist/commonjs/elements/Label';
 import List from 'semantic-ui-react/dist/commonjs/elements/List';
 import Popup from 'semantic-ui-react/dist/commonjs/modules/Popup';
 
 import Store from './store';
 import ParityBarStore from '../../ParityBar/store';
+import RequestItem from './RequestItem';
 import styles from './signerPending.css';
 
 @observer
@@ -47,8 +46,9 @@ class SignerPending extends Component {
 
   store = Store.get(this.context.api);
   parityBarStore = ParityBarStore.get();
+  methodDecodingStore = MethodDecodingStore.get(this.context.api);
 
-  handleViewRequest = () => {
+  handleRequestClick = () => {
     this.parityBarStore.toggleOpenSigner();
     this.handleClose();
   };
@@ -61,78 +61,23 @@ class SignerPending extends Component {
     this.setState({ isOpen: false });
   };
 
-  renderEtherValue (value) {
-    const { api } = this.context;
-    const ether = api.util.fromWei(value);
-
-    return (
-      <span>
-        {ether.toFormat(5)}
-        <small> ETH</small>
-      </span>
-    );
-  }
-
   renderPopupContent = () => (
     <div>
-      <Header
-        as='h5'
-        content={
-          <FormattedMessage
-            id='application.status.signerPendingTitle'
-            defaultMessage='Authorization Requests'
-          />
-        }
-      />
+      <Header as='h5'>
+        <FormattedMessage
+          id='application.status.signerPendingTitle'
+          defaultMessage='Authorization Requests'
+        />
+      </Header>
       {this.store.pending.length > 0
         ? (
-          <List divided relaxed='very'>
+          <List divided relaxed='very' selection>
             {this.store.pending.map(request => (
-              <List.Item key={ request.id.toNumber() }>
-                <List.Content floated='right'>
-                  <Button
-                    icon='unlock alternate'
-                    content={
-                      <FormattedMessage
-                        id='application.status.signerPendingView'
-                        defaultMessage='View'
-                      />
-                    }
-                    primary
-                    onClick={ this.handleViewRequest }
-                    size='mini'
-                  />
-                </List.Content>
-                <Image avatar size='mini' verticalAlign='middle'>
-                  <IdentityIcon
-                    address={ request.payload.sendTransaction.from }
-                  />
-                </Image>
-                <List.Content>
-                  <List.Header>
-                    <FormattedMessage
-                      id='application.status.signerPendingSignerRequest'
-                      defaultMessage='Parity Signer Request'
-                    />
-                  </List.Header>
-                  <List.Description className={ styles.listDescription }>
-                    <FormattedMessage
-                      id='application.status.signerPendingSending'
-                      defaultMessage='Sending {etherValue} to'
-                      values={ {
-                        etherValue: this.renderEtherValue(
-                          request.payload.sendTransaction.value
-                        )
-                      } }
-                    />
-                    <IdentityIcon
-                      tiny
-                      address={ request.payload.sendTransaction.to }
-                      className={ styles.toAvatar }
-                    />
-                  </List.Description>
-                </List.Content>
-              </List.Item>
+              <RequestItem
+                request={ request }
+                key={ request.id.toNumber() }
+                onClick={ this.handleRequestClick }
+              />
             ))}
           </List>
         ) : (
@@ -142,7 +87,8 @@ class SignerPending extends Component {
               defaultMessage='You have no pending requests.'
             />
           </Container>
-        )}
+        )
+      }
     </div>
   );
 

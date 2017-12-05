@@ -15,16 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.signerPending {
-  margin-top: 4px !important;
-  position: relative;
-  cursor: pointer;
+.listDescription {
+  display: flex !important;
 }
 
-.label {
-  font-size: 0.65rem !important;
-}
-
-.noRequest {
-  min-width: 280px;
+.toAvatar {
+  margin-left: 3px;
 }
