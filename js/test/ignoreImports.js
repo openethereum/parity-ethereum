@@ -14,29 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
-import sinon from 'sinon';
+const EXTENSIONS = ['.css', '.ejs', '.md', '.png', '.svg'];
 
-import FirstRun from './';
-
-let component;
-let onClose;
-
-function render (props = { visible: true }) {
-  onClose = sinon.stub();
-  component = shallow(
-    <FirstRun
-      { ...props }
-      onClose={ onClose }
-    />
-  );
-
-  return component;
+function noop () {
 }
 
-describe('FirstRun', () => {
-  it('renders defaults', () => {
-    expect(render()).to.be.ok;
-  });
+EXTENSIONS.forEach((extension) => {
+  require.extensions[extension] = noop;
 });

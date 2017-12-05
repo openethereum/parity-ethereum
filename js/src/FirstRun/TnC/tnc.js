@@ -21,13 +21,9 @@ import ReactMarkdown from 'react-markdown';
 
 import Checkbox from '@parity/ui/lib/Form/Checkbox';
 
+import tnc from './tnc.md';
+
 import styles from '../firstRun.css';
-
-let tnc = '';
-
-if (process.env.NODE_ENV !== 'test') {
-  tnc = require('./tnc.md');
-}
 
 export default function TnC ({ hasAccepted, onAccept }) {
   return (
