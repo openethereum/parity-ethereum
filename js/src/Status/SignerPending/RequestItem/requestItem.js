@@ -22,22 +22,24 @@ import { FormattedMessage } from 'react-intl';
 
 import MethodDecodingStore from '@parity/ui/lib/MethodDecoding/methodDecodingStore';
 import { TOKEN_METHODS } from '@parity/ui/lib/MethodDecoding/constants';
+import TokenValue from '@parity/ui/lib/MethodDecoding/tokenValue';
 import IdentityIcon from '@parity/ui/lib/IdentityIcon';
 import Button from 'semantic-ui-react/dist/commonjs/elements/Button';
 import Image from 'semantic-ui-react/dist/commonjs/elements/Image';
 import List from 'semantic-ui-react/dist/commonjs/elements/List';
 
+import EtherValue from '../EtherValue';
 import styles from './requestItem.css';
 
 @observer
-@connect(({ tokens }, { request: { payload: { sendTransaction } } }) => ({
-  token: Object.values(tokens).find(({ address }) => address === sendTransaction.to)
+@connect(({ tokens }, { transaction }) => ({
+  token: Object.values(tokens).find(({ address }) => address === transaction.to)
 }))
 class RequestItem extends Component {
   static propTypes = {
     onClick: PropTypes.func.isRequired,
-    request: PropTypes.object.isRequired,
-    token: PropTypes.string
+    transaction: PropTypes.object.isRequired,
+    token: PropTypes.object
   };
 
   static contextTypes = {
@@ -45,18 +47,19 @@ class RequestItem extends Component {
   };
 
   state = {
-    transaction: null
+    decoded: null // Decoded transaction
   };
 
   methodDecodingStore = MethodDecodingStore.get(this.context.api);
 
   componentWillMount () {
-    const { request: { payload: { sendTransaction } } } = this.props;
+    const { transaction } = this.props;
 
+    // Decode the transaction and put it into the state
     this.methodDecodingStore
-      .lookup(sendTransaction.from, sendTransaction)
+      .lookup(transaction.from, transaction)
       .then(lookup => this.setState({
-        transaction: lookup
+        decoded: lookup
       }));
   }
 
@@ -69,9 +72,7 @@ class RequestItem extends Component {
       signature,
       contract,
       deploy
-    } = this.state.transaction;
-
-    console.log(this.state.transaction);
+    } = this.state.decoded;
 
     if (deploy) {
       return this.renderDeploy();
@@ -97,48 +98,72 @@ class RequestItem extends Component {
   };
 
   renderContractMethod = () => {
+    const { transaction } = this.props;
+
     return (
-      <FormattedMessage
-        id='application.status.signerPendingContractMethod'
-        defaultMessage='Executing method on contract'
-      />
+      <List.Description className={ styles.listDescription }>
+        <FormattedMessage
+          id='application.status.signerPendingContractMethod'
+          defaultMessage='Executing method on contract'
+        />
+        {this.renderRecipient(transaction.to)}
+      </List.Description>
     );
   };
 
   renderTokenTransfer = () => {
-    const { request: { payload: { sendTransaction } } } = this.props;
+    const { token } = this.props;
+    const { inputs } = this.state.decoded;
+    const valueInput = inputs.find(({ name }) => name === '_value');
+    const toInput = inputs.find(({ name }) => name === '_to');
 
     return (
-      <FormattedMessage
-        id='application.status.signerendingTokenTransfer'
-        defaultMessage='Sending {tokenValue} to'
-        values={ {
-          tokenValue: this.renderTokenValue(sendTransaction.value)
-        }
-        }
-      />
+      <List.Description className={ styles.listDescription }>
+        <FormattedMessage
+          id='application.status.signerendingTokenTransfer'
+          defaultMessage='Sending {tokenValue} to'
+          values={ {
+            tokenValue: (
+              <TokenValue value={ valueInput.value } id={ token.id } />
+            )
+          }
+          }
+        />
+        {this.renderRecipient(toInput.value)}
+      </List.Description>
     );
   };
 
   renderValueTransfer = () => {
-    const { request: { payload: { sendTransaction } } } = this.props;
+    const { transaction } = this.props;
 
     return (
-      <FormattedMessage
-        id='application.status.signerendingValueTransfer'
-        defaultMessage='Sending {etherValue} to'
-        values={ {
-          etherValue: this.renderEtherValue(sendTransaction.value)
-        }
-        }
-      />
+      <List.Description className={ styles.listDescription }>
+        <FormattedMessage
+          id='application.status.signerendingValueTransfer'
+          defaultMessage='Sending {etherValue} to'
+          values={ {
+            etherValue: <EtherValue value={ transaction.value } />
+          }
+          }
+        />
+        {this.renderRecipient(transaction.to)}
+      </List.Description>
     );
   };
 
-  render () {
-    const { request: { payload: { sendTransaction } }, onClick } = this.props;
+  renderRecipient = address => (
+    <IdentityIcon
+      tiny
+      address={ address }
+      className={ styles.toAvatar }
+    />
+  );
 
-    if (!this.state.transaction) { return null; }
+  render () {
+    const { transaction, onClick } = this.props;
+
+    if (!this.state.decoded) { return null; }
 
     return (
       <List.Item >
@@ -158,7 +183,7 @@ class RequestItem extends Component {
         </List.Content>
         <Image avatar size='mini' verticalAlign='middle'>
           <IdentityIcon
-            address={ sendTransaction.from }
+            address={ transaction.from }
           />
         </Image>
         <List.Content>
@@ -168,14 +193,7 @@ class RequestItem extends Component {
               defaultMessage='Parity Signer Request'
             />
           </List.Header>
-          <List.Description className={ styles.listDescription }>
-            {this.renderDescription()}
-            <IdentityIcon
-              tiny
-              address={ sendTransaction.to }
-              className={ styles.toAvatar }
-            />
-          </List.Description>
+          {this.renderDescription()}
         </List.Content>
       </List.Item >
     );
