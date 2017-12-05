@@ -24,7 +24,7 @@
 				},
 				"validateScoreTransition": 1000000,
 				"validateStepTransition": 1500000,
-				"maximumUncleCountTransition": 10000000,
+				"maximumUncleCountTransition": 5200000,
 				"maximumUncleCount": 2
 			}
 		}
@@ -39,7 +39,11 @@
 		"forkCanonHash": "0x0a66d93c2f727dca618fabaf70c39b37018c73d78b939d8b11efbbd09034778f",
 		"validateReceiptsTransition" : 1000000,
 		"eip155Transition": 1000000,
-		"validateChainIdTransition": 1000000
+		"validateChainIdTransition": 1000000,
+		"eip140Transition": 5200000,
+		"eip211Transition": 5200000,
+		"eip214Transition": 5200000,
+		"eip658Transition": 5200000
 	},
 	"genesis": {
 		"seal": {
