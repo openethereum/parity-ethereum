@@ -19,7 +19,6 @@ import { observer } from 'mobx-react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
-import MethodDecodingStore from '@parity/ui/lib/MethodDecoding/methodDecodingStore';
 import Container from 'semantic-ui-react/dist/commonjs/elements/Container';
 import Header from 'semantic-ui-react/dist/commonjs/elements/Header';
 import Icon from 'semantic-ui-react/dist/commonjs/elements/Icon';
@@ -46,7 +45,6 @@ class SignerPending extends Component {
 
   store = Store.get(this.context.api);
   parityBarStore = ParityBarStore.get();
-  methodDecodingStore = MethodDecodingStore.get(this.context.api);
 
   handleRequestClick = () => {
     this.parityBarStore.toggleOpenSigner();
