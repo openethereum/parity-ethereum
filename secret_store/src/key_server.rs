@@ -164,6 +164,7 @@ impl KeyServerCore {
 			acl_storage: acl_storage,
 			key_storage: key_storage,
 			admin_public: config.admin_public.clone(),
+			auto_migrate_enabled: config.auto_migrate_enabled,
 		};
 
 		let (stop, stopped) = futures::oneshot();
@@ -279,6 +280,7 @@ pub mod tests {
 					})).collect(),
 				allow_connecting_to_higher_nodes: false,
 				admin_public: None,
+				auto_migrate_enabled: false,
 			}).collect();
 		let key_servers_set: BTreeMap<Public, SocketAddr> = configs[0].nodes.iter()
 			.map(|(k, a)| (k.clone(), format!("{}:{}", a.address, a.port).parse().unwrap()))

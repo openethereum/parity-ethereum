@@ -341,7 +341,6 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 		match *message {
 			Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref message)) => match &message.message {
 				&ConsensusMessageWithServersSet::InitializeConsensusSession(ref message) => Ok(Some(AdminSessionCreationData::ServersSetChange(
-					None, // TODO
 					message.new_nodes_set.clone().into_iter().map(Into::into).collect()
 				))),
 				_ => Err(Error::InvalidMessage),
@@ -378,8 +377,8 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 					admin_public: Some(self.admin_public.clone().ok_or(Error::AccessDenied)?),
 				})?)
 			},
-			Some(AdminSessionCreationData::ServersSetChange(block, new_nodes_set)) => {
-				let admin_public = self.servers_set_change_session_creator_connector.admin_public(block.clone(), new_nodes_set)
+			Some(AdminSessionCreationData::ServersSetChange(new_nodes_set)) => {
+				let admin_public = self.servers_set_change_session_creator_connector.admin_public(new_nodes_set)
 					.map_err(|_| Error::AccessDenied)?;
 
 				AdminSession::ServersSetChange(ServersSetChangeSessionImpl::new(ServersSetChangeSessionParams {
@@ -388,7 +387,6 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 						self_node_id: self.core.self_node_id.clone(),
 						master_node_id: master,
 					},
-					block: block,
 					cluster: cluster.clone(),
 					key_storage: self.core.key_storage.clone(),
 					nonce: nonce,

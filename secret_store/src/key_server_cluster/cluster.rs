@@ -41,8 +41,8 @@ use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVers
 	IsolatedSessionTransport as KeyVersionNegotiationSessionTransport, ContinueAction};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
-use key_server_cluster::connection_trigger::{ConnectionTrigger, SimpleConnectionTrigger, ServersSetChangeSessionCreatorConnector,
-	compute_servers_set_change};
+use key_server_cluster::connection_trigger::{ConnectionTrigger, SimpleConnectionTrigger, ConnectionTriggerWithMigration,
+	ServersSetChangeSessionCreatorConnector, compute_servers_set_change};
 
 /// Maintain interval (seconds). Every MAINTAIN_INTERVAL seconds node:
 /// 1) checks if connected nodes are responding to KeepAlive messages
@@ -125,6 +125,9 @@ pub struct ClusterConfiguration {
 	pub acl_storage: Arc<AclStorage>,
 	/// Administrator public key.
 	pub admin_public: Option<Public>,
+	/// Should key servers set change session should be started when servers set changes.
+	/// This will only work when servers set is configured using KeyServerSet contract.
+	pub auto_migrate_enabled: bool,
 }
 
 /// Cluster state.
@@ -630,7 +633,11 @@ impl ClusterConnections {
 			self_node_id: config.self_key_pair.public().clone(),
 			key_server_set: config.key_server_set.clone(),
 			data: RwLock::new(ClusterConnectionsDataWithTrigger {
-				trigger: Box::new(SimpleConnectionTrigger::new(config.self_key_pair.public().clone(), config.admin_public.clone())),
+				trigger: match config.auto_migrate_enabled {
+					false => Box::new(SimpleConnectionTrigger::new(config.self_key_pair.public().clone(), config.admin_public.clone())),
+					true if config.admin_public.is_none() => Box::new(ConnectionTriggerWithMigration::new(config.self_key_pair.clone())),
+					true => return Err(Error::Io("secret store admininstrator public key is specified with auto-migration enabled".into())), // TODO: Io -> Internal
+				},
 				data: ClusterConnectionsData {
 					nodes: nodes,
 					connections: BTreeMap::new(),
@@ -724,7 +731,7 @@ impl ClusterConnections {
 		};
 
 		let cdata = &mut *data;
-		cdata.trigger.on_servers_set_change(&mut cdata.data, sessions, &Default::default(), change); // TODO: default
+		cdata.trigger.on_servers_set_change(&mut cdata.data, sessions, change);
 		/*let mut new_nodes = self.key_server_set.get();
 		// we do not need to connect to self
 		// + we do not need to try to connect to any other node if we are not the part of a cluster
@@ -1014,7 +1021,7 @@ impl ClusterClient for ClusterClientImpl {
 		};
 
 		let cluster = create_cluster_view(&self.data, true)?;
-		let creation_data = Some(AdminSessionCreationData::ServersSetChange(None, new_nodes_set.clone()));
+		let creation_data = Some(AdminSessionCreationData::ServersSetChange(new_nodes_set.clone()));
 		let session = self.data.sessions.admin_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, true, creation_data)?;
 		let initialization_result = session.as_servers_set_change().expect("servers set change session is created; qed")
 			.initialize(new_nodes_set, old_set_signature, new_set_signature);
@@ -1201,6 +1208,7 @@ pub mod tests {
 			key_storage: Arc::new(DummyKeyStorage::default()),
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			admin_public: None,
+			auto_migrate_enabled: false,
 		}).collect();
 		let clusters: Vec<_> = cluster_params.into_iter().enumerate()
 			.map(|(_, params)| ClusterCore::new(core.handle(), params).unwrap())

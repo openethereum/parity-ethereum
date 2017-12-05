@@ -156,7 +156,6 @@ mod server {
 				}),
 				data_path: conf.data_path.clone(),
 				acl_check_enabled: conf.acl_check_enabled,
-				auto_migrate_enabled: conf.auto_migrate_enabled,
 				cluster_config: ethcore_secretstore::ClusterConfiguration {
 					threads: 4,
 					listener_address: ethcore_secretstore::NodeAddress {
@@ -169,6 +168,7 @@ mod server {
 					})).collect(),
 					allow_connecting_to_higher_nodes: true,
 					admin_public: conf.admin_public,
+					auto_migrate_enabled: conf.auto_migrate_enabled,
 				},
 			};
 

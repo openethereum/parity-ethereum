@@ -95,7 +95,7 @@ pub enum AdminSessionCreationData {
 	/// Share add session (key id).
 	ShareAdd(H256),
 	/// Servers set change session (block id, new_server_set).
-	ServersSetChange(Option<H256>, BTreeSet<NodeId>),
+	ServersSetChange(BTreeSet<NodeId>),
 }
 
 /// Active sessions on this cluster.
@@ -573,6 +573,7 @@ mod tests {
 			key_storage: Arc::new(DummyKeyStorage::default()),
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			admin_public: Some(Random.generate().unwrap().public().clone()),
+			auto_migrate_enabled: false,
 		};
 		ClusterSessions::new(&config, Arc::new(SimpleServersSetChangeSessionCreatorConnector {
 			admin_public: Some(Random.generate().unwrap().public().clone()),

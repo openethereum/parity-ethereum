@@ -18,7 +18,6 @@ use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use std::collections::btree_map::Entry;
 use parking_lot::{Mutex, Condvar};
-use bigint::hash::H256;
 use ethkey::{Public, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage};
 use key_server_cluster::math;
@@ -81,8 +80,6 @@ enum SessionState {
 struct SessionCore {
 	/// Servers set change session meta (id is computed from new_nodes_set).
 	pub meta: ShareChangeSessionMeta,
-	/// Block hash for which new server set is actual. Filled only when running in auto-migrate mode.
-	pub block: Option<H256>,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
 	pub cluster: Arc<Cluster>,
 	/// Keys storage.
@@ -134,8 +131,6 @@ struct SessionInitializationData {
 pub struct SessionParams {
 	/// Session meta (artificial).
 	pub meta: ShareChangeSessionMeta,
-	/// Block hash for which new server set is actual. Filled only when running in auto-migrate mode.
-	pub block: Option<H256>,
 	/// Cluster.
 	pub cluster: Arc<Cluster>,
 	/// Keys storage.
@@ -154,8 +149,6 @@ struct ServersSetChangeConsensusTransport {
 	id: SessionId,
 	/// Session-level nonce.
 	nonce: u64,
-	/// Block hash for which new server set is actual. Filled only when running in auto-migrate mode.
-	block: Option<H256>,
 	/// Cluster.
 	cluster: Arc<Cluster>,
 }
@@ -186,7 +179,6 @@ impl SessionImpl {
 		Ok(SessionImpl {
 			core: SessionCore {
 				meta: params.meta,
-				block: params.block,
 				cluster: params.cluster,
 				key_storage: params.key_storage,
 				nonce: params.nonce,
@@ -211,11 +203,6 @@ impl SessionImpl {
 	/// Get session id.
 	pub fn id(&self) -> &SessionId {
 		&self.core.meta.id
-	}
-
-	/// Get session master.
-	pub fn master(&self) -> &NodeId {
-		&self.core.meta.master_node_id
 	}
 
 	/// Wait for session completion.
@@ -248,7 +235,6 @@ impl SessionImpl {
 			consensus_transport: ServersSetChangeConsensusTransport {
 				id: self.core.meta.id.clone(),
 				nonce: self.core.nonce,
-				block: self.core.block.clone(),
 				cluster: self.core.cluster.clone(),
 			},
 		})?;
@@ -316,7 +302,6 @@ impl SessionImpl {
 							consensus_transport: ServersSetChangeConsensusTransport {
 								id: self.core.meta.id.clone(),
 								nonce: self.core.nonce,
-								block: None, // we need this on master node only
 								cluster: self.core.cluster.clone(),
 							},
 						})?);
@@ -957,7 +942,6 @@ impl JobTransport for ServersSetChangeConsensusTransport {
 		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(ServersSetChangeConsensusMessage {
 			session: self.id.clone().into(),
 			session_nonce: self.nonce,
-			block: self.block.clone().map(Into::into),
 			message: ConsensusMessageWithServersSet::InitializeConsensusSession(InitializeConsensusSessionWithServersSet {
 				old_nodes_set: request.old_servers_set.into_iter().map(Into::into).collect(),
 				new_nodes_set: request.new_servers_set.into_iter().map(Into::into).collect(),
@@ -971,7 +955,6 @@ impl JobTransport for ServersSetChangeConsensusTransport {
 		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(ServersSetChangeConsensusMessage {
 			session: self.id.clone().into(),
 			session_nonce: self.nonce,
-			block: None,
 			message: ConsensusMessageWithServersSet::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 				is_confirmed: response,
 			}),
@@ -1054,7 +1037,6 @@ pub mod tests {
 		meta.self_node_id = self_node_id;
 		SessionImpl::new(SessionParams {
 			meta: meta,
-			block: None,
 			all_nodes_set: all_nodes_set,
 			cluster: cluster,
 			key_storage: key_storage,

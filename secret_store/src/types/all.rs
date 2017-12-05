@@ -79,9 +79,6 @@ pub struct ServiceConfiguration {
 	pub service_contract_address: Option<ContractAddress>,
 	/// Is ACL check enabled. If false, everyone has access to all keys. Useful for tests only.
 	pub acl_check_enabled: bool,
-	/// Should key servers set change session should be started when servers set changes.
-	/// This will only work when servers set is configured using KeyServerSet contract.
-	pub auto_migrate_enabled: bool,
 	/// Data directory path for secret store
 	pub data_path: String,
 	/// Cluster configuration.
@@ -102,6 +99,9 @@ pub struct ClusterConfiguration {
 	pub allow_connecting_to_higher_nodes: bool,
 	/// Administrator public key.
 	pub admin_public: Option<Public>,
+	/// Should key servers set change session should be started when servers set changes.
+	/// This will only work when servers set is configured using KeyServerSet contract.
+	pub auto_migrate_enabled: bool,
 }
 
 /// Shadow decryption result.
