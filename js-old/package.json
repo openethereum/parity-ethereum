@@ -35,7 +35,7 @@
     "lint": "npm run lint:css && npm run lint:js",
     "lint:css": "stylelint ./src/**/*.css",
     "lint:js": "eslint --ignore-path .gitignore ./src/",
-    "test": "NODE_ENV=test mocha --compilers ejs:ejsify 'src/**/*.spec.js'",
+    "test": "NODE_ENV=test mocha 'src/**/*.spec.js'",
     "watch": "webpack --watch --config webpack/app"
   },
   "napa": {
@@ -75,7 +75,6 @@
     "cross-env": "5.1.1",
     "css-loader": "0.26.1",
     "ejs-loader": "0.3.0",
-    "ejsify": "1.0.0",
     "empty-module": "0.0.2",
     "enzyme": "2.7.1",
     "eslint": "3.16.1",
@@ -93,7 +92,6 @@
     "html-loader": "0.4.4",
     "html-webpack-plugin": "2.28.0",
     "http-proxy-middleware": "0.17.3",
-    "ignore-styles": "5.0.1",
     "istanbul": "1.0.0-alpha.2",
     "jsdom": "9.11.0",
     "json-loader": "0.5.4",

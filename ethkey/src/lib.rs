@@ -14,18 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rand;
-extern crate tiny_keccak;
-extern crate secp256k1;
-extern crate rustc_hex;
-extern crate ethcore_bigint as bigint;
-extern crate crypto as rcrypto;
+// #![warn(missing_docs)]
+
 extern crate byteorder;
+extern crate crypto as rcrypto;
+extern crate edit_distance;
+extern crate ethcore_bigint as bigint;
+extern crate parity_wordlist;
+extern crate rand;
+extern crate rustc_hex;
+extern crate secp256k1;
+extern crate tiny_keccak;
 
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate log;
 
 mod brain;
+mod brain_prefix;
 mod error;
 mod keypair;
 mod keccak;
@@ -35,9 +42,12 @@ mod signature;
 mod secret;
 mod extended;
 
+pub mod brain_recover;
 pub mod math;
 
+pub use self::parity_wordlist::Error as WordlistError;
 pub use self::brain::Brain;
+pub use self::brain_prefix::BrainPrefix;
 pub use self::error::Error;
 pub use self::keypair::{KeyPair, public_to_address};
 pub use self::math::public_is_valid;
@@ -62,7 +72,7 @@ pub trait Generator {
 	type Error;
 
 	/// Should be called to generate new keypair.
-	fn generate(self) -> Result<KeyPair, Self::Error>;
+	fn generate(&mut self) -> Result<KeyPair, Self::Error>;
 }
 
 pub type Address = H160;

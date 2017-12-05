@@ -34,7 +34,7 @@ impl Prefix {
 impl Generator for Prefix {
 	type Error = Error;
 
-	fn generate(self) -> Result<KeyPair, Error> {
+	fn generate(&mut self) -> Result<KeyPair, Error> {
 		for _ in 0..self.iterations {
 			let keypair = Random.generate()?;
 			if keypair.address().starts_with(&self.prefix) {

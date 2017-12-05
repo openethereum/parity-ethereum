@@ -24,17 +24,20 @@ git remote set-url origin $PRE_REPO_TOKEN > /dev/null 2>&1
 echo "*** [$PRE_REPO] Copying build"
 rm -rf build
 cp -rf ../.dist/build .
+find . -name "*.css.map" -type f -delete
+find . -name "*.js.map" -type f -delete
+find . -name "package.json" -type f -delete
 
 echo "*** [$PRE_REPO] Adding to git"
 echo "$UTCDATE" >README.md
-git add .
+git add --all .
 git commit -m "$UTCDATE"
 
 echo "*** [$PRE_REPO] Pushing upstream"
 git push --quiet origin HEAD:refs/heads/master > /dev/null 2>&1
 
 cd ..
-rm -rf precompiled
+rm -rf .dist .build .happypack precompiled
 popd
 
 # exit with exit code
