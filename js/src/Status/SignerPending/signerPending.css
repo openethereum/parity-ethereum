@@ -32,3 +32,7 @@
 .toAvatar {
   margin-left: 3px;
 }
+
+.noRequest {
+  min-width: 280px;
+}

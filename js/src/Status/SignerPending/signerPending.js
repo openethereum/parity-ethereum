@@ -21,6 +21,7 @@ import { FormattedMessage } from 'react-intl';
 
 import IdentityIcon from '@parity/ui/lib/IdentityIcon';
 import Button from 'semantic-ui-react/dist/commonjs/elements/Button';
+import Container from 'semantic-ui-react/dist/commonjs/elements/Container';
 import Header from 'semantic-ui-react/dist/commonjs/elements/Header';
 import Icon from 'semantic-ui-react/dist/commonjs/elements/Icon';
 import Image from 'semantic-ui-react/dist/commonjs/elements/Image';
@@ -34,9 +35,7 @@ import styles from './signerPending.css';
 
 @observer
 class SignerPending extends Component {
-  static propTypes = {
-
-  }
+  static propTypes = {}
 
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -79,7 +78,7 @@ class SignerPending extends Component {
         wide='very'
         trigger={
           <div className={ [styles.signerPending].join(' ') }>
-            <Icon name='lock' />
+            <Icon name={ this.store.pending.length > 0 ? 'bell' : 'bell outline' } />
             {this.store.pending.length > 0 &&
               <Label floating color='red' size='mini' circular className={ styles.label }>
                 {this.store.pending.length}
@@ -99,51 +98,61 @@ class SignerPending extends Component {
                 />
               }
             />
-            <List divided relaxed='very'>
-              {this.store.pending.map(request =>
-                <List.Item key={ request.id.toNumber() }>
-                  <List.Content floated='right'>
-                    <Button
-                      icon='unlock alternate'
-                      content={
-                        <FormattedMessage
-                          id='application.status.signerPendingView'
-                          defaultMessage='View'
+            {this.store.pending.length > 0
+              ? (
+                <List divided relaxed='very'>
+                  {this.store.pending.map(request =>
+                    <List.Item key={ request.id.toNumber() }>
+                      <List.Content floated='right'>
+                        <Button
+                          icon='unlock alternate'
+                          content={
+                            <FormattedMessage
+                              id='application.status.signerPendingView'
+                              defaultMessage='View'
+                            />
+                          }
+                          primary
+                          onClick={ this.handleViewRequest }
+                          size='mini'
                         />
-                      }
-                      primary
-                      onClick={ this.handleViewRequest }
-                      size='mini'
-                    />
-                  </List.Content>
-                  <Image avatar size='mini' verticalAlign='middle'>
-                    <IdentityIcon
-                      address={ request.payload.sendTransaction.from }
-                    />
-                  </Image>
-                  <List.Content>
-                    <List.Header>
-                      <FormattedMessage
-                        id='application.status.signerPendingSignerRequest'
-                        defaultMessage='Parity Signer Request'
-                      />
-                    </List.Header>
-                    <List.Description className={ styles.listDescription }>
-                      <FormattedMessage
-                        id='application.status.signerPendingSending'
-                        defaultMessage='Sending {etherValue} to'
-                        values={ { etherValue: this.renderEtherValue(request.payload.sendTransaction.value) } }
-                      />
-                      <IdentityIcon
-                        tiny
-                        address={ request.payload.sendTransaction.to }
-                        className={ styles.toAvatar }
-                      />
-                    </List.Description>
-                  </List.Content>
-                </List.Item>)
-              }
-            </List>
+                      </List.Content>
+                      <Image avatar size='mini' verticalAlign='middle'>
+                        <IdentityIcon
+                          address={ request.payload.sendTransaction.from }
+                        />
+                      </Image>
+                      <List.Content>
+                        <List.Header>
+                          <FormattedMessage
+                            id='application.status.signerPendingSignerRequest'
+                            defaultMessage='Parity Signer Request'
+                          />
+                        </List.Header>
+                        <List.Description className={ styles.listDescription }>
+                          <FormattedMessage
+                            id='application.status.signerPendingSending'
+                            defaultMessage='Sending {etherValue} to'
+                            values={ { etherValue: this.renderEtherValue(request.payload.sendTransaction.value) } }
+                          />
+                          <IdentityIcon
+                            tiny
+                            address={ request.payload.sendTransaction.to }
+                            className={ styles.toAvatar }
+                          />
+                        </List.Description>
+                      </List.Content>
+                    </List.Item>)
+                  }
+                </List>
+              ) : (
+                <Container textAlign='center' fluid className={ styles.noRequest }>
+                  <FormattedMessage
+                    id='application.status.signerPendingNoRequest'
+                    defaultMessage='You have no pending requests.'
+                  />
+                </Container>
+              )}
           </div>
         }
         offset={ 8 } // Empirically looks better
