@@ -37,6 +37,7 @@ extern crate semver;
 extern crate serde;
 extern crate serde_json;
 extern crate time;
+extern crate tiny_keccak;
 extern crate tokio_timer;
 extern crate transient_hashmap;
 
@@ -65,7 +66,7 @@ extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate rlp;
 extern crate stats;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate hardware_wallet;
 
 #[macro_use]

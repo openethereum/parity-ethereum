@@ -180,14 +180,15 @@ fn should_return_fetched_dapp_content() {
 	assert_security_headers_for_embed(&response2.headers);
 	assert_eq!(
 		response2.body,
-		r#"BE
+		r#"D2
 {
   "id": "9c94e154dab8acf859b30ee80fc828fb1d38359d938751b65db71d460588d82a",
   "name": "Gavcoin",
   "description": "Gavcoin",
   "version": "1.0.0",
   "author": "",
-  "iconUrl": "icon.png"
+  "iconUrl": "icon.png",
+  "localUrl": null
 }
 0
 

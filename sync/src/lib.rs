@@ -40,13 +40,12 @@ extern crate parking_lot;
 extern crate smallvec;
 extern crate rlp;
 extern crate ipnetwork;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate triehash;
 extern crate kvdb;
 
 extern crate ethcore_light as light;
 
-#[cfg(test)] extern crate ethcore_devtools as devtools;
 #[cfg(test)] extern crate ethkey;
 #[cfg(test)] extern crate kvdb_memorydb;
 
@@ -73,7 +72,7 @@ mod api;
 
 pub use api::*;
 pub use chain::{SyncStatus, SyncState};
-pub use network::{validate_node_url, NonReservedPeerMode, NetworkError, ConnectionFilter, ConnectionDirection};
+pub use network::{validate_node_url, NonReservedPeerMode, Error, ErrorKind, ConnectionFilter, ConnectionDirection};
 
 #[cfg(test)]
 pub(crate) type Address = bigint::hash::H160;

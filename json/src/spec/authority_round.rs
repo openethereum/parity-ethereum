@@ -43,6 +43,12 @@ pub struct AuthorityRoundParams {
 	/// Reward per block in wei.
 	#[serde(rename="blockReward")]
 	pub block_reward: Option<Uint>,
+	/// Block at which maximum uncle count should be considered.
+	#[serde(rename="maximumUncleCountTransition")]
+	pub maximum_uncle_count_transition: Option<Uint>,
+	/// Maximum number of accepted uncles.
+	#[serde(rename="maximumUncleCount")]
+	pub maximum_uncle_count: Option<Uint>,
 }
 
 /// Authority engine deserialization.
@@ -71,7 +77,9 @@ mod tests {
 				},
 				"startStep" : 24,
 				"validateStepTransition": 150,
-				"blockReward": 5000000
+				"blockReward": 5000000,
+				"maximumUncleCountTransition": 10000000,
+				"maximumUncleCount": 5
 			}
 		}"#;
 
@@ -80,6 +88,8 @@ mod tests {
 		assert_eq!(deserialized.params.validators, ValidatorSet::List(vec![Address(H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562b"))]));
 		assert_eq!(deserialized.params.start_step, Some(Uint(U256::from(24))));
 		assert_eq!(deserialized.params.immediate_transitions, None);
+		assert_eq!(deserialized.params.maximum_uncle_count_transition, Some(Uint(10_000_000.into())));
+		assert_eq!(deserialized.params.maximum_uncle_count, Some(Uint(5.into())));
 
 	}
 }

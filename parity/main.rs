@@ -75,7 +75,7 @@ extern crate parity_whisper;
 extern crate path;
 extern crate rpc_cli;
 extern crate node_filter;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate journaldb;
 
 #[macro_use]

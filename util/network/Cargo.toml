@@ -22,7 +22,6 @@ parking_lot = "0.4"
 ansi_term = "0.9"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io" }
-ethcore-util = { path = ".." }
 ethcore-bigint = { path = "../bigint" }
 ethcore-bytes = { path = "../bytes" }
 ethkey = { path = "../../ethkey" }
@@ -31,9 +30,10 @@ rlp = { path = "../rlp" }
 path = { path = "../path" }
 ethcore-logger = { path ="../../logger" }
 ipnetwork = "0.12.6"
-hash = { path = "../hash" }
-snappy = { path = "../snappy" }
+keccak-hash = { path = "../hash" }
+snappy = { git = "https://github.com/paritytech/rust-snappy" }
 serde_json = "1.0"
+error-chain = { version = "0.11", default-features = false }
 
 [dev-dependencies]
 ethcore-devtools = { path = "../../devtools" }

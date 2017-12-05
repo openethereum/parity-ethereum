@@ -21,7 +21,7 @@ import TokensProvider from './tokens';
 import { updateTokensFilter } from './balancesActions';
 import { attachWallets } from './walletActions';
 
-import Contract from '~/api/contract';
+import Contract from '@parity/api/lib/contract';
 import MethodDecodingStore from '~/ui/MethodDecoding/methodDecodingStore';
 import WalletsUtils from '~/util/wallets';
 import { foundationWallet as WalletAbi } from '~/contracts/abi';

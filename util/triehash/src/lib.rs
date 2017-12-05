@@ -19,7 +19,7 @@
 //! This module should be used to generate trie root hash.
 
 extern crate ethcore_bigint;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate rlp;
 
 use std::collections::BTreeMap;
