@@ -65,6 +65,8 @@ pub struct AuthorityRoundParams {
 	pub immediate_transitions: bool,
 	/// Block reward in base units.
 	pub block_reward: U256,
+	/// Number of accepted uncles transition block.
+	pub maximum_uncle_count_transition: u64,
 	/// Number of accepted uncles.
 	pub maximum_uncle_count: usize,
 }
@@ -79,6 +81,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			validate_step_transition: p.validate_step_transition.map_or(0, Into::into),
 			immediate_transitions: p.immediate_transitions.unwrap_or(false),
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
+			maximum_uncle_count_transition: p.maximum_uncle_count_transition.map_or(0, Into::into),
 			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
 		}
 	}
@@ -221,6 +224,7 @@ pub struct AuthorityRound {
 	epoch_manager: Mutex<EpochManager>,
 	immediate_transitions: bool,
 	block_reward: U256,
+	maximum_uncle_count_transition: u64,
 	maximum_uncle_count: usize,
 	machine: EthereumMachine,
 }
@@ -369,6 +373,7 @@ impl AuthorityRound {
 				epoch_manager: Mutex::new(EpochManager::blank()),
 				immediate_transitions: our_params.immediate_transitions,
 				block_reward: our_params.block_reward,
+				maximum_uncle_count_transition: our_params.maximum_uncle_count_transition,
 				maximum_uncle_count: our_params.maximum_uncle_count,
 				machine: machine,
 			});
@@ -441,7 +446,14 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		]
 	}
 
-	fn maximum_uncle_count(&self) -> usize { self.maximum_uncle_count }
+	fn maximum_uncle_count(&self, block: BlockNumber) -> usize {
+		if block >= self.maximum_uncle_count_transition {
+			self.maximum_uncle_count
+		} else {
+			// fallback to default value
+			2
+		}
+	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - step
@@ -956,6 +968,7 @@ mod tests {
 			validate_score_transition: 0,
 			validate_step_transition: 0,
 			immediate_transitions: true,
+			maximum_uncle_count_transition: 0,
 			maximum_uncle_count: 0,
 			block_reward: Default::default(),
 		};
@@ -983,5 +996,32 @@ mod tests {
 
 		assert!(aura.verify_block_family(&header, &parent_header).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 1);
+	}
+
+	#[test]
+	fn test_uncles_transition() {
+		let last_benign = Arc::new(AtomicUsize::new(0));
+		let params = AuthorityRoundParams {
+			step_duration: Default::default(),
+			start_step: Some(1),
+			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
+			validate_score_transition: 0,
+			validate_step_transition: 0,
+			immediate_transitions: true,
+			maximum_uncle_count_transition: 1,
+			maximum_uncle_count: 0,
+			block_reward: Default::default(),
+		};
+
+		let aura = {
+			let mut c_params = ::spec::CommonParams::default();
+			c_params.gas_limit_bound_divisor = 5.into();
+			let machine = ::machine::EthereumMachine::regular(c_params, Default::default());
+			AuthorityRound::new(params, machine).unwrap()
+		};
+
+		assert_eq!(aura.maximum_uncle_count(0), 2);
+		assert_eq!(aura.maximum_uncle_count(1), 0);
+		assert_eq!(aura.maximum_uncle_count(100), 0);
 	}
 }
