@@ -151,7 +151,12 @@ function getPlugins (_isProd = isProd) {
 }
 
 function getDappsEntry () {
-  return [];
+  const DAPPS = require('../src/views/Dapps/builtin.json');
+
+  return DAPPS.filter((dapp) => !dapp.skipBuild).reduce((_entry, dapp) => {
+    _entry[dapp.url] = './dapps/' + dapp.url + '.js';
+    return _entry;
+  }, {});
 }
 
 function addProxies (app) {

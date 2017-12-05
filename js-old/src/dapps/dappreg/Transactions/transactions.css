@@ -1,0 +1,95 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.container {
+  bottom: 4rem;
+  position: fixed;
+  right: 0;
+  z-index: 150;
+}
+
+.transaction {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.5rem;
+  width: 30rem;
+
+  .header {
+    flex: 0 0 auto;
+    height: 1.5rem;
+    position: relative;
+    width: 100%;
+
+    > * {
+      display: inline-block;
+      font-family: 'Roboto Mono', monospace;
+      font-size: 0.75rem;
+      overflow: hidden;
+      padding: 0.25rem 0.5rem;
+      position: absolute;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .name {
+    background-color: rgba(40, 40, 40, 0.95);
+    color: white;
+    left: 0.5rem;
+    margin-right: 1.5rem;
+    max-width: 20rem;
+  }
+
+  .date {
+    background-color: rgba(215, 215, 215, 0.95);
+    color: black;
+    max-width: 5rem;
+    right: 0.5rem;
+  }
+
+  .content {
+    align-items: center;
+    background-color: rgba(80, 80, 80, 0.95);
+    color: white;
+    display: flex;
+    flex: 1 1 auto;
+    padding: 1rem 0.75rem;
+
+    > * {
+      max-width: 100%;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    &:hover {
+      cursor: pointer;
+    }
+
+    &.error {
+      background-color: rgba(255, 68, 68, 0.95);
+    }
+
+    &.pending {
+      background-color: rgba(243, 156, 18, 0.95);
+    }
+
+    &.confirmed {
+      background-color: rgba(39, 174, 96, 0.95);
+      color: white;
+    }
+  }
+}

@@ -32,8 +32,8 @@ lazy_static! {
 			builder.parse(&log);
 		}
 
-		if !builder.init().is_ok() {
-			println!("logger initialization failed!");
+		if builder.init().is_ok() {
+			println!("logger initialized");
 		}
 	};
 }
@@ -66,11 +66,7 @@ impl RotatingLogger {
 
 	/// Append new log entry
 	pub fn append(&self, log: String) {
-		let mut logs = self.logs.write();
-		if logs.is_full() {
-			logs.pop();
-		}
-		logs.insert(0, log);
+		self.logs.write().insert(0, log);
 	}
 
 	/// Return levels

@@ -11,11 +11,12 @@ build = "build.rs"
 log = "0.3"
 env_logger = "0.4"
 rustc-hex = "1.0"
+rocksdb = { git = "https://github.com/paritytech/rust-rocksdb" }
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
 elastic-array = "0.9"
 rlp = { path = "rlp" }
 heapsize = "0.4"
-keccak-hash = { path = "hash" }
+hash = { path = "hash" }
 clippy = { version = "0.0.103", optional = true}
 libc = "0.2.7"
 target_info = "0.1"
@@ -25,7 +26,7 @@ tiny-keccak= "1.0"
 ethcore-logger = { path = "../logger" }
 triehash = { path = "triehash" }
 hashdb = { path = "hashdb" }
-patricia-trie = { path = "patricia_trie" }
+patricia_trie = { path = "patricia_trie" }
 ethcore-bytes = { path = "bytes" }
 memorydb = { path = "memorydb" }
 util-error = { path = "error" }

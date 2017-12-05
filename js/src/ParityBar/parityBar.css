@@ -189,9 +189,9 @@ $modalZ: 10001;
 }
 
 .header {
-  border-radius: 4px 4px 0 0;
-  margin-bottom: 0;
+  /* height: 2em; */
   padding: 0.5em 1em;
+  margin-bottom: 0;
 
   &::after {
     clear: both;

@@ -2,10 +2,8 @@
 name = "triehash"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-description = "in memory patricia trie operations"
-license = "GPL-3.0"
 
 [dependencies]
-rlp = { version = "0.2.1", path = "../rlp" }
-ethcore-bigint = { version = "0.2.1", path = "../bigint" }
-keccak-hash = { version = "0.1", path = "../hash" }
+rlp = { path = "../rlp" }
+ethcore-bigint = { path = "../bigint" }
+hash = { path = "../hash" }

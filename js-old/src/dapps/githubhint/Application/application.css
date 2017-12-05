@@ -1,0 +1,161 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.body {
+  text-align: center;
+  background: #333;
+  color: #fff;
+}
+
+.container {
+  font-family: 'Roboto';
+  vertical-align: middle;
+  padding: 4em 0;
+  margin: 0 0 2em 0;
+}
+
+.form {
+  text-align: right;
+  margin: 0 auto;
+  border-radius: 5px;
+  width: 44em;
+  color: #eee;
+}
+
+.box {
+  padding: 2em;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  margin-bottom: 2em;
+}
+
+.buttons {
+  text-align: center;
+  margin: 0 auto 2em auto;
+}
+
+.box .buttons {
+  text-align: right;
+  margin: 2em 0 0 0;
+  position: relative;
+}
+
+.box .buttons .addressSelect {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.box .description {
+  margin: 0 0 2em 0;
+  text-align: center;
+  opacity: 0.75;
+}
+
+.progress {
+  margin: 2em 0 0 0;
+  opacity: 0.75;
+  text-align: center;
+}
+
+.statusHeader {
+  font-size: 1em;
+}
+
+.statusState, .statusError {
+  padding: 1em 0 0 0;
+}
+
+.statusError {
+  color: #f66;
+}
+
+.capture {
+}
+
+.capture+.capture {
+  margin-top: 0.5em;
+}
+
+.capture * {
+  display: inline-block;
+  padding: 0.75em;
+  vertical-align: middle;
+  box-sizing: border-box;
+  width: 20em;
+}
+
+.capture input {
+  color: #333;
+  background: #eee;
+  border: none;
+  border-radius: 0.5em;
+  width: 100%;
+  font-size: 1em;
+  text-align: center;
+}
+
+.capture input[disabled] {
+  opacity: 0.5;
+}
+
+.capture input.error {
+  background: #fcc;
+}
+
+.hashError, .hashWarning, .hashOk {
+  margin: 0.5em 0;
+  text-align: center;
+  padding: 1em 0;
+  border: 0.25em solid #333;
+  border-radius: 0.5em;
+}
+
+.hashError {
+  border-color: #f66;
+  color: #f66;
+  background: rgba(255, 102, 102, 0.25);
+}
+
+.hashWarning {
+  border-color: #f80;
+  color: #f80;
+  background: rgba(255, 236, 0, 0.25);
+}
+
+.hashOk {
+  border-color: #6f6;
+  color: #6f6;
+  background: rgba(102, 255, 102, 0.25);
+}
+
+.typeButtons {
+  text-align: center;
+  padding: 0 0 1em 0;
+}
+
+.typeButtons>div {
+  border-radius: 0 !important;
+
+  &:first-child {
+    border-radius: 5px 0 0 5px !important;
+  }
+
+  &:last-child {
+    border-radius: 0 5px 5px 0 !important;
+  }
+}

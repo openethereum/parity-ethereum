@@ -24,7 +24,7 @@ extern crate rlp;
 #[macro_use]
 extern crate rlp_derive;
 extern crate bloomable;
-extern crate keccak_hash as hash;
+extern crate hash;
 extern crate heapsize;
 
 #[cfg(test)]

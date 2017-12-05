@@ -16,7 +16,6 @@
 
 use keccak::Keccak256;
 use super::{KeyPair, Generator, Secret};
-use parity_wordlist;
 
 /// Simple brainwallet.
 pub struct Brain(String);
@@ -25,17 +24,13 @@ impl Brain {
 	pub fn new(s: String) -> Self {
 		Brain(s)
 	}
-
-	pub fn validate_phrase(phrase: &str, expected_words: usize) -> Result<(), ::WordlistError> {
-		parity_wordlist::validate_phrase(phrase, expected_words)
-	}
 }
 
 impl Generator for Brain {
     type Error = ::Void;
 
-	fn generate(&mut self) -> Result<KeyPair, Self::Error> {
-		let seed = self.0.clone();
+	fn generate(self) -> Result<KeyPair, Self::Error> {
+		let seed = self.0;
 		let mut secret = seed.into_bytes().keccak256();
 
 		let mut i = 0;
@@ -48,10 +43,7 @@ impl Generator for Brain {
 					if let Ok(pair) = Secret::from_unsafe_slice(&secret)
 						.and_then(KeyPair::from_secret)
 					{
-						if pair.address()[0] == 0 {
-							trace!("Testing: {}, got: {:?}", self.0, pair.address());
-							return Ok(pair)
-						}
+						if pair.address()[0] == 0 { return Ok(pair) }
 					}
 				},
 			}

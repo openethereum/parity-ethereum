@@ -9,7 +9,7 @@ extern crate parking_lot;
 extern crate serde;
 extern crate serde_json;
 extern crate url;
-extern crate keccak_hash as hash;
+extern crate hash;
 
 #[macro_use]
 extern crate log;

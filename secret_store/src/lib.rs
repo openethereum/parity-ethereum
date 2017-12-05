@@ -37,6 +37,7 @@ extern crate tokio_proto;
 extern crate url;
 
 extern crate ethcore;
+extern crate ethcore_devtools as devtools;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
@@ -44,7 +45,7 @@ extern crate ethcore_logger as logger;
 extern crate ethcrypto;
 extern crate ethkey;
 extern crate native_contracts;
-extern crate keccak_hash as hash;
+extern crate hash;
 extern crate kvdb;
 extern crate kvdb_rocksdb;
 

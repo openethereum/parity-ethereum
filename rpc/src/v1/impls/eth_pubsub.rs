@@ -153,9 +153,9 @@ impl<C> ChainNotificationHandler<C> {
 			self.remote.spawn(logs
 				.map(move |logs| {
 					let logs = logs.into_iter().flat_map(|log| log).collect();
-
-					for log in limit_logs(logs, limit) {
-						Self::notify(&remote, &subscriber, pubsub::Result::Log(log))
+					let logs = limit_logs(logs, limit);
+					if !logs.is_empty() {
+						Self::notify(&remote, &subscriber, pubsub::Result::Logs(logs));
 					}
 				})
 				.map_err(|e| warn!("Unable to fetch latest logs: {:?}", e))

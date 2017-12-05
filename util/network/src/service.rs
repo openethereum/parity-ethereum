@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use {NetworkProtocolHandler, NetworkConfiguration, NonReservedPeerMode};
-use error::Error;
+use error::NetworkError;
 use host::{Host, NetworkContext, NetworkIoMessage, PeerId, ProtocolId};
 use stats::NetworkStats;
 use io::*;
@@ -54,14 +54,15 @@ pub struct NetworkService {
 
 impl NetworkService {
 	/// Starts IO event loop
-	pub fn new(config: NetworkConfiguration, filter: Option<Arc<ConnectionFilter>>) -> Result<NetworkService, Error> {
+	pub fn new(config: NetworkConfiguration, filter: Option<Arc<ConnectionFilter>>) -> Result<NetworkService, NetworkError> {
 		let host_handler = Arc::new(HostHandler { public_url: RwLock::new(None) });
 		let io_service = IoService::<NetworkIoMessage>::start()?;
 
 		let stats = Arc::new(NetworkStats::new());
+		let host_info = Host::client_version();
 		Ok(NetworkService {
 			io_service: io_service,
-			host_info: config.client_version.clone(),
+			host_info: host_info,
 			stats: stats,
 			host: RwLock::new(None),
 			config: config,
@@ -71,7 +72,7 @@ impl NetworkService {
 	}
 
 	/// Regiter a new protocol handler with the event loop.
-	pub fn register_protocol(&self, handler: Arc<NetworkProtocolHandler + Send + Sync>, protocol: ProtocolId, packet_count: u8, versions: &[u8]) -> Result<(), Error> {
+	pub fn register_protocol(&self, handler: Arc<NetworkProtocolHandler + Send + Sync>, protocol: ProtocolId, packet_count: u8, versions: &[u8]) -> Result<(), NetworkError> {
 		self.io_service.send_message(NetworkIoMessage::AddHandler {
 			handler: handler,
 			protocol: protocol,
@@ -114,7 +115,7 @@ impl NetworkService {
 	}
 
 	/// Start network IO
-	pub fn start(&self) -> Result<(), Error> {
+	pub fn start(&self) -> Result<(), NetworkError> {
 		let mut host = self.host.write();
 		if host.is_none() {
 			let h = Arc::new(Host::new(self.config.clone(), self.stats.clone(), self.filter.clone())?);
@@ -130,7 +131,7 @@ impl NetworkService {
 	}
 
 	/// Stop network IO
-	pub fn stop(&self) -> Result<(), Error> {
+	pub fn stop(&self) -> Result<(), NetworkError> {
 		let mut host = self.host.write();
 		if let Some(ref host) = *host {
 			let io = IoContext::new(self.io_service.channel(), 0); //TODO: take token id from host
@@ -146,7 +147,7 @@ impl NetworkService {
 	}
 
 	/// Try to add a reserved peer.
-	pub fn add_reserved_peer(&self, peer: &str) -> Result<(), Error> {
+	pub fn add_reserved_peer(&self, peer: &str) -> Result<(), NetworkError> {
 		let host = self.host.read();
 		if let Some(ref host) = *host {
 			host.add_reserved_node(peer)
@@ -156,7 +157,7 @@ impl NetworkService {
 	}
 
 	/// Try to remove a reserved peer.
-	pub fn remove_reserved_peer(&self, peer: &str) -> Result<(), Error> {
+	pub fn remove_reserved_peer(&self, peer: &str) -> Result<(), NetworkError> {
 		let host = self.host.read();
 		if let Some(ref host) = *host {
 			host.remove_reserved_node(peer)

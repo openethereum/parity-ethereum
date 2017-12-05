@@ -25,12 +25,12 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	Static(
 		"_storage_read",
 		&[I32; 2],
-		None,
+		Some(I32),
 	),
 	Static(
 		"_storage_write",
 		&[I32; 2],
-		None,
+		Some(I32),
 	),
 	Static(
 		"_balance",
@@ -115,7 +115,7 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	Static(
 		"_blockhash",
 		&[I64, I32],
-		None,
+		Some(I32),
 	),
 	Static(
 		"_coinbase",

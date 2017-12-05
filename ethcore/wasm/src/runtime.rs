@@ -21,7 +21,6 @@ use std::sync::Arc;
 use byteorder::{LittleEndian, ByteOrder};
 
 use vm;
-use panic_payload;
 use parity_wasm::interpreter;
 use wasm_utils::rules;
 use bigint::prelude::U256;
@@ -168,7 +167,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		self.ext.set_storage(key, val).map_err(|_| UserTrap::StorageUpdateError)?;
 
-		Ok(None)
+		Ok(Some(0i32.into()))
 	}
 
 	/// Read from the storage to wasm memory
@@ -184,7 +183,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		self.memory.set(val_ptr as u32, &*val)?;
 
-		Ok(None)
+		Ok(Some(0.into()))
 	}
 
 	/// Fetches balance for address
@@ -627,26 +626,12 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	fn user_panic(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
-		let payload_len = context.value_stack.pop_as::<i32>()? as u32;
-		let payload_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		let msg_len = context.value_stack.pop_as::<i32>()? as u32;
+		let msg_ptr = context.value_stack.pop_as::<i32>()? as u32;
 
-		let raw_payload = self.memory.get(payload_ptr, payload_len as usize)?;
-		let payload = panic_payload::decode(&raw_payload);
-		let msg = format!(
-			"{msg}, {file}:{line}:{col}",
-			msg = payload
-				.msg
-				.as_ref()
-				.map(String::as_ref)
-				.unwrap_or("<msg was stripped>"),
-			file = payload
-				.file
-				.as_ref()
-				.map(String::as_ref)
-				.unwrap_or("<unknown>"),
-			line = payload.line.unwrap_or(0),
-			col = payload.col.unwrap_or(0)
-		);
+		let msg = String::from_utf8(self.memory.get(msg_ptr, msg_len as usize)?)
+			.map_err(|_| UserTrap::BadUtf8)?;
+
 		trace!(target: "wasm", "Contract custom panic message: {}", msg);
 
 		Err(UserTrap::Panic(msg).into())
@@ -665,7 +650,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		self.memory.set(return_ptr, &*hash)?;
 
-		Ok(None)
+		Ok(Some(0i32.into()))
 	}
 
 	fn return_address_ptr(&mut self, ptr: u32, val: Address) -> Result<(), InterpreterError>

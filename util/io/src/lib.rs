@@ -67,9 +67,9 @@ extern crate parking_lot;
 mod service;
 mod worker;
 
-use std::{fmt, error};
+use mio::{Token};
 use mio::deprecated::{EventLoop, NotifyError};
-use mio::Token;
+use std::fmt;
 
 pub use worker::LOCAL_STACK_SIZE;
 
@@ -90,12 +90,6 @@ impl fmt::Display for IoError {
 			IoError::Mio(ref std_err) => std_err.fmt(f),
 			IoError::StdIo(ref std_err) => std_err.fmt(f),
 		}
-	}
-}
-
-impl error::Error for IoError {
-	fn description(&self) -> &str {
-		"IO error"
 	}
 }
 

@@ -1,0 +1,151 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.modal {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(55, 55, 55, 0.75);
+  text-align: center;
+}
+
+.dialog {
+  margin-top: 1.5em;
+  border-radius: 5px;
+  width: 750px;
+  background: rgba(0, 0, 0, 0.9);
+  display: inline-block;
+}
+
+.close {
+  top: 4px;
+  right: 4px;
+  position: absolute;
+  background: transparent;
+}
+
+.header {
+  font-size: 1.3em;
+  line-height: 1.3em;
+  padding: 16px 24px;
+  background: #f80;
+  color: white;
+  position: relative;
+  margin-bottom: 24px;
+  border-radius: 5px 5px 0 0;
+}
+
+.body {
+  padding: 0 24px;
+}
+
+.body div {
+  text-align: center;
+}
+
+.info {
+  padding: 0 24px 24px 24px;
+  line-height: 1.618em;
+}
+
+.info textarea {
+  background: rgba(80, 80, 80, 0.25);
+  border-radius: 5px;
+  resize: none;
+  padding: 1em;
+  color: #eee;
+  font-size: 0.75em;
+  font-family: 'Roboto Mono';
+  width: 100%;
+  border: none;
+  box-sizing: border-box;
+}
+
+.info textarea.error {
+  background: rgba(255, 0, 0, 0.25);
+}
+
+.info .error {
+  color: rgba(255, 0, 0, 1);
+  font-size: 0.75em;
+  line-height: 1.5em;
+}
+
+.buttonrow {
+  position: relative;
+  padding: 24px 0;
+  margin: 0;
+  text-align: right !important;
+}
+
+.addressSelect {
+  position: absolute;
+  top: 24px;
+  left: 0;
+}
+
+.keys {
+  position: absolute;
+  left: 24px;
+  top: 16px;
+  padding: 4px 0;
+}
+
+.fnconstant,
+.fnexists,
+.fnunknown,
+.fntodo {
+  display: inline-block;
+  margin: 0.25em;
+  padding: 0.5em 1em;
+  border-radius: 2px;
+  color: white;
+  line-height: 1em;
+  font-size: 0.8em;
+}
+
+.fnconstant {
+  color: #888;
+  background: #333;
+}
+
+.fnexists {
+  color: #f80;
+  background: #333;
+}
+
+.fnunknown {
+  color: #eee;
+}
+
+.fntodo {
+  background: #f80;
+}
+
+.hide {
+  opacity: 0;
+}

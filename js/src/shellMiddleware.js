@@ -14,14 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import * as mobx from 'mobx';
 import flatten from 'lodash.flatten';
 
 import { sha3 } from '@parity/api/lib/util/sha3';
 import VisibleStore from '@parity/shared/lib/mobx/dappsStore';
 
 import RequestStore from './DappRequests/store';
-import methodGroups from './DappRequests/methodGroups';
+import filteredRequests from './DappRequests/filteredRequests';
 
 export default function execute (appId, method, params, callback) {
   const visibleStore = VisibleStore.get();
@@ -31,35 +30,29 @@ export default function execute (appId, method, params, callback) {
     case 'shell_getApps':
       const [displayAll] = params;
 
-      callback(
-        null,
-        displayAll
-          ? visibleStore.allApps.slice().map(mobx.toJS)
-          : visibleStore.visibleApps.slice().map(mobx.toJS)
+      callback(null, displayAll
+        ? visibleStore.allApps.slice()
+        : visibleStore.visibleApps.slice()
       );
       return true;
 
     case 'shell_getFilteredMethods':
-      callback(
-        null,
-        flatten(Object.keys(methodGroups).map(key => methodGroups[key].methods))
-      );
-      return true;
-
-    case 'shell_getMethodGroups':
-      callback(
-        null,
-        methodGroups
-      );
+      callback(null, flatten(
+        Object
+          .keys(filteredRequests)
+          .map((key) => filteredRequests[key].methods)
+      ));
       return true;
 
     case 'shell_getMethodPermissions':
-      callback(null, mobx.toJS(requestStore.permissions));
+      callback(null, requestStore.permissions);
       return true;
 
     case 'shell_loadApp':
       const [_loadId, loadParams] = params;
-      const loadId = _loadId.substr(0, 2) !== '0x' ? sha3(_loadId) : _loadId;
+      const loadId = _loadId.substr(0, 2) !== '0x'
+        ? sha3(_loadId)
+        : _loadId;
       const loadUrl = `/${loadId}/${loadParams || ''}`;
 
       window.location.hash = loadUrl;
@@ -74,11 +67,9 @@ export default function execute (appId, method, params, callback) {
     case 'shell_setAppVisibility':
       const [changeId, visibility] = params;
 
-      callback(
-        null,
-        visibility
-          ? visibleStore.showApp(changeId)
-          : visibleStore.hideApp(changeId)
+      callback(null, visibility
+        ? visibleStore.showApp(changeId)
+        : visibleStore.hideApp(changeId)
       );
       return true;
 

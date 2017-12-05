@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { action, computed, observable, transaction } from 'mobx';
-import apiutil from '@parity/api/lib/util';
+import apiutil from '~/api/util';
 
 const ENDPOINT = 'http://faucet.kovan.network/api/';
 

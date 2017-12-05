@@ -58,7 +58,7 @@ parity-updater = { path = "updater" }
 parity-whisper = { path = "whisper" }
 path = { path = "util/path" }
 panic_hook = { path = "panic_hook" }
-keccak-hash = { path = "util/hash" }
+hash = { path = "util/hash" }
 migration = { path = "util/migration" }
 kvdb = { path = "util/kvdb" }
 kvdb-rocksdb = { path = "util/kvdb-rocksdb" }
@@ -116,4 +116,4 @@ lto = false
 panic = "abort"
 
 [workspace]
-members = ["ethstore/cli", "ethkey/cli", "evmbin", "whisper", "chainspec", "dapps/js-glue", "ethcore/wasm/run"]
+members = ["ethstore/cli", "ethkey/cli", "evmbin", "whisper", "chainspec", "dapps/js-glue"]

@@ -17,9 +17,7 @@
 
 .application {
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+  margin-top: 2.75em;
 
   .logo {
     top: 0;
@@ -40,10 +38,9 @@
 }
 
 .container {
-  box-sizing: border-box;
   display: flex;
-  flex-grow: 1;
   flex-direction: column;
+  min-height: 100vh;
 }
 
 .content {

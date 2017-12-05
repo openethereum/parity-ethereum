@@ -1,0 +1,43 @@
+.container {
+  padding: 1rem 2rem;
+  text-align: center;
+
+  h1 {
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+  }
+
+  table {
+    text-align: left;
+    margin: auto;
+    max-width: 90vw;
+
+    th {
+      text-align: center;
+    }
+
+    td {
+      text-align: center;
+    }
+  }
+
+  button {
+    background-color: rgba(0, 136, 170, 1);
+    border: none;
+    border-radius: 5px;
+    color: white;
+    font-size: 1rem;
+    padding: 0.5em 1em;
+    width: 100%;
+
+    &:hover {
+      background-color: rgba(0, 136, 170, 0.8);
+      cursor: pointer;
+    }
+  }
+
+  input {
+    font-size: 1rem;
+    padding: 0.5em 1em;
+  }
+}

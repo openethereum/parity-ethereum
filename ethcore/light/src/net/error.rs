@@ -17,8 +17,10 @@
 //! Defines error types and levels of punishment to use upon
 //! encountering.
 
+use rlp::DecoderError;
+use network::NetworkError;
+
 use std::fmt;
-use {rlp, network};
 
 /// Levels of punishment.
 ///
@@ -39,9 +41,9 @@ pub enum Punishment {
 #[derive(Debug)]
 pub enum Error {
 	/// An RLP decoding error.
-	Rlp(rlp::DecoderError),
+	Rlp(DecoderError),
 	/// A network error.
-	Network(network::Error),
+	Network(NetworkError),
 	/// Out of credits.
 	NoCredits,
 	/// Unrecognized packet code.
@@ -90,14 +92,14 @@ impl Error {
 	}
 }
 
-impl From<rlp::DecoderError> for Error {
-	fn from(err: rlp::DecoderError) -> Self {
+impl From<DecoderError> for Error {
+	fn from(err: DecoderError) -> Self {
 		Error::Rlp(err)
 	}
 }
 
-impl From<network::Error> for Error {
-	fn from(err: network::Error) -> Self {
+impl From<NetworkError> for Error {
+	fn from(err: NetworkError) -> Self {
 		Error::Network(err)
 	}
 }

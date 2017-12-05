@@ -26,8 +26,6 @@ pub struct App {
 	pub author: String,
 	#[serde(rename="iconUrl")]
 	pub icon_url: String,
-	#[serde(rename="localUrl")]
-	pub local_url: Option<String>,
 }
 
 impl App {
@@ -40,7 +38,6 @@ impl App {
 			version: info.version.to_owned(),
 			author: info.author.to_owned(),
 			icon_url: info.icon_url.to_owned(),
-			local_url: info.local_url.to_owned(),
 		}
 	}
 }
@@ -53,7 +50,6 @@ impl Into<EndpointInfo> for App {
 			version: self.version,
 			author: self.author,
 			icon_url: self.icon_url,
-			local_url: self.local_url,
 		}
 	}
 }

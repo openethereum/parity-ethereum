@@ -17,7 +17,7 @@
 import React from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { appLogoDark as imageParity } from '../../config';
+import imagesEthcore from '@parity/shared/assets/images/parity-logo-white.svg';
 
 import styles from '../firstRun.css';
 
@@ -32,7 +32,7 @@ export default function Welcome () {
   return (
     <div className={ styles.welcome }>
       <img
-        src={ imageParity }
+        src={ imagesEthcore }
         alt='Parity Ltd.'
         style={ LOGO_STYLE }
       />

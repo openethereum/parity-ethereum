@@ -1163,7 +1163,7 @@ impl fmt::Display for ConsensusMessageWithServersSet {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			ConsensusMessageWithServersSet::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
-			ConsensusMessageWithServersSet::ConfirmConsensusInitialization(ref msg) => write!(f, "ConfirmConsensusInitialization({})", msg.is_confirmed),
+			ConsensusMessageWithServersSet::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
 		}
 	}
 }
@@ -1172,7 +1172,7 @@ impl fmt::Display for ConsensusMessageOfShareAdd {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			ConsensusMessageOfShareAdd::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
-			ConsensusMessageOfShareAdd::ConfirmConsensusInitialization(ref msg) => write!(f, "ConfirmConsensusInitialization({})", msg.is_confirmed),
+			ConsensusMessageOfShareAdd::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
 		}
 	}
 }

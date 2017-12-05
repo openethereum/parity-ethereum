@@ -31,9 +31,6 @@ pub struct LocalDapp {
 	/// Dapp icon
 	#[serde(rename="iconUrl")]
 	pub icon_url: String,
-	/// Local development Url
-	#[serde(rename="localUrl")]
-	pub local_url: Option<String>,
 }
 
 #[cfg(test)]
@@ -43,7 +40,7 @@ mod tests {
 
 	#[test]
 	fn dapp_serialization() {
-		let s = r#"{"id":"skeleton","name":"Skeleton","description":"A skeleton dapp","version":"0.1","author":"Parity Technologies Ltd","iconUrl":"title.png","localUrl":"http://localhost:5000"}"#;
+		let s = r#"{"id":"skeleton","name":"Skeleton","description":"A skeleton dapp","version":"0.1","author":"Parity Technologies Ltd","iconUrl":"title.png"}"#;
 
 		let dapp = LocalDapp {
 			id: "skeleton".into(),
@@ -52,7 +49,6 @@ mod tests {
 			version: "0.1".into(),
 			author: "Parity Technologies Ltd".into(),
 			icon_url: "title.png".into(),
-			local_url: Some("http://localhost:5000".into()),
 		};
 
 		let serialized = serde_json::to_string(&dapp).unwrap();

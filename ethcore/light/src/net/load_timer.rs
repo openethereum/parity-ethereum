@@ -264,9 +264,8 @@ mod tests {
 
 	#[test]
 	fn file_store() {
-		let tempdir = ::tempdir::TempDir::new("").unwrap();
-		let path = tempdir.path().join("file");
-		let store = FileStore(path);
+		let path = ::devtools::RandomTempPath::new();
+		let store = FileStore(path.as_path().clone());
 
 		let mut samples = store.load();
 		assert!(samples.is_empty());

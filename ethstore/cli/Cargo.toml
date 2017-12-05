@@ -4,12 +4,10 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-docopt = "0.8"
-num_cpus = "1.6"
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-parking_lot = "0.4"
+docopt = "0.8"
 ethstore = { path = "../" }
 panic_hook = { path = "../../panic_hook" }
 

@@ -35,7 +35,8 @@ import Snackbar from '../Snackbar';
 import Status from '../Status';
 import UpgradeParity from '../UpgradeParity';
 
-import { appLogoDark as parityLogo } from '../config';
+import parityLogo from '../../assets/parity-logo-black.png';
+import Store from './store';
 import styles from './application.css';
 
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
@@ -53,6 +54,7 @@ class Application extends Component {
     pending: PropTypes.array
   }
 
+  store = new Store(this.context.api);
   hwstore = HardwareStore.get(this.context.api);
   upgradeStore = UpgradeStore.get(this.context.api);
 
@@ -76,11 +78,6 @@ class Application extends Component {
     return (
       <div className={ styles.application }>
         {
-          blockNumber
-            ? <Status upgradeStore={ this.upgradeStore } />
-            : null
-        }
-        {
           isMinimized
             ? this.renderMinimized()
             : this.renderApp()
@@ -102,6 +99,11 @@ class Application extends Component {
           alwaysHidden
           dapp={ isMinimized }
         />
+        {
+          blockNumber
+            ? <Status upgradeStore={ this.upgradeStore } />
+            : null
+        }
       </div>
     );
   }
@@ -112,7 +114,10 @@ class Application extends Component {
     return (
       <div className={ styles.container }>
         <Extension />
-        <FirstRun />
+        <FirstRun
+          onClose={ this.store.closeFirstrun }
+          visible={ this.store.firstrunVisible }
+        />
         <Snackbar />
         <UpgradeParity upgradeStore={ this.upgradeStore } />
         <Errors />
