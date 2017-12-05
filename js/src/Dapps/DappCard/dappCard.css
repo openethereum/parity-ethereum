@@ -20,7 +20,8 @@
 
   .content {
     background: white;
-    min-height: 56px;
+    box-sizing: content-box;
+    min-height: 100px;
 
     .title {
       min-height: 1em;
