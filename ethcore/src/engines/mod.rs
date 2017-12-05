@@ -203,7 +203,8 @@ pub trait Engine : Sync + Send {
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
 	fn maximum_extra_data_size(&self) -> usize { self.params().maximum_extra_data_size }
 	/// Maximum number of uncles a block is allowed to declare.
-	fn maximum_uncle_count(&self) -> usize { 0 }
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
+
 	/// The number of generations back that uncles can be.
 	fn maximum_uncle_age(&self) -> usize { 6 }
 	/// The nonce with which accounts begin at given block.

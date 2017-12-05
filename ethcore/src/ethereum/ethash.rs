@@ -238,7 +238,7 @@ impl Engine for Arc<Ethash> {
 		}
 	}
 
-	fn maximum_uncle_count(&self) -> usize { 2 }
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, mut gas_ceil_target: U256) {
 		let difficulty = self.calculate_difficulty(header, parent);

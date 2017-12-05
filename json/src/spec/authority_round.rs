@@ -52,6 +52,10 @@ pub struct AuthorityRoundParams {
 	/// Whether transitions should be immediate.
 	#[serde(rename="immediateTransitions")]
 	pub immediate_transitions: Option<bool>,
+	/// Block at which maximum uncle count should be considered.
+	#[serde(rename="maximumUncleCountTransition")]
+	pub maximum_uncle_count_transition: Option<Uint>,
+	/// Maximum number of accepted uncles.
 	#[serde(rename="maximumUncleCount")]
 	pub maximum_uncle_count: Option<Uint>,
 }
@@ -86,6 +90,8 @@ mod tests {
 				"startStep" : 24,
 				"eip155Transition": "0x42",
 				"validateStepTransition": 150
+				"maximumUncleCountTransition": 10000000,
+				"maximumUncleCount": 5
 			}
 		}"#;
 
@@ -98,5 +104,8 @@ mod tests {
 		assert_eq!(deserialized.params.start_step, Some(Uint(U256::from(24))));
 		assert_eq!(deserialized.params.eip155_transition, Some(Uint(U256::from(0x42))));
 		assert_eq!(deserialized.params.immediate_transitions, None);
+
+		assert_eq!(deserialized.params.maximum_uncle_count_transition, Some(Uint(10_000_000.into())));
+		assert_eq!(deserialized.params.maximum_uncle_count, Some(Uint(5.into())));
 	}
 }

@@ -391,7 +391,7 @@ impl Engine for Tendermint {
 
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
 
-	fn maximum_uncle_count(&self) -> usize { 0 }
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
 	fn maximum_uncle_age(&self) -> usize { 0 }
 
