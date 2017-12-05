@@ -24,7 +24,6 @@ import MethodDecodingStore from '@parity/ui/lib/MethodDecoding/methodDecodingSto
 import { TOKEN_METHODS } from '@parity/ui/lib/MethodDecoding/constants';
 import TokenValue from '@parity/ui/lib/MethodDecoding/tokenValue';
 import IdentityIcon from '@parity/ui/lib/IdentityIcon';
-import Button from 'semantic-ui-react/dist/commonjs/elements/Button';
 import Image from 'semantic-ui-react/dist/commonjs/elements/Image';
 import List from 'semantic-ui-react/dist/commonjs/elements/List';
 
@@ -166,21 +165,7 @@ class RequestItem extends Component {
     if (!this.state.decoded) { return null; }
 
     return (
-      <List.Item >
-        <List.Content floated='right'>
-          <Button
-            icon='unlock alternate'
-            content={
-              <FormattedMessage
-                id='application.status.signerPendingView'
-                defaultMessage='View'
-              />
-            }
-            primary
-            onClick={ onClick }
-            size='mini'
-          />
-        </List.Content>
+      <List.Item onClick={ onClick }>
         <Image avatar size='mini' verticalAlign='middle'>
           <IdentityIcon
             address={ transaction.from }
