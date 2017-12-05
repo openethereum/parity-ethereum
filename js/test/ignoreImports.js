@@ -14,33 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
+const EXTENSIONS = ['.css', '.ejs', '.md', '.png', '.svg'];
 
-import Home from './';
-
-let component;
-
-function render () {
-  component = shallow(
-    <Home />
-  );
-
-  return component;
+function noop () {
 }
 
-describe('views/Home', () => {
-  beforeEach(() => {
-    render();
-  });
-
-  it('renders defaults', () => {
-    expect(component).to.be.ok;
-  });
-
-  describe('components', () => {
-    it('renders News', () => {
-      expect(component.find('News').length).to.equal(1);
-    });
-  });
+EXTENSIONS.forEach((extension) => {
+  require.extensions[extension] = noop;
 });
