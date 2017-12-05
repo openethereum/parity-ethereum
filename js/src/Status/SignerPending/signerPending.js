@@ -90,7 +90,6 @@ class SignerPending extends Component {
           <div>
             <Header
               as='h5'
-              icon='lock'
               content={
                 <FormattedMessage
                   id='application.status.signerPendingTitle'
