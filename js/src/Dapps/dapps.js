@@ -36,7 +36,6 @@ class Dapps extends Component {
   };
 
   static propTypes = {
-    accounts: PropTypes.object.isRequired,
     availability: PropTypes.string.isRequired
   };
 
