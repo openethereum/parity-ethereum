@@ -21,6 +21,7 @@
   },
   "params": {
     "gasLimitBoundDivisor": "0x0400",
+    "registrar": "0x3bb2bb5c6c9c9b7f4EF430b47Dc7e026310042ea",
     "accountStartNonce": "0x00",
     "maximumExtraDataSize": "0x20",
     "minGasLimit": "0x1388",
