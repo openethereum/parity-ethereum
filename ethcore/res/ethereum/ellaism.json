@@ -4,7 +4,6 @@
   "engine": {
     "Ethash": {
       "params": {
-        "gasLimitBoundDivisor": "0x0400",
         "minimumDifficulty": "0x020000",
         "difficultyBoundDivisor": "0x0800",
         "durationLimit": "0x0d",
@@ -12,7 +11,6 @@
         "homesteadTransition": "0x0",
         "bombDefuseTransition": "0x0",
         "eip150Transition": "0x0",
-        "eip155Transition": "0x0",
         "eip160Transition": "0x0",
         "ecip1017EraRounds": 10000000,
 
