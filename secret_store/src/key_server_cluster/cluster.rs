@@ -42,7 +42,7 @@ use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVers
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 use key_server_cluster::connection_trigger::{ConnectionTrigger, SimpleConnectionTrigger, ConnectionTriggerWithMigration,
-	ServersSetChangeSessionCreatorConnector, compute_servers_set_change};
+	ServersSetChangeSessionCreatorConnector};
 
 /// Maintain interval (seconds). Every MAINTAIN_INTERVAL seconds node:
 /// 1) checks if connected nodes are responding to KeepAlive messages
@@ -718,7 +718,7 @@ impl ClusterConnections {
 	}
 
 	pub fn update_nodes_set(&self, sessions: &ClusterSessions) {
-		let new_nodes = self.key_server_set.state().new_set;
+		//let new_nodes = self.key_server_set.state().new_set;
 		// we do not need to connect to self
 		// + we do not need to try to connect to any other node if we are not the part of a cluster
 		/*let includes_this_node = new_nodes.contains_key(&self.self_node_id);
@@ -731,13 +731,13 @@ impl ClusterConnections {
 		*/
 
 		let mut data = self.data.write();
-		let change = match compute_servers_set_change(&data.data.nodes, &new_nodes) {
+		/*let change = match compute_servers_set_change(&data.data.nodes, &new_nodes) {
 			Some(change) => change,
 			None => return,
-		};
+		};*/
 
 		let cdata = &mut *data;
-		cdata.trigger.on_servers_set_change(&mut cdata.data, sessions, change);
+		cdata.trigger.on_servers_set_change(&mut cdata.data, sessions, &*self.key_server_set);
 		/*let mut new_nodes = self.key_server_set.get();
 		// we do not need to connect to self
 		// + we do not need to try to connect to any other node if we are not the part of a cluster

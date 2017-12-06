@@ -66,10 +66,23 @@ pub struct KeyServerSetState {
 	pub is_migration_confirmed: bool,
 }
 
+#[derive(Debug, Clone, Copy)]
+/// Key Server Set state type.
+pub enum KeyServerSetStateType {
+	/// No actions required.
+	Idle,
+	/// Migration is required.
+	MigrationRequired,
+	/// Migration has started.
+	MigrationStarted,
+}
+
 /// Key Server Set
 pub trait KeyServerSet: Send + Sync {
 	/// Get server set state.
 	fn state(&self) -> KeyServerSetState;
+	/// Start migration.
+	fn start_migration(&self);
 	/// Confirm migration.
 	fn confirm_migration(&self);
 }
@@ -92,6 +105,36 @@ struct CachedContract {
 	state: KeyServerSetState,
 	/// This node key pair.
 	self_key_pair: Arc<NodeKeyPair>,
+}
+
+impl KeyServerSetState {
+	/// Get state type.
+	pub fn state(&self) -> KeyServerSetStateType {
+		if self.old_set == self.new_set {
+			return KeyServerSetStateType::Idle;
+		}
+
+		if self.migration_set.is_none() {
+			return KeyServerSetStateType::MigrationRequired;
+		}
+
+		KeyServerSetStateType::MigrationStarted
+	}
+
+	/// Is migration required?
+	pub fn is_migration_required(&self) -> bool {
+		self.old_set != self.new_set && !self.migration_set.is_some()
+	}
+
+	/// Is migration scheduled?
+	pub fn is_migration_scheduled(&self) -> bool {
+		self.migration_set.is_some() && self.migration_master.is_none()
+	}
+
+	/// Is migration started?
+	pub fn is_migration_started(&self) -> bool {
+		self.migration_set.is_some() && self.migration_master.is_some()
+	}
 }
 
 impl OnChainKeyServerSet {
@@ -190,6 +233,11 @@ impl CachedContract {
 
 	fn state(&self) -> KeyServerSetState {
 		self.state.clone()
+	}
+
+	fn start_migration(&self) {
+		// TODO
+		unimplemented!()
 	}
 
 	fn confirm_migration(&self) -> bool {
@@ -301,6 +349,11 @@ pub mod tests {
 				new_set: self.nodes.clone(),
 				..Default::default()
 			}
+		}
+
+		fn start_migration(&self) {
+			// TODO
+			unimplemented!()
 		}
 
 		fn confirm_migration(&self) {
