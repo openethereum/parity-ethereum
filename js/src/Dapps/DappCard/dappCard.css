@@ -15,42 +15,49 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.overlay {
-  background: rgba(40, 40, 40, 0.85);
-  color: white;
-  line-height: 1.5em;
-  text-align: left;
-  padding: 4em 2em;
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  text-align: center;
-  z-index: 100;
+.card {
+  padding: 0.25em;
 
-  div {
-    max-width: 640px;
-    margin: 1em auto;
-    text-align: left;
-  }
+  .content {
+    background: white;
+    box-sizing: content-box;
+    min-height: 100px;
 
-  .accept {
-    label {
-      color: white;
+    .title {
+      min-height: 1em;
+      padding-left: 72px;
     }
-  }
-}
 
-.dapps {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  margin: 1.5em 0;
+    .description {
+      color: #333;
+      min-height: 1em;
+      padding-left: 72px;
+      padding-top: 0.25em;
+      opacity: 0.66;
+    }
 
-  .dapp {
-    flex: 0 0 25%;
-    max-width: 25%;
-    min-width: 25%;
+    .image {
+      border-radius: 8px;
+      position: absolute;
+    }
+
+    .vouching {
+      padding: 0.5em;
+      margin: 0.5em 1em;
+      background: transparent;
+      position: relative;
+      white-space: nowrap;
+
+      img {
+        position: relative;
+        display: inline-block;
+        margin: 0.25em 0.25em 0.25em 0;
+      }
+
+      div {
+        right: auto;
+        left: 0;
+      }
+    }
   }
 }
