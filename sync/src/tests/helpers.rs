@@ -174,6 +174,22 @@ pub fn push_block_with_transactions(client: &Arc<EthcoreClient>, engine: &EthEng
 	client.import_verified_blocks();
 }
 
+/// Mock for emulution of async run of new blocks
+pub struct NewBlockMessage {
+	imported: Vec<H256>,
+	invalid: Vec<H256>,
+	enacted: Vec<H256>,
+	retracted: Vec<H256>,
+	sealed: Vec<H256>,
+	proposed: Vec<Bytes>,
+}
+
+/// Mock for emulution of async run of io messages
+pub struct IOMessage {
+	data: Vec<u8>,
+	message_type: ChainMessageType,
+}
+
 /// Abstract messages between peers.
 pub trait Message {
 	/// The intended recipient of this message.
@@ -215,6 +231,24 @@ pub trait Peer {
 
 	/// Restart sync for a peer.
 	fn restart_sync(&self);
+
+	/// Process the queue of pending io messages
+	fn prune_io_messages(&self);
+
+	/// Process selected message from the queue
+	fn process_io_message(&self, message: IOMessage);
+
+	/// Whether this peer has pending io message in its queue.
+	fn is_io_queue_empty(&self) -> bool;
+
+	/// Process the queue of new block messages
+	fn prune_new_block_messages(&self);
+
+	/// Process selected message from the queue
+	fn process_new_block_message(&self, message: NewBlockMessage);
+
+	/// Whether this peer has pending new block message in its queue.
+	fn is_new_blocks_queue_empty(&self) -> bool;
 }
 
 pub struct EthPeer<C> where C: FlushingBlockChainClient {
@@ -223,6 +257,8 @@ pub struct EthPeer<C> where C: FlushingBlockChainClient {
 	pub sync: RwLock<ChainSync>,
 	pub queue: RwLock<VecDeque<TestPacket>>,
 	pub private_provider: Arc<PrivateTransactionProvider>,
+	pub io_queue: RwLock<VecDeque<IOMessage>>,
+	pub new_blocks_queue: RwLock<VecDeque<NewBlockMessage>>,
 }
 
 impl<C: FlushingBlockChainClient> Peer for EthPeer<C> {
@@ -270,6 +306,47 @@ impl<C: FlushingBlockChainClient> Peer for EthPeer<C> {
 	fn restart_sync(&self) {
 		self.sync.write().restart(&mut TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None, self.private_provider.clone()));
 	}
+
+	fn prune_io_messages(&self) {
+		while let Some(message) = self.io_queue.write().pop_front() {
+			self.process_io_message(message);
+		}
+	}
+
+	fn process_io_message(&self, message: IOMessage) {
+		let mut io = TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None, self.private_provider.clone());
+		match message.message_type {
+			ChainMessageType::Consensus => self.sync.write().propagate_consensus_packet(&mut io, message.data.clone()),
+			ChainMessageType::PrivateTransaction => self.sync.write().propagate_private_transaction(&mut io, message.data.clone()),
+			ChainMessageType::SignedPrivateTransaction => self.sync.write().propagate_signed_private_transaction(&mut io, message.data.clone()),
+		}
+	}
+
+	fn is_io_queue_empty(&self) -> bool {
+		self.io_queue.read().is_empty()
+	}
+
+	fn prune_new_block_messages(&self) {
+		while let Some(message) = self.new_blocks_queue.write().pop_front() {
+			self.process_new_block_message(message);
+		}
+	}
+
+	fn process_new_block_message(&self, message: NewBlockMessage) {
+		let mut io = TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None, self.private_provider.clone());
+		self.sync.write().chain_new_blocks(
+			&mut io,
+			&message.imported,
+			&message.invalid,
+			&message.enacted,
+			&message.retracted,
+			&message.sealed,
+			&message.proposed);
+	}
+
+	fn is_new_blocks_queue_empty(&self) -> bool {
+		self.new_blocks_queue.read().is_empty()
+	}
 }
 
 pub struct TestNet<P> {
@@ -305,6 +382,8 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 				chain: Arc::new(chain),
 				queue: RwLock::new(VecDeque::new()),
 				private_provider: Arc::new(PrivateTransactionProvider::new()),
+				io_queue: RwLock::new(VecDeque::new()),
+				new_blocks_queue: RwLock::new(VecDeque::new()),
 			}));
 		}
 		net
@@ -344,6 +423,8 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			chain: client,
 			queue: RwLock::new(VecDeque::new()),
 			private_provider: private_provider,
+			io_queue: RwLock::new(VecDeque::new()),
+			new_blocks_queue: RwLock::new(VecDeque::new()),
 		});
 		peer.chain.add_notify(peer.clone());
 		peer.chain.private_transactions_provider().add_notify(peer.clone());
@@ -408,6 +489,8 @@ impl<P> TestNet<P> where P: Peer {
 		let mut total_steps = 0;
 		while !self.done() {
 			self.sync_step();
+			self.deliver_io_messages();
+			self.deliver_new_block_messages();
 			total_steps += 1;
 		}
 		total_steps
@@ -420,8 +503,32 @@ impl<P> TestNet<P> where P: Peer {
 		}
 	}
 
+	pub fn deliver_io_messages(&mut self) {
+		for peer in 0..self.peers.len() {
+			if !self.peers[peer].is_io_queue_empty() {
+				self.peers[peer].prune_io_messages();
+			}
+		}
+	}
+
+	pub fn deliver_new_block_messages(&mut self) {
+		for peer in 0..self.peers.len() {
+			if !self.peers[peer].is_new_blocks_queue_empty() {
+				self.peers[peer].prune_new_block_messages();
+			}
+		}
+	}
+
+	pub fn io_queue_empty(&self) -> bool {
+		self.peers.iter().all(|p| p.is_io_queue_empty())
+	}
+
+	pub fn new_blocks_queue_empty(&self) -> bool {
+		self.peers.iter().all(|p| p.is_new_blocks_queue_empty())
+	}
+
 	pub fn done(&self) -> bool {
-		self.peers.iter().all(|p| p.is_done())
+		self.peers.iter().all(|p| p.is_done()) && self.io_queue_empty() && self.new_blocks_queue_empty()
 	}
 }
 
@@ -467,15 +574,14 @@ impl ChainNotify for EthPeer<EthcoreClient> {
 		proposed: Vec<Bytes>,
 		_duration: u64)
 	{
-		let mut io = TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None, self.chain.private_transactions_provider().clone());
-		self.sync.write().chain_new_blocks(
-			&mut io,
-			&imported,
-			&invalid,
-			&enacted,
-			&retracted,
-			&sealed,
-			&proposed);
+		self.new_blocks_queue.write().push_back(NewBlockMessage {
+			imported: imported,
+			invalid: invalid,
+			enacted: enacted,
+			retracted: retracted,
+			sealed: sealed,
+			proposed: proposed,
+		});
 	}
 
 	fn start(&self) {}
@@ -483,11 +589,9 @@ impl ChainNotify for EthPeer<EthcoreClient> {
 	fn stop(&self) {}
 
 	fn broadcast(&self, message_type: ChainMessageType, message: Vec<u8>) {
-		let mut io = TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None, self.chain.private_transactions_provider().clone());
-		match message_type {
-			ChainMessageType::Consensus => self.sync.write().propagate_consensus_packet(&mut io, message.clone()),
-			ChainMessageType::PrivateTransaction => self.sync.write().propagate_private_transaction(&mut io, message.clone()),
-			ChainMessageType::SignedPrivateTransaction => self.sync.write().propagate_signed_private_transaction(&mut io, message.clone()),
-		}
+		self.io_queue.write().push_back(IOMessage{
+			data: message,
+			message_type: message_type,
+		});
 	}
 }

@@ -1476,6 +1476,7 @@ impl ChainSync {
 		}
 		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "{} Ignoring transactions from unconfirmed/unknown peer", peer_id);
+			return Ok(());
 		}
 
 		let item_count = r.item_count()?;
@@ -1749,8 +1750,6 @@ impl ChainSync {
 				ChainSync::return_snapshot_data,
 				|e| format!("Error sending snapshot data: {:?}", e)),
 			CONSENSUS_DATA_PACKET => ChainSync::on_consensus_packet(io, peer, &rlp),
-			PRIVATE_TRANSACTION_PACKET => ChainSync::on_private_transaction(io, peer, &rlp),
-			SIGNED_PRIVATE_TRANSACTION_PACKET => ChainSync::on_signed_private_transaction(io, peer, &rlp),
 			_ => {
 				sync.write().on_packet(io, peer, packet_id, data);
 				Ok(())
@@ -1777,6 +1776,8 @@ impl ChainSync {
 			NEW_BLOCK_HASHES_PACKET => self.on_peer_new_hashes(io, peer, &rlp),
 			SNAPSHOT_MANIFEST_PACKET => self.on_snapshot_manifest(io, peer, &rlp),
 			SNAPSHOT_DATA_PACKET => self.on_snapshot_data(io, peer, &rlp),
+			PRIVATE_TRANSACTION_PACKET => self.on_private_transaction(io, peer, &rlp),
+			SIGNED_PRIVATE_TRANSACTION_PACKET => self.on_signed_private_transaction(io, peer, &rlp),
 			_ => {
 				debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id);
 				Ok(())
@@ -2211,7 +2212,12 @@ impl ChainSync {
 	}
 
 	/// Called when peer sends us new private transaction packet
-	fn on_private_transaction(io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_private_transaction(&self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
+			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
+			return Ok(());
+		}
+
 		trace!(target: "sync", "Received private transaction packet from {:?}", peer_id);
 		if let Err(e) = io.private_transactions_provider().import_private_transaction(r.as_raw()) {
 			debug!("Ignoring the message, error queueing: {}", e);
@@ -2229,7 +2235,12 @@ impl ChainSync {
 	}
 
 	/// Called when peer sends us signed private transaction packet
-	fn on_signed_private_transaction(io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_signed_private_transaction(&self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
+			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
+			return Ok(());
+		}
+
 		trace!(target: "sync", "Received signed private transaction packet from {:?}", peer_id);
 		if let Err(e) = io.private_transactions_provider().import_signed_private_transaction(r.as_raw()) {
 			debug!("Ignoring the message, error queueing: {}", e);
