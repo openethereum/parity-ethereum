@@ -58,7 +58,7 @@ class Dapps extends Component {
                 app={ app }
                 availability={ availability }
                 className={ styles.dapp }
-                key={ app.id }
+                key={ `${index}_${app.id}` }
               />
             ))
           }
