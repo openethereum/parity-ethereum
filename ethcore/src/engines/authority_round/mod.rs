@@ -123,6 +123,11 @@ impl Step {
 	}
 }
 
+// Chain scoring: total weight is sqrt(U256::max_value())*height - step
+fn calculate_score(parent_step: U256, current_step: U256) -> U256 {
+	U256::from(U128::max_value()) + parent_step - step
+}
+
 struct EpochManager {
 	epoch_transition_hash: H256,
 	epoch_transition_number: BlockNumber,
@@ -444,9 +449,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	fn maximum_uncle_count(&self) -> usize { self.maximum_uncle_count }
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		// Chain scoring: total weight is sqrt(U256::max_value())*height - step
-		let new_difficulty = U256::from(U128::max_value()) + header_step(parent).expect("Header has been verified; qed").into() - self.step.load().into();
-		header.set_difficulty(new_difficulty);
+		let score = calculate_score(header_step(parent).expect("Header has been verified; qed") - self.step.load().into());
+		header.set_difficulty(score);
 	}
 
 	fn seals_internally(&self) -> Option<bool> {
@@ -468,7 +472,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			.expect("Header has been verified; qed").into();
 
 		let step = self.step.load();
-		let expected_diff = U256::from(U128::max_value()) + parent_step - step.into();
+		let expected_diff = calculate_score(parent_step, step.into());
 
 		if header.difficulty() != &expected_diff {
 			return Seal::None;
