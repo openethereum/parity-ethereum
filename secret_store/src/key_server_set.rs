@@ -17,17 +17,21 @@
 use std::sync::{Arc, Weak};
 use std::net::SocketAddr;
 use std::collections::BTreeMap;
-use futures::{future, Future};
+use futures::{future, Future, IntoFuture};
 use parking_lot::Mutex;
 use ethcore::filter::Filter;
 use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
+use ethkey::public_to_address;
 use ethsync::SyncProvider;
 use native_contracts::KeyServerSet as KeyServerSetContract;
 use hash::keccak;
 use bigint::hash::H256;
 use util::Address;
 use bytes::Bytes;
-use types::all::{Error, Public, NodeAddress};
+use types::all::{Error, Public, NodeAddress, NodeId};
+use {NodeKeyPair};
+
+type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 
 const KEY_SERVER_SET_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_server_set";
 
@@ -35,16 +39,39 @@ const KEY_SERVER_SET_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_server_
 const ADDED_EVENT_NAME: &'static [u8] = &*b"KeyServerAdded(address)";
 /// Key server has been removed from the set.
 const REMOVED_EVENT_NAME: &'static [u8] = &*b"KeyServerRemoved(address)";
+/// Migration has started.
+const MIGRATION_STARTED_EVENT_NAME: &'static [u8] = &*b"MigrationStarted()";
+/// Migration has completed.
+const MIGRATION_COMPLETED_EVENT_NAME: &'static [u8] = &*b"MigrationCompleted()";
 
 lazy_static! {
 	static ref ADDED_EVENT_NAME_HASH: H256 = keccak(ADDED_EVENT_NAME);
 	static ref REMOVED_EVENT_NAME_HASH: H256 = keccak(REMOVED_EVENT_NAME);
+	static ref MIGRATION_STARTED_EVENT_NAME_HASH: H256 = keccak(MIGRATION_STARTED_EVENT_NAME);
+	static ref MIGRATION_COMPLETED_EVENT_NAME_HASH: H256 = keccak(MIGRATION_COMPLETED_EVENT_NAME);
 }
 
-/// Key Server set
+#[derive(Default, Debug, Clone)]
+/// Key Server Set state.
+pub struct KeyServerSetState {
+	/// Old set of key servers.
+	pub old_set: BTreeMap<NodeId, SocketAddr>,
+	/// New set of key servers.
+	pub new_set: BTreeMap<NodeId, SocketAddr>,
+	/// Migration set of key servers.
+	pub migration_set: Option<BTreeMap<NodeId, SocketAddr>>,
+	/// Migration master node.
+	pub migration_master: Option<NodeId>,
+	/// Is migration confirmed by this node?
+	pub is_migration_confirmed: bool,
+}
+
+/// Key Server Set
 pub trait KeyServerSet: Send + Sync {
-	/// Get set of configured key servers
-	fn get(&self) -> BTreeMap<Public, SocketAddr>;
+	/// Get server set state.
+	fn state(&self) -> KeyServerSetState;
+	/// Confirm migration.
+	fn confirm_migration(&self);
 }
 
 /// On-chain Key Server set implementation.
@@ -61,13 +88,15 @@ struct CachedContract {
 	sync: Weak<SyncProvider>,
 	/// Contract address.
 	contract_addr: Option<Address>,
-	/// Active set of key servers.
-	key_servers: BTreeMap<Public, SocketAddr>,
+	/// Current contract state.
+	state: KeyServerSetState,
+	/// This node key pair.
+	self_key_pair: Arc<NodeKeyPair>,
 }
 
 impl OnChainKeyServerSet {
-	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
-		let mut cached_contract = CachedContract::new(client, sync, key_servers)?;
+	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
+		let mut cached_contract = CachedContract::new(client, sync, self_key_pair, key_servers)?;
 		let key_server_contract_address = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
 		// only initialize from contract if it is installed. otherwise - use default nodes
 		// once the contract is installed, all default nodes are lost (if not in the contract' set)
@@ -84,8 +113,12 @@ impl OnChainKeyServerSet {
 }
 
 impl KeyServerSet for OnChainKeyServerSet {
-	fn get(&self) -> BTreeMap<Public, SocketAddr> {
-		self.contract.lock().get()
+	fn state(&self) -> KeyServerSetState {
+		self.contract.lock().state()
+	}
+
+	fn confirm_migration(&self) {
+		self.contract.lock().confirm_migration();
 	}
 }
 
@@ -98,18 +131,22 @@ impl ChainNotify for OnChainKeyServerSet {
 }
 
 impl CachedContract {
-	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
+	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
 		Ok(CachedContract {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),
 			contract_addr: None,
-			key_servers: key_servers.into_iter()
-				.map(|(p, addr)| {
-					let addr = format!("{}:{}", addr.address, addr.port).parse()
-						.map_err(|err| Error::Internal(format!("error parsing node address: {}", err)))?;
-					Ok((p, addr))
-				})
-				.collect::<Result<BTreeMap<_, _>, Error>>()?,
+			state: KeyServerSetState {
+				new_set: key_servers.into_iter()
+					.map(|(p, addr)| {
+						let addr = format!("{}:{}", addr.address, addr.port).parse()
+							.map_err(|err| Error::Internal(format!("error parsing node address: {}", err)))?;
+						Ok((p, addr))
+					})
+					.collect::<Result<BTreeMap<_, _>, Error>>()?,
+				..Default::default()
+			},
+			self_key_pair: self_key_pair,
 		})
 	}
 
@@ -136,7 +173,8 @@ impl CachedContract {
 					to_block: BlockId::Hash(block_hash.clone()),
 					address: self.contract_addr.clone().map(|a| vec![a]),
 					topics: vec![
-						Some(vec![*ADDED_EVENT_NAME_HASH, *REMOVED_EVENT_NAME_HASH]),
+						Some(vec![*ADDED_EVENT_NAME_HASH, *REMOVED_EVENT_NAME_HASH,
+							*MIGRATION_STARTED_EVENT_NAME_HASH, *MIGRATION_COMPLETED_EVENT_NAME_HASH]),
 						None,
 						None,
 						None,
@@ -150,41 +188,90 @@ impl CachedContract {
 		}
 	}
 
-	pub fn get(&self) -> BTreeMap<Public, SocketAddr> {
-		self.key_servers.clone()
+	fn state(&self) -> KeyServerSetState {
+		self.state.clone()
+	}
+
+	fn confirm_migration(&self) -> bool {
+		// TODO
+		unimplemented!()
 	}
 
 	fn read_from_registry(&mut self, client: &Client, new_contract_address: Option<Address>) {
-		self.key_servers = new_contract_address.map(|contract_addr| {
+		let contract = new_contract_address.map(|contract_addr| {
 			trace!(target: "secretstore", "Configuring for key server set contract from {}", contract_addr);
 
 			KeyServerSetContract::new(contract_addr)
-		})
-		.map(|contract| {
-			let mut key_servers = BTreeMap::new();
-			let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
-			let key_servers_list = contract.get_key_servers(do_call).wait()
-				.map_err(|err| { trace!(target: "secretstore", "Error {} reading list of key servers from contract", err); err })
-				.unwrap_or_default();
-			for key_server in key_servers_list {
-				let key_server_public = contract.get_key_server_public(
-					|a, d| future::done(client.call_contract(BlockId::Latest, a, d)), key_server).wait()
-					.and_then(|p| if p.len() == 64 { Ok(Public::from_slice(&p)) } else { Err(format!("Invalid public length {}", p.len())) });
-				let key_server_ip = contract.get_key_server_address(
-					|a, d| future::done(client.call_contract(BlockId::Latest, a, d)), key_server).wait()
-					.and_then(|a| a.parse().map_err(|e| format!("Invalid ip address: {}", e)));
+		});
 
-				// only add successfully parsed nodes
-				match (key_server_public, key_server_ip) {
-					(Ok(key_server_public), Ok(key_server_ip)) => { key_servers.insert(key_server_public, key_server_ip); },
-					(Err(public_err), _) => warn!(target: "secretstore_net", "received invalid public from key server set contract: {}", public_err),
-					(_, Err(ip_err)) => warn!(target: "secretstore_net", "received invalid IP from key server set contract: {}", ip_err),
-				}
-			}
-			key_servers
-		})
-		.unwrap_or_default();
+		let contract = match contract {
+			Some(contract) => contract,
+			None => return,
+		};
+
+		let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
+
+		let old_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_old_key_servers,
+			&KeyServerSetContract::get_old_key_server_public, &KeyServerSetContract::get_old_key_server_address);
+		let migration_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_migration_key_servers,
+			&KeyServerSetContract::get_migration_key_server_public, &KeyServerSetContract::get_migration_key_server_address);
+		let new_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_new_key_servers,
+			&KeyServerSetContract::get_new_key_server_public, &KeyServerSetContract::get_new_key_server_address);
+
+		let migration_master = match migration_set.is_empty() {
+			false => contract.get_migration_master(&do_call).wait()
+				.map(|address| old_set.keys().chain(migration_set.keys())
+					.find(|public| public_to_address(public) == address)
+					.cloned())
+				.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration master from contract", err); err })
+				.unwrap_or_default(),
+			true => None,
+		};
+
+		let is_migration_confirmed = match migration_set.is_empty() {
+			false if old_set.contains_key(self.self_key_pair.public()) || migration_set.contains_key(self.self_key_pair.public()) =>
+				contract.is_migration_confirmed(&do_call, self.self_key_pair.address()).wait()
+					.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration confirmation from contract", err); err })
+					.unwrap_or(true),
+			_ => false,
+		};
+
+		self.state = KeyServerSetState {
+			old_set: old_set,
+			new_set: new_set,
+			migration_set: if migration_set.is_empty() { None } else { Some(migration_set) },
+			migration_master: migration_master,
+			is_migration_confirmed: is_migration_confirmed,
+		};
 		self.contract_addr = new_contract_address;
+	}
+
+	fn read_key_server_set<F, U, FL, FP, FA>(contract: &KeyServerSetContract, do_call: F, read_list: FL, read_public: FP, read_address: FA) -> BTreeMap<Public, SocketAddr>
+		where
+			F: FnOnce(Address, Vec<u8>) -> U + Copy,
+			U: IntoFuture<Item=Vec<u8>, Error=String>,
+			U::Future: Send + 'static,
+			FL: Fn(&KeyServerSetContract, F) -> BoxFuture<Vec<Address>, String>,
+			FP: Fn(&KeyServerSetContract, F, Address) -> BoxFuture<Vec<u8>, String>,
+			FA: Fn(&KeyServerSetContract, F, Address) -> BoxFuture<String, String> {
+		let mut key_servers = BTreeMap::new();
+		let key_servers_list = read_list(contract, do_call).wait()
+			.map_err(|err| { trace!(target: "secretstore", "Error {} reading list of key servers from contract", err); err })
+			.unwrap_or_default();
+		for key_server in key_servers_list {
+			let key_server_public = read_public(contract, do_call, key_server).wait()
+				.and_then(|p| if p.len() == 64 { Ok(Public::from_slice(&p)) } else { Err(format!("Invalid public length {}", p.len())) });
+			let key_server_address = read_address(contract, do_call, key_server).wait()
+				.and_then(|a| a.parse().map_err(|e| format!("Invalid ip address: {}", e)));
+
+			// only add successfully parsed nodes
+			match (key_server_public, key_server_address) {
+				(Ok(key_server_public), Ok(key_server_address)) => { key_servers.insert(key_server_public, key_server_address); },
+				(Err(public_err), _) => warn!(target: "secretstore_net", "received invalid public from key server set contract: {}", public_err),
+				(_, Err(ip_err)) => warn!(target: "secretstore_net", "received invalid IP from key server set contract: {}", ip_err),
+			}
+		}
+		key_servers
 	}
 }
 
@@ -193,7 +280,7 @@ pub mod tests {
 	use std::collections::BTreeMap;
 	use std::net::SocketAddr;
 	use ethkey::Public;
-	use super::KeyServerSet;
+	use super::{KeyServerSet, KeyServerSetState};
 
 	#[derive(Default)]
 	pub struct MapKeyServerSet {
@@ -209,8 +296,15 @@ pub mod tests {
 	}
 
 	impl KeyServerSet for MapKeyServerSet {
-		fn get(&self) -> BTreeMap<Public, SocketAddr> {
-			self.nodes.clone()
+		fn state(&self) -> KeyServerSetState {
+			KeyServerSetState {
+				new_set: self.nodes.clone(),
+				..Default::default()
+			}
+		}
+
+		fn confirm_migration(&self) {
+			unimplemented!()
 		}
 	}
 }

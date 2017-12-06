@@ -155,20 +155,24 @@ impl SimpleConnectionTrigger {
 	/// Remove current connections to nodes that have changed their addresses.
 	pub fn reconnect_changed_nodes(self_node_id: &NodeId, data: &mut ClusterConnectionsData, change: &KeyServerSetChange) {
 		for (changed_node, changed_node_addr) in &change.changed_nodes {
-			if let Entry::Occupied(entry) = data.connections.entry(changed_node.clone()) {
-				trace!(target: "secretstore_net", "{}: removing connection to {} at {}",
-					self_node_id, entry.get().node_id(), entry.get().node_address());
-				entry.remove();
-			}
+			if changed_node != self_node_id {
+				if let Entry::Occupied(entry) = data.connections.entry(changed_node.clone()) {
+					trace!(target: "secretstore_net", "{}: removing connection to {} at {}",
+						self_node_id, entry.get().node_id(), entry.get().node_address());
+					entry.remove();
+				}
 
-			data.nodes.insert(changed_node.clone(), changed_node_addr.clone());
+				data.nodes.insert(changed_node.clone(), changed_node_addr.clone());
+			}
 		}
 	}
 
 	/// Connect to nodes, added to the SS.
-	pub fn connect_added_nodes(data: &mut ClusterConnectionsData, change: &KeyServerSetChange) {
+	pub fn connect_added_nodes(self_node_id: &NodeId, data: &mut ClusterConnectionsData, change: &KeyServerSetChange) {
 		for (added_node, added_nodes_addr) in &change.added_nodes {
-			data.nodes.insert(added_node.clone(), added_nodes_addr.clone());
+			if added_node != self_node_id {
+				data.nodes.insert(added_node.clone(), added_nodes_addr.clone());
+			}
 		}
 	}
 }
@@ -185,7 +189,7 @@ impl ConnectionTrigger for SimpleConnectionTrigger {
 		if sessions.admin_sessions.is_empty() {
 			Self::disconnect_removed_nodes(&self.self_node_id, data, &change);
 			Self::reconnect_changed_nodes(&self.self_node_id, data, &change);
-			Self::connect_added_nodes(data, &change);
+			Self::connect_added_nodes(&self.self_node_id, data, &change);
 		}
 	}
 
@@ -223,7 +227,7 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 
 		// no matter what next, we still need to connect to added nodes && reconnect to changed nodes
 		SimpleConnectionTrigger::reconnect_changed_nodes(self.self_key_pair.public(), data, &change);
-		SimpleConnectionTrigger::connect_added_nodes(data, &change);
+		SimpleConnectionTrigger::connect_added_nodes(self.self_key_pair.public(), data, &change);
 
 		// if there are no new nodes at all => no migration is required (TODO: is this correct?)
 		// if there are no nodes to add/remove => no migration is required
@@ -435,7 +439,7 @@ println!("=== {}: 8. to_connect: {:?}. master: {:?}", self.self_key_pair.public(
 }
 
 /// Prepare key servers set change structure.
-pub fn compute_servers_set_change(old: &BTreeMap<NodeId, SocketAddr>, new: &BTreeMap<NodeId, SocketAddr>, new_self_node_id: Option<NodeId>) -> Option<KeyServerSetChange> {
+pub fn compute_servers_set_change(old: &BTreeMap<NodeId, SocketAddr>, new: &BTreeMap<NodeId, SocketAddr>) -> Option<KeyServerSetChange> {
 	// check if nothing has changed
 	if old == new {
 		return None;
@@ -444,9 +448,6 @@ pub fn compute_servers_set_change(old: &BTreeMap<NodeId, SocketAddr>, new: &BTre
 	// prepare a set of changes
 	let mut change = KeyServerSetChange::default();
 	change.nodes.extend(new.keys().cloned());
-	if let Some(new_self_node_id) = new_self_node_id {
-		change.nodes.insert(new_self_node_id);
-	}
 
 	for (new_node_id, new_node_addr) in new {
 		match old.get(new_node_id) {
@@ -488,7 +489,7 @@ mod tests {
 			(pub3.clone(), "0.0.0.0:3".parse().unwrap()),
 			(pub4.clone(), "0.0.0.0:4".parse().unwrap())].into_iter().collect();
 
-		let change = compute_servers_set_change(&old_nodes, &new_nodes, None).unwrap();
+		let change = compute_servers_set_change(&old_nodes, &new_nodes).unwrap();
 
 		assert_eq!(change.added_nodes.into_iter().collect::<Vec<_>>(), vec![(pub4.clone(), "0.0.0.0:4".parse().unwrap())]);
 		assert_eq!(change.removed_nodes.into_iter().collect::<Vec<_>>(), vec![(pub1.clone(), "0.0.0.0:1".parse().unwrap())]);

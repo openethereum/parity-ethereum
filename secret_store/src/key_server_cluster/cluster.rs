@@ -627,7 +627,7 @@ impl ClusterCore {
 
 impl ClusterConnections {
 	pub fn new(config: &ClusterConfiguration) -> Result<Self, Error> {
-		let mut nodes = config.key_server_set.get();
+		let mut nodes = config.key_server_set.state().new_set;
 		nodes.remove(config.self_key_pair.public());
 
 		Ok(ClusterConnections {
@@ -718,7 +718,7 @@ impl ClusterConnections {
 	}
 
 	pub fn update_nodes_set(&self, sessions: &ClusterSessions) {
-		let new_nodes = self.key_server_set.get();
+		let new_nodes = self.key_server_set.state().new_set;
 		// we do not need to connect to self
 		// + we do not need to try to connect to any other node if we are not the part of a cluster
 		/*let includes_this_node = new_nodes.contains_key(&self.self_node_id);
@@ -731,8 +731,7 @@ impl ClusterConnections {
 		*/
 
 		let mut data = self.data.write();
-		let self_node_id = if includes_this_node { Some(self.self_node_id.clone()) } else { None };
-		let change = match compute_servers_set_change(&data.data.nodes, &new_nodes, self_node_id) {
+		let change = match compute_servers_set_change(&data.data.nodes, &new_nodes) {
 			Some(change) => change,
 			None => return,
 		};
@@ -1204,7 +1203,7 @@ pub mod tests {
 	}
 
 	pub fn all_connections_established(cluster: &Arc<ClusterCore>) -> bool {
-		cluster.config().key_server_set.get().keys()
+		cluster.config().key_server_set.state().new_set.keys()
 			.filter(|p| *p != cluster.config().self_key_pair.public())
 			.all(|p| cluster.connection(p).is_some())
 	}

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeSet;
-use ethkey::{KeyPair, Signature, Error as EthKeyError};
+use ethkey::{KeyPair, Signature, Address, Error as EthKeyError};
 use bigint::hash::H256;
 use types::all::{Error, Public, ServerKeyId, MessageHash, EncryptedMessageSignature, RequestSignature, EncryptedDocumentKey,
 	EncryptedDocumentKeyShadow, NodeId};
@@ -24,6 +24,8 @@ use types::all::{Error, Public, ServerKeyId, MessageHash, EncryptedMessageSignat
 pub trait NodeKeyPair: Send + Sync {
 	/// Public portion of key.
 	fn public(&self) -> &Public;
+	/// Address of key owner.
+	fn address(&self) -> Address;
 	/// Sign data with node key.
 	fn sign(&self, data: &H256) -> Result<Signature, EthKeyError>;
 	/// Compute shared key to encrypt channel between two nodes.
