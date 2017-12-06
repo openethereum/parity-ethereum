@@ -125,7 +125,7 @@ impl Step {
 
 // Chain scoring: total weight is sqrt(U256::max_value())*height - step
 fn calculate_score(parent_step: U256, current_step: U256) -> U256 {
-	U256::from(U128::max_value()) + parent_step - step
+	U256::from(U128::max_value()) + parent_step - current_step
 }
 
 struct EpochManager {
@@ -449,7 +449,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	fn maximum_uncle_count(&self) -> usize { self.maximum_uncle_count }
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		let score = calculate_score(header_step(parent).expect("Header has been verified; qed") - self.step.load().into());
+		let parent_step = header_step(parent).expect("Header has been verified; qed");
+		let score = calculate_score(parent_step.into(), self.step.load().into());
 		header.set_difficulty(score);
 	}
 
