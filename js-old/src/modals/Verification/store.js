@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observable, autorun, action } from 'mobx';
-import { sha3 } from '~/api/util/sha3';
-import Contract from '~/api/contract';
+import { sha3 } from '@parity/api/lib/util/sha3';
+import Contract from '@parity/api/lib/contract';
 import Contracts from '~/contracts';
 
 import { checkIfVerified, findLastRequested, awaitPuzzle } from '~/contracts/verification';

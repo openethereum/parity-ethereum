@@ -24,16 +24,16 @@ import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import store from 'store';
 
-import AccountCard from '@parity/ui/AccountCard';
-import Button from '@parity/ui/Button';
-import ContainerTitle from '@parity/ui/Container/Title';
-import IdentityIcon from '@parity/ui/IdentityIcon';
-import GradientBg from '@parity/ui/GradientBg';
-import SelectionList from '@parity/ui/SelectionList';
-import SignerPending from '@parity/ui/SignerPending';
-import { CancelIcon } from '@parity/ui/Icons';
+import AccountCard from '@parity/ui/lib/AccountCard';
+import Button from '@parity/ui/lib/Button';
+import ContainerTitle from '@parity/ui/lib/Container/Title';
+import IdentityIcon from '@parity/ui/lib/IdentityIcon';
+import GradientBg from '@parity/ui/lib/GradientBg';
+import SelectionList from '@parity/ui/lib/SelectionList';
+import SignerPending from '@parity/ui/lib/SignerPending';
+import { CancelIcon } from '@parity/ui/lib/Icons';
 
-import DappsStore from '@parity/shared/mobx/dappsStore';
+import DappsStore from '@parity/shared/lib/mobx/dappsStore';
 import Signer from '../Signer/Embedded';
 
 import AccountStore from './accountStore';

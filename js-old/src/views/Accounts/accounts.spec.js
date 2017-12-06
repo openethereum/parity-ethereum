@@ -27,7 +27,11 @@ let instance;
 let redux;
 
 function createApi () {
-  api = {};
+  api = {
+    pubsub: {
+      subscribeAndGetResult: sinon.stub().returns(Promise.reject(new Error('uninitialized')))
+    }
+  };
 
   return api;
 }

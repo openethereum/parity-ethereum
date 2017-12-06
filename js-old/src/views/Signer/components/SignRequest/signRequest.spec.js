@@ -68,7 +68,7 @@ function render () {
   return component;
 }
 
-describe.only('views/Signer/components/SignRequest', () => {
+describe('views/Signer/components/SignRequest', () => {
   beforeEach(() => {
     render();
   });

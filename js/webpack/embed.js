@@ -46,4 +46,3 @@ compiler.run(function handler (err, stats) {
   process.stdout.write(output);
   process.stdout.write('\n\n');
 });
-

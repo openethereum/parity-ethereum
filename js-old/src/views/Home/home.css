@@ -29,11 +29,12 @@
 }
 
 .row {
-  display: flex;
+  display: block;
+  text-align: center;
 
   .column {
     box-sizing: border-box;
-    flex: 0 1 50%;
+    margin: 0 auto;
     padding: 0 1.5em;
     width: 50%;
   }

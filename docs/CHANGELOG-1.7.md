@@ -1,8 +1,26 @@
+### Parity [v1.7.9](https://github.com/paritytech/parity/releases/tag/v1.7.9) (2017-11-14)
+
+Parity 1.7.9 removes the ability to deploy built-in multi-signature wallets.
+
+The full list of included changes:
+
+- Bump to v1.7.9 ([#7047](https://github.com/paritytech/parity/pull/7047))
+- Disallow built-in multi-sig deploy (only watch) ([#7017](https://github.com/paritytech/parity/pull/7017))
+
+### Parity [v1.7.8](https://github.com/paritytech/parity/releases/tag/v1.7.8) (2017-10-26)
+
+Parity 1.7.8 fixes a critical Byzantium consensus issue. Update is highly recommended.
+
+The full list of included changes:
+
+- Refactor static context check in CREATE ([#6889](https://github.com/paritytech/parity/pull/6889))
+- Bump to v1.7.8 ([#6890](https://github.com/paritytech/parity/pull/6890))
+
 ## Parity [v1.7.7](https://github.com/paritytech/parity/releases/tag/v1.7.7) (2017-10-15)
 
-Parity 1.7.7 Fixes an issue with auto-update system. Updating is recommended, but not required for Byzantium.
+Parity 1.7.7 fixes an issue with auto-update system. Updating is recommended, but not required for Byzantium.
 
-Full list of included changes:
+The full list of included changes:
 
 - Fix auto-update ([#6769](https://github.com/paritytech/parity/pull/6759))
   - Bump to v1.7.7
@@ -13,7 +31,7 @@ Full list of included changes:
 
 Parity 1.7.6 includes a critical consensus-relevant fix for the Byzantium hard-fork. Please upgrade your Ethereum client before block number `4_370_000`.
 
-Full list of included changes:
+The full list of included changes:
 
 - Fixed modexp gas calculation overflow ([#6746](https://github.com/paritytech/parity/pull/6746))
  - Fixed modexp gas calculation overflow ([#6741](https://github.com/paritytech/parity/pull/6741))
@@ -25,7 +43,7 @@ Parity 1.7.5 includes a critical consensus-relevant fix for the Byzantium hard-f
 
 Parity 1.7.5 is the first stable release of the 1.7 branch. With this release the support for 1.6 releases ends. Please upgrade your stable nodes to 1.7.5.
 
-Full list of included changes:
+The full list of included changes:
 
 - Backport stable - Fixes Badges ([#6731](https://github.com/paritytech/parity/pull/6731))
   - Fix badges not showing up ([#6730](https://github.com/paritytech/parity/pull/6730))
@@ -52,7 +70,7 @@ Full list of included changes:
 
 Parity 1.7.4 includes a critical consensus-relevant fix for the Byzantium hard-fork. Please upgrade your Ethereum client before block number `4_370_000`.
 
-Full list of included changes:
+The full list of included changes:
 
 - Backport ([#6715](https://github.com/paritytech/parity/pull/6715))
   - Fix estimate gas if from is not provided. ([#6714](https://github.com/paritytech/parity/pull/6714))
@@ -80,7 +98,7 @@ Parity 1.7.3 enables the Byzantium fork for Ethereum main network on Block 4_370
 - Revised timeout and batch size constants for bigger blocks.
 - Renamed RPC receipt `statusCode` field to `status`.
 
-Full list of included changes:
+The full list of included changes:
 
 - Backporting ([#6676](https://github.com/paritytech/parity/pull/6676))
   - Fix wallet view ([#6597](https://github.com/paritytech/parity/pull/6597))
@@ -128,7 +146,7 @@ Parity 1.7.2 is a bug-fix release to improve performance and stability. Among ot
 - Tweaked warp-sync to quickly catch up with chains fallen back more than 10,000 blocks.
 - Fixes to the Chrome extension and macOS installer upgrades.
 
-Full list of included changes:
+The full list of included changes:
 
 - Fix output from eth_call. ([#6538](https://github.com/paritytech/parity/pull/6538))
 - Ropsten fork ([#6532](https://github.com/paritytech/parity/pull/6532))
@@ -279,7 +297,7 @@ Parity 1.7.0 is a major release introducing several important features:
 - **PubSub API**. https://github.com/paritytech/parity/wiki/JSONRPC-Parity-Pub-Sub-module
 - **Signer apps for IOS and Android**.
 
-Full list of included changes:
+The full list of included changes:
 
 - Backports [#6163](https://github.com/paritytech/parity/pull/6163)
   - Light client improvements ([#6156](https://github.com/paritytech/parity/pull/6156))

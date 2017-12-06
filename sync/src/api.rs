@@ -19,7 +19,7 @@ use std::collections::{HashMap, BTreeMap};
 use std::io;
 use bytes::Bytes;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, HostInfo, PeerId, ProtocolId,
-	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError, ConnectionFilter};
+	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind, ConnectionFilter};
 use bigint::prelude::U256;
 use bigint::hash::{H256, H512};
 use io::{TimerToken};
@@ -207,7 +207,7 @@ pub struct EthSync {
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn new(params: Params, connection_filter: Option<Arc<ConnectionFilter>>) -> Result<Arc<EthSync>, NetworkError> {
+	pub fn new(params: Params, connection_filter: Option<Arc<ConnectionFilter>>) -> Result<Arc<EthSync>, Error> {
 		const MAX_LIGHTSERV_LOAD: f64 = 0.5;
 
 		let pruning_info = params.chain.pruning_info();
@@ -397,8 +397,8 @@ impl ChainNotify for EthSync {
 	}
 
 	fn start(&self) {
-		match self.network.start() {
-			Err(NetworkError::StdIo(ref e)) if  e.kind() == io::ErrorKind::AddrInUse => warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set.")),
+		match self.network.start().map_err(Into::into) {
+			Err(ErrorKind::Io(ref e)) if  e.kind() == io::ErrorKind::AddrInUse => warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set.")),
 			Err(err) => warn!("Error starting network: {}", err),
 			_ => {},
 		}
@@ -546,6 +546,8 @@ pub struct NetworkConfiguration {
 	pub allow_non_reserved: bool,
 	/// IP Filtering
 	pub ip_filter: IpFilter,
+	/// Client version string
+	pub client_version: String,
 }
 
 impl NetworkConfiguration {
@@ -578,6 +580,7 @@ impl NetworkConfiguration {
 			reserved_nodes: self.reserved_nodes,
 			ip_filter: self.ip_filter,
 			non_reserved_mode: if self.allow_non_reserved { NonReservedPeerMode::Accept } else { NonReservedPeerMode::Deny },
+			client_version: self.client_version,
 		})
 	}
 }
@@ -601,6 +604,7 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 			reserved_nodes: other.reserved_nodes,
 			ip_filter: other.ip_filter,
 			allow_non_reserved: match other.non_reserved_mode { NonReservedPeerMode::Accept => true, _ => false } ,
+			client_version: other.client_version,
 		}
 	}
 }
@@ -675,7 +679,7 @@ pub struct LightSync {
 
 impl LightSync {
 	/// Create a new light sync service.
-	pub fn new<L>(params: LightSyncParams<L>) -> Result<Self, NetworkError>
+	pub fn new<L>(params: LightSyncParams<L>) -> Result<Self, Error>
 		where L: AsLightClient + Provider + Sync + Send + 'static
 	{
 		use light_sync::LightSync as SyncHandler;
@@ -752,8 +756,10 @@ impl ManageNetwork for LightSync {
 	}
 
 	fn start_network(&self) {
-		match self.network.start() {
-			Err(NetworkError::StdIo(ref e)) if  e.kind() == io::ErrorKind::AddrInUse => warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set.")),
+		match self.network.start().map_err(Into::into) {
+			Err(ErrorKind::Io(ref e)) if e.kind() == io::ErrorKind::AddrInUse => {
+				warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set."))
+			}
 			Err(err) => warn!("Error starting network: {}", err),
 			_ => {},
 		}

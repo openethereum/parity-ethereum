@@ -17,7 +17,7 @@
 //! Trie interface and implementation.
 extern crate rand;
 extern crate ethcore_bigint as bigint;
-extern crate hash as keccak;
+extern crate keccak_hash as keccak;
 extern crate rlp;
 extern crate hashdb;
 extern crate ethcore_bytes as bytes;

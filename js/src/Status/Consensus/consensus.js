@@ -23,16 +23,16 @@ export default function Consensus ({ upgradeStore }) {
     return null;
   }
 
-  if (upgradeStore.consensusCapability === 'capable') {
-    return (
-      <div>
-        <FormattedMessage
-          id='application.status.consensus.capable'
-          defaultMessage='Capable'
-        />
-      </div>
-    );
-  }
+  // if (upgradeStore.consensusCapability === 'capable') {
+  //   return (
+  //     <div>
+  //       <FormattedMessage
+  //         id='application.status.consensus.capable'
+  //         defaultMessage='Capable'
+  //       />
+  //     </div>
+  //   );
+  // }
 
   if (upgradeStore.consensusCapability.capableUntil) {
     return (
@@ -62,14 +62,16 @@ export default function Consensus ({ upgradeStore }) {
     );
   }
 
-  return (
-    <div>
-      <FormattedMessage
-        id='application.status.consensus.unknown'
-        defaultMessage='Unknown capability'
-      />
-    </div>
-  );
+  // return (
+  //   <div>
+  //     <FormattedMessage
+  //       id='application.status.consensus.unknown'
+  //       defaultMessage='Unknown capability'
+  //     />
+  //   </div>
+  // );
+
+  return null;
 }
 
 Consensus.propTypes = {

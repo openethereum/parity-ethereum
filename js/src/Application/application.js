@@ -20,9 +20,9 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 
-import HardwareStore from '@parity/shared/mobx/hardwareStore';
-import UpgradeStore from '@parity/shared/mobx/upgradeParity';
-import Errors from '@parity/ui/Errors';
+import HardwareStore from '@parity/shared/lib/mobx/hardwareStore';
+import UpgradeStore from '@parity/shared/lib/mobx/upgradeParity';
+import Errors from '@parity/ui/lib/Errors';
 
 import Connection from '../Connection';
 import DappRequests from '../DappRequests';
@@ -35,8 +35,7 @@ import Snackbar from '../Snackbar';
 import Status from '../Status';
 import UpgradeParity from '../UpgradeParity';
 
-import parityLogo from '../../assets/parity-logo-black.png';
-import Store from './store';
+import { appLogoDark as parityLogo } from '../config';
 import styles from './application.css';
 
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
@@ -54,7 +53,6 @@ class Application extends Component {
     pending: PropTypes.array
   }
 
-  store = new Store(this.context.api);
   hwstore = HardwareStore.get(this.context.api);
   upgradeStore = UpgradeStore.get(this.context.api);
 
@@ -78,6 +76,11 @@ class Application extends Component {
     return (
       <div className={ styles.application }>
         {
+          blockNumber
+            ? <Status upgradeStore={ this.upgradeStore } />
+            : null
+        }
+        {
           isMinimized
             ? this.renderMinimized()
             : this.renderApp()
@@ -99,11 +102,6 @@ class Application extends Component {
           alwaysHidden
           dapp={ isMinimized }
         />
-        {
-          blockNumber
-            ? <Status upgradeStore={ this.upgradeStore } />
-            : null
-        }
       </div>
     );
   }
@@ -114,10 +112,7 @@ class Application extends Component {
     return (
       <div className={ styles.container }>
         <Extension />
-        <FirstRun
-          onClose={ this.store.closeFirstrun }
-          visible={ this.store.firstrunVisible }
-        />
+        <FirstRun />
         <Snackbar />
         <UpgradeParity upgradeStore={ this.upgradeStore } />
         <Errors />
@@ -145,11 +140,9 @@ class Application extends Component {
 
 function mapStateToProps (state) {
   const { blockNumber } = state.nodeStatus;
-  const { hasAccounts } = state.personal;
 
   return {
-    blockNumber,
-    hasAccounts
+    blockNumber
   };
 }
 

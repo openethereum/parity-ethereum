@@ -23,7 +23,7 @@ use std::time::{Duration, SystemTime};
 use std::sync::Arc;
 
 use bigint::hash::{H256, H512};
-use network::{HostInfo, NetworkContext, NetworkError, NodeId, PeerId, ProtocolId, TimerToken};
+use network::{self, HostInfo, NetworkContext, NodeId, PeerId, ProtocolId, TimerToken};
 use ordered_float::OrderedFloat;
 use parking_lot::{Mutex, RwLock};
 use rlp::{DecoderError, RlpStream, UntrustedRlp};
@@ -82,7 +82,7 @@ pub trait MessageHandler: Send + Sync {
 #[derive(Debug)]
 enum Error {
 	Decoder(DecoderError),
-	Network(NetworkError),
+	Network(network::Error),
 	Message(MessageError),
 	UnknownPeer(PeerId),
 	UnexpectedMessage,
@@ -95,8 +95,8 @@ impl From<DecoderError> for Error {
 	}
 }
 
-impl From<NetworkError> for Error {
-	fn from(err: NetworkError) -> Self {
+impl From<network::Error> for Error {
+	fn from(err: network::Error) -> Self {
 		Error::Network(err)
 	}
 }

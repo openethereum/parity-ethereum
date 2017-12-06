@@ -1322,7 +1322,7 @@ pub mod tests {
 			let mut core = Core::new().unwrap();
 
 			// prepare cluster objects for each node
-			let clusters = make_clusters(&core, 6022, num_nodes);
+			let clusters = make_clusters(&core, 6031, num_nodes);
 			run_clusters(&clusters);
 
 			// establish connections

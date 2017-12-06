@@ -23,44 +23,14 @@ import FirstRun from './';
 let component;
 let onClose;
 
-function createApi () {
-  return {};
-}
-
-function createRedux () {
-  return {
-    dispatch: sinon.stub(),
-    subscribe: sinon.stub(),
-    getState: () => {
-      return {
-        personal: {
-          hasAccounts: false
-        },
-        nodeStatus: {
-          isTest: false
-        }
-      };
-    }
-  };
-}
-
 function render (props = { visible: true }) {
   onClose = sinon.stub();
   component = shallow(
     <FirstRun
       { ...props }
       onClose={ onClose }
-    />,
-    {
-      context: {
-        store: createRedux()
-      }
-    }
-  ).find('FirstRun').shallow({
-    context: {
-      api: createApi()
-    }
-  });
+    />
+  );
 
   return component;
 }

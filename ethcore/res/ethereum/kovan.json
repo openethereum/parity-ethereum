@@ -23,7 +23,9 @@
 					]
 				},
 				"validateScoreTransition": 1000000,
-				"validateStepTransition": 1500000
+				"validateStepTransition": 1500000,
+				"maximumUncleCountTransition": 10000000,
+				"maximumUncleCount": 2
 			}
 		}
 	},
