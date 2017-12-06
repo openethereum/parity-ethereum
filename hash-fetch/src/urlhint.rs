@@ -32,6 +32,7 @@ use bytes::Bytes;
 pub type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 
 const COMMIT_LEN: usize = 20;
+static COMMIT_IS_DAPP: &[u8; COMMIT_LEN] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
 
 /// RAW Contract interface.
 /// Should execute transaction using current blockchain state.
@@ -86,6 +87,8 @@ pub struct Content {
 	pub mime: Mime,
 	/// Content owner address
 	pub owner: Address,
+	/// Is this a dapp?
+	pub is_dapp: bool,
 }
 
 /// Result of resolving id to URL
@@ -130,12 +133,17 @@ fn decode_urlhint_output(output: (String, ::bigint::hash::H160, Address)) -> Opt
 	}
 
 	let commit = GithubApp::commit(&commit);
-	if commit == Some(Default::default()) {
+	let dapp_commit = commit == Some(*COMMIT_IS_DAPP);
+
+	if commit == Some(Default::default()) || dapp_commit {
 		let mime = guess_mime_type(&account_slash_repo).unwrap_or(mime::APPLICATION_JSON);
+		let is_zip = mime == "application/zip";
+
 		return Some(URLHintResult::Content(Content {
 			url: account_slash_repo,
 			mime: mime,
 			owner: owner,
+			is_dapp: dapp_commit && is_zip,
 		}));
 	}
 

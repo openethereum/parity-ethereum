@@ -219,20 +219,37 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 							(Some(ContentStatus::Fetching(handler.fetch_control())), Box::new(handler) as endpoint::Response)
 						},
 						Some(URLHintResult::Content(content)) => {
-							let handler = ContentFetcherHandler::new(
-								req.method(),
-								&content.url,
-								path,
-								installers::Content::new(
-									content_id.clone(),
-									content.mime,
-									self.cache_path.clone(),
-									Box::new(on_done),
-									self.pool.clone(),
-								),
-								self.embeddable_on.clone(),
-								self.fetch.clone(),
-							);
+							let handler = if content.is_dapp {
+								ContentFetcherHandler::new(
+									req.method(),
+									&content.url,
+									path,
+									installers::Dapp::new(
+										content_id.clone(),
+										self.cache_path.clone(),
+										Box::new(on_done),
+										self.embeddable_on.clone(),
+										self.pool.clone(),
+									),
+									self.embeddable_on.clone(),
+									self.fetch.clone(),
+								)
+							} else {
+								ContentFetcherHandler::new(
+									req.method(),
+									&content.url,
+									path,
+									installers::Content::new(
+										content_id.clone(),
+										content.mime,
+										self.cache_path.clone(),
+										Box::new(on_done),
+										self.pool.clone(),
+									),
+									self.embeddable_on.clone(),
+									self.fetch.clone(),
+								)
+							};
 
 							(Some(ContentStatus::Fetching(handler.fetch_control())), Box::new(handler) as endpoint::Response)
 						},
