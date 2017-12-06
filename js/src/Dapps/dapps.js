@@ -47,34 +47,6 @@ class Dapps extends Component {
 
   render () {
     const { availability } = this.props;
-    let externalOverlay = null;
-
-    if (this.store.externalOverlayVisible) {
-      externalOverlay = (
-        <div className={ styles.overlay }>
-          <div>
-            <FormattedMessage
-              id='dapps.external.warning'
-              defaultMessage='Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.'
-            />
-          </div>
-          <div>
-            <Checkbox
-              className={ styles.accept }
-              label={
-                <FormattedMessage
-                  id='dapps.external.accept'
-                  defaultMessage='I understand that these applications are not affiliated with Parity'
-                />
-              }
-              checked={ false }
-              onClick={ this.onClickAcceptExternal }
-            />
-          </div>
-        </div>
-      );
-    }
-
     const applications = [].concat(this.store.visibleLocal, this.store.visibleViews, this.store.visibleBuiltin, this.store.visibleNetwork);
 
     return (
@@ -86,12 +58,38 @@ class Dapps extends Component {
                 app={ app }
                 availability={ availability }
                 className={ styles.dapp }
-                key={ `${index}_${app.id}` }
+                key={ app.id }
               />
             ))
           }
         </div>
-        { externalOverlay }
+        {
+          this.store.externalOverlayVisible
+            ? (
+              <div className={ styles.overlay }>
+                <div>
+                  <FormattedMessage
+                    id='dapps.external.warning'
+                    defaultMessage='Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.'
+                  />
+                </div>
+                <div>
+                  <Checkbox
+                    className={ styles.accept }
+                    label={
+                      <FormattedMessage
+                        id='dapps.external.accept'
+                        defaultMessage='I understand that these applications are not affiliated with Parity'
+                      />
+                    }
+                    checked={ false }
+                    onClick={ this.onClickAcceptExternal }
+                  />
+                </div>
+              </div>
+            )
+            : null
+        }
       </Page>
     );
   }
