@@ -69,12 +69,12 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        use: [ {
+        use: [{
           loader: 'happypack/loader',
           options: {
             id: 'babel'
           }
-        } ]
+        }]
       },
       {
         test: /\.json$/,
@@ -90,7 +90,7 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        include: /semantic-ui-css/,
+        include: /semantic-ui-css|@parity\/ui/,
         use: ExtractTextPlugin.extract({
           fallback: 'style-loader',
           use: [
@@ -105,7 +105,7 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        exclude: /semantic-ui-css/,
+        exclude: /semantic-ui-css|@parity\/ui/,
         use: ExtractTextPlugin.extract({
           fallback: 'style-loader',
           use: [
@@ -231,17 +231,17 @@ module.exports = {
                     isProd ? null : 'dist.css.map',
                     isProd ? null : 'dist.js.map'
                   ]
-                  .filter((file) => file)
-                  .map((file) => path.join(dir, file))
-                  .filter((from) => fs.existsSync(from))
-                  .map((from) => ({
-                    from,
-                    to: `dapps/${destination}/`
-                  }))
-                  .concat({
-                    from: path.join(dir, 'dist'),
-                    to: `dapps/${destination}/dist/`
-                  });
+                    .filter((file) => file)
+                    .map((file) => path.join(dir, file))
+                    .filter((from) => fs.existsSync(from))
+                    .map((from) => ({
+                      from,
+                      to: `dapps/${destination}/`
+                    }))
+                    .concat({
+                      from: path.join(dir, 'dist'),
+                      to: `dapps/${destination}/dist/`
+                    });
                 })
                 .filter((copy) => copy)
             )

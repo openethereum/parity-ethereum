@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import mobx from 'mobx';
+import * as mobx from 'mobx';
 import flatten from 'lodash.flatten';
 
 import { sha3 } from '@parity/api/lib/util/sha3';
