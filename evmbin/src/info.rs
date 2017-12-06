@@ -27,7 +27,7 @@ use vm::ActionParams;
 /// VM execution informant
 pub trait Informant: trace::VMTracer {
 	/// Display a single run init message
-	fn before_test(&self, test: &str, action: &str);
+	fn before_test(&mut self, test: &str, action: &str);
 	/// Set initial gas.
 	fn set_gas(&mut self, _gas: U256) {}
 	/// Display final result.
@@ -37,6 +37,8 @@ pub trait Informant: trace::VMTracer {
 /// Execution finished correctly
 #[derive(Debug)]
 pub struct Success<T> {
+	/// State root
+	pub state_root: H256,
 	/// Used gas
 	pub gas_used: U256,
 	/// Output as bytes
@@ -73,7 +75,7 @@ pub fn run_action<T: Informant>(
 	run(spec, params.gas, None, |mut client| {
 		let result = client
 			.call(params, &mut informant)
-			.map(|r| (r.gas_left, r.return_data.to_vec()));
+			.map(|r| (0.into(), r.gas_left, r.return_data.to_vec()));
 		(result, informant.drain())
 	})
 }
@@ -113,8 +115,8 @@ pub fn run_transaction<T: Informant>(
 					post_root,
 				))), None)
 			},
-			TransactResult::Ok { gas_left, output, vm_trace, .. } => {
-				(Ok((gas_left, output)), vm_trace)
+			TransactResult::Ok { state_root, gas_left, output, vm_trace, .. } => {
+				(Ok((state_root, gas_left, output)), vm_trace)
 			},
 			TransactResult::Err { error, .. } => {
 				(Err(EvmTestError::PostCondition(format!(
@@ -134,7 +136,7 @@ pub fn run<'a, F, T, X>(
 	pre_state: T,
 	run: F,
 ) -> RunResult<X> where
-	F: FnOnce(EvmTestClient) -> (Result<(U256, Vec<u8>), EvmTestError>, Option<X>),
+	F: FnOnce(EvmTestClient) -> (Result<(H256, U256, Vec<u8>), EvmTestError>, Option<X>),
 	T: Into<Option<&'a pod_state::PodState>>,
 {
 	let test_client = match pre_state.into() {
@@ -152,7 +154,8 @@ pub fn run<'a, F, T, X>(
 	let time = start.elapsed();
 
 	match result {
-		(Ok((gas_left, output)), traces) => Ok(Success {
+		(Ok((state_root, gas_left, output)), traces) => Ok(Success {
+			state_root,
 			gas_used: initial_gas - gas_left,
 			output,
 			time,
@@ -168,110 +171,35 @@ pub fn run<'a, F, T, X>(
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use super::*;
 
-	#[test]
-	fn should_trace_failure() {
-		run_test(
-			"60F8d6",
-			0xffff,
-			r#"
-{"pc":0,"op":96,"opName":"PUSH1","gas":"0xffff","gasCost":"0x3","memory":"0x","stack":[],"storage":{},"depth":1}
-{"pc":2,"op":214,"opName":"","gas":"0xfffc","gasCost":"0x0","memory":"0x","stack":["0xf8"],"storage":{},"depth":1}
-			"#,
-		);
-
-		run_test(
-			"F8d6",
-			0xffff,
-			r#"
-{"pc":0,"op":248,"opName":"","gas":"0xffff","gasCost":"0x0","memory":"0x","stack":[],"storage":{},"depth":1}
-			"#,
-		);
-	}
-
-	#[test]
-	fn should_trace_create_correctly() {
-		run_test(
-			"32343434345830f138343438323439f0",
-			0xffff,
-			r#"
-{"pc":0,"op":50,"opName":"ORIGIN","gas":"0xffff","gasCost":"0x2","memory":"0x","stack":[],"storage":{},"depth":1}
-{"pc":1,"op":52,"opName":"CALLVALUE","gas":"0xfffd","gasCost":"0x2","memory":"0x","stack":["0x0"],"storage":{},"depth":1}
-{"pc":2,"op":52,"opName":"CALLVALUE","gas":"0xfffb","gasCost":"0x2","memory":"0x","stack":["0x0","0x0"],"storage":{},"depth":1}
-{"pc":3,"op":52,"opName":"CALLVALUE","gas":"0xfff9","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0"],"storage":{},"depth":1}
-{"pc":4,"op":52,"opName":"CALLVALUE","gas":"0xfff7","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
-{"pc":5,"op":88,"opName":"PC","gas":"0xfff5","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
-{"pc":6,"op":48,"opName":"ADDRESS","gas":"0xfff3","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":1}
-{"pc":7,"op":241,"opName":"CALL","gas":"0xfff1","gasCost":"0x61d0","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0x0"],"storage":{},"depth":1}
-{"pc":8,"op":56,"opName":"CODESIZE","gas":"0x9e21","gasCost":"0x2","memory":"0x","stack":["0x1"],"storage":{},"depth":1}
-{"pc":9,"op":52,"opName":"CALLVALUE","gas":"0x9e1f","gasCost":"0x2","memory":"0x","stack":["0x1","0x10"],"storage":{},"depth":1}
-{"pc":10,"op":52,"opName":"CALLVALUE","gas":"0x9e1d","gasCost":"0x2","memory":"0x","stack":["0x1","0x10","0x0"],"storage":{},"depth":1}
-{"pc":11,"op":56,"opName":"CODESIZE","gas":"0x9e1b","gasCost":"0x2","memory":"0x","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
-{"pc":12,"op":50,"opName":"ORIGIN","gas":"0x9e19","gasCost":"0x2","memory":"0x","stack":["0x1","0x10","0x0","0x0","0x10"],"storage":{},"depth":1}
-{"pc":13,"op":52,"opName":"CALLVALUE","gas":"0x9e17","gasCost":"0x2","memory":"0x","stack":["0x1","0x10","0x0","0x0","0x10","0x0"],"storage":{},"depth":1}
-{"pc":14,"op":57,"opName":"CODECOPY","gas":"0x9e15","gasCost":"0x9","memory":"0x","stack":["0x1","0x10","0x0","0x0","0x10","0x0","0x0"],"storage":{},"depth":1}
-{"pc":15,"op":240,"opName":"CREATE","gas":"0x9e0c","gasCost":"0x9e0c","memory":"0x32343434345830f138343438323439f0","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
-{"pc":0,"op":50,"opName":"ORIGIN","gas":"0x210c","gasCost":"0x2","memory":"0x","stack":[],"storage":{},"depth":2}
-{"pc":1,"op":52,"opName":"CALLVALUE","gas":"0x210a","gasCost":"0x2","memory":"0x","stack":["0x0"],"storage":{},"depth":2}
-{"pc":2,"op":52,"opName":"CALLVALUE","gas":"0x2108","gasCost":"0x2","memory":"0x","stack":["0x0","0x0"],"storage":{},"depth":2}
-{"pc":3,"op":52,"opName":"CALLVALUE","gas":"0x2106","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0"],"storage":{},"depth":2}
-{"pc":4,"op":52,"opName":"CALLVALUE","gas":"0x2104","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
-{"pc":5,"op":88,"opName":"PC","gas":"0x2102","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
-{"pc":6,"op":48,"opName":"ADDRESS","gas":"0x2100","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":2}
-{"pc":7,"op":241,"opName":"CALL","gas":"0x20fe","gasCost":"0x0","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{},"depth":2}
-			"#,
-		)
-	}
-
-	fn run_test<T: Into<U256>>(
+	pub fn run_test<T, I, F>(
+		informant: I,
+		compare: F,
 		code: &str,
 		gas: T,
 		expected: &str,
-	) {
+	) where
+		T: Into<U256>,
+		I: Informant,
+		F: FnOnce(Option<I::Output>, &str),
+	{
 		let mut params = ActionParams::default();
 		params.code = Some(Arc::new(code.from_hex().unwrap()));
 		params.gas = gas.into();
 
 		let spec = ::ethcore::ethereum::new_foundation(&::std::env::temp_dir());
-		let informant = ::display::json::Informant::default();
 		let result = run_action(&spec, params, informant);
-		let expected = expected.split("\n")
-			.map(|x| x.trim())
-			.map(|x| x.to_owned())
-			.filter(|x| !x.is_empty())
-			.collect::<Vec<_>>();
 		match result {
 			Ok(Success { traces, .. }) => {
-				assert_traces_eq(&traces.unwrap(), &expected);
+				compare(traces, expected)
 			},
 			Err(Failure { traces, .. }) => {
-				assert_traces_eq(&traces.unwrap(), &expected);
+				compare(traces, expected)
 			},
-		}
-	}
-
-	fn assert_traces_eq(
-		a: &[String],
-		b: &[String],
-	) {
-		let mut ita = a.iter();
-		let mut itb = b.iter();
-
-		loop {
-			match (ita.next(), itb.next()) {
-				(Some(a), Some(b)) => {
-					assert_eq!(a, b);
-					println!("{}", a);
-				},
-				(None, None) => return,
-				e => {
-					panic!("Traces mismatch: {:?}", e);
-				}
-			}
 		}
 	}
 }
