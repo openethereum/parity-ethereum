@@ -32,8 +32,8 @@ lazy_static! {
 			builder.parse(&log);
 		}
 
-		if builder.init().is_ok() {
-			println!("logger initialized");
+		if !builder.init().is_ok() {
+			println!("logger initialization failed!");
 		}
 	};
 }

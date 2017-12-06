@@ -40,12 +40,17 @@ injectTapEventPlugin();
 
 window.React = window.React || React;
 
+// FIXME
+// Not working with React 16
+// https://reactjs.org/docs/perf.html
+/*
 if (process.env.NODE_ENV === 'development') {
   // Expose the React Performance Tools on the`window` object
   const Perf = require('react-addons-perf');
 
   window.Perf = Perf;
 }
+*/
 
 const AUTH_HASH = '#/auth?';
 

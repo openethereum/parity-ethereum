@@ -88,7 +88,6 @@
 //!   ```
 
 extern crate rustc_hex;
-extern crate rocksdb;
 extern crate env_logger;
 extern crate secp256k1;
 extern crate elastic_array;
