@@ -15,10 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { isInstanceOf } from '../src/api/util/types';
+import { isFunction, isInstanceOf } from '@parity/api/lib/util/types';
+import { isAddress } from '@parity/abi/lib/util/address';
 
-export { isFunction, isInstanceOf } from '../src/api/util/types';
-export { isAddress } from '../src/abi/util/address';
+export { isAddress, isFunction, isInstanceOf };
 
 const ZEROS = '000000000000000000000000000000000000000000000000000000000000';
 

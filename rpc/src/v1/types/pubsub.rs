@@ -26,8 +26,8 @@ use v1::types::{RichHeader, Filter, Log};
 pub enum Result {
 	/// New block header.
 	Header(RichHeader),
-	/// Logs
-	Logs(Vec<Log>),
+	/// Log
+	Log(Log),
 }
 
 impl Serialize for Result {
@@ -36,7 +36,7 @@ impl Serialize for Result {
 	{
 		match *self {
 			Result::Header(ref header) => header.serialize(serializer),
-			Result::Logs(ref logs) => logs.serialize(serializer),
+			Result::Log(ref log) => log.serialize(serializer),
 		}
 	}
 }

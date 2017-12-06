@@ -30,7 +30,6 @@ use mio::*;
 use mio::deprecated::{EventLoop};
 use mio::tcp::*;
 use bigint::hash::*;
-use util::version;
 use rlp::*;
 use session::{Session, SessionInfo, SessionData};
 use io::*;
@@ -108,6 +107,8 @@ pub struct NetworkConfiguration {
 	pub non_reserved_mode: NonReservedPeerMode,
 	/// IP filter
 	pub ip_filter: IpFilter,
+	/// Client identifier
+	pub client_version: String,
 }
 
 impl Default for NetworkConfiguration {
@@ -136,6 +137,7 @@ impl NetworkConfiguration {
 			ip_filter: IpFilter::default(),
 			reserved_nodes: Vec::new(),
 			non_reserved_mode: NonReservedPeerMode::Accept,
+			client_version: "Parity-network".into(),
 		}
 	}
 
@@ -331,8 +333,6 @@ pub struct HostInfo {
 	nonce: H256,
 	/// RLPx protocol version
 	pub protocol_version: u32,
-	/// Client identifier
-	pub client_version: String,
 	/// Registered capabilities (handlers)
 	pub capabilities: Vec<CapabilityInfo>,
 	/// Local address + discovery port
@@ -356,6 +356,10 @@ impl HostInfo {
 	pub fn next_nonce(&mut self) -> H256 {
 		self.nonce = keccak(&self.nonce);
 		self.nonce
+	}
+
+	pub fn client_version(&self) -> &str {
+		&self.config.client_version
 	}
 }
 
@@ -423,7 +427,6 @@ impl Host {
 				config: config,
 				nonce: H256::random(),
 				protocol_version: PROTOCOL_VERSION,
-				client_version: version(),
 				capabilities: Vec::new(),
 				public_endpoint: None,
 				local_endpoint: local_endpoint,
@@ -517,10 +520,6 @@ impl Host {
 		self.reserved_nodes.write().remove(&n.id);
 
 		Ok(())
-	}
-
-	pub fn client_version() -> String {
-		version()
 	}
 
 	pub fn external_url(&self) -> Option<String> {

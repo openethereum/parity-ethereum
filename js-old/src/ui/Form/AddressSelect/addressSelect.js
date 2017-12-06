@@ -23,7 +23,7 @@ import { observer } from 'mobx-react';
 
 import TextFieldUnderline from 'material-ui/TextField/TextFieldUnderline';
 
-import apiutil from '~/api/util';
+import apiutil from '@parity/api/lib/util';
 import AccountCard from '~/ui/AccountCard';
 import CopyToClipboard from '~/ui/CopyToClipboard';
 import InputAddress from '~/ui/Form/InputAddress';

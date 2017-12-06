@@ -17,7 +17,7 @@
 import React from 'react';
 
 import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
-import { AccountsIcon, AddressesIcon, ContactsIcon, FingerprintIcon, SettingsIcon } from '~/ui/Icons';
+import { AccountsIcon, AddressesIcon, ContactsIcon, SettingsIcon } from '~/ui/Icons';
 
 import styles from './views.css';
 
@@ -58,13 +58,13 @@ const defaultViews = {
     value: 'contract'
   },
 
-  signer: {
-    active: true,
-    fixed: true,
-    icon: <FingerprintIcon />,
-    route: '/signer',
-    value: 'signer'
-  },
+  // signer: {
+  //   active: true,
+  //   fixed: true,
+  //   icon: <FingerprintIcon />,
+  //   route: '/signer',
+  //   value: 'signer'
+  // },
 
   settings: {
     active: true,

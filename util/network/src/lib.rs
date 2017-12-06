@@ -59,7 +59,6 @@
 #![recursion_limit="128"]
 
 extern crate ethcore_io as io;
-extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes;
 extern crate parking_lot;
@@ -80,7 +79,7 @@ extern crate bytes;
 extern crate path;
 extern crate ethcore_logger;
 extern crate ipnetwork;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate serde_json;
 extern crate snappy;
 

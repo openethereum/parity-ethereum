@@ -44,6 +44,7 @@ pub struct EndpointInfo {
 	pub version: String,
 	pub author: String,
 	pub icon_url: String,
+	pub local_url: Option<String>,
 }
 
 pub type Endpoints = BTreeMap<String, Box<Endpoint>>;

@@ -17,10 +17,10 @@
 
 .frame {
   background: white;
+  box-sizing: border-box;
   border: 0;
+  flex-grow: 1;
   opacity: 0;
-  position: absolute;
-  height: 100%;
   width: 100%;
   z-index: 1;
 }

@@ -1,5 +1,5 @@
 [package]
-description = "Ethcore client."
+description = "Log implementation for Parity"
 name = "ethcore-logger"
 version = "1.9.0"
 license = "GPL-3.0"
@@ -13,5 +13,5 @@ lazy_static = "0.2"
 regex = "0.2"
 time = "0.1"
 parking_lot = "0.4"
-arrayvec = "0.3"
+arrayvec = "0.4"
 ansi_term = "0.9"
