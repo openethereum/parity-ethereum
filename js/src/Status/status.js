@@ -25,21 +25,19 @@ import GradientBg from '@parity/ui/lib/GradientBg';
 import { HomeIcon } from '@parity/ui/lib/Icons';
 import NetChain from '@parity/ui/lib/NetChain';
 import NetPeers from '@parity/ui/lib/NetPeers';
-import SignerPending from '@parity/ui/lib/SignerPending';
 import StatusIndicator from '@parity/ui/lib/StatusIndicator';
 
 import Consensus from './Consensus';
 import DefaultAccount from './DefaultAccount';
 import AccountStore from '../ParityBar/accountStore';
-import ParityBarStore from '../ParityBar/store';
 import SyncWarning from '../SyncWarning';
 import PluginStore from './pluginStore';
+import SignerPending from './SignerPending';
 import Upgrade from './Upgrade';
 
 import styles from './status.css';
 
 const pluginStore = PluginStore.get();
-const parityBarStore = ParityBarStore.get();
 
 function Status ({ className = '', upgradeStore }, { api }) {
   const accountStore = AccountStore.get(api);
@@ -63,10 +61,6 @@ function Status ({ className = '', upgradeStore }, { api }) {
               ))
             }
             <div className={ styles.divider } />
-            <SignerPending
-              className={ styles.signerPending }
-              onClick={ parityBarStore.toggleOpenSigner }
-            />
 
             <DefaultAccount
               accountStore={ accountStore }
@@ -75,6 +69,8 @@ function Status ({ className = '', upgradeStore }, { api }) {
               className={ styles.health }
               id='application.status.health'
             />
+            <SignerPending />
+
             <div className={ styles.divider } />
             <BlockNumber
               className={ styles.blockNumber }
