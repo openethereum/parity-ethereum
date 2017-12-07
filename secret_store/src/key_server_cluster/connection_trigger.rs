@@ -43,15 +43,13 @@ pub trait ServersSetChangeSessionCreatorConnector: Send + Sync {
 /// Connection trigger, which executes necessary actions when set of key servers changes.
 pub trait ConnectionTrigger: Send + Sync {
 	/// When key server set is about to change.
-	fn on_servers_set_change(&mut self, connections: &mut ClusterConnectionsData, sessions: &ClusterSessions, key_server_set: &KeyServerSet);
+	fn on_servers_set_change(&mut self, client: &Arc<ClusterClient>, connections: &mut ClusterConnectionsData, sessions: &ClusterSessions, key_server_set: &KeyServerSet) -> Option<BoxedEmptyFuture>;
 	/// Return connector for the servers set change session creator.
 	fn servers_set_change_creator_connector(&self) -> Arc<ServersSetChangeSessionCreatorConnector>;
 	/// When connection is established.
 	fn on_connection_established(&mut self, _node: &NodeId) {}
 	/// When connection is closed.
 	fn on_connection_closed(&mut self, _node: &NodeId) {}
-	/// When connections maintain happens.
-	fn maintain(&mut self, _client: &Arc<ClusterClient>, _data: &mut ClusterConnectionsData, _key_server_set: &KeyServerSet) -> Option<BoxedEmptyFuture> { None }
 }
 
 #[derive(Debug)]
@@ -117,7 +115,7 @@ struct MigrationSession {
 	pub nodes_to_connect: BTreeSet<NodeId>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 /// Migration trigger state.
 enum TriggerState {
 	/// Currently doing nothing.
@@ -201,23 +199,25 @@ impl SimpleConnectionTrigger {
 }
 
 impl ConnectionTrigger for SimpleConnectionTrigger {
-	fn on_servers_set_change(&mut self, data: &mut ClusterConnectionsData, sessions: &ClusterSessions, key_server_set: &KeyServerSet) {
+	fn on_servers_set_change(&mut self, client: &Arc<ClusterClient>, data: &mut ClusterConnectionsData, sessions: &ClusterSessions, key_server_set: &KeyServerSet) -> Option<BoxedEmptyFuture> {
 		// do not update nodes set if any admin session is active
 		// this could happen, but will possibly lead to admin session error
 		// => should be performed later
 		if !sessions.admin_sessions.is_empty() {
-			return;
+			return None;
 		}
 
 		// compute migration path
 		let new_set = key_server_set.state().new_set;
 		let migration = match compute_migration_scheme(&data.nodes, &new_set) {
-			None => return,
+			None => return None,
 			Some(migration) => migration,
 		};
 
 		// apply change
 		Self::adjust_connections(&self.self_node_id, data, &migration);
+
+		None
 	}
 
 	fn servers_set_change_creator_connector(&self) -> Arc<ServersSetChangeSessionCreatorConnector> {
@@ -244,13 +244,72 @@ impl ConnectionTriggerWithMigration {
 			session: None,
 		}
 	}
+
+	fn maintain(&mut self, client: &Arc<ClusterClient>, data: &mut ClusterConnectionsData, key_server_set: &KeyServerSet) -> Option<BoxedEmptyFuture> {
+		// to make things easier, this is the only place when servers set change session is started
+		// but actually it can be started earlier - as soon as we connect to the last required node (possible TODO)
+		let mut drop_session = false;
+		if let Some(session) = self.session.as_mut() {
+			let admin_session = {
+				(*self.connector.session.lock()).clone()
+			};
+			match session.maintain(data, admin_session) {
+				MigrateMaintainResult::DoNothing => (),
+				MigrateMaintainResult::ForgetSuccessfulSession => {
+					*self.connector.session.lock() = None;
+					if session.migration.new_set.contains_key(self.self_key_pair.public()) {
+						key_server_set.confirm_migration();
+					}
+println!("=== {}: SWICHED TO Idle", self.self_key_pair.public());
+					self.state = TriggerState::Idle;
+				},
+				MigrateMaintainResult::ForgetFailedSession => {
+					*self.connector.session.lock() = None;
+println!("=== {}: SWICHED TO Idle", self.self_key_pair.public());
+				},
+				MigrateMaintainResult::StartSession(nodes, old_signature, new_signature) => {
+println!("=== {}: SWICHED TO Migrating", self.self_key_pair.public());
+					self.state = TriggerState::Migrating;
+
+					let client = client.clone();
+					let self_node_id = self.self_key_pair.public().clone();
+					return Some(Box::new(lazy(move || {
+						let session_result = client.new_servers_set_change_session(None,
+							nodes, old_signature, new_signature);
+						match session_result {
+							Ok(_) => trace!(target: "secretstore_net", "{}: started auto-migrate session", self_node_id),
+							Err(err) => trace!(target: "secretstore_net", "{}: failed to start auto-migrate session with: {}", self_node_id, err),
+						}
+
+						Ok(())
+					})));
+				},
+			}
+		}
+		if self.state == TriggerState::Idle {
+			self.session = None;
+		}
+
+		None
+	}
 }
 
 impl ConnectionTrigger for ConnectionTriggerWithMigration {
-	fn on_servers_set_change(&mut self, data: &mut ClusterConnectionsData, sessions: &ClusterSessions, key_server_set: &KeyServerSet) {
+	fn on_servers_set_change(&mut self, client: &Arc<ClusterClient>, data: &mut ClusterConnectionsData, sessions: &ClusterSessions, key_server_set: &KeyServerSet) -> Option<BoxedEmptyFuture> {
 		let server_set_state = key_server_set.state();
 		let server_set_state_type = server_set_state.state();
+println!("=== {}: STATE-BEFORE = {:?}", self.self_key_pair.public(), (self.state, server_set_state_type));
+		let is_migrating = self.state == TriggerState::Migrating;
+		let r = self.maintain(client, data, key_server_set);
+		let is_idle = self.state == TriggerState::Idle;
 
+		// TODO: since confirmation transaction can be mined several blocks after => need to make a pause before restarting session
+		if is_migrating && is_idle {
+println!("=== {}: MigratingAndIdleReturn", self.self_key_pair.public());
+			return r;
+		}
+
+println!("=== {}: STATE-AFTER = {:?}", self.self_key_pair.public(), (self.state, server_set_state_type));
 		match (self.state, server_set_state_type) {
 			// both are idle => no actions required
 			(TriggerState::Idle, KeyServerSetStateType::Idle) => {
@@ -262,7 +321,7 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 				let migration = compute_migration_scheme(&server_set_state.old_set, &server_set_state.new_set).expect("TODO");
 				if !migration.requires_migration() {
 					SimpleConnectionTrigger::adjust_connections(self.self_key_pair.public(), data, &migration);
-					return;
+					return r;
 				}
 				
 				let master_node = migration.select_master_node();
@@ -285,7 +344,7 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 				self.session = Some(session);
 				self.state = TriggerState::Connecting;
 				*self.connector.migration.lock() = Some(migration.clone());
-
+println!("=== {}: SWICHED TO Connecting", self.self_key_pair.public());
 				// start connecting to other nodes (if required)
 				SimpleConnectionTrigger::reconnect_changed_nodes(self.self_key_pair.public(), data, &migration);
 				SimpleConnectionTrigger::connect_added_nodes(self.self_key_pair.public(), data, &migration);
@@ -297,11 +356,14 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 			},
 			(TriggerState::Connecting, KeyServerSetStateType::Idle) => {
 				// ERROR: stop everything && connect to new_set only + ToIdle
-				unimplemented!()
+				// unimplemented!()
+				// TODO: not an error if maintain() && on_Server_set_change are called asynchronously - maintain should change state to Idle, but on_Server_set_change happens before
+				self.state = TriggerState::Idle;
 			},
 			(TriggerState::Connecting, KeyServerSetStateType::MigrationRequired) => {
 				// ERROR: stop everything && connect to new_set only + ToIdle
-				unimplemented!()
+				// unimplemented!()
+				self.state = TriggerState::Idle;
 			},
 			(TriggerState::Connecting, KeyServerSetStateType::MigrationStarted) => {
 				// if migration scheme has changed, it is not yet too late to change it
@@ -324,16 +386,21 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 			},
 			(TriggerState::Migrating, KeyServerSetStateType::Idle) => {
 				// ERROR: stop everything && connect to new_set only + ToIdle
-				unimplemented!()
+				// TODO: see above unimplemented!()
+				self.state = TriggerState::Idle;
 			},
 			(TriggerState::Migrating, KeyServerSetStateType::MigrationRequired) => {
 				// ERROR: stop everything && connect to new_set only + ToIdle
-				unimplemented!()
+				// TODO: see above unimplemented!()
+				self.state = TriggerState::Idle;
 			},
 			(TriggerState::Migrating, KeyServerSetStateType::MigrationStarted) => {
 				// TODO: schedule???
+				self.state = TriggerState::Idle;
 			},
 		}
+
+		r
 	}
 
 	fn servers_set_change_creator_connector(&self) -> Arc<ServersSetChangeSessionCreatorConnector> {
@@ -350,48 +417,6 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 		if let Some(session) = self.session.as_mut() {
 			session.disconnected(node);
 		}
-	}
-
-	fn maintain(&mut self, client: &Arc<ClusterClient>, data: &mut ClusterConnectionsData, key_server_set: &KeyServerSet) -> Option<BoxedEmptyFuture> {
-		// to make things easier, this is the only place when servers set change session is started
-		// but actually it can be started earlier - as soon as we connect to the last required node (possible TODO)
-		if let Some(session) = self.session.as_mut() {
-			let admin_session = {
-				(*self.connector.session.lock()).clone()
-			};
-			match session.maintain(data, admin_session) {
-				MigrateMaintainResult::DoNothing => (),
-				MigrateMaintainResult::ForgetSuccessfulSession => {
-					*self.connector.session.lock() = None;
-					if session.migration.new_set.contains_key(self.self_key_pair.public()) {
-						key_server_set.confirm_migration();
-					}
-					self.state = TriggerState::Idle;
-				},
-				MigrateMaintainResult::ForgetFailedSession => {
-					*self.connector.session.lock() = None;
-					self.state = TriggerState::Idle;
-				},
-				MigrateMaintainResult::StartSession(nodes, old_signature, new_signature) => {
-					self.state = TriggerState::Migrating;
-
-					let client = client.clone();
-					let self_node_id = self.self_key_pair.public().clone();
-					return Some(Box::new(lazy(move || {
-						let session_result = client.new_servers_set_change_session(None,
-							nodes, old_signature, new_signature);
-						match session_result {
-							Ok(_) => trace!(target: "secretstore_net", "{}: started auto-migrate session", self_node_id),
-							Err(err) => trace!(target: "secretstore_net", "{}: failed to start auto-migrate session with: {}", self_node_id, err),
-						}
-
-						Ok(())
-					})));
-				},
-			}
-		}
-
-		None
 	}
 }
 

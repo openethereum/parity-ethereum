@@ -388,7 +388,10 @@ impl ClusterCore {
 
 	/// Try to connect to every disconnected node.
 	fn connect_disconnected_nodes(data: Arc<ClusterData>) {
-		data.connections.update_nodes_set(&data.sessions);
+		let r = data.connections.update_nodes_set(Arc::new(ClusterClientImpl::new(data.clone())), &data.sessions);
+		if let Some(r) = r {
+			data.spawn(r);
+		}
 
 		// connect to disconnected nodes
 		for (node_id, node_address) in data.connections.disconnected_nodes() {
@@ -398,7 +401,7 @@ impl ClusterCore {
 		}
 
 		// and call connections.maintain
-		data.connections.maintain(&data, Arc::new(ClusterClientImpl::new(data.clone()))); // TODO: save client instead of recreating???
+		//data.connections.maintain(&data, Arc::new(ClusterClientImpl::new(data.clone()))); // TODO: save client instead of recreating???
 	}
 
 	/// Process connection future result.
@@ -721,7 +724,7 @@ impl ClusterConnections {
 		self.data.read().trigger.servers_set_change_creator_connector()
 	}
 
-	pub fn update_nodes_set(&self, sessions: &ClusterSessions) {
+	pub fn update_nodes_set(&self, client: Arc<ClusterClient>, sessions: &ClusterSessions) -> Option<BoxedEmptyFuture> {
 		//let new_nodes = self.key_server_set.state().new_set;
 		// we do not need to connect to self
 		// + we do not need to try to connect to any other node if we are not the part of a cluster
@@ -741,7 +744,7 @@ impl ClusterConnections {
 		};*/
 
 		let cdata = &mut *data;
-		cdata.trigger.on_servers_set_change(&mut cdata.data, sessions, &*self.key_server_set);
+		cdata.trigger.on_servers_set_change(&client, &mut cdata.data, sessions, &*self.key_server_set)
 		/*let mut new_nodes = self.key_server_set.get();
 		// we do not need to connect to self
 		// + we do not need to try to connect to any other node if we are not the part of a cluster
@@ -784,13 +787,13 @@ impl ClusterConnections {
 		}*/
 	}
 
-	pub fn maintain(&self, cluster_data: &Arc<ClusterData>, client: Arc<ClusterClient>) {
+	/*pub fn maintain(&self, cluster_data: &Arc<ClusterData>, client: Arc<ClusterClient>) {
 		let mut data = self.data.write();
 		let data = &mut *data;
 		if let Some(maintain_result) = data.trigger.maintain(&client, &mut data.data, &*self.key_server_set) {
 			cluster_data.spawn(maintain_result);
 		}
-	}
+	}*/
 }
 
 impl ClusterData {
