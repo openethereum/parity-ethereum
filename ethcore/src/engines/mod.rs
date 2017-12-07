@@ -243,7 +243,10 @@ pub trait Engine : Sync + Send {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which None will
 	/// be returned.
-	fn generate_seal(&self, _block: &ExecutedBlock) -> Seal { Seal::None }
+	///
+	/// It is fine to require access to state or a full client for this function, since
+	/// light clients do not generate seals.
+	fn generate_seal(&self, _block: &ExecutedBlock, _parent: &Header) -> Seal { Seal::None }
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block)
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
