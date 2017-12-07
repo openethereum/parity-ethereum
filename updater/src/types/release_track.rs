@@ -69,9 +69,10 @@ impl From<u8> for ReleaseTrack {
 	}
 }
 
-impl Into<u8> for ReleaseTrack {
-	fn into(self) -> u8 {
-		match self {
+
+impl From<ReleaseTrack> for u8 {
+	fn from(rt: ReleaseTrack) -> Self {
+		match rt {
 			ReleaseTrack::Stable => 1,
 			ReleaseTrack::Beta => 2,
 			ReleaseTrack::Nightly => 3,
