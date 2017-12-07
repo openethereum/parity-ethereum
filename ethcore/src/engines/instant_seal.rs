@@ -18,6 +18,7 @@ use std::collections::BTreeMap;
 use util::{Address, HashMap};
 use builtin::Builtin;
 use engines::{Engine, Seal};
+use header::Header;
 use spec::CommonParams;
 use block::ExecutedBlock;
 
@@ -58,8 +59,8 @@ impl Engine for InstantSeal {
 
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
-	fn generate_seal(&self, _block: &ExecutedBlock) -> Seal {
-		Seal::Regular(Vec::new())
+	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
+		if block.fields().transactions.is_empty() { Seal::None } else { Seal::Regular(Vec::new()) }
 	}
 }
 
@@ -81,7 +82,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close_and_lock();
-		if let Seal::Regular(seal) = engine.generate_seal(b.block()) {
+		if let Seal::Regular(seal) = engine.generate_seal(b.block(), &genesis_header) {
 			assert!(b.try_seal(engine, seal).is_ok());
 		}
 	}
