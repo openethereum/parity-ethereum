@@ -100,7 +100,7 @@ struct CachedContract {
 	/// Sync provider.
 	sync: Weak<SyncProvider>,
 	/// Contract address.
-	contract_addr: Option<Address>,
+	contract: Option<KeyServerSetContract>,
 	/// Current contract state.
 	state: KeyServerSetState,
 	/// This node key pair.
@@ -160,6 +160,10 @@ impl KeyServerSet for OnChainKeyServerSet {
 		self.contract.lock().state()
 	}
 
+	fn start_migration(&self) {
+		self.contract.lock().start_migration()
+	}
+
 	fn confirm_migration(&self) {
 		self.contract.lock().confirm_migration();
 	}
@@ -175,18 +179,20 @@ impl ChainNotify for OnChainKeyServerSet {
 
 impl CachedContract {
 	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
+		let server_set = key_servers.into_iter()
+			.map(|(p, addr)| {
+				let addr = format!("{}:{}", addr.address, addr.port).parse()
+					.map_err(|err| Error::Internal(format!("error parsing node address: {}", err)))?;
+				Ok((p, addr))
+			})
+			.collect::<Result<BTreeMap<_, _>, Error>>()?;
 		Ok(CachedContract {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),
-			contract_addr: None,
+			contract: None,
 			state: KeyServerSetState {
-				new_set: key_servers.into_iter()
-					.map(|(p, addr)| {
-						let addr = format!("{}:{}", addr.address, addr.port).parse()
-							.map_err(|err| Error::Internal(format!("error parsing node address: {}", err)))?;
-						Ok((p, addr))
-					})
-					.collect::<Result<BTreeMap<_, _>, Error>>()?,
+				old_set: server_set.clone(),
+				new_set: server_set,
 				..Default::default()
 			},
 			self_key_pair: self_key_pair,
@@ -203,18 +209,18 @@ impl CachedContract {
 			let new_contract_addr = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
 
 			// new contract installed => read nodes set from the contract
-			if self.contract_addr.as_ref() != new_contract_addr.as_ref() {
+			if self.contract.as_ref().map(|c| &c.address) != new_contract_addr.as_ref() {
 				self.read_from_registry(&*client, new_contract_addr);
 				return;
 			}
 
 			// check for contract events
-			let is_set_changed = self.contract_addr.is_some() && enacted.iter()
+			let is_set_changed = self.contract.is_some() && enacted.iter()
 				.chain(retracted.iter())
 				.any(|block_hash| !client.logs(Filter {
 					from_block: BlockId::Hash(block_hash.clone()),
 					to_block: BlockId::Hash(block_hash.clone()),
-					address: self.contract_addr.clone().map(|a| vec![a]),
+					address: self.contract.as_ref().map(|c| vec![c.address.clone()]),
 					topics: vec![
 						Some(vec![*ADDED_EVENT_NAME_HASH, *REMOVED_EVENT_NAME_HASH,
 							*MIGRATION_STARTED_EVENT_NAME_HASH, *MIGRATION_COMPLETED_EVENT_NAME_HASH]),
@@ -236,23 +242,43 @@ impl CachedContract {
 	}
 
 	fn start_migration(&self) {
-		// TODO
-		unimplemented!()
+println!("=== starting migration");
+		if let (Some(client), Some(contract)) = (self.client.upgrade(), self.contract.as_ref()) {
+println!("=== preparing migration data");
+			// prepare transaction data
+			let transaction_data = contract.encode_start_migration_input().expect("TODO");
+println!("=== sending migration transaction");
+			// send transaction
+			client.transact_contract(
+				contract.address.clone(),
+				transaction_data
+			).map_err(|e| format!("{}", e)).expect("TODO");
+		}
 	}
 
-	fn confirm_migration(&self) -> bool {
-		// TODO
-		unimplemented!()
+	fn confirm_migration(&self) {
+println!("=== confirming migration");
+		if let (Some(client), Some(contract)) = (self.client.upgrade(), self.contract.as_ref()) {
+println!("=== preparing confirming migration data");
+			// prepare transaction data
+			let transaction_data = contract.encode_confirm_migration_input().expect("TODO");
+println!("=== sending confirming migration transaction");
+			// send transaction
+			client.transact_contract(
+				contract.address.clone(),
+				transaction_data
+			).map_err(|e| format!("{}", e)).expect("TODO");
+		}
 	}
 
 	fn read_from_registry(&mut self, client: &Client, new_contract_address: Option<Address>) {
-		let contract = new_contract_address.map(|contract_addr| {
+		self.contract = new_contract_address.map(|contract_addr| {
 			trace!(target: "secretstore", "Configuring for key server set contract from {}", contract_addr);
 
 			KeyServerSetContract::new(contract_addr)
 		});
 
-		let contract = match contract {
+		let contract = match self.contract.as_ref() {
 			Some(contract) => contract,
 			None => return,
 		};
@@ -291,7 +317,6 @@ impl CachedContract {
 			migration_master: migration_master,
 			is_migration_confirmed: is_migration_confirmed,
 		};
-		self.contract_addr = new_contract_address;
 	}
 
 	fn read_key_server_set<F, U, FL, FP, FA>(contract: &KeyServerSetContract, do_call: F, read_list: FL, read_public: FP, read_address: FA) -> BTreeMap<Public, SocketAddr>
@@ -352,7 +377,6 @@ pub mod tests {
 		}
 
 		fn start_migration(&self) {
-			// TODO
 			unimplemented!()
 		}
 

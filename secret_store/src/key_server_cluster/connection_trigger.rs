@@ -1,3 +1,6 @@
+// TODO: update from fixed nodes list to contract won't work??? Probably woth adding old_set to the KeyServerSet constructor???
+// TODO: when old_set != data.nodes.keys().cloned ===> disconnect from old nodes
+
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -21,7 +24,7 @@ use std::sync::Arc;
 use ethkey::{Public, Signature};
 use futures::lazy;
 use parking_lot::Mutex;
-use key_server_cluster::KeyServerSet;
+use key_server_cluster::{KeyServerSet, KeyServerSetStateType};
 use key_server_cluster::cluster::{ClusterClient, ClusterConnectionsData, BoxedEmptyFuture};
 use key_server_cluster::cluster_sessions::{AdminSession, ClusterSessions, ClusterSession};
 use key_server_cluster::jobs::servers_set_change_access_job::ordered_nodes_hash;
@@ -48,7 +51,7 @@ pub trait ConnectionTrigger: Send + Sync {
 	/// When connection is closed.
 	fn on_connection_closed(&mut self, _node: &NodeId) {}
 	/// When connections maintain happens.
-	fn maintain(&mut self, _client: &Arc<ClusterClient>, _data: &mut ClusterConnectionsData) -> Option<BoxedEmptyFuture> { None }
+	fn maintain(&mut self, _client: &Arc<ClusterClient>, _data: &mut ClusterConnectionsData, _key_server_set: &KeyServerSet) -> Option<BoxedEmptyFuture> { None }
 }
 
 #[derive(Debug)]
@@ -84,12 +87,12 @@ pub struct ConnectionTriggerWithMigration {
 /// Key servers set change session creator connector with migration support.
 pub struct ServersSetChangeSessionCreatorConnectorWithMigration {
 	/// Active migration task to check when servers set change session is started.
-	task: Mutex<Option<MigrationScheme>>,
+	migration: Mutex<Option<MigrationScheme>>,
 	/// Active servers set change session.
 	session: Mutex<Option<Arc<AdminSession>>>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 /// Single migration path.
 pub struct MigrationScheme {
 	/// Old nodes set.
@@ -109,11 +112,12 @@ struct MigrationSession {
 	/// This node id.
 	pub self_key_pair: Arc<NodeKeyPair>,
 	/// Session change.
-	pub change: MigrationScheme,
+	pub migration: MigrationScheme,
 	/// Nodes that we need to connected to before starting migration.
 	pub nodes_to_connect: BTreeSet<NodeId>,
 }
 
+#[derive(Debug, Clone, Copy)]
 /// Migration trigger state.
 enum TriggerState {
 	/// Currently doing nothing.
@@ -128,8 +132,10 @@ enum TriggerState {
 enum MigrateMaintainResult {
 	/// Do nothing.
 	DoNothing,
-	/// Forget Servers Set Change session.
-	ForgetSession,
+	/// Forget successful Servers Set Change session.
+	ForgetSuccessfulSession,
+	/// Forget failed Servers Set Change session.
+	ForgetFailedSession,
 	/// Start new Servers Set Change session.
 	StartSession(BTreeSet<NodeId>, Signature, Signature),
 }
@@ -147,7 +153,7 @@ impl SimpleConnectionTrigger {
 
 	/// Disconnect from nodes, removed from the SS.
 	pub fn disconnect_removed_nodes(self_node_id: &NodeId, data: &mut ClusterConnectionsData, migration: &MigrationScheme) {
-		for removed_node in change.removed_nodes.keys() {
+		for removed_node in migration.removed_nodes.keys() {
 			if let Entry::Occupied(entry) = data.connections.entry(removed_node.clone()) {
 				trace!(target: "secretstore_net", "{}: removing connection to {} at {}",
 					self_node_id, entry.get().node_id(), entry.get().node_address());
@@ -160,7 +166,7 @@ impl SimpleConnectionTrigger {
 
 	/// Remove current connections to nodes that have changed their addresses.
 	pub fn reconnect_changed_nodes(self_node_id: &NodeId, data: &mut ClusterConnectionsData, migration: &MigrationScheme) {
-		for (changed_node, changed_node_addr) in &change.changed_nodes {
+		for (changed_node, changed_node_addr) in &migration.changed_nodes {
 			if changed_node != self_node_id {
 				if let Entry::Occupied(entry) = data.connections.entry(changed_node.clone()) {
 					trace!(target: "secretstore_net", "{}: removing connection to {} at {}",
@@ -181,6 +187,17 @@ impl SimpleConnectionTrigger {
 			}
 		}
 	}
+
+	/// Adjust connections.
+	pub fn adjust_connections(self_node_id: &NodeId, data: &mut ClusterConnectionsData, migration: &MigrationScheme) {
+		trace!(target: "secretstore_net", "{}: servers set has changed: added {}, removed {}, changed {}, new {}",
+			self_node_id, migration.added_nodes.len(), migration.removed_nodes.len(),
+			migration.changed_nodes.len(), migration.new_set.len());
+
+		Self::disconnect_removed_nodes(self_node_id, data, &migration);
+		Self::reconnect_changed_nodes(self_node_id, data, &migration);
+		Self::connect_added_nodes(self_node_id, data, &migration);
+	}
 }
 
 impl ConnectionTrigger for SimpleConnectionTrigger {
@@ -194,19 +211,13 @@ impl ConnectionTrigger for SimpleConnectionTrigger {
 
 		// compute migration path
 		let new_set = key_server_set.state().new_set;
-		let migration = match compute_migration_path(&data.nodes, &new_set) {
+		let migration = match compute_migration_scheme(&data.nodes, &new_set) {
 			None => return,
 			Some(migration) => migration,
 		};
 
 		// apply change
-		trace!(target: "secretstore_net", "{}: servers set has changed: added {}, removed {}, changed {}, new {}",
-			self.self_node_id, change.added_nodes.len(), change.removed_nodes.len(),
-			change.changed_nodes.len(), change.nodes.len());
-
-		Self::disconnect_removed_nodes(&self.self_node_id, data, &migration);
-		Self::reconnect_changed_nodes(&self.self_node_id, data, &migration);
-		Self::connect_added_nodes(&self.self_node_id, data, &migration);
+		Self::adjust_connections(&self.self_node_id, data, &migration);
 	}
 
 	fn servers_set_change_creator_connector(&self) -> Arc<ServersSetChangeSessionCreatorConnector> {
@@ -229,54 +240,40 @@ impl ConnectionTriggerWithMigration {
 		ConnectionTriggerWithMigration {
 			self_key_pair: self_key_pair,
 			connector: Arc::new(Default::default()),
-			task: None,
+			state: TriggerState::Idle,
 			session: None,
 		}
 	}
 }
 
 impl ConnectionTrigger for ConnectionTriggerWithMigration {
-		// trigger could have following states:
-		// (1) idle
-		// (2) connecting to superposition of old_set + migration_set
-		// (3) running a KeyServerSetChange session
-		//
-		// KeyServerSet could have following states:
-		// (a) migration_set.is_none() && old_set == new_set: no action required
-		// (b) migration_set.is_none() && old_set != new_set: migration is required
-		// (c) migration_set.is_some(): migration is in progress
-		//
-		// possible combinations:
-		// (1 + a) do nothing
-		// (1 + b) if master - send transaction
-		// (1 + c) if master - start ServersSetChange session
-		// (2 + a) ???
-		// (2 + b) ???
-		// (2 + c) do nothing
-		// (3 + a) ???
-		// (3 + b) ???
-		// (3 + c) do nothing
-		// edge cases: when 
-
 	fn on_servers_set_change(&mut self, data: &mut ClusterConnectionsData, sessions: &ClusterSessions, key_server_set: &KeyServerSet) {
 		let server_set_state = key_server_set.state();
 		let server_set_state_type = server_set_state.state();
 
-		match self.state {
+		match (self.state, server_set_state_type) {
 			// both are idle => no actions required
-			(TriggerState::Idle, KeyServerSetStateType::Idle) => (),
+			(TriggerState::Idle, KeyServerSetStateType::Idle) => {
+				// TODO: it could be that old_set == new_set, but we are currently connected to different set of nodes (not the old_set)
+				// => adjust connections
+			},
 			// migration is required => start migration if we are master node
 			(TriggerState::Idle, KeyServerSetStateType::MigrationRequired) => {
-				let migration = compute_migration_path(&server_set_state.old_set, &server_set_state.new_set);
+				let migration = compute_migration_scheme(&server_set_state.old_set, &server_set_state.new_set).expect("TODO");
+				if !migration.requires_migration() {
+					SimpleConnectionTrigger::adjust_connections(self.self_key_pair.public(), data, &migration);
+					return;
+				}
+				
 				let master_node = migration.select_master_node();
-				if *self.self_key_pair.public() == master_node {
+				if self.self_key_pair.public() == master_node {
 					key_server_set.start_migration();
 				}
 			},
 			// migration is started => start connecting to other nodes
 			(TriggerState::Idle, KeyServerSetStateType::MigrationStarted) => {
 				// create new migration session
-				let migration = compute_migration_path(&server_set_state.old_set, &server_set_state.new_set);
+				let migration = compute_migration_scheme(&server_set_state.old_set, &server_set_state.new_set).expect("TODO");
 				let mut session = MigrationSession::new(self.self_key_pair.clone(), migration.clone());
 
 				// notify about current connections
@@ -287,37 +284,37 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 				// remember session
 				self.session = Some(session);
 				self.state = TriggerState::Connecting;
-				*self.connector.migration.lock() = Some(migration);
+				*self.connector.migration.lock() = Some(migration.clone());
 
 				// start connecting to other nodes (if required)
-				SimpleConnectionTrigger::reconnect_changed_nodes(self.self_key_pair.public(), data, &change);
-				SimpleConnectionTrigger::connect_added_nodes(self.self_key_pair.public(), data, &change);
+				SimpleConnectionTrigger::reconnect_changed_nodes(self.self_key_pair.public(), data, &migration);
+				SimpleConnectionTrigger::connect_added_nodes(self.self_key_pair.public(), data, &migration);
 
 				// if we are connected to all nodes, start server set change session
 				// if self.session.as_ref().map(|s| s.is_connected()).unwrap_or_default() {
 				// 	self.start_servers_set_change_session();
 				// }
 			},
-			(TriggerState::Connecting, KeyServerSetState::Idle) => {
+			(TriggerState::Connecting, KeyServerSetStateType::Idle) => {
 				// ERROR: stop everything && connect to new_set only + ToIdle
 				unimplemented!()
 			},
-			(TriggerState::Connecting, KeyServerSetState::MigrationRequired) => {
+			(TriggerState::Connecting, KeyServerSetStateType::MigrationRequired) => {
 				// ERROR: stop everything && connect to new_set only + ToIdle
 				unimplemented!()
 			},
-			(TriggerState::Connecting, KeyServerSetState::MigrationStarted) => {
+			(TriggerState::Connecting, KeyServerSetStateType::MigrationStarted) => {
 				// if migration scheme has changed, it is not yet too late to change it
-				let migration = compute_migration_path(&server_set_state.old_set, &server_set_state.new_set);
+				let migration = compute_migration_scheme(&server_set_state.old_set, &server_set_state.new_set).expect("TODO");
 				let mut session = self.session.as_mut().expect("TODO");
 				if session.migration != migration {
 					// remember new migration scheme
-					session.migration = migration;
+					session.migration = migration.clone();
 					*self.connector.migration.lock() = Some(migration.clone());
 
 					// start connecting to other nodes (if required)
-					SimpleConnectionTrigger::reconnect_changed_nodes(self.self_key_pair.public(), data, &change);
-					SimpleConnectionTrigger::connect_added_nodes(self.self_key_pair.public(), data, &change);
+					SimpleConnectionTrigger::reconnect_changed_nodes(self.self_key_pair.public(), data, &migration);
+					SimpleConnectionTrigger::connect_added_nodes(self.self_key_pair.public(), data, &migration);
 
 					// if we are connected to all nodes, start server set change session
 					// if self.session.as_ref().map(|s| s.is_connected()).unwrap_or_default() {
@@ -325,15 +322,15 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 					// }
 				}
 			},
-			(TriggerState::Migrating, KeyServerSetState::Idle) => {
+			(TriggerState::Migrating, KeyServerSetStateType::Idle) => {
 				// ERROR: stop everything && connect to new_set only + ToIdle
 				unimplemented!()
 			},
-			(TriggerState::Migrating, KeyServerSetState::MigrationRequired) => {
+			(TriggerState::Migrating, KeyServerSetStateType::MigrationRequired) => {
 				// ERROR: stop everything && connect to new_set only + ToIdle
 				unimplemented!()
 			},
-			(TriggerState::Migrating, KeyServerSetState::MigrationStarted) => {
+			(TriggerState::Migrating, KeyServerSetStateType::MigrationStarted) => {
 				// TODO: schedule???
 			},
 		}
@@ -355,13 +352,26 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 		}
 	}
 
-	fn maintain(&mut self, client: &Arc<ClusterClient>, data: &mut ClusterConnectionsData) -> Option<BoxedEmptyFuture> {
+	fn maintain(&mut self, client: &Arc<ClusterClient>, data: &mut ClusterConnectionsData, key_server_set: &KeyServerSet) -> Option<BoxedEmptyFuture> {
 		// to make things easier, this is the only place when servers set change session is started
 		// but actually it can be started earlier - as soon as we connect to the last required node (possible TODO)
 		if let Some(session) = self.session.as_mut() {
-			match session.maintain(data, self.connector.change_session.lock().clone()) {
+			let admin_session = {
+				(*self.connector.session.lock()).clone()
+			};
+			match session.maintain(data, admin_session) {
 				MigrateMaintainResult::DoNothing => (),
-				MigrateMaintainResult::ForgetSession => *self.connector.change_session.lock() = None,
+				MigrateMaintainResult::ForgetSuccessfulSession => {
+					*self.connector.session.lock() = None;
+					if session.migration.new_set.contains_key(self.self_key_pair.public()) {
+						key_server_set.confirm_migration();
+					}
+					self.state = TriggerState::Idle;
+				},
+				MigrateMaintainResult::ForgetFailedSession => {
+					*self.connector.session.lock() = None;
+					self.state = TriggerState::Idle;
+				},
 				MigrateMaintainResult::StartSession(nodes, old_signature, new_signature) => {
 					self.state = TriggerState::Migrating;
 
@@ -385,45 +395,67 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 	}
 }
 
+impl ServersSetChangeSessionCreatorConnector for ServersSetChangeSessionCreatorConnectorWithMigration {
+	fn admin_public(&self, new_server_set: BTreeSet<NodeId>) -> Result<Public, Error> {
+		// the idea is that all nodes are agreed upon a block number and a new set of nodes in this block
+		// then master node is selected of all nodes set && this master signs the old set && new set
+		// (signatures are inputs to ServerSetChangeSession)
+		self.migration.lock().as_ref()
+			.map(|migration| if new_server_set == migration.new_set.keys().cloned().collect() { // TODO: old set?
+				Ok(migration.select_master_node().clone())
+			} else {
+				Err(Error::AccessDenied)
+			})
+			.unwrap_or(Err(Error::AccessDenied))
+	}
+
+	fn set_key_servers_set_change_session(&self, session: Arc<AdminSession>) {
+		// TODO: is it possible that session is overwritten?
+		*self.session.lock() = Some(session);
+	}
+}
+
 impl MigrationScheme {
 	/// Returns true if ServersSetChange session is required.
 	pub fn requires_migration(&self) -> bool {
-		!self.added_nodes.is_empty() || !self.removed_nodes.is_empty()
+		!self.added_nodes.is_empty()
+			|| !self.removed_nodes.is_empty()
 	}
 
 	/// Select master node.
 	pub fn select_master_node(&self) -> &NodeId {
 		// at least 1 node is required for migration
-		debug_assert!(!self.new_nodes.is_empty());
+		debug_assert!(!self.new_set.is_empty());
 
 		// we want to minimize a number of UnknownSession messages =>
 		// try to select a node which was in SS && will be in SS
-		self.nodes.iter()
+		self.new_set.keys()
 			.filter(|n| !self.added_nodes.contains_key(n))
 			.nth(0)
 			// else let's select a master from new nodes set
-			.unwrap_or_else(|| self.new_nodes.keys().nth(0).unwrap())
+			.unwrap_or_else(|| self.new_set.keys().nth(0).unwrap())
 	}
 }
 
 impl MigrationSession {
 	/// Create new migration session for given task.
-	pub fn new(self_key_pair: Arc<NodeKeyPair>, task: MigrationTask) -> Self {
+	pub fn new(self_key_pair: Arc<NodeKeyPair>, migration: MigrationScheme) -> Self {
 		let mut session = MigrationSession {
 			self_key_pair: self_key_pair,
-			task: Default::default(),
+			migration: Default::default(),
 			nodes_to_connect: Default::default(),
 		};
-		session.update_task(task);
+		session.update_scheme(migration);
 		session
 	}
 
 	/// Update session task.
-	pub fn update_task(&mut self, task: MigrationTask) {
-		self.task = task;
-		self.nodes_to_connect = self.task.change.added_nodes.keys()
-			.chain(self.task.change.changed_nodes.keys())
-			.chain(self.task.change.removed_nodes.keys())
+	pub fn update_scheme(&mut self, migration: MigrationScheme) {
+		self.migration = migration;
+		self.nodes_to_connect = self.migration.added_nodes.keys()
+			.chain(self.migration.changed_nodes.keys())
+			.chain(self.migration.removed_nodes.keys())
+			.filter(|n| *n != self.self_key_pair.public())
 			.cloned().collect();
 	}
 
@@ -434,9 +466,9 @@ impl MigrationSession {
 
 	/// When node is disconnected.
 	pub fn disconnected(&mut self, node: &NodeId) {
-		if self.task.change.added_nodes.contains_key(node)
-			|| self.task.change.changed_nodes.contains_key(node)
-			|| self.task.change.removed_nodes.contains_key(node) {
+		if self.migration.added_nodes.contains_key(node)
+			|| self.migration.changed_nodes.contains_key(node)
+			|| self.migration.removed_nodes.contains_key(node) {
 			self.nodes_to_connect.insert(node.clone());
 		}
 	}
@@ -449,30 +481,38 @@ println!("=== {}: 5", self.self_key_pair.public());
 			if change_session.is_finished() {
 println!("=== {}: 6", self.self_key_pair.public());
 				// servers set change session is completed => disconnect from all removed nodes
-				SimpleConnectionTrigger::disconnect_removed_nodes(&self.self_key_pair.public(), data, &self.task.change);
-				return MigrateMaintainResult::ForgetSession;
+				SimpleConnectionTrigger::disconnect_removed_nodes(&self.self_key_pair.public(), data, &self.migration); // TODO: adjust connections instead!!! because of fixed -> empty contract -> non-empty contract => still connected to fixed list
+				if change_session.as_servers_set_change().expect("TODO").wait().is_ok() {
+println!("=== {}: 6.success", self.self_key_pair.public());
+					return MigrateMaintainResult::ForgetSuccessfulSession;
+				} else {
+println!("=== {}: 6.failed", self.self_key_pair.public());
+					return MigrateMaintainResult::ForgetFailedSession;
+				}
 			}
 println!("=== {}: 7", self.self_key_pair.public());
 			return MigrateMaintainResult::DoNothing;
 		}
 
 		// if we have connected to all required nodes => start session
-		if !self.nodes_to_connect.is_empty() || self.task.select_master_node() != self.self_key_pair.public() {
-println!("=== {}: 8. to_connect: {:?}. master: {:?}", self.self_key_pair.public(), self.nodes_to_connect, self.task.select_master_node());
+		if !self.nodes_to_connect.is_empty() || self.migration.select_master_node() != self.self_key_pair.public() {
+println!("=== {}: 8. to_connect: {:?}. master: {:?}", self.self_key_pair.public(), self.nodes_to_connect, self.migration.select_master_node());
 			return MigrateMaintainResult::DoNothing;
 		}
 
-		let old_nodes = self.task.change.nodes.iter()
-			.filter(|n| !self.task.change.added_nodes.contains_key(n))
-			.chain(self.task.change.removed_nodes.keys())
-			.cloned()
-			.collect();
-		let signatures = self.self_key_pair.sign(&ordered_nodes_hash(&old_nodes))
-			.and_then(|old_set_signature| self.self_key_pair.sign(&ordered_nodes_hash(&self.task.change.nodes))
+		let mut old_set: BTreeSet<_> = self.migration.old_set.keys().cloned().collect();
+		if old_set.is_empty() {
+			// assume that all currently configured nodes are the previous version of SecretStore
+			old_set.extend(data.nodes.keys().cloned());
+			old_set.insert(self.self_key_pair.public().clone());
+		}
+
+		let signatures = self.self_key_pair.sign(&ordered_nodes_hash(&old_set))
+			.and_then(|old_set_signature| self.self_key_pair.sign(&ordered_nodes_hash(&self.migration.new_set.keys().cloned().collect()))
 				.map(|new_set_signature| (old_set_signature, new_set_signature)));
 		match signatures {
 			Ok((old_set_signature, new_set_signature)) =>
-				MigrateMaintainResult::StartSession(self.task.change.nodes.clone(), old_set_signature, new_set_signature),
+				MigrateMaintainResult::StartSession(self.migration.new_set.keys().cloned().collect(), old_set_signature, new_set_signature),
 			Err(err) => {
 				trace!(target: "secretstore_net", "{}: failed to auto-sign servers set: {}",
 					self.self_key_pair.public(), err);
@@ -493,24 +533,24 @@ println!("=== {}: 8. to_connect: {:?}. master: {:?}", self.self_key_pair.public(
 }
 
 /// Prepare key servers set change structure.
-pub fn compute_migration_path(old: &BTreeMap<NodeId, SocketAddr>, new: &BTreeMap<NodeId, SocketAddr>) -> Option<MigrationScheme> {
+pub fn compute_migration_scheme(old: &BTreeMap<NodeId, SocketAddr>, new: &BTreeMap<NodeId, SocketAddr>) -> Option<MigrationScheme> {
 	// check if nothing has changed
 	if old == new {
 		return None;
 	}
 
 	// prepare a set of changes
-	let mut path = KeyServerSetChange::default();
-	path.old_nodes = old.clone();
-	path.new_nodes = new.clone();
+	let mut scheme = MigrationScheme::default();
+	scheme.old_set = old.clone();
+	scheme.new_set = new.clone();
 
 	for (new_node_id, new_node_addr) in new {
 		match old.get(new_node_id) {
 			Some(old_node_addr) if old_node_addr != new_node_addr => {
-				change.changed_nodes.insert(new_node_id.clone(), new_node_addr.clone());
+				scheme.changed_nodes.insert(new_node_id.clone(), new_node_addr.clone());
 			},
 			None => {
-				change.added_nodes.insert(new_node_id.clone(), new_node_addr.clone());
+				scheme.added_nodes.insert(new_node_id.clone(), new_node_addr.clone());
 			},
 			_ => (),
 		}
@@ -518,11 +558,11 @@ pub fn compute_migration_path(old: &BTreeMap<NodeId, SocketAddr>, new: &BTreeMap
 
 	for (old_node_id, old_node_addr) in old {
 		if !new.contains_key(old_node_id) {
-			change.removed_nodes.insert(old_node_id.clone(), old_node_addr.clone());
+			scheme.removed_nodes.insert(old_node_id.clone(), old_node_addr.clone());
 		}
 	}
 
-	Some(change)
+	Some(scheme)
 }
 
 /*
@@ -622,26 +662,6 @@ println!("=== {}: 4 ===> ADMIN = {}", self.self_key_pair.public(), task.select_m
 	}
 }
 
-impl ServersSetChangeSessionCreatorConnector for ServersSetChangeSessionCreatorConnectorWithMigration {
-	fn admin_public(&self, new_server_set: BTreeSet<NodeId>) -> Result<Public, Error> {
-		// the idea is that all nodes are agreed upon a block number and a new set of nodes in this block
-		// then master node is selected of all nodes set && this master signs the old set && new set
-		// (signatures are inputs to ServerSetChangeSession)
-		self.task.lock().as_ref()
-			.map(|task| if task.change.nodes == new_server_set {
-				Ok(task.select_master_node().clone())
-			} else {
-				Err(Error::AccessDenied)
-			})
-			.unwrap_or(Err(Error::AccessDenied))
-	}
-
-	fn set_key_servers_set_change_session(&self, session: Arc<AdminSession>) {
-		// TODO: is it possible that session is overwritten?
-		*self.change_session.lock() = Some(session);
-	}
-}
-
 impl MigrationSession {
 	/// Create new migration session for given task.
 	pub fn new(self_key_pair: Arc<NodeKeyPair>, task: MigrationTask) -> Self {
@@ -732,7 +752,7 @@ println!("=== {}: 8. to_connect: {:?}. master: {:?}", self.self_key_pair.public(
 #[cfg(test)]
 mod tests {
 	use ethkey::KeyPair;
-	use super::{MigrationTask, KeyServerSetChange, compute_servers_set_change};
+	use super::{MigrationScheme, compute_migration_scheme};
 
 	#[test]
 	fn change_computed_works() {
@@ -748,7 +768,7 @@ mod tests {
 			(pub3.clone(), "0.0.0.0:3".parse().unwrap()),
 			(pub4.clone(), "0.0.0.0:4".parse().unwrap())].into_iter().collect();
 
-		let change = compute_servers_set_change(&old_nodes, &new_nodes).unwrap();
+		let change = compute_migration_scheme(&old_nodes, &new_nodes).unwrap();
 
 		assert_eq!(change.added_nodes.into_iter().collect::<Vec<_>>(), vec![(pub4.clone(), "0.0.0.0:4".parse().unwrap())]);
 		assert_eq!(change.removed_nodes.into_iter().collect::<Vec<_>>(), vec![(pub1.clone(), "0.0.0.0:1".parse().unwrap())]);
@@ -773,35 +793,32 @@ mod tests {
 		];
 
 		// 0+1 are added + 2 is changed + 3 is removed => 2
-		let task = MigrationTask {
-			change: KeyServerSetChange {
-				added_nodes: vec![nodes[0].clone(), nodes[1].clone()].into_iter().collect(),
-				changed_nodes: vec![nodes[2].clone()].into_iter().collect(),
-				removed_nodes: vec![nodes[3].clone()].into_iter().collect(),
-				nodes: vec![nodes[0].0.clone(), nodes[1].0.clone(), nodes[2].0.clone()].into_iter().collect(),
-			},
+		let task = MigrationScheme {
+			old_set: vec![nodes[2].clone(), nodes[3].clone()].into_iter().collect(),
+			added_nodes: vec![nodes[0].clone(), nodes[1].clone()].into_iter().collect(),
+			changed_nodes: vec![nodes[2].clone()].into_iter().collect(),
+			removed_nodes: vec![nodes[3].clone()].into_iter().collect(),
+			new_set: vec![nodes[0].clone(), nodes[1].clone(), nodes[2].clone()].into_iter().collect(),
 		};
 		assert_eq!(task.select_master_node(), &nodes[2].0);
 
 		// 3 is changed + 0+1+2 are removed => 3
-		let task = MigrationTask {
-			change: KeyServerSetChange {
-				added_nodes: vec![].into_iter().collect(),
-				changed_nodes: vec![nodes[3].clone()].into_iter().collect(),
-				removed_nodes: vec![nodes[0].clone(), nodes[1].clone(), nodes[2].clone()].into_iter().collect(),
-				nodes: vec![nodes[3].0.clone()].into_iter().collect(),
-			},
+		let task = MigrationScheme {
+			old_set: vec![nodes[0].clone(), nodes[1].clone(), nodes[2].clone(), nodes[3].clone()].into_iter().collect(),
+			added_nodes: vec![].into_iter().collect(),
+			changed_nodes: vec![nodes[3].clone()].into_iter().collect(),
+			removed_nodes: vec![nodes[0].clone(), nodes[1].clone(), nodes[2].clone()].into_iter().collect(),
+			new_set: vec![nodes[3].clone()].into_iter().collect(),
 		};
 		assert_eq!(task.select_master_node(), &nodes[3].0);
 
 		// 0+1 are added + 2+3 are removed => 0
-		let task = MigrationTask {
-			change: KeyServerSetChange {
-				added_nodes: vec![nodes[0].clone(), nodes[1].clone()].into_iter().collect(),
-				changed_nodes: vec![].into_iter().collect(),
-				removed_nodes: vec![nodes[2].clone(), nodes[3].clone()].into_iter().collect(),
-				nodes: vec![nodes[0].0.clone(), nodes[1].0.clone()].into_iter().collect(),
-			},
+		let task = MigrationScheme {
+			old_set: vec![nodes[2].clone(), nodes[3].clone()].into_iter().collect(),
+			added_nodes: vec![nodes[0].clone(), nodes[1].clone()].into_iter().collect(),
+			changed_nodes: vec![].into_iter().collect(),
+			removed_nodes: vec![nodes[2].clone(), nodes[3].clone()].into_iter().collect(),
+			new_set: vec![nodes[0].clone(), nodes[1].clone()].into_iter().collect(),
 		};
 		assert_eq!(task.select_master_node(), &nodes[0].0);
 	}

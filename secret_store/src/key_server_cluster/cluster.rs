@@ -538,9 +538,13 @@ impl ClusterCore {
 		match is_initialization_message || is_delegation_message {
 			false => sessions.get(&session_id, true).ok_or(Error::InvalidSessionId),
 			true => {
+println!("=== CR1");
 				let creation_data = SC::creation_data_from_message(&message)?;
+println!("=== CR2");
 				let master = if is_initialization_message { sender.clone() } else { data.self_key_pair.public().clone() };
+println!("=== CR3");
 				let cluster = create_cluster_view(data, requires_all_connections(&message))?;
+println!("=== CR4");
 				sessions.insert(cluster, master, session_id, Some(message.session_nonce().ok_or(Error::InvalidMessage)?), message.is_exclusive_session_message(), creation_data)
 			},
 		}
@@ -783,7 +787,7 @@ impl ClusterConnections {
 	pub fn maintain(&self, cluster_data: &Arc<ClusterData>, client: Arc<ClusterClient>) {
 		let mut data = self.data.write();
 		let data = &mut *data;
-		if let Some(maintain_result) = data.trigger.maintain(&client, &mut data.data) {
+		if let Some(maintain_result) = data.trigger.maintain(&client, &mut data.data, &*self.key_server_set) {
 			cluster_data.spawn(maintain_result);
 		}
 	}
