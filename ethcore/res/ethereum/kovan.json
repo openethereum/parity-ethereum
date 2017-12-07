@@ -27,7 +27,7 @@
         "validateScoreTransition": 1000000,
         "eip155Transition": 1000000,
         "validateStepTransition": 1500000,
-        "maximumUncleCountTransition": 5200000,
+        "maximumUncleCountTransition": 5100000,
         "maximumUncleCount": 0
 	  }
     }
@@ -37,10 +37,10 @@
     "minGasLimit": "0x1388",
     "networkID" : "0x2A",
     "validateReceiptsTransition" : 1000000,
-    "eip140Transition": 5200000,
-    "eip211Transition": 5200000,
-    "eip214Transition": 5200000,
-    "eip658Transition": 5200000
+    "eip140Transition": 5100000,
+    "eip211Transition": 5100000,
+    "eip214Transition": 5100000,
+    "eip658Transition": 5100000
   },
   "genesis": {
     "seal": {
