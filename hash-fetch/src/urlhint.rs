@@ -32,7 +32,10 @@ use bytes::Bytes;
 pub type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 
 const COMMIT_LEN: usize = 20;
-static COMMIT_IS_DAPP: &[u8; COMMIT_LEN] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+/// GithubHint entries with commit set as `0x0..01` should be treated
+/// as Github Dapp, downloadable zip files, than can be extracted, containing
+/// the manifest.json file along with the dapp
+static GITHUB_DAPP_COMMIT: &[u8; COMMIT_LEN] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
 
 /// RAW Contract interface.
 /// Should execute transaction using current blockchain state.
@@ -86,9 +89,7 @@ pub struct Content {
 	/// MIME type of the content
 	pub mime: Mime,
 	/// Content owner address
-	pub owner: Address,
-	/// Is this a dapp?
-	pub is_dapp: bool,
+	pub owner: Address
 }
 
 /// Result of resolving id to URL
@@ -96,6 +97,8 @@ pub struct Content {
 pub enum URLHintResult {
 	/// Dapp
 	Dapp(GithubApp),
+	/// GithubDapp
+	GithubDapp(Content),
 	/// Content
 	Content(Content),
 }
@@ -125,6 +128,15 @@ impl URLHintContract {
 	}
 }
 
+fn get_urlhint_content(account_slash_repo: String, owner: Address) -> Content {
+	let mime = guess_mime_type(&account_slash_repo).unwrap_or(mime::APPLICATION_JSON);
+	Content {
+		url: account_slash_repo,
+		mime: mime,
+		owner: owner
+	}
+}
+
 fn decode_urlhint_output(output: (String, ::bigint::hash::H160, Address)) -> Option<URLHintResult> {
 	let (account_slash_repo, commit, owner) = output;
 
@@ -133,18 +145,15 @@ fn decode_urlhint_output(output: (String, ::bigint::hash::H160, Address)) -> Opt
 	}
 
 	let commit = GithubApp::commit(&commit);
-	let dapp_commit = commit == Some(*COMMIT_IS_DAPP);
 
-	if commit == Some(Default::default()) || dapp_commit {
-		let mime = guess_mime_type(&account_slash_repo).unwrap_or(mime::APPLICATION_JSON);
-		let is_zip = mime == "application/zip";
+	if commit == Some(Default::default()) {
+		let content = get_urlhint_content(account_slash_repo, owner);
+		return Some(URLHintResult::Content(content));
+	}
 
-		return Some(URLHintResult::Content(Content {
-			url: account_slash_repo,
-			mime: mime,
-			owner: owner,
-			is_dapp: dapp_commit && is_zip,
-		}));
+	if commit == Some(*GITHUB_DAPP_COMMIT) {
+		let content = get_urlhint_content(account_slash_repo, owner);
+		return Some(URLHintResult::GithubDapp(content));
 	}
 
 	let (account, repo) = {
