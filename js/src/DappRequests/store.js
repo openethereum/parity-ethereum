@@ -53,7 +53,7 @@ export default class Store {
 
       accumulator[appId] = accumulator[appId] || {};
       accumulator[appId][methodGroup] = accumulator[appId][methodGroup] || [];
-      accumulator[appId][methodGroup].push({ data, requestId }); // Append the requestId field in the request object
+      accumulator[appId][methodGroup].push({ data, requestId }); // Push request & append the requestId field in the request object
 
       return accumulator;
     }, {});

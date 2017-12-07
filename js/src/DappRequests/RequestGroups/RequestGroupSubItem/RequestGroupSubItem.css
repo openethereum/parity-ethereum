@@ -15,17 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$backgroundOne: #f80;
-$backgroundTwo: #e57a00;
+.requestGroupSubItem {
+  margin-top: 2px;
 
-.requestGroups {
-  background: $backgroundOne;
-  background: linear-gradient($backgroundOne, $backgroundTwo);
-  padding: 0.5em;
-  text-align: right;
-  color: white;
-
-  > span {
-    margin-right: 30px;
+  .requestGroupSubItemTitle {
+    margin-right: 10px;
   }
 }
