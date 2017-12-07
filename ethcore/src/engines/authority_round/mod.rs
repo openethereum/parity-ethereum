@@ -975,8 +975,8 @@ mod tests {
 	#[test]
 	fn checks_difficulty_in_generate_seal() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
-		let addr2 = tap.insert_account(keccak("0").into(), "0").unwrap();
+		let addr1 = tap.insert_account("1".sha3().into(), "1").unwrap();
+		let addr2 = tap.insert_account("0".sha3().into(), "0").unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
