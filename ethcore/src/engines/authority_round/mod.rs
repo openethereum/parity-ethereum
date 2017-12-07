@@ -1073,23 +1073,21 @@ mod tests {
 	fn test_uncles_transition() {
 		let last_benign = Arc::new(AtomicUsize::new(0));
 		let params = AuthorityRoundParams {
+			gas_limit_bound_divisor: 5.into(),
 			step_duration: Default::default(),
+			block_reward: Default::default(),
+			registrar: Default::default(),
 			start_step: Some(1),
 			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
 			validate_score_transition: 0,
 			validate_step_transition: 0,
+			eip155_transition: 0,
 			immediate_transitions: true,
 			maximum_uncle_count_transition: 1,
 			maximum_uncle_count: 0,
-			block_reward: Default::default(),
 		};
 
-		let aura = {
-			let mut c_params = ::spec::CommonParams::default();
-			c_params.gas_limit_bound_divisor = 5.into();
-			let machine = ::machine::EthereumMachine::regular(c_params, Default::default());
-			AuthorityRound::new(params, machine).unwrap()
-		};
+		let aura = AuthorityRound::new(Default::default(), params, Default::default()).unwrap();
 
 		assert_eq!(aura.maximum_uncle_count(0), 2);
 		assert_eq!(aura.maximum_uncle_count(1), 0);
