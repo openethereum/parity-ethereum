@@ -16,10 +16,10 @@
 
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
+import { Link } from 'react-router';
 
-import Container from '@parity/ui/lib/Container';
 import DappIcon from '@parity/ui/lib/DappIcon';
-import DappVouchFor from '@parity/ui/lib/DappVouchFor';
+import { Header } from 'semantic-ui-react';
 
 import styles from './dappCard.css';
 
@@ -39,26 +39,13 @@ export default class DappCard extends Component {
 
     return (
       <div className={ [styles.card, className].join(' ') }>
-        <Container
-          className={ styles.content }
-          link={ `/${app.id}` }
-        >
+        <Link to={ app.url === 'web' ? '/web' : `/${app.id}` } className={ styles.content }>
           <DappIcon
             app={ app }
             className={ styles.image }
           />
-          <div className={ styles.title }>
-            { app.name }
-          </div>
-          <div className={ styles.description }>
-            { app.description }
-          </div>
-          <DappVouchFor
-            app={ app }
-            className={ styles.vouching }
-            maxNumber={ 10 }
-          />
-        </Container>
+          <Header as='h5' textAlign='center' className={ styles.title } >{app.name}</Header>
+        </Link>
       </div>
     );
   }

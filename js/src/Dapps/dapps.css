@@ -42,14 +42,14 @@
 }
 
 .dapps {
+  padding: 2em 4em;
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  margin: 1.5em 0;
 
   .dapp {
-    flex: 0 0 25%;
-    max-width: 25%;
-    min-width: 25%;
+    width: 12em;
+    margin-left: 2em;
+    margin-right: 2em;
   }
 }
