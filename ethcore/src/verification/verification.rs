@@ -273,7 +273,7 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) 
 	}
 
 	if is_full {
-		let max_time = get_time().sec as u64 + 30;
+		let max_time = get_time().sec as u64 + 15;
 		if header.timestamp() > max_time {
 			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: header.timestamp() })))
 		}
