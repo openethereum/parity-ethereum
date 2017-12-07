@@ -19,9 +19,10 @@ import 'whatwg-fetch';
 import React from 'react';
 import ReactDOM from 'react-dom';
 
+import qs from 'querystring';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
-import qs from 'querystring';
+import localStore from 'store';
 
 import ContractInstances from '@parity/shared/lib/contracts';
 import { initStore } from '@parity/shared/lib/redux';
@@ -52,12 +53,34 @@ if (process.env.NODE_ENV === 'development') {
 }
 */
 
-const AUTH_HASH = '#/auth?';
-
+const TOKEN_QS = '?token=';
+const hashIndex = window.location.hash
+  ? window.location.hash.indexOf(TOKEN_QS)
+  : -1;
+const searchIndex = window.location.search
+  ? window.location.search.indexOf(TOKEN_QS)
+  : -1;
 let token = null;
 
-if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
-  token = qs.parse(window.location.hash.substr(AUTH_HASH.length)).token;
+if (hashIndex !== -1) {
+  // extract from hash (e.g. http://127.0.0.1:8180/#/auth?token=...)
+  token = qs.parse(window.location.hash.substr(hashIndex + 1)).token;
+} else if (searchIndex !== -1) {
+  // extract from query (e.g. http://127.0.0.1:3000/?token=...)
+  token = qs.parse(window.location.search).token;
+}
+
+// we don't want localhost, rather we want 127.0.0.1
+if (window.location.hostname === 'localhost') {
+  const { hash, port } = window.location;
+
+  if (!token) {
+    // we don't have a token, attempt from localStorage
+    token = localStore.get('sysuiToken').match(/.{1,4}/g).join('-');
+  }
+
+  // reconstruct location, redirecting to 127.0.0.1
+  window.location = `http://127.0.0.1:${port}/${hashIndex !== -1 || !hash ? '#/' : hash}${token ? '?token=' : ''}${token || ''}`;
 }
 
 const api = new SecureApi(window.location.host, token);
