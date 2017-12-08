@@ -94,12 +94,19 @@ $ cargo build --release
 ```
 
 This will produce an executable in the `./target/release` subdirectory.
-Note: if cargo fails to parse manifest try:
+Note1: if cargo fails to parse manifest try:
 
 ```bash
 $ ~/.cargo/bin/cargo build --release
 ```
-
+Note2: When compiling a crate if you receive this error:
+```
+error: the crate is compiled with the panic strategy `abort` which is incompatible with this crate's strategy of `unwind`
+```
+Cleaning the repository will most likely solve the issue, try:
+```
+cargo clean
+```
 This will always compile the latest nightly builds. If you want to build stable or beta, do a `git checkout stable` or `git checkout beta` first.
 
 ----
