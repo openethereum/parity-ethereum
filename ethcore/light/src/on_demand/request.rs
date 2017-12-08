@@ -948,7 +948,7 @@ mod tests {
 	use trie::recorder::Recorder;
 	use hash::keccak;
 
-	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
+	use ethcore::client::{BlockChainClient, BlockInfo, TestBlockChainClient, EachBlockWith};
 	use ethcore::header::Header;
 	use ethcore::encoded;
 	use ethcore::receipt::{Receipt, TransactionOutcome};
