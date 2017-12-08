@@ -203,7 +203,8 @@ pub trait Engine : Sync + Send {
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
 	fn maximum_extra_data_size(&self) -> usize { self.params().maximum_extra_data_size }
 	/// Maximum number of uncles a block is allowed to declare.
-	fn maximum_uncle_count(&self) -> usize { 2 }
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
+
 	/// The number of generations back that uncles can be.
 	fn maximum_uncle_age(&self) -> usize { 6 }
 	/// The nonce with which accounts begin at given block.
@@ -242,7 +243,10 @@ pub trait Engine : Sync + Send {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which None will
 	/// be returned.
-	fn generate_seal(&self, _block: &ExecutedBlock) -> Seal { Seal::None }
+	///
+	/// It is fine to require access to state or a full client for this function, since
+	/// light clients do not generate seals.
+	fn generate_seal(&self, _block: &ExecutedBlock, _parent: &Header) -> Seal { Seal::None }
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block)
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.

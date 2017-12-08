@@ -391,7 +391,7 @@ impl Engine for Tendermint {
 
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
 
-	fn maximum_uncle_count(&self) -> usize { 0 }
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
 	fn maximum_uncle_age(&self) -> usize { 0 }
 
@@ -427,7 +427,10 @@ impl Engine for Tendermint {
 	}
 
 	/// Attempt to seal generate a proposal seal.
-	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
+	///
+	/// This operation is synchronous and may (quite reasonably) not be available, in which case
+	/// `Seal::None` will be returned.
+	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
 		let header = block.header();
 		let author = header.author();
 		// Only proposer can generate seal if None was generated.
@@ -681,7 +684,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close();
-		if let Seal::Proposal(seal) = spec.engine.generate_seal(b.block()) {
+		if let Seal::Proposal(seal) = spec.engine.generate_seal(b.block(), &genesis_header) {
 			(b, seal)
 		} else {
 			panic!()

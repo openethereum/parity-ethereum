@@ -57,6 +57,8 @@ impl Engine for NullEngine {
 		&self.builtins
 	}
 
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
+
 	fn schedule(&self, _block_number: BlockNumber) -> Schedule {
 		Schedule::new_homestead()
 	}
