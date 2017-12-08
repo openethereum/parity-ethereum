@@ -45,48 +45,62 @@ class Dapps extends Component {
     this.store.loadAllApps();
   }
 
+  handlePin = (appId) => {
+    if (this.store.displayApps[appId].pinned) {
+      this.store.unpinApp(appId);
+    } else {
+      this.store.pinApp(appId);
+    }
+  }
+
   render () {
     const { availability } = this.props;
-    const applications = [].concat(this.store.visibleLocal, this.store.visibleViews, this.store.visibleBuiltin, this.store.visibleNetwork);
+    const pinned = this.store.pinnedApps; // Pinned apps
+    const unpinnedVisible = this.store.visibleApps.filter(app => // Visible apps that are not pinned
+      this.store.displayApps[app.id] && !this.store.displayApps[app.id].pinned
+    );
 
     return (
-      <Page className={ styles.dapps }>
+      <Page>
+        <div className={ styles.dapps }>
+          {
+            pinned.concat(unpinnedVisible).map((app, index) => (
+              <DappCard
+                app={ app }
+                pinned={ this.store.displayApps[app.id] && this.store.displayApps[app.id].pinned }
+                availability={ availability }
+                className={ styles.dapp }
+                key={ `${index}_${app.id}` }
+                onPin={ this.handlePin }
+              />
+            ))
+          }
+        </div>
         {
-          applications.map((app, index) => (
-            <DappCard
-              app={ app }
-              availability={ availability }
-              className={ styles.dapp }
-              key={ `${index}_${app.id}` }
-            />
-          ))
-        }
-        {
-          this.store.externalOverlayVisible
-            ? (
-              <div className={ styles.overlay }>
-                <div>
-                  <FormattedMessage
-                    id='dapps.external.warning'
-                    defaultMessage='Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.'
-                  />
-                </div>
-                <div>
-                  <Checkbox
-                    className={ styles.accept }
-                    label={
-                      <FormattedMessage
-                        id='dapps.external.accept'
-                        defaultMessage='I understand that these applications are not affiliated with Parity'
-                      />
-                    }
-                    checked={ false }
-                    onClick={ this.onClickAcceptExternal }
-                  />
-                </div>
+          this.store.externalOverlayVisible &&
+          (
+            <div className={ styles.overlay }>
+              <div>
+                <FormattedMessage
+                  id='dapps.external.warning'
+                  defaultMessage='Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.'
+                />
               </div>
-            )
-            : null
+              <div>
+                <Checkbox
+                  className={ styles.accept }
+                  label={
+                    <FormattedMessage
+                      id='dapps.external.accept'
+                      defaultMessage='I understand that these applications are not affiliated with Parity'
+                    />
+                  }
+                  checked={ false }
+                  onClick={ this.onClickAcceptExternal }
+                />
+              </div>
+            </div>
+          )
         }
       </Page>
     );

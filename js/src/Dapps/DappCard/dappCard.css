@@ -16,15 +16,31 @@
 */
 
 .card {
+  position: relative;
   margin-top: 3em;
 
+  .pin {
+    display: none;
+    position: absolute;
+    top: 0;
+    right: 1.6em;
+    z-index: 1;
+  }
+
+  .pin.pinned {
+    display: block;
+    transform: rotate(45deg);
+  }
+
   &:hover {
-    opacity: 0.8;
+    .pin {
+      display: block;
+    }
   }
 
   .content {
-    margin-left: auto;
-    margin-right: auto;
+    display: block;
+    padding-top: 1em;
 
     .title {
       margin-top: 0.8em;

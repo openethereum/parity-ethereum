@@ -19,7 +19,8 @@ import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 
 import DappIcon from '@parity/ui/lib/DappIcon';
-import { Header } from 'semantic-ui-react';
+import Header from 'semantic-ui-react/dist/commonjs/elements/Header';
+import Button from 'semantic-ui-react/dist/commonjs/elements/Button';
 
 import styles from './dappCard.css';
 
@@ -27,11 +28,15 @@ export default class DappCard extends Component {
   static propTypes = {
     app: PropTypes.object.isRequired,
     availability: PropTypes.string.isRequired,
-    className: PropTypes.string
+    className: PropTypes.string,
+    onPin: PropTypes.func,
+    pinned: PropTypes.bool
   };
 
+  handlePin = () => this.props.onPin(this.props.app.id)
+
   render () {
-    const { app, availability, className } = this.props;
+    const { app, availability, className, pinned } = this.props;
 
     if (app.onlyPersonal && availability !== 'personal') {
       return null;
@@ -39,13 +44,23 @@ export default class DappCard extends Component {
 
     return (
       <div className={ [styles.card, className].join(' ') }>
-        <Link to={ app.url === 'web' ? '/web' : `/${app.id}` } className={ styles.content }>
-          <DappIcon
-            app={ app }
-            className={ styles.image }
-          />
-          <Header as='h5' textAlign='center' className={ styles.title } >{app.name}</Header>
-        </Link>
+        <Button
+          size='mini'
+          icon='pin'
+          circular
+          className={ [styles.pin, pinned && styles.pinned] }
+          onClick={ this.handlePin }
+        />
+        <div className={ styles.content }>
+          <Link to={ app.url === 'web' ? '/web' : `/${app.id}` } >
+            <DappIcon
+              app={ app }
+              className={ styles.image }
+            /></Link>
+          <Link to={ app.url === 'web' ? '/web' : `/${app.id}` } >
+            <Header as='h5' textAlign='center' className={ styles.title } >{app.name}</Header>
+          </Link>
+        </div>
       </div>
     );
   }
