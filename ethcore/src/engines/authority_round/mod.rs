@@ -485,6 +485,14 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			.expect("Header has been verified; qed").into();
 
 		let step = self.step.load();
+
+		// this is guarded against by `can_propose` unless the block was signed
+		// on the same step (implies same key) and on a different node.
+		if parent_step == step.into() {
+			warn!("Attempted to seal block on the same step as parent. Is this authority sealing with more than one node?");
+			return Seal::None;
+		}
+
 		let expected_diff = calculate_score(parent_step, step.into());
 
 		if header.difficulty() != &expected_diff {
