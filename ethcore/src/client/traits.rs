@@ -86,6 +86,9 @@ pub trait ChainInfo {
 
 /// Provides verious information on a block by it's ID
 pub trait BlockInfo {
+	/// Get raw block header data by block id.
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
+
 	/// Get the best block header.
 	fn best_block_header(&self) -> encoded::Header;
 
@@ -113,10 +116,6 @@ pub trait RegistryInfo {
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockInfo + CallContract + TransactionInfo + RegistryInfo {
-
-	/// Get raw block header data by block id.
-	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
-
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 

@@ -137,9 +137,14 @@ pub fn verify_block_family(header: &Header, parent: &Header, engine: &EthEngine,
 
 fn verify_uncles(header: &Header, bytes: &[u8], bc: &BlockProvider, engine: &EthEngine) -> Result<(), Error> {
 	let num_uncles = UntrustedRlp::new(bytes).at(2)?.item_count()?;
+	let max_uncles = engine.maximum_uncle_count(header.number());
 	if num_uncles != 0 {
-		if num_uncles > engine.maximum_uncle_count() {
-			return Err(From::from(BlockError::TooManyUncles(OutOfBounds { min: None, max: Some(engine.maximum_uncle_count()), found: num_uncles })));
+		if num_uncles > max_uncles {
+			return Err(From::from(BlockError::TooManyUncles(OutOfBounds {
+				min: None,
+				max: Some(max_uncles),
+				found: num_uncles,
+			})));
 		}
 
 		let mut excluded = HashSet::new();
@@ -653,7 +658,7 @@ mod tests {
 		let mut bad_uncles = good_uncles.clone();
 		bad_uncles.push(good_uncle1.clone());
 		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &bad_uncles), engine, &bc),
-			TooManyUncles(OutOfBounds { max: Some(engine.maximum_uncle_count()), min: None, found: bad_uncles.len() }));
+			TooManyUncles(OutOfBounds { max: Some(engine.maximum_uncle_count(header.number())), min: None, found: bad_uncles.len() }));
 
 		header = good.clone();
 		bad_uncles = vec![ good_uncle1.clone(), good_uncle1.clone() ];

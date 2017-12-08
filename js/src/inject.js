@@ -15,16 +15,19 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Api from '@parity/api';
+import qs from 'query-string';
 import Web3 from 'web3';
 
 import web3extensions from './web3.extensions';
 
 function initProvider () {
-  const parts = window.location.pathname.split('/');
-  let appId = parts[1];
+  const path = window.location.pathname.split('/');
+  const query = qs.parse(window.location.search);
+
+  let appId = path[1] || query.appId;
 
   if (appId === 'dapps') {
-    appId = parts[2];
+    appId = path[2];
   } else if (!Api.util.isHex(appId)) {
     appId = Api.util.sha3(appId);
   }

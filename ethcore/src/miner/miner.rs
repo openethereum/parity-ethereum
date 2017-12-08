@@ -535,11 +535,17 @@ impl Miner {
 
 	/// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the type of Seal.
 	fn seal_and_import_block_internally<C>(&self, chain: &C, block: ClosedBlock) -> bool
-		where C: BroadcastProposalBlock + ImportSealedBlock
+		where C: BlockInfo + BroadcastProposalBlock + ImportSealedBlock
 	{
 		if !block.transactions().is_empty() || self.forced_sealing() || Instant::now() > *self.next_mandatory_reseal.read() {
 			trace!(target: "miner", "seal_block_internally: attempting internal seal.");
-			match self.engine.generate_seal(block.block()) {
+
+			let parent_header = match chain.block_header(BlockId::Hash(*block.header().parent_hash())) {
+				Some(hdr) => hdr.decode(),
+				None => return false,
+			};
+
+			match self.engine.generate_seal(block.block(), &parent_header) {
 				// Save proposal for later seal submission and broadcast it.
 				Seal::Proposal(seal) => {
 					trace!(target: "miner", "Received a Proposal seal.");

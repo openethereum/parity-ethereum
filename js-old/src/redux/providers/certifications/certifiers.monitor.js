@@ -19,8 +19,8 @@ import { range } from 'lodash';
 import { addCertification, removeCertification } from './actions';
 
 import { getLogger, LOG_KEYS } from '~/config';
-import Contract from '~/api/contract';
-import { bytesToHex, hexToAscii } from '~/api/util/format';
+import Contract from '@parity/api/lib/contract';
+import { bytesToHex, hexToAscii } from '@parity/api/lib/util/format';
 import Contracts from '~/contracts';
 import CertifierABI from '~/contracts/abi/certifier.json';
 import { querier } from './enhanced-querier';

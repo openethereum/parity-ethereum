@@ -464,6 +464,12 @@ impl ChainInfo for TestBlockChainClient {
 }
 
 impl BlockInfo for TestBlockChainClient {
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
+		self.block_hash(id)
+			.and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
+			.map(encoded::Header::new)
+	}
+
 	fn best_block_header(&self) -> encoded::Header {
 		self.block_header(BlockId::Hash(self.chain_info().best_block_hash))
 			.expect("Best block always has header.")
@@ -578,12 +584,6 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn last_hashes(&self) -> LastHashes {
 		unimplemented!();
-	}
-
-	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
-		self.block_hash(id)
-			.and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
-			.map(encoded::Header::new)
 	}
 
 	fn block_number(&self, _id: BlockId) -> Option<BlockNumber> {

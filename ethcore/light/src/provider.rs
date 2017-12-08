@@ -20,7 +20,7 @@
 use std::sync::Arc;
 
 use ethcore::blockchain_info::BlockChainInfo;
-use ethcore::client::{BlockChainClient, ProvingBlockChainClient, ChainInfo};
+use ethcore::client::{BlockChainClient, ProvingBlockChainClient, ChainInfo, BlockInfo as ClientBlockInfo};
 use ethcore::transaction::PendingTransaction;
 use ethcore::ids::BlockId;
 use ethcore::encoded;
@@ -150,7 +150,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
-		BlockChainClient::block_header(self, id)
+		ClientBlockInfo::block_header(self, id)
 	}
 
 	fn transaction_index(&self, req: request::CompleteTransactionIndexRequest)

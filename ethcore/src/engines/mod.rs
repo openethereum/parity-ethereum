@@ -192,7 +192,8 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn extra_info(&self, _header: &M::Header) -> BTreeMap<String, String> { BTreeMap::new() }
 
 	/// Maximum number of uncles a block is allowed to declare.
-	fn maximum_uncle_count(&self) -> usize { 0 }
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
+
 	/// The number of generations back that uncles can be.
 	fn maximum_uncle_age(&self) -> usize { 6 }
 
@@ -225,7 +226,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	///
 	/// It is fine to require access to state or a full client for this function, since
 	/// light clients do not generate seals.
-	fn generate_seal(&self, _block: &M::LiveBlock) -> Seal { Seal::None }
+	fn generate_seal(&self, _block: &M::LiveBlock, _parent: &M::Header) -> Seal { Seal::None }
 
 	/// Verify a locally-generated seal of a header.
 	///
@@ -363,7 +364,7 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	}
 
 	/// The nonce with which accounts begin at given block.
-	fn account_start_nonce(&self, block: u64) -> U256 {
+	fn account_start_nonce(&self, block: BlockNumber) -> U256 {
 		self.machine().account_start_nonce(block)
 	}
 

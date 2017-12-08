@@ -14,21 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_hex;
 extern crate docopt;
+extern crate ethstore;
+extern crate num_cpus;
+extern crate panic_hook;
+extern crate parking_lot;
+extern crate rustc_hex;
 extern crate serde;
+
 #[macro_use]
 extern crate serde_derive;
-extern crate ethstore;
-extern crate panic_hook;
 
-use std::{env, process, fs, fmt};
+use std::collections::VecDeque;
 use std::io::Read;
+use std::{env, process, fs, fmt};
+
 use docopt::Docopt;
-use ethstore::ethkey::Address;
 use ethstore::dir::{paths, KeyDirectory, RootDiskDirectory};
-use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, PresaleWallet,
-	SecretVaultRef, StoreAccountRef};
+use ethstore::ethkey::Address;
+use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, PresaleWallet, SecretVaultRef, StoreAccountRef};
+
+mod crack;
 
 pub const USAGE: &'static str = r#"
 Ethereum key management.
@@ -40,6 +46,7 @@ Usage:
     ethstore list [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
     ethstore import [--src DIR] [--dir DIR]
     ethstore import-wallet <path> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
+    ethstore find-wallet-pass <path> <password>
     ethstore remove <address> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
     ethstore sign <address> <password> <message> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
     ethstore public <address> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
@@ -69,6 +76,7 @@ Commands:
     list               List accounts.
     import             Import accounts from src.
     import-wallet      Import presale wallet.
+    find-wallet-pass   Tries to open a wallet with list of passwords given.
     remove             Remove account.
     sign               Sign message.
     public             Displays public key for an address.
@@ -86,6 +94,7 @@ struct Args {
 	cmd_list: bool,
 	cmd_import: bool,
 	cmd_import_wallet: bool,
+	cmd_find_wallet_pass: bool,
 	cmd_remove: bool,
 	cmd_sign: bool,
 	cmd_public: bool,
@@ -239,6 +248,11 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let vault_ref = open_args_vault(&store, &args)?;
 		let account_ref = store.insert_account(vault_ref, kp.secret().clone(), &password)?;
 		Ok(format!("0x{:?}", account_ref.address))
+	} else if args.cmd_find_wallet_pass {
+		let passwords = load_password(&args.arg_password)?;
+		let passwords = passwords.lines().map(str::to_owned).collect::<VecDeque<_>>();
+		crack::run(passwords, &args.arg_path)?;
+		Ok(format!("Password not found."))
 	} else if args.cmd_remove {
 		let address = args.arg_address.parse().map_err(|_| ethstore::Error::InvalidAccount)?;
 		let password = load_password(&args.arg_password)?;

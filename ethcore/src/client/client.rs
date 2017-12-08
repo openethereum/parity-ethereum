@@ -1302,6 +1302,20 @@ impl ChainInfo for Client {
 }
 
 impl BlockInfo for Client {
+	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
+		let chain = self.chain.read();
+
+		if let BlockId::Pending = id {
+			if let Some(block) = self.importer.miner.pending_block(chain.best_block_number()) {
+				return Some(encoded::Header::new(block.header.rlp(Seal::Without)));
+			}
+			// fall back to latest
+			return self.block_header(BlockId::Latest);
+		}
+
+		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| chain.block_header_data(&hash))
+	}
+
 	fn best_block_header(&self) -> encoded::Header {
 		self.chain.read().best_block_header()
 	}
@@ -1381,12 +1395,12 @@ impl BlockChainClient for Client {
 	}
 
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
-		const UPPER_CEILING: u64 = 1_000_000_000_000u64;
-		let (mut upper, env_info)  = {
+		let (mut upper, max_upper, env_info)  = {
 			let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
-			let initial_upper = env_info.gas_limit;
-			env_info.gas_limit = UPPER_CEILING.into();
-			(initial_upper, env_info)
+			let init = env_info.gas_limit;
+			let max = init * U256::from(10);
+			env_info.gas_limit = max;
+			(init, max, env_info)
 		};
 
 		// that's just a copy of the state.
@@ -1407,9 +1421,7 @@ impl BlockChainClient for Client {
 		};
 
 		if !cond(upper)? {
-			// impossible at block gas limit - try `UPPER_CEILING` instead.
-			// TODO: consider raising limit by powers of two.
-			upper = UPPER_CEILING.into();
+			upper = max_upper;
 			if !cond(upper)? {
 				trace!(target: "estimate_gas", "estimate_gas failed with {}", upper);
 				let err = ExecutionError::Internal(format!("Requires higher than upper limit of {}", upper));
@@ -1517,20 +1529,6 @@ impl BlockChainClient for Client {
 		} else {
 			warn!("Not hypervised; cannot change chain.");
 		}
-	}
-
-	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
-		let chain = self.chain.read();
-
-		if let BlockId::Pending = id {
-			if let Some(block) = self.importer.miner.pending_block(chain.best_block_number()) {
-				return Some(encoded::Header::new(block.header.rlp(Seal::Without)));
-			}
-			// fall back to latest
-			return self.block_header(BlockId::Latest);
-		}
-
-		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| chain.block_header_data(&hash))
 	}
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
@@ -1936,7 +1934,7 @@ impl ReopenBlock for Client {
 	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock {
 		let engine = &*self.engine;
 		let mut block = block.reopen(engine);
-		let max_uncles = engine.maximum_uncle_count();
+		let max_uncles = engine.maximum_uncle_count(block.header().number());
 		if block.uncles().len() < max_uncles {
 			let chain = self.chain.read();
 			let h = chain.best_block_hash();
@@ -1988,7 +1986,7 @@ impl PrepareOpenBlock for Client {
 			.find_uncle_headers(&h, engine.maximum_uncle_age())
 			.unwrap_or_else(Vec::new)
 			.into_iter()
-			.take(engine.maximum_uncle_count())
+			.take(engine.maximum_uncle_count(open_block.header().number()))
 			.foreach(|h| {
 				open_block.push_uncle(h).expect("pushing maximum_uncle_count;
 												open_block was just created;

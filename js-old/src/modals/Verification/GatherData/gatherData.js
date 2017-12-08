@@ -19,7 +19,7 @@ import { FormattedMessage } from 'react-intl';
 import BigNumber from 'bignumber.js';
 import { Checkbox } from 'material-ui';
 
-import { fromWei } from '~/api/util/wei';
+import { fromWei } from '@parity/api/lib/util/wei';
 import { Form, Input } from '~/ui';
 import { DoneIcon, ErrorIcon, InfoIcon } from '~/ui/Icons';
 import { nullableProptype } from '~/util/proptypes';

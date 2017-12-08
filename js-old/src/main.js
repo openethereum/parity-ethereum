@@ -29,7 +29,11 @@ export default class MainApplication extends Component {
     const { routerHistory } = this.props;
 
     return (
-      <Router className={ styles.reset } history={ routerHistory } routes={ routes } />
+      <Router
+        className={ styles.reset }
+        history={ routerHistory }
+        routes={ routes }
+      />
     );
   }
 }

@@ -43,7 +43,7 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
-	fn generate_seal(&self, block: &M::LiveBlock) -> Seal {
+	fn generate_seal(&self, block: &M::LiveBlock, _parent: &M::Header) -> Seal {
 		if block.transactions().is_empty() { Seal::None } else { Seal::Regular(Vec::new()) }
 	}
 
@@ -72,7 +72,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close_and_lock();
-		if let Seal::Regular(seal) = engine.generate_seal(b.block()) {
+		if let Seal::Regular(seal) = engine.generate_seal(b.block(), &genesis_header) {
 			assert!(b.try_seal(engine, seal).is_ok());
 		}
 	}

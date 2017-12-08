@@ -19,7 +19,7 @@ import { pick, range, uniq } from 'lodash';
 
 import Contracts from '~/contracts';
 import { hashToImageUrl } from '~/redux/util';
-import { bytesToHex } from '~/api/util/format';
+import { bytesToHex } from '@parity/api/lib/util/format';
 
 import builtinJson from '~/views/Dapps/builtin.json';
 

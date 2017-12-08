@@ -16,7 +16,7 @@ ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light"}
 ethcore = { path = "../ethcore" }
 rlp = { path = "../util/rlp" }
-hash = { path = "../util/hash" }
+keccak-hash = { path = "../util/hash" }
 triehash = { path = "../util/triehash" }
 kvdb = { path = "../util/kvdb" }
 macros = { path = "../util/macros" }
