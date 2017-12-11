@@ -44,7 +44,7 @@ function Status ({ className = '', upgradeStore }, { api }) {
 
   return (
     <div className={ `${styles.container} ${className}` }>
-      <GradientBg className={ styles.fixed }>
+      <GradientBg className={ styles.bar }>
         <div className={ styles.status }>
           <a href='#/' className={ styles.home }>
             <HomeIcon />
@@ -93,8 +93,8 @@ function Status ({ className = '', upgradeStore }, { api }) {
             <NetChain className={ styles.chain } />
           </div>
         </div>
-        <SyncWarning className={ styles.warning } />
       </GradientBg>
+      <SyncWarning className={ styles.warning } />
     </div>
   );
 }

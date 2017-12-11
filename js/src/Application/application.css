@@ -19,7 +19,9 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+  width: 100%;
 
   .logo {
     top: 0;
@@ -27,8 +29,8 @@
     left: 0;
     bottom: 0;
     opacity: 0.2;
-    position: fixed;
-    padding: 7em;
+    position: absolute;
+    padding: 2em;
     text-align: center;
     z-index: 0;
 
@@ -37,21 +39,24 @@
       margin: 0 auto;
     }
   }
-}
 
-.container {
-  box-sizing: border-box;
-  display: flex;
-  flex-grow: 1;
-  flex-direction: column;
-}
+  .content {
+    box-sizing: border-box;
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden;
+    position: relative;
 
-.content {
-  padding: 0;
-}
+    > div:not(.logo) {
+      display: flex;
+      flex-grow: 1;
+      overflow-y: scroll;
+    }
+  }
 
-.error {
-  padding: 2em;
-  background: red;
-  color: white;
+  .error {
+    padding: 2em;
+    background: red;
+    color: white;
+  }
 }
