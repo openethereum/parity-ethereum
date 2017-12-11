@@ -880,6 +880,19 @@ impl Message {
 		}
 	}
 
+	pub fn is_error_message(&self) -> bool {
+		match *self {
+			Message::Generation(GenerationMessage::SessionError(_)) => true,
+			Message::Encryption(EncryptionMessage::EncryptionSessionError(_)) => true,
+			Message::Decryption(DecryptionMessage::DecryptionSessionError(_)) => true,
+			Message::Signing(SigningMessage::SigningConsensusMessage(_)) => true,
+			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersionsError(_)) => true,
+			Message::ShareAdd(ShareAddMessage::ShareAddError(_)) => true,
+			Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(_)) => true,
+			_ => false,
+		}
+	}
+
 	pub fn is_exclusive_session_message(&self) -> bool {
 		match *self {
 			Message::ServersSetChange(_) => true,

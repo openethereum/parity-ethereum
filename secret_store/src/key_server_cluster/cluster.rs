@@ -558,7 +558,7 @@ impl ClusterCore {
 				// this is new session => it is not yet in container
 				warn!(target: "secretstore_net", "{}: {} session read error '{}' when requested for session from node {}",
 					data.self_key_pair.public(), S::type_name(), error, sender);
-				if message.is_initialization_message() {
+				if !message.is_error_message() {
 					let session_id = message.into_session_id().expect("session_id only fails for cluster messages; only session messages are passed to process_message; qed");
 					let session_nonce = message.session_nonce().expect("session_nonce only fails for cluster messages; only session messages are passed to process_message; qed");
 					data.spawn(connection.send_message(SC::make_error_message(session_id, session_nonce, error)));
