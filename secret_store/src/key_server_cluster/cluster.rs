@@ -185,6 +185,7 @@ pub struct ClusterConnections {
 	pub data: RwLock<ClusterConnectionsData>,
 }
 
+#[derive(Default)]
 /// Cluster connections data.
 pub struct ClusterConnectionsData {
 	/// Active key servers set.

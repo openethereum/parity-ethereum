@@ -53,7 +53,7 @@ lazy_static! {
 
 #[derive(Default, Debug, Clone)]
 /// Key Server Set state.
-pub struct KeyServerSetState {
+pub struct KeyServerSetSnapshot {
 	/// Current set of key servers.
 	pub current_set: BTreeMap<NodeId, SocketAddr>,
 	/// New set of key servers.
@@ -74,9 +74,9 @@ pub struct KeyServerSetMigration {
 	pub is_confirmed: bool,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 /// Key Server Set state type.
-pub enum KeyServerSetStateType {
+pub enum KeyServerSetState {
 	/// No actions required.
 	Idle,
 	/// Migration is required.
@@ -88,7 +88,7 @@ pub enum KeyServerSetStateType {
 /// Key Server Set
 pub trait KeyServerSet: Send + Sync {
 	/// Get server set state.
-	fn state(&self) -> KeyServerSetState;
+	fn state(&self) -> KeyServerSetSnapshot;
 	/// Start migration.
 	fn start_migration(&self, migration_id: H256);
 	/// Confirm migration.
@@ -110,23 +110,27 @@ struct CachedContract {
 	/// Contract address.
 	contract: Option<KeyServerSetContract>,
 	/// Current contract state.
-	state: KeyServerSetState,
+	snapshot: KeyServerSetSnapshot,
 	/// This node key pair.
 	self_key_pair: Arc<NodeKeyPair>,
 }
 
-impl KeyServerSetState {
+impl KeyServerSetSnapshot {
 	/// Get state type.
-	pub fn state(&self) -> KeyServerSetStateType {
-		if self.migration.is_none() && self.current_set == self.new_set {
-			return KeyServerSetStateType::Idle;
+	pub fn state(&self) -> KeyServerSetState {
+		if self.migration.is_some() {
+			return KeyServerSetState::MigrationStarted;
 		}
 
-		if self.migration.is_none() {
-			return KeyServerSetStateType::MigrationRequired;
+		// we only require migration if set actually changes
+		// when only address changes, we could simply adjust connections
+		let no_nodes_removed = self.current_set.keys().all(|n| self.new_set.contains_key(n));
+		let no_nodes_added = self.new_set.keys().all(|n| self.current_set.contains_key(n));
+		if no_nodes_removed && no_nodes_added {
+			return KeyServerSetState::Idle;
 		}
 
-		KeyServerSetStateType::MigrationStarted
+		return KeyServerSetState::MigrationRequired;
 	}
 }
 
@@ -149,7 +153,7 @@ impl OnChainKeyServerSet {
 }
 
 impl KeyServerSet for OnChainKeyServerSet {
-	fn state(&self) -> KeyServerSetState {
+	fn state(&self) -> KeyServerSetSnapshot {
 		self.contract.lock().state()
 	}
 
@@ -183,7 +187,7 @@ impl CachedContract {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),
 			contract: None,
-			state: KeyServerSetState {
+			snapshot: KeyServerSetSnapshot {
 				current_set: server_set.clone(),
 				new_set: server_set,
 				..Default::default()
@@ -230,8 +234,8 @@ impl CachedContract {
 		}
 	}
 
-	fn state(&self) -> KeyServerSetState {
-		self.state.clone()
+	fn state(&self) -> KeyServerSetSnapshot {
+		self.snapshot.clone()
 	}
 
 	fn start_migration(&self, migration_id: H256) {
@@ -317,7 +321,7 @@ impl CachedContract {
 			_ => None,
 		};
 
-		self.state = KeyServerSetState {
+		self.snapshot = KeyServerSetSnapshot {
 			current_set: current_set,
 			new_set: new_set,
 			migration: migration,
@@ -358,8 +362,8 @@ pub mod tests {
 	use std::collections::BTreeMap;
 	use std::net::SocketAddr;
 	use bigint::hash::H256;
-	use ethkey::Public;
-	use super::{KeyServerSet, KeyServerSetState};
+	use ethkey::{Random, Generator, Public};
+	use super::{KeyServerSet, KeyServerSetSnapshot, KeyServerSetState, KeyServerSetMigration};
 
 	#[derive(Default)]
 	pub struct MapKeyServerSet {
@@ -375,20 +379,75 @@ pub mod tests {
 	}
 
 	impl KeyServerSet for MapKeyServerSet {
-		fn state(&self) -> KeyServerSetState {
-			KeyServerSetState {
+		fn state(&self) -> KeyServerSetSnapshot {
+			KeyServerSetSnapshot {
 				current_set: self.nodes.clone(),
 				new_set: self.nodes.clone(),
 				..Default::default()
 			}
 		}
 
-		fn start_migration(&self, migration_id: H256) {
+		fn start_migration(&self, _migration_id: H256) {
 			unimplemented!()
 		}
 
-		fn confirm_migration(&self, migration_id: H256) {
+		fn confirm_migration(&self, _migration_id: H256) {
 			unimplemented!()
 		}
+	}
+
+	#[test]
+	fn state_is_idle_when_sets_are_equal() {
+		assert_eq!(KeyServerSetSnapshot {
+			current_set: Default::default(),
+			new_set: Default::default(),
+			migration: None,
+		}.state(), KeyServerSetState::Idle);
+	}
+
+	#[test]
+	fn state_is_idle_when_only_address_changes() {
+		let node_id = Random.generate().unwrap().public().clone();
+		assert_eq!(KeyServerSetSnapshot {
+			current_set: vec![(node_id.clone(), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
+			new_set: vec![(node_id, "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
+			migration: None,
+		}.state(), KeyServerSetState::Idle);
+	}
+
+	#[test]
+	fn state_is_migration_required_when_node_is_added() {
+		let node_id = Random.generate().unwrap().public().clone();
+		assert_eq!(KeyServerSetSnapshot {
+			current_set: vec![(node_id.clone(), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
+			new_set: vec![(node_id.clone(), "127.0.0.1:8080".parse().unwrap()),
+				(Random.generate().unwrap().public().clone(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
+			migration: None,
+		}.state(), KeyServerSetState::MigrationRequired);
+	}
+
+	#[test]
+	fn state_is_migration_required_when_node_is_removed() {
+		let node_id = Random.generate().unwrap().public().clone();
+		assert_eq!(KeyServerSetSnapshot {
+			current_set: vec![(node_id.clone(), "127.0.0.1:8080".parse().unwrap()),
+				(Random.generate().unwrap().public().clone(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
+			new_set: vec![(node_id.clone(), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
+			migration: None,
+		}.state(), KeyServerSetState::MigrationRequired);
+	}
+
+	#[test]
+	fn state_is_migration_started_when_migration_is_some() {
+		assert_eq!(KeyServerSetSnapshot {
+			current_set: Default::default(),
+			new_set: Default::default(),
+			migration: Some(KeyServerSetMigration {
+				id: Default::default(),
+				set: Default::default(),
+				master: Default::default(),
+				is_confirmed: Default::default(),
+			}),
+		}.state(), KeyServerSetState::MigrationStarted);
 	}
 }

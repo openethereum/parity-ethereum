@@ -19,16 +19,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{BTreeSet, BTreeMap};
-use std::collections::btree_map::Entry;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use bigint::hash::H256;
-use ethkey::{Public, Signature};
-use futures::lazy;
+use ethkey::Public;
 use parking_lot::Mutex;
-use key_server_cluster::{KeyServerSet, KeyServerSetState, KeyServerSetStateType, KeyServerSetMigration};
-use key_server_cluster::cluster::{ClusterClient, ClusterConnectionsData, BoxedEmptyFuture};
-use key_server_cluster::cluster_sessions::{AdminSession, ClusterSessions, ClusterSession};
+use key_server_cluster::{KeyServerSet, KeyServerSetSnapshot, KeyServerSetState, KeyServerSetMigration};
+use key_server_cluster::cluster::{ClusterClient, ClusterConnectionsData};
+use key_server_cluster::cluster_sessions::{AdminSession, ClusterSession};
 use key_server_cluster::jobs::servers_set_change_access_job::ordered_nodes_hash;
 use key_server_cluster::connection_trigger::{Maintain, ConnectionsAction, ConnectionTrigger,
 	ServersSetChangeSessionCreatorConnector, TriggerConnections};
@@ -42,7 +40,7 @@ pub struct ConnectionTriggerWithMigration {
 	/// Key server set.
 	key_server_set: Arc<KeyServerSet>,
 	/// Last server set state.
-	server_set_state: KeyServerSetState,
+	snapshot: KeyServerSetSnapshot,
 	/// Required connections action.
 	connections_action: Option<ConnectionsAction>,
 	/// Required session action.
@@ -105,12 +103,12 @@ struct TriggerSession {
 impl ConnectionTriggerWithMigration {
 	/// Create new trigge with migration.
 	pub fn new(key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>) -> Self {
-		let server_set_state = key_server_set.state();
-		let migration = server_set_state.migration.clone();
+		let snapshot = key_server_set.state();
+		let migration = snapshot.migration.clone();
 		ConnectionTriggerWithMigration {
 			self_key_pair: self_key_pair.clone(),
 			key_server_set: key_server_set.clone(),
-			server_set_state: server_set_state,
+			snapshot: snapshot,
 			connected: BTreeSet::new(),
 			connections: TriggerConnections {
 				self_key_pair: self_key_pair.clone(),
@@ -132,12 +130,12 @@ impl ConnectionTriggerWithMigration {
 	fn do_maintain(&mut self) -> Option<Maintain> {
 		loop {
 			let session_state = session_state(self.session.connector.session.lock().clone());
-			let session_action = maintain_session(&*self.self_key_pair, &self.connected, &self.server_set_state, session_state);
+			let session_action = maintain_session(&*self.self_key_pair, &self.connected, &self.snapshot, session_state);
 			let session_maintain_required = session_action.map(|session_action|
 				self.session.process(session_action)).unwrap_or_default();
 			self.session_action = session_action;
 
-			let connections_action = maintain_connections(&self.server_set_state, session_state);
+			let connections_action = maintain_connections(&self.snapshot, session_state);
 			let connections_maintain_required = connections_action.map(|_| true).unwrap_or_default();
 			self.connections_action = connections_action;
 
@@ -155,7 +153,7 @@ impl ConnectionTriggerWithMigration {
 
 impl ConnectionTrigger for ConnectionTriggerWithMigration {
 	fn on_maintain(&mut self) -> Option<Maintain> {
-		self.server_set_state = self.key_server_set.state();
+		self.snapshot = self.key_server_set.state();
 		self.do_maintain()
 	}
 
@@ -171,13 +169,13 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 
 	fn maintain_session(&mut self, sessions: &ClusterClient) {
 		if let Some(action) = self.session_action {
-			self.session.maintain(action, sessions, &self.server_set_state);
+			self.session.maintain(action, sessions, &self.snapshot);
 		}
 	}
 
 	fn maintain_connections(&mut self, connections: &mut ClusterConnectionsData) {
 		if let Some(action) = self.connections_action {
-			self.connections.maintain(action, connections, &self.server_set_state);
+			self.connections.maintain(action, connections, &self.snapshot);
 		}
 	}
 
@@ -231,7 +229,7 @@ impl TriggerSession {
 	}
 
 	/// Maintain session.
-	pub fn maintain(&mut self, action: SessionAction, sessions: &ClusterClient, server_set: &KeyServerSetState) {
+	pub fn maintain(&mut self, action: SessionAction, sessions: &ClusterClient, server_set: &KeyServerSetSnapshot) {
 		if action == SessionAction::Start {
 			let migration = server_set.migration.as_ref().expect("TODO");
 
@@ -267,38 +265,38 @@ fn session_state(session: Option<Arc<AdminSession>>) -> SessionState {
 		.unwrap_or(SessionState::Idle)
 }
 
-fn maintain_session(self_key_pair: &NodeKeyPair, connected: &BTreeSet<NodeId>, server_set: &KeyServerSetState, session_state: SessionState) -> Option<SessionAction> {
-	let server_set_state = server_set.state();
+fn maintain_session(self_key_pair: &NodeKeyPair, connected: &BTreeSet<NodeId>, snapshot: &KeyServerSetSnapshot, session_state: SessionState) -> Option<SessionAction> {
+	let server_set_state = snapshot.state();
 	match (server_set_state, session_state) {
 		// === NORMAL combinations ===
 
 		// having no session when it is not required => ok
-		(KeyServerSetStateType::Idle, SessionState::Idle) => None,
+		(KeyServerSetState::Idle, SessionState::Idle) => None,
 		// migration is required && no active session => start migration
-		(KeyServerSetStateType::MigrationRequired, SessionState::Idle) => {
-			match select_master_node(server_set) == Some(self_key_pair.public()) {
+		(KeyServerSetState::MigrationRequired, SessionState::Idle) => {
+			match select_master_node(snapshot) == Some(self_key_pair.public()) {
 				true => Some(SessionAction::StartMigration(
-					ordered_nodes_hash(&server_set.new_set.keys().cloned().collect())
+					ordered_nodes_hash(&snapshot.new_set.keys().cloned().collect())
 				)),
 				// we are not on master node
 				false => None,
 			}
 		},
 		// migration is active && there's no active session => start it
-		(KeyServerSetStateType::MigrationStarted, SessionState::Idle) => {
-			match is_connected_to_all_nodes(&server_set.current_set, connected) &&
-				is_connected_to_all_nodes(&server_set.migration.as_ref().expect("TODO").set, connected) {
+		(KeyServerSetState::MigrationStarted, SessionState::Idle) => {
+			match is_connected_to_all_nodes(&snapshot.current_set, connected) &&
+				is_connected_to_all_nodes(&snapshot.migration.as_ref().expect("TODO").set, connected) {
 				true => Some(SessionAction::Start),
 				// we are not connected to all required nodes yet => wait for it
 				false => None,
 			}
 		},
 		// migration is active && session is not yet started/finished => ok
-		(KeyServerSetStateType::MigrationStarted, SessionState::Active(_)) => None,
+		(KeyServerSetState::MigrationStarted, SessionState::Active(_)) => None,
 		// migration has finished => confirm migration
-		(KeyServerSetStateType::MigrationStarted, SessionState::Finished(session_migration_id)) => {
-			match server_set.migration.as_ref().map(|m| &m.id) == session_migration_id.as_ref() {
-				true if server_set.migration.as_ref().map(|m| m.set.contains_key(self_key_pair.public())).unwrap_or_default()
+		(KeyServerSetState::MigrationStarted, SessionState::Finished(session_migration_id)) => {
+			match snapshot.migration.as_ref().map(|m| &m.id) == session_migration_id.as_ref() {
+				true if snapshot.migration.as_ref().map(|m| m.set.contains_key(self_key_pair.public())).unwrap_or_default()
 					=> Some(SessionAction::ConfirmAndDrop(
 						session_migration_id.expect("TODO")
 					)),
@@ -311,21 +309,21 @@ fn maintain_session(self_key_pair: &NodeKeyPair, connected: &BTreeSet<NodeId>, s
 			}
 		},
 		// migration has failed => it should be dropped && restarted later
-		(KeyServerSetStateType::MigrationStarted, SessionState::Failed(_)) => Some(SessionAction::Drop),
+		(KeyServerSetState::MigrationStarted, SessionState::Failed(_)) => Some(SessionAction::Drop),
 
 		// ABNORMAL combinations, which are still possible when contract misbehaves ===
 
 		// having active session when it is not required => drop it && wait for other tasks
-		(KeyServerSetStateType::Idle, SessionState::Active(_)) |
+		(KeyServerSetState::Idle, SessionState::Active(_)) |
 		// no migration required && there's finished session => drop it && wait for other tasks
-		(KeyServerSetStateType::Idle, SessionState::Finished(_)) |
+		(KeyServerSetState::Idle, SessionState::Finished(_)) |
 		// no migration required && there's failed session => drop it && wait for other tasks
-		(KeyServerSetStateType::Idle, SessionState::Failed(_)) |
-		(KeyServerSetStateType::MigrationRequired, SessionState::Active(_)) |
+		(KeyServerSetState::Idle, SessionState::Failed(_)) |
+		(KeyServerSetState::MigrationRequired, SessionState::Active(_)) |
 		// migration is required && session has failed => we need to forget this obolete session and retry
-		(KeyServerSetStateType::MigrationRequired, SessionState::Finished(_)) |
+		(KeyServerSetState::MigrationRequired, SessionState::Finished(_)) |
 		// migration is required && session has failed => we need to forget this obolete session and retry
-		(KeyServerSetStateType::MigrationRequired, SessionState::Failed(_)) => {
+		(KeyServerSetState::MigrationRequired, SessionState::Failed(_)) => {
 			warn!(target: "secretstore_net", "{}: suspicious auto-migration state: {:?}",
 				self_key_pair.public(), (server_set_state, session_state));
 			Some(SessionAction::DropAndRetry)
@@ -333,16 +331,16 @@ fn maintain_session(self_key_pair: &NodeKeyPair, connected: &BTreeSet<NodeId>, s
 	}
 }
 
-fn maintain_connections(server_set: &KeyServerSetState, session_state: SessionState) -> Option<ConnectionsAction> {
+fn maintain_connections(server_set: &KeyServerSetSnapshot, session_state: SessionState) -> Option<ConnectionsAction> {
 	let server_set_state = server_set.state();
 	match (server_set_state, session_state) {
 		// session is active => we do not alter connections when session is active
-		(KeyServerSetStateType::Idle, SessionState::Active(_)) => None,
+		(KeyServerSetState::Idle, SessionState::Active(_)) => None,
 		// when no migration required => we just keep us connected to old nodes set
-		(KeyServerSetStateType::Idle, _) => Some(ConnectionsAction::ConnectToCurrentSet),
+		(KeyServerSetState::Idle, _) => Some(ConnectionsAction::ConnectToCurrentSet),
 		// when migration is either scheduled, or in progress => connect to both old and migration set
-		(KeyServerSetStateType::MigrationRequired, _) |
-		(KeyServerSetStateType::MigrationStarted, _) => Some(ConnectionsAction::ConnectToCurrentAndMigrationSet),
+		(KeyServerSetState::MigrationRequired, _) |
+		(KeyServerSetState::MigrationStarted, _) => Some(ConnectionsAction::ConnectToCurrentAndMigrationSet),
 	}
 }
 
@@ -350,7 +348,7 @@ fn is_connected_to_all_nodes(nodes: &BTreeMap<NodeId, SocketAddr>, connected: &B
 	nodes.keys().all(|n| connected.contains(n))
 }
 
-fn select_master_node(server_set_state: &KeyServerSetState) -> Option<&NodeId> {
+fn select_master_node(server_set_state: &KeyServerSetSnapshot) -> Option<&NodeId> {
 	// we want to minimize a number of UnknownSession messages =>
 	// try to select a node which was in SS && will be in SS
 	server_set_state.migration.as_ref()

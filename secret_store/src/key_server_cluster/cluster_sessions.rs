@@ -253,6 +253,7 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 		self.listeners.lock().push(Arc::downgrade(&listener));
 	}
 
+	#[cfg(test)]
 	pub fn is_empty(&self) -> bool {
 		self.sessions.read().is_empty()
 	}
