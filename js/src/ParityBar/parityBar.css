@@ -110,7 +110,7 @@ $modalZ: 10001;
   width: 960px;
 
   .content {
-    background: rgba(255, 255, 255, 0.95);
+    background: #f2f2f2;
     display: flex;
     flex: 1;
     max-width: calc(100vw - 2em);
