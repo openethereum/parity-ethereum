@@ -123,13 +123,11 @@ impl JobExecutor for ServersSetChangeAccessJob {
 		let new_actual_public = recover(&new_set_signature, &ordered_nodes_hash(&new_servers_set).into())?;
 		let is_administrator = old_actual_public == self.administrator && new_actual_public == self.administrator;
 		self.new_servers_set = Some(new_servers_set);
-println!("=== PRE_YYY: {:?}", old_servers_set);
-println!("=== YYY: {:?} / REAL: {} REQUIRED: {}", if is_administrator { JobPartialRequestAction::Respond(true) } else { JobPartialRequestAction::Reject(false) }, old_actual_public, self.administrator);
+
 		Ok(if is_administrator { JobPartialRequestAction::Respond(true) } else { JobPartialRequestAction::Reject(false) })
 	}
 
 	fn check_partial_response(&mut self, _sender: &NodeId, partial_response: &bool) -> Result<JobPartialResponseAction, Error> {
-println!("=== XXX: {:?}", if *partial_response { JobPartialResponseAction::Accept } else { JobPartialResponseAction::Reject });
 		Ok(if *partial_response { JobPartialResponseAction::Accept } else { JobPartialResponseAction::Reject })
 	}
 

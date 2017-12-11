@@ -54,16 +54,24 @@ lazy_static! {
 #[derive(Default, Debug, Clone)]
 /// Key Server Set state.
 pub struct KeyServerSetState {
-	/// Old set of key servers.
-	pub old_set: BTreeMap<NodeId, SocketAddr>,
+	/// Current set of key servers.
+	pub current_set: BTreeMap<NodeId, SocketAddr>,
 	/// New set of key servers.
 	pub new_set: BTreeMap<NodeId, SocketAddr>,
-	/// Migration set of key servers.
-	pub migration_set: Option<BTreeMap<NodeId, SocketAddr>>,
-	/// Migration master node.
-	pub migration_master: Option<NodeId>,
+	/// Current migration data.
+	pub migration: Option<KeyServerSetMigration>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct KeyServerSetMigration {
+	/// Migration id.
+	pub id: H256,
+	/// Migration set of key servers. It is the new_set at the moment of migration start.
+	pub set: BTreeMap<NodeId, SocketAddr>,
+	/// Master node of the migration process.
+	pub master: NodeId,
 	/// Is migration confirmed by this node?
-	pub is_migration_confirmed: bool,
+	pub is_confirmed: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -82,9 +90,9 @@ pub trait KeyServerSet: Send + Sync {
 	/// Get server set state.
 	fn state(&self) -> KeyServerSetState;
 	/// Start migration.
-	fn start_migration(&self);
+	fn start_migration(&self, migration_id: H256);
 	/// Confirm migration.
-	fn confirm_migration(&self);
+	fn confirm_migration(&self, migration_id: H256);
 }
 
 /// On-chain Key Server set implementation.
@@ -110,30 +118,15 @@ struct CachedContract {
 impl KeyServerSetState {
 	/// Get state type.
 	pub fn state(&self) -> KeyServerSetStateType {
-		if self.old_set == self.new_set {
+		if self.migration.is_none() && self.current_set == self.new_set {
 			return KeyServerSetStateType::Idle;
 		}
 
-		if self.migration_set.is_none() {
+		if self.migration.is_none() {
 			return KeyServerSetStateType::MigrationRequired;
 		}
 
 		KeyServerSetStateType::MigrationStarted
-	}
-
-	/// Is migration required?
-	pub fn is_migration_required(&self) -> bool {
-		self.old_set != self.new_set && !self.migration_set.is_some()
-	}
-
-	/// Is migration scheduled?
-	pub fn is_migration_scheduled(&self) -> bool {
-		self.migration_set.is_some() && self.migration_master.is_none()
-	}
-
-	/// Is migration started?
-	pub fn is_migration_started(&self) -> bool {
-		self.migration_set.is_some() && self.migration_master.is_some()
 	}
 }
 
@@ -160,12 +153,12 @@ impl KeyServerSet for OnChainKeyServerSet {
 		self.contract.lock().state()
 	}
 
-	fn start_migration(&self) {
-		self.contract.lock().start_migration()
+	fn start_migration(&self, migration_id: H256) {
+		self.contract.lock().start_migration(migration_id)
 	}
 
-	fn confirm_migration(&self) {
-		self.contract.lock().confirm_migration();
+	fn confirm_migration(&self, migration_id: H256) {
+		self.contract.lock().confirm_migration(migration_id);
 	}
 }
 
@@ -191,7 +184,7 @@ impl CachedContract {
 			sync: Arc::downgrade(sync),
 			contract: None,
 			state: KeyServerSetState {
-				old_set: server_set.clone(),
+				current_set: server_set.clone(),
 				new_set: server_set,
 				..Default::default()
 			},
@@ -241,13 +234,11 @@ impl CachedContract {
 		self.state.clone()
 	}
 
-	fn start_migration(&self) {
-println!("=== starting migration");
+	fn start_migration(&self, migration_id: H256) {
 		if let (Some(client), Some(contract)) = (self.client.upgrade(), self.contract.as_ref()) {
-println!("=== preparing migration data");
 			// prepare transaction data
-			let transaction_data = contract.encode_start_migration_input().expect("TODO");
-println!("=== sending migration transaction");
+			let transaction_data = contract.encode_start_migration_input(migration_id).expect("TODO");
+
 			// send transaction
 			client.transact_contract(
 				contract.address.clone(),
@@ -256,13 +247,11 @@ println!("=== sending migration transaction");
 		}
 	}
 
-	fn confirm_migration(&self) {
-println!("=== confirming migration");
+	fn confirm_migration(&self, migration_id: H256) {
 		if let (Some(client), Some(contract)) = (self.client.upgrade(), self.contract.as_ref()) {
-println!("=== preparing confirming migration data");
 			// prepare transaction data
-			let transaction_data = contract.encode_confirm_migration_input().expect("TODO");
-println!("=== sending confirming migration transaction");
+			let transaction_data = contract.encode_confirm_migration_input(migration_id).expect("TODO");
+
 			// send transaction
 			client.transact_contract(
 				contract.address.clone(),
@@ -285,37 +274,53 @@ println!("=== sending confirming migration transaction");
 
 		let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
 
-		let old_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_old_key_servers,
-			&KeyServerSetContract::get_old_key_server_public, &KeyServerSetContract::get_old_key_server_address);
-		let migration_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_migration_key_servers,
-			&KeyServerSetContract::get_migration_key_server_public, &KeyServerSetContract::get_migration_key_server_address);
+		let current_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_current_key_servers,
+			&KeyServerSetContract::get_current_key_server_public, &KeyServerSetContract::get_current_key_server_address);
 		let new_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_new_key_servers,
 			&KeyServerSetContract::get_new_key_server_public, &KeyServerSetContract::get_new_key_server_address);
+		let migration_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_migration_key_servers,
+			&KeyServerSetContract::get_migration_key_server_public, &KeyServerSetContract::get_migration_key_server_address);
+
+		let migration_id = match migration_set.is_empty() {
+			false => contract.get_migration_id(&do_call).wait()
+				.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration id from contract", err); err })
+				.ok(),
+			true => None,
+		};
 
 		let migration_master = match migration_set.is_empty() {
 			false => contract.get_migration_master(&do_call).wait()
-				.map(|address| old_set.keys().chain(migration_set.keys())
-					.find(|public| public_to_address(public) == address)
-					.cloned())
 				.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration master from contract", err); err })
-				.unwrap_or_default(),
+				.ok()
+				.and_then(|address| current_set.keys().chain(migration_set.keys())
+					.find(|public| public_to_address(public) == address)
+					.cloned()),
 			true => None,
 		};
 
 		let is_migration_confirmed = match migration_set.is_empty() {
-			false if old_set.contains_key(self.self_key_pair.public()) || migration_set.contains_key(self.self_key_pair.public()) =>
+			false if current_set.contains_key(self.self_key_pair.public()) || migration_set.contains_key(self.self_key_pair.public()) =>
 				contract.is_migration_confirmed(&do_call, self.self_key_pair.address()).wait()
 					.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration confirmation from contract", err); err })
-					.unwrap_or(true),
-			_ => false,
+					.ok(),
+			_ => None,
+		};
+
+		let migration = match (migration_set.is_empty(), migration_id, migration_master, is_migration_confirmed) {
+			(false, Some(migration_id), Some(migration_master), Some(is_migration_confirmed)) =>
+				Some(KeyServerSetMigration {
+					id: migration_id,
+					master: migration_master,
+					set: migration_set,
+					is_confirmed: is_migration_confirmed,
+				}),
+			_ => None,
 		};
 
 		self.state = KeyServerSetState {
-			old_set: old_set,
+			current_set: current_set,
 			new_set: new_set,
-			migration_set: if migration_set.is_empty() { None } else { Some(migration_set) },
-			migration_master: migration_master,
-			is_migration_confirmed: is_migration_confirmed,
+			migration: migration,
 		};
 	}
 
@@ -352,6 +357,7 @@ println!("=== sending confirming migration transaction");
 pub mod tests {
 	use std::collections::BTreeMap;
 	use std::net::SocketAddr;
+	use bigint::hash::H256;
 	use ethkey::Public;
 	use super::{KeyServerSet, KeyServerSetState};
 
@@ -371,16 +377,17 @@ pub mod tests {
 	impl KeyServerSet for MapKeyServerSet {
 		fn state(&self) -> KeyServerSetState {
 			KeyServerSetState {
+				current_set: self.nodes.clone(),
 				new_set: self.nodes.clone(),
 				..Default::default()
 			}
 		}
 
-		fn start_migration(&self) {
+		fn start_migration(&self, migration_id: H256) {
 			unimplemented!()
 		}
 
-		fn confirm_migration(&self) {
+		fn confirm_migration(&self, migration_id: H256) {
 			unimplemented!()
 		}
 	}
