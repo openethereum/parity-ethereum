@@ -168,6 +168,7 @@ class RequestItem extends Component {
       <List.Item onClick={ onClick }>
         <Image avatar size='mini' verticalAlign='middle'>
           <IdentityIcon
+            className={ styles.fromAvatar }
             address={ transaction.from }
           />
         </Image>

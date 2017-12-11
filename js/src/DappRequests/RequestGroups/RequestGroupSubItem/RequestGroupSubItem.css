@@ -15,41 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.overlay {
-  background: rgba(40, 40, 40, 0.85);
-  color: white;
-  line-height: 1.5em;
-  padding: 4em 2em;
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  text-align: center;
-  z-index: 100;
+.requestGroupSubItem {
+  margin-top: 2px;
 
-  div {
-    max-width: 640px;
-    margin: 1em auto;
-    text-align: left;
-  }
-
-  .accept {
-    label {
-      color: white;
-    }
-  }
-}
-
-.dapps {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  margin: 1.5em 0;
-
-  .dapp {
-    flex: 0 0 25%;
-    max-width: 25%;
-    min-width: 25%;
+  .requestGroupSubItemTitle {
+    margin-right: 10px;
   }
 }

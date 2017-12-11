@@ -193,7 +193,7 @@ const UPDATE_TIMEOUT_ERR_SECS: u64 = 60;
 const UPDATE_TIMEOUT_INCOMPLETE_SECS: u64 = 10;
 
 /// Maximal valid time drift.
-pub const MAX_DRIFT: i64 = 500;
+pub const MAX_DRIFT: i64 = 10_000;
 
 type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 
