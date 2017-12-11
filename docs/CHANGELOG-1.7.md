@@ -1,3 +1,35 @@
+### Parity [v1.7.10](https://github.com/paritytech/parity/releases/tag/v1.7.10) (2017-12-11)
+
+Parity 1.7.10 applies fixes for Proof-of-Authority networks and schedules the Kovan-Byzantium hard-fork.
+
+- The Kovan testnet will fork on block `5067000` at `Thu Dec 14 2017 05:40:03 UTC`.
+  - This enables Byzantium features on Kovan.
+  - This disables uncles on Kovan for stability reasons.
+- Proof-of-Authority networks are advised to set `maximumUncleCount` to 0 in a future `maximumUncleCountTransition` for stability reasons. See the [Kovan chain spec](https://github.com/paritytech/parity/blob/master/ethcore/res/ethereum/kovan.json) for an example. New PoA networks created with Parity will have this feature enabled by default.
+
+The full list of included changes:
+
+- Backports and HF block update ([#7243](https://github.com/paritytech/parity/pull/7243))
+  - Reduce max block timestamp drift to 15 seconds ([#7240](https://github.com/paritytech/parity/pull/7240))
+  - Add test for block timestamp validation within allowed drift
+  - Update kovan HF block number. ([#7259](https://github.com/paritytech/parity/pull/7259))
+- [stable] Backports and Kovan HF ([#7235](https://github.com/paritytech/parity/pull/7235))
+  - Escape inifinite loop in estimte_gas ([#7075](https://github.com/paritytech/parity/pull/7075))
+  - Disable uncles by default ([#7006](https://github.com/paritytech/parity/pull/7006))
+  - Maximum uncle count transition ([#7196](https://github.com/paritytech/parity/pull/7196))
+    - Enable delayed maximum_uncle_count activation.
+    - Fix tests.
+    - Defer kovan HF.
+  - Bump version.
+  - Kovan HF.
+  - Update Kovan HF block.
+  - Fix compilation issues.
+  - Fix aura test.
+  - Add missing byzantium builtins.
+  - Fix tests.
+  - Bump version for installers.
+  - Increase allowed time drift to 10s. ([#7238](https://github.com/paritytech/parity/pull/7238))
+
 ### Parity [v1.7.9](https://github.com/paritytech/parity/releases/tag/v1.7.9) (2017-11-14)
 
 Parity 1.7.9 removes the ability to deploy built-in multi-signature wallets.
