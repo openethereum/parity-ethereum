@@ -18,6 +18,7 @@ use std::collections::{BTreeSet, BTreeMap};
 use std::collections::btree_map::Entry;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use bigint::hash::H256;
 use ethkey::Public;
 use key_server_cluster::{KeyServerSet, KeyServerSetSnapshot};
 use key_server_cluster::cluster::{ClusterClient, ClusterConnectionsData};
@@ -56,7 +57,7 @@ pub trait ConnectionTrigger: Send + Sync {
 pub trait ServersSetChangeSessionCreatorConnector: Send + Sync {
 	/// Get actual administrator public key. For manual-migration configuration it is the pre-configured
 	/// administrator key. For auto-migration configurations it is the key of actual MigrationSession master node.
-	fn admin_public(&self, new_server_set: BTreeSet<NodeId>) -> Result<Public, Error>;
+	fn admin_public(&self, migration_id: Option<&H256>, new_server_set: BTreeSet<NodeId>) -> Result<Public, Error>;
 	/// Set active servers set change session.
 	fn set_key_servers_set_change_session(&self, session: Arc<AdminSession>);
 }
@@ -136,7 +137,7 @@ impl ConnectionTrigger for SimpleConnectionTrigger {
 }
 
 impl ServersSetChangeSessionCreatorConnector for SimpleServersSetChangeSessionCreatorConnector {
-	fn admin_public(&self, _new_server_set: BTreeSet<NodeId>) -> Result<Public, Error> {
+	fn admin_public(&self, _migration_id: Option<&H256>, _new_server_set: BTreeSet<NodeId>) -> Result<Public, Error> {
 		self.admin_public.clone().ok_or(Error::AccessDenied)
 	}
 

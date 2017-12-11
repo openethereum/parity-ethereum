@@ -199,14 +199,15 @@ impl ConnectionTrigger for ConnectionTriggerWithMigration {
 }
 
 impl ServersSetChangeSessionCreatorConnector for ServersSetChangeSessionCreatorConnectorWithMigration {
-	fn admin_public(&self, new_server_set: BTreeSet<NodeId>) -> Result<Public, Error> {
+	fn admin_public(&self, migration_id: Option<&H256>, new_server_set: BTreeSet<NodeId>) -> Result<Public, Error> {
 		// the idea is that all nodes are agreed upon a block number and a new set of nodes in this block
 		// then master node is selected of all nodes set && this master signs the old set && new set
 		// (signatures are inputs to ServerSetChangeSession)
 		self.migration.lock().as_ref()
 			.map(|migration| {
-				let is_same_set = new_server_set == migration.set.keys().cloned().collect();
-				if is_same_set {
+				let is_same = migration_id.map(|mid| mid == &migration.id).unwrap_or_default();
+				let is_same = is_same && new_server_set == migration.set.keys().cloned().collect();
+				if is_same {
 					Ok(migration.master.clone())
 				} else {
 					Err(Error::AccessDenied)
@@ -254,7 +255,7 @@ impl TriggerSession {
 					.map(|migration_set_signature| (current_set_signature, migration_set_signature)))
 				.map_err(Into::into);
 			let session = signatures.and_then(|(current_set_signature, migration_set_signature)|
-				sessions.new_servers_set_change_session(None, migration_set, current_set_signature, migration_set_signature));
+				sessions.new_servers_set_change_session(None, Some(migration.id.clone()), migration_set, current_set_signature, migration_set_signature));
 
 			match session {
 				Ok(_) => trace!(target: "secretstore_net", "{}: started auto-migrate session",
@@ -292,10 +293,10 @@ fn migration_state(self_node_id: &NodeId, snapshot: &KeyServerSetSnapshot) -> Mi
 fn session_state(session: Option<Arc<AdminSession>>) -> SessionState {
 	session
 		.and_then(|s| match s.as_servers_set_change() {
-			Some(s) if !s.is_finished() => Some(SessionState::Active(s.migration_id())),
+			Some(s) if !s.is_finished() => Some(SessionState::Active(s.migration_id().cloned())),
 			Some(s) => match s.wait() {
-				Ok(_) => Some(SessionState::Finished(s.migration_id())),
-				Err(_) => Some(SessionState::Failed(s.migration_id())),
+				Ok(_) => Some(SessionState::Finished(s.migration_id().cloned())),
+				Err(_) => Some(SessionState::Failed(s.migration_id().cloned())),
 			},
 			None => None,
 		})

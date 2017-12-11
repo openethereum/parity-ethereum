@@ -95,7 +95,7 @@ pub enum AdminSessionCreationData {
 	/// Share add session (key id).
 	ShareAdd(H256),
 	/// Servers set change session (block id, new_server_set).
-	ServersSetChange(BTreeSet<NodeId>),
+	ServersSetChange(Option<H256>, BTreeSet<NodeId>),
 }
 
 /// Active sessions on this cluster.

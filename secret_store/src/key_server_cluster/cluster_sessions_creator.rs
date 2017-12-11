@@ -341,6 +341,7 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 		match *message {
 			Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref message)) => match &message.message {
 				&ConsensusMessageWithServersSet::InitializeConsensusSession(ref message) => Ok(Some(AdminSessionCreationData::ServersSetChange(
+					message.migration_id.clone().map(Into::into),
 					message.new_nodes_set.clone().into_iter().map(Into::into).collect()
 				))),
 				_ => Err(Error::InvalidMessage),
@@ -377,8 +378,8 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 					admin_public: Some(self.admin_public.clone().ok_or(Error::AccessDenied)?),
 				})?)
 			},
-			Some(AdminSessionCreationData::ServersSetChange(new_nodes_set)) => {
-				let admin_public = self.servers_set_change_session_creator_connector.admin_public(new_nodes_set)
+			Some(AdminSessionCreationData::ServersSetChange(migration_id, new_nodes_set)) => {
+				let admin_public = self.servers_set_change_session_creator_connector.admin_public(migration_id.as_ref(), new_nodes_set)
 					.map_err(|_| Error::AccessDenied)?;
 
 				AdminSession::ServersSetChange(ServersSetChangeSessionImpl::new(ServersSetChangeSessionParams {
@@ -392,6 +393,7 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 					nonce: nonce,
 					all_nodes_set: cluster.nodes(),
 					admin_public: admin_public,
+					migration_id: migration_id,
 				})?)
 			},
 			None => unreachable!("expected to call with non-empty creation data; qed"),

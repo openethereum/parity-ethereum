@@ -378,6 +378,8 @@ pub struct ConfirmConsensusInitialization {
 /// Node is asked to be part of servers-set consensus group.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InitializeConsensusSessionWithServersSet {
+	/// Migration id (if any).
+	pub migration_id: Option<SerializableH256>,
 	/// Old nodes set.
 	pub old_nodes_set: BTreeSet<MessageNodeId>,
 	/// New nodes set.

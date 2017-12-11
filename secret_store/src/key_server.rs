@@ -63,7 +63,7 @@ impl KeyServer for KeyServerImpl {}
 impl AdminSessionsServer for KeyServerImpl {
 	fn change_servers_set(&self, old_set_signature: RequestSignature, new_set_signature: RequestSignature, new_servers_set: BTreeSet<NodeId>) -> Result<(), Error> {
 		let servers_set_change_session = self.data.lock().cluster
-			.new_servers_set_change_session(None, new_servers_set, old_set_signature, new_set_signature)?;
+			.new_servers_set_change_session(None, None, new_servers_set, old_set_signature, new_set_signature)?;
 		servers_set_change_session.as_servers_set_change()
 			.expect("new_servers_set_change_session creates servers_set_change_session; qed")
 			.wait().map_err(Into::into)

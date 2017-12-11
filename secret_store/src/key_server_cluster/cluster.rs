@@ -75,7 +75,7 @@ pub trait ClusterClient: Send + Sync {
 	/// Start new key version negotiation session.
 	fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error>;
 	/// Start new servers set change session.
-	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSession>, Error>;
+	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, migration_id: Option<H256>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSession>, Error>;
 
 	/// Listen for new generation sessions.
 	fn add_generation_listener(&self, listener: Arc<ClusterSessionsListener<GenerationSession>>);
@@ -1037,7 +1037,7 @@ impl ClusterClient for ClusterClientImpl {
 		Ok(session)
 	}
 
-	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> {
+	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, migration_id: Option<H256>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
@@ -1048,7 +1048,7 @@ impl ClusterClient for ClusterClientImpl {
 		};
 
 		let cluster = create_cluster_view(&self.data, true)?;
-		let creation_data = Some(AdminSessionCreationData::ServersSetChange(new_nodes_set.clone()));
+		let creation_data = Some(AdminSessionCreationData::ServersSetChange(migration_id, new_nodes_set.clone()));
 		let session = self.data.sessions.admin_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, true, creation_data)?;
 		let initialization_result = session.as_servers_set_change().expect("servers set change session is created; qed")
 			.initialize(new_nodes_set, old_set_signature, new_set_signature);
@@ -1137,7 +1137,7 @@ pub mod tests {
 		fn new_decryption_session(&self, _session_id: SessionId, _requestor_signature: Signature, _version: Option<H256>, _is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> { unimplemented!() }
 		fn new_signing_session(&self, _session_id: SessionId, _requestor_signature: Signature, _version: Option<H256>, _message_hash: H256) -> Result<Arc<SigningSession>, Error> { unimplemented!() }
 		fn new_key_version_negotiation_session(&self, _session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error> { unimplemented!() }
-		fn new_servers_set_change_session(&self, _session_id: Option<SessionId>, _new_nodes_set: BTreeSet<NodeId>, _old_set_signature: Signature, _new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> { unimplemented!() }
+		fn new_servers_set_change_session(&self, _session_id: Option<SessionId>, _migration_id: Option<H256>, _new_nodes_set: BTreeSet<NodeId>, _old_set_signature: Signature, _new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> { unimplemented!() }
 
 		fn add_generation_listener(&self, _listener: Arc<ClusterSessionsListener<GenerationSession>>) {}
 
