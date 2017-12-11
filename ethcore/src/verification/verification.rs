@@ -230,7 +230,7 @@ pub fn verify_header_params(header: &Header, engine: &Engine, is_full: bool) -> 
 		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: Some(maximum_extra_data_size), found: header.extra_data().len() })));
 	}
 	if is_full {
-		let max_time = get_time().sec as u64 + 30;
+		let max_time = get_time().sec as u64 + 15;
 		if header.timestamp() > max_time {
 			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: header.timestamp() })))
 		}
@@ -564,8 +564,14 @@ mod tests {
 		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
 
 		header = good.clone();
-		header.set_timestamp(get_time().sec as u64 + 40);
+		header.set_timestamp(get_time().sec as u64 + 20);
 		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
+
+		header = good.clone();
+		header.set_timestamp(get_time().sec as u64 + 10);
+		header.set_uncles_hash(good_uncles_hash.clone());
+		header.set_transactions_root(good_transactions_root.clone());
+		check_ok(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
 
 		header = good.clone();
 		header.set_number(9);
