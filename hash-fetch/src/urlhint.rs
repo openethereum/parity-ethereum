@@ -89,7 +89,7 @@ pub struct Content {
 	/// MIME type of the content
 	pub mime: Mime,
 	/// Content owner address
-	pub owner: Address
+	pub owner: Address,
 }
 
 /// Result of resolving id to URL
@@ -132,8 +132,8 @@ fn get_urlhint_content(account_slash_repo: String, owner: Address) -> Content {
 	let mime = guess_mime_type(&account_slash_repo).unwrap_or(mime::APPLICATION_JSON);
 	Content {
 		url: account_slash_repo,
-		mime: mime,
-		owner: owner
+		mime,
+		owner,
 	}
 }
 
