@@ -24,8 +24,8 @@
 				},
 				"validateScoreTransition": 1000000,
 				"validateStepTransition": 1500000,
-				"maximumUncleCountTransition": 10000000,
-				"maximumUncleCount": 2
+				"maximumUncleCountTransition": 5067000,
+				"maximumUncleCount": 0
 			}
 		}
 	},
@@ -39,7 +39,11 @@
 		"forkCanonHash": "0x0a66d93c2f727dca618fabaf70c39b37018c73d78b939d8b11efbbd09034778f",
 		"validateReceiptsTransition" : 1000000,
 		"eip155Transition": 1000000,
-		"validateChainIdTransition": 1000000
+		"validateChainIdTransition": 1000000,
+		"eip140Transition": 5067000,
+		"eip211Transition": 5067000,
+		"eip214Transition": 5067000,
+		"eip658Transition": 5067000
 	},
 	"genesis": {
 		"seal": {
@@ -56,6 +60,10 @@
 		"0x0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
 		"0x0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
 		"0x0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0x0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": 5067000, "pricing": { "modexp": { "divisor": 20 } } } },
+		"0x0000000000000000000000000000000000000006": { "builtin": { "name": "alt_bn128_add", "activate_at": 5067000, "pricing": { "linear": { "base": 500, "word": 0 } } } },
+		"0x0000000000000000000000000000000000000007": { "builtin": { "name": "alt_bn128_mul", "activate_at": 5067000, "pricing": { "linear": { "base": 40000, "word": 0 } } } },
+		"0x0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "activate_at": 5067000, "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } },
 		"0x00521965e7bd230323c423d96c657db5b79d099f": { "balance": "1606938044258990275541962092341162602522202993782792835301376" }
 	},
 	"nodes": [
