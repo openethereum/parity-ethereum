@@ -56,9 +56,14 @@ export default class DappCard extends Component {
             <DappIcon
               app={ app }
               className={ styles.image }
-            /></Link>
-          <Link to={ app.url === 'web' ? '/web' : `/${app.id}` } >
-            <Header as='h5' textAlign='center' className={ styles.title } >{app.name}</Header>
+            />
+            <Header
+              as='h5'
+              textAlign='center'
+              className={ styles.title }
+            >
+              {app.name}
+            </Header>
           </Link>
         </div>
       </div>
