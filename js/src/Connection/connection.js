@@ -21,7 +21,7 @@ import PropTypes from 'prop-types';
 
 import GradientBg from '@parity/ui/lib/GradientBg';
 import Input from '@parity/ui/lib/Form/Input';
-import { CompareIcon, ComputerIcon, DashboardIcon, VpnIcon } from '@parity/ui/lib/Icons';
+import { CompareIcon, ComputerIcon, DashboardIcon, VpnIcon, KeyIcon } from '@parity/ui/lib/Icons';
 
 import styles from './connection.css';
 
@@ -64,7 +64,7 @@ class Connection extends Component {
               <div className={ styles.icon }>
                 {
                   needsToken
-                    ? <VpnIcon className={ styles.svg } />
+                    ? <KeyIcon className={ styles.svg } />
                     : <DashboardIcon className={ styles.svg } />
                 }
               </div>
@@ -90,16 +90,10 @@ class Connection extends Component {
           <div>
             <FormattedMessage
               id='connection.noConnection'
-              defaultMessage='Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run: {newToken} and paste the generated token into the space below.'
+              defaultMessage='To proceed you need to generate a new security token by running the following command in your terminal {newToken} Then copy &amp; paste the newly generated token here'
               values={ {
-                newToken: <div className={ styles.console }>parity signer new-token</div>
+                newToken: <div className={ styles.console }>$ parity signer new-token</div>
               } }
-            />
-          </div>
-          <div className={ styles.timestamp }>
-            <FormattedMessage
-              id='connection.timestamp'
-              defaultMessage='Ensure that both the Parity node and this machine connecting have computer clocks in-sync with each other and with a timestamp server, ensuring both successful token validation and block operations.'
             />
           </div>
           <div className={ styles.form }>
@@ -120,7 +114,7 @@ class Connection extends Component {
               hint={
                 <FormattedMessage
                   id='connection.token.hint'
-                  defaultMessage='Insert the generated token here'
+                  defaultMessage='xxXX-Xxxx-xXxx-XxXX'
                 />
               }
               onChange={ this.onChangeToken }
