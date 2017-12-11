@@ -75,10 +75,6 @@ $textColor: #ccc;
     opacity: 0.75;
   }
 
-  .signerPending {
-    cursor: pointer;
-  }
-
   .health {
     > span {
       margin: -0.5rem 0 0.2rem 0 !important;

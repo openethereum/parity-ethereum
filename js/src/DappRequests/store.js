@@ -18,6 +18,7 @@ import { action, computed, observable } from 'mobx';
 import store from 'store';
 
 import { sha3 } from '@parity/api/lib/util/sha3';
+import { isHex } from '@parity/api/lib/util/types';
 
 import { methodGroupFromMethod } from './methodGroups';
 
@@ -52,7 +53,7 @@ export default class Store {
 
       accumulator[appId] = accumulator[appId] || {};
       accumulator[appId][methodGroup] = accumulator[appId][methodGroup] || [];
-      accumulator[appId][methodGroup].push({ data, requestId }); // Append the requestId field in the request object
+      accumulator[appId][methodGroup].push({ data, requestId }); // Push request & append the requestId field in the request object
 
       return accumulator;
     }, {});
@@ -99,7 +100,7 @@ export default class Store {
     this.requests = { ...this.requests };
   };
 
-  getPermissionId = (method, appId) => `${method}:${appId}` // Create an id to identify permissions based on method and appId
+  getPermissionId = (method, appId) => `${method}:${isHex(appId) ? appId : sha3(appId)}`; // Create an id to identify permissions based on method and appId
 
   getMethodFromRequest = requestId => {
     const { data: { method, params } } = this.requests[requestId];
@@ -131,13 +132,10 @@ export default class Store {
   };
 
   setPermissions = _permissions => {
-    const permissions = {};
-
-    Object.keys(_permissions).forEach(id => {
-      permissions[id] = !!_permissions[id];
-    });
-
-    this.permissions = permissions;
+    this.permissions = {
+      ...this.permissions,
+      ..._permissions
+    };
     this.savePermissions();
 
     return true;

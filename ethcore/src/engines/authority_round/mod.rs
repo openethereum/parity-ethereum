@@ -126,6 +126,11 @@ impl Step {
 	}
 }
 
+// Chain scoring: total weight is sqrt(U256::max_value())*height - step
+fn calculate_score(parent_step: U256, current_step: U256) -> U256 {
+	U256::from(U128::max_value()) + parent_step - current_step
+}
+
 struct EpochManager {
 	epoch_transition_hash: H256,
 	epoch_transition_number: BlockNumber,
@@ -456,11 +461,13 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		let new_difficulty = U256::from(U128::max_value()) + header_step(parent).expect("Header has been verified; qed").into() - self.step.load().into();
-		header.set_difficulty(new_difficulty);
+		let parent_step = header_step(parent).expect("Header has been verified; qed");
+		let score = calculate_score(parent_step.into(), self.step.load().into());
+		header.set_difficulty(score);
 	}
 
 	fn seals_internally(&self) -> Option<bool> {
+		// TODO: accept a `&Call` here so we can query the validator set.
 		Some(self.signer.read().is_some())
 	}
 
@@ -468,13 +475,21 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which case
 	/// `Seal::None` will be returned.
-	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
+	fn generate_seal(&self, block: &ExecutedBlock, parent: &Header) -> Seal {
 		// first check to avoid generating signature most of the time
 		// (but there's still a race to the `compare_and_swap`)
 		if !self.can_propose.load(AtomicOrdering::SeqCst) { return Seal::None; }
 
 		let header = block.header();
+		let parent_step: U256 = header_step(parent)
+			.expect("Header has been verified; qed").into();
+
 		let step = self.step.load();
+		let expected_diff = calculate_score(parent_step, step.into());
+
+		if header.difficulty() != &expected_diff {
+			return Seal::None;
+		}
 
 		// fetch correct validator set for current epoch, taking into account
 		// finality of previous transitions.
@@ -516,6 +531,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			trace!(target: "engine", "generate_seal: {} not a proposer for step {}.",
 				header.author(), step);
 		}
+
 		Seal::None
 	}
 
@@ -557,7 +573,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	}
 
 	/// Check the number of seal fields.
-	fn verify_block_basic(&self, header: &Header,) -> Result<(), Error> {
+	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		if header.number() >= self.validate_score_transition && *header.difficulty() >= U256::from(U128::max_value()) {
 			Err(From::from(BlockError::DifficultyOutOfBounds(
 				OutOfBounds { min: None, max: Some(U256::from(U128::max_value())), found: *header.difficulty() }
@@ -868,17 +884,51 @@ mod tests {
 		let b2 = b2.close_and_lock();
 
 		engine.set_signer(tap.clone(), addr1, "1".into());
-		if let Seal::Regular(seal) = engine.generate_seal(b1.block()) {
+		if let Seal::Regular(seal) = engine.generate_seal(b1.block(), &genesis_header) {
 			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b1.block()) == Seal::None);
+			assert!(engine.generate_seal(b1.block(), &genesis_header) == Seal::None);
 		}
 
 		engine.set_signer(tap, addr2, "2".into());
-		if let Seal::Regular(seal) = engine.generate_seal(b2.block()) {
+		if let Seal::Regular(seal) = engine.generate_seal(b2.block(), &genesis_header) {
 			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b2.block()) == Seal::None);
+			assert!(engine.generate_seal(b2.block(), &genesis_header) == Seal::None);
+		}
+	}
+
+	#[test]
+	fn checks_difficulty_in_generate_seal() {
+		let tap = Arc::new(AccountProvider::transient_provider());
+		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
+		let addr2 = tap.insert_account(keccak("0").into(), "0").unwrap();
+
+		let spec = Spec::new_test_round();
+		let engine = &*spec.engine;
+
+		let genesis_header = spec.genesis_header();
+		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let last_hashes = Arc::new(vec![genesis_header.hash()]);
+
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b1 = b1.close_and_lock();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b2 = b2.close_and_lock();
+
+		engine.set_signer(tap.clone(), addr1, "1".into());
+		match engine.generate_seal(b1.block(), &genesis_header) {
+			Seal::None | Seal::Proposal(_) => panic!("wrong seal"),
+			Seal::Regular(_) => {
+				engine.step();
+
+				engine.set_signer(tap.clone(), addr2, "0".into());
+				match engine.generate_seal(b2.block(), &genesis_header) {
+					Seal::Regular(_) | Seal::Proposal(_) => panic!("sealed despite wrong difficulty"),
+					Seal::None => {}
+				}
+			}
 		}
 	}
 
