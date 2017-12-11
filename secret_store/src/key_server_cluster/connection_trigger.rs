@@ -78,7 +78,7 @@ pub struct SimpleServersSetChangeSessionCreatorConnector {
 	pub admin_public: Option<Public>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 /// Action with trigger connections.
 pub enum ConnectionsAction {
 	/// Connect to nodes from old set only.
@@ -127,7 +127,7 @@ impl ConnectionTrigger for SimpleConnectionTrigger {
 	}
 
 	fn maintain_connections(&mut self, connections: &mut ClusterConnectionsData) {
-		self.connections.maintain(ConnectionsAction::ConnectToCurrentSet, connections, &self.key_server_set.state())
+		self.connections.maintain(ConnectionsAction::ConnectToCurrentSet, connections, &self.key_server_set.snapshot())
 	}
 
 	fn servers_set_change_creator_connector(&self) -> Arc<ServersSetChangeSessionCreatorConnector> {

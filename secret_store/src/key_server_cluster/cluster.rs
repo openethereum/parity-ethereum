@@ -625,7 +625,7 @@ impl ClusterCore {
 
 impl ClusterConnections {
 	pub fn new(config: &ClusterConfiguration) -> Result<Self, Error> {
-		let mut nodes = config.key_server_set.state().current_set;
+		let mut nodes = config.key_server_set.snapshot().current_set;
 		nodes.remove(config.self_key_pair.public());
 
 		Ok(ClusterConnections {
@@ -1217,7 +1217,7 @@ pub mod tests {
 	}
 
 	pub fn all_connections_established(cluster: &Arc<ClusterCore>) -> bool {
-		cluster.config().key_server_set.state().new_set.keys()
+		cluster.config().key_server_set.snapshot().new_set.keys()
 			.filter(|p| *p != cluster.config().self_key_pair.public())
 			.all(|p| cluster.connection(p).is_some())
 	}

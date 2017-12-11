@@ -415,7 +415,7 @@ impl TasksQueue {
 
 /// Returns true when session, related to `server_key_id` must be started on this KeyServer.
 fn is_processed_by_this_key_server(key_server_set: &KeyServerSet, self_key_pair: &NodeKeyPair, server_key_id: &H256) -> bool {
-	let servers = key_server_set.state().new_set; // TODO: is this correct?
+	let servers = key_server_set.snapshot().new_set; // TODO: is this correct?
 	let total_servers_count = servers.len();
 	if total_servers_count == 0 {
 		return false;

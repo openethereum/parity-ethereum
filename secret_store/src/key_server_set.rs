@@ -1,3 +1,5 @@
+// TODO: if several nodes have the same address, include the last one
+
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -74,21 +76,10 @@ pub struct KeyServerSetMigration {
 	pub is_confirmed: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-/// Key Server Set state type.
-pub enum KeyServerSetState {
-	/// No actions required.
-	Idle,
-	/// Migration is required.
-	MigrationRequired,
-	/// Migration has started.
-	MigrationStarted,
-}
-
 /// Key Server Set
 pub trait KeyServerSet: Send + Sync {
 	/// Get server set state.
-	fn state(&self) -> KeyServerSetSnapshot;
+	fn snapshot(&self) -> KeyServerSetSnapshot;
 	/// Start migration.
 	fn start_migration(&self, migration_id: H256);
 	/// Confirm migration.
@@ -115,25 +106,6 @@ struct CachedContract {
 	self_key_pair: Arc<NodeKeyPair>,
 }
 
-impl KeyServerSetSnapshot {
-	/// Get state type.
-	pub fn state(&self) -> KeyServerSetState {
-		if self.migration.is_some() {
-			return KeyServerSetState::MigrationStarted;
-		}
-
-		// we only require migration if set actually changes
-		// when only address changes, we could simply adjust connections
-		let no_nodes_removed = self.current_set.keys().all(|n| self.new_set.contains_key(n));
-		let no_nodes_added = self.new_set.keys().all(|n| self.current_set.contains_key(n));
-		if no_nodes_removed && no_nodes_added {
-			return KeyServerSetState::Idle;
-		}
-
-		return KeyServerSetState::MigrationRequired;
-	}
-}
-
 impl OnChainKeyServerSet {
 	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
 		let mut cached_contract = CachedContract::new(client, sync, self_key_pair, key_servers)?;
@@ -153,8 +125,8 @@ impl OnChainKeyServerSet {
 }
 
 impl KeyServerSet for OnChainKeyServerSet {
-	fn state(&self) -> KeyServerSetSnapshot {
-		self.contract.lock().state()
+	fn snapshot(&self) -> KeyServerSetSnapshot {
+		self.contract.lock().snapshot()
 	}
 
 	fn start_migration(&self, migration_id: H256) {
@@ -234,7 +206,7 @@ impl CachedContract {
 		}
 	}
 
-	fn state(&self) -> KeyServerSetSnapshot {
+	fn snapshot(&self) -> KeyServerSetSnapshot {
 		self.snapshot.clone()
 	}
 
@@ -362,8 +334,8 @@ pub mod tests {
 	use std::collections::BTreeMap;
 	use std::net::SocketAddr;
 	use bigint::hash::H256;
-	use ethkey::{Random, Generator, Public};
-	use super::{KeyServerSet, KeyServerSetSnapshot, KeyServerSetState, KeyServerSetMigration};
+	use ethkey::Public;
+	use super::{KeyServerSet, KeyServerSetSnapshot};
 
 	#[derive(Default)]
 	pub struct MapKeyServerSet {
@@ -379,7 +351,7 @@ pub mod tests {
 	}
 
 	impl KeyServerSet for MapKeyServerSet {
-		fn state(&self) -> KeyServerSetSnapshot {
+		fn snapshot(&self) -> KeyServerSetSnapshot {
 			KeyServerSetSnapshot {
 				current_set: self.nodes.clone(),
 				new_set: self.nodes.clone(),
@@ -394,60 +366,5 @@ pub mod tests {
 		fn confirm_migration(&self, _migration_id: H256) {
 			unimplemented!()
 		}
-	}
-
-	#[test]
-	fn state_is_idle_when_sets_are_equal() {
-		assert_eq!(KeyServerSetSnapshot {
-			current_set: Default::default(),
-			new_set: Default::default(),
-			migration: None,
-		}.state(), KeyServerSetState::Idle);
-	}
-
-	#[test]
-	fn state_is_idle_when_only_address_changes() {
-		let node_id = Random.generate().unwrap().public().clone();
-		assert_eq!(KeyServerSetSnapshot {
-			current_set: vec![(node_id.clone(), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
-			new_set: vec![(node_id, "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
-			migration: None,
-		}.state(), KeyServerSetState::Idle);
-	}
-
-	#[test]
-	fn state_is_migration_required_when_node_is_added() {
-		let node_id = Random.generate().unwrap().public().clone();
-		assert_eq!(KeyServerSetSnapshot {
-			current_set: vec![(node_id.clone(), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
-			new_set: vec![(node_id.clone(), "127.0.0.1:8080".parse().unwrap()),
-				(Random.generate().unwrap().public().clone(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
-			migration: None,
-		}.state(), KeyServerSetState::MigrationRequired);
-	}
-
-	#[test]
-	fn state_is_migration_required_when_node_is_removed() {
-		let node_id = Random.generate().unwrap().public().clone();
-		assert_eq!(KeyServerSetSnapshot {
-			current_set: vec![(node_id.clone(), "127.0.0.1:8080".parse().unwrap()),
-				(Random.generate().unwrap().public().clone(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
-			new_set: vec![(node_id.clone(), "127.0.0.1:8080".parse().unwrap())].into_iter().collect(),
-			migration: None,
-		}.state(), KeyServerSetState::MigrationRequired);
-	}
-
-	#[test]
-	fn state_is_migration_started_when_migration_is_some() {
-		assert_eq!(KeyServerSetSnapshot {
-			current_set: Default::default(),
-			new_set: Default::default(),
-			migration: Some(KeyServerSetMigration {
-				id: Default::default(),
-				set: Default::default(),
-				master: Default::default(),
-				is_confirmed: Default::default(),
-			}),
-		}.state(), KeyServerSetState::MigrationStarted);
 	}
 }
