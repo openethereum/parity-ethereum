@@ -41,8 +41,13 @@
   }
 }
 
+.sectionTitle {
+  padding: 2em 0 0 4em !important;
+  margin-bottom: 0 !important;
+}
+
 .dapps {
-  padding: 2em 4em;
+  padding: 0 4em 0 4em;
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;

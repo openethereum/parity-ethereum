@@ -48,7 +48,7 @@ export default class DappCard extends Component {
           size='mini'
           icon='pin'
           circular
-          className={ [styles.pin, pinned && styles.pinned] }
+          className={ [styles.pin, pinned && styles.pinned].join(' ') }
           onClick={ this.handlePin }
         />
         <div className={ styles.content }>
