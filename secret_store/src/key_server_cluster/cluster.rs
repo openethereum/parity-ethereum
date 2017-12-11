@@ -181,6 +181,8 @@ pub struct ClusterConnections {
 	pub key_server_set: Arc<KeyServerSet>,
 	/// Connections trigger.
 	pub trigger: Mutex<Box<ConnectionTrigger>>,
+	/// Servers set change session creator connector.
+	pub connector: Arc<ServersSetChangeSessionCreatorConnector>,
 	/// Connections data.
 	pub data: RwLock<ClusterConnectionsData>,
 }
@@ -222,7 +224,7 @@ impl ClusterCore {
 	pub fn new(handle: Handle, config: ClusterConfiguration) -> Result<Arc<Self>, Error> {
 		let listen_address = make_socket_address(&config.listen_address.0, config.listen_address.1)?;
 		let connections = ClusterConnections::new(&config)?;
-		let servers_set_change_creator_connector = connections.trigger.lock().servers_set_change_creator_connector();
+		let servers_set_change_creator_connector = connections.connector.clone();
 		let sessions = ClusterSessions::new(&config, servers_set_change_creator_connector);
 		let data = ClusterData::new(&handle, config, connections, sessions);
 
@@ -628,14 +630,18 @@ impl ClusterConnections {
 		let mut nodes = config.key_server_set.snapshot().current_set;
 		nodes.remove(config.self_key_pair.public());
 
+		let trigger: Box<ConnectionTrigger> = match config.auto_migrate_enabled {
+			false => Box::new(SimpleConnectionTrigger::new(config.key_server_set.clone(), config.self_key_pair.clone(), config.admin_public.clone())),
+			true if config.admin_public.is_none() => Box::new(ConnectionTriggerWithMigration::new(config.key_server_set.clone(), config.self_key_pair.clone())),
+			true => return Err(Error::Io("secret store admininstrator public key is specified with auto-migration enabled".into())), // TODO: Io -> Internal
+		};
+		let connector = trigger.servers_set_change_creator_connector();
+
 		Ok(ClusterConnections {
 			self_node_id: config.self_key_pair.public().clone(),
 			key_server_set: config.key_server_set.clone(),
-			trigger: Mutex::new(match config.auto_migrate_enabled {
-					false => Box::new(SimpleConnectionTrigger::new(config.key_server_set.clone(), config.self_key_pair.clone(), config.admin_public.clone())),
-					true if config.admin_public.is_none() => Box::new(ConnectionTriggerWithMigration::new(config.key_server_set.clone(), config.self_key_pair.clone())),
-					true => return Err(Error::Io("secret store admininstrator public key is specified with auto-migration enabled".into())), // TODO: Io -> Internal
-				}),
+			trigger: Mutex::new(trigger),
+			connector: connector,
 			data: RwLock::new(ClusterConnectionsData {
 				nodes: nodes,
 				connections: BTreeMap::new(),
@@ -720,7 +726,7 @@ impl ClusterConnections {
 	}
 
 	pub fn servers_set_change_creator_connector(&self) -> Arc<ServersSetChangeSessionCreatorConnector> {
-		self.trigger.lock().servers_set_change_creator_connector()
+		self.connector.clone()
 	}
 
 	pub fn update_nodes_set(&self, data: Arc<ClusterData>) -> Option<BoxedEmptyFuture> {

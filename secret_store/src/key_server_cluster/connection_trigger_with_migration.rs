@@ -248,14 +248,19 @@ impl TriggerSession {
 		if action == SessionAction::Start { // all other actions are processed in maintain
 			let migration = server_set.migration.as_ref().expect("TODO");
 
-			let current_set: BTreeSet<_> = server_set.current_set.keys().cloned().collect();
-			let migration_set: BTreeSet<_> = migration.set.keys().cloned().collect();
-			let signatures = self.self_key_pair.sign(&ordered_nodes_hash(&current_set))
-				.and_then(|current_set_signature| self.self_key_pair.sign(&ordered_nodes_hash(&migration_set))
-					.map(|migration_set_signature| (current_set_signature, migration_set_signature)))
+			let old_set: BTreeSet<_> = server_set.current_set.keys()
+				.chain(migration.set.keys())
+				.cloned().collect();
+			let new_set: BTreeSet<_> = migration.set.keys()
+				.cloned()
+				.collect();
+
+			let signatures = self.self_key_pair.sign(&ordered_nodes_hash(&old_set))
+				.and_then(|old_set_signature| self.self_key_pair.sign(&ordered_nodes_hash(&new_set))
+					.map(|new_set_signature| (old_set_signature, new_set_signature)))
 				.map_err(Into::into);
-			let session = signatures.and_then(|(current_set_signature, migration_set_signature)|
-				sessions.new_servers_set_change_session(None, Some(migration.id.clone()), migration_set, current_set_signature, migration_set_signature));
+			let session = signatures.and_then(|(old_set_signature, new_set_signature)|
+				sessions.new_servers_set_change_session(None, Some(migration.id.clone()), new_set, old_set_signature, new_set_signature));
 
 			match session {
 				Ok(_) => trace!(target: "secretstore_net", "{}: started auto-migrate session",
