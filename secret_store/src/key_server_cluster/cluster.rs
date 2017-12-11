@@ -678,7 +678,8 @@ impl ClusterConnections {
 			data.connections.insert(node.clone(), connection.clone());
 		}
 
-		self.maintain_connection_trigger(self.trigger.lock().on_connection_established(connection.node_id()), data);
+		let maintain_action = self.trigger.lock().on_connection_established(connection.node_id());
+		self.maintain_connection_trigger(maintain_action, data);
 
 		true
 	}
@@ -698,7 +699,8 @@ impl ClusterConnections {
 			}
 		}
 
-		self.maintain_connection_trigger(self.trigger.lock().on_connection_closed(node), data);
+		let maintain_action = self.trigger.lock().on_connection_closed(node);
+		self.maintain_connection_trigger(maintain_action, data);
 	}
 
 	pub fn connected_nodes(&self) -> BTreeSet<NodeId> {
