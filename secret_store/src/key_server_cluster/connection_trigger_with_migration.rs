@@ -1,6 +1,5 @@
-// TODO: save actions in MigrationState
-// TODO: update from fixed nodes list to contract won't work??? Probably woth adding current_set to the KeyServerSet constructor???
-// TODO: when current_set != data.nodes.keys().cloned ===> disconnect from old nodes
+// TODO: update from fixed nodes list to contract won't work??? Probably worth adding current_set to the KeyServerSet constructor???
+// TODO: there must be a way to add/remove multiple nodes in single call
 // TODO: do not allow to migrate to empty set
 
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
@@ -245,7 +244,7 @@ impl TriggerSession {
 
 	/// Maintain session.
 	pub fn maintain(&mut self, action: SessionAction, sessions: &ClusterClient, server_set: &KeyServerSetSnapshot) {
-		if action == SessionAction::Start {
+		if action == SessionAction::Start { // all other actions are processed in maintain
 			let migration = server_set.migration.as_ref().expect("TODO");
 
 			let current_set: BTreeSet<_> = server_set.current_set.keys().cloned().collect();
