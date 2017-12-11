@@ -13,35 +13,35 @@ Furthermore, this release includes the ECIP-1039 Monetary policy rounding specif
 
 The full list of included changes:
 
-- Beta Backports and HF block update (#7244)
-  - Reduce max block timestamp drift to 15 seconds (#7240)
+- Beta Backports and HF block update ([#7244](https://github.com/paritytech/parity/pull/7244))
+  - Reduce max block timestamp drift to 15 seconds ([#7240](https://github.com/paritytech/parity/pull/7240))
     - Add test for block timestamp validation within allowed drift
   - Update kovan HF block number.
-- Beta Kovan HF (#7234)
+- Beta Kovan HF ([#7234](https://github.com/paritytech/parity/pull/7234))
   - Kovan HF.
   - Bump version.
-  - Fix aura difficulty race (#7198)
+  - Fix aura difficulty race ([#7198](https://github.com/paritytech/parity/pull/7198))
     - Fix test key
     - Extract out score calculation
     - Fix build
   - Update kovan HF block number.
   - Add missing byzantium builtins.
   - Bump installers versions.
-  - Increase allowed time drift to 10s. (#7238)
-- Beta Backports (#7197)
-  - Maximum uncle count transition (#7196)
+  - Increase allowed time drift to 10s. ([#7238](https://github.com/paritytech/parity/pull/7238))
+- Beta Backports ([#7197](https://github.com/paritytech/parity/pull/7197))
+  - Maximum uncle count transition ([#7196](https://github.com/paritytech/parity/pull/7196))
     - Enable delayed maximum_uncle_count activation.
     - Fix tests.
     - Defer kovan HF.
-  - Disable uncles by default (#7006)
-  - Escape inifinite loop in estimte_gas (#7075)
-  - ECIP-1039: Monetary policy rounding specification (#7067)
-  - WASM Remove blockhash error (#7121)
+  - Disable uncles by default ([#7006](https://github.com/paritytech/parity/pull/7006))
+  - Escape inifinite loop in estimte_gas ([#7075](https://github.com/paritytech/parity/pull/7075))
+  - ECIP-1039: Monetary policy rounding specification ([#7067](https://github.com/paritytech/parity/pull/7067))
+  - WASM Remove blockhash error ([#7121](https://github.com/paritytech/parity/pull/7121))
     - Remove blockhash error
     - Update tests.
-  - WASM storage_read and storage_write don't return anything (#7110)
-  - WASM parse payload from panics (#7097)
-  - Fix no-default-features. (#7096)
+  - WASM storage_read and storage_write don't return anything ([#7110](https://github.com/paritytech/parity/pull/7110))
+  - WASM parse payload from panics ([#7097](https://github.com/paritytech/parity/pull/7097))
+  - Fix no-default-features. ([#7096](https://github.com/paritytech/parity/pull/7096))
 
 ## Parity [v1.8.3](https://github.com/paritytech/parity/releases/tag/v1.8.3) (2017-11-15)
 
@@ -49,7 +49,7 @@ Parity 1.8.3 contains several bug-fixes and removes the ability to deploy built-
 
 The full list of included changes:
 
-- Backports to beta ([#7043](https://github.com/paritytech/parity/pull/7043))
+- Backports to beta ([#7043https://github.com/paritytech/parity/pull/7265
   - pwasm-std update ([#7018](https://github.com/paritytech/parity/pull/7018))
   - Version 1.8.3
   - Make CLI arguments parsing more backwards compatible ([#7004](https://github.com/paritytech/parity/pull/7004))
