@@ -41,11 +41,7 @@ export default class DappCard extends Component {
       <div className={ [styles.card, className].join(' ') }>
         <Container
           className={ styles.content }
-          link={
-            app.url === 'web'
-              ? '/web'
-              : `/${app.id}`
-          }
+          link={ `/${app.id}` }
         >
           <DappIcon
             app={ app }
