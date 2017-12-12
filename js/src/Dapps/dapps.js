@@ -50,19 +50,17 @@ class Dapps extends Component {
     const applications = [].concat(this.store.visibleLocal, this.store.visibleViews, this.store.visibleBuiltin, this.store.visibleNetwork);
 
     return (
-      <Page>
-        <div className={ styles.dapps }>
-          {
-            applications.map((app, index) => (
-              <DappCard
-                app={ app }
-                availability={ availability }
-                className={ styles.dapp }
-                key={ `${index}_${app.id}` }
-              />
-            ))
-          }
-        </div>
+      <Page className={ styles.dapps }>
+        {
+          applications.map((app, index) => (
+            <DappCard
+              app={ app }
+              availability={ availability }
+              className={ styles.dapp }
+              key={ `${index}_${app.id}` }
+            />
+          ))
+        }
         {
           this.store.externalOverlayVisible
             ? (

@@ -109,32 +109,30 @@ class Application extends Component {
   renderApp () {
     const { children } = this.props;
 
-    return (
-      <div className={ styles.container }>
-        <Extension />
-        <FirstRun />
-        <Snackbar />
-        <UpgradeParity upgradeStore={ this.upgradeStore } />
-        <Errors />
-        <div className={ styles.content }>
-          { children }
-        </div>
+    return [
+      <Extension key='extension' />,
+      <FirstRun key='firstrun' />,
+      <Snackbar key='snackbar' />,
+      <UpgradeParity key='upgrade' upgradeStore={ this.upgradeStore } />,
+      <Errors key='errors' />,
+      <div key='content' className={ styles.content }>
+        { children }
       </div>
-    );
+    ];
   }
 
   renderMinimized () {
     const { children } = this.props;
 
-    return (
-      <div className={ styles.container }>
+    return [
+      <Errors key='errors' />,
+      <div key='content' className={ styles.content }>
         <div className={ styles.logo }>
           <img src={ parityLogo } />
         </div>
-        <Errors />
         { children }
       </div>
-    );
+    ];
   }
 }
 
