@@ -47,7 +47,7 @@
     }
 
     .image {
-      box-shadow: 0 0 80px 0 rgba(0, 0, 0, 0.15);
+      box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.15);
       border-radius: 10px;
       display: block;
       width: 2em;
