@@ -21,7 +21,7 @@ import PropTypes from 'prop-types';
 
 import GradientBg from '@parity/ui/lib/GradientBg';
 import Input from '@parity/ui/lib/Form/Input';
-import { CompareIcon, ComputerIcon, DashboardIcon, VpnIcon, KeyIcon } from '@parity/ui/lib/Icons';
+import { CompareIcon, ComputerIcon, DashboardIcon, KeyIcon } from '@parity/ui/lib/Icons';
 
 import styles from './connection.css';
 

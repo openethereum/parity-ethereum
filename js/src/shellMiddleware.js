@@ -85,6 +85,7 @@ export default function execute (appId, method, params, callback) {
       );
       return true;
     }
+
     case 'shell_setAppPinned': {
       const [appId, pinned] = params;
 
@@ -96,6 +97,7 @@ export default function execute (appId, method, params, callback) {
       );
       return true;
     }
+
     case 'shell_setMethodPermissions': {
       const [permissions] = params;
 

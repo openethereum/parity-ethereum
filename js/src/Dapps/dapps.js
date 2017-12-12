@@ -20,7 +20,6 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 
-import Header from 'semantic-ui-react/dist/commonjs/elements/Header';
 import Checkbox from '@parity/ui/lib/Form/Checkbox';
 import Page from '@parity/ui/lib/Page';
 
@@ -54,49 +53,29 @@ class Dapps extends Component {
     }
   }
 
-  renderSection = (title, apps) => (
-    apps && apps.length > 0 && <div>
-      <Header as='h4' className={ styles.sectionTitle }>
-        {title}
-      </Header>
-      <div className={ styles.dapps }>
-        {
-          apps.map((app, index) => (
-            <DappCard
-              app={ app }
-              pinned={ this.store.displayApps[app.id] && this.store.displayApps[app.id].pinned }
-              availability={ this.props.availability }
-              className={ styles.dapp }
-              key={ `${index}_${app.id}` }
-              onPin={ this.handlePin }
-            />
-          ))
-        }
-      </div></div>
+  renderSection = (apps) => (
+    apps && apps.length > 0 &&
+    <div className={ styles.dapps }>
+      {
+        apps.map((app, index) => (
+          <DappCard
+            app={ app }
+            pinned={ this.store.displayApps[app.id] && this.store.displayApps[app.id].pinned }
+            availability={ this.props.availability }
+            className={ styles.dapp }
+            key={ `${index}_${app.id}` }
+            onPin={ this.handlePin }
+          />
+        ))
+      }
+    </div>
   )
 
   render () {
-    const pinned = this.store.pinnedApps; // Pinned apps
-    const unpinnedVisible = this.store.visibleApps.filter(app => // Visible apps that are not pinned
-      this.store.displayApps[app.id] && !this.store.displayApps[app.id].pinned
-    );
-
     return (
-      <Page>
-        {this.renderSection(
-          <FormattedMessage
-            id='dapps.pinned'
-            defaultMessage='Pinned Apps'
-          />,
-          pinned
-        )}
-        {this.renderSection(
-          <FormattedMessage
-            id='dapps.visible'
-            defaultMessage='My Apps'
-          />,
-          unpinnedVisible
-        )}
+      <Page className={ styles.layout }>
+        {this.renderSection(this.store.pinnedApps)}
+        {this.renderSection(this.store.visibleUnpinned)}
         {
           this.store.externalOverlayVisible &&
           (

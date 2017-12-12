@@ -75,6 +75,7 @@ class Application extends Component {
 
     return (
       <div className={ styles.application }>
+        <img src={ parityLogo } className={ styles.logo } />
         {
           blockNumber
             ? <Status upgradeStore={ this.upgradeStore } />
@@ -107,32 +108,31 @@ class Application extends Component {
   }
 
   renderApp () {
-    const { children } = this.props;
-
     return [
       <Extension key='extension' />,
       <FirstRun key='firstrun' />,
       <Snackbar key='snackbar' />,
       <UpgradeParity key='upgrade' upgradeStore={ this.upgradeStore } />,
       <Errors key='errors' />,
-      <div key='content' className={ styles.content }>
-        { children }
-      </div>
+      this.renderContent()
     ];
   }
 
   renderMinimized () {
-    const { children } = this.props;
-
     return [
       <Errors key='errors' />,
-      <div key='content' className={ styles.content }>
-        <div className={ styles.logo }>
-          <img src={ parityLogo } />
-        </div>
-        { children }
-      </div>
+      this.renderContent()
     ];
+  }
+
+  renderContent () {
+    const { children } = this.props;
+
+    return (
+      <div key='content' className={ styles.content }>
+        {children}
+      </div>
+    );
   }
 }
 
