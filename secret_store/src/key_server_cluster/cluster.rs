@@ -630,7 +630,7 @@ impl ClusterConnections {
 		let trigger: Box<ConnectionTrigger> = match config.auto_migrate_enabled {
 			false => Box::new(SimpleConnectionTrigger::new(config.key_server_set.clone(), config.self_key_pair.clone(), config.admin_public.clone())),
 			true if config.admin_public.is_none() => Box::new(ConnectionTriggerWithMigration::new(config.key_server_set.clone(), config.self_key_pair.clone())),
-			true => return Err(Error::Io("secret store admininstrator public key is specified with auto-migration enabled".into())), // TODO: Io -> Internal
+			true => return Err(Error::Io("secret store admininstrator public key is specified with auto-migration enabled".into())), // TODO [Refac]: Io -> Internal
 		};
 		let connector = trigger.servers_set_change_creator_connector();
 

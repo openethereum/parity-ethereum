@@ -133,7 +133,7 @@ impl JobExecutor for SigningJob {
 		if Some(&partial_response.request_id) != self.request_id.as_ref() {
 			return Ok(JobPartialResponseAction::Ignore);
 		}
-		// TODO: check_signature_share()
+		// TODO [Trust]: check_signature_share()
 
 		Ok(JobPartialResponseAction::Accept)
 	}

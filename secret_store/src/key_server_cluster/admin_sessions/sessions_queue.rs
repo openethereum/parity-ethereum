@@ -29,7 +29,7 @@ pub struct SessionsQueue {
 impl SessionsQueue {
 	/// Create new sessions queue.
 	pub fn new(key_storage: &Arc<KeyStorage>, unknown_sessions: BTreeSet<SessionId>) -> Self {
-		// TODO: optimizations:
+		// TODO [Opt]:
 		// 1) known sessions - change to iter
 		// 2) unknown sesions - request chunk-by-chunk
 		SessionsQueue {

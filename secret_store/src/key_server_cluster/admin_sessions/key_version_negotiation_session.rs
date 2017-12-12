@@ -27,7 +27,7 @@ use key_server_cluster::signing_session::SessionImpl as SigningSession;
 use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
-// TODO: optimizations: change sessions so that versions are sent by chunks.
+// TODO [Opt]: change sessions so that versions are sent by chunks.
 /// Number of versions sent in single message.
 const VERSIONS_PER_MESSAGE: usize = 32;
 

@@ -1,7 +1,3 @@
-// TODO: update from fixed nodes list to contract won't work??? Probably worth adding current_set to the KeyServerSet constructor???
-// TODO: there must be a way to add/remove multiple nodes in single call
-// TODO: do not allow to migrate to empty set
-
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -233,7 +229,6 @@ impl ServersSetChangeSessionCreatorConnector for ServersSetChangeSessionCreatorC
 	}
 
 	fn set_key_servers_set_change_session(&self, session: Arc<AdminSession>) {
-		// TODO: is it possible that session is overwritten?
 		*self.session.lock() = Some(session);
 	}
 }
@@ -262,7 +257,8 @@ impl TriggerSession {
 	/// Maintain session.
 	pub fn maintain(&mut self, action: SessionAction, sessions: &ClusterClient, server_set: &KeyServerSetSnapshot) {
 		if action == SessionAction::Start { // all other actions are processed in maintain
-			let migration = server_set.migration.as_ref().expect("TODO");
+			let migration = server_set.migration.as_ref()
+				.expect("action is Start only when migration is started (see maintain_session); qed");
 
 			let old_set: BTreeSet<_> = server_set.current_set.keys()
 				.chain(migration.set.keys())
@@ -325,6 +321,8 @@ fn session_state(session: Option<Arc<AdminSession>>) -> SessionState {
 }
 
 fn maintain_session(self_node_id: &NodeId, connected: &BTreeSet<NodeId>, snapshot: &KeyServerSetSnapshot, migration_state: MigrationState, session_state: SessionState) -> Option<SessionAction> {
+	let migration_data_proof = "migration_state is Started; migration data available when started; qed";
+
 	match (migration_state, session_state) {
 		// === NORMAL combinations ===
 
@@ -332,7 +330,7 @@ fn maintain_session(self_node_id: &NodeId, connected: &BTreeSet<NodeId>, snapsho
 		(MigrationState::Idle, SessionState::Idle) => None,
 		// migration is required && no active session => start migration
 		(MigrationState::Required, SessionState::Idle) => {
-			match select_master_node(snapshot) == Some(self_node_id) {
+			match select_master_node(snapshot) == self_node_id {
 				true => Some(SessionAction::StartMigration(H256::random())),
 				// we are not on master node
 				false => None,
@@ -341,8 +339,8 @@ fn maintain_session(self_node_id: &NodeId, connected: &BTreeSet<NodeId>, snapsho
 		// migration is active && there's no active session => start it
 		(MigrationState::Started, SessionState::Idle) => {
 			match is_connected_to_all_nodes(self_node_id, &snapshot.current_set, connected) &&
-				is_connected_to_all_nodes(self_node_id, &snapshot.migration.as_ref().expect("TODO").set, connected) &&
-				select_master_node(snapshot) == Some(self_node_id) {
+				is_connected_to_all_nodes(self_node_id, &snapshot.migration.as_ref().expect(migration_data_proof).set, connected) &&
+				select_master_node(snapshot) == self_node_id {
 				true => Some(SessionAction::Start),
 				// we are not connected to all required nodes yet or we are not on master node => wait for it
 				false => None,
@@ -350,21 +348,21 @@ fn maintain_session(self_node_id: &NodeId, connected: &BTreeSet<NodeId>, snapsho
 		},
 		// migration is active && session is not yet started/finished => ok
 		(MigrationState::Started, SessionState::Active(ref session_migration_id))
-			if snapshot.migration.as_ref().expect("TODO").id == session_migration_id.unwrap_or_default() =>
+			if snapshot.migration.as_ref().expect(migration_data_proof).id == session_migration_id.unwrap_or_default() =>
 				None,
 		// migration has finished => confirm migration
 		(MigrationState::Started, SessionState::Finished(ref session_migration_id))
-			if snapshot.migration.as_ref().expect("TODO").id == session_migration_id.unwrap_or_default() =>
-				match snapshot.migration.as_ref().expect("TODO").set.contains_key(self_node_id) {
+			if snapshot.migration.as_ref().expect(migration_data_proof).id == session_migration_id.unwrap_or_default() =>
+				match snapshot.migration.as_ref().expect(migration_data_proof).set.contains_key(self_node_id) {
 					true => Some(SessionAction::ConfirmAndDrop(
-						snapshot.migration.as_ref().expect("TODO").id.clone()
+						snapshot.migration.as_ref().expect(migration_data_proof).id.clone()
 					)),
 					// we are not on migration set => we do not need to confirm
 					false => Some(SessionAction::Drop),
 				},
 		// migration has failed => it should be dropped && restarted later
 		(MigrationState::Started, SessionState::Failed(ref session_migration_id))
-			if snapshot.migration.as_ref().expect("TODO").id == session_migration_id.unwrap_or_default() =>
+			if snapshot.migration.as_ref().expect(migration_data_proof).id == session_migration_id.unwrap_or_default() =>
 				Some(SessionAction::Drop),
 
 		// ABNORMAL combinations, which are still possible when contract misbehaves ===
@@ -390,9 +388,9 @@ fn maintain_session(self_node_id: &NodeId, connected: &BTreeSet<NodeId>, snapsho
 		(MigrationState::Started, SessionState::Failed(_)) |
 		// migration is required && session has failed => we need to forget this obsolete session and retry
 		(MigrationState::Required, SessionState::Failed(_)) => {
-			// TODO: some of the cases above could happen because of lags (non-abnormal behavior)
-			// => we might want to not issue warning when this happens
-			warn!(target: "secretstore_net", "{}: suspicious auto-migration state: {:?}",
+			// some of the cases above could happen because of lags (could actually be a non-abnormal behavior)
+			// => we ony trace here
+			trace!(target: "secretstore_net", "{}: suspicious auto-migration state: {:?}",
 				self_node_id, (migration_state, session_state));
 			Some(SessionAction::DropAndRetry)
 		},
@@ -420,16 +418,29 @@ fn is_connected_to_all_nodes(self_node_id: &NodeId, nodes: &BTreeMap<NodeId, Soc
 		.all(|n| connected.contains(n))
 }
 
-// TODO: is it possible to return None here???
-fn select_master_node(server_set_state: &KeyServerSetSnapshot) -> Option<&NodeId> {
+fn select_master_node(snapshot: &KeyServerSetSnapshot) -> &NodeId {
 	// we want to minimize a number of UnknownSession messages =>
 	// try to select a node which was in SS && will be in SS
-	server_set_state.migration.as_ref()
-		.map(|m| Some(&m.master))
+	match snapshot.migration.as_ref() {
+		Some(migration) => &migration.master,
+		None => snapshot.current_set.keys()
+			.filter(|n| snapshot.new_set.contains_key(n))
+			.nth(0)
+			.or_else(|| snapshot.new_set.keys().nth(0))
+			.unwrap_or_else(|| snapshot.current_set.keys().nth(0)
+				.expect("select_master_node is only called when migration is Required or Started;\
+					when Started: migration.is_some() && we return migration.master; qed;\
+					when Required: current_set != new_set; this means that at least one set is non-empty; we try to take node from each set; qed"))
+	}
+	/*server_set_state.migration.as_ref()
+		.map(|m| &m.master)
 		.unwrap_or_else(|| server_set_state.current_set.keys()
 			.filter(|n| server_set_state.new_set.contains_key(n))
 			.nth(0)
 			.or_else(|| server_set_state.new_set.keys().nth(0)))
+		.expect("select_master_node is only called when migration is Required or Started;"
+			"when Started: migration.is_some() && we have migration.master; qed"
+			"when Required: current_set != migration_set; this means that at least one set is non-empty; we select")*/
 }
 
 #[cfg(test)]
@@ -509,7 +520,7 @@ mod tests {
 				master: 3.into(),
 				..Default::default()
 			}),
-		}), Some(&3.into()));
+		}), &3.into());
 	}
 
 	#[test]
@@ -520,7 +531,7 @@ mod tests {
 			new_set: vec![(2.into(), "127.0.0.1:8181".parse().unwrap()),
 				(4.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 			migration: None,
-		}), Some(&2.into()));
+		}), &2.into());
 	}
 
 	#[test]
@@ -531,7 +542,7 @@ mod tests {
 			new_set: vec![(3.into(), "127.0.0.1:8181".parse().unwrap()),
 				(4.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 			migration: None,
-		}), Some(&3.into()));
+		}), &3.into());
 	}
 
 	#[test]

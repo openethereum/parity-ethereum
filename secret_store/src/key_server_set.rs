@@ -1,4 +1,4 @@
-// TODO: if several nodes have the same address, include the last one
+// TODO [Now]: if several nodes have the same address, include the last one
 
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
@@ -213,26 +213,40 @@ impl CachedContract {
 	fn start_migration(&self, migration_id: H256) {
 		if let (Some(client), Some(contract)) = (self.client.upgrade(), self.contract.as_ref()) {
 			// prepare transaction data
-			let transaction_data = contract.encode_start_migration_input(migration_id).expect("TODO");
+			let transaction_data = match contract.encode_start_migration_input(migration_id) {
+				Ok(transaction_data) => transaction_data,
+				Err(error) => {
+					warn!(target: "secretstore_net", "{}: failed to prepare auto-migration start transaction: {}",
+						self.self_key_pair.public(), error);
+					return;
+				},
+			};
 
 			// send transaction
-			client.transact_contract(
-				contract.address.clone(),
-				transaction_data
-			).map_err(|e| format!("{}", e)).expect("TODO");
+			if let Err(error) = client.transact_contract(contract.address.clone(), transaction_data) {
+				warn!(target: "secretstore_net", "{}: failed to submit auto-migration start transaction: {}",
+					self.self_key_pair.public(), error);
+			}
 		}
 	}
 
 	fn confirm_migration(&self, migration_id: H256) {
 		if let (Some(client), Some(contract)) = (self.client.upgrade(), self.contract.as_ref()) {
 			// prepare transaction data
-			let transaction_data = contract.encode_confirm_migration_input(migration_id).expect("TODO");
+			let transaction_data = match contract.encode_confirm_migration_input(migration_id) {
+				Ok(transaction_data) => transaction_data,
+				Err(error) => {
+					warn!(target: "secretstore_net", "{}: failed to prepare auto-migration confirmation transaction: {}",
+						self.self_key_pair.public(), error);
+					return;
+				},
+			};
 
 			// send transaction
-			client.transact_contract(
-				contract.address.clone(),
-				transaction_data
-			).map_err(|e| format!("{}", e)).expect("TODO");
+			if let Err(error) = client.transact_contract(contract.address.clone(), transaction_data) {
+				warn!(target: "secretstore_net", "{}: failed to submit auto-migration confirmation transaction: {}",
+					self.self_key_pair.public(), error);
+			}
 		}
 	}
 

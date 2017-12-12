@@ -744,7 +744,7 @@ impl SessionImpl {
 					},
 					sub_session: math::generate_random_scalar()?,
 					key_share: key_share,
-					result_computer: Arc::new(LargestSupportResultComputer {}), // TODO: optimizations: could use modified Fast version
+					result_computer: Arc::new(LargestSupportResultComputer {}), // TODO [Opt]: could use modified Fast version
 					transport: ServersSetChangeKeyVersionNegotiationTransport {
 						id: core.meta.id.clone(),
 						nonce: core.nonce,
