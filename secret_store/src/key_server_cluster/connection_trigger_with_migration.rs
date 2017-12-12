@@ -56,6 +56,8 @@ pub struct ConnectionTriggerWithMigration {
 #[derive(Default)]
 /// Key servers set change session creator connector with migration support.
 pub struct ServersSetChangeSessionCreatorConnectorWithMigration {
+	/// This node id.
+	self_node_id: NodeId,
 	/// Active migration state to check when servers set change session is started.
 	migration: Mutex<Option<KeyServerSetMigration>>,
 	/// Active servers set change session.
@@ -77,7 +79,7 @@ enum SessionAction {
 	DropAndRetry,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 /// Migration session state.
 enum SessionState {
 	/// No active session.
@@ -127,6 +129,7 @@ impl ConnectionTriggerWithMigration {
 			},
 			session: TriggerSession {
 				connector: Arc::new(ServersSetChangeSessionCreatorConnectorWithMigration {
+					self_node_id: self_key_pair.public().clone(),
 					migration: Mutex::new(migration),
 					session: Mutex::new(None),
 				}),
@@ -143,7 +146,7 @@ impl ConnectionTriggerWithMigration {
 		loop {
 			let session_state = session_state(self.session.connector.session.lock().clone());
 			let migration_state = migration_state(self.self_key_pair.public(), &self.snapshot);
-			
+
 			let session_action = maintain_session(self.self_key_pair.public(), &self.connected, &self.snapshot, migration_state, session_state);
 			let session_maintain_required = session_action.map(|session_action|
 				self.session.process(session_action)).unwrap_or_default();
@@ -152,6 +155,11 @@ impl ConnectionTriggerWithMigration {
 			let connections_action = maintain_connections(migration_state, session_state);
 			let connections_maintain_required = connections_action.map(|_| true).unwrap_or_default();
 			self.connections_action = connections_action;
+
+			if session_state != SessionState::Idle || migration_state != MigrationState::Idle {
+				trace!(target: "secretstore_net", "{}: non-idle auto-migration state: {:?} -> {:?}",
+					self.self_key_pair.public(), (migration_state, session_state), (self.connections_action, self.session_action));
+			}
 
 			if session_action != Some(SessionAction::DropAndRetry) {
 				return match (session_maintain_required, connections_maintain_required) {
@@ -168,6 +176,8 @@ impl ConnectionTriggerWithMigration {
 impl ConnectionTrigger for ConnectionTriggerWithMigration {
 	fn on_maintain(&mut self) -> Option<Maintain> {
 		self.snapshot = self.key_server_set.snapshot();
+		*self.session.connector.migration.lock() = self.snapshot.migration.clone();
+
 		self.do_maintain()
 	}
 
@@ -205,15 +215,21 @@ impl ServersSetChangeSessionCreatorConnector for ServersSetChangeSessionCreatorC
 		// (signatures are inputs to ServerSetChangeSession)
 		self.migration.lock().as_ref()
 			.map(|migration| {
-				let is_same = migration_id.map(|mid| mid == &migration.id).unwrap_or_default();
-				let is_same = is_same && new_server_set == migration.set.keys().cloned().collect();
-				if is_same {
+				let is_migration_id_same = migration_id.map(|mid| mid == &migration.id).unwrap_or_default();
+				let is_migration_set_same = new_server_set == migration.set.keys().cloned().collect();
+				if is_migration_id_same && is_migration_set_same {
 					Ok(migration.master.clone())
 				} else {
+					warn!(target: "secretstore_net", "{}: failed to accept auto-migration session: same_migration_id={}, same_migration_set={}",
+						self.self_node_id, is_migration_id_same, is_migration_set_same);
+
 					Err(Error::AccessDenied)
 				}
 			})
-			.unwrap_or(Err(Error::AccessDenied))
+			.unwrap_or_else(|| {
+				warn!(target: "secretstore_net", "{}: failed to accept non-scheduled auto-migration session", self.self_node_id);
+				Err(Error::AccessDenied)
+			})
 	}
 
 	fn set_key_servers_set_change_session(&self, session: Arc<AdminSession>) {

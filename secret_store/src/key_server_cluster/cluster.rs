@@ -173,7 +173,7 @@ pub struct ClusterData {
 	pub sessions: ClusterSessions,
 }
 
-/// Connections that are forming the cluster.
+/// Connections that are forming the cluster. Lock order: trigger.lock() -> data.lock().
 pub struct ClusterConnections {
 	/// Self node id.
 	pub self_node_id: NodeId,
@@ -741,8 +741,9 @@ impl ClusterConnections {
 			self.trigger.lock().maintain_session(&client);
 		}
 		if maintain_action == Some(Maintain::SessionAndConnections) || maintain_action == Some(Maintain::Connections) {
+			let mut trigger = self.trigger.lock();
 			let mut data = self.data.write();
-			self.trigger.lock().maintain_connections(&mut *data);
+			trigger.maintain_connections(&mut *data);
 		}
 	}
 
