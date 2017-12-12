@@ -395,9 +395,6 @@ impl ClusterCore {
 				ClusterCore::connect(data.clone(), node_address);
 			}
 		}
-
-		// and call connections.maintain
-		//data.connections.maintain(&data, Arc::new(ClusterClientImpl::new(data.clone()))); // TODO: save client instead of recreating???
 	}
 
 	/// Process connection future result.
@@ -746,75 +743,6 @@ impl ClusterConnections {
 			trigger.maintain_connections(&mut *data);
 		}
 	}
-
-		//let new_nodes = self.key_server_set.state().new_set;
-		// we do not need to connect to self
-		// + we do not need to try to connect to any other node if we are not the part of a cluster
-		/*let includes_this_node = new_nodes.contains_key(&self.self_node_id);
-		if !includes_this_node {
-			new_nodes.clear();
-		}*/
-
-		/*
-		TODO: different master on different nodes!!!
-		*/
-
-		//let mut data = self.data.write();
-		/*let change = match compute_servers_set_change(&data.data.nodes, &new_nodes) {
-			Some(change) => change,
-			None => return,
-		};*/
-
-		/*let cdata = &mut *data;
-		cdata.trigger.on_servers_set_change(&client, &mut cdata.data, sessions, &*self.key_server_set)*/
-		/*let mut new_nodes = self.key_server_set.get();
-		// we do not need to connect to self
-		// + we do not need to try to connect to any other node if we are not the part of a cluster
-		if new_nodes.remove(&self.self_node_id).is_none() {
-			new_nodes.clear();
-		}
-
-		let mut num_added_nodes = 0;
-		let mut num_removed_nodes = 0;
-		let mut num_changed_nodes = 0;
-
-		for obsolete_node in data.nodes.keys().cloned().collect::<Vec<_>>() {
-			if !new_nodes.contains_key(&obsolete_node) {
-				if let Entry::Occupied(entry) = data.connections.entry(obsolete_node) {
-					trace!(target: "secretstore_net", "{}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
-					entry.remove();
-				}
-
-				data.nodes.remove(&obsolete_node);
-				num_removed_nodes += 1;
-			}
-		}
-
-		for (new_node_public, new_node_addr) in new_nodes {
-			match data.nodes.insert(new_node_public, new_node_addr) {
-				None => num_added_nodes += 1,
-				Some(old_node_addr) => if new_node_addr != old_node_addr {
-					if let Entry::Occupied(entry) = data.connections.entry(new_node_public) {
-						trace!(target: "secretstore_net", "{}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
-						entry.remove();
-					}
-					num_changed_nodes += 1;
-				},
-			}
-		}
-
-		if num_added_nodes != 0 || num_removed_nodes != 0 || num_changed_nodes != 0 {
-			trace!(target: "secretstore_net", "{}: updated nodes set: removed {}, added {}, changed {}. Connected to {} of {} nodes",
-				self.self_node_id, num_removed_nodes, num_added_nodes, num_changed_nodes, data.connections.len(), data.nodes.len());
-		}*/
-
-	/*pub fn maintain(&self, cluster_data: &Arc<ClusterData>, client: Arc<ClusterClient>) {
-		let mut data = self.data.write();
-		let data = &mut *data;
-		if let Some(maintain_result) = data.trigger.maintain(&client, &mut data.data, &*self.key_server_set) {
-			cluster_data.spawn(maintain_result);
-		}
-	}*/
 }
 
 impl ClusterData {
