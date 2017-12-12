@@ -17,46 +17,49 @@
 import * as mobx from 'mobx';
 import flatten from 'lodash.flatten';
 
-import VisibleStore from '@parity/shared/lib/mobx/dappsStore';
-
+import DappsStore from '@parity/shared/lib/mobx/dappsStore';
 import RequestStore from './DappRequests/store';
 import methodGroups from './DappRequests/methodGroups';
 
 export default function execute (appId, method, params, callback) {
-  const visibleStore = VisibleStore.get();
+  const dappsStore = DappsStore.get();
   const requestStore = RequestStore.get();
 
   switch (method) {
-    case 'shell_getApps':
+    case 'shell_getApps': {
       const [displayAll] = params;
 
       callback(
         null,
         displayAll
-          ? visibleStore.allApps.slice().map(mobx.toJS)
-          : visibleStore.visibleApps.slice().map(mobx.toJS)
+          ? dappsStore.allApps.slice().map(mobx.toJS)
+          : dappsStore.visibleApps.slice().map(mobx.toJS)
       );
       return true;
+    }
 
-    case 'shell_getFilteredMethods':
+    case 'shell_getFilteredMethods': {
       callback(
         null,
         flatten(Object.keys(methodGroups).map(key => methodGroups[key].methods))
       );
       return true;
+    }
 
-    case 'shell_getMethodGroups':
+    case 'shell_getMethodGroups': {
       callback(
         null,
         methodGroups
       );
       return true;
+    }
 
-    case 'shell_getMethodPermissions':
+    case 'shell_getMethodPermissions': {
       callback(null, mobx.toJS(requestStore.permissions));
       return true;
+    }
 
-    case 'shell_loadApp':
+    case 'shell_loadApp': {
       const [loadId, loadParams] = params;
       const loadUrl = `/${loadId}/${loadParams || ''}`;
 
@@ -64,27 +67,43 @@ export default function execute (appId, method, params, callback) {
 
       callback(null, true);
       return true;
+    }
 
-    case 'shell_requestNewToken':
+    case 'shell_requestNewToken': {
       callback(null, requestStore.createToken(appId));
       return true;
+    }
 
-    case 'shell_setAppVisibility':
-      const [changeId, visibility] = params;
+    case 'shell_setAppVisibility': {
+      const [appId, visibility] = params;
 
       callback(
         null,
         visibility
-          ? visibleStore.showApp(changeId)
-          : visibleStore.hideApp(changeId)
+          ? dappsStore.showApp(appId)
+          : dappsStore.hideApp(appId)
       );
       return true;
+    }
 
-    case 'shell_setMethodPermissions':
+    case 'shell_setAppPinned': {
+      const [appId, pinned] = params;
+
+      callback(
+        null,
+        pinned
+          ? dappsStore.pinApp(appId)
+          : dappsStore.unpinApp(appId)
+      );
+      return true;
+    }
+
+    case 'shell_setMethodPermissions': {
       const [permissions] = params;
 
       callback(null, requestStore.setPermissions(permissions));
       return true;
+    }
 
     default:
       return false;

@@ -140,12 +140,12 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/api": "^2.1.1",
+    "@parity/api": "^2.1.6",
     "@parity/plugin-signer-account": "paritytech/plugin-signer-account",
     "@parity/plugin-signer-default": "paritytech/plugin-signer-default",
     "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware",
     "@parity/plugin-signer-qr": "paritytech/plugin-signer-qr",
-    "@parity/shared": "^2.2.12",
+    "@parity/shared": "2.2.14",
     "@parity/ui": "^3.0.16",
     "keythereum": "1.0.2",
     "lodash.flatten": "4.4.0",

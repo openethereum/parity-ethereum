@@ -16,48 +16,44 @@
 */
 
 .card {
-  padding: 0.25em;
+  position: relative;
+  margin-top: 3em;
+
+  .pin {
+    display: none;
+    position: absolute;
+    top: 0;
+    right: 1.6em;
+    z-index: 1;
+  }
+
+  .pin.pinned {
+    display: block;
+    transform: rotate(45deg);
+  }
+
+  &:hover {
+    .pin {
+      display: block;
+    }
+  }
 
   .content {
-    background: white;
-    box-sizing: content-box;
-    min-height: 100px;
+    display: block;
+    padding-top: 1em;
 
     .title {
-      min-height: 1em;
-      padding-left: 72px;
-    }
-
-    .description {
-      color: #333;
-      min-height: 1em;
-      padding-left: 72px;
-      padding-top: 0.25em;
-      opacity: 0.66;
+      margin-top: 0.8em;
     }
 
     .image {
-      border-radius: 8px;
-      position: absolute;
-    }
-
-    .vouching {
-      padding: 0.5em;
-      margin: 0.5em 1em;
-      background: transparent;
-      position: relative;
-      white-space: nowrap;
-
-      img {
-        position: relative;
-        display: inline-block;
-        margin: 0.25em 0.25em 0.25em 0;
-      }
-
-      div {
-        right: auto;
-        left: 0;
-      }
+      box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.15);
+      border-radius: 10px;
+      display: block;
+      width: 2em;
+      height: 2em;
+      margin-left: auto;
+      margin-right: auto;
     }
   }
 }
