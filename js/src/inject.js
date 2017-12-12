@@ -28,8 +28,6 @@ function initProvider () {
 
   if (appId === 'dapps') {
     appId = path[2];
-  } else if (!Api.util.isHex(appId)) {
-    appId = Api.util.sha3(appId);
   }
 
   const ethereum = new Api.Provider.PostMessage(appId);

@@ -17,7 +17,6 @@
 import * as mobx from 'mobx';
 import flatten from 'lodash.flatten';
 
-import { sha3 } from '@parity/api/lib/util/sha3';
 import VisibleStore from '@parity/shared/lib/mobx/dappsStore';
 
 import RequestStore from './DappRequests/store';
@@ -58,8 +57,7 @@ export default function execute (appId, method, params, callback) {
       return true;
 
     case 'shell_loadApp':
-      const [_loadId, loadParams] = params;
-      const loadId = _loadId.substr(0, 2) !== '0x' ? sha3(_loadId) : _loadId;
+      const [loadId, loadParams] = params;
       const loadUrl = `/${loadId}/${loadParams || ''}`;
 
       window.location.hash = loadUrl;
