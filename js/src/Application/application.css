@@ -35,9 +35,14 @@
     box-sizing: border-box;
     display: flex;
     flex-grow: 1;
-    overflow: hidden;
     position: relative;
-    overflow-y: scroll;
+
+    /* Show scrollbar for Homepage only, dapps' scrollbar are handled inside
+     * their iframe.
+     */
+    & > div {
+      overflow-y: auto;
+    }
   }
 
   .error {
