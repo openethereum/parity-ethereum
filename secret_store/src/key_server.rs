@@ -230,7 +230,7 @@ pub mod tests {
 
 	impl AdminSessionsServer for DummyKeyServer {
 		fn change_servers_set(&self, _old_set_signature: RequestSignature, _new_set_signature: RequestSignature, _new_servers_set: BTreeSet<NodeId>) -> Result<(), Error> {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 	}
 
@@ -243,25 +243,25 @@ pub mod tests {
 
 	impl DocumentKeyServer for DummyKeyServer {
 		fn store_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _common_point: Public, _encrypted_document_key: Public) -> Result<(), Error> {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 
 		fn generate_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _threshold: usize) -> Result<EncryptedDocumentKey, Error> {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 
 		fn restore_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature) -> Result<EncryptedDocumentKey, Error> {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 
 		fn restore_document_key_shadow(&self, _key_id: &ServerKeyId, _signature: &RequestSignature) -> Result<EncryptedDocumentKeyShadow, Error> {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 	}
 
 	impl MessageSigner for DummyKeyServer {
 		fn sign_message(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 	}
 

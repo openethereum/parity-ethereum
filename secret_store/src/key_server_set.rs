@@ -360,11 +360,11 @@ pub mod tests {
 		}
 
 		fn start_migration(&self, _migration_id: H256) {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 
 		fn confirm_migration(&self, _migration_id: H256) {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 	}
 }
