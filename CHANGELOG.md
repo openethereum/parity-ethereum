@@ -49,7 +49,7 @@ Parity 1.8.3 contains several bug-fixes and removes the ability to deploy built-
 
 The full list of included changes:
 
-- Backports to beta ([#7043https://github.com/paritytech/parity/pull/7265
+- Backports to beta ([#7043](https://github.com/paritytech/parity/pull/7043))
   - pwasm-std update ([#7018](https://github.com/paritytech/parity/pull/7018))
   - Version 1.8.3
   - Make CLI arguments parsing more backwards compatible ([#7004](https://github.com/paritytech/parity/pull/7004))
