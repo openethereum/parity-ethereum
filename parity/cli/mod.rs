@@ -1495,9 +1495,11 @@ mod tests {
 			arg_dapps_path: "$HOME/.parity/dapps".into(),
 			flag_no_dapps: false,
 
+			// SECRETSTORE
 			flag_no_secretstore: false,
 			flag_no_secretstore_http: false,
 			flag_no_secretstore_acl_check: false,
+			flag_no_secretstore_auto_migrate: false,
 			arg_secretstore_contract: "none".into(),
 			arg_secretstore_secret: None,
 			arg_secretstore_admin_public: None,
