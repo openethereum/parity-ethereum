@@ -556,6 +556,8 @@ impl Importer {
 		route
 	}
 
+	// check for epoch end signal and write pending transition if it occurs.
+	// state for the given block must be available.
 	fn check_epoch_end_signal(
 		&self,
 		header: &Header,
@@ -909,13 +911,6 @@ impl Client {
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self) -> usize {
 		self.importer.import_verified_blocks(self)
-	}
-
-	/// Import a block with transaction receipts.
-	/// The block is guaranteed to be the next best blocks in the first block sequence.
-	/// Does no sealing or transaction validation.
-	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, ::error::Error> {
-		self.importer.import_old_block(block_bytes, receipts_bytes, &**self.db.read(), &*self.chain.read())
 	}
 
 	// use a state-proving closure for the given block.
@@ -1770,7 +1765,8 @@ impl BlockChainClient for Client {
 				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
 			}
 		}
-		self.import_old_block(block_bytes, receipts_bytes).map_err(Into::into)
+
+		self.importer.import_old_block(block_bytes, receipts_bytes, &**self.db.read(), &*self.chain.read()).map_err(Into::into)
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
