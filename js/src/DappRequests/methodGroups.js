@@ -17,27 +17,30 @@
 const methodGroups = {
   shell: {
     methods: [
-      'shell_getApps',
-      'shell_getFilteredMethods',
-      'shell_getMethodGroups',
-      'shell_getMethodPermissions',
-      'shell_loadApp',
-      'shell_setAppPinned',
-      'shell_setAppVisibility',
-      'shell_setMethodPermissions'
+      'shell_loadApp'
     ]
   },
   dapps: {
     methods: [
       'parity_dappsRefresh',
       'parity_dappsUrl',
-      'parity_getNewDappsAddresses'
+      'shell_getApps',
+      'shell_getMethodPermissions'
     ]
   },
-  accountsView: {
+  dappsEdit: {
+    methods: [
+      'shell_setAppPinned',
+      'shell_setAppVisibility',
+      'shell_setMethodPermissions'
+    ]
+  },
+  accounts: {
     methods: [
       'parity_accountsInfo',
       'parity_allAccountsInfo',
+      'parity_getNewDappsAddresses',
+      'parity_getNewDappsDefaultAddress',
       'parity_hardwareAccountsInfo',
       'parity_lockedHardwareAccountsInfo'
     ]
@@ -58,6 +61,7 @@ const methodGroups = {
       'parity_setAccountName',
       'parity_setAccountMeta',
       'parity_hardwarePinMatrixAck',
+      'parity_setNewDappsAddresses',
       'parity_setNewDappsDefaultAddress'
     ]
   },
@@ -69,14 +73,22 @@ const methodGroups = {
   },
   vaults: {
     methods: [
-      'parity_changeVault',
-      'parity_changeVaultPassword',
       'parity_closeVault',
       'parity_getVaultMeta',
       'parity_listVaults',
       'parity_listOpenedVaults',
-      'parity_newVault',
-      'parity_openVault',
+      'parity_openVault'
+    ]
+  },
+  vaultsCreate: {
+    methods: [
+      'parity_newVault'
+    ]
+  },
+  vaultsEdit: {
+    methods: [
+      'parity_changeVault',
+      'parity_changeVaultPassword',
       'parity_setVaultMeta'
     ]
   },
