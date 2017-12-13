@@ -74,18 +74,6 @@ export default function execute (appId, method, params, callback) {
       return true;
     }
 
-    case 'shell_setAppVisibility': {
-      const [appId, visibility] = params;
-
-      callback(
-        null,
-        visibility
-          ? dappsStore.showApp(appId)
-          : dappsStore.hideApp(appId)
-      );
-      return true;
-    }
-
     case 'shell_setAppPinned': {
       const [appId, pinned] = params;
 
@@ -94,6 +82,18 @@ export default function execute (appId, method, params, callback) {
         pinned
           ? dappsStore.pinApp(appId)
           : dappsStore.unpinApp(appId)
+      );
+      return true;
+    }
+
+    case 'shell_setAppVisibility': {
+      const [appId, visibility] = params;
+
+      callback(
+        null,
+        visibility
+          ? dappsStore.showApp(appId)
+          : dappsStore.hideApp(appId)
       );
       return true;
     }
