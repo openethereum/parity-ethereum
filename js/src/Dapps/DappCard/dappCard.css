@@ -48,12 +48,13 @@
 
     .image {
       box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.15);
-      border-radius: 10px;
+      border-radius: 0.125em;
       display: block;
       width: 2em;
       height: 2em;
       margin-left: auto;
       margin-right: auto;
+      padding: 0.125em;
     }
   }
 }
