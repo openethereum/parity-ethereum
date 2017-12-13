@@ -100,6 +100,8 @@ struct CachedContract {
 	sync: Weak<SyncProvider>,
 	/// Contract address.
 	contract: Option<KeyServerSetContract>,
+	/// Is auto-migrate enabled?
+	auto_migrate_enabled: bool,
 	/// Current contract state.
 	snapshot: KeyServerSetSnapshot,
 	/// This node key pair.
@@ -107,8 +109,8 @@ struct CachedContract {
 }
 
 impl OnChainKeyServerSet {
-	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
-		let mut cached_contract = CachedContract::new(client, sync, self_key_pair, key_servers)?;
+	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
+		let mut cached_contract = CachedContract::new(client, sync, self_key_pair, auto_migrate_enabled, key_servers)?;
 		let key_server_contract_address = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
 		// only initialize from contract if it is installed. otherwise - use default nodes
 		// once the contract is installed, all default nodes are lost (if not in the contract' set)
@@ -147,7 +149,7 @@ impl ChainNotify for OnChainKeyServerSet {
 }
 
 impl CachedContract {
-	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
+	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
 		let server_set = key_servers.into_iter()
 			.map(|(p, addr)| {
 				let addr = format!("{}:{}", addr.address, addr.port).parse()
@@ -159,6 +161,7 @@ impl CachedContract {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),
 			contract: None,
+			auto_migrate_enabled: auto_migrate_enabled,
 			snapshot: KeyServerSetSnapshot {
 				current_set: server_set.clone(),
 				new_set: server_set,
@@ -266,45 +269,53 @@ impl CachedContract {
 
 		let current_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_current_key_servers,
 			&KeyServerSetContract::get_current_key_server_public, &KeyServerSetContract::get_current_key_server_address);
-		let new_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_new_key_servers,
-			&KeyServerSetContract::get_new_key_server_public, &KeyServerSetContract::get_new_key_server_address);
-		let migration_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_migration_key_servers,
-			&KeyServerSetContract::get_migration_key_server_public, &KeyServerSetContract::get_migration_key_server_address);
 
-		let migration_id = match migration_set.is_empty() {
-			false => contract.get_migration_id(&do_call).wait()
-				.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration id from contract", err); err })
-				.ok(),
-			true => None,
-		};
+		let (new_set, migration) = match self.auto_migrate_enabled {
+			true => {
+				let new_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_new_key_servers,
+					&KeyServerSetContract::get_new_key_server_public, &KeyServerSetContract::get_new_key_server_address);
+				let migration_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_migration_key_servers,
+					&KeyServerSetContract::get_migration_key_server_public, &KeyServerSetContract::get_migration_key_server_address);
 
-		let migration_master = match migration_set.is_empty() {
-			false => contract.get_migration_master(&do_call).wait()
-				.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration master from contract", err); err })
-				.ok()
-				.and_then(|address| current_set.keys().chain(migration_set.keys())
-					.find(|public| public_to_address(public) == address)
-					.cloned()),
-			true => None,
-		};
+				let migration_id = match migration_set.is_empty() {
+					false => contract.get_migration_id(&do_call).wait()
+						.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration id from contract", err); err })
+						.ok(),
+					true => None,
+				};
 
-		let is_migration_confirmed = match migration_set.is_empty() {
-			false if current_set.contains_key(self.self_key_pair.public()) || migration_set.contains_key(self.self_key_pair.public()) =>
-				contract.is_migration_confirmed(&do_call, self.self_key_pair.address()).wait()
-					.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration confirmation from contract", err); err })
-					.ok(),
-			_ => None,
-		};
+				let migration_master = match migration_set.is_empty() {
+					false => contract.get_migration_master(&do_call).wait()
+						.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration master from contract", err); err })
+						.ok()
+						.and_then(|address| current_set.keys().chain(migration_set.keys())
+							.find(|public| public_to_address(public) == address)
+							.cloned()),
+					true => None,
+				};
 
-		let migration = match (migration_set.is_empty(), migration_id, migration_master, is_migration_confirmed) {
-			(false, Some(migration_id), Some(migration_master), Some(is_migration_confirmed)) =>
-				Some(KeyServerSetMigration {
-					id: migration_id,
-					master: migration_master,
-					set: migration_set,
-					is_confirmed: is_migration_confirmed,
-				}),
-			_ => None,
+				let is_migration_confirmed = match migration_set.is_empty() {
+					false if current_set.contains_key(self.self_key_pair.public()) || migration_set.contains_key(self.self_key_pair.public()) =>
+						contract.is_migration_confirmed(&do_call, self.self_key_pair.address()).wait()
+							.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration confirmation from contract", err); err })
+							.ok(),
+					_ => None,
+				};
+
+				let migration = match (migration_set.is_empty(), migration_id, migration_master, is_migration_confirmed) {
+					(false, Some(migration_id), Some(migration_master), Some(is_migration_confirmed)) =>
+						Some(KeyServerSetMigration {
+							id: migration_id,
+							master: migration_master,
+							set: migration_set,
+							is_confirmed: is_migration_confirmed,
+						}),
+					_ => None,
+				};
+
+				(new_set, migration)
+			}
+			false => (current_set.clone(), None),
 		};
 
 		self.snapshot = KeyServerSetSnapshot {
