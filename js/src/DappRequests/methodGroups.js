@@ -21,12 +21,26 @@ const methodGroups = {
       'shell_getFilteredMethods',
       'shell_getMethodGroups',
       'shell_getMethodPermissions',
+      'shell_loadApp',
+      'shell_setAppPinned',
       'shell_setAppVisibility',
       'shell_setMethodPermissions'
     ]
   },
+  dapps: {
+    methods: [
+      'parity_dappsRefresh',
+      'parity_dappsUrl',
+      'parity_getNewDappsAddresses'
+    ]
+  },
   accountsView: {
-    methods: ['parity_accountsInfo', 'parity_allAccountsInfo']
+    methods: [
+      'parity_accountsInfo',
+      'parity_allAccountsInfo',
+      'parity_hardwareAccountsInfo',
+      'parity_lockedHardwareAccountsInfo'
+    ]
   },
   accountsCreate: {
     methods: [
@@ -40,14 +54,17 @@ const methodGroups = {
     ]
   },
   accountsEdit: {
-    methods: ['parity_setAccountName', 'parity_setAccountMeta']
-  },
-  upgrade: {
     methods: [
-      'parity_consensusCapability',
-      'parity_executeUpgrade',
-      'parity_upgradeReady',
-      'parity_versionInfo'
+      'parity_setAccountName',
+      'parity_setAccountMeta',
+      'parity_hardwarePinMatrixAck',
+      'parity_setNewDappsDefaultAddress'
+    ]
+  },
+  accountsDelete: {
+    methods: [
+      'parity_killAccount',
+      'parity_removeAddress'
     ]
   },
   vaults: {
@@ -63,11 +80,31 @@ const methodGroups = {
       'parity_setVaultMeta'
     ]
   },
-  other: {
+  signerRequests: {
     methods: [
       'parity_checkRequest',
-      'parity_hashContent',
       'parity_localTransactions'
+    ]
+  },
+  signerConfirm: {
+    methods: [
+      'parity_confirmRequest',
+      'parity_confirmRequestRaw',
+      'parity_rejectRequest'
+    ]
+  },
+  node: {
+    methods: [
+      'parity_hashContent',
+      'parity_consensusCapability',
+      'parity_upgradeReady',
+      'parity_versionInfo',
+      'parity_wsUrl'
+    ]
+  },
+  nodeUpgrade: {
+    methods: [
+      'parity_executeUpgrade'
     ]
   }
 };
