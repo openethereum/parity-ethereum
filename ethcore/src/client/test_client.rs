@@ -37,9 +37,9 @@ use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedT
 use blockchain::TreeRoute;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
-	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId, 
-	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError, 
-	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock
+	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
+	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
+	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -496,6 +496,57 @@ impl RegistryInfo for TestBlockChainClient {
 	fn registry_address(&self, _name: String) -> Option<Address> { None }
 }
 
+impl ImportBlock for TestBlockChainClient {
+	fn import_block(&self, b: Bytes) -> Result<H256, BlockImportError> {
+		let header = Rlp::new(&b).val_at::<BlockHeader>(0);
+		let h = header.hash();
+		let number: usize = header.number() as usize;
+		if number > self.blocks.read().len() {
+			panic!("Unexpected block number. Expected {}, got {}", self.blocks.read().len(), number);
+		}
+		if number > 0 {
+			match self.blocks.read().get(header.parent_hash()) {
+				Some(parent) => {
+					let parent = Rlp::new(parent).val_at::<BlockHeader>(0);
+					if parent.number() != (header.number() - 1) {
+						panic!("Unexpected block parent");
+					}
+				},
+				None => {
+					panic!("Unknown block parent {:?} for block {}", header.parent_hash(), number);
+				}
+			}
+		}
+		let len = self.numbers.read().len();
+		if number == len {
+			{
+				let mut difficulty = self.difficulty.write();
+				*difficulty = *difficulty + header.difficulty().clone();
+			}
+			mem::replace(&mut *self.last_hash.write(), h.clone());
+			self.blocks.write().insert(h.clone(), b);
+			self.numbers.write().insert(number, h.clone());
+			let mut parent_hash = header.parent_hash().clone();
+			if number > 0 {
+				let mut n = number - 1;
+				while n > 0 && self.numbers.read()[&n] != parent_hash {
+					*self.numbers.write().get_mut(&n).unwrap() = parent_hash.clone();
+					n -= 1;
+					parent_hash = Rlp::new(&self.blocks.read()[&parent_hash]).val_at::<BlockHeader>(0).parent_hash().clone();
+				}
+			}
+		}
+		else {
+			self.blocks.write().insert(h.clone(), b.to_vec());
+		}
+		Ok(h)
+	}
+
+	fn import_block_with_receipts(&self, b: Bytes, _r: Bytes) -> Result<H256, BlockImportError> {
+		self.import_block(b)
+	}
+}
+
 impl BlockChainClient for TestBlockChainClient {
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
@@ -673,55 +724,6 @@ impl BlockChainClient for TestBlockChainClient {
 			return Some(rlp.out());
 		}
 		None
-	}
-
-	fn import_block(&self, b: Bytes) -> Result<H256, BlockImportError> {
-		let header = Rlp::new(&b).val_at::<BlockHeader>(0);
-		let h = header.hash();
-		let number: usize = header.number() as usize;
-		if number > self.blocks.read().len() {
-			panic!("Unexpected block number. Expected {}, got {}", self.blocks.read().len(), number);
-		}
-		if number > 0 {
-			match self.blocks.read().get(header.parent_hash()) {
-				Some(parent) => {
-					let parent = Rlp::new(parent).val_at::<BlockHeader>(0);
-					if parent.number() != (header.number() - 1) {
-						panic!("Unexpected block parent");
-					}
-				},
-				None => {
-					panic!("Unknown block parent {:?} for block {}", header.parent_hash(), number);
-				}
-			}
-		}
-		let len = self.numbers.read().len();
-		if number == len {
-			{
-				let mut difficulty = self.difficulty.write();
-				*difficulty = *difficulty + header.difficulty().clone();
-			}
-			mem::replace(&mut *self.last_hash.write(), h.clone());
-			self.blocks.write().insert(h.clone(), b);
-			self.numbers.write().insert(number, h.clone());
-			let mut parent_hash = header.parent_hash().clone();
-			if number > 0 {
-				let mut n = number - 1;
-				while n > 0 && self.numbers.read()[&n] != parent_hash {
-					*self.numbers.write().get_mut(&n).unwrap() = parent_hash.clone();
-					n -= 1;
-					parent_hash = Rlp::new(&self.blocks.read()[&parent_hash]).val_at::<BlockHeader>(0).parent_hash().clone();
-				}
-			}
-		}
-		else {
-			self.blocks.write().insert(h.clone(), b.to_vec());
-		}
-		Ok(h)
-	}
-
-	fn import_block_with_receipts(&self, b: Bytes, _r: Bytes) -> Result<H256, BlockImportError> {
-		self.import_block(b)
 	}
 
 	fn queue_info(&self) -> QueueInfo {

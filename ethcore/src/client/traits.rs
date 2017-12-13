@@ -114,8 +114,18 @@ pub trait RegistryInfo {
 	fn registry_address(&self, name: String) -> Option<Address>;
 }
 
+// FIXME Why these methods belong to BlockChainClient and not MiningBlockChainClient?
+/// Provides methods to import block into blockchain
+pub trait ImportBlock {
+	/// Import a block into the blockchain.
+	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError>;
+
+	/// Import a block with transaction receipts. Does no sealing and transaction validation.
+	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockInfo + CallContract + TransactionInfo + RegistryInfo {
+pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockInfo + CallContract + TransactionInfo + RegistryInfo + ImportBlock {
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 
@@ -193,12 +203,6 @@ pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockIn
 
 	/// Get raw block receipts data by block header hash.
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
-
-	/// Import a block into the blockchain.
-	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError>;
-
-	/// Import a block with transaction receipts. Does no sealing and transaction validation.
-	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;

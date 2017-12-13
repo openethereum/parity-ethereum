@@ -41,7 +41,7 @@ use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock
+	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -1367,6 +1367,43 @@ impl CallContract for Client {
 	}
 }
 
+impl ImportBlock for Client {
+	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
+		use verification::queue::kind::BlockLike;
+		use verification::queue::kind::blocks::Unverified;
+
+		// create unverified block here so the `keccak` calculation can be cached.
+		let unverified = Unverified::new(bytes);
+
+		{
+			if self.chain.read().is_known(&unverified.hash()) {
+				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
+			}
+			let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
+			if status == BlockStatus::Unknown || status == BlockStatus::Pending {
+				return Err(BlockImportError::Block(BlockError::UnknownParent(unverified.parent_hash())));
+			}
+		}
+		Ok(self.importer.block_queue.import(unverified)?)
+	}
+
+	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
+		{
+			// check block order
+			let header = BlockView::new(&block_bytes).header_view();
+			if self.chain.read().is_known(&header.hash()) {
+				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
+			}
+			let status = self.block_status(BlockId::Hash(header.parent_hash()));
+			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
+				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
+			}
+		}
+
+		self.importer.import_old_block(block_bytes, receipts_bytes, &**self.db.read(), &*self.chain.read()).map_err(Into::into)
+	}
+}
+
 impl BlockChainClient for Client {
 	fn call(&self, transaction: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError> {
 		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
@@ -1732,41 +1769,6 @@ impl BlockChainClient for Client {
 
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
 		self.chain.read().block_receipts(hash).map(|receipts| ::rlp::encode(&receipts).into_vec())
-	}
-
-	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
-		use verification::queue::kind::BlockLike;
-		use verification::queue::kind::blocks::Unverified;
-
-		// create unverified block here so the `keccak` calculation can be cached.
-		let unverified = Unverified::new(bytes);
-
-		{
-			if self.chain.read().is_known(&unverified.hash()) {
-				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
-			}
-			let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
-			if status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				return Err(BlockImportError::Block(BlockError::UnknownParent(unverified.parent_hash())));
-			}
-		}
-		Ok(self.importer.block_queue.import(unverified)?)
-	}
-
-	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
-		{
-			// check block order
-			let header = BlockView::new(&block_bytes).header_view();
-			if self.chain.read().is_known(&header.hash()) {
-				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
-			}
-			let status = self.block_status(BlockId::Hash(header.parent_hash()));
-			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
-			}
-		}
-
-		self.importer.import_old_block(block_bytes, receipts_bytes, &**self.db.read(), &*self.chain.read()).map_err(Into::into)
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
