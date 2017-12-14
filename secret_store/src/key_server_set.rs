@@ -16,7 +16,7 @@
 
 use std::sync::{Arc, Weak};
 use std::net::SocketAddr;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use futures::{future, Future, IntoFuture};
 use parking_lot::Mutex;
 use ethcore::filter::Filter;
@@ -339,7 +339,7 @@ impl CachedContract {
 		for key_server in key_servers_list {
 			let key_server_public = read_public(contract, do_call, key_server).wait()
 				.and_then(|p| if p.len() == 64 { Ok(Public::from_slice(&p)) } else { Err(format!("Invalid public length {}", p.len())) });
-			let key_server_address = read_address(contract, do_call, key_server).wait()
+			let key_server_address: Result<SocketAddr, _> = read_address(contract, do_call, key_server).wait()
 				.and_then(|a| a.parse().map_err(|e| format!("Invalid ip address: {}", e)));
 
 			// only add successfully parsed nodes
@@ -347,7 +347,7 @@ impl CachedContract {
 				(Ok(key_server_public), Ok(key_server_address)) => {
 					if !key_servers_addresses.insert(key_server_address.clone()) {
 						warn!(target: "secretstore_net", "the same address ({}) specified twice in list of contracts. Ignoring server {}",
-							key_server_address, key_server_public, err);
+							key_server_address, key_server_public);
 						continue;
 					}
 
