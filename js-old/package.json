@@ -203,7 +203,6 @@
     "utf8": "2.1.2",
     "valid-url": "1.0.9",
     "validator": "6.2.0",
-    "web3": "0.17.0-beta",
     "whatwg-fetch": "2.0.1",
     "worker-loader": "^0.8.0",
     "zxcvbn": "4.4.1"
