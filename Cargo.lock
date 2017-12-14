@@ -204,6 +204,9 @@ dependencies = [
 name = "cc"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "rayon 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "cfg-if"
@@ -1383,7 +1386,7 @@ dependencies = [
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
- "rocksdb 0.4.5 (git+https://github.com/paritytech/rust-rocksdb)",
+ "rocksdb 0.4.5 (git+https://github.com/paritytech/rust-rocksdb?branch=rocksdb-5.8.8)",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2668,19 +2671,19 @@ dependencies = [
 [[package]]
 name = "rocksdb"
 version = "0.4.5"
-source = "git+https://github.com/paritytech/rust-rocksdb#8c4ad5411c141abc63d562d411053f7ebc1aa00c"
+source = "git+https://github.com/paritytech/rust-rocksdb?branch=rocksdb-5.8.8#21233c8c63934decc57457966813dc53bd77cc72"
 dependencies = [
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "local-encoding 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rocksdb-sys 0.3.0 (git+https://github.com/paritytech/rust-rocksdb)",
+ "rocksdb-sys 0.3.0 (git+https://github.com/paritytech/rust-rocksdb?branch=rocksdb-5.8.8)",
 ]
 
 [[package]]
 name = "rocksdb-sys"
 version = "0.3.0"
-source = "git+https://github.com/paritytech/rust-rocksdb#8c4ad5411c141abc63d562d411053f7ebc1aa00c"
+source = "git+https://github.com/paritytech/rust-rocksdb?branch=rocksdb-5.8.8#21233c8c63934decc57457966813dc53bd77cc72"
 dependencies = [
- "gcc 0.3.54 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cc 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "snappy-sys 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
 ]
@@ -3735,8 +3738,8 @@ dependencies = [
 "checksum regex-syntax 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ad890a5eef7953f55427c50575c680c42841653abd2b028b68cd223d157f62db"
 "checksum reqwest 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)" = "5866613d84e2a39c0479a960bf2d0eff1fbfc934f02cd42b5c08c1e1efc5b1fd"
 "checksum ring 0.9.7 (registry+https://github.com/rust-lang/crates.io-index)" = "24293de46bac74c9b9c05b40ff8496bbc8b9ae242a9b89f754e1154a43bc7c4c"
-"checksum rocksdb 0.4.5 (git+https://github.com/paritytech/rust-rocksdb)" = "<none>"
-"checksum rocksdb-sys 0.3.0 (git+https://github.com/paritytech/rust-rocksdb)" = "<none>"
+"checksum rocksdb 0.4.5 (git+https://github.com/paritytech/rust-rocksdb?branch=rocksdb-5.8.8)" = "<none>"
+"checksum rocksdb-sys 0.3.0 (git+https://github.com/paritytech/rust-rocksdb?branch=rocksdb-5.8.8)" = "<none>"
 "checksum rotor 0.6.3 (git+https://github.com/tailhook/rotor)" = "<none>"
 "checksum rpassword 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b273c91bd242ca03ad6d71c143b6f17a48790e61f21a6c78568fa2b6774a24a4"
 "checksum rprompt 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "1601f32bc5858aae3cbfa1c645c96c4d820cc5c16be0194f089560c00b6eb625"
