@@ -1,5 +1,3 @@
-// TODO [Now]: if several nodes have the same address, include the last one
-
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -334,8 +332,9 @@ impl CachedContract {
 			FP: Fn(&KeyServerSetContract, F, Address) -> BoxFuture<Vec<u8>, String>,
 			FA: Fn(&KeyServerSetContract, F, Address) -> BoxFuture<String, String> {
 		let mut key_servers = BTreeMap::new();
+		let mut key_servers_addresses = HashSet::new();
 		let key_servers_list = read_list(contract, do_call).wait()
-			.map_err(|err| { trace!(target: "secretstore", "Error {} reading list of key servers from contract", err); err })
+			.map_err(|err| { warn!(target: "secretstore_net", "error {} reading list of key servers from contract", err); err })
 			.unwrap_or_default();
 		for key_server in key_servers_list {
 			let key_server_public = read_public(contract, do_call, key_server).wait()
@@ -345,7 +344,15 @@ impl CachedContract {
 
 			// only add successfully parsed nodes
 			match (key_server_public, key_server_address) {
-				(Ok(key_server_public), Ok(key_server_address)) => { key_servers.insert(key_server_public, key_server_address); },
+				(Ok(key_server_public), Ok(key_server_address)) => {
+					if !key_servers_addresses.insert(key_server_address.clone()) {
+						warn!(target: "secretstore_net", "the same address ({}) specified twice in list of contracts. Ignoring server {}",
+							key_server_address, key_server_public, err);
+						continue;
+					}
+
+					key_servers.insert(key_server_public, key_server_address);
+				},
 				(Err(public_err), _) => warn!(target: "secretstore_net", "received invalid public from key server set contract: {}", public_err),
 				(_, Err(ip_err)) => warn!(target: "secretstore_net", "received invalid IP from key server set contract: {}", ip_err),
 			}
