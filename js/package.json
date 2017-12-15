@@ -27,7 +27,7 @@
     "build:embed": "cross-env EMBED=1 node webpack/embed",
     "build:i18n": "npm run clean && npm run build && babel-node ./scripts/build-i18n.js",
     "ci:build": "cross-env NODE_ENV=production npm run build",
-    "clean": "rimraf ./.build ./.coverage ./.happypack ./build",
+    "clean": "rimraf ./.build ./.coverage ./.happypack",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "npm run lint:css && npm run lint:js",
     "lint:cached": "npm run lint:css && npm run lint:js:cached",
@@ -140,7 +140,7 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/api": "^2.1.6",
+    "@parity/api": "^2.1.14",
     "@parity/plugin-signer-account": "paritytech/plugin-signer-account",
     "@parity/plugin-signer-default": "paritytech/plugin-signer-default",
     "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware",

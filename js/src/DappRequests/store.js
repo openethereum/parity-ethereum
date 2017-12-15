@@ -242,14 +242,9 @@ export default class Store {
         return;
       }
 
-      if (
-        (method &&
-          methodGroupFromMethod[method] &&
-          !this.hasTokenPermission(method, token)) ||
-        (api &&
-          methodGroupFromMethod[params[0]] &&
-          !this.hasTokenPermission(method, token))
-      ) {
+      const _method = api ? params[0] : method;
+
+      if (methodGroupFromMethod[_method] && !this.hasTokenPermission(_method, token)) {
         this.queueRequest(id, { // The requestId of a request is the id inside data
           data,
           source
