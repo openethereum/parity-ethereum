@@ -26,7 +26,7 @@ import Label from 'semantic-ui-react/dist/commonjs/elements/Label';
 import List from 'semantic-ui-react/dist/commonjs/elements/List';
 import Popup from 'semantic-ui-react/dist/commonjs/modules/Popup';
 
-import Store from './store';
+import Store from '../../Signer/pendingStore';
 import ParityBarStore from '../../ParityBar/store';
 import RequestItem from './RequestItem';
 import styles from './signerPending.css';
