@@ -578,6 +578,7 @@ impl Engine for AuthorityRound {
 			.expect("Header has been verified; qed").into();
 
 		let step = self.step.load();
+
 		let expected_diff = calculate_score(parent_step, step.into());
 
 		if header.difficulty() != &expected_diff {
@@ -617,6 +618,13 @@ impl Engine for AuthorityRound {
 		};
 
 		if is_step_proposer(validators, header.parent_hash(), step, header.author()) {
+			// this is guarded against by `can_propose` unless the block was signed
+			// on the same step (implies same key) and on a different node.
+			if parent_step == step.into() {
+				warn!("Attempted to seal block on the same step as parent. Is this authority sealing with more than one node?");
+				return Seal::None;
+			}
+
 			if let Ok(signature) = self.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 
