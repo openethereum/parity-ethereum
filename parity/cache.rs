@@ -68,11 +68,6 @@ impl CacheConfig {
 		}
 	}
 
-	/// Size of db cache for blockchain.
-	pub fn db_blockchain_cache_size(&self) -> u32 {
-		max(MIN_DB_CACHE_MB, self.db / 4)
-	}
-
 	/// Size of db cache for state.
 	pub fn db_state_cache_size(&self) -> u32 {
 		max(MIN_DB_CACHE_MB, self.db * 3 / 4)

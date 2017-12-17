@@ -23,8 +23,6 @@ pub struct Config {
 	pub pref_cache_size: usize,
 	/// Maximum cache size in bytes.
 	pub max_cache_size: usize,
-	/// Backing db cache_size
-	pub db_cache_size: Option<usize>,
 }
 
 impl Default for Config {
@@ -32,8 +30,6 @@ impl Default for Config {
 		Config {
 			pref_cache_size: 1 << 14,
 			max_cache_size: 1 << 20,
-			db_cache_size: None,
 		}
 	}
 }
-
