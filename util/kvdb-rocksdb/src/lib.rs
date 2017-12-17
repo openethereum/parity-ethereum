@@ -232,6 +232,8 @@ fn col_config(config: &DatabaseConfig, block_opts: &BlockBasedOptions) -> Result
 		(config.memory_budget() * 1024 * 1024 / config.columns.unwrap_or(1) as usize) as i32);
 	opts.set_target_file_size_base(config.compaction.initial_file_size);
 
+	opts.set_parsed_options("compression_per_level=")?;
+
 	Ok(opts)
 }
 
