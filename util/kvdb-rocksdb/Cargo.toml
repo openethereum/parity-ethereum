@@ -8,6 +8,7 @@ elastic-array = "0.9"
 ethcore-bigint = { path = "../bigint" }
 kvdb = { path = "../kvdb" }
 log = "0.3"
+num_cpus = "1.0"
 parking_lot = "0.4"
 regex = "0.2"
 rlp = { path = "../rlp" }

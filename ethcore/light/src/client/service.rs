@@ -64,11 +64,7 @@ impl<T: ChainDataFetcher> Service<T> {
 		// initialize database.
 		let mut db_config = DatabaseConfig::with_columns(db::NUM_COLUMNS);
 
-		// give all rocksdb cache to the header chain column.
-		if let Some(size) = config.db_cache_size {
-			db_config.set_cache(db::COL_LIGHT_CHAIN, size);
-		}
-
+		db_config.memory_budget = config.db_cache_size;
 		db_config.compaction = config.db_compaction;
 		db_config.wal = config.db_wal;
 
