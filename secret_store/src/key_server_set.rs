@@ -289,7 +289,12 @@ impl CachedContract {
 		let contract = match self.contract.as_ref() {
 			Some(contract) => contract,
 			None => {
-				// TODO: clear current set
+				// no contract installed => empty snapshot
+				// WARNING: after restart current_set will be reset to the set from configuration file
+				// even though we have reset to empty set here. We are not considerning this as an issue
+				// because it is actually the issue of administrator.
+				self.snapshot = Default::default();
+				self.future_new_set = None;
 				return;
 			},
 		};
