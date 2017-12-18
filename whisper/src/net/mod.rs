@@ -30,6 +30,9 @@ use rlp::{DecoderError, RlpStream, UntrustedRlp};
 
 use message::{Message, Error as MessageError};
 
+#[cfg(test)]
+mod tests;
+
 // how often periodic relays are. when messages are imported
 // we directly broadcast.
 const RALLY_TOKEN: TimerToken = 1;
@@ -341,8 +344,8 @@ impl Peer {
 			.map_or(true, |filter| &(filter & message.bloom()) == message.bloom())
 	}
 
-	// note a message as known. returns true if it was already
-	// known, false otherwise.
+	// note a message as known. returns false if it was already
+	// known, true otherwise.
 	fn note_known(&mut self, message: &Message) -> bool {
 		self.known_messages.insert(message.hash().clone())
 	}
@@ -657,6 +660,22 @@ impl<T: MessageHandler> Network<T> {
 		io.send(*peer, packet::STATUS, ::rlp::EMPTY_LIST_RLP.to_vec());
 	}
 
+	fn on_packet<C: Context>(&self, io: &C, peer: &PeerId, packet_id: u8, data: &[u8]) {
+		let rlp = UntrustedRlp::new(data);
+		let res = match packet_id {
+			packet::STATUS => self.on_status(peer, rlp),
+			packet::MESSAGES => self.on_messages(peer, rlp),
+			packet::POW_REQUIREMENT => self.on_pow_requirement(peer, rlp),
+			packet::TOPIC_FILTER => self.on_topic_filter(peer, rlp),
+			_ => Ok(()), // ignore unknown packets.
+		};
+
+		if let Err(e) = res {
+			trace!(target: "whisper", "Disabling peer due to misbehavior: {}", e);
+			io.disable_peer(*peer);
+		}
+	}
+
 	fn on_disconnect(&self, peer: &PeerId) {
 		trace!(target: "whisper", "Disconnecting peer {}", peer);
 		let _ = self.peers.write().remove(peer);
@@ -673,19 +692,7 @@ impl<T: MessageHandler> ::network::NetworkProtocolHandler for Network<T> {
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		let rlp = UntrustedRlp::new(data);
-		let res = match packet_id {
-			packet::STATUS => self.on_status(peer, rlp),
-			packet::MESSAGES => self.on_messages(peer, rlp),
-			packet::POW_REQUIREMENT => self.on_pow_requirement(peer, rlp),
-			packet::TOPIC_FILTER => self.on_topic_filter(peer, rlp),
-			_ => Ok(()), // ignore unknown packets.
-		};
-
-		if let Err(e) = res {
-			trace!(target: "whisper", "Disabling peer due to misbehavior: {}", e);
-			io.disable_peer(*peer);
-		}
+		self.on_packet(io, peer, packet_id, data)
 	}
 
 	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
