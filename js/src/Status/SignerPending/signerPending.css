@@ -16,7 +16,6 @@
 */
 
 .signerPending {
-  margin-top: 4px !important;
   position: relative;
   cursor: pointer;
 }
