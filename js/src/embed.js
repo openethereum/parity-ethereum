@@ -66,6 +66,8 @@ class FrameSecureApi extends SecureApi {
       () => transport,
       () => 'http:'
     );
+
+    this._isConnected = false;
   }
 
   connect () {
@@ -73,6 +75,7 @@ class FrameSecureApi extends SecureApi {
     this.emit('connecting');
     // Fire connected event with some delay.
     setTimeout(() => {
+      this._isConnected = true;
       this.emit('connected');
     });
   }
@@ -86,7 +89,7 @@ class FrameSecureApi extends SecureApi {
   }
 
   isConnected () {
-    return true;
+    return this._isConnected;
   }
 }
 
