@@ -96,7 +96,7 @@ pub struct OnChainKeyServerSet {
 	contract: Mutex<CachedContract>,
 }
 
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 /// Non-finalized new_set.
 struct FutureNewSet {
 	/// New servers set.
@@ -198,7 +198,7 @@ impl CachedContract {
 			self.read_from_registry_if_required(&*client, enacted, retracted);
 
 			// update number of confirmations (if there's future new set)
-			self.update_number_of_confirmations(&*client);
+			self.update_number_of_confirmations_if_required(&*client);
 		}
 	}
 
@@ -288,7 +288,10 @@ impl CachedContract {
 
 		let contract = match self.contract.as_ref() {
 			Some(contract) => contract,
-			None => return,
+			None => {
+				// TODO: clear current set
+				return;
+			},
 		};
 
 		let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
@@ -397,28 +400,15 @@ impl CachedContract {
 		key_servers
 	}
 
-	fn update_number_of_confirmations(&mut self, client: &Client) {
-		match self.future_new_set.as_mut() {
-			// no future new set is scheduled => do nothing,
-			None => return,
-			// else we should calculate number of confirmations for future new set
-			Some(future_new_set) => match block_confirmations(&*client, future_new_set.block.clone()) {
-				// we have enough confirmations => should move new_set from future to snapshot
-				Some(confirmations) if confirmations >= MIGRATION_CONFIRMATIONS_REQUIRED => (),
-				// not enough confirmations => do nothing
-				Some(_) => return,
-				// if number of confirmations is None, then reorg has happened && we need to reset block
-				// (some more intelligent startegy is possible, but let's stick to simplest one)
-				None => {
-					future_new_set.block = client.block_hash(BlockId::Latest).unwrap_or_default();
-					return;
-				}
-			}
+	fn update_number_of_confirmations_if_required(&mut self, client: &BlockChainClient) {
+		if !self.auto_migrate_enabled {
+			return;
 		}
 
-		let future_new_set = self.future_new_set.take()
-			.expect("we only pass through match above when future_new_set is some; qed");
-		self.snapshot.new_set = future_new_set.new_set;
+		update_number_of_confirmations(
+			&|| latest_block_hash(&*client),
+			&|block| block_confirmations(&*client, block),
+			&mut self.future_new_set, &mut self.snapshot);
 	}
 }
 
@@ -446,19 +436,14 @@ fn update_future_set(future_new_set: &mut Option<FutureNewSet>, new_snapshot: &m
 	// when auto-migrate is enabled, we do not want to start migration right after new_set is changed, because of:
 	// 1) there could be a fork && we could start migration to forked version (and potentially lose secrets)
 	// 2) there must be some period for new_set changes finalization (i.e. adding/removing more servers)
-	match future_new_set.as_mut() {
-		Some(future_new_set) => match future_new_set.new_set == new_snapshot.current_set {
-			// new_set has not changed => we only should update number of confirmations (later)
-			true => return,
-			// new set has changed => update it && starting block
-			false => (),
-		},
-		// there has been no new_set => update it && starting block
-		None => (),
-	}
-
 	let mut new_set = new_snapshot.current_set.clone();
 	::std::mem::swap(&mut new_set, &mut new_snapshot.new_set);
+
+	// if nothing has changed in future_new_set, then we want to preserve previous block hash
+	let block = match Some(&new_set) == future_new_set.as_ref().map(|f| &f.new_set) {
+		true => future_new_set.as_ref().map(|f| &f.block).cloned().unwrap_or_else(|| block),
+		false => block,
+	};
 
 	*future_new_set = Some(FutureNewSet {
 		new_set: new_set,
@@ -466,7 +451,35 @@ fn update_future_set(future_new_set: &mut Option<FutureNewSet>, new_snapshot: &m
 	});
 }
 
-fn block_confirmations(client: &Client, block: H256) -> Option<u64> {
+fn update_number_of_confirmations<F1: Fn() -> H256, F2: Fn(H256) -> Option<u64>>(latest_block: &F1, confirmations: &F2, future_new_set: &mut Option<FutureNewSet>, snapshot: &mut KeyServerSetSnapshot) {
+	match future_new_set.as_mut() {
+		// no future new set is scheduled => do nothing,
+		None => return,
+		// else we should calculate number of confirmations for future new set
+		Some(future_new_set) => match confirmations(future_new_set.block.clone()) {
+			// we have enough confirmations => should move new_set from future to snapshot
+			Some(confirmations) if confirmations >= MIGRATION_CONFIRMATIONS_REQUIRED => (),
+			// not enough confirmations => do nothing
+			Some(_) => return,
+			// if number of confirmations is None, then reorg has happened && we need to reset block
+			// (some more intelligent startegy is possible, but let's stick to simplest one)
+			None => {
+				future_new_set.block = latest_block();
+				return;
+			}
+		}
+	}
+
+	let future_new_set = future_new_set.take()
+		.expect("we only pass through match above when future_new_set is some; qed");
+	snapshot.new_set = future_new_set.new_set;
+}
+
+fn latest_block_hash(client: &BlockChainClient) -> H256 {
+	client.block_hash(BlockId::Latest).unwrap_or_default()
+}
+
+fn block_confirmations(client: &BlockChainClient, block: H256) -> Option<u64> {
 	client.block_number(BlockId::Hash(block))
 		.and_then(|block| client.block_number(BlockId::Latest).map(|last_block| (block, last_block)))
 		.map(|(block, last_block)| last_block - block)
@@ -478,7 +491,8 @@ pub mod tests {
 	use std::net::SocketAddr;
 	use bigint::hash::H256;
 	use ethkey::Public;
-	use super::{update_future_set, FutureNewSet, KeyServerSet, KeyServerSetSnapshot};
+	use super::{update_future_set, update_number_of_confirmations, FutureNewSet,
+		KeyServerSet, KeyServerSetSnapshot, MIGRATION_CONFIRMATIONS_REQUIRED};
 
 	#[derive(Default)]
 	pub struct MapKeyServerSet {
@@ -575,5 +589,147 @@ pub mod tests {
 			new_set: vec![(1.into(), address)].into_iter().collect(),
 			..Default::default()
 		});
+	}
+
+	#[test]
+	fn future_set_is_updated_when_set_differs() {
+		let address = "127.0.0.1:12000".parse().unwrap();
+
+		let mut future_new_set = Some(FutureNewSet {
+			new_set: vec![(2.into(), address)].into_iter().collect(),
+			block: Default::default(),
+		});
+		let mut new_snapshot = KeyServerSetSnapshot {
+			current_set: vec![(1.into(), address)].into_iter().collect(),
+			new_set: vec![(3.into(), address)].into_iter().collect(),
+			..Default::default()
+		};
+		update_future_set(&mut future_new_set, &mut new_snapshot, 1.into());
+		assert_eq!(future_new_set, Some(FutureNewSet {
+			new_set: vec![(3.into(), address)].into_iter().collect(),
+			block: 1.into(),
+		}));
+		assert_eq!(new_snapshot, KeyServerSetSnapshot {
+			current_set: vec![(1.into(), address)].into_iter().collect(),
+			new_set: vec![(1.into(), address)].into_iter().collect(),
+			..Default::default()
+		});
+	}
+
+	#[test]
+	fn future_set_is_not_updated_when_set_is_the_same() {
+		let address = "127.0.0.1:12000".parse().unwrap();
+
+		let mut future_new_set = Some(FutureNewSet {
+			new_set: vec![(2.into(), address)].into_iter().collect(),
+			block: Default::default(),
+		});
+		let mut new_snapshot = KeyServerSetSnapshot {
+			current_set: vec![(1.into(), address)].into_iter().collect(),
+			new_set: vec![(2.into(), address)].into_iter().collect(),
+			..Default::default()
+		};
+		update_future_set(&mut future_new_set, &mut new_snapshot, 1.into());
+		assert_eq!(future_new_set, Some(FutureNewSet {
+			new_set: vec![(2.into(), address)].into_iter().collect(),
+			block: Default::default(),
+		}));
+		assert_eq!(new_snapshot, KeyServerSetSnapshot {
+			current_set: vec![(1.into(), address)].into_iter().collect(),
+			new_set: vec![(1.into(), address)].into_iter().collect(),
+			..Default::default()
+		});
+	}
+
+	#[test]
+	fn when_updating_confirmations_nothing_is_changed_if_no_future_set() {
+		let address = "127.0.0.1:12000".parse().unwrap();
+
+		let mut future_new_set = None;
+		let mut snapshot = KeyServerSetSnapshot {
+			current_set: vec![(1.into(), address)].into_iter().collect(),
+			new_set: vec![(1.into(), address)].into_iter().collect(),
+			..Default::default()
+		};
+		let snapshot_copy = snapshot.clone();
+		update_number_of_confirmations(
+			&|| 1.into(),
+			&|_| Some(MIGRATION_CONFIRMATIONS_REQUIRED),
+			&mut future_new_set, &mut snapshot);
+		assert_eq!(future_new_set, None);
+		assert_eq!(snapshot, snapshot_copy);
+	}
+
+	#[test]
+	fn when_updating_confirmations_migration_is_scheduled() {
+		let address = "127.0.0.1:12000".parse().unwrap();
+
+		let mut future_new_set = Some(FutureNewSet {
+			new_set: vec![(2.into(), address)].into_iter().collect(),
+			block: Default::default(),
+		});
+		let mut snapshot = KeyServerSetSnapshot {
+			current_set: vec![(1.into(), address)].into_iter().collect(),
+			new_set: vec![(1.into(), address)].into_iter().collect(),
+			..Default::default()
+		};
+		update_number_of_confirmations(
+			&|| 1.into(),
+			&|_| Some(MIGRATION_CONFIRMATIONS_REQUIRED),
+			&mut future_new_set, &mut snapshot);
+		assert_eq!(future_new_set, None);
+		assert_eq!(snapshot, KeyServerSetSnapshot {
+			current_set: vec![(1.into(), address)].into_iter().collect(),
+			new_set: vec![(2.into(), address)].into_iter().collect(),
+			..Default::default()
+		});
+	}
+
+	#[test]
+	fn when_updating_confirmations_migration_is_not_scheduled_when_not_enough_confirmations() {
+		let address = "127.0.0.1:12000".parse().unwrap();
+
+		let mut future_new_set = Some(FutureNewSet {
+			new_set: vec![(2.into(), address)].into_iter().collect(),
+			block: Default::default(),
+		});
+		let mut snapshot = KeyServerSetSnapshot {
+			current_set: vec![(1.into(), address)].into_iter().collect(),
+			new_set: vec![(1.into(), address)].into_iter().collect(),
+			..Default::default()
+		};
+		let future_new_set_copy = future_new_set.clone();
+		let snapshot_copy = snapshot.clone();
+		update_number_of_confirmations(
+			&|| 1.into(),
+			&|_| Some(MIGRATION_CONFIRMATIONS_REQUIRED - 1),
+			&mut future_new_set, &mut snapshot);
+		assert_eq!(future_new_set, future_new_set_copy);
+		assert_eq!(snapshot, snapshot_copy);
+	}
+
+	#[test]
+	fn when_updating_confirmations_migration_is_reset_when_reorganized() {
+		let address = "127.0.0.1:12000".parse().unwrap();
+
+		let mut future_new_set = Some(FutureNewSet {
+			new_set: vec![(2.into(), address)].into_iter().collect(),
+			block: 1.into(),
+		});
+		let mut snapshot = KeyServerSetSnapshot {
+			current_set: vec![(1.into(), address)].into_iter().collect(),
+			new_set: vec![(1.into(), address)].into_iter().collect(),
+			..Default::default()
+		};
+		let snapshot_copy = snapshot.clone();
+		update_number_of_confirmations(
+			&|| 2.into(),
+			&|_| None,
+			&mut future_new_set, &mut snapshot);
+		assert_eq!(future_new_set, Some(FutureNewSet {
+			new_set: vec![(2.into(), address)].into_iter().collect(),
+			block: 2.into(),
+		}));
+		assert_eq!(snapshot, snapshot_copy);
 	}
 }
