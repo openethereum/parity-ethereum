@@ -52,7 +52,7 @@ use std::process::Command;
 #[cfg(target_os = "linux")]
 use std::fs::File;
 
-const DB_DEFAULT_MEMORY_BUDGET: usize = 128;
+const DB_DEFAULT_MEMORY_BUDGET_MB: usize = 128;
 
 enum KeyState {
 	Insert(DBValue),
@@ -177,7 +177,11 @@ impl DatabaseConfig {
 	}
 
 	pub fn memory_budget(&self) -> usize {
-		self.memory_budget.unwrap_or(DB_DEFAULT_MEMORY_BUDGET)
+		self.memory_budget.unwrap_or(DB_DEFAULT_MEMORY_BUDGET_MB) * 1024 * 1024
+	}
+
+	pub fn memory_budget_per_col(&self) -> usize {
+		self.memory_budget() / self.columns.unwrap_or(1) as usize
 	}
 }
 
@@ -228,8 +232,7 @@ fn col_config(config: &DatabaseConfig, block_opts: &BlockBasedOptions) -> Result
 				 "cache_index_and_filter_blocks=true",
 				 "pin_l0_filter_and_index_blocks_in_cache=true"))?;
 
-	opts.optimize_level_style_compaction(
-		(config.memory_budget() * 1024 * 1024 / config.columns.unwrap_or(1) as usize) as i32);
+	opts.optimize_level_style_compaction(config.memory_budget_per_col() as i32);
 	opts.set_target_file_size_base(config.compaction.initial_file_size);
 
 	opts.set_parsed_options("compression_per_level=")?;
@@ -272,6 +275,7 @@ impl Database {
 		opts.set_max_open_files(config.max_open_files);
 		opts.set_parsed_options("keep_log_file_num=1")?;
 		opts.set_parsed_options("bytes_per_sync=1048576")?;
+		opts.set_db_write_buffer_size(config.memory_budget_per_col());
 		opts.increase_parallelism(cmp::max(1, ::num_cpus::get() as i32 / 2));
 
 		let mut block_opts = BlockBasedOptions::new();
@@ -279,7 +283,7 @@ impl Database {
 		{
 			block_opts.set_block_size(config.compaction.block_size);
 			let cache_size = cmp::max(8, config.memory_budget() / 3);
-			let cache = Cache::new((cache_size * 1024 * 1024) as usize);
+			let cache = Cache::new(cache_size);
 			block_opts.set_cache(cache);
 		}
 
