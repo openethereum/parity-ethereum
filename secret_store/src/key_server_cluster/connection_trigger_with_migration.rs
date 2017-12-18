@@ -20,7 +20,7 @@ use std::sync::Arc;
 use bigint::hash::H256;
 use ethkey::Public;
 use parking_lot::Mutex;
-use key_server_cluster::{KeyServerSet, KeyServerSetSnapshot, KeyServerSetMigration};
+use key_server_cluster::{KeyServerSet, KeyServerSetSnapshot, KeyServerSetMigration, is_migration_required};
 use key_server_cluster::cluster::{ClusterClient, ClusterConnectionsData};
 use key_server_cluster::cluster_sessions::{AdminSession, ClusterSession};
 use key_server_cluster::jobs::servers_set_change_access_job::ordered_nodes_hash;
@@ -298,9 +298,7 @@ fn migration_state(self_node_id: &NodeId, snapshot: &KeyServerSetSnapshot) -> Mi
 
 	// we only require migration if set actually changes
 	// when only address changes, we could simply adjust connections
-	let no_nodes_removed = snapshot.current_set.keys().all(|n| snapshot.new_set.contains_key(n));
-	let no_nodes_added = snapshot.new_set.keys().all(|n| snapshot.current_set.contains_key(n));
-	if no_nodes_removed && no_nodes_added {
+	if !is_migration_required(&snapshot.current_set, &snapshot.new_set) {
 		return MigrationState::Idle;
 	}
 
