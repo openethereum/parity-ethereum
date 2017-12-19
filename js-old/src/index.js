@@ -15,41 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React from 'react';
-
-import injectTapEventPlugin from 'react-tap-event-plugin';
-import { hashHistory, Router } from 'react-router';
-
-import Api from '@parity/api';
-
-import ContractInstances from '~/contracts';
-
-import { initStore } from './redux';
+import { Router } from 'react-router';
 import ContextProvider from '~/ui/ContextProvider';
-import muiTheme from '~/ui/Theme';
 
-import { loadSender, patchApi } from '~/util/tx';
-import { setApi } from '~/redux/providers/apiActions';
-
-import './environment';
-
-import '~/assets/fonts/Roboto/font.css';
-import '~/assets/fonts/RobotoMono/font.css';
-
+import setup from './setup';
 import routes from './routes';
 import styles from './reset.css';
 
-injectTapEventPlugin();
-
-const api = new Api(window.ethereum);
-
-patchApi(api);
-loadSender(api);
-ContractInstances.create(api);
-
-const store = initStore(api, hashHistory);
-
-store.dispatch({ type: 'initAll', api });
-store.dispatch(setApi(api));
+const { api, muiTheme, store, hashHistory } = setup;
 
 export default () => (
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>

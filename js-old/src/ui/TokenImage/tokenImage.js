@@ -49,8 +49,6 @@ class TokenImage extends Component {
         ? api.dappsUrl
         : '';
 
-      console.warn(api.dappsUrl, imageurl);
-
       imagesrc = `${host}${imageurl}`;
     }
 
