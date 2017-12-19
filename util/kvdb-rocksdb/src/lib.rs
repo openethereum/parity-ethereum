@@ -275,7 +275,7 @@ impl Database {
 		opts.set_max_open_files(config.max_open_files);
 		opts.set_parsed_options("keep_log_file_num=1")?;
 		opts.set_parsed_options("bytes_per_sync=1048576")?;
-		opts.set_db_write_buffer_size(config.memory_budget_per_col());
+		opts.set_db_write_buffer_size(config.memory_budget_per_col() / 2);
 		opts.increase_parallelism(cmp::max(1, ::num_cpus::get() as i32 / 2));
 
 		let mut block_opts = BlockBasedOptions::new();
