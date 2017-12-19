@@ -429,6 +429,12 @@ impl BlockChainClient for TestBlockChainClient {
 		self.execution_result.read().clone().unwrap()
 	}
 
+	// TODO add test
+	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Vec<Executed>, CallError> {
+		let mut res = Vec::with_capacity(0);
+		Ok(res)
+	}
+
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {
 		Some(U256::zero())
 	}

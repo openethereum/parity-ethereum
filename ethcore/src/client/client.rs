@@ -1295,11 +1295,22 @@ impl BlockChainClient for Client {
 	}
 
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
+		let start = precise_time_ns();
 		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
+		println!("address: {}", (precise_time_ns() - start)/ 1_000_000);
+		let start = precise_time_ns();
 		let mut env_info = self.env_info(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
+		println!("env info: {}", (precise_time_ns() - start)/ 1_000_000);
+		let start = precise_time_ns();
 		let body = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
+		println!("block body: {}", (precise_time_ns() - start)/ 1_000_000);
+		let start = precise_time_ns();
 		let mut state = self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
+		println!("state: {}", (precise_time_ns() - start)/ 1_000_000);
+		let start = precise_time_ns();
 		let mut txs = body.transactions();
+		println!("txs: {}", (precise_time_ns() - start)/ 1_000_000);
+		let start = precise_time_ns();
 
 		if address.index >= txs.len() {
 			return Err(CallError::TransactionNotFound);
@@ -1314,8 +1325,31 @@ impl BlockChainClient for Client {
 		}
 		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
 		let t = SignedTransaction::new(first).expect(PROOF);
+		println!("execute prev txs: {}", (precise_time_ns() - start)/ 1_000_000);
 
 		self.do_virtual_call(&env_info, &mut state, &t, analytics)
+	}
+
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Vec<Executed>, CallError> {
+		let start = precise_time_ns();
+		let mut replays = Vec::new();
+		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+		let body = self.block_body(block).ok_or(CallError::StatePruned)?;
+		let mut state = self.state_at_beginning(block).ok_or(CallError::StatePruned)?;
+		let txs = body.transactions();
+		println!("txs: {}", (precise_time_ns() - start)/ 1_000_000);
+		let start = precise_time_ns();
+
+		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
+		for t in txs {
+			let t = SignedTransaction::new(t).expect(PROOF);
+			let x = self.do_virtual_call(&env_info, &mut state, &t, analytics).unwrap();
+			env_info.gas_used = env_info.gas_used + x.gas_used;
+			replays.push(x);
+		}
+		println!("execute txs: {}", (precise_time_ns() - start)/ 1_000_000);
+
+		Ok(replays)
 	}
 
 	fn mode(&self) -> IpcMode {
