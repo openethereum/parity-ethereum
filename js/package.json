@@ -1,6 +1,6 @@
 {
   "name": "Parity",
-  "version": "1.9.33",
+  "version": "1.9.36",
   "main": "src/index.parity.js",
   "jsnext:main": "src/index.parity.js",
   "author": "Parity Team <admin@parity.io>",
@@ -146,7 +146,7 @@
     "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware",
     "@parity/plugin-signer-qr": "paritytech/plugin-signer-qr",
     "@parity/shared": "2.2.14",
-    "@parity/ui": "^3.0.16",
+    "@parity/ui": "^3.0.17",
     "keythereum": "1.0.2",
     "lodash.flatten": "4.4.0",
     "lodash.omitby": "4.6.0",
