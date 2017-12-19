@@ -116,4 +116,13 @@ lto = false
 panic = "abort"
 
 [workspace]
-members = ["ethstore/cli", "ethkey/cli", "evmbin", "whisper", "chainspec", "dapps/js-glue", "ethcore/wasm/run"]
+members = [
+	"chainspec",
+	"dapps/js-glue",
+	"ethcore/wasm/run",
+	"ethkey/cli",
+	"ethstore/cli",
+	"evmbin",
+	"transaction-pool",
+	"whisper",
+]

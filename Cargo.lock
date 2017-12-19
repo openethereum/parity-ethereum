@@ -555,6 +555,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethcore-bigint"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "bigint 4.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
+ "plain_hasher 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ethcore-bloom-journal"
 version = "0.1.0"
 dependencies = [
@@ -2410,6 +2423,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "plain_hasher"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "crunchy 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "podio"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3277,6 +3298,16 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "transaction-pool"
+version = "1.9.0"
+dependencies = [
+ "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-bigint 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "transient-hashmap"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3608,6 +3639,7 @@ dependencies = [
 "checksum error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff511d5dc435d703f4971bc399647c9bc38e20cb41452e3b9feb4765419ed3f3"
 "checksum eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1)" = "<none>"
 "checksum ethabi 4.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c819a3adef0413a2519cbd9a19a35dd1c20c7a0110705beaba8aa4aa87eda95f"
+"checksum ethcore-bigint 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "bcb5af77e74a8f70e9c3337e069c37bc82178ef1b459c02091f73c4ad5281eb5"
 "checksum fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b1ee15a7050e5580b3712877157068ea713b245b080ff302ae2ca973cfcd9baa"
 "checksum flate2 0.2.20 (registry+https://github.com/rust-lang/crates.io-index)" = "e6234dd4468ae5d1e2dbb06fe2b058696fdc50a339c68a393aefbf00bc81e423"
 "checksum fnv 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "6cc484842f1e2884faf56f529f960cc12ad8c71ce96cc7abba0a067c98fee344"
@@ -3710,6 +3742,7 @@ dependencies = [
 "checksum phf_generator 0.7.21 (registry+https://github.com/rust-lang/crates.io-index)" = "6b07ffcc532ccc85e3afc45865469bf5d9e4ef5bfcf9622e3cfe80c2d275ec03"
 "checksum phf_shared 0.7.21 (registry+https://github.com/rust-lang/crates.io-index)" = "07e24b0ca9643bdecd0632f2b3da6b1b89bbb0030e0b992afc1113b23a7bc2f2"
 "checksum pkg-config 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)" = "3a8b4c6b8165cd1a1cd4b9b120978131389f64bdaf456435caa41e630edba903"
+"checksum plain_hasher 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "83ae80873992f511142c07d0ec6c44de5636628fdb7e204abd655932ea79d995"
 "checksum podio 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "e5422a1ee1bc57cc47ae717b0137314258138f38fd5f3cea083f43a9725383a0"
 "checksum pretty_assertions 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "2412f3332a07c7a2a50168988dcc184f32180a9758ad470390e5f55e089f6b6e"
 "checksum primal 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0e31b86efadeaeb1235452171a66689682783149a6249ff334a2c5d8218d00a4"
