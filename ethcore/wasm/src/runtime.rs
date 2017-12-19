@@ -665,7 +665,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		self.memory.set(return_ptr, &*hash)?;
 
-		Ok(Some(0i32.into()))
+		Ok(None)
 	}
 
 	fn return_address_ptr(&mut self, ptr: u32, val: Address) -> Result<(), InterpreterError>

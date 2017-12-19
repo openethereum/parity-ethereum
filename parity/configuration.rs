@@ -568,7 +568,7 @@ impl Configuration {
 	}
 
 	fn dapps_config(&self) -> DappsConfiguration {
-		let dev_ui = if self.args.flag_ui_no_validation { vec![("localhost".to_owned(), 3000)] } else { vec![] };
+		let dev_ui = if self.args.flag_ui_no_validation { vec![("127.0.0.1".to_owned(), 3000)] } else { vec![] };
 		let ui_port = self.ui_port();
 
 		DappsConfiguration {
@@ -752,6 +752,7 @@ impl Configuration {
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = self.init_reserved_nodes()?;
 		ret.allow_non_reserved = !self.args.flag_reserved_only;
+		ret.client_version = version();
 		Ok(ret)
 	}
 
@@ -1578,7 +1579,7 @@ mod tests {
 			port: 8180,
 			hosts: Some(vec![]),
 		});
-		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("localhost".to_owned(), 3000)]);
+		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("127.0.0.1".to_owned(), 3000)]);
 		assert_eq!(conf1.ws_config().unwrap().origins, None);
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {

@@ -22,7 +22,8 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 .container {
   background: $background;
   flex: 1;
-  height: 100%;
+  /* Broke after Chrome upgrade, just commenting for now */
+  /* height: 100%; */
   padding: 0em;
   max-width: 100%;
   position: relative;
@@ -64,7 +65,8 @@ $transitionAll: all 0.75s cubic-bezier(0.23, 1, 0.32, 1);
 .padded {
   background-color: transparent !important;
   border-radius: 0 !important;
-  height: 100%;
+  /* Broke after Chrome upgrade, just commenting for now */
+  /* height: 100%; */
   position: relative;
   overflow: auto;
 }

@@ -200,39 +200,57 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 						Some(URLHintResult::Dapp(_)) if self.only_content => {
 							(None, Self::dapps_disabled(self.embeddable_on.clone()))
 						},
-						Some(URLHintResult::Dapp(dapp)) => {
-							let handler = ContentFetcherHandler::new(
-								req.method(),
-								&dapp.url(),
-								path,
-								installers::Dapp::new(
-									content_id.clone(),
-									self.cache_path.clone(),
-									Box::new(on_done),
-									self.embeddable_on.clone(),
-									self.pool.clone(),
-								),
-								self.embeddable_on.clone(),
-								self.fetch.clone(),
-							);
-
-							(Some(ContentStatus::Fetching(handler.fetch_control())), Box::new(handler) as endpoint::Response)
-						},
-						Some(URLHintResult::Content(content)) => {
-							let handler = ContentFetcherHandler::new(
-								req.method(),
-								&content.url,
-								path,
-								installers::Content::new(
-									content_id.clone(),
-									content.mime,
-									self.cache_path.clone(),
-									Box::new(on_done),
-									self.pool.clone(),
-								),
-								self.embeddable_on.clone(),
-								self.fetch.clone(),
-							);
+						Some(content) => {
+							let handler = match content {
+								URLHintResult::Dapp(dapp) => {
+									ContentFetcherHandler::new(
+										req.method(),
+										&dapp.url(),
+										path,
+										installers::Dapp::new(
+											content_id.clone(),
+											self.cache_path.clone(),
+											Box::new(on_done),
+											self.embeddable_on.clone(),
+											self.pool.clone(),
+										),
+										self.embeddable_on.clone(),
+										self.fetch.clone(),
+									)
+								},
+							    URLHintResult::GithubDapp(content) => {
+									ContentFetcherHandler::new(
+										req.method(),
+										&content.url,
+										path,
+										installers::Dapp::new(
+											content_id.clone(),
+											self.cache_path.clone(),
+											Box::new(on_done),
+											self.embeddable_on.clone(),
+											self.pool.clone(),
+										),
+										self.embeddable_on.clone(),
+										self.fetch.clone(),
+									)
+							    },
+								URLHintResult::Content(content) => {
+									ContentFetcherHandler::new(
+										req.method(),
+										&content.url,
+										path,
+										installers::Content::new(
+											content_id.clone(),
+											content.mime,
+											self.cache_path.clone(),
+											Box::new(on_done),
+											self.pool.clone(),
+										),
+										self.embeddable_on.clone(),
+										self.fetch.clone(),
+									)
+								},
+							};
 
 							(Some(ContentStatus::Fetching(handler.fetch_control())), Box::new(handler) as endpoint::Response)
 						},

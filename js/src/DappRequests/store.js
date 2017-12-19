@@ -52,7 +52,7 @@ export default class Store {
 
       accumulator[appId] = accumulator[appId] || {};
       accumulator[appId][methodGroup] = accumulator[appId][methodGroup] || [];
-      accumulator[appId][methodGroup].push({ data, requestId }); // Append the requestId field in the request object
+      accumulator[appId][methodGroup].push({ data, requestId }); // Push request & append the requestId field in the request object
 
       return accumulator;
     }, {});
@@ -99,7 +99,7 @@ export default class Store {
     this.requests = { ...this.requests };
   };
 
-  getPermissionId = (method, appId) => `${method}:${appId}` // Create an id to identify permissions based on method and appId
+  getPermissionId = (method, appId) => `${method}:${appId}`; // Create an id to identify permissions based on method and appId
 
   getMethodFromRequest = requestId => {
     const { data: { method, params } } = this.requests[requestId];
@@ -131,13 +131,10 @@ export default class Store {
   };
 
   setPermissions = _permissions => {
-    const permissions = {};
-
-    Object.keys(_permissions).forEach(id => {
-      permissions[id] = !!_permissions[id];
-    });
-
-    this.permissions = permissions;
+    this.permissions = {
+      ...this.permissions,
+      ..._permissions
+    };
     this.savePermissions();
 
     return true;
@@ -245,14 +242,9 @@ export default class Store {
         return;
       }
 
-      if (
-        (method &&
-          methodGroupFromMethod[method] &&
-          !this.hasTokenPermission(method, token)) ||
-        (api &&
-          methodGroupFromMethod[params[0]] &&
-          !this.hasTokenPermission(method, token))
-      ) {
+      const _method = api ? params[0] : method;
+
+      if (methodGroupFromMethod[_method] && !this.hasTokenPermission(_method, token)) {
         this.queueRequest(id, { // The requestId of a request is the id inside data
           data,
           source

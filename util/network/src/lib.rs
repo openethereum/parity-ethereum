@@ -82,7 +82,6 @@ extern crate ipnetwork;
 extern crate keccak_hash as hash;
 extern crate serde_json;
 extern crate snappy;
-extern crate parity_version;
 
 #[macro_use]
 extern crate error_chain;
