@@ -452,8 +452,8 @@ impl ClusterCore {
 			let is_master_node = meta.self_node_id == meta.master_node_id;
 			if is_master_node && session.is_finished() {
 				data.sessions.negotiation_sessions.remove(&session.id());
-				if let Ok((version, master)) = session.wait() {
-					match session.continue_action() {
+				match session.wait() {
+					Ok((version, master)) => match session.continue_action() {
 						Some(ContinueAction::Decrypt(session, is_shadow_decryption)) => {
 							let initialization_error = if data.self_key_pair.public() == &master {
 								session.initialize(version, is_shadow_decryption)
@@ -479,19 +479,18 @@ impl ClusterCore {
 							}
 						},
 						None => (),
-					}
-				} else {
-					match session.continue_action() {
+					},
+					Err(error) => match session.continue_action() {
 						Some(ContinueAction::Decrypt(session, _)) => {
 							data.sessions.decryption_sessions.remove(&session.id());
-							session.on_session_error(&meta.self_node_id, Error::ConsensusUnreachable);
+							session.on_session_error(&meta.self_node_id, error);
 						},
 						Some(ContinueAction::Sign(session, _)) => {
 							data.sessions.signing_sessions.remove(&session.id());
-							session.on_session_error(&meta.self_node_id, Error::ConsensusUnreachable);
+							session.on_session_error(&meta.self_node_id, error);
 						},
 						None => (),
-					}
+					},
 				}
 			}
 		}
