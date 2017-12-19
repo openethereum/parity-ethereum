@@ -19,7 +19,7 @@ import { connect } from 'react-redux';
 
 import { hashToImageUrl } from '~/redux/providers/imagesReducer';
 
-import defaultIcon from '../../../assets/images/certifications/unknown.svg';
+import defaultIcon from '~/../assets/images/certifications/unknown.svg';
 
 import styles from './certifications.css';
 
@@ -28,7 +28,6 @@ class Certifications extends Component {
     address: PropTypes.string.isRequired,
     certifications: PropTypes.array.isRequired,
     className: PropTypes.string,
-    dappsUrl: PropTypes.string.isRequired,
     showOnlyIcon: PropTypes.bool
   }
 
@@ -48,7 +47,7 @@ class Certifications extends Component {
 
   renderCertification = (certification) => {
     const { name, icon } = certification;
-    const { dappsUrl, showOnlyIcon } = this.props;
+    const { showOnlyIcon } = this.props;
 
     const classNames = [
       showOnlyIcon
@@ -68,7 +67,7 @@ class Certifications extends Component {
           className={ styles.icon }
           src={
             icon
-              ? `${dappsUrl}${hashToImageUrl(icon)}`
+              ? hashToImageUrl(icon)
               : defaultIcon
           }
         />
