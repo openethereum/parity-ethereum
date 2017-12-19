@@ -17,12 +17,13 @@
 //! Log entry type definition.
 
 use std::ops::Deref;
-use hash::keccak;
-use heapsize::HeapSizeOf;
-use util::Address;
-use bytes::Bytes;
+
+use bigint::hash::H160 as Address;
 use bigint::hash::H256;
 use bloomable::Bloomable;
+use bytes::Bytes;
+use hash::keccak;
+use heapsize::HeapSizeOf;
 
 use {BlockNumber};
 use ethjson;
@@ -92,8 +93,7 @@ impl Deref for LocalizedLogEntry {
 
 #[cfg(test)]
 mod tests {
-	use util::*;
-	use super::LogEntry;
+	use super::*;
 
 	#[test]
 	fn test_empty_log_bloom() {

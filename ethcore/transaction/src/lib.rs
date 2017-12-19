@@ -14,39 +14,33 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Types used in the public API
+//! Ethereum Transactions
 
 extern crate ethcore_bigint as bigint;
-extern crate ethcore_bytes as bytes;
 extern crate ethjson;
-extern crate rlp;
-#[macro_use]
-extern crate rlp_derive;
-extern crate bloomable;
-extern crate keccak_hash as hash;
+extern crate ethkey;
+extern crate evm;
 extern crate heapsize;
+extern crate keccak_hash as hash;
+extern crate rlp;
+extern crate unexpected;
 
 #[cfg(test)]
 extern crate rustc_hex;
 
-pub mod account_diff;
-pub mod basic_account;
-pub mod block_status;
-pub mod blockchain_info;
-pub mod call_analytics;
-pub mod filter;
-pub mod ids;
-pub mod log_entry;
-pub mod mode;
-pub mod pruning_info;
-pub mod receipt;
-pub mod restoration_status;
-pub mod security_level;
-pub mod snapshot_manifest;
-pub mod state_diff;
-pub mod trace_filter;
-pub mod tree_route;
-pub mod verification_queue_info;
+mod error;
+mod transaction;
 
-/// Type for block number.
-pub type BlockNumber = u64;
+pub use error::Error;
+pub use transaction::*;
+
+// TODO [ToDr] Move to miner!
+
+/// Represents the result of importing transaction.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ImportResult {
+	/// Transaction was imported to current queue.
+	Current,
+	/// Transaction was imported to future queue.
+	Future
+}

@@ -14,39 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Types used in the public API
+#![warn(missing_docs)]
 
+//! Miner module
+//! Keeps track of transactions and mined block.
+
+extern crate common_types as types;
 extern crate ethcore_bigint as bigint;
-extern crate ethcore_bytes as bytes;
-extern crate ethjson;
-extern crate rlp;
-#[macro_use]
-extern crate rlp_derive;
-extern crate bloomable;
-extern crate keccak_hash as hash;
+extern crate ethcore_transaction as transaction;
+extern crate futures;
 extern crate heapsize;
+extern crate keccak_hash as hash;
+extern crate linked_hash_map;
+extern crate native_contracts;
+extern crate parking_lot;
+extern crate table;
+extern crate transient_hashmap;
+
+#[macro_use]
+extern crate log;
 
 #[cfg(test)]
 extern crate rustc_hex;
+#[cfg(test)]
+extern crate ethkey;
 
-pub mod account_diff;
-pub mod basic_account;
-pub mod block_status;
-pub mod blockchain_info;
-pub mod call_analytics;
-pub mod filter;
-pub mod ids;
-pub mod log_entry;
-pub mod mode;
-pub mod pruning_info;
-pub mod receipt;
-pub mod restoration_status;
-pub mod security_level;
-pub mod snapshot_manifest;
-pub mod state_diff;
-pub mod trace_filter;
-pub mod tree_route;
-pub mod verification_queue_info;
-
-/// Type for block number.
-pub type BlockNumber = u64;
+pub mod banning_queue;
+pub mod external;
+pub mod local_transactions;
+pub mod service_transaction_checker;
+pub mod transaction_queue;
+pub mod work_notify;

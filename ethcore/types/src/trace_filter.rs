@@ -17,7 +17,8 @@
 //! Trace filter related types
 
 use std::ops::Range;
-use util::{Address};
+
+use bigint::hash::H160 as Address;
 use ids::BlockId;
 
 /// Easy to use trace filter.

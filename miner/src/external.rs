@@ -14,9 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! External Miner hashrate tracker.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
+
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use parking_lot::Mutex;

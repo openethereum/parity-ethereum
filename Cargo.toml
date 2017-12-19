@@ -120,9 +120,12 @@ members = [
 	"chainspec",
 	"dapps/js-glue",
 	"ethcore/wasm/run",
+	"ethcore/types",
+	"ethcore/transaction",
 	"ethkey/cli",
 	"ethstore/cli",
 	"evmbin",
+	"miner",
 	"transaction-pool",
 	"whisper",
 ]

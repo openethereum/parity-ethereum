@@ -41,12 +41,8 @@
 //! }
 //! ```
 
-mod banning_queue;
-mod external;
-mod local_transactions;
 mod miner;
 mod service_transaction_checker;
-mod transaction_queue;
 mod work_notify;
 mod stratum;
 

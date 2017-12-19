@@ -14,16 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
-use client::MiningBlockChainClient;
+use bigint::prelude::H160 as Address;
+use bigint::prelude::U256;
+use futures::{future, Future};
+use native_contracts::ServiceTransactionChecker as Contract;
+use parking_lot::Mutex;
 use transaction::SignedTransaction;
 use types::ids::BlockId;
 
-use futures::{future, Future};
-use native_contracts::ServiceTransactionChecker as Contract;
-use bigint::prelude::U256;
-use parking_lot::Mutex;
-
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
+
+pub trait ContractCaller {
+	fn registry_address(&self, name: &str) -> Option<Address>;
+
+	fn call_contract(&self, BlockId, Address, Vec<u8>) -> Result<Vec<u8>, String>;
+}
 
 /// Service transactions checker.
 #[derive(Default)]
@@ -33,10 +38,10 @@ pub struct ServiceTransactionChecker {
 
 impl ServiceTransactionChecker {
 	/// Try to create instance, reading contract address from given chain client.
-	pub fn update_from_chain_client(&self, client: &MiningBlockChainClient) {
+	pub fn update_from_chain_client(&self, client: &ContractCaller) {
 		let mut contract = self.contract.lock();
 		if contract.is_none() {
-			*contract = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned())
+			*contract = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME)
 				.and_then(|contract_addr| {
 					trace!(target: "txqueue", "Configuring for service transaction checker contract from {}", contract_addr);
 
@@ -46,7 +51,7 @@ impl ServiceTransactionChecker {
 	}
 
 	/// Checks if service transaction can be appended to the transaction queue.
-	pub fn check(&self, client: &MiningBlockChainClient, tx: &SignedTransaction) -> Result<bool, String> {
+	pub fn check(&self, client: &ContractCaller, tx: &SignedTransaction) -> Result<bool, String> {
 		debug_assert_eq!(tx.gas_price, U256::zero());
 
 		if let Some(ref contract) = *self.contract.lock() {

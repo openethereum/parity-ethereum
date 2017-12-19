@@ -14,20 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Sends HTTP notifications to a list of URLs every time new work is available.
+
+extern crate ethash;
 extern crate hyper;
 
+use self::hyper::header::ContentType;
+use self::hyper::method::Method;
+use self::hyper::client::{Request, Response, Client};
+use self::hyper::{Next, Url};
+use self::hyper::net::HttpStream;
+
+use self::ethash::SeedHashCompute;
+
 use std::io::Write;
-use hyper::header::ContentType;
-use hyper::method::Method;
-use hyper::client::{Request, Response, Client};
-use hyper::{Next};
-use hyper::net::HttpStream;
-use ethash::SeedHashCompute;
-use hyper::Url;
+
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use parking_lot::Mutex;
-use ethereum::ethash::Ethash;
 
 /// Trait for notifying about new mining work
 pub trait NotifyWork : Send + Sync {
@@ -35,6 +39,7 @@ pub trait NotifyWork : Send + Sync {
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64);
 }
 
+/// POSTs info about new work to given urls.
 pub struct WorkPoster {
 	urls: Vec<Url>,
 	client: Mutex<Client<PostHandler>>,
@@ -42,6 +47,7 @@ pub struct WorkPoster {
 }
 
 impl WorkPoster {
+	/// Create new `WorkPoster`.
 	pub fn new(urls: &[String]) -> Self {
 		let urls = urls.into_iter().filter_map(|u| {
 			match Url::parse(u) {
@@ -68,10 +74,19 @@ impl WorkPoster {
 	}
 }
 
+/// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
+fn difficulty_to_boundary(difficulty: &U256) -> H256 {
+	if *difficulty <= U256::one() {
+		U256::max_value().into()
+	} else {
+		(((U256::one() << 255) / *difficulty) << 1).into()
+	}
+}
+
 impl NotifyWork for WorkPoster {
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
 		// TODO: move this to engine
-		let target = Ethash::difficulty_to_boundary(&difficulty);
+		let target = difficulty_to_boundary(&difficulty);
 		let seed_hash = &self.seed_compute.lock().hash_block_number(number);
 		let seed_hash = H256::from_slice(&seed_hash[..]);
 		let body = format!(

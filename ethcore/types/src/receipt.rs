@@ -16,9 +16,9 @@
 
 //! Receipt
 
-use bigint::prelude::U256;
+use bigint::hash::H160 as Address;
 use bigint::hash::H256;
-use util::Address;
+use bigint::prelude::U256;
 use heapsize::HeapSizeOf;
 use rlp::*;
 
