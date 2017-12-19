@@ -6,7 +6,6 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <link rel="icon" href="/parity-logo-black-no-text.png" type="image/png">
     <title>dev::Parity.js</title>
-    <script src="/parity-utils/parity.js"></script>
     <style>
       .box {
         font-size: 1.5em;
@@ -22,7 +21,12 @@
     <div class="box">
       best block #<span id="blockNumber">unknown</span>
     </div>
+    <script src="/parity-utils/inject.js"></script>
     <script>
+      console.log('window.ethereum', window.ethereum);
+      console.log('window.ethereum.isParity', window.ethereum.isParity);
+      console.log('window.parity', window.parity);
+
       window.parity.api.subscribe('eth_blockNumber', function (error, blockNumber) {
         if (error) {
           console.log('error', error);

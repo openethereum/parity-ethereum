@@ -16,14 +16,24 @@
 */
 
 $textColor: #ccc;
+$statusHeight: 2.75em;
+
+.home {
+  color: $textColor !important;
+  font-size: 1.2em;
+  margin-right: 1em;
+}
 
 .container {
-  color: $textColor;
-  left: 0;
-  position: fixed;
-  right: 0;
-  top: 0;
-  z-index: 1000;
+  flex: 0;
+  box-sizing: border-box;
+
+  .bar {
+    height: $statusHeight;
+    z-index: 1000;
+    border-bottom: 1px solid #405161;
+    color: $textColor;
+  }
 
   .status,
   .warning {
@@ -60,14 +70,8 @@ $textColor: #ccc;
     opacity: 0.75;
   }
 
-  .defaultAccount,
-  .signerPending {
-    cursor: pointer;
-  }
-
   .health {
     > span {
-      margin: -0.5rem 0 0.2rem 0 !important;
       width: auto;
     }
   }

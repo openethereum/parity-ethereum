@@ -17,8 +17,9 @@
 use std::io;
 use std::time::{Duration, SystemTime};
 use hyper::{self, header, StatusCode};
-use hyper::mime::Mime;
+use hyper::mime::{self, Mime};
 
+use apps;
 use handlers::{Reader, ContentHandler, add_security_headers};
 use {Embeddable};
 
@@ -95,7 +96,18 @@ impl<T: DappFile> PageHandler<T> {
 			add_security_headers(&mut headers, self.safe_to_embed_on);
 		}
 
-		let (reader, body) = Reader::pair(file.into_reader(), Vec::new());
+		let initial_content = if file.content_type().to_owned() == mime::TEXT_HTML {
+			let content = &format!(
+				r#"<script src="/{}/inject.js"></script>"#,
+				apps::UTILS_PATH,
+			);
+
+			content.as_bytes().to_vec()
+		} else {
+			Vec::new()
+		};
+
+		let (reader, body) = Reader::pair(file.into_reader(), initial_content);
 		res.set_body(body);
 		(Some(reader), res)
 	}

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Web3 rpc interface.
-use jsonrpc_core::Error;
+use jsonrpc_core::Result;
 
 use v1::types::{H256, Bytes};
 
@@ -24,10 +24,10 @@ build_rpc_trait! {
 	pub trait Web3 {
 		/// Returns current client version.
 		#[rpc(name = "web3_clientVersion")]
-		fn client_version(&self) -> Result<String, Error>;
+		fn client_version(&self) -> Result<String>;
 
 		/// Returns sha3 of the given data
 		#[rpc(name = "web3_sha3")]
-		fn sha3(&self, Bytes) -> Result<H256, Error>;
+		fn sha3(&self, Bytes) -> Result<H256>;
 	}
 }

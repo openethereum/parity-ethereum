@@ -19,21 +19,18 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 import ReactMarkdown from 'react-markdown';
 
-import Checkbox from '@parity/ui/Form/Checkbox';
+import Checkbox from '@parity/ui/lib/Form/Checkbox';
+
+import tnc from './tnc.md';
 
 import styles from '../firstRun.css';
-
-let tnc = '';
-
-if (process.env.NODE_ENV !== 'test') {
-  tnc = require('./tnc.md');
-}
 
 export default function TnC ({ hasAccepted, onAccept }) {
   return (
     <div className={ styles.tnc }>
       <ReactMarkdown
         className={ styles.markdown }
+        escapeHtml={ false }
         source={ tnc }
       />
       <Checkbox

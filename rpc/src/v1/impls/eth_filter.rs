@@ -25,7 +25,7 @@ use ethcore::client::{BlockChainClient, BlockId};
 use bigint::hash::H256;
 use parking_lot::Mutex;
 
-use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_core::futures::future::Either;
 use v1::traits::EthFilter;
@@ -45,7 +45,7 @@ pub trait Filterable {
 	fn pending_transactions_hashes(&self, block_number: u64) -> Vec<H256>;
 
 	/// Get logs that match the given filter.
-	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>, Error>;
+	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>>;
 
 	/// Get logs from the pending block.
 	fn pending_logs(&self, block_number: u64, filter: &EthcoreFilter) -> Vec<Log>;
@@ -88,7 +88,7 @@ impl<C, M> Filterable for EthFilterClient<C, M> where C: BlockChainClient, M: Mi
 		self.miner.pending_transactions_hashes(best)
 	}
 
-	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>, Error> {
+	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>> {
 		Box::new(future::ok(self.client.logs(filter).into_iter().map(Into::into).collect()))
 	}
 
@@ -102,20 +102,20 @@ impl<C, M> Filterable for EthFilterClient<C, M> where C: BlockChainClient, M: Mi
 
 
 impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
-	fn new_filter(&self, filter: Filter) -> Result<RpcU256, Error> {
+	fn new_filter(&self, filter: Filter) -> Result<RpcU256> {
 		let mut polls = self.polls().lock();
 		let block_number = self.best_block_number();
 		let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
 		Ok(id.into())
 	}
 
-	fn new_block_filter(&self) -> Result<RpcU256, Error> {
+	fn new_block_filter(&self) -> Result<RpcU256> {
 		let mut polls = self.polls().lock();
 		let id = polls.create_poll(PollFilter::Block(self.best_block_number()));
 		Ok(id.into())
 	}
 
-	fn new_pending_transaction_filter(&self) -> Result<RpcU256, Error> {
+	fn new_pending_transaction_filter(&self) -> Result<RpcU256> {
 		let mut polls = self.polls().lock();
 		let best_block = self.best_block_number();
 		let pending_transactions = self.pending_transactions_hashes(best_block);
@@ -123,7 +123,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 		Ok(id.into())
 	}
 
-	fn filter_changes(&self, index: Index) -> BoxFuture<FilterChanges, Error> {
+	fn filter_changes(&self, index: Index) -> BoxFuture<FilterChanges> {
 		let mut polls = self.polls().lock();
 		Box::new(match polls.poll_mut(&index.value()) {
 			None => Either::A(future::ok(FilterChanges::Empty)),
@@ -209,7 +209,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 		})
 	}
 
-	fn filter_logs(&self, index: Index) -> BoxFuture<Vec<Log>, Error> {
+	fn filter_logs(&self, index: Index) -> BoxFuture<Vec<Log>> {
 		let filter = {
 			let mut polls = self.polls().lock();
 
@@ -240,7 +240,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 		)
 	}
 
-	fn uninstall_filter(&self, index: Index) -> Result<bool, Error> {
+	fn uninstall_filter(&self, index: Index) -> Result<bool> {
 		self.polls().lock().remove_poll(&index.value());
 		Ok(true)
 	}

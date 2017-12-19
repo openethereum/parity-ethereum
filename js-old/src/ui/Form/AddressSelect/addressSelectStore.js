@@ -20,7 +20,7 @@ import { flatMap, uniqBy } from 'lodash';
 import { FormattedMessage } from 'react-intl';
 
 import Contracts from '~/contracts';
-import { sha3 } from '~/api/util/sha3';
+import { sha3 } from '@parity/api/lib/util/sha3';
 
 const ZERO = /^(0x)?0*$/;
 

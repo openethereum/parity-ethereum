@@ -33,9 +33,11 @@ use serde_json::{
 
 use futures::{Canceled, Complete, Future, oneshot, done};
 
-use jsonrpc_core::{BoxFuture, Id, Version, Params, Error as JsonRpcError};
+use jsonrpc_core::{Id, Version, Params, Error as JsonRpcError};
 use jsonrpc_core::request::MethodCall;
 use jsonrpc_core::response::{Output, Success, Failure};
+
+use BoxFuture;
 
 /// The actual websocket connection handler, passed into the
 /// event loop of ws-rs

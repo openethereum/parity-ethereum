@@ -17,12 +17,14 @@
 use std::sync::Arc;
 
 use ethcore::account_provider::AccountProvider;
+use ethkey::{KeyPair, Signature, verify_public};
 
 use serde_json;
 use jsonrpc_core::{IoHandler, Success};
 use v1::metadata::Metadata;
 use v1::SecretStoreClient;
 use v1::traits::secretstore::SecretStore;
+use v1::helpers::secretstore::ordered_servers_keccak;
 
 struct Dependencies {
 	pub accounts: Arc<AccountProvider>,
@@ -51,7 +53,7 @@ fn rpc_secretstore_encrypt_and_decrypt() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	// insert new account && unlock it
+	// insert new account
 	let secret = "c1f1cfe279a5c350d13795bce162941967340c8a228e6ba175489afc564a5bef".parse().unwrap();
 	deps.accounts.insert_account(secret, "password").unwrap();
 
@@ -81,7 +83,7 @@ fn rpc_secretstore_shadow_decrypt() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	// insert new account && unlock it
+	// insert new account
 	let secret = "82758356bf46b42710d3946a8efa612b7bf5e125e4d49f28facf1139db4a46f4".parse().unwrap();
 	deps.accounts.insert_account(secret, "password").unwrap();
 
@@ -95,4 +97,32 @@ fn rpc_secretstore_shadow_decrypt() {
 	], "id": 1}"#;
 	let decryption_response = io.handle_request_sync(&decryption_request).unwrap();
 	assert_eq!(decryption_response, r#"{"jsonrpc":"2.0","result":"0xdeadbeef","id":1}"#);
+}
+
+#[test]
+fn rpc_secretstore_sign_servers_set() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	// insert new account
+	let secret = "82758356bf46b42710d3946a8efa612b7bf5e125e4d49f28facf1139db4a46f4".parse().unwrap();
+	let key_pair = KeyPair::from_secret(secret).unwrap();
+	deps.accounts.insert_account(key_pair.secret().clone(), "password").unwrap();
+
+	// execute signing request
+	let signing_request = r#"{"jsonrpc": "2.0", "method": "secretstore_signServersSet", "params":[
+		"0x00dfE63B22312ab4329aD0d28CaD8Af987A01932", "password",
+		["0x843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91",
+		 "0x07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3"]
+	], "id": 1}"#;
+	let signing_response = io.handle_request_sync(&signing_request).unwrap();
+	let signing_response = signing_response.replace(r#"{"jsonrpc":"2.0","result":"0x"#, "");
+	let signing_response = signing_response.replace(r#"","id":1}"#, "");
+	let signature: Signature = signing_response.parse().unwrap();
+
+	let servers_set_keccak = ordered_servers_keccak(vec![
+		"843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91".parse().unwrap(),
+		"07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3".parse().unwrap()
+	].into_iter().collect());
+	assert!(verify_public(key_pair.public(), &signature, &servers_set_keccak.into()).unwrap());
 }

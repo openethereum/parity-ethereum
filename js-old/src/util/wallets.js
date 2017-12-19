@@ -78,13 +78,39 @@ export default class WalletsUtils {
       .delegateCall(api, walletContract.address, 'fetchTransactions', [ walletContract ])
       .then((transactions) => {
         return transactions.sort((txA, txB) => {
-          const comp = txB.blockNumber.comparedTo(txA.blockNumber);
+          const bnA = txA.blockNumber;
+          const bnB = txB.blockNumber;
+
+          if (!bnA) {
+            console.warn('could not find block number in transaction', txA);
+            return 1;
+          }
+
+          if (!bnB) {
+            console.warn('could not find block number in transaction', txB);
+            return -1;
+          }
+
+          const comp = bnA.comparedTo(bnB);
 
           if (comp !== 0) {
             return comp;
           }
 
-          return txB.transactionIndex.comparedTo(txA.transactionIndex);
+          const txIdxA = txA.transactionIndex;
+          const txIdxB = txB.transactionIndex;
+
+          if (!txIdxA) {
+            console.warn('could not find transaction index in transaction', txA);
+            return 1;
+          }
+
+          if (!txIdxB) {
+            console.warn('could not find transaction index in transaction', txB);
+            return -1;
+          }
+
+          return txIdxA.comparedTo(txIdxB);
         });
       });
   }

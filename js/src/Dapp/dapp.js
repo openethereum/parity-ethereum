@@ -19,24 +19,14 @@ import { observer } from 'mobx-react';
 import { FormattedMessage } from 'react-intl';
 import PropTypes from 'prop-types';
 
-import Api from '@parity/api';
-import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
-import viewsDapps from '@parity/shared/config/dappsViews.json';
-import DappsStore from '@parity/shared/mobx/dappsStore';
-import HistoryStore from '@parity/shared/mobx/historyStore';
-// import { Bond } from 'oo7';
+import builtinDapps from '@parity/shared/lib/config/dappsBuiltin.json';
+import viewsDapps from '@parity/shared/lib/config/dappsViews.json';
+import DappsStore from '@parity/shared/lib/mobx/dappsStore';
+import HistoryStore from '@parity/shared/lib/mobx/historyStore';
 
 import styles from './dapp.css';
 
-const internalDapps = []
-  .concat(viewsDapps, builtinDapps)
-  .map((app) => {
-    if (app.id && app.id.substr(0, 2) !== '0x') {
-      app.id = Api.util.sha3(app.id);
-    }
-
-    return app;
-  });
+const internalDapps = [].concat(viewsDapps, builtinDapps);
 
 @observer
 export default class Dapp extends Component {
@@ -111,7 +101,9 @@ export default class Dapp extends Component {
 
     switch (app.type) {
       case 'local':
-        src = `${dappsUrl}/${app.id}/`;
+        src = app.localUrl
+          ? `${app.localUrl}?appId=${app.id}`
+          : `${dappsUrl}/${app.id}/`;
         break;
 
       case 'network':
@@ -129,13 +121,9 @@ export default class Dapp extends Component {
           dapphost = '';
         }
 
-        const appId = this.context.api.util.isHex(app.id)
-          ? app.id
-          : this.context.api.sha3(app.url);
-
         src = window.location.protocol === 'file:'
-          ? `dapps/${appId}/index.html`
-          : `${dapphost}/dapps/${appId}/index.html`;
+          ? `dapps/${app.id}/index.html`
+          : `${dapphost}/dapps/${app.id}/index.html`;
         break;
     }
 
@@ -163,6 +151,5 @@ export default class Dapp extends Component {
     const frame = document.getElementById('dappFrame');
 
     frame.style.opacity = 1;
-    // frame.contentWindow.injectedBondCache = Bond.cache;
   }
 }

@@ -16,13 +16,46 @@
 */
 
 .overlay {
+  background: rgba(40, 40, 40, 0.85);
   color: white;
   line-height: 1.5em;
-  margin: 0 auto;
-  text-align: left;
-  max-width: 980px;
+  padding: 4em 2em;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  text-align: center;
+  z-index: 100;
 
-  & > div:first-child {
-    padding-bottom: 1em;
+  div {
+    max-width: 640px;
+    margin: 1em auto;
+    text-align: left;
+  }
+
+  .accept {
+    label {
+      color: white;
+    }
+  }
+}
+
+.sectionTitle {
+  padding: 2em 0 0 4em !important;
+  margin-bottom: 0 !important;
+}
+
+.dapps {
+  padding: 0 1.5em;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+
+  .dapp {
+    width: 12em;
+    margin-left: 2em;
+    margin-right: 2em;
   }
 }

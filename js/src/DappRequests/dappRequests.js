@@ -15,36 +15,48 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observer } from 'mobx-react';
-import React from 'react';
+import React, { Component } from 'react';
 
-import Request from './Request';
+import methodGroups from './methodGroups';
+import RequestGroups from './RequestGroups';
 import Store from './store';
 import styles from './dappRequests.css';
 
-function DappRequests () {
-  const store = Store.get();
+class DappRequests extends Component {
+  store = Store.get();
 
-  if (!store || !store.hasRequests) {
-    return null;
+  // When we approve a requestGroup, when approve all the requests, and add permissions
+  // to all the other methods in the same methodGroup
+  handleApproveRequestGroup = (requests, groupId, appId) => {
+    requests.map(({ requestId }) => requestId).forEach(this.store.approveRequest);
+    methodGroups[groupId].methods.forEach(method => this.store.addAppPermission(method, appId));
   }
 
-  return (
-    <div className={ styles.requests }>
-      {
-        store.squashedRequests.map(({ appId, queueId, request: { data } }) => (
-          <Request
-            appId={ appId }
-            className={ styles.request }
-            approveRequest={ store.approveRequest }
-            denyRequest={ store.rejectRequest }
-            key={ queueId }
-            queueId={ queueId }
-            request={ data }
-          />
-        ))
-      }
-    </div>
-  );
+  // When we reject a requestGroup, we reject the requests in that group
+  handleRejectRequestGroup = requests => {
+    requests.map(({ requestId }) => requestId).forEach(this.store.rejectRequest);
+  }
+
+  render () {
+    if (!this.store || !this.store.hasRequests) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.requests }>
+        {Object.keys(this.store.groupedRequests)
+          .map(appId => (
+            <RequestGroups
+              key={ appId }
+              appId={ appId }
+              onApproveRequestGroup={ this.handleApproveRequestGroup }
+              onRejectRequestGroup={ this.handleRejectRequestGroup }
+              requestGroups={ this.store.groupedRequests[appId] }
+            />
+          ))}
+      </div>
+    );
+  }
 }
 
 export default observer(DappRequests);

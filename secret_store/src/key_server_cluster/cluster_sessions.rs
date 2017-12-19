@@ -66,7 +66,7 @@ pub struct SessionIdWithSubSession {
 /// Generic cluster session.
 pub trait ClusterSession {
 	/// Session identifier type.
-	type Id: Ord + Clone;
+	type Id: ::std::fmt::Debug + Ord + Clone;
 
 	/// Session type name.
 	fn type_name() -> &'static str;
@@ -661,6 +661,13 @@ impl AdminSessionWrapper {
 			session_id: session_id,
 			cluster: cluster,
 		})
+	}
+
+	pub fn wait(&self) -> Result<(), Error> {
+		match *self.session {
+			AdminSession::ShareAdd(ref session) => session.wait(),
+			AdminSession::ServersSetChange(ref session) => session.wait(),
+		}
 	}
 }
 

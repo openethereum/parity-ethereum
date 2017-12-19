@@ -150,6 +150,9 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 					URLHintResult::Dapp(dapp) => {
 						dapp.url()
 					},
+					URLHintResult::GithubDapp(content) => {
+						content.url
+					},
 					URLHintResult::Content(content) => {
 						content.url
 					},

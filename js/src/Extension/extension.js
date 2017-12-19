@@ -18,10 +18,10 @@ import { observer } from 'mobx-react';
 import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import Button from '@parity/ui/Button';
-import { CloseIcon, CheckIcon } from '@parity/ui/Icons';
+import Button from '@parity/ui/lib/Button';
+import { CloseIcon, CheckIcon } from '@parity/ui/lib/Icons';
 
-import Store from '@parity/shared/mobx/extensionStore';
+import Store from '@parity/shared/lib/mobx/extensionStore';
 import styles from './extension.css';
 
 @observer

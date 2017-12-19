@@ -15,9 +15,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const Api = require('@parity/api');
 const fs = require('fs');
 const path = require('path');
+const rimraf = require('rimraf');
 const flatten = require('lodash.flatten');
 // const ReactIntlAggregatePlugin = require('react-intl-aggregate-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
@@ -29,8 +29,8 @@ const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
-const DAPPS_BUILTIN = require('@parity/shared/config/dappsBuiltin.json');
-const DAPPS_VIEWS = require('@parity/shared/config/dappsViews.json');
+const DAPPS_BUILTIN = require('@parity/shared/lib/config/dappsBuiltin.json');
+const DAPPS_VIEWS = require('@parity/shared/lib/config/dappsViews.json');
 const DAPPS_ALL = []
   .concat(DAPPS_BUILTIN, DAPPS_VIEWS)
   .filter((dapp) => !dapp.skipBuild)
@@ -46,14 +46,14 @@ const isProd = ENV === 'production';
 const isEmbed = EMBED === '1' || EMBED === 'true';
 
 const entry = isEmbed
-  ? { embed: './embed.js' }
+  ? { embed: ['babel-polyfill', './embed.js'] }
   : { bundle: ['babel-polyfill', './index.parity.js'] };
 
 module.exports = {
   cache: !isProd,
   devtool: isProd
-    ? '#source-map'
-    : '#eval',
+    ? false
+    : isEmbed ? '#source-map' : '#eval',
   context: path.join(__dirname, '../src'),
   entry,
   output: {
@@ -68,12 +68,12 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        use: [ {
+        use: [{
           loader: 'happypack/loader',
           options: {
             id: 'babel'
           }
-        } ]
+        }]
       },
       {
         test: /\.json$/,
@@ -89,7 +89,7 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        include: /semantic-ui-css/,
+        include: /semantic-ui-css|@parity\/ui/,
         use: ExtractTextPlugin.extract({
           fallback: 'style-loader',
           use: [
@@ -104,7 +104,7 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        exclude: /semantic-ui-css/,
+        exclude: /semantic-ui-css|@parity\/ui/,
         use: ExtractTextPlugin.extract({
           fallback: 'style-loader',
           use: [
@@ -184,6 +184,14 @@ module.exports = {
         new CopyWebpackPlugin(
           flatten([
             {
+              from: path.join(__dirname, '../src/dev.web3.html'),
+              to: 'dev.web3/index.html'
+            },
+            {
+              from: path.join(__dirname, '../src/dev.parity.html'),
+              to: 'dev.parity/index.html'
+            },
+            {
               from: path.join(__dirname, '../src/error_pages.css'),
               to: 'styles.css'
             },
@@ -200,30 +208,35 @@ module.exports = {
                 .map((dapp) => {
                   const dir = path.join(__dirname, '../node_modules', dapp.package);
 
-                  if (!fs.existsSync(path.join(dir, 'dist'))) {
+                  if (!fs.existsSync(dir)) {
                     return null;
                   }
 
-                  const destination = Api.util.isHex(dapp.id)
-                    ? dapp.id
-                    : Api.util.sha3(dapp.url);
+                  if (!fs.existsSync(path.join(dir, 'dist'))) {
+                    rimraf.sync(path.join(dir, 'node_modules'));
+
+                    return {
+                      from: path.join(dir),
+                      to: `dapps/${dapp.id}/`
+                    };
+                  }
 
                   return [
-                    'index.html', 'dist.css', 'dist.js',
+                    'icon.png', 'index.html', 'dist.css', 'dist.js',
                     isProd ? null : 'dist.css.map',
                     isProd ? null : 'dist.js.map'
                   ]
-                  .filter((file) => file)
-                  .map((file) => path.join(dir, file))
-                  .filter((from) => fs.existsSync(from))
-                  .map((from) => ({
-                    from,
-                    to: `dapps/${destination}/`
-                  }))
-                  .concat({
-                    from: path.join(dir, 'dist'),
-                    to: `dapps/${destination}/dist/`
-                  });
+                    .filter((file) => file)
+                    .map((file) => path.join(dir, file))
+                    .filter((from) => fs.existsSync(from))
+                    .map((from) => ({
+                      from,
+                      to: `dapps/${dapp.id}/`
+                    }))
+                    .concat({
+                      from: path.join(dir, 'dist'),
+                      to: `dapps/${dapp.id}/dist/`
+                    });
                 })
                 .filter((copy) => copy)
             )
@@ -238,7 +251,7 @@ module.exports = {
         new HtmlWebpackPlugin({
           title: 'Parity Bar',
           filename: 'embed.html',
-          template: './index.ejs',
+          template: './index.parity.ejs',
           favicon: FAVICON,
           chunks: ['embed']
         })

@@ -12,6 +12,7 @@ parking_lot = "0.4"
 regex = "0.2"
 rlp = { path = "../rlp" }
 rocksdb = { git = "https://github.com/paritytech/rust-rocksdb" }
+interleaved-ordered = "0.1.0"
 
 [dev-dependencies]
 tempdir = "0.3"

@@ -21,6 +21,7 @@ extern crate elastic_array;
 extern crate parking_lot;
 extern crate regex;
 extern crate rocksdb;
+extern crate interleaved_ordered;
 
 extern crate ethcore_bigint as bigint;
 extern crate kvdb;
@@ -36,6 +37,7 @@ use rocksdb::{
 	DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions
 };
+use interleaved_ordered::{interleave_ordered, InterleaveOrdered};
 
 use elastic_array::ElasticArray32;
 use rlp::{UntrustedRlp, RlpType, Compressible};
@@ -197,14 +199,14 @@ impl Default for DatabaseConfig {
 // inner DB (to prevent closing via restoration) may be re-evaluated in the future.
 //
 pub struct DatabaseIterator<'a> {
-	iter: DBIterator,
+	iter: InterleaveOrdered<::std::vec::IntoIter<(Box<[u8]>, Box<[u8]>)>, DBIterator>,
 	_marker: PhantomData<&'a Database>,
 }
 
 impl<'a> Iterator for DatabaseIterator<'a> {
 	type Item = (Box<[u8]>, Box<[u8]>);
 
-    fn next(&mut self) -> Option<Self::Item> {
+	fn next(&mut self) -> Option<Self::Item> {
 		self.iter.next()
 	}
 }
@@ -510,9 +512,18 @@ impl Database {
 
 	/// Get database iterator for flushed data.
 	pub fn iter(&self, col: Option<u32>) -> Option<DatabaseIterator> {
-		//TODO: iterate over overlay
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
+				let overlay = &self.overlay.read()[Self::to_overlay_column(col)];
+				let mut overlay_data = overlay.iter()
+					.filter_map(|(k, v)| match *v {
+						KeyState::Insert(ref value) |
+						KeyState::InsertCompressed(ref value) =>
+							Some((k.clone().into_vec().into_boxed_slice(), value.clone().into_vec().into_boxed_slice())),
+						KeyState::Delete => None,
+					}).collect::<Vec<_>>();
+				overlay_data.sort();
+
 				let iter = col.map_or_else(
 					|| db.iterator_opt(IteratorMode::Start, &self.read_opts),
 					|c| db.iterator_cf_opt(cfs[c as usize], IteratorMode::Start, &self.read_opts)
@@ -520,7 +531,7 @@ impl Database {
 				);
 
 				Some(DatabaseIterator {
-					iter: iter,
+					iter: interleave_ordered(overlay_data, iter),
 					_marker: PhantomData,
 				})
 			},
@@ -536,7 +547,7 @@ impl Database {
 						.expect("iterator params are valid; qed"));
 
 				Some(DatabaseIterator {
-					iter: iter,
+					iter: interleave_ordered(Vec::new(), iter),
 					_marker: PhantomData,
 				})
 			},

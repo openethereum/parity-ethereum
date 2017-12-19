@@ -20,9 +20,9 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 
-import HardwareStore from '@parity/shared/mobx/hardwareStore';
-import UpgradeStore from '@parity/shared/mobx/upgradeParity';
-import Errors from '@parity/ui/Errors';
+import HardwareStore from '@parity/shared/lib/mobx/hardwareStore';
+import UpgradeStore from '@parity/shared/lib/mobx/upgradeParity';
+import Errors from '@parity/ui/lib/Errors';
 
 import Connection from '../Connection';
 import DappRequests from '../DappRequests';
@@ -35,8 +35,7 @@ import Snackbar from '../Snackbar';
 import Status from '../Status';
 import UpgradeParity from '../UpgradeParity';
 
-import parityLogo from '../../assets/parity-logo-black.png';
-import Store from './store';
+import { appLogoDark as parityLogo } from '../config';
 import styles from './application.css';
 
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
@@ -54,7 +53,6 @@ class Application extends Component {
     pending: PropTypes.array
   }
 
-  store = new Store(this.context.api);
   hwstore = HardwareStore.get(this.context.api);
   upgradeStore = UpgradeStore.get(this.context.api);
 
@@ -77,6 +75,12 @@ class Application extends Component {
 
     return (
       <div className={ styles.application }>
+        <img src={ parityLogo } className={ styles.logo } />
+        {
+          blockNumber
+            ? <Status upgradeStore={ this.upgradeStore } />
+            : null
+        }
         {
           isMinimized
             ? this.renderMinimized()
@@ -99,45 +103,34 @@ class Application extends Component {
           alwaysHidden
           dapp={ isMinimized }
         />
-        {
-          blockNumber
-            ? <Status upgradeStore={ this.upgradeStore } />
-            : null
-        }
       </div>
     );
   }
 
   renderApp () {
-    const { children } = this.props;
-
-    return (
-      <div className={ styles.container }>
-        <Extension />
-        <FirstRun
-          onClose={ this.store.closeFirstrun }
-          visible={ this.store.firstrunVisible }
-        />
-        <Snackbar />
-        <UpgradeParity upgradeStore={ this.upgradeStore } />
-        <Errors />
-        <div className={ styles.content }>
-          { children }
-        </div>
-      </div>
-    );
+    return [
+      <Extension key='extension' />,
+      <FirstRun key='firstrun' />,
+      <Snackbar key='snackbar' />,
+      <UpgradeParity key='upgrade' upgradeStore={ this.upgradeStore } />,
+      <Errors key='errors' />,
+      this.renderContent()
+    ];
   }
 
   renderMinimized () {
+    return [
+      <Errors key='errors' />,
+      this.renderContent()
+    ];
+  }
+
+  renderContent () {
     const { children } = this.props;
 
     return (
-      <div className={ styles.container }>
-        <div className={ styles.logo }>
-          <img src={ parityLogo } />
-        </div>
-        <Errors />
-        { children }
+      <div key='content' className={ styles.content }>
+        {children}
       </div>
     );
   }
@@ -145,11 +138,9 @@ class Application extends Component {
 
 function mapStateToProps (state) {
   const { blockNumber } = state.nodeStatus;
-  const { hasAccounts } = state.personal;
 
   return {
-    blockNumber,
-    hasAccounts
+    blockNumber
   };
 }
 
