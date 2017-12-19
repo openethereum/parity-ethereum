@@ -59,10 +59,6 @@ class TokenImage extends Component {
     const { error } = this.state;
     const { image, token } = this.props;
 
-    if (!token.native) {
-      console.log('token', token);
-    }
-
     const imageurl = token.image || image;
     let imagesrc = unknownImage;
 
