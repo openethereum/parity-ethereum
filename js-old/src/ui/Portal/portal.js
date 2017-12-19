@@ -162,7 +162,7 @@ export default class Portal extends Component {
     return onClick(event);
   }
 
-  handleClose = () => {
+  handleClose = (event) => {
     const { hideClose, onClose } = this.props;
 
     if (!hideClose) {

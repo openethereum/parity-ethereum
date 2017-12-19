@@ -14,26 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-import { Router } from 'react-router';
+const path = require('path');
+const ServiceWorkerWebpackPlugin = require('serviceworker-webpack-plugin');
 
-import routes from './routes';
-import styles from './reset.css';
-
-export default class MainApplication extends Component {
-  static propTypes = {
-    routerHistory: PropTypes.any.isRequired
-  };
-
-  render () {
-    const { routerHistory } = this.props;
-
-    return (
-      <Router
-        className={ styles.reset }
-        history={ routerHistory }
-        routes={ routes }
-      />
-    );
+module.exports = {
+  alias: {
+    '~/api/local': path.resolve(__dirname, './src/api/local/localAccountsMiddleware.js'),
+    '~': path.resolve(__dirname, './src'),
+    'keythereum': path.resolve(__dirname, './node_modules/keythereum/dist/keythereum')
+  },
+  webpack: {
+    plugins: [
+      new ServiceWorkerWebpackPlugin({
+        entry: path.join(__dirname, './src/serviceWorker.js')
+      })
+    ]
   }
-}
+};

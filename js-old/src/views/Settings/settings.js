@@ -22,7 +22,7 @@ import ImageBlurOn from 'material-ui/svg-icons/image/blur-on';
 import ImageRemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
 
 import { Actionbar, Page } from '~/ui';
-import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';
+import imagesEthcoreBlock from '~/assets/images/parity-logo-white-no-text.svg';
 
 import styles from './settings.css';
 

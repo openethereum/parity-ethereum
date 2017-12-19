@@ -14,17 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import 'whatwg-fetch';
-
-import es6Promise from 'es6-promise';
-es6Promise.polyfill();
-
 import React from 'react';
-import ReactDOM from 'react-dom';
-import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
-import { hashHistory } from 'react-router';
+import { hashHistory, Router } from 'react-router';
 
 import Api from '@parity/api';
 
@@ -33,15 +26,17 @@ import ContractInstances from '~/contracts';
 import { initStore } from './redux';
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
-import MainApplication from './main';
 
 import { loadSender, patchApi } from '~/util/tx';
 import { setApi } from '~/redux/providers/apiActions';
 
 import './environment';
 
-import '../assets/fonts/Roboto/font.css';
-import '../assets/fonts/RobotoMono/font.css';
+import '~/assets/fonts/Roboto/font.css';
+import '~/assets/fonts/RobotoMono/font.css';
+
+import routes from './routes';
+import styles from './reset.css';
 
 injectTapEventPlugin();
 
@@ -56,30 +51,12 @@ const store = initStore(api, hashHistory);
 store.dispatch({ type: 'initAll', api });
 store.dispatch(setApi(api));
 
-ReactDOM.render(
-  <AppContainer>
-    <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-      <MainApplication
-        routerHistory={ hashHistory }
+export default () => (
+  <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
+      <Router
+        className={ styles.reset }
+        history={ hashHistory }
+        routes={ routes }
       />
-    </ContextProvider>
-  </AppContainer>,
-  document.querySelector('#container')
+  </ContextProvider>
 );
-
-if (module.hot) {
-  module.hot.accept('./main.js', () => {
-    require('./main.js');
-
-    ReactDOM.render(
-      <AppContainer>
-        <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-          <MainApplication
-            routerHistory={ hashHistory }
-          />
-        </ContextProvider>
-      </AppContainer>,
-      document.querySelector('#container')
-    );
-  });
-}

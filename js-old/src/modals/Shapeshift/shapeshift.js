@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import shapeshiftLogo from '~/../assets/images/shapeshift-logo.png';
+import shapeshiftLogo from '~/assets/images/shapeshift-logo.png';
 import { Button, IdentityIcon, Portal } from '~/ui';
 import { CancelIcon, DoneIcon } from '~/ui/Icons';
 

@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import unknownImage from '~/../assets/images/contracts/unknown-64x64.png';
+import unknownImage from '~/assets/images/contracts/unknown-64x64.png';
 
 class TokenImage extends Component {
   static contextTypes = {
@@ -48,6 +48,8 @@ class TokenImage extends Component {
       const host = /^(\/)?api/.test(imageurl)
         ? api.dappsUrl
         : '';
+
+      console.warn(api.dappsUrl, imageurl);
 
       imagesrc = `${host}${imageurl}`;
     }
