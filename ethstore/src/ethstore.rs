@@ -29,8 +29,6 @@ use presale::PresaleWallet;
 use json::{self, Uuid, OpaqueKeyFile};
 use {import, Error, SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation, OpaqueSecret};
 
-const REFRESH_TIME_SEC: u64 = 5;
-
 /// Accounts store.
 pub struct EthStore {
 	store: EthMultiStore,
@@ -47,6 +45,16 @@ impl EthStore {
 		Ok(EthStore {
 			store: EthMultiStore::open_with_iterations(directory, iterations)?,
 		})
+	}
+
+	/// Modify account refresh timeout - how often they are re-read from `KeyDirectory`.
+	///
+	/// Setting this to low values (or 0) will cause new accounts to be picked up quickly,
+	/// although it may induce heavy disk reads and is not recommended if you manage many keys (say over 10k).
+	///
+	/// By default refreshing is disabled, so only accounts created using this instance of `EthStore` are taken into account.
+	pub fn set_refresh_time(&self, time: Duration) {
+		self.store.set_refresh_time(time)
 	}
 
 	fn get(&self, account: &StoreAccountRef) -> Result<SafeAccount, Error> {
@@ -254,6 +262,7 @@ pub struct EthMultiStore {
 struct Timestamp {
 	dir_hash: Option<u64>,
 	last_checked: Instant,
+	refresh_time: Duration,
 }
 
 impl EthMultiStore {
@@ -272,16 +281,28 @@ impl EthMultiStore {
 			timestamp: Mutex::new(Timestamp {
 				dir_hash: None,
 				last_checked: Instant::now(),
+				// by default we never refresh accounts
+				refresh_time: Duration::from_secs(u64::max_value()),
 			}),
 		};
 		store.reload_accounts()?;
 		Ok(store)
 	}
 
+	/// Modify account refresh timeout - how often they are re-read from `KeyDirectory`.
+	///
+	/// Setting this to low values (or 0) will cause new accounts to be picked up quickly,
+	/// although it may induce heavy disk reads and is not recommended if you manage many keys (say over 10k).
+	///
+	/// By default refreshing is disabled, so only accounts created using this instance of `EthStore` are taken into account.
+	pub fn set_refresh_time(&self, time: Duration) {
+		self.timestamp.lock().refresh_time = time;
+	}
+
 	fn reload_if_changed(&self) -> Result<(), Error> {
 		let mut last_timestamp = self.timestamp.lock();
 		let now = Instant::now();
-		if (now - last_timestamp.last_checked) > Duration::from_secs(REFRESH_TIME_SEC) {
+		if now - last_timestamp.last_checked > last_timestamp.refresh_time {
 			let dir_hash = Some(self.dir.unique_repr()?);
 			last_timestamp.last_checked = now;
 			if last_timestamp.dir_hash == dir_hash {
@@ -319,22 +340,23 @@ impl EthMultiStore {
 	}
 
 	fn get_accounts(&self, account: &StoreAccountRef) -> Result<Vec<SafeAccount>, Error> {
-		{
+		let from_cache = |account| {
 			let cache = self.cache.read();
 			if let Some(accounts) = cache.get(account) {
 				if !accounts.is_empty() {
-					return Ok(accounts.clone())
+					return Some(accounts.clone())
 				}
 			}
-		}
 
-		self.reload_if_changed()?;
-		let cache = self.cache.read();
-		let accounts = cache.get(account).ok_or(Error::InvalidAccount)?;
-		if accounts.is_empty() {
-			Err(Error::InvalidAccount)
-		} else {
-			Ok(accounts.clone())
+			None
+		};
+
+		match from_cache(account) {
+			Some(accounts) => Ok(accounts),
+			None => {
+				self.reload_if_changed()?;
+				from_cache(account).ok_or(Error::InvalidAccount)
+			}
 		}
 	}
 
@@ -470,11 +492,20 @@ impl SimpleSecretStore for EthMultiStore {
 	}
 
 	fn account_ref(&self, address: &Address) -> Result<StoreAccountRef, Error> {
-		use std::collections::Bound;
-		self.reload_if_changed()?;
-		let cache = self.cache.read();
-		let mut r = cache.range((Bound::Included(*address), Bound::Included(*address)));
-		r.next().ok_or(Error::InvalidAccount).map(|(k, _)| k.clone())
+		let read_from_cache = |address: &Address| {
+			use std::collections::Bound;
+			let cache = self.cache.read();
+			let mut r = cache.range((Bound::Included(*address), Bound::Included(*address)));
+			r.next().map(|(k, _)| k.clone())
+		};
+
+		match read_from_cache(address) {
+			Some(account) => Ok(account),
+			None => {
+				self.reload_if_changed()?;
+				read_from_cache(address).ok_or(Error::InvalidAccount)
+			}
+		}
 	}
 
 	fn accounts(&self) -> Result<Vec<StoreAccountRef>, Error> {
