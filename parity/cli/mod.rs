@@ -1433,7 +1433,7 @@ mod tests {
 			arg_unlock: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_password: vec!["~/.safe/password.file".into()],
 			arg_keys_iterations: 10240u32,
-			arg_refresh_time: 30u64,
+			arg_accounts_refresh: 5u64,
 			flag_no_hardware_wallets: false,
 			flag_fast_unlock: false,
 
