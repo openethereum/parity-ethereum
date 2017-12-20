@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{VecDeque, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
-use parking_lot::{Mutex, Condvar};	
+use parking_lot::Mutex;
 use ethcore::client::ChainNotify;
 use ethkey::{Random, Generator, Public, sign};
 use bytes::Bytes;
@@ -29,6 +29,7 @@ use key_server_cluster::{ClusterClient, ClusterSessionsListener, ClusterSession}
 use key_server_cluster::generation_session::SessionImpl as GenerationSession;
 use key_storage::KeyStorage;
 use listener::service_contract::ServiceContract;
+use listener::tasks_queue::TasksQueue;
 use {ServerKeyId, NodeKeyPair, KeyServer};
 
 /// Retry interval (in blocks). Every RETRY_INTERVAL_BLOCKS blocks each KeyServer reads pending requests from
@@ -75,7 +76,7 @@ struct ServiceContractListenerData {
 	/// Retry-related data.
 	pub retry_data: Mutex<ServiceContractRetryData>,
 	/// Service tasks queue.
-	pub tasks_queue: Arc<TasksQueue>,
+	pub tasks_queue: Arc<TasksQueue<ServiceTask>>,
 	/// Service contract.
 	pub contract: Arc<ServiceContract>,
 	/// Key server reference.
@@ -94,14 +95,6 @@ struct ServiceContractListenerData {
 struct ServiceContractRetryData {
 	/// Server keys, which we have generated (or tried to generate) since last retry moment.
 	pub generated_keys: HashSet<ServerKeyId>,
-}
-
-/// Service tasks queue.
-struct TasksQueue {
-	/// Service event.
-	service_event: Condvar,
-	/// Service tasks queue.
-	service_tasks: Mutex<VecDeque<ServiceTask>>,
 }
 
 /// Service task.
@@ -130,7 +123,7 @@ impl ServiceContractListener {
 			key_server_set: params.key_server_set,
 			key_storage: params.key_storage,
 		});
-		data.tasks_queue.push(::std::iter::once(ServiceTask::Retry));
+		data.tasks_queue.push(ServiceTask::Retry);
 
 		// we are not starting thread when in test mode
 		let service_handle = if cfg!(test) {
@@ -292,7 +285,7 @@ impl ServiceContractListener {
 impl Drop for ServiceContractListener {
 	fn drop(&mut self) {
 		if let Some(service_handle) = self.service_handle.take() {
-			self.data.tasks_queue.shutdown();
+			self.data.tasks_queue.push_front(ServiceTask::Shutdown);
 			// ignore error as we are already closing
 			let _ = service_handle.join();
 		}
@@ -310,7 +303,7 @@ impl ChainNotify for ServiceContractListener {
 		// it maybe inaccurate when switching syncing/synced states, but that's ok
 		let enacted_len = enacted.len();
 		if self.data.last_retry.fetch_add(enacted_len, Ordering::Relaxed) >= RETRY_INTERVAL_BLOCKS {
-			self.data.tasks_queue.push(::std::iter::once(ServiceTask::Retry));
+			self.data.tasks_queue.push(ServiceTask::Retry);
 			self.data.last_retry.store(0, Ordering::Relaxed);
 		}
 	}
@@ -334,43 +327,6 @@ impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 					self.data.self_key_pair.public(), session.id(), error),
 			}
 		}
-	}
-}
-
-impl TasksQueue {
-	/// Create new tasks queue.
-	pub fn new() -> Self {
-		TasksQueue {
-			service_event: Condvar::new(),
-			service_tasks: Mutex::new(VecDeque::new()),
-		}
-	}
-
-	/// Shutdown tasks queue.
-	pub fn shutdown(&self) {
-		let mut service_tasks = self.service_tasks.lock();
-		service_tasks.push_front(ServiceTask::Shutdown);
-		self.service_event.notify_all();
-	}
-
-	//// Push new tasks to the queue.
-	pub fn push<I>(&self, tasks: I) where I: Iterator<Item=ServiceTask> {
-		let mut service_tasks = self.service_tasks.lock();
-		service_tasks.extend(tasks);
-		if !service_tasks.is_empty() {
-			self.service_event.notify_all();
-		}
-	}
-
-	/// Wait for new task.
-	pub fn wait(&self) -> ServiceTask {
-		let mut service_tasks = self.service_tasks.lock();
-		if service_tasks.is_empty() {
-			self.service_event.wait(&mut service_tasks);
-		}
-
-		service_tasks.pop_front()
-			.expect("service_event is only fired when there are new tasks or is_shutdown == true; is_shutdown == false; qed")
 	}
 }
 
