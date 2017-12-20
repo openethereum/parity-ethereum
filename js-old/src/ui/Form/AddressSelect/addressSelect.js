@@ -335,7 +335,7 @@ class AddressSelect extends Component {
 
       content = (
         <div className={ styles.cards }>
-          <div>{ cards }</div>
+          { cards }
         </div>
       );
     }
