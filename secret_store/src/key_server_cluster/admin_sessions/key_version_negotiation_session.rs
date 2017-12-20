@@ -203,9 +203,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			self.core.completed.wait(&mut data);
 		}
 
-		data.result.as_ref()
+		data.result.clone()
 			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
-			.clone()
 	}
 
 	/// Initialize session.

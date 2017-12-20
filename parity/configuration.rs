@@ -1082,7 +1082,7 @@ impl Configuration {
 		Ok(match self.args.arg_secretstore_contract.as_ref() {
 			"none" => None,
 			"registry" => Some(SecretStoreContractAddress::Registry),
-			a @ _ => Some(SecretStoreContractAddress::Address(a.parse().map_err(|e| format!("{}", e))?)),
+			a => Some(SecretStoreContractAddress::Address(a.parse().map_err(|e| format!("{}", e))?)),
 		})
 	}
 

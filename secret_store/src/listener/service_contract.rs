@@ -83,15 +83,15 @@ struct PendingRequestsIterator {
 impl OnChainServiceContract {
 	/// Create new on-chain service contract.
 	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, address: ContractAddress, self_key_pair: Arc<NodeKeyPair>) -> Self {
-		let contract_addr = match &address {
-			&ContractAddress::Registry => client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned())
+		let contract_addr = match address {
+			ContractAddress::Registry => client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned())
 				.map(|address| {
 					trace!(target: "secretstore", "{}: installing service contract from address {}",
 						self_key_pair.public(), address);
 					address
 				})
 				.unwrap_or_default(),
-			&ContractAddress::Address(ref address) => {
+			ContractAddress::Address(ref address) => {
 				trace!(target: "secretstore", "{}: installing service contract from address {}",
 					self_key_pair.public(), address);
 				address.clone()
@@ -231,12 +231,10 @@ impl ServiceContract for OnChainServiceContract {
 		)?;
 
 		// send transaction
-		if contract.address != Default::default() {
-			client.transact_contract(
-				contract.address.clone(),
-				transaction_data
-			).map_err(|e| format!("{}", e))?;
-		}
+		client.transact_contract(
+			contract.address.clone(),
+			transaction_data
+		).map_err(|e| format!("{}", e))?;
 
 		Ok(())
 	}

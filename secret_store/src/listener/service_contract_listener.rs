@@ -31,11 +31,11 @@ use key_storage::KeyStorage;
 use listener::service_contract::ServiceContract;
 use {ServerKeyId, NodeKeyPair, KeyServer};
 
-/// Retry interval (in blocks). Every RETRY_INTEVAL_BLOCKS blocks each KeyServer reads pending requests from
+/// Retry interval (in blocks). Every RETRY_INTERVAL_BLOCKS blocks each KeyServer reads pending requests from
 /// service contract && tries to re-execute. The reason to have this mechanism is primarily because keys
 /// servers set change takes a lot of time + there could be some races, when blocks are coming to different
 /// KS at different times. This isn't intended to fix && respond to general session errors!
-const RETRY_INTEVAL_BLOCKS: usize = 30;
+const RETRY_INTERVAL_BLOCKS: usize = 30;
 
 /// Max failed retry requests (in single retry interval). The reason behind this constant is that if several
 /// pending requests have failed, then most probably other will fail too.
@@ -255,7 +255,7 @@ impl ServiceContractListener {
 					// only process request, which haven't been processed recently
 					// there could be a lag when we've just generated server key && retrying on the same block
 					// (or before our tx is mined) - state is not updated yet
-					if retry_data.generated_keys.contains(&server_key_id){
+					if retry_data.generated_keys.contains(&server_key_id) {
 						continue;
 					}
 
@@ -343,7 +343,7 @@ impl ChainNotify for ServiceContractListener {
 
 		// schedule retry if received enough blocks since last retry
 		// it maybe inaccurate when switching syncing/synced states, but that's ok
-		if self.data.last_retry.fetch_add(enacted_len, Ordering::Relaxed) >= RETRY_INTEVAL_BLOCKS {
+		if self.data.last_retry.fetch_add(enacted_len, Ordering::Relaxed) >= RETRY_INTERVAL_BLOCKS {
 			self.data.tasks_queue.push(::std::iter::once(ServiceTask::Retry));
 			self.data.last_retry.store(0, Ordering::Relaxed);
 		}
@@ -356,22 +356,17 @@ impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 		// when it is started by this node, it is published from process_service_task
 		if !is_processed_by_this_key_server(&*self.data.key_server_set, &*self.data.self_key_pair, &session.id()) {
 			// by this time sesion must already be completed - either successfully, or not
-			debug_assert!(session.is_finished());
+			assert!(session.is_finished());
 
 			// ignore result - the only thing that we can do is to log the error
-			let _ = session.wait(Some(Default::default()))
+			match session.wait(Some(Default::default()))
 				.map_err(|e| format!("{}", e))
-				.and_then(|server_key| Self::publish_server_key(&self.data, &session.id(), &server_key))
-				.map(|_| {
-					trace!(target: "secretstore", "{}: completed foreign GenerateServerKey({}) request",
-						self.data.self_key_pair.public(), session.id());
-					()
-				})
-				.map_err(|error| {
-					warn!(target: "secretstore", "{}: failed to process GenerateServerKey({}) request with: {}",
-						self.data.self_key_pair.public(), session.id(), error);
-					error
-				});
+				.and_then(|server_key| Self::publish_server_key(&self.data, &session.id(), &server_key)) {
+				Ok(_) => trace!(target: "secretstore", "{}: completed foreign GenerateServerKey({}) request",
+					self.data.self_key_pair.public(), session.id()),
+				Err(error) => warn!(target: "secretstore", "{}: failed to process GenerateServerKey({}) request with: {}",
+					self.data.self_key_pair.public(), session.id(), error),
+			}
 		}
 	}
 }
@@ -417,9 +412,12 @@ impl TasksQueue {
 fn is_processed_by_this_key_server(key_server_set: &KeyServerSet, self_key_pair: &NodeKeyPair, server_key_id: &H256) -> bool {
 	let servers = key_server_set.get();
 	let total_servers_count = servers.len();
-	if total_servers_count == 0 {
-		return false;
+	match total_servers_count {
+		0 => return false,
+		1 => return true,
+		_ => (),
 	}
+
 	let this_server_index = match servers.keys().enumerate().find(|&(_, s)| s == self_key_pair.public()) {
 		Some((index, _)) => index,
 		None => return false,
@@ -480,13 +478,24 @@ mod tests {
 	}
 
 	#[test]
-	fn is_not_processed_by_this_key_server_when_not_a_part_of_servers_set() {
+	fn is_processed_by_this_key_server_with_single_server() {
+		let self_key_pair = Random.generate().unwrap();
 		assert_eq!(is_processed_by_this_key_server(
+			&MapKeyServerSet::new(vec![
+				(self_key_pair.public().clone(), "127.0.0.1:8080".parse().unwrap())
+			].into_iter().collect()),
+			&PlainNodeKeyPair::new(self_key_pair),
+			&Default::default()), true);
+	}
+
+	#[test]
+	fn is_not_processed_by_this_key_server_when_not_a_part_of_servers_set() {
+		assert!(is_processed_by_this_key_server(
 			&MapKeyServerSet::new(vec![
 				(Random.generate().unwrap().public().clone(), "127.0.0.1:8080".parse().unwrap())
 			].into_iter().collect()),
 			&PlainNodeKeyPair::new(Random.generate().unwrap()),
-			&Default::default()), false);
+			&Default::default()));
 	}
 
 	#[test]

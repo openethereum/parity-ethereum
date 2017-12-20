@@ -86,22 +86,28 @@ struct SessionData<T: SessionTransport> {
 	pub version: Option<H256>,
 	/// Consensus session.
 	pub consensus_session: Option<ShareAddChangeConsensusSession<T>>,
-	/// NewKeyShare: threshold.
-	pub key_share_threshold: Option<usize>,
-	/// NewKeyShare: author.
-	pub key_share_author: Option<Public>,
-	/// NewKeyShare: joint public.
-	pub key_share_joint_public: Option<Public>,
-	/// NewKeyShare: Common (shared) encryption point.
-	pub key_share_common_point: Option<Public>,
-	/// NewKeyShare: Encrypted point.
-	pub key_share_encrypted_point: Option<Public>,
+	/// NewKeyShare (for nodes being added).
+	pub new_key_share: Option<NewKeyShare>,
 	/// Nodes id numbers.
 	pub id_numbers: Option<BTreeMap<NodeId, Option<Secret>>>,
 	/// Secret subshares received from nodes.
 	pub secret_subshares: Option<BTreeMap<NodeId, Option<Secret>>>,
 	/// Share add change result.
 	pub result: Option<Result<(), Error>>,
+}
+
+/// New key share.
+struct NewKeyShare {
+	/// NewKeyShare: threshold.
+	pub threshold: usize,
+	/// NewKeyShare: author.
+	pub author: Public,
+	/// NewKeyShare: joint public.
+	pub joint_public: Public,
+	/// NewKeyShare: Common (shared) encryption point.
+	pub common_point: Option<Public>,
+	/// NewKeyShare: Encrypted point.
+	pub encrypted_point: Option<Public>,
 }
 
 /// Session state.
@@ -167,11 +173,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				state: SessionState::ConsensusEstablishing,
 				version: None,
 				consensus_session: None,
-				key_share_threshold: None,
-				key_share_author: None,
-				key_share_joint_public: None,
-				key_share_common_point: None,
-				key_share_encrypted_point: None,
+				new_key_share: None,
 				id_numbers: None,
 				secret_subshares: None,
 				result: None,
@@ -427,9 +429,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		// we only expect this message once
-		if data.key_share_threshold.is_some() || data.key_share_author.is_some() ||
-			data.key_share_common_point.is_some() || data.key_share_encrypted_point.is_some() ||
-			data.key_share_joint_public.is_some() {
+		if data.new_key_share.is_some() {
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -444,11 +444,13 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// update data
 		data.state = SessionState::WaitingForKeysDissemination;
-		data.key_share_threshold = Some(message.threshold);
-		data.key_share_author = Some(message.author.clone().into());
-		data.key_share_joint_public = Some(message.joint_public.clone().into());
-		data.key_share_common_point = message.common_point.clone().map(Into::into);
-		data.key_share_encrypted_point = message.encrypted_point.clone().map(Into::into);
+		data.new_key_share = Some(NewKeyShare {
+			threshold: message.threshold,
+			author: message.author.clone().into(),
+			joint_public: message.joint_public.clone().into(),
+			common_point: message.common_point.clone().map(Into::into),
+			encrypted_point: message.encrypted_point.clone().map(Into::into),
+		});
 
 		let id_numbers = data.id_numbers.as_mut()
 			.expect("common key share data is expected after initialization; id_numers are filled during initialization; qed");
@@ -667,8 +669,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let id_numbers = data.id_numbers.as_ref().expect(explanation);
 		let secret_subshares = data.secret_subshares.as_ref().expect(explanation);
 		let threshold = core.key_share.as_ref().map(|ks| ks.threshold)
-			.unwrap_or_else(|| *data.key_share_threshold.as_ref()
-				.expect("computation occurs after receiving key share threshold if not having one already; qed"));
+			.unwrap_or_else(|| data.new_key_share.as_ref()
+				.expect("computation occurs after receiving key share threshold if not having one already; qed")
+				.threshold);
 
 		let explanation = "id_numbers are checked to have Some value for every consensus group node when consensus is establishe; qed";
 		let sender_id_number = id_numbers[sender].as_ref().expect(explanation);
@@ -694,16 +697,17 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let refreshed_key_version = DocumentKeyShareVersion::new(id_numbers.clone().into_iter().map(|(k, v)| (k.clone(),
 			v.expect("id_numbers are checked to have Some value for every consensus group node when consensus is establishe; qed"))).collect(),
 			secret_share);
-		let mut refreshed_key_share = core.key_share.as_ref().cloned().unwrap_or_else(|| DocumentKeyShare {
-			author: data.key_share_author.clone()
-				.expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed"),
-			threshold: data.key_share_threshold.clone()
-				.expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed"),
-			public: data.key_share_joint_public.clone()
-				.expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed"),
-			common_point: data.key_share_common_point.clone(),
-			encrypted_point: data.key_share_encrypted_point.clone(),
-			versions: Vec::new(),
+		let mut refreshed_key_share = core.key_share.as_ref().cloned().unwrap_or_else(|| {
+			let new_key_share = data.new_key_share.as_ref()
+				.expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed");
+			DocumentKeyShare {
+				author: new_key_share.author.clone(),
+				threshold: new_key_share.threshold,
+				public: new_key_share.joint_public.clone(),
+				common_point: new_key_share.common_point.clone(),
+				encrypted_point: new_key_share.encrypted_point.clone(),
+				versions: Vec::new(),
+			}
 		});
 		refreshed_key_share.versions.push(refreshed_key_version);
 

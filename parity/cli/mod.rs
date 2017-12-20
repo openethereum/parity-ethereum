@@ -553,7 +553,7 @@ usage! {
 
 			ARG arg_secretstore_contract: (String) = "none", or |c: &Config| otry!(c.secretstore).service_contract.clone(),
 			"--secretstore-contract=[SOURCE]",
-			"Secret Store Service contract source: none, registry (contract address is read from registry) or address.",
+			"Secret Store Service contract address source: none, registry (contract address is read from registry) or address.",
 
 			ARG arg_secretstore_nodes: (String) = "", or |c: &Config| otry!(c.secretstore).nodes.as_ref().map(|vec| vec.join(",")),
 			"--secretstore-nodes=[NODES]",

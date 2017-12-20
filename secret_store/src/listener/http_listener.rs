@@ -87,8 +87,8 @@ impl KeyServerHttpListener {
 		let listener_address = format!("{}:{}", listener_address.address, listener_address.port);
 		let http_server = HttpServer::http(&listener_address).expect("cannot start HttpServer");
 		let http_server = http_server.handle(KeyServerHttpHandler {
-				handler: shared_handler.clone(),
-			}).expect("cannot start HttpServer");
+			handler: shared_handler.clone(),
+		}).expect("cannot start HttpServer");
 
 		let listener = KeyServerHttpListener {
 			http_server: http_server,

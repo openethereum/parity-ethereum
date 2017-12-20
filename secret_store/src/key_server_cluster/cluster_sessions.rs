@@ -294,25 +294,7 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 			queue: VecDeque::new(),
 		};
 		sessions.insert(session_id, queued_session);
-
-		// notify listeners
-		let mut listeners = self.listeners.lock();
-		let mut listener_index = 0;
-		loop {
-			if listener_index >= listeners.len() {
-				break;
-			}
-
-			match listeners[listener_index].upgrade() {
-				Some(listener) => {
-					listener.on_session_inserted(session.clone());
-					listener_index += 1;
-				},
-				None => {
-					listeners.swap_remove(listener_index);
-				},
-			}
-		}
+		self.notify_listeners(|l| l.on_session_inserted(session.clone()));
 
 		Ok(session)
 	}
@@ -320,25 +302,7 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 	pub fn remove(&self, session_id: &S::Id) {
 		if let Some(session) = self.sessions.write().remove(session_id) {
 			self.container_state.lock().on_session_completed();
-
-			// notify listeners
-			let mut listeners = self.listeners.lock();
-			let mut listener_index = 0;
-			loop {
-				if listener_index >= listeners.len() {
-					break;
-				}
-
-				match listeners[listener_index].upgrade() {
-					Some(listener) => {
-						listener.on_session_removed(session.session.clone());
-						listener_index += 1;
-					},
-					None => {
-						listeners.swap_remove(listener_index);
-					},
-				}
-			}
+			self.notify_listeners(|l| l.on_session_removed(session.session.clone()));
 		}
 	}
 
@@ -382,6 +346,22 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 			};
 			if remove_session {
 				sessions.remove(&sid);
+			}
+		}
+	}
+
+	fn notify_listeners<F: Fn(&ClusterSessionsListener<S>) -> ()>(&self, callback: F) {
+		let mut listeners = self.listeners.lock();
+		let mut listener_index = 0;
+		while listener_index < listeners.len() {
+			match listeners[listener_index].upgrade() {
+				Some(listener) => {
+					callback(&*listener);
+					listener_index += 1;
+				},
+				None => {
+					listeners.swap_remove(listener_index);
+				},
 			}
 		}
 	}
