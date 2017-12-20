@@ -16,23 +16,23 @@
 
 //! Client-side stratum job dispatcher and mining notifier handler
 
-use ethcore_stratum::{
-	JobDispatcher, PushWorkHandler,
-	Stratum as StratumService, Error as StratumServiceError,
-};
-
 use std::sync::{Arc, Weak};
 use std::net::{SocketAddr, AddrParseError};
 use std::fmt;
 
-use bigint::prelude::U256;
 use bigint::hash::{H64, H256, clean_0x};
-use ethereum::ethash::Ethash;
-use ethash::SeedHashCompute;
-use parking_lot::Mutex;
-use miner::{self, Miner, MinerService};
-use client::Client;
+use bigint::prelude::U256;
 use block::IsBlock;
+use client::Client;
+use ethash::SeedHashCompute;
+use ethcore_miner::work_notify::NotifyWork;
+use ethcore_stratum::{
+	JobDispatcher, PushWorkHandler,
+	Stratum as StratumService, Error as StratumServiceError,
+};
+use ethereum::ethash::Ethash;
+use miner::{self, Miner, MinerService};
+use parking_lot::Mutex;
 use rlp::encode;
 
 /// Configures stratum server options.
@@ -214,7 +214,7 @@ impl From<AddrParseError> for Error {
 	fn from(err: AddrParseError) -> Error { Error::Address(err) }
 }
 
-impl super::work_notify::NotifyWork for Stratum {
+impl NotifyWork for Stratum {
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
 		trace!(target: "stratum", "Notify work");
 
@@ -249,7 +249,7 @@ impl Stratum {
 	/// Start STRATUM job dispatcher and register it in the miner
 	pub fn register(cfg: &Options, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), Error> {
 		let stratum = miner::Stratum::start(cfg, Arc::downgrade(&miner.clone()), client)?;
-		miner.push_notifier(Box::new(stratum) as Box<miner::NotifyWork>);
+		miner.push_notifier(Box::new(stratum) as Box<NotifyWork>);
 		Ok(())
 	}
 }

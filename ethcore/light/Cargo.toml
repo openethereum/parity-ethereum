@@ -12,6 +12,7 @@ ethcore = { path = ".."}
 ethcore-util = { path = "../../util" }
 ethcore-bigint = { path = "../../util/bigint" }
 ethcore-bytes = { path = "../../util/bytes" }
+ethcore-transaction = { path = "../transaction" }
 memorydb = { path = "../../util/memorydb" }
 patricia-trie = { path = "../../util/patricia_trie" }
 ethcore-network = { path = "../../util/network" }

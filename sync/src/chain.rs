@@ -102,7 +102,7 @@ use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};
 use ethcore::error::*;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
-use ethcore::transaction::PendingTransaction;
+use transaction::PendingTransaction;
 use sync_io::SyncIo;
 use time;
 use super::SyncConfig;

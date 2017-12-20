@@ -19,11 +19,11 @@
 use std::sync::Arc;
 
 use ethcore::account_provider::AccountProvider;
-use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethkey;
 use parity_reactor::Remote;
-use rlp::UntrustedRlp;
 use parking_lot::Mutex;
+use rlp::UntrustedRlp;
+use transaction::{SignedTransaction, PendingTransaction};
 
 use jsonrpc_core::{Result, BoxFuture, Error};
 use jsonrpc_core::futures::{future, Future, IntoFuture};

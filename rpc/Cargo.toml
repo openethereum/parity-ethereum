@@ -36,29 +36,31 @@ jsonrpc-ipc-server = { git = "https://github.com/paritytech/jsonrpc.git", branch
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
 jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
 
-ethcore-io = { path = "../util/io" }
-ethcore-util = { path = "../util" }
+ethash = { path = "../ethash" }
+ethcore = { path = "../ethcore" }
 ethcore-bigint = { path = "../util/bigint" }
 ethcore-bytes = { path = "../util/bytes" }
-ethcore = { path = "../ethcore" }
-ethcrypto = { path = "../ethcrypto" }
-ethkey = { path = "../ethkey" }
-ethstore = { path = "../ethstore" }
-ethash = { path = "../ethash" }
-ethsync = { path = "../sync" }
-ethjson = { path = "../json" }
 ethcore-devtools = { path = "../devtools" }
+ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../logger" }
+ethcore-miner = { path = "../miner" }
+ethcore-transaction = { path = "../ethcore/transaction" }
+ethcore-util = { path = "../util" }
+ethcrypto = { path = "../ethcrypto" }
+ethjson = { path = "../json" }
+ethkey = { path = "../ethkey" }
+ethstore = { path = "../ethstore" }
+ethsync = { path = "../sync" }
 fetch = { path = "../util/fetch" }
+hardware-wallet = { path = "../hw" }
+keccak-hash = { path = "../util/hash" }
 node-health = { path = "../dapps/node-health" }
 parity-reactor = { path = "../util/reactor" }
 parity-updater = { path = "../updater" }
 rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
-keccak-hash = { path = "../util/hash" }
-hardware-wallet = { path = "../hw" }
 
 clippy = { version = "0.0.103", optional = true}
 

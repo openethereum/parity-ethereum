@@ -24,21 +24,22 @@ pub use parity_rpc::dapps::{DappsService, LocalDapp};
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
-use ethcore::miner::{Miner, ExternalMiner};
+use ethcore::miner::Miner;
 use ethcore::snapshot::SnapshotService;
 use ethcore_logger::RotatingLogger;
 use ethsync::{ManageNetwork, SyncProvider, LightSync};
 use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{self as core, MetaIoHandler};
-use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
 use light::client::LightChainClient;
+use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
+use miner::external::ExternalMiner;
 use node_health::NodeHealth;
 use parity_reactor;
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
 use parity_rpc::{Metadata, NetworkSettings, Host};
-use updater::Updater;
 use parking_lot::{Mutex, RwLock};
+use updater::Updater;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {

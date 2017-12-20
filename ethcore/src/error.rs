@@ -33,6 +33,7 @@ use snapshot::Error as SnapshotError;
 use engines::EngineError;
 use ethkey::Error as EthkeyError;
 use account_provider::SignError as AccountsError;
+use transaction::Error as TransactionError;
 
 pub use executed::{ExecutionError, CallError};
 

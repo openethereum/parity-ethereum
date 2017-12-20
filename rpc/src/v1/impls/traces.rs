@@ -19,8 +19,8 @@
 use std::sync::Arc;
 
 use ethcore::client::{MiningBlockChainClient, CallAnalytics, TransactionId, TraceId};
-use ethcore::transaction::SignedTransaction;
 use rlp::UntrustedRlp;
+use transaction::SignedTransaction;
 
 use jsonrpc_core::Result;
 use jsonrpc_macros::Trailing;

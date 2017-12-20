@@ -17,12 +17,11 @@
 //! Account management (personal) rpc implementation
 use std::sync::Arc;
 
-use ethcore::account_provider::AccountProvider;
-use ethcore::transaction::PendingTransaction;
-
 use bigint::prelude::U128;
-use util::Address;
 use bytes::ToPretty;
+use ethcore::account_provider::AccountProvider;
+use transaction::PendingTransaction;
+use util::Address;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};

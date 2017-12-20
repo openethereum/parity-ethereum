@@ -31,6 +31,7 @@ extern crate ethcore_network as network;
 extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_io as io;
+extern crate ethcore_transaction as transaction;
 extern crate ethcore;
 extern crate env_logger;
 extern crate time;

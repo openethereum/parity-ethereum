@@ -28,16 +28,16 @@ use light::client::LightChainClient;
 use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
 
+use bigint::prelude::U256;
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::encoded;
-use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::transaction::SignedTransaction;
+use ethcore::ids::BlockId;
 use ethsync::LightSync;
-use rlp::UntrustedRlp;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
-use bigint::prelude::U256;
 use parking_lot::{RwLock, Mutex};
+use rlp::UntrustedRlp;
+use transaction::SignedTransaction;
 
 use v1::impls::eth_filter::Filterable;
 use v1::helpers::{errors, limit_logs};
@@ -362,7 +362,6 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 
 				self.transaction_queue.write().import(signed.into())
 					.map(|_| hash)
-					.map_err(Into::into)
 					.map_err(errors::transaction)
 			})
 			.map(Into::into)

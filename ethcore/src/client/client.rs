@@ -57,7 +57,7 @@ use futures::{future, Future};
 use header::{BlockNumber, Header};
 use io::*;
 use log_entry::LocalizedLogEntry;
-use miner::{Miner, MinerService, TransactionImportResult};
+use miner::{Miner, MinerService};
 use native_contracts::Registry;
 use parking_lot::{Mutex, RwLock, MutexGuard};
 use rand::OsRng;
@@ -71,7 +71,7 @@ use state::{self, State};
 use trace;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace::FlatTransactionTraces;
-use transaction::{LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
+use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
 use verification;
@@ -1804,7 +1804,7 @@ impl BlockChainClient for Client {
 			})
 	}
 
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<transaction::ImportResult, EthcoreError> {
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&self.miner.author()),
 			action: Action::Call(address),
