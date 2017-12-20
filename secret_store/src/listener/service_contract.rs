@@ -34,6 +34,9 @@ const SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service";
 /// Key server has been added to the set.
 const SERVER_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyRequested(bytes32,uint256)";
 
+/// Number of confirmations required before request can be processed.
+const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
+
 lazy_static! {
 	static ref SERVER_KEY_REQUESTED_EVENT_NAME_HASH: H256 = keccak(SERVER_KEY_REQUESTED_EVENT_NAME);
 }
@@ -72,6 +75,8 @@ struct PendingRequestsIterator {
 	contract: Arc<SecretStoreService>,
 	/// This node key pair.
 	self_key_pair: Arc<NodeKeyPair>,
+	/// Block, this iterator is created for.
+	block: H256,
 	/// Current request index.
 	index: U256,
 	/// Requests length.
@@ -126,8 +131,7 @@ impl ServiceContract for OnChainServiceContract {
 	}
 
 	fn read_logs(&self, first_block: H256, last_block: H256) -> Box<Iterator<Item=Vec<H256>>> {
-		// already bound to specific blocks => do not care about trust here
-		let client = match self.client.get_untrusted() {
+		let client = match self.client.get() {
 			Some(client) => client,
 			None => {
 				warn!(target: "secretstore", "{}: client is offline during read_pending_requests call",
@@ -165,27 +169,32 @@ impl ServiceContract for OnChainServiceContract {
 		};
 
 		let contract = self.contract.read();
-		let length = match contract.address == Default::default() {
-			true => 0.into(),
-			false => {
-				let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
-				contract.server_key_generation_requests_count(&do_call).wait()
-					.map_err(|error| {
-						warn!(target: "secretstore", "{}: call to server_key_generation_requests_count failed: {}",
-							self.self_key_pair.public(), error);
-						error
-					})
-					.unwrap_or_default()
-			},
-		};
-
-		Box::new(PendingRequestsIterator {
-			client: client,
-			contract: contract.clone(),
-			self_key_pair: self.self_key_pair.clone(),
-			index: 0.into(),
-			length: length,
-		})
+		match contract.address == Default::default() {
+			true => Box::new(::std::iter::empty()),
+			false => client.block_number(BlockId::Latest)
+				.and_then(|b| b.checked_sub(REQUEST_CONFIRMATIONS_REQUIRED))
+				.and_then(|b| client.block_hash(BlockId::Number(b)))
+				.and_then(|b| {
+					let do_call = |a, d| future::done(client.call_contract(BlockId::Hash(b.clone()), a, d));
+					contract.server_key_generation_requests_count(&do_call).wait()
+						.map_err(|error| {
+							warn!(target: "secretstore", "{}: call to server_key_generation_requests_count failed: {}",
+								self.self_key_pair.public(), error);
+							error
+						})
+						.map(|l| (b, l))
+						.ok()
+				})
+				.map(|(b, l)| Box::new(PendingRequestsIterator {
+					client: client,
+					contract: contract.clone(),
+					self_key_pair: self.self_key_pair.clone(),
+					block: b,
+					index: 0.into(),
+					length: l,
+				}) as Box<Iterator<Item=(bool, ServiceTask)>>)
+				.unwrap_or_else(|| Box::new(::std::iter::empty()))
+		}
 	}
 
 	fn publish_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
@@ -243,7 +252,7 @@ impl Iterator for PendingRequestsIterator {
 		self.index = self.index + 1.into();
 
 		let self_address = public_to_address(self.self_key_pair.public());
-		let do_call = |a, d| future::done(self.client.call_contract(BlockId::Latest, a, d));
+		let do_call = |a, d| future::done(self.client.call_contract(BlockId::Hash(self.block.clone()), a, d));
 		self.contract.get_server_key_id(&do_call, index).wait()
 			.and_then(|server_key_id|
 				self.contract.get_server_key_threshold(&do_call, server_key_id.clone()).wait()
