@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
+//! A service transactions contract checker.
+
 use bigint::prelude::H160 as Address;
 use bigint::prelude::U256;
 use futures::{future, Future};
@@ -24,9 +26,12 @@ use types::ids::BlockId;
 
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
 
+/// A contract calling interface.
 pub trait ContractCaller {
+	/// Returns address of contract from the registry, given it's name
 	fn registry_address(&self, name: &str) -> Option<Address>;
 
+	/// Executes a contract call at given block.
 	fn call_contract(&self, BlockId, Address, Vec<u8>) -> Result<Vec<u8>, String>;
 }
 

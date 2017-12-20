@@ -232,7 +232,7 @@ mod tests {
 	use super::NodeInfo;
 
 	use std::sync::Arc;
-	use ethcore::transaction::{Transaction, Condition, PendingTransaction};
+	use transaction::{Transaction, Condition, PendingTransaction};
 	use ethkey::{Brain, Generator};
 
 	// we want to test: round-trip of good transactions.

@@ -375,9 +375,10 @@ impl UnverifiedTransaction {
 
 	/// Do basic validation, checking for valid signature and minimum gas,
 	// TODO: consider use in block validation.
-	#[cfg(test)]
 	#[cfg(feature = "json-tests")]
-	pub fn validate(self, schedule: &Schedule, require_low: bool, allow_chain_id_of_one: bool, allow_empty_signature: bool) -> Result<UnverifiedTransaction, Error> {
+	pub fn validate(self, schedule: &Schedule, require_low: bool, allow_chain_id_of_one: bool, allow_empty_signature: bool)
+		-> Result<UnverifiedTransaction, error::Error>
+	{
 		let chain_id = if allow_chain_id_of_one { Some(1) } else { None };
 		self.verify_basic(require_low, chain_id, allow_empty_signature)?;
 		if !allow_empty_signature || !self.is_unsigned() {

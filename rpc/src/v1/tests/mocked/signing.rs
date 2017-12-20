@@ -31,15 +31,15 @@ use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
 use bigint::prelude::U256;
-use util::Address;
 use bytes::ToPretty;
-use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
-use ethcore::transaction::{Transaction, Action, SignedTransaction};
+use ethkey::Secret;
 use ethstore::ethkey::{Generator, Random};
-use serde_json;
 use parking_lot::Mutex;
+use serde_json;
+use transaction::{Transaction, Action, SignedTransaction};
+use util::Address;
 
 use parity_reactor::Remote;
 

@@ -20,9 +20,9 @@
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{EachBlockWith, TestBlockChainClient};
 use ethcore::ids::BlockId;
-use ethcore::transaction::{Action, PendingTransaction};
 use ethcore::encoded;
 use network::{PeerId, NodeId};
+use transaction::{Action, PendingTransaction};
 
 use net::context::IoContext;
 use net::status::{Capabilities, Status};

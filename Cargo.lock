@@ -953,7 +953,7 @@ dependencies = [
  "ethcore 1.9.0",
  "ethcore-bigint 0.2.1",
  "ethcore-bytes 0.1.0",
- "ethcore-util 1.9.0",
+ "ethcore-transaction 0.1.0",
  "ethjson 0.1.0",
  "evm 0.1.0",
  "panic_hook 0.1.0",

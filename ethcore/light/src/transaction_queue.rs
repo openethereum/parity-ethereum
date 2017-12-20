@@ -331,7 +331,7 @@ impl TransactionQueue {
 mod tests {
 	use super::TransactionQueue;
 	use util::Address;
-	use ethcore::transaction::{Transaction, PendingTransaction, Condition};
+	use transaction::{Transaction, PendingTransaction, Condition};
 
 	#[test]
 	fn queued_senders() {
