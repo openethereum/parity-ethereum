@@ -105,9 +105,7 @@
 }
 
 .inputContainer {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
+  justify-content: flex-start;
 
   .input {
     font-size: 1.5em;
@@ -134,8 +132,6 @@
 }
 
 .category {
-  display: flex;
-  flex-direction: column;
   margin: 0 0.5em;
   max-width: 35em;
 
@@ -149,11 +145,7 @@
   }
 
   .cards {
-    flex: 1;
     overflow: auto;
-
-    display: flex;
-    flex-direction: column;
 
     margin: 1em 0;
   }
