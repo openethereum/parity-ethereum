@@ -18,7 +18,7 @@ use std::time;
 use std::sync::{Arc, Weak};
 use std::sync::atomic::AtomicBool;
 use std::collections::{VecDeque, BTreeMap};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::{Mutex, RwLock, Condvar};
 use bigint::hash::H256;
 use ethkey::{Secret, Signature};
 use key_server_cluster::{Error, NodeId, SessionId};
@@ -79,6 +79,25 @@ pub trait ClusterSession {
 	fn on_session_error(&self, sender: &NodeId, error: Error);
 	/// Process session message.
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error>;
+
+	/// 'Wait for session completion' helper.
+	fn wait_session<T, U, F: Fn(&U) -> Option<Result<T, Error>>>(completion_event: &Condvar, session_data: &Mutex<U>, timeout: Option<time::Duration>, result_reader: F) -> Result<T, Error> {
+		let mut locked_data = session_data.lock();
+		match result_reader(&locked_data) {
+			Some(result) => result,
+			None => {
+				match timeout {
+					None => completion_event.wait(&mut locked_data),
+					Some(timeout) => {
+						completion_event.wait_for(&mut locked_data, timeout);
+					},
+				}
+
+				result_reader(&locked_data)
+					.expect("waited for completion; completion is only signaled when result.is_some(); qed")
+			},
+		}
+	}
 }
 
 /// Administrative session.
@@ -528,7 +547,6 @@ pub fn create_cluster_view(data: &Arc<ClusterData>, requires_all_connections: bo
 
 	Ok(Arc::new(ClusterView::new(data.clone(), connected_nodes)))
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -223,17 +223,8 @@ impl SessionImpl {
 
 	/// Wait for session completion.
 	pub fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error> {
-		let mut data = self.data.lock();
-		if !data.joint_public_and_secret.is_some() {
-			match timeout {
-				None => self.completed.wait(&mut data),
-				Some(timeout) => { self.completed.wait_for(&mut data, timeout); },
-			}
-		}
-
-		data.joint_public_and_secret.clone()
-			.expect("checked above or waited for completed; completed is only signaled when joint_public.is_some(); qed")
-			.map(|p| p.0)
+		Self::wait_session(&self.completed, &self.data, timeout, |data| data.joint_public_and_secret.clone()
+			.map(|r| r.map(|r| r.0.clone())))
 	}
 
 	/// Get generated public and secret (if any).

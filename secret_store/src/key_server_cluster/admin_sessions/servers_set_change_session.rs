@@ -207,13 +207,7 @@ impl SessionImpl {
 
 	/// Wait for session completion.
 	pub fn wait(&self) -> Result<(), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.clone()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
+		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
 	}
 
 	/// Initialize servers set change session on master node.
