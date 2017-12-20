@@ -60,6 +60,7 @@ mod serialization;
 mod key_server_set;
 mod node_key_pair;
 mod listener;
+mod trusted_client;
 
 use std::sync::Arc;
 use ethcore::client::Client;
@@ -72,12 +73,13 @@ pub use self::node_key_pair::{PlainNodeKeyPair, KeyStoreNodeKeyPair};
 
 /// Start new key server instance
 pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>, config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
+	let trusted_client = trusted_client::TrustedClient::new(client.clone(), sync);
 	let acl_storage: Arc<acl_storage::AclStorage> = if config.acl_check_enabled {
-			acl_storage::OnChainAclStorage::new(&client, &sync)
+			acl_storage::OnChainAclStorage::new(trusted_client.clone())?
 		} else {
 			Arc::new(acl_storage::DummyAclStorage::default())
 		};
-	let key_server_set = key_server_set::OnChainKeyServerSet::new(&client, &sync, config.cluster_config.nodes.clone())?;
+	let key_server_set = key_server_set::OnChainKeyServerSet::new(trusted_client.clone(), config.cluster_config.nodes.clone())?;
 	let key_storage = Arc::new(key_storage::PersistentKeyStorage::new(&config)?);
 	let key_server = Arc::new(key_server::KeyServerImpl::new(&config.cluster_config, key_server_set.clone(), self_key_pair.clone(), acl_storage, key_storage.clone())?);
 	let cluster = key_server.cluster();
@@ -88,7 +90,7 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<No
 		None => None,
 	};
 	let contract_listener = config.service_contract_address.map(|service_contract_address| {
-		let service_contract = Arc::new(listener::service_contract::OnChainServiceContract::new(&client, &sync, service_contract_address, self_key_pair.clone()));
+		let service_contract = Arc::new(listener::service_contract::OnChainServiceContract::new(trusted_client, service_contract_address, self_key_pair.clone()));
 		let contract_listener = listener::service_contract_listener::ServiceContractListener::new(listener::service_contract_listener::ServiceContractListenerParams {
 			contract: service_contract,
 			key_server: key_server.clone(),

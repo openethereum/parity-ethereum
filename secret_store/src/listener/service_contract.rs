@@ -14,18 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use futures::{future, Future};
 use parking_lot::RwLock;
 use ethcore::filter::Filter;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethkey::{Public, Signature, public_to_address};
-use ethsync::SyncProvider;
 use native_contracts::SecretStoreService;
 use hash::keccak;
 use bigint::hash::H256;
 use bigint::prelude::U256;
 use listener::service_contract_listener::ServiceTask;
+use trusted_client::TrustedClient;
 use {ServerKeyId, NodeKeyPair, ContractAddress};
 
 /// Name of the SecretStore contract in the registry.
@@ -55,9 +55,7 @@ pub trait ServiceContract: Send + Sync {
 /// On-chain service contract.
 pub struct OnChainServiceContract {
 	/// Blockchain client.
-	client: Weak<Client>,
-	/// Sync provider.
-	sync: Weak<SyncProvider>,
+	client: TrustedClient,
 	/// This node key pair.
 	self_key_pair: Arc<NodeKeyPair>,
 	/// Contract addresss.
@@ -82,14 +80,14 @@ struct PendingRequestsIterator {
 
 impl OnChainServiceContract {
 	/// Create new on-chain service contract.
-	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, address: ContractAddress, self_key_pair: Arc<NodeKeyPair>) -> Self {
+	pub fn new(client: TrustedClient, address: ContractAddress, self_key_pair: Arc<NodeKeyPair>) -> Self {
 		let contract_addr = match address {
-			ContractAddress::Registry => client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned())
+			ContractAddress::Registry => client.get().and_then(|c| c.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned())
 				.map(|address| {
 					trace!(target: "secretstore", "{}: installing service contract from address {}",
 						self_key_pair.public(), address);
 					address
-				})
+				}))
 				.unwrap_or_default(),
 			ContractAddress::Address(ref address) => {
 				trace!(target: "secretstore", "{}: installing service contract from address {}",
@@ -99,8 +97,7 @@ impl OnChainServiceContract {
 		};
 
 		OnChainServiceContract {
-			client: Arc::downgrade(client),
-			sync: Arc::downgrade(sync),
+			client: client,
 			self_key_pair: self_key_pair,
 			address: address,
 			contract: RwLock::new(Arc::new(SecretStoreService::new(contract_addr))),
@@ -111,12 +108,7 @@ impl OnChainServiceContract {
 impl ServiceContract for OnChainServiceContract {
 	fn update(&self) {
 		if let &ContractAddress::Registry = &self.address {
-			if let (Some(client), Some(sync)) = (self.client.upgrade(), self.sync.upgrade()) {
-				// do nothing until synced
-				if sync.status().is_syncing(client.queue_info()) {
-					return;
-				}
-
+			if let Some(client) = self.client.get() {
 				// update contract address from registry
 				let service_contract_addr = client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned()).unwrap_or_default();
 				if self.contract.read().address != service_contract_addr {
@@ -130,14 +122,12 @@ impl ServiceContract for OnChainServiceContract {
 
 	fn is_actual(&self) -> bool {
 		self.contract.read().address != Default::default()
-			&& match (self.client.upgrade(), self.sync.upgrade()) {
-				(Some(client), Some(sync)) => !sync.status().is_syncing(client.queue_info()),
-				_ => false,
-			}
+			&& self.client.get().is_some()
 	}
 
 	fn read_logs(&self, first_block: H256, last_block: H256) -> Box<Iterator<Item=Vec<H256>>> {
-		let client = match self.client.upgrade() {
+		// already bound to specific blocks => do not care about trust here
+		let client = match self.client.get_untrusted() {
 			Some(client) => client,
 			None => {
 				warn!(target: "secretstore", "{}: client is offline during read_pending_requests call",
@@ -165,10 +155,10 @@ impl ServiceContract for OnChainServiceContract {
 	}
 
 	fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>> {
-		let client = match self.client.upgrade() {
+		let client = match self.client.get() {
 			Some(client) => client,
 			None => {
-				warn!(target: "secretstore", "{}: client is offline during read_pending_requests call",
+				warn!(target: "secretstore", "{}: client is untrusted during read_pending_requests call",
 					self.self_key_pair.public());
 				return Box::new(::std::iter::empty());
 			},
@@ -205,9 +195,10 @@ impl ServiceContract for OnChainServiceContract {
 			// it is not an error, because key could be generated even without contract
 			return Ok(());
 		}
-		let client = match self.client.upgrade() {
+
+		let client = match self.client.get() {
 			Some(client) => client,
-			None => return Err("client is required to publish key".into()),
+			None => return Err("trusted client is required to publish key".into()),
 		};
 
 		// only publish key if contract waits for publication
