@@ -1840,6 +1840,8 @@ impl BlockChainClient for Client {
 }
 
 impl MiningBlockChainClient for Client {
+	fn as_block_chain_client(&self) -> &BlockChainClient { self }
+
 	fn latest_schedule(&self) -> Schedule {
 		self.engine.schedule(self.latest_env_info().number)
 	}
