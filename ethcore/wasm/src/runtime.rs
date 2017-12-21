@@ -306,6 +306,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		//
 		// method signature:
 		// fn (
+		//  gas: i64,
 		// 	address: *const u8,
 		// 	val_ptr: *const u8,
 		// 	input_ptr: *const u8,
@@ -324,6 +325,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		//
 		// signature (same as static call):
 		// fn (
+		//  gas: i64,
 		// 	address: *const u8,
 		// 	input_ptr: *const u8,
 		// 	input_len: u32,
@@ -424,6 +426,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	{
 		// signature (same as code call):
 		// fn (
+		//  gas: i64,
 		// 	address: *const u8,
 		// 	input_ptr: *const u8,
 		// 	input_len: u32,
