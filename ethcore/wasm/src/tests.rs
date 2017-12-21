@@ -281,6 +281,49 @@ fn create() {
 	assert_eq!(gas_left, U256::from(62_538));
 }
 
+#[test]
+fn call_msg() {
+	::ethcore_logger::init_log();
+
+	let sender: Address = "01030507090b0d0f11131517191b1d1f21232527".parse().unwrap();
+	let receiver: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
+	let contract_address: Address = "0d461d4174b4ae35775c4a342f1e5e1e4e6c4db5".parse().unwrap();
+
+	let mut params = ActionParams::default();
+	params.sender = sender.clone();
+	params.address = receiver.clone();
+	params.code_address = contract_address.clone();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(load_sample!("call.wasm")));
+	params.data = Some(Vec::new());
+
+	let mut ext = FakeExt::new();
+	ext.balances.insert(receiver.clone(), U256::from(10000000000u64));
+
+	let gas_left = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+			GasLeft::Known(gas_left) => gas_left,
+			GasLeft::NeedsReturn { .. } => { panic!("Call test should not return payload"); },
+		}
+	};
+
+	trace!(target: "wasm", "fake_calls: {:?}", &ext.calls);
+	assert!(ext.calls.contains(
+		&FakeCall {
+			call_type: FakeCallType::Call,
+			gas: U256::from(33_000),
+			sender_address: Some(receiver),
+			receive_address: Some(Address::from([99, 88, 77, 66, 55, 44, 33, 22, 11, 0, 11, 22, 33, 44, 55, 66, 77, 88, 99, 0])),
+			value: Some(1000000000.into()),
+			data: vec![129u8, 123, 113, 107, 101, 97],
+			code_address: Some(Address::from([99, 88, 77, 66, 55, 44, 33, 22, 11, 0, 11, 22, 33, 44, 55, 66, 77, 88, 99, 0])),
+		}
+	));
+
+	assert_eq!(gas_left, U256::from(95_699));
+}
 
 #[test]
 fn call_code() {
@@ -333,6 +376,7 @@ fn call_static() {
 
 	let sender: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
 	let receiver: Address = "01030507090b0d0f11131517191b1d1f21232527".parse().unwrap();
+	let contract_address: Address = "0d461d4174b4ae35775c4a342f1e5e1e4e6c4db5".parse().unwrap();
 
 	let mut params = ActionParams::default();
 	params.sender = sender.clone();
@@ -341,6 +385,7 @@ fn call_static() {
 	params.code = Some(Arc::new(load_sample!("call_static.wasm")));
 	params.data = Some(Vec::new());
 	params.value = ActionValue::transfer(1_000_000_000);
+	params.code_address = contract_address.clone();
 
 	let mut ext = FakeExt::new();
 
@@ -358,8 +403,8 @@ fn call_static() {
 		&FakeCall {
 			call_type: FakeCallType::Call,
 			gas: U256::from(20_000),
-			sender_address: Some(sender),
-			receive_address: Some(receiver),
+			sender_address: Some(receiver),
+			receive_address: Some("13077bfb00000000000000000000000000000000".parse().unwrap()),
 			value: None,
 			data: vec![1u8, 2, 3, 5, 7, 11],
 			code_address: Some("13077bfb00000000000000000000000000000000".parse().unwrap()),

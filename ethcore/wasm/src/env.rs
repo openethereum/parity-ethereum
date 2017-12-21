@@ -69,7 +69,7 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	),
 	Static(
 		"_ccall",
-		&[I64, I32, I32, I32, I32, I32],
+		&[I64, I32, I32, I32, I32, I32, I32],
 		Some(I32),
 	),
 	Static(

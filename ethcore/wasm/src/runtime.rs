@@ -104,6 +104,7 @@ pub struct RuntimeContext {
 	pub address: Address,
 	pub sender: Address,
 	pub origin: Address,
+	pub code_address: Address,
 	pub value: U256,
 }
 
@@ -330,7 +331,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		// 	result_len: u32,
 		// ) -> i32
 
-		self.do_call(false, CallType::CallCode, context)
+		self.do_call(false, CallType::DelegateCall, context)
 	}
 
 	fn do_call(
@@ -388,8 +389,8 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		let call_result = self.ext.call(
 			&gas.into(),
-			&self.context.sender,
-			&self.context.address,
+			match call_type { CallType::DelegateCall => &self.context.sender, _ => &self.context.address },
+			match call_type { CallType::Call | CallType::StaticCall => &address, _ => &self.context.address },
 			val,
 			&payload,
 			&address,
