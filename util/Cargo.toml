@@ -16,7 +16,6 @@ elastic-array = "0.9"
 rlp = { path = "rlp" }
 heapsize = "0.4"
 keccak-hash = { path = "hash" }
-clippy = { version = "0.0.103", optional = true}
 libc = "0.2.7"
 target_info = "0.1"
 ethcore-bigint = { path = "bigint", features = ["heapsizeof"] }
@@ -37,7 +36,6 @@ kvdb-memorydb = { path = "kvdb-memorydb" }
 
 [features]
 default = []
-dev = ["clippy"]
 final = []
 
 [build-dependencies]

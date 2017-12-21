@@ -38,14 +38,10 @@ parity-reactor = { path = "../util/reactor" }
 parity-ui = { path = "./ui" }
 keccak-hash = { path = "../util/hash" }
 
-clippy = { version = "0.0.103", optional = true}
-
 [dev-dependencies]
 env_logger = "0.4"
 ethcore-devtools = { path = "../devtools" }
 
 [features]
-dev = ["clippy", "ethcore-util/dev"]
-
 ui = ["parity-ui/no-precompiled-js"]
 ui-precompiled = ["parity-ui/use-precompiled-js"]

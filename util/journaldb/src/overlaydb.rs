@@ -202,7 +202,6 @@ impl HashDB for OverlayDB {
 }
 
 #[test]
-#[cfg_attr(feature="dev", allow(blacklisted_name))]
 fn overlaydb_revert() {
 	let mut m = OverlayDB::new_temp();
 	let foo = m.insert(b"foo");          // insert foo.

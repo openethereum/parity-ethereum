@@ -65,7 +65,6 @@ kvdb-rocksdb = { path = "util/kvdb-rocksdb" }
 journaldb = { path = "util/journaldb" }
 
 parity-dapps = { path = "dapps", optional = true }
-clippy = { version = "0.0.103", optional = true}
 ethcore-secretstore = { path = "secret_store", optional = true }
 
 [build-dependencies]
@@ -94,7 +93,6 @@ ui-precompiled = [
 ui-enabled = ["dapps"]
 dapps = ["parity-dapps"]
 jit = ["ethcore/jit"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "parity-rpc/dev", "parity-dapps/dev"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
