@@ -39,6 +39,7 @@
   "napa": {
     "qrcode-generator": "kazuhikoarase/qrcode-generator"
   },
+  "proxy": "http://127.0.0.1:8180",
   "devDependencies": {
     "chai": "3.5.0",
     "chai-as-promised": "6.0.0",
@@ -57,7 +58,7 @@
     "mock-socket": "6.0.4",
     "napa": "2.3.0",
     "nock": "9.0.7",
-    "parity-react-scripts": "github:paritytech/parity-react-scripts#039f101",
+    "parity-react-scripts": "github:paritytech/parity-react-scripts#68fa32c",
     "raw-loader": "0.5.1",
     "serviceworker-webpack-plugin": "0.2.3",
     "sinon": "1.17.7",

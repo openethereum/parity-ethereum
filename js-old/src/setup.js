@@ -39,8 +39,6 @@ injectTapEventPlugin();
 
 const api = new Api(window.ethereum);
 
-api.dappsUrl = window.location.origin
-
 patchApi(api);
 loadSender(api);
 ContractInstances.create(api);
