@@ -174,8 +174,8 @@ impl ServiceContract for OnChainServiceContract {
 
 		// read server key generation requests
 		let request_logs = client.logs(Filter {
-			from_block: BlockId::Hash(first_block.clone()),
-			to_block: BlockId::Hash(last_block.clone()),
+			from_block: BlockId::Hash(first_block),
+			to_block: BlockId::Hash(last_block),
 			address: Some(vec![address]),
 			topics: vec![
 				Some(vec![*SERVER_KEY_REQUESTED_EVENT_NAME_HASH]),
@@ -186,20 +186,13 @@ impl ServiceContract for OnChainServiceContract {
 			limit: None,
 		});
 
-		trace!(target: "secretstore", "{}: read {} events from service contract in blocks {}..{}",
-			self.self_key_pair.public(), request_logs.len(), first_block, last_block);
-
 		Box::new(request_logs.into_iter().map(|log| log.entry.topics))
 	}
 
 	fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>> {
 		let client = match self.client.get() {
 			Some(client) => client,
-			None => {
-				warn!(target: "secretstore", "{}: client is untrusted during read_pending_requests call",
-					self.self_key_pair.public());
-				return Box::new(::std::iter::empty());
-			},
+			None => return Box::new(::std::iter::empty()),
 		};
 
 		// we only need requests that are here for more than REQUEST_CONFIRMATIONS_REQUIRED blocks
