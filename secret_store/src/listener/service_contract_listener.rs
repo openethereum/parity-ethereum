@@ -141,8 +141,8 @@ impl ServiceContractListener {
 	}
 
 	/// Process incoming events of service contract.
-	fn process_service_contract_events(&self, first: H256, last: H256) {
-		self.data.tasks_queue.push(self.data.contract.read_logs(first, last)
+	fn process_service_contract_events(&self) {
+		self.data.tasks_queue.push_many(self.data.contract.read_logs()
 			.filter_map(|topics| match topics.len() {
 				// when key is already generated && we have this key
 				3 if self.data.key_storage.get(&topics[1]).map(|k| k.is_some()).unwrap_or_default() => {
@@ -324,15 +324,11 @@ impl ChainNotify for ServiceContractListener {
 			return;
 		}
 
-		self.data.contract.update();
-		if !self.data.contract.is_actual() {
+		if !self.data.contract.update() {
 			return;
 		}
 
-		let reason = "enacted.len() != 0; qed";
-		self.process_service_contract_events(
-			enacted.first().expect(reason).clone(),
-			enacted.last().expect(reason).clone());
+		self.process_service_contract_events();
 
 		// schedule retry if received enough blocks since last retry
 		// it maybe inaccurate when switching syncing/synced states, but that's ok
@@ -582,9 +578,9 @@ mod tests {
 	#[test]
 	fn no_tasks_scheduled_when_no_contract_events() {
 		let listener = make_service_contract_listener(None, None, None);
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
-		listener.process_service_contract_events(Default::default(), Default::default());
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
+		listener.process_service_contract_events();
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
 	}
 
 	#[test]
@@ -592,10 +588,10 @@ mod tests {
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(vec![Default::default(), Default::default(), Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
-		listener.process_service_contract_events(Default::default(), Default::default());
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 2);
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().pop_back(), Some(ServiceTask::GenerateServerKey(Default::default(), Default::default())));
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
+		listener.process_service_contract_events();
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 2);
+		assert_eq!(listener.data.tasks_queue.snapshot().pop_back(), Some(ServiceTask::GenerateServerKey(Default::default(), Default::default())));
 	}
 
 	#[test]
@@ -604,9 +600,9 @@ mod tests {
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(vec![Default::default(), server_key_id, Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
-		listener.process_service_contract_events(Default::default(), Default::default());
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
+		listener.process_service_contract_events();
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
 	}
 
 	#[test]
@@ -615,10 +611,10 @@ mod tests {
 		contract.logs.push(vec![Default::default(), Default::default(), Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		listener.data.key_storage.insert(Default::default(), Default::default()).unwrap();
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
-		listener.process_service_contract_events(Default::default(), Default::default());
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 2);
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().pop_back(), Some(ServiceTask::RestoreServerKey(Default::default())));
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
+		listener.process_service_contract_events();
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 2);
+		assert_eq!(listener.data.tasks_queue.snapshot().pop_back(), Some(ServiceTask::RestoreServerKey(Default::default())));
 	}
 
 	#[test]
@@ -626,9 +622,9 @@ mod tests {
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(vec![Default::default(), Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
-		listener.process_service_contract_events(Default::default(), Default::default());
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
+		listener.process_service_contract_events();
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
 	}
 
 	#[test]
