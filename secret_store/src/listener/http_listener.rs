@@ -85,10 +85,10 @@ impl KeyServerHttpListener {
 		});
 
 		let listener_address = format!("{}:{}", listener_address.address, listener_address.port);
-		let http_server = HttpServer::http(&listener_address).expect("cannot start HttpServer");
-		let http_server = http_server.handle(KeyServerHttpHandler {
-			handler: shared_handler.clone(),
-		}).expect("cannot start HttpServer");
+		let http_server = HttpServer::http(&listener_address)
+			.and_then(|http_server| http_server.handle(KeyServerHttpHandler {
+				handler: shared_handler.clone(),
+			})).map_err(|err| Error::Hyper(format!("{}", err)))?;
 
 		let listener = KeyServerHttpListener {
 			http_server: http_server,
@@ -234,6 +234,7 @@ fn return_error(mut res: HttpResponse, err: Error) {
 		Error::BadSignature => *res.status_mut() = HttpStatusCode::BadRequest,
 		Error::AccessDenied => *res.status_mut() = HttpStatusCode::Forbidden,
 		Error::DocumentNotFound => *res.status_mut() = HttpStatusCode::NotFound,
+		Error::Hyper(_) => *res.status_mut() = HttpStatusCode::BadRequest,
 		Error::Serde(_) => *res.status_mut() = HttpStatusCode::BadRequest,
 		Error::Database(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
 		Error::Internal(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
