@@ -60,7 +60,7 @@ fn empty() {
 		test_finalize(interpreter.exec(params, &mut ext)).unwrap()
 	};
 
-	assert_eq!(gas_left, U256::from(99_982));
+	assert_eq!(gas_left, U256::from(96_678));
 }
 
 // This test checks if the contract deserializes payload header properly.
@@ -112,7 +112,7 @@ fn logger() {
 		U256::from(1_000_000_000),
 		"Logger sets 0x04 key to the trasferred value"
 	);
-	assert_eq!(gas_left, U256::from(19_147));
+	assert_eq!(gas_left, U256::from(15_860));
 }
 
 // This test checks if the contract can allocate memory and pass pointer to the result stream properly.
@@ -147,7 +147,7 @@ fn identity() {
 		sender,
 		"Idenity test contract does not return the sender passed"
 	);
-	assert_eq!(gas_left, U256::from(99_844));
+	assert_eq!(gas_left, U256::from(96_540));
 }
 
 // Dispersion test sends byte array and expect the contract to 'disperse' the original elements with
@@ -180,7 +180,7 @@ fn dispersion() {
 		result,
 		vec![0u8, 0, 125, 11, 197, 7, 255, 8, 19, 0]
 	);
-	assert_eq!(gas_left, U256::from(96_393));
+	assert_eq!(gas_left, U256::from(96_116));
 }
 
 #[test]
@@ -208,7 +208,7 @@ fn suicide_not() {
 		result,
 		vec![0u8]
 	);
-	assert_eq!(gas_left, U256::from(96_725));
+	assert_eq!(gas_left, U256::from(96_461));
 }
 
 #[test]
@@ -240,7 +240,7 @@ fn suicide() {
 	};
 
 	assert!(ext.suicides.contains(&refund));
-	assert_eq!(gas_left, U256::from(96_687));
+	assert_eq!(gas_left, U256::from(96_429));
 }
 
 #[test]
@@ -270,7 +270,7 @@ fn create() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Create,
-			gas: U256::from(65_899),
+			gas: U256::from(62_545),
 			sender_address: None,
 			receive_address: None,
 			value: Some(1_000_000_000.into()),
@@ -278,7 +278,7 @@ fn create() {
 			code_address: None,
 		}
 	));
-	assert_eq!(gas_left, U256::from(65_892));
+	assert_eq!(gas_left, U256::from(62_538));
 }
 
 
@@ -312,7 +312,7 @@ fn call_code() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
-			gas: U256::from(98_713),
+			gas: U256::from(20_000),
 			sender_address: Some(sender),
 			receive_address: Some(receiver),
 			value: None,
@@ -324,7 +324,7 @@ fn call_code() {
 	// siphash result
 	let res = LittleEndian::read_u32(&result[..]);
 	assert_eq!(res, 4198595614);
-	assert_eq!(gas_left, U256::from(93_855));
+	assert_eq!(gas_left, U256::from(90_550));
 }
 
 #[test]
@@ -357,7 +357,7 @@ fn call_static() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
-			gas: U256::from(98_713),
+			gas: U256::from(20_000),
 			sender_address: Some(sender),
 			receive_address: Some(receiver),
 			value: None,
@@ -370,7 +370,7 @@ fn call_static() {
 	let res = LittleEndian::read_u32(&result[..]);
 	assert_eq!(res, 317632590);
 
-	assert_eq!(gas_left, U256::from(93_855));
+	assert_eq!(gas_left, U256::from(90_550));
 }
 
 // Realloc test
@@ -393,7 +393,7 @@ fn realloc() {
 		}
 	};
 	assert_eq!(result, vec![0u8; 2]);
-	assert_eq!(gas_left, U256::from(96_723));
+	assert_eq!(gas_left, U256::from(96_445));
 }
 
 // Tests that contract's ability to read from a storage
@@ -419,7 +419,7 @@ fn storage_read() {
 	};
 
 	assert_eq!(Address::from(&result[12..32]), address);
-	assert_eq!(gas_left, U256::from(99_767));
+	assert_eq!(gas_left, U256::from(96_463));
 }
 
 // Tests keccak calculation
@@ -445,7 +445,7 @@ fn keccak() {
 	};
 
 	assert_eq!(H256::from_slice(&result), H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
-	assert_eq!(gas_left, U256::from(81_446));
+	assert_eq!(gas_left, U256::from(81_067));
 }
 
 // memcpy test.
@@ -477,7 +477,7 @@ fn memcpy() {
 	};
 
 	assert_eq!(result, test_payload);
-	assert_eq!(gas_left, U256::from(72_216));
+	assert_eq!(gas_left, U256::from(71_940));
 }
 
 // memmove test.
@@ -509,7 +509,7 @@ fn memmove() {
 	};
 
 	assert_eq!(result, test_payload);
-	assert_eq!(gas_left, U256::from(72_216));
+	assert_eq!(gas_left, U256::from(71_940));
 }
 
 // memset test
@@ -534,7 +534,7 @@ fn memset() {
 	};
 
 	assert_eq!(result, vec![228u8; 8192]);
-	assert_eq!(gas_left, U256::from(72_196));
+	assert_eq!(gas_left, U256::from(71_921));
 }
 
 macro_rules! reqrep_test {
@@ -591,7 +591,7 @@ fn math_add() {
 		U256::from_dec_str("1888888888888888888888888888887").unwrap(),
 		(&result[..]).into()
 	);
-	assert_eq!(gas_left, U256::from(95_524));
+	assert_eq!(gas_left, U256::from(95_384));
 }
 
 // multiplication
@@ -613,7 +613,7 @@ fn math_mul() {
 		U256::from_dec_str("888888888888888888888888888887111111111111111111111111111112").unwrap(),
 		(&result[..]).into()
 	);
-	assert_eq!(gas_left, U256::from(94_674));
+	assert_eq!(gas_left, U256::from(94_374));
 }
 
 // subtraction
@@ -635,7 +635,7 @@ fn math_sub() {
 		U256::from_dec_str("111111111111111111111111111111").unwrap(),
 		(&result[..]).into()
 	);
-	assert_eq!(gas_left, U256::from(95_516));
+	assert_eq!(gas_left, U256::from(95_372));
 }
 
 // subtraction with overflow
@@ -677,7 +677,7 @@ fn math_div() {
 		U256::from_dec_str("1125000").unwrap(),
 		(&result[..]).into()
 	);
-	assert_eq!(gas_left, U256::from(88_514));
+	assert_eq!(gas_left, U256::from(88_356));
 }
 
 // This test checks the ability of wasm contract to invoke
@@ -765,7 +765,7 @@ fn externs() {
 		"Gas limit requested and returned does not match"
 	);
 
-	assert_eq!(gas_left, U256::from(94_858));
+	assert_eq!(gas_left, U256::from(95_321));
 }
 
 #[test]
@@ -791,7 +791,7 @@ fn embedded_keccak() {
 	};
 
 	assert_eq!(H256::from_slice(&result), H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
-	assert_eq!(gas_left, U256::from(81_446));
+	assert_eq!(gas_left, U256::from(81_067));
 }
 
 /// This test checks the correctness of log extern
@@ -826,5 +826,5 @@ fn events() {
 	assert_eq!(&log_entry.data, b"gnihtemos");
 
 	assert_eq!(&result, b"gnihtemos");
-	assert_eq!(gas_left, U256::from(79_637));
+	assert_eq!(gas_left, U256::from(79_206));
 }
