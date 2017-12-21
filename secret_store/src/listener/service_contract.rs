@@ -17,6 +17,7 @@
 use std::sync::Arc;
 use futures::{future, Future};
 use parking_lot::RwLock;
+use ethcore::filter::Filter;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethkey::{Public, Signature, public_to_address};
 use native_contracts::SecretStoreService;
@@ -30,8 +31,15 @@ use {ServerKeyId, NodeKeyPair, ContractAddress};
 /// Name of the SecretStore contract in the registry.
 const SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service";
 
+/// Key server has been added to the set.
+const SERVER_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyRequested(bytes32,uint256)";
+
 /// Number of confirmations required before request can be processed.
 const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
+
+lazy_static! {
+	static ref SERVER_KEY_REQUESTED_EVENT_NAME_HASH: H256 = keccak(SERVER_KEY_REQUESTED_EVENT_NAME);
+}
 
 /// Service contract trait.
 pub trait ServiceContract: Send + Sync {
@@ -39,6 +47,8 @@ pub trait ServiceContract: Send + Sync {
 	fn update(&self);
 	/// Is contract installed && up-to-date (i.e. chain is synced)?
 	fn is_actual(&self) -> bool;
+	/// Read contract logs from given blocks. Returns topics of every entry.
+	fn read_logs(&self, first_block: H256, last_block: H256) -> Box<Iterator<Item=Vec<H256>>>;
 	/// Publish generated key.
 	fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>>;
 	/// Publish server key.
@@ -118,6 +128,34 @@ impl ServiceContract for OnChainServiceContract {
 	fn is_actual(&self) -> bool {
 		self.contract.read().address != Default::default()
 			&& self.client.get().is_some()
+	}
+
+	fn read_logs(&self, first_block: H256, last_block: H256) -> Box<Iterator<Item=Vec<H256>>> {
+		let client = match self.client.get() {
+			Some(client) => client,
+			None => {
+				warn!(target: "secretstore", "{}: client is offline during read_pending_requests call",
+					self.self_key_pair.public());
+				return Box::new(::std::iter::empty());
+			},
+		};
+
+		// read server key generation requests
+		let contract_address = self.contract.read().address.clone();
+		let request_logs = client.logs(Filter {
+			from_block: BlockId::Hash(first_block),
+			to_block: BlockId::Hash(last_block),
+			address: Some(vec![contract_address]),
+			topics: vec![
+				Some(vec![*SERVER_KEY_REQUESTED_EVENT_NAME_HASH]),
+				None,
+				None,
+				None,
+			],
+			limit: None,
+		});
+
+		Box::new(request_logs.into_iter().map(|log| log.entry.topics))
 	}
 
 	fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>> {
@@ -256,6 +294,10 @@ pub mod tests {
 
 		fn is_actual(&self) -> bool {
 			self.is_actual
+		}
+
+		fn read_logs(&self, _first_block: H256, _last_block: H256) -> Box<Iterator<Item=Vec<H256>>> {
+			Box::new(self.logs.clone().into_iter())
 		}
 
 		fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>> {

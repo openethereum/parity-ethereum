@@ -140,6 +140,31 @@ impl ServiceContractListener {
 		contract
 	}
 
+	/// Process incoming events of service contract.
+	fn process_service_contract_events(&self, first: H256, last: H256) {
+		self.data.tasks_queue.push(self.data.contract.read_logs(first, last)
+			.filter_map(|topics| match topics.len() {
+				// when key is already generated && we have this key
+				3 if self.data.key_storage.get(&topics[1]).map(|k| k.is_some()).unwrap_or_default() => {
+					Some(ServiceTask::RestoreServerKey(
+						topics[1],
+					))
+				}
+				// when key is not yet generated && this node should be master of this key generation session
+				3 if is_processed_by_this_key_server(&*self.data.key_server_set, &*self.data.self_key_pair, &topics[1]) => {
+					Some(ServiceTask::GenerateServerKey(
+						topics[1],
+						topics[2],
+					))
+				},
+				3 => None,
+				l @ _ => {
+					warn!(target: "secretstore", "Ignoring ServerKeyRequested event with wrong number of params {}", l);
+					None
+				},
+			}));
+	}
+
 	/// Service thread procedure.
 	fn run_service_thread(data: Arc<ServiceContractListenerData>) {
 		loop {
@@ -294,14 +319,23 @@ impl Drop for ServiceContractListener {
 
 impl ChainNotify for ServiceContractListener {
 	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
+		let enacted_len = enacted.len();
+		if enacted_len == 0 {
+			return;
+		}
+
 		self.data.contract.update();
 		if !self.data.contract.is_actual() {
 			return;
 		}
 
+		let reason = "enacted.len() != 0; qed";
+		self.process_service_contract_events(
+			enacted.first().expect(reason).clone(),
+			enacted.last().expect(reason).clone());
+
 		// schedule retry if received enough blocks since last retry
 		// it maybe inaccurate when switching syncing/synced states, but that's ok
-		let enacted_len = enacted.len();
 		if self.data.last_retry.fetch_add(enacted_len, Ordering::Relaxed) >= RETRY_INTERVAL_BLOCKS {
 			self.data.tasks_queue.push(ServiceTask::Retry);
 			self.data.last_retry.store(0, Ordering::Relaxed);
@@ -543,6 +577,58 @@ mod tests {
 			&"e000000000000000000000000000000000000000000000000000000000000000".parse().unwrap()), true);
 		assert_eq!(is_processed_by_this_key_server(&servers_set, &key_pair,
 			&"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse().unwrap()), true);
+	}
+
+	#[test]
+	fn no_tasks_scheduled_when_no_contract_events() {
+		let listener = make_service_contract_listener(None, None, None);
+		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
+		listener.process_service_contract_events(Default::default(), Default::default());
+		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
+	}
+
+	#[test]
+	fn server_key_generation_is_scheduled_when_requested_key_is_unknnown() {
+		let mut contract = DummyServiceContract::default();
+		contract.logs.push(vec![Default::default(), Default::default(), Default::default()]);
+		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
+		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
+		listener.process_service_contract_events(Default::default(), Default::default());
+		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 2);
+		assert_eq!(listener.data.tasks_queue.service_tasks.lock().pop_back(), Some(ServiceTask::GenerateServerKey(Default::default(), Default::default())));
+	}
+
+	#[test]
+	fn no_new_tasks_scheduled_when_requested_key_is_unknown_and_request_belongs_to_other_key_server() {
+		let server_key_id = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse().unwrap();
+		let mut contract = DummyServiceContract::default();
+		contract.logs.push(vec![Default::default(), server_key_id, Default::default()]);
+		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
+		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
+		listener.process_service_contract_events(Default::default(), Default::default());
+		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
+	}
+
+	#[test]
+	fn server_key_restore_is_scheduled_when_requested_key_is_knnown() {
+		let mut contract = DummyServiceContract::default();
+		contract.logs.push(vec![Default::default(), Default::default(), Default::default()]);
+		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
+		listener.data.key_storage.insert(Default::default(), Default::default()).unwrap();
+		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
+		listener.process_service_contract_events(Default::default(), Default::default());
+		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 2);
+		assert_eq!(listener.data.tasks_queue.service_tasks.lock().pop_back(), Some(ServiceTask::RestoreServerKey(Default::default())));
+	}
+
+	#[test]
+	fn no_new_tasks_scheduled_when_wrong_number_of_topics_in_log() {
+		let mut contract = DummyServiceContract::default();
+		contract.logs.push(vec![Default::default(), Default::default()]);
+		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
+		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
+		listener.process_service_contract_events(Default::default(), Default::default());
+		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
 	}
 
 	#[test]
