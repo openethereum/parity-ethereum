@@ -110,20 +110,7 @@ function getPlugins (_isProd = isProd) {
         'process.env': {
           EMBED: JSON.stringify(EMBED),
           NODE_ENV: JSON.stringify(ENV),
-          RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
-          PARITY_URL: JSON.stringify(process.env.PARITY_URL),
-          DAPPS_URL: JSON.stringify(process.env.DAPPS_URL),
           LOGGING: JSON.stringify(!isProd)
-        }
-      }),
-
-      new webpack.LoaderOptionsPlugin({
-        minimize: isProd,
-        debug: !isProd,
-        options: {
-          context: path.join(__dirname, '../src'),
-          postcss: postcss,
-          babel: getBabelrc()
         }
       }),
 
