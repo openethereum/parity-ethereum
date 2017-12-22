@@ -55,6 +55,7 @@ parity-reactor = { path = "util/reactor" }
 parity-rpc = { path = "rpc" }
 parity-rpc-client = { path = "rpc_client" }
 parity-updater = { path = "updater" }
+parity-version = { path = "util/version" }
 parity-whisper = { path = "whisper" }
 path = { path = "util/path" }
 panic_hook = { path = "panic_hook" }
@@ -98,7 +99,6 @@ test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
-final = ["ethcore-util/final"]
 secretstore = ["ethcore-secretstore"]
 
 [[bin]]

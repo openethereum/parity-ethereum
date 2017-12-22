@@ -70,33 +70,10 @@
 //!   cargo build --release
 //!   ```
 
-extern crate rustc_hex;
-extern crate env_logger;
-extern crate secp256k1;
-extern crate elastic_array;
-extern crate libc;
-extern crate target_info;
 extern crate ethcore_bigint as bigint;
-extern crate ethcore_bytes as bytes;
-extern crate parking_lot;
-extern crate tiny_keccak;
-extern crate rlp;
-extern crate heapsize;
-extern crate ethcore_logger;
-extern crate keccak_hash as keccak;
 extern crate hashdb;
 extern crate memorydb;
-extern crate patricia_trie as trie;
-extern crate kvdb;
-extern crate util_error as error;
 
-#[cfg(test)]
-extern crate kvdb_memorydb;
-
-
-pub mod misc;
-
-pub use misc::*;
 pub use hashdb::*;
 pub use memorydb::MemoryDB;
 

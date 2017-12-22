@@ -19,7 +19,7 @@
 use hyper::{self, mime, header};
 use hyper::StatusCode;
 
-use util::version;
+use parity_version::version;
 
 use handlers::add_security_headers;
 use Embeddable;
