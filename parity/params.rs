@@ -37,6 +37,7 @@ pub enum SpecType {
 	Classic,
 	Expanse,
 	Musicoin,
+	Ellaism,
 	Dev,
 	Custom(String),
 }
@@ -60,6 +61,7 @@ impl str::FromStr for SpecType {
 			"olympic" => SpecType::Olympic,
 			"expanse" => SpecType::Expanse,
 			"musicoin" => SpecType::Musicoin,
+			"ellaism" => SpecType::Ellaism,
 			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
 		};
@@ -77,6 +79,7 @@ impl fmt::Display for SpecType {
 			SpecType::Classic => "classic",
 			SpecType::Expanse => "expanse",
 			SpecType::Musicoin => "musicoin",
+			SpecType::Ellaism => "ellaism",
 			SpecType::Kovan => "kovan",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
@@ -95,6 +98,7 @@ impl SpecType {
 			SpecType::Classic => Ok(ethereum::new_classic(params)),
 			SpecType::Expanse => Ok(ethereum::new_expanse(params)),
 			SpecType::Musicoin => Ok(ethereum::new_musicoin(params)),
+			SpecType::Ellaism => Ok(ethereum::new_ellaism(params)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
@@ -185,6 +189,7 @@ impl str::FromStr for ResealPolicy {
 #[derive(Debug, PartialEq)]
 pub struct AccountsConfig {
 	pub iterations: u32,
+	pub refresh_time: u64,
 	pub testnet: bool,
 	pub password_files: Vec<String>,
 	pub unlocked_accounts: Vec<Address>,
@@ -196,6 +201,7 @@ impl Default for AccountsConfig {
 	fn default() -> Self {
 		AccountsConfig {
 			iterations: 10240,
+			refresh_time: 5,
 			testnet: false,
 			password_files: Vec::new(),
 			unlocked_accounts: Vec::new(),
