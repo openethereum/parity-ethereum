@@ -174,7 +174,6 @@ pub mod aes {
 }
 
 /// ECDH functions
-#[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ecdh {
 	use secp256k1::{ecdh, key, Error as SecpError};
 	use ethkey::{Secret, Public, SECP256K1};
@@ -199,7 +198,6 @@ pub mod ecdh {
 }
 
 /// ECIES function
-#[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ecies {
 	use rcrypto::digest::Digest;
 	use rcrypto::sha2::Sha256;

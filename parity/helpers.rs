@@ -217,7 +217,6 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 	}
 }
 
-#[cfg_attr(feature = "dev", allow(too_many_arguments))]
 pub fn to_client_config(
 		cache_config: &CacheConfig,
 		spec_name: String,
@@ -453,7 +452,6 @@ but the first password is trimmed
 	}
 
 	#[test]
-	#[cfg_attr(feature = "dev", allow(float_cmp))]
 	fn test_to_price() {
 		assert_eq!(to_price("1").unwrap(), 1.0);
 		assert_eq!(to_price("2.3").unwrap(), 2.3);

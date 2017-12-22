@@ -15,23 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="dev", feature(plugin))]
-#![cfg_attr(feature="dev", plugin(clippy))]
-
-// Clippy settings
-// Most of the time much more readable
-#![cfg_attr(feature="dev", allow(needless_range_loop))]
-// Shorter than if-else
-#![cfg_attr(feature="dev", allow(match_bool))]
-// We use that to be more explicit about handled cases
-#![cfg_attr(feature="dev", allow(match_same_arms))]
-// Keeps consistency (all lines with `.clone()`).
-#![cfg_attr(feature="dev", allow(clone_on_copy))]
-// Some false positives when doing pattern matching.
-#![cfg_attr(feature="dev", allow(needless_borrow))]
-// TODO [todr] a lot of warnings to be fixed
-#![cfg_attr(feature="dev", allow(assign_op_pattern))]
-
 
 //! Ethcore-util library
 //!

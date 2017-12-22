@@ -11,7 +11,6 @@ ansi_term = "0.9"
 bloomchain = "0.1"
 bn = { git = "https://github.com/paritytech/bn" }
 byteorder = "1.0"
-clippy = { version = "0.0.103", optional = true}
 common-types = { path = "types" }
 crossbeam = "0.2.9"
 ethash = { path = "../ethash" }
@@ -83,6 +82,5 @@ evm-debug-tests = ["evm-debug"]
 slow-blocks = [] # Use SLOW_TX_DURATION="50" (compile time!) to track transactions over 50ms
 json-tests = []
 test-heavy = []
-dev = ["clippy"]
 default = []
 benches = []
