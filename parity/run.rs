@@ -909,9 +909,15 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 			],
 		},
 	};
+
+	let ethstore = EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?;
+	if cfg.refresh_time > 0 {
+		ethstore.set_refresh_time(::std::time::Duration::from_secs(cfg.refresh_time));
+	}
 	let account_provider = AccountProvider::new(
-		Box::new(EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?),
-		account_settings);
+		Box::new(ethstore),
+		account_settings,
+	);
 
 	for a in cfg.unlocked_accounts {
 		// Check if the account exists

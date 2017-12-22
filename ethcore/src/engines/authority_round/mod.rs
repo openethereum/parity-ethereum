@@ -51,8 +51,12 @@ mod finality;
 
 /// `AuthorityRound` params.
 pub struct AuthorityRoundParams {
-	/// Time to wait before next block or authority switching.
-	pub step_duration: Duration,
+	/// Time to wait before next block or authority switching,
+	/// in seconds.
+	///
+	/// Deliberately typed as u16 as too high of a value leads
+	/// to slow block issuance.
+	pub step_duration: u16,
 	/// Starting step,
 	pub start_step: Option<u64>,
 	/// Valid validators.
@@ -71,10 +75,17 @@ pub struct AuthorityRoundParams {
 	pub maximum_uncle_count: usize,
 }
 
+const U16_MAX: usize = ::std::u16::MAX as usize;
+
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 	fn from(p: ethjson::spec::AuthorityRoundParams) -> Self {
+		let mut step_duration_usize: usize = p.step_duration.into();
+		if step_duration_usize > U16_MAX {
+			step_duration_usize = U16_MAX;
+			warn!(target: "engine", "step_duration is too high ({}), setting it to {}", step_duration_usize, U16_MAX);
+		}
 		AuthorityRoundParams {
-			step_duration: Duration::from_secs(p.step_duration.into()),
+			step_duration: step_duration_usize as u16,
 			validators: new_validator_set(p.validators),
 			start_step: p.start_step.map(Into::into),
 			validate_score_transition: p.validate_score_transition.map_or(0, Into::into),
@@ -92,26 +103,47 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 struct Step {
 	calibrate: bool, // whether calibration is enabled.
 	inner: AtomicUsize,
-	duration: Duration,
+	duration: u16,
 }
 
 impl Step {
 	fn load(&self) -> usize { self.inner.load(AtomicOrdering::SeqCst) }
 	fn duration_remaining(&self) -> Duration {
 		let now = unix_now();
-		let step_end = self.duration * (self.load() as u32 + 1);
-		if step_end > now {
-			step_end - now
-		} else {
-			Duration::from_secs(0)
+		let expected_seconds = (self.load() as u64)
+			.checked_add(1)
+			.and_then(|ctr| ctr.checked_mul(self.duration as u64));
+		match expected_seconds {
+			Some(secs) => {
+				let step_end = Duration::from_secs(secs);
+				if step_end > now {
+					step_end - now
+				} else {
+					Duration::from_secs(0)
+				}
+			},
+			None => {
+				let ctr = self.load();
+				error!(target: "engine", "Step counter is too high: {}, aborting", ctr);
+				panic!("step counter is too high: {}", ctr)
+			},
 		}
+
 	}
 	fn increment(&self) {
-		self.inner.fetch_add(1, AtomicOrdering::SeqCst);
+		use std::usize;
+		// fetch_add won't panic on overflow but will rather wrap
+		// around, leading to zero as the step counter, which might
+		// lead to unexpected situations, so it's better to shut down.
+		if self.inner.fetch_add(1, AtomicOrdering::SeqCst) == usize::MAX {
+			error!(target: "engine", "Step counter is too high: {}, aborting", usize::MAX);
+			panic!("step counter is too high: {}", usize::MAX);
+		}
+
 	}
 	fn calibrate(&self) {
 		if self.calibrate {
-			let new_step = unix_now().as_secs() / self.duration.as_secs();
+			let new_step = unix_now().as_secs() / (self.duration as u64);
 			self.inner.store(new_step as usize, AtomicOrdering::SeqCst);
 		}
 	}
@@ -359,8 +391,12 @@ impl AsMillis for Duration {
 impl AuthorityRound {
 	/// Create a new instance of AuthorityRound engine.
 	pub fn new(our_params: AuthorityRoundParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
+		if our_params.step_duration == 0 {
+			error!(target: "engine", "Authority Round step duration can't be zero, aborting");
+			panic!("authority_round: step duration can't be zero")
+		}
 		let should_timeout = our_params.start_step.is_none();
-		let initial_step = our_params.start_step.unwrap_or_else(|| (unix_now().as_secs() / our_params.step_duration.as_secs())) as usize;
+		let initial_step = our_params.start_step.unwrap_or_else(|| (unix_now().as_secs() / (our_params.step_duration as u64))) as usize;
 		let engine = Arc::new(
 			AuthorityRound {
 				transition_service: IoService::<()>::start()?,
@@ -1019,7 +1055,7 @@ mod tests {
 	fn reports_skipped() {
 		let last_benign = Arc::new(AtomicUsize::new(0));
 		let params = AuthorityRoundParams {
-			step_duration: Default::default(),
+			step_duration: 1,
 			start_step: Some(1),
 			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
 			validate_score_transition: 0,
@@ -1059,7 +1095,7 @@ mod tests {
 	fn test_uncles_transition() {
 		let last_benign = Arc::new(AtomicUsize::new(0));
 		let params = AuthorityRoundParams {
-			step_duration: Default::default(),
+			step_duration: 1,
 			start_step: Some(1),
 			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
 			validate_score_transition: 0,
@@ -1080,5 +1116,51 @@ mod tests {
 		assert_eq!(aura.maximum_uncle_count(0), 2);
 		assert_eq!(aura.maximum_uncle_count(1), 0);
 		assert_eq!(aura.maximum_uncle_count(100), 0);
+	}
+
+    #[test]
+    #[should_panic(expected="counter is too high")]
+    fn test_counter_increment_too_high() {
+        use super::Step;
+        let step = Step {
+            calibrate: false,
+            inner: AtomicUsize::new(::std::usize::MAX),
+            duration: 1,
+        };
+        step.increment();
+	}
+
+	#[test]
+	#[should_panic(expected="counter is too high")]
+	fn test_counter_duration_remaining_too_high() {
+		use super::Step;
+		let step = Step {
+			calibrate: false,
+			inner: AtomicUsize::new(::std::usize::MAX),
+			duration: 1,
+		};
+		step.duration_remaining();
+	}
+
+	#[test]
+	#[should_panic(expected="authority_round: step duration can't be zero")]
+	fn test_step_duration_zero() {
+		let last_benign = Arc::new(AtomicUsize::new(0));
+		let params = AuthorityRoundParams {
+			step_duration: 0,
+			start_step: Some(1),
+			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
+			validate_score_transition: 0,
+			validate_step_transition: 0,
+			immediate_transitions: true,
+			maximum_uncle_count_transition: 0,
+			maximum_uncle_count: 0,
+			block_reward: Default::default(),
+		};
+
+		let mut c_params = ::spec::CommonParams::default();
+		c_params.gas_limit_bound_divisor = 5.into();
+		let machine = ::machine::EthereumMachine::regular(c_params, Default::default());
+		AuthorityRound::new(params, machine).unwrap();
 	}
 }
