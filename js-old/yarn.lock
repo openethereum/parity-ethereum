@@ -1822,6 +1822,10 @@ cipher-base@^1.0.0, cipher-base@^1.0.1, cipher-base@^1.0.3:
     inherits "^2.0.1"
     safe-buffer "^5.0.1"
 
+circular-dependency-plugin@^4.3.0:
+  version "4.3.0"
+  resolved "https://registry.yarnpkg.com/circular-dependency-plugin/-/circular-dependency-plugin-4.3.0.tgz#2a12824e584546e1aeea5865b7bf234a11c4a695"
+
 circular-json@^0.3.1:
   version "0.3.3"
   resolved "https://registry.yarnpkg.com/circular-json/-/circular-json-0.3.3.tgz#815c99ea84f6809529d2f45791bdf82711352d66"
@@ -3409,14 +3413,7 @@ ethereum-common@^0.0.18:
   version "0.0.18"
   resolved "https://registry.yarnpkg.com/ethereum-common/-/ethereum-common-0.0.18.tgz#2fdc3576f232903358976eb39da783213ff9523f"
 
-ethereumjs-tx@1.2.5:
-  version "1.2.5"
-  resolved "https://registry.yarnpkg.com/ethereumjs-tx/-/ethereumjs-tx-1.2.5.tgz#ed36d7ffeb97bc889c61eef1ab76f47a613d8286"
-  dependencies:
-    ethereum-common "^0.0.18"
-    ethereumjs-util "^5.0.0"
-
-ethereumjs-tx@^1.2.5:
+ethereumjs-tx@1.3.3, ethereumjs-tx@^1.2.5:
   version "1.3.3"
   resolved "https://registry.yarnpkg.com/ethereumjs-tx/-/ethereumjs-tx-1.3.3.tgz#ece051d3efdbe771ad2a518d61632ca2ab75ecbb"
   dependencies:
@@ -6988,9 +6985,9 @@ param-case@2.1.x:
   dependencies:
     no-case "^2.2.0"
 
-"parity-react-scripts@github:paritytech/parity-react-scripts#68fa32c":
-  version "0.3.0"
-  resolved "git+ssh://git@github.com/paritytech/parity-react-scripts.git#68fa32c2c019245c434e55a5ee196c0abea258e4"
+"parity-react-scripts@github:paritytech/parity-react-scripts#f51ef5d":
+  version "0.4.0"
+  resolved "git+ssh://git@github.com/paritytech/parity-react-scripts.git#f51ef5d3e0be6fb45e3515e5bd8f0b1eccd280a5"
   dependencies:
     "@parity/api" "2.1.14"
     "@parity/shared" "2.2.14"
@@ -7010,6 +7007,7 @@ param-case@2.1.x:
     babel-preset-env "1.6.1"
     babel-preset-react "6.24.1"
     chalk "2.3.0"
+    circular-dependency-plugin "^4.3.0"
     eslint "4.13.1"
     eslint-config-semistandard "11.0.0"
     eslint-config-standard "10.2.1"
