@@ -58,7 +58,7 @@
     "mock-socket": "6.0.4",
     "napa": "2.3.0",
     "nock": "9.0.7",
-    "parity-react-scripts": "github:paritytech/parity-react-scripts#68fa32c",
+    "parity-react-scripts": "github:paritytech/parity-react-scripts#f51ef5d",
     "raw-loader": "0.5.1",
     "serviceworker-webpack-plugin": "0.2.3",
     "sinon": "1.17.7",
