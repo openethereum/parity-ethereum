@@ -213,7 +213,7 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 		ip_filter: IpFilter::default(),
 		reserved_nodes: Vec::new(),
 		allow_non_reserved: true,
-		client_version: ::util::version(),
+		client_version: ::parity_version::version(),
 	}
 }
 
