@@ -604,7 +604,6 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Add `incr` to the balance of account `a`.
-	#[cfg_attr(feature="dev", allow(single_match))]
 	pub fn add_balance(&mut self, a: &Address, incr: &U256, cleanup_mode: CleanupMode) -> trie::Result<()> {
 		trace!(target: "state", "add_balance({}, {}): {}", a, incr, self.balance(a)?);
 		let is_value_transfer = !incr.is_zero();
@@ -744,8 +743,6 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Commits our cached account changes into the trie.
-	#[cfg_attr(feature="dev", allow(match_ref_pats))]
-	#[cfg_attr(feature="dev", allow(needless_borrow))]
 	pub fn commit(&mut self) -> Result<(), Error> {
 		// first, commit the sub trees.
 		let mut accounts = self.cache.borrow_mut();

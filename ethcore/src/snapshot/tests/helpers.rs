@@ -57,7 +57,6 @@ impl StateProducer {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(let_and_return))]
 	/// Tick the state producer. This alters the state, writing new data into
 	/// the database.
 	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB) {

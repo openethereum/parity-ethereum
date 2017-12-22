@@ -301,7 +301,6 @@ pub struct SealedBlock {
 }
 
 impl<'x> OpenBlock<'x> {
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	/// Create a new `OpenBlock` ready for transaction pushing.
 	pub fn new(
 		engine: &'x EthEngine,
@@ -614,7 +613,6 @@ impl IsBlock for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
-#[cfg_attr(feature="dev", allow(too_many_arguments))]
 pub fn enact(
 	header: &Header,
 	transactions: &[SignedTransaction],
@@ -688,7 +686,6 @@ fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) 
 
 // TODO [ToDr] Pass `PreverifiedBlock` by move, this will avoid unecessary allocation
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-#[cfg_attr(feature="dev", allow(too_many_arguments))]
 pub fn enact_verified(
 	block: &PreverifiedBlock,
 	engine: &EthEngine,
@@ -731,7 +728,6 @@ mod tests {
 	use transaction::SignedTransaction;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn enact_bytes(
 		block_bytes: &[u8],
 		engine: &EthEngine,
@@ -778,7 +774,6 @@ mod tests {
 	}
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn enact_and_seal(
 		block_bytes: &[u8],
 		engine: &EthEngine,

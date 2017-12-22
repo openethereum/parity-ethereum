@@ -16,8 +16,6 @@
 
 //! Ethcore Webapplications for Parity
 #![warn(missing_docs)]
-#![cfg_attr(feature="nightly", feature(plugin))]
-#![cfg_attr(feature="nightly", plugin(clippy))]
 
 extern crate base32;
 extern crate futures_cpupool;
