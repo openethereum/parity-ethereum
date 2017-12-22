@@ -431,7 +431,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	// TODO add test
 	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Vec<Executed>, CallError> {
-		let mut res = Vec::with_capacity(0);
+		let res = Vec::with_capacity(0);
 		Ok(res)
 	}
 
