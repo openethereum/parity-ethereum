@@ -699,10 +699,7 @@ impl Miner {
 					},
 					Ok(transaction) => {
 						// This check goes here because verify_transaction takes SignedTransaction parameter
-						if self.engine.machine().verify_transaction(&transaction, &best_block_header, client.as_block_chain_client()).is_err() {
-								debug!(target: "miner", "Rejected disallowed tx {:?}", hash);
-								return Err(Error::Transaction(TransactionError::NotAllowed));
-						}
+						self.engine.machine().verify_transaction(&transaction, &best_block_header, client.as_block_chain_client())?;
 
 						let origin = self.accounts.as_ref().and_then(|accounts| {
 							match accounts.has_account(transaction.sender()).unwrap_or(false) {
