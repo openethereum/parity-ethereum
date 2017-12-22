@@ -423,7 +423,7 @@ impl Miner {
 			// Check whether transaction type is allowed for sender
 			let result = match self.engine.machine().verify_transaction(&tx, open_block.header(), chain.as_block_chain_client()) {
 				Err(Error::Transaction(TransactionError::NotAllowed)) => {
-					Err(From::from(TransactionError::NotAllowed))
+					Err(TransactionError::NotAllowed.into())
 				}
 				_ => {
 					open_block.push_transaction(tx, None)
