@@ -430,9 +430,8 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	// TODO add test
-	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Vec<Executed>, CallError> {
-		let res = Vec::with_capacity(0);
-		Ok(res)
+	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
+		unimplemented!()
 	}
 
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {

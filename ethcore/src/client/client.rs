@@ -1293,7 +1293,7 @@ impl BlockChainClient for Client {
 		trace!(target: "estimate_gas", "estimate_gas chopping {} .. {}", lower, upper);
 		binary_chop(lower, upper, cond)
 	}
-
+/*
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
 		let mut env_info = self.env_info(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
@@ -1318,7 +1318,15 @@ impl BlockChainClient for Client {
 		self.do_virtual_call(&env_info, &mut state, &t, analytics)
 	}
 
-	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Vec<Executed>, CallError> {
+*/
+	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
+		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
+		let block = BlockId::Hash(address.block_hash);
+
+		Ok(self.replay_block_transactions(block, analytics)?.nth(address.index).unwrap())
+	}
+
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
 		let mut replays = Vec::new();
 		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
 		let body = self.block_body(block).ok_or(CallError::StatePruned)?;
@@ -1334,7 +1342,7 @@ impl BlockChainClient for Client {
 			replays.push(x);
 		}
 
-		Ok(replays)
+		Ok(Box::new(replays.into_iter()))
 	}
 
 	fn mode(&self) -> IpcMode {
