@@ -61,6 +61,7 @@ extern crate fetch;
 extern crate node_health;
 extern crate parity_reactor;
 extern crate parity_updater as updater;
+extern crate parity_version as version;
 extern crate rlp;
 extern crate stats;
 extern crate hash;

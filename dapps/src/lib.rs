@@ -44,6 +44,7 @@ extern crate parity_dapps_glue as parity_dapps;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ui;
 extern crate hash;
+extern crate parity_version;
 
 #[macro_use]
 extern crate futures;

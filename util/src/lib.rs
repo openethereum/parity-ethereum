@@ -106,9 +106,6 @@ extern crate ethcore_logger;
 extern crate hash as keccak;
 extern crate hashdb;
 extern crate memorydb;
-extern crate patricia_trie as trie;
-extern crate kvdb;
-extern crate util_error as error;
 
 #[cfg(test)]
 extern crate kvdb_memorydb;
