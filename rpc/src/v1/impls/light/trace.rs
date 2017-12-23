@@ -62,7 +62,7 @@ impl Traces for TracesClient {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn replay_block_transactions(&self,  _block_number: BlockNumber, _flags: TraceOptions) -> Result<Box<Iterator<Item = TraceResults>>> {
+	fn replay_block_transactions(&self,  _block_number: BlockNumber, _flags: TraceOptions) ->  Result<Vec<TraceResults>> {
 		Err(errors::light_unimplemented(None))
 	}
 }
