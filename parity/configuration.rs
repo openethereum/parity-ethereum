@@ -39,8 +39,9 @@ use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration, UiConfiguration}
 use rpc_apis::ApiSet;
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_and_local,
-geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path,
+to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
+use dir::helpers::{replace_home, replace_home_and_local};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
@@ -1851,7 +1852,7 @@ mod tests {
 
 		let base_path = ::dir::default_data_path();
 		let local_path = ::dir::default_local_path();
-		assert_eq!(std.directories().cache, ::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
+		assert_eq!(std.directories().cache, dir::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
 		assert_eq!(base.directories().cache, "/test/cache");
 	}
 }

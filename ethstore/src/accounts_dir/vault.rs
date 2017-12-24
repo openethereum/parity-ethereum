@@ -284,7 +284,7 @@ mod test {
 	use std::fs;
 	use std::io::Write;
 	use std::path::PathBuf;
-	use dir::VaultKey;
+	use super::VaultKey;
 	use super::{VAULT_FILE_NAME, check_vault_name, make_vault_dir_path, create_vault_file, read_vault_file, VaultDiskDirectory};
 	use self::tempdir::TempDir;
 
