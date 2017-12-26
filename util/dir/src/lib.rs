@@ -14,6 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+#![warn(missing_docs)]
+
+//! Dir utilities for platform-specific operations
 extern crate app_dirs;
 extern crate ethcore_bigint as bigint;
 extern crate journaldb;
@@ -36,10 +39,14 @@ use app_dirs::{AppInfo, get_app_root, AppDataType};
 #[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT: &'static str = "io.parity.ethereum";
 #[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
 
+/// Platform-specific chains path - Windows only
 #[cfg(target_os = "windows")] pub const CHAINS_PATH: &'static str = "$LOCAL/chains";
+/// Platform-specific chains path
 #[cfg(not(target_os = "windows"))] pub const CHAINS_PATH: &'static str = "$BASE/chains";
 
+/// Platform-specific cache path - Windows only
 #[cfg(target_os = "windows")] pub const CACHE_PATH: &'static str = "$LOCAL/cache";
+/// Platform-specific cache path
 #[cfg(not(target_os = "windows"))] pub const CACHE_PATH: &'static str = "$BASE/cache";
 
 // this const is irrelevent cause we do have migrations now,
@@ -47,13 +54,21 @@ use app_dirs::{AppInfo, get_app_root, AppDataType};
 const LEGACY_CLIENT_DB_VER_STR: &'static str = "5.3";
 
 #[derive(Debug, PartialEq)]
+/// Parity local data directories
 pub struct Directories {
+	/// Base dir
 	pub base: String,
+	/// Database dir
 	pub db: String,
+	/// Cache dir
 	pub cache: String,
+	/// Dir to store keys
 	pub keys: String,
+	/// Signer dir
 	pub signer: String,
+	/// Dir to store dapps
 	pub dapps: String,
+	/// Secrets dir
 	pub secretstore: String,
 }
 
@@ -74,6 +89,7 @@ impl Default for Directories {
 }
 
 impl Directories {
+	/// Create local directories
 	pub fn create_dirs(&self, dapps_enabled: bool, signer_enabled: bool, secretstore_enabled: bool) -> Result<(), String> {
 		fs::create_dir_all(&self.base).map_err(|e| e.to_string())?;
 		fs::create_dir_all(&self.db).map_err(|e| e.to_string())?;
@@ -109,6 +125,7 @@ impl Directories {
 		dir
 	}
 
+	/// Legacy keys path
 	// TODO: remove in 1.7
 	pub fn legacy_keys_path(&self, testnet: bool) -> PathBuf {
 		let mut dir = Path::new(&self.base).to_path_buf();
@@ -120,6 +137,7 @@ impl Directories {
 		dir
 	}
 
+	/// Get the keys path
 	pub fn keys_path(&self, spec_name: &str) -> PathBuf {
 		let mut dir = PathBuf::from(&self.keys);
 		dir.push(spec_name);
@@ -128,11 +146,17 @@ impl Directories {
 }
 
 #[derive(Debug, PartialEq)]
+/// Database directories for the given fork.
 pub struct DatabaseDirectories {
+	/// Base path
 	pub path: String,
+	/// Legacy path
 	pub legacy_path: String,
+	/// Genesis hash
 	pub genesis_hash: H256,
+	/// Name of current fork
 	pub fork_name: Option<String>,
+	/// Name of current spec
 	pub spec_name: String,
 }
 
@@ -145,12 +169,14 @@ impl DatabaseDirectories {
 		dir
 	}
 
+	/// Spec root directory for the given fork.
 	pub fn spec_root_path(&self) -> PathBuf {
 		let mut dir = Path::new(&self.path).to_path_buf();
 		dir.push(&self.spec_name);
 		dir
 	}
 
+	/// Generic client path
 	pub fn client_path(&self, pruning: Algorithm) -> PathBuf {
 		let mut dir = self.db_root_path();
 		dir.push(pruning.as_internal_name_str());
@@ -158,6 +184,7 @@ impl DatabaseDirectories {
 		dir
 	}
 
+	/// DB root path, named after genesis hash
 	pub fn db_root_path(&self) -> PathBuf {
 		let mut dir = self.spec_root_path();
 		dir.push("db");
@@ -165,6 +192,7 @@ impl DatabaseDirectories {
 		dir
 	}
 
+	/// DB path
 	pub fn db_path(&self, pruning: Algorithm) -> PathBuf {
 		let mut dir = self.db_root_path();
 		dir.push(pruning.as_internal_name_str());
@@ -179,7 +207,7 @@ impl DatabaseDirectories {
 		dir
 	}
 
-	/// Get user defaults path
+	/// Get user defaults path, legacy way
 	// TODO: remove in 1.7
 	pub fn legacy_user_defaults_path(&self) -> PathBuf {
 		let mut dir = self.legacy_fork_path();
@@ -187,7 +215,7 @@ impl DatabaseDirectories {
 		dir
 	}
 
-	/// Get user defaults path
+	/// Get snapshot path, legacy way
 	// TODO: remove in 1.7
 	pub fn legacy_snapshot_path(&self) -> PathBuf {
 		let mut dir = self.legacy_fork_path();
@@ -195,7 +223,7 @@ impl DatabaseDirectories {
 		dir
 	}
 
-	/// Get user defaults path
+	/// Get user defaults path, legacy way
 	// TODO: remove in 1.7
 	pub fn legacy_network_path(&self) -> PathBuf {
 		let mut dir = self.legacy_fork_path();
@@ -203,6 +231,7 @@ impl DatabaseDirectories {
 		dir
 	}
 
+	/// Get user defauls path
 	pub fn user_defaults_path(&self) -> PathBuf {
 		let mut dir = self.spec_root_path();
 		dir.push("user_defaults");
@@ -224,21 +253,25 @@ impl DatabaseDirectories {
 	}
 }
 
+/// Default data path
 pub fn default_data_path() -> String {
 	let app_info = AppInfo { name: PRODUCT, author: AUTHOR };
 	get_app_root(AppDataType::UserData, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity".to_owned())
 }
 
+/// Default local path
 pub fn default_local_path() -> String {
 	let app_info = AppInfo { name: PRODUCT, author: AUTHOR };
 	get_app_root(AppDataType::UserCache, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity".to_owned())
 }
 
+/// Default hypervisor path
 pub fn default_hypervisor_path() -> String {
 	let app_info = AppInfo { name: PRODUCT_HYPERVISOR, author: AUTHOR };
 	get_app_root(AppDataType::UserData, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity-hypervisor".to_owned())
 }
 
+/// Get home directory.
 fn home() -> PathBuf {
 	env::home_dir().expect("Failed to get home dir")
 }

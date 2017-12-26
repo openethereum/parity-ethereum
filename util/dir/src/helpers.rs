@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Directory helper functions
 use std::env;
 
 /// Replaces `$HOME` str with home directory path.
