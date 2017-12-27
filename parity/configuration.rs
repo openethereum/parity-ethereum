@@ -764,7 +764,8 @@ impl Configuration {
 	}
 
 	fn cors(cors: Option<&String>) -> Option<Vec<String>> {
-		cors.map(|ref c| c.split(',').map(Into::into).collect())
+		// Never return `None` here (enables CORS for all hosts).
+		Some(cors.map(|ref c| c.split(',').map(Into::into).collect()).unwrap_or_default())
 	}
 
 	fn rpc_cors(&self) -> Option<Vec<String>> {
@@ -1510,7 +1511,7 @@ mod tests {
 		let conf2 = parse(&["parity", "--ipfs-api-cors", "http://parity.io,http://something.io"]);
 
 		// then
-		assert_eq!(conf0.ipfs_cors(), None);
+		assert_eq!(conf0.ipfs_cors(), Some(vec![]));
 		assert_eq!(conf1.ipfs_cors(), Some(vec!["*".into()]));
 		assert_eq!(conf2.ipfs_cors(), Some(vec!["http://parity.io".into(),"http://something.io".into()]));
 	}
