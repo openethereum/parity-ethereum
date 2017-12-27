@@ -392,10 +392,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let address: Address = RpcH160::into(address);
 		let position: U256 = RpcU256::into(pos);
 
-		let id = num.unwrap_or_default();
+		let num = num.unwrap_or_default();
 
-		try_bf!(check_known(&*self.client, id.clone()));
-		let res = match self.client.storage_at(&address, &H256::from(position), id.into()) {
+		try_bf!(check_known(&*self.client, num.clone()));
+		let res = match self.client.get_storage_at(&address, &H256::from(position), self.get_state(num)) {
 			Some(s) => Ok(s.into()),
 			None => Err(errors::state_pruned()),
 		};

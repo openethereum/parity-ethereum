@@ -1298,6 +1298,13 @@ impl client::BlockChain for Client {
 		}
 	}
 
+	fn get_storage_at<S: Into<StateOrBlock>>(&self, address: &Address, position: &H256, state: S) -> Option<H256> {
+		match state.into() {
+			StateOrBlock::State(s) => s.storage_at(address, position).ok(),
+			StateOrBlock::Block(id) => self.state_at(id).and_then(|s| s.storage_at(address, position).ok())
+		}
+	}
+
 	fn get_state(&self) -> Box<StateInfo> {
 		Box::new(self.state()) as Box<StateInfo>
 	}

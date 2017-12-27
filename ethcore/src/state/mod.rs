@@ -341,11 +341,15 @@ pub trait StateInfo {
 
 	/// Get the balance of account `a`.
 	fn balance(&self, a: &Address) -> trie::Result<U256>;
+
+	/// Mutate storage of account `address` so that it is `value` for `key`.
+	fn storage_at(&self, address: &Address, key: &H256) -> trie::Result<H256>;
 }
 
 impl<B: Backend> StateInfo for State<B> {
 	fn nonce(&self, a: &Address) -> trie::Result<U256> { State::nonce(self, a) }
 	fn balance(&self, a: &Address) -> trie::Result<U256> { State::balance(self, a) }
+	fn storage_at(&self, address: &Address, key: &H256) -> trie::Result<H256> { State::storage_at(self, address, key) }
 }
 
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
