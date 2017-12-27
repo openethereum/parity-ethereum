@@ -254,6 +254,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 			}
 		}
 	}
+
+	fn number_to_id(number: BlockNumber) -> BlockId {
+		match number {
+			BlockNumber::Num(num) => BlockId::Number(num).into(),
+			BlockNumber::Earliest => BlockId::Earliest.into(),
+			BlockNumber::Latest => BlockId::Latest.into(),
+
+			BlockNumber::Pending => unreachable!("`BlockNumber::Pending` should be handled manually")
+		}
+	}
 }
 
 pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
@@ -410,15 +420,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			BlockNumber::Pending if self.options.pending_nonce_from_queue => {
 				let nonce = self.miner.last_nonce(&address)
 					.map(|n| n + 1.into())
-					.or_else(|| self.client.nonce(&address, BlockNumber::Pending.into()));
+					.or_else(|| self.client.nonce(&address, BlockId::Latest));
 				match nonce {
 					Some(nonce) => Ok(nonce.into()),
 					None => Err(errors::database("latest nonce missing"))
 				}
 			}
-			id => {
-				try_bf!(check_known(&*self.client, id.clone()));
-				match self.client.nonce(&address, id.into()) {
+
+			number => {
+				try_bf!(check_known(&*self.client, number.clone()));
+				match self.client.nonce(&address, Self::number_to_id(number)) {
 					Some(nonce) => Ok(nonce.into()),
 					None => Err(errors::state_pruned()),
 				}
@@ -439,7 +450,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 				self.miner.status().transactions_in_pending_block.into()
 			),
 			_ =>
-				self.client.block(num.into())
+				self.client.block(Self::number_to_id(num))
 					.map(|block| block.transactions_count().into())
 		}))
 	}
@@ -452,7 +463,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn block_uncles_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>> {
 		Box::new(future::ok(match num {
 			BlockNumber::Pending => Some(0.into()),
-			_ => self.client.block(num.into())
+			_ => self.client.block(Self::number_to_id(num))
 					.map(|block| block.uncles_count().into()
 			),
 		}))
