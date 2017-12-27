@@ -468,7 +468,7 @@ usage! {
 
 			ARG arg_jsonrpc_cors: (String) = "none", or |c: &Config| otry!(c.rpc).cors.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-cors=[URL]",
-			"Specify CORS header for JSON-RPC API responses.",
+			"Specify CORS header for JSON-RPC API responses. Special options: \"all\", \"none\".",
 
 			ARG arg_jsonrpc_server_threads: (Option<usize>) = None, or |c: &Config| otry!(c.rpc).server_threads,
 			"--jsonrpc-server-threads=[NUM]",
@@ -540,7 +540,7 @@ usage! {
 
 			ARG arg_ipfs_api_cors: (String) = "none", or |c: &Config| otry!(c.ipfs).cors.as_ref().map(|vec| vec.join(",")),
 			"--ipfs-api-cors=[URL]",
-			"Specify CORS header for IPFS API responses.",
+			"Specify CORS header for IPFS API responses. Special options: \"all\", \"none\".",
 
 		["Secret store options"]
 			FLAG flag_no_secretstore: (bool) = false, or |c: &Config| otry!(c.secretstore).disable.clone(),
