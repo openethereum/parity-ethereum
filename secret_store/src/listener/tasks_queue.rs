@@ -18,7 +18,7 @@ use std::collections::VecDeque;
 use parking_lot::{Mutex, Condvar};
 
 #[derive(Default)]
-/// Service tasks queue.
+/// General deque-based tasks queue.
 pub struct TasksQueue<Task: Clone> {
 	/// Service event.
 	service_event: Condvar,
