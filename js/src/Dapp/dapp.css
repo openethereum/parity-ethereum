@@ -15,22 +15,20 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.frame {
+.frame,
+.full {
   background: white;
   box-sizing: border-box;
   border: 0;
   flex-grow: 1;
+  margin: 0;
+  padding: 0;
   opacity: 0;
   width: 100%;
   z-index: 1;
 }
 
 .full {
-  width: 100vw;
-  height: 100vh;
-  margin: 0;
-  padding: 0;
-  background: white;
   font-family: 'Roboto', sans-serif;
   font-size: 16px;
   font-weight: 300;

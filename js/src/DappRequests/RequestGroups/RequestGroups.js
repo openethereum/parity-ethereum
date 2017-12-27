@@ -14,49 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { PureComponent } from 'react';
+import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
-import Popup from 'semantic-ui-react/dist/commonjs/modules/Popup';
-import Button from '@parity/ui/lib/Button';
-
 import DappsStore from '@parity/shared/lib/mobx/dappsStore';
 
+import RequestGroupSubItem from './RequestGroupSubItem';
 import styles from './RequestGroups.css';
 
-export default class RequestGroups extends PureComponent {
-  state = {
-    opened: false
-  };
-
-  handleApproveRequestGroup = groupId => {
-    const { requestGroups, onApproveRequestGroup } = this.props;
-
-    onApproveRequestGroup(Object.values(requestGroups[groupId].map(({ requestId }) => requestId)));
-  }
-
-  handleRejectRequestGroup = groupId => {
-    const { requestGroups, onRejectRequestGroup } = this.props;
-
-    onRejectRequestGroup(Object.values(requestGroups[groupId].map(({ requestId }) => requestId)));
-  }
-
-  renderPopupContent = groupId => {
-    const { requestGroups } = this.props;
-    // Get unique list of methods in that request group
-    const requestedMethods = [...new Set(
-      Object.values(requestGroups[groupId])
-        .map(request => request.data.method || request.data.params[0])
-    )];
-
-    return `Requested methods: ${requestedMethods.join(', ')}`;
+export default class RequestGroups extends Component {
+  handleApproveRequestGroup = (requests, groupId) => {
+    this.props.onApproveRequestGroup(requests, groupId, this.props.appId);
   }
 
   render () {
     const {
       appId,
-      requestGroups
+      requestGroups,
+      onRejectRequestGroup
     } = this.props;
 
     const app = DappsStore.get().getAppById(appId);
@@ -72,35 +48,13 @@ export default class RequestGroups extends PureComponent {
           } }
         />
         {Object.keys(requestGroups).map(groupId => (
-          <div key={ `${appId}-${groupId}` } className={ styles.requestGroup }>
-            <span className={ styles.requestGroupTitle }>
-              Permission for{' '}
-              <Popup
-                trigger={ <span>{groupId}</span> }
-                content={ this.renderPopupContent(groupId) }
-              />
-            </span>
-            <Button
-              size='mini'
-              label={
-                <FormattedMessage
-                  id='dappRequests.request.buttons.approve'
-                  defaultMessage='Approve'
-                />
-              }
-              onClick={ () => this.handleApproveRequestGroup(groupId) }
-            />
-            <Button
-              size='mini'
-              label={
-                <FormattedMessage
-                  id='dappRequests.request.buttons.reject'
-                  defaultMessage='Reject'
-                />
-              }
-              onClick={ () => this.handleRejectRequestGroup(groupId) }
-            />
-          </div>
+          <RequestGroupSubItem
+            key={ `${appId}-${groupId}` }
+            groupId={ groupId }
+            requests={ requestGroups[groupId] }
+            onApprove={ this.handleApproveRequestGroup }
+            onReject={ onRejectRequestGroup }
+          />
         ))}
       </div>
     );

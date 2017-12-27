@@ -30,7 +30,7 @@ use v1::helpers::errors;
 use v1::helpers::dispatch::{Dispatcher, SignWith};
 use v1::helpers::accounts::unwrap_provider;
 use v1::traits::Personal;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, U128 as RpcU128, TransactionRequest};
+use v1::types::{H160 as RpcH160, H256 as RpcH256, U128 as RpcU128, TransactionRequest, RichRawTransaction as RpcRichRawTransaction};
 use v1::metadata::Metadata;
 
 /// Account management (personal) rpc implementation.
@@ -52,6 +52,35 @@ impl<D: Dispatcher> PersonalClient<D> {
 
 	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
 		unwrap_provider(&self.accounts)
+	}
+}
+
+impl<D: Dispatcher + 'static> PersonalClient<D> {
+	fn do_sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<(PendingTransaction, D)> {
+		let dispatcher = self.dispatcher.clone();
+		let accounts = try_bf!(self.account_provider());
+
+		let default = match request.from.as_ref() {
+			Some(account) => Ok(account.clone().into()),
+			None => accounts
+				.dapp_default_address(meta.dapp_id().into())
+				.map_err(|e| errors::account("Cannot find default account.", e)),
+		};
+
+		let default = match default {
+			Ok(default) => default,
+			Err(e) => return Box::new(future::err(e)),
+		};
+
+		Box::new(dispatcher.fill_optional_fields(request.into(), default, false)
+			.and_then(move |filled| {
+				let condition = filled.condition.clone().map(Into::into);
+				dispatcher.sign(accounts, filled, SignWith::Password(password))
+					.map(|tx| tx.into_value())
+					.map(move |tx| PendingTransaction::new(tx, condition))
+					.map(move |tx| (tx, dispatcher))
+			})
+		)
 	}
 }
 
@@ -104,37 +133,21 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		}
 	}
 
+	fn sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcRichRawTransaction> {
+		Box::new(self.do_sign_transaction(meta, request, password)
+			.map(|(pending_tx, dispatcher)| dispatcher.enrich(pending_tx.transaction)))
+	}
+
 	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256> {
-		let dispatcher = self.dispatcher.clone();
-		let accounts = try_bf!(self.account_provider());
-
-		let default = match request.from.as_ref() {
-			Some(account) => Ok(account.clone().into()),
-			None => accounts
-				.dapp_default_address(meta.dapp_id().into())
-				.map_err(|e| errors::account("Cannot find default account.", e)),
-		};
-
-		let default = match default {
-			Ok(default) => default,
-			Err(e) => return Box::new(future::err(e)),
-		};
-
-		Box::new(dispatcher.fill_optional_fields(request.into(), default, false)
-			.and_then(move |filled| {
-				let condition = filled.condition.clone().map(Into::into);
-				dispatcher.sign(accounts, filled, SignWith::Password(password))
-					.map(|tx| tx.into_value())
-					.map(move |tx| PendingTransaction::new(tx, condition))
-					.map(move |tx| (tx, dispatcher))
-			})
+		Box::new(self.do_sign_transaction(meta, request, password)
 			.and_then(|(pending_tx, dispatcher)| {
 				let chain_id = pending_tx.chain_id();
 				trace!(target: "miner", "send_transaction: dispatching tx: {} for chain ID {:?}",
 					::rlp::encode(&*pending_tx).into_vec().pretty(), chain_id);
 
 				dispatcher.dispatch_transaction(pending_tx).map(Into::into)
-			}))
+			})
+		)
 	}
 
 	fn sign_and_send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256> {

@@ -252,7 +252,6 @@ impl<T: InformantData> Informant<T> {
 		self.in_shutdown.store(true, ::std::sync::atomic::Ordering::SeqCst);
 	}
 
-	#[cfg_attr(feature="dev", allow(match_bool))]
 	pub fn tick(&self) {
 		let elapsed = self.last_tick.read().elapsed();
 		if elapsed < Duration::from_secs(5) {

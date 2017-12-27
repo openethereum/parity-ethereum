@@ -234,14 +234,14 @@ fn rpc_parity_chain_id() {
 
 #[test]
 fn rpc_parity_default_extra_data() {
-	use util::misc;
+	use version::version_data;
 	use bytes::ToPretty;
 
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultExtraData", "params": [], "id": 1}"#;
-	let response = format!(r#"{{"jsonrpc":"2.0","result":"0x{}","id":1}}"#, misc::version_data().to_hex());
+	let response = format!(r#"{{"jsonrpc":"2.0","result":"0x{}","id":1}}"#, version_data().to_hex());
 
 	assert_eq!(io.handle_request_sync(request), Some(response));
 }

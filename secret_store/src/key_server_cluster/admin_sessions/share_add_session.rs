@@ -257,7 +257,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let admin_public = self.core.admin_public.as_ref().cloned().ok_or(Error::ConsensusUnreachable)?;
 
 		// key share version is required on ShareAdd master node
-		let key_share = self.core.key_share.as_ref().ok_or(Error::KeyStorage("key share is not found on master node".into()))?;
+		let key_share = self.core.key_share.as_ref().ok_or_else(|| Error::KeyStorage("key share is not found on master node".into()))?;
 		let key_version = key_share.version(&version).map_err(|e| Error::KeyStorage(e.into()))?;
 
 		// old nodes set is all non-isolated owners of version holders

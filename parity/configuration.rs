@@ -25,7 +25,8 @@ use cli::{Args, ArgsError};
 use hash::keccak;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{version_data, Address, version};
+use util::Address;
+use parity_version::{version_data, version};
 use bytes::Bytes;
 use ansi_term::Colour;
 use ethsync::{NetworkConfiguration, validate_node_url, self};
@@ -484,6 +485,7 @@ impl Configuration {
 	fn accounts_config(&self) -> Result<AccountsConfig, String> {
 		let cfg = AccountsConfig {
 			iterations: self.args.arg_keys_iterations,
+			refresh_time: self.args.arg_accounts_refresh,
 			testnet: self.args.flag_testnet,
 			password_files: self.args.arg_password.clone(),
 			unlocked_accounts: to_addresses(&self.args.arg_unlock)?,
@@ -567,7 +569,7 @@ impl Configuration {
 	}
 
 	fn dapps_config(&self) -> DappsConfiguration {
-		let dev_ui = if self.args.flag_ui_no_validation { vec![("localhost".to_owned(), 3000)] } else { vec![] };
+		let dev_ui = if self.args.flag_ui_no_validation { vec![("127.0.0.1".to_owned(), 3000)] } else { vec![] };
 		let ui_port = self.ui_port();
 
 		DappsConfiguration {
@@ -1587,7 +1589,7 @@ mod tests {
 			port: 8180,
 			hosts: Some(vec![]),
 		});
-		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("localhost".to_owned(), 3000)]);
+		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("127.0.0.1".to_owned(), 3000)]);
 		assert_eq!(conf1.ws_config().unwrap().origins, None);
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {

@@ -290,7 +290,7 @@ usage! {
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| otry!(c.parity).chain.clone(),
 			"--chain=[CHAIN]",
-			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or olympic, frontier, homestead, mainnet, morden, ropsten, classic, expanse, musicoin, testnet, kovan or dev.",
+			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or olympic, frontier, homestead, mainnet, morden, ropsten, classic, expanse, musicoin, ellaism, testnet, kovan or dev.",
 
 			ARG arg_keys_path: (String) = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 			"--keys-path=[PATH]",
@@ -334,6 +334,10 @@ usage! {
 			ARG arg_keys_iterations: (u32) = 10240u32, or |c: &Config| otry!(c.account).keys_iterations.clone(),
 			"--keys-iterations=[NUM]",
 			"Specify the number of iterations to use when deriving key from the password (bigger is more secure)",
+
+			ARG arg_accounts_refresh: (u64) = 5u64, or |c: &Config| otry!(c.account).refresh_time.clone(),
+			"--accounts-refresh=[TIME]",
+			"Specify the cache time of accounts read from disk. If you manage thousands of accounts set this to 0 to disable refresh.",
 
 			ARG arg_unlock: (Option<String>) = None, or |c: &Config| otry!(c.account).unlock.as_ref().map(|vec| vec.join(",")),
 			"--unlock=[ACCOUNTS]",
@@ -1013,6 +1017,7 @@ struct Account {
 	unlock: Option<Vec<String>>,
 	password: Option<Vec<String>>,
 	keys_iterations: Option<u32>,
+	refresh_time: Option<u64>,
 	disable_hardware: Option<bool>,
 	fast_unlock: Option<bool>,
 }
@@ -1433,6 +1438,7 @@ mod tests {
 			arg_unlock: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_password: vec!["~/.safe/password.file".into()],
 			arg_keys_iterations: 10240u32,
+			arg_accounts_refresh: 5u64,
 			flag_no_hardware_wallets: false,
 			flag_fast_unlock: false,
 
@@ -1671,6 +1677,7 @@ mod tests {
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
 				password: Some(vec!["passwdfile path".into()]),
 				keys_iterations: None,
+				refresh_time: None,
 				disable_hardware: None,
 				fast_unlock: None,
 			}),
