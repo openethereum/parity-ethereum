@@ -83,6 +83,7 @@ impl From<BlockId> for StateOrBlock {
 pub trait BlockChain {
 	fn get_balance<S: Into<StateOrBlock>>(&self, address: &Address, state: S) -> Option<U256>;
 	fn get_storage_at<S: Into<StateOrBlock>>(&self, address: &Address, position: &H256, state: S) -> Option<H256>;
+	fn get_code<S: Into<StateOrBlock>>(&self, address: &Address, state: S) -> Option<Option<Bytes>>;
 	fn get_state(&self) -> Box<StateInfo>;
 }
 

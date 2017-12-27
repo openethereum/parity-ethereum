@@ -472,10 +472,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
 		let address: Address = RpcH160::into(address);
 
-		let id = num.unwrap_or_default();
-		try_bf!(check_known(&*self.client, id.clone()));
+		let num = num.unwrap_or_default();
+		try_bf!(check_known(&*self.client, num.clone()));
 
-		let res = match self.client.code(&address, id.into()) {
+		let res = match self.client.get_code(&address, self.get_state(num)) {
 			Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
 			None => Err(errors::state_pruned()),
 		};

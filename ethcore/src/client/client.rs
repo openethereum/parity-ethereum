@@ -1305,6 +1305,16 @@ impl client::BlockChain for Client {
 		}
 	}
 
+	fn get_code<S: Into<StateOrBlock>>(&self, address: &Address, state: S) -> Option<Option<Bytes>> {
+		let result = match state.into() {
+			StateOrBlock::State(s) => s.code(address).ok(),
+			StateOrBlock::Block(id) => self.state_at(id).and_then(|s| s.code(address).ok())
+		};
+
+		// Converting from `Option<Option<Arc<Bytes>>>` to `Option<Option<Bytes>>`
+		result.map(|c| c.map(|c| (&*c).clone()))
+	}
+
 	fn get_state(&self) -> Box<StateInfo> {
 		Box::new(self.state()) as Box<StateInfo>
 	}
