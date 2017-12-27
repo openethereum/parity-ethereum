@@ -1293,32 +1293,7 @@ impl BlockChainClient for Client {
 		trace!(target: "estimate_gas", "estimate_gas chopping {} .. {}", lower, upper);
 		binary_chop(lower, upper, cond)
 	}
-/*
-	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
-		let mut env_info = self.env_info(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let body = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let mut state = self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let mut txs = body.transactions();
 
-		if address.index >= txs.len() {
-			return Err(CallError::TransactionNotFound);
-		}
-
-		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
-		let rest = txs.split_off(address.index);
-		for t in txs {
-			let t = SignedTransaction::new(t).expect(PROOF);
-			let x = Executive::new(&mut state, &env_info, self.engine.machine()).transact(&t, TransactOptions::with_no_tracing())?;
-			env_info.gas_used = env_info.gas_used + x.gas_used;
-		}
-		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
-		let t = SignedTransaction::new(first).expect(PROOF);
-
-		self.do_virtual_call(&env_info, &mut state, &t, analytics)
-	}
-
-*/
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
 		let block = BlockId::Hash(address.block_hash);
