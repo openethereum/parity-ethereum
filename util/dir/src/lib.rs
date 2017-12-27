@@ -28,6 +28,8 @@ use bigint::hash::{H64, H256};
 use journaldb::Algorithm;
 use helpers::{replace_home, replace_home_and_local};
 use app_dirs::{AppInfo, get_app_root, AppDataType};
+// re-export platform-specific functions
+use platform::*;
 
 #[cfg(target_os = "macos")] const AUTHOR: &'static str = "Parity";
 #[cfg(target_os = "macos")] const PRODUCT: &'static str = "io.parity.ethereum";
@@ -278,7 +280,7 @@ fn home() -> PathBuf {
 
 /// Geth path
 pub fn geth(testnet: bool) -> PathBuf {
-	let mut base = platform::geth_base();
+	let mut base = geth_base();
 	if testnet {
 		base.push("testnet");
 	}
@@ -288,14 +290,14 @@ pub fn geth(testnet: bool) -> PathBuf {
 
 /// Parity path for specific chain
 pub fn parity(chain: &str) -> PathBuf {
-	let mut base = platform::parity_base();
+	let mut base = parity_base();
 	base.push(chain);
 	base
 }
 
+#[cfg(target_os = "macos")]
 mod platform {
 	use std::path::PathBuf;
-	#[cfg(target_os = "macos")]
 	pub fn parity_base() -> PathBuf {
 		let mut home = super::home();
 		home.push("Library");
@@ -305,7 +307,17 @@ mod platform {
 		home
 	}
 
-	#[cfg(windows)]
+	pub fn geth_base() -> PathBuf {
+		let mut home = super::home();
+		home.push("Library");
+		home.push("Ethereum");
+		home
+	}
+}
+
+#[cfg(windows)]
+mod platform {
+	use std::path::PathBuf;
 	pub fn parity_base() -> PathBuf {
 		let mut home = super::home();
 		home.push("AppData");
@@ -316,7 +328,18 @@ mod platform {
 		home
 	}
 
-	#[cfg(not(any(target_os = "macos", windows)))]
+	pub fn geth_base() -> PathBuf {
+		let mut home = super::home();
+		home.push("AppData");
+		home.push("Roaming");
+		home.push("Ethereum");
+		home
+	}
+}
+
+#[cfg(not(any(target_os = "macos", windows)))]
+mod platform {
+	use std::path::PathBuf;
 	pub fn parity_base() -> PathBuf {
 		let mut home = super::home();
 		home.push(".local");
@@ -326,24 +349,6 @@ mod platform {
 		home
 	}
 
-	#[cfg(target_os = "macos")]
-	pub fn geth_base() -> PathBuf {
-		let mut home = super::home();
-		home.push("Library");
-		home.push("Ethereum");
-		home
-	}
-
-	#[cfg(windows)]
-	pub fn geth_base() -> PathBuf {
-		let mut home = super::home();
-		home.push("AppData");
-		home.push("Roaming");
-		home.push("Ethereum");
-		home
-	}
-
-	#[cfg(not(any(target_os = "macos", windows)))]
 	pub fn geth_base() -> PathBuf {
 		let mut home = super::home();
 		home.push(".ethereum");
