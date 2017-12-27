@@ -466,9 +466,9 @@ usage! {
 			"--jsonrpc-threads=[THREADS]",
 			"Turn on additional processing threads in all RPC servers. Setting this to non-zero value allows parallel cpu-heavy queries execution.",
 
-			ARG arg_jsonrpc_cors: (Option<String>) = None, or |c: &Config| otry!(c.rpc).cors.clone(),
+			ARG arg_jsonrpc_cors: (String) = "none", or |c: &Config| otry!(c.rpc).cors.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-cors=[URL]",
-			"Specify CORS header for JSON-RPC API responses.",
+			"Specify CORS header for JSON-RPC API responses. Special options: \"all\", \"none\".",
 
 			ARG arg_jsonrpc_server_threads: (Option<usize>) = None, or |c: &Config| otry!(c.rpc).server_threads,
 			"--jsonrpc-server-threads=[NUM]",
@@ -538,9 +538,9 @@ usage! {
 			"--ipfs-api-hosts=[HOSTS]",
 			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\".",
 
-			ARG arg_ipfs_api_cors: (Option<String>) = None, or |c: &Config| otry!(c.ipfs).cors.clone(),
+			ARG arg_ipfs_api_cors: (String) = "none", or |c: &Config| otry!(c.ipfs).cors.as_ref().map(|vec| vec.join(",")),
 			"--ipfs-api-cors=[URL]",
-			"Specify CORS header for IPFS API responses.",
+			"Specify CORS header for IPFS API responses. Special options: \"all\", \"none\".",
 
 		["Secret store options"]
 			FLAG flag_no_secretstore: (bool) = false, or |c: &Config| otry!(c.secretstore).disable.clone(),
@@ -1052,7 +1052,7 @@ struct Rpc {
 	disable: Option<bool>,
 	port: Option<u16>,
 	interface: Option<String>,
-	cors: Option<String>,
+	cors: Option<Vec<String>>,
 	apis: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
 	server_threads: Option<usize>,
@@ -1108,7 +1108,7 @@ struct Ipfs {
 	enable: Option<bool>,
 	port: Option<u16>,
 	interface: Option<String>,
-	cors: Option<String>,
+	cors: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
 }
 
@@ -1468,7 +1468,7 @@ mod tests {
 			flag_no_jsonrpc: false,
 			arg_jsonrpc_port: 8545u16,
 			arg_jsonrpc_interface: "local".into(),
-			arg_jsonrpc_cors: Some("null".into()),
+			arg_jsonrpc_cors: "null".into(),
 			arg_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			arg_jsonrpc_hosts: "none".into(),
 			arg_jsonrpc_server_threads: None,
@@ -1507,7 +1507,7 @@ mod tests {
 			flag_ipfs_api: false,
 			arg_ipfs_api_port: 5001u16,
 			arg_ipfs_api_interface: "local".into(),
-			arg_ipfs_api_cors: Some("null".into()),
+			arg_ipfs_api_cors: "null".into(),
 			arg_ipfs_api_hosts: "none".into(),
 
 			// -- Sealing/Mining Options
