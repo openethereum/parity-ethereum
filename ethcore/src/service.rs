@@ -186,7 +186,6 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(single_match))]
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
 		use std::thread;
 

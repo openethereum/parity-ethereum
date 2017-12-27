@@ -509,7 +509,6 @@ mod tests {
 	}
 
 	#[test]
-	#[cfg_attr(feature="dev", allow(similar_names))]
 	fn test_verify_block() {
 		use rlp::RlpStream;
 

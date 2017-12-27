@@ -17,7 +17,8 @@
 use std::{str, fs, fmt};
 use std::time::Duration;
 use bigint::prelude::U256;
-use util::{Address, version_data};
+use util::Address;
+use parity_version::version_data;
 use journaldb::Algorithm;
 use ethcore::spec::{Spec, SpecParams};
 use ethcore::ethereum;
@@ -188,6 +189,7 @@ impl str::FromStr for ResealPolicy {
 #[derive(Debug, PartialEq)]
 pub struct AccountsConfig {
 	pub iterations: u32,
+	pub refresh_time: u64,
 	pub testnet: bool,
 	pub password_files: Vec<String>,
 	pub unlocked_accounts: Vec<Address>,
@@ -199,6 +201,7 @@ impl Default for AccountsConfig {
 	fn default() -> Self {
 		AccountsConfig {
 			iterations: 10240,
+			refresh_time: 5,
 			testnet: false,
 			password_files: Vec::new(),
 			unlocked_accounts: Vec::new(),

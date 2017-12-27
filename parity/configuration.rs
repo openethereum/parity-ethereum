@@ -25,7 +25,8 @@ use cli::{Args, ArgsError};
 use hash::keccak;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{version_data, Address, version};
+use util::Address;
+use parity_version::{version_data, version};
 use bytes::Bytes;
 use ansi_term::Colour;
 use ethsync::{NetworkConfiguration, validate_node_url, self};
@@ -484,6 +485,7 @@ impl Configuration {
 	fn accounts_config(&self) -> Result<AccountsConfig, String> {
 		let cfg = AccountsConfig {
 			iterations: self.args.arg_keys_iterations,
+			refresh_time: self.args.arg_accounts_refresh,
 			testnet: self.args.flag_testnet,
 			password_files: self.args.arg_password.clone(),
 			unlocked_accounts: to_addresses(&self.args.arg_unlock)?,

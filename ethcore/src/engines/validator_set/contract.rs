@@ -58,7 +58,7 @@ impl ValidatorContract {
 		let client = self.client.read().clone();
 		Box::new(move |a, d| client.as_ref()
 			.and_then(Weak::upgrade)
-			.ok_or("No client!".into())
+			.ok_or_else(|| "No client!".into())
 			.and_then(|c| {
 				match c.as_full_client() {
 					Some(c) => c.transact_contract(a, d)

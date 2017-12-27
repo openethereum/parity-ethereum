@@ -164,7 +164,6 @@ struct QueueSignal {
 }
 
 impl QueueSignal {
-	#[cfg_attr(feature="dev", allow(bool_comparison))]
 	fn set_sync(&self) {
 		// Do not signal when we are about to close
 		if self.deleting.load(AtomicOrdering::Relaxed) {
@@ -179,7 +178,6 @@ impl QueueSignal {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(bool_comparison))]
 	fn set_async(&self) {
 		// Do not signal when we are about to close
 		if self.deleting.load(AtomicOrdering::Relaxed) {
