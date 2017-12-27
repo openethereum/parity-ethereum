@@ -34,8 +34,8 @@ impl Default for Configuration {
 			enabled: false,
 			port: 5001,
 			interface: "127.0.0.1".into(),
-			cors: None,
-			hosts: Some(Vec::new()),
+			cors: Some(vec![]),
+			hosts: Some(vec![]),
 		}
 	}
 }
