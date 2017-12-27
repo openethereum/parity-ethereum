@@ -301,7 +301,7 @@ impl Iterator for PendingRequestsIterator {
 /// Get hash of the last block with at least n confirmations.
 fn get_confirmed_block_hash(client: &Client, confirmations: u64) -> Option<H256> {
 	client.block_number(BlockId::Latest)
-		.and_then(|b| b.checked_sub(confirmations))
+		.map(|b| b.saturating_sub(confirmations))
 		.and_then(|b| client.block_hash(BlockId::Number(b)))
 }
 
