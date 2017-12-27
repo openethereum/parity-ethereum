@@ -122,6 +122,13 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 		Ok(hasher.finish())
 	}
 
+	fn last_modification_date(&self) -> Result<u64, Error> {
+		use std::time::{Duration, UNIX_EPOCH};
+		let duration = fs::metadata(&self.path)?.modified()?.duration_since(UNIX_EPOCH).unwrap_or(Duration::default());
+		let timestamp = duration.as_secs() ^ (duration.subsec_nanos() as u64);
+		Ok(timestamp)
+	}
+
 	/// all accounts found in keys directory
 	fn files_content(&self) -> Result<HashMap<PathBuf, SafeAccount>, Error> {
 		// it's not done using one iterator cause
@@ -226,7 +233,7 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 	}
 
 	fn unique_repr(&self) -> Result<u64, Error> {
-		self.files_hash()
+		self.last_modification_date()
 	}
 }
 
