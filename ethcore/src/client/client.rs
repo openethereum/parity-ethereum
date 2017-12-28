@@ -34,7 +34,6 @@ use kvdb::{KeyValueDB, DBTransaction};
 // other
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use basic_types::Seal;
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};
 use blockchain::extras::TransactionAddress;
@@ -1006,7 +1005,6 @@ impl Client {
 	pub fn state_at(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
 		match id.clone() {
-			BlockId::Pending => return self.importer.miner.pending_state(self.chain.read().best_block_number()).or_else(|| Some(self.state())),
 			BlockId::Latest => return Some(self.state()),
 			_ => {},
 		}
@@ -1036,7 +1034,6 @@ impl Client {
 	pub fn state_at_beginning(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
 		match id {
-			BlockId::Pending => self.state_at(BlockId::Latest),
 			id => match self.block_number(id) {
 				None | Some(0) => None,
 				Some(n) => self.state_at(BlockId::Number(n - 1)),
@@ -1157,20 +1154,19 @@ impl Client {
 		self.history
 	}
 
-	fn block_hash(chain: &BlockChain, miner: &Miner, id: BlockId) -> Option<H256> {
+	fn block_hash(chain: &BlockChain, id: BlockId) -> Option<H256> {
 		match id {
 			BlockId::Hash(hash) => Some(hash),
 			BlockId::Number(number) => chain.block_hash(number),
 			BlockId::Earliest => chain.block_hash(0),
 			BlockId::Latest => Some(chain.best_block_hash()),
-			BlockId::Pending => miner.pending_block_header(chain.best_block_number()).map(|header| header.hash())
 		}
 	}
 
 	fn transaction_address(&self, id: TransactionId) -> Option<TransactionAddress> {
 		match id {
 			TransactionId::Hash(ref hash) => self.chain.read().transaction_address(hash),
-			TransactionId::Location(id, index) => Self::block_hash(&self.chain.read(), &self.importer.miner, id).map(|hash| TransactionAddress {
+			TransactionId::Location(id, index) => Self::block_hash(&self.chain.read(), id).map(|hash| TransactionAddress {
 				block_hash: hash,
 				index: index,
 			})
@@ -1256,7 +1252,6 @@ impl Client {
 			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
 			BlockId::Earliest => Some(0),
 			BlockId::Latest => Some(self.chain.read().best_block_number()),
-			BlockId::Pending => Some(self.chain.read().best_block_number() + 1),
 		}
 	}
 }
@@ -1306,15 +1301,7 @@ impl BlockInfo for Client {
 	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
 		let chain = self.chain.read();
 
-		if let BlockId::Pending = id {
-			if let Some(block) = self.importer.miner.pending_block(chain.best_block_number()) {
-				return Some(encoded::Header::new(block.header.rlp(Seal::Without)));
-			}
-			// fall back to latest
-			return self.block_header(BlockId::Latest);
-		}
-
-		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| chain.block_header_data(&hash))
+		Self::block_hash(&chain, id).and_then(|hash| chain.block_header_data(&hash))
 	}
 
 	fn best_block_header(&self) -> encoded::Header {
@@ -1324,15 +1311,7 @@ impl BlockInfo for Client {
 	fn block(&self, id: BlockId) -> Option<encoded::Block> {
 		let chain = self.chain.read();
 
-		if let BlockId::Pending = id {
-			if let Some(block) = self.importer.miner.pending_block(chain.best_block_number()) {
-				return Some(encoded::Block::new(block.rlp_bytes(Seal::Without)));
-			}
-			// fall back to latest
-			return self.block(BlockId::Latest);
-		}
-
-		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| {
+		Self::block_hash(&chain, id).and_then(|hash| {
 			chain.block(&hash)
 		})
 	}
@@ -1576,24 +1555,12 @@ impl BlockChainClient for Client {
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
 		let chain = self.chain.read();
 
-		if let BlockId::Pending = id {
-			if let Some(block) = self.importer.miner.pending_block(chain.best_block_number()) {
-				return Some(encoded::Body::new(BlockChain::block_to_body(&block.rlp_bytes(Seal::Without))));
-			}
-			// fall back to latest
-			return self.block_body(BlockId::Latest);
-		}
-
-		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| chain.block_body(&hash))
+		Self::block_hash(&chain, id).and_then(|hash| chain.block_body(&hash))
 	}
 
 	fn block_status(&self, id: BlockId) -> BlockStatus {
-		if let BlockId::Pending = id {
-			return BlockStatus::Pending;
-		}
-
 		let chain = self.chain.read();
-		match Self::block_hash(&chain, &self.importer.miner, id) {
+		match Self::block_hash(&chain, id) {
 			Some(ref hash) if chain.is_known(hash) => BlockStatus::InChain,
 			Some(hash) => self.importer.block_queue.status(&hash).into(),
 			None => BlockStatus::Unknown
@@ -1602,17 +1569,8 @@ impl BlockChainClient for Client {
 
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256> {
 		let chain = self.chain.read();
-		if let BlockId::Pending = id {
-			let latest_difficulty = self.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
-			let pending_difficulty = self.importer.miner.pending_block_header(chain.best_block_number()).map(|header| *header.difficulty());
-			if let Some(difficulty) = pending_difficulty {
-				return Some(difficulty + latest_difficulty);
-			}
-			// fall back to latest
-			return Some(latest_difficulty);
-		}
 
-		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
+		Self::block_hash(&chain, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}
 
 	fn storage_root(&self, address: &Address, id: BlockId) -> Option<H256> {
@@ -1621,7 +1579,7 @@ impl BlockChainClient for Client {
 
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
 		let chain = self.chain.read();
-		Self::block_hash(&chain, &self.importer.miner, id)
+		Self::block_hash(&chain, id)
 	}
 
 	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {

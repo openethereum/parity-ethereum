@@ -17,7 +17,6 @@
 use std::fmt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{Error, Visitor};
-use ethcore::client::BlockId;
 
 /// Represents rpc api block number param.
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
@@ -88,17 +87,6 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
 
 	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
 		self.visit_str(value.as_ref())
-	}
-}
-
-impl Into<BlockId> for BlockNumber {
-	fn into(self) -> BlockId {
-		match self {
-			BlockNumber::Num(n) => BlockId::Number(n),
-			BlockNumber::Earliest => BlockId::Earliest,
-			BlockNumber::Latest => BlockId::Latest,
-			BlockNumber::Pending => BlockId::Pending,
-		}
 	}
 }
 

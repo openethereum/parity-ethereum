@@ -319,7 +319,7 @@ impl TestBlockChainClient {
 			BlockId::Hash(hash) => Some(hash),
 			BlockId::Number(n) => self.numbers.read().get(&(n as usize)).cloned(),
 			BlockId::Earliest => self.numbers.read().get(&0).cloned(),
-			BlockId::Latest | BlockId::Pending => self.numbers.read().get(&(self.numbers.read().len() - 1)).cloned()
+			BlockId::Latest => self.numbers.read().get(&(self.numbers.read().len() - 1)).cloned()
 		}
 	}
 
@@ -422,7 +422,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 impl Nonce for TestBlockChainClient {
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
 		match id {
-			BlockId::Latest | BlockId::Pending => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params().account_start_nonce)),
+			BlockId::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params().account_start_nonce)),
 			_ => None,
 		}
 	}
@@ -435,7 +435,7 @@ impl Nonce for TestBlockChainClient {
 impl Balance for TestBlockChainClient {
 	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
 		match id {
-			BlockId::Latest | BlockId::Pending => Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero)),
+			BlockId::Latest => Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero)),
 			_ => None,
 		}
 	}
@@ -582,21 +582,21 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
 		match id {
-			BlockId::Latest | BlockId::Pending => Some(self.code.read().get(address).cloned()),
+			BlockId::Latest => Some(self.code.read().get(address).cloned()),
 			_ => None,
 		}
 	}
 
 	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
 		match id {
-			BlockId::Latest | BlockId::Pending => self.code.read().get(address).map(|c| keccak(&c)),
+			BlockId::Latest => self.code.read().get(address).map(|c| keccak(&c)),
 			_ => None,
 		}
 	}
 
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256> {
 		match id {
-			BlockId::Latest | BlockId::Pending => Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new)),
+			BlockId::Latest => Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new)),
 			_ => None,
 		}
 	}
@@ -662,7 +662,6 @@ impl BlockChainClient for TestBlockChainClient {
 			BlockId::Number(number) if (number as usize) < self.blocks.read().len() => BlockStatus::InChain,
 			BlockId::Hash(ref hash) if self.blocks.read().get(hash).is_some() => BlockStatus::InChain,
 			BlockId::Latest | BlockId::Earliest => BlockStatus::InChain,
-			BlockId::Pending => BlockStatus::Pending,
 			_ => BlockStatus::Unknown,
 		}
 	}

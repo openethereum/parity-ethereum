@@ -198,6 +198,8 @@ pub trait MinerService : Send + Sync {
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { 21000.into() }
+
+	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<::state::State<::state_db::StateDB>>;
 }
 
 /// Mining status

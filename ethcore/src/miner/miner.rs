@@ -1204,6 +1204,10 @@ impl MinerService for Miner {
 			self.update_sealing(chain);
 		}
 	}
+
+	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<State<::state_db::StateDB>> {
+		Miner::pending_state(self, latest_block_number)
+	}
 }
 
 /// Action when service transaction is received

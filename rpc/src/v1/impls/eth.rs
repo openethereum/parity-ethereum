@@ -263,9 +263,16 @@ pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFi
 fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: MiningBlockChainClient {
 	use ethcore::block_status::BlockStatus;
 
-	match client.block_status(number.into()) {
+	let id = match number {
+		BlockNumber::Pending => return Ok(()),
+
+		BlockNumber::Num(n) => BlockId::Number(n),
+		BlockNumber::Latest => BlockId::Latest,
+		BlockNumber::Earliest => BlockId::Earliest,
+	};
+
+	match client.block_status(id) {
 		BlockStatus::InChain => Ok(()),
-		BlockStatus::Pending => Ok(()),
 		_ => Err(errors::unknown_block()),
 	}
 }
@@ -355,10 +362,18 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
 		let address = address.into();
 
-		let id = num.unwrap_or_default();
+		let num = num.unwrap_or_default();
+		let info = self.client.chain_info();
 
-		try_bf!(check_known(&*self.client, id.clone()));
-		let res = match self.client.balance(&address, id.into()) {
+		let state = match num {
+			BlockNumber::Pending => self.miner.pending_state(info.best_block_number).or_else(|| Some(self.client.state())),
+			other => self.client.state_at(num),
+		};
+
+
+
+		try_bf!(check_known(&*self.client, num.clone()));
+		let res = match self.client.balance(&address, num.into()) {
 			Some(balance) => Ok(balance.into()),
 			None => Err(errors::state_pruned()),
 		};
