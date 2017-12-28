@@ -39,7 +39,7 @@ use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
 	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
-	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock
+	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -433,15 +433,15 @@ impl Nonce for TestBlockChainClient {
 }
 
 impl Balance for TestBlockChainClient {
-	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
-		match id {
-			BlockId::Latest => Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero)),
+	fn balance(&self, address: &Address, state: StateOrBlock) -> Option<U256> {
+		match state {
+			StateOrBlock::Block(BlockId::Latest) => Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero)),
 			_ => None,
 		}
 	}
 
 	fn latest_balance(&self, address: &Address) -> U256 {
-		self.balance(address, BlockId::Latest).unwrap()
+		self.balance(address, BlockId::Latest.into()).unwrap()
 	}
 }
 
@@ -580,9 +580,9 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
-		match id {
-			BlockId::Latest => Some(self.code.read().get(address).cloned()),
+	fn code(&self, address: &Address, state: StateOrBlock) -> Option<Option<Bytes>> {
+		match state {
+			StateOrBlock::Block(BlockId::Latest) => Some(self.code.read().get(address).cloned()),
 			_ => None,
 		}
 	}
@@ -594,9 +594,9 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256> {
-		match id {
-			BlockId::Latest => Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new)),
+	fn storage_at(&self, address: &Address, position: &H256, state: StateOrBlock) -> Option<H256> {
+		match state {
+			StateOrBlock::Block(BlockId::Latest) => Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new)),
 			_ => None,
 		}
 	}
