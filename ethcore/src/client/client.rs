@@ -1855,7 +1855,7 @@ impl MiningBlockChainClient for Client {
 		let mut open_block = OpenBlock::new(
 			engine,
 			self.factories.clone(),
-			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
+			self.tracedb.read().tracing_enabled(),
 			self.state_db.lock().boxed_clone_canon(&h),
 			best_header,
 			self.build_last_hashes(h.clone()),

@@ -427,7 +427,6 @@ impl state::Backend for StateDB {
 		cache.accounts.get_mut(addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
 	}
 
-	#[cfg_attr(feature="dev", allow(map_clone))]
 	fn get_cached_code(&self, hash: &H256) -> Option<Arc<Vec<u8>>> {
 		let mut cache = self.code_cache.lock();
 

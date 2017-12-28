@@ -469,7 +469,6 @@ impl ChainSync {
 		self.peers.clear();
 	}
 
-	#[cfg_attr(feature="dev", allow(for_kv_map))] // Because it's not possible to get `values_mut()`
 	/// Reset sync. Clear all downloaded data but keep the queue
 	fn reset(&mut self, io: &mut SyncIo) {
 		self.new_blocks.reset();
@@ -672,7 +671,6 @@ impl ChainSync {
 		Ok(())
 	}
 
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity, needless_borrow))]
 	/// Called by peer once it has new block headers during sync
 	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		let confirmed = match self.peers.get_mut(&peer_id) {
@@ -883,7 +881,6 @@ impl ChainSync {
 	}
 
 	/// Called by peer once it has new block bodies
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn on_peer_new_block(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "Ignoring new block from unconfirmed peer {}", peer_id);
@@ -1333,7 +1330,6 @@ impl ChainSync {
 	}
 
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
-	#[cfg_attr(feature="dev", allow(block_in_if_condition_stmt))]
 	fn collect_blocks(&mut self, io: &mut SyncIo, block_set: BlockSet) {
 		match block_set {
 			BlockSet::NewBlocks => {
@@ -1353,7 +1349,6 @@ impl ChainSync {
 	}
 
 	/// Request headers from a peer by block hash
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn request_headers_by_hash(&mut self, sync: &mut SyncIo, peer_id: PeerId, h: &H256, count: u64, skip: u64, reverse: bool, set: BlockSet) {
 		trace!(target: "sync", "{} <- GetBlockHeaders: {} entries starting from {}, set = {:?}", peer_id, count, h, set);
 		let mut rlp = RlpStream::new_list(4);
@@ -1368,7 +1363,6 @@ impl ChainSync {
 	}
 
 	/// Request headers from a peer by block number
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn request_fork_header_by_number(&mut self, sync: &mut SyncIo, peer_id: PeerId, n: BlockNumber) {
 		trace!(target: "sync", "{} <- GetForkHeader: at {}", peer_id, n);
 		let mut rlp = RlpStream::new_list(4);
@@ -1783,7 +1777,6 @@ impl ChainSync {
 		})
 	}
 
-	#[cfg_attr(feature="dev", allow(match_same_arms))]
 	pub fn maintain_peers(&mut self, io: &mut SyncIo) {
 		let tick = time::precise_time_ns();
 		let mut aborting = Vec::new();

@@ -14,24 +14,39 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate vergen;
-extern crate rustc_version;
+import React from 'react';
+import PropTypes from 'prop-types';
+import { observer } from 'mobx-react';
 
-use vergen::*;
-use std::env;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
+import Badge from '@parity/ui/lib/Badge';
 
-fn main() {
-	vergen(OutputFns::all()).unwrap();
-	let out_dir = env::var("OUT_DIR").unwrap();
-	let dest_path = Path::new(&out_dir).join("rustc_version.rs");
-	let mut f = File::create(&dest_path).unwrap();
-	f.write_all(format!("
-		/// Returns compiler version.
-		pub fn rustc_version() -> &'static str {{
-			\"{}\"
-		}}
-	", rustc_version::version()).as_bytes()).unwrap();
+import Store from '../../Signer/pendingStore';
+
+function SignerPending ({ className, onClick }, { api }) {
+  const store = Store.get(api);
+  const pendingCount = store.pending.length;
+
+  if (!pendingCount) {
+    return null;
+  }
+
+  return (
+    <Badge
+      color='red'
+      className={ className }
+      onClick={ onClick }
+      value={ pendingCount }
+    />
+  );
 }
+
+SignerPending.contextTypes = {
+  api: PropTypes.object.isRequired
+};
+
+SignerPending.propTypes = {
+  className: PropTypes.string,
+  onClick: PropTypes.func
+};
+
+export default observer(SignerPending);

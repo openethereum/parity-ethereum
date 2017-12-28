@@ -18,13 +18,10 @@ quasi = { version = "0.32", default-features = false }
 quasi_macros = { version = "0.32", optional = true }
 syntex = { version = "0.58", optional = true }
 syntex_syntax = { version = "0.58", optional = true }
-clippy = { version = "0.0.103", optional = true }
 
 [features]
-dev = ["clippy"]
 default = ["with-syntex"]
 nightly = ["quasi_macros"]
-nightly-testing = ["clippy"]
 with-syntex = ["quasi/with-syntex", "quasi_codegen", "quasi_codegen/with-syntex", "syntex", "syntex_syntax"]
 use-precompiled-js = []
 

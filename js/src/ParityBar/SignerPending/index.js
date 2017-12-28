@@ -14,27 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Web3 rpc implementation.
-use hash::keccak;
-use jsonrpc_core::Result;
-use version::version;
-use v1::traits::Web3;
-use v1::types::{H256, Bytes};
-
-/// Web3 rpc implementation.
-pub struct Web3Client;
-
-impl Web3Client {
-	/// Creates new Web3Client.
-	pub fn new() -> Self { Web3Client }
-}
-
-impl Web3 for Web3Client {
-	fn client_version(&self) -> Result<String> {
-		Ok(version().to_owned().replace("Parity/", "Parity//"))
-	}
-
-	fn sha3(&self, data: Bytes) -> Result<H256> {
-		Ok(keccak(&data.0).into())
-	}
-}
+export default from './signerPending';

@@ -16,23 +16,6 @@
 
 #![warn(missing_docs)]
 #![cfg_attr(feature="benches", feature(test))]
-#![cfg_attr(feature="dev", feature(plugin))]
-#![cfg_attr(feature="dev", plugin(clippy))]
-
-// Clippy settings
-// Most of the time much more readable
-#![cfg_attr(feature="dev", allow(needless_range_loop))]
-// Shorter than if-else
-#![cfg_attr(feature="dev", allow(match_bool))]
-// Keeps consistency (all lines with `.clone()`).
-#![cfg_attr(feature="dev", allow(clone_on_copy))]
-// Complains on Box<E> when implementing From<Box<E>>
-#![cfg_attr(feature="dev", allow(boxed_local))]
-// Complains about nested modules with same name as parent
-#![cfg_attr(feature="dev", allow(module_inception))]
-// TODO [todr] a lot of warnings to be fixed
-#![cfg_attr(feature="dev", allow(assign_op_pattern))]
-
 
 //! Ethcore library
 //!

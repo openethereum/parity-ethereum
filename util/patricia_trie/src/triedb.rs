@@ -57,7 +57,6 @@ pub struct TrieDB<'db> {
 	pub hash_count: usize,
 }
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl<'db> TrieDB<'db> {
 	/// Create a new trie with the backing database `db` and `root`
 	/// Returns an error if `root` does not exist

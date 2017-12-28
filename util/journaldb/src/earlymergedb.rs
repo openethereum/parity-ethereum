@@ -447,7 +447,6 @@ impl JournalDB for EarlyMergeDB {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
 		let mut refs = self.refs.as_ref().unwrap().write();
 
@@ -544,8 +543,6 @@ impl JournalDB for EarlyMergeDB {
 
 #[cfg(test)]
 mod tests {
-	#![cfg_attr(feature="dev", allow(blacklisted_name))]
-	#![cfg_attr(feature="dev", allow(similar_names))]
 
 	use keccak::keccak;
 	use hashdb::{HashDB, DBValue};

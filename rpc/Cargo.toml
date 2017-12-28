@@ -58,17 +58,13 @@ keccak-hash = { path = "../util/hash" }
 node-health = { path = "../dapps/node-health" }
 parity-reactor = { path = "../util/reactor" }
 parity-updater = { path = "../updater" }
+parity-version = { path = "../util/version" }
 rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
-
-clippy = { version = "0.0.103", optional = true}
 
 [dev-dependencies]
 pretty_assertions = "0.1"
 macros = { path = "../util/macros" }
 ethcore-network = { path = "../util/network" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }
-
-[features]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]

@@ -136,7 +136,6 @@ impl PartialOrd for TransactionOrigin {
 }
 
 impl Ord for TransactionOrigin {
-	#[cfg_attr(feature="dev", allow(match_same_arms))]
 	fn cmp(&self, other: &TransactionOrigin) -> Ordering {
 		if *other == *self {
 			return Ordering::Equal;
@@ -516,7 +515,6 @@ pub struct AccountDetails {
 const GAS_PRICE_BUMP_SHIFT: usize = 3; // 2 = 25%, 3 = 12.5%, 4 = 6.25%
 
 /// Describes the strategy used to prioritize transactions in the queue.
-#[cfg_attr(feature="dev", allow(enum_variant_names))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PrioritizationStrategy {
 	/// Use only gas price. Disregards the actual computation cost of the transaction.

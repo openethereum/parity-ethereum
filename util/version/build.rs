@@ -14,27 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Web3 rpc implementation.
-use hash::keccak;
-use jsonrpc_core::Result;
-use version::version;
-use v1::traits::Web3;
-use v1::types::{H256, Bytes};
+extern crate vergen;
+extern crate rustc_version;
 
-/// Web3 rpc implementation.
-pub struct Web3Client;
+use std::env;
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
+use vergen::{vergen, OutputFns};
 
-impl Web3Client {
-	/// Creates new Web3Client.
-	pub fn new() -> Self { Web3Client }
-}
-
-impl Web3 for Web3Client {
-	fn client_version(&self) -> Result<String> {
-		Ok(version().to_owned().replace("Parity/", "Parity//"))
-	}
-
-	fn sha3(&self, data: Bytes) -> Result<H256> {
-		Ok(keccak(&data.0).into())
-	}
+fn main() {
+	vergen(OutputFns::all()).unwrap();
+	let out_dir = env::var("OUT_DIR").unwrap();
+	let dest_path = Path::new(&out_dir).join("rustc_version.rs");
+	let mut f = File::create(&dest_path).unwrap();
+	f.write_all(format!("
+		/// Returns compiler version.
+		pub fn rustc_version() -> &'static str {{
+			\"{}\"
+		}}
+	", rustc_version::version()).as_bytes()).unwrap();
 }

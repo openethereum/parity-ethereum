@@ -111,7 +111,7 @@ impl CachedContract {
 				let do_call = |a, d| future::done(
 					self.client
 						.upgrade()
-						.ok_or("Calling contract without client".into())
+						.ok_or_else(|| "Calling contract without client".into())
 						.and_then(|c| c.call_contract(BlockId::Latest, a, d)));
 				contract.check_permissions(do_call, address, document.clone())
 					.map_err(|err| Error::Internal(err))

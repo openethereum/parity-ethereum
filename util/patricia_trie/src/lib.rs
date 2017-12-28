@@ -268,7 +268,6 @@ impl<'db> Trie for TrieKinds<'db> {
 	}
 }
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl TrieFactory {
 	/// Creates new factory.
 	pub fn new(spec: TrieSpec) -> Self {
