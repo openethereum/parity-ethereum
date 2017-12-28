@@ -1298,11 +1298,11 @@ impl BlockChainClient for Client {
 		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
 		let block = BlockId::Hash(address.block_hash);
 
-		Ok(self.replay_block_transactions(block, analytics)?.nth(address.index).unwrap())
+		const PROOF: &'static str = "The transaction address contains a valid index within block; qed";
+		Ok(self.replay_block_transactions(block, analytics)?.nth(address.index).expect(PROOF))
 	}
 
 	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
-		let mut replays = Vec::new();
 		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
 		let body = self.block_body(block).ok_or(CallError::StatePruned)?;
 		let mut state = self.state_at_beginning(block).ok_or(CallError::StatePruned)?;
@@ -1310,15 +1310,16 @@ impl BlockChainClient for Client {
 
 		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
 		const EXECUTE_PROOF: &'static str = "Transaction replayed; qed";
-		for t in txs {
-			let t = SignedTransaction::new(t).expect(PROOF);
-			let x = self.do_virtual_call(&env_info, &mut state, &t, analytics).expect(EXECUTE_PROOF);
-			env_info.gas_used = env_info.gas_used + x.gas_used;
-			replays.push(x);
-		}
 
-		Ok(Box::new(replays.into_iter()))
+		Ok(Box::new(txs.into_iter()
+			.map(|t| {
+				let t = SignedTransaction::new(t).expect(PROOF);
+				let x = self.do_virtual_call(&env_info, &mut state, &t, analytics).expect(EXECUTE_PROOF);
+				env_info.gas_used = env_info.gas_used + x.gas_used;
+				x
+			})))
 	}
+
 
 	fn mode(&self) -> IpcMode {
 		let r = self.mode.lock().clone().into();
