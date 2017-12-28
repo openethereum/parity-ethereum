@@ -31,16 +31,6 @@ use app_dirs::{AppInfo, get_app_root, AppDataType};
 // re-export platform-specific functions
 use platform::*;
 
-#[cfg(target_os = "macos")] const AUTHOR: &'static str = "Parity";
-#[cfg(target_os = "macos")] const PRODUCT: &'static str = "io.parity.ethereum";
-#[cfg(target_os = "macos")] const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
-#[cfg(target_os = "windows")] const AUTHOR: &'static str = "Parity";
-#[cfg(target_os = "windows")] const PRODUCT: &'static str = "Ethereum";
-#[cfg(target_os = "windows")] const PRODUCT_HYPERVISOR: &'static str = "EthereumUpdates";
-#[cfg(not(any(target_os = "windows", target_os = "macos")))] const AUTHOR: &'static str = "parity";
-#[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT: &'static str = "io.parity.ethereum";
-#[cfg(not(any(target_os = "windows", target_os = "macos")))] const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
-
 /// Platform-specific chains path - Windows only
 #[cfg(target_os = "windows")] pub const CHAINS_PATH: &'static str = "$LOCAL/chains";
 /// Platform-specific chains path
@@ -298,6 +288,10 @@ pub fn parity(chain: &str) -> PathBuf {
 #[cfg(target_os = "macos")]
 mod platform {
 	use std::path::PathBuf;
+	pub const AUTHOR: &'static str = "Parity";
+	pub const PRODUCT: &'static str = "io.parity.ethereum";
+	pub const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
+
 	pub fn parity_base() -> PathBuf {
 		let mut home = super::home();
 		home.push("Library");
@@ -318,6 +312,10 @@ mod platform {
 #[cfg(windows)]
 mod platform {
 	use std::path::PathBuf;
+	pub const AUTHOR: &'static str = "Parity";
+	pub const PRODUCT: &'static str = "Ethereum";
+	pub const PRODUCT_HYPERVISOR: &'static str = "EthereumUpdates";
+
 	pub fn parity_base() -> PathBuf {
 		let mut home = super::home();
 		home.push("AppData");
@@ -340,6 +338,10 @@ mod platform {
 #[cfg(not(any(target_os = "macos", windows)))]
 mod platform {
 	use std::path::PathBuf;
+	pub const AUTHOR: &'static str = "parity";
+	pub const PRODUCT: &'static str = "io.parity.ethereum";
+	pub const PRODUCT_HYPERVISOR: &'static str = "io.parity.ethereum-updates";
+
 	pub fn parity_base() -> PathBuf {
 		let mut home = super::home();
 		home.push(".local");
