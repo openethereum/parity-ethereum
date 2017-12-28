@@ -149,7 +149,7 @@ impl PersistentKeyStorage {
 	pub fn new(config: &ServiceConfiguration) -> Result<Self, Error> {
 		let mut db_path = PathBuf::from(&config.data_path);
 		db_path.push("db");
-		let db_path = db_path.to_str().ok_or(Error::Database("Invalid secretstore path".to_owned()))?;
+		let db_path = db_path.to_str().ok_or_else(|| Error::Database("Invalid secretstore path".to_owned()))?;
 
 		let db = Database::open_default(&db_path)?;
 		let db = upgrade_db(db)?;

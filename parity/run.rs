@@ -39,7 +39,7 @@ use parity_reactor::EventLoop;
 use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use updater::{UpdatePolicy, Updater};
 use ansi_term::Colour;
-use util::version;
+use parity_version::version;
 use parking_lot::{Condvar, Mutex};
 use node_filter::NodeFilter;
 use journaldb::Algorithm;

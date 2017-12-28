@@ -20,7 +20,6 @@ keccak-hash = { path = "../util/hash" }
 triehash = { path = "../util/triehash" }
 kvdb = { path = "../util/kvdb" }
 macros = { path = "../util/macros" }
-clippy = { version = "0.0.103", optional = true}
 log = "0.3"
 env_logger = "0.4"
 time = "0.1.34"
@@ -34,7 +33,3 @@ ipnetwork = "0.12.6"
 [dev-dependencies]
 ethkey = { path = "../ethkey" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }
-
-[features]
-default = []
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev"]

@@ -15,23 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="dev", feature(plugin))]
-#![cfg_attr(feature="dev", plugin(clippy))]
-
-// Clippy settings
-// Most of the time much more readable
-#![cfg_attr(feature="dev", allow(needless_range_loop))]
-// Shorter than if-else
-#![cfg_attr(feature="dev", allow(match_bool))]
-// We use that to be more explicit about handled cases
-#![cfg_attr(feature="dev", allow(match_same_arms))]
-// Keeps consistency (all lines with `.clone()`).
-#![cfg_attr(feature="dev", allow(clone_on_copy))]
-// Some false positives when doing pattern matching.
-#![cfg_attr(feature="dev", allow(needless_borrow))]
-// TODO [todr] a lot of warnings to be fixed
-#![cfg_attr(feature="dev", allow(assign_op_pattern))]
-
 
 //! Ethcore-util library
 //!
@@ -87,33 +70,10 @@
 //!   cargo build --release
 //!   ```
 
-extern crate rustc_hex;
-extern crate env_logger;
-extern crate secp256k1;
-extern crate elastic_array;
-extern crate libc;
-extern crate target_info;
 extern crate ethcore_bigint as bigint;
-extern crate ethcore_bytes as bytes;
-extern crate parking_lot;
-extern crate tiny_keccak;
-extern crate rlp;
-extern crate heapsize;
-extern crate ethcore_logger;
-extern crate keccak_hash as keccak;
 extern crate hashdb;
 extern crate memorydb;
-extern crate patricia_trie as trie;
-extern crate kvdb;
-extern crate util_error as error;
 
-#[cfg(test)]
-extern crate kvdb_memorydb;
-
-
-pub mod misc;
-
-pub use misc::*;
 pub use hashdb::*;
 pub use memorydb::MemoryDB;
 
