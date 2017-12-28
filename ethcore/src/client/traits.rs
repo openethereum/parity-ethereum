@@ -32,6 +32,7 @@ use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
+use state::StateInfo;
 
 use bigint::prelude::U256;
 use bigint::hash::H256;
@@ -60,6 +61,28 @@ pub trait Nonce {
 			.expect("nonce will return Some when given BlockId::Latest. nonce was given BlockId::Latest. \
 			Therefore nonce has returned Some; qed")
 	}
+}
+
+pub enum StateOrBlock {
+	State(Box<StateInfo>),
+	Block(BlockId)
+}
+
+impl From<Box<StateInfo>> for StateOrBlock {
+	fn from(info: Box<StateInfo>) -> StateOrBlock {
+		StateOrBlock::State(info)
+	}
+}
+
+impl From<BlockId> for StateOrBlock {
+	fn from(id: BlockId) -> StateOrBlock {
+		StateOrBlock::Block(id)
+	}
+}
+
+pub trait BlockChain {
+	fn get_balance<S: Into<StateOrBlock>>(&self, address: &Address, state: S) -> Option<U256>;
+	fn get_state(&self) -> Box<StateInfo>;
 }
 
 /// Provides `balance` and `latest_balance` methods
