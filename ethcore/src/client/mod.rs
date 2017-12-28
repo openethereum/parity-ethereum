@@ -33,6 +33,7 @@ pub use self::chain_notify::ChainNotify;
 pub use self::traits::{
     Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, CallContract, TransactionInfo, RegistryInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock
 };
+pub use state::StateInfo;
 pub use self::traits::{BlockChainClient, MiningBlockChainClient, EngineClient, ProvingBlockChainClient};
 
 pub use types::ids::*;
