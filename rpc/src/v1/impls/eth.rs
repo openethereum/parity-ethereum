@@ -30,7 +30,7 @@ use parking_lot::Mutex;
 use ethash::SeedHashCompute;
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::block::IsBlock;
-use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId, BlockChain, StateOrBlock};
+use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient};
 use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
@@ -90,7 +90,7 @@ impl Default for EthClientOptions {
 
 /// Eth rpc implementation.
 pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
-	C: MiningBlockChainClient + BlockChain,
+	C: MiningBlockChainClient,
 	SN: SnapshotService,
 	S: SyncProvider,
 	M: MinerService,
@@ -108,7 +108,7 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 }
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
-	C: MiningBlockChainClient + BlockChain,
+	C: MiningBlockChainClient + StateClient,
 	SN: SnapshotService,
 	S: SyncProvider,
 	M: MinerService,
@@ -250,16 +250,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 				let info = self.client.chain_info();
 				let pending_state = self.miner.pending_state(info.best_block_number);
 
-				pending_state.unwrap_or(self.client.get_state()).into()
+				pending_state.unwrap_or(self.client.latest_state()).into()
 			}
 		}
 	}
 
 	fn number_to_id(number: BlockNumber) -> BlockId {
 		match number {
-			BlockNumber::Num(num) => BlockId::Number(num).into(),
-			BlockNumber::Earliest => BlockId::Earliest.into(),
-			BlockNumber::Latest => BlockId::Latest.into(),
+			BlockNumber::Num(num) => BlockId::Number(num),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
 
 			BlockNumber::Pending => unreachable!("`BlockNumber::Pending` should be handled manually")
 		}
@@ -305,7 +305,7 @@ fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: Mining
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
-	C: MiningBlockChainClient + BlockChain + 'static,
+	C: MiningBlockChainClient + StateClient + 'static,
 	SN: SnapshotService + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService + 'static,
@@ -390,7 +390,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let num = num.unwrap_or_default();
 
 		try_bf!(check_known(&*self.client, num.clone()));
-		let res = match self.client.get_balance(&address, self.get_state(num)) {
+		let res = match self.client.balance(&address, self.get_state(num)) {
 			Some(balance) => Ok(balance.into()),
 			None => Err(errors::state_pruned()),
 		};
@@ -405,7 +405,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let num = num.unwrap_or_default();
 
 		try_bf!(check_known(&*self.client, num.clone()));
-		let res = match self.client.get_storage_at(&address, &H256::from(position), self.get_state(num)) {
+		let res = match self.client.storage_at(&address, &H256::from(position), self.get_state(num)) {
 			Some(s) => Ok(s.into()),
 			None => Err(errors::state_pruned()),
 		};
@@ -475,7 +475,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let num = num.unwrap_or_default();
 		try_bf!(check_known(&*self.client, num.clone()));
 
-		let res = match self.client.get_code(&address, self.get_state(num)) {
+		let res = match self.client.code(&address, self.get_state(num)) {
 			Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
 			None => Err(errors::state_pruned()),
 		};
