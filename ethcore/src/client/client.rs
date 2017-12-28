@@ -40,7 +40,8 @@ use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock
+	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
+	StateOrBlock, StateInfo
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -1286,6 +1287,19 @@ impl Nonce for Client {
 impl Balance for Client {
 	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
 		self.state_at(id).and_then(|s| s.balance(address).ok())
+	}
+}
+
+impl client::BlockChain for Client {
+	fn get_balance<S: Into<StateOrBlock>>(&self, address: &Address, state: S) -> Option<U256> {
+		match state.into() {
+			StateOrBlock::State(s) => s.balance(address).ok(),
+			StateOrBlock::Block(id) => self.state_at(id).and_then(|s| s.balance(address).ok())
+		}
+	}
+
+	fn get_state(&self) -> Box<StateInfo> {
+		Box::new(self.state()) as Box<StateInfo>
 	}
 }
 
