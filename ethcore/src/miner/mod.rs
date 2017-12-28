@@ -61,6 +61,7 @@ pub use client::{
 	PrepareOpenBlock, ReopenBlock, ScheduleInfo, BroadcastProposalBlock, ImportSealedBlock
 };
 pub use client::TransactionImportResult;
+pub use state::StateInfo;
 pub use self::work_notify::NotifyWork;
 pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOptions};
 
@@ -199,7 +200,7 @@ pub trait MinerService : Send + Sync {
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { 21000.into() }
 
-	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<::state::State<::state_db::StateDB>>;
+	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Box<StateInfo>>;
 }
 
 /// Mining status

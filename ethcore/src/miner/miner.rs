@@ -26,7 +26,7 @@ use bytes::Bytes;
 use timer::PerfTimer;
 use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
-use state::State;
+use state::{State, StateInfo};
 use client::{
 	Nonce, Balance, BlockInfo, ChainInfo, TransactionInfo, CallContract, RegistryInfo,
 	PrepareOpenBlock, ReopenBlock, ScheduleInfo, BroadcastProposalBlock, ImportSealedBlock
@@ -1205,8 +1205,8 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<State<::state_db::StateDB>> {
-		Miner::pending_state(self, latest_block_number)
+	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Box<StateInfo>> {
+		Miner::pending_state(self, latest_block_number).map(|s| Box::new(s) as Box<StateInfo>)
 	}
 }
 
