@@ -41,7 +41,7 @@ use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
-	StateOrBlock, StateInfo
+	StateOrBlock, StateInfo, StateClient
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -1389,6 +1389,12 @@ impl ImportBlock for Client {
 		}
 
 		self.importer.import_old_block(block_bytes, receipts_bytes, &**self.db.read(), &*self.chain.read()).map_err(Into::into)
+	}
+}
+
+impl StateClient for Client {
+	fn latest_state(&self) -> Box<StateInfo> {
+		Client::state(self)
 	}
 }
 

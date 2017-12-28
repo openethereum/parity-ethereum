@@ -142,6 +142,12 @@ pub trait ImportBlock {
 	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
 }
 
+/// Provides methods to access chain state
+pub trait StateClient {
+	/// Get a copy of the best block's state.
+	fn latest_state(&self) -> Box<StateInfo>;
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockInfo + CallContract + TransactionInfo + RegistryInfo + ImportBlock {
 	/// Look up the block number for the given block ID.
