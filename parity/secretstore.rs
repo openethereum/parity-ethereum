@@ -17,10 +17,10 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use dir::default_data_path;
+use dir::helpers::replace_home;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
 use ethkey::{Secret, Public};
-use helpers::replace_home;
 use util::Address;
 
 #[derive(Debug, PartialEq, Clone)]

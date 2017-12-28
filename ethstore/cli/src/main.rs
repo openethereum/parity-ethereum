@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate dir;
 extern crate docopt;
 extern crate ethstore;
 extern crate num_cpus;
@@ -30,7 +31,7 @@ use std::io::Read;
 use std::{env, process, fs, fmt};
 
 use docopt::Docopt;
-use ethstore::dir::{paths, KeyDirectory, RootDiskDirectory};
+use ethstore::accounts_dir::{KeyDirectory, RootDiskDirectory};
 use ethstore::ethkey::Address;
 use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, PresaleWallet, SecretVaultRef, StoreAccountRef};
 
@@ -157,11 +158,11 @@ fn main() {
 
 fn key_dir(location: &str) -> Result<Box<KeyDirectory>, Error> {
 	let dir: Box<KeyDirectory> = match location {
-		"geth" => Box::new(RootDiskDirectory::create(paths::geth(false))?),
-		"geth-test" => Box::new(RootDiskDirectory::create(paths::geth(true))?),
+		"geth" => Box::new(RootDiskDirectory::create(dir::geth(false))?),
+		"geth-test" => Box::new(RootDiskDirectory::create(dir::geth(true))?),
 		path if path.starts_with("parity") => {
 			let chain = path.split('-').nth(1).unwrap_or("ethereum");
-			let path = paths::parity(chain);
+			let path = dir::parity(chain);
 			Box::new(RootDiskDirectory::create(path)?)
 		},
 		path => Box::new(RootDiskDirectory::create(path)?),

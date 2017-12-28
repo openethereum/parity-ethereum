@@ -18,13 +18,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use dir::default_data_path;
+use dir::helpers::replace_home;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethcore::transaction::{Transaction, Action};
 use ethsync::LightSync;
 use futures::{future, IntoFuture, Future};
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
-use helpers::replace_home;
 use light::client::LightChainClient;
 use light::on_demand::{self, OnDemand};
 use node_health::{SyncStatus, NodeHealth};
