@@ -121,7 +121,7 @@ mod server {
 					// Attempt to sign in the engine signer.
 					let password = deps.accounts_passwords.iter()
 						.find(|p| deps.account_provider.sign(account.clone(), Some((*p).clone()), Default::default()).is_ok())
-						.ok_or(format!("No valid password for the secret store node account {}", account))?;
+						.ok_or_else(|| format!("No valid password for the secret store node account {}", account))?;
 					Arc::new(ethcore_secretstore::KeyStoreNodeKeyPair::new(deps.account_provider, account, password.clone())
 						.map_err(|e| format!("{}", e))?)
 				},

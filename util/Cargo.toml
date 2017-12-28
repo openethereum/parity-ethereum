@@ -5,41 +5,15 @@ license = "GPL-3.0"
 name = "ethcore-util"
 version = "1.9.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
 
 [dependencies]
-log = "0.3"
-env_logger = "0.4"
-rustc-hex = "1.0"
-eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
-elastic-array = "0.9"
-rlp = { path = "rlp" }
-heapsize = "0.4"
-keccak-hash = { path = "hash" }
-clippy = { version = "0.0.103", optional = true}
-libc = "0.2.7"
-target_info = "0.1"
 ethcore-bigint = { path = "bigint", features = ["heapsizeof"] }
-parking_lot = "0.4"
-tiny-keccak= "1.0"
-ethcore-logger = { path = "../logger" }
-triehash = { path = "triehash" }
 hashdb = { path = "hashdb" }
-patricia-trie = { path = "patricia_trie" }
-ethcore-bytes = { path = "bytes" }
 memorydb = { path = "memorydb" }
-util-error = { path = "error" }
-kvdb = { path = "kvdb" }
-journaldb = { path = "journaldb" }
 
 [dev-dependencies]
-kvdb-memorydb = { path = "kvdb-memorydb" }
-
-[features]
-default = []
-dev = ["clippy"]
-final = []
-
-[build-dependencies]
-vergen = "0.1"
-rustc_version = "0.1.0"
+ethcore-bytes = { path = "bytes" }
+keccak-hash = { path = "hash" }
+log = "0.3"
+patricia-trie = { path = "patricia_trie" }
+triehash = { path = "triehash" }

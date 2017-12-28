@@ -16,9 +16,13 @@
 
 //! Diff misc.
 
-use rlp::RlpStream;
+extern crate target_info;
+extern crate ethcore_bytes as bytes;
+extern crate rlp;
+
 use target_info::Target;
 use bytes::Bytes;
+use rlp::RlpStream;
 
 include!(concat!(env!("OUT_DIR"), "/version.rs"));
 include!(concat!(env!("OUT_DIR"), "/rustc_version.rs"));
@@ -30,15 +34,6 @@ const THIS_TRACK: &'static str = "nightly";
 #[cfg(not(feature = "final"))]
 const THIS_TRACK: &'static str = "unstable";
 // ^^^ This gets used when we're not building a final release; should stay as "unstable".
-
-/// Boolean type for clean/dirty status.
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub enum Filth {
-	/// Data has not been changed.
-	Clean,
-	/// Data has been changed.
-	Dirty,
-}
 
 /// Get the platform identifier.
 pub fn platform() -> String {

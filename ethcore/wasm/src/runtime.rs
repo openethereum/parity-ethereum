@@ -104,6 +104,7 @@ pub struct RuntimeContext {
 	pub address: Address,
 	pub sender: Address,
 	pub origin: Address,
+	pub code_address: Address,
 	pub value: U256,
 }
 
@@ -305,6 +306,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		//
 		// method signature:
 		// fn (
+		//  gas: i64,
 		// 	address: *const u8,
 		// 	val_ptr: *const u8,
 		// 	input_ptr: *const u8,
@@ -323,6 +325,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		//
 		// signature (same as static call):
 		// fn (
+		//  gas: i64,
 		// 	address: *const u8,
 		// 	input_ptr: *const u8,
 		// 	input_len: u32,
@@ -330,7 +333,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		// 	result_len: u32,
 		// ) -> i32
 
-		self.do_call(false, CallType::CallCode, context)
+		self.do_call(false, CallType::DelegateCall, context)
 	}
 
 	fn do_call(
@@ -363,6 +366,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let address = self.pop_address(&mut context)?;
 		trace!(target: "wasm", "       address: {:?}", address);
 
+		let gas = context.value_stack.pop_as::<i64>()? as u64;
+		trace!(target: "wasm", "           gas: {:?}", gas);
+
 		if let Some(ref val) = val {
 			let address_balance = self.ext.balance(&self.context.address)
 				.map_err(|_| UserTrap::BalanceQueryError)?;
@@ -377,16 +383,16 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		let mut result = Vec::with_capacity(result_alloc_len as usize);
 		result.resize(result_alloc_len as usize, 0);
-		let gas = self.gas_left()
-			.map_err(|_| UserTrap::InvalidGasState)?
-			.into();
+
 		// todo: optimize to use memory views once it's in
 		let payload = self.memory.get(input_ptr, input_len as usize)?;
 
+		self.charge(|_| gas.into())?;
+
 		let call_result = self.ext.call(
-			&gas,
-			&self.context.sender,
-			&self.context.address,
+			&gas.into(),
+			match call_type { CallType::DelegateCall => &self.context.sender, _ => &self.context.address },
+			match call_type { CallType::Call | CallType::StaticCall => &address, _ => &self.context.address },
 			val,
 			&payload,
 			&address,
@@ -396,12 +402,16 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		match call_result {
 			vm::MessageCallResult::Success(gas_left, _) => {
-				self.gas_counter = self.gas_limit - gas_left.low_u64();
+				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
+				self.gas_counter = self.gas_counter - gas_left.low_u64();
+
 				self.memory.set(result_ptr, &result)?;
 				Ok(Some(0i32.into()))
 			},
 			vm::MessageCallResult::Reverted(gas_left, _) => {
-				self.gas_counter = self.gas_limit - gas_left.low_u64();
+				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
+				self.gas_counter = self.gas_counter - gas_left.low_u64();
+
 				self.memory.set(result_ptr, &result)?;
 				Ok(Some((-1i32).into()))
 			},
@@ -416,6 +426,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	{
 		// signature (same as code call):
 		// fn (
+		//  gas: i64,
 		// 	address: *const u8,
 		// 	input_ptr: *const u8,
 		// 	input_len: u32,

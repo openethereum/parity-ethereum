@@ -970,7 +970,6 @@ impl BlockChain {
 		self.cache_man.lock().note_used(CacheId::BlockDetails(block_hash));
 	}
 
-	#[cfg_attr(feature="dev", allow(similar_names))]
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
@@ -1475,7 +1474,6 @@ impl BlockChain {
 
 #[cfg(test)]
 mod tests {
-	#![cfg_attr(feature="dev", allow(similar_names))]
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
@@ -1583,7 +1581,6 @@ mod tests {
 	}
 
 	#[test]
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn test_find_uncles() {
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
@@ -1793,7 +1790,6 @@ mod tests {
 	}
 
 	#[test]
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn test_small_fork() {
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();

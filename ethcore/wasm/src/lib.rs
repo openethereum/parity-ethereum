@@ -111,6 +111,7 @@ impl vm::Vm for WasmInterpreter {
 				address: params.address,
 				sender: params.sender,
 				origin: params.origin,
+				code_address: params.code_address,
 				value: params.value.value(),
 			},
 			&self.program,

@@ -25,7 +25,8 @@ use cli::{Args, ArgsError};
 use hash::keccak;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{version_data, Address, version};
+use util::Address;
+use parity_version::{version_data, version};
 use bytes::Bytes;
 use ansi_term::Colour;
 use ethsync::{NetworkConfiguration, validate_node_url, self};
@@ -484,6 +485,7 @@ impl Configuration {
 	fn accounts_config(&self) -> Result<AccountsConfig, String> {
 		let cfg = AccountsConfig {
 			iterations: self.args.arg_keys_iterations,
+			refresh_time: self.args.arg_accounts_refresh,
 			testnet: self.args.flag_testnet,
 			password_files: self.args.arg_password.clone(),
 			unlocked_accounts: to_addresses(&self.args.arg_unlock)?,
@@ -773,13 +775,19 @@ impl Configuration {
 		apis.join(",")
 	}
 
-	fn cors(cors: Option<&String>) -> Option<Vec<String>> {
-		cors.map(|ref c| c.split(',').map(Into::into).collect())
+	fn cors(cors: &str) -> Option<Vec<String>> {
+		match cors {
+			"none" => return Some(Vec::new()),
+			"*" | "all" | "any" => return None,
+			_ => {},
+		}
+
+		Some(cors.split(',').map(Into::into).collect())
 	}
 
 	fn rpc_cors(&self) -> Option<Vec<String>> {
-		let cors = self.args.arg_jsonrpc_cors.as_ref().or(self.args.arg_rpccorsdomain.as_ref());
-		Self::cors(cors)
+		let cors = self.args.arg_rpccorsdomain.clone().unwrap_or_else(|| self.args.arg_jsonrpc_cors.to_owned());
+		Self::cors(&cors)
 	}
 
 	fn ipfs_cors(&self) -> Option<Vec<String>> {
@@ -1456,7 +1464,7 @@ mod tests {
 			assert_eq!(net.rpc_enabled, true);
 			assert_eq!(net.rpc_interface, "0.0.0.0".to_owned());
 			assert_eq!(net.rpc_port, 8000);
-			assert_eq!(conf.rpc_cors(), Some(vec!["*".to_owned()]));
+			assert_eq!(conf.rpc_cors(), None);
 			assert_eq!(conf.rpc_apis(), "web3,eth".to_owned());
 		}
 
@@ -1523,8 +1531,8 @@ mod tests {
 		let conf2 = parse(&["parity", "--ipfs-api-cors", "http://parity.io,http://something.io"]);
 
 		// then
-		assert_eq!(conf0.ipfs_cors(), None);
-		assert_eq!(conf1.ipfs_cors(), Some(vec!["*".into()]));
+		assert_eq!(conf0.ipfs_cors(), Some(vec![]));
+		assert_eq!(conf1.ipfs_cors(), None);
 		assert_eq!(conf2.ipfs_cors(), Some(vec!["http://parity.io".into(),"http://something.io".into()]));
 	}
 

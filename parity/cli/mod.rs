@@ -335,6 +335,10 @@ usage! {
 			"--keys-iterations=[NUM]",
 			"Specify the number of iterations to use when deriving key from the password (bigger is more secure)",
 
+			ARG arg_accounts_refresh: (u64) = 5u64, or |c: &Config| otry!(c.account).refresh_time.clone(),
+			"--accounts-refresh=[TIME]",
+			"Specify the cache time of accounts read from disk. If you manage thousands of accounts set this to 0 to disable refresh.",
+
 			ARG arg_unlock: (Option<String>) = None, or |c: &Config| otry!(c.account).unlock.as_ref().map(|vec| vec.join(",")),
 			"--unlock=[ACCOUNTS]",
 			"Unlock ACCOUNTS for the duration of the execution. ACCOUNTS is a comma-delimited list of addresses. Implies --no-ui.",
@@ -462,9 +466,9 @@ usage! {
 			"--jsonrpc-threads=[THREADS]",
 			"Turn on additional processing threads in all RPC servers. Setting this to non-zero value allows parallel cpu-heavy queries execution.",
 
-			ARG arg_jsonrpc_cors: (Option<String>) = None, or |c: &Config| otry!(c.rpc).cors.clone(),
+			ARG arg_jsonrpc_cors: (String) = "none", or |c: &Config| otry!(c.rpc).cors.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-cors=[URL]",
-			"Specify CORS header for JSON-RPC API responses.",
+			"Specify CORS header for JSON-RPC API responses. Special options: \"all\", \"none\".",
 
 			ARG arg_jsonrpc_server_threads: (Option<usize>) = None, or |c: &Config| otry!(c.rpc).server_threads,
 			"--jsonrpc-server-threads=[NUM]",
@@ -534,9 +538,9 @@ usage! {
 			"--ipfs-api-hosts=[HOSTS]",
 			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\".",
 
-			ARG arg_ipfs_api_cors: (Option<String>) = None, or |c: &Config| otry!(c.ipfs).cors.clone(),
+			ARG arg_ipfs_api_cors: (String) = "none", or |c: &Config| otry!(c.ipfs).cors.as_ref().map(|vec| vec.join(",")),
 			"--ipfs-api-cors=[URL]",
-			"Specify CORS header for IPFS API responses.",
+			"Specify CORS header for IPFS API responses. Special options: \"all\", \"none\".",
 
 		["Secret store options"]
 			FLAG flag_no_secretstore: (bool) = false, or |c: &Config| otry!(c.secretstore).disable.clone(),
@@ -1009,6 +1013,7 @@ struct Account {
 	unlock: Option<Vec<String>>,
 	password: Option<Vec<String>>,
 	keys_iterations: Option<u32>,
+	refresh_time: Option<u64>,
 	disable_hardware: Option<bool>,
 	fast_unlock: Option<bool>,
 }
@@ -1047,7 +1052,7 @@ struct Rpc {
 	disable: Option<bool>,
 	port: Option<u16>,
 	interface: Option<String>,
-	cors: Option<String>,
+	cors: Option<Vec<String>>,
 	apis: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
 	server_threads: Option<usize>,
@@ -1103,7 +1108,7 @@ struct Ipfs {
 	enable: Option<bool>,
 	port: Option<u16>,
 	interface: Option<String>,
-	cors: Option<String>,
+	cors: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
 }
 
@@ -1428,6 +1433,7 @@ mod tests {
 			arg_unlock: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_password: vec!["~/.safe/password.file".into()],
 			arg_keys_iterations: 10240u32,
+			arg_accounts_refresh: 5u64,
 			flag_no_hardware_wallets: false,
 			flag_fast_unlock: false,
 
@@ -1462,7 +1468,7 @@ mod tests {
 			flag_no_jsonrpc: false,
 			arg_jsonrpc_port: 8545u16,
 			arg_jsonrpc_interface: "local".into(),
-			arg_jsonrpc_cors: Some("null".into()),
+			arg_jsonrpc_cors: "null".into(),
 			arg_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			arg_jsonrpc_hosts: "none".into(),
 			arg_jsonrpc_server_threads: None,
@@ -1501,7 +1507,7 @@ mod tests {
 			flag_ipfs_api: false,
 			arg_ipfs_api_port: 5001u16,
 			arg_ipfs_api_interface: "local".into(),
-			arg_ipfs_api_cors: Some("null".into()),
+			arg_ipfs_api_cors: "null".into(),
 			arg_ipfs_api_hosts: "none".into(),
 
 			// -- Sealing/Mining Options
@@ -1665,6 +1671,7 @@ mod tests {
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
 				password: Some(vec!["passwdfile path".into()]),
 				keys_iterations: None,
+				refresh_time: None,
 				disable_hardware: None,
 				fast_unlock: None,
 			}),
