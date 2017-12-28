@@ -80,24 +80,17 @@ impl From<BlockId> for StateOrBlock {
 	}
 }
 
-pub trait BlockChain {
-	fn get_balance<S: Into<StateOrBlock>>(&self, address: &Address, state: S) -> Option<U256>;
-	fn get_storage_at<S: Into<StateOrBlock>>(&self, address: &Address, position: &H256, state: S) -> Option<H256>;
-	fn get_code<S: Into<StateOrBlock>>(&self, address: &Address, state: S) -> Option<Option<Bytes>>;
-	fn get_state(&self) -> Box<StateInfo>;
-}
-
 /// Provides `balance` and `latest_balance` methods
 pub trait Balance {
 	/// Get address balance at the given block's state.
 	///
 	/// May not return None if given BlockId::Latest.
 	/// Returns None if and only if the block's root hash has been pruned from the DB.
-	fn balance(&self, address: &Address, id: BlockId) -> Option<U256>;
+	fn balance(&self, address: &Address, state: StateOrBlock) -> Option<U256>;
 
 	/// Get address balance at the latest block's state.
 	fn latest_balance(&self, address: &Address) -> U256 {
-		self.balance(address, BlockId::Latest)
+		self.balance(address, BlockId::Latest.into())
 			.expect("balance will return Some if given BlockId::Latest. balance was given BlockId::Latest \
 			Therefore balance has returned Some; qed")
 	}
@@ -175,11 +168,11 @@ pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockIn
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
 	/// Get address code at given block's state.
-	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>>;
+	fn code(&self, address: &Address, state: StateOrBlock) -> Option<Option<Bytes>>;
 
 	/// Get address code at the latest block's state.
 	fn latest_code(&self, address: &Address) -> Option<Bytes> {
-		self.code(address, BlockId::Latest)
+		self.code(address, BlockId::Latest.into())
 			.expect("code will return Some if given BlockId::Latest; qed")
 	}
 
@@ -190,11 +183,11 @@ pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockIn
 	///
 	/// May not return None if given BlockId::Latest.
 	/// Returns None if and only if the block's root hash has been pruned from the DB.
-	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256>;
+	fn storage_at(&self, address: &Address, position: &H256, state: StateOrBlock) -> Option<H256>;
 
 	/// Get value of the storage at given position at the latest block's state.
 	fn latest_storage_at(&self, address: &Address, position: &H256) -> H256 {
-		self.storage_at(address, position, BlockId::Latest)
+		self.storage_at(address, position, BlockId::Latest.into())
 			.expect("storage_at will return Some if given BlockId::Latest. storage_at was given BlockId::Latest. \
 			Therefore storage_at has returned Some; qed")
 	}

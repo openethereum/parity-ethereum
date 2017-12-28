@@ -39,7 +39,7 @@ use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};
 use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
-use client::{ self,
+use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
 	StateOrBlock, StateInfo
 };
@@ -998,6 +998,17 @@ impl Client {
 		*self.io_channel.lock() = io_channel;
 	}
 
+	/// Get a copy of the best block's state.
+	pub fn latest_state(&self) -> State<StateDB> {
+		let header = self.best_block_header();
+		State::from_existing(
+			self.state_db.lock().boxed_clone_canon(&header.hash()),
+			header.state_root(),
+			self.engine.account_start_nonce(header.number()),
+			self.factories.clone())
+		.expect("State root of best block header always valid.")
+	}
+
 	/// Attempt to get a copy of a specific block's final state.
 	///
 	/// This will not fail if given BlockId::Latest.
@@ -1006,7 +1017,7 @@ impl Client {
 	pub fn state_at(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
 		match id.clone() {
-			BlockId::Latest => return Some(self.state()),
+			BlockId::Latest => return Some(self.latest_state()),
 			_ => {},
 		}
 
@@ -1043,14 +1054,8 @@ impl Client {
 	}
 
 	/// Get a copy of the best block's state.
-	pub fn state(&self) -> State<StateDB> {
-		let header = self.best_block_header();
-		State::from_existing(
-			self.state_db.lock().boxed_clone_canon(&header.hash()),
-			header.state_root(),
-			self.engine.account_start_nonce(header.number()),
-			self.factories.clone())
-		.expect("State root of best block header always valid.")
+	pub fn state(&self) -> Box<StateInfo> {
+		Box::new(self.latest_state()) as Box<StateInfo>
 	}
 
 	/// Get info on the cache.
@@ -1285,38 +1290,11 @@ impl Nonce for Client {
 }
 
 impl Balance for Client {
-	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
-		self.state_at(id).and_then(|s| s.balance(address).ok())
-	}
-}
-
-impl client::BlockChain for Client {
-	fn get_balance<S: Into<StateOrBlock>>(&self, address: &Address, state: S) -> Option<U256> {
-		match state.into() {
+	fn balance(&self, address: &Address, state: StateOrBlock) -> Option<U256> {
+		match state {
 			StateOrBlock::State(s) => s.balance(address).ok(),
 			StateOrBlock::Block(id) => self.state_at(id).and_then(|s| s.balance(address).ok())
 		}
-	}
-
-	fn get_storage_at<S: Into<StateOrBlock>>(&self, address: &Address, position: &H256, state: S) -> Option<H256> {
-		match state.into() {
-			StateOrBlock::State(s) => s.storage_at(address, position).ok(),
-			StateOrBlock::Block(id) => self.state_at(id).and_then(|s| s.storage_at(address, position).ok())
-		}
-	}
-
-	fn get_code<S: Into<StateOrBlock>>(&self, address: &Address, state: S) -> Option<Option<Bytes>> {
-		let result = match state.into() {
-			StateOrBlock::State(s) => s.code(address).ok(),
-			StateOrBlock::Block(id) => self.state_at(id).and_then(|s| s.code(address).ok())
-		};
-
-		// Converting from `Option<Option<Arc<Bytes>>>` to `Option<Option<Bytes>>`
-		result.map(|c| c.map(|c| (&*c).clone()))
-	}
-
-	fn get_state(&self) -> Box<StateInfo> {
-		Box::new(self.state()) as Box<StateInfo>
 	}
 }
 
@@ -1613,16 +1591,25 @@ impl BlockChainClient for Client {
 		Self::block_hash(&chain, id)
 	}
 
-	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
-		self.state_at(id).and_then(|s| s.code(address).ok()).map(|c| c.map(|c| (&*c).clone()))
+	fn code(&self, address: &Address, state: StateOrBlock) -> Option<Option<Bytes>> {
+		let result = match state {
+			StateOrBlock::State(s) => s.code(address).ok(),
+			StateOrBlock::Block(id) => self.state_at(id).and_then(|s| s.code(address).ok())
+		};
+
+		// Converting from `Option<Option<Arc<Bytes>>>` to `Option<Option<Bytes>>`
+		result.map(|c| c.map(|c| (&*c).clone()))
 	}
 
 	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
 		self.state_at(id).and_then(|s| s.code_hash(address).ok())
 	}
 
-	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256> {
-		self.state_at(id).and_then(|s| s.storage_at(address, position).ok())
+	fn storage_at(&self, address: &Address, position: &H256, state: StateOrBlock) -> Option<H256> {
+		match state {
+			StateOrBlock::State(s) => s.storage_at(address, position).ok(),
+			StateOrBlock::Block(id) => self.state_at(id).and_then(|s| s.storage_at(address, position).ok())
+		}
 	}
 
 	fn list_accounts(&self, id: BlockId, after: Option<&Address>, count: u64) -> Option<Vec<Address>> {
