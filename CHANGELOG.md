@@ -6,22 +6,22 @@ Note: The default value of `--jsonrpc-cors` option has been altered to disallow 
 
 The full list of included changes:
 
-- Beta Backports (#7297)
-  - New warp enodes (#7287)
+- Beta Backports ([#7297](https://github.com/paritytech/parity/pull/7297))
+  - New warp enodes ([#7287](https://github.com/paritytech/parity/pull/7287))
     - New warp enodes
     - Added one more warp enode; replaced spaces with tabs
     - Bump beta to 1.8.5
     - Update kovan boot nodes
-  - Detect different node, same-key signing in aura (#7245)
+  - Detect different node, same-key signing in aura ([#7245](https://github.com/paritytech/parity/pull/7245))
     - Detect different node, same-key signing in aura
     - Reduce scope of warning
     - Fix Cargo.lock
     - Updating mainnet bootnodes.
-  - Update bootnodes (#7363)
+  - Update bootnodes ([#7363](https://github.com/paritytech/parity/pull/7363))
     - Updating mainnet bootnodes.
     - Add additional parity-beta bootnodes.
     - Restore old parity bootnodes and update foudation bootnodes
-- Fix default CORS. (#7388)
+- Fix default CORS. ([#7388](https://github.com/paritytech/parity/pull/7388))
 
 ## Parity [v1.8.4](https://github.com/paritytech/parity/releases/tag/v1.8.4) (2017-12-12)
 
