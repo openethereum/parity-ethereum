@@ -46,7 +46,7 @@ pub fn generate_module(struct_name: &str, abi: &str) -> Result<String, Error> {
 	Ok(format!(r##"
 use byteorder::{{BigEndian, ByteOrder}};
 use futures::{{future, Future, IntoFuture}};
-use ethabi::{{Contract, Token, Event}};
+use ethabi::{{Bytes, Contract, Token, Event}};
 use bigint;
 
 type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
@@ -96,7 +96,7 @@ fn generate_functions(contract: &Contract) -> Result<String, Error> {
 		let inputs: Vec<_> = function.inputs.iter().map(|i| i.kind.clone()).collect();
 		let outputs: Vec<_> = function.outputs.iter().map(|i| i.kind.clone()).collect();
 
-		let (input_params, to_tokens) = input_params_codegen(&inputs)
+		let (input_params, input_names, to_tokens) = input_params_codegen(&inputs)
 			.map_err(|bad_type| Error::UnsupportedType(name.clone(), bad_type))?;
 
 		let (output_type, decode_outputs) = output_params_codegen(&outputs)
@@ -113,14 +113,14 @@ pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, 
 	    U: IntoFuture<Item=Vec<u8>, Error=String>,
 		U::Future: Send + 'static
 {{
+	let call_addr = self.address;
+	let call_future = match self.encode_{snake_name}_input({params_names}) {{
+		Ok(call_data) => (call)(call_addr, call_data),
+		Err(e) => return Box::new(future::err(e)),
+	}};
+
 	let function = self.contract.function(r#"{abi_name}"#)
 		.expect("function existence checked at compile-time; qed").clone();
-	let call_addr = self.address;
-
-	let call_future = match function.encode_input(&{to_tokens}) {{
-		Ok(call_data) => (call)(call_addr, call_data),
-		Err(e) => return Box::new(future::err(format!("Error encoding call: {{:?}}", e))),
-	}};
 
 	Box::new(call_future
 		.into_future()
@@ -128,12 +128,22 @@ pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, 
 		.map(Vec::into_iter)
 		.and_then(|mut outputs| {decode_outputs}))
 }}
+
+/// Encode "{abi_name}" function arguments.
+/// Arguments: {abi_inputs:?}
+pub fn encode_{snake_name}_input(&self, {params}) -> Result<Vec<u8>, String> {{
+	self.contract.function(r#"{abi_name}"#)
+		.expect("function existence checked at compile-time; qed")
+		.encode_input(&{to_tokens})
+		.map_err(|e| format!("Error encoding call: {{:?}}", e))
+}}
 	"##,
 		abi_name = name,
 		abi_inputs = inputs,
 		abi_outputs = outputs,
 		snake_name = snake_name,
 		params = input_params,
+		params_names = input_names,
 		output_type = output_type,
 		to_tokens = to_tokens,
 		decode_outputs = decode_outputs,
@@ -145,15 +155,17 @@ pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, 
 
 // generate code for params in function signature and turning them into tokens.
 //
-// two pieces of code are generated: the first gives input types for the function signature,
-// and the second gives code to tokenize those inputs.
+// three pieces of code are generated: the first gives input types for the function signature,
+// the second one gives input parameter names to pass to another method,
+// and the third gives code to tokenize those inputs.
 //
 // params of form `param_0: type_0, param_1: type_1, ...`
 // tokenizing code of form `{let mut tokens = Vec::new(); tokens.push({param_X}); tokens }`
 //
 // returns any unsupported param type encountered.
-fn input_params_codegen(inputs: &[ParamType]) -> Result<(String, String), ParamType> {
+fn input_params_codegen(inputs: &[ParamType]) -> Result<(String, String, String), ParamType> {
 	let mut params = String::new();
+	let mut params_names = String::new();
 	let mut to_tokens = "{ let mut tokens = Vec::new();".to_string();
 
 	for (index, param_type) in inputs.iter().enumerate() {
@@ -164,11 +176,13 @@ fn input_params_codegen(inputs: &[ParamType]) -> Result<(String, String), ParamT
 		params.push_str(&format!("{}{}: {}, ",
 			if needs_mut { "mut " } else { "" }, param_name, rust_type));
 
+		params_names.push_str(&format!("{}, ", param_name));
+
 		to_tokens.push_str(&format!("tokens.push({{ {} }});", tokenize_code));
 	}
 
 	to_tokens.push_str(" tokens }");
-	Ok((params, to_tokens))
+	Ok((params, params_names, to_tokens))
 }
 
 // generate code for outputs of the function and detokenizing them.

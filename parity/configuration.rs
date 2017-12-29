@@ -47,7 +47,7 @@ use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
-use secretstore::{Configuration as SecretStoreConfiguration, NodeSecretKey};
+use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
@@ -609,6 +609,7 @@ impl Configuration {
 			enabled: self.secretstore_enabled(),
 			http_enabled: self.secretstore_http_enabled(),
 			acl_check_enabled: self.secretstore_acl_check_enabled(),
+			service_contract_address: self.secretstore_service_contract_address()?,
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
 			interface: self.secretstore_interface(),
@@ -776,13 +777,19 @@ impl Configuration {
 		apis.join(",")
 	}
 
-	fn cors(cors: Option<&String>) -> Option<Vec<String>> {
-		cors.map(|ref c| c.split(',').map(Into::into).collect())
+	fn cors(cors: &str) -> Option<Vec<String>> {
+		match cors {
+			"none" => return Some(Vec::new()),
+			"*" | "all" | "any" => return None,
+			_ => {},
+		}
+
+		Some(cors.split(',').map(Into::into).collect())
 	}
 
 	fn rpc_cors(&self) -> Option<Vec<String>> {
-		let cors = self.args.arg_jsonrpc_cors.as_ref().or(self.args.arg_rpccorsdomain.as_ref());
-		Self::cors(cors)
+		let cors = self.args.arg_rpccorsdomain.clone().unwrap_or_else(|| self.args.arg_jsonrpc_cors.to_owned());
+		Self::cors(&cors)
 	}
 
 	fn ipfs_cors(&self) -> Option<Vec<String>> {
@@ -1078,6 +1085,14 @@ impl Configuration {
 
 	fn secretstore_acl_check_enabled(&self) -> bool {
 		!self.args.flag_no_secretstore_acl_check
+	}
+
+	fn secretstore_service_contract_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
+		Ok(match self.args.arg_secretstore_contract.as_ref() {
+			"none" => None,
+			"registry" => Some(SecretStoreContractAddress::Registry),
+			a => Some(SecretStoreContractAddress::Address(a.parse().map_err(|e| format!("{}", e))?)),
+		})
 	}
 
 	fn ui_enabled(&self) -> bool {
@@ -1459,7 +1474,7 @@ mod tests {
 			assert_eq!(net.rpc_enabled, true);
 			assert_eq!(net.rpc_interface, "0.0.0.0".to_owned());
 			assert_eq!(net.rpc_port, 8000);
-			assert_eq!(conf.rpc_cors(), Some(vec!["*".to_owned()]));
+			assert_eq!(conf.rpc_cors(), None);
 			assert_eq!(conf.rpc_apis(), "web3,eth".to_owned());
 		}
 
@@ -1526,8 +1541,8 @@ mod tests {
 		let conf2 = parse(&["parity", "--ipfs-api-cors", "http://parity.io,http://something.io"]);
 
 		// then
-		assert_eq!(conf0.ipfs_cors(), None);
-		assert_eq!(conf1.ipfs_cors(), Some(vec!["*".into()]));
+		assert_eq!(conf0.ipfs_cors(), Some(vec![]));
+		assert_eq!(conf1.ipfs_cors(), None);
 		assert_eq!(conf2.ipfs_cors(), Some(vec!["http://parity.io".into(),"http://something.io".into()]));
 	}
 
