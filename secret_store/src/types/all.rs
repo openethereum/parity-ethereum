@@ -44,6 +44,8 @@ pub enum Error {
 	AccessDenied,
 	/// Requested document not found
 	DocumentNotFound,
+	/// Hyper error
+	Hyper(String),
 	/// Serialization/deserialization error
 	Serde(String),
 	/// Database-related error
@@ -121,6 +123,7 @@ impl fmt::Display for Error {
 			Error::BadSignature => write!(f, "Bad signature"),
 			Error::AccessDenied => write!(f, "Access dened"),
 			Error::DocumentNotFound => write!(f, "Document not found"),
+			Error::Hyper(ref msg) => write!(f, "Hyper error: {}", msg),
 			Error::Serde(ref msg) => write!(f, "Serialization error: {}", msg),
 			Error::Database(ref msg) => write!(f, "Database error: {}", msg),
 			Error::Internal(ref msg) => write!(f, "Internal error: {}", msg),
@@ -150,6 +153,7 @@ impl From<key_server_cluster::Error> for Error {
 	fn from(err: key_server_cluster::Error) -> Self {
 		match err {
 			key_server_cluster::Error::AccessDenied => Error::AccessDenied,
+			key_server_cluster::Error::MissingKeyShare => Error::DocumentNotFound,
 			_ => Error::Internal(err.into()),
 		}
 	}

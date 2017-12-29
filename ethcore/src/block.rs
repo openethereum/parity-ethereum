@@ -301,7 +301,6 @@ pub struct SealedBlock {
 }
 
 impl<'x> OpenBlock<'x> {
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	/// Create a new `OpenBlock` ready for transaction pushing.
 	pub fn new(
 		engine: &'x EthEngine,
@@ -380,8 +379,13 @@ impl<'x> OpenBlock<'x> {
 	/// NOTE Will check chain constraints and the uncle number but will NOT check
 	/// that the header itself is actually valid.
 	pub fn push_uncle(&mut self, valid_uncle_header: Header) -> Result<(), BlockError> {
-		if self.block.uncles.len() + 1 > self.engine.maximum_uncle_count() {
-			return Err(BlockError::TooManyUncles(OutOfBounds{min: None, max: Some(self.engine.maximum_uncle_count()), found: self.block.uncles.len() + 1}));
+		let max_uncles = self.engine.maximum_uncle_count(self.block.header().number());
+		if self.block.uncles.len() + 1 > max_uncles {
+			return Err(BlockError::TooManyUncles(OutOfBounds{
+				min: None,
+				max: Some(max_uncles),
+				found: self.block.uncles.len() + 1,
+			}));
 		}
 		// TODO: check number
 		// TODO: check not a direct ancestor (use last_hashes for that)
@@ -609,7 +613,6 @@ impl IsBlock for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
-#[cfg_attr(feature="dev", allow(too_many_arguments))]
 pub fn enact(
 	header: &Header,
 	transactions: &[SignedTransaction],
@@ -683,7 +686,6 @@ fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) 
 
 // TODO [ToDr] Pass `PreverifiedBlock` by move, this will avoid unecessary allocation
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-#[cfg_attr(feature="dev", allow(too_many_arguments))]
 pub fn enact_verified(
 	block: &PreverifiedBlock,
 	engine: &EthEngine,
@@ -726,7 +728,6 @@ mod tests {
 	use transaction::SignedTransaction;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn enact_bytes(
 		block_bytes: &[u8],
 		engine: &EthEngine,
@@ -773,7 +774,6 @@ mod tests {
 	}
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn enact_and_seal(
 		block_bytes: &[u8],
 		engine: &EthEngine,

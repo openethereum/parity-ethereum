@@ -1,5 +1,3 @@
-// TODO: when address is the same, but key has changed => crash???
-
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -16,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::net::SocketAddr;
 use std::collections::{BTreeMap, HashSet};
 use futures::{future, Future, IntoFuture};
@@ -24,13 +22,13 @@ use parking_lot::Mutex;
 use ethcore::filter::Filter;
 use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
 use ethkey::public_to_address;
-use ethsync::SyncProvider;
 use native_contracts::KeyServerSet as KeyServerSetContract;
 use hash::keccak;
 use bigint::hash::H256;
 use util::Address;
 use bytes::Bytes;
 use types::all::{Error, Public, NodeAddress, NodeId};
+use trusted_client::TrustedClient;
 use {NodeKeyPair};
 
 type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
@@ -108,9 +106,7 @@ struct FutureNewSet {
 /// Cached on-chain Key Server set contract.
 struct CachedContract {
 	/// Blockchain client.
-	client: Weak<Client>,
-	/// Sync provider.
-	sync: Weak<SyncProvider>,
+	client: TrustedClient,
 	/// Contract address.
 	contract: Option<KeyServerSetContract>,
 	/// Is auto-migrate enabled?
@@ -124,19 +120,14 @@ struct CachedContract {
 }
 
 impl OnChainKeyServerSet {
-	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
-		let mut cached_contract = CachedContract::new(client, sync, self_key_pair, auto_migrate_enabled, key_servers)?;
-		let key_server_contract_address = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
-		// only initialize from contract if it is installed. otherwise - use default nodes
-		// once the contract is installed, all default nodes are lost (if not in the contract' set)
-		if key_server_contract_address.is_some() {
-			cached_contract.read_from_registry(&*client, key_server_contract_address);
-		}
-
+	pub fn new(trusted_client: TrustedClient, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
+		let client = trusted_client.get_untrusted();
 		let key_server_set = Arc::new(OnChainKeyServerSet {
-			contract: Mutex::new(cached_contract),
+			contract: Mutex::new(CachedContract::new(trusted_client, self_key_pair, auto_migrate_enabled, key_servers)?),
 		});
-		client.add_notify(key_server_set.clone());
+		client
+			.ok_or(Error::Internal("Constructing OnChainKeyServerSet without active Client".into()))?
+			.add_notify(key_server_set.clone());
 		Ok(key_server_set)
 	}
 }
@@ -164,7 +155,7 @@ impl ChainNotify for OnChainKeyServerSet {
 }
 
 impl CachedContract {
-	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
+	pub fn new(client: TrustedClient, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
 		let server_set = key_servers.into_iter()
 			.map(|(p, addr)| {
 				let addr = format!("{}:{}", addr.address, addr.port).parse()
@@ -173,8 +164,7 @@ impl CachedContract {
 			})
 			.collect::<Result<BTreeMap<_, _>, Error>>()?;
 		Ok(CachedContract {
-			client: Arc::downgrade(client),
-			sync: Arc::downgrade(sync),
+			client: client,
 			contract: None,
 			auto_migrate_enabled: auto_migrate_enabled,
 			future_new_set: None,
@@ -188,12 +178,7 @@ impl CachedContract {
 	}
 
 	pub fn update(&mut self, enacted: Vec<H256>, retracted: Vec<H256>) {
-		if let (Some(client), Some(sync)) = (self.client.upgrade(), self.sync.upgrade()) {
-			// do not update initial server set until fully synchronized
-			if sync.status().is_syncing(client.queue_info()) {
-				return;
-			}
-
+		if let Some(client) = self.client.get() {
 			// read new snapshot from reqistry (if something has chnaged)
 			self.read_from_registry_if_required(&*client, enacted, retracted);
 
@@ -207,7 +192,8 @@ impl CachedContract {
 	}
 
 	fn start_migration(&self, migration_id: H256) {
-		if let (Some(client), Some(contract)) = (self.client.upgrade(), self.contract.as_ref()) {
+		// trust is not needed here, because it is the reaction to the read of the trusted client 
+		if let (Some(client), Some(contract)) = (self.client.get_untrusted(), self.contract.as_ref()) {
 			// prepare transaction data
 			let transaction_data = match contract.encode_start_migration_input(migration_id) {
 				Ok(transaction_data) => transaction_data,
@@ -227,7 +213,8 @@ impl CachedContract {
 	}
 
 	fn confirm_migration(&self, migration_id: H256) {
-		if let (Some(client), Some(contract)) = (self.client.upgrade(), self.contract.as_ref()) {
+		// trust is not needed here, because we have already completed the action
+		if let (Some(client), Some(contract)) = (self.client.get(), self.contract.as_ref()) {
 			// prepare transaction data
 			let transaction_data = match contract.encode_confirm_migration_input(migration_id) {
 				Ok(transaction_data) => transaction_data,

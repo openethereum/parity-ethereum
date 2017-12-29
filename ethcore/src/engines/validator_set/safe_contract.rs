@@ -311,7 +311,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		let client = self.client.read().clone();
 		Box::new(move |addr, data| client.as_ref()
 			.and_then(Weak::upgrade)
-			.ok_or("No client!".into())
+			.ok_or_else(|| "No client!".into())
 			.and_then(|c| {
 				match c.as_full_client() {
 					Some(c) => c.call_contract(id, addr, data),

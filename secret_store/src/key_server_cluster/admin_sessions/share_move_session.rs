@@ -188,7 +188,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let is_consensus_pre_established = data.shares_to_move.is_some();
 		if !is_consensus_pre_established {
 			let shares_to_move_reversed = shares_to_move_reversed.ok_or(Error::InvalidMessage)?;
-			let key_share = self.core.key_share.as_ref().ok_or(Error::KeyStorage("key share is not found on master node".into()))?;
+			let key_share = self.core.key_share.as_ref().ok_or_else(|| Error::KeyStorage("key share is not found on master node".into()))?;
 			check_shares_to_move(&self.core.meta.self_node_id, &shares_to_move_reversed, Some(&key_share.id_numbers))?;
 
 			let old_set_signature = old_set_signature.ok_or(Error::InvalidMessage)?;
@@ -424,7 +424,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			if !move_confirmations_to_receive.remove(sender) {
 				return Err(Error::InvalidMessage);
 			}
-			
+
 			if !move_confirmations_to_receive.is_empty() {
 				return Ok(());
 			}
@@ -818,7 +818,7 @@ mod tests {
 
 			// check that session has completed on all nodes
 			assert!(ml.nodes.values().all(|n| n.session.is_finished()));
-			
+
 			// check that secret is still the same as before adding the share
 			check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes.iter()
 				.filter(|&(k, _)| !shares_to_move.values().any(|v| v == k))

@@ -22,7 +22,6 @@ pub type LogBloom = ::log_entry::LogBloom;
 /// Constant 2048-bit datum for 0. Often used as a default.
 pub static ZERO_LOGBLOOM: LogBloom = ::bigint::hash::H2048([0x00; 256]);
 
-#[cfg_attr(feature="dev", allow(enum_variant_names))]
 /// Semantic boolean for when a seal/signature is included.
 pub enum Seal {
 	/// The seal/signature is included.

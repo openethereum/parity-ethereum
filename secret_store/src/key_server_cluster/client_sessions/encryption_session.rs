@@ -132,17 +132,7 @@ impl SessionImpl {
 
 	/// Wait for session completion.
 	pub fn wait(&self, timeout: Option<time::Duration>) -> Result<(), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			match timeout {
-				None => self.completed.wait(&mut data),
-				Some(timeout) => { self.completed.wait_for(&mut data, timeout); },
-			}
-		}
-
-		data.result.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
-			.clone()
+		Self::wait_session(&self.completed, &self.data, timeout, |data| data.result.clone())
 	}
 
 

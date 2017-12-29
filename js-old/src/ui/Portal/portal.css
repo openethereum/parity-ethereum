@@ -82,10 +82,9 @@ $popoverZ: 3600;
     /* but may well be) will scretch to non-visible areas.
     */
     &.small {
-      margin: 1.5em auto;
-      max-width: 768px;
-      position: relative;
-      width: 75%;
+      left: 50%;
+      margin: 1.5em -384px;
+      width: 768px;
     }
   }
 

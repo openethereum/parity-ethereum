@@ -1855,7 +1855,7 @@ impl MiningBlockChainClient for Client {
 		let mut open_block = OpenBlock::new(
 			engine,
 			self.factories.clone(),
-			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
+			self.tracedb.read().tracing_enabled(),
 			self.state_db.lock().boxed_clone_canon(&h),
 			best_header,
 			self.build_last_hashes(h.clone()),
@@ -1870,7 +1870,7 @@ impl MiningBlockChainClient for Client {
 			.find_uncle_headers(&h, engine.maximum_uncle_age())
 			.unwrap_or_else(Vec::new)
 			.into_iter()
-			.take(engine.maximum_uncle_count())
+			.take(engine.maximum_uncle_count(open_block.header().number()))
 			.foreach(|h| {
 				open_block.push_uncle(h).expect("pushing maximum_uncle_count;
 												open_block was just created;
@@ -1885,7 +1885,7 @@ impl MiningBlockChainClient for Client {
 	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock {
 		let engine = &*self.engine;
 		let mut block = block.reopen(engine);
-		let max_uncles = engine.maximum_uncle_count();
+		let max_uncles = engine.maximum_uncle_count(block.header().number());
 		if block.uncles().len() < max_uncles {
 			let chain = self.chain.read();
 			let h = chain.best_block_hash();

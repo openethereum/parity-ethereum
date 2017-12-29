@@ -138,7 +138,7 @@ impl ValidatorSet for Multi {
 		}
 		*self.block_number.write() = Box::new(move |id| client
 			.upgrade()
-			.ok_or("No client!".into())
+			.ok_or_else(|| "No client!".into())
 			.and_then(|c| c.block_number(id).ok_or("Unknown block".into())));
 	}
 }

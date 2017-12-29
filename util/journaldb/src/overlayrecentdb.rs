@@ -452,8 +452,6 @@ impl HashDB for OverlayRecentDB {
 
 #[cfg(test)]
 mod tests {
-	#![cfg_attr(feature="dev", allow(blacklisted_name))]
-	#![cfg_attr(feature="dev", allow(similar_names))]
 
 	use keccak::keccak;
 	use super::*;

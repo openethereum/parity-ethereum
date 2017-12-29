@@ -18,8 +18,6 @@ import Api from '@parity/api';
 import qs from 'query-string';
 import Web3 from 'web3';
 
-import web3extensions from './web3.extensions';
-
 function initProvider () {
   const path = window.location.pathname.split('/');
   const query = qs.parse(window.location.search);
@@ -28,8 +26,6 @@ function initProvider () {
 
   if (appId === 'dapps') {
     appId = path[2];
-  } else if (!Api.util.isHex(appId)) {
-    appId = Api.util.sha3(appId);
   }
 
   const ethereum = new Api.Provider.PostMessage(appId);
@@ -68,8 +64,6 @@ function initWeb3 (ethereum) {
 
     web3.eth.defaultAccount = accounts[0];
   });
-
-  web3extensions(web3).map((extension) => web3._extend(extension));
 
   window.web3 = web3;
 }

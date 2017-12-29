@@ -18,7 +18,7 @@
 use std::sync::Arc;
 use std::collections::{BTreeMap, HashSet};
 
-use util::misc::version_data;
+use version::version_data;
 
 use crypto::{ecies, DEFAULT_MAC};
 use ethkey::{Brain, Generator};

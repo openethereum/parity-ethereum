@@ -26,7 +26,7 @@ use util::Address;
 use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};
-use header::Header;
+use header::{Header, BlockNumber};
 use engines::{self, Engine};
 use ethjson;
 use rlp::{self, UntrustedRlp};
@@ -181,7 +181,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		}
 	}
 
-	fn maximum_uncle_count(&self) -> usize { 2 }
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		let difficulty = self.calculate_difficulty(header, parent);
@@ -336,7 +336,6 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	}
 }
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl Ethash {
 	fn calculate_difficulty(&self, header: &Header, parent: &Header) -> U256 {
 		const EXP_DIFF_PERIOD: u64 = 100_000;
@@ -520,7 +519,7 @@ mod tests {
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(15, eras);
 		assert_eq!(U256::from_str("271000000000000").unwrap(), reward);
-		
+
 		let block_number = 250000000;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(49, eras);

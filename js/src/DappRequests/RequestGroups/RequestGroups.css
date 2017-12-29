@@ -28,12 +28,4 @@ $backgroundTwo: #e57a00;
   > span {
     margin-right: 30px;
   }
-
-  .requestGroup {
-    margin-top: 2px;
-
-    .requestGroupTitle {
-      margin-right: 10px;
-    }
-  }
 }
