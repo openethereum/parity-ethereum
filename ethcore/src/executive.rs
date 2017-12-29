@@ -486,12 +486,13 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 				let traces = subtracer.drain();
 				match res {
-					Ok(ref res) => tracer.trace_call(
+					Ok(ref res) if res.apply_state => tracer.trace_call(
 						trace_info,
 						gas - res.gas_left,
 						trace_output,
 						traces
 					),
+					Ok(_) => tracer.trace_failed_call(trace_info, traces, vm::Error::Reverted.into()),
 					Err(ref e) => tracer.trace_failed_call(trace_info, traces, e.into()),
 				};
 
@@ -574,13 +575,14 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		vm_tracer.done_subtrace(subvmtracer);
 
 		match res {
-			Ok(ref res) => tracer.trace_create(
+			Ok(ref res) if res.apply_state => tracer.trace_create(
 				trace_info,
 				gas - res.gas_left,
 				trace_output.map(|data| output.as_ref().map(|out| out.to_vec()).unwrap_or(data)),
 				created,
 				subtracer.drain()
 			),
+			Ok(_) => tracer.trace_failed_create(trace_info, subtracer.drain(), vm::Error::Reverted.into()),
 			Err(ref e) => tracer.trace_failed_create(trace_info, subtracer.drain(), e.into())
 		};
 
@@ -934,6 +936,85 @@ mod tests {
 			]
 		};
 		assert_eq!(vm_tracer.drain().unwrap(), expected_vm_trace);
+	}
+
+	#[test]
+	fn test_trace_reverted_create() {
+		// code:
+		//
+		// 65 60016000fd - push 5 bytes
+		// 60 00 - push 0
+		// 52 mstore
+		// 60 05 - push 5
+		// 60 1b - push 27
+		// 60 17 - push 23
+		// f0 - create
+		// 60 00 - push 0
+		// 55 sstore
+		//
+		// other code:
+		//
+		// 60 01
+		// 60 00
+		// fd - revert
+
+		let code = "6460016000fd6000526005601b6017f0600055".from_hex().unwrap();
+
+		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
+		let mut params = ActionParams::default();
+		params.address = address.clone();
+		params.code_address = address.clone();
+		params.sender = sender.clone();
+		params.origin = sender.clone();
+		params.gas = U256::from(100_000);
+		params.code = Some(Arc::new(code));
+		params.value = ActionValue::Transfer(U256::from(100));
+		params.call_type = CallType::Call;
+		let mut state = get_temp_state();
+		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
+		let info = EnvInfo::default();
+		let machine = ::ethereum::new_byzantium_test_machine();
+		let mut substate = Substate::new();
+		let mut tracer = ExecutiveTracer::default();
+		let mut vm_tracer = ExecutiveVMTracer::toplevel();
+
+		let FinalizationResult { gas_left, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
+			let output = BytesRef::Fixed(&mut[0u8;0]);
+			ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap()
+		};
+
+		assert_eq!(gas_left, U256::from(62967));
+
+		let expected_trace = vec![FlatTrace {
+			trace_address: Default::default(),
+			subtraces: 1,
+			action: trace::Action::Call(trace::Call {
+				from: "cd1722f3947def4cf144679da39c4c32bdc35681".into(),
+				to: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
+				value: 100.into(),
+				gas: 100_000.into(),
+				input: vec![],
+				call_type: CallType::Call,
+			}),
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: U256::from(37_033),
+				output: vec![],
+			}),
+		}, FlatTrace {
+			trace_address: vec![0].into_iter().collect(),
+			subtraces: 0,
+			action: trace::Action::Create(trace::Create {
+				from: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
+				value: 23.into(),
+				gas: 66_917.into(),
+				init: vec![0x60, 0x01, 0x60, 0x00, 0xfd]
+			}),
+			result: trace::Res::FailedCreate(vm::Error::Reverted.into()),
+		}];
+
+		assert_eq!(tracer.drain(), expected_trace);
 	}
 
 	#[test]
