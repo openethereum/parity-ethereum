@@ -785,6 +785,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// secret store key server
 	let secretstore_deps = secretstore::Dependencies {
 		client: client.clone(),
+		sync: sync_provider.clone(),
 		account_provider: account_provider,
 		accounts_passwords: &passwords,
 	};

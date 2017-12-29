@@ -29,18 +29,15 @@ use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use bigint::hash::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
-use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
-	DecryptionSessionWrapper, SigningSessionWrapper, AdminSessionWrapper, KeyNegotiationSessionWrapper, SessionIdWithSubSession,
-	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID, create_cluster_view, AdminSessionCreationData};
+use key_server_cluster::cluster_sessions::{ClusterSession, AdminSession, ClusterSessions, SessionIdWithSubSession,
+	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID, create_cluster_view, AdminSessionCreationData, ClusterSessionsListener};
 use key_server_cluster::cluster_sessions_creator::{ClusterSessionCreator, IntoSessionId};
 use key_server_cluster::message::{self, Message, ClusterMessage};
-use key_server_cluster::generation_session::{Session as GenerationSession};
-#[cfg(test)]
-use key_server_cluster::generation_session::SessionImpl as GenerationSessionImpl;
-use key_server_cluster::decryption_session::{Session as DecryptionSession};
-use key_server_cluster::encryption_session::{Session as EncryptionSession};
-use key_server_cluster::signing_session::{Session as SigningSession};
-use key_server_cluster::key_version_negotiation_session::{Session as KeyVersionNegotiationSession, SessionImpl as KeyVersionNegotiationSessionImpl,
+use key_server_cluster::generation_session::{SessionImpl as GenerationSession};
+use key_server_cluster::decryption_session::{SessionImpl as DecryptionSession};
+use key_server_cluster::encryption_session::{SessionImpl as EncryptionSession};
+use key_server_cluster::signing_session::{SessionImpl as SigningSession};
+use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVersionNegotiationSession,
 	IsolatedSessionTransport as KeyVersionNegotiationSessionTransport, ContinueAction};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
@@ -74,16 +71,19 @@ pub trait ClusterClient: Send + Sync {
 	/// Start new signing session.
 	fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, version: Option<H256>, message_hash: H256) -> Result<Arc<SigningSession>, Error>;
 	/// Start new key version negotiation session.
-	fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession>, Error>;
+	fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error>;
 	/// Start new servers set change session.
-	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error>;
+	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSession>, Error>;
+
+	/// Listen for new generation sessions.
+	fn add_generation_listener(&self, listener: Arc<ClusterSessionsListener<GenerationSession>>);
 
 	/// Ask node to make 'faulty' generation sessions.
 	#[cfg(test)]
 	fn make_faulty_generation_sessions(&self);
 	/// Get active generation session with given id.
 	#[cfg(test)]
-	fn generation_session(&self, session_id: &SessionId) -> Option<Arc<GenerationSessionImpl>>;
+	fn generation_session(&self, session_id: &SessionId) -> Option<Arc<GenerationSession>>;
 	/// Try connect to disconnected nodes.
 	#[cfg(test)]
 	fn connect(&self);
@@ -446,7 +446,7 @@ impl ClusterCore {
 	}
 
 	/// Try to contnue session.
-	fn try_continue_session(data: &Arc<ClusterData>, session: Option<Arc<KeyVersionNegotiationSessionImpl<KeyVersionNegotiationSessionTransport>>>) {
+	fn try_continue_session(data: &Arc<ClusterData>, session: Option<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>>) {
 		if let Some(session) = session {
 			let meta = session.meta();
 			let is_master_node = meta.self_node_id == meta.master_node_id;
@@ -741,11 +741,6 @@ impl ClusterData {
 		self.connections.get(node)
 	}
 
-	/// Get sessions reference.
-	pub fn sessions(&self) -> &ClusterSessions {
-		&self.sessions
-	}
-
 	/// Spawns a future using thread pool and schedules execution of it with event loop handle.
 	pub fn spawn<F>(&self, f: F) where F: Future + Send + 'static, F::Item: Send + 'static, F::Error: Send + 'static {
 		let pool_work = self.pool.spawn(f);
@@ -842,7 +837,7 @@ impl ClusterClientImpl {
 		}
 	}
 
-	fn create_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSessionImpl<KeyVersionNegotiationSessionTransport>>, Error> {
+	fn create_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
@@ -872,7 +867,7 @@ impl ClusterClient for ClusterClientImpl {
 		let cluster = create_cluster_view(&self.data, true)?;
 		let session = self.data.sessions.generation_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, false, None)?;
 		match session.initialize(author, threshold, connected_nodes) {
-			Ok(()) => Ok(GenerationSessionWrapper::new(Arc::downgrade(&self.data), session_id, session)),
+			Ok(()) => Ok(session),
 			Err(error) => {
 				self.data.sessions.generation_sessions.remove(&session.id());
 				Err(error)
@@ -887,7 +882,7 @@ impl ClusterClient for ClusterClientImpl {
 		let cluster = create_cluster_view(&self.data, true)?;
 		let session = self.data.sessions.encryption_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, false, None)?;
 		match session.initialize(requestor_signature, common_point, encrypted_point) {
-			Ok(()) => Ok(EncryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session)),
+			Ok(()) => Ok(session),
 			Err(error) => {
 				self.data.sessions.encryption_sessions.remove(&session.id());
 				Err(error)
@@ -916,7 +911,7 @@ impl ClusterClient for ClusterClientImpl {
 		};
 
 		match initialization_result {
-			Ok(()) => Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session)),
+			Ok(()) => Ok(session),
 			Err(error) => {
 				self.data.sessions.decryption_sessions.remove(&session.id());
 				Err(error)
@@ -945,7 +940,7 @@ impl ClusterClient for ClusterClientImpl {
 		};
 
 		match initialization_result {
-			Ok(()) => Ok(SigningSessionWrapper::new(Arc::downgrade(&self.data), session_id, session)),
+			Ok(()) => Ok(session),
 			Err(error) => {
 				self.data.sessions.signing_sessions.remove(&session.id());
 				Err(error)
@@ -953,12 +948,12 @@ impl ClusterClient for ClusterClientImpl {
 		}
 	}
 
-	fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession>, Error> {
+	fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error> {
 		let session = self.create_key_version_negotiation_session(session_id)?;
-		Ok(KeyNegotiationSessionWrapper::new(Arc::downgrade(&self.data), session.id(), session))
+		Ok(session)
 	}
 
-	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {
+	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
@@ -974,12 +969,16 @@ impl ClusterClient for ClusterClientImpl {
 			.initialize(new_nodes_set, old_set_signature, new_set_signature);
 
 		match initialization_result {
-			Ok(()) => Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session)),
+			Ok(()) => Ok(session),
 			Err(error) => {
 				self.data.sessions.admin_sessions.remove(&session.id());
 				Err(error)
 			},
 		}
+	}
+
+	fn add_generation_listener(&self, listener: Arc<ClusterSessionsListener<GenerationSession>>) {
+		self.data.sessions.generation_sessions.add_listener(listener);
 	}
 
 	#[cfg(test)]
@@ -993,7 +992,7 @@ impl ClusterClient for ClusterClientImpl {
 	}
 
 	#[cfg(test)]
-	fn generation_session(&self, session_id: &SessionId) -> Option<Arc<GenerationSessionImpl>> {
+	fn generation_session(&self, session_id: &SessionId) -> Option<Arc<GenerationSession>> {
 		self.data.sessions.generation_sessions.get(session_id, false)
 	}
 
@@ -1015,12 +1014,21 @@ pub mod tests {
 	use std::collections::{BTreeSet, VecDeque};
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
-	use ethkey::{Random, Generator, Public, sign};
-	use key_server_cluster::{NodeId, SessionId, Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet, PlainNodeKeyPair};
+	use bigint::hash::H256;
+	use ethkey::{Random, Generator, Public, Signature, sign};
+	use key_server_cluster::{NodeId, SessionId, Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet, PlainNodeKeyPair, KeyStorage};
 	use key_server_cluster::message::Message;
-	use key_server_cluster::cluster::{Cluster, ClusterCore, ClusterConfiguration};
-	use key_server_cluster::cluster_sessions::ClusterSession;
-	use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
+	use key_server_cluster::cluster::{Cluster, ClusterCore, ClusterConfiguration, ClusterClient, ClusterState};
+	use key_server_cluster::cluster_sessions::{ClusterSession, AdminSession, ClusterSessionsListener};
+	use key_server_cluster::generation_session::{SessionImpl as GenerationSession, SessionState as GenerationSessionState};
+	use key_server_cluster::decryption_session::{SessionImpl as DecryptionSession};
+	use key_server_cluster::encryption_session::{SessionImpl as EncryptionSession};
+	use key_server_cluster::signing_session::{SessionImpl as SigningSession};
+	use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVersionNegotiationSession,
+		IsolatedSessionTransport as KeyVersionNegotiationSessionTransport};
+
+	#[derive(Default)]
+	pub struct DummyClusterClient;
 
 	#[derive(Debug)]
 	pub struct DummyCluster {
@@ -1032,6 +1040,23 @@ pub mod tests {
 	struct DummyClusterData {
 		nodes: BTreeSet<NodeId>,
 		messages: VecDeque<(NodeId, Message)>,
+	}
+
+	impl ClusterClient for DummyClusterClient {
+		fn cluster_state(&self) -> ClusterState { unimplemented!() }
+		fn new_generation_session(&self, _session_id: SessionId, _author: Public, _threshold: usize) -> Result<Arc<GenerationSession>, Error> { unimplemented!() }
+		fn new_encryption_session(&self, _session_id: SessionId, _requestor_signature: Signature, _common_point: Public, _encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error> { unimplemented!() }
+		fn new_decryption_session(&self, _session_id: SessionId, _requestor_signature: Signature, _version: Option<H256>, _is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> { unimplemented!() }
+		fn new_signing_session(&self, _session_id: SessionId, _requestor_signature: Signature, _version: Option<H256>, _message_hash: H256) -> Result<Arc<SigningSession>, Error> { unimplemented!() }
+		fn new_key_version_negotiation_session(&self, _session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error> { unimplemented!() }
+		fn new_servers_set_change_session(&self, _session_id: Option<SessionId>, _new_nodes_set: BTreeSet<NodeId>, _old_set_signature: Signature, _new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> { unimplemented!() }
+
+		fn add_generation_listener(&self, _listener: Arc<ClusterSessionsListener<GenerationSession>>) {}
+
+		fn make_faulty_generation_sessions(&self) { unimplemented!() }
+		fn generation_session(&self, _session_id: &SessionId) -> Option<Arc<GenerationSession>> { unimplemented!() }
+		fn connect(&self) { unimplemented!() }
+		fn key_storage(&self) -> Arc<KeyStorage> { unimplemented!() }
 	}
 
 	impl DummyCluster {
