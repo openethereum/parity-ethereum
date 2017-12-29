@@ -52,7 +52,7 @@ use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
 	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,
-	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
+	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256, block_number_to_id,
 };
 use v1::metadata::Metadata;
 
@@ -254,16 +254,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 			}
 		}
 	}
-
-	fn number_to_id(number: BlockNumber) -> BlockId {
-		match number {
-			BlockNumber::Num(num) => BlockId::Number(num),
-			BlockNumber::Earliest => BlockId::Earliest,
-			BlockNumber::Latest => BlockId::Latest,
-
-			BlockNumber::Pending => unreachable!("`BlockNumber::Pending` should be handled manually")
-		}
-	}
 }
 
 pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
@@ -429,7 +419,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 			number => {
 				try_bf!(check_known(&*self.client, number.clone()));
-				match self.client.nonce(&address, Self::number_to_id(number)) {
+				match self.client.nonce(&address, block_number_to_id(number)) {
 					Some(nonce) => Ok(nonce.into()),
 					None => Err(errors::state_pruned()),
 				}
@@ -450,7 +440,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 				self.miner.status().transactions_in_pending_block.into()
 			),
 			_ =>
-				self.client.block(Self::number_to_id(num))
+				self.client.block(block_number_to_id(num))
 					.map(|block| block.transactions_count().into())
 		}))
 	}
@@ -463,7 +453,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn block_uncles_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>> {
 		Box::new(future::ok(match num {
 			BlockNumber::Pending => Some(0.into()),
-			_ => self.client.block(Self::number_to_id(num))
+			_ => self.client.block(block_number_to_id(num))
 					.map(|block| block.uncles_count().into()
 			),
 		}))
