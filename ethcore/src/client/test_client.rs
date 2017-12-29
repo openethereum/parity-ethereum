@@ -365,6 +365,8 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 }
 
 impl MiningBlockChainClient for TestBlockChainClient {
+	fn as_block_chain_client(&self) -> &BlockChainClient { self }
+
 	fn latest_schedule(&self) -> Schedule {
 		Schedule::new_post_eip150(24576, true, true, true)
 	}
