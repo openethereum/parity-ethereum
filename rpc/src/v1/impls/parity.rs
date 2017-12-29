@@ -48,7 +48,8 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
-	AccountInfo, HwAccountInfo, RichHeader
+	AccountInfo, HwAccountInfo, RichHeader,
+	block_number_to_id
 };
 use Host;
 
@@ -275,14 +276,32 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 	}
 
 	fn list_accounts(&self, count: u64, after: Option<H160>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H160>>> {
+		let number = match block_number.unwrap_or_default() {
+			BlockNumber::Pending => {
+				warn!("BlockNumber::Pending is unsupported");
+				return Ok(None);
+			},
+
+			num => block_number_to_id(num)
+		};
+
 		Ok(self.client
-			.list_accounts(block_number.unwrap_or_default().into(), after.map(Into::into).as_ref(), count)
+			.list_accounts(number, after.map(Into::into).as_ref(), count)
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
 	fn list_storage_keys(&self, address: H160, count: u64, after: Option<H256>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H256>>> {
+		let number = match block_number.unwrap_or_default() {
+			BlockNumber::Pending => {
+				warn!("BlockNumber::Pending is unsupported");
+				return Ok(None);
+			},
+
+			num => block_number_to_id(num)
+		};
+
 		Ok(self.client
-			.list_storage(block_number.unwrap_or_default().into(), &address.into(), after.map(Into::into).as_ref(), count)
+			.list_storage(number, &address.into(), after.map(Into::into).as_ref(), count)
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
