@@ -58,6 +58,7 @@ parity-updater = { path = "updater" }
 parity-version = { path = "util/version" }
 parity-whisper = { path = "whisper" }
 path = { path = "util/path" }
+dir = { path = "util/dir" } 
 panic_hook = { path = "panic_hook" }
 keccak-hash = { path = "util/hash" }
 migration = { path = "util/migration" }

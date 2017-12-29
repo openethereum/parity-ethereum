@@ -360,6 +360,15 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "dir"
+version = "0.1.0"
+dependencies = [
+ "app_dirs 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-bigint 0.2.1",
+ "journaldb 0.1.0",
+]
+
+[[package]]
 name = "docopt"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -785,6 +794,7 @@ dependencies = [
 name = "ethstore"
 version = "0.2.0"
 dependencies = [
+ "dir 0.1.0",
  "ethcore-bigint 0.2.1",
  "ethcrypto 0.1.0",
  "ethkey 0.3.0",
@@ -809,6 +819,7 @@ dependencies = [
 name = "ethstore-cli"
 version = "0.1.0"
 dependencies = [
+ "dir 0.1.0",
  "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethstore 0.2.0",
  "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1882,6 +1893,7 @@ dependencies = [
  "clap 2.26.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)",
  "daemonize 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dir 0.1.0",
  "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.9.0",

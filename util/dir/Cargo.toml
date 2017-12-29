@@ -1,0 +1,9 @@
+[package]
+name = "dir"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+ethcore-bigint = { path = "../bigint" }
+journaldb = { path = "../journaldb" }
+app_dirs = "1.1.1"

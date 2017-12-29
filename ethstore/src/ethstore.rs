@@ -23,7 +23,7 @@ use std::time::{Instant, Duration};
 use crypto::KEY_ITERATIONS;
 use random::Random;
 use ethkey::{self, Signature, Address, Message, Secret, Public, KeyPair, ExtendedKeyPair};
-use dir::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
+use accounts_dir::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
 use account::SafeAccount;
 use presale::PresaleWallet;
 use json::{self, Uuid, OpaqueKeyFile};
@@ -684,7 +684,7 @@ impl SimpleSecretStore for EthMultiStore {
 mod tests {
 	extern crate tempdir;
 
-	use dir::{KeyDirectory, MemoryDirectory, RootDiskDirectory};
+	use accounts_dir::{KeyDirectory, MemoryDirectory, RootDiskDirectory};
 	use ethkey::{Random, Generator, KeyPair};
 	use secret_store::{SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation};
 	use super::{EthStore, EthMultiStore};

@@ -21,7 +21,8 @@ use std::collections::HashSet;
 
 use dapps;
 use dir::default_data_path;
-use helpers::{parity_ipc_path, replace_home};
+use dir::helpers::replace_home;
+use helpers::parity_ipc_path;
 use jsonrpc_core::MetaIoHandler;
 use parity_reactor::TokioRemote;
 use parity_rpc::informant::{RpcStats, Middleware};
