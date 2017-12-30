@@ -1,3 +1,26 @@
+### Parity [v1.7.11](https://github.com/paritytech/parity/releases/tag/v1.7.11) (2017-12-29)
+
+Parity 1.7.11 changes the default behavior of JSON-RPC CORS setting, and updates bootnodes for the Kovan and Foundation networks.
+
+Note: The default value of `--jsonrpc-cors` option has been altered to disallow (potentially malicious) websites from accessing the low-sensitivity RPCs (viewing exposed accounts, proposing transactions for signing). Currently domains need to be whitelisted manually. To bring back previous behaviour run with `--jsonrpc-cors all` or `--jsonrpc-cors http://example.com`.
+
+The full list of included changes:
+
+- Stable Bootnodes and Warpnodes ([#7298](https://github.com/paritytech/parity/pull/7298))
+  - New warp enodes ([#7287](https://github.com/paritytech/parity/pull/7287))
+    - New warp enodes
+    - Added one more warp enode; replaced spaces with tabs
+    - Bump stable to 1.7.11
+  - Update kovan boot nodes ([#7296](https://github.com/paritytech/parity/pull/7296))
+  - Fix Cargo.lock
+  - Updating mainnet bootnodes.
+  - Update bootnodes ([#7363](https://github.com/paritytech/parity/pull/7363))
+    - Updating mainnet bootnodes.
+    - Add additional parity-beta bootnodes.
+    - Restore old parity bootnodes and update foudation bootnodes
+- Ethstore optimizations ([#6827](https://github.com/paritytech/parity/pull/6827)) ([#6844](https://github.com/paritytech/parity/pull/6844)) ([#7347](https://github.com/paritytech/parity/pull/7347))
+- Fix default CORS. ([#7389](https://github.com/paritytech/parity/pull/7389))
+
 ### Parity [v1.7.10](https://github.com/paritytech/parity/releases/tag/v1.7.10) (2017-12-11)
 
 Parity 1.7.10 applies fixes for Proof-of-Authority networks and schedules the Kovan-Byzantium hard-fork.

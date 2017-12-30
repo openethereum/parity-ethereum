@@ -1,3 +1,28 @@
+## Parity [v1.8.5](https://github.com/paritytech/parity/releases/tag/v1.8.5) (2017-12-29)
+
+Parity 1.8.5 changes the default behavior of JSON-RPC CORS setting, detects same-key engine signers in Aura networks, and updates bootnodes for the Kovan and Foundation networks.
+
+Note: The default value of `--jsonrpc-cors` option has been altered to disallow (potentially malicious) websites from accessing the low-sensitivity RPCs (viewing exposed accounts, proposing transactions for signing). Currently domains need to be whitelisted manually. To bring back previous behaviour run with `--jsonrpc-cors all` or `--jsonrpc-cors http://example.com`.
+
+The full list of included changes:
+
+- Beta Backports ([#7297](https://github.com/paritytech/parity/pull/7297))
+  - New warp enodes ([#7287](https://github.com/paritytech/parity/pull/7287))
+    - New warp enodes
+    - Added one more warp enode; replaced spaces with tabs
+    - Bump beta to 1.8.5
+    - Update kovan boot nodes
+  - Detect different node, same-key signing in aura ([#7245](https://github.com/paritytech/parity/pull/7245))
+    - Detect different node, same-key signing in aura
+    - Reduce scope of warning
+    - Fix Cargo.lock
+    - Updating mainnet bootnodes.
+  - Update bootnodes ([#7363](https://github.com/paritytech/parity/pull/7363))
+    - Updating mainnet bootnodes.
+    - Add additional parity-beta bootnodes.
+    - Restore old parity bootnodes and update foudation bootnodes
+- Fix default CORS. ([#7388](https://github.com/paritytech/parity/pull/7388))
+
 ## Parity [v1.8.4](https://github.com/paritytech/parity/releases/tag/v1.8.4) (2017-12-12)
 
 Parity 1.8.4 applies fixes for Proof-of-Authority networks and schedules the Kovan-Byzantium hard-fork.
