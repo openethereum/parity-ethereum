@@ -734,6 +734,7 @@ impl Miner {
 const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
 
 impl MinerService for Miner {
+	type State = State<::state_db::StateDB>;
 
 	fn clear_and_reset<C: MiningBlockChainClient>(&self, chain: &C) {
 		self.transaction_queue.write().clear();
@@ -1205,8 +1206,8 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Box<StateInfo>> {
-		Miner::pending_state(self, latest_block_number).map(|s| Box::new(s) as Box<StateInfo>)
+	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Self::State> {
+		Miner::pending_state(self, latest_block_number)
 	}
 }
 

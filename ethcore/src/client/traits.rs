@@ -68,6 +68,12 @@ pub enum StateOrBlock {
 	Block(BlockId)
 }
 
+impl<S: StateInfo + 'static> From<S> for StateOrBlock {
+	fn from(info: S) -> StateOrBlock {
+		StateOrBlock::State(Box::new(info) as Box<_>)
+	}
+}
+
 impl From<Box<StateInfo>> for StateOrBlock {
 	fn from(info: Box<StateInfo>) -> StateOrBlock {
 		StateOrBlock::State(info)
@@ -144,8 +150,10 @@ pub trait ImportBlock {
 
 /// Provides methods to access chain state
 pub trait StateClient {
+	type State: StateInfo + 'static;
+
 	/// Get a copy of the best block's state.
-	fn latest_state(&self) -> Box<StateInfo>;
+	fn latest_state(&self) -> Self::State;
 }
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.

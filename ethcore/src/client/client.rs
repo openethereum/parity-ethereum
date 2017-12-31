@@ -1393,8 +1393,10 @@ impl ImportBlock for Client {
 }
 
 impl StateClient for Client {
-	fn latest_state(&self) -> Box<StateInfo> {
-		Client::state(self)
+	type State = State<::state_db::StateDB>;
+
+	fn latest_state(&self) -> Self::State {
+		self.latest_state()
 	}
 }
 

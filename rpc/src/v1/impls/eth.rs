@@ -30,7 +30,7 @@ use parking_lot::Mutex;
 use ethash::SeedHashCompute;
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::block::IsBlock;
-use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient};
+use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo};
 use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
@@ -248,9 +248,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 
 			BlockNumber::Pending => {
 				let info = self.client.chain_info();
-				let pending_state = self.miner.pending_state(info.best_block_number);
 
-				pending_state.unwrap_or(self.client.latest_state()).into()
+				self.miner
+					.pending_state(info.best_block_number)
+					.map(|s| Box::new(s) as Box<StateInfo>)
+					.unwrap_or(Box::new(self.client.latest_state()) as Box<StateInfo>)
+					.into()
 			}
 		}
 	}

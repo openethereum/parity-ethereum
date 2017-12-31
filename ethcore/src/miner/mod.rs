@@ -79,6 +79,7 @@ use transaction::{UnverifiedTransaction, PendingTransaction};
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
+	type State: StateInfo + 'static;
 
 	/// Returns miner's status.
 	fn status(&self) -> MinerStatus;
@@ -200,7 +201,7 @@ pub trait MinerService : Send + Sync {
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { 21000.into() }
 
-	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Box<StateInfo>>;
+	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Self::State>;
 }
 
 /// Mining status
