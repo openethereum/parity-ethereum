@@ -8,8 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 rlp = { path = "../../util/rlp" }
 rlp_derive = { path = "../../util/rlp_derive" }
 ethcore-bytes = { path = "../../util/bytes" }
-ethcore-util = { path = "../../util" }
-ethcore-bigint = { path = "../../util/bigint" }
+ethereum-types = "0.1"
 ethjson = { path = "../../json" }
 bloomable = { path = "../../util/bloomable" }
 keccak-hash = { path = "../../util/hash" }

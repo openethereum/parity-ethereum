@@ -5,8 +5,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 bit-set = "0.4"
-ethcore-util = { path = "../../util" }
-ethcore-bigint = { path = "../../util/bigint" }
+ethereum-types = "0.1"
 evmjit = { path = "../../evmjit", optional = true }
 heapsize = "0.4"
 lazy_static = "0.2"

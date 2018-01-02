@@ -21,8 +21,8 @@ parking_lot = "0.4"
 ansi_term = "0.9"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io" }
-ethcore-bigint = { path = "../bigint" }
 ethcore-bytes = { path = "../bytes" }
+ethereum-types = "0.1"
 ethkey = { path = "../../ethkey" }
 ethcrypto = { path = "../../ethcrypto" }
 rlp = { path = "../rlp" }

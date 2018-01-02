@@ -274,7 +274,7 @@ impl<'a, 'view> Iterator for RlpIterator<'a, 'view> {
 #[test]
 fn break_it() {
 	use rustc_hex::FromHex;
-	use bigint::prelude::U256;
+	use bigint::U256;
 
 	let h: Vec<u8> = FromHex::from_hex("f84d0589010efbef67941f79b2a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").unwrap();
 	let r: Rlp = Rlp::new(&h);

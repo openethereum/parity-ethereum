@@ -7,7 +7,7 @@ description = "Whisper Protocol implementation for Parity"
 [dependencies]
 bitflags = "0.9"
 byteorder = "1.0.0"
-ethcore-bigint = { path = "../util/bigint" }
+ethereum-types = "0.1"
 ethcore-network = { path = "../util/network" }
 ethcrypto = { path = "../ethcrypto" }
 ethkey = { path = "../ethkey" }

@@ -8,7 +8,7 @@
 
 use std::{cmp, mem, str};
 use byteorder::{ByteOrder, BigEndian};
-use bigint::prelude::{U128, U256, H64, H128, H160, H256, H512, H520, H2048};
+use bigint::{U128, U256, H64, H128, H160, H256, H512, H520, H2048};
 use traits::{Encodable, Decodable};
 use stream::RlpStream;
 use {UntrustedRlp, DecoderError};
