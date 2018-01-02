@@ -58,7 +58,7 @@ parity-updater = { path = "updater" }
 parity-version = { path = "util/version" }
 parity-whisper = { path = "whisper" }
 path = { path = "util/path" }
-dir = { path = "util/dir" } 
+dir = { path = "util/dir" }
 panic_hook = { path = "panic_hook" }
 keccak-hash = { path = "util/hash" }
 migration = { path = "util/migration" }
@@ -101,6 +101,7 @@ evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
 secretstore = ["ethcore-secretstore"]
+final = ["parity-version/final"]
 
 [[bin]]
 path = "parity/main.rs"
