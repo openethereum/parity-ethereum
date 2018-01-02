@@ -290,8 +290,7 @@ mod test {
 	extern crate tempdir;
 
 	use std::{env, fs};
-	use super::RootDiskDirectory;
-	use dir::{KeyDirectory, VaultKey};
+	use super::{KeyDirectory, RootDiskDirectory, VaultKey};
 	use account::SafeAccount;
 	use ethkey::{Random, Generator};
 	use self::tempdir::TempDir;

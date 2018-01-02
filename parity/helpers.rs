@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{io, env};
+use std::io;
 use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
 use std::fs::File;
@@ -27,6 +27,7 @@ use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientCo
 use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
+use dir::helpers::replace_home;
 use upgrade::{upgrade, upgrade_data_paths};
 use migration::migrate;
 use ethsync::{validate_node_url, self};
@@ -133,19 +134,6 @@ pub fn to_addresses(s: &Option<String>) -> Result<Vec<Address>, String> {
 /// Tries to parse string as a price.
 pub fn to_price(s: &str) -> Result<f32, String> {
 	s.parse::<f32>().map_err(|_| format!("Invalid transaciton price 's' given. Must be a decimal number."))
-}
-
-/// Replaces `$HOME` str with home directory path.
-pub fn replace_home(base: &str, arg: &str) -> String {
-	// the $HOME directory on mac os should be `~/Library` or `~/Library/Application Support`
-	let r = arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap());
-	let r = r.replace("$BASE", base);
-	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string())
-}
-
-pub fn replace_home_and_local(base: &str, local: &str, arg: &str) -> String {
-	let r = replace_home(base, arg);
-	r.replace("$LOCAL", local)
 }
 
 /// Flush output buffer.

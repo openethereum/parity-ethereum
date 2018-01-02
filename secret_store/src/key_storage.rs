@@ -35,11 +35,14 @@ type CurrentSerializableDocumentKeyVersion = SerializableDocumentKeyShareVersion
 
 /// Encrypted key share, stored by key storage on the single key server.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(test, derive(Default))]
 pub struct DocumentKeyShare {
 	/// Author of the entry.
 	pub author: Public,
 	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
 	pub threshold: usize,
+	/// Server public key.
+	pub public: Public,
 	/// Common (shared) encryption point.
 	pub common_point: Option<Public>,
 	/// Encrypted point.
@@ -122,10 +125,12 @@ struct SerializableDocumentKeyShareV1 {
 /// V2 of encrypted key share, as it is stored by key storage on the single key server.
 #[derive(Serialize, Deserialize)]
 struct SerializableDocumentKeyShareV2 {
-	/// Authore of the entry.
+	/// Author of the entry.
 	pub author: SerializablePublic,
 	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
 	pub threshold: usize,
+	/// Server public.
+	pub public: SerializablePublic,
 	/// Common (shared) encryption point.
 	pub common_point: Option<SerializablePublic>,
 	/// Encrypted point.
@@ -174,6 +179,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 					// in v0 there have been only simultaneous GenEnc sessions.
 					author: Public::default().into(), // added in v1
 					threshold: v0_key.threshold,
+					public: Public::default().into(), // addded in v2
 					common_point: Some(v0_key.common_point),
 					encrypted_point: Some(v0_key.encrypted_point),
 					versions: vec![CurrentSerializableDocumentKeyVersion {
@@ -196,6 +202,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 				let current_key = CurrentSerializableDocumentKeyShare {
 					author: v1_key.author, // added in v1
 					threshold: v1_key.threshold,
+					public: Public::default().into(), // addded in v2
 					common_point: v1_key.common_point,
 					encrypted_point: v1_key.encrypted_point,
 					versions: vec![CurrentSerializableDocumentKeyVersion {
@@ -329,6 +336,7 @@ impl From<DocumentKeyShare> for SerializableDocumentKeyShareV2 {
 		SerializableDocumentKeyShareV2 {
 			author: key.author.into(),
 			threshold: key.threshold,
+			public: key.public.into(),
 			common_point: key.common_point.map(Into::into),
 			encrypted_point: key.encrypted_point.map(Into::into),
 			versions: key.versions.into_iter().map(Into::into).collect(),
@@ -351,6 +359,7 @@ impl From<SerializableDocumentKeyShareV2> for DocumentKeyShare {
 		DocumentKeyShare {
 			author: key.author.into(),
 			threshold: key.threshold,
+			public: key.public.into(),
 			common_point: key.common_point.map(Into::into),
 			encrypted_point: key.encrypted_point.map(Into::into),
 			versions: key.versions.into_iter()
@@ -424,6 +433,7 @@ pub mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let config = ServiceConfiguration {
 			listener_address: None,
+			service_contract_address: None,
 			acl_check_enabled: true,
 			data_path: tempdir.path().display().to_string(),
 			cluster_config: ClusterConfiguration {
@@ -442,6 +452,7 @@ pub mod tests {
 		let value1 = DocumentKeyShare {
 			author: Public::default(),
 			threshold: 100,
+			public: Public::default(),
 			common_point: Some(Random.generate().unwrap().public().clone()),
 			encrypted_point: Some(Random.generate().unwrap().public().clone()),
 			versions: vec![DocumentKeyShareVersion {
@@ -456,6 +467,7 @@ pub mod tests {
 		let value2 = DocumentKeyShare {
 			author: Public::default(),
 			threshold: 200,
+			public: Public::default(),
 			common_point: Some(Random.generate().unwrap().public().clone()),
 			encrypted_point: Some(Random.generate().unwrap().public().clone()),
 			versions: vec![DocumentKeyShareVersion {

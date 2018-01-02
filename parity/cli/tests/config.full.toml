@@ -80,6 +80,7 @@ pass = "test_pass"
 disable = false
 disable_http = false
 disable_acl_check = false
+service_contract = "none"
 nodes = []
 http_interface = "local"
 http_port = 8082

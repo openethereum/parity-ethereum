@@ -308,6 +308,9 @@ pub trait MiningBlockChainClient: BlockChainClient {
 
 	/// Returns latest schedule.
 	fn latest_schedule(&self) -> Schedule;
+
+	/// Returns base of this trait
+	fn as_block_chain_client(&self) -> &BlockChainClient;
 }
 
 /// Client facilities used by internally sealing Engines.

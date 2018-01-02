@@ -454,7 +454,7 @@ usage! {
 			"--jsonrpc-interface=[IP]",
 			"Specify the hostname portion of the JSONRPC API server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
-			ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore,shh,shh_pubsub", or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
+			ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-apis=[APIS]",
 			"Specify the APIs available through the JSONRPC interface. APIS is a comma-delimited list of API name. Possible name are all, safe, web3, eth, net, personal, parity, parity_set, traces, rpc, parity_accounts. You can also disable a specific API by putting '-' in the front: all,-personal.",
 
@@ -487,7 +487,7 @@ usage! {
 			"--ws-interface=[IP]",
 			"Specify the hostname portion of the WebSockets server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
-			ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore,shh,shh_pubsub", or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
+			ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
 			"--ws-apis=[APIS]",
 			"Specify the APIs available through the WebSockets interface. APIS is a comma-delimited list of API name. Possible name are web3, eth, pubsub, net, personal, parity, parity_set, traces, rpc, parity_accounts..",
 
@@ -508,7 +508,7 @@ usage! {
 			"--ipc-path=[PATH]",
 			"Specify custom path for JSON-RPC over IPC service.",
 
-			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,secretstore,shh,shh_pubsub", or |c: &Config| otry!(c.ipc).apis.as_ref().map(|vec| vec.join(",")),
+			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,shh,shh_pubsub", or |c: &Config| otry!(c.ipc).apis.as_ref().map(|vec| vec.join(",")),
 			"--ipc-apis=[APIS]",
 			"Specify custom API set available via JSON-RPC over IPC.",
 
@@ -554,6 +554,10 @@ usage! {
  			FLAG flag_no_secretstore_acl_check: (bool) = false, or |c: &Config| otry!(c.secretstore).disable_acl_check.clone(),
 			"--no-acl-check",
 			"Disable ACL check (useful for test environments).",
+
+			ARG arg_secretstore_contract: (String) = "none", or |c: &Config| otry!(c.secretstore).service_contract.clone(),
+			"--secretstore-contract=[SOURCE]",
+			"Secret Store Service contract address source: none, registry (contract address is read from registry) or address.",
 
 			ARG arg_secretstore_nodes: (String) = "", or |c: &Config| otry!(c.secretstore).nodes.as_ref().map(|vec| vec.join(",")),
 			"--secretstore-nodes=[NODES]",
@@ -1093,6 +1097,7 @@ struct SecretStore {
 	disable: Option<bool>,
 	disable_http: Option<bool>,
 	disable_acl_check: Option<bool>,
+	service_contract: Option<String>,
 	self_secret: Option<String>,
 	admin_public: Option<String>,
 	nodes: Option<Vec<String>>,
@@ -1494,6 +1499,7 @@ mod tests {
 			flag_no_secretstore: false,
 			flag_no_secretstore_http: false,
 			flag_no_secretstore_acl_check: false,
+			arg_secretstore_contract: "none".into(),
 			arg_secretstore_secret: None,
 			arg_secretstore_admin_public: None,
 			arg_secretstore_nodes: "".into(),
@@ -1737,6 +1743,7 @@ mod tests {
 				disable: None,
 				disable_http: None,
 				disable_acl_check: None,
+				service_contract: None,
 				self_secret: None,
 				admin_public: None,
 				nodes: None,

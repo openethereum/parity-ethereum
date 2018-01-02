@@ -543,6 +543,8 @@ pub enum RemovalReason {
 	Invalid,
 	/// Transaction was canceled
 	Canceled,
+	/// Transaction is not allowed,
+	NotAllowed,
 }
 
 /// Point in time when transaction was inserted.
@@ -1010,6 +1012,9 @@ impl TransactionQueue {
 		if self.local_transactions.contains(transaction_hash) {
 			match reason {
 				RemovalReason::Invalid => self.local_transactions.mark_invalid(
+					transaction.transaction.into()
+				),
+				RemovalReason::NotAllowed => self.local_transactions.mark_invalid(
 					transaction.transaction.into()
 				),
 				RemovalReason::Canceled => self.local_transactions.mark_canceled(

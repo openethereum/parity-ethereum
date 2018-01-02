@@ -14,16 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 use futures::{future, Future};
 use parking_lot::{Mutex, RwLock};
 use ethkey::public_to_address;
-use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
+use ethcore::client::{BlockChainClient, BlockId, ChainNotify};
 use native_contracts::SecretStoreAclStorage;
 use bigint::hash::H256;
 use util::Address;
 use bytes::Bytes;
+use trusted_client::TrustedClient;
 use types::all::{Error, ServerKeyId, Public};
 
 const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checker";
@@ -43,7 +44,7 @@ pub struct OnChainAclStorage {
 /// Cached on-chain ACL storage contract.
 struct CachedContract {
 	/// Blockchain client.
-	client: Weak<Client>,
+	client: TrustedClient,
 	/// Contract address.
 	contract_addr: Option<Address>,
 	/// Contract at given address.
@@ -57,12 +58,15 @@ pub struct DummyAclStorage {
 }
 
 impl OnChainAclStorage {
-	pub fn new(client: &Arc<Client>) -> Arc<Self> {
+	pub fn new(trusted_client: TrustedClient) -> Result<Arc<Self>, Error> {
+		let client = trusted_client.get_untrusted();
 		let acl_storage = Arc::new(OnChainAclStorage {
-			contract: Mutex::new(CachedContract::new(client)),
+			contract: Mutex::new(CachedContract::new(trusted_client)),
 		});
-		client.add_notify(acl_storage.clone());
-		acl_storage
+		client
+			.ok_or(Error::Internal("Constructing OnChainAclStorage without active Client".into()))?
+			.add_notify(acl_storage.clone());
+		Ok(acl_storage)
 	}
 }
 
@@ -81,16 +85,16 @@ impl ChainNotify for OnChainAclStorage {
 }
 
 impl CachedContract {
-	pub fn new(client: &Arc<Client>) -> Self {
+	pub fn new(client: TrustedClient) -> Self {
 		CachedContract {
-			client: Arc::downgrade(client),
+			client: client,
 			contract_addr: None,
 			contract: None,
 		}
 	}
 
 	pub fn update(&mut self) {
-		if let Some(client) = self.client.upgrade() {
+		if let Some(client) = self.client.get() {
 			let new_contract_addr = client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.to_owned());
 			if self.contract_addr.as_ref() != new_contract_addr.as_ref() {
 				self.contract = new_contract_addr.map(|contract_addr| {
@@ -105,19 +109,20 @@ impl CachedContract {
 	}
 
 	pub fn check(&mut self, public: &Public, document: &ServerKeyId) -> Result<bool, Error> {
-		match self.contract.as_ref() {
-			Some(contract) => {
-				let address = public_to_address(&public);
-				let do_call = |a, d| future::done(
-					self.client
-						.upgrade()
-						.ok_or_else(|| "Calling contract without client".into())
-						.and_then(|c| c.call_contract(BlockId::Latest, a, d)));
-				contract.check_permissions(do_call, address, document.clone())
-					.map_err(|err| Error::Internal(err))
-					.wait()
-			},
-			None => Err(Error::Internal("ACL checker contract is not configured".to_owned())),
+		if let Some(client) = self.client.get() {
+			// call contract to check accesss
+			match self.contract.as_ref() {
+				Some(contract) => {
+					let address = public_to_address(&public);
+					let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
+					contract.check_permissions(do_call, address, document.clone())
+						.map_err(|err| Error::Internal(err))
+						.wait()
+				},
+				None => Err(Error::Internal("ACL checker contract is not configured".to_owned())),
+			}
+		} else {
+			Err(Error::Internal("Calling ACL contract without trusted blockchain client".into()))
 		}
 	}
 }

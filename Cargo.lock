@@ -360,6 +360,15 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "dir"
+version = "0.1.0"
+dependencies = [
+ "app_dirs 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-bigint 0.2.1",
+ "journaldb 0.1.0",
+]
+
+[[package]]
 name = "docopt"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -671,6 +680,7 @@ dependencies = [
  "ethcore-util 1.9.0",
  "ethcrypto 0.1.0",
  "ethkey 0.3.0",
+ "ethsync 1.9.0",
  "futures 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -784,6 +794,7 @@ dependencies = [
 name = "ethstore"
 version = "0.2.0"
 dependencies = [
+ "dir 0.1.0",
  "ethcore-bigint 0.2.1",
  "ethcrypto 0.1.0",
  "ethkey 0.3.0",
@@ -808,6 +819,7 @@ dependencies = [
 name = "ethstore-cli"
 version = "0.1.0"
 dependencies = [
+ "dir 0.1.0",
  "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethstore 0.2.0",
  "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1881,6 +1893,7 @@ dependencies = [
  "clap 2.26.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)",
  "daemonize 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dir 0.1.0",
  "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.9.0",
@@ -2196,7 +2209,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-old-precompiled"
 version = "1.9.0"
-source = "git+https://github.com/js-dist-paritytech/parity-master-1-9-v1.git#d95164e94df10cb2bbcaa5dad36d6b61b760c3e1"
+source = "git+https://github.com/js-dist-paritytech/parity-master-1-9-v1.git#e21325fa6f482192612f7f66ea8a632b9980d1e3"
 dependencies = [
  "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2204,7 +2217,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.9.0"
-source = "git+https://github.com/js-dist-paritytech/parity-master-1-9-shell.git#3bfd9abfca2ccadeb60aa6610ea0fbb9a8b74ac5"
+source = "git+https://github.com/js-dist-paritytech/parity-master-1-9-shell.git#76360e8da0b581bfd41fa030609fc01eb453932d"
 dependencies = [
  "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

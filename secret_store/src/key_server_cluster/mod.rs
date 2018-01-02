@@ -27,9 +27,9 @@ pub use super::key_storage::{KeyStorage, DocumentKeyShare, DocumentKeyShareVersi
 pub use super::key_server_set::KeyServerSet;
 pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic, SerializableMessageHash};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
-pub use self::generation_session::Session as GenerationSession;
-pub use self::encryption_session::Session as EncryptionSession;
-pub use self::decryption_session::Session as DecryptionSession;
+pub use self::cluster_sessions::{ClusterSession, ClusterSessionsListener};
+#[cfg(test)]
+pub use self::cluster::tests::DummyClusterClient;
 
 #[cfg(test)]
 pub use super::node_key_pair::PlainNodeKeyPair;
