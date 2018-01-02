@@ -21,3 +21,5 @@ rustc-hex = "1.0"
 
 [features]
 jit = ["evmjit"]
+evm-debug = []
+evm-debug-tests = ["evm-debug"]
