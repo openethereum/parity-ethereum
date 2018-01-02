@@ -24,9 +24,9 @@ export default class localStorageMiddleware {
       let delegate;
 
       switch (action.type) {
-        case 'add rpcResponse': delegate = ::this.onAddRpcResponse; break;
-        case 'reset rpcPrevCalls': delegate = ::this.onResetRpcCalls; break;
-        case 'init app': delegate = ::this.onInitApp; break;
+        case 'add rpcResponse': delegate = this.onAddRpcResponse; break;
+        case 'reset rpcPrevCalls': delegate = this.onResetRpcCalls; break;
+        case 'init app': delegate = this.onInitApp; break;
         default:
           next(action);
           return;
@@ -40,7 +40,7 @@ export default class localStorageMiddleware {
     };
   }
 
-  onInitApp (store, next, action) {
+  onInitApp = (store, next, action) => {
     const prevCalls = localStore.get('rpcPrevCalls');
 
     if (!(prevCalls && prevCalls.length)) {
@@ -55,13 +55,13 @@ export default class localStorageMiddleware {
     return next(action);
   }
 
-  onAddRpcResponse (store, next, action) {
+  onAddRpcResponse = (store, next, action) => {
     action.payload.callNo = store.getState().rpc.callNo;
     this.unshift('rpcPrevCalls', action.payload);
     return next(action);
   }
 
-  onResetRpcCalls (store, next, action) {
+  onResetRpcCalls = (store, next, action) => {
     localStore.set('rpcPrevCalls', []);
     return next(action);
   }

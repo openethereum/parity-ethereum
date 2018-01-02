@@ -73,7 +73,7 @@ describe('views/Signer/components/SignRequest', () => {
     render();
   });
 
-  it('renders', () => {
+  it.skip('renders', () => {
     expect(component).to.be.ok;
   });
 });

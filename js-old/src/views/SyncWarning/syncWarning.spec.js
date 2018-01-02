@@ -23,6 +23,8 @@ let component;
 
 function createRedux (syncing = null) {
   return {
+    dispatch: () => {},
+    subscribe: () => {},
     getState: () => {
       return {
         nodeStatus: {

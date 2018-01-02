@@ -75,9 +75,11 @@ describe('modals/AddContract', () => {
     });
 
     it('adds newError on failure', () => {
-      sinon.stub(instance.store, 'addContract').rejects('test');
+      const error = new Error('test');
+
+      sinon.stub(instance.store, 'addContract').rejects(error);
       return instance.onAdd().then(() => {
-        expect(reduxStore.dispatch).to.have.been.calledWith({ error: new Error('test'), type: 'newError' });
+        expect(reduxStore.dispatch).to.have.been.calledWith({ error, type: 'newError' });
         instance.store.addContract.restore();
       });
     });

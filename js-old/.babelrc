@@ -1,3 +1,10 @@
 {
-  "presets": ["parity-react-scripts/babel-preset.js"]
+  "presets": ["parity-react-scripts/babel-preset.js"],
+   "env": {
+    "test": {
+      "plugins": [
+        [ "babel-plugin-webpack-alias", { "config": "./webpack.config.test.js" } ]
+      ]
+    }
+  }
 }

@@ -16,6 +16,7 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import { DEFAULT_URL } from './store';
 import Web from './';
@@ -24,7 +25,16 @@ let api;
 let component;
 
 function createApi () {
-  api = {};
+  api = {
+    dappsPort: 8545,
+    dappsUrl: 'http://home.web3.site:8545',
+    parity: {
+      listRecentDapps: sinon.stub().resolves('TEST_HISTORY')
+    },
+    signer: {
+      generateWebProxyAccessToken: sinon.stub().resolves('TEST_TOKEN')
+    }
+  };
 
   return api;
 }
