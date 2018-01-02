@@ -171,22 +171,36 @@ mod tests {
 
 		// Make sure reporting can be done.
 		client.miner().set_gas_floor_target(1_000_000.into());
-
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
+
+		// Check a block that is a bit in future, reject it but don't report the validator.
 		let mut header = Header::default();
 		let seal = vec![encode(&5u8).into_vec(), encode(&(&H520::default() as &[u8])).into_vec()];
 		header.set_seal(seal);
 		header.set_author(v1);
 		header.set_number(2);
 		header.set_parent_hash(client.chain_info().best_block_hash);
+		assert!(client.engine().verify_block_external(&header).is_err());
+		client.engine().step();
+		assert_eq!(client.chain_info().best_block_number, 0);
 
+		// Now create one that is more in future. That one should be rejected and validator should be reported.
+		let mut header = Header::default();
+		let seal = vec![encode(&8u8).into_vec(), encode(&(&H520::default() as &[u8])).into_vec()];
+		header.set_seal(seal);
+		header.set_author(v1);
+		header.set_number(2);
+		header.set_parent_hash(client.chain_info().best_block_hash);
 		// `reportBenign` when the designated proposer releases block from the future (bad clock).
 		assert!(client.engine().verify_block_external(&header).is_err());
 		// Seal a block.
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// Check if the unresponsive validator is `disliked`.
-		assert_eq!(client.call_contract(BlockId::Latest, validator_contract, "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(), "0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e");
+		assert_eq!(
+			client.call_contract(BlockId::Latest, validator_contract, "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(),
+			"0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e"
+		);
 		// Simulate a misbehaving validator by handling a double proposal.
 		let header = client.best_block_header().decode();
 		assert!(client.engine().verify_block_family(&header, &header).is_err());
