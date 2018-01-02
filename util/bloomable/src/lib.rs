@@ -16,11 +16,11 @@
 
 //! Bloom operations.
 
-extern crate ethcore_bigint;
+extern crate ethereum_types;
 
 use std::mem;
 use std::ops::DerefMut;
-use ethcore_bigint::hash::{H64, H160, H256, H512, H520, H2048};
+use ethereum_types::{H64, H160, H256, H512, H520, H2048};
 
 /// Returns log2.
 pub fn log2(x: usize) -> u32 {

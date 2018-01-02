@@ -17,7 +17,7 @@
 //! Trace filter related types
 
 use std::ops::Range;
-use util::{Address};
+use ethereum_types::Address;
 use ids::BlockId;
 
 /// Easy to use trace filter.

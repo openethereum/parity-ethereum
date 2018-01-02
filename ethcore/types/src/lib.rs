@@ -16,8 +16,7 @@
 
 //! Types used in the public API
 
-extern crate ethcore_util as util;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 extern crate ethcore_bytes as bytes;
 extern crate ethjson;
 extern crate rlp;

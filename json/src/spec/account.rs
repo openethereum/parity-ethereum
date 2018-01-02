@@ -50,7 +50,7 @@ mod tests {
 	use std::collections::BTreeMap;
 	use serde_json;
 	use spec::account::Account;
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use uint::Uint;
 	use bytes::Bytes;
 
