@@ -104,29 +104,59 @@ impl Step {
 	fn load(&self) -> usize { self.inner.load(AtomicOrdering::SeqCst) }
 	fn duration_remaining(&self) -> Duration {
 		let now = unix_now();
-		let step_end = self.duration * (self.load() as u32 + 1);
-		if step_end > now {
-			step_end - now
-		} else {
-			Duration::from_secs(0)
+		let expected_seconds = (self.load() as u64)
+			.checked_add(1)
+			.and_then(|ctr| ctr.checked_mul(self.duration as u64))
+			.map(Duration::from_secs);
+
+		match expected_seconds {
+			Some(step_end) if step_end > now => step_end - now,
+			Some(_) => Duration::from_secs(0),
+			None => {
+				let ctr = self.load();
+				error!(target: "engine", "Step counter is too high: {}, aborting", ctr);
+				panic!("step counter is too high: {}", ctr)
+			},
 		}
 	}
+
 	fn increment(&self) {
 		self.inner.fetch_add(1, AtomicOrdering::SeqCst);
 	}
+
 	fn calibrate(&self) {
 		if self.calibrate {
 			let new_step = unix_now().as_secs() / self.duration.as_secs();
 			self.inner.store(new_step as usize, AtomicOrdering::SeqCst);
 		}
 	}
-	fn is_future(&self, given: usize) -> bool {
-		if given > self.load() + 1 {
-			// Make absolutely sure that the given step is correct.
-			self.calibrate();
-			given > self.load() + 1
+
+	fn check_future(&self, given: usize) -> Result<(), Option<OutOfBounds<u64>>> {
+		const VALID_STEP_DRIFT: usize = 1;
+		const REJECTED_STEP_DRIFT: usize = 4;
+
+		// Give one step slack if step is lagging, double vote is still not possible.
+		if given <= self.load() + VALID_STEP_DRIFT {
+			return Ok(());
+		}
+
+		// Make absolutely sure that the given step is incorrect.
+		self.calibrate();
+		let current = self.load();
+
+		// reject blocks too far in the future
+		if given > current + REJECTED_STEP_DRIFT {
+			Err(None)
+		// wait a bit for blocks in near future
+		} else if given > current + VALID_STEP_DRIFT {
+			let d = self.duration as u64;
+			Err(Some(OutOfBounds {
+				min: None,
+				max: Some(d * (current + VALID_STEP_DRIFT) as u64),
+				found: d * given as u64,
+			}))
 		} else {
-			false
+			Ok(())
 		}
 	}
 }
@@ -322,22 +352,28 @@ fn verify_external<F: Fn(Report)>(header: &Header, validators: &ValidatorSet, st
 {
 	let header_step = header_step(header)?;
 
-	// Give one step slack if step is lagging, double vote is still not possible.
-	if step.is_future(header_step) {
-		trace!(target: "engine", "verify_block_external: block from the future");
-		report(Report::Benign(*header.author(), header.number()));
-		Err(BlockError::InvalidSeal)?
-	} else {
-		let proposer_signature = header_signature(header)?;
-		let correct_proposer = validators.get(header.parent_hash(), header_step);
-		let is_invalid_proposer = *header.author() != correct_proposer ||
-			!verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
+	match step.check_future(header_step) {
+		Err(None) => {
+			trace!(target: "engine", "verify_block_external: block from the future");
+			report(Report::Benign(*header.author(), header.number()));
+			return Err(BlockError::InvalidSeal.into())
+		},
+		Err(Some(oob)) => {
+			trace!(target: "engine", "verify_block_external: block too early");
+			return Err(BlockError::TemporarilyInvalid(oob).into())
+		},
+		Ok(_) => {
+			let proposer_signature = header_signature(header)?;
+			let correct_proposer = validators.get(header.parent_hash(), header_step);
+			let is_invalid_proposer = *header.author() != correct_proposer ||
+				!verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
 
-		if is_invalid_proposer {
-			trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
-			Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
-		} else {
-			Ok(())
+			if is_invalid_proposer {
+				trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
+				Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
+			} else {
+				Ok(())
+			}
 		}
 	}
 }

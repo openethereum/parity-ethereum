@@ -230,11 +230,20 @@ pub fn verify_header_params(header: &Header, engine: &Engine, is_full: bool) -> 
 		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: Some(maximum_extra_data_size), found: header.extra_data().len() })));
 	}
 	if is_full {
-		let max_time = get_time().sec as u64 + 15;
-		if header.timestamp() > max_time {
-			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: header.timestamp() })))
+		const ACCEPTABLE_DRIFT_SECS: u64 = 15;
+		let max_time = get_time().sec as u64 + ACCEPTABLE_DRIFT_SECS;
+		let invalid_threshold = max_time + ACCEPTABLE_DRIFT_SECS * 9;
+		let timestamp = header.timestamp();
+
+		if timestamp > invalid_threshold {
+			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
+		}
+
+		if timestamp > max_time {
+			return Err(From::from(BlockError::TemporarilyInvalid(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
 		}
 	}
+
 	Ok(())
 }
 
@@ -298,11 +307,13 @@ mod tests {
 		}
 	}
 
-	fn check_fail_timestamp(result: Result<(), Error>) {
+	fn check_fail_timestamp(result: Result<(), Error>, temp: bool) {
+		let name = if temp { "TemporarilyInvalid" } else { "InvalidTimestamp" };
 		match result {
-			Err(Error::Block(BlockError::InvalidTimestamp(_))) => (),
-			Err(other) => panic!("Block verification failed.\nExpected: InvalidTimestamp\nGot: {:?}", other),
-			Ok(_) => panic!("Block verification failed.\nExpected: InvalidTimestamp\nGot: Ok"),
+			Err(Error::Block(BlockError::InvalidTimestamp(_))) if !temp => (),
+			Err(Error::Block(BlockError::TemporarilyInvalid(_))) if temp => (),
+			Err(other) => panic!("Block verification failed.\nExpected: {}\nGot: {:?}", name, other),
+			Ok(_) => panic!("Block verification failed.\nExpected: {}\nGot: Ok", name),
 		}
 	}
 
@@ -561,11 +572,11 @@ mod tests {
 
 		header = good.clone();
 		header.set_timestamp(2450000000);
-		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
+		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine), false);
 
 		header = good.clone();
 		header.set_timestamp(get_time().sec as u64 + 20);
-		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
+		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine), true);
 
 		header = good.clone();
 		header.set_timestamp(get_time().sec as u64 + 10);
