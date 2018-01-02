@@ -58,7 +58,7 @@ struct CacheQueueItem {
 	/// Account address.
 	address: Address,
 	/// Acccount data or `None` if account does not exist.
-	account: Option<Account>,
+	account: Mutex<Option<Account>>,
 	/// Indicates that the account was modified before being
 	/// added to the cache.
 	modified: bool,
@@ -268,15 +268,16 @@ impl StateDB {
 					modifications.insert(account.address.clone());
 				}
 				if is_best {
+					let acc = account.account.lock().take();
 					if let Some(&mut Some(ref mut existing)) = cache.accounts.get_mut(&account.address) {
-						if let Some(new) = account.account {
+						if let Some(new) =  acc {
 							if account.modified {
 								existing.overwrite_with(new);
 							}
 							continue;
 						}
 					}
-					cache.accounts.insert(account.address, account.account);
+					cache.accounts.insert(account.address, acc);
 				}
 			}
 
@@ -408,7 +409,7 @@ impl state::Backend for StateDB {
 	fn add_to_account_cache(&mut self, addr: Address, data: Option<Account>, modified: bool) {
 		self.local_cache.push(CacheQueueItem {
 			address: addr,
-			account: data,
+			account: Mutex::new(data),
 			modified: modified,
 		})
 	}
