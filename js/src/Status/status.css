@@ -52,16 +52,16 @@ $statusHeight: 2.75em;
 }
 
 .plugins {
+  align-items: center;
+  display: flex;
   flex-grow: 1;
-  text-align: right;
-  vertical-align: middle;
+  justify-content: flex-end;
 
   > div,
   > img,
   > span {
-    display: inline-block !important;
+    align-self: center;
     margin: 0 0 0 1rem;
-    vertical-align: middle;
   }
 
   .divider {
@@ -70,9 +70,29 @@ $statusHeight: 2.75em;
     opacity: 0.75;
   }
 
+  .health,
+  .pending {
+    /* Same as default line-height, i.e. item same as text following */
+    height: 1.4285rem;
+  }
+
   .health {
     > span {
+      height: 100%;
+      /* re-instate the original margin, no negative offset */
+      margin-top: 0.2em;
       width: auto;
+
+      > span {
+        /* default vertical alignment */
+        vertical-align: baseline;
+      }
+    }
+  }
+
+  .pending {
+    > i {
+      height: 100%;
     }
   }
 }

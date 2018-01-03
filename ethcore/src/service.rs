@@ -79,12 +79,7 @@ impl ClientService {
 
 		let mut db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
-		// give all rocksdb cache to state column; everything else has its
-		// own caches.
-		if let Some(size) = config.db_cache_size {
-			db_config.set_cache(::db::COL_STATE, size);
-		}
-
+		db_config.memory_budget = config.db_cache_size;
 		db_config.compaction = config.db_compaction.compaction_profile(client_path);
 		db_config.wal = config.db_wal;
 
