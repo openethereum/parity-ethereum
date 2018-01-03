@@ -68,6 +68,8 @@ extern crate hardware_wallet;
 extern crate kvdb;
 
 #[macro_use]
+extern crate futures;
+#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate jsonrpc_macros;
