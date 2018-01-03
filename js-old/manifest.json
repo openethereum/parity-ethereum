@@ -1,4 +1,5 @@
 {
+  "id": "0x1234",
   "name": "Parity Wallet",
   "version": "development",
   "author": "Parity <admin@parity.io>",
