@@ -21,7 +21,7 @@ use std::fmt::{Display, Formatter, Error as FmtError};
 use mode::Mode as IpcMode;
 use verification::{VerifierType, QueueConfig};
 use util::journaldb;
-use kvdb::CompactionProfile;
+use kvdb_rocksdb::CompactionProfile;
 
 pub use std::time::Duration;
 pub use blockchain::Config as BlockChainConfig;
@@ -141,7 +141,7 @@ pub struct ClientConfig {
 	pub pruning: journaldb::Algorithm,
 	/// The name of the client instance.
 	pub name: String,
-	/// RocksDB state column cache-size if not default
+	/// RocksDB column cache-size if not default
 	pub db_cache_size: Option<usize>,
 	/// State db compaction profile
 	pub db_compaction: DatabaseCompactionProfile,

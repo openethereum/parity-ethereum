@@ -27,7 +27,7 @@ use client::*;
 use tests::helpers::*;
 use devtools::RandomTempPath;
 use client::{BlockChainClient, Client, ClientConfig};
-use kvdb::{Database, DatabaseConfig};
+use kvdb_rocksdb::{Database, DatabaseConfig};
 use std::sync::Arc;
 use header::Header;
 use miner::Miner;

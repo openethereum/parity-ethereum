@@ -22,7 +22,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::path::{Path, PathBuf};
 use {Batch, Config, Error, SimpleMigration, Migration, Manager, ChangeColumns};
-use kvdb::Database;
+use kvdb_rocksdb::Database;
 use devtools::RandomTempPath;
 
 fn db_path(path: &Path) -> PathBuf {
@@ -229,7 +229,7 @@ fn pre_columns() {
 
 #[test]
 fn change_columns() {
-	use kvdb::DatabaseConfig;
+	use kvdb_rocksdb::DatabaseConfig;
 
 	let mut manager = Manager::new(Config::default());
 	manager.add_migration(ChangeColumns {
