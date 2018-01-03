@@ -34,7 +34,7 @@
     "publish": "parity-react-scripts publish",
     "start": "parity-react-scripts start",
     "test": "npm run lint && parity-react-scripts test",
-    "test-old": "NODE_ENV=test mocha 'src/**/*.spec.js'"
+    "test-old": "NODE_ENV=test mocha --exit 'src/**/*.spec.js'"
   },
   "napa": {
     "qrcode-generator": "kazuhikoarase/qrcode-generator"

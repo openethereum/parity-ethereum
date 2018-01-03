@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+const nock = require('nock');
 const helpers = require('./helpers.spec.js');
 
 const ShapeShift = require('./');
@@ -47,6 +48,10 @@ describe('shapeshift/rpc', () => {
         });
     });
 
+    afterEach(() => {
+      nock.cleanAll();
+    });
+
     it('does GET', () => {
       expect(scope.isDone()).to.be.true;
     });
@@ -70,6 +75,10 @@ describe('shapeshift/rpc', () => {
         .then((_result) => {
           result = _result;
         });
+    });
+
+    afterEach(() => {
+      nock.cleanAll();
     });
 
     it('does POST', () => {

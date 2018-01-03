@@ -26,7 +26,7 @@ export function mockHttp (requests) {
   nock.cleanAll();
   let scope = nock(TEST_HTTP_URL);
 
-  requests.forEach((request, index) => {
+  requests.forEach((request) => {
     scope = scope
       .post('/')
       .reply(request.code || 200, (uri, body) => {

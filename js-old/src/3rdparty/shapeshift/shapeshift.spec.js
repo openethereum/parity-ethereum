@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+const nock = require('nock');
 const sinon = require('sinon');
 
 const ShapeShift = require('./');
@@ -61,6 +62,10 @@ describe('shapeshift/calls', () => {
       return shapeshift.getCoins();
     });
 
+    afterEach(() => {
+      nock.cleanAll();
+    });
+
     it('makes the call', () => {
       expect(scope.isDone()).to.be.ok;
     });
@@ -83,6 +88,10 @@ describe('shapeshift/calls', () => {
       return shapeshift.getMarketInfo('btc_ltc');
     });
 
+    afterEach(() => {
+      nock.cleanAll();
+    });
+
     it('makes the call', () => {
       expect(scope.isDone()).to.be.ok;
     });
@@ -100,6 +109,10 @@ describe('shapeshift/calls', () => {
       scope = mockget(shapeshift, [{ path: 'txStat/0x123', reply: REPLY }]);
 
       return shapeshift.getStatus('0x123');
+    });
+
+    afterEach(() => {
+      nock.cleanAll();
     });
 
     it('makes the call', () => {
@@ -121,6 +134,10 @@ describe('shapeshift/calls', () => {
       scope = mockpost(shapeshift, [{ path: 'shift', reply: REPLY }]);
 
       return shapeshift.shift('0x456', '1BTC', 'btc_eth');
+    });
+
+    afterEach(() => {
+      nock.cleanAll();
     });
 
     it('makes the call', () => {
@@ -155,6 +172,10 @@ describe('shapeshift/calls', () => {
       mockget(shapeshift, [{ path: `txStat/${ADDRESS}`, reply: REPLY }]);
       callback = sinon.stub();
       shapeshift.subscribe(ADDRESS, callback);
+    });
+
+    afterEach(() => {
+      nock.cleanAll();
     });
 
     describe('subscribe', () => {
