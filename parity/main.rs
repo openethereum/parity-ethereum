@@ -62,7 +62,7 @@ extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_network as network;
 extern crate migration as migr;
-extern crate kvdb;
+extern crate kvdb_rocksdb;
 extern crate ethkey;
 extern crate ethsync;
 extern crate node_health;

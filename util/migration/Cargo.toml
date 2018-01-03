@@ -7,4 +7,5 @@ authors = ["Parity Technologies <admin@parity.io>"]
 log = "0.3"
 macros = { path = "../macros" }
 kvdb = { path = "../kvdb" }
+kvdb-rocksdb = { path = "../kvdb-rocksdb" }
 ethcore-devtools = { path = "../../devtools" }

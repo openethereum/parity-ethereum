@@ -34,10 +34,13 @@ ethcore-ipc = { path = "../ipc/rpc" }
 semver = "0.6"
 smallvec = { version = "0.4", features = ["heapsizeof"] }
 ethcore-ipc-nano = { path = "../ipc/nano" }
-ethcore-devtools = { path = "../devtools" }
-ethkey = { path = "../ethkey" }
 parking_lot = "0.4"
 ipnetwork = "0.12.6"
+
+[dev-dependencies]
+ethkey = { path = "../ethkey" }
+kvdb-memorydb = { path = "../util/kvdb-memorydb" }
+ethcore-devtools = { path = "../devtools" }
 
 [features]
 default = []
