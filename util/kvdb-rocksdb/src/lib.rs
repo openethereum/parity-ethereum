@@ -18,15 +18,17 @@
 extern crate log;
 
 extern crate elastic_array;
+extern crate interleaved_ordered;
+extern crate num_cpus;
 extern crate parking_lot;
 extern crate regex;
 extern crate rocksdb;
-extern crate interleaved_ordered;
 
 extern crate ethcore_bigint as bigint;
 extern crate kvdb;
 extern crate rlp;
 
+use std::cmp;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::path::{PathBuf, Path};
@@ -35,7 +37,7 @@ use std::{mem, fs, io};
 use parking_lot::{Mutex, MutexGuard, RwLock};
 use rocksdb::{
 	DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
-	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions
+	Options, BlockBasedOptions, Direction, Cache, Column, ReadOptions
 };
 use interleaved_ordered::{interleave_ordered, InterleaveOrdered};
 
@@ -50,9 +52,7 @@ use std::process::Command;
 #[cfg(target_os = "linux")]
 use std::fs::File;
 
-const DB_BACKGROUND_FLUSHES: i32 = 2;
-const DB_BACKGROUND_COMPACTIONS: i32 = 2;
-const DB_WRITE_BUFFER_SIZE: usize = 2048 * 1000;
+const DB_DEFAULT_MEMORY_BUDGET_MB: usize = 128;
 
 enum KeyState {
 	Insert(DBValue),
@@ -65,8 +65,8 @@ enum KeyState {
 pub struct CompactionProfile {
 	/// L0-L1 target file size
 	pub initial_file_size: u64,
-	/// L2-LN target file size multiplier
-	pub file_size_multiplier: i32,
+	/// block size
+	pub block_size: usize,
 	/// rate limiter for background flushes and compactions, bytes/sec, if any
 	pub write_rate_limit: Option<u64>,
 }
@@ -136,8 +136,8 @@ impl CompactionProfile {
 	/// Default profile suitable for SSD storage
 	pub fn ssd() -> CompactionProfile {
 		CompactionProfile {
-			initial_file_size: 32 * 1024 * 1024,
-			file_size_multiplier: 2,
+			initial_file_size: 64 * 1024 * 1024,
+			block_size: 16 * 1024,
 			write_rate_limit: None,
 		}
 	}
@@ -145,9 +145,9 @@ impl CompactionProfile {
 	/// Slow HDD compaction profile
 	pub fn hdd() -> CompactionProfile {
 		CompactionProfile {
-			initial_file_size: 192 * 1024 * 1024,
-			file_size_multiplier: 1,
-			write_rate_limit: Some(8 * 1024 * 1024),
+			initial_file_size: 256 * 1024 * 1024,
+			block_size: 64 * 1024,
+			write_rate_limit: Some(16 * 1024 * 1024),
 		}
 	}
 }
@@ -157,8 +157,8 @@ impl CompactionProfile {
 pub struct DatabaseConfig {
 	/// Max number of open files.
 	pub max_open_files: i32,
-	/// Cache sizes (in MiB) for specific columns.
-	pub cache_sizes: HashMap<Option<u32>, usize>,
+	/// Memory budget (in MiB) used for setting block cache size, write buffer size.
+	pub memory_budget: Option<usize>,
 	/// Compaction profile
 	pub compaction: CompactionProfile,
 	/// Set number of columns
@@ -176,17 +176,20 @@ impl DatabaseConfig {
 		config
 	}
 
-	/// Set the column cache size in MiB.
-	pub fn set_cache(&mut self, col: Option<u32>, size: usize) {
-		self.cache_sizes.insert(col, size);
+	pub fn memory_budget(&self) -> usize {
+		self.memory_budget.unwrap_or(DB_DEFAULT_MEMORY_BUDGET_MB) * 1024 * 1024
+	}
+
+	pub fn memory_budget_per_col(&self) -> usize {
+		self.memory_budget() / self.columns.unwrap_or(1) as usize
 	}
 }
 
 impl Default for DatabaseConfig {
 	fn default() -> DatabaseConfig {
 		DatabaseConfig {
-			cache_sizes: HashMap::new(),
 			max_open_files: 512,
+			memory_budget: None,
 			compaction: CompactionProfile::default(),
 			columns: None,
 			wal: true,
@@ -217,27 +220,24 @@ struct DBAndColumns {
 }
 
 // get column family configuration from database config.
-fn col_config(col: u32, config: &DatabaseConfig) -> Options {
-	// default cache size for columns not specified.
-	const DEFAULT_CACHE: usize = 2;
-
+fn col_config(config: &DatabaseConfig, block_opts: &BlockBasedOptions) -> Result<Options> {
 	let mut opts = Options::new();
-	opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
+
+	opts.set_parsed_options("level_compaction_dynamic_level_bytes=true")?;
+
+	opts.set_block_based_table_factory(block_opts);
+
+	opts.set_parsed_options(
+		&format!("block_based_table_factory={{{};{}}}",
+				 "cache_index_and_filter_blocks=true",
+				 "pin_l0_filter_and_index_blocks_in_cache=true"))?;
+
+	opts.optimize_level_style_compaction(config.memory_budget_per_col() as i32);
 	opts.set_target_file_size_base(config.compaction.initial_file_size);
-	opts.set_target_file_size_multiplier(config.compaction.file_size_multiplier);
-	opts.set_db_write_buffer_size(DB_WRITE_BUFFER_SIZE);
 
-	let col_opt = config.columns.map(|_| col);
+	opts.set_parsed_options("compression_per_level=")?;
 
-	{
-		let cache_size = config.cache_sizes.get(&col_opt).cloned().unwrap_or(DEFAULT_CACHE);
-		let mut block_opts = BlockBasedOptions::new();
-		// all goes to read cache.
-		block_opts.set_cache(Cache::new(cache_size * 1024 * 1024));
-		opts.set_block_based_table_factory(&block_opts);
-	}
-
-	opts
+	Ok(opts)
 }
 
 /// Key-Value database.
@@ -246,6 +246,7 @@ pub struct Database {
 	config: DatabaseConfig,
 	write_opts: WriteOptions,
 	read_opts: ReadOptions,
+	block_opts: BlockBasedOptions,
 	path: String,
 	// Dirty values added with `write_buffered`. Cleaned on `flush`.
 	overlay: RwLock<Vec<HashMap<ElasticArray32<u8>, KeyState>>>,
@@ -265,31 +266,35 @@ impl Database {
 	/// Open database file. Creates if it does not exist.
 	pub fn open(config: &DatabaseConfig, path: &str) -> Result<Database> {
 		let mut opts = Options::new();
+
 		if let Some(rate_limit) = config.compaction.write_rate_limit {
 			opts.set_parsed_options(&format!("rate_limiter_bytes_per_sec={}", rate_limit))?;
 		}
-		opts.set_parsed_options(&format!("max_total_wal_size={}", 64 * 1024 * 1024))?;
-		opts.set_parsed_options("verify_checksums_in_compaction=0")?;
-		opts.set_parsed_options("keep_log_file_num=1")?;
-		opts.set_max_open_files(config.max_open_files);
-		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
-		opts.set_db_write_buffer_size(DB_WRITE_BUFFER_SIZE);
+		opts.create_if_missing(true);
+		opts.set_max_open_files(config.max_open_files);
+		opts.set_parsed_options("keep_log_file_num=1")?;
+		opts.set_parsed_options("bytes_per_sync=1048576")?;
+		opts.set_db_write_buffer_size(config.memory_budget_per_col() / 2);
+		opts.increase_parallelism(cmp::max(1, ::num_cpus::get() as i32 / 2));
 
-		opts.set_max_background_flushes(DB_BACKGROUND_FLUSHES);
-		opts.set_max_background_compactions(DB_BACKGROUND_COMPACTIONS);
+		let mut block_opts = BlockBasedOptions::new();
 
-		// compaction settings
-		opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
-		opts.set_target_file_size_base(config.compaction.initial_file_size);
-		opts.set_target_file_size_multiplier(config.compaction.file_size_multiplier);
+		{
+			block_opts.set_block_size(config.compaction.block_size);
+			let cache_size = cmp::max(8, config.memory_budget() / 3);
+			let cache = Cache::new(cache_size);
+			block_opts.set_cache(cache);
+		}
 
-		let mut cf_options = Vec::with_capacity(config.columns.unwrap_or(0) as usize);
-		let cfnames: Vec<_> = (0..config.columns.unwrap_or(0)).map(|c| format!("col{}", c)).collect();
+		let columns = config.columns.unwrap_or(0) as usize;
+
+		let mut cf_options = Vec::with_capacity(columns);
+		let cfnames: Vec<_> = (0..columns).map(|c| format!("col{}", c)).collect();
 		let cfnames: Vec<&str> = cfnames.iter().map(|n| n as &str).collect();
 
-		for col in 0 .. config.columns.unwrap_or(0) {
-			cf_options.push(col_config(col, &config));
+		for _ in 0 .. config.columns.unwrap_or(0) {
+			cf_options.push(col_config(&config, &block_opts)?);
 		}
 
 		let mut write_opts = WriteOptions::new();
@@ -348,6 +353,7 @@ impl Database {
 			flushing_lock: Mutex::new((false)),
 			path: path.to_owned(),
 			read_opts: read_opts,
+			block_opts: block_opts,
 		})
 	}
 
@@ -632,7 +638,7 @@ impl Database {
 			Some(DBAndColumns { ref mut db, ref mut cfs }) => {
 				let col = cfs.len() as u32;
 				let name = format!("col{}", col);
-				cfs.push(db.create_cf(&name, &col_config(col, &self.config))?);
+				cfs.push(db.create_cf(&name, &col_config(&self.config, &self.block_opts)?)?);
 				Ok(())
 			},
 			None => Ok(()),

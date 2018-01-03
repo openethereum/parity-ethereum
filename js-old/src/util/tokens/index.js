@@ -59,22 +59,18 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
     })
     .then((tokenAddresses) => {
       return tokenAddresses.map((tokenAddress, index) => {
-        if (/^0x0*$/.test(tokenAddress)) {
-          return null;
-        }
-
         const tokenIndex = start + index;
 
         return {
-          address: tokenAddress,
-          id: getTokenId(tokenAddress, tokenIndex),
+          address: /^0x0*$/.test(tokenAddress)
+            ? ''
+            : tokenAddress,
+          id: getTokenId(tokenIndex),
           index: tokenIndex,
-
           fetched: false
         };
       });
     })
-    .then((tokens) => tokens.filter((token) => token))
     .then((tokens) => {
       const randomAddress = sha3(`${Date.now()}`).substr(0, 42);
 
@@ -82,7 +78,13 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
         .then((_balances) => {
           const balances = _balances[randomAddress];
 
-          return tokens.filter(({ id }) => balances[id].eq(0));
+          return tokens.map((token) => {
+            if (balances[token.id] && balances[token.id].gt(0)) {
+              token.address = '';
+            }
+
+            return token;
+          });
         });
     });
 }
@@ -113,7 +115,7 @@ export function fetchTokensInfo (api, tokenReg, tokenIndexes) {
 
         const token = {
           address,
-          id: getTokenId(address, tokenIndex),
+          id: getTokenId(tokenIndex),
           index: tokenIndex,
 
           format: format.toString(),

@@ -78,7 +78,7 @@ native-contracts = { path = "native_contracts", features = ["test_contracts"] }
 [features]
 jit = ["evm/jit"]
 evm-debug = ["slow-blocks"]
-evm-debug-tests = ["evm-debug"]
+evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 slow-blocks = [] # Use SLOW_TX_DURATION="50" (compile time!) to track transactions over 50ms
 json-tests = []
 test-heavy = []
