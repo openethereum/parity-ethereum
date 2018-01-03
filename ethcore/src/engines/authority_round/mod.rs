@@ -28,6 +28,7 @@ use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use error::{Error, BlockError};
 use ethjson;
 use machine::{AuxiliaryData, Call, EthereumMachine};
+use hash::keccak;
 use header::{Header, BlockNumber};
 
 use super::signer::EngineSigner;
@@ -38,7 +39,7 @@ use self::finality::RollingFinality;
 use ethkey::{verify_address, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
-use rlp::{UntrustedRlp, encode};
+use rlp::{encode, RlpStream, UntrustedRlp};
 use bigint::prelude::{U256, U128};
 use bigint::hash::{H256, H520};
 use semantic_version::SemanticVersion;
@@ -265,6 +266,11 @@ impl EpochManager {
 	}
 }
 
+struct EmptyStep {
+	signature: H520,
+	step: usize,
+}
+
 /// Engine using `AuthorityRound` proof-of-authority BFT consensus.
 pub struct AuthorityRound {
 	transition_service: IoService<()>,
@@ -275,6 +281,7 @@ pub struct AuthorityRound {
 	validators: Box<ValidatorSet>,
 	validate_score_transition: u64,
 	validate_step_transition: u64,
+	empty_steps: Mutex<Vec<EmptyStep>>,
 	epoch_manager: Mutex<EpochManager>,
 	immediate_transitions: bool,
 	block_reward: U256,
@@ -434,6 +441,7 @@ impl AuthorityRound {
 				validators: our_params.validators,
 				validate_score_transition: our_params.validate_score_transition,
 				validate_step_transition: our_params.validate_step_transition,
+				empty_steps: Mutex::new(Vec::new()),
 				epoch_manager: Mutex::new(EpochManager::blank()),
 				immediate_transitions: our_params.immediate_transitions,
 				block_reward: our_params.block_reward,
@@ -449,6 +457,35 @@ impl AuthorityRound {
 		}
 		Ok(engine)
 	}
+
+	fn generate_empty_step(&self) {
+		let step = self.step.load();
+		let step_rlp = encode(&step);
+
+		if let Ok(signature) = self.sign(keccak(&step_rlp)).map(Into::into) {
+			let message_rlp = empty_step_full_rlp(&signature, &step_rlp.to_vec());
+
+			// FIXME: process message ourselves?
+
+			self.broadcast_message(message_rlp);
+		} else {
+			warn!(target: "engine", "generate_empty_step: FAIL: accounts secret key unavailable");
+		}
+	}
+
+	fn broadcast_message(&self, message: Bytes) {
+		if let Some(ref weak) = *self.client.read() {
+			if let Some(c) = weak.upgrade() {
+				c.broadcast_consensus_message(message);
+			}
+		}
+	}
+}
+
+pub fn empty_step_full_rlp(signature: &H520, empty_step: &Bytes) -> Bytes {
+	let mut s = RlpStream::new_list(2);
+	s.append(signature).append_raw(empty_step, 1);
+	s.out()
 }
 
 fn unix_now() -> Duration {
@@ -536,6 +573,24 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		Some(self.signer.read().is_some())
 	}
 
+	fn handle_message(&self, rlp: &[u8]) -> Result<(), EngineError> {
+		fn fmt_err<T: ::std::fmt::Debug>(x: T) -> EngineError {
+			EngineError::MalformedMessage(format!("{:?}", x))
+		}
+
+		let rlp = UntrustedRlp::new(rlp);
+		let signature = rlp.val_at(0).map_err(fmt_err)?;
+		let empty_step_rlp = rlp.at(1).map_err(fmt_err)?;
+		let step = empty_step_rlp.as_val().map_err(fmt_err)?;
+
+		let empty_step = EmptyStep { signature, step };
+
+		let mut empty_steps = self.empty_steps.lock();
+		empty_steps.push(empty_step);
+
+		Ok(())
+	}
+
 	/// Attempt to seal the block internally.
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which case
@@ -597,11 +652,24 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				return Seal::None;
 			}
 
+			// if there are no transactions to include we don't seal and instead broadcast a signed EMPTY(Step) message
+			// FIXME: check if can generate empty step
+			//        (n_empty_steps < max_configured_value)
+			if block.transactions().is_empty() {
+				self.generate_empty_step();
+				return Seal::None;
+			}
+
 			if let Ok(signature) = self.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 
 				// only issue the seal if we were the first to reach the compare_and_swap.
 				if self.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
+					// FIXME: insert empty steps proof into block
+					let mut empty_steps = self.empty_steps.lock();
+					empty_steps.clear();
+
+					// add empty steps proof
 					return Seal::Regular(vec![encode(&step).into_vec(), encode(&(&H520::from(signature) as &[u8])).into_vec()]);
 				}
 			} else {
