@@ -9600,10 +9600,6 @@ validator@4.0.2:
   version "4.0.2"
   resolved "https://registry.yarnpkg.com/validator/-/validator-4.0.2.tgz#70a1c2525ec4744e409971c1b298aa69a7534251"
 
-validator@6.2.0:
-  version "6.2.0"
-  resolved "https://registry.yarnpkg.com/validator/-/validator-6.2.0.tgz#b2cccdc49ff0f4b8ee4e61dba2ddd3dde13f23e7"
-
 vary@~1.1.2:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/vary/-/vary-1.1.2.tgz#2299f02c6ded30d4a5961b0b9f74524a18f634fc"
