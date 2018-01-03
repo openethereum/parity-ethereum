@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -41,9 +41,6 @@ export class CurrencySymbol extends Component {
     switch (netChain) {
       case 'classic':
         return SYMBOL_ETC;
-
-      case 'expanse':
-        return SYMBOL_EXP;
 
       default:
         return SYMBOL_ETH;
