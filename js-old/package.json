@@ -33,8 +33,7 @@
     "init": "parity-react-scripts init",
     "publish": "parity-react-scripts publish",
     "start": "parity-react-scripts start",
-    "test": "npm run lint && parity-react-scripts test",
-    "test-old": "NODE_ENV=test mocha --exit 'src/**/*.spec.js'"
+    "test": "NODE_ENV=test mocha --exit 'src/**/*.spec.js'"
   },
   "napa": {
     "qrcode-generator": "kazuhikoarase/qrcode-generator"
@@ -62,7 +61,7 @@
     "mock-socket": "7.1.0",
     "napa": "3.0.0",
     "nock": "9.1.5",
-    "parity-react-scripts": "github:paritytech/parity-react-scripts#f51ef5d",
+    "parity-react-scripts": "github:paritytech/parity-react-scripts#8f2ae06",
     "raw-loader": "0.5.1",
     "react-test-renderer": "15",
     "serviceworker-webpack-plugin": "0.2.3",

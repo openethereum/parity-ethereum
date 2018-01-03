@@ -14,29 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import 'isomorphic-fetch';
 import 'mock-local-storage';
-
-import es6Promise from 'es6-promise';
-es6Promise.polyfill();
-
-import injectTapEventPlugin from 'react-tap-event-plugin';
-
 import chai from 'chai';
-import chaiAsPromised from 'chai-as-promised';
 import chaiEnzyme from 'chai-enzyme';
-import sinonChai from 'sinon-chai';
-import { WebSocket } from 'mock-socket';
-import { JSDOM } from 'jsdom';
 import { configure } from 'enzyme';
 import Adapter from 'enzyme-adapter-react-15';
+import { JSDOM } from 'jsdom';
+import { WebSocket } from 'mock-socket';
+import injectTapEventPlugin from 'react-tap-event-plugin';
+import sinonChai from 'sinon-chai';
 
 injectTapEventPlugin();
 
 // Configure Enzyme
 configure({ adapter: new Adapter() });
 
-chai.use(chaiAsPromised);
 chai.use(chaiEnzyme());
 chai.use(sinonChai);
 
@@ -45,13 +37,16 @@ global.expect = chai.expect;
 global.WebSocket = WebSocket;
 
 // setup jsdom
-const dom = new JSDOM('<!doctype html><html><body></body></html>');
+const { window } = new JSDOM('<!doctype html><html><body></body></html>');
 
-global.window = dom.window;
-global.document = global.window.document;
-global.navigator = global.window.navigator;
-global.location = global.window.location;
+global.window = window;
 global.Blob = () => {};
+
+Object.keys(window).forEach((key) => {
+  if (!global[key]) {
+    global[key] = window[key];
+  }
+});
 
 // attach mocked localStorage onto the window as exposed by jsdom
 global.window.localStorage = global.localStorage;

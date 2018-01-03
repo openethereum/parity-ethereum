@@ -6714,9 +6714,9 @@ param-case@2.1.x:
   dependencies:
     no-case "^2.2.0"
 
-"parity-react-scripts@github:paritytech/parity-react-scripts#f51ef5d":
+"parity-react-scripts@github:paritytech/parity-react-scripts#8f2ae06":
   version "0.4.0"
-  resolved "git+ssh://git@github.com/paritytech/parity-react-scripts.git#f51ef5d3e0be6fb45e3515e5bd8f0b1eccd280a5"
+  resolved "git+ssh://git@github.com/paritytech/parity-react-scripts.git#8f2ae0645946abdc05dfd5efda972d522dec9f00"
   dependencies:
     "@parity/api" "2.1.14"
     "@parity/shared" "2.2.14"
@@ -6759,7 +6759,7 @@ param-case@2.1.x:
     postcss-import "11.0.0"
     postcss-nested "3.0.0"
     postcss-simple-vars "4.1.0"
-    react-scripts-config "1.0.17-10"
+    react-scripts-config "1.0.17-11"
     release-it "github:paritytech/release-it#ng-poc"
     semver "5.4.1"
     stylelint "8.4.0"
@@ -7795,9 +7795,9 @@ react-router@3.0.0:
     loose-envify "^1.2.0"
     warning "^3.0.0"
 
-react-scripts-config@1.0.17-10:
-  version "1.0.17-10"
-  resolved "https://registry.yarnpkg.com/react-scripts-config/-/react-scripts-config-1.0.17-10.tgz#fd8b685dba6ec82eab6092d7dfd128803bf92be2"
+react-scripts-config@1.0.17-11:
+  version "1.0.17-11"
+  resolved "https://registry.yarnpkg.com/react-scripts-config/-/react-scripts-config-1.0.17-11.tgz#538c4766b11199ea5c219a07529293b1d6ba7e05"
   dependencies:
     autoprefixer "7.1.6"
     babel-core "6.26.0"
