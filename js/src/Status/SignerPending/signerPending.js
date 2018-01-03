@@ -33,7 +33,9 @@ import styles from './signerPending.css';
 
 @observer
 class SignerPending extends Component {
-  static propTypes = {};
+  static propTypes = {
+    className: PropTypes.string
+  };
 
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -91,11 +93,13 @@ class SignerPending extends Component {
   );
 
   render () {
+    const { className } = this.props;
+
     return (
       <Popup
         wide='very'
         trigger={
-          <div className={ [styles.signerPending].join(' ') }>
+          <div className={ [styles.signerPending, className].join(' ') }>
             <Icon
               name={ this.store.pending.length > 0 ? 'bell' : 'bell outline' }
             />
