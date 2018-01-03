@@ -28,7 +28,7 @@ extern crate memory_cache;
 #[macro_use]
 extern crate lazy_static;
 
-#[macro_use]
+#[cfg_attr(feature = "evm-debug", macro_use)]
 extern crate log;
 
 #[cfg(feature = "jit")]
