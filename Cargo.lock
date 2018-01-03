@@ -204,6 +204,9 @@ dependencies = [
 name = "cc"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "rayon 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "cfg-if"
@@ -1361,6 +1364,7 @@ dependencies = [
  "interleaved-ordered 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
@@ -2654,7 +2658,7 @@ dependencies = [
 [[package]]
 name = "rocksdb"
 version = "0.4.5"
-source = "git+https://github.com/paritytech/rust-rocksdb#8c4ad5411c141abc63d562d411053f7ebc1aa00c"
+source = "git+https://github.com/paritytech/rust-rocksdb#166e14ed63cbd2e44b51267b8b98e4b89b0f236f"
 dependencies = [
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "local-encoding 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2664,9 +2668,9 @@ dependencies = [
 [[package]]
 name = "rocksdb-sys"
 version = "0.3.0"
-source = "git+https://github.com/paritytech/rust-rocksdb#8c4ad5411c141abc63d562d411053f7ebc1aa00c"
+source = "git+https://github.com/paritytech/rust-rocksdb#166e14ed63cbd2e44b51267b8b98e4b89b0f236f"
 dependencies = [
- "gcc 0.3.54 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cc 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "snappy-sys 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
 ]

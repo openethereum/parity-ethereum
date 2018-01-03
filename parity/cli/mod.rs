@@ -779,7 +779,7 @@ usage! {
 			"--pruning-memory=[MB]",
 			"The ideal amount of memory in megabytes to use to store recent states. As many states as possible will be kept within this limit, and at least --pruning-history states will always be kept.",
 
-			ARG arg_cache_size_db: (u32) = 32u32, or |c: &Config| otry!(c.footprint).cache_size_db.clone(),
+			ARG arg_cache_size_db: (u32) = 128u32, or |c: &Config| otry!(c.footprint).cache_size_db.clone(),
 			"--cache-size-db=[MB]",
 			"Override database cache size.",
 
@@ -1820,7 +1820,7 @@ mod tests {
 				pruning_memory: None,
 				fast_and_loose: None,
 				cache_size: None,
-				cache_size_db: Some(128),
+				cache_size_db: Some(256),
 				cache_size_blocks: Some(16),
 				cache_size_queue: Some(100),
 				cache_size_state: Some(25),
