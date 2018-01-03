@@ -29,10 +29,13 @@ extern crate linked_hash_map;
 extern crate native_contracts;
 extern crate parking_lot;
 extern crate table;
+extern crate transaction_pool as txpool;
 extern crate transient_hashmap;
 
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate error_chain;
 
 #[cfg(test)]
 extern crate rustc_hex;
@@ -42,6 +45,7 @@ extern crate ethkey;
 pub mod banning_queue;
 pub mod external;
 pub mod local_transactions;
+pub mod pool;
 pub mod service_transaction_checker;
 pub mod transaction_queue;
 pub mod work_notify;

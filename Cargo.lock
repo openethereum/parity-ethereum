@@ -601,6 +601,7 @@ name = "ethcore-miner"
 version = "1.9.0"
 dependencies = [
  "common-types 0.1.0",
+ "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.9.0",
  "ethcore-transaction 0.1.0",
  "ethereum-types 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -615,6 +616,7 @@ dependencies = [
  "parking_lot 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "table 0.1.0",
+ "transaction-pool 1.9.0",
  "transient-hashmap 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

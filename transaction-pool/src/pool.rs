@@ -109,6 +109,8 @@ impl<T, S, L> Pool<T, S, L> where
 
 		ensure!(!self.by_hash.contains_key(transaction.hash()), error::ErrorKind::AlreadyImported(*transaction.hash()));
 
+		// TODO [ToDr] Most likely move this after the transsaction is inserted.
+		// Avoid using should_replace, but rather use scoring for that.
 		{
 			let remove_worst = |s: &mut Self, transaction| {
 				match s.remove_worst(&transaction) {

@@ -11,6 +11,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
 
 common-types = { path = "../ethcore/types" }
+error-chain = "0.11"
 ethash = { path = "../ethash" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.1"
@@ -24,4 +25,5 @@ native-contracts = { path = "../ethcore/native_contracts" }
 parking_lot = "0.5"
 rustc-hex = "1.0"
 table = { path = "../util/table" }
+transaction-pool = { path = "../transaction-pool" }
 transient-hashmap = "0.4"
