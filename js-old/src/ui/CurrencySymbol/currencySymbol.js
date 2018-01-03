@@ -19,7 +19,6 @@ import { connect } from 'react-redux';
 
 const SYMBOL_ETC = 'ETC';
 const SYMBOL_ETH = 'ETH';
-const SYMBOL_EXP = 'EXP';
 
 export class CurrencySymbol extends Component {
   static propTypes = {
