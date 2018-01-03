@@ -32,7 +32,7 @@ use ethcore::views::BlockView;
 use ethjson::blockchain::BlockChain;
 use ethjson::state::test::ForkSpec;
 use io::IoChannel;
-use kvdb::in_memory;
+use kvdb_memorydb;
 use parking_lot::Mutex;
 use util::Address;
 
@@ -133,7 +133,7 @@ impl EthTester {
 		let client = Client::new(
 			ClientConfig::default(),
 			&spec,
-			Arc::new(in_memory(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
+			Arc::new(kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
 			miner_service.clone(),
 			IoChannel::disconnected(),
 		).unwrap();

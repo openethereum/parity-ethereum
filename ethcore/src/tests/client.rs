@@ -27,7 +27,7 @@ use tests::helpers::*;
 use types::filter::Filter;
 use bigint::prelude::U256;
 use util::*;
-use kvdb::{Database, DatabaseConfig};
+use kvdb_rocksdb::{Database, DatabaseConfig};
 use devtools::*;
 use miner::Miner;
 use spec::Spec;

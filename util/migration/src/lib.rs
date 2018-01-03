@@ -25,14 +25,15 @@ extern crate macros;
 
 extern crate ethcore_devtools as devtools;
 extern crate kvdb;
+extern crate kvdb_rocksdb;
 
 use std::collections::BTreeMap;
-use std::fs;
-use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::{fs, fmt};
 
-use kvdb::{CompactionProfile, Database, DatabaseConfig, DBTransaction};
+use kvdb::DBTransaction;
+use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
 
 /// Migration config.
 #[derive(Clone)]
@@ -274,7 +275,7 @@ impl Manager {
 		trace!(target: "migration", "Expecting database to contain {:?} columns", columns);
 		let mut db_config = DatabaseConfig {
 			max_open_files: 64,
-			cache_sizes: Default::default(),
+			memory_budget: None,
 			compaction: config.compaction_profile,
 			columns: columns,
 			wal: true,
