@@ -1,3 +1,63 @@
+## Parity [v1.8.6](https://github.com/paritytech/parity/releases/tag/v1.8.6) (2018-01-05)
+
+Parity 1.8.6 fixes a critical issue with the database eventually filling up user's disks. Upgrading is highly recommended as it will significantly improve your user experience.
+
+Note, this release also removes the Expanse chain due to incompatibilties with the latest hard-fork on the network at block `800_000`. If you are still using Parity for Expanse you are on the wrong side of the fork!
+
+The full list of included changes:
+
+- Backport nonces reservations (#7439)
+  - Reserve nonces for signing (#6834)
+    - Nonce future - reserve and dispatch
+    - Single thread nonce tests
+    - Track status of reserved nonces.
+    - Initialization of nonce reservations.
+    - Prospective Signer
+    - Fix cli tests.
+  - Fix nonce reservation (#7025)
+    - Use nonce reservation per address
+    - Create hashmap in RPC Apis
+    - Garbage collect hashmap entries.
+    - HashMap::retain
+- Backports to beta (#7434)
+  - Wait for future blocks in AuRa (#7368)
+    - Mark future blocks as temporarily invalid.
+    - Don't check max.
+  - Fix tracing failed calls. (#7412)
+  - Problem: sending any Whisper message fails (#7421)
+  - Strict config parsing (#7433)
+  - Problem: AuRa's unsafeties around step duration (#7282)
+  - Remove expanse chain (#7437)
+    - Remove expanse from available chains
+    - Remove all EXP references from old wallet
+    - Fix tests
+- KVDB backports (#7438)
+  - Separated kvdb into 3 crates: kvdb, kvdb-memorydb && kvdb-rocksdb (#6720)
+    - Separated kvdb into 3 crates: kvdb, kvdb-memorydb && kvdb-rocksdb, ref #6693
+      - Fixed kvdb-memorydb && kvdb-rocksdb authors
+      - Fixed wrong kvdb import in json_tests
+    - Util tests use kvdb_memorydb instead of kvdb_rocksdb, closes #6739
+      - Renamed kvdb_memorydb::in_memory -> kvdb_memorydb::create
+      - Docs
+      - Removed redundant mut from kvdb-memorydb
+  - Upgrade to RocksDB 5.8.8 and tune settings to reduce space amplification (#7348)
+    - kvdb-rocksdb: update to RocksDB 5.8.8
+    - kvdb-rocksdb: tune RocksDB options
+      - Switch to level-style compaction
+      - Increase default block size (16K), and use bigger blocks for HDDs (64K)
+      - Increase default file size base (64MB SSDs, 256MB HDDs)
+      - Create a single block cache shared across all column families
+      - Tune compaction settings using RocksDB helper functions, taking into account
+      - Memory budget spread across all columns
+      - Configure backgrounds jobs based on the number of CPUs
+      - Set some default recommended settings
+    - ethcore: remove unused config blockchain.db_cache_size
+    - parity: increase default value for db_cache_size
+    - kvdb-rocksdb: enable compression on all levels
+    - kvdb-rocksdb: set global db_write_bufer_size
+    - kvdb-rocksdb: reduce db_write_bufer_size to force earlier flushing
+    - kvdb-rocksdb: use master branch for rust-rocksdb dependency
+
 ## Parity [v1.8.5](https://github.com/paritytech/parity/releases/tag/v1.8.5) (2017-12-29)
 
 Parity 1.8.5 changes the default behavior of JSON-RPC CORS setting, detects same-key engine signers in Aura networks, and updates bootnodes for the Kovan and Foundation networks.
