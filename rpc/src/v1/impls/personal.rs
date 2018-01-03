@@ -26,10 +26,17 @@ use bytes::ToPretty;
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
 use v1::helpers::errors;
-use v1::helpers::dispatch::{Dispatcher, SignWith};
+use v1::helpers::dispatch::{self, Dispatcher, SignWith};
 use v1::helpers::accounts::unwrap_provider;
 use v1::traits::Personal;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, U128 as RpcU128, TransactionRequest, RichRawTransaction as RpcRichRawTransaction};
+use v1::types::{
+	H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U128 as RpcU128,
+	Bytes as RpcBytes,
+	ConfirmationPayload as RpcConfirmationPayload,
+	ConfirmationResponse as RpcConfirmationResponse,
+	TransactionRequest,
+	RichRawTransaction as RpcRichRawTransaction,
+};
 use v1::metadata::Metadata;
 
 /// Account management (personal) rpc implementation.
@@ -55,6 +62,24 @@ impl<D: Dispatcher> PersonalClient<D> {
 }
 
 impl<D: Dispatcher + 'static> PersonalClient<D> {
+	fn do_sign(&self, address: RpcH160, data: RpcBytes, password: String) -> BoxFuture<RpcH520> {
+		let dispatcher = self.dispatcher.clone();
+		let accounts = try_bf!(self.account_provider());
+
+		let payload = RpcConfirmationPayload::EthSignMessage((address.clone(), data).into());
+
+		Box::new(dispatch::from_rpc(payload, address.into(), &dispatcher)
+				 .and_then(|payload| {
+					 dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password))
+				 })
+				 .map(|v| v.into_value())
+				 .then(|res| match res {
+					 Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
+					 Err(e) => Err(e),
+					 e => Err(errors::internal("Unexpected result", e)),
+				 }))
+	}
+
 	fn do_sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<(PendingTransaction, D)> {
 		let dispatcher = self.dispatcher.clone();
 		let accounts = try_bf!(self.account_provider());
@@ -130,6 +155,10 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 			Ok(_) => Ok(true),
 			Err(err) => Err(errors::account("Unable to unlock the account.", err)),
 		}
+	}
+
+	fn sign(&self, address: RpcH160, data: RpcBytes, password: String) -> BoxFuture<RpcH520> {
+		Box::new(self.do_sign(address, data, password))
 	}
 
 	fn sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcRichRawTransaction> {
