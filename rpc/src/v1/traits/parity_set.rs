@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -87,7 +87,7 @@ build_rpc_trait! {
 		#[rpc(name = "parity_setMode")]
 		fn set_mode(&self, String) -> Result<bool>;
 
-		/// Set the network spec. Argument must be one of: "foundation", "ropsten", "morden", "kovan", "olympic", "classic", "dev", "expanse", "musicoin" or a filename.
+		/// Set the network spec. Argument must be one of: "foundation", "ropsten", "morden", "kovan", "olympic", "classic", "dev", "musicoin" or a filename.
 		#[rpc(name = "parity_setChain")]
 		fn set_spec_name(&self, String) -> Result<bool>;
 

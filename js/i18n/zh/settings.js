@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -29,7 +29,6 @@ export default {
     chains: {
       chain_classic: `将Parity同步至以太坊经典网络`, // Parity syncs to the Ethereum Classic network
       chain_dev: `将Parity使用一条本地开发用区块链`, // Parity uses a local development chain
-      chain_expanse: `将Parity同步至Expanse网络`, // Parity syncs to the Expanse network
       chain_musicoin: `将Parity同步至Musicoin网络`, // Parity syncs to the Musicoin network
       chain_foundation: `将Parity同步至以太坊基金会发起的以太坊网络`, // Parity syncs to the Ethereum network launched by the Ethereum Foundation
       chain_kovan: `将Parity同步至Kovan测试网络`, // Parity syncs to the Kovan test network

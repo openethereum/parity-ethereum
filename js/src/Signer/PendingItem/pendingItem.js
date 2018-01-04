@@ -47,8 +47,8 @@ function PendingItem ({ accounts, className, data: { date, id, isSending, payloa
     );
   }
 
-  const _onConfirm = (data) => onConfirm(Object.assign({ id, payload }, data));
-  const _onReject = () => onReject(id);
+  const _onConfirm = (data) => onConfirm(Object.assign({ id: id.toNumber(), payload }, data));
+  const _onReject = () => onReject({ id: id.toNumber() });
 
   return (
     <Handler
