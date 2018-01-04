@@ -17,8 +17,7 @@
 //! VM runner.
 
 use std::time::{Instant, Duration};
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use ethcore::{trace, spec, transaction, pod_state};
 use ethcore::client::{self, EvmTestClient, EvmTestError, TransactResult};
 use ethjson;

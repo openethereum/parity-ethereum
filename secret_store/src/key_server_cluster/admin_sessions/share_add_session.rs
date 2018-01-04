@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use ethkey::{Public, Secret, Signature};
 use parking_lot::{Mutex, Condvar};
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare, DocumentKeyShareVersion, KeyStorage};
@@ -853,7 +853,7 @@ pub mod tests {
 	use std::sync::Arc;
 	use std::collections::{VecDeque, BTreeMap, BTreeSet};
 	use ethkey::{Random, Generator, Public, KeyPair, Signature, sign};
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage};
 	use key_server_cluster::cluster::Cluster;
 	use key_server_cluster::cluster::tests::DummyCluster;

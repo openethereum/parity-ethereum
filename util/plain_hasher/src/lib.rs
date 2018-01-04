@@ -48,7 +48,7 @@ impl hash::Hasher for PlainHasher {
 
 #[cfg(test)]
 mod tests {
-	use core::hash::Hasher;
+	use std::hash::Hasher;
 	use super::PlainHasher;
 
 	#[test]

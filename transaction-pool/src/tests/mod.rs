@@ -22,7 +22,7 @@ use self::tx_builder::TransactionBuilder;
 
 use std::sync::Arc;
 
-use bigint::prelude::{H256, U256, H160 as Address};
+use ethereum_types::{H256, U256, Address};
 use super::*;
 
 #[derive(Debug, PartialEq)]

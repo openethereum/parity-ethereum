@@ -17,8 +17,9 @@
 use std::cmp;
 use std::collections::HashMap;
 
+use ethereum_types::U256;
 use {scoring, Scoring, Ready, Readiness, Address as Sender};
-use super::{Transaction, SharedTransaction, U256};
+use super::{Transaction, SharedTransaction};
 
 #[derive(Default)]
 pub struct DummyScoring;

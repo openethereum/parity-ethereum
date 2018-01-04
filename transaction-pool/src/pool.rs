@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeSet};
 
-use bigint::hash::{H160, H256};
+use ethereum_types::{H160, H256};
 
 use error;
 use listener::{Listener, NoopListener};

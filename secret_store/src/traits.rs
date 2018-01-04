@@ -16,7 +16,7 @@
 
 use std::collections::BTreeSet;
 use ethkey::{KeyPair, Signature, Error as EthKeyError};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use types::all::{Error, Public, ServerKeyId, MessageHash, EncryptedMessageSignature, RequestSignature, EncryptedDocumentKey,
 	EncryptedDocumentKeyShadow, NodeId};
 

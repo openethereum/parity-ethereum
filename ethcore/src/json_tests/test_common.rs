@@ -14,14 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub use bigint::prelude::U256;
-pub use bigint::hash::H256;
-pub use util::*;
 use std::collections::HashSet;
 use std::io::Read;
 use std::fs::{File, read_dir};
 use std::path::Path;
 use std::ffi::OsString;
+pub use ethereum_types::{H256, U256, Address};
 
 pub fn run_test_path(p: &Path, skip: &[&'static str], runner: fn (json_data: &[u8]) -> Vec<String>) {
 	let path = Path::new(p);

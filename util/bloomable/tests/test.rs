@@ -1,8 +1,8 @@
 extern crate keccak_hash as hash;
-extern crate ethcore_bigint;
+extern crate ethereum_types;
 extern crate bloomable;
 
-use ethcore_bigint::hash::{H160, H256, H2048};
+use ethereum_types::{H160, H256, H2048};
 use bloomable::Bloomable;
 use hash::keccak;
 
