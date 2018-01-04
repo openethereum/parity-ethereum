@@ -82,6 +82,7 @@ class List extends Component {
         account={ account }
         disabled={ isDisabled }
         handleAddSearchToken={ handleAddSearchToken }
+        key={ account.address }
         link={ link }
         owners={ owners }
         showCertifications
