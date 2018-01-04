@@ -62,39 +62,6 @@ impl<D: Dispatcher> PersonalClient<D> {
 }
 
 impl<D: Dispatcher + 'static> PersonalClient<D> {
-	fn do_sign(&self, data: RpcBytes, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
-		let dispatcher = self.dispatcher.clone();
-		let accounts = try_bf!(self.account_provider());
-
-		let payload = RpcConfirmationPayload::EthSignMessage((account.clone(), data).into());
-
-		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
-				 .and_then(|payload| {
-					 dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password))
-				 })
-				 .map(|v| v.into_value())
-				 .then(|res| match res {
-					 Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
-					 Err(e) => Err(e),
-					 e => Err(errors::internal("Unexpected result", e)),
-				 }))
-	}
-
-	fn do_ec_recover(&self, data: RpcBytes, signature: RpcH520) -> BoxFuture<RpcH160> {
-		let signature: H520 = signature.into();
-		let signature = Signature::from_electrum(&signature);
-		let data: Bytes = data.into();
-
-		let hash = eth_data_hash(data);
-		let account = recover(&signature.into(), &hash)
-			.map_err(errors::encryption)
-			.map(|public| {
-				public_to_address(&public).into()
-			});
-
-		Box::new(future::done(account))
-	}
-
 	fn do_sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<(PendingTransaction, D)> {
 		let dispatcher = self.dispatcher.clone();
 		let accounts = try_bf!(self.account_provider());
@@ -173,11 +140,36 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	}
 
 	fn sign(&self, data: RpcBytes, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
-		self.do_sign(data, account, password)
+		let dispatcher = self.dispatcher.clone();
+		let accounts = try_bf!(self.account_provider());
+
+		let payload = RpcConfirmationPayload::EthSignMessage((account.clone(), data).into());
+
+		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
+				 .and_then(|payload| {
+					 dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password))
+				 })
+				 .map(|v| v.into_value())
+				 .then(|res| match res {
+					 Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
+					 Err(e) => Err(e),
+					 e => Err(errors::internal("Unexpected result", e)),
+				 }))
 	}
 
 	fn ec_recover(&self, data: RpcBytes, signature: RpcH520) -> BoxFuture<RpcH160> {
-		self.do_ec_recover(data, signature)
+		let signature: H520 = signature.into();
+		let signature = Signature::from_electrum(&signature);
+		let data: Bytes = data.into();
+
+		let hash = eth_data_hash(data);
+		let account = recover(&signature.into(), &hash)
+			.map_err(errors::encryption)
+			.map(|public| {
+				public_to_address(&public).into()
+			});
+
+		Box::new(future::done(account))
 	}
 
 	fn sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcRichRawTransaction> {
