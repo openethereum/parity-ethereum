@@ -123,7 +123,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			eip649_delay: p.eip649_delay.map_or(DEFAULT_EIP649_DELAY, Into::into),
 			eip649_reward: p.eip649_reward.map(Into::into),
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
-			expip2_duration_limit: p.expip2_duration_limit.map_or(0, Into::into),
+			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
 		}
 	}
 }
@@ -375,8 +375,7 @@ impl Ethash {
 			} else {
 				*parent.difficulty() + (*parent.difficulty() / difficulty_bound_divisor)
 			}
-		}
-		else {
+		} else {
 			trace!(target: "ethash", "Calculating difficulty parent.difficulty={}, header.timestamp={}, parent.timestamp={}", parent.difficulty(), header.timestamp(), parent.timestamp());
 			//block_diff = parent_diff + parent_diff // 2048 * max(1 - (block_timestamp - parent_timestamp) // 10, -99)
 			let (increment_divisor, threshold) = if header.number() < self.ethash_params.eip100b_transition {
