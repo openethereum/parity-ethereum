@@ -361,12 +361,11 @@ impl Ethash {
 		};
 
 		let expip2_hardfork = header.number() >= self.ethash_params.expip2_transition;
-
 		let duration_limit = if expip2_hardfork {
 			self.ethash_params.expip2_duration_limit
 		} else {
 			self.ethash_params.duration_limit
-		}
+		};
 
 		let frontier_limit = self.ethash_params.homestead_transition;
 
