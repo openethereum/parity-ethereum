@@ -27,7 +27,6 @@ import styles from './list.css';
 class List extends Component {
   static propTypes = {
     balances: PropTypes.object.isRequired,
-    certifications: PropTypes.object.isRequired,
     accounts: PropTypes.object,
     disabled: PropTypes.object,
     empty: PropTypes.bool,
@@ -246,9 +245,10 @@ class List extends Component {
 function mapStateToProps (state, props) {
   const addresses = Object.keys(props.accounts);
   const balances = pick(state.balances, addresses);
-  const { certifications } = state;
 
-  return { balances, certifications };
+  return {
+    balances
+  };
 }
 
 export default connect(
