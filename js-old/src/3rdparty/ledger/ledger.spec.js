@@ -36,16 +36,16 @@ function createApi () {
 
 function createVendor (error = null) {
   vendor = {
-    getAddress: (path, callback) => {
-      callback({
+    getAddress: (path, func) => {
+      func({
         address: TEST_ADDRESS
       }, error);
     },
-    getAppConfiguration: (callback) => {
-      callback({}, error);
+    getAppConfiguration: (func) => {
+      func({}, error);
     },
-    signTransaction: (path, rawTransaction, callback) => {
-      callback({
+    signTransaction: (path, rawTransaction, func) => {
+      func({
         v: [39],
         r: [0],
         s: [0]

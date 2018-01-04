@@ -55,7 +55,7 @@ class TabBar extends Component {
   renderTabItems () {
     const { views } = this.props;
 
-    return views.map((view, index) => {
+    return views.map((view) => {
       return (
         <Link
           activeClassName={ styles.tabactive }

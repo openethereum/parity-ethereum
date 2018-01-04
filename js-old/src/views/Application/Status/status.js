@@ -109,8 +109,6 @@ class Status extends Component {
         </div>
       );
     }
-
-    return;
   }
 
   renderUpgradeButton () {

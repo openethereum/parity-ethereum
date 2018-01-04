@@ -35,7 +35,7 @@ function createApi () {
   };
 }
 
-function createMultiAccountStore (loadGeth) {
+function createMultiAccountStore () {
   api = createApi();
   AccountStore = new ExportStore(api, ACCOUNTS, null, null);
 

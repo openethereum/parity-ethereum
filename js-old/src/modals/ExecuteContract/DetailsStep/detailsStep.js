@@ -45,8 +45,7 @@ export default class DetailsStep extends Component {
     onFuncChange: PropTypes.func,
     onValueChange: PropTypes.func.isRequired,
     values: PropTypes.array.isRequired,
-    valuesError: PropTypes.array.isRequired,
-    warning: PropTypes.string
+    valuesError: PropTypes.array.isRequired
   }
 
   render () {
@@ -68,7 +67,7 @@ export default class DetailsStep extends Component {
               id='executeContract.details.address.hint'
               defaultMessage='from account'
             />
-           }
+          }
           onChange={ onFromAddressChange }
           value={ fromAddress }
         />

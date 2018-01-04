@@ -259,7 +259,7 @@ export default class Input extends Component {
     return onFocus(event);
   }
 
-  onPaste = (event) => {
+  onPaste = () => {
     this.pasted = true;
   }
 

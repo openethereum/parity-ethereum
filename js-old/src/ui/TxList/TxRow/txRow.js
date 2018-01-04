@@ -217,29 +217,29 @@ class TxRow extends Component {
         <div className={ styles.pending }>
           {
             isPending
-            ? (
-              <div className={ styles.pending }>
-                <div />
-                <div className={ styles.uppercase }>
-                  <FormattedMessage
-                    id='ui.txList.txRow.submitting'
-                    defaultMessage='Pending'
-                  />
+              ? (
+                <div className={ styles.pending }>
+                  <div />
+                  <div className={ styles.uppercase }>
+                    <FormattedMessage
+                      id='ui.txList.txRow.submitting'
+                      defaultMessage='Pending'
+                    />
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div>
-                <span>
-                  { pendingStatus }
-                </span>
-                <div className={ styles.uppercase }>
-                  <FormattedMessage
-                    id='ui.txList.txRow.scheduled'
-                    defaultMessage='Scheduled'
-                  />
+              ) : (
+                <div>
+                  <span>
+                    { pendingStatus }
+                  </span>
+                  <div className={ styles.uppercase }>
+                    <FormattedMessage
+                      id='ui.txList.txRow.scheduled'
+                      defaultMessage='Scheduled'
+                    />
+                  </div>
                 </div>
-              </div>
-            )
+              )
           }
           <a onClick={ this.setEdit } className={ styles.uppercase }>
             <FormattedMessage

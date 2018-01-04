@@ -27,7 +27,6 @@ import styles from './list.css';
 class List extends Component {
   static propTypes = {
     balances: PropTypes.object.isRequired,
-    certifications: PropTypes.object.isRequired,
     accounts: PropTypes.object,
     disabled: PropTypes.object,
     empty: PropTypes.bool,

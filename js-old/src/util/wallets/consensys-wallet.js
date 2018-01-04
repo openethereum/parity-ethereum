@@ -349,7 +349,7 @@ export default class ConsensysWalletUtils {
   /**
    * This type of wallet cannot create any contract...
    */
-  static parseTransactionLogs (api, options, rawLogs) {
+  static parseTransactionLogs () {
     return null;
   }
 }

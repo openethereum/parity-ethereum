@@ -26,10 +26,10 @@ const { api, muiTheme, store, hashHistory } = setup;
 
 export default () => (
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-      <Router
-        className={ styles.reset }
-        history={ hashHistory }
-        routes={ routes }
-      />
+    <Router
+      className={ styles.reset }
+      history={ hashHistory }
+      routes={ routes }
+    />
   </ContextProvider>
 );

@@ -42,7 +42,7 @@ export default class EditableValue extends Component {
     });
   }
 
-  onOpenEdit = evt => {
+  onOpenEdit = () => {
     this.setState({
       inEditMode: true
     });
@@ -53,7 +53,7 @@ export default class EditableValue extends Component {
     this._input.focus();
   }
 
-  onCancel = evt => {
+  onCancel = () => {
     this.setState({
       inEditMode: false,
       value: this.props.value

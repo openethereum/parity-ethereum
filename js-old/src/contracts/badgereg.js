@@ -80,7 +80,7 @@ export default class BadgeReg {
       .then((badgeReg) => {
         return badgeReg.instance.fromName.call({}, [ name ]);
       })
-      .then(([ id, address, owner ]) => {
+      .then(([ id, address ]) => {
         if (address === ZERO20) {
           throw new Error(`Certifier ${name} does not exist.`);
         }

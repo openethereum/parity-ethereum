@@ -77,7 +77,7 @@ export default class SectionListExample extends Component {
     );
   }
 
-  renderItem (item, index) {
+  renderItem (item) {
     const { desc, name } = item;
 
     return (

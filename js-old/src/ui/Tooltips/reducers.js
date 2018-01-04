@@ -21,7 +21,7 @@ const LS_KEY = 'tooltips';
 let currentId = -1;
 let maxId = 0;
 
-function closeTooltips (state, action) {
+function closeTooltips (state) {
   store.set(LS_KEY, '{"state":"off"}');
 
   currentId = -1;
@@ -42,7 +42,7 @@ function newTooltip (state, action) {
   });
 }
 
-function nextTooltip (state, action) {
+function nextTooltip (state) {
   const hideTips = store.get(LS_KEY);
 
   currentId = hideTips

@@ -57,12 +57,12 @@ export const postToServer = (query, isTestnet = false) => {
     mode: 'cors',
     cache: 'no-store'
   })
-  .then((res) => {
-    return res.json().then((data) => {
-      if (res.ok) {
-        return data.message;
-      }
-      throw new Error(data.message || 'unknown error');
+    .then((res) => {
+      return res.json().then((data) => {
+        if (res.ok) {
+          return data.message;
+        }
+        throw new Error(data.message || 'unknown error');
+      });
     });
-  });
 };

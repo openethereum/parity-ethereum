@@ -41,7 +41,6 @@ export default class Select extends Component {
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
     onKeyDown: PropTypes.func,
-    type: PropTypes.string,
     value: PropTypes.any,
     values: PropTypes.array
   }

@@ -35,7 +35,7 @@ class WalletSettings extends Component {
 
   static propTypes = {
     accountsInfo: PropTypes.object.isRequired,
-    wallet: PropTypes.object.isRequired,
+    wallet: PropTypes.object.isRequired, // eslint-disable-line react/no-unused-prop-types
     onClose: PropTypes.func.isRequired,
     senders: PropTypes.object.isRequired
   };

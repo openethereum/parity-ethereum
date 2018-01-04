@@ -115,7 +115,7 @@ export default class WalletsUtils {
       });
   }
 
-  static getCallArgs (api, options, values = []) {
+  static getCallArgs (api, options) {
     const walletAddress = options.from;
     let walletContract;
     let submitMethod;

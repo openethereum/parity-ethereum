@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+/* eslint react/no-unused-prop-types: 0 */
+
 import React, { Component, PropTypes } from 'react';
 import AutoComplete from 'material-ui/AutoComplete';
 

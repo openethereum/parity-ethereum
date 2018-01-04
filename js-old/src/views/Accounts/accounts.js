@@ -42,8 +42,6 @@ class Accounts extends Component {
     accounts: PropTypes.object.isRequired,
     accountsInfo: PropTypes.object.isRequired,
     availability: PropTypes.string.isRequired,
-    hasAccounts: PropTypes.bool.isRequired,
-    health: PropTypes.object.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired
   }
 
@@ -491,16 +489,13 @@ class Accounts extends Component {
 }
 
 function mapStateToProps (state) {
-  const { accounts, accountsInfo, hasAccounts } = state.personal;
+  const { accounts, accountsInfo } = state.personal;
   const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
-  const { health } = state.nodeStatus;
 
   return {
     accounts,
     accountsInfo,
-    availability,
-    hasAccounts,
-    health
+    availability
   };
 }
 

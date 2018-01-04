@@ -35,9 +35,9 @@ export function toString (context, value) {
 
   const textValue = typeof value !== 'string' && (value && value.props)
     ? context.intl.formatMessage(
-        value.props,
-        value.props.values || {}
-      )
+      value.props,
+      value.props.values || {}
+    )
     : value || '';
 
   return textValue;

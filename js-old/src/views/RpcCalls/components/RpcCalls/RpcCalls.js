@@ -209,31 +209,31 @@ export default class RpcCalls extends Component {
     }
 
     return _.find(rpcMethods, { name })
-            .params.map(
-              p => {
-                const onChange = evt => this.setState({
-                  [this.paramKey(p)]: evt.target.value
-                });
+      .params.map(
+        p => {
+          const onChange = evt => this.setState({
+            [this.paramKey(p)]: evt.target.value
+          });
 
-                if (_.isPlainObject(p)) {
-                  return this.renderObjInputs(p);
-                }
+          if (_.isPlainObject(p)) {
+            return this.renderObjInputs(p);
+          }
 
-                return (
-                  <TextField
-                    key={ p }
-                    inputStyle={ { marginTop: 0 } }
-                    fullWidth
-                    hintText={ p }
-                    title={ p }
-                    hintStyle={ { maxWidth: '100%', overflow: 'hidden', whiteSpace: 'nowrap' } }
-                    value={ this.paramValue(p) }
-                    onChange={ onChange }
-                    { ...this._test(this.paramKey(p)) }
-                  />
-                );
-              }
-            );
+          return (
+            <TextField
+              key={ p }
+              inputStyle={ { marginTop: 0 } }
+              fullWidth
+              hintText={ p }
+              title={ p }
+              hintStyle={ { maxWidth: '100%', overflow: 'hidden', whiteSpace: 'nowrap' } }
+              value={ this.paramValue(p) }
+              onChange={ onChange }
+              { ...this._test(this.paramKey(p)) }
+            />
+          );
+        }
+      );
   }
 
   renderObjInputs (param) {

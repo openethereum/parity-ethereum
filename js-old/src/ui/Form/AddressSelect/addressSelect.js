@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+/* eslint react/no-unused-prop-types: 0 */
+
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
@@ -489,7 +491,7 @@ class AddressSelect extends Component {
       const nextValues = values[nextCat];
       const nextFocus = nextValues ? nextValues.values[0] : null;
 
-      return this.focusItem(nextFocus && nextFocus.index || 1);
+      return this.focusItem((nextFocus && nextFocus.index) || 1);
     }
 
     event.preventDefault();

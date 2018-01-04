@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+/* eslint import/no-webpack-loader-syntax: 0 */
+
 import PromiseWorker from 'promise-worker';
 import runtime from 'serviceworker-webpack-plugin/lib/runtime';
 import WebWorker from 'worker-loader!~/webWorker.js';
@@ -27,7 +29,7 @@ setupServiceWorker()
 
 function setupServiceWorker () {
   if (!('serviceWorker' in navigator)) {
-    return Promise.reject('Service Worker is not available in your browser.');
+    return Promise.reject(new Error('Service Worker is not available in your browser.'));
   }
 
   const getServiceWorker = () => {

@@ -22,7 +22,7 @@ import Playground from './playground';
 let component;
 let options;
 
-function render (props = {}) {
+function render () {
   component = shallow(
     <Playground />
   );

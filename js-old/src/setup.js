@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-
 import injectTapEventPlugin from 'react-tap-event-plugin';
 import { hashHistory } from 'react-router';
 
@@ -24,7 +22,6 @@ import Api from '@parity/api';
 import ContractInstances from '~/contracts';
 
 import { initStore } from './redux';
-import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 
 import { loadSender, patchApi } from '~/util/tx';

@@ -70,22 +70,22 @@ export default class Queries extends Component {
         <div className={ styles.methods }>
           {
             noInputQueries.length > 0
-            ? (
-              <div className={ styles.vMethods }>
-                { noInputQueries }
-              </div>
-            )
-            : null
+              ? (
+                <div className={ styles.vMethods }>
+                  { noInputQueries }
+                </div>
+              )
+              : null
           }
 
           {
             withInputQueries.length > 0
-            ? (
-              <div className={ styles.hMethods }>
-                { withInputQueries }
-              </div>
-            )
-            : null
+              ? (
+                <div className={ styles.hMethods }>
+                  { withInputQueries }
+                </div>
+              )
+              : null
           }
         </div>
       </Container>

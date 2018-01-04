@@ -29,9 +29,9 @@ export default {
     modificationString: `為了保證你做的修改會被執行，
                         其他的帳戶持有人也需要傳送相同的修改。
                         他們可以通過貼上以下字串來簡單的完成更改：`,
-                        // For your modifications to be taken into account,
-              // other owners have to send the same modifications. They can paste
-              // this string to make it easier:
+    // For your modifications to be taken into account,
+    // other owners have to send the same modifications. They can paste
+    // this string to make it easier:
     none: `錢包設定沒有發生任何更改。`, // No modifications have been made to the Wallet settings.
     overview: `你將會造成以下更改` // You are about to make the following modifications
   },
@@ -39,10 +39,10 @@ export default {
     message: `為了編輯這個合約的設定，至少{owners, number} 
               {owners, plural, one {owner } other {owners }}必須傳送完全相同的修改
               你可以將字串化的修改貼上在這裡。`
-                  // In order to edit this contract's settings, at
-                  // least {owners, number} {owners, plural, one {owner } other {owners }} have to
-                  // send the very same modifications. You can paste a stringified version
-                  // of the modifications here.
+    // In order to edit this contract's settings, at
+    // least {owners, number} {owners, plural, one {owner } other {owners }} have to
+    // send the very same modifications. You can paste a stringified version
+    // of the modifications here.
   },
   modifications: {
     daylimit: {

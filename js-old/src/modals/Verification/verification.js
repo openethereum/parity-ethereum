@@ -27,6 +27,21 @@ import { CancelIcon, DoneIcon } from '~/ui/Icons';
 import SMSVerificationStore from './sms-store';
 import EmailVerificationStore from './email-store';
 
+import {
+  LOADING,
+  QUERY_DATA,
+  POSTING_REQUEST, POSTED_REQUEST,
+  REQUESTING_CODE, QUERY_CODE,
+  POSTING_CONFIRMATION, POSTED_CONFIRMATION,
+  DONE
+} from './store';
+
+import GatherData from './GatherData';
+import SendRequest from './SendRequest';
+import QueryCode from './QueryCode';
+import SendConfirmation from './SendConfirmation';
+import Done from './Done';
+
 import styles from './verification.css';
 
 const METHODS = {
@@ -94,21 +109,6 @@ const STEPS = [
     defaultMessage='Completed'
   />
 ];
-
-import {
-  LOADING,
-  QUERY_DATA,
-  POSTING_REQUEST, POSTED_REQUEST,
-  REQUESTING_CODE, QUERY_CODE,
-  POSTING_CONFIRMATION, POSTED_CONFIRMATION,
-  DONE
-} from './store';
-
-import GatherData from './GatherData';
-import SendRequest from './SendRequest';
-import QueryCode from './QueryCode';
-import SendConfirmation from './SendConfirmation';
-import Done from './Done';
 
 @observer
 class Verification extends Component {
@@ -436,7 +436,7 @@ class Verification extends Component {
     }
   }
 
-  selectMethod = (choice, i) => {
+  selectMethod = (choice) => {
     this.setState({ method: choice.value });
   }
 }

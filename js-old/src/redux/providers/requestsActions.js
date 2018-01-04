@@ -45,7 +45,7 @@ export const init = (api) => (dispatch) => {
   });
 };
 
-export const watchRequest = (request) => (dispatch, getState) => {
+export const watchRequest = (request) => (dispatch) => {
   const { requestId } = request;
 
   // Convert value to BigNumber

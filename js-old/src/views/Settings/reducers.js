@@ -24,11 +24,11 @@ const initialState = {
 };
 
 export default handleActions({
-  toggleView (state, action) {
+  toggleView (state) {
     return Object.assign({}, state, { views });
   },
 
-  toggleViews (state, action) {
+  toggleViews (state) {
     return Object.assign({}, state, { views });
   },
 

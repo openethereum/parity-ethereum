@@ -41,34 +41,34 @@ export function subscribeToChanges (api, dappReg, callback) {
           address: dappRegInstance.address,
           topics: [ signatures ]
         })
-      .then((filterId) => {
-        return api
-          .subscribe('eth_blockNumber', () => {
-            if (filterId > -1) {
-              api.eth
-                .getFilterChanges(filterId)
-                .then((logs) => {
-                  return dappRegContract.parseEventLogs(logs);
-                })
-                .then((events) => {
-                  if (events.length === 0) {
-                    return [];
-                  }
+        .then((filterId) => {
+          return api
+            .subscribe('eth_blockNumber', () => {
+              if (filterId > -1) {
+                api.eth
+                  .getFilterChanges(filterId)
+                  .then((logs) => {
+                    return dappRegContract.parseEventLogs(logs);
+                  })
+                  .then((events) => {
+                    if (events.length === 0) {
+                      return [];
+                    }
 
-                  // Return uniq IDs which changed meta-data
-                  const ids = uniq(events.map((event) => bytesToHex(event.params.id.value)));
+                    // Return uniq IDs which changed meta-data
+                    const ids = uniq(events.map((event) => bytesToHex(event.params.id.value)));
 
-                  callback(ids);
-                });
-            }
-          })
-          .then((blockSubId) => {
-            return {
-              block: blockSubId,
-              filter: filterId
-            };
-          });
-      });
+                    callback(ids);
+                  });
+              }
+            })
+            .then((blockSubId) => {
+              return {
+                block: blockSubId,
+                filter: filterId
+              };
+            });
+        });
     });
 }
 
@@ -117,7 +117,7 @@ export function fetchRegistryAppIds () {
     })
     .then((appsInfo) => {
       const appIds = appsInfo
-        .map(([appId, owner]) => bytesToHex(appId))
+        .map(([appId]) => bytesToHex(appId))
         .filter((appId) => {
           return (new BigNumber(appId)).gt(0) && !builtinApps.find((app) => app.id === appId);
         });
@@ -175,9 +175,9 @@ export function fetchManifest (api, manifestHash) {
   }
 
   return fetch(
-      `/api/content/${manifestHash}/`,
-      { redirect: 'follow', mode: 'cors' }
-    )
+    `/api/content/${manifestHash}/`,
+    { redirect: 'follow', mode: 'cors' }
+  )
     .then((response) => {
       return response.ok
         ? response.json()

@@ -22,6 +22,6 @@ export function formatRpcMd (val) {
   }
 
   return val.description + Object.keys(val.details)
-                            .map(key => `- \`${key}\`: ${val.details[key]}`)
-                            .join('\n');
+    .map(key => `- \`${key}\`: ${val.details[key]}`)
+    .join('\n');
 }

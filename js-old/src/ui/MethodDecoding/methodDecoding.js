@@ -379,16 +379,16 @@ class MethodDecoding extends Component {
           />
           {
             value && value.gt(0)
-            ? (
-              <FormattedMessage
-                id='ui.methodDecoding.deploy.withValue'
-                defaultMessage=', sending {value}'
-                values={ {
-                  value: this.renderEtherValue(value)
-                } }
-              />
-            )
-            : null
+              ? (
+                <FormattedMessage
+                  id='ui.methodDecoding.deploy.withValue'
+                  defaultMessage=', sending {value}'
+                  values={ {
+                    value: this.renderEtherValue(value)
+                  } }
+                />
+              )
+              : null
           }
         </div>
       );
@@ -405,18 +405,18 @@ class MethodDecoding extends Component {
         { this.renderAddressName(transaction.creates, false) }
         {
           !compact && methodInputs && methodInputs.length
-          ? (
-            <div>
-              <FormattedMessage
-                id='ui.methodDecoding.deploy.params'
-                defaultMessage='with the following parameters:'
-              />
-              <div className={ styles.inputs }>
-                { this.renderInputs() }
+            ? (
+              <div>
+                <FormattedMessage
+                  id='ui.methodDecoding.deploy.params'
+                  defaultMessage='with the following parameters:'
+                />
+                <div className={ styles.inputs }>
+                  { this.renderInputs() }
+                </div>
               </div>
-            </div>
-          )
-          : null
+            )
+            : null
         }
       </div>
     );
@@ -529,12 +529,12 @@ class MethodDecoding extends Component {
         </div>
         {
           showInputs
-          ? (
-            <div className={ styles.inputs }>
-              { this.renderInputs() }
-            </div>
-          )
-          : null
+            ? (
+              <div className={ styles.inputs }>
+                { this.renderInputs() }
+              </div>
+            )
+            : null
         }
       </div>
     );

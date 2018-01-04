@@ -176,7 +176,6 @@ export default class Store {
         if (this.stage !== STAGE_COMPLETED) {
           this.setExchangeInfo(result);
         }
-        return;
     }
   }
 

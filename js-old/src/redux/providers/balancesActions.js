@@ -45,9 +45,8 @@ function _setBalances (balances) {
  *   {
  *     [ who ]: { [ tokenId ]: BigNumber } // The balances of `who`
  *   }
- * @param {Boolean} skipNotifications [description]
  */
-function setBalances (updates, skipNotifications = false) {
+function setBalances (updates) {
   return (dispatch, getState) => {
     const { tokens, balances } = getState();
 
@@ -118,7 +117,7 @@ export function fetchBalances (addresses, skipNotifications = false) {
   };
 }
 
-export function updateTokensFilter (options = {}) {
+export function updateTokensFilter () {
   return (dispatch, getState) => {
     const { api, personal, tokens } = getState();
     const { visibleAccounts, accounts } = personal;

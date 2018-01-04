@@ -227,22 +227,22 @@ class Peers extends Component {
         <td>
           {
             protocols.eth
-            ? <ShortenedHash data={ protocols.eth.head } />
-            : null
+              ? <ShortenedHash data={ protocols.eth.head } />
+              : null
           }
         </td>
         <td>
           {
             protocols.eth && protocols.eth.difficulty.gt(0)
-            ? protocols.eth.difficulty.toExponential(16)
-            : null
+              ? protocols.eth.difficulty.toExponential(16)
+              : null
           }
         </td>
         <td>
           {
             caps && caps.length > 0
-            ? caps.join(' - ')
-            : null
+              ? caps.join(' - ')
+              : null
           }
         </td>
       </tr>

@@ -38,7 +38,7 @@ export class CreateWallet extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     onClose: PropTypes.func.isRequired,
-    onSetRequest: PropTypes.func.isRequired
+    onSetRequest: PropTypes.func.isRequired // eslint-disable-line react/no-unused-prop-types
   };
 
   store = new CreateWalletStore(this.context.api, this.props);

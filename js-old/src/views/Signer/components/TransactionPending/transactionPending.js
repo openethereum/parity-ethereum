@@ -38,13 +38,11 @@ class TransactionPending extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     className: PropTypes.string,
-    date: PropTypes.instanceOf(Date).isRequired,
     focus: PropTypes.bool,
     gasLimit: PropTypes.object,
     id: PropTypes.object.isRequired,
     isSending: PropTypes.bool.isRequired,
     netVersion: PropTypes.string.isRequired,
-    nonce: PropTypes.number,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
     origin: PropTypes.any,

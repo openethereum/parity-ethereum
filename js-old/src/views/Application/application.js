@@ -34,7 +34,6 @@ class Application extends Component {
   }
 
   static propTypes = {
-    blockNumber: PropTypes.object,
     children: PropTypes.node,
     pending: PropTypes.array
   }
@@ -85,12 +84,10 @@ class Application extends Component {
 }
 
 function mapStateToProps (state) {
-  const { blockNumber } = state.nodeStatus;
   const { hasAccounts } = state.personal;
   const { pending } = state.signer;
 
   return {
-    blockNumber,
     hasAccounts,
     pending
   };

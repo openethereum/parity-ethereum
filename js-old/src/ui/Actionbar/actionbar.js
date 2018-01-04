@@ -32,7 +32,7 @@ export default class Actionbar extends Component {
     buttons: PropTypes.array,
     children: PropTypes.node,
     className: PropTypes.string,
-    health: PropTypes.node
+    health: PropTypes.node // eslint-disable-line react/no-unused-prop-types
   };
 
   static defaultProps = {

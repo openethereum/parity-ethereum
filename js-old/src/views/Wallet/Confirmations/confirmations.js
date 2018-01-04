@@ -317,23 +317,23 @@ class WalletConfirmation extends Component {
           >
             {
               pending
-              ? (
-                <LinearProgress
-                  key={ `pending_${operation}` }
-                  mode='indeterminate'
-                  style={ style }
-                />
-              )
-              : (
-                <LinearProgress
-                  key={ `unpending_${operation}` }
-                  mode='determinate'
-                  min={ 0 }
-                  max={ require.toNumber() }
-                  value={ confirmedBy.length }
-                  style={ style }
-                />
-              )
+                ? (
+                  <LinearProgress
+                    key={ `pending_${operation}` }
+                    mode='indeterminate'
+                    style={ style }
+                  />
+                )
+                : (
+                  <LinearProgress
+                    key={ `unpending_${operation}` }
+                    mode='determinate'
+                    min={ 0 }
+                    max={ require.toNumber() }
+                    value={ confirmedBy.length }
+                    style={ style }
+                  />
+                )
             }
           </div>
 

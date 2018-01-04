@@ -33,7 +33,6 @@ class Delete extends Component {
   static propTypes = {
     route: PropTypes.string.isRequired,
 
-    address: PropTypes.string,
     account: PropTypes.object,
     confirmMessage: PropTypes.node,
     visible: PropTypes.bool,
