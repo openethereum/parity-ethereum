@@ -16,7 +16,6 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
-import sinon from 'sinon';
 
 import Tab from './';
 
@@ -56,21 +55,6 @@ describe('views/Application/TabBar/Tab', () => {
         expect(
           shallow(instance.renderLabel('test', 'testBubble')).text()
         ).to.equal('<FormattedMessage />testBubble');
-      });
-    });
-
-    describe('renderSignerLabel', () => {
-      beforeEach(() => {
-        sinon.stub(instance, 'renderLabel');
-      });
-
-      afterEach(() => {
-        instance.renderLabel.restore();
-      });
-
-      it('calls renderLabel with the details', () => {
-        instance.renderSignerLabel();
-        expect(instance.renderLabel).to.have.been.calledWith('signer');
       });
     });
   });
