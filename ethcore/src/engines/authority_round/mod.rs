@@ -474,9 +474,15 @@ impl IoHandler<()> for TransitionHandler {
 	fn timeout(&self, io: &IoContext<()>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
-				engine.step();
-				let remaining = engine.step.duration_remaining();
-				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, remaining.as_millis())
+				// NOTE we might be lagging by couple of steps in case the timeout
+				// has not been called fast enough.
+				// Make sure to advance up to the actual step.
+				while engine.step.duration_remaining().as_millis() == 0 {
+					engine.step();
+				}
+
+				let next_run_at = engine.step.duration_remaining().as_millis() >> 2;
+				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, next_run_at)
 					.unwrap_or_else(|e| warn!(target: "engine", "Failed to restart consensus step timer: {}.", e))
 			}
 		}
@@ -549,6 +555,13 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let expected_diff = calculate_score(parent_step, step.into());
 
 		if header.difficulty() != &expected_diff {
+			debug!(target: "engine", "Aborting seal generation. The step has changed in the meantime. {:?} != {:?}",
+				   header.difficulty(), expected_diff);
+			return Seal::None;
+		}
+
+		if parent_step > step.into() {
+			warn!(target: "engine", "Aborting seal generation for invalid step: {} > {}", parent_step, step);
 			return Seal::None;
 		}
 
