@@ -90,6 +90,10 @@ pub struct EthashParams {
 	pub eip649_delay: u64,
 	/// EIP-649 base reward.
 	pub eip649_reward: Option<U256>,
+	/// EXPIP-2 duration limit
+	pub expip2_duration_limit: u64,
+	/// EXPIP-2 block height
+	pub expip2_transition: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -354,7 +358,14 @@ impl Ethash {
 			self.ethash_params.difficulty_bound_divisor
 		};
 
-		let duration_limit = self.ethash_params.duration_limit;
+		let expip2_hardfork = header.number() > self.ethash_params.expip2_transition;
+
+		let duration_limit = if expip2_hardfork {
+			self.ethash_params.expip2_duration_limit
+		}else{
+			self.ethash_params.duration_limit
+		}
+
 		let frontier_limit = self.ethash_params.homestead_transition;
 
 		let mut target = if header.number() < frontier_limit {
