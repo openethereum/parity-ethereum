@@ -42,6 +42,11 @@ build_rpc_trait! {
 		#[rpc(name = "personal_sign")]
 		fn sign(&self, H160, Bytes, String) -> BoxFuture<H520>;
 
+		/// Returns the address associated with the private key that was used to calculate the signature in
+		/// `personal_sign`.
+		#[rpc(name = "personal_ecRecover")]
+		fn ec_recover(&self, Bytes, H520) -> BoxFuture<H160>;
+
 		/// Signs transaction. The account is not unlocked in such case.
 		#[rpc(meta, name = "personal_signTransaction")]
 		fn sign_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<RpcRichRawTransaction>;
