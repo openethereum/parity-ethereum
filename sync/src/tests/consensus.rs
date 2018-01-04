@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use hash::keccak;
-use bigint::prelude::U256;
+use ethereum_types::{U256, Address};
 use io::{IoHandler, IoContext, IoChannel};
 use ethcore::client::{BlockChainClient, Client};
 use ethcore::service::ClientIoMessage;
@@ -26,7 +26,7 @@ use ethcore::transaction::*;
 use ethcore::account_provider::AccountProvider;
 use ethkey::{KeyPair, Secret};
 use super::helpers::*;
-use {SyncConfig, Address};
+use SyncConfig;
 
 struct TestIoHandler {
 	client: Arc<Client>,

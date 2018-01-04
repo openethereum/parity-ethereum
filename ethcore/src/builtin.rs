@@ -550,7 +550,7 @@ impl Bn128PairingImpl {
 mod tests {
 	use super::{Builtin, Linear, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
 	use ethjson;
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use bytes::BytesRef;
 	use rustc_hex::FromHex;
 	use num::{BigUint, Zero, One};

@@ -1440,7 +1440,7 @@ fn check_if_removed(sender: &Address, nonce: &U256, dropped: Option<HashMap<Addr
 pub mod test {
 	use rustc_hex::FromHex;
 	use table::Table;
-	use util::*;
+	use ethereum_types::{U256, Address};
 	use ethkey::{Random, Generator};
 	use error::{Error, TransactionError};
 	use super::*;

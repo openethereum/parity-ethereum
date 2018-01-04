@@ -138,7 +138,7 @@ impl Filter {
 
 #[cfg(test)]
 mod tests {
-	use util::Address;
+	use ethereum_types::Address;
 	use hash::keccak;
 	use bloomable::Bloomable;
 	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide, Reward};

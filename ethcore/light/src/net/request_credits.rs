@@ -30,7 +30,7 @@ use request::{self, Request};
 use super::error::Error;
 
 use rlp::*;
-use bigint::prelude::U256;
+use ethereum_types::U256;
 use time::{Duration, SteadyTime};
 
 /// Credits value.

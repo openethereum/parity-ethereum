@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 use std::path::Path;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use kvdb::KeyValueDB;
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use bytes::Bytes;

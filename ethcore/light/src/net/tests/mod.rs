@@ -32,9 +32,7 @@ use request;
 use request::*;
 
 use rlp::*;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address};
 
 use std::sync::Arc;
 

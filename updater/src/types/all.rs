@@ -16,7 +16,7 @@
 
 //! Types used in the public API
 
-use bigint::hash::H256;
+use ethereum_types::H256;
 use types::VersionInfo;
 
 /// Information regarding a particular release of Parity

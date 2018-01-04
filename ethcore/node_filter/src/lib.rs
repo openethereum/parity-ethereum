@@ -17,10 +17,9 @@
 //! Smart contract based node filter.
 
 extern crate ethcore;
-extern crate ethcore_util as util;
-extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_network as network;
+extern crate ethereum_types;
 extern crate native_contracts;
 extern crate futures;
 extern crate parking_lot;
@@ -38,8 +37,7 @@ use std::collections::HashMap;
 use native_contracts::PeerSet as Contract;
 use network::{NodeId, ConnectionFilter, ConnectionDirection};
 use ethcore::client::{BlockChainClient, BlockId, ChainNotify};
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use parking_lot::Mutex;
 use futures::Future;
@@ -129,7 +127,7 @@ mod test {
 	use ethcore::spec::Spec;
 	use ethcore::client::{BlockChainClient, Client, ClientConfig};
 	use ethcore::miner::Miner;
-	use util::{Address};
+	use ethereum_types::Address;
 	use network::{ConnectionDirection, ConnectionFilter, NodeId};
 	use io::IoChannel;
 	use super::NodeFilter;

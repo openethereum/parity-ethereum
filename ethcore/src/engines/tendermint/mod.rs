@@ -29,7 +29,7 @@ use std::sync::{Weak, Arc};
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::collections::{HashSet, BTreeMap};
 use hash::keccak;
-use ethereum_types::{H256, H520, U128, U256};
+use ethereum_types::{H256, H520, U128, U256, Address};
 use parking_lot::RwLock;
 use unexpected::{OutOfBounds, Mismatch};
 use client::EngineClient;

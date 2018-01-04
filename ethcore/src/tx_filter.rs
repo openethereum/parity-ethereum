@@ -121,7 +121,7 @@ mod test {
 	use spec::Spec;
 	use client::{BlockChainClient, Client, ClientConfig, BlockId};
 	use miner::Miner;
-	use util::{Address};
+	use ethereum_types::Address;
 	use io::IoChannel;
 	use ethkey::{Secret, KeyPair};
 	use super::TransactionFilter;

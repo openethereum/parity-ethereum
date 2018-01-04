@@ -218,8 +218,7 @@ mod tests {
 	use error::{Error, TransactionError};
 	use client::TransactionImportResult;
 	use miner::{TransactionQueue, TransactionOrigin};
-	use bigint::prelude::U256;
-	use util::Address;
+	use ethereum_types::{U256, Address};
 	use miner::transaction_queue::test::DummyTransactionDetailsProvider;
 
 	fn queue() -> BanningTransactionQueue {

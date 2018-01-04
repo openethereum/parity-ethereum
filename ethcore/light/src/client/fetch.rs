@@ -24,7 +24,7 @@ use ethcore::machine::EthereumMachine;
 use ethcore::header::Header;
 use ethcore::receipt::Receipt;
 use futures::future::IntoFuture;
-use bigint::hash::H256;
+use ethereum_types::H256;
 
 /// Provides full chain data.
 pub trait ChainDataFetcher: Send + Sync + 'static {

@@ -470,7 +470,7 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
-	use util::*;
+	use ethereum_types::Address;
 	use types::ids::BlockId;
 	use spec::Spec;
 	use account_provider::AccountProvider;

@@ -1271,7 +1271,7 @@ mod tests {
 	use super::super::{MinerService, PrioritizationStrategy};
 	use super::*;
 	use block::IsBlock;
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use ethkey::{Generator, Random};
 	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith, TransactionImportResult};
 	use header::BlockNumber;

@@ -22,6 +22,9 @@ use kvdb::DBValue;
 use hashdb::HashDB;
 use rlp::NULL_RLP;
 
+#[cfg(test)]
+use ethereum_types::Address;
+
 // combines a key with an address hash to ensure uniqueness.
 // leaves the first 96 bits untouched in order to support partial key lookup.
 #[inline]

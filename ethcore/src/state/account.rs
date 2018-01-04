@@ -486,7 +486,8 @@ impl fmt::Debug for Account {
 #[cfg(test)]
 mod tests {
 	use rlp::{UntrustedRlp, RlpType, Compressible};
-	use util::*;
+	use ethereum_types::{H256, U256, Address};
+	use memorydb::MemoryDB;
 	use bytes::Bytes;
 	use super::*;
 	use account_db::*;

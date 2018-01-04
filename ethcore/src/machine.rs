@@ -488,7 +488,7 @@ mod tests {
 
 	#[test]
 	fn ethash_gas_limit_is_multiple_of_determinant() {
-		use bigint::prelude::U256;
+		use ethereum_types::U256;
 
 		let spec = ::ethereum::new_homestead_test();
 		let ethparams = ::tests::helpers::get_default_ethash_extensions();

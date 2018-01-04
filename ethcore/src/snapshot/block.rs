@@ -22,7 +22,7 @@ use hash::keccak;
 
 use views::BlockView;
 use rlp::{DecoderError, RlpStream, UntrustedRlp};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use bytes::Bytes;
 use triehash::ordered_trie_root;
 
@@ -138,9 +138,7 @@ mod tests {
 	use super::AbridgedBlock;
 	use transaction::{Action, Transaction};
 
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
-	use util::Address;
+	use ethereum_types::{H256, U256, Address};
 	use bytes::Bytes;
 
 	fn encode_block(b: &Block) -> Bytes {

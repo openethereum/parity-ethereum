@@ -79,7 +79,7 @@ impl<'a> TransactionView<'a> {
 mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use super::TransactionView;
 
 	#[test]

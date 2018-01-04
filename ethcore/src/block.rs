@@ -721,7 +721,7 @@ mod tests {
 	use factory::Factories;
 	use state_db::StateDB;
 	use views::BlockView;
-	use util::Address;
+	use ethereum_types::Address;
 	use std::sync::Arc;
 	use transaction::SignedTransaction;
 
