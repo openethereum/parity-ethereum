@@ -18,10 +18,9 @@
 
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use bigint::hash::H256;
+use ethereum_types::{H256, Address};
 use native_contracts::TransactAcl as Contract;
 use client::{BlockChainClient, BlockId, ChainNotify};
-use util::Address;
 use bytes::Bytes;
 use parking_lot::Mutex;
 use futures::{self, Future};

@@ -16,7 +16,7 @@
 
 //! Hardware wallet management.
 
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 extern crate ethkey;
 extern crate hidapi;
 extern crate libusb;
@@ -38,7 +38,7 @@ use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
 use std::thread;
 use std::time::Duration;
-use bigint::prelude::uint::U256;
+use ethereum_types::U256;
 
 /// Hardware wallet error.
 #[derive(Debug)]

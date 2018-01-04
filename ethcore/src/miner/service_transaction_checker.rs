@@ -20,7 +20,7 @@ use types::ids::BlockId;
 
 use futures::{future, Future};
 use native_contracts::ServiceTransactionChecker as Contract;
-use bigint::prelude::U256;
+use ethereum_types::U256;
 use parking_lot::Mutex;
 
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";

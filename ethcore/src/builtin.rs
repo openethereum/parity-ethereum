@@ -24,8 +24,7 @@ use crypto::digest::Digest;
 use num::{BigUint, Zero, One};
 
 use hash::keccak;
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use bytes::BytesRef;
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;

@@ -31,8 +31,7 @@ use header::{BlockNumber, Header};
 use transaction::SignedTransaction;
 use views::BlockView;
 
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{H256, U256};
 use bytes::Bytes;
 use hash::keccak;
 use heapsize::HeapSizeOf;
@@ -335,8 +334,7 @@ fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &
 mod tests {
 	use std::collections::{BTreeMap, HashMap};
 	use hash::keccak;
-	use bigint::prelude::U256;
-	use bigint::hash::{H256, H2048};
+	use ethereum_types::{H256, H2048, U256};
 	use triehash::ordered_trie_root;
 	use unexpected::{Mismatch, OutOfBounds};
 	use bytes::Bytes;

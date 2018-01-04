@@ -17,8 +17,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use parking_lot::Mutex;
 
 /// External miner interface.
@@ -72,8 +71,7 @@ mod tests {
 	use super::*;
 	use std::thread::sleep;
 	use std::time::Duration;
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
+	use ethereum_types::{H256, U256};
 
 	fn miner() -> ExternalMiner {
 		ExternalMiner::default()

@@ -21,17 +21,18 @@
 
 use super::{WalletInfo, TransactionInfo, KeyPath};
 
-use bigint::hash::H256;
-use ethkey::{Address, Signature};
-use hidapi;
-use parking_lot::{Mutex, RwLock};
-use protobuf;
-use protobuf::{Message, ProtobufEnum};
 use std::cmp::{min, max};
 use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
-use bigint::prelude::uint::U256;
+
+use ethereum_types::{U256, H256, Address};
+
+use ethkey::Signature;
+use hidapi;
+use parking_lot::{Mutex, RwLock};
+use protobuf;
+use protobuf::{Message, ProtobufEnum};
 
 use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 
@@ -411,8 +412,7 @@ impl Manager {
 /// This test can't be run without an actual trezor device connected
 /// (and unlocked) attached to the machine that's running the test
 fn test_signature() {
-	use bigint::prelude::uint::U256;
-	use bigint::hash::{H160, H256};
+	use ethereum_types::{H160, H256, U256};
 
 	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
 	let manager = Manager::new(hidapi.clone());

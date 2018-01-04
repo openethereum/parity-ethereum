@@ -24,8 +24,7 @@ use hyper::{Next};
 use hyper::net::HttpStream;
 use ethash::SeedHashCompute;
 use hyper::Url;
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use parking_lot::Mutex;
 use ethereum::ethash::Ethash;
 

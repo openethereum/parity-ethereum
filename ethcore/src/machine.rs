@@ -32,9 +32,8 @@ use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
 use transaction::{SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
 
-use bigint::prelude::U256;
+use ethereum_types::{U256, Address};
 use bytes::BytesRef;
-use util::Address;
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 

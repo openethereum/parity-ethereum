@@ -20,9 +20,7 @@ use std::ops::Deref;
 use rlp::*;
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, H160, Address, U256};
 use bytes::Bytes;
 use ethkey::{Signature, Secret, Public, recover, public_to_address, Error as EthkeyError};
 use error::*;
@@ -31,10 +29,10 @@ use header::BlockNumber;
 use ethjson;
 
 /// Fake address for unsigned transactions as defined by EIP-86.
-pub const UNSIGNED_SENDER: Address = ::bigint::hash::H160([0xff; 20]);
+pub const UNSIGNED_SENDER: Address = H160([0xff; 20]);
 
 /// System sender address for internal state updates.
-pub const SYSTEM_ADDRESS: Address = ::bigint::hash::H160([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xfe]);
+pub const SYSTEM_ADDRESS: Address = H160([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xfe]);
 
 /// Transaction action type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -553,7 +551,7 @@ impl From<SignedTransaction> for PendingTransaction {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use hash::keccak;
 
 	#[test]

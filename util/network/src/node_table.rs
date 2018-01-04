@@ -25,7 +25,7 @@ use std::path::{PathBuf};
 use std::fmt;
 use std::fs;
 use std::io::{Read, Write};
-use bigint::hash::*;
+use ethereum_types::H512;
 use rlp::*;
 use time::Tm;
 use error::{Error, ErrorKind};
@@ -375,7 +375,7 @@ pub fn validate_node_url(url: &str) -> Option<Error> {
 mod tests {
 	use super::*;
 	use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
-	use bigint::hash::H512;
+	use ethereum_types::H512;
 	use std::str::FromStr;
 	use tempdir::TempDir;
 	use ipnetwork::IpNetwork;

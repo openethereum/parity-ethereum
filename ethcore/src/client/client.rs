@@ -26,15 +26,13 @@ use itertools::Itertools;
 use hash::keccak;
 use timer::PerfTimer;
 use bytes::Bytes;
-use util::{Address, DBValue};
 use journaldb;
 use util_error::UtilError;
 use trie::{TrieSpec, TrieFactory, Trie};
-use kvdb::{KeyValueDB, DBTransaction};
+use kvdb::{DBValue, KeyValueDB, DBTransaction};
 
 // other
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, Address, U256};
 use basic_types::Seal;
 use block::*;
 use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};

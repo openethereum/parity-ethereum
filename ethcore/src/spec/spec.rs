@@ -21,15 +21,14 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use bigint::hash::{H256, H2048};
-use bigint::prelude::U256;
+use ethereum_types::{H256, H2048, U256, Address};
+use memorydb::MemoryDB;
 use bytes::Bytes;
 use ethjson;
 use hash::{KECCAK_NULL_RLP, keccak};
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::FromHex;
-use util::*;
 use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use super::genesis::Genesis;

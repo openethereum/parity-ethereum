@@ -21,7 +21,7 @@
 extern crate futures;
 extern crate byteorder;
 extern crate ethabi;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 
 mod key_server_set;
 mod registry;
