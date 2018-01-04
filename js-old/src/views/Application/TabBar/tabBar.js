@@ -20,8 +20,6 @@ import { Link } from 'react-router';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { isEqual } from 'lodash';
 
-import { StatusIndicator } from '~/ui';
-
 import Tab from './Tab';
 import styles from './tabBar.css';
 
@@ -31,8 +29,6 @@ class TabBar extends Component {
   };
 
   static propTypes = {
-    pending: PropTypes.array,
-    health: PropTypes.object.isRequired,
     views: PropTypes.array.isRequired
   };
 
@@ -41,29 +37,12 @@ class TabBar extends Component {
   };
 
   render () {
-    const { health } = this.props;
-
     return (
       <Toolbar className={ styles.toolbar }>
         <ToolbarGroup className={ styles.first }>
           <div />
         </ToolbarGroup>
         <div className={ styles.tabs }>
-          <Link
-            activeClassName={ styles.tabactive }
-            className={ `${styles.tabLink} ${styles.indicatorTab}` }
-            key='status'
-            to='/status'
-          >
-            <div className={ styles.indicator }>
-              <StatusIndicator
-                type='signal'
-                id='topbar.health'
-                status={ health.overall.status }
-                title={ health.overall.message }
-              />
-            </div>
-          </Link>
           { this.renderTabItems() }
         </div>
         <ToolbarGroup className={ styles.last }>
@@ -74,7 +53,7 @@ class TabBar extends Component {
   }
 
   renderTabItems () {
-    const { views, pending } = this.props;
+    const { views } = this.props;
 
     return views.map((view, index) => {
       return (
@@ -85,7 +64,6 @@ class TabBar extends Component {
           to={ view.route }
         >
           <Tab
-            pendings={ pending.length }
             view={ view }
           />
         </Link>
@@ -109,7 +87,6 @@ function mapStateToProps (initState) {
   return (state) => {
     const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
     const { views } = state.settings;
-    const { health } = state.nodeStatus;
 
     const viewIds = Object
       .keys(views)
@@ -123,7 +100,7 @@ function mapStateToProps (initState) {
       });
 
     if (isEqual(viewIds, filteredViewIds)) {
-      return { views: filteredViews, health };
+      return { views: filteredViews };
     }
 
     filteredViewIds = viewIds;
@@ -132,7 +109,7 @@ function mapStateToProps (initState) {
       id
     }));
 
-    return { views: filteredViews, health };
+    return { views: filteredViews };
   };
 }
 
