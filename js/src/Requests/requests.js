@@ -66,6 +66,12 @@ class Requests extends Component {
       return null;
     }
 
+    const status = this.renderStatus(request);
+
+    if (!status) {
+      return null;
+    }
+
     const state = this.getTransactionState(request);
     const displayedTransaction = { ...transaction };
 
@@ -103,7 +109,7 @@ class Requests extends Component {
         style={ requestStyle }
       >
         <div className={ statusClasses.join(' ') }>
-          { this.renderStatus(request) }
+          { status }
         </div>
         {
           state.type === ERROR_STATE
@@ -193,12 +199,7 @@ class Requests extends Component {
       );
     }
 
-    return (
-      <FormattedMessage
-        id='requests.status.waitingForSigner'
-        defaultMessage='Waiting for authorization in the Parity Signer'
-      />
-    );
+    return null;
   }
 
   getTransactionState (request) {

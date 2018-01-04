@@ -19,6 +19,7 @@
 #![warn(missing_docs)]
 
 extern crate crypto as rcrypto;
+extern crate dir;
 extern crate itertools;
 extern crate libc;
 extern crate parking_lot;
@@ -41,7 +42,7 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 
-pub mod dir;
+pub mod accounts_dir; 
 pub mod ethkey;
 
 mod account;

@@ -262,12 +262,12 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 /// # Example
 /// ```
 /// extern crate patricia_trie as trie;
+/// extern crate keccak_hash;
 /// extern crate hashdb;
 /// extern crate memorydb;
 /// extern crate ethcore_bigint as bigint;
-/// extern crate hash;
 ///
-/// use hash::KECCAK_NULL_RLP;
+/// use keccak_hash::KECCAK_NULL_RLP;
 /// use trie::*;
 /// use hashdb::*;
 /// use memorydb::*;
@@ -436,7 +436,6 @@ impl<'a> TrieDBMut<'a> {
 	}
 
 	/// the insertion inspector.
-	#[cfg_attr(feature = "dev", allow(cyclomatic_complexity))]
 	fn insert_inspector(&mut self, node: Node, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>)
 		-> super::Result<InsertAction>
 	{
@@ -942,6 +941,7 @@ impl<'a> Drop for TrieDBMut<'a> {
 #[cfg(test)]
 mod tests {
 	extern crate triehash;
+
 	use self::triehash::trie_root;
 	use hashdb::*;
 	use memorydb::*;

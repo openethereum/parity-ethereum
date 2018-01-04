@@ -489,7 +489,7 @@ impl Session {
 		rlp.append_raw(&[PACKET_HELLO as u8], 0);
 		rlp.begin_list(5)
 			.append(&host.protocol_version)
-			.append(&host.client_version)
+			.append(&host.client_version())
 			.append_list(&host.capabilities)
 			.append(&host.local_endpoint.address.port())
 			.append(host.id());

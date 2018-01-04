@@ -21,6 +21,7 @@ use std::sync::Arc;
 use byteorder::{LittleEndian, ByteOrder};
 
 use vm;
+use panic_payload;
 use parity_wasm::interpreter;
 use wasm_utils::rules;
 use bigint::prelude::U256;
@@ -103,6 +104,7 @@ pub struct RuntimeContext {
 	pub address: Address,
 	pub sender: Address,
 	pub origin: Address,
+	pub code_address: Address,
 	pub value: U256,
 }
 
@@ -167,7 +169,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		self.ext.set_storage(key, val).map_err(|_| UserTrap::StorageUpdateError)?;
 
-		Ok(Some(0i32.into()))
+		Ok(None)
 	}
 
 	/// Read from the storage to wasm memory
@@ -183,7 +185,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		self.memory.set(val_ptr as u32, &*val)?;
 
-		Ok(Some(0.into()))
+		Ok(None)
 	}
 
 	/// Fetches balance for address
@@ -304,6 +306,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		//
 		// method signature:
 		// fn (
+		//  gas: i64,
 		// 	address: *const u8,
 		// 	val_ptr: *const u8,
 		// 	input_ptr: *const u8,
@@ -322,6 +325,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		//
 		// signature (same as static call):
 		// fn (
+		//  gas: i64,
 		// 	address: *const u8,
 		// 	input_ptr: *const u8,
 		// 	input_len: u32,
@@ -329,7 +333,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		// 	result_len: u32,
 		// ) -> i32
 
-		self.do_call(false, CallType::CallCode, context)
+		self.do_call(false, CallType::DelegateCall, context)
 	}
 
 	fn do_call(
@@ -362,6 +366,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let address = self.pop_address(&mut context)?;
 		trace!(target: "wasm", "       address: {:?}", address);
 
+		let gas = context.value_stack.pop_as::<i64>()? as u64;
+		trace!(target: "wasm", "           gas: {:?}", gas);
+
 		if let Some(ref val) = val {
 			let address_balance = self.ext.balance(&self.context.address)
 				.map_err(|_| UserTrap::BalanceQueryError)?;
@@ -376,16 +383,16 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		let mut result = Vec::with_capacity(result_alloc_len as usize);
 		result.resize(result_alloc_len as usize, 0);
-		let gas = self.gas_left()
-			.map_err(|_| UserTrap::InvalidGasState)?
-			.into();
+
 		// todo: optimize to use memory views once it's in
 		let payload = self.memory.get(input_ptr, input_len as usize)?;
 
+		self.charge(|_| gas.into())?;
+
 		let call_result = self.ext.call(
-			&gas,
-			&self.context.sender,
-			&self.context.address,
+			&gas.into(),
+			match call_type { CallType::DelegateCall => &self.context.sender, _ => &self.context.address },
+			match call_type { CallType::Call | CallType::StaticCall => &address, _ => &self.context.address },
 			val,
 			&payload,
 			&address,
@@ -395,12 +402,16 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		match call_result {
 			vm::MessageCallResult::Success(gas_left, _) => {
-				self.gas_counter = self.gas_limit - gas_left.low_u64();
+				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
+				self.gas_counter = self.gas_counter - gas_left.low_u64();
+
 				self.memory.set(result_ptr, &result)?;
 				Ok(Some(0i32.into()))
 			},
 			vm::MessageCallResult::Reverted(gas_left, _) => {
-				self.gas_counter = self.gas_limit - gas_left.low_u64();
+				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
+				self.gas_counter = self.gas_counter - gas_left.low_u64();
+
 				self.memory.set(result_ptr, &result)?;
 				Ok(Some((-1i32).into()))
 			},
@@ -415,6 +426,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	{
 		// signature (same as code call):
 		// fn (
+		//  gas: i64,
 		// 	address: *const u8,
 		// 	input_ptr: *const u8,
 		// 	input_len: u32,
@@ -626,12 +638,26 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	fn user_panic(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
-		let msg_len = context.value_stack.pop_as::<i32>()? as u32;
-		let msg_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		let payload_len = context.value_stack.pop_as::<i32>()? as u32;
+		let payload_ptr = context.value_stack.pop_as::<i32>()? as u32;
 
-		let msg = String::from_utf8(self.memory.get(msg_ptr, msg_len as usize)?)
-			.map_err(|_| UserTrap::BadUtf8)?;
-
+		let raw_payload = self.memory.get(payload_ptr, payload_len as usize)?;
+		let payload = panic_payload::decode(&raw_payload);
+		let msg = format!(
+			"{msg}, {file}:{line}:{col}",
+			msg = payload
+				.msg
+				.as_ref()
+				.map(String::as_ref)
+				.unwrap_or("<msg was stripped>"),
+			file = payload
+				.file
+				.as_ref()
+				.map(String::as_ref)
+				.unwrap_or("<unknown>"),
+			line = payload.line.unwrap_or(0),
+			col = payload.col.unwrap_or(0)
+		);
 		trace!(target: "wasm", "Contract custom panic message: {}", msg);
 
 		Err(UserTrap::Panic(msg).into())
@@ -650,7 +676,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		self.memory.set(return_ptr, &*hash)?;
 
-		Ok(Some(0i32.into()))
+		Ok(None)
 	}
 
 	fn return_address_ptr(&mut self, ptr: u32, val: Address) -> Result<(), InterpreterError>

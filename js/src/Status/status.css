@@ -16,14 +16,24 @@
 */
 
 $textColor: #ccc;
+$statusHeight: 2.75em;
+
+.home {
+  color: $textColor !important;
+  font-size: 1.2em;
+  margin-right: 1em;
+}
 
 .container {
-  color: $textColor;
-  left: 0;
-  position: fixed;
-  right: 0;
-  top: 0;
-  z-index: 1000;
+  flex: 0;
+  box-sizing: border-box;
+
+  .bar {
+    height: $statusHeight;
+    z-index: 1000;
+    border-bottom: 1px solid #405161;
+    color: $textColor;
+  }
 
   .status,
   .warning {
@@ -42,16 +52,16 @@ $textColor: #ccc;
 }
 
 .plugins {
+  align-items: center;
+  display: flex;
   flex-grow: 1;
-  text-align: right;
-  vertical-align: middle;
+  justify-content: flex-end;
 
   > div,
   > img,
   > span {
-    display: inline-block !important;
+    align-self: center;
     margin: 0 0 0 1rem;
-    vertical-align: middle;
   }
 
   .divider {
@@ -60,15 +70,29 @@ $textColor: #ccc;
     opacity: 0.75;
   }
 
-  .defaultAccount,
-  .signerPending {
-    cursor: pointer;
+  .health,
+  .pending {
+    /* Same as default line-height, i.e. item same as text following */
+    height: 1.4285rem;
   }
 
   .health {
     > span {
-      margin: -0.5rem 0 0.2rem 0 !important;
+      height: 100%;
+      /* re-instate the original margin, no negative offset */
+      margin-top: 0.2em;
       width: auto;
+
+      > span {
+        /* default vertical alignment */
+        vertical-align: baseline;
+      }
+    }
+  }
+
+  .pending {
+    > i {
+      height: 100%;
     }
   }
 }

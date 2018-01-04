@@ -21,6 +21,7 @@ Usage:
     ethstore list [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
     ethstore import [--src DIR] [--dir DIR]
     ethstore import-wallet <path> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
+    ethstore find-wallet-pass <path> <password>
     ethstore remove <address> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
     ethstore sign <address> <password> <message> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
     ethstore public <address> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
@@ -50,6 +51,7 @@ Commands:
     list               List accounts.
     import             Import accounts from src.
     import-wallet      Import presale wallet.
+    find-wallet-pass   Tries to open a wallet with list of passwords given.
     remove             Remove account.
     sign               Sign message.
     public             Displays public key for an address.
@@ -163,6 +165,25 @@ ethstore import-wallet ethwallet.json password.txt
 ```
 e6a3d25a7cb7cd21cb720df5b5e8afd154af1bbb
 ```
+
+
+--
+
+#### `find-wallet-pass <path> <password>`
+Try to open presale wallet given a list of passwords from a file.
+The list of passwords can be generated using e.g. [Phildo/brutedist](https://github.com/Phildo/brutedist).
+
+- `<path>` - presale wallet path
+- `<password>` - possible passwords, file path
+
+```
+ethstore find-wallet-pass ethwallet.json passwords.txt
+```
+
+```
+Found password: test
+```
+
 
 --
 
@@ -318,8 +339,8 @@ OK
 
 --
 
-# Ethcore toolchain
-*this project is a part of the ethcore toolchain*
+# Parity toolchain
+*this project is a part of the parity toolchain*
 
 - [**ethkey**](https://github.com/paritytech/ethkey) - Ethereum keys generator and signer.
 - [**ethstore**](https://github.com/paritytech/ethstore) - Ethereum key management.

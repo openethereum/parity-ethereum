@@ -33,7 +33,7 @@ use key_server_cluster::share_change_session::{ShareChangeSession, ShareChangeSe
 	prepare_share_change_session_plan};
 use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVersionNegotiationSessionImpl,
 	SessionParams as KeyVersionNegotiationSessionParams, LargestSupportResultComputer,
-	SessionTransport as KeyVersionNegotiationTransport, Session as KeyVersionNegotiationSession};
+	SessionTransport as KeyVersionNegotiationTransport};
 use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::servers_set_change_access_job::{ServersSetChangeAccessJob, ServersSetChangeAccessRequest};
 use key_server_cluster::jobs::unknown_sessions_job::{UnknownSessionsJob};
@@ -43,12 +43,6 @@ use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// Maximal number of active share change sessions.
 const MAX_ACTIVE_KEY_SESSIONS: usize = 64;
-
-/// Servers set change session API.
-pub trait Session: Send + Sync + 'static {
-	/// Wait until session is completed.
-	fn wait(&self) -> Result<(), Error>;
-}
 
 /// Servers set change session.
 /// Brief overview:
@@ -209,6 +203,11 @@ impl SessionImpl {
 	/// Get session id.
 	pub fn id(&self) -> &SessionId {
 		&self.core.meta.id
+	}
+
+	/// Wait for session completion.
+	pub fn wait(&self) -> Result<(), Error> {
+		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
 	}
 
 	/// Initialize servers set change session on master node.
@@ -412,7 +411,7 @@ impl SessionImpl {
 					key_share: key_share,
 					result_computer: Arc::new(LargestSupportResultComputer {}),
 					transport: ServersSetChangeKeyVersionNegotiationTransport {
-						id: key_id,
+						id: self.core.meta.id.clone(),
 						nonce: self.core.nonce,
 						cluster: self.core.cluster.clone(),
 					},
@@ -687,7 +686,7 @@ impl SessionImpl {
 	/// Create share change session.
 	fn create_share_change_session(core: &SessionCore, key_id: SessionId, master_node_id: NodeId, session_plan: ShareChangeSessionPlan) -> Result<ShareChangeSession, Error> {
 		ShareChangeSession::new(ShareChangeSessionParams {
-			session_id: key_id.clone(),
+			session_id: core.meta.id.clone(),
 			nonce: core.nonce,
 			meta: ShareChangeSessionMeta {
 				id: key_id,
@@ -726,7 +725,7 @@ impl SessionImpl {
 					key_share: key_share,
 					result_computer: Arc::new(LargestSupportResultComputer {}), // TODO: optimizations: could use modified Fast version
 					transport: ServersSetChangeKeyVersionNegotiationTransport {
-						id: key_id,
+						id: core.meta.id.clone(),
 						nonce: core.nonce,
 						cluster: core.cluster.clone(),
 					},
@@ -855,28 +854,25 @@ impl SessionImpl {
 	/// Complete servers set change session.
 	fn complete_session(core: &SessionCore, data: &mut SessionData) -> Result<(), Error> {
 		debug_assert_eq!(core.meta.self_node_id, core.meta.master_node_id);
+		
+		// send completion notification
 		core.cluster.broadcast(Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeCompleted(ServersSetChangeCompleted {
 			session: core.meta.id.clone().into(),
 			session_nonce: core.nonce,
 		})))?;
+
+		// if we are on the set of nodes that are being removed from the cluster, let's clear database
+		if !data.new_nodes_set.as_ref()
+			.expect("new_nodes_set is filled during initialization; session is completed after initialization; qed")
+			.contains(&core.meta.self_node_id) {
+			core.key_storage.clear().map_err(|e| Error::KeyStorage(e.into()))?;
+		}
 
 		data.state = SessionState::Finished;
 		data.result = Some(Ok(()));
 		core.completed.notify_all();
 
 		Ok(())
-	}
-}
-
-impl Session for SessionImpl {
-	fn wait(&self) -> Result<(), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.clone()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
 	}
 }
 

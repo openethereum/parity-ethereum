@@ -19,5 +19,5 @@ util-error = { path = "../error" }
 
 [dev-dependencies]
 ethcore-logger = { path = "../../logger" }
-hash = { path = "../hash" }
+keccak-hash = { path = "../hash" }
 kvdb-memorydb = { path = "../kvdb-memorydb" }

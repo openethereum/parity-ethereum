@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate hash;
+extern crate keccak_hash as hash;
 
 pub type H256 = [u8; 32];
 

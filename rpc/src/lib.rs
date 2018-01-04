@@ -17,8 +17,6 @@
 //! Parity RPC.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="dev", feature(plugin))]
-#![cfg_attr(feature="dev", plugin(clippy))]
 
 #[macro_use]
 extern crate futures;
@@ -37,6 +35,7 @@ extern crate semver;
 extern crate serde;
 extern crate serde_json;
 extern crate time;
+extern crate tiny_keccak;
 extern crate tokio_timer;
 extern crate transient_hashmap;
 
@@ -63,9 +62,10 @@ extern crate fetch;
 extern crate node_health;
 extern crate parity_reactor;
 extern crate parity_updater as updater;
+extern crate parity_version as version;
 extern crate rlp;
 extern crate stats;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate hardware_wallet;
 
 #[macro_use]

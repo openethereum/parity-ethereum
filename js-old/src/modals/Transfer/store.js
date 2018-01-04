@@ -19,7 +19,7 @@ import { observable, computed, action, transaction } from 'mobx';
 import BigNumber from 'bignumber.js';
 
 import { eip20 as tokenAbi } from '~/contracts/abi';
-import { fromWei } from '~/api/util/wei';
+import { fromWei } from '@parity/api/lib/util/wei';
 import ERRORS from './errors';
 import { DEFAULT_GAS } from '~/util/constants';
 import { ETH_TOKEN } from '~/util/tokens';

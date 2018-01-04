@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeSet;
 use std::thread;
 use std::sync::Arc;
 use std::sync::mpsc;
@@ -26,9 +27,9 @@ use super::acl_storage::AclStorage;
 use super::key_storage::KeyStorage;
 use super::key_server_set::KeyServerSet;
 use key_server_cluster::{math, ClusterCore};
-use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer, NodeKeyPair};
+use traits::{AdminSessionsServer, ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer, NodeKeyPair};
 use types::all::{Error, Public, RequestSignature, ServerKeyId, EncryptedDocumentKey, EncryptedDocumentKeyShadow,
-	ClusterConfiguration, MessageHash, EncryptedMessageSignature};
+	ClusterConfiguration, MessageHash, EncryptedMessageSignature, NodeId};
 use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration};
 
 /// Secret store key server implementation
@@ -52,13 +53,22 @@ impl KeyServerImpl {
 	}
 
 	/// Get cluster client reference.
-	#[cfg(test)]
 	pub fn cluster(&self) -> Arc<ClusterClient> {
 		self.data.lock().cluster.clone()
 	}
 }
 
 impl KeyServer for KeyServerImpl {}
+
+impl AdminSessionsServer for KeyServerImpl {
+	fn change_servers_set(&self, old_set_signature: RequestSignature, new_set_signature: RequestSignature, new_servers_set: BTreeSet<NodeId>) -> Result<(), Error> {
+		let servers_set_change_session = self.data.lock().cluster
+			.new_servers_set_change_session(None, new_servers_set, old_set_signature, new_set_signature)?;
+		servers_set_change_session.as_servers_set_change()
+			.expect("new_servers_set_change_session creates servers_set_change_session; qed")
+			.wait().map_err(Into::into)
+	}
+}
 
 impl ServerKeyGenerator for KeyServerImpl {
 	fn generate_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<Public, Error> {
@@ -153,7 +163,7 @@ impl KeyServerCore {
 			allow_connecting_to_higher_nodes: config.allow_connecting_to_higher_nodes,
 			acl_storage: acl_storage,
 			key_storage: key_storage,
-			admin_public: None,
+			admin_public: config.admin_public.clone(),
 		};
 
 		let (stop, stopped) = futures::oneshot();
@@ -191,8 +201,10 @@ impl Drop for KeyServerCore {
 
 #[cfg(test)]
 pub mod tests {
+	use std::collections::BTreeSet;
 	use std::time;
 	use std::sync::Arc;
+	use std::sync::atomic::{AtomicUsize, Ordering};
 	use std::net::SocketAddr;
 	use std::collections::BTreeMap;
 	use ethcrypto;
@@ -204,17 +216,27 @@ pub mod tests {
 	use key_server_cluster::math;
 	use bigint::hash::H256;
 	use types::all::{Error, Public, ClusterConfiguration, NodeAddress, RequestSignature, ServerKeyId,
-		EncryptedDocumentKey, EncryptedDocumentKeyShadow, MessageHash, EncryptedMessageSignature};
-	use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
+		EncryptedDocumentKey, EncryptedDocumentKeyShadow, MessageHash, EncryptedMessageSignature, NodeId};
+	use traits::{AdminSessionsServer, ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
 	use super::KeyServerImpl;
 
-	pub struct DummyKeyServer;
+	#[derive(Default)]
+	pub struct DummyKeyServer {
+		pub generation_requests_count: AtomicUsize,
+	}
 
 	impl KeyServer for DummyKeyServer {}
 
+	impl AdminSessionsServer for DummyKeyServer {
+		fn change_servers_set(&self, _old_set_signature: RequestSignature, _new_set_signature: RequestSignature, _new_servers_set: BTreeSet<NodeId>) -> Result<(), Error> {
+			unimplemented!()
+		}
+	}
+
 	impl ServerKeyGenerator for DummyKeyServer {
 		fn generate_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _threshold: usize) -> Result<Public, Error> {
-			unimplemented!()
+			self.generation_requests_count.fetch_add(1, Ordering::Relaxed);
+			Err(Error::Internal("test error".into()))
 		}
 	}
 
@@ -443,5 +465,10 @@ pub mod tests {
 
 		// check signature
 		assert_eq!(math::verify_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
+	}
+
+	#[test]
+	fn servers_set_change_session_works_over_network() {
+		// TODO
 	}
 }

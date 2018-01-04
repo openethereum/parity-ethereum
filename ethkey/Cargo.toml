@@ -1,14 +1,17 @@
 [package]
 name = "ethkey"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-rand = "0.3.14"
-lazy_static = "0.2"
-tiny-keccak = "1.3"
-eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
-rustc-hex = "1.0"
-ethcore-bigint = { path = "../util/bigint" }
-rust-crypto = "0.2"
 byteorder = "1.0"
+edit-distance = "2.0"
+eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
+ethcore-bigint = { path = "../util/bigint" }
+lazy_static = "0.2"
+log = "0.3"
+parity-wordlist = "1.2"
+rand = "0.3.14"
+rust-crypto = "0.2"
+rustc-hex = "1.0"
+tiny-keccak = "1.3"

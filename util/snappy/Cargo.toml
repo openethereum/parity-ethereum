@@ -1,8 +1,0 @@
-[package]
-name = "snappy"
-version = "0.1.0"
-authors = ["Parity Technologies <admin@parity.io>"]
-
-[dependencies]
-libc = "0.2.7"
-rocksdb = { git = "https://github.com/paritytech/rust-rocksdb" }

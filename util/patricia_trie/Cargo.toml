@@ -1,19 +1,19 @@
 [package]
-name = "patricia_trie"
+name = "patricia-trie"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+description = "Merkle-Patricia Trie (Ethereum Style)"
+license = "GPL-3.0"
 
 [dependencies]
 elastic-array = "0.9"
 log = "0.3"
 rand = "0.3"
-ethcore-bytes = { path = "../bytes" }
-ethcore-bigint = { path = "../bigint" }
-hash = { path = "../hash" }
-hashdb = { path = "../hashdb" }
-rlp = { path = "../rlp" }
-triehash = { path = "../triehash" }
-memorydb = { path = "../memorydb" }
-ethcore-logger = { path = "../../logger" }
-
-
+ethcore-bytes = { version = "0.1.0", path = "../bytes" }
+ethcore-bigint = { version = "0.2.1", path = "../bigint" }
+keccak-hash = { version = "0.1.0", path = "../hash" }
+hashdb = { version = "0.1.1", path = "../hashdb" }
+rlp = { version = "0.2.1", path = "../rlp" }
+triehash = { version = "0.1.0", path = "../triehash" }
+memorydb = { version = "0.1.0", path = "../memorydb" }
+ethcore-logger = { version = "1.9.0", path = "../../logger" }

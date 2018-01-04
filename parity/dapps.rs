@@ -18,13 +18,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use dir::default_data_path;
+use dir::helpers::replace_home;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethcore::transaction::{Transaction, Action};
 use ethsync::LightSync;
 use futures::{future, IntoFuture, Future};
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
-use helpers::replace_home;
 use light::client::LightChainClient;
 use light::on_demand::{self, OnDemand};
 use node_health::{SyncStatus, NodeHealth};
@@ -194,9 +194,7 @@ mod server {
 
 	pub struct Middleware;
 	impl RequestMiddleware for Middleware {
-		fn on_request(
-			&self, _req: &hyper::server::Request<hyper::net::HttpStream>, _control: &hyper::Control
-		) -> RequestMiddlewareAction {
+		fn on_request(&self, _req: hyper::Request) -> RequestMiddlewareAction {
 			unreachable!()
 		}
 	}
@@ -297,6 +295,7 @@ mod server {
 					version: app.version,
 					author: app.author,
 					icon_url: app.icon_url,
+					local_url: app.local_url,
 				})
 				.collect()
 		}

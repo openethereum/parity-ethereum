@@ -546,6 +546,8 @@ pub struct NetworkConfiguration {
 	pub allow_non_reserved: bool,
 	/// IP Filtering
 	pub ip_filter: IpFilter,
+	/// Client version string
+	pub client_version: String,
 }
 
 impl NetworkConfiguration {
@@ -578,6 +580,7 @@ impl NetworkConfiguration {
 			reserved_nodes: self.reserved_nodes,
 			ip_filter: self.ip_filter,
 			non_reserved_mode: if self.allow_non_reserved { NonReservedPeerMode::Accept } else { NonReservedPeerMode::Deny },
+			client_version: self.client_version,
 		})
 	}
 }
@@ -601,6 +604,7 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 			reserved_nodes: other.reserved_nodes,
 			ip_filter: other.ip_filter,
 			allow_non_reserved: match other.non_reserved_mode { NonReservedPeerMode::Accept => true, _ => false } ,
+			client_version: other.client_version,
 		}
 	}
 }

@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { toWei } from '~/api/util/wei';
+import { toWei } from '@parity/api/lib/util/wei';
 import { Button, GasPriceEditor, IdentityIcon, Portal, Warning } from '~/ui';
 import { CancelIcon, NextIcon, PrevIcon } from '~/ui/Icons';
 import { MAX_GAS_ESTIMATION } from '~/util/constants';

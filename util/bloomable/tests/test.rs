@@ -1,4 +1,4 @@
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate ethcore_bigint;
 extern crate bloomable;
 

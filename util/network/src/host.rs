@@ -30,7 +30,6 @@ use mio::*;
 use mio::deprecated::{EventLoop};
 use mio::tcp::*;
 use bigint::hash::*;
-use util::version;
 use rlp::*;
 use session::{Session, SessionInfo, SessionData};
 use io::*;
@@ -108,6 +107,8 @@ pub struct NetworkConfiguration {
 	pub non_reserved_mode: NonReservedPeerMode,
 	/// IP filter
 	pub ip_filter: IpFilter,
+	/// Client identifier
+	pub client_version: String,
 }
 
 impl Default for NetworkConfiguration {
@@ -136,6 +137,7 @@ impl NetworkConfiguration {
 			ip_filter: IpFilter::default(),
 			reserved_nodes: Vec::new(),
 			non_reserved_mode: NonReservedPeerMode::Accept,
+			client_version: "Parity-network".into(),
 		}
 	}
 
@@ -331,8 +333,6 @@ pub struct HostInfo {
 	nonce: H256,
 	/// RLPx protocol version
 	pub protocol_version: u32,
-	/// Client identifier
-	pub client_version: String,
 	/// Registered capabilities (handlers)
 	pub capabilities: Vec<CapabilityInfo>,
 	/// Local address + discovery port
@@ -356,6 +356,10 @@ impl HostInfo {
 	pub fn next_nonce(&mut self) -> H256 {
 		self.nonce = keccak(&self.nonce);
 		self.nonce
+	}
+
+	pub fn client_version(&self) -> &str {
+		&self.config.client_version
 	}
 }
 
@@ -423,7 +427,6 @@ impl Host {
 				config: config,
 				nonce: H256::random(),
 				protocol_version: PROTOCOL_VERSION,
-				client_version: version(),
 				capabilities: Vec::new(),
 				public_endpoint: None,
 				local_endpoint: local_endpoint,
@@ -517,10 +520,6 @@ impl Host {
 		self.reserved_nodes.write().remove(&n.id);
 
 		Ok(())
-	}
-
-	pub fn client_version() -> String {
-		version()
 	}
 
 	pub fn external_url(&self) -> Option<String> {
@@ -706,7 +705,6 @@ impl Host {
 		debug!(target: "network", "Connecting peers: {} sessions, {} pending, {} started", self.session_count(), self.handshake_count(), started);
 	}
 
-	#[cfg_attr(feature="dev", allow(single_match))]
 	fn connect_peer(&self, id: &NodeId, io: &IoContext<NetworkIoMessage>) {
 		if self.have_session(id) {
 			trace!(target: "network", "Aborted connect. Node already connected.");
@@ -745,7 +743,6 @@ impl Host {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(block_in_if_condition_stmt))]
 	fn create_connection(&self, socket: TcpStream, id: Option<&NodeId>, io: &IoContext<NetworkIoMessage>) -> Result<(), Error> {
 		let nonce = self.info.write().next_nonce();
 		let mut sessions = self.sessions.write();
@@ -806,7 +803,6 @@ impl Host {
 		self.kill_connection(token, io, true);
 	}
 
-	#[cfg_attr(feature="dev", allow(collapsible_if))]
 	fn session_readable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
 		let mut ready_data: Vec<ProtocolId> = Vec::new();
 		let mut packet_data: Vec<(ProtocolId, PacketId, Vec<u8>)> = Vec::new();

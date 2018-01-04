@@ -137,9 +137,14 @@ pub fn verify_block_family(header: &Header, parent: &Header, engine: &EthEngine,
 
 fn verify_uncles(header: &Header, bytes: &[u8], bc: &BlockProvider, engine: &EthEngine) -> Result<(), Error> {
 	let num_uncles = UntrustedRlp::new(bytes).at(2)?.item_count()?;
+	let max_uncles = engine.maximum_uncle_count(header.number());
 	if num_uncles != 0 {
-		if num_uncles > engine.maximum_uncle_count() {
-			return Err(From::from(BlockError::TooManyUncles(OutOfBounds { min: None, max: Some(engine.maximum_uncle_count()), found: num_uncles })));
+		if num_uncles > max_uncles {
+			return Err(From::from(BlockError::TooManyUncles(OutOfBounds {
+				min: None,
+				max: Some(max_uncles),
+				found: num_uncles,
+			})));
 		}
 
 		let mut excluded = HashSet::new();
@@ -268,11 +273,20 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) 
 	}
 
 	if is_full {
-		let max_time = get_time().sec as u64 + 30;
-		if header.timestamp() > max_time {
-			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: header.timestamp() })))
+		const ACCEPTABLE_DRIFT_SECS: u64 = 15;
+		let max_time = get_time().sec as u64 + ACCEPTABLE_DRIFT_SECS;
+		let invalid_threshold = max_time + ACCEPTABLE_DRIFT_SECS * 9;
+		let timestamp = header.timestamp();
+
+		if timestamp > invalid_threshold {
+			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
+		}
+
+		if timestamp > max_time {
+			return Err(From::from(BlockError::TemporarilyInvalid(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
 		}
 	}
+
 	Ok(())
 }
 
@@ -354,11 +368,13 @@ mod tests {
 		}
 	}
 
-	fn check_fail_timestamp(result: Result<(), Error>) {
+	fn check_fail_timestamp(result: Result<(), Error>, temp: bool) {
+		let name = if temp { "TemporarilyInvalid" } else { "InvalidTimestamp" };
 		match result {
-			Err(Error::Block(BlockError::InvalidTimestamp(_))) => (),
-			Err(other) => panic!("Block verification failed.\nExpected: InvalidTimestamp\nGot: {:?}", other),
-			Ok(_) => panic!("Block verification failed.\nExpected: InvalidTimestamp\nGot: Ok"),
+			Err(Error::Block(BlockError::InvalidTimestamp(_))) if !temp => (),
+			Err(Error::Block(BlockError::TemporarilyInvalid(_))) if temp => (),
+			Err(other) => panic!("Block verification failed.\nExpected: {}\nGot: {:?}", name, other),
+			Ok(_) => panic!("Block verification failed.\nExpected: {}\nGot: Ok", name),
 		}
 	}
 
@@ -493,7 +509,6 @@ mod tests {
 	}
 
 	#[test]
-	#[cfg_attr(feature="dev", allow(similar_names))]
 	fn test_verify_block() {
 		use rlp::RlpStream;
 
@@ -638,11 +653,17 @@ mod tests {
 
 		header = good.clone();
 		header.set_timestamp(2450000000);
-		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
+		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine), false);
 
 		header = good.clone();
-		header.set_timestamp(get_time().sec as u64 + 40);
-		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
+		header.set_timestamp(get_time().sec as u64 + 20);
+		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine), true);
+
+		header = good.clone();
+		header.set_timestamp(get_time().sec as u64 + 10);
+		header.set_uncles_hash(good_uncles_hash.clone());
+		header.set_transactions_root(good_transactions_root.clone());
+		check_ok(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
 
 		header = good.clone();
 		header.set_number(9);
@@ -653,7 +674,7 @@ mod tests {
 		let mut bad_uncles = good_uncles.clone();
 		bad_uncles.push(good_uncle1.clone());
 		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &bad_uncles), engine, &bc),
-			TooManyUncles(OutOfBounds { max: Some(engine.maximum_uncle_count()), min: None, found: bad_uncles.len() }));
+			TooManyUncles(OutOfBounds { max: Some(engine.maximum_uncle_count(header.number())), min: None, found: bad_uncles.len() }));
 
 		header = good.clone();
 		bad_uncles = vec![ good_uncle1.clone(), good_uncle1.clone() ];

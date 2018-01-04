@@ -16,6 +16,7 @@
 
 //! SecretStore-specific rpc implementation.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use crypto::DEFAULT_MAC;
@@ -25,9 +26,9 @@ use ethcore::account_provider::AccountProvider;
 use jsonrpc_core::Result;
 use v1::helpers::errors;
 use v1::helpers::accounts::unwrap_provider;
-use v1::helpers::secretstore::{encrypt_document, decrypt_document, decrypt_document_with_shadow};
+use v1::helpers::secretstore::{encrypt_document, decrypt_document, decrypt_document_with_shadow, ordered_servers_keccak};
 use v1::traits::SecretStore;
-use v1::types::{H160, H512, Bytes};
+use v1::types::{H160, H256, H512, Bytes};
 
 /// Parity implementation.
 pub struct SecretStoreClient {
@@ -81,5 +82,17 @@ impl SecretStore for SecretStoreClient {
 
 		decrypt_document_with_shadow(decrypted_secret.into(), common_point.into(), shadows, data.0)
 			.map(Into::into)
+	}
+
+	fn servers_set_hash(&self, servers_set: BTreeSet<H512>) -> Result<H256> {
+		Ok(ordered_servers_keccak(servers_set))
+	}
+
+	fn sign_raw_hash(&self, address: H160, password: String, raw_hash: H256) -> Result<Bytes> {
+		let store = self.account_provider()?;
+		store
+			.sign(address.into(), Some(password), raw_hash.into())
+			.map(|s| Bytes::new((*s).to_vec()))
+			.map_err(|e| errors::account("Could not sign raw hash.", e))
 	}
 }

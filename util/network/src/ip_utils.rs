@@ -365,7 +365,6 @@ fn can_map_external_address_or_fail() {
 
 #[test]
 fn ipv4_properties() {
-	#![cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn check(octets: &[u8; 4], unspec: bool, loopback: bool,
 			 private: bool, link_local: bool, global: bool,
 			 multicast: bool, broadcast: bool, documentation: bool) {

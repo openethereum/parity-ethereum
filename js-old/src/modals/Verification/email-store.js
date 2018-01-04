@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observable, computed, action } from 'mobx';
-import { sha3 } from '~/api/util/sha3';
-import { bytesToHex } from '~/api/util/format';
+import { sha3 } from '@parity/api/lib/util/sha3';
+import { bytesToHex } from '@parity/api/lib/util/format';
 
 import EmailVerificationABI from '~/contracts/abi/email-verification.json';
 import VerificationStore, {

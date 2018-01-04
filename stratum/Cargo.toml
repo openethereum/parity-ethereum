@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ethcore-bigint = { path = "../util/bigint" }
 ethcore-logger = { path = "../logger" }
-hash = { path = "../util/hash" }
+keccak-hash = { path = "../util/hash" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
 jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
@@ -19,3 +19,5 @@ parking_lot = "0.4"
 env_logger = "0.4"
 tokio-core = "0.1"
 tokio-io = "0.1"
+parking_lot = "0.4"
+ethcore-logger = { path = "../logger" }

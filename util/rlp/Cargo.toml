@@ -3,12 +3,12 @@ description = "Recursive-length prefix encoding, decoding, and compression"
 repository = "https://github.com/paritytech/parity"
 license = "MIT/Apache-2.0"
 name = "rlp"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 elastic-array = "0.9"
-ethcore-bigint = { path = "../bigint" }
+ethcore-bigint = { version = "0.2.1", path = "../bigint" }
 lazy_static = "0.2"
 rustc-hex = "1.0"
 byteorder = "1.0"
