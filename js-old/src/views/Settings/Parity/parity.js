@@ -1,4 +1,4 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -250,6 +250,14 @@ export default class Parity extends Component {
             <FormattedMessage
               id='settings.parity.chains.chain_classic'
               defaultMessage='Parity syncs to the Ethereum Classic network'
+            />
+          ))
+        }
+        {
+          this.renderItem('expanse', (
+            <FormattedMessage
+              id='settings.parity.chains.chain_expanse'
+              defaultMessage='Parity syncs to the Expanse network'
             />
           ))
         }
