@@ -64,5 +64,5 @@ PendingList.propTypes = {
   netVersion: PropTypes.string.isRequired,
   onConfirm: PropTypes.func.isRequired,
   onReject: PropTypes.func.isRequired,
-  pendingItems: PropTypes.object.isRequired
+  pendingItems: PropTypes.array.isRequired
 };
