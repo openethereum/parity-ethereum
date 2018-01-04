@@ -33,7 +33,7 @@
 }
 
 div:hover > .removeIcon {
-  opacity: 1.0;
+  opacity: 1;
 }
 
 .history {

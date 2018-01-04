@@ -24,7 +24,7 @@
   bottom: 4px;
   position: absolute;
   cursor: pointer;
-  animation: fadein .3s;
+  animation: fadein 0.3s;
 }
 
 *:hover > .inputTrigger {

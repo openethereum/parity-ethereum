@@ -21,10 +21,10 @@
   left: 0;
   margin-right: auto;
   margin-left: auto;
-  animation: fadein .5s;
+  animation: fadein 0.5s;
   background: #eee !important;
   border-radius: 50%;
-  border: 1px solid #6691C2 !important;
+  border: 1px solid #6691c2 !important;
   z-index: 10;
   padding: 5px !important;
   width: 34px !important;

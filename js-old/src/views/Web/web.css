@@ -23,6 +23,7 @@
 
 :root .warningClose {
   text-align: right;
+
   a {
     color: #fff;
     text-decoration: underline;
@@ -45,6 +46,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -58,6 +60,7 @@
 }
 
 $addressbar: 36px;
+
 .url {
   position: absolute;
   top: 0;

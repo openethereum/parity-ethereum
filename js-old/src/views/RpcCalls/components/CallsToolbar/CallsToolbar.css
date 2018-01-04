@@ -16,7 +16,7 @@
 */
 .callActionsWrap {
   position: absolute;
-  animation: fadein .5s;
+  animation: fadein 0.5s;
   right: 0;
   height: 28px;
 }
@@ -43,8 +43,8 @@
 
 .callAction {
   float: right;
-  transition: opacity ease-in-out .2s;
-  transition-delay: .2s;
+  transition: opacity ease-in-out 0.2s;
+  transition-delay: 0.2s;
   opacity: 0;
   padding: 3px !important;
   height: 22px !important;

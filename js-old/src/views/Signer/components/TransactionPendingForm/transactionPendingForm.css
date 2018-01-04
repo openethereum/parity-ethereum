@@ -27,8 +27,8 @@
   display: block;
   cursor: pointer;
   color: #00e;
-  opacity: .7;
-  transition: opacity .5s;
+  opacity: 0.7;
+  transition: opacity 0.5s;
 }
 
 .rejectToggle:hover {

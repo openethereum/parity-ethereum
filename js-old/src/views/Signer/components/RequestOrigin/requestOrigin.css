@@ -17,7 +17,7 @@
 
 .container {
   text-align: left;
-  margin: 3em .5em;
+  margin: 3em 0.5em;
   opacity: 0.6;
   font-size: 0.8em;
 
@@ -33,11 +33,11 @@
   }
 
   .hash {
-    margin-left: .5em;
+    margin-left: 0.5em;
   }
 
   .hash, .url {
-    margin-bottom: -.2em;
+    margin-bottom: -0.2em;
     display: inline-block;
   }
 }
