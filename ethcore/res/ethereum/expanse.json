@@ -20,8 +20,8 @@
 				"eip649Reward": "0x3782DACE9D900000",
 				"eip100bTransition": 800000,
 				"eip649Transition": 800000,
-				"expip2DurationLimit": "0x1E",
-				"expip2Transition": 800000
+				"expip2Transition": 800000,
+				"expip2DurationLimit": "0x1E"
 			}
 		}
 	},
