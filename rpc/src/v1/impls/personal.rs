@@ -62,13 +62,13 @@ impl<D: Dispatcher> PersonalClient<D> {
 }
 
 impl<D: Dispatcher + 'static> PersonalClient<D> {
-	fn do_sign(&self, address: RpcH160, data: RpcBytes, password: String) -> BoxFuture<RpcH520> {
+	fn do_sign(&self, data: RpcBytes, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
 		let dispatcher = self.dispatcher.clone();
 		let accounts = try_bf!(self.account_provider());
 
-		let payload = RpcConfirmationPayload::EthSignMessage((address.clone(), data).into());
+		let payload = RpcConfirmationPayload::EthSignMessage((account.clone(), data).into());
 
-		Box::new(dispatch::from_rpc(payload, address.into(), &dispatcher)
+		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
 				 .and_then(|payload| {
 					 dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password))
 				 })
@@ -86,13 +86,13 @@ impl<D: Dispatcher + 'static> PersonalClient<D> {
 		let data: Bytes = data.into();
 
 		let hash = eth_data_hash(data);
-		let address = recover(&signature.into(), &hash)
+		let account = recover(&signature.into(), &hash)
 			.map_err(errors::encryption)
 			.map(|public| {
 				public_to_address(&public).into()
 			});
 
-		Box::new(future::done(address))
+		Box::new(future::done(account))
 	}
 
 	fn do_sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<(PendingTransaction, D)> {
@@ -172,8 +172,8 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		}
 	}
 
-	fn sign(&self, address: RpcH160, data: RpcBytes, password: String) -> BoxFuture<RpcH520> {
-		self.do_sign(address, data, password)
+	fn sign(&self, data: RpcBytes, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+		self.do_sign(data, account, password)
 	}
 
 	fn ec_recover(&self, data: RpcBytes, signature: RpcH520) -> BoxFuture<RpcH160> {

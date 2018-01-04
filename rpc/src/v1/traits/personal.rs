@@ -37,12 +37,12 @@ build_rpc_trait! {
 		#[rpc(name = "personal_unlockAccount")]
 		fn unlock_account(&self, H160, String, Option<U128>) -> Result<bool>;
 
-		/// Signs the hash of data with given address signature using the given password to unlock the account during
+		/// Signs the hash of data with given account signature using the given password to unlock the account during
 		/// the request.
 		#[rpc(name = "personal_sign")]
-		fn sign(&self, H160, Bytes, String) -> BoxFuture<H520>;
+		fn sign(&self, Bytes, H160, String) -> BoxFuture<H520>;
 
-		/// Returns the address associated with the private key that was used to calculate the signature in
+		/// Returns the account associated with the private key that was used to calculate the signature in
 		/// `personal_sign`.
 		#[rpc(name = "personal_ecRecover")]
 		fn ec_recover(&self, Bytes, H520) -> BoxFuture<H160>;

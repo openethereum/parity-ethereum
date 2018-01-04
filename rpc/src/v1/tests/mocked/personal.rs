@@ -130,8 +130,8 @@ fn sign() {
 		"jsonrpc": "2.0",
 		"method": "personal_sign",
 		"params": [
-			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
-			""# + format!("0x{}", data.to_hex()).as_ref() + r#"",
+			""#.to_owned() + format!("0x{}", data.to_hex()).as_ref() + r#"",
+			""# + format!("0x{:?}", address).as_ref() + r#"",
 			"password123"
 		],
 		"id": 1
@@ -155,8 +155,8 @@ fn sign_with_invalid_password() {
 		"jsonrpc": "2.0",
 		"method": "personal_sign",
 		"params": [
-			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
 			"0x0000000000000000000000000000000000000000000000000000000000000005",
+			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
 			""
 		],
 		"id": 1
