@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 use transient_hashmap::TransientHashMap;
-use bigint::prelude::U256;
+use ethereum_types::U256;
 use parking_lot::Mutex;
 
 use ethcore::account_provider::AccountProvider;

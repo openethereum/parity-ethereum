@@ -17,13 +17,12 @@
 use std::sync::Arc;
 use std::str::FromStr;
 
-use bigint::prelude::U256;
+use ethereum_types::{U256, Address};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Action, Transaction};
 use jsonrpc_core::IoHandler;
 use parking_lot::Mutex;
-use util::Address;
 
 use v1::{PersonalClient, Personal, Metadata};
 use v1::helpers::nonce;
@@ -112,7 +111,7 @@ fn invalid_password_test(method: &str)
 			"value": "0x9184e72a"
 		}, "password321"],
 		"id": 1
-	}"#;	
+	}"#;
 
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32021,"message":"Account password is invalid or account does not exist.","data":"SStore(InvalidPassword)"},"id":1}"#;
 

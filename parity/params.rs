@@ -16,8 +16,7 @@
 
 use std::{str, fs, fmt};
 use std::time::Duration;
-use bigint::prelude::U256;
-use util::Address;
+use ethereum_types::{U256, Address};
 use parity_version::version_data;
 use journaldb::Algorithm;
 use ethcore::spec::{Spec, SpecParams};

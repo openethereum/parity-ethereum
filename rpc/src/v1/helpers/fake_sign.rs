@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethcore::transaction::{Transaction, SignedTransaction, Action};
-use bigint::prelude::U256;
+use ethereum_types::U256;
 
 use jsonrpc_core::Error;
 use v1::helpers::CallRequest;

@@ -16,8 +16,7 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use bigint::prelude::U256;
-use util::Address;
+use ethereum_types::{U256, Address};
 use bytes::ToPretty;
 
 use ethcore::account_provider::AccountProvider;

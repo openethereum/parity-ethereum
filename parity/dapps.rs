@@ -30,7 +30,7 @@ use light::on_demand::{self, OnDemand};
 use node_health::{SyncStatus, NodeHealth};
 use rpc;
 use rpc_apis::SignerService;
-use util::Address;
+use ethereum_types::Address;
 use bytes::Bytes;
 
 #[derive(Debug, PartialEq, Clone)]

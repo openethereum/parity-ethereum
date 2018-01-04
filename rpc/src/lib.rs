@@ -46,13 +46,12 @@ extern crate jsonrpc_pubsub;
 
 extern crate ethash;
 extern crate ethcore;
-extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
-extern crate ethcore_util as util;
 extern crate ethcrypto as crypto;
+extern crate ethereum_types;
 extern crate ethkey;
 extern crate ethstore;
 extern crate ethsync;

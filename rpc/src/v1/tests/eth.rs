@@ -19,8 +19,7 @@ use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{U256, H256, Address};
 use ethcore::account_provider::AccountProvider;
 use ethcore::block::Block;
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
@@ -34,7 +33,6 @@ use ethjson::state::test::ForkSpec;
 use io::IoChannel;
 use kvdb_memorydb;
 use parking_lot::Mutex;
-use util::Address;
 
 use jsonrpc_core::IoHandler;
 use v1::helpers::dispatch::FullDispatcher;
