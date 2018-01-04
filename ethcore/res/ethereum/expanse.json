@@ -34,6 +34,8 @@
 		"minGasLimit": "0x1388",
 		"networkID": "0x1",
 		"chainID": "0x2",
+		"forkBlock": "0xDBBA0",
+		"forkCanonHash": "0x8e7bed51e24f5174090408664ac476b90b5e1199a947af7442f1ac88263fc8c7",
 		"subprotocolName": "exp",
 		"eip98Transition": "0x7fffffffffffff",
 		"eip86Transition": "0x7fffffffffffff",
