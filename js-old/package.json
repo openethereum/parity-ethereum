@@ -28,10 +28,8 @@
   "scripts": {
     "install": "napa",
     "build": "parity-react-scripts build",
-    "clean": "rimraf ./.build ./.coverage ./.happypack ./.npmjs ./node_modules/.cache",
+    "ci:build": "cross-env NODE_ENV=production npm run build",
     "lint": "parity-react-scripts lint",
-    "init": "parity-react-scripts init",
-    "publish": "parity-react-scripts publish",
     "start": "parity-react-scripts start",
     "test": "NODE_ENV=test mocha --exit 'src/**/*.spec.js'"
   },
@@ -44,6 +42,7 @@
     "babel-polyfill": "^6.26.0",
     "chai": "4.1.2",
     "chai-enzyme": "1.0.0-beta.0",
+    "cross-env": "^5.1.3",
     "enzyme": "3.3.0",
     "enzyme-adapter-react-15": "^1.0.5",
     "jsdom": "11.5.1",
