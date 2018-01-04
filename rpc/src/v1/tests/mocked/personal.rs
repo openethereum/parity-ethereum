@@ -240,6 +240,52 @@ fn sign_and_send_test(method: &str) {
 }
 
 #[test]
+fn ec_recover() {
+	let tester = setup();
+	let address = tester.accounts.new_account("password123").unwrap();
+	let data = vec![5u8];
+
+	let hash = eth_data_hash(data.clone());
+	let signature = H520(tester.accounts.sign(address, Some("password123".into()), hash).unwrap().into_electrum());
+	let signature = format!("0x{:?}", signature);
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "personal_ecRecover",
+		"params": [
+			""#.to_owned() + format!("0x{}", data.to_hex()).as_ref() + r#"",
+			""# + &signature + r#""
+		],
+		"id": 1
+	}"#;
+
+	let address = format!("0x{:?}", address);
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &address + r#"","id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request.as_ref()), Some(response.into()));
+}
+
+#[test]
+fn ec_recover_invalid_signature() {
+	let tester = setup();
+	let data = vec![5u8];
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "personal_ecRecover",
+		"params": [
+			""#.to_owned() + format!("0x{}", data.to_hex()).as_ref() + r#"",
+			"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+		],
+		"id": 1
+	}"#;
+
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32055,"message":"Encryption error.","data":"InvalidSignature"},"id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request.as_ref()), Some(response.into()));
+}
+
+#[test]
 fn should_unlock_not_account_temporarily_if_allow_perm_is_disabled() {
 	let tester = setup();
 	let address = tester.accounts.new_account("password123").unwrap();
