@@ -17,9 +17,9 @@
 				"eip160Transition": "0x927C0",
 				"eip161abcTransition": "0x927C0",
 				"eip161dTransition": "0x927C0",
-				"eip649Reward": "0x3782DACE9D900000",
 				"eip100bTransition": "0xC3500",
 				"eip649Transition": "0xC3500",
+				"eip649Reward": "0x3782DACE9D900000",
 				"expip2Transition": "0xC3500",
 				"expip2DurationLimit": "0x1E"
 			}
