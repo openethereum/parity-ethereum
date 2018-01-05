@@ -16,7 +16,7 @@
 
 module.exports = {
   test: /\.js$/,
-  include: /(get-own-enumerable-property-symbols|ethereumjs-tx|stringify-object)/,
+  include: /(get-own-enumerable-property-symbols|ethereumjs-tx|ethereumjs-util|stringify-object)/,
   use: [ {
     loader: 'happypack/loader',
     options: {
