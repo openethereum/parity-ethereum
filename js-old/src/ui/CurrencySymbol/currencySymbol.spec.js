@@ -1,4 +1,4 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -70,6 +70,10 @@ describe('ui/CurrencySymbol', () => {
       expect(render('classic').text()).equal('ETC');
     });
 
+    it('renders EXP for expanse', () => {
+      expect(render('expanse').text()).equal('EXP');
+    });
+
     it('renders ETH as default', () => {
       expect(render('somethingElse').text()).equal('ETH');
     });
@@ -86,6 +90,10 @@ describe('ui/CurrencySymbol', () => {
 
     it('render ETC', () => {
       expect(render('classic').instance().renderSymbol()).equal('ETC');
+    });
+
+    it('render EXP', () => {
+      expect(render('expanse').instance().renderSymbol()).equal('EXP');
     });
   });
 });
