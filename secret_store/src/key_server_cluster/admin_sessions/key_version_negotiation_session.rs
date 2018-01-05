@@ -31,16 +31,6 @@ use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 /// Number of versions sent in single message.
 const VERSIONS_PER_MESSAGE: usize = 32;
 
-/// Key version negotiation session API.
-pub trait Session: Send + Sync + 'static {
-	/// Set continue action.
-	fn set_continue_action(&self, action: ContinueAction);
-	/// Get continue action.
-	fn continue_action(&self) -> Option<ContinueAction>;
-	/// Wait until session is completed.
-	fn wait(&self) -> Result<(H256, NodeId), Error>;
-}
-
 /// Key version negotiation transport.
 pub trait SessionTransport {
 	/// Send message to given node.
@@ -196,6 +186,21 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			.clone())
 	}
 
+	/// Set continue action.
+	pub fn set_continue_action(&self, action: ContinueAction) {
+		self.data.lock().continue_with = Some(action);
+	}
+
+	/// Get continue action.
+	pub fn continue_action(&self) -> Option<ContinueAction> {
+		self.data.lock().continue_with.clone()
+	}
+
+	/// Wait for session completion.
+	pub fn wait(&self) -> Result<(H256, NodeId), Error> {
+		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
+	}
+
 	/// Initialize session.
 	pub fn initialize(&self, connected_nodes: BTreeSet<NodeId>) -> Result<(), Error> {
 		// check state
@@ -227,7 +232,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// try to complete session
 		Self::try_complete(&self.core, &mut *data);
 		if no_confirmations_required && data.state != SessionState::Finished {
-			return Err(Error::ConsensusUnreachable);
+			return Err(Error::MissingKeyShare);
 		} else if data.state == SessionState::Finished {
 			return Ok(());
 		}
@@ -355,27 +360,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 }
 
-impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'static {
-	fn set_continue_action(&self, action: ContinueAction) {
-		self.data.lock().continue_with = Some(action);
-	}
-
-	fn continue_action(&self) -> Option<ContinueAction> {
-		self.data.lock().continue_with.clone()
-	}
-
-	fn wait(&self) -> Result<(H256, NodeId), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
-			.clone()
-	}
-}
-
 impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	type Id = SessionIdWithSubSession;
 
@@ -454,6 +438,8 @@ impl FastestResultComputer {
 impl SessionResultComputer for FastestResultComputer {
 	fn compute_result(&self, threshold: Option<usize>, confirmations: &BTreeSet<NodeId>, versions: &BTreeMap<H256, BTreeSet<NodeId>>) -> Option<Result<(H256, NodeId), Error>> {
 		match self.threshold.or(threshold) {
+			// if there's no versions at all && we're not waiting for confirmations anymore
+			_ if confirmations.is_empty() && versions.is_empty() => Some(Err(Error::MissingKeyShare)),
 			// if we have key share on this node
 			Some(threshold) => {
 				// select version this node have, with enough participants
@@ -489,6 +475,9 @@ impl SessionResultComputer for LargestSupportResultComputer {
 		if !confirmations.is_empty() {
 			return None;
 		}
+		if versions.is_empty() {
+			return Some(Err(Error::MissingKeyShare));
+		}
 
 		versions.iter()
 			.max_by_key(|&(_, ref n)| n.len())
@@ -507,7 +496,8 @@ mod tests {
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 	use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
-	use super::{SessionImpl, SessionTransport, SessionParams, FastestResultComputer, SessionState};
+	use super::{SessionImpl, SessionTransport, SessionParams, FastestResultComputer, LargestSupportResultComputer,
+		SessionResultComputer, SessionState};
 
 	struct DummyTransport {
 		cluster: Arc<DummyCluster>,
@@ -709,6 +699,7 @@ mod tests {
 		nodes.values().nth(0).unwrap().insert(Default::default(), DocumentKeyShare {
 			author: Default::default(),
 			threshold: 1,
+			public: Default::default(),
 			common_point: None,
 			encrypted_point: None,
 			versions: vec![DocumentKeyShareVersion {
@@ -721,5 +712,20 @@ mod tests {
 		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
 		// we can't be sure that node has given key version because previous ShareAdd session could fail
 		assert!(ml.session(0).data.lock().state != SessionState::Finished);
+	}
+
+	#[test]
+	fn fastest_computer_returns_missing_share_if_no_versions_returned() {
+		let computer = FastestResultComputer {
+			self_node_id: Default::default(),
+			threshold: None,
+		};
+		assert_eq!(computer.compute_result(Some(10), &Default::default(), &Default::default()), Some(Err(Error::MissingKeyShare)));
+	}
+
+	#[test]
+	fn largest_computer_returns_missing_share_if_no_versions_returned() {
+		let computer = LargestSupportResultComputer;
+		assert_eq!(computer.compute_result(Some(10), &Default::default(), &Default::default()), Some(Err(Error::MissingKeyShare)));
 	}
 }

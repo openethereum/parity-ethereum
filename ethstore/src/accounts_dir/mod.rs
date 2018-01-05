@@ -22,7 +22,6 @@ use {SafeAccount, Error};
 mod disk;
 mod memory;
 mod vault;
-pub mod paths;
 
 /// `VaultKeyDirectory::set_key` error
 #[derive(Debug)]

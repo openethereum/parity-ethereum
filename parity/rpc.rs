@@ -21,7 +21,8 @@ use std::collections::HashSet;
 
 use dapps;
 use dir::default_data_path;
-use helpers::{parity_ipc_path, replace_home};
+use dir::helpers::replace_home;
+use helpers::parity_ipc_path;
 use jsonrpc_core::MetaIoHandler;
 use parity_reactor::TokioRemote;
 use parity_rpc::informant::{RpcStats, Middleware};
@@ -59,8 +60,8 @@ impl Default for HttpConfiguration {
 			interface: "127.0.0.1".into(),
 			port: 8545,
 			apis: ApiSet::UnsafeContext,
-			cors: None,
-			hosts: Some(Vec::new()),
+			cors: Some(vec![]),
+			hosts: Some(vec![]),
 			server_threads: 1,
 			processing_threads: 4,
 		}
@@ -98,7 +99,7 @@ impl From<UiConfiguration> for HttpConfiguration {
 			interface: conf.interface,
 			port: conf.port,
 			apis: rpc_apis::ApiSet::UnsafeContext,
-			cors: None,
+			cors: Some(vec![]),
 			hosts: conf.hosts,
 			server_threads: 1,
 			processing_threads: 0,

@@ -66,7 +66,6 @@ struct CodeReader<'a> {
 	code: &'a [u8]
 }
 
-#[cfg_attr(feature="dev", allow(len_without_is_empty))]
 impl<'a> CodeReader<'a> {
 
 	/// Create new code reader - starting at position 0.
@@ -287,7 +286,6 @@ impl<Cost: CostType> Interpreter<Cost> {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn exec_instruction(
 		&mut self,
 		gas: Cost,

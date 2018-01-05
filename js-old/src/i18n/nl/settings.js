@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,7 +25,6 @@ export default {
     chains: {
       chain_classic: `Parity synchroniseert met het Ethereum Classic netwerk`,
       chain_dev: `Parity gebruikt een lokale ontwikkelaars chain`,
-      chain_expanse: `Parity synchroniseert met het Expanse netwerk`,
       chain_foundation: `Parity synchroniseert met het Ethereum netwerk wat door de Ethereum Foundation is uitgebracht`,
       chain_kovan: `Parity synchroniseert met het Kovan test netwerk`,
       chain_olympic: `Parity synchroniseert met het Olympic test netwerk`,

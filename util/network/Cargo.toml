@@ -15,7 +15,6 @@ time = "0.1.34"
 tiny-keccak = "1.3"
 rust-crypto = "0.2.34"
 slab = "0.2"
-clippy = { version = "0.0.103", optional = true}
 igd = "0.6"
 libc = "0.2.7"
 parking_lot = "0.4"
@@ -41,4 +40,3 @@ tempdir = "0.3"
 
 [features]
 default = []
-dev = ["clippy"]

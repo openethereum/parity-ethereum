@@ -85,7 +85,6 @@ impl<'a, T: 'a, V: 'a, B: 'a> Externalities<'a, T, V, B>
 	where T: Tracer, V: VMTracer, B: StateBackend
 {
 	/// Basic `Externalities` constructor.
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	pub fn new(state: &'a mut State<B>,
 		env_info: &'a EnvInfo,
 		machine: &'a Machine,
@@ -302,7 +301,6 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		Ok(self.state.code_size(address)?.unwrap_or(0))
 	}
 
-	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	fn ret(mut self, gas: &U256, data: &ReturnData, apply_state: bool) -> vm::Result<U256>
 		where Self: Sized {
 		let handle_copy = |to: &mut Option<&mut Bytes>| {

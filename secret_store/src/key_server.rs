@@ -53,7 +53,6 @@ impl KeyServerImpl {
 	}
 
 	/// Get cluster client reference.
-	#[cfg(test)]
 	pub fn cluster(&self) -> Arc<ClusterClient> {
 		self.data.lock().cluster.clone()
 	}
@@ -65,7 +64,9 @@ impl AdminSessionsServer for KeyServerImpl {
 	fn change_servers_set(&self, old_set_signature: RequestSignature, new_set_signature: RequestSignature, new_servers_set: BTreeSet<NodeId>) -> Result<(), Error> {
 		let servers_set_change_session = self.data.lock().cluster
 			.new_servers_set_change_session(None, new_servers_set, old_set_signature, new_set_signature)?;
-		servers_set_change_session.wait().map_err(Into::into)
+		servers_set_change_session.as_servers_set_change()
+			.expect("new_servers_set_change_session creates servers_set_change_session; qed")
+			.wait().map_err(Into::into)
 	}
 }
 
@@ -203,6 +204,7 @@ pub mod tests {
 	use std::collections::BTreeSet;
 	use std::time;
 	use std::sync::Arc;
+	use std::sync::atomic::{AtomicUsize, Ordering};
 	use std::net::SocketAddr;
 	use std::collections::BTreeMap;
 	use ethcrypto;
@@ -218,7 +220,10 @@ pub mod tests {
 	use traits::{AdminSessionsServer, ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
 	use super::KeyServerImpl;
 
-	pub struct DummyKeyServer;
+	#[derive(Default)]
+	pub struct DummyKeyServer {
+		pub generation_requests_count: AtomicUsize,
+	}
 
 	impl KeyServer for DummyKeyServer {}
 
@@ -230,7 +235,8 @@ pub mod tests {
 
 	impl ServerKeyGenerator for DummyKeyServer {
 		fn generate_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _threshold: usize) -> Result<Public, Error> {
-			unimplemented!()
+			self.generation_requests_count.fetch_add(1, Ordering::Relaxed);
+			Err(Error::Internal("test error".into()))
 		}
 	}
 

@@ -83,7 +83,6 @@ pub struct AuthCodes<T: TimeProvider = DefaultTimeProvider> {
 impl AuthCodes<DefaultTimeProvider> {
 
 	/// Reads `AuthCodes` from file and creates new instance using `DefaultTimeProvider`.
-	#[cfg_attr(feature="dev", allow(single_char_pattern))]
 	pub fn from_file(file: &Path) -> io::Result<AuthCodes> {
 		let content = {
 			if let Ok(mut file) = fs::File::open(file) {
@@ -154,7 +153,6 @@ impl<T: TimeProvider> AuthCodes<T> {
 
 	/// Checks if given hash is correct authcode of `SignerUI`
 	/// Updates this hash last used field in case it's valid.
-	#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 	pub fn is_valid(&mut self, hash: &H256, time: u64) -> bool {
 		let now = self.now.now();
 		// check time

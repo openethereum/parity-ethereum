@@ -39,7 +39,7 @@ use parity_reactor::EventLoop;
 use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use updater::{UpdatePolicy, Updater};
 use ansi_term::Colour;
-use util::version;
+use parity_version::version;
 use parking_lot::{Condvar, Mutex};
 use node_filter::NodeFilter;
 use journaldb::Algorithm;
@@ -785,6 +785,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// secret store key server
 	let secretstore_deps = secretstore::Dependencies {
 		client: client.clone(),
+		sync: sync_provider.clone(),
 		account_provider: account_provider,
 		accounts_passwords: &passwords,
 	};
@@ -893,7 +894,7 @@ fn print_running_environment(spec_name: &String, dirs: &Directories, db_dirs: &D
 
 fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::EthStore;
-	use ethcore::ethstore::dir::RootDiskDirectory;
+	use ethcore::ethstore::accounts_dir::RootDiskDirectory;
 
 	let path = dirs.keys_path(data_dir);
 	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
@@ -909,9 +910,15 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 			],
 		},
 	};
+
+	let ethstore = EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?;
+	if cfg.refresh_time > 0 {
+		ethstore.set_refresh_time(::std::time::Duration::from_secs(cfg.refresh_time));
+	}
 	let account_provider = AccountProvider::new(
-		Box::new(EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?),
-		account_settings);
+		Box::new(ethstore),
+		account_settings,
+	);
 
 	for a in cfg.unlocked_accounts {
 		// Check if the account exists

@@ -66,7 +66,7 @@ pub enum Api {
 	Traces,
 	/// Rpc (Safe)
 	Rpc,
-	/// SecretStore (Safe)
+	/// SecretStore (UNSAFE: arbitrary hash signing)
 	SecretStore,
 	/// Whisper (Safe)
 	// TODO: _if_ someone guesses someone else's key or filter IDs they can remove
@@ -602,7 +602,6 @@ impl ApiSet {
 			Api::EthPubSub,
 			Api::Parity,
 			Api::Rpc,
-			Api::SecretStore,
 			Api::Whisper,
 			Api::WhisperPubSub,
 		].into_iter().cloned().collect();
@@ -627,6 +626,7 @@ impl ApiSet {
 				public_list.insert(Api::ParityAccounts);
 				public_list.insert(Api::ParitySet);
 				public_list.insert(Api::Signer);
+				public_list.insert(Api::SecretStore);
 				public_list
 			},
 			ApiSet::All => {
@@ -636,6 +636,7 @@ impl ApiSet {
 				public_list.insert(Api::ParitySet);
 				public_list.insert(Api::Signer);
 				public_list.insert(Api::Personal);
+				public_list.insert(Api::SecretStore);
 				public_list
 			},
 			ApiSet::PubSub => [
@@ -686,7 +687,7 @@ mod test {
 	fn test_api_set_unsafe_context() {
 		let expected = vec![
 			// make sure this list contains only SAFE methods
-			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore, Api::Whisper, Api::WhisperPubSub,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::Whisper, Api::WhisperPubSub,
 		].into_iter().collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
@@ -695,7 +696,7 @@ mod test {
 	fn test_api_set_ipc_context() {
 		let expected = vec![
 			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore, Api::Whisper, Api::WhisperPubSub,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::Whisper, Api::WhisperPubSub,
 			// semi-safe
 			Api::ParityAccounts
 		].into_iter().collect();
@@ -737,7 +738,7 @@ mod test {
 	#[test]
 	fn test_safe_parsing() {
 		assert_eq!("safe".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore, Api::Whisper, Api::WhisperPubSub,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::Whisper, Api::WhisperPubSub,
 		].into_iter().collect()));
 	}
 }
