@@ -18,7 +18,7 @@ const path = require('path');
 const ServiceWorkerWebpackPlugin = require('serviceworker-webpack-plugin');
 
 module.exports = {
-  html: {
+  htmlPlugin: {
     favicon: path.resolve(__dirname, './src/assets/images/parity-logo-black-no-text.png'),
     title: 'Parity'
   },
