@@ -1,4 +1,4 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -35,6 +35,7 @@ pub enum SpecType {
 	Kovan,
 	Olympic,
 	Classic,
+	Expanse,
 	Musicoin,
 	Ellaism,
 	Dev,
@@ -58,6 +59,7 @@ impl str::FromStr for SpecType {
 			"ropsten" => SpecType::Ropsten,
 			"kovan" | "testnet" => SpecType::Kovan,
 			"olympic" => SpecType::Olympic,
+			"expanse" => SpecType::Expanse,
 			"musicoin" => SpecType::Musicoin,
 			"ellaism" => SpecType::Ellaism,
 			"dev" => SpecType::Dev,
@@ -75,6 +77,7 @@ impl fmt::Display for SpecType {
 			SpecType::Ropsten => "ropsten",
 			SpecType::Olympic => "olympic",
 			SpecType::Classic => "classic",
+			SpecType::Expanse => "expanse",
 			SpecType::Musicoin => "musicoin",
 			SpecType::Ellaism => "ellaism",
 			SpecType::Kovan => "kovan",
@@ -93,6 +96,7 @@ impl SpecType {
 			SpecType::Ropsten => Ok(ethereum::new_ropsten(params)),
 			SpecType::Olympic => Ok(ethereum::new_olympic(params)),
 			SpecType::Classic => Ok(ethereum::new_classic(params)),
+			SpecType::Expanse => Ok(ethereum::new_expanse(params)),
 			SpecType::Musicoin => Ok(ethereum::new_musicoin(params)),
 			SpecType::Ellaism => Ok(ethereum::new_ellaism(params)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
@@ -107,6 +111,7 @@ impl SpecType {
 	pub fn legacy_fork_name(&self) -> Option<String> {
 		match *self {
 			SpecType::Classic => Some("classic".to_owned()),
+			SpecType::Expanse => Some("expanse".to_owned()),
 			SpecType::Musicoin => Some("musicoin".to_owned()),
 			_ => None,
 		}
@@ -359,6 +364,7 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Morden), "morden");
 		assert_eq!(format!("{}", SpecType::Olympic), "olympic");
 		assert_eq!(format!("{}", SpecType::Classic), "classic");
+		assert_eq!(format!("{}", SpecType::Expanse), "expanse");
 		assert_eq!(format!("{}", SpecType::Musicoin), "musicoin");
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
 		assert_eq!(format!("{}", SpecType::Dev), "dev");
