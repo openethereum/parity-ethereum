@@ -706,7 +706,7 @@ push-release:
 .functions: &functions |
   export JS_FILES_MODIFIED=$(git --no-pager diff --name-only master...$CI_BUILD_REF | grep ^js/ | wc -l)
   export JS_OLD_FILES_MODIFIED=$(git --no-pager diff --name-only master...$CI_BUILD_REF | grep ^js-old/ | wc -l)
-  export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only master...$CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
+  export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only master...$CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
 
 before_script:
   - *functions
