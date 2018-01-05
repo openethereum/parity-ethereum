@@ -23,7 +23,7 @@ use bigint::hash::H256;
 use triehash::ordered_trie_root;
 use bytes::Bytes;
 use rlp::*;
-use network::NetworkError;
+use network;
 use ethcore::header::Header as BlockHeader;
 
 known_heap_size!(0, HeaderId);
@@ -341,7 +341,7 @@ impl BlockCollection {
 		self.downloading_headers.contains(hash) || self.downloading_bodies.contains(hash)
 	}
 
-	fn insert_body(&mut self, b: Bytes) -> Result<(), NetworkError> {
+	fn insert_body(&mut self, b: Bytes) -> Result<(), network::Error> {
 		let header_id = {
 			let body = UntrustedRlp::new(&b);
 			let tx = body.at(0)?;
@@ -365,18 +365,18 @@ impl BlockCollection {
 					},
 					None => {
 						warn!("Got body with no header {}", h);
-						Err(NetworkError::BadProtocol)
+						Err(network::ErrorKind::BadProtocol.into())
 					}
 				}
 			}
 			None => {
 				trace!(target: "sync", "Ignored unknown/stale block body. tx_root = {:?}, uncles = {:?}", header_id.transactions_root, header_id.uncles);
-				Err(NetworkError::BadProtocol)
+				Err(network::ErrorKind::BadProtocol.into())
 			}
 		}
 	}
 
-	fn insert_receipt(&mut self, r: Bytes) -> Result<(), NetworkError> {
+	fn insert_receipt(&mut self, r: Bytes) -> Result<(), network::Error> {
 		let receipt_root = {
 			let receipts = UntrustedRlp::new(&r);
 			ordered_trie_root(receipts.iter().map(|r| r.as_raw().to_vec())) //TODO: get rid of vectors here
@@ -392,7 +392,7 @@ impl BlockCollection {
 						},
 						None => {
 							warn!("Got receipt with no header {}", h);
-							return Err(NetworkError::BadProtocol)
+							return Err(network::ErrorKind::BadProtocol.into())
 						}
 					}
 				}
@@ -400,7 +400,7 @@ impl BlockCollection {
 			}
 			_ => {
 				trace!(target: "sync", "Ignored unknown/stale block receipt {:?}", receipt_root);
-				Err(NetworkError::BadProtocol)
+				Err(network::ErrorKind::BadProtocol.into())
 			}
 		}
 	}

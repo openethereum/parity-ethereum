@@ -11,7 +11,6 @@ ansi_term = "0.9"
 bloomchain = "0.1"
 bn = { git = "https://github.com/paritytech/bn" }
 byteorder = "1.0"
-clippy = { version = "0.0.103", optional = true}
 common-types = { path = "types" }
 crossbeam = "0.2.9"
 ethash = { path = "../ethash" }
@@ -19,7 +18,7 @@ ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-bytes = { path = "../util/bytes" }
 hashdb = { path = "../util/hashdb" }
 memorydb = { path = "../util/memorydb" }
-patricia_trie = { path = "../util/patricia_trie" }
+patricia-trie = { path = "../util/patricia_trie" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
@@ -54,7 +53,7 @@ kvdb = { path = "../util/kvdb" }
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }
 util-error = { path = "../util/error" }
-snappy = { path = "../util/snappy" }
+snappy = { git = "https://github.com/paritytech/rust-snappy" }
 migration = { path = "../util/migration" }
 macros = { path = "../util/macros" }
 rust-crypto = "0.2.34"
@@ -67,7 +66,7 @@ table = { path = "../util/table" }
 bloomable = { path = "../util/bloomable" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
-hash = { path = "../util/hash" }
+keccak-hash = { path = "../util/hash" }
 triehash = { path = "../util/triehash" }
 semantic_version = { path = "../util/semantic_version" }
 unexpected = { path = "../util/unexpected" }
@@ -79,10 +78,9 @@ native-contracts = { path = "native_contracts", features = ["test_contracts"] }
 [features]
 jit = ["evm/jit"]
 evm-debug = ["slow-blocks"]
-evm-debug-tests = ["evm-debug"]
+evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 slow-blocks = [] # Use SLOW_TX_DURATION="50" (compile time!) to track transactions over 50ms
 json-tests = []
 test-heavy = []
-dev = ["clippy"]
 default = []
 benches = []

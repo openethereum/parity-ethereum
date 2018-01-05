@@ -42,11 +42,18 @@ export default class PendingStore {
   }
 
   subscribePending = () => {
-    this._api.subscribe('signer_requestsToConfirm', (error, pending) => {
-      if (!error) {
-        this.setPending(pending);
+    const callback = (error, pending) => {
+      if (error) {
+        return;
       }
-    });
+
+      this.setPending(pending);
+    };
+
+    this._api
+      .subscribe('signer_requestsToConfirm', callback)
+      .then(() => this._api.signer.requestsToConfirm())
+      .then((pending) => callback(null, pending));
   }
 
   static get (api) {

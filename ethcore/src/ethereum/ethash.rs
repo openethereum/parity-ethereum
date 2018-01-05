@@ -26,7 +26,7 @@ use util::Address;
 use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};
-use header::Header;
+use header::{Header, BlockNumber};
 use engines::{self, Engine};
 use ethjson;
 use rlp::{self, UntrustedRlp};
@@ -90,6 +90,10 @@ pub struct EthashParams {
 	pub eip649_delay: u64,
 	/// EIP-649 base reward.
 	pub eip649_reward: Option<U256>,
+	/// EXPIP-2 block height
+	pub expip2_transition: u64,
+	/// EXPIP-2 duration limit
+	pub expip2_duration_limit: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -118,6 +122,8 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			eip649_transition: p.eip649_transition.map_or(u64::max_value(), Into::into),
 			eip649_delay: p.eip649_delay.map_or(DEFAULT_EIP649_DELAY, Into::into),
 			eip649_reward: p.eip649_reward.map(Into::into),
+			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
+			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
 		}
 	}
 }
@@ -180,6 +186,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			BTreeMap::default()
 		}
 	}
+
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		let difficulty = self.calculate_difficulty(header, parent);
@@ -334,7 +342,6 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	}
 }
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl Ethash {
 	fn calculate_difficulty(&self, header: &Header, parent: &Header) -> U256 {
 		const EXP_DIFF_PERIOD: u64 = 100_000;
@@ -353,7 +360,13 @@ impl Ethash {
 			self.ethash_params.difficulty_bound_divisor
 		};
 
-		let duration_limit = self.ethash_params.duration_limit;
+		let expip2_hardfork = header.number() >= self.ethash_params.expip2_transition;
+		let duration_limit = if expip2_hardfork {
+			self.ethash_params.expip2_duration_limit
+		} else {
+			self.ethash_params.duration_limit
+		};
+
 		let frontier_limit = self.ethash_params.homestead_transition;
 
 		let mut target = if header.number() < frontier_limit {
@@ -362,8 +375,7 @@ impl Ethash {
 			} else {
 				*parent.difficulty() + (*parent.difficulty() / difficulty_bound_divisor)
 			}
-		}
-		else {
+		} else {
 			trace!(target: "ethash", "Calculating difficulty parent.difficulty={}, header.timestamp={}, parent.timestamp={}", parent.difficulty(), header.timestamp(), parent.timestamp());
 			//block_diff = parent_diff + parent_diff // 2048 * max(1 - (block_timestamp - parent_timestamp) // 10, -99)
 			let (increment_divisor, threshold) = if header.number() < self.ethash_params.eip100b_transition {
@@ -447,9 +459,12 @@ fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u6
 	} else {
 		block_number / era_rounds
 	};
+	let mut divi = U256::from(1);
 	for _ in 0..eras {
-		reward = reward / U256::from(5) * U256::from(4);
+		reward = reward * U256::from(4);
+		divi = divi * U256::from(5);
 	}
+	reward = reward / divi;
 	(eras, reward)
 }
 
@@ -515,6 +530,11 @@ mod tests {
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(15, eras);
 		assert_eq!(U256::from_str("271000000000000").unwrap(), reward);
+
+		let block_number = 250000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
+		assert_eq!(49, eras);
+		assert_eq!(U256::from_str("51212FFBAF0A").unwrap(), reward);
 	}
 
 	#[test]

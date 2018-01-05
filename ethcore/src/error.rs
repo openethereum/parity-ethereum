@@ -167,6 +167,8 @@ pub enum BlockError {
 	InvalidReceiptsRoot(Mismatch<H256>),
 	/// Timestamp header field is invalid.
 	InvalidTimestamp(OutOfBounds<u64>),
+	/// Timestamp header field is too far in future.
+	TemporarilyInvalid(OutOfBounds<u64>),
 	/// Log bloom header field is invalid.
 	InvalidLogBloom(Mismatch<LogBloom>),
 	/// Parent hash field of header is invalid; this is an invalid error indicating a logic flaw in the codebase.
@@ -212,6 +214,7 @@ impl fmt::Display for BlockError {
 			InvalidGasLimit(ref oob) => format!("Invalid gas limit: {}", oob),
 			InvalidReceiptsRoot(ref mis) => format!("Invalid receipts trie root in header: {}", mis),
 			InvalidTimestamp(ref oob) => format!("Invalid timestamp in header: {}", oob),
+			TemporarilyInvalid(ref oob) => format!("Future timestamp in header: {}", oob),
 			InvalidLogBloom(ref oob) => format!("Invalid log bloom in header: {}", oob),
 			InvalidParentHash(ref mis) => format!("Invalid parent hash: {}", mis),
 			InvalidNumber(ref mis) => format!("Invalid number in header: {}", mis),

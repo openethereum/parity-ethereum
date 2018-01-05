@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity Signer-related rpc interface.
-use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_pubsub::SubscriptionId;
 use jsonrpc_macros::pubsub::Subscriber;
 
@@ -28,31 +28,31 @@ build_rpc_trait! {
 
 		/// Returns a list of items to confirm.
 		#[rpc(name = "signer_requestsToConfirm")]
-		fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error>;
+		fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>>;
 
 		/// Confirm specific request.
 		#[rpc(name = "signer_confirmRequest")]
-		fn confirm_request(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponse, Error>;
+		fn confirm_request(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponse>;
 
 		/// Confirm specific request with token.
 		#[rpc(name = "signer_confirmRequestWithToken")]
-		fn confirm_request_with_token(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponseWithToken, Error>;
+		fn confirm_request_with_token(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponseWithToken>;
 
 		/// Confirm specific request with already signed data.
 		#[rpc(name = "signer_confirmRequestRaw")]
-		fn confirm_request_raw(&self, U256, Bytes) -> Result<ConfirmationResponse, Error>;
+		fn confirm_request_raw(&self, U256, Bytes) -> Result<ConfirmationResponse>;
 
 		/// Reject the confirmation request.
 		#[rpc(name = "signer_rejectRequest")]
-		fn reject_request(&self, U256) -> Result<bool, Error>;
+		fn reject_request(&self, U256) -> Result<bool>;
 
 		/// Generates new authorization token.
 		#[rpc(name = "signer_generateAuthorizationToken")]
-		fn generate_token(&self) -> Result<String, Error>;
+		fn generate_token(&self) -> Result<String>;
 
 		/// Generates new web proxy access token for particular domain.
 		#[rpc(name = "signer_generateWebProxyAccessToken")]
-		fn generate_web_proxy_token(&self, String) -> Result<String, Error>;
+		fn generate_web_proxy_token(&self, String) -> Result<String>;
 
 		#[pubsub(name = "signer_pending")] {
 			/// Subscribe to new pending requests on signer interface.
@@ -61,7 +61,7 @@ build_rpc_trait! {
 
 			/// Unsubscribe from pending requests subscription.
 			#[rpc(name = "signer_unsubscribePending")]
-			fn unsubscribe_pending(&self, SubscriptionId) -> Result<bool, Error>;
+			fn unsubscribe_pending(&self, SubscriptionId) -> Result<bool>;
 		}
 	}
 }

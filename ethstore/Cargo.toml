@@ -1,6 +1,6 @@
 [package]
 name = "ethstore"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
@@ -19,6 +19,7 @@ itertools = "0.5"
 parking_lot = "0.4"
 ethcrypto = { path = "../ethcrypto" }
 ethcore-bigint = { path = "../util/bigint" }
+dir = { path = "../util/dir" }
 smallvec = "0.4"
 parity-wordlist = "1.0"
 tempdir = "0.3"

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::net::SocketAddr;
 use std::collections::BTreeMap;
 use futures::{future, Future};
@@ -27,6 +27,7 @@ use bigint::hash::H256;
 use util::Address;
 use bytes::Bytes;
 use types::all::{Error, Public, NodeAddress};
+use trusted_client::TrustedClient;
 
 const KEY_SERVER_SET_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_server_set";
 
@@ -55,7 +56,7 @@ pub struct OnChainKeyServerSet {
 /// Cached on-chain Key Server set contract.
 struct CachedContract {
 	/// Blockchain client.
-	client: Weak<Client>,
+	client: TrustedClient,
 	/// Contract address.
 	contract_addr: Option<Address>,
 	/// Active set of key servers.
@@ -63,19 +64,14 @@ struct CachedContract {
 }
 
 impl OnChainKeyServerSet {
-	pub fn new(client: &Arc<Client>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
-		let mut cached_contract = CachedContract::new(client, key_servers)?;
-		let key_server_contract_address = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
-		// only initialize from contract if it is installed. otherwise - use default nodes
-		// once the contract is installed, all default nodes are lost (if not in the contract' set)
-		if key_server_contract_address.is_some() {
-			cached_contract.read_from_registry(&*client, key_server_contract_address);
-		}
-
+	pub fn new(trusted_client: TrustedClient, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
+		let client = trusted_client.get_untrusted();
 		let key_server_set = Arc::new(OnChainKeyServerSet {
-			contract: Mutex::new(cached_contract),
+			contract: Mutex::new(CachedContract::new(trusted_client, key_servers)?),
 		});
-		client.add_notify(key_server_set.clone());
+		client
+			.ok_or(Error::Internal("Constructing OnChainKeyServerSet without active Client".into()))?
+			.add_notify(key_server_set.clone());
 		Ok(key_server_set)
 	}
 }
@@ -95,9 +91,9 @@ impl ChainNotify for OnChainKeyServerSet {
 }
 
 impl CachedContract {
-	pub fn new(client: &Arc<Client>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
-		Ok(CachedContract {
-			client: Arc::downgrade(client),
+	pub fn new(client: TrustedClient, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
+		let mut cached_contract = CachedContract {
+			client: client,
 			contract_addr: None,
 			key_servers: key_servers.into_iter()
 				.map(|(p, addr)| {
@@ -106,11 +102,22 @@ impl CachedContract {
 					Ok((p, addr))
 				})
 				.collect::<Result<BTreeMap<_, _>, Error>>()?,
-		})
+		};
+
+		if let Some(client) = cached_contract.client.get() {
+			let key_server_contract_address = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
+			// only initialize from contract if it is installed. otherwise - use default nodes
+			// once the contract is installed, all default nodes are lost (if not in the contract' set)
+			if key_server_contract_address.is_some() {
+				cached_contract.read_from_registry(&*client, key_server_contract_address);
+			}
+		}
+
+		Ok(cached_contract)
 	}
 
 	pub fn update(&mut self, enacted: Vec<H256>, retracted: Vec<H256>) {
-		if let Some(client) = self.client.upgrade() {
+		if let Some(client) = self.client.get() {
 			let new_contract_addr = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
 
 			// new contract installed => read nodes set from the contract

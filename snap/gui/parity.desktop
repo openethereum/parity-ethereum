@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Encoding=UTF-8
+Name=parity
+Comment=Fast, light, robust Ethereum implementation
+Exec=parity
+Icon=${SNAP}/meta/gui/icon.png
+Terminal=true

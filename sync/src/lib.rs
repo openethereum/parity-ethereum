@@ -15,12 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="dev", feature(plugin))]
-#![cfg_attr(feature="dev", plugin(clippy))]
-// Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
-#![cfg_attr(feature="dev", allow(clone_on_copy))]
-// In most cases it expresses function flow better
-#![cfg_attr(feature="dev", allow(if_not_else))]
 
 //! Blockchain sync module
 //! Implements ethereum protocol version 63 as specified here:
@@ -40,13 +34,12 @@ extern crate parking_lot;
 extern crate smallvec;
 extern crate rlp;
 extern crate ipnetwork;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate triehash;
 extern crate kvdb;
 
 extern crate ethcore_light as light;
 
-#[cfg(test)] extern crate ethcore_devtools as devtools;
 #[cfg(test)] extern crate ethkey;
 #[cfg(test)] extern crate kvdb_memorydb;
 
@@ -73,7 +66,7 @@ mod api;
 
 pub use api::*;
 pub use chain::{SyncStatus, SyncState};
-pub use network::{validate_node_url, NonReservedPeerMode, NetworkError, ConnectionFilter, ConnectionDirection};
+pub use network::{validate_node_url, NonReservedPeerMode, Error, ErrorKind, ConnectionFilter, ConnectionDirection};
 
 #[cfg(test)]
 pub(crate) type Address = bigint::hash::H160;

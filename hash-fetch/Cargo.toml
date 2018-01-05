@@ -19,7 +19,7 @@ ethcore-bigint = { path = "../util/bigint" }
 ethcore-bytes = { path = "../util/bytes" }
 parity-reactor = { path = "../util/reactor" }
 native-contracts = { path = "../ethcore/native_contracts" }
-hash = { path = "../util/hash" }
+keccak-hash = { path = "../util/hash" }
 
 [dev-dependencies]
 ethabi = "4.0"

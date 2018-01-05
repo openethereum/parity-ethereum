@@ -14,13 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::iter::repeat;
+use std::collections::BTreeSet;
 use rand::{Rng, OsRng};
 use ethkey::{Public, Secret, math};
 use crypto;
 use bytes::Bytes;
 use jsonrpc_core::Error;
 use v1::helpers::errors;
+use v1::types::{H256, H512};
+use tiny_keccak::Keccak;
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
@@ -32,10 +34,13 @@ pub fn encrypt_document(key: Bytes, document: Bytes) -> Result<Bytes, Error> {
 
 	// use symmetric encryption to encrypt document
 	let iv = initialization_vector();
-	let mut encrypted_document = Vec::with_capacity(document.len() + iv.len());
-	encrypted_document.extend(repeat(0).take(document.len()));
-	crypto::aes::encrypt(&key, &iv, &document, &mut encrypted_document);
-	encrypted_document.extend_from_slice(&iv);
+	let mut encrypted_document = vec![0; document.len() + iv.len()];
+	{
+		let (mut encryption_buffer, iv_buffer) = encrypted_document.split_at_mut(document.len());
+
+		crypto::aes::encrypt(&key, &iv, &document, &mut encryption_buffer);
+		iv_buffer.copy_from_slice(&iv);
+	}
 
 	Ok(encrypted_document)
 }
@@ -53,16 +58,29 @@ pub fn decrypt_document(key: Bytes, mut encrypted_document: Bytes) -> Result<Byt
 
 	// use symmetric decryption to decrypt document
 	let iv = encrypted_document.split_off(encrypted_document_len - INIT_VEC_LEN);
-	let mut document = Vec::with_capacity(encrypted_document_len - INIT_VEC_LEN);
-	document.extend(repeat(0).take(encrypted_document_len - INIT_VEC_LEN));
+	let mut document = vec![0; encrypted_document_len - INIT_VEC_LEN];
 	crypto::aes::decrypt(&key, &iv, &encrypted_document, &mut document);
 
 	Ok(document)
 }
 
+/// Decrypt document given secret shadow.
 pub fn decrypt_document_with_shadow(decrypted_secret: Public, common_point: Public, shadows: Vec<Secret>, encrypted_document: Bytes) -> Result<Bytes, Error> {
 	let key = decrypt_with_shadow_coefficients(decrypted_secret, common_point, shadows)?;
 	decrypt_document(key.to_vec(), encrypted_document)
+}
+
+/// Calculate Keccak(ordered servers set)
+pub fn ordered_servers_keccak(servers_set: BTreeSet<H512>) -> H256 {
+	let mut servers_set_keccak = Keccak::new_keccak256();
+	for server in servers_set {
+		servers_set_keccak.update(&server.0);
+	}
+
+	let mut servers_set_keccak_value = [0u8; 32];
+	servers_set_keccak.finalize(&mut servers_set_keccak_value);
+
+	servers_set_keccak_value.into()
 }
 
 fn into_document_key(key: Bytes) -> Result<Bytes, Error> {

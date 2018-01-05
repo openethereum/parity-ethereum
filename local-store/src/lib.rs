@@ -29,7 +29,6 @@ use rlp::UntrustedRlp;
 use kvdb::KeyValueDB;
 
 extern crate ethcore;
-extern crate ethcore_util as util;
 extern crate ethcore_io as io;
 extern crate rlp;
 extern crate serde_json;

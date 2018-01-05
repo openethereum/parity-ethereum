@@ -24,7 +24,7 @@ use ethsync::ManageNetwork;
 use fetch::Fetch;
 use hash::keccak_buffer;
 
-use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::Future;
 use v1::helpers::dapps::DappsService;
 use v1::helpers::errors;
@@ -50,81 +50,81 @@ impl<F: Fetch> ParitySetClient<F> {
 }
 
 impl<F: Fetch> ParitySet for ParitySetClient<F> {
-	fn set_min_gas_price(&self, _gas_price: U256) -> Result<bool, Error> {
+	fn set_min_gas_price(&self, _gas_price: U256) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn set_gas_floor_target(&self, _target: U256) -> Result<bool, Error> {
+	fn set_gas_floor_target(&self, _target: U256) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn set_gas_ceil_target(&self, _target: U256) -> Result<bool, Error> {
+	fn set_gas_ceil_target(&self, _target: U256) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn set_extra_data(&self, _extra_data: Bytes) -> Result<bool, Error> {
+	fn set_extra_data(&self, _extra_data: Bytes) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn set_author(&self, _author: H160) -> Result<bool, Error> {
+	fn set_author(&self, _author: H160) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn set_engine_signer(&self, _address: H160, _password: String) -> Result<bool, Error> {
+	fn set_engine_signer(&self, _address: H160, _password: String) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn set_transactions_limit(&self, _limit: usize) -> Result<bool, Error> {
+	fn set_transactions_limit(&self, _limit: usize) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn set_tx_gas_limit(&self, _limit: U256) -> Result<bool, Error> {
+	fn set_tx_gas_limit(&self, _limit: U256) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn add_reserved_peer(&self, peer: String) -> Result<bool, Error> {
+	fn add_reserved_peer(&self, peer: String) -> Result<bool> {
 		match self.net.add_reserved_peer(peer) {
 			Ok(()) => Ok(true),
 			Err(e) => Err(errors::invalid_params("Peer address", e)),
 		}
 	}
 
-	fn remove_reserved_peer(&self, peer: String) -> Result<bool, Error> {
+	fn remove_reserved_peer(&self, peer: String) -> Result<bool> {
 		match self.net.remove_reserved_peer(peer) {
 			Ok(()) => Ok(true),
 			Err(e) => Err(errors::invalid_params("Peer address", e)),
 		}
 	}
 
-	fn drop_non_reserved_peers(&self) -> Result<bool, Error> {
+	fn drop_non_reserved_peers(&self) -> Result<bool> {
 		self.net.deny_unreserved_peers();
 		Ok(true)
 	}
 
-	fn accept_non_reserved_peers(&self) -> Result<bool, Error> {
+	fn accept_non_reserved_peers(&self) -> Result<bool> {
 		self.net.accept_unreserved_peers();
 		Ok(true)
 	}
 
-	fn start_network(&self) -> Result<bool, Error> {
+	fn start_network(&self) -> Result<bool> {
 		self.net.start_network();
 		Ok(true)
 	}
 
-	fn stop_network(&self) -> Result<bool, Error> {
+	fn stop_network(&self) -> Result<bool> {
 		self.net.stop_network();
 		Ok(true)
 	}
 
-	fn set_mode(&self, _mode: String) -> Result<bool, Error> {
+	fn set_mode(&self, _mode: String) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn set_spec_name(&self, _spec_name: String) -> Result<bool, Error> {
+	fn set_spec_name(&self, _spec_name: String) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn hash_content(&self, url: String) -> BoxFuture<H256, Error> {
+	fn hash_content(&self, url: String) -> BoxFuture<H256> {
 		self.fetch.process(self.fetch.fetch(&url).then(move |result| {
 			result
 				.map_err(errors::fetch)
@@ -135,23 +135,23 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 		}))
 	}
 
-	fn dapps_refresh(&self) -> Result<bool, Error> {
+	fn dapps_refresh(&self) -> Result<bool> {
 		self.dapps.as_ref().map(|dapps| dapps.refresh_local_dapps()).ok_or_else(errors::dapps_disabled)
 	}
 
-	fn dapps_list(&self) -> Result<Vec<LocalDapp>, Error> {
+	fn dapps_list(&self) -> Result<Vec<LocalDapp>> {
 		self.dapps.as_ref().map(|dapps| dapps.list_dapps()).ok_or_else(errors::dapps_disabled)
 	}
 
-	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>, Error> {
+	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn execute_upgrade(&self) -> Result<bool, Error> {
+	fn execute_upgrade(&self) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn remove_transaction(&self, _hash: H256) -> Result<Option<Transaction>, Error> {
+	fn remove_transaction(&self, _hash: H256) -> Result<Option<Transaction>> {
 		Err(errors::light_unimplemented(None))
 	}
 }

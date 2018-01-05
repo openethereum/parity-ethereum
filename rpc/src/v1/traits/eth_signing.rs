@@ -16,7 +16,7 @@
 
 //! Eth rpc interface.
 
-use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::BoxFuture;
 
 use v1::types::{Bytes, H160, H256, H520, TransactionRequest, RichRawTransaction};
 
@@ -27,18 +27,18 @@ build_rpc_trait! {
 
 		/// Signs the hash of data with given address signature.
 		#[rpc(meta, name = "eth_sign")]
-		fn sign(&self, Self::Metadata, H160, Bytes) -> BoxFuture<H520, Error>;
+		fn sign(&self, Self::Metadata, H160, Bytes) -> BoxFuture<H520>;
 
 		/// Sends transaction; will block waiting for signer to return the
 		/// transaction hash.
 		/// If Signer is disable it will require the account to be unlocked.
 		#[rpc(meta, name = "eth_sendTransaction")]
-		fn send_transaction(&self, Self::Metadata, TransactionRequest) -> BoxFuture<H256, Error>;
+		fn send_transaction(&self, Self::Metadata, TransactionRequest) -> BoxFuture<H256>;
 
 		/// Signs transactions without dispatching it to the network.
 		/// Returns signed transaction RLP representation and the transaction itself.
 		/// It can be later submitted using `eth_sendRawTransaction/eth_submitTransaction`.
 		#[rpc(meta, name = "eth_signTransaction")]
-		fn sign_transaction(&self, Self::Metadata, TransactionRequest) -> BoxFuture<RichRawTransaction, Error>;
+		fn sign_transaction(&self, Self::Metadata, TransactionRequest) -> BoxFuture<RichRawTransaction>;
 	}
 }

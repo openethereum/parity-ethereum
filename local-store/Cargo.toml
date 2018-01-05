@@ -5,7 +5,6 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethcore-util = { path = "../util" }
 ethcore-io = { path = "../util/io" }
 ethcore = { path = "../ethcore" }
 rlp = { path = "../util/rlp" }

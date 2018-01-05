@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::iter::repeat;
 use std::str;
 use ethkey::Secret;
 use {json, Error, crypto};
@@ -90,9 +89,7 @@ impl Crypto {
 		// preallocated (on-stack in case of `Secret`) buffer to hold cipher
 		// length = length(plain) as we are using CTR-approach
 		let plain_len = plain.len();
-		let mut ciphertext: SmallVec<[u8; 32]> = SmallVec::new();
-		ciphertext.grow(plain_len);
-		ciphertext.extend(repeat(0).take(plain_len));
+		let mut ciphertext: SmallVec<[u8; 32]> = SmallVec::from_vec(vec![0; plain_len]);
 
 		// aes-128-ctr with initial vector of iv
 		crypto::aes::encrypt(&derived_left_bits, &iv, plain, &mut *ciphertext);
@@ -143,9 +140,7 @@ impl Crypto {
 			return Err(Error::InvalidPassword);
 		}
 
-		let mut plain: SmallVec<[u8; 32]> = SmallVec::new();
-		plain.grow(expected_len);
-		plain.extend(repeat(0).take(expected_len));
+		let mut plain: SmallVec<[u8; 32]> = SmallVec::from_vec(vec![0; expected_len]);
 
 		match self.cipher {
 			Cipher::Aes128Ctr(ref params) => {

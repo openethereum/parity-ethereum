@@ -250,7 +250,7 @@ fn rpc_parity_set_dapps_list() {
 	io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsList", "params":[], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[{"author":"Parity Technologies Ltd","description":"A skeleton dapp","iconUrl":"title.png","id":"skeleton","name":"Skeleton","version":"0.1"}],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[{"author":"Parity Technologies Ltd","description":"A skeleton dapp","iconUrl":"title.png","id":"skeleton","localUrl":null,"name":"Skeleton","version":"0.1"}],"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

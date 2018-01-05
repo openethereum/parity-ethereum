@@ -1,3 +1,112 @@
+## Parity [v1.8.5](https://github.com/paritytech/parity/releases/tag/v1.8.5) (2017-12-29)
+
+Parity 1.8.5 changes the default behavior of JSON-RPC CORS setting, detects same-key engine signers in Aura networks, and updates bootnodes for the Kovan and Foundation networks.
+
+Note: The default value of `--jsonrpc-cors` option has been altered to disallow (potentially malicious) websites from accessing the low-sensitivity RPCs (viewing exposed accounts, proposing transactions for signing). Currently domains need to be whitelisted manually. To bring back previous behaviour run with `--jsonrpc-cors all` or `--jsonrpc-cors http://example.com`.
+
+The full list of included changes:
+
+- Beta Backports ([#7297](https://github.com/paritytech/parity/pull/7297))
+  - New warp enodes ([#7287](https://github.com/paritytech/parity/pull/7287))
+    - New warp enodes
+    - Added one more warp enode; replaced spaces with tabs
+    - Bump beta to 1.8.5
+    - Update kovan boot nodes
+  - Detect different node, same-key signing in aura ([#7245](https://github.com/paritytech/parity/pull/7245))
+    - Detect different node, same-key signing in aura
+    - Reduce scope of warning
+    - Fix Cargo.lock
+    - Updating mainnet bootnodes.
+  - Update bootnodes ([#7363](https://github.com/paritytech/parity/pull/7363))
+    - Updating mainnet bootnodes.
+    - Add additional parity-beta bootnodes.
+    - Restore old parity bootnodes and update foudation bootnodes
+- Fix default CORS. ([#7388](https://github.com/paritytech/parity/pull/7388))
+
+## Parity [v1.8.4](https://github.com/paritytech/parity/releases/tag/v1.8.4) (2017-12-12)
+
+Parity 1.8.4 applies fixes for Proof-of-Authority networks and schedules the Kovan-Byzantium hard-fork.
+
+- The Kovan testnet will fork on block `5067000` at `Thu Dec 14 2017 05:40:03 UTC`.
+  - This enables Byzantium features on Kovan.
+  - This disables uncles on Kovan for stability reasons.
+- Proof-of-Authority networks are advised to set `maximumUncleCount` to 0 in a future `maximumUncleCountTransition` for stability reasons.
+  - See the [Kovan chain spec](https://github.com/paritytech/parity/blob/master/ethcore/res/ethereum/kovan.json) for an example.
+  - New PoA networks created with Parity will have this feature enabled by default.
+
+Furthermore, this release includes the ECIP-1039 Monetary policy rounding specification for Ethereum Classic, reduces the maximum Ethash-block timestamp drift to 15 seconds, and fixes various bugs for WASM and the RPC APIs.
+
+The full list of included changes:
+
+- Beta Backports and HF block update ([#7244](https://github.com/paritytech/parity/pull/7244))
+  - Reduce max block timestamp drift to 15 seconds ([#7240](https://github.com/paritytech/parity/pull/7240))
+    - Add test for block timestamp validation within allowed drift
+  - Update kovan HF block number.
+- Beta Kovan HF ([#7234](https://github.com/paritytech/parity/pull/7234))
+  - Kovan HF.
+  - Bump version.
+  - Fix aura difficulty race ([#7198](https://github.com/paritytech/parity/pull/7198))
+    - Fix test key
+    - Extract out score calculation
+    - Fix build
+  - Update kovan HF block number.
+  - Add missing byzantium builtins.
+  - Bump installers versions.
+  - Increase allowed time drift to 10s. ([#7238](https://github.com/paritytech/parity/pull/7238))
+- Beta Backports ([#7197](https://github.com/paritytech/parity/pull/7197))
+  - Maximum uncle count transition ([#7196](https://github.com/paritytech/parity/pull/7196))
+    - Enable delayed maximum_uncle_count activation.
+    - Fix tests.
+    - Defer kovan HF.
+  - Disable uncles by default ([#7006](https://github.com/paritytech/parity/pull/7006))
+  - Escape inifinite loop in estimte_gas ([#7075](https://github.com/paritytech/parity/pull/7075))
+  - ECIP-1039: Monetary policy rounding specification ([#7067](https://github.com/paritytech/parity/pull/7067))
+  - WASM Remove blockhash error ([#7121](https://github.com/paritytech/parity/pull/7121))
+    - Remove blockhash error
+    - Update tests.
+  - WASM storage_read and storage_write don't return anything ([#7110](https://github.com/paritytech/parity/pull/7110))
+  - WASM parse payload from panics ([#7097](https://github.com/paritytech/parity/pull/7097))
+  - Fix no-default-features. ([#7096](https://github.com/paritytech/parity/pull/7096))
+
+## Parity [v1.8.3](https://github.com/paritytech/parity/releases/tag/v1.8.3) (2017-11-15)
+
+Parity 1.8.3 contains several bug-fixes and removes the ability to deploy built-in multi-signature wallets.
+
+The full list of included changes:
+
+- Backports to beta ([#7043](https://github.com/paritytech/parity/pull/7043))
+  - pwasm-std update ([#7018](https://github.com/paritytech/parity/pull/7018))
+  - Version 1.8.3
+  - Make CLI arguments parsing more backwards compatible ([#7004](https://github.com/paritytech/parity/pull/7004))
+  - Skip nonce check for gas estimation ([#6997](https://github.com/paritytech/parity/pull/6997))
+  - Events in WASM runtime ([#6967](https://github.com/paritytech/parity/pull/6967))
+  - Return decoded seal fields. ([#6932](https://github.com/paritytech/parity/pull/6932))
+  - Fix serialization of status in transaction receipts. ([#6926](https://github.com/paritytech/parity/pull/6926))
+  - Windows fixes ([#6921](https://github.com/paritytech/parity/pull/6921))
+- Disallow built-in multi-sig deploy (only watch) ([#7014](https://github.com/paritytech/parity/pull/7014))
+- Add hint in ActionParams for splitting code/data ([#6968](https://github.com/paritytech/parity/pull/6968))
+  - Action params and embedded params handling
+  - Fix name-spaces
+
+## Parity [v1.8.2](https://github.com/paritytech/parity/releases/tag/v1.8.2) (2017-10-26)
+
+Parity 1.8.2 fixes an important potential consensus issue and a few additional minor issues:
+
+- `blockNumber` transaction field is now returned correctly in RPC calls.
+- Possible crash when `--force-sealing` option is used.
+
+The full list of included changes:
+
+- Beta Backports ([#6891](https://github.com/paritytech/parity/pull/6891))
+  - Bump to v1.8.2
+  - Refactor static context check in CREATE. ([#6886](https://github.com/paritytech/parity/pull/6886))
+    - Refactor static context check in CREATE.
+    - Fix wasm.
+  - Fix serialization of non-localized transactions ([#6868](https://github.com/paritytech/parity/pull/6868))
+    - Fix serialization of non-localized transactions.
+    - Return proper SignedTransactions representation.
+  - Allow force sealing and reseal=0 for non-dev chains. ([#6878](https://github.com/paritytech/parity/pull/6878))
+
 ## Parity [v1.8.1](https://github.com/paritytech/parity/releases/tag/v1.8.1) (2017-10-20)
 
 Parity 1.8.1 fixes several bugs with token balances, tweaks snapshot-sync, improves the performance of nodes with huge amounts of accounts and changes the Trezor account derivation path.
@@ -13,7 +122,7 @@ Parity 1.8.1 fixes several bugs with token balances, tweaks snapshot-sync, impro
 
 If you don't want to downgrade or move your funds off your Trezor-device, you can also use the official Trezor application or other wallets allowing to select the derivation path to access the funds.
 
-Full list of included changes:
+The full list of included changes:
 
 - Add ECIP1017 to Morden config ([#6845](https://github.com/paritytech/parity/pull/6845))
 - Ethstore optimizations ([#6844](https://github.com/paritytech/parity/pull/6844))
@@ -45,7 +154,7 @@ Further, users upgrading from 1.7 should acknowledge the following changes:
 - `trace_filter` RPC method now comes with pagination. [#6312](https://github.com/paritytech/parity/pull/6312)
 - Added tracing of rewards on closing blocks. [#6194](https://github.com/paritytech/parity/pull/6194)
 
-Full list of included changes:
+The full list of included changes:
 
 - Updated ethabi to fix auto-update ([#6771](https://github.com/paritytech/parity/pull/6771))
 - Fixed kovan chain validation ([#6760](https://github.com/paritytech/parity/pull/6760))

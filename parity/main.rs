@@ -17,10 +17,6 @@
 //! Ethcore client application.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="dev", feature(plugin))]
-#![cfg_attr(feature="dev", plugin(clippy))]
-#![cfg_attr(feature="dev", allow(useless_format))]
-#![cfg_attr(feature="dev", allow(match_bool))]
 
 extern crate ansi_term;
 extern crate app_dirs;
@@ -28,6 +24,7 @@ extern crate ctrlc;
 extern crate docopt;
 #[macro_use]
 extern crate clap;
+extern crate dir;
 extern crate env_logger;
 extern crate fdlimit;
 extern crate futures;
@@ -71,11 +68,12 @@ extern crate parity_local_store as local_store;
 extern crate parity_reactor;
 extern crate parity_rpc;
 extern crate parity_updater as updater;
+extern crate parity_version;
 extern crate parity_whisper;
 extern crate path;
 extern crate rpc_cli;
 extern crate node_filter;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate journaldb;
 
 #[macro_use]
@@ -105,7 +103,6 @@ mod configuration;
 mod dapps;
 mod ipfs;
 mod deprecated;
-mod dir;
 mod helpers;
 mod informant;
 mod light_helpers;

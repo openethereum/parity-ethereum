@@ -44,6 +44,8 @@ pub enum Error {
 	AccessDenied,
 	/// Requested document not found
 	DocumentNotFound,
+	/// Hyper error
+	Hyper(String),
 	/// Serialization/deserialization error
 	Serde(String),
 	/// Database-related error
@@ -61,11 +63,22 @@ pub struct NodeAddress {
 	pub port: u16,
 }
 
+/// Contract address.
+#[derive(Debug, Clone)]
+pub enum ContractAddress {
+	/// Address is read from registry.
+	Registry,
+	/// Address is specified.
+	Address(ethkey::Address),
+}
+
 /// Secret store configuration
 #[derive(Debug)]
 pub struct ServiceConfiguration {
 	/// HTTP listener address. If None, HTTP API is disabled.
 	pub listener_address: Option<NodeAddress>,
+	/// Service contract address. If None, service contract API is disabled.
+	pub service_contract_address: Option<ContractAddress>,
 	/// Is ACL check enabled. If false, everyone has access to all keys. Useful for tests only.
 	pub acl_check_enabled: bool,
 	/// Data directory path for secret store
@@ -107,6 +120,7 @@ impl fmt::Display for Error {
 			Error::BadSignature => write!(f, "Bad signature"),
 			Error::AccessDenied => write!(f, "Access dened"),
 			Error::DocumentNotFound => write!(f, "Document not found"),
+			Error::Hyper(ref msg) => write!(f, "Hyper error: {}", msg),
 			Error::Serde(ref msg) => write!(f, "Serialization error: {}", msg),
 			Error::Database(ref msg) => write!(f, "Database error: {}", msg),
 			Error::Internal(ref msg) => write!(f, "Internal error: {}", msg),
@@ -136,6 +150,7 @@ impl From<key_server_cluster::Error> for Error {
 	fn from(err: key_server_cluster::Error) -> Self {
 		match err {
 			key_server_cluster::Error::AccessDenied => Error::AccessDenied,
+			key_server_cluster::Error::MissingKeyShare => Error::DocumentNotFound,
 			_ => Error::Internal(err.into()),
 		}
 	}

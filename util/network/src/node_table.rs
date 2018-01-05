@@ -28,7 +28,7 @@ use std::io::{Read, Write};
 use bigint::hash::*;
 use rlp::*;
 use time::Tm;
-use NetworkError;
+use error::{Error, ErrorKind};
 use {AllowIP, IpFilter};
 use discovery::{TableUpdates, NodeEntry};
 use ip_utils::*;
@@ -117,18 +117,18 @@ impl NodeEndpoint {
 }
 
 impl FromStr for NodeEndpoint {
-	type Err = NetworkError;
+	type Err = Error;
 
 	/// Create endpoint from string. Performs name resolution if given a host name.
-	fn from_str(s: &str) -> Result<NodeEndpoint, NetworkError> {
+	fn from_str(s: &str) -> Result<NodeEndpoint, Error> {
 		let address = s.to_socket_addrs().map(|mut i| i.next());
 		match address {
 			Ok(Some(a)) => Ok(NodeEndpoint {
 				address: a,
 				udp_port: a.port()
 			}),
-			Ok(_) => Err(NetworkError::AddressResolve(None)),
-			Err(e) => Err(NetworkError::AddressResolve(Some(e)))
+			Ok(_) => Err(ErrorKind::AddressResolve(None).into()),
+			Err(e) => Err(ErrorKind::AddressResolve(Some(e)).into())
 		}
 	}
 }
@@ -171,10 +171,10 @@ impl Display for Node {
 }
 
 impl FromStr for Node {
-	type Err = NetworkError;
+	type Err = Error;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let (id, endpoint) = if s.len() > 136 && &s[0..8] == "enode://" && &s[136..137] == "@" {
-			(s[8..136].parse().map_err(|_| NetworkError::InvalidNodeId)?, NodeEndpoint::from_str(&s[137..])?)
+			(s[8..136].parse().map_err(|_| ErrorKind::InvalidNodeId)?, NodeEndpoint::from_str(&s[137..])?)
 		}
 		else {
 			(NodeId::new(), NodeEndpoint::from_str(s)?)
@@ -363,7 +363,7 @@ impl Drop for NodeTable {
 }
 
 /// Check if node url is valid
-pub fn validate_node_url(url: &str) -> Option<NetworkError> {
+pub fn validate_node_url(url: &str) -> Option<Error> {
 	use std::str::FromStr;
 	match Node::from_str(url) {
 		Ok(_) => None,

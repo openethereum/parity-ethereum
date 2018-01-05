@@ -19,7 +19,7 @@
 use std::sync::Arc;
 use std::collections::BTreeMap;
 
-use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{self, Future, IntoFuture};
 use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::{Sink, Subscriber};
@@ -153,9 +153,9 @@ impl<C> ChainNotificationHandler<C> {
 			self.remote.spawn(logs
 				.map(move |logs| {
 					let logs = logs.into_iter().flat_map(|log| log).collect();
-					let logs = limit_logs(logs, limit);
-					if !logs.is_empty() {
-						Self::notify(&remote, &subscriber, pubsub::Result::Logs(logs));
+
+					for log in limit_logs(logs, limit) {
+						Self::notify(&remote, &subscriber, pubsub::Result::Log(log))
 					}
 				})
 				.map_err(|e| warn!("Unable to fetch latest logs: {:?}", e))
@@ -170,7 +170,7 @@ pub trait LightClient: Send + Sync {
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
 	/// Fetch logs.
-	fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>, Error>;
+	fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>>;
 }
 
 impl LightClient for LightFetch {
@@ -178,7 +178,7 @@ impl LightClient for LightFetch {
 		self.client.block_header(id)
 	}
 
-	fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>, Error> {
+	fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>> {
 		LightFetch::logs(self, filter)
 	}
 }
@@ -272,7 +272,7 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		let _ = subscriber.reject(error);
 	}
 
-	fn unsubscribe(&self, id: SubscriptionId) -> Result<bool, Error> {
+	fn unsubscribe(&self, id: SubscriptionId) -> Result<bool> {
 		let res = self.heads_subscribers.write().remove(&id).is_some();
 		let res2 = self.logs_subscribers.write().remove(&id).is_some();
 

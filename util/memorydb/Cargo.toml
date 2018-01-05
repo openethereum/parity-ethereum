@@ -1,13 +1,15 @@
 [package]
 name = "memorydb"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Parity Technologies <admin@parity.io>"]
+description = "in-memory implementation of hashdb"
+license = "GPL-3.0"
 
 [dependencies]
 bigint = "4.0"
 elastic-array = "0.9"
 heapsize = "0.4"
-ethcore-bigint = { path = "../bigint", features = ["heapsizeof"] }
-hash = { path = "../hash" }
-hashdb = { path = "../hashdb" }
-rlp = { path = "../rlp" }
+ethcore-bigint = { version = "0.2", path = "../bigint", features = ["heapsizeof"] }
+keccak-hash = { version = "0.1.0", path = "../hash" }
+hashdb = { version = "0.1.1", path = "../hashdb" }
+rlp = { version = "0.2.1", path = "../rlp" }

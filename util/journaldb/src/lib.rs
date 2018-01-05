@@ -32,7 +32,7 @@ extern crate util_error as error;
 #[cfg(test)]
 extern crate ethcore_logger;
 #[cfg(test)]
-extern crate hash as keccak;
+extern crate keccak_hash as keccak;
 #[cfg(test)]
 extern crate kvdb_memorydb;
 

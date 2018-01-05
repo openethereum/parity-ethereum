@@ -107,7 +107,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 	}
 
 	/// Attempt to seal the block internally.
-	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
+	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
 		let header = block.header();
 		let author = header.author();
 		if self.validators.contains(header.parent_hash(), author) {
@@ -251,7 +251,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close_and_lock();
-		if let Seal::Regular(seal) = engine.generate_seal(b.block()) {
+		if let Seal::Regular(seal) = engine.generate_seal(b.block(), &genesis_header) {
 			assert!(b.try_seal(engine, seal).is_ok());
 		}
 	}

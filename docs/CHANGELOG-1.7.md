@@ -1,23 +1,81 @@
-### Parity [v1.7.8](https://github.com/paritytech/parity/releases/tag/v1.7.8) (2017-10-27)
+### Parity [v1.7.11](https://github.com/paritytech/parity/releases/tag/v1.7.11) (2017-12-29)
 
-- [stable] Refactor static context check in CREATE ([#6889](https://github.com/paritytech/parity/pull/6889))
-- Fix #6228: do not display eth price in cli for etc ([#6877](https://github.com/paritytech/parity/pull/6877))
-- Fix mining help ([#6885](https://github.com/paritytech/parity/pull/6885))
-- [stable] v1.7.8 ([#6890](https://github.com/paritytech/parity/pull/6890))
-- Refactor static context check in CREATE. ([#6886](https://github.com/paritytech/parity/pull/6886))
-- Cleanup some configuration options ([#6878](https://github.com/paritytech/parity/pull/6878))
-- Fix serialization of non-localized transactions ([#6868](https://github.com/paritytech/parity/pull/6868))
-- Updated NTP to version 0.3 ([#6854](https://github.com/paritytech/parity/pull/6854))
-- Align README with 1.8 and prepare CHANGELOG with 1.8.1 ([#6833](https://github.com/paritytech/parity/pull/6833))
-- Return error on timed unlock ([#6777](https://github.com/paritytech/parity/pull/6777))
-- Fix dapps tests in master ([#6866](https://github.com/paritytech/parity/pull/6866))
-- [Beta] Add ECIP1017 to Morden config (#6810) ([#6845](https://github.com/paritytech/parity/pull/6845))
+Parity 1.7.11 changes the default behavior of JSON-RPC CORS setting, and updates bootnodes for the Kovan and Foundation networks.
+
+Note: The default value of `--jsonrpc-cors` option has been altered to disallow (potentially malicious) websites from accessing the low-sensitivity RPCs (viewing exposed accounts, proposing transactions for signing). Currently domains need to be whitelisted manually. To bring back previous behaviour run with `--jsonrpc-cors all` or `--jsonrpc-cors http://example.com`.
+
+The full list of included changes:
+
+- Stable Bootnodes and Warpnodes ([#7298](https://github.com/paritytech/parity/pull/7298))
+  - New warp enodes ([#7287](https://github.com/paritytech/parity/pull/7287))
+    - New warp enodes
+    - Added one more warp enode; replaced spaces with tabs
+    - Bump stable to 1.7.11
+  - Update kovan boot nodes ([#7296](https://github.com/paritytech/parity/pull/7296))
+  - Fix Cargo.lock
+  - Updating mainnet bootnodes.
+  - Update bootnodes ([#7363](https://github.com/paritytech/parity/pull/7363))
+    - Updating mainnet bootnodes.
+    - Add additional parity-beta bootnodes.
+    - Restore old parity bootnodes and update foudation bootnodes
+- Ethstore optimizations ([#6827](https://github.com/paritytech/parity/pull/6827)) ([#6844](https://github.com/paritytech/parity/pull/6844)) ([#7347](https://github.com/paritytech/parity/pull/7347))
+- Fix default CORS. ([#7389](https://github.com/paritytech/parity/pull/7389))
+
+### Parity [v1.7.10](https://github.com/paritytech/parity/releases/tag/v1.7.10) (2017-12-11)
+
+Parity 1.7.10 applies fixes for Proof-of-Authority networks and schedules the Kovan-Byzantium hard-fork.
+
+- The Kovan testnet will fork on block `5067000` at `Thu Dec 14 2017 05:40:03 UTC`.
+  - This enables Byzantium features on Kovan.
+  - This disables uncles on Kovan for stability reasons.
+- Proof-of-Authority networks are advised to set `maximumUncleCount` to 0 in a future `maximumUncleCountTransition` for stability reasons. See the [Kovan chain spec](https://github.com/paritytech/parity/blob/master/ethcore/res/ethereum/kovan.json) for an example. New PoA networks created with Parity will have this feature enabled by default.
+
+The full list of included changes:
+
+- Backports and HF block update ([#7243](https://github.com/paritytech/parity/pull/7243))
+  - Reduce max block timestamp drift to 15 seconds ([#7240](https://github.com/paritytech/parity/pull/7240))
+  - Add test for block timestamp validation within allowed drift
+  - Update kovan HF block number. ([#7259](https://github.com/paritytech/parity/pull/7259))
+- [stable] Backports and Kovan HF ([#7235](https://github.com/paritytech/parity/pull/7235))
+  - Escape inifinite loop in estimte_gas ([#7075](https://github.com/paritytech/parity/pull/7075))
+  - Disable uncles by default ([#7006](https://github.com/paritytech/parity/pull/7006))
+  - Maximum uncle count transition ([#7196](https://github.com/paritytech/parity/pull/7196))
+    - Enable delayed maximum_uncle_count activation.
+    - Fix tests.
+    - Defer kovan HF.
+  - Bump version.
+  - Kovan HF.
+  - Update Kovan HF block.
+  - Fix compilation issues.
+  - Fix aura test.
+  - Add missing byzantium builtins.
+  - Fix tests.
+  - Bump version for installers.
+  - Increase allowed time drift to 10s. ([#7238](https://github.com/paritytech/parity/pull/7238))
+
+### Parity [v1.7.9](https://github.com/paritytech/parity/releases/tag/v1.7.9) (2017-11-14)
+
+Parity 1.7.9 removes the ability to deploy built-in multi-signature wallets.
+
+The full list of included changes:
+
+- Bump to v1.7.9 ([#7047](https://github.com/paritytech/parity/pull/7047))
+- Disallow built-in multi-sig deploy (only watch) ([#7017](https://github.com/paritytech/parity/pull/7017))
+
+### Parity [v1.7.8](https://github.com/paritytech/parity/releases/tag/v1.7.8) (2017-10-26)
+
+Parity 1.7.8 fixes a critical Byzantium consensus issue. Update is highly recommended.
+
+The full list of included changes:
+
+- Refactor static context check in CREATE ([#6889](https://github.com/paritytech/parity/pull/6889))
+- Bump to v1.7.8 ([#6890](https://github.com/paritytech/parity/pull/6890))
 
 ## Parity [v1.7.7](https://github.com/paritytech/parity/releases/tag/v1.7.7) (2017-10-15)
 
-Parity 1.7.7 Fixes an issue with auto-update system. Updating is recommended, but not required for Byzantium.
+Parity 1.7.7 fixes an issue with auto-update system. Updating is recommended, but not required for Byzantium.
 
-Full list of included changes:
+The full list of included changes:
 
 - Fix auto-update ([#6769](https://github.com/paritytech/parity/pull/6759))
   - Bump to v1.7.7
@@ -28,7 +86,7 @@ Full list of included changes:
 
 Parity 1.7.6 includes a critical consensus-relevant fix for the Byzantium hard-fork. Please upgrade your Ethereum client before block number `4_370_000`.
 
-Full list of included changes:
+The full list of included changes:
 
 - Fixed modexp gas calculation overflow ([#6746](https://github.com/paritytech/parity/pull/6746))
  - Fixed modexp gas calculation overflow ([#6741](https://github.com/paritytech/parity/pull/6741))
@@ -40,7 +98,7 @@ Parity 1.7.5 includes a critical consensus-relevant fix for the Byzantium hard-f
 
 Parity 1.7.5 is the first stable release of the 1.7 branch. With this release the support for 1.6 releases ends. Please upgrade your stable nodes to 1.7.5.
 
-Full list of included changes:
+The full list of included changes:
 
 - Backport stable - Fixes Badges ([#6731](https://github.com/paritytech/parity/pull/6731))
   - Fix badges not showing up ([#6730](https://github.com/paritytech/parity/pull/6730))
@@ -67,7 +125,7 @@ Full list of included changes:
 
 Parity 1.7.4 includes a critical consensus-relevant fix for the Byzantium hard-fork. Please upgrade your Ethereum client before block number `4_370_000`.
 
-Full list of included changes:
+The full list of included changes:
 
 - Backport ([#6715](https://github.com/paritytech/parity/pull/6715))
   - Fix estimate gas if from is not provided. ([#6714](https://github.com/paritytech/parity/pull/6714))
@@ -95,7 +153,7 @@ Parity 1.7.3 enables the Byzantium fork for Ethereum main network on Block 4_370
 - Revised timeout and batch size constants for bigger blocks.
 - Renamed RPC receipt `statusCode` field to `status`.
 
-Full list of included changes:
+The full list of included changes:
 
 - Backporting ([#6676](https://github.com/paritytech/parity/pull/6676))
   - Fix wallet view ([#6597](https://github.com/paritytech/parity/pull/6597))
@@ -143,7 +201,7 @@ Parity 1.7.2 is a bug-fix release to improve performance and stability. Among ot
 - Tweaked warp-sync to quickly catch up with chains fallen back more than 10,000 blocks.
 - Fixes to the Chrome extension and macOS installer upgrades.
 
-Full list of included changes:
+The full list of included changes:
 
 - Fix output from eth_call. ([#6538](https://github.com/paritytech/parity/pull/6538))
 - Ropsten fork ([#6532](https://github.com/paritytech/parity/pull/6532))
@@ -294,7 +352,7 @@ Parity 1.7.0 is a major release introducing several important features:
 - **PubSub API**. https://github.com/paritytech/parity/wiki/JSONRPC-Parity-Pub-Sub-module
 - **Signer apps for IOS and Android**.
 
-Full list of included changes:
+The full list of included changes:
 
 - Backports [#6163](https://github.com/paritytech/parity/pull/6163)
   - Light client improvements ([#6156](https://github.com/paritytech/parity/pull/6156))

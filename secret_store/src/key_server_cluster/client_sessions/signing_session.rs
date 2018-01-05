@@ -23,7 +23,7 @@ use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, AclStorage, Docu
 use key_server_cluster::cluster::{Cluster};
 use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
 use key_server_cluster::generation_session::{SessionImpl as GenerationSession, SessionParams as GenerationSessionParams,
-	Session as GenerationSessionApi, SessionState as GenerationSessionState};
+	SessionState as GenerationSessionState};
 use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessage, SigningGenerationMessage,
 	RequestPartialSignature, PartialSignature, SigningSessionCompleted, GenerationMessage, ConsensusMessage, SigningSessionError,
 	InitializeConsensusSession, ConfirmConsensusInitialization, SigningSessionDelegation, SigningSessionDelegationCompleted};
@@ -31,12 +31,6 @@ use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 use key_server_cluster::jobs::signing_job::{PartialSigningRequest, PartialSigningResponse, SigningJob};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
-
-/// Signing session API.
-pub trait Session: Send + Sync + 'static {
-	/// Wait until session is completed. Returns signed message.
-	fn wait(&self) -> Result<(Secret, Secret), Error>;
-}
 
 /// Distributed signing session.
 /// Based on "Efficient Multi-Party Digital Signature using Adaptive Secret Sharing for Low-Power Devices in Wireless Network" paper.
@@ -211,6 +205,11 @@ impl SessionImpl {
 		self.data.lock().state
 	}
 
+	/// Wait for session completion.
+	pub fn wait(&self) -> Result<(Secret, Secret), Error> {
+		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
+	}
+
 	/// Delegate session to other node.
 	pub fn delegate(&self, master: NodeId, version: H256, message_hash: H256) -> Result<(), Error> {
 		if self.core.meta.master_node_id != self.core.meta.self_node_id {
@@ -250,14 +249,19 @@ impl SessionImpl {
 
 		let mut data = self.data.lock();
 		let non_isolated_nodes = self.core.cluster.nodes();
-		data.consensus_session.consensus_job_mut().transport_mut().version = Some(version.clone());
-		data.version = Some(version.clone());
-		data.message_hash = Some(message_hash);
-		data.consensus_session.initialize(key_version.id_numbers.keys()
+		let mut consensus_nodes: BTreeSet<_> = key_version.id_numbers.keys()
 			.filter(|n| non_isolated_nodes.contains(*n))
 			.cloned()
 			.chain(::std::iter::once(self.core.meta.self_node_id.clone()))
-			.collect())?;
+			.collect();
+		if let Some(&DelegationStatus::DelegatedFrom(delegation_master, _)) = data.delegation_status.as_ref() {
+			consensus_nodes.remove(&delegation_master);
+		}
+
+		data.consensus_session.consensus_job_mut().transport_mut().version = Some(version.clone());
+		data.version = Some(version.clone());
+		data.message_hash = Some(message_hash);
+		data.consensus_session.initialize(consensus_nodes)?;
 
 		if data.consensus_session.state() == ConsensusSessionState::ConsensusEstablished {
 			let generation_session = GenerationSession::new(GenerationSessionParams {
@@ -354,7 +358,6 @@ impl SessionImpl {
 
 		Ok(())
 	}
-
 
 	/// When consensus-related message is received.
 	pub fn on_consensus_message(&self, sender: &NodeId, message: &SigningConsensusMessage) -> Result<(), Error> {
@@ -629,7 +632,10 @@ impl ClusterSession for SessionImpl {
 	}
 
 	fn is_finished(&self) -> bool {
-		self.data.lock().result.is_some()
+		let data = self.data.lock();
+		data.consensus_session.state() == ConsensusSessionState::Failed
+			|| data.consensus_session.state() == ConsensusSessionState::Finished
+			|| data.result.is_some()
 	}
 
 	fn on_node_timeout(&self, node: &NodeId) {
@@ -670,19 +676,6 @@ impl ClusterSession for SessionImpl {
 			Message::Signing(ref message) => self.process_message(sender, message),
 			_ => unreachable!("cluster checks message to be correct before passing; qed"),
 		}
-	}
-}
-
-impl Session for SessionImpl {
-	fn wait(&self) -> Result<(Secret, Secret), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
-			.clone()
 	}
 }
 
@@ -812,12 +805,11 @@ mod tests {
 	use key_server_cluster::{NodeId, DummyKeyStorage, DocumentKeyShare, DocumentKeyShareVersion, SessionId, SessionMeta, Error, KeyStorage};
 	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::cluster::tests::DummyCluster;
-	use key_server_cluster::generation_session::{Session as GenerationSession};
 	use key_server_cluster::generation_session::tests::MessageLoop as KeyGenerationMessageLoop;
 	use key_server_cluster::math;
 	use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessage, ConsensusMessage, ConfirmConsensusInitialization,
 		SigningGenerationMessage, GenerationMessage, ConfirmInitialization, InitializeSession, RequestPartialSignature};
-	use key_server_cluster::signing_session::{Session, SessionImpl, SessionState, SessionParams};
+	use key_server_cluster::signing_session::{SessionImpl, SessionState, SessionParams};
 
 	struct Node {
 		pub node_id: NodeId,
@@ -979,6 +971,7 @@ mod tests {
 			key_share: Some(DocumentKeyShare {
 				author: Public::default(),
 				threshold: 0,
+				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 				versions: vec![DocumentKeyShareVersion {
@@ -1032,6 +1025,7 @@ mod tests {
 			key_share: Some(DocumentKeyShare {
 				author: Public::default(),
 				threshold: 2,
+				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 				versions: vec![DocumentKeyShareVersion {

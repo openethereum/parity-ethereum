@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import apiutil from '~/api/util';
+import apiutil from '@parity/api/lib/util';
 
 import { NULL_ADDRESS } from './constants';
 

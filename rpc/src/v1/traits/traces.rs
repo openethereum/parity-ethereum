@@ -16,7 +16,7 @@
 
 //! Traces specific rpc interface.
 
-use jsonrpc_core::Error;
+use jsonrpc_core::Result;
 use jsonrpc_macros::Trailing;
 use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256, TraceOptions};
 
@@ -27,34 +27,34 @@ build_rpc_trait! {
 
 		/// Returns traces matching given filter.
 		#[rpc(name = "trace_filter")]
-		fn filter(&self, TraceFilter) -> Result<Option<Vec<LocalizedTrace>>, Error>;
+		fn filter(&self, TraceFilter) -> Result<Option<Vec<LocalizedTrace>>>;
 
 		/// Returns transaction trace at given index.
 		#[rpc(name = "trace_get")]
-		fn trace(&self, H256, Vec<Index>) -> Result<Option<LocalizedTrace>, Error>;
+		fn trace(&self, H256, Vec<Index>) -> Result<Option<LocalizedTrace>>;
 
 		/// Returns all traces of given transaction.
 		#[rpc(name = "trace_transaction")]
-		fn transaction_traces(&self, H256) -> Result<Option<Vec<LocalizedTrace>>, Error>;
+		fn transaction_traces(&self, H256) -> Result<Option<Vec<LocalizedTrace>>>;
 
 		/// Returns all traces produced at given block.
 		#[rpc(name = "trace_block")]
-		fn block_traces(&self, BlockNumber) -> Result<Option<Vec<LocalizedTrace>>, Error>;
+		fn block_traces(&self, BlockNumber) -> Result<Option<Vec<LocalizedTrace>>>;
 
 		/// Executes the given call and returns a number of possible traces for it.
 		#[rpc(meta, name = "trace_call")]
-		fn call(&self, Self::Metadata, CallRequest, TraceOptions, Trailing<BlockNumber>) -> Result<TraceResults, Error>;
+		fn call(&self, Self::Metadata, CallRequest, TraceOptions, Trailing<BlockNumber>) -> Result<TraceResults>;
 
 		/// Executes all given calls and returns a number of possible traces for each of it.
 		#[rpc(meta, name = "trace_callMany")]
-		fn call_many(&self, Self::Metadata, Vec<(CallRequest, TraceOptions)>, Trailing<BlockNumber>) -> Result<Vec<TraceResults>, Error>;
+		fn call_many(&self, Self::Metadata, Vec<(CallRequest, TraceOptions)>, Trailing<BlockNumber>) -> Result<Vec<TraceResults>>;
 
 		/// Executes the given raw transaction and returns a number of possible traces for it.
 		#[rpc(name = "trace_rawTransaction")]
-		fn raw_transaction(&self, Bytes, TraceOptions, Trailing<BlockNumber>) -> Result<TraceResults, Error>;
+		fn raw_transaction(&self, Bytes, TraceOptions, Trailing<BlockNumber>) -> Result<TraceResults>;
 
 		/// Executes the transaction with the given hash and returns a number of possible traces for it.
 		#[rpc(name = "trace_replayTransaction")]
-		fn replay_transaction(&self, H256, TraceOptions) -> Result<TraceResults, Error>;
+		fn replay_transaction(&self, H256, TraceOptions) -> Result<TraceResults>;
 	}
 }

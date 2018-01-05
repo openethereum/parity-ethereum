@@ -24,7 +24,6 @@ use fetch::{self, Fetch};
 use futures::sync::oneshot;
 use futures::{self, Future};
 use hyper::{self, Method, StatusCode};
-use jsonrpc_core::BoxFuture;
 use parking_lot::Mutex;
 
 use endpoint::{self, EndpointPath};
@@ -212,7 +211,7 @@ impl Errors {
 
 enum FetchState {
 	Error(ContentHandler),
-	InProgress(BoxFuture<FetchState, ()>),
+	InProgress(Box<Future<Item=FetchState, Error=()> + Send>),
 	Streaming(hyper::Response),
 	Done(local::Dapp, endpoint::Response),
 	Empty,
@@ -289,7 +288,7 @@ impl ContentFetcherHandler {
 		path: EndpointPath,
 		errors: Errors,
 		installer: H,
-	) -> BoxFuture<FetchState, ()> {
+	) -> Box<Future<Item=FetchState, Error=()> + Send> {
 		// Start fetching the content
 		let fetch2 = fetch.clone();
 		let future = fetch.fetch_with_abort(url, abort.into()).then(move |result| {

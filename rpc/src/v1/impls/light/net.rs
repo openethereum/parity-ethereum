@@ -16,7 +16,7 @@
 
 //! Net rpc implementation.
 use std::sync::Arc;
-use jsonrpc_core::Error;
+use jsonrpc_core::Result;
 use ethsync::LightSyncProvider;
 use v1::traits::Net;
 
@@ -35,15 +35,15 @@ impl<S: ?Sized> NetClient<S> where S: LightSyncProvider {
 }
 
 impl<S: ?Sized + Sync + Send + 'static> Net for NetClient<S> where S: LightSyncProvider {
-	fn version(&self) -> Result<String, Error> {
+	fn version(&self) -> Result<String> {
 		Ok(format!("{}", self.sync.network_id()).to_owned())
 	}
 
-	fn peer_count(&self) -> Result<String, Error> {
+	fn peer_count(&self) -> Result<String> {
 		Ok(format!("0x{:x}", self.sync.peer_numbers().connected as u64).to_owned())
 	}
 
-	fn is_listening(&self) -> Result<bool, Error> {
+	fn is_listening(&self) -> Result<bool> {
 		Ok(true)
 	}
 }

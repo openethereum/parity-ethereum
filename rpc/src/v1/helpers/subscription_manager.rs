@@ -23,7 +23,7 @@ use parking_lot::Mutex;
 use jsonrpc_core::futures::future::{self, Either};
 use jsonrpc_core::futures::sync::mpsc;
 use jsonrpc_core::futures::{Sink, Future};
-use jsonrpc_core::{self as core, MetaIoHandler, BoxFuture};
+use jsonrpc_core::{self as core, MetaIoHandler};
 use jsonrpc_pubsub::SubscriptionId;
 
 use v1::helpers::Subscribers;
@@ -87,7 +87,7 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 		}).is_some()
 	}
 
-	pub fn tick(&self) -> BoxFuture<(), ()> {
+	pub fn tick(&self) -> Box<Future<Item=(), Error=()> + Send> {
 		let mut futures = Vec::new();
 		// poll all subscriptions
 		for (id, subscription) in self.subscribers.iter() {
