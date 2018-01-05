@@ -57,7 +57,7 @@ build_rpc_trait! {
 		#[rpc(name = "trace_replayTransaction")]
 		fn replay_transaction(&self, H256, TraceOptions) -> Result<TraceResults>;
 
-		/// Executes the transaction with the given hash and returns a number of possible traces for it.
+		/// Executes all the transactions at the given block and returns a number of possible traces for each transaction.
 		#[rpc(name = "trace_replayBlockTransactions")]
 		fn replay_block_transactions(&self, BlockNumber, TraceOptions) ->  Result<Vec<TraceResults>>;
 	}
