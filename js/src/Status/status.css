@@ -72,20 +72,17 @@ $statusHeight: 2.75em;
 
   .health,
   .pending {
-    /* Same as default line-height, i.e. item same as text following */
-    height: 1.4285rem;
+    height: 1.4285rem; /* Same as default line-height, i.e. item same as text following */
   }
 
   .health {
     > span {
       height: 100%;
-      /* re-instate the original margin, no negative offset */
-      margin-top: 0.2em;
+      margin-top: 0.2em; /* re-instate the original margin, no negative offset */
       width: auto;
 
       > span {
-        /* default vertical alignment */
-        vertical-align: baseline;
+        vertical-align: baseline; /* default vertical alignment */
       }
     }
   }
