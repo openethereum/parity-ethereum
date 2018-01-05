@@ -22,9 +22,7 @@ import styles from '../application.css';
 
 export default class Container extends Component {
   static propTypes = {
-    children: PropTypes.node.isRequired,
-    onCloseFirstRun: PropTypes.func,
-    showFirstRun: PropTypes.bool
+    children: PropTypes.node.isRequired
   };
 
   render () {
