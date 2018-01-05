@@ -16,7 +16,7 @@
 
 //! Receipt
 
-use ethereum_types::{H256, U256, Address, LogBloom};
+use ethereum_types::{H256, U256, Address, Bloom};
 use heapsize::HeapSizeOf;
 use rlp::*;
 
@@ -40,7 +40,7 @@ pub struct Receipt {
 	/// The total gas used in the block following execution of the transaction.
 	pub gas_used: U256,
 	/// The OR-wide combination of all logs' blooms for this transaction.
-	pub log_bloom: LogBloom,
+	pub log_bloom: Bloom,
 	/// The logs stemming from this transaction.
 	pub logs: Vec<LogEntry>,
 	/// Transaction outcome.
@@ -52,7 +52,7 @@ impl Receipt {
 	pub fn new(outcome: TransactionOutcome, gas_used: U256, logs: Vec<LogEntry>) -> Receipt {
 		Receipt {
 			gas_used: gas_used,
-			log_bloom: logs.iter().fold(LogBloom::default(), |mut b, l| { b = &b | &l.bloom(); b }), //TODO: use |= operator
+			log_bloom: logs.iter().fold(Bloom::default(), |mut b, l| { b = &b | &l.bloom(); b }), //TODO: use |= operator
 			logs: logs,
 			outcome: outcome,
 		}
@@ -129,7 +129,7 @@ pub struct RichReceipt {
 	/// Logs
 	pub logs: Vec<LogEntry>,
 	/// Logs bloom
-	pub log_bloom: LogBloom,
+	pub log_bloom: Bloom,
 	/// Transaction outcome.
 	pub outcome: TransactionOutcome,
 }
@@ -154,7 +154,7 @@ pub struct LocalizedReceipt {
 	/// Logs
 	pub logs: Vec<LocalizedLogEntry>,
 	/// Logs bloom
-	pub log_bloom: LogBloom,
+	pub log_bloom: Bloom,
 	/// Transaction outcome.
 	pub outcome: TransactionOutcome,
 }

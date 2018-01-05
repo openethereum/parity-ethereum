@@ -17,7 +17,7 @@
 //! View onto block header rlp
 
 use hash::keccak;
-use ethereum_types::{H256, H2048, U256, Address};
+use ethereum_types::{H256, Bloom, U256, Address};
 use bytes::Bytes;
 use rlp::{self, Rlp};
 use header::BlockNumber;
@@ -69,7 +69,7 @@ impl<'a> HeaderView<'a> {
 	pub fn receipts_root(&self) -> H256 { self.rlp.val_at(5) }
 
 	/// Returns block log bloom.
-	pub fn log_bloom(&self) -> H2048 { self.rlp.val_at(6) }
+	pub fn log_bloom(&self) -> Bloom { self.rlp.val_at(6) }
 
 	/// Returns block difficulty.
 	pub fn difficulty(&self) -> U256 { self.rlp.val_at(7) }
@@ -111,7 +111,7 @@ impl<'a> HeaderView<'a> {
 mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
-	use ethereum_types::{H256, H2048, U256, Address};
+	use ethereum_types::{H256, Bloom, U256, Address};
 	use super::HeaderView;
 
 	#[test]
@@ -129,7 +129,7 @@ mod tests {
 		assert_eq!(view.state_root(), H256::from_str("5fb2b4bfdef7b314451cb138a534d225c922fc0e5fbe25e451142732c3e25c25").unwrap());
 		assert_eq!(view.transactions_root(), H256::from_str("88d2ec6b9860aae1a2c3b299f72b6a5d70d7f7ba4722c78f2c49ba96273c2158").unwrap());
 		assert_eq!(view.receipts_root(), H256::from_str("07c6fdfa8eea7e86b81f5b0fc0f78f90cc19f4aa60d323151e0cac660199e9a1").unwrap());
-		assert_eq!(view.log_bloom(), H2048::default());
+		assert_eq!(view.log_bloom(), Bloom::default());
 		assert_eq!(view.difficulty(), U256::from(0x02_00_80));
 		assert_eq!(view.number(), 3);
 		assert_eq!(view.gas_limit(), U256::from(0x2f_ef_ba));

@@ -334,7 +334,7 @@ fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &
 mod tests {
 	use std::collections::{BTreeMap, HashMap};
 	use hash::keccak;
-	use ethereum_types::{H256, H2048, U256};
+	use ethereum_types::{H256, Bloom, U256};
 	use triehash::ordered_trie_root;
 	use unexpected::{Mismatch, OutOfBounds};
 	use bytes::Bytes;
@@ -459,7 +459,7 @@ mod tests {
 			unimplemented!()
 		}
 
-		fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
+		fn blocks_with_bloom(&self, _bloom: &Bloom, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
 			unimplemented!()
 		}
 
