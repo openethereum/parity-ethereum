@@ -47,7 +47,7 @@ pub struct CreateResult {
 impl CreateResult {
 	/// Returns bloom.
 	pub fn bloom(&self) -> Bloom {
-		Bloom(Bloom::from(BloomInput::Raw(&self.address)).into())
+		BloomInput::Raw(&self.address).into()
 	}
 }
 
@@ -88,7 +88,7 @@ impl Call {
 		let mut bloom = Bloom::default();
 		bloom.accrue(BloomInput::Raw(&self.from));
 		bloom.accrue(BloomInput::Raw(&self.to));
-		Bloom(bloom.into())
+		bloom
 	}
 }
 
@@ -120,7 +120,7 @@ impl Create {
 	/// Returns bloom create action bloom.
 	/// The bloom contains only from address.
 	pub fn bloom(&self) -> Bloom {
-		Bloom(Bloom::from(BloomInput::Raw(&self.from)).into())
+		BloomInput::Raw(&self.from).into()
 	}
 }
 
