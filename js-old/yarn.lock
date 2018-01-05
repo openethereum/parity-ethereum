@@ -5870,10 +5870,6 @@ markdown-table@^1.1.0:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/markdown-table/-/markdown-table-1.1.1.tgz#4b3dd3a133d1518b8ef0dbc709bf2a1b4824bc8c"
 
-marked@0.3.6:
-  version "0.3.6"
-  resolved "https://registry.yarnpkg.com/marked/-/marked-0.3.6.tgz#b2c6c618fccece4ef86c4fc6cb8a7cbf5aeda8d7"
-
 material-ui-chip-input@0.11.1:
   version "0.11.1"
   resolved "https://registry.yarnpkg.com/material-ui-chip-input/-/material-ui-chip-input-0.11.1.tgz#e92b2cc5c9741cd75d6b1822f1c7771ad4ce6c10"
@@ -6666,9 +6662,9 @@ param-case@2.1.x:
   dependencies:
     no-case "^2.2.0"
 
-"parity-react-scripts@github:paritytech/parity-react-scripts#919a2bb":
-  version "0.6.0"
-  resolved "https://codeload.github.com/paritytech/parity-react-scripts/tar.gz/919a2bbacc5e5ebc52ad79730807a3deae6ee1b4"
+"parity-react-scripts@github:paritytech/parity-react-scripts#ed275fd":
+  version "0.7.0"
+  resolved "https://codeload.github.com/paritytech/parity-react-scripts/tar.gz/ed275fd03444dc141e59a10362b1dd021f2aff91"
   dependencies:
     "@parity/api" "2.1.14"
     "@parity/shared" "2.2.14"
@@ -6712,7 +6708,7 @@ param-case@2.1.x:
     postcss-import "11.0.0"
     postcss-nested "3.0.0"
     postcss-simple-vars "4.1.0"
-    react-scripts-config "1.0.17-11"
+    react-scripts-config "1.0.17-12"
     release-it "github:paritytech/release-it#ng-poc"
     semver "5.4.1"
     stylelint "8.4.0"
@@ -7748,9 +7744,9 @@ react-router@3.0.0:
     loose-envify "^1.2.0"
     warning "^3.0.0"
 
-react-scripts-config@1.0.17-11:
-  version "1.0.17-11"
-  resolved "https://registry.yarnpkg.com/react-scripts-config/-/react-scripts-config-1.0.17-11.tgz#538c4766b11199ea5c219a07529293b1d6ba7e05"
+react-scripts-config@1.0.17-12:
+  version "1.0.17-12"
+  resolved "https://registry.yarnpkg.com/react-scripts-config/-/react-scripts-config-1.0.17-12.tgz#06966f67d9e727ff86f79abc64644321316f2627"
   dependencies:
     autoprefixer "7.1.6"
     babel-core "6.26.0"
@@ -7813,6 +7809,13 @@ react-tap-event-plugin@2.0.1:
   resolved "https://registry.yarnpkg.com/react-tap-event-plugin/-/react-tap-event-plugin-2.0.1.tgz#316beb3bc6556e29ec869a7293e89c826a9074d2"
   dependencies:
     fbjs "^0.8.6"
+
+react-test-renderer@15.6.2:
+  version "15.6.2"
+  resolved "https://registry.yarnpkg.com/react-test-renderer/-/react-test-renderer-15.6.2.tgz#d0333434fc2c438092696ca770da5ed48037efa8"
+  dependencies:
+    fbjs "^0.8.9"
+    object-assign "^4.1.0"
 
 react-tooltip@3.2.2:
   version "3.2.2"

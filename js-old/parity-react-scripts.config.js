@@ -32,6 +32,9 @@ module.exports = {
       new ServiceWorkerWebpackPlugin({
         entry: path.join(__dirname, './src/serviceWorker.js')
       })
+    ],
+    modules: [
+      /ethereumjs-util/
     ]
   }
 };
