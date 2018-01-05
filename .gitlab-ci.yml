@@ -587,7 +587,6 @@ test-darwin:
     - triggers
   before_script:
     - git submodule update --init --recursive
-    - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e "^js/" -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
     - export RUST_BACKTRACE=1
     - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
@@ -611,7 +610,6 @@ test-rust-stable:
   image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
-    - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
     - rustup show
     - export RUST_BACKTRACE=1
@@ -625,9 +623,7 @@ js-test:
   image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
     - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
-    - export JS_OLD_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js-old/ | wc -l)
     - if [ $JS_OLD_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS (old) deps install since no JS files modified."; else ./js-old/scripts/install-deps.sh;fi
 
   script:
@@ -644,7 +640,6 @@ test-rust-beta:
   image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
-    - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
     - rustup default beta
     - export RUST_BACKTRACE=1
@@ -661,7 +656,6 @@ test-rust-nightly:
   image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
-    - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
     - rustup default nightly
     - export RUST_BACKTRACE=1
@@ -680,10 +674,8 @@ js-release:
     - triggers
   image: parity/rust:gitlab-ci
   before_script:
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
     - echo $JS_FILES_MODIFIED
     - if [ $JS_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
-    - export JS_OLD_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js-old/ | wc -l)
     - echo $JS_OLD_FILES_MODIFIED
     - if [ $JS_OLD_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS (old) deps install since no JS files modified."; else ./js-old/scripts/install-deps.sh;fi
 
@@ -709,3 +701,13 @@ push-release:
     - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
   tags:
     - curl
+
+# ---------------------------------------------------------------------------
+.functions: &functions |
+  export JS_FILES_MODIFIED=$(git --no-pager diff --name-only master...$CI_BUILD_REF | grep ^js/ | wc -l)
+  export JS_OLD_FILES_MODIFIED=$(git --no-pager diff --name-only master...$CI_BUILD_REF | grep ^js-old/ | wc -l)
+  export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only master...$CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
+
+before_script:
+  - *functions
+
