@@ -385,5 +385,7 @@ pub fn get_default_ethash_params() -> EthashParams {
 		eip649_transition: u64::max_value(),
 		eip649_delay: 3_000_000,
 		eip649_reward: None,
+		expip2_transition: u64::max_value(),
+		expip2_duration_limit: 30,
 	}
 }

@@ -82,6 +82,7 @@ class List extends Component {
         account={ account }
         disabled={ isDisabled }
         handleAddSearchToken={ handleAddSearchToken }
+        key={ account.address }
         link={ link }
         owners={ owners }
         showCertifications
@@ -245,9 +246,10 @@ class List extends Component {
 function mapStateToProps (state, props) {
   const addresses = Object.keys(props.accounts);
   const balances = pick(state.balances, addresses);
-  const { certifications } = state;
 
-  return { balances, certifications };
+  return {
+    balances
+  };
 }
 
 export default connect(
