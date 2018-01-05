@@ -25,29 +25,28 @@ use rustc_hex::FromHex;
 use hash::keccak;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use journaldb;
 use util::{Address, DBValue};
-use kvdb_rocksdb::{Database, DatabaseConfig};
 use bytes::Bytes;
 use rlp::*;
 use ethkey::{Generator, Random};
-use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
+	self, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient,
 };
+use client::evm_test_client::{EvmTestError};
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
 use blockchain::extras::BlockReceipts;
-use error::{ImportResult, Error as EthcoreError};
-use evm::{Factory as EvmFactory, VMType};
+use error::{ImportResult, ExecutionError, Error as EthcoreError};
+use evm::{EnvInfo, Factory as EvmFactory, VMType};
 use vm::Schedule;
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
@@ -57,11 +56,14 @@ use types::pruning_info::PruningInfo;
 
 use verification::queue::QueueInfo;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
-use executive::Executed;
+use executive::{Executive, Executed, TransactOptions};
 use error::CallError;
 use trace::LocalizedTrace;
-use state_db::StateDB;
-use encoded;
+use state_db::{StateDB};
+use state::{State};
+use kvdb::{self, KeyValueDB};
+use factory::Factories;
+use {encoded, trace, trie, kvdb_memorydb};
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -109,6 +111,14 @@ pub struct TestBlockChainClient {
 	pub traces: RwLock<Option<Vec<LocalizedTrace>>>,
 	/// Pruning history size to report.
 	pub history: RwLock<Option<u64>>,
+    /// In-memory key-value database backend for state_db
+    /// Optional for tests using the HashMap-backed blockchain
+    pub db: RwLock<Arc<KeyValueDB>>,
+    /// Blockchain state db
+    /// Optional for tests using the HashMap-backed blockchain
+    pub state_db: Mutex<StateDB>,
+    /// VM and State Trie factories
+    pub factories: Factories,
 }
 
 /// Used for generating test client blocks.
@@ -152,37 +162,46 @@ impl TestBlockChainClient {
 		let genesis_block = spec.genesis_block();
 		let genesis_hash = spec.genesis_header().hash();
 
-		let mut client = TestBlockChainClient {
-			blocks: RwLock::new(HashMap::new()),
-			numbers: RwLock::new(HashMap::new()),
-			genesis_hash: H256::new(),
-			extra_data: extra_data,
-			last_hash: RwLock::new(H256::new()),
-			difficulty: RwLock::new(spec.genesis_header().difficulty().clone()),
-			balances: RwLock::new(HashMap::new()),
-			nonces: RwLock::new(HashMap::new()),
-			storage: RwLock::new(HashMap::new()),
-			code: RwLock::new(HashMap::new()),
-			execution_result: RwLock::new(None),
-			receipts: RwLock::new(HashMap::new()),
-			logs: RwLock::new(Vec::new()),
-			queue_size: AtomicUsize::new(0),
-			miner: Arc::new(Miner::with_spec(&spec)),
-			spec: spec,
-			vm_factory: EvmFactory::new(VMType::Interpreter, 1024 * 1024),
-			latest_block_timestamp: RwLock::new(10_000_000),
-			ancient_block: RwLock::new(None),
-			first_block: RwLock::new(None),
-			traces: RwLock::new(None),
-			history: RwLock::new(None),
-		};
+        if let Ok((keydb, state_db)) = get_in_memory_db(&spec) {
+		    let mut client = TestBlockChainClient {
+		    	blocks: RwLock::new(HashMap::new()),
+		    	numbers: RwLock::new(HashMap::new()),
+		    	genesis_hash: H256::new(),
+		    	extra_data: extra_data,
+		    	last_hash: RwLock::new(H256::new()),
+		    	difficulty: RwLock::new(spec.genesis_header().difficulty().clone()),
+		    	balances: RwLock::new(HashMap::new()),
+		    	nonces: RwLock::new(HashMap::new()),
+		    	storage: RwLock::new(HashMap::new()),
+		    	code: RwLock::new(HashMap::new()),
+		    	execution_result: RwLock::new(None),
+		    	receipts: RwLock::new(HashMap::new()),
+		    	logs: RwLock::new(Vec::new()),
+		    	queue_size: AtomicUsize::new(0),
+		    	miner: Arc::new(Miner::with_spec(&spec)),
+		    	spec: spec,
+		    	vm_factory: EvmFactory::new(VMType::Interpreter, 1024 * 1024),
+		    	latest_block_timestamp: RwLock::new(10_000_000),
+		    	ancient_block: RwLock::new(None),
+		    	first_block: RwLock::new(None),
+		    	traces: RwLock::new(None),
+		    	history: RwLock::new(None),
+                state_db: state_db,
+                db: keydb,
+                factories: factories(),
+		    };
 
-		// insert genesis hash.
-		client.blocks.get_mut().insert(genesis_hash, genesis_block);
-		client.numbers.get_mut().insert(0, genesis_hash);
-		*client.last_hash.get_mut() = genesis_hash;
-		client.genesis_hash = genesis_hash;
-		client
+		    // insert genesis hash.
+		    client.blocks.get_mut().insert(genesis_hash, genesis_block);
+		    client.numbers.get_mut().insert(0, genesis_hash);
+		    *client.last_hash.get_mut() = genesis_hash;
+		    client.genesis_hash = genesis_hash;
+
+		    client
+        }
+        else {
+            panic!("Error creating database"); 
+        }
 	}
 
 	/// Set the transaction receipt result
@@ -351,17 +370,116 @@ impl TestBlockChainClient {
 	pub fn set_history(&self, h: Option<u64>) {
 		*self.history.write() = h;
 	}
+
+    /// Create a signed transaction destined for `address`
+    /// `data` is an ethabi encoded function call
+    pub fn contract_call_tx(&self, id: BlockId, address: Address, data: Bytes) -> SignedTransaction {
+		let from = Address::default();
+		Transaction {
+			nonce: self.nonce(&from, id).unwrap_or_else(|| self.spec.engine.account_start_nonce(0)),
+			action: Action::Call(address),
+			gas: U256::from(50_000_000),
+			gas_price: U256::default(),
+			value: U256::default(),
+			data: data,
+		}.fake_sign(from)
+    }
+
+    /// Create a signed transaction to deploy a contract encoded in the `data` parameter 
+    pub fn contract_create_tx(&self, id: BlockId, address: Address, data: Bytes) -> SignedTransaction {
+		Transaction {
+			nonce: self.nonce(&address, id).unwrap_or_else(|| self.spec.engine.account_start_nonce(0)),
+			action: Action::Create,
+			gas: U256::from(50_000_000),
+			gas_price: U256::default(),
+			value: U256::default(),
+			data: data,
+		}.fake_sign(address)
+    }
+
+    /// Evaluate a transaction on a local EVM Interpreter
+	fn do_virtual_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
+		fn call<V, T>(
+			state: &mut State<StateDB>,
+			env_info: &EnvInfo,
+			machine: &::machine::EthereumMachine,
+			state_diff: bool,
+			transaction: &SignedTransaction,
+			options: TransactOptions<T, V>,
+		) -> Result<Executed<T::Output, V::Output>, CallError> where
+			T: trace::Tracer,
+			V: trace::VMTracer,
+		{
+			let options = options
+				.dont_check_nonce()
+				.save_output_from_contract();
+			let original_state = if state_diff { Some(state.clone()) } else { None };
+
+			let mut ret = Executive::new(state, env_info, machine).transact_virtual(transaction, options)?;
+
+			if let Some(original) = original_state {
+				ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
+			}
+			Ok(ret)
+		}
+
+		let state_diff = analytics.state_diffing;
+		let machine = self.spec.engine.machine();
+
+		match (analytics.vm_tracing,) {
+			(true,) => call(state, env_info, machine, state_diff, t, TransactOptions::with_vm_tracing()),
+			(false,) => call(state, env_info, machine, state_diff, t, TransactOptions::with_no_tracing()),
+		}
+	}
+
+    /// Convenience method to retrieve current state from a given state_db
+    pub fn get_in_memory_state(&self) -> Result<State<StateDB>, EvmTestError> {
+        {
+	        let state_db = self.state_db.lock().boxed_clone();
+
+    	    State::from_existing(
+    	    	state_db,
+    	    	*self.spec.genesis_header().state_root(),
+    	    	self.spec.engine.account_start_nonce(0),
+    	    	factories(),
+    	    ).map_err(EvmTestError::Trie)
+        }
+    }
+    
+    /// Convenience method to retrieve state from a fresh state_db
+    pub fn get_new_state(&self) -> Result<State<StateDB>, EvmTestError> {
+        let (_, state_db) = get_in_memory_db(&self.spec).unwrap();
+    	State::from_existing(
+    		state_db.into_inner(),
+    		*self.spec.genesis_header().state_root(),
+    		self.spec.engine.account_start_nonce(0),
+    		factories(),
+    	).map_err(EvmTestError::Trie)
+    }
 }
 
-pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
-	let temp = RandomTempPath::new();
-	let db = Database::open(&DatabaseConfig::with_columns(NUM_COLUMNS), temp.as_str()).unwrap();
-	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, COL_STATE);
-	let state_db = StateDB::new(journal_db, 1024 * 1024);
-	GuardedTempResult {
-		_temp: temp,
-		result: Some(state_db)
+pub fn factories() -> Factories {
+    Factories { 
+        vm: EvmFactory::new(VMType::Interpreter, 1024 * 1024), 
+        trie: trie::TrieFactory::new(trie::TrieSpec::Secure), 
+        accountdb: Default::default(), 
+    } 
+}
+
+pub fn get_in_memory_db(spec: &Spec) -> Result<(RwLock<Arc<KeyValueDB>>, Mutex<StateDB>), EvmTestError> {
+	let db = Arc::new(kvdb_memorydb::create(NUM_COLUMNS.expect("We use column-based DB; qed")));
+	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, COL_STATE);
+	let mut state_db = StateDB::new(journal_db, 5 * 1024 * 1024);
+
+	let genesis = spec.genesis_header();
+	// Write DB
+	{
+		let mut batch = kvdb::DBTransaction::new();
+		state_db.journal_under(&mut batch, 0, &genesis.hash())?;
+		db.write(batch).map_err(EvmTestError::Database)?;
 	}
+
+    Ok((RwLock::new(db), Mutex::new(state_db)))
 }
 
 impl MiningBlockChainClient for TestBlockChainClient {
@@ -374,8 +492,8 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
-		let mut db_result = get_temp_state_db();
-		let db = self.spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
+        let db_result = self.state_db.lock().boxed_clone();
+		let db = self.spec.ensure_db_good(db_result, &Default::default()).unwrap();
 
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(
@@ -411,8 +529,36 @@ impl MiningBlockChainClient for TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
-	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
-		self.execution_result.read().clone().unwrap()
+	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
+		let genesis = self.spec.genesis_header();
+		let env_info = client::EnvInfo {
+			number: genesis.number(),
+			author: *genesis.author(),
+			timestamp: genesis.timestamp(),
+			difficulty: *genesis.difficulty(),
+			last_hashes: Arc::new([H256::default(); 256].to_vec()),
+			gas_used: 0.into(),
+			gas_limit: *genesis.gas_limit(),
+		};
+
+        let not_executed = Executed {
+            exception: None,
+            gas: 0.into(),
+            gas_used: 0.into(),
+            refunded: 0.into(),
+            cumulative_gas_used: 0.into(),
+            logs: vec![],
+            contracts_created: vec![],
+            output: vec![],
+            trace: vec![],
+            vm_trace: None,
+            state_diff: None,
+        };
+
+        match self.get_in_memory_state() {
+            Ok(mut state) => self.do_virtual_call(&env_info, &mut state, t, analytics), 
+            _ => Ok(not_executed).into(),
+        }
 	}
 
 	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError> {
@@ -537,8 +683,18 @@ impl BlockChainClient for TestBlockChainClient {
 			.map(encoded::Header::new)
 	}
 
-	fn block_number(&self, _id: BlockId) -> Option<BlockNumber> {
-		unimplemented!()
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+        let len = self.blocks.read().len() as u64;
+
+		match id {
+			BlockId::Number(number) => Some(number),
+            // So gross...
+            BlockId::Hash(ref hash) => if let Some(hnum) = self.blocks.read().iter().position(|(hkey, _b)| hash == hkey) { Some(hnum as u64) } else { None },
+			BlockId::Earliest => Some(0),
+			BlockId::Latest => Some(len - 1),
+			BlockId::Pending => Some(len),
+		}
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
@@ -766,7 +922,15 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> { 
+		let transaction = self.contract_call_tx(id, address, data);
+
+		self.call(&transaction, Default::default(), id)
+			.map_err(|e| format!("{:?}", e))
+			.map(|executed| {
+				executed.output
+			})
+    }
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
 		let transaction = Transaction {

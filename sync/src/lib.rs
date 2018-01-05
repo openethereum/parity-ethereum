@@ -59,9 +59,6 @@ mod transactions_stats;
 
 pub mod light_sync;
 
-#[cfg(test)]
-mod tests;
-
 mod api;
 
 pub use api::*;
@@ -70,3 +67,9 @@ pub use network::{validate_node_url, NonReservedPeerMode, Error, ErrorKind, Conn
 
 #[cfg(test)]
 pub(crate) type Address = bigint::hash::H160;
+
+#[cfg(test)]
+pub mod tests;
+
+pub mod test_snapshot;
+pub mod test_sync;

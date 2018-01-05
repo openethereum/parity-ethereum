@@ -40,8 +40,11 @@ extern crate parking_lot;
 #[cfg(test)]
 extern crate ethabi;
 
-mod client;
+pub mod client;
 
 pub mod urlhint;
 
 pub use client::{HashFetch, Client, Error};
+
+#[cfg(test)]
+pub use client::tests::FakeFetch;

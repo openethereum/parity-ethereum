@@ -30,6 +30,7 @@ use blockchain::BlockChain;
 use client::{BlockChainClient, Client};
 use engines::EthEngine;
 use error::Error;
+use spec::Spec;
 use ids::BlockId;
 use service::ClientIoMessage;
 
@@ -41,6 +42,7 @@ use util_error::UtilError;
 use bytes::Bytes;
 use journaldb::Algorithm;
 use kvdb_rocksdb::{Database, DatabaseConfig};
+use devtools::RandomTempPath;
 use snappy;
 
 /// Helper for removing directories in case of error.
@@ -282,6 +284,25 @@ impl Service {
 
 		Ok(service)
 	}
+
+    /// Test stub function to build a minimal snapshot service
+    pub fn new_test() -> Result<Self, Error> {
+	    let spec = Spec::new_null();
+	    let path = RandomTempPath::create_dir();
+	    let path = path.as_path().clone();
+
+	    let service_params = ServiceParams {
+	    	engine: spec.engine.clone(),
+	    	genesis_block: spec.genesis_block(),
+	    	db_config: DatabaseConfig::with_columns(::db::NUM_COLUMNS),
+	    	pruning: ::journaldb::Algorithm::Archive,
+	    	channel: IoChannel::disconnected(),
+	    	snapshot_root: path.clone(),
+	    	db_restore: Arc::new(NoopDBRestore),
+	    };
+
+	    Service::new(service_params)
+    }
 
 	// get the current snapshot dir.
 	fn snapshot_dir(&self) -> PathBuf {
@@ -618,6 +639,18 @@ impl Drop for Service {
 	}
 }
 
+/// Test struct for a stub implementation of DatabaseRestore trait
+/// shared across crates, should be moved to external parity-test helper crate
+pub struct NoopDBRestore;
+
+/// Implement DatabaseRestore for a stub of the restore_db() function
+/// shared across crates, should be moved to external parity-test helper crate
+impl DatabaseRestore for NoopDBRestore {
+	fn restore_db(&self, _new_db: &str) -> Result<(), Error> {
+		Ok(())
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
@@ -626,16 +659,9 @@ mod tests {
 	use devtools::RandomTempPath;
 	use tests::helpers::get_test_spec;
 	use journaldb::Algorithm;
-	use error::Error;
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
 
-	struct NoopDBRestore;
-	impl DatabaseRestore for NoopDBRestore {
-		fn restore_db(&self, _new_db: &str) -> Result<(), Error> {
-			Ok(())
-		}
-	}
 
 	#[test]
 	fn sends_async_messages() {

@@ -191,7 +191,7 @@ fn random_temp_path() -> PathBuf {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 	use rustc_hex::FromHex;
 	use std::sync::{Arc, mpsc};
 	use parking_lot::Mutex;
@@ -203,7 +203,7 @@ mod tests {
 
 
 	#[derive(Clone)]
-	struct FakeFetch {
+	pub struct FakeFetch {
 		return_success: bool
 	}
 

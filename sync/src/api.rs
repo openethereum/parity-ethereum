@@ -308,7 +308,7 @@ impl SyncProvider for EthSync {
 	}
 }
 
-struct SyncProtocolHandler {
+pub struct SyncProtocolHandler {
 	/// Shared blockchain client.
 	chain: Arc<BlockChainClient>,
 	/// Shared snapshot service.
@@ -438,7 +438,7 @@ impl ChainNotify for EthSync {
 
 /// PIP event handler.
 /// Simply queues transactions from light client peers.
-struct TxRelay(Arc<BlockChainClient>);
+pub struct TxRelay(Arc<BlockChainClient>);
 
 impl LightHandler for TxRelay {
 	fn on_transactions(&self, ctx: &EventContext, relay: &[::ethcore::transaction::UnverifiedTransaction]) {

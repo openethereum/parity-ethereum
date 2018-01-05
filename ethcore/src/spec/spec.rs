@@ -770,6 +770,11 @@ impl Spec {
 		load_bundled!("tendermint")
 	}
 
+    /// Create a new Spec with Kovan testnet using the AuthorityRound consensuse engine (not requiring work).
+    pub fn new_test_kovan() -> Self {
+            load_bundled!("ethereum/kovan")
+    }
+
 	/// TestList.sol used in both specs: https://github.com/paritytech/contracts/pull/30/files
 	/// Accounts with secrets keccak("0") and keccak("1") are initially the validators.
 	/// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine
@@ -801,6 +806,11 @@ impl Spec {
 	pub fn new_pow_test_spec() -> Self {
 		load_bundled!("ethereum/olympic")
 	}
+
+    /// Create a new spec for Operations contract
+    pub fn new_operations_test_spec() -> Self {
+        load_bundled!("operations")
+    }
 }
 
 #[cfg(test)]
