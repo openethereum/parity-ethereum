@@ -59,7 +59,7 @@ module.exports = {
       },
       {
         test: /\.js$/,
-        include: /(material-chip-input|ethereumjs-tx)/,
+        include: /(material-chip-input|ethereumjs-tx|ethereumjs-util)/,
         use: 'babel-loader'
       },
       {
@@ -80,19 +80,6 @@ module.exports = {
               root: path.resolve(__dirname, '../assets/images'),
               attrs: ['img:src', 'link:href']
             }
-          }
-        ]
-      },
-      {
-        test: /\.md$/,
-        use: [
-          {
-            loader: 'html-loader',
-            options: {}
-          },
-          {
-            loader: 'markdown-loader',
-            options: {}
           }
         ]
       },
