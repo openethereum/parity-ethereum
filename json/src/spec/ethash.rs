@@ -125,6 +125,14 @@ pub struct EthashParams {
 	/// EIP-649 base reward.
 	#[serde(rename="eip649Reward")]
 	pub eip649_reward: Option<Uint>,
+
+	/// EXPIP-2 block height
+	#[serde(rename="expip2Transition")]
+	pub expip2_transition: Option<Uint>,
+
+	/// EXPIP-2 duration limit
+	#[serde(rename="expip2DurationLimit")]
+	pub expip2_duration_limit: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
@@ -241,6 +249,8 @@ mod tests {
 				eip649_transition: None,
 				eip649_delay: None,
 				eip649_reward: None,
+				expip2_transition: None,
+				expip2_duration_limit: None,
 			}
 		});
 	}
@@ -287,6 +297,8 @@ mod tests {
 				eip649_transition: None,
 				eip649_delay: None,
 				eip649_reward: None,
+				expip2_transition: None,
+				expip2_duration_limit: None,
 			}
 		});
 	}

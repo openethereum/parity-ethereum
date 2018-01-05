@@ -1,0 +1,92 @@
+{
+	"name": "Expanse",
+	"dataDir": "expanse",
+	"engine": {
+		"Ethash": {
+			"params": {
+				"minimumDifficulty": "0x020000",
+				"difficultyBoundDivisor": "0x0800",
+				"difficultyIncrementDivisor": "0x3C",
+				"durationLimit": "0x3C",
+				"blockReward": "0x6f05b59d3b200000",
+				"homesteadTransition": "0x30d40",
+				"difficultyHardforkTransition": "0x59d9",
+				"difficultyHardforkBoundDivisor": "0x0200",
+				"bombDefuseTransition": "0x30d40",
+				"eip150Transition": "0x927C0",
+				"eip160Transition": "0x927C0",
+				"eip161abcTransition": "0x927C0",
+				"eip161dTransition": "0x927C0",
+				"eip100bTransition": "0xC3500",
+				"metropolisDifficultyIncrementDivisor": "0x1E",
+				"eip649Transition": "0xC3500",
+				"eip649Reward": "0x3782DACE9D900000",
+				"expip2Transition": "0xC3500",
+				"expip2DurationLimit": "0x1E"
+			}
+		}
+	},
+	"params": {
+		"gasLimitBoundDivisor": "0x0400",
+		"registrar" : "0x6c221ca53705f3497ec90ca7b84c59ae7382fc21",
+		"accountStartNonce": "0x00",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x1388",
+		"networkID": "0x1",
+		"chainID": "0x2",
+		"forkBlock": "0xDBBA0",
+		"forkCanonHash": "0x8e7bed51e24f5174090408664ac476b90b5e1199a947af7442f1ac88263fc8c7",
+		"subprotocolName": "exp",
+		"eip98Transition": "0x7fffffffffffff",
+		"eip86Transition": "0x7fffffffffffff",
+		"eip155Transition": "0x927C0",
+		"eip140Transition": "0xC3500",
+		"eip211Transition": "0xC3500",
+		"eip214Transition": "0xC3500",
+		"eip658Transition": "0xC3500"
+	},
+	"genesis": {
+		"seal": {
+			"ethereum": {
+				"nonce": "0x214652414e4b4f21",
+				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+			}
+		},
+		"difficulty": "0x40000000",
+		"author": "0x93decab0cd745598860f782ac1e8f046cb99e898",
+		"timestamp": "0x00",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"extraData": "0x4672616e6b6f497346726565646f6d",
+		"gasLimit": "0x1388"
+	},
+	"nodes": [
+		"enode://7f335a047654f3e70d6f91312a7cf89c39704011f1a584e2698250db3d63817e74b88e26b7854111e16b2c9d0c7173c05419aeee2d0321850227b126d8b1be3f@46.101.156.249:42786",
+		"enode://df872f81e25f72356152b44cab662caf1f2e57c3a156ecd20e9ac9246272af68a2031b4239a0bc831f2c6ab34733a041464d46b3ea36dce88d6c11714446e06b@178.62.208.109:42786",
+		"enode://96d3919b903e7f5ad59ac2f73c43be9172d9d27e2771355db03fd194732b795829a31fe2ea6de109d0804786c39a807e155f065b4b94c6fce167becd0ac02383@45.55.22.34:42786",
+		"enode://5f6c625bf287e3c08aad568de42d868781e961cbda805c8397cfb7be97e229419bef9a5a25a75f97632787106bba8a7caf9060fab3887ad2cfbeb182ab0f433f@46.101.182.53:42786",
+		"enode://d33a8d4c2c38a08971ed975b750f21d54c927c0bf7415931e214465a8d01651ecffe4401e1db913f398383381413c78105656d665d83f385244ab302d6138414@128.199.183.48:42786",
+		"enode://f6f0d6b9b7d02ec9e8e4a16e38675f3621ea5e69860c739a65c1597ca28aefb3cec7a6d84e471ac927d42a1b64c1cbdefad75e7ce8872d57548ddcece20afdd1@159.203.64.95:42786"
+	],
+	"accounts": {
+		"0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": "0xC3500", "pricing": { "modexp": { "divisor": 20 } } } },
+		"0000000000000000000000000000000000000006": { "builtin": { "name": "alt_bn128_add", "activate_at": "0xC3500", "pricing": { "linear": { "base": 500, "word": 0 } } } },
+		"0000000000000000000000000000000000000007": { "builtin": { "name": "alt_bn128_mul", "activate_at": "0xC3500", "pricing": { "linear": { "base": 40000, "word": 0 } } } },
+		"0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "activate_at": "0xC3500", "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } },
+		"bb94f0ceb32257275b2a7a9c094c13e469b4563e": {
+			"balance": "10000000000000000000000000"
+		},
+		"15656715068ab0dbdf0ab00748a8a19e40f28192": {
+			"balance": "1000000000000000000000000"
+		},
+		"c075fa11f85bda3aaba67106226aaf086ac16f4e": {
+			"balance": "100000000000000000000000"
+		},
+		"93decab0cd745598860f782ac1e8f046cb99e898": {
+			"balance": "10000000000000000000000"
+		}
+	}
+}
