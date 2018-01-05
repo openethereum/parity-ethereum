@@ -4,7 +4,6 @@ stages:
   - push-release
   - build
 variables:
-  GIT_DEPTH: "3"
   SIMPLECOV: "true"
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
