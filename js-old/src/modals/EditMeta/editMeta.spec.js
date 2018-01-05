@@ -75,10 +75,12 @@ describe('modals/EditMeta', () => {
       });
 
       it('adds newError on failure', () => {
-        sinon.stub(instance.store, 'save').rejects('test');
+        const error = new Error('test');
+
+        sinon.stub(instance.store, 'save').rejects(error);
 
         return instance.onSave().then(() => {
-          expect(reduxStore.dispatch).to.have.been.calledWith({ error: new Error('test'), type: 'newError' });
+          expect(reduxStore.dispatch).to.have.been.calledWith({ error, type: 'newError' });
           instance.store.save.restore();
         });
       });

@@ -13,23 +13,25 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-// test only
-/**
- * Run `DAPPS_URL="/" PARITY_URL="127.0.0.1:8546" NODE_ENV="production" npm run build`
- * to build the project ; use this server to test that the minifed
- * version is working (this is a simple proxy server)
- */
 
-var express = require('express');
+const path = require('path');
+const ServiceWorkerWebpackPlugin = require('serviceworker-webpack-plugin');
 
-var Shared = require('./shared');
-
-var app = express();
-
-Shared.addProxies(app);
-
-app.use(express.static('.build'));
-
-var server = app.listen(process.env.PORT || 3000, function () {
-  console.log('Listening on port', server.address().port);
-});
+module.exports = {
+  html: {
+    favicon: path.resolve(__dirname, './src/assets/images/parity-logo-black-no-text.png'),
+    title: 'Parity'
+  },
+  alias: {
+    '~/api/local': path.resolve(__dirname, './src/api/local/localAccountsMiddleware.js'),
+    '~': path.resolve(__dirname, './src'),
+    'keythereum': path.resolve(__dirname, './node_modules/keythereum/dist/keythereum')
+  },
+  webpack: {
+    plugins: [
+      new ServiceWorkerWebpackPlugin({
+        entry: path.join(__dirname, './src/serviceWorker.js')
+      })
+    ]
+  }
+};

@@ -23,6 +23,11 @@ import store from 'store';
 import { sha3 } from '@parity/api/lib/util/sha3';
 import SolidityUtils from '~/util/solidity';
 
+import HumanStandardTokenSource from '!raw-loader!~/contracts/snippets/human-standard-token.sol';
+import TokenSource from '!raw-loader!~/contracts/snippets/token.sol';
+import StandardTokenSource from '!raw-loader!~/contracts/snippets/standard-token.sol';
+import WalletSource from '!raw-loader!~/contracts/snippets/wallet.sol';
+
 const SOLIDITY_LIST_URL = 'https://rawgit.com/ethereum/solc-bin/gh-pages/bin/list.json';
 const WRITE_CONTRACT_STORE_KEY = '_parity::writeContractStore';
 
@@ -36,7 +41,7 @@ const SNIPPETS = {
       />
     ),
     id: 'snippet0',
-    sourcecode: require('raw-loader!../../contracts/snippets/token.sol')
+    sourcecode: TokenSource
   },
   snippet1: {
     name: 'StandardToken.sol',
@@ -47,7 +52,7 @@ const SNIPPETS = {
       />
     ),
     id: 'snippet1',
-    sourcecode: require('raw-loader!../../contracts/snippets/standard-token.sol')
+    sourcecode: StandardTokenSource
   },
   snippet2: {
     name: 'HumanStandardToken.sol',
@@ -58,7 +63,7 @@ const SNIPPETS = {
       />
     ),
     id: 'snippet2',
-    sourcecode: require('raw-loader!../../contracts/snippets/human-standard-token.sol')
+    sourcecode: HumanStandardTokenSource
   },
   snippet3: {
     name: 'Wallet.sol',
@@ -69,7 +74,7 @@ const SNIPPETS = {
       />
     ),
     id: 'snippet3',
-    sourcecode: require('raw-loader!../../contracts/snippets/wallet.sol')
+    sourcecode: WalletSource
   }
 };
 

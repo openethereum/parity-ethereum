@@ -19,7 +19,7 @@ import BigNumber from 'bignumber.js';
 
 import { hashToImageUrl } from '~/redux/util';
 import { sha3 } from '@parity/api/lib/util/sha3';
-import imagesEthereum from '~/../assets/images/contracts/ethereum-black-64x64.png';
+import imagesEthereum from '~/assets/images/contracts/ethereum-black-64x64.png';
 import {
   tokenAddresses as tokenAddressesBytcode,
   tokensBalances as tokensBalancesBytecode

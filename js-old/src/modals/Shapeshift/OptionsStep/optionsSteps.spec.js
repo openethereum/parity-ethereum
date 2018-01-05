@@ -55,6 +55,7 @@ describe('modals/Shapeshift/OptionsStep', () => {
     beforeEach(() => {
       store.setCoins([{ symbol: 'BTC', name: 'Bitcoin' }]);
       store.toggleAcceptTerms();
+      component.update();
     });
 
     describe('terms Checkbox', () => {
@@ -68,6 +69,7 @@ describe('modals/Shapeshift/OptionsStep', () => {
 
       beforeEach(() => {
         store.setWarning(WARNING_NO_PRICE);
+        component.update();
         warning = component.find('Warning');
       });
 

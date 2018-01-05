@@ -192,7 +192,7 @@ describe('views/Status/middleware/localstorage', () => {
 
       localStore.remove(key);
       localStore.set(key, [val]);
-      expect(localStore.get(key)).to.be.defined;
+      expect(localStore.get(key)).not.to.be.undefined;
 
       // when
       cut.unshift(key, newVal);

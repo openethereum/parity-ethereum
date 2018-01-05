@@ -38,7 +38,9 @@ export default class Ledger {
 
     this._isSupported = false;
 
-    this.checkJSSupport();
+    this.checkJSSupport().catch((error) => {
+      console.error('Ledger not supported:', error.message);
+    });
   }
 
   // FIXME: Until we have https support from Parity u2f will not work. Here we mark it completely

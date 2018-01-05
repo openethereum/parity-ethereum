@@ -23,7 +23,7 @@ import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import store from 'store';
 
-import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
+import imagesEthcoreBlock from '~/assets/images/parity-logo-white-no-text.svg';
 import { AccountCard, Badge, Button, ContainerTitle, IdentityIcon, ParityBackground, SelectionList, StatusIndicator } from '~/ui';
 import { CancelIcon, FingerprintIcon } from '~/ui/Icons';
 import DappsStore from '~/views/Dapps/dappsStore';

@@ -15,3 +15,4 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 require('babel-register')();
+require('babel-polyfill');

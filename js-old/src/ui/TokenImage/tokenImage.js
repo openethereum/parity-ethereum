@@ -19,7 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { fetchTokens } from '~/redux/providers/tokensActions';
-import unknownImage from '~/../assets/images/contracts/unknown-64x64.png';
+import unknownImage from '~/assets/images/contracts/unknown-64x64.png';
 
 class TokenImage extends Component {
   static contextTypes = {

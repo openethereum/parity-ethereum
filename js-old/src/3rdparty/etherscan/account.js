@@ -15,11 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
+import util from '@parity/api/lib/util';
+
+import { call } from './call';
 
 const PAGE_SIZE = 25;
-
-import util from '@parity/api/lib/util';
-import { call } from './call';
 
 function _call (method, params, test, netVersion) {
   return call('account', method, params, test, netVersion);

@@ -79,10 +79,12 @@ describe('modals/PasswordManager', () => {
       });
 
       it('adds newError on failure', () => {
-        sinon.stub(instance.store, 'changePassword').rejects('test');
+        const error = new Error('test');
+
+        sinon.stub(instance.store, 'changePassword').rejects(error);
 
         return instance.changePassword().then(() => {
-          expect(reduxStore.dispatch).to.have.been.calledWith({ error: new Error('test'), type: 'newError' });
+          expect(reduxStore.dispatch).to.have.been.calledWith({ error, type: 'newError' });
           instance.store.changePassword.restore();
         });
       });
@@ -99,10 +101,12 @@ describe('modals/PasswordManager', () => {
       });
 
       it('adds newError on failure', () => {
-        sinon.stub(instance.store, 'testPassword').rejects('test');
+        const error = new Error('test');
+
+        sinon.stub(instance.store, 'testPassword').rejects(error);
 
         return instance.testPassword().then(() => {
-          expect(reduxStore.dispatch).to.have.been.calledWith({ error: new Error('test'), type: 'newError' });
+          expect(reduxStore.dispatch).to.have.been.calledWith({ error, type: 'newError' });
           instance.store.testPassword.restore();
         });
       });

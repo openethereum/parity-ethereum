@@ -17,7 +17,7 @@
 import Push from 'push.js';
 import BigNumber from 'bignumber.js';
 
-import unknownIcon from '~/../assets/images/contracts/unknown-64x64.png';
+import unknownIcon from '~/assets/images/contracts/unknown-64x64.png';
 
 export function notifyTransaction (account, token, _value, onClick) {
   const name = account.name || account.address;

@@ -37,7 +37,7 @@ export function stubGlobals () {
   globalContractsGet = Contracts.get;
   globalFetch = global.fetch;
 
-  sinon.stub(Contracts, 'get', () => contracts);
+  sinon.stub(Contracts, 'get').callsFake(() => contracts);
   sinon.stub(global, 'fetch').resolves({
     ok: true,
     json: sinon.stub().resolves({
