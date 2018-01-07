@@ -18,15 +18,10 @@ import { Tab as MUITab } from 'material-ui/Tabs';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Badge } from '~/ui';
-
 import styles from '../tabBar.css';
-
-const SIGNER_ID = 'signer';
 
 export default class Tab extends Component {
   static propTypes = {
-    pendings: PropTypes.number,
     view: PropTypes.object.isRequired
   };
 
@@ -37,9 +32,7 @@ export default class Tab extends Component {
       <MUITab
         icon={ view.icon }
         label={
-          view.id === SIGNER_ID
-            ? this.renderSignerLabel()
-            : this.renderLabel(view.id)
+          this.renderLabel(view.id)
         }
       />
     );
@@ -54,22 +47,5 @@ export default class Tab extends Component {
         { bubble }
       </div>
     );
-  }
-
-  renderSignerLabel () {
-    const { pendings } = this.props;
-    let bubble;
-
-    if (pendings) {
-      bubble = (
-        <Badge
-          color='red'
-          className={ styles.labelBubble }
-          value={ pendings }
-        />
-      );
-    }
-
-    return this.renderLabel(SIGNER_ID, bubble);
   }
 }
