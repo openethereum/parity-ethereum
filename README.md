@@ -34,7 +34,7 @@ Parity comes with a built-in wallet. To access [Parity Wallet](http://web3.site/
 
 By default, Parity will also run a JSONRPC server on `127.0.0.1:8545` and a websockets server on `127.0.0.1:8546`. This is fully configurable and supports a number of APIs.
 
-If you run into an issue while using parity, feel free to file one in this repository or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help!
+If you run into an issue while using Parity, feel free to file one in this repository or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help!
 
 **For security-critical issues**, please refer to the security policy outlined in [SECURITY.MD](SECURITY.md).
 
@@ -69,7 +69,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 	$ rustup default stable-x86_64-pc-windows-msvc
   ```
 
-Once you have rustup, install parity or download and build from source
+Once you have rustup, install Parity or download and build from source
 
 ----
 
