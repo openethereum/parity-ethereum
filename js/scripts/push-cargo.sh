@@ -13,6 +13,7 @@ git config merge.ours.driver true
 git config user.email "$GITHUB_EMAIL"
 git config user.name "GitLab Build Bot"
 git remote set-url origin $GIT_PARITY > /dev/null 2>&1
+git checkout $BRANCH
 git reset --hard origin/$BRANCH 2>/dev/null
 git submodule update
 
