@@ -45,7 +45,6 @@
   },
   "devDependencies": {
     "@parity/dapp-console": "paritytech/dapp-console",
-    "@parity/dapp-dapp-accounts": "paritytech/dapp-dapp-accounts",
     "@parity/dapp-dapp-methods": "js-dist-paritytech/dapp-dapp-methods",
     "@parity/dapp-dapp-visible": "js-dist-paritytech/dapp-dapp-visible",
     "@parity/dapp-dappreg": "paritytech/dapp-dappreg",
@@ -147,7 +146,7 @@
     "@parity/plugin-signer-default": "paritytech/plugin-signer-default",
     "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware",
     "@parity/plugin-signer-qr": "paritytech/plugin-signer-qr",
-    "@parity/shared": "2.2.20",
+    "@parity/shared": "2.2.21",
     "@parity/ui": "3.0.22",
     "keythereum": "1.0.2",
     "lodash.flatten": "4.4.0",
