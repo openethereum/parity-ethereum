@@ -1,11 +1,40 @@
-## Parity [v1.8.6](https://github.com/paritytech/parity/releases/tag/v1.8.6) (2018-01-05)
+## Parity [v1.8.6](https://github.com/paritytech/parity/releases/tag/v1.8.6) (2018-01-09)
 
 Parity 1.8.6 fixes a critical issue with the database eventually filling up user's disks. Upgrading is highly recommended as it will significantly improve your user experience.
 
-Note, this release also removes the Expanse chain due to incompatibilties with the latest hard-fork on the network at block `800_000`. If you are still using Parity for Expanse you are on the wrong side of the fork!
+Note, this release also fixes consensus issues with the Expanse chain and enabling Byzantium. If you run Parity configured for Expanse, you might have to resync your chain after the upgrade.
 
 The full list of included changes:
 
+- Backports to beta ([#7434](https://github.com/paritytech/parity/pull/7434))
+  - Wait for future blocks in AuRa ([#7368](https://github.com/paritytech/parity/pull/7368))
+    - Mark future blocks as temporarily invalid.
+    - Don't check max.
+  - Fix tracing failed calls. ([#7412](https://github.com/paritytech/parity/pull/7412))
+  - Problem: sending any Whisper message fails ([#7421](https://github.com/paritytech/parity/pull/7421))
+  - Strict config parsing ([#7433](https://github.com/paritytech/parity/pull/7433))
+  - Problem: AuRa's unsafeties around step duration ([#7282](https://github.com/paritytech/parity/pull/7282))
+  - Remove expanse chain ([#7437](https://github.com/paritytech/parity/pull/7437))
+    - Remove expanse from available chains
+    - Remove all EXP references from old wallet
+    - Fix tests
+  - Remove expanse chain ([#7437](https://github.com/paritytech/parity/pull/7437))
+  - Expanse Byzantium update w/ correct metropolis difficulty increment divisor ([#7463](https://github.com/paritytech/parity/pull/7463))
+    - Byzantium Update for Expanse
+    - Expip2 changes - update duration limit
+    - Fix missing EXPIP-2 fields
+    - Format numbers as hex
+    - Fix compilation errors
+    - Group expanse chain spec fields together
+    - Set metropolisDifficultyIncrementDivisor for Expanse
+    - Revert #7437
+    - Add Expanse block 900_000 hash checkpoint
+  - Advance AuRa step as far as we can and prevent invalid blocks. ([#7451](https://github.com/paritytech/parity/pull/7451))
+    - Advance AuRa step as far as we can.
+    - Wait for future blocks.
+  - Fixed panic when io is not available for export block, closes [#7486](https://github.com/paritytech/parity/issue/7486) ([#7495](https://github.com/paritytech/parity/pull/7495))
+  - Update Parity Mainnet Bootnodes ([#7476](https://github.com/paritytech/parity/pull/7476))
+    - Replace the Azure HDD bootnodes with the new ones :)
 - Backport nonces reservations ([#7439](https://github.com/paritytech/parity/pull/7439))
   - Reserve nonces for signing ([#6834](https://github.com/paritytech/parity/pull/6834))
     - Nonce future - reserve and dispatch
@@ -19,18 +48,7 @@ The full list of included changes:
     - Create hashmap in RPC Apis
     - Garbage collect hashmap entries.
     - HashMap::retain
-- Backports to beta ([#7434](https://github.com/paritytech/parity/pull/7434))
-  - Wait for future blocks in AuRa ([#7368](https://github.com/paritytech/parity/pull/7368))
-    - Mark future blocks as temporarily invalid.
-    - Don't check max.
-  - Fix tracing failed calls. ([#7412](https://github.com/paritytech/parity/pull/7412))
-  - Problem: sending any Whisper message fails ([#7421](https://github.com/paritytech/parity/pull/7421))
-  - Strict config parsing ([#7433](https://github.com/paritytech/parity/pull/7433))
-  - Problem: AuRa's unsafeties around step duration ([#7282](https://github.com/paritytech/parity/pull/7282))
-  - Remove expanse chain ([#7437](https://github.com/paritytech/parity/pull/7437))
-    - Remove expanse from available chains
-    - Remove all EXP references from old wallet
-    - Fix tests
+- Bump beta to 1.8.6 ([#7442](https://github.com/paritytech/parity/pull/7442))
 - KVDB backports ([#7438](https://github.com/paritytech/parity/pull/7438))
   - Separated kvdb into 3 crates: kvdb, kvdb-memorydb && kvdb-rocksdb ([#6720](https://github.com/paritytech/parity/pull/6720))
     - Separated kvdb into 3 crates: kvdb, kvdb-memorydb && kvdb-rocksdb, ref [#6693](https://github.com/paritytech/parity/issues/6693)
