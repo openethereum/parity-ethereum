@@ -482,6 +482,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.transaction_queue.clone(),
 						self.secret_store.clone(),
 						self.cache.clone(),
+						self.gas_price_percentile,
 					);
 					handler.extend_with(Eth::to_delegate(client.clone()));
 
@@ -497,6 +498,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.sync.clone(),
 						self.cache.clone(),
 						self.remote.clone(),
+						self.gas_price_percentile,
 					);
 					self.client.add_listener(
 						Arc::downgrade(&client.handler()) as Weak<::light::client::LightChainNotify>
@@ -526,6 +528,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						signer,
 						self.dapps_address.clone(),
 						self.ws_address.clone(),
+						self.gas_price_percentile,
 					).to_delegate());
 
 					if !for_generic_pubsub {

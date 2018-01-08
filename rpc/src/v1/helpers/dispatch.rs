@@ -224,8 +224,8 @@ pub fn fetch_gas_price_corpus(
 				})
 			})
 			.map(move |prices| {
-				// produce a corpus from the vector, cache it, and return
-				// the median as the intended gas price.
+				// produce a corpus from the vector and cache it.
+				// It's later used to get a percentile for default gas price.
 				let corpus: ::stats::Corpus<_> = prices.into();
 				cache.lock().set_gas_price_corpus(corpus.clone());
 				corpus
