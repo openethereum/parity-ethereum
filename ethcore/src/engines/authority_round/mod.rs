@@ -424,7 +424,7 @@ impl AsMillis for Duration {
 
 impl AuthorityRound {
 	/// Create a new instance of AuthorityRound engine.
-	pub fn new(our_params: AuthorityRoundParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
+	pub fn new(params: CommonParams, our_params: AuthorityRoundParams, builtins: BTreeMap<Address, Builtin>) -> Result<Arc<Self>, Error> {
 		if our_params.step_duration == 0 {
 			error!(target: "engine", "Authority Round step duration can't be zero, aborting");
 			panic!("authority_round: step duration can't be zero")
@@ -1254,11 +1254,11 @@ mod tests {
 			maximum_uncle_count_transition: 0,
 			maximum_uncle_count: 0,
 			block_reward: Default::default(),
+			eip155_transition: 0,
+			registrar: Default::default(),
+			gas_limit_bound_divisor: 5.into(),
 		};
 
-		let mut c_params = ::spec::CommonParams::default();
-		c_params.gas_limit_bound_divisor = 5.into();
-		let machine = ::machine::EthereumMachine::regular(c_params, Default::default());
-		AuthorityRound::new(params, machine).unwrap();
+		AuthorityRound::new(Default::default(), params, Default::default()).unwrap();
 	}
 }

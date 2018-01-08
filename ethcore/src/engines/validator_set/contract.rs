@@ -168,7 +168,7 @@ mod tests {
 		header.set_author(v1);
 		header.set_number(2);
 		header.set_parent_hash(client.chain_info().best_block_hash);
-		assert!(client.engine().verify_block_external(&header).is_err());
+		assert!(client.engine().verify_block_external(&header, None).is_err());
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 0);
 
