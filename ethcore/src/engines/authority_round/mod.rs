@@ -132,11 +132,10 @@ impl Step {
 	}
 
 	fn check_future(&self, given: usize) -> Result<(), Option<OutOfBounds<u64>>> {
-		const VALID_STEP_DRIFT: usize = 1;
 		const REJECTED_STEP_DRIFT: usize = 4;
 
-		// Give one step slack if step is lagging, double vote is still not possible.
-		if given <= self.load() + VALID_STEP_DRIFT {
+		// Verify if the step is correct.
+		if given <= self.load() {
 			return Ok(());
 		}
 
@@ -148,11 +147,11 @@ impl Step {
 		if given > current + REJECTED_STEP_DRIFT {
 			Err(None)
 		// wait a bit for blocks in near future
-		} else if given > current + VALID_STEP_DRIFT {
+		} else if given > current {
 			let d = self.duration as u64;
 			Err(Some(OutOfBounds {
 				min: None,
-				max: Some(d * (current + VALID_STEP_DRIFT) as u64),
+				max: Some(d * current as u64),
 				found: d * given as u64,
 			}))
 		} else {
