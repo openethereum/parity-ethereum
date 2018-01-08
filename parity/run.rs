@@ -87,6 +87,7 @@ pub struct RunCmd {
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
 	pub miner_options: MinerOptions,
+	pub gas_price_percentile: usize,
 	pub ntp_servers: Vec<String>,
 	pub ws_conf: rpc::WsConfiguration,
 	pub http_conf: rpc::HttpConfiguration,
@@ -358,6 +359,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		geth_compatibility: cmd.geth_compatibility,
 		remote: event_loop.remote(),
 		whisper_rpc: whisper_factory,
+		gas_price_percentile: cmd.gas_price_percentile,
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -761,6 +763,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		fetch: fetch.clone(),
 		remote: event_loop.remote(),
 		whisper_rpc: whisper_factory,
+		gas_price_percentile: cmd.gas_price_percentile,
 	});
 
 	let dependencies = rpc::Dependencies {

@@ -61,7 +61,7 @@ impl Default for SigningTester {
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 		let mut io = IoHandler::default();
 
-		let dispatcher = FullDispatcher::new(client.clone(), miner.clone(), reservations);
+		let dispatcher = FullDispatcher::new(client.clone(), miner.clone(), reservations, 50);
 
 		let remote = Remote::new_thread_per_future();
 

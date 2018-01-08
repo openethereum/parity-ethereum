@@ -153,7 +153,7 @@ impl EthTester {
 
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 
-		let dispatcher = FullDispatcher::new(client.clone(), miner_service.clone(), reservations);
+		let dispatcher = FullDispatcher::new(client.clone(), miner_service.clone(), reservations, 50);
 		let eth_sign = SigningUnsafeClient::new(
 			&opt_account_provider,
 			dispatcher,

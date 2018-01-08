@@ -56,7 +56,7 @@ fn setup() -> PersonalTester {
 	let miner = miner_service();
 	let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 
-	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations);
+	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations, 50);
 	let personal = PersonalClient::new(opt_accounts, dispatcher, false);
 
 	let mut io = IoHandler::default();
@@ -112,7 +112,7 @@ fn invalid_password_test(method: &str)
 			"value": "0x9184e72a"
 		}, "password321"],
 		"id": 1
-	}"#;	
+	}"#;
 
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32021,"message":"Account password is invalid or account does not exist.","data":"SStore(InvalidPassword)"},"id":1}"#;
 
