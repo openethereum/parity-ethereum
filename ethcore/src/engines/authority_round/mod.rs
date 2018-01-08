@@ -49,12 +49,16 @@ mod finality;
 pub struct AuthorityRoundParams {
 	/// Gas limit divisor.
 	pub gas_limit_bound_divisor: U256,
-	/// Time to wait before next block or authority switching.
-	pub step_duration: Duration,
 	/// Block reward.
 	pub block_reward: U256,
 	/// Namereg contract address.
 	pub registrar: Address,
+	/// Time to wait before next block or authority switching,
+	/// in seconds.
+	///
+	/// Deliberately typed as u16 as too high of a value leads
+	/// to slow block issuance.
+	pub step_duration: u16,
 	/// Starting step,
 	pub start_step: Option<u64>,
 	/// Valid validators.
@@ -73,11 +77,18 @@ pub struct AuthorityRoundParams {
 	pub maximum_uncle_count: usize,
 }
 
+const U16_MAX: usize = ::std::u16::MAX as usize;
+
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 	fn from(p: ethjson::spec::AuthorityRoundParams) -> Self {
+		let mut step_duration_usize: usize = p.step_duration.into();
+		if step_duration_usize > U16_MAX {
+			step_duration_usize = U16_MAX;
+			warn!(target: "engine", "step_duration is too high ({}), setting it to {}", step_duration_usize, U16_MAX);
+		}
 		AuthorityRoundParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			step_duration: Duration::from_secs(p.step_duration.into()),
+			step_duration: step_duration_usize as u16,
 			validators: new_validator_set(p.validators),
 			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
@@ -97,36 +108,74 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 struct Step {
 	calibrate: bool, // whether calibration is enabled.
 	inner: AtomicUsize,
-	duration: Duration,
+	duration: u16,
 }
 
 impl Step {
 	fn load(&self) -> usize { self.inner.load(AtomicOrdering::SeqCst) }
 	fn duration_remaining(&self) -> Duration {
 		let now = unix_now();
-		let step_end = self.duration * (self.load() as u32 + 1);
-		if step_end > now {
-			step_end - now
-		} else {
-			Duration::from_secs(0)
+		let expected_seconds = (self.load() as u64)
+			.checked_add(1)
+			.and_then(|ctr| ctr.checked_mul(self.duration as u64))
+			.map(Duration::from_secs);
+
+		match expected_seconds {
+			Some(step_end) if step_end > now => step_end - now,
+			Some(_) => Duration::from_secs(0),
+			None => {
+				let ctr = self.load();
+				error!(target: "engine", "Step counter is too high: {}, aborting", ctr);
+				panic!("step counter is too high: {}", ctr)
+			},
 		}
+
 	}
+
 	fn increment(&self) {
-		self.inner.fetch_add(1, AtomicOrdering::SeqCst);
+		use std::usize;
+		// fetch_add won't panic on overflow but will rather wrap
+		// around, leading to zero as the step counter, which might
+		// lead to unexpected situations, so it's better to shut down.
+		if self.inner.fetch_add(1, AtomicOrdering::SeqCst) == usize::MAX {
+			error!(target: "engine", "Step counter is too high: {}, aborting", usize::MAX);
+			panic!("step counter is too high: {}", usize::MAX);
+		}
+
 	}
+
 	fn calibrate(&self) {
 		if self.calibrate {
-			let new_step = unix_now().as_secs() / self.duration.as_secs();
+			let new_step = unix_now().as_secs() / (self.duration as u64);
 			self.inner.store(new_step as usize, AtomicOrdering::SeqCst);
 		}
 	}
-	fn is_future(&self, given: usize) -> bool {
-		if given > self.load() + 1 {
-			// Make absolutely sure that the given step is correct.
-			self.calibrate();
-			given > self.load() + 1
+
+	fn check_future(&self, given: usize) -> Result<(), Option<OutOfBounds<u64>>> {
+		const REJECTED_STEP_DRIFT: usize = 4;
+
+		// Verify if the step is correct.
+		if given <= self.load() {
+			return Ok(());
+		}
+
+		// Make absolutely sure that the given step is incorrect.
+		self.calibrate();
+		let current = self.load();
+
+		// reject blocks too far in the future
+		if given > current + REJECTED_STEP_DRIFT {
+			Err(None)
+		// wait a bit for blocks in near future
+		} else if given > current {
+			let d = self.duration as u64;
+			Err(Some(OutOfBounds {
+				min: None,
+				max: Some(d * current as u64),
+				found: d * given as u64,
+			}))
 		} else {
-			false
+			Ok(())
 		}
 	}
 }
@@ -322,22 +371,28 @@ fn verify_external<F: Fn(Report)>(header: &Header, validators: &ValidatorSet, st
 {
 	let header_step = header_step(header)?;
 
-	// Give one step slack if step is lagging, double vote is still not possible.
-	if step.is_future(header_step) {
-		trace!(target: "engine", "verify_block_external: block from the future");
-		report(Report::Benign(*header.author(), header.number()));
-		Err(BlockError::InvalidSeal)?
-	} else {
-		let proposer_signature = header_signature(header)?;
-		let correct_proposer = validators.get(header.parent_hash(), header_step);
-		let is_invalid_proposer = *header.author() != correct_proposer ||
-			!verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
+	match step.check_future(header_step) {
+		Err(None) => {
+			trace!(target: "engine", "verify_block_external: block from the future");
+			report(Report::Benign(*header.author(), header.number()));
+			return Err(BlockError::InvalidSeal.into())
+		},
+		Err(Some(oob)) => {
+			trace!(target: "engine", "verify_block_external: block too early");
+			return Err(BlockError::TemporarilyInvalid(oob).into())
+		},
+		Ok(_) => {
+			let proposer_signature = header_signature(header)?;
+			let correct_proposer = validators.get(header.parent_hash(), header_step);
+			let is_invalid_proposer = *header.author() != correct_proposer ||
+				!verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
 
-		if is_invalid_proposer {
-			trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
-			Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
-		} else {
-			Ok(())
+			if is_invalid_proposer {
+				trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
+				Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
+			} else {
+				Ok(())
+			}
 		}
 	}
 }
@@ -370,8 +425,12 @@ impl AsMillis for Duration {
 impl AuthorityRound {
 	/// Create a new instance of AuthorityRound engine.
 	pub fn new(params: CommonParams, our_params: AuthorityRoundParams, builtins: BTreeMap<Address, Builtin>) -> Result<Arc<Self>, Error> {
+		if our_params.step_duration == 0 {
+			error!(target: "engine", "Authority Round step duration can't be zero, aborting");
+			panic!("authority_round: step duration can't be zero")
+		}
 		let should_timeout = our_params.start_step.is_none();
-		let initial_step = our_params.start_step.unwrap_or_else(|| (unix_now().as_secs() / our_params.step_duration.as_secs())) as usize;
+		let initial_step = our_params.start_step.unwrap_or_else(|| (unix_now().as_secs() / (our_params.step_duration as u64))) as usize;
 		let engine = Arc::new(
 			AuthorityRound {
 				params: params,
@@ -519,6 +578,7 @@ impl Engine for AuthorityRound {
 			.expect("Header has been verified; qed").into();
 
 		let step = self.step.load();
+
 		let expected_diff = calculate_score(parent_step, step.into());
 
 		if header.difficulty() != &expected_diff {
@@ -558,6 +618,13 @@ impl Engine for AuthorityRound {
 		};
 
 		if is_step_proposer(validators, header.parent_hash(), step, header.author()) {
+			// this is guarded against by `can_propose` unless the block was signed
+			// on the same step (implies same key) and on a different node.
+			if parent_step == step.into() {
+				warn!("Attempted to seal block on the same step as parent. Is this authority sealing with more than one node?");
+				return Seal::None;
+			}
+
 			if let Ok(signature) = self.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 
@@ -1099,9 +1166,9 @@ mod tests {
 		let last_benign = Arc::new(AtomicUsize::new(0));
 		let params = AuthorityRoundParams {
 			gas_limit_bound_divisor: U256::from_str("400").unwrap(),
-			step_duration: Default::default(),
 			block_reward: Default::default(),
 			registrar: Default::default(),
+			step_duration: 1,
 			start_step: Some(1),
 			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
 			validate_score_transition: 0,
@@ -1137,9 +1204,9 @@ mod tests {
 		let last_benign = Arc::new(AtomicUsize::new(0));
 		let params = AuthorityRoundParams {
 			gas_limit_bound_divisor: 5.into(),
-			step_duration: Default::default(),
 			block_reward: Default::default(),
 			registrar: Default::default(),
+			step_duration: 1,
 			start_step: Some(1),
 			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
 			validate_score_transition: 0,
@@ -1155,5 +1222,51 @@ mod tests {
 		assert_eq!(aura.maximum_uncle_count(0), 2);
 		assert_eq!(aura.maximum_uncle_count(1), 0);
 		assert_eq!(aura.maximum_uncle_count(100), 0);
+	}
+
+    #[test]
+    #[should_panic(expected="counter is too high")]
+    fn test_counter_increment_too_high() {
+        use super::Step;
+        let step = Step {
+            calibrate: false,
+            inner: AtomicUsize::new(::std::usize::MAX),
+            duration: 1,
+        };
+        step.increment();
+	}
+
+	#[test]
+	#[should_panic(expected="counter is too high")]
+	fn test_counter_duration_remaining_too_high() {
+		use super::Step;
+		let step = Step {
+			calibrate: false,
+			inner: AtomicUsize::new(::std::usize::MAX),
+			duration: 1,
+		};
+		step.duration_remaining();
+	}
+
+	#[test]
+	#[should_panic(expected="authority_round: step duration can't be zero")]
+	fn test_step_duration_zero() {
+		let last_benign = Arc::new(AtomicUsize::new(0));
+		let params = AuthorityRoundParams {
+			step_duration: 0,
+			start_step: Some(1),
+			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
+			validate_score_transition: 0,
+			validate_step_transition: 0,
+			immediate_transitions: true,
+			maximum_uncle_count_transition: 0,
+			maximum_uncle_count: 0,
+			block_reward: Default::default(),
+			eip155_transition: 0,
+			registrar: Default::default(),
+			gas_limit_bound_divisor: 5.into(),
+		};
+
+		AuthorityRound::new(Default::default(), params, Default::default()).unwrap();
 	}
 }

@@ -26,7 +26,7 @@ pub struct AuthorityRoundParams {
 	/// Gas limit divisor.
 	#[serde(rename="gasLimitBoundDivisor")]
 	pub gas_limit_bound_divisor: Uint,
-	/// Block duration.
+	/// Block duration, in seconds.
 	#[serde(rename="stepDuration")]
 	pub step_duration: Uint,
 	/// Valid authorities
