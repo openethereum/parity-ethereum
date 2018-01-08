@@ -60,11 +60,10 @@ class IdentityIcon extends Component {
   }
 
   updateIcon (_address, images) {
-    const { api } = this.context;
     const { button, inline, tiny } = this.props;
 
     if (images[_address]) {
-      this.setState({ iconsrc: `${api.dappsUrl}${images[_address]}` });
+      this.setState({ iconsrc: images[_address] });
       return;
     }
 

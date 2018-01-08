@@ -14,18 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use futures::{future, Future};
 use parking_lot::RwLock;
 use ethcore::filter::Filter;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethkey::{Public, Signature, public_to_address};
-use ethsync::SyncProvider;
 use native_contracts::SecretStoreService;
 use hash::keccak;
 use bigint::hash::H256;
 use bigint::prelude::U256;
 use listener::service_contract_listener::ServiceTask;
+use trusted_client::TrustedClient;
 use {ServerKeyId, NodeKeyPair, ContractAddress};
 
 /// Name of the SecretStore contract in the registry.
@@ -34,18 +34,19 @@ const SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service";
 /// Key server has been added to the set.
 const SERVER_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyRequested(bytes32,uint256)";
 
+/// Number of confirmations required before request can be processed.
+const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
+
 lazy_static! {
 	static ref SERVER_KEY_REQUESTED_EVENT_NAME_HASH: H256 = keccak(SERVER_KEY_REQUESTED_EVENT_NAME);
 }
 
 /// Service contract trait.
 pub trait ServiceContract: Send + Sync {
-	/// Update contract.
-	fn update(&self);
-	/// Is contract installed && up-to-date (i.e. chain is synced)?
-	fn is_actual(&self) -> bool;
-	/// Read contract logs from given blocks. Returns topics of every entry.
-	fn read_logs(&self, first_block: H256, last_block: H256) -> Box<Iterator<Item=Vec<H256>>>;
+	/// Update contract when new blocks are enacted. Returns true if contract is installed && up-to-date (i.e. chain is synced).
+	fn update(&self) -> bool;
+	/// Read recent contract logs. Returns topics of every entry.
+	fn read_logs(&self) -> Box<Iterator<Item=Vec<H256>>>;
 	/// Publish generated key.
 	fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>>;
 	/// Publish server key.
@@ -55,15 +56,21 @@ pub trait ServiceContract: Send + Sync {
 /// On-chain service contract.
 pub struct OnChainServiceContract {
 	/// Blockchain client.
-	client: Weak<Client>,
-	/// Sync provider.
-	sync: Weak<SyncProvider>,
+	client: TrustedClient,
 	/// This node key pair.
 	self_key_pair: Arc<NodeKeyPair>,
 	/// Contract addresss.
 	address: ContractAddress,
 	/// Contract.
-	contract: RwLock<Arc<SecretStoreService>>,
+	data: RwLock<SecretStoreServiceData>,
+}
+
+/// On-chain service contract data.
+struct SecretStoreServiceData {
+	/// Contract.
+	pub contract: Arc<SecretStoreService>,
+	/// Last block we have read logs from.
+	pub last_log_block: Option<H256>,
 }
 
 /// Pending requests iterator.
@@ -74,6 +81,8 @@ struct PendingRequestsIterator {
 	contract: Arc<SecretStoreService>,
 	/// This node key pair.
 	self_key_pair: Arc<NodeKeyPair>,
+	/// Block, this iterator is created for.
+	block: H256,
 	/// Current request index.
 	index: U256,
 	/// Requests length.
@@ -82,16 +91,16 @@ struct PendingRequestsIterator {
 
 impl OnChainServiceContract {
 	/// Create new on-chain service contract.
-	pub fn new(client: &Arc<Client>, sync: &Arc<SyncProvider>, address: ContractAddress, self_key_pair: Arc<NodeKeyPair>) -> Self {
-		let contract_addr = match &address {
-			&ContractAddress::Registry => client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned())
+	pub fn new(client: TrustedClient, address: ContractAddress, self_key_pair: Arc<NodeKeyPair>) -> Self {
+		let contract_addr = match address {
+			ContractAddress::Registry => client.get().and_then(|c| c.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned())
 				.map(|address| {
 					trace!(target: "secretstore", "{}: installing service contract from address {}",
 						self_key_pair.public(), address);
 					address
-				})
+				}))
 				.unwrap_or_default(),
-			&ContractAddress::Address(ref address) => {
+			ContractAddress::Address(ref address) => {
 				trace!(target: "secretstore", "{}: installing service contract from address {}",
 					self_key_pair.public(), address);
 				address.clone()
@@ -99,59 +108,75 @@ impl OnChainServiceContract {
 		};
 
 		OnChainServiceContract {
-			client: Arc::downgrade(client),
-			sync: Arc::downgrade(sync),
+			client: client,
 			self_key_pair: self_key_pair,
 			address: address,
-			contract: RwLock::new(Arc::new(SecretStoreService::new(contract_addr))),
+			data: RwLock::new(SecretStoreServiceData {
+				contract: Arc::new(SecretStoreService::new(contract_addr)),
+				last_log_block: None,
+			}),
 		}
 	}
 }
 
 impl ServiceContract for OnChainServiceContract {
-	fn update(&self) {
+	fn update(&self) -> bool {
+		// TODO [Sec]: registry_address currently reads from BlockId::Latest, instead of
+		// from block with REQUEST_CONFIRMATIONS_REQUIRED confirmations
 		if let &ContractAddress::Registry = &self.address {
-			if let (Some(client), Some(sync)) = (self.client.upgrade(), self.sync.upgrade()) {
-				// do nothing until synced
-				if sync.status().is_syncing(client.queue_info()) {
-					return;
-				}
-
+			if let Some(client) = self.client.get() {
 				// update contract address from registry
 				let service_contract_addr = client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned()).unwrap_or_default();
-				if self.contract.read().address != service_contract_addr {
+				if self.data.read().contract.address != service_contract_addr {
 					trace!(target: "secretstore", "{}: installing service contract from address {}",
 						self.self_key_pair.public(), service_contract_addr);
-					*self.contract.write() = Arc::new(SecretStoreService::new(service_contract_addr));
+					self.data.write().contract = Arc::new(SecretStoreService::new(service_contract_addr));
 				}
 			}
 		}
+
+		self.data.read().contract.address != Default::default()
+			&& self.client.get().is_some()
 	}
 
-	fn is_actual(&self) -> bool {
-		self.contract.read().address != Default::default()
-			&& match (self.client.upgrade(), self.sync.upgrade()) {
-				(Some(client), Some(sync)) => !sync.status().is_syncing(client.queue_info()),
-				_ => false,
-			}
-	}
-
-	fn read_logs(&self, first_block: H256, last_block: H256) -> Box<Iterator<Item=Vec<H256>>> {
-		let client = match self.client.upgrade() {
+	fn read_logs(&self) -> Box<Iterator<Item=Vec<H256>>> {
+		let client = match self.client.get() {
 			Some(client) => client,
 			None => {
-				warn!(target: "secretstore", "{}: client is offline during read_pending_requests call",
+				warn!(target: "secretstore", "{}: client is offline during read_logs call",
 					self.self_key_pair.public());
 				return Box::new(::std::iter::empty());
 			},
 		};
 
+		// prepare range of blocks to read logs from
+		let (address, first_block, last_block) = {
+			let mut data = self.data.write();
+			let address = data.contract.address.clone();
+			let confirmed_block = match get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED) {
+				Some(confirmed_block) => confirmed_block,
+				None => return Box::new(::std::iter::empty()), // no block with enough confirmations
+			};
+			let first_block = match data.last_log_block.take().and_then(|b| client.tree_route(&b, &confirmed_block)) {
+				// if we have a route from last_log_block to confirmed_block => search for logs on this route
+				//
+				// potentially this could lead us to reading same logs twice when reorganizing to the fork, which
+				// already has been canonical previosuly
+				// the worst thing that can happen in this case is spending some time reading unneeded data from SS db
+				Some(ref route) if route.index < route.blocks.len() => route.blocks[route.index],
+				// else we care only about confirmed block
+				_ => confirmed_block.clone(),
+			};
+
+			data.last_log_block = Some(confirmed_block.clone());
+			(address, first_block, confirmed_block)
+		};
+
 		// read server key generation requests
-		let contract_address = self.contract.read().address.clone();
 		let request_logs = client.logs(Filter {
 			from_block: BlockId::Hash(first_block),
 			to_block: BlockId::Hash(last_block),
-			address: Some(vec![contract_address]),
+			address: Some(vec![address]),
 			topics: vec![
 				Some(vec![*SERVER_KEY_REQUESTED_EVENT_NAME_HASH]),
 				None,
@@ -165,49 +190,51 @@ impl ServiceContract for OnChainServiceContract {
 	}
 
 	fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>> {
-		let client = match self.client.upgrade() {
+		let client = match self.client.get() {
 			Some(client) => client,
-			None => {
-				warn!(target: "secretstore", "{}: client is offline during read_pending_requests call",
-					self.self_key_pair.public());
-				return Box::new(::std::iter::empty());
-			},
+			None => return Box::new(::std::iter::empty()),
 		};
 
-		let contract = self.contract.read();
-		let length = match contract.address == Default::default() {
-			true => 0.into(),
-			false => {
-				let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
-				contract.server_key_generation_requests_count(&do_call).wait()
-					.map_err(|error| {
-						warn!(target: "secretstore", "{}: call to server_key_generation_requests_count failed: {}",
-							self.self_key_pair.public(), error);
-						error
-					})
-					.unwrap_or_default()
-			},
-		};
-
-		Box::new(PendingRequestsIterator {
-			client: client,
-			contract: contract.clone(),
-			self_key_pair: self.self_key_pair.clone(),
-			index: 0.into(),
-			length: length,
-		})
+		// we only need requests that are here for more than REQUEST_CONFIRMATIONS_REQUIRED blocks
+		// => we're reading from Latest - (REQUEST_CONFIRMATIONS_REQUIRED + 1) block
+		let data = self.data.read();
+		match data.contract.address == Default::default() {
+			true => Box::new(::std::iter::empty()),
+			false => get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED + 1)
+				.and_then(|b| {
+					let do_call = |a, d| future::done(client.call_contract(BlockId::Hash(b.clone()), a, d));
+					data.contract.server_key_generation_requests_count(&do_call).wait()
+						.map_err(|error| {
+							warn!(target: "secretstore", "{}: call to server_key_generation_requests_count failed: {}",
+								self.self_key_pair.public(), error);
+							error
+						})
+						.map(|l| (b, l))
+						.ok()
+				})
+				.map(|(b, l)| Box::new(PendingRequestsIterator {
+					client: client,
+					contract: data.contract.clone(),
+					self_key_pair: self.self_key_pair.clone(),
+					block: b,
+					index: 0.into(),
+					length: l,
+				}) as Box<Iterator<Item=(bool, ServiceTask)>>)
+				.unwrap_or_else(|| Box::new(::std::iter::empty()))
+		}
 	}
 
 	fn publish_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
 		// only publish if contract address is set && client is online
-		let contract = self.contract.read();
-		if contract.address == Default::default() {
+		let data = self.data.read();
+		if data.contract.address == Default::default() {
 			// it is not an error, because key could be generated even without contract
 			return Ok(());
 		}
-		let client = match self.client.upgrade() {
+
+		let client = match self.client.get() {
 			Some(client) => client,
-			None => return Err("client is required to publish key".into()),
+			None => return Err("trusted client is required to publish key".into()),
 		};
 
 		// only publish key if contract waits for publication
@@ -215,7 +242,7 @@ impl ServiceContract for OnChainServiceContract {
 		// or key has been requested using HTTP API
 		let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
 		let self_address = public_to_address(self.self_key_pair.public());
-		if contract.get_server_key_confirmation_status(&do_call, server_key_id.clone(), self_address).wait().unwrap_or(false) {
+		if data.contract.get_server_key_confirmation_status(&do_call, server_key_id.clone(), self_address).wait().unwrap_or(false) {
 			return Ok(());
 		}
 
@@ -223,7 +250,7 @@ impl ServiceContract for OnChainServiceContract {
 		let server_key_hash = keccak(server_key);
 		let signed_server_key = self.self_key_pair.sign(&server_key_hash).map_err(|e| format!("{}", e))?;
 		let signed_server_key: Signature = signed_server_key.into_electrum().into();
-		let transaction_data = contract.encode_server_key_generated_input(server_key_id.clone(),
+		let transaction_data = data.contract.encode_server_key_generated_input(server_key_id.clone(),
 			server_key.to_vec(),
 			signed_server_key.v(),
 			signed_server_key.r().into(),
@@ -231,12 +258,10 @@ impl ServiceContract for OnChainServiceContract {
 		)?;
 
 		// send transaction
-		if contract.address != Default::default() {
-			client.transact_contract(
-				contract.address.clone(),
-				transaction_data
-			).map_err(|e| format!("{}", e))?;
-		}
+		client.transact_contract(
+			data.contract.address.clone(),
+			transaction_data
+		).map_err(|e| format!("{}", e))?;
 
 		Ok(())
 	}
@@ -254,7 +279,7 @@ impl Iterator for PendingRequestsIterator {
 		self.index = self.index + 1.into();
 
 		let self_address = public_to_address(self.self_key_pair.public());
-		let do_call = |a, d| future::done(self.client.call_contract(BlockId::Latest, a, d));
+		let do_call = |a, d| future::done(self.client.call_contract(BlockId::Hash(self.block.clone()), a, d));
 		self.contract.get_server_key_id(&do_call, index).wait()
 			.and_then(|server_key_id|
 				self.contract.get_server_key_threshold(&do_call, server_key_id.clone()).wait()
@@ -271,6 +296,13 @@ impl Iterator for PendingRequestsIterator {
 			})
 			.unwrap_or(None)
 	}
+}
+
+/// Get hash of the last block with at least n confirmations.
+fn get_confirmed_block_hash(client: &Client, confirmations: u64) -> Option<H256> {
+	client.block_number(BlockId::Latest)
+		.map(|b| b.saturating_sub(confirmations))
+		.and_then(|b| client.block_hash(BlockId::Number(b)))
 }
 
 #[cfg(test)]
@@ -291,14 +323,11 @@ pub mod tests {
 	}
 
 	impl ServiceContract for DummyServiceContract {
-		fn update(&self) {
+		fn update(&self) -> bool {
+			true
 		}
 
-		fn is_actual(&self) -> bool {
-			self.is_actual
-		}
-
-		fn read_logs(&self, _first_block: H256, _last_block: H256) -> Box<Iterator<Item=Vec<H256>>> {
+		fn read_logs(&self) -> Box<Iterator<Item=Vec<H256>>> {
 			Box::new(self.logs.clone().into_iter())
 		}
 

@@ -18,7 +18,7 @@ use std::time;
 use std::sync::{Arc, Weak};
 use std::sync::atomic::AtomicBool;
 use std::collections::{VecDeque, BTreeMap, BTreeSet};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::{Mutex, RwLock, Condvar};
 use bigint::hash::H256;
 use ethkey::{Secret, Signature};
 use key_server_cluster::{Error, NodeId, SessionId};
@@ -80,6 +80,25 @@ pub trait ClusterSession {
 	fn on_session_error(&self, sender: &NodeId, error: Error);
 	/// Process session message.
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error>;
+
+	/// 'Wait for session completion' helper.
+	fn wait_session<T, U, F: Fn(&U) -> Option<Result<T, Error>>>(completion_event: &Condvar, session_data: &Mutex<U>, timeout: Option<time::Duration>, result_reader: F) -> Result<T, Error> {
+		let mut locked_data = session_data.lock();
+		match result_reader(&locked_data) {
+			Some(result) => result,
+			None => {
+				match timeout {
+					None => completion_event.wait(&mut locked_data),
+					Some(timeout) => {
+						completion_event.wait_for(&mut locked_data, timeout);
+					},
+				}
+
+				result_reader(&locked_data)
+					.expect("waited for completion; completion is only signaled when result.is_some(); qed")
+			},
+		}
+	}
 }
 
 /// Administrative session.
@@ -297,25 +316,7 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 			queue: VecDeque::new(),
 		};
 		sessions.insert(session_id, queued_session);
-
-		// notify listeners
-		let mut listeners = self.listeners.lock();
-		let mut listener_index = 0;
-		loop {
-			if listener_index >= listeners.len() {
-				break;
-			}
-
-			match listeners[listener_index].upgrade() {
-				Some(listener) => {
-					listener.on_session_inserted(session.clone());
-					listener_index += 1;
-				},
-				None => {
-					listeners.swap_remove(listener_index);
-				},
-			}
-		}
+		self.notify_listeners(|l| l.on_session_inserted(session.clone()));
 
 		Ok(session)
 	}
@@ -323,25 +324,7 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 	pub fn remove(&self, session_id: &S::Id) {
 		if let Some(session) = self.sessions.write().remove(session_id) {
 			self.container_state.lock().on_session_completed();
-
-			// notify listeners
-			let mut listeners = self.listeners.lock();
-			let mut listener_index = 0;
-			loop {
-				if listener_index >= listeners.len() {
-					break;
-				}
-
-				match listeners[listener_index].upgrade() {
-					Some(listener) => {
-						listener.on_session_removed(session.session.clone());
-						listener_index += 1;
-					},
-					None => {
-						listeners.swap_remove(listener_index);
-					},
-				}
-			}
+			self.notify_listeners(|l| l.on_session_removed(session.session.clone()));
 		}
 	}
 
@@ -385,6 +368,22 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 			};
 			if remove_session {
 				sessions.remove(&sid);
+			}
+		}
+	}
+
+	fn notify_listeners<F: Fn(&ClusterSessionsListener<S>) -> ()>(&self, callback: F) {
+		let mut listeners = self.listeners.lock();
+		let mut listener_index = 0;
+		while listener_index < listeners.len() {
+			match listeners[listener_index].upgrade() {
+				Some(listener) => {
+					callback(&*listener);
+					listener_index += 1;
+				},
+				None => {
+					listeners.swap_remove(listener_index);
+				},
 			}
 		}
 	}
@@ -551,7 +550,6 @@ pub fn create_cluster_view(data: &Arc<ClusterData>, requires_all_connections: bo
 
 	Ok(Arc::new(ClusterView::new(data.clone(), connected_nodes)))
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -166,14 +166,15 @@ fn should_return_fetched_dapp_content() {
 
 	response1.assert_status("HTTP/1.1 200 OK");
 	assert_security_headers_for_embed(&response1.headers);
-	assert_eq!(
-		response1.body,
-		r#"18
+	assert!(
+		response1.body.contains(r#"18
 <h1>Hello Gavcoin!</h1>
 
 0
 
-"#
+"#),
+		"Expected Gavcoin body: {}",
+		response1.body
 	);
 
 	response2.assert_status("HTTP/1.1 200 OK");

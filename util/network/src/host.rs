@@ -705,7 +705,6 @@ impl Host {
 		debug!(target: "network", "Connecting peers: {} sessions, {} pending, {} started", self.session_count(), self.handshake_count(), started);
 	}
 
-	#[cfg_attr(feature="dev", allow(single_match))]
 	fn connect_peer(&self, id: &NodeId, io: &IoContext<NetworkIoMessage>) {
 		if self.have_session(id) {
 			trace!(target: "network", "Aborted connect. Node already connected.");
@@ -744,7 +743,6 @@ impl Host {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(block_in_if_condition_stmt))]
 	fn create_connection(&self, socket: TcpStream, id: Option<&NodeId>, io: &IoContext<NetworkIoMessage>) -> Result<(), Error> {
 		let nonce = self.info.write().next_nonce();
 		let mut sessions = self.sessions.write();
@@ -805,7 +803,6 @@ impl Host {
 		self.kill_connection(token, io, true);
 	}
 
-	#[cfg_attr(feature="dev", allow(collapsible_if))]
 	fn session_readable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
 		let mut ready_data: Vec<ProtocolId> = Vec::new();
 		let mut packet_data: Vec<(ProtocolId, PacketId, Vec<u8>)> = Vec::new();

@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{VecDeque, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
-use parking_lot::{Mutex, Condvar};	
+use parking_lot::Mutex;
 use ethcore::client::ChainNotify;
 use ethkey::{Random, Generator, Public, sign};
 use bytes::Bytes;
@@ -29,13 +29,14 @@ use key_server_cluster::{ClusterClient, ClusterSessionsListener, ClusterSession}
 use key_server_cluster::generation_session::SessionImpl as GenerationSession;
 use key_storage::KeyStorage;
 use listener::service_contract::ServiceContract;
+use listener::tasks_queue::TasksQueue;
 use {ServerKeyId, NodeKeyPair, KeyServer};
 
-/// Retry interval (in blocks). Every RETRY_INTEVAL_BLOCKS blocks each KeyServer reads pending requests from
+/// Retry interval (in blocks). Every RETRY_INTERVAL_BLOCKS blocks each KeyServer reads pending requests from
 /// service contract && tries to re-execute. The reason to have this mechanism is primarily because keys
 /// servers set change takes a lot of time + there could be some races, when blocks are coming to different
 /// KS at different times. This isn't intended to fix && respond to general session errors!
-const RETRY_INTEVAL_BLOCKS: usize = 30;
+const RETRY_INTERVAL_BLOCKS: usize = 30;
 
 /// Max failed retry requests (in single retry interval). The reason behind this constant is that if several
 /// pending requests have failed, then most probably other will fail too.
@@ -75,7 +76,7 @@ struct ServiceContractListenerData {
 	/// Retry-related data.
 	pub retry_data: Mutex<ServiceContractRetryData>,
 	/// Service tasks queue.
-	pub tasks_queue: Arc<TasksQueue>,
+	pub tasks_queue: Arc<TasksQueue<ServiceTask>>,
 	/// Service contract.
 	pub contract: Arc<ServiceContract>,
 	/// Key server reference.
@@ -94,14 +95,6 @@ struct ServiceContractListenerData {
 struct ServiceContractRetryData {
 	/// Server keys, which we have generated (or tried to generate) since last retry moment.
 	pub generated_keys: HashSet<ServerKeyId>,
-}
-
-/// Service tasks queue.
-struct TasksQueue {
-	/// Service event.
-	service_event: Condvar,
-	/// Service tasks queue.
-	service_tasks: Mutex<VecDeque<ServiceTask>>,
 }
 
 /// Service task.
@@ -130,7 +123,7 @@ impl ServiceContractListener {
 			key_server_set: params.key_server_set,
 			key_storage: params.key_storage,
 		});
-		data.tasks_queue.push(::std::iter::once(ServiceTask::Retry));
+		data.tasks_queue.push(ServiceTask::Retry);
 
 		// we are not starting thread when in test mode
 		let service_handle = if cfg!(test) {
@@ -148,8 +141,8 @@ impl ServiceContractListener {
 	}
 
 	/// Process incoming events of service contract.
-	fn process_service_contract_events(&self, first: H256, last: H256) {
-		self.data.tasks_queue.push(self.data.contract.read_logs(first, last)
+	fn process_service_contract_events(&self) {
+		self.data.tasks_queue.push_many(self.data.contract.read_logs()
 			.filter_map(|topics| match topics.len() {
 				// when key is already generated && we have this key
 				3 if self.data.key_storage.get(&topics[1]).map(|k| k.is_some()).unwrap_or_default() => {
@@ -255,7 +248,7 @@ impl ServiceContractListener {
 					// only process request, which haven't been processed recently
 					// there could be a lag when we've just generated server key && retrying on the same block
 					// (or before our tx is mined) - state is not updated yet
-					if retry_data.generated_keys.contains(&server_key_id){
+					if retry_data.generated_keys.contains(&server_key_id) {
 						continue;
 					}
 
@@ -317,7 +310,7 @@ impl ServiceContractListener {
 impl Drop for ServiceContractListener {
 	fn drop(&mut self) {
 		if let Some(service_handle) = self.service_handle.take() {
-			self.data.tasks_queue.shutdown();
+			self.data.tasks_queue.push_front(ServiceTask::Shutdown);
 			// ignore error as we are already closing
 			let _ = service_handle.join();
 		}
@@ -331,20 +324,16 @@ impl ChainNotify for ServiceContractListener {
 			return;
 		}
 
-		self.data.contract.update();
-		if !self.data.contract.is_actual() {
+		if !self.data.contract.update() {
 			return;
 		}
 
-		let reason = "enacted.len() != 0; qed";
-		self.process_service_contract_events(
-			enacted.first().expect(reason).clone(),
-			enacted.last().expect(reason).clone());
+		self.process_service_contract_events();
 
 		// schedule retry if received enough blocks since last retry
 		// it maybe inaccurate when switching syncing/synced states, but that's ok
-		if self.data.last_retry.fetch_add(enacted_len, Ordering::Relaxed) >= RETRY_INTEVAL_BLOCKS {
-			self.data.tasks_queue.push(::std::iter::once(ServiceTask::Retry));
+		if self.data.last_retry.fetch_add(enacted_len, Ordering::Relaxed) >= RETRY_INTERVAL_BLOCKS {
+			self.data.tasks_queue.push(ServiceTask::Retry);
 			self.data.last_retry.store(0, Ordering::Relaxed);
 		}
 	}
@@ -356,60 +345,18 @@ impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 		// when it is started by this node, it is published from process_service_task
 		if !is_processed_by_this_key_server(&*self.data.key_server_set, &*self.data.self_key_pair, &session.id()) {
 			// by this time sesion must already be completed - either successfully, or not
-			debug_assert!(session.is_finished());
+			assert!(session.is_finished());
 
 			// ignore result - the only thing that we can do is to log the error
-			let _ = session.wait(Some(Default::default()))
+			match session.wait(Some(Default::default()))
 				.map_err(|e| format!("{}", e))
-				.and_then(|server_key| Self::publish_server_key(&self.data, &session.id(), &server_key))
-				.map(|_| {
-					trace!(target: "secretstore", "{}: completed foreign GenerateServerKey({}) request",
-						self.data.self_key_pair.public(), session.id());
-					()
-				})
-				.map_err(|error| {
-					warn!(target: "secretstore", "{}: failed to process GenerateServerKey({}) request with: {}",
-						self.data.self_key_pair.public(), session.id(), error);
-					error
-				});
+				.and_then(|server_key| Self::publish_server_key(&self.data, &session.id(), &server_key)) {
+				Ok(_) => trace!(target: "secretstore", "{}: completed foreign GenerateServerKey({}) request",
+					self.data.self_key_pair.public(), session.id()),
+				Err(error) => warn!(target: "secretstore", "{}: failed to process GenerateServerKey({}) request with: {}",
+					self.data.self_key_pair.public(), session.id(), error),
+			}
 		}
-	}
-}
-
-impl TasksQueue {
-	/// Create new tasks queue.
-	pub fn new() -> Self {
-		TasksQueue {
-			service_event: Condvar::new(),
-			service_tasks: Mutex::new(VecDeque::new()),
-		}
-	}
-
-	/// Shutdown tasks queue.
-	pub fn shutdown(&self) {
-		let mut service_tasks = self.service_tasks.lock();
-		service_tasks.push_front(ServiceTask::Shutdown);
-		self.service_event.notify_all();
-	}
-
-	//// Push new tasks to the queue.
-	pub fn push<I>(&self, tasks: I) where I: Iterator<Item=ServiceTask> {
-		let mut service_tasks = self.service_tasks.lock();
-		service_tasks.extend(tasks);
-		if !service_tasks.is_empty() {
-			self.service_event.notify_all();
-		}
-	}
-
-	/// Wait for new task.
-	pub fn wait(&self) -> ServiceTask {
-		let mut service_tasks = self.service_tasks.lock();
-		if service_tasks.is_empty() {
-			self.service_event.wait(&mut service_tasks);
-		}
-
-		service_tasks.pop_front()
-			.expect("service_event is only fired when there are new tasks or is_shutdown == true; is_shutdown == false; qed")
 	}
 }
 
@@ -417,9 +364,12 @@ impl TasksQueue {
 fn is_processed_by_this_key_server(key_server_set: &KeyServerSet, self_key_pair: &NodeKeyPair, server_key_id: &H256) -> bool {
 	let servers = key_server_set.snapshot().current_set;
 	let total_servers_count = servers.len();
-	if total_servers_count == 0 {
-		return false;
+	match total_servers_count {
+		0 => return false,
+		1 => return true,
+		_ => (),
 	}
+
 	let this_server_index = match servers.keys().enumerate().find(|&(_, s)| s == self_key_pair.public()) {
 		Some((index, _)) => index,
 		None => return false,
@@ -480,13 +430,24 @@ mod tests {
 	}
 
 	#[test]
-	fn is_not_processed_by_this_key_server_when_not_a_part_of_servers_set() {
+	fn is_processed_by_this_key_server_with_single_server() {
+		let self_key_pair = Random.generate().unwrap();
 		assert_eq!(is_processed_by_this_key_server(
+			&MapKeyServerSet::new(vec![
+				(self_key_pair.public().clone(), "127.0.0.1:8080".parse().unwrap())
+			].into_iter().collect()),
+			&PlainNodeKeyPair::new(self_key_pair),
+			&Default::default()), true);
+	}
+
+	#[test]
+	fn is_not_processed_by_this_key_server_when_not_a_part_of_servers_set() {
+		assert!(is_processed_by_this_key_server(
 			&MapKeyServerSet::new(vec![
 				(Random.generate().unwrap().public().clone(), "127.0.0.1:8080".parse().unwrap())
 			].into_iter().collect()),
 			&PlainNodeKeyPair::new(Random.generate().unwrap()),
-			&Default::default()), false);
+			&Default::default()));
 	}
 
 	#[test]
@@ -617,9 +578,9 @@ mod tests {
 	#[test]
 	fn no_tasks_scheduled_when_no_contract_events() {
 		let listener = make_service_contract_listener(None, None, None);
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
-		listener.process_service_contract_events(Default::default(), Default::default());
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
+		listener.process_service_contract_events();
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
 	}
 
 	#[test]
@@ -627,10 +588,10 @@ mod tests {
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(vec![Default::default(), Default::default(), Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
-		listener.process_service_contract_events(Default::default(), Default::default());
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 2);
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().pop_back(), Some(ServiceTask::GenerateServerKey(Default::default(), Default::default())));
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
+		listener.process_service_contract_events();
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 2);
+		assert_eq!(listener.data.tasks_queue.snapshot().pop_back(), Some(ServiceTask::GenerateServerKey(Default::default(), Default::default())));
 	}
 
 	#[test]
@@ -639,9 +600,9 @@ mod tests {
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(vec![Default::default(), server_key_id, Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
-		listener.process_service_contract_events(Default::default(), Default::default());
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
+		listener.process_service_contract_events();
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
 	}
 
 	#[test]
@@ -650,10 +611,10 @@ mod tests {
 		contract.logs.push(vec![Default::default(), Default::default(), Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		listener.data.key_storage.insert(Default::default(), Default::default()).unwrap();
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
-		listener.process_service_contract_events(Default::default(), Default::default());
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 2);
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().pop_back(), Some(ServiceTask::RestoreServerKey(Default::default())));
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
+		listener.process_service_contract_events();
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 2);
+		assert_eq!(listener.data.tasks_queue.snapshot().pop_back(), Some(ServiceTask::RestoreServerKey(Default::default())));
 	}
 
 	#[test]
@@ -661,9 +622,9 @@ mod tests {
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(vec![Default::default(), Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
-		listener.process_service_contract_events(Default::default(), Default::default());
-		assert_eq!(listener.data.tasks_queue.service_tasks.lock().len(), 1);
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
+		listener.process_service_contract_events();
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
 	}
 
 	#[test]

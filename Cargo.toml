@@ -55,6 +55,7 @@ parity-reactor = { path = "util/reactor" }
 parity-rpc = { path = "rpc" }
 parity-rpc-client = { path = "rpc_client" }
 parity-updater = { path = "updater" }
+parity-version = { path = "util/version" }
 parity-whisper = { path = "whisper" }
 path = { path = "util/path" }
 panic_hook = { path = "panic_hook" }
@@ -65,7 +66,6 @@ kvdb-rocksdb = { path = "util/kvdb-rocksdb" }
 journaldb = { path = "util/journaldb" }
 
 parity-dapps = { path = "dapps", optional = true }
-clippy = { version = "0.0.103", optional = true}
 ethcore-secretstore = { path = "secret_store", optional = true }
 
 [build-dependencies]
@@ -94,13 +94,11 @@ ui-precompiled = [
 ui-enabled = ["dapps"]
 dapps = ["parity-dapps"]
 jit = ["ethcore/jit"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "parity-rpc/dev", "parity-dapps/dev"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
-final = ["ethcore-util/final"]
 secretstore = ["ethcore-secretstore"]
 
 [[bin]]
@@ -116,4 +114,13 @@ lto = false
 panic = "abort"
 
 [workspace]
-members = ["ethstore/cli", "ethkey/cli", "evmbin", "whisper", "chainspec", "dapps/js-glue", "ethcore/wasm/run"]
+members = [
+	"chainspec",
+	"dapps/js-glue",
+	"ethcore/wasm/run",
+	"ethkey/cli",
+	"ethstore/cli",
+	"evmbin",
+	"transaction-pool",
+	"whisper",
+]

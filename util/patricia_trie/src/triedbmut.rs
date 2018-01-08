@@ -436,7 +436,6 @@ impl<'a> TrieDBMut<'a> {
 	}
 
 	/// the insertion inspector.
-	#[cfg_attr(feature = "dev", allow(cyclomatic_complexity))]
 	fn insert_inspector(&mut self, node: Node, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>)
 		-> super::Result<InsertAction>
 	{

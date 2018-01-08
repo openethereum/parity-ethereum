@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const Api = require('@parity/api');
 const fs = require('fs');
 const path = require('path');
 const rimraf = require('rimraf');
@@ -54,7 +53,7 @@ module.exports = {
   cache: !isProd,
   devtool: isProd
     ? false
-    : '#eval',
+    : isEmbed ? '#source-map' : '#eval',
   context: path.join(__dirname, '../src'),
   entry,
   output: {
@@ -213,16 +212,12 @@ module.exports = {
                     return null;
                   }
 
-                  const destination = Api.util.isHex(dapp.id)
-                    ? dapp.id
-                    : Api.util.sha3(dapp.url);
-
                   if (!fs.existsSync(path.join(dir, 'dist'))) {
                     rimraf.sync(path.join(dir, 'node_modules'));
 
                     return {
                       from: path.join(dir),
-                      to: `dapps/${destination}/`
+                      to: `dapps/${dapp.id}/`
                     };
                   }
 
@@ -236,11 +231,11 @@ module.exports = {
                     .filter((from) => fs.existsSync(from))
                     .map((from) => ({
                       from,
-                      to: `dapps/${destination}/`
+                      to: `dapps/${dapp.id}/`
                     }))
                     .concat({
                       from: path.join(dir, 'dist'),
-                      to: `dapps/${destination}/dist/`
+                      to: `dapps/${dapp.id}/dist/`
                     });
                 })
                 .filter((copy) => copy)

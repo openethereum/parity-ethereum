@@ -1,0 +1,15 @@
+[package]
+name = "parity-version"
+# NOTE: this value is used for Parity version string.
+version = "1.9.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+build = "build.rs"
+
+[dependencies]
+ethcore-bytes = { path = "../bytes" }
+rlp = { path = "../rlp" }
+target_info = "0.1"
+
+[build-dependencies]
+vergen = "0.1"
+rustc_version = "0.1.0"

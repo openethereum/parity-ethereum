@@ -207,14 +207,7 @@ impl SessionImpl {
 
 	/// Wait for session completion.
 	pub fn wait(&self) -> Result<(Secret, Secret), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
-			.clone()
+		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
 	}
 
 	/// Delegate session to other node.

@@ -17,6 +17,7 @@
 pub mod http_listener;
 pub mod service_contract;
 pub mod service_contract_listener;
+mod tasks_queue;
 
 use std::collections::BTreeSet;
 use std::sync::Arc;

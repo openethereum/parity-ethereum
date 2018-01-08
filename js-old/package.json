@@ -31,7 +31,7 @@
     "build:app": "webpack --config webpack/app",
     "build:dll": "webpack --config webpack/vendor",
     "ci:build": "cross-env NODE_ENV=production npm run build",
-    "clean": "rimraf ./.build ./.coverage ./.happypack ./.npmjs ./build ./node_modules/.cache",
+    "clean": "rimraf ./.build ./.coverage ./.happypack ./.npmjs ./node_modules/.cache",
     "lint": "npm run lint:css && npm run lint:js",
     "lint:css": "stylelint ./src/**/*.css",
     "lint:js": "eslint --ignore-path .gitignore ./src/",
@@ -133,7 +133,7 @@
   },
   "dependencies": {
     "@parity/abi": "2.1.x",
-    "@parity/api": "2.1.x",
+    "@parity/api": "^2.1.14",
     "@parity/wordlist": "1.1.x",
     "base32.js": "0.1.0",
     "bignumber.js": "3.0.1",
@@ -203,7 +203,6 @@
     "utf8": "2.1.2",
     "valid-url": "1.0.9",
     "validator": "6.2.0",
-    "web3": "0.17.0-beta",
     "whatwg-fetch": "2.0.1",
     "worker-loader": "^0.8.0",
     "zxcvbn": "4.4.1"

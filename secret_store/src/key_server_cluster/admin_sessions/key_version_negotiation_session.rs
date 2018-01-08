@@ -198,14 +198,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 	/// Wait for session completion.
 	pub fn wait(&self) -> Result<(H256, NodeId), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
-			.clone()
+		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
 	}
 
 	/// Initialize session.
@@ -239,7 +232,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// try to complete session
 		Self::try_complete(&self.core, &mut *data);
 		if no_confirmations_required && data.state != SessionState::Finished {
-			return Err(Error::ConsensusUnreachable);
+			return Err(Error::MissingKeyShare);
 		} else if data.state == SessionState::Finished {
 			return Ok(());
 		}
@@ -445,6 +438,8 @@ impl FastestResultComputer {
 impl SessionResultComputer for FastestResultComputer {
 	fn compute_result(&self, threshold: Option<usize>, confirmations: &BTreeSet<NodeId>, versions: &BTreeMap<H256, BTreeSet<NodeId>>) -> Option<Result<(H256, NodeId), Error>> {
 		match self.threshold.or(threshold) {
+			// if there's no versions at all && we're not waiting for confirmations anymore
+			_ if confirmations.is_empty() && versions.is_empty() => Some(Err(Error::MissingKeyShare)),
 			// if we have key share on this node
 			Some(threshold) => {
 				// select version this node have, with enough participants
@@ -480,6 +475,9 @@ impl SessionResultComputer for LargestSupportResultComputer {
 		if !confirmations.is_empty() {
 			return None;
 		}
+		if versions.is_empty() {
+			return Some(Err(Error::MissingKeyShare));
+		}
 
 		versions.iter()
 			.max_by_key(|&(_, ref n)| n.len())
@@ -498,7 +496,8 @@ mod tests {
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 	use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
-	use super::{SessionImpl, SessionTransport, SessionParams, FastestResultComputer, SessionState};
+	use super::{SessionImpl, SessionTransport, SessionParams, FastestResultComputer, LargestSupportResultComputer,
+		SessionResultComputer, SessionState};
 
 	struct DummyTransport {
 		cluster: Arc<DummyCluster>,
@@ -713,5 +712,20 @@ mod tests {
 		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
 		// we can't be sure that node has given key version because previous ShareAdd session could fail
 		assert!(ml.session(0).data.lock().state != SessionState::Finished);
+	}
+
+	#[test]
+	fn fastest_computer_returns_missing_share_if_no_versions_returned() {
+		let computer = FastestResultComputer {
+			self_node_id: Default::default(),
+			threshold: None,
+		};
+		assert_eq!(computer.compute_result(Some(10), &Default::default(), &Default::default()), Some(Err(Error::MissingKeyShare)));
+	}
+
+	#[test]
+	fn largest_computer_returns_missing_share_if_no_versions_returned() {
+		let computer = LargestSupportResultComputer;
+		assert_eq!(computer.compute_result(Some(10), &Default::default(), &Default::default()), Some(Err(Error::MissingKeyShare)));
 	}
 }

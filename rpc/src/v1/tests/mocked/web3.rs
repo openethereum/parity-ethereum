@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use jsonrpc_core::IoHandler;
-use util::version;
+use version::version;
 use v1::{Web3, Web3Client};
 
 #[test]

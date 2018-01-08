@@ -16,7 +16,9 @@
 
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
+import { fetchTokens } from '~/redux/providers/tokensActions';
 import unknownImage from '~/../assets/images/contracts/unknown-64x64.png';
 
 class TokenImage extends Component {
@@ -29,27 +31,39 @@ class TokenImage extends Component {
     token: PropTypes.shape({
       image: PropTypes.string,
       address: PropTypes.string
-    }).isRequired
+    }).isRequired,
+    fetchTokens: PropTypes.func.isRequired
   };
 
   state = {
     error: false
   };
 
+  componentWillMount () {
+    const { token } = this.props;
+
+    if (token.native) {
+      return;
+    }
+
+    if (!token.fetched) {
+      if (!Number.isFinite(token.index)) {
+        return console.warn('no token index', token);
+      }
+
+      this.props.fetchTokens([ token.index ]);
+    }
+  }
+
   render () {
     const { error } = this.state;
-    const { api } = this.context;
     const { image, token } = this.props;
 
     const imageurl = token.image || image;
     let imagesrc = unknownImage;
 
     if (imageurl && !error) {
-      const host = /^(\/)?api/.test(imageurl)
-        ? api.dappsUrl
-        : '';
-
-      imagesrc = `${host}${imageurl}`;
+      imagesrc = imageurl;
     }
 
     return (
@@ -76,7 +90,13 @@ function mapStateToProps (iniState) {
   };
 }
 
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    fetchTokens
+  }, dispatch);
+}
+
 export default connect(
   mapStateToProps,
-  null
+  mapDispatchToProps
 )(TokenImage);

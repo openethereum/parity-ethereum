@@ -14,24 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate vergen;
-extern crate rustc_version;
+export function createLocation (token, location = window.location) {
+  const { hash, port, protocol } = location;
+  let query = '';
 
-use vergen::*;
-use std::env;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
+  if (hash && hash.indexOf('?') !== -1) {
+    // TODO: currently no app uses query-params visible in the shell, this may need adjustment if they do
+    query = hash;
+  } else {
+    query = `${hash || '#/'}${token ? '?token=' : ''}${token || ''}`;
+  }
 
-fn main() {
-	vergen(OutputFns::all()).unwrap();
-	let out_dir = env::var("OUT_DIR").unwrap();
-	let dest_path = Path::new(&out_dir).join("rustc_version.rs");
-	let mut f = File::create(&dest_path).unwrap();
-	f.write_all(format!("
-		/// Returns compiler version.
-		pub fn rustc_version() -> &'static str {{
-			\"{}\"
-		}}
-	", rustc_version::version()).as_bytes()).unwrap();
+  return `${protocol}//127.0.0.1:${port}/${query}`;
+}
+
+export function redirectLocalhost (token) {
+  // we don't want localhost, rather we want 127.0.0.1
+  if (window.location.hostname !== 'localhost') {
+    return false;
+  }
+
+  window.location.assign(createLocation(token, window.location));
+
+  return true;
 }
