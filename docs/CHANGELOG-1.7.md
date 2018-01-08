@@ -1,3 +1,15 @@
+### Parity [v1.7.12](https://github.com/paritytech/parity/releases/tag/v1.7.12) (2018-01-08)
+
+Parity 1.7.12 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Advance AuRa step as far as we can. ([#7451](https://github.com/paritytech/parity/pull/7451))
+- Fixed panic when io is not available for export block, closes [#7486](https://github.com/paritytech/parity/issue/7486) ([#7495](https://github.com/paritytech/parity/pull/7495))
+- Update Parity Mainnet Bootnodes ([#7476](https://github.com/paritytech/parity/pull/7476))
+  - Replace the Azure HDD bootnodes with the new ones :)
+- Bump version to 1.7.12
+
 ### Parity [v1.7.11](https://github.com/paritytech/parity/releases/tag/v1.7.11) (2017-12-29)
 
 Parity 1.7.11 changes the default behavior of JSON-RPC CORS setting, and updates bootnodes for the Kovan and Foundation networks.
