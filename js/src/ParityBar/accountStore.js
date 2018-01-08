@@ -23,7 +23,7 @@ export default class AccountStore {
   @observable defaultAccount = null;
   @observable isLoading = false;
 
-  whitelist = [];
+  whitelist = []; // Whitelist of account addresses visible by dapps, i.e. parity_getNewDappsAddresses
 
   constructor (api) {
     this._api = api;
@@ -33,6 +33,9 @@ export default class AccountStore {
       .then(() => this.loadAccounts());
   }
 
+  /**
+   * Accounts that are whitelisted to be shown to dapps
+   */
   @computed get accounts () {
     return this.allAccounts.filter(account => this.whitelist.includes(account.address));
   }
