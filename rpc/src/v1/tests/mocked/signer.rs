@@ -24,6 +24,7 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action, SignedTransaction};
 use parity_reactor::EventLoop;
+use parking_lot::Mutex;
 use rlp::encode;
 
 use serde_json;
@@ -32,7 +33,7 @@ use v1::{SignerClient, Signer, Origin};
 use v1::metadata::Metadata;
 use v1::tests::helpers::TestMinerService;
 use v1::types::{Bytes as RpcBytes, H520};
-use v1::helpers::{SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
+use v1::helpers::{nonce, SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
 use v1::helpers::dispatch::{FullDispatcher, eth_data_hash};
 
 struct SignerTester {
@@ -61,9 +62,10 @@ fn signer_tester() -> SignerTester {
 	let opt_accounts = Some(accounts.clone());
 	let client = blockchain_client();
 	let miner = miner_service();
+	let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 	let event_loop = EventLoop::spawn();
 
-	let dispatcher = FullDispatcher::new(client, miner.clone());
+	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations);
 	let mut io = IoHandler::default();
 	io.extend_with(SignerClient::new(&opt_accounts, dispatcher, &signer, event_loop.remote()).to_delegate());
 
