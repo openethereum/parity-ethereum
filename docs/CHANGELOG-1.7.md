@@ -1,9 +1,22 @@
-### Parity [v1.7.12](https://github.com/paritytech/parity/releases/tag/v1.7.12) (2018-01-08)
+### Parity [v1.7.12](https://github.com/paritytech/parity/releases/tag/v1.7.12) (2018-01-09)
 
 Parity 1.7.12 is a bug-fix release to improve performance and stability.
 
 The full list of included changes:
 
+- Fix stable builds for rustc 1.23.0 ([#7504](https://github.com/paritytech/parity/pull/7504))
+- Missing AuRa backports ([#7499](https://github.com/paritytech/parity/pull/7499)
+  - Wait for future blocks in AuRa ([#7368](https://github.com/paritytech/parity/pull/7368))
+    - Mark future blocks as temporarily invalid.
+    - Don't check max.
+  - Advance AuRa step as far as we can and prevent invalid blocks. ([#7451](https://github.com/paritytech/parity/pull/7451))
+    - Advance AuRa step as far as we can.
+    - Wait for future blocks.
+  -  Problem: AuRa's unsafeties around step duration ([#7282](https://github.com/paritytech/parity/pull/7282))
+  - Fix tests.
+  - Detect different node, same-key signing in aura ([#7245](https://github.com/paritytech/parity/pull/7245))
+    - Detect different node, same-key signing in aura
+    - Reduce scope of warning
 - Backports ([#7496](https://github.com/paritytech/parity/pull/7496))
   - Advance AuRa step as far as we can. ([#7451](https://github.com/paritytech/parity/pull/7451))
     - Advance AuRa step as far as we can.
