@@ -244,7 +244,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 
 	fn gas_price(&self) -> Result<RpcU256> {
 		Ok(self.cache.lock().gas_price_corpus()
-			.and_then(|c| c.median().cloned())
+			.and_then(|c| c.percentile(self.gas_price_percentile).cloned())
 			.map(RpcU256::from)
 			.unwrap_or_else(Default::default))
 	}
