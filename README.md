@@ -17,7 +17,7 @@ Get in touch with us on Gitter:
 Or join our community on Matrix:
 [![Riot: +Parity](https://img.shields.io/badge/riot-%2Bparity%3Amatrix.parity.io-orange.svg)](https://riot.im/app/#/group/+parity:matrix.parity.io)
 
-Be sure to check out [our wiki](https://github.com/paritytech/parity/wiki) and the [internal documentation](https://paritytech.github.io/parity/ethcore/index.html) for more information.
+Be sure to check out [our wiki](https://paritytech.github.io/wiki/) and the [internal documentation](https://paritytech.github.io/parity/ethcore/index.html) for more information.
 
 ----
 
