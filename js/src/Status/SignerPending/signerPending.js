@@ -105,11 +105,11 @@ class SignerPending extends Component {
             />
             {this.store.pending.length > 0 && (
               <Label
-                floating
-                color='red'
-                size='mini'
                 circular
                 className={ styles.label }
+                color='red'
+                floating
+                size='mini'
               >
                 {this.store.pending.length}
               </Label>

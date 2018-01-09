@@ -50,10 +50,10 @@ class DefaultAccount extends Component {
   }
 
   render () {
-    const { accounts, defaultAccount: defaultAddress } = this.props.accountStore;
-    const defaultAccount = accounts.find(({ address }) => address === defaultAddress);
+    const { allAccounts, defaultAccount: defaultAddress } = this.props.accountStore;
+    const defaultAccount = allAccounts.find(({ address }) => address === defaultAddress);
 
-    if (!accounts || !defaultAccount) { return null; }
+    if (!allAccounts || !defaultAccount) { return null; }
 
     return (
       <Popup
@@ -68,15 +68,15 @@ class DefaultAccount extends Component {
         }
         content={
           <div>
-            <List relaxed='very' selection className={ [styles.list, styles.isDefault, accounts.length > 1 && styles.hasOtherAccounts].join(' ') }>
+            <List relaxed='very' selection className={ [styles.list, styles.isDefault, allAccounts.length > 1 && styles.hasOtherAccounts].join(' ') }>
               <AccountItem
                 isDefault
                 account={ defaultAccount }
               />
             </List>
-            {accounts.length > 1 &&
+            {allAccounts.length > 1 &&
               <List relaxed='very' selection className={ styles.list } divided>
-                {accounts
+                {allAccounts
                   .filter(({ address }) => address !== defaultAddress)
                   .map(account => (
                     <AccountItem
