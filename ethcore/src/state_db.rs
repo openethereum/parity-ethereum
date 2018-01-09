@@ -58,7 +58,7 @@ struct CacheQueueItem {
 	/// Account address.
 	address: Address,
 	/// Acccount data or `None` if account does not exist.
-	account: Mutex<Option<Account>>,
+	account: SyncAccount,
 	/// Indicates that the account was modified before being
 	/// added to the cache.
 	modified: bool,
@@ -268,7 +268,7 @@ impl StateDB {
 					modifications.insert(account.address.clone());
 				}
 				if is_best {
-					let acc = account.account.lock().take();
+					let acc = account.account.0;
 					if let Some(&mut Some(ref mut existing)) = cache.accounts.get_mut(&account.address) {
 						if let Some(new) =  acc {
 							if account.modified {
@@ -409,7 +409,7 @@ impl state::Backend for StateDB {
 	fn add_to_account_cache(&mut self, addr: Address, data: Option<Account>, modified: bool) {
 		self.local_cache.push(CacheQueueItem {
 			address: addr,
-			account: Mutex::new(data),
+			account: SyncAccount(data),
 			modified: modified,
 		})
 	}
@@ -456,6 +456,13 @@ impl state::Backend for StateDB {
 		is_null
 	}
 }
+
+/// Sync wrapper for the account.
+struct SyncAccount(Option<Account>);
+/// That implementation is safe because account is never modified or accessed in any way.
+/// We only need `Sync` here to allow `StateDb` to be kept in a `RwLock`.
+/// `Account` is `!Sync` by default because of `RefCell`s inside it.
+unsafe impl Sync for SyncAccount {}
 
 #[cfg(test)]
 mod tests {
