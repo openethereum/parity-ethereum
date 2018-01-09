@@ -39,7 +39,7 @@ use self::finality::RollingFinality;
 use ethkey::{verify_address, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
-use rlp::{encode, RlpStream, UntrustedRlp};
+use rlp::{encode, Encodable, RlpStream, UntrustedRlp};
 use bigint::prelude::{U256, U128};
 use bigint::hash::{H256, H520};
 use semantic_version::SemanticVersion;
@@ -266,9 +266,17 @@ impl EpochManager {
 	}
 }
 
+#[derive(Clone, Debug)]
 struct EmptyStep {
 	signature: H520,
 	step: usize,
+}
+
+impl Encodable for EmptyStep {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		let step_rlp = encode(&self.step).into_vec();
+		s.append_raw(&empty_step_full_rlp(&self.signature, &step_rlp), 2);
+	}
 }
 
 /// Engine using `AuthorityRound` proof-of-authority BFT consensus.
@@ -323,7 +331,7 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 			// without panic.
 			//
 			// `verify_external` checks that signature is correct and author == signer.
-			if header.seal().len() != 2 { return None }
+			if header.seal().len() != 3 { return None }
 			otry!(verify_external(header, &self.subchain_validators, &*self.step, |_| {}).ok());
 
 			let newly_finalized = otry!(finality_checker.push_hash(header.hash(), header.author().clone()).ok());
@@ -463,7 +471,7 @@ impl AuthorityRound {
 		let step_rlp = encode(&step);
 
 		if let Ok(signature) = self.sign(keccak(&step_rlp)).map(Into::into) {
-			let message_rlp = empty_step_full_rlp(&signature, &step_rlp.to_vec());
+			let message_rlp = empty_step_full_rlp(&signature, &step_rlp.into_vec());
 
 			// FIXME: process message ourselves?
 
@@ -532,8 +540,9 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	fn machine(&self) -> &EthereumMachine { &self.machine }
 
-	/// Two fields - consensus step and the corresponding proposer signature.
-	fn seal_fields(&self) -> usize { 2 }
+	/// Three fields - consensus step and the corresponding proposer signature, and a list of empty
+	/// step messages (which should be empty if no steps are skipped)
+	fn seal_fields(&self) -> usize { 3 }
 
 	fn step(&self) {
 		self.step.increment();
@@ -652,10 +661,20 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				return Seal::None;
 			}
 
-			// if there are no transactions to include we don't seal and instead broadcast a signed EMPTY(Step) message
-			// FIXME: check if can generate empty step
-			//        (n_empty_steps < max_configured_value)
-			if block.transactions().is_empty() {
+			let mut empty_steps = self.empty_steps.lock();
+
+			// clear old `empty_steps` messages
+			empty_steps.retain(|e| U256::from(e.step) > parent_step);
+
+			// ignore messages for future steps
+			let empty_steps: Vec<_> = empty_steps.iter().filter(|e| e.step < step).cloned().collect();
+
+			const MAX_EMPTY_STEPS: usize = 15;
+
+			// if there are no transactions to include in the block, we don't seal and instead broadcast a signed
+			// `EmptyStep(step)` message. If we exceed the maximum amount of `empty_step` rounds we proceed with the
+			// seal.
+			if block.transactions().is_empty() && empty_steps.len() < MAX_EMPTY_STEPS {
 				self.generate_empty_step();
 				return Seal::None;
 			}
@@ -665,12 +684,13 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 				// only issue the seal if we were the first to reach the compare_and_swap.
 				if self.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
-					// FIXME: insert empty steps proof into block
-					let mut empty_steps = self.empty_steps.lock();
-					empty_steps.clear();
+					let fields = vec![
+						encode(&step).into_vec(),
+						encode(&(&H520::from(signature) as &[u8])).into_vec(),
+						::rlp::encode_list(&empty_steps).into_vec(),
+					];
 
-					// add empty steps proof
-					return Seal::Regular(vec![encode(&step).into_vec(), encode(&(&H520::from(signature) as &[u8])).into_vec()]);
+					return Seal::Regular(fields);
 				}
 			} else {
 				warn!(target: "engine", "generate_seal: FAIL: Accounts secret key unavailable.");
