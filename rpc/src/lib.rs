@@ -67,6 +67,8 @@ extern crate hash;
 extern crate hardware_wallet;
 
 #[macro_use]
+extern crate futures;
+#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate jsonrpc_macros;
