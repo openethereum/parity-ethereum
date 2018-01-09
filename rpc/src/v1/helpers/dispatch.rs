@@ -88,6 +88,7 @@ pub struct FullDispatcher<C, M> {
 	client: Arc<C>,
 	miner: Arc<M>,
 	nonces: Arc<Mutex<nonce::Reservations>>,
+	gas_price_percentile: usize,
 }
 
 impl<C, M> FullDispatcher<C, M> {
@@ -96,11 +97,13 @@ impl<C, M> FullDispatcher<C, M> {
 		client: Arc<C>,
 		miner: Arc<M>,
 		nonces: Arc<Mutex<nonce::Reservations>>,
+		gas_price_percentile: usize,
 	) -> Self {
 		FullDispatcher {
 			client,
 			miner,
 			nonces,
+			gas_price_percentile,
 		}
 	}
 }
@@ -111,6 +114,7 @@ impl<C, M> Clone for FullDispatcher<C, M> {
 			client: self.client.clone(),
 			miner: self.miner.clone(),
 			nonces: self.nonces.clone(),
+			gas_price_percentile: self.gas_price_percentile,
 		}
 	}
 }
@@ -148,7 +152,9 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 			used_default_from: request.from.is_none(),
 			to: request.to,
 			nonce,
-			gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(&*self.client, &*self.miner)),
+			gas_price: request.gas_price.unwrap_or_else(|| {
+				default_gas_price(&*self.client, &*self.miner, self.gas_price_percentile)
+			}),
 			gas: request.gas.unwrap_or_else(|| self.miner.sensible_gas_limit()),
 			value: request.value.unwrap_or_else(|| 0.into()),
 			data: request.data.unwrap_or_else(Vec::new),
@@ -218,8 +224,8 @@ pub fn fetch_gas_price_corpus(
 				})
 			})
 			.map(move |prices| {
-				// produce a corpus from the vector, cache it, and return
-				// the median as the intended gas price.
+				// produce a corpus from the vector and cache it.
+				// It's later used to get a percentile for default gas price.
 				let corpus: ::stats::Corpus<_> = prices.into();
 				cache.lock().set_gas_price_corpus(corpus.clone());
 				corpus
@@ -258,6 +264,8 @@ pub struct LightDispatcher {
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
 	/// Nonce reservations
 	pub nonces: Arc<Mutex<nonce::Reservations>>,
+	/// Gas Price percentile value used as default gas price.
+	pub gas_price_percentile: usize,
 }
 
 impl LightDispatcher {
@@ -271,6 +279,7 @@ impl LightDispatcher {
 		cache: Arc<Mutex<LightDataCache>>,
 		transaction_queue: Arc<RwLock<LightTransactionQueue>>,
 		nonces: Arc<Mutex<nonce::Reservations>>,
+		gas_price_percentile: usize,
 	) -> Self {
 		LightDispatcher {
 			sync,
@@ -279,6 +288,7 @@ impl LightDispatcher {
 			cache,
 			transaction_queue,
 			nonces,
+			gas_price_percentile,
 		}
 	}
 
@@ -345,6 +355,7 @@ impl Dispatcher for LightDispatcher {
 		};
 
 		// fast path for known gas price.
+		let gas_price_percentile = self.gas_price_percentile;
 		let gas_price = match request_gas_price {
 			Some(gas_price) => Either::A(future::ok(with_gas_price(gas_price))),
 			None => Either::B(fetch_gas_price_corpus(
@@ -352,8 +363,8 @@ impl Dispatcher for LightDispatcher {
 				self.client.clone(),
 				self.on_demand.clone(),
 				self.cache.clone()
-			).and_then(|corp| match corp.median() {
-				Some(median) => Ok(*median),
+			).and_then(move |corp| match corp.percentile(gas_price_percentile) {
+				Some(percentile) => Ok(*percentile),
 				None => Ok(DEFAULT_GAS_PRICE), // fall back to default on error.
 			}).map(with_gas_price))
 		};
@@ -738,11 +749,11 @@ fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: S
 }
 
 /// Extract the default gas price from a client and miner.
-pub fn default_gas_price<C, M>(client: &C, miner: &M) -> U256 where
+pub fn default_gas_price<C, M>(client: &C, miner: &M, percentile: usize) -> U256 where
 	C: MiningBlockChainClient,
 	M: MinerService,
 {
-	client.gas_price_corpus(100).median().cloned().unwrap_or_else(|| miner.sensible_gas_price())
+	client.gas_price_corpus(100).percentile(percentile).cloned().unwrap_or_else(|| miner.sensible_gas_price())
 }
 
 /// Convert RPC confirmation payload to signer confirmation payload.

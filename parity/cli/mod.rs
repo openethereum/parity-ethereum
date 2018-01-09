@@ -346,6 +346,7 @@ usage! {
 			ARG arg_password: (Vec<String>) = Vec::new(), or |c: &Config| otry!(c.account).password.clone(),
 			"--password=[FILE]...",
 			"Provide a file containing a password for unlocking an account. Leading and trailing whitespace is trimmed.",
+
 		["UI options"]
 			FLAG flag_force_ui: (bool) = false, or |c: &Config| otry!(c.ui).force.clone(),
 			"--force-ui",
@@ -695,6 +696,10 @@ usage! {
 			ARG arg_min_gas_price: (Option<u64>) = None, or |c: &Config| otry!(c.mining).min_gas_price.clone(),
 			"--min-gas-price=[STRING]",
 			"Minimum amount of Wei per GAS to be paid for a transaction to be accepted for mining. Overrides --usd-per-tx.",
+
+			ARG arg_gas_price_percentile: (usize) = 50usize, or |c: &Config| otry!(c.mining).gas_price_percentile,
+			"--gas-price-percentile=[PCT]",
+			"Set PCT percentile gas price value from last 100 blocks as default gas price when sending transactions.",
 
 			ARG arg_author: (Option<String>) = None, or |c: &Config| otry!(c.mining).author.clone(),
 			"--author=[ADDRESS]",
@@ -1142,6 +1147,7 @@ struct Mining {
 	tx_time_limit: Option<u64>,
 	relay_set: Option<String>,
 	min_gas_price: Option<u64>,
+	gas_price_percentile: Option<usize>,
 	usd_per_tx: Option<String>,
 	usd_per_eth: Option<String>,
 	price_update_period: Option<String>,
@@ -1546,6 +1552,7 @@ mod tests {
 			arg_tx_time_limit: Some(100u64),
 			arg_relay_set: "cheap".into(),
 			arg_min_gas_price: Some(0u64),
+			arg_gas_price_percentile: 50usize,
 			arg_usd_per_tx: "0.0025".into(),
 			arg_usd_per_eth: "auto".into(),
 			arg_price_update_period: "hourly".into(),
@@ -1794,6 +1801,7 @@ mod tests {
 				work_queue_size: None,
 				relay_set: None,
 				min_gas_price: None,
+				gas_price_percentile: None,
 				usd_per_tx: None,
 				usd_per_eth: None,
 				price_update_period: Some("hourly".into()),

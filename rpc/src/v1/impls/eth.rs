@@ -66,6 +66,8 @@ pub struct EthClientOptions {
 	pub allow_pending_receipt_query: bool,
 	/// Send additional block number when asking for work
 	pub send_block_number_in_get_work: bool,
+	/// Gas Price Percentile used as default gas price.
+	pub gas_price_percentile: usize,
 }
 
 impl EthClientOptions {
@@ -84,6 +86,7 @@ impl Default for EthClientOptions {
 			pending_nonce_from_queue: false,
 			allow_pending_receipt_query: true,
 			send_block_number_in_get_work: true,
+			gas_price_percentile: 50,
 		}
 	}
 }
@@ -338,7 +341,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn gas_price(&self) -> Result<RpcU256> {
-		Ok(RpcU256::from(default_gas_price(&*self.client, &*self.miner)))
+		Ok(RpcU256::from(default_gas_price(&*self.client, &*self.miner, self.options.gas_price_percentile)))
 	}
 
 	fn accounts(&self, meta: Metadata) -> Result<Vec<RpcH160>> {

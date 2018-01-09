@@ -65,7 +65,7 @@ fn signer_tester() -> SignerTester {
 	let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 	let event_loop = EventLoop::spawn();
 
-	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations);
+	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations, 50);
 	let mut io = IoHandler::default();
 	io.extend_with(SignerClient::new(&opt_accounts, dispatcher, &signer, event_loop.remote()).to_delegate());
 

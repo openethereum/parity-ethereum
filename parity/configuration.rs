@@ -339,6 +339,7 @@ impl Configuration {
 				daemon: daemon,
 				logger_config: logger_config.clone(),
 				miner_options: self.miner_options()?,
+				gas_price_percentile: self.args.arg_gas_price_percentile,
 				ntp_servers: self.ntp_servers(),
 				ws_conf: ws_conf,
 				http_conf: http_conf,
@@ -1357,6 +1358,7 @@ mod tests {
 			daemon: None,
 			logger_config: Default::default(),
 			miner_options: Default::default(),
+			gas_price_percentile: 50,
 			ntp_servers: vec![
 				"0.parity.pool.ntp.org:123".into(),
 				"1.parity.pool.ntp.org:123".into(),
