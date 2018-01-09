@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export function showSnackbar (message, cooldown) {
-  return (dispatch, getState) => {
+  return (dispatch) => {
     dispatch(openSnackbar(message, cooldown));
   };
 }

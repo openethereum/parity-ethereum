@@ -45,17 +45,22 @@
 }
 
 :root .reset { font-size: initial; width: 100%; height: 100%; }
+
 /* shame:on */
+
 /* Material-ui is changing input properties with inline styles. */
+
 /* because of that https://github.com/paritytech/eth-node-status-page is overriding all inputs with !important
 /* We want to keep it consistent and we use material ui, so we set the default color according to material ui */
 :root .reset input {
   margin-top: 0;
   color: rgba(0, 0, 0, 0.870588) !important;
 }
+
 :root .reset input[disabled] {
   color: rgba(0, 0, 0, 0.298039) !important;
 }
+
 /* shame:off */
 
 // Prefixed version of
@@ -83,25 +88,31 @@
   font: inherit;
   vertical-align: baseline;
 }
+
 /* HTML5 display-role reset for older browsers */
 :root .reset article, :root .reset aside, :root .reset details, :root .reset figcaption, :root .reset figure,
 :root .reset footer, :root .reset header, :root .reset hgroup, :root .reset menu, :root .reset nav, :root .reset section {
   display: block;
 }
+
 :root .reset body {
   line-height: 1;
 }
+
 :root .reset ol, :root .reset ul {
   list-style: none;
 }
+
 :root .reset blockquote, :root .reset q {
   quotes: none;
 }
+
 :root .reset blockquote:before, :root .reset blockquote:after,
 :root .reset q:before, :root .reset q:after {
   content: '';
   content: none;
 }
+
 :root .reset table {
   border-collapse: collapse;
   border-spacing: 0;

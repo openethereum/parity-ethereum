@@ -275,7 +275,7 @@ export default class GasPriceSelector extends Component {
     );
   }
 
-  updateSelectedBarChart (state = this.state) {
+  updateSelectedBarChart () {
   }
 
   setprice (props = this.props) {

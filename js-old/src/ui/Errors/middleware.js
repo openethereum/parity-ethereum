@@ -29,7 +29,7 @@ function withError (formatter, type = 'default') {
 
 export default class ErrorsMiddleware {
   toMiddleware () {
-    return (store) => (next) => (action) => {
+    return () => (next) => (action) => {
       const { meta } = action;
 
       if (meta && meta.error) {

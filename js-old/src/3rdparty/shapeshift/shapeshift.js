@@ -79,7 +79,9 @@ export default function (rpc) {
 
     return getStatus(subscription.depositAddress)
       .then((result) => {
-        switch (result.status) {
+        const { status } = result;
+
+        switch (status) {
           case 'no_deposits':
           case 'received':
             subscription.callback(null, result);

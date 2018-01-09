@@ -60,16 +60,20 @@ export default class UpgradeParity extends Component {
             defaultMessage='upgrading parity'
           />,
           store.error
-            ? <FormattedMessage
-              id='upgradeParity.step.error'
-              key='error'
-              defaultMessage='error'
+            ? (
+              <FormattedMessage
+                id='upgradeParity.step.error'
+                key='error'
+                defaultMessage='error'
               />
-            : <FormattedMessage
-              id='upgradeParity.step.completed'
-              key='completed'
-              defaultMessage='upgrade completed'
+            )
+            : (
+              <FormattedMessage
+                id='upgradeParity.step.completed'
+                key='completed'
+                defaultMessage='upgrade completed'
               />
+            )
         ] }
       >
         { this.renderStep() }

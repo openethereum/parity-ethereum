@@ -55,7 +55,7 @@ export default class AutoComplete extends Component {
     label: nodeOrStringProptype(),
     onChange: PropTypes.func.isRequired,
     onUpdateInput: PropTypes.func,
-    renderItem: PropTypes.func,
+    renderItem: PropTypes.func, // eslint-disable-line react/no-unused-prop-types
     value: PropTypes.string
   };
 
@@ -126,7 +126,7 @@ export default class AutoComplete extends Component {
     let currentDivider = 0;
     let firstSet = false;
 
-    const dataSource = entriesArray.map((entry, index) => {
+    const dataSource = entriesArray.map((entry) => {
       // Render divider
       if (typeof entry === 'string' && entry.toLowerCase() === 'divider') {
         // Don't add divider if nothing before
@@ -239,7 +239,7 @@ export default class AutoComplete extends Component {
     this.setState({ entry, open: false });
   }
 
-  onClose = (event) => {
+  onClose = () => {
     const { onUpdateInput } = this.props;
 
     if (!onUpdateInput) {

@@ -118,7 +118,7 @@ export default class AccountStore {
     });
 
     const promiseAccountsInfo = this._api
-      .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
+      .subscribe('parity_allAccountsInfo', (error) => {
         if (!error) {
           this.loadAccounts();
         }

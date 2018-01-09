@@ -102,6 +102,6 @@ export default {
       reject: `拒绝请求` // Reject Request
     },
     info: `你确定要拒绝请求吗？`, // Are you sure you want to reject request?
-    undone: `此操作是不可逆的`  // This cannot be undone
+    undone: `此操作是不可逆的` // This cannot be undone
   }
 };

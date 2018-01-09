@@ -195,11 +195,11 @@ export default class TransferStore {
     this.recalculateGas();
   }
 
-  @action _onUpdateGas = (gas) => {
+  @action _onUpdateGas = () => {
     this.recalculate();
   }
 
-  @action _onUpdateGasPrice = (gasPrice) => {
+  @action _onUpdateGasPrice = () => {
     this.recalculate();
   }
 

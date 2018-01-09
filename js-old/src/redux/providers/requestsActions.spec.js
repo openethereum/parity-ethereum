@@ -33,7 +33,7 @@ let dispatcher;
 
 function createApi () {
   return {
-    pollMethod: (method, data) => {
+    pollMethod: (method) => {
       switch (method) {
         case 'parity_checkRequest':
           return Promise.resolve(TX_HASH);

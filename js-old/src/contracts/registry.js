@@ -109,8 +109,8 @@ export default class Registry {
           ? 1
           : 2;
         const abi = version === 1
-            ? abis.registry
-            : abis.registry2;
+          ? abis.registry
+          : abis.registry2;
         const contract = this._api.newContract(abi, address);
 
         // Add support for previous `set` and `get` methods

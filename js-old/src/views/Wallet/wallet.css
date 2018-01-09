@@ -17,7 +17,6 @@
 
 .details {
   margin: 0;
-
   display: flex;
   flex-direction: row;
 
@@ -37,7 +36,6 @@
 
 .owners {
   margin-top: 0.75em;
-
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;

@@ -24,7 +24,7 @@ class ParityBackground extends Component {
 
   static propTypes = {
     attachDocument: PropTypes.bool,
-    backgroundSeed: PropTypes.string,
+    backgroundSeed: PropTypes.string, // eslint-disable-line react/no-unused-prop-types
     children: PropTypes.node,
     className: PropTypes.string,
     onClick: PropTypes.func,

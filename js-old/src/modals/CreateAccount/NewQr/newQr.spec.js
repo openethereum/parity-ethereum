@@ -36,7 +36,7 @@ function createStores () {
   vaultStore = {};
 }
 
-function render (props = {}) {
+function render () {
   createStores();
 
   component = shallow(

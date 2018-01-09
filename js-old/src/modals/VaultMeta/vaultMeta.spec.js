@@ -64,7 +64,7 @@ function createVaultStore () {
   return vaultStore;
 }
 
-function render (props = {}) {
+function render () {
   component = shallow(
     <VaultMeta vaultStore={ createVaultStore() } />,
     {

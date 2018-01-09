@@ -45,7 +45,7 @@ export const actionHandlers = {
     };
   },
 
-  'reset rpcPrevCalls' (state, action) {
+  'reset rpcPrevCalls' (state) {
     return {
       ...state,
       callNo: 1,

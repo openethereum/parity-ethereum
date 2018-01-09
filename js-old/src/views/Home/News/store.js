@@ -34,7 +34,7 @@ export default class Store {
       .then((contentId) => {
         return contracts.githubHint.getEntry(contentId);
       })
-      .then(([url, owner, commit]) => {
+      .then(([url]) => {
         if (!url) {
           return null;
         }

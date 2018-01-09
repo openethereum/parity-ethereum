@@ -30,7 +30,7 @@ function createStore () {
   return store;
 }
 
-function render (props = {}) {
+function render () {
   component = shallow(
     <AddressBar
       className='testClass'

@@ -98,7 +98,6 @@ export default class StatusStore {
         })
         .catch((error) => {
           console.error('_pollStatuses', error);
-          return;
         });
     });
   }

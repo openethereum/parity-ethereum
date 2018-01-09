@@ -61,10 +61,10 @@ const blockNumber = (api) => {
       }
       resolve(block);
     })
-    .then((subscription) => {
-      api.unsubscribe(subscription);
-    })
-    .catch(reject);
+      .then((subscription) => {
+        api.unsubscribe(subscription);
+      })
+      .catch(reject);
   });
 };
 

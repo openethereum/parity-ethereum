@@ -104,7 +104,7 @@ export function loadTokens (options = {}) {
   };
 }
 
-export function loadTokensBasics (tokenIndexes, options) {
+export function loadTokensBasics (tokenIndexes) {
   const limit = 64;
 
   return (dispatch, getState) => {

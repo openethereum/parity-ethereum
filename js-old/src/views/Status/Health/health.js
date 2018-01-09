@@ -70,17 +70,20 @@ class Health extends Component {
 
   render () {
     const { peers, sync, time } = this.props;
-    const [yes, no] = [(
-      <FormattedMessage
-        id='status.health.yes'
-        defaultMessage='yes'
-      />
-    ), (
-      <FormattedMessage
-        id='status.health.no'
-        defaultMessage='no'
-      />
-    )];
+    const [yes, no] = [
+      (
+        <FormattedMessage
+          id='status.health.yes'
+          defaultMessage='yes'
+        />
+      ),
+      (
+        <FormattedMessage
+          id='status.health.no'
+          defaultMessage='no'
+        />
+      )
+    ];
 
     return (
       <Container>

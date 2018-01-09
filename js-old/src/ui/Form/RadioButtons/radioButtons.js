@@ -38,7 +38,7 @@ export default class RadioButtons extends Component {
   };
 
   render () {
-    const { className, label, value, values } = this.props;
+    const { className, label, name, value, values } = this.props;
 
     const index = Number.isNaN(parseInt(value))
       ? values.findIndex((_value) => _value.key === value)
@@ -84,8 +84,8 @@ export default class RadioButtons extends Component {
               <span>{ label }</span>
               {
                 description
-                ? <span className={ styles.description }>{ description }</span>
-                : null
+                  ? <span className={ styles.description }>{ description }</span>
+                  : null
               }
             </div>
           }

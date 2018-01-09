@@ -42,15 +42,15 @@ class Transfer extends Component {
   }
 
   static propTypes = {
-    newError: PropTypes.func.isRequired,
-    gasLimit: PropTypes.object.isRequired,
+    newError: PropTypes.func.isRequired, // eslint-disable-line react/no-unused-prop-types
+    gasLimit: PropTypes.object.isRequired, // eslint-disable-line react/no-unused-prop-types
 
     account: PropTypes.object,
     balance: PropTypes.object,
-    onClose: PropTypes.func,
+    onClose: PropTypes.func, // eslint-disable-line react/no-unused-prop-types
     senders: nullableProptype(PropTypes.object),
-    sendersBalances: nullableProptype(PropTypes.object),
-    tokens: PropTypes.object,
+    sendersBalances: nullableProptype(PropTypes.object), // eslint-disable-line react/no-unused-prop-types
+    tokens: PropTypes.object, // eslint-disable-line react/no-unused-prop-types
     wallet: PropTypes.object
   }
 

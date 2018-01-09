@@ -82,8 +82,6 @@ export default class GasPriceEditor {
       case CONDITIONS.TIME:
         return { time: this.condition.time };
     }
-
-    return;
   }
 
   @action setConditionType = (conditionType = CONDITIONS.NONE) => {

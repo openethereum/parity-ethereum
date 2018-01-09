@@ -26,7 +26,7 @@ let component;
 let instance;
 let renderItem;
 
-function render (props = {}) {
+function render () {
   renderItem = sinon.stub().returns('someThing');
   component = shallow(
     <SectionList

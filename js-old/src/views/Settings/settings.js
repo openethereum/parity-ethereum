@@ -91,7 +91,7 @@ export default class Settings extends Component {
   onActivate = (section) => {
     const { router } = this.context;
 
-    return (event) => {
+    return () => {
       router.push(`/settings/${section}`);
     };
   }

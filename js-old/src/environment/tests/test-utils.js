@@ -24,7 +24,7 @@ const TEST_HOOK = 'data-test';
 Component.prototype._test = isProd ? noop : testHook;
 Component.prototype._testInherit = isProd ? noop : testHookInherit;
 
-function noop (name) {}
+function noop () {}
 
 function testHookInherit (name) {
   let hook = this.props[TEST_HOOK];

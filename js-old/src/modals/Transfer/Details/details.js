@@ -32,7 +32,6 @@ export const CHECK_STYLE = {
 
 export default class Details extends Component {
   static propTypes = {
-    address: PropTypes.string,
     balance: PropTypes.object,
     all: PropTypes.bool,
     extras: PropTypes.bool,
@@ -46,7 +45,6 @@ export default class Details extends Component {
     value: PropTypes.string,
     valueError: PropTypes.string,
     onChange: PropTypes.func.isRequired,
-    wallet: PropTypes.object,
     senders: nullableProptype(PropTypes.object)
   };
 

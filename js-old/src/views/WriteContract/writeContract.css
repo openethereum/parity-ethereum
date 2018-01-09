@@ -41,7 +41,6 @@
   display: flex;
   flex: 1;
   flex-direction: row;
-
   // Fallback for browsers not supporting `calc`
   min-height: 90vh;
   min-height: calc(100vh - 8em);
@@ -179,7 +178,7 @@
 }
 
 .sliderContainer {
-  flex: 0 0 .8em;
+  flex: 0 0 0.8em;
   display: flex;
   align-items: center;
   justify-content: center;

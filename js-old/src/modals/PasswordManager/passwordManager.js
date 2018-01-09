@@ -275,10 +275,12 @@ class PasswordManager extends Component {
                 error={
                   isRepeatValid
                     ? null
-                    : <FormattedMessage
-                      id='passwordChange.repeatPassword.error'
-                      defaultMessage='the supplied passwords do not match'
+                    : (
+                      <FormattedMessage
+                        id='passwordChange.repeatPassword.error'
+                        defaultMessage='the supplied passwords do not match'
                       />
+                    )
                 }
                 hint={
                   <FormattedMessage

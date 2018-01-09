@@ -33,7 +33,7 @@ class TokenSelect extends Component {
   static propTypes = {
     onChange: PropTypes.func.isRequired,
     balance: PropTypes.object.isRequired,
-    tokens: PropTypes.object.isRequired,
+    tokens: PropTypes.object.isRequired, // eslint-disable-line react/no-unused-prop-types
     value: PropTypes.string.isRequired
   };
 
@@ -54,7 +54,7 @@ class TokenSelect extends Component {
 
   computeTokens (props = this.props) {
     const { api } = this.context;
-    const { balance, tokens } = this.props;
+    const { balance, tokens } = props;
 
     const items = Object.keys(balance)
       .map((tokenId) => {

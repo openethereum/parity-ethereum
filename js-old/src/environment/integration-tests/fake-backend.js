@@ -30,7 +30,7 @@ class FakeRpcServer {
   }
 
   simpleRpc (rpcMethod, result) {
-    this.rpc(rpcMethod, req => result);
+    this.rpc(rpcMethod, () => result);
   }
 
   rpc (rpcMethod, middleware) {

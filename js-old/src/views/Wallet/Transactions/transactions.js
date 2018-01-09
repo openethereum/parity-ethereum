@@ -80,7 +80,7 @@ export default class WalletTransactions extends Component {
           key={ `${transactionHash}_${index}` }
           tx={ {
             hash: transactionHash,
-            input: data && bytesToHex(data) || '',
+            input: (data && bytesToHex(data)) || '',
             ...transaction
           } }
         />

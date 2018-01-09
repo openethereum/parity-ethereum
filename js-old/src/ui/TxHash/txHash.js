@@ -130,11 +130,13 @@ class TxHash extends Component {
         <p>{
           summary
             ? hashLink
-            : <FormattedMessage
-              id='ui.txHash.posted'
-              defaultMessage='The transaction has been posted to the network with a hash of {hashLink}'
-              values={ { hashLink } }
+            : (
+              <FormattedMessage
+                id='ui.txHash.posted'
+                defaultMessage='The transaction has been posted to the network with a hash of {hashLink}'
+                values={ { hashLink } }
               />
+            )
         }</p>
         { this.renderConfirmations() }
       </div>

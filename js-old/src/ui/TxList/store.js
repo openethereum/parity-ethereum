@@ -134,11 +134,11 @@ export default class Store {
       .then(() => {
         return this._api.parity.postTransaction({
           from: from,
-          to: from,                    // set to owner
-          gas: new BigNumber(21000),   // set default gas
-          gasPrice: gasPrice.times(1.25),   // must be a minimum of 10% growth to be recognized as a replacement by miners (incentive)
-          value: new BigNumber(0),     // zero out the value
-          condition: null,             // ensure to post this instantly
+          to: from, // set to owner
+          gas: new BigNumber(21000), // set default gas
+          gasPrice: gasPrice.times(1.25), // must be a minimum of 10% growth to be recognized as a replacement by miners (incentive)
+          value: new BigNumber(0), // zero out the value
+          condition: null, // ensure to post this instantly
           data: '0x'
         });
       })

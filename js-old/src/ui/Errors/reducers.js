@@ -24,7 +24,7 @@ function newError (state, action) {
   });
 }
 
-function closeErrors (state, action) {
+function closeErrors (state) {
   return Object.assign({}, state, {
     visible: false,
     message: null

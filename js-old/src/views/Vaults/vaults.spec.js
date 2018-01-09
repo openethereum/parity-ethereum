@@ -27,7 +27,7 @@ let component;
 let instance;
 let store;
 
-function render (props = {}) {
+function render () {
   api = createApi();
   store = createReduxStore();
 

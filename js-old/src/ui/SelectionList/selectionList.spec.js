@@ -28,7 +28,7 @@ let renderItem;
 let onDefaultClick;
 let onSelectClick;
 
-function render (props = {}) {
+function render () {
   renderItem = sinon.stub();
   onDefaultClick = sinon.stub();
   onSelectClick = sinon.stub();

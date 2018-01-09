@@ -16,13 +16,13 @@
 */
 .call {
   position: relative;
-  border-bottom: 2px solid #CCC6C6;
+  border-bottom: 2px solid #ccc6c6;
   margin-bottom: 18.4px;
   background: #f5f4f2;
 }
 
 .call:first-child {
-  border-color: #6691C2;
+  border-color: #6691c2;
 }
 
 .call pre {

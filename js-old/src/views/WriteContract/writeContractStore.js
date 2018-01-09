@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+/* eslint import/no-webpack-loader-syntax: 0 */
+
 import { debounce } from 'lodash';
 import { action, computed, observable, transaction } from 'mobx';
 import React from 'react';
@@ -435,7 +437,7 @@ export default class WriteContractStore {
 
     return (data || [])
       .filter((e) => regex.test(e))
-      .map((error, index) => {
+      .map((error) => {
         const match = regex.exec(error);
 
         const contract = match[1];

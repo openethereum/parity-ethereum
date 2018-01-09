@@ -76,7 +76,7 @@ export default class Store {
       this.isTracing
         ? this.fetchTraceTransactions()
         : this.fetchEtherscanTransactions()
-      )
+    )
       .then((transactions) => {
         this.setHashes(transactions);
       })

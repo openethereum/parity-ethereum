@@ -122,7 +122,7 @@ class Background extends Component {
     const { muiTheme } = this.context;
     const { updateBackground } = this.props;
 
-    return (event) => {
+    return () => {
       muiTheme.parity.setBackgroundSeed(seed);
       updateBackground(seed);
     };

@@ -45,16 +45,16 @@
   bottom: 0;
   display: flex;
   opacity: 0;
-  transition: opacity ease-in-out .2s;
+  transition: opacity ease-in-out 0.2s;
   transition-delay: 0.2s;
 }
 
 .iconsVisible {
-  opacity: 1.0;
+  opacity: 1;
 }
 
 .container:hover .icons, .container:hover .firstIcon {
-  opacity: 1.0;
+  opacity: 1;
 }
 
 .firstIcon {

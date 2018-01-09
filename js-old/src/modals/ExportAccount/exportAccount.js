@@ -37,7 +37,6 @@ class ExportAccount extends Component {
     accounts: PropTypes.object.isRequired,
     balances: PropTypes.object.isRequired,
     newError: PropTypes.func.isRequired,
-    personalAccountsInfo: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired
   };
 

@@ -59,7 +59,8 @@ export default class SolidityUtils {
       .then((r) => r.text())
       .then((code) => {
         // `window` for main thread, `self` for workers
-        const _self = isWorker ? self : window;
+        // eslint-disable-next-line no-restricted-globals
+        const _self = isWorker ? self : window; // esl
 
         _self.Module = {};
 

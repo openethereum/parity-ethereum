@@ -27,7 +27,7 @@ let currentSender = '';
 let hasCurrentSenderChanged = false;
 
 export function getSender () {
-  currentSender;
+  return currentSender;
 }
 
 export function loadSender (api) {
@@ -171,7 +171,7 @@ export function deploy (contract, options, values, skipGasEstimate = false) {
 
   const gasEstPromise = skipGasEstimate
     ? Promise.resolve(null)
-    : deployEstimateGas(contract, options, values).then(([gasEst, gas]) => gas);
+    : deployEstimateGas(contract, options, values).then(([, gas]) => gas);
 
   return gasEstPromise
     .then((gas) => {
@@ -259,35 +259,35 @@ export function patchContract (contract) {
 
 export function checkIfTxFailed (api, tx, gasSent) {
   return api.pollMethod('eth_getTransactionReceipt', tx)
-  .then((receipt) => {
+    .then((receipt) => {
     // TODO: Right now, there's no way to tell wether the EVM code crashed.
     // Because you usually send a bit more gas than estimated (to make sure
     // it gets mined quickly), we transaction probably failed if all the gas
     // has been used up.
-    return receipt.gasUsed.eq(gasSent);
-  });
+      return receipt.gasUsed.eq(gasSent);
+    });
 }
 
 export function waitForConfirmations (api, tx, confirmations) {
   return new Promise((resolve, reject) => {
     api.pollMethod('eth_getTransactionReceipt', tx, isValidReceipt)
-    .then((receipt) => {
-      let subscription;
+      .then((receipt) => {
+        let subscription;
 
-      api.subscribe('eth_blockNumber', (err, block) => {
-        if (err) {
-          reject(err);
-        } else if (block.minus(confirmations - 1).gte(receipt.blockNumber)) {
-          if (subscription) {
-            api.unsubscribe(subscription);
+        api.subscribe('eth_blockNumber', (err, block) => {
+          if (err) {
+            reject(err);
+          } else if (block.minus(confirmations - 1).gte(receipt.blockNumber)) {
+            if (subscription) {
+              api.unsubscribe(subscription);
+            }
+            resolve();
           }
-          resolve();
-        }
-      })
-      .then((_subscription) => {
-        subscription = _subscription;
-      })
-      .catch(reject);
-    });
+        })
+          .then((_subscription) => {
+            subscription = _subscription;
+          })
+          .catch(reject);
+      });
   });
 }

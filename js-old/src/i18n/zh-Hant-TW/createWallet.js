@@ -45,7 +45,7 @@ export default {
       label: `錢包描述（可選）` // wallet description (optional)
     },
     name: {
-      hint: `錢包本地名稱`,  // the local name for this wallet
+      hint: `錢包本地名稱`, // the local name for this wallet
       label: `錢包名稱` // wallet name
     },
     nameMulti: {

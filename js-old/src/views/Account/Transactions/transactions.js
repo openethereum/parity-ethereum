@@ -31,8 +31,8 @@ class Transactions extends Component {
   }
 
   static propTypes = {
-    address: PropTypes.string.isRequired,
-    netVersion: PropTypes.string.isRequired,
+    address: PropTypes.string.isRequired, // eslint-disable-line react/no-unused-prop-types
+    netVersion: PropTypes.string.isRequired, // eslint-disable-line react/no-unused-prop-types
     traceMode: PropTypes.bool
   }
 

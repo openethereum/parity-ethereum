@@ -31,15 +31,13 @@ export class Balance extends Component {
   static propTypes = {
     balance: PropTypes.object.isRequired,
     tokens: PropTypes.object.isRequired,
-    address: PropTypes.string,
+    address: PropTypes.string, // eslint-disable-line react/no-unused-prop-types
     className: PropTypes.string,
-    showOnlyEth: PropTypes.bool,
-    showZeroValues: PropTypes.bool
+    showOnlyEth: PropTypes.bool
   };
 
   static defaultProps = {
-    showOnlyEth: false,
-    showZeroValues: false
+    showOnlyEth: false
   };
 
   render () {

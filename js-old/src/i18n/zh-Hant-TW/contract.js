@@ -28,7 +28,7 @@ export default {
   events: {
     eventPending: `待定中`, // pending
     noEvents: `此合約沒有傳送過任何事件`, // No events has been sent from this contract.
-    title: `事件`  // events
+    title: `事件` // events
   },
   minedBlock: `挖到了第{blockNumber}個區塊`, // Mined at block #{blockNumber}
   queries: {

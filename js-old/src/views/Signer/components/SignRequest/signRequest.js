@@ -121,7 +121,7 @@ class SignRequest extends Component {
     );
   }
 
-  renderBinaryDetails (data) {
+  renderBinaryDetails () {
     return (
       <div className={ styles.signData }>
         <p>

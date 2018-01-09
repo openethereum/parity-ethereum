@@ -72,7 +72,7 @@ export default class Balances {
 
   static start () {
     if (!instance) {
-      return Promise.reject('BalancesProvider has not been initiated yet');
+      return Promise.reject(new Error('BalancesProvider has not been initiated yet'));
     }
 
     const self = instance;
@@ -110,7 +110,7 @@ export default class Balances {
     let firstcall = true;
 
     return this._api
-      .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
+      .subscribe('parity_allAccountsInfo', (error) => {
         if (error) {
           return console.warn('balances::subscribeAccountsInfo', error);
         }
@@ -137,7 +137,7 @@ export default class Balances {
     let firstcall = true;
 
     return this._api
-      .subscribe('eth_blockNumber', (error, block) => {
+      .subscribe('eth_blockNumber', (error) => {
         if (error) {
           return console.warn('balances::subscribeBlockNumber', error);
         }
