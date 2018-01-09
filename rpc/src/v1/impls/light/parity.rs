@@ -60,6 +60,7 @@ pub struct ParityClient {
 	dapps_address: Option<Host>,
 	ws_address: Option<Host>,
 	eip86_transition: u64,
+	gas_price_percentile: usize,
 }
 
 impl ParityClient {
@@ -74,6 +75,7 @@ impl ParityClient {
 		signer: Option<Arc<SignerService>>,
 		dapps_address: Option<Host>,
 		ws_address: Option<Host>,
+		gas_price_percentile: usize,
 	) -> Self {
 		ParityClient {
 			light_dispatch,
@@ -85,7 +87,8 @@ impl ParityClient {
 			dapps_address,
 			ws_address,
 			eip86_transition: client.eip86_transition(),
-			client: client,
+			client,
+			gas_price_percentile,
 		}
 	}
 
@@ -96,6 +99,7 @@ impl ParityClient {
 			on_demand: self.light_dispatch.on_demand.clone(),
 			sync: self.light_dispatch.sync.clone(),
 			cache: self.light_dispatch.cache.clone(),
+			gas_price_percentile: self.gas_price_percentile,
 		}
 	}
 }
