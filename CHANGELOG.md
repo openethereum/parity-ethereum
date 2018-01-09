@@ -1,8 +1,14 @@
-## Parity [v1.8.6](https://github.com/paritytech/parity/releases/tag/v1.8.6) (2018-01-09)
+## Parity [v1.8.6](https://github.com/paritytech/parity/releases/tag/v1.8.6) (2018-01-10)
 
 Parity 1.8.6 fixes a critical issue with the database eventually filling up user's disks. Upgrading is highly recommended as it will significantly improve your user experience.
 
-Note, this release also fixes consensus issues with the Expanse chain and enabling Byzantium. If you run Parity configured for Expanse, you might have to resync your chain after the upgrade.
+In addition, this version allows you to dynamically set the default gas price as percentile from the last 100 blocks (it defaults to median: `50`).
+
+    --gas-price-percentile=[PCT]        Set PCT percentile gas price value from
+                                        last 100 blocks as default gas price
+                                        when sending transactions.
+
+Last but not least, this release also fixes consensus issues with the Expanse chain enabling Byzantium. If you run Parity configured for Expanse, you might have to resync your chain after the upgrade.
 
 The full list of included changes:
 
@@ -35,6 +41,10 @@ The full list of included changes:
   - Fixed panic when io is not available for export block, closes [#7486](https://github.com/paritytech/parity/issue/7486) ([#7495](https://github.com/paritytech/parity/pull/7495))
   - Update Parity Mainnet Bootnodes ([#7476](https://github.com/paritytech/parity/pull/7476))
     - Replace the Azure HDD bootnodes with the new ones :)
+  - Expose default gas price percentile configuration in CLI ([#7497](https://github.com/paritytech/parity/pull/7497))
+    - Expose gas price percentile.
+    - Fix light eth_call.
+    - Fix gas_price in light client
 - Backport nonces reservations ([#7439](https://github.com/paritytech/parity/pull/7439))
   - Reserve nonces for signing ([#6834](https://github.com/paritytech/parity/pull/6834))
     - Nonce future - reserve and dispatch
