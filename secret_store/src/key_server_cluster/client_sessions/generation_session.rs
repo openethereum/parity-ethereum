@@ -301,7 +301,7 @@ impl SessionImpl {
 				self.on_session_error(sender, Error::Io(message.error.clone().into()));
 				Ok(())
 			},
-			&GenerationMessage::SessionCompleted(ref message) => 
+			&GenerationMessage::SessionCompleted(ref message) =>
 				self.on_session_completed(sender.clone(), message),
 		}
 	}
@@ -526,7 +526,7 @@ impl SessionImpl {
 					data.secret_share.as_ref().expect("secret_share is filled in KG phase; we are at the end of KG phase; qed").clone(),
 				)],
 			};
-			
+
 			if let Some(ref key_storage) = self.key_storage {
 				key_storage.insert(self.id.clone(), encrypted_data.clone())
 					.map_err(|e| Error::KeyStorage(e.into()))?;
@@ -626,7 +626,7 @@ impl SessionImpl {
 	/// Keys verification (KV) phase
 	fn verify_keys(&self) -> Result<(), Error> {
 		let mut data = self.data.lock();
-		
+
 		// key verification (KV) phase: check that other nodes have passed correct secrets
 		let threshold = data.threshold.expect("threshold is filled in initialization phase; KV phase follows initialization phase; qed");
 		let derived_point = data.derived_point.clone().expect("derived point generated on initialization phase; KV phase follows initialization phase; qed");
@@ -674,7 +674,7 @@ impl SessionImpl {
 	/// Complete generation
 	fn complete_generation(&self) -> Result<(), Error> {
 		let mut data = self.data.lock();
-		
+
 		// calculate joint public key
 		let joint_public = {
 			let public_shares = data.nodes.values().map(|n| n.public_share.as_ref().expect("keys received on KD phase; KG phase follows KD phase; qed"));
@@ -1305,8 +1305,6 @@ pub mod tests {
 
 	#[test]
 	fn encryption_session_works_over_network() {
-		//::util::log::init_log();
-
 		let test_cases = [(1, 3)];
 		for &(threshold, num_nodes) in &test_cases {
 			let mut core = Core::new().unwrap();
