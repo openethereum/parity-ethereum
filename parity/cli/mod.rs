@@ -342,6 +342,7 @@ usage! {
 			ARG arg_password: (Vec<String>) = Vec::new(), or |c: &Config| otry!(c.account).password.clone(),
 			"--password=[FILE]...",
 			"Provide a file containing a password for unlocking an account. Leading and trailing whitespace is trimmed.",
+
 		["UI options"]
 			FLAG flag_force_ui: (bool) = false, or |c: &Config| otry!(c.ui).force.clone(),
 			"--force-ui",
@@ -684,6 +685,10 @@ usage! {
 			"--min-gas-price=[STRING]",
 			"Minimum amount of Wei per GAS to be paid for a transaction to be accepted for mining. Overrides --basic-tx-usd.",
 
+			ARG arg_gas_price_percentile: (usize) = 50usize, or |c: &Config| otry!(c.mining).gas_price_percentile,
+			"--gas-price-percentile=[PCT]",
+			"Set PCT percentile gas price value from last 100 blocks as default gas price when sending transactions.",
+
 			ARG arg_author: (Option<String>) = None, or |c: &Config| otry!(c.mining).author.clone(),
 			"--author=[ADDRESS]",
 			"Specify the block author (aka \"coinbase\") address for sending block rewards from sealed blocks. NOTE: MINING WILL NOT WORK WITHOUT THIS OPTION.", // Sealing/Mining Option
@@ -982,6 +987,7 @@ struct Config {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Operating {
 	mode: Option<String>,
 	mode_timeout: Option<u64>,
@@ -1001,6 +1007,7 @@ struct Operating {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Account {
 	unlock: Option<Vec<String>>,
 	password: Option<Vec<String>>,
@@ -1010,6 +1017,7 @@ struct Account {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Ui {
 	force: Option<bool>,
 	disable: Option<bool>,
@@ -1020,6 +1028,7 @@ struct Ui {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Network {
 	warp: Option<bool>,
 	port: Option<u16>,
@@ -1039,6 +1048,7 @@ struct Network {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Rpc {
 	disable: Option<bool>,
 	port: Option<u16>,
@@ -1051,6 +1061,7 @@ struct Rpc {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Ws {
 	disable: Option<bool>,
 	port: Option<u16>,
@@ -1061,6 +1072,7 @@ struct Ws {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Ipc {
 	disable: Option<bool>,
 	path: Option<String>,
@@ -1068,6 +1080,7 @@ struct Ipc {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Dapps {
 	disable: Option<bool>,
 	port: Option<u16>,
@@ -1080,6 +1093,7 @@ struct Dapps {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct SecretStore {
 	disable: Option<bool>,
 	disable_http: Option<bool>,
@@ -1095,6 +1109,7 @@ struct SecretStore {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Ipfs {
 	enable: Option<bool>,
 	port: Option<u16>,
@@ -1104,6 +1119,7 @@ struct Ipfs {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Mining {
 	author: Option<String>,
 	engine_signer: Option<String>,
@@ -1117,6 +1133,7 @@ struct Mining {
 	tx_time_limit: Option<u64>,
 	relay_set: Option<String>,
 	min_gas_price: Option<u64>,
+	gas_price_percentile: Option<usize>,
 	usd_per_tx: Option<String>,
 	usd_per_eth: Option<String>,
 	price_update_period: Option<String>,
@@ -1135,6 +1152,7 @@ struct Mining {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Stratum {
 	interface: Option<String>,
 	port: Option<u16>,
@@ -1142,6 +1160,7 @@ struct Stratum {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Footprint {
 	tracing: Option<String>,
 	pruning: Option<String>,
@@ -1160,16 +1179,19 @@ struct Footprint {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Snapshots {
 	disable_periodic: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct VM {
 	jit: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Misc {
 	ntp_servers: Option<Vec<String>>,
 	logging: Option<String>,
@@ -1180,6 +1202,7 @@ struct Misc {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Whisper {
 	enabled: Option<bool>,
 	pool_size: Option<usize>,
@@ -1512,6 +1535,7 @@ mod tests {
 			arg_tx_time_limit: Some(100u64),
 			arg_relay_set: "cheap".into(),
 			arg_min_gas_price: Some(0u64),
+			arg_gas_price_percentile: 50usize,
 			arg_usd_per_tx: "0.0025".into(),
 			arg_usd_per_eth: "auto".into(),
 			arg_price_update_period: "hourly".into(),
@@ -1624,11 +1648,17 @@ mod tests {
 		let config1 = Args::parse_config(include_str!("./tests/config.invalid1.toml"));
 		let config2 = Args::parse_config(include_str!("./tests/config.invalid2.toml"));
 		let config3 = Args::parse_config(include_str!("./tests/config.invalid3.toml"));
+		let config4 = Args::parse_config(include_str!("./tests/config.invalid4.toml"));
 
-		match (config1, config2, config3) {
-			(Err(ArgsError::Decode(_)), Err(ArgsError::Decode(_)), Err(ArgsError::Decode(_))) => {},
-			(a, b, c) => {
-				assert!(false, "Got invalid error types: {:?}, {:?}, {:?}", a, b, c);
+		match (config1, config2, config3, config4) {
+			(
+				Err(ArgsError::Decode(_)),
+				Err(ArgsError::Decode(_)),
+				Err(ArgsError::Decode(_)),
+				Err(ArgsError::Decode(_)),
+			) => {},
+			(a, b, c, d) => {
+				assert!(false, "Got invalid error types: {:?}, {:?}, {:?}, {:?}", a, b, c, d);
 			}
 		}
 	}
@@ -1751,6 +1781,7 @@ mod tests {
 				work_queue_size: None,
 				relay_set: None,
 				min_gas_price: None,
+				gas_price_percentile: None,
 				usd_per_tx: None,
 				usd_per_eth: None,
 				price_update_period: Some("hourly".into()),

@@ -51,7 +51,7 @@ impl PoolHandle for NetPoolHandle {
 	fn relay(&self, message: Message) -> bool {
 		let mut res = false;
 		let mut message = Some(message);
-		self.net.with_proto_context(whisper_net::PROTOCOL_ID, &mut move |ctx| {
+		self.net.with_proto_context(whisper_net::PROTOCOL_ID, &mut |ctx| {
 			if let Some(message) = message.take() {
 				res = self.handle.post_message(message, ctx);
 			}
