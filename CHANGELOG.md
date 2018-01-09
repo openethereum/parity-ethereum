@@ -1,8 +1,8 @@
 ## Parity [v1.8.6](https://github.com/paritytech/parity/releases/tag/v1.8.6) (2018-01-10)
 
-Parity 1.8.6 fixes a critical issue with the database eventually filling up user's disks. Upgrading is highly recommended as it will significantly improve your user experience.
+Parity 1.8.6 fixes a critical issue with the database eventually filling up user's disks. Upgrading is highly recommended as it will significantly improve your user experience. As a bonus, this release should enable users with slower hard-disk drives to catch up with the latest block again. Also, warp-sync performance was significantly improved. Please note, that the initial database compaction after upgrading might temporarily reduce the node's performance.
 
-In addition, this version allows you to dynamically set the default gas price as percentile from the last 100 blocks (it defaults to median: `50`).
+In addition to our gas price histogram, this version now allows you to dynamically set the default gas price as percentile from the last 100 blocks (it defaults to median: `50`).
 
     --gas-price-percentile=[PCT]        Set PCT percentile gas price value from
                                         last 100 blocks as default gas price
@@ -12,6 +12,8 @@ Last but not least, this release also fixes consensus issues with the Expanse ch
 
 The full list of included changes:
 
+- RocksDB fix ([#7508](https://github.com/paritytech/parity/pull/7508))
+  - Kvdb: update rust-rocksdb version
 - Backports to beta ([#7434](https://github.com/paritytech/parity/pull/7434))
   - Wait for future blocks in AuRa ([#7368](https://github.com/paritytech/parity/pull/7368))
     - Mark future blocks as temporarily invalid.
