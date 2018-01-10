@@ -141,7 +141,7 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/api": "^2.1.14",
+    "@parity/api": "2.1.15",
     "@parity/plugin-signer-account": "paritytech/plugin-signer-account",
     "@parity/plugin-signer-default": "paritytech/plugin-signer-default",
     "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware",

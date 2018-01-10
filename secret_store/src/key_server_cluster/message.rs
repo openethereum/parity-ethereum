@@ -378,6 +378,8 @@ pub struct ConfirmConsensusInitialization {
 /// Node is asked to be part of servers-set consensus group.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InitializeConsensusSessionWithServersSet {
+	/// Migration id (if any).
+	pub migration_id: Option<SerializableH256>,
 	/// Old nodes set.
 	pub old_nodes_set: BTreeSet<MessageNodeId>,
 	/// New nodes set.
@@ -874,6 +876,19 @@ impl Message {
 		match *self {
 			Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(_)) => true,
 			Message::Signing(SigningMessage::SigningSessionDelegation(_)) => true,
+			_ => false,
+		}
+	}
+
+	pub fn is_error_message(&self) -> bool {
+		match *self {
+			Message::Generation(GenerationMessage::SessionError(_)) => true,
+			Message::Encryption(EncryptionMessage::EncryptionSessionError(_)) => true,
+			Message::Decryption(DecryptionMessage::DecryptionSessionError(_)) => true,
+			Message::Signing(SigningMessage::SigningConsensusMessage(_)) => true,
+			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersionsError(_)) => true,
+			Message::ShareAdd(ShareAddMessage::ShareAddError(_)) => true,
+			Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(_)) => true,
 			_ => false,
 		}
 	}

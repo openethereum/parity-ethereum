@@ -21,6 +21,7 @@ use parking_lot::RwLock;
 use ethkey::{Public, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, DocumentKeyShare, SessionMeta};
 use key_server_cluster::cluster::{Cluster, ClusterConfiguration};
+use key_server_cluster::connection_trigger::ServersSetChangeSessionCreatorConnector;
 use key_server_cluster::cluster_sessions::{ClusterSession, SessionIdWithSubSession, AdminSession, AdminSessionCreationData};
 use key_server_cluster::message::{self, Message, DecryptionMessage, SigningMessage, ConsensusMessageOfShareAdd,
 	ShareAddMessage, ServersSetChangeMessage, ConsensusMessage, ConsensusMessageWithServersSet};
@@ -331,13 +332,18 @@ pub struct AdminSessionCreator {
 	pub core: Arc<SessionCreatorCore>,
 	/// Administrator public.
 	pub admin_public: Option<Public>,
+	/// Servers set change sessions creator connector.
+	pub servers_set_change_session_creator_connector: Arc<ServersSetChangeSessionCreatorConnector>,
 }
 
 impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSessionCreator {
 	fn creation_data_from_message(message: &Message) -> Result<Option<AdminSessionCreationData>, Error> {
 		match *message {
 			Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref message)) => match &message.message {
-				&ConsensusMessageWithServersSet::InitializeConsensusSession(_) => Ok(Some(AdminSessionCreationData::ServersSetChange)),
+				&ConsensusMessageWithServersSet::InitializeConsensusSession(ref message) => Ok(Some(AdminSessionCreationData::ServersSetChange(
+					message.migration_id.clone().map(Into::into),
+					message.new_nodes_set.clone().into_iter().map(Into::into).collect()
+				))),
 				_ => Err(Error::InvalidMessage),
 			},
 			Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(ref message)) => match &message.message {
@@ -358,7 +364,6 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 
 	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionId, creation_data: Option<AdminSessionCreationData>) -> Result<Arc<AdminSession>, Error> {
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
-		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
 		Ok(Arc::new(match creation_data {
 			Some(AdminSessionCreationData::ShareAdd(version)) => {
 				AdminSession::ShareAdd(ShareAddSessionImpl::new(ShareAddSessionParams {
@@ -370,10 +375,13 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 					transport: ShareAddTransport::new(id.clone(), Some(version), nonce, cluster),
 					key_storage: self.core.key_storage.clone(),
 					nonce: nonce,
-					admin_public: Some(admin_public),
+					admin_public: Some(self.admin_public.clone().ok_or(Error::AccessDenied)?),
 				})?)
 			},
-			Some(AdminSessionCreationData::ServersSetChange) => {
+			Some(AdminSessionCreationData::ServersSetChange(migration_id, new_nodes_set)) => {
+				let admin_public = self.servers_set_change_session_creator_connector.admin_public(migration_id.as_ref(), new_nodes_set)
+					.map_err(|_| Error::AccessDenied)?;
+
 				AdminSession::ServersSetChange(ServersSetChangeSessionImpl::new(ServersSetChangeSessionParams {
 					meta: ShareChangeSessionMeta {
 						id: id.clone(),
@@ -385,6 +393,7 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 					nonce: nonce,
 					all_nodes_set: cluster.nodes(),
 					admin_public: admin_public,
+					migration_id: migration_id,
 				})?)
 			},
 			None => unreachable!("expected to call with non-empty creation data; qed"),

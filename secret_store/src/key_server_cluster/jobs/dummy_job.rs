@@ -18,7 +18,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use key_server_cluster::{Error, NodeId};
 use key_server_cluster::jobs::job_session::{JobExecutor, JobTransport, JobPartialRequestAction, JobPartialResponseAction};
 
-/// No-work job to use in generics (TODO: create separate ShareChangeConsensusSession && remove this)
+/// No-work job to use in generics (TODO [Refac]: create separate ShareChangeConsensusSession && remove this)
 pub struct DummyJob;
 
 impl JobExecutor for DummyJob {
@@ -43,7 +43,7 @@ impl JobExecutor for DummyJob {
 	}
 }
 
-/// No-work job transport to use in generics (TODO: create separate ShareChangeConsensusSession && remove this)
+/// No-work job transport to use in generics (TODO [Refac]: create separate ShareChangeConsensusSession && remove this)
 pub struct DummyJobTransport;
 
 impl JobTransport for DummyJobTransport {
