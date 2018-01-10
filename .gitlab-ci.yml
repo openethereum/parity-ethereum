@@ -26,7 +26,7 @@ linux-stable:
   script:
     - rustup default stable
     # ARGUMENTS: 1. BUILD_PLATFORM (target for binaries) 2. PLATFORM (target for cargo) 3. ARC (architecture) 4. & 5. CC & CXX flags
-    - sh scripts/gitlab-build.sh x86_64-unknown-linux-gnu x86_64-unknown-linux-gnu amd64
+    - scripts/gitlab-build.sh x86_64-unknown-linux-gnu x86_64-unknown-linux-gnu amd64 "" ""
   tags:
     - rust-stable
   artifacts:
@@ -43,7 +43,7 @@ linux-stable-debian:
     - triggers
   script:
     - export LIBSSL="libssl1.1.0 (>=1.1.0)"
-    - sh scripts/gitlab-build.sh x86_64-unknown-debian-gnu x86_64-unknown-linux-gnu amd64
+    - scripts/gitlab-build.sh x86_64-unknown-debian-gnu x86_64-unknown-linux-gnu amd64 "" ""
   tags:
     - rust-debian
   artifacts:
@@ -59,7 +59,7 @@ linux-beta:
     - stable
     - triggers
   script:
-    - sh scripts/gitlab-build.sh rust-beta x86_64-unknown-linux-gnu
+    - scripts/gitlab-build.sh rust-beta x86_64-unknown-linux-gnu "" "" ""
   tags:
     - rust-beta
   artifacts:
@@ -76,7 +76,7 @@ linux-nightly:
     - stable
     - triggers
   script:
-    - sh scripts/gitlab-build.sh rust-nightly x86_64-unknown-linux-gnu
+    - scripts/gitlab-build.sh rust-nightly x86_64-unknown-linux-gnu "" "" ""
   tags:
     - rust-nightly
   artifacts:
@@ -93,7 +93,7 @@ linux-centos:
     - stable
     - triggers
   script:
-    - sh scripts/gitlab-build.sh x86_64-unknown-centos-gnu x86_64-unknown-linux-gnu
+    - scripts/gitlab-build.sh x86_64-unknown-centos-gnu x86_64-unknown-linux-gnu "" "" ""
   tags:
     - rust-centos
   artifacts:
@@ -109,7 +109,7 @@ linux-i686:
     - stable
     - triggers
   script:
-    - sh scripts/gitlab-build.sh i686-unknown-linux-gnu i686-unknown-linux-gnu i386
+    - scripts/gitlab-build.sh i686-unknown-linux-gnu i686-unknown-linux-gnu i386 "" ""
   tags:
     - rust-i686
   artifacts:
@@ -125,7 +125,7 @@ linux-armv7:
     - stable
     - triggers
   script:
-    - sh scripts/gitlab-build.sh armv7-unknown-linux-gnueabihf armv7-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++
+    - scripts/gitlab-build.sh armv7-unknown-linux-gnueabihf armv7-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++
   tags:
     - rust-arm
   artifacts:
@@ -141,7 +141,7 @@ linux-arm:
     - stable
     - triggers
   script:
-    - sh scripts/gitlab-build.sh arm-unknown-linux-gnueabihf arm-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++
+    - scripts/gitlab-build.sh arm-unknown-linux-gnueabihf arm-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++
   tags:
     - rust-arm
   artifacts:
@@ -157,7 +157,7 @@ linux-aarch64:
     - stable
     - triggers
   script:
-    - sh scripts/gitlab-build.sh aarch64-unknown-linux-gnu aarch64-unknown-linux-gnu arm64 aarch64-linux-gnu-gcc aarch64-linux-gnu-g++
+    - scripts/gitlab-build.sh aarch64-unknown-linux-gnu aarch64-unknown-linux-gnu arm64 aarch64-linux-gnu-gcc aarch64-linux-gnu-g++
   tags:
     - rust-arm
   artifacts:
@@ -174,7 +174,7 @@ linux-snap:
     - tags
     - triggers
   script:
-    - sh scripts/gitlab-build.sh x86_64-unknown-snap-gnu
+    - scripts/gitlab-build.sh x86_64-unknown-snap-gnu "" "" "" ""
   tags:
     - rust-stable
   artifacts:
@@ -190,7 +190,7 @@ darwin:
     - stable
     - triggers
   script:
-    - sh scripts/gitlab-build.sh x86_64-apple-darwin x86_64-apple-darwin macos
+    - scripts/gitlab-build.sh x86_64-apple-darwin x86_64-apple-darwin macos "" ""
   tags:
     - osx
   artifacts:
@@ -208,7 +208,7 @@ windows:
     - stable
     - triggers
   script:
-    - scripts/gitlab-build.sh x86_64-pc-windows-msvc
+    - scripts/gitlab-build.sh x86_64-pc-windows-msvc "" "" "" "" ""
   tags:
    - rust-windows
   artifacts:
@@ -227,7 +227,7 @@ docker-build:
     - if [ "$CI_BUILD_REF_NAME" == "beta-release" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
     - echo "Tag:" $DOCKER_TAG
     - docker login -u $Docker_Hub_User_Parity -p $Docker_Hub_Pass_Parity
-    - sh scripts/docker-build.sh $DOCKER_TAG
+    - scripts/docker-build.sh $DOCKER_TAG
     - docker logout
   tags:
     - docker
@@ -236,7 +236,7 @@ test-coverage:
   only:
     - master
   script:
-    - sh scripts/gitlab-test.sh test-coverage
+    - scripts/gitlab-test.sh test-coverage
   tags:
     - kcov
   allow_failure: true
@@ -244,7 +244,7 @@ test-rust-stable:
   stage: test
   image: parity/rust:gitlab-ci
   script:
-    - sh scripts/gitlab-test.sh stable
+    - scripts/gitlab-test.sh stable
   tags:
     - rust-stable
 test-rust-beta:
@@ -254,7 +254,7 @@ test-rust-beta:
     - master
   image: parity/rust:gitlab-ci
   script:
-    - sh scripts/gitlab-test.sh beta
+    - scripts/gitlab-test.sh beta
   tags:
     - rust-beta
   allow_failure: true
@@ -265,7 +265,7 @@ test-rust-nightly:
     - master
   image: parity/rust:gitlab-ci
   script:
-    - sh scripts/gitlab-test.sh nightly
+    - scripts/gitlab-test.sh nightly
   tags:
     - rust
     - rust-nightly
@@ -274,7 +274,7 @@ js-test:
   stage: test
   image: parity/rust:gitlab-ci
   script:
-    - sh scripts/gitlab-test.sh js-test
+    - scripts/gitlab-test.sh js-test
   tags:
     - rust-stable
 js-release:
@@ -287,7 +287,7 @@ js-release:
     - triggers
   image: parity/rust:gitlab-ci
   script:
-    - sh scripts/gitlab-test.sh js-release
+    - scripts/gitlab-test.sh js-release
   tags:
     - javascript
 push-release:
