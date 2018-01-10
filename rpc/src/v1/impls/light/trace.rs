@@ -61,4 +61,8 @@ impl Traces for TracesClient {
 	fn replay_transaction(&self, _transaction_hash: H256, _flags: TraceOptions) -> Result<TraceResults> {
 		Err(errors::light_unimplemented(None))
 	}
+
+	fn replay_block_transactions(&self,  _block_number: BlockNumber, _flags: TraceOptions) ->  Result<Vec<TraceResults>> {
+		Err(errors::light_unimplemented(None))
+	}
 }

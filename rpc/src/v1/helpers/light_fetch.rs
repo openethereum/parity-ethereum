@@ -59,6 +59,8 @@ pub struct LightFetch {
 	pub sync: Arc<LightSync>,
 	/// The light data cache.
 	pub cache: Arc<Mutex<Cache>>,
+	/// Gas Price percentile
+	pub gas_price_percentile: usize,
 }
 
 /// Extract a transaction at given index.
@@ -202,6 +204,7 @@ impl LightFetch {
 			None => Either::B(self.account(from, id).map(|acc| acc.map(|a| a.nonce))),
 		};
 
+		let gas_price_percentile = self.gas_price_percentile;
 		let gas_price_fut = match req.gas_price {
 			Some(price) => Either::A(future::ok(price)),
 			None => Either::B(dispatch::fetch_gas_price_corpus(
@@ -209,8 +212,8 @@ impl LightFetch {
 				self.client.clone(),
 				self.on_demand.clone(),
 				self.cache.clone(),
-			).map(|corp| match corp.median() {
-				Some(median) => *median,
+			).map(move |corp| match corp.percentile(gas_price_percentile) {
+				Some(percentile) => *percentile,
 				None => DEFAULT_GAS_PRICE.into(),
 			}))
 		};

@@ -55,7 +55,7 @@ fn setup() -> PersonalTester {
 	let miner = miner_service();
 	let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 
-	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations);
+	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations, 50);
 	let personal = PersonalClient::new(opt_accounts, dispatcher, false);
 
 	let mut io = IoHandler::default();

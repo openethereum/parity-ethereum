@@ -151,8 +151,8 @@ impl SessionImpl {
 			initialization_confirmed: &n == self.node(),
 		})));
 
-		// TODO: id signature is not enough here, as it was already used in key generation
-		// TODO: there could be situation when some nodes have failed to store encrypted data
+		// TODO [Sec]: id signature is not enough here, as it was already used in key generation
+		// TODO [Reliability]: there could be situation when some nodes have failed to store encrypted data
 		// => potential problems during restore. some confirmation step is needed (2pc)?
 		// save encryption data
 		if let Some(mut encrypted_data) = self.encrypted_data.clone() {

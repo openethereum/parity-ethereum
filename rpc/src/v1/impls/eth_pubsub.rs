@@ -92,12 +92,14 @@ impl EthPubSubClient<LightFetch> {
 		sync: Arc<LightSync>,
 		cache: Arc<Mutex<Cache>>,
 		remote: Remote,
+		gas_price_percentile: usize,
 	) -> Self {
 		let fetch = LightFetch {
 			client,
 			on_demand,
 			sync,
-			cache
+			cache,
+			gas_price_percentile,
 		};
 		EthPubSubClient::new(Arc::new(fetch), remote)
 	}
