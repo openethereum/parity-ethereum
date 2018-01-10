@@ -4,14 +4,11 @@ stages:
   - push-release
   - build
 variables:
-  SIMPLECOV: "true"
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
   CARGOFLAGS: ""
   CI_SERVER_NAME: "GitLab CI"
   LIBSSL: "libssl1.0.0 (>=1.0.0)"
-  CC: gcc
-  CXX: g++
 cache:
   key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
   untracked: true
@@ -26,7 +23,7 @@ linux-stable:
   script:
     - rustup default stable
     # ARGUMENTS: 1. BUILD_PLATFORM (target for binaries) 2. PLATFORM (target for cargo) 3. ARC (architecture) 4. & 5. CC & CXX flags
-    - scripts/gitlab-build.sh x86_64-unknown-linux-gnu x86_64-unknown-linux-gnu amd64 "" ""
+    - scripts/gitlab-build.sh x86_64-unknown-linux-gnu x86_64-unknown-linux-gnu amd64 gcc g++
   tags:
     - rust-stable
   artifacts:
@@ -43,47 +40,13 @@ linux-stable-debian:
     - triggers
   script:
     - export LIBSSL="libssl1.1.0 (>=1.1.0)"
-    - scripts/gitlab-build.sh x86_64-unknown-debian-gnu x86_64-unknown-linux-gnu amd64 "" ""
+    - scripts/gitlab-build.sh x86_64-unknown-debian-gnu x86_64-unknown-linux-gnu amd64 gcc g++
   tags:
     - rust-debian
   artifacts:
     paths:
     - parity.zip
     name: "stable-x86_64-unknown-debian-gnu_parity"
-linux-beta:
-  stage: build
-  image: parity/rust:gitlab-ci
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
-  script:
-    - scripts/gitlab-build.sh rust-beta x86_64-unknown-linux-gnu "" "" ""
-  tags:
-    - rust-beta
-  artifacts:
-    paths:
-    - parity.zip
-    name: "beta-x86_64-unknown-linux-gnu_parity"
-  allow_failure: true
-linux-nightly:
-  stage: build
-  image: parity/rust:gitlab-ci
-  only:
-    - beta
-    - tags
-    - stable
-    - triggers
-  script:
-    - scripts/gitlab-build.sh rust-nightly x86_64-unknown-linux-gnu "" "" ""
-  tags:
-    - rust-nightly
-  artifacts:
-    paths:
-    - parity.zip
-    name: "nigthly-x86_64-unknown-linux-gnu_parity"
-  allow_failure: true
 linux-centos:
   stage: build
   image: parity/rust-centos:gitlab-ci
@@ -93,7 +56,7 @@ linux-centos:
     - stable
     - triggers
   script:
-    - scripts/gitlab-build.sh x86_64-unknown-centos-gnu x86_64-unknown-linux-gnu "" "" ""
+    - scripts/gitlab-build.sh x86_64-unknown-centos-gnu x86_64-unknown-linux-gnu amd64 gcc g++
   tags:
     - rust-centos
   artifacts:
@@ -109,7 +72,7 @@ linux-i686:
     - stable
     - triggers
   script:
-    - scripts/gitlab-build.sh i686-unknown-linux-gnu i686-unknown-linux-gnu i386 "" ""
+    - scripts/gitlab-build.sh i686-unknown-linux-gnu i686-unknown-linux-gnu i386 gcc g++
   tags:
     - rust-i686
   artifacts:
@@ -168,13 +131,12 @@ linux-snap:
   stage: build
   image: parity/snapcraft:gitlab-ci
   only:
-    - snap
     - stable
     - beta
     - tags
     - triggers
   script:
-    - scripts/gitlab-build.sh x86_64-unknown-snap-gnu "" "" "" ""
+    - scripts/gitlab-build.sh x86_64-unknown-snap-gnu x86_64-unknown-linux-gnu amd64 gcc g++
   tags:
     - rust-stable
   artifacts:
@@ -190,7 +152,7 @@ darwin:
     - stable
     - triggers
   script:
-    - scripts/gitlab-build.sh x86_64-apple-darwin x86_64-apple-darwin macos "" ""
+    - scripts/gitlab-build.sh x86_64-apple-darwin x86_64-apple-darwin macos gcc g++
   tags:
     - osx
   artifacts:
@@ -208,7 +170,7 @@ windows:
     - stable
     - triggers
   script:
-    - scripts/gitlab-build.sh x86_64-pc-windows-msvc "" "" "" "" ""
+    - sh scripts/gitlab-build.sh x86_64-pc-windows-msvc "" "" "" "" ""
   tags:
    - rust-windows
   artifacts:

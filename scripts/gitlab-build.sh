@@ -8,7 +8,6 @@ PLATFORM=$2
 ARC=$3
 CC=$4
 CXX=$5
-EXT=deb
 VER="$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")"
 echo "--------------------"
 echo "Build for platform: " $BUILD_PLATFORM
@@ -16,19 +15,14 @@ echo "Cargo target:       " $PLATFORM
 echo "CC&CXX flags:       " $CC ", " $CXX
 echo "Architecture:       " $ARC
 echo "Libssl version:     " $LIBSSL
-echo "Package:            " $EXT
 echo "Parity version:     " $VER
 echo "Branch:             " $CI_BUILD_REF_NAME
 echo "--------------------"
-echo "RUST:" rustup show
-echo "Cargo:" cargo -V
-echo "NODEJS:" nodejs -v
-echo "NPM:" npm -v
 
 set_env () {
   echo "Set ENVIROMENT"
-  HOST_CC=gcc
-  HOST_CXX=g++
+  export HOST_CC=gcc
+  export HOST_CXX=g++
   rm -rf .cargo
   mkdir -p .cargo
   echo "[target.$PLATFORM]" >> .cargo/config
@@ -51,7 +45,7 @@ build () {
   $STRIP_BIN -v target/$PLATFORM/release/ethkey
   echo "Checksum calculation:"
   rm -rf *.md5
-  export SHA3=$(target/$PLATFORM/release/parity tools hash target/$PLATFORM/release/parity)
+  export SHA3=$(rhash --sha3-256 target/$PLATFORM/release/parity -p %h)
   echo "Parity file SHA3:" $SHA3
   md5sum target/$PLATFORM/release/parity > parity.md5
   md5sum target/$PLATFORM/release/parity-evm > parity-evm.md5
@@ -95,12 +89,13 @@ make_deb () {
 }
 make_pkg () {
   echo "make PKG"
+  cp target/$PLATFORM/release/parity target/release/parity
   cd mac
   xcodebuild -configuration Release
   cd ..
   packagesbuild -v mac/Parity.pkgproj
-  productsign --sign 'Developer ID Installer: PARITY TECHNOLOGIES LIMITED (P2PX3JU8FT)' target/$PLATFORM/release/Parity\ Ethereum.pkg target/$PLATFORM/release/Parity\ Ethereum-signed.pkg
-  mv target/$PLATFORM/release/Parity\ Ethereum-signed.pkg "parity-"$VER"_"$ARC".pkg"
+  productsign --sign 'Developer ID Installer: PARITY TECHNOLOGIES LIMITED (P2PX3JU8FT)' target/release/Parity\ Ethereum.pkg target/release/Parity\ Ethereum-signed.pkg
+  mv target/release/Parity\ Ethereum-signed.pkg "parity-"$VER"_"$ARC".pkg"
   md5sum "parity-"$VER"_"$ARC"."$EXT >> "parity-"$VER"_"$ARC".pkg.md5"
 }
 push_binaries () {
@@ -188,6 +183,8 @@ case $BUILD_PLATFORM in
   x86_64-unknown-linux-gnu)
     #set strip bin
     STRIP_BIN="strip"
+    #package extention
+    EXT="deb"
     build
     make_deb
     make_archive
@@ -196,7 +193,8 @@ case $BUILD_PLATFORM in
     ;;
   x86_64-unknown-debian-gnu)
     STRIP_BIN="strip"
-    LIBSSL: "libssl1.1.0 (>=1.1.0)"
+    EXT="deb"
+    LIBSSL="libssl1.1.0 (>=1.1.0)"
     echo "Use libssl1.1.0 (>=1.1.0) for Debian builds"
     build
     make_deb
@@ -206,6 +204,7 @@ case $BUILD_PLATFORM in
     ;;
   x86_64-unknown-centos-gnu)
     STRIP_BIN="strip"
+    EXT="deb"
     build
     make_archive
     push_binaries
@@ -213,6 +212,7 @@ case $BUILD_PLATFORM in
     ;;
   i686-unknown-linux-gnu)
     STRIP_BIN="strip"
+    EXT="deb"
     set_env
     build
     make_deb
@@ -222,6 +222,7 @@ case $BUILD_PLATFORM in
     ;;
   armv7-unknown-linux-gnueabihf)
     STRIP_BIN="arm-linux-gnueabihf-strip"
+    EXT="deb"
     set_env
     build
     make_deb
@@ -231,6 +232,7 @@ case $BUILD_PLATFORM in
     ;;
   arm-unknown-linux-gnueabihf)
     STRIP_BIN="arm-linux-gnueabihf-strip"
+    EXT="deb"
     set_env
     build
     make_deb
@@ -240,6 +242,7 @@ case $BUILD_PLATFORM in
     ;;
   aarch64-unknown-linux-gnu)
     STRIP_BIN="aarch64-linux-gnu-strip"
+    EXT="deb"
     set_env
     build
     make_deb
@@ -267,18 +270,6 @@ case $BUILD_PLATFORM in
     cp "parity_"$CI_BUILD_REF_NAME"_amd64.snap" "parity_"$VER"_amd64.snap"
     md5sum "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
     push_binaries
-    ;;
-  rust_beta)
-    rustup default beta
-    export STRIP_BIN="strip"
-    build
-    make_archive
-    ;;
-  rust_nightly)
-    rustup default nightly
-    export STRIP_BIN="strip"
-    build
-    make_archive
     ;;
   x86_64-pc-windows-msvc)
     windows
