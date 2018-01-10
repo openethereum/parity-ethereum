@@ -20,16 +20,23 @@ use std::sync::Arc;
 use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::PendingTransaction;
 
-use ethereum_types::{U128, Address};
-use bytes::ToPretty;
-
+use bytes::{Bytes, ToPretty};
+use ethereum_types::{H520, U128, Address};
+use ethkey::{public_to_address, recover, Signature};
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
 use v1::helpers::errors;
-use v1::helpers::dispatch::{Dispatcher, SignWith};
+use v1::helpers::dispatch::{self, eth_data_hash, Dispatcher, SignWith};
 use v1::helpers::accounts::unwrap_provider;
 use v1::traits::Personal;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, U128 as RpcU128, TransactionRequest, RichRawTransaction as RpcRichRawTransaction};
+use v1::types::{
+	H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U128 as RpcU128,
+	Bytes as RpcBytes,
+	ConfirmationPayload as RpcConfirmationPayload,
+	ConfirmationResponse as RpcConfirmationResponse,
+	TransactionRequest,
+	RichRawTransaction as RpcRichRawTransaction,
+};
 use v1::metadata::Metadata;
 
 /// Account management (personal) rpc implementation.
@@ -130,6 +137,39 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 			Ok(_) => Ok(true),
 			Err(err) => Err(errors::account("Unable to unlock the account.", err)),
 		}
+	}
+
+	fn sign(&self, data: RpcBytes, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
+		let dispatcher = self.dispatcher.clone();
+		let accounts = try_bf!(self.account_provider());
+
+		let payload = RpcConfirmationPayload::EthSignMessage((account.clone(), data).into());
+
+		Box::new(dispatch::from_rpc(payload, account.into(), &dispatcher)
+				 .and_then(|payload| {
+					 dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Password(password))
+				 })
+				 .map(|v| v.into_value())
+				 .then(|res| match res {
+					 Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
+					 Err(e) => Err(e),
+					 e => Err(errors::internal("Unexpected result", e)),
+				 }))
+	}
+
+	fn ec_recover(&self, data: RpcBytes, signature: RpcH520) -> BoxFuture<RpcH160> {
+		let signature: H520 = signature.into();
+		let signature = Signature::from_electrum(&signature);
+		let data: Bytes = data.into();
+
+		let hash = eth_data_hash(data);
+		let account = recover(&signature.into(), &hash)
+			.map_err(errors::encryption)
+			.map(|public| {
+				public_to_address(&public).into()
+			});
+
+		Box::new(future::done(account))
 	}
 
 	fn sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcRichRawTransaction> {
