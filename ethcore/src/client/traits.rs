@@ -196,6 +196,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Replays a given transaction for inspection.
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;
 
+	/// Replays all the transactions in a given block for inspection.
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError>;
+
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
 

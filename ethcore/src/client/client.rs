@@ -1133,7 +1133,13 @@ impl Client {
 		}.fake_sign(from)
 	}
 
-	fn do_virtual_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn do_virtual_call(
+		machine: &::machine::EthereumMachine,
+		env_info: &EnvInfo,
+		state: &mut State<StateDB>,
+		t: &SignedTransaction,
+		analytics: CallAnalytics,
+	) -> Result<Executed, CallError> {
 		fn call<V, T>(
 			state: &mut State<StateDB>,
 			env_info: &EnvInfo,
@@ -1159,7 +1165,6 @@ impl Client {
 		}
 
 		let state_diff = analytics.state_diffing;
-		let machine = self.engine.machine();
 
 		match (analytics.transaction_tracing, analytics.vm_tracing) {
 			(true, true) => call(state, env_info, machine, state_diff, t, TransactOptions::with_tracing_and_vm_tracing()),
@@ -1208,8 +1213,9 @@ impl BlockChainClient for Client {
 
 		// that's just a copy of the state.
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
+		let machine = self.engine.machine();
 
-		self.do_virtual_call(&env_info, &mut state, transaction, analytics)
+		Self::do_virtual_call(machine, &env_info, &mut state, transaction, analytics)
 	}
 
 	fn call_many(&self, transactions: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError> {
@@ -1219,9 +1225,10 @@ impl BlockChainClient for Client {
 		// that's just a copy of the state.
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let mut results = Vec::with_capacity(transactions.len());
+		let machine = self.engine.machine();
 
 		for &(ref t, analytics) in transactions {
-			let ret = self.do_virtual_call(&env_info, &mut state, t, analytics)?;
+			let ret = Self::do_virtual_call(machine, &env_info, &mut state, t, analytics)?;
 			env_info.gas_used = ret.cumulative_gas_used;
 			results.push(ret);
 		}
@@ -1295,27 +1302,32 @@ impl BlockChainClient for Client {
 
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
-		let mut env_info = self.env_info(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let body = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let mut state = self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let mut txs = body.transactions();
+		let block = BlockId::Hash(address.block_hash);
 
-		if address.index >= txs.len() {
-			return Err(CallError::TransactionNotFound);
-		}
+		const PROOF: &'static str = "The transaction address contains a valid index within block; qed";
+		Ok(self.replay_block_transactions(block, analytics)?.nth(address.index).expect(PROOF))
+	}
+
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
+		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+		let body = self.block_body(block).ok_or(CallError::StatePruned)?;
+		let mut state = self.state_at_beginning(block).ok_or(CallError::StatePruned)?;
+		let txs = body.transactions();
+		let engine = self.engine.clone();
 
 		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
-		let rest = txs.split_off(address.index);
-		for t in txs {
-			let t = SignedTransaction::new(t).expect(PROOF);
-			let x = Executive::new(&mut state, &env_info, self.engine.machine()).transact(&t, TransactOptions::with_no_tracing())?;
-			env_info.gas_used = env_info.gas_used + x.gas_used;
-		}
-		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
-		let t = SignedTransaction::new(first).expect(PROOF);
+		const EXECUTE_PROOF: &'static str = "Transaction replayed; qed";
 
-		self.do_virtual_call(&env_info, &mut state, &t, analytics)
+		Ok(Box::new(txs.into_iter()
+			.map(move |t| {
+				let t = SignedTransaction::new(t).expect(PROOF);
+				let machine = engine.machine();
+				let x = Self::do_virtual_call(machine, &env_info, &mut state, &t, analytics).expect(EXECUTE_PROOF);
+				env_info.gas_used = env_info.gas_used + x.gas_used;
+				x
+			})))
 	}
+
 
 	fn mode(&self) -> IpcMode {
 		let r = self.mode.lock().clone().into();

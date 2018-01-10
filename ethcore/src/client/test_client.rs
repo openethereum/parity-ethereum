@@ -431,6 +431,10 @@ impl BlockChainClient for TestBlockChainClient {
 		self.execution_result.read().clone().unwrap()
 	}
 
+	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
+		Ok(Box::new(self.execution_result.read().clone().unwrap().into_iter()))
+	}
+
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {
 		Some(U256::zero())
 	}
