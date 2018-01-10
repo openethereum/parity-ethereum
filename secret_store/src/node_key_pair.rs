@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use ethcrypto::ecdh::agree;
-use ethkey::{KeyPair, Public, Signature, Error as EthKeyError, sign};
+use ethkey::{KeyPair, Public, Signature, Error as EthKeyError, sign, public_to_address};
 use ethcore::account_provider::AccountProvider;
 use bigint::hash::H256;
 use util::Address;
@@ -46,6 +46,10 @@ impl NodeKeyPair for PlainNodeKeyPair {
 		self.key_pair.public()
 	}
 
+	fn address(&self) -> Address {
+		public_to_address(self.key_pair.public())
+	}
+
 	fn sign(&self, data: &H256) -> Result<Signature, EthKeyError> {
 		sign(self.key_pair.secret(), data)
 	}
@@ -71,6 +75,10 @@ impl KeyStoreNodeKeyPair {
 impl NodeKeyPair for KeyStoreNodeKeyPair {
 	fn public(&self) -> &Public {
 		&self.public
+	}
+
+	fn address(&self) -> Address {
+		public_to_address(&self.public)
 	}
 
 	fn sign(&self, data: &H256) -> Result<Signature, EthKeyError> {

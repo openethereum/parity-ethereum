@@ -18,6 +18,7 @@ use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use std::collections::btree_map::Entry;
 use parking_lot::{Mutex, Condvar};
+use bigint::hash::H256;
 use ethkey::{Public, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage};
 use key_server_cluster::math;
@@ -90,6 +91,8 @@ struct SessionCore {
 	pub all_nodes_set: BTreeSet<NodeId>,
 	/// Administrator public key.
 	pub admin_public: Public,
+	/// Migration id (if this session is a part of auto-migration process).
+	pub migration_id: Option<H256>,
 	/// SessionImpl completion condvar.
 	pub completed: Condvar,
 }
@@ -141,6 +144,8 @@ pub struct SessionParams {
 	pub all_nodes_set: BTreeSet<NodeId>,
 	/// Administrator public key.
 	pub admin_public: Public,
+	/// Migration id (if this session is a part of auto-migration process).
+	pub migration_id: Option<H256>,
 }
 
 /// Servers set change consensus transport.
@@ -149,6 +154,8 @@ struct ServersSetChangeConsensusTransport {
 	id: SessionId,
 	/// Session-level nonce.
 	nonce: u64,
+	/// Migration id (if part of auto-migration process).
+	migration_id: Option<H256>,
 	/// Cluster.
 	cluster: Arc<Cluster>,
 }
@@ -184,6 +191,7 @@ impl SessionImpl {
 				nonce: params.nonce,
 				all_nodes_set: params.all_nodes_set,
 				admin_public: params.admin_public,
+				migration_id: params.migration_id,
 				completed: Condvar::new(),
 			},
 			data: Mutex::new(SessionData {
@@ -203,6 +211,11 @@ impl SessionImpl {
 	/// Get session id.
 	pub fn id(&self) -> &SessionId {
 		&self.core.meta.id
+	}
+
+	/// Get migration id.
+	pub fn migration_id(&self) -> Option<&H256> {
+		self.core.migration_id.as_ref()
 	}
 
 	/// Wait for session completion.
@@ -229,6 +242,7 @@ impl SessionImpl {
 			consensus_transport: ServersSetChangeConsensusTransport {
 				id: self.core.meta.id.clone(),
 				nonce: self.core.nonce,
+				migration_id: self.core.migration_id.clone(),
 				cluster: self.core.cluster.clone(),
 			},
 		})?;
@@ -296,6 +310,7 @@ impl SessionImpl {
 							consensus_transport: ServersSetChangeConsensusTransport {
 								id: self.core.meta.id.clone(),
 								nonce: self.core.nonce,
+								migration_id: self.core.migration_id.clone(),
 								cluster: self.core.cluster.clone(),
 							},
 						})?);
@@ -723,7 +738,7 @@ impl SessionImpl {
 					},
 					sub_session: math::generate_random_scalar()?,
 					key_share: key_share,
-					result_computer: Arc::new(LargestSupportResultComputer {}), // TODO: optimizations: could use modified Fast version
+					result_computer: Arc::new(LargestSupportResultComputer {}), // TODO [Opt]: could use modified Fast version
 					transport: ServersSetChangeKeyVersionNegotiationTransport {
 						id: core.meta.id.clone(),
 						nonce: core.nonce,
@@ -937,6 +952,7 @@ impl JobTransport for ServersSetChangeConsensusTransport {
 			session: self.id.clone().into(),
 			session_nonce: self.nonce,
 			message: ConsensusMessageWithServersSet::InitializeConsensusSession(InitializeConsensusSessionWithServersSet {
+				migration_id: self.migration_id.clone().map(Into::into),
 				old_nodes_set: request.old_servers_set.into_iter().map(Into::into).collect(),
 				new_nodes_set: request.new_servers_set.into_iter().map(Into::into).collect(),
 				old_set_signature: request.old_set_signature.into(),
@@ -1036,6 +1052,7 @@ pub mod tests {
 			key_storage: key_storage,
 			nonce: 1,
 			admin_public: admin_public,
+			migration_id: None,
 		}).unwrap()
 	}
 

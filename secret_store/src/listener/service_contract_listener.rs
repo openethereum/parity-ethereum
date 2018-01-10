@@ -362,7 +362,7 @@ impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 
 /// Returns true when session, related to `server_key_id` must be started on this KeyServer.
 fn is_processed_by_this_key_server(key_server_set: &KeyServerSet, self_key_pair: &NodeKeyPair, server_key_id: &H256) -> bool {
-	let servers = key_server_set.get();
+	let servers = key_server_set.snapshot().current_set;
 	let total_servers_count = servers.len();
 	match total_servers_count {
 		0 => return false,

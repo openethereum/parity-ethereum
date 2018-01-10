@@ -63,7 +63,7 @@ impl KeyServer for KeyServerImpl {}
 impl AdminSessionsServer for KeyServerImpl {
 	fn change_servers_set(&self, old_set_signature: RequestSignature, new_set_signature: RequestSignature, new_servers_set: BTreeSet<NodeId>) -> Result<(), Error> {
 		let servers_set_change_session = self.data.lock().cluster
-			.new_servers_set_change_session(None, new_servers_set, old_set_signature, new_set_signature)?;
+			.new_servers_set_change_session(None, None, new_servers_set, old_set_signature, new_set_signature)?;
 		servers_set_change_session.as_servers_set_change()
 			.expect("new_servers_set_change_session creates servers_set_change_session; qed")
 			.wait().map_err(Into::into)
@@ -164,6 +164,7 @@ impl KeyServerCore {
 			acl_storage: acl_storage,
 			key_storage: key_storage,
 			admin_public: config.admin_public.clone(),
+			auto_migrate_enabled: config.auto_migrate_enabled,
 		};
 
 		let (stop, stopped) = futures::oneshot();
@@ -229,7 +230,7 @@ pub mod tests {
 
 	impl AdminSessionsServer for DummyKeyServer {
 		fn change_servers_set(&self, _old_set_signature: RequestSignature, _new_set_signature: RequestSignature, _new_servers_set: BTreeSet<NodeId>) -> Result<(), Error> {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 	}
 
@@ -242,25 +243,25 @@ pub mod tests {
 
 	impl DocumentKeyServer for DummyKeyServer {
 		fn store_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _common_point: Public, _encrypted_document_key: Public) -> Result<(), Error> {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 
 		fn generate_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _threshold: usize) -> Result<EncryptedDocumentKey, Error> {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 
 		fn restore_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature) -> Result<EncryptedDocumentKey, Error> {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 
 		fn restore_document_key_shadow(&self, _key_id: &ServerKeyId, _signature: &RequestSignature) -> Result<EncryptedDocumentKeyShadow, Error> {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 	}
 
 	impl MessageSigner for DummyKeyServer {
 		fn sign_message(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
-			unimplemented!()
+			unimplemented!("test-only")
 		}
 	}
 
@@ -279,6 +280,7 @@ pub mod tests {
 					})).collect(),
 				allow_connecting_to_higher_nodes: false,
 				admin_public: None,
+				auto_migrate_enabled: false,
 			}).collect();
 		let key_servers_set: BTreeMap<Public, SocketAddr> = configs[0].nodes.iter()
 			.map(|(k, a)| (k.clone(), format!("{}:{}", a.address, a.port).parse().unwrap()))
@@ -469,6 +471,6 @@ pub mod tests {
 
 	#[test]
 	fn servers_set_change_session_works_over_network() {
-		// TODO
+		// TODO [Test]
 	}
 }

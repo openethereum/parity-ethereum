@@ -101,6 +101,9 @@ pub struct ClusterConfiguration {
 	pub allow_connecting_to_higher_nodes: bool,
 	/// Administrator public key.
 	pub admin_public: Option<Public>,
+	/// Should key servers set change session should be started when servers set changes.
+	/// This will only work when servers set is configured using KeyServerSet contract.
+	pub auto_migrate_enabled: bool,
 }
 
 /// Shadow decryption result.

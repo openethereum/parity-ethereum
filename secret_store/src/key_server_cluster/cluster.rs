@@ -41,6 +41,8 @@ use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVers
 	IsolatedSessionTransport as KeyVersionNegotiationSessionTransport, ContinueAction};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
+use key_server_cluster::connection_trigger::{Maintain, ConnectionTrigger, SimpleConnectionTrigger, ServersSetChangeSessionCreatorConnector};
+use key_server_cluster::connection_trigger_with_migration::ConnectionTriggerWithMigration;
 
 /// Maintain interval (seconds). Every MAINTAIN_INTERVAL seconds node:
 /// 1) checks if connected nodes are responding to KeepAlive messages
@@ -56,7 +58,7 @@ const KEEP_ALIVE_SEND_INTERVAL: u64 = 30;
 const KEEP_ALIVE_DISCONNECT_INTERVAL: u64 = 60;
 
 /// Empty future.
-type BoxedEmptyFuture = Box<Future<Item = (), Error = ()> + Send>;
+pub type BoxedEmptyFuture = Box<Future<Item = (), Error = ()> + Send>;
 
 /// Cluster interface for external clients.
 pub trait ClusterClient: Send + Sync {
@@ -73,7 +75,7 @@ pub trait ClusterClient: Send + Sync {
 	/// Start new key version negotiation session.
 	fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error>;
 	/// Start new servers set change session.
-	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSession>, Error>;
+	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, migration_id: Option<H256>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSession>, Error>;
 
 	/// Listen for new generation sessions.
 	fn add_generation_listener(&self, listener: Arc<ClusterSessionsListener<GenerationSession>>);
@@ -123,6 +125,9 @@ pub struct ClusterConfiguration {
 	pub acl_storage: Arc<AclStorage>,
 	/// Administrator public key.
 	pub admin_public: Option<Public>,
+	/// Should key servers set change session should be started when servers set changes.
+	/// This will only work when servers set is configured using KeyServerSet contract.
+	pub auto_migrate_enabled: bool,
 }
 
 /// Cluster state.
@@ -168,16 +173,21 @@ pub struct ClusterData {
 	pub sessions: ClusterSessions,
 }
 
-/// Connections that are forming the cluster.
+/// Connections that are forming the cluster. Lock order: trigger.lock() -> data.lock().
 pub struct ClusterConnections {
 	/// Self node id.
 	pub self_node_id: NodeId,
 	/// All known other key servers.
 	pub key_server_set: Arc<KeyServerSet>,
+	/// Connections trigger.
+	pub trigger: Mutex<Box<ConnectionTrigger>>,
+	/// Servers set change session creator connector.
+	pub connector: Arc<ServersSetChangeSessionCreatorConnector>,
 	/// Connections data.
 	pub data: RwLock<ClusterConnectionsData>,
 }
 
+#[derive(Default)]
 /// Cluster connections data.
 pub struct ClusterConnectionsData {
 	/// Active key servers set.
@@ -214,7 +224,8 @@ impl ClusterCore {
 	pub fn new(handle: Handle, config: ClusterConfiguration) -> Result<Arc<Self>, Error> {
 		let listen_address = make_socket_address(&config.listen_address.0, config.listen_address.1)?;
 		let connections = ClusterConnections::new(&config)?;
-		let sessions = ClusterSessions::new(&config);
+		let servers_set_change_creator_connector = connections.connector.clone();
+		let sessions = ClusterSessions::new(&config, servers_set_change_creator_connector);
 		let data = ClusterData::new(&handle, config, connections, sessions);
 
 		Ok(Arc::new(ClusterCore {
@@ -349,7 +360,7 @@ impl ClusterCore {
 					Err(err) => {
 						warn!(target: "secretstore_net", "{}: network error '{}' when reading message from node {}", data.self_key_pair.public(), err, connection.node_id());
 						// close connection
-						data.connections.remove(connection.node_id(), connection.is_inbound());
+						data.connections.remove(data.clone(), connection.node_id(), connection.is_inbound());
 						Box::new(failed(err))
 					},
 				}
@@ -362,7 +373,7 @@ impl ClusterCore {
 		for connection in data.connections.active_connections() {
 			let last_message_diff = time::Instant::now() - connection.last_message_time();
 			if last_message_diff > time::Duration::from_secs(KEEP_ALIVE_DISCONNECT_INTERVAL) {
-				data.connections.remove(connection.node_id(), connection.is_inbound());
+				data.connections.remove(data.clone(), connection.node_id(), connection.is_inbound());
 				data.sessions.on_connection_timeout(connection.node_id());
 			}
 			else if last_message_diff > time::Duration::from_secs(KEEP_ALIVE_SEND_INTERVAL) {
@@ -373,13 +384,12 @@ impl ClusterCore {
 
 	/// Try to connect to every disconnected node.
 	fn connect_disconnected_nodes(data: Arc<ClusterData>) {
-		// do not update nodes set if any admin session is active
-		// this could happen, but will possibly lead to admin session error
-		// => should be performed later
-		if data.sessions.admin_sessions.is_empty() {
-			data.connections.update_nodes_set();
+		let r = data.connections.update_nodes_set(data.clone());
+		if let Some(r) = r {
+			data.spawn(r);
 		}
 
+		// connect to disconnected nodes
 		for (node_id, node_address) in data.connections.disconnected_nodes() {
 			if data.config.allow_connecting_to_higher_nodes || data.self_key_pair.public() < &node_id {
 				ClusterCore::connect(data.clone(), node_address);
@@ -392,7 +402,7 @@ impl ClusterCore {
 		match result {
 			Ok(DeadlineStatus::Meet(Ok(connection))) => {
 				let connection = Connection::new(outbound_addr.is_none(), connection);
-				if data.connections.insert(connection.clone()) {
+				if data.connections.insert(data.clone(), connection.clone()) {
 					ClusterCore::process_connection_messages(data.clone(), connection)
 				} else {
 					Box::new(finished(Ok(())))
@@ -433,8 +443,16 @@ impl ClusterCore {
 				.map(|_| ()).unwrap_or_default(),
 			Message::Signing(message) => Self::process_message(&data, &data.sessions.signing_sessions, connection, Message::Signing(message))
 				.map(|_| ()).unwrap_or_default(),
-			Message::ServersSetChange(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ServersSetChange(message))
-				.map(|_| ()).unwrap_or_default(),
+			Message::ServersSetChange(message) => {
+				let message = Message::ServersSetChange(message);
+				let is_initialization_message = message.is_initialization_message();
+				let session = Self::process_message(&data, &data.sessions.admin_sessions, connection, message);
+				if is_initialization_message {
+					if let Some(session) = session {
+						data.connections.servers_set_change_creator_connector().set_key_servers_set_change_session(session.clone());
+					}
+				}
+			}
 			Message::KeyVersionNegotiation(message) => {
 				let session = Self::process_message(&data, &data.sessions.negotiation_sessions, connection, Message::KeyVersionNegotiation(message));
 				Self::try_continue_session(&data, session);
@@ -518,6 +536,7 @@ impl ClusterCore {
 				let creation_data = SC::creation_data_from_message(&message)?;
 				let master = if is_initialization_message { sender.clone() } else { data.self_key_pair.public().clone() };
 				let cluster = create_cluster_view(data, requires_all_connections(&message))?;
+
 				sessions.insert(cluster, master, session_id, Some(message.session_nonce().ok_or(Error::InvalidMessage)?), message.is_exclusive_session_message(), creation_data)
 			},
 		}
@@ -537,7 +556,7 @@ impl ClusterCore {
 				// this is new session => it is not yet in container
 				warn!(target: "secretstore_net", "{}: {} session read error '{}' when requested for session from node {}",
 					data.self_key_pair.public(), S::type_name(), error, sender);
-				if message.is_initialization_message() {
+				if !message.is_error_message() {
 					let session_id = message.into_session_id().expect("session_id only fails for cluster messages; only session messages are passed to process_message; qed");
 					let session_nonce = message.session_nonce().expect("session_nonce only fails for cluster messages; only session messages are passed to process_message; qed");
 					data.spawn(connection.send_message(SC::make_error_message(session_id, session_nonce, error)));
@@ -604,12 +623,21 @@ impl ClusterCore {
 
 impl ClusterConnections {
 	pub fn new(config: &ClusterConfiguration) -> Result<Self, Error> {
-		let mut nodes = config.key_server_set.get();
+		let mut nodes = config.key_server_set.snapshot().current_set;
 		nodes.remove(config.self_key_pair.public());
+
+		let trigger: Box<ConnectionTrigger> = match config.auto_migrate_enabled {
+			false => Box::new(SimpleConnectionTrigger::new(config.key_server_set.clone(), config.self_key_pair.clone(), config.admin_public.clone())),
+			true if config.admin_public.is_none() => Box::new(ConnectionTriggerWithMigration::new(config.key_server_set.clone(), config.self_key_pair.clone())),
+			true => return Err(Error::Io("secret store admininstrator public key is specified with auto-migration enabled".into())), // TODO [Refac]: Io -> Internal
+		};
+		let connector = trigger.servers_set_change_creator_connector();
 
 		Ok(ClusterConnections {
 			self_node_id: config.self_key_pair.public().clone(),
 			key_server_set: config.key_server_set.clone(),
+			trigger: Mutex::new(trigger),
+			connector: connector,
 			data: RwLock::new(ClusterConnectionsData {
 				nodes: nodes,
 				connections: BTreeMap::new(),
@@ -627,39 +655,54 @@ impl ClusterConnections {
 		self.data.read().connections.get(node).cloned()
 	}
 
-	pub fn insert(&self, connection: Arc<Connection>) -> bool {
-		let mut data = self.data.write();
-		if !data.nodes.contains_key(connection.node_id()) {
-			// incoming connections are checked here
-			trace!(target: "secretstore_net", "{}: ignoring unknown connection from {} at {}", self.self_node_id, connection.node_id(), connection.node_address());
-			debug_assert!(connection.is_inbound());
-			return false;
-		}
-		if data.connections.contains_key(connection.node_id()) {
-			// we have already connected to the same node
-			// the agreement is that node with lower id must establish connection to node with higher id
-			if (&self.self_node_id < connection.node_id() && connection.is_inbound())
-				|| (&self.self_node_id > connection.node_id() && !connection.is_inbound()) {
+	pub fn insert(&self, data: Arc<ClusterData>, connection: Arc<Connection>) -> bool {
+		{
+			let mut data = self.data.write();
+			if !data.nodes.contains_key(connection.node_id()) {
+				// incoming connections are checked here
+				trace!(target: "secretstore_net", "{}: ignoring unknown connection from {} at {}", self.self_node_id, connection.node_id(), connection.node_address());
+				debug_assert!(connection.is_inbound());
 				return false;
 			}
+
+			if data.connections.contains_key(connection.node_id()) {
+				// we have already connected to the same node
+				// the agreement is that node with lower id must establish connection to node with higher id
+				if (&self.self_node_id < connection.node_id() && connection.is_inbound())
+					|| (&self.self_node_id > connection.node_id() && !connection.is_inbound()) {
+					return false;
+				}
+			}
+
+			let node = connection.node_id().clone();
+			trace!(target: "secretstore_net", "{}: inserting connection to {} at {}. Connected to {} of {} nodes",
+				self.self_node_id, node, connection.node_address(), data.connections.len() + 1, data.nodes.len());
+			data.connections.insert(node.clone(), connection.clone());
 		}
 
-		trace!(target: "secretstore_net", "{}: inserting connection to {} at {}. Connected to {} of {} nodes",
-			self.self_node_id, connection.node_id(), connection.node_address(), data.connections.len() + 1, data.nodes.len());
-		data.connections.insert(connection.node_id().clone(), connection);
+		let maintain_action = self.trigger.lock().on_connection_established(connection.node_id());
+		self.maintain_connection_trigger(maintain_action, data);
+
 		true
 	}
 
-	pub fn remove(&self, node: &NodeId, is_inbound: bool) {
-		let mut data = self.data.write();
-		if let Entry::Occupied(entry) = data.connections.entry(node.clone()) {
-			if entry.get().is_inbound() != is_inbound {
+	pub fn remove(&self, data: Arc<ClusterData>, node: &NodeId, is_inbound: bool) {
+		{
+			let mut data = &mut *self.data.write();
+			if let Entry::Occupied(entry) = data.connections.entry(node.clone()) {
+				if entry.get().is_inbound() != is_inbound {
+					return;
+				}
+
+				trace!(target: "secretstore_net", "{}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
+				entry.remove_entry();
+			} else {
 				return;
 			}
-
-			trace!(target: "secretstore_net", "{}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
-			entry.remove_entry();
 		}
+
+		let maintain_action = self.trigger.lock().on_connection_closed(node);
+		self.maintain_connection_trigger(maintain_action, data);
 	}
 
 	pub fn connected_nodes(&self) -> BTreeSet<NodeId> {
@@ -678,47 +721,25 @@ impl ClusterConnections {
 			.collect()
 	}
 
-	pub fn update_nodes_set(&self) {
-		let mut data = self.data.write();
-		let mut new_nodes = self.key_server_set.get();
-		// we do not need to connect to self
-		// + we do not need to try to connect to any other node if we are not the part of a cluster
-		if new_nodes.remove(&self.self_node_id).is_none() {
-			new_nodes.clear();
+	pub fn servers_set_change_creator_connector(&self) -> Arc<ServersSetChangeSessionCreatorConnector> {
+		self.connector.clone()
+	}
+
+	pub fn update_nodes_set(&self, data: Arc<ClusterData>) -> Option<BoxedEmptyFuture> {
+		let maintain_action = self.trigger.lock().on_maintain();
+		self.maintain_connection_trigger(maintain_action, data);
+		None
+	}
+
+	fn maintain_connection_trigger(&self, maintain_action: Option<Maintain>, data: Arc<ClusterData>) {
+		if maintain_action == Some(Maintain::SessionAndConnections) || maintain_action == Some(Maintain::Session) {
+			let client = ClusterClientImpl::new(data);
+			self.trigger.lock().maintain_session(&client);
 		}
-
-		let mut num_added_nodes = 0;
-		let mut num_removed_nodes = 0;
-		let mut num_changed_nodes = 0;
-
-		for obsolete_node in data.nodes.keys().cloned().collect::<Vec<_>>() {
-			if !new_nodes.contains_key(&obsolete_node) {
-				if let Entry::Occupied(entry) = data.connections.entry(obsolete_node) {
-					trace!(target: "secretstore_net", "{}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
-					entry.remove();
-				}
-
-				data.nodes.remove(&obsolete_node);
-				num_removed_nodes += 1;
-			}
-		}
-
-		for (new_node_public, new_node_addr) in new_nodes {
-			match data.nodes.insert(new_node_public, new_node_addr) {
-				None => num_added_nodes += 1,
-				Some(old_node_addr) => if new_node_addr != old_node_addr {
-					if let Entry::Occupied(entry) = data.connections.entry(new_node_public) {
-						trace!(target: "secretstore_net", "{}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
-						entry.remove();
-					}
-					num_changed_nodes += 1;
-				},
-			}
-		}
-
-		if num_added_nodes != 0 || num_removed_nodes != 0 || num_changed_nodes != 0 {
-			trace!(target: "secretstore_net", "{}: updated nodes set: removed {}, added {}, changed {}. Connected to {} of {} nodes",
-				self.self_node_id, num_removed_nodes, num_added_nodes, num_changed_nodes, data.connections.len(), data.nodes.len());
+		if maintain_action == Some(Maintain::SessionAndConnections) || maintain_action == Some(Maintain::Connections) {
+			let mut trigger = self.trigger.lock();
+			let mut data = self.data.write();
+			trigger.maintain_connections(&mut *data);
 		}
 	}
 }
@@ -952,7 +973,7 @@ impl ClusterClient for ClusterClientImpl {
 		Ok(session)
 	}
 
-	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> {
+	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, migration_id: Option<H256>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
@@ -963,12 +984,16 @@ impl ClusterClient for ClusterClientImpl {
 		};
 
 		let cluster = create_cluster_view(&self.data, true)?;
-		let session = self.data.sessions.admin_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, true, Some(AdminSessionCreationData::ServersSetChange))?;
+		let creation_data = Some(AdminSessionCreationData::ServersSetChange(migration_id, new_nodes_set.clone()));
+		let session = self.data.sessions.admin_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, true, creation_data)?;
 		let initialization_result = session.as_servers_set_change().expect("servers set change session is created; qed")
 			.initialize(new_nodes_set, old_set_signature, new_set_signature);
 
 		match initialization_result {
-			Ok(()) => Ok(session),
+			Ok(()) => {
+				self.data.connections.servers_set_change_creator_connector().set_key_servers_set_change_session(session.clone());
+				Ok(session)
+			},
 			Err(error) => {
 				self.data.sessions.admin_sessions.remove(&session.id());
 				Err(error)
@@ -1042,20 +1067,20 @@ pub mod tests {
 	}
 
 	impl ClusterClient for DummyClusterClient {
-		fn cluster_state(&self) -> ClusterState { unimplemented!() }
-		fn new_generation_session(&self, _session_id: SessionId, _author: Public, _threshold: usize) -> Result<Arc<GenerationSession>, Error> { unimplemented!() }
-		fn new_encryption_session(&self, _session_id: SessionId, _requestor_signature: Signature, _common_point: Public, _encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error> { unimplemented!() }
-		fn new_decryption_session(&self, _session_id: SessionId, _requestor_signature: Signature, _version: Option<H256>, _is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> { unimplemented!() }
-		fn new_signing_session(&self, _session_id: SessionId, _requestor_signature: Signature, _version: Option<H256>, _message_hash: H256) -> Result<Arc<SigningSession>, Error> { unimplemented!() }
-		fn new_key_version_negotiation_session(&self, _session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error> { unimplemented!() }
-		fn new_servers_set_change_session(&self, _session_id: Option<SessionId>, _new_nodes_set: BTreeSet<NodeId>, _old_set_signature: Signature, _new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> { unimplemented!() }
+		fn cluster_state(&self) -> ClusterState { unimplemented!("test-only") }
+		fn new_generation_session(&self, _session_id: SessionId, _author: Public, _threshold: usize) -> Result<Arc<GenerationSession>, Error> { unimplemented!("test-only") }
+		fn new_encryption_session(&self, _session_id: SessionId, _requestor_signature: Signature, _common_point: Public, _encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error> { unimplemented!("test-only") }
+		fn new_decryption_session(&self, _session_id: SessionId, _requestor_signature: Signature, _version: Option<H256>, _is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> { unimplemented!("test-only") }
+		fn new_signing_session(&self, _session_id: SessionId, _requestor_signature: Signature, _version: Option<H256>, _message_hash: H256) -> Result<Arc<SigningSession>, Error> { unimplemented!("test-only") }
+		fn new_key_version_negotiation_session(&self, _session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error> { unimplemented!("test-only") }
+		fn new_servers_set_change_session(&self, _session_id: Option<SessionId>, _migration_id: Option<H256>, _new_nodes_set: BTreeSet<NodeId>, _old_set_signature: Signature, _new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> { unimplemented!("test-only") }
 
 		fn add_generation_listener(&self, _listener: Arc<ClusterSessionsListener<GenerationSession>>) {}
 
-		fn make_faulty_generation_sessions(&self) { unimplemented!() }
-		fn generation_session(&self, _session_id: &SessionId) -> Option<Arc<GenerationSession>> { unimplemented!() }
-		fn connect(&self) { unimplemented!() }
-		fn key_storage(&self) -> Arc<KeyStorage> { unimplemented!() }
+		fn make_faulty_generation_sessions(&self) { unimplemented!("test-only") }
+		fn generation_session(&self, _session_id: &SessionId) -> Option<Arc<GenerationSession>> { unimplemented!("test-only") }
+		fn connect(&self) { unimplemented!("test-only") }
+		fn key_storage(&self) -> Arc<KeyStorage> { unimplemented!("test-only") }
 	}
 
 	impl DummyCluster {
@@ -1128,7 +1153,7 @@ pub mod tests {
 	}
 
 	pub fn all_connections_established(cluster: &Arc<ClusterCore>) -> bool {
-		cluster.config().key_server_set.get().keys()
+		cluster.config().key_server_set.snapshot().new_set.keys()
 			.filter(|p| *p != cluster.config().self_key_pair.public())
 			.all(|p| cluster.connection(p).is_some())
 	}
@@ -1146,6 +1171,7 @@ pub mod tests {
 			key_storage: Arc::new(DummyKeyStorage::default()),
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			admin_public: None,
+			auto_migrate_enabled: false,
 		}).collect();
 		let clusters: Vec<_> = cluster_params.into_iter().enumerate()
 			.map(|(_, params)| ClusterCore::new(core.handle(), params).unwrap())

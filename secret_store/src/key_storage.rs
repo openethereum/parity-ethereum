@@ -445,6 +445,7 @@ pub mod tests {
 				nodes: BTreeMap::new(),
 				allow_connecting_to_higher_nodes: false,
 				admin_public: None,
+				auto_migrate_enabled: false,
 			},
 		};
 

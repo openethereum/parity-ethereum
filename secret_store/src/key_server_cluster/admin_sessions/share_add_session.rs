@@ -516,7 +516,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			return Ok(())
 		}
 
-		// TODO: find a way to verificate keys
+		// TODO [Trust]: find a way to verificate keys
 		Self::complete_session(&self.core, &mut *data)
 	}
 
@@ -600,7 +600,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			return Ok(())
 		}
 
-		// TODO: find a way to verificate keys
+		// TODO [Trust]: find a way to verificate keys
 		Self::complete_session(core, data)
 	}
 

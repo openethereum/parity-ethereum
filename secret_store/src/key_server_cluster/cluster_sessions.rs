@@ -17,12 +17,13 @@
 use std::time;
 use std::sync::{Arc, Weak};
 use std::sync::atomic::AtomicBool;
-use std::collections::{VecDeque, BTreeMap};
+use std::collections::{VecDeque, BTreeMap, BTreeSet};
 use parking_lot::{Mutex, RwLock, Condvar};
 use bigint::hash::H256;
 use ethkey::{Secret, Signature};
 use key_server_cluster::{Error, NodeId, SessionId};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterConfiguration, ClusterView};
+use key_server_cluster::connection_trigger::ServersSetChangeSessionCreatorConnector;
 use key_server_cluster::message::{self, Message};
 use key_server_cluster::generation_session::{SessionImpl as GenerationSessionImpl};
 use key_server_cluster::decryption_session::{SessionImpl as DecryptionSessionImpl};
@@ -110,10 +111,10 @@ pub enum AdminSession {
 
 /// Administrative session creation data.
 pub enum AdminSessionCreationData {
-	/// Share add session.
+	/// Share add session (key id).
 	ShareAdd(H256),
-	/// Servers set change session.
-	ServersSetChange,
+	/// Servers set change session (block id, new_server_set).
+	ServersSetChange(Option<H256>, BTreeSet<NodeId>),
 }
 
 /// Active sessions on this cluster.
@@ -187,7 +188,7 @@ pub enum ClusterSessionsContainerState {
 
 impl ClusterSessions {
 	/// Create new cluster sessions container.
-	pub fn new(config: &ClusterConfiguration) -> Self {
+	pub fn new(config: &ClusterConfiguration, servers_set_change_session_creator_connector: Arc<ServersSetChangeSessionCreatorConnector>) -> Self {
 		let container_state = Arc::new(Mutex::new(ClusterSessionsContainerState::Idle));
 		let creator_core = Arc::new(SessionCreatorCore::new(config));
 		ClusterSessions {
@@ -210,6 +211,7 @@ impl ClusterSessions {
 			}, container_state.clone()),
 			admin_sessions: ClusterSessionsContainer::new(AdminSessionCreator {
 				core: creator_core.clone(),
+				servers_set_change_session_creator_connector: servers_set_change_session_creator_connector,
 				admin_public: config.admin_public.clone(),
 			}, container_state),
 			creator_core: creator_core,
@@ -270,6 +272,7 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 		self.listeners.lock().push(Arc::downgrade(&listener));
 	}
 
+	#[cfg(test)]
 	pub fn is_empty(&self) -> bool {
 		self.sessions.read().is_empty()
 	}
@@ -554,6 +557,7 @@ mod tests {
 	use ethkey::{Random, Generator};
 	use key_server_cluster::{Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet, PlainNodeKeyPair};
 	use key_server_cluster::cluster::ClusterConfiguration;
+	use key_server_cluster::connection_trigger::SimpleServersSetChangeSessionCreatorConnector;
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use super::{ClusterSessions, AdminSessionCreationData};
 
@@ -568,8 +572,11 @@ mod tests {
 			key_storage: Arc::new(DummyKeyStorage::default()),
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			admin_public: Some(Random.generate().unwrap().public().clone()),
+			auto_migrate_enabled: false,
 		};
-		ClusterSessions::new(&config)
+		ClusterSessions::new(&config, Arc::new(SimpleServersSetChangeSessionCreatorConnector {
+			admin_public: Some(Random.generate().unwrap().public().clone()),
+		}))
 	}
 
 	#[test]
