@@ -688,7 +688,7 @@ impl ClusterConnections {
 
 	pub fn remove(&self, data: Arc<ClusterData>, node: &NodeId, is_inbound: bool) {
 		{
-			let mut data = &mut *self.data.write();
+			let mut data = self.data.write();
 			if let Entry::Occupied(entry) = data.connections.entry(node.clone()) {
 				if entry.get().is_inbound() != is_inbound {
 					return;
