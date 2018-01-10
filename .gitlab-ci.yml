@@ -1,3 +1,4 @@
+
 stages:
   - test
   - js-build
@@ -112,7 +113,7 @@ linux-stable-debian:
     - strip target/release/ethkey
     - export SHA3=$(target/release/parity tools hash target/release/parity)
     - md5sum target/release/parity > parity.md5
-    - sh scripts/deb-build.sh amd64
+    - sh scripts/deb-build-debian.sh amd64
     - cp target/release/parity deb/usr/bin/parity
     - cp target/release/parity-evm deb/usr/bin/parity-evm
     - cp target/release/ethstore deb/usr/bin/ethstore
