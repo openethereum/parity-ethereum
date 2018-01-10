@@ -2,8 +2,7 @@
 
 set -e # fail on any error
 set -u # treat unset variables as error
-# ARGUMENTS: 1. BUILD_PLATFORM (target for binaries) 2. PLATFORM (target for cargo) 3. & 4. CC & CXX flags
-# 5. ARC (architecture) 6.EXT (package extention)
+#ARGUMENTS: 1. BUILD_PLATFORM (target for binaries) 2. PLATFORM (target for cargo) 3. ARC (architecture) 4. & 5. CC & CXX flags
 BUILD_PLATFORM=$1
 PLATFORM=$2
 ARC=$3

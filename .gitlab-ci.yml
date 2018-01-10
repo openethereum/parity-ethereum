@@ -236,23 +236,15 @@ test-coverage:
   only:
     - master
   script:
-    - git submodule update --init --recursive
-    - rm -rf target/*
-    - rm -rf js/.coverage
-    - scripts/cov.sh
+    - sh scripts/gitlab-test.sh test-coverage
   tags:
     - kcov
   allow_failure: true
 test-rust-stable:
   stage: test
   image: parity/rust:gitlab-ci
-  variables:
-    RUST_BACKTRACE: 1
   script:
-    - git submodule update --init --recursive
-    - rustup show
-    - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
-    - if [ "$CI_BUILD_REF_NAME" == "nightly" ]; then sh scripts/aura-test.sh; fi
+    - sh scripts/gitlab-test.sh stable
   tags:
     - rust-stable
 test-rust-beta:
@@ -261,12 +253,8 @@ test-rust-beta:
     - triggers
     - master
   image: parity/rust:gitlab-ci
-  variables:
-    RUST_BACKTRACE: 1
   script:
-    - git submodule update --init --recursive
-    - rustup default beta
-    - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
+    - sh scripts/gitlab-test.sh beta
   tags:
     - rust-beta
   allow_failure: true
@@ -276,12 +264,8 @@ test-rust-nightly:
     - triggers
     - master
   image: parity/rust:gitlab-ci
-  variables:
-    RUST_BACKTRACE: 1
   script:
-    - git submodule update --init --recursive
-    - rustup default nightly
-    - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
+    - sh scripts/gitlab-test.sh nightly
   tags:
     - rust
     - rust-nightly
@@ -290,11 +274,7 @@ js-test:
   stage: test
   image: parity/rust:gitlab-ci
   script:
-    - git submodule update --init --recursive
-    - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
-    - if [ $JS_OLD_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS (old) deps install since no JS files modified."; else ./js-old/scripts/install-deps.sh;fi
-    - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS lint since no JS files modified."; else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
-    - if [ $JS_OLD_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS (old) lint since no JS files modified."; else ./js-old/scripts/lint.sh && ./js-old/scripts/test.sh && ./js-old/scripts/build.sh; fi
+    - sh scripts/gitlab-test.sh js-test
   tags:
     - rust-stable
 js-release:
@@ -307,14 +287,7 @@ js-release:
     - triggers
   image: parity/rust:gitlab-ci
   script:
-    - rustup default stable
-    - echo $JS_FILES_MODIFIED
-    - if [ $JS_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
-    - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS rebuild since no JS files modified."; else ./js/scripts/build.sh && ./js/scripts/push-precompiled.sh; fi
-    - echo $JS_OLD_FILES_MODIFIED
-    - if [ $JS_OLD_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS (old) deps install since no JS files modified."; else ./js-old/scripts/install-deps.sh;fi
-    - if [ $JS_OLD_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS (old) rebuild since no JS files modified."; else ./js-old/scripts/build.sh && ./js-old/scripts/push-precompiled.sh; fi
-    - if [ $JS_FILES_MODIFIED -eq 0 ] && [ $JS_OLD_FILES_MODIFIED -eq 0 ]; then echo "Skipping Cargo update since no JS files modified."; else ./js/scripts/push-cargo.sh; fi
+    - sh scripts/gitlab-test.sh js-release
   tags:
     - javascript
 push-release:
@@ -329,12 +302,3 @@ push-release:
     - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
   tags:
     - curl
-
-# ---------------------------------------------------------------------------
-.functions: &functions |
-  JS_FILES_MODIFIED=$(git --no-pager diff --name-only master...$CI_BUILD_REF | grep ^js/ | wc -l)
-  JS_OLD_FILES_MODIFIED=$(git --no-pager diff --name-only master...$CI_BUILD_REF | grep ^js-old/ | wc -l)
-  RUST_FILES_MODIFIED=$(git --no-pager diff --name-only master...$CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
-
-before_script:
-  - *functions
