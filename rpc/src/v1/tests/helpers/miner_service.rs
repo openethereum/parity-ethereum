@@ -18,9 +18,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address};
 use bytes::Bytes;
 use parking_lot::{RwLock, Mutex};
 use ethcore::error::Error;

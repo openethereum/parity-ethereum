@@ -22,9 +22,7 @@ use std::sync::Arc;
 
 use rlp::{self, UntrustedRlp};
 use time::get_time;
-use bigint::prelude::U256;
-use bigint::hash::{H64, H160, H256};
-use util::Address;
+use ethereum_types::{U256, H64, H160, H256, Address};
 use parking_lot::Mutex;
 
 use ethash::SeedHashCompute;

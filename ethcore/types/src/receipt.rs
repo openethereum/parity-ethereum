@@ -16,14 +16,12 @@
 
 //! Receipt
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address, LogBloom};
 use heapsize::HeapSizeOf;
 use rlp::*;
 
 use {BlockNumber};
-use log_entry::{LogBloom, LogEntry, LocalizedLogEntry};
+use log_entry::{LogEntry, LocalizedLogEntry};
 
 /// Transaction outcome store in the receipt.
 #[derive(Debug, Clone, PartialEq, Eq)]

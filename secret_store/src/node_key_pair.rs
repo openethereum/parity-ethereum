@@ -18,8 +18,7 @@ use std::sync::Arc;
 use ethcrypto::ecdh::agree;
 use ethkey::{KeyPair, Public, Signature, Error as EthKeyError, sign, public_to_address};
 use ethcore::account_provider::AccountProvider;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, Address};
 use traits::NodeKeyPair;
 
 pub struct PlainNodeKeyPair {

@@ -17,9 +17,7 @@
 use std::sync::Arc;
 use std::collections::HashMap;
 use byteorder::{LittleEndian, ByteOrder};
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address};
 
 use super::WasmInterpreter;
 use vm::{self, Vm, GasLeft, ActionParams, ActionValue};

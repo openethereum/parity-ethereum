@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use rlp::*;
-use bigint::hash::{H256, H2048};
+use ethereum_types::{H256, H2048};
 use bytes::Bytes;
 use header::Header;
 use transaction::SignedTransaction;

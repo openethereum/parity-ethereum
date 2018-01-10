@@ -19,7 +19,7 @@
 use std::ops::Range;
 use bloomchain::{Filter as BloomFilter, Bloom, Number};
 use hash::keccak;
-use util::Address;
+use ethereum_types::Address;
 use bloomable::Bloomable;
 use basic_types::LogBloom;
 use trace::flat::FlatTrace;
@@ -138,7 +138,7 @@ impl Filter {
 
 #[cfg(test)]
 mod tests {
-	use util::Address;
+	use ethereum_types::Address;
 	use hash::keccak;
 	use bloomable::Bloomable;
 	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide, Reward};

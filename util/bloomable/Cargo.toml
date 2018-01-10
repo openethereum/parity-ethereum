@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["debris <marek.kotewicz@gmail.com>"]
 
 [dependencies]
-ethcore-bigint = { path = "../bigint" }
+ethereum-types = "0.1"
 
 [dev-dependencies]
 keccak-hash = { path = "../hash" }

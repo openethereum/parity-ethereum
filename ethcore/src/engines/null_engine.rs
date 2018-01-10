@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use bigint::prelude::U256;
+use ethereum_types::U256;
 use engines::Engine;
 use header::BlockNumber;
 use parity_machine::{Header, LiveBlock, WithBalances};

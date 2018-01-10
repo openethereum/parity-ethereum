@@ -24,9 +24,7 @@ use vm;
 use panic_payload;
 use parity_wasm::interpreter;
 use wasm_utils::rules;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{U256, H256, Address};
 
 use vm::CallType;
 use super::ptr::{WasmPtr, Error as PtrError};

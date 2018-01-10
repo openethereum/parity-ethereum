@@ -42,9 +42,9 @@ use transaction::SignedTransaction;
 use state_db::StateDB;
 use evm::{Factory as EvmFactory};
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::*;
+use ethereum_types::{H256, U256, Address};
+use hashdb::{HashDB, AsHashDB};
+use kvdb::DBValue;
 use bytes::Bytes;
 
 use trie;
@@ -193,7 +193,7 @@ impl AccountEntry {
 /// `Err(ExecutionError::Internal)` indicates failure, everything else indicates
 /// a successful proof (as the transaction itself may be poorly chosen).
 pub fn check_proof(
-	proof: &[::util::DBValue],
+	proof: &[DBValue],
 	root: H256,
 	transaction: &SignedTransaction,
 	machine: &Machine,
@@ -1065,9 +1065,7 @@ mod tests {
 	use hash::keccak;
 	use super::*;
 	use ethkey::Secret;
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
-	use util::Address;
+	use ethereum_types::{H256, U256, Address};
 	use tests::helpers::*;
 	use machine::EthereumMachine;
 	use vm::EnvInfo;

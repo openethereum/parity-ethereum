@@ -37,9 +37,8 @@ jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "
 jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
 
 ethcore-io = { path = "../util/io" }
-ethcore-util = { path = "../util" }
-ethcore-bigint = { path = "../util/bigint" }
 ethcore-bytes = { path = "../util/bytes" }
+ethereum-types = "0.1"
 ethcore = { path = "../ethcore" }
 ethcrypto = { path = "../ethcrypto" }
 ethkey = { path = "../ethkey" }

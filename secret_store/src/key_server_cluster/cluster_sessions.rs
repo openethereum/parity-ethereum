@@ -19,7 +19,7 @@ use std::sync::{Arc, Weak};
 use std::sync::atomic::AtomicBool;
 use std::collections::{VecDeque, BTreeMap, BTreeSet};
 use parking_lot::{Mutex, RwLock, Condvar};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use ethkey::{Secret, Signature};
 use key_server_cluster::{Error, NodeId, SessionId};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterConfiguration, ClusterView};

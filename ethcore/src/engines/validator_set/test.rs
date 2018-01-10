@@ -20,8 +20,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use heapsize::HeapSizeOf;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, Address};
 use bytes::Bytes;
 
 use machine::{AuxiliaryData, Call, EthereumMachine};

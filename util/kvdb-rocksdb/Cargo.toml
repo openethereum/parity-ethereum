@@ -5,7 +5,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 elastic-array = "0.9"
-ethcore-bigint = { path = "../bigint" }
+ethereum-types = "0.1"
 kvdb = { path = "../kvdb" }
 log = "0.3"
 num_cpus = "1.0"

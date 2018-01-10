@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::collections::BTreeMap;
 use serde_json;
 use tiny_keccak::Keccak;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use ethkey::{Secret, Public};
 use kvdb_rocksdb::{Database, DatabaseIterator};
 use types::all::{Error, ServiceConfiguration, ServerKeyId, NodeId};

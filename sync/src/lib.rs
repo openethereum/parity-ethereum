@@ -22,12 +22,13 @@
 //!
 
 extern crate ethcore_network as network;
-extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_io as io;
 extern crate ethcore;
+extern crate ethereum_types;
 extern crate env_logger;
 extern crate time;
+extern crate plain_hasher;
 extern crate rand;
 extern crate semver;
 extern crate parking_lot;
@@ -67,6 +68,3 @@ mod api;
 pub use api::*;
 pub use chain::{SyncStatus, SyncState};
 pub use network::{validate_node_url, NonReservedPeerMode, Error, ErrorKind, ConnectionFilter, ConnectionDirection};
-
-#[cfg(test)]
-pub(crate) type Address = bigint::hash::H160;

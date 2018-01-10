@@ -34,15 +34,14 @@ ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
-ethcore-util = { path = "util" }
 ethcore-bytes = { path = "util/bytes" }
-ethcore-bigint = { path = "util/bigint" }
 ethcore-io = { path = "util/io" }
 ethcore-devtools = { path = "devtools" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
 ethcore-network = { path = "util/network" }
+ethereum-types = "0.1"
 node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
 node-health = { path = "dapps/node-health" }

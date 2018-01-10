@@ -16,7 +16,7 @@
 
 use std::collections::{VecDeque, HashSet, HashMap};
 use std::sync::Arc;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use parking_lot::RwLock;
 use bytes::Bytes;
 use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};

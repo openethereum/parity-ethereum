@@ -38,9 +38,8 @@ use light::on_demand::{request, OnDemand, HeaderRef, Request as OnDemandRequest,
 use light::request::Field;
 
 use ethsync::LightSync;
-use bigint::prelude::U256;
+use ethereum_types::{U256, Address};
 use hash::H256;
-use util::Address;
 use parking_lot::Mutex;
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};

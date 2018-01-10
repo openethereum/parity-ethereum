@@ -18,9 +18,7 @@
 
 use std::fmt;
 use kvdb;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::*;
+use ethereum_types::{H256, U256, Address};
 use util_error::UtilError;
 use snappy::InvalidInput;
 use unexpected::{Mismatch, OutOfBounds};

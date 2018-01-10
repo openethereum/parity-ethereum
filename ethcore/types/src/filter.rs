@@ -16,8 +16,7 @@
 
 //! Blockchain filter
 
-use util::Address;
-use bigint::hash::{H256, H2048};
+use ethereum_types::{H256, H2048, Address};
 use bloomable::Bloomable;
 use ids::BlockId;
 use log_entry::LogEntry;

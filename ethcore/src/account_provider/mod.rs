@@ -840,7 +840,7 @@ mod tests {
 	use std::time::Instant;
 	use ethstore::ethkey::{Generator, Random, Address};
 	use ethstore::{StoreAccountRef, Derivation};
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 
 	#[test]
 	fn unlock_account_temp() {

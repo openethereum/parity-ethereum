@@ -8,13 +8,13 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
-ethcore-util = { path = "../util" }
 ethcore-bytes = { path = "../util/bytes" }
-ethcore-bigint = { path = "../util/bigint" }
 ethcore-network = { path = "../util/network" }
 ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light"}
 ethcore = { path = "../ethcore" }
+ethereum-types = "0.1"
+plain_hasher = { path = "../util/plain_hasher" }
 rlp = { path = "../util/rlp" }
 keccak-hash = { path = "../util/hash" }
 triehash = { path = "../util/triehash" }

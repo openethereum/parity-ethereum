@@ -29,7 +29,7 @@ use hash::keccak;
 use mio::*;
 use mio::deprecated::{EventLoop};
 use mio::tcp::*;
-use bigint::hash::*;
+use ethereum_types::H256;
 use rlp::*;
 use session::{Session, SessionInfo, SessionData};
 use io::*;

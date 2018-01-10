@@ -38,9 +38,8 @@ extern crate url;
 
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
-extern crate ethcore_util as util;
-extern crate ethcore_bigint as bigint;
 extern crate ethcore_logger as logger;
+extern crate ethereum_types;
 extern crate ethcrypto;
 extern crate ethkey;
 extern crate ethsync;

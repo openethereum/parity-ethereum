@@ -21,15 +21,14 @@ use futures::Future;
 use native_contracts::ValidatorSet as Provider;
 use hash::keccak;
 
-use bigint::prelude::U256;
-use bigint::hash::{H160, H256};
+use ethereum_types::{H160, H256, U256, Address};
 use parking_lot::{Mutex, RwLock};
 
-use util::*;
 use bytes::Bytes;
 use memory_cache::MemoryLruCache;
 use unexpected::Mismatch;
 use rlp::{UntrustedRlp, RlpStream};
+use kvdb::DBValue;
 
 use basic_types::LogBloom;
 use client::EngineClient;
@@ -471,7 +470,7 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
-	use util::*;
+	use ethereum_types::Address;
 	use types::ids::BlockId;
 	use spec::Spec;
 	use account_provider::AccountProvider;

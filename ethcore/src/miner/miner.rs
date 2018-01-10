@@ -18,10 +18,8 @@ use std::time::{Instant, Duration};
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256, Address};
 use parking_lot::{Mutex, RwLock};
-use util::*;
 use bytes::Bytes;
 use timer::PerfTimer;
 use using_queue::{UsingQueue, GetAction};
@@ -1273,7 +1271,7 @@ mod tests {
 	use super::super::{MinerService, PrioritizationStrategy};
 	use super::*;
 	use block::IsBlock;
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use ethkey::{Generator, Random};
 	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith, TransactionImportResult};
 	use header::BlockNumber;

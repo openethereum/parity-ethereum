@@ -143,7 +143,7 @@ pub fn new_mcip3_test_machine() -> EthereumMachine { load_machine(include_bytes!
 
 #[cfg(test)]
 mod tests {
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use state::*;
 	use super::*;
 	use tests::helpers::*;

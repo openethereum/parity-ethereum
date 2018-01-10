@@ -17,8 +17,7 @@
 //! Ethereum virtual machine.
 
 extern crate bit_set;
-extern crate ethcore_util as util;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 extern crate parking_lot;
 extern crate heapsize;
 extern crate vm;

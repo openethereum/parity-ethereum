@@ -18,16 +18,16 @@ use std::fmt;
 use std::collections::BTreeMap;
 use serde_json;
 
-use {ethkey, kvdb, bytes, bigint, key_server_cluster};
+use {ethkey, kvdb, bytes, ethereum_types, key_server_cluster};
 
 /// Node id.
 pub type NodeId = ethkey::Public;
 /// Server key id. When key is used to encrypt document, it could be document contents hash.
-pub type ServerKeyId = bigint::hash::H256;
+pub type ServerKeyId = ethereum_types::H256;
 /// Encrypted document key type.
 pub type EncryptedDocumentKey = bytes::Bytes;
 /// Message hash.
-pub type MessageHash = bigint::hash::H256;
+pub type MessageHash = ethereum_types::H256;
 /// Message signature.
 pub type EncryptedMessageSignature = bytes::Bytes;
 /// Request signature type.

@@ -27,7 +27,7 @@ use std::iter::FromIterator;
 use request::Request;
 use request::NetworkRequests as Requests;
 use net::{timeout, ReqId};
-use bigint::prelude::U256;
+use ethereum_types::U256;
 
 use time::{Duration, SteadyTime};
 

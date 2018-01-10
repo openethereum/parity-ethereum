@@ -23,8 +23,7 @@ ethcore-devtools = { path = "../devtools" }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
 ethcore-stratum = { path = "../stratum" }
-ethcore-util = { path = "../util" }
-ethcore-bigint = { path = "../util/bigint" }
+ethereum-types = "0.1"
 memory-cache = { path = "../util/memory_cache" }
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }

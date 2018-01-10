@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [dependencies]
-ethcore-bigint = { version = "0.2.1", path = "../bigint" }
+ethereum-types = "0.1"
 tiny-keccak = "1.3"
 
 [build-dependencies]

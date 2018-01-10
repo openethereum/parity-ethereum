@@ -16,7 +16,7 @@
 
 use std::collections::{BTreeSet, BTreeMap};
 use ethkey::{Public, Secret};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use key_server_cluster::{Error, NodeId, DocumentKeyShare};
 use key_server_cluster::math;
 use key_server_cluster::jobs::job_session::{JobPartialRequestAction, JobPartialResponseAction, JobExecutor};

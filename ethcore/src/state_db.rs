@@ -20,13 +20,12 @@ use lru_cache::LruCache;
 use memory_cache::MemoryLruCache;
 use journaldb::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
-use bigint::hash::H256;
+use ethereum_types::{H256, Address};
 use hashdb::HashDB;
 use state::{self, Account};
 use header::BlockNumber;
 use hash::keccak;
 use parking_lot::Mutex;
-use util::Address;
 use util_error::UtilError;
 use bloom_journal::{Bloom, BloomJournal};
 use db::COL_ACCOUNT_BLOOM;
@@ -466,9 +465,7 @@ unsafe impl Sync for SyncAccount {}
 
 #[cfg(test)]
 mod tests {
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
-	use util::Address;
+	use ethereum_types::{H256, U256, Address};
 	use kvdb::DBTransaction;
 	use tests::helpers::*;
 	use state::{Account, Backend};

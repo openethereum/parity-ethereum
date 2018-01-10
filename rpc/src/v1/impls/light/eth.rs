@@ -36,7 +36,7 @@ use ethcore::transaction::SignedTransaction;
 use ethsync::LightSync;
 use rlp::UntrustedRlp;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
-use bigint::prelude::U256;
+use ethereum_types::U256;
 use parking_lot::{RwLock, Mutex};
 
 use v1::impls::eth_filter::Filterable;
@@ -517,7 +517,7 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 		self.client.block_hash(id).map(Into::into)
 	}
 
-	fn pending_transactions_hashes(&self, _block_number: u64) -> Vec<::bigint::hash::H256> {
+	fn pending_transactions_hashes(&self, _block_number: u64) -> Vec<::ethereum_types::H256> {
 		Vec::new()
 	}
 

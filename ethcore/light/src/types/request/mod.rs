@@ -17,7 +17,7 @@
 //! Light protocol request types.
 
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-use bigint::hash::H256;
+use ethereum_types::H256;
 
 mod batch;
 
@@ -786,8 +786,7 @@ pub mod header {
 pub mod header_proof {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
+	use ethereum_types::{H256, U256};
 	use bytes::Bytes;
 
 	/// Potentially incomplete header proof request.
@@ -882,7 +881,7 @@ pub mod header_proof {
 /// Request and response for transaction index.
 pub mod transaction_index {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 
 	/// Potentially incomplete transaction index request.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -960,7 +959,7 @@ pub mod transaction_index {
 pub mod block_receipts {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::receipt::Receipt;
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 
 	/// Potentially incomplete block receipts request.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -1029,7 +1028,7 @@ pub mod block_body {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 
 	/// Potentially incomplete block body request.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -1117,8 +1116,7 @@ pub mod block_body {
 /// A request for an account proof.
 pub mod account {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
+	use ethereum_types::{H256, U256};
 	use bytes::Bytes;
 
 	/// Potentially incomplete request for an account proof.
@@ -1218,7 +1216,7 @@ pub mod account {
 /// A request for a storage proof.
 pub mod storage {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use bytes::Bytes;
 
 	/// Potentially incomplete request for an storage proof.
@@ -1327,7 +1325,7 @@ pub mod storage {
 /// A request for contract code.
 pub mod contract_code {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use bytes::Bytes;
 
 	/// Potentially incomplete contract code request.
@@ -1414,9 +1412,8 @@ pub mod execution {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::transaction::Action;
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
-	use util::{Address, DBValue};
+	use ethereum_types::{H256, U256, Address};
+	use kvdb::DBValue;
 	use bytes::Bytes;
 
 	/// Potentially incomplete execution proof request.
@@ -1540,7 +1537,7 @@ pub mod execution {
 pub mod epoch_signal {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use bytes::Bytes;
 
 	/// Potentially incomplete epoch signal request.
@@ -1725,7 +1722,7 @@ mod tests {
 		let full_req = Request::TransactionIndex(req.clone());
 		let res = TransactionIndexResponse {
 			num: 1000,
-			hash: ::bigint::hash::H256::random(),
+			hash: ::ethereum_types::H256::random(),
 			index: 4,
 		};
 		let full_res = Response::TransactionIndex(res.clone());
@@ -1848,7 +1845,7 @@ mod tests {
 
 	#[test]
 	fn execution_roundtrip() {
-		use util::DBValue;
+		use kvdb::DBValue;
 
 		let req = IncompleteExecutionRequest {
 			block_hash: Field::Scalar(Default::default()),

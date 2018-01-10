@@ -19,8 +19,7 @@
 
 use std::collections::HashMap;
 
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use kvdb_rocksdb::Database;
 use migration::{Batch, Config, Error, ErrorKind, Migration, SimpleMigration, Progress};

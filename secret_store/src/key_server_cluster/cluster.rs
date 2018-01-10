@@ -27,7 +27,7 @@ use tokio_io::IoFuture;
 use tokio_core::reactor::{Handle, Remote, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Public, KeyPair, Signature, Random, Generator};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, AdminSession, ClusterSessions, SessionIdWithSubSession,
 	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID, create_cluster_view, AdminSessionCreationData, ClusterSessionsListener};
@@ -1038,7 +1038,7 @@ pub mod tests {
 	use std::collections::{BTreeSet, VecDeque};
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use ethkey::{Random, Generator, Public, Signature, sign};
 	use key_server_cluster::{NodeId, SessionId, Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet, PlainNodeKeyPair, KeyStorage};
 	use key_server_cluster::message::Message;
@@ -1309,7 +1309,7 @@ pub mod tests {
 			// try to start generation session => fails in initialization
 			assert_eq!(clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 100).map(|_| ()),
 				Err(Error::InvalidThreshold));
-		
+
 			assert!(clusters[0].data.sessions.generation_sessions.is_empty());
 		}
 

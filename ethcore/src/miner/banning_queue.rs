@@ -24,9 +24,7 @@ use transient_hashmap::TransientHashMap;
 use miner::{TransactionQueue, TransactionQueueDetailsProvider, TransactionImportResult, TransactionOrigin};
 use miner::transaction_queue::QueuingInstant;
 use error::{Error, TransactionError};
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address};
 use hash::keccak;
 
 type Count = u16;
@@ -220,8 +218,7 @@ mod tests {
 	use error::{Error, TransactionError};
 	use client::TransactionImportResult;
 	use miner::{TransactionQueue, TransactionOrigin};
-	use bigint::prelude::U256;
-	use util::Address;
+	use ethereum_types::{U256, Address};
 	use miner::transaction_queue::test::DummyTransactionDetailsProvider;
 
 	fn queue() -> BanningTransactionQueue {

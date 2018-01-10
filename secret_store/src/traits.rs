@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeSet;
-use ethkey::{KeyPair, Signature, Address, Error as EthKeyError};
-use bigint::hash::H256;
+use ethkey::{KeyPair, Signature, Error as EthKeyError};
+use ethereum_types::{H256, Address};
+
 use types::all::{Error, Public, ServerKeyId, MessageHash, EncryptedMessageSignature, RequestSignature, EncryptedDocumentKey,
 	EncryptedDocumentKeyShadow, NodeId};
 

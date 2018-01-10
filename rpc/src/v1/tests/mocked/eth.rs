@@ -22,9 +22,7 @@ use rustc_hex::{FromHex, ToHex};
 use time::get_time;
 use rlp;
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address};
 use parking_lot::Mutex;
 use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
@@ -539,7 +537,7 @@ fn rpc_eth_transaction_count_by_number_pending() {
 
 #[test]
 fn rpc_eth_pending_transaction_by_hash() {
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use rlp;
 	use ethcore::transaction::SignedTransaction;
 

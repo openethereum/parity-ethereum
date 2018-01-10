@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! View onto transaction rlp
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use bytes::Bytes;
 use hash::keccak;
 use rlp::Rlp;
@@ -80,7 +79,7 @@ impl<'a> TransactionView<'a> {
 mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use super::TransactionView;
 
 	#[test]

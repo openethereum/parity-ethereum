@@ -39,7 +39,7 @@ use light::cache::Cache;
 use light::on_demand::OnDemand;
 use light::client::{LightChainClient, LightChainNotify};
 use parity_reactor::Remote;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use bytes::Bytes;
 use parking_lot::{RwLock, Mutex};
 

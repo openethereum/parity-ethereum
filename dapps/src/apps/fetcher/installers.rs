@@ -18,7 +18,7 @@ use zip;
 use std::{fs, fmt};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use fetch::{self, Mime};
 use futures_cpupool::CpuPool;
 use hash::keccak_buffer;

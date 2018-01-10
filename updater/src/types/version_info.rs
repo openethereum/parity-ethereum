@@ -17,8 +17,8 @@
 //! Types used in the public API
 
 use std::fmt;
-use semver::{Version};
-use bigint::hash::H160;
+use semver::Version;
+use ethereum_types::H160;
 use version::raw_package_info;
 use types::ReleaseTrack;
 

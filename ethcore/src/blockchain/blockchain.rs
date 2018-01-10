@@ -22,8 +22,7 @@ use std::mem;
 use itertools::Itertools;
 use bloomchain as bc;
 use heapsize::HeapSizeOf;
-use bigint::prelude::U256;
-use bigint::hash::{H256, H2048};
+use ethereum_types::{H256, H2048, U256};
 use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use rlp::*;
@@ -634,7 +633,7 @@ impl BlockChain {
 				return None;
 			}
 			if let Some(extras) = self.db.read(db::COL_EXTRA, &best_block_hash) as Option<BlockDetails> {
-				type DetailsKey = Key<BlockDetails, Target=::bigint::hash::H264>;
+				type DetailsKey = Key<BlockDetails, Target=::ethereum_types::H264>;
 				batch.delete(db::COL_EXTRA, &(DetailsKey::key(&best_block_hash)));
 				let hash = extras.parent;
 				let range = extras.number as bc::Number .. extras.number as bc::Number;
@@ -1479,7 +1478,7 @@ mod tests {
 	use hash::keccak;
 	use kvdb::KeyValueDB;
 	use kvdb_memorydb;
-	use bigint::hash::*;
+	use ethereum_types::*;
 	use receipt::{Receipt, TransactionOutcome};
 	use blockchain::{BlockProvider, BlockChain, Config, ImportRoute};
 	use tests::helpers::*;

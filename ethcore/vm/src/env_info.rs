@@ -19,9 +19,7 @@
 use std::cmp;
 use std::sync::Arc;
 use hash::keccak;
-use bigint::hash::H256;
-use bigint::prelude::U256;
-use util::Address;
+use ethereum_types::{U256, H256, Address};
 use types::BlockNumber;
 use ethjson;
 
@@ -81,8 +79,7 @@ impl From<ethjson::vm::Env> for EnvInfo {
 mod tests {
 	use std::str::FromStr;
 	use super::*;
-	use bigint::prelude::U256;
-	use util::Address;
+	use ethereum_types::{U256, Address};
 	use ethjson;
 
 	#[test]

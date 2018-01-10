@@ -18,13 +18,13 @@
 
 //! Dir utilities for platform-specific operations
 extern crate app_dirs;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 extern crate journaldb;
 
 pub mod helpers;
 use std::{env, fs};
 use std::path::{PathBuf, Path};
-use bigint::hash::{H64, H256};
+use ethereum_types::{H64, H256};
 use journaldb::Algorithm;
 use helpers::{replace_home, replace_home_and_local};
 use app_dirs::{AppInfo, get_app_root, AppDataType};

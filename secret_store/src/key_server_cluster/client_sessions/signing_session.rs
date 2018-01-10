@@ -18,7 +18,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use parking_lot::{Mutex, Condvar};
 use ethkey::{Public, Secret, Signature};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, AclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::{Cluster};
 use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
@@ -799,7 +799,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
 	use std::collections::{BTreeMap, VecDeque};
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use ethkey::{self, Random, Generator, Public, Secret, KeyPair};
 	use acl_storage::DummyAclStorage;
 	use key_server_cluster::{NodeId, DummyKeyStorage, DocumentKeyShare, DocumentKeyShareVersion, SessionId, SessionMeta, Error, KeyStorage};

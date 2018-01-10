@@ -9,16 +9,17 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 log = "0.3"
 ethcore = { path = ".."}
-ethcore-util = { path = "../../util" }
-ethcore-bigint = { path = "../../util/bigint" }
 ethcore-bytes = { path = "../../util/bytes" }
+ethereum-types = "0.1"
 memorydb = { path = "../../util/memorydb" }
 patricia-trie = { path = "../../util/patricia_trie" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
 evm = { path = "../evm" }
+hashdb = { path = "../../util/hashdb" }
 heapsize = "0.4"
 vm = { path = "../vm" }
+plain_hasher = { path = "../../util/plain_hasher" }
 rlp = { path = "../../util/rlp" }
 rlp_derive = { path = "../../util/rlp_derive" }
 time = "0.1"

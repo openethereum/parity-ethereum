@@ -24,8 +24,7 @@ use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
 use ethkey::public_to_address;
 use native_contracts::KeyServerSet as KeyServerSetContract;
 use hash::keccak;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use types::all::{Error, Public, NodeAddress, NodeId};
 use trusted_client::TrustedClient;
@@ -544,7 +543,7 @@ fn block_confirmations(client: &BlockChainClient, block: H256) -> Option<u64> {
 pub mod tests {
 	use std::collections::BTreeMap;
 	use std::net::SocketAddr;
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use ethkey::Public;
 	use super::{update_future_set, update_number_of_confirmations, FutureNewSet,
 		KeyServerSet, KeyServerSetSnapshot, MIGRATION_CONFIRMATIONS_REQUIRED};
