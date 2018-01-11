@@ -90,13 +90,14 @@ make_deb () {
 make_pkg () {
   echo "make PKG"
   cp target/$PLATFORM/release/parity target/release/parity
+  cp target/$PLATFORM/release/ethstore target/release/ethstore
   cd mac
   xcodebuild -configuration Release
   cd ..
   packagesbuild -v mac/Parity.pkgproj
   productsign --sign 'Developer ID Installer: PARITY TECHNOLOGIES LIMITED (P2PX3JU8FT)' target/release/Parity\ Ethereum.pkg target/release/Parity\ Ethereum-signed.pkg
-  mv target/release/Parity\ Ethereum-signed.pkg "parity-"$VER"_"$ARC".pkg"
-  md5sum "parity-"$VER"_"$ARC"."$EXT >> "parity-"$VER"_"$ARC".pkg.md5"
+  mv target/release/Parity\ Ethereum-signed.pkg "parity_"$VER"_"$ARC".pkg"
+  md5sum "parity_"$VER"_"$ARC"."$EXT >> "parity_"$VER"_"$ARC".pkg.md5"
 }
 push_binaries () {
   echo "Push binaries to AWS S3"
