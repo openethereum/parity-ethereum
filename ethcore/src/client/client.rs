@@ -1044,12 +1044,9 @@ impl Client {
 	/// This will not fail if given BlockId::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
 	pub fn state_at_beginning(&self, id: BlockId) -> Option<State<StateDB>> {
-		// fast path for latest state.
-		match id {
-			id => match self.block_number(id) {
-				None | Some(0) => None,
-				Some(n) => self.state_at(BlockId::Number(n - 1)),
-			}
+		match self.block_number(id) {
+			None | Some(0) => None,
+			Some(n) => self.state_at(BlockId::Number(n - 1)),
 		}
 	}
 
