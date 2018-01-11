@@ -128,6 +128,8 @@ pub struct WasmCosts {
 	/// Memory (load/store) operations multiplier.
 	pub mem: u32,
 	/// Memory copy operation, per byte.
+	pub mem_cmp: u32,
+	/// Memory copy operation, per byte.
 	pub mem_copy: u32,
 	/// Memory move operation, per byte.
 	pub mem_move: u32,
@@ -148,6 +150,7 @@ impl Default for WasmCosts {
 			div: 16,
 			mul: 4,
 			mem: 2,
+			mem_cmp: 1,
 			mem_copy: 1,
 			mem_move: 1,
 			mem_set: 1,
