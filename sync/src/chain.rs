@@ -102,7 +102,7 @@ use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};
 use ethcore::error::*;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
-use ethcore::transaction::PendingTransaction;
+use transaction::PendingTransaction;
 use sync_io::SyncIo;
 use time;
 use super::SyncConfig;
@@ -2233,8 +2233,8 @@ mod tests {
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::header::*;
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
-	use ethcore::transaction::UnverifiedTransaction;
 	use ethcore::miner::MinerService;
+	use transaction::UnverifiedTransaction;
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();

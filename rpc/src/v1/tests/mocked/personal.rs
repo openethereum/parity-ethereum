@@ -21,9 +21,9 @@ use bytes::ToPretty;
 use ethereum_types::{U256, Address};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
-use ethcore::transaction::{Action, Transaction};
 use jsonrpc_core::IoHandler;
 use parking_lot::Mutex;
+use transaction::{Action, Transaction};
 
 use v1::{PersonalClient, Personal, Metadata};
 use v1::helpers::nonce;

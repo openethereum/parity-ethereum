@@ -9,17 +9,18 @@ name = "parity-evm"
 path = "./src/main.rs"
 
 [dependencies]
-rustc-hex = "1.0"
 docopt = "0.8"
-serde = "1.0"
-serde_derive = "1.0"
 ethcore = { path = "../ethcore" }
 ethjson = { path = "../json" }
 ethcore-bytes = { path = "../util/bytes" }
+ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.1"
 evm = { path = "../ethcore/evm" }
-vm = { path = "../ethcore/vm" }
 panic_hook = { path = "../panic_hook" }
+rustc-hex = "1.0"
+serde = "1.0"
+serde_derive = "1.0"
+vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]
 pretty_assertions = "0.1"

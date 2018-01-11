@@ -31,91 +31,9 @@ use snapshot::Error as SnapshotError;
 use engines::EngineError;
 use ethkey::Error as EthkeyError;
 use account_provider::SignError as AccountsError;
+use transaction::Error as TransactionError;
 
 pub use executed::{ExecutionError, CallError};
-
-#[derive(Debug, PartialEq, Clone, Copy)]
-/// Errors concerning transaction processing.
-pub enum TransactionError {
-	/// Transaction is already imported to the queue
-	AlreadyImported,
-	/// Transaction is not valid anymore (state already has higher nonce)
-	Old,
-	/// Transaction has too low fee
-	/// (there is already a transaction with the same sender-nonce but higher gas price)
-	TooCheapToReplace,
-	/// Transaction was not imported to the queue because limit has been reached.
-	LimitReached,
-	/// Transaction's gas price is below threshold.
-	InsufficientGasPrice {
-		/// Minimal expected gas price
-		minimal: U256,
-		/// Transaction gas price
-		got: U256,
-	},
-	/// Transaction's gas is below currently set minimal gas requirement.
-	InsufficientGas {
-		/// Minimal expected gas
-		minimal: U256,
-		/// Transaction gas
-		got: U256,
-	},
-	/// Sender doesn't have enough funds to pay for this transaction
-	InsufficientBalance {
-		/// Senders balance
-		balance: U256,
-		/// Transaction cost
-		cost: U256,
-	},
-	/// Transactions gas is higher then current gas limit
-	GasLimitExceeded {
-		/// Current gas limit
-		limit: U256,
-		/// Declared transaction gas
-		got: U256,
-	},
-	/// Transaction's gas limit (aka gas) is invalid.
-	InvalidGasLimit(OutOfBounds<U256>),
-	/// Transaction sender is banned.
-	SenderBanned,
-	/// Transaction receipient is banned.
-	RecipientBanned,
-	/// Contract creation code is banned.
-	CodeBanned,
-	/// Invalid chain ID given.
-	InvalidChainId,
-	/// Not enough permissions given by permission contract.
-	NotAllowed,
-}
-
-impl fmt::Display for TransactionError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		use self::TransactionError::*;
-		let msg = match *self {
-			AlreadyImported => "Already imported".into(),
-			Old => "No longer valid".into(),
-			TooCheapToReplace => "Gas price too low to replace".into(),
-			LimitReached => "Transaction limit reached".into(),
-			InsufficientGasPrice { minimal, got } =>
-				format!("Insufficient gas price. Min={}, Given={}", minimal, got),
-			InsufficientGas { minimal, got } =>
-				format!("Insufficient gas. Min={}, Given={}", minimal, got),
-			InsufficientBalance { balance, cost } =>
-				format!("Insufficient balance for transaction. Balance={}, Cost={}",
-					balance, cost),
-			GasLimitExceeded { limit, got } =>
-				format!("Gas limit exceeded. Limit={}, Given={}", limit, got),
-			InvalidGasLimit(ref err) => format!("Invalid gas limit. {}", err),
-			SenderBanned => "Sender is temporarily banned.".into(),
-			RecipientBanned => "Recipient is temporarily banned.".into(),
-			CodeBanned => "Contract code is temporarily banned.".into(),
-			InvalidChainId => "Transaction of this chain ID is not allowed on this chain.".into(),
-			NotAllowed => "Sender does not have permissions to execute this type of transction".into(),
-		};
-
-		f.write_fmt(format_args!("Transaction error ({})", msg))
-	}
-}
 
 #[derive(Debug, PartialEq, Clone, Copy, Eq)]
 /// Errors concerning block processing.
@@ -268,15 +186,6 @@ impl From<Error> for BlockImportError {
 			_ => BlockImportError::Other(format!("other block import error: {:?}", e)),
 		}
 	}
-}
-
-/// Represents the result of importing transaction.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum TransactionImportResult {
-	/// Transaction was imported to current queue.
-	Current,
-	/// Transaction was imported to future queue.
-	Future
 }
 
 /// Api-level error for transaction import

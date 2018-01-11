@@ -22,7 +22,9 @@ patricia-trie = { path = "../util/patricia_trie" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
+ethcore-miner = { path = "../miner" }
 ethcore-stratum = { path = "../stratum" }
+ethcore-transaction = { path = "./transaction" }
 ethereum-types = "0.1"
 memory-cache = { path = "../util/memory_cache" }
 ethjson = { path = "../json" }
@@ -32,10 +34,8 @@ evm = { path = "evm" }
 futures = "0.1"
 hardware-wallet = { path = "../hw" }
 heapsize = "0.4"
-hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
 itertools = "0.5"
 lazy_static = "0.2"
-linked-hash-map = "0.5"
 log = "0.3"
 lru-cache = "0.1"
 native-contracts = { path = "native_contracts" }
@@ -59,9 +59,7 @@ rust-crypto = "0.2.34"
 rustc-hex = "1.0"
 stats = { path = "../util/stats" }
 time = "0.1"
-transient-hashmap = "0.4"
 using_queue = { path = "../util/using_queue" }
-table = { path = "../util/table" }
 bloomable = { path = "../util/bloomable" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
@@ -79,7 +77,7 @@ jit = ["evm/jit"]
 evm-debug = ["slow-blocks"]
 evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 slow-blocks = [] # Use SLOW_TX_DURATION="50" (compile time!) to track transactions over 50ms
-json-tests = []
+json-tests = ["ethcore-transaction/json-tests"]
 test-heavy = []
 default = []
 benches = []

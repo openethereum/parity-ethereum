@@ -21,8 +21,7 @@ use block::{OpenBlock, SealedBlock, ClosedBlock};
 use blockchain::TreeRoute;
 use encoded;
 use vm::LastHashes;
-use error::{ImportResult, CallError, Error as EthcoreError};
-use error::{TransactionImportResult, BlockImportError};
+use error::{ImportResult, CallError, Error as EthcoreError, BlockImportError};
 use evm::{Factory as EvmFactory, Schedule};
 use executive::Executed;
 use filter::Filter;
@@ -30,7 +29,7 @@ use header::{BlockNumber};
 use log_entry::LocalizedLogEntry;
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
-use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
+use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction, ImportResult as TransactionImportResult};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
 use ethereum_types::{H256, U256, Address};

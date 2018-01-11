@@ -38,34 +38,24 @@
 //! }
 //! ```
 
-mod banning_queue;
-mod external;
-mod local_transactions;
 mod miner;
-mod service_transaction_checker;
-mod transaction_queue;
-mod work_notify;
 mod stratum;
 
-pub use self::external::{ExternalMiner, ExternalMinerService};
-
 pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
-pub use self::transaction_queue::{TransactionQueue, RemovalReason, TransactionDetailsProvider as TransactionQueueDetailsProvider,
-	PrioritizationStrategy, AccountDetails, TransactionOrigin};
-pub use self::local_transactions::{Status as LocalTransactionStatus};
-pub use client::TransactionImportResult;
-pub use self::work_notify::NotifyWork;
 pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOptions};
+
+pub use ethcore_miner::local_transactions::Status as LocalTransactionStatus;
 
 use std::collections::BTreeMap;
 use ethereum_types::{H256, U256, Address};
 use bytes::Bytes;
-use client::{MiningBlockChainClient};
+
 use block::ClosedBlock;
+use client::{MiningBlockChainClient};
+use error::{Error};
 use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
-use error::{Error};
-use transaction::{UnverifiedTransaction, PendingTransaction};
+use transaction::{UnverifiedTransaction, PendingTransaction, ImportResult as TransactionImportResult};
 
 /// Miner client API
 pub trait MinerService : Send + Sync {

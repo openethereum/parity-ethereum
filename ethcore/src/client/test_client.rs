@@ -32,7 +32,7 @@ use bytes::Bytes;
 use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
-use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
+use transaction::{self, Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
 	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
@@ -48,7 +48,7 @@ use blockchain::extras::BlockReceipts;
 use error::{ImportResult, Error as EthcoreError};
 use evm::{Factory as EvmFactory, VMType};
 use vm::Schedule;
-use miner::{Miner, MinerService, TransactionImportResult};
+use miner::{Miner, MinerService};
 use spec::Spec;
 use types::basic_account::BasicAccount;
 use types::mode::Mode;
@@ -337,7 +337,7 @@ impl TestBlockChainClient {
 		let hash = signed_tx.hash();
 		let res = self.miner.import_external_transactions(self, vec![signed_tx.into()]);
 		let res = res.into_iter().next().unwrap().expect("Successful import");
-		assert_eq!(res, TransactionImportResult::Current);
+		assert_eq!(res, transaction::ImportResult::Current);
 		hash
 	}
 
@@ -771,7 +771,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
 
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<transaction::ImportResult, EthcoreError> {
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&self.miner.author()),
 			action: Action::Call(address),

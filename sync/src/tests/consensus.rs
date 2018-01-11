@@ -22,9 +22,9 @@ use ethcore::client::{BlockChainClient, Client};
 use ethcore::service::ClientIoMessage;
 use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
-use ethcore::transaction::*;
 use ethcore::account_provider::AccountProvider;
 use ethkey::{KeyPair, Secret};
+use transaction::{Action, PendingTransaction, Transaction};
 use super::helpers::*;
 use SyncConfig;
 

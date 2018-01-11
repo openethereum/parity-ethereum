@@ -212,7 +212,7 @@ fn rpc_parity_set_hash_content() {
 
 #[test]
 fn rpc_parity_remove_transaction() {
-	use ethcore::transaction::{Transaction, Action};
+	use transaction::{Transaction, Action};
 
 	let miner = miner_service();
 	let client = client_service();

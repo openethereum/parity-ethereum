@@ -18,9 +18,10 @@
 
 use std::time::{Instant, Duration};
 use ethereum_types::{H256, U256};
-use ethcore::{trace, spec, transaction, pod_state};
 use ethcore::client::{self, EvmTestClient, EvmTestError, TransactResult};
+use ethcore::{trace, spec, pod_state};
 use ethjson;
+use transaction;
 use vm::ActionParams;
 
 /// VM execution informant

@@ -11,7 +11,8 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ethcore-bytes = { path = "../util/bytes" }
 ethcore-network = { path = "../util/network" }
 ethcore-io = { path = "../util/io" }
-ethcore-light = { path = "../ethcore/light"}
+ethcore-light = { path = "../ethcore/light" }
+ethcore-transaction = { path = "../ethcore/transaction" }
 ethcore = { path = "../ethcore" }
 ethereum-types = "0.1"
 plain_hasher = { path = "../util/plain_hasher" }

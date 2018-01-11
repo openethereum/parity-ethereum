@@ -23,7 +23,6 @@ use ethcore::encoded;
 use ethcore::executed::{Executed, ExecutionError};
 use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::transaction::{Action, Transaction as EthTransaction, SignedTransaction, LocalizedTransaction};
 use ethcore::receipt::Receipt;
 
 use jsonrpc_core::{BoxFuture, Result};
@@ -41,6 +40,7 @@ use ethsync::LightSync;
 use ethereum_types::{U256, Address};
 use hash::H256;
 use parking_lot::Mutex;
+use transaction::{Action, Transaction as EthTransaction, SignedTransaction, LocalizedTransaction};
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};

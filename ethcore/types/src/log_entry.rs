@@ -17,11 +17,11 @@
 //! Log entry type definition.
 
 use std::ops::Deref;
-use hash::keccak;
-use heapsize::HeapSizeOf;
-use bytes::Bytes;
 use ethereum_types::{H256, Address, LogBloom};
 use bloomable::Bloomable;
+use bytes::Bytes;
+use hash::keccak;
+use heapsize::HeapSizeOf;
 
 use {BlockNumber};
 use ethjson;

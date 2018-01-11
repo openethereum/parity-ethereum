@@ -332,27 +332,21 @@ fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &
 
 #[cfg(test)]
 mod tests {
+	use super::*;
+
 	use std::collections::{BTreeMap, HashMap};
-	use hash::keccak;
 	use ethereum_types::{H256, H2048, U256};
-	use triehash::ordered_trie_root;
-	use unexpected::{Mismatch, OutOfBounds};
-	use bytes::Bytes;
-	use ethkey::{Random, Generator};
-	use header::*;
-	use verification::*;
-	use blockchain::extras::*;
-	use error::*;
-	use error::BlockError::*;
-	use views::*;
-	use blockchain::*;
-	use engines::EthEngine;
-	use spec::*;
-	use transaction::*;
-	use tests::helpers::*;
-	use types::log_entry::{LogEntry, LocalizedLogEntry};
-	use time::get_time;
+	use blockchain::extras::{BlockDetails, TransactionAddress, BlockReceipts};
 	use encoded;
+	use hash::keccak;
+	use engines::EthEngine;
+	use error::BlockError::*;
+	use ethkey::{Random, Generator};
+	use spec::{CommonParams, Spec};
+	use tests::helpers::{create_test_block_with_data, create_test_block};
+	use time::get_time;
+	use transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action};
+	use types::log_entry::{LogEntry, LocalizedLogEntry};
 
 	fn check_ok(result: Result<(), Error>) {
 		result.unwrap_or_else(|e| panic!("Block verification failed: {:?}", e));

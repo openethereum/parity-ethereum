@@ -30,14 +30,14 @@ use unexpected::{Mismatch, OutOfBounds};
 use basic_types::{LogBloom, Seal};
 use vm::{EnvInfo, LastHashes};
 use engines::EthEngine;
-use error::{Error, BlockError, TransactionError};
+use error::{Error, BlockError};
 use factory::Factories;
 use header::Header;
 use receipt::{Receipt, TransactionOutcome};
 use state::State;
 use state_db::StateDB;
 use trace::FlatTrace;
-use transaction::{UnverifiedTransaction, SignedTransaction};
+use transaction::{UnverifiedTransaction, SignedTransaction, Error as TransactionError};
 use verification::PreverifiedBlock;
 use views::BlockView;
 
@@ -737,7 +737,12 @@ mod tests {
 	) -> Result<LockedBlock, Error> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header();
-		let transactions: Result<Vec<_>, Error> = block.transactions().into_iter().map(SignedTransaction::new).collect();
+		let transactions: Result<Vec<_>, Error> = block
+			.transactions()
+			.into_iter()
+			.map(SignedTransaction::new)
+			.map(|r| r.map_err(Into::into))
+			.collect();
 		let transactions = transactions?;
 
 		{

@@ -18,20 +18,21 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
-use rustc_hex::{FromHex, ToHex};
-use time::get_time;
-use rlp;
 
 use ethereum_types::{H256, U256, Address};
 use parking_lot::Mutex;
-use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
+use ethcore::miner::MinerService;
 use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
-use ethcore::transaction::{Transaction, Action};
-use ethcore::miner::{ExternalMiner, MinerService};
+use ethkey::Secret;
 use ethsync::SyncState;
+use miner::external::ExternalMiner;
+use rlp;
+use rustc_hex::{FromHex, ToHex};
+use time::get_time;
+use transaction::{Transaction, Action};
 
 use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
@@ -539,7 +540,7 @@ fn rpc_eth_transaction_count_by_number_pending() {
 fn rpc_eth_pending_transaction_by_hash() {
 	use ethereum_types::H256;
 	use rlp;
-	use ethcore::transaction::SignedTransaction;
+	use transaction::SignedTransaction;
 
 	let tester = EthTester::default();
 	{

@@ -19,13 +19,12 @@
 
 use std::time::Duration;
 use std::ops::{Deref, DerefMut};
-use transaction::{SignedTransaction, Action};
-use transient_hashmap::TransientHashMap;
-use miner::{TransactionQueue, TransactionQueueDetailsProvider, TransactionImportResult, TransactionOrigin};
-use miner::transaction_queue::QueuingInstant;
-use error::{Error, TransactionError};
 use ethereum_types::{H256, U256, Address};
 use hash::keccak;
+use transaction::{self, SignedTransaction, Action};
+use transient_hashmap::TransientHashMap;
+
+use transaction_queue::{TransactionQueue, TransactionDetailsProvider, TransactionOrigin, QueuingInstant};
 
 type Count = u16;
 
@@ -80,8 +79,8 @@ impl BanningTransactionQueue {
 		&mut self,
 		transaction: SignedTransaction,
 		time: QueuingInstant,
-		details_provider: &TransactionQueueDetailsProvider,
-	) -> Result<TransactionImportResult, Error> {
+		details_provider: &TransactionDetailsProvider,
+	) -> Result<transaction::ImportResult, transaction::Error> {
 		if let Threshold::BanAfter(threshold) = self.ban_threshold {
 			// NOTE In all checks use direct query to avoid increasing ban timeout.
 
@@ -90,7 +89,7 @@ impl BanningTransactionQueue {
 			let count = self.senders_bans.direct().get(&sender).cloned().unwrap_or(0);
 			if count > threshold {
 				debug!(target: "txqueue", "Ignoring transaction {:?} because sender is banned.", transaction.hash());
-				return Err(Error::Transaction(TransactionError::SenderBanned));
+				return Err(transaction::Error::SenderBanned);
 			}
 
 			// Check recipient
@@ -98,7 +97,7 @@ impl BanningTransactionQueue {
 				let count = self.recipients_bans.direct().get(&recipient).cloned().unwrap_or(0);
 				if count > threshold {
 					debug!(target: "txqueue", "Ignoring transaction {:?} because recipient is banned.", transaction.hash());
-					return Err(Error::Transaction(TransactionError::RecipientBanned));
+					return Err(transaction::Error::RecipientBanned);
 				}
 			}
 
@@ -108,7 +107,7 @@ impl BanningTransactionQueue {
 				let count = self.codes_bans.direct().get(&code_hash).cloned().unwrap_or(0);
 				if count > threshold {
 					debug!(target: "txqueue", "Ignoring transaction {:?} because code is banned.", transaction.hash());
-					return Err(Error::Transaction(TransactionError::CodeBanned));
+					return Err(transaction::Error::CodeBanned);
 				}
 			}
 		}
@@ -209,17 +208,11 @@ impl DerefMut for BanningTransactionQueue {
 
 #[cfg(test)]
 mod tests {
-	use std::time::Duration;
-	use rustc_hex::FromHex;
-	use hash::keccak;
-	use super::{BanningTransactionQueue, Threshold};
+	use super::*;
 	use ethkey::{Random, Generator};
-	use transaction::{Transaction, SignedTransaction, Action};
-	use error::{Error, TransactionError};
-	use client::TransactionImportResult;
-	use miner::{TransactionQueue, TransactionOrigin};
+	use rustc_hex::FromHex;
+	use transaction_queue::test::DummyTransactionDetailsProvider;
 	use ethereum_types::{U256, Address};
-	use miner::transaction_queue::test::DummyTransactionDetailsProvider;
 
 	fn queue() -> BanningTransactionQueue {
 		BanningTransactionQueue::new(TransactionQueue::default(), Threshold::BanAfter(1), Duration::from_secs(180))
@@ -231,7 +224,7 @@ mod tests {
 
 	fn transaction(action: Action) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
-		Transaction {
+		transaction::Transaction {
 			action: action,
 			value: U256::from(100),
 			data: "3331600055".from_hex().unwrap(),
@@ -241,12 +234,8 @@ mod tests {
 		}.sign(keypair.secret(), None)
 	}
 
-	fn unwrap_err(res: Result<TransactionImportResult, Error>) -> TransactionError {
-		match res {
-			Err(Error::Transaction(e)) => e,
-			Ok(x) => panic!("Expected error, got: Ok({:?})", x),
-			Err(e) => panic!("Unexpected error type returned by queue: {:?}", e),
-		}
+	fn unwrap_err(res: Result<transaction::ImportResult, transaction::Error>) -> transaction::Error {
+		res.unwrap_err()
 	}
 
 	#[test]
@@ -273,7 +262,7 @@ mod tests {
 		assert!(!banlist1, "Threshold not reached yet.");
 		// Insert once
 		let import1 = txq.add_with_banlist(tx.clone(), 0, &default_tx_provider()).unwrap();
-		assert_eq!(import1, TransactionImportResult::Current);
+		assert_eq!(import1, transaction::ImportResult::Current);
 
 		// when
 		let banlist2 = txq.ban_sender(tx.sender());
@@ -281,7 +270,7 @@ mod tests {
 
 		// then
 		assert!(banlist2, "Threshold should be reached - banned.");
-		assert_eq!(unwrap_err(import2), TransactionError::SenderBanned);
+		assert_eq!(unwrap_err(import2), transaction::Error::SenderBanned);
 		// Should also remove transacion from the queue
 		assert_eq!(txq.find(&tx.hash()), None);
 	}
@@ -297,7 +286,7 @@ mod tests {
 		assert!(!banlist1, "Threshold not reached yet.");
 		// Insert once
 		let import1 = txq.add_with_banlist(tx.clone(), 0, &default_tx_provider()).unwrap();
-		assert_eq!(import1, TransactionImportResult::Current);
+		assert_eq!(import1, transaction::ImportResult::Current);
 
 		// when
 		let banlist2 = txq.ban_recipient(recipient);
@@ -305,7 +294,7 @@ mod tests {
 
 		// then
 		assert!(banlist2, "Threshold should be reached - banned.");
-		assert_eq!(unwrap_err(import2), TransactionError::RecipientBanned);
+		assert_eq!(unwrap_err(import2), transaction::Error::RecipientBanned);
 	}
 
 	#[test]
@@ -319,7 +308,7 @@ mod tests {
 		assert!(!banlist1, "Threshold not reached yet.");
 		// Insert once
 		let import1 = txq.add_with_banlist(tx.clone(), 0, &default_tx_provider()).unwrap();
-		assert_eq!(import1, TransactionImportResult::Current);
+		assert_eq!(import1, transaction::ImportResult::Current);
 
 		// when
 		let banlist2 = txq.ban_codehash(codehash);
@@ -327,6 +316,6 @@ mod tests {
 
 		// then
 		assert!(banlist2, "Threshold should be reached - banned.");
-		assert_eq!(unwrap_err(import2), TransactionError::CodeBanned);
+		assert_eq!(unwrap_err(import2), transaction::Error::CodeBanned);
 	}
 }

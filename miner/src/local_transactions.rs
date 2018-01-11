@@ -16,10 +16,9 @@
 
 //! Local Transactions List.
 
-use linked_hash_map::LinkedHashMap;
-use transaction::{SignedTransaction, PendingTransaction};
-use error::TransactionError;
 use ethereum_types::{H256, U256};
+use linked_hash_map::LinkedHashMap;
+use transaction::{self, SignedTransaction, PendingTransaction};
 
 /// Status of local transaction.
 /// Can indicate that the transaction is currently part of the queue (`Pending/Future`)
@@ -37,7 +36,7 @@ pub enum Status {
 	/// Replaced because of higher gas price of another transaction.
 	Replaced(SignedTransaction, U256, H256),
 	/// Transaction was never accepted to the queue.
-	Rejected(SignedTransaction, TransactionError),
+	Rejected(SignedTransaction, transaction::Error),
 	/// Transaction is invalid.
 	Invalid(SignedTransaction),
 	/// Transaction was canceled.
@@ -64,6 +63,7 @@ impl Default for LocalTransactionsList {
 }
 
 impl LocalTransactionsList {
+	/// Create a new list of local transactions.
 	pub fn new(max_old: usize) -> Self {
 		LocalTransactionsList {
 			max_old: max_old,
@@ -71,58 +71,68 @@ impl LocalTransactionsList {
 		}
 	}
 
+	/// Mark transaction with given hash as pending.
 	pub fn mark_pending(&mut self, hash: H256) {
 		debug!(target: "own_tx", "Imported to Current (hash {:?})", hash);
 		self.clear_old();
 		self.transactions.insert(hash, Status::Pending);
 	}
 
+	/// Mark transaction with given hash as future.
 	pub fn mark_future(&mut self, hash: H256) {
 		debug!(target: "own_tx", "Imported to Future (hash {:?})", hash);
 		self.transactions.insert(hash, Status::Future);
 		self.clear_old();
 	}
 
-	pub fn mark_rejected(&mut self, tx: SignedTransaction, err: TransactionError) {
+	/// Mark given transaction as rejected from the queue.
+	pub fn mark_rejected(&mut self, tx: SignedTransaction, err: transaction::Error) {
 		debug!(target: "own_tx", "Transaction rejected (hash {:?}): {:?}", tx.hash(), err);
 		self.transactions.insert(tx.hash(), Status::Rejected(tx, err));
 		self.clear_old();
 	}
 
+	/// Mark the transaction as replaced by transaction with given hash.
 	pub fn mark_replaced(&mut self, tx: SignedTransaction, gas_price: U256, hash: H256) {
 		debug!(target: "own_tx", "Transaction replaced (hash {:?}) by {:?} (new gas price: {:?})", tx.hash(), hash, gas_price);
 		self.transactions.insert(tx.hash(), Status::Replaced(tx, gas_price, hash));
 		self.clear_old();
 	}
 
+	/// Mark transaction as invalid.
 	pub fn mark_invalid(&mut self, tx: SignedTransaction) {
 		warn!(target: "own_tx", "Transaction marked invalid (hash {:?})", tx.hash());
 		self.transactions.insert(tx.hash(), Status::Invalid(tx));
 		self.clear_old();
 	}
 
+	/// Mark transaction as canceled.
 	pub fn mark_canceled(&mut self, tx: PendingTransaction) {
 		warn!(target: "own_tx", "Transaction canceled (hash {:?})", tx.hash());
 		self.transactions.insert(tx.hash(), Status::Canceled(tx));
 		self.clear_old();
 	}
 
+	/// Mark transaction as dropped because of limit.
 	pub fn mark_dropped(&mut self, tx: SignedTransaction) {
 		warn!(target: "own_tx", "Transaction dropped (hash {:?})", tx.hash());
 		self.transactions.insert(tx.hash(), Status::Dropped(tx));
 		self.clear_old();
 	}
 
+	/// Mark transaction as mined.
 	pub fn mark_mined(&mut self, tx: SignedTransaction) {
 		info!(target: "own_tx", "Transaction mined (hash {:?})", tx.hash());
 		self.transactions.insert(tx.hash(), Status::Mined(tx));
 		self.clear_old();
 	}
 
+	/// Returns true if the transaction is already in local transactions.
 	pub fn contains(&self, hash: &H256) -> bool {
 		self.transactions.contains_key(hash)
 	}
 
+	/// Return a map of all currently stored transactions.
 	pub fn all_transactions(&self) -> &LinkedHashMap<H256, Status> {
 		&self.transactions
 	}
@@ -152,10 +162,9 @@ impl LocalTransactionsList {
 
 #[cfg(test)]
 mod tests {
+	use super::*;
 	use ethereum_types::U256;
 	use ethkey::{Random, Generator};
-	use transaction::{Action, Transaction, SignedTransaction};
-	use super::{LocalTransactionsList, Status};
 
 	#[test]
 	fn should_add_transaction_as_pending() {
@@ -199,8 +208,8 @@ mod tests {
 
 	fn new_tx(nonce: U256) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
-		Transaction {
-			action: Action::Create,
+		transaction::Transaction {
+			action: transaction::Action::Create,
 			value: U256::from(100),
 			data: Default::default(),
 			gas: U256::from(10),

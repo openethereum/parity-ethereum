@@ -17,16 +17,18 @@
 //! Transaction data structure.
 
 use std::ops::Deref;
-use rlp::*;
+use ethereum_types::{H256, H160, Address, U256};
+use error;
+use ethjson;
+use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
+use evm::Schedule;
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use ethereum_types::{H256, H160, Address, U256};
-use bytes::Bytes;
-use ethkey::{Signature, Secret, Public, recover, public_to_address, Error as EthkeyError};
-use error::*;
-use evm::Schedule;
-use header::BlockNumber;
-use ethjson;
+use rlp::{self, RlpStream, UntrustedRlp, DecoderError, Encodable};
+// use rlp::*;
+
+type Bytes = Vec<u8>;
+type BlockNumber = u64;
 
 /// Fake address for unsigned transactions as defined by EIP-86.
 pub const UNSIGNED_SENDER: Address = H160([0xff; 20]);
@@ -48,7 +50,7 @@ impl Default for Action {
 	fn default() -> Action { Action::Create }
 }
 
-impl Decodable for Action {
+impl rlp::Decodable for Action {
 	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		if rlp.is_empty() {
 			Ok(Action::Create)
@@ -58,7 +60,7 @@ impl Decodable for Action {
 	}
 }
 
-impl Encodable for Action {
+impl rlp::Encodable for Action {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		match *self {
 			Action::Create => s.append_internal(&""),
@@ -270,7 +272,7 @@ impl Deref for UnverifiedTransaction {
 	}
 }
 
-impl Decodable for UnverifiedTransaction {
+impl rlp::Decodable for UnverifiedTransaction {
 	fn decode(d: &UntrustedRlp) -> Result<Self, DecoderError> {
 		if d.item_count()? != 9 {
 			return Err(DecoderError::RlpIncorrectListLen);
@@ -293,7 +295,7 @@ impl Decodable for UnverifiedTransaction {
 	}
 }
 
-impl Encodable for UnverifiedTransaction {
+impl rlp::Encodable for UnverifiedTransaction {
 	fn rlp_append(&self, s: &mut RlpStream) { self.rlp_append_sealed_transaction(s) }
 }
 
@@ -350,9 +352,9 @@ impl UnverifiedTransaction {
 	}
 
 	/// Checks whether the signature has a low 's' value.
-	pub fn check_low_s(&self) -> Result<(), Error> {
+	pub fn check_low_s(&self) -> Result<(), ethkey::Error> {
 		if !self.signature().is_low_s() {
-			Err(EthkeyError::InvalidSignature.into())
+			Err(ethkey::Error::InvalidSignature.into())
 		} else {
 			Ok(())
 		}
@@ -364,39 +366,40 @@ impl UnverifiedTransaction {
 	}
 
 	/// Recovers the public key of the sender.
-	pub fn recover_public(&self) -> Result<Public, Error> {
+	pub fn recover_public(&self) -> Result<Public, ethkey::Error> {
 		Ok(recover(&self.signature(), &self.unsigned.hash(self.chain_id()))?)
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,
 	// TODO: consider use in block validation.
-	#[cfg(test)]
 	#[cfg(feature = "json-tests")]
-	pub fn validate(self, schedule: &Schedule, require_low: bool, allow_chain_id_of_one: bool, allow_empty_signature: bool) -> Result<UnverifiedTransaction, Error> {
+	pub fn validate(self, schedule: &Schedule, require_low: bool, allow_chain_id_of_one: bool, allow_empty_signature: bool)
+		-> Result<UnverifiedTransaction, error::Error>
+	{
 		let chain_id = if allow_chain_id_of_one { Some(1) } else { None };
 		self.verify_basic(require_low, chain_id, allow_empty_signature)?;
 		if !allow_empty_signature || !self.is_unsigned() {
 			self.recover_public()?;
 		}
 		if self.gas < U256::from(self.gas_required(&schedule)) {
-			return Err(TransactionError::InvalidGasLimit(::unexpected::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
+			return Err(error::Error::InvalidGasLimit(::unexpected::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
 		}
 		Ok(self)
 	}
 
 	/// Verify basic signature params. Does not attempt sender recovery.
-	pub fn verify_basic(&self, check_low_s: bool, chain_id: Option<u64>, allow_empty_signature: bool) -> Result<(), Error> {
+	pub fn verify_basic(&self, check_low_s: bool, chain_id: Option<u64>, allow_empty_signature: bool) -> Result<(), error::Error> {
 		if check_low_s && !(allow_empty_signature && self.is_unsigned()) {
 			self.check_low_s()?;
 		}
 		// EIP-86: Transactions of this form MUST have gasprice = 0, nonce = 0, value = 0, and do NOT increment the nonce of account 0.
 		if allow_empty_signature && self.is_unsigned() && !(self.gas_price.is_zero() && self.value.is_zero() && self.nonce.is_zero()) {
-			return Err(EthkeyError::InvalidSignature.into())
+			return Err(ethkey::Error::InvalidSignature.into())
 		}
 		match (self.chain_id(), chain_id) {
 			(None, _) => {},
 			(Some(n), Some(m)) if n == m => {},
-			_ => return Err(TransactionError::InvalidChainId.into()),
+			_ => return Err(error::Error::InvalidChainId),
 		};
 		Ok(())
 	}
@@ -416,7 +419,7 @@ impl HeapSizeOf for SignedTransaction {
 	}
 }
 
-impl Encodable for SignedTransaction {
+impl rlp::Encodable for SignedTransaction {
 	fn rlp_append(&self, s: &mut RlpStream) { self.transaction.rlp_append_sealed_transaction(s) }
 }
 
@@ -435,7 +438,7 @@ impl From<SignedTransaction> for UnverifiedTransaction {
 
 impl SignedTransaction {
 	/// Try to verify transaction and recover sender.
-	pub fn new(transaction: UnverifiedTransaction) -> Result<Self, Error> {
+	pub fn new(transaction: UnverifiedTransaction) -> Result<Self, ethkey::Error> {
 		if transaction.is_unsigned() {
 			Ok(SignedTransaction {
 				transaction: transaction,
@@ -556,7 +559,7 @@ mod tests {
 
 	#[test]
 	fn sender_test() {
-		let t: UnverifiedTransaction = decode(&::rustc_hex::FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
+		let t: UnverifiedTransaction = rlp::decode(&::rustc_hex::FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
 		assert_eq!(t.data, b"");
 		assert_eq!(t.gas, U256::from(0x5208u64));
 		assert_eq!(t.gas_price, U256::from(0x01u64));
@@ -625,10 +628,10 @@ mod tests {
 		use rustc_hex::FromHex;
 
 		let test_vector = |tx_data: &str, address: &'static str| {
-			let signed = decode(&FromHex::from_hex(tx_data).unwrap());
+			let signed = rlp::decode(&FromHex::from_hex(tx_data).unwrap());
 			let signed = SignedTransaction::new(signed).unwrap();
 			assert_eq!(signed.sender(), address.into());
-			flushln!("chainid: {:?}", signed.chain_id());
+			println!("chainid: {:?}", signed.chain_id());
 		};
 
 		test_vector("f864808504a817c800825208943535353535353535353535353535353535353535808025a0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116da0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d", "0xf0f6f18bca1b28cd68e4357452947e021241e9ce");

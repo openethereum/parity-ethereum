@@ -25,13 +25,15 @@ use ethcore::block::Block;
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use ethcore::ethereum;
 use ethcore::ids::BlockId;
-use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, ExternalMiner, Miner, PendingSet, PrioritizationStrategy, GasLimit};
+use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, Miner, PendingSet, GasLimit};
 use ethcore::spec::{Genesis, Spec};
 use ethcore::views::BlockView;
 use ethjson::blockchain::BlockChain;
 use ethjson::state::test::ForkSpec;
 use io::IoChannel;
 use kvdb_memorydb;
+use miner::external::ExternalMiner;
+use miner::transaction_queue::PrioritizationStrategy;
 use parking_lot::Mutex;
 
 use jsonrpc_core::IoHandler;

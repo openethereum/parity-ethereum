@@ -35,12 +35,14 @@ jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "pa
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-bytes = { path = "util/bytes" }
-ethcore-io = { path = "util/io" }
 ethcore-devtools = { path = "devtools" }
+ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
-ethcore-stratum = { path = "stratum" }
+ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
+ethcore-stratum = { path = "stratum" }
+ethcore-transaction = { path = "ethcore/transaction" }
 ethereum-types = "0.1"
 node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
@@ -119,9 +121,11 @@ members = [
 	"chainspec",
 	"dapps/js-glue",
 	"ethcore/wasm/run",
+	"ethcore/types",
 	"ethkey/cli",
 	"ethstore/cli",
 	"evmbin",
+	"miner",
 	"transaction-pool",
 	"whisper",
 ]

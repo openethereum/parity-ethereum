@@ -36,9 +36,9 @@ use ethsync::LightSync;
 use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
-use ethcore::transaction::{Action, SignedTransaction, PendingTransaction, Transaction};
 use ethcore::account_provider::AccountProvider;
 use crypto::DEFAULT_MAC;
+use transaction::{Action, SignedTransaction, PendingTransaction, Transaction};
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{future, Future, Poll, Async};
@@ -411,7 +411,6 @@ impl Dispatcher for LightDispatcher {
 		let hash = signed_transaction.transaction.hash();
 
 		self.transaction_queue.write().import(signed_transaction)
-			.map_err(Into::into)
 			.map_err(errors::transaction)
 			.map(|_| hash)
 	}
