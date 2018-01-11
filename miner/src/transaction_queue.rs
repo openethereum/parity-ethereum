@@ -25,7 +25,7 @@
 //!
 //! ```rust
 //! extern crate ethereum_types;
-//! extern crate ethcore;
+//! extern crate ethcore_miner as miner;
 //! extern crate ethcore_transaction as transaction;
 //! extern crate ethkey;
 //! extern crate rustc_hex;
