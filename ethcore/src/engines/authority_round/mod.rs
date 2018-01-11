@@ -274,6 +274,17 @@ struct EmptyStep {
 	parent_hash: H256,
 }
 
+impl EmptyStep {
+	// FIXME: report malicious behavior
+	fn verify(&self, validators: &ValidatorSet) -> Result<bool, Error> {
+		let message = keccak(empty_step_rlp(self.step, &self.parent_hash));
+		let correct_proposer = step_proposer(validators, &self.parent_hash, self.step);
+
+		verify_address(&correct_proposer, &self.signature.into(), &message)
+			.map_err(|e| e.into())
+	}
+}
+
 impl fmt::Display for EmptyStep {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		write!(f, "({}, {})", self.signature, self.step)
@@ -502,6 +513,11 @@ impl AuthorityRound {
 		Ok(engine)
 	}
 
+	fn handle_valid_message(&self, empty_step: EmptyStep) {
+		let mut empty_steps = self.empty_steps.lock();
+		empty_steps.push(empty_step);
+	}
+
 	fn generate_empty_step(&self, parent_hash: &H256) {
 		let step = self.step.load();
 		let empty_step_rlp = empty_step_rlp(step, parent_hash);
@@ -509,10 +525,13 @@ impl AuthorityRound {
 		if let Ok(signature) = self.sign(keccak(&empty_step_rlp)).map(Into::into) {
 			let message_rlp = empty_step_full_rlp(&signature, &empty_step_rlp);
 
-			// FIXME: process message ourselves?
-			trace!(target: "engine", "broadcasting empty step message for step {}", step);
+			let parent_hash = *parent_hash;
+			let empty_step = EmptyStep { signature, step, parent_hash };
 
+			trace!(target: "engine", "broadcasting empty step message: {:?}", empty_step);
 			self.broadcast_message(message_rlp);
+			self.handle_valid_message(empty_step);
+
 		} else {
 			warn!(target: "engine", "generate_empty_step: FAIL: accounts secret key unavailable");
 		}
@@ -633,11 +652,15 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		}
 
 		let rlp = UntrustedRlp::new(rlp);
-		let empty_step = rlp.as_val().map_err(fmt_err)?;;
+		let empty_step: EmptyStep = rlp.as_val().map_err(fmt_err)?;;
 
-
-		let mut empty_steps = self.empty_steps.lock();
-		empty_steps.push(empty_step);
+		// FIXME: proper error type
+		if empty_step.verify(&*self.validators).map_err(fmt_err)? {
+			trace!(target: "engine", "received empty step message {:?}", empty_step);
+			self.handle_valid_message(empty_step);
+		} else {
+			trace!(target: "engine", "received invalid step message {:?}", empty_step);
+		};
 
 		Ok(())
 	}
