@@ -19,14 +19,13 @@ ethcore-bytes = { path = "../util/bytes" }
 hashdb = { path = "../util/hashdb" }
 memorydb = { path = "../util/memorydb" }
 patricia-trie = { path = "../util/patricia_trie" }
-ethcore-bigint = { path = "../util/bigint" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-stratum = { path = "../stratum" }
 ethcore-transaction = { path = "./transaction" }
-ethcore-util = { path = "../util" }
+ethereum-types = "0.1"
 memory-cache = { path = "../util/memory_cache" }
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
@@ -76,7 +75,7 @@ native-contracts = { path = "native_contracts", features = ["test_contracts"] }
 [features]
 jit = ["evm/jit"]
 evm-debug = ["slow-blocks"]
-evm-debug-tests = ["evm-debug"]
+evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 slow-blocks = [] # Use SLOW_TX_DURATION="50" (compile time!) to track transactions over 50ms
 json-tests = ["ethcore-transaction/json-tests"]
 test-heavy = []

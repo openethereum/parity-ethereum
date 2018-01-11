@@ -27,9 +27,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
 
 use transaction::{self, Condition, PendingTransaction, SignedTransaction};
-use bigint::prelude::U256;
-use bigint::hash::{H256, H256FastMap};
-use util::Address;
+use ethereum_types::{H256, U256, Address};
+use plain_hasher::H256FastMap;
 
 // Knowledge of an account's current nonce.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -330,7 +329,7 @@ impl TransactionQueue {
 #[cfg(test)]
 mod tests {
 	use super::TransactionQueue;
-	use util::Address;
+	use ethereum_types::Address;
 	use transaction::{Transaction, PendingTransaction, Condition};
 
 	#[test]

@@ -5,8 +5,8 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 license = "MIT"
 keywords = ["hash", "hasher"]
-categories = ["no-std"]
 homepage = "https://github.com/paritytech/plain_hasher"
 
 [dependencies]
 crunchy = "0.1.6"
+ethereum-types = "0.1"

@@ -16,8 +16,7 @@
 
 //! Local Transactions List.
 
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{H256, U256};
 use linked_hash_map::LinkedHashMap;
 use transaction::{self, SignedTransaction, PendingTransaction};
 
@@ -164,6 +163,7 @@ impl LocalTransactionsList {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use ethereum_types::U256;
 	use ethkey::{Random, Generator};
 
 	#[test]

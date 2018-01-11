@@ -26,7 +26,7 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
 use bytes::Bytes;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use rlp::{RlpStream, UntrustedRlp};
 
 use super::ManifestData;

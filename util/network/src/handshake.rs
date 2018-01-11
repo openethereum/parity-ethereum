@@ -18,7 +18,7 @@ use std::sync::Arc;
 use rand::random;
 use hash::write_keccak;
 use mio::tcp::*;
-use bigint::hash::*;
+use ethereum_types::{H256, H520};
 use ethcore_bytes::Bytes;
 use rlp::*;
 use connection::{Connection};
@@ -333,7 +333,7 @@ mod test {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use super::*;
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use io::*;
 	use mio::tcp::TcpStream;
 	use stats::NetworkStats;

@@ -1,7 +1,7 @@
 extern crate serde;
 extern crate serde_json;
 #[macro_use] extern crate serde_derive;
-extern crate ethcore_bigint;
+extern crate ethereum_types;
 extern crate ethjson;
 extern crate wasm;
 extern crate vm;

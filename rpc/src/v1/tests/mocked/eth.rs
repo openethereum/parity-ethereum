@@ -19,8 +19,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
 
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{H256, U256, Address};
+use parking_lot::Mutex;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
@@ -29,12 +29,10 @@ use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
 use ethkey::Secret;
 use ethsync::SyncState;
 use miner::external::ExternalMiner;
-use parking_lot::Mutex;
 use rlp;
 use rustc_hex::{FromHex, ToHex};
 use time::get_time;
 use transaction::{Transaction, Action};
-use util::Address;
 
 use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
@@ -94,11 +92,12 @@ impl EthTester {
 		let snapshot = snapshot_service();
 		let hashrates = Arc::new(Mutex::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
+		let gas_price_percentile = options.gas_price_percentile;
 		let eth = EthClient::new(&client, &snapshot, &sync, &opt_ap, &miner, &external_miner, options).to_delegate();
 		let filter = EthFilterClient::new(client.clone(), miner.clone()).to_delegate();
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 
-		let dispatcher = FullDispatcher::new(client.clone(), miner.clone(), reservations);
+		let dispatcher = FullDispatcher::new(client.clone(), miner.clone(), reservations, gas_price_percentile);
 		let sign = SigningUnsafeClient::new(&opt_ap, dispatcher).to_delegate();
 		let mut io: IoHandler<Metadata> = IoHandler::default();
 		io.extend_with(eth);
@@ -539,7 +538,7 @@ fn rpc_eth_transaction_count_by_number_pending() {
 
 #[test]
 fn rpc_eth_pending_transaction_by_hash() {
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use rlp;
 	use transaction::SignedTransaction;
 

@@ -30,7 +30,7 @@ use v1::types::{ConfirmationResponse, RichRawTransaction};
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
-use bigint::prelude::U256;
+use ethereum_types::{U256, Address};
 use bytes::ToPretty;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
@@ -39,7 +39,6 @@ use ethstore::ethkey::{Generator, Random};
 use parking_lot::Mutex;
 use serde_json;
 use transaction::{Transaction, Action, SignedTransaction};
-use util::Address;
 
 use parity_reactor::Remote;
 
@@ -61,7 +60,7 @@ impl Default for SigningTester {
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 		let mut io = IoHandler::default();
 
-		let dispatcher = FullDispatcher::new(client.clone(), miner.clone(), reservations);
+		let dispatcher = FullDispatcher::new(client.clone(), miner.clone(), reservations, 50);
 
 		let remote = Remote::new_thread_per_future();
 

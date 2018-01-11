@@ -23,11 +23,10 @@ use std::mem;
 use itertools::Itertools;
 use rustc_hex::FromHex;
 use hash::keccak;
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256, Address};
 use parking_lot::RwLock;
 use journaldb;
-use util::{Address, DBValue};
+use kvdb::DBValue;
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use bytes::Bytes;
 use rlp::*;
@@ -365,6 +364,8 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 }
 
 impl MiningBlockChainClient for TestBlockChainClient {
+	fn as_block_chain_client(&self) -> &BlockChainClient { self }
+
 	fn latest_schedule(&self) -> Schedule {
 		Schedule::new_post_eip150(24576, true, true, true)
 	}
@@ -427,6 +428,10 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn replay(&self, _id: TransactionId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
+	}
+
+	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
+		Ok(Box::new(self.execution_result.read().clone().unwrap().into_iter()))
 	}
 
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {

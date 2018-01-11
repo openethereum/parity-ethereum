@@ -21,7 +21,7 @@ use std::fmt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{Error, Visitor};
 use rustc_hex::ToHex;
-use bigint::hash::{H64 as Hash64, H160 as Hash160, H256 as Hash256, H520 as Hash520, H2048 as Hash2048};
+use ethereum_types::{H64 as Hash64, H160 as Hash160, H256 as Hash256, H520 as Hash520, H2048 as Hash2048};
 
 
 macro_rules! impl_hash {
@@ -99,7 +99,7 @@ impl_hash!(Bloom, Hash2048);
 mod test {
 	use std::str::FromStr;
 	use serde_json;
-	use bigint::hash;
+	use ethereum_types;
 	use hash::H256;
 
 	#[test]
@@ -107,13 +107,13 @@ mod test {
 		let s = r#"["", "5a39ed1020c04d4d84539975b893a4e7c53eab6c2965db8bc3468093a31bc5ae"]"#;
 		let deserialized: Vec<H256> = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized, vec![
-				   H256(hash::H256::from(0)),
-				   H256(hash::H256::from_str("5a39ed1020c04d4d84539975b893a4e7c53eab6c2965db8bc3468093a31bc5ae").unwrap())
+				   H256(ethereum_types::H256::from(0)),
+				   H256(ethereum_types::H256::from_str("5a39ed1020c04d4d84539975b893a4e7c53eab6c2965db8bc3468093a31bc5ae").unwrap())
 		]);
 	}
 
 	#[test]
 	fn hash_into() {
-		assert_eq!(hash::H256::from(0), H256(hash::H256::from(0)).into());
+		assert_eq!(ethereum_types::H256::from(0), H256(ethereum_types::H256::from(0)).into());
 	}
 }

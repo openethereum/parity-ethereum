@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 byteorder = "1.0"
 edit-distance = "2.0"
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
-ethcore-bigint = { path = "../util/bigint" }
+ethereum-types = "0.1"
 lazy_static = "0.2"
 log = "0.3"
 parity-wordlist = "1.2"

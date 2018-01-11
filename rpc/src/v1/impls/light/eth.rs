@@ -28,13 +28,13 @@ use light::client::LightChainClient;
 use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
 
-use bigint::prelude::U256;
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::encoded;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::ids::BlockId;
 use ethsync::LightSync;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
+use ethereum_types::U256;
 use parking_lot::{RwLock, Mutex};
 use rlp::UntrustedRlp;
 use transaction::SignedTransaction;
@@ -62,6 +62,7 @@ pub struct EthClient<T> {
 	accounts: Arc<AccountProvider>,
 	cache: Arc<Mutex<LightDataCache>>,
 	polls: Mutex<PollManager<PollFilter>>,
+	gas_price_percentile: usize,
 }
 
 impl<T> Clone for EthClient<T> {
@@ -75,6 +76,7 @@ impl<T> Clone for EthClient<T> {
 			accounts: self.accounts.clone(),
 			cache: self.cache.clone(),
 			polls: Mutex::new(PollManager::new()),
+			gas_price_percentile: self.gas_price_percentile,
 		}
 	}
 }
@@ -89,15 +91,17 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 		transaction_queue: Arc<RwLock<TransactionQueue>>,
 		accounts: Arc<AccountProvider>,
 		cache: Arc<Mutex<LightDataCache>>,
+		gas_price_percentile: usize,
 	) -> Self {
 		EthClient {
-			sync: sync,
-			client: client,
-			on_demand: on_demand,
-			transaction_queue: transaction_queue,
-			accounts: accounts,
-			cache: cache,
+			sync,
+			client,
+			on_demand,
+			transaction_queue,
+			accounts,
+			cache,
 			polls: Mutex::new(PollManager::new()),
+			gas_price_percentile,
 		}
 	}
 
@@ -108,6 +112,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 			on_demand: self.on_demand.clone(),
 			sync: self.sync.clone(),
 			cache: self.cache.clone(),
+			gas_price_percentile: self.gas_price_percentile,
 		}
 	}
 
@@ -239,7 +244,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 
 	fn gas_price(&self) -> Result<RpcU256> {
 		Ok(self.cache.lock().gas_price_corpus()
-			.and_then(|c| c.median().cloned())
+			.and_then(|c| c.percentile(self.gas_price_percentile).cloned())
 			.map(RpcU256::from)
 			.unwrap_or_else(Default::default))
 	}
@@ -511,7 +516,7 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 		self.client.block_hash(id).map(Into::into)
 	}
 
-	fn pending_transactions_hashes(&self, _block_number: u64) -> Vec<::bigint::hash::H256> {
+	fn pending_transactions_hashes(&self, _block_number: u64) -> Vec<::ethereum_types::H256> {
 		Vec::new()
 	}
 

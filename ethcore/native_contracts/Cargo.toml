@@ -9,7 +9,7 @@ build = "build.rs"
 ethabi = "4.0"
 futures = "0.1"
 byteorder = "1.0"
-ethcore-bigint = { path = "../../util/bigint" }
+ethereum-types = "0.1"
 
 [build-dependencies]
 native-contract-generator = { path = "generator" }

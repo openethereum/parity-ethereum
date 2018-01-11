@@ -20,7 +20,7 @@
 //! Keeps track of transactions and mined block.
 
 extern crate common_types as types;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 extern crate ethcore_transaction as transaction;
 extern crate futures;
 extern crate heapsize;

@@ -18,9 +18,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
-
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{H256, U256, Address};
 use bytes::Bytes;
 use ethcore::account_provider::SignError as AccountError;
 use ethcore::block::ClosedBlock;
@@ -32,7 +30,6 @@ use miner::local_transactions::Status as LocalTransactionStatus;
 use ethcore::receipt::{Receipt, RichReceipt};
 use parking_lot::{RwLock, Mutex};
 use transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction, ImportResult as TransactionImportResult};
-use util::Address;
 
 /// Test miner service.
 pub struct TestMinerService {

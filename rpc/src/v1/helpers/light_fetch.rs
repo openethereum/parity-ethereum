@@ -36,12 +36,11 @@ use light::cht;
 use light::on_demand::{request, OnDemand, HeaderRef, Request as OnDemandRequest, Response as OnDemandResponse};
 use light::request::Field;
 
-use bigint::prelude::U256;
 use ethsync::LightSync;
+use ethereum_types::{U256, Address};
 use hash::H256;
 use parking_lot::Mutex;
 use transaction::{Action, Transaction as EthTransaction, SignedTransaction, LocalizedTransaction};
-use util::Address;
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log, Transaction};
@@ -60,6 +59,8 @@ pub struct LightFetch {
 	pub sync: Arc<LightSync>,
 	/// The light data cache.
 	pub cache: Arc<Mutex<Cache>>,
+	/// Gas Price percentile
+	pub gas_price_percentile: usize,
 }
 
 /// Extract a transaction at given index.
@@ -203,6 +204,7 @@ impl LightFetch {
 			None => Either::B(self.account(from, id).map(|acc| acc.map(|a| a.nonce))),
 		};
 
+		let gas_price_percentile = self.gas_price_percentile;
 		let gas_price_fut = match req.gas_price {
 			Some(price) => Either::A(future::ok(price)),
 			None => Either::B(dispatch::fetch_gas_price_corpus(
@@ -210,8 +212,8 @@ impl LightFetch {
 				self.client.clone(),
 				self.on_demand.clone(),
 				self.cache.clone(),
-			).map(|corp| match corp.median() {
-				Some(median) => *median,
+			).map(move |corp| match corp.percentile(gas_price_percentile) {
+				Some(percentile) => *percentile,
 				None => DEFAULT_GAS_PRICE.into(),
 			}))
 		};

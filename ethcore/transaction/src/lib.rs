@@ -16,7 +16,7 @@
 
 //! Ethereum Transactions
 
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
 extern crate evm;

@@ -59,7 +59,7 @@ module.exports = {
       },
       {
         test: /\.js$/,
-        include: /(ethereumjs-tx)/,
+        include: /(ethereumjs-tx|ethereumjs-util)/,
         use: [ 'babel-loader' ]
       }
     ]

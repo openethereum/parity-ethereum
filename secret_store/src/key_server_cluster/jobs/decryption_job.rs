@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{BTreeSet, BTreeMap};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use ethkey::{Public, Secret};
 use ethcrypto::ecies::encrypt;
 use ethcrypto::DEFAULT_MAC;

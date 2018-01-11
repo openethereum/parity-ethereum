@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use bigint::prelude::U256;
+use ethereum_types::U256;
 use vm::ReturnData;
 
 const MAX_RETURN_WASTE_BYTES: usize = 16384;
@@ -134,7 +134,7 @@ impl Memory for Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use super::Memory;
 
 	#[test]

@@ -17,8 +17,7 @@
 //! Wasm Interpreter
 
 extern crate vm;
-extern crate ethcore_util as util;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 #[macro_use] extern crate log;
 extern crate ethcore_logger;
 extern crate byteorder;

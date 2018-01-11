@@ -22,7 +22,6 @@
 //! Usage example:
 //!
 //! ```rust
-//! extern crate ethcore_util as util;
 //! extern crate ethcore;
 //! use std::env;
 //! use ethcore::ethereum;
@@ -48,10 +47,7 @@ pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOption
 pub use ethcore_miner::local_transactions::Status as LocalTransactionStatus;
 
 use std::collections::BTreeMap;
-
-use bigint::hash::H160 as Address;
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{H256, U256, Address};
 use bytes::Bytes;
 
 use block::ClosedBlock;

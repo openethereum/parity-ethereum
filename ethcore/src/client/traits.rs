@@ -32,9 +32,7 @@ use trace::LocalizedTrace;
 use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction, ImportResult as TransactionImportResult};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address};
 use bytes::Bytes;
 use hashdb::DBValue;
 
@@ -195,6 +193,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Replays a given transaction for inspection.
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;
 
+	/// Replays all the transactions in a given block for inspection.
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError>;
+
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
 
@@ -307,6 +308,9 @@ pub trait MiningBlockChainClient: BlockChainClient {
 
 	/// Returns latest schedule.
 	fn latest_schedule(&self) -> Schedule;
+
+	/// Returns base of this trait
+	fn as_block_chain_client(&self) -> &BlockChainClient;
 }
 
 /// Client facilities used by internally sealing Engines.

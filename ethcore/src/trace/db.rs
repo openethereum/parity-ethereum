@@ -21,7 +21,7 @@ use std::sync::Arc;
 use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
 use heapsize::HeapSizeOf;
-use bigint::hash::{H256, H264};
+use ethereum_types::{H256, H264};
 use kvdb::{KeyValueDB, DBTransaction};
 use parking_lot::RwLock;
 use header::BlockNumber;
@@ -412,9 +412,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 mod tests {
 	use std::collections::HashMap;
 	use std::sync::Arc;
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
-	use util::Address;
+	use ethereum_types::{H256, U256, Address};
 	use kvdb::{DBTransaction, KeyValueDB};
 	use kvdb_memorydb;
 	use header::BlockNumber;

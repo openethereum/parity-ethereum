@@ -20,13 +20,12 @@ use lru_cache::LruCache;
 use memory_cache::MemoryLruCache;
 use journaldb::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
-use bigint::hash::H256;
+use ethereum_types::{H256, Address};
 use hashdb::HashDB;
 use state::{self, Account};
 use header::BlockNumber;
 use hash::keccak;
 use parking_lot::Mutex;
-use util::Address;
 use util_error::UtilError;
 use bloom_journal::{Bloom, BloomJournal};
 use db::COL_ACCOUNT_BLOOM;
@@ -58,7 +57,7 @@ struct CacheQueueItem {
 	/// Account address.
 	address: Address,
 	/// Acccount data or `None` if account does not exist.
-	account: Option<Account>,
+	account: SyncAccount,
 	/// Indicates that the account was modified before being
 	/// added to the cache.
 	modified: bool,
@@ -268,15 +267,16 @@ impl StateDB {
 					modifications.insert(account.address.clone());
 				}
 				if is_best {
+					let acc = account.account.0;
 					if let Some(&mut Some(ref mut existing)) = cache.accounts.get_mut(&account.address) {
-						if let Some(new) = account.account {
+						if let Some(new) =  acc {
 							if account.modified {
 								existing.overwrite_with(new);
 							}
 							continue;
 						}
 					}
-					cache.accounts.insert(account.address, account.account);
+					cache.accounts.insert(account.address, acc);
 				}
 			}
 
@@ -408,7 +408,7 @@ impl state::Backend for StateDB {
 	fn add_to_account_cache(&mut self, addr: Address, data: Option<Account>, modified: bool) {
 		self.local_cache.push(CacheQueueItem {
 			address: addr,
-			account: data,
+			account: SyncAccount(data),
 			modified: modified,
 		})
 	}
@@ -456,11 +456,16 @@ impl state::Backend for StateDB {
 	}
 }
 
+/// Sync wrapper for the account.
+struct SyncAccount(Option<Account>);
+/// That implementation is safe because account is never modified or accessed in any way.
+/// We only need `Sync` here to allow `StateDb` to be kept in a `RwLock`.
+/// `Account` is `!Sync` by default because of `RefCell`s inside it.
+unsafe impl Sync for SyncAccount {}
+
 #[cfg(test)]
 mod tests {
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
-	use util::Address;
+	use ethereum_types::{H256, U256, Address};
 	use kvdb::DBTransaction;
 	use tests::helpers::*;
 	use state::{Account, Backend};

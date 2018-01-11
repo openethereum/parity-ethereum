@@ -28,9 +28,7 @@ use self::hyper::net::HttpStream;
 use self::ethash::SeedHashCompute;
 
 use std::io::Write;
-
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use parking_lot::Mutex;
 
 /// Trait for notifying about new mining work

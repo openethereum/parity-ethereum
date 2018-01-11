@@ -16,8 +16,7 @@
 
 //! Tracing datatypes.
 
-use bigint::prelude::U256;
-use util::Address;
+use ethereum_types::{U256, Address};
 use bytes::Bytes;
 use hash::keccak;
 use bloomable::Bloomable;

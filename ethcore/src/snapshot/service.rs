@@ -35,7 +35,7 @@ use service::ClientIoMessage;
 
 use io::IoChannel;
 
-use bigint::hash::H256;
+use ethereum_types::H256;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use util_error::UtilError;
 use bytes::Bytes;
@@ -681,7 +681,7 @@ mod tests {
 
 	#[test]
 	fn cannot_finish_with_invalid_chunks() {
-		use bigint::hash::H256;
+		use ethereum_types::H256;
 		use kvdb_rocksdb::DatabaseConfig;
 
 		let spec = get_test_spec();

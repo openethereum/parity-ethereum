@@ -27,8 +27,7 @@ use std::marker::PhantomData;
 use std::{cmp, mem};
 use std::sync::Arc;
 use hash::keccak;
-use bigint::prelude::{U256, U512};
-use bigint::hash::H256;
+use ethereum_types::{U256, U512, H256, Address};
 
 use vm::{
 	self, ActionParams, ActionValue, CallType, MessageCallResult,
@@ -44,8 +43,6 @@ use self::memory::Memory;
 pub use self::shared_cache::SharedCache;
 
 use bit_set::BitSet;
-
-use util::*;
 
 type ProgramCounter = usize;
 

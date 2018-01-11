@@ -30,7 +30,7 @@ use blockchain::{BlockChain, BlockProvider};
 use engines::EthEngine;
 use snapshot::{Error, ManifestData};
 use snapshot::block::AbridgedBlock;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use kvdb::KeyValueDB;
 use bytes::Bytes;
 use rlp::{RlpStream, UntrustedRlp};
@@ -223,7 +223,7 @@ impl Rebuilder for PowRebuilder {
 		use basic_types::Seal::With;
 		use views::BlockView;
 		use snapshot::verify_old_block;
-		use bigint::prelude::U256;
+		use ethereum_types::U256;
 		use triehash::ordered_trie_root;
 
 		let rlp = UntrustedRlp::new(chunk);

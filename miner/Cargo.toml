@@ -12,8 +12,8 @@ hyper = { git = "https://github.com/paritytech/hyper", default-features = false 
 
 common-types = { path = "../ethcore/types" }
 ethash = { path = "../ethash" }
-ethcore-bigint = { path = "../util/bigint" }
 ethcore-transaction = { path = "../ethcore/transaction" }
+ethereum-types = "0.1"
 ethkey = { path = "../ethkey" }
 futures = "0.1"
 heapsize = "0.4"

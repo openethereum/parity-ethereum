@@ -5,7 +5,6 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethcore-bigint = { path = "../../util/bigint" }
 ethjson = { path = "../../json" }
 ethkey = { path = "../../ethkey" }
 evm = { path = "../evm" }
@@ -13,6 +12,7 @@ heapsize = "0.4"
 keccak-hash = { path = "../../util/hash" }
 rlp = { path = "../../util/rlp" }
 unexpected = { path = "../../util/unexpected" }
+ethereum-types = "0.1"
 
 [dev-dependencies]
 rustc-hex= "1.0"

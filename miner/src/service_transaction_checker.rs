@@ -16,10 +16,9 @@
 
 //! A service transactions contract checker.
 
-use bigint::prelude::H160 as Address;
-use bigint::prelude::U256;
 use futures::{future, Future};
 use native_contracts::ServiceTransactionChecker as Contract;
+use ethereum_types::{U256, Address};
 use parking_lot::Mutex;
 use transaction::SignedTransaction;
 use types::ids::BlockId;

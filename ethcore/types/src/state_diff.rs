@@ -19,8 +19,8 @@
 use std::fmt;
 use std::ops::*;
 use std::collections::BTreeMap;
+use ethereum_types::Address;
 use account_diff::*;
-use bigint::hash::H160 as Address;
 
 /// Expression for the delta between two system states. Encoded the
 /// delta of every altered account.

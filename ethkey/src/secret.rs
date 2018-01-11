@@ -19,7 +19,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 use rustc_hex::ToHex;
 use secp256k1::key;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use {Error, SECP256K1};
 
 #[derive(Clone, PartialEq, Eq)]

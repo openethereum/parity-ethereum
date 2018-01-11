@@ -92,8 +92,8 @@ use std::collections::{HashSet, HashMap};
 use std::cmp;
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use bigint::prelude::U256;
-use bigint::hash::{H256, H256FastMap};
+use ethereum_types::{H256, U256};
+use plain_hasher::H256FastMap;
 use parking_lot::RwLock;
 use bytes::Bytes;
 use rlp::*;
@@ -2220,12 +2220,11 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 #[cfg(test)]
 mod tests {
 	use std::collections::{HashSet, VecDeque};
-	use {ethkey, Address};
+	use ethkey;
 	use network::PeerId;
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
+	use ethereum_types::{H256, U256, Address};
 	use parking_lot::RwLock;
 	use bytes::Bytes;
 	use rlp::{Rlp, RlpStream, UntrustedRlp};

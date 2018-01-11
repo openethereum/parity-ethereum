@@ -5,8 +5,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 byteorder = "1.0"
-ethcore-util = { path = "../../util" }
-ethcore-bigint = { path = "../../util/bigint" }
+ethereum-types = "0.1"
 log = "0.3"
 parity-wasm = "0.15"
 wasm-utils = { git = "https://github.com/paritytech/wasm-utils" }

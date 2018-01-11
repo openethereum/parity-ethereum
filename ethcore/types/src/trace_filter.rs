@@ -17,8 +17,7 @@
 //! Trace filter related types
 
 use std::ops::Range;
-
-use bigint::hash::H160 as Address;
+use ethereum_types::Address;
 use ids::BlockId;
 
 /// Easy to use trace filter.

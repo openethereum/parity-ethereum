@@ -24,14 +24,13 @@
 //! # Usage Example
 //!
 //! ```rust
-//! extern crate ethcore_bigint as bigint;
-//! extern crate ethcore_miner as miner;
+//! extern crate ethereum_types;
+//! extern crate ethcore;
 //! extern crate ethcore_transaction as transaction;
 //! extern crate ethkey;
 //! extern crate rustc_hex;
 //!
-//! use bigint::prelude::U256;
-//! use bigint::hash::H160 as Address;
+//! use ethereum_types::{U256, Address};
 //! use ethkey::{Random, Generator};
 //!	use miner::transaction_queue::{TransactionQueue, TransactionDetailsProvider, AccountDetails, TransactionOrigin, RemovalReason};
 //!	use transaction::*;
@@ -107,9 +106,7 @@ use std::cmp;
 use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap};
 use std::ops::Deref;
 
-use bigint::hash::H160 as Address;
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{H256, U256, Address};
 use heapsize::HeapSizeOf;
 use linked_hash_map::LinkedHashMap;
 use local_transactions::{LocalTransactionsList, Status as LocalTransactionStatus};
@@ -543,6 +540,8 @@ pub enum RemovalReason {
 	Invalid,
 	/// Transaction was canceled
 	Canceled,
+	/// Transaction is not allowed,
+	NotAllowed,
 }
 
 /// Point in time when transaction was inserted.
@@ -1009,6 +1008,9 @@ impl TransactionQueue {
 				RemovalReason::Invalid => self.local_transactions.mark_invalid(
 					transaction.transaction.into()
 				),
+				RemovalReason::NotAllowed => self.local_transactions.mark_invalid(
+					transaction.transaction.into()
+				),
 				RemovalReason::Canceled => self.local_transactions.mark_canceled(
 					PendingTransaction::new(transaction.transaction, transaction.condition)
 				),
@@ -1436,6 +1438,7 @@ fn check_if_removed(sender: &Address, nonce: &U256, dropped: Option<HashMap<Addr
 
 #[cfg(test)]
 pub mod test {
+	use ethereum_types::{U256, Address};
 	use super::*;
 	use ethkey::{Random, Generator};
 	use rustc_hex::FromHex;

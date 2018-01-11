@@ -16,7 +16,7 @@
 
 use std::fmt;
 
-use bigint::prelude::U256;
+use ethereum_types::U256;
 use ethkey;
 use unexpected::OutOfBounds;
 

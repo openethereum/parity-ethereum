@@ -88,6 +88,7 @@ pub struct RunCmd {
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
 	pub miner_options: MinerOptions,
+	pub gas_price_percentile: usize,
 	pub ntp_servers: Vec<String>,
 	pub ws_conf: rpc::WsConfiguration,
 	pub http_conf: rpc::HttpConfiguration,
@@ -359,6 +360,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		geth_compatibility: cmd.geth_compatibility,
 		remote: event_loop.remote(),
 		whisper_rpc: whisper_factory,
+		gas_price_percentile: cmd.gas_price_percentile,
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -762,6 +764,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		fetch: fetch.clone(),
 		remote: event_loop.remote(),
 		whisper_rpc: whisper_factory,
+		gas_price_percentile: cmd.gas_price_percentile,
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -786,6 +789,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// secret store key server
 	let secretstore_deps = secretstore::Dependencies {
 		client: client.clone(),
+		sync: sync_provider.clone(),
 		account_provider: account_provider,
 		accounts_passwords: &passwords,
 	};
@@ -894,7 +898,7 @@ fn print_running_environment(spec_name: &String, dirs: &Directories, db_dirs: &D
 
 fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::EthStore;
-	use ethcore::ethstore::dir::RootDiskDirectory;
+	use ethcore::ethstore::accounts_dir::RootDiskDirectory;
 
 	let path = dirs.keys_path(data_dir);
 	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);

@@ -67,7 +67,7 @@ pub enum Api {
 	Traces,
 	/// Rpc (Safe)
 	Rpc,
-	/// SecretStore (Safe)
+	/// SecretStore (UNSAFE: arbitrary hash signing)
 	SecretStore,
 	/// Whisper (Safe)
 	// TODO: _if_ someone guesses someone else's key or filter IDs they can remove
@@ -227,6 +227,7 @@ pub struct FullDependencies {
 	pub fetch: FetchClient,
 	pub remote: parity_reactor::Remote,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
+	pub gas_price_percentile: usize,
 }
 
 impl FullDependencies {
@@ -242,7 +243,7 @@ impl FullDependencies {
 			($namespace:ident, $handler:expr, $deps:expr, $nonces:expr) => {
 				{
 					let deps = &$deps;
-					let dispatcher = FullDispatcher::new(deps.client.clone(), deps.miner.clone(), $nonces);
+					let dispatcher = FullDispatcher::new(deps.client.clone(), deps.miner.clone(), $nonces, deps.gas_price_percentile);
 					if deps.signer_service.is_enabled() {
 						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, deps.remote.clone(), &deps.secret_store)))
 					} else {
@@ -257,6 +258,7 @@ impl FullDependencies {
 			self.client.clone(),
 			self.miner.clone(),
 			nonces.clone(),
+			self.gas_price_percentile,
 		);
 		for api in apis {
 			match *api {
@@ -278,6 +280,7 @@ impl FullDependencies {
 							pending_nonce_from_queue: self.geth_compatibility,
 							allow_pending_receipt_query: !self.geth_compatibility,
 							send_block_number_in_get_work: !self.geth_compatibility,
+							gas_price_percentile: self.gas_price_percentile,
 						}
 					);
 					handler.extend_with(client.to_delegate());
@@ -423,6 +426,7 @@ pub struct LightDependencies<T> {
 	pub geth_compatibility: bool,
 	pub remote: parity_reactor::Remote,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
+	pub gas_price_percentile: usize,
 }
 
 impl<C: LightChainClient + 'static> LightDependencies<C> {
@@ -441,6 +445,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 			self.cache.clone(),
 			self.transaction_queue.clone(),
 			Arc::new(Mutex::new(dispatch::Reservations::with_pool(self.fetch.pool()))),
+			self.gas_price_percentile,
 		);
 
 		macro_rules! add_signing_methods {
@@ -478,6 +483,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.transaction_queue.clone(),
 						self.secret_store.clone(),
 						self.cache.clone(),
+						self.gas_price_percentile,
 					);
 					handler.extend_with(Eth::to_delegate(client.clone()));
 
@@ -493,6 +499,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.sync.clone(),
 						self.cache.clone(),
 						self.remote.clone(),
+						self.gas_price_percentile,
 					);
 					self.client.add_listener(
 						Arc::downgrade(&client.handler()) as Weak<::light::client::LightChainNotify>
@@ -522,6 +529,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						signer,
 						self.dapps_address.clone(),
 						self.ws_address.clone(),
+						self.gas_price_percentile,
 					).to_delegate());
 
 					if !for_generic_pubsub {
@@ -603,7 +611,6 @@ impl ApiSet {
 			Api::EthPubSub,
 			Api::Parity,
 			Api::Rpc,
-			Api::SecretStore,
 			Api::Whisper,
 			Api::WhisperPubSub,
 		].into_iter().cloned().collect();
@@ -628,6 +635,7 @@ impl ApiSet {
 				public_list.insert(Api::ParityAccounts);
 				public_list.insert(Api::ParitySet);
 				public_list.insert(Api::Signer);
+				public_list.insert(Api::SecretStore);
 				public_list
 			},
 			ApiSet::All => {
@@ -637,6 +645,7 @@ impl ApiSet {
 				public_list.insert(Api::ParitySet);
 				public_list.insert(Api::Signer);
 				public_list.insert(Api::Personal);
+				public_list.insert(Api::SecretStore);
 				public_list
 			},
 			ApiSet::PubSub => [
@@ -687,7 +696,7 @@ mod test {
 	fn test_api_set_unsafe_context() {
 		let expected = vec![
 			// make sure this list contains only SAFE methods
-			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore, Api::Whisper, Api::WhisperPubSub,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::Whisper, Api::WhisperPubSub,
 		].into_iter().collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
@@ -696,7 +705,7 @@ mod test {
 	fn test_api_set_ipc_context() {
 		let expected = vec![
 			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore, Api::Whisper, Api::WhisperPubSub,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::Whisper, Api::WhisperPubSub,
 			// semi-safe
 			Api::ParityAccounts
 		].into_iter().collect();
@@ -738,7 +747,7 @@ mod test {
 	#[test]
 	fn test_safe_parsing() {
 		assert_eq!("safe".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore, Api::Whisper, Api::WhisperPubSub,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::Whisper, Api::WhisperPubSub,
 		].into_iter().collect()));
 	}
 }

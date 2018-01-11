@@ -51,7 +51,7 @@ pub struct Tendermint {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use bigint::prelude::H160;
+	use ethereum_types::H160;
 	use hash::Address;
 	use spec::tendermint::Tendermint;
 	use spec::validator_set::ValidatorSet;

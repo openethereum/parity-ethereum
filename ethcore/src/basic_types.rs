@@ -17,10 +17,10 @@
 //! Ethcore basic typenames.
 
 /// Type for a 2048-bit log-bloom, as used by our blocks.
-pub type LogBloom = ::log_entry::LogBloom;
+pub use ethereum_types::LogBloom;
 
 /// Constant 2048-bit datum for 0. Often used as a default.
-pub static ZERO_LOGBLOOM: LogBloom = ::bigint::hash::H2048([0x00; 256]);
+pub static ZERO_LOGBLOOM: LogBloom = ::ethereum_types::H2048([0x00; 256]);
 
 /// Semantic boolean for when a seal/signature is included.
 pub enum Seal {

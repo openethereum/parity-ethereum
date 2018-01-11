@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethkey::{Public, Secret, Random, Generator, math};
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use hash::keccak;
 use key_server_cluster::Error;
 
@@ -368,7 +367,7 @@ pub fn compute_signature_share<'a, I>(threshold: usize, combined_hash: &Secret, 
 /// Check signature share.
 pub fn _check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: &Secret, _public_share: &Public, _one_time_public_share: &Public, _node_numbers: I)
 	-> Result<bool, Error> where I: Iterator<Item=&'a Secret> {
-	// TODO: in paper partial signature is checked using comparison:
+	// TODO [Trust]: in paper partial signature is checked using comparison:
 	//    sig[i] * T                                  = r[i] - c * lagrange_coeff(i) * y[i]
 	// => (k[i] - c * lagrange_coeff(i) * s[i]) * T   = r[i] - c * lagrange_coeff(i) * y[i]
 	// => k[i] * T - c * lagrange_coeff(i) * s[i] * T = k[i] * T - c * lagrange_coeff(i) * y[i]

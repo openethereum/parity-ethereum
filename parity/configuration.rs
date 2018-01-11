@@ -23,9 +23,7 @@ use std::cmp::max;
 use std::str::FromStr;
 use cli::{Args, ArgsError};
 use hash::keccak;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{U256, H256, Address};
 use parity_version::{version_data, version};
 use bytes::Bytes;
 use ansi_term::Colour;
@@ -39,14 +37,15 @@ use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration, UiConfiguration}
 use rpc_apis::ApiSet;
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_and_local,
-geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path,
+to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
+use dir::helpers::{replace_home, replace_home_and_local};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
-use secretstore::{Configuration as SecretStoreConfiguration, NodeSecretKey};
+use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
@@ -338,6 +337,7 @@ impl Configuration {
 				daemon: daemon,
 				logger_config: logger_config.clone(),
 				miner_options: self.miner_options()?,
+				gas_price_percentile: self.args.arg_gas_price_percentile,
 				ntp_servers: self.ntp_servers(),
 				ws_conf: ws_conf,
 				http_conf: http_conf,
@@ -608,6 +608,8 @@ impl Configuration {
 			enabled: self.secretstore_enabled(),
 			http_enabled: self.secretstore_http_enabled(),
 			acl_check_enabled: self.secretstore_acl_check_enabled(),
+			auto_migrate_enabled: self.secretstore_auto_migrate_enabled(),
+			service_contract_address: self.secretstore_service_contract_address()?,
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
 			interface: self.secretstore_interface(),
@@ -1085,6 +1087,18 @@ impl Configuration {
 		!self.args.flag_no_secretstore_acl_check
 	}
 
+	fn secretstore_auto_migrate_enabled(&self) -> bool {
+		!self.args.flag_no_secretstore_auto_migrate
+	}
+
+	fn secretstore_service_contract_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
+		Ok(match self.args.arg_secretstore_contract.as_ref() {
+			"none" => None,
+			"registry" => Some(SecretStoreContractAddress::Registry),
+			a => Some(SecretStoreContractAddress::Address(a.parse().map_err(|e| format!("{}", e))?)),
+		})
+	}
+
 	fn ui_enabled(&self) -> bool {
 		if self.args.flag_force_ui {
 			return true;
@@ -1348,6 +1362,7 @@ mod tests {
 			daemon: None,
 			logger_config: Default::default(),
 			miner_options: Default::default(),
+			gas_price_percentile: 50,
 			ntp_servers: vec![
 				"0.parity.pool.ntp.org:123".into(),
 				"1.parity.pool.ntp.org:123".into(),
@@ -1858,7 +1873,7 @@ mod tests {
 
 		let base_path = ::dir::default_data_path();
 		let local_path = ::dir::default_local_path();
-		assert_eq!(std.directories().cache, ::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
+		assert_eq!(std.directories().cache, dir::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
 		assert_eq!(base.directories().cache, "/test/cache");
 	}
 }

@@ -19,10 +19,7 @@
 
 use std::time::Duration;
 use std::ops::{Deref, DerefMut};
-
-use bigint::hash::H160 as Address;
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{H256, U256, Address};
 use hash::keccak;
 use transaction::{self, SignedTransaction, Action};
 use transient_hashmap::TransientHashMap;
@@ -215,6 +212,7 @@ mod tests {
 	use ethkey::{Random, Generator};
 	use rustc_hex::FromHex;
 	use transaction_queue::test::DummyTransactionDetailsProvider;
+	use ethereum_types::{U256, Address};
 
 	fn queue() -> BanningTransactionQueue {
 		BanningTransactionQueue::new(TransactionQueue::default(), Threshold::BanAfter(1), Duration::from_secs(180))

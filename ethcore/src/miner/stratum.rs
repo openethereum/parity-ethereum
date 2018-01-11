@@ -20,17 +20,16 @@ use std::sync::{Arc, Weak};
 use std::net::{SocketAddr, AddrParseError};
 use std::fmt;
 
-use bigint::hash::{H64, H256, clean_0x};
-use bigint::prelude::U256;
 use block::IsBlock;
 use client::Client;
+use ethereum_types::{H64, H256, clean_0x, U256};
+use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;
 use ethcore_miner::work_notify::NotifyWork;
 use ethcore_stratum::{
 	JobDispatcher, PushWorkHandler,
 	Stratum as StratumService, Error as StratumServiceError,
 };
-use ethereum::ethash::Ethash;
 use miner::{self, Miner, MinerService};
 use parking_lot::Mutex;
 use rlp::encode;

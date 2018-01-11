@@ -25,6 +25,7 @@ use v1::metadata::Metadata;
 use v1::SecretStoreClient;
 use v1::traits::secretstore::SecretStore;
 use v1::helpers::secretstore::ordered_servers_keccak;
+use v1::types::H256;
 
 struct Dependencies {
 	pub accounts: Arc<AccountProvider>,
@@ -100,7 +101,29 @@ fn rpc_secretstore_shadow_decrypt() {
 }
 
 #[test]
-fn rpc_secretstore_sign_servers_set() {
+fn rpc_secretstore_servers_set_hash() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	// execute hashing request
+	let hashing_request = r#"{"jsonrpc": "2.0", "method": "secretstore_serversSetHash", "params":[
+		["0x843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91",
+		 "0x07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3"]
+	], "id": 1}"#;
+	let hashing_response = io.handle_request_sync(&hashing_request).unwrap();
+	let hashing_response = hashing_response.replace(r#"{"jsonrpc":"2.0","result":"0x"#, "");
+	let hashing_response = hashing_response.replace(r#"","id":1}"#, "");
+	let hash: H256 = hashing_response.parse().unwrap();
+
+	let servers_set_keccak = ordered_servers_keccak(vec![
+		"843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91".parse().unwrap(),
+		"07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3".parse().unwrap()
+	].into_iter().collect());
+	assert_eq!(hash, servers_set_keccak);
+}
+
+#[test]
+fn rpc_secretstore_sign_raw_hash() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
@@ -110,19 +133,14 @@ fn rpc_secretstore_sign_servers_set() {
 	deps.accounts.insert_account(key_pair.secret().clone(), "password").unwrap();
 
 	// execute signing request
-	let signing_request = r#"{"jsonrpc": "2.0", "method": "secretstore_signServersSet", "params":[
-		"0x00dfE63B22312ab4329aD0d28CaD8Af987A01932", "password",
-		["0x843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91",
-		 "0x07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3"]
+	let signing_request = r#"{"jsonrpc": "2.0", "method": "secretstore_signRawHash", "params":[
+		"0x00dfE63B22312ab4329aD0d28CaD8Af987A01932", "password", "0x0000000000000000000000000000000000000000000000000000000000000001"
 	], "id": 1}"#;
 	let signing_response = io.handle_request_sync(&signing_request).unwrap();
 	let signing_response = signing_response.replace(r#"{"jsonrpc":"2.0","result":"0x"#, "");
 	let signing_response = signing_response.replace(r#"","id":1}"#, "");
 	let signature: Signature = signing_response.parse().unwrap();
 
-	let servers_set_keccak = ordered_servers_keccak(vec![
-		"843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91".parse().unwrap(),
-		"07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3".parse().unwrap()
-	].into_iter().collect());
-	assert!(verify_public(key_pair.public(), &signature, &servers_set_keccak.into()).unwrap());
+	let hash = "0000000000000000000000000000000000000000000000000000000000000001".parse().unwrap();
+	assert!(verify_public(key_pair.public(), &signature, &hash).unwrap());
 }

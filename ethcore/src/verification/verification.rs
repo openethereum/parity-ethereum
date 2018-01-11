@@ -31,8 +31,7 @@ use header::{BlockNumber, Header};
 use transaction::SignedTransaction;
 use views::BlockView;
 
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{H256, U256};
 use bytes::Bytes;
 use hash::keccak;
 use heapsize::HeapSizeOf;
@@ -273,11 +272,20 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) 
 	}
 
 	if is_full {
-		let max_time = get_time().sec as u64 + 15;
-		if header.timestamp() > max_time {
-			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: header.timestamp() })))
+		const ACCEPTABLE_DRIFT_SECS: u64 = 15;
+		let max_time = get_time().sec as u64 + ACCEPTABLE_DRIFT_SECS;
+		let invalid_threshold = max_time + ACCEPTABLE_DRIFT_SECS * 9;
+		let timestamp = header.timestamp();
+
+		if timestamp > invalid_threshold {
+			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
+		}
+
+		if timestamp > max_time {
+			return Err(From::from(BlockError::TemporarilyInvalid(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
 		}
 	}
+
 	Ok(())
 }
 
@@ -327,10 +335,10 @@ mod tests {
 	use super::*;
 
 	use std::collections::{BTreeMap, HashMap};
-
-	use bigint::hash::H2048;
+	use ethereum_types::{H256, H2048, U256};
 	use blockchain::extras::{BlockDetails, TransactionAddress, BlockReceipts};
 	use encoded;
+	use hash::keccak;
 	use engines::EthEngine;
 	use error::BlockError::*;
 	use ethkey::{Random, Generator};
@@ -352,11 +360,13 @@ mod tests {
 		}
 	}
 
-	fn check_fail_timestamp(result: Result<(), Error>) {
+	fn check_fail_timestamp(result: Result<(), Error>, temp: bool) {
+		let name = if temp { "TemporarilyInvalid" } else { "InvalidTimestamp" };
 		match result {
-			Err(Error::Block(BlockError::InvalidTimestamp(_))) => (),
-			Err(other) => panic!("Block verification failed.\nExpected: InvalidTimestamp\nGot: {:?}", other),
-			Ok(_) => panic!("Block verification failed.\nExpected: InvalidTimestamp\nGot: Ok"),
+			Err(Error::Block(BlockError::InvalidTimestamp(_))) if !temp => (),
+			Err(Error::Block(BlockError::TemporarilyInvalid(_))) if temp => (),
+			Err(other) => panic!("Block verification failed.\nExpected: {}\nGot: {:?}", name, other),
+			Ok(_) => panic!("Block verification failed.\nExpected: {}\nGot: Ok", name),
 		}
 	}
 
@@ -635,11 +645,11 @@ mod tests {
 
 		header = good.clone();
 		header.set_timestamp(2450000000);
-		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
+		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine), false);
 
 		header = good.clone();
 		header.set_timestamp(get_time().sec as u64 + 20);
-		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
+		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine), true);
 
 		header = good.clone();
 		header.set_timestamp(get_time().sec as u64 + 10);

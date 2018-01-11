@@ -24,7 +24,7 @@ use views::HeaderView;
 use bloom_journal::Bloom;
 use migration::{Error, Migration, Progress, Batch, Config, ErrorKind};
 use journaldb;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use trie::Trie;
 use kvdb::{DBTransaction, ResultExt};
 use kvdb_rocksdb::Database;

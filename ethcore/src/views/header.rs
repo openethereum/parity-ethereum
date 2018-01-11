@@ -17,9 +17,7 @@
 //! View onto block header rlp
 
 use hash::keccak;
-use bigint::prelude::U256;
-use bigint::hash::{H256, H2048};
-use util::Address;
+use ethereum_types::{H256, H2048, U256, Address};
 use bytes::Bytes;
 use rlp::{self, Rlp};
 use header::BlockNumber;
@@ -113,9 +111,7 @@ impl<'a> HeaderView<'a> {
 mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
-	use bigint::prelude::U256;
-	use bigint::hash::{H256, H2048};
-	use util::Address;
+	use ethereum_types::{H256, H2048, U256, Address};
 	use super::HeaderView;
 
 	#[test]

@@ -346,6 +346,7 @@ usage! {
 			ARG arg_password: (Vec<String>) = Vec::new(), or |c: &Config| otry!(c.account).password.clone(),
 			"--password=[FILE]...",
 			"Provide a file containing a password for unlocking an account. Leading and trailing whitespace is trimmed.",
+
 		["UI options"]
 			FLAG flag_force_ui: (bool) = false, or |c: &Config| otry!(c.ui).force.clone(),
 			"--force-ui",
@@ -454,7 +455,7 @@ usage! {
 			"--jsonrpc-interface=[IP]",
 			"Specify the hostname portion of the JSONRPC API server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
-			ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore,shh,shh_pubsub", or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
+			ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-apis=[APIS]",
 			"Specify the APIs available through the JSONRPC interface. APIS is a comma-delimited list of API name. Possible name are all, safe, web3, eth, net, personal, parity, parity_set, traces, rpc, parity_accounts. You can also disable a specific API by putting '-' in the front: all,-personal.",
 
@@ -487,7 +488,7 @@ usage! {
 			"--ws-interface=[IP]",
 			"Specify the hostname portion of the WebSockets server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
-			ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore,shh,shh_pubsub", or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
+			ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
 			"--ws-apis=[APIS]",
 			"Specify the APIs available through the WebSockets interface. APIS is a comma-delimited list of API name. Possible name are web3, eth, pubsub, net, personal, parity, parity_set, traces, rpc, parity_accounts..",
 
@@ -508,7 +509,7 @@ usage! {
 			"--ipc-path=[PATH]",
 			"Specify custom path for JSON-RPC over IPC service.",
 
-			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,secretstore,shh,shh_pubsub", or |c: &Config| otry!(c.ipc).apis.as_ref().map(|vec| vec.join(",")),
+			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,shh,shh_pubsub", or |c: &Config| otry!(c.ipc).apis.as_ref().map(|vec| vec.join(",")),
 			"--ipc-apis=[APIS]",
 			"Specify custom API set available via JSON-RPC over IPC.",
 
@@ -555,6 +556,14 @@ usage! {
 			"--no-acl-check",
 			"Disable ACL check (useful for test environments).",
 
+			FLAG flag_no_secretstore_auto_migrate: (bool) = false, or |c: &Config| otry!(c.secretstore).disable_auto_migrate.clone(),
+			"--no-secretstore-auto-migrate",
+			"Do not run servers set change session automatically when servers set changes. This option has no effect when servers set is read from configuration file.",
+
+			ARG arg_secretstore_contract: (String) = "none", or |c: &Config| otry!(c.secretstore).service_contract.clone(),
+			"--secretstore-contract=[SOURCE]",
+			"Secret Store Service contract address source: none, registry (contract address is read from registry) or address.",
+
 			ARG arg_secretstore_nodes: (String) = "", or |c: &Config| otry!(c.secretstore).nodes.as_ref().map(|vec| vec.join(",")),
 			"--secretstore-nodes=[NODES]",
 			"Comma-separated list of other secret store cluster nodes in form NODE_PUBLIC_KEY_IN_HEX@NODE_IP_ADDR:NODE_PORT.",
@@ -584,7 +593,7 @@ usage! {
 			"Hex-encoded secret key of this node.",
 
 			ARG arg_secretstore_admin_public: (Option<String>) = None, or |c: &Config| otry!(c.secretstore).admin_public.clone(),
-			"--secretstore-admin-public=[PUBLIC]",
+			"--secretstore-admin=[PUBLIC]",
 			"Hex-encoded public key of secret store administrator.",
 
 		["Sealing/Mining options"]
@@ -692,6 +701,10 @@ usage! {
 			"--min-gas-price=[STRING]",
 			"Minimum amount of Wei per GAS to be paid for a transaction to be accepted for mining. Overrides --usd-per-tx.",
 
+			ARG arg_gas_price_percentile: (usize) = 50usize, or |c: &Config| otry!(c.mining).gas_price_percentile,
+			"--gas-price-percentile=[PCT]",
+			"Set PCT percentile gas price value from last 100 blocks as default gas price when sending transactions.",
+
 			ARG arg_author: (Option<String>) = None, or |c: &Config| otry!(c.mining).author.clone(),
 			"--author=[ADDRESS]",
 			"Specify the block author (aka \"coinbase\") address for sending block rewards from sealed blocks. NOTE: MINING WILL NOT WORK WITHOUT THIS OPTION.", // Sealing/Mining Option
@@ -775,7 +788,7 @@ usage! {
 			"--pruning-memory=[MB]",
 			"The ideal amount of memory in megabytes to use to store recent states. As many states as possible will be kept within this limit, and at least --pruning-history states will always be kept.",
 
-			ARG arg_cache_size_db: (u32) = 32u32, or |c: &Config| otry!(c.footprint).cache_size_db.clone(),
+			ARG arg_cache_size_db: (u32) = 128u32, or |c: &Config| otry!(c.footprint).cache_size_db.clone(),
 			"--cache-size-db=[MB]",
 			"Override database cache size.",
 
@@ -990,6 +1003,7 @@ struct Config {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Operating {
 	mode: Option<String>,
 	mode_timeout: Option<u64>,
@@ -1009,6 +1023,7 @@ struct Operating {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Account {
 	unlock: Option<Vec<String>>,
 	password: Option<Vec<String>>,
@@ -1019,6 +1034,7 @@ struct Account {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Ui {
 	force: Option<bool>,
 	disable: Option<bool>,
@@ -1029,6 +1045,7 @@ struct Ui {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Network {
 	warp: Option<bool>,
 	port: Option<u16>,
@@ -1048,6 +1065,7 @@ struct Network {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Rpc {
 	disable: Option<bool>,
 	port: Option<u16>,
@@ -1060,6 +1078,7 @@ struct Rpc {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Ws {
 	disable: Option<bool>,
 	port: Option<u16>,
@@ -1070,6 +1089,7 @@ struct Ws {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Ipc {
 	disable: Option<bool>,
 	path: Option<String>,
@@ -1077,6 +1097,7 @@ struct Ipc {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Dapps {
 	disable: Option<bool>,
 	port: Option<u16>,
@@ -1089,10 +1110,13 @@ struct Dapps {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct SecretStore {
 	disable: Option<bool>,
 	disable_http: Option<bool>,
 	disable_acl_check: Option<bool>,
+	disable_auto_migrate: Option<bool>,
+	service_contract: Option<String>,
 	self_secret: Option<String>,
 	admin_public: Option<String>,
 	nodes: Option<Vec<String>>,
@@ -1104,6 +1128,7 @@ struct SecretStore {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Ipfs {
 	enable: Option<bool>,
 	port: Option<u16>,
@@ -1113,6 +1138,7 @@ struct Ipfs {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Mining {
 	author: Option<String>,
 	engine_signer: Option<String>,
@@ -1126,6 +1152,7 @@ struct Mining {
 	tx_time_limit: Option<u64>,
 	relay_set: Option<String>,
 	min_gas_price: Option<u64>,
+	gas_price_percentile: Option<usize>,
 	usd_per_tx: Option<String>,
 	usd_per_eth: Option<String>,
 	price_update_period: Option<String>,
@@ -1145,6 +1172,7 @@ struct Mining {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Stratum {
 	interface: Option<String>,
 	port: Option<u16>,
@@ -1152,6 +1180,7 @@ struct Stratum {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Footprint {
 	tracing: Option<String>,
 	pruning: Option<String>,
@@ -1170,16 +1199,19 @@ struct Footprint {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Snapshots {
 	disable_periodic: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct VM {
 	jit: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Misc {
 	ntp_servers: Option<Vec<String>>,
 	logging: Option<String>,
@@ -1190,6 +1222,7 @@ struct Misc {
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Whisper {
 	enabled: Option<bool>,
 	pool_size: Option<usize>,
@@ -1491,9 +1524,12 @@ mod tests {
 			arg_dapps_path: "$HOME/.parity/dapps".into(),
 			flag_no_dapps: false,
 
+			// SECRETSTORE
 			flag_no_secretstore: false,
 			flag_no_secretstore_http: false,
 			flag_no_secretstore_acl_check: false,
+			flag_no_secretstore_auto_migrate: false,
+			arg_secretstore_contract: "none".into(),
 			arg_secretstore_secret: None,
 			arg_secretstore_admin_public: None,
 			arg_secretstore_nodes: "".into(),
@@ -1523,6 +1559,7 @@ mod tests {
 			arg_tx_time_limit: Some(100u64),
 			arg_relay_set: "cheap".into(),
 			arg_min_gas_price: Some(0u64),
+			arg_gas_price_percentile: 50usize,
 			arg_usd_per_tx: "0.0025".into(),
 			arg_usd_per_eth: "auto".into(),
 			arg_price_update_period: "hourly".into(),
@@ -1636,11 +1673,17 @@ mod tests {
 		let config1 = Args::parse_config(include_str!("./tests/config.invalid1.toml"));
 		let config2 = Args::parse_config(include_str!("./tests/config.invalid2.toml"));
 		let config3 = Args::parse_config(include_str!("./tests/config.invalid3.toml"));
+		let config4 = Args::parse_config(include_str!("./tests/config.invalid4.toml"));
 
-		match (config1, config2, config3) {
-			(Err(ArgsError::Decode(_)), Err(ArgsError::Decode(_)), Err(ArgsError::Decode(_))) => {},
-			(a, b, c) => {
-				assert!(false, "Got invalid error types: {:?}, {:?}, {:?}", a, b, c);
+		match (config1, config2, config3, config4) {
+			(
+				Err(ArgsError::Decode(_)),
+				Err(ArgsError::Decode(_)),
+				Err(ArgsError::Decode(_)),
+				Err(ArgsError::Decode(_)),
+			) => {},
+			(a, b, c, d) => {
+				assert!(false, "Got invalid error types: {:?}, {:?}, {:?}, {:?}", a, b, c, d);
 			}
 		}
 	}
@@ -1737,6 +1780,8 @@ mod tests {
 				disable: None,
 				disable_http: None,
 				disable_acl_check: None,
+				disable_auto_migrate: None,
+				service_contract: None,
 				self_secret: None,
 				admin_public: None,
 				nodes: None,
@@ -1764,6 +1809,7 @@ mod tests {
 				work_queue_size: None,
 				relay_set: None,
 				min_gas_price: None,
+				gas_price_percentile: None,
 				usd_per_tx: None,
 				usd_per_eth: None,
 				price_update_period: Some("hourly".into()),
@@ -1790,7 +1836,7 @@ mod tests {
 				pruning_memory: None,
 				fast_and_loose: None,
 				cache_size: None,
-				cache_size_db: Some(128),
+				cache_size_db: Some(256),
 				cache_size_blocks: Some(16),
 				cache_size_queue: Some(100),
 				cache_size_state: Some(25),

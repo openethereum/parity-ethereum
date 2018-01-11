@@ -19,8 +19,7 @@
 use std::cmp::*;
 use std::fmt;
 use std::collections::BTreeMap;
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use bytes::Bytes;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
