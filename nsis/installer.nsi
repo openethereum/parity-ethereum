@@ -9,7 +9,7 @@
 !define COMPANYNAME "Parity"
 !define DESCRIPTION "Fast, light, robust Ethereum implementation"
 !define VERSIONMAJOR 1
-!define VERSIONMINOR 9
+!define VERSIONMINOR 10
 !define VERSIONBUILD 0
 !define ARGS ""
 !define FIRST_START_ARGS "--mode=passive ui"
@@ -92,10 +92,6 @@ section "install"
 	file /oname=ptray.exe ..\windows\ptray\x64\Release\ptray.exe
 
 	file "logo.ico"
-	file vc_redist.x64.exe
-
-	ExecWait '"$INSTDIR\vc_redist.x64.exe"  /passive /norestart'
-	delete $INSTDIR\vc_redist.x64.exe
 	# Add any other files for the install directory (license files, app data, etc) here
 
 	# Uninstaller - See function un.onInit and section "uninstall" for configuration

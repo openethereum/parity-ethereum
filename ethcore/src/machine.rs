@@ -23,13 +23,13 @@ use std::sync::Arc;
 use block::ExecutedBlock;
 use builtin::Builtin;
 use client::BlockChainClient;
-use error::{Error, TransactionError};
+use error::Error;
 use executive::Executive;
 use header::{BlockNumber, Header};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
-use transaction::{SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
+use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
 
 use ethereum_types::{U256, Address};
@@ -341,7 +341,7 @@ impl EthereumMachine {
 
 	/// Verify a particular transaction is valid, regardless of order.
 	pub fn verify_transaction_unordered(&self, t: UnverifiedTransaction, _header: &Header) -> Result<SignedTransaction, Error> {
-		SignedTransaction::new(t)
+		Ok(SignedTransaction::new(t)?)
 	}
 
 	/// Does basic verification of the transaction.
@@ -369,7 +369,7 @@ impl EthereumMachine {
 	pub fn verify_transaction(&self, t: &SignedTransaction, header: &Header, client: &BlockChainClient) -> Result<(), Error> {
 		if let Some(ref filter) = self.tx_filter.as_ref() {
 			if !filter.transaction_allowed(header.parent_hash(), t, client) {
-				return Err(TransactionError::NotAllowed.into())
+				return Err(transaction::Error::NotAllowed.into())
 			}
 		}
 

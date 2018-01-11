@@ -21,10 +21,10 @@ use bytes::ToPretty;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
-use ethcore::transaction::{Transaction, Action, SignedTransaction};
 use parity_reactor::EventLoop;
 use parking_lot::Mutex;
 use rlp::encode;
+use transaction::{Transaction, Action, SignedTransaction};
 
 use serde_json;
 use jsonrpc_core::IoHandler;

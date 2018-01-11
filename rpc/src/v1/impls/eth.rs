@@ -33,10 +33,11 @@ use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
 use ethcore::log_entry::LogEntry;
-use ethcore::miner::{MinerService, ExternalMinerService};
-use ethcore::transaction::SignedTransaction;
+use ethcore::miner::MinerService;
 use ethcore::snapshot::SnapshotService;
 use ethsync::{SyncProvider};
+use miner::external::ExternalMinerService;
+use transaction::SignedTransaction;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;

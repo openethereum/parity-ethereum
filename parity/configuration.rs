@@ -1137,7 +1137,8 @@ mod tests {
 
 	use devtools::{RandomTempPath};
 	use ethcore::client::{VMType, BlockId};
-	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
+	use ethcore::miner::MinerOptions;
+	use miner::transaction_queue::PrioritizationStrategy;
 	use parity_rpc::NetworkSettings;
 	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 

@@ -203,7 +203,7 @@ impl<'a> EvmTestClient<'a> {
 		if let Err(error) = is_ok {
 			return TransactResult::Err {
 				state_root: *self.state.root(),
-				error,
+				error: error.into(),
 			};
 		}
 

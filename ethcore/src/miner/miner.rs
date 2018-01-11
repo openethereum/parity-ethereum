@@ -18,32 +18,47 @@ use std::time::{Instant, Duration};
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
+use account_provider::{AccountProvider, SignError as AccountError};
+use ansi_term::Colour;
 use ethereum_types::{H256, U256, Address};
 use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
-use timer::PerfTimer;
-use using_queue::{UsingQueue, GetAction};
-use account_provider::{AccountProvider, SignError as AccountError};
-use state::State;
-use client::{MiningBlockChainClient, BlockId, TransactionId};
-use client::TransactionImportResult;
-use executive::contract_address;
-use block::{ClosedBlock, IsBlock, Block};
+use engines::{EthEngine, Seal};
 use error::*;
-use transaction::{Action, UnverifiedTransaction, PendingTransaction, SignedTransaction, Condition as TransactionCondition};
+use ethcore_miner::banning_queue::{BanningTransactionQueue, Threshold};
+use ethcore_miner::local_transactions::{Status as LocalTransactionStatus};
+use ethcore_miner::transaction_queue::{
+	TransactionQueue,
+	RemovalReason,
+	TransactionDetailsProvider as TransactionQueueDetailsProvider,
+	PrioritizationStrategy,
+	AccountDetails,
+	TransactionOrigin,
+};
+use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
+use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
+use miner::{MinerService, MinerStatus};
+use price_info::fetch::Client as FetchClient;
+use price_info::{Client as PriceInfoClient, PriceInfo};
+use timer::PerfTimer;
+use transaction::{
+	Action,
+	UnverifiedTransaction,
+	PendingTransaction,
+	SignedTransaction,
+	Condition as TransactionCondition,
+	ImportResult as TransactionImportResult,
+	Error as TransactionError,
+};
+use using_queue::{UsingQueue, GetAction};
+
+use block::{ClosedBlock, IsBlock, Block};
+use client::{MiningBlockChainClient, BlockId, TransactionId};
+use executive::contract_address;
+use header::{Header, BlockNumber};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
-use engines::{EthEngine, Seal};
-use miner::{MinerService, MinerStatus, TransactionQueue, RemovalReason, TransactionQueueDetailsProvider, PrioritizationStrategy,
-	AccountDetails, TransactionOrigin};
-use miner::banning_queue::{BanningTransactionQueue, Threshold};
-use miner::work_notify::{WorkPoster, NotifyWork};
-use miner::local_transactions::{Status as LocalTransactionStatus};
-use miner::service_transaction_checker::ServiceTransactionChecker;
-use price_info::{Client as PriceInfoClient, PriceInfo};
-use price_info::fetch::Client as FetchClient;
-use header::{Header, BlockNumber};
-use ansi_term::Colour;
+use state::State;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -711,10 +726,10 @@ impl Miner {
 						let details_provider = TransactionDetailsProvider::new(client, &self.service_transaction_action);
 						match origin {
 							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-								transaction_queue.add(transaction, origin, insertion_time, condition.clone(), &details_provider)
+								Ok(transaction_queue.add(transaction, origin, insertion_time, condition.clone(), &details_provider)?)
 							},
 							TransactionOrigin::External => {
-								transaction_queue.add_with_banlist(transaction, insertion_time, &details_provider)
+								Ok(transaction_queue.add_with_banlist(transaction, insertion_time, &details_provider)?)
 							},
 						}
 					},
@@ -1218,15 +1233,25 @@ enum ServiceTransactionAction {
 impl ServiceTransactionAction {
 	pub fn update_from_chain_client(&self, client: &MiningBlockChainClient) {
 		if let ServiceTransactionAction::Check(ref checker) = *self {
-			checker.update_from_chain_client(client);
+			checker.update_from_chain_client(&client);
 		}
 	}
 
 	pub fn check(&self, client: &MiningBlockChainClient, tx: &SignedTransaction) -> Result<bool, String> {
 		match *self {
 			ServiceTransactionAction::Refuse => Err("configured to refuse service transactions".to_owned()),
-			ServiceTransactionAction::Check(ref checker) => checker.check(client, tx),
+			ServiceTransactionAction::Check(ref checker) => checker.check(&client, tx),
 		}
+	}
+}
+
+impl<'a> ::ethcore_miner::service_transaction_checker::ContractCaller for &'a MiningBlockChainClient {
+	fn registry_address(&self, name: &str) -> Option<Address> {
+		MiningBlockChainClient::registry_address(*self, name.into())
+	}
+
+	fn call_contract(&self, block: BlockId, address: Address, data: Vec<u8>) -> Result<Vec<u8>, String> {
+		MiningBlockChainClient::call_contract(*self, block, address, data)
 	}
 }
 
@@ -1263,20 +1288,16 @@ impl<'a> TransactionQueueDetailsProvider for TransactionDetailsProvider<'a> {
 
 #[cfg(test)]
 mod tests {
-
-	use std::sync::Arc;
-	use std::time::Duration;
-	use rustc_hex::FromHex;
-	use hash::keccak;
-	use super::super::{MinerService, PrioritizationStrategy};
 	use super::*;
-	use block::IsBlock;
+	use ethcore_miner::transaction_queue::PrioritizationStrategy;
 	use ethereum_types::U256;
 	use ethkey::{Generator, Random};
-	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith, TransactionImportResult};
-	use header::BlockNumber;
-	use transaction::{SignedTransaction, Transaction, PendingTransaction, Action};
-	use spec::Spec;
+	use hash::keccak;
+	use rustc_hex::FromHex;
+	use transaction::Transaction;
+
+	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
+	use miner::MinerService;
 	use tests::helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
 
 	#[test]

@@ -18,7 +18,7 @@
 //!
 //! This uses a "Provider" to answer requests.
 
-use ethcore::transaction::UnverifiedTransaction;
+use transaction::UnverifiedTransaction;
 
 use io::TimerToken;
 use network::{HostInfo, NetworkProtocolHandler, NetworkContext, PeerId};
