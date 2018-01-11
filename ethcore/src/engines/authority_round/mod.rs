@@ -654,8 +654,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let rlp = UntrustedRlp::new(rlp);
 		let empty_step: EmptyStep = rlp.as_val().map_err(fmt_err)?;;
 
-		// FIXME: proper error type
-		if empty_step.verify(&*self.validators).map_err(fmt_err)? {
+		// FIXME: report
+		if empty_step.verify(&*self.validators).unwrap_or(false) {
 			trace!(target: "engine", "received empty step message {:?}", empty_step);
 			self.handle_valid_message(empty_step);
 		} else {
@@ -731,9 +731,11 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			// clear old `empty_steps` messages
 			empty_steps.retain(|e| U256::from(e.step) > parent_step);
 
-			// ignore messages for future steps
-			let empty_steps: Vec<_> = empty_steps.iter().filter(|e| e.step < step).cloned().collect();
+			// ignore messages for future steps and different parents
+			let empty_steps: Vec<_> =
+				empty_steps.iter().filter(|e| e.step < step && e.parent_hash == *header.parent_hash()).cloned().collect();
 
+			// FIXME: configurable
 			const MAX_EMPTY_STEPS: usize = 15;
 
 			// if there are no transactions to include in the block, we don't seal and instead broadcast a signed
@@ -831,19 +833,23 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 
-		// Report skipped primaries.
-		if let (true, Some(me)) = (step > parent_step + 1, self.signer.read().address()) {
-			debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
-				header.author(), step, parent_step);
-			let mut reported = HashSet::new();
-			for s in parent_step + 1..step {
-				let skipped_primary = step_proposer(&*self.validators, &parent.hash(), s);
-				// Do not report this signer.
-				if skipped_primary != me {
-					self.validators.report_benign(&skipped_primary, header.number(), header.number());
-				}
-				// Stop reporting once validators start repeating.
-				if !reported.insert(skipped_primary) { break; }
+		// FIXME: report author
+		// Verify empty steps
+		let empty_steps = header_empty_steps(header)?;
+		for empty_step in empty_steps {
+			if empty_step.step < parent_step || empty_step.step > step {
+				Err(EngineError::InsufficientProof(
+					format!("empty step proof for invalid step: {:?}", empty_step.step)))?;
+			}
+
+			if empty_step.parent_hash != *header.parent_hash() {
+				Err(EngineError::InsufficientProof(
+					format!("empty step proof for invalid parent hash: {:?}", empty_step.parent_hash)))?;
+			}
+
+			if empty_step.verify(&*self.validators).unwrap_or(false) {
+				Err(EngineError::InsufficientProof(
+					format!("invalid empty step proof: {:?}", empty_step)))?;
 			}
 		}
 
