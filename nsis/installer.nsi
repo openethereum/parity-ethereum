@@ -92,10 +92,6 @@ section "install"
 	file /oname=ptray.exe ..\windows\ptray\x64\Release\ptray.exe
 
 	file "logo.ico"
-	file vc_redist.x64.exe
-
-	ExecWait '"$INSTDIR\vc_redist.x64.exe"  /passive /norestart'
-	delete $INSTDIR\vc_redist.x64.exe
 	# Add any other files for the install directory (license files, app data, etc) here
 
 	# Uninstaller - See function un.onInit and section "uninstall" for configuration
