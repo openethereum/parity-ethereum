@@ -16,6 +16,7 @@
 
 //! A blockchain engine that supports a non-instant BFT proof-of-authority.
 
+use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
@@ -39,7 +40,7 @@ use self::finality::RollingFinality;
 use ethkey::{verify_address, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
-use rlp::{encode, Encodable, RlpStream, UntrustedRlp};
+use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, UntrustedRlp};
 use bigint::prelude::{U256, U128};
 use bigint::hash::{H256, H520};
 use semantic_version::SemanticVersion;
@@ -270,13 +271,44 @@ impl EpochManager {
 struct EmptyStep {
 	signature: H520,
 	step: usize,
+	parent_hash: H256,
+}
+
+impl fmt::Display for EmptyStep {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		write!(f, "({}, {})", self.signature, self.step)
+	}
 }
 
 impl Encodable for EmptyStep {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		let step_rlp = encode(&self.step).into_vec();
-		s.append_raw(&empty_step_full_rlp(&self.signature, &step_rlp), 2);
+		let empty_step_rlp = empty_step_rlp(self.step, &self.parent_hash);
+		s.append_raw(&empty_step_full_rlp(&self.signature, &empty_step_rlp), 2);
 	}
+}
+
+impl Decodable for EmptyStep {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let signature = rlp.val_at(0)?;
+		let empty_step_rlp = rlp.at(1)?;
+
+		let step = empty_step_rlp.val_at(0)?;
+		let parent_hash = empty_step_rlp.val_at(1)?;
+
+		Ok(EmptyStep { signature, step, parent_hash })
+	}
+}
+
+pub fn empty_step_full_rlp(signature: &H520, empty_step_rlp: &Bytes) -> Bytes {
+	let mut s = RlpStream::new_list(2);
+	s.append(signature).append_raw(empty_step_rlp, 1);
+	s.out()
+}
+
+pub fn empty_step_rlp(step: usize, parent_hash: &H256) -> Bytes {
+	let mut s = RlpStream::new_list(2);
+	s.append(&step).append(parent_hash);
+	s.out()
 }
 
 /// Engine using `AuthorityRound` proof-of-authority BFT consensus.
@@ -353,11 +385,15 @@ enum Report {
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
-	UntrustedRlp::new(&header.seal().get(0).expect("was either checked with verify_block_basic or is genesis; has 2 fields; qed (Make sure the spec file has a correct genesis seal)")).as_val()
+	UntrustedRlp::new(&header.seal().get(0).expect("was either checked with verify_block_basic or is genesis; has 3 fields; qed (Make sure the spec file has a correct genesis seal)")).as_val()
 }
 
 fn header_signature(header: &Header) -> Result<Signature, ::rlp::DecoderError> {
-	UntrustedRlp::new(&header.seal().get(1).expect("was checked with verify_block_basic; has 2 fields; qed")).as_val::<H520>().map(Into::into)
+	UntrustedRlp::new(&header.seal().get(1).expect("was checked with verify_block_basic; has 3 fields; qed")).as_val::<H520>().map(Into::into)
+}
+
+fn header_empty_steps(header: &Header) -> Result<Vec<EmptyStep>, ::rlp::DecoderError> {
+	UntrustedRlp::new(&header.seal().get(2).expect("was checked with verify_block_basic; has 3 fields; qed")).as_list::<EmptyStep>().map(Into::into)
 }
 
 fn step_proposer(validators: &ValidatorSet, bh: &H256, step: usize) -> Address {
@@ -466,14 +502,15 @@ impl AuthorityRound {
 		Ok(engine)
 	}
 
-	fn generate_empty_step(&self) {
+	fn generate_empty_step(&self, parent_hash: &H256) {
 		let step = self.step.load();
-		let step_rlp = encode(&step);
+		let empty_step_rlp = empty_step_rlp(step, parent_hash);
 
-		if let Ok(signature) = self.sign(keccak(&step_rlp)).map(Into::into) {
-			let message_rlp = empty_step_full_rlp(&signature, &step_rlp.into_vec());
+		if let Ok(signature) = self.sign(keccak(&empty_step_rlp)).map(Into::into) {
+			let message_rlp = empty_step_full_rlp(&signature, &empty_step_rlp);
 
 			// FIXME: process message ourselves?
+			trace!(target: "engine", "broadcasting empty step message for step {}", step);
 
 			self.broadcast_message(message_rlp);
 		} else {
@@ -488,12 +525,6 @@ impl AuthorityRound {
 			}
 		}
 	}
-}
-
-pub fn empty_step_full_rlp(signature: &H520, empty_step: &Bytes) -> Bytes {
-	let mut s = RlpStream::new_list(2);
-	s.append(signature).append_raw(empty_step, 1);
-	s.out()
 }
 
 fn unix_now() -> Duration {
@@ -556,9 +587,23 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
+		let step = header_step(header).as_ref().map(ToString::to_string).unwrap_or("".into());
+		let signature = header_signature(header).as_ref().map(ToString::to_string).unwrap_or("".into());
+		let empty_steps =
+			if let Ok(empty_steps) = header_empty_steps(header).as_ref() {
+				format!("[{}]",
+						empty_steps.iter().fold(
+							"".to_string(),
+							|acc, e| if acc.len() > 0 { acc + ","} else { acc } + &e.to_string()))
+
+			} else {
+				"".into()
+			};
+
 		map![
-			"step".into() => header_step(header).as_ref().map(ToString::to_string).unwrap_or("".into()),
-			"signature".into() => header_signature(header).as_ref().map(ToString::to_string).unwrap_or("".into())
+			"step".into() => step,
+			"signature".into() => signature,
+			"emptySteps".into() => empty_steps
 		]
 	}
 
@@ -588,11 +633,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		}
 
 		let rlp = UntrustedRlp::new(rlp);
-		let signature = rlp.val_at(0).map_err(fmt_err)?;
-		let empty_step_rlp = rlp.at(1).map_err(fmt_err)?;
-		let step = empty_step_rlp.as_val().map_err(fmt_err)?;
+		let empty_step = rlp.as_val().map_err(fmt_err)?;;
 
-		let empty_step = EmptyStep { signature, step };
 
 		let mut empty_steps = self.empty_steps.lock();
 		empty_steps.push(empty_step);
@@ -675,7 +717,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			// `EmptyStep(step)` message. If we exceed the maximum amount of `empty_step` rounds we proceed with the
 			// seal.
 			if block.transactions().is_empty() && empty_steps.len() < MAX_EMPTY_STEPS {
-				self.generate_empty_step();
+				self.generate_empty_step(header.parent_hash());
 				return Seal::None;
 			}
 
