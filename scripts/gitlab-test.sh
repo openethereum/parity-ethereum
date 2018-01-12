@@ -10,7 +10,7 @@ TEST_SWITCH=$1
 rust_test () {
   git submodule update --init --recursive
   rustup show
-  if [ "${RUST_FILES_MODIFIED}" -eq 0 ];
+  if [[ "${RUST_FILES_MODIFIED}" != "0" ]];
     then echo "Skipping Rust tests since no Rust files modified.";
     else ./test.sh;
   fi
@@ -20,19 +20,19 @@ rust_test () {
 }
 js_test () {
   git submodule update --init --recursive
-  if [ "${JS_FILES_MODIFIED}" -eq 0 ];
+  if [[ "${JS_FILES_MODIFIED}" != "0" ]];
     then echo "Skipping JS deps install since no JS files modified.";
     else ./js/scripts/install-deps.sh;
   fi
-  if [ "${JS_OLD_FILES_MODIFIED}" -eq 0  ];
+  if [[ "${JS_OLD_FILES_MODIFIED}" != "0"  ]];
     then echo "Skipping JS (old) deps install since no JS files modified.";
     else ./js-old/scripts/install-deps.sh;
   fi
-  if [ "${JS_FILES_MODIFIED}" -eq 0 ];
+  if [[ "${JS_FILES_MODIFIED}" != "0" ]];
     then echo "Skipping JS lint since no JS files modified.";
     else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh;
   fi
-  if [ "${JS_OLD_FILES_MODIFIED}" -eq 0 ];
+  if [[ "${JS_OLD_FILES_MODIFIED}" != "0" ]];
     then echo "Skipping JS (old) lint since no JS files modified.";
     else ./js-old/scripts/lint.sh && ./js-old/scripts/test.sh && ./js-old/scripts/build.sh;
   fi
@@ -40,24 +40,24 @@ js_test () {
 js_release () {
   rustup default stable
   echo "${JS_FILES_MODIFIED}"
-  if [ "${JS_FILES_MODIFIED}" -eq 0  ];
+  if [[ "${JS_FILES_MODIFIED}" != "0" ]];
     then echo "Skipping JS deps install since no JS files modified.";
     else ./js/scripts/install-deps.sh;
   fi
-  if [ "${JS_FILES_MODIFIED}" -eq 0 ];
+  if [[ "${JS_FILES_MODIFIED}" -eq 0 ]];
     then echo "Skipping JS rebuild since no JS files modified.";
     else ./js/scripts/build.sh && ./js/scripts/push-precompiled.sh;
   fi
   echo "${JS_OLD_FILES_MODIFIED}"
-  if [ "${JS_OLD_FILES_MODIFIED}" -eq 0  ];
+  if [[ "${JS_OLD_FILES_MODIFIED}" != "0" ]];
     then echo "Skipping JS (old) deps install since no JS files modified.";
     else ./js-old/scripts/install-deps.sh;
   fi
-  if [ "${JS_OLD_FILES_MODIFIED}" -eq 0 ];
+  if [[ "${JS_OLD_FILES_MODIFIED}" != "0" ]];
     then echo "Skipping JS (old) rebuild since no JS files modified.";
     else ./js-old/scripts/build.sh && ./js-old/scripts/push-precompiled.sh;
   fi
-  if [ "${JS_FILES_MODIFIED}" -eq 0 ] && [ "${JS_OLD_FILES_MODIFIED}" -eq 0 ];
+  if [[ "${JS_FILES_MODIFIED}" != "0" ]] && [[ "${JS_OLD_FILES_MODIFIED}" != "0" ]];
     then echo "Skipping Cargo update since no JS files modified.";
     else ./js/scripts/push-cargo.sh;
   fi
