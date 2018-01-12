@@ -580,7 +580,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let cx = context.value_stack.pop_as::<i32>()? as u32;
 		let ct = context.value_stack.pop_as::<i32>()? as u32;
 
-		self.charge(|schedule| schedule.wasm.mem_copy as u64 * len as u64)?; // TODO: charge cmp
+		self.charge(|schedule| schedule.wasm.mem_cmp as u64 * len as u64)?;
 
 		let cx = self.memory.get(cx, len as usize)?;
 		let ct = self.memory.get(ct, len as usize)?;
