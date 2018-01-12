@@ -8,12 +8,12 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
-ansi_term = "0.9"
+ansi_term = "0.10"
 cid = "0.2"
 futures = "0.1.6"
 futures-cpupool = "0.1"
 log = "0.3"
-multihash ="0.6"
+multihash ="0.7"
 order-stat = "0.1"
 parking_lot = "0.4"
 rand = "0.3"

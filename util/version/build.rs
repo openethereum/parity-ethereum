@@ -33,5 +33,5 @@ fn main() {
 		pub fn rustc_version() -> &'static str {{
 			\"{}\"
 		}}
-	", rustc_version::version()).as_bytes()).unwrap();
+	", rustc_version::version().unwrap()).as_bytes()).unwrap();
 }
