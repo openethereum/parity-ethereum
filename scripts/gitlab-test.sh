@@ -2,9 +2,19 @@
 #ARGUMENT test for RUST, JS, COVERAGE or JS_RELEASE
 set -e # fail on any error
 set -u # treat unset variables as error
-export JS_FILES_MODIFIED="$(git --no-pager diff --name-only master...$CI_BUILD_REF | grep ^js/ | wc -l)"
-export JS_OLD_FILES_MODIFIED="$(git --no-pager diff --name-only master...$CI_BUILD_REF | grep ^js-old/ | wc -l)"
-export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only master...$CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)"
+
+if [[ "$(git rev-parse master)" == "$CI_COMMIT_SHA" ]]; then
+  # Always build everything if we're on master
+  export JS_FILES_MODIFIED=1
+  export JS_OLD_FILES_MODIFIED=1
+  export RUST_FILES_MODIFIED=1
+else
+  export JS_FILES_MODIFIED="$(git --no-pager diff --name-only master...$CI_COMMIT_SHA | grep ^js/ | wc -l)"
+  export JS_OLD_FILES_MODIFIED="$(git --no-pager diff --name-only master...$CI_COMMIT_SHA | grep ^js-old/ | wc -l)"
+  export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only master...$CI_COMMIT_SHA | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)"
+fi
+
+
 export RUST_BACKTRACE=1
 TEST_SWITCH=$1
 rust_test () {
@@ -14,7 +24,7 @@ rust_test () {
     then echo "Skipping Rust tests since no Rust files modified.";
     else ./test.sh;
   fi
-  if [ "$CI_BUILD_REF_NAME" == "nightly" ];
+  if [[ "$CI_COMMIT_REF_NAME" == "nightly" ]];
     then sh scripts/aura-test.sh;
   fi
 }
