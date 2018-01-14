@@ -21,7 +21,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use ethereum_types::{H256, H2048, U256, Address};
+use ethereum_types::{H256, Bloom, U256, Address};
 use memorydb::MemoryDB;
 use bytes::Bytes;
 use ethjson;
@@ -576,7 +576,7 @@ impl Spec {
 		header.set_extra_data(self.extra_data.clone());
 		header.set_state_root(self.state_root());
 		header.set_receipts_root(self.receipts_root.clone());
-		header.set_log_bloom(H2048::new().clone());
+		header.set_log_bloom(Bloom::default());
 		header.set_gas_used(self.gas_used.clone());
 		header.set_gas_limit(self.gas_limit.clone());
 		header.set_difficulty(self.difficulty.clone());
