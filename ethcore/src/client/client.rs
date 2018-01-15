@@ -458,7 +458,7 @@ impl Importer {
 		};
 
 		// Enact Verified Block
-		let last_hashes = client.build_last_hashes(header.parent_hash().clone());
+		let last_hashes = client.build_last_hashes(header.parent_hash());
 		let db = client.state_db.lock().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
@@ -589,7 +589,7 @@ impl Importer {
 							author: header.author().clone(),
 							timestamp: header.timestamp(),
 							difficulty: header.difficulty().clone(),
-							last_hashes: client.build_last_hashes(header.parent_hash().clone()),
+							last_hashes: client.build_last_hashes(header.parent_hash()),
 							gas_used: U256::default(),
 							gas_limit: u64::max_value().into(),
 						};
@@ -874,17 +874,17 @@ impl Client {
 				author: header.author(),
 				timestamp: header.timestamp(),
 				difficulty: header.difficulty(),
-				last_hashes: self.build_last_hashes(header.parent_hash()),
+				last_hashes: self.build_last_hashes(&header.parent_hash()),
 				gas_used: U256::default(),
 				gas_limit: header.gas_limit(),
 			}
 		})
 	}
 
-	fn build_last_hashes(&self, parent_hash: H256) -> Arc<LastHashes> {
+	fn build_last_hashes(&self, parent_hash: &H256) -> Arc<LastHashes> {
 		{
 			let hashes = self.last_hashes.read();
-			if hashes.front().map_or(false, |h| h == &parent_hash) {
+			if hashes.front().map_or(false, |h| h == parent_hash) {
 				let mut res = Vec::from(hashes.clone());
 				res.resize(256, H256::default());
 				return Arc::new(res);
@@ -892,7 +892,7 @@ impl Client {
 		}
 		let mut last_hashes = LastHashes::new();
 		last_hashes.resize(256, H256::default());
-		last_hashes[0] = parent_hash;
+		last_hashes[0] = parent_hash.clone();
 		let chain = self.chain.read();
 		for i in 0..255 {
 			match chain.block_details(&last_hashes[i]) {
@@ -1837,7 +1837,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn last_hashes(&self) -> LastHashes {
-		(*self.build_last_hashes(self.chain.read().best_block_hash())).clone()
+		(*self.build_last_hashes(&self.chain.read().best_block_hash())).clone()
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
@@ -1962,7 +1962,7 @@ impl PrepareOpenBlock for Client {
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().boxed_clone_canon(&h),
 			best_header,
-			self.build_last_hashes(h.clone()),
+			self.build_last_hashes(&h),
 			author,
 			gas_range_target,
 			extra_data,
