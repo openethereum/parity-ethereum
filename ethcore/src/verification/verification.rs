@@ -335,7 +335,7 @@ mod tests {
 	use super::*;
 
 	use std::collections::{BTreeMap, HashMap};
-	use ethereum_types::{H256, H2048, U256};
+	use ethereum_types::{H256, Bloom, U256};
 	use blockchain::extras::{BlockDetails, TransactionAddress, BlockReceipts};
 	use encoded;
 	use hash::keccak;
@@ -453,7 +453,7 @@ mod tests {
 			unimplemented!()
 		}
 
-		fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
+		fn blocks_with_bloom(&self, _bloom: &Bloom, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
 			unimplemented!()
 		}
 

@@ -279,8 +279,6 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				} else {
 					self.traces(block_hash).expect("Traces database is incomplete.").bloom()
 				})
-				.map(blooms::Bloom::from)
-				.map(Into::into)
 				.collect();
 
 			let chain = BloomGroupChain::new(self.bloom_config, self);

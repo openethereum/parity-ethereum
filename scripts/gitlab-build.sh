@@ -9,6 +9,7 @@ ARC=$3
 CC=$4
 CXX=$5
 VER="$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")"
+S3WIN=""
 echo "--------------------"
 echo "Build for platform: " $BUILD_PLATFORM
 echo "Cargo target:       " $PLATFORM
@@ -29,20 +30,33 @@ set_env () {
   echo "linker= \"$CC\"" >> .cargo/config
   cat .cargo/config
 }
+set_env_win () {
+  set PLATFORM=x86_64-pc-windows-msvc
+  set INCLUDE="C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt"
+  set LIB="C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64"
+  set RUST_BACKTRACE=1
+  #export RUSTFLAGS=$RUSTFLAGS
+  rustup default stable-x86_64-pc-windows-msvc
+  echo "MsBuild.exe windows\ptray\ptray.vcxproj /p:Platform=x64 /p:Configuration=Release" > msbuild.cmd
+  echo "@ signtool sign /f "\%"1 /p "\%"2 /tr http://timestamp.comodoca.com /du https://parity.io "\%"3" > sign.cmd
+}
 build () {
   echo "Build parity:"
-  cargo build --target $PLATFORM --features final --release $CARGOFLAGS
+  cargo build --target $PLATFORM --features final --release
   echo "Build evmbin:"
   cargo build --target $PLATFORM --release -p evmbin
   echo "Build ethstore-cli:"
   cargo build --target $PLATFORM --release -p ethstore-cli
-  echo "Build ethkep-cli:"
+  echo "Build ethkey-cli:"
   cargo build --target $PLATFORM --release -p ethkey-cli
+}
+strip_md5 () {
   echo "Strip binaries:"
   $STRIP_BIN -v target/$PLATFORM/release/parity
   $STRIP_BIN -v target/$PLATFORM/release/parity-evm
   $STRIP_BIN -v target/$PLATFORM/release/ethstore
-  $STRIP_BIN -v target/$PLATFORM/release/ethkey
+  $STRIP_BIN -v target/$PLATFORM/release/ethkey;
+  export SHA3=$(rhash --sha3-256 target/$PLATFORM/release/parity -p %h)
   echo "Checksum calculation:"
   rm -rf *.md5
   export SHA3=$(rhash --sha3-256 target/$PLATFORM/release/parity -p %h)
@@ -87,6 +101,17 @@ make_deb () {
   dpkg-deb -b deb "parity_"$VER"_"$ARC".deb"
   md5sum "parity_"$VER"_"$ARC".deb" > "parity_"$VER"_"$ARC".deb.md5"
 }
+make_rpm () {
+  rm -rf /install
+  mkdir -p /install/usr/bin
+  cp target/$PLATFORM/release/parity /install/usr/bin
+  cp target/$PLATFORM/release/parity-evm /install/usr/bin/parity-evm
+  cp target/$PLATFORM/release/ethstore /install/usr/bin/ethstore
+  cp target/$PLATFORM/release/ethkey /install/usr/bin/ethkey
+  fpm -s dir -t rpm -n parity -v $VER --epoch 1 --license GPLv3 -d openssl --provides parity --url https://parity.io --vendor "Parity Technologies" -a x86_64 -m "<devops@parity.io>" --description "Ethereum network client by Parity Technologies" -C /install/
+  cp "parity-"$VER"-1."$ARC".rpm" "parity_"$VER"_"$ARC".rpm"
+  md5sum "parity_"$VER"_"$ARC".rpm" > "parity_"$VER"_"$ARC".rpm.md5"
+}
 make_pkg () {
   echo "make PKG"
   cp target/$PLATFORM/release/parity target/release/parity
@@ -99,6 +124,27 @@ make_pkg () {
   mv target/release/Parity\ Ethereum-signed.pkg "parity_"$VER"_"$ARC".pkg"
   md5sum "parity_"$VER"_"$ARC"."$EXT >> "parity_"$VER"_"$ARC".pkg.md5"
 }
+make_exe () {
+  ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
+  SHA3=$(rhash --sha3-256 target/$PLATFORM/release/parity.exe -p %h)
+  echo "Checksum calculation:"
+  rm -rf *.md5
+  echo "Parity file SHA3:" $SHA3
+  rhash --md5 target/$PLATFORM/release/parity.exe -p %h > parity.exe.md5
+  rhash --md5 target/$PLATFORM/release/parity-evm.exe -p %h > parity-evm.exe.md5
+  rhash --md5 target/$PLATFORM/release/ethstore.exe -p %h > ethstore.exe.md5
+  rhash --md5 target/$PLATFORM/release/ethkey.exe -p %h > ethkey.exe.md5
+  ./msbuild.cmd
+  ./sign.cmd $keyfile $certpass windows/ptray/x64/release/ptray.exe
+  cd nsis
+  curl -sL --url "https://github.com/paritytech/win-build/raw/master/vc_redist.x64.exe" -o vc_redist.x64.exe
+  echo "makensis.exe installer.nsi" > nsis.cmd
+  ./nsis.cmd
+  cd ..
+  cp nsis/installer.exe "parity_"$VER"_"$ARC"."$EXT
+  ./sign.cmd $keyfile $certpass "parity_"$VER"_"$ARC"."$EXT
+  rhash --md5 "parity_"$VER"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$ARC"."$EXT".md5"
+}
 push_binaries () {
   echo "Push binaries to AWS S3"
   aws configure set aws_access_key_id $s3_key
@@ -110,75 +156,26 @@ push_binaries () {
     export S3_BUCKET=builds-parity;
   fi
   aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/$BUILD_PLATFORM
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity --body target/$PLATFORM/release/parity
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity.md5 --body parity.md5
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity-evm --body target/$PLATFORM/release/parity-evm
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity-evm.md5 --body parity-evm.md5
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethstore --body target/$PLATFORM/release/ethstore
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethstore.md5 --body ethstore.md5
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethkey --body target/$PLATFORM/release/ethkey
-  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethkey.md5 --body ethkey.md5
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity$S3WIN --body target/$PLATFORM/release/parity$S3WIN
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity$S3WIN.md5 --body parity$S3WIN.md5
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity-evm$S3WIN --body target/$PLATFORM/release/parity-evm$S3WIN
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/parity-evm$S3WIN.md5 --body parity-evm$S3WIN.md5
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethstore$S3WIN --body target/$PLATFORM/release/ethstore$S3WIN
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethstore$S3WIN.md5 --body ethstore$S3WIN.md5
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethkey$S3WIN --body target/$PLATFORM/release/ethkey$S3WIN
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethkey$S3WIN.md5 --body ethkey$S3WIN.md5
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$ARC"."$EXT --body "parity_"$VER"_"$ARC"."$EXT
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$ARC"."$EXT".md5" --body "parity_"$VER"_"$ARC"."$EXT".md5"
 }
 make_archive () {
   echo "add artifacts to archive"
   rm -rf parity.zip
-  zip -r parity.zip target/$PLATFORM/release/parity target/$PLATFORM/release/parity-evm target/$PLATFORM/release/ethstore target/$PLATFORM/release/ethkey parity.md5 parity-evm.md5 ethstore.md5 ethkey.md5
+  zip -r parity.zip target/$PLATFORM/release/parity$S3WIN target/$PLATFORM/release/parity-evm$S3WIN target/$PLATFORM/release/ethstore$S3WIN target/$PLATFORM/release/ethkey$S3WIN parity$S3WIN.md5 parity-evm$S3WIN.md5 ethstore$S3WIN.md5 ethkey$S3WIN.md5
 }
 push_release () {
   echo "push release"
   curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$PLATFORM
   curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$PLATFORM
-}
-windows () {
-  set PLATFORM=x86_64-pc-windows-msvc
-  set INCLUDE="C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt"
-  set LIB="C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64"
-  set RUST_BACKTRACE=1
-  set RUSTFLAGS=%RUSTFLAGS%
-  rustup default stable-x86_64-pc-windows-msvc
-  cargo clean
-  cargo build --features final --release #%CARGOFLAGS%
-  cargo build --release -p ethstore-cli #%CARGOFLAGS%
-  cargo build --release -p ethkey-cli #%CARGOFLAGS%
-  cargo build --release -p evmbin #%CARGOFLAGS%
-  signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
-  target\release\parity.exe tools hash target\release\parity.exe > parity.sha3
-  set /P SHA3=<parity.sha3
-  curl -sL --url "https://github.com/paritytech/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
-  curl -sL --url "https://github.com/paritytech/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
-  msbuild windows\ptray\ptray.vcxproj /p:Platform=x64 /p:Configuration=Release
-  signtool sign /f %keyfile% /p %certpass% windows\ptray\x64\release\ptray.exe
-  cd nsis
-  makensis.exe installer.nsi
-  copy installer.exe InstallParity.exe
-  signtool sign /f %keyfile% /p %certpass% InstallParity.exe
-  md5sums InstallParity.exe > InstallParity.exe.md5
-  zip win-installer.zip InstallParity.exe InstallParity.exe.md5
-  md5sums win-installer.zip > win-installer.zip.md5
-  cd ..\target\release\
-  md5sums parity.exe > parity.exe.md5
-  zip parity.zip parity.exe parity.md5
-  md5sums parity.zip > parity.zip.md5
-  cd ..\..
-  aws configure set aws_access_key_id %s3_key%
-  aws configure set aws_secret_access_key %s3_secret%
-  echo %CI_BUILD_REF_NAME%
-  echo %CI_BUILD_REF_NAME% | findstr /R "master" >nul 2>&1 && set S3_BUCKET=builds-parity-published|| set S3_BUCKET=builds-parity
-  echo %CI_BUILD_REF_NAME% | findstr /R "beta" >nul 2>&1 && set S3_BUCKET=builds-parity-published|| set S3_BUCKET=builds-parity
-  echo %CI_BUILD_REF_NAME% | findstr /R "stable" >nul 2>&1 && set S3_BUCKET=builds-parity-published|| set S3_BUCKET=builds-parity
-  echo %CI_BUILD_REF_NAME% | findstr /R "nightly" >nul 2>&1 && set S3_BUCKET=builds-parity-published|| set S3_BUCKET=builds-parity
-  echo %S3_BUCKET%
-  aws s3 rm --recursive s3://%S3_BUCKET%/%CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc
-  aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.exe --body target\release\parity.exe
-  aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.exe.md5 --body target\release\parity.exe.md5
-  aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.zip --body target\release\parity.zip
-  aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.zip.md5 --body target\release\parity.zip.md5
-  aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/InstallParity.exe --body nsis\InstallParity.exe
-  aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/InstallParity.exe.md5 --body nsis\InstallParity.exe.md5
-  aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/win-installer.zip --body nsis\win-installer.zip
-  aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/win-installer.zip.md5 --body nsis\win-installer.zip.md5
 }
 case $BUILD_PLATFORM in
   x86_64-unknown-linux-gnu)
@@ -187,6 +184,7 @@ case $BUILD_PLATFORM in
     #package extention
     EXT="deb"
     build
+    strip_md5
     make_deb
     make_archive
     push_binaries
@@ -198,6 +196,7 @@ case $BUILD_PLATFORM in
     LIBSSL="libssl1.1.0 (>=1.1.0)"
     echo "Use libssl1.1.0 (>=1.1.0) for Debian builds"
     build
+    strip_md5
     make_deb
     make_archive
     push_binaries
@@ -205,8 +204,10 @@ case $BUILD_PLATFORM in
     ;;
   x86_64-unknown-centos-gnu)
     STRIP_BIN="strip"
-    EXT="deb"
+    EXT="rpm"
     build
+    strip_md5
+    make_rpm
     make_archive
     push_binaries
     push_release
@@ -216,6 +217,7 @@ case $BUILD_PLATFORM in
     EXT="deb"
     set_env
     build
+    strip_md5
     make_deb
     make_archive
     push_binaries
@@ -226,6 +228,7 @@ case $BUILD_PLATFORM in
     EXT="deb"
     set_env
     build
+    strip_md5
     make_deb
     make_archive
     push_binaries
@@ -236,6 +239,7 @@ case $BUILD_PLATFORM in
     EXT="deb"
     set_env
     build
+    strip_md5
     make_deb
     make_archive
     push_binaries
@@ -246,6 +250,7 @@ case $BUILD_PLATFORM in
     EXT="deb"
     set_env
     build
+    strip_md5
     make_deb
     make_archive
     push_binaries
@@ -256,6 +261,7 @@ case $BUILD_PLATFORM in
     PLATFORM="x86_64-apple-darwin"
     EXT="pkg"
     build
+    strip_md5
     make_pkg
     make_archive
     push_binaries
@@ -273,6 +279,12 @@ case $BUILD_PLATFORM in
     push_binaries
     ;;
   x86_64-pc-windows-msvc)
-    windows
+    set_env_win
+    EXT="exe"
+    S3WIN=".exe"
+    build
+    make_exe
+    make_archive
+    push_binaries
     push_release
 esac

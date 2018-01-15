@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use rlp::*;
-use ethereum_types::{H256, H2048};
+use ethereum_types::{H256, Bloom};
 use bytes::Bytes;
 use header::Header;
 use transaction::SignedTransaction;
@@ -51,7 +51,7 @@ impl Forkable for Block {
 }
 
 impl WithBloom for Block {
-	fn with_bloom(mut self, bloom: H2048) -> Self where Self: Sized {
+	fn with_bloom(mut self, bloom: Bloom) -> Self where Self: Sized {
 		self.header.set_log_bloom(bloom);
 		self
 	}

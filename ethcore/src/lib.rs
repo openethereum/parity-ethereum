@@ -107,7 +107,7 @@ extern crate rustc_hex;
 extern crate stats;
 extern crate time;
 extern crate using_queue;
-extern crate bloomable;
+extern crate table;
 extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
