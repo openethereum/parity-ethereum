@@ -93,6 +93,11 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		Some(I32),
 	),
 	Static(
+		"_ext_memcmp",
+		&[I32; 3],
+		Some(I32),
+	),
+	Static(
 		"_ext_memcpy",
 		&[I32; 3],
 		Some(I32),

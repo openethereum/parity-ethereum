@@ -22,6 +22,7 @@ extern crate ethereum_types;
 extern crate ethcore_logger;
 extern crate byteorder;
 extern crate parity_wasm;
+extern crate libc;
 extern crate wasm_utils;
 
 mod runtime;
