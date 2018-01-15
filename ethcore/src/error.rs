@@ -18,14 +18,13 @@
 
 use std::fmt;
 use kvdb;
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, U256, Address, Bloom};
 use util_error::UtilError;
 use snappy::InvalidInput;
 use unexpected::{Mismatch, OutOfBounds};
 use trie::TrieError;
 use io::*;
 use header::BlockNumber;
-use basic_types::LogBloom;
 use client::Error as ClientError;
 use snapshot::Error as SnapshotError;
 use engines::EngineError;
@@ -86,7 +85,7 @@ pub enum BlockError {
 	/// Timestamp header field is too far in future.
 	TemporarilyInvalid(OutOfBounds<u64>),
 	/// Log bloom header field is invalid.
-	InvalidLogBloom(Mismatch<LogBloom>),
+	InvalidLogBloom(Mismatch<Bloom>),
 	/// Parent hash field of header is invalid; this is an invalid error indicating a logic flaw in the codebase.
 	/// TODO: remove and favour an assert!/panic!.
 	InvalidParentHash(Mismatch<H256>),

@@ -15,12 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bloomchain::group as bc;
-use rlp::*;
 use heapsize::HeapSizeOf;
-use super::Bloom;
+use ethereum_types::Bloom;
 
 /// Represents group of X consecutive blooms.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct BloomGroup {
 	blooms: Vec<Bloom>,
 }
@@ -48,22 +47,6 @@ impl Into<bc::BloomGroup> for BloomGroup {
 		bc::BloomGroup {
 			blooms: blooms
 		}
-	}
-}
-
-impl Decodable for BloomGroup {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let blooms = rlp.as_list()?;
-		let group = BloomGroup {
-			blooms: blooms
-		};
-		Ok(group)
-	}
-}
-
-impl Encodable for BloomGroup {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append_list(&self.blooms);
 	}
 }
 

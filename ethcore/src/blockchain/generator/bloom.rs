@@ -14,15 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethereum_types::H2048;
+use ethereum_types::Bloom as LogBloom;
 
 pub trait WithBloom {
-	fn with_bloom(self, bloom: H2048) -> Self where Self: Sized;
+	fn with_bloom(self, bloom: LogBloom) -> Self where Self: Sized;
 }
 
 pub struct Bloom<'a, I> where I: 'a {
 	pub iter: &'a mut I,
-	pub bloom: H2048,
+	pub bloom: LogBloom,
 }
 
 impl<'a, I> Iterator for Bloom<'a, I> where I: Iterator, <I as Iterator>::Item: WithBloom {

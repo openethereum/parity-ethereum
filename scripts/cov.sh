@@ -20,7 +20,7 @@ if ! type $KCOV > /dev/null; then
 	exit 1
 fi
 
-RUSTFLAGS="-C link-dead-code" cargo test --all --exclude parity-ipfs-api --exclude evmjit --no-run || exit $?
+RUSTFLAGS="-C link-dead-code" cargo test --all --exclude evmjit --no-run || exit $?
 
 
 KCOV_TARGET="target/cov"
@@ -38,16 +38,8 @@ mkdir -p $KCOV_TARGET
 echo "Cover RUST"
 for FILE in `find target/debug/deps ! -name "*.*"`
 do
-	$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE
+	timeout --signal=SIGKILL 10m $KCOV --coveralls-id=$COVERALLS_TOKEN --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE
 done
 
-$KCOV --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-*
-echo "Cover JS"
-cd js
-npm install&&npm run test:coverage
-cd ..
-codecov
-bash <(curl -s https://codecov.io/bash)&&
-echo "Uploaded code coverage"
-
+timeout --signal=SIGKILL 10m $KCOV --coveralls-id=$COVERALLS_TOKEN --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-*
 exit 0

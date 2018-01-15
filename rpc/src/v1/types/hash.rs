@@ -20,7 +20,7 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use serde;
 use rustc_hex::{ToHex, FromHex};
-use ethereum_types::{H64 as Eth64, H160 as Eth160, H256 as Eth256, H520 as Eth520, H512 as Eth512, H2048 as Eth2048};
+use ethereum_types::{H64 as Eth64, H160 as Eth160, H256 as Eth256, H520 as Eth520, H512 as Eth512, Bloom as Eth2048};
 
 macro_rules! impl_hash {
 	($name: ident, $other: ident, $size: expr) => {

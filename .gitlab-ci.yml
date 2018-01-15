@@ -11,6 +11,8 @@ variables:
   LIBSSL: "libssl1.0.0 (>=1.0.0)"
 cache:
   key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
+  paths:
+    - target
   untracked: true
 linux-stable:
   stage: build
@@ -56,7 +58,7 @@ linux-centos:
     - stable
     - triggers
   script:
-    - scripts/gitlab-build.sh x86_64-unknown-centos-gnu x86_64-unknown-linux-gnu amd64 gcc g++
+    - scripts/gitlab-build.sh x86_64-unknown-centos-gnu x86_64-unknown-linux-gnu x86_64 gcc g++
   tags:
     - rust-centos
   artifacts:
@@ -170,13 +172,12 @@ windows:
     - stable
     - triggers
   script:
-    - sh scripts/gitlab-build.sh x86_64-pc-windows-msvc "" "" "" "" ""
+    - sh scripts/gitlab-build.sh x86_64-pc-windows-msvc x86_64-pc-windows-msvc installer "" "" ""
   tags:
    - rust-windows
   artifacts:
     paths:
-    - target/release/parity.exe
-    - nsis/InstallParity.exe
+    - parity.zip
     name: "x86_64-pc-windows-msvc_parity"
 docker-build:
   stage: build

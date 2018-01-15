@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ansi_term = "0.9"
-bloomchain = "0.1"
+bloomchain = { path = "../util/bloomchain" }
 bn = { git = "https://github.com/paritytech/bn" }
 byteorder = "1.0"
 common-types = { path = "types" }
@@ -60,7 +60,7 @@ rustc-hex = "1.0"
 stats = { path = "../util/stats" }
 time = "0.1"
 using_queue = { path = "../util/using_queue" }
-bloomable = { path = "../util/bloomable" }
+table = { path = "../util/table" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
 keccak-hash = { path = "../util/hash" }
