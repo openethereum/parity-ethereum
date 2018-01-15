@@ -20,7 +20,7 @@ use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 use account_provider::AccountProvider;
 use block::*;
@@ -294,7 +294,7 @@ impl fmt::Display for EmptyStep {
 impl Encodable for EmptyStep {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		let empty_step_rlp = empty_step_rlp(self.step, &self.parent_hash);
-		s.append_raw(&empty_step_full_rlp(&self.signature, &empty_step_rlp), 2);
+		s.append_raw(&empty_step_full_rlp(&self.signature, &empty_step_rlp), 1);
 	}
 }
 
