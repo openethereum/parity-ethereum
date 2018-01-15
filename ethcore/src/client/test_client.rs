@@ -162,7 +162,7 @@ impl TestBlockChainClient {
 		let genesis_block = spec.genesis_block();
 		let genesis_hash = spec.genesis_header().hash();
 
-		if let Ok((keydb, state_db)) = get_in_memory_db(&spec) {
+		if let Ok((keydb, state_db)) = create_in_memory_db(&spec) {
 			let mut client = TestBlockChainClient {
 				blocks: RwLock::new(HashMap::new()),
 				numbers: RwLock::new(HashMap::new()),
@@ -448,7 +448,7 @@ impl TestBlockChainClient {
 	
 	/// Convenience method to retrieve state from a fresh state_db
 	pub fn get_new_state(&self) -> Result<State<StateDB>, EvmTestError> {
-		let (_, state_db) = get_in_memory_db(&self.spec).unwrap();
+		let (_, state_db) = create_in_memory_db(&self.spec).unwrap();
 		State::from_existing(
 			state_db.into_inner(),
 			*self.spec.genesis_header().state_root(),
@@ -466,7 +466,7 @@ pub fn factories() -> Factories {
 	} 
 }
 
-pub fn get_in_memory_db(spec: &Spec) -> Result<(RwLock<Arc<KeyValueDB>>, Mutex<StateDB>), EvmTestError> {
+pub fn create_in_memory_db(spec: &Spec) -> Result<(RwLock<Arc<KeyValueDB>>, Mutex<StateDB>), EvmTestError> {
 	let db = Arc::new(kvdb_memorydb::create(NUM_COLUMNS.expect("We use column-based DB; qed")));
 	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, COL_STATE);
 	let mut state_db = StateDB::new(journal_db, 5 * 1024 * 1024);
