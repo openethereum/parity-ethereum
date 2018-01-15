@@ -602,7 +602,7 @@ test-windows:
     - git submodule update --init --recursive
   script:
     - set RUST_BACKTRACE=1
-    - echo cargo test --features json-tests --all %CARGOFLAGS% --verbose --release
+    - echo cargo test --all %CARGOFLAGS% --verbose --release
   tags:
     - rust-windows
   allow_failure: true
