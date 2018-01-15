@@ -23,6 +23,7 @@ extern crate ethcore_bigint as bigint;
 extern crate ethcore_logger;
 extern crate byteorder;
 extern crate parity_wasm;
+extern crate libc;
 extern crate wasm_utils;
 
 mod runtime;

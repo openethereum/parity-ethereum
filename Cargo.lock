@@ -3477,6 +3477,7 @@ dependencies = [
  "ethcore-bigint 0.2.1",
  "ethcore-logger 1.9.0",
  "ethcore-util 1.9.0",
+ "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-wasm 0.15.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",
