@@ -2,11 +2,13 @@
 #ARGUMENT test for RUST, JS, COVERAGE or JS_RELEASE
 set -e # fail on any error
 set -u # treat unset variables as error
-if [[ "$CI_BUILD_REF_NAME" = "master" || "$CI_BUILD_REF_NAME" = "beta" || "$CI_BUILD_REF_NAME" = "stable" || "$CI_BUILD_REF_NAME" = "nightly" ]]; then
-  export GIT_COMPARE=$CI_BUILD_REF_NAME
+if [[ "$CI_BUILD_REF_NAME" = "beta" || "$CI_BUILD_REF_NAME" = "stable" ]]; then
+  export GIT_COMPARE=$CI_BUILD_REF_NAME;
+else
+  export GIT_COMPARE=master;  
 fi
 if [[ "$(git rev-parse $GIT_COMPARE)" == "$CI_COMMIT_SHA" ]]; then
-  # Always build everything if we're on master, beta, stable or nightly
+  # Always build everything if we're on master, beta, stable
   export JS_FILES_MODIFIED=1
   export JS_OLD_FILES_MODIFIED=1
   export RUST_FILES_MODIFIED=1
