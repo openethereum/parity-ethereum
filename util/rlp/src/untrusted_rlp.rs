@@ -119,23 +119,23 @@ impl<'a> fmt::Display for UntrustedRlp<'a> {
 		match self.prototype() {
 			Ok(Prototype::Null) => write!(f, "null"),
 			Ok(Prototype::Data(_)) => {
-                match self.data() {
-                    Ok(rlp) => write!(f, "\"0x{}\"", rlp.to_hex()),
-                    Err(err) => write!(f, "{:?}", err) 
-                }
-            },
+				match self.data() {
+					Ok(rlp) => write!(f, "\"0x{}\"", rlp.to_hex()),
+					Err(err) => write!(f, "{:?}", err) 
+				}
+			},
 			Ok(Prototype::List(len)) => {
 				write!(f, "[")?;
 				for i in 0..len-1 {
-                    let _ = match self.at(i) {
-					    Ok(itm) => write!(f, "{}, ", itm),
-                        Err(err) => write!(f, "{:?}", err)
-                    };
+					let _ = match self.at(i) {
+						Ok(itm) => write!(f, "{}, ", itm),
+						Err(err) => write!(f, "{:?}", err)
+					};
 				}
-                let _ = match self.at(len - 1) {
-				    Ok(rlp) => write!(f, "{}", rlp),
-                    Err(err) => write!(f, "{:?}", err)
-                };
+				let _ = match self.at(len - 1) {
+					Ok(rlp) => write!(f, "{}", rlp),
+					Err(err) => write!(f, "{:?}", err)
+				};
 				write!(f, "]")
 			},
 			Err(err) => write!(f, "{:?}", err)
