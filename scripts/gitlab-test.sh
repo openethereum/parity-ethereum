@@ -2,20 +2,19 @@
 #ARGUMENT test for RUST, JS, COVERAGE or JS_RELEASE
 set -e # fail on any error
 set -u # treat unset variables as error
-
-if [[ "$(git rev-parse master)" == "$CI_COMMIT_SHA" ]]; then
-  # Always build everything if we're on master
+if [[ "$CI_BUILD_REF_NAME" = "master" || "$CI_BUILD_REF_NAME" = "beta" || "$CI_BUILD_REF_NAME" = "stable" || "$CI_BUILD_REF_NAME" = "nightly" ]]; then
+  export GIT_COMPARE=$CI_BUILD_REF_NAME
+fi
+if [[ "$(git rev-parse $GIT_COMPARE)" == "$CI_COMMIT_SHA" ]]; then
+  # Always build everything if we're on master, beta, stable or nightly
   export JS_FILES_MODIFIED=1
   export JS_OLD_FILES_MODIFIED=1
   export RUST_FILES_MODIFIED=1
 else
-  export JS_FILES_MODIFIED="$(git --no-pager diff --name-only master...$CI_COMMIT_SHA | grep ^js/ | wc -l)"
-  export JS_OLD_FILES_MODIFIED="$(git --no-pager diff --name-only master...$CI_COMMIT_SHA | grep ^js-old/ | wc -l)"
-  export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only master...$CI_COMMIT_SHA | grep -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e ^mac/ -e ^nsis/ | wc -l)"
+  export JS_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep ^js/ | wc -l)"
+  export JS_OLD_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep ^js-old/ | wc -l)"
+  export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e ^mac/ -e ^nsis/ | wc -l)"
 fi
-
-
-export RUST_BACKTRACE=1
 TEST_SWITCH=$1
 rust_test () {
   git submodule update --init --recursive
