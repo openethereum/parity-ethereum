@@ -39,7 +39,8 @@ use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
 	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
-	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock
+	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
+	Call
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -547,7 +548,7 @@ impl ImportBlock for TestBlockChainClient {
 	}
 }
 
-impl BlockChainClient for TestBlockChainClient {
+impl Call for TestBlockChainClient {
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
 	}
@@ -559,7 +560,9 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 		Ok(res)
 	}
+}
 
+impl BlockChainClient for TestBlockChainClient {
 	fn estimate_gas(&self, _t: &SignedTransaction, _block: BlockId) -> Result<U256, CallError> {
 		Ok(21000.into())
 	}

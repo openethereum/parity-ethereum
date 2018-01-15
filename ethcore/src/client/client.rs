@@ -41,7 +41,7 @@ use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
-	StateOrBlock, StateInfo, StateClient
+	StateOrBlock, StateInfo, StateClient, Call
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -1397,23 +1397,24 @@ impl StateClient for Client {
 	}
 }
 
-impl BlockChainClient for Client {
-	fn call(&self, transaction: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError> {
-		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+impl Call for Client {
+	fn call(&self, transaction: &SignedTransaction, analytics: CallAnalytics, id: BlockId) -> Result<Executed, CallError> {
+		let mut env_info = self.env_info(id).ok_or(CallError::StatePruned)?;
 		env_info.gas_limit = U256::max_value();
 
 		// that's just a copy of the state.
-		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
+		// FIXME Should be passed as parameter
+		let mut state = self.state_at(id).ok_or(CallError::StatePruned)?;
 
 		self.do_virtual_call(&env_info, &mut state, transaction, analytics)
 	}
 
-	fn call_many(&self, transactions: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError> {
-		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+	fn call_many(&self, transactions: &[(SignedTransaction, CallAnalytics)], id: BlockId) -> Result<Vec<Executed>, CallError> {
+		let mut env_info = self.env_info(id).ok_or(CallError::StatePruned)?;
 		env_info.gas_limit = U256::max_value();
 
 		// that's just a copy of the state.
-		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
+		let mut state = self.state_at(id).ok_or(CallError::StatePruned)?;
 		let mut results = Vec::with_capacity(transactions.len());
 
 		for &(ref t, analytics) in transactions {
@@ -1424,7 +1425,9 @@ impl BlockChainClient for Client {
 
 		Ok(results)
 	}
+}
 
+impl BlockChainClient for Client {
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
 		let (mut upper, max_upper, env_info)  = {
 			let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
