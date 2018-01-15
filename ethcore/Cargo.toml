@@ -35,7 +35,7 @@ futures = "0.1"
 hardware-wallet = { path = "../hw" }
 heapsize = "0.4"
 itertools = "0.5"
-lazy_static = "0.2"
+lazy_static = "1.0"
 log = "0.3"
 lru-cache = "0.1"
 native-contracts = { path = "native_contracts" }
