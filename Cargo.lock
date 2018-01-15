@@ -3514,6 +3514,7 @@ dependencies = [
  "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-logger 1.9.0",
  "ethereum-types 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-wasm 0.15.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",

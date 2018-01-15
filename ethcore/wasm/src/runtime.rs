@@ -573,7 +573,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	{
 		//
 		// method signature:
-		//   fn memcmp(cx: *const c_void, ct: *const c_void, n: usize) -> i32;
+		//   fn memcmp(cx: *const u8, ct: *const u8, n: usize) -> i32;
 		//
 
 		let len = context.value_stack.pop_as::<i32>()? as u32;
