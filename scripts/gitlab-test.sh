@@ -11,7 +11,7 @@ if [[ "$(git rev-parse master)" == "$CI_COMMIT_SHA" ]]; then
 else
   export JS_FILES_MODIFIED="$(git --no-pager diff --name-only master...$CI_COMMIT_SHA | grep ^js/ | wc -l)"
   export JS_OLD_FILES_MODIFIED="$(git --no-pager diff --name-only master...$CI_COMMIT_SHA | grep ^js-old/ | wc -l)"
-  export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only master...$CI_COMMIT_SHA | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e ^mac/ -e ^nsis/ | wc -l)"
+  export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only master...$CI_COMMIT_SHA | grep -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e ^mac/ -e ^nsis/ | wc -l)"
 fi
 
 
