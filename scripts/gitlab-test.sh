@@ -20,7 +20,8 @@ TEST_SWITCH=$1
 rust_test () {
   git submodule update --init --recursive
   rustup show
-  if [[ "${RUST_FILES_MODIFIED}" == "0" ]];
+  echo "RUST_FILES_MODIFIED: $RUST_FILES_MODIFIED"
+	if [[ "${RUST_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping Rust tests since no Rust files modified.";
     else ./test.sh;
   fi
@@ -30,11 +31,13 @@ rust_test () {
 }
 js_test () {
   git submodule update --init --recursive
+	echo "JS_FILES_MODIFIED: $JS_FILES_MODIFIED"
   if [[ "${JS_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS deps install since no JS files modified.";
     else ./js/scripts/install-deps.sh;
   fi
-  if [[ "${JS_OLD_FILES_MODIFIED}" == "0"  ]];
+  echo "JS_OLD_FILES_MODIFIED: $JS_OLD_FILES_MODIFIED"
+	if [[ "${JS_OLD_FILES_MODIFIED}" == "0"  ]];
     then echo "Skipping JS (old) deps install since no JS files modified.";
     else ./js-old/scripts/install-deps.sh;
   fi
@@ -49,7 +52,7 @@ js_test () {
 }
 js_release () {
   rustup default stable
-  echo "${JS_FILES_MODIFIED}"
+  echo "JS_FILES_MODIFIED: $JS_FILES_MODIFIED"
   if [[ "${JS_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS deps install since no JS files modified.";
     else ./js/scripts/install-deps.sh;
@@ -58,7 +61,7 @@ js_release () {
     then echo "Skipping JS rebuild since no JS files modified.";
     else ./js/scripts/build.sh && ./js/scripts/push-precompiled.sh;
   fi
-  echo "${JS_OLD_FILES_MODIFIED}"
+  echo "JS_OLD_FILES_MODIFIED: $JS_OLD_FILES_MODIFIED"
   if [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS (old) deps install since no JS files modified.";
     else ./js-old/scripts/install-deps.sh;
