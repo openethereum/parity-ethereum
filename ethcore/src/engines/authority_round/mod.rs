@@ -726,14 +726,15 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				return Seal::None;
 			}
 
-			let mut empty_steps = self.empty_steps.lock();
+			let empty_steps: Vec<_> = {
+				let mut empty_steps = self.empty_steps.lock();
 
-			// clear old `empty_steps` messages
-			empty_steps.retain(|e| U256::from(e.step) > parent_step);
+				// clear old `empty_steps` messages
+				empty_steps.retain(|e| U256::from(e.step) > parent_step);
 
-			// ignore messages for future steps and different parents
-			let empty_steps: Vec<_> =
-				empty_steps.iter().filter(|e| e.step < step && e.parent_hash == *header.parent_hash()).cloned().collect();
+				// ignore messages for future steps and different parents
+				empty_steps.iter().filter(|e| e.step < step && e.parent_hash == *header.parent_hash()).cloned().collect()
+			};
 
 			// FIXME: configurable
 			const MAX_EMPTY_STEPS: usize = 15;
