@@ -1346,9 +1346,11 @@ impl CallContract for Client {
 	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let transaction = self.contract_call_tx(block_id, address, data);
 
-		self.call(&transaction, Default::default(), block_id)
-			.map_err(|e| format!("{:?}", e))
-			.map(|executed| executed.output)
+		// FIXME
+		// self.call(&transaction, Default::default(), block_id)
+		// 	.map_err(|e| format!("{:?}", e))
+		// 	.map(|executed| executed.output)
+		unimplemented!()
 	}
 }
 
@@ -1398,27 +1400,37 @@ impl StateClient for Client {
 }
 
 impl Call for Client {
-	fn call(&self, transaction: &SignedTransaction, analytics: CallAnalytics, id: BlockId) -> Result<Executed, CallError> {
-		let mut env_info = self.env_info(id).ok_or(CallError::StatePruned)?;
-		env_info.gas_limit = U256::max_value();
+	type State = State<::state_db::StateDB>;
 
-		// that's just a copy of the state.
-		// FIXME Should be passed as parameter
-		let mut state = self.state_at(id).ok_or(CallError::StatePruned)?;
+	fn call(&self, transaction: &SignedTransaction, analytics: CallAnalytics, state: &mut Self::State, header: &Header) -> Result<Executed, CallError> {
+		let env_info = EnvInfo {
+			number: header.number(),
+			author: header.author().clone(),
+			timestamp: header.timestamp(),
+			difficulty: header.difficulty().clone(),
+			last_hashes: self.build_last_hashes(header.parent_hash()),
+			gas_used: U256::default(),
+			gas_limit: U256::max_value(),
+		};
 
-		self.do_virtual_call(&env_info, &mut state, transaction, analytics)
+		self.do_virtual_call(&env_info, state, transaction, analytics)
 	}
 
-	fn call_many(&self, transactions: &[(SignedTransaction, CallAnalytics)], id: BlockId) -> Result<Vec<Executed>, CallError> {
-		let mut env_info = self.env_info(id).ok_or(CallError::StatePruned)?;
-		env_info.gas_limit = U256::max_value();
+	fn call_many(&self, transactions: &[(SignedTransaction, CallAnalytics)], state: &mut Self::State, header: &Header) -> Result<Vec<Executed>, CallError> {
+		let mut env_info = EnvInfo {
+			number: header.number(),
+			author: header.author().clone(),
+			timestamp: header.timestamp(),
+			difficulty: header.difficulty().clone(),
+			last_hashes: self.build_last_hashes(header.parent_hash()),
+			gas_used: U256::default(),
+			gas_limit: U256::max_value(),
+		};
 
-		// that's just a copy of the state.
-		let mut state = self.state_at(id).ok_or(CallError::StatePruned)?;
 		let mut results = Vec::with_capacity(transactions.len());
 
 		for &(ref t, analytics) in transactions {
-			let ret = self.do_virtual_call(&env_info, &mut state, t, analytics)?;
+			let ret = self.do_virtual_call(&env_info, state, t, analytics)?;
 			env_info.gas_used = ret.cumulative_gas_used;
 			results.push(ret);
 		}

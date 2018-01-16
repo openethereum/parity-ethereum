@@ -33,6 +33,7 @@ use trace::LocalizedTrace;
 use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 use state::StateInfo;
+use header::Header;
 
 use bigint::prelude::U256;
 use bigint::hash::H256;
@@ -159,12 +160,14 @@ pub trait StateClient {
 /// Provides `call` and `call_many` methods
 pub trait Call {
 	/// State type accepted by methods
+	type State: StateInfo;
+
 	/// Makes a non-persistent transaction call.
-	fn call(&self, tx: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError>;
+	fn call(&self, tx: &SignedTransaction, analytics: CallAnalytics, state: &mut Self::State, header: &Header) -> Result<Executed, CallError>;
 
 	/// Makes multiple non-persistent but dependent transaction calls.
 	/// Returns a vector of successes or a failure if any of the transaction fails.
-	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError>;
+	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], state: &mut Self::State, header: &Header) -> Result<Vec<Executed>, CallError>;
 }
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.

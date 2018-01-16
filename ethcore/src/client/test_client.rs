@@ -63,6 +63,8 @@ use executive::Executed;
 use error::CallError;
 use trace::LocalizedTrace;
 use state_db::StateDB;
+use state::State;
+use header::Header;
 use encoded;
 
 /// Test client.
@@ -549,14 +551,16 @@ impl ImportBlock for TestBlockChainClient {
 }
 
 impl Call for TestBlockChainClient {
-	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
+	type State = State<::state_db::StateDB>;
+
+	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _state: &mut Self::State, _header: &Header) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
 	}
 
-	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError> {
+	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], state: &mut Self::State, header: &Header) -> Result<Vec<Executed>, CallError> {
 		let mut res = Vec::with_capacity(txs.len());
 		for &(ref tx, analytics) in txs {
-			res.push(self.call(tx, analytics, block)?);
+			res.push(self.call(tx, analytics, state, header)?);
 		}
 		Ok(res)
 	}
