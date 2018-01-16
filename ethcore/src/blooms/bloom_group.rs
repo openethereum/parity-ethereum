@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,12 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bloomchain::group as bc;
-use rlp::*;
-use util::HeapSizeOf;
-use super::Bloom;
+use heapsize::HeapSizeOf;
+use ethereum_types::Bloom;
 
 /// Represents group of X consecutive blooms.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct BloomGroup {
 	blooms: Vec<Bloom>,
 }
@@ -48,22 +47,6 @@ impl Into<bc::BloomGroup> for BloomGroup {
 		bc::BloomGroup {
 			blooms: blooms
 		}
-	}
-}
-
-impl Decodable for BloomGroup {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let blooms = try!(Decodable::decode(decoder));
-		let group = BloomGroup {
-			blooms: blooms
-		};
-		Ok(group)
-	}
-}
-
-impl Encodable for BloomGroup {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		Encodable::rlp_append(&self.blooms, s)
 	}
 }
 

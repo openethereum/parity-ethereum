@@ -1,34 +1,36 @@
 [package]
 description = "Ethcore blockchain sync"
 name = "ethsync"
-version = "1.4.0"
+version = "1.9.0"
 license = "GPL-3.0"
-authors = ["Ethcore <admin@ethcore.io"]
-build = "build.rs"
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [lib]
 
-[build-dependencies]
-ethcore-ipc-codegen = { path = "../ipc/codegen" }
-
 [dependencies]
-ethcore-util = { path = "../util" }
+ethcore-bytes = { path = "../util/bytes" }
 ethcore-network = { path = "../util/network" }
 ethcore-io = { path = "../util/io" }
+ethcore-light = { path = "../ethcore/light" }
+ethcore-transaction = { path = "../ethcore/transaction" }
 ethcore = { path = "../ethcore" }
+ethereum-types = "0.1"
+plain_hasher = { path = "../util/plain_hasher" }
 rlp = { path = "../util/rlp" }
-clippy = { version = "0.0.90", optional = true}
+keccak-hash = { path = "../util/hash" }
+triehash = { path = "../util/triehash" }
+kvdb = { path = "../util/kvdb" }
+macros = { path = "../util/macros" }
 log = "0.3"
-env_logger = "0.3"
+env_logger = "0.4"
 time = "0.1.34"
 rand = "0.3.13"
-heapsize = "0.3"
-ethcore-ipc = { path = "../ipc/rpc" }
-semver = "0.2"
-ethcore-ipc-nano = { path = "../ipc/nano" }
-parking_lot = "0.3"
+heapsize = "0.4"
+semver = "0.6"
+smallvec = { version = "0.4", features = ["heapsizeof"] }
+parking_lot = "0.4"
+ipnetwork = "0.12.6"
 
-[features]
-default = ["ipc"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev"]
-ipc = []
+[dev-dependencies]
+ethkey = { path = "../ethkey" }
+kvdb-memorydb = { path = "../util/kvdb-memorydb" }

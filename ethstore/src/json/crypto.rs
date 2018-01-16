@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,8 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer, Error};
-use serde::de::{Visitor, MapVisitor};
+use std::{fmt, str};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::ser::SerializeStruct;
+use serde::de::{Visitor, MapAccess, Error};
+use serde_json;
 use super::{Cipher, CipherSer, CipherSerParams, Kdf, KdfSer, KdfSerParams, H256, Bytes};
 
 pub type CipherText = Bytes;
@@ -28,6 +31,20 @@ pub struct Crypto {
 	pub mac: H256,
 }
 
+impl str::FromStr for Crypto {
+	type Err = serde_json::error::Error;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		serde_json::from_str(s)
+	}
+}
+
+impl From<Crypto> for String {
+	fn from(c: Crypto) -> Self {
+		serde_json::to_string(&c).expect("serialization cannot fail, cause all crypto keys are strings")
+	}
+}
+
 enum CryptoField {
 	Cipher,
 	CipherParams,
@@ -37,20 +54,24 @@ enum CryptoField {
 	Mac,
 }
 
-impl Deserialize for CryptoField {
-	fn deserialize<D>(deserializer: &mut D) -> Result<CryptoField, D::Error>
-		where D: Deserializer
+impl<'a> Deserialize<'a> for CryptoField {
+	fn deserialize<D>(deserializer: D) -> Result<CryptoField, D::Error>
+		where D: Deserializer<'a>
 	{
-		deserializer.deserialize(CryptoFieldVisitor)
+		deserializer.deserialize_any(CryptoFieldVisitor)
 	}
 }
 
 struct CryptoFieldVisitor;
 
-impl Visitor for CryptoFieldVisitor {
+impl<'a> Visitor<'a> for CryptoFieldVisitor {
 	type Value = CryptoField;
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E>
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a valid crypto struct description")
+	}
+
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
 		where E: Error
 	{
 		match value {
@@ -65,9 +86,9 @@ impl Visitor for CryptoFieldVisitor {
 	}
 }
 
-impl Deserialize for Crypto {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Crypto, D::Error>
-		where D: Deserializer
+impl<'a> Deserialize<'a> for Crypto {
+	fn deserialize<D>(deserializer: D) -> Result<Crypto, D::Error>
+		where D: Deserializer<'a>
 	{
 		static FIELDS: &'static [&'static str] = &["id", "version", "crypto", "Crypto", "address"];
 		deserializer.deserialize_struct("Crypto", FIELDS, CryptoVisitor)
@@ -76,11 +97,15 @@ impl Deserialize for Crypto {
 
 struct CryptoVisitor;
 
-impl Visitor for CryptoVisitor {
+impl<'a> Visitor<'a> for CryptoVisitor {
 	type Value = Crypto;
 
-	fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error>
-		where V: MapVisitor
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a valid vault crypto object")
+	}
+
+	fn visit_map<V>(self, mut visitor: V) -> Result<Self::Value, V::Error>
+		where V: MapAccess<'a>
 	{
 		let mut cipher = None;
 		let mut cipherparams = None;
@@ -90,42 +115,40 @@ impl Visitor for CryptoVisitor {
 		let mut mac = None;
 
 		loop {
-			match try!(visitor.visit_key()) {
-				Some(CryptoField::Cipher) => { cipher = Some(try!(visitor.visit_value())); }
-				Some(CryptoField::CipherParams) => { cipherparams = Some(try!(visitor.visit_value())); }
-				Some(CryptoField::CipherText) => { ciphertext = Some(try!(visitor.visit_value())); }
-				Some(CryptoField::Kdf) => { kdf = Some(try!(visitor.visit_value())); }
-				Some(CryptoField::KdfParams) => { kdfparams = Some(try!(visitor.visit_value())); }
-				Some(CryptoField::Mac) => { mac = Some(try!(visitor.visit_value())); }
+			match visitor.next_key()? {
+				Some(CryptoField::Cipher) => { cipher = Some(visitor.next_value()?); }
+				Some(CryptoField::CipherParams) => { cipherparams = Some(visitor.next_value()?); }
+				Some(CryptoField::CipherText) => { ciphertext = Some(visitor.next_value()?); }
+				Some(CryptoField::Kdf) => { kdf = Some(visitor.next_value()?); }
+				Some(CryptoField::KdfParams) => { kdfparams = Some(visitor.next_value()?); }
+				Some(CryptoField::Mac) => { mac = Some(visitor.next_value()?); }
 				None => { break; }
 			}
 		}
 
 		let cipher = match (cipher, cipherparams) {
 			(Some(CipherSer::Aes128Ctr), Some(CipherSerParams::Aes128Ctr(params))) => Cipher::Aes128Ctr(params),
-			(None, _) => return Err(Error::missing_field("cipher")),
-			(Some(_), None) => return Err(Error::missing_field("cipherparams")),
+			(None, _) => return Err(V::Error::missing_field("cipher")),
+			(Some(_), None) => return Err(V::Error::missing_field("cipherparams")),
 		};
 
 		let ciphertext = match ciphertext {
 			Some(ciphertext) => ciphertext,
-			None => try!(visitor.missing_field("ciphertext")),
+			None => return Err(V::Error::missing_field("ciphertext")),
 		};
 
 		let kdf = match (kdf, kdfparams) {
 			(Some(KdfSer::Pbkdf2), Some(KdfSerParams::Pbkdf2(params))) => Kdf::Pbkdf2(params),
 			(Some(KdfSer::Scrypt), Some(KdfSerParams::Scrypt(params))) => Kdf::Scrypt(params),
-			(Some(_), Some(_)) => return Err(Error::custom("Invalid cipherparams")),
-			(None, _) => return Err(Error::missing_field("kdf")),
-			(Some(_), None) => return Err(Error::missing_field("kdfparams")),
+			(Some(_), Some(_)) => return Err(V::Error::custom("Invalid cipherparams")),
+			(None, _) => return Err(V::Error::missing_field("kdf")),
+			(Some(_), None) => return Err(V::Error::missing_field("kdfparams")),
 		};
 
 		let mac = match mac {
 			Some(mac) => mac,
-			None => try!(visitor.missing_field("mac")),
+			None => return Err(V::Error::missing_field("mac")),
 		};
-
-		try!(visitor.end());
 
 		let result = Crypto {
 			cipher: cipher,
@@ -139,29 +162,29 @@ impl Visitor for CryptoVisitor {
 }
 
 impl Serialize for Crypto {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 		where S: Serializer
 	{
-		let mut state = try!(serializer.serialize_struct("Crypto", 6));
+		let mut crypto = serializer.serialize_struct("Crypto", 6)?;
 		match self.cipher {
 			Cipher::Aes128Ctr(ref params) => {
-				try!(serializer.serialize_struct_elt(&mut state, "cipher", &CipherSer::Aes128Ctr));
-				try!(serializer.serialize_struct_elt(&mut state, "cipherparams", params));
+				crypto.serialize_field("cipher", &CipherSer::Aes128Ctr)?;
+				crypto.serialize_field("cipherparams", params)?;
 			},
 		}
-		try!(serializer.serialize_struct_elt(&mut state, "ciphertext", &self.ciphertext));
+		crypto.serialize_field("ciphertext", &self.ciphertext)?;
 		match self.kdf {
 			Kdf::Pbkdf2(ref params) => {
-				try!(serializer.serialize_struct_elt(&mut state, "kdf", &KdfSer::Pbkdf2));
-				try!(serializer.serialize_struct_elt(&mut state, "kdfparams", params));
+				crypto.serialize_field("kdf", &KdfSer::Pbkdf2)?;
+				crypto.serialize_field("kdfparams", params)?;
 			},
 			Kdf::Scrypt(ref params) => {
-				try!(serializer.serialize_struct_elt(&mut state, "kdf", &KdfSer::Scrypt));
-				try!(serializer.serialize_struct_elt(&mut state, "kdfparams", params));
+				crypto.serialize_field("kdf", &KdfSer::Scrypt)?;
+				crypto.serialize_field("kdfparams", params)?;
 			},
 		}
 
-		try!(serializer.serialize_struct_elt(&mut state, "mac", &self.mac));
-		serializer.serialize_struct_end(state)
+		crypto.serialize_field("mac", &self.mac)?;
+		crypto.end()
 	}
 }

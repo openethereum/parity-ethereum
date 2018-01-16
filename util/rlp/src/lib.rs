@@ -1,18 +1,10 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
-// This file is part of Parity.
-
-// Parity is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// Parity is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// Copyright 2015-2017 Parity Technologies
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
 
 //! Recursive Length Prefix serialization crate.
 //!
@@ -46,33 +38,32 @@
 //! * You want to get view onto rlp-slice.
 //! * You don't want to decode whole rlp at once.
 
-pub mod rlptraits;
-mod rlperrors;
-mod rlpin;
-mod untrusted_rlp;
-mod rlpstream;
-mod rlpcompression;
-mod commonrlps;
-mod bytes;
-
-#[cfg(test)]
-mod tests;
-
-pub use self::rlperrors::DecoderError;
-pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder, RlpEncodable, RlpDecodable, Compressible};
-pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
-pub use self::rlpin::{Rlp, RlpIterator};
-pub use self::rlpstream::RlpStream;
-pub use self::rlpcompression::RlpType;
-
-extern crate ethcore_bigint as bigint;
+extern crate byteorder;
+extern crate ethereum_types as bigint;
 extern crate elastic_array;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 
 #[macro_use]
 extern crate lazy_static;
 
+mod traits;
+mod error;
+mod rlpin;
+mod untrusted_rlp;
+mod stream;
+mod compression;
+mod common;
+mod impls;
+
+use std::borrow::Borrow;
 use elastic_array::ElasticArray1024;
+
+pub use error::DecoderError;
+pub use traits::{Decodable, Encodable, Compressible};
+pub use untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
+pub use rlpin::{Rlp, RlpIterator};
+pub use stream::RlpStream;
+pub use compression::RlpType;
 
 /// The RLP encoded empty data (used to mean "null value").
 pub const NULL_RLP: [u8; 1] = [0x80; 1];
@@ -85,14 +76,19 @@ pub const EMPTY_LIST_RLP: [u8; 1] = [0xC0; 1];
 /// extern crate rlp;
 ///
 /// fn main () {
-/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
-/// 	let animals: Vec<String> = rlp::decode(&data);
-/// 	assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
+/// 	let data = vec![0x83, b'c', b'a', b't'];
+/// 	let animal: String = rlp::decode(&data);
+/// 	assert_eq!(animal, "cat".to_owned());
 /// }
 /// ```
-pub fn decode<T>(bytes: &[u8]) -> T where T: RlpDecodable {
+pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
 	let rlp = Rlp::new(bytes);
 	rlp.as_val()
+}
+
+pub fn decode_list<T>(bytes: &[u8]) -> Vec<T> where T: Decodable {
+	let rlp = Rlp::new(bytes);
+	rlp.as_list()
 }
 
 /// Shortcut function to encode structure into rlp.
@@ -102,12 +98,18 @@ pub fn decode<T>(bytes: &[u8]) -> T where T: RlpDecodable {
 ///
 /// fn main () {
 /// 	let animal = "cat";
-/// 	let out = rlp::encode(&animal).to_vec();
+/// 	let out = rlp::encode(&animal).into_vec();
 /// 	assert_eq!(out, vec![0x83, b'c', b'a', b't']);
 /// }
 /// ```
-pub fn encode<E>(object: &E) -> ElasticArray1024<u8> where E: RlpEncodable {
+pub fn encode<E>(object: &E) -> ElasticArray1024<u8> where E: Encodable {
 	let mut stream = RlpStream::new();
 	stream.append(object);
+	stream.drain()
+}
+
+pub fn encode_list<E, K>(object: &[K]) -> ElasticArray1024<u8> where E: Encodable, K: Borrow<E> {
+	let mut stream = RlpStream::new();
+	stream.append_list(object);
 	stream.drain()
 }

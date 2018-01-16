@@ -1,0 +1,25 @@
+[package]
+description = "Fetching hash-addressed content."
+homepage = "http://parity.io"
+license = "GPL-3.0"
+name = "parity-hash-fetch"
+version = "1.9.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+futures = "0.1"
+log = "0.3"
+mime = "0.3"
+mime_guess = "2.0.0-alpha.2"
+rand = "0.3"
+rustc-hex = "1.0"
+fetch = { path = "../util/fetch" }
+ethcore-bytes = { path = "../util/bytes" }
+ethereum-types = "0.1"
+parity-reactor = { path = "../util/reactor" }
+native-contracts = { path = "../ethcore/native_contracts" }
+keccak-hash = { path = "../util/hash" }
+
+[dev-dependencies]
+ethabi = "4.0"
+parking_lot = "0.4"

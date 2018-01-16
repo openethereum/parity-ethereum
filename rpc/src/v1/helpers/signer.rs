@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,26 +16,51 @@
 
 use std::sync::Arc;
 use std::ops::Deref;
+use http::Origin;
+use parking_lot::Mutex;
+use transient_hashmap::TransientHashMap;
+
+use ethstore::random_string;
+
 use v1::helpers::signing_queue::{ConfirmationsQueue};
+
+const TOKEN_LIFETIME_SECS: u32 = 3600;
 
 /// Manages communication with Signer crate
 pub struct SignerService {
+	is_enabled: bool,
 	queue: Arc<ConfirmationsQueue>,
+	web_proxy_tokens: Mutex<TransientHashMap<String, Origin>>,
 	generate_new_token: Box<Fn() -> Result<String, String> + Send + Sync + 'static>,
 }
 
 impl SignerService {
-
 	/// Creates new Signer Service given function to generate new tokens.
-	pub fn new<F>(new_token: F) -> Self
+	pub fn new<F>(new_token: F, is_enabled: bool) -> Self
 		where F: Fn() -> Result<String, String> + Send + Sync + 'static {
 		SignerService {
 			queue: Arc::new(ConfirmationsQueue::default()),
+			web_proxy_tokens: Mutex::new(TransientHashMap::new(TOKEN_LIFETIME_SECS)),
 			generate_new_token: Box::new(new_token),
+			is_enabled: is_enabled,
 		}
 	}
 
-	/// Generates new token.
+	/// Checks if the token is valid web proxy access token.
+	pub fn web_proxy_access_token_domain(&self, token: &String) -> Option<Origin> {
+		self.web_proxy_tokens.lock().get(token).cloned()
+	}
+
+	/// Generates a new web proxy access token.
+	pub fn generate_web_proxy_access_token(&self, domain: Origin) -> String {
+		let token = random_string(16);
+		let mut tokens = self.web_proxy_tokens.lock();
+		tokens.prune();
+		tokens.insert(token.clone(), domain);
+		token
+	}
+
+	/// Generates new signer authorization token.
 	pub fn generate_token(&self) -> Result<String, String> {
 		(self.generate_new_token)()
 	}
@@ -45,10 +70,15 @@ impl SignerService {
 		self.queue.clone()
 	}
 
+	/// Returns true if Signer is enabled.
+	pub fn is_enabled(&self) -> bool {
+		self.is_enabled
+	}
+
 	#[cfg(test)]
 	/// Creates new Signer Service for tests.
-	pub fn new_test() -> Self {
-		SignerService::new(|| Ok("new_token".into()))
+	pub fn new_test(is_enabled: bool) -> Self {
+		SignerService::new(|| Ok("new_token".into()), is_enabled)
 	}
 }
 

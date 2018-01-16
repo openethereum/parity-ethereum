@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,6 +19,7 @@ use v1::types::{Bytes, H160, U256};
 
 /// Call request
 #[derive(Debug, Default, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CallRequest {
 	/// From
 	pub from: Option<H160>,
@@ -54,7 +55,7 @@ impl Into<Request> for CallRequest {
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	use serde_json;
 	use v1::types::{U256, H160};
 	use super::CallRequest;

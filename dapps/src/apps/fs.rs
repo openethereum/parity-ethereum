@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,13 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
 use std::io;
 use std::io::Read;
 use std::fs;
-use std::path::PathBuf;
-use page::LocalPageEndpoint;
-use endpoint::{Endpoints, EndpointInfo};
+use std::path::{Path, PathBuf};
+use futures_cpupool::CpuPool;
+
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest};
+use endpoint::{Endpoint, EndpointInfo};
+use page::{local, PageCache};
+use Embeddable;
 
 struct LocalDapp {
 	id: String,
@@ -28,17 +32,87 @@ struct LocalDapp {
 	info: EndpointInfo,
 }
 
-fn local_dapps(dapps_path: String) -> Vec<LocalDapp> {
-	let files = fs::read_dir(dapps_path.as_str());
+/// Tries to find and read manifest file in given `path` to extract `EndpointInfo`
+/// If manifest is not found sensible default `EndpointInfo` is returned based on given `name`.
+fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
+	path.push(MANIFEST_FILENAME);
+
+	fs::File::open(path.clone())
+		.map_err(|e| format!("{:?}", e))
+		.and_then(|mut f| {
+			// Reat file
+			let mut s = String::new();
+			f.read_to_string(&mut s).map_err(|e| format!("{:?}", e))?;
+			// Try to deserialize manifest
+			deserialize_manifest(s)
+		})
+		.map(Into::into)
+		.unwrap_or_else(|e| {
+			warn!(target: "dapps", "Cannot read manifest file at: {:?}. Error: {:?}", path, e);
+
+			EndpointInfo {
+				name: name.into(),
+				description: name.into(),
+				version: "0.0.0".into(),
+				author: "?".into(),
+				icon_url: "icon.png".into(),
+				local_url: None,
+			}
+		})
+}
+
+/// Returns Dapp Id and Local Dapp Endpoint for given filesystem path.
+/// Parses the path to extract last component (for name).
+/// `None` is returned when path is invalid or non-existent.
+pub fn local_endpoint<P: AsRef<Path>>(path: P, embeddable: Embeddable, pool: CpuPool) -> Option<(String, Box<local::Dapp>)> {
+	let path = path.as_ref().to_owned();
+	path.canonicalize().ok().and_then(|path| {
+		let name = path.file_name().and_then(|name| name.to_str());
+		name.map(|name| {
+			let dapp = local_dapp(name.into(), path.clone());
+			(dapp.id, Box::new(local::Dapp::new(
+				pool.clone(), dapp.path, dapp.info, PageCache::Disabled, embeddable.clone())
+			))
+		})
+	})
+}
+
+
+fn local_dapp(name: String, path: PathBuf) -> LocalDapp {
+	// try to get manifest file
+	let info = read_manifest(&name, path.clone());
+	LocalDapp {
+		id: name,
+		path: path,
+		info: info,
+	}
+}
+
+/// Returns endpoints for Local Dapps found for given filesystem path.
+/// Scans the directory and collects `local::Dapp`.
+pub fn local_endpoints<P: AsRef<Path>>(dapps_path: P, embeddable: Embeddable, pool: CpuPool) -> BTreeMap<String, Box<Endpoint>> {
+	let mut pages = BTreeMap::<String, Box<Endpoint>>::new();
+	for dapp in local_dapps(dapps_path.as_ref()) {
+		pages.insert(
+			dapp.id,
+			Box::new(local::Dapp::new(pool.clone(), dapp.path, dapp.info, PageCache::Disabled, embeddable.clone()))
+		);
+	}
+	pages
+}
+
+
+fn local_dapps(dapps_path: &Path) -> Vec<LocalDapp> {
+	let files = fs::read_dir(dapps_path);
 	if let Err(e) = files {
-		warn!(target: "dapps", "Unable to load local dapps from: {}. Reason: {:?}", dapps_path, e);
+		warn!(target: "dapps", "Unable to load local dapps from: {}. Reason: {:?}", dapps_path.display(), e);
 		return vec![];
 	}
 
 	let files = files.expect("Check is done earlier");
 	files.map(|dir| {
-			let entry = try!(dir);
-			let file_type = try!(entry.file_type());
+			let entry = dir?;
+			let file_type = entry.file_type()?;
 
 			// skip files
 			if file_type.is_file() {
@@ -59,51 +133,6 @@ fn local_dapps(dapps_path: String) -> Vec<LocalDapp> {
 			}
 			m.ok()
 		})
-		.map(|(name, path)| {
-			// try to get manifest file
-			let info = read_manifest(&name, path.clone());
-			LocalDapp {
-				id: name,
-				path: path,
-				info: info,
-			}
-		})
+		.map(|(name, path)| local_dapp(name, path))
 		.collect()
-}
-
-fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
-	path.push(MANIFEST_FILENAME);
-
-	fs::File::open(path.clone())
-		.map_err(|e| format!("{:?}", e))
-		.and_then(|mut f| {
-			// Reat file
-			let mut s = String::new();
-			try!(f.read_to_string(&mut s).map_err(|e| format!("{:?}", e)));
-			// Try to deserialize manifest
-			deserialize_manifest(s)
-		})
-		.map(Into::into)
-		.unwrap_or_else(|e| {
-			warn!(target: "dapps", "Cannot read manifest file at: {:?}. Error: {:?}", path, e);
-
-			EndpointInfo {
-				name: name.into(),
-				description: name.into(),
-				version: "0.0.0".into(),
-				author: "?".into(),
-				icon_url: "icon.png".into(),
-			}
-		})
-}
-
-pub fn local_endpoints(dapps_path: String) -> Endpoints {
-	let mut pages = Endpoints::new();
-	for dapp in local_dapps(dapps_path) {
-		pages.insert(
-			dapp.id,
-			Box::new(LocalPageEndpoint::new(dapp.path, dapp.info))
-		);
-	}
-	pages
 }

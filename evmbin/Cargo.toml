@@ -1,22 +1,29 @@
 [package]
-name = "evm"
+name = "evmbin"
 description = "Parity's EVM implementation"
 version = "0.1.0"
-authors = ["Ethcore <admin@ethcore.io>"]
-
-[lib]
-name = "evm"
-path = "./src/main.rs"
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [[bin]]
-name = "evm"
+name = "parity-evm"
 path = "./src/main.rs"
 
 [dependencies]
-rustc-serialize = "0.3"
-docopt = { version = "0.6" }
+docopt = "0.8"
 ethcore = { path = "../ethcore" }
-ethcore-util = { path = "../util" }
+ethjson = { path = "../json" }
+ethcore-bytes = { path = "../util/bytes" }
+ethcore-transaction = { path = "../ethcore/transaction" }
+ethereum-types = "0.1"
+evm = { path = "../ethcore/evm" }
+panic_hook = { path = "../panic_hook" }
+rustc-hex = "1.0"
+serde = "1.0"
+serde_derive = "1.0"
+vm = { path = "../ethcore/vm" }
+
+[dev-dependencies]
+pretty_assertions = "0.1"
 
 [features]
 evm-debug = ["ethcore/evm-debug-tests"]

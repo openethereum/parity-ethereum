@@ -1,355 +1,267 @@
 stages:
-  - build
   - test
+  - js-build
+  - push-release
+  - build
 variables:
-  GIT_DEPTH: "3"
-  SIMPLECOV: "true" 
   RUST_BACKTRACE: "1"
+  RUSTFLAGS: ""
+  CARGOFLAGS: ""
+  CI_SERVER_NAME: "GitLab CI"
+  LIBSSL: "libssl1.0.0 (>=1.0.0)"
 cache:
-  key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
+  key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
+  paths:
+    - target
   untracked: true
 linux-stable:
   stage: build
-  image: ethcore/rust:stable
+  image: parity/rust:gitlab-ci
   only:
-    - master
     - beta
     - tags
     - stable
+    - triggers
   script:
-    - cargo build --release --verbose
-    - strip target/release/parity
-    - md5sum target/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
-    - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity --body target/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity.md5 --body parity.md5
+    - rustup default stable
+    # ARGUMENTS: 1. BUILD_PLATFORM (target for binaries) 2. PLATFORM (target for cargo) 3. ARC (architecture) 4. & 5. CC & CXX flags
+    - scripts/gitlab-build.sh x86_64-unknown-linux-gnu x86_64-unknown-linux-gnu amd64 gcc g++
   tags:
-    - rust
     - rust-stable
   artifacts:
     paths:
-    - target/release/parity
+    - parity.zip
     name: "stable-x86_64-unknown-linux-gnu_parity"
-linux-stable-14.04:
+linux-stable-debian:
   stage: build
-  image: ethcore/rust-14.04:latest
+  image: parity/rust-debian:gitlab-ci
   only:
-    - master
     - beta
     - tags
     - stable
+    - triggers
   script:
-    - cargo build --release --verbose
-    - strip target/release/parity
-    - md5sum target/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
-    - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity --body target/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity.md5 --body parity.md5
+    - export LIBSSL="libssl1.1.0 (>=1.1.0)"
+    - scripts/gitlab-build.sh x86_64-unknown-debian-gnu x86_64-unknown-linux-gnu amd64 gcc g++
   tags:
-    - rust
-    - rust-14.04
+    - rust-debian
   artifacts:
     paths:
-    - target/release/parity
-    name: "stable-x86_64-unknown-ubuntu_14_04-gnu_parity"
-linux-beta:
-  stage: build
-  image: ethcore/rust:beta
-  only:
-    - master
-    - beta
-    - tags
-    - stable
-  script:
-    - cargo build --release --verbose
-    - strip target/release/parity
-  tags:
-    - rust
-    - rust-beta
-  artifacts:
-    paths:
-    - target/release/parity
-    name: "beta-x86_64-unknown-linux-gnu_parity"
-  allow_failure: true
-linux-nightly:
-  stage: build
-  image: ethcore/rust:nightly
-  only:
-    - master
-    - beta
-    - tags
-    - stable
-  script:
-    - cargo build --release --verbose
-    - strip target/release/parity
-  tags:
-    - rust
-    - rust-nightly
-  artifacts:
-    paths:
-    - target/release/parity
-    name: "nigthly-x86_64-unknown-linux-gnu_parity"
-  allow_failure: true
+    - parity.zip
+    name: "stable-x86_64-unknown-debian-gnu_parity"
 linux-centos:
   stage: build
-  image: ethcore/rust-centos:latest
+  image: parity/rust-centos:gitlab-ci
   only:
-    - master
     - beta
     - tags
     - stable
+    - triggers
   script:
-    - export CXX="g++"
-    - export CC="gcc"
-    - cargo build --release --verbose
-    - strip target/release/parity
-    - md5sum target/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
-    - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity --body target/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity.md5 --body parity.md5
+    - scripts/gitlab-build.sh x86_64-unknown-centos-gnu x86_64-unknown-linux-gnu x86_64 gcc g++
   tags:
-    - rust
     - rust-centos
   artifacts:
     paths:
-    - target/release/parity
+    - parity.zip
     name: "x86_64-unknown-centos-gnu_parity"
+linux-i686:
+  stage: build
+  image: parity/rust-i686:gitlab-ci
+  only:
+    - beta
+    - tags
+    - stable
+    - triggers
+  script:
+    - scripts/gitlab-build.sh i686-unknown-linux-gnu i686-unknown-linux-gnu i386 gcc g++
+  tags:
+    - rust-i686
+  artifacts:
+    paths:
+      - parity.zip
+    name: "i686-unknown-linux-gnu"
 linux-armv7:
   stage: build
-  image: ethcore/rust-armv7:latest
+  image: parity/rust-armv7:gitlab-ci
   only:
     - beta
     - tags
     - stable
+    - triggers
   script:
-    - rm -rf .cargo
-    - mkdir -p .cargo
-    - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
-    - cat .cargo/config
-    - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
-    - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
-    - md5sum target/armv7-unknown-linux-gnueabihf/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
-    - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity --body target/armv7-unknown-linux-gnueabihf/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity.md5 --body parity.md5
+    - scripts/gitlab-build.sh armv7-unknown-linux-gnueabihf armv7-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++
   tags:
-    - rust
     - rust-arm
   artifacts:
     paths:
-    - target/armv7-unknown-linux-gnueabihf/release/parity
+    - parity.zip
     name: "armv7_unknown_linux_gnueabihf_parity"
-  allow_failure: true
 linux-arm:
   stage: build
-  image: ethcore/rust-arm:latest
+  image: parity/rust-arm:gitlab-ci
   only:
     - beta
     - tags
     - stable
+    - triggers
   script:
-    - rm -rf .cargo
-    - mkdir -p .cargo
-    - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
-    - cat .cargo/config
-    - cargo build --target arm-unknown-linux-gnueabihf --release --verbose
-    - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
-    - md5sum target/arm-unknown-linux-gnueabihf/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
-    - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity --body target/arm-unknown-linux-gnueabihf/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity.md5 --body parity.md5
+    - scripts/gitlab-build.sh arm-unknown-linux-gnueabihf arm-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++
   tags:
-    - rust
     - rust-arm
   artifacts:
     paths:
-    - target/arm-unknown-linux-gnueabihf/release/parity
+    - parity.zip
     name: "arm-unknown-linux-gnueabihf_parity"
-  allow_failure: true
-linux-armv6:
-  stage: build
-  image: ethcore/rust-armv6:latest
-  only:
-    - beta
-    - tags
-    - stable
-  script:
-    - rm -rf .cargo
-    - mkdir -p .cargo
-    - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
-    - cat .cargo/config
-    - cargo build --target arm-unknown-linux-gnueabi --release --verbose
-    - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
-    - md5sum target/arm-unknown-linux-gnueabi/release/parity >> parity.md5 
-    - aws configure set aws_access_key_id $s3_key 
-    - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity --body target/arm-unknown-linux-gnueabi/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity.md5 --body parity.md5
-  tags:
-    - rust
-    - rust-arm
-  artifacts:
-    paths:
-    - target/arm-unknown-linux-gnueabi/release/parity
-    name: "arm-unknown-linux-gnueabi_parity"
-  allow_failure: true
 linux-aarch64:
   stage: build
-  image: ethcore/rust-aarch64:latest
+  image: parity/rust-arm64:gitlab-ci
   only:
     - beta
     - tags
     - stable
+    - triggers
   script:
-    - rm -rf .cargo
-    - mkdir -p .cargo
-    - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
-    - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
-    - cat .cargo/config
-    - cargo build --target aarch64-unknown-linux-gnu --release --verbose
-    - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
-    - md5sum target/aarch64-unknown-linux-gnu/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
-    - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/aarch64-unknown-linux-gnu/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity.md5 --body parity.md5
+    - scripts/gitlab-build.sh aarch64-unknown-linux-gnu aarch64-unknown-linux-gnu arm64 aarch64-linux-gnu-gcc aarch64-linux-gnu-g++
   tags:
-    - rust
     - rust-arm
   artifacts:
     paths:
-    - target/aarch64-unknown-linux-gnu/release/parity
+    - parity.zip
     name: "aarch64-unknown-linux-gnu_parity"
+linux-snap:
+  stage: build
+  image: parity/snapcraft:gitlab-ci
+  only:
+    - stable
+    - beta
+    - tags
+    - triggers
+  script:
+    - scripts/gitlab-build.sh x86_64-unknown-snap-gnu x86_64-unknown-linux-gnu amd64 gcc g++
+  tags:
+    - rust-stable
+  artifacts:
+    paths:
+    - scripts/parity_*_amd64.snap
+    name: "stable-x86_64-unknown-snap-gnu_parity"
   allow_failure: true
 darwin:
   stage: build
   only:
-    - master
     - beta
     - tags
     - stable
+    - triggers
   script:
-    - cargo build --release --verbose
-    - md5sum target/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
-    - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity --body target/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity.md5 --body parity.md5
+    - scripts/gitlab-build.sh x86_64-apple-darwin x86_64-apple-darwin macos gcc g++
   tags:
     - osx
   artifacts:
     paths:
-    - target/release/parity
+    - parity.zip
     name: "x86_64-apple-darwin_parity"
 windows:
+  cache:
+    key: "%CI_BUILD_STAGE%/%CI_BUILD_REF_NAME%"
+    untracked: true
   stage: build
   only:
-    - master
     - beta
     - tags
     - stable
+    - triggers
   script:
-    - set INCLUDE=C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt
-    - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
-    - set RUST_BACKTRACE=1
-    - set RUSTFLAGS=%RUSTFLAGS% -Zorbit=off -D warnings
-    - rustup default stable-x86_64-pc-windows-msvc
-    - git submodule update --init
-    - cargo build --release --verbose
-    - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
-    - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
-    - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
-    - cd nsis
-    - makensis.exe installer.nsi
-    - copy installer.exe InstallParity.exe
-    - signtool sign /f %keyfile% /p %certpass% InstallParity.exe
-    - md5sums InstallParity.exe > InstallParity.exe.md5
-    - zip win-installer.zip InstallParity.exe InstallParity.exe.md5
-    - md5sums win-installer.zip > win-installer.zip.md5
-    - cd ..\target\release\
-    - md5sums parity.exe parity.pdb > parity.md5
-    - md5sums parity.exe > parity.exe.md5
-    - zip parity.zip parity.exe parity.pdb parity.md5
-    - md5sums parity.zip > parity.zip.md5
-    - cd ..\..
-    - aws configure set aws_access_key_id %s3_key%
-    - aws configure set aws_secret_access_key %s3_secret%
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.exe --body target\release\parity.exe
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.exe.md5 --body target\release\parity.exe.md5
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.zip --body target\release\parity.zip
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.zip.md5 --body target\release\parity.zip.md5
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/InstallParity.exe --body nsis\InstallParity.exe
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/InstallParity.exe.md5 --body nsis\InstallParity.exe.md5
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/win-installer.zip --body nsis\win-installer.zip
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/win-installer.zip.md5 --body nsis\win-installer.zip.md5
+    - sh scripts/gitlab-build.sh x86_64-pc-windows-msvc x86_64-pc-windows-msvc installer "" "" ""
   tags:
    - rust-windows
   artifacts:
     paths:
-    - target/release/parity.exe
-    - target/release/parity.pdb
-    - nsis/InstallParity.exe
+    - parity.zip
     name: "x86_64-pc-windows-msvc_parity"
-  allow_failure: true
-test-linux:
-  stage: test
-  before_script:
-    - git submodule update --init --recursive
-  script:
-    - export RUST_BACKTRACE=1
-    - ./test.sh --verbose
-  tags:
-    - rust-test
-  dependencies:
-    - linux-stable
-js-release:
+docker-build:
   stage: build
-  image: ethcore/javascript:latest
   only:
-    - js
-    - master
-    - beta
     - tags
-    - stable
+    - triggers
   before_script:
-    - ./js/scripts/install-deps.sh
+    - docker info
   script:
-    - ./js/scripts/build.sh
-    - ./js/scripts/release.sh
+    - if [ "$CI_BUILD_REF_NAME" == "beta-release" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
+    - echo "Tag:" $DOCKER_TAG
+    - docker login -u $Docker_Hub_User_Parity -p $Docker_Hub_Pass_Parity
+    - scripts/docker-build.sh $DOCKER_TAG
+    - docker logout
   tags:
-    - javascript
-js-lint:
+    - docker
+test-coverage:
   stage: test
-  image: ethcore/javascript:latest
-  before_script:
-    - ./js/scripts/install-deps.sh
+  only:
+    - master
   script:
-    - ./js/scripts/lint.sh
+    - scripts/gitlab-test.sh test-coverage
   tags:
-    - javascript-test
+    - kcov
+  allow_failure: true
+test-rust-stable:
+  stage: test
+  image: parity/rust:gitlab-ci
+  script:
+    - scripts/gitlab-test.sh stable
+  tags:
+    - rust-stable
+test-rust-beta:
+  stage: test
+  only:
+    - triggers
+    - master
+  image: parity/rust:gitlab-ci
+  script:
+    - scripts/gitlab-test.sh beta
+  tags:
+    - rust-beta
+  allow_failure: true
+test-rust-nightly:
+  stage: test
+  only:
+    - triggers
+    - master
+  image: parity/rust:gitlab-ci
+  script:
+    - scripts/gitlab-test.sh nightly
+  tags:
+    - rust
+    - rust-nightly
+  allow_failure: true
 js-test:
   stage: test
-  image: ethcore/javascript:latest
-  before_script:
-    - ./js/scripts/install-deps.sh
+  image: parity/rust:gitlab-ci
   script:
-    - ./js/scripts/test.sh
+    - scripts/gitlab-test.sh js-test
   tags:
-    - javascript-test
-js-pack:
-  stage: test
-  image: ethcore/javascript:latest
-  before_script:
-    - ./js/scripts/install-deps.sh
+    - rust-stable
+js-release:
+  stage: js-build
+  only:
+    - master
+    - beta
+    - stable
+    - tags
+    - triggers
+  image: parity/rust:gitlab-ci
   script:
-    - ./js/scripts/build.sh
+    - scripts/gitlab-test.sh js-release
   tags:
-    - javascript-test
+    - javascript
+push-release:
+  stage: push-release
+  only:
+    - tags
+    - triggers
+  image: parity/rust:gitlab-ci
+  script:
+    - rustup default stable
+    - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
+    - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
+  tags:
+    - curl

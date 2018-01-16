@@ -8,6 +8,7 @@ use ethkey::{Address, Secret, KeyPair};
 use crypto::Keccak256;
 use {crypto, Error};
 
+/// Pre-sale wallet.
 pub struct PresaleWallet {
 	iv: [u8; 16],
 	ciphertext: Vec<u8>,
@@ -31,22 +32,25 @@ impl From<json::PresaleWallet> for PresaleWallet {
 }
 
 impl PresaleWallet {
+	/// Open a pre-sale wallet.
 	pub fn open<P>(path: P) -> Result<Self, Error> where P: AsRef<Path> {
-		let file = try!(fs::File::open(path));
-		let presale = json::PresaleWallet::load(file).unwrap();
+		let file = fs::File::open(path)?;
+		let presale = json::PresaleWallet::load(file)
+			.map_err(|e| Error::InvalidKeyFile(format!("{}", e)))?;
 		Ok(PresaleWallet::from(presale))
 	}
 
+	/// Decrypt the wallet.
 	pub fn decrypt(&self, password: &str) -> Result<KeyPair, Error> {
 		let mut h_mac = Hmac::new(Sha256::new(), password.as_bytes());
 		let mut derived_key = vec![0u8; 16];
 		pbkdf2(&mut h_mac, password.as_bytes(), 2000, &mut derived_key);
 
 		let mut key = vec![0; self.ciphertext.len()];
-		let len = try!(crypto::aes::decrypt_cbc(&derived_key, &self.iv, &self.ciphertext, &mut key).map_err(|_| Error::InvalidPassword));
+		let len = crypto::aes::decrypt_cbc(&derived_key, &self.iv, &self.ciphertext, &mut key).map_err(|_| Error::InvalidPassword)?;
 		let unpadded = &key[..len];
 
-		let secret = Secret::from(unpadded.keccak256());
+		let secret = Secret::from_unsafe_slice(&unpadded.keccak256())?;
 		if let Ok(kp) = KeyPair::from_secret(secret) {
 			if kp.address() == self.address {
 				return Ok(kp)

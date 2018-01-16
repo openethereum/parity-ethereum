@@ -1,0 +1,1 @@
+[{"constant":true,"inputs":[{"name":"sl","type":"bytes32"},{"name":"sh","type":"bytes32"},{"name":"pl","type":"bytes32"},{"name":"ph","type":"bytes32"}],"name":"connectionAllowed","outputs":[{"name":"res","type":"bool"}],"payable":false,"type":"function"},{"inputs":[],"payable":false,"type":"constructor"}]

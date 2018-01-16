@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,113 +15,133 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use util::{U256, Address, H256, H2048, Bytes, Itertools};
+use itertools::Itertools;
+
+use block::{OpenBlock, SealedBlock, ClosedBlock};
 use blockchain::TreeRoute;
-use verification::queue::QueueInfo as BlockQueueInfo;
-use block::{OpenBlock, SealedBlock};
-use header::{BlockNumber};
-use transaction::{LocalizedTransaction, SignedTransaction};
-use log_entry::LocalizedLogEntry;
+use encoded;
+use vm::LastHashes;
+use error::{ImportResult, CallError, Error as EthcoreError, BlockImportError};
+use evm::{Factory as EvmFactory, Schedule};
+use executive::Executed;
 use filter::Filter;
-use views::{BlockView};
-use error::{ImportResult, CallError};
+use header::{BlockNumber};
+use log_entry::LocalizedLogEntry;
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
-use evm::Factory as EvmFactory;
+use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction, ImportResult as TransactionImportResult};
+use verification::queue::QueueInfo as BlockQueueInfo;
+
+use ethereum_types::{H256, U256, Address};
+use bytes::Bytes;
+use hashdb::DBValue;
+
 use types::ids::*;
+use types::basic_account::BasicAccount;
 use types::trace_filter::Filter as TraceFilter;
-use executive::Executed;
-use env_info::LastHashes;
 use types::call_analytics::CallAnalytics;
-use block_import_error::BlockImportError;
-use ipc::IpcConfig;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
+use types::mode::Mode;
+use types::pruning_info::PruningInfo;
 
-#[ipc(client_ident="RemoteClient")]
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
 
-	/// Should be called by any external-facing interface when actively using the client.
-	/// To minimise chatter, there's no need to call more than once every 30s.
-	fn keep_alive(&self) {}
-
 	/// Get raw block header data by block id.
-	fn block_header(&self, id: BlockID) -> Option<Bytes>;
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
+
+	/// Look up the block number for the given block ID.
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 
 	/// Get raw block body data by block id.
 	/// Block body is an RLP list of two items: uncles and transactions.
-	fn block_body(&self, id: BlockID) -> Option<Bytes>;
+	fn block_body(&self, id: BlockId) -> Option<encoded::Body>;
 
 	/// Get raw block data by block header hash.
-	fn block(&self, id: BlockID) -> Option<Bytes>;
+	fn block(&self, id: BlockId) -> Option<encoded::Block>;
 
 	/// Get block status by block header hash.
-	fn block_status(&self, id: BlockID) -> BlockStatus;
+	fn block_status(&self, id: BlockId) -> BlockStatus;
 
 	/// Get block total difficulty.
-	fn block_total_difficulty(&self, id: BlockID) -> Option<U256>;
+	fn block_total_difficulty(&self, id: BlockId) -> Option<U256>;
 
 	/// Attempt to get address nonce at given block.
-	/// May not fail on BlockID::Latest.
-	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256>;
+	/// May not fail on BlockId::Latest.
+	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256>;
+
+	/// Attempt to get address storage root at given block.
+	/// May not fail on BlockId::Latest.
+	fn storage_root(&self, address: &Address, id: BlockId) -> Option<H256>;
 
 	/// Get address nonce at the latest block's state.
 	fn latest_nonce(&self, address: &Address) -> U256 {
-		self.nonce(address, BlockID::Latest)
-			.expect("nonce will return Some when given BlockID::Latest. nonce was given BlockID::Latest. \
+		self.nonce(address, BlockId::Latest)
+			.expect("nonce will return Some when given BlockId::Latest. nonce was given BlockId::Latest. \
 			Therefore nonce has returned Some; qed")
 	}
 
 	/// Get block hash.
-	fn block_hash(&self, id: BlockID) -> Option<H256>;
+	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
 	/// Get address code at given block's state.
-	fn code(&self, address: &Address, id: BlockID) -> Option<Option<Bytes>>;
+	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>>;
 
 	/// Get address code at the latest block's state.
 	fn latest_code(&self, address: &Address) -> Option<Bytes> {
-		self.code(address, BlockID::Latest)
-			.expect("code will return Some if given BlockID::Latest; qed")
+		self.code(address, BlockId::Latest)
+			.expect("code will return Some if given BlockId::Latest; qed")
 	}
+
+	/// Get address code hash at given block's state.
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256>;
 
 	/// Get address balance at the given block's state.
 	///
-	/// May not return None if given BlockID::Latest.
+	/// May not return None if given BlockId::Latest.
 	/// Returns None if and only if the block's root hash has been pruned from the DB.
-	fn balance(&self, address: &Address, id: BlockID) -> Option<U256>;
+	fn balance(&self, address: &Address, id: BlockId) -> Option<U256>;
 
 	/// Get address balance at the latest block's state.
 	fn latest_balance(&self, address: &Address) -> U256 {
-		self.balance(address, BlockID::Latest)
-			.expect("balance will return Some if given BlockID::Latest. balance was given BlockID::Latest \
+		self.balance(address, BlockId::Latest)
+			.expect("balance will return Some if given BlockId::Latest. balance was given BlockId::Latest \
 			Therefore balance has returned Some; qed")
 	}
 
 	/// Get value of the storage at given position at the given block's state.
 	///
-	/// May not return None if given BlockID::Latest.
+	/// May not return None if given BlockId::Latest.
 	/// Returns None if and only if the block's root hash has been pruned from the DB.
-	fn storage_at(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256>;
+	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256>;
 
 	/// Get value of the storage at given position at the latest block's state.
 	fn latest_storage_at(&self, address: &Address, position: &H256) -> H256 {
-		self.storage_at(address, position, BlockID::Latest)
-			.expect("storage_at will return Some if given BlockID::Latest. storage_at was given BlockID::Latest. \
+		self.storage_at(address, position, BlockId::Latest)
+			.expect("storage_at will return Some if given BlockId::Latest. storage_at was given BlockId::Latest. \
 			Therefore storage_at has returned Some; qed")
 	}
 
 	/// Get a list of all accounts in the block `id`, if fat DB is in operation, otherwise `None`.
-	fn list_accounts(&self, id: BlockID) -> Option<Vec<Address>>;
+	/// If `after` is set the list starts with the following item.
+	fn list_accounts(&self, id: BlockId, after: Option<&Address>, count: u64) -> Option<Vec<Address>>;
+
+	/// Get a list of all storage keys in the block `id`, if fat DB is in operation, otherwise `None`.
+	/// If `after` is set the list starts with the following item.
+	fn list_storage(&self, id: BlockId, account: &Address, after: Option<&H256>, count: u64) -> Option<Vec<H256>>;
 
 	/// Get transaction with given hash.
-	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction>;
+	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
+
+	/// Get the hash of block that contains the transaction, if any.
+	fn transaction_block(&self, id: TransactionId) -> Option<H256>;
 
 	/// Get uncle with given id.
-	fn uncle(&self, id: UncleID) -> Option<Bytes>;
+	fn uncle(&self, id: UncleId) -> Option<encoded::Header>;
 
 	/// Get transaction receipt with given hash.
-	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt>;
+	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt>;
 
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
@@ -155,19 +175,26 @@ pub trait BlockChainClient : Sync + Send {
 	fn additional_params(&self) -> BTreeMap<String, String>;
 
 	/// Get the best block header.
-	fn best_block_header(&self) -> Bytes;
-
-	/// Returns numbers of blocks containing given bloom.
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockID, to_block: BlockID) -> Option<Vec<BlockNumber>>;
+	fn best_block_header(&self) -> encoded::Header;
 
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
 	/// Makes a non-persistent transaction call.
-	fn call(&self, t: &SignedTransaction, block: BlockID, analytics: CallAnalytics) -> Result<Executed, CallError>;
+	fn call(&self, tx: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError>;
+
+	/// Makes multiple non-persistent but dependent transaction calls.
+	/// Returns a vector of successes or a failure if any of the transaction fails.
+	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError>;
+
+	/// Estimates how much gas will be necessary for a call.
+	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError>;
 
 	/// Replays a given transaction for inspection.
-	fn replay(&self, t: TransactionID, analytics: CallAnalytics) -> Result<Executed, CallError>;
+	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;
+
+	/// Replays all the transactions in a given block for inspection.
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError>;
 
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
@@ -176,49 +203,90 @@ pub trait BlockChainClient : Sync + Send {
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace>;
 
 	/// Returns traces created by transaction.
-	fn transaction_traces(&self, trace: TransactionID) -> Option<Vec<LocalizedTrace>>;
+	fn transaction_traces(&self, trace: TransactionId) -> Option<Vec<LocalizedTrace>>;
 
 	/// Returns traces created by transaction from block.
-	fn block_traces(&self, trace: BlockID) -> Option<Vec<LocalizedTrace>>;
+	fn block_traces(&self, trace: BlockId) -> Option<Vec<LocalizedTrace>>;
 
 	/// Get last hashes starting from best block.
 	fn last_hashes(&self) -> LastHashes;
 
 	/// Queue transactions for importing.
-	fn queue_transactions(&self, transactions: Vec<Bytes>);
+	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
 
-	/// list all transactions
-	fn pending_transactions(&self) -> Vec<SignedTransaction>;
+	/// Queue conensus engine message.
+	fn queue_consensus_message(&self, message: Bytes);
 
-	/// Get the gas price distribution.
-	fn gas_price_statistics(&self, sample_size: usize, distribution_size: usize) -> Result<Vec<U256>, ()> {
+	/// List all transactions that are allowed into the next block.
+	fn ready_transactions(&self) -> Vec<PendingTransaction>;
+
+	/// Sorted list of transaction gas prices from at least last sample_size blocks.
+	fn gas_price_corpus(&self, sample_size: usize) -> ::stats::Corpus<U256> {
 		let mut h = self.chain_info().best_block_hash;
 		let mut corpus = Vec::new();
-		for _ in 0..sample_size {
-			let block_bytes = self.block(BlockID::Hash(h)).expect("h is either the best_block_hash or an ancestor; qed");
-			let block = BlockView::new(&block_bytes);
-			let header = block.header_view();
-			if header.number() == 0 {
-				break;
+		while corpus.is_empty() {
+			for _ in 0..sample_size {
+				let block = match self.block(BlockId::Hash(h)) {
+					Some(block) => block,
+					None => return corpus.into(),
+				};
+
+				if block.number() == 0 {
+					return corpus.into();
+				}
+				block.transaction_views().iter().foreach(|t| corpus.push(t.gas_price()));
+				h = block.parent_hash().clone();
 			}
-			block.transaction_views().iter().foreach(|t| corpus.push(t.gas_price()));
-			h = header.parent_hash().clone();
 		}
-		corpus.sort();
-		let n = corpus.len();
-		if n > 0 {
-			Ok((0..(distribution_size + 1))
-				.map(|i| corpus[i * (n - 1) / distribution_size])
-				.collect::<Vec<_>>()
-			)
-		} else {
-			Err(())
-		}
+		corpus.into()
 	}
+
+	/// Get the preferred chain ID to sign on
+	fn signing_chain_id(&self) -> Option<u64>;
+
+	/// Get the mode.
+	fn mode(&self) -> Mode;
+
+	/// Set the mode.
+	fn set_mode(&self, mode: Mode);
+
+	/// Get the chain spec name.
+	fn spec_name(&self) -> String;
+
+	/// Set the chain via a spec name.
+	fn set_spec_name(&self, spec_name: String);
+
+	/// Disable the client from importing blocks. This cannot be undone in this session and indicates
+	/// that a subsystem has reason to believe this executable incapable of syncing the chain.
+	fn disable(&self);
+
+	/// Returns engine-related extra info for `BlockId`.
+	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>>;
+
+	/// Returns engine-related extra info for `UncleId`.
+	fn uncle_extra_info(&self, id: UncleId) -> Option<BTreeMap<String, String>>;
+
+	/// Returns information about pruning/data availability.
+	fn pruning_info(&self) -> PruningInfo;
+
+	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
+	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
+
+	/// Import a transaction: used for misbehaviour reporting.
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError>;
+
+	/// Get the address of the registry itself.
+	fn registrar_address(&self) -> Option<Address>;
+
+	/// Get the address of a particular blockchain service, if available.
+	fn registry_address(&self, name: String) -> Option<Address>;
+
+	/// Get the EIP-86 transition block number.
+	fn eip86_transition(&self) -> u64;
 }
 
 /// Extended client interface used for mining
-pub trait MiningBlockChainClient : BlockChainClient {
+pub trait MiningBlockChainClient: BlockChainClient {
 	/// Returns OpenBlock prepared for closing.
 	fn prepare_open_block(&self,
 		author: Address,
@@ -226,11 +294,71 @@ pub trait MiningBlockChainClient : BlockChainClient {
 		extra_data: Bytes
 	) -> OpenBlock;
 
+	/// Reopens an OpenBlock and updates uncles.
+	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
+
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;
 
+	/// Broadcast a block proposal.
+	fn broadcast_proposal_block(&self, block: SealedBlock);
+
 	/// Import sealed block. Skips all verifications.
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;
+
+	/// Returns latest schedule.
+	fn latest_schedule(&self) -> Schedule;
+
+	/// Returns base of this trait
+	fn as_block_chain_client(&self) -> &BlockChainClient;
 }
 
-impl IpcConfig for BlockChainClient { }
+/// Client facilities used by internally sealing Engines.
+pub trait EngineClient: Sync + Send {
+	/// Make a new block and seal it.
+	fn update_sealing(&self);
+
+	/// Submit a seal for a block in the mining queue.
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>);
+
+	/// Broadcast a consensus message to the network.
+	fn broadcast_consensus_message(&self, message: Bytes);
+
+	/// Get the transition to the epoch the given parent hash is part of
+	/// or transitions to.
+	/// This will give the epoch that any children of this parent belong to.
+	///
+	/// The block corresponding the the parent hash must be stored already.
+	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition>;
+
+	/// Get block chain info.
+	fn chain_info(&self) -> BlockChainInfo;
+
+	/// Attempt to cast the engine client to a full client.
+	fn as_full_client(&self) -> Option<&BlockChainClient>;
+
+	/// Get a block number by ID.
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
+}
+
+/// Extended client interface for providing proofs of the state.
+pub trait ProvingBlockChainClient: BlockChainClient {
+	/// Prove account storage at a specific block id.
+	///
+	/// Both provided keys assume a secure trie.
+	/// Returns a vector of raw trie nodes (in order from the root) proving the storage query.
+	fn prove_storage(&self, key1: H256, key2: H256, id: BlockId) -> Option<(Vec<Bytes>, H256)>;
+
+	/// Prove account existence at a specific block id.
+	/// The key is the keccak hash of the account's address.
+	/// Returns a vector of raw trie nodes (in order from the root) proving the query.
+	fn prove_account(&self, key1: H256, id: BlockId) -> Option<(Vec<Bytes>, BasicAccount)>;
+
+	/// Prove execution of a transaction at the given block.
+	/// Returns the output of the call and a vector of database items necessary
+	/// to reproduce it.
+	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)>;
+
+	/// Get an epoch change signal by block hash.
+	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>>;
+}

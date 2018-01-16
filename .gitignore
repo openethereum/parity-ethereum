@@ -15,9 +15,17 @@
 
 # vim stuff
 *.swp
+*.swo
 
 # mac stuff
 .DS_Store
+
+# npm stuff
+npm-debug.log
+node_modules
+
+# js build artifacts
+.git-release.log
 
 # gdb files
 .gdb_history
@@ -30,3 +38,7 @@
 
 # Build artifacts
 out/
+
+.vscode
+
+/parity.*

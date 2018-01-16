@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,13 +16,15 @@
 
 //! Test implementation of SyncProvider.
 
-use util::{RwLock, U256};
-use ethsync::{SyncProvider, SyncStatus, SyncState, PeerInfo};
+use std::collections::BTreeMap;
+use ethereum_types::H256;
+use parking_lot::RwLock;
+use ethsync::{SyncProvider, EthProtocolInfo, SyncStatus, SyncState, PeerInfo, TransactionStats};
 
 /// TestSyncProvider config.
 pub struct Config {
 	/// Protocol version.
-	pub network_id: U256,
+	pub network_id: u64,
 	/// Number of peers.
 	pub num_peers: usize,
 }
@@ -73,23 +75,50 @@ impl SyncProvider for TestSyncProvider {
 		vec![
 			PeerInfo {
 				id: Some("node1".to_owned()),
-    			client_version: "Parity/1".to_owned(),
-				capabilities: vec!["eth/62".to_owned(), "eth/63".to_owned()], 
-    			remote_address: "127.0.0.1:7777".to_owned(),
+				client_version: "Parity/1".to_owned(),
+				capabilities: vec!["eth/62".to_owned(), "eth/63".to_owned()],
+				remote_address: "127.0.0.1:7777".to_owned(),
 				local_address: "127.0.0.1:8888".to_owned(),
-				eth_version: 62,
-				eth_difficulty: Some(40.into()),
-				eth_head: 50.into()
+				eth_info: Some(EthProtocolInfo {
+					version: 62,
+					difficulty: Some(40.into()),
+					head: 50.into(),
+				}),
+				pip_info: None,
 			},
 			PeerInfo {
 				id: None,
-    			client_version: "Parity/2".to_owned(),
-				capabilities: vec!["eth/63".to_owned(), "eth/64".to_owned()], 
-    			remote_address: "Handshake".to_owned(),
+				client_version: "Parity/2".to_owned(),
+				capabilities: vec!["eth/63".to_owned(), "eth/64".to_owned()],
+				remote_address: "Handshake".to_owned(),
 				local_address: "127.0.0.1:3333".to_owned(),
-				eth_version: 64,
-				eth_difficulty: None,
-				eth_head: 60.into()
+				eth_info: Some(EthProtocolInfo {
+					version: 64,
+					difficulty: None,
+					head: 60.into()
+				}),
+				pip_info: None,
+			}
+		]
+	}
+
+	fn enode(&self) -> Option<String> {
+		None
+	}
+
+	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {
+		map![
+			1.into() => TransactionStats {
+				first_seen: 10,
+				propagated_to: map![
+					128.into() => 16
+				],
+			},
+			5.into() => TransactionStats {
+				first_seen: 16,
+				propagated_to: map![
+					16.into() => 1
+				],
 			}
 		]
 	}

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,22 +15,19 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Web3 rpc interface.
-use std::sync::Arc;
-use jsonrpc_core::*;
+use jsonrpc_core::Result;
 
-/// Web3 rpc interface.
-pub trait Web3: Sized + Send + Sync + 'static {
-	/// Returns current client version.
-	fn client_version(&self, _: Params) -> Result<Value, Error>;
+use v1::types::{H256, Bytes};
 
-	/// Returns sha3 of the given data
-	fn sha3(&self, _: Params) -> Result<Value, Error>;
+build_rpc_trait! {
+	/// Web3 rpc interface.
+	pub trait Web3 {
+		/// Returns current client version.
+		#[rpc(name = "web3_clientVersion")]
+		fn client_version(&self) -> Result<String>;
 
-	/// Should be used to convert object to io delegate.
-	fn to_delegate(self) -> IoDelegate<Self> {
-		let mut delegate = IoDelegate::new(Arc::new(self));
-		delegate.add_method("web3_clientVersion", Web3::client_version);
-		delegate.add_method("web3_sha3", Web3::sha3);
-		delegate
+		/// Returns sha3 of the given data
+		#[rpc(name = "web3_sha3")]
+		fn sha3(&self, Bytes) -> Result<H256>;
 	}
 }

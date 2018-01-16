@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,21 +16,25 @@
 
 //! Definition of valid items for the verification queue.
 
-use engines::Engine;
+use engines::EthEngine;
 use error::Error;
 
-use util::{HeapSizeOf, H256};
+use heapsize::HeapSizeOf;
+use ethereum_types::{H256, U256};
 
 pub use self::blocks::Blocks;
 pub use self::headers::Headers;
 
 /// Something which can produce a hash and a parent hash.
-pub trait HasHash {
+pub trait BlockLike {
 	/// Get the hash of this item.
 	fn hash(&self) -> H256;
 
 	/// Get the hash of this item's parent.
 	fn parent_hash(&self) -> H256;
+
+	/// Get the difficulty of this item.
+	fn difficulty(&self) -> U256;
 }
 
 /// Defines transitions between stages of verification.
@@ -45,31 +49,33 @@ pub trait HasHash {
 /// consistent.
 pub trait Kind: 'static + Sized + Send + Sync {
 	/// The first stage: completely unverified.
-	type Input: Sized + Send + HasHash + HeapSizeOf;
+	type Input: Sized + Send + BlockLike + HeapSizeOf;
 
 	/// The second stage: partially verified.
-	type Unverified: Sized + Send + HasHash + HeapSizeOf;
+	type Unverified: Sized + Send + BlockLike + HeapSizeOf;
 
 	/// The third stage: completely verified.
-	type Verified: Sized + Send + HasHash + HeapSizeOf;
+	type Verified: Sized + Send + BlockLike + HeapSizeOf;
 
 	/// Attempt to create the `Unverified` item from the input.
-	fn create(input: Self::Input, engine: &Engine) -> Result<Self::Unverified, Error>;
+	fn create(input: Self::Input, engine: &EthEngine) -> Result<Self::Unverified, Error>;
 
 	/// Attempt to verify the `Unverified` item using the given engine.
-	fn verify(unverified: Self::Unverified, engine: &Engine) -> Result<Self::Verified, Error>;
+	fn verify(unverified: Self::Unverified, engine: &EthEngine, check_seal: bool) -> Result<Self::Verified, Error>;
 }
 
 /// The blocks verification module.
 pub mod blocks {
-	use super::{Kind, HasHash};
+	use super::{Kind, BlockLike};
 
-	use engines::Engine;
+	use engines::EthEngine;
 	use error::Error;
 	use header::Header;
 	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
 
-	use util::{Bytes, HeapSizeOf, H256};
+	use heapsize::HeapSizeOf;
+	use ethereum_types::{H256, U256};
+	use bytes::Bytes;
 
 	/// A mode for verifying blocks.
 	pub struct Blocks;
@@ -79,7 +85,7 @@ pub mod blocks {
 		type Unverified = Unverified;
 		type Verified = PreverifiedBlock;
 
-		fn create(input: Self::Input, engine: &Engine) -> Result<Self::Unverified, Error> {
+		fn create(input: Self::Input, engine: &EthEngine) -> Result<Self::Unverified, Error> {
 			match verify_block_basic(&input.header, &input.bytes, engine) {
 				Ok(()) => Ok(input),
 				Err(e) => {
@@ -89,9 +95,9 @@ pub mod blocks {
 			}
 		}
 
-		fn verify(un: Self::Unverified, engine: &Engine) -> Result<Self::Verified, Error> {
+		fn verify(un: Self::Unverified, engine: &EthEngine, check_seal: bool) -> Result<Self::Verified, Error> {
 			let hash = un.hash();
-			match verify_block_unordered(un.header, un.bytes, engine) {
+			match verify_block_unordered(un.header, un.bytes, engine, check_seal) {
 				Ok(verified) => Ok(verified),
 				Err(e) => {
 					warn!(target: "client", "Stage 2 block verification failed for {}: {:?}", hash, e);
@@ -126,45 +132,53 @@ pub mod blocks {
 		}
 	}
 
-	impl HasHash for Unverified {
+	impl BlockLike for Unverified {
 		fn hash(&self) -> H256 {
 			self.header.hash()
 		}
 
 		fn parent_hash(&self) -> H256 {
 			self.header.parent_hash().clone()
+		}
+
+		fn difficulty(&self) -> U256 {
+			self.header.difficulty().clone()
 		}
 	}
 
-	impl HasHash for PreverifiedBlock {
+	impl BlockLike for PreverifiedBlock {
 		fn hash(&self) -> H256 {
 			self.header.hash()
 		}
 
 		fn parent_hash(&self) -> H256 {
 			self.header.parent_hash().clone()
+		}
+
+		fn difficulty(&self) -> U256 {
+			self.header.difficulty().clone()
 		}
 	}
 }
 
 /// Verification for headers.
 pub mod headers {
-	use super::{Kind, HasHash};
+	use super::{Kind, BlockLike};
 
-	use engines::Engine;
+	use engines::EthEngine;
 	use error::Error;
 	use header::Header;
 	use verification::verify_header_params;
 
-	use util::hash::H256;
+	use ethereum_types::{H256, U256};
 
-	impl HasHash for Header {
+	impl BlockLike for Header {
 		fn hash(&self) -> H256 { self.hash() }
 		fn parent_hash(&self) -> H256 { self.parent_hash().clone() }
+		fn difficulty(&self) -> U256 { self.difficulty().clone() }
 	}
 
 	/// A mode for verifying headers.
-	#[allow(dead_code)]
 	pub struct Headers;
 
 	impl Kind for Headers {
@@ -172,12 +186,15 @@ pub mod headers {
 		type Unverified = Header;
 		type Verified = Header;
 
-		fn create(input: Self::Input, engine: &Engine) -> Result<Self::Unverified, Error> {
-			verify_header_params(&input, engine).map(|_| input)
+		fn create(input: Self::Input, engine: &EthEngine) -> Result<Self::Unverified, Error> {
+			verify_header_params(&input, engine, true).map(|_| input)
 		}
 
-		fn verify(unverified: Self::Unverified, engine: &Engine) -> Result<Self::Verified, Error> {
-			engine.verify_block_unordered(&unverified, None).map(|_| unverified)
+		fn verify(unverified: Self::Unverified, engine: &EthEngine, check_seal: bool) -> Result<Self::Verified, Error> {
+			match check_seal {
+				true => engine.verify_block_unordered(&unverified,).map(|_| unverified),
+				false => Ok(unverified),
+			}
 		}
 	}
 }

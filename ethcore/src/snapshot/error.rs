@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,33 +18,51 @@
 
 use std::fmt;
 
-use ids::BlockID;
+use ids::BlockId;
 
-use util::H256;
-use util::trie::TrieError;
+use ethereum_types::H256;
+use trie::TrieError;
 use rlp::DecoderError;
 
 /// Snapshot-related errors.
 #[derive(Debug)]
 pub enum Error {
 	/// Invalid starting block for snapshot.
-	InvalidStartingBlock(BlockID),
+	InvalidStartingBlock(BlockId),
 	/// Block not found.
 	BlockNotFound(H256),
 	/// Incomplete chain.
 	IncompleteChain,
+	/// Best block has wrong state root.
+	WrongStateRoot(H256, H256),
+	/// Wrong block hash.
+	WrongBlockHash(u64, H256, H256),
+	/// Too many blocks contained within the snapshot.
+	TooManyBlocks(u64, u64),
 	/// Old starting block in a pruned database.
 	OldBlockPrunedDB,
 	/// Missing code.
 	MissingCode(Vec<H256>),
 	/// Unrecognized code encoding.
 	UnrecognizedCodeState(u8),
+	/// Restoration aborted.
+	RestorationAborted,
 	/// Trie error.
 	Trie(TrieError),
 	/// Decoder error.
 	Decoder(DecoderError),
 	/// Io error.
 	Io(::std::io::Error),
+	/// Snapshot version is not supported.
+	VersionNotSupported(u64),
+	/// Max chunk size is to small to fit basic account data.
+	ChunkTooSmall,
+	/// Snapshots not supported by the consensus engine.
+	SnapshotsUnsupported,
+	/// Bad epoch transition.
+	BadEpochProof(u64),
+	/// Wrong chunk format.
+	WrongChunkFormat(String),
 }
 
 impl fmt::Display for Error {
@@ -52,14 +70,24 @@ impl fmt::Display for Error {
 		match *self {
 			Error::InvalidStartingBlock(ref id) => write!(f, "Invalid starting block: {:?}", id),
 			Error::BlockNotFound(ref hash) => write!(f, "Block not found in chain: {}", hash),
-			Error::IncompleteChain => write!(f, "Cannot create snapshot due to incomplete chain."),
+			Error::IncompleteChain => write!(f, "Incomplete blockchain."),
+			Error::WrongStateRoot(ref expected, ref found) => write!(f, "Final block has wrong state root. Expected {:?}, got {:?}", expected, found),
+			Error::WrongBlockHash(ref num, ref expected, ref found) =>
+				write!(f, "Block {} had wrong hash. expected {:?}, got {:?}", num, expected, found),
+			Error::TooManyBlocks(ref expected, ref found) => write!(f, "Snapshot contained too many blocks. Expected {}, got {}", expected, found),
 			Error::OldBlockPrunedDB => write!(f, "Attempted to create a snapshot at an old block while using \
 				a pruned database. Please re-run with the --pruning archive flag."),
 			Error::MissingCode(ref missing) => write!(f, "Incomplete snapshot: {} contract codes not found.", missing.len()),
 			Error::UnrecognizedCodeState(state) => write!(f, "Unrecognized code encoding ({})", state),
+			Error::RestorationAborted => write!(f, "Snapshot restoration aborted."),
 			Error::Io(ref err) => err.fmt(f),
 			Error::Decoder(ref err) => err.fmt(f),
 			Error::Trie(ref err) => err.fmt(f),
+			Error::VersionNotSupported(ref ver) => write!(f, "Snapshot version {} is not supprted.", ver),
+			Error::ChunkTooSmall => write!(f, "Chunk size is too small."),
+			Error::SnapshotsUnsupported => write!(f, "Snapshots unsupported by consensus engine."),
+			Error::BadEpochProof(i) => write!(f, "Bad epoch proof for transition to epoch {}", i),
+			Error::WrongChunkFormat(ref msg) => write!(f, "Wrong chunk format: {}", msg),
 		}
 	}
 }

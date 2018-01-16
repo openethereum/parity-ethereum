@@ -1,19 +1,17 @@
 [package]
-description = "Ethcore client."
+description = "Log implementation for Parity"
 name = "ethcore-logger"
-version = "1.4.0"
+version = "1.9.0"
 license = "GPL-3.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.3"
-env_logger = "0.3"
-ethcore-util = { path = "../util" }
+env_logger = "0.4"
 isatty = "0.1"
 lazy_static = "0.2"
-regex = "0.1"
+regex = "0.2"
 time = "0.1"
-
-[profile.release]
-debug = true
-lto = false
+parking_lot = "0.4"
+arrayvec = "0.4"
+ansi_term = "0.9"

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,13 +19,13 @@ use std::str::FromStr;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use serde;
-use rustc_serialize::hex::{ToHex, FromHex};
-use util::{H64 as Eth64, H160 as Eth160, H256 as Eth256, H520 as Eth520, H512 as Eth512, H2048 as Eth2048};
+use rustc_hex::{ToHex, FromHex};
+use ethereum_types::{H64 as Eth64, H160 as Eth160, H256 as Eth256, H520 as Eth520, H512 as Eth512, Bloom as Eth2048};
 
 macro_rules! impl_hash {
 	($name: ident, $other: ident, $size: expr) => {
 		/// Hash serialization
-		pub struct $name([u8; $size]);
+		pub struct $name(pub [u8; $size]);
 
 		impl Eq for $name { }
 
@@ -36,8 +36,15 @@ macro_rules! impl_hash {
 		}
 
 		impl fmt::Debug for $name {
-			fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 				write!(f, "{}", self.0.to_hex())
+			}
+		}
+
+		impl fmt::Display for $name {
+			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+				let hex = self.0.to_hex();
+				write!(f, "{}..{}", &hex[0..2], &hex[$size-2..$size])
 			}
 		}
 
@@ -101,7 +108,7 @@ macro_rules! impl_hash {
 		}
 
 		impl serde::Serialize for $name {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 			where S: serde::Serializer {
 				let mut hex = "0x".to_owned();
 				hex.push_str(&self.0.to_hex());
@@ -109,17 +116,24 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl serde::Deserialize for $name {
-			fn deserialize<D>(deserializer: &mut D) -> Result<$name, D::Error> where D: serde::Deserializer {
+		impl<'a> serde::Deserialize<'a> for $name {
+			fn deserialize<D>(deserializer: D) -> Result<$name, D::Error> where D: serde::Deserializer<'a> {
 				struct HashVisitor;
 
-				impl serde::de::Visitor for HashVisitor {
+				impl<'b> serde::de::Visitor<'b> for HashVisitor {
 					type Value = $name;
 
-					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
+					fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+						write!(formatter, "a 0x-prefixed, padded, hex-encoded hash with length {}", $size * 2)
+					}
 
+					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: serde::de::Error {
+
+						if value.len() < 2 || &value[0..2] != "0x" {
+							return Err(E::custom("expected a hex-encoded hash with 0x prefix"));
+						}
 						if value.len() != 2 + $size * 2 {
-							return Err(serde::Error::custom("Invalid length."));
+							return Err(E::invalid_length(value.len() - 2, &self));
 						}
 
 						match value[2..].from_hex() {
@@ -128,16 +142,16 @@ macro_rules! impl_hash {
 								result.copy_from_slice(v);
 								Ok($name(result))
 							},
-							_ => Err(serde::Error::custom("Invalid hex value."))
+							Err(e) => Err(E::custom(format!("invalid hex value: {:?}", e))),
 						}
 					}
 
-					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
+					fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: serde::de::Error {
 						self.visit_str(value.as_ref())
 					}
 				}
 
-				deserializer.deserialize(HashVisitor)
+				deserializer.deserialize_any(HashVisitor)
 			}
 		}
 	}

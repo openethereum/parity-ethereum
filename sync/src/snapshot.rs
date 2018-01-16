@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use util::{H256, Hashable};
+use hash::keccak;
+use ethereum_types::H256;
 use std::collections::HashSet;
 use ethcore::snapshot::ManifestData;
 
@@ -31,6 +31,7 @@ pub struct Snapshot {
 	downloading_chunks: HashSet<H256>,
 	completed_chunks: HashSet<H256>,
 	snapshot_hash: Option<H256>,
+	bad_hashes: HashSet<H256>,
 }
 
 impl Snapshot {
@@ -42,6 +43,7 @@ impl Snapshot {
 			downloading_chunks: HashSet::new(),
 			completed_chunks: HashSet::new(),
 			snapshot_hash: None,
+			bad_hashes: HashSet::new(),
 		}
 	}
 
@@ -54,6 +56,11 @@ impl Snapshot {
 		self.snapshot_hash = None;
 	}
 
+	/// Check if currently downloading a snapshot.
+	pub fn have_manifest(&self) -> bool {
+		self.snapshot_hash.is_some()
+	}
+
 	/// Reset collection for a manifest RLP
 	pub fn reset_to(&mut self, manifest: &ManifestData, hash: &H256) {
 		self.clear();
@@ -64,7 +71,7 @@ impl Snapshot {
 
 	/// Validate chunk and mark it as downloaded
 	pub fn validate_chunk(&mut self, chunk: &[u8]) -> Result<ChunkType, ()> {
-		let hash = chunk.sha3();
+		let hash = keccak(chunk);
 		if self.completed_chunks.contains(&hash) {
 			trace!(target: "sync", "Ignored proccessed chunk: {}", hash.hex());
 			return Err(());
@@ -85,14 +92,10 @@ impl Snapshot {
 	/// Find a chunk to download
 	pub fn needed_chunk(&mut self) -> Option<H256> {
 		// check state chunks first
-		let mut chunk = self.pending_state_chunks.iter()
+		let chunk = self.pending_state_chunks.iter()
+			.chain(self.pending_block_chunks.iter())
 			.find(|&h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h))
 			.cloned();
-		if chunk.is_none() {
-			chunk = self.pending_block_chunks.iter()
-				.find(|&h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h))
-				.cloned();
-		}
 
 		if let Some(hash) = chunk {
 			self.downloading_chunks.insert(hash.clone());
@@ -104,6 +107,16 @@ impl Snapshot {
 		self.downloading_chunks.remove(hash);
 	}
 
+	// note snapshot hash as bad.
+	pub fn note_bad(&mut self, hash: H256) {
+		self.bad_hashes.insert(hash);
+	}
+
+	// whether snapshot hash is known to be bad.
+	pub fn is_known_bad(&self, hash: &H256) -> bool {
+		self.bad_hashes.contains(hash)
+	}
+
 	pub fn snapshot_hash(&self) -> Option<H256> {
 		self.snapshot_hash
 	}
@@ -113,7 +126,7 @@ impl Snapshot {
 	}
 
 	pub fn done_chunks(&self) -> usize {
-		self.total_chunks() - self.completed_chunks.len()
+		self.completed_chunks.len()
 	}
 
 	pub fn is_complete(&self) -> bool {
@@ -123,7 +136,8 @@ impl Snapshot {
 
 #[cfg(test)]
 mod test {
-	use util::*;
+	use hash::keccak;
+	use bytes::Bytes;
 	use super::*;
 	use ethcore::snapshot::ManifestData;
 
@@ -139,13 +153,14 @@ mod test {
 		let state_chunks: Vec<Bytes> = (0..20).map(|_| H256::random().to_vec()).collect();
 		let block_chunks: Vec<Bytes> = (0..20).map(|_| H256::random().to_vec()).collect();
 		let manifest = ManifestData {
-			state_hashes: state_chunks.iter().map(|data| data.sha3()).collect(),
-			block_hashes: block_chunks.iter().map(|data| data.sha3()).collect(),
+			version: 2,
+			state_hashes: state_chunks.iter().map(|data| keccak(data)).collect(),
+			block_hashes: block_chunks.iter().map(|data| keccak(data)).collect(),
 			state_root: H256::new(),
 			block_number: 42,
 			block_hash: H256::new(),
 		};
-		let mhash = manifest.clone().into_rlp().sha3();
+		let mhash = keccak(manifest.clone().into_rlp());
 		(manifest, mhash, state_chunks, block_chunks)
 	}
 
@@ -165,6 +180,7 @@ mod test {
 		let mut snapshot = Snapshot::new();
 		let (manifest, mhash, state_chunks, block_chunks) = test_manifest();
 		snapshot.reset_to(&manifest, &mhash);
+		assert_eq!(snapshot.done_chunks(), 0);
 		assert!(snapshot.validate_chunk(&H256::random().to_vec()).is_err());
 
 		let requested: Vec<H256> = (0..40).map(|_| snapshot.needed_chunk().unwrap()).collect();
@@ -194,7 +210,19 @@ mod test {
 		}
 
 		assert!(snapshot.is_complete());
-		assert_eq!(snapshot.snapshot_hash(), Some(manifest.into_rlp().sha3()));
+		assert_eq!(snapshot.done_chunks(), 40);
+		assert_eq!(snapshot.done_chunks(), snapshot.total_chunks());
+		assert_eq!(snapshot.snapshot_hash(), Some(keccak(manifest.into_rlp())));
+	}
+
+	#[test]
+	fn tracks_known_bad() {
+		let mut snapshot = Snapshot::new();
+		let hash = H256::random();
+
+		assert_eq!(snapshot.is_known_bad(&hash), false);
+		snapshot.note_bad(hash);
+		assert_eq!(snapshot.is_known_bad(&hash), true);
 	}
 }
 

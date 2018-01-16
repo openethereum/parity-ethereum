@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 
 //! Import route.
 
-use util::H256;
+use ethereum_types::H256;
 use blockchain::block_info::{BlockInfo, BlockLocation};
 
 /// Import route for newly inserted block.
@@ -67,7 +67,7 @@ impl From<BlockInfo> for ImportRoute {
 
 #[cfg(test)]
 mod tests {
-	use util::{U256, H256};
+	use ethereum_types::{H256, U256};
 	use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 	use blockchain::ImportRoute;
 

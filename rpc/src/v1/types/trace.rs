@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,13 +16,13 @@
 
 use std::collections::BTreeMap;
 use serde::{Serialize, Serializer};
+use serde::ser::SerializeStruct;
 use ethcore::trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace, trace, TraceError};
 use ethcore::trace as et;
 use ethcore::state_diff;
 use ethcore::account_diff;
-use ethcore::executed;
 use ethcore::client::Executed;
-use util::Uint;
+use vm;
 use v1::types::{Bytes, H160, H256, U256};
 
 #[derive(Debug, Serialize)]
@@ -164,7 +164,7 @@ pub enum Diff<T> where T: Serialize {
 	Changed(ChangedType<T>),
 }
 
-impl<T, U> From<account_diff::Diff<T>> for Diff<U> where T: Eq + ::ethcore_ipc::BinaryConvertable, U: Serialize + From<T> {
+impl<T, U> From<account_diff::Diff<T>> for Diff<U> where T: Eq, U: Serialize + From<T> {
 	fn from(c: account_diff::Diff<T>) -> Self {
 		match c {
 			account_diff::Diff::Same => Diff::Same,
@@ -200,7 +200,7 @@ impl From<account_diff::AccountDiff> for AccountDiff {
 pub struct StateDiff(BTreeMap<H160, AccountDiff>);
 
 impl Serialize for StateDiff {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		Serialize::serialize(&self.0, serializer)
 	}
@@ -251,15 +251,19 @@ pub enum CallType {
 	/// Delegate call
 	#[serde(rename="delegatecall")]
 	DelegateCall,
+	/// Static call
+	#[serde(rename="staticcall")]
+	StaticCall,
 }
 
-impl From<executed::CallType> for CallType {
-	fn from(c: executed::CallType) -> Self {
+impl From<vm::CallType> for CallType {
+	fn from(c: vm::CallType) -> Self {
 		match c {
-			executed::CallType::None => CallType::None,
-			executed::CallType::Call => CallType::Call,
-			executed::CallType::CallCode => CallType::CallCode,
-			executed::CallType::DelegateCall => CallType::DelegateCall,
+			vm::CallType::None => CallType::None,
+			vm::CallType::Call => CallType::Call,
+			vm::CallType::CallCode => CallType::CallCode,
+			vm::CallType::DelegateCall => CallType::DelegateCall,
+			vm::CallType::StaticCall => CallType::StaticCall,
 		}
 	}
 }
@@ -295,6 +299,49 @@ impl From<trace::Call> for Call {
 	}
 }
 
+/// Reward type.
+#[derive(Debug, Serialize)]
+pub enum RewardType {
+	/// Block
+	#[serde(rename="block")]
+	Block,
+	/// Uncle
+	#[serde(rename="uncle")]
+	Uncle,
+}
+
+impl From<trace::RewardType> for RewardType {
+	fn from(c: trace::RewardType) -> Self {
+		match c {
+			trace::RewardType::Block => RewardType::Block,
+			trace::RewardType::Uncle => RewardType::Uncle,
+		}
+	}
+}
+
+
+/// Reward action
+#[derive(Debug, Serialize)]
+pub struct Reward {
+	/// Author's address.
+	pub author: H160,
+	/// Reward amount.
+	pub value: U256,
+	/// Reward type.
+	#[serde(rename="rewardType")]
+	pub reward_type: RewardType,
+}
+
+impl From<trace::Reward> for Reward {
+	fn from(r: trace::Reward) -> Self {
+		Reward {
+			author: r.author.into(),
+			value: r.value.into(),
+			reward_type: r.reward_type.into(),
+		}
+	}
+}
+
 /// Suicide
 #[derive(Debug, Serialize)]
 pub struct Suicide {
@@ -326,6 +373,8 @@ pub enum Action {
 	Create(Create),
 	/// Suicide
 	Suicide(Suicide),
+	/// Reward
+	Reward(Reward),
 }
 
 impl From<trace::Action> for Action {
@@ -334,6 +383,7 @@ impl From<trace::Action> for Action {
 			trace::Action::Call(call) => Action::Call(call.into()),
 			trace::Action::Create(create) => Action::Create(create.into()),
 			trace::Action::Suicide(suicide) => Action::Suicide(suicide.into()),
+			trace::Action::Reward(reward) => Action::Reward(reward.into()),
 		}
 	}
 }
@@ -418,9 +468,9 @@ pub struct LocalizedTrace {
 	/// Subtraces
 	subtraces: usize,
 	/// Transaction position
-	transaction_position: usize,
+	transaction_position: Option<usize>,
 	/// Transaction hash
-	transaction_hash: H256,
+	transaction_hash: Option<H256>,
 	/// Block Number
 	block_number: u64,
 	/// Block Hash
@@ -428,41 +478,45 @@ pub struct LocalizedTrace {
 }
 
 impl Serialize for LocalizedTrace {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 		where S: Serializer
 	{
-		let mut state = try!(serializer.serialize_struct("LocalizedTrace", 9));
+		let mut struc = serializer.serialize_struct("LocalizedTrace", 9)?;
 		match self.action {
 			Action::Call(ref call) => {
-				try!(serializer.serialize_struct_elt(&mut state, "type", "call"));
-				try!(serializer.serialize_struct_elt(&mut state, "action", call));
+				struc.serialize_field("type", "call")?;
+				struc.serialize_field("action", call)?;
 			},
 			Action::Create(ref create) => {
-				try!(serializer.serialize_struct_elt(&mut state, "type", "create"));
-				try!(serializer.serialize_struct_elt(&mut state, "action", create));
+				struc.serialize_field("type", "create")?;
+				struc.serialize_field("action", create)?;
 			},
 			Action::Suicide(ref suicide) => {
-				try!(serializer.serialize_struct_elt(&mut state, "type", "suicide"));
-				try!(serializer.serialize_struct_elt(&mut state, "action", suicide));
+				struc.serialize_field("type", "suicide")?;
+				struc.serialize_field("action", suicide)?;
+			},
+			Action::Reward(ref reward) => {
+				struc.serialize_field("type", "reward")?;
+				struc.serialize_field("action", reward)?;
 			},
 		}
 
 		match self.result {
-			Res::Call(ref call) => try!(serializer.serialize_struct_elt(&mut state, "result", call)),
-			Res::Create(ref create) => try!(serializer.serialize_struct_elt(&mut state, "result", create)),
-			Res::FailedCall(ref error) => try!(serializer.serialize_struct_elt(&mut state, "error", error.to_string())),
-			Res::FailedCreate(ref error) => try!(serializer.serialize_struct_elt(&mut state, "error", error.to_string())),
-			Res::None => try!(serializer.serialize_struct_elt(&mut state, "result", None as Option<u8>)),
+			Res::Call(ref call) => struc.serialize_field("result", call)?,
+			Res::Create(ref create) => struc.serialize_field("result", create)?,
+			Res::FailedCall(ref error) => struc.serialize_field("error", &error.to_string())?,
+			Res::FailedCreate(ref error) => struc.serialize_field("error", &error.to_string())?,
+			Res::None => struc.serialize_field("result", &None as &Option<u8>)?,
 		}
 
-		try!(serializer.serialize_struct_elt(&mut state, "traceAddress", &self.trace_address));
-		try!(serializer.serialize_struct_elt(&mut state, "subtraces", &self.subtraces));
-		try!(serializer.serialize_struct_elt(&mut state, "transactionPosition", &self.transaction_position));
-		try!(serializer.serialize_struct_elt(&mut state, "transactionHash", &self.transaction_hash));
-		try!(serializer.serialize_struct_elt(&mut state, "blockNumber", &self.block_number));
-		try!(serializer.serialize_struct_elt(&mut state, "blockHash", &self.block_hash));
+		struc.serialize_field("traceAddress", &self.trace_address)?;
+		struc.serialize_field("subtraces", &self.subtraces)?;
+		struc.serialize_field("transactionPosition", &self.transaction_position)?;
+		struc.serialize_field("transactionHash", &self.transaction_hash)?;
+		struc.serialize_field("blockNumber", &self.block_number)?;
+		struc.serialize_field("blockHash", &self.block_hash)?;
 
-		serializer.serialize_struct_end(state)
+		struc.end()
 	}
 }
 
@@ -473,8 +527,8 @@ impl From<EthLocalizedTrace> for LocalizedTrace {
 			result: t.result.into(),
 			trace_address: t.trace_address.into_iter().map(Into::into).collect(),
 			subtraces: t.subtraces.into(),
-			transaction_position: t.transaction_number.into(),
-			transaction_hash: t.transaction_hash.into(),
+			transaction_position: t.transaction_number.map(Into::into),
+			transaction_hash: t.transaction_hash.map(Into::into),
 			block_number: t.block_number.into(),
 			block_hash: t.block_hash.into(),
 		}
@@ -495,37 +549,41 @@ pub struct Trace {
 }
 
 impl Serialize for Trace {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 		where S: Serializer
 	{
-		let mut state = try!(serializer.serialize_struct("Trace", 4));
+		let mut struc = serializer.serialize_struct("Trace", 4)?;
 		match self.action {
 			Action::Call(ref call) => {
-				try!(serializer.serialize_struct_elt(&mut state, "type", "call"));
-				try!(serializer.serialize_struct_elt(&mut state, "action", call));
+				struc.serialize_field("type", "call")?;
+				struc.serialize_field("action", call)?;
 			},
 			Action::Create(ref create) => {
-				try!(serializer.serialize_struct_elt(&mut state, "type", "create"));
-				try!(serializer.serialize_struct_elt(&mut state, "action", create));
+				struc.serialize_field("type", "create")?;
+				struc.serialize_field("action", create)?;
 			},
 			Action::Suicide(ref suicide) => {
-				try!(serializer.serialize_struct_elt(&mut state, "type", "suicide"));
-				try!(serializer.serialize_struct_elt(&mut state, "action", suicide));
+				struc.serialize_field("type", "suicide")?;
+				struc.serialize_field("action", suicide)?;
+			},
+			Action::Reward(ref reward) => {
+				struc.serialize_field("type", "reward")?;
+				struc.serialize_field("action", reward)?;
 			},
 		}
 
 		match self.result {
-			Res::Call(ref call) => try!(serializer.serialize_struct_elt(&mut state, "result", call)),
-			Res::Create(ref create) => try!(serializer.serialize_struct_elt(&mut state, "result", create)),
-			Res::FailedCall(ref error) => try!(serializer.serialize_struct_elt(&mut state, "error", error.to_string())),
-			Res::FailedCreate(ref error) => try!(serializer.serialize_struct_elt(&mut state, "error", error.to_string())),
-			Res::None => try!(serializer.serialize_struct_elt(&mut state, "result", None as Option<u8>)),
+			Res::Call(ref call) => struc.serialize_field("result", call)?,
+			Res::Create(ref create) => struc.serialize_field("result", create)?,
+			Res::FailedCall(ref error) => struc.serialize_field("error", &error.to_string())?,
+			Res::FailedCreate(ref error) => struc.serialize_field("error", &error.to_string())?,
+			Res::None => struc.serialize_field("result", &None as &Option<u8>)?,
 		}
 
-		try!(serializer.serialize_struct_elt(&mut state, "traceAddress", &self.trace_address));
-		try!(serializer.serialize_struct_elt(&mut state, "subtraces", &self.subtraces));
+		struc.serialize_field("traceAddress", &self.trace_address)?;
+		struc.serialize_field("subtraces", &self.subtraces)?;
 
-		serializer.serialize_struct_end(state)
+		struc.end()
 	}
 }
 
@@ -603,8 +661,8 @@ mod tests {
 			}),
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
@@ -626,8 +684,8 @@ mod tests {
 			result: Res::FailedCall(TraceError::OutOfGas),
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
@@ -651,8 +709,8 @@ mod tests {
 			}),
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
@@ -672,8 +730,8 @@ mod tests {
 			result: Res::FailedCreate(TraceError::OutOfGas),
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
@@ -692,13 +750,33 @@ mod tests {
 			result: Res::None,
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
 		assert_eq!(serialized, r#"{"type":"suicide","action":{"address":"0x0000000000000000000000000000000000000004","refundAddress":"0x0000000000000000000000000000000000000006","balance":"0x7"},"result":null,"traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+	}
+
+	#[test]
+	fn test_trace_reward_serialize() {
+		let t = LocalizedTrace {
+			action: Action::Reward(Reward {
+				author: 4.into(),
+				value: 6.into(),
+				reward_type: RewardType::Block,
+			}),
+			result: Res::None,
+			trace_address: vec![10],
+			subtraces: 1,
+			transaction_position: None,
+			transaction_hash: None,
+			block_number: 13,
+			block_hash: 14.into(),
+		};
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"type":"reward","action":{"author":"0x0000000000000000000000000000000000000004","value":"0x6","rewardType":"block"},"result":null,"traceAddress":[10],"subtraces":1,"transactionPosition":null,"transactionHash":null,"blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]

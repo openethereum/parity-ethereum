@@ -1,0 +1,5 @@
+[
+	{"constant":false,"inputs":[],"name":"finalizeChange","outputs":[],"payable":false,"type":"function"},
+	{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"validators","type":"address[]"}],"payable":false,"type":"function"},
+	{"anonymous":false,"inputs":[{"indexed":true,"name":"_parent_hash","type":"bytes32"},{"indexed":false,"name":"_new_set","type":"address[]"}],"name":"InitiateChange","type":"event"}
+]

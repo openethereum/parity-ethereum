@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,8 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(all(nightly, feature="dev"), feature(plugin))]
-#![cfg_attr(all(nightly, feature="dev"), plugin(clippy))]
 
 //! Miner module
 //! Keeps track of transactions and mined block.
@@ -24,7 +22,6 @@
 //! Usage example:
 //!
 //! ```rust
-//! extern crate ethcore_util as util;
 //! extern crate ethcore;
 //! use std::env;
 //! use ethcore::ethereum;
@@ -32,7 +29,7 @@
 //! use ethcore::miner::{Miner, MinerService};
 //!
 //! fn main() {
-//!		let miner: Miner = Miner::with_spec(&ethereum::new_frontier());
+//!		let miner: Miner = Miner::with_spec(&ethereum::new_foundation(&env::temp_dir()));
 //!		// get status
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
@@ -42,24 +39,23 @@
 //! ```
 
 mod miner;
-mod external;
-mod transaction_queue;
-mod work_notify;
-mod price_info;
+mod stratum;
 
-pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
-pub use self::miner::{Miner, MinerOptions, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
-pub use self::external::{ExternalMiner, ExternalMinerService};
-pub use client::TransactionImportResult;
+pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
+pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOptions};
+
+pub use ethcore_miner::local_transactions::Status as LocalTransactionStatus;
 
 use std::collections::BTreeMap;
-use util::{H256, U256, Address, Bytes};
-use client::{MiningBlockChainClient, Executed, CallAnalytics};
+use ethereum_types::{H256, U256, Address};
+use bytes::Bytes;
+
 use block::ClosedBlock;
+use client::{MiningBlockChainClient};
+use error::{Error};
 use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
-use error::{Error, CallError};
-use transaction::SignedTransaction;
+use transaction::{UnverifiedTransaction, PendingTransaction, ImportResult as TransactionImportResult};
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
@@ -72,6 +68,9 @@ pub trait MinerService : Send + Sync {
 
 	/// Set the author that we will seal blocks as.
 	fn set_author(&self, author: Address);
+
+	/// Set info necessary to sign consensus messages.
+	fn set_engine_signer(&self, address: Address, password: String) -> Result<(), ::account_provider::SignError>;
 
 	/// Get the extra_data that we will seal blocks with.
 	fn extra_data(&self) -> Bytes;
@@ -108,11 +107,11 @@ pub trait MinerService : Send + Sync {
 	fn set_tx_gas_limit(&self, limit: U256);
 
 	/// Imports transactions to transaction queue.
-	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>) ->
+	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<UnverifiedTransaction>) ->
 		Vec<Result<TransactionImportResult, Error>>;
 
 	/// Imports own (node owner) transaction to queue.
-	fn import_own_transaction(&self, chain: &MiningBlockChainClient, transaction: SignedTransaction) ->
+	fn import_own_transaction(&self, chain: &MiningBlockChainClient, transaction: PendingTransaction) ->
 		Result<TransactionImportResult, Error>;
 
 	/// Returns hashes of transactions currently in pending
@@ -123,6 +122,9 @@ pub trait MinerService : Send + Sync {
 
 	/// Called when blocks are imported to chain, updates transactions queue.
 	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
+
+	/// PoW chain - can produce work package
+	fn can_produce_work_package(&self) -> bool;
 
 	/// New chain head event. Restart mining operation.
 	fn update_sealing(&self, chain: &MiningBlockChainClient);
@@ -136,13 +138,23 @@ pub trait MinerService : Send + Sync {
 		where F: FnOnce(&ClosedBlock) -> T, Self: Sized;
 
 	/// Query pending transactions for hash.
-	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<SignedTransaction>;
+	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction>;
 
-	/// Get a list of all transactions.
-	fn all_transactions(&self) -> Vec<SignedTransaction>;
+	/// Removes transaction from the queue.
+	/// NOTE: The transaction is not removed from pending block if mining.
+	fn remove_pending_transaction(&self, chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction>;
 
-	/// Get a list of all pending transactions.
-	fn pending_transactions(&self, best_block: BlockNumber) -> Vec<SignedTransaction>;
+	/// Get a list of all pending transactions in the queue.
+	fn pending_transactions(&self) -> Vec<PendingTransaction>;
+
+	/// Get a list of all transactions that can go into the given block.
+	fn ready_transactions(&self, best_block: BlockNumber, best_block_timestamp: u64) -> Vec<PendingTransaction>;
+
+	/// Get a list of all future transactions.
+	fn future_transactions(&self) -> Vec<PendingTransaction>;
+
+	/// Get a list of local transactions with statuses.
+	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus>;
 
 	/// Get a list of all pending receipts.
 	fn pending_receipts(&self, best_block: BlockNumber) -> BTreeMap<H256, Receipt>;
@@ -154,28 +166,13 @@ pub trait MinerService : Send + Sync {
 	fn last_nonce(&self, address: &Address) -> Option<U256>;
 
 	/// Is it currently sealing?
-	fn is_sealing(&self) -> bool;
+	fn is_currently_sealing(&self) -> bool;
 
 	/// Suggested gas price.
-	fn sensible_gas_price(&self) -> U256 { 20000000000u64.into() }
+	fn sensible_gas_price(&self) -> U256;
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { 21000.into() }
-
-	/// Latest account balance in pending state.
-	fn balance(&self, chain: &MiningBlockChainClient, address: &Address) -> U256;
-
-	/// Call into contract code using pending state.
-	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError>;
-
-	/// Get storage value in pending state.
-	fn storage_at(&self, chain: &MiningBlockChainClient, address: &Address, position: &H256) -> H256;
-
-	/// Get account nonce in pending state.
-	fn nonce(&self, chain: &MiningBlockChainClient, address: &Address) -> U256;
-
-	/// Get contract code in pending state.
-	fn code(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<Bytes>;
 }
 
 /// Mining status

@@ -1,15 +1,15 @@
 [package]
 description = "Ethcore IO library"
-homepage = "http://ethcore.io"
+homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-io"
-version = "1.4.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+version = "1.9.0"
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
+mio = "0.6.8"
 crossbeam = "0.2"
-parking_lot = "0.3"
+parking_lot = "0.4"
 log = "0.3"
 slab = "0.2"
 

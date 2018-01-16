@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,8 +16,7 @@
 
 //! Logger for parity executables
 
-extern crate ethcore_util as util;
-#[macro_use]
+extern crate arrayvec;
 extern crate log as rlog;
 extern crate isatty;
 extern crate regex;
@@ -25,18 +24,23 @@ extern crate env_logger;
 extern crate time;
 #[macro_use]
 extern crate lazy_static;
+extern crate parking_lot;
+extern crate ansi_term;
 
-use std::{env, thread};
-use std::sync::Arc;
-use std::fs::File;
+mod rotating;
+
+use std::{env, thread, fs};
+use std::sync::{Weak, Arc};
 use std::io::Write;
 use isatty::{stderr_isatty, stdout_isatty};
 use env_logger::LogBuilder;
 use regex::Regex;
-use util::RotatingLogger;
-use util::log::Colour;
+use ansi_term::Colour;
+use parking_lot::Mutex;
 
-#[derive(Debug, PartialEq)]
+pub use rotating::{RotatingLogger, init_log};
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct Config {
 	pub mode: Option<String>,
 	pub color: bool,
@@ -53,23 +57,28 @@ impl Default for Config {
 	}
 }
 
+lazy_static! {
+	static ref ROTATING_LOGGER : Mutex<Weak<RotatingLogger>> = Mutex::new(Default::default());
+}
+
 /// Sets up the logger
 pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 	use rlog::*;
 
 	let mut levels = String::new();
 	let mut builder = LogBuilder::new();
-	// Disable ws info logging by default.
+	// Disable info logging by default for some modules:
 	builder.filter(Some("ws"), LogLevelFilter::Warn);
-	// Disable rustls info logging by default.
+	builder.filter(Some("reqwest"), LogLevelFilter::Warn);
+	builder.filter(Some("hyper"), LogLevelFilter::Warn);
 	builder.filter(Some("rustls"), LogLevelFilter::Warn);
+	// Enable info for others.
 	builder.filter(None, LogLevelFilter::Info);
 
-	if env::var("RUST_LOG").is_ok() {
-		let lvl = &env::var("RUST_LOG").unwrap();
-		levels.push_str(lvl);
+	if let Ok(lvl) = env::var("RUST_LOG") {
+		levels.push_str(&lvl);
 		levels.push_str(",");
-		builder.parse(lvl);
+		builder.parse(&lvl);
 	}
 
 	if let Some(ref s) = config.mode {
@@ -81,9 +90,12 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 	let enable_color = config.color && isatty;
 	let logs = Arc::new(RotatingLogger::new(levels));
 	let logger = logs.clone();
+	let mut open_options = fs::OpenOptions::new();
 
 	let maybe_file = match config.file.as_ref() {
-		Some(f) => Some(try!(File::create(f).map_err(|_| format!("Cannot write to log file given: {}", f)))),
+		Some(f) => Some(open_options
+			.append(true).create(true).open(f)
+			.map_err(|_| format!("Cannot write to log file given: {}", f))?),
 		None => None,
 	};
 
@@ -119,16 +131,24 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
     };
 
 	builder.format(format);
-	builder.init().unwrap();
-
-	Ok(logs)
+	builder.init()
+		.and_then(|_| {
+			*ROTATING_LOGGER.lock() = Arc::downgrade(&logs);
+			Ok(logs)
+		})
+		// couldn't create new logger - try to fall back on previous logger.
+		.or_else(|err| match ROTATING_LOGGER.lock().upgrade() {
+			Some(l) => Ok(l),
+			// no previous logger. fatal.
+			None => Err(format!("{:?}", err)),
+		})
 }
 
 fn kill_color(s: &str) -> String {
 	lazy_static! {
 		static ref RE: Regex = Regex::new("\x1b\\[[^m]+m").unwrap();
 	}
-	RE.replace_all(s, "")
+	RE.replace_all(s, "").to_string()
 }
 
 #[test]

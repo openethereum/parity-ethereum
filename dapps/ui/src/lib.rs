@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,9 +14,33 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#[cfg(feature = "with-syntex")]
-include!(concat!(env!("OUT_DIR"), "/lib.rs"));
 
-#[cfg(not(feature = "with-syntex"))]
-include!("lib.rs.in");
+#[cfg(feature = "parity-ui-dev")]
+mod inner {
+	extern crate parity_ui_dev;
 
+	pub use self::parity_ui_dev::*;
+}
+
+#[cfg(feature = "parity-ui-precompiled")]
+mod inner {
+	extern crate parity_ui_precompiled;
+
+	pub use self::parity_ui_precompiled::*;
+}
+
+#[cfg(feature = "parity-ui-old-dev")]
+pub mod old {
+	extern crate parity_ui_old_dev;
+
+	pub use self::parity_ui_old_dev::*;
+}
+
+#[cfg(feature = "parity-ui-old-precompiled")]
+pub mod old {
+	extern crate parity_ui_old_precompiled;
+
+	pub use self::parity_ui_old_precompiled::*;
+}
+
+pub use self::inner::*;

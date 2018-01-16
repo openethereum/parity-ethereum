@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,13 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use {NetworkProtocolHandler, NetworkConfiguration, NonReservedPeerMode};
-use error::NetworkError;
-use host::{Host, NetworkContext, NetworkIoMessage, ProtocolId};
+use error::Error;
+use host::{Host, NetworkContext, NetworkIoMessage, PeerId, ProtocolId};
 use stats::NetworkStats;
 use io::*;
 use parking_lot::RwLock;
 use std::sync::Arc;
 use ansi_term::Colour;
+use connection_filter::ConnectionFilter;
 
 struct HostHandler {
 	public_url: RwLock<Option<String>>
@@ -46,39 +47,37 @@ pub struct NetworkService {
 	host_info: String,
 	host: RwLock<Option<Arc<Host>>>,
 	stats: Arc<NetworkStats>,
-	panic_handler: Arc<PanicHandler>,
 	host_handler: Arc<HostHandler>,
 	config: NetworkConfiguration,
+	filter: Option<Arc<ConnectionFilter>>,
 }
 
 impl NetworkService {
 	/// Starts IO event loop
-	pub fn new(config: NetworkConfiguration) -> Result<NetworkService, NetworkError> {
+	pub fn new(config: NetworkConfiguration, filter: Option<Arc<ConnectionFilter>>) -> Result<NetworkService, Error> {
 		let host_handler = Arc::new(HostHandler { public_url: RwLock::new(None) });
-		let panic_handler = PanicHandler::new_in_arc();
-		let io_service = try!(IoService::<NetworkIoMessage>::start());
-		panic_handler.forward_from(&io_service);
+		let io_service = IoService::<NetworkIoMessage>::start()?;
 
 		let stats = Arc::new(NetworkStats::new());
-		let host_info = Host::client_version();
 		Ok(NetworkService {
 			io_service: io_service,
-			host_info: host_info,
+			host_info: config.client_version.clone(),
 			stats: stats,
-			panic_handler: panic_handler,
 			host: RwLock::new(None),
 			config: config,
 			host_handler: host_handler,
+			filter: filter,
 		})
 	}
 
 	/// Regiter a new protocol handler with the event loop.
-	pub fn register_protocol(&self, handler: Arc<NetworkProtocolHandler + Send + Sync>, protocol: ProtocolId, versions: &[u8]) -> Result<(), NetworkError> {
-		try!(self.io_service.send_message(NetworkIoMessage::AddHandler {
+	pub fn register_protocol(&self, handler: Arc<NetworkProtocolHandler + Send + Sync>, protocol: ProtocolId, packet_count: u8, versions: &[u8]) -> Result<(), Error> {
+		self.io_service.send_message(NetworkIoMessage::AddHandler {
 			handler: handler,
 			protocol: protocol,
 			versions: versions.to_vec(),
-		}));
+			packet_count: packet_count,
+		})?;
 		Ok(())
 	}
 
@@ -115,34 +114,39 @@ impl NetworkService {
 	}
 
 	/// Start network IO
-	pub fn start(&self) -> Result<(), NetworkError> {
+	pub fn start(&self) -> Result<(), Error> {
 		let mut host = self.host.write();
 		if host.is_none() {
-			let h = Arc::new(try!(Host::new(self.config.clone(), self.stats.clone())));
-			try!(self.io_service.register_handler(h.clone()));
+			let h = Arc::new(Host::new(self.config.clone(), self.stats.clone(), self.filter.clone())?);
+			self.io_service.register_handler(h.clone())?;
 			*host = Some(h);
 		}
 
 		if self.host_handler.public_url.read().is_none() {
-			try!(self.io_service.register_handler(self.host_handler.clone()));
+			self.io_service.register_handler(self.host_handler.clone())?;
 		}
 
 		Ok(())
 	}
 
 	/// Stop network IO
-	pub fn stop(&self) -> Result<(), NetworkError> {
+	pub fn stop(&self) -> Result<(), Error> {
 		let mut host = self.host.write();
 		if let Some(ref host) = *host {
 			let io = IoContext::new(self.io_service.channel(), 0); //TODO: take token id from host
-			try!(host.stop(&io));
+			host.stop(&io)?;
 		}
 		*host = None;
 		Ok(())
 	}
 
+	/// Get a list of all connected peers by id.
+	pub fn connected_peers(&self) -> Vec<PeerId> {
+		self.host.read().as_ref().map(|h| h.connected_peers()).unwrap_or_else(Vec::new)
+	}
+
 	/// Try to add a reserved peer.
-	pub fn add_reserved_peer(&self, peer: &str) -> Result<(), NetworkError> {
+	pub fn add_reserved_peer(&self, peer: &str) -> Result<(), Error> {
 		let host = self.host.read();
 		if let Some(ref host) = *host {
 			host.add_reserved_node(peer)
@@ -152,7 +156,7 @@ impl NetworkService {
 	}
 
 	/// Try to remove a reserved peer.
-	pub fn remove_reserved_peer(&self, peer: &str) -> Result<(), NetworkError> {
+	pub fn remove_reserved_peer(&self, peer: &str) -> Result<(), Error> {
 		let host = self.host.read();
 		if let Some(ref host) = *host {
 			host.remove_reserved_node(peer)
@@ -171,7 +175,7 @@ impl NetworkService {
 	}
 
 	/// Executes action in the network context
-	pub fn with_context<F>(&self, protocol: ProtocolId, action: F) where F: Fn(&NetworkContext) {
+	pub fn with_context<F>(&self, protocol: ProtocolId, action: F) where F: FnOnce(&NetworkContext) {
 		let io = IoContext::new(self.io_service.channel(), 0);
 		let host = self.host.read();
 		if let Some(ref host) = host.as_ref() {
@@ -180,15 +184,9 @@ impl NetworkService {
 	}
 
 	/// Evaluates function in the network context
-	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, action: F) -> Option<T> where F: Fn(&NetworkContext) -> T {
+	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, action: F) -> Option<T> where F: FnOnce(&NetworkContext) -> T {
 		let io = IoContext::new(self.io_service.channel(), 0);
 		let host = self.host.read();
 		host.as_ref().map(|ref host| host.with_context_eval(protocol, &io, action))
-	}
-}
-
-impl MayPanic for NetworkService {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.panic_handler.on_panic(closure);
 	}
 }

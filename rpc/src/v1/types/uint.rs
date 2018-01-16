@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::cmp;
 use std::str::FromStr;
-use rustc_serialize::hex::ToHex;
+use std::fmt;
 use serde;
-use util::{U256 as EthU256, Uint};
+use ethereum_types::{U256 as EthU256, U128 as EthU128};
 
 macro_rules! impl_uint {
 	($name: ident, $other: ident, $size: expr) => {
@@ -48,58 +47,76 @@ macro_rules! impl_uint {
 			}
 		}
 
-		impl serde::Serialize for $name {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
-				let mut hex = "0x".to_owned();
-				let mut bytes = [0u8; 8 * $size];
-				self.0.to_big_endian(&mut bytes);
-				let len = cmp::max((self.0.bits() + 7) / 8, 1);
-				let bytes_hex = bytes[bytes.len() - len..].to_hex();
-
-				if bytes_hex.starts_with('0') {
-					hex.push_str(&bytes_hex[1..]);
-				} else {
-					hex.push_str(&bytes_hex);
-				}
-				serializer.serialize_str(&hex)
+		impl fmt::Display for $name {
+			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+				write!(f, "{}", self.0)
 			}
 		}
 
-		impl serde::Deserialize for $name {
-			fn deserialize<D>(deserializer: &mut D) -> Result<$name, D::Error>
-			where D: serde::Deserializer {
+		impl fmt::LowerHex for $name {
+			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+				write!(f, "{:#x}", self.0)
+			}
+		}
+
+		impl<'a> serde::Deserialize<'a> for $name {
+			fn deserialize<D>(deserializer: D) -> Result<$name, D::Error>
+			where D: serde::Deserializer<'a> {
 				struct UintVisitor;
 
-				impl serde::de::Visitor for UintVisitor {
+				impl<'b> serde::de::Visitor<'b> for UintVisitor {
 					type Value = $name;
 
-					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
-						// 0x + len
-						if value.len() > 2 + $size * 16 || value.len() < 2 {
-							return Err(serde::Error::custom("Invalid length."));
-						}
-
-						if &value[0..2] != "0x" {
-							return Err(serde::Error::custom("Use hex encoded numbers with 0x prefix."))
-						}
-
-						$other::from_str(&value[2..]).map($name).map_err(|_| serde::Error::custom("Invalid hex value."))
+					fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+						write!(formatter, "a 0x-prefixed, hex-encoded number of length {}", $size*16)
 					}
 
-					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
+					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: serde::de::Error {
+						if value.len() < 2  || &value[0..2] != "0x" {
+							return Err(E::custom("expected a hex-encoded numbers with 0x prefix"))
+						}
+
+						// 0x + len
+						if value.len() > 2 + $size * 16 {
+							return Err(E::invalid_length(value.len() - 2, &self));
+						}
+
+						$other::from_str(&value[2..]).map($name).map_err(|e| E::custom(&format!("invalid hex value: {:?}", e)))
+					}
+
+					fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: serde::de::Error {
 						self.visit_str(&value)
 					}
 				}
 
-				deserializer.deserialize(UintVisitor)
+				deserializer.deserialize_any(UintVisitor)
 			}
 		}
 
 	}
 }
 
+impl_uint!(U128, EthU128, 2);
 impl_uint!(U256, EthU256, 4);
+impl_uint!(U64, u64, 1);
 
+impl serde::Serialize for U128 {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+		serializer.serialize_str(&format!("0x{}", self.0.to_hex()))
+	}
+}
+
+impl serde::Serialize for U256 {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+		serializer.serialize_str(&format!("0x{}", self.0.to_hex()))
+	}
+}
+
+impl serde::Serialize for U64 {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+		serializer.serialize_str(&format!("0x{:x}", self.0))
+	}
+}
 
 #[cfg(test)]
 mod tests {

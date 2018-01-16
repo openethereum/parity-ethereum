@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,18 +16,20 @@
 
 //! Traces api implementation.
 
-use std::sync::{Weak, Arc};
-use jsonrpc_core::*;
-use rlp::{UntrustedRlp, View};
-use ethcore::client::{BlockChainClient, CallAnalytics, TransactionID, TraceId};
-use ethcore::miner::MinerService;
-use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
-use v1::traits::Traces;
-use v1::helpers::{errors, CallRequest as CRequest};
-use v1::helpers::params::from_params_default_third;
-use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256};
+use std::sync::Arc;
 
-fn to_call_analytics(flags: Vec<String>) -> CallAnalytics {
+use ethcore::client::{MiningBlockChainClient, CallAnalytics, TransactionId, TraceId};
+use rlp::UntrustedRlp;
+use transaction::SignedTransaction;
+
+use jsonrpc_core::Result;
+use jsonrpc_macros::Trailing;
+use v1::Metadata;
+use v1::traits::Traces;
+use v1::helpers::{errors, fake_sign};
+use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, TraceOptions, H256};
+
+fn to_call_analytics(flags: TraceOptions) -> CallAnalytics {
 	CallAnalytics {
 		transaction_tracing: flags.contains(&("trace".to_owned())),
 		vm_tracing: flags.contains(&("vmTrace".to_owned())),
@@ -36,127 +38,94 @@ fn to_call_analytics(flags: Vec<String>) -> CallAnalytics {
 }
 
 /// Traces api implementation.
-pub struct TracesClient<C, M> where C: BlockChainClient, M: MinerService {
-	client: Weak<C>,
-	miner: Weak<M>,
+pub struct TracesClient<C> {
+	client: Arc<C>,
 }
 
-impl<C, M> TracesClient<C, M> where C: BlockChainClient, M: MinerService {
+impl<C> TracesClient<C> {
 	/// Creates new Traces client.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>) -> Self {
+	pub fn new(client: &Arc<C>) -> Self {
 		TracesClient {
-			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
+			client: client.clone(),
 		}
 	}
-
-	// TODO: share with eth.rs
-	fn sign_call(&self, request: CRequest) -> Result<SignedTransaction, Error> {
-		let client = take_weak!(self.client);
-		let miner = take_weak!(self.miner);
-		let from = request.from.unwrap_or(0.into());
-		Ok(EthTransaction {
-			nonce: request.nonce.unwrap_or_else(|| client.latest_nonce(&from)),
-			action: request.to.map_or(Action::Create, Action::Call),
-			gas: request.gas.unwrap_or(50_000_000.into()),
-			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
-			value: request.value.unwrap_or(0.into()),
-			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
-		}.fake_sign(from))
-	}
-
-	fn active(&self) -> Result<(), Error> {
-		// TODO: only call every 30s at most.
-		take_weak!(self.client).keep_alive();
-		Ok(())
-	}
 }
 
-impl<C, M> Traces for TracesClient<C, M> where C: BlockChainClient + 'static, M: MinerService + 'static {
-	fn filter(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		from_params::<(TraceFilter,)>(params)
-			.and_then(|(filter, )| {
-				let client = take_weak!(self.client);
-				let traces = client.filter_traces(filter.into());
-				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
-				Ok(to_value(&traces))
-			})
+impl<C> Traces for TracesClient<C> where C: MiningBlockChainClient + 'static {
+	type Metadata = Metadata;
+
+	fn filter(&self, filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>> {
+		Ok(self.client.filter_traces(filter.into())
+			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
 	}
 
-	fn block_traces(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		from_params::<(BlockNumber,)>(params)
-			.and_then(|(block_number,)| {
-				let client = take_weak!(self.client);
-				let traces = client.block_traces(block_number.into());
-				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
-				Ok(to_value(&traces))
-			})
+	fn block_traces(&self, block_number: BlockNumber) -> Result<Option<Vec<LocalizedTrace>>> {
+		Ok(self.client.block_traces(block_number.into())
+			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
 	}
 
-	fn transaction_traces(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		from_params::<(H256,)>(params)
-			.and_then(|(transaction_hash,)| {
-				let client = take_weak!(self.client);
-				let traces = client.transaction_traces(TransactionID::Hash(transaction_hash.into()));
-				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(LocalizedTrace::from).collect());
-				Ok(to_value(&traces))
-			})
+	fn transaction_traces(&self, transaction_hash: H256) -> Result<Option<Vec<LocalizedTrace>>> {
+		Ok(self.client.transaction_traces(TransactionId::Hash(transaction_hash.into()))
+			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
 	}
 
-	fn trace(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		from_params::<(H256, Vec<Index>)>(params)
-			.and_then(|(transaction_hash, address)| {
-				let client = take_weak!(self.client);
-				let id = TraceId {
-					transaction: TransactionID::Hash(transaction_hash.into()),
-					address: address.into_iter().map(|i| i.value()).collect()
-				};
-				let trace = client.trace(id);
-				let trace = trace.map(LocalizedTrace::from);
-				Ok(to_value(&trace))
-			})
+	fn trace(&self, transaction_hash: H256, address: Vec<Index>) -> Result<Option<LocalizedTrace>> {
+		let id = TraceId {
+			transaction: TransactionId::Hash(transaction_hash.into()),
+			address: address.into_iter().map(|i| i.value()).collect()
+		};
+
+		Ok(self.client.trace(id)
+			.map(LocalizedTrace::from))
 	}
 
-	fn call(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		from_params_default_third(params)
-			.and_then(|(request, flags, block)| {
+	fn call(&self, meta: Self::Metadata, request: CallRequest, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults> {
+		let block = block.unwrap_or_default();
+
+		let request = CallRequest::into(request);
+		let signed = fake_sign::sign_call(request, meta.is_dapp())?;
+
+		self.client.call(&signed, to_call_analytics(flags), block.into())
+			.map(TraceResults::from)
+			.map_err(errors::call)
+	}
+
+	fn call_many(&self, meta: Self::Metadata, requests: Vec<(CallRequest, TraceOptions)>, block: Trailing<BlockNumber>) -> Result<Vec<TraceResults>> {
+		let block = block.unwrap_or_default();
+
+		let requests = requests.into_iter()
+			.map(|(request, flags)| {
 				let request = CallRequest::into(request);
-				let signed = try!(self.sign_call(request));
-				match take_weak!(self.client).call(&signed, block.into(), to_call_analytics(flags)) {
-					Ok(e) => Ok(to_value(&TraceResults::from(e))),
-					_ => Ok(Value::Null),
-				}
+				let signed = fake_sign::sign_call(request, meta.is_dapp())?;
+				Ok((signed, to_call_analytics(flags)))
 			})
+			.collect::<Result<Vec<_>>>()?;
+
+		self.client.call_many(&requests, block.into())
+			.map(|results| results.into_iter().map(TraceResults::from).collect())
+			.map_err(errors::call)
 	}
 
-	fn raw_transaction(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		from_params_default_third(params)
-			.and_then(|(raw_transaction, flags, block)| {
-				let raw_transaction = Bytes::to_vec(raw_transaction);
-				match UntrustedRlp::new(&raw_transaction).as_val() {
-					Ok(signed) => match take_weak!(self.client).call(&signed, block.into(), to_call_analytics(flags)) {
-						Ok(e) => Ok(to_value(&TraceResults::from(e))),
-						_ => Ok(Value::Null),
-					},
-					Err(e) => Err(errors::invalid_params("Transaction is not valid RLP", e)),
-				}
-			})
+	fn raw_transaction(&self, raw_transaction: Bytes, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults> {
+		let block = block.unwrap_or_default();
+
+		let tx = UntrustedRlp::new(&raw_transaction.into_vec()).as_val().map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))?;
+		let signed = SignedTransaction::new(tx).map_err(errors::transaction)?;
+
+		self.client.call(&signed, to_call_analytics(flags), block.into())
+			.map(TraceResults::from)
+			.map_err(errors::call)
 	}
 
-	fn replay_transaction(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		from_params::<(H256, _)>(params)
-			.and_then(|(transaction_hash, flags)| {
-				match take_weak!(self.client).replay(TransactionID::Hash(transaction_hash.into()), to_call_analytics(flags)) {
-					Ok(e) => Ok(to_value(&TraceResults::from(e))),
-					_ => Ok(Value::Null),
-				}
-			})
+	fn replay_transaction(&self, transaction_hash: H256, flags: TraceOptions) -> Result<TraceResults> {
+		self.client.replay(TransactionId::Hash(transaction_hash.into()), to_call_analytics(flags))
+			.map(TraceResults::from)
+			.map_err(errors::call)
+	}
+
+	fn replay_block_transactions(&self, block_number: BlockNumber, flags: TraceOptions) -> Result<Vec<TraceResults>> {
+		self.client.replay_block_transactions(block_number.into(), to_call_analytics(flags))
+			.map(|results| results.into_iter().map(TraceResults::from).collect())
+			.map_err(errors::call)
 	}
 }

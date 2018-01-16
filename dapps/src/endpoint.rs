@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,15 +16,25 @@
 
 //! URL Endpoint traits
 
-use hyper::{self, server, net};
 use std::collections::BTreeMap;
+
+use futures::Future;
+use hyper;
 
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct EndpointPath {
 	pub app_id: String,
+	pub app_params: Vec<String>,
+	pub query: Option<String>,
 	pub host: String,
 	pub port: u16,
 	pub using_dapps_domains: bool,
+}
+
+impl EndpointPath {
+	pub fn has_no_params(&self) -> bool {
+		self.app_params.is_empty() || self.app_params.iter().all(|x| x.is_empty())
+	}
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -34,19 +44,15 @@ pub struct EndpointInfo {
 	pub version: String,
 	pub author: String,
 	pub icon_url: String,
+	pub local_url: Option<String>,
 }
 
 pub type Endpoints = BTreeMap<String, Box<Endpoint>>;
-pub type Handler = server::Handler<net::HttpStream> + Send;
+pub type Response = Box<Future<Item=hyper::Response, Error=hyper::Error> + Send>;
+pub type Request = hyper::Request;
 
 pub trait Endpoint : Send + Sync {
 	fn info(&self) -> Option<&EndpointInfo> { None }
 
-	fn to_handler(&self, _path: EndpointPath) -> Box<Handler> {
-		panic!("This Endpoint is asynchronous and requires Control object.");
-	}
-
-	fn to_async_handler(&self, path: EndpointPath, _control: hyper::Control) -> Box<Handler> {
-		self.to_handler(path)
-	}
+	fn respond(&self, path: EndpointPath, req: Request) -> Response;
 }

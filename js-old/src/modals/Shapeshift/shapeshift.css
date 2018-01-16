@@ -1,0 +1,84 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.body {
+}
+
+.addressInfo {
+  text-align: center;
+
+  .address {
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0.75em 0;
+    padding: 1em;
+
+    span {
+      margin-left: 0.75em;
+    }
+  }
+
+  .qrcode {
+    margin: 0.75em 0;
+  }
+}
+
+.shapeshift {
+  cursor: pointer;
+  left: 1.5em;
+  outline: none;
+  position: absolute;
+
+  img {
+    height: 28px;
+  }
+}
+
+.info, .busy {
+}
+
+.center {
+  div {
+    text-align: center;
+  }
+}
+
+.error {
+  padding-top: 1.5em;
+  color: #e44;
+}
+
+.hero {
+  padding-top: 0.75em;
+  text-align: center;
+  font-size: 1.75em;
+}
+
+.symbol {
+  display: inline-block;
+  color: #aaa;
+}
+
+.price {
+  div {
+    text-align: center;
+    font-size: small;
+  }
+}
+
+.empty {
+  color: #aaa;
+}

@@ -1,0 +1,91 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+@import '../../_layout.css';
+
+.container {
+  display: flex;
+  padding: 1.5em 1em 1.5em 0;
+}
+
+.actions, .signDetails {
+  vertical-align: middle;
+  min-height: $pendingHeight;
+}
+
+.signData {
+  border: 0.25em solid red;
+  margin-left: 2em;
+  padding: 0.5em;
+  overflow: auto;
+  max-height: 6em;
+  max-width: calc(100% - 2em);
+}
+
+.signData > p {
+  color: white;
+}
+
+.signDetails {
+  flex: 1;
+  overflow: auto;
+}
+
+.account img {
+  display: inline-block;
+  height: 50px;
+  margin: 5px;
+  width: 50px;
+}
+
+.address, .info {
+  box-sizing: border-box;
+  display: inline-block;
+  vertical-align: top;
+}
+
+.address {
+  width: 40%;
+}
+
+.info {
+  color: #E53935;
+  width: 60%;
+}
+
+.info p:first-child {
+  margin-top: 0;
+}
+
+/* TODO [todr] copy&paste from transactions */
+.isConfirmed {
+  color: green;
+}
+
+.isRejected {
+  opacity: 0.7;
+}
+
+.txHash {
+  display: block;
+  word-break: break-all;
+}
+
+.actions {
+  display: inline-block;
+  min-height: $finishedHeight;
+}

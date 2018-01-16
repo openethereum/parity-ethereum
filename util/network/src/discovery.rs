@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,21 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::bytes::Bytes;
+use ethcore_bytes::Bytes;
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::mem;
 use std::default::Default;
 use mio::*;
+use mio::deprecated::{Handler, EventLoop};
 use mio::udp::*;
-use util::sha3::*;
+use hash::keccak;
 use time;
-use util::hash::*;
+use ethereum_types::{H256, H520};
 use rlp::*;
 use node_table::*;
-use error::NetworkError;
+use error::{Error, ErrorKind};
 use io::{StreamToken, IoContext};
 use ethkey::{Secret, KeyPair, sign, recover};
+use IpFilter;
 
 use PROTOCOL_VERSION;
 
@@ -56,6 +58,7 @@ pub struct NodeEntry {
 
 pub struct BucketEntry {
 	pub address: NodeEntry,
+	pub id_hash: H256,
 	pub timeout: Option<u64>,
 }
 
@@ -84,6 +87,7 @@ struct Datagramm {
 
 pub struct Discovery {
 	id: NodeId,
+	id_hash: H256,
 	secret: Secret,
 	public_endpoint: NodeEndpoint,
 	udp_socket: UdpSocket,
@@ -95,6 +99,7 @@ pub struct Discovery {
 	send_queue: VecDeque<Datagramm>,
 	check_timestamps: bool,
 	adding_nodes: Vec<NodeEntry>,
+	ip_filter: IpFilter,
 }
 
 pub struct TableUpdates {
@@ -103,10 +108,11 @@ pub struct TableUpdates {
 }
 
 impl Discovery {
-	pub fn new(key: &KeyPair, listen: SocketAddr, public: NodeEndpoint, token: StreamToken) -> Discovery {
-		let socket = UdpSocket::bound(&listen).expect("Error binding UDP socket");
+	pub fn new(key: &KeyPair, listen: SocketAddr, public: NodeEndpoint, token: StreamToken, ip_filter: IpFilter) -> Discovery {
+		let socket = UdpSocket::bind(&listen).expect("Error binding UDP socket");
 		Discovery {
 			id: key.public().clone(),
+			id_hash: keccak(key.public()),
 			secret: key.secret().clone(),
 			public_endpoint: public,
 			token: token,
@@ -118,14 +124,17 @@ impl Discovery {
 			send_queue: VecDeque::new(),
 			check_timestamps: true,
 			adding_nodes: Vec::new(),
+			ip_filter: ip_filter,
 		}
 	}
 
 	/// Add a new node to discovery table. Pings the node.
 	pub fn add_node(&mut self, e: NodeEntry) {
-		let endpoint = e.endpoint.clone();
-		self.update_node(e);
-		self.ping(&endpoint);
+		if self.is_allowed(&e) {
+			let endpoint = e.endpoint.clone();
+			self.update_node(e);
+			self.ping(&endpoint);
+		}
 	}
 
 	/// Add a list of nodes. Pings a few nodes each round
@@ -137,14 +146,17 @@ impl Discovery {
 	/// Add a list of known nodes to the table.
 	pub fn init_node_list(&mut self, mut nodes: Vec<NodeEntry>) {
 		for n in nodes.drain(..) {
-			self.update_node(n);
+			if self.is_allowed(&n) {
+				self.update_node(n);
+			}
 		}
 	}
 
 	fn update_node(&mut self, e: NodeEntry) {
 		trace!(target: "discovery", "Inserting {:?}", &e);
+		let id_hash = keccak(e.id);
 		let ping = {
-			let mut bucket = self.node_buckets.get_mut(Discovery::distance(&self.id, &e.id) as usize).unwrap();
+			let bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &id_hash) as usize];
 			let updated = if let Some(node) = bucket.nodes.iter_mut().find(|n| n.address.id == e.id) {
 				node.address = e.clone();
 				node.timeout = None;
@@ -152,13 +164,14 @@ impl Discovery {
 			} else { false };
 
 			if !updated {
-				bucket.nodes.push_front(BucketEntry { address: e, timeout: None });
+				bucket.nodes.push_front(BucketEntry { address: e, timeout: None, id_hash: id_hash, });
 			}
 
 			if bucket.nodes.len() > BUCKET_SIZE {
 				//ping least active node
-				bucket.nodes.back_mut().unwrap().timeout = Some(time::precise_time_ns());
-				Some(bucket.nodes.back().unwrap().address.endpoint.clone())
+				let last = bucket.nodes.back_mut().expect("Last item is always present when len() > 0");
+				last.timeout = Some(time::precise_time_ns());
+				Some(last.address.endpoint.clone())
 			} else { None }
 		};
 		if let Some(endpoint) = ping {
@@ -167,7 +180,7 @@ impl Discovery {
 	}
 
 	fn clear_ping(&mut self, id: &NodeId) {
-		let mut bucket = self.node_buckets.get_mut(Discovery::distance(&self.id, id) as usize).unwrap();
+		let bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &keccak(id)) as usize];
 		if let Some(node) = bucket.nodes.iter_mut().find(|n| &n.address.id == id) {
 			node.timeout = None;
 		}
@@ -200,7 +213,7 @@ impl Discovery {
 			let nearest = Discovery::nearest_node_entries(&self.discovery_id, &self.node_buckets).into_iter();
 			let nearest = nearest.filter(|x| !self.discovery_nodes.contains(&x.id)).take(ALPHA).collect::<Vec<_>>();
 			for r in nearest {
-				let rlp = encode(&(&[self.discovery_id.clone()][..]));
+				let rlp = encode_list(&(&[self.discovery_id.clone()][..]));
 				self.send_packet(PACKET_FIND_NODE, &r.endpoint.udp_address(), &rlp);
 				self.discovery_nodes.insert(r.id.clone());
 				tried_count += 1;
@@ -217,8 +230,8 @@ impl Discovery {
 		self.discovery_round += 1;
 	}
 
-	fn distance(a: &NodeId, b: &NodeId) -> u32 {
-		let d = a.sha3() ^ b.sha3();
+	fn distance(a: &H256, b: &H256) -> u32 {
+		let d = *a ^ *b;
 		let mut ret:u32 = 0;
 		for i in 0..32 {
 			let mut v: u8 = d[i];
@@ -251,7 +264,7 @@ impl Discovery {
 		rlp.append(&timestamp);
 
 		let bytes = rlp.drain();
-		let hash = bytes.as_ref().sha3();
+		let hash = keccak(bytes.as_ref());
 		let signature = match sign(&self.secret, &hash) {
 			Ok(s) => s,
 			Err(_) => {
@@ -263,25 +276,25 @@ impl Discovery {
 		packet.extend(hash.iter());
 		packet.extend(signature.iter());
 		packet.extend(bytes.iter());
-		let signed_hash = (&packet[32..]).sha3();
+		let signed_hash = keccak(&packet[32..]);
 		packet[0..32].clone_from_slice(&signed_hash);
 		self.send_to(packet, address.clone());
 	}
 
-	#[cfg_attr(feature="dev", allow(map_clone))]
 	fn nearest_node_entries(target: &NodeId, buckets: &[NodeBucket]) -> Vec<NodeEntry> {
 		let mut found: BTreeMap<u32, Vec<&NodeEntry>> = BTreeMap::new();
 		let mut count = 0;
+		let target_hash = keccak(target);
 
 		// Sort nodes by distance to target
 		for bucket in buckets {
 			for node in &bucket.nodes {
-				let distance = Discovery::distance(target, &node.address.id);
+				let distance = Discovery::distance(&target_hash, &node.id_hash);
 				found.entry(distance).or_insert_with(Vec::new).push(&node.address);
 				if count == BUCKET_SIZE {
 					// delete the most distant element
 					let remove = {
-						let (key, last) = found.iter_mut().next_back().unwrap();
+						let (key, last) = found.iter_mut().next_back().expect("Last element is always Some when count > 0");
 						last.pop();
 						if last.is_empty() { Some(key.clone()) } else { None }
 					};
@@ -303,8 +316,7 @@ impl Discovery {
 	}
 
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>) where Message: Send + Sync + Clone {
-		while !self.send_queue.is_empty() {
-			let data = self.send_queue.pop_front().unwrap();
+		while let Some(data) = self.send_queue.pop_front() {
 			match self.udp_socket.send_to(&data.payload, &data.address) {
 				Ok(Some(size)) if size == data.payload.len() => {
 				},
@@ -349,20 +361,20 @@ impl Discovery {
 		res
 	}
 
-	fn on_packet(&mut self, packet: &[u8], from: SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
+	fn on_packet(&mut self, packet: &[u8], from: SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		// validate packet
 		if packet.len() < 32 + 65 + 4 + 1 {
-			return Err(NetworkError::BadProtocol);
+			return Err(ErrorKind::BadProtocol.into());
 		}
 
-		let hash_signed = (&packet[32..]).sha3();
+		let hash_signed = keccak(&packet[32..]);
 		if hash_signed[..] != packet[0..32] {
-			return Err(NetworkError::BadProtocol);
+			return Err(ErrorKind::BadProtocol.into());
 		}
 
 		let signed = &packet[(32 + 65)..];
 		let signature = H520::from_slice(&packet[32..(32 + 65)]);
-		let node_id = try!(recover(&signature.into(), &signed.sha3()));
+		let node_id = recover(&signature.into(), &keccak(signed))?;
 
 		let packet_id = signed[0];
 		let rlp = UntrustedRlp::new(&signed[1..]);
@@ -378,30 +390,35 @@ impl Discovery {
 		}
 	}
 
-	fn check_timestamp(&self, timestamp: u64) -> Result<(), NetworkError> {
+	fn check_timestamp(&self, timestamp: u64) -> Result<(), Error> {
 		if self.check_timestamps && timestamp < time::get_time().sec as u64{
 			debug!(target: "discovery", "Expired packet");
-			return Err(NetworkError::Expired);
+			return Err(ErrorKind::Expired.into());
 		}
 		Ok(())
 	}
 
-	fn on_ping(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
+	fn is_allowed(&self, entry: &NodeEntry) -> bool {
+		entry.endpoint.is_allowed(&self.ip_filter) && entry.id != self.id
+	}
+
+	fn on_ping(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Ping from {:?}", &from);
-		let source = try!(NodeEndpoint::from_rlp(&try!(rlp.at(1))));
-		let dest = try!(NodeEndpoint::from_rlp(&try!(rlp.at(2))));
-		let timestamp: u64 = try!(rlp.val_at(3));
-		try!(self.check_timestamp(timestamp));
+		let source = NodeEndpoint::from_rlp(&rlp.at(1)?)?;
+		let dest = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
+		let timestamp: u64 = rlp.val_at(3)?;
+		self.check_timestamp(timestamp)?;
 		let mut added_map = HashMap::new();
 		let entry = NodeEntry { id: node.clone(), endpoint: source.clone() };
-		if !entry.endpoint.is_valid() || !entry.endpoint.is_global() {
+		if !entry.endpoint.is_valid() {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
-		}
-		else {
+		} else if !self.is_allowed(&entry) {
+			debug!(target: "discovery", "Address not allowed: {:?}", entry);
+		} else {
 			self.update_node(entry.clone());
 			added_map.insert(node.clone(), entry);
 		}
-		let hash = rlp.as_raw().sha3();
+		let hash = keccak(rlp.as_raw());
 		let mut response = RlpStream::new_list(2);
 		dest.to_rlp_list(&mut response);
 		response.append(&hash);
@@ -410,12 +427,12 @@ impl Discovery {
 		Ok(Some(TableUpdates { added: added_map, removed: HashSet::new() }))
 	}
 
-	fn on_pong(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
+	fn on_pong(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Pong from {:?}", &from);
 		// TODO: validate pong packet
-		let dest = try!(NodeEndpoint::from_rlp(&try!(rlp.at(0))));
-		let timestamp: u64 = try!(rlp.val_at(2));
-		try!(self.check_timestamp(timestamp));
+		let dest = NodeEndpoint::from_rlp(&rlp.at(0)?)?;
+		let timestamp: u64 = rlp.val_at(2)?;
+		self.check_timestamp(timestamp)?;
 		let mut entry = NodeEntry { id: node.clone(), endpoint: dest };
 		if !entry.endpoint.is_valid() {
 			debug!(target: "discovery", "Bad address: {:?}", entry);
@@ -427,11 +444,11 @@ impl Discovery {
 		Ok(None)
 	}
 
-	fn on_find_node(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
+	fn on_find_node(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got FindNode from {:?}", &from);
-		let target: NodeId = try!(rlp.val_at(0));
-		let timestamp: u64 = try!(rlp.val_at(1));
-		try!(self.check_timestamp(timestamp));
+		let target: NodeId = rlp.val_at(0)?;
+		let timestamp: u64 = rlp.val_at(1)?;
+		self.check_timestamp(timestamp)?;
 		let nearest = Discovery::nearest_node_entries(&target, &self.node_buckets);
 		if nearest.is_empty() {
 			return Ok(None);
@@ -460,21 +477,25 @@ impl Discovery {
 		packets.collect()
 	}
 
-	fn on_neighbours(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
+	fn on_neighbours(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		// TODO: validate packet
 		let mut added = HashMap::new();
-		trace!(target: "discovery", "Got {} Neighbours from {:?}", try!(rlp.at(0)).item_count(), &from);
-		for r in try!(rlp.at(0)).iter() {
-			let endpoint = try!(NodeEndpoint::from_rlp(&r));
+		trace!(target: "discovery", "Got {} Neighbours from {:?}", rlp.at(0)?.item_count()?, &from);
+		for r in rlp.at(0)?.iter() {
+			let endpoint = NodeEndpoint::from_rlp(&r)?;
 			if !endpoint.is_valid() {
 				debug!(target: "discovery", "Bad address: {:?}", endpoint);
 				continue;
 			}
-			let node_id: NodeId = try!(r.val_at(3));
+			let node_id: NodeId = r.val_at(3)?;
 			if node_id == self.id {
 				continue;
 			}
 			let entry = NodeEntry { id: node_id.clone(), endpoint: endpoint };
+			if !self.is_allowed(&entry) {
+				debug!(target: "discovery", "Address not allowed: {:?}", entry);
+				continue;
+			}
 			added.insert(node_id, entry.clone());
 			self.ping(&entry.endpoint);
 			self.update_node(entry);
@@ -514,16 +535,16 @@ impl Discovery {
 		self.start();
 	}
 
-	pub fn register_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
-		event_loop.register(&self.udp_socket, Token(self.token), EventSet::all(), PollOpt::edge()).expect("Error registering UDP socket");
+	pub fn register_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
+		event_loop.register(&self.udp_socket, Token(self.token), Ready::all(), PollOpt::edge()).expect("Error registering UDP socket");
 		Ok(())
 	}
 
-	pub fn update_registration<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
+	pub fn update_registration<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
 		let registration = if !self.send_queue.is_empty() {
-			EventSet::readable() | EventSet::writable()
+			Ready::readable() | Ready::writable()
 		} else {
-			EventSet::readable()
+			Ready::readable()
 		};
 		event_loop.reregister(&self.udp_socket, Token(self.token), registration, PollOpt::edge()).expect("Error reregistering UDP socket");
 		Ok(())
@@ -533,11 +554,11 @@ impl Discovery {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use util::hash::*;
-	use std::net::*;
-	use node_table::*;
+	use std::net::{SocketAddr};
+	use node_table::{Node, NodeId, NodeEndpoint};
+
 	use std::str::FromStr;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	use ethkey::{Random, Generator};
 
 	#[test]
@@ -563,8 +584,8 @@ mod tests {
 		let key2 = Random.generate().unwrap();
 		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40444").unwrap(), udp_port: 40444 };
 		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40445").unwrap(), udp_port: 40445 };
-		let mut discovery1 = Discovery::new(&key1, ep1.address.clone(), ep1.clone(), 0);
-		let mut discovery2 = Discovery::new(&key2, ep2.address.clone(), ep2.clone(), 0);
+		let mut discovery1 = Discovery::new(&key1, ep1.address.clone(), ep1.clone(), 0, IpFilter::default());
+		let mut discovery2 = Discovery::new(&key2, ep2.address.clone(), ep2.clone(), 0, IpFilter::default());
 
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7771").unwrap();
@@ -596,7 +617,7 @@ mod tests {
 	fn removes_expired() {
 		let key = Random.generate().unwrap();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40446").unwrap(), udp_port: 40447 };
-		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0);
+		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0, IpFilter::default());
 		for _ in 0..1200 {
 			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
 		}
@@ -613,7 +634,8 @@ mod tests {
 		for _ in 0..(16 + 10) {
 			buckets[0].nodes.push_back(BucketEntry {
 				address: NodeEntry { id: NodeId::new(), endpoint: ep.clone() },
-				timeout: None
+				timeout: None,
+				id_hash: keccak(NodeId::new()),
 			});
 		}
 		let nearest = Discovery::nearest_node_entries(&NodeId::new(), &buckets);
@@ -624,7 +646,7 @@ mod tests {
 	fn packets() {
 		let key = Random.generate().unwrap();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40447").unwrap(), udp_port: 40447 };
-		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0);
+		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0, IpFilter::default());
 		discovery.check_timestamps = false;
 		let from = SocketAddr::from_str("99.99.99.99:40445").unwrap();
 

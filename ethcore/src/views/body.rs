@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,11 +16,13 @@
 
 //! View onto block body rlp.
 
-use util::*;
+use hash::keccak;
+use ethereum_types::H256;
+use bytes::Bytes;
 use header::*;
 use transaction::*;
 use super::{TransactionView, HeaderView};
-use rlp::{Rlp, View};
+use rlp::Rlp;
 
 /// View onto block rlp.
 pub struct BodyView<'a> {
@@ -48,8 +50,8 @@ impl<'a> BodyView<'a> {
 	}
 
 	/// Return List of transactions in given block.
-	pub fn transactions(&self) -> Vec<SignedTransaction> {
-		self.rlp.val_at(0)
+	pub fn transactions(&self) -> Vec<UnverifiedTransaction> {
+		self.rlp.list_at(0)
 	}
 
 	/// Return List of transactions with additional localization info.
@@ -61,7 +63,8 @@ impl<'a> BodyView<'a> {
 				signed: t,
 				block_hash: block_hash.clone(),
 				block_number: block_number,
-				transaction_index: i
+				transaction_index: i,
+				cached_sender: None,
 			}).collect()
 	}
 
@@ -71,17 +74,17 @@ impl<'a> BodyView<'a> {
 	}
 
 	/// Return List of transactions in given block.
-	pub fn transaction_views(&self) -> Vec<TransactionView> {
+	pub fn transaction_views(&self) -> Vec<TransactionView<'a>> {
 		self.rlp.at(0).iter().map(TransactionView::new_from_rlp).collect()
 	}
 
 	/// Return transaction hashes.
 	pub fn transaction_hashes(&self) -> Vec<H256> {
-		self.rlp.at(0).iter().map(|rlp| rlp.as_raw().sha3()).collect()
+		self.rlp.at(0).iter().map(|rlp| keccak(rlp.as_raw())).collect()
 	}
 
 	/// Returns transaction at given index without deserializing unnecessary data.
-	pub fn transaction_at(&self, index: usize) -> Option<SignedTransaction> {
+	pub fn transaction_at(&self, index: usize) -> Option<UnverifiedTransaction> {
 		self.rlp.at(0).iter().nth(index).map(|rlp| rlp.as_val())
 	}
 
@@ -91,13 +94,14 @@ impl<'a> BodyView<'a> {
 			signed: t,
 			block_hash: block_hash.clone(),
 			block_number: block_number,
-			transaction_index: index
+			transaction_index: index,
+			cached_sender: None,
 		})
 	}
 
 	/// Return list of uncles of given block.
 	pub fn uncles(&self) -> Vec<Header> {
-		self.rlp.val_at(1)
+		self.rlp.list_at(1)
 	}
 
 	/// Return number of uncles in given block, without deserializing them.
@@ -106,13 +110,13 @@ impl<'a> BodyView<'a> {
 	}
 
 	/// Return List of transactions in given block.
-	pub fn uncle_views(&self) -> Vec<HeaderView> {
+	pub fn uncle_views(&self) -> Vec<HeaderView<'a>> {
 		self.rlp.at(1).iter().map(HeaderView::new_from_rlp).collect()
 	}
 
 	/// Return list of uncle hashes of given block.
 	pub fn uncle_hashes(&self) -> Vec<H256> {
-		self.rlp.at(1).iter().map(|rlp| rlp.as_raw().sha3()).collect()
+		self.rlp.at(1).iter().map(|rlp| keccak(rlp.as_raw())).collect()
 	}
 
 	/// Return nth uncle.
@@ -128,7 +132,7 @@ impl<'a> BodyView<'a> {
 
 #[cfg(test)]
 mod tests {
-	use util::*;
+	use rustc_hex::FromHex;
 	use super::BodyView;
 	use blockchain::BlockChain;
 

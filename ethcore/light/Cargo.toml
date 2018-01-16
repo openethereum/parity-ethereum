@@ -1,0 +1,47 @@
+[package]
+description = "Parity Light Client Implementation"
+homepage = "http://parity.io"
+license = "GPL-3.0"
+name = "ethcore-light"
+version = "1.9.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+log = "0.3"
+ethcore = { path = ".."}
+ethcore-bytes = { path = "../../util/bytes" }
+ethcore-transaction = { path = "../transaction" }
+ethereum-types = "0.1"
+memorydb = { path = "../../util/memorydb" }
+patricia-trie = { path = "../../util/patricia_trie" }
+ethcore-network = { path = "../../util/network" }
+ethcore-io = { path = "../../util/io" }
+evm = { path = "../evm" }
+hashdb = { path = "../../util/hashdb" }
+heapsize = "0.4"
+vm = { path = "../vm" }
+plain_hasher = { path = "../../util/plain_hasher" }
+rlp = { path = "../../util/rlp" }
+rlp_derive = { path = "../../util/rlp_derive" }
+time = "0.1"
+smallvec = "0.4"
+futures = "0.1"
+rand = "0.3"
+itertools = "0.5"
+bincode = "0.8.0"
+serde = "1.0"
+serde_derive = "1.0"
+parking_lot = "0.4"
+stats = { path = "../../util/stats" }
+keccak-hash = { path = "../../util/hash" }
+triehash = { path = "../../util/triehash" }
+kvdb = { path = "../../util/kvdb" }
+kvdb-rocksdb = { path = "../../util/kvdb-rocksdb" }
+kvdb-memorydb = { path = "../../util/kvdb-memorydb" }
+memory-cache = { path = "../../util/memory_cache" }
+
+[dev-dependencies]
+tempdir = "0.3"
+
+[features]
+default = []

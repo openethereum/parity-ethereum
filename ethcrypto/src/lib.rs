@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,11 +16,12 @@
 
 //! Crypto utils used ethstore and network.
 
-extern crate ethcore_bigint as bigint;
-extern crate tiny_keccak;
 extern crate crypto as rcrypto;
-extern crate secp256k1;
+extern crate ethereum_types;
 extern crate ethkey;
+extern crate secp256k1;
+extern crate subtle;
+extern crate tiny_keccak;
 
 use std::fmt;
 use tiny_keccak::Keccak;
@@ -34,20 +35,56 @@ pub const KEY_LENGTH: usize = 32;
 pub const KEY_ITERATIONS: usize = 10240;
 pub const KEY_LENGTH_AES: usize = KEY_LENGTH / 2;
 
+/// Default authenticated data to use (in RPC).
+pub const DEFAULT_MAC: [u8; 2] = [0, 0];
+
+#[derive(PartialEq, Debug)]
+pub enum ScryptError {
+	// log(N) < r / 16
+	InvalidN,
+	// p <= (2^31-1 * 32)/(128 * r)
+	InvalidP,
+}
+
+impl fmt::Display for ScryptError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		let s = match *self {
+			ScryptError::InvalidN => "Invalid N argument of the scrypt encryption" ,
+			ScryptError::InvalidP => "Invalid p argument of the scrypt encryption",
+		};
+
+		write!(f, "{}", s)
+	}
+}
+
 #[derive(PartialEq, Debug)]
 pub enum Error {
 	Secp(SecpError),
+	Scrypt(ScryptError),
 	InvalidMessage,
+}
+
+impl From<ScryptError> for Error {
+	fn from(err: ScryptError) -> Self {
+		Error::Scrypt(err)
+	}
 }
 
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		let s = match *self {
 			Error::Secp(ref err) => err.to_string(),
+			Error::Scrypt(ref err) => err.to_string(),
 			Error::InvalidMessage => "Invalid message".into(),
 		};
 
 		write!(f, "{}", s)
+	}
+}
+
+impl Into<String> for Error {
+	fn into(self) -> String {
+		format!("{}", self)
 	}
 }
 
@@ -61,11 +98,11 @@ pub trait Keccak256<T> {
 	fn keccak256(&self) -> T where T: Sized;
 }
 
-impl Keccak256<[u8; 32]> for [u8] {
+impl<T> Keccak256<[u8; 32]> for T where T: AsRef<[u8]> {
 	fn keccak256(&self) -> [u8; 32] {
 		let mut keccak = Keccak::new_keccak256();
 		let mut result = [0u8; 32];
-		keccak.update(self);
+		keccak.update(self.as_ref());
 		keccak.finalize(&mut result);
 		result
 	}
@@ -80,13 +117,23 @@ pub fn derive_key_iterations(password: &str, salt: &[u8; 32], c: u32) -> (Vec<u8
 	(derived_right_bits.to_vec(), derived_left_bits.to_vec())
 }
 
-pub fn derive_key_scrypt(password: &str, salt: &[u8; 32], n: u32, p: u32, r: u32) -> (Vec<u8>, Vec<u8>) {
+pub fn derive_key_scrypt(password: &str, salt: &[u8; 32], n: u32, p: u32, r: u32) -> Result<(Vec<u8>, Vec<u8>), Error> {
+	// sanity checks
+	let log_n = (32 - n.leading_zeros() - 1) as u8;
+	if log_n as u32 >= r * 16 {
+		return Err(Error::Scrypt(ScryptError::InvalidN));
+	}
+
+	if p as u64 > ((u32::max_value() as u64 - 1) * 32)/(128 * (r as u64)) {
+		return Err(Error::Scrypt(ScryptError::InvalidP));
+	}
+
 	let mut derived_key = vec![0u8; KEY_LENGTH];
-	let scrypt_params = ScryptParams::new(n.trailing_zeros() as u8, r, p);
+	let scrypt_params = ScryptParams::new(log_n, r, p);
 	scrypt(password.as_bytes(), salt, &scrypt_params, &mut derived_key);
 	let derived_right_bits = &derived_key[0..KEY_LENGTH_AES];
 	let derived_left_bits = &derived_key[KEY_LENGTH_AES..KEY_LENGTH];
-	(derived_right_bits.to_vec(), derived_left_bits.to_vec())
+	Ok((derived_right_bits.to_vec(), derived_left_bits.to_vec()))
 }
 
 pub fn derive_mac(derived_left_bits: &[u8], cipher_text: &[u8]) -> Vec<u8> {
@@ -103,13 +150,13 @@ pub mod aes {
 	use rcrypto::symmetriccipher::{Encryptor, Decryptor, SymmetricCipherError};
 	use rcrypto::buffer::{RefReadBuffer, RefWriteBuffer, WriteBuffer};
 
-	/// Encrypt a message
+	/// Encrypt a message (CTR mode)
 	pub fn encrypt(k: &[u8], iv: &[u8], plain: &[u8], dest: &mut [u8]) {
 		let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv.to_vec());
 		encryptor.encrypt(&mut RefReadBuffer::new(plain), &mut RefWriteBuffer::new(dest), true).expect("Invalid length or padding");
 	}
 
-	/// Decrypt a message
+	/// Decrypt a message (CTR mode)
 	pub fn decrypt(k: &[u8], iv: &[u8], encrypted: &[u8], dest: &mut [u8]) {
 		let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv.to_vec());
 		encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut RefWriteBuffer::new(dest), true).expect("Invalid length or padding");
@@ -121,15 +168,14 @@ pub mod aes {
 		let mut encryptor = CbcDecryptor::new(AesSafe128Decryptor::new(k), PkcsPadding, iv.to_vec());
 		let len = dest.len();
 		let mut buffer = RefWriteBuffer::new(dest);
-		try!(encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut buffer, true));
+		encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut buffer, true)?;
 		Ok(len - buffer.remaining())
 	}
 }
 
 /// ECDH functions
-#[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ecdh {
-	use secp256k1::{ecdh, key};
+	use secp256k1::{ecdh, key, Error as SecpError};
 	use ethkey::{Secret, Public, SECP256K1};
 	use Error;
 
@@ -142,32 +188,34 @@ pub mod ecdh {
 			temp
 		};
 
-		let publ = try!(key::PublicKey::from_slice(context, &pdata));
-		// no way to create SecretKey from raw byte array.
-		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
-		let shared = ecdh::SharedSecret::new_raw(context, &publ, sec);
+		let publ = key::PublicKey::from_slice(context, &pdata)?;
+		let sec = key::SecretKey::from_slice(context, &secret)?;
+		let shared = ecdh::SharedSecret::new_raw(context, &publ, &sec);
 
-		let mut s = Secret::default();
-		s.copy_from_slice(&shared[0..32]);
-		Ok(s)
+		Secret::from_unsafe_slice(&shared[0..32])
+			.map_err(|_| Error::Secp(SecpError::InvalidSecretKey))
 	}
 }
 
 /// ECIES function
-#[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ecies {
 	use rcrypto::digest::Digest;
 	use rcrypto::sha2::Sha256;
 	use rcrypto::hmac::Hmac;
 	use rcrypto::mac::Mac;
-	use bigint::hash::{FixedHash, H128};
+	use ethereum_types::H128;
 	use ethkey::{Random, Generator, Public, Secret};
 	use {Error, ecdh, aes, Keccak256};
 
-	/// Encrypt a message with a public key
-	pub fn encrypt(public: &Public, shared_mac: &[u8], plain: &[u8]) -> Result<Vec<u8>, Error> {
-		let r = Random.generate().unwrap();
-		let z = try!(ecdh::agree(r.secret(), public));
+	/// Encrypt a message with a public key, writing an HMAC covering both
+	/// the plaintext and authenticated data.
+	///
+	/// Authenticated data may be empty.
+	pub fn encrypt(public: &Public, auth_data: &[u8], plain: &[u8]) -> Result<Vec<u8>, Error> {
+		let r = Random.generate()
+			.expect("context known to have key-generation capabilities; qed");
+
+		let z = ecdh::agree(r.secret(), public)?;
 		let mut key = [0u8; 32];
 		let mut mkey = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
@@ -193,16 +241,18 @@ pub mod ecies {
 				let cipher_iv = &msgd[64..(64 + 16 + plain.len())];
 				hmac.input(cipher_iv);
 			}
-			hmac.input(shared_mac);
+			hmac.input(auth_data);
 			hmac.raw_result(&mut msgd[(64 + 16 + plain.len())..]);
 		}
 		Ok(msg)
 	}
 
-	/// Encrypt a message with a public key
+	/// Encrypt a message with a public key and no HMAC
 	pub fn encrypt_single_message(public: &Public, plain: &[u8]) -> Result<Vec<u8>, Error> {
-		let r = Random.generate().unwrap();
-		let z = try!(ecdh::agree(r.secret(), public));
+		let r = Random.generate()
+			.expect("context known to have key-generation capabilities");
+
+		let z = ecdh::agree(r.secret(), public)?;
 		let mut key = [0u8; 32];
 		let mut mkey = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
@@ -224,8 +274,9 @@ pub mod ecies {
 		Ok(msgd)
 	}
 
-	/// Decrypt a message with a secret key
-	pub fn decrypt(secret: &Secret, shared_mac: &[u8], encrypted: &[u8]) -> Result<Vec<u8>, Error> {
+	/// Decrypt a message with a secret key, checking HMAC for ciphertext
+	/// and authenticated data validity.
+	pub fn decrypt(secret: &Secret, auth_data: &[u8], encrypted: &[u8]) -> Result<Vec<u8>, Error> {
 		let meta_len = 1 + 64 + 16 + 32;
 		if encrypted.len() < meta_len  || encrypted[0] < 2 || encrypted[0] > 4 {
 			return Err(Error::InvalidMessage); //invalid message: publickey
@@ -233,7 +284,7 @@ pub mod ecies {
 
 		let e = &encrypted[1..];
 		let p = Public::from_slice(&e[0..64]);
-		let z = try!(ecdh::agree(secret, &p));
+		let z = ecdh::agree(secret, &p)?;
 		let mut key = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
 		let ekey = &key[0..16];
@@ -252,10 +303,12 @@ pub mod ecies {
 		// Verify tag
 		let mut hmac = Hmac::new(Sha256::new(), &mkey);
 		hmac.input(cipher_with_iv);
-		hmac.input(shared_mac);
+		hmac.input(auth_data);
 		let mut mac = [0u8; 32];
 		hmac.raw_result(&mut mac);
-		if &mac[..] != msg_mac {
+
+		// constant time compare to avoid timing attack.
+		if ::subtle::arrays_equal(&mac[..], msg_mac) != 1 {
 			return Err(Error::InvalidMessage);
 		}
 
@@ -264,7 +317,7 @@ pub mod ecies {
 		Ok(msg)
 	}
 
-	/// Decrypt single message with a secret key
+	/// Decrypt single message with a secret key and no HMAC.
 	pub fn decrypt_single_message(secret: &Secret, encrypted: &[u8]) -> Result<Vec<u8>, Error> {
 		let meta_len = 64;
 		if encrypted.len() < meta_len {
@@ -273,7 +326,7 @@ pub mod ecies {
 
 		let e = encrypted;
 		let p = Public::from_slice(&e[0..64]);
-		let z = try!(ecdh::agree(secret, &p));
+		let z = ecdh::agree(secret, &p)?;
 		let mut key = [0u8; 32];
 		kdf(&z, &[0u8; 0], &mut key);
 		let ekey = &key[0..16];

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -36,10 +36,10 @@ impl Default for NetworkSettings {
 	fn default() -> Self {
 		NetworkSettings {
 			name: "".into(),
-			chain: "homestead".into(),
+			chain: "foundation".into(),
 			network_port: 30303,
 			rpc_enabled: true,
-			rpc_interface: "local".into(),
+			rpc_interface: "127.0.0.1".into(),
 			rpc_port: 8545
 		}
 	}

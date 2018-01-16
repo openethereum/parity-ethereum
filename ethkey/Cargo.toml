@@ -1,22 +1,17 @@
 [package]
 name = "ethkey"
-version = "0.2.0"
-authors = ["Ethcore <admin@ethcore.io>"]
+version = "0.3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-rand = "0.3.14"
+byteorder = "1.0"
+edit-distance = "2.0"
+eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
+ethereum-types = "0.1"
 lazy_static = "0.2"
-tiny-keccak = "1.0"
-eth-secp256k1 = { git = "https://github.com/ethcore/rust-secp256k1" }
-rustc-serialize = "0.3"
-docopt = { version = "0.6", optional = true }
-ethcore-bigint = { path = "../util/bigint" }
-
-[features]
-default = []
-cli = ["docopt"]
-
-[[bin]]
-name = "ethkey"
-path = "src/bin/main.rs"
-doc = false
+log = "0.3"
+parity-wordlist = "1.2"
+rand = "0.3.14"
+rust-crypto = "0.2"
+rustc-hex = "1.0"
+tiny-keccak = "1.3"

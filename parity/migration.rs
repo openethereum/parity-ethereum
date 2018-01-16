@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,9 +20,10 @@ use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
 use std::sync::Arc;
-use util::journaldb::Algorithm;
-use util::migration::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError, Migration};
-use util::kvdb::{CompactionProfile, Database, DatabaseConfig};
+use journaldb::Algorithm;
+use migr::{self, Manager as MigrationManager, Config as MigrationConfig, Migration};
+use kvdb;
+use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
 use ethcore::migrations;
 use ethcore::db;
 use ethcore::migrations::Extract;
@@ -30,7 +31,7 @@ use ethcore::migrations::Extract;
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 10;
+const CURRENT_VERSION: u32 = 12;
 /// First version of the consolidated database.
 const CONSOLIDATION_VERSION: u32 = 9;
 /// Defines how many items are migrated to the new version of database at once.
@@ -52,7 +53,7 @@ pub enum Error {
 	/// Migration unexpectadly failed.
 	MigrationFailed,
 	/// Internal migration error.
-	Internal(MigrationError),
+	Internal(migr::Error),
 	/// Migration was completed succesfully,
 	/// but there was a problem with io.
 	Io(IoError),
@@ -80,11 +81,11 @@ impl From<IoError> for Error {
 	}
 }
 
-impl From<MigrationError> for Error {
-	fn from(err: MigrationError) -> Self {
-		match err {
-			MigrationError::Io(e) => Error::Io(e),
-			_ => Error::Internal(err),
+impl From<migr::Error> for Error {
+	fn from(err: migr::Error) -> Self {
+		match err.into() {
+			migr::ErrorKind::Io(e) => Error::Io(e),
+			err => Error::Internal(err.into()),
 		}
 	}
 }
@@ -104,7 +105,7 @@ fn current_version(path: &Path) -> Result<u32, Error> {
 		Err(_) => Err(Error::UnknownDatabaseVersion),
 		Ok(mut file) => {
 			let mut s = String::new();
-			try!(file.read_to_string(&mut s).map_err(|_| Error::UnknownDatabaseVersion));
+			file.read_to_string(&mut s).map_err(|_| Error::UnknownDatabaseVersion)?;
 			u32::from_str_radix(&s, 10).map_err(|_| Error::UnknownDatabaseVersion)
 		},
 	}
@@ -113,9 +114,9 @@ fn current_version(path: &Path) -> Result<u32, Error> {
 /// Writes current database version to the file.
 /// Creates a new file if the version file does not exist yet.
 fn update_version(path: &Path) -> Result<(), Error> {
-	try!(fs::create_dir_all(path));
-	let mut file = try!(File::create(version_file_path(path)));
-	try!(file.write_all(format!("{}", CURRENT_VERSION).as_bytes()));
+	fs::create_dir_all(path)?;
+	let mut file = File::create(version_file_path(path))?;
+	file.write_all(format!("{}", CURRENT_VERSION).as_bytes())?;
 	Ok(())
 }
 
@@ -145,7 +146,9 @@ pub fn default_migration_settings(compaction_profile: &CompactionProfile) -> Mig
 /// Migrations on the consolidated database.
 fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
 	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
-	try!(manager.add_migration(migrations::ToV10::new()).map_err(|_| Error::MigrationImpossible));
+	manager.add_migration(migrations::ToV10::new()).map_err(|_| Error::MigrationImpossible)?;
+	manager.add_migration(migrations::TO_V11).map_err(|_| Error::MigrationImpossible)?;
+	manager.add_migration(migrations::TO_V12).map_err(|_| Error::MigrationImpossible)?;
 	Ok(manager)
 }
 
@@ -156,7 +159,7 @@ fn consolidate_database(
 	column: Option<u32>,
 	extract: Extract,
 	compaction_profile: &CompactionProfile) -> Result<(), Error> {
-	fn db_error(e: String) -> Error {
+	fn db_error(e: kvdb::Error) -> Error {
 		warn!("Cannot open Database for consolidation: {:?}", e);
 		Error::MigrationFailed
 	}
@@ -165,22 +168,22 @@ fn consolidate_database(
 	let config = default_migration_settings(compaction_profile);
 	let mut db_config = DatabaseConfig {
 		max_open_files: 64,
-		cache_sizes: Default::default(),
+		memory_budget: None,
 		compaction: config.compaction_profile,
 		columns: None,
 		wal: true,
 	};
 
-	let old_path_str = try!(old_db_path.to_str().ok_or(Error::MigrationImpossible));
-	let new_path_str = try!(new_db_path.to_str().ok_or(Error::MigrationImpossible));
+	let old_path_str = old_db_path.to_str().ok_or(Error::MigrationImpossible)?;
+	let new_path_str = new_db_path.to_str().ok_or(Error::MigrationImpossible)?;
 
-	let cur_db = Arc::new(try!(Database::open(&db_config, old_path_str).map_err(db_error)));
+	let cur_db = Arc::new(Database::open(&db_config, old_path_str).map_err(db_error)?);
 	// open new DB with proper number of columns
 	db_config.columns = migration.columns();
-	let mut new_db = try!(Database::open(&db_config, new_path_str).map_err(db_error));
+	let mut new_db = Database::open(&db_config, new_path_str).map_err(db_error)?;
 
 	// Migrate to new database (default column only)
-	try!(migration.migrate(cur_db, &config, &mut new_db, None));
+	migration.migrate(cur_db, &config, &mut new_db, None)?;
 
 	Ok(())
 }
@@ -198,22 +201,24 @@ fn migrate_database(version: u32, db_path: PathBuf, mut migrations: MigrationMan
 	let _ = fs::remove_dir_all(&backup_path);
 
 	// migrate old database to the new one
-	let temp_path = try!(migrations.execute(&db_path, version));
+	let temp_path = migrations.execute(&db_path, version)?;
+
+	// completely in-place migration leads to the paths being equal.
+	// in that case, no need to shuffle directories.
+	if temp_path == db_path { return Ok(()) }
 
 	// create backup
-	try!(fs::rename(&db_path, &backup_path));
+	fs::rename(&db_path, &backup_path)?;
 
 	// replace the old database with the new one
 	if let Err(err) = fs::rename(&temp_path, &db_path) {
 		// if something went wrong, bring back backup
-		try!(fs::rename(&backup_path, &db_path));
+		fs::rename(&backup_path, &db_path)?;
 		return Err(err.into());
 	}
 
 	// remove backup
-	try!(fs::remove_dir_all(&backup_path));
-
-	Ok(())
+	fs::remove_dir_all(&backup_path).map_err(Into::into)
 }
 
 fn exists(path: &Path) -> bool {
@@ -223,7 +228,7 @@ fn exists(path: &Path) -> bool {
 /// Migrates the database.
 pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionProfile) -> Result<(), Error> {
 	// read version file.
-	let version = try!(current_version(path));
+	let version = current_version(path)?;
 
 	// migrate the databases.
 	// main db directory may already exists, so let's check if we have blocks dir
@@ -239,17 +244,19 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 	// Perform pre-consolidation migrations
 	if version < CONSOLIDATION_VERSION && exists(&legacy::blocks_database_path(path)) {
 		println!("Migrating database from version {} to {}", version, CONSOLIDATION_VERSION);
-		try!(migrate_database(version, legacy::blocks_database_path(path), try!(legacy::blocks_database_migrations(&compaction_profile))));
-		try!(migrate_database(version, legacy::extras_database_path(path), try!(legacy::extras_database_migrations(&compaction_profile))));
-		try!(migrate_database(version, legacy::state_database_path(path), try!(legacy::state_database_migrations(pruning, &compaction_profile))));
+
+		migrate_database(version, legacy::extras_database_path(path), legacy::extras_database_migrations(&compaction_profile)?)?;
+		migrate_database(version, legacy::state_database_path(path), legacy::state_database_migrations(pruning, &compaction_profile)?)?;
+		migrate_database(version, legacy::blocks_database_path(path), legacy::blocks_database_migrations(&compaction_profile)?)?;
+
 		let db_path = consolidated_database_path(path);
 		// Remove the database dir (it shouldn't exist anyway, but it might when migration was interrupted)
 		let _ = fs::remove_dir_all(db_path.clone());
-		try!(consolidate_database(legacy::blocks_database_path(path), db_path.clone(), db::COL_HEADERS, Extract::Header, &compaction_profile));
-		try!(consolidate_database(legacy::blocks_database_path(path), db_path.clone(), db::COL_BODIES, Extract::Body, &compaction_profile));
-		try!(consolidate_database(legacy::extras_database_path(path), db_path.clone(), db::COL_EXTRA, Extract::All, &compaction_profile));
-		try!(consolidate_database(legacy::state_database_path(path), db_path.clone(), db::COL_STATE, Extract::All, &compaction_profile));
-		try!(consolidate_database(legacy::trace_database_path(path), db_path.clone(), db::COL_TRACE, Extract::All, &compaction_profile));
+		consolidate_database(legacy::blocks_database_path(path), db_path.clone(), db::COL_HEADERS, Extract::Header, &compaction_profile)?;
+		consolidate_database(legacy::blocks_database_path(path), db_path.clone(), db::COL_BODIES, Extract::Body, &compaction_profile)?;
+		consolidate_database(legacy::extras_database_path(path), db_path.clone(), db::COL_EXTRA, Extract::All, &compaction_profile)?;
+		consolidate_database(legacy::state_database_path(path), db_path.clone(), db::COL_STATE, Extract::All, &compaction_profile)?;
+		consolidate_database(legacy::trace_database_path(path), db_path.clone(), db::COL_TRACE, Extract::All, &compaction_profile)?;
 		let _ = fs::remove_dir_all(legacy::blocks_database_path(path));
 		let _ = fs::remove_dir_all(legacy::extras_database_path(path));
 		let _ = fs::remove_dir_all(legacy::state_database_path(path));
@@ -257,10 +264,13 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 		println!("Migration finished");
 	}
 
+	// update version so we can apply post-consolidation migrations.
+	let version = ::std::cmp::max(CONSOLIDATION_VERSION, version);
+
 	// Further migrations
 	if version >= CONSOLIDATION_VERSION && version < CURRENT_VERSION && exists(&consolidated_database_path(path)) {
 		println!("Migrating database from version {} to {}", ::std::cmp::max(CONSOLIDATION_VERSION, version), CURRENT_VERSION);
-		try!(migrate_database(version, consolidated_database_path(path), try!(consolidated_database_migrations(&compaction_profile))));
+		migrate_database(version, consolidated_database_path(path), consolidated_database_migrations(&compaction_profile)?)?;
 		println!("Migration finished");
 	}
 
@@ -272,9 +282,8 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 mod legacy {
 	use super::*;
 	use std::path::{Path, PathBuf};
-	use util::journaldb::Algorithm;
-	use util::migration::{Manager as MigrationManager};
-	use util::kvdb::CompactionProfile;
+	use migr::{Manager as MigrationManager};
+	use kvdb_rocksdb::CompactionProfile;
 	use ethcore::migrations;
 
 	/// Blocks database path.
@@ -308,14 +317,14 @@ mod legacy {
 	/// Migrations on the blocks database.
 	pub fn blocks_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
 		let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
-		try!(manager.add_migration(migrations::blocks::V8::default()).map_err(|_| Error::MigrationImpossible));
+		manager.add_migration(migrations::blocks::V8::default()).map_err(|_| Error::MigrationImpossible)?;
 		Ok(manager)
 	}
 
 	/// Migrations on the extras database.
 	pub fn extras_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
 		let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
-		try!(manager.add_migration(migrations::extras::ToV6).map_err(|_| Error::MigrationImpossible));
+		manager.add_migration(migrations::extras::ToV6).map_err(|_| Error::MigrationImpossible)?;
 		Ok(manager)
 	}
 
@@ -328,7 +337,7 @@ mod legacy {
 			_ => return Err(Error::UnsupportedPruningMethod),
 		};
 
-		try!(res.map_err(|_| Error::MigrationImpossible));
+		res.map_err(|_| Error::MigrationImpossible)?;
 		Ok(manager)
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{Bytes, U256, H256};
+use ethereum_types::{H256, U256};
+use bytes::Bytes;
 use header::BlockNumber;
 
 /// Best block info.
@@ -24,6 +25,8 @@ pub struct BestBlock {
 	pub hash: H256,
 	/// Best block number.
 	pub number: BlockNumber,
+	/// Best block timestamp.
+	pub timestamp: u64,
 	/// Best block total difficulty.
 	pub total_difficulty: U256,
 	/// Best block uncompressed bytes

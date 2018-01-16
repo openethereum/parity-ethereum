@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,8 @@
 
 //! Snapshot tests.
 
-mod blocks;
+mod proof_of_work;
+mod proof_of_authority;
 mod state;
 mod service;
 
@@ -27,6 +28,7 @@ use super::ManifestData;
 #[test]
 fn manifest_rlp() {
 	let manifest = ManifestData {
+		version: 2,
 		block_hashes: Vec::new(),
 		state_hashes: Vec::new(),
 		block_number: 1234567,

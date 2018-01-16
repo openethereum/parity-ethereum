@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,62 +16,101 @@
 
 //! Hyper handlers implementations.
 
-mod auth;
-mod echo;
 mod content;
-mod redirect;
+mod echo;
 mod fetch;
+mod reader;
+mod redirect;
+mod streaming;
 
-pub use self::auth::AuthRequiredHandler;
-pub use self::echo::EchoHandler;
 pub use self::content::ContentHandler;
+pub use self::echo::EchoHandler;
+pub use self::fetch::{ContentFetcherHandler, ContentValidator, FetchControl, ValidatorResponse};
+pub use self::reader::Reader;
 pub use self::redirect::Redirection;
-pub use self::fetch::{ContentFetcherHandler, ContentValidator, FetchControl};
+pub use self::streaming::StreamingHandler;
 
-use url::Url;
-use hyper::{server, header, net, uri};
+use std::iter;
+use itertools::Itertools;
+use hyper::header;
+use {apps, address, Embeddable};
 
 /// Adds security-related headers to the Response.
-pub fn add_security_headers(headers: &mut header::Headers, embeddable_at: Option<u16>) {
-	headers.set_raw("X-XSS-Protection", vec![b"1; mode=block".to_vec()]);
-	headers.set_raw("X-Content-Type-Options", vec![b"nosniff".to_vec()]);
+pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embeddable) {
+	headers.set_raw("X-XSS-Protection", "1; mode=block");
+	headers.set_raw("X-Content-Type-Options", "nosniff");
 
 	// Embedding header:
-	if let Some(port) = embeddable_at {
-		headers.set_raw(
-			"X-Frame-Options",
-			vec![format!("ALLOW-FROM http://127.0.0.1:{}", port).into_bytes()]
-			);
-	} else {
-		// TODO [ToDr] Should we be more strict here (DENY?)?
-		headers.set_raw("X-Frame-Options",  vec![b"SAMEORIGIN".to_vec()]);
+	if let None = embeddable_on {
+		headers.set_raw("X-Frame-Options",  "SAMEORIGIN");
 	}
+
+	// Content Security Policy headers
+	headers.set_raw("Content-Security-Policy", String::new()
+		// Allow connecting to WS servers and HTTP(S) servers.
+		// We could be more restrictive and allow only RPC server URL.
+		+ "connect-src http: https: ws: wss:;"
+		// Allow framing any content from HTTP(S).
+		// Again we could only allow embedding from RPC server URL.
+		// (deprecated)
+		+ "frame-src 'self' http: https:;"
+		// Allow framing and web workers from HTTP(S).
+		+ "child-src 'self' http: https:;"
+		// We allow data: blob: and HTTP(s) images.
+		// We could get rid of wildcarding HTTP and only allow RPC server URL.
+		// (http required for local dapps icons)
+		+ "img-src 'self' 'unsafe-inline' data: blob: http: https:;"
+		// Allow style from data: blob: and HTTPS.
+		+ "style-src 'self' 'unsafe-inline' data: blob: https:;"
+		// Allow fonts from data: and HTTPS.
+		+ "font-src 'self' data: https:;"
+		// Allow inline scripts and scripts eval (webpack/jsconsole)
+		+ {
+			let script_src = embeddable_on.as_ref()
+				.map(|e| e.extra_script_src.iter()
+					 .map(|&(ref host, port)| address(host, port))
+					 .join(" ")
+				).unwrap_or_default();
+			&format!(
+				"script-src 'self' 'unsafe-inline' 'unsafe-eval' {};",
+				script_src
+			)
+		}
+		// Same restrictions as script-src with additional
+		// blob: that is required for camera access (worker)
+		+ "worker-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:;"
+		// Restrict everything else to the same origin.
+		+ "default-src 'self';"
+		// Run in sandbox mode (although it's not fully safe since we allow same-origin and script)
+		+ "sandbox allow-same-origin allow-forms allow-modals allow-popups allow-presentation allow-scripts;"
+		// Disallow subitting forms from any dapps
+		+ "form-action 'none';"
+		// Never allow mixed content
+		+ "block-all-mixed-content;"
+		// Specify if the site can be embedded.
+		+ &match embeddable_on {
+			Some(ref embed) => {
+				let std = address(&embed.host, embed.port);
+				let proxy = format!("{}.{}", apps::HOME_PAGE, embed.dapps_domain);
+				let domain = format!("*.{}:{}", embed.dapps_domain, embed.port);
+
+				let mut ancestors = vec![std, domain, proxy]
+					.into_iter()
+					.chain(embed.extra_embed_on
+						.iter()
+						.map(|&(ref host, port)| address(host, port))
+					);
+
+				let ancestors = if embed.host == "127.0.0.1" {
+					let localhost = address("localhost", embed.port);
+					ancestors.chain(iter::once(localhost)).join(" ")
+				} else {
+					ancestors.join(" ")
+				};
+
+				format!("frame-ancestors {};", ancestors)
+			},
+			None => format!("frame-ancestors 'self';"),
+		}
+	);
 }
-
-/// Extracts URL part from the Request.
-pub fn extract_url(req: &server::Request<net::HttpStream>) -> Option<Url> {
-	match *req.uri() {
-		uri::RequestUri::AbsoluteUri(ref url) => {
-			match Url::from_generic_url(url.clone()) {
-				Ok(url) => Some(url),
-				_ => None,
-			}
-		},
-		uri::RequestUri::AbsolutePath(ref path) => {
-			// Attempt to prepend the Host header (mandatory in HTTP/1.1)
-			let url_string = match req.headers().get::<header::Host>() {
-				Some(ref host) => {
-					format!("http://{}:{}{}", host.hostname, host.port.unwrap_or(80), path)
-				},
-				None => return None,
-			};
-
-			match Url::parse(&url_string) {
-				Ok(url) => Some(url),
-				_ => None,
-			}
-		},
-		_ => None,
-	}
-}
-

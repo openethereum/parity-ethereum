@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use keccak::Keccak256;
-use super::{KeyPair, Error, Generator, Secret};
+use super::{KeyPair, Generator, Secret};
+use parity_wordlist;
 
 /// Simple brainwallet.
 pub struct Brain(String);
@@ -24,23 +25,33 @@ impl Brain {
 	pub fn new(s: String) -> Self {
 		Brain(s)
 	}
+
+	pub fn validate_phrase(phrase: &str, expected_words: usize) -> Result<(), ::WordlistError> {
+		parity_wordlist::validate_phrase(phrase, expected_words)
+	}
 }
 
 impl Generator for Brain {
-	fn generate(self) -> Result<KeyPair, Error> {
-		let seed = self.0;
-		let mut secret = seed.bytes().collect::<Vec<u8>>().keccak256();
+    type Error = ::Void;
+
+	fn generate(&mut self) -> Result<KeyPair, Self::Error> {
+		let seed = self.0.clone();
+		let mut secret = seed.into_bytes().keccak256();
 
 		let mut i = 0;
 		loop {
 			secret = secret.keccak256();
-			
+
 			match i > 16384 {
 				false => i += 1,
 				true => {
-					let result = KeyPair::from_secret(Secret::from(secret.clone()));
-					if result.is_ok() {
-						return result
+					if let Ok(pair) = Secret::from_unsafe_slice(&secret)
+						.and_then(KeyPair::from_secret)
+					{
+						if pair.address()[0] == 0 {
+							trace!("Testing: {}, got: {:?}", self.0, pair.address());
+							return Ok(pair)
+						}
 					}
 				},
 			}
@@ -55,8 +66,8 @@ mod tests {
 	#[test]
 	fn test_brain() {
 		let words = "this is sparta!".to_owned();
-		let first_keypair = Brain(words.clone()).generate().unwrap();
-		let second_keypair = Brain(words.clone()).generate().unwrap();
+		let first_keypair = Brain::new(words.clone()).generate().unwrap();
+		let second_keypair = Brain::new(words.clone()).generate().unwrap();
 		assert_eq!(first_keypair.secret(), second_keypair.secret());
 	}
 }

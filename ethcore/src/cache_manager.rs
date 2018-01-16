@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -66,7 +66,7 @@ impl<T> CacheManager<T> where T: Eq + Hash {
 	}
 
 	fn rotate_cache_if_needed(&mut self) {
-		if self.cache_usage.len() == 0 { return }
+		if self.cache_usage.is_empty() { return }
 
 		if self.cache_usage[0].len() * self.bytes_per_cache_entry > self.pref_cache_size / COLLECTION_QUEUE_SIZE {
 			if let Some(cache) = self.cache_usage.pop_back() {

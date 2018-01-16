@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,14 +16,16 @@
 
 use std::ops::{Deref, DerefMut};
 use std::cmp::PartialEq;
-use std::{mem, fmt};
+use std::fmt;
 use std::str::FromStr;
+use std::hash::{Hash, Hasher};
 use secp256k1::{Message as SecpMessage, RecoverableSignature, RecoveryId, Error as SecpError};
 use secp256k1::key::{SecretKey, PublicKey};
-use rustc_serialize::hex::{ToHex, FromHex};
-use bigint::hash::{H520, H256, FixedHash};
+use rustc_hex::{ToHex, FromHex};
+use ethereum_types::{H520, H256};
 use {Secret, Public, SECP256K1, Error, Message, public_to_address, Address};
 
+/// Signature encoded as RSV components
 #[repr(C)]
 pub struct Signature([u8; 65]);
 
@@ -43,8 +45,28 @@ impl Signature {
 		self.0[64]
 	}
 
+	/// Encode the signature into RSV array (V altered to be in "Electrum" notation).
+	pub fn into_electrum(mut self) -> [u8; 65] {
+		self.0[64] += 27;
+		self.0
+	}
+
+	/// Parse bytes as a signature encoded as RSV (V in "Electrum" notation).
+	/// May return empty (invalid) signature if given data has invalid length.
+	pub fn from_electrum(data: &[u8]) -> Self {
+		if data.len() != 65 || data[64] < 27 {
+			// fallback to empty (invalid) signature
+			return Signature::default();
+		}
+
+		let mut sig = [0u8; 65];
+		sig.copy_from_slice(data);
+		sig[64] -= 27;
+		Signature(sig)
+	}
+
 	/// Create a signature object from the sig.
-	pub fn from_rsv(r: &H256, s: &H256, v: u8) -> Signature {
+	pub fn from_rsv(r: &H256, s: &H256, v: u8) -> Self {
 		let mut sig = [0u8; 65];
 		sig[0..32].copy_from_slice(&r);
 		sig[32..64].copy_from_slice(&s);
@@ -116,6 +138,18 @@ impl Default for Signature {
 	}
 }
 
+impl Hash for Signature {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+    	H520::from(self.0).hash(state);
+    }
+}
+
+impl Clone for Signature {
+    fn clone(&self) -> Self {
+		Signature(self.0)
+    }
+}
+
 impl From<[u8; 65]> for Signature {
 	fn from(s: [u8; 65]) -> Self {
 		Signature(s)
@@ -156,9 +190,8 @@ impl DerefMut for Signature {
 
 pub fn sign(secret: &Secret, message: &Message) -> Result<Signature, Error> {
 	let context = &SECP256K1;
-	// no way to create from raw byte array.
-	let sec: &SecretKey = unsafe { mem::transmute(secret) };
-	let s = try!(context.sign_recoverable(&try!(SecpMessage::from_slice(&message[..])), sec));
+	let sec = SecretKey::from_slice(context, &secret)?;
+	let s = context.sign_recoverable(&SecpMessage::from_slice(&message[..])?, &sec)?;
 	let (rec_id, data) = s.serialize_compact(context);
 	let mut data_arr = [0; 65];
 
@@ -170,7 +203,7 @@ pub fn sign(secret: &Secret, message: &Message) -> Result<Signature, Error> {
 
 pub fn verify_public(public: &Public, signature: &Signature, message: &Message) -> Result<bool, Error> {
 	let context = &SECP256K1;
-	let rsig = try!(RecoverableSignature::from_compact(context, &signature[0..64], try!(RecoveryId::from_i32(signature[64] as i32))));
+	let rsig = RecoverableSignature::from_compact(context, &signature[0..64], RecoveryId::from_i32(signature[64] as i32)?)?;
 	let sig = rsig.to_standard(context);
 
 	let pdata: [u8; 65] = {
@@ -179,8 +212,8 @@ pub fn verify_public(public: &Public, signature: &Signature, message: &Message) 
 		temp
 	};
 
-	let publ = try!(PublicKey::from_slice(context, &pdata));
-	match context.verify(&try!(SecpMessage::from_slice(&message[..])), &sig, &publ) {
+	let publ = PublicKey::from_slice(context, &pdata)?;
+	match context.verify(&SecpMessage::from_slice(&message[..])?, &sig, &publ) {
 		Ok(_) => Ok(true),
 		Err(SecpError::IncorrectSignature) => Ok(false),
 		Err(x) => Err(Error::from(x))
@@ -188,15 +221,15 @@ pub fn verify_public(public: &Public, signature: &Signature, message: &Message) 
 }
 
 pub fn verify_address(address: &Address, signature: &Signature, message: &Message) -> Result<bool, Error> {
-	let public = try!(recover(signature, message));
+	let public = recover(signature, message)?;
 	let recovered_address = public_to_address(&public);
 	Ok(address == &recovered_address)
 }
 
 pub fn recover(signature: &Signature, message: &Message) -> Result<Public, Error> {
 	let context = &SECP256K1;
-	let rsig = try!(RecoverableSignature::from_compact(context, &signature[0..64], try!(RecoveryId::from_i32(signature[64] as i32))));
-	let pubkey = try!(context.recover(&try!(SecpMessage::from_slice(&message[..])), &rsig));
+	let rsig = RecoverableSignature::from_compact(context, &signature[0..64], RecoveryId::from_i32(signature[64] as i32)?)?;
+	let pubkey = context.recover(&SecpMessage::from_slice(&message[..])?, &rsig)?;
 	let serialized = pubkey.serialize_vec(context, false);
 
 	let mut public = Public::default();
@@ -209,6 +242,21 @@ mod tests {
 	use std::str::FromStr;
 	use {Generator, Random, Message};
 	use super::{sign, verify_public, verify_address, recover, Signature};
+
+	#[test]
+	fn vrs_conversion() {
+		// given
+		let keypair = Random.generate().unwrap();
+		let message = Message::default();
+		let signature = sign(keypair.secret(), &message).unwrap();
+
+		// when
+		let vrs = signature.clone().into_electrum();
+		let from_vrs = Signature::from_electrum(&vrs);
+
+		// then
+		assert_eq!(signature, from_vrs);
+	}
 
 	#[test]
 	fn signature_to_and_from_str() {

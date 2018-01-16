@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,13 +25,11 @@ mod inner {
 
 	pub fn main() {
 		let out_dir = env::var_os("OUT_DIR").unwrap();
-		let mut registry = syntex::Registry::new();
-		quasi_codegen::register(&mut registry);
 
 		let src = Path::new("src/lib.rs.in");
 		let dst = Path::new(&out_dir).join("lib.rs");
 
-		registry.expand("", &src, &dst).unwrap();
+		quasi_codegen::expand(&src, &dst).unwrap();
 	}
 }
 

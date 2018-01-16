@@ -1,0 +1,86 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.editicon {
+  margin-left: 0.5em;
+}
+
+.info {
+  margin: 0 156px 0 0;
+}
+
+.identityIcon {
+  float: left;
+  margin-right: -100%;
+}
+
+.qrcode {
+  float: right;
+  margin-top: 1.5em;
+}
+
+.addressline,
+.infoline,
+.uuidline,
+.vault,
+.title {
+  margin-left: 72px;
+}
+
+.addressline,
+.infoline,
+.uuidline {
+  line-height: 1.618em;
+
+  &.bigaddress {
+    font-size: 1.25em;
+  }
+}
+
+.infoline,
+.uuidline {
+  opacity: 0.5;
+}
+
+.uuidline {
+  display: inline-block;
+}
+
+.vault {
+  line-height: 32px;
+
+  .text {
+    display: inline-block;
+    opacity: 0.25;
+    text-transform: uppercase;
+  }
+}
+
+.addressline {
+  display: flex;
+}
+
+.address {
+  display: inline-block;
+  margin-left: 0.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tags {
+  clear: both;
+}

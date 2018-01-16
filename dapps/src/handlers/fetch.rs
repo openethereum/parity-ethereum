@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,41 +16,38 @@
 
 //! Hyper Server Handler that fetches a file during a request (proxy).
 
-use std::{fs, fmt};
-use std::path::PathBuf;
-use std::sync::{mpsc, Arc};
+use std::{fmt, mem};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Instant, Duration};
-use util::Mutex;
-use fetch::{Client, Fetch, FetchResult};
+use fetch::{self, Fetch};
+use futures::sync::oneshot;
+use futures::{self, Future};
+use hyper::{self, Method, StatusCode};
+use parking_lot::Mutex;
 
-use hyper::{server, Decoder, Encoder, Next, Method, Control};
-use hyper::net::HttpStream;
-use hyper::status::StatusCode;
+use endpoint::{self, EndpointPath};
+use handlers::{ContentHandler, StreamingHandler};
+use page::local;
+use {Embeddable};
 
-use handlers::{ContentHandler, Redirection};
-use apps::redirection_address;
-use page::LocalPageEndpoint;
+const FETCH_TIMEOUT: u64 = 300;
 
-const FETCH_TIMEOUT: u64 = 30;
-
-enum FetchState {
-	NotStarted(String),
-	Error(ContentHandler),
-	InProgress(mpsc::Receiver<FetchResult>),
-	Done(String, LocalPageEndpoint, Redirection),
+pub enum ValidatorResponse {
+	Local(local::Dapp),
+	Streaming(StreamingHandler<fetch::Response>),
 }
 
-pub trait ContentValidator {
+pub trait ContentValidator: Sized + Send + 'static {
 	type Error: fmt::Debug + fmt::Display;
 
-	fn validate_and_install(&self, app: PathBuf) -> Result<(String, LocalPageEndpoint), Self::Error>;
-	fn done(&self, Option<LocalPageEndpoint>);
+	fn validate_and_install(self, fetch::Response) -> Result<ValidatorResponse, Self::Error>;
 }
 
+#[derive(Debug, Clone)]
 pub struct FetchControl {
 	abort: Arc<AtomicBool>,
-	listeners: Mutex<Vec<(Control, mpsc::Sender<FetchState>)>>,
+	listeners: Arc<Mutex<Vec<oneshot::Sender<WaitResult>>>>,
 	deadline: Instant,
 }
 
@@ -58,254 +55,315 @@ impl Default for FetchControl {
 	fn default() -> Self {
 		FetchControl {
 			abort: Arc::new(AtomicBool::new(false)),
-			listeners: Mutex::new(Vec::new()),
+			listeners: Arc::new(Mutex::new(Vec::new())),
 			deadline: Instant::now() + Duration::from_secs(FETCH_TIMEOUT),
 		}
 	}
 }
 
 impl FetchControl {
-	fn notify<F: Fn() -> FetchState>(&self, status: F) {
-		let mut listeners = self.listeners.lock();
-		for (control, sender) in listeners.drain(..) {
-			if let Err(e) = sender.send(status()) {
-				trace!(target: "dapps", "Waiting listener notification failed: {:?}", e);
-			} else {
-				let _ = control.ready(Next::read());
-			}
-		}
-	}
-
-	fn set_status(&self, status: &FetchState) {
-		match *status {
-			FetchState::Error(ref handler) => self.notify(|| FetchState::Error(handler.clone())),
-			FetchState::Done(ref id, ref endpoint, ref handler) => self.notify(|| FetchState::Done(id.clone(), endpoint.clone(), handler.clone())),
-			FetchState::NotStarted(_) | FetchState::InProgress(_) => {},
-		}
+	pub fn is_deadline_reached(&self) -> bool {
+		self.deadline < Instant::now()
 	}
 
 	pub fn abort(&self) {
 		self.abort.store(true, Ordering::SeqCst);
 	}
 
-	pub fn to_handler(&self, control: Control) -> Box<server::Handler<HttpStream> + Send> {
-		let (tx, rx) = mpsc::channel();
-		self.listeners.lock().push((control, tx));
+	pub fn to_response(&self, path: EndpointPath) -> endpoint::Response {
+		let (tx, receiver) = oneshot::channel();
+		self.listeners.lock().push(tx);
 
 		Box::new(WaitingHandler {
-			receiver: rx,
-			state: None,
+			path,
+			state: WaitState::Waiting(receiver),
 		})
 	}
+
+	fn notify<F: Fn() -> WaitResult>(&self, status: F) {
+		let mut listeners = self.listeners.lock();
+		for sender in listeners.drain(..) {
+			trace!(target: "dapps", "Resuming request waiting for content...");
+			if let Err(_) = sender.send(status()) {
+				trace!(target: "dapps", "Waiting listener notification failed.");
+			}
+		}
+	}
+
+	fn set_status(&self, status: &FetchState) {
+		match *status {
+			FetchState::Error(ref handler) => self.notify(|| WaitResult::Error(handler.clone())),
+			FetchState::Done(ref endpoint, _) => self.notify(|| WaitResult::Done(endpoint.clone())),
+			FetchState::Streaming(_) => self.notify(|| WaitResult::NonAwaitable),
+			FetchState::InProgress(_) => {},
+			FetchState::Empty => {},
+		}
+	}
+}
+
+
+enum WaitState {
+	Waiting(oneshot::Receiver<WaitResult>),
+	Done(endpoint::Response),
+}
+
+#[derive(Debug)]
+enum WaitResult {
+	Error(ContentHandler),
+	Done(local::Dapp),
+	NonAwaitable,
 }
 
 pub struct WaitingHandler {
-	receiver: mpsc::Receiver<FetchState>,
-	state: Option<FetchState>,
+	path: EndpointPath,
+	state: WaitState,
 }
 
-impl server::Handler<HttpStream> for WaitingHandler {
-	fn on_request(&mut self, _request: server::Request<HttpStream>) -> Next {
-		Next::wait()
-	}
+impl Future for WaitingHandler {
+	type Item = hyper::Response;
+	type Error = hyper::Error;
 
-	fn on_request_readable(&mut self, _decoder: &mut Decoder<HttpStream>) -> Next {
-		self.state = self.receiver.try_recv().ok();
-		Next::write()
-	}
+	fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
+		loop {
+			let new_state = match self.state {
+				WaitState::Waiting(ref mut receiver) => {
+					let result = try_ready!(receiver.poll().map_err(|_| hyper::Error::Timeout));
 
-	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		match self.state {
-			Some(FetchState::Done(_, _, ref mut handler)) => handler.on_response(res),
-			Some(FetchState::Error(ref mut handler)) => handler.on_response(res),
-			_ => Next::end(),
-		}
-	}
-
-	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
-		match self.state {
-			Some(FetchState::Done(_, _, ref mut handler)) => handler.on_response_writable(encoder),
-			Some(FetchState::Error(ref mut handler)) => handler.on_response_writable(encoder),
-			_ => Next::end(),
-		}
-	}
-}
-
-pub struct ContentFetcherHandler<H: ContentValidator> {
-	fetch_control: Arc<FetchControl>,
-	control: Option<Control>,
-	status: FetchState,
-	client: Option<Client>,
-	using_dapps_domains: bool,
-	installer: H,
-}
-
-impl<H: ContentValidator> Drop for ContentFetcherHandler<H> {
-	fn drop(&mut self) {
-		let result = match self.status {
-			FetchState::Done(_, ref result, _) => Some(result.clone()),
-			_ => None,
-		};
-		self.installer.done(result);
-	}
-}
-
-impl<H: ContentValidator> ContentFetcherHandler<H> {
-
-	pub fn new(
-		url: String,
-		control: Control,
-		using_dapps_domains: bool,
-		handler: H) -> (Self, Arc<FetchControl>) {
-
-		let fetch_control = Arc::new(FetchControl::default());
-		let client = Client::default();
-		let handler = ContentFetcherHandler {
-			fetch_control: fetch_control.clone(),
-			control: Some(control),
-			client: Some(client),
-			status: FetchState::NotStarted(url),
-			using_dapps_domains: using_dapps_domains,
-			installer: handler,
-		};
-
-		(handler, fetch_control)
-	}
-
-	fn close_client(client: &mut Option<Client>) {
-		client.take()
-			.expect("After client is closed we are going into write, hence we can never close it again")
-			.close();
-	}
-
-	fn fetch_content(client: &mut Client, url: &str, abort: Arc<AtomicBool>, control: Control) -> Result<mpsc::Receiver<FetchResult>, String> {
-		client.request(url, abort, Box::new(move || {
-			trace!(target: "dapps", "Fetching finished.");
-			// Ignoring control errors
-			let _ = control.ready(Next::read());
-		})).map_err(|e| format!("{:?}", e))
-	}
-}
-
-impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<H> {
-	fn on_request(&mut self, request: server::Request<HttpStream>) -> Next {
-		let status = if let FetchState::NotStarted(ref url) = self.status {
-			Some(match *request.method() {
-				// Start fetching content
-				Method::Get => {
-					trace!(target: "dapps", "Fetching content from: {:?}", url);
-					let control = self.control.take().expect("on_request is called only once, thus control is always Some");
-					let client = self.client.as_mut().expect("on_request is called before client is closed.");
-					let fetch = Self::fetch_content(client, url, self.fetch_control.abort.clone(), control);
-					match fetch {
-						Ok(receiver) => FetchState::InProgress(receiver),
-						Err(e) => FetchState::Error(ContentHandler::error(
-							StatusCode::BadGateway,
-							"Unable To Start Dapp Download",
-							"Could not initialize download of the dapp. It might be a problem with the remote server.",
-							Some(&format!("{}", e)),
-						)),
+					match result {
+						WaitResult::Error(handler) => {
+							return Ok(futures::Async::Ready(handler.into()));
+						},
+						WaitResult::NonAwaitable => {
+							let errors = Errors { embeddable_on: None };
+							return Ok(futures::Async::Ready(errors.streaming().into()));
+						},
+						WaitResult::Done(endpoint) => {
+							WaitState::Done(endpoint.to_response(&self.path).into())
+						},
 					}
 				},
-				// or return error
-				_ => FetchState::Error(ContentHandler::error(
-					StatusCode::MethodNotAllowed,
-					"Method Not Allowed",
-					"Only <code>GET</code> requests are allowed.",
-					None,
-				)),
-			})
-		} else { None };
+				WaitState::Done(ref mut response) => {
+					return response.poll()
+				},
+			};
 
-		if let Some(status) = status {
-			self.fetch_control.set_status(&status);
-			self.status = status;
+			self.state = new_state;
 		}
+	}
+}
 
-		Next::read()
+#[derive(Debug, Clone)]
+struct Errors {
+	embeddable_on: Embeddable,
+}
+
+impl Errors {
+	fn streaming(&self) -> ContentHandler {
+		ContentHandler::error(
+			StatusCode::BadGateway,
+			"Streaming Error",
+			"This content is being streamed in other place.",
+			None,
+			self.embeddable_on.clone(),
+		)
 	}
 
-	fn on_request_readable(&mut self, decoder: &mut Decoder<HttpStream>) -> Next {
-		let (status, next) = match self.status {
-			// Request may time out
-			FetchState::InProgress(_) if self.fetch_control.deadline < Instant::now() => {
-				trace!(target: "dapps", "Fetching dapp failed because of timeout.");
-				let timeout = ContentHandler::error(
-					StatusCode::GatewayTimeout,
-					"Download Timeout",
-					&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT),
-					None
-				);
-				Self::close_client(&mut self.client);
-				(Some(FetchState::Error(timeout)), Next::write())
+	fn download_error<E: fmt::Debug>(&self, e: E) -> ContentHandler {
+		ContentHandler::error(
+			StatusCode::BadGateway,
+			"Download Error",
+			"There was an error when fetching the content.",
+			Some(&format!("{:?}", e)),
+			self.embeddable_on.clone(),
+		)
+	}
+
+	fn invalid_content<E: fmt::Debug>(&self, e: E) -> ContentHandler {
+		ContentHandler::error(
+			StatusCode::BadGateway,
+			"Invalid Dapp",
+			"Downloaded bundle does not contain a valid content.",
+			Some(&format!("{:?}", e)),
+			self.embeddable_on.clone(),
+		)
+	}
+
+	fn timeout_error(&self) -> ContentHandler {
+		ContentHandler::error(
+			StatusCode::GatewayTimeout,
+			"Download Timeout",
+			&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT),
+			None,
+			self.embeddable_on.clone(),
+		)
+	}
+
+	fn method_not_allowed(&self) -> ContentHandler {
+		ContentHandler::error(
+			StatusCode::MethodNotAllowed,
+			"Method Not Allowed",
+			"Only <code>GET</code> requests are allowed.",
+			None,
+			self.embeddable_on.clone(),
+		)
+	}
+}
+
+enum FetchState {
+	Error(ContentHandler),
+	InProgress(Box<Future<Item=FetchState, Error=()> + Send>),
+	Streaming(hyper::Response),
+	Done(local::Dapp, endpoint::Response),
+	Empty,
+}
+
+impl fmt::Debug for FetchState {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		use self::FetchState::*;
+
+		write!(fmt, "FetchState(")?;
+		match *self {
+			Error(ref error) => write!(fmt, "error: {:?}", error),
+			InProgress(_) => write!(fmt, "in progress"),
+			Streaming(ref res) => write!(fmt, "streaming: {:?}", res),
+			Done(ref endpoint, _) => write!(fmt, "done: {:?}", endpoint),
+			Empty => write!(fmt, "?"),
+		}?;
+		write!(fmt, ")")
+	}
+}
+
+#[derive(Debug)]
+pub struct ContentFetcherHandler {
+	fetch_control: FetchControl,
+	status: FetchState,
+	errors: Errors,
+}
+
+impl ContentFetcherHandler {
+	pub fn fetch_control(&self) -> FetchControl {
+		self.fetch_control.clone()
+	}
+
+	pub fn new<H: ContentValidator, F: Fetch>(
+		method: &hyper::Method,
+		url: &str,
+		path: EndpointPath,
+		installer: H,
+		embeddable_on: Embeddable,
+		fetch: F,
+	) -> Self {
+		let fetch_control = FetchControl::default();
+		let errors = Errors { embeddable_on };
+
+		// Validation of method
+		let status = match *method {
+			// Start fetching content
+			Method::Get => {
+				trace!(target: "dapps", "Fetching content from: {:?}", url);
+				FetchState::InProgress(Self::fetch_content(
+						fetch,
+						url,
+						fetch_control.abort.clone(),
+						path,
+						errors.clone(),
+						installer,
+				))
 			},
-			FetchState::InProgress(ref receiver) => {
-				// Check if there is an answer
-				let rec = receiver.try_recv();
-				match rec {
-					// Unpack and validate
-					Ok(Ok(path)) => {
-						trace!(target: "dapps", "Fetching content finished. Starting validation ({:?})", path);
-						Self::close_client(&mut self.client);
-						// Unpack and verify
-						let state = match self.installer.validate_and_install(path.clone()) {
-							Err(e) => {
-								trace!(target: "dapps", "Error while validating content: {:?}", e);
-								FetchState::Error(ContentHandler::error(
-									StatusCode::BadGateway,
-									"Invalid Dapp",
-									"Downloaded bundle does not contain a valid content.",
-									Some(&format!("{:?}", e))
-								))
-							},
-							Ok((id, result)) => {
-								let address = redirection_address(self.using_dapps_domains, &id);
-								FetchState::Done(id, result, Redirection::new(&address))
-							},
-						};
-						// Remove temporary zip file
-						let _ = fs::remove_file(path);
-						(Some(state), Next::write())
-					},
-					Ok(Err(e)) => {
-						warn!(target: "dapps", "Unable to fetch content: {:?}", e);
-						let error = ContentHandler::error(
-							StatusCode::BadGateway,
-							"Download Error",
-							"There was an error when fetching the content.",
-							Some(&format!("{:?}", e)),
-						);
-						(Some(FetchState::Error(error)), Next::write())
-					},
-					// wait some more
-					_ => (None, Next::wait())
-				}
-			},
-			FetchState::Error(ref mut handler) => (None, handler.on_request_readable(decoder)),
-			_ => (None, Next::write()),
+			// or return error
+			_ => FetchState::Error(errors.method_not_allowed()),
 		};
 
-		if let Some(status) = status {
+		ContentFetcherHandler {
+			fetch_control,
+			status,
+			errors,
+		}
+	}
+
+	fn fetch_content<H: ContentValidator, F: Fetch>(
+		fetch: F,
+		url: &str,
+		abort: Arc<AtomicBool>,
+		path: EndpointPath,
+		errors: Errors,
+		installer: H,
+	) -> Box<Future<Item=FetchState, Error=()> + Send> {
+		// Start fetching the content
+		let fetch2 = fetch.clone();
+		let future = fetch.fetch_with_abort(url, abort.into()).then(move |result| {
+			trace!(target: "dapps", "Fetching content finished. Starting validation: {:?}", result);
+			Ok(match result {
+				Ok(response) => match installer.validate_and_install(response) {
+					Ok(ValidatorResponse::Local(endpoint)) => {
+						trace!(target: "dapps", "Validation OK. Returning response.");
+						let response = endpoint.to_response(&path);
+						FetchState::Done(endpoint, response)
+					},
+					Ok(ValidatorResponse::Streaming(stream)) => {
+						trace!(target: "dapps", "Validation OK. Streaming response.");
+						let (reading, response) = stream.into_response();
+						fetch2.process_and_forget(reading);
+						FetchState::Streaming(response)
+					},
+					Err(e) => {
+						trace!(target: "dapps", "Error while validating content: {:?}", e);
+						FetchState::Error(errors.invalid_content(e))
+					},
+				},
+				Err(e) => {
+					warn!(target: "dapps", "Unable to fetch content: {:?}", e);
+					FetchState::Error(errors.download_error(e))
+				},
+			})
+		});
+
+		// make sure to run within fetch thread pool.
+		fetch.process(future)
+	}
+}
+
+impl Future for ContentFetcherHandler {
+	type Item = hyper::Response;
+	type Error = hyper::Error;
+
+	fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
+		loop {
+			trace!(target: "dapps", "Polling status: {:?}", self.status);
+			self.status = match mem::replace(&mut self.status, FetchState::Empty) {
+				FetchState::Error(error) => {
+					return Ok(futures::Async::Ready(error.into()));
+				},
+				FetchState::Streaming(response) => {
+					return Ok(futures::Async::Ready(response));
+				},
+				any => any,
+			};
+
+			let status = match self.status {
+				// Request may time out
+				FetchState::InProgress(_) if self.fetch_control.is_deadline_reached() => {
+					trace!(target: "dapps", "Fetching dapp failed because of timeout.");
+					FetchState::Error(self.errors.timeout_error())
+				},
+				FetchState::InProgress(ref mut receiver) => {
+					// Check if there is a response
+					trace!(target: "dapps", "Polling streaming response.");
+					try_ready!(receiver.poll().map_err(|err| {
+						warn!(target: "dapps", "Error while fetching response: {:?}", err);
+						hyper::Error::Timeout
+					}))
+				},
+				FetchState::Done(_, ref mut response) => {
+					return response.poll()
+				},
+				FetchState::Empty => panic!("Future polled twice."),
+				_ => unreachable!(),
+			};
+
+			trace!(target: "dapps", "New status: {:?}", status);
 			self.fetch_control.set_status(&status);
 			self.status = status;
-		}
-
-		next
-	}
-
-	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		match self.status {
-			FetchState::Done(_, _, ref mut handler) => handler.on_response(res),
-			FetchState::Error(ref mut handler) => handler.on_response(res),
-			_ => Next::end(),
-		}
-	}
-
-	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
-		match self.status {
-			FetchState::Done(_, _, ref mut handler) => handler.on_response_writable(encoder),
-			FetchState::Error(ref mut handler) => handler.on_response_writable(encoder),
-			_ => Next::end(),
 		}
 	}
 }

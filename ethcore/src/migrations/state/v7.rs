@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,19 +19,18 @@
 
 use std::collections::HashMap;
 
-use util::Bytes;
-use util::{Address, FixedHash, H256};
-use util::kvdb::Database;
-use util::migration::{Batch, Config, Error, Migration, SimpleMigration, Progress};
-use util::sha3::Hashable;
+use ethereum_types::{H256, Address};
+use bytes::Bytes;
+use kvdb_rocksdb::Database;
+use migration::{Batch, Config, Error, ErrorKind, Migration, SimpleMigration, Progress};
+use hash::keccak;
 use std::sync::Arc;
 
-use rlp::{decode, Rlp, RlpStream, Stream, View};
-
+use rlp::{decode, Rlp, RlpStream};
 
 // attempt to migrate a key, value pair. None if migration not possible.
 fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {
-	let val_hash = val.sha3();
+	let val_hash = keccak(val);
 
 	if key_h != val_hash {
 		// this is a key which has been xor'd with an address.
@@ -44,7 +43,7 @@ fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {
 			return None;
 		}
 
-		let address_hash = Address::from(address).sha3();
+		let address_hash = keccak(Address::from(address));
 
 		// create the xor'd key in place.
 		key_h.copy_from_slice(&*val_hash);
@@ -109,7 +108,7 @@ impl OverlayRecentV7 {
 	// walk all journal entries in the database backwards.
 	// find migrations for any possible inserted keys.
 	fn walk_journal(&mut self, source: Arc<Database>) -> Result<(), Error> {
-		if let Some(val) = try!(source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
+		if let Some(val) = source.get(None, V7_LATEST_ERA_KEY)? {
 			let mut era = decode::<u64>(&val);
 			loop {
 				let mut index: usize = 0;
@@ -120,7 +119,7 @@ impl OverlayRecentV7 {
 						r.out()
 					};
 
-					if let Some(journal_raw) = try!(source.get(None, &entry_key).map_err(Error::Custom)) {
+					if let Some(journal_raw) = source.get(None, &entry_key)? {
 						let rlp = Rlp::new(&journal_raw);
 
 						// migrate all inserted keys.
@@ -153,8 +152,8 @@ impl OverlayRecentV7 {
 	// replace all possible inserted/deleted keys with their migrated counterparts
 	// and commit the altered entries.
 	fn migrate_journal(&self, source: Arc<Database>, mut batch: Batch, dest: &mut Database) -> Result<(), Error> {
-		if let Some(val) = try!(source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
-			try!(batch.insert(V7_LATEST_ERA_KEY.into(), val.to_owned(), dest));
+		if let Some(val) = source.get(None, V7_LATEST_ERA_KEY)? {
+			batch.insert(V7_LATEST_ERA_KEY.into(), val.clone().into_vec(), dest)?;
 
 			let mut era = decode::<u64>(&val);
 			loop {
@@ -166,7 +165,7 @@ impl OverlayRecentV7 {
 						r.out()
 					};
 
-					if let Some(journal_raw) = try!(source.get(None, &entry_key).map_err(Error::Custom)) {
+					if let Some(journal_raw) = source.get(None, &entry_key)? {
 						let rlp = Rlp::new(&journal_raw);
 						let id: H256 = rlp.val_at(0);
 						let mut inserted_keys: Vec<(H256, Bytes)> = Vec::new();
@@ -184,7 +183,7 @@ impl OverlayRecentV7 {
 						}
 
 						// migrate all deleted keys.
-						let mut deleted_keys: Vec<H256> = rlp.val_at(2);
+						let mut deleted_keys: Vec<H256> = rlp.list_at(2);
 						for old_key in &mut deleted_keys {
 							if let Some(new) = self.migrated_keys.get(&*old_key) {
 								*old_key = new.clone();
@@ -199,10 +198,10 @@ impl OverlayRecentV7 {
 							stream.begin_list(2).append(&k).append(&v);
 						}
 
-						stream.append(&deleted_keys);
+						stream.append_list(&deleted_keys);
 
 						// and insert it into the new database.
-						try!(batch.insert(entry_key, stream.out(), dest));
+						batch.insert(entry_key, stream.out(), dest)?;
 
 						index += 1;
 					} else {
@@ -233,13 +232,13 @@ impl Migration for OverlayRecentV7 {
 		let mut batch = Batch::new(config, col);
 
 		// check version metadata.
-		match try!(source.get(None, V7_VERSION_KEY).map_err(Error::Custom)) {
+		match source.get(None, V7_VERSION_KEY)? {
 			Some(ref version) if decode::<u32>(&*version) == DB_VERSION => {}
-			_ => return Err(Error::MigrationImpossible), // missing or wrong version
+			_ => return Err(ErrorKind::MigrationImpossible.into()), // missing or wrong version
 		}
 
 		let mut count = 0;
-		for (key, value) in source.iter(None) {
+		for (key, value) in source.iter(None).into_iter().flat_map(|inner| inner) {
 			count += 1;
 			if count == 100_000 {
 				count = 0;
@@ -255,10 +254,10 @@ impl Migration for OverlayRecentV7 {
 				}
 			}
 
-			try!(batch.insert(key, value.into_vec(), dest));
+			batch.insert(key, value.into_vec(), dest)?;
 		}
 
-		try!(self.walk_journal(source.clone()));
+		self.walk_journal(source.clone())?;
 		self.migrate_journal(source, batch, dest)
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,11 +16,12 @@
 
 //! Lenient bytes json deserialization for test json files.
 
+use std::fmt;
 use std::str::FromStr;
 use std::ops::Deref;
-use rustc_serialize::hex::FromHex;
-use serde::{Deserialize, Deserializer, Error};
-use serde::de::Visitor;
+use rustc_hex::FromHex;
+use serde::{Deserialize, Deserializer};
+use serde::de::{Error, Visitor};
 
 /// Lenient bytes json deserialization for test json files.
 #[derive(Default, Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
@@ -66,23 +67,27 @@ impl FromStr for Bytes {
 	}
 }
 
-impl Deserialize for Bytes {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
-		where D: Deserializer {
-		deserializer.deserialize(BytesVisitor)
+impl<'a> Deserialize<'a> for Bytes {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+		where D: Deserializer<'a> {
+		deserializer.deserialize_any(BytesVisitor)
 	}
 }
 
 struct BytesVisitor;
 
-impl Visitor for BytesVisitor {
+impl<'a> Visitor<'a> for BytesVisitor {
 	type Value = Bytes;
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a hex encoded string of bytes")
+	}
+
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
 		Bytes::from_str(value).map_err(Error::custom)
 	}
 
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: Error {
+	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
 		self.visit_str(value.as_ref())
 	}
 }

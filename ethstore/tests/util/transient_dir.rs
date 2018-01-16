@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,8 +17,7 @@
 use std::path::PathBuf;
 use std::{env, fs};
 use rand::{Rng, OsRng};
-use ethstore::dir::{KeyDirectory, DiskDirectory};
-use ethstore::ethkey::Address;
+use ethstore::accounts_dir::{KeyDirectory, RootDiskDirectory};
 use ethstore::{Error, SafeAccount};
 
 pub fn random_dir() -> PathBuf {
@@ -29,7 +28,7 @@ pub fn random_dir() -> PathBuf {
 }
 
 pub struct TransientDir {
-	dir: DiskDirectory,
+	dir: RootDiskDirectory,
 	path: PathBuf,
 }
 
@@ -37,7 +36,7 @@ impl TransientDir {
 	pub fn create() -> Result<Self, Error> {
 		let path = random_dir();
 		let result = TransientDir {
-			dir: try!(DiskDirectory::create(&path)),
+			dir: RootDiskDirectory::create(&path)?,
 			path: path,
 		};
 
@@ -47,7 +46,7 @@ impl TransientDir {
 	pub fn open() -> Self {
 		let path = random_dir();
 		TransientDir {
-			dir: DiskDirectory::at(&path),
+			dir: RootDiskDirectory::at(&path),
 			path: path,
 		}
 	}
@@ -64,11 +63,19 @@ impl KeyDirectory for TransientDir {
 		self.dir.load()
 	}
 
+	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
+		self.dir.update(account)
+	}
+
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
 		self.dir.insert(account)
 	}
 
-	fn remove(&self, address: &Address) -> Result<(), Error> {
-		self.dir.remove(address)
+	fn remove(&self, account: &SafeAccount) -> Result<(), Error> {
+		self.dir.remove(account)
+	}
+
+	fn unique_repr(&self) -> Result<u64, Error> {
+		self.dir.unique_repr()
 	}
 }

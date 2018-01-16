@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,21 +16,21 @@
 
 //! RPC interface.
 
-use jsonrpc_core::Error;
-
-use v1::helpers::auto_args::Wrap;
-
 use std::collections::BTreeMap;
+
+use jsonrpc_core::Result;
 
 build_rpc_trait! {
 	/// RPC Interface.
 	pub trait Rpc {
 		/// Returns supported modules for Geth 1.3.6
+        /// @ignore
 		#[rpc(name = "modules")]
-		fn modules(&self) -> Result<BTreeMap<String, String>, Error>;
+		fn modules(&self) -> Result<BTreeMap<String, String>>;
 
 		/// Returns supported modules for Geth 1.4.0
+        /// @ignore
 		#[rpc(name = "rpc_modules")]
-		fn rpc_modules(&self) -> Result<BTreeMap<String, String>, Error>;
+		fn rpc_modules(&self) -> Result<BTreeMap<String, String>>;
 	}
 }

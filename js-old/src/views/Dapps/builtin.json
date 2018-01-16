@@ -1,0 +1,101 @@
+[
+  {
+    "url": "chaindeploy",
+    "name": "Chain Deployment",
+    "description": "Deploy all basic contracts, names & applications to the network",
+    "author": "Parity Team <admin@parity.io>",
+    "version": "1.0.0",
+    "visible": false
+  },
+  {
+    "id": "0xa635a9326814bded464190eddf0bdb90ce92d40ea2359cf553ea80e3c5a4076c",
+    "url": "console",
+    "name": "Parity/Web3 console",
+    "description": "A Javascript development console complete with web3 and parity objects",
+    "version": "0.3",
+    "author": "Gav Wood <gavin@parity.io>",
+    "position": "top-right",
+    "visible": true,
+    "secure": true
+  },
+  {
+    "id": "0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f",
+    "url": "tokendeploy",
+    "name": "Token Deployment",
+    "description": "Deploy new basic tokens that you are able to send around",
+    "author": "Parity Team <admin@parity.io>",
+    "version": "1.0.0",
+    "visible": true
+  },
+  {
+    "id": "0xd1adaede68d344519025e2ff574650cd99d3830fe6d274c7a7843cdc00e17938",
+    "url": "registry",
+    "name": "Registry",
+    "description": "A global registry of addresses on the network",
+    "author": "Parity Team <admin@parity.io>",
+    "version": "1.0.0",
+    "visible": true
+  },
+  {
+    "id": "0x0a8048117e51e964628d0f2d26342b3cd915248b59bcce2721e1d05f5cfa2208",
+    "url": "tokenreg",
+    "name": "Token Registry",
+    "description": "A registry of transactable tokens on the network",
+    "author": "Parity Team <admin@parity.io>",
+    "version": "1.0.0",
+    "visible": true,
+    "secure": true
+  },
+  {
+    "id": "0xf49089046f53f5d2e5f3513c1c32f5ff57d986e46309a42d2b249070e4e72c46",
+    "url": "signaturereg",
+    "name": "Method Registry",
+    "description": "A registry of method signatures for lookups on transactions",
+    "author": "Parity Team <admin@parity.io>",
+    "version": "1.0.0",
+    "visible": true
+  },
+  {
+    "id": "0x058740ee9a5a3fb9f1cfa10752baec87e09cc45cd7027fd54708271aca300c75",
+    "url": "githubhint",
+    "name": "GitHub Hint",
+    "description": "A mapping of GitHub URLs to hashes for use in contracts as references",
+    "author": "Parity Team <admin@parity.io>",
+    "version": "1.0.0",
+    "visible": false,
+    "secure": true,
+    "onlyPersonal": true
+  },
+  {
+    "id": "0xae74ad174b95cdbd01c88ac5b73a296d33e9088fc2a200e76bcedf3a94a7815d",
+    "url": "localtx",
+    "name": "TxQueue Viewer",
+    "description": "Have a peek at the internals of your node's transaction queue",
+    "author": "Parity Team <admin@parity.io>",
+    "version": "1.0.0",
+    "visible": true,
+    "secure": true
+  },
+  {
+    "id": "0x7bbc4f1a27628781b96213e781a1b8eec6982c1db8fac739af6e4c5a55862c03",
+    "url": "dappreg",
+    "name": "Dapp Registration",
+    "description": "Enables the registration and content management of dapps on the network",
+    "author": "Parity Team <admin@parity.io>",
+    "version": "1.0.0",
+    "visible": false,
+    "secure": true
+  },
+  {
+    "id": "0x9042323cd85c6576992d211de34b3ecc183f15e4f639aa87859882f839c374e5",
+    "url": "web",
+    "name": "Browser",
+    "description": "A Web 2.0 hosted pseudo-dapps browser",
+    "author": "Parity Team <admin@parity.io>",
+    "version": "1.0.0",
+    "visible": true,
+    "skipBuild": true,
+    "skipHistory": true,
+    "onlyPersonal": true
+  }
+]

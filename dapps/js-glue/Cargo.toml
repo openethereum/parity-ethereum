@@ -1,30 +1,27 @@
 [package]
 description = "Base Package for all Parity built-in dapps"
 name = "parity-dapps-glue"
-version = "1.4.0"
+version = "1.9.1"
 license = "GPL-3.0"
-authors = ["Ethcore <admin@ethcore.io"]
+authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [build-dependencies]
-quasi_codegen = { version = "0.11", optional = true }
-syntex = { version = "0.33", optional = true }
+quasi_codegen = { version = "0.32", optional = true }
+syntex = { version = "0.58", optional = true }
 
 [dependencies]
 glob = { version = "0.2.11" }
-mime_guess = { version = "1.6.1" }
-aster = { version = "0.17", default-features = false }
-quasi = { version = "0.11", default-features = false }
-quasi_macros = { version = "0.11", optional = true }
-syntex = { version = "0.33", optional = true }
-syntex_syntax = { version = "0.33", optional = true }
-clippy = { version = "0.0.90", optional = true }
+mime_guess = { version = "2.0.0-alpha.2" }
+aster = { version = "0.41", default-features = false }
+quasi = { version = "0.32", default-features = false }
+quasi_macros = { version = "0.32", optional = true }
+syntex = { version = "0.58", optional = true }
+syntex_syntax = { version = "0.58", optional = true }
 
 [features]
-dev = ["clippy"]
 default = ["with-syntex"]
 nightly = ["quasi_macros"]
-nightly-testing = ["clippy"]
 with-syntex = ["quasi/with-syntex", "quasi_codegen", "quasi_codegen/with-syntex", "syntex", "syntex_syntax"]
 use-precompiled-js = []
 

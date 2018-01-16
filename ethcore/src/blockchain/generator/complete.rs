@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::hash::H256;
-use util::bytes::Bytes;
-use util::sha3::Hashable;
+use ethereum_types::H256;
+use bytes::Bytes;
 use views::BlockView;
 
 #[derive(Default, Clone)]
@@ -46,7 +45,7 @@ impl<'a, I> Iterator for Complete<'a, I> where I: Iterator, <I as Iterator>::Ite
 	fn next(&mut self) -> Option<Self::Item> {
 		self.iter.next().map(|item| {
 			let rlp = item.complete(self.finalizer.parent_hash.clone());
-			self.finalizer.parent_hash = BlockView::new(&rlp).header_view().sha3();
+			self.finalizer.parent_hash = BlockView::new(&rlp).header_view().hash();
 			rlp
 		})
 	}

@@ -1,0 +1,198 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+.outer, .page, .editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.timestamp {
+  font-size: 0.75em;
+  margin-left: 1em;
+  color: #ccc;
+}
+
+.toggles {
+  display: flex;
+  flex-direction: row;
+  margin: 1em 0 0;
+
+  > * {
+    flex: 1;
+  }
+}
+
+.container {
+  padding: 1em 0;
+  display: flex;
+  flex: 1;
+  flex-direction: row;
+
+  // Fallback for browsers not supporting `calc`
+  min-height: 90vh;
+  min-height: calc(100vh - 8em);
+
+  > * {
+    margin: 0;
+
+    > h2 {
+      margin-top: 0;
+    }
+  }
+}
+
+.error {
+  background-color: rgba(200, 0, 0, 0.25);
+  padding: 1em 0.5em;
+  margin-top: -0.5em;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.mainEditor {
+  &:global(.ace-solarized-dark) {
+    background-color: rgba(0, 0, 0, 0.5);
+
+    :global(.ace_gutter) {
+      background-color: rgba(0, 0, 0, 0.7);
+    }
+
+    :global(.ace_content) {
+      background-color: transparent;
+    }
+  }
+}
+
+.big {
+  font-size: 1.2em;
+}
+
+.centeredMessage {
+  width: 100%;
+  height: 75%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.resizing * {
+  cursor: ew-resize !important;
+  user-select: none !important;
+}
+
+.editor {
+  width: 0;
+  margin-left: 0.5em;
+}
+
+.parameters {
+  width: 0;
+  display: flex;
+  flex-direction: column;
+  margin-right: 0.5em;
+  overflow: auto;
+
+  .panel {
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 1em;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+
+  .compilation {
+    flex: 1 0 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .errors {
+    flex: 1 0 0;
+    overflow: auto;
+    margin-right: -0.5em;
+    margin-top: 0.5em;
+  }
+}
+
+.messageContainer {
+  padding: 0.5em 0;
+  margin-right: 0.5em;
+
+  &:first-child {
+    padding-top: 0;
+  }
+
+  &:last-child {
+    padding-bottom: 0;
+  }
+
+  .errorPosition {
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 0.25em 0.5em;
+    top: 0;
+    position: relative;
+    margin-bottom: 0.25em;
+    font-size: 0.75em;
+  }
+}
+
+.message {
+  font-family: monospace;
+  padding: 0.5em;
+  font-size: 0.9em;
+  white-space: pre;
+  overflow: auto;
+
+  &.error {
+    background-color: rgba(244, 67, 54, 0.5);
+  }
+
+  &.warning {
+    background-color: rgba(255, 235, 59, 0.5);
+  }
+
+  &.formal {
+    background-color: rgba(243, 156, 18, 0.5);
+  }
+}
+
+.messagesHeader {
+  margin-bottom: 0.25em;
+  text-transform: uppercase;
+  font-size: 0.9em;
+}
+
+.sliderContainer {
+  flex: 0 0 .8em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .slider {
+    width: 0.4em;
+    height: 3em;
+    border-radius: 0.75em;
+    background-color: rgba(0, 0, 0, 0.5);
+    content: ' ';
+
+    &:hover {
+      cursor: ew-resize;
+    }
+  }
+}

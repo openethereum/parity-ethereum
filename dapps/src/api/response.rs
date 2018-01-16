@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,25 +16,28 @@
 
 use serde::Serialize;
 use serde_json;
-use endpoint::Handler;
+use hyper::{self, mime, StatusCode};
+
 use handlers::{ContentHandler, EchoHandler};
 
-pub fn as_json<T: Serialize>(val: &T) -> Box<Handler> {
-	let json = serde_json::to_string(val)
-		.expect("serialization to string is infallible; qed");
-	Box::new(ContentHandler::ok(json, mime!(Application/Json)))
+pub fn empty() -> hyper::Response {
+	ContentHandler::ok("".into(), mime::TEXT_PLAIN).into()
 }
 
-pub fn as_json_error<T: Serialize>(val: &T) -> Box<Handler> {
+pub fn as_json<T: Serialize>(status: StatusCode, val: &T) -> hyper::Response {
 	let json = serde_json::to_string(val)
 		.expect("serialization to string is infallible; qed");
-	Box::new(ContentHandler::not_found(json, mime!(Application/Json)))
+	ContentHandler::new(status, json, mime::APPLICATION_JSON).into()
 }
 
-pub fn ping_response(local_domain: &str) -> Box<Handler> {
-	Box::new(EchoHandler::cors(vec![
-		format!("http://{}", local_domain),
-		// Allow CORS calls also for localhost
-		format!("http://{}", local_domain.replace("127.0.0.1", "localhost")),
-	]))
+pub fn ping(req: hyper::Request) -> hyper::Response {
+	EchoHandler::new(req).into()
+}
+
+pub fn not_found() -> hyper::Response {
+	as_json(StatusCode::NotFound, &::api::types::ApiError {
+		code: "404".into(),
+		title: "Not Found".into(),
+		detail: "Resource you requested has not been found.".into(),
+	})
 }

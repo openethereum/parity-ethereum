@@ -1,0 +1,10 @@
+[package]
+name = "memory-cache"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "An LRU-cache which operates on memory used"
+license = "GPL3"
+
+[dependencies]
+heapsize = "0.4"
+lru-cache = "0.1"

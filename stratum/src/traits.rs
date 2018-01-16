@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,14 +16,16 @@
 
 use std;
 use std::error::Error as StdError;
-use util::H256;
-use ipc::IpcConfig;
+use ethereum_types::H256;
+use jsonrpc_tcp_server::PushMessageError;
 
-#[derive(Debug, Clone, Binary)]
+#[derive(Debug, Clone)]
 pub enum Error {
 	NoWork,
 	NoWorkers,
 	Io(String),
+	Tcp(String),
+	Dispatch(String),
 }
 
 impl From<std::io::Error> for Error {
@@ -32,7 +34,12 @@ impl From<std::io::Error> for Error {
 	}
 }
 
-#[ipc(client_ident="RemoteJobDispatcher")]
+impl From<PushMessageError> for Error {
+	fn from(err: PushMessageError) -> Self {
+		Error::Tcp(format!("Push message error: {:?}", err))
+	}
+}
+
 /// Interface that can provide pow/blockchain-specific responses for the clients
 pub trait JobDispatcher: Send + Sync {
 	// json for initial client handshake
@@ -40,10 +47,11 @@ pub trait JobDispatcher: Send + Sync {
 	// json for difficulty dispatch
 	fn difficulty(&self) -> Option<String> { None }
 	// json for job update given worker_id (payload manager should split job!)
-	fn job(&self, _worker_id: String) -> Option<String> { None }
+	fn job(&self) -> Option<String> { None }
+	// miner job result
+	fn submit(&self, payload: Vec<String>) -> Result<(), Error>;
 }
 
-#[ipc(client_ident="RemoteWorkHandler")]
 /// Interface that can handle requests to push job for workers
 pub trait PushWorkHandler: Send + Sync {
 	/// push the same work package for all workers (`payload`: json of pow-specific set of work specification)
@@ -53,11 +61,9 @@ pub trait PushWorkHandler: Send + Sync {
 	fn push_work(&self, payloads: Vec<String>) -> Result<(), Error>;
 }
 
-#[derive(Binary)]
 pub struct ServiceConfiguration {
+	pub io_path: String,
 	pub listen_addr: String,
+	pub port: u16,
 	pub secret: Option<H256>,
 }
-
-impl IpcConfig for PushWorkHandler { }
-impl IpcConfig for JobDispatcher { }

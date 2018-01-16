@@ -1,0 +1,111 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.events {
+  width: 100%;
+  border: none;
+  border-spacing: 0;
+
+  tr {
+    line-height: 32px;
+    vertical-align: top;
+  }
+}
+
+.event {
+  td {
+    vertical-align: top;
+    padding: 0 0.5em 1.5em;
+
+    div {
+      white-space: nowrap;
+    }
+
+    &.timestamp {
+      padding-right: 1.5em;
+      text-align: right;
+      line-height: 1.5em;
+      opacity: 0.5;
+      white-space: nowrap;
+    }
+  }
+}
+
+.blockNumber {
+  color: rgba(255, 255, 255, 0.25);
+  margin-top: 1.5em;
+}
+
+.origin {
+  text-align: left;
+  padding-left: 32px;
+  text-indent: 1em;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  font-size: 0.9em;
+}
+
+.txhash {
+  text-overflow: ellipsis;
+  width: 20%;
+}
+
+.key {
+  text-align: right;
+  color: #aaa;
+}
+
+.mined {
+}
+
+.pending {
+  opacity: 0.5;
+}
+
+.eventDetails {
+}
+
+.eventType {
+}
+
+.eventParams {
+  padding-left: 2em;
+}
+
+.eventValue {
+  margin-top: -16px;
+}
+
+.eventAddress {
+  display: inline-block;
+  position: relative;
+  white-space: nowrap;
+}
+
+.eventIdentityicon {
+  margin-bottom: -10px;
+  margin-right: 0.5em;
+}
+
+.details {
+  margin-top: -1.5em;
+
+  h4 {
+    text-transform: uppercase;
+    margin: 1.5em 0 1em;
+  }
+}

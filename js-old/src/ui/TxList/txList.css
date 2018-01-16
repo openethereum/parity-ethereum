@@ -1,0 +1,99 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.transactions {
+  width: 100%;
+  border-collapse: collapse;
+
+  tr {
+    line-height: 32px;
+    vertical-align: top;
+
+    &:nth-child(even) {
+      background: rgba(255, 255, 255, 0.04);
+    }
+  }
+
+  th {
+    color: #aaa;
+    text-align: center;
+  }
+
+  td {
+    vertical-align: top;
+    padding: 0.75em 0.75em;
+
+    &.method {
+      width: 40%;
+    }
+
+    &.timestamp {
+      max-width: 5em;
+      padding-top: 0.75em;
+      text-align: center;
+      line-height: 1.5em;
+      color: grey;
+    }
+
+    &.transaction {
+      padding-top: 1.5em;
+      text-align: center;
+
+      & div {
+        line-height: 1.25em;
+        min-height: 1.25em;
+      }
+    }
+  }
+
+  .icon {
+    margin: 0;
+  }
+
+  .link {
+    vertical-align: top;
+
+    &.currentLink {
+      color: white;
+      cursor: text;
+    }
+  }
+
+  .right {
+    text-align: right;
+  }
+
+  .center {
+    text-align: center;
+  }
+
+  .left {
+    text-align: left;
+  }
+
+  .pending {
+    padding: 0em;
+  }
+
+  .pending div {
+    padding-bottom: 1.25em;
+  }
+
+  .uppercase {
+    text-transform: uppercase;
+  }
+}

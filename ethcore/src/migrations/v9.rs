@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,9 +17,9 @@
 
 //! This migration consolidates all databases into single one using Column Families.
 
-use rlp::{Rlp, RlpStream, View, Stream};
-use util::kvdb::Database;
-use util::migration::{Batch, Config, Error, Migration, Progress};
+use rlp::{Rlp, RlpStream};
+use kvdb_rocksdb::Database;
+use migration::{Batch, Config, Error, Migration, Progress};
 use std::sync::Arc;
 
 /// Which part of block to preserve
@@ -51,7 +51,6 @@ impl ToV9 {
 }
 
 impl Migration for ToV9 {
-
 	fn columns(&self) -> Option<u32> { Some(5) }
 
 	fn version(&self) -> u32 { 9 }
@@ -59,21 +58,21 @@ impl Migration for ToV9 {
 	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
 		let mut batch = Batch::new(config, self.column);
 
-		for (key, value) in source.iter(col) {
+		for (key, value) in source.iter(col).into_iter().flat_map(|inner| inner) {
 			self.progress.tick();
 			match self.extract {
 				Extract::Header => {
-					try!(batch.insert(key.to_vec(), Rlp::new(&value).at(0).as_raw().to_vec(), dest))
+					batch.insert(key.into_vec(), Rlp::new(&value).at(0).as_raw().to_vec(), dest)?
 				},
 				Extract::Body => {
 					let mut body = RlpStream::new_list(2);
 					let block_rlp = Rlp::new(&value);
 					body.append_raw(block_rlp.at(1).as_raw(), 1);
 					body.append_raw(block_rlp.at(2).as_raw(), 1);
-					try!(batch.insert(key.to_vec(), body.out(), dest))
+					batch.insert(key.into_vec(), body.out(), dest)?
 				},
 				Extract::All => {
-					try!(batch.insert(key.to_vec(), value.to_vec(), dest))
+					batch.insert(key.into_vec(), value.into_vec(), dest)?
 				}
 			}
 		}

@@ -1,0 +1,27 @@
+[package]
+description = "Parity Miner interface."
+name = "ethcore-miner"
+homepage = "http://parity.io"
+license = "GPL-3.0"
+version = "1.9.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+# TODO [ToDr] Rewrite using reqwest
+hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
+
+common-types = { path = "../ethcore/types" }
+ethash = { path = "../ethash" }
+ethcore-transaction = { path = "../ethcore/transaction" }
+ethereum-types = "0.1"
+ethkey = { path = "../ethkey" }
+futures = "0.1"
+heapsize = "0.4"
+keccak-hash = { path = "../util/hash" }
+linked-hash-map = "0.5"
+log = "0.3"
+native-contracts = { path = "../ethcore/native_contracts" }
+parking_lot = "0.4"
+rustc-hex = "1.0"
+table = { path = "../util/table" }
+transient-hashmap = "0.4"

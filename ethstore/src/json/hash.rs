@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,9 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{ops, fmt, str};
-use rustc_serialize::hex::{FromHex, ToHex};
-use serde::{Serialize, Serializer, Deserialize, Deserializer, Error as SerdeError};
-use serde::de::Visitor;
+use rustc_hex::{FromHex, ToHex};
+use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::de::{Visitor, Error as SerdeError};
 use super::Error;
 
 macro_rules! impl_hash {
@@ -48,30 +48,34 @@ macro_rules! impl_hash {
 		}
 
 		impl Serialize for $name {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 			where S: Serializer {
 				serializer.serialize_str(&self.0.to_hex())
 			}
 		}
 
-		impl Deserialize for $name {
-			fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
-			where D: Deserializer {
+		impl<'a> Deserialize<'a> for $name {
+			fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+			where D: Deserializer<'a> {
 				struct HashVisitor;
 
-				impl Visitor for HashVisitor {
+				impl<'b> Visitor<'b> for HashVisitor {
 					type Value = $name;
 
-					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
+					fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+						write!(formatter, "a hex-encoded {}", stringify!($name))
+					}
+
+					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
 						value.parse().map_err(SerdeError::custom)
 					}
 
-					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: SerdeError {
+					fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: SerdeError {
 						self.visit_str(value.as_ref())
 					}
 				}
 
-				deserializer.deserialize(HashVisitor)
+				deserializer.deserialize_any(HashVisitor)
 			}
 		}
 
@@ -92,7 +96,7 @@ macro_rules! impl_hash {
 
 		impl From<&'static str> for $name {
 			fn from(s: &'static str) -> Self {
-				s.parse().expect(&format!("invalid string literal for {}: '{}'", stringify!(Self), s))
+				s.parse().expect(&format!("invalid string literal for {}: '{}'", stringify!($name), s))
 			}
 		}
 

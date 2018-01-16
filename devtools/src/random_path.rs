@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -96,7 +96,7 @@ impl Drop for RandomTempPath {
 
 pub struct GuardedTempResult<T> {
 	pub result: Option<T>,
-	pub _temp: RandomTempPath
+	pub _temp: RandomTempPath,
 }
 
 impl<T> GuardedTempResult<T> {

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,117 +15,83 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use hyper::{server, net, Decoder, Encoder, Next, Control};
-use api::types::{App, ApiError};
-use api::response::{as_json, as_json_error, ping_response};
-use handlers::extract_url;
-use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
-use apps::fetcher::ContentFetcher;
+
+use hyper::{Method, StatusCode};
+
+use api::response;
+use apps::fetcher::Fetcher;
+use endpoint::{Endpoint, Request, Response, EndpointPath};
+use futures::{future, Future};
+use node_health::{NodeHealth, HealthStatus};
 
 #[derive(Clone)]
 pub struct RestApi {
-	local_domain: String,
-	endpoints: Arc<Endpoints>,
-	fetcher: Arc<ContentFetcher>,
-}
-
-impl RestApi {
-	pub fn new(local_domain: String, endpoints: Arc<Endpoints>, fetcher: Arc<ContentFetcher>) -> Box<Endpoint> {
-		Box::new(RestApi {
-			local_domain: local_domain,
-			endpoints: endpoints,
-			fetcher: fetcher,
-		})
-	}
-
-	fn list_apps(&self) -> Vec<App> {
-		self.endpoints.iter().filter_map(|(ref k, ref e)| {
-			e.info().map(|ref info| App::from_info(k, info))
-		}).collect()
-	}
+	fetcher: Arc<Fetcher>,
+	health: NodeHealth,
 }
 
 impl Endpoint for RestApi {
-	fn to_async_handler(&self, path: EndpointPath, control: Control) -> Box<Handler> {
-		Box::new(RestApiRouter::new(self.clone(), path, control))
-	}
-}
-
-struct RestApiRouter {
-	api: RestApi,
-	path: Option<EndpointPath>,
-	control: Option<Control>,
-	handler: Box<Handler>,
-}
-
-impl RestApiRouter {
-	fn new(api: RestApi, path: EndpointPath, control: Control) -> Self {
-		RestApiRouter {
-			path: Some(path),
-			control: Some(control),
-			api: api,
-			handler: as_json_error(&ApiError {
-				code: "404".into(),
-				title: "Not Found".into(),
-				detail: "Resource you requested has not been found.".into(),
-			}),
-		}
-	}
-
-	fn resolve_content(&self, hash: Option<&str>, path: EndpointPath, control: Control) -> Option<Box<Handler>> {
-		match hash {
-			Some(hash) if self.api.fetcher.contains(hash) => {
-				Some(self.api.fetcher.to_async_handler(path, control))
-			},
-			_ => None
-		}
-	}
-}
-
-impl server::Handler<net::HttpStream> for RestApiRouter {
-
-	fn on_request(&mut self, request: server::Request<net::HttpStream>) -> Next {
-		let url = extract_url(&request);
-		if url.is_none() {
-			// Just return 404 if we can't parse URL
-			return Next::write();
+	fn respond(&self, mut path: EndpointPath, req: Request) -> Response {
+		if let Method::Options = *req.method() {
+			return Box::new(future::ok(response::empty()));
 		}
 
-		let url = url.expect("Check for None early-exists above; qed");
-		let mut path = self.path.take().expect("on_request called only once, and path is always defined in new; qed");
-		let control = self.control.take().expect("on_request called only once, and control is always defined in new; qed");
+		let endpoint = path.app_params.get(0).map(String::to_owned);
+		let hash = path.app_params.get(1).map(String::to_owned);
 
-		let endpoint = url.path.get(1).map(|v| v.as_str());
-		let hash = url.path.get(2).map(|v| v.as_str());
 		// at this point path.app_id contains 'api', adjust it to the hash properly, otherwise
 		// we will try and retrieve 'api' as the hash when doing the /api/content route
-		if let Some(hash) = hash.clone() { path.app_id = hash.to_owned() }
-
-		let handler = endpoint.and_then(|v| match v {
-			"apps" => Some(as_json(&self.api.list_apps())),
-			"ping" => Some(ping_response(&self.api.local_domain)),
-			"content" => self.resolve_content(hash, path, control),
-			_ => None
-		});
-
-		// Overwrite default
-		if let Some(h) = handler {
-			self.handler = h;
+		if let Some(ref hash) = hash {
+			path.app_id = hash.to_owned();
 		}
 
-		self.handler.on_request(request)
+		trace!(target: "dapps", "Handling /api request: {:?}/{:?}", endpoint, hash);
+		match endpoint.as_ref().map(String::as_str) {
+			Some("ping") => Box::new(future::ok(response::ping(req))),
+			Some("health") => self.health(),
+			Some("content") => self.resolve_content(hash.as_ref().map(String::as_str), path, req),
+			_ => Box::new(future::ok(response::not_found())),
+		}
+	}
+}
+
+impl RestApi {
+	pub fn new(
+		fetcher: Arc<Fetcher>,
+		health: NodeHealth,
+	) -> Box<Endpoint> {
+		Box::new(RestApi {
+			fetcher,
+			health,
+		})
 	}
 
-	fn on_request_readable(&mut self, decoder: &mut Decoder<net::HttpStream>) -> Next {
-		self.handler.on_request_readable(decoder)
+	fn resolve_content(&self, hash: Option<&str>, path: EndpointPath, req: Request) -> Response {
+		trace!(target: "dapps", "Resolving content: {:?} from path: {:?}", hash, path);
+		match hash {
+			Some(hash) if self.fetcher.contains(hash) => {
+				self.fetcher.respond(path, req)
+			},
+			_ => Box::new(future::ok(response::not_found())),
+		}
 	}
 
-	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		self.handler.on_response(res)
-	}
+	fn health(&self) -> Response {
+		Box::new(self.health.health()
+			.then(|health| {
+				let status = match health {
+					Ok(ref health) => {
+						if [&health.peers.status, &health.sync.status].iter().any(|x| *x != &HealthStatus::Ok) {
+							StatusCode::PreconditionFailed // HTTP 412
+						} else {
+							StatusCode::Ok // HTTP 200
+						}
+					},
+					_ => StatusCode::ServiceUnavailable, // HTTP 503
+				};
 
-	fn on_response_writable(&mut self, encoder: &mut Encoder<net::HttpStream>) -> Next {
-		self.handler.on_response_writable(encoder)
+				Ok(response::as_json(status, &health).into())
+			})
+		)
 	}
-
 }

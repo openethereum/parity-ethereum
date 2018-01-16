@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,35 +16,38 @@
 
 //! Ethereum rpc interface implementation.
 
-macro_rules! take_weak {
-	($weak: expr) => {
-		match $weak.upgrade() {
-			Some(arc) => arc,
-			None => return Err(Error::internal_error())
-		}
-	}
-}
-
 mod eth;
 mod eth_filter;
-mod eth_signing;
-mod ethcore;
-mod ethcore_set;
+mod eth_pubsub;
 mod net;
+mod parity;
+mod parity_accounts;
+mod parity_set;
 mod personal;
-mod personal_signer;
+mod pubsub;
+mod signer;
+mod signing;
+mod signing_unsafe;
 mod rpc;
+mod secretstore;
 mod traces;
 mod web3;
 
-pub use self::web3::Web3Client;
+pub mod light;
+
 pub use self::eth::{EthClient, EthClientOptions};
 pub use self::eth_filter::EthFilterClient;
-pub use self::eth_signing::{EthSigningUnsafeClient, EthSigningQueueClient};
+pub use self::eth_pubsub::EthPubSubClient;
 pub use self::net::NetClient;
+pub use self::parity::ParityClient;
+pub use self::parity_accounts::ParityAccountsClient;
+pub use self::parity_set::ParitySetClient;
 pub use self::personal::PersonalClient;
-pub use self::personal_signer::SignerClient;
-pub use self::ethcore::EthcoreClient;
-pub use self::ethcore_set::EthcoreSetClient;
+pub use self::pubsub::PubSubClient;
+pub use self::signer::SignerClient;
+pub use self::signing::SigningQueueClient;
+pub use self::signing_unsafe::SigningUnsafeClient;
 pub use self::traces::TracesClient;
+pub use self::web3::Web3Client;
 pub use self::rpc::RpcClient;
+pub use self::secretstore::SecretStoreClient;

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 use transient_hashmap::{TransientHashMap, Timer, StandardTimer};
 
 /// Lifetime of poll (in seconds).
-const POLL_LIFETIME: u64 = 60;
+const POLL_LIFETIME: u32 = 60;
 
 pub type PollId = usize;
 

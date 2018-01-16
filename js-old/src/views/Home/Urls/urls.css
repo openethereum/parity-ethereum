@@ -1,0 +1,81 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.urls {
+  text-align: center;
+
+  .layout {
+    box-sizing: border-box;
+    margin: 1.5em auto;
+    padding: 0 1em;
+    width: 50%;
+
+    .empty {
+      margin-top: 0.5em;
+      opacity: 0.75;
+    }
+
+    .historyItem {
+      height: auto;
+      margin-top: 1em;
+      position: relative;
+      width: 100%;
+
+      .linkIcon {
+        opacity: 0;
+        position: absolute;
+        right: 0.5em;
+        top: 0.5em;
+      }
+
+      .url {
+        display: block;
+        color: rgb(0, 151, 167);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: pointer;
+      }
+
+      .timestamp {
+        color: #aaa;
+        font-size: 0.75em;
+        line-height: 1em;
+        padding-top: 0.5rem;
+      }
+
+      &:hover {
+        opacity: 1;
+
+        .linkIcon {
+          opacity: 1;
+        }
+      }
+    }
+
+    .input {
+      background: rgba(255, 255, 255, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 0.25em;
+      box-sizing: border-box;
+      color: white;
+      display: block;
+      font-size: 1.25em;
+      padding: 0.5em;
+      width: 100%;
+    }
+  }
+}

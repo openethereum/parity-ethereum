@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,7 +19,8 @@
 use std::ops::Deref;
 use std::hash::Hash;
 use std::collections::HashMap;
-use util::{DBTransaction, Database, RwLock};
+use parking_lot::RwLock;
+use kvdb::{DBTransaction, KeyValueDB};
 
 use rlp;
 
@@ -34,10 +35,14 @@ pub const COL_BODIES: Option<u32> = Some(2);
 pub const COL_EXTRA: Option<u32> = Some(3);
 /// Column for Traces
 pub const COL_TRACE: Option<u32> = Some(4);
-/// Column for Traces
+/// Column for the empty accounts bloom filter.
 pub const COL_ACCOUNT_BLOOM: Option<u32> = Some(5);
+/// Column for general information from the local node which can persist.
+pub const COL_NODE_INFO: Option<u32> = Some(6);
+/// Column for the light client chain.
+pub const COL_LIGHT_CHAIN: Option<u32> = Some(7);
 /// Number of columns in DB
-pub const NUM_COLUMNS: Option<u32> = Some(6);
+pub const NUM_COLUMNS: Option<u32> = Some(8);
 
 /// Modes for updating caches.
 #[derive(Clone, Copy)]
@@ -114,7 +119,7 @@ pub trait Writable {
 	R: Deref<Target = [u8]> {
 		match policy {
 			CacheUpdatePolicy::Overwrite => {
-				for (key, value) in values.into_iter() {
+				for (key, value) in values {
 					self.write(col, &key, &value);
 					cache.insert(key, value);
 				}
@@ -135,7 +140,7 @@ pub trait Writable {
 	R: Deref<Target = [u8]> {
 		match policy {
 			CacheUpdatePolicy::Overwrite => {
-				for (key, value) in values.into_iter() {
+				for (key, value) in values {
 					match value {
 						Some(ref v) => self.write(col, &key, v),
 						None => self.delete(col, &key),
@@ -144,7 +149,7 @@ pub trait Writable {
 				}
 			},
 			CacheUpdatePolicy::Remove => {
-				for (key, value) in values.into_iter() {
+				for (key, value) in values {
 					match value {
 						Some(v) => self.write(col, &key, &v),
 						None => self.delete(col, &key),
@@ -212,7 +217,7 @@ impl Writable for DBTransaction {
 	}
 }
 
-impl Readable for Database {
+impl<KVDB: KeyValueDB + ?Sized> Readable for KVDB {
 	fn read<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> Option<T> where T: rlp::Decodable, R: Deref<Target = [u8]> {
 		let result = self.get(col, &key.key());
 

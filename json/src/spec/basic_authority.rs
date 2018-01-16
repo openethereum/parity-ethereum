@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,19 +17,16 @@
 //! Authority params deserialization.
 
 use uint::Uint;
-use hash::Address;
+use super::ValidatorSet;
 
 /// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct BasicAuthorityParams {
-	/// Gas limit divisor.
-	#[serde(rename="gasLimitBoundDivisor")]
-	pub gas_limit_bound_divisor: Uint,
 	/// Block duration.
 	#[serde(rename="durationLimit")]
 	pub duration_limit: Uint,
 	/// Valid authorities
-	pub authorities: Vec<Address>,
+	pub validators: ValidatorSet,
 }
 
 /// Authority engine deserialization.
@@ -42,18 +39,27 @@ pub struct BasicAuthority {
 #[cfg(test)]
 mod tests {
 	use serde_json;
+	use uint::Uint;
+	use ethereum_types::{U256, H160};
+	use hash::Address;
 	use spec::basic_authority::BasicAuthority;
+	use spec::validator_set::ValidatorSet;
 
 	#[test]
 	fn basic_authority_deserialization() {
 		let s = r#"{
 			"params": {
-				"gasLimitBoundDivisor": "0x0400",
 				"durationLimit": "0x0d",
-				"authorities" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
+				"validators" : {
+					"list": ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
+				}
 			}
 		}"#;
 
-		let _deserialized: BasicAuthority = serde_json::from_str(s).unwrap();
+		let deserialized: BasicAuthority = serde_json::from_str(s).unwrap();
+
+		assert_eq!(deserialized.params.duration_limit, Uint(U256::from(0x0d)));
+		let vs = ValidatorSet::List(vec![Address(H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562b"))]);
+		assert_eq!(deserialized.params.validators, vs);
 	}
 }

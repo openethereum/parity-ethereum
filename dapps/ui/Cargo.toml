@@ -1,19 +1,21 @@
 [package]
-description = "Parity built-in dapps."
-name = "parity-ui"
-version = "1.4.0"
+description = "Ethcore Parity UI"
+homepage = "http://parity.io"
 license = "GPL-3.0"
-authors = ["Ethcore <admin@ethcore.io>"]
-build = "build.rs"
-
-[features]
-default = ["with-syntex"]
-use-precompiled-js = ["parity-dapps-glue/use-precompiled-js"]
-with-syntex = ["parity-dapps-glue/with-syntex"]
+name = "parity-ui"
+version = "1.9.0"
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [build-dependencies]
-parity-dapps-glue = { path = "../js-glue" }
+rustc_version = "0.1"
 
 [dependencies]
-parity-dapps-glue = { path = "../js-glue" }
+parity-ui-dev = { path = "../../js", optional = true }
+parity-ui-old-dev = { path = "../../js-old", optional = true }
+# This is managed by the js/scripts/release.sh script on CI - keep it in a single line
+parity-ui-old-precompiled = { git = "https://github.com/js-dist-paritytech/parity-master-1-9-v1.git", optional = true }
+parity-ui-precompiled = { git = "https://github.com/js-dist-paritytech/parity-master-1-9-shell.git", optional = true }
 
+[features]
+no-precompiled-js = ["parity-ui-dev", "parity-ui-old-dev"]
+use-precompiled-js = ["parity-ui-precompiled", "parity-ui-old-precompiled"]

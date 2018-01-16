@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use util::H256;
+use ethereum_types::H256;
 use header::BlockNumber;
 use blockchain::block_info::BlockInfo;
 use blooms::BloomGroup;
@@ -9,6 +9,8 @@ use super::extras::{BlockDetails, BlockReceipts, TransactionAddress, LogGroupPos
 pub struct ExtrasUpdate<'a> {
 	/// Block info.
 	pub info: BlockInfo,
+	/// Block timestamp.
+	pub timestamp: u64,
 	/// Current block uncompressed rlp bytes
 	pub block: &'a [u8],
 	/// Modified block hashes.

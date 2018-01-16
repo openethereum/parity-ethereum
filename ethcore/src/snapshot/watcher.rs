@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,13 +16,14 @@
 
 //! Watcher for snapshot-related chain events.
 
+use parking_lot::Mutex;
 use client::{BlockChainClient, Client, ChainNotify};
-use ids::BlockID;
+use ids::BlockId;
 use service::ClientIoMessage;
-use views::HeaderView;
 
 use io::IoChannel;
-use util::hash::H256;
+use ethereum_types::H256;
+use bytes::Bytes;
 
 use std::sync::Arc;
 
@@ -42,7 +43,7 @@ impl<F> Oracle for StandardOracle<F>
 	where F: Send + Sync + Fn() -> bool
 {
 	fn to_number(&self, hash: H256) -> Option<u64> {
-		self.client.block_header(BlockID::Hash(hash)).map(|h| HeaderView::new(&h).number())
+		self.client.block_header(BlockId::Hash(hash)).map(|h| h.number())
 	}
 
 	fn is_major_importing(&self) -> bool {
@@ -55,7 +56,7 @@ trait Broadcast: Send + Sync {
 	fn take_at(&self, num: Option<u64>);
 }
 
-impl Broadcast for IoChannel<ClientIoMessage> {
+impl Broadcast for Mutex<IoChannel<ClientIoMessage>> {
 	fn take_at(&self, num: Option<u64>) {
 		let num = match num {
 			Some(n) => n,
@@ -64,7 +65,7 @@ impl Broadcast for IoChannel<ClientIoMessage> {
 
 		trace!(target: "snapshot_watcher", "broadcast: {}", num);
 
-		if let Err(e) = self.send(ClientIoMessage::TakeSnapshot(num)) {
+		if let Err(e) = self.lock().send(ClientIoMessage::TakeSnapshot(num)) {
 			warn!("Snapshot watcher disconnected from IoService: {}", e);
 		}
 	}
@@ -91,7 +92,7 @@ impl Watcher {
 				client: client,
 				sync_status: sync_status,
 			}),
-			broadcast: Box::new(channel),
+			broadcast: Box::new(Mutex::new(channel)),
 			period: period,
 			history: history,
 		}
@@ -106,6 +107,7 @@ impl ChainNotify for Watcher {
 		_: Vec<H256>,
 		_: Vec<H256>,
 		_: Vec<H256>,
+		_: Vec<Bytes>,
 		_duration: u64)
 	{
 		if self.oracle.is_major_importing() { return }
@@ -132,7 +134,7 @@ mod tests {
 
 	use client::ChainNotify;
 
-	use util::{H256, U256};
+	use ethereum_types::{H256, U256};
 
 	use std::collections::HashMap;
 
@@ -169,6 +171,7 @@ mod tests {
 
 		watcher.new_blocks(
 			hashes,
+			vec![],
 			vec![],
 			vec![],
 			vec![],

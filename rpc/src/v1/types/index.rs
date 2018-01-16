@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use serde::{Deserialize, Deserializer, Error};
-use serde::de::Visitor;
+use std::fmt;
+use serde::{Deserialize, Deserializer};
+use serde::de::{Error, Visitor};
 
 /// Represents usize.
 #[derive(Debug, PartialEq)]
@@ -28,26 +29,34 @@ impl Index {
 	}
 }
 
-impl Deserialize for Index {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Index, D::Error>
-	where D: Deserializer {
-		deserializer.deserialize(IndexVisitor)
+impl<'a> Deserialize<'a> for Index {
+	fn deserialize<D>(deserializer: D) -> Result<Index, D::Error>
+	where D: Deserializer<'a> {
+		deserializer.deserialize_any(IndexVisitor)
 	}
 }
 
 struct IndexVisitor;
 
-impl Visitor for IndexVisitor {
+impl<'a> Visitor<'a> for IndexVisitor {
 	type Value = Index;
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a hex-encoded or decimal index")
+	}
+
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
 		match value {
-			_ if value.starts_with("0x") => usize::from_str_radix(&value[2..], 16).map(Index).map_err(|_| Error::custom("invalid index")),
-			_ => value.parse::<usize>().map(Index).map_err(|_| Error::custom("invalid index"))
+			_ if value.starts_with("0x") => usize::from_str_radix(&value[2..], 16).map(Index).map_err(|e| {
+				Error::custom(format!("Invalid index: {}", e))
+			}),
+			_ => value.parse::<usize>().map(Index).map_err(|e| {
+				Error::custom(format!("Invalid index: {}", e))
+			}),
 		}
 	}
 
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: Error {
+	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
 		self.visit_str(value.as_ref())
 	}
 }

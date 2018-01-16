@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,9 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethjson;
-use util::trie::{TrieFactory, TrieSpec};
-use util::hash::H256;
-use util::memorydb::MemoryDB;
+use trie::{TrieFactory, TrieSpec};
+use ethereum_types::H256;
+use memorydb::MemoryDB;
 
 fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 	let tests = ethjson::trie::Test::load(json).unwrap();
@@ -33,7 +33,7 @@ fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 			let key: Vec<u8> = key.into();
 			let value: Vec<u8> = value.map_or_else(Vec::new, Into::into);
 			t.insert(&key, &value)
-				.expect(&format!("Trie test '{:?}' failed due to internal error", name))
+				.expect(&format!("Trie test '{:?}' failed due to internal error", name));
 		}
 
 		if *t.root() != test.root.into() {
@@ -49,7 +49,7 @@ fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 }
 
 mod generic {
-	use util::trie::TrieSpec;
+	use trie::TrieSpec;
 
 	fn do_json_test(json: &[u8]) -> Vec<String> {
 		super::test_trie(json, TrieSpec::Generic)
@@ -60,7 +60,7 @@ mod generic {
 }
 
 mod secure {
-	use util::trie::TrieSpec;
+	use trie::TrieSpec;
 
 	fn do_json_test(json: &[u8]) -> Vec<String> {
 		super::test_trie(json, TrieSpec::Secure)

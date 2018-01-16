@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -48,7 +48,7 @@ mod tests {
 				"0x01" : "0x9a10c2b5bb8f3c602e674006d9b21f09167df57c87a78a5ce96d4159ecb76520"
 			}
 		}"#;
-		let _deserialized: Account= serde_json::from_str(s).unwrap();
+		let _deserialized: Account = serde_json::from_str(s).unwrap();
 		// TODO: validate all fields
 	}
 }

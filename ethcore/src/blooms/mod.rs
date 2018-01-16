@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,10 +16,8 @@
 
 //! Bridge between bloomchain crate types and ethcore.
 
-mod bloom;
 mod bloom_group;
 mod group_position;
 
-pub use self::bloom::Bloom;
 pub use self::bloom_group::BloomGroup;
 pub use self::group_position::GroupPosition;

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,6 +16,39 @@
 
 //! Misc deserialization.
 
-mod account_meta;
+macro_rules! impl_serialization {
+	($key: ty => $name: ty) => {
+		impl $name {
+			/// Read a hash map of DappId -> $name
+			pub fn read<R, S, D>(reader: R) -> Result<::std::collections::HashMap<D, S>, ::serde_json::Error> where
+				R: ::std::io::Read,
+				D: From<$key> + ::std::hash::Hash + Eq,
+				S: From<$name> + Clone,
+			{
+				::serde_json::from_reader(reader).map(|ok: ::std::collections::HashMap<$key, $name>|
+					ok.into_iter().map(|(a, m)| (a.into(), m.into())).collect()
+				)
+			}
 
+			/// Write a hash map of DappId -> $name
+			pub fn write<W, S, D>(m: &::std::collections::HashMap<D, S>, writer: &mut W) -> Result<(), ::serde_json::Error> where
+				W: ::std::io::Write,
+				D: Into<$key> + ::std::hash::Hash + Eq + Clone,
+				S: Into<$name> + Clone,
+			{
+				::serde_json::to_writer(
+					writer,
+					&m.iter()
+						.map(|(a, m)| (a.clone().into(), m.clone().into()))
+						.collect::<::std::collections::HashMap<$key, $name>>()
+				)
+			}
+		}
+	}
+}
+
+mod account_meta;
+mod dapps_settings;
+
+pub use self::dapps_settings::{DappsSettings, DappsHistory, NewDappsPolicy};
 pub use self::account_meta::AccountMeta;

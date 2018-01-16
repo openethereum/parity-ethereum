@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,15 +17,26 @@
 //! Snapshot test helpers. These are used to build blockchains and state tries
 //! which can be queried before and after a full snapshot/restore cycle.
 
-use account_db::AccountDBMut;
-use rand::Rng;
-use snapshot::account::Account;
+use std::sync::Arc;
+use hash::{KECCAK_NULL_RLP};
 
-use util::hash::{FixedHash, H256};
-use util::hashdb::HashDB;
-use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
-use util::trie::{TrieDB, TrieDBMut, Trie};
-use util::sha3::SHA3_NULL_RLP;
+use account_db::AccountDBMut;
+use basic_account::BasicAccount;
+use blockchain::BlockChain;
+use client::{BlockChainClient, Client};
+use engines::EthEngine;
+use snapshot::{StateRebuilder};
+use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
+
+use devtools::{RandomTempPath, GuardedTempResult};
+use rand::Rng;
+
+use kvdb::{KeyValueDB, DBValue};
+use ethereum_types::H256;
+use hashdb::HashDB;
+use journaldb;
+use trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
+use trie::{TrieDB, TrieDBMut, Trie};
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;
@@ -40,12 +51,11 @@ impl StateProducer {
 	/// Create a new `StateProducer`.
 	pub fn new() -> Self {
 		StateProducer {
-			state_root: SHA3_NULL_RLP,
+			state_root: KECCAK_NULL_RLP,
 			storage_seed: H256::zero(),
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(let_and_return))]
 	/// Tick the state producer. This alters the state, writing new data into
 	/// the database.
 	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB) {
@@ -63,10 +73,10 @@ impl StateProducer {
 
 		// sweep once to alter storage tries.
 		for &mut (ref mut address_hash, ref mut account_data) in &mut accounts_to_modify {
-			let mut account = Account::from_thin_rlp(&*account_data);
+			let mut account: BasicAccount = ::rlp::decode(&*account_data);
 			let acct_db = AccountDBMut::from_hash(db, *address_hash);
-			fill_storage(acct_db, account.storage_root_mut(), &mut self.storage_seed);
-			*account_data = account.to_thin_rlp();
+			fill_storage(acct_db, &mut account.storage_root, &mut self.storage_seed);
+			*account_data = DBValue::from_vec(::rlp::encode(&account).into_vec());
 		}
 
 		// sweep again to alter account trie.
@@ -104,7 +114,7 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 		count: 100,
 	};
 	{
-		let mut trie = if *root == SHA3_NULL_RLP {
+		let mut trie = if *root == KECCAK_NULL_RLP {
 			SecTrieDBMut::new(&mut db, root)
 		} else {
 			SecTrieDBMut::from_existing(&mut db, root).unwrap()
@@ -123,4 +133,67 @@ pub fn compare_dbs(one: &HashDB, two: &HashDB) {
 	for key in keys.keys() {
 		assert_eq!(one.get(&key).unwrap(), two.get(&key).unwrap());
 	}
+}
+
+/// Take a snapshot from the given client into a temporary file.
+/// Return a snapshot reader for it.
+pub fn snap(client: &Client) -> GuardedTempResult<Box<SnapshotReader>> {
+	use ids::BlockId;
+
+	let dir = RandomTempPath::new();
+	let writer = PackedWriter::new(dir.as_path()).unwrap();
+	let progress = Default::default();
+
+	let hash = client.chain_info().best_block_hash;
+	client.take_snapshot(writer, BlockId::Hash(hash), &progress).unwrap();
+
+	let reader = PackedReader::new(dir.as_path()).unwrap().unwrap();
+
+	GuardedTempResult {
+		result: Some(Box::new(reader)),
+		_temp: dir,
+	}
+}
+
+/// Restore a snapshot into a given database. This will read chunks from the given reader
+/// write into the given database.
+pub fn restore(
+	db: Arc<KeyValueDB>,
+	engine: &EthEngine,
+	reader: &SnapshotReader,
+	genesis: &[u8],
+) -> Result<(), ::error::Error> {
+	use std::sync::atomic::AtomicBool;
+	use snappy;
+
+	let flag = AtomicBool::new(true);
+	let components = engine.snapshot_components().unwrap();
+	let manifest = reader.manifest();
+
+	let mut state = StateRebuilder::new(db.clone(), journaldb::Algorithm::Archive);
+	let mut secondary = {
+		let chain = BlockChain::new(Default::default(), genesis, db.clone());
+		components.rebuilder(chain, db, manifest).unwrap()
+	};
+
+	let mut snappy_buffer = Vec::new();
+
+	trace!(target: "snapshot", "restoring state");
+	for state_chunk_hash in manifest.state_hashes.iter() {
+		trace!(target: "snapshot", "state chunk hash: {}", state_chunk_hash);
+		let chunk = reader.chunk(*state_chunk_hash).unwrap();
+		let len = snappy::decompress_into(&chunk, &mut snappy_buffer).unwrap();
+		state.feed(&snappy_buffer[..len], &flag)?;
+	}
+
+	trace!(target: "snapshot", "restoring secondary");
+	for chunk_hash in manifest.block_hashes.iter() {
+		let chunk = reader.chunk(*chunk_hash).unwrap();
+		let len = snappy::decompress_into(&chunk, &mut snappy_buffer).unwrap();
+		secondary.feed(&snappy_buffer[..len], engine, &flag)?;
+	}
+
+	trace!(target: "snapshot", "finalizing");
+	state.finalize(manifest.block_number, manifest.block_hash)?;
+	secondary.finalize(engine)
 }

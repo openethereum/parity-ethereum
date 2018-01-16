@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,15 +16,19 @@
 
 //! Block header.
 
-use util::*;
-use basic_types::*;
+use std::cmp;
+use std::cell::RefCell;
+use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
+use heapsize::HeapSizeOf;
+use ethereum_types::{H256, U256, Address, Bloom};
+use bytes::Bytes;
+use basic_types::{ZERO_LOGBLOOM};
 use time::get_time;
 use rlp::*;
 
-use std::cell::RefCell;
+pub use basic_types::Seal;
 
-/// Type for Block number
-pub type BlockNumber = u64;
+pub use types::BlockNumber;
 
 /// A block header.
 ///
@@ -55,7 +59,7 @@ pub struct Header {
 	/// Block receipts root.
 	receipts_root: H256,
 	/// Block bloom.
-	log_bloom: LogBloom,
+	log_bloom: Bloom,
 	/// Gas used for contracts execution.
 	gas_used: U256,
 	/// Block gas limit.
@@ -99,12 +103,12 @@ impl Default for Header {
 			number: 0,
 			author: Address::default(),
 
-			transactions_root: SHA3_NULL_RLP,
-			uncles_hash: SHA3_EMPTY_LIST_RLP,
+			transactions_root: KECCAK_NULL_RLP,
+			uncles_hash: KECCAK_EMPTY_LIST_RLP,
 			extra_data: vec![],
 
-			state_root: SHA3_NULL_RLP,
-			receipts_root: SHA3_NULL_RLP,
+			state_root: KECCAK_NULL_RLP,
+			receipts_root: KECCAK_NULL_RLP,
 			log_bloom: ZERO_LOGBLOOM.clone(),
 			gas_used: U256::default(),
 			gas_limit: U256::default(),
@@ -142,7 +146,7 @@ impl Header {
 	/// Get the receipts root field of the header.
 	pub fn receipts_root(&self) -> &H256 { &self.receipts_root }
 	/// Get the log bloom field of the header.
-	pub fn log_bloom(&self) -> &LogBloom { &self.log_bloom }
+	pub fn log_bloom(&self) -> &Bloom { &self.log_bloom }
 	/// Get the transactions root field of the header.
 	pub fn transactions_root(&self) -> &H256 { &self.transactions_root }
 	/// Get the uncles hash field of the header.
@@ -156,6 +160,12 @@ impl Header {
 	pub fn difficulty(&self) -> &U256 { &self.difficulty }
 	/// Get the seal field of the header.
 	pub fn seal(&self) -> &[Bytes] { &self.seal }
+	/// Get the seal field with RLP-decoded values as bytes.
+	pub fn decode_seal<'a, T: ::std::iter::FromIterator<&'a [u8]>>(&'a self) -> Result<T, DecoderError> {
+		self.seal.iter().map(|rlp| {
+			UntrustedRlp::new(rlp).data()
+		}).collect()
+	}
 
 	// TODO: seal_at, set_seal_at &c.
 
@@ -170,11 +180,11 @@ impl Header {
 	/// Set the receipts root field of the header.
 	pub fn set_receipts_root(&mut self, a: H256) { self.receipts_root = a; self.note_dirty() }
 	/// Set the log bloom field of the header.
-	pub fn set_log_bloom(&mut self, a: LogBloom) { self.log_bloom = a; self.note_dirty() }
+	pub fn set_log_bloom(&mut self, a: Bloom) { self.log_bloom = a; self.note_dirty() }
 	/// Set the timestamp field of the header.
 	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
 	/// Set the timestamp field of the header to the current time.
-	pub fn set_timestamp_now(&mut self, but_later_than: u64) { self.timestamp = max(get_time().sec as u64, but_later_than + 1); self.note_dirty(); }
+	pub fn set_timestamp_now(&mut self, but_later_than: u64) { self.timestamp = cmp::max(get_time().sec as u64, but_later_than + 1); self.note_dirty(); }
 	/// Set the number field of the header.
 	pub fn set_number(&mut self, a: BlockNumber) { self.number = a; self.note_dirty(); }
 	/// Set the author field of the header.
@@ -193,13 +203,13 @@ impl Header {
 	/// Set the seal field of the header.
 	pub fn set_seal(&mut self, a: Vec<Bytes>) { self.seal = a; self.note_dirty(); }
 
-	/// Get the hash of this header (sha3 of the RLP).
+	/// Get the hash of this header (keccak of the RLP).
 	pub fn hash(&self) -> H256 {
  		let mut hash = self.hash.borrow_mut();
  		match &mut *hash {
  			&mut Some(ref h) => h.clone(),
  			hash @ &mut None => {
-				let h = self.rlp_sha3(Seal::With);
+				let h = self.rlp_keccak(Seal::With);
  				*hash = Some(h.clone());
  				h
  			}
@@ -212,7 +222,7 @@ impl Header {
 		match &mut *hash {
 			&mut Some(ref h) => h.clone(),
 			hash @ &mut None => {
-				let h = self.rlp_sha3(Seal::Without);
+				let h = self.rlp_keccak(Seal::Without);
 				*hash = Some(h.clone());
 				h
 			}
@@ -257,34 +267,37 @@ impl Header {
 	}
 
 	/// Get the SHA3 (Keccak) of this header, optionally `with_seal`.
-	pub fn rlp_sha3(&self, with_seal: Seal) -> H256 { self.rlp(with_seal).sha3() }
+	pub fn rlp_keccak(&self, with_seal: Seal) -> H256 { keccak(self.rlp(with_seal)) }
+
+	/// Encode the header, getting a type-safe wrapper around the RLP.
+	pub fn encoded(&self) -> ::encoded::Header {
+		::encoded::Header::new(self.rlp(Seal::With))
+	}
 }
 
 impl Decodable for Header {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let r = decoder.as_rlp();
-
+	fn decode(r: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let mut blockheader = Header {
-			parent_hash: try!(r.val_at(0)),
-			uncles_hash: try!(r.val_at(1)),
-			author: try!(r.val_at(2)),
-			state_root: try!(r.val_at(3)),
-			transactions_root: try!(r.val_at(4)),
-			receipts_root: try!(r.val_at(5)),
-			log_bloom: try!(r.val_at(6)),
-			difficulty: try!(r.val_at(7)),
-			number: try!(r.val_at(8)),
-			gas_limit: try!(r.val_at(9)),
-			gas_used: try!(r.val_at(10)),
-			timestamp: try!(r.val_at(11)),
-			extra_data: try!(r.val_at(12)),
+			parent_hash: r.val_at(0)?,
+			uncles_hash: r.val_at(1)?,
+			author: r.val_at(2)?,
+			state_root: r.val_at(3)?,
+			transactions_root: r.val_at(4)?,
+			receipts_root: r.val_at(5)?,
+			log_bloom: r.val_at(6)?,
+			difficulty: r.val_at(7)?,
+			number: r.val_at(8)?,
+			gas_limit: r.val_at(9)?,
+			gas_used: r.val_at(10)?,
+			timestamp: cmp::min(r.val_at::<U256>(11)?, u64::max_value().into()).as_u64(),
+			extra_data: r.val_at(12)?,
 			seal: vec![],
-			hash: RefCell::new(Some(r.as_raw().sha3())),
+			hash: RefCell::new(Some(keccak(r.as_raw()))),
 			bare_hash: RefCell::new(None),
 		};
 
-		for i in 13..r.item_count() {
-			blockheader.seal.push(try!(r.at(i)).as_raw().to_vec())
+		for i in 13..r.item_count()? {
+			blockheader.seal.push(r.at(i)?.as_raw().to_vec())
 		}
 
 		Ok(blockheader)
@@ -303,9 +316,26 @@ impl HeapSizeOf for Header {
 	}
 }
 
+impl ::parity_machine::Header for Header {
+	fn bare_hash(&self) -> H256 { Header::bare_hash(self) }
+
+	fn hash(&self) -> H256 { Header::hash(self) }
+
+	fn seal(&self) -> &[Vec<u8>] { Header::seal(self) }
+
+	fn author(&self) -> &Address { Header::author(self) }
+
+	fn number(&self) -> BlockNumber { Header::number(self) }
+}
+
+impl ::parity_machine::ScoredHeader for Header {
+	fn score(&self) -> &U256 { self.difficulty() }
+	fn set_score(&mut self, score: U256) { self.set_difficulty(score) }
+}
+
 #[cfg(test)]
 mod tests {
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	use rlp;
 	use super::Header;
 
@@ -314,13 +344,20 @@ mod tests {
 		// that's rlp of block header created with ethash engine.
 		let header_rlp = "f901f9a0d405da4e66f1445d455195229624e133f5baafe72b5cf7b3c36c12c8146e98b7a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a05fb2b4bfdef7b314451cb138a534d225c922fc0e5fbe25e451142732c3e25c25a088d2ec6b9860aae1a2c3b299f72b6a5d70d7f7ba4722c78f2c49ba96273c2158a007c6fdfa8eea7e86b81f5b0fc0f78f90cc19f4aa60d323151e0cac660199e9a1b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302008003832fefba82524d84568e932a80a0a0349d8c3df71f1a48a9df7d03fd5f14aeee7d91332c009ecaff0a71ead405bd88ab4e252a7e8c2a23".from_hex().unwrap();
 		let mix_hash = "a0a0349d8c3df71f1a48a9df7d03fd5f14aeee7d91332c009ecaff0a71ead405bd".from_hex().unwrap();
+		let mix_hash_decoded = "a0349d8c3df71f1a48a9df7d03fd5f14aeee7d91332c009ecaff0a71ead405bd".from_hex().unwrap();
 		let nonce = "88ab4e252a7e8c2a23".from_hex().unwrap();
+		let nonce_decoded = "ab4e252a7e8c2a23".from_hex().unwrap();
 
 		let header: Header = rlp::decode(&header_rlp);
-		let seal_fields = header.seal;
+		let seal_fields = header.seal.clone();
 		assert_eq!(seal_fields.len(), 2);
 		assert_eq!(seal_fields[0], mix_hash);
 		assert_eq!(seal_fields[1], nonce);
+
+		let decoded_seal = header.decode_seal::<Vec<_>>().unwrap();
+		assert_eq!(decoded_seal.len(), 2);
+		assert_eq!(decoded_seal[0], &*mix_hash_decoded);
+		assert_eq!(decoded_seal[1], &*nonce_decoded);
 	}
 
 	#[test]
@@ -329,7 +366,7 @@ mod tests {
 		let header_rlp = "f901f9a0d405da4e66f1445d455195229624e133f5baafe72b5cf7b3c36c12c8146e98b7a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a05fb2b4bfdef7b314451cb138a534d225c922fc0e5fbe25e451142732c3e25c25a088d2ec6b9860aae1a2c3b299f72b6a5d70d7f7ba4722c78f2c49ba96273c2158a007c6fdfa8eea7e86b81f5b0fc0f78f90cc19f4aa60d323151e0cac660199e9a1b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302008003832fefba82524d84568e932a80a0a0349d8c3df71f1a48a9df7d03fd5f14aeee7d91332c009ecaff0a71ead405bd88ab4e252a7e8c2a23".from_hex().unwrap();
 
 		let header: Header = rlp::decode(&header_rlp);
-		let encoded_header = rlp::encode(&header).to_vec();
+		let encoded_header = rlp::encode(&header).into_vec();
 
 		assert_eq!(header_rlp, encoded_header);
 	}

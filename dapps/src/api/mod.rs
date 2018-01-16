@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,12 +16,8 @@
 
 //! REST API
 
-#![cfg_attr(feature="nightly", feature(custom_derive, custom_attribute, plugin))]
-#![cfg_attr(feature="nightly", plugin(serde_macros, clippy))]
-
 mod api;
 mod response;
 mod types;
 
 pub use self::api::RestApi;
-pub use self::types::App;

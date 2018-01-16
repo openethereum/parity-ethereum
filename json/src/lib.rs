@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,15 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Json deserialization module.
+extern crate rustc_hex;
+extern crate serde;
+extern crate serde_json;
+extern crate ethereum_types;
+#[macro_use] extern crate serde_derive;
 
-#![warn(missing_docs)]
-#![cfg_attr(feature="nightly", feature(custom_derive, custom_attribute, plugin))]
-#![cfg_attr(feature="nightly", plugin(serde_macros, clippy))]
-
-#[cfg(feature = "serde_macros")]
-include!("lib.rs.in");
-
-#[cfg(not(feature = "serde_macros"))]
-include!(concat!(env!("OUT_DIR"), "/lib.rs"));
-
+pub mod hash;
+pub mod uint;
+pub mod bytes;
+pub mod blockchain;
+pub mod spec;
+pub mod trie;
+pub mod vm;
+pub mod maybe;
+pub mod state;
+pub mod transaction;
+pub mod misc;
+pub mod test;

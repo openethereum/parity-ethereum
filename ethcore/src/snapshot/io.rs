@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,11 +25,13 @@ use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
-use util::Bytes;
-use util::hash::H256;
-use rlp::{self, Encodable, RlpStream, UntrustedRlp, Stream, View};
+use bytes::Bytes;
+use ethereum_types::H256;
+use rlp::{RlpStream, UntrustedRlp};
 
 use super::ManifestData;
+
+const SNAPSHOT_VERSION: u64 = 2;
 
 /// Something which can write snapshots.
 /// Writing the same chunk multiple times will lead to implementation-defined
@@ -47,25 +49,8 @@ pub trait SnapshotWriter {
 }
 
 // (hash, len, offset)
+#[derive(RlpEncodable, RlpDecodable)]
 struct ChunkInfo(H256, u64, u64);
-
-impl Encodable for ChunkInfo {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(3);
-		s.append(&self.0).append(&self.1).append(&self.2);
-	}
-}
-
-impl rlp::Decodable for ChunkInfo {
-	fn decode<D: rlp::Decoder>(decoder: &D) -> Result<Self, rlp::DecoderError> {
-		let d = decoder.as_rlp();
-
-		let hash = try!(d.val_at(0));
-		let len = try!(d.val_at(1));
-		let off = try!(d.val_at(2));
-		Ok(ChunkInfo(hash, len, off))
-	}
-}
 
 /// A packed snapshot writer. This writes snapshots to a single concatenated file.
 ///
@@ -88,7 +73,7 @@ impl PackedWriter {
 	/// Create a new "PackedWriter", to write into the file at the given path.
 	pub fn new(path: &Path) -> io::Result<Self> {
 		Ok(PackedWriter {
-			file: try!(File::create(path)),
+			file: File::create(path)?,
 			state_hashes: Vec::new(),
 			block_hashes: Vec::new(),
 			cur_len: 0,
@@ -98,7 +83,7 @@ impl PackedWriter {
 
 impl SnapshotWriter for PackedWriter {
 	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
-		try!(self.file.write_all(chunk));
+		self.file.write_all(chunk)?;
 
 		let len = chunk.len() as u64;
 		self.state_hashes.push(ChunkInfo(hash, len, self.cur_len));
@@ -108,7 +93,7 @@ impl SnapshotWriter for PackedWriter {
 	}
 
 	fn write_block_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
-		try!(self.file.write_all(chunk));
+		self.file.write_all(chunk)?;
 
 		let len = chunk.len() as u64;
 		self.block_hashes.push(ChunkInfo(hash, len, self.cur_len));
@@ -120,17 +105,18 @@ impl SnapshotWriter for PackedWriter {
 	fn finish(mut self, manifest: ManifestData) -> io::Result<()> {
 		// we ignore the hashes fields of the manifest under the assumption that
 		// they are consistent with ours.
-		let mut stream = RlpStream::new_list(5);
+		let mut stream = RlpStream::new_list(6);
 		stream
-			.append(&self.state_hashes)
-			.append(&self.block_hashes)
+			.append(&SNAPSHOT_VERSION)
+			.append_list(&self.state_hashes)
+			.append_list(&self.block_hashes)
 			.append(&manifest.state_root)
 			.append(&manifest.block_number)
 			.append(&manifest.block_hash);
 
 		let manifest_rlp = stream.out();
 
-		try!(self.file.write_all(&manifest_rlp));
+		self.file.write_all(&manifest_rlp)?;
 		let off = self.cur_len;
 		trace!(target: "snapshot_io", "writing manifest of len {} to offset {}", manifest_rlp.len(), off);
 
@@ -146,7 +132,7 @@ impl SnapshotWriter for PackedWriter {
 				(off >> 56) as u8,
 			];
 
-		try!(self.file.write_all(&off_bytes[..]));
+		self.file.write_all(&off_bytes[..])?;
 
 		Ok(())
 	}
@@ -161,7 +147,7 @@ impl LooseWriter {
 	/// Create a new LooseWriter which will write into the given directory,
 	/// creating it if it doesn't exist.
 	pub fn new(path: PathBuf) -> io::Result<Self> {
-		try!(fs::create_dir_all(&path));
+		fs::create_dir_all(&path)?;
 
 		Ok(LooseWriter {
 			dir: path,
@@ -173,8 +159,8 @@ impl LooseWriter {
 		let mut file_path = self.dir.clone();
 		file_path.push(hash.hex());
 
-		let mut file = try!(File::create(file_path));
-		try!(file.write_all(chunk));
+		let mut file = File::create(file_path)?;
+		file.write_all(chunk)?;
 
 		Ok(())
 	}
@@ -194,8 +180,8 @@ impl SnapshotWriter for LooseWriter {
 		let mut path = self.dir.clone();
 		path.push("MANIFEST");
 
-		let mut file = try!(File::create(path));
-		try!(file.write_all(&rlp[..]));
+		let mut file = File::create(path)?;
+		file.write_all(&rlp[..])?;
 
 		Ok(())
 	}
@@ -223,19 +209,19 @@ impl PackedReader {
 	/// Create a new `PackedReader` for the file at the given path.
 	/// This will fail if any io errors are encountered or the file
 	/// is not a valid packed snapshot.
-	pub fn new(path: &Path) -> Result<Option<Self>, ::error::Error> {
-		let mut file = try!(File::open(path));
-		let file_len = try!(file.metadata()).len();
+	pub fn new(path: &Path) -> Result<Option<Self>, ::snapshot::error::Error> {
+		let mut file = File::open(path)?;
+		let file_len = file.metadata()?.len();
 		if file_len < 8 {
 			// ensure we don't seek before beginning.
 			return Ok(None);
 		}
 
 
-		try!(file.seek(SeekFrom::End(-8)));
+		file.seek(SeekFrom::End(-8))?;
 		let mut off_bytes = [0u8; 8];
 
-		try!(file.read_exact(&mut off_bytes[..]));
+		file.read_exact(&mut off_bytes[..])?;
 
 		let manifest_off: u64 =
 			((off_bytes[7] as u64) << 56) +
@@ -252,20 +238,31 @@ impl PackedReader {
 
 		let	mut manifest_buf = vec![0; manifest_len as usize];
 
-		try!(file.seek(SeekFrom::Start(manifest_off)));
-		try!(file.read_exact(&mut manifest_buf));
+		file.seek(SeekFrom::Start(manifest_off))?;
+		file.read_exact(&mut manifest_buf)?;
 
 		let rlp = UntrustedRlp::new(&manifest_buf);
 
-		let state: Vec<ChunkInfo> = try!(rlp.val_at(0));
-		let blocks: Vec<ChunkInfo> = try!(rlp.val_at(1));
+		let (start, version) = if rlp.item_count()? == 5 {
+			(0, 1)
+		} else {
+			(1, rlp.val_at(0)?)
+		};
+
+		if version > SNAPSHOT_VERSION {
+			return Err(::snapshot::error::Error::VersionNotSupported(version));
+		}
+
+		let state: Vec<ChunkInfo> = rlp.list_at(0 + start)?;
+		let blocks: Vec<ChunkInfo> = rlp.list_at(1 + start)?;
 
 		let manifest = ManifestData {
+			version: version,
 			state_hashes: state.iter().map(|c| c.0).collect(),
 			block_hashes: blocks.iter().map(|c| c.0).collect(),
-			state_root: try!(rlp.val_at(2)),
-			block_number: try!(rlp.val_at(3)),
-			block_hash: try!(rlp.val_at(4)),
+			state_root: rlp.val_at(2 + start)?,
+			block_number: rlp.val_at(3 + start)?,
+			block_hash: rlp.val_at(4 + start)?,
 		};
 
 		Ok(Some(PackedReader {
@@ -288,10 +285,10 @@ impl SnapshotReader for PackedReader {
 
 		let mut file = &self.file;
 
-		try!(file.seek(SeekFrom::Start(off)));
+		file.seek(SeekFrom::Start(off))?;
 		let mut buf = vec![0; len as usize];
 
-		try!(file.read_exact(&mut buf[..]));
+		file.read_exact(&mut buf[..])?;
 
 		Ok(buf)
 	}
@@ -310,10 +307,10 @@ impl LooseReader {
 		let mut manifest_buf = Vec::new();
 
 		dir.push("MANIFEST");
-		let mut manifest_file = try!(File::open(&dir));
-		try!(manifest_file.read_to_end(&mut manifest_buf));
+		let mut manifest_file = File::open(&dir)?;
+		manifest_file.read_to_end(&mut manifest_buf)?;
 
-		let manifest = try!(ManifestData::from_rlp(&manifest_buf[..]));
+		let manifest = ManifestData::from_rlp(&manifest_buf[..])?;
 
 		dir.pop();
 
@@ -334,9 +331,9 @@ impl SnapshotReader for LooseReader {
 		path.push(hash.hex());
 
 		let mut buf = Vec::new();
-		let mut file = try!(File::open(&path));
+		let mut file = File::open(&path)?;
 
-		try!(file.read_to_end(&mut buf));
+		file.read_to_end(&mut buf)?;
 
 		Ok(buf)
 	}
@@ -345,10 +342,10 @@ impl SnapshotReader for LooseReader {
 #[cfg(test)]
 mod tests {
 	use devtools::RandomTempPath;
-	use util::sha3::Hashable;
+	use hash::keccak;
 
 	use snapshot::ManifestData;
-	use super::{SnapshotWriter, SnapshotReader, PackedWriter, PackedReader, LooseWriter, LooseReader};
+	use super::{SnapshotWriter, SnapshotReader, PackedWriter, PackedReader, LooseWriter, LooseReader, SNAPSHOT_VERSION};
 
 	const STATE_CHUNKS: &'static [&'static [u8]] = &[b"dog", b"cat", b"hello world", b"hi", b"notarealchunk"];
 	const BLOCK_CHUNKS: &'static [&'static [u8]] = &[b"hello!", b"goodbye!", b"abcdefg", b"hijklmnop", b"qrstuvwxy", b"and", b"z"];
@@ -362,23 +359,24 @@ mod tests {
 		let mut block_hashes = Vec::new();
 
 		for chunk in STATE_CHUNKS {
-			let hash = chunk.sha3();
+			let hash = keccak(&chunk);
 			state_hashes.push(hash.clone());
 			writer.write_state_chunk(hash, chunk).unwrap();
 		}
 
 		for chunk in BLOCK_CHUNKS {
-			let hash = chunk.sha3();
+			let hash = keccak(&chunk);
 			block_hashes.push(hash.clone());
-			writer.write_block_chunk(chunk.sha3(), chunk).unwrap();
+			writer.write_block_chunk(keccak(&chunk), chunk).unwrap();
 		}
 
 		let manifest = ManifestData {
+			version: SNAPSHOT_VERSION,
 			state_hashes: state_hashes,
 			block_hashes: block_hashes,
-			state_root: b"notarealroot".sha3(),
+			state_root: keccak(b"notarealroot"),
 			block_number: 12345678987654321,
-			block_hash: b"notarealblock".sha3(),
+			block_hash: keccak(b"notarealblock"),
 		};
 
 		writer.finish(manifest.clone()).unwrap();
@@ -400,23 +398,24 @@ mod tests {
 		let mut block_hashes = Vec::new();
 
 		for chunk in STATE_CHUNKS {
-			let hash = chunk.sha3();
+			let hash = keccak(&chunk);
 			state_hashes.push(hash.clone());
 			writer.write_state_chunk(hash, chunk).unwrap();
 		}
 
 		for chunk in BLOCK_CHUNKS {
-			let hash = chunk.sha3();
+			let hash = keccak(&chunk);
 			block_hashes.push(hash.clone());
-			writer.write_block_chunk(chunk.sha3(), chunk).unwrap();
+			writer.write_block_chunk(keccak(&chunk), chunk).unwrap();
 		}
 
 		let manifest = ManifestData {
+			version: SNAPSHOT_VERSION,
 			state_hashes: state_hashes,
 			block_hashes: block_hashes,
-			state_root: b"notarealroot".sha3(),
+			state_root: keccak(b"notarealroot"),
 			block_number: 12345678987654321,
-			block_hash: b"notarealblock".sha3(),
+			block_hash: keccak(b"notarealblock)"),
 		};
 
 		writer.finish(manifest.clone()).unwrap();

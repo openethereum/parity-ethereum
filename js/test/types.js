@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,10 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { isInstanceOf } from '../src/api/util/types';
 
-export { isFunction, isInstanceOf } from '../src/api/util/types';
-export { isAddress } from '../src/abi/util/address';
+import { isInstanceOf } from '../packages/api/util/types';
+
+export { isFunction, isInstanceOf } from '../packages/api/util/types'; // eslint-disable-line no-duplicate-imports
+export { isAddress } from '../packages/abi/util/address';
 
 const ZEROS = '000000000000000000000000000000000000000000000000000000000000';
 

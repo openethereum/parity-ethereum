@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,9 +16,10 @@
 
 //! Simple executive tracer.
 
-use util::{Bytes, Address, U256};
-use action_params::ActionParams;
-use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide};
+use ethereum_types::{U256, Address};
+use bytes::Bytes;
+use vm::ActionParams;
+use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType};
 use trace::{Tracer, VMTracer, FlatTrace, TraceError};
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
@@ -50,12 +51,12 @@ fn prefix_subtrace_addresses(mut traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
 	// [1, 0]
 	let mut current_subtrace_index = 0;
 	let mut first = true;
-	for trace in traces.iter_mut() {
+	for trace in &mut traces {
 		match (first, trace.trace_address.is_empty()) {
 			(true, _) => first = false,
 			(_, true) => current_subtrace_index += 1,
 			_ => {}
-		}			
+		}
 		trace.trace_address.push_front(current_subtrace_index);
 	}
 	traces
@@ -78,9 +79,11 @@ fn should_prefix_address_properly() {
 	let t = vec![vec![], vec![0], vec![0, 0], vec![0], vec![], vec![], vec![0], vec![]].into_iter().map(&f).collect();
 	let t = prefix_subtrace_addresses(t);
 	assert_eq!(t, vec![vec![0], vec![0, 0], vec![0, 0, 0], vec![0, 0], vec![1], vec![2], vec![2, 0], vec![3]].into_iter().map(&f).collect::<Vec<_>>());
-}  
+}
 
 impl Tracer for ExecutiveTracer {
+	type Output = FlatTrace;
+
 	fn prepare_trace_call(&self, params: &ActionParams) -> Option<Call> {
 		Some(Call::from(params.clone()))
 	}
@@ -151,15 +154,22 @@ impl Tracer for ExecutiveTracer {
 	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address) {
 		let trace = FlatTrace {
 			subtraces: 0,
-			action: Action::Suicide(Suicide {
-				address: address,
-				refund_address: refund_address,
-				balance: balance,
-			}),
+			action: Action::Suicide(Suicide { address, refund_address, balance } ),
 			result: Res::None,
 			trace_address: Default::default(),
 		};
-		debug!(target: "trace", "Traced failed suicide {:?}", trace);
+		debug!(target: "trace", "Traced suicide {:?}", trace);
+		self.traces.push(trace);
+	}
+
+	fn trace_reward(&mut self, author: Address, value: U256, reward_type: RewardType) {
+		let trace = FlatTrace {
+			subtraces: 0,
+			action: Action::Reward(Reward { author, value, reward_type } ),
+			result: Res::None,
+			trace_address: Default::default(),
+		};
+		debug!(target: "trace", "Traced reward {:?}", trace);
 		self.traces.push(trace);
 	}
 
@@ -167,7 +177,7 @@ impl Tracer for ExecutiveTracer {
 		ExecutiveTracer::default()
 	}
 
-	fn traces(self) -> Vec<FlatTrace> {
+	fn drain(self) -> Vec<FlatTrace> {
 		self.traces
 	}
 }
@@ -192,14 +202,17 @@ impl ExecutiveVMTracer {
 }
 
 impl VMTracer for ExecutiveVMTracer {
-	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: &U256) -> bool {
+	type Output = VMTrace;
+
+	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool { true }
+
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256) {
 		self.data.operations.push(VMOperation {
 			pc: pc,
 			instruction: instruction,
-			gas_cost: gas_cost.clone(),
+			gas_cost: gas_cost,
 			executed: None,
 		});
-		true
 	}
 
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,10 +16,20 @@
 
 extern crate rustc_version;
 
-use rustc_version::{version_meta, Channel};
+const MIN_RUSTC_VERSION: &'static str = "1.15.1";
 
 fn main() {
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=nightly");
-	}
+	let is = rustc_version::version().unwrap();
+	let required = MIN_RUSTC_VERSION.parse().unwrap();
+	assert!(is >= required, format!("
+
+It looks like you are compiling Parity with an old rustc compiler {}.
+Parity requires version {}. Please update your compiler.
+If you use rustup, try this:
+
+    rustup update stable
+
+and try building Parity again.
+
+", is, required));
 }

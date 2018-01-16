@@ -1,33 +1,27 @@
 [package]
 name = "ethstore"
-version = "0.1.0"
-authors = ["debris <marek.kotewicz@gmail.com>"]
-build = "build.rs"
+version = "0.2.0"
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-libc = "0.2.11"
-rand = "0.3.14"
+log = "0.3"
+libc = "0.2"
+rand = "0.3"
 ethkey = { path = "../ethkey" }
-serde = "0.8"
-serde_json = "0.8"
-serde_macros = { version = "0.8", optional = true }
-rustc-serialize = "0.3"
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0"
+rustc-hex = "1.0"
 rust-crypto = "0.2.36"
-tiny-keccak = "1.0"
-docopt = { version = "0.6", optional = true }
+tiny-keccak = "1.3"
 time = "0.1.34"
-lazy_static = "0.2"
-itertools = "0.4"
+itertools = "0.5"
+parking_lot = "0.4"
 ethcrypto = { path = "../ethcrypto" }
+ethereum-types = "0.1"
+dir = { path = "../util/dir" }
+smallvec = "0.4"
+parity-wordlist = "1.0"
+tempdir = "0.3"
 
-[build-dependencies]
-serde_codegen = { version = "0.8", optional = true }
-
-[features]
-default = ["serde_codegen"]
-nightly = ["serde_macros"]
-cli = ["docopt"]
-
-[[bin]]
-name = "ethstore"
-doc = false
+[lib]

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -33,8 +33,8 @@ fn should_reject_invalid_host() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 403 Forbidden".to_owned());
-	assert!(response.body.contains("Current Host Is Disallowed"), response.body);
+	response.assert_status("HTTP/1.1 403 Forbidden");
+	assert!(response.body.contains("Provided Host header is not whitelisted."), response.body);
 }
 
 #[test]
@@ -45,7 +45,7 @@ fn should_allow_valid_host() {
 	// when
 	let response = request(server,
 		"\
-			GET /home/ HTTP/1.1\r\n\
+			GET /ui/ HTTP/1.1\r\n\
 			Host: localhost:8080\r\n\
 			Connection: close\r\n\
 			\r\n\
@@ -54,7 +54,7 @@ fn should_allow_valid_host() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
+	response.assert_status("HTTP/1.1 200 OK");
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn should_serve_dapps_domains() {
 	let response = request(server,
 		"\
 			GET / HTTP/1.1\r\n\
-			Host: home.parity\r\n\
+			Host: ui.web3.site\r\n\
 			Connection: close\r\n\
 			\r\n\
 			{}
@@ -74,7 +74,7 @@ fn should_serve_dapps_domains() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
+	response.assert_status("HTTP/1.1 200 OK");
 }
 
 #[test]
@@ -95,6 +95,5 @@ fn should_allow_parity_utils_even_on_invalid_domain() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
+	response.assert_status("HTTP/1.1 200 OK");
 }
-

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -19,13 +19,11 @@
 pub mod env;
 pub mod transaction;
 pub mod vm;
-pub mod log;
 pub mod call;
 pub mod test;
 
 pub use self::env::Env;
 pub use self::transaction::Transaction;
 pub use self::vm::Vm;
-pub use self::log::Log;
 pub use self::call::Call;
 pub use self::test::Test;

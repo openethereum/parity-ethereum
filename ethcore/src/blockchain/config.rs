@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -23,8 +23,6 @@ pub struct Config {
 	pub pref_cache_size: usize,
 	/// Maximum cache size in bytes.
 	pub max_cache_size: usize,
-	/// Backing db cache_size
-	pub db_cache_size: Option<usize>,
 }
 
 impl Default for Config {
@@ -32,8 +30,6 @@ impl Default for Config {
 		Config {
 			pref_cache_size: 1 << 14,
 			max_cache_size: 1 << 20,
-			db_cache_size: None,
 		}
 	}
 }
-

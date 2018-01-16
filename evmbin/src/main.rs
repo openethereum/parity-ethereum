@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,146 +17,289 @@
 //! Parity EVM interpreter binary.
 
 #![warn(missing_docs)]
-#![allow(dead_code)]
-extern crate ethcore;
-extern crate rustc_serialize;
-extern crate docopt;
-#[macro_use]
-extern crate ethcore_util as util;
 
-mod ext;
+extern crate ethcore;
+extern crate ethjson;
+extern crate rustc_hex;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate docopt;
+extern crate ethcore_transaction as transaction;
+extern crate ethcore_bytes as bytes;
+extern crate ethereum_types;
+extern crate vm;
+extern crate evm;
+extern crate panic_hook;
+
+#[cfg(test)]
+#[macro_use]
+extern crate pretty_assertions;
 
 use std::sync::Arc;
-use std::time::{Instant, Duration};
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, fs};
+use std::path::PathBuf;
 use docopt::Docopt;
-use util::{U256, FromHex, Uint, Bytes};
-use ethcore::evm::{self, Factory, VMType, Finalize};
-use ethcore::action_params::ActionParams;
+use rustc_hex::FromHex;
+use ethereum_types::{U256, Address};
+use bytes::Bytes;
+use ethcore::spec;
+use vm::{ActionParams, CallType};
+
+mod info;
+mod display;
+
+use info::Informant;
 
 const USAGE: &'static str = r#"
 EVM implementation for Parity.
-  Copyright 2016 Ethcore (UK) Limited
+  Copyright 2016, 2017 Parity Technologies (UK) Ltd
 
 Usage:
-    evmbin stats [options]
-    evmbin [-h | --help]
+    parity-evm state-test <file> [--json --only NAME --chain CHAIN]
+    parity-evm stats [options]
+    parity-evm [options]
+    parity-evm [-h | --help]
 
 Transaction options:
-    --code CODE        Contract code as hex (without 0x)
-    --input DATA       Input data as hex (without 0x)
-    --gas GAS          Supplied gas as hex (without 0x)
+    --code CODE        Contract code as hex (without 0x).
+    --to ADDRESS       Recipient address (without 0x).
+    --from ADDRESS     Sender address (without 0x).
+    --input DATA       Input data as hex (without 0x).
+    --gas GAS          Supplied gas as hex (without 0x).
+    --gas-price WEI    Supplied gas price as hex (without 0x).
+
+State test options:
+    --only NAME        Runs only a single test matching the name.
+    --chain CHAIN      Run only tests from specific chain.
 
 General options:
+    --json             Display verbose results in JSON.
+    --chain CHAIN      Chain spec file path.
     -h, --help         Display this message and exit.
 "#;
 
 
 fn main() {
-	let args: Args = Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
+	panic_hook::set();
+
+	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
+
+	if args.cmd_state_test {
+		run_state_test(args)
+	} else if args.flag_json {
+		run_call(args, display::json::Informant::default())
+	} else {
+		run_call(args, display::simple::Informant::default())
+	}
+}
+
+fn run_state_test(args: Args) {
+	use ethjson::state::test::Test;
+
+	let file = args.arg_file.expect("FILE is required");
+	let mut file = match fs::File::open(&file) {
+		Err(err) => die(format!("Unable to open: {:?}: {}", file, err)),
+		Ok(file) => file,
+	};
+	let state_test = match Test::load(&mut file) {
+		Err(err) => die(format!("Unable to load the test file: {}", err)),
+		Ok(test) => test,
+	};
+	let only_test = args.flag_only.map(|s| s.to_lowercase());
+	let only_chain = args.flag_chain.map(|s| s.to_lowercase());
+
+	for (name, test) in state_test {
+		if let Some(false) = only_test.as_ref().map(|only_test| &name.to_lowercase() == only_test) {
+			continue;
+		}
+
+		let multitransaction = test.transaction;
+		let env_info = test.env.into();
+		let pre = test.pre_state.into();
+
+		for (spec, states) in test.post_states {
+			if let Some(false) = only_chain.as_ref().map(|only_chain| &format!("{:?}", spec).to_lowercase() == only_chain) {
+				continue;
+			}
+
+			for (idx, state) in states.into_iter().enumerate() {
+				let post_root = state.hash.into();
+				let transaction = multitransaction.select(&state.indexes).into();
+
+				if args.flag_json {
+					let i = display::json::Informant::default();
+					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
+				} else {
+					let i = display::simple::Informant::default();
+					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
+				}
+			}
+		}
+	}
+}
+
+fn run_call<T: Informant>(args: Args, informant: T) {
+	let from = arg(args.from(), "--from");
+	let to = arg(args.to(), "--to");
+	let code = arg(args.code(), "--code");
+	let spec = arg(args.spec(), "--chain");
+	let gas = arg(args.gas(), "--gas");
+	let gas_price = arg(args.gas_price(), "--gas-price");
+	let data = arg(args.data(), "--input");
+
+	if code.is_none() && to == Address::default() {
+		die("Either --code or --to is required.");
+	}
 
 	let mut params = ActionParams::default();
-	params.gas = args.gas();
-	params.code = Some(Arc::new(args.code()));
-	params.data = args.data();
+	params.call_type = if code.is_none() { CallType::Call } else { CallType::None };
+	params.code_address = to;
+	params.address = to;
+	params.sender = from;
+	params.origin = from;
+	params.gas = gas;
+	params.gas_price = gas_price;
+	params.code = code.map(Arc::new);
+	params.data = data;
 
-	let result = run_vm(params);
-	match result {
-		Ok(success) => println!("{}", success),
-		Err(failure) => println!("{}", failure),
-	}
+	let result = info::run_action(&spec, params, informant);
+	T::finish(result);
 }
 
-/// Execute VM with given `ActionParams`
-pub fn run_vm(params: ActionParams) -> Result<Success, Failure> {
-	let initial_gas = params.gas;
-	let factory = Factory::new(VMType::Interpreter, 1024);
-	let mut vm = factory.create(params.gas);
-	let mut ext = ext::FakeExt::default();
-
-	let start = Instant::now();
-	let gas_left = vm.exec(params, &mut ext).finalize(ext);
-	let duration = start.elapsed();
-
-	match gas_left {
-		Ok(gas_left) => Ok(Success {
-			gas_used: initial_gas - gas_left,
-			// TODO [ToDr] get output from ext
-			output: Vec::new(),
-			time: duration,
-		}),
-		Err(e) => Err(Failure {
-			error: e,
-			time: duration,
-		}),
-	}
-}
-
-/// Execution finished correctly
-pub struct Success {
-	/// Used gas
-	gas_used: U256,
-	/// Output as bytes
-	output: Vec<u8>,
-	/// Time Taken
-	time: Duration,
-}
-impl fmt::Display for Success {
-	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		try!(writeln!(f, "Gas used: {:?}", self.gas_used));
-		try!(writeln!(f, "Output: {:?}", self.output));
-		try!(writeln!(f, "Time: {}.{:.9}s", self.time.as_secs(), self.time.subsec_nanos()));
-		Ok(())
-	}
-}
-
-/// Execution failed
-pub struct Failure {
-	/// Internal error
-	error: evm::Error,
-	/// Duration
-	time: Duration,
-}
-impl fmt::Display for Failure {
-	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		try!(writeln!(f, "Error: {:?}", self.error));
-		try!(writeln!(f, "Time: {}.{:.9}s", self.time.as_secs(), self.time.subsec_nanos()));
-		Ok(())
-	}
-}
-
-#[derive(Debug, RustcDecodable)]
+#[derive(Debug, Deserialize)]
 struct Args {
 	cmd_stats: bool,
+	cmd_state_test: bool,
+	arg_file: Option<PathBuf>,
+	flag_only: Option<String>,
+	flag_from: Option<String>,
+	flag_to: Option<String>,
 	flag_code: Option<String>,
 	flag_gas: Option<String>,
+	flag_gas_price: Option<String>,
 	flag_input: Option<String>,
+	flag_chain: Option<String>,
+	flag_json: bool,
 }
 
 impl Args {
-	pub fn gas(&self) -> U256 {
-		self.flag_gas
-			.clone()
-			.and_then(|g| U256::from_str(&g).ok())
-			.unwrap_or_else(|| !U256::zero())
+	pub fn gas(&self) -> Result<U256, String> {
+		match self.flag_gas {
+			Some(ref gas) => gas.parse().map_err(to_string),
+			None => Ok(U256::from(u64::max_value())),
+		}
 	}
 
-	pub fn code(&self) -> Bytes {
-		self.flag_code
-			.clone()
-			.and_then(|c| c.from_hex().ok())
-			.unwrap_or_else(|| die("Code is required."))
+	pub fn gas_price(&self) -> Result<U256, String> {
+		match self.flag_gas_price {
+			Some(ref gas_price) => gas_price.parse().map_err(to_string),
+			None => Ok(U256::zero()),
+		}
 	}
 
-	pub fn data(&self) -> Option<Bytes> {
-		self.flag_input
-			.clone()
-			.and_then(|d| d.from_hex().ok())
+	pub fn from(&self) -> Result<Address, String> {
+		match self.flag_from {
+			Some(ref from) => from.parse().map_err(to_string),
+			None => Ok(Address::default()),
+		}
+	}
+
+	pub fn to(&self) -> Result<Address, String> {
+		match self.flag_to {
+			Some(ref to) => to.parse().map_err(to_string),
+			None => Ok(Address::default()),
+		}
+	}
+
+	pub fn code(&self) -> Result<Option<Bytes>, String> {
+		match self.flag_code {
+			Some(ref code) => code.from_hex().map(Some).map_err(to_string),
+			None => Ok(None),
+		}
+	}
+
+	pub fn data(&self) -> Result<Option<Bytes>, String> {
+		match self.flag_input {
+			Some(ref input) => input.from_hex().map_err(to_string).map(Some),
+			None => Ok(None),
+		}
+	}
+
+	pub fn spec(&self) -> Result<spec::Spec, String> {
+		Ok(match self.flag_chain {
+			Some(ref filename) =>  {
+				let file = fs::File::open(filename).map_err(|e| format!("{}", e))?;
+				spec::Spec::load(&::std::env::temp_dir(), file)?
+			},
+			None => {
+				ethcore::ethereum::new_foundation(&::std::env::temp_dir())
+			},
+		})
 	}
 }
 
-fn die(msg: &'static str) -> ! {
+fn arg<T>(v: Result<T, String>, param: &str) -> T {
+	v.unwrap_or_else(|e| die(format!("Invalid {}: {}", param, e)))
+}
+
+fn to_string<T: fmt::Display>(msg: T) -> String {
+	format!("{}", msg)
+}
+
+fn die<T: fmt::Display>(msg: T) -> ! {
 	println!("{}", msg);
 	::std::process::exit(-1)
+}
+
+#[cfg(test)]
+mod tests {
+	use docopt::Docopt;
+	use super::{Args, USAGE};
+
+	fn run<T: AsRef<str>>(args: &[T]) -> Args {
+		Docopt::new(USAGE).and_then(|d| d.argv(args.into_iter()).deserialize()).unwrap()
+	}
+
+	#[test]
+	fn should_parse_all_the_options() {
+		let args = run(&[
+			"parity-evm",
+			"--json",
+			"--gas", "1",
+			"--gas-price", "2",
+			"--from", "0000000000000000000000000000000000000003",
+			"--to", "0000000000000000000000000000000000000004",
+			"--code", "05",
+			"--input", "06",
+			"--chain", "./testfile",
+		]);
+
+		assert_eq!(args.flag_json, true);
+		assert_eq!(args.gas(), Ok(1.into()));
+		assert_eq!(args.gas_price(), Ok(2.into()));
+		assert_eq!(args.from(), Ok(3.into()));
+		assert_eq!(args.to(), Ok(4.into()));
+		assert_eq!(args.code(), Ok(Some(vec![05])));
+		assert_eq!(args.data(), Ok(Some(vec![06])));
+		assert_eq!(args.flag_chain, Some("./testfile".to_owned()));
+	}
+
+	#[test]
+	fn should_parse_state_test_command() {
+		let args = run(&[
+			"parity-evm",
+			"state-test",
+			"./file.json",
+			"--chain", "homestead",
+			"--only=add11",
+			"--json",
+		]);
+
+		assert_eq!(args.cmd_state_test, true);
+		assert!(args.arg_file.is_some());
+		assert_eq!(args.flag_json, true);
+		assert_eq!(args.flag_chain, Some("homestead".to_owned()));
+		assert_eq!(args.flag_only, Some("add11".to_owned()));
+	}
 }

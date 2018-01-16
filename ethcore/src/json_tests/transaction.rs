@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,44 +17,56 @@
 use super::test_common::*;
 use evm;
 use ethjson;
-use rlp::{UntrustedRlp, View};
+use rlp::UntrustedRlp;
+use transaction::{Action, UnverifiedTransaction, SignedTransaction};
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let tests = ethjson::transaction::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
-	let old_schedule = evm::Schedule::new_frontier();
-	let new_schedule = evm::Schedule::new_homestead();
+	let frontier_schedule = evm::Schedule::new_frontier();
+	let homestead_schedule = evm::Schedule::new_homestead();
+	let byzantium_schedule = evm::Schedule::new_byzantium();
 	for (name, test) in tests.into_iter() {
-		let mut fail = false;
-		let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.clone()); println!("Transaction failed: {:?}", name); fail = true };
+		let mut fail_unless = |cond: bool, title: &str| if !cond { failed.push(name.clone()); println!("Transaction failed: {:?}: {:?}", name, title); };
 
 		let number: Option<u64> = test.block_number.map(Into::into);
 		let schedule = match number {
-			None => &old_schedule,
-			Some(x) if x < 1_150_000 => &old_schedule,
-			Some(_) => &new_schedule
+			None => &frontier_schedule,
+			Some(x) if x < 1_150_000 => &frontier_schedule,
+			Some(x) if x < 3_000_000 => &homestead_schedule,
+			Some(_) => &byzantium_schedule
 		};
+		let allow_chain_id_of_one = number.map_or(false, |n| n >= 2_675_000);
+		let allow_unsigned = number.map_or(false, |n| n >= 3_000_000);
 
 		let rlp: Vec<u8> = test.rlp.into();
 		let res = UntrustedRlp::new(&rlp)
 			.as_val()
-			.map_err(From::from)
-			.and_then(|t: SignedTransaction| t.validate(schedule, schedule.have_delegate_call));
+			.map_err(::error::Error::from)
+			.and_then(|t: UnverifiedTransaction| {
+				t.validate(schedule, schedule.have_delegate_call, allow_chain_id_of_one, allow_unsigned).map_err(Into::into)
+			});
 
-		fail_unless(test.transaction.is_none() == res.is_err());
+		fail_unless(test.transaction.is_none() == res.is_err(), "Validity different");
 		if let (Some(tx), Some(sender)) = (test.transaction, test.sender) {
 			let t = res.unwrap();
-			fail_unless(t.sender().unwrap() == sender.into());
+			fail_unless(SignedTransaction::new(t.clone()).unwrap().sender() == sender.into(), "sender mismatch");
+			let is_acceptable_chain_id = match t.chain_id() {
+				None => true,
+				Some(1) if allow_chain_id_of_one => true,
+				_ => false,
+			};
+			fail_unless(is_acceptable_chain_id, "Network ID unacceptable");
 			let data: Vec<u8> = tx.data.into();
-			fail_unless(t.data == data);
-			fail_unless(t.gas_price == tx.gas_price.into());
-			fail_unless(t.nonce == tx.nonce.into());
-			fail_unless(t.value == tx.value.into());
+			fail_unless(t.data == data, "data mismatch");
+			fail_unless(t.gas_price == tx.gas_price.into(), "gas_price mismatch");
+			fail_unless(t.nonce == tx.nonce.into(), "nonce mismatch");
+			fail_unless(t.value == tx.value.into(), "value mismatch");
 			let to: Option<ethjson::hash::Address> = tx.to.into();
 			let to: Option<Address> = to.map(Into::into);
 			match t.action {
-				Action::Call(dest) => fail_unless(Some(dest) == to),
-				Action::Create => fail_unless(None == to),
+				Action::Call(dest) => fail_unless(Some(dest) == to, "call/destination mismatch"),
+				Action::Create => fail_unless(None == to, "create mismatch"),
 			}
 		}
 	}
@@ -65,10 +77,13 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	failed
 }
 
-declare_test!{TransactionTests_ttTransactionTest, "TransactionTests/ttTransactionTest"}
-declare_test!{heavy => TransactionTests_tt10mbDataField, "TransactionTests/tt10mbDataField"}
-declare_test!{TransactionTests_ttWrongRLPTransaction, "TransactionTests/ttWrongRLPTransaction"}
-declare_test!{TransactionTests_Homestead_ttTransactionTest, "TransactionTests/Homestead/ttTransactionTest"}
-declare_test!{heavy => TransactionTests_Homestead_tt10mbDataField, "TransactionTests/Homestead/tt10mbDataField"}
-declare_test!{TransactionTests_Homestead_ttWrongRLPTransaction, "TransactionTests/Homestead/ttWrongRLPTransaction"}
-declare_test!{TransactionTests_RandomTests_tr201506052141PYTHON, "TransactionTests/RandomTests/tr201506052141PYTHON"}
+declare_test!{TransactionTests_ttEip155VitaliksHomesead, "TransactionTests/ttEip155VitaliksHomesead"}
+declare_test!{TransactionTests_ttEip155VitaliksEip158, "TransactionTests/ttEip155VitaliksEip158"}
+declare_test!{TransactionTests_ttEip158, "TransactionTests/ttEip158"}
+declare_test!{TransactionTests_ttFrontier, "TransactionTests/ttFrontier"}
+declare_test!{TransactionTests_ttHomestead, "TransactionTests/ttHomestead"}
+declare_test!{TransactionTests_ttVRuleEip158, "TransactionTests/ttVRuleEip158"}
+declare_test!{TransactionTests_ttWrongRLPFrontier, "TransactionTests/ttWrongRLPFrontier"}
+declare_test!{TransactionTests_ttWrongRLPHomestead, "TransactionTests/ttWrongRLPHomestead"}
+declare_test!{TransactionTests_ttConstantinople, "TransactionTests/ttConstantinople"}
+declare_test!{TransactionTests_ttSpecConstantinople, "TransactionTests/ttSpecConstantinople"}

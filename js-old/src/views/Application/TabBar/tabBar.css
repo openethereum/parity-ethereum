@@ -1,0 +1,100 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.toolbar {
+  background: none !important;
+  height: 72px !important;
+  position: relative;
+}
+
+.tabs {
+  width: 100%;
+  position: relative;
+  display: flex;
+
+  & > * {
+    flex: 1;
+  }
+}
+
+.tabLink {
+  display: flex;
+
+  > * {
+    flex: 1;
+  }
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.4) !important;
+  }
+
+  &.tabactive, &.tabactive:hover {
+    background: rgba(0, 0, 0, 0.25) !important;
+    border-radius: 4px 4px 0 0;
+
+    * {
+      color: white !important;
+    }
+  }
+}
+
+.tabLink,
+.settings,
+.first,
+.last {
+  background: rgba(0, 0, 0, 0.5) !important; /* rgba(0, 0, 0, 0.25) !important; */
+}
+
+.tabbarTooltip {
+  left: 3em;
+  top: 4em;
+}
+
+.label {
+  position: relative;
+}
+
+.labelBubble {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+}
+
+.first,
+.last {
+  margin: 0;
+  padding: 36px 12px;
+  white-space: nowrap;
+}
+
+.indicatorTab {
+  font-size: 1.5rem;
+  flex: 0;
+}
+
+.indicator {
+  padding: 20px 12px 0;
+  opacity: 0.8;
+}
+
+.first {
+  margin-left: -24px;
+}
+
+.last {
+  margin-right: -24px;
+}

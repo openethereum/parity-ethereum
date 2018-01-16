@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,10 +16,10 @@
 
 //! Serializable wrapper around vector of bytes
 
-use rustc_serialize::hex::ToHex;
-use serde::{Serialize, Serializer, Deserialize, Deserializer, Error};
-use serde::de::Visitor;
-use util::common::FromHex;
+use std::fmt;
+use rustc_hex::{ToHex, FromHex};
+use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::de::{Error, Visitor};
 
 /// Wrapper structure around vector of bytes.
 #[derive(Debug, PartialEq, Eq, Default, Hash, Clone)]
@@ -31,7 +31,7 @@ impl Bytes {
 		Bytes(bytes)
 	}
 	/// Convert back to vector
-	pub fn to_vec(self) -> Vec<u8> {
+	pub fn into_vec(self) -> Vec<u8> {
 		self.0
 	}
 }
@@ -49,7 +49,7 @@ impl Into<Vec<u8>> for Bytes {
 }
 
 impl Serialize for Bytes {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
 		let mut serialized = "0x".to_owned();
 		serialized.push_str(self.0.to_hex().as_ref());
@@ -57,33 +57,31 @@ impl Serialize for Bytes {
 	}
 }
 
-impl Deserialize for Bytes {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Bytes, D::Error>
-	where D: Deserializer {
-		deserializer.deserialize(BytesVisitor)
+impl<'a> Deserialize<'a> for Bytes {
+	fn deserialize<D>(deserializer: D) -> Result<Bytes, D::Error>
+	where D: Deserializer<'a> {
+		deserializer.deserialize_any(BytesVisitor)
 	}
 }
 
 struct BytesVisitor;
 
-impl Visitor for BytesVisitor {
+impl<'a> Visitor<'a> for BytesVisitor {
 	type Value = Bytes;
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
-		if value.is_empty() {
-			warn!(
-				target: "deprecated",
-				"Deserializing empty string as empty bytes. This is a non-standard behaviour that will be removed in future versions. Please update your code to send `0x` instead!"
-			);
-			Ok(Bytes::new(Vec::new()))
-		} else if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
-			Ok(Bytes::new(try!(FromHex::from_hex(&value[2..]).map_err(|_| Error::custom("invalid hex")))))
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a 0x-prefixed, hex-encoded vector of bytes")
+	}
+
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
+		if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
+			Ok(Bytes::new(FromHex::from_hex(&value[2..]).map_err(|e| Error::custom(format!("Invalid hex: {}", e)))?))
 		} else {
-			Err(Error::custom("invalid format"))
+			Err(Error::custom("Invalid bytes format. Expected a 0x-prefixed hex string with even length"))
 		}
 	}
 
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: Error {
+	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
 		self.visit_str(value.as_ref())
 	}
 }
@@ -93,7 +91,7 @@ impl Visitor for BytesVisitor {
 mod tests {
 	use super::*;
 	use serde_json;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 
 	#[test]
 	fn test_bytes_serialize() {
@@ -104,8 +102,7 @@ mod tests {
 
 	#[test]
 	fn test_bytes_deserialize() {
-		// TODO [ToDr] Uncomment when Mist starts sending correct data
-		// let bytes1: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""""#);
+		let bytes1: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""""#);
 		let bytes2: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""0x123""#);
 		let bytes3: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""0xgg""#);
 
@@ -113,19 +110,12 @@ mod tests {
 		let bytes5: Bytes = serde_json::from_str(r#""0x12""#).unwrap();
 		let bytes6: Bytes = serde_json::from_str(r#""0x0123""#).unwrap();
 
-		// assert!(bytes1.is_err());
+		assert!(bytes1.is_err());
 		assert!(bytes2.is_err());
 		assert!(bytes3.is_err());
 		assert_eq!(bytes4, Bytes(vec![]));
 		assert_eq!(bytes5, Bytes(vec![0x12]));
 		assert_eq!(bytes6, Bytes(vec![0x1, 0x23]));
-	}
-
-	// TODO [ToDr] Remove when Mist starts sending correct data
-	#[test]
-	fn test_bytes_lenient_against_the_spec_deserialize_for_empty_string_for_mist_compatibility() {
-		let deserialized: Bytes = serde_json::from_str(r#""""#).unwrap();
-		assert_eq!(deserialized, Bytes(Vec::new()));
 	}
 }
 

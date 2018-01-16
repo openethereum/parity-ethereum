@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,11 +16,12 @@
 
 //! Trie test input deserialization.
 
+use std::fmt;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 use bytes::Bytes;
-use serde::{Deserialize, Deserializer, Error};
-use serde::de::{Visitor, MapVisitor, SeqVisitor};
+use serde::{Deserialize, Deserializer};
+use serde::de::{Error as ErrorTrait, Visitor, MapAccess, SeqAccess};
 
 /// Trie test input.
 #[derive(Debug, PartialEq)]
@@ -29,41 +30,43 @@ pub struct Input {
 	pub data: BTreeMap<Bytes, Option<Bytes>>,
 }
 
-impl Deserialize for Input {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
-		where D: Deserializer
+impl<'a> Deserialize<'a> for Input {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+		where D: Deserializer<'a>
 	{
-		deserializer.deserialize(InputVisitor)
+		deserializer.deserialize_any(InputVisitor)
 	}
 }
 
 struct InputVisitor;
 
-impl Visitor for InputVisitor {
+impl<'a> Visitor<'a> for InputVisitor {
 	type Value = Input;
 
-	fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a map of bytes into bytes")
+	}
+
+	fn visit_map<V>(self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapAccess<'a> {
 		let mut result = BTreeMap::new();
 
 		loop {
-			let key_str: Option<String> = try!(visitor.visit_key());
+			let key_str: Option<String> = visitor.next_key()?;
 			let key = match key_str {
-				Some(ref k) if k.starts_with("0x") => try!(Bytes::from_str(k).map_err(Error::custom)),
+				Some(ref k) if k.starts_with("0x") => Bytes::from_str(k).map_err(V::Error::custom)?,
 				Some(k) => Bytes::new(k.into_bytes()),
 				None => { break; }
 			};
 
-			let val_str: Option<String> = try!(visitor.visit_value());
+			let val_str: Option<String> = visitor.next_value()?;
 			let val = match val_str {
-				Some(ref v) if v.starts_with("0x") => Some(try!(Bytes::from_str(v).map_err(Error::custom))),
+				Some(ref v) if v.starts_with("0x") => Some(Bytes::from_str(v).map_err(V::Error::custom)?),
 				Some(v) => Some(Bytes::new(v.into_bytes())),
 				None => None,
 			};
 
 			result.insert(key, val);
 		}
-
-		try!(visitor.end());
 
 		let input = Input {
 			data: result
@@ -72,39 +75,37 @@ impl Visitor for InputVisitor {
 		Ok(input)
 	}
 
-	fn visit_seq<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: SeqVisitor {
+	fn visit_seq<V>(self, mut visitor: V) -> Result<Self::Value, V::Error> where V: SeqAccess<'a> {
 		let mut result = BTreeMap::new();
 
 		loop {
-			let keyval: Option<Vec<Option<String>>> = try!(visitor.visit());
+			let keyval: Option<Vec<Option<String>>> = visitor.next_element()?;
 			let keyval = match keyval {
 				Some(k) => k,
 				_ => { break; },
 			};
 
 			if keyval.len() != 2 {
-				return Err(Error::custom("Invalid key value pair."));
+				return Err(V::Error::custom("Invalid key value pair."));
 			}
 
 			let ref key_str: Option<String> = keyval[0];
 			let ref val_str: Option<String> = keyval[1];
 
 			let key = match *key_str {
-				Some(ref k) if k.starts_with("0x") => try!(Bytes::from_str(k).map_err(Error::custom)),
+				Some(ref k) if k.starts_with("0x") => Bytes::from_str(k).map_err(V::Error::custom)?,
 				Some(ref k) => Bytes::new(k.clone().into_bytes()),
 				None => { break; }
 			};
 
 			let val = match *val_str {
-				Some(ref v) if v.starts_with("0x") => Some(try!(Bytes::from_str(v).map_err(Error::custom))),
+				Some(ref v) if v.starts_with("0x") => Some(Bytes::from_str(v).map_err(V::Error::custom)?),
 				Some(ref v) => Some(Bytes::new(v.clone().into_bytes())),
 				None => None,
 			};
 
 			result.insert(key, val);
 		}
-
-		try!(visitor.end());
 
 		let input = Input {
 			data: result

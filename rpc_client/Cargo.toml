@@ -1,0 +1,20 @@
+[package]
+authors = ["Parity <admin@parity.io>"]
+description = "Parity Rpc Client"
+homepage = "http://parity.io"
+license = "GPL-3.0"
+name = "parity-rpc-client"
+version = "1.4.0"
+
+[dependencies]
+futures = "0.1"
+log = "0.3.6"
+serde = "1.0"
+serde_json = "1.0"
+url = "1.2.0"
+matches = "0.1"
+parking_lot = "0.4"
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
+jsonrpc-ws-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
+parity-rpc = { path = "../rpc" }
+keccak-hash = { path = "../util/hash" }

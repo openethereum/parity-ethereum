@@ -1,0 +1,11 @@
+[parity]
+no_consensus = true
+
+[rpc]
+interface = "all"
+apis = ["all"]
+hosts = ["all"]
+
+[ipfs]
+enable = false # this is the default
+hosts = ["all"]

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,8 +16,8 @@
 
 //! This migration compresses the state db.
 
-use util::migration::{SimpleMigration, Progress};
-use rlp::{Compressible, UntrustedRlp, View, RlpType};
+use migration::{SimpleMigration, Progress};
+use rlp::{Compressible, UntrustedRlp, RlpType};
 
 /// Compressing migration.
 #[derive(Default)]
@@ -32,6 +32,6 @@ impl SimpleMigration for V8 {
 
 	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 		self.0.tick();
-		Some((key,UntrustedRlp::new(&value).compress(RlpType::Blocks).to_vec()))
+		Some((key,UntrustedRlp::new(&value).compress(RlpType::Blocks).into_vec()))
 	}
 }

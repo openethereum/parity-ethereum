@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,10 +16,11 @@
 
 //! Lenient uint json deserialization for test json files.
 
+use std::fmt;
 use std::str::FromStr;
-use serde::{Deserialize, Deserializer, Error};
-use serde::de::Visitor;
-use util::{U256, Uint as U};
+use serde::{Deserialize, Deserializer};
+use serde::de::{Error, Visitor};
+use ethereum_types::U256;
 
 /// Lenient uint json deserialization for test json files.
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
@@ -49,38 +50,42 @@ impl Into<u8> for Uint {
 	}
 }
 
-impl Deserialize for Uint {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
-		where D: Deserializer {
-		deserializer.deserialize(UintVisitor)
+impl<'a> Deserialize<'a> for Uint {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+		where D: Deserializer<'a> {
+		deserializer.deserialize_any(UintVisitor)
 	}
 }
 
 struct UintVisitor;
 
-impl Visitor for UintVisitor {
+impl<'a> Visitor<'a> for UintVisitor {
 	type Value = Uint;
 
-	fn visit_u64<E>(&mut self, value: u64) -> Result<Self::Value, E> where E: Error {
+	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+		write!(formatter, "a hex encoded or decimal uint")
+	}
+
+	fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> where E: Error {
 		Ok(Uint(U256::from(value)))
 	}
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
 		let value = match value.len() {
 			0 => U256::from(0),
 			2 if value.starts_with("0x") => U256::from(0),
-			_ if value.starts_with("0x") => try!(U256::from_str(&value[2..]).map_err(|_| {
-				Error::custom(format!("Invalid hex value {}.", value).as_str())
-			})),
-			_ => try!(U256::from_dec_str(value).map_err(|_| {
-				Error::custom(format!("Invalid decimal value {}.", value).as_str())
-			}))
+			_ if value.starts_with("0x") => U256::from_str(&value[2..]).map_err(|e| {
+				Error::custom(format!("Invalid hex value {}: {}", value, e).as_str())
+			})?,
+			_ => U256::from_dec_str(value).map_err(|e| {
+				Error::custom(format!("Invalid decimal value {}: {:?}", value, e).as_str())
+			})?
 		};
 
 		Ok(Uint(value))
 	}
 
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: Error {
+	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
 		self.visit_str(value.as_ref())
 	}
 }
@@ -88,7 +93,7 @@ impl Visitor for UintVisitor {
 #[cfg(test)]
 mod test {
 	use serde_json;
-	use util::U256;
+	use ethereum_types::U256;
 	use uint::Uint;
 
 	#[test]

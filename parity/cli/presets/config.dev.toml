@@ -1,0 +1,6 @@
+[parity]
+chain = "dev"
+
+[mining]
+reseal_min_period = 0
+min_gas_price = 0

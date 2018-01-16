@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,7 +16,11 @@
 
 //! State of all accounts in the system expressed in Plain Old Data.
 
-use util::*;
+use std::fmt;
+use std::collections::BTreeMap;
+use itertools::Itertools;
+use ethereum_types::{H256, Address};
+use triehash::sec_trie_root;
 use pod_account::{self, PodAccount};
 use types::state_diff::StateDiff;
 use ethjson;
@@ -64,7 +68,7 @@ impl From<ethjson::spec::State> for PodState {
 impl fmt::Display for PodState {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		for (add, acc) in &self.0 {
-			try!(writeln!(f, "{} => {}", add, acc));
+			writeln!(f, "{} => {}", add, acc)?;
 		}
 		Ok(())
 	}
@@ -77,7 +81,7 @@ pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
 
 #[cfg(test)]
 mod test {
-	use common::*;
+	use std::collections::BTreeMap;
 	use types::state_diff::*;
 	use types::account_diff::*;
 	use pod_account::PodAccount;

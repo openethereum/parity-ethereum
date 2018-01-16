@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -20,14 +20,14 @@ use std::time::Duration;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ethcore_logger::{setup_log, Config as LogConfig};
+use hash::keccak;
 use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService as SS};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType};
 use ethcore::miner::Miner;
-use ethcore::ids::BlockID;
+use ethcore::ids::BlockId;
 
 use cache::CacheConfig;
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
@@ -35,8 +35,6 @@ use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
 use fdlimit;
-
-use io::PanicHandler;
 
 /// Kinds of snapshot commands.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -55,15 +53,14 @@ pub struct SnapshotCommand {
 	pub spec: SpecType,
 	pub pruning: Pruning,
 	pub pruning_history: u64,
-	pub logger_config: LogConfig,
-	pub mode: Mode,
+	pub pruning_memory: usize,
 	pub tracing: Switch,
 	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub file_path: Option<String>,
 	pub wal: bool,
 	pub kind: Kind,
-	pub block_at: BlockID,
+	pub block_at: BlockId,
 }
 
 // helper for reading chunks from arbitrary reader and feeding them into the
@@ -73,9 +70,9 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 
 	info!("Restoring to block #{} (0x{:?})", manifest.block_number, manifest.block_hash);
 
-	try!(snapshot.init_restore(manifest.clone(), recover).map_err(|e| {
+	snapshot.init_restore(manifest.clone(), recover).map_err(|e| {
 		format!("Failed to begin restoration: {}", e)
-	}));
+	})?;
 
 	let (num_state, num_blocks) = (manifest.state_hashes.len(), manifest.block_hashes.len());
 
@@ -94,8 +91,14 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
  			return Err("Restoration failed".into());
  		}
 
- 		let chunk = try!(reader.chunk(state_hash)
-			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", state_hash, e)));
+ 		let chunk = reader.chunk(state_hash)
+			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", state_hash, e))?;
+
+		let hash = keccak(&chunk);
+		if hash != state_hash {
+			return Err(format!("Mismatched chunk hash. Expected {:?}, got {:?}", state_hash, hash));
+		}
+
  		snapshot.feed_state_chunk(state_hash, &chunk);
  	}
 
@@ -105,8 +108,13 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 			return Err("Restoration failed".into());
 		}
 
- 		let chunk = try!(reader.chunk(block_hash)
-			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", block_hash, e)));
+ 		let chunk = reader.chunk(block_hash)
+			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", block_hash, e))?;
+
+		let hash = keccak(&chunk);
+		if hash != block_hash {
+			return Err(format!("Mismatched chunk hash. Expected {:?}, got {:?}", block_hash, hash));
+		}
 		snapshot.feed_block_chunk(block_hash, &chunk);
 	}
 
@@ -122,27 +130,21 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 
 impl SnapshotCommand {
 	// shared portion of snapshot commands: start the client service
-	fn start_service(self) -> Result<(ClientService, Arc<PanicHandler>), String> {
-		// Setup panic handler
-		let panic_handler = PanicHandler::new_in_arc();
-
+	fn start_service(self) -> Result<ClientService, String> {
 		// load spec file
-		let spec = try!(self.spec.spec());
+		let spec = self.spec.spec(&self.dirs.cache)?;
 
 		// load genesis hash
 		let genesis_hash = spec.genesis_header().hash();
 
 		// database paths
-		let db_dirs = self.dirs.database(genesis_hash, spec.fork_name.clone());
+		let db_dirs = self.dirs.database(genesis_hash, None, spec.data_dir.clone());
 
 		// user defaults path
 		let user_defaults_path = db_dirs.user_defaults_path();
 
 		// load user defaults
-		let user_defaults = try!(UserDefaults::load(&user_defaults_path));
-
-		// Setup logging
-		let _logger = setup_log(&self.logger_config);
+		let user_defaults = UserDefaults::load(&user_defaults_path)?;
 
 		fdlimit::raise_fd_limit();
 
@@ -150,37 +152,50 @@ impl SnapshotCommand {
 		let algorithm = self.pruning.to_algorithm(&user_defaults);
 
 		// check if tracing is on
-		let tracing = try!(tracing_switch_to_bool(self.tracing, &user_defaults));
+		let tracing = tracing_switch_to_bool(self.tracing, &user_defaults)?;
 
 		// check if fatdb is on
-		let fat_db = try!(fatdb_switch_to_bool(self.fat_db, &user_defaults, algorithm));
+		let fat_db = fatdb_switch_to_bool(self.fat_db, &user_defaults, algorithm)?;
 
 		// prepare client and snapshot paths.
 		let client_path = db_dirs.client_path(algorithm);
 		let snapshot_path = db_dirs.snapshot_path();
 
 		// execute upgrades
-		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile(db_dirs.fork_path().as_path())));
+		execute_upgrades(&self.dirs.base, &db_dirs, algorithm, self.compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
 
 		// prepare client config
-		let client_config = to_client_config(&self.cache_config, self.mode, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm, self.pruning_history);
+		let client_config = to_client_config(
+			&self.cache_config,
+			spec.name.to_lowercase(),
+			Mode::Active,
+			tracing,
+			fat_db,
+			self.compaction,
+			self.wal,
+			VMType::default(),
+			"".into(),
+			algorithm,
+			self.pruning_history,
+			self.pruning_memory,
+			true
+		);
 
-		let service = try!(ClientService::start(
+		let service = ClientService::start(
 			client_config,
 			&spec,
 			&client_path,
 			&snapshot_path,
 			&self.dirs.ipc_path(),
 			Arc::new(Miner::with_spec(&spec))
-		).map_err(|e| format!("Client service error: {:?}", e)));
+		).map_err(|e| format!("Client service error: {:?}", e))?;
 
-		Ok((service, panic_handler))
+		Ok(service)
 	}
-
 	/// restore from a snapshot
 	pub fn restore(self) -> Result<(), String> {
 		let file = self.file_path.clone();
-		let (service, _panic_handler) = try!(self.start_service());
+		let service = self.start_service()?;
 
 		warn!("Snapshot restoration is experimental and the format may be subject to change.");
 		warn!("On encountering an unexpected error, please ensure that you have a recent snapshot.");
@@ -194,15 +209,15 @@ impl SnapshotCommand {
 				.map_err(|e| format!("Couldn't open snapshot file: {}", e))
 				.and_then(|x| x.ok_or("Snapshot file has invalid format.".into()));
 
-			let reader = try!(reader);
-			try!(restore_using(snapshot, &reader, true));
+			let reader = reader?;
+			restore_using(snapshot, &reader, true)?;
 		} else {
 			info!("Attempting to restore from local snapshot.");
 
 			// attempting restoration with recovery will lead to deadlock
 			// as we currently hold a read lock on the service's reader.
 			match *snapshot.reader() {
-				Some(ref reader) => try!(restore_using(snapshot.clone(), reader, false)),
+				Some(ref reader) => restore_using(snapshot.clone(), reader, false)?,
 				None => return Err("No local snapshot found.".into()),
 			}
 		}
@@ -212,15 +227,15 @@ impl SnapshotCommand {
 
 	/// Take a snapshot from the head of the chain.
 	pub fn take_snapshot(self) -> Result<(), String> {
-		let file_path = try!(self.file_path.clone().ok_or("No file path provided.".to_owned()));
+		let file_path = self.file_path.clone().ok_or("No file path provided.".to_owned())?;
 		let file_path: PathBuf = file_path.into();
 		let block_at = self.block_at;
-		let (service, _panic_handler) = try!(self.start_service());
+		let service = self.start_service()?;
 
 		warn!("Snapshots are currently experimental. File formats may be subject to change.");
 
-		let writer = try!(PackedWriter::new(&file_path)
-			.map_err(|e| format!("Failed to open snapshot writer: {}", e)));
+		let writer = PackedWriter::new(&file_path)
+			.map_err(|e| format!("Failed to open snapshot writer: {}", e))?;
 
 		let progress = Arc::new(Progress::default());
 		let p = progress.clone();
@@ -232,9 +247,8 @@ impl SnapshotCommand {
 				let cur_size = p.size();
 				if cur_size != last_size {
 					last_size = cur_size;
-					info!("Snapshot: {} accounts {} blocks {} bytes", p.accounts(), p.blocks(), p.size());
-				} else {
-					info!("Snapshot: No progress since last update.");
+					let bytes = ::informant::format_bytes(p.size());
+					info!("Snapshot: {} accounts {} blocks {}", p.accounts(), p.blocks(), bytes);
 				}
 
 				::std::thread::sleep(Duration::from_secs(5));
@@ -249,7 +263,7 @@ impl SnapshotCommand {
 		info!("snapshot creation complete");
 
 		assert!(progress.done());
-		try!(informant_handle.join().map_err(|_| "failed to join logger thread"));
+		informant_handle.join().map_err(|_| "failed to join logger thread")?;
 
 		Ok(())
 	}
@@ -258,8 +272,8 @@ impl SnapshotCommand {
 /// Execute this snapshot command.
 pub fn execute(cmd: SnapshotCommand) -> Result<String, String> {
 	match cmd.kind {
-		Kind::Take => try!(cmd.take_snapshot()),
-		Kind::Restore => try!(cmd.restore()),
+		Kind::Take => cmd.take_snapshot()?,
+		Kind::Restore => cmd.restore()?,
 	}
 
 	Ok(String::new())

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -16,33 +16,52 @@
 
 //! Serving ProxyPac file
 
-use endpoint::{Endpoint, Handler, EndpointPath};
+use apps::HOME_PAGE;
+use endpoint::{Endpoint, Request, Response, EndpointPath};
+use futures::future;
 use handlers::ContentHandler;
-use apps::DAPPS_DOMAIN;
+use hyper::mime;
+use {address, Embeddable};
 
-pub struct ProxyPac;
+pub struct ProxyPac {
+	embeddable: Embeddable,
+	dapps_domain: String,
+}
 
 impl ProxyPac {
-	pub fn boxed() -> Box<Endpoint> {
-		Box::new(ProxyPac)
+	pub fn boxed(embeddable: Embeddable, dapps_domain: String) -> Box<Endpoint> {
+		Box::new(ProxyPac { embeddable, dapps_domain })
 	}
 }
 
 impl Endpoint for ProxyPac {
-	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
+	fn respond(&self, path: EndpointPath, _req: Request) -> Response {
+		let ui = self.embeddable
+			.as_ref()
+			.map(|ref parent| address(&parent.host, parent.port))
+			.unwrap_or_else(|| format!("{}:{}", path.host, path.port));
+
 		let content = format!(
 r#"
 function FindProxyForURL(url, host) {{
-	if (shExpMatch(host, "*{0}"))
+	if (shExpMatch(host, "{0}.{1}"))
 	{{
-		return "PROXY {1}:{2}";
+		return "PROXY {4}";
+	}}
+
+	if (shExpMatch(host, "*.{1}"))
+	{{
+		return "PROXY {2}:{3}";
 	}}
 
 	return "DIRECT";
 }}
 "#,
-			DAPPS_DOMAIN, path.host, path.port);
-		Box::new(ContentHandler::ok(content, mime!(Application/Javascript)))
+		HOME_PAGE, self.dapps_domain, path.host, path.port, ui);
+
+		Box::new(future::ok(
+			ContentHandler::ok(content, mime::TEXT_JAVASCRIPT).into()
+		))
 	}
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,19 +14,40 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::mem;
-use std::cell::RefCell;
-use std::sync::{mpsc, Arc};
 use std::collections::BTreeMap;
-use jsonrpc_core;
-use util::{Mutex, RwLock, U256};
-use v1::helpers::{ConfirmationRequest, ConfirmationPayload};
+use ethereum_types::{U256, Address};
+use parking_lot::{Mutex, RwLock};
+use ethcore::account_provider::DappId;
+use v1::helpers::{ConfirmationRequest, ConfirmationPayload, oneshot, errors};
+use v1::types::{ConfirmationResponse, H160 as RpcH160, Origin, DappId as RpcDappId};
+
+use jsonrpc_core::Error;
 
 /// Result that can be returned from JSON RPC.
-pub type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;
+pub type ConfirmationResult = Result<ConfirmationResponse, Error>;
+
+/// Type of default account
+pub enum DefaultAccount {
+	/// Default account is known
+	Provided(Address),
+	/// Should use default account for dapp
+	ForDapp(DappId),
+}
+
+impl From<RpcDappId> for DefaultAccount {
+	fn from(dapp_id: RpcDappId) -> Self {
+		DefaultAccount::ForDapp(dapp_id.into())
+	}
+}
+
+impl From<RpcH160> for DefaultAccount {
+	fn from(address: RpcH160) -> Self {
+		DefaultAccount::Provided(address.into())
+	}
+}
 
 /// Possible events happening in the queue that can be listened to.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum QueueEvent {
 	/// Receiver should stop work upon receiving `Finish` message.
 	Finish,
@@ -38,32 +59,21 @@ pub enum QueueEvent {
 	RequestConfirmed(U256),
 }
 
-/// Defines possible errors returned from queue receiving method.
-#[derive(Debug, PartialEq)]
-pub enum QueueError {
-	/// Returned when method has been already used (no receiver available).
-	AlreadyUsed,
-	/// Returned when receiver encounters an error.
-	ReceiverError(mpsc::RecvError),
-}
-
 /// Defines possible errors when inserting to queue
 #[derive(Debug, PartialEq)]
 pub enum QueueAddError {
 	LimitReached,
 }
 
-/// Message Receiver type
-pub type QueueEventReceiver = mpsc::Receiver<QueueEvent>;
-
 // TODO [todr] to consider: timeout instead of limit?
-const QUEUE_LIMIT: usize = 50;
+pub const QUEUE_LIMIT: usize = 50;
 
 /// A queue of transactions awaiting to be confirmed and signed.
 pub trait SigningQueue: Send + Sync {
 	/// Add new request to the queue.
-	/// Returns a `ConfirmationPromise` that can be used to await for resolution of given request.
-	fn add_request(&self, request: ConfirmationPayload) -> Result<ConfirmationPromise, QueueAddError>;
+	/// Returns a `Result` wrapping  `ConfirmationReceiver` together with it's unique id in the queue.
+	/// `ConfirmationReceiver` is a `Future` awaiting for resolution of the given request.
+	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<(U256, ConfirmationReceiver), QueueAddError>;
 
 	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was rejected.
@@ -71,7 +81,7 @@ pub trait SigningQueue: Send + Sync {
 
 	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was confirmed and given hash was assigned.
-	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<ConfirmationRequest>;
+	fn request_confirmed(&self, id: U256, result: ConfirmationResult) -> Option<ConfirmationRequest>;
 
 	/// Returns a request if it is contained in the queue.
 	fn peek(&self, id: &U256) -> Option<ConfirmationRequest>;
@@ -86,156 +96,63 @@ pub trait SigningQueue: Send + Sync {
 	fn is_empty(&self) -> bool;
 }
 
-#[derive(Debug, Clone, PartialEq)]
-/// Result of a pending confirmation request.
-pub enum ConfirmationResult {
-	/// The request has not yet been confirmed nor rejected.
-	Waiting,
-	/// The request has been rejected.
-	Rejected,
-	/// The request has been confirmed.
-	Confirmed(RpcResult),
-}
-
-type Listener = Box<FnMut(Option<RpcResult>) + Send>;
-
-/// A handle to submitted request.
-/// Allows to block and wait for a resolution of that request.
-pub struct ConfirmationToken {
-	result: Arc<Mutex<ConfirmationResult>>,
-	listeners: Arc<Mutex<Vec<Listener>>>,
+struct ConfirmationSender {
+	sender: oneshot::Sender<ConfirmationResult>,
 	request: ConfirmationRequest,
 }
 
-pub struct ConfirmationPromise {
-	id: U256,
-	result: Arc<Mutex<ConfirmationResult>>,
-	listeners: Arc<Mutex<Vec<Listener>>>,
-}
-
-impl ConfirmationToken {
-	/// Submit solution to all listeners
-	fn resolve(&self, result: Option<RpcResult>) {
-		let wrapped = result.clone().map_or(ConfirmationResult::Rejected, |h| ConfirmationResult::Confirmed(h));
-		{
-			let mut res = self.result.lock();
-			*res = wrapped.clone();
-		}
-		// Notify listener
-		let listeners = {
-			let mut listeners = self.listeners.lock();
-			mem::replace(&mut *listeners, Vec::new())
-		};
-		for mut listener in listeners {
-			listener(result.clone());
-		}
-	}
-
-	fn as_promise(&self) -> ConfirmationPromise {
-		ConfirmationPromise {
-			id: self.request.id,
-			result: self.result.clone(),
-			listeners: self.listeners.clone(),
-		}
-	}
-}
-
-impl ConfirmationPromise {
-	/// Get the ID for this request.
-	pub fn id(&self) -> U256 { self.id }
-
-	/// Just get the result, assuming it exists.
-	pub fn result(&self) -> ConfirmationResult {
-		self.result.lock().clone()
-	}
-
-	pub fn wait_for_result<F>(self, callback: F) where F: FnOnce(Option<RpcResult>) + Send + 'static {
-		trace!(target: "own_tx", "Signer: Awaiting confirmation... ({:?}).", self.id);
-		let _result = self.result.lock();
-		let mut listeners = self.listeners.lock();
-		// TODO [todr] Overcoming FnBox unstability
-		let callback = RefCell::new(Some(callback));
-		listeners.push(Box::new(move |result| {
-			let ref mut f = *callback.borrow_mut();
-			f.take().expect("Callbacks are called only once.")(result)
-		}));
-	}
-}
-
+/// Receiving end of the Confirmation channel; can be used as a `Future` to await for `ConfirmationRequest`
+/// being processed and turned into `ConfirmationOutcome`
+pub type ConfirmationReceiver =  oneshot::Receiver<ConfirmationResult>;
 
 /// Queue for all unconfirmed requests.
+#[derive(Default)]
 pub struct ConfirmationsQueue {
 	id: Mutex<U256>,
-	queue: RwLock<BTreeMap<U256, ConfirmationToken>>,
-	sender: Mutex<mpsc::Sender<QueueEvent>>,
-	receiver: Mutex<Option<mpsc::Receiver<QueueEvent>>>,
-}
-
-impl Default for ConfirmationsQueue {
-	fn default() -> Self {
-		let (send, recv) = mpsc::channel();
-
-		ConfirmationsQueue {
-			id: Mutex::new(U256::from(0)),
-			queue: RwLock::new(BTreeMap::new()),
-			sender: Mutex::new(send),
-			receiver: Mutex::new(Some(recv)),
-		}
-	}
+	queue: RwLock<BTreeMap<U256, ConfirmationSender>>,
+	on_event: RwLock<Vec<Box<Fn(QueueEvent) -> () + Send + Sync>>>,
 }
 
 impl ConfirmationsQueue {
-
-	/// Blocks the thread and starts listening for notifications regarding all actions in the queue.
-	/// For each event, `listener` callback will be invoked.
-	/// This method can be used only once (only single consumer of events can exist).
-	pub fn start_listening<F>(&self, listener: F) -> Result<(), QueueError>
-		where F: Fn(QueueEvent) -> () {
-		let recv = self.receiver.lock().take();
-		if let None = recv {
-			return Err(QueueError::AlreadyUsed);
-		}
-		let recv = recv.expect("Check for none is done earlier.");
-
-		loop {
-			let message = try!(recv.recv().map_err(|e| QueueError::ReceiverError(e)));
-			if let QueueEvent::Finish = message {
-				return Ok(());
-			}
-
-			listener(message);
-		}
+	/// Adds a queue listener. For each event, `listener` callback will be invoked.
+	pub fn on_event<F: Fn(QueueEvent) -> () + Send + Sync + 'static>(&self, listener: F) {
+		self.on_event.write().push(Box::new(listener));
 	}
 
 	/// Notifies consumer that the communcation is over.
 	/// No more events will be sent after this function is invoked.
 	pub fn finish(&self) {
 		self.notify(QueueEvent::Finish);
+		self.on_event.write().clear();
 	}
 
 	/// Notifies receiver about the event happening in this queue.
 	fn notify(&self, message: QueueEvent) {
-		// We don't really care about the result
-		let _ = self.sender.lock().send(message);
+		for listener in &*self.on_event.read() {
+			listener(message.clone())
+		}
 	}
 
-	/// Removes requests from this queue and notifies `ConfirmationPromise` holders about the result.
+	/// Removes requests from this queue and notifies `ConfirmationReceiver` holder about the result.
 	/// Notifies also a receiver about that event.
-	fn remove(&self, id: U256, result: Option<RpcResult>) -> Option<ConfirmationRequest> {
-		let token = self.queue.write().remove(&id);
+	fn remove(&self, id: U256, result: Option<ConfirmationResult>) -> Option<ConfirmationRequest> {
+		let sender = self.queue.write().remove(&id);
 
-		if let Some(token) = token {
+		if let Some(sender) = sender {
 			// notify receiver about the event
 			self.notify(result.clone().map_or_else(
 				|| QueueEvent::RequestRejected(id),
 				|_| QueueEvent::RequestConfirmed(id)
 			));
-			// notify token holders about resolution
-			token.resolve(result);
-			// return a result
-			return Some(token.request.clone());
+
+			// notify confirmation receiver about resolution
+			let result = result.ok_or(errors::request_rejected());
+			sender.sender.send(result);
+
+			Some(sender.request)
+		} else {
+			None
 		}
-		None
 	}
 }
 
@@ -246,7 +163,7 @@ impl Drop for ConfirmationsQueue {
 }
 
 impl SigningQueue for ConfirmationsQueue {
-	fn add_request(&self, request: ConfirmationPayload) -> Result<ConfirmationPromise, QueueAddError> {
+	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<(U256, ConfirmationReceiver), QueueAddError> {
 		if self.len() > QUEUE_LIMIT {
 			return Err(QueueAddError::LimitReached);
 		}
@@ -263,15 +180,17 @@ impl SigningQueue for ConfirmationsQueue {
 			trace!(target: "own_tx", "Signer: ({:?}) : {:?}", id, request);
 
 			let mut queue = self.queue.write();
-			queue.insert(id, ConfirmationToken {
-				result: Arc::new(Mutex::new(ConfirmationResult::Waiting)),
-				listeners: Default::default(),
+			let (sender, receiver) = oneshot::oneshot::<ConfirmationResult>();
+
+			queue.insert(id, ConfirmationSender {
+				sender,
 				request: ConfirmationRequest {
-					id: id,
+					id,
 					payload: request,
+					origin,
 				},
 			});
-			queue.get(&id).map(|token| token.as_promise()).expect("Token was just inserted.")
+			(id, receiver)
 		};
 		// Notify listeners
 		self.notify(QueueEvent::NewRequest(id));
@@ -279,7 +198,7 @@ impl SigningQueue for ConfirmationsQueue {
 	}
 
 	fn peek(&self, id: &U256) -> Option<ConfirmationRequest> {
-		self.queue.read().get(id).map(|token| token.request.clone())
+		self.queue.read().get(id).map(|sender| sender.request.clone())
 	}
 
 	fn request_rejected(&self, id: U256) -> Option<ConfirmationRequest> {
@@ -287,14 +206,14 @@ impl SigningQueue for ConfirmationsQueue {
 		self.remove(id, None)
 	}
 
-	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<ConfirmationRequest> {
+	fn request_confirmed(&self, id: U256, result: ConfirmationResult) -> Option<ConfirmationRequest> {
 		debug!(target: "own_tx", "Signer: Transaction confirmed ({:?}).", id);
 		self.remove(id, Some(result))
 	}
 
 	fn requests(&self) -> Vec<ConfirmationRequest> {
 		let queue = self.queue.read();
-		queue.values().map(|token| token.request.clone()).collect()
+		queue.values().map(|sender| sender.request.clone()).collect()
 	}
 
 	fn len(&self) -> usize {
@@ -311,23 +230,26 @@ impl SigningQueue for ConfirmationsQueue {
 
 #[cfg(test)]
 mod test {
-	use std::time::Duration;
-	use std::thread;
-	use std::sync::{mpsc, Arc};
-	use util::{Address, U256, H256, Mutex};
-	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationPayload};
-	use v1::types::H256 as NH256;
-	use jsonrpc_core::to_value;
+	use std::sync::Arc;
+	use ethereum_types::{U256, Address};
+	use parking_lot::Mutex;
+	use jsonrpc_core::futures::Future;
+	use v1::helpers::{
+		SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationPayload,
+	};
+	use v1::types::ConfirmationResponse;
 
 	fn request() -> ConfirmationPayload {
-		ConfirmationPayload::Transaction(FilledTransactionRequest {
+		ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 			from: Address::from(1),
+			used_default_from: false,
 			to: Some(Address::from(2)),
 			gas_price: 0.into(),
 			gas: 10_000.into(),
 			value: 10_000_000.into(),
 			data: vec![],
 			nonce: None,
+			condition: None,
 		})
 	}
 
@@ -338,50 +260,34 @@ mod test {
 		let request = request();
 
 		// when
-		let q = queue.clone();
-		let handle = thread::spawn(move || {
-			let v = q.add_request(request).unwrap();
-			let (tx, rx) = mpsc::channel();
-			v.wait_for_result(move |res| {
-				tx.send(res).unwrap();
-			});
-			rx.recv().unwrap().expect("Should return hash")
-		});
-
-		let id = U256::from(1);
-		while queue.peek(&id).is_none() {
-			// Just wait for the other thread to start
-			thread::sleep(Duration::from_millis(100));
-		}
-		queue.request_confirmed(id, Ok(to_value(&NH256::from(H256::from(1)))));
+		let (id, future) = queue.add_request(request, Default::default()).unwrap();
+		queue.request_confirmed(id, Ok(ConfirmationResponse::SendTransaction(1.into())));
 
 		// then
-		assert_eq!(handle.join().expect("Thread should finish nicely"), Ok(to_value(&NH256::from(H256::from(1)))));
+		let confirmation = future.wait().unwrap();
+		assert_eq!(confirmation, Ok(ConfirmationResponse::SendTransaction(1.into())));
 	}
 
 	#[test]
 	fn should_receive_notification() {
 		// given
-		let received = Arc::new(Mutex::new(None));
+		let received = Arc::new(Mutex::new(vec![]));
 		let queue = Arc::new(ConfirmationsQueue::default());
 		let request = request();
 
 		// when
-		let q = queue.clone();
 		let r = received.clone();
-		let handle = thread::spawn(move || {
-			q.start_listening(move |notification| {
-				let mut v = r.lock();
-				*v = Some(notification);
-			}).expect("Should be closed nicely.")
+		queue.on_event(move |notification| {
+			r.lock().push(notification);
 		});
-		queue.add_request(request).unwrap();
+		let _future = queue.add_request(request, Default::default()).unwrap();
 		queue.finish();
 
 		// then
-		handle.join().expect("Thread should finish nicely");
-		let r = received.lock().take();
-		assert_eq!(r, Some(QueueEvent::NewRequest(U256::from(1))));
+		let r = received.lock();
+		assert_eq!(r[0], QueueEvent::NewRequest(U256::from(1)));
+		assert_eq!(r[1], QueueEvent::Finish);
+		assert_eq!(r.len(), 2);
 	}
 
 	#[test]
@@ -391,7 +297,7 @@ mod test {
 		let request = request();
 
 		// when
-		queue.add_request(request.clone()).unwrap();
+		let _future = queue.add_request(request.clone(), Default::default()).unwrap();
 		let all = queue.requests();
 
 		// then

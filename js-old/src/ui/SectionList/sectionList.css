@@ -1,0 +1,73 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+$transition: all 0.25s;
+$widthNormal: 33.33%;
+$widthExpanded: 42%;
+$widthContracted: 29%;
+
+.section {
+  position: relative;
+  width: 100%;
+
+  .overlay {
+    background: rgba(0, 0, 0, 0.85);
+    bottom: 0;
+    left: 0;
+    padding: 1.5em;
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: 199;
+  }
+
+  .row {
+    display: flex;
+    justify-content: center;
+
+    /* TODO: As per JS comments, the flex-base could be adjusted in the future to allow for
+    /* case where <> 3 columns are required should the need arrise from a UI pov. */
+    .item {
+      box-sizing: border-box;
+      display: flex;
+      flex: 0 1 $widthNormal;
+      max-width: $widthNormal;
+      min-width: $widthContracted;
+      opacity: 0.85;
+      padding: 0.25em;
+
+      /* https://www.binarymoon.co.uk/2014/02/fixing-css-transitions-in-google-chrome/ */
+      transform: translateZ(0);
+      transition: $transition;
+      width: 0;
+
+      &:hover {
+        opacity: 1;
+        z-index: 100;
+      }
+    }
+
+    .item.stretchOn:hover {
+      flex: 0 0 $widthExpanded;
+      max-width: $widthExpanded;
+    }
+  }
+}
+
+.section + .section {
+  margin-top: 1em;
+}

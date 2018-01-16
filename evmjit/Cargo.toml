@@ -1,10 +1,10 @@
 [package]
 name = "evmjit"
-version = "1.4.0"
-authors = ["debris <marek.kotewicz@gmail.com>"]
+version = "1.9.0"
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [lib]
 crate-type = ["dylib"]
 
 [dependencies]
-tiny-keccak = "1.0"
+tiny-keccak = "1.3"

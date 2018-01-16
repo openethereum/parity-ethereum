@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,15 +17,14 @@
 //! Fetchable Dapps support.
 
 use std::fs;
-use std::sync::{Arc};
 
 use linked_hash_map::LinkedHashMap;
-use page::LocalPageEndpoint;
+use page::local;
 use handlers::FetchControl;
 
 pub enum ContentStatus {
-	Fetching(Arc<FetchControl>),
-	Ready(LocalPageEndpoint),
+	Fetching(FetchControl),
+	Ready(local::Dapp),
 }
 
 #[derive(Default)]
@@ -66,10 +65,10 @@ impl ContentCache {
 				},
 				ContentStatus::Ready(ref endpoint) => {
 					trace!(target: "dapps", "Removing {} because of limit.", entry.0);
-					// Remove path
-					let res = fs::remove_dir_all(&endpoint.path());
+					// Remove path (dir or file)
+					let res = fs::remove_dir_all(&endpoint.path()).or_else(|_| fs::remove_file(&endpoint.path()));
 					if let Err(e) = res {
-						warn!(target: "dapps", "Unable to remove dapp: {:?}", e);
+						warn!(target: "dapps", "Unable to remove dapp/content from cache: {:?}", e);
 					}
 				}
 			}

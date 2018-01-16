@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use rlp::*;
-use util::{H256, H2048};
-use util::bytes::Bytes;
+use ethereum_types::{H256, Bloom};
+use bytes::Bytes;
 use header::Header;
 use transaction::SignedTransaction;
 
@@ -37,8 +37,8 @@ impl Encodable for Block {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(3);
 		s.append(&self.header);
-		s.append(&self.transactions);
-		s.append(&self.uncles);
+		s.append_list(&self.transactions);
+		s.append_list(&self.uncles);
 	}
 }
 
@@ -51,7 +51,7 @@ impl Forkable for Block {
 }
 
 impl WithBloom for Block {
-	fn with_bloom(mut self, bloom: H2048) -> Self where Self: Sized {
+	fn with_bloom(mut self, bloom: Bloom) -> Self where Self: Sized {
 		self.header.set_log_bloom(bloom);
 		self
 	}
@@ -67,6 +67,6 @@ impl WithTransaction for Block {
 impl CompleteBlock for Block {
 	fn complete(mut self, parent_hash: H256) -> Bytes {
 		self.header.set_parent_hash(parent_hash);
-		encode(&self).to_vec()
+		encode(&self).into_vec()
 	}
 }

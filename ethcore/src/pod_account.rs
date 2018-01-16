@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,12 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::*;
+use std::fmt;
+use std::collections::BTreeMap;
+use itertools::Itertools;
+use hash::{keccak};
+use ethereum_types::{H256, U256};
+use hashdb::HashDB;
+use triehash::sec_trie_root;
+use bytes::Bytes;
+use trie::TrieFactory;
 use state::Account;
-use account_db::AccountDBMut;
 use ethjson;
 use types::account_diff::*;
-use rlp::{self, RlpStream, Stream};
+use rlp::{self, RlpStream};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// An account, expressed as Plain-Old-Data (hence the name).
@@ -59,18 +66,18 @@ impl PodAccount {
 		stream.append(&self.nonce);
 		stream.append(&self.balance);
 		stream.append(&sec_trie_root(self.storage.iter().map(|(k, v)| (k.to_vec(), rlp::encode(&U256::from(&**v)).to_vec())).collect()));
-		stream.append(&self.code.as_ref().unwrap_or(&vec![]).sha3());
+		stream.append(&keccak(&self.code.as_ref().unwrap_or(&vec![])));
 		stream.out()
 	}
 
 	/// Place additional data into given hash DB.
-	pub fn insert_additional(&self, db: &mut AccountDBMut) {
+	pub fn insert_additional(&self, db: &mut HashDB, factory: &TrieFactory) {
 		match self.code {
 			Some(ref c) if !c.is_empty() => { db.insert(c); }
 			_ => {}
 		}
 		let mut r = H256::new();
-		let mut t = SecTrieDBMut::new(db, &mut r);
+		let mut t = factory.create(db, &mut r);
 		for (k, v) in &self.storage {
 			if let Err(e) = t.insert(k, &rlp::encode(&U256::from(&**v))) {
 				warn!("Encountered potential DB corruption: {}", e);
@@ -89,7 +96,7 @@ impl From<ethjson::blockchain::Account> for PodAccount {
 				let key: U256 = key.into();
 				let value: U256 = value.into();
 				(H256::from(key), H256::from(value))
-			}).collect()
+			}).collect(),
 		}
 	}
 }
@@ -99,8 +106,12 @@ impl From<ethjson::spec::Account> for PodAccount {
 		PodAccount {
 			balance: a.balance.map_or_else(U256::zero, Into::into),
 			nonce: a.nonce.map_or_else(U256::zero, Into::into),
-			code: a.code.map(Into::into).or_else(|| Some(Vec::new())),
-			storage: BTreeMap::new()
+			code: Some(a.code.map_or_else(Vec::new, Into::into)),
+			storage: a.storage.map_or_else(BTreeMap::new, |s| s.into_iter().map(|(key, value)| {
+				let key: U256 = key.into();
+				let value: U256 = value.into();
+				(H256::from(key), H256::from(value))
+			}).collect()),
 		}
 	}
 }
@@ -111,8 +122,8 @@ impl fmt::Display for PodAccount {
 			self.balance,
 			self.nonce,
 			self.code.as_ref().map_or(0, |c| c.len()),
-			self.code.as_ref().map_or_else(H256::new, |c| c.sha3()),
-			self.storage.len()
+			self.code.as_ref().map_or_else(H256::new, |c| keccak(c)),
+			self.storage.len(),
 		)
 	}
 }
@@ -163,7 +174,7 @@ pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<A
 
 #[cfg(test)]
 mod test {
-	use common::*;
+	use std::collections::BTreeMap;
 	use types::account_diff::*;
 	use super::{PodAccount, diff_pod};
 

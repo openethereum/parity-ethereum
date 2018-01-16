@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,9 +17,11 @@
 use std::cmp::max;
 
 const MIN_BC_CACHE_MB: u32 = 4;
-const MIN_DB_CACHE_MB: u32 = 2;
+const MIN_DB_CACHE_MB: u32 = 8;
 const MIN_BLOCK_QUEUE_SIZE_LIMIT_MB: u32 = 16;
-const DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB: u32 = 50;
+const DEFAULT_DB_CACHE_SIZE: u32 = 128;
+const DEFAULT_BC_CACHE_SIZE: u32 = 8;
+const DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB: u32 = 40;
 const DEFAULT_TRACE_CACHE_SIZE: u32 = 20;
 const DEFAULT_STATE_CACHE_SIZE: u32 = 25;
 
@@ -41,7 +43,11 @@ pub struct CacheConfig {
 
 impl Default for CacheConfig {
 	fn default() -> Self {
-		CacheConfig::new(64, 8, DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB, DEFAULT_STATE_CACHE_SIZE)
+		CacheConfig::new(
+			DEFAULT_DB_CACHE_SIZE,
+			DEFAULT_BC_CACHE_SIZE,
+			DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB,
+			DEFAULT_STATE_CACHE_SIZE)
 	}
 }
 
@@ -68,14 +74,9 @@ impl CacheConfig {
 		}
 	}
 
-	/// Size of db cache for blockchain.
-	pub fn db_blockchain_cache_size(&self) -> u32 {
-		max(MIN_DB_CACHE_MB, self.db / 4)
-	}
-
-	/// Size of db cache for state.
-	pub fn db_state_cache_size(&self) -> u32 {
-		max(MIN_DB_CACHE_MB, self.db * 3 / 4)
+	/// Size of db cache.
+	pub fn db_cache_size(&self) -> u32 {
+		max(MIN_DB_CACHE_MB, self.db)
 	}
 
 	/// Size of block queue size limit
@@ -113,7 +114,7 @@ mod tests {
 		let config = CacheConfig::new_with_total_cache_size(200);
 		assert_eq!(config.db, 140);
 		assert_eq!(config.blockchain(), 20);
-		assert_eq!(config.queue(), 50);
+		assert_eq!(config.queue(), 40);
 		assert_eq!(config.state(), 30);
 		assert_eq!(config.jump_tables(), 10);
 	}
@@ -122,13 +123,16 @@ mod tests {
 	fn test_cache_config_db_cache_sizes() {
 		let config = CacheConfig::new_with_total_cache_size(400);
 		assert_eq!(config.db, 280);
-		assert_eq!(config.db_blockchain_cache_size(), 70);
-		assert_eq!(config.db_state_cache_size(), 210);
+		assert_eq!(config.db_cache_size(), 280);
 	}
 
 	#[test]
 	fn test_cache_config_default() {
 		assert_eq!(CacheConfig::default(),
-			CacheConfig::new(64, 8, super::DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB, super::DEFAULT_STATE_CACHE_SIZE));
+				   CacheConfig::new(
+					   super::DEFAULT_DB_CACHE_SIZE,
+					   super::DEFAULT_BC_CACHE_SIZE,
+					   super::DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB,
+					   super::DEFAULT_STATE_CACHE_SIZE));
 	}
 }

@@ -1,5 +1,11 @@
+yarn.lock
 node_modules
 npm-debug.log
+build
+docs
 .build
 .coverage
+.dist
 .happypack
+.npmjs
+.eslintcache

@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,74 +14,114 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use page::handler;
-use std::sync::Arc;
-use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
-use parity_dapps::{WebApp, File, Info};
+use std::io;
+use futures::future;
+use futures_cpupool::CpuPool;
+use hyper::mime::{self, Mime};
+use itertools::Itertools;
+use parity_dapps::{WebApp, Info};
 
-pub struct PageEndpoint<T : WebApp + 'static> {
+use endpoint::{Endpoint, EndpointInfo, EndpointPath, Request, Response};
+use page::{handler, PageCache};
+use Embeddable;
+
+pub struct Dapp<T: WebApp + 'static> {
+	/// futures cpu pool
+	pool: CpuPool,
 	/// Content of the files
-	pub app: Arc<T>,
-	/// Prefix to strip from the path (when `None` deducted from `app_id`)
-	pub prefix: Option<String>,
+	app: T,
 	/// Safe to be loaded in frame by other origin. (use wisely!)
-	safe_to_embed_at_port: Option<u16>,
+	safe_to_embed_on: Embeddable,
 	info: EndpointInfo,
+	fallback_to_index_html: bool,
 }
 
-impl<T: WebApp + 'static> PageEndpoint<T> {
-	/// Creates new `PageEndpoint` for builtin (compile time) Dapp.
-	pub fn new(app: T) -> Self {
+impl<T: WebApp + 'static> Dapp<T> {
+	/// Creates new `Dapp` for builtin (compile time) Dapp.
+	pub fn new(pool: CpuPool, app: T) -> Self {
 		let info = app.info();
-		PageEndpoint {
-			app: Arc::new(app),
-			prefix: None,
-			safe_to_embed_at_port: None,
+		Dapp {
+			pool,
+			app,
+			safe_to_embed_on: None,
 			info: EndpointInfo::from(info),
+			fallback_to_index_html: false,
 		}
 	}
 
-	/// Create new `PageEndpoint` and specify prefix that should be removed before looking for a file.
-	/// It's used only for special endpoints (i.e. `/parity-utils/`)
-	/// So `/parity-utils/inject.js` will be resolved to `/inject.js` is prefix is set.
-	pub fn with_prefix(app: T, prefix: String) -> Self {
+	/// Creates a new `Dapp` for builtin (compile time) Dapp.
+	/// Instead of returning 404 this endpoint will always server index.html.
+	pub fn with_fallback_to_index(pool: CpuPool, app: T) -> Self {
 		let info = app.info();
-		PageEndpoint {
-			app: Arc::new(app),
-			prefix: Some(prefix),
-			safe_to_embed_at_port: None,
+		Dapp {
+			pool,
+			app,
+			safe_to_embed_on: None,
 			info: EndpointInfo::from(info),
+			fallback_to_index_html: true,
 		}
 	}
 
-	/// Creates new `PageEndpoint` which can be safely used in iframe
+	/// Creates new `Dapp` which can be safely used in iframe
 	/// even from different origin. It might be dangerous (clickjacking).
 	/// Use wisely!
-	pub fn new_safe_to_embed(app: T, port: Option<u16>) -> Self {
+	pub fn new_safe_to_embed(pool: CpuPool, app: T, address: Embeddable) -> Self {
 		let info = app.info();
-		PageEndpoint {
-			app: Arc::new(app),
-			prefix: None,
-			safe_to_embed_at_port: port,
+		Dapp {
+			pool,
+			app,
+			safe_to_embed_on: address,
 			info: EndpointInfo::from(info),
+			fallback_to_index_html: false,
 		}
 	}
 }
 
-impl<T: WebApp> Endpoint for PageEndpoint<T> {
-
+impl<T: WebApp> Endpoint for Dapp<T> {
 	fn info(&self) -> Option<&EndpointInfo> {
 		Some(&self.info)
 	}
 
-	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
-		Box::new(handler::PageHandler {
-			app: BuiltinDapp::new(self.app.clone()),
-			prefix: self.prefix.clone(),
-			path: path,
-			file: handler::ServedFile::new(self.safe_to_embed_at_port.clone()),
-			safe_to_embed_at_port: self.safe_to_embed_at_port.clone(),
-		})
+	fn respond(&self, path: EndpointPath, _req: Request) -> Response {
+		trace!(target: "dapps", "Builtin file path: {:?}", path);
+		let file_path = if path.has_no_params() {
+			"index.html".to_owned()
+		} else {
+			path.app_params.into_iter().filter(|x| !x.is_empty()).join("/")
+		};
+		trace!(target: "dapps", "Builtin file: {:?}", file_path);
+
+		let file = {
+			let file = |path| self.app.file(path).map(|file| {
+				let content_type = match file.content_type.parse() {
+					Ok(mime) => mime,
+					Err(_) => {
+						warn!(target: "dapps", "invalid MIME type: {}", file.content_type);
+						mime::TEXT_HTML
+					},
+				};
+				BuiltinFile {
+					content_type,
+					content: io::Cursor::new(file.content),
+				}
+			});
+			let res = file(&file_path);
+			if self.fallback_to_index_html {
+				res.or_else(|| file("index.html"))
+			} else {
+				res
+			}
+		};
+
+		let (reader, response) = handler::PageHandler {
+			file,
+			cache: PageCache::Disabled,
+			safe_to_embed_on: self.safe_to_embed_on.clone(),
+		}.into_response();
+
+		self.pool.spawn(reader).forget();
+
+		Box::new(future::ok(response))
 	}
 }
 
@@ -92,63 +132,26 @@ impl From<Info> for EndpointInfo {
 			description: info.description.into(),
 			author: info.author.into(),
 			icon_url: info.icon_url.into(),
+			local_url: None,
 			version: info.version.into(),
 		}
 	}
 }
 
-struct BuiltinDapp<T: WebApp + 'static> {
-	app: Arc<T>,
+
+struct BuiltinFile {
+	content_type: Mime,
+	content: io::Cursor<&'static [u8]>,
 }
 
-impl<T: WebApp + 'static> BuiltinDapp<T> {
-	fn new(app: Arc<T>) -> Self {
-		BuiltinDapp {
-			app: app,
-		}
-	}
-}
+impl handler::DappFile for BuiltinFile {
+	type Reader = io::Cursor<&'static [u8]>;
 
-impl<T: WebApp + 'static> handler::Dapp for BuiltinDapp<T> {
-	type DappFile = BuiltinDappFile<T>;
-
-	fn file(&self, path: &str) -> Option<Self::DappFile> {
-		self.app.file(path).map(|_| {
-			BuiltinDappFile {
-				app: self.app.clone(),
-				path: path.into(),
-				write_pos: 0,
-			}
-		})
-	}
-}
-
-struct BuiltinDappFile<T: WebApp + 'static> {
-	app: Arc<T>,
-	path: String,
-	write_pos: usize,
-}
-
-impl<T: WebApp + 'static> BuiltinDappFile<T> {
-	fn file(&self) -> &File {
-		self.app.file(&self.path).expect("Check is done when structure is created.")
-	}
-}
-
-impl<T: WebApp + 'static> handler::DappFile for BuiltinDappFile<T> {
-	fn content_type(&self) -> &str {
-		self.file().content_type
+	fn content_type(&self) -> &Mime {
+		&self.content_type
 	}
 
-	fn is_drained(&self) -> bool {
-		self.write_pos == self.file().content.len()
-	}
-
-	fn next_chunk(&mut self) -> &[u8] {
-		&self.file().content[self.write_pos..]
-	}
-
-	fn bytes_written(&mut self, bytes: usize) {
-		self.write_pos += bytes;
+	fn into_reader(self) -> Self::Reader {
+		self.content
 	}
 }

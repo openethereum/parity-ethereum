@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,101 +15,76 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io;
-use std::sync::Arc;
-use std::path::PathBuf;
-use ansi_term::Colour;
-use io::{ForwardPanic, PanicHandler};
-use util::path::restrict_permissions_owner;
+use std::path::{Path, PathBuf};
+
+use ansi_term::Colour::White;
+use ethcore_logger::Config as LogConfig;
+use rpc;
 use rpc_apis;
-use ethcore_signer as signer;
-use helpers::replace_home;
-pub use ethcore_signer::Server as SignerServer;
+use parity_rpc;
+use path::restrict_permissions_owner;
 
-const CODES_FILENAME: &'static str = "authcodes";
+pub const CODES_FILENAME: &'static str = "authcodes";
 
-#[derive(Debug, PartialEq)]
-pub struct Configuration {
-	pub enabled: bool,
-	pub port: u16,
-	pub interface: String,
-	pub signer_path: String,
-	pub skip_origin_validation: bool,
+pub struct NewToken {
+	pub token: String,
+	pub url: String,
+	pub message: String,
 }
 
-impl Default for Configuration {
-	fn default() -> Self {
-		Configuration {
-			enabled: true,
-			port: 8180,
-			interface: "127.0.0.1".into(),
-			signer_path: replace_home("$HOME/.parity/signer"),
-			skip_origin_validation: false,
-		}
-	}
+pub fn new_service(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> rpc_apis::SignerService {
+	let signer_path = ws_conf.signer_path.clone();
+	let logger_config_color = logger_config.color;
+	let signer_enabled = ui_conf.enabled;
+
+	rpc_apis::SignerService::new(move || {
+		generate_new_token(&signer_path, logger_config_color).map_err(|e| format!("{:?}", e))
+	}, signer_enabled)
 }
 
-pub struct Dependencies {
-	pub panic_handler: Arc<PanicHandler>,
-	pub apis: Arc<rpc_apis::Dependencies>,
-}
-
-pub fn start(conf: Configuration, deps: Dependencies) -> Result<Option<SignerServer>, String> {
-	if !conf.enabled {
-		Ok(None)
-	} else {
-		Ok(Some(try!(do_start(conf, deps))))
-	}
-}
-
-fn codes_path(path: String) -> PathBuf {
-	let mut p = PathBuf::from(path);
+pub fn codes_path(path: &Path) -> PathBuf {
+	let mut p = path.to_owned();
 	p.push(CODES_FILENAME);
-	let _ = restrict_permissions_owner(&p);
+	let _ = restrict_permissions_owner(&p, true, false);
 	p
 }
 
-pub fn new_token(path: String) -> Result<String, String> {
-	generate_new_token(path)
-		.map(|code| format!("This key code will authorise your System Signer UI: {}", Colour::White.bold().paint(code)))
-		.map_err(|err| format!("Error generating token: {:?}", err))
+pub fn execute(ws_conf: rpc::WsConfiguration, ui_conf: rpc::UiConfiguration, logger_config: LogConfig) -> Result<String, String> {
+	Ok(generate_token_and_url(&ws_conf, &ui_conf, &logger_config)?.message)
 }
 
-pub fn generate_new_token(path: String) -> io::Result<String> {
+pub fn generate_token_and_url(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> Result<NewToken, String> {
+	let code = generate_new_token(&ws_conf.signer_path, logger_config.color).map_err(|err| format!("Error generating token: {:?}", err))?;
+	let auth_url = format!("http://{}:{}/#/auth?token={}", ui_conf.interface, ui_conf.port, code);
+
+	// And print in to the console
+	Ok(NewToken {
+		token: code.clone(),
+		url: auth_url.clone(),
+		message: format!(
+			r#"
+Open: {}
+to authorize your browser.
+Or use the generated token:
+{}"#,
+			match logger_config.color {
+				true => format!("{}", White.bold().paint(auth_url)),
+				false => auth_url
+			},
+			code
+		)
+	})
+}
+
+fn generate_new_token(path: &Path, logger_config_color: bool) -> io::Result<String> {
 	let path = codes_path(path);
-	let mut codes = try!(signer::AuthCodes::from_file(&path));
-	let code = try!(codes.generate_new());
-	try!(codes.to_file(&path));
-	trace!("New key code created: {}", Colour::White.bold().paint(&code[..]));
+	let mut codes = parity_rpc::AuthCodes::from_file(&path)?;
+	codes.clear_garbage();
+	let code = codes.generate_new()?;
+	codes.to_file(&path)?;
+	trace!("New key code created: {}", match logger_config_color {
+		true => format!("{}", White.bold().paint(&code[..])),
+		false => format!("{}", &code[..])
+	});
 	Ok(code)
 }
-
-fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, String> {
-	let addr = try!(format!("{}:{}", conf.interface, conf.port)
-		.parse()
-		.map_err(|_| format!("Invalid port specified: {}", conf.port)));
-
-	let start_result = {
-		let server = signer::ServerBuilder::new(
-			deps.apis.signer_service.queue(),
-			codes_path(conf.signer_path),
-		);
-		if conf.skip_origin_validation {
-			warn!("{}", Colour::Red.bold().paint("*** INSECURE *** Running Trusted Signer with no origin validation."));
-			info!("If you do not intend this, exit now.");
-		}
-		let server = server.skip_origin_validation(conf.skip_origin_validation);
-		let server = rpc_apis::setup_rpc(server, deps.apis, rpc_apis::ApiSet::SafeContext);
-		server.start(addr)
-	};
-
-	match start_result {
-		Err(signer::ServerError::IoError(err)) => Err(format!("Trusted Signer Error: {}", err)),
-		Err(e) => Err(format!("Trusted Signer Error: {:?}", e)),
-		Ok(server) => {
-			deps.panic_handler.forward_from(&server);
-			Ok(server)
-		},
-	}
-}
-
-

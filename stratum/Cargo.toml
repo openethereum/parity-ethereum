@@ -1,27 +1,23 @@
 [package]
 description = "Ethcore stratum lib"
 name = "ethcore-stratum"
-version = "1.4.0"
+version = "1.9.0"
 license = "GPL-3.0"
-authors = ["Ethcore <admin@ethcore.io>"]
-build = "build.rs"
-
-[build-dependencies]
-ethcore-ipc-codegen = { path = "../ipc/codegen" }
+authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+ethcore-logger = { path = "../logger" }
+ethereum-types = "0.1"
+keccak-hash = { path = "../util/hash" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
+jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
 log = "0.3"
-json-tcp-server = { git = "https://github.com/ethcore/json-tcp-server" }
-jsonrpc-core = "3.0"
-mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
-ethcore-util = { path = "../util" }
-ethcore-devtools = { path = "../devtools" }
-lazy_static = "0.2"
-env_logger = "0.3"
-ethcore-ipc = { path = "../ipc/rpc" }
-semver = "0.2"
-ethcore-ipc-nano = { path = "../ipc/nano" }
+parking_lot = "0.4"
 
-[profile.release]
-debug = true
-lto = false
+[dev-dependencies]
+env_logger = "0.4"
+tokio-core = "0.1"
+tokio-io = "0.1"
+parking_lot = "0.4"
+ethcore-logger = { path = "../logger" }

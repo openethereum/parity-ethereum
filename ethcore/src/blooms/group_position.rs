@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bloomchain::group as bc;
-use util::HeapSizeOf;
+use heapsize::HeapSizeOf;
 
 /// Represents `BloomGroup` position in database.
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]

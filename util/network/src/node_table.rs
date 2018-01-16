@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -25,14 +25,14 @@ use std::path::{PathBuf};
 use std::fmt;
 use std::fs;
 use std::io::{Read, Write};
-use util::hash::*;
-use util::UtilError;
+use ethereum_types::H512;
 use rlp::*;
 use time::Tm;
-use error::NetworkError;
+use error::{Error, ErrorKind};
+use {AllowIP, IpFilter};
 use discovery::{TableUpdates, NodeEntry};
 use ip_utils::*;
-pub use rustc_serialize::json::Json;
+use serde_json::Value;
 
 /// Node public key
 pub type NodeId = H512;
@@ -53,14 +53,30 @@ impl NodeEndpoint {
 			SocketAddr::V6(a) => SocketAddr::V6(SocketAddrV6::new(a.ip().clone(), self.udp_port, a.flowinfo(), a.scope_id())),
 		}
 	}
-}
 
-impl NodeEndpoint {
+	pub fn is_allowed(&self, filter: &IpFilter) -> bool {
+		(self.is_allowed_by_predefined(&filter.predefined) || filter.custom_allow.iter().any(|ipnet| {
+			self.address.ip().is_within(ipnet)
+		}))
+		&& !filter.custom_block.iter().any(|ipnet| {
+			self.address.ip().is_within(ipnet)
+		})
+	}
+
+	pub fn is_allowed_by_predefined(&self, filter: &AllowIP) -> bool {
+		match filter {
+			&AllowIP::All => true,
+			&AllowIP::Private => self.address.ip().is_usable_private(),
+			&AllowIP::Public => self.address.ip().is_usable_public(),
+			&AllowIP::None => false,
+		}
+	}
+
 	pub fn from_rlp(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let tcp_port = try!(rlp.val_at::<u16>(2));
-		let udp_port = try!(rlp.val_at::<u16>(1));
-		let addr_bytes = try!(try!(rlp.at(0)).data());
-		let address = try!(match addr_bytes.len() {
+		let tcp_port = rlp.val_at::<u16>(2)?;
+		let udp_port = rlp.val_at::<u16>(1)?;
+		let addr_bytes = rlp.at(0)?.data()?;
+		let address = match addr_bytes.len() {
 			4 => Ok(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(addr_bytes[0], addr_bytes[1], addr_bytes[2], addr_bytes[3]), tcp_port))),
 			16 => unsafe {
 				let o: *const u16 = mem::transmute(addr_bytes.as_ptr());
@@ -68,7 +84,7 @@ impl NodeEndpoint {
 				Ok(SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::new(o[0], o[1], o[2], o[3], o[4], o[5], o[6], o[7]), tcp_port, 0, 0)))
 			},
 			_ => Err(DecoderError::RlpInconsistentLengthAndData)
-		});
+		}?;
 		Ok(NodeEndpoint { address: address, udp_port: udp_port })
 	}
 
@@ -94,32 +110,25 @@ impl NodeEndpoint {
 	pub fn is_valid(&self) -> bool {
 		self.udp_port != 0 && self.address.port() != 0 &&
 		match self.address {
-			SocketAddr::V4(a) => !a.ip().is_unspecified_s(),
-			SocketAddr::V6(a) => !a.ip().is_unspecified_s()
-		}
-	}
-
-	pub fn is_global(&self) -> bool {
-		match self.address {
-			SocketAddr::V4(a) => a.ip().is_global_s(),
-			SocketAddr::V6(a) => a.ip().is_global_s()
+			SocketAddr::V4(a) => !a.ip().is_unspecified(),
+			SocketAddr::V6(a) => !a.ip().is_unspecified()
 		}
 	}
 }
 
 impl FromStr for NodeEndpoint {
-	type Err = NetworkError;
+	type Err = Error;
 
 	/// Create endpoint from string. Performs name resolution if given a host name.
-	fn from_str(s: &str) -> Result<NodeEndpoint, NetworkError> {
+	fn from_str(s: &str) -> Result<NodeEndpoint, Error> {
 		let address = s.to_socket_addrs().map(|mut i| i.next());
 		match address {
 			Ok(Some(a)) => Ok(NodeEndpoint {
 				address: a,
 				udp_port: a.port()
 			}),
-			Ok(_) => Err(NetworkError::AddressResolve(None)),
-			Err(e) => Err(NetworkError::AddressResolve(Some(e)))
+			Ok(_) => Err(ErrorKind::AddressResolve(None).into()),
+			Err(e) => Err(ErrorKind::AddressResolve(Some(e)).into())
 		}
 	}
 }
@@ -153,22 +162,22 @@ impl Node {
 impl Display for Node {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		if self.endpoint.udp_port != self.endpoint.address.port() {
-			try!(write!(f, "enode://{}@{}+{}", self.id.hex(), self.endpoint.address, self.endpoint.udp_port));
+			write!(f, "enode://{}@{}+{}", self.id.hex(), self.endpoint.address, self.endpoint.udp_port)?;
 		} else {
-			try!(write!(f, "enode://{}@{}", self.id.hex(), self.endpoint.address));
+			write!(f, "enode://{}@{}", self.id.hex(), self.endpoint.address)?;
 		}
 		Ok(())
 	}
 }
 
 impl FromStr for Node {
-	type Err = NetworkError;
+	type Err = Error;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let (id, endpoint) = if s.len() > 136 && &s[0..8] == "enode://" && &s[136..137] == "@" {
-			(try!(s[8..136].parse().map_err(UtilError::from)), try!(NodeEndpoint::from_str(&s[137..])))
+			(s[8..136].parse().map_err(|_| ErrorKind::InvalidNodeId)?, NodeEndpoint::from_str(&s[137..])?)
 		}
 		else {
-			(NodeId::new(), try!(NodeEndpoint::from_str(s)))
+			(NodeId::new(), NodeEndpoint::from_str(s)?)
 		};
 
 		Ok(Node {
@@ -219,8 +228,8 @@ impl NodeTable {
 	}
 
 	/// Returns node ids sorted by number of failures
-	pub fn nodes(&self) -> Vec<NodeId> {
-		let mut refs: Vec<&Node> = self.nodes.values().filter(|n| !self.useless_nodes.contains(&n.id)).collect();
+	pub fn nodes(&self, filter: IpFilter) -> Vec<NodeId> {
+		let mut refs: Vec<&Node> = self.nodes.values().filter(|n| !self.useless_nodes.contains(&n.id) && n.endpoint.is_allowed(&filter)).collect();
 		refs.sort_by(|a, b| a.failures.cmp(&b.failures));
 		refs.iter().map(|n| n.id.clone()).collect()
 	}
@@ -236,10 +245,15 @@ impl NodeTable {
 		self.nodes.get_mut(id)
 	}
 
+	/// Check if a node exists in the table.
+	pub fn contains(&self, id: &NodeId) -> bool {
+		self.nodes.contains_key(id)
+	}
+
 	/// Apply table changes coming from discovery
 	pub fn update(&mut self, mut update: TableUpdates, reserved: &HashSet<NodeId>) {
 		for (_, node) in update.added.drain() {
-			let mut entry = self.nodes.entry(node.id.clone()).or_insert_with(|| Node::new(node.id.clone(), node.endpoint.clone()));
+			let entry = self.nodes.entry(node.id.clone()).or_insert_with(|| Node::new(node.id.clone(), node.endpoint.clone()));
 			entry.endpoint = node.endpoint;
 		}
 		for r in update.removed {
@@ -278,9 +292,9 @@ impl NodeTable {
 			let mut json = String::new();
 			json.push_str("{\n");
 			json.push_str("\"nodes\": [\n");
-			let node_ids = self.nodes();
+			let node_ids = self.nodes(IpFilter::default());
 			for i in 0 .. node_ids.len() {
-				let node = self.nodes.get(&node_ids[i]).unwrap();
+				let node = self.nodes.get(&node_ids[i]).expect("self.nodes() only returns node IDs from self.nodes");
 				json.push_str(&format!("\t{{ \"url\": \"{}\", \"failures\": {} }}{}\n", node, node.failures, if i == node_ids.len() - 1 {""} else {","}))
 			}
 			json.push_str("]\n");
@@ -318,7 +332,7 @@ impl NodeTable {
 					return nodes;
 				}
 			}
-			let json = match Json::from_str(&buf) {
+			let json: Value = match ::serde_json::from_str(&buf) {
 				Ok(json) => json,
 				Err(e) => {
 					warn!("Error parsing node table file: {:?}", e);
@@ -327,7 +341,7 @@ impl NodeTable {
 			};
 			if let Some(list) = json.as_object().and_then(|o| o.get("nodes")).and_then(|n| n.as_array()) {
 				for n in list.iter().filter_map(|n| n.as_object()) {
-					if let Some(url) = n.get("url").and_then(|u| u.as_string()) {
+					if let Some(url) = n.get("url").and_then(|u| u.as_str()) {
 						if let Ok(mut node) = Node::from_str(url) {
 							if let Some(failures) = n.get("failures").and_then(|f| f.as_u64()) {
 								node.failures = failures as u32;
@@ -349,18 +363,22 @@ impl Drop for NodeTable {
 }
 
 /// Check if node url is valid
-pub fn is_valid_node_url(url: &str) -> bool {
+pub fn validate_node_url(url: &str) -> Option<Error> {
 	use std::str::FromStr;
-	Node::from_str(url).is_ok()
+	match Node::from_str(url) {
+		Ok(_) => None,
+		Err(e) => Some(e)
+	}
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
+	use ethereum_types::H512;
 	use std::str::FromStr;
-	use std::net::*;
-	use util::hash::*;
-	use devtools::*;
+	use tempdir::TempDir;
+	use ipnetwork::IpNetwork;
 
 	#[test]
 	fn endpoint_parse() {
@@ -375,7 +393,7 @@ mod tests {
 
 	#[test]
 	fn node_parse() {
-		assert!(is_valid_node_url("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770"));
+		assert!(validate_node_url("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").is_none());
 		let node = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770");
 		assert!(node.is_ok());
 		let node = node.unwrap();
@@ -406,7 +424,7 @@ mod tests {
 		table.note_failure(&id1);
 		table.note_failure(&id2);
 
-		let r = table.nodes();
+		let r = table.nodes(IpFilter::default());
 		assert_eq!(r[0][..], id3[..]);
 		assert_eq!(r[1][..], id2[..]);
 		assert_eq!(r[2][..], id1[..]);
@@ -414,23 +432,69 @@ mod tests {
 
 	#[test]
 	fn table_save_load() {
-		let temp_path = RandomTempPath::create_dir();
+		let tempdir = TempDir::new("").unwrap();
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let id1 = H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let id2 = H512::from_str("b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		{
-			let mut table = NodeTable::new(Some(temp_path.as_path().to_str().unwrap().to_owned()));
+			let mut table = NodeTable::new(Some(tempdir.path().to_str().unwrap().to_owned()));
 			table.add_node(node1);
 			table.add_node(node2);
 			table.note_failure(&id2);
 		}
 
 		{
-			let table = NodeTable::new(Some(temp_path.as_path().to_str().unwrap().to_owned()));
-			let r = table.nodes();
+			let table = NodeTable::new(Some(tempdir.path().to_str().unwrap().to_owned()));
+			let r = table.nodes(IpFilter::default());
 			assert_eq!(r[0][..], id1[..]);
 			assert_eq!(r[1][..], id2[..]);
 		}
+	}
+
+	#[test]
+	fn custom_allow() {
+		let filter = IpFilter {
+			predefined: AllowIP::None,
+			custom_allow: vec![IpNetwork::from_str(&"10.0.0.0/8").unwrap(), IpNetwork::from_str(&"1.0.0.0/8").unwrap()],
+			custom_block: vec![],
+		};
+		assert!(!NodeEndpoint::from_str("123.99.55.44:7770").unwrap().is_allowed(&filter));
+		assert!(NodeEndpoint::from_str("10.0.0.1:7770").unwrap().is_allowed(&filter));
+		assert!(NodeEndpoint::from_str("1.0.0.55:5550").unwrap().is_allowed(&filter));
+	}
+
+	#[test]
+	fn custom_block() {
+		let filter = IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str(&"10.0.0.0/8").unwrap(), IpNetwork::from_str(&"1.0.0.0/8").unwrap()],
+		};
+		assert!(NodeEndpoint::from_str("123.99.55.44:7770").unwrap().is_allowed(&filter));
+		assert!(!NodeEndpoint::from_str("10.0.0.1:7770").unwrap().is_allowed(&filter));
+		assert!(!NodeEndpoint::from_str("1.0.0.55:5550").unwrap().is_allowed(&filter));
+	}
+
+	#[test]
+	fn custom_allow_ipv6() {
+		let filter = IpFilter {
+			predefined: AllowIP::None,
+			custom_allow: vec![IpNetwork::from_str(&"fc00::/8").unwrap()],
+			custom_block: vec![],
+		};
+		assert!(NodeEndpoint::from_str("[fc00::]:5550").unwrap().is_allowed(&filter));
+		assert!(!NodeEndpoint::from_str("[fd00::]:5550").unwrap().is_allowed(&filter));
+	}
+
+	#[test]
+	fn custom_block_ipv6() {
+		let filter = IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str(&"fc00::/8").unwrap()],
+		};
+		assert!(!NodeEndpoint::from_str("[fc00::]:5550").unwrap().is_allowed(&filter));
+		assert!(NodeEndpoint::from_str("[fd00::]:5550").unwrap().is_allowed(&filter));
 	}
 }

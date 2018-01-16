@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,7 +22,6 @@
 extern crate syntex;
 
 #[cfg(feature = "with-syntex")]
-#[macro_use]
 extern crate syntex_syntax as syntax;
 
 #[cfg(feature = "with-syntex")]

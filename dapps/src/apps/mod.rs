@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,104 +14,87 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use endpoint::{Endpoints, Endpoint};
-use page::PageEndpoint;
-use proxypac::ProxyPac;
-use parity_dapps::{self, WebApp};
-use parity_dapps_glue::WebApp as NewWebApp;
+use std::path::PathBuf;
+use std::sync::Arc;
 
+use endpoint::{Endpoints, Endpoint};
+use futures_cpupool::CpuPool;
+use page;
+use proxypac::ProxyPac;
+use web::Web;
+use fetch::Fetch;
+use parity_dapps::WebApp;
+use parity_ui;
+use {WebProxyTokens, ParentFrameSettings};
+
+mod app;
 mod cache;
-mod fs;
-pub mod urlhint;
+mod ui;
+pub mod fs;
 pub mod fetcher;
 pub mod manifest;
 
-extern crate parity_dapps_home;
-extern crate parity_ui;
+pub use self::app::App;
 
-pub const DAPPS_DOMAIN : &'static str = ".parity";
-pub const RPC_PATH : &'static str =  "rpc";
-pub const API_PATH : &'static str =  "api";
-pub const UTILS_PATH : &'static str =  "parity-utils";
+pub const HOME_PAGE: &'static str = "home";
+pub const RPC_PATH: &'static str =  "rpc";
+pub const API_PATH: &'static str =  "api";
+pub const UTILS_PATH: &'static str =  "parity-utils";
+pub const WEB_PATH: &'static str = "web";
+pub const URL_REFERER: &'static str = "__referer=";
 
-pub fn main_page() -> &'static str {
-	"home"
-}
-pub fn redirection_address(using_dapps_domains: bool, app_id: &str) -> String {
-	if using_dapps_domains {
-		format!("http://{}{}/", app_id, DAPPS_DOMAIN)
-	} else {
-		format!("/{}/", app_id)
-	}
+pub fn utils(pool: CpuPool) -> Box<Endpoint> {
+	Box::new(page::builtin::Dapp::new(pool, parity_ui::App::default()))
 }
 
-pub fn utils() -> Box<Endpoint> {
-	Box::new(PageEndpoint::with_prefix(parity_dapps_home::App::default(), UTILS_PATH.to_owned()))
+pub fn ui(pool: CpuPool) -> Box<Endpoint> {
+	Box::new(page::builtin::Dapp::with_fallback_to_index(pool, parity_ui::App::default()))
 }
 
-pub fn all_endpoints(dapps_path: String, signer_port: Option<u16>) -> Endpoints {
+pub fn ui_redirection(embeddable: Option<ParentFrameSettings>) -> Box<Endpoint> {
+	Box::new(ui::Redirection::new(embeddable))
+}
+
+pub fn all_endpoints<F: Fetch>(
+	dapps_path: PathBuf,
+	extra_dapps: Vec<PathBuf>,
+	dapps_domain: &str,
+	embeddable: Option<ParentFrameSettings>,
+	web_proxy_tokens: Arc<WebProxyTokens>,
+	fetch: F,
+	pool: CpuPool,
+) -> (Vec<String>, Endpoints) {
 	// fetch fs dapps at first to avoid overwriting builtins
-	let mut pages = fs::local_endpoints(dapps_path);
+	let mut pages = fs::local_endpoints(dapps_path.clone(), embeddable.clone(), pool.clone());
+	let local_endpoints: Vec<String> = pages.keys().cloned().collect();
+	for path in extra_dapps {
+		if let Some((id, endpoint)) = fs::local_endpoint(path.clone(), embeddable.clone(), pool.clone()) {
+			pages.insert(id, endpoint);
+		} else {
+			warn!(target: "dapps", "Ignoring invalid dapp at {}", path.display());
+		}
+	}
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
-	pages.insert("ui".into(), Box::new(
-		PageEndpoint::new_safe_to_embed(NewUi::default(), signer_port)
-	));
+	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(embeddable.clone()), pool.clone());
+	// old version
+	insert::<parity_ui::old::App>(&mut pages, "v1", Embeddable::Yes(embeddable.clone()), pool.clone());
 
-	pages.insert("proxy".into(), ProxyPac::boxed());
-	insert::<parity_dapps_home::App>(&mut pages, "home");
+	pages.insert("proxy".into(), ProxyPac::boxed(embeddable.clone(), dapps_domain.to_owned()));
+	pages.insert(WEB_PATH.into(), Web::boxed(embeddable.clone(), web_proxy_tokens.clone(), fetch.clone()));
 
-
-	pages
+	(local_endpoints, pages)
 }
 
-fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str) {
-	pages.insert(id.to_owned(), Box::new(PageEndpoint::new(T::default())));
+fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str, embed_at: Embeddable, pool: CpuPool) {
+	pages.insert(id.to_owned(), Box::new(match embed_at {
+		Embeddable::Yes(address) => page::builtin::Dapp::new_safe_to_embed(pool, T::default(), address),
+		Embeddable::No => page::builtin::Dapp::new(pool, T::default()),
+	}));
 }
 
-// TODO [ToDr] Temporary wrapper until we get rid of old built-ins.
-use std::collections::HashMap;
-
-struct NewUi {
-	app: parity_ui::App,
-	files: HashMap<&'static str, parity_dapps::File>,
-}
-
-impl Default for NewUi {
-	fn default() -> Self {
-		let app = parity_ui::App::default();
-		let files = {
-			let mut files = HashMap::new();
-			for (k, v) in &app.files {
-				files.insert(*k, parity_dapps::File {
-					path: v.path,
-					content: v.content,
-					content_type: v.content_type,
-				});
-			}
-			files
-		};
-
-		NewUi {
-			app: app,
-			files: files,
-		}
-	}
-}
-
-impl WebApp for NewUi {
-	fn file(&self, path: &str) -> Option<&parity_dapps::File> {
-		self.files.get(path)
-	}
-
-	fn info(&self) -> parity_dapps::Info {
-		let info = self.app.info();
-		parity_dapps::Info {
-			name: info.name,
-			version: info.version,
-			author: info.author,
-			description: info.description,
-			icon_url: info.icon_url,
-		}
-	}
+enum Embeddable {
+	Yes(Option<ParentFrameSettings>),
+	#[allow(dead_code)]
+	No,
 }
