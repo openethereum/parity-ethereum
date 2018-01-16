@@ -22,13 +22,18 @@ use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
-use basic_types::{ZERO_LOGBLOOM};
 use time::get_time;
 use rlp::*;
 
-pub use basic_types::Seal;
-
 pub use types::BlockNumber;
+
+/// Semantic boolean for when a seal/signature is included.
+pub enum Seal {
+	/// The seal/signature is included.
+	With,
+	/// The seal/signature is not included.
+	Without,
+}
 
 /// A block header.
 ///
@@ -109,7 +114,7 @@ impl Default for Header {
 
 			state_root: KECCAK_NULL_RLP,
 			receipts_root: KECCAK_NULL_RLP,
-			log_bloom: ZERO_LOGBLOOM.clone(),
+			log_bloom: Bloom::default(),
 			gas_used: U256::default(),
 			gas_limit: U256::default(),
 
