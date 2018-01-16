@@ -13,6 +13,7 @@ cache:
   key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
   paths:
     - target
+    - $HOME/.cargo
   untracked: true
 linux-stable:
   stage: build
