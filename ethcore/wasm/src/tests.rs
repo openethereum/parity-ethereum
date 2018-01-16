@@ -29,6 +29,34 @@ macro_rules! load_sample {
 	}
 }
 
+macro_rules! reqrep_test {
+	($name: expr, $input: expr) => {
+		reqrep_test!($name, $input, vm::EnvInfo::default(), HashMap::new())
+	};
+	($name: expr, $input: expr, $info: expr, $block_hashes: expr) => {
+		{
+			::ethcore_logger::init_log();
+			let code = load_sample!($name);
+
+			let mut params = ActionParams::default();
+			params.gas = U256::from(100_000);
+			params.code = Some(Arc::new(code));
+			params.data = Some($input);
+
+			let mut fake_ext = FakeExt::new();
+			fake_ext.info = $info;
+			fake_ext.blockhashes = $block_hashes;
+
+			let mut interpreter = wasm_interpreter();
+			interpreter.exec(params, &mut fake_ext)
+				.map(|result| match result {
+					GasLeft::Known(_) => { panic!("Test is expected to return payload to check"); },
+					GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+				})
+		}
+	};
+}
+
 fn test_finalize(res: Result<GasLeft, vm::Error>) -> Result<U256, vm::Error> {
 	match res {
 		Ok(GasLeft::Known(gas)) => Ok(gas),
@@ -495,50 +523,27 @@ fn keccak() {
 #[test]
 fn memcmp() {
 	::ethcore_logger::init_log();
-	let code = load_sample!("memcmp.wasm");
 
-	let mut params = ActionParams::default();
-	params.gas = U256::from(100_000);
-	params.code = Some(Arc::new(code));
-	params.data = Some(vec![1u8, 1, 1]);
-	let mut ext = FakeExt::new();
-
-	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params.clone(), &mut ext).expect("Interpreter to execute without any errors");
-		match result {
-			GasLeft::Known(_) => { panic!("mem should return payload"); },
-			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
-		}
-	};
+	let (gas_left, result) = reqrep_test! {
+		"memcmp.wasm",
+		vec![1u8, 1, 1]
+	}.expect("Interpreter to execute without any errors");
 
 	assert_eq!(0i32, LittleEndian::read_i32(&result));
 	assert_eq!(gas_left, U256::from(96610));
 
-	params.data = Some(vec![1u8, 1, 3, 1]);
-
-	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params.clone(), &mut ext).expect("Interpreter to execute without any errors");
-		match result {
-			GasLeft::Known(_) => { panic!("mem should return payload"); },
-			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
-		}
-	};
+	let (gas_left, result) = reqrep_test! {
+		"memcmp.wasm",
+		vec![1u8, 1, 3, 1]
+	}.expect("Interpreter to execute without any errors");
 
 	assert_eq!(2i32, LittleEndian::read_i32(&result));
 	assert_eq!(gas_left, U256::from(96610));
 
-	params.data = Some(vec![1u8, 1, 0]);
-
-	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
-		match result {
-			GasLeft::Known(_) => { panic!("mem should return payload"); },
-			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
-		}
-	};
+	let (gas_left, result) = reqrep_test! {
+		"memcmp.wasm",
+		vec![1u8, 1, 0]
+	}.expect("Interpreter to execute without any errors");
 
 	assert_eq!(-1i32, LittleEndian::read_i32(&result));
 	assert_eq!(gas_left, U256::from(96610));
@@ -631,34 +636,6 @@ fn memset() {
 
 	assert_eq!(result, vec![228u8; 8192]);
 	assert_eq!(gas_left, U256::from(71_921));
-}
-
-macro_rules! reqrep_test {
-	($name: expr, $input: expr) => {
-		reqrep_test!($name, $input, vm::EnvInfo::default(), HashMap::new())
-	};
-	($name: expr, $input: expr, $info: expr, $block_hashes: expr) => {
-		{
-			::ethcore_logger::init_log();
-			let code = load_sample!($name);
-
-			let mut params = ActionParams::default();
-			params.gas = U256::from(100_000);
-			params.code = Some(Arc::new(code));
-			params.data = Some($input);
-
-			let mut fake_ext = FakeExt::new();
-			fake_ext.info = $info;
-			fake_ext.blockhashes = $block_hashes;
-
-			let mut interpreter = wasm_interpreter();
-			interpreter.exec(params, &mut fake_ext)
-				.map(|result| match result {
-					GasLeft::Known(_) => { panic!("Test is expected to return payload to check"); },
-					GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
-				})
-		}
-	};
 }
 
 // math_* tests check the ability of wasm contract to perform big integer operations
