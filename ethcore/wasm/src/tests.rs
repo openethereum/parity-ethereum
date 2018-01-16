@@ -491,6 +491,59 @@ fn keccak() {
 	assert_eq!(gas_left, U256::from(81_067));
 }
 
+// memcmp test.
+#[test]
+fn memcmp() {
+	::ethcore_logger::init_log();
+	let code = load_sample!("memcmp.wasm");
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	params.data = Some(vec![1u8, 1, 1]);
+	let mut ext = FakeExt::new();
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params.clone(), &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+			GasLeft::Known(_) => { panic!("mem should return payload"); },
+			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	assert_eq!(0i32, LittleEndian::read_i32(&result));
+	assert_eq!(gas_left, U256::from(96610));
+
+	params.data = Some(vec![1u8, 1, 3, 1]);
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params.clone(), &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+			GasLeft::Known(_) => { panic!("mem should return payload"); },
+			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	assert_eq!(2i32, LittleEndian::read_i32(&result));
+	assert_eq!(gas_left, U256::from(96610));
+
+	params.data = Some(vec![1u8, 1, 0]);
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+			GasLeft::Known(_) => { panic!("mem should return payload"); },
+			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	assert_eq!(-1i32, LittleEndian::read_i32(&result));
+	assert_eq!(gas_left, U256::from(96610));
+}
+
 // memcpy test.
 #[test]
 fn memcpy() {
