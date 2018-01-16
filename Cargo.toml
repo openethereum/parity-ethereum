@@ -39,6 +39,7 @@ ethcore-devtools = { path = "devtools" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
+ethcore-migrations = { path = "ethcore/migrations" }
 ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
 ethcore-stratum = { path = "stratum" }
