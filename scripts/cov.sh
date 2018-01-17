@@ -12,34 +12,21 @@
 ### Running coverage
 
 set -x
-
-KCOV=${1:-kcov}
-
-if ! type $KCOV > /dev/null; then
-   	echo "Install kcov first (details inside this file). Aborting."
-	exit 1
-fi
-
 RUSTFLAGS="-C link-dead-code" cargo test --all --exclude evmjit --no-run || exit $?
-
-
 KCOV_TARGET="target/cov"
 KCOV_FLAGS="--verify"
-EXCLUDE="/usr/lib,\
-/usr/include,\
-$HOME/.cargo,\
-$HOME/.multirust,\
-rocksdb,\
-secp256k1
-"
-
-rm -rf $KCOV_TARGET
+EXCLUDE="/usr/lib,/usr/include,$HOME/.cargo,$HOME/.multirust,rocksdb,secp256k1"
 mkdir -p $KCOV_TARGET
 echo "Cover RUST"
 for FILE in `find target/debug/deps ! -name "*.*"`
-do
-	timeout --signal=SIGKILL 10m $KCOV --coveralls-id=$COVERALLS_TOKEN --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE
-done
-
-timeout --signal=SIGKILL 10m $KCOV --coveralls-id=$COVERALLS_TOKEN --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-*
+  do
+   timeout --signal=SIGKILL 5m kcov --coveralls-id=$COVERALLS_TOKEN --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET $FILE
+  done
+timeout --signal=SIGKILL 5m kcov --coveralls-id=$COVERALLS_TOKEN --exclude-pattern $EXCLUDE $KCOV_FLAGS $KCOV_TARGET target/debug/parity-*
+echo "Cover JS"
+cd js
+npm install&&npm run test:coverage
+cd ..
+bash <(curl -s https://codecov.io/bash)&&
+echo "Uploaded code coverage"
 exit 0

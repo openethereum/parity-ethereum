@@ -70,13 +70,23 @@ pub struct Call {
 
 impl From<ActionParams> for Call {
 	fn from(p: ActionParams) -> Self {
-		Call {
-			from: p.sender,
-			to: p.address,
-			value: p.value.value(),
-			gas: p.gas,
-			input: p.data.unwrap_or_else(Vec::new),
-			call_type: p.call_type,
+		match p.call_type {
+			CallType::DelegateCall => Call {
+				from: p.address,
+				to: p.code_address,
+				value: p.value.value(),
+				gas: p.gas,
+				input: p.data.unwrap_or_else(Vec::new),
+				call_type: p.call_type,
+			},
+			_ => Call {
+				from: p.sender,
+				to: p.address,
+				value: p.value.value(),
+				gas: p.gas,
+				input: p.data.unwrap_or_else(Vec::new),
+				call_type: p.call_type,
+			},
 		}
 	}
 }

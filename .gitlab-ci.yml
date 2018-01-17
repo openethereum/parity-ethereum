@@ -10,7 +10,7 @@ variables:
   CI_SERVER_NAME: "GitLab CI"
   LIBSSL: "libssl1.0.0 (>=1.0.0)"
 cache:
-  key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
+  key: "$CI_BUILD_STAGE-$CI_BUILD_REF_NAME"
   paths:
     - target
   untracked: true
@@ -163,7 +163,7 @@ darwin:
     name: "x86_64-apple-darwin_parity"
 windows:
   cache:
-    key: "%CI_BUILD_STAGE%/%CI_BUILD_REF_NAME%"
+    key: "%CI_BUILD_STAGE%-%CI_BUILD_REF_NAME%"
     untracked: true
   stage: build
   only:

@@ -727,4 +727,28 @@ pub mod tests {
 			assert_eq!(joint_secret1, joint_secret3);
 		}
 	}
+
+	#[test]
+	fn full_generation_math_session_with_decreasing_threshold() {
+		let (t, n) = (3, 5);
+
+		// generate key using t-of-n session
+		let artifacts1 = run_key_generation(t, n, None);
+		let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p1| &p1[0])).unwrap();
+
+		// let's say we want to decrease threshold so that it becames (t-1)-of-n
+		let new_t = t - 1;
+		let artifacts2 = run_key_share_refreshing(t, new_t, n, &artifacts1);
+		let joint_secret2 = compute_joint_secret_from_shares(new_t, &artifacts2.secret_shares.iter().take(new_t + 1).collect::<Vec<_>>(),
+			&artifacts2.id_numbers.iter().take(new_t + 1).collect::<Vec<_>>()).unwrap();
+		assert_eq!(joint_secret1, joint_secret2);
+
+		// let's say we want to decrease threshold once again so that it becames (t-2)-of-n
+		let t = t - 1;
+		let new_t = t - 2;
+		let artifacts3 = run_key_share_refreshing(t, new_t, n, &artifacts2);
+		let joint_secret3 = compute_joint_secret_from_shares(new_t, &artifacts3.secret_shares.iter().take(new_t + 1).collect::<Vec<_>>(),
+			&artifacts3.id_numbers.iter().take(new_t + 1).collect::<Vec<_>>()).unwrap();
+		assert_eq!(joint_secret1, joint_secret3);
+	}
 }
