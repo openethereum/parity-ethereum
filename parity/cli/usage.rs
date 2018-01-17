@@ -150,13 +150,17 @@ macro_rules! usage {
 		}
 	) => {
 		use toml;
-		use std::{fs, io, process};
+		use std::{fs, io, process, cmp};
 		use std::io::{Read, Write};
 		use parity_version::version;
 		use clap::{Arg, App, SubCommand, AppSettings, Error as ClapError, ErrorKind as ClapErrorKind};
 		use dir::helpers::replace_home;
 		use std::ffi::OsStr;
 		use std::collections::HashMap;
+
+		extern crate textwrap;
+		extern crate term_size;
+		use self::textwrap::{fill, indent};
 
 		#[cfg(test)]
 		use regex::Regex;
@@ -365,9 +369,17 @@ macro_rules! usage {
 			#[allow(unused_mut)] // subc_subc_exist may be assigned true by the macro
 			#[allow(unused_assignments)] // Rust issue #22630
 			pub fn print_help() -> String {
+
+				let term_width = match term_size::dimensions() {
+					None => 100,
+					Some((w, _)) => {
+						cmp::min(w, 100)
+					}
+				};
+
 				let mut help : String = include_str!("./usage_header.txt").to_owned();
 
-				help.push_str("\n\n");
+				help.push_str("\n");
 
 				// Subcommands
 				help.push_str("parity [options]\n");
@@ -386,11 +398,14 @@ macro_rules! usage {
 								)*
 							];
 
-							if subc_subc_usages.is_empty() {
-								help.push_str(&format!("parity [options] {} {}\n", underscore_to_hyphen!(&stringify!($subc)[4..]), underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..])));
-							} else {
-								help.push_str(&format!("parity [options] {} {} {}\n", underscore_to_hyphen!(&stringify!($subc)[4..]), underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..]), subc_subc_usages.join(" ")));
-							}
+							help.push_str(&fill(
+								format!(
+									"parity [options] {} {} {}\n",
+									underscore_to_hyphen!(&stringify!($subc)[4..]),
+									underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..]),
+									subc_subc_usages.join(" ")
+								).as_ref(), term_width)
+							);
 						)*
 
 						// Print the subcommand on its own only if it has no subsubcommands
@@ -404,22 +419,27 @@ macro_rules! usage {
 								)*
 							];
 
-							if subc_usages.is_empty() {
-								help.push_str(&format!("parity [options] {}\n", underscore_to_hyphen!(&stringify!($subc)[4..])));
-							} else {
-								help.push_str(&format!("parity [options] {} {}\n", underscore_to_hyphen!(&stringify!($subc)[4..]), subc_usages.join(" ")));
-							}
+							help.push_str(&fill(
+								format!(
+									"parity [options] {} {}\n",
+									underscore_to_hyphen!(&stringify!($subc)[4..]),
+									subc_usages.join(" ")
+								).as_ref(), term_width)
+							);
 						}
 					}
 				)*
 
+				help.push_str("\n");
+
 				// Arguments and flags
 				$(
-					help.push_str("\n");
 					help.push_str($group_name); help.push_str(":\n");
 
 					$(
-						help.push_str(&format!("\t{}\n\t\t{}\n", $flag_usage, $flag_help));
+						help.push_str(&format!("    {}\n{}\n", $flag_usage,
+							indent(fill($flag_help, term_width-8).as_ref(),"        ")
+						));
 					)*
 
 					$(
@@ -429,10 +449,24 @@ macro_rules! usage {
 								if_option_vec!(
 									$($arg_type_tt)+,
 									THEN {
-										help.push_str(&format!("\t{}\n\t\t{} (default: {:?})\n", $arg_usage, $arg_help, {let x : inner_option_type!($($arg_type_tt)+)> = $arg_default; x}))
+										help.push_str(&format!("    {}\n{}\n", $arg_usage,
+											indent(fill(format!(
+														"{} (default: {:?})",
+														$arg_help,
+														{let x : inner_option_type!($($arg_type_tt)+)> = $arg_default; x}
+													).as_ref(), term_width-8).as_ref(),
+													"        ")
+										))
 									}
 									ELSE {
-										help.push_str(&format!("\t{}\n\t\t{}{}\n", $arg_usage, $arg_help, $arg_default.map(|x: inner_option_type!($($arg_type_tt)+)| format!(" (default: {})",x)).unwrap_or("".to_owned())))
+										help.push_str(&format!("    {}\n{}\n", $arg_usage,
+											indent(fill(format!(
+													"{}{}",
+														$arg_help,
+														$arg_default.map(|x: inner_option_type!($($arg_type_tt)+)| format!(" (default: {})",x)).unwrap_or("".to_owned())
+													).as_ref(), term_width-8).as_ref(),
+													"        ")
+										))
 									}
 								)
 							}
@@ -440,10 +474,24 @@ macro_rules! usage {
 								if_vec!(
 									$($arg_type_tt)+,
 									THEN {
-										help.push_str(&format!("\t{}\n\t\t{} (default: {:?})\n", $arg_usage, $arg_help, {let x : $($arg_type_tt)+ = $arg_default; x}))
+										help.push_str(&format!("    {}\n{}\n", $arg_usage,
+											indent(fill(format!(
+														"{} (default: {:?})",
+														$arg_help,
+														{let x : $($arg_type_tt)+ = $arg_default; x}
+													).as_ref(), term_width-8).as_ref(),
+													"        ")
+										))
 									}
 									ELSE {
-										help.push_str(&format!("\t{}\n\t\t{} (default: {})\n", $arg_usage, $arg_help, $arg_default))
+										help.push_str(&format!("    {}\n{}\n", $arg_usage,
+											indent(fill(format!(
+														"{} (default: {})",
+														$arg_help,
+														$arg_default
+													).as_ref(), term_width-8).as_ref(),
+													"        ")
+										))
 									}
 								)
 							}
@@ -552,8 +600,15 @@ macro_rules! usage {
 				let matches = App::new("Parity")
 				    	.global_setting(AppSettings::VersionlessSubcommands)
 						.global_setting(AppSettings::DisableHelpSubcommand)
+						.max_term_width(100)
 						.help(Args::print_help().as_ref())
-						.args(&usages.iter().map(|u| Arg::from_usage(u).use_delimiter(false).allow_hyphen_values(true).global(true)).collect::<Vec<Arg>>())
+						.args(&usages.iter().map(|u|
+							Arg::from_usage(u)
+							.use_delimiter(false)
+							.allow_hyphen_values(true) // Allow for example --allow-ips -10.0.0.0/8
+							.global(true) // Argument doesn't have to come before the first subcommand
+							.hidden(true) // Hide global arguments from the (subcommand) help messages generated by Clap
+						).collect::<Vec<Arg>>())
 						$(
 							.subcommand(
 								SubCommand::with_name(&underscore_to_hyphen!(&stringify!($subc)[4..]))
