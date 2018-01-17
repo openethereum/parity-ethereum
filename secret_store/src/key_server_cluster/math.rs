@@ -51,7 +51,7 @@ pub fn compute_public_sum<'a, I>(mut publics: I) -> Result<Public, Error> where 
 pub fn compute_secret_sum<'a, I>(mut secrets: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	let mut sum = secrets.next().expect("compute_secret_sum is called when there's at least one secret; qed").clone();
 	while let Some(secret) = secrets.next() {
-		sum.add(secret)?;
+		sum.add(secret).unwrap();
 	}
 	Ok(sum)
 }
@@ -86,9 +86,9 @@ pub fn update_random_point(point: &mut Public) -> Result<(), Error> {
 }
 
 /// Generate random polynom of threshold degree
-pub fn generate_random_polynom(threshold: usize) -> Result<Vec<Secret>, Error> {
-	(0..threshold + 1)
-		.map(|_| generate_random_scalar())
+pub fn generate_random_polynom(threshold: usize, is_zero_secret: bool) -> Result<Vec<Secret>, Error> {
+	::std::iter::once(if is_zero_secret { Ok(Secret::zero()) } else { generate_random_scalar() })
+		.chain((1..threshold + 1).map(|_| generate_random_scalar()))
 		.collect()
 }
 
@@ -421,7 +421,7 @@ pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_h
 #[cfg(test)]
 pub mod tests {
 	use std::iter::once;
-	use ethkey::KeyPair;
+	use ethkey::{KeyPair, Signature};
 	use super::*;
 
 	#[derive(Clone)]
@@ -434,7 +434,27 @@ pub mod tests {
 		joint_public: Public,
 	}
 
-	fn run_key_generation(t: usize, n: usize, id_numbers: Option<Vec<Secret>>) -> KeyGenerationArtifacts {
+	struct ZeroGenerationArtifacts {
+		polynoms1: Vec<Vec<Secret>>,
+		secret_shares: Vec<Secret>,
+	}
+
+	fn prepare_polynoms1(t: usize, n: usize, secret_required: Option<Secret>) -> Vec<Vec<Secret>> {
+		let mut polynoms1: Vec<_> = (0..n).map(|_| generate_random_polynom(t, false).unwrap()).collect();
+		// if we need specific secret to be shared, update polynoms so that sum of their free terms = required secret
+		if let Some(mut secret_required) = secret_required {
+			for polynom1 in polynoms1.iter_mut().take(n - 1) {
+				let secret_coeff1 = generate_random_scalar().unwrap();
+				secret_required.sub(&secret_coeff1).unwrap();
+				polynom1[0] = secret_coeff1;
+			}
+
+			polynoms1[n - 1][0] = secret_required;
+		}
+		polynoms1
+	}
+
+	fn run_key_generation(t: usize, n: usize, id_numbers: Option<Vec<Secret>>, secret_required: Option<Secret>) -> KeyGenerationArtifacts {
 		// === PART1: DKG ===
 
 		// data, gathered during initialization
@@ -445,10 +465,11 @@ pub mod tests {
 		};
 
 		// data, generated during keys dissemination
-		let polynoms1: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
+		let polynoms1 = prepare_polynoms1(t, n, secret_required);
 		let secrets1: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms1[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
+
 		// following data is used only on verification step
-		let polynoms2: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
+		let polynoms2: Vec<_> = (0..n).map(|_| generate_random_polynom(t, false).unwrap()).collect();
 		let secrets2: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms2[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
 		let publics: Vec<_> = (0..n).map(|i| public_values_generation(t, &derived_point, &polynoms1[i], &polynoms2[i]).unwrap()).collect();
 
@@ -474,6 +495,20 @@ pub mod tests {
 		}
 	}
 
+	fn run_zero_key_generation(t: usize, n: usize, id_numbers: &[Secret]) -> ZeroGenerationArtifacts {
+		// data, generated during keys dissemination
+		let polynoms1 = prepare_polynoms1(t, n, Some(Secret::zero()));
+		let secrets1: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms1[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
+
+		// data, generated during keys generation
+		let secret_shares: Vec<_> = (0..n).map(|i| compute_secret_share(secrets1.iter().map(|s| &s[i])).unwrap()).collect();
+
+		ZeroGenerationArtifacts {
+			polynoms1: polynoms1,
+			secret_shares: secret_shares,
+		}
+	}
+
 	fn run_key_share_refreshing(old_t: usize, new_t: usize, new_n: usize, old_artifacts: &KeyGenerationArtifacts) -> KeyGenerationArtifacts {
 		// === share refreshing protocol from
 		// === based on "Verifiable Secret Redistribution for Threshold Sharing Schemes"
@@ -488,7 +523,7 @@ pub mod tests {
 		// on every authorized node: generate random polynomial ai(j) = si + ... + ai[new_t - 1] * j^(new_t - 1)
 		let mut subshare_polynoms = Vec::new();
 		for i in 0..old_t+1 {
-			let mut subshare_polynom = generate_random_polynom(new_t).unwrap();
+			let mut subshare_polynom = generate_random_polynom(new_t, false).unwrap();
 			subshare_polynom[0] = old_artifacts.secret_shares[i].clone();
 			subshare_polynoms.push(subshare_polynom);
 		}
@@ -526,6 +561,65 @@ pub mod tests {
 		result.id_numbers = id_numbers;
 		result.secret_shares = new_secret_shares;
 		result
+	}
+
+	fn run_multiplication_protocol(t: usize, secret_shares1: &[Secret], secret_shares2: &[Secret]) -> Vec<Secret> {
+		let n = secret_shares1.len();
+		assert!(t * 2 + 1 <= n);
+
+		// shares of secrets multiplication = multiplication of secrets shares
+		let mul_shares: Vec<_> = (0..n).map(|i| {
+			let share1 = secret_shares1[i].clone();
+			let share2 = secret_shares2[i].clone();
+			let mut mul_share = share1;
+			mul_share.mul(&share2).unwrap();
+			mul_share
+		}).collect();
+
+		mul_shares
+	}
+
+	fn run_reciprocal_protocol(t: usize, artifacts: &KeyGenerationArtifacts) -> Vec<Secret> {
+		// === Given a secret x mod r which is shared among n players, it is
+		// === required to generate shares of 1/x mod r with out revealing
+		// === any information about x or 1/x.
+		// === https://www.researchgate.net/publication/280531698_Robust_Threshold_Elliptic_Curve_Digital_Signature
+	
+		// generate shared random secret e for given t
+		let n = artifacts.id_numbers.len();
+		assert!(t * 2 + 1 <= n);
+		let e_artifacts = run_key_generation(t, n, Some(artifacts.id_numbers.clone()), None);
+
+		// generate shares of zero for 2 * t threshold
+		let z_artifacts = run_zero_key_generation(2 * t, n, &artifacts.id_numbers);
+
+		// each player computes && broadcast u[i] = x[i] * e[i] + z[i]
+		let ui: Vec<_> = (0..n).map(|i| {
+			let mut x_mul_e = artifacts.secret_shares[i].clone();
+			x_mul_e.mul(&e_artifacts.secret_shares[i]).unwrap();
+			x_mul_e.add(&z_artifacts.secret_shares[i]).unwrap();
+			x_mul_e
+		}).collect();
+
+		// players can interpolate the polynomial of degree 2t and compute u:
+		let u_shares: Vec<_> = (0..2*t+1).map(|i| compute_shadow_mul(&ui[i], &artifacts.id_numbers[i], artifacts.id_numbers.iter().enumerate()
+			.filter(|&(j, _)| i != j)
+			.map(|(_, id)| id)
+			.take(2 * t)).unwrap()).collect();
+		let u = compute_secret_sum(u_shares.iter()).unwrap();
+
+		// all the players can compute 1/u
+		let mut u_inv = u.clone();
+		u_inv.inv().unwrap();
+
+		// each player Pi computes his share of 1/x as e[i] * 1/u
+		let x_inv_shares: Vec<_> = (0..n).map(|i| {
+			let mut x_inv_share = e_artifacts.secret_shares[i].clone();
+			x_inv_share.mul(&u_inv).unwrap();
+			x_inv_share
+		}).collect();
+
+		x_inv_shares
 	}
 
 	pub fn do_encryption_and_decryption(t: usize, joint_public: &Public, id_numbers: &[Secret], secret_shares: &[Secret], joint_secret: Option<&Secret>, document_secret_plain: Public) -> (Public, Public) {
@@ -576,7 +670,7 @@ pub mod tests {
 		let test_cases = [(0, 2), (1, 2), (1, 3), (2, 3), (1, 4), (2, 4), (3, 4), (1, 5), (2, 5), (3, 5), (4, 5),
 			(1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10)];
 		for &(t, n) in &test_cases {
-			let artifacts = run_key_generation(t, n, None);
+			let artifacts = run_key_generation(t, n, None, None);
 
 			// compute joint private key [just for test]
 			let joint_secret = compute_joint_secret(artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
@@ -617,7 +711,7 @@ pub mod tests {
 
 			// === MiDS-S algorithm ===
 			// setup: all nodes share master secret key && every node knows master public key
-			let artifacts = run_key_generation(t, n, None);
+			let artifacts = run_key_generation(t, n, None, None);
 
 			// in this gap (not related to math):
 			// master node should ask every other node if it is able to do a signing
@@ -628,7 +722,7 @@ pub mod tests {
 
 			// step 1: run DKG to generate one-time secret key (nonce)
 			let id_numbers = artifacts.id_numbers.iter().cloned().take(n).collect();
-			let one_time_artifacts = run_key_generation(t, n, Some(id_numbers));
+			let one_time_artifacts = run_key_generation(t, n, Some(id_numbers), None);
 
 			// step 2: message hash && x coordinate of one-time public value are combined
 			let combined_hash = combine_message_hash_with_public(&message_hash, &one_time_artifacts.joint_public).unwrap();
@@ -686,7 +780,7 @@ pub mod tests {
 		let test_cases = vec![(1, 4), (6, 10)];
 		for (t, n) in test_cases {
 			// generate key using t-of-n session
-			let artifacts1 = run_key_generation(t, n, None);
+			let artifacts1 = run_key_generation(t, n, None, None);
 			let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p1| &p1[0])).unwrap();
 
 			// let's say we want to refresh existing secret shares
@@ -710,7 +804,7 @@ pub mod tests {
 		let test_cases = vec![(1, 3), (1, 4), (6, 10)];
 		for (t, n) in test_cases {
 			// generate key using t-of-n session
-			let artifacts1 = run_key_generation(t, n, None);
+			let artifacts1 = run_key_generation(t, n, None, None);
 			let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p1| &p1[0])).unwrap();
 
 			// let's say we want to include additional couple of servers to the set
@@ -726,5 +820,193 @@ pub mod tests {
 				&artifacts3.id_numbers.iter().take(t + 1).collect::<Vec<_>>()).unwrap();
 			assert_eq!(joint_secret1, joint_secret3);
 		}
+	}
+
+	#[test]
+	fn full_generation_math_session_with_decreasing_threshold() {
+		let (t, n) = (3, 5);
+
+		// generate key using t-of-n session
+		let artifacts1 = run_key_generation(t, n, None, None);
+		let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p1| &p1[0])).unwrap();
+
+		// let's say we want to decrease threshold so that it becames (t-1)-of-n
+		let new_t = t - 1;
+		let artifacts2 = run_key_share_refreshing(t, new_t, n, &artifacts1);
+		let joint_secret2 = compute_joint_secret_from_shares(new_t, &artifacts2.secret_shares.iter().take(new_t + 1).collect::<Vec<_>>(),
+			&artifacts2.id_numbers.iter().take(new_t + 1).collect::<Vec<_>>()).unwrap();
+		assert_eq!(joint_secret1, joint_secret2);
+
+		// let's say we want to decrease threshold once again so that it becames (t-2)-of-n
+		let t = t - 1;
+		let new_t = t - 2;
+		let artifacts3 = run_key_share_refreshing(t, new_t, n, &artifacts2);
+		let joint_secret3 = compute_joint_secret_from_shares(new_t, &artifacts3.secret_shares.iter().take(new_t + 1).collect::<Vec<_>>(),
+			&artifacts3.id_numbers.iter().take(new_t + 1).collect::<Vec<_>>()).unwrap();
+		assert_eq!(joint_secret1, joint_secret3);
+	}
+
+	#[test]
+	fn full_zero_secret_generation_math_session() {
+		let test_cases = vec![(1, 4), (2, 4)];
+		for (t, n) in test_cases {
+			// run joint zero generation session
+			let id_numbers: Vec<_> = (0..n).map(|_| generate_random_scalar().unwrap()).collect();
+			let artifacts = run_zero_key_generation(t, n, &id_numbers);
+
+			// check that zero secret is generated
+			// we can't compute secrets sum here, because result will be zero (invalid secret, unsupported by SECP256k1)
+			// so just use complement trick: x + (-x) = 0
+			// TODO [Refac]: switch to SECP256K1-free scalar EC arithmetic
+			let partial_joint_secret = compute_secret_sum(artifacts.polynoms1.iter().take(n - 1).map(|p| &p[0])).unwrap();
+			let mut partial_joint_secret_complement = artifacts.polynoms1[n - 1][0].clone();
+			partial_joint_secret_complement.neg().unwrap();
+			assert_eq!(partial_joint_secret, partial_joint_secret_complement);
+		}
+	}
+
+	#[test]
+	fn full_generation_with_multiplication() {
+		let test_cases = vec![(1, 3), (2, 5), (2, 7), (3, 8)];
+		for (t, n) in test_cases {
+			// generate two shared secrets
+			let artifacts1 = run_key_generation(t, n, None, None);
+			let artifacts2 = run_key_generation(t, n, Some(artifacts1.id_numbers.clone()), None);
+
+			// multiplicate original secrets
+			let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p| &p[0])).unwrap();
+			let joint_secret2 = compute_joint_secret(artifacts2.polynoms1.iter().map(|p| &p[0])).unwrap();
+			let mut expected_joint_secret_mul = joint_secret1;
+			expected_joint_secret_mul.mul(&joint_secret2).unwrap();
+
+			// run multiplication protocol
+			let joint_secret_mul_shares = run_multiplication_protocol(t, &artifacts1.secret_shares, &artifacts2.secret_shares);
+
+			// calculate actual secrets multiplication
+			let double_t = t * 2;
+			let actual_joint_secret_mul = compute_joint_secret_from_shares(double_t,
+				&joint_secret_mul_shares.iter().take(double_t + 1).collect::<Vec<_>>(),
+				&artifacts1.id_numbers.iter().take(double_t + 1).collect::<Vec<_>>()).unwrap();
+
+			assert_eq!(actual_joint_secret_mul, expected_joint_secret_mul);
+		}
+	}
+
+	#[test]
+	fn full_generation_with_reciprocal() {
+		let test_cases = vec![(1, 3), (2, 5), (2, 7), (3, 8)];
+		for (t, n) in test_cases {
+			// generate shared secret
+			let artifacts = run_key_generation(t, n, None, None);
+
+			// calculate inversion of original shared secret
+			let joint_secret = compute_joint_secret(artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
+			let mut expected_joint_secret_inv = joint_secret.clone();
+			expected_joint_secret_inv.inv().unwrap();
+
+			// run inversion protocol
+			let reciprocal_shares = run_reciprocal_protocol(t, &artifacts);
+
+			// calculate actual secret inversion
+			let double_t = t * 2;
+			let actual_joint_secret_inv = compute_joint_secret_from_shares(double_t,
+				&reciprocal_shares.iter().take(double_t + 1).collect::<Vec<_>>(),
+				&artifacts.id_numbers.iter().take(double_t + 1).collect::<Vec<_>>()).unwrap();
+
+			assert_eq!(actual_joint_secret_inv, expected_joint_secret_inv);
+		}
+	}
+
+	#[test]
+	fn full_ecdsa_generation_session() {
+		let (t, n) = (2, 5);
+
+		// generate secret key shares
+		let artifacts = run_key_generation(t, n, None,
+			Some("00000000000000000000000000000000000000000000000000000000000000A5".parse().unwrap()));
+
+		// generate nonce shares
+		let nonce_artifacts = run_key_generation(t, n, Some(artifacts.id_numbers.clone()),
+			Some("0000000000000000000000000000000000000000000000000000000000000042".parse().unwrap()));
+
+		// compute public nonce shares
+		let nonce_public_shadows: Vec<_> = (0..n).map(|i| compute_shadow_mul(&nonce_artifacts.secret_shares[i],
+			&nonce_artifacts.id_numbers[i],
+			nonce_artifacts.id_numbers.iter().enumerate()
+				.filter(|&(j, _)| j != i)
+				.map(|(_, id)| id))
+				.unwrap()).collect();
+		let nonce_public_shares: Vec<_> = nonce_public_shadows.iter()
+			.map(|shadow| compute_public_share(shadow).unwrap())
+			.collect();
+
+		// compute public nonce on every node
+		// x coordinate (mapped to EC field) of this public is the r-portion of signature
+		let nonce_public = compute_public_sum(nonce_public_shares.iter()).unwrap();
+		let signature_r = &nonce_public[0..32];
+		let signature_r: U256 = signature_r.into();
+		let signature_r: H256 = (signature_r % math::curve_order()).into();
+		let signature_r = Secret::from_slice(&*signature_r);
+		signature_r.check_validity().unwrap();
+
+		// compute shares of 1/nonce so that both nonce && 1/nonce are still unknown to all nodes
+		let nonce_inv_shares = run_reciprocal_protocol(t, &nonce_artifacts);
+
+		// compute multiplication of secret-shares * inv-nonce-shares
+		let mul_shares = run_multiplication_protocol(t, &artifacts.secret_shares, &nonce_inv_shares);
+
+		// compute shares for s portion of signature: nonce_inv * (message_hash + secret * signature_r)
+		// every node broadcasts this share
+		let message_hash: H256 = "0000000000000000000000000000000000000000000000000000000000000076".parse().unwrap();
+		let message_hash: Secret = message_hash.into();
+		let signature_s_shares: Vec<_> = (0..n).map(|i| {
+			let mut nonce_inv_share_mul_message_hash = nonce_inv_shares[i].clone();
+			nonce_inv_share_mul_message_hash.mul(&message_hash).unwrap();
+
+			let mut nonce_inv_share_mul_secret_share_mul_r = mul_shares[i].clone();
+			nonce_inv_share_mul_secret_share_mul_r.mul(&signature_r).unwrap();
+
+			let mut signature_s_share = nonce_inv_share_mul_message_hash;
+			signature_s_share.add(&nonce_inv_share_mul_secret_share_mul_r).unwrap();
+
+			signature_s_share
+		}).collect();
+
+		// compute signature_s from received shares
+		let double_t = t * 2;
+		let signature_s = compute_joint_secret_from_shares(double_t,
+			&signature_s_shares.iter().take(double_t + 1).collect::<Vec<_>>(),
+			&artifacts.id_numbers.iter().take(double_t + 1).collect::<Vec<_>>()).unwrap();
+
+		// serialize signature: [r; s; v]
+		let signature_v = {
+			let nonce_public_x = &nonce_public[0..32];
+			let nonce_public_x: U256 = nonce_public_x.into();
+			let nonce_public_x: H256 = nonce_public_x.into();
+			let nonce_public_y = &nonce_public[32..64];
+			let nonce_public_y: U256 = nonce_public_y.into();
+			let nonce_public_y_is_odd = !(nonce_public_y % 2.into()).is_zero();
+			let bit0 = if nonce_public_y_is_odd { 1u8 } else { 0u8 };
+			let bit1 = if nonce_public_x != *signature_r { 2u8 } else { 0u8 };
+			bit0 | bit1
+		};
+		let mut signature = [0u8; 65];
+		signature[..32].copy_from_slice(&**signature_r);
+		signature[32..64].copy_from_slice(&**signature_s);
+		signature[64] = signature_v;
+
+		// check signature
+		let signature_actual: Signature = signature.into();
+		// TODO [Test]: find a way to verify + use random keys && message
+		// let joint_secret = compute_joint_secret(artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
+		// let joint_secret_pair = KeyPair::from_secret(joint_secret).unwrap();
+		// assert!(verify_public(joint_secret_pair.public(), &signature, &message_hash).unwrap());
+
+		// r = 079264c4b4bfcd7fe3a7b7b92b6c439f3a5b3abcd29189bf7b54d781ff03d722
+		// s = ec24497f28b8b80d4c8824853a220de6342addca559231c7b42d633c77e62e4c
+		// v = 1
+		let signature_expected: Signature =
+			"079264c4b4bfcd7fe3a7b7b92b6c439f3a5b3abcd29189bf7b54d781ff03d722ec24497f28b8b80d4c8824853a220de6342addca559231c7b42d633c77e62e4c01".parse().unwrap();
+		assert_eq!(signature_actual, signature_expected);
 	}
 }
