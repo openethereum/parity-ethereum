@@ -7,7 +7,7 @@ version = "1.9.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ansi_term = "0.9"
+ansi_term = "0.10"
 bloomchain = { path = "../util/bloomchain" }
 bn = { git = "https://github.com/paritytech/bn" }
 byteorder = "1.0"
@@ -35,7 +35,7 @@ futures = "0.1"
 hardware-wallet = { path = "../hw" }
 heapsize = "0.4"
 itertools = "0.5"
-lazy_static = "0.2"
+lazy_static = "1.0"
 log = "0.3"
 lru-cache = "0.1"
 native-contracts = { path = "native_contracts" }

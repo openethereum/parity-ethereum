@@ -16,7 +16,7 @@ log = "0.3"
 ordered-float = "0.5"
 parking_lot = "0.4"
 rand = "0.3"
-ring = "0.9.5"
+ring = "0.12"
 rlp = { path = "../util/rlp" }
 serde = "1.0"
 serde_derive = "1.0"
