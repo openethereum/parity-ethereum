@@ -220,7 +220,7 @@ impl Rebuilder for PowRebuilder {
 	/// Feed the rebuilder an uncompressed block chunk.
 	/// Returns the number of blocks fed or any errors.
 	fn feed(&mut self, chunk: &[u8], engine: &EthEngine, abort_flag: &AtomicBool) -> Result<(), ::error::Error> {
-		use basic_types::Seal::With;
+		use header::Seal;
 		use views::BlockView;
 		use snapshot::verify_old_block;
 		use ethereum_types::U256;
@@ -253,7 +253,7 @@ impl Rebuilder for PowRebuilder {
 			);
 
 			let block = abridged_block.to_block(parent_hash, cur_number, receipts_root)?;
-			let block_bytes = block.rlp_bytes(With);
+			let block_bytes = block.rlp_bytes(Seal::With);
 			let is_best = cur_number == self.best_number;
 
 			if is_best {

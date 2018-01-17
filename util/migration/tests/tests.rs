@@ -18,14 +18,18 @@
 //! A random temp directory is created. A database is created within it, and migrations
 //! are performed in temp sub-directories.
 
+#[macro_use]
+extern crate macros;
 extern crate tempdir;
+extern crate kvdb_rocksdb;
+extern crate migration;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use self::tempdir::TempDir;
+use tempdir::TempDir;
 use kvdb_rocksdb::Database;
-use {Batch, Config, Error, SimpleMigration, Migration, Manager, ChangeColumns};
+use migration::{Batch, Config, Error, SimpleMigration, Migration, Manager, ChangeColumns};
 
 #[inline]
 fn db_path(path: &Path) -> PathBuf {

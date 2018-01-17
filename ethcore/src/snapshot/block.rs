@@ -135,6 +135,7 @@ impl AbridgedBlock {
 mod tests {
 	use views::BlockView;
 	use block::Block;
+	use header::Seal;
 	use super::AbridgedBlock;
 	use transaction::{Action, Transaction};
 
@@ -142,7 +143,7 @@ mod tests {
 	use bytes::Bytes;
 
 	fn encode_block(b: &Block) -> Bytes {
-		b.rlp_bytes(::basic_types::Seal::With)
+		b.rlp_bytes(Seal::With)
 	}
 
 	#[test]
