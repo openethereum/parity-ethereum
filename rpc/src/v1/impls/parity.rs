@@ -114,9 +114,10 @@ impl<C, M, U> ParityClient<C, M, U> where
 	}
 }
 
-impl<C, M, U, T: StateInfo + 'static> Parity for ParityClient<C, M, U> where
-	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T> + 'static,
-	M: MinerService<State=T> + 'static,
+impl<C, M, U, S> Parity for ParityClient<C, M, U> where
+	S: StateInfo + 'static,
+	C: MiningBlockChainClient + StateClient<State=S> + Call<State=S> + 'static,
+	M: MinerService<State=S> + 'static,
 	U: UpdateService + 'static,
 {
 	type Metadata = Metadata;
@@ -447,8 +448,8 @@ impl<C, M, U, T: StateInfo + 'static> Parity for ParityClient<C, M, U> where
 
 		let (state, header) = if num == BlockNumber::Pending {
 			let info = self.client.chain_info();
-			let state = try_bf!(self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned()));
-			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned()));
+			let state = self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned())?;
+			let header = self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned())?;
 
 			(state, header)
 		} else {
@@ -458,8 +459,8 @@ impl<C, M, U, T: StateInfo + 'static> Parity for ParityClient<C, M, U> where
 				BlockNumber::Latest => BlockId::Latest,
 			};
 
-			let state = try_bf!(self.client.state_at(id).ok_or(errors::state_pruned()));
-			let header = try_bf!(self.client.block_header(id).ok_or(errors::state_pruned()));
+			let state = self.client.state_at(id).ok_or(errors::state_pruned())?;
+			let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
 
 			(state, header.decode())
 		};
