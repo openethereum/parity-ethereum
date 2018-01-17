@@ -18,8 +18,7 @@
 
 use std::fmt;
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{U256, H256};
 use security_level::SecurityLevel;
 use {BlockNumber};
 

@@ -16,6 +16,7 @@
 */
 
 $textColor: #ccc;
+$statusHeight: 2.75em;
 
 .home {
   color: $textColor !important;
@@ -26,15 +27,9 @@ $textColor: #ccc;
 .container {
   flex: 0;
   box-sizing: border-box;
-  height: 2.75em;
 
-  .fixed {
-    box-sizing: border-box;
-    position: fixed;
-    top: 0;
-    right: 0;
-    left: 0;
-    height: 2.75em;
+  .bar {
+    height: $statusHeight;
     z-index: 1000;
     border-bottom: 1px solid #405161;
     color: $textColor;
@@ -57,16 +52,16 @@ $textColor: #ccc;
 }
 
 .plugins {
+  align-items: center;
+  display: flex;
   flex-grow: 1;
-  text-align: right;
-  vertical-align: middle;
+  justify-content: flex-end;
 
   > div,
   > img,
   > span {
-    display: inline-block !important;
+    align-self: center;
     margin: 0 0 0 1rem;
-    vertical-align: middle;
   }
 
   .divider {
@@ -75,10 +70,26 @@ $textColor: #ccc;
     opacity: 0.75;
   }
 
+  .health,
+  .pending {
+    height: 1.4285rem; /* Same as default line-height, i.e. item same as text following */
+  }
+
   .health {
     > span {
-      margin: -0.5rem 0 0.2rem 0 !important;
+      height: 100%;
+      margin-top: 0.2em; /* re-instate the original margin, no negative offset */
       width: auto;
+
+      > span {
+        vertical-align: baseline; /* default vertical alignment */
+      }
+    }
+  }
+
+  .pending {
+    > i {
+      height: 100%;
     }
   }
 }

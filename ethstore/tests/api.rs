@@ -21,7 +21,7 @@ mod util;
 
 use ethstore::{EthStore, SimpleSecretStore, SecretVaultRef, StoreAccountRef};
 use ethstore::ethkey::{Random, Generator, Secret, KeyPair, verify_address};
-use ethstore::dir::RootDiskDirectory;
+use ethstore::accounts_dir::RootDiskDirectory;
 use util::TransientDir;
 
 #[test]

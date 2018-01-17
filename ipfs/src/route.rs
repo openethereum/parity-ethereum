@@ -19,7 +19,7 @@ use error::{Error, Result};
 use cid::{ToCid, Codec};
 
 use multihash::Hash;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use bytes::Bytes;
 use ethcore::client::{BlockId, TransactionId};
 

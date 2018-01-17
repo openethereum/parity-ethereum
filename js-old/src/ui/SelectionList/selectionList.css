@@ -19,7 +19,6 @@
   cursor: pointer;
   display: flex;
   flex: 1;
-  height: 100%;
   position: relative;
   width: 100%;
 
@@ -29,7 +28,6 @@
   }
 
   .content {
-    height: 100%;
     width: 100%;
 
     &:hover {

@@ -23,17 +23,16 @@ use std::mem;
 use itertools::Itertools;
 use rustc_hex::FromHex;
 use hash::keccak;
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256, Address};
 use parking_lot::RwLock;
 use journaldb;
-use util::{Address, DBValue};
+use kvdb::DBValue;
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use bytes::Bytes;
 use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
-use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
+use transaction::{self, Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
 	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
@@ -49,7 +48,7 @@ use blockchain::extras::BlockReceipts;
 use error::{ImportResult, Error as EthcoreError};
 use evm::{Factory as EvmFactory, VMType};
 use vm::Schedule;
-use miner::{Miner, MinerService, TransactionImportResult};
+use miner::{Miner, MinerService};
 use spec::Spec;
 use types::basic_account::BasicAccount;
 use types::mode::Mode;
@@ -338,7 +337,7 @@ impl TestBlockChainClient {
 		let hash = signed_tx.hash();
 		let res = self.miner.import_external_transactions(self, vec![signed_tx.into()]);
 		let res = res.into_iter().next().unwrap().expect("Successful import");
-		assert_eq!(res, TransactionImportResult::Current);
+		assert_eq!(res, transaction::ImportResult::Current);
 		hash
 	}
 
@@ -365,6 +364,8 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 }
 
 impl MiningBlockChainClient for TestBlockChainClient {
+	fn as_block_chain_client(&self) -> &BlockChainClient { self }
+
 	fn latest_schedule(&self) -> Schedule {
 		Schedule::new_post_eip150(24576, true, true, true)
 	}
@@ -427,6 +428,10 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn replay(&self, _id: TransactionId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
+	}
+
+	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
+		Ok(Box::new(self.execution_result.read().clone().unwrap().into_iter()))
 	}
 
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {
@@ -766,7 +771,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
 
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<transaction::ImportResult, EthcoreError> {
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&self.miner.author()),
 			action: Action::Call(address),

@@ -16,11 +16,11 @@
 
 //! Database of byte-slices keyed to their Keccak hash.
 extern crate elastic_array;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 
-use bigint::hash::*;
 use std::collections::HashMap;
 use elastic_array::ElasticArray128;
+use ethereum_types::H256;
 
 /// `HashDB` value type.
 pub type DBValue = ElasticArray128<u8>;

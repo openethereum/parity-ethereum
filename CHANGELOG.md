@@ -1,3 +1,163 @@
+## Parity [v1.8.6](https://github.com/paritytech/parity/releases/tag/v1.8.6) (2018-01-10)
+
+Parity 1.8.6 fixes a critical issue with the database eventually filling up user's disks. Upgrading is highly recommended as it will significantly improve your user experience. As a bonus, this release should enable users with slower hard-disk drives to catch up with the latest block again. Also, warp-sync performance was significantly improved. Please note, that the initial database compaction after upgrading might temporarily reduce the node's performance.
+
+In addition to our gas price histogram, this version now allows you to dynamically set the default gas price as percentile from the last 100 blocks (it defaults to median: `50`).
+
+    --gas-price-percentile=[PCT]        Set PCT percentile gas price value from
+                                        last 100 blocks as default gas price
+                                        when sending transactions.
+
+Last but not least, this release also fixes consensus issues with the Expanse chain enabling Byzantium. If you run Parity configured for Expanse, you might have to resync your chain after the upgrade.
+
+The full list of included changes:
+
+- RocksDB fix ([#7508](https://github.com/paritytech/parity/pull/7508))
+  - Kvdb: update rust-rocksdb version
+- Backports to beta ([#7434](https://github.com/paritytech/parity/pull/7434))
+  - Wait for future blocks in AuRa ([#7368](https://github.com/paritytech/parity/pull/7368))
+    - Mark future blocks as temporarily invalid.
+    - Don't check max.
+  - Fix tracing failed calls. ([#7412](https://github.com/paritytech/parity/pull/7412))
+  - Problem: sending any Whisper message fails ([#7421](https://github.com/paritytech/parity/pull/7421))
+  - Strict config parsing ([#7433](https://github.com/paritytech/parity/pull/7433))
+  - Problem: AuRa's unsafeties around step duration ([#7282](https://github.com/paritytech/parity/pull/7282))
+  - Remove expanse chain ([#7437](https://github.com/paritytech/parity/pull/7437))
+    - Remove expanse from available chains
+    - Remove all EXP references from old wallet
+    - Fix tests
+  - Remove expanse chain ([#7437](https://github.com/paritytech/parity/pull/7437))
+  - Expanse Byzantium update w/ correct metropolis difficulty increment divisor ([#7463](https://github.com/paritytech/parity/pull/7463))
+    - Byzantium Update for Expanse
+    - Expip2 changes - update duration limit
+    - Fix missing EXPIP-2 fields
+    - Format numbers as hex
+    - Fix compilation errors
+    - Group expanse chain spec fields together
+    - Set metropolisDifficultyIncrementDivisor for Expanse
+    - Revert #7437
+    - Add Expanse block 900_000 hash checkpoint
+  - Advance AuRa step as far as we can and prevent invalid blocks. ([#7451](https://github.com/paritytech/parity/pull/7451))
+    - Advance AuRa step as far as we can.
+    - Wait for future blocks.
+  - Fixed panic when io is not available for export block, closes [#7486](https://github.com/paritytech/parity/issue/7486) ([#7495](https://github.com/paritytech/parity/pull/7495))
+  - Update Parity Mainnet Bootnodes ([#7476](https://github.com/paritytech/parity/pull/7476))
+    - Replace the Azure HDD bootnodes with the new ones :)
+  - Expose default gas price percentile configuration in CLI ([#7497](https://github.com/paritytech/parity/pull/7497))
+    - Expose gas price percentile.
+    - Fix light eth_call.
+    - Fix gas_price in light client
+- Backport nonces reservations ([#7439](https://github.com/paritytech/parity/pull/7439))
+  - Reserve nonces for signing ([#6834](https://github.com/paritytech/parity/pull/6834))
+    - Nonce future - reserve and dispatch
+    - Single thread nonce tests
+    - Track status of reserved nonces.
+    - Initialization of nonce reservations.
+    - Prospective Signer
+    - Fix cli tests.
+  - Fix nonce reservation ([#7025](https://github.com/paritytech/parity/pull/7025))
+    - Use nonce reservation per address
+    - Create hashmap in RPC Apis
+    - Garbage collect hashmap entries.
+    - HashMap::retain
+- Bump beta to 1.8.6 ([#7442](https://github.com/paritytech/parity/pull/7442))
+- KVDB backports ([#7438](https://github.com/paritytech/parity/pull/7438))
+  - Separated kvdb into 3 crates: kvdb, kvdb-memorydb && kvdb-rocksdb ([#6720](https://github.com/paritytech/parity/pull/6720))
+    - Separated kvdb into 3 crates: kvdb, kvdb-memorydb && kvdb-rocksdb, ref [#6693](https://github.com/paritytech/parity/issues/6693)
+      - Fixed kvdb-memorydb && kvdb-rocksdb authors
+      - Fixed wrong kvdb import in json_tests
+    - Util tests use kvdb_memorydb instead of kvdb_rocksdb, closes [#6739](https://github.com/paritytech/parity/issues/6739)
+      - Renamed kvdb_memorydb::in_memory -> kvdb_memorydb::create
+      - Docs
+      - Removed redundant mut from kvdb-memorydb
+  - Upgrade to RocksDB 5.8.8 and tune settings to reduce space amplification ([#7348](https://github.com/paritytech/parity/pull/7348))
+    - kvdb-rocksdb: update to RocksDB 5.8.8
+    - kvdb-rocksdb: tune RocksDB options
+      - Switch to level-style compaction
+      - Increase default block size (16K), and use bigger blocks for HDDs (64K)
+      - Increase default file size base (64MB SSDs, 256MB HDDs)
+      - Create a single block cache shared across all column families
+      - Tune compaction settings using RocksDB helper functions, taking into account
+      - Memory budget spread across all columns
+      - Configure backgrounds jobs based on the number of CPUs
+      - Set some default recommended settings
+    - ethcore: remove unused config blockchain.db_cache_size
+    - parity: increase default value for db_cache_size
+    - kvdb-rocksdb: enable compression on all levels
+    - kvdb-rocksdb: set global db_write_bufer_size
+    - kvdb-rocksdb: reduce db_write_bufer_size to force earlier flushing
+    - kvdb-rocksdb: use master branch for rust-rocksdb dependency
+
+## Parity [v1.8.5](https://github.com/paritytech/parity/releases/tag/v1.8.5) (2017-12-29)
+
+Parity 1.8.5 changes the default behavior of JSON-RPC CORS setting, detects same-key engine signers in Aura networks, and updates bootnodes for the Kovan and Foundation networks.
+
+Note: The default value of `--jsonrpc-cors` option has been altered to disallow (potentially malicious) websites from accessing the low-sensitivity RPCs (viewing exposed accounts, proposing transactions for signing). Currently domains need to be whitelisted manually. To bring back previous behaviour run with `--jsonrpc-cors all` or `--jsonrpc-cors http://example.com`.
+
+The full list of included changes:
+
+- Beta Backports ([#7297](https://github.com/paritytech/parity/pull/7297))
+  - New warp enodes ([#7287](https://github.com/paritytech/parity/pull/7287))
+    - New warp enodes
+    - Added one more warp enode; replaced spaces with tabs
+    - Bump beta to 1.8.5
+    - Update kovan boot nodes
+  - Detect different node, same-key signing in aura ([#7245](https://github.com/paritytech/parity/pull/7245))
+    - Detect different node, same-key signing in aura
+    - Reduce scope of warning
+    - Fix Cargo.lock
+    - Updating mainnet bootnodes.
+  - Update bootnodes ([#7363](https://github.com/paritytech/parity/pull/7363))
+    - Updating mainnet bootnodes.
+    - Add additional parity-beta bootnodes.
+    - Restore old parity bootnodes and update foudation bootnodes
+- Fix default CORS. ([#7388](https://github.com/paritytech/parity/pull/7388))
+
+## Parity [v1.8.4](https://github.com/paritytech/parity/releases/tag/v1.8.4) (2017-12-12)
+
+Parity 1.8.4 applies fixes for Proof-of-Authority networks and schedules the Kovan-Byzantium hard-fork.
+
+- The Kovan testnet will fork on block `5067000` at `Thu Dec 14 2017 05:40:03 UTC`.
+  - This enables Byzantium features on Kovan.
+  - This disables uncles on Kovan for stability reasons.
+- Proof-of-Authority networks are advised to set `maximumUncleCount` to 0 in a future `maximumUncleCountTransition` for stability reasons.
+  - See the [Kovan chain spec](https://github.com/paritytech/parity/blob/master/ethcore/res/ethereum/kovan.json) for an example.
+  - New PoA networks created with Parity will have this feature enabled by default.
+
+Furthermore, this release includes the ECIP-1039 Monetary policy rounding specification for Ethereum Classic, reduces the maximum Ethash-block timestamp drift to 15 seconds, and fixes various bugs for WASM and the RPC APIs.
+
+The full list of included changes:
+
+- Beta Backports and HF block update ([#7244](https://github.com/paritytech/parity/pull/7244))
+  - Reduce max block timestamp drift to 15 seconds ([#7240](https://github.com/paritytech/parity/pull/7240))
+    - Add test for block timestamp validation within allowed drift
+  - Update kovan HF block number.
+- Beta Kovan HF ([#7234](https://github.com/paritytech/parity/pull/7234))
+  - Kovan HF.
+  - Bump version.
+  - Fix aura difficulty race ([#7198](https://github.com/paritytech/parity/pull/7198))
+    - Fix test key
+    - Extract out score calculation
+    - Fix build
+  - Update kovan HF block number.
+  - Add missing byzantium builtins.
+  - Bump installers versions.
+  - Increase allowed time drift to 10s. ([#7238](https://github.com/paritytech/parity/pull/7238))
+- Beta Backports ([#7197](https://github.com/paritytech/parity/pull/7197))
+  - Maximum uncle count transition ([#7196](https://github.com/paritytech/parity/pull/7196))
+    - Enable delayed maximum_uncle_count activation.
+    - Fix tests.
+    - Defer kovan HF.
+  - Disable uncles by default ([#7006](https://github.com/paritytech/parity/pull/7006))
+  - Escape inifinite loop in estimte_gas ([#7075](https://github.com/paritytech/parity/pull/7075))
+  - ECIP-1039: Monetary policy rounding specification ([#7067](https://github.com/paritytech/parity/pull/7067))
+  - WASM Remove blockhash error ([#7121](https://github.com/paritytech/parity/pull/7121))
+    - Remove blockhash error
+    - Update tests.
+  - WASM storage_read and storage_write don't return anything ([#7110](https://github.com/paritytech/parity/pull/7110))
+  - WASM parse payload from panics ([#7097](https://github.com/paritytech/parity/pull/7097))
+  - Fix no-default-features. ([#7096](https://github.com/paritytech/parity/pull/7096))
+
 ## Parity [v1.8.3](https://github.com/paritytech/parity/releases/tag/v1.8.3) (2017-11-15)
 
 Parity 1.8.3 contains several bug-fixes and removes the ability to deploy built-in multi-signature wallets.

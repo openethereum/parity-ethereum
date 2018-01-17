@@ -22,7 +22,7 @@ use ids::BlockId;
 use service::ClientIoMessage;
 
 use io::IoChannel;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use bytes::Bytes;
 
 use std::sync::Arc;
@@ -134,8 +134,7 @@ mod tests {
 
 	use client::ChainNotify;
 
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
+	use ethereum_types::{H256, U256};
 
 	use std::collections::HashMap;
 

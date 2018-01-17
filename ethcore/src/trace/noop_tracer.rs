@@ -16,8 +16,7 @@
 
 //! Nonoperative tracer.
 
-use bigint::prelude::U256;
-use util::Address;
+use ethereum_types::{U256, Address};
 use bytes::Bytes;
 use vm::ActionParams;
 use trace::{Tracer, VMTracer, FlatTrace, TraceError};

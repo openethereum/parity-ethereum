@@ -27,8 +27,7 @@ use std::marker::PhantomData;
 use std::{cmp, mem};
 use std::sync::Arc;
 use hash::keccak;
-use bigint::prelude::{U256, U512};
-use bigint::hash::H256;
+use ethereum_types::{U256, U512, H256, Address};
 
 use vm::{
 	self, ActionParams, ActionValue, CallType, MessageCallResult,
@@ -44,8 +43,6 @@ use self::memory::Memory;
 pub use self::shared_cache::SharedCache;
 
 use bit_set::BitSet;
-
-use util::*;
 
 type ProgramCounter = usize;
 
@@ -66,7 +63,6 @@ struct CodeReader<'a> {
 	code: &'a [u8]
 }
 
-#[cfg_attr(feature="dev", allow(len_without_is_empty))]
 impl<'a> CodeReader<'a> {
 
 	/// Create new code reader - starting at position 0.
@@ -289,7 +285,6 @@ impl<Cost: CostType> Interpreter<Cost> {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn exec_instruction(
 		&mut self,
 		gas: Cost,

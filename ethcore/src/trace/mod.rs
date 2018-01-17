@@ -16,7 +16,6 @@
 
 //! Tracing
 
-mod bloom;
 mod config;
 mod db;
 mod executive_tracer;
@@ -37,9 +36,7 @@ pub use self::types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDi
 pub use self::types::flat::{FlatTrace, FlatTransactionTraces, FlatBlockTraces};
 pub use self::types::filter::{Filter, AddressesFilter};
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address};
 use kvdb::DBTransaction;
 use bytes::Bytes;
 use self::trace::{Call, Create};

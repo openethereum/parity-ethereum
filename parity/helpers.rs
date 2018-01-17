@@ -14,19 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{io, env};
+use std::io;
 use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
 use std::fs::File;
-use bigint::prelude::U256;
-use bigint::hash::clean_0x;
-use util::Address;
+use ethereum_types::{U256, clean_0x, Address};
 use kvdb_rocksdb::CompactionProfile;
 use journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
-use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
+use ethcore::miner::{PendingSet, GasLimit};
+use miner::transaction_queue::PrioritizationStrategy;
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
+use dir::helpers::replace_home;
 use upgrade::{upgrade, upgrade_data_paths};
 use migration::migrate;
 use ethsync::{validate_node_url, self};
@@ -135,19 +135,6 @@ pub fn to_price(s: &str) -> Result<f32, String> {
 	s.parse::<f32>().map_err(|_| format!("Invalid transaciton price 's' given. Must be a decimal number."))
 }
 
-/// Replaces `$HOME` str with home directory path.
-pub fn replace_home(base: &str, arg: &str) -> String {
-	// the $HOME directory on mac os should be `~/Library` or `~/Library/Application Support`
-	let r = arg.replace("$HOME", env::home_dir().unwrap().to_str().unwrap());
-	let r = r.replace("$BASE", base);
-	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string())
-}
-
-pub fn replace_home_and_local(base: &str, local: &str, arg: &str) -> String {
-	let r = replace_home(base, arg);
-	r.replace("$LOCAL", local)
-}
-
 /// Flush output buffer.
 pub fn flush_stdout() {
 	io::stdout().flush().expect("stdout is flushable; qed");
@@ -213,11 +200,10 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 		ip_filter: IpFilter::default(),
 		reserved_nodes: Vec::new(),
 		allow_non_reserved: true,
-		client_version: ::util::version(),
+		client_version: ::parity_version::version(),
 	}
 }
 
-#[cfg_attr(feature = "dev", allow(too_many_arguments))]
 pub fn to_client_config(
 		cache_config: &CacheConfig,
 		spec_name: String,
@@ -240,10 +226,8 @@ pub fn to_client_config(
 	client_config.blockchain.max_cache_size = cache_config.blockchain() as usize * mb;
 	// in bytes
 	client_config.blockchain.pref_cache_size = cache_config.blockchain() as usize * 3 / 4 * mb;
-	// db blockchain cache size, in megabytes
-	client_config.blockchain.db_cache_size = Some(cache_config.db_blockchain_cache_size() as usize);
-	// db state cache size, in megabytes
-	client_config.db_cache_size = Some(cache_config.db_state_cache_size() as usize);
+	// db cache size, in megabytes
+	client_config.db_cache_size = Some(cache_config.db_cache_size() as usize);
 	// db queue cache size, in bytes
 	client_config.queue.max_mem_use = cache_config.queue() as usize * mb;
 	// in bytes
@@ -345,7 +329,7 @@ mod tests {
 	use std::fs::File;
 	use std::io::Write;
 	use devtools::RandomTempPath;
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use ethcore::client::{Mode, BlockId};
 	use ethcore::miner::PendingSet;
 	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, password_from_file};
@@ -453,7 +437,6 @@ but the first password is trimmed
 	}
 
 	#[test]
-	#[cfg_attr(feature = "dev", allow(float_cmp))]
 	fn test_to_price() {
 		assert_eq!(to_price("1").unwrap(), 1.0);
 		assert_eq!(to_price("2.3").unwrap(), 2.3);

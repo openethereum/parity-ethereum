@@ -16,7 +16,7 @@
 
 use std::collections::{BTreeSet, BTreeMap};
 use ethkey::{Public, Secret};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use key_server_cluster::{Error, NodeId, DocumentKeyShare};
 use key_server_cluster::math;
 use key_server_cluster::jobs::job_session::{JobPartialRequestAction, JobPartialResponseAction, JobExecutor};
@@ -133,7 +133,7 @@ impl JobExecutor for SigningJob {
 		if Some(&partial_response.request_id) != self.request_id.as_ref() {
 			return Ok(JobPartialResponseAction::Ignore);
 		}
-		// TODO: check_signature_share()
+		// TODO [Trust]: check_signature_share()
 
 		Ok(JobPartialResponseAction::Accept)
 	}

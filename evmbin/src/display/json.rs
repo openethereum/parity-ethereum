@@ -19,8 +19,7 @@
 use std::collections::HashMap;
 use std::mem;
 
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{U256, H256};
 use bytes::ToPretty;
 use ethcore::trace;
 

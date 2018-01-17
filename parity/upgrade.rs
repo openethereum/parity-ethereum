@@ -24,10 +24,9 @@ use std::io;
 use std::io::{Read, Write};
 use std::path::{PathBuf, Path};
 use dir::{DatabaseDirectories, default_data_path};
-use helpers::replace_home;
+use dir::helpers::replace_home;
 use journaldb::Algorithm;
 
-#[cfg_attr(feature="dev", allow(enum_variant_names))]
 #[derive(Debug)]
 pub enum Error {
 	CannotCreateConfigPath,

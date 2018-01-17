@@ -30,7 +30,7 @@ use spec::Spec;
 use tests::helpers;
 use transaction::{Transaction, Action, SignedTransaction};
 
-use util::Address;
+use ethereum_types::Address;
 use kvdb_memorydb;
 
 const PASS: &'static str = "";

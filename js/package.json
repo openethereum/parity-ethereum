@@ -1,6 +1,6 @@
 {
   "name": "Parity",
-  "version": "1.9.28",
+  "version": "1.9.57",
   "main": "src/index.parity.js",
   "jsnext:main": "src/index.parity.js",
   "author": "Parity Team <admin@parity.io>",
@@ -27,7 +27,7 @@
     "build:embed": "cross-env EMBED=1 node webpack/embed",
     "build:i18n": "npm run clean && npm run build && babel-node ./scripts/build-i18n.js",
     "ci:build": "cross-env NODE_ENV=production npm run build",
-    "clean": "rimraf ./.build ./.coverage ./.happypack ./build",
+    "clean": "rimraf ./.build ./.coverage ./.happypack",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "npm run lint:css && npm run lint:js",
     "lint:cached": "npm run lint:css && npm run lint:js:cached",
@@ -45,7 +45,6 @@
   },
   "devDependencies": {
     "@parity/dapp-console": "paritytech/dapp-console",
-    "@parity/dapp-dapp-accounts": "paritytech/dapp-dapp-accounts",
     "@parity/dapp-dapp-methods": "js-dist-paritytech/dapp-dapp-methods",
     "@parity/dapp-dapp-visible": "js-dist-paritytech/dapp-dapp-visible",
     "@parity/dapp-dappreg": "paritytech/dapp-dappreg",
@@ -53,10 +52,9 @@
     "@parity/dapp-localtx": "paritytech/dapp-localtx",
     "@parity/dapp-registry": "paritytech/dapp-registry",
     "@parity/dapp-signaturereg": "paritytech/dapp-signaturereg",
+    "@parity/dapp-status": "js-dist-paritytech/dapp-status",
     "@parity/dapp-tokendeploy": "paritytech/dapp-tokendeploy",
     "@parity/dapp-tokenreg": "paritytech/dapp-tokenreg",
-    "@parity/dapp-vaults": "paritytech/dapp-vaults",
-    "@parity/dapp-web": "paritytech/dapp-web",
     "babel-cli": "6.26.0",
     "babel-core": "6.26.0",
     "babel-eslint": "7.1.1",
@@ -70,7 +68,7 @@
     "babel-plugin-transform-runtime": "6.23.0",
     "babel-plugin-webpack-alias": "2.1.2",
     "babel-polyfill": "6.26.0",
-    "babel-preset-env": "1.6.0",
+    "babel-preset-env": "1.6.1",
     "babel-preset-react": "6.24.1",
     "babel-preset-stage-0": "6.24.1",
     "babel-register": "6.26.0",
@@ -107,7 +105,8 @@
     "istanbul": "1.0.0-alpha.2",
     "jsdom": "9.11.0",
     "json-loader": "0.5.4",
-    "markdown-loader": "2.0.0",
+    "markdown-loader": "2.0.1",
+    "marked": "0.3.9",
     "mocha": "3.2.0",
     "mock-local-storage": "1.0.2",
     "mock-socket": "6.0.4",
@@ -142,13 +141,13 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/api": "^2.1.1",
+    "@parity/api": "2.1.15",
     "@parity/plugin-signer-account": "paritytech/plugin-signer-account",
     "@parity/plugin-signer-default": "paritytech/plugin-signer-default",
     "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware",
     "@parity/plugin-signer-qr": "paritytech/plugin-signer-qr",
-    "@parity/shared": "^2.2.9",
-    "@parity/ui": "^3.0.14",
+    "@parity/shared": "2.2.21",
+    "@parity/ui": "3.0.22",
     "keythereum": "1.0.2",
     "lodash.flatten": "4.4.0",
     "lodash.omitby": "4.6.0",
@@ -172,6 +171,6 @@
     "semantic-ui-react": "0.77.0",
     "solc": "ngotchac/solc-js",
     "store": "1.3.20",
-    "web3": "0.17.0-beta"
+    "web3": "1.0.0-beta.26"
   }
 }

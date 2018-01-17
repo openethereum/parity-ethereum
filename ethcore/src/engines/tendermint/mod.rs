@@ -29,10 +29,8 @@ use std::sync::{Weak, Arc};
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::collections::{HashSet, BTreeMap};
 use hash::keccak;
-use bigint::prelude::{U128, U256};
-use bigint::hash::{H256, H520};
+use ethereum_types::{H256, H520, U128, U256, Address};
 use parking_lot::RwLock;
-use util::*;
 use unexpected::{OutOfBounds, Mismatch};
 use client::EngineClient;
 use bytes::Bytes;
@@ -777,7 +775,7 @@ impl Engine<EthereumMachine> for Tendermint {
 mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
-	use util::*;
+	use ethereum_types::Address;
 	use bytes::Bytes;
 	use block::*;
 	use error::{Error, BlockError};

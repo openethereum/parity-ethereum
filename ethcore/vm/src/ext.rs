@@ -17,9 +17,7 @@
 //! Interface for Evm externalities.
 
 use std::sync::Arc;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::*;
+use ethereum_types::{U256, H256, Address};
 use bytes::Bytes;
 use call_type::CallType;
 use env_info::EnvInfo;
@@ -96,7 +94,6 @@ pub trait Ext {
 	/// Returns Err, if we run out of gas.
 	/// Otherwise returns call_result which contains gas left
 	/// and true if subcall was successfull.
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn call(&mut self,
 		gas: &U256,
 		sender_address: &Address,

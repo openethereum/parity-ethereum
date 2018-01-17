@@ -28,7 +28,7 @@ use ethstore::{
 	SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
 };
-use ethstore::dir::MemoryDirectory;
+use ethstore::accounts_dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
 use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
@@ -840,7 +840,7 @@ mod tests {
 	use std::time::Instant;
 	use ethstore::ethkey::{Generator, Random, Address};
 	use ethstore::{StoreAccountRef, Derivation};
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 
 	#[test]
 	fn unlock_account_temp() {

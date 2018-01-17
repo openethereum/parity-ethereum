@@ -20,9 +20,9 @@ use std::fmt;
 use std::sync::Arc;
 use std::collections::HashMap;
 use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::*;
+use ethereum_types::{H256, U256, Address};
+use hashdb::HashDB;
+use kvdb::DBValue;
 use bytes::{Bytes, ToPretty};
 use trie;
 use trie::{SecTrieDB, Trie, TrieFactory, TrieError};
@@ -34,6 +34,15 @@ use basic_account::BasicAccount;
 use std::cell::{RefCell, Cell};
 
 const STORAGE_CACHE_ITEMS: usize = 8192;
+
+/// Boolean type for clean/dirty status.
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum Filth {
+	/// Data has not been changed.
+	Clean,
+	/// Data has been changed.
+	Dirty,
+}
 
 /// Single account in the system.
 /// Keeps track of changes to the code and storage.
@@ -477,7 +486,8 @@ impl fmt::Debug for Account {
 #[cfg(test)]
 mod tests {
 	use rlp::{UntrustedRlp, RlpType, Compressible};
-	use util::*;
+	use ethereum_types::{H256, U256, Address};
+	use memorydb::MemoryDB;
 	use bytes::Bytes;
 	use super::*;
 	use account_db::*;

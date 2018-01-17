@@ -26,6 +26,7 @@ const REGISTRY_ABI: &'static str = include_str!("res/registrar.json");
 const URLHINT_ABI: &'static str = include_str!("res/urlhint.json");
 const SERVICE_TRANSACTION_ABI: &'static str = include_str!("res/service_transaction.json");
 const SECRETSTORE_ACL_STORAGE_ABI: &'static str = include_str!("res/secretstore_acl_storage.json");
+const SECRETSTORE_SERVICE_ABI: &'static str = include_str!("res/secretstore_service.json");
 const VALIDATOR_SET_ABI: &'static str = include_str!("res/validator_set.json");
 const VALIDATOR_REPORT_ABI: &'static str = include_str!("res/validator_report.json");
 const PEER_SET_ABI: &'static str = include_str!("res/peer_set.json");
@@ -53,6 +54,7 @@ fn main() {
 	build_file("Urlhint", URLHINT_ABI, "urlhint.rs");
 	build_file("ServiceTransactionChecker", SERVICE_TRANSACTION_ABI, "service_transaction.rs");
 	build_file("SecretStoreAclStorage", SECRETSTORE_ACL_STORAGE_ABI, "secretstore_acl_storage.rs");
+	build_file("SecretStoreService", SECRETSTORE_SERVICE_ABI, "secretstore_service.rs");
 	build_file("ValidatorSet", VALIDATOR_SET_ABI, "validator_set.rs");
 	build_file("ValidatorReport", VALIDATOR_REPORT_ABI, "validator_report.rs");
 	build_file("PeerSet", PEER_SET_ABI, "peer_set.rs");

@@ -6,11 +6,11 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types as bigint;
 extern crate rlp;
 
 use std::{fmt, cmp};
-use bigint::prelude::U256;
+use bigint::{U256, H160};
 use rlp::{Encodable, Decodable, UntrustedRlp, RlpStream, DecoderError};
 
 #[test]
@@ -164,8 +164,6 @@ fn encode_str() {
 
 #[test]
 fn encode_address() {
-	use bigint::hash::H160;
-
 	let tests = vec![
 		ETestPair(H160::from("ef2d6d194084c2de36e0dabfce45d046b37d1106"),
 				  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
@@ -308,8 +306,6 @@ fn decode_untrusted_str() {
 
 #[test]
 fn decode_untrusted_address() {
-	use bigint::hash::H160;
-
 	let tests = vec![
 		DTestPair(H160::from("ef2d6d194084c2de36e0dabfce45d046b37d1106"),
 				  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,

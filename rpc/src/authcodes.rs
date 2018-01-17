@@ -22,7 +22,7 @@ use itertools::Itertools;
 use rand::Rng;
 use rand::os::OsRng;
 use hash::keccak;
-use bigint::hash::H256;
+use ethereum_types::H256;
 
 /// Providing current time in seconds
 pub trait TimeProvider {
@@ -83,7 +83,6 @@ pub struct AuthCodes<T: TimeProvider = DefaultTimeProvider> {
 impl AuthCodes<DefaultTimeProvider> {
 
 	/// Reads `AuthCodes` from file and creates new instance using `DefaultTimeProvider`.
-	#[cfg_attr(feature="dev", allow(single_char_pattern))]
 	pub fn from_file(file: &Path) -> io::Result<AuthCodes> {
 		let content = {
 			if let Ok(mut file) = fs::File::open(file) {
@@ -154,7 +153,6 @@ impl<T: TimeProvider> AuthCodes<T> {
 
 	/// Checks if given hash is correct authcode of `SignerUI`
 	/// Updates this hash last used field in case it's valid.
-	#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 	pub fn is_valid(&mut self, hash: &H256, time: u64) -> bool {
 		let now = self.now.now();
 		// check time
@@ -234,7 +232,7 @@ mod tests {
 	use std::cell::Cell;
 	use hash::keccak;
 
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use super::*;
 
 	fn generate_hash(val: &str, time: u64) -> H256 {

@@ -7,4 +7,4 @@ license = "GPL-3.0"
 
 [dependencies]
 elastic-array = "0.9"
-ethcore-bigint = { version = "0.2.1", path = "../bigint" }
+ethereum-types = "0.1"

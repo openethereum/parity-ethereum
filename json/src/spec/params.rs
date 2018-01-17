@@ -123,7 +123,7 @@ pub struct Params {
 mod tests {
 	use serde_json;
 	use uint::Uint;
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use spec::params::Params;
 
 	#[test]

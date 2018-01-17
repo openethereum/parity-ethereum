@@ -16,7 +16,7 @@
 
 use std::collections::BTreeSet;
 use ethkey::{KeyPair, Signature, Error as EthKeyError};
-use bigint::hash::H256;
+use ethereum_types::{H256, Address};
 use types::all::{Error, Public, ServerKeyId, MessageHash, EncryptedMessageSignature, RequestSignature, EncryptedDocumentKey,
 	EncryptedDocumentKeyShadow, NodeId};
 
@@ -24,6 +24,8 @@ use types::all::{Error, Public, ServerKeyId, MessageHash, EncryptedMessageSignat
 pub trait NodeKeyPair: Send + Sync {
 	/// Public portion of key.
 	fn public(&self) -> &Public;
+	/// Address of key owner.
+	fn address(&self) -> Address;
 	/// Sign data with node key.
 	fn sign(&self, data: &H256) -> Result<Signature, EthKeyError>;
 	/// Compute shared key to encrypt channel between two nodes.

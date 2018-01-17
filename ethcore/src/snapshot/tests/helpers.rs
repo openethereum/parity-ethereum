@@ -31,9 +31,8 @@ use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 use devtools::{RandomTempPath, GuardedTempResult};
 use rand::Rng;
 
-use util::DBValue;
-use kvdb::KeyValueDB;
-use bigint::hash::H256;
+use kvdb::{KeyValueDB, DBValue};
+use ethereum_types::H256;
 use hashdb::HashDB;
 use journaldb;
 use trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
@@ -57,7 +56,6 @@ impl StateProducer {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(let_and_return))]
 	/// Tick the state producer. This alters the state, writing new data into
 	/// the database.
 	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB) {

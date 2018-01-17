@@ -34,7 +34,7 @@ use snapshot::{Error, ManifestData};
 
 use itertools::{Position, Itertools};
 use rlp::{RlpStream, UntrustedRlp};
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use kvdb::KeyValueDB;
 use bytes::Bytes;
 
@@ -335,7 +335,7 @@ impl Rebuilder for ChunkRebuilder {
 				}
 			}
 
-			let parent_td: ::bigint::prelude::U256 = last_rlp.val_at(4)?;
+			let parent_td: U256 = last_rlp.val_at(4)?;
 
 			let mut batch = self.db.transaction();
 			self.chain.insert_unordered_block(&mut batch, &block_data, receipts, Some(parent_td), true, false);

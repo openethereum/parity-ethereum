@@ -25,8 +25,7 @@ mod multi;
 
 use std::sync::Weak;
 use ids::BlockId;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::EngineClient;

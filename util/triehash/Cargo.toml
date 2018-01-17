@@ -7,5 +7,5 @@ license = "GPL-3.0"
 
 [dependencies]
 rlp = { version = "0.2.1", path = "../rlp" }
-ethcore-bigint = { version = "0.2.1", path = "../bigint" }
+ethereum-types = "0.1"
 keccak-hash = { version = "0.1", path = "../hash" }

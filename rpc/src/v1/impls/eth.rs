@@ -22,9 +22,7 @@ use std::sync::Arc;
 
 use rlp::{self, UntrustedRlp};
 use time::get_time;
-use bigint::prelude::U256;
-use bigint::hash::{H64, H160, H256};
-use util::Address;
+use ethereum_types::{U256, H64, H160, H256, Address};
 use parking_lot::Mutex;
 
 use ethash::SeedHashCompute;
@@ -35,10 +33,11 @@ use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
 use ethcore::log_entry::LogEntry;
-use ethcore::miner::{MinerService, ExternalMinerService};
-use ethcore::transaction::SignedTransaction;
+use ethcore::miner::MinerService;
 use ethcore::snapshot::SnapshotService;
 use ethsync::{SyncProvider};
+use miner::external::ExternalMinerService;
+use transaction::SignedTransaction;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
@@ -66,6 +65,8 @@ pub struct EthClientOptions {
 	pub allow_pending_receipt_query: bool,
 	/// Send additional block number when asking for work
 	pub send_block_number_in_get_work: bool,
+	/// Gas Price Percentile used as default gas price.
+	pub gas_price_percentile: usize,
 }
 
 impl EthClientOptions {
@@ -84,6 +85,7 @@ impl Default for EthClientOptions {
 			pending_nonce_from_queue: false,
 			allow_pending_receipt_query: true,
 			send_block_number_in_get_work: true,
+			gas_price_percentile: 50,
 		}
 	}
 }
@@ -338,7 +340,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn gas_price(&self) -> Result<RpcU256> {
-		Ok(RpcU256::from(default_gas_price(&*self.client, &*self.miner)))
+		Ok(RpcU256::from(default_gas_price(&*self.client, &*self.miner, self.options.gas_price_percentile)))
 	}
 
 	fn accounts(&self, meta: Metadata) -> Result<Vec<RpcH160>> {

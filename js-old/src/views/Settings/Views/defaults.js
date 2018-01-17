@@ -16,7 +16,7 @@
 
 import React from 'react';
 
-import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text.svg';
+import imagesEthcoreBlock from '~/../assets/images/parity-logo-white-no-text-small.svg';
 import { AccountsIcon, AddressesIcon, ContactsIcon, SettingsIcon } from '~/ui/Icons';
 
 import styles from './views.css';

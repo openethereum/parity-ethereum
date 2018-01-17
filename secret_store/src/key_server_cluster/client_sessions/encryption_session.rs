@@ -26,14 +26,6 @@ use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{Message, EncryptionMessage, InitializeEncryptionSession,
 	ConfirmEncryptionInitialization, EncryptionSessionError};
 
-/// Encryption session API.
-pub trait Session: Send + Sync + 'static {
-	/// Get encryption session state.
-	fn state(&self) -> SessionState;
-	/// Wait until session is completed. Returns distributely generated secret key.
-	fn wait(&self, timeout: Option<time::Duration>) -> Result<(), Error>;
-}
-
 /// Encryption (distributed key generation) session.
 /// Based on "ECDKG: A Distributed Key Generation Protocol Based on Elliptic Curve Discrete Logarithm" paper:
 /// http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.124.4128&rep=rep1&type=pdf
@@ -138,6 +130,12 @@ impl SessionImpl {
 		&self.self_node_id
 	}
 
+	/// Wait for session completion.
+	pub fn wait(&self, timeout: Option<time::Duration>) -> Result<(), Error> {
+		Self::wait_session(&self.completed, &self.data, timeout, |data| data.result.clone())
+	}
+
+
 	/// Start new session initialization. This must be called on master node.
 	pub fn initialize(&self, requestor_signature: Signature, common_point: Public, encrypted_point: Public) -> Result<(), Error> {
 		let mut data = self.data.lock();
@@ -153,8 +151,8 @@ impl SessionImpl {
 			initialization_confirmed: &n == self.node(),
 		})));
 
-		// TODO: id signature is not enough here, as it was already used in key generation
-		// TODO: there could be situation when some nodes have failed to store encrypted data
+		// TODO [Sec]: id signature is not enough here, as it was already used in key generation
+		// TODO [Reliability]: there could be situation when some nodes have failed to store encrypted data
 		// => potential problems during restore. some confirmation step is needed (2pc)?
 		// save encryption data
 		if let Some(mut encrypted_data) = self.encrypted_data.clone() {
@@ -325,26 +323,6 @@ impl ClusterSession for SessionImpl {
 			},
 			_ => unreachable!("cluster checks message to be correct before passing; qed"),
 		}
-	}
-}
-
-impl Session for SessionImpl {
-	fn state(&self) -> SessionState {
-		self.data.lock().state.clone()
-	}
-
-	fn wait(&self, timeout: Option<time::Duration>) -> Result<(), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			match timeout {
-				None => self.completed.wait(&mut data),
-				Some(timeout) => { self.completed.wait_for(&mut data, timeout); },
-			}
-		}
-
-		data.result.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
-			.clone()
 	}
 }
 
