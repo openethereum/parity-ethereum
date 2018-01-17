@@ -27,10 +27,11 @@ use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{MiningBlockChainClient};
+use ethcore::client::{MiningBlockChainClient, StateClient, Call};
 use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
 use ethcore::mode::Mode;
+use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
 use node_health::{NodeHealth, Health};
 use updater::{Service as UpdateService};
@@ -113,9 +114,9 @@ impl<C, M, U> ParityClient<C, M, U> where
 	}
 }
 
-impl<C, M, U> Parity for ParityClient<C, M, U> where
-	C: MiningBlockChainClient + 'static,
-	M: MinerService + 'static,
+impl<C, M, U, T: StateInfo + 'static> Parity for ParityClient<C, M, U> where
+	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T> + 'static,
+	M: MinerService<State=T> + 'static,
 	U: UpdateService + 'static,
 {
 	type Metadata = Metadata;
@@ -433,7 +434,7 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 		ipfs::cid(content)
 	}
 
-	fn call(&self, meta: Self::Metadata, requests: Vec<CallRequest>, block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
+	fn call(&self, meta: Self::Metadata, requests: Vec<CallRequest>, num: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
 		let requests = requests
 			.into_iter()
 			.map(|request| Ok((
@@ -442,9 +443,28 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 			)))
 			.collect::<Result<Vec<_>>>()?;
 
-		let block = block.unwrap_or_default();
+		let num = num.unwrap_or_default();
 
-		self.client.call_many(&requests, block.into())
+		let (state, header) = if num == BlockNumber::Pending {
+			let info = self.client.chain_info();
+			let state = try_bf!(self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned()));
+			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned()));
+
+			(state, header)
+		} else {
+			let id = match num {
+				BlockNumber::Num(num) => BlockId::Number(num),
+				BlockNumber::Earliest => BlockId::Earliest,
+				BlockNumber::Latest => BlockId::Latest,
+			};
+
+			let state = try_bf!(self.client.state_at(id).ok_or(errors::state_pruned()));
+			let header = try_bf!(self.client.block_header(id).ok_or(errors::state_pruned()));
+
+			(state, header.decode())
+		};
+
+		self.client.call_many(&requests, &mut state, &header)
 				.map(|res| res.into_iter().map(|res| res.output.into()).collect())
 				.map_err(errors::call)
 	}
