@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use ethcore::client::{MiningBlockChainClient, CallAnalytics, TransactionId, TraceId};
+use ethcore::client::{MiningBlockChainClient, CallAnalytics, TransactionId, TraceId, StateClient, StateInfo, Call, BlockId};
 use ethcore::transaction::SignedTransaction;
 use rlp::UntrustedRlp;
 
@@ -51,7 +51,10 @@ impl<C> TracesClient<C> {
 	}
 }
 
-impl<C> Traces for TracesClient<C> where C: MiningBlockChainClient + 'static {
+impl<C, S> Traces for TracesClient<C> where
+	S: StateInfo + 'static,
+	C: MiningBlockChainClient + StateClient<State=S> + Call<State=S> + 'static
+{
 	type Metadata = Metadata;
 
 	fn filter(&self, filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>> {
@@ -90,7 +93,18 @@ impl<C> Traces for TracesClient<C> where C: MiningBlockChainClient + 'static {
 		let request = CallRequest::into(request);
 		let signed = fake_sign::sign_call(request, meta.is_dapp())?;
 
-		self.client.call(&signed, to_call_analytics(flags), block.into())
+		let id = match block {
+			BlockNumber::Num(num) => BlockId::Number(num),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
+
+			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
+		};
+
+		let state = self.client.state_at(id).ok_or(errors::state_pruned())?;
+		let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
+
+		self.client.call(&signed, to_call_analytics(flags), &mut state, &header.decode())
 			.map(TraceResults::from)
 			.map_err(errors::call)
 	}
@@ -106,7 +120,18 @@ impl<C> Traces for TracesClient<C> where C: MiningBlockChainClient + 'static {
 			})
 			.collect::<Result<Vec<_>>>()?;
 
-		self.client.call_many(&requests, block.into())
+		let id = match block {
+			BlockNumber::Num(num) => BlockId::Number(num),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
+
+			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
+		};
+
+		let state = self.client.state_at(id).ok_or(errors::state_pruned())?;
+		let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
+
+		self.client.call_many(&requests, &mut state, &header.decode())
 			.map(|results| results.into_iter().map(TraceResults::from).collect())
 			.map_err(errors::call)
 	}
@@ -117,7 +142,18 @@ impl<C> Traces for TracesClient<C> where C: MiningBlockChainClient + 'static {
 		let tx = UntrustedRlp::new(&raw_transaction.into_vec()).as_val().map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))?;
 		let signed = SignedTransaction::new(tx).map_err(errors::transaction)?;
 
-		self.client.call(&signed, to_call_analytics(flags), block.into())
+		let id = match block {
+			BlockNumber::Num(num) => BlockId::Number(num),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
+
+			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
+		};
+
+		let state = self.client.state_at(id).ok_or(errors::state_pruned())?;
+		let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
+
+		self.client.call(&signed, to_call_analytics(flags), &mut state, &header.decode())
 			.map(TraceResults::from)
 			.map_err(errors::call)
 	}
