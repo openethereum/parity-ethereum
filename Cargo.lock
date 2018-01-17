@@ -592,6 +592,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethcore-migrations"
+version = "0.1.0"
+dependencies = [
+ "ethcore 1.9.0",
+ "ethcore-bloom-journal 0.1.0",
+ "ethcore-bytes 0.1.0",
+ "ethereum-types 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "journaldb 0.1.0",
+ "keccak-hash 0.1.0",
+ "kvdb 0.1.0",
+ "kvdb-rocksdb 0.1.0",
+ "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "macros 0.1.0",
+ "migration 0.1.0",
+ "patricia-trie 0.1.0",
+ "rlp 0.2.1",
+]
+
+[[package]]
 name = "ethcore-miner"
 version = "1.9.0"
 dependencies = [
@@ -1923,6 +1942,7 @@ dependencies = [
  "ethcore-io 1.9.0",
  "ethcore-light 1.9.0",
  "ethcore-logger 1.9.0",
+ "ethcore-migrations 0.1.0",
  "ethcore-miner 1.9.0",
  "ethcore-network 1.9.0",
  "ethcore-secretstore 1.0.0",
