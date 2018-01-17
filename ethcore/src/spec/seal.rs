@@ -56,8 +56,10 @@ pub struct Tendermint {
 
 impl Into<Generic> for AuthorityRound {
 	fn into(self) -> Generic {
-		let mut s = RlpStream::new_list(2);
-		s.append(&self.step).append(&self.signature);
+		let mut s = RlpStream::new_list(3);
+		s.append(&self.step)
+			.append(&self.signature)
+			.append_raw(&::rlp::EMPTY_LIST_RLP, 1);
 		Generic(s.out())
 	}
 }
