@@ -30,7 +30,7 @@ use parking_lot::Mutex;
 use ethash::SeedHashCompute;
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::block::IsBlock;
-use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo};
+use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call};
 use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
@@ -107,11 +107,11 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	eip86_transition: u64,
 }
 
-impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
-	C: MiningBlockChainClient + StateClient,
+impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S, M, EM> where
+	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T>,
 	SN: SnapshotService,
 	S: SyncProvider,
-	M: MinerService,
+	M: MinerService<State=T>,
 	EM: ExternalMinerService {
 
 	/// Creates new EthClient.
@@ -297,11 +297,11 @@ fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: Mining
 
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
-impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
-	C: MiningBlockChainClient + StateClient + 'static,
+impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<C, SN, S, M, EM> where
+	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T> + 'static,
 	SN: SnapshotService + 'static,
 	S: SyncProvider + 'static,
-	M: MinerService + 'static,
+	M: MinerService<State=T> + 'static,
 	EM: ExternalMinerService + 'static,
 {
 	type Metadata = Metadata;
@@ -654,7 +654,27 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let signed = try_bf!(fake_sign::sign_call(request, meta.is_dapp()));
 
 		let num = num.unwrap_or_default();
-		let result = self.client.call(&signed, Default::default(), num.into());
+
+		let (state, header) = if num == BlockNumber::Pending {
+			let info = self.client.chain_info();
+			let state = try_bf!(self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned));
+			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned));
+
+			(state, header)
+		} else {
+			let id = match num {
+				BlockNumber::Num(num) => BlockId::Number(num),
+				BlockNumber::Earliest => BlockId::Earliest,
+				BlockNumber::Latest => BlockId::Latest,
+			};
+
+			let state = try_bf!(self.client.state_at(id).ok_or(errors::state_pruned));
+			let header = try_bf!(self.client.block_header(id).ok_or(errors::state_pruned));
+
+			(state, header.decode())
+		};
+
+		let result = self.client.call(&signed, Default::default(), &mut state, &header);
 
 		Box::new(future::done(result
 			.map(|b| b.output.into())
