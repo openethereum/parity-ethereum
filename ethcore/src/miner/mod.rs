@@ -76,6 +76,7 @@ use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
 use error::{Error};
 use transaction::{UnverifiedTransaction, PendingTransaction};
+use header::Header;
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
@@ -201,7 +202,11 @@ pub trait MinerService : Send + Sync {
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { 21000.into() }
 
+	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
 	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Self::State>;
+
+	/// Get `Some` `clone()` of the current pending block header or `None` if we're not sealing.
+	fn pending_block_header(&self, latest_block_number: BlockNumber) -> Option<Header>;
 }
 
 /// Mining status
