@@ -31,7 +31,7 @@ pub struct UnknownValidator;
 /// Rolling finality checker for authority round consensus.
 /// Stores a chain of unfinalized hashes that can be pushed onto.
 pub struct RollingFinality {
-	headers: VecDeque<(H256, Address)>,
+	headers: VecDeque<(H256, Vec<Address>)>,
 	signers: SimpleList,
 	sign_count: HashMap<Address, usize>,
 	last_pushed: Option<H256>,
@@ -53,28 +53,31 @@ impl RollingFinality {
 	///
 	/// Fails if any provided signature isn't part of the signers set.
 	pub fn build_ancestry_subchain<I>(&mut self, iterable: I) -> Result<(), UnknownValidator>
-		where I: IntoIterator<Item=(H256, Address)>
+		where I: IntoIterator<Item=(H256, Vec<Address>)>
 	{
 		self.clear();
-		for (hash, signer) in iterable {
-			if !self.signers.contains(&signer) { return Err(UnknownValidator) }
+		for (hash, signers) in iterable {
+			if !signers.iter().all(|s| self.signers.contains(s)) { return Err(UnknownValidator) }
 			if self.last_pushed.is_none() { self.last_pushed = Some(hash) }
 
 			// break when we've got our first finalized block.
 			{
 				let current_signed = self.sign_count.len();
-				let would_be_finalized = (current_signed + 1) * 2 > self.signers.len();
 
-				let entry = self.sign_count.entry(signer);
-				if let (true, &Entry::Vacant(_)) = (would_be_finalized, &entry) {
+				let new_signers = signers.iter().filter(|s| !self.sign_count.contains_key(s)).count();
+				let would_be_finalized = (current_signed + new_signers) * 2 > self.signers.len();
+
+				if would_be_finalized {
 					trace!(target: "finality", "Encountered already finalized block {}", hash);
 					break
 				}
 
-				*entry.or_insert(0) += 1;
+				for signer in signers.iter() {
+					*self.sign_count.entry(*signer).or_insert(0) += 1;
+				}
 			}
 
-			self.headers.push_front((hash, signer));
+			self.headers.push_front((hash, signers));
 		}
 
 		trace!(target: "finality", "Rolling finality state: {:?}", self.headers);
@@ -104,30 +107,35 @@ impl RollingFinality {
 	/// Fails if `signer` isn't a member of the active validator set.
 	/// Returns a list of all newly finalized headers.
 	// TODO: optimize with smallvec.
-	pub fn push_hash(&mut self, head: H256, signer: Address) -> Result<Vec<H256>, UnknownValidator> {
-		if !self.signers.contains(&signer) { return Err(UnknownValidator) }
+	pub fn push_hash(&mut self, head: H256, signers: Vec<Address>) -> Result<Vec<H256>, UnknownValidator> {
+		if !signers.iter().all(|s| self.signers.contains(s)) { return Err(UnknownValidator) }
 
-		self.headers.push_back((head, signer));
-		*self.sign_count.entry(signer).or_insert(0) += 1;
+		for signer in signers.iter() {
+			*self.sign_count.entry(*signer).or_insert(0) += 1;
+		}
+
+		self.headers.push_back((head, signers));
 
 		let mut newly_finalized = Vec::new();
 
 		while self.sign_count.len() * 2 > self.signers.len() {
-			let (hash, signer) = self.headers.pop_front()
+			let (hash, signers) = self.headers.pop_front()
 				.expect("headers length always greater than sign count length; qed");
 
 			newly_finalized.push(hash);
 
-			match self.sign_count.entry(signer) {
-				Entry::Occupied(mut entry) => {
-					// decrement count for this signer and purge on zero.
-					*entry.get_mut() -= 1;
+			for signer in signers {
+				match self.sign_count.entry(signer) {
+					Entry::Occupied(mut entry) => {
+						// decrement count for this signer and purge on zero.
+						*entry.get_mut() -= 1;
 
-					if *entry.get() == 0 {
-						entry.remove();
+						if *entry.get() == 0 {
+							entry.remove();
+						}
 					}
+					Entry::Vacant(_) => panic!("all hashes in `header` should have entries in `sign_count` for their signers; qed"),
 				}
-				Entry::Vacant(_) => panic!("all hashes in `header` should have an entry in `sign_count` for their signer; qed"),
 			}
 		}
 
@@ -138,7 +146,7 @@ impl RollingFinality {
 	}
 }
 
-pub struct Iter<'a>(::std::collections::vec_deque::Iter<'a, (H256, Address)>);
+pub struct Iter<'a>(::std::collections::vec_deque::Iter<'a, (H256, Vec<Address>)>);
 
 impl<'a> Iterator for Iter<'a> {
 	type Item = H256;
