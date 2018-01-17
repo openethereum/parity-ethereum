@@ -33,7 +33,6 @@ use kvdb::{DBValue, KeyValueDB, DBTransaction};
 
 // other
 use ethereum_types::{H256, Address, U256};
-use basic_types::Seal;
 use block::*;
 use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};
 use blockchain::extras::TransactionAddress;
@@ -52,7 +51,7 @@ use evm::{Factory as EvmFactory, Schedule};
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::Factories;
 use futures::{future, Future};
-use header::{BlockNumber, Header};
+use header::{BlockNumber, Header, Seal};
 use io::*;
 use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
