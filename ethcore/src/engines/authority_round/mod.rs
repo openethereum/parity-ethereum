@@ -178,8 +178,8 @@ impl Step {
 }
 
 // Chain scoring: total weight is sqrt(U256::max_value())*height - step
-fn calculate_score(parent_step: U256, current_step: U256) -> U256 {
-	U256::from(U128::max_value()) + parent_step - current_step
+fn calculate_score(parent_step: U256, current_step: U256, current_empty_steps: U256) -> U256 {
+	U256::from(U128::max_value()) + parent_step - current_step + current_empty_steps
 }
 
 struct EpochManager {
@@ -513,6 +513,14 @@ impl AuthorityRound {
 		Ok(engine)
 	}
 
+	fn empty_steps(&self, from_step: U256, to_step: U256, parent_hash: H256) -> Vec<EmptyStep> {
+		self.empty_steps.lock().iter().filter(|e| {
+			U256::from(e.step) > from_step &&
+				U256::from(e.step) < to_step &&
+				e.parent_hash == parent_hash
+		}).cloned().collect()
+	}
+
 	fn handle_valid_message(&self, empty_step: EmptyStep) {
 		let mut empty_steps = self.empty_steps.lock();
 		empty_steps.push(empty_step);
@@ -637,7 +645,9 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		let parent_step = header_step(parent).expect("Header has been verified; qed");
-		let score = calculate_score(parent_step.into(), self.step.load().into());
+		let current_step = self.step.load();
+		let current_empty_steps = self.empty_steps(parent_step.into(), current_step.into(), parent.hash());
+		let score = calculate_score(parent_step.into(), current_step.into(), current_empty_steps.len().into());
 		header.set_difficulty(score);
 	}
 
@@ -680,10 +690,13 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		let step = self.step.load();
 
-		let expected_diff = calculate_score(parent_step, step.into());
+		// filter messages from old and future steps and different parents
+		let empty_steps = self.empty_steps(parent_step.into(), step.into(), *header.parent_hash());
+
+		let expected_diff = calculate_score(parent_step, step.into(), empty_steps.len().into());
 
 		if header.difficulty() != &expected_diff {
-			debug!(target: "engine", "Aborting seal generation. The step has changed in the meantime. {:?} != {:?}",
+			debug!(target: "engine", "Aborting seal generation. The step or empty_steps have changed in the meantime. {:?} != {:?}",
 				   header.difficulty(), expected_diff);
 			return Seal::None;
 		}
@@ -726,16 +739,6 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				return Seal::None;
 			}
 
-			let empty_steps: Vec<_> = {
-				let mut empty_steps = self.empty_steps.lock();
-
-				// clear old `empty_steps` messages
-				empty_steps.retain(|e| U256::from(e.step) > parent_step);
-
-				// ignore messages for future steps and different parents
-				empty_steps.iter().filter(|e| e.step < step && e.parent_hash == *header.parent_hash()).cloned().collect()
-			};
-
 			// FIXME: configurable
 			const MAX_EMPTY_STEPS: usize = 15;
 
@@ -752,6 +755,9 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 				// only issue the seal if we were the first to reach the compare_and_swap.
 				if self.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
+
+					// clear old `empty_steps` messages
+					self.empty_steps.lock().retain(|e| U256::from(e.step) > parent_step);
 					let fields = vec![
 						encode(&step).into_vec(),
 						encode(&(&H520::from(signature) as &[u8])).into_vec(),
