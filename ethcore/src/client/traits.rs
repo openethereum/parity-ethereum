@@ -151,10 +151,17 @@ pub trait ImportBlock {
 
 /// Provides methods to access chain state
 pub trait StateClient {
-	type State: StateInfo + 'static;
+	type State: StateInfo;
 
 	/// Get a copy of the best block's state.
 	fn latest_state(&self) -> Self::State;
+
+	/// Attempt to get a copy of a specific block's final state.
+	///
+	/// This will not fail if given BlockId::Latest.
+	/// Otherwise, this can fail (but may not) if the DB prunes state or the block
+	/// is unknown.
+	fn state_at(&self, id: BlockId) -> Option<Self::State>;
 }
 
 /// Provides `call` and `call_many` methods

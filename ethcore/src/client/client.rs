@@ -1395,7 +1395,11 @@ impl StateClient for Client {
 	type State = State<::state_db::StateDB>;
 
 	fn latest_state(&self) -> Self::State {
-		self.latest_state()
+		Client::latest_state(self)
+	}
+
+	fn state_at(&self, id: BlockId) -> Option<Self::State> {
+		Client::state_at(self, id)
 	}
 }
 
