@@ -195,8 +195,8 @@ case $BUILD_PLATFORM in
   x86_64-unknown-debian-gnu)
     STRIP_BIN="strip"
     EXT="deb"
-    LIBSSL="libssl1.1.0 (>=1.1.0)"
-    echo "Use libssl1.1.0 (>=1.1.0) for Debian builds"
+    LIBSSL="libssl1.1 (>=1.1.0)"
+    echo "Use libssl1.1 (>=1.1.0) for Debian builds"
     build
     strip_md5
     make_deb

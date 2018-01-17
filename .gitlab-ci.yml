@@ -41,7 +41,7 @@ linux-stable-debian:
     - stable
     - triggers
   script:
-    - export LIBSSL="libssl1.1.0 (>=1.1.0)"
+    - export LIBSSL="libssl1.1 (>=1.1.0)"
     - scripts/gitlab-build.sh x86_64-unknown-debian-gnu x86_64-unknown-linux-gnu amd64 gcc g++
   tags:
     - rust-debian
