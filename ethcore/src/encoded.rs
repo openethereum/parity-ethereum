@@ -30,9 +30,7 @@ use views;
 
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use bigint::prelude::U256;
-use bigint::hash::{H256, H2048};
-use util::Address;
+use ethereum_types::{H256, Bloom, U256, Address};
 use rlp::Rlp;
 
 /// Owning header view.
@@ -88,7 +86,7 @@ impl Header {
 	pub fn receipts_root(&self) -> H256 { self.view().receipts_root() }
 
 	/// Returns the block log bloom
-	pub fn log_bloom(&self) -> H2048 { self.view().log_bloom() }
+	pub fn log_bloom(&self) -> Bloom { self.view().log_bloom() }
 
 	/// Difficulty of this block
 	pub fn difficulty(&self) -> U256 { self.view().difficulty() }
@@ -234,7 +232,7 @@ impl Block {
 	pub fn receipts_root(&self) -> H256 { self.header_view().receipts_root() }
 
 	/// Returns the block log bloom
-	pub fn log_bloom(&self) -> H2048 { self.header_view().log_bloom() }
+	pub fn log_bloom(&self) -> Bloom { self.header_view().log_bloom() }
 
 	/// Difficulty of this block
 	pub fn difficulty(&self) -> U256 { self.header_view().difficulty() }

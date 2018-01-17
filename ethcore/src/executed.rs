@@ -16,8 +16,7 @@
 
 //! Transaction execution format module.
 
-use bigint::prelude::{U256, U512};
-use util::Address;
+use ethereum_types::{U256, U512, Address};
 use bytes::Bytes;
 use trie;
 use vm;

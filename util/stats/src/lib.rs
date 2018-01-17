@@ -46,6 +46,18 @@ impl<T> Deref for Corpus<T> {
 }
 
 impl<T: Ord> Corpus<T> {
+	/// Get given percentile (approximated).
+	pub fn percentile(&self, val: usize) -> Option<&T> {
+		let len = self.0.len();
+		let x = val * len / 100;
+		let x = ::std::cmp::min(x, len);
+		if x == 0 {
+			return None;
+		}
+
+		self.0.get(x - 1)
+	}
+
 	/// Get the median element, if it exists.
 	pub fn median(&self) -> Option<&T> {
 		self.0.get(self.0.len() / 2)
@@ -121,7 +133,19 @@ impl<T: Ord + Copy + ::std::fmt::Display> Histogram<T>
 
 #[cfg(test)]
 mod tests {
-	use super::Histogram;
+	use super::*;
+
+	#[test]
+	fn check_corpus() {
+		let corpus = Corpus::from(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+		assert_eq!(corpus.percentile(0), None);
+		assert_eq!(corpus.percentile(1), None);
+		assert_eq!(corpus.percentile(101), Some(&10));
+		assert_eq!(corpus.percentile(100), Some(&10));
+		assert_eq!(corpus.percentile(50), Some(&5));
+		assert_eq!(corpus.percentile(60), Some(&6));
+		assert_eq!(corpus.median(), Some(&6));
+	}
 
 	#[test]
 	fn check_histogram() {

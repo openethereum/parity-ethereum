@@ -24,7 +24,7 @@ extern crate parking_lot;
 extern crate regex;
 extern crate rocksdb;
 
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 extern crate kvdb;
 extern crate rlp;
 
@@ -699,7 +699,7 @@ mod tests {
 
 	use std::str::FromStr;
 	use self::tempdir::TempDir;
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use super::*;
 
 	fn test_db(config: &DatabaseConfig) {

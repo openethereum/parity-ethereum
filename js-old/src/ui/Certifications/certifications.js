@@ -97,9 +97,10 @@ function mapStateToProps (_, initProps) {
 
   return (state) => {
     const certifications = state.certifications[address] || [];
-    const dappsUrl = state.api.dappsUrl;
 
-    return { certifications, dappsUrl };
+    return {
+      certifications
+    };
   };
 }
 

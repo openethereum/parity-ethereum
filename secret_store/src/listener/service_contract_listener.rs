@@ -22,8 +22,7 @@ use parking_lot::Mutex;
 use ethcore::client::ChainNotify;
 use ethkey::{Random, Generator, Public, sign};
 use bytes::Bytes;
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{H256, U256};
 use key_server_set::KeyServerSet;
 use key_server_cluster::{ClusterClient, ClusterSessionsListener, ClusterSession};
 use key_server_cluster::generation_session::SessionImpl as GenerationSession;
@@ -362,7 +361,7 @@ impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 
 /// Returns true when session, related to `server_key_id` must be started on this KeyServer.
 fn is_processed_by_this_key_server(key_server_set: &KeyServerSet, self_key_pair: &NodeKeyPair, server_key_id: &H256) -> bool {
-	let servers = key_server_set.get();
+	let servers = key_server_set.snapshot().current_set;
 	let total_servers_count = servers.len();
 	match total_servers_count {
 		0 => return false,

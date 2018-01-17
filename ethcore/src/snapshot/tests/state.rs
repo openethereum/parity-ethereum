@@ -25,7 +25,7 @@ use super::helpers::{compare_dbs, StateProducer};
 use error::Error;
 
 use rand::{XorShiftRng, SeedableRng};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use journaldb::{self, Algorithm};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use memorydb::MemoryDB;
@@ -97,8 +97,7 @@ fn snap_and_restore() {
 fn get_code_from_prev_chunk() {
 	use std::collections::HashSet;
 	use rlp::RlpStream;
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
+	use ethereum_types::{H256, U256};
 	use hashdb::HashDB;
 
 	use account_db::{AccountDBMut, AccountDB};

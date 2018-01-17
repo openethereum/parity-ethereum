@@ -42,9 +42,9 @@ use transaction::SignedTransaction;
 use state_db::StateDB;
 use evm::{Factory as EvmFactory};
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::*;
+use ethereum_types::{H256, U256, Address};
+use hashdb::{HashDB, AsHashDB};
+use kvdb::DBValue;
 use bytes::Bytes;
 
 use trie;
@@ -193,7 +193,7 @@ impl AccountEntry {
 /// `Err(ExecutionError::Internal)` indicates failure, everything else indicates
 /// a successful proof (as the transaction itself may be poorly chosen).
 pub fn check_proof(
-	proof: &[::util::DBValue],
+	proof: &[DBValue],
 	root: H256,
 	transaction: &SignedTransaction,
 	machine: &Machine,
@@ -1065,9 +1065,7 @@ mod tests {
 	use hash::keccak;
 	use super::*;
 	use ethkey::Secret;
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
-	use util::Address;
+	use ethereum_types::{H256, U256, Address};
 	use tests::helpers::*;
 	use machine::EthereumMachine;
 	use vm::EnvInfo;
@@ -1406,7 +1404,7 @@ mod tests {
 	}
 
 	#[test]
-	fn should_not_trace_delegatecall() {
+	fn should_trace_delegatecall_properly() {
 		init_log();
 
 		let mut state = get_temp_state();
@@ -1426,7 +1424,7 @@ mod tests {
 		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap()).unwrap();
-		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("60056000526001601ff3").unwrap()).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1441,23 +1439,23 @@ mod tests {
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(721), // in post-eip150
+				gas_used: U256::from(736), // in post-eip150
 				output: vec![]
 			}),
 		}, FlatTrace {
 			trace_address: vec![0].into_iter().collect(),
 			subtraces: 0,
 			action: trace::Action::Call(trace::Call {
-				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-				to: 0xa.into(),
+				from: 0xa.into(),
+				to: 0xb.into(),
 				value: 0.into(),
 				gas: 32768.into(),
 				input: vec![],
 				call_type: CallType::DelegateCall,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: 3.into(),
-				output: vec![],
+				gas_used: 18.into(),
+				output: vec![5],
 			}),
 		}];
 

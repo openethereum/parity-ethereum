@@ -23,9 +23,7 @@ use std::cmp::max;
 use std::str::FromStr;
 use cli::{Args, ArgsError};
 use hash::keccak;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{U256, H256, Address};
 use parity_version::{version_data, version};
 use bytes::Bytes;
 use ansi_term::Colour;
@@ -339,6 +337,7 @@ impl Configuration {
 				daemon: daemon,
 				logger_config: logger_config.clone(),
 				miner_options: self.miner_options()?,
+				gas_price_percentile: self.args.arg_gas_price_percentile,
 				ntp_servers: self.ntp_servers(),
 				ws_conf: ws_conf,
 				http_conf: http_conf,
@@ -609,6 +608,7 @@ impl Configuration {
 			enabled: self.secretstore_enabled(),
 			http_enabled: self.secretstore_http_enabled(),
 			acl_check_enabled: self.secretstore_acl_check_enabled(),
+			auto_migrate_enabled: self.secretstore_auto_migrate_enabled(),
 			service_contract_address: self.secretstore_service_contract_address()?,
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
@@ -1087,6 +1087,10 @@ impl Configuration {
 		!self.args.flag_no_secretstore_acl_check
 	}
 
+	fn secretstore_auto_migrate_enabled(&self) -> bool {
+		!self.args.flag_no_secretstore_auto_migrate
+	}
+
 	fn secretstore_service_contract_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
 		Ok(match self.args.arg_secretstore_contract.as_ref() {
 			"none" => None,
@@ -1133,7 +1137,8 @@ mod tests {
 
 	use devtools::{RandomTempPath};
 	use ethcore::client::{VMType, BlockId};
-	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
+	use ethcore::miner::MinerOptions;
+	use miner::transaction_queue::PrioritizationStrategy;
 	use parity_rpc::NetworkSettings;
 	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 
@@ -1357,6 +1362,7 @@ mod tests {
 			daemon: None,
 			logger_config: Default::default(),
 			miner_options: Default::default(),
+			gas_price_percentile: 50,
 			ntp_servers: vec![
 				"0.parity.pool.ntp.org:123".into(),
 				"1.parity.pool.ntp.org:123".into(),

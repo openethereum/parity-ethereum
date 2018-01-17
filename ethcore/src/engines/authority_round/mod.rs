@@ -39,12 +39,10 @@ use ethkey::{verify_address, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{UntrustedRlp, encode};
-use bigint::prelude::{U256, U128};
-use bigint::hash::{H256, H520};
+use ethereum_types::{H256, H520, Address, U128, U256};
 use semantic_version::SemanticVersion;
 use parking_lot::{Mutex, RwLock};
 use unexpected::{Mismatch, OutOfBounds};
-use util::*;
 use bytes::Bytes;
 
 mod finality;
@@ -147,11 +145,10 @@ impl Step {
 	}
 
 	fn check_future(&self, given: usize) -> Result<(), Option<OutOfBounds<u64>>> {
-		const VALID_STEP_DRIFT: usize = 1;
 		const REJECTED_STEP_DRIFT: usize = 4;
 
-		// Give one step slack if step is lagging, double vote is still not possible.
-		if given <= self.load() + VALID_STEP_DRIFT {
+		// Verify if the step is correct.
+		if given <= self.load() {
 			return Ok(());
 		}
 
@@ -163,11 +160,11 @@ impl Step {
 		if given > current + REJECTED_STEP_DRIFT {
 			Err(None)
 		// wait a bit for blocks in near future
-		} else if given > current + VALID_STEP_DRIFT {
+		} else if given > current {
 			let d = self.duration as u64;
 			Err(Some(OutOfBounds {
 				min: None,
-				max: Some(d * (current + VALID_STEP_DRIFT) as u64),
+				max: Some(d * current as u64),
 				found: d * given as u64,
 			}))
 		} else {
@@ -474,9 +471,15 @@ impl IoHandler<()> for TransitionHandler {
 	fn timeout(&self, io: &IoContext<()>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
-				engine.step();
-				let remaining = engine.step.duration_remaining();
-				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, remaining.as_millis())
+				// NOTE we might be lagging by couple of steps in case the timeout
+				// has not been called fast enough.
+				// Make sure to advance up to the actual step.
+				while engine.step.duration_remaining().as_millis() == 0 {
+					engine.step();
+				}
+
+				let next_run_at = engine.step.duration_remaining().as_millis() >> 2;
+				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, next_run_at)
 					.unwrap_or_else(|e| warn!(target: "engine", "Failed to restart consensus step timer: {}.", e))
 			}
 		}
@@ -549,6 +552,13 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let expected_diff = calculate_score(parent_step, step.into());
 
 		if header.difficulty() != &expected_diff {
+			debug!(target: "engine", "Aborting seal generation. The step has changed in the meantime. {:?} != {:?}",
+				   header.difficulty(), expected_diff);
+			return Seal::None;
+		}
+
+		if parent_step > step.into() {
+			warn!(target: "engine", "Aborting seal generation for invalid step: {} > {}", parent_step, step);
 			return Seal::None;
 		}
 
@@ -897,8 +907,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 	use hash::keccak;
-	use bigint::prelude::U256;
-	use bigint::hash::H520;
+	use ethereum_types::{H520, U256};
 	use header::Header;
 	use rlp::encode;
 	use block::*;

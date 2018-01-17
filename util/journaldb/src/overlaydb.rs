@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use error::{Result, BaseDataError};
-use bigint::hash::*;
+use ethereum_types::H256;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;

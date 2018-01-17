@@ -19,7 +19,7 @@
 extern crate jsonrpc_tcp_server;
 extern crate jsonrpc_core;
 extern crate jsonrpc_macros;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 extern crate keccak_hash as hash;
 extern crate parking_lot;
 
@@ -46,7 +46,7 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap};
 use hash::keccak;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use parking_lot::{RwLock, RwLockReadGuard};
 
 type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;

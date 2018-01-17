@@ -17,8 +17,7 @@
 use super::{SECP256K1, Public, Secret, Error};
 use secp256k1::key;
 use secp256k1::constants::{GENERATOR_X, GENERATOR_Y, CURVE_ORDER};
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{U256, H256};
 
 /// Whether the public key is valid.
 pub fn public_is_valid(public: &Public) -> bool {

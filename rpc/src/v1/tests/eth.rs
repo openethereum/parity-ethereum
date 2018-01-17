@@ -19,22 +19,22 @@ use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{U256, H256, Address};
 use ethcore::account_provider::AccountProvider;
 use ethcore::block::Block;
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use ethcore::ethereum;
 use ethcore::ids::BlockId;
-use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, ExternalMiner, Miner, PendingSet, PrioritizationStrategy, GasLimit};
+use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, Miner, PendingSet, GasLimit};
 use ethcore::spec::{Genesis, Spec};
 use ethcore::views::BlockView;
 use ethjson::blockchain::BlockChain;
 use ethjson::state::test::ForkSpec;
 use io::IoChannel;
 use kvdb_memorydb;
+use miner::external::ExternalMiner;
+use miner::transaction_queue::PrioritizationStrategy;
 use parking_lot::Mutex;
-use util::Address;
 
 use jsonrpc_core::IoHandler;
 use v1::helpers::dispatch::FullDispatcher;
@@ -153,7 +153,7 @@ impl EthTester {
 
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 
-		let dispatcher = FullDispatcher::new(client.clone(), miner_service.clone(), reservations);
+		let dispatcher = FullDispatcher::new(client.clone(), miner_service.clone(), reservations, 50);
 		let eth_sign = SigningUnsafeClient::new(
 			&opt_account_provider,
 			dispatcher,

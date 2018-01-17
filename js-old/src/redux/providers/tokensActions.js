@@ -23,7 +23,7 @@ import { fetchTokenIds, fetchTokensBasics, fetchTokensInfo, fetchTokensImages } 
 
 import { setAddressImage } from './imagesActions';
 
-const TOKENS_CACHE_LS_KEY_PREFIX = '_parity::tokens::';
+const TOKENS_CACHE_LS_KEY_PREFIX = '_parity::tokenreg::';
 const log = getLogger(LOG_KEYS.Balances);
 
 function _setTokens (tokens) {

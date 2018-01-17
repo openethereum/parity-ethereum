@@ -23,6 +23,15 @@
 
 use std::collections::HashSet;
 
+use bytes::Bytes;
+use ethereum_types::{H256, U256};
+use hash::keccak;
+use heapsize::HeapSizeOf;
+use rlp::UntrustedRlp;
+use time::get_time;
+use triehash::ordered_trie_root;
+use unexpected::{Mismatch, OutOfBounds};
+
 use blockchain::*;
 use client::BlockChainClient;
 use engines::EthEngine;
@@ -30,16 +39,6 @@ use error::{BlockError, Error};
 use header::{BlockNumber, Header};
 use transaction::SignedTransaction;
 use views::BlockView;
-
-use bigint::hash::H256;
-use bigint::prelude::U256;
-use bytes::Bytes;
-use hash::keccak;
-use heapsize::HeapSizeOf;
-use rlp::UntrustedRlp;
-use time::get_time;
-use triehash::ordered_trie_root;
-use unexpected::{Mismatch, OutOfBounds};
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -333,28 +332,21 @@ fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &
 
 #[cfg(test)]
 mod tests {
+	use super::*;
+
 	use std::collections::{BTreeMap, HashMap};
-	use hash::keccak;
-	use bigint::prelude::U256;
-	use bigint::hash::{H256, H2048};
-	use triehash::ordered_trie_root;
-	use unexpected::{Mismatch, OutOfBounds};
-	use bytes::Bytes;
-	use ethkey::{Random, Generator};
-	use header::*;
-	use verification::*;
-	use blockchain::extras::*;
-	use error::*;
-	use error::BlockError::*;
-	use views::*;
-	use blockchain::*;
-	use engines::EthEngine;
-	use spec::*;
-	use transaction::*;
-	use tests::helpers::*;
-	use types::log_entry::{LogEntry, LocalizedLogEntry};
-	use time::get_time;
+	use ethereum_types::{H256, Bloom, U256};
+	use blockchain::extras::{BlockDetails, TransactionAddress, BlockReceipts};
 	use encoded;
+	use hash::keccak;
+	use engines::EthEngine;
+	use error::BlockError::*;
+	use ethkey::{Random, Generator};
+	use spec::{CommonParams, Spec};
+	use tests::helpers::{create_test_block_with_data, create_test_block};
+	use time::get_time;
+	use transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action};
+	use types::log_entry::{LogEntry, LocalizedLogEntry};
 
 	fn check_ok(result: Result<(), Error>) {
 		result.unwrap_or_else(|e| panic!("Block verification failed: {:?}", e));
@@ -461,7 +453,7 @@ mod tests {
 			unimplemented!()
 		}
 
-		fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
+		fn blocks_with_bloom(&self, _bloom: &Bloom, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
 			unimplemented!()
 		}
 

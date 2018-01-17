@@ -17,9 +17,7 @@
 use std::sync::Arc;
 use std::collections::HashMap;
 use byteorder::{LittleEndian, ByteOrder};
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address};
 
 use super::WasmInterpreter;
 use vm::{self, Vm, GasLeft, ActionParams, ActionValue};
@@ -29,6 +27,34 @@ macro_rules! load_sample {
 	($name: expr) => {
 		include_bytes!(concat!("../../res/wasm-tests/compiled/", $name)).to_vec()
 	}
+}
+
+macro_rules! reqrep_test {
+	($name: expr, $input: expr) => {
+		reqrep_test!($name, $input, vm::EnvInfo::default(), HashMap::new())
+	};
+	($name: expr, $input: expr, $info: expr, $block_hashes: expr) => {
+		{
+			::ethcore_logger::init_log();
+			let code = load_sample!($name);
+
+			let mut params = ActionParams::default();
+			params.gas = U256::from(100_000);
+			params.code = Some(Arc::new(code));
+			params.data = Some($input);
+
+			let mut fake_ext = FakeExt::new();
+			fake_ext.info = $info;
+			fake_ext.blockhashes = $block_hashes;
+
+			let mut interpreter = wasm_interpreter();
+			interpreter.exec(params, &mut fake_ext)
+				.map(|result| match result {
+					GasLeft::Known(_) => { panic!("Test is expected to return payload to check"); },
+					GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+				})
+		}
+	};
 }
 
 fn test_finalize(res: Result<GasLeft, vm::Error>) -> Result<U256, vm::Error> {
@@ -493,6 +519,36 @@ fn keccak() {
 	assert_eq!(gas_left, U256::from(81_067));
 }
 
+// memcmp test.
+#[test]
+fn memcmp() {
+	::ethcore_logger::init_log();
+
+	let (gas_left, result) = reqrep_test! {
+		"memcmp.wasm",
+		vec![1u8, 1, 1]
+	}.expect("Interpreter to execute without any errors");
+
+	assert_eq!(0i32, LittleEndian::read_i32(&result));
+	assert_eq!(gas_left, U256::from(96610));
+
+	let (gas_left, result) = reqrep_test! {
+		"memcmp.wasm",
+		vec![1u8, 1, 3, 1]
+	}.expect("Interpreter to execute without any errors");
+
+	assert_eq!(2i32, LittleEndian::read_i32(&result));
+	assert_eq!(gas_left, U256::from(96610));
+
+	let (gas_left, result) = reqrep_test! {
+		"memcmp.wasm",
+		vec![1u8, 1, 0]
+	}.expect("Interpreter to execute without any errors");
+
+	assert_eq!(-1i32, LittleEndian::read_i32(&result));
+	assert_eq!(gas_left, U256::from(96610));
+}
+
 // memcpy test.
 #[test]
 fn memcpy() {
@@ -580,34 +636,6 @@ fn memset() {
 
 	assert_eq!(result, vec![228u8; 8192]);
 	assert_eq!(gas_left, U256::from(71_921));
-}
-
-macro_rules! reqrep_test {
-	($name: expr, $input: expr) => {
-		reqrep_test!($name, $input, vm::EnvInfo::default(), HashMap::new())
-	};
-	($name: expr, $input: expr, $info: expr, $block_hashes: expr) => {
-		{
-			::ethcore_logger::init_log();
-			let code = load_sample!($name);
-
-			let mut params = ActionParams::default();
-			params.gas = U256::from(100_000);
-			params.code = Some(Arc::new(code));
-			params.data = Some($input);
-
-			let mut fake_ext = FakeExt::new();
-			fake_ext.info = $info;
-			fake_ext.blockhashes = $block_hashes;
-
-			let mut interpreter = wasm_interpreter();
-			interpreter.exec(params, &mut fake_ext)
-				.map(|result| match result {
-					GasLeft::Known(_) => { panic!("Test is expected to return payload to check"); },
-					GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
-				})
-		}
-	};
 }
 
 // math_* tests check the ability of wasm contract to perform big integer operations

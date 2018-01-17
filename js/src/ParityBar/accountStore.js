@@ -14,14 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable, transaction } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
 
 let instance;
 
 export default class AccountStore {
-  @observable accounts = [];
+  @observable allAccounts = [];
   @observable defaultAccount = null;
   @observable isLoading = false;
+
+  whitelist = []; // Whitelist of account addresses visible by dapps, i.e. parity_getNewDappsAddresses
 
   constructor (api) {
     this._api = api;
@@ -31,13 +33,27 @@ export default class AccountStore {
       .then(() => this.loadAccounts());
   }
 
+  /**
+   * Accounts that are whitelisted to be shown to dapps
+   */
+  @computed get accounts () {
+    return this.allAccounts.filter(account => this.whitelist.includes(account.address));
+  }
+
+  /**
+   * For backwards compatibility
+   */
   @action setAccounts = (accounts) => {
-    this.accounts = accounts;
+    return this.setAllAccounts(accounts);
+  }
+
+  @action setAllAccounts = (allAccounts) => {
+    this.allAccounts = allAccounts;
   }
 
   @action setDefaultAccount = (defaultAccount) => {
     transaction(() => {
-      this.accounts = this.accounts.map((account) => {
+      this.allAccounts = this.allAccounts.map((account) => {
         account.checked = account.address === defaultAccount;
 
         return account;
@@ -70,6 +86,8 @@ export default class AccountStore {
         this._api.parity.allAccountsInfo()
       ])
       .then(([whitelist, allAccounts]) => {
+        this.whitelist = whitelist;
+
         transaction(() => {
           const accounts = Object
             .keys(allAccounts)
@@ -77,9 +95,8 @@ export default class AccountStore {
               const account = allAccounts[address];
               const isAccount = account.uuid;
               const isExternal = account.meta && (account.meta.external || account.meta.hardware);
-              const isWhitelisted = !whitelist || whitelist.includes(address);
 
-              return (isAccount || isExternal) && isWhitelisted;
+              return (isAccount || isExternal);
             })
             .map((address) => {
               return {
@@ -90,7 +107,7 @@ export default class AccountStore {
             });
 
           this.setLoading(false);
-          this.setAccounts(accounts);
+          this.setAllAccounts(accounts);
         });
       })
       .catch((error) => {
@@ -119,7 +136,7 @@ export default class AccountStore {
         }
       });
 
-    return Promise.all([ promiseDefaultAccount, promiseEthAccounts, promiseAccountsInfo ]);
+    return Promise.all([promiseDefaultAccount, promiseEthAccounts, promiseAccountsInfo]);
   }
 
   static get (api) {

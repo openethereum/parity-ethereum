@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -21,21 +21,21 @@ import Foundation
 import Darwin
 
 public func GetBSDProcessList() -> ([kinfo_proc]?)  {
-	
+
 	var done = false
 	var result: [kinfo_proc]?
 	var err: Int32
-	
+
 	repeat {
 		let name = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0];
 		let namePointer = name.withUnsafeBufferPointer { UnsafeMutablePointer<Int32>(mutating: $0.baseAddress) }
 		var length: Int = 0
-		
+
 		err = sysctl(namePointer, u_int(name.count), nil, &length, nil, 0)
 		if err == -1 {
 			err = errno
 		}
-		
+
 		if err == 0 {
 			let count = length / MemoryLayout<kinfo_proc>.stride
 			result = [kinfo_proc](repeating: kinfo_proc(), count: count)
@@ -54,6 +54,6 @@ public func GetBSDProcessList() -> ([kinfo_proc]?)  {
 			}
 		}
 	} while err == 0 && !done
-	
+
 	return result
 }

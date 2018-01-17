@@ -1,6 +1,7 @@
 # [Parity](https://parity.io/) - fast, light, and robust Ethereum client
 
 [![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master)
+[![codecov](https://codecov.io/gh/paritytech/parity/branch/master/graph/badge.svg)](https://codecov.io/gh/paritytech/parity)
 [![Snap Status](https://build.snapcraft.io/badge/paritytech/parity.svg)](https://build.snapcraft.io/user/paritytech/parity)
 [![GPLv3](https://img.shields.io/badge/license-GPL%20v3-green.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
@@ -14,7 +15,10 @@ Get in touch with us on Gitter:
 [![Gitter: Parity/Miners](https://img.shields.io/badge/gitter-parity/miners-4AB495.svg)](https://gitter.im/paritytech/parity/miners)
 [![Gitter: Parity-PoA](https://img.shields.io/badge/gitter-parity--poa-4AB495.svg)](https://gitter.im/paritytech/parity-poa)
 
-Be sure to check out [our wiki](https://github.com/paritytech/parity/wiki) and the [internal documentation](https://paritytech.github.io/parity/ethcore/index.html) for more information.
+Or join our community on Matrix:
+[![Riot: +Parity](https://img.shields.io/badge/riot-%2Bparity%3Amatrix.parity.io-orange.svg)](https://riot.im/app/#/group/+parity:matrix.parity.io)
+
+Be sure to check out [our wiki](https://paritytech.github.io/wiki/) and the [internal documentation](https://paritytech.github.io/parity/ethcore/index.html) for more information.
 
 ----
 
@@ -31,7 +35,7 @@ Parity comes with a built-in wallet. To access [Parity Wallet](http://web3.site/
 
 By default, Parity will also run a JSONRPC server on `127.0.0.1:8545` and a websockets server on `127.0.0.1:8546`. This is fully configurable and supports a number of APIs.
 
-If you run into an issue while using parity, feel free to file one in this repository or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/room/#parity-watercooler:matrix.org) chat room to ask a question. We are glad to help!
+If you run into an issue while using Parity, feel free to file one in this repository or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help!
 
 **For security-critical issues**, please refer to the security policy outlined in [SECURITY.MD](SECURITY.md).
 
@@ -66,7 +70,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 	$ rustup default stable-x86_64-pc-windows-msvc
   ```
 
-Once you have rustup, install parity or download and build from source
+Once you have rustup, install Parity or download and build from source
 
 ----
 

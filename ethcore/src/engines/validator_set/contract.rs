@@ -18,9 +18,8 @@
 /// It can also report validators for misbehaviour with two levels: `reportMalicious` and `reportBenign`.
 
 use std::sync::Weak;
-use bigint::hash::H256;
+use ethereum_types::{H256, Address};
 use parking_lot::RwLock;
-use util::*;
 use bytes::Bytes;
 
 use futures::Future;
@@ -137,8 +136,7 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
-	use bigint::hash::H520;
-	use util::*;
+	use ethereum_types::{H520, Address};
 	use bytes::ToPretty;
 	use rlp::encode;
 	use spec::Spec;

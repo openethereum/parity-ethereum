@@ -17,8 +17,7 @@
 //! Peer status and capabilities.
 
 use rlp::{DecoderError, Encodable, Decodable, RlpStream, UntrustedRlp};
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 
 use super::request_credits::FlowParams;
 
@@ -374,8 +373,7 @@ pub fn write_announcement(announcement: &Announcement) -> Vec<u8> {
 mod tests {
 	use super::*;
 	use super::super::request_credits::FlowParams;
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
+	use ethereum_types::{U256, H256};
 	use rlp::{RlpStream, UntrustedRlp};
 
 	#[test]

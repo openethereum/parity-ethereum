@@ -38,9 +38,8 @@ extern crate url;
 
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
-extern crate ethcore_util as util;
-extern crate ethcore_bigint as bigint;
 extern crate ethcore_logger as logger;
+extern crate ethereum_types;
 extern crate ethcrypto;
 extern crate ethkey;
 extern crate ethsync;
@@ -79,7 +78,9 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<No
 		} else {
 			Arc::new(acl_storage::DummyAclStorage::default())
 		};
-	let key_server_set = key_server_set::OnChainKeyServerSet::new(trusted_client.clone(), config.cluster_config.nodes.clone())?;
+
+	let key_server_set = key_server_set::OnChainKeyServerSet::new(trusted_client.clone(), self_key_pair.clone(),
+		config.cluster_config.auto_migrate_enabled, config.cluster_config.nodes.clone())?;
 	let key_storage = Arc::new(key_storage::PersistentKeyStorage::new(&config)?);
 	let key_server = Arc::new(key_server::KeyServerImpl::new(&config.cluster_config, key_server_set.clone(), self_key_pair.clone(), acl_storage, key_storage.clone())?);
 	let cluster = key_server.cluster();

@@ -20,7 +20,7 @@ use std::cmp::Ordering;
 use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
 use json::{Uuid, OpaqueKeyFile};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use OpaqueSecret;
 
 /// Key directory reference

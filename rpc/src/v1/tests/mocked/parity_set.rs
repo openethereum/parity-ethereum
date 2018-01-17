@@ -17,8 +17,7 @@
 use std::sync::Arc;
 use std::str::FromStr;
 use rustc_hex::FromHex;
-use bigint::prelude::U256;
-use util::Address;
+use ethereum_types::{U256, Address};
 
 use ethcore::miner::MinerService;
 use ethcore::client::TestBlockChainClient;
@@ -213,7 +212,7 @@ fn rpc_parity_set_hash_content() {
 
 #[test]
 fn rpc_parity_remove_transaction() {
-	use ethcore::transaction::{Transaction, Action};
+	use transaction::{Transaction, Action};
 
 	let miner = miner_service();
 	let client = client_service();

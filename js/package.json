@@ -1,6 +1,6 @@
 {
   "name": "Parity",
-  "version": "1.9.42",
+  "version": "1.9.60",
   "main": "src/index.parity.js",
   "jsnext:main": "src/index.parity.js",
   "author": "Parity Team <admin@parity.io>",
@@ -45,7 +45,6 @@
   },
   "devDependencies": {
     "@parity/dapp-console": "paritytech/dapp-console",
-    "@parity/dapp-dapp-accounts": "paritytech/dapp-dapp-accounts",
     "@parity/dapp-dapp-methods": "js-dist-paritytech/dapp-dapp-methods",
     "@parity/dapp-dapp-visible": "js-dist-paritytech/dapp-dapp-visible",
     "@parity/dapp-dappreg": "paritytech/dapp-dappreg",
@@ -53,6 +52,7 @@
     "@parity/dapp-localtx": "paritytech/dapp-localtx",
     "@parity/dapp-registry": "paritytech/dapp-registry",
     "@parity/dapp-signaturereg": "paritytech/dapp-signaturereg",
+    "@parity/dapp-status": "js-dist-paritytech/dapp-status",
     "@parity/dapp-tokendeploy": "paritytech/dapp-tokendeploy",
     "@parity/dapp-tokenreg": "paritytech/dapp-tokenreg",
     "babel-cli": "6.26.0",
@@ -105,7 +105,8 @@
     "istanbul": "1.0.0-alpha.2",
     "jsdom": "9.11.0",
     "json-loader": "0.5.4",
-    "markdown-loader": "2.0.0",
+    "markdown-loader": "2.0.1",
+    "marked": "0.3.9",
     "mocha": "3.2.0",
     "mock-local-storage": "1.0.2",
     "mock-socket": "6.0.4",
@@ -140,12 +141,12 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/api": "^2.1.14",
+    "@parity/api": "2.1.15",
     "@parity/plugin-signer-account": "paritytech/plugin-signer-account",
     "@parity/plugin-signer-default": "paritytech/plugin-signer-default",
     "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware",
     "@parity/plugin-signer-qr": "paritytech/plugin-signer-qr",
-    "@parity/shared": "2.2.17",
+    "@parity/shared": "2.2.21",
     "@parity/ui": "3.0.22",
     "keythereum": "1.0.2",
     "lodash.flatten": "4.4.0",

@@ -22,7 +22,7 @@ use std::fmt;
 use std::time::{Duration, SystemTime};
 use std::sync::Arc;
 
-use bigint::hash::{H256, H512};
+use ethereum_types::{H256, H512};
 use network::{self, HostInfo, NetworkContext, NodeId, PeerId, ProtocolId, TimerToken};
 use ordered_float::OrderedFloat;
 use parking_lot::{Mutex, RwLock};

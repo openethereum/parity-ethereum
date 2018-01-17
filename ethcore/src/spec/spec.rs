@@ -21,15 +21,14 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use bigint::hash::{H256, H2048};
-use bigint::prelude::U256;
+use ethereum_types::{H256, Bloom, U256, Address};
+use memorydb::MemoryDB;
 use bytes::Bytes;
 use ethjson;
 use hash::{KECCAK_NULL_RLP, keccak};
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::FromHex;
-use util::*;
 use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use super::genesis::Genesis;
@@ -577,7 +576,7 @@ impl Spec {
 		header.set_extra_data(self.extra_data.clone());
 		header.set_state_root(self.state_root());
 		header.set_receipts_root(self.receipts_root.clone());
-		header.set_log_bloom(H2048::new().clone());
+		header.set_log_bloom(Bloom::default());
 		header.set_gas_used(self.gas_used.clone());
 		header.set_gas_limit(self.gas_limit.clone());
 		header.set_difficulty(self.difficulty.clone());

@@ -17,6 +17,6 @@ apps:
 
 parts:
   parity:
-    source: ..
+    source: .
     plugin: rust
     build-packages: [g++, libudev-dev, libssl-dev, make, pkg-config]

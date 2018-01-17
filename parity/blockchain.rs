@@ -22,9 +22,7 @@ use std::thread::sleep;
 use std::sync::Arc;
 use rustc_hex::FromHex;
 use hash::{keccak, KECCAK_NULL_RLP};
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
@@ -591,8 +589,12 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 		}
 		let b = client.block(BlockId::Number(i)).ok_or("Error exporting incomplete chain")?.into_inner();
 		match format {
-			DataFormat::Binary => { out.write(&b).expect("Couldn't write to stream."); }
-			DataFormat::Hex => { out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream."); }
+			DataFormat::Binary => {
+				out.write(&b).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
+			}
+			DataFormat::Hex => {
+				out.write_fmt(format_args!("{}", b.pretty())).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
+			}
 		}
 	}
 
