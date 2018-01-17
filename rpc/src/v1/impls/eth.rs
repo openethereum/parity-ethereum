@@ -657,8 +657,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		let (state, header) = if num == BlockNumber::Pending {
 			let info = self.client.chain_info();
-			let state = try_bf!(self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned));
-			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned));
+			let state = try_bf!(self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned()));
+			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned()));
 
 			(state, header)
 		} else {
@@ -668,8 +668,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				BlockNumber::Latest => BlockId::Latest,
 			};
 
-			let state = try_bf!(self.client.state_at(id).ok_or(errors::state_pruned));
-			let header = try_bf!(self.client.block_header(id).ok_or(errors::state_pruned));
+			let state = try_bf!(self.client.state_at(id).ok_or(errors::state_pruned()));
+			let header = try_bf!(self.client.block_header(id).ok_or(errors::state_pruned()));
 
 			(state, header.decode())
 		};
