@@ -79,7 +79,7 @@ pub struct NoopVMTracer;
 impl VMTracer for NoopVMTracer {
 	type Output = VMTrace;
 
-	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool { false }
+	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { false }
 
 	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256) {}
 

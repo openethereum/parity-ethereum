@@ -40,7 +40,7 @@ The full list of included changes:
   - Advance AuRa step as far as we can and prevent invalid blocks. ([#7451](https://github.com/paritytech/parity/pull/7451))
     - Advance AuRa step as far as we can.
     - Wait for future blocks.
-  - Fixed panic when io is not available for export block, closes [#7486](https://github.com/paritytech/parity/issue/7486) ([#7495](https://github.com/paritytech/parity/pull/7495))
+  - Fixed panic when io is not available for export block, closes [#7486](https://github.com/paritytech/parity/issues/7486) ([#7495](https://github.com/paritytech/parity/pull/7495))
   - Update Parity Mainnet Bootnodes ([#7476](https://github.com/paritytech/parity/pull/7476))
     - Replace the Azure HDD bootnodes with the new ones :)
   - Expose default gas price percentile configuration in CLI ([#7497](https://github.com/paritytech/parity/pull/7497))

@@ -155,7 +155,7 @@ version = "0.2.0"
 dependencies = [
  "ethbloom 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2250,7 +2250,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-old-precompiled"
 version = "1.9.0"
-source = "git+https://github.com/js-dist-paritytech/parity-master-1-9-v1.git#463b88f729e578e5093fc5f1d10317339b41e640"
+source = "git+https://github.com/js-dist-paritytech/parity-master-1-9-v1.git#385a91168b64b44324fe50973c96b2ddcc900427"
 dependencies = [
  "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2258,7 +2258,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.9.0"
-source = "git+https://github.com/js-dist-paritytech/parity-master-1-9-shell.git#0b2203d88bf7e943a6dbbcb700ccc1c7818aada5"
+source = "git+https://github.com/js-dist-paritytech/parity-master-1-9-shell.git#d6aa5103cc2c8f0a32adf38b4aa489bce7d7a5ae"
 dependencies = [
  "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

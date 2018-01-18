@@ -1,4 +1,4 @@
-use rustc_serialize::hex::FromHex as RustcFromHex;
+use rustc_hex::FromHex as RustcFromHex;
 use bloomchain::Bloom;
 
 pub trait FromHex {
