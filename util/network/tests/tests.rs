@@ -14,15 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::*;
+#[macro_use]
+extern crate log;
+extern crate parking_lot;
+extern crate ethcore_bytes;
+extern crate ethcore_io as io;
+extern crate ethcore_logger;
+extern crate ethcore_network;
+extern crate ethkey;
+
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::Arc;
 use std::thread;
 use std::time::*;
 use parking_lot::Mutex;
 use ethcore_bytes::Bytes;
-use io::TimerToken;
+use ethcore_network::*;
 use ethkey::{Random, Generator};
+use io::TimerToken;
 
 pub struct TestProtocol {
 	drop_session: bool,

@@ -11,7 +11,7 @@ keccak-hash = { path = "../util/hash" }
 primal = "0.2.3"
 parking_lot = "0.4"
 crunchy = "0.1.0"
-memmap = "0.5.2"
+memmap = "0.6"
 either = "1.0.0"
 
 [features]

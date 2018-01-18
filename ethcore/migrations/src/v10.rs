@@ -17,10 +17,10 @@
 //! Bloom upgrade
 
 use std::sync::Arc;
-use db::{COL_EXTRA, COL_HEADERS, COL_STATE};
-use state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB};
+use ethcore::db::{COL_EXTRA, COL_HEADERS, COL_STATE};
+use ethcore::state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB};
 use trie::TrieDB;
-use views::HeaderView;
+use ethcore::views::HeaderView;
 use bloom_journal::Bloom;
 use migration::{Error, Migration, Progress, Batch, Config, ErrorKind};
 use journaldb;

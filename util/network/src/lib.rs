@@ -107,9 +107,6 @@ mod stats;
 mod ip_utils;
 mod connection_filter;
 
-#[cfg(test)]
-mod tests;
-
 pub use host::{HostInfo, PeerId, PacketId, ProtocolId, NetworkContext, NetworkIoMessage, NetworkConfiguration};
 pub use service::NetworkService;
 pub use error::{Error, ErrorKind};

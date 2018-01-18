@@ -6,4 +6,4 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ethabi = "4.0"
-heck = "0.2"
+heck = "0.3"

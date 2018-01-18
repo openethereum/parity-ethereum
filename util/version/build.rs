@@ -23,15 +23,17 @@ use std::io::Write;
 use std::path::Path;
 use vergen::{vergen, OutputFns};
 
+const ERROR_MSG: &'static str = "Failed to generate rustc_version file";
+
 fn main() {
-	vergen(OutputFns::all()).unwrap();
-	let out_dir = env::var("OUT_DIR").unwrap();
+	vergen(OutputFns::all()).expect(ERROR_MSG);
+	let out_dir = env::var("OUT_DIR").expect(ERROR_MSG);
 	let dest_path = Path::new(&out_dir).join("rustc_version.rs");
-	let mut f = File::create(&dest_path).unwrap();
+	let mut f = File::create(&dest_path).expect(ERROR_MSG);
 	f.write_all(format!("
 		/// Returns compiler version.
 		pub fn rustc_version() -> &'static str {{
 			\"{}\"
 		}}
-	", rustc_version::version()).as_bytes()).unwrap();
+	", rustc_version::version().expect(ERROR_MSG)).as_bytes()).expect(ERROR_MSG);
 }

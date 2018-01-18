@@ -24,9 +24,8 @@ use journaldb::Algorithm;
 use migr::{self, Manager as MigrationManager, Config as MigrationConfig, Migration};
 use kvdb;
 use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
-use ethcore::migrations;
+use migrations::{self, Extract};
 use ethcore::db;
-use ethcore::migrations::Extract;
 
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
@@ -284,7 +283,7 @@ mod legacy {
 	use std::path::{Path, PathBuf};
 	use migr::{Manager as MigrationManager};
 	use kvdb_rocksdb::CompactionProfile;
-	use ethcore::migrations;
+	use migrations;
 
 	/// Blocks database path.
 	pub fn blocks_database_path(path: &Path) -> PathBuf {

@@ -62,7 +62,7 @@ impl Informant {
 }
 
 impl vm::Informant for Informant {
-	fn before_test(&self, name: &str, action: &str) {
+	fn before_test(&mut self, name: &str, action: &str) {
 		println!(
 			"{{\"test\":\"{name}\",\"action\":\"{action}\"}}",
 			name = name,
@@ -107,7 +107,7 @@ impl vm::Informant for Informant {
 impl trace::VMTracer for Informant {
 	type Output = Vec<String>;
 
-	fn trace_next_instruction(&mut self, pc: usize, instruction: u8) -> bool {
+	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, _current_gas: U256) -> bool {
 		self.pc = pc;
 		self.instruction = instruction;
 		self.unmatched = true;
@@ -144,6 +144,7 @@ impl trace::VMTracer for Informant {
 		self.stack.truncate(if len > info.args { len - info.args } else { 0 });
 		self.stack.extend_from_slice(stack_push);
 
+		// TODO [ToDr] Align memory?
 		if let Some((pos, data)) = mem_diff {
 			if self.memory.len() < (pos + data.len()) {
 				self.memory.resize(pos + data.len(), 0);
@@ -185,5 +186,101 @@ impl trace::VMTracer for Informant {
 			self.traces.extend(mem::replace(&mut self.subtraces, vec![]));
 		}
 		Some(self.traces)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use info::tests::run_test;
+
+	fn assert_traces_eq(
+		a: &[String],
+		b: &[String],
+	) {
+		let mut ita = a.iter();
+		let mut itb = b.iter();
+
+		loop {
+			match (ita.next(), itb.next()) {
+				(Some(a), Some(b)) => {
+					assert_eq!(a, b);
+					println!("{}", a);
+				},
+				(None, None) => return,
+				e => {
+					panic!("Traces mismatch: {:?}", e);
+				}
+			}
+		}
+	}
+
+	fn compare_json(traces: Option<Vec<String>>, expected: &str) {
+		let expected = expected.split("\n")
+			.map(|x| x.trim())
+			.map(|x| x.to_owned())
+			.filter(|x| !x.is_empty())
+			.collect::<Vec<_>>();
+		assert_traces_eq(&traces.unwrap(), &expected);
+	}
+
+	#[test]
+	fn should_trace_failure() {
+		run_test(
+			Informant::default(),
+			&compare_json,
+			"60F8d6",
+			0xffff,
+			r#"
+{"pc":0,"op":96,"opName":"PUSH1","gas":"0xffff","gasCost":"0x3","memory":"0x","stack":[],"storage":{},"depth":1}
+{"pc":2,"op":214,"opName":"","gas":"0xfffc","gasCost":"0x0","memory":"0x","stack":["0xf8"],"storage":{},"depth":1}
+			"#,
+		);
+
+		run_test(
+			Informant::default(),
+			&compare_json,
+			"F8d6",
+			0xffff,
+			r#"
+{"pc":0,"op":248,"opName":"","gas":"0xffff","gasCost":"0x0","memory":"0x","stack":[],"storage":{},"depth":1}
+			"#,
+		);
+	}
+
+	#[test]
+	fn should_trace_create_correctly() {
+		run_test(
+			Informant::default(),
+			&compare_json,
+			"32343434345830f138343438323439f0",
+			0xffff,
+			r#"
+{"pc":0,"op":50,"opName":"ORIGIN","gas":"0xffff","gasCost":"0x2","memory":"0x","stack":[],"storage":{},"depth":1}
+{"pc":1,"op":52,"opName":"CALLVALUE","gas":"0xfffd","gasCost":"0x2","memory":"0x","stack":["0x0"],"storage":{},"depth":1}
+{"pc":2,"op":52,"opName":"CALLVALUE","gas":"0xfffb","gasCost":"0x2","memory":"0x","stack":["0x0","0x0"],"storage":{},"depth":1}
+{"pc":3,"op":52,"opName":"CALLVALUE","gas":"0xfff9","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0"],"storage":{},"depth":1}
+{"pc":4,"op":52,"opName":"CALLVALUE","gas":"0xfff7","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
+{"pc":5,"op":88,"opName":"PC","gas":"0xfff5","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":1}
+{"pc":6,"op":48,"opName":"ADDRESS","gas":"0xfff3","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":1}
+{"pc":7,"op":241,"opName":"CALL","gas":"0xfff1","gasCost":"0x61d0","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0x0"],"storage":{},"depth":1}
+{"pc":8,"op":56,"opName":"CODESIZE","gas":"0x9e21","gasCost":"0x2","memory":"0x","stack":["0x1"],"storage":{},"depth":1}
+{"pc":9,"op":52,"opName":"CALLVALUE","gas":"0x9e1f","gasCost":"0x2","memory":"0x","stack":["0x1","0x10"],"storage":{},"depth":1}
+{"pc":10,"op":52,"opName":"CALLVALUE","gas":"0x9e1d","gasCost":"0x2","memory":"0x","stack":["0x1","0x10","0x0"],"storage":{},"depth":1}
+{"pc":11,"op":56,"opName":"CODESIZE","gas":"0x9e1b","gasCost":"0x2","memory":"0x","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
+{"pc":12,"op":50,"opName":"ORIGIN","gas":"0x9e19","gasCost":"0x2","memory":"0x","stack":["0x1","0x10","0x0","0x0","0x10"],"storage":{},"depth":1}
+{"pc":13,"op":52,"opName":"CALLVALUE","gas":"0x9e17","gasCost":"0x2","memory":"0x","stack":["0x1","0x10","0x0","0x0","0x10","0x0"],"storage":{},"depth":1}
+{"pc":14,"op":57,"opName":"CODECOPY","gas":"0x9e15","gasCost":"0x9","memory":"0x","stack":["0x1","0x10","0x0","0x0","0x10","0x0","0x0"],"storage":{},"depth":1}
+{"pc":15,"op":240,"opName":"CREATE","gas":"0x9e0c","gasCost":"0x9e0c","memory":"0x32343434345830f138343438323439f0","stack":["0x1","0x10","0x0","0x0"],"storage":{},"depth":1}
+{"pc":0,"op":50,"opName":"ORIGIN","gas":"0x210c","gasCost":"0x2","memory":"0x","stack":[],"storage":{},"depth":2}
+{"pc":1,"op":52,"opName":"CALLVALUE","gas":"0x210a","gasCost":"0x2","memory":"0x","stack":["0x0"],"storage":{},"depth":2}
+{"pc":2,"op":52,"opName":"CALLVALUE","gas":"0x2108","gasCost":"0x2","memory":"0x","stack":["0x0","0x0"],"storage":{},"depth":2}
+{"pc":3,"op":52,"opName":"CALLVALUE","gas":"0x2106","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0"],"storage":{},"depth":2}
+{"pc":4,"op":52,"opName":"CALLVALUE","gas":"0x2104","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
+{"pc":5,"op":88,"opName":"PC","gas":"0x2102","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0"],"storage":{},"depth":2}
+{"pc":6,"op":48,"opName":"ADDRESS","gas":"0x2100","gasCost":"0x2","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5"],"storage":{},"depth":2}
+{"pc":7,"op":241,"opName":"CALL","gas":"0x20fe","gasCost":"0x0","memory":"0x","stack":["0x0","0x0","0x0","0x0","0x0","0x5","0xbd770416a3345f91e4b34576cb804a576fa48eb1"],"storage":{},"depth":2}
+			"#,
+		)
 	}
 }

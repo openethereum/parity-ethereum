@@ -90,7 +90,14 @@ impl Pending {
 			match self.requests[idx].respond_local(cache) {
 				Some(response) => {
 					self.requests.supply_response_unchecked(&response);
+
+					// update header and back-references after each from-cache
+					// response to ensure that the requests are left in a consistent
+					// state and increase the likelihood of being able to answer
+					// the next request from cache.
 					self.update_header_refs(idx, &response);
+					self.fill_unanswered();
+
 					self.responses.push(response);
 				}
 				None => break,
