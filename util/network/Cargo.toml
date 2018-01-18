@@ -17,7 +17,7 @@ rust-crypto = "0.2.34"
 slab = "0.2"
 igd = "0.6"
 libc = "0.2.7"
-parking_lot = "0.4"
+parking_lot = "0.5"
 ansi_term = "0.10"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io" }

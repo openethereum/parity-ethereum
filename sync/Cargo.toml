@@ -28,7 +28,7 @@ rand = "0.3.13"
 heapsize = "0.4"
 semver = "0.6"
 smallvec = { version = "0.4", features = ["heapsizeof"] }
-parking_lot = "0.4"
+parking_lot = "0.5"
 ipnetwork = "0.12.6"
 
 [dev-dependencies]
