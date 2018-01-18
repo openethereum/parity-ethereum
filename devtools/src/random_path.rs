@@ -94,35 +94,6 @@ impl Drop for RandomTempPath {
 	}
 }
 
-pub struct GuardedTempResult<T> {
-	pub result: Option<T>,
-	pub _temp: RandomTempPath,
-}
-
-impl<T> GuardedTempResult<T> {
-    pub fn reference(&self) -> &T {
-        self.result.as_ref().unwrap()
-    }
-
-    pub fn reference_mut(&mut self) -> &mut T {
-    	self.result.as_mut().unwrap()
-    }
-
-	pub fn take(&mut self) -> T {
-		self.result.take().unwrap()
-	}
-}
-
-impl<T> Deref for GuardedTempResult<T> {
-	type Target = T;
-
-	fn deref(&self) -> &T { self.result.as_ref().unwrap() }
-}
-
-impl<T> DerefMut for GuardedTempResult<T> {
-	fn deref_mut(&mut self) -> &mut T { self.result.as_mut().unwrap() }
-}
-
 #[test]
 fn creates_dir() {
 	let temp = RandomTempPath::create_dir();
