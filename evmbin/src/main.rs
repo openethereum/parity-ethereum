@@ -56,7 +56,7 @@ EVM implementation for Parity.
   Copyright 2016, 2017 Parity Technologies (UK) Ltd
 
 Usage:
-    parity-evm state-test <file> [--json --only NAME --chain CHAIN]
+    parity-evm state-test <file> [--json --std-json --only NAME --chain CHAIN]
     parity-evm stats [options]
     parity-evm [options]
     parity-evm [-h | --help]
@@ -75,6 +75,7 @@ State test options:
 
 General options:
     --json             Display verbose results in JSON.
+	--std-json         Display results in standardized JSON format.
     --chain CHAIN      Chain spec file path.
     -h, --help         Display this message and exit.
 "#;
@@ -89,6 +90,8 @@ fn main() {
 		run_state_test(args)
 	} else if args.flag_json {
 		run_call(args, display::json::Informant::default())
+	} else if args.flag_std_json {
+		run_call(args, display::std_json::Informant::default())
 	} else {
 		run_call(args, display::simple::Informant::default())
 	}
@@ -129,6 +132,9 @@ fn run_state_test(args: Args) {
 
 				if args.flag_json {
 					let i = display::json::Informant::default();
+					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
+				} else if args.flag_std_json {
+					let i = display::std_json::Informant::default();
 					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
 				} else {
 					let i = display::simple::Informant::default();
@@ -181,6 +187,7 @@ struct Args {
 	flag_input: Option<String>,
 	flag_chain: Option<String>,
 	flag_json: bool,
+	flag_std_json: bool,
 }
 
 impl Args {
@@ -266,6 +273,7 @@ mod tests {
 		let args = run(&[
 			"parity-evm",
 			"--json",
+			"--std-json",
 			"--gas", "1",
 			"--gas-price", "2",
 			"--from", "0000000000000000000000000000000000000003",
@@ -276,6 +284,7 @@ mod tests {
 		]);
 
 		assert_eq!(args.flag_json, true);
+		assert_eq!(args.flag_std_json, true);
 		assert_eq!(args.gas(), Ok(1.into()));
 		assert_eq!(args.gas_price(), Ok(2.into()));
 		assert_eq!(args.from(), Ok(3.into()));
@@ -294,11 +303,13 @@ mod tests {
 			"--chain", "homestead",
 			"--only=add11",
 			"--json",
+			"--std-json"
 		]);
 
 		assert_eq!(args.cmd_state_test, true);
 		assert!(args.arg_file.is_some());
 		assert_eq!(args.flag_json, true);
+		assert_eq!(args.flag_std_json, true);
 		assert_eq!(args.flag_chain, Some("homestead".to_owned()));
 		assert_eq!(args.flag_only, Some("add11".to_owned()));
 	}

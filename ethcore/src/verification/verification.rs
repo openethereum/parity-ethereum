@@ -23,6 +23,15 @@
 
 use std::collections::HashSet;
 
+use bytes::Bytes;
+use ethereum_types::{H256, U256};
+use hash::keccak;
+use heapsize::HeapSizeOf;
+use rlp::UntrustedRlp;
+use time::get_time;
+use triehash::ordered_trie_root;
+use unexpected::{Mismatch, OutOfBounds};
+
 use blockchain::*;
 use client::BlockChainClient;
 use engines::EthEngine;
@@ -30,15 +39,6 @@ use error::{BlockError, Error};
 use header::{BlockNumber, Header};
 use transaction::SignedTransaction;
 use views::BlockView;
-
-use ethereum_types::{H256, U256};
-use bytes::Bytes;
-use hash::keccak;
-use heapsize::HeapSizeOf;
-use rlp::UntrustedRlp;
-use time::get_time;
-use triehash::ordered_trie_root;
-use unexpected::{Mismatch, OutOfBounds};
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {

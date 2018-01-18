@@ -861,6 +861,7 @@ pub mod tests {
 
 		// generate key using t-of-n session
 		let artifacts1 = run_key_generation(t, n, None, None);
+
 		let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p1| &p1[0])).unwrap();
 
 		// let's say we want to decrease threshold so that it becames (t-1)-of-n
