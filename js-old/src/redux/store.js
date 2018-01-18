@@ -98,7 +98,7 @@ export default function (api, browserHistory, forEmbed = false) {
   return store;
 }
 
-function withTimeoutForLight(id, promise, store) {
+function withTimeoutForLight (id, promise, store) {
   const { nodeKind } = store.getState().nodeStatus;
   const isLightNode = nodeKind.capability !== 'full';
 
@@ -114,10 +114,10 @@ function withTimeoutForLight(id, promise, store) {
         isResolved = true;
         resolve();
       }
-    }
+    };
     const timeout = setTimeout(() => {
       console.warn(`Resolving ${id} by timeout.`);
-      doResolve()
+      doResolve();
     }, 1000);
 
     promise
@@ -130,6 +130,6 @@ function withTimeoutForLight(id, promise, store) {
         if (!isResolved) {
           reject(err);
         }
-      })
+      });
   });
 }
