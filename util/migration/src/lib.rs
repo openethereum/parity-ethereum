@@ -15,8 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! DB Migration module.
-#[cfg(test)]
-mod tests;
 
 #[macro_use]
 extern crate log;

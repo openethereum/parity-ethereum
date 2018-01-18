@@ -2,10 +2,10 @@
 #ARGUMENT test for RUST, JS, COVERAGE or JS_RELEASE
 set -e # fail on any error
 set -u # treat unset variables as error
-if [[ "$CI_BUILD_REF_NAME" = "beta" || "$CI_BUILD_REF_NAME" = "stable" ]]; then
-  export GIT_COMPARE=$CI_BUILD_REF_NAME;
+if [[ "$CI_COMMIT_REF_NAME" = "beta" || "$CI_COMMIT_REF_NAME" = "stable" ]]; then
+  export GIT_COMPARE=$CI_COMMIT_REF_NAME;
 else
-  export GIT_COMPARE=master;  
+  export GIT_COMPARE=master;
 fi
 if [[ "$(git rev-parse $GIT_COMPARE)" == "$CI_COMMIT_SHA" ]]; then
   # Always build everything if we're on master, beta, stable
@@ -15,7 +15,7 @@ if [[ "$(git rev-parse $GIT_COMPARE)" == "$CI_COMMIT_SHA" ]]; then
 else
   export JS_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep ^js/ | wc -l)"
   export JS_OLD_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep ^js-old/ | wc -l)"
-  export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e ^mac/ -e ^nsis/ | wc -l)"
+  export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e ^mac/ -e ^nsis/ | wc -l)"
 fi
 TEST_SWITCH=$1
 rust_test () {

@@ -16,6 +16,22 @@
 
 //! Database migrations.
 
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate macros;
+extern crate migration;
+extern crate rlp;
+extern crate ethereum_types;
+extern crate ethcore_bytes as bytes;
+extern crate kvdb;
+extern crate kvdb_rocksdb;
+extern crate keccak_hash as hash;
+extern crate journaldb;
+extern crate ethcore_bloom_journal as bloom_journal;
+extern crate ethcore;
+extern crate patricia_trie as trie;
+
 use migration::ChangeColumns;
 
 pub mod state;

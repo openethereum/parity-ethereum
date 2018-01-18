@@ -396,8 +396,8 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		self.substate.sstore_clears_count = self.substate.sstore_clears_count + U256::one();
 	}
 
-	fn trace_next_instruction(&mut self, pc: usize, instruction: u8) -> bool {
-		self.vm_tracer.trace_next_instruction(pc, instruction)
+	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, current_gas: U256) -> bool {
+		self.vm_tracer.trace_next_instruction(pc, instruction, current_gas)
 	}
 
 	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256) {

@@ -11,5 +11,5 @@ keywords = ["ethereum", "ethcore", "bloom", "chain", "filter"]
 ethbloom = "0.3"
 
 [dev-dependencies]
-rustc-serialize = "0.3"
+rustc-hex = "1.0"
 rand = "0.4"

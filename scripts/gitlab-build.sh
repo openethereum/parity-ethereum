@@ -115,7 +115,9 @@ make_rpm () {
 make_pkg () {
   echo "make PKG"
   cp target/$PLATFORM/release/parity target/release/parity
+  cp target/$PLATFORM/release/parity-evm target/release/parity-evm
   cp target/$PLATFORM/release/ethstore target/release/ethstore
+  cp target/$PLATFORM/release/ethkey target/release/ethkey
   cd mac
   xcodebuild -configuration Release
   cd ..
@@ -193,8 +195,8 @@ case $BUILD_PLATFORM in
   x86_64-unknown-debian-gnu)
     STRIP_BIN="strip"
     EXT="deb"
-    LIBSSL="libssl1.1.0 (>=1.1.0)"
-    echo "Use libssl1.1.0 (>=1.1.0) for Debian builds"
+    LIBSSL="libssl1.1 (>=1.1.0)"
+    echo "Use libssl1.1 (>=1.1.0) for Debian builds"
     build
     strip_md5
     make_deb
