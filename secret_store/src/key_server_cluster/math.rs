@@ -51,7 +51,7 @@ pub fn compute_public_sum<'a, I>(mut publics: I) -> Result<Public, Error> where 
 pub fn compute_secret_sum<'a, I>(mut secrets: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	let mut sum = secrets.next().expect("compute_secret_sum is called when there's at least one secret; qed").clone();
 	while let Some(secret) = secrets.next() {
-		sum.add(secret).unwrap();
+		sum.add(secret)?;
 	}
 	Ok(sum)
 }
