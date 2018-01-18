@@ -54,7 +54,7 @@
     "@parity/dapp-signaturereg": "paritytech/dapp-signaturereg",
     "@parity/dapp-status": "js-dist-paritytech/dapp-status",
     "@parity/dapp-tokendeploy": "paritytech/dapp-tokendeploy",
-    "@parity/dapp-tokenreg": "paritytech/dapp-tokenreg",
+    "@parity/dapp-tokenreg": "parity-js/dapp-tokenreg#9750a2c10a934f9ae0e6e7fd6fa5b9e25a7b0785",
     "babel-cli": "6.26.0",
     "babel-core": "6.26.0",
     "babel-eslint": "7.1.1",
