@@ -421,7 +421,7 @@ pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_h
 #[cfg(test)]
 pub mod tests {
 	use std::iter::once;
-	use ethkey::{KeyPair, Signature};
+	use ethkey::{KeyPair, Signature, recover, verify_public};
 	use super::*;
 
 	#[derive(Clone)]
@@ -663,6 +663,39 @@ pub mod tests {
 		};
 
 		(document_secret_decrypted, document_secret_decrypted_test)
+	}
+
+	fn serialize_ecdsa_signature(nonce_public: Public, signature_r: Secret, mut signature_s: Secret) -> Signature {
+		// compute recvery param
+		let mut signature_v = {
+			let nonce_public_x = &nonce_public[0..32];
+			let nonce_public_x: U256 = nonce_public_x.into();
+			let nonce_public_x: H256 = nonce_public_x.into();
+			let nonce_public_y = &nonce_public[32..64];
+			let nonce_public_y: U256 = nonce_public_y.into();
+			let nonce_public_y_is_odd = !(nonce_public_y % 2.into()).is_zero();
+			let bit0 = if nonce_public_y_is_odd { 1u8 } else { 0u8 };
+			let bit1 = if nonce_public_x != *signature_r { 2u8 } else { 0u8 };
+			bit0 | bit1
+		};
+
+		// fix high S
+		let curve_order = math::curve_order();
+		let curve_order_half = curve_order / 2.into();
+		let s_numeric: U256 = (*signature_s).into();
+		if s_numeric > curve_order_half {
+			let signature_s_hash: H256 = (curve_order - s_numeric).into();
+			signature_s = signature_s_hash.into();
+			signature_v ^= 1;
+		}
+
+		// serialize as [r][s]v
+		let mut signature = [0u8; 65];
+		signature[..32].copy_from_slice(&**signature_r);
+		signature[32..64].copy_from_slice(&**signature_s);
+		signature[64] = signature_v;
+
+		signature.into()
 	}
 
 	#[test]
@@ -921,13 +954,16 @@ pub mod tests {
 	fn full_ecdsa_generation_session() {
 		let (t, n) = (2, 5);
 
+		// values that can be hardcoded
+		let joint_secret: Secret = Random.generate().unwrap().secret().clone();
+		let joint_nonce: Secret = Random.generate().unwrap().secret().clone();
+		let message_hash = Random.generate().unwrap().secret().clone();
+
 		// generate secret key shares
-		let artifacts = run_key_generation(t, n, None,
-			Some("00000000000000000000000000000000000000000000000000000000000000A5".parse().unwrap()));
+		let artifacts = run_key_generation(t, n, None, Some(joint_secret));
 
 		// generate nonce shares
-		let nonce_artifacts = run_key_generation(t, n, Some(artifacts.id_numbers.clone()),
-			Some("0000000000000000000000000000000000000000000000000000000000000042".parse().unwrap()));
+		let nonce_artifacts = run_key_generation(t, n, Some(artifacts.id_numbers.clone()), Some(joint_nonce));
 
 		// compute public nonce shares
 		let nonce_public_shadows: Vec<_> = (0..n).map(|i| compute_shadow_mul(&nonce_artifacts.secret_shares[i],
@@ -957,7 +993,6 @@ pub mod tests {
 
 		// compute shares for s portion of signature: nonce_inv * (message_hash + secret * signature_r)
 		// every node broadcasts this share
-		let message_hash: H256 = "0000000000000000000000000000000000000000000000000000000000000076".parse().unwrap();
 		let message_hash: Secret = message_hash.into();
 		let signature_s_shares: Vec<_> = (0..n).map(|i| {
 			let mut nonce_inv_share_mul_message_hash = nonce_inv_shares[i].clone();
@@ -978,35 +1013,11 @@ pub mod tests {
 			&signature_s_shares.iter().take(double_t + 1).collect::<Vec<_>>(),
 			&artifacts.id_numbers.iter().take(double_t + 1).collect::<Vec<_>>()).unwrap();
 
-		// serialize signature: [r; s; v]
-		let signature_v = {
-			let nonce_public_x = &nonce_public[0..32];
-			let nonce_public_x: U256 = nonce_public_x.into();
-			let nonce_public_x: H256 = nonce_public_x.into();
-			let nonce_public_y = &nonce_public[32..64];
-			let nonce_public_y: U256 = nonce_public_y.into();
-			let nonce_public_y_is_odd = !(nonce_public_y % 2.into()).is_zero();
-			let bit0 = if nonce_public_y_is_odd { 1u8 } else { 0u8 };
-			let bit1 = if nonce_public_x != *signature_r { 2u8 } else { 0u8 };
-			bit0 | bit1
-		};
-		let mut signature = [0u8; 65];
-		signature[..32].copy_from_slice(&**signature_r);
-		signature[32..64].copy_from_slice(&**signature_s);
-		signature[64] = signature_v;
-
 		// check signature
-		let signature_actual: Signature = signature.into();
-		// TODO [Test]: find a way to verify + use random keys && message
-		// let joint_secret = compute_joint_secret(artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
-		// let joint_secret_pair = KeyPair::from_secret(joint_secret).unwrap();
-		// assert!(verify_public(joint_secret_pair.public(), &signature, &message_hash).unwrap());
-
-		// r = 079264c4b4bfcd7fe3a7b7b92b6c439f3a5b3abcd29189bf7b54d781ff03d722
-		// s = ec24497f28b8b80d4c8824853a220de6342addca559231c7b42d633c77e62e4c
-		// v = 1
-		let signature_expected: Signature =
-			"079264c4b4bfcd7fe3a7b7b92b6c439f3a5b3abcd29189bf7b54d781ff03d722ec24497f28b8b80d4c8824853a220de6342addca559231c7b42d633c77e62e4c01".parse().unwrap();
-		assert_eq!(signature_actual, signature_expected);
+		let signature_actual = serialize_ecdsa_signature(nonce_public, signature_r, signature_s);
+		let joint_secret = compute_joint_secret(artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
+		let joint_secret_pair = KeyPair::from_secret(joint_secret).unwrap();
+		assert_eq!(recover(&signature_actual, &message_hash).unwrap(), *joint_secret_pair.public());
+		assert!(verify_public(joint_secret_pair.public(), &signature_actual, &message_hash).unwrap());
 	}
 }
