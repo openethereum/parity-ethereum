@@ -18,6 +18,7 @@
 
 use std::sync::Arc;
 
+use tempdir::TempDir;
 use client::{BlockChainClient, Client};
 use ids::BlockId;
 use snapshot::service::{Service, ServiceParams};
@@ -25,7 +26,6 @@ use snapshot::{self, ManifestData, SnapshotService};
 use spec::Spec;
 use tests::helpers::generate_dummy_client_with_spec_and_data;
 
-use devtools::RandomTempPath;
 use io::IoChannel;
 use kvdb_rocksdb::{Database, DatabaseConfig};
 
@@ -46,12 +46,9 @@ fn restored_is_equivalent() {
 
 	let client = generate_dummy_client_with_spec_and_data(Spec::new_null, NUM_BLOCKS, TX_PER, &gas_prices);
 
-	let path = RandomTempPath::create_dir();
-	let mut path = path.as_path().clone();
-	let mut client_db = path.clone();
-
-	client_db.push("client_db");
-	path.push("snapshot");
+	let tempdir = TempDir::new("").unwrap();
+	let client_db = tempdir.path().join("client_db");
+	let path = tempdir.path().join("snapshot");
 
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let client_db = Database::open(&db_config, client_db.to_str().unwrap()).unwrap();
@@ -106,20 +103,19 @@ fn restored_is_equivalent() {
 #[test]
 fn guards_delete_folders() {
 	let spec = Spec::new_null();
-	let path = RandomTempPath::create_dir();
-	let mut path = path.as_path().clone();
+	let tempdir = TempDir::new("").unwrap();
 	let service_params = ServiceParams {
 		engine: spec.engine.clone(),
 		genesis_block: spec.genesis_block(),
 		db_config: DatabaseConfig::with_columns(::db::NUM_COLUMNS),
 		pruning: ::journaldb::Algorithm::Archive,
 		channel: IoChannel::disconnected(),
-		snapshot_root: path.clone(),
+		snapshot_root: tempdir.path().to_owned(),
 		db_restore: Arc::new(NoopDBRestore),
 	};
 
 	let service = Service::new(service_params).unwrap();
-	path.push("restoration");
+	let path = tempdir.path().join("restoration");
 
 	let manifest = ManifestData {
 		version: 2,
