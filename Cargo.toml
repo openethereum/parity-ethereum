@@ -4,7 +4,6 @@ name = "parity"
 version = "1.10.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
 
 [dependencies]
 log = "0.3"
