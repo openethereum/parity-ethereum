@@ -132,7 +132,9 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 			reader.position += 1;
 
 			// TODO: make compile-time removable if too much of a performance hit.
-			do_trace = do_trace && ext.trace_next_instruction(reader.position - 1, instruction);
+			do_trace = do_trace && ext.trace_next_instruction(
+				reader.position - 1, instruction, gasometer.current_gas.as_u256(),
+			);
 
 			let info = &infos[instruction as usize];
 			self.verify_instruction(ext, instruction, info, &stack)?;
