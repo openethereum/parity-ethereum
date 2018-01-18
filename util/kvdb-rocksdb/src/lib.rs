@@ -32,7 +32,7 @@ use std::cmp;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::path::{PathBuf, Path};
-use std::{mem, fs, io};
+use std::{fs, io, mem, result};
 
 use parking_lot::{Mutex, MutexGuard, RwLock};
 use rocksdb::{
@@ -257,6 +257,18 @@ pub struct Database {
 	flushing_lock: Mutex<bool>,
 }
 
+#[inline]
+fn mark_corruption<T, P: AsRef<Path>>(path: P, res: result::Result<T, String>) -> result::Result<T, String> {
+	if let Err(ref s) = res {
+		if s.starts_with("Corruption:") {
+			warn!("DB corruption detected: {}. Repair will be triggered on next restart", s);
+			let _ = fs::File::create(path.as_ref().join("CORRUPTED"));
+		}
+	}
+
+	res
+}
+
 impl Database {
 	/// Open database with default settings.
 	pub fn open_default(path: &str) -> Result<Database> {
@@ -285,6 +297,14 @@ impl Database {
 			let cache_size = cmp::max(8, config.memory_budget() / 3);
 			let cache = Cache::new(cache_size);
 			block_opts.set_cache(cache);
+		}
+
+		// attempt database repair if it has been previously marked as corrupted
+		let db_corrupted = Path::new(path).join("CORRUPTED");
+		if db_corrupted.exists() {
+			warn!("DB {} has been previously marked as corrupted, attempting repair.", path);
+			DB::repair(&opts, path)?;
+			fs::remove_file(db_corrupted)?;
 		}
 
 		let columns = config.columns.unwrap_or(0) as usize;
@@ -425,7 +445,11 @@ impl Database {
 						}
 					}
 				}
-				db.write_opt(batch, &self.write_opts)?;
+
+				mark_corruption(
+					&self.path,
+					db.write_opt(batch, &self.write_opts))?;
+
 				for column in self.flushing.write().iter_mut() {
 					column.clear();
 					column.shrink_to_fit();
@@ -471,7 +495,10 @@ impl Database {
 						},
 					}
 				}
-				db.write_opt(batch, &self.write_opts).map_err(Into::into)
+
+				mark_corruption(
+					&self.path,
+					db.write_opt(batch, &self.write_opts)).map_err(Into::into)
 			},
 			None => Err("Database is closed".into())
 		}
