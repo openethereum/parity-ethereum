@@ -27,12 +27,11 @@ use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use unexpected::{Mismatch, OutOfBounds};
 
-use basic_types::Seal;
 use vm::{EnvInfo, LastHashes};
 use engines::EthEngine;
 use error::{Error, BlockError};
 use factory::Factories;
-use header::Header;
+use header::{Header, Seal};
 use receipt::{Receipt, TransactionOutcome};
 use state::State;
 use state_db::StateDB;

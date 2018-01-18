@@ -13,5 +13,5 @@ jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "pa
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
 rlp = { path = "../util/rlp" }
 cid = "0.2"
-multihash = "0.6"
+multihash = "0.7"
 unicase = "2.0"

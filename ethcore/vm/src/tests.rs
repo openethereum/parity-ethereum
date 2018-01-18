@@ -198,7 +198,7 @@ impl Ext for FakeExt {
 		self.sstore_clears += 1;
 	}
 
-	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool {
+	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _gas: U256) -> bool {
 		self.tracing
 	}
 }

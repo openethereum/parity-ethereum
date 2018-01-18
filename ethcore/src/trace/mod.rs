@@ -104,7 +104,7 @@ pub trait VMTracer: Send {
 	/// Trace the progression of interpreter to next instruction.
 	/// If tracer returns `false` it won't be called again.
 	/// @returns true if `trace_prepare_execute` and `trace_executed` should be called.
-	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool { false }
+	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { false }
 
 	/// Trace the preparation to execute a single valid instruction.
 	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256) {}
