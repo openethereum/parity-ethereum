@@ -585,8 +585,8 @@ impl SessionImpl {
 
 		// pick 2t + 2 random numbers as polynomial coefficients for 2 polynoms
 		let threshold = data.threshold.expect("threshold is filled on initialization phase; KD phase follows initialization phase; qed");
-		let polynom1 = math::generate_random_polynom(threshold, false)?;
-		let polynom2 = math::generate_random_polynom(threshold, false)?;
+		let polynom1 = math::generate_random_polynom(threshold)?;
+		let polynom2 = math::generate_random_polynom(threshold)?;
 		data.polynom1 = Some(polynom1.clone());
 		data.secret_coeff = Some(polynom1[0].clone());
 

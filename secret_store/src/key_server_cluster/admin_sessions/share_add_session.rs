@@ -637,7 +637,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let explanation = "disseminate_keys is only called on consensus group nodes; consensus group nodes have specified version of the key; qed";
 		let key_share = core.key_share.as_ref().expect(explanation);
 		let key_version = key_share.version(data.version.as_ref().expect(explanation)).expect(explanation);
-		let mut secret_share_polynom = math::generate_random_polynom(key_share.threshold, false)?;
+		let mut secret_share_polynom = math::generate_random_polynom(key_share.threshold)?;
 		secret_share_polynom[0] = key_version.secret_share.clone();
 
 		// calculate secret subshare for every new node (including this node)

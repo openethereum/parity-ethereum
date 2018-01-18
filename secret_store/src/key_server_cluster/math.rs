@@ -86,9 +86,9 @@ pub fn update_random_point(point: &mut Public) -> Result<(), Error> {
 }
 
 /// Generate random polynom of threshold degree
-pub fn generate_random_polynom(threshold: usize, is_zero_secret: bool) -> Result<Vec<Secret>, Error> {
-	::std::iter::once(if is_zero_secret { Ok(Secret::zero()) } else { generate_random_scalar() })
-		.chain((1..threshold + 1).map(|_| generate_random_scalar()))
+pub fn generate_random_polynom(threshold: usize) -> Result<Vec<Secret>, Error> {
+	(0..threshold + 1)
+		.map(|_| generate_random_scalar())
 		.collect()
 }
 
@@ -440,7 +440,7 @@ pub mod tests {
 	}
 
 	fn prepare_polynoms1(t: usize, n: usize, secret_required: Option<Secret>) -> Vec<Vec<Secret>> {
-		let mut polynoms1: Vec<_> = (0..n).map(|_| generate_random_polynom(t, false).unwrap()).collect();
+		let mut polynoms1: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
 		// if we need specific secret to be shared, update polynoms so that sum of their free terms = required secret
 		if let Some(mut secret_required) = secret_required {
 			for polynom1 in polynoms1.iter_mut().take(n - 1) {
@@ -469,7 +469,7 @@ pub mod tests {
 		let secrets1: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms1[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
 
 		// following data is used only on verification step
-		let polynoms2: Vec<_> = (0..n).map(|_| generate_random_polynom(t, false).unwrap()).collect();
+		let polynoms2: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
 		let secrets2: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms2[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
 		let publics: Vec<_> = (0..n).map(|i| public_values_generation(t, &derived_point, &polynoms1[i], &polynoms2[i]).unwrap()).collect();
 
@@ -523,7 +523,7 @@ pub mod tests {
 		// on every authorized node: generate random polynomial ai(j) = si + ... + ai[new_t - 1] * j^(new_t - 1)
 		let mut subshare_polynoms = Vec::new();
 		for i in 0..old_t+1 {
-			let mut subshare_polynom = generate_random_polynom(new_t, false).unwrap();
+			let mut subshare_polynom = generate_random_polynom(new_t).unwrap();
 			subshare_polynom[0] = old_artifacts.secret_shares[i].clone();
 			subshare_polynoms.push(subshare_polynom);
 		}
