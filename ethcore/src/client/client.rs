@@ -1344,13 +1344,15 @@ impl RegistryInfo for Client {
 
 impl CallContract for Client {
 	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
+		let state_pruned = || CallError::StatePruned.to_string();
+		let state = &mut self.state_at(block_id).ok_or_else(&state_pruned)?;
+		let header = self.block_header(block_id).ok_or_else(&state_pruned)?;
+
 		let transaction = self.contract_call_tx(block_id, address, data);
 
-		// FIXME
-		// self.call(&transaction, Default::default(), block_id)
-		// 	.map_err(|e| format!("{:?}", e))
-		// 	.map(|executed| executed.output)
-		unimplemented!()
+		self.call(&transaction, Default::default(), state, &header.decode())
+			.map_err(|e| format!("{:?}", e))
+			.map(|executed| executed.output)
 	}
 }
 
