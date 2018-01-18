@@ -64,11 +64,6 @@ impl Secret {
 		self.to_secp256k1_secret().map(|_| ())
 	}
 
-	/// Returns true if this is a zero secret.
-	pub fn is_zero(&self) -> bool {
-		self.inner.is_zero()
-	}
-
 	/// Inplace add one secret key to another (scalar + scalar)
 	pub fn add(&mut self, other: &Secret) -> Result<(), Error> {
 		match (self.is_zero(), other.is_zero()) {
