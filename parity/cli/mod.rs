@@ -257,12 +257,7 @@ usage! {
 
 			ARG arg_mode: (String) = "last", or |c: &Config| otry!(c.parity).mode.clone(),
 			"--mode=[MODE]",
-			"Set the operating mode. MODE can be one of:
-    last - Uses the last-used mode, active if none.
-    active - Parity continuously syncs the chain.
-    passive - Parity syncs initially, then sleeps and wakes regularly to resync.
-    dark - Parity syncs only when the RPC is active.
-    offline - Parity doesn't sync.",
+			"Set the operating mode. MODE can be one of: last - Uses the last-used mode, active if none; active - Parity continuously syncs the chain; passive - Parity syncs initially, then sleeps and wakes regularly to resync; dark - Parity syncs only when the RPC is active; offline - Parity doesn't sync.",
 
 			ARG arg_mode_timeout: (u64) = 300u64, or |c: &Config| otry!(c.parity).mode_timeout.clone(),
 			"--mode-timeout=[SECS]",
@@ -274,19 +269,11 @@ usage! {
 
 			ARG arg_auto_update: (String) = "critical", or |c: &Config| otry!(c.parity).auto_update.clone(),
 			"--auto-update=[SET]",
-			"Set a releases set to automatically update and install.
-    all - All updates in the our release track.
-    critical - Only consensus/security updates.
-    none - No updates will be auto-installed.",
+			"Set a releases set to automatically update and install. SET can be one of: all - All updates in the our release track; critical - Only consensus/security updates; none - No updates will be auto-installed.",
 
 			ARG arg_release_track: (String) = "current", or |c: &Config| otry!(c.parity).release_track.clone(),
 			"--release-track=[TRACK]",
-			"Set which release track we should use for updates.
-    stable - Stable releases.
-    beta - Beta releases.
-    nightly - Nightly releases (unstable).
-    testing - Testing releases (do not use).
-    current - Whatever track this executable was released on",
+			"Set which release track we should use for updates. TRACK can be one of: stable - Stable releases; beta - Beta releases; nightly - Nightly releases (unstable); testing - Testing releases (do not use); current - Whatever track this executable was released on.",
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| otry!(c.parity).chain.clone(),
 			"--chain=[CHAIN]",
