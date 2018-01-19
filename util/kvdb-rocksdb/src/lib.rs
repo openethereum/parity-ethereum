@@ -262,7 +262,7 @@ fn mark_corruption<T, P: AsRef<Path>>(path: P, res: result::Result<T, String>) -
 	if let Err(ref s) = res {
 		if s.starts_with("Corruption:") {
 			warn!("DB corrupted: {}. Repair will be triggered on next restart", s);
-			let _ = fs::File::create(path.as_ref().join("CORRUPTED"));
+			let _ = fs::File::create(path.as_ref().join(Database::CORRUPTION_FILE_NAME));
 		}
 	}
 
@@ -274,6 +274,8 @@ fn is_corrupted(s: &str) -> bool {
 }
 
 impl Database {
+	const CORRUPTION_FILE_NAME: &'static str = "CORRUPTED";
+
 	/// Open database with default settings.
 	pub fn open_default(path: &str) -> Result<Database> {
 		Database::open(&DatabaseConfig::default(), path)
@@ -304,7 +306,7 @@ impl Database {
 		}
 
 		// attempt database repair if it has been previously marked as corrupted
-		let db_corrupted = Path::new(path).join("CORRUPTED");
+		let db_corrupted = Path::new(path).join(Database::CORRUPTION_FILE_NAME);
 		if db_corrupted.exists() {
 			warn!("DB has been previously marked as corrupted, attempting repair");
 			DB::repair(&opts, path)?;
