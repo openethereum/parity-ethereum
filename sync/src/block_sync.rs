@@ -519,6 +519,10 @@ impl BlockDownloader {
 					trace!(target: "sync", "Unknown new block parent, restarting sync");
 					break;
 				},
+				Err(BlockImportError::Block(BlockError::TemporarilyInvalid(_))) => {
+					debug!(target: "sync", "Block temporarily invalid, restarting sync");
+					break;
+				},
 				Err(e) => {
 					debug!(target: "sync", "Bad block {:?} : {:?}", h, e);
 					bad = true;
