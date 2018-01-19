@@ -170,7 +170,6 @@
     "redux": "3.7.2",
     "semantic-ui-react": "0.77.0",
     "solc": "ngotchac/solc-js",
-    "store": "1.3.20",
-    "web3": "1.0.0-beta.26"
+    "store": "1.3.20"
   }
 }
