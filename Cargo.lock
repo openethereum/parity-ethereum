@@ -486,6 +486,7 @@ dependencies = [
  "semantic_version 0.1.0",
  "snappy 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
  "stats 0.1.0",
+ "stop-guard 0.1.0",
  "table 0.1.0",
  "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
  "triehash 0.1.0",
@@ -2974,6 +2975,10 @@ version = "0.1.0"
 dependencies = [
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "stop-guard"
+version = "0.1.0"
 
 [[package]]
 name = "strsim"
