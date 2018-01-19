@@ -53,6 +53,7 @@ kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }
 util-error = { path = "../util/error" }
 snappy = { git = "https://github.com/paritytech/rust-snappy" }
+stop-guard = { path = "../util/stop-guard" }
 migration = { path = "../util/migration" }
 macros = { path = "../util/macros" }
 rust-crypto = "0.2.34"
