@@ -1213,6 +1213,10 @@ impl MinerService for Miner {
 	fn pending_block_header(&self, latest_block_number: BlockNumber) -> Option<Header> {
 		Miner::pending_block_header(self, latest_block_number)
 	}
+
+	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block> {
+		Miner::pending_block(self, latest_block_number)
+	}
 }
 
 /// Action when service transaction is received

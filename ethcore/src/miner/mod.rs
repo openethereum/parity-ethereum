@@ -71,7 +71,7 @@ use bigint::hash::H256;
 use util::Address;
 use bytes::Bytes;
 use client::{MiningBlockChainClient};
-use block::ClosedBlock;
+use block::{ClosedBlock, Block};
 use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
 use error::{Error};
@@ -207,6 +207,9 @@ pub trait MinerService : Send + Sync {
 
 	/// Get `Some` `clone()` of the current pending block header or `None` if we're not sealing.
 	fn pending_block_header(&self, latest_block_number: BlockNumber) -> Option<Header>;
+
+	/// Get `Some` `clone()` of the current pending block or `None` if we're not sealing.
+	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block>;
 }
 
 /// Mining status

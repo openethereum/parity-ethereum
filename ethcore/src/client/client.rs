@@ -46,7 +46,7 @@ use client::{
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient,
+	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
@@ -1442,6 +1442,12 @@ impl Call for Client {
 		}
 
 		Ok(results)
+	}
+}
+
+impl EngineInfo for Client {
+	fn engine(&self) -> &EthEngine {
+		Client::engine(self)
 	}
 }
 

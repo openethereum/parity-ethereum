@@ -34,6 +34,7 @@ use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 use state::StateInfo;
 use header::Header;
+use engines::EthEngine;
 
 use bigint::prelude::U256;
 use bigint::hash::H256;
@@ -109,7 +110,7 @@ pub trait ChainInfo {
 	fn chain_info(&self) -> BlockChainInfo;
 }
 
-/// Provides verious information on a block by it's ID
+/// Provides various information on a block by it's ID
 pub trait BlockInfo {
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
@@ -175,6 +176,12 @@ pub trait Call {
 	/// Makes multiple non-persistent but dependent transaction calls.
 	/// Returns a vector of successes or a failure if any of the transaction fails.
 	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], state: &mut Self::State, header: &Header) -> Result<Vec<Executed>, CallError>;
+}
+
+/// Provides `engine` method
+pub trait EngineInfo {
+	/// Get underlying engine object
+	fn engine(&self) -> &EthEngine;
 }
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
