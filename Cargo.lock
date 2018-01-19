@@ -442,7 +442,6 @@ dependencies = [
  "ethash 1.9.0",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-bytes 0.1.0",
- "ethcore-devtools 1.9.0",
  "ethcore-io 1.9.0",
  "ethcore-logger 1.9.0",
  "ethcore-miner 1.9.0",
@@ -512,9 +511,6 @@ version = "0.1.0"
 [[package]]
 name = "ethcore-devtools"
 version = "1.9.0"
-dependencies = [
- "rand 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "ethcore-io"
