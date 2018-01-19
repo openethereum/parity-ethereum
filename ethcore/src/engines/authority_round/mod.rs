@@ -1050,8 +1050,7 @@ mod tests {
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_ok());
 		header.set_seal(vec![encode(&5usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
-		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
-		assert!(engine.verify_block_external(&header).is_err());
+		assert!(engine.verify_block_basic(&header).is_err());
 	}
 
 	#[test]

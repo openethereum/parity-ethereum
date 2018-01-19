@@ -190,7 +190,7 @@ mod tests {
 		header.set_number(2);
 		header.set_parent_hash(client.chain_info().best_block_hash);
 		// `reportBenign` when the designated proposer releases block from the future (bad clock).
-		assert!(client.engine().verify_block_external(&header).is_err());
+		assert!(client.engine().verify_block_basic(&header).is_err());
 		// Seal a block.
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 1);
