@@ -13,7 +13,7 @@ serde = "1.0"
 serde_json = "1.0"
 url = "1.2.0"
 matches = "0.1"
-parking_lot = "0.4"
+parking_lot = "0.5"
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
 jsonrpc-ws-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
 parity-rpc = { path = "../rpc" }

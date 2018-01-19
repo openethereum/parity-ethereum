@@ -31,6 +31,7 @@ use miner::Miner;
 use snapshot::{ManifestData, RestorationStatus};
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use ansi_term::Colour;
+use stop_guard::StopGuard;
 
 /// Message type for external and internal events
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -59,7 +60,7 @@ pub struct ClientService {
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
 	database: Arc<Database>,
-	_stop_guard: ::devtools::StopGuard,
+	_stop_guard: StopGuard,
 }
 
 impl ClientService {
@@ -111,7 +112,7 @@ impl ClientService {
 
 		spec.engine.register_client(Arc::downgrade(&client) as _);
 
-		let stop_guard = ::devtools::StopGuard::new();
+		let stop_guard = StopGuard::new();
 
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
