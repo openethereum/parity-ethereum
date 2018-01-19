@@ -50,6 +50,7 @@ pub struct EthPubSubClient<C> {
 	handler: Arc<ChainNotificationHandler<C>>,
 	heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
 	logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
+	transactions_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
 impl<C> EthPubSubClient<C> {
@@ -57,15 +58,19 @@ impl<C> EthPubSubClient<C> {
 	pub fn new(client: Arc<C>, remote: Remote) -> Self {
 		let heads_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let logs_subscribers = Arc::new(RwLock::new(Subscribers::default()));
+		let transactions_subscribers = Arc::new(RwLock::new(Subscribers::default()));
+
 		EthPubSubClient {
 			handler: Arc::new(ChainNotificationHandler {
 				client,
 				remote,
 				heads_subscribers: heads_subscribers.clone(),
 				logs_subscribers: logs_subscribers.clone(),
+				transactions_subscribers: transactions_subscribers.clone(),
 			}),
 			heads_subscribers,
 			logs_subscribers,
+			transactions_subscribers,
 		}
 	}
 
@@ -111,6 +116,7 @@ pub struct ChainNotificationHandler<C> {
 	remote: Remote,
 	heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
 	logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
+	transactions_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
 impl<C> ChainNotificationHandler<C> {
@@ -162,6 +168,15 @@ impl<C> ChainNotificationHandler<C> {
 				})
 				.map_err(|e| warn!("Unable to fetch latest logs: {:?}", e))
 			);
+		}
+	}
+
+	/// Notify all subscribers about new transaction hashes.
+	pub fn new_transactions(&self, hashes: &[H256]) {
+		for subscriber in self.transactions_subscribers.read().values() {
+			for hash in hashes {
+				Self::notify(&self.remote, subscriber, pubsub::Result::TransactionHash((*hash).into()));
+			}
 		}
 	}
 }
@@ -256,15 +271,22 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 				self.heads_subscribers.write().push(subscriber);
 				return;
 			},
+			(pubsub::Kind::NewHeads, _) => {
+				errors::invalid_params("newHeads", "Expected no parameters.")
+			},
 			(pubsub::Kind::Logs, Some(pubsub::Params::Logs(filter))) => {
 				self.logs_subscribers.write().push(subscriber, filter.into());
 				return;
 			},
-			(pubsub::Kind::NewHeads, _) => {
-				errors::invalid_params("newHeads", "Expected no parameters.")
-			},
 			(pubsub::Kind::Logs, _) => {
 				errors::invalid_params("logs", "Expected a filter object.")
+			},
+			(pubsub::Kind::NewPendingTransactions, None) => {
+				self.transactions_subscribers.write().push(subscriber);
+				return;
+			},
+			(pubsub::Kind::NewPendingTransactions, _) => {
+				errors::invalid_params("newPendingTransactions", "Expected no parameters.")
 			},
 			_ => {
 				errors::unimplemented(None)

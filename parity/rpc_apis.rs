@@ -295,6 +295,8 @@ impl FullDependencies {
 				Api::EthPubSub => {
 					if !for_generic_pubsub {
 						let client = EthPubSubClient::new(self.client.clone(), self.remote.clone());
+						let h = client.handler();
+						self.miner.add_transactions_listener(Box::new(move |hashes| h.new_transactions(hashes)));
 						self.client.add_notify(client.handler());
 						handler.extend_with(client.to_delegate());
 					}
