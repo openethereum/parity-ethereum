@@ -584,7 +584,12 @@ impl Configuration {
 				let mut extra_embed = dev_ui.clone();
 				match self.ui_hosts() {
 					// In case host validation is disabled allow all frame ancestors
-					None => extra_embed.push(("*".to_owned(), ui_port)),
+					None => {
+						// NOTE Chrome does not seem to support "*:<port>"
+						// we use `http(s)://*:<port>` instead.
+						extra_embed.push(("http://*".to_owned(), ui_port));
+						extra_embed.push(("https://*".to_owned(), ui_port));
+					},
 					Some(hosts) => extra_embed.extend(hosts.into_iter().filter_map(|host| {
 						let mut it = host.split(":");
 						let host = it.next();
