@@ -22,4 +22,4 @@ keccak-hash = { path = "../util/hash" }
 
 [dev-dependencies]
 ethabi = "4.0"
-parking_lot = "0.4"
+parking_lot = "0.5"

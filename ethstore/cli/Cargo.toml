@@ -9,7 +9,7 @@ num_cpus = "1.6"
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-parking_lot = "0.4"
+parking_lot = "0.5"
 ethstore = { path = "../" }
 dir = { path = '../../util/dir' }
 panic_hook = { path = "../../panic_hook" }

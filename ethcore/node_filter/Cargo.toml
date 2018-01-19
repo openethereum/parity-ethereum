@@ -14,7 +14,7 @@ ethereum-types = "0.1"
 native-contracts = { path = "../native_contracts" }
 futures = "0.1"
 log = "0.3"
-parking_lot = "0.4"
+parking_lot = "0.5"
 
 [dev-dependencies]
 kvdb-memorydb = { path = "../../util/kvdb-memorydb" }

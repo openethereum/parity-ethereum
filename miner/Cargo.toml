@@ -21,7 +21,7 @@ keccak-hash = { path = "../util/hash" }
 linked-hash-map = "0.5"
 log = "0.3"
 native-contracts = { path = "../ethcore/native_contracts" }
-parking_lot = "0.4"
+parking_lot = "0.5"
 rustc-hex = "1.0"
 table = { path = "../util/table" }
 transient-hashmap = "0.4"

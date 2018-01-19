@@ -16,12 +16,9 @@
 
 //! dev-tools
 
-
 extern crate rand;
 
 mod random_path;
-mod stop_guard;
 pub mod http_client;
 
 pub use random_path::*;
-pub use stop_guard::*;
