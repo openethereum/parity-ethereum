@@ -417,17 +417,30 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader> {
-		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
+		const EXTRA_INFO_PROOF: &str = "Object exists in blockchain (fetched earlier), extra_info is always available if object exists; qed";
+		let number = number.unwrap_or_default();
 
-		let id: BlockId = number.unwrap_or_default().into();
-		let encoded = match self.client.block_header(id.clone()) {
-			Some(encoded) => encoded,
-			None => return Box::new(future::err(errors::unknown_block())),
+		let (header, extra) = if number == BlockNumber::Pending {
+			let info = self.client.chain_info();
+			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or(errors::unknown_block()));
+
+			(header.encoded(), None)
+		} else {
+			let id = match number {
+				BlockNumber::Num(num) => BlockId::Number(num),
+				BlockNumber::Earliest => BlockId::Earliest,
+				BlockNumber::Latest => BlockId::Latest,
+			};
+
+			let header = try_bf!(self.client.block_header(id.clone()).ok_or(errors::unknown_block()));
+			let info = self.client.block_extra_info(id).expect(EXTRA_INFO_PROOF);
+
+			(header, Some(info))
 		};
 
 		Box::new(future::ok(RichHeader {
-			inner: encoded.into(),
-			extra_info: self.client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
+			inner: header.into(),
+			extra_info: extra.unwrap_or_default(),
 		}))
 	}
 
