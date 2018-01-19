@@ -44,7 +44,7 @@
     "test:coverage": "cross-env NODE_ENV=test istanbul cover _mocha -- 'src/**/*.spec.js'"
   },
   "devDependencies": {
-    "@parity/dapp-console": "parity-js/dapp-console#8e9817630cebdd38b2e3fe62b736e6e3dee39b34",
+    "@parity/dapp-console": "parity-js/dapp-console#5562e6c11783dc82c1ee37fd85dc3403ff28f8f5",
     "@parity/dapp-dapp-methods": "js-dist-paritytech/dapp-dapp-methods",
     "@parity/dapp-dapp-visible": "js-dist-paritytech/dapp-dapp-visible",
     "@parity/dapp-dappreg": "parity-js/dapp-dappreg#66f2e52dfa9a783cc0ca616505460e5e34ebdf54",
