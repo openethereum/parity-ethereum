@@ -90,9 +90,6 @@ extern crate error_chain;
 extern crate log;
 
 #[cfg(test)]
-extern crate ethcore_devtools as devtools;
-
-#[cfg(test)]
 extern crate tempdir;
 
 mod host;

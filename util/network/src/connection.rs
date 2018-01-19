@@ -504,16 +504,85 @@ pub fn test_encryption() {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use std::cmp;
+	use std::collections::VecDeque;
+	use std::io::{Read, Write, Cursor, ErrorKind, Result, Error};
 	use std::sync::Arc;
 	use std::sync::atomic::AtomicBool;
-	use super::super::stats::*;
-	use std::io::{Read, Write, Error, Cursor, ErrorKind};
+
 	use mio::{Ready};
-	use std::collections::VecDeque;
 	use ethcore_bytes::Bytes;
-	use devtools::TestSocket;
 	use io::*;
+	use super::super::stats::*;
+	use super::*;
+
+	pub struct TestSocket {
+		pub read_buffer: Vec<u8>,
+		pub write_buffer: Vec<u8>,
+		pub cursor: usize,
+		pub buf_size: usize,
+	}
+
+	impl Default for TestSocket {
+		fn default() -> Self {
+			TestSocket::new()
+		}
+	}
+
+	impl TestSocket {
+		pub fn new() -> Self {
+			TestSocket {
+				read_buffer: vec![],
+				write_buffer: vec![],
+				cursor: 0,
+				buf_size: 0,
+			}
+		}
+
+		pub fn new_buf(buf_size: usize) -> TestSocket {
+			TestSocket {
+				read_buffer: vec![],
+				write_buffer: vec![],
+				cursor: 0,
+				buf_size: buf_size,
+			}
+		}
+	}
+
+	impl Read for TestSocket {
+		fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+			let end_position = cmp::min(self.read_buffer.len(), self.cursor+buf.len());
+			if self.cursor > end_position { return Ok(0) }
+			let len = cmp::max(end_position - self.cursor, 0);
+			match len {
+				0 => Ok(0),
+				_ => {
+					for i in self.cursor..end_position {
+						buf[i-self.cursor] = self.read_buffer[i];
+					}
+					self.cursor = end_position;
+					Ok(len)
+				}
+			}
+		}
+	}
+
+	impl Write for TestSocket {
+		fn write(&mut self, buf: &[u8]) -> Result<usize> {
+			if self.buf_size == 0 || buf.len() < self.buf_size {
+				self.write_buffer.extend(buf.iter().cloned());
+				Ok(buf.len())
+			}
+			else {
+				self.write_buffer.extend(buf.iter().take(self.buf_size).cloned());
+				Ok(self.buf_size)
+			}
+		}
+
+		fn flush(&mut self) -> Result<()> {
+			unimplemented!();
+		}
+	}
 
 	impl GenericSocket for TestSocket {}
 
@@ -522,17 +591,17 @@ mod tests {
 	}
 
 	impl Read for TestBrokenSocket {
-		fn read(&mut self, _: &mut [u8]) -> Result<usize, Error> {
+		fn read(&mut self, _: &mut [u8]) -> Result<usize> {
 			Err(Error::new(ErrorKind::Other, self.error.clone()))
 		}
 	}
 
 	impl Write for TestBrokenSocket {
-		fn write(&mut self, _: &[u8]) -> Result<usize, Error> {
+		fn write(&mut self, _: &[u8]) -> Result<usize> {
 			Err(Error::new(ErrorKind::Other, self.error.clone()))
 		}
 
-		fn flush(&mut self) -> Result<(), Error> {
+		fn flush(&mut self) -> Result<()> {
 			unimplemented!();
 		}
 	}
