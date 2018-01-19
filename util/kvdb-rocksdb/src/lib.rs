@@ -258,7 +258,7 @@ pub struct Database {
 }
 
 #[inline]
-fn mark_corruption<T, P: AsRef<Path>>(path: P, res: result::Result<T, String>) -> result::Result<T, String> {
+fn check_for_corruption<T, P: AsRef<Path>>(path: P, res: result::Result<T, String>) -> result::Result<T, String> {
 	if let Err(ref s) = res {
 		if s.starts_with("Corruption:") {
 			warn!("DB corrupted: {}. Repair will be triggered on next restart", s);
@@ -455,7 +455,7 @@ impl Database {
 					}
 				}
 
-				mark_corruption(
+				check_for_corruption(
 					&self.path,
 					db.write_opt(batch, &self.write_opts))?;
 
@@ -505,7 +505,7 @@ impl Database {
 					}
 				}
 
-				mark_corruption(
+				check_for_corruption(
 					&self.path,
 					db.write_opt(batch, &self.write_opts)).map_err(Into::into)
 			},
