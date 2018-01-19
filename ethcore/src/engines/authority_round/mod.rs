@@ -43,7 +43,6 @@ use ethereum_types::{H256, H520, Address, U128, U256};
 use semantic_version::SemanticVersion;
 use parking_lot::{Mutex, RwLock};
 use unexpected::{Mismatch, OutOfBounds};
-use bytes::Bytes;
 
 mod finality;
 
@@ -289,9 +288,11 @@ struct EpochVerifier {
 
 impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
+		// Validate the timestamp
+		verify_timestamp(&*self.step, header_step(header)?)?;
 		// always check the seal since it's fast.
 		// nothing heavier to do.
-		verify_external(header, &self.subchain_validators, &*self.step, |_| {})
+		verify_external(header, &self.subchain_validators)
 	}
 
 	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
@@ -315,7 +316,7 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 			//
 			// `verify_external` checks that signature is correct and author == signer.
 			if header.seal().len() != 2 { return None }
-			otry!(verify_external(header, &self.subchain_validators, &*self.step, |_| {}).ok());
+			otry!(verify_external(header, &self.subchain_validators).ok());
 
 			let newly_finalized = otry!(finality_checker.push_hash(header.hash(), header.author().clone()).ok());
 			finalized.extend(newly_finalized);
@@ -323,16 +324,6 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 
 		if finalized.is_empty() { None } else { Some(finalized) }
 	}
-}
-
-// Report misbehavior
-#[derive(Debug)]
-#[allow(dead_code)]
-enum Report {
-	// Malicious behavior
-	Malicious(Address, BlockNumber, Bytes),
-	// benign misbehavior
-	Benign(Address, BlockNumber),
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
@@ -353,34 +344,35 @@ fn is_step_proposer(validators: &ValidatorSet, bh: &H256, step: usize, address: 
 	step_proposer(validators, bh, step) == *address
 }
 
-fn verify_external<F: Fn(Report)>(header: &Header, validators: &ValidatorSet, step: &Step, report: F)
-	-> Result<(), Error>
-{
-	let header_step = header_step(header)?;
-
+fn verify_timestamp(step: &Step, header_step: usize) -> Result<(), BlockError> {
 	match step.check_future(header_step) {
 		Err(None) => {
-			trace!(target: "engine", "verify_block_external: block from the future");
-			report(Report::Benign(*header.author(), header.number()));
-			return Err(BlockError::InvalidSeal.into())
+			trace!(target: "engine", "verify_timestamp: block from the future");
+			Err(BlockError::InvalidSeal.into())
 		},
 		Err(Some(oob)) => {
-			trace!(target: "engine", "verify_block_external: block too early");
-			return Err(BlockError::TemporarilyInvalid(oob).into())
+			// NOTE This error might be returned only in early stage of verification (Stage 1).
+			// Returning it further won't recover the sync process.
+			trace!(target: "engine", "verify_timestamp: block too early");
+			Err(BlockError::TemporarilyInvalid(oob).into())
 		},
-		Ok(_) => {
-			let proposer_signature = header_signature(header)?;
-			let correct_proposer = validators.get(header.parent_hash(), header_step);
-			let is_invalid_proposer = *header.author() != correct_proposer ||
-				!verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
+		Ok(_) => Ok(()),
+	}
+}
 
-			if is_invalid_proposer {
-				trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
-				Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
-			} else {
-				Ok(())
-			}
-		}
+fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Error> {
+	let header_step = header_step(header)?;
+
+	let proposer_signature = header_signature(header)?;
+	let correct_proposer = validators.get(header.parent_hash(), header_step);
+	let is_invalid_proposer = *header.author() != correct_proposer ||
+		!verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
+
+	if is_invalid_proposer {
+		trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
+		Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
+	} else {
+		Ok(())
 	}
 }
 
@@ -653,26 +645,38 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	/// Check the number of seal fields.
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		if header.number() >= self.validate_score_transition && *header.difficulty() >= U256::from(U128::max_value()) {
-			Err(From::from(BlockError::DifficultyOutOfBounds(
+			return Err(From::from(BlockError::DifficultyOutOfBounds(
 				OutOfBounds { min: None, max: Some(U256::from(U128::max_value())), found: *header.difficulty() }
-			)))
-		} else {
-			Ok(())
+			)));
+		}
+
+		// TODO [ToDr] Should this go from epoch manager?
+		// If yes then probably benign reporting needs to be moved further in the verification.
+		let set_number = header.number();
+
+		match verify_timestamp(&*self.step, header_step(header)?) {
+			Err(BlockError::InvalidSeal) => {
+				self.validators.report_benign(header.author(), set_number, header.number());
+				Err(BlockError::InvalidSeal.into())
+			}
+			Err(e) => Err(e.into()),
+			Ok(()) => Ok(()),
 		}
 	}
 
 	/// Do the step and gas limit validation.
 	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
 		let step = header_step(header)?;
-
 		let parent_step = header_step(parent)?;
+		// TODO [ToDr] Should this go from epoch manager?
+		let set_number = header.number();
 
 		// Ensure header is from the step after parent.
 		if step == parent_step
 			|| (header.number() >= self.validate_step_transition && step <= parent_step) {
 			trace!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
 
-			self.validators.report_malicious(header.author(), header.number(), header.number(), Default::default());
+			self.validators.report_malicious(header.author(), set_number, header.number(), Default::default());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 
@@ -685,7 +689,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				let skipped_primary = step_proposer(&*self.validators, &parent.hash(), s);
 				// Do not report this signer.
 				if skipped_primary != me {
-					self.validators.report_benign(&skipped_primary, header.number(), header.number());
+					self.validators.report_benign(&skipped_primary, set_number, header.number());
 				}
 				// Stop reporting once validators start repeating.
 				if !reported.insert(skipped_primary) { break; }
@@ -700,9 +704,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		// fetch correct validator set for current epoch, taking into account
 		// finality of previous transitions.
 		let active_set;
-
-		let (validators, set_number) = if self.immediate_transitions {
-			(&*self.validators, header.number())
+		let validators = if self.immediate_transitions {
+			&*self.validators
 		} else {
 			// get correct validator set for epoch.
 			let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
@@ -720,21 +723,12 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			}
 
 			active_set = epoch_manager.validators().clone();
-			(&active_set as &_, epoch_manager.epoch_transition_number)
-		};
-
-		// always report with "self.validators" so that the report actually gets
-		// to the contract.
-		let report = |report| match report {
-			Report::Benign(address, block_number) =>
-				self.validators.report_benign(&address, set_number, block_number),
-			Report::Malicious(address, block_number, proof) =>
-				self.validators.report_malicious(&address, set_number, block_number, proof),
+			&active_set as &_
 		};
 
 		// verify signature against fixed list, but reports should go to the
 		// contract itself.
-		verify_external(header, validators, &*self.step, report)
+		verify_external(header, validators)
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
@@ -1056,8 +1050,7 @@ mod tests {
 		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
 		assert!(engine.verify_block_external(&header).is_ok());
 		header.set_seal(vec![encode(&5usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
-		assert!(engine.verify_block_family(&header, &parent_header).is_ok());
-		assert!(engine.verify_block_external(&header).is_err());
+		assert!(engine.verify_block_basic(&header).is_err());
 	}
 
 	#[test]
@@ -1197,3 +1190,4 @@ mod tests {
 		AuthorityRound::new(params, machine).unwrap();
 	}
 }
+
