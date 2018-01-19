@@ -12,7 +12,7 @@ bloomchain = { path = "../util/bloomchain" }
 bn = { git = "https://github.com/paritytech/bn" }
 byteorder = "1.0"
 common-types = { path = "types" }
-crossbeam = "0.2.9"
+crossbeam = "0.3"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-bytes = { path = "../util/bytes" }
@@ -42,7 +42,7 @@ native-contracts = { path = "native_contracts" }
 num = "0.1"
 num_cpus = "1.2"
 parity-machine = { path = "../machine" }
-parking_lot = "0.4"
+parking_lot = "0.5"
 price-info = { path = "../price-info" }
 rayon = "0.8"
 rand = "0.3"

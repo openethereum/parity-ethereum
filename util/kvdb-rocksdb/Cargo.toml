@@ -9,7 +9,7 @@ ethereum-types = "0.1"
 kvdb = { path = "../kvdb" }
 log = "0.3"
 num_cpus = "1.0"
-parking_lot = "0.4"
+parking_lot = "0.5"
 regex = "0.2"
 rlp = { path = "../rlp" }
 rocksdb = { git = "https://github.com/paritytech/rust-rocksdb" }
