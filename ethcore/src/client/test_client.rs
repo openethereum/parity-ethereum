@@ -31,7 +31,7 @@ use kvdb_rocksdb::{Database, DatabaseConfig};
 use bytes::Bytes;
 use rlp::*;
 use ethkey::{Generator, Random};
-use devtools::*;
+use tempdir::TempDir;
 use transaction::{self, Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
@@ -352,15 +352,12 @@ impl TestBlockChainClient {
 	}
 }
 
-pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
-	let temp = RandomTempPath::new();
-	let db = Database::open(&DatabaseConfig::with_columns(NUM_COLUMNS), temp.as_str()).unwrap();
+pub fn get_temp_state_db() -> (StateDB, TempDir) {
+	let tempdir = TempDir::new("").unwrap();
+	let db = Database::open(&DatabaseConfig::with_columns(NUM_COLUMNS), tempdir.path().to_str().unwrap()).unwrap();
 	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, COL_STATE);
 	let state_db = StateDB::new(journal_db, 1024 * 1024);
-	GuardedTempResult {
-		_temp: temp,
-		result: Some(state_db)
-	}
+	(state_db, tempdir)
 }
 
 impl MiningBlockChainClient for TestBlockChainClient {
@@ -373,8 +370,8 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
-		let mut db_result = get_temp_state_db();
-		let db = self.spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
+		let (state_db, _tempdir) = get_temp_state_db();
+		let db = self.spec.ensure_db_good(state_db, &Default::default()).unwrap();
 
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(

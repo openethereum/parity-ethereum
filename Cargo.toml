@@ -34,7 +34,6 @@ jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "pa
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-bytes = { path = "util/bytes" }
-ethcore-devtools = { path = "devtools" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
@@ -76,6 +75,7 @@ rustc_version = "0.2"
 [dev-dependencies]
 pretty_assertions = "0.1"
 ipnetwork = "0.12.6"
+tempdir = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"

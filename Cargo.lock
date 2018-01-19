@@ -442,7 +442,6 @@ dependencies = [
  "ethash 1.9.0",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-bytes 0.1.0",
- "ethcore-devtools 1.9.0",
  "ethcore-io 1.9.0",
  "ethcore-logger 1.9.0",
  "ethcore-miner 1.9.0",
@@ -488,6 +487,7 @@ dependencies = [
  "stats 0.1.0",
  "stop-guard 0.1.0",
  "table 0.1.0",
+ "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
  "triehash 0.1.0",
  "unexpected 0.1.0",
@@ -511,9 +511,6 @@ version = "0.1.0"
 [[package]]
 name = "ethcore-devtools"
 version = "1.9.0"
-dependencies = [
- "rand 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "ethcore-io"
@@ -1918,7 +1915,6 @@ dependencies = [
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.9.0",
  "ethcore-bytes 0.1.0",
- "ethcore-devtools 1.9.0",
  "ethcore-io 1.9.0",
  "ethcore-light 1.9.0",
  "ethcore-logger 1.9.0",
@@ -1971,6 +1967,7 @@ dependencies = [
  "serde 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2161,6 +2158,7 @@ dependencies = [
  "serde_derive 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "stats 0.1.0",
+ "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-timer 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",

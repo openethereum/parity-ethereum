@@ -48,7 +48,6 @@ extern crate toml;
 
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
-extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
@@ -96,6 +95,9 @@ extern crate pretty_assertions;
 
 #[cfg(windows)] extern crate ws2_32;
 #[cfg(windows)] extern crate winapi;
+
+#[cfg(test)]
+extern crate tempdir;
 
 mod account;
 mod blockchain;

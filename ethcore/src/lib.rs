@@ -62,7 +62,6 @@ extern crate common_types as types;
 extern crate crypto;
 extern crate ethash;
 extern crate ethcore_bloom_journal as bloom_journal;
-extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_logger;
@@ -125,6 +124,8 @@ extern crate evm;
 
 #[cfg(feature = "jit" )]
 extern crate evmjit;
+
+extern crate tempdir;
 
 pub extern crate ethstore;
 

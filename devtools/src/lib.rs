@@ -16,9 +16,4 @@
 
 //! dev-tools
 
-extern crate rand;
-
-mod random_path;
 pub mod http_client;
-
-pub use random_path::*;

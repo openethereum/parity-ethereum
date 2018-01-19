@@ -1137,10 +1137,10 @@ impl Configuration {
 #[cfg(test)]
 mod tests {
 	use std::io::Write;
-	use std::fs::{File, create_dir};
+	use std::fs::File;
 	use std::str::FromStr;
 
-	use devtools::{RandomTempPath};
+	use tempdir::TempDir;
 	use ethcore::client::{VMType, BlockId};
 	use ethcore::miner::MinerOptions;
 	use miner::transaction_queue::PrioritizationStrategy;
@@ -1630,37 +1630,33 @@ mod tests {
 	#[test]
 	fn should_parse_dapp_opening() {
 		// given
-		let temp = RandomTempPath::new();
-		let name = temp.file_name().unwrap().to_str().unwrap();
-		create_dir(temp.as_str().to_owned()).unwrap();
+		let tempdir = TempDir::new("").unwrap();
 
 		// when
-		let conf0 = parse(&["parity", "dapp", temp.to_str().unwrap()]);
+		let conf0 = parse(&["parity", "dapp", tempdir.path().to_str().unwrap()]);
 
 		// then
-		assert_eq!(conf0.dapp_to_open(), Ok(Some(name.into())));
+		assert_eq!(conf0.dapp_to_open(), Ok(Some(tempdir.path().file_name().unwrap().to_str().unwrap().into())));
 		let extra_dapps = conf0.dapps_config().extra_dapps;
-		assert_eq!(extra_dapps, vec![temp.to_owned()]);
+		assert_eq!(extra_dapps, vec![tempdir.path().to_owned()]);
 	}
 
 	#[test]
 	fn should_not_bail_on_empty_line_in_reserved_peers() {
-		let temp = RandomTempPath::new();
-		create_dir(temp.as_str().to_owned()).unwrap();
-		let filename = temp.as_str().to_owned() + "/peers";
-		File::create(filename.clone()).unwrap().write_all(b"  \n\t\n").unwrap();
-		let args = vec!["parity", "--reserved-peers", &filename];
+		let tempdir = TempDir::new("").unwrap();
+		let filename = tempdir.path().join("peers");
+		File::create(&filename).unwrap().write_all(b"  \n\t\n").unwrap();
+		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];
 		let conf = Configuration::parse(&args, None).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
 	}
 
 	#[test]
 	fn should_ignore_comments_in_reserved_peers() {
-		let temp = RandomTempPath::new();
-		create_dir(temp.as_str().to_owned()).unwrap();
-		let filename = temp.as_str().to_owned() + "/peers_comments";
-		File::create(filename.clone()).unwrap().write_all(b"# Sample comment\nenode://6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@172.0.0.1:30303\n").unwrap();
-		let args = vec!["parity", "--reserved-peers", &filename];
+		let tempdir = TempDir::new("").unwrap();
+		let filename = tempdir.path().join("peers_comments");
+		File::create(&filename).unwrap().write_all(b"# Sample comment\nenode://6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@172.0.0.1:30303\n").unwrap();
+		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];
 		let conf = Configuration::parse(&args, None).unwrap();
 		let reserved_nodes = conf.init_reserved_nodes();
 		assert!(reserved_nodes.is_ok());

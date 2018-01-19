@@ -221,28 +221,19 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 
 #[cfg(test)]
 mod tests {
+	use std::{time, thread};
 	use super::*;
 	use tests::helpers::*;
-	use devtools::*;
 	use client::ClientConfig;
 	use std::sync::Arc;
 	use miner::Miner;
+	use tempdir::TempDir;
 
 	#[test]
 	fn it_can_be_started() {
-		let temp_path = RandomTempPath::new();
-		let path = temp_path.as_path().to_owned();
-		let client_path = {
-			let mut path = path.to_owned();
-			path.push("client");
-			path
-		};
-
-		let snapshot_path = {
-			let mut path = path.to_owned();
-			path.push("snapshot");
-			path
-		};
+		let tempdir = TempDir::new("").unwrap();
+		let client_path = tempdir.path().join("client");
+		let snapshot_path = tempdir.path().join("snapshot");
 
 		let spec = get_test_spec();
 		let service = ClientService::start(
@@ -250,11 +241,11 @@ mod tests {
 			&spec,
 			&client_path,
 			&snapshot_path,
-			&path,
+			tempdir.path(),
 			Arc::new(Miner::with_spec(&spec)),
 		);
 		assert!(service.is_ok());
 		drop(service.unwrap());
-		::std::thread::park_timeout(::std::time::Duration::from_millis(100));
+		thread::park_timeout(time::Duration::from_millis(100));
 	}
 }
