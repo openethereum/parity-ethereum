@@ -261,12 +261,16 @@ pub struct Database {
 fn mark_corruption<T, P: AsRef<Path>>(path: P, res: result::Result<T, String>) -> result::Result<T, String> {
 	if let Err(ref s) = res {
 		if s.starts_with("Corruption:") {
-			warn!("DB corruption detected: {}. Repair will be triggered on next restart", s);
+			warn!("DB corrupted: {}. Repair will be triggered on next restart", s);
 			let _ = fs::File::create(path.as_ref().join("CORRUPTED"));
 		}
 	}
 
 	res
+}
+
+fn is_corrupted(s: &str) -> bool {
+	s.starts_with("Corruption:") || s.starts_with("Invalid argument: You have to open all column families")
 }
 
 impl Database {
@@ -302,7 +306,7 @@ impl Database {
 		// attempt database repair if it has been previously marked as corrupted
 		let db_corrupted = Path::new(path).join("CORRUPTED");
 		if db_corrupted.exists() {
-			warn!("DB {} has been previously marked as corrupted, attempting repair.", path);
+			warn!("DB has been previously marked as corrupted, attempting repair");
 			DB::repair(&opts, path)?;
 			fs::remove_file(db_corrupted)?;
 		}
@@ -326,12 +330,11 @@ impl Database {
 
 		let mut cfs: Vec<Column> = Vec::new();
 		let db = match config.columns {
-			Some(columns) => {
+			Some(_) => {
 				match DB::open_cf(&opts, path, &cfnames, &cf_options) {
 					Ok(db) => {
 						cfs = cfnames.iter().map(|n| db.cf_handle(n)
 							.expect("rocksdb opens a cf_handle for each cfname; qed")).collect();
-						assert!(cfs.len() == columns as usize);
 						Ok(db)
 					}
 					Err(_) => {
@@ -341,7 +344,7 @@ impl Database {
 								cfs = cfnames.iter().enumerate().map(|(i, n)| db.create_cf(n, &cf_options[i])).collect::<::std::result::Result<_, _>>()?;
 								Ok(db)
 							},
-							err @ Err(_) => err,
+							err => err,
 						}
 					}
 				}
@@ -351,14 +354,18 @@ impl Database {
 
 		let db = match db {
 			Ok(db) => db,
-			Err(ref s) if s.starts_with("Corruption:") => {
-				info!("{}", s);
-				info!("Attempting DB repair for {}", path);
+			Err(ref s) if is_corrupted(s) => {
+				warn!("DB corrupted: {}, attempting repair", s);
 				DB::repair(&opts, path)?;
 
 				match cfnames.is_empty() {
 					true => DB::open(&opts, path)?,
-					false => DB::open_cf(&opts, path, &cfnames, &cf_options)?
+					false => {
+						let db = DB::open_cf(&opts, path, &cfnames, &cf_options)?;
+						cfs = cfnames.iter().map(|n| db.cf_handle(n)
+							.expect("rocksdb opens a cf_handle for each cfname; qed")).collect();
+						db
+					},
 				}
 			},
 			Err(s) => { return Err(s.into()); }
