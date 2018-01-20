@@ -18,10 +18,10 @@
 
 extern crate backtrace;
 
-use backtrace::Backtrace;
 use std::io::{self, Write};
 use std::panic::{self, PanicInfo};
 use std::thread;
+use backtrace::Backtrace;
 
 /// Set the panic hook
 pub fn set() {
