@@ -26,7 +26,7 @@ use util::Address;
 use ethcore::{contract_address, CreateContractAddress};
 
 use jsonrpc_core::{Error};
-use v1::types::{Bytes, PrivateTransactionReceipt, H160, TransactionRequest, U256,
+use v1::types::{Bytes, PrivateTransactionReceipt, H160, H256, TransactionRequest, U256,
 	BlockNumber, PrivateTransactionReceiptAndTransaction, CallRequest};
 use v1::traits::Private;
 use v1::helpers::{errors, fake_sign};
@@ -62,7 +62,7 @@ impl Private for PrivateClient {
 		Ok(receipt.into())
 	}
 
-	fn compose_deployment_transaction(&self, num: BlockNumber, request: Bytes, validators: Vec<H160>, nonce: U256, gas_price: U256) -> Result<PrivateTransactionReceiptAndTransaction, Error> {
+	fn compose_deployment_transaction(&self, num: BlockNumber, request: Bytes, validators: Vec<H160>, gas_price: U256) -> Result<PrivateTransactionReceiptAndTransaction, Error> {
 		let signed_transaction = UntrustedRlp::new(&request.into_vec()).as_val()
 			.map_err(errors::rlp)
 			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))?;
@@ -70,7 +70,7 @@ impl Private for PrivateClient {
 
 		let addresses: Vec<Address> = validators.into_iter().map(Into::into).collect();
 
-		let transaction = client.public_creation_transaction(num.into(), &signed_transaction, addresses.as_slice(), nonce.into(), gas_price.into()).map_err(errors::transaction)?;
+		let transaction = client.public_creation_transaction(num.into(), &signed_transaction, addresses.as_slice(), gas_price.into()).map_err(errors::transaction)?;
 		let tx_hash = transaction.hash(None);
 		let request = TransactionRequest {
 			from: Some(signed_transaction.sender().into()),
@@ -82,7 +82,7 @@ impl Private for PrivateClient {
 			data: Some(transaction.data.into()),
 			condition: None,
 		};
-		let (contract_address, _) = contract_address(CreateContractAddress::FromSenderAndNonce, &signed_transaction.sender().clone(), &nonce.into(), &[]);
+		let (contract_address, _) = contract_address(CreateContractAddress::FromSenderAndNonce, &signed_transaction.sender().clone(), &transaction.nonce.into(), &[]);
 		Ok(PrivateTransactionReceiptAndTransaction {
 			transaction: request,
 			receipt: PrivateTransactionReceipt {
@@ -99,6 +99,12 @@ impl Private for PrivateClient {
 		let client = self.unwrap_manager()?;
 		let executed_result = client.private_call(num.into(), &signed).map_err(errors::transaction)?;
 		Ok(executed_result.output.into())
+	}
+
+	fn private_contract_key(&self, contract_address: H160) -> Result<H256, Error> {
+		let client = self.unwrap_manager()?;
+		let key = client.contract_key_id(&contract_address.into()).map_err(errors::transaction)?;
+		Ok(key.into())
 	}
 }
 

@@ -901,7 +901,10 @@ impl Configuration {
 			passwords: match self.args.arg_private_passwords.clone() {
 				Some(file) => passwords_from_files(&vec![file].as_slice())?,
 				None => Vec::new(),
-			}
+			},
+			key_server_account: self.args.arg_private_account.clone().and_then(|account| to_address(Some(account)).ok()),
+			key_server_url: self.args.arg_private_sstore_url.clone(),
+			key_server_threshold: self.args.arg_private_sstore_threshold.unwrap_or(0),
 		};
 
 		Ok(conf)

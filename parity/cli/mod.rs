@@ -352,9 +352,21 @@ usage! {
 			"--private-validators=[ACCOUNTS]",
 			"Specify the accounts for validating private transactions. ACCOUNTS is a comma-delimited list of addresses.",
 
+			ARG arg_private_account: (Option<String>) = None, or |c: &Config| otry!(c.privatetransactions).account.clone(),
+			"--private-account=[ACCOUNT]",
+			"Specify the account for signing requests to secret store.",
+
+			ARG arg_private_sstore_url: (Option<String>) = None, or |c: &Config| otry!(c.privatetransactions).sstore_url.clone(),
+			"--private-sstore-url=[URL]",
+			"Specify secret store URL used for encrypting private transactions.",
+
+			ARG arg_private_sstore_threshold: (Option<u32>) = None, or |c: &Config| otry!(c.privatetransactions).sstore_threshold.clone(),
+			"--private-sstore-threshold=[NUM]",
+			"Specify secret store threshold used for encrypting private transactions.",
+
 			ARG arg_private_passwords: (Option<String>) = None, or |c: &Config| otry!(c.privatetransactions).passwords.clone(),
 			"--private-passwords=[FILE]...",
-			"Provide a file containing passwords for unlocking signer and validators accounts.",
+			"Provide a file containing passwords for unlocking accounts (signer, private account, validators).",
 
 		["UI options"]
 			FLAG flag_force_ui: (bool) = false, or |c: &Config| otry!(c.ui).force.clone(),
@@ -1032,7 +1044,10 @@ struct Account {
 struct PrivateTransactions {
 	signer: Option<String>,
 	validators: Option<Vec<String>>,
+	account: Option<String>,
 	passwords: Option<String>,
+	sstore_url: Option<String>,
+	sstore_threshold: Option<u32>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1457,6 +1472,9 @@ mod tests {
 			arg_private_signer: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_private_validators: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_private_passwords: Some("~/.safe/password.file".into()),
+			arg_private_account: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
+			arg_private_sstore_url: Some("http://localhost:8082".into()),
+			arg_private_sstore_threshold: Some(0),
 
 			flag_force_ui: false,
 			flag_no_ui: false,

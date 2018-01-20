@@ -18,7 +18,7 @@
 
 use jsonrpc_core::Error;
 
-use v1::types::{Bytes, PrivateTransactionReceipt, H160, U256, BlockNumber,
+use v1::types::{Bytes, PrivateTransactionReceipt, H160, H256, U256, BlockNumber,
 	PrivateTransactionReceiptAndTransaction, CallRequest};
 
 build_rpc_trait! {
@@ -30,10 +30,14 @@ build_rpc_trait! {
 
 		/// Creates a transaction for contract's deployment from origin (signed transaction)
 		#[rpc(name = "private_composeDeploymentTransaction")]
-		fn compose_deployment_transaction(&self, BlockNumber, Bytes, Vec<H160>, U256, U256) -> Result<PrivateTransactionReceiptAndTransaction, Error>;
+		fn compose_deployment_transaction(&self, BlockNumber, Bytes, Vec<H160>, U256) -> Result<PrivateTransactionReceiptAndTransaction, Error>;
 
 		/// Make a call to the private contract
 		#[rpc(name = "private_call")]
 		fn private_call(&self, BlockNumber, CallRequest) -> Result<Bytes, Error>;
+
+		/// Retrieve the id of the key associated with the contract
+		#[rpc(name = "private_contractKey")]
+		fn private_contract_key(&self, H160) -> Result<H256, Error>;
 	}
 }

@@ -60,7 +60,7 @@ use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService, TransactionImportResult};
 use native_contracts::Registry;
 use parking_lot::{Mutex, RwLock, MutexGuard};
-use private_transactions::{Provider as PrivateTransactionsProvider, SecretStoreEncryptor};
+use private_transactions::{Provider as PrivateTransactionsProvider};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
 use rlp::UntrustedRlp;
@@ -232,7 +232,7 @@ impl Client {
 
 		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
 
-		let provider = Arc::new(PrivateTransactionsProvider::new(Arc::new(SecretStoreEncryptor::new()?)));
+		let provider = Arc::new(PrivateTransactionsProvider::new()?);
 
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),

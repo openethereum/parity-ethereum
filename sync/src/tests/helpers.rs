@@ -29,7 +29,6 @@ use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
 use ethcore::private_transactions::Provider as PrivateTransactionProvider;
-use ethcore::private_transactions::encryptor::{DummyEncryptor};
 use ethcore::miner::Miner;
 use ethcore::engines::EthEngine;
 use ethcore::transaction::SignedTransaction;
@@ -382,7 +381,7 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 				snapshot_service: ss,
 				chain: Arc::new(chain),
 				queue: RwLock::new(VecDeque::new()),
-				private_provider: Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))),
+				private_provider: Arc::new(PrivateTransactionProvider::new().unwrap()),
 				io_queue: RwLock::new(VecDeque::new()),
 				new_blocks_queue: RwLock::new(VecDeque::new()),
 			}));

@@ -679,7 +679,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let provider = client.private_transactions_provider().clone();
 	provider.add_notify(chain_notify.clone());
 	provider.register_account_provider(Arc::downgrade(&account_provider));
-	provider.set_config(cmd.private_provider_conf);
+	provider.set_config(cmd.private_provider_conf).map_err(|e| format!("Private transaction setup error: {:?}", e))?;
 	service.add_notify(provider);
 
 	// start network

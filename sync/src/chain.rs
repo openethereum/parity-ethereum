@@ -2297,7 +2297,6 @@ mod tests {
 	use ethcore::transaction::UnverifiedTransaction;
 	use ethcore::miner::MinerService;
 	use ethcore::private_transactions::Provider as PrivateTransactionProvider;
-	use ethcore::private_transactions::encryptor::{DummyEncryptor};
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();
@@ -2385,7 +2384,7 @@ mod tests {
 		let mut client = TestBlockChainClient::new();
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		let result = ChainSync::return_receipts(&io, &UntrustedRlp::new(&[0xc0]), 0);
 
@@ -2398,7 +2397,7 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let sync = dummy_sync_with_peer(H256::new(), &client);
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		let mut receipt_list = RlpStream::new_list(4);
 		receipt_list.append(&H256::from("0000000000000000000000000000000000000000000000005555555555555555"));
@@ -2455,7 +2454,7 @@ mod tests {
 
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		let unknown: H256 = H256::new();
 		let result = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&make_hash_req(&unknown, 1, 0, false)), 0);
@@ -2494,7 +2493,7 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let sync = dummy_sync_with_peer(H256::new(), &client);
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		let mut node_list = RlpStream::new_list(3);
 		node_list.append(&H256::from("0000000000000000000000000000000000000000000000005555555555555555"));
@@ -2586,7 +2585,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		let peers = sync.get_lagging_peers(&chain_info);
 		let peer_count = sync.propagate_new_hashes(&chain_info, &mut io, &peers);
@@ -2607,7 +2606,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 		let peers = sync.get_lagging_peers(&chain_info);
 		let peer_count = sync.propagate_blocks(&chain_info, &mut io, &[], &peers);
 
@@ -2628,7 +2627,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 		let peers = sync.get_lagging_peers(&chain_info);
 		let peer_count = sync.propagate_blocks(&chain_info, &mut io, &[hash.clone()], &peers);
 
@@ -2668,7 +2667,7 @@ mod tests {
 				block_set: None,
 			});
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 		sync.propagate_proposed_blocks(&mut io, &[block]);
 
 		// 1 message should be sent
@@ -2685,7 +2684,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(1), &client);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 		let peer_count = sync.propagate_new_transactions(&mut io);
 		// Try to propagate same transactions for the second time
 		let peer_count2 = sync.propagate_new_transactions(&mut io);
@@ -2712,7 +2711,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(1), &client);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 		let peer_count = sync.propagate_new_transactions(&mut io);
 		io.chain.insert_transaction_to_queue();
 		// New block import should not trigger propagation.
@@ -2736,7 +2735,7 @@ mod tests {
 		let mut sync = ChainSync::new(SyncConfig::default(), &client);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 		let peer_count = sync.propagate_new_transactions(&mut io);
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[], &[]);
 		// Try to propagate same transactions for the second time
@@ -2757,7 +2756,7 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		// should sent some
 		{
-			let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+			let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 			let peer_count = sync.propagate_new_transactions(&mut io);
 			assert_eq!(1, io.packets.len());
 			assert_eq!(1, peer_count);
@@ -2765,7 +2764,7 @@ mod tests {
 		// Insert some more
 		client.insert_transaction_to_queue();
 		let (peer_count2, peer_count3) = {
-			let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+			let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 			// Propagate new transactions
 			let peer_count2 = sync.propagate_new_transactions(&mut io);
 			// And now the peer should have all transactions
@@ -2791,7 +2790,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(1), &client);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 		sync.propagate_new_transactions(&mut io);
 
 		let stats = sync.transactions_stats();
@@ -2806,7 +2805,7 @@ mod tests {
 		let mut sync = ChainSync::new(SyncConfig::default(), &client);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		// when peer#1 is Geth
 		insert_dummy_peer(&mut sync, 1, block_hash);
@@ -2839,7 +2838,7 @@ mod tests {
 		let mut sync = ChainSync::new(SyncConfig::default(), &client);
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		// when peer#1 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 1, block_hash);
@@ -2882,7 +2881,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		//sync.have_common_block = true;
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		let block = UntrustedRlp::new(&block_data);
 
@@ -2901,7 +2900,7 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		let block = UntrustedRlp::new(&block_data);
 
@@ -2917,7 +2916,7 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		let empty_data = vec![];
 		let block = UntrustedRlp::new(&empty_data);
@@ -2934,7 +2933,7 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		let hashes_data = get_dummy_hashes();
 		let hashes_rlp = UntrustedRlp::new(&hashes_data);
@@ -2951,7 +2950,7 @@ mod tests {
 		let queue = RwLock::new(VecDeque::new());
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		let empty_hashes_data = vec![];
 		let hashes_rlp = UntrustedRlp::new(&empty_hashes_data);
@@ -2971,7 +2970,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		let peers = sync.get_lagging_peers(&chain_info);
 		sync.propagate_new_hashes(&chain_info, &mut io, &peers);
@@ -2991,7 +2990,7 @@ mod tests {
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
 		let chain_info = client.chain_info();
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		let peers = sync.get_lagging_peers(&chain_info);
 		sync.propagate_blocks(&chain_info, &mut io, &[], &peers);
@@ -3030,7 +3029,7 @@ mod tests {
 		{
 			let queue = RwLock::new(VecDeque::new());
 			let ss = TestSnapshotService::new();
-			let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+			let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &[], &good_blocks);
 			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);
 			assert_eq!(io.chain.miner.status().transactions_in_future_queue, 0);
@@ -3044,7 +3043,7 @@ mod tests {
 		{
 			let queue = RwLock::new(VecDeque::new());
 			let ss = TestSnapshotService::new();
-			let mut io = TestIo::new(&client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+			let mut io = TestIo::new(&client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &good_blocks, &retracted_blocks);
 			sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks, &[], &[]);
 		}
@@ -3069,7 +3068,7 @@ mod tests {
 
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new(Arc::new(DummyEncryptor::default()))));
+		let mut io = TestIo::new(&mut client, &ss, &queue, None, Arc::new(PrivateTransactionProvider::new().unwrap()));
 
 		// when
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);

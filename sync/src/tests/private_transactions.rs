@@ -112,15 +112,21 @@ fn send_private_transaction() {
 		validator_accounts: vec![s1.address()],
 		signer_account: None,
 		passwords: vec!["".into()],
+		key_server_url: Some("http://localhost:8082".into()),
+		key_server_account: Some(s1.address()),
+		key_server_threshold: 0,
 	};
-	provider1.set_config(validator_config);
+	provider1.set_config(validator_config).unwrap();
 
 	let signer_config = ProviderConfig{
 		validator_accounts: Vec::new(),
 		signer_account: Some(s0.address()),
 		passwords: vec!["".into()],
+		key_server_url: None,
+		key_server_account: Some(s0.address()),
+		key_server_threshold: 0,
 	};
-	provider0.set_config(signer_config);
+	provider0.set_config(signer_config).unwrap();
 
 	provider0.register_account_provider(Arc::downgrade(&ap));
 	provider1.register_account_provider(Arc::downgrade(&ap));
@@ -136,7 +142,7 @@ fn send_private_transaction() {
 	private_create_tx.gas = 200000.into();
 	let private_create_tx_signed = private_create_tx.sign(&s0.secret(), None);
 	let validators = vec![s1.address()];
-	let public_tx = provider0.public_creation_transaction(BlockId::Pending, &private_create_tx_signed, &validators, 0.into(), 0.into()).unwrap();
+	let public_tx = provider0.public_creation_transaction(BlockId::Pending, &private_create_tx_signed, &validators, 0.into()).unwrap();
 	let public_tx = public_tx.sign(&s0.secret(), chain_id);
 	let public_tx_copy = public_tx.clone();
 	push_block_with_transactions(&client0, client0.engine(), &[public_tx]);

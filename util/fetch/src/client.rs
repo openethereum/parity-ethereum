@@ -320,6 +320,11 @@ impl Response {
 		self.status() == reqwest::StatusCode::Ok
 	}
 
+	/// Returns `true` if response status code is 404.
+	pub fn is_not_found(&self) -> bool {
+		self.status() == reqwest::StatusCode::NotFound
+	}
+
 	/// Returns `true` if content type of this response is `text/html`
 	pub fn is_html(&self) -> bool {
 		match self.content_type() {

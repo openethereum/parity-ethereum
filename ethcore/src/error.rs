@@ -152,6 +152,12 @@ pub enum PrivateTransactionError {
 	PrivateTransactionNotFound,
 	/// Account for signing public transactions not set
 	SignerAccountNotSet,
+	/// Account for signing requests to key server not set
+	KeyServerAccountNotSet,
+	/// Encryption key is not found on key server
+	EncryptionKeyNotFound(Address),
+	/// Key server URL is not set
+	KeyServerNotSet,
 }
 
 impl fmt::Display for PrivateTransactionError {
@@ -173,6 +179,9 @@ impl fmt::Display for PrivateTransactionError {
 			PrivateTransactionAlreadyImported => f.write_str("Private transactions already imported."),
 			PrivateTransactionNotFound => f.write_str("Private transactions is not found in the store."),
 			SignerAccountNotSet => f.write_str("Account for signing public transactions not set."),
+			KeyServerAccountNotSet => f.write_str("Account for signing requets to key server not set."),
+			EncryptionKeyNotFound(address) => f.write_fmt(format_args!("Encryption key is not found on key server for {}.", address)),
+			KeyServerNotSet => f.write_str("URL for key server is not set."),
 		}
 	}
 }
