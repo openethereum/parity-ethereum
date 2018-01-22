@@ -318,13 +318,13 @@ impl Decodable for EmptyStep {
 	}
 }
 
-pub fn empty_step_full_rlp(signature: &H520, empty_step_rlp: &Bytes) -> Bytes {
+pub fn empty_step_full_rlp(signature: &H520, empty_step_rlp: &[u8]) -> Vec<u8> {
 	let mut s = RlpStream::new_list(2);
 	s.append(signature).append_raw(empty_step_rlp, 1);
 	s.out()
 }
 
-pub fn empty_step_rlp(step: usize, parent_hash: &H256) -> Bytes {
+pub fn empty_step_rlp(step: usize, parent_hash: &H256) -> Vec<u8> {
 	let mut s = RlpStream::new_list(2);
 	s.append(&step).append(parent_hash);
 	s.out()
@@ -563,7 +563,7 @@ impl AuthorityRound {
 		}
 	}
 
-	fn broadcast_message(&self, message: Bytes) {
+	fn broadcast_message(&self, message: Vec<u8>) {
 		if let Some(ref weak) = *self.client.read() {
 			if let Some(c) = weak.upgrade() {
 				c.broadcast_consensus_message(message);
