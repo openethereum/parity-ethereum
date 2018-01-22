@@ -13,6 +13,8 @@
 		0ACF9AC71E30FAB600D5C935 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0ACF9AC51E30FAB600D5C935 /* MainMenu.xib */; };
 		0AE564F11E3CE42C00BD01F7 /* GetBSDProcessList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AE564F01E3CE42C00BD01F7 /* GetBSDProcessList.swift */; };
 		0AED4DA01E3E22F800BF87C0 /* ethstore in CopyFiles */ = {isa = PBXBuildFile; fileRef = 0AED4D9F1E3E22F800BF87C0 /* ethstore */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		84CF92B3200E559900AD6E78 /* parity-evm in CopyFiles */ = {isa = PBXBuildFile; fileRef = 84CF92B2200E559900AD6E78 /* parity-evm */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		84CF92B6200E56AE00AD6E78 /* ethkey in CopyFiles */ = {isa = PBXBuildFile; fileRef = 84CF92B5200E56AE00AD6E78 /* ethkey */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -22,6 +24,8 @@
 			dstPath = "";
 			dstSubfolderSpec = 6;
 			files = (
+				84CF92B6200E56AE00AD6E78 /* ethkey in CopyFiles */,
+				84CF92B3200E559900AD6E78 /* parity-evm in CopyFiles */,
 				0AED4DA01E3E22F800BF87C0 /* ethstore in CopyFiles */,
 				0A7A475D1E3D2CDD0093D1AB /* parity in CopyFiles */,
 			);
@@ -38,6 +42,8 @@
 		0ACF9AC81E30FAB600D5C935 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		0AE564F01E3CE42C00BD01F7 /* GetBSDProcessList.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GetBSDProcessList.swift; sourceTree = "<group>"; };
 		0AED4D9F1E3E22F800BF87C0 /* ethstore */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = ethstore; path = ../target/release/ethstore; sourceTree = "<group>"; };
+		84CF92B2200E559900AD6E78 /* parity-evm */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = "parity-evm"; path = "../target/release/parity-evm"; sourceTree = "<group>"; };
+		84CF92B5200E56AE00AD6E78 /* ethkey */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; name = ethkey; path = ../target/release/ethkey; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,6 +60,8 @@
 		0ACF9AB51E30FAB600D5C935 = {
 			isa = PBXGroup;
 			children = (
+				84CF92B5200E56AE00AD6E78 /* ethkey */,
+				84CF92B2200E559900AD6E78 /* parity-evm */,
 				0AED4D9F1E3E22F800BF87C0 /* ethstore */,
 				0A7A475C1E3D2CDD0093D1AB /* parity */,
 				0ACF9AC01E30FAB600D5C935 /* Parity Ethereum */,
@@ -110,7 +118,7 @@
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 0800;
-				LastUpgradeCheck = 0800;
+				LastUpgradeCheck = 0820;
 				ORGANIZATIONNAME = "Parity Technologies";
 				TargetAttributes = {
 					0ACF9ABD1E30FAB600D5C935 = {
@@ -192,6 +200,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -241,6 +250,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_SUSPICIOUS_MOVES = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
