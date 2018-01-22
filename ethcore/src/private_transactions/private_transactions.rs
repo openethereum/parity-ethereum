@@ -15,14 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use error::{Error, PrivateTransactionError};
-use util::Address;
 use ethkey::Signature;
 use bytes::Bytes;
 use std::collections::HashMap;
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256, Address};
 use transaction::{UnverifiedTransaction, SignedTransaction};
-use miner::{TransactionQueue, TransactionQueueDetailsProvider, TransactionOrigin, RemovalReason};
+use ethcore_miner::transaction_queue::{TransactionQueue, RemovalReason,
+	TransactionDetailsProvider as TransactionQueueDetailsProvider, TransactionOrigin};
+
 use header::BlockNumber;
 
 /// Maximum length for private transactions queues.
@@ -85,6 +85,7 @@ impl VerificationStore {
 				});
 				Ok(())
 			})
+			.map_err(|err| err.into())
 	}
 
 	/// Returns transactions ready for verification

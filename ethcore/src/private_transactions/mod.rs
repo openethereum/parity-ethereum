@@ -27,9 +27,7 @@ pub use self::private_transactions::*;
 
 use std::sync::{Arc, Weak};
 use std::collections::HashMap;
-use bigint::hash::{H256, H128};
-use bigint::prelude::U256;
-use util::Address;
+use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
 use rlp::*;
 use parking_lot::{Mutex, RwLock};
@@ -44,7 +42,8 @@ use client::{Client, BlockChainClient, ChainNotify, ChainMessageType, BlockId, M
 use account_provider::AccountProvider;
 use service::ClientIoMessage;
 use error::{PrivateTransactionError};
-use miner::{MinerService, TransactionQueueDetailsProvider, AccountDetails};
+use ethcore_miner::transaction_queue::{TransactionDetailsProvider as TransactionQueueDetailsProvider, AccountDetails};
+use miner::MinerService;
 use native_contracts::Private as Contract;
 use trace::{Tracer, VMTracer};
 use rustc_hex::FromHex;

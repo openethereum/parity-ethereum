@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use parking_lot::Mutex;
 use account_provider::AccountProvider;
-use bigint::hash::H128;
+use ethereum_types::{H128, Address};
 use ethjson;
 use ethkey::{Signature, Public};
 use ethcrypto;
@@ -32,7 +32,6 @@ use futures::Future;
 use fetch::{Fetch, Method as FetchMethod, Client as FetchClient};
 use bytes::{Bytes, ToPretty};
 use error::{Error as EthcoreError, PrivateTransactionError};
-use util::Address;
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
@@ -276,7 +275,7 @@ pub mod tests {
 	use super::{Encryptor, DummyEncryptor};
 	use rand::{Rng, OsRng};
 	use std::sync::Arc;
-	use bigint::hash::H128;
+	use ethereum_types::H128;
 	use account_provider::AccountProvider;
 
 	const INIT_VEC_LEN: usize = 16;

@@ -16,8 +16,8 @@
 
 use std::collections::{VecDeque, HashSet, HashMap};
 use std::sync::Arc;
-use ethereum_types::{H256, U256};
-se parking_lot::RwLock;
+use ethereum_types::{H256, U256, Address};
+use parking_lot::RwLock;
 use bytes::Bytes;
 use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
 use tests::snapshot::*;
@@ -30,12 +30,12 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::private_transactions::Provider as PrivateTransactionProvider;
 use ethcore::miner::Miner;
 use ethcore::engines::EthEngine;
-use ethcore::transaction::SignedTransaction;
+use transaction::SignedTransaction;
 use sync_io::SyncIo;
 use io::{IoChannel, IoContext, IoHandler};
 use api::WARP_SYNC_PROTOCOL_ID;
 use chain::ChainSync;
-use {SyncConfig, Address};
+use SyncConfig;
 
 pub trait FlushingBlockChainClient: BlockChainClient {
 	fn flush(&self) {}

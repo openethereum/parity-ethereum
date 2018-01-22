@@ -21,9 +21,9 @@ use std::sync::Arc;
 use rlp::UntrustedRlp;
 
 use ethcore::private_transactions::Provider as PrivateTransactionManager;
-use ethcore::transaction::SignedTransaction;
-use util::Address;
+use ethereum_types::Address;
 use ethcore::{contract_address, CreateContractAddress};
+use transaction::SignedTransaction;
 
 use jsonrpc_core::{Error};
 use v1::types::{Bytes, PrivateTransactionReceipt, H160, H256, TransactionRequest, U256,

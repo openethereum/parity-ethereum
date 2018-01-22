@@ -15,10 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use account_provider::AccountProvider;
-use ethereum_types::{H256, U256};
+use ethereum_types::{H256, U256, Address};
 use block::{OpenBlock, Drain};
-use std::collections::BTreeMap;
-use util::*;
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use bytes::Bytes;
 use client::{BlockChainClient, Client, ClientConfig, MiningBlockChainClient};

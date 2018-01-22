@@ -581,7 +581,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					trace_output.map(|data| output.as_ref().map(|out| out.to_vec()).unwrap_or(data)),
 					created,
 					subtracer.drain()
-				),
+				);
 			}
 			Ok(_) => tracer.trace_failed_create(trace_info, subtracer.drain(), vm::Error::Reverted.into()),
 			Err(ref e) => tracer.trace_failed_create(trace_info, subtracer.drain(), e.into())

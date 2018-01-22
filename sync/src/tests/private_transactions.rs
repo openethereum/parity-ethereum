@@ -22,15 +22,15 @@ use ethcore::service::ClientIoMessage;
 use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
-use ethcore::transaction::*;
+use transaction::*;
 use ethcore::private_transactions::{ProviderConfig};
 use ethcore::private_transactions::encryptor::{DummyEncryptor};
 use ethcore::account_provider::AccountProvider;
 use ethkey::KeyPair;
 use tests::helpers::*;
-use bigint::prelude::U256;
+use ethereum_types::{U256, Address};
 use rustc_hex::FromHex;
-use {SyncConfig, Address};
+use SyncConfig;
 
 fn contract_address(sender: &Address, nonce: &U256) -> Address {
 	let mut stream = RlpStream::new_list(2);
