@@ -300,7 +300,9 @@ impl fmt::Display for EmptyStep {
 impl Encodable for EmptyStep {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		let empty_step_rlp = empty_step_rlp(self.step, &self.parent_hash);
-		s.append_raw(&empty_step_full_rlp(&self.signature, &empty_step_rlp), 1);
+		s.begin_list(2)
+			.append(&self.signature)
+			.append_raw(&empty_step_rlp, 1);
 	}
 }
 
