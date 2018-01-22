@@ -1,3 +1,28 @@
+## Parity [v1.8.7](https://github.com/paritytech/parity/releases/tag/v1.8.7) (2018-01-23)
+
+Parity 1.8.7 is the first stable release of the 1.8 channel. It includes various bug and stability fixes. Users on Kovan or other Aura-based networks are advised to upgrade as this release fixes an issue introduced with 1.8.6 and 1.7.12 that causes Proof-of-Authority nodes to stop synchronizing the chain.
+
+The full list of included changes:
+
+- Backports to stable ([#7661](https://github.com/paritytech/parity/pull/7661))
+  - Fixed delegatecall's from/to ([#7568](https://github.com/paritytech/parity/pull/7568))
+    - Fixed delegatecall's from/to, closes [#7166](https://github.com/paritytech/parity/issues/7166)
+    - Added tests for delegatecall traces, [#7167](https://github.com/paritytech/parity/issues/7167)
+  - Fix Temporarily Invalid blocks handling ([#7613](https://github.com/paritytech/parity/pull/7613))
+    - Handle temporarily invalid blocks in sync.
+    - Fix tests.
+  - Improve handling of RocksDB corruption ([#7630](https://github.com/paritytech/parity/pull/7630))
+    - Kvdb-rocksdb: update rust-rocksdb version
+    - Kvdb-rocksdb: mark corruptions and attempt repair on db open
+    - Kvdb-rocksdb: better corruption detection on open
+    - Kvdb-rocksdb: add corruption_file_name const
+    - Kvdb-rocksdb: rename mark_corruption to check_for_corruption
+- Update .gitlab-ci.yml ([#7599](https://github.com/paritytech/parity/pull/7599))
+  - Fix cache:key
+- Make 1.8 stable ([#7532](https://github.com/paritytech/parity/pull/7532))
+  - Bump 1.8 to stable
+  - Make js-precompiled stable
+
 ## Parity [v1.8.6](https://github.com/paritytech/parity/releases/tag/v1.8.6) (2018-01-10)
 
 Parity 1.8.6 fixes a critical issue with the database eventually filling up user's disks. Upgrading is highly recommended as it will significantly improve your user experience. As a bonus, this release should enable users with slower hard-disk drives to catch up with the latest block again. Also, warp-sync performance was significantly improved. Please note, that the initial database compaction after upgrading might temporarily reduce the node's performance.
