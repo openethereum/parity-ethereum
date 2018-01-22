@@ -18,13 +18,11 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { observer } from 'mobx-react';
 
 import * as RequestsActions from '@parity/shared/lib/redux/providers/signerActions';
 import Container from '@parity/ui/lib/Container';
 
 import PendingList from '../PendingList';
-import PendingStore from '../pendingStore';
 
 import styles from './embedded.css';
 
@@ -32,7 +30,6 @@ const CONTAINER_STYLE = {
   background: 'transparent'
 };
 
-@observer
 class Embedded extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -45,13 +42,12 @@ class Embedded extends Component {
       startRejectRequest: PropTypes.func.isRequired
     }).isRequired,
     gasLimit: PropTypes.object.isRequired,
-    netVersion: PropTypes.string.isRequired
+    netVersion: PropTypes.string.isRequired,
+    pending: PropTypes.array.isRequired
   };
 
-  pendingStore = PendingStore.get(this.context.api);
-
   render () {
-    const { accounts, actions, gasLimit, netVersion } = this.props;
+    const { accounts, actions, gasLimit, netVersion, pending } = this.props;
 
     return (
       <Container style={ CONTAINER_STYLE }>
@@ -62,7 +58,7 @@ class Embedded extends Component {
           netVersion={ netVersion }
           onConfirm={ actions.startConfirmRequest }
           onReject={ actions.startRejectRequest }
-          pendingItems={ this.pendingStore.pending }
+          pendingItems={ pending }
         />
       </Container>
     );
@@ -72,13 +68,17 @@ class Embedded extends Component {
 function mapStateToProps (state) {
   const { gasLimit, netVersion } = state.nodeStatus;
   const { accounts } = state.personal;
+  const { pending } = state.signer;
   const { actions } = state;
+
+  // TODO: Use the pending store & actions inside that store to confirm/reject, get rid of the Redux interface
 
   return {
     accounts,
     actions,
     gasLimit,
-    netVersion
+    netVersion,
+    pending
   };
 }
 

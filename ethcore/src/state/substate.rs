@@ -16,8 +16,7 @@
 
 //! Execution environment substate.
 use std::collections::HashSet;
-use bigint::prelude::U256;
-use util::Address;
+use ethereum_types::{U256, Address};
 use log_entry::LogEntry;
 use evm::{Schedule, CleanDustMode};
 use super::CleanupMode;
@@ -58,7 +57,6 @@ impl Substate {
 	}
 
 	/// Get the cleanup mode object from this.
-	#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 	pub fn to_cleanup_mode(&mut self, schedule: &Schedule) -> CleanupMode {
 		match (schedule.kill_dust != CleanDustMode::Off, schedule.no_empty, schedule.kill_empty) {
 			(false, false, _) => CleanupMode::ForceCreate,

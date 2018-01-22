@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use hash::keccak;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use std::collections::HashSet;
 use ethcore::snapshot::ManifestData;
 

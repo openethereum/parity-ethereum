@@ -42,7 +42,7 @@ pub use types::call_analytics::CallAnalytics;
 pub use executive::{Executed, Executive, TransactOptions};
 pub use vm::{LastHashes, EnvInfo};
 
-pub use error::{BlockImportError, TransactionImportError, TransactionImportResult};
+pub use error::{BlockImportError, TransactionImportError};
 pub use verification::VerifierType;
 
 mod traits;

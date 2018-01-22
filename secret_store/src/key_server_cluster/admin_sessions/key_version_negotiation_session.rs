@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use ethkey::Secret;
 use parking_lot::{Mutex, Condvar};
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare};
@@ -27,19 +27,9 @@ use key_server_cluster::signing_session::SessionImpl as SigningSession;
 use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
-// TODO: optimizations: change sessions so that versions are sent by chunks.
+// TODO [Opt]: change sessions so that versions are sent by chunks.
 /// Number of versions sent in single message.
 const VERSIONS_PER_MESSAGE: usize = 32;
-
-/// Key version negotiation session API.
-pub trait Session: Send + Sync + 'static {
-	/// Set continue action.
-	fn set_continue_action(&self, action: ContinueAction);
-	/// Get continue action.
-	fn continue_action(&self) -> Option<ContinueAction>;
-	/// Wait until session is completed.
-	fn wait(&self) -> Result<(H256, NodeId), Error>;
-}
 
 /// Key version negotiation transport.
 pub trait SessionTransport {
@@ -194,6 +184,21 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		Ok(self.data.lock().versions.as_ref().ok_or(Error::InvalidStateForRequest)?
 			.get(version).ok_or(Error::KeyStorage("key version not found".into()))?
 			.clone())
+	}
+
+	/// Set continue action.
+	pub fn set_continue_action(&self, action: ContinueAction) {
+		self.data.lock().continue_with = Some(action);
+	}
+
+	/// Get continue action.
+	pub fn continue_action(&self) -> Option<ContinueAction> {
+		self.data.lock().continue_with.clone()
+	}
+
+	/// Wait for session completion.
+	pub fn wait(&self) -> Result<(H256, NodeId), Error> {
+		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
 	}
 
 	/// Initialize session.
@@ -352,27 +357,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			data.result = Some(result);
 			core.completed.notify_all();
 		}
-	}
-}
-
-impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'static {
-	fn set_continue_action(&self, action: ContinueAction) {
-		self.data.lock().continue_with = Some(action);
-	}
-
-	fn continue_action(&self) -> Option<ContinueAction> {
-		self.data.lock().continue_with.clone()
-	}
-
-	fn wait(&self) -> Result<(H256, NodeId), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
-			.clone()
 	}
 }
 
@@ -715,6 +699,7 @@ mod tests {
 		nodes.values().nth(0).unwrap().insert(Default::default(), DocumentKeyShare {
 			author: Default::default(),
 			threshold: 1,
+			public: Default::default(),
 			common_point: None,
 			encrypted_point: None,
 			versions: vec![DocumentKeyShareVersion {

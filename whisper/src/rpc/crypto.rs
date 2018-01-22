@@ -16,7 +16,7 @@
 
 //! Encryption schemes supported by RPC layer.
 
-use bigint::hash::H256;
+use ethereum_types::H256;
 use ethkey::{self, Public, Secret};
 use ring::aead::{self, AES_256_GCM, SealingKey, OpeningKey};
 

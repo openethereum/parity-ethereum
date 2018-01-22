@@ -123,7 +123,7 @@ impl Clone for Client {
 
 impl Client {
 	fn new_client() -> Result<Arc<reqwest::Client>, Error> {
-		let mut client = reqwest::ClientBuilder::new()?;
+		let mut client = reqwest::ClientBuilder::new();
 		client.redirect(reqwest::RedirectPolicy::limited(5));
 		Ok(Arc::new(client.build()?))
 	}
@@ -220,8 +220,8 @@ impl Future for FetchTask {
 
 		trace!(target: "fetch", "Starting fetch task: {:?}", self.url);
 		let mut result = match self.method {
-			Method::Get => self.client.get(&self.url)?,
-			Method::Post => self.client.post(&self.url)?,
+			Method::Get => self.client.get(&self.url),
+			Method::Post => self.client.post(&self.url),
 		};
 		let result = result
 			.header(reqwest::header::UserAgent::new("Parity Fetch"))

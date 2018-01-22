@@ -5,5 +5,4 @@ description = "Generalization of a state machine for consensus engines"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethcore-util = { path = "../util" }
-ethcore-bigint = { path = "../util/bigint" }
+ethereum-types = "0.1"

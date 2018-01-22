@@ -10,7 +10,7 @@ elastic-array = "0.9"
 log = "0.3"
 rand = "0.3"
 ethcore-bytes = { version = "0.1.0", path = "../bytes" }
-ethcore-bigint = { version = "0.2.1", path = "../bigint" }
+ethereum-types = "0.1"
 keccak-hash = { version = "0.1.0", path = "../hash" }
 hashdb = { version = "0.1.1", path = "../hashdb" }
 rlp = { version = "0.2.1", path = "../rlp" }

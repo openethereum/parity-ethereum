@@ -39,11 +39,11 @@ mod inner {
 	use std::collections::HashMap;
 	use std::time::{Instant, Duration};
 
-	use evm::interpreter::stack::Stack;
-	use evm::instructions::{Instruction, InstructionInfo, INSTRUCTIONS};
-	use evm::{CostType};
-
 	use bigint::prelude::U256;
+
+	use interpreter::stack::Stack;
+	use instructions::{Instruction, InstructionInfo, INSTRUCTIONS};
+	use CostType;
 
 	macro_rules! evm_debug {
 		($x: expr) => {
@@ -110,7 +110,7 @@ mod inner {
 		}
 
 		pub fn after_instruction(&mut self, instruction: Instruction) {
-			let mut stats = self.stats.entry(instruction).or_insert_with(|| Stats::default());
+			let stats = self.stats.entry(instruction).or_insert_with(|| Stats::default());
 			let took = self.last_instruction.elapsed();
 			stats.note(took);
 		}

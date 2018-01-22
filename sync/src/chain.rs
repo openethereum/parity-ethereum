@@ -92,8 +92,8 @@ use std::collections::{HashSet, HashMap};
 use std::cmp;
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use bigint::prelude::U256;
-use bigint::hash::{H256, H256FastMap};
+use ethereum_types::{H256, U256};
+use plain_hasher::H256FastMap;
 use parking_lot::RwLock;
 use bytes::Bytes;
 use rlp::*;
@@ -102,7 +102,7 @@ use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};
 use ethcore::error::*;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
-use ethcore::transaction::PendingTransaction;
+use transaction::PendingTransaction;
 use sync_io::SyncIo;
 use time;
 use super::SyncConfig;
@@ -471,7 +471,6 @@ impl ChainSync {
 		self.peers.clear();
 	}
 
-	#[cfg_attr(feature="dev", allow(for_kv_map))] // Because it's not possible to get `values_mut()`
 	/// Reset sync. Clear all downloaded data but keep the queue
 	fn reset(&mut self, io: &mut SyncIo) {
 		self.new_blocks.reset();
@@ -674,7 +673,6 @@ impl ChainSync {
 		Ok(())
 	}
 
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity, needless_borrow))]
 	/// Called by peer once it has new block headers during sync
 	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		let confirmed = match self.peers.get_mut(&peer_id) {
@@ -885,7 +883,6 @@ impl ChainSync {
 	}
 
 	/// Called by peer once it has new block bodies
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn on_peer_new_block(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "Ignoring new block from unconfirmed peer {}", peer_id);
@@ -1335,7 +1332,6 @@ impl ChainSync {
 	}
 
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
-	#[cfg_attr(feature="dev", allow(block_in_if_condition_stmt))]
 	fn collect_blocks(&mut self, io: &mut SyncIo, block_set: BlockSet) {
 		match block_set {
 			BlockSet::NewBlocks => {
@@ -1355,7 +1351,6 @@ impl ChainSync {
 	}
 
 	/// Request headers from a peer by block hash
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn request_headers_by_hash(&mut self, sync: &mut SyncIo, peer_id: PeerId, h: &H256, count: u64, skip: u64, reverse: bool, set: BlockSet) {
 		trace!(target: "sync", "{} <- GetBlockHeaders: {} entries starting from {}, set = {:?}", peer_id, count, h, set);
 		let mut rlp = RlpStream::new_list(4);
@@ -1370,7 +1365,6 @@ impl ChainSync {
 	}
 
 	/// Request headers from a peer by block number
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn request_fork_header_by_number(&mut self, sync: &mut SyncIo, peer_id: PeerId, n: BlockNumber) {
 		trace!(target: "sync", "{} <- GetForkHeader: at {}", peer_id, n);
 		let mut rlp = RlpStream::new_list(4);
@@ -1788,7 +1782,6 @@ impl ChainSync {
 		})
 	}
 
-	#[cfg_attr(feature="dev", allow(match_same_arms))]
 	pub fn maintain_peers(&mut self, io: &mut SyncIo) {
 		let tick = time::precise_time_ns();
 		let mut aborting = Vec::new();
@@ -2280,12 +2273,11 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 mod tests {
 	use std::collections::{HashSet, VecDeque};
 	use std::sync::Arc;
-	use {ethkey, Address};
+	use ethkey;
 	use network::PeerId;
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
+	use ethereum_types::{H256, U256, Address};
 	use parking_lot::RwLock;
 	use bytes::Bytes;
 	use rlp::{Rlp, RlpStream, UntrustedRlp};
@@ -2294,9 +2286,9 @@ mod tests {
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::header::*;
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
-	use ethcore::transaction::UnverifiedTransaction;
 	use ethcore::miner::MinerService;
 	use ethcore::private_transactions::Provider as PrivateTransactionProvider;
+	use transaction::UnverifiedTransaction;
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();

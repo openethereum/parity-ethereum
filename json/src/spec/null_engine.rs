@@ -37,7 +37,7 @@ pub struct NullEngine {
 mod tests {
 	use serde_json;
 	use uint::Uint;
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use super::*;
 
 	#[test]

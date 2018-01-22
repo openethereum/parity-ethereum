@@ -39,7 +39,7 @@ pub struct Call {
 mod tests {
 	use serde_json;
 	use vm::Call;
-	use bigint::prelude::{U256, H160 as Hash160};
+	use ethereum_types::{U256, H160 as Hash160};
 	use uint::Uint;
 	use hash::Address;
 	use maybe::MaybeEmpty;

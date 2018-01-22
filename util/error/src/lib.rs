@@ -22,7 +22,7 @@
 #[macro_use]
 extern crate error_chain;
 
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 extern crate rlp;
 extern crate rustc_hex;
 extern crate kvdb;
@@ -30,7 +30,7 @@ extern crate kvdb;
 use std::fmt;
 use rustc_hex::FromHexError;
 use rlp::DecoderError;
-use bigint::hash::H256;
+use ethereum_types::H256;
 
 #[derive(Debug)]
 /// Error in database subsystem.

@@ -18,32 +18,33 @@ use std::fmt;
 use std::sync::{Arc, Weak};
 use std::net::{TcpListener};
 
+use ansi_term::Colour;
 use ctrlc::CtrlC;
-use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
 use ethcore::ethstore::ethkey;
-use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
+use ethcore::miner::{Miner, MinerService, MinerOptions};
 use ethcore::miner::{StratumOptions, Stratum};
 use ethcore::private_transactions::{ProviderConfig};
 use ethcore::service::ClientService;
 use ethcore::snapshot;
 use ethcore::spec::{SpecParams, OptimizeFor};
 use ethcore::verification::queue::VerifierSettings;
+use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethsync::{self, SyncConfig};
 use fdlimit::raise_fd_limit;
 use hash_fetch::fetch::{Fetch, Client as FetchClient};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
+use journaldb::Algorithm;
 use light::Cache as LightDataCache;
+use miner::external::ExternalMiner;
+use node_filter::NodeFilter;
 use node_health;
 use parity_reactor::EventLoop;
 use parity_rpc::{NetworkSettings, informant, is_major_importing};
-use updater::{UpdatePolicy, Updater};
-use ansi_term::Colour;
-use util::version;
 use parking_lot::{Condvar, Mutex};
-use node_filter::NodeFilter;
-use journaldb::Algorithm;
+use updater::{UpdatePolicy, Updater};
+use parity_version::version;
 
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
@@ -88,6 +89,7 @@ pub struct RunCmd {
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
 	pub miner_options: MinerOptions,
+	pub gas_price_percentile: usize,
 	pub ntp_servers: Vec<String>,
 	pub ws_conf: rpc::WsConfiguration,
 	pub http_conf: rpc::HttpConfiguration,
@@ -157,7 +159,7 @@ struct FullNodeInfo {
 }
 
 impl ::local_store::NodeInfo for FullNodeInfo {
-	fn pending_transactions(&self) -> Vec<::ethcore::transaction::PendingTransaction> {
+	fn pending_transactions(&self) -> Vec<::transaction::PendingTransaction> {
 		let miner = match self.miner.as_ref() {
 			Some(m) => m,
 			None => return Vec::new(),
@@ -361,6 +363,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		remote: event_loop.remote(),
 		whisper_rpc: whisper_factory,
 		private_tx_manager: None, //TODO: add this to client.
+		gas_price_percentile: cmd.gas_price_percentile,
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -771,6 +774,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		remote: event_loop.remote(),
 		whisper_rpc: whisper_factory,
 		private_tx_manager: Some(client.private_transactions_provider()),
+		gas_price_percentile: cmd.gas_price_percentile,
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -795,6 +799,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// secret store key server
 	let secretstore_deps = secretstore::Dependencies {
 		client: client.clone(),
+		sync: sync_provider.clone(),
 		account_provider: account_provider,
 		accounts_passwords: &passwords,
 	};
@@ -903,7 +908,7 @@ fn print_running_environment(spec_name: &String, dirs: &Directories, db_dirs: &D
 
 fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
 	use ethcore::ethstore::EthStore;
-	use ethcore::ethstore::dir::RootDiskDirectory;
+	use ethcore::ethstore::accounts_dir::RootDiskDirectory;
 
 	let path = dirs.keys_path(data_dir);
 	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
@@ -919,9 +924,15 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 			],
 		},
 	};
+
+	let ethstore = EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?;
+	if cfg.refresh_time > 0 {
+		ethstore.set_refresh_time(::std::time::Duration::from_secs(cfg.refresh_time));
+	}
 	let account_provider = AccountProvider::new(
-		Box::new(EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?),
-		account_settings);
+		Box::new(ethstore),
+		account_settings,
+	);
 
 	for a in cfg.unlocked_accounts {
 		// Check if the account exists

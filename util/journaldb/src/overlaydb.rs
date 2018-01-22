@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use error::{Result, BaseDataError};
-use bigint::hash::*;
+use ethereum_types::H256;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
@@ -202,7 +202,6 @@ impl HashDB for OverlayDB {
 }
 
 #[test]
-#[cfg_attr(feature="dev", allow(blacklisted_name))]
 fn overlaydb_revert() {
 	let mut m = OverlayDB::new_temp();
 	let foo = m.insert(b"foo");          // insert foo.

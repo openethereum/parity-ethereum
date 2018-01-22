@@ -17,9 +17,13 @@
 //! DB backend wrapper for Account trie
 use std::collections::HashMap;
 use hash::{KECCAK_NULL_RLP, keccak};
-use bigint::hash::H256;
-use util::*;
+use ethereum_types::H256;
+use kvdb::DBValue;
+use hashdb::HashDB;
 use rlp::NULL_RLP;
+
+#[cfg(test)]
+use ethereum_types::Address;
 
 // combines a key with an address hash to ensure uniqueness.
 // leaves the first 96 bits untouched in order to support partial key lookup.

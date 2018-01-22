@@ -60,7 +60,7 @@ mod tests {
 	use serde_json;
 	use bytes::Bytes;
 	use uint::Uint;
-	use bigint::prelude::{U256, H160, H64 as Eth64, H256 as Eth256};
+	use ethereum_types::{U256, H160, H64 as Eth64, H256 as Eth256};
 	use hash::{H64, H256, Address};
 	use spec::genesis::Genesis;
 	use spec::{Ethereum, Seal};

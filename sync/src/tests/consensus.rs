@@ -16,17 +16,17 @@
 
 use std::sync::Arc;
 use hash::keccak;
-use bigint::prelude::U256;
-use io::{IoHandler, IoChannel};
-use ethcore::client::BlockChainClient;
+use ethereum_types::{U256, Address};
+use io::{IoHandler, IoContext, IoChannel};
+use ethcore::client::{BlockChainClient, Client};
 use ethcore::service::ClientIoMessage;
 use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
-use ethcore::transaction::*;
 use ethcore::account_provider::AccountProvider;
 use ethkey::{KeyPair, Secret};
+use transaction::{Action, PendingTransaction, Transaction};
 use super::helpers::*;
-use {SyncConfig, Address};
+use SyncConfig;
 
 fn new_tx(secret: &Secret, nonce: U256, chain_id: u64) -> PendingTransaction {
 	let signed = Transaction {

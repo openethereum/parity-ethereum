@@ -17,7 +17,7 @@
 use compute::Light;
 use either::Either;
 use keccak::{H256, keccak_512};
-use memmap::{Mmap, Protection};
+use memmap::MmapMut;
 use parking_lot::Mutex;
 use seed_compute::SeedHashCompute;
 
@@ -30,7 +30,7 @@ use std::path::{Path, PathBuf};
 use std::slice;
 use std::sync::Arc;
 
-type Cache = Either<Vec<Node>, Mmap>;
+type Cache = Either<Vec<Node>, MmapMut>;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum OptimizeFor {
@@ -181,7 +181,7 @@ impl NodeCache {
 	}
 }
 
-fn make_memmapped_cache(path: &Path, num_nodes: usize, ident: &H256) -> io::Result<Mmap> {
+fn make_memmapped_cache(path: &Path, num_nodes: usize, ident: &H256) -> io::Result<MmapMut> {
 	use std::fs::OpenOptions;
 
 	let file = OpenOptions::new()
@@ -191,9 +191,9 @@ fn make_memmapped_cache(path: &Path, num_nodes: usize, ident: &H256) -> io::Resu
 		.open(&path)?;
 	file.set_len((num_nodes * NODE_BYTES) as _)?;
 
-	let mut memmap = Mmap::open(&file, Protection::ReadWrite)?;
+	let mut memmap = unsafe { MmapMut::map_mut(&file)? };
 
-	unsafe { initialize_memory(memmap.mut_ptr() as *mut Node, num_nodes, ident) };
+	unsafe { initialize_memory(memmap.as_mut_ptr() as *mut Node, num_nodes, ident) };
 
 	Ok(memmap)
 }
@@ -241,7 +241,10 @@ fn consume_cache(cache: &mut Cache, path: &Path) -> io::Result<()> {
 fn cache_from_path(path: &Path, optimize_for: OptimizeFor) -> io::Result<Cache> {
 	let memmap = match optimize_for {
 		OptimizeFor::Cpu => None,
-		OptimizeFor::Memory => Mmap::open_path(path, Protection::ReadWrite).ok(),
+		OptimizeFor::Memory => {
+			let file = fs::OpenOptions::new().read(true).write(true).create(true).open(path)?;
+			unsafe { MmapMut::map_mut(&file).ok() }
+		},
 	};
 
 	memmap.map(Either::Right).ok_or(()).or_else(|_| {
@@ -287,7 +290,7 @@ impl AsRef<[Node]> for NodeCache {
 		match self.cache {
 			Either::Left(ref vec) => vec,
 			Either::Right(ref mmap) => unsafe {
-				let bytes = mmap.ptr();
+				let bytes = mmap.as_ptr();
 				// This isn't a safety issue, so we can keep this a debug lint. We don't care about
 				// people manually messing with the files unless it can cause unsafety, but if we're
 				// generating incorrect files then we want to catch that in CI.

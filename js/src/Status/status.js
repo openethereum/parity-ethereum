@@ -69,7 +69,7 @@ function Status ({ className = '', upgradeStore }, { api }) {
               className={ styles.health }
               id='application.status.health'
             />
-            <SignerPending />
+            <SignerPending className={ styles.pending } />
 
             <div className={ styles.divider } />
             <BlockNumber

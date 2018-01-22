@@ -39,7 +39,7 @@ use futures::{Future, Poll, Async};
 use tokio_io::{AsyncRead, AsyncWrite};
 use ethcrypto::ecdh::agree;
 use ethkey::{Random, Generator, KeyPair, Public, Signature, verify_public, sign, recover};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use key_server_cluster::{NodeId, Error, NodeKeyPair};
 use key_server_cluster::message::{Message, ClusterMessage, NodePublicKey, NodePrivateKeySignature};
 use key_server_cluster::io::{write_message, write_encrypted_message, WriteMessage, ReadMessage,
@@ -193,7 +193,7 @@ impl<A> Future for Handshake<A> where A: AsyncRead + AsyncWrite {
 						self.peer_session_public.as_ref().expect(
 							"we are in passive mode; in passive mode SendPublicKey follows ReceivePublicKey; peer_session_public is filled in ReceivePublicKey; qed"),
 					);
-					
+
 					self.shared_key = match shared_key {
 						Ok(shared_key) => Some(shared_key),
 						Err(err) => return Ok((stream, Err(err)).into()),
@@ -318,7 +318,7 @@ mod tests {
 	use std::collections::BTreeSet;
 	use futures::Future;
 	use ethkey::{Random, Generator, sign};
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use key_server_cluster::PlainNodeKeyPair;
 	use key_server_cluster::io::message::tests::TestIo;
 	use key_server_cluster::message::{Message, ClusterMessage, NodePublicKey, NodePrivateKeySignature};

@@ -75,6 +75,11 @@ pub fn new_musicoin<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/musicoin.json"))
 }
 
+/// Create a new Ellaism mainnet chain spec.
+pub fn new_ellaism<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/ellaism.json"))
+}
+
 /// Create a new Kovan testnet chain spec.
 pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/kovan.json"))
@@ -138,7 +143,7 @@ pub fn new_mcip3_test_machine() -> EthereumMachine { load_machine(include_bytes!
 
 #[cfg(test)]
 mod tests {
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use state::*;
 	use super::*;
 	use tests::helpers::*;

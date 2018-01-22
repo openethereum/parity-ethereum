@@ -16,15 +16,11 @@
 
 //! Tracing datatypes.
 
-use bigint::prelude::U256;
-use util::Address;
+use ethereum_types::{U256, Address, Bloom, BloomInput};
 use bytes::Bytes;
-use hash::keccak;
-use bloomable::Bloomable;
 use rlp::*;
 
 use vm::ActionParams;
-use basic_types::LogBloom;
 use evm::CallType;
 use super::error::Error;
 
@@ -50,8 +46,8 @@ pub struct CreateResult {
 
 impl CreateResult {
 	/// Returns bloom.
-	pub fn bloom(&self) -> LogBloom {
-		LogBloom::from_bloomed(&keccak(&self.address))
+	pub fn bloom(&self) -> Bloom {
+		BloomInput::Raw(&self.address).into()
 	}
 }
 
@@ -74,13 +70,23 @@ pub struct Call {
 
 impl From<ActionParams> for Call {
 	fn from(p: ActionParams) -> Self {
-		Call {
-			from: p.sender,
-			to: p.address,
-			value: p.value.value(),
-			gas: p.gas,
-			input: p.data.unwrap_or_else(Vec::new),
-			call_type: p.call_type,
+		match p.call_type {
+			CallType::DelegateCall => Call {
+				from: p.address,
+				to: p.code_address,
+				value: p.value.value(),
+				gas: p.gas,
+				input: p.data.unwrap_or_else(Vec::new),
+				call_type: p.call_type,
+			},
+			_ => Call {
+				from: p.sender,
+				to: p.address,
+				value: p.value.value(),
+				gas: p.gas,
+				input: p.data.unwrap_or_else(Vec::new),
+				call_type: p.call_type,
+			},
 		}
 	}
 }
@@ -88,9 +94,11 @@ impl From<ActionParams> for Call {
 impl Call {
 	/// Returns call action bloom.
 	/// The bloom contains from and to addresses.
-	pub fn bloom(&self) -> LogBloom {
-		LogBloom::from_bloomed(&keccak(&self.from))
-			.with_bloomed(&keccak(&self.to))
+	pub fn bloom(&self) -> Bloom {
+		let mut bloom = Bloom::default();
+		bloom.accrue(BloomInput::Raw(&self.from));
+		bloom.accrue(BloomInput::Raw(&self.to));
+		bloom
 	}
 }
 
@@ -121,8 +129,8 @@ impl From<ActionParams> for Create {
 impl Create {
 	/// Returns bloom create action bloom.
 	/// The bloom contains only from address.
-	pub fn bloom(&self) -> LogBloom {
-		LogBloom::from_bloomed(&keccak(&self.from))
+	pub fn bloom(&self) -> Bloom {
+		BloomInput::Raw(&self.from).into()
 	}
 }
 
@@ -168,8 +176,8 @@ pub struct Reward {
 
 impl Reward {
 	/// Return reward action bloom.
-	pub fn bloom(&self) -> LogBloom {
-		LogBloom::from_bloomed(&keccak(&self.author))
+	pub fn bloom(&self) -> Bloom {
+		BloomInput::Raw(&self.author).into()
 	}
 }
 
@@ -208,9 +216,11 @@ pub struct Suicide {
 
 impl Suicide {
 	/// Return suicide action bloom.
-	pub fn bloom(&self) -> LogBloom {
-		LogBloom::from_bloomed(&keccak(self.address))
-			.with_bloomed(&keccak(self.refund_address))
+	pub fn bloom(&self) -> Bloom {
+		let mut bloom = Bloom::default();
+		bloom.accrue(BloomInput::Raw(&self.address));
+		bloom.accrue(BloomInput::Raw(&self.refund_address));
+		bloom
 	}
 }
 
@@ -267,7 +277,7 @@ impl Decodable for Action {
 
 impl Action {
 	/// Returns action bloom.
-	pub fn bloom(&self) -> LogBloom {
+	pub fn bloom(&self) -> Bloom {
 		match *self {
 			Action::Call(ref call) => call.bloom(),
 			Action::Create(ref create) => create.bloom(),
@@ -339,7 +349,7 @@ impl Decodable for Res {
 
 impl Res {
 	/// Returns result bloom.
-	pub fn bloom(&self) -> LogBloom {
+	pub fn bloom(&self) -> Bloom {
 		match *self {
 			Res::Create(ref create) => create.bloom(),
 			Res::Call(_) | Res::FailedCall(_) | Res::FailedCreate(_) | Res::None => Default::default(),

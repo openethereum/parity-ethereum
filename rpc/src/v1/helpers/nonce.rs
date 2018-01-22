@@ -19,12 +19,11 @@ use std::collections::HashMap;
 use std::sync::{atomic, Arc};
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 
-use bigint::prelude::U256;
+use ethereum_types::{U256, Address};
 use futures::{Future, future, Poll, Async};
 use futures::future::Either;
 use futures::sync::oneshot;
 use futures_cpupool::CpuPool;
-use util::Address;
 
 /// Manages currently reserved and prospective nonces
 /// for multiple senders.
