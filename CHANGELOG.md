@@ -13,15 +13,15 @@ Further, users upgrading from 1.8 should acknowledge the following changes:
 - Fixed DELEGATECALL's from/to field ([#7568](https://github.com/paritytech/parity/pull/7568)).
 - Set zero nonce and gas price for calls by default ([#6954](https://github.com/paritytech/parity/pull/6954)).
 - Create pending blocks with all transactions from the queue ([#6942](https://github.com/paritytech/parity/pull/6942)).
-- Remove RPC parameter leniency now that mist formats correctly ([#6651](https://github.com/paritytech/parity/pull/6651)). Parity stops accepting decimal-formatted block numbers and stops parsing the empty string as empty bytes.
+- Remove RPC parameter leniency now that Mist formats correctly ([#6651](https://github.com/paritytech/parity/pull/6651)). Parity stops accepting decimal-formatted block numbers and stops parsing the empty string as empty bytes.
 
 Additional noteworthy changes:
 
-`ethstore` and `ethkey` have been significantly improved ([#6961](https://github.com/paritytech/parity/pull/6961)):
-- `ethstore` now supports brute forcing pre-sale wallets given a password list for recovery.
-- `ethkey` now supports multi-threaded generation of prefix-matching addresses.
-- `ethkey` now supports prefix-matching brain wallets.
-- `ethkey` now supports brain-wallets recovery-phrases lookup. This helps to find a correct phrase if you know the address you want to get yet you made a typo backing the phrase up, or forgot a word.
+- `ethstore` and `ethkey` have been significantly improved ([#6961](https://github.com/paritytech/parity/pull/6961)):
+  - `ethstore` now supports brute forcing pre-sale wallets given a password list for recovery.
+  - `ethkey` now supports multi-threaded generation of prefix-matching addresses.
+  - `ethkey` now supports prefix-matching brain wallets.
+  - `ethkey` now supports brain-wallets recovery-phrases lookup. This helps to find a correct phrase if you know the address you want to get yet you made a typo backing the phrase up, or forgot a word.
 
 The full list of included changes:
 
@@ -268,7 +268,7 @@ The full list of included changes:
 
 ### Previous releases
 
-- [CHANGELOG-1.7](docs/CHANGELOG-1.8.md) (_stable_)
+- [CHANGELOG-1.8](docs/CHANGELOG-1.8.md) (_stable_)
 - [CHANGELOG-1.7](docs/CHANGELOG-1.7.md) (EOL: 2018-01-23)
 - [CHANGELOG-1.6](docs/CHANGELOG-1.6.md) (EOL: 2017-10-15)
 - [CHANGELOG-1.5](docs/CHANGELOG-1.5.md) (EOL: 2017-07-28)
