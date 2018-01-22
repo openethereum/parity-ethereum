@@ -1,4 +1,4 @@
-## Parity [v1.9.0](https://github.com/paritytech/parity/releases/tag/v1.9.0) (2018-01-23)
+## Parity [v1.9.0](https://github.com/paritytech/parity/releases/tag/v1.9.0) (2018-01-25)
 
 We are happy to announce our newest Parity 1.9 release. Among others, it enables the following features:
 
@@ -269,7 +269,7 @@ The full list of included changes:
 ### Previous releases
 
 - [CHANGELOG-1.8](docs/CHANGELOG-1.8.md) (_stable_)
-- [CHANGELOG-1.7](docs/CHANGELOG-1.7.md) (EOL: 2018-01-23)
+- [CHANGELOG-1.7](docs/CHANGELOG-1.7.md) (EOL: 2018-01-25)
 - [CHANGELOG-1.6](docs/CHANGELOG-1.6.md) (EOL: 2017-10-15)
 - [CHANGELOG-1.5](docs/CHANGELOG-1.5.md) (EOL: 2017-07-28)
 - [CHANGELOG-1.4](docs/CHANGELOG-1.4.md) (EOL: 2017-03-13)

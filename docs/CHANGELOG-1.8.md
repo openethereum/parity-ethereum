@@ -1,4 +1,4 @@
-## Parity [v1.8.7](https://github.com/paritytech/parity/releases/tag/v1.8.7) (2018-01-23)
+## Parity [v1.8.7](https://github.com/paritytech/parity/releases/tag/v1.8.7) (2018-01-24)
 
 Parity 1.8.7 is the first stable release of the 1.8 channel. It includes various bug and stability fixes. Users on Kovan or other Aura-based networks are advised to upgrade as this release fixes an issue introduced with 1.8.6 and 1.7.12 that causes Proof-of-Authority nodes to stop synchronizing the chain.
 
