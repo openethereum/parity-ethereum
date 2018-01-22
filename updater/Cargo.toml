@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.3"
-ethabi = "4.0"
+ethabi = "5.0"
 target_info = "0.1"
 semver = "0.6"
 ethcore = { path = "../ethcore" }

@@ -238,11 +238,7 @@ fn rust_type(input: ParamType) -> Result<String, ParamType> {
 			8 | 16 | 32 | 64 => format!("i{}", width),
 			_ => return Err(ParamType::Int(width)),
 		},
-		ParamType::Uint(width) => match width {
-			8 | 16 | 32 | 64 => format!("u{}", width),
-			128 | 160 | 256 => format!("ethereum_types::U{}", width),
-			_ => return Err(ParamType::Uint(width)),
-		},
+		ParamType::Uint(_) => format!("ethereum_types::U256"),
 		ParamType::Bool => "bool".into(),
 		ParamType::String => "String".into(),
 		ParamType::Array(kind) => format!("Vec<{}>", rust_type(*kind)?),
@@ -256,7 +252,7 @@ fn rust_type(input: ParamType) -> Result<String, ParamType> {
 fn tokenize(name: &str, input: ParamType) -> (bool, String) {
 	let mut needs_mut = false;
 	let code = match input {
-		ParamType::Address => format!("Token::Address({}.0)", name),
+		ParamType::Address => format!("Token::Address({})", name),
 		ParamType::Bytes => format!("Token::Bytes({})", name),
 		ParamType::FixedBytes(len) if len <= 32 =>
 			format!("Token::FixedBytes({}.0.to_vec())", name),
@@ -265,17 +261,13 @@ fn tokenize(name: &str, input: ParamType) -> (bool, String) {
 			format!("{}.resize({}, 0); Token::FixedBytes({})", name, len, name)
 		}
 		ParamType::Int(width) => match width {
-			8 => format!("let mut r = [0xff; 32]; r[31] = {}; Token::Int(r)", name),
+			8 => format!("let mut r = [0xff; 32]; r[31] = {}; Token::Int(r.into())", name),
 			16 | 32 | 64 =>
-				format!("let mut r = [0xff; 32]; BigEndian::write_i{}(&mut r[{}..], {}); Token::Int(r))",
+				format!("let mut r = [0xff; 32]; BigEndian::write_i{}(&mut r[{}..], {}); Token::Int(r.into()))",
 					width, 32 - (width / 8), name),
 			_ => panic!("Signed int with more than 64 bits not supported."),
 		},
-		ParamType::Uint(width) => format!(
-			"let mut r = [0; 32]; {}.to_big_endian(&mut r); Token::Uint(r)",
-			if width <= 64 { format!("ethereum_types::U256::from({} as u64)", name) }
-			else { format!("ethereum_types::U256::from({})", name) }
-		),
+		ParamType::Uint(_) => format!("Token::Uint(ethereum_types::U256::from({}))", name),
 		ParamType::Bool => format!("Token::Bool({})", name),
 		ParamType::String => format!("Token::String({})", name),
 		ParamType::Array(kind) => {
@@ -295,7 +287,7 @@ fn tokenize(name: &str, input: ParamType) -> (bool, String) {
 // panics on unsupported types.
 fn detokenize(name: &str, output_type: ParamType) -> String {
 	match output_type {
-		ParamType::Address => format!("{}.to_address().map(ethereum_types::H160)", name),
+		ParamType::Address => format!("{}.to_address()", name),
 		ParamType::Bytes => format!("{}.to_bytes()", name),
 		ParamType::FixedBytes(len) if len <= 32 => {
 			// ensure no panic on slice too small.
@@ -306,23 +298,8 @@ fn detokenize(name: &str, output_type: ParamType) -> String {
 				name, read_hash)
 		}
 		ParamType::FixedBytes(_) => format!("{}.to_fixed_bytes()", name),
-		ParamType::Int(width) => {
-			let read_int = match width {
-				8 => "i[31] as i8".into(),
-				16 | 32 | 64 => format!("BigEndian::read_i{}(&i[{}..])", width, 32 - (width / 8)),
-				_ => panic!("Signed integers over 64 bytes not allowed."),
-			};
-			format!("{}.to_int().map(|i| {})", name, read_int)
-		}
-		ParamType::Uint(width) => {
-			let read_uint = match width {
-				8 => "u[31] as u8".into(),
-				16 | 32 | 64 => format!("BigEndian::read_u{}(&u[{}..])", width, 32 - (width / 8)),
-				_ => format!("ethereum_types::U{}::from(&u[..])", width),
-			};
-
-			format!("{}.to_uint().map(|u| {})", name, read_uint)
-		}
+		ParamType::Int(_) => format!("{}.to_int()", name),
+		ParamType::Uint(_) => format!("{}.to_uint()", name),
 		ParamType::Bool => format!("{}.to_bool()", name),
 		ParamType::String => format!("{}.to_string()", name),
 		ParamType::Array(kind) => {

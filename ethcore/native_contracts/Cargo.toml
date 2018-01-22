@@ -6,7 +6,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [dependencies]
-ethabi = "4.0"
+ethabi = "5.0"
 futures = "0.1"
 byteorder = "1.0"
 ethereum-types = "0.1"
