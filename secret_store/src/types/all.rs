@@ -152,7 +152,8 @@ impl From<kvdb::Error> for Error {
 impl From<key_server_cluster::Error> for Error {
 	fn from(err: key_server_cluster::Error) -> Self {
 		match err {
-			key_server_cluster::Error::AccessDenied => Error::AccessDenied,
+			key_server_cluster::Error::ConsensusUnreachable
+				| key_server_cluster::Error::AccessDenied => Error::AccessDenied,
 			key_server_cluster::Error::MissingKeyShare => Error::DocumentNotFound,
 			_ => Error::Internal(err.into()),
 		}
