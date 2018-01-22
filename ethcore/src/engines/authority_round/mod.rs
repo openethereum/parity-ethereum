@@ -872,7 +872,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					format!("empty step proof for invalid parent hash: {:?}", empty_step.parent_hash)))?;
 			}
 
-			if empty_step.verify(&*self.validators).unwrap_or(false) {
+			if !empty_step.verify(&*self.validators).unwrap_or(false) {
 				Err(EngineError::InsufficientProof(
 					format!("invalid empty step proof: {:?}", empty_step)))?;
 			}
