@@ -581,8 +581,8 @@ pub mod tests {
 
 	fn run_reciprocal_protocol(t: usize, artifacts: &KeyGenerationArtifacts) -> Vec<Secret> {
 		// === Given a secret x mod r which is shared among n players, it is
-		// === required to generate shares of 1/x mod r with out revealing
-		// === any information about x or 1/x.
+		// === required to generate shares of inv(x) mod r with out revealing
+		// === any information about x or inv(x).
 		// === https://www.researchgate.net/publication/280531698_Robust_Threshold_Elliptic_Curve_Digital_Signature
 	
 		// generate shared random secret e for given t
@@ -608,11 +608,11 @@ pub mod tests {
 			.take(2 * t)).unwrap()).collect();
 		let u = compute_secret_sum(u_shares.iter()).unwrap();
 
-		// all the players can compute 1/u
+		// all the players can compute inv(u)
 		let mut u_inv = u.clone();
 		u_inv.inv().unwrap();
 
-		// each player Pi computes his share of 1/x as e[i] * 1/u
+		// each player Pi computes his share of inv(x) as e[i] * inv(u)
 		let x_inv_shares: Vec<_> = (0..n).map(|i| {
 			let mut x_inv_share = e_artifacts.secret_shares[i].clone();
 			x_inv_share.mul(&u_inv).unwrap();
@@ -986,7 +986,7 @@ pub mod tests {
 		let signature_r = Secret::from_slice(&*signature_r);
 		signature_r.check_validity().unwrap();
 
-		// compute shares of 1/nonce so that both nonce && 1/nonce are still unknown to all nodes
+		// compute shares of inve(nonce) so that both nonce && inv(nonce) are still unknown to all nodes
 		let nonce_inv_shares = run_reciprocal_protocol(t, &nonce_artifacts);
 
 		// compute multiplication of secret-shares * inv-nonce-shares
