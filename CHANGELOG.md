@@ -2,21 +2,36 @@
 
 We are happy to announce our newest Parity 1.9 release. Among others, it enables the following features:
 
-- @TODO
+- It integrates the fully reworked Parity Wallet and DApps browser (a.k.a. "UI 2.0", [#6819](https://github.com/paritytech/parity/pull/6819)).
+- It enables devp2p snappy compression ([#6683](https://github.com/paritytech/parity/pull/6683)).
+- AuRa Proof-of-Authority chains now disable uncles by default ([#7006](https://github.com/paritytech/parity/pull/7006)). Existing PoA chains can go through a "maximum uncle count transition" to achieve more stability ([#7196](https://github.com/paritytech/parity/pull/7196)).
+- Added Expanse's Byzantium hard-fork ([#7463](https://github.com/paritytech/parity/pull/7463)).
+- Added support for Ellaism chain ([#7222](https://github.com/paritytech/parity/pull/7222)).
 
 Further, users upgrading from 1.8 should acknowledge the following changes:
 
-- @TODO
+- Fixed DELEGATECALL's from/to field ([#7568](https://github.com/paritytech/parity/pull/7568)).
+- Set zero nonce and gas price for calls by default ([#6954](https://github.com/paritytech/parity/pull/6954)).
+- Create pending blocks with all transactions from the queue ([#6942](https://github.com/paritytech/parity/pull/6942)).
+- Remove RPC parameter leniency now that mist formats correctly ([#6651](https://github.com/paritytech/parity/pull/6651)). Parity stops accepting decimal-formatted block numbers and stops parsing the empty string as empty bytes.
+
+Additional noteworthy changes:
+
+`ethstore` and `ethkey` have been significantly improved ([#6961](https://github.com/paritytech/parity/pull/6961)):
+- `ethstore` now supports brute forcing pre-sale wallets given a password list for recovery.
+- `ethkey` now supports multi-threaded generation of prefix-matching addresses.
+- `ethkey` now supports prefix-matching brain wallets.
+- `ethkey` now supports brain-wallets recovery-phrases lookup. This helps to find a correct phrase if you know the address you want to get yet you made a typo backing the phrase up, or forgot a word.
 
 The full list of included changes:
 
 - Backports to beta ([#7660](https://github.com/paritytech/parity/pull/7660))
   - Improve handling of RocksDB corruption ([#7630](https://github.com/paritytech/parity/pull/7630))
-    - kvdb-rocksdb: update rust-rocksdb version
-    - kvdb-rocksdb: mark corruptions and attempt repair on db open
-    - kvdb-rocksdb: better corruption detection on open
-    - kvdb-rocksdb: add corruption_file_name const
-    - kvdb-rocksdb: rename mark_corruption to check_for_corruption
+    - Kvdb-rocksdb: update rust-rocksdb version
+    - Kvdb-rocksdb: mark corruptions and attempt repair on db open
+    - Kvdb-rocksdb: better corruption detection on open
+    - Kvdb-rocksdb: add corruption_file_name const
+    - Kvdb-rocksdb: rename mark_corruption to check_for_corruption
   - Hardening of CSP ([#7621](https://github.com/paritytech/parity/pull/7621))
   - Fixed delegatecall's from/to ([#7568](https://github.com/paritytech/parity/pull/7568))
     - Fixed delegatecall's from/to, closes [#7166](https://github.com/paritytech/parity/issues/7166)
