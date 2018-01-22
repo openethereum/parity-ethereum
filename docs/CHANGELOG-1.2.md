@@ -1,3 +1,5 @@
+Note: Parity 1.2 reached End-of-Life on 2016-11-07 (EOL).
+
 ## Parity [v1.2.4](https://github.com/paritytech/parity/releases/tag/v1.2.4) (2016-08-09)
 
 Parity 1.2.4 Is a maintenance release that fixes a [few](https://github.com/paritytech/parity/pull/1888/commits) issues related to mining and peer synchronization.

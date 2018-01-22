@@ -1,3 +1,5 @@
+Note: Parity 1.3 reached End-of-Life on 2017-01-19 (EOL).
+
 ## Parity [v1.3.15](https://github.com/paritytech/parity/releases/tag/v1.3.15) (2016-12-10)
 
 This patch release fixes an issue with syncing on the Ropsten test network.
