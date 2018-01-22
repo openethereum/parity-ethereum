@@ -27,20 +27,20 @@ use tests::helpers::*;
 use types::filter::Filter;
 use ethereum_types::{U256, Address};
 use kvdb_rocksdb::{Database, DatabaseConfig};
-use devtools::*;
 use miner::Miner;
 use spec::Spec;
 use views::BlockView;
 use ethkey::KeyPair;
 use transaction::{PendingTransaction, Transaction, Action, Condition};
 use miner::MinerService;
+use tempdir::TempDir;
 
 #[test]
 fn imports_from_empty() {
-	let dir = RandomTempPath::new();
+	let tempdir = TempDir::new("").unwrap();
 	let spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
+	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
@@ -55,10 +55,10 @@ fn imports_from_empty() {
 
 #[test]
 fn should_return_registrar() {
-	let dir = RandomTempPath::new();
-	let spec = ethereum::new_morden(&dir);
+	let tempdir = TempDir::new("").unwrap();
+	let spec = ethereum::new_morden(&tempdir.path().to_owned());
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
+	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
@@ -85,10 +85,10 @@ fn returns_state_root_basic() {
 
 #[test]
 fn imports_good_block() {
-	let dir = RandomTempPath::new();
+	let tempdir = TempDir::new("").unwrap();
 	let spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
+	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
@@ -110,10 +110,10 @@ fn imports_good_block() {
 
 #[test]
 fn query_none_block() {
-	let dir = RandomTempPath::new();
+	let tempdir = TempDir::new("").unwrap();
 	let spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
+	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
@@ -261,11 +261,11 @@ fn can_mine() {
 
 #[test]
 fn change_history_size() {
-	let dir = RandomTempPath::new();
+	let tempdir = TempDir::new("").unwrap();
 	let test_spec = Spec::new_null();
 	let mut config = ClientConfig::default();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
+	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	config.history = 2;
 	let address = Address::random();

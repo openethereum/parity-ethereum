@@ -341,7 +341,7 @@ impl SnapshotReader for LooseReader {
 
 #[cfg(test)]
 mod tests {
-	use devtools::RandomTempPath;
+	use tempdir::TempDir;
 	use hash::keccak;
 
 	use snapshot::ManifestData;
@@ -352,8 +352,9 @@ mod tests {
 
 	#[test]
 	fn packed_write_and_read() {
-		let path = RandomTempPath::new();
-		let mut writer = PackedWriter::new(path.as_path()).unwrap();
+		let tempdir = TempDir::new("").unwrap();
+		let path = tempdir.path().join("packed");
+		let mut writer = PackedWriter::new(&path).unwrap();
 
 		let mut state_hashes = Vec::new();
 		let mut block_hashes = Vec::new();
@@ -381,7 +382,7 @@ mod tests {
 
 		writer.finish(manifest.clone()).unwrap();
 
-		let reader = PackedReader::new(path.as_path()).unwrap().unwrap();
+		let reader = PackedReader::new(&path).unwrap().unwrap();
 		assert_eq!(reader.manifest(), &manifest);
 
 		for hash in manifest.state_hashes.iter().chain(&manifest.block_hashes) {
@@ -391,8 +392,8 @@ mod tests {
 
 	#[test]
 	fn loose_write_and_read() {
-		let path = RandomTempPath::new();
-		let mut writer = LooseWriter::new(path.as_path().into()).unwrap();
+		let tempdir = TempDir::new("").unwrap();
+		let mut writer = LooseWriter::new(tempdir.path().into()).unwrap();
 
 		let mut state_hashes = Vec::new();
 		let mut block_hashes = Vec::new();
@@ -420,7 +421,7 @@ mod tests {
 
 		writer.finish(manifest.clone()).unwrap();
 
-		let reader = LooseReader::new(path.as_path().into()).unwrap();
+		let reader = LooseReader::new(tempdir.path().into()).unwrap();
 		assert_eq!(reader.manifest(), &manifest);
 
 		for hash in manifest.state_hashes.iter().chain(&manifest.block_hashes) {

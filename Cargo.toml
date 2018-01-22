@@ -19,7 +19,7 @@ number_prefix = "0.2"
 rpassword = "1.0"
 semver = "0.6"
 ansi_term = "0.10"
-parking_lot = "0.4"
+parking_lot = "0.5"
 regex = "0.2"
 isatty = "0.1"
 toml = "0.4"
@@ -36,7 +36,6 @@ jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "pa
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-bytes = { path = "util/bytes" }
-ethcore-devtools = { path = "devtools" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
@@ -62,7 +61,7 @@ parity-version = { path = "util/version" }
 parity-whisper = { path = "whisper" }
 path = { path = "util/path" }
 dir = { path = "util/dir" }
-panic_hook = { path = "panic_hook" }
+panic_hook = { path = "util/panic_hook" }
 keccak-hash = { path = "util/hash" }
 migration = { path = "util/migration" }
 kvdb = { path = "util/kvdb" }
@@ -78,6 +77,7 @@ rustc_version = "0.2"
 [dev-dependencies]
 pretty_assertions = "0.1"
 ipnetwork = "0.12.6"
+tempdir = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"

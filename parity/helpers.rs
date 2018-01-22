@@ -328,7 +328,7 @@ mod tests {
 	use std::time::Duration;
 	use std::fs::File;
 	use std::io::Write;
-	use devtools::RandomTempPath;
+	use tempdir::TempDir;
 	use ethereum_types::U256;
 	use ethcore::client::{Mode, BlockId};
 	use ethcore::miner::PendingSet;
@@ -417,15 +417,17 @@ mod tests {
 
 	#[test]
 	fn test_password() {
-		let path = RandomTempPath::new();
-		let mut file = File::create(path.as_path()).unwrap();
+		let tempdir = TempDir::new("").unwrap();
+		let path = tempdir.path().join("file");
+		let mut file = File::create(&path).unwrap();
 		file.write_all(b"a bc ").unwrap();
-		assert_eq!(password_from_file(path.as_str().into()).unwrap().as_bytes(), b"a bc");
+		assert_eq!(password_from_file(path.to_str().unwrap().into()).unwrap().as_bytes(), b"a bc");
 	}
 
 	#[test]
 	fn test_password_multiline() {
-		let path = RandomTempPath::new();
+		let tempdir = TempDir::new("").unwrap();
+		let path = tempdir.path().join("file");
 		let mut file = File::create(path.as_path()).unwrap();
 		file.write_all(br#"    password with trailing whitespace
 those passwords should be
@@ -433,7 +435,7 @@ ignored
 but the first password is trimmed
 
 "#).unwrap();
-		assert_eq!(&password_from_file(path.as_str().into()).unwrap(), "password with trailing whitespace");
+		assert_eq!(&password_from_file(path.to_str().unwrap().into()).unwrap(), "password with trailing whitespace");
 	}
 
 	#[test]

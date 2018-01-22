@@ -236,14 +236,14 @@ fn fixed_to_contract_only() {
 	// 6, 7, 8 prove finality for transition at 6.
 	// 3 beyond gets us to 11.
 	assert_eq!(client.chain_info().best_block_number, 11);
-	let reader = snapshot_helpers::snap(&*client);
+	let (reader, _tempdir) = snapshot_helpers::snap(&*client);
 
 	let new_db = kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0));
 	let spec = spec_fixed_to_contract();
 
 	// ensure fresh engine's step matches.
 	for _ in 0..11 { spec.engine.step() }
-	snapshot_helpers::restore(Arc::new(new_db), &*spec.engine, &**reader, &spec.genesis_block()).unwrap();
+	snapshot_helpers::restore(Arc::new(new_db), &*spec.engine, &*reader, &spec.genesis_block()).unwrap();
 }
 
 #[test]
@@ -269,10 +269,10 @@ fn fixed_to_contract_to_contract() {
 	]);
 
 	assert_eq!(client.chain_info().best_block_number, 16);
-	let reader = snapshot_helpers::snap(&*client);
+	let (reader, _tempdir) = snapshot_helpers::snap(&*client);
 	let new_db = kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0));
 	let spec = spec_fixed_to_contract();
 
 	for _ in 0..16 { spec.engine.step() }
-	snapshot_helpers::restore(Arc::new(new_db), &*spec.engine, &**reader, &spec.genesis_block()).unwrap();
+	snapshot_helpers::restore(Arc::new(new_db), &*spec.engine, &*reader, &spec.genesis_block()).unwrap();
 }

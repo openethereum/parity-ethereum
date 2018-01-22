@@ -12,14 +12,13 @@ bloomchain = { path = "../util/bloomchain" }
 bn = { git = "https://github.com/paritytech/bn" }
 byteorder = "1.0"
 common-types = { path = "types" }
-crossbeam = "0.2.9"
+crossbeam = "0.3"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-bytes = { path = "../util/bytes" }
 hashdb = { path = "../util/hashdb" }
 memorydb = { path = "../util/memorydb" }
 patricia-trie = { path = "../util/patricia_trie" }
-ethcore-devtools = { path = "../devtools" }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
@@ -42,7 +41,7 @@ native-contracts = { path = "native_contracts" }
 num = "0.1"
 num_cpus = "1.2"
 parity-machine = { path = "../machine" }
-parking_lot = "0.4"
+parking_lot = "0.5"
 price-info = { path = "../price-info" }
 rayon = "0.8"
 rand = "0.3"
@@ -53,6 +52,7 @@ kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }
 util-error = { path = "../util/error" }
 snappy = { git = "https://github.com/paritytech/rust-snappy" }
+stop-guard = { path = "../util/stop-guard" }
 migration = { path = "../util/migration" }
 macros = { path = "../util/macros" }
 rust-crypto = "0.2.34"
@@ -68,6 +68,7 @@ triehash = { path = "../util/triehash" }
 semantic_version = { path = "../util/semantic_version" }
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
+tempdir = "0.3"
 
 [dev-dependencies]
 native-contracts = { path = "native_contracts", features = ["test_contracts"] }

@@ -90,6 +90,8 @@ extern crate macros;
 #[cfg(test)]
 extern crate kvdb_memorydb;
 
+extern crate tempdir;
+
 pub extern crate jsonrpc_ws_server as ws;
 
 mod authcodes;

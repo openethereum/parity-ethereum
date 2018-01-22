@@ -225,11 +225,10 @@ impl<T: TimeProvider> AuthCodes<T> {
 
 #[cfg(test)]
 mod tests {
-
-	use devtools;
 	use std::io::{Read, Write};
 	use std::{time, fs};
 	use std::cell::Cell;
+	use tempdir::TempDir;
 	use hash::keccak;
 
 	use ethereum_types::H256;
@@ -303,15 +302,16 @@ mod tests {
 	#[test]
 	fn should_read_old_format_from_file() {
 		// given
-		let path = devtools::RandomTempPath::new();
+		let tempdir = TempDir::new("").unwrap();
+		let file_path = tempdir.path().join("file");
 		let code = "23521352asdfasdfadf";
 		{
-			let mut file = fs::File::create(&path).unwrap();
+			let mut file = fs::File::create(&file_path).unwrap();
 			file.write_all(b"a\n23521352asdfasdfadf\nb\n").unwrap();
 		}
 
 		// when
-		let mut authcodes = AuthCodes::from_file(&path).unwrap();
+		let mut authcodes = AuthCodes::from_file(&file_path).unwrap();
 		let time = time::UNIX_EPOCH.elapsed().unwrap().as_secs();
 
 		// then
@@ -321,7 +321,8 @@ mod tests {
 	#[test]
 	fn should_remove_old_unused_tokens() {
 		// given
-		let path = devtools::RandomTempPath::new();
+		let tempdir = TempDir::new("").unwrap();
+		let file_path = tempdir.path().join("file");
 		let code1 = "11111111asdfasdf111";
 		let code2 = "22222222asdfasdf222";
 		let code3 = "33333333asdfasdf333";
@@ -338,11 +339,11 @@ mod tests {
 
 		let new_code = codes.generate_new().unwrap().replace('-', "");
 		codes.clear_garbage();
-		codes.to_file(&path).unwrap();
+		codes.to_file(&file_path).unwrap();
 
 		// then
 		let mut content = String::new();
-		let mut file = fs::File::open(&path).unwrap();
+		let mut file = fs::File::open(&file_path).unwrap();
 		file.read_to_string(&mut content).unwrap();
 
 		assert_eq!(content, format!("{};100;10000100\n{};100;100\n{};10000100", code1, code2, new_code));
