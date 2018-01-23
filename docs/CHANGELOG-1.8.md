@@ -4,6 +4,8 @@ Parity 1.8.7 is the first stable release of the 1.8 channel. It includes various
 
 The full list of included changes:
 
+- Bump stable version ([#7665](https://github.com/paritytech/parity/pull/7665))
+  - Bump stable to 1.8.7
 - Backports to stable ([#7661](https://github.com/paritytech/parity/pull/7661))
   - Fixed delegatecall's from/to ([#7568](https://github.com/paritytech/parity/pull/7568))
     - Fixed delegatecall's from/to, closes [#7166](https://github.com/paritytech/parity/issues/7166)
@@ -17,6 +19,8 @@ The full list of included changes:
     - Kvdb-rocksdb: better corruption detection on open
     - Kvdb-rocksdb: add corruption_file_name const
     - Kvdb-rocksdb: rename mark_corruption to check_for_corruption
+- Add docker build for stable and cargo cache ([#7672](https://github.com/paritytech/parity/pull/7672))
+- Fix snapcraft build for stable ([#7669](https://github.com/paritytech/parity/pull/7669))
 - Update .gitlab-ci.yml ([#7599](https://github.com/paritytech/parity/pull/7599))
   - Fix cache:key
 - Make 1.8 stable ([#7532](https://github.com/paritytech/parity/pull/7532))

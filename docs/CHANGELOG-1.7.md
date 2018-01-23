@@ -2,7 +2,7 @@ Note: Parity 1.7 reached End-of-Life on 2018-01-25 (EOL).
 
 ### Parity [v1.7.13](https://github.com/paritytech/parity/releases/tag/v1.7.13) (2018-01-23)
 
-Parity 1.7.13 is a bug-fix release to improve stability of PoA-networks.
+Parity 1.7.13 is a bug-fix release to improve stability of PoA-networks. Users on Kovan or other Aura-based networks are advised to upgrade as this release fixes an issue introduced with 1.7.12 that causes Proof-of-Authority nodes to stop synchronizing the chain.
 
 The full list of included changes:
 

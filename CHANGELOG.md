@@ -46,6 +46,12 @@ The full list of included changes:
   - Fix Temporarily Invalid blocks handling ([#7613](https://github.com/paritytech/parity/pull/7613))
     - Handle temporarily invalid blocks in sync.
     - Fix tests.
+- Add docker build for beta ([#7671](https://github.com/paritytech/parity/pull/7671))
+  - Add docker build for beta
+  - Add cargo cache
+- Fix snapcraft build for beta ([#7670](https://github.com/paritytech/parity/pull/7670))
+- Update Parity.pkgproj
+- update gitlab build from master
 - Update references to dapp sources ([#7634](https://github.com/paritytech/parity/pull/7634)) ([#7636](https://github.com/paritytech/parity/pull/7636))
 - Update tokenreg ([#7618](https://github.com/paritytech/parity/pull/7618)) ([#7619](https://github.com/paritytech/parity/pull/7619))
 - Fix cache:key ([#7598](https://github.com/paritytech/parity/pull/7598))
