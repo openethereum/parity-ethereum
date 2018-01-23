@@ -20,7 +20,8 @@ use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
+use std::iter::FromIterator;
 
 use account_provider::AccountProvider;
 use block::*;
@@ -377,18 +378,34 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 
 		let headers: Vec<Header> = otry!(UntrustedRlp::new(proof).as_list().ok());
 
-		for header in &headers {
-			// ensure all headers have correct number of seal fields so we can `verify_external`
-			// without panic.
-			//
-			// `verify_external` checks that signature is correct and author == signer.
-			if header.seal().len() != 3 { return None }
-			otry!(verify_external(header, &self.subchain_validators, &*self.step, |_| {}).ok());
+		{
+			let mut push_header = |parent_header: &Header, header: Option<&Header>| {
+				// ensure all headers have correct number of seal fields so we can `verify_external`
+				// and get `empty_steps` without panic.
+				if parent_header.seal().len() != 3 { return None }
+				if header.iter().any(|h| h.seal().len() != 3) { return None }
+				// `verify_external` checks that signature is correct and author == signer.
+				otry!(verify_external(parent_header, &self.subchain_validators, &*self.step, |_| {}).ok());
 
-			let signers = otry!(header_signers(header).ok());
+				let mut signers = match header {
+					Some(header) => otry!(header_empty_steps_signers(header).ok()),
+					_ => Vec::new(),
+				};
+				signers.push(parent_header.author().clone());
 
-			let newly_finalized = otry!(finality_checker.push_hash(header.hash(), signers).ok());
-			finalized.extend(newly_finalized);
+				let newly_finalized = otry!(finality_checker.push_hash(parent_header.hash(), signers).ok());
+				finalized.extend(newly_finalized);
+
+				Some(())
+			};
+
+			for window in headers.windows(2) {
+				otry!(push_header(&window[0], Some(&window[1])));
+			}
+
+			if let Some(last) = headers.last() {
+				otry!(push_header(last, None));
+			}
 		}
 
 		if finalized.is_empty() { None } else { Some(finalized) }
@@ -417,12 +434,14 @@ fn header_empty_steps(header: &Header) -> Result<Vec<EmptyStep>, ::rlp::DecoderE
 	UntrustedRlp::new(&header.seal().get(2).expect("was checked with verify_block_basic; has 3 fields; qed")).as_list::<EmptyStep>().map(Into::into)
 }
 
-fn header_signers(header: &Header) -> Result<Vec<Address>, Error> {
-	let mut signers = vec![header.author().clone()];
-	for empty_step in header_empty_steps(&header)? {
-		signers.push(empty_step.author()?);
+// gets the signers of empty step messages for the given header, does not include repeated signers
+fn header_empty_steps_signers(header: &Header) -> Result<Vec<Address>, Error> {
+	let mut signers = HashSet::new();
+	for empty_step in header_empty_steps(header)? {
+		signers.insert(empty_step.author()?);
 	}
-	Ok(signers)
+
+	Ok(Vec::from_iter(signers.into_iter()))
 }
 
 fn step_proposer(validators: &ValidatorSet, bh: &H256, step: usize) -> Address {
@@ -975,20 +994,33 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				chain_head.hash(), chain_head.parent_hash());
 
 			let mut hash = chain_head.parent_hash().clone();
+			let mut parent_empty_steps_signers = match header_empty_steps_signers(&chain_head) {
+				Ok(empty_step_signers) => empty_step_signers,
+				Err(_) => {
+					warn!(target: "finality", "Failed to get empty step signatures from block {}", chain_head.hash());
+					return None;
+				}
+			};
+
 			let epoch_transition_hash = epoch_manager.epoch_transition_hash;
 
 			// walk the chain within current epoch backwards.
-			// author == ec_recover(sig) known since
-			// the blocks are in the DB.
+			// author == ec_recover(sig) known since the blocks are in the DB.
+			// the empty steps messages in a header signal approval of the parent header.
 			let ancestry_iter = itertools::repeat_call(move || {
 				chain(hash).and_then(|header| {
 					if header.number() == 0 { return None }
 
-					if let Ok(signers) = header_signers(&header) {
+					let mut signers = vec![header.author().clone()];
+					signers.extend(parent_empty_steps_signers.drain(..));
+
+					if let Ok(empty_step_signers) = header_empty_steps_signers(&header) {
 						let res = (hash, signers);
 						trace!(target: "finality", "Ancestry iteration: yielding {:?}", res);
 
 						hash = header.parent_hash().clone();
+						parent_empty_steps_signers = empty_step_signers;
+
 						Some(res)
 
 					} else {
@@ -1007,15 +1039,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		}
 
 		{
-			let chain_head_signers = match header_signers(&chain_head).ok() {
-				Some(signers) => signers,
-				_ => {
-					warn!(target: "finality", "Failed to get empty step signatures from block {}", chain_head.hash());
-					return None;
-				},
-			};
-
-			if let Ok(finalized) = epoch_manager.finality_checker.push_hash(chain_head.hash(), chain_head_signers) {
+			if let Ok(finalized) = epoch_manager.finality_checker.push_hash(chain_head.hash(), vec![chain_head.author().clone()]) {
 				let mut finalized = finalized.into_iter();
 				while let Some(finalized_hash) = finalized.next() {
 					if let Some(pending) = transition_store(finalized_hash) {
