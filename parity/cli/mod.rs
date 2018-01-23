@@ -1314,12 +1314,15 @@ mod tests {
 		let args = Args::parse(&["parity", "--secretstore-nodes", "abc@127.0.0.1:3333,cde@10.10.10.10:4444"]).unwrap();
 		assert_eq!(args.arg_secretstore_nodes, "abc@127.0.0.1:3333,cde@10.10.10.10:4444");
 
-		// Arguments with a single value shouldn't accept multiple values
-		let args = Args::parse(&["parity", "--auto-update", "critical", "all"]);
-		assert!(args.is_err());
-
-		let args = Args::parse(&["parity", "--password", "~/.safe/1", "~/.safe/2"]).unwrap();
+		let args = Args::parse(&["parity", "--password", "~/.safe/1", "--password", "~/.safe/2", "--ui-port", "8123", "ui"]).unwrap();
 		assert_eq!(args.arg_password, vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]);
+		assert_eq!(args.arg_ui_port, 8123);
+		assert_eq!(args.cmd_ui, true);
+
+		let args = Args::parse(&["parity", "--password", "~/.safe/1,~/.safe/2", "--ui-port", "8123", "ui"]).unwrap();
+		assert_eq!(args.arg_password, vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]);
+		assert_eq!(args.arg_ui_port, 8123);
+		assert_eq!(args.cmd_ui, true);
 	}
 
 	#[test]
