@@ -76,6 +76,8 @@ pub struct AuthorityRoundParams {
 	pub maximum_uncle_count_transition: u64,
 	/// Number of accepted uncles.
 	pub maximum_uncle_count: usize,
+	/// Number of accepted empty steps.
+	pub maximum_empty_steps: usize,
 }
 
 const U16_MAX: usize = ::std::u16::MAX as usize;
@@ -97,6 +99,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
 			maximum_uncle_count_transition: p.maximum_uncle_count_transition.map_or(0, Into::into),
 			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
+			maximum_empty_steps: p.maximum_empty_steps.map_or(0, Into::into),
 		}
 	}
 }
@@ -347,6 +350,7 @@ pub struct AuthorityRound {
 	block_reward: U256,
 	maximum_uncle_count_transition: u64,
 	maximum_uncle_count: usize,
+	maximum_empty_steps: usize,
 	machine: EthereumMachine,
 }
 
@@ -551,6 +555,7 @@ impl AuthorityRound {
 				block_reward: our_params.block_reward,
 				maximum_uncle_count_transition: our_params.maximum_uncle_count_transition,
 				maximum_uncle_count: our_params.maximum_uncle_count,
+				maximum_empty_steps: our_params.maximum_empty_steps,
 				machine: machine,
 			});
 
@@ -788,13 +793,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				return Seal::None;
 			}
 
-			// FIXME: configurable
-			const MAX_EMPTY_STEPS: usize = 15;
-
 			// if there are no transactions to include in the block, we don't seal and instead broadcast a signed
 			// `EmptyStep(step, parent_hash)` message. If we exceed the maximum amount of `empty_step` rounds we proceed
 			// with the seal.
-			if block.transactions().is_empty() && empty_steps.len() < MAX_EMPTY_STEPS {
+			if block.transactions().is_empty() && empty_steps.len() < self.maximum_empty_steps {
 				self.generate_empty_step(header.parent_hash());
 				return Seal::None;
 			}
