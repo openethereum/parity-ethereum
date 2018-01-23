@@ -422,6 +422,12 @@ enum Report {
 	Benign(Address, BlockNumber),
 }
 
+fn header_seal_hash(header: &Header, empty_steps: &[u8]) -> H256 {
+	let mut message = header.bare_hash().to_vec();
+	message.extend_from_slice(empty_steps);
+	keccak(message)
+}
+
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
 	UntrustedRlp::new(&header.seal().get(0).expect("was either checked with verify_block_basic or is genesis; has 3 fields; qed (Make sure the spec file has a correct genesis seal)")).as_val()
 }
@@ -430,8 +436,12 @@ fn header_signature(header: &Header) -> Result<Signature, ::rlp::DecoderError> {
 	UntrustedRlp::new(&header.seal().get(1).expect("was checked with verify_block_basic; has 3 fields; qed")).as_val::<H520>().map(Into::into)
 }
 
+fn header_empty_steps_raw(header: &Header) -> &[u8] {
+	header.seal().get(2).expect("was checked with verify_block_basic; has 3 fields; qed")
+}
+
 fn header_empty_steps(header: &Header) -> Result<Vec<EmptyStep>, ::rlp::DecoderError> {
-	UntrustedRlp::new(&header.seal().get(2).expect("was checked with verify_block_basic; has 3 fields; qed")).as_list::<EmptyStep>().map(Into::into)
+	UntrustedRlp::new(header_empty_steps_raw(header)).as_list::<EmptyStep>().map(Into::into)
 }
 
 // gets the signers of empty step messages for the given header, does not include repeated signers
@@ -472,8 +482,10 @@ fn verify_external<F: Fn(Report)>(header: &Header, validators: &ValidatorSet, st
 		Ok(_) => {
 			let proposer_signature = header_signature(header)?;
 			let correct_proposer = validators.get(header.parent_hash(), header_step);
-			let is_invalid_proposer = *header.author() != correct_proposer ||
-				!verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
+			let is_invalid_proposer = *header.author() != correct_proposer || {
+				let header_seal_hash = header_seal_hash(header, header_empty_steps_raw(header));
+				!verify_address(&correct_proposer, &proposer_signature, &header_seal_hash)?
+			};
 
 			if is_invalid_proposer {
 				trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
@@ -780,14 +792,16 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			const MAX_EMPTY_STEPS: usize = 15;
 
 			// if there are no transactions to include in the block, we don't seal and instead broadcast a signed
-			// `EmptyStep(step)` message. If we exceed the maximum amount of `empty_step` rounds we proceed with the
-			// seal.
+			// `EmptyStep(step, parent_hash)` message. If we exceed the maximum amount of `empty_step` rounds we proceed
+			// with the seal.
 			if block.transactions().is_empty() && empty_steps.len() < MAX_EMPTY_STEPS {
 				self.generate_empty_step(header.parent_hash());
 				return Seal::None;
 			}
 
-			if let Ok(signature) = self.sign(header.bare_hash()) {
+			let empty_steps_rlp = ::rlp::encode_list(&empty_steps).into_vec();
+
+			if let Ok(signature) = self.sign(header_seal_hash(header, &empty_steps_rlp)) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 
 				// only issue the seal if we were the first to reach the compare_and_swap.
@@ -798,7 +812,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					let fields = vec![
 						encode(&step).into_vec(),
 						encode(&(&H520::from(signature) as &[u8])).into_vec(),
-						::rlp::encode_list(&empty_steps).into_vec(),
+						empty_steps_rlp,
 					];
 
 					return Seal::Regular(fields);
