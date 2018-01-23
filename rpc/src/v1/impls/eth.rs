@@ -33,7 +33,7 @@ use ethcore::block::IsBlock;
 use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
 use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber, Seal};
+use ethcore::header::{BlockNumber as EthBlockNumber, Seal};
 use ethcore::log_entry::LogEntry;
 use ethcore::miner::{MinerService, ExternalMinerService};
 use ethcore::transaction::SignedTransaction;
@@ -123,6 +123,16 @@ impl From<BlockNumber> for BlockNumberOrId {
 	fn from(value: BlockNumber) -> BlockNumberOrId {
 		BlockNumberOrId::Number(value)
 	}
+}
+
+enum PendingOrBlock {
+	Block(BlockId),
+	Pending,
+}
+
+struct PendingUncleId {
+	pub id: PendingOrBlock,
+	pub position: usize,
 }
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S, M, EM> where
@@ -228,15 +238,56 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 		}
 	}
 
-	fn uncle(&self, id: UncleId) -> Result<Option<RichBlock>> {
+	fn uncle(&self, id: PendingUncleId) -> Result<Option<RichBlock>> {
 		let client = &self.client;
-		let uncle: BlockHeader = match client.uncle(id) {
-			Some(hdr) => hdr.decode(),
-			None => { return Ok(None); }
-		};
-		let parent_difficulty = match client.block_total_difficulty(BlockId::Hash(uncle.parent_hash().clone())) {
-			Some(difficulty) => difficulty,
-			None => { return Ok(None); }
+
+		let (uncle, parent_difficulty, extra) = match id {
+			PendingUncleId { id: PendingOrBlock::Pending, position } => {
+				let info = self.client.chain_info();
+
+				let pending_block = match self.miner.pending_block(info.best_block_number) {
+					Some(block) => block,
+					None => return Ok(None),
+				};
+
+				let uncle = match pending_block.uncles.get(position) {
+					Some(uncle) => uncle,
+					None => return Ok(None),
+				};
+
+				let difficulty = {
+					let latest_difficulty = self.client.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
+					let pending_difficulty = self.miner.pending_block_header(info.best_block_number).map(|header| *header.difficulty());
+
+					if let Some(difficulty) = pending_difficulty {
+						difficulty + latest_difficulty
+					} else {
+						latest_difficulty
+					}
+				};
+
+				let extra = self.client.engine().extra_info(&pending_block.header);
+
+				(uncle, difficulty, extra)
+			},
+
+			PendingUncleId { id: PendingOrBlock::Block(block_id), position } => {
+				let uncle_id = UncleId { block: block_id, position };
+
+				let uncle = match client.uncle(uncle_id) {
+					Some(hdr) => hdr.decode(),
+					None => { return Ok(None); }
+				};
+
+				let parent_difficulty = match client.block_total_difficulty(BlockId::Hash(uncle.parent_hash().clone())) {
+					Some(difficulty) => difficulty,
+					None => { return Ok(None); }
+				};
+
+				let extra = client.uncle_extra_info(uncle_id).expect(EXTRA_INFO_PROOF);
+
+				(&uncle, parent_difficulty, extra)
+			}
 		};
 
 		let size = client.block(BlockId::Hash(uncle.hash()))
@@ -267,7 +318,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 				uncles: vec![],
 				transactions: BlockTransactions::Hashes(vec![]),
 			},
-			extra_info: client.uncle_extra_info(id).expect(EXTRA_INFO_PROOF),
+			extra_info: extra,
 		};
 		Ok(Some(block))
 	}
@@ -561,17 +612,22 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<RichBlock>> {
-		Box::new(future::done(self.uncle(UncleId {
-			block: BlockId::Hash(hash.into()),
+		Box::new(future::done(self.uncle(PendingUncleId {
+			id: PendingOrBlock::Block(BlockId::Hash(hash.into())),
 			position: index.value()
 		})))
 	}
 
 	fn uncle_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> BoxFuture<Option<RichBlock>> {
-		Box::new(future::done(self.uncle(UncleId {
-			block: num.into(),
-			position: index.value()
-		})))
+		let id = match num {
+			BlockNumber::Latest => PendingUncleId { id: PendingOrBlock::Block(BlockId::Latest), position: index.value() },
+			BlockNumber::Earliest => PendingUncleId { id: PendingOrBlock::Block(BlockId::Earliest), position: index.value() },
+			BlockNumber::Num(num) => PendingUncleId { id: PendingOrBlock::Block(BlockId::Number(num)), position: index.value() },
+
+			BlockNumber::Pending => PendingUncleId { id: PendingOrBlock::Pending, position: index.value() },
+		};
+
+		Box::new(future::done(self.uncle(id)))
 	}
 
 	fn compilers(&self) -> Result<Vec<String>> {
