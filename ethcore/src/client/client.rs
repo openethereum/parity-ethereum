@@ -1443,26 +1443,25 @@ impl Call for Client {
 
 		Ok(results)
 	}
-}
 
-impl EngineInfo for Client {
-	fn engine(&self) -> &EthEngine {
-		Client::engine(self)
-	}
-}
-
-impl BlockChainClient for Client {
-	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
+	fn estimate_gas(&self, t: &SignedTransaction, state: &Self::State, header: &Header) -> Result<U256, CallError> {
 		let (mut upper, max_upper, env_info)  = {
-			let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
-			let init = env_info.gas_limit;
+			let init = *header.gas_limit();
 			let max = init * U256::from(10);
-			env_info.gas_limit = max;
+
+			let env_info = EnvInfo {
+				number: header.number(),
+				author: header.author().clone(),
+				timestamp: header.timestamp(),
+				difficulty: header.difficulty().clone(),
+				last_hashes: self.build_last_hashes(header.parent_hash()),
+				gas_used: U256::default(),
+				gas_limit: max,
+			};
+
 			(init, max, env_info)
 		};
 
-		// that's just a copy of the state.
-		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender();
 		let options = || TransactOptions::with_tracing().dont_check_nonce();
 
@@ -1471,8 +1470,8 @@ impl BlockChainClient for Client {
 			tx.gas = gas;
 			let tx = tx.fake_sign(sender);
 
-			let mut state = original_state.clone();
-			Ok(Executive::new(&mut state, &env_info, self.engine.machine())
+			let mut clone = state.clone();
+			Ok(Executive::new(&mut clone, &env_info, self.engine.machine())
 				.transact_virtual(&tx, options())
 				.map(|r| r.exception.is_none())
 				.unwrap_or(false))
@@ -1515,7 +1514,15 @@ impl BlockChainClient for Client {
 		trace!(target: "estimate_gas", "estimate_gas chopping {} .. {}", lower, upper);
 		binary_chop(lower, upper, cond)
 	}
+}
 
+impl EngineInfo for Client {
+	fn engine(&self) -> &EthEngine {
+		Client::engine(self)
+	}
+}
+
+impl BlockChainClient for Client {
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
 		let mut env_info = self.env_info(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;

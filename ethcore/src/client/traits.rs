@@ -176,6 +176,9 @@ pub trait Call {
 	/// Makes multiple non-persistent but dependent transaction calls.
 	/// Returns a vector of successes or a failure if any of the transaction fails.
 	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], state: &mut Self::State, header: &Header) -> Result<Vec<Executed>, CallError>;
+
+	/// Estimates how much gas will be necessary for a call.
+	fn estimate_gas(&self, t: &SignedTransaction, state: &Self::State, header: &Header) -> Result<U256, CallError>;
 }
 
 /// Provides `engine` method
@@ -278,9 +281,6 @@ pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockIn
 
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
-
-	/// Estimates how much gas will be necessary for a call.
-	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError>;
 
 	/// Replays a given transaction for inspection.
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;
