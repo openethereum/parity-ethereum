@@ -116,15 +116,15 @@ known_heap_size!(0, PeerInfo);
 
 type PacketDecodeError = DecoderError;
 
-// 63 version of Ethereum protocol.
+/// 63 version of Ethereum protocol.
 pub const ETH_PROTOCOL_VERSION_63: u8 = 63;
-// 62 version of Ethereum protocol.
+/// 62 version of Ethereum protocol.
 pub const ETH_PROTOCOL_VERSION_62: u8 = 62;
-// 1 version of Parity protocol.
+/// 1 version of Parity protocol.
 pub const PAR_PROTOCOL_VERSION_1: u8 = 1;
-// 2 version of Parity protocol (consensus messages added).
+/// 2 version of Parity protocol (consensus messages added).
 pub const PAR_PROTOCOL_VERSION_2: u8 = 2;
-// 3 version of Parity protocol (private transactions messages added).
+/// 3 version of Parity protocol (private transactions messages added).
 pub const PAR_PROTOCOL_VERSION_3: u8 = 3;
 
 const MAX_BODIES_TO_SEND: usize = 256;
