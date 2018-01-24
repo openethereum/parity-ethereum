@@ -634,7 +634,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 		}
 
 		for account in accounts.into_iter() {
-			let balance = client.balance(&account, at).unwrap_or_else(U256::zero);
+			let balance = client.balance(&account, at.into()).unwrap_or_else(U256::zero);
 			if cmd.min_balance.map_or(false, |m| balance < m) || cmd.max_balance.map_or(false, |m| balance > m) {
 				last = Some(account);
 				continue; //filtered out
@@ -644,7 +644,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 				out.write(b",").expect("Write error");
 			}
 			out.write_fmt(format_args!("\n\"0x{}\": {{\"balance\": \"{:x}\", \"nonce\": \"{:x}\"", account.hex(), balance, client.nonce(&account, at).unwrap_or_else(U256::zero))).expect("Write error");
-			let code = client.code(&account, at).unwrap_or(None).unwrap_or_else(Vec::new);
+			let code = client.code(&account, at.into()).unwrap_or(None).unwrap_or_else(Vec::new);
 			if !code.is_empty() {
 				out.write_fmt(format_args!(", \"code_hash\": \"0x{}\"", keccak(&code).hex())).expect("Write error");
 				if cmd.code {
@@ -667,7 +667,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 							if last_storage.is_some() {
 								out.write(b",").expect("Write error");
 							}
-							out.write_fmt(format_args!("\n\t\"0x{}\": \"0x{}\"", key.hex(), client.storage_at(&account, &key, at).unwrap_or_else(Default::default).hex())).expect("Write error");
+							out.write_fmt(format_args!("\n\t\"0x{}\": \"0x{}\"", key.hex(), client.storage_at(&account, &key, at.into()).unwrap_or_else(Default::default).hex())).expect("Write error");
 							last_storage = Some(key);
 						}
 					}
