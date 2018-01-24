@@ -25,6 +25,7 @@ import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import ContractInstances from '@parity/shared/lib/contracts';
 import { initStore } from '@parity/shared/lib/redux';
 import ContextProvider from '@parity/ui/lib/ContextProvider';
+import oo7Parity from 'oo7-parity';
 
 import '@parity/shared/lib/environment';
 
@@ -60,6 +61,7 @@ function renderUI (token) {
   api.parity.registryAddress().then((address) => console.log('registryAddress', address)).catch((error) => console.error('registryAddress', error));
 
   ContractInstances.get(api);
+  oo7Parity.bonds.createProxy();
 
   setupProviderFilters(api.provider);
 
