@@ -460,7 +460,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 		let num = num.unwrap_or_default();
 
-		let (state, header) = if num == BlockNumber::Pending {
+		let (mut state, header) = if num == BlockNumber::Pending {
 			let info = self.client.chain_info();
 			let state = self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned())?;
 			let header = self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned())?;

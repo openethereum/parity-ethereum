@@ -53,8 +53,8 @@ impl Into<client::TraceFilter> for TraceFilter {
 				BlockId::Latest
 			}
 		};
-		let start = self.from_block.map_or(BlockId::Latest, num_to_id);
-		let end = self.to_block.map_or(BlockId::Latest, num_to_id);
+		let start = self.from_block.map_or(BlockId::Latest, &num_to_id);
+		let end = self.to_block.map_or(BlockId::Latest, &num_to_id);
 		client::TraceFilter {
 			range: start..end,
 			from_address: self.from_address.map_or_else(Vec::new, |x| x.into_iter().map(Into::into).collect()),

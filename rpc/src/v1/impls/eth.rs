@@ -195,7 +195,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 						latest_difficulty
 					}
 				};
-				let extra = pending_block.map(|b| self.client.engine().extra_info(&b.header));
+
+				let extra = pending_block.as_ref().map(|b| self.client.engine().extra_info(&b.header));
 
 				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes(Seal::Without))), Some(difficulty), extra)
 			},
@@ -271,9 +272,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 				};
 
 				// Implementation stolen from `extract_transaction_at_index`
-				let transaction = pending_block.transactions.into_iter().nth(index)
+				let transaction = pending_block.transactions.get(index)
 					// Verify if transaction signature is correct.
-					.and_then(|tx| SignedTransaction::new(tx).ok()) // FIXME Do we need this?
+					.and_then(|tx| SignedTransaction::new(tx.clone()).ok())
 					.map(|signed_tx| {
 						let (signed, sender, _) = signed_tx.deconstruct();
 						let block_hash = pending_block.header.hash();
@@ -309,7 +310,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 				};
 
 				let uncle = match pending_block.uncles.get(position) {
-					Some(uncle) => uncle,
+					Some(uncle) => uncle.clone(),
 					None => return Ok(None),
 				};
 
@@ -344,7 +345,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 				let extra = client.uncle_extra_info(uncle_id).expect(EXTRA_INFO_PROOF);
 
-				(&uncle, parent_difficulty, extra)
+				(uncle, parent_difficulty, extra)
 			}
 		};
 
@@ -814,7 +815,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		let num = num.unwrap_or_default();
 
-		let (state, header) = if num == BlockNumber::Pending {
+		let (mut state, header) = if num == BlockNumber::Pending {
 			let info = self.client.chain_info();
 			let state = try_bf!(self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned()));
 			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned()));

@@ -79,8 +79,8 @@ impl Into<EthFilter> for Filter {
 		};
 
 		EthFilter {
-			from_block: self.from_block.map_or_else(|| BlockId::Latest, num_to_id),
-			to_block: self.to_block.map_or_else(|| BlockId::Latest, num_to_id),
+			from_block: self.from_block.map_or_else(|| BlockId::Latest, &num_to_id),
+			to_block: self.to_block.map_or_else(|| BlockId::Latest, &num_to_id),
 			address: self.address.and_then(|address| match address {
 				VariadicValue::Null => None,
 				VariadicValue::Single(a) => Some(vec![a.into()]),

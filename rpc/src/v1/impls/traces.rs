@@ -101,7 +101,7 @@ impl<C, S> Traces for TracesClient<C> where
 			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
 		};
 
-		let state = self.client.state_at(id).ok_or(errors::state_pruned())?;
+		let mut state = self.client.state_at(id).ok_or(errors::state_pruned())?;
 		let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
 
 		self.client.call(&signed, to_call_analytics(flags), &mut state, &header.decode())
@@ -128,7 +128,7 @@ impl<C, S> Traces for TracesClient<C> where
 			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
 		};
 
-		let state = self.client.state_at(id).ok_or(errors::state_pruned())?;
+		let mut state = self.client.state_at(id).ok_or(errors::state_pruned())?;
 		let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
 
 		self.client.call_many(&requests, &mut state, &header.decode())
@@ -150,7 +150,7 @@ impl<C, S> Traces for TracesClient<C> where
 			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
 		};
 
-		let state = self.client.state_at(id).ok_or(errors::state_pruned())?;
+		let mut state = self.client.state_at(id).ok_or(errors::state_pruned())?;
 		let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
 
 		self.client.call(&signed, to_call_analytics(flags), &mut state, &header.decode())
