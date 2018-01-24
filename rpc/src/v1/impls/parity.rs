@@ -430,6 +430,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 				BlockNumber::Num(num) => BlockId::Number(num),
 				BlockNumber::Earliest => BlockId::Earliest,
 				BlockNumber::Latest => BlockId::Latest,
+				BlockNumber::Pending => unreachable!(), // Already covered
 			};
 
 			let header = try_bf!(self.client.block_header(id.clone()).ok_or(errors::unknown_block()));
@@ -470,6 +471,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 				BlockNumber::Num(num) => BlockId::Number(num),
 				BlockNumber::Earliest => BlockId::Earliest,
 				BlockNumber::Latest => BlockId::Latest,
+				BlockNumber::Pending => unreachable!(), // Already covered
 			};
 
 			let state = self.client.state_at(id).ok_or(errors::state_pruned())?;

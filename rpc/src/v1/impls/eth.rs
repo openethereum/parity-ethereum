@@ -178,6 +178,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
 		let client = &self.client;
+
+		let client_query = |id| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id));
+
 		let (block, difficulty, extra) = match id {
 			BlockNumberOrId::Number(BlockNumber::Pending) => {
 				let info = self.client.chain_info();
@@ -197,7 +200,18 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes(Seal::Without))), Some(difficulty), extra)
 			},
 
-			BlockNumberOrId::Id(id) => (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id)),
+			BlockNumberOrId::Number(num) => {
+				let id = match num {
+					BlockNumber::Latest => BlockId::Latest,
+					BlockNumber::Earliest => BlockId::Earliest,
+					BlockNumber::Num(n) => BlockId::Number(n),
+					BlockNumber::Pending => unreachable!(), // Already covered
+				};
+
+				client_query(id)
+			},
+
+			BlockNumberOrId::Id(id) => client_query(id),
 		};
 
 		match (block, difficulty) {
@@ -811,6 +825,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				BlockNumber::Num(num) => BlockId::Number(num),
 				BlockNumber::Earliest => BlockId::Earliest,
 				BlockNumber::Latest => BlockId::Latest,
+				BlockNumber::Pending => unreachable!(), // Already covered
 			};
 
 			let state = try_bf!(self.client.state_at(id).ok_or(errors::state_pruned()));
@@ -843,6 +858,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				BlockNumber::Num(num) => BlockId::Number(num),
 				BlockNumber::Earliest => BlockId::Earliest,
 				BlockNumber::Latest => BlockId::Latest,
+				BlockNumber::Pending => unreachable!(), // Already covered
 			};
 
 			let state = try_bf!(self.client.state_at(id).ok_or(errors::state_pruned()));
