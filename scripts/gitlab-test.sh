@@ -50,23 +50,24 @@ js_release () {
   rustup default stable
   if [[ "${JS_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS deps install since no JS files modified.";
-    else ./js/scripts/install-deps.sh;
+    else echo "install JS deps---------------"&&./js/scripts/install-deps.sh&&echo "done----------------";
   fi
   if [[ "${JS_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS rebuild since no JS files modified.";
-    else ./js/scripts/build.sh && ./js/scripts/push-precompiled.sh;
+    else echo"build JS--------------"&&./js/scripts/build.sh && echo "Puch JS precompiled-----------------"&&./js/scripts/push-precompiled.sh&&echo "done----------------";
   fi
+  echo "build JS"
   if [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS (old) deps install since no JS files modified.";
-    else ./js-old/scripts/install-deps.sh;
+    else echo "install JS_OLD deps---------------"&&./js-old/scripts/install-deps.sh&&echo "done----------------";
   fi
   if [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS (old) rebuild since no JS files modified.";
-    else ./js-old/scripts/build.sh && ./js-old/scripts/push-precompiled.sh;
+    else echo"build JS--------------"&&./js-old/scripts/build.sh && echo "Puch JS precompiled-----------------"&& ./js-old/scripts/push-precompiled.sh&&echo "done----------------";
   fi
   if [[ "${JS_FILES_MODIFIED}" == "0" ]] && [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
-    then echo "Skipping Cargo update since no JS files modified.";
-    else ./js/scripts/push-cargo.sh;
+    then echo "Skipping Cargo update since no JS files modified."&&echo "done----------------";
+    else echo "push cargo---------"./js/scripts/push-cargo.sh;
   fi
 }
 coverage_test () {
