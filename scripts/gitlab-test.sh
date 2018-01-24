@@ -41,7 +41,7 @@ js_test () {
   fi
   if [[ "${JS_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS lint since no JS files modified.";
-    else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh;
+    else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; 
   fi
   if [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS (old) lint since no JS files modified.";
@@ -56,7 +56,7 @@ js_release () {
   fi
   if [[ "${JS_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS rebuild since no JS files modified.";
-    else ./js/scripts/build.sh && ./js/scripts/push-precompiled.sh;
+    else ./js/scripts/build.sh && ./js/scripts/release.sh;
   fi
   if [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS (old) deps install since no JS files modified.";
@@ -64,11 +64,7 @@ js_release () {
   fi
   if [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS (old) rebuild since no JS files modified.";
-    else ./js-old/scripts/build.sh && ./js-old/scripts/push-precompiled.sh;
-  fi
-  if [[ "${JS_FILES_MODIFIED}" == "0" ]] && [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
-    then echo "Skipping Cargo update since no JS files modified.";
-    else ./js/scripts/push-cargo.sh;
+    else ./js/scripts/build.sh && ./js/scripts/release.sh;
   fi
 }
 coverage_test () {
