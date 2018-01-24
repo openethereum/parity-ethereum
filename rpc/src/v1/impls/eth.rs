@@ -36,7 +36,7 @@ use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{BlockNumber as EthBlockNumber, Seal};
 use ethcore::log_entry::LogEntry;
 use ethcore::miner::{MinerService, ExternalMinerService};
-use ethcore::transaction::SignedTransaction;
+use ethcore::transaction::{SignedTransaction, LocalizedTransaction};
 use ethcore::snapshot::SnapshotService;
 use ethcore::encoded;
 use ethsync::{SyncProvider};
@@ -131,8 +131,13 @@ enum PendingOrBlock {
 }
 
 struct PendingUncleId {
-	pub id: PendingOrBlock,
-	pub position: usize,
+	id: PendingOrBlock,
+	position: usize,
+}
+
+enum PendingTransactionId {
+	Hash(H256),
+	Location(PendingOrBlock, usize)
 }
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S, M, EM> where
@@ -231,10 +236,49 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 		}
 	}
 
-	fn transaction(&self, id: TransactionId) -> Result<Option<Transaction>> {
-		match self.client.transaction(id) {
+	fn transaction(&self, id: PendingTransactionId) -> Result<Option<Transaction>> {
+		let client_transaction = |id| match self.client.transaction(id) {
 			Some(t) => Ok(Some(Transaction::from_localized(t, self.eip86_transition))),
 			None => Ok(None),
+		};
+
+		match id {
+			PendingTransactionId::Hash(hash) => client_transaction(TransactionId::Hash(hash)),
+
+			PendingTransactionId::Location(PendingOrBlock::Block(block), index) => {
+				client_transaction(TransactionId::Location(block, index))
+			},
+
+			PendingTransactionId::Location(PendingOrBlock::Pending, index) => {
+				let info = self.client.chain_info();
+				let pending_block = match self.miner.pending_block(info.best_block_number) {
+					Some(block) => block,
+					None => return Ok(None),
+				};
+
+				// Implementation stolen from `extract_transaction_at_index`
+				let transaction = pending_block.transactions.into_iter().nth(index)
+					// Verify if transaction signature is correct.
+					.and_then(|tx| SignedTransaction::new(tx).ok()) // FIXME Do we need this?
+					.map(|signed_tx| {
+						let (signed, sender, _) = signed_tx.deconstruct();
+						let block_hash = pending_block.header.hash();
+						let block_number = pending_block.header.number();
+						let transaction_index = index;
+						let cached_sender = Some(sender);
+
+						LocalizedTransaction {
+							signed,
+							block_number,
+							block_hash,
+							transaction_index,
+							cached_sender,
+						}
+					})
+					.map(|tx| Transaction::from_localized(tx, self.eip86_transition));
+
+				Ok(transaction)
+			}
 		}
 	}
 
@@ -578,7 +622,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>> {
 		let hash: H256 = hash.into();
 		let block_number = self.client.chain_info().best_block_number;
-		let tx = try_bf!(self.transaction(TransactionId::Hash(hash))).or_else(|| {
+		let tx = try_bf!(self.transaction(PendingTransactionId::Hash(hash))).or_else(|| {
 			self.miner.transaction(block_number, &hash)
 				.map(|t| Transaction::from_pending(t, block_number, self.eip86_transition))
 		});
@@ -587,15 +631,20 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<Transaction>> {
-		Box::new(future::done(
-			self.transaction(TransactionId::Location(BlockId::Hash(hash.into()), index.value()))
-		))
+		let id = PendingTransactionId::Location(PendingOrBlock::Block(BlockId::Hash(hash.into())), index.value());
+		Box::new(future::done(self.transaction(id)))
 	}
 
 	fn transaction_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> BoxFuture<Option<Transaction>> {
-		Box::new(future::done(
-			self.transaction(TransactionId::Location(num.into(), index.value()))
-		))
+		let block_id = match num {
+			BlockNumber::Latest => PendingOrBlock::Block(BlockId::Latest),
+			BlockNumber::Earliest => PendingOrBlock::Block(BlockId::Earliest),
+			BlockNumber::Num(num) => PendingOrBlock::Block(BlockId::Number(num)),
+			BlockNumber::Pending => PendingOrBlock::Pending,
+		};
+
+		let transaction_id = PendingTransactionId::Location(block_id, index.value());
+		Box::new(future::done(self.transaction(transaction_id)))
 	}
 
 	fn transaction_receipt(&self, hash: RpcH256) -> BoxFuture<Option<Receipt>> {
