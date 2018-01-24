@@ -6,6 +6,7 @@ set -u # treat unset variables as error
 BUILD_PLATFORM=$1
 PLATFORM=$2
 ARC=$3
+_ARC=$ARC # using helper variable to override $ARC in certain cases
 CC=$4
 CXX=$5
 VER="$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")"
@@ -98,8 +99,8 @@ make_deb () {
   cp target/$PLATFORM/release/parity-evm deb/usr/bin/parity-evm
   cp target/$PLATFORM/release/ethstore deb/usr/bin/ethstore
   cp target/$PLATFORM/release/ethkey deb/usr/bin/ethkey
-  dpkg-deb -b deb "parity_"$VER"_"$ARC".deb"
-  md5sum "parity_"$VER"_"$ARC".deb" > "parity_"$VER"_"$ARC".deb.md5"
+  dpkg-deb -b deb "parity_"$VER"_"$_ARC".deb"
+  md5sum "parity_"$VER"_"$_ARC".deb" > "parity_"$VER"_"$_ARC".deb.md5"
 }
 make_rpm () {
   rm -rf /install
@@ -108,9 +109,9 @@ make_rpm () {
   cp target/$PLATFORM/release/parity-evm /install/usr/bin/parity-evm
   cp target/$PLATFORM/release/ethstore /install/usr/bin/ethstore
   cp target/$PLATFORM/release/ethkey /install/usr/bin/ethkey
-  fpm -s dir -t rpm -n parity -v $VER --epoch 1 --license GPLv3 -d openssl --provides parity --url https://parity.io --vendor "Parity Technologies" -a x86_64 -m "<devops@parity.io>" --description "Ethereum network client by Parity Technologies" -C /install/
-  cp "parity-"$VER"-1."$ARC".rpm" "parity_"$VER"_"$ARC".rpm"
-  md5sum "parity_"$VER"_"$ARC".rpm" > "parity_"$VER"_"$ARC".rpm.md5"
+  fpm -s dir -t rpm -n parity -v $VER --epoch 1 --license GPLv3 -d openssl --provides parity --url https://parity.io --vendor "Parity Technologies" -a $ARC -m "<devops@parity.io>" --description "Ethereum network client by Parity Technologies" -C /install/
+  cp "parity-"$VER"-1."$ARC".rpm" "parity_"$VER"_"$_ARC".rpm"
+  md5sum "parity_"$VER"_"$_ARC".rpm" > "parity_"$VER"_"$_ARC".rpm.md5"
 }
 make_pkg () {
   echo "make PKG"
@@ -197,6 +198,7 @@ case $BUILD_PLATFORM in
     EXT="deb"
     LIBSSL="libssl1.1 (>=1.1.0)"
     echo "Use libssl1.1 (>=1.1.0) for Debian builds"
+    $_ARC="debian"
     build
     strip_md5
     make_deb
@@ -207,6 +209,7 @@ case $BUILD_PLATFORM in
   x86_64-unknown-centos-gnu)
     STRIP_BIN="strip"
     EXT="rpm"
+    $_ARC="centos"
     build
     strip_md5
     make_rpm
