@@ -69,7 +69,7 @@ js_release () {
   fi
   if [[ "${JS_FILES_MODIFIED}" == "0" ]] && [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping Cargo update since no JS files modified."&&echo "done----------------";
-    else echo "push cargo---------"./js/scripts/push-cargo.sh;
+    else echo "push cargo---------"&&./js/scripts/push-cargo.sh;
   fi
 }
 coverage_test () {
