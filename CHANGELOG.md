@@ -25,6 +25,12 @@ Additional noteworthy changes:
 
 The full list of included changes:
 
+- Add scroll when when too many accounts ([#7677](https://github.com/paritytech/parity/pull/7677)) ([#7679](https://github.com/paritytech/parity/pull/7679))
+- Update installer.nsi
+- Fix conditions in gitlab-test ([#7676](https://github.com/paritytech/parity/pull/7676))
+  - Fix conditions in gitlab-test
+  - Update gitlab-test.sh
+- Remove cargo cache
 - Backports to beta ([#7660](https://github.com/paritytech/parity/pull/7660))
   - Improve handling of RocksDB corruption ([#7630](https://github.com/paritytech/parity/pull/7630))
     - Kvdb-rocksdb: update rust-rocksdb version
