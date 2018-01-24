@@ -1406,7 +1406,7 @@ mod tests {
 	}
 
 	#[test]
-	fn should_trace_delegatecall_properly() {
+	fn should_not_trace_delegatecall() {
 		init_log();
 
 		let mut state = get_temp_state();
@@ -1426,7 +1426,7 @@ mod tests {
 		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap()).unwrap();
-		state.init_code(&0xb.into(), FromHex::from_hex("60056000526001601ff3").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap()).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1441,23 +1441,23 @@ mod tests {
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(736), // in post-eip150
+				gas_used: U256::from(721), // in post-eip150
 				output: vec![]
 			}),
 		}, FlatTrace {
 			trace_address: vec![0].into_iter().collect(),
 			subtraces: 0,
 			action: trace::Action::Call(trace::Call {
-				from: 0xa.into(),
-				to: 0xb.into(),
+				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
+				to: 0xa.into(),
 				value: 0.into(),
 				gas: 32768.into(),
 				input: vec![],
 				call_type: CallType::DelegateCall,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: 18.into(),
-				output: vec![5],
+				gas_used: 3.into(),
+				output: vec![],
 			}),
 		}];
 

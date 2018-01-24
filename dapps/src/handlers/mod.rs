@@ -47,8 +47,6 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embedd
 
 	// Content Security Policy headers
 	headers.set_raw("Content-Security-Policy", String::new()
-		// Restrict everything to the same origin by default.
-		+ "default-src 'self';"
 		// Allow connecting to WS servers and HTTP(S) servers.
 		// We could be more restrictive and allow only RPC server URL.
 		+ "connect-src http: https: ws: wss:;"
@@ -66,9 +64,7 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embedd
 		+ "style-src 'self' 'unsafe-inline' data: blob: https:;"
 		// Allow fonts from data: and HTTPS.
 		+ "font-src 'self' data: https:;"
-		// Disallow objects
-		+ "object-src 'none';"
-		// Allow scripts
+		// Allow inline scripts and scripts eval (webpack/jsconsole)
 		+ {
 			let script_src = embeddable_on.as_ref()
 				.map(|e| e.extra_script_src.iter()
@@ -76,16 +72,18 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embedd
 					 .join(" ")
 				).unwrap_or_default();
 			&format!(
-				"script-src 'self' {};",
+				"script-src 'self' 'unsafe-inline' 'unsafe-eval' {};",
 				script_src
 			)
 		}
 		// Same restrictions as script-src with additional
 		// blob: that is required for camera access (worker)
-		+ "worker-src 'self' https: blob:;"
+		+ "worker-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:;"
+		// Restrict everything else to the same origin.
+		+ "default-src 'self';"
 		// Run in sandbox mode (although it's not fully safe since we allow same-origin and script)
 		+ "sandbox allow-same-origin allow-forms allow-modals allow-popups allow-presentation allow-scripts;"
-		// Disallow submitting forms from any dapps
+		// Disallow subitting forms from any dapps
 		+ "form-action 'none';"
 		// Never allow mixed content
 		+ "block-all-mixed-content;"

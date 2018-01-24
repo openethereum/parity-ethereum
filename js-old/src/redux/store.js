@@ -65,15 +65,15 @@ export default function (api, browserHistory, forEmbed = false) {
       .then(() => console.log('v1: started Status Provider'))
 
       .then(() => console.log('v1: starting Personal Provider...'))
-      .then(() => withTimeoutForLight('personal', PersonalProvider.start(), store))
+      .then(() => PersonalProvider.start())
       .then(() => console.log('v1: started Personal Provider'))
 
       .then(() => console.log('v1: starting Balances Provider...'))
-      .then(() => withTimeoutForLight('balances', BalancesProvider.start(), store))
+      .then(() => BalancesProvider.start())
       .then(() => console.log('v1: started Balances Provider'))
 
       .then(() => console.log('v1: starting Tokens Provider...'))
-      .then(() => withTimeoutForLight('tokens', TokensProvider.start(), store))
+      .then(() => TokensProvider.start())
       .then(() => console.log('v1: started Tokens Provider'));
   };
 
@@ -96,40 +96,4 @@ export default function (api, browserHistory, forEmbed = false) {
   }
 
   return store;
-}
-
-function withTimeoutForLight (id, promise, store) {
-  const { nodeKind } = store.getState().nodeStatus;
-  const isLightNode = nodeKind.capability !== 'full';
-
-  if (!isLightNode) {
-    // make sure that no values are passed
-    return promise.then(() => {});
-  }
-
-  return new Promise((resolve, reject) => {
-    let isResolved = false;
-    const doResolve = () => {
-      if (!isResolved) {
-        isResolved = true;
-        resolve();
-      }
-    };
-    const timeout = setTimeout(() => {
-      console.warn(`Resolving ${id} by timeout.`);
-      doResolve();
-    }, 1000);
-
-    promise
-      .then(() => {
-        clearTimeout(timeout);
-        doResolve();
-      })
-      .catch(err => {
-        clearTimeout(timeout);
-        if (!isResolved) {
-          reject(err);
-        }
-      });
-  });
 }
