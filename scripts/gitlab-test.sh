@@ -8,10 +8,8 @@ if [[ "$CI_COMMIT_REF_NAME" = "beta" || "$CI_COMMIT_REF_NAME" = "stable" ]]; the
 else
   export GIT_COMPARE=master;
 fi
-export JS_FILES_MODIFIED=1
-#"$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep ^js/ | wc -l)"
-export JS_OLD_FILES_MODIFIED=1
-#"$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep ^js-old/ | wc -l)"
+export JS_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep ^js/ | wc -l)"
+export JS_OLD_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep ^js-old/ | wc -l)"
 export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e ^mac/ -e ^nsis/ | wc -l)"
 
 echo "RUST_FILES_MODIFIED: $RUST_FILES_MODIFIED"
@@ -60,11 +58,11 @@ js_release () {
   fi
   if [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS (old) deps install since no JS files modified.";
-    else echo "install JS_OLD deps---------------"&&./js-old/scripts/install-deps.sh&&echo "done----------------";
+    else echo "install JS (old) deps---------------"&&./js-old/scripts/install-deps.sh&&echo "done----------------";
   fi
   if [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS (old) rebuild since no JS files modified.";
-    else echo "build JS--------------"&&./js-old/scripts/build.sh&&echo "Puch JS precompiled-----------------"&&./js-old/scripts/push-precompiled.sh&&echo "done----------------";
+    else echo "build JS (old)--------------"&&./js-old/scripts/build.sh&&echo "Puch JS (old) precompiled-----------------"&&./js-old/scripts/push-precompiled.sh&&echo "done----------------";
   fi
   if [[ "${JS_FILES_MODIFIED}" == "0" ]] && [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping Cargo update since no JS files modified.";
