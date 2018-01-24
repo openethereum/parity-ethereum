@@ -56,7 +56,7 @@ js_release () {
   fi
   if [[ "${JS_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS rebuild since no JS files modified.";
-    else echo"build JS--------------"&&./js/scripts/build.sh&&echo "Puch JS precompiled-----------------"&&./js/scripts/push-precompiled.sh&&echo "done----------------";
+    else echo "build JS--------------"&&./js/scripts/build.sh&&echo "Puch JS precompiled-----------------"&&./js/scripts/push-precompiled.sh&&echo "done----------------";
   fi
   if [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS (old) deps install since no JS files modified.";
@@ -64,7 +64,7 @@ js_release () {
   fi
   if [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping JS (old) rebuild since no JS files modified.";
-    else echo"build JS--------------"&&./js-old/scripts/build.sh&&echo "Puch JS precompiled-----------------"&&./js-old/scripts/push-precompiled.sh&&echo "done----------------";
+    else echo "build JS--------------"&&./js-old/scripts/build.sh&&echo "Puch JS precompiled-----------------"&&./js-old/scripts/push-precompiled.sh&&echo "done----------------";
   fi
   if [[ "${JS_FILES_MODIFIED}" == "0" ]] && [[ "${JS_OLD_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping Cargo update since no JS files modified.";
