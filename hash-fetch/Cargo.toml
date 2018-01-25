@@ -15,11 +15,11 @@ rand = "0.3"
 rustc-hex = "1.0"
 fetch = { path = "../util/fetch" }
 ethcore-bytes = { path = "../util/bytes" }
-ethereum-types = "0.1"
+ethereum-types = "0.2"
 parity-reactor = { path = "../util/reactor" }
 native-contracts = { path = "../ethcore/native_contracts" }
 keccak-hash = { path = "../util/hash" }
 
 [dev-dependencies]
-ethabi = "5.0"
+ethabi = "5.1"
 parking_lot = "0.5"

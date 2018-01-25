@@ -89,7 +89,9 @@ impl TransactionFilter {
 						contract.allowed_tx_types(
 							|addr, data| futures::done(client.call_contract(BlockId::Hash(*parent_hash), addr, data)),
 							sender,
-						).wait().unwrap_or_else(|e| {
+						).wait()
+						.map(|p| p.low_u32())
+						.unwrap_or_else(|e| {
 							debug!("Error callling tx permissions contract: {:?}", e);
 							tx_permissions::NONE
 						})

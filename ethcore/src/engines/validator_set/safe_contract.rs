@@ -21,7 +21,7 @@ use futures::Future;
 use native_contracts::ValidatorSet as Provider;
 use hash::keccak;
 
-use ethereum_types::{H160, H256, U256, Address, Bloom};
+use ethereum_types::{H256, U256, Address, Bloom};
 use parking_lot::{Mutex, RwLock};
 
 use bytes::Bytes;
@@ -273,8 +273,7 @@ impl ValidatorSafeContract {
 			.flat_map(|r| r.logs.iter())
 			.filter(move |l| check_log(l))
 			.filter_map(|log| {
-				let topics = log.topics.iter().map(|x| x.0.clone()).collect();
-				event.parse_log((topics, log.data.clone()).into()).ok()
+				event.parse_log((log.topics.clone(), log.data.clone()).into()).ok()
 			});
 
 		match decoded_events.next() {
@@ -287,7 +286,7 @@ impl ValidatorSafeContract {
 
 				let validators = validators_token.clone().to_array()
 					.and_then(|a| a.into_iter()
-						.map(|x| x.to_address().map(H160))
+						.map(|x| x.to_address())
 						.collect::<Option<Vec<_>>>()
 					)
 					.map(SimpleList::new);

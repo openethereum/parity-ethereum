@@ -22,7 +22,7 @@ ansi_term = "0.10"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io" }
 ethcore-bytes = { path = "../bytes" }
-ethereum-types = "0.1"
+ethereum-types = "0.2"
 ethkey = { path = "../../ethkey" }
 ethcrypto = { path = "../../ethcrypto" }
 rlp = { path = "../rlp" }

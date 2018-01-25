@@ -5,5 +5,5 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethabi = "5.0"
+ethabi = "5.1"
 heck = "0.3"
