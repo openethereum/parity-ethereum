@@ -8,6 +8,8 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 log = "0.3"
 ethabi = "5.1"
+ethabi-derive = "5.0"
+ethabi-contract = "5.0"
 target_info = "0.1"
 semver = "0.6"
 ethcore = { path = "../ethcore" }

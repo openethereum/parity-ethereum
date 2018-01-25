@@ -251,7 +251,7 @@ impl ServiceContract for OnChainServiceContract {
 		let signed_server_key: Signature = signed_server_key.into_electrum().into();
 		let transaction_data = data.contract.encode_server_key_generated_input(server_key_id.clone(),
 			server_key.to_vec(),
-			signed_server_key.v(),
+			signed_server_key.v().into(),
 			signed_server_key.r().into(),
 			signed_server_key.s().into()
 		)?;
