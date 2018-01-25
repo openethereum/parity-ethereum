@@ -899,7 +899,7 @@ pub mod tests {
 			let nonce_public = compute_joint_public(nonce_public_shares.iter()).unwrap();
 			let signature_r = compute_ecdsa_r(&nonce_public).unwrap();
 
-			// compute shares of 1/nonce so that both nonce && 1/nonce are still unknown to all nodes
+			// compute shares of inv(nonce) so that both nonce && inv(nonce) are still unknown to all nodes
 			let nonce_inv_shares = run_reciprocal_protocol(t, &nonce_artifacts);
 
 			// compute multiplication of secret-shares * inv-nonce-shares
