@@ -107,12 +107,6 @@ macro_rules! underscore_to_hyphen {
 	)
 }
 
-macro_rules! fill_incl_prefix {
-	($text:expr, $max: expr, $indent_string:expr) => (
-		indent(fill($text.as_ref(), $max-$indent_string.len()).as_ref(), $indent_string)
-	)
-}
-
 macro_rules! usage {
 	(
 		{
@@ -166,7 +160,7 @@ macro_rules! usage {
 
 		extern crate textwrap;
 		extern crate term_size;
-		use self::textwrap::{fill, indent};
+		use self::textwrap::{Wrapper};
 
 		const MAX_TERM_WIDTH: usize = 100;
 
@@ -393,6 +387,7 @@ macro_rules! usage {
 				help.push_str("\n");
 
 				// Subcommands
+				let mut subcommands_wrapper = Wrapper::new(term_width).subsequent_indent(TAB);
 				help.push_str("parity [options]\n");
 				$(
 					{
@@ -409,13 +404,13 @@ macro_rules! usage {
 								)*
 							];
 
-							help.push_str(&fill(
+							help.push_str(&subcommands_wrapper.fill(
 								format!(
 									"parity [options] {} {} {}\n",
 									underscore_to_hyphen!(&stringify!($subc)[4..]),
 									underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..]),
 									subc_subc_usages.join(" ")
-								).as_ref(), term_width)
+								).as_ref())
 							);
 						)*
 
@@ -430,12 +425,12 @@ macro_rules! usage {
 								)*
 							];
 
-							help.push_str(&fill(
+							help.push_str(&subcommands_wrapper.fill(
 								format!(
 									"parity [options] {} {}\n",
 									underscore_to_hyphen!(&stringify!($subc)[4..]),
 									subc_usages.join(" ")
-								).as_ref(), term_width)
+								).as_ref())
 							);
 						}
 					}
@@ -444,14 +439,16 @@ macro_rules! usage {
 				help.push_str("\n");
 
 				// Arguments and flags
+				let args_wrapper = Wrapper::new(term_width).initial_indent(TAB_TAB).subsequent_indent(TAB_TAB);
 				$(
 					help.push_str($group_name); help.push_str(":\n");
 
 					$(
 						help.push_str(&format!("{}{}\n{}\n",
 							TAB, $flag_usage,
-							fill_incl_prefix!($flag_help, term_width, TAB_TAB)
+							args_wrapper.fill($flag_help)
 						));
+						help.push_str("\n");
 					)*
 
 					$(
@@ -463,21 +460,21 @@ macro_rules! usage {
 									THEN {
 										help.push_str(&format!("{}{}\n{}\n",
 											TAB, $arg_usage,
-											fill_incl_prefix!(format!(
+											args_wrapper.fill(format!(
 												"{} (default: {:?})",
 												$arg_help,
 												{let x : inner_option_type!($($arg_type_tt)+)> = $arg_default; x}
-											), term_width, TAB_TAB)
+											).as_ref())
 										))
 									}
 									ELSE {
 										help.push_str(&format!("{}{}\n{}\n",
 											TAB, $arg_usage,
-											fill_incl_prefix!(format!(
+											args_wrapper.fill(format!(
 												"{}{}",
 												$arg_help,
 												$arg_default.map(|x: inner_option_type!($($arg_type_tt)+)| format!(" (default: {})",x)).unwrap_or("".to_owned())
-											), term_width, TAB_TAB)
+											).as_ref())
 										))
 									}
 								)
@@ -487,25 +484,26 @@ macro_rules! usage {
 									$($arg_type_tt)+,
 									THEN {
 										help.push_str(&format!("{}{}\n{}\n", TAB, $arg_usage,
-											fill_incl_prefix!(format!(
+											args_wrapper.fill(format!(
 												"{} (default: {:?})",
 												$arg_help,
 												{let x : $($arg_type_tt)+ = $arg_default; x}
-											), term_width, TAB_TAB)
+											).as_ref())
 										))
 									}
 									ELSE {
 										help.push_str(&format!("{}{}\n{}\n", TAB, $arg_usage,
-											fill_incl_prefix!(format!(
+											args_wrapper.fill(format!(
 												"{} (default: {})",
 												$arg_help,
 												$arg_default
-											), term_width, TAB_TAB)
+											).as_ref())
 										))
 									}
 								)
 							}
 						);
+						help.push_str("\n");
 					)*
 
 				)*
