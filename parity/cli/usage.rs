@@ -107,6 +107,12 @@ macro_rules! underscore_to_hyphen {
 	)
 }
 
+macro_rules! fill_incl_prefix {
+	($text:expr, $max: expr, $indent_string:expr) => (
+		indent(fill($text.as_ref(), $max-$indent_string.len()).as_ref(), $indent_string)
+	)
+}
+
 macro_rules! usage {
 	(
 		{
@@ -161,6 +167,8 @@ macro_rules! usage {
 		extern crate textwrap;
 		extern crate term_size;
 		use self::textwrap::{fill, indent};
+
+		const MAX_TERM_WIDTH: usize = 100;
 
 		#[cfg(test)]
 		use regex::Regex;
@@ -370,10 +378,13 @@ macro_rules! usage {
 			#[allow(unused_assignments)] // Rust issue #22630
 			pub fn print_help() -> String {
 
+				const TAB: &str = "    ";
+				const TAB_TAB: &str = "        ";
+
 				let term_width = match term_size::dimensions() {
-					None => 100,
+					None => MAX_TERM_WIDTH,
 					Some((w, _)) => {
-						cmp::min(w, 100)
+						cmp::min(w, MAX_TERM_WIDTH)
 					}
 				};
 
@@ -437,8 +448,9 @@ macro_rules! usage {
 					help.push_str($group_name); help.push_str(":\n");
 
 					$(
-						help.push_str(&format!("    {}\n{}\n", $flag_usage,
-							indent(fill($flag_help, term_width-8).as_ref(),"        ")
+						help.push_str(&format!("{}{}\n{}\n",
+							TAB, $flag_usage,
+							fill_incl_prefix!($flag_help, term_width, TAB_TAB)
 						));
 					)*
 
@@ -449,23 +461,23 @@ macro_rules! usage {
 								if_option_vec!(
 									$($arg_type_tt)+,
 									THEN {
-										help.push_str(&format!("    {}\n{}\n", $arg_usage,
-											indent(fill(format!(
-														"{} (default: {:?})",
-														$arg_help,
-														{let x : inner_option_type!($($arg_type_tt)+)> = $arg_default; x}
-													).as_ref(), term_width-8).as_ref(),
-													"        ")
+										help.push_str(&format!("{}{}\n{}\n",
+											TAB, $arg_usage,
+											fill_incl_prefix!(format!(
+												"{} (default: {:?})",
+												$arg_help,
+												{let x : inner_option_type!($($arg_type_tt)+)> = $arg_default; x}
+											), term_width, TAB_TAB)
 										))
 									}
 									ELSE {
-										help.push_str(&format!("    {}\n{}\n", $arg_usage,
-											indent(fill(format!(
-													"{}{}",
-														$arg_help,
-														$arg_default.map(|x: inner_option_type!($($arg_type_tt)+)| format!(" (default: {})",x)).unwrap_or("".to_owned())
-													).as_ref(), term_width-8).as_ref(),
-													"        ")
+										help.push_str(&format!("{}{}\n{}\n",
+											TAB, $arg_usage,
+											fill_incl_prefix!(format!(
+												"{}{}",
+												$arg_help,
+												$arg_default.map(|x: inner_option_type!($($arg_type_tt)+)| format!(" (default: {})",x)).unwrap_or("".to_owned())
+											), term_width, TAB_TAB)
 										))
 									}
 								)
@@ -474,23 +486,21 @@ macro_rules! usage {
 								if_vec!(
 									$($arg_type_tt)+,
 									THEN {
-										help.push_str(&format!("    {}\n{}\n", $arg_usage,
-											indent(fill(format!(
-														"{} (default: {:?})",
-														$arg_help,
-														{let x : $($arg_type_tt)+ = $arg_default; x}
-													).as_ref(), term_width-8).as_ref(),
-													"        ")
+										help.push_str(&format!("{}{}\n{}\n", TAB, $arg_usage,
+											fill_incl_prefix!(format!(
+												"{} (default: {:?})",
+												$arg_help,
+												{let x : $($arg_type_tt)+ = $arg_default; x}
+											), term_width, TAB_TAB)
 										))
 									}
 									ELSE {
-										help.push_str(&format!("    {}\n{}\n", $arg_usage,
-											indent(fill(format!(
-														"{} (default: {})",
-														$arg_help,
-														$arg_default
-													).as_ref(), term_width-8).as_ref(),
-													"        ")
+										help.push_str(&format!("{}{}\n{}\n", TAB, $arg_usage,
+											fill_incl_prefix!(format!(
+												"{} (default: {})",
+												$arg_help,
+												$arg_default
+											), term_width, TAB_TAB)
 										))
 									}
 								)
@@ -600,7 +610,7 @@ macro_rules! usage {
 				let matches = App::new("Parity")
 				    	.global_setting(AppSettings::VersionlessSubcommands)
 						.global_setting(AppSettings::DisableHelpSubcommand)
-						.max_term_width(100)
+						.max_term_width(MAX_TERM_WIDTH)
 						.help(Args::print_help().as_ref())
 						.args(&usages.iter().map(|u| {
 							let mut arg = Arg::from_usage(u)
