@@ -1,461 +1,292 @@
-## Parity [v1.8.6](https://github.com/paritytech/parity/releases/tag/v1.8.6) (2018-01-10)
+## Parity [v1.9.0](https://github.com/paritytech/parity/releases/tag/v1.9.0) (2018-01-25)
 
-Parity 1.8.6 fixes a critical issue with the database eventually filling up user's disks. Upgrading is highly recommended as it will significantly improve your user experience. As a bonus, this release should enable users with slower hard-disk drives to catch up with the latest block again. Also, warp-sync performance was significantly improved. Please note, that the initial database compaction after upgrading might temporarily reduce the node's performance.
+We are happy to announce our newest Parity 1.9 release. Among others, it enables the following features:
 
-In addition to our gas price histogram, this version now allows you to dynamically set the default gas price as percentile from the last 100 blocks (it defaults to median: `50`).
+- It integrates the fully reworked Parity Wallet and DApps browser (a.k.a. "UI 2.0", [#6819](https://github.com/paritytech/parity/pull/6819)).
+- It enables devp2p snappy compression ([#6683](https://github.com/paritytech/parity/pull/6683)).
+- AuRa Proof-of-Authority chains now disable uncles by default ([#7006](https://github.com/paritytech/parity/pull/7006)). Existing PoA chains can go through a "maximum uncle count transition" to achieve more stability ([#7196](https://github.com/paritytech/parity/pull/7196)).
+- Added Expanse's Byzantium hard-fork ([#7463](https://github.com/paritytech/parity/pull/7463)).
+- Added support for Ellaism chain ([#7222](https://github.com/paritytech/parity/pull/7222)).
 
-    --gas-price-percentile=[PCT]        Set PCT percentile gas price value from
-                                        last 100 blocks as default gas price
-                                        when sending transactions.
+Further, users upgrading from 1.8 should acknowledge the following changes:
 
-Last but not least, this release also fixes consensus issues with the Expanse chain enabling Byzantium. If you run Parity configured for Expanse, you might have to resync your chain after the upgrade.
+- Fixed DELEGATECALL's from/to field ([#7568](https://github.com/paritytech/parity/pull/7568)).
+- Set zero nonce and gas price for calls by default ([#6954](https://github.com/paritytech/parity/pull/6954)).
+- Create pending blocks with all transactions from the queue ([#6942](https://github.com/paritytech/parity/pull/6942)).
+- Remove RPC parameter leniency now that Mist formats correctly ([#6651](https://github.com/paritytech/parity/pull/6651)). Parity stops accepting decimal-formatted block numbers and stops parsing the empty string as empty bytes.
 
-The full list of included changes:
+Additional noteworthy changes:
 
-- RocksDB fix ([#7508](https://github.com/paritytech/parity/pull/7508))
-  - Kvdb: update rust-rocksdb version
-- Backports to beta ([#7434](https://github.com/paritytech/parity/pull/7434))
-  - Wait for future blocks in AuRa ([#7368](https://github.com/paritytech/parity/pull/7368))
-    - Mark future blocks as temporarily invalid.
-    - Don't check max.
-  - Fix tracing failed calls. ([#7412](https://github.com/paritytech/parity/pull/7412))
-  - Problem: sending any Whisper message fails ([#7421](https://github.com/paritytech/parity/pull/7421))
-  - Strict config parsing ([#7433](https://github.com/paritytech/parity/pull/7433))
-  - Problem: AuRa's unsafeties around step duration ([#7282](https://github.com/paritytech/parity/pull/7282))
-  - Remove expanse chain ([#7437](https://github.com/paritytech/parity/pull/7437))
-    - Remove expanse from available chains
-    - Remove all EXP references from old wallet
-    - Fix tests
-  - Remove expanse chain ([#7437](https://github.com/paritytech/parity/pull/7437))
-  - Expanse Byzantium update w/ correct metropolis difficulty increment divisor ([#7463](https://github.com/paritytech/parity/pull/7463))
-    - Byzantium Update for Expanse
-    - Expip2 changes - update duration limit
-    - Fix missing EXPIP-2 fields
-    - Format numbers as hex
-    - Fix compilation errors
-    - Group expanse chain spec fields together
-    - Set metropolisDifficultyIncrementDivisor for Expanse
-    - Revert #7437
-    - Add Expanse block 900_000 hash checkpoint
-  - Advance AuRa step as far as we can and prevent invalid blocks. ([#7451](https://github.com/paritytech/parity/pull/7451))
-    - Advance AuRa step as far as we can.
-    - Wait for future blocks.
-  - Fixed panic when io is not available for export block, closes [#7486](https://github.com/paritytech/parity/issues/7486) ([#7495](https://github.com/paritytech/parity/pull/7495))
-  - Update Parity Mainnet Bootnodes ([#7476](https://github.com/paritytech/parity/pull/7476))
-    - Replace the Azure HDD bootnodes with the new ones :)
-  - Expose default gas price percentile configuration in CLI ([#7497](https://github.com/paritytech/parity/pull/7497))
-    - Expose gas price percentile.
-    - Fix light eth_call.
-    - Fix gas_price in light client
-- Backport nonces reservations ([#7439](https://github.com/paritytech/parity/pull/7439))
-  - Reserve nonces for signing ([#6834](https://github.com/paritytech/parity/pull/6834))
-    - Nonce future - reserve and dispatch
-    - Single thread nonce tests
-    - Track status of reserved nonces.
-    - Initialization of nonce reservations.
-    - Prospective Signer
-    - Fix cli tests.
-  - Fix nonce reservation ([#7025](https://github.com/paritytech/parity/pull/7025))
-    - Use nonce reservation per address
-    - Create hashmap in RPC Apis
-    - Garbage collect hashmap entries.
-    - HashMap::retain
-- Bump beta to 1.8.6 ([#7442](https://github.com/paritytech/parity/pull/7442))
-- KVDB backports ([#7438](https://github.com/paritytech/parity/pull/7438))
-  - Separated kvdb into 3 crates: kvdb, kvdb-memorydb && kvdb-rocksdb ([#6720](https://github.com/paritytech/parity/pull/6720))
-    - Separated kvdb into 3 crates: kvdb, kvdb-memorydb && kvdb-rocksdb, ref [#6693](https://github.com/paritytech/parity/issues/6693)
-      - Fixed kvdb-memorydb && kvdb-rocksdb authors
-      - Fixed wrong kvdb import in json_tests
-    - Util tests use kvdb_memorydb instead of kvdb_rocksdb, closes [#6739](https://github.com/paritytech/parity/issues/6739)
-      - Renamed kvdb_memorydb::in_memory -> kvdb_memorydb::create
-      - Docs
-      - Removed redundant mut from kvdb-memorydb
-  - Upgrade to RocksDB 5.8.8 and tune settings to reduce space amplification ([#7348](https://github.com/paritytech/parity/pull/7348))
-    - kvdb-rocksdb: update to RocksDB 5.8.8
-    - kvdb-rocksdb: tune RocksDB options
-      - Switch to level-style compaction
-      - Increase default block size (16K), and use bigger blocks for HDDs (64K)
-      - Increase default file size base (64MB SSDs, 256MB HDDs)
-      - Create a single block cache shared across all column families
-      - Tune compaction settings using RocksDB helper functions, taking into account
-      - Memory budget spread across all columns
-      - Configure backgrounds jobs based on the number of CPUs
-      - Set some default recommended settings
-    - ethcore: remove unused config blockchain.db_cache_size
-    - parity: increase default value for db_cache_size
-    - kvdb-rocksdb: enable compression on all levels
-    - kvdb-rocksdb: set global db_write_bufer_size
-    - kvdb-rocksdb: reduce db_write_bufer_size to force earlier flushing
-    - kvdb-rocksdb: use master branch for rust-rocksdb dependency
-
-## Parity [v1.8.5](https://github.com/paritytech/parity/releases/tag/v1.8.5) (2017-12-29)
-
-Parity 1.8.5 changes the default behavior of JSON-RPC CORS setting, detects same-key engine signers in Aura networks, and updates bootnodes for the Kovan and Foundation networks.
-
-Note: The default value of `--jsonrpc-cors` option has been altered to disallow (potentially malicious) websites from accessing the low-sensitivity RPCs (viewing exposed accounts, proposing transactions for signing). Currently domains need to be whitelisted manually. To bring back previous behaviour run with `--jsonrpc-cors all` or `--jsonrpc-cors http://example.com`.
+- `ethstore` and `ethkey` have been significantly improved ([#6961](https://github.com/paritytech/parity/pull/6961)):
+  - `ethstore` now supports brute forcing pre-sale wallets given a password list for recovery.
+  - `ethkey` now supports multi-threaded generation of prefix-matching addresses.
+  - `ethkey` now supports prefix-matching brain wallets.
+  - `ethkey` now supports brain-wallets recovery-phrases lookup. This helps to find a correct phrase if you know the address you want to get yet you made a typo backing the phrase up, or forgot a word.
 
 The full list of included changes:
 
-- Beta Backports ([#7297](https://github.com/paritytech/parity/pull/7297))
-  - New warp enodes ([#7287](https://github.com/paritytech/parity/pull/7287))
-    - New warp enodes
-    - Added one more warp enode; replaced spaces with tabs
-    - Bump beta to 1.8.5
-    - Update kovan boot nodes
-  - Detect different node, same-key signing in aura ([#7245](https://github.com/paritytech/parity/pull/7245))
-    - Detect different node, same-key signing in aura
-    - Reduce scope of warning
-    - Fix Cargo.lock
-    - Updating mainnet bootnodes.
-  - Update bootnodes ([#7363](https://github.com/paritytech/parity/pull/7363))
-    - Updating mainnet bootnodes.
-    - Add additional parity-beta bootnodes.
-    - Restore old parity bootnodes and update foudation bootnodes
-- Fix default CORS. ([#7388](https://github.com/paritytech/parity/pull/7388))
-
-## Parity [v1.8.4](https://github.com/paritytech/parity/releases/tag/v1.8.4) (2017-12-12)
-
-Parity 1.8.4 applies fixes for Proof-of-Authority networks and schedules the Kovan-Byzantium hard-fork.
-
-- The Kovan testnet will fork on block `5067000` at `Thu Dec 14 2017 05:40:03 UTC`.
-  - This enables Byzantium features on Kovan.
-  - This disables uncles on Kovan for stability reasons.
-- Proof-of-Authority networks are advised to set `maximumUncleCount` to 0 in a future `maximumUncleCountTransition` for stability reasons.
-  - See the [Kovan chain spec](https://github.com/paritytech/parity/blob/master/ethcore/res/ethereum/kovan.json) for an example.
-  - New PoA networks created with Parity will have this feature enabled by default.
-
-Furthermore, this release includes the ECIP-1039 Monetary policy rounding specification for Ethereum Classic, reduces the maximum Ethash-block timestamp drift to 15 seconds, and fixes various bugs for WASM and the RPC APIs.
-
-The full list of included changes:
-
-- Beta Backports and HF block update ([#7244](https://github.com/paritytech/parity/pull/7244))
-  - Reduce max block timestamp drift to 15 seconds ([#7240](https://github.com/paritytech/parity/pull/7240))
-    - Add test for block timestamp validation within allowed drift
-  - Update kovan HF block number.
-- Beta Kovan HF ([#7234](https://github.com/paritytech/parity/pull/7234))
-  - Kovan HF.
-  - Bump version.
-  - Fix aura difficulty race ([#7198](https://github.com/paritytech/parity/pull/7198))
-    - Fix test key
-    - Extract out score calculation
-    - Fix build
-  - Update kovan HF block number.
-  - Add missing byzantium builtins.
-  - Bump installers versions.
-  - Increase allowed time drift to 10s. ([#7238](https://github.com/paritytech/parity/pull/7238))
-- Beta Backports ([#7197](https://github.com/paritytech/parity/pull/7197))
-  - Maximum uncle count transition ([#7196](https://github.com/paritytech/parity/pull/7196))
-    - Enable delayed maximum_uncle_count activation.
+- Add scroll when when too many accounts ([#7677](https://github.com/paritytech/parity/pull/7677)) ([#7679](https://github.com/paritytech/parity/pull/7679))
+- Update installer.nsi
+- Fix conditions in gitlab-test ([#7676](https://github.com/paritytech/parity/pull/7676))
+  - Fix conditions in gitlab-test
+  - Update gitlab-test.sh
+- Remove cargo cache
+- Backports to beta ([#7660](https://github.com/paritytech/parity/pull/7660))
+  - Improve handling of RocksDB corruption ([#7630](https://github.com/paritytech/parity/pull/7630))
+    - Kvdb-rocksdb: update rust-rocksdb version
+    - Kvdb-rocksdb: mark corruptions and attempt repair on db open
+    - Kvdb-rocksdb: better corruption detection on open
+    - Kvdb-rocksdb: add corruption_file_name const
+    - Kvdb-rocksdb: rename mark_corruption to check_for_corruption
+  - Hardening of CSP ([#7621](https://github.com/paritytech/parity/pull/7621))
+  - Fixed delegatecall's from/to ([#7568](https://github.com/paritytech/parity/pull/7568))
+    - Fixed delegatecall's from/to, closes [#7166](https://github.com/paritytech/parity/issues/7166)
+    - Added tests for delegatecall traces, [#7167](https://github.com/paritytech/parity/issues/7167)
+  - Light client RPCs ([#7603](https://github.com/paritytech/parity/pull/7603))
+    - Implement registrar.
+    - Implement eth_getCode
+    - Don't wait for providers.
+    - Don't wait for providers.
+    - Fix linting and wasm tests.
+  - Problem: AttachedProtocols don't get registered ([#7610](https://github.com/paritytech/parity/pull/7610))
+  - Fix Temporarily Invalid blocks handling ([#7613](https://github.com/paritytech/parity/pull/7613))
+    - Handle temporarily invalid blocks in sync.
     - Fix tests.
-    - Defer kovan HF.
-  - Disable uncles by default ([#7006](https://github.com/paritytech/parity/pull/7006))
-  - Escape inifinite loop in estimte_gas ([#7075](https://github.com/paritytech/parity/pull/7075))
-  - ECIP-1039: Monetary policy rounding specification ([#7067](https://github.com/paritytech/parity/pull/7067))
-  - WASM Remove blockhash error ([#7121](https://github.com/paritytech/parity/pull/7121))
-    - Remove blockhash error
-    - Update tests.
-  - WASM storage_read and storage_write don't return anything ([#7110](https://github.com/paritytech/parity/pull/7110))
-  - WASM parse payload from panics ([#7097](https://github.com/paritytech/parity/pull/7097))
-  - Fix no-default-features. ([#7096](https://github.com/paritytech/parity/pull/7096))
-
-## Parity [v1.8.3](https://github.com/paritytech/parity/releases/tag/v1.8.3) (2017-11-15)
-
-Parity 1.8.3 contains several bug-fixes and removes the ability to deploy built-in multi-signature wallets.
-
-The full list of included changes:
-
-- Backports to beta ([#7043](https://github.com/paritytech/parity/pull/7043))
-  - pwasm-std update ([#7018](https://github.com/paritytech/parity/pull/7018))
-  - Version 1.8.3
-  - Make CLI arguments parsing more backwards compatible ([#7004](https://github.com/paritytech/parity/pull/7004))
-  - Skip nonce check for gas estimation ([#6997](https://github.com/paritytech/parity/pull/6997))
-  - Events in WASM runtime ([#6967](https://github.com/paritytech/parity/pull/6967))
-  - Return decoded seal fields. ([#6932](https://github.com/paritytech/parity/pull/6932))
-  - Fix serialization of status in transaction receipts. ([#6926](https://github.com/paritytech/parity/pull/6926))
-  - Windows fixes ([#6921](https://github.com/paritytech/parity/pull/6921))
-- Disallow built-in multi-sig deploy (only watch) ([#7014](https://github.com/paritytech/parity/pull/7014))
-- Add hint in ActionParams for splitting code/data ([#6968](https://github.com/paritytech/parity/pull/6968))
-  - Action params and embedded params handling
-  - Fix name-spaces
-
-## Parity [v1.8.2](https://github.com/paritytech/parity/releases/tag/v1.8.2) (2017-10-26)
-
-Parity 1.8.2 fixes an important potential consensus issue and a few additional minor issues:
-
-- `blockNumber` transaction field is now returned correctly in RPC calls.
-- Possible crash when `--force-sealing` option is used.
-
-The full list of included changes:
-
-- Beta Backports ([#6891](https://github.com/paritytech/parity/pull/6891))
-  - Bump to v1.8.2
-  - Refactor static context check in CREATE. ([#6886](https://github.com/paritytech/parity/pull/6886))
-    - Refactor static context check in CREATE.
-    - Fix wasm.
-  - Fix serialization of non-localized transactions ([#6868](https://github.com/paritytech/parity/pull/6868))
-    - Fix serialization of non-localized transactions.
-    - Return proper SignedTransactions representation.
-  - Allow force sealing and reseal=0 for non-dev chains. ([#6878](https://github.com/paritytech/parity/pull/6878))
-
-## Parity [v1.8.1](https://github.com/paritytech/parity/releases/tag/v1.8.1) (2017-10-20)
-
-Parity 1.8.1 fixes several bugs with token balances, tweaks snapshot-sync, improves the performance of nodes with huge amounts of accounts and changes the Trezor account derivation path.
-
-**Important Note**: The **Trezor** account derivation path was changed in this release ([#6815](https://github.com/paritytech/parity/pull/6815)) to always use the first account (`m/44'/60'/0'/0/0` instead of `m/44'/60'/0'/0`). This way we enable compatibility with other Ethereum wallets supporting Trezor hardware-wallets. However, **action is required** before upgrading, if you have funds on your Parity Trezor wallet. If you already upgraded to 1.8.1, please downgrade to 1.8.0 first to recover the funds with the following steps:
-
-1. Make sure you have 1.8.0-beta and your Trezor plugged in.
-2. Create a new standard Parity account. Make sure you have backups of the recovery phrase and don't forget the password.
-3. Move your funds from the Trezor hardware-wallet account to the freshly generated Parity account.
-4. Upgrade to 1.8.1-beta and plug in your Trezor.
-5. Move your funds from your Parity account to the new Trezor account.
-6. Keep using Parity as normal.
-
-If you don't want to downgrade or move your funds off your Trezor-device, you can also use the official Trezor application or other wallets allowing to select the derivation path to access the funds.
-
-The full list of included changes:
-
-- Add ECIP1017 to Morden config ([#6845](https://github.com/paritytech/parity/pull/6845))
-- Ethstore optimizations ([#6844](https://github.com/paritytech/parity/pull/6844))
-- Bumb to v1.8.1 ([#6843](https://github.com/paritytech/parity/pull/6843))
-- Backport ([#6837](https://github.com/paritytech/parity/pull/6837))
-  - Tweaked snapshot sync threshold ([#6829](https://github.com/paritytech/parity/pull/6829))
-  - Change keypath derivation logic ([#6815](https://github.com/paritytech/parity/pull/6815))
-- Refresh cached tokens based on registry info & random balances ([#6824](https://github.com/paritytech/parity/pull/6824))
-  - Refresh cached tokens based on registry info & random balances ([#6818](https://github.com/paritytech/parity/pull/6818))
-  - Don't display errored token images
-
-## Parity [v1.8.0](https://github.com/paritytech/parity/releases/tag/v1.8.0) (2017-10-15)
-
-We are happy to announce our newest Parity 1.8 release. Among others, it enables the following features:
-
-- Full Whisper v6 integration
-- Trezor hardware-wallet support
-- WASM contract support
-- PICOPS KYC-certified accounts and vouching for community-dapps
-- Light client compatibility for Proof-of-Authority networks
-- Transaction permissioning and permissioned p2p-connections
-- Full Byzantium-fork compatibility
-- Full Musicoin MCIP-3 UBI-fork compatibility
-
-Further, users upgrading from 1.7 should acknowledge the following changes:
-
-- The chain-engine was further abstracted and chain-specs need to be upgraded. [#6134](https://github.com/paritytech/parity/pull/6134) [#6591](https://github.com/paritytech/parity/pull/6591)
-- `network_id` was renamed to `chain_id` where applicable. [#6345](https://github.com/paritytech/parity/pull/6345)
-- `trace_filter` RPC method now comes with pagination. [#6312](https://github.com/paritytech/parity/pull/6312)
-- Added tracing of rewards on closing blocks. [#6194](https://github.com/paritytech/parity/pull/6194)
-
-The full list of included changes:
-
-- Updated ethabi to fix auto-update ([#6771](https://github.com/paritytech/parity/pull/6771))
-- Fixed kovan chain validation ([#6760](https://github.com/paritytech/parity/pull/6760))
-  - Fixed kovan chain validation
-  - Fork detection
-  - Fixed typo
-- Bumped fork block number for auto-update ([#6755](https://github.com/paritytech/parity/pull/6755))
-- CLI: Reject invalid argument values rather than ignore them ([#6747](https://github.com/paritytech/parity/pull/6747))
-- Fixed modexp gas calculation overflow ([#6745](https://github.com/paritytech/parity/pull/6745))
-- Backport beta - Fixes Badges ([#6732](https://github.com/paritytech/parity/pull/6732))
-  - Fix badges not showing up ([#6730](https://github.com/paritytech/parity/pull/6730))
-  - Always fetch meta data first [badges]
-- Bump to v1.8.0 in beta
-- Fix tokens and badges ([#6725](https://github.com/paritytech/parity/pull/6725))
-  - Update new token fetching
-  - Working Certifications Monitoring
-  - Update on Certification / Revoke
-  - Fix none-fetched tokens value display
-  - Fix tests
-- Check vouch status on appId in addition to contentHash ([#6719](https://github.com/paritytech/parity/pull/6719))
-  - Check vouch status on appId in addition to contentHash
-  - Simplify var expansion
-- Prevent going offline when restoring or taking a snapshot [#6694](https://github.com/paritytech/parity/pull/6694)
-- Graceful exit when invalid CLI flags are passed (#6485) [#6711](https://github.com/paritytech/parity/pull/6711)
-- Fixed RETURNDATA out of bounds check [#6718](https://github.com/paritytech/parity/pull/6718)
-- Display vouched overlay on dapps [#6710](https://github.com/paritytech/parity/pull/6710)
-- Fix gas estimation if `from` is not provided. [#6714](https://github.com/paritytech/parity/pull/6714)
-- Emulate signer pubsub on public node [#6708](https://github.com/paritytech/parity/pull/6708)
-- Removes  dependency on rustc_serialize (#5988) [#6705](https://github.com/paritytech/parity/pull/6705)
-- Fixed potential modexp exp len overflow [#6686](https://github.com/paritytech/parity/pull/6686)
-- Fix asciiToHex for characters < 0x10 [#6702](https://github.com/paritytech/parity/pull/6702)
-- Fix address input [#6701](https://github.com/paritytech/parity/pull/6701)
-- Allow signer signing display of markdown [#6707](https://github.com/paritytech/parity/pull/6707)
-- Fixed build warnings [#6664](https://github.com/paritytech/parity/pull/6664)
-- Fix warp sync blockers detection [#6691](https://github.com/paritytech/parity/pull/6691)
-- Difficulty tests [#6687](https://github.com/paritytech/parity/pull/6687)
-- Separate migrations from util [#6690](https://github.com/paritytech/parity/pull/6690)
-- Changelog for 1.7.3 [#6678](https://github.com/paritytech/parity/pull/6678)
-- WASM gas schedule [#6638](https://github.com/paritytech/parity/pull/6638)
-- Fix wallet view [#6597](https://github.com/paritytech/parity/pull/6597)
-- Byzantium fork block number [#6660](https://github.com/paritytech/parity/pull/6660)
-- Fixed RETURNDATA size for built-ins [#6652](https://github.com/paritytech/parity/pull/6652)
-- Light Client: fetch transactions/receipts by transaction hash [#6641](https://github.com/paritytech/parity/pull/6641)
-- Add Musicoin and MCIP-3 UBI hardfork.  [#6621](https://github.com/paritytech/parity/pull/6621)
-- fix 1.8 backcompat: revert to manual encoding/decoding of transition proofs [#6665](https://github.com/paritytech/parity/pull/6665)
-- Tweaked block download timeouts (#6595) [#6655](https://github.com/paritytech/parity/pull/6655)
-- Renamed RPC receipt statusCode field to status [#6650](https://github.com/paritytech/parity/pull/6650)
-- SecretStore: session level timeout [#6631](https://github.com/paritytech/parity/pull/6631)
-- SecretStore: ShareRemove of 'isolated' nodes [#6630](https://github.com/paritytech/parity/pull/6630)
-- SecretStore: exclusive sessions [#6624](https://github.com/paritytech/parity/pull/6624)
-- Fixed network protocol version negotiation [#6649](https://github.com/paritytech/parity/pull/6649)
-- Updated systemd files for linux (Resolves #6592) [#6598](https://github.com/paritytech/parity/pull/6598)
-- move additional_params to machine, fixes registry on non-ethash chains [#6646](https://github.com/paritytech/parity/pull/6646)
-- Fix Token Transfer in transaction list [#6589](https://github.com/paritytech/parity/pull/6589)
-- Update jsonrpc dependencies and rewrite dapps to futures. [#6522](https://github.com/paritytech/parity/pull/6522)
-- Balance queries implemented in WASM runtime [#6639](https://github.com/paritytech/parity/pull/6639)
-- Don't expose port 80 for parity anymore [#6633](https://github.com/paritytech/parity/pull/6633)
-- WASM Runtime refactoring [#6596](https://github.com/paritytech/parity/pull/6596)
-- Fix compilation [#6625](https://github.com/paritytech/parity/pull/6625)
-- Downgrade futures to suppress warnings. [#6620](https://github.com/paritytech/parity/pull/6620)
-- Add pagination for trace_filter rpc method [#6312](https://github.com/paritytech/parity/pull/6312)
-- Disallow pasting recovery phrases on first run [#6602](https://github.com/paritytech/parity/pull/6602)
-- fix typo: Unkown => Unknown [#6559](https://github.com/paritytech/parity/pull/6559)
-- SecretStore: administrative sessions prototypes [#6605](https://github.com/paritytech/parity/pull/6605)
-- fix parity.io link 404 [#6617](https://github.com/paritytech/parity/pull/6617)
-- SecretStore: add node to existing session poc + discussion [#6480](https://github.com/paritytech/parity/pull/6480)
-- Generalize engine trait [#6591](https://github.com/paritytech/parity/pull/6591)
-- Add RPC eth_chainId for querying the current blockchain chain ID [#6329](https://github.com/paritytech/parity/pull/6329)
-- Debounce sync status. [#6572](https://github.com/paritytech/parity/pull/6572)
-- [Public Node] Disable tx scheduling and hardware wallets [#6588](https://github.com/paritytech/parity/pull/6588)
-- Use memmap for dag cache [#6193](https://github.com/paritytech/parity/pull/6193)
-- Rename Requests to Batch [#6582](https://github.com/paritytech/parity/pull/6582)
-- Use host as ws/dapps url if present. [#6566](https://github.com/paritytech/parity/pull/6566)
-- Sync progress and error handling fixes [#6560](https://github.com/paritytech/parity/pull/6560)
-- Fixed receipt serialization and RPC [#6555](https://github.com/paritytech/parity/pull/6555)
-- Fix number of confirmations for transaction [#6552](https://github.com/paritytech/parity/pull/6552)
-- Fix #6540 [#6556](https://github.com/paritytech/parity/pull/6556)
-- Fix failing hardware tests [#6553](https://github.com/paritytech/parity/pull/6553)
-- Required validators >= num owners in Wallet Creation [#6551](https://github.com/paritytech/parity/pull/6551)
-- Random cleanups / improvements to a state [#6472](https://github.com/paritytech/parity/pull/6472)
-- Changelog for 1.7.2 [#6363](https://github.com/paritytech/parity/pull/6363)
-- Ropsten fork [#6533](https://github.com/paritytech/parity/pull/6533)
-- Byzantium updates [#5855](https://github.com/paritytech/parity/pull/5855)
-- Fix extension detection [#6452](https://github.com/paritytech/parity/pull/6452)
-- Downgrade futures to supress warnings [#6521](https://github.com/paritytech/parity/pull/6521)
-- separate trie from util and make its dependencies into libs [#6478](https://github.com/paritytech/parity/pull/6478)
-- WASM sha3 test [#6512](https://github.com/paritytech/parity/pull/6512)
-- Fix broken JavaScript tests [#6498](https://github.com/paritytech/parity/pull/6498)
-- SecretStore: use random key to encrypt channel + session-level nonce [#6470](https://github.com/paritytech/parity/pull/6470)
-- Trezor Support [#6403](https://github.com/paritytech/parity/pull/6403)
-- Fix compiler warning [#6491](https://github.com/paritytech/parity/pull/6491)
-- Fix typo [#6505](https://github.com/paritytech/parity/pull/6505)
-- WASM: added math overflow test [#6474](https://github.com/paritytech/parity/pull/6474)
-- Fix slow balances [#6471](https://github.com/paritytech/parity/pull/6471)
-- WASM runtime update [#6467](https://github.com/paritytech/parity/pull/6467)
-- Compatibility with whisper v6 [#6179](https://github.com/paritytech/parity/pull/6179)
-- light-poa round 2: allow optional casting of engine client to full client [#6468](https://github.com/paritytech/parity/pull/6468)
-- Moved attributes under docs [#6475](https://github.com/paritytech/parity/pull/6475)
-- cleanup util dependencies [#6464](https://github.com/paritytech/parity/pull/6464)
-- removed redundant earlymergedb trace guards [#6463](https://github.com/paritytech/parity/pull/6463)
-- UtilError utilizes error_chain! [#6461](https://github.com/paritytech/parity/pull/6461)
-- fixed master [#6465](https://github.com/paritytech/parity/pull/6465)
-- Refactor and port CLI from Docopt to Clap (#2066) [#6356](https://github.com/paritytech/parity/pull/6356)
-- Add language selector in production [#6317](https://github.com/paritytech/parity/pull/6317)
-- eth_call returns output of contract creations [#6420](https://github.com/paritytech/parity/pull/6420)
-- Refactor: Don't reexport bigint from util [#6459](https://github.com/paritytech/parity/pull/6459)
-- Transaction permissioning [#6441](https://github.com/paritytech/parity/pull/6441)
-- Added missing SecretStore tests - signing session [#6411](https://github.com/paritytech/parity/pull/6411)
-- Light-client sync for contract-based PoA [#6370](https://github.com/paritytech/parity/pull/6370)
-- triehash is separated from util [#6428](https://github.com/paritytech/parity/pull/6428)
-- remove re-export of parking_lot in util [#6435](https://github.com/paritytech/parity/pull/6435)
-- fix modexp bug: return 0 if base is zero [#6424](https://github.com/paritytech/parity/pull/6424)
-- separate semantic_version from util [#6438](https://github.com/paritytech/parity/pull/6438)
-- move timer.rs to ethcore [#6437](https://github.com/paritytech/parity/pull/6437)
-- remove re-export of ansi_term in util [#6433](https://github.com/paritytech/parity/pull/6433)
-- Pub sub blocks [#6139](https://github.com/paritytech/parity/pull/6139)
-- replace trait Hashable with fn keccak [#6423](https://github.com/paritytech/parity/pull/6423)
-- add more hash backward compatibility test for bloom [#6425](https://github.com/paritytech/parity/pull/6425)
-- remove the redundant hasher in Bloom [#6404](https://github.com/paritytech/parity/pull/6404)
-- Remove re-export of HeapSizeOf in util (part of #6418) [#6419](https://github.com/paritytech/parity/pull/6419)
-- Rewards on closing blocks [#6194](https://github.com/paritytech/parity/pull/6194)
-- ensure balances of constructor accounts are kept [#6413](https://github.com/paritytech/parity/pull/6413)
-- removed recursion from triedbmut::lookup [#6394](https://github.com/paritytech/parity/pull/6394)
-- do not activate genesis epoch in immediate transition validator contract [#6349](https://github.com/paritytech/parity/pull/6349)
-- Use git for the snap version [#6271](https://github.com/paritytech/parity/pull/6271)
-- Permissioned p2p connections [#6359](https://github.com/paritytech/parity/pull/6359)
-- Don't accept transactions above block gas limit. [#6408](https://github.com/paritytech/parity/pull/6408)
-- Fix memory tracing. [#6399](https://github.com/paritytech/parity/pull/6399)
-- earlydb optimizations [#6393](https://github.com/paritytech/parity/pull/6393)
-- Optimized PlainHasher hashing. Trie insertions are >15 faster [#6321](https://github.com/paritytech/parity/pull/6321)
-- Trie optimizations [#6389](https://github.com/paritytech/parity/pull/6389)
-- small optimizations for triehash [#6392](https://github.com/paritytech/parity/pull/6392)
-- Bring back IPFS tests. [#6398](https://github.com/paritytech/parity/pull/6398)
-- Running state test using parity-evm [#6355](https://github.com/paritytech/parity/pull/6355)
-- Wasm math tests extended [#6354](https://github.com/paritytech/parity/pull/6354)
-- Expose health status over RPC [#6274](https://github.com/paritytech/parity/pull/6274)
-- fix bloom bitvecjournal storage allocation [#6390](https://github.com/paritytech/parity/pull/6390)
-- fixed pending block panic [#6391](https://github.com/paritytech/parity/pull/6391)
-- Infoline less opaque for UI/visibility [#6364](https://github.com/paritytech/parity/pull/6364)
-- Fix eth_call. [#6365](https://github.com/paritytech/parity/pull/6365)
-- updated bigint [#6341](https://github.com/paritytech/parity/pull/6341)
-- Optimize trie iter by avoiding redundant copying [#6347](https://github.com/paritytech/parity/pull/6347)
-- Only keep a single rocksdb debug log file [#6346](https://github.com/paritytech/parity/pull/6346)
-- Tweaked snapshot params [#6344](https://github.com/paritytech/parity/pull/6344)
-- Rename network_id to chain_id where applicable. [#6345](https://github.com/paritytech/parity/pull/6345)
-- Itertools are no longer reexported from util, optimized triedb iter [#6322](https://github.com/paritytech/parity/pull/6322)
-- Better check the created accounts before showing Startup Wizard [#6331](https://github.com/paritytech/parity/pull/6331)
-- Better error messages for invalid types in RPC [#6311](https://github.com/paritytech/parity/pull/6311)
-- fix panic in parity-evm json tracer [#6338](https://github.com/paritytech/parity/pull/6338)
-- WASM math test [#6305](https://github.com/paritytech/parity/pull/6305)
-- rlp_derive [#6125](https://github.com/paritytech/parity/pull/6125)
-- Fix --chain parsing in parity-evm. [#6314](https://github.com/paritytech/parity/pull/6314)
-- Unexpose RPC methods on :8180 [#6295](https://github.com/paritytech/parity/pull/6295)
-- Ignore errors from dappsUrl when starting UI. [#6296](https://github.com/paritytech/parity/pull/6296)
-- updated bigint with optimized mul and from_big_indian [#6323](https://github.com/paritytech/parity/pull/6323)
-- SecretStore: bunch of fixes and improvements [#6168](https://github.com/paritytech/parity/pull/6168)
-- Master requires rust 1.19 [#6308](https://github.com/paritytech/parity/pull/6308)
-- Add more descriptive error when signing/decrypting using hw wallet. [#6302](https://github.com/paritytech/parity/pull/6302)
-- Increase default gas limit for eth_call. [#6299](https://github.com/paritytech/parity/pull/6299)
-- rust-toolchain file on master [#6266](https://github.com/paritytech/parity/pull/6266)
-- Migrate wasm-tests to updated runtime [#6278](https://github.com/paritytech/parity/pull/6278)
-- Extension fixes [#6284](https://github.com/paritytech/parity/pull/6284)
-- Fix a hash displayed in tooltip when signing arbitrary data [#6283](https://github.com/paritytech/parity/pull/6283)
-- Time should not contribue to overall status. [#6276](https://github.com/paritytech/parity/pull/6276)
-- Add --to and --gas-price to evmbin [#6277](https://github.com/paritytech/parity/pull/6277)
-- Fix dapps CSP when UI is exposed externally [#6178](https://github.com/paritytech/parity/pull/6178)
-- Add warning to web browser and fix links. [#6232](https://github.com/paritytech/parity/pull/6232)
-- Update Settings/Proxy view to match entries in proxy.pac [#4771](https://github.com/paritytech/parity/pull/4771)
-- Dapp refresh [#5752](https://github.com/paritytech/parity/pull/5752)
-- Add support for ConsenSys multisig wallet [#6153](https://github.com/paritytech/parity/pull/6153)
-- updated jsonrpc [#6264](https://github.com/paritytech/parity/pull/6264)
-- SecretStore: encrypt messages using private key from key store [#6146](https://github.com/paritytech/parity/pull/6146)
-- Wasm storage read test [#6255](https://github.com/paritytech/parity/pull/6255)
-- propagate stratum submit share error upstream [#6260](https://github.com/paritytech/parity/pull/6260)
-- Using multiple NTP servers [#6173](https://github.com/paritytech/parity/pull/6173)
-- Add GitHub issue templates. [#6259](https://github.com/paritytech/parity/pull/6259)
-- format instant change proofs correctly [#6241](https://github.com/paritytech/parity/pull/6241)
-- price-info does not depend on util [#6231](https://github.com/paritytech/parity/pull/6231)
-- native-contracts crate does not depend on util any more [#6233](https://github.com/paritytech/parity/pull/6233)
-- Bump master to 1.8.0 [#6256](https://github.com/paritytech/parity/pull/6256)
-- SecretStore: do not cache ACL contract + on-chain key servers configuration [#6107](https://github.com/paritytech/parity/pull/6107)
-- Fix the README badges [#6229](https://github.com/paritytech/parity/pull/6229)
-- updated tiny-keccak to 1.3 [#6248](https://github.com/paritytech/parity/pull/6248)
-- Small grammatical error [#6244](https://github.com/paritytech/parity/pull/6244)
-- Multi-call RPC [#6195](https://github.com/paritytech/parity/pull/6195)
-- InstantSeal fix [#6223](https://github.com/paritytech/parity/pull/6223)
-- Untrusted RLP length overflow check  [#6227](https://github.com/paritytech/parity/pull/6227)
-- Chainspec validation [#6197](https://github.com/paritytech/parity/pull/6197)
-- Fix cache path when using --base-path [#6212](https://github.com/paritytech/parity/pull/6212)
-- removed std reexports from util && fixed broken tests [#6187](https://github.com/paritytech/parity/pull/6187)
-- WASM MVP continued [#6132](https://github.com/paritytech/parity/pull/6132)
-- Decouple virtual machines [#6184](https://github.com/paritytech/parity/pull/6184)
-- Realloc test added [#6177](https://github.com/paritytech/parity/pull/6177)
-- Re-enable wallets, fixed forgetting accounts [#6196](https://github.com/paritytech/parity/pull/6196)
-- Move more params to the common section. [#6134](https://github.com/paritytech/parity/pull/6134)
-- Whisper js [#6161](https://github.com/paritytech/parity/pull/6161)
-- typo in uninstaller [#6185](https://github.com/paritytech/parity/pull/6185)
-- fix #6052. honor --no-color for signer command [#6100](https://github.com/paritytech/parity/pull/6100)
-- Refactor --allow-ips to handle custom ip-ranges [#6144](https://github.com/paritytech/parity/pull/6144)
-- Update Changelog for 1.6.10 and 1.7.0 [#6183](https://github.com/paritytech/parity/pull/6183)
-- Fix unsoundness in ethash's unsafe code [#6140](https://github.com/paritytech/parity/pull/6140)
-
+- Add docker build for beta ([#7671](https://github.com/paritytech/parity/pull/7671))
+  - Add docker build for beta
+  - Add cargo cache
+- Fix snapcraft build for beta ([#7670](https://github.com/paritytech/parity/pull/7670))
+- Update Parity.pkgproj
+- update gitlab build from master
+- Update references to dapp sources ([#7634](https://github.com/paritytech/parity/pull/7634)) ([#7636](https://github.com/paritytech/parity/pull/7636))
+- Update tokenreg ([#7618](https://github.com/paritytech/parity/pull/7618)) ([#7619](https://github.com/paritytech/parity/pull/7619))
+- Fix cache:key ([#7598](https://github.com/paritytech/parity/pull/7598))
+- Make 1.9 beta ([#7533](https://github.com/paritytech/parity/pull/7533))
+- Trigger js-precompiled ([#7535](https://github.com/paritytech/parity/pull/7535))
+- RocksDB fix ([#7512](https://github.com/paritytech/parity/pull/7512))
+- Update js-api ([#7510](https://github.com/paritytech/parity/pull/7510))
+- Expose default gas price percentile configuration in CLI ([#7497](https://github.com/paritytech/parity/pull/7497))
+- Use https connection ([#7503](https://github.com/paritytech/parity/pull/7503))
+- More thorough changes detection ([#7472](https://github.com/paritytech/parity/pull/7472))
+- Fix small layout issues ([#7500](https://github.com/paritytech/parity/pull/7500))
+- Show all accounts on Topbar ([#7498](https://github.com/paritytech/parity/pull/7498))
+- Update Parity Mainnet Bootnodes ([#7476](https://github.com/paritytech/parity/pull/7476))
+- Fixed panic when io is not available for export block ([#7495](https://github.com/paritytech/parity/pull/7495))
+- Advance AuRa step as far as we can and prevent invalid blocks. ([#7451](https://github.com/paritytech/parity/pull/7451))
+- Update package-lock in js-old ([#7494](https://github.com/paritytech/parity/pull/7494))
+- Update issue template and readme ([#7450](https://github.com/paritytech/parity/pull/7450))
+- Update package-lock.json pinned versions  ([#7492](https://github.com/paritytech/parity/pull/7492))
+- Explicit pre-precompiled push checkout ([#7474](https://github.com/paritytech/parity/pull/7474))
+- Trigger js-precompiled ([#7473](https://github.com/paritytech/parity/pull/7473))
+- Expanse Byzantium update w/ correct metropolis difficulty increment divisor ([#7463](https://github.com/paritytech/parity/pull/7463))
+- Updated icons ([#7469](https://github.com/paritytech/parity/pull/7469))
+- Cleanup certifications ([#7454](https://github.com/paritytech/parity/pull/7454))
+- Fix css lint (updated stylelint) ([#7471](https://github.com/paritytech/parity/pull/7471))
+- Upgrade markdown-loader & marked ([#7467](https://github.com/paritytech/parity/pull/7467))
+- Remove JS test for removed code ([#7461](https://github.com/paritytech/parity/pull/7461))
+- Pull in dapp-status ([#7457](https://github.com/paritytech/parity/pull/7457))
+- Bump openssl crate ([#7455](https://github.com/paritytech/parity/pull/7455))
+- Signer updates from global Redux state ([#7452](https://github.com/paritytech/parity/pull/7452))
+- Remove expanse chain ([#7437](https://github.com/paritytech/parity/pull/7437))
+- Store tokens with repeatable id ([#7435](https://github.com/paritytech/parity/pull/7435))
+- Strict config parsing ([#7433](https://github.com/paritytech/parity/pull/7433))
+- Upgrade to RocksDB 5.8.8 and tune settings to reduce space amplification ([#7348](https://github.com/paritytech/parity/pull/7348))
+- Fix status layout ([#7432](https://github.com/paritytech/parity/pull/7432))
+- Fix tracing failed calls. ([#7412](https://github.com/paritytech/parity/pull/7412))
+- Problem: sending any Whisper message fails ([#7421](https://github.com/paritytech/parity/pull/7421))
+- Wait for future blocks in AuRa ([#7368](https://github.com/paritytech/parity/pull/7368))
+- Fix final feature. ([#7426](https://github.com/paritytech/parity/pull/7426))
+- Use RwLock for state DB ([#7425](https://github.com/paritytech/parity/pull/7425))
+- Update branding on UI ([#7370](https://github.com/paritytech/parity/pull/7370))
+- Changelog for 1.8.5 and 1.7.11 ([#7401](https://github.com/paritytech/parity/pull/7401))
+- Added checking tx-type using transactions permission contract for miners ([#7359](https://github.com/paritytech/parity/pull/7359))
+- Standalone dir crate, replaces [#7383](https://github.com/paritytech/parity/issues/7383) ([#7409](https://github.com/paritytech/parity/pull/7409))
+- SecretStore: secretstore_signRawHash method ([#7336](https://github.com/paritytech/parity/pull/7336))
+- SecretStore: return error 404 when there's no key shares for given key on all nodes ([#7331](https://github.com/paritytech/parity/pull/7331))
+- SecretStore: PoA integration initial version ([#7101](https://github.com/paritytech/parity/pull/7101))
+- Update bootnodes ([#7363](https://github.com/paritytech/parity/pull/7363))
+- Fix default CORS settings. ([#7387](https://github.com/paritytech/parity/pull/7387))
+- Fix version ([#7390](https://github.com/paritytech/parity/pull/7390))
+- Wasm runtime update ([#7356](https://github.com/paritytech/parity/pull/7356))
+- Parity-version pr reopen ([#7136](https://github.com/paritytech/parity/pull/7136))
+- Get rid of clippy remainings. ([#7355](https://github.com/paritytech/parity/pull/7355))
+- Avoid using ok_or with allocated argument ([#7357](https://github.com/paritytech/parity/pull/7357))
+- Make accounts refresh time configurable. ([#7345](https://github.com/paritytech/parity/pull/7345))
+- Enable traces for DEV chain ([#7327](https://github.com/paritytech/parity/pull/7327))
+- Problem: AuRa's unsafeties around step duration ([#7282](https://github.com/paritytech/parity/pull/7282))
+- Problem: Cargo.toml file contains [project] key ([#7346](https://github.com/paritytech/parity/pull/7346))
+- Fix broken flex modal layouts ([#7343](https://github.com/paritytech/parity/pull/7343))
+- Fix dappIcon & Fix Signer Pending ([#7338](https://github.com/paritytech/parity/pull/7338))
+- Fix wallet token/badge icons not showing up ([#7333](https://github.com/paritytech/parity/pull/7333))
+- Add Ellaism coin in chain config ([#7222](https://github.com/paritytech/parity/pull/7222))
+- Update bootnodes ([#7296](https://github.com/paritytech/parity/pull/7296))
+- Adds `personal_signTransaction` RPC method ([#6991](https://github.com/paritytech/parity/pull/6991))
+- Fix double initialization of embeded providers. ([#7326](https://github.com/paritytech/parity/pull/7326))
+- Transaction Pool re-implementation ([#6994](https://github.com/paritytech/parity/pull/6994))
+- UI package bump ([#7318](https://github.com/paritytech/parity/pull/7318))
+- Test framework and basic test for whisper ([#7011](https://github.com/paritytech/parity/pull/7011))
+- CI js-precompiled trigger ([#7316](https://github.com/paritytech/parity/pull/7316))
+- Fix inject.js & Signer store duplication ([#7299](https://github.com/paritytech/parity/pull/7299))
+- Detect different node, same-key signing in aura ([#7245](https://github.com/paritytech/parity/pull/7245))
+- New warp enodes ([#7287](https://github.com/paritytech/parity/pull/7287))
+- CSS fixes for v1 ([#7285](https://github.com/paritytech/parity/pull/7285))
+- Wallet subscriptions & refresh ([#7283](https://github.com/paritytech/parity/pull/7283))
+- Update inject web3 dependencies ([#7286](https://github.com/paritytech/parity/pull/7286))
+- Some padding around dapp image ([#7276](https://github.com/paritytech/parity/pull/7276))
+- Expand available middleware methods ([#7275](https://github.com/paritytech/parity/pull/7275))
+- Inject parity script to all dapps // Expand dapps to any ZIP file ([#7260](https://github.com/paritytech/parity/pull/7260))
+- New Homepage ([#7266](https://github.com/paritytech/parity/pull/7266))
+- Update kovan HF block number. ([#7259](https://github.com/paritytech/parity/pull/7259))
+- CHANGELOG for 1.7.10 and 1.8.4 ([#7265](https://github.com/paritytech/parity/pull/7265))
+- Remove extraneous id hashing ([#7269](https://github.com/paritytech/parity/pull/7269))
+- Simplify status + content display overlaps/page fixing ([#7264](https://github.com/paritytech/parity/pull/7264))
+- UI redirect to 127.0.0.1 when localhost requested ([#7236](https://github.com/paritytech/parity/pull/7236))
+- Usability improvements to security token Dialog [#7112](https://github.com/paritytech/parity/issues/7112) ([#7134](https://github.com/paritytech/parity/pull/7134))
+- Don't display unneeded notifications ([#7237](https://github.com/paritytech/parity/pull/7237))
+- Reduce max block timestamp drift to 15 seconds ([#7240](https://github.com/paritytech/parity/pull/7240))
+- Increase allowed time drift to 10s. ([#7238](https://github.com/paritytech/parity/pull/7238))
+- Improve building from source ([#7239](https://github.com/paritytech/parity/pull/7239))
+- Fix/Update method permissions ([#7233](https://github.com/paritytech/parity/pull/7233))
+- Fix aura difficulty race ([#7198](https://github.com/paritytech/parity/pull/7198))
+- Dependency updates ([#7226](https://github.com/paritytech/parity/pull/7226))
+- Display all dapps (shell) & wallet tabs (v1) by default ([#7213](https://github.com/paritytech/parity/pull/7213))
+- Rework dapps list ([#7206](https://github.com/paritytech/parity/pull/7206))
+- Add contributing guidelines and code of conduct. ([#7157](https://github.com/paritytech/parity/pull/7157))
+- Make Signing Requests more visible ([#7204](https://github.com/paritytech/parity/pull/7204))
+- Send each log as a separate notification ([#7175](https://github.com/paritytech/parity/pull/7175))
+- Deleting a mistake comment in calc difficulty ([#7154](https://github.com/paritytech/parity/pull/7154))
+- Maximum uncle count transition ([#7196](https://github.com/paritytech/parity/pull/7196))
+- Update FirstRun for UI-2 ([#7195](https://github.com/paritytech/parity/pull/7195))
+- Update mocha import stubs ([#7191](https://github.com/paritytech/parity/pull/7191))
+- Escape inifinite loop in estimte_gas ([#7075](https://github.com/paritytech/parity/pull/7075))
+- New account selector UI in top bar ([#7179](https://github.com/paritytech/parity/pull/7179))
+- Removed ethcore-util dependency from ethcore-network ([#7180](https://github.com/paritytech/parity/pull/7180))
+- WASM test runner utility upgrade ([#7147](https://github.com/paritytech/parity/pull/7147))
+- React 16 ([#7174](https://github.com/paritytech/parity/pull/7174))
+- Assorted improvements for ethstore and ethkey ([#6961](https://github.com/paritytech/parity/pull/6961))
+- Delete unused package.json (dist bundles) ([#7173](https://github.com/paritytech/parity/pull/7173))
+- Remove *.css.map & *.js.map ([#7168](https://github.com/paritytech/parity/pull/7168))
+- Use git flag to remove old js artifacts ([#7165](https://github.com/paritytech/parity/pull/7165))
+- Cleanup JS build artifacts ([#7164](https://github.com/paritytech/parity/pull/7164))
+- Fixes typo in user config path ([#7159](https://github.com/paritytech/parity/pull/7159))
+- Pull in new dapp-{methods,visible} dapps ([#7150](https://github.com/paritytech/parity/pull/7150))
+- WASM test runner utility ([#7142](https://github.com/paritytech/parity/pull/7142))
+- WASM Remove blockhash error ([#7121](https://github.com/paritytech/parity/pull/7121))
+- ECIP-1039: Monetary policy rounding specification ([#7067](https://github.com/paritytech/parity/pull/7067))
+- Fixed `RotatingLogger` after migrating to new arrayvec ([#7129](https://github.com/paritytech/parity/pull/7129))
+- Push to correct shell branch ([#7135](https://github.com/paritytech/parity/pull/7135))
+- Update js-precompiled ref, trigger JS build ([#7132](https://github.com/paritytech/parity/pull/7132))
+- Fixed build && test ([#7128](https://github.com/paritytech/parity/pull/7128))
+- Update packages, pull in compiled-only repos ([#7125](https://github.com/paritytech/parity/pull/7125))
+- Cleanup top bar, add Home icon for navigation ([#7118](https://github.com/paritytech/parity/pull/7118))
+- WASM storage_read and storage_write don't return anything ([#7110](https://github.com/paritytech/parity/pull/7110))
+- Local dapp development URL ([#7100](https://github.com/paritytech/parity/pull/7100))
+- Remove unused and duplicated files in js-old ([#7082](https://github.com/paritytech/parity/pull/7082))
+- Optimize & group dapp requests ([#7083](https://github.com/paritytech/parity/pull/7083))
+- WASM parse payload from panics ([#7097](https://github.com/paritytech/parity/pull/7097))
+- Fix no-default-features. ([#7096](https://github.com/paritytech/parity/pull/7096))
+- Updated eth-secp256k1 ([#7090](https://github.com/paritytech/parity/pull/7090))
+- Improve Github Issue Template ([#7099](https://github.com/paritytech/parity/pull/7099))
+- Changes necessary to upload crates to crates.io ([#7020](https://github.com/paritytech/parity/pull/7020))
+- Reopened 6860 - iterate over both buffered and unbuffered database entries ([#7048](https://github.com/paritytech/parity/pull/7048))
+- SecretStore: servers set change session api ([#6925](https://github.com/paritytech/parity/pull/6925))
+- Disable uncles by default ([#7006](https://github.com/paritytech/parity/pull/7006))
+- Squashed ethcore-network changes which introduce error-chain ([#7040](https://github.com/paritytech/parity/pull/7040))
+- Removed redundant imports ([#7057](https://github.com/paritytech/parity/pull/7057))
+- CHANGELOG for 1.7.8, 1.7.9, 1.8.2, and 1.8.3 ([#7055](https://github.com/paritytech/parity/pull/7055))
+- Properly display Signer errors (Snackbar display popup) ([#7053](https://github.com/paritytech/parity/pull/7053))
+- Add the desktop file for the snap ([#7059](https://github.com/paritytech/parity/pull/7059))
+- Small performance gain in allocations ([#7054](https://github.com/paritytech/parity/pull/7054))
+- Bump JSON-RPC version ([#7051](https://github.com/paritytech/parity/pull/7051))
+- Fix nonce reservation ([#7025](https://github.com/paritytech/parity/pull/7025))
+- Fixed ethstore-cli output ([#7052](https://github.com/paritytech/parity/pull/7052))
+- Add mui for embed compilation ([#7049](https://github.com/paritytech/parity/pull/7049))
+- Update the snap metadata to keep working strictly confined ([#6993](https://github.com/paritytech/parity/pull/6993))
+- Remove unused js packages (dapp cleanups) ([#7046](https://github.com/paritytech/parity/pull/7046))
+- Gitlog location update  ([#7042](https://github.com/paritytech/parity/pull/7042))
+- Move git logging to .git-release.log ([#7041](https://github.com/paritytech/parity/pull/7041))
+- Start from rust root in release update step ([#7039](https://github.com/paritytech/parity/pull/7039))
+- Complete token merge, remove unused files ([#7037](https://github.com/paritytech/parity/pull/7037))
+- Add missing cargo-push.sh shell variable ([#7036](https://github.com/paritytech/parity/pull/7036))
+- Fix npm start script ([#7034](https://github.com/paritytech/parity/pull/7034))
+-  Update executable flags on release scripts ([#7035](https://github.com/paritytech/parity/pull/7035))
+- Fix v1 precompiled ([#7033](https://github.com/paritytech/parity/pull/7033))
+- Push precompiled to correct branch (v1) ([#7031](https://github.com/paritytech/parity/pull/7031))
+- Update v1 Wallet Dapp ([#6935](https://github.com/paritytech/parity/pull/6935))
+- WASM tests update ([#7018](https://github.com/paritytech/parity/pull/7018))
+- Events in WASM runtime ([#6967](https://github.com/paritytech/parity/pull/6967))
+- Adds validate_node_url() and refactors boot node check ([#6907](https://github.com/paritytech/parity/pull/6907)) ([#6970](https://github.com/paritytech/parity/pull/6970))
+- Fix windows build (with ui rebuild) ([#7016](https://github.com/paritytech/parity/pull/7016))
+- Make CLI arguments parsing more backwards compatible ([#7004](https://github.com/paritytech/parity/pull/7004))
+- Fixes for parity-extension ([#6990](https://github.com/paritytech/parity/pull/6990))
+- Update ethcore-bigint ([#6992](https://github.com/paritytech/parity/pull/6992))
+- Get local transactions by hash in the light client ([#6874](https://github.com/paritytech/parity/pull/6874))
+- Warn when blacklisted account present in store ([#6875](https://github.com/paritytech/parity/pull/6875))
+- Skip nonce check for gas estimation ([#6997](https://github.com/paritytech/parity/pull/6997))
+- Creating pending block with all transactions from the queue ([#6942](https://github.com/paritytech/parity/pull/6942))
+- Removes `MAX_TX_TO_IMPORT` from `ChainSync` ([#6976](https://github.com/paritytech/parity/pull/6976))
+- SecretStore: versioned keys ([#6910](https://github.com/paritytech/parity/pull/6910))
+- Removes `FUTURE_QUEUE_LIMITS_SHIFT` ([#6962](https://github.com/paritytech/parity/pull/6962))
+- Set zero nonce and gas price for calls by default ([#6954](https://github.com/paritytech/parity/pull/6954))
+- Add hint in ActionParams for splitting code/data ([#6957](https://github.com/paritytech/parity/pull/6957))
+- Return decoded seal fields. ([#6932](https://github.com/paritytech/parity/pull/6932))
+- Fix serialization of status in transaction receipts. ([#6926](https://github.com/paritytech/parity/pull/6926))
+- Reserve nonces for signing ([#6834](https://github.com/paritytech/parity/pull/6834))
+- Windows fixes ([#6921](https://github.com/paritytech/parity/pull/6921))
+- Don't add {css,js}.map from dapps ([#6931](https://github.com/paritytech/parity/pull/6931))
+- Fix JSON tracing for sub-calls. ([#6842](https://github.com/paritytech/parity/pull/6842))
+- Shell updates (bonds, updated Dapps) ([#6897](https://github.com/paritytech/parity/pull/6897))
+- Fix [#6228](https://github.com/paritytech/parity/issues/6228): do not display eth price in cli for etc ([#6877](https://github.com/paritytech/parity/pull/6877))
+- Fix mining help ([#6885](https://github.com/paritytech/parity/pull/6885))
+- Refactor static context check in CREATE. ([#6886](https://github.com/paritytech/parity/pull/6886))
+- Cleanup some configuration options ([#6878](https://github.com/paritytech/parity/pull/6878))
+- Fix serialization of non-localized transactions ([#6868](https://github.com/paritytech/parity/pull/6868))
+- Updated ntp to version 0.3 ([#6854](https://github.com/paritytech/parity/pull/6854))
+- Align README with 1.8 and prepare CHANGELOG with 1.8.1 ([#6833](https://github.com/paritytech/parity/pull/6833))
+- Return error on timed unlock ([#6777](https://github.com/paritytech/parity/pull/6777))
+- Fix dapps tests in master ([#6866](https://github.com/paritytech/parity/pull/6866))
+- Ethstore optimizations ([#6827](https://github.com/paritytech/parity/pull/6827))
+- Add ECIP1017 to Morden config ([#6810](https://github.com/paritytech/parity/pull/6810))
+- Remove all package publishing to npm ([#6838](https://github.com/paritytech/parity/pull/6838))
+- Util crates use tempdir crate instead of devtools to create temp path ([#6807](https://github.com/paritytech/parity/pull/6807))
+- Trigger js build ([#6836](https://github.com/paritytech/parity/pull/6836))
+- Clean-up scripts. ([#6832](https://github.com/paritytech/parity/pull/6832))
+- Tweaked snapshot sync threshold ([#6829](https://github.com/paritytech/parity/pull/6829))
+- Integrate UI 2 ([#6819](https://github.com/paritytech/parity/pull/6819))
+- Refresh cached tokens based on registry info & random balances ([#6818](https://github.com/paritytech/parity/pull/6818))
+- Change keypath derivation logic ([#6815](https://github.com/paritytech/parity/pull/6815))
+- Refactors journaldb as a separate crate ([#6801](https://github.com/paritytech/parity/pull/6801))
+- Trigger UI build. ([#6817](https://github.com/paritytech/parity/pull/6817))
+- Bumped more crate versions ([#6809](https://github.com/paritytech/parity/pull/6809))
+- Fix RPC compilation warnings. ([#6808](https://github.com/paritytech/parity/pull/6808))
+- Remove internal ipc ([#6795](https://github.com/paritytech/parity/pull/6795))
+- Consistent KeyValueDB errors ([#6792](https://github.com/paritytech/parity/pull/6792))
+- Squash remaining warnings ([#6789](https://github.com/paritytech/parity/pull/6789))
+- Forward-port [#6754](https://github.com/paritytech/parity/issues/6754) [#6755](https://github.com/paritytech/parity/issues/6755) ([#6785](https://github.com/paritytech/parity/pull/6785))
+- Removed duplicated versions of clippy ([#6776](https://github.com/paritytech/parity/pull/6776))
+- Updated ethabi to version 4.0 ([#6742](https://github.com/paritytech/parity/pull/6742))
+- Updated rpc_cli and parity to rpassword 1.0 ([#6774](https://github.com/paritytech/parity/pull/6774))
+- Fix sign data typo ([#6750](https://github.com/paritytech/parity/pull/6750))
+- Refactoring/cache 6693 ([#6772](https://github.com/paritytech/parity/pull/6772))
+- Fix CHANGLOG for 1.8.0 ([#6751](https://github.com/paritytech/parity/pull/6751))
+- Removes redundant `mut` in service.rs.in ([#6775](https://github.com/paritytech/parity/pull/6775))
+- Remove redundant `mut` ([#6773](https://github.com/paritytech/parity/pull/6773))
+- Fixed kovan chain validation ([#6758](https://github.com/paritytech/parity/pull/6758))
+- Removed redundant evm deps ([#6757](https://github.com/paritytech/parity/pull/6757))
+- Fixed modexp gas calculation overflow ([#6741](https://github.com/paritytech/parity/pull/6741))
+- Use cc 1.0 instead of gcc ([#6733](https://github.com/paritytech/parity/pull/6733))
+- Version bump to 1.9.0 ([#6727](https://github.com/paritytech/parity/pull/6727))
+- Fix badges not showing up ([#6730](https://github.com/paritytech/parity/pull/6730))
 
 ### Previous releases
 
-- [CHANGELOG-1.7](docs/CHANGELOG-1.7.md)
-- [CHANGELOG-1.6](docs/CHANGELOG-1.6.md)
-- [CHANGELOG-1.5](docs/CHANGELOG-1.5.md)
-- [CHANGELOG-1.4](docs/CHANGELOG-1.4.md)
-- [CHANGELOG-1.3](docs/CHANGELOG-1.3.md)
-- [CHANGELOG-1.2](docs/CHANGELOG-1.2.md)
-- [CHANGELOG-1.1](docs/CHANGELOG-1.1.md)
-- [CHANGELOG-1.0](docs/CHANGELOG-1.0.md)
-- [CHANGELOG-0.9](docs/CHANGELOG-0.9.md)
+- [CHANGELOG-1.8](docs/CHANGELOG-1.8.md) (_stable_)
+- [CHANGELOG-1.7](docs/CHANGELOG-1.7.md) (EOL: 2018-01-25)
+- [CHANGELOG-1.6](docs/CHANGELOG-1.6.md) (EOL: 2017-10-15)
+- [CHANGELOG-1.5](docs/CHANGELOG-1.5.md) (EOL: 2017-07-28)
+- [CHANGELOG-1.4](docs/CHANGELOG-1.4.md) (EOL: 2017-03-13)
+- [CHANGELOG-1.3](docs/CHANGELOG-1.3.md) (EOL: 2017-01-19)
+- [CHANGELOG-1.2](docs/CHANGELOG-1.2.md) (EOL: 2016-11-07)
+- [CHANGELOG-1.1](docs/CHANGELOG-1.1.md) (EOL: 2016-08-12)
+- [CHANGELOG-1.0](docs/CHANGELOG-1.0.md) (EOL: 2016-06-24)
+- [CHANGELOG-0.9](docs/CHANGELOG-0.9.md) (EOL: 2016-05-02)
