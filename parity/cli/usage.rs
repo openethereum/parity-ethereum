@@ -162,7 +162,7 @@ macro_rules! usage {
 		extern crate term_size;
 		use self::textwrap::{Wrapper};
 
-		const MAX_TERM_WIDTH: usize = 100;
+		const MAX_TERM_WIDTH: usize = 120;
 
 		#[cfg(test)]
 		use regex::Regex;
