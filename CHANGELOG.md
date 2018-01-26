@@ -1,4 +1,4 @@
-## Parity [v1.9.0](https://github.com/paritytech/parity/releases/tag/v1.9.0) (2018-01-25)
+## Parity [v1.9.0](https://github.com/paritytech/parity/releases/tag/v1.9.0) "Velocity" (2018-01-25)
 
 We are happy to announce our newest Parity 1.9 release. Among others, it enables the following features:
 
@@ -14,6 +14,7 @@ Further, users upgrading from 1.8 should acknowledge the following changes:
 - Set zero nonce and gas price for calls by default ([#6954](https://github.com/paritytech/parity/pull/6954)).
 - Create pending blocks with all transactions from the queue ([#6942](https://github.com/paritytech/parity/pull/6942)).
 - Remove RPC parameter leniency now that Mist formats correctly ([#6651](https://github.com/paritytech/parity/pull/6651)). Parity stops accepting decimal-formatted block numbers and stops parsing the empty string as empty bytes.
+- Public nodes do not support the user interface anymore. If you are running a public node, please stay on the 1.8 branch of the stable releases.
 
 Additional noteworthy changes:
 
@@ -22,6 +23,8 @@ Additional noteworthy changes:
   - `ethkey` now supports multi-threaded generation of prefix-matching addresses.
   - `ethkey` now supports prefix-matching brain wallets.
   - `ethkey` now supports brain-wallets recovery-phrases lookup. This helps to find a correct phrase if you know the address you want to get yet you made a typo backing the phrase up, or forgot a word.
+
+Read more about Parity 1.9 in our [blog post](http://paritytech.io/velocity-the-fastest-parity-released/).
 
 The full list of included changes:
 
