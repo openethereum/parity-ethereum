@@ -1,11 +1,12 @@
-# [Parity](https://parity.io/) - fast, light, and robust Ethereum client
+# Parity - fast, light, and robust Ethereum client
+
+## [» Download the latest release «](https://github.com/paritytech/parity/releases/latest)
 
 [![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master)
 [![codecov](https://codecov.io/gh/paritytech/parity/branch/master/graph/badge.svg)](https://codecov.io/gh/paritytech/parity)
 [![Snap Status](https://build.snapcraft.io/badge/paritytech/parity.svg)](https://build.snapcraft.io/user/paritytech/parity)
 [![GPLv3](https://img.shields.io/badge/license-GPL%20v3-green.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
-- [Download the latest release here.](https://github.com/paritytech/parity/releases/latest)
 
 ### Join the chat!
 
@@ -17,6 +18,8 @@ Get in touch with us on Gitter:
 
 Or join our community on Matrix:
 [![Riot: +Parity](https://img.shields.io/badge/riot-%2Bparity%3Amatrix.parity.io-orange.svg)](https://riot.im/app/#/group/+parity:matrix.parity.io)
+
+Official website: https://parity.io
 
 Be sure to check out [our wiki](https://paritytech.github.io/wiki/) and the [internal documentation](https://paritytech.github.io/parity/ethcore/index.html) for more information.
 
