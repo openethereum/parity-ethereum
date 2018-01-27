@@ -100,6 +100,12 @@ extern crate util_error;
 extern crate snappy;
 extern crate migration;
 
+extern crate ethabi;
+#[macro_use]
+extern crate ethabi_derive;
+#[macro_use]
+extern crate ethabi_contract;
+
 #[macro_use]
 extern crate rlp_derive;
 extern crate rustc_hex;
