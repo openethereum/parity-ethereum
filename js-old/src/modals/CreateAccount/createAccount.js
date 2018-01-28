@@ -21,7 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
-import { createIdentityImg } from '~/api/util/identity';
+import { createIdentityImg } from '@parity/api/lib/util/identity';
 import { newError } from '~/redux/actions';
 import { Button, ModalBox, Portal } from '~/ui';
 import { CancelIcon, CheckIcon, DoneIcon, NextIcon, PrevIcon, PrintIcon } from '~/ui/Icons';

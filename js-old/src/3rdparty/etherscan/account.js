@@ -18,7 +18,7 @@ import BigNumber from 'bignumber.js';
 
 const PAGE_SIZE = 25;
 
-import util from '../../api/util';
+import util from '@parity/api/lib/util';
 import { call } from './call';
 
 function _call (method, params, test, netVersion) {

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { handleActions } from 'redux-actions';
-import { bytesToHex } from '~/api/util/format';
+import { bytesToHex } from '@parity/api/lib/util/format';
 
 const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
 

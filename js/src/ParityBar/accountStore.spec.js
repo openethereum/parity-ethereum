@@ -42,10 +42,10 @@ describe('ParityBar/AccountStore', () => {
   });
 
   describe('@action', () => {
-    describe('setAccounts', () => {
+    describe('setAllAccounts', () => {
       it('sets the accounts', () => {
-        store.setAccounts('testing');
-        expect(store.accounts).to.equal('testing');
+        store.setAllAccounts('testing');
+        expect(store.allAccounts).to.equal('testing');
       });
     });
 
@@ -67,13 +67,13 @@ describe('ParityBar/AccountStore', () => {
   describe('operations', () => {
     describe('loadAccounts', () => {
       beforeEach(() => {
-        sinon.spy(store, 'setAccounts');
+        sinon.spy(store, 'setAllAccounts');
 
         return store.loadAccounts();
       });
 
       afterEach(() => {
-        store.setAccounts.restore();
+        store.setAllAccounts.restore();
       });
 
       it('calls into parity_getNewDappsAddresses', () => {
@@ -85,7 +85,7 @@ describe('ParityBar/AccountStore', () => {
       });
 
       it('sets the accounts', () => {
-        expect(store.setAccounts).to.have.been.called;
+        expect(store.setAllAccounts).to.have.been.called;
       });
     });
 

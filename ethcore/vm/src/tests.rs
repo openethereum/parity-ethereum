@@ -17,9 +17,7 @@
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{U256, H256, Address};
 use bytes::Bytes;
 use {
 	CallType, Schedule, EnvInfo,
@@ -200,7 +198,7 @@ impl Ext for FakeExt {
 		self.sstore_clears += 1;
 	}
 
-	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool {
+	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _gas: U256) -> bool {
 		self.tracing
 	}
 }

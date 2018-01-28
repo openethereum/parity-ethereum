@@ -16,59 +16,15 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
-import sinon from 'sinon';
 
 import Home from './';
 
-const TEST_APP_HISTORY = [];
-
-let api;
 let component;
-let instance;
-let store;
-
-function createStore () {
-  store = {
-    dispatch: sinon.stub(),
-    subscribe: sinon.stub(),
-    getState: () => {
-      return {
-        nodeStatus: {
-          nodeKind: {
-            'availability': 'personal'
-          }
-        }
-      };
-    }
-  };
-
-  return store;
-}
-
-function createApi () {
-  api = {
-    parity: {
-      listRecentDapps: sinon.stub().resolves(TEST_APP_HISTORY)
-    }
-  };
-
-  return api;
-}
 
 function render () {
   component = shallow(
-    <Home />,
-    {
-      context: {
-        store: createStore()
-      }
-    }
-  ).find('Home').shallow({
-    context: {
-      api: createApi()
-    }
-  });
-  instance = component.instance();
+    <Home />
+  );
 
   return component;
 }
@@ -82,38 +38,9 @@ describe('views/Home', () => {
     expect(component).to.be.ok;
   });
 
-  describe('lifecycle', () => {
-    describe('componentWillMount', () => {
-      beforeEach(() => {
-        sinon.stub(instance.webStore, 'loadHistory');
-        return instance.componentWillMount();
-      });
-
-      afterEach(() => {
-        instance.webStore.loadHistory.restore();
-      });
-
-      it('calls into webStore loadHistory', () => {
-        expect(instance.webStore.loadHistory).to.have.been.called;
-      });
-    });
-  });
-
   describe('components', () => {
-    it('renders Accounts', () => {
-      expect(component.find('Connect(Accounts)').length).to.equal(1);
-    });
-
-    it('renders Dapps', () => {
-      expect(component.find('Dapps').length).to.equal(1);
-    });
-
     it('renders News', () => {
       expect(component.find('News').length).to.equal(1);
-    });
-
-    it('renders Urls', () => {
-      expect(component.find('Urls').length).to.equal(1);
     });
   });
 });

@@ -15,18 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Api from '@parity/api';
-import Web3 from 'web3';
-
-import web3extensions from './web3.extensions';
+import qs from 'query-string';
 
 function initProvider () {
-  const parts = window.location.pathname.split('/');
-  let appId = parts[1];
+  const path = window.location.pathname.split('/');
+  const query = qs.parse(window.location.search);
+
+  let appId = path[1] || query.appId;
 
   if (appId === 'dapps') {
-    appId = parts[2];
-  } else if (!Api.util.isHex(appId)) {
-    appId = Api.util.sha3(appId);
+    appId = path[2];
   }
 
   const ethereum = new Api.Provider.PostMessage(appId);
@@ -49,26 +47,9 @@ function initProvider () {
 }
 
 function initWeb3 (ethereum) {
-  // FIXME: Use standard provider for web3
-  const provider = new Api.Provider.SendAsync(ethereum);
-  const web3 = new Web3(provider);
+  const currentProvider = new Api.Provider.SendAsync(ethereum);
 
-  if (!web3.currentProvider) {
-    web3.currentProvider = provider;
-  }
-
-  // set default account
-  web3.eth.getAccounts((error, accounts) => {
-    if (error || !accounts || !accounts[0]) {
-      return;
-    }
-
-    web3.eth.defaultAccount = accounts[0];
-  });
-
-  web3extensions(web3).map((extension) => web3._extend(extension));
-
-  window.web3 = web3;
+  window.web3 = { currentProvider };
 }
 
 function initParity (ethereum) {

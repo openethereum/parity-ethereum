@@ -15,8 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! DB Migration module.
-#[cfg(test)]
-mod tests;
 
 #[macro_use]
 extern crate log;
@@ -264,7 +262,7 @@ impl Manager {
 		trace!(target: "migration", "Expecting database to contain {:?} columns", columns);
 		let mut db_config = DatabaseConfig {
 			max_open_files: 64,
-			cache_sizes: Default::default(),
+			memory_budget: None,
 			compaction: config.compaction_profile,
 			columns: columns,
 			wal: true,

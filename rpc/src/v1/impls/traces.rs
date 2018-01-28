@@ -19,8 +19,8 @@
 use std::sync::Arc;
 
 use ethcore::client::{MiningBlockChainClient, CallAnalytics, TransactionId, TraceId};
-use ethcore::transaction::SignedTransaction;
 use rlp::UntrustedRlp;
+use transaction::SignedTransaction;
 
 use jsonrpc_core::Result;
 use jsonrpc_macros::Trailing;
@@ -120,6 +120,12 @@ impl<C> Traces for TracesClient<C> where C: MiningBlockChainClient + 'static {
 	fn replay_transaction(&self, transaction_hash: H256, flags: TraceOptions) -> Result<TraceResults> {
 		self.client.replay(TransactionId::Hash(transaction_hash.into()), to_call_analytics(flags))
 			.map(TraceResults::from)
+			.map_err(errors::call)
+	}
+
+	fn replay_block_transactions(&self, block_number: BlockNumber, flags: TraceOptions) -> Result<Vec<TraceResults>> {
+		self.client.replay_block_transactions(block_number.into(), to_call_analytics(flags))
+			.map(|results| results.into_iter().map(TraceResults::from).collect())
 			.map_err(errors::call)
 	}
 }

@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use bigint::prelude::U256;
+use ethereum_types::U256;
 use engines::Engine;
+use header::BlockNumber;
 use parity_machine::{Header, LiveBlock, WithBalances};
 
 /// Params for a null engine.
@@ -94,6 +95,8 @@ impl<M: WithBalances> Engine<M> for NullEngine<M> {
 		// note and trace.
 		self.machine.note_rewards(block, &[(author, result_block_reward)], &uncle_rewards)
 	}
+
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
 
 	fn verify_local_seal(&self, _header: &M::Header) -> Result<(), M::Error> {
 		Ok(())

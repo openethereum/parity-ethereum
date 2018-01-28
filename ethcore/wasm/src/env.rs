@@ -25,12 +25,12 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	Static(
 		"_storage_read",
 		&[I32; 2],
-		Some(I32),
+		None,
 	),
 	Static(
 		"_storage_write",
 		&[I32; 2],
-		Some(I32),
+		None,
 	),
 	Static(
 		"_balance",
@@ -69,17 +69,17 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	),
 	Static(
 		"_ccall",
-		&[I32; 6],
+		&[I64, I32, I32, I32, I32, I32, I32],
 		Some(I32),
 	),
 	Static(
 		"_dcall",
-		&[I32; 5],
+		&[I64, I32, I32, I32, I32, I32],
 		Some(I32),
 	),
 	Static(
 		"_scall",
-		&[I32; 5],
+		&[I64, I32, I32, I32, I32, I32],
 		Some(I32),
 	),
 	Static(
@@ -89,6 +89,11 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	),
 	Static(
 		"_emscripten_memcpy_big",
+		&[I32; 3],
+		Some(I32),
+	),
+	Static(
+		"_ext_memcmp",
 		&[I32; 3],
 		Some(I32),
 	),
@@ -115,7 +120,7 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	Static(
 		"_blockhash",
 		&[I64, I32],
-		Some(I32),
+		None,
 	),
 	Static(
 		"_coinbase",

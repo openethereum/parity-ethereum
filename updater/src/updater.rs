@@ -30,11 +30,10 @@ use path::restrict_permissions_owner;
 use service::{Service};
 use target_info::Target;
 use types::{ReleaseInfo, OperationsInfo, CapState, VersionInfo, ReleaseTrack};
-use bigint::hash::{H160, H256};
-use util::Address;
+use ethereum_types::{H160, H256, Address};
 use bytes::Bytes;
 use parking_lot::Mutex;
-use util::misc;
+use version;
 
 /// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -115,7 +114,7 @@ fn platform() -> String {
 	} else if cfg!(target_os = "linux") {
 		format!("{}-unknown-linux-gnu", Target::arch())
 	} else {
-		misc::platform()
+		version::platform()
 	}
 }
 

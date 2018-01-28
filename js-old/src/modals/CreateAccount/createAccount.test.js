@@ -17,7 +17,7 @@
 import BigNumber from 'bignumber.js';
 import sinon from 'sinon';
 
-import Api from '~/api';
+import Api from '@parity/api';
 import Store from './store';
 
 const ADDRESS = '0x00000123456789abcdef123456789abcdef123456789abcdef';

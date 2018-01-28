@@ -17,9 +17,8 @@
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
 use std::sync::{Weak, Arc};
-use bigint::hash::{H256, H520};
+use ethereum_types::{H256, H520, Address};
 use parking_lot::RwLock;
-use util::*;
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;
@@ -107,7 +106,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 	}
 
 	/// Attempt to seal the block internally.
-	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
+	fn generate_seal(&self, block: &ExecutedBlock, _parent: &Header) -> Seal {
 		let header = block.header();
 		let author = header.author();
 		if self.validators.contains(header.parent_hash(), author) {
@@ -200,7 +199,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 mod tests {
 	use std::sync::Arc;
 	use hash::keccak;
-	use bigint::hash::H520;
+	use ethereum_types::H520;
 	use block::*;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
@@ -251,7 +250,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close_and_lock();
-		if let Seal::Regular(seal) = engine.generate_seal(b.block()) {
+		if let Seal::Regular(seal) = engine.generate_seal(b.block(), &genesis_header) {
 			assert!(b.try_seal(engine, seal).is_ok());
 		}
 	}

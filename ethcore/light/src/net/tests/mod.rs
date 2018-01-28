@@ -20,9 +20,9 @@
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{EachBlockWith, TestBlockChainClient};
 use ethcore::ids::BlockId;
-use ethcore::transaction::{Action, PendingTransaction};
 use ethcore::encoded;
 use network::{PeerId, NodeId};
+use transaction::{Action, PendingTransaction};
 
 use net::context::IoContext;
 use net::status::{Capabilities, Status};
@@ -32,9 +32,7 @@ use request;
 use request::*;
 
 use rlp::*;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address};
 
 use std::sync::Arc;
 

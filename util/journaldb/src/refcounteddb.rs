@@ -26,7 +26,7 @@ use memorydb::MemoryDB;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use error::UtilError;
 use bytes::Bytes;
 
@@ -205,8 +205,6 @@ impl JournalDB for RefCountedDB {
 
 #[cfg(test)]
 mod tests {
-	#![cfg_attr(feature="dev", allow(blacklisted_name))]
-	#![cfg_attr(feature="dev", allow(similar_names))]
 
 	use keccak::keccak;
 	use hashdb::{HashDB, DBValue};

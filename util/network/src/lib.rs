@@ -56,11 +56,11 @@
 
 //TODO: use Poll from mio
 #![allow(deprecated)]
+#![recursion_limit="128"]
 
 extern crate ethcore_io as io;
-extern crate ethcore_util as util;
-extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes;
+extern crate ethereum_types;
 extern crate parking_lot;
 extern crate mio;
 extern crate tiny_keccak;
@@ -79,15 +79,15 @@ extern crate bytes;
 extern crate path;
 extern crate ethcore_logger;
 extern crate ipnetwork;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate serde_json;
 extern crate snappy;
 
 #[macro_use]
-extern crate log;
+extern crate error_chain;
 
-#[cfg(test)]
-extern crate ethcore_devtools as devtools;
+#[macro_use]
+extern crate log;
 
 #[cfg(test)]
 extern crate tempdir;
@@ -104,12 +104,9 @@ mod stats;
 mod ip_utils;
 mod connection_filter;
 
-#[cfg(test)]
-mod tests;
-
 pub use host::{HostInfo, PeerId, PacketId, ProtocolId, NetworkContext, NetworkIoMessage, NetworkConfiguration};
 pub use service::NetworkService;
-pub use error::NetworkError;
+pub use error::{Error, ErrorKind};
 pub use stats::NetworkStats;
 pub use session::SessionInfo;
 pub use connection_filter::{ConnectionFilter, ConnectionDirection};

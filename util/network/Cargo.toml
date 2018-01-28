@@ -15,30 +15,27 @@ time = "0.1.34"
 tiny-keccak = "1.3"
 rust-crypto = "0.2.34"
 slab = "0.2"
-clippy = { version = "0.0.103", optional = true}
 igd = "0.6"
 libc = "0.2.7"
-parking_lot = "0.4"
-ansi_term = "0.9"
+parking_lot = "0.5"
+ansi_term = "0.10"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io" }
-ethcore-util = { path = ".." }
-ethcore-bigint = { path = "../bigint" }
 ethcore-bytes = { path = "../bytes" }
+ethereum-types = "0.1"
 ethkey = { path = "../../ethkey" }
 ethcrypto = { path = "../../ethcrypto" }
 rlp = { path = "../rlp" }
 path = { path = "../path" }
 ethcore-logger = { path ="../../logger" }
 ipnetwork = "0.12.6"
-hash = { path = "../hash" }
-snappy = { path = "../snappy" }
+keccak-hash = { path = "../hash" }
+snappy = { git = "https://github.com/paritytech/rust-snappy" }
 serde_json = "1.0"
+error-chain = { version = "0.11", default-features = false }
 
 [dev-dependencies]
-ethcore-devtools = { path = "../../devtools" }
 tempdir = "0.3"
 
 [features]
 default = []
-dev = ["clippy"]

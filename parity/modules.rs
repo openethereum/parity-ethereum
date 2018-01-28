@@ -17,7 +17,7 @@
 use std::sync::Arc;
 
 use ethcore::client::BlockChainClient;
-use ethsync::{AttachedProtocol, SyncConfig, NetworkConfiguration, NetworkError, Params, ConnectionFilter};
+use ethsync::{self, AttachedProtocol, SyncConfig, NetworkConfiguration, Params, ConnectionFilter};
 use ethcore::snapshot::SnapshotService;
 use light::Provider;
 
@@ -36,7 +36,7 @@ pub fn sync(
 	_log_settings: &LogConfig,
 	attached_protos: Vec<AttachedProtocol>,
 	connection_filter: Option<Arc<ConnectionFilter>>,
-) -> Result<SyncModules, NetworkError> {
+) -> Result<SyncModules, ethsync::Error> {
 	let eth_sync = EthSync::new(Params {
 		config: sync_cfg,
 		chain: client,

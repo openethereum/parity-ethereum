@@ -378,6 +378,8 @@ pub struct ConfirmConsensusInitialization {
 /// Node is asked to be part of servers-set consensus group.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InitializeConsensusSessionWithServersSet {
+	/// Migration id (if any).
+	pub migration_id: Option<SerializableH256>,
 	/// Old nodes set.
 	pub old_nodes_set: BTreeSet<MessageNodeId>,
 	/// New nodes set.
@@ -773,6 +775,8 @@ pub struct KeyShareCommon {
 	pub threshold: usize,
 	/// Author of key share entry.
 	pub author: SerializablePublic,
+	/// Joint public.
+	pub joint_public: SerializablePublic,
 	/// Common (shared) encryption point.
 	pub common_point: Option<SerializablePublic>,
 	/// Encrypted point.
@@ -872,6 +876,19 @@ impl Message {
 		match *self {
 			Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(_)) => true,
 			Message::Signing(SigningMessage::SigningSessionDelegation(_)) => true,
+			_ => false,
+		}
+	}
+
+	pub fn is_error_message(&self) -> bool {
+		match *self {
+			Message::Generation(GenerationMessage::SessionError(_)) => true,
+			Message::Encryption(EncryptionMessage::EncryptionSessionError(_)) => true,
+			Message::Decryption(DecryptionMessage::DecryptionSessionError(_)) => true,
+			Message::Signing(SigningMessage::SigningConsensusMessage(_)) => true,
+			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersionsError(_)) => true,
+			Message::ShareAdd(ShareAddMessage::ShareAddError(_)) => true,
+			Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(_)) => true,
 			_ => false,
 		}
 	}
@@ -1163,7 +1180,7 @@ impl fmt::Display for ConsensusMessageWithServersSet {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			ConsensusMessageWithServersSet::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
-			ConsensusMessageWithServersSet::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
+			ConsensusMessageWithServersSet::ConfirmConsensusInitialization(ref msg) => write!(f, "ConfirmConsensusInitialization({})", msg.is_confirmed),
 		}
 	}
 }
@@ -1172,7 +1189,7 @@ impl fmt::Display for ConsensusMessageOfShareAdd {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			ConsensusMessageOfShareAdd::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
-			ConsensusMessageOfShareAdd::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
+			ConsensusMessageOfShareAdd::ConfirmConsensusInitialization(ref msg) => write!(f, "ConfirmConsensusInitialization({})", msg.is_confirmed),
 		}
 	}
 }

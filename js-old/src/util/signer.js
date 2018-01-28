@@ -19,8 +19,8 @@ import Transaction from 'ethereumjs-tx';
 import { pbkdf2Sync } from 'crypto';
 import { createDecipheriv } from 'browserify-aes';
 
-import { inHex } from '~/api/format/input';
-import { sha3 } from '~/api/util/sha3';
+import { inHex } from '@parity/api/lib/format/input';
+import { sha3 } from '@parity/api/lib/util/sha3';
 
 // Adapted from https://github.com/kvhnuke/etherwallet/blob/mercury/app/scripts/myetherwallet.js
 

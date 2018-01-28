@@ -22,7 +22,7 @@ import { pick } from 'lodash';
 
 import { AddressSelect, Button, Form, TypedInput, Input, InputAddress, Portal } from '~/ui';
 import { CancelIcon, NextIcon } from '~/ui/Icons';
-import { fromWei } from '~/api/util/wei';
+import { fromWei } from '@parity/api/lib/util/wei';
 
 import WalletSettingsStore from './walletSettingsStore.js';
 import styles from './walletSettings.css';

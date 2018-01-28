@@ -24,12 +24,12 @@ pub use super::traits::NodeKeyPair;
 pub use super::types::all::{NodeId, EncryptedDocumentKeyShadow};
 pub use super::acl_storage::AclStorage;
 pub use super::key_storage::{KeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
-pub use super::key_server_set::KeyServerSet;
+pub use super::key_server_set::{is_migration_required, KeyServerSet, KeyServerSetSnapshot, KeyServerSetMigration};
 pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic, SerializableMessageHash};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
-pub use self::generation_session::Session as GenerationSession;
-pub use self::encryption_session::Session as EncryptionSession;
-pub use self::decryption_session::Session as DecryptionSession;
+pub use self::cluster_sessions::{ClusterSession, ClusterSessionsListener};
+#[cfg(test)]
+pub use self::cluster::tests::DummyClusterClient;
 
 #[cfg(test)]
 pub use super::node_key_pair::PlainNodeKeyPair;
@@ -187,6 +187,8 @@ pub use self::client_sessions::signing_session;
 mod cluster;
 mod cluster_sessions;
 mod cluster_sessions_creator;
+mod connection_trigger;
+mod connection_trigger_with_migration;
 mod io;
 mod jobs;
 pub mod math;

@@ -1,3 +1,5 @@
+Note: Parity 1.0 reached End-of-Life on 2016-06-24 (EOL).
+
 ## Parity [v1.0.2](https://github.com/paritytech/parity/releases/tag/v1.0.2) (2016-04-11)
 
 Parity 1.0.2 release improves Json RPC compatibility and fixes a number of stability issues.

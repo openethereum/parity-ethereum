@@ -16,7 +16,7 @@
 
 //! Import route.
 
-use bigint::hash::H256;
+use ethereum_types::H256;
 use blockchain::block_info::{BlockInfo, BlockLocation};
 
 /// Import route for newly inserted block.
@@ -67,8 +67,7 @@ impl From<BlockInfo> for ImportRoute {
 
 #[cfg(test)]
 mod tests {
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
+	use ethereum_types::{H256, U256};
 	use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 	use blockchain::ImportRoute;
 

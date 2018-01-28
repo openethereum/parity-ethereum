@@ -18,11 +18,14 @@ import React from 'react';
 import { shallow } from 'enzyme';
 import sinon from 'sinon';
 
-import Api from '~/api';
+import Api from '@parity/api';
 
 import TxList from './txList';
 
-const api = new Api({ execute: sinon.stub() });
+const api = new Api({
+  send: sinon.stub(),
+  on: sinon.stub()
+});
 
 const STORE = {
   dispatch: sinon.stub(),

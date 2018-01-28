@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import { createIdentityImg } from '~/api/util/identity';
+import { createIdentityImg } from '@parity/api/lib/util/identity';
 import { isNullAddress } from '~/util/validation';
 import { CancelIcon, ContractIcon } from '../Icons';
 
@@ -60,11 +60,10 @@ class IdentityIcon extends Component {
   }
 
   updateIcon (_address, images) {
-    const { api } = this.context;
     const { button, inline, tiny } = this.props;
 
     if (images[_address]) {
-      this.setState({ iconsrc: `${api.dappsUrl}${images[_address]}` });
+      this.setState({ iconsrc: images[_address] });
       return;
     }
 

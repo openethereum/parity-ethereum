@@ -16,9 +16,9 @@
 
 import { range, uniq } from 'lodash';
 
-import Abi from '~/abi';
-import Contract from '~/api/contract';
-import { bytesToHex, toHex } from '~/api/util/format';
+import Abi from '@parity/abi';
+import Contract from '@parity/api/lib/contract';
+import { bytesToHex, toHex } from '@parity/api/lib/util/format';
 import { validateAddress } from '~/util/validation';
 
 import WalletAbi from '~/contracts/abi/foundation-multisig-wallet.json';

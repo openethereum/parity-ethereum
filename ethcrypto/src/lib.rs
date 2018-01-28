@@ -17,7 +17,7 @@
 //! Crypto utils used ethstore and network.
 
 extern crate crypto as rcrypto;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 extern crate ethkey;
 extern crate secp256k1;
 extern crate subtle;
@@ -174,7 +174,6 @@ pub mod aes {
 }
 
 /// ECDH functions
-#[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ecdh {
 	use secp256k1::{ecdh, key, Error as SecpError};
 	use ethkey::{Secret, Public, SECP256K1};
@@ -199,13 +198,12 @@ pub mod ecdh {
 }
 
 /// ECIES function
-#[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ecies {
 	use rcrypto::digest::Digest;
 	use rcrypto::sha2::Sha256;
 	use rcrypto::hmac::Hmac;
 	use rcrypto::mac::Mac;
-	use bigint::hash::H128;
+	use ethereum_types::H128;
 	use ethkey::{Random, Generator, Public, Secret};
 	use {Error, ecdh, aes, Keccak256};
 

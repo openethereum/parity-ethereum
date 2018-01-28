@@ -14,12 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::{io, net, fmt};
 use io::IoError;
-use rlp::*;
-use std::fmt;
-use ethkey::Error as KeyError;
-use crypto::Error as CryptoError;
-use snappy;
+use {rlp, ethkey, crypto, snappy};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DisconnectReason
@@ -83,98 +80,80 @@ impl fmt::Display for DisconnectReason {
 	}
 }
 
-#[derive(Debug)]
-/// Network error.
-pub enum NetworkError {
-	/// Authentication error.
-	Auth,
-	/// Unrecognised protocol.
-	BadProtocol,
-	/// Message expired.
-	Expired,
-	/// Peer not found.
-	PeerNotFound,
-	/// Peer is diconnected.
-	Disconnect(DisconnectReason),
-	/// Invalid NodeId
-	InvalidNodeId,
-	/// Socket IO error.
-	Io(IoError),
-	/// Error concerning the network address parsing subsystem.
-	AddressParse(::std::net::AddrParseError),
-	/// Error concerning the network address resolution subsystem.
-	AddressResolve(Option<::std::io::Error>),
-	/// Error concerning the Rust standard library's IO subsystem.
-	StdIo(::std::io::Error),
-	/// Packet size is over the protocol limit.
-	OversizedPacket,
-	/// Decompression error.
-	Decompression(snappy::InvalidInput),
-}
+error_chain! {
+	foreign_links {
+		SocketIo(IoError) #[doc = "Socket IO error."];
+		Io(io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
+		AddressParse(net::AddrParseError) #[doc = "Error concerning the network address parsing subsystem."];
+		Decompression(snappy::InvalidInput) #[doc = "Decompression error."];
+	}
 
-impl fmt::Display for NetworkError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		use self::NetworkError::*;
+	errors {
+		#[doc = "Error concerning the network address resolution subsystem."]
+		AddressResolve(err: Option<io::Error>) {
+			description("Failed to resolve network address"),
+			display("Failed to resolve network address {}", err.as_ref().map_or("".to_string(), |e| e.to_string())),
+		}
 
-		let msg = match *self {
-			Auth => "Authentication failure".into(),
-			BadProtocol => "Bad protocol".into(),
-			Expired => "Expired message".into(),
-			PeerNotFound => "Peer not found".into(),
-			Disconnect(ref reason) => format!("Peer disconnected: {}", reason),
-			Io(ref err) => format!("Socket I/O error: {}", err),
-			AddressParse(ref err) => format!("{}", err),
-			AddressResolve(Some(ref err)) => format!("{}", err),
-			AddressResolve(_) => "Failed to resolve network address.".into(),
-			StdIo(ref err) => format!("{}", err),
-			InvalidNodeId => "Invalid node id".into(),
-			OversizedPacket => "Packet is too large".into(),
-			Decompression(ref err) => format!("Error decompressing packet: {}", err),
-		};
+		#[doc = "Authentication failure"]
+		Auth {
+			description("Authentication failure"),
+			display("Authentication failure"),
+		}
 
-		f.write_fmt(format_args!("Network error ({})", msg))
+		#[doc = "Unrecognised protocol"]
+		BadProtocol {
+			description("Bad protocol"),
+			display("Bad protocol"),
+		}
+
+		#[doc = "Expired message"]
+		Expired {
+			description("Expired message"),
+			display("Expired message"),
+		}
+
+		#[doc = "Peer not found"]
+		PeerNotFound {
+			description("Peer not found"),
+			display("Peer not found"),
+		}
+
+		#[doc = "Peer is disconnected"]
+		Disconnect(reason: DisconnectReason) {
+			description("Peer disconnected"),
+			display("Peer disconnected: {}", reason),
+		}
+
+		#[doc = "Invalid node id"]
+		InvalidNodeId {
+			description("Invalid node id"),
+			display("Invalid node id"),
+		}
+
+		#[doc = "Packet size is over the protocol limit"]
+		OversizedPacket {
+			description("Packet is too large"),
+			display("Packet is too large"),
+		}
 	}
 }
 
-impl From<DecoderError> for NetworkError {
-	fn from(_err: DecoderError) -> NetworkError {
-		NetworkError::Auth
+impl From<rlp::DecoderError> for Error {
+	fn from(_err: rlp::DecoderError) -> Self {
+		ErrorKind::Auth.into()
 	}
 }
 
-impl From<::std::io::Error> for NetworkError {
-	fn from(err: ::std::io::Error) -> NetworkError {
-		NetworkError::StdIo(err)
+impl From<ethkey::Error> for Error {
+	fn from(_err: ethkey::Error) -> Self {
+		ErrorKind::Auth.into()
 	}
 }
 
-impl From<IoError> for NetworkError {
-	fn from(err: IoError) -> NetworkError {
-		NetworkError::Io(err)
-	}
-}
-
-impl From<KeyError> for NetworkError {
-	fn from(_err: KeyError) -> Self {
-		NetworkError::Auth
-	}
-}
-
-impl From<CryptoError> for NetworkError {
-	fn from(_err: CryptoError) -> NetworkError {
-		NetworkError::Auth
-	}
-}
-
-impl From<snappy::InvalidInput> for NetworkError {
-	fn from(err: snappy::InvalidInput) -> NetworkError {
-		NetworkError::Decompression(err)
-	}
-}
-
-impl From<::std::net::AddrParseError> for NetworkError {
-	fn from(err: ::std::net::AddrParseError) -> NetworkError {
-		NetworkError::AddressParse(err)
+impl From<crypto::Error> for Error {
+	fn from(_err: crypto::Error) -> Self {
+		ErrorKind::Auth.into()
 	}
 }
 
@@ -187,13 +166,13 @@ fn test_errors() {
 	}
 	assert_eq!(DisconnectReason::Unknown, r);
 
-	match <NetworkError as From<DecoderError>>::from(DecoderError::RlpIsTooBig) {
-		NetworkError::Auth => {},
+	match *<Error as From<rlp::DecoderError>>::from(rlp::DecoderError::RlpIsTooBig).kind() {
+		ErrorKind::Auth => {},
 		_ => panic!("Unexpeceted error"),
 	}
 
-	match <NetworkError as From<CryptoError>>::from(CryptoError::InvalidMessage) {
-		NetworkError::Auth => {},
+	match *<Error as From<crypto::Error>>::from(crypto::Error::InvalidMessage).kind() {
+		ErrorKind::Auth => {},
 		_ => panic!("Unexpeceted error"),
 	}
 }

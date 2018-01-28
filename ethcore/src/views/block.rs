@@ -17,7 +17,7 @@
 //! View onto block rlp.
 
 use hash::keccak;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use bytes::Bytes;
 use header::*;
 use transaction::*;
@@ -160,7 +160,7 @@ impl<'a> BlockView<'a> {
 mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use super::BlockView;
 
 	#[test]

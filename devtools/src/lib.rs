@@ -16,14 +16,4 @@
 
 //! dev-tools
 
-
-extern crate rand;
-
-mod random_path;
-mod test_socket;
-mod stop_guard;
 pub mod http_client;
-
-pub use random_path::*;
-pub use test_socket::*;
-pub use stop_guard::*;

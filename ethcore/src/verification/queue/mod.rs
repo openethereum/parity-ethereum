@@ -23,8 +23,7 @@ use std::sync::{Condvar as SCondvar, Mutex as SMutex, Arc};
 use std::cmp;
 use std::collections::{VecDeque, HashSet, HashMap};
 use heapsize::HeapSizeOf;
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;
 use error::*;
@@ -164,7 +163,6 @@ struct QueueSignal {
 }
 
 impl QueueSignal {
-	#[cfg_attr(feature="dev", allow(bool_comparison))]
 	fn set_sync(&self) {
 		// Do not signal when we are about to close
 		if self.deleting.load(AtomicOrdering::Relaxed) {
@@ -179,7 +177,6 @@ impl QueueSignal {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(bool_comparison))]
 	fn set_async(&self) {
 		// Do not signal when we are about to close
 		if self.deleting.load(AtomicOrdering::Relaxed) {
@@ -505,7 +502,7 @@ impl<K: Kind> VerificationQueue<K> {
 			Err(err) => {
 				match err {
 					// Don't mark future blocks as bad.
-					Error::Block(BlockError::InvalidTimestamp(ref e)) if e.max.is_some() => {},
+					Error::Block(BlockError::TemporarilyInvalid(_)) => {},
 					_ => {
 						self.verification.bad.lock().insert(h.clone());
 					}

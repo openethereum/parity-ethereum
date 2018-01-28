@@ -105,16 +105,14 @@ impl EthashManager {
 			};
 			match light {
 				None => {
-					let light = match Light::from_file_with_builder(
-						&self.nodecache_builder,
+					let light = match self.nodecache_builder.light_from_file(
 						&self.cache_dir,
 						block_number,
 					) {
 						Ok(light) => Arc::new(light),
 						Err(e) => {
 							debug!("Light cache file not found for {}:{}", block_number, e);
-							let mut light = Light::new_with_builder(
-								&self.nodecache_builder,
+							let mut light = self.nodecache_builder.light(
 								&self.cache_dir,
 								block_number,
 							);
@@ -169,7 +167,7 @@ mod benchmarks {
 		use std::env;
 
 		let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-		let light = Light::new_with_builder(&builder, &env::temp_dir(), 486382);
+		let light = builder.light(&env::temp_dir(), 486382);
 
 		b.iter(|| light_compute(&light, &HASH, NONCE));
 	}
@@ -178,7 +176,8 @@ mod benchmarks {
 	fn bench_light_compute_memory(b: &mut Bencher) {
 		use std::env;
 
-		let light = Light::new(&env::temp_dir(), 486382);
+		let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
+		let light = builder.light(&env::temp_dir(), 486382);
 
 		b.iter(|| light_compute(&light, &HASH, NONCE));
 	}
@@ -190,7 +189,7 @@ mod benchmarks {
 
 		b.iter(|| {
 			let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-			let light = Light::new_with_builder(&builder, &env::temp_dir(), 486382);
+			let light = builder.light(&env::temp_dir(), 486382);
 			light_compute(&light, &HASH, NONCE);
 		});
 	}
@@ -199,8 +198,10 @@ mod benchmarks {
 	#[ignore]
 	fn bench_light_new_round_trip_memory(b: &mut Bencher) {
 		use std::env;
+
 		b.iter(|| {
-			let light = Light::new(&env::temp_dir(), 486382);
+			let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
+			let light = builder.light(&env::temp_dir(), 486382);
 			light_compute(&light, &HASH, NONCE);
 		});
 	}
@@ -212,12 +213,14 @@ mod benchmarks {
 		let dir = env::temp_dir();
 		let height = 486382;
 		{
-			let mut dummy = Light::new(&dir, height);
+			let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
+			let mut dummy = builder.light(&dir, height);
 			dummy.to_file().unwrap();
 		}
 
 		b.iter(|| {
-			let light = Light::from_file(&dir, 486382).unwrap();
+			let builder = NodeCacheBuilder::new(OptimizeFor::Cpu);
+			let light = builder.light_from_file(&dir, 486382).unwrap();
 			light_compute(&light, &HASH, NONCE);
 		});
 	}
@@ -228,15 +231,16 @@ mod benchmarks {
 
 		let dir = env::temp_dir();
 		let height = 486382;
+
 		{
 			let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-			let mut dummy = Light::new_with_builder(&builder, &dir, height);
+			let mut dummy = builder.light(&dir, height);
 			dummy.to_file().unwrap();
 		}
 
 		b.iter(|| {
 			let builder = NodeCacheBuilder::new(OptimizeFor::Memory);
-			let light = Light::from_file_with_builder(&builder, &dir, 486382).unwrap();
+			let light = builder.light_from_file(&dir, 486382).unwrap();
 			light_compute(&light, &HASH, NONCE);
 		});
 	}

@@ -14,12 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeSet;
 use rand::{Rng, OsRng};
 use ethkey::{Public, Secret, math};
 use crypto;
 use bytes::Bytes;
 use jsonrpc_core::Error;
 use v1::helpers::errors;
+use v1::types::{H256, H512};
+use tiny_keccak::Keccak;
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
@@ -61,9 +64,23 @@ pub fn decrypt_document(key: Bytes, mut encrypted_document: Bytes) -> Result<Byt
 	Ok(document)
 }
 
+/// Decrypt document given secret shadow.
 pub fn decrypt_document_with_shadow(decrypted_secret: Public, common_point: Public, shadows: Vec<Secret>, encrypted_document: Bytes) -> Result<Bytes, Error> {
 	let key = decrypt_with_shadow_coefficients(decrypted_secret, common_point, shadows)?;
 	decrypt_document(key.to_vec(), encrypted_document)
+}
+
+/// Calculate Keccak(ordered servers set)
+pub fn ordered_servers_keccak(servers_set: BTreeSet<H512>) -> H256 {
+	let mut servers_set_keccak = Keccak::new_keccak256();
+	for server in servers_set {
+		servers_set_keccak.update(&server.0);
+	}
+
+	let mut servers_set_keccak_value = [0u8; 32];
+	servers_set_keccak.finalize(&mut servers_set_keccak_value);
+
+	servers_set_keccak_value.into()
 }
 
 fn into_document_key(key: Bytes) -> Result<Bytes, Error> {

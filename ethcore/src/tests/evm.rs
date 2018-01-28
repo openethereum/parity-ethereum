@@ -12,8 +12,7 @@ use transaction::SYSTEM_ADDRESS;
 
 use rustc_hex::FromHex;
 
-use bigint::hash::H256;
-use util::*;
+use ethereum_types::{H256, Address};
 use bytes::BytesRef;
 
 evm_test!{test_blockhash_eip210: test_blockhash_eip210_jit, test_blockhash_eip210_int}

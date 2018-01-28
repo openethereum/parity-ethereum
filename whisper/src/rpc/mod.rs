@@ -27,7 +27,7 @@ use jsonrpc_core::{Error, ErrorCode, Metadata};
 use jsonrpc_pubsub::{Session, PubSubMetadata, SubscriptionId};
 use jsonrpc_macros::pubsub;
 
-use bigint::hash::H256;
+use ethereum_types::H256;
 use parking_lot::RwLock;
 
 use self::filter::Filter;

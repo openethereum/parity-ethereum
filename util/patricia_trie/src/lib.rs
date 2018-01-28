@@ -16,8 +16,8 @@
 
 //! Trie interface and implementation.
 extern crate rand;
-extern crate ethcore_bigint as bigint;
-extern crate hash as keccak;
+extern crate ethereum_types;
+extern crate keccak_hash as keccak;
 extern crate rlp;
 extern crate hashdb;
 extern crate ethcore_bytes as bytes;
@@ -29,7 +29,7 @@ extern crate ethcore_logger;
 extern crate log;
 
 use std::{fmt, error};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use keccak::KECCAK_NULL_RLP;
 use hashdb::{HashDB, DBValue};
 
@@ -268,7 +268,6 @@ impl<'db> Trie for TrieKinds<'db> {
 	}
 }
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl TrieFactory {
 	/// Creates new factory.
 	pub fn new(spec: TrieSpec) -> Self {

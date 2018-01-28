@@ -25,9 +25,9 @@ use std::collections::{HashSet, HashMap};
 use std::sync::Arc;
 
 use state::Account;
-use bigint::hash::H256;
 use parking_lot::Mutex;
-use util::{Address, MemoryDB};
+use ethereum_types::{Address, H256};
+use memorydb::MemoryDB;
 use hashdb::{AsHashDB, HashDB, DBValue};
 
 /// State backend. See module docs for more details.

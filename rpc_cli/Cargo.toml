@@ -12,4 +12,3 @@ rpassword = "1.0"
 bigint = "4.0"
 parity-rpc = { path = "../rpc" }
 parity-rpc-client = { path = "../rpc_client" }
-ethcore-util = { path = "../util" }

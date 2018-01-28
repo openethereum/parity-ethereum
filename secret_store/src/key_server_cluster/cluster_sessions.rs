@@ -17,24 +17,22 @@
 use std::time;
 use std::sync::{Arc, Weak};
 use std::sync::atomic::AtomicBool;
-use std::collections::{VecDeque, BTreeMap};
-use parking_lot::{Mutex, RwLock};
-use bigint::hash::H256;
-use ethkey::{Public, Secret, Signature};
-use key_server_cluster::{Error, NodeId, SessionId, EncryptedDocumentKeyShadow};
+use std::collections::{VecDeque, BTreeMap, BTreeSet};
+use parking_lot::{Mutex, RwLock, Condvar};
+use ethereum_types::H256;
+use ethkey::{Secret, Signature};
+use key_server_cluster::{Error, NodeId, SessionId};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterConfiguration, ClusterView};
+use key_server_cluster::connection_trigger::ServersSetChangeSessionCreatorConnector;
 use key_server_cluster::message::{self, Message};
-use key_server_cluster::generation_session::{Session as GenerationSession, SessionImpl as GenerationSessionImpl,
-	SessionState as GenerationSessionState};
-use key_server_cluster::decryption_session::{Session as DecryptionSession, SessionImpl as DecryptionSessionImpl};
-use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionImpl as EncryptionSessionImpl,
-	SessionState as EncryptionSessionState};
-use key_server_cluster::signing_session::{Session as SigningSession, SessionImpl as SigningSessionImpl};
-use key_server_cluster::share_add_session::{Session as ShareAddSession, SessionImpl as ShareAddSessionImpl,
-	IsolatedSessionTransport as ShareAddTransport};
-use key_server_cluster::servers_set_change_session::{Session as ServersSetChangeSession, SessionImpl as ServersSetChangeSessionImpl};
-use key_server_cluster::key_version_negotiation_session::{Session as KeyVersionNegotiationSession, SessionImpl as KeyVersionNegotiationSessionImpl,
-	IsolatedSessionTransport as VersionNegotiationTransport, ContinueAction};
+use key_server_cluster::generation_session::{SessionImpl as GenerationSessionImpl};
+use key_server_cluster::decryption_session::{SessionImpl as DecryptionSessionImpl};
+use key_server_cluster::encryption_session::{SessionImpl as EncryptionSessionImpl};
+use key_server_cluster::signing_session::{SessionImpl as SigningSessionImpl};
+use key_server_cluster::share_add_session::{SessionImpl as ShareAddSessionImpl, IsolatedSessionTransport as ShareAddTransport};
+use key_server_cluster::servers_set_change_session::{SessionImpl as ServersSetChangeSessionImpl};
+use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVersionNegotiationSessionImpl,
+	IsolatedSessionTransport as VersionNegotiationTransport};
 
 use key_server_cluster::cluster_sessions_creator::{GenerationSessionCreator, EncryptionSessionCreator, DecryptionSessionCreator, SigningSessionCreator,
 	KeyVersionNegotiationSessionCreator, AdminSessionCreator, SessionCreatorCore, ClusterSessionCreator};
@@ -66,7 +64,7 @@ pub struct SessionIdWithSubSession {
 /// Generic cluster session.
 pub trait ClusterSession {
 	/// Session identifier type.
-	type Id: Ord + Clone;
+	type Id: ::std::fmt::Debug + Ord + Clone;
 
 	/// Session type name.
 	fn type_name() -> &'static str;
@@ -82,6 +80,25 @@ pub trait ClusterSession {
 	fn on_session_error(&self, sender: &NodeId, error: Error);
 	/// Process session message.
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error>;
+
+	/// 'Wait for session completion' helper.
+	fn wait_session<T, U, F: Fn(&U) -> Option<Result<T, Error>>>(completion_event: &Condvar, session_data: &Mutex<U>, timeout: Option<time::Duration>, result_reader: F) -> Result<T, Error> {
+		let mut locked_data = session_data.lock();
+		match result_reader(&locked_data) {
+			Some(result) => result,
+			None => {
+				match timeout {
+					None => completion_event.wait(&mut locked_data),
+					Some(timeout) => {
+						completion_event.wait_for(&mut locked_data, timeout);
+					},
+				}
+
+				result_reader(&locked_data)
+					.expect("waited for completion; completion is only signaled when result.is_some(); qed")
+			},
+		}
+	}
 }
 
 /// Administrative session.
@@ -94,10 +111,10 @@ pub enum AdminSession {
 
 /// Administrative session creation data.
 pub enum AdminSessionCreationData {
-	/// Share add session.
+	/// Share add session (key id).
 	ShareAdd(H256),
-	/// Servers set change session.
-	ServersSetChange,
+	/// Servers set change session (block id, new_server_set).
+	ServersSetChange(Option<H256>, BTreeSet<NodeId>),
 }
 
 /// Active sessions on this cluster.
@@ -120,12 +137,22 @@ pub struct ClusterSessions {
 	creator_core: Arc<SessionCreatorCore>,
 }
 
+/// Active sessions container listener.
+pub trait ClusterSessionsListener<S: ClusterSession>: Send + Sync {
+	/// When new session is inserted to the container.
+	fn on_session_inserted(&self, _session: Arc<S>) {}
+	/// When session is removed from the container.
+	fn on_session_removed(&self, _session: Arc<S>) {}
+}
+
 /// Active sessions container.
 pub struct ClusterSessionsContainer<S: ClusterSession, SC: ClusterSessionCreator<S, D>, D> {
 	/// Sessions creator.
 	pub creator: SC,
 	/// Active sessions.
 	sessions: RwLock<BTreeMap<S::Id, QueuedSession<S>>>,
+	/// Listeners. Lock order: sessions -> listeners.
+	listeners: Mutex<Vec<Weak<ClusterSessionsListener<S>>>>,
 	/// Sessions container state.
 	container_state: Arc<Mutex<ClusterSessionsContainerState>>,
 	/// Phantom data.
@@ -159,69 +186,9 @@ pub enum ClusterSessionsContainerState {
 	Exclusive,
 }
 
-/// Generation session implementation, which removes session from cluster on drop.
-pub struct GenerationSessionWrapper {
-	/// Wrapped session.
-	session: Arc<GenerationSession>,
-	/// Session Id.
-	session_id: SessionId,
-	/// Cluster data reference.
-	cluster: Weak<ClusterData>,
-}
-
-/// Encryption session implementation, which removes session from cluster on drop.
-pub struct EncryptionSessionWrapper {
-	/// Wrapped session.
-	session: Arc<EncryptionSession>,
-	/// Session Id.
-	session_id: SessionId,
-	/// Cluster data reference.
-	cluster: Weak<ClusterData>,
-}
-
-/// Decryption session implementation, which removes session from cluster on drop.
-pub struct DecryptionSessionWrapper {
-	/// Wrapped session.
-	session: Arc<DecryptionSession>,
-	/// Session Id.
-	session_id: SessionIdWithSubSession,
-	/// Cluster data reference.
-	cluster: Weak<ClusterData>,
-}
-
-/// Signing session implementation, which removes session from cluster on drop.
-pub struct SigningSessionWrapper {
-	/// Wrapped session.
-	session: Arc<SigningSession>,
-	/// Session Id.
-	session_id: SessionIdWithSubSession,
-	/// Cluster data reference.
-	cluster: Weak<ClusterData>,
-}
-
-/// Admin session implementation, which removes session from cluster on drop.
-pub struct AdminSessionWrapper {
-	/// Wrapped session.
-	session: Arc<AdminSession>,
-	/// Session Id.
-	session_id: SessionId,
-	/// Cluster data reference.
-	cluster: Weak<ClusterData>,
-}
-
-/// Key server version negotiation session implementation, which removes session from cluster on drop.
-pub struct KeyNegotiationSessionWrapper {
-	/// Wrapped session.
-	session: Arc<KeyVersionNegotiationSession>,
-	/// Session Id.
-	session_id: SessionIdWithSubSession,
-	/// Cluster data reference.
-	cluster: Weak<ClusterData>,
-}
-
 impl ClusterSessions {
 	/// Create new cluster sessions container.
-	pub fn new(config: &ClusterConfiguration) -> Self {
+	pub fn new(config: &ClusterConfiguration, servers_set_change_session_creator_connector: Arc<ServersSetChangeSessionCreatorConnector>) -> Self {
 		let container_state = Arc::new(Mutex::new(ClusterSessionsContainerState::Idle));
 		let creator_core = Arc::new(SessionCreatorCore::new(config));
 		ClusterSessions {
@@ -244,6 +211,7 @@ impl ClusterSessions {
 			}, container_state.clone()),
 			admin_sessions: ClusterSessionsContainer::new(AdminSessionCreator {
 				core: creator_core.clone(),
+				servers_set_change_session_creator_connector: servers_set_change_session_creator_connector,
 				admin_public: config.admin_public.clone(),
 			}, container_state),
 			creator_core: creator_core,
@@ -294,11 +262,17 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 		ClusterSessionsContainer {
 			creator: creator,
 			sessions: RwLock::new(BTreeMap::new()),
+			listeners: Mutex::new(Vec::new()),
 			container_state: container_state,
 			_pd: Default::default(),
 		}
 	}
 
+	pub fn add_listener(&self, listener: Arc<ClusterSessionsListener<S>>) {
+		self.listeners.lock().push(Arc::downgrade(&listener));
+	}
+
+	#[cfg(test)]
 	pub fn is_empty(&self) -> bool {
 		self.sessions.read().is_empty()
 	}
@@ -342,12 +316,15 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 			queue: VecDeque::new(),
 		};
 		sessions.insert(session_id, queued_session);
+		self.notify_listeners(|l| l.on_session_inserted(session.clone()));
+
 		Ok(session)
 	}
 
 	pub fn remove(&self, session_id: &S::Id) {
-		if self.sessions.write().remove(session_id).is_some() {
+		if let Some(session) = self.sessions.write().remove(session_id) {
 			self.container_state.lock().on_session_completed();
+			self.notify_listeners(|l| l.on_session_removed(session.session.clone()));
 		}
 	}
 
@@ -391,6 +368,22 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 			};
 			if remove_session {
 				sessions.remove(&sid);
+			}
+		}
+	}
+
+	fn notify_listeners<F: Fn(&ClusterSessionsListener<S>) -> ()>(&self, callback: F) {
+		let mut listeners = self.listeners.lock();
+		let mut listener_index = 0;
+		while listener_index < listeners.len() {
+			match listeners[listener_index].upgrade() {
+				Some(listener) => {
+					callback(&*listener);
+					listener_index += 1;
+				},
+				None => {
+					listeners.swap_remove(listener_index);
+				},
 			}
 		}
 	}
@@ -545,151 +538,6 @@ impl ClusterSession for AdminSession {
 		}
 	}
 }
-
-impl GenerationSessionWrapper {
-	pub fn new(cluster: Weak<ClusterData>, session_id: SessionId, session: Arc<GenerationSession>) -> Arc<Self> {
-		Arc::new(GenerationSessionWrapper {
-			session: session,
-			session_id: session_id,
-			cluster: cluster,
-		})
-	}
-}
-
-impl GenerationSession for GenerationSessionWrapper {
-	fn state(&self) -> GenerationSessionState {
-		self.session.state()
-	}
-
-	fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error> {
-		self.session.wait(timeout)
-	}
-
-	fn joint_public_and_secret(&self) -> Option<Result<(Public, Secret), Error>> {
-		self.session.joint_public_and_secret()
-	}
-}
-
-impl Drop for GenerationSessionWrapper {
-	fn drop(&mut self) {
-		if let Some(cluster) = self.cluster.upgrade() {
-			cluster.sessions().generation_sessions.remove(&self.session_id);
-		}
-	}
-}
-
-impl EncryptionSessionWrapper {
-	pub fn new(cluster: Weak<ClusterData>, session_id: SessionId, session: Arc<EncryptionSession>) -> Arc<Self> {
-		Arc::new(EncryptionSessionWrapper {
-			session: session,
-			session_id: session_id,
-			cluster: cluster,
-		})
-	}
-}
-
-impl EncryptionSession for EncryptionSessionWrapper {
-	fn state(&self) -> EncryptionSessionState {
-		self.session.state()
-	}
-
-	fn wait(&self, timeout: Option<time::Duration>) -> Result<(), Error> {
-		self.session.wait(timeout)
-	}
-}
-
-impl Drop for EncryptionSessionWrapper {
-	fn drop(&mut self) {
-		if let Some(cluster) = self.cluster.upgrade() {
-			cluster.sessions().encryption_sessions.remove(&self.session_id);
-		}
-	}
-}
-
-impl DecryptionSessionWrapper {
-	pub fn new(cluster: Weak<ClusterData>, session_id: SessionIdWithSubSession, session: Arc<DecryptionSession>) -> Arc<Self> {
-		Arc::new(DecryptionSessionWrapper {
-			session: session,
-			session_id: session_id,
-			cluster: cluster,
-		})
-	}
-}
-
-impl DecryptionSession for DecryptionSessionWrapper {
-	fn wait(&self) -> Result<EncryptedDocumentKeyShadow, Error> {
-		self.session.wait()
-	}
-}
-
-impl Drop for DecryptionSessionWrapper {
-	fn drop(&mut self) {
-		if let Some(cluster) = self.cluster.upgrade() {
-			cluster.sessions().decryption_sessions.remove(&self.session_id);
-		}
-	}
-}
-
-impl SigningSessionWrapper {
-	pub fn new(cluster: Weak<ClusterData>, session_id: SessionIdWithSubSession, session: Arc<SigningSession>) -> Arc<Self> {
-		Arc::new(SigningSessionWrapper {
-			session: session,
-			session_id: session_id,
-			cluster: cluster,
-		})
-	}
-}
-
-impl SigningSession for SigningSessionWrapper {
-	fn wait(&self) -> Result<(Secret, Secret), Error> {
-		self.session.wait()
-	}
-}
-
-impl Drop for SigningSessionWrapper {
-	fn drop(&mut self) {
-		if let Some(cluster) = self.cluster.upgrade() {
-			cluster.sessions().signing_sessions.remove(&self.session_id);
-		}
-	}
-}
-
-impl AdminSessionWrapper {
-	pub fn new(cluster: Weak<ClusterData>, session_id: SessionId, session: Arc<AdminSession>) -> Arc<Self> {
-		Arc::new(AdminSessionWrapper {
-			session: session,
-			session_id: session_id,
-			cluster: cluster,
-		})
-	}
-}
-
-impl ShareAddSession for AdminSessionWrapper {
-	fn wait(&self) -> Result<(), Error> {
-		match *self.session {
-			AdminSession::ShareAdd(ref session) => session.wait(),
-			_ => Err(Error::InvalidMessage),
-		}
-	}
-}
-
-impl ServersSetChangeSession for AdminSessionWrapper {
-	fn wait(&self) -> Result<(), Error> {
-		match *self.session {
-			AdminSession::ServersSetChange(ref session) => session.wait(),
-			_ => Err(Error::InvalidMessage),
-		}
-	}
-}
-
-impl Drop for AdminSessionWrapper {
-	fn drop(&mut self) {
-		if let Some(cluster) = self.cluster.upgrade() {
-			cluster.sessions().admin_sessions.remove(&self.session_id);
-		}
-	}
-}
-
 pub fn create_cluster_view(data: &Arc<ClusterData>, requires_all_connections: bool) -> Result<Arc<Cluster>, Error> {
 	if requires_all_connections {
 		if !data.connections.disconnected_nodes().is_empty() {
@@ -703,45 +551,13 @@ pub fn create_cluster_view(data: &Arc<ClusterData>, requires_all_connections: bo
 	Ok(Arc::new(ClusterView::new(data.clone(), connected_nodes)))
 }
 
-impl KeyNegotiationSessionWrapper {
-	pub fn new(cluster: Weak<ClusterData>, session_id: SessionIdWithSubSession, session: Arc<KeyVersionNegotiationSession>) -> Arc<Self> {
-		Arc::new(KeyNegotiationSessionWrapper {
-			session: session,
-			session_id: session_id,
-			cluster: cluster,
-		})
-	}
-}
-
-impl KeyVersionNegotiationSession for KeyNegotiationSessionWrapper {
-	fn set_continue_action(&self, action: ContinueAction) {
-		self.session.set_continue_action(action)
-	}
-
-	fn continue_action(&self) -> Option<ContinueAction> {
-		self.session.continue_action()
-	}
-
-	fn wait(&self) -> Result<(H256, NodeId), Error> {
-		self.session.wait()
-	}
-}
-
-impl Drop for KeyNegotiationSessionWrapper {
-	fn drop(&mut self) {
-		if let Some(cluster) = self.cluster.upgrade() {
-			cluster.sessions().negotiation_sessions.remove(&self.session_id);
-		}
-	}
-}
-
-
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
 	use ethkey::{Random, Generator};
 	use key_server_cluster::{Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet, PlainNodeKeyPair};
 	use key_server_cluster::cluster::ClusterConfiguration;
+	use key_server_cluster::connection_trigger::SimpleServersSetChangeSessionCreatorConnector;
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use super::{ClusterSessions, AdminSessionCreationData};
 
@@ -756,8 +572,11 @@ mod tests {
 			key_storage: Arc::new(DummyKeyStorage::default()),
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			admin_public: Some(Random.generate().unwrap().public().clone()),
+			auto_migrate_enabled: false,
 		};
-		ClusterSessions::new(&config)
+		ClusterSessions::new(&config, Arc::new(SimpleServersSetChangeSessionCreatorConnector {
+			admin_public: Some(Random.generate().unwrap().public().clone()),
+		}))
 	}
 
 	#[test]

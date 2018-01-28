@@ -18,16 +18,16 @@ use std::fmt;
 use std::collections::BTreeMap;
 use serde_json;
 
-use {ethkey, kvdb, bytes, bigint, key_server_cluster};
+use {ethkey, kvdb, bytes, ethereum_types, key_server_cluster};
 
 /// Node id.
 pub type NodeId = ethkey::Public;
 /// Server key id. When key is used to encrypt document, it could be document contents hash.
-pub type ServerKeyId = bigint::hash::H256;
+pub type ServerKeyId = ethereum_types::H256;
 /// Encrypted document key type.
 pub type EncryptedDocumentKey = bytes::Bytes;
 /// Message hash.
-pub type MessageHash = bigint::hash::H256;
+pub type MessageHash = ethereum_types::H256;
 /// Message signature.
 pub type EncryptedMessageSignature = bytes::Bytes;
 /// Request signature type.
@@ -44,6 +44,8 @@ pub enum Error {
 	AccessDenied,
 	/// Requested document not found
 	DocumentNotFound,
+	/// Hyper error
+	Hyper(String),
 	/// Serialization/deserialization error
 	Serde(String),
 	/// Database-related error
@@ -61,11 +63,22 @@ pub struct NodeAddress {
 	pub port: u16,
 }
 
+/// Contract address.
+#[derive(Debug, Clone)]
+pub enum ContractAddress {
+	/// Address is read from registry.
+	Registry,
+	/// Address is specified.
+	Address(ethkey::Address),
+}
+
 /// Secret store configuration
 #[derive(Debug)]
 pub struct ServiceConfiguration {
 	/// HTTP listener address. If None, HTTP API is disabled.
 	pub listener_address: Option<NodeAddress>,
+	/// Service contract address. If None, service contract API is disabled.
+	pub service_contract_address: Option<ContractAddress>,
 	/// Is ACL check enabled. If false, everyone has access to all keys. Useful for tests only.
 	pub acl_check_enabled: bool,
 	/// Data directory path for secret store
@@ -88,6 +101,9 @@ pub struct ClusterConfiguration {
 	pub allow_connecting_to_higher_nodes: bool,
 	/// Administrator public key.
 	pub admin_public: Option<Public>,
+	/// Should key servers set change session should be started when servers set changes.
+	/// This will only work when servers set is configured using KeyServerSet contract.
+	pub auto_migrate_enabled: bool,
 }
 
 /// Shadow decryption result.
@@ -107,6 +123,7 @@ impl fmt::Display for Error {
 			Error::BadSignature => write!(f, "Bad signature"),
 			Error::AccessDenied => write!(f, "Access dened"),
 			Error::DocumentNotFound => write!(f, "Document not found"),
+			Error::Hyper(ref msg) => write!(f, "Hyper error: {}", msg),
 			Error::Serde(ref msg) => write!(f, "Serialization error: {}", msg),
 			Error::Database(ref msg) => write!(f, "Database error: {}", msg),
 			Error::Internal(ref msg) => write!(f, "Internal error: {}", msg),
@@ -135,7 +152,9 @@ impl From<kvdb::Error> for Error {
 impl From<key_server_cluster::Error> for Error {
 	fn from(err: key_server_cluster::Error) -> Self {
 		match err {
-			key_server_cluster::Error::AccessDenied => Error::AccessDenied,
+			key_server_cluster::Error::ConsensusUnreachable
+				| key_server_cluster::Error::AccessDenied => Error::AccessDenied,
+			key_server_cluster::Error::MissingKeyShare => Error::DocumentNotFound,
 			_ => Error::Internal(err.into()),
 		}
 	}

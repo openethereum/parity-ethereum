@@ -9,7 +9,7 @@ extern crate parking_lot;
 extern crate serde;
 extern crate serde_json;
 extern crate url;
-extern crate hash;
+extern crate keccak_hash as hash;
 
 #[macro_use]
 extern crate log;
@@ -37,7 +37,7 @@ mod tests {
 		authcodes.to_file(&authcodes.path).unwrap();
 
 		let connect = Rpc::connect(&format!("ws://127.0.0.1:{}", port - 1),
-								   authcodes.path.as_path());
+								   &authcodes.path);
 
 		let _ = connect.map(|conn| {
 			assert!(matches!(&conn, &Err(RpcError::WsError(_))));
@@ -64,7 +64,7 @@ mod tests {
 		authcodes.to_file(&authcodes.path).unwrap();
 
 		let connect = Rpc::connect(&format!("ws://127.0.0.1:{}", port),
-								   authcodes.path.as_path());
+								   &authcodes.path);
 
 		let _ = connect.map(|conn| {
 			assert!(conn.is_ok())

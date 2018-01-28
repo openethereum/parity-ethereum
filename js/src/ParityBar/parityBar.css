@@ -110,7 +110,7 @@ $modalZ: 10001;
   width: 960px;
 
   .content {
-    background: rgba(255, 255, 255, 0.95);
+    background: #f2f2f2;
     display: flex;
     flex: 1;
     max-width: calc(100vw - 2em);
@@ -189,9 +189,9 @@ $modalZ: 10001;
 }
 
 .header {
-  /* height: 2em; */
-  padding: 0.5em 1em;
+  border-radius: 4px 4px 0 0;
   margin-bottom: 0;
+  padding: 0.5em 1em;
 
   &::after {
     clear: both;

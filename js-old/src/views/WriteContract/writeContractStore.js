@@ -20,7 +20,7 @@ import React from 'react';
 import { FormattedMessage } from 'react-intl';
 import store from 'store';
 
-import { sha3 } from '~/api/util/sha3';
+import { sha3 } from '@parity/api/lib/util/sha3';
 import SolidityUtils from '~/util/solidity';
 
 const SOLIDITY_LIST_URL = 'https://rawgit.com/ethereum/solc-bin/gh-pages/bin/list.json';

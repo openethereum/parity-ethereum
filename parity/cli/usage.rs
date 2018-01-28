@@ -152,9 +152,9 @@ macro_rules! usage {
 		use toml;
 		use std::{fs, io, process};
 		use std::io::{Read, Write};
-		use util::version;
+		use parity_version::version;
 		use clap::{Arg, App, SubCommand, AppSettings, ArgMatches as ClapArgMatches, Error as ClapError, ErrorKind as ClapErrorKind};
-		use helpers::replace_home;
+		use dir::helpers::replace_home;
 		use std::ffi::OsStr;
 		use std::collections::HashMap;
 

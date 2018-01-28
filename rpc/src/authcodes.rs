@@ -22,7 +22,7 @@ use itertools::Itertools;
 use rand::Rng;
 use rand::os::OsRng;
 use hash::keccak;
-use bigint::hash::H256;
+use ethereum_types::H256;
 
 /// Providing current time in seconds
 pub trait TimeProvider {
@@ -83,7 +83,6 @@ pub struct AuthCodes<T: TimeProvider = DefaultTimeProvider> {
 impl AuthCodes<DefaultTimeProvider> {
 
 	/// Reads `AuthCodes` from file and creates new instance using `DefaultTimeProvider`.
-	#[cfg_attr(feature="dev", allow(single_char_pattern))]
 	pub fn from_file(file: &Path) -> io::Result<AuthCodes> {
 		let content = {
 			if let Ok(mut file) = fs::File::open(file) {
@@ -154,7 +153,6 @@ impl<T: TimeProvider> AuthCodes<T> {
 
 	/// Checks if given hash is correct authcode of `SignerUI`
 	/// Updates this hash last used field in case it's valid.
-	#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 	pub fn is_valid(&mut self, hash: &H256, time: u64) -> bool {
 		let now = self.now.now();
 		// check time
@@ -227,14 +225,13 @@ impl<T: TimeProvider> AuthCodes<T> {
 
 #[cfg(test)]
 mod tests {
-
-	use devtools;
 	use std::io::{Read, Write};
 	use std::{time, fs};
 	use std::cell::Cell;
+	use tempdir::TempDir;
 	use hash::keccak;
 
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use super::*;
 
 	fn generate_hash(val: &str, time: u64) -> H256 {
@@ -305,15 +302,16 @@ mod tests {
 	#[test]
 	fn should_read_old_format_from_file() {
 		// given
-		let path = devtools::RandomTempPath::new();
+		let tempdir = TempDir::new("").unwrap();
+		let file_path = tempdir.path().join("file");
 		let code = "23521352asdfasdfadf";
 		{
-			let mut file = fs::File::create(&path).unwrap();
+			let mut file = fs::File::create(&file_path).unwrap();
 			file.write_all(b"a\n23521352asdfasdfadf\nb\n").unwrap();
 		}
 
 		// when
-		let mut authcodes = AuthCodes::from_file(&path).unwrap();
+		let mut authcodes = AuthCodes::from_file(&file_path).unwrap();
 		let time = time::UNIX_EPOCH.elapsed().unwrap().as_secs();
 
 		// then
@@ -323,7 +321,8 @@ mod tests {
 	#[test]
 	fn should_remove_old_unused_tokens() {
 		// given
-		let path = devtools::RandomTempPath::new();
+		let tempdir = TempDir::new("").unwrap();
+		let file_path = tempdir.path().join("file");
 		let code1 = "11111111asdfasdf111";
 		let code2 = "22222222asdfasdf222";
 		let code3 = "33333333asdfasdf333";
@@ -340,11 +339,11 @@ mod tests {
 
 		let new_code = codes.generate_new().unwrap().replace('-', "");
 		codes.clear_garbage();
-		codes.to_file(&path).unwrap();
+		codes.to_file(&file_path).unwrap();
 
 		// then
 		let mut content = String::new();
-		let mut file = fs::File::open(&path).unwrap();
+		let mut file = fs::File::open(&file_path).unwrap();
 		file.read_to_string(&mut content).unwrap();
 
 		assert_eq!(content, format!("{};100;10000100\n{};100;100\n{};10000100", code1, code2, new_code));

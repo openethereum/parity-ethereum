@@ -17,7 +17,7 @@
 //! Key-value datastore with a modified Merkle tree.
 use keccak::keccak;
 use bytes::*;
-use bigint::hash::*;
+use ethereum_types::H256;
 use rlp::encode;
 
 /// Alphabet to use when creating words for insertion into tries.

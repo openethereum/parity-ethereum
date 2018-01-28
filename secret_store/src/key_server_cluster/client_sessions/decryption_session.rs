@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use parking_lot::{Mutex, Condvar};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use ethkey::{Secret, Signature};
 use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::Cluster;
@@ -28,12 +29,6 @@ use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 use key_server_cluster::jobs::decryption_job::{PartialDecryptionRequest, PartialDecryptionResponse, DecryptionJob};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
-
-/// Decryption session API.
-pub trait Session: Send + Sync + 'static {
-	/// Wait until session is completed. Returns distributely restored secret key.
-	fn wait(&self) -> Result<EncryptedDocumentKeyShadow, Error>;
-}
 
 /// Distributed decryption session.
 /// Based on "ECDKG: A Distributed Key Generation Protocol Based on Elliptic Curve Discrete Logarithm" paper:
@@ -205,6 +200,11 @@ impl SessionImpl {
 		self.data.lock().result.clone()
 	}
 
+	/// Wait for session completion.
+	pub fn wait(&self) -> Result<EncryptedDocumentKeyShadow, Error> {
+		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
+	}
+
 	/// Delegate session to other node.
 	pub fn delegate(&self, master: NodeId, version: H256, is_shadow_decryption: bool) -> Result<(), Error> {
 		if self.core.meta.master_node_id != self.core.meta.self_node_id {
@@ -243,14 +243,19 @@ impl SessionImpl {
 
 		let mut data = self.data.lock();
 		let non_isolated_nodes = self.core.cluster.nodes();
-		data.consensus_session.consensus_job_mut().transport_mut().version = Some(version.clone());
-		data.version = Some(version.clone());
-		data.is_shadow_decryption = Some(is_shadow_decryption);
-		data.consensus_session.initialize(key_version.id_numbers.keys()
+		let mut consensus_nodes: BTreeSet<_> = key_version.id_numbers.keys()
 			.filter(|n| non_isolated_nodes.contains(*n))
 			.cloned()
 			.chain(::std::iter::once(self.core.meta.self_node_id.clone()))
-			.collect())?;
+			.collect();
+		if let Some(&DelegationStatus::DelegatedFrom(delegation_master, _)) = data.delegation_status.as_ref() {
+			consensus_nodes.remove(&delegation_master);
+		}
+
+		data.consensus_session.consensus_job_mut().transport_mut().version = Some(version.clone());
+		data.version = Some(version.clone());
+		data.is_shadow_decryption = Some(is_shadow_decryption);
+		data.consensus_session.initialize(consensus_nodes)?;
 
 		if data.consensus_session.state() == ConsensusSessionState::ConsensusEstablished {
 			self.core.disseminate_jobs(&mut data.consensus_session, &version, is_shadow_decryption)?;
@@ -502,7 +507,10 @@ impl ClusterSession for SessionImpl {
 	}
 
 	fn is_finished(&self) -> bool {
-		self.data.lock().result.is_some()
+		let data = self.data.lock();
+		data.consensus_session.state() == ConsensusSessionState::Failed
+			|| data.consensus_session.state() == ConsensusSessionState::Finished
+			|| data.result.is_some()
 	}
 
 	fn on_node_timeout(&self, node: &NodeId) {
@@ -543,19 +551,6 @@ impl ClusterSession for SessionImpl {
 			Message::Decryption(ref message) => self.process_message(sender, message),
 			_ => unreachable!("cluster checks message to be correct before passing; qed"),
 		}
-	}
-}
-
-impl Session for SessionImpl {
-	fn wait(&self) -> Result<EncryptedDocumentKeyShadow, Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
-			.clone()
 	}
 }
 
@@ -683,6 +678,7 @@ mod tests {
 		let encrypted_datas: Vec<_> = (0..5).map(|i| DocumentKeyShare {
 			author: Public::default(),
 			threshold: 3,
+			public: Default::default(),
 			common_point: Some(common_point.clone()),
 			encrypted_point: Some(encrypted_point.clone()),
 			versions: vec![DocumentKeyShareVersion {
@@ -754,6 +750,7 @@ mod tests {
 			key_share: Some(DocumentKeyShare {
 				author: Public::default(),
 				threshold: 0,
+				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 				versions: vec![DocumentKeyShareVersion {
@@ -807,6 +804,7 @@ mod tests {
 			key_share: Some(DocumentKeyShare {
 				author: Public::default(),
 				threshold: 2,
+				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 				versions: vec![DocumentKeyShareVersion {
@@ -1146,7 +1144,7 @@ mod tests {
 
 		// now check that:
 		// 1) 4 of 5 sessions are in Finished state
-		assert_eq!(sessions.iter().filter(|s| s.state() == ConsensusSessionState::Finished).count(), 5);
+		assert_eq!(sessions.iter().filter(|s| s.state() == ConsensusSessionState::Finished).count(), 4);
 		// 2) 1 session has decrypted key value
 		assert_eq!(sessions[1].decrypted_secret().unwrap().unwrap(), EncryptedDocumentKeyShadow {
 			decrypted_secret: SECRET_PLAIN.into(),

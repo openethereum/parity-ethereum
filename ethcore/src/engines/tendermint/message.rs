@@ -18,8 +18,7 @@
 
 use std::cmp;
 use hash::keccak;
-use bigint::hash::{H256, H520};
-use util::*;
+use ethereum_types::{H256, H520, Address};
 use bytes::Bytes;
 use super::{Height, View, BlockHash, Step};
 use error::Error;

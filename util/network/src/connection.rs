@@ -22,11 +22,10 @@ use hash::{keccak, write_keccak};
 use mio::{Token, Ready, PollOpt};
 use mio::deprecated::{Handler, EventLoop, TryRead, TryWrite};
 use mio::tcp::*;
-use bigint::hash::*;
+use ethereum_types::{H128, H256, H512};
 use ethcore_bytes::*;
 use rlp::*;
 use std::io::{self, Cursor, Read, Write};
-use error::*;
 use io::{IoContext, StreamToken};
 use handshake::Handshake;
 use stats::NetworkStats;
@@ -37,6 +36,7 @@ use rcrypto::buffer::*;
 use tiny_keccak::Keccak;
 use bytes::{Buf, BufMut};
 use crypto;
+use error::{Error, ErrorKind};
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
 const RECIEVE_PAYLOAD_TIMEOUT: u64 = 30000;
@@ -125,7 +125,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 	}
 
 	/// Writable IO handler. Called when the socket is ready to send.
-	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<WriteStatus, NetworkError> where Message: Send + Clone + Sync + 'static {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<WriteStatus, Error> where Message: Send + Clone + Sync + 'static {
 		{
 			let buf = match self.send_queue.front_mut() {
 				Some(buf) => buf,
@@ -300,7 +300,7 @@ pub struct EncryptedConnection {
 
 impl EncryptedConnection {
 	/// Create an encrypted connection out of the handshake.
-	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, NetworkError> {
+	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, Error> {
 		let shared = crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral)?;
 		let mut nonce_material = H512::new();
 		if handshake.originated {
@@ -353,11 +353,11 @@ impl EncryptedConnection {
 	}
 
 	/// Send a packet
-	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), NetworkError> where Message: Send + Clone + Sync + 'static {
+	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
 		let mut header = RlpStream::new();
 		let len = payload.len();
 		if len > MAX_PAYLOAD_SIZE {
-			return Err(NetworkError::OversizedPacket);
+			bail!(ErrorKind::OversizedPacket);
 		}
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
 		header.append_raw(&[0xc2u8, 0x80u8, 0x80u8], 1);
@@ -383,16 +383,16 @@ impl EncryptedConnection {
 	}
 
 	/// Decrypt and authenticate an incoming packet header. Prepare for receiving payload.
-	fn read_header(&mut self, header: &[u8]) -> Result<(), NetworkError> {
+	fn read_header(&mut self, header: &[u8]) -> Result<(), Error> {
 		if header.len() != ENCRYPTED_HEADER_LEN {
-			return Err(From::from(NetworkError::Auth));
+			return Err(ErrorKind::Auth.into());
 		}
 		EncryptedConnection::update_mac(&mut self.ingress_mac, &mut self.mac_encoder, &header[0..16]);
 		let mac = &header[16..];
 		let mut expected = H256::new();
 		self.ingress_mac.clone().finalize(&mut expected);
 		if mac != &expected[0..16] {
-			return Err(From::from(NetworkError::Auth));
+			return Err(ErrorKind::Auth.into());
 		}
 
 		let mut hdec = H128::new();
@@ -413,11 +413,11 @@ impl EncryptedConnection {
 	}
 
 	/// Decrypt and authenticate packet payload.
-	fn read_payload(&mut self, payload: &[u8]) -> Result<Packet, NetworkError> {
+	fn read_payload(&mut self, payload: &[u8]) -> Result<Packet, Error> {
 		let padding = (16 - (self.payload_len  % 16)) % 16;
 		let full_length = self.payload_len + padding + 16;
 		if payload.len() != full_length {
-			return Err(From::from(NetworkError::Auth));
+			return Err(ErrorKind::Auth.into());
 		}
 		self.ingress_mac.update(&payload[0..payload.len() - 16]);
 		EncryptedConnection::update_mac(&mut self.ingress_mac, &mut self.mac_encoder, &[0u8; 0]);
@@ -425,7 +425,7 @@ impl EncryptedConnection {
 		let mut expected = H128::new();
 		self.ingress_mac.clone().finalize(&mut expected);
 		if mac != &expected[..] {
-			return Err(From::from(NetworkError::Auth));
+			return Err(ErrorKind::Auth.into());
 		}
 
 		let mut packet = vec![0u8; self.payload_len];
@@ -451,7 +451,7 @@ impl EncryptedConnection {
 	}
 
 	/// Readable IO handler. Tracker receive status and returns decoded packet if avaialable.
-	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, NetworkError> where Message: Send + Clone + Sync + 'static {
+	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, Error> where Message: Send + Clone + Sync + 'static {
 		io.clear_timer(self.connection.token)?;
 		if let EncryptedConnectionState::Header = self.read_state {
 			if let Some(data) = self.connection.readable()? {
@@ -474,7 +474,7 @@ impl EncryptedConnection {
 	}
 
 	/// Writable IO handler. Processes send queeue.
-	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), NetworkError> where Message: Send + Clone + Sync + 'static {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
 		self.connection.writable(io)?;
 		Ok(())
 	}
@@ -482,7 +482,7 @@ impl EncryptedConnection {
 
 #[test]
 pub fn test_encryption() {
-	use bigint::hash::*;
+	use ethereum_types::{H256, H128};
 	use std::str::FromStr;
 	let key = H256::from_str("2212767d793a7a3d66f869ae324dd11bd17044b82c9f463b8a541a4d089efec5").unwrap();
 	let before = H128::from_str("12532abaec065082a3cf1da7d0136f15").unwrap();
@@ -504,16 +504,85 @@ pub fn test_encryption() {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use std::cmp;
+	use std::collections::VecDeque;
+	use std::io::{Read, Write, Cursor, ErrorKind, Result, Error};
 	use std::sync::Arc;
 	use std::sync::atomic::AtomicBool;
-	use super::super::stats::*;
-	use std::io::{Read, Write, Error, Cursor, ErrorKind};
+
 	use mio::{Ready};
-	use std::collections::VecDeque;
 	use ethcore_bytes::Bytes;
-	use devtools::TestSocket;
 	use io::*;
+	use super::super::stats::*;
+	use super::*;
+
+	pub struct TestSocket {
+		pub read_buffer: Vec<u8>,
+		pub write_buffer: Vec<u8>,
+		pub cursor: usize,
+		pub buf_size: usize,
+	}
+
+	impl Default for TestSocket {
+		fn default() -> Self {
+			TestSocket::new()
+		}
+	}
+
+	impl TestSocket {
+		pub fn new() -> Self {
+			TestSocket {
+				read_buffer: vec![],
+				write_buffer: vec![],
+				cursor: 0,
+				buf_size: 0,
+			}
+		}
+
+		pub fn new_buf(buf_size: usize) -> TestSocket {
+			TestSocket {
+				read_buffer: vec![],
+				write_buffer: vec![],
+				cursor: 0,
+				buf_size: buf_size,
+			}
+		}
+	}
+
+	impl Read for TestSocket {
+		fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+			let end_position = cmp::min(self.read_buffer.len(), self.cursor+buf.len());
+			if self.cursor > end_position { return Ok(0) }
+			let len = cmp::max(end_position - self.cursor, 0);
+			match len {
+				0 => Ok(0),
+				_ => {
+					for i in self.cursor..end_position {
+						buf[i-self.cursor] = self.read_buffer[i];
+					}
+					self.cursor = end_position;
+					Ok(len)
+				}
+			}
+		}
+	}
+
+	impl Write for TestSocket {
+		fn write(&mut self, buf: &[u8]) -> Result<usize> {
+			if self.buf_size == 0 || buf.len() < self.buf_size {
+				self.write_buffer.extend(buf.iter().cloned());
+				Ok(buf.len())
+			}
+			else {
+				self.write_buffer.extend(buf.iter().take(self.buf_size).cloned());
+				Ok(self.buf_size)
+			}
+		}
+
+		fn flush(&mut self) -> Result<()> {
+			unimplemented!();
+		}
+	}
 
 	impl GenericSocket for TestSocket {}
 
@@ -522,17 +591,17 @@ mod tests {
 	}
 
 	impl Read for TestBrokenSocket {
-		fn read(&mut self, _: &mut [u8]) -> Result<usize, Error> {
+		fn read(&mut self, _: &mut [u8]) -> Result<usize> {
 			Err(Error::new(ErrorKind::Other, self.error.clone()))
 		}
 	}
 
 	impl Write for TestBrokenSocket {
-		fn write(&mut self, _: &[u8]) -> Result<usize, Error> {
+		fn write(&mut self, _: &[u8]) -> Result<usize> {
 			Err(Error::new(ErrorKind::Other, self.error.clone()))
 		}
 
-		fn flush(&mut self) -> Result<(), Error> {
+		fn flush(&mut self) -> Result<()> {
 			unimplemented!();
 		}
 	}
