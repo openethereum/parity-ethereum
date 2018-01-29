@@ -68,14 +68,14 @@ class DefaultAccount extends Component {
         }
         content={
           <div>
-            <List relaxed='very' selection className={ [styles.list, styles.isDefault, allAccounts.length > 1 && styles.hasOtherAccounts].join(' ') }>
+            <List relaxed='very' selection className={ [styles.list, allAccounts.length > 1 && styles.hasOtherAccounts].join(' ') }>
               <AccountItem
                 isDefault
                 account={ defaultAccount }
               />
             </List>
             {allAccounts.length > 1 &&
-              <List relaxed='very' selection className={ styles.list } divided>
+              <List relaxed='very' selection className={ [styles.list, styles.accountsList].join(' ') } divided>
                 {allAccounts
                   .filter(({ address }) => address !== defaultAddress)
                   .map(account => (
