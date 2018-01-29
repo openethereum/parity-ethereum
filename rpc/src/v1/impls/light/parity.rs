@@ -208,7 +208,12 @@ impl Parity for ParityClient {
 	}
 
 	fn registry_address(&self) -> Result<Option<H160>> {
-		Err(errors::light_unimplemented(None))
+		let reg = self.light_dispatch.client.engine().params().registrar;
+		if reg == Default::default() {
+			Ok(None)
+		} else {
+			Ok(Some(reg.into()))
+		}
 	}
 
 	fn rpc_settings(&self) -> Result<RpcSettings> {
