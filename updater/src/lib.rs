@@ -16,21 +16,25 @@
 
 //! Updater for Parity executables
 
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate ethcore_bytes as bytes;
 extern crate ethereum_types;
 extern crate parking_lot;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate ethcore;
-extern crate ethabi;
-#[macro_use] extern crate ethabi_derive;
-#[macro_use] extern crate ethabi_contract;
 extern crate ethsync;
 extern crate futures;
 extern crate target_info;
 extern crate parity_version as version;
 extern crate path;
 extern crate semver;
+
+extern crate ethabi;
+#[macro_use]
+extern crate ethabi_derive;
+#[macro_use]
+extern crate ethabi_contract;
 
 mod updater;
 mod types;

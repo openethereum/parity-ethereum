@@ -29,7 +29,6 @@ mod secretstore_acl_storage;
 mod secretstore_service;
 mod validator_set;
 mod validator_report;
-mod peer_set;
 
 pub mod test_contracts;
 
@@ -39,4 +38,3 @@ pub use self::secretstore_acl_storage::SecretStoreAclStorage;
 pub use self::secretstore_service::SecretStoreService;
 pub use self::validator_set::ValidatorSet;
 pub use self::validator_report::ValidatorReport;
-pub use self::peer_set::PeerSet;

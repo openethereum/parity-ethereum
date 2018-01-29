@@ -27,7 +27,6 @@ const SECRETSTORE_ACL_STORAGE_ABI: &'static str = include_str!("res/secretstore_
 const SECRETSTORE_SERVICE_ABI: &'static str = include_str!("res/secretstore_service.json");
 const VALIDATOR_SET_ABI: &'static str = include_str!("res/validator_set.json");
 const VALIDATOR_REPORT_ABI: &'static str = include_str!("res/validator_report.json");
-const PEER_SET_ABI: &'static str = include_str!("res/peer_set.json");
 
 const TEST_VALIDATOR_SET_ABI: &'static str = include_str!("res/test_validator_set.json");
 
@@ -52,7 +51,6 @@ fn main() {
 	build_file("SecretStoreService", SECRETSTORE_SERVICE_ABI, "secretstore_service.rs");
 	build_file("ValidatorSet", VALIDATOR_SET_ABI, "validator_set.rs");
 	build_file("ValidatorReport", VALIDATOR_REPORT_ABI, "validator_report.rs");
-	build_file("PeerSet", PEER_SET_ABI, "peer_set.rs");
 
 	build_test_contracts();
 }
