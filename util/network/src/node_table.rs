@@ -448,26 +448,42 @@ mod tests {
 	}
 
 	#[test]
-	fn table_failure_order() {
+	fn table_failure_ratio_order() {
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let node3 = Node::from_str("enode://c979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
+		let node4 = Node::from_str("enode://d979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let id1 = H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let id2 = H512::from_str("b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let id3 = H512::from_str("c979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
+		let id4 = H512::from_str("d979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let mut table = NodeTable::new(None);
-		table.add_node(node3);
+
 		table.add_node(node1);
 		table.add_node(node2);
+		table.add_node(node3);
+		table.add_node(node4);
 
+		// node 1 - failure ratio 100%
+		table.get_mut(&id1).unwrap().attempts = 2;
 		table.note_failure(&id1);
 		table.note_failure(&id1);
+
+		// node2 - failure ratio 33%
+		table.get_mut(&id2).unwrap().attempts = 3;
 		table.note_failure(&id2);
 
+		// node3 - failure ratio 0%
+		table.get_mut(&id3).unwrap().attempts = 1;
+
+		// node4 - failure ratio 50% (default when no attempts)
+
 		let r = table.nodes(IpFilter::default());
+
 		assert_eq!(r[0][..], id3[..]);
 		assert_eq!(r[1][..], id2[..]);
-		assert_eq!(r[2][..], id1[..]);
+		assert_eq!(r[2][..], id4[..]);
+		assert_eq!(r[3][..], id1[..]);
 	}
 
 	#[test]
@@ -481,6 +497,9 @@ mod tests {
 			let mut table = NodeTable::new(Some(tempdir.path().to_str().unwrap().to_owned()));
 			table.add_node(node1);
 			table.add_node(node2);
+
+			table.get_mut(&id1).unwrap().attempts = 1;
+			table.get_mut(&id2).unwrap().attempts = 1;
 			table.note_failure(&id2);
 		}
 
