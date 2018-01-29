@@ -80,17 +80,20 @@ extern crate path;
 extern crate ethcore_logger;
 extern crate ipnetwork;
 extern crate keccak_hash as hash;
+extern crate serde;
 extern crate serde_json;
 extern crate snappy;
 
 #[macro_use]
 extern crate error_chain;
-
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate serde_derive;
 
 #[cfg(test)]
 extern crate tempdir;
+
 
 mod host;
 mod connection;
