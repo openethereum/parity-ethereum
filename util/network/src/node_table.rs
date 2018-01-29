@@ -23,7 +23,6 @@ use std::str::FromStr;
 use std::{fs, mem, slice};
 use ethereum_types::H512;
 use rlp::*;
-use time::{self, Tm};
 use error::{Error, ErrorKind};
 use {AllowIP, IpFilter};
 use discovery::{TableUpdates, NodeEntry};
@@ -139,9 +138,11 @@ pub struct Node {
 	pub id: NodeId,
 	pub endpoint: NodeEndpoint,
 	pub peer_type: PeerType,
+	pub attempts: u32,
 	pub failures: u32,
-	pub last_attempted: Option<Tm>,
 }
+
+const DEFAULT_FAILURE_RATIO: usize = 50;
 
 impl Node {
 	pub fn new(id: NodeId, endpoint: NodeEndpoint) -> Node {
@@ -149,8 +150,16 @@ impl Node {
 			id: id,
 			endpoint: endpoint,
 			peer_type: PeerType::Optional,
+			attempts: 0,
 			failures: 0,
-			last_attempted: None,
+		}
+	}
+
+	pub fn failure_ratio(&self) -> usize {
+		if self.attempts == 0 {
+			DEFAULT_FAILURE_RATIO
+		} else {
+			(self.failures as f64 / self.attempts as f64 * 100.0) as usize
 		}
 	}
 }
@@ -180,7 +189,7 @@ impl FromStr for Node {
 			id: id,
 			endpoint: endpoint,
 			peer_type: PeerType::Optional,
-			last_attempted: None,
+			attempts: 0,
 			failures: 0,
 		})
 	}
@@ -220,19 +229,23 @@ impl NodeTable {
 
 	/// Add a node to table
 	pub fn add_node(&mut self, mut node: Node) {
-		// preserve failure counter
-		let failures = self.nodes.get(&node.id).map_or(0, |n| n.failures);
+		// preserve attempts and failure counter
+		let (attempts, failures) =
+			self.nodes.get(&node.id).map_or((0, 0), |n| (n.attempts, n.failures));
+
+		node.attempts = attempts;
 		node.failures = failures;
+
 		self.nodes.insert(node.id.clone(), node);
 	}
 
-	/// Returns node ids sorted by number of failures
+	/// Returns node ids sorted by failure ratio
 	pub fn nodes(&self, filter: IpFilter) -> Vec<NodeId> {
 		let mut refs: Vec<&Node> = self.nodes.values()
 			.filter(|n| !self.useless_nodes.contains(&n.id))
 			.filter(|n| n.endpoint.is_allowed(&filter))
 			.collect();
-		refs.sort_by(|a, b| a.failures.cmp(&b.failures));
+		refs.sort_by(|a, b| a.failure_ratio().cmp(&b.failure_ratio()));
 		refs.into_iter().map(|n| n.id).collect()
 	}
 
@@ -274,7 +287,7 @@ impl NodeTable {
 		}
 	}
 
-	/// Mark as useless, no furter attempts to connect until next call to `clear_useless`.
+	/// Mark as useless, no further attempts to connect until next call to `clear_useless`.
 	pub fn mark_as_useless(&mut self, id: &NodeId) {
 		self.useless_nodes.insert(id.clone());
 	}
@@ -296,11 +309,10 @@ impl NodeTable {
 		}
 		path.push(NODES_FILE);
 		let node_ids = self.nodes(IpFilter::default());
-		let len = node_ids.len();
 		let nodes = node_ids.into_iter()
 			.map(|id| self.nodes.get(&id).expect("self.nodes() only returns node IDs from self.nodes"))
+			.take(MAX_NODES)
 			.map(|node| node.clone())
-			.filter(|node| if len > MAX_NODES { node.last_attempted.is_some() } else { true })
 			.map(Into::into)
 			.collect();
 		let table = json::NodeTable { nodes };
@@ -371,16 +383,16 @@ mod json {
 	#[derive(Serialize, Deserialize)]
 	pub struct Node {
 		pub url: String,
+		pub attempts: u32,
 		pub failures: u32,
-		pub last_attempt: Option<i64>,
 	}
 
 	impl Node {
 		pub fn into_node(self) -> Option<super::Node> {
 			match super::Node::from_str(&self.url) {
 				Ok(mut node) => {
+					node.attempts = self.attempts;
 					node.failures = self.failures;
-					node.last_attempted = self.last_attempt.map(|t| time::at(time::Timespec::new(t, 0)));
 					Some(node)
 				},
 				_ => None,
@@ -392,8 +404,8 @@ mod json {
 		fn from(node: &'a super::Node) -> Self {
 			Node {
 				url: format!("{}", node),
+				attempts: node.attempts,
 				failures: node.failures,
-				last_attempt: node.last_attempted.as_ref().map(|tm| tm.to_timespec().sec),
 			}
 		}
 	}
