@@ -19,7 +19,7 @@ use ethereum_types::H256;
 error_chain! {
 	errors {
 		AlreadyImported(hash: H256) {
-			description("transaction is already in the queue"),
+			description("transaction is already in the pool"),
 			display("[{:?}] transaction already imported", hash)
 		}
 		TooCheapToEnter(hash: H256) {
@@ -27,7 +27,7 @@ error_chain! {
 			display("[{:?}] transaction too cheap to enter the pool", hash)
 		}
 		TooCheapToReplace(old_hash: H256, hash: H256) {
-			description("transaction is too cheap to replace existing transaction in the queue"),
+			description("transaction is too cheap to replace existing transaction in the pool"),
 			display("[{:?}] transaction too cheap to replace: {:?}", hash, old_hash)
 		}
 	}

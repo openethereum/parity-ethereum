@@ -23,6 +23,7 @@
 //! stalled transactions.
 
 use std::cmp;
+use std::sync::Arc;
 use std::sync::atomic::{self, AtomicUsize};
 
 use ethereum_types::{U256, H256};
@@ -33,7 +34,7 @@ use super::client::{Client, TransactionType};
 use super::VerifiedTransaction;
 
 /// Verification options.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Options {
 	/// Minimal allowed gas price.
 	pub minimal_gas_price: U256,
@@ -41,16 +42,6 @@ pub struct Options {
 	pub block_gas_limit: U256,
 	/// Maximal gas limit for a single transaction.
 	pub tx_gas_limit: U256,
-}
-
-/// Transaction verifier.
-///
-/// Verification can be run in parallel for all incoming transactions.
-#[derive(Debug)]
-pub struct Verifier<T> {
-	client: T,
-	options: Options,
-	id: AtomicUsize,
 }
 
 /// Transaction to verify.
@@ -74,7 +65,27 @@ impl Transaction {
 	}
 }
 
-impl<T: Client> txpool::Verifier<Transaction> for Verifier<T> {
+/// Transaction verifier.
+///
+/// Verification can be run in parallel for all incoming transactions.
+#[derive(Debug)]
+pub struct Verifier<C> {
+	client: C,
+	options: Options,
+	id: Arc<AtomicUsize>,
+}
+
+impl<C> Verifier<C> {
+	pub fn new(client: C, options: Options, id: Arc<AtomicUsize>) -> Self {
+		Verifier {
+			client,
+			options,
+			id,
+		}
+	}
+}
+
+impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 	type Error = transaction::Error;
 	type VerifiedTransaction = VerifiedTransaction;
 

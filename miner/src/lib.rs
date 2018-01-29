@@ -49,3 +49,4 @@ pub mod pool;
 pub mod service_transaction_checker;
 pub mod transaction_queue;
 pub mod work_notify;
+pub mod queue;

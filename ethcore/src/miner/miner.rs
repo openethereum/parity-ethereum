@@ -25,18 +25,18 @@ use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use engines::{EthEngine, Seal};
 use error::*;
-use ethcore_miner::banning_queue::{BanningTransactionQueue, Threshold};
-use ethcore_miner::local_transactions::{Status as LocalTransactionStatus};
-use ethcore_miner::transaction_queue::{
-	TransactionQueue,
-	RemovalReason,
-	TransactionDetailsProvider as TransactionQueueDetailsProvider,
-	PrioritizationStrategy,
-	AccountDetails,
-	TransactionOrigin,
-};
-use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
-use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
+// use ethcore_miner::banning_queue::{BanningTransactionQueue, Threshold};
+// use ethcore_miner::local_transactions::{Status as LocalTransactionStatus};
+// use ethcore_miner::transaction_queue::{
+// 	TransactionQueue,
+// 	RemovalReason,
+// 	TransactionDetailsProvider as TransactionQueueDetailsProvider,
+// 	PrioritizationStrategy,
+// 	AccountDetails,
+// 	TransactionOrigin,
+// };
+// use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
+// use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 use miner::{MinerService, MinerStatus};
 use price_info::fetch::Client as FetchClient;
 use price_info::{Client as PriceInfoClient, PriceInfo};
@@ -247,13 +247,12 @@ struct SealingWork {
 /// Handles preparing work for "work sealing" or seals "internally" if Engine does not require work.
 pub struct Miner {
 	// NOTE [ToDr]  When locking always lock in this order!
-	transaction_queue: Arc<RwLock<BanningTransactionQueue>>,
 	sealing_work: Mutex<SealingWork>,
 	next_allowed_reseal: Mutex<Instant>,
 	next_mandatory_reseal: RwLock<Instant>,
 	sealing_block_last_request: Mutex<u64>,
-	// for sealing...
 	options: MinerOptions,
+	transaction_queue: TransactionQueue,
 
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
@@ -312,8 +311,10 @@ impl Miner {
 			false => ServiceTransactionAction::Check(ServiceTransactionChecker::default()),
 		};
 
+		let (limits, verifier_options) = unimplmented!();
+
 		Miner {
-			transaction_queue: Arc::new(RwLock::new(txq)),
+			transaction_queue: TransactionQueue::new(limits, verifier_options),
 			next_allowed_reseal: Mutex::new(Instant::now()),
 			next_mandatory_reseal: RwLock::new(Instant::now() + options.reseal_max_period),
 			sealing_block_last_request: Mutex::new(0),
@@ -387,7 +388,7 @@ impl Miner {
 			let nonce_cap = if chain_info.best_block_number + 1 >= self.engine.params().dust_protection_transition {
 				Some((self.engine.params().nonce_cap_increment * (chain_info.best_block_number + 1)).into())
 			} else { None };
-			let transactions = {self.transaction_queue.read().top_transactions_at(chain_info.best_block_number, chain_info.best_block_timestamp, nonce_cap)};
+
 			let mut sealing_work = self.sealing_work.lock();
 			let last_work_hash = sealing_work.queue.peek_last_ref().map(|pb| pb.block().fields().header.hash());
 			let best_hash = chain_info.best_block_hash;
@@ -419,7 +420,13 @@ impl Miner {
 				open_block.set_gas_limit(!U256::zero());
 			}
 
-			(transactions, open_block, last_work_hash)
+			let pending = self.transaction_queue.pending(
+				chain_info.best_block_number,
+				chain_info.best_block_timestamp,
+				nonce_cap,
+			);
+
+			(pending, open_block, last_work_hash)
 		};
 
 		let mut invalid_transactions = HashSet::new();
@@ -427,37 +434,35 @@ impl Miner {
 		let mut transactions_to_penalize = HashSet::new();
 		let block_number = open_block.block().fields().header.number();
 
-		let mut tx_count: usize = 0;
-		let tx_total = transactions.len();
-		for tx in transactions {
+		let mut tx_count = 0usize;
+		let mut skipped_transactions = 0usize;
+		let mut max_gas = open_block.header()
+
+		for tx in pending.transactions() {
 			let hash = tx.hash();
 			let start = Instant::now();
 			// Check whether transaction type is allowed for sender
 			let result = match self.engine.machine().verify_transaction(&tx, open_block.header(), chain.as_block_chain_client()) {
-				Err(Error::Transaction(TransactionError::NotAllowed)) => {
-					Err(TransactionError::NotAllowed.into())
-				}
-				_ => {
-					open_block.push_transaction(tx, None)
-				}
+				Err(Error::Transaction(TransactionError::NotAllowed)) => Err(TransactionError::NotAllowed.into()),
+				_ => open_block.push_transaction(tx, None),
 			};
 			let took = start.elapsed();
 
 			// Check for heavy transactions
-			match self.options.tx_queue_banning {
-				Banning::Enabled { ref offend_threshold, .. } if &took > offend_threshold => {
-					match self.transaction_queue.write().ban_transaction(&hash) {
-						true => {
-							warn!(target: "miner", "Detected heavy transaction. Banning the sender and recipient/code.");
-						},
-						false => {
-							transactions_to_penalize.insert(hash);
-							debug!(target: "miner", "Detected heavy transaction. Penalizing sender.")
-						}
-					}
-				},
-				_ => {},
-			}
+			// match self.options.tx_queue_banning {
+			// 	Banning::Enabled { ref offend_threshold, .. } if &took > offend_threshold => {
+			// 		match self.transaction_queue.write().ban_transaction(&hash) {
+			// 			true => {
+			// 				warn!(target: "miner", "Detected heavy transaction. Banning the sender and recipient/code.");
+			// 			},
+			// 			false => {
+			// 				transactions_to_penalize.insert(hash);
+			// 				debug!(target: "miner", "Detected heavy transaction. Penalizing sender.")
+			// 			}
+			// 		}
+			// 	},
+			// 	_ => {},
+			// }
 			trace!(target: "miner", "Adding tx {:?} took {:?}", hash, took);
 			match result {
 				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) => {
@@ -465,12 +470,19 @@ impl Miner {
 
 					// Penalize transaction if it's above current gas limit
 					if gas > gas_limit {
-						transactions_to_penalize.insert(hash);
+						invalid_transactions.insert(hash);
 					}
 
 					// Exit early if gas left is smaller then min_tx_gas
 					let min_tx_gas: U256 = 21000.into();	// TODO: figure this out properly.
-					if gas_limit - gas_used < min_tx_gas {
+					let gas_left = gas_limit - gas_used;
+					if gas_left < min_tx_gas {
+						break;
+					}
+
+					// Avoid iterating over the entire queue in case block is almost full.
+					skipped_transactions += 1;
+					if skipped_transactions > 8 {
 						break;
 					}
 				},
@@ -483,22 +495,19 @@ impl Miner {
 				Err(Error::Transaction(TransactionError::AlreadyImported)) => {},
 				Err(Error::Transaction(TransactionError::NotAllowed)) => {
 					non_allowed_transactions.insert(hash);
-					debug!(target: "miner",
-						   "Skipping non-allowed transaction for sender {:?}",
-						   hash);
+					debug!(target: "miner", "Skipping non-allowed transaction for sender {:?}", hash);
 				},
 				Err(e) => {
 					invalid_transactions.insert(hash);
-					debug!(target: "miner",
-						   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
-						   block_number, hash, e);
+					debug!(
+						target: "miner", "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}", block_number, hash, e
+					);
 				},
-				_ => {
-					tx_count += 1;
-				}	// imported ok
+				// imported ok
+				_ => tx_count += 1,
 			}
 		}
-		trace!(target: "miner", "Pushed {}/{} transactions", tx_count, tx_total);
+		trace!(target: "miner", "Pushed {} transactions", tx_count);
 
 		let block = open_block.close();
 
@@ -883,12 +892,10 @@ impl MinerService for Miner {
 		transactions: Vec<UnverifiedTransaction>
 	) -> Vec<Result<TransactionImportResult, Error>> {
 		trace!(target: "external_tx", "Importing external transactions");
-		let results = {
-			let mut transaction_queue = self.transaction_queue.write();
-			self.add_transactions_to_queue(
-				chain, transactions, TransactionOrigin::External, None, &mut transaction_queue
-			)
-		};
+		let results = self.transaction_queue.import(
+			chain,
+			transactions.into_iter().map(pool::verifier::Transaction::Unverified).collect(),
+		);
 
 		if !results.is_empty() && self.options.reseal_on_external_tx &&	self.tx_reseal_allowed() {
 			// --------------------------------------------------------------------------
@@ -908,25 +915,20 @@ impl MinerService for Miner {
 
 		trace!(target: "own_tx", "Importing transaction: {:?}", pending);
 
-		let imported = {
-			// Be sure to release the lock before we call prepare_work_sealing
-			let mut transaction_queue = self.transaction_queue.write();
-			// We need to re-validate transactions
-			let import = self.add_transactions_to_queue(
-				chain, vec![pending.transaction.into()], TransactionOrigin::Local, pending.condition, &mut transaction_queue
-			).pop().expect("one result returned per added transaction; one added => one result; qed");
+		let import = self.transaction_queue.import(
+			chain,
+			vec![pool::verifier::Transaction::Pending(pending)]
+		).pop().expect("one result returned per added transaction; one added => one result; qed");
 
-			match import {
-				Ok(_) => {
-					trace!(target: "own_tx", "Status: {:?}", transaction_queue.status());
-				},
-				Err(ref e) => {
-					trace!(target: "own_tx", "Status: {:?}", transaction_queue.status());
-					warn!(target: "own_tx", "Error importing transaction: {:?}", e);
-				},
-			}
-			import
-		};
+		match import {
+			Ok(_) => {
+				trace!(target: "own_tx", "Status: {:?}", self.transaction_queue.status());
+			},
+			Err(ref e) => {
+				trace!(target: "own_tx", "Status: {:?}", self.transaction_queue.status());
+				warn!(target: "own_tx", "Error importing transaction: {:?}", e);
+			},
+		}
 
 		// --------------------------------------------------------------------------
 		// | NOTE Code below requires transaction_queue and sealing_work locks.     |
@@ -1026,16 +1028,6 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn remove_pending_transaction(&self, chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction> {
-		let mut queue = self.transaction_queue.write();
-		let tx = queue.find(hash);
-		if tx.is_some() {
-			let fetch_nonce = |a: &Address| chain.latest_nonce(a);
-			queue.remove(hash, &fetch_nonce, RemovalReason::Canceled);
-		}
-		tx
-	}
-
 	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt> {
 		self.from_pending_block(
 			best_block,
@@ -1087,7 +1079,8 @@ impl MinerService for Miner {
 	}
 
 	fn last_nonce(&self, address: &Address) -> Option<U256> {
-		self.transaction_queue.read().last_nonce(address)
+		// TODO [ToDr] missing!
+		unimplemented!()
 	}
 
 	fn can_produce_work_package(&self) -> bool {
@@ -1189,28 +1182,23 @@ impl MinerService for Miner {
 
 		// Then import all transactions...
 		{
-
-			let mut transaction_queue = self.transaction_queue.write();
+			// TODO [ToDr] Parallelize
 			for hash in retracted {
 				let block = chain.block(BlockId::Hash(*hash))
 					.expect("Client is sending message after commit to db and inserting to chain; the block is available; qed");
-				let txs = block.transactions();
-				let _ = self.add_transactions_to_queue(
-					chain, txs, TransactionOrigin::RetractedBlock, None, &mut transaction_queue
+				let txs = block.transactions()
+					.into_iter()
+					.map(|transaction| pool::verifier::Transaction::Pending(transaction.into()))
+					.collect();
+				let _ = self.transaction_queue.import(
+					chain,
+					txs,
 				);
 			}
 		}
 
 		// ...and at the end remove the old ones
-		{
-			let fetch_account = |a: &Address| AccountDetails {
-				nonce: chain.latest_nonce(a),
-				balance: chain.latest_balance(a),
-			};
-			let time = chain.chain_info().best_block_number;
-			let mut transaction_queue = self.transaction_queue.write();
-			transaction_queue.remove_old(&fetch_account, time);
-		}
+		self.transaction_queue.cull(client);
 
 		if enacted.len() > 0 || (imported.len() > 0 && self.options.reseal_on_uncle) {
 			// --------------------------------------------------------------------------

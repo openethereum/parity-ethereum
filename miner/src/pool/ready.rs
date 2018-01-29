@@ -42,6 +42,7 @@ use std::cmp;
 use std::collections::HashMap;
 
 use ethereum_types::{U256, H160 as Address};
+use transaction;
 use txpool::{self, VerifiedTransaction as IVerifiedTransaction};
 
 use super::client::Client;
@@ -49,12 +50,22 @@ use super::VerifiedTransaction;
 
 /// Checks readiness of transactions by comparing the nonce to state nonce.
 #[derive(Debug)]
-pub struct ClientReadiness<C> {
+pub struct State<C> {
 	nonces: HashMap<Address, U256>,
 	state: C,
 }
 
-impl<C: Client> txpool::Ready<VerifiedTransaction> for ClientReadiness<C> {
+impl<C> State<C> {
+	/// Create new State checker, given client interface.
+	pub fn new(state: C) -> Self {
+		State {
+			nonces: Default::default(),
+			state,
+		}
+	}
+}
+
+impl<C: Client> txpool::Ready<VerifiedTransaction> for State<C> {
 	fn is_ready(&mut self, tx: &VerifiedTransaction) -> txpool::Readiness {
 		let sender = tx.sender();
 		let state = &self.state;
@@ -68,6 +79,33 @@ impl<C: Client> txpool::Ready<VerifiedTransaction> for ClientReadiness<C> {
 				*nonce = *nonce + 1.into();
 				txpool::Readiness::Ready
 			},
+		}
+	}
+}
+
+/// Checks readines of Pending transactions by comparing it with current time and block number.
+#[derive(Debug)]
+pub struct Condition {
+	block_number: u64,
+	now: u64,
+}
+
+impl Condition {
+	/// Create a new condition checker given current block number and UTC timestamp.
+	pub fn new(block_number: u64, now: u64) -> Self {
+		Condition {
+			block_number,
+			now,
+		}
+	}
+}
+
+impl txpool::Ready<VerifiedTransaction> for Condition {
+	fn is_ready(&mut self, tx: &VerifiedTransaction) -> txpool::Readiness {
+		match tx.transaction.condition {
+			Some(transaction::Condition::Number(block)) if block > self.block_number => txpool::Readiness::Future,
+			Some(transaction::Condition::Timestamp(time)) if time > self.now => txpool::Readiness::Future,
+			_ => txpool::Readiness::Ready,
 		}
 	}
 }
