@@ -27,17 +27,20 @@ extern crate futures;
 extern crate keccak_hash as hash;
 extern crate mime;
 extern crate mime_guess;
-extern crate native_contracts;
 extern crate parity_reactor;
 extern crate rand;
 extern crate rustc_hex;
 
 pub extern crate fetch;
 
+extern crate ethabi;
+#[macro_use]
+extern crate ethabi_derive;
+#[macro_use]
+extern crate ethabi_contract;
+
 #[cfg(test)]
 extern crate parking_lot;
-#[cfg(test)]
-extern crate ethabi;
 
 mod client;
 

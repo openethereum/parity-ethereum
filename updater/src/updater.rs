@@ -21,45 +21,17 @@ use std::sync::{Arc, Weak};
 
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
 use ethsync::{SyncProvider};
-use futures::future;
 use hash_fetch::{self as fetch, HashFetch};
-use hash_fetch::fetch::Client as FetchService;
-use parity_reactor::Remote;
 use path::restrict_permissions_owner;
 use service::{Service};
 use target_info::Target;
 use types::{ReleaseInfo, OperationsInfo, CapState, VersionInfo, ReleaseTrack};
-use ethereum_types::{U256, H256, Address};
+use ethereum_types::{U256, H256};
 use bytes::Bytes;
 use parking_lot::Mutex;
 use version;
 
 use_contract!(operations_contract, "Operations", "./res/operations.abi");
-
-//mod updater_utils {
-	//use ethereum_types::{U256, H256};
-
-	//pub fn str_to_ethabi_hash(s: &str) -> H256 {
-		//unimplemented!();
-		//U256::from_str(s).unwrap().into()
-	//}
-
-	//pub fn uint_to_u64(uint: [u8; 32]) -> u64 {
-		//bigint::prelude::U256::from(uint.as_ref()).as_u64()
-	//}
-
-	//pub fn uint_to_u32(uint: [u8; 32]) -> u32 {
-		//U256::from(uint.as_ref()).as_u32()
-	//}
-
-	//pub fn uint_to_u8(uint: [u8; 32]) -> u8 {
-		//bigint::prelude::U256::from(uint.as_ref()).as_u32() as u8
-	//}
-
-	//pub fn uint_to_h256(uint: [u8; 32]) -> bigint::prelude::H256 {
-		//bigint::prelude::H256::from(uint.as_ref())
-	//}
-//}
 
 pub type DoCallFn = Fn(Vec<u8>) -> Result<Vec<u8>, String> + Send + Sync + 'static;
 
@@ -121,7 +93,7 @@ pub struct Updater {
 	weak_self: Mutex<Weak<Updater>>,
 	client: Weak<BlockChainClient>,
 	sync: Weak<SyncProvider>,
-	fetcher: Mutex<Option<fetch::Client>>,
+	fetcher: fetch::Client,
 	operations_contract: operations_contract::Operations,
 	do_call: Mutex<Option<Box<DoCallFn>>>,
 	exit_handler: Mutex<Option<Box<Fn() + 'static + Send>>>,
@@ -148,20 +120,19 @@ fn platform() -> String {
 }
 
 impl Updater {
-	pub fn new(client: Weak<BlockChainClient>, sync: Weak<SyncProvider>, update_policy: UpdatePolicy, fetch: FetchService, remote: Remote) -> Arc<Self> {
+	pub fn new(client: Weak<BlockChainClient>, sync: Weak<SyncProvider>, update_policy: UpdatePolicy, fetcher: fetch::Client) -> Arc<Self> {
 		let r = Arc::new(Updater {
 			update_policy: update_policy,
 			weak_self: Mutex::new(Default::default()),
 			client: client.clone(),
 			sync: sync.clone(),
-			fetcher: Mutex::new(None),
+			fetcher,
 			operations_contract: operations_contract::Operations::default(),
 			do_call: Mutex::new(None),
 			exit_handler: Mutex::new(None),
 			this: VersionInfo::this(),
 			state: Mutex::new(Default::default()),
 		});
-		*r.fetcher.lock() = Some(fetch::Client::with_fetch(r.clone(), fetch, remote));
 		*r.weak_self.lock() = Arc::downgrade(&r);
 		r.poll();
 		r
@@ -359,7 +330,7 @@ impl Updater {
 							drop(s);
 							let weak_self = self.weak_self.lock().clone();
 							let f = move |r: Result<PathBuf, fetch::Error>| if let Some(this) = weak_self.upgrade() { this.fetch_done(r) };
-							self.fetcher.lock().as_ref().expect("Created on `new`; qed").fetch(b, Box::new(f));
+							self.fetcher.fetch(b, Box::new(f));
 						}
 					}
 				}
@@ -399,22 +370,6 @@ impl ChainNotify for Updater {
 			(Some(ref c), Some(ref s)) if !s.status().is_syncing(c.queue_info()) => self.poll(),
 			_ => {},
 		}
-	}
-}
-
-impl fetch::urlhint::ContractClient for Updater {
-	fn registrar(&self) -> Result<Address, String> {
-		self.client.upgrade().ok_or_else(|| "Client not available".to_owned())?
-			.registrar_address()
-			.ok_or_else(|| "Registrar not available".into())
-	}
-
-	fn call(&self, address: Address, data: Bytes) -> fetch::urlhint::BoxFuture<Bytes, String> {
-		Box::new(future::done(
-			self.client.upgrade()
-				.ok_or_else(|| "Client not available".into())
-				.and_then(move |c| c.call_contract(BlockId::Latest, address, data))
-		))
 	}
 }
 

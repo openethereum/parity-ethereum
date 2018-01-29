@@ -33,6 +33,7 @@ use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethsync::{self, SyncConfig};
 use fdlimit::raise_fd_limit;
 use hash_fetch::fetch::{Fetch, Client as FetchClient};
+use hash_fetch;
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
 use light::Cache as LightDataCache;
@@ -299,11 +300,11 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	// the dapps server
 	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf, &cmd.logger_config));
 	let (node_health, dapps_deps) = {
-		let contract_client = Arc::new(::dapps::LightRegistrar {
+		let contract_client = ::dapps::LightRegistrar {
 			client: service.client().clone(),
 			sync: light_sync.clone(),
 			on_demand: on_demand.clone(),
-		});
+		};
 
 		struct LightSyncStatus(Arc<LightSync>);
 		impl fmt::Debug for LightSyncStatus {
@@ -329,7 +330,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		(node_health.clone(), dapps::Dependencies {
 			sync_status,
 			node_health,
-			contract_client: contract_client,
+			contract_client: Arc::new(contract_client),
 			fetch: fetch.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.redirection_address(),
@@ -684,13 +685,14 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// spin up event loop
 	let event_loop = EventLoop::spawn();
 
+	let contract_client = Arc::new(::dapps::FullRegistrar::new(client.clone()));
+
 	// the updater service
 	let updater = Updater::new(
 		Arc::downgrade(&(service.client() as Arc<BlockChainClient>)),
 		Arc::downgrade(&sync_provider),
 		update_policy,
-		fetch.clone(),
-		event_loop.remote(),
+		hash_fetch::Client::with_fetch(contract_client.clone(), fetch.clone(), event_loop.remote())
 	);
 	service.add_notify(updater.clone());
 
@@ -706,7 +708,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// the dapps server
 	let (node_health, dapps_deps) = {
 		let (sync, client) = (sync_provider.clone(), client.clone());
-		let contract_client = Arc::new(::dapps::FullRegistrar { client: client.clone() });
 
 		struct SyncStatus(Arc<ethsync::SyncProvider>, Arc<Client>, ethsync::NetworkConfiguration);
 		impl fmt::Debug for SyncStatus {
@@ -733,7 +734,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		(node_health.clone(), dapps::Dependencies {
 			sync_status,
 			node_health,
-			contract_client: contract_client,
+			contract_client,
 			fetch: fetch.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.redirection_address(),

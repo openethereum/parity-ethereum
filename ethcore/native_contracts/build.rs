@@ -22,7 +22,6 @@ use std::io::Write;
 
 // TODO: just walk the "res" directory and generate whole crate automatically.
 const KEY_SERVER_SET_ABI: &'static str = include_str!("res/key_server_set.json");
-const URLHINT_ABI: &'static str = include_str!("res/urlhint.json");
 const SERVICE_TRANSACTION_ABI: &'static str = include_str!("res/service_transaction.json");
 const SECRETSTORE_ACL_STORAGE_ABI: &'static str = include_str!("res/secretstore_acl_storage.json");
 const SECRETSTORE_SERVICE_ABI: &'static str = include_str!("res/secretstore_service.json");
@@ -48,7 +47,6 @@ fn build_test_contracts() {
 
 fn main() {
 	build_file("KeyServerSet", KEY_SERVER_SET_ABI, "key_server_set.rs");
-	build_file("Urlhint", URLHINT_ABI, "urlhint.rs");
 	build_file("ServiceTransactionChecker", SERVICE_TRANSACTION_ABI, "service_transaction.rs");
 	build_file("SecretStoreAclStorage", SECRETSTORE_ACL_STORAGE_ABI, "secretstore_acl_storage.rs");
 	build_file("SecretStoreService", SECRETSTORE_SERVICE_ABI, "secretstore_service.rs");

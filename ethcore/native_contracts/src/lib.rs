@@ -24,25 +24,19 @@ extern crate ethabi;
 extern crate ethereum_types;
 
 mod key_server_set;
-mod registry;
-mod urlhint;
 mod service_transaction;
 mod secretstore_acl_storage;
 mod secretstore_service;
 mod validator_set;
 mod validator_report;
 mod peer_set;
-mod tx_acl;
 
 pub mod test_contracts;
 
 pub use self::key_server_set::KeyServerSet;
-pub use self::registry::Registry;
-pub use self::urlhint::Urlhint;
 pub use self::service_transaction::ServiceTransactionChecker;
 pub use self::secretstore_acl_storage::SecretStoreAclStorage;
 pub use self::secretstore_service::SecretStoreService;
 pub use self::validator_set::ValidatorSet;
 pub use self::validator_report::ValidatorReport;
 pub use self::peer_set::PeerSet;
-pub use self::tx_acl::TransactAcl;
