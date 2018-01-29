@@ -21,6 +21,7 @@ extern crate ethcore_bytes as bytes;
 extern crate ethcore_network as network;
 extern crate ethereum_types;
 extern crate parking_lot;
+extern crate lru_cache;
 
 extern crate ethabi;
 #[macro_use]
@@ -37,12 +38,13 @@ extern crate kvdb_memorydb;
 extern crate ethcore_io as io;
 
 use std::sync::Weak;
-use std::collections::HashMap;
-use network::{NodeId, ConnectionFilter, ConnectionDirection};
+use lru_cache::LruCache;
+use parking_lot::Mutex;
+
+use bytes::Bytes;
 use ethcore::client::{BlockChainClient, BlockId, ChainNotify};
 use ethereum_types::{H256, Address};
-use bytes::Bytes;
-use parking_lot::Mutex;
+use network::{NodeId, ConnectionFilter, ConnectionDirection};
 
 use_contract!(peer_set, "PeerSet", "res/peer_set.json");
 
@@ -53,7 +55,7 @@ pub struct NodeFilter {
 	contract: peer_set::PeerSet,
 	client: Weak<BlockChainClient>,
 	contract_address: Address,
-	permission_cache: Mutex<HashMap<NodeId, bool>>,
+	permission_cache: Mutex<LruCache<NodeId, bool>>,
 }
 
 impl NodeFilter {
@@ -63,7 +65,7 @@ impl NodeFilter {
 			contract: peer_set::PeerSet::default(),
 			client: client,
 			contract_address: contract_address,
-			permission_cache: Mutex::new(HashMap::new()),
+			permission_cache: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
 		}
 	}
 
@@ -77,7 +79,7 @@ impl ConnectionFilter for NodeFilter {
 	fn connection_allowed(&self, own_id: &NodeId, connecting_id: &NodeId, _direction: ConnectionDirection) -> bool {
 
 		let mut cache = self.permission_cache.lock();
-		if let Some(res) = cache.get(connecting_id) {
+		if let Some(res) = cache.get_mut(connecting_id) {
 			return *res;
 		}
 
@@ -100,9 +102,7 @@ impl ConnectionFilter for NodeFilter {
 				false
 			});
 
-		if cache.len() < MAX_CACHE_SIZE {
-			cache.insert(*connecting_id, allowed);
-		}
+		cache.insert(*connecting_id, allowed);
 		allowed
 	}
 }

@@ -16,6 +16,7 @@ parking_lot = "0.5"
 ethabi = "5.1"
 ethabi-derive = "5.0"
 ethabi-contract = "5.0"
+lru-cache = "0.1"
 
 [dev-dependencies]
 kvdb-memorydb = { path = "../../util/kvdb-memorydb" }
