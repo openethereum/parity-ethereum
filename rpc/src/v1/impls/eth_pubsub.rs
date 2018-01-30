@@ -251,17 +251,15 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		kind: pubsub::Kind,
 		params: Trailing<pubsub::Params>,
 	) {
+
 		let error = match (kind, params.into()) {
-			(pubsub::Kind::NewHeads, None) => {
+			(pubsub::Kind::NewHeads, _) => {
 				self.heads_subscribers.write().push(subscriber);
 				return;
 			},
 			(pubsub::Kind::Logs, Some(pubsub::Params::Logs(filter))) => {
 				self.logs_subscribers.write().push(subscriber, filter.into());
 				return;
-			},
-			(pubsub::Kind::NewHeads, _) => {
-				errors::invalid_params("newHeads", "Expected no parameters.")
 			},
 			(pubsub::Kind::Logs, _) => {
 				errors::invalid_params("logs", "Expected a filter object.")
