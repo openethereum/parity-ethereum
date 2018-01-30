@@ -849,7 +849,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	}
 
 	// Create a weak reference to the client so that we can wait on shutdown until it is dropped
-    let weak_client = Arc::downgrade(&client);
+	let weak_client = Arc::downgrade(&client);
 
 	// Handle exit
 	let restart = wait_for_exit(Some(updater), Some(client), can_restart);
@@ -880,8 +880,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	raise_fd_limit();
 
 	fn wait<T>(res: Result<((bool, Option<String>), Weak<T>), String>) -> Result<(bool, Option<String>), String> {
-		res.map(|r| {
-			let (restart, weak_client) = r;
+		res.map(|(restart, weak_client)| {
 			wait_for_drop(weak_client);
 			restart
 		})
@@ -1033,23 +1032,18 @@ fn wait_for_drop<T>(w: Weak<T>) {
 	let instant = Instant::now();
 	let mut warned = false;
 
-	loop {
-		{
-			if let None = w.upgrade() {
-				break;
-			}
-		}
-
-		if instant.elapsed() > max_timeout {
-			warn!("Shutdown timeout reached, exiting uncleanly.");
+	while instant.elapsed() < max_timeout {
+		if w.upgrade().is_none() {
 			return;
 		}
 
-		if instant.elapsed() > warn_timeout && !warned {
+		if !warned && instant.elapsed() > warn_timeout {
 			warned = true;
 			warn!("Shutdown is taking longer than expected.");
 		}
 
 		thread::sleep(sleep_duration);
 	}
+
+	warn!("Shutdown timeout reached, exiting uncleanly.");
 }
