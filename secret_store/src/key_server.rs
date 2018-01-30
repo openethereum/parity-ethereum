@@ -132,13 +132,13 @@ impl DocumentKeyServer for KeyServerImpl {
 }
 
 impl MessageSigner for KeyServerImpl {
-	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
+	fn sign_message_schnorr(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
 		// recover requestor' public key from signature
 		let public = ethkey::recover(signature, key_id)
 			.map_err(|_| Error::BadSignature)?;
 
 		// sign message
-		let signing_session = self.data.lock().cluster.new_signing_session(key_id.clone(), signature.clone(), None, message)?;
+		let signing_session = self.data.lock().cluster.new_schnorr_signing_session(key_id.clone(), signature.clone(), None, message)?;
 		let message_signature = signing_session.wait()?;
 
 		// compose two message signature components into single one
@@ -148,6 +148,21 @@ impl MessageSigner for KeyServerImpl {
 
 		// encrypt combined signature with requestor public key
 		let message_signature = ethcrypto::ecies::encrypt(&public, &ethcrypto::DEFAULT_MAC, &combined_signature)
+			.map_err(|err| Error::Internal(format!("Error encrypting message signature: {}", err)))?;
+		Ok(message_signature)
+	}
+
+	fn sign_message_ecdsa(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
+		// recover requestor' public key from signature
+		let public = ethkey::recover(signature, key_id)
+			.map_err(|_| Error::BadSignature)?;
+
+		// sign message
+		let signing_session = self.data.lock().cluster.new_ecdsa_signing_session(key_id.clone(), signature.clone(), None, message)?;
+		let message_signature = signing_session.wait()?;
+
+		// encrypt combined signature with requestor public key
+		let message_signature = ethcrypto::ecies::encrypt(&public, &ethcrypto::DEFAULT_MAC, &*message_signature)
 			.map_err(|err| Error::Internal(format!("Error encrypting message signature: {}", err)))?;
 		Ok(message_signature)
 	}
@@ -209,13 +224,13 @@ pub mod tests {
 	use std::net::SocketAddr;
 	use std::collections::BTreeMap;
 	use ethcrypto;
-	use ethkey::{self, Secret, Random, Generator};
+	use ethkey::{self, Secret, Random, Generator, verify_public};
 	use acl_storage::DummyAclStorage;
 	use key_storage::tests::DummyKeyStorage;
 	use node_key_pair::PlainNodeKeyPair;
 	use key_server_set::tests::MapKeyServerSet;
 	use key_server_cluster::math;
-	use ethereum_types::H256;
+	use ethereum_types::{H256, H520};
 	use types::all::{Error, Public, ClusterConfiguration, NodeAddress, RequestSignature, ServerKeyId,
 		EncryptedDocumentKey, EncryptedDocumentKeyShadow, MessageHash, EncryptedMessageSignature, NodeId};
 	use traits::{AdminSessionsServer, ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
@@ -260,7 +275,11 @@ pub mod tests {
 	}
 
 	impl MessageSigner for DummyKeyServer {
-		fn sign_message(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
+		fn sign_message_schnorr(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
+			unimplemented!("test-only")
+		}
+
+		fn sign_message_ecdsa(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
 			unimplemented!("test-only")
 		}
 	}
@@ -411,13 +430,13 @@ pub mod tests {
 
 			// sign message
 			let message_hash = H256::from(42);
-			let combined_signature = key_servers[0].sign_message(&server_key_id, &signature, message_hash.clone()).unwrap();
+			let combined_signature = key_servers[0].sign_message_schnorr(&server_key_id, &signature, message_hash.clone()).unwrap();
 			let combined_signature = ethcrypto::ecies::decrypt(&requestor_secret, &ethcrypto::DEFAULT_MAC, &combined_signature).unwrap();
 			let signature_c = Secret::from_slice(&combined_signature[..32]);
 			let signature_s = Secret::from_slice(&combined_signature[32..]);
 
 			// check signature
-			assert_eq!(math::verify_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
+			assert_eq!(math::verify_schnorr_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
 		}
 	}
 
@@ -444,7 +463,7 @@ pub mod tests {
 	}
 
 	#[test]
-	fn signing_session_is_delegated_when_node_does_not_have_key_share() {
+	fn schnorr_signing_session_is_delegated_when_node_does_not_have_key_share() {
 		//::logger::init_log();
 		let key_servers = make_key_servers(6114, 3);
 		let threshold = 1;
@@ -460,13 +479,38 @@ pub mod tests {
 
 		// sign message
 		let message_hash = H256::from(42);
-		let combined_signature = key_servers[0].sign_message(&server_key_id, &signature, message_hash.clone()).unwrap();
+		let combined_signature = key_servers[0].sign_message_schnorr(&server_key_id, &signature, message_hash.clone()).unwrap();
 		let combined_signature = ethcrypto::ecies::decrypt(&requestor_secret, &ethcrypto::DEFAULT_MAC, &combined_signature).unwrap();
 		let signature_c = Secret::from_slice(&combined_signature[..32]);
 		let signature_s = Secret::from_slice(&combined_signature[32..]);
 
 		// check signature
-		assert_eq!(math::verify_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
+		assert_eq!(math::verify_schnorr_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
+	}
+
+	#[test]
+	fn ecdsa_signing_session_is_delegated_when_node_does_not_have_key_share() {
+		//::logger::init_log();
+		let key_servers = make_key_servers(6117, 4);
+		let threshold = 1;
+
+		// generate server key
+		let server_key_id = Random.generate().unwrap().secret().clone();
+		let requestor_secret = Random.generate().unwrap().secret().clone();
+		let signature = ethkey::sign(&requestor_secret, &server_key_id).unwrap();
+		let server_public = key_servers[0].generate_key(&server_key_id, &signature, threshold).unwrap();
+
+		// remove key from node0
+		key_servers[0].cluster().key_storage().remove(&server_key_id).unwrap();
+
+		// sign message
+		let message_hash = H256::random();
+		let signature = key_servers[0].sign_message_ecdsa(&server_key_id, &signature, message_hash.clone()).unwrap();
+		let signature = ethcrypto::ecies::decrypt(&requestor_secret, &ethcrypto::DEFAULT_MAC, &signature).unwrap();
+		let signature: H520 = signature[0..65].into();
+
+		// check signature
+		assert!(verify_public(&server_public, &signature.into(), &message_hash).unwrap());
 	}
 
 	#[test]
