@@ -1,3 +1,5 @@
+Note: Parity 1.1 reached End-of-Life on 2016-08-12 (EOL).
+
 ## Parity [v1.1.0](https://github.com/paritytech/parity/releases/tag/v1.1.0) (2016-05-02)
 
 Parity 1.1.0 introduces:

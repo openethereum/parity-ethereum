@@ -18,9 +18,7 @@
 use std::cmp;
 use std::sync::Arc;
 use hash::keccak;
-use bigint::prelude::{U256, U512};
-use bigint::hash::H256;
-use util::*;
+use ethereum_types::{H256, U256, U512, Address};
 use bytes::{Bytes, BytesRef};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use machine::EthereumMachine as Machine;
@@ -702,9 +700,7 @@ mod tests {
 	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use bigint::prelude::{U256, U512};
-	use bigint::hash::H256;
-	use util::Address;
+	use ethereum_types::{H256, U256, U512, Address};
 	use bytes::BytesRef;
 	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
 	use evm::{Factory, VMType};

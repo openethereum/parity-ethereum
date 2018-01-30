@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::sync::{mpsc, Arc};
 use std::thread;
 
-use bigint::hash::{H256, H512};
+use ethereum_types::{H256, H512};
 use ethkey::Public;
 use jsonrpc_macros::pubsub::{Subscriber, Sink};
 use parking_lot::{Mutex, RwLock};

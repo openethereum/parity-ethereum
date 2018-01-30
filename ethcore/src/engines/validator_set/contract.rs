@@ -18,9 +18,8 @@
 /// It can also report validators for misbehaviour with two levels: `reportMalicious` and `reportBenign`.
 
 use std::sync::Weak;
-use bigint::hash::H256;
+use ethereum_types::{H256, Address};
 use parking_lot::RwLock;
-use util::*;
 use bytes::Bytes;
 
 use futures::Future;
@@ -137,8 +136,7 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
-	use bigint::hash::H520;
-	use util::*;
+	use ethereum_types::{H520, Address};
 	use bytes::ToPretty;
 	use rlp::encode;
 	use spec::Spec;
@@ -192,7 +190,7 @@ mod tests {
 		header.set_number(2);
 		header.set_parent_hash(client.chain_info().best_block_hash);
 		// `reportBenign` when the designated proposer releases block from the future (bad clock).
-		assert!(client.engine().verify_block_external(&header).is_err());
+		assert!(client.engine().verify_block_basic(&header).is_err());
 		// Seal a block.
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 1);

@@ -18,13 +18,12 @@ use std::io;
 use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
 use std::fs::File;
-use bigint::prelude::U256;
-use bigint::hash::clean_0x;
-use util::Address;
+use ethereum_types::{U256, clean_0x, Address};
 use kvdb_rocksdb::CompactionProfile;
 use journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
-use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
+use ethcore::miner::{PendingSet, GasLimit};
+use miner::transaction_queue::PrioritizationStrategy;
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
 use dir::helpers::replace_home;
@@ -329,8 +328,8 @@ mod tests {
 	use std::time::Duration;
 	use std::fs::File;
 	use std::io::Write;
-	use devtools::RandomTempPath;
-	use bigint::prelude::U256;
+	use tempdir::TempDir;
+	use ethereum_types::U256;
 	use ethcore::client::{Mode, BlockId};
 	use ethcore::miner::PendingSet;
 	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, password_from_file};
@@ -418,15 +417,17 @@ mod tests {
 
 	#[test]
 	fn test_password() {
-		let path = RandomTempPath::new();
-		let mut file = File::create(path.as_path()).unwrap();
+		let tempdir = TempDir::new("").unwrap();
+		let path = tempdir.path().join("file");
+		let mut file = File::create(&path).unwrap();
 		file.write_all(b"a bc ").unwrap();
-		assert_eq!(password_from_file(path.as_str().into()).unwrap().as_bytes(), b"a bc");
+		assert_eq!(password_from_file(path.to_str().unwrap().into()).unwrap().as_bytes(), b"a bc");
 	}
 
 	#[test]
 	fn test_password_multiline() {
-		let path = RandomTempPath::new();
+		let tempdir = TempDir::new("").unwrap();
+		let path = tempdir.path().join("file");
 		let mut file = File::create(path.as_path()).unwrap();
 		file.write_all(br#"    password with trailing whitespace
 those passwords should be
@@ -434,7 +435,7 @@ ignored
 but the first password is trimmed
 
 "#).unwrap();
-		assert_eq!(&password_from_file(path.as_str().into()).unwrap(), "password with trailing whitespace");
+		assert_eq!(&password_from_file(path.to_str().unwrap().into()).unwrap(), "password with trailing whitespace");
 	}
 
 	#[test]

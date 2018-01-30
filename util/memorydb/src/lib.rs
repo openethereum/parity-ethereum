@@ -16,20 +16,22 @@
 
 //! Reference-counted memory-based `HashDB` implementation.
 extern crate heapsize;
-extern crate ethcore_bigint as bigint;
-extern crate rlp;
-extern crate keccak_hash as keccak;
+extern crate ethereum_types;
 extern crate hashdb;
+extern crate keccak_hash as keccak;
+extern crate plain_hasher;
+extern crate rlp;
+extern crate elastic_array;
 
 use std::mem;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use heapsize::HeapSizeOf;
-use bigint::hash::{H256FastMap, H256};
-use rlp::NULL_RLP;
+use ethereum_types::H256;
+use hashdb::{HashDB, DBValue};
 use keccak::{KECCAK_NULL_RLP, keccak};
-use hashdb::*;
-
+use plain_hasher::H256FastMap;
+use rlp::NULL_RLP;
 /// Reference-counted memory-based `HashDB` implementation.
 ///
 /// Use `new()` to create a new database. Insert items with `insert()`, remove items

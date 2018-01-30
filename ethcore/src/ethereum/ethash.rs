@@ -20,9 +20,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use ethash::{quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
-use bigint::prelude::U256;
-use bigint::hash::{H256, H64};
-use util::Address;
+use ethereum_types::{H256, H64, U256, Address};
 use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};
@@ -472,9 +470,7 @@ fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u6
 mod tests {
 	use std::str::FromStr;
 	use std::sync::Arc;
-	use bigint::prelude::U256;
-	use bigint::hash::{H64, H256};
-	use util::*;
+	use ethereum_types::{H64, H256, U256, Address};
 	use block::*;
 	use tests::helpers::*;
 	use error::{BlockError, Error};

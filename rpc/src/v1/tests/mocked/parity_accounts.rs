@@ -19,7 +19,7 @@ use std::sync::Arc;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethstore::EthStore;
 use ethstore::accounts_dir::RootDiskDirectory;
-use devtools::RandomTempPath;
+use tempdir::TempDir;
 
 use jsonrpc_core::IoHandler;
 use v1::{ParityAccounts, ParityAccountsClient};
@@ -275,8 +275,8 @@ fn should_be_able_to_remove_address() {
 
 #[test]
 fn rpc_parity_new_vault() {
-	let temp_path = RandomTempPath::new();
-	let tester = setup_with_vaults_support(temp_path.as_str());
+	let tempdir = TempDir::new("").unwrap();
+	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_newVault", "params":["vault1", "password1"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -288,8 +288,8 @@ fn rpc_parity_new_vault() {
 
 #[test]
 fn rpc_parity_open_vault() {
-	let temp_path = RandomTempPath::new();
-	let tester = setup_with_vaults_support(temp_path.as_str());
+	let tempdir = TempDir::new("").unwrap();
+	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
 	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
 	assert!(tester.accounts.close_vault("vault1").is_ok());
@@ -302,8 +302,8 @@ fn rpc_parity_open_vault() {
 
 #[test]
 fn rpc_parity_close_vault() {
-	let temp_path = RandomTempPath::new();
-	let tester = setup_with_vaults_support(temp_path.as_str());
+	let tempdir = TempDir::new("").unwrap();
+	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
 	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
 
@@ -315,8 +315,8 @@ fn rpc_parity_close_vault() {
 
 #[test]
 fn rpc_parity_change_vault_password() {
-	let temp_path = RandomTempPath::new();
-	let tester = setup_with_vaults_support(temp_path.as_str());
+	let tempdir = TempDir::new("").unwrap();
+	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
 	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
 
@@ -328,8 +328,8 @@ fn rpc_parity_change_vault_password() {
 
 #[test]
 fn rpc_parity_change_vault() {
-	let temp_path = RandomTempPath::new();
-	let tester = setup_with_vaults_support(temp_path.as_str());
+	let tempdir = TempDir::new("").unwrap();
+	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
 	let (address, _) = tester.accounts.new_account_and_public("root_password").unwrap();
 	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
@@ -342,8 +342,8 @@ fn rpc_parity_change_vault() {
 
 #[test]
 fn rpc_parity_vault_adds_vault_field_to_acount_meta() {
-	let temp_path = RandomTempPath::new();
-	let tester = setup_with_vaults_support(temp_path.as_str());
+	let tempdir = TempDir::new("").unwrap();
+	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
 	let (address1, _) = tester.accounts.new_account_and_public("root_password1").unwrap();
 	let uuid1 = tester.accounts.account_meta(address1.clone()).unwrap().uuid.unwrap();
@@ -366,8 +366,8 @@ fn rpc_parity_vault_adds_vault_field_to_acount_meta() {
 
 #[test]
 fn rpc_parity_list_vaults() {
-	let temp_path = RandomTempPath::new();
-	let tester = setup_with_vaults_support(temp_path.as_str());
+	let tempdir = TempDir::new("").unwrap();
+	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
 	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
 	assert!(tester.accounts.create_vault("vault2", "password2").is_ok());
@@ -383,8 +383,8 @@ fn rpc_parity_list_vaults() {
 
 #[test]
 fn rpc_parity_list_opened_vaults() {
-	let temp_path = RandomTempPath::new();
-	let tester = setup_with_vaults_support(temp_path.as_str());
+	let tempdir = TempDir::new("").unwrap();
+	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
 	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
 	assert!(tester.accounts.create_vault("vault2", "password2").is_ok());
@@ -402,8 +402,8 @@ fn rpc_parity_list_opened_vaults() {
 
 #[test]
 fn rpc_parity_get_set_vault_meta() {
-	let temp_path = RandomTempPath::new();
-	let tester = setup_with_vaults_support(temp_path.as_str());
+	let tempdir = TempDir::new("").unwrap();
+	let tester = setup_with_vaults_support(tempdir.path().to_str().unwrap());
 
 	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
 

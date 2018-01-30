@@ -24,7 +24,7 @@ use blockchain::BlockChain;
 use engines::EthEngine;
 use snapshot::{Error, ManifestData};
 
-use bigint::hash::H256;
+use ethereum_types::H256;
 use kvdb::KeyValueDB;
 
 mod authority;

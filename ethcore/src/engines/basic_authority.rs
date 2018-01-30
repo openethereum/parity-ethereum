@@ -17,9 +17,8 @@
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
 use std::sync::{Weak, Arc};
-use bigint::hash::{H256, H520};
+use ethereum_types::{H256, H520, Address};
 use parking_lot::RwLock;
-use util::*;
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;
@@ -200,7 +199,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 mod tests {
 	use std::sync::Arc;
 	use hash::keccak;
-	use bigint::hash::H520;
+	use ethereum_types::H520;
 	use block::*;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;

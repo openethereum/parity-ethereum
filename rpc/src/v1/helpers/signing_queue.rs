@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use bigint::prelude::U256;
-use util::Address;
+use ethereum_types::{U256, Address};
 use parking_lot::{Mutex, RwLock};
 use ethcore::account_provider::DappId;
 use v1::helpers::{ConfirmationRequest, ConfirmationPayload, oneshot, errors};
@@ -232,8 +231,7 @@ impl SigningQueue for ConfirmationsQueue {
 #[cfg(test)]
 mod test {
 	use std::sync::Arc;
-	use bigint::prelude::U256;
-	use util::Address;
+	use ethereum_types::{U256, Address};
 	use parking_lot::Mutex;
 	use jsonrpc_core::futures::Future;
 	use v1::helpers::{

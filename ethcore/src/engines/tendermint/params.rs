@@ -18,7 +18,7 @@
 
 use ethjson;
 use time::Duration;
-use bigint::prelude::U256;
+use ethereum_types::U256;
 use super::super::validator_set::{ValidatorSet, new_validator_set};
 use super::super::transition::Timeouts;
 use super::Step;

@@ -9,7 +9,8 @@ license = "GPL-3.0"
 bigint = "4.0"
 elastic-array = "0.9"
 heapsize = "0.4"
-ethcore-bigint = { version = "0.2", path = "../bigint", features = ["heapsizeof"] }
+ethereum-types = { version = "0.1", features = ["heapsizeof"] }
 keccak-hash = { version = "0.1.0", path = "../hash" }
 hashdb = { version = "0.1.1", path = "../hashdb" }
+plain_hasher = { path = "../plain_hasher" }
 rlp = { version = "0.2.1", path = "../rlp" }

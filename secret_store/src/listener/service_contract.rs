@@ -22,8 +22,7 @@ use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethkey::{Public, Signature, public_to_address};
 use native_contracts::SecretStoreService;
 use hash::keccak;
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{H256, U256};
 use listener::service_contract_listener::ServiceTask;
 use trusted_client::TrustedClient;
 use {ServerKeyId, NodeKeyPair, ContractAddress};
@@ -307,9 +306,9 @@ fn get_confirmed_block_hash(client: &Client, confirmations: u64) -> Option<H256>
 
 #[cfg(test)]
 pub mod tests {
-	use parking_lot::Mutex;	
+	use parking_lot::Mutex;
 	use ethkey::Public;
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use listener::service_contract_listener::ServiceTask;
 	use ServerKeyId;
 	use super::ServiceContract;

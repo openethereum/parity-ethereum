@@ -211,7 +211,7 @@ impl<T: IncompleteRequest> DerefMut for Batch<T> {
 mod tests {
 	use request::*;
 	use super::Builder;
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 
 	#[test]
 	fn all_scalar() {

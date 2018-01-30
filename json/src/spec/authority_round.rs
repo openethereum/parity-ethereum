@@ -63,7 +63,7 @@ pub struct AuthorityRound {
 
 #[cfg(test)]
 mod tests {
-	use bigint::prelude::{U256, H160};
+	use ethereum_types::{U256, H160};
 	use uint::Uint;
 	use serde_json;
 	use hash::Address;

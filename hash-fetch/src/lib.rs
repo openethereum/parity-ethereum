@@ -21,9 +21,8 @@
 #[macro_use]
 extern crate log;
 
-extern crate ethcore_util as util;
-extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
+extern crate ethereum_types;
 extern crate futures;
 extern crate keccak_hash as hash;
 extern crate mime;

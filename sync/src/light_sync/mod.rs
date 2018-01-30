@@ -45,8 +45,7 @@ use light::net::{
 };
 use light::request::{self, CompleteHeadersRequest as HeadersRequest};
 use network::PeerId;
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use parking_lot::{Mutex, RwLock};
 use rand::{Rng, OsRng};
 

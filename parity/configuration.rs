@@ -23,9 +23,7 @@ use std::cmp::max;
 use std::str::FromStr;
 use cli::{Args, ArgsError};
 use hash::keccak;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{U256, H256, Address};
 use parity_version::{version_data, version};
 use bytes::Bytes;
 use ansi_term::Colour;
@@ -339,6 +337,7 @@ impl Configuration {
 				daemon: daemon,
 				logger_config: logger_config.clone(),
 				miner_options: self.miner_options()?,
+				gas_price_percentile: self.args.arg_gas_price_percentile,
 				ntp_servers: self.ntp_servers(),
 				ws_conf: ws_conf,
 				http_conf: http_conf,
@@ -585,7 +584,12 @@ impl Configuration {
 				let mut extra_embed = dev_ui.clone();
 				match self.ui_hosts() {
 					// In case host validation is disabled allow all frame ancestors
-					None => extra_embed.push(("*".to_owned(), ui_port)),
+					None => {
+						// NOTE Chrome does not seem to support "*:<port>"
+						// we use `http(s)://*:<port>` instead.
+						extra_embed.push(("http://*".to_owned(), ui_port));
+						extra_embed.push(("https://*".to_owned(), ui_port));
+					},
 					Some(hosts) => extra_embed.extend(hosts.into_iter().filter_map(|host| {
 						let mut it = host.split(":");
 						let host = it.next();
@@ -609,6 +613,7 @@ impl Configuration {
 			enabled: self.secretstore_enabled(),
 			http_enabled: self.secretstore_http_enabled(),
 			acl_check_enabled: self.secretstore_acl_check_enabled(),
+			auto_migrate_enabled: self.secretstore_auto_migrate_enabled(),
 			service_contract_address: self.secretstore_service_contract_address()?,
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
@@ -1087,6 +1092,10 @@ impl Configuration {
 		!self.args.flag_no_secretstore_acl_check
 	}
 
+	fn secretstore_auto_migrate_enabled(&self) -> bool {
+		!self.args.flag_no_secretstore_auto_migrate
+	}
+
 	fn secretstore_service_contract_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
 		Ok(match self.args.arg_secretstore_contract.as_ref() {
 			"none" => None,
@@ -1128,12 +1137,13 @@ impl Configuration {
 #[cfg(test)]
 mod tests {
 	use std::io::Write;
-	use std::fs::{File, create_dir};
+	use std::fs::File;
 	use std::str::FromStr;
 
-	use devtools::{RandomTempPath};
+	use tempdir::TempDir;
 	use ethcore::client::{VMType, BlockId};
-	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
+	use ethcore::miner::MinerOptions;
+	use miner::transaction_queue::PrioritizationStrategy;
 	use parity_rpc::NetworkSettings;
 	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 
@@ -1357,6 +1367,7 @@ mod tests {
 			daemon: None,
 			logger_config: Default::default(),
 			miner_options: Default::default(),
+			gas_price_percentile: 50,
 			ntp_servers: vec![
 				"0.parity.pool.ntp.org:123".into(),
 				"1.parity.pool.ntp.org:123".into(),
@@ -1619,37 +1630,33 @@ mod tests {
 	#[test]
 	fn should_parse_dapp_opening() {
 		// given
-		let temp = RandomTempPath::new();
-		let name = temp.file_name().unwrap().to_str().unwrap();
-		create_dir(temp.as_str().to_owned()).unwrap();
+		let tempdir = TempDir::new("").unwrap();
 
 		// when
-		let conf0 = parse(&["parity", "dapp", temp.to_str().unwrap()]);
+		let conf0 = parse(&["parity", "dapp", tempdir.path().to_str().unwrap()]);
 
 		// then
-		assert_eq!(conf0.dapp_to_open(), Ok(Some(name.into())));
+		assert_eq!(conf0.dapp_to_open(), Ok(Some(tempdir.path().file_name().unwrap().to_str().unwrap().into())));
 		let extra_dapps = conf0.dapps_config().extra_dapps;
-		assert_eq!(extra_dapps, vec![temp.to_owned()]);
+		assert_eq!(extra_dapps, vec![tempdir.path().to_owned()]);
 	}
 
 	#[test]
 	fn should_not_bail_on_empty_line_in_reserved_peers() {
-		let temp = RandomTempPath::new();
-		create_dir(temp.as_str().to_owned()).unwrap();
-		let filename = temp.as_str().to_owned() + "/peers";
-		File::create(filename.clone()).unwrap().write_all(b"  \n\t\n").unwrap();
-		let args = vec!["parity", "--reserved-peers", &filename];
+		let tempdir = TempDir::new("").unwrap();
+		let filename = tempdir.path().join("peers");
+		File::create(&filename).unwrap().write_all(b"  \n\t\n").unwrap();
+		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];
 		let conf = Configuration::parse(&args, None).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
 	}
 
 	#[test]
 	fn should_ignore_comments_in_reserved_peers() {
-		let temp = RandomTempPath::new();
-		create_dir(temp.as_str().to_owned()).unwrap();
-		let filename = temp.as_str().to_owned() + "/peers_comments";
-		File::create(filename.clone()).unwrap().write_all(b"# Sample comment\nenode://6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@172.0.0.1:30303\n").unwrap();
-		let args = vec!["parity", "--reserved-peers", &filename];
+		let tempdir = TempDir::new("").unwrap();
+		let filename = tempdir.path().join("peers_comments");
+		File::create(&filename).unwrap().write_all(b"# Sample comment\nenode://6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@172.0.0.1:30303\n").unwrap();
+		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];
 		let conf = Configuration::parse(&args, None).unwrap();
 		let reserved_nodes = conf.init_reserved_nodes();
 		assert!(reserved_nodes.is_ok());

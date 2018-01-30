@@ -40,7 +40,7 @@ pub struct BasicAuthority {
 mod tests {
 	use serde_json;
 	use uint::Uint;
-	use bigint::prelude::{U256, H160};
+	use ethereum_types::{U256, H160};
 	use hash::Address;
 	use spec::basic_authority::BasicAuthority;
 	use spec::validator_set::ValidatorSet;

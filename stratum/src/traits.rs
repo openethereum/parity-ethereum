@@ -16,7 +16,7 @@
 
 use std;
 use std::error::Error as StdError;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use jsonrpc_tcp_server::PushMessageError;
 
 #[derive(Debug, Clone)]

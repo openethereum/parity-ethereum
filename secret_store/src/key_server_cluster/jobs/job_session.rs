@@ -200,22 +200,13 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 			return Err(Error::InvalidStateForRequest);
 		}
 
-		// send requests to slave nodes
-		let mut waits_for_self = false;
+		// result from self
 		let active_data = ActiveJobSessionData {
-			requests: nodes,
+			requests: nodes.clone(),
 			rejects: BTreeSet::new(),
 			responses: BTreeMap::new(),
 		};
-		for node in &active_data.requests {
-			if node != &self.meta.self_node_id {
-				self.transport.send_partial_request(&node, self.executor.prepare_partial_request(node, &active_data.requests)?)?;
-			} else {
-				waits_for_self = true;
-			}
-		}
-
-		// result from self
+		let waits_for_self = active_data.requests.contains(&self.meta.self_node_id);
 		let self_response = if waits_for_self {
 			let partial_request = self.executor.prepare_partial_request(&self.meta.self_node_id, &active_data.requests)?;
 			Some(self.executor.process_partial_request(partial_request)?)
@@ -233,6 +224,13 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 			match self_response {
 				JobPartialRequestAction::Respond(self_response) => self.on_partial_response(&self_node_id, self_response)?,
 				JobPartialRequestAction::Reject(self_response) => self.on_partial_response(&self_node_id, self_response)?,
+			}
+		}
+
+		// send requests to save nodes. we only send requests if session is still active.
+		if self.data.state == JobSessionState::Active {
+			for node in nodes.iter().filter(|n| **n != self.meta.self_node_id) {
+				self.transport.send_partial_request(node, self.executor.prepare_partial_request(node, &nodes)?)?;
 			}
 		}
 

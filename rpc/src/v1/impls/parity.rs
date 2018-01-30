@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
 
-use util::Address;
+use ethereum_types::Address;
 use version::version_data;
 
 use crypto::{DEFAULT_MAC, ecies};
