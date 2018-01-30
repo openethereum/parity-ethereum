@@ -35,7 +35,7 @@ use error::*;
 // 	AccountDetails,
 // 	TransactionOrigin,
 // };
-// use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
+use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
 // use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 use miner::{MinerService, MinerStatus};
 use price_info::fetch::Client as FetchClient;
@@ -72,32 +72,32 @@ pub enum PendingSet {
 	SealingOrElseQueue,
 }
 
-/// Type of the gas limit to apply to the transaction queue.
-#[derive(Debug, PartialEq)]
-pub enum GasLimit {
-	/// Depends on the block gas limit and is updated with every block.
-	Auto,
-	/// No limit.
-	None,
-	/// Set to a fixed gas value.
-	Fixed(U256),
-}
-
-/// Transaction queue banning settings.
-#[derive(Debug, PartialEq, Clone)]
-pub enum Banning {
-	/// Banning in transaction queue is disabled
-	Disabled,
-	/// Banning in transaction queue is enabled
-	Enabled {
-		/// Upper limit of transaction processing time before banning.
-		offend_threshold: Duration,
-		/// Number of similar offending transactions before banning.
-		min_offends: u16,
-		/// Number of seconds the offender is banned for.
-		ban_duration: Duration,
-	},
-}
+// /// Type of the gas limit to apply to the transaction queue.
+// #[derive(Debug, PartialEq)]
+// pub enum GasLimit {
+// 	/// Depends on the block gas limit and is updated with every block.
+// 	Auto,
+// 	/// No limit.
+// 	None,
+// 	/// Set to a fixed gas value.
+// 	Fixed(U256),
+// }
+//
+// /// Transaction queue banning settings.
+// #[derive(Debug, PartialEq, Clone)]
+// pub enum Banning {
+// 	/// Banning in transaction queue is disabled
+// 	Disabled,
+// 	/// Banning in transaction queue is enabled
+// 	Enabled {
+// 		/// Upper limit of transaction processing time before banning.
+// 		offend_threshold: Duration,
+// 		/// Number of similar offending transactions before banning.
+// 		min_offends: u16,
+// 		/// Number of seconds the offender is banned for.
+// 		ban_duration: Duration,
+// 	},
+// }
 
 /// Configures the behaviour of the miner.
 #[derive(Debug, PartialEq)]
@@ -112,30 +112,30 @@ pub struct MinerOptions {
 	pub reseal_on_own_tx: bool,
 	/// Reseal when new uncle block has been imported.
 	pub reseal_on_uncle: bool,
-	/// Minimum period between transaction-inspired reseals.
-	pub reseal_min_period: Duration,
-	/// Maximum period between blocks (enables force sealing after that).
-	pub reseal_max_period: Duration,
-	/// Maximum amount of gas to bother considering for block insertion.
-	pub tx_gas_limit: U256,
-	/// Maximum size of the transaction queue.
-	pub tx_queue_size: usize,
-	/// Maximum memory usage of transactions in the queue (current / future).
-	pub tx_queue_memory_limit: Option<usize>,
-	/// Strategy to use for prioritizing transactions in the queue.
-	pub tx_queue_strategy: PrioritizationStrategy,
+	// /// Minimum period between transaction-inspired reseals.
+	// pub reseal_min_period: Duration,
+	// /// Maximum period between blocks (enables force sealing after that).
+	// pub reseal_max_period: Duration,
+	// /// Maximum amount of gas to bother considering for block insertion.
+	// pub tx_gas_limit: U256,
+	// /// Maximum size of the transaction queue.
+	// pub tx_queue_size: usize,
+	// /// Maximum memory usage of transactions in the queue (current / future).
+	// pub tx_queue_memory_limit: Option<usize>,
+	// / Strategy to use for prioritizing transactions in the queue.
+	// pub tx_queue_strategy: PrioritizationStrategy,
 	/// Whether we should fallback to providing all the queue's transactions or just pending.
 	pub pending_set: PendingSet,
 	/// How many historical work packages can we store before running out?
 	pub work_queue_size: usize,
 	/// Can we submit two different solutions for the same block and expect both to result in an import?
 	pub enable_resubmission: bool,
-	/// Global gas limit for all transaction in the queue except for local and retracted.
-	pub tx_queue_gas_limit: GasLimit,
-	/// Banning settings.
-	pub tx_queue_banning: Banning,
-	/// Do we refuse to accept service transactions even if sender is certified.
-	pub refuse_service_transactions: bool,
+	// / Global gas limit for all transaction in the queue except for local and retracted.
+	// pub tx_queue_gas_limit: GasLimit,
+	// / Banning settings.
+	// pub tx_queue_banning: Banning,
+	// / Do we refuse to accept service transactions even if sender is certified.
+	// pub refuse_service_transactions: bool,
 	/// Create a pending block with maximal possible gas limit.
 	/// NOTE: Such block will contain all pending transactions but
 	/// will be invalid if mined.
@@ -150,11 +150,11 @@ impl Default for MinerOptions {
 			reseal_on_external_tx: false,
 			reseal_on_own_tx: true,
 			reseal_on_uncle: false,
-			tx_gas_limit: !U256::zero(),
-			tx_queue_size: 8192,
-			tx_queue_memory_limit: Some(2 * 1024 * 1024),
-			tx_queue_gas_limit: GasLimit::None,
-			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
+			// tx_gas_limit: !U256::zero(),
+			// tx_queue_size: 8192,
+			// tx_queue_memory_limit: Some(2 * 1024 * 1024),
+			// tx_queue_gas_limit: GasLimit::None,
+			// tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			pending_set: PendingSet::AlwaysQueue,
 			reseal_min_period: Duration::from_secs(2),
 			reseal_max_period: Duration::from_secs(120),
@@ -262,7 +262,7 @@ pub struct Miner {
 	accounts: Option<Arc<AccountProvider>>,
 	notifiers: RwLock<Vec<Box<NotifyWork>>>,
 	gas_pricer: Mutex<GasPricer>,
-	service_transaction_action: ServiceTransactionAction,
+	// service_transaction_action: ServiceTransactionAction,
 }
 
 impl Miner {
@@ -279,10 +279,6 @@ impl Miner {
 
 	/// Creates new instance of miner.
 	fn new_raw(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
-		let gas_limit = match options.tx_queue_gas_limit {
-			GasLimit::Fixed(ref limit) => *limit,
-			_ => !U256::zero(),
-		};
 		let mem_limit = options.tx_queue_memory_limit.unwrap_or_else(usize::max_value);
 
 		let txq = TransactionQueue::with_limits(
@@ -292,26 +288,21 @@ impl Miner {
 			gas_limit,
 			options.tx_gas_limit
 		);
-		let txq = match options.tx_queue_banning {
-			Banning::Disabled => BanningTransactionQueue::new(txq, Threshold::NeverBan, Duration::from_secs(180)),
-			Banning::Enabled { ban_duration, min_offends, .. } => BanningTransactionQueue::new(
-				txq,
-				Threshold::BanAfter(min_offends),
-				ban_duration,
-			),
-		};
+		// let txq = match options.tx_queue_banning {
+		// 	Banning::Disabled => BanningTransactionQueue::new(txq, Threshold::NeverBan, Duration::from_secs(180)),
+		// 	Banning::Enabled { ban_duration, min_offends, .. } => BanningTransactionQueue::new(
+		// 		txq,
+		// 		Threshold::BanAfter(min_offends),
+		// 		ban_duration,
+		// 	),
+		// };
 
 		let notifiers: Vec<Box<NotifyWork>> = match options.new_work_notify.is_empty() {
 			true => Vec::new(),
 			false => vec![Box::new(WorkPoster::new(&options.new_work_notify))],
 		};
 
-		let service_transaction_action = match options.refuse_service_transactions {
-			true => ServiceTransactionAction::Refuse,
-			false => ServiceTransactionAction::Check(ServiceTransactionChecker::default()),
-		};
-
-		let (limits, verifier_options) = unimplmented!();
+		let (limits, verifier_options) = unimplemented!();
 
 		Miner {
 			transaction_queue: TransactionQueue::new(limits, verifier_options),
@@ -332,7 +323,6 @@ impl Miner {
 			engine: spec.engine.clone(),
 			notifiers: RwLock::new(notifiers),
 			gas_pricer: Mutex::new(gas_pricer),
-			service_transaction_action: service_transaction_action,
 		}
 	}
 
@@ -436,7 +426,7 @@ impl Miner {
 
 		let mut tx_count = 0usize;
 		let mut skipped_transactions = 0usize;
-		let mut max_gas = open_block.header()
+		let mut max_gas = open_block.header();
 
 		for tx in pending.transactions() {
 			let hash = tx.hash();
@@ -525,6 +515,7 @@ impl Miner {
 				queue.penalize(&hash);
 			}
 		}
+
 		(block, original_work_hash)
 	}
 
@@ -652,12 +643,13 @@ impl Miner {
 
 	fn update_gas_limit(&self, client: &MiningBlockChainClient) {
 		let gas_limit = client.best_block_header().gas_limit();
-		let mut queue = self.transaction_queue.write();
-		queue.set_gas_limit(gas_limit);
-		if let GasLimit::Auto = self.options.tx_queue_gas_limit {
-			// Set total tx queue gas limit to be 20x the block gas limit.
-			queue.set_total_gas_limit(gas_limit * 20.into());
-		}
+		// let mut queue = self.transaction_queue.write();
+		// queue.set_gas_limit(gas_limit);
+		// if let GasLimit::Auto = self.options.tx_queue_gas_limit {
+		// 	// Set total tx queue gas limit to be 20x the block gas limit.
+		// 	queue.set_total_gas_limit(gas_limit * 20.into());
+		// }
+		unimplemented!()
 	}
 
 	/// Returns true if we had to prepare new pending block.
@@ -691,60 +683,6 @@ impl Miner {
 
 		// Return if we restarted
 		prepare_new
-	}
-
-	fn add_transactions_to_queue(
-		&self,
-		client: &MiningBlockChainClient,
-		transactions: Vec<UnverifiedTransaction>,
-		default_origin: TransactionOrigin,
-		condition: Option<TransactionCondition>,
-		transaction_queue: &mut BanningTransactionQueue,
-	) -> Vec<Result<TransactionImportResult, Error>> {
-		let best_block_header = client.best_block_header().decode();
-		let insertion_time = client.chain_info().best_block_number;
-
-		transactions.into_iter()
-			.map(|tx| {
-				let hash = tx.hash();
-				if client.transaction_block(TransactionId::Hash(hash)).is_some() {
-					debug!(target: "miner", "Rejected tx {:?}: already in the blockchain", hash);
-					return Err(Error::Transaction(TransactionError::AlreadyImported));
-				}
-				match self.engine.verify_transaction_basic(&tx, &best_block_header)
-					.and_then(|_| self.engine.verify_transaction_unordered(tx, &best_block_header))
-				{
-					Err(e) => {
-						debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", hash, e);
-						Err(e)
-					},
-					Ok(transaction) => {
-						// This check goes here because verify_transaction takes SignedTransaction parameter
-						self.engine.machine().verify_transaction(&transaction, &best_block_header, client.as_block_chain_client())?;
-
-						let origin = self.accounts.as_ref().and_then(|accounts| {
-							match accounts.has_account(transaction.sender()).unwrap_or(false) {
-								true => Some(TransactionOrigin::Local),
-								false => None,
-							}
-						}).unwrap_or(default_origin);
-
-						// try to install service transaction checker before appending transactions
-						self.service_transaction_action.update_from_chain_client(client);
-
-						let details_provider = TransactionDetailsProvider::new(client, &self.service_transaction_action);
-						match origin {
-							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-								Ok(transaction_queue.add(transaction, origin, insertion_time, condition.clone(), &details_provider)?)
-							},
-							TransactionOrigin::External => {
-								Ok(transaction_queue.add_with_banlist(transaction, insertion_time, &details_provider)?)
-							},
-						}
-					},
-				}
-			})
-			.collect()
 	}
 
 	/// Are we allowed to do a non-mandatory reseal?
@@ -1207,70 +1145,6 @@ impl MinerService for Miner {
 			// --------------------------------------------------------------------------
 			self.update_sealing(chain);
 		}
-	}
-}
-
-/// Action when service transaction is received
-enum ServiceTransactionAction {
-	/// Refuse service transaction immediately
-	Refuse,
-	/// Accept if sender is certified to send service transactions
-	Check(ServiceTransactionChecker),
-}
-
-impl ServiceTransactionAction {
-	pub fn update_from_chain_client(&self, client: &MiningBlockChainClient) {
-		if let ServiceTransactionAction::Check(ref checker) = *self {
-			checker.update_from_chain_client(&client);
-		}
-	}
-
-	pub fn check(&self, client: &MiningBlockChainClient, tx: &SignedTransaction) -> Result<bool, String> {
-		match *self {
-			ServiceTransactionAction::Refuse => Err("configured to refuse service transactions".to_owned()),
-			ServiceTransactionAction::Check(ref checker) => checker.check(&client, tx),
-		}
-	}
-}
-
-impl<'a> ::ethcore_miner::service_transaction_checker::ContractCaller for &'a MiningBlockChainClient {
-	fn registry_address(&self, name: &str) -> Option<Address> {
-		MiningBlockChainClient::registry_address(*self, name.into())
-	}
-
-	fn call_contract(&self, block: BlockId, address: Address, data: Vec<u8>) -> Result<Vec<u8>, String> {
-		MiningBlockChainClient::call_contract(*self, block, address, data)
-	}
-}
-
-struct TransactionDetailsProvider<'a> {
-	client: &'a MiningBlockChainClient,
-	service_transaction_action: &'a ServiceTransactionAction,
-}
-
-impl<'a> TransactionDetailsProvider<'a> {
-	pub fn new(client: &'a MiningBlockChainClient, service_transaction_action: &'a ServiceTransactionAction) -> Self {
-		TransactionDetailsProvider {
-			client: client,
-			service_transaction_action: service_transaction_action,
-		}
-	}
-}
-
-impl<'a> TransactionQueueDetailsProvider for TransactionDetailsProvider<'a> {
-	fn fetch_account(&self, address: &Address) -> AccountDetails {
-		AccountDetails {
-			nonce: self.client.latest_nonce(address),
-			balance: self.client.latest_balance(address),
-		}
-	}
-
-	fn estimate_gas_required(&self, tx: &SignedTransaction) -> U256 {
-		tx.gas_required(&self.client.latest_schedule()).into()
-	}
-
-	fn is_service_transaction_acceptable(&self, tx: &SignedTransaction) -> Result<bool, String> {
-		self.service_transaction_action.check(self.client, tx)
 	}
 }
 
