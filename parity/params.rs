@@ -232,7 +232,7 @@ impl GasPricerConfig {
 impl Default for GasPricerConfig {
 	fn default() -> Self {
 		GasPricerConfig::Calibrated {
-			initial_minimum: 476190474u64.into(),
+			initial_minimum: 476190464u64.into(),
 			usd_per_tx: 0.0001f32,
 			recalibration_period: Duration::from_secs(3600),
 		}
