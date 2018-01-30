@@ -94,7 +94,6 @@ extern crate serde_derive;
 #[cfg(test)]
 extern crate tempdir;
 
-
 mod host;
 mod connection;
 mod handshake;
@@ -210,4 +209,3 @@ pub enum AllowIP {
     /// Block all addresses
     None,
 }
-

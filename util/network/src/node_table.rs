@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -162,7 +161,7 @@ impl Node {
 		if self.attempts == 0 {
 			DEFAULT_FAILURE_PERCENTAGE
 		} else {
-			((self.failures as f64 / self.attempts as f64 * 100.0 / 5.0).round() * 5.0) as usize
+			(self.failures * 100 / self.attempts / 5 * 5) as usize
 		}
 	}
 }
@@ -250,15 +249,9 @@ impl NodeTable {
 			.filter(|n| n.endpoint.is_allowed(&filter))
 			.collect();
 		refs.sort_by(|a, b| {
-			let mut ord = a.failure_percentage().cmp(&b.failure_percentage());
-			if ord == Ordering::Equal {
-				ord = a.failures.cmp(&b.failures);
-				if ord == Ordering::Equal {
-					// we use reverse ordering for number of attempts
-					ord = b.attempts.cmp(&a.attempts);
-				}
-			}
-			ord
+			a.failure_percentage().cmp(&b.failure_percentage())
+				.then_with(|| a.failures.cmp(&b.failures))
+				.then_with(|| b.attempts.cmp(&a.attempts)) // we use reverse ordering for number of attempts
 		});
 		refs.into_iter().map(|n| n.id).collect()
 	}
