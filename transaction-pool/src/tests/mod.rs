@@ -261,7 +261,7 @@ fn should_remove_transaction() {
 	assert_eq!(txq.light_status().transaction_count, 3);
 
 	// when
-	assert!(txq.remove(&tx2.hash(), false));
+	assert!(txq.remove(&tx2.hash(), false).is_some());
 
 	// then
 	assert_eq!(txq.light_status().transaction_count, 2);
