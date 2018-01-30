@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -142,7 +143,7 @@ pub struct Node {
 	pub failures: u32,
 }
 
-const DEFAULT_FAILURE_RATIO: usize = 50;
+const DEFAULT_FAILURE_PERCENTAGE: usize = 50;
 
 impl Node {
 	pub fn new(id: NodeId, endpoint: NodeEndpoint) -> Node {
@@ -155,11 +156,13 @@ impl Node {
 		}
 	}
 
-	pub fn failure_ratio(&self) -> usize {
+	/// Returns the node's failure percentage (0..100) in buckets of 5%. If there are 0 connection attempts for this
+	/// node the default failure percentage is returned (50%).
+	pub fn failure_percentage(&self) -> usize {
 		if self.attempts == 0 {
-			DEFAULT_FAILURE_RATIO
+			DEFAULT_FAILURE_PERCENTAGE
 		} else {
-			(self.failures as f64 / self.attempts as f64 * 100.0) as usize
+			((self.failures as f64 / self.attempts as f64 * 100.0 / 5.0).round() * 5.0) as usize
 		}
 	}
 }
@@ -239,13 +242,18 @@ impl NodeTable {
 		self.nodes.insert(node.id.clone(), node);
 	}
 
-	/// Returns node ids sorted by failure ratio
+	/// Returns node ids sorted by failure percentage, for nodes with the same failure percentage the absolute number of
+	/// failures is considered.
 	pub fn nodes(&self, filter: IpFilter) -> Vec<NodeId> {
 		let mut refs: Vec<&Node> = self.nodes.values()
 			.filter(|n| !self.useless_nodes.contains(&n.id))
 			.filter(|n| n.endpoint.is_allowed(&filter))
 			.collect();
-		refs.sort_by(|a, b| a.failure_ratio().cmp(&b.failure_ratio()));
+		refs.sort_by(|a, b| {
+			let ord = a.failure_percentage().cmp(&b.failure_percentage());
+			if ord == Ordering::Equal { a.failures.cmp(&b.failures) }
+			else { ord }
+		});
 		refs.into_iter().map(|n| n.id).collect()
 	}
 
@@ -448,7 +456,7 @@ mod tests {
 	}
 
 	#[test]
-	fn table_failure_ratio_order() {
+	fn table_failure_percentage_order() {
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let node3 = Node::from_str("enode://c979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
@@ -464,19 +472,19 @@ mod tests {
 		table.add_node(node3);
 		table.add_node(node4);
 
-		// node 1 - failure ratio 100%
+		// node 1 - failure percentage 100%
 		table.get_mut(&id1).unwrap().attempts = 2;
 		table.note_failure(&id1);
 		table.note_failure(&id1);
 
-		// node2 - failure ratio 33%
+		// node2 - failure percentage 33%
 		table.get_mut(&id2).unwrap().attempts = 3;
 		table.note_failure(&id2);
 
-		// node3 - failure ratio 0%
+		// node3 - failure percentage 0%
 		table.get_mut(&id3).unwrap().attempts = 1;
 
-		// node4 - failure ratio 50% (default when no attempts)
+		// node4 - failure percentage 50% (default when no attempts)
 
 		let r = table.nodes(IpFilter::default());
 
