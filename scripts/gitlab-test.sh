@@ -2,18 +2,17 @@
 #ARGUMENT test for RUST, JS, COVERAGE or JS_RELEASE
 set -e # fail on any error
 set -u # treat unset variables as error
-
+if [[ "$CI_COMMIT_REF_NAME" = "beta" || "$CI_COMMIT_REF_NAME" = "stable" ]]; then
+  export GIT_COMPARE=$CI_COMMIT_REF_NAME;
+else
+  export GIT_COMPARE=master;
+fi
 export JS_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep ^js/ | wc -l)"
 export JS_OLD_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep ^js-old/ | wc -l)"
 export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e ^mac/ -e ^nsis/ | wc -l)"
 echo "RUST_FILES_MODIFIED: $RUST_FILES_MODIFIED"
 echo "JS_FILES_MODIFIED: $JS_FILES_MODIFIED"
 echo "JS_OLD_FILES_MODIFIED: $JS_OLD_FILES_MODIFIED"
-if [[ "$CI_COMMIT_REF_NAME" = "beta" || "$CI_COMMIT_REF_NAME" = "stable" ]]; then
-  export GIT_COMPARE=$CI_COMMIT_REF_NAME;
-else
-  export GIT_COMPARE=master;
-fi
 echo "RUST_FILES_MODIFIED: $RUST_FILES_MODIFIED"
 echo "JS_FILES_MODIFIED: $JS_FILES_MODIFIED"
 echo "JS_OLD_FILES_MODIFIED: $JS_OLD_FILES_MODIFIED"

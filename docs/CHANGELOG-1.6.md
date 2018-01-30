@@ -1,3 +1,5 @@
+Note: Parity 1.6 reached End-of-Life on 2017-10-15 (EOL).
+
 ## Parity [v1.6.10](https://github.com/paritytech/parity/releases/tag/v1.6.10) (2017-07-25)
 
 This is a hotfix release for the stable channel addressing the recent [multi-signature wallet vulnerability](https://blog.parity.io/security-alert-high-2/). Note, upgrading is not mandatory, and all future multi-sig wallets created by any version of Parity are secure.

@@ -1,11 +1,12 @@
-# [Parity](https://parity.io/) - fast, light, and robust Ethereum client
+# Parity - fast, light, and robust Ethereum client
+
+## [» Download the latest release «](https://github.com/paritytech/parity/releases/latest)
 
 [![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master)
 [![codecov](https://codecov.io/gh/paritytech/parity/branch/master/graph/badge.svg)](https://codecov.io/gh/paritytech/parity)
 [![Snap Status](https://build.snapcraft.io/badge/paritytech/parity.svg)](https://build.snapcraft.io/user/paritytech/parity)
 [![GPLv3](https://img.shields.io/badge/license-GPL%20v3-green.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
-- [Download the latest release here.](https://github.com/paritytech/parity/releases/latest)
 
 ### Join the chat!
 
@@ -17,6 +18,8 @@ Get in touch with us on Gitter:
 
 Or join our community on Matrix:
 [![Riot: +Parity](https://img.shields.io/badge/riot-%2Bparity%3Amatrix.parity.io-orange.svg)](https://riot.im/app/#/group/+parity:matrix.parity.io)
+
+Official website: https://parity.io
 
 Be sure to check out [our wiki](https://paritytech.github.io/wiki/) and the [internal documentation](https://paritytech.github.io/parity/ethcore/index.html) for more information.
 
@@ -39,13 +42,13 @@ If you run into an issue while using Parity, feel free to file one in this repos
 
 **For security-critical issues**, please refer to the security policy outlined in [SECURITY.MD](SECURITY.md).
 
-Parity's current release is 1.8. You can download it at https://github.com/paritytech/parity/releases or follow the instructions below to build from source.
+Parity's current release is 1.9. You can download it at https://github.com/paritytech/parity/releases or follow the instructions below to build from source.
 
 ----
 
 ## Build dependencies
 
-**Parity requires Rust version 1.21.0 to build**
+**Parity requires Rust version 1.23.0 to build**
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
@@ -117,7 +120,19 @@ Cleaning the repository will most likely solve the issue, try:
 $ cargo clean
 ```
 
-This will always compile the latest nightly builds. If you want to build stable or beta, do a `git checkout stable` or `git checkout beta` first.
+This will always compile the latest nightly builds. If you want to build stable or beta, do a
+
+```bash
+$ git checkout stable
+```
+
+or
+
+```bash
+$ git checkout beta
+```
+
+first.
 
 ----
 
@@ -127,7 +142,11 @@ This will always compile the latest nightly builds. If you want to build stable 
 bash <(curl https://get.parity.io -Lk)
 ```
 
-The one-line installer always defaults to the latest beta release.
+The one-line installer always defaults to the latest beta release. To install a stable release, run:
+
+```bash
+bash <(curl https://get.parity.io -Lk) -r stable
+```
 
 ## Start Parity
 
@@ -147,4 +166,4 @@ To start Parity as a regular user using systemd init:
 
 1. Copy `./scripts/parity.service` to your
 systemd user directory (usually `~/.config/systemd/user`).
-2. To configure Parity, write a `/etc/parity/config.toml` config file, see [Configuring Parity](https://github.com/paritytech/parity/wiki/Configuring-Parity) for details.
+2. To configure Parity, write a `/etc/parity/config.toml` config file, see [Configuring Parity](https://paritytech.github.io/wiki/Configuring-Parity) for details.

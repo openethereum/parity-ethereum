@@ -1,3 +1,5 @@
+Note: Parity 1.5 reached End-of-Life on 2017-07-28 (EOL).
+
 ## Parity [v1.5.12](https://github.com/paritytech/parity/releases/tag/v1.5.12) (2017-03-27)
 
 Stable release that adds support for a new warp sync snapshot format.

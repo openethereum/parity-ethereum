@@ -645,7 +645,7 @@ usage! {
 			"--relay-set=[SET]",
 			"Set of transactions to relay. SET may be: cheap - Relay any transaction in the queue (this may include invalid transactions); strict - Relay only executed transactions (this guarantees we don't relay invalid transactions, but means we relay nothing if not mining); lenient - Same as strict when mining, and cheap when not.",
 
-			ARG arg_usd_per_tx: (String) = "0.0025", or |c: &Config| otry!(c.mining).usd_per_tx.clone(),
+			ARG arg_usd_per_tx: (String) = "0.0001", or |c: &Config| otry!(c.mining).usd_per_tx.clone(),
 			"--usd-per-tx=[USD]",
 			"Amount of USD to be paid for a basic transaction. The minimum gas price is set accordingly.",
 
@@ -1559,8 +1559,8 @@ mod tests {
 			arg_tx_time_limit: Some(100u64),
 			arg_relay_set: "cheap".into(),
 			arg_min_gas_price: Some(0u64),
+			arg_usd_per_tx: "0.0001".into(),
 			arg_gas_price_percentile: 50usize,
-			arg_usd_per_tx: "0.0025".into(),
 			arg_usd_per_eth: "auto".into(),
 			arg_price_update_period: "hourly".into(),
 			arg_gas_floor_target: "4700000".into(),
