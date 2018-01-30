@@ -1026,8 +1026,8 @@ fn wait_for_exit(
 
 fn wait_for_drop<T>(w: Weak<T>) {
 	let sleep_duration = Duration::from_secs(1);
-	let warn_timeout = Duration::from_secs(30);
-	let max_timeout = Duration::from_secs(120);
+	let warn_timeout = Duration::from_secs(60);
+	let max_timeout = Duration::from_secs(300);
 
 	let instant = Instant::now();
 	let mut warned = false;
