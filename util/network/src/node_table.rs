@@ -250,9 +250,15 @@ impl NodeTable {
 			.filter(|n| n.endpoint.is_allowed(&filter))
 			.collect();
 		refs.sort_by(|a, b| {
-			let ord = a.failure_percentage().cmp(&b.failure_percentage());
-			if ord == Ordering::Equal { a.failures.cmp(&b.failures) }
-			else { ord }
+			let mut ord = a.failure_percentage().cmp(&b.failure_percentage());
+			if ord == Ordering::Equal {
+				ord = a.failures.cmp(&b.failures);
+				if ord == Ordering::Equal {
+					// we use reverse ordering for number of attempts
+					ord = b.attempts.cmp(&a.attempts);
+				}
+			}
+			ord
 		});
 		refs.into_iter().map(|n| n.id).collect()
 	}
