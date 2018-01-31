@@ -27,8 +27,6 @@ mod key_server_set;
 mod service_transaction;
 mod secretstore_acl_storage;
 mod secretstore_service;
-mod validator_set;
-mod validator_report;
 
 pub mod test_contracts;
 
@@ -36,5 +34,3 @@ pub use self::key_server_set::KeyServerSet;
 pub use self::service_transaction::ServiceTransactionChecker;
 pub use self::secretstore_acl_storage::SecretStoreAclStorage;
 pub use self::secretstore_service::SecretStoreService;
-pub use self::validator_set::ValidatorSet;
-pub use self::validator_report::ValidatorReport;

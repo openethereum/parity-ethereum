@@ -25,8 +25,6 @@ const KEY_SERVER_SET_ABI: &'static str = include_str!("res/key_server_set.json")
 const SERVICE_TRANSACTION_ABI: &'static str = include_str!("res/service_transaction.json");
 const SECRETSTORE_ACL_STORAGE_ABI: &'static str = include_str!("res/secretstore_acl_storage.json");
 const SECRETSTORE_SERVICE_ABI: &'static str = include_str!("res/secretstore_service.json");
-const VALIDATOR_SET_ABI: &'static str = include_str!("res/validator_set.json");
-const VALIDATOR_REPORT_ABI: &'static str = include_str!("res/validator_report.json");
 
 const TEST_VALIDATOR_SET_ABI: &'static str = include_str!("res/test_validator_set.json");
 
@@ -49,8 +47,6 @@ fn main() {
 	build_file("ServiceTransactionChecker", SERVICE_TRANSACTION_ABI, "service_transaction.rs");
 	build_file("SecretStoreAclStorage", SECRETSTORE_ACL_STORAGE_ABI, "secretstore_acl_storage.rs");
 	build_file("SecretStoreService", SECRETSTORE_SERVICE_ABI, "secretstore_service.rs");
-	build_file("ValidatorSet", VALIDATOR_SET_ABI, "validator_set.rs");
-	build_file("ValidatorReport", VALIDATOR_REPORT_ABI, "validator_report.rs");
 
 	build_test_contracts();
 }
