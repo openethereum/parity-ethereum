@@ -146,7 +146,7 @@
     "@parity/plugin-signer-default": "parity-js/plugin-signer-default#9a47bded9d6d70b69bb2f719732bd6f7854d1842",
     "@parity/plugin-signer-hardware": "parity-js/plugin-signer-hardware#4320d818a053d4efae890b74a7476e4c8dc6ba10",
     "@parity/plugin-signer-qr": "parity-js/plugin-signer-qr#2d1fafad347ba53eaf58c14265d4d07631d6a45c",
-    "@parity/shared": "2.2.21",
+    "@parity/shared": "2.2.23",
     "@parity/ui": "3.0.22",
     "keythereum": "1.0.2",
     "lodash.flatten": "4.4.0",

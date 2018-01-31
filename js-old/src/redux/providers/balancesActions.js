@@ -306,7 +306,7 @@ export function fetchTokensBalances (updates, skipNotifications = false) {
         const tokenIdsToFetch = Object.values(balances)
           .reduce((tokenIds, balance) => {
             const nextTokenIds = Object.keys(balance)
-              .filter((tokenId) => balance[tokenId].gt(0));
+              .filter((tokenId) => balance[tokenId] && balance[tokenId].gt(0));
 
             return tokenIds.concat(nextTokenIds);
           }, []);
@@ -328,7 +328,7 @@ export function fetchTokensBalances (updates, skipNotifications = false) {
         dispatch(setBalances(balances, skipNotifications));
       })
       .catch((error) => {
-        console.warn('balances::fetchTokensBalances', error);
+        console.warn('v1: balances::fetchTokensBalances', error);
       });
   };
 }
