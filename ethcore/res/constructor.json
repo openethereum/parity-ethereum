@@ -10,7 +10,12 @@
 		"accountStartNonce": "0x0",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
-		"networkID" : "0x2"
+		"networkID" : "0x2",
+		"registrar" : "0x0000000000000000000000000000000000001337",
+		"eip140Transition": "0x0",
+		"eip211Transition": "0x0",
+		"eip214Transition": "0x0",
+		"eip658Transition": "0x0"
 	},
 	"genesis": {
 		"seal": {
@@ -21,12 +26,7 @@
 		"timestamp": "0x00",
 		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
 		"extraData": "0x",
-		"gasLimit": "0x2fefd8",
-		"registrar" : "0x0000000000000000000000000000000000001337",
-		"eip140Transition": "0x0",
-		"eip211Transition": "0x0",
-		"eip214Transition": "0x0",
-		"eip658Transition": "0x0"
+		"gasLimit": "0x2fefd8"
 	},
 	"accounts": {
 		"0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
