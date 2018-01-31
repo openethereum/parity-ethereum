@@ -24,13 +24,15 @@ use util::Address;
 use bytes::Bytes;
 use parking_lot::{RwLock, Mutex};
 use ethcore::error::Error;
-use ethcore::client::{MiningBlockChainClient, Nonce, PrepareOpenBlock, StateInfo};
+use ethcore::client::{MiningBlockChainClient, Nonce, PrepareOpenBlock, StateInfo, StateClient, EngineInfo};
 use ethcore::block::{Block, ClosedBlock};
 use ethcore::header::{BlockNumber, Header};
 use ethcore::transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult, LocalTransactionStatus};
 use ethcore::account_provider::SignError as AccountError;
+use ethcore::ids::BlockId;
+use ethcore::engines::EthEngine;
 
 use trie;
 use std::sync::Arc;
@@ -113,6 +115,24 @@ impl StateInfo for TestState {
 
 	fn code(&self, a: &Address) -> trie::Result<Option<Arc<Bytes>>> {
 		Ok(None)
+	}
+}
+
+impl StateClient for TestMinerService {
+	type State = TestState;
+
+	fn latest_state(&self) -> Self::State {
+		unimplemented!()
+	}
+
+	fn state_at(&self, id: BlockId) -> Option<Self::State> {
+		None
+	}
+}
+
+impl EngineInfo for TestMinerService {
+	fn engine(&self) -> &EthEngine {
+		unimplemented!()
 	}
 }
 
