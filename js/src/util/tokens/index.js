@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { range } from 'lodash';
+import { chunk, range } from 'lodash';
 import BigNumber from 'bignumber.js';
 
 import { hashToImageUrl } from '~/redux/util';
@@ -58,23 +58,17 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
       return decodeArray(api, 'address[]', result);
     })
     .then((tokenAddresses) => {
-      return tokenAddresses.map((tokenAddress, index) => {
-        if (/^0x0*$/.test(tokenAddress)) {
-          return null;
-        }
-
+      return tokenAddresses.map((address, index) => {
         const tokenIndex = start + index;
 
         return {
-          address: tokenAddress,
           id: getTokenId(tokenAddress, tokenIndex),
+          address,
           index: tokenIndex,
-
           fetched: false
         };
       });
     })
-    .then((tokens) => tokens.filter((token) => token))
     .then((tokens) => {
       const randomAddress = sha3(`${Date.now()}`).substr(0, 42);
 
@@ -82,8 +76,19 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
         .then((_balances) => {
           const balances = _balances[randomAddress];
 
-          return tokens.filter(({ id }) => balances[id].eq(0));
+          return tokens.map((token) => {
+            if (balances[token.id] && balances[token.id].gt(0)) {
+              token.address = null;
+            }
+
+            return token;
+          });
         });
+    })
+    .then((tokens) => {
+      return tokens.filter(({ address }) => {
+        return address && !/^0x0*$/.test(address);
+      });
     });
 }
 
@@ -193,19 +198,22 @@ export function fetchAccountsBalances (api, tokens, updates) {
     });
 
   const tokenPromise = Object.keys(tokenUpdates)
-    .reduce((tokenPromise, accountAddress) => {
+    .reduce((promises, accountAddress) => {
       const tokenIds = tokenUpdates[accountAddress];
       const updateTokens = tokens
         .filter((t) => tokenIds.includes(t.id));
 
-      return tokenPromise
-        .then(() => fetchTokensBalances(api, updateTokens, [ accountAddress ]))
-        .then((balances) => {
-          tokensBalances[accountAddress] = balances[accountAddress];
-        });
-    }, Promise.resolve());
+      promises.push(
+        fetchTokensBalances(api, updateTokens, [ accountAddress ])
+          .then((balances) => {
+            tokensBalances[accountAddress] = balances[accountAddress];
+          })
+      );
 
-  return Promise.all([ ethPromise, tokenPromise ])
+      return promises;
+    }, []);
+
+  return Promise.all([ ethPromise, Promise.all(tokenPromise) ])
     .then(() => {
       const balances = Object.assign({}, tokensBalances);
 
@@ -241,29 +249,24 @@ function fetchEthBalances (api, accountAddresses) {
     });
 }
 
-function fetchTokensBalances (api, tokens, accountAddresses) {
-  const tokenAddresses = tokens.map((t) => t.address);
-  const tokensBalancesCallData = encode(
-    api,
-    [ 'address[]', 'address[]' ],
-    [ accountAddresses, tokenAddresses ]
-  );
+function fetchTokensBalances (api, _tokens, accountAddresses) {
+  const promises = chunk(_tokens, 128).map((tokens) => {
+    const data = tokensBalancesBytecode + encode(
+      api,
+      [ 'address[]', 'address[]' ],
+      [ accountAddresses, tokens.map(({ address }) => address) ]
+    );
 
-  return api.eth
-    .call({ data: tokensBalancesBytecode + tokensBalancesCallData })
-    .then((result) => {
-      const rawBalances = decodeArray(api, 'uint[]', result);
+    return api.eth.call({ data }).then((result) => {
       const balances = {};
+      const rawBalances = decodeArray(api, 'uint[]', result);
 
       accountAddresses.forEach((accountAddress, accountIndex) => {
+        const preIndex = accountIndex * tokens.length;
         const balance = {};
-        const preIndex = accountIndex * tokenAddresses.length;
 
-        tokenAddresses.forEach((tokenAddress, tokenIndex) => {
-          const index = preIndex + tokenIndex;
-          const token = tokens[tokenIndex];
-
-          balance[token.id] = rawBalances[index];
+        tokens.forEach((token, tokenIndex) => {
+          balance[token.id] = rawBalances[preIndex + tokenIndex];
         });
 
         balances[accountAddress] = balance;
@@ -271,6 +274,31 @@ function fetchTokensBalances (api, tokens, accountAddresses) {
 
       return balances;
     });
+  });
+
+  return Promise.all(promises).then((results) => {
+    return results.reduce((combined, result) => {
+      Object
+        .keys(result)
+        .forEach((address) => {
+          if (!combined[address]) {
+            combined[address] = {};
+          }
+
+          Object
+            .keys(result[address])
+            .forEach((token) => {
+              const value = result[address][token];
+
+              if (value && value.gt(0)) {
+                combined[address][token] = result[address][token];
+              }
+            });
+        });
+
+      return combined;
+    }, {});
+  });
 }
 
 function getTokenId (...args) {

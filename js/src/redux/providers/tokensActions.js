@@ -105,7 +105,7 @@ export function loadTokens (options = {}) {
 }
 
 export function loadTokensBasics (tokenIndexes, options) {
-  const limit = 64;
+  const limit = 128;
 
   return (dispatch, getState) => {
     const { api } = getState();
@@ -154,7 +154,7 @@ export function loadTokensBasics (tokenIndexes, options) {
 
 export function fetchTokens (_tokenIndexes) {
   const tokenIndexes = uniq(_tokenIndexes || []);
-  const tokenChunks = chunk(tokenIndexes, 64);
+  const tokenChunks = chunk(tokenIndexes, 128);
 
   return (dispatch, getState) => {
     const { tokenReg } = Contracts.get();
