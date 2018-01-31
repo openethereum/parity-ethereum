@@ -4,7 +4,7 @@ set -e
 # variables
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
 PACKAGES=( "parity" "etherscan" "shapeshift" "jsonrpc" )
-BRANCH=$CI_BUILD_REF_NAME
+BRANCH="stable"
 GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/js-precompiled.git"
 GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/parity.git"
 
