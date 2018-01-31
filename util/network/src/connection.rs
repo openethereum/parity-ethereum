@@ -366,7 +366,7 @@ impl EncryptedConnection {
 		let padding = (16 - (payload.len() % 16)) % 16;
 		header.resize(16, 0u8);
 
-		let mut packet = vec![0u8; (32 + payload.len() + padding + 16)];
+		let mut packet = vec![0u8; 32 + payload.len() + padding + 16];
 		self.encoder.encrypt(&mut RefReadBuffer::new(&header), &mut RefWriteBuffer::new(&mut packet), false).expect("Invalid length or padding");
 		EncryptedConnection::update_mac(&mut self.egress_mac, &mut self.mac_encoder,  &packet[0..16]);
 		self.egress_mac.clone().finalize(&mut packet[16..32]);
