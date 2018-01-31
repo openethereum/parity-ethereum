@@ -279,7 +279,7 @@ case $BUILD_PLATFORM in
     sed -i -e 's/source: ./source: ../' snapcraft.yaml
     if [[ "$CI_BUILD_REF_NAME" = "stable" ]];
       then
-        sed -i -e 's/grade: edge/grade: stable/' snapcraft.yaml;
+        sed -i -e 's/grade: devel/grade: stable/' snapcraft.yaml;
     fi
     snapcraft
     snapcraft_login=$(expect -c "
