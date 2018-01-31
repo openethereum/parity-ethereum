@@ -274,7 +274,8 @@ case $BUILD_PLATFORM in
     ARC="amd64"
     EXT="snap"
     rm -rf *snap
-    sed -i 's/master/'"$VER"'/g' snapcraft.yaml
+    sed -i 's/git/'"$VER"'/g' snapcraft.yaml
+		sed -i -e 's/source: ./source: ../' snapcraft.yaml
     snapcraft
     cp "parity_"$CI_BUILD_REF_NAME"_amd64.snap" "parity_"$VER"_amd64.snap"
     md5sum "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
