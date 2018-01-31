@@ -56,7 +56,7 @@ export class Balance extends Component {
 
         const isEthToken = token.native;
         const isFullToken = !showOnlyEth || isEthToken;
-        const hasBalance = (balanceValue instanceof BigNumber) && balanceValue.gt(0) && !token.invalid;
+        const hasBalance = (balanceValue instanceof BigNumber) && balanceValue.gt(0);
 
         if (!hasBalance && !isEthToken) {
           return null;

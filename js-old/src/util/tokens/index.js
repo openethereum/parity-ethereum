@@ -79,7 +79,6 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
           return tokens.map((token) => {
             if (balances[token.id] && balances[token.id].gt(0)) {
               token.address = null;
-              token.invalid = true;
             }
 
             return token;
