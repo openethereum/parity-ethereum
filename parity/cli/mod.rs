@@ -257,12 +257,7 @@ usage! {
 
 			ARG arg_mode: (String) = "last", or |c: &Config| otry!(c.parity).mode.clone(),
 			"--mode=[MODE]",
-			"Set the operating mode. MODE can be one of:
-			last - Uses the last-used mode, active if none.
-			active - Parity continuously syncs the chain.
-			passive - Parity syncs initially, then sleeps and wakes regularly to resync.
-			dark - Parity syncs only when the RPC is active.
-			offline - Parity doesn't sync.",
+			"Set the operating mode. MODE can be one of: last - Uses the last-used mode, active if none; active - Parity continuously syncs the chain; passive - Parity syncs initially, then sleeps and wakes regularly to resync; dark - Parity syncs only when the RPC is active; offline - Parity doesn't sync.",
 
 			ARG arg_mode_timeout: (u64) = 300u64, or |c: &Config| otry!(c.parity).mode_timeout.clone(),
 			"--mode-timeout=[SECS]",
@@ -274,19 +269,11 @@ usage! {
 
 			ARG arg_auto_update: (String) = "critical", or |c: &Config| otry!(c.parity).auto_update.clone(),
 			"--auto-update=[SET]",
-			"Set a releases set to automatically update and install.
-			all - All updates in the our release track.
-			critical - Only consensus/security updates.
-			none - No updates will be auto-installed.",
+			"Set a releases set to automatically update and install. SET can be one of: all - All updates in the our release track; critical - Only consensus/security updates; none - No updates will be auto-installed.",
 
 			ARG arg_release_track: (String) = "current", or |c: &Config| otry!(c.parity).release_track.clone(),
 			"--release-track=[TRACK]",
-			"Set which release track we should use for updates.
-			stable - Stable releases.
-			beta - Beta releases.
-			nightly - Nightly releases (unstable).
-			testing - Testing releases (do not use).
-			current - Whatever track this executable was released on",
+			"Set which release track we should use for updates. TRACK can be one of: stable - Stable releases; beta - Beta releases; nightly - Nightly releases (unstable); testing - Testing releases (do not use); current - Whatever track this executable was released on.",
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| otry!(c.parity).chain.clone(),
 			"--chain=[CHAIN]",
@@ -311,8 +298,7 @@ usage! {
 		["Convenience options"]
 			FLAG flag_unsafe_expose: (bool) = false, or |c: &Config| otry!(c.misc).unsafe_expose,
 			"--unsafe-expose",
-			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --{{ws,jsonrpc,ui,ipfs,secret_store,stratum}}-interface=all --*-hosts=all
-		This option is UNSAFE and should be used with great care!",
+			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --{{ws,jsonrpc,ui,ipfs,secret_store,stratum}}-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
 
 			ARG arg_config: (String) = "$BASE/config.toml", or |_| None,
 			"-c, --config=[CONFIG]",
@@ -498,7 +484,7 @@ usage! {
 
 			ARG arg_ws_hosts: (String) = "none", or |c: &Config| otry!(c.websockets).hosts.as_ref().map(|vec| vec.join(",")),
 			"--ws-hosts=[HOSTS]",
-			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\",.",
+			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\".",
 
 		["API and console options – IPC"]
 			FLAG flag_no_ipc: (bool) = false, or |c: &Config| otry!(c.ipc).disable.clone(),
@@ -586,7 +572,7 @@ usage! {
 
 			ARG arg_secretstore_path: (String) = "$BASE/secretstore", or |c: &Config| otry!(c.secretstore).path.clone(),
 			"--secretstore-path=[PATH]",
-			"Specify directory where Secret Store should save its data..",
+			"Specify directory where Secret Store should save its data.",
 
 			ARG arg_secretstore_secret: (Option<String>) = None, or |c: &Config| otry!(c.secretstore).self_secret.clone(),
 			"--secretstore-secret=[SECRET]",
@@ -675,7 +661,7 @@ usage! {
 
 			ARG arg_tx_queue_gas: (String) = "off", or |c: &Config| otry!(c.mining).tx_queue_gas.clone(),
 			"--tx-queue-gas=[LIMIT]",
-			"Maximum amount of total gas for external transactions in the queue. LIMIT can be either an amount of gas or 'auto' or 'off'. 'auto' sets the limit to be 20x the current block gas limit..",
+			"Maximum amount of total gas for external transactions in the queue. LIMIT can be either an amount of gas or 'auto' or 'off'. 'auto' sets the limit to be 20x the current block gas limit.",
 
 			ARG arg_tx_queue_strategy: (String) = "gas_price", or |c: &Config| otry!(c.mining).tx_queue_strategy.clone(),
 			"--tx-queue-strategy=[S]",
@@ -782,7 +768,7 @@ usage! {
 
 			ARG arg_pruning_history: (u64) = 64u64, or |c: &Config| otry!(c.footprint).pruning_history.clone(),
 			"--pruning-history=[NUM]",
-			"Set a minimum number of recent states to keep when pruning is active..",
+			"Set a minimum number of recent states to keep when pruning is active.",
 
 			ARG arg_pruning_memory: (usize) = 32usize, or |c: &Config| otry!(c.footprint).pruning_memory.clone(),
 			"--pruning-memory=[MB]",
@@ -1327,12 +1313,15 @@ mod tests {
 		let args = Args::parse(&["parity", "--secretstore-nodes", "abc@127.0.0.1:3333,cde@10.10.10.10:4444"]).unwrap();
 		assert_eq!(args.arg_secretstore_nodes, "abc@127.0.0.1:3333,cde@10.10.10.10:4444");
 
-		// Arguments with a single value shouldn't accept multiple values
-		let args = Args::parse(&["parity", "--auto-update", "critical", "all"]);
-		assert!(args.is_err());
-
-		let args = Args::parse(&["parity", "--password", "~/.safe/1", "~/.safe/2"]).unwrap();
+		let args = Args::parse(&["parity", "--password", "~/.safe/1", "--password", "~/.safe/2", "--ui-port", "8123", "ui"]).unwrap();
 		assert_eq!(args.arg_password, vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]);
+		assert_eq!(args.arg_ui_port, 8123);
+		assert_eq!(args.cmd_ui, true);
+
+		let args = Args::parse(&["parity", "--password", "~/.safe/1,~/.safe/2", "--ui-port", "8123", "ui"]).unwrap();
+		assert_eq!(args.arg_password, vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]);
+		assert_eq!(args.arg_ui_port, 8123);
+		assert_eq!(args.cmd_ui, true);
 	}
 
 	#[test]
