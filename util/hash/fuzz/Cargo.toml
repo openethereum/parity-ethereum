@@ -1,0 +1,23 @@
+[package]
+description = "Tiny Keccak Fuzzing Harness"
+license = "GPL-3.0"
+name = "keccak-hash-fuzz"
+version = "0.0.1"
+authors = ["Parity Technologies <admin@parity.io>", "Cole Lightfighter <cole@parity.io"]
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies.keccak-hash]
+path = ".."
+[dependencies.libfuzzer-sys]
+git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "keccak"
+path = "fuzz_targets/keccak.rs"
