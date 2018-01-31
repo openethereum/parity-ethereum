@@ -80,10 +80,13 @@ extern crate path;
 extern crate ethcore_logger;
 extern crate ipnetwork;
 extern crate hash;
+extern crate serde;
 extern crate serde_json;
 
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate serde_derive;
 
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
@@ -206,4 +209,3 @@ pub enum AllowIP {
     /// Block all addresses
     None,
 }
-

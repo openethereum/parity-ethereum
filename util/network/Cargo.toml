@@ -33,7 +33,9 @@ path = { path = "../path" }
 ethcore-logger = { path ="../../logger" }
 ipnetwork = "0.12.6"
 hash = { path = "../hash" }
+serde = "1.0"
 serde_json = "1.0"
+serde_derive = "1.0"
 
 [features]
 default = []
