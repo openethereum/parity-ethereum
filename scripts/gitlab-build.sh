@@ -273,13 +273,31 @@ case $BUILD_PLATFORM in
     cd snap
     ARC="amd64"
     EXT="snap"
+    rm -rf *.snap
     rm -rf *snap
     sed -i 's/git/'"$VER"'/g' snapcraft.yaml
-		sed -i -e 's/source: ./source: ../' snapcraft.yaml
+    sed -i -e 's/source: ./source: ../' snapcraft.yaml
+    if [[ "$CI_BUILD_REF_NAME" = "stable" ]];
+      then
+        sed -i -e 's/grade: edge/grade: stable/' snapcraft.yaml;
+    fi
     snapcraft
-    cp "parity_"$CI_BUILD_REF_NAME"_amd64.snap" "parity_"$VER"_amd64.snap"
+    snapcraft_login=$(expect -c "
+      spawn snapcraft login
+      expect \"Email:\"
+      send \"$SNAP_EMAIL\n\"
+      expect \"Password:\"
+      send \"$SNAP_PASS\n\"
+      expect \"\$\"
+      ")
+    echo "$snapcraft_login"
+    snapcraft push "parity_"$VER"_amd64.snap"
+    snapcraft status parity
+    snapcraft logout
     md5sum "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
-    push_binaries
+    echo "add artifacts to archive"
+    rm -rf parity.zip
+    zip -r parity.zip "parity_"$VER"_amd64.snap" "parity_"$VER"_amd64.snap.md5"
     ;;
   x86_64-pc-windows-msvc)
     set_env_win

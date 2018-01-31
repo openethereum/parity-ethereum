@@ -143,7 +143,7 @@ linux-snap:
     - rust-stable
   artifacts:
     paths:
-    - scripts/parity_*_amd64.snap
+    - snap/parity.zip
     name: "stable-x86_64-unknown-snap-gnu_parity"
   allow_failure: true
 darwin:

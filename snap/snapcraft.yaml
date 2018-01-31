@@ -15,6 +15,7 @@ apps:
     command: parity
     plugs: [network, network-bind, mount-observe, x11, unity7]
 
+
 parts:
   parity:
     source: .
