@@ -70,9 +70,6 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
       });
     })
     .then((tokens) => {
-      return tokens.filter(({ address }) => !/^0x0*$/.test(address));
-    })
-    .then((tokens) => {
       const randomAddress = sha3(`${Date.now()}`).substr(0, 42);
 
       return fetchTokensBalances(api, tokens, [randomAddress])
@@ -81,6 +78,7 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
 
           return tokens.map((token) => {
             if (balances[token.id] && balances[token.id].gt(0)) {
+              token.address = null;
               token.invalid = true;
             }
 
@@ -89,7 +87,9 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
         });
     })
     .then((tokens) => {
-      return tokens.filter(({ invalid }) => !invalid);
+      return tokens.filter(({ address }) => {
+        return address && !/^0x0*$/.test(address);
+      });
     });
 }
 
@@ -250,69 +250,56 @@ function fetchEthBalances (api, accountAddresses) {
     });
 }
 
-function fetchTokensBalances (api, tokens, accountAddresses) {
-  const allTokens = tokens.map((t) => t.address);
-  const promises = chunk(allTokens, 128).map((tokenAddresses, chunkIndex) => {
-    const tokensBalancesCallData = encode(
+function fetchTokensBalances (api, _tokens, accountAddresses) {
+  const promises = chunk(_tokens, 128).map((tokens) => {
+    const data = tokensBalancesBytecode + encode(
       api,
       [ 'address[]', 'address[]' ],
-      [ accountAddresses, tokenAddresses ]
+      [ accountAddresses, tokens.map(({ address }) => address) ]
     );
 
-    return api.eth
-      .call({
-        data: tokensBalancesBytecode + tokensBalancesCallData
-      })
-      .then((result) => {
-        const balances = {};
-        const rawBalances = decodeArray(api, 'uint[]', result);
+    return api.eth.call({ data }).then((result) => {
+      const balances = {};
+      const rawBalances = decodeArray(api, 'uint[]', result);
 
-        console.error('fetchTokensBalances', result.length, tokenAddresses.length, rawBalances.length);
+      accountAddresses.forEach((accountAddress, accountIndex) => {
+        const preIndex = accountIndex * tokens.length;
+        const balance = {};
 
-        accountAddresses.forEach((accountAddress, accountIndex) => {
-          const balance = {};
-          const preIndex = accountIndex * tokenAddresses.length;
-
-          tokenAddresses.forEach((tokenAddress, tokenIndex) => {
-            // const tokenIndex = _tokenIndex + chunkIndex * 64;
-            const index = preIndex + tokenIndex;
-            const token = tokens[tokenIndex];
-
-            balance[token.id] = rawBalances[index];
-          });
-
-          balances[accountAddress] = balance;
+        tokens.forEach((token, tokenIndex) => {
+          balance[token.id] = rawBalances[preIndex + tokenIndex];
         });
 
-        return balances;
+        balances[accountAddress] = balance;
       });
+
+      return balances;
+    });
   });
 
-  return Promise
-    .all(promises)
-    .then((results) => {
-      return results.reduce((combined, result) => {
-        Object
-          .keys(result)
-          .forEach((address) => {
-            if (!combined[address]) {
-              combined[address] = {};
-            }
+  return Promise.all(promises).then((results) => {
+    return results.reduce((combined, result) => {
+      Object
+        .keys(result)
+        .forEach((address) => {
+          if (!combined[address]) {
+            combined[address] = {};
+          }
 
-            Object
-              .keys(result[address])
-              .forEach((token) => {
-                const value = result[address][token];
+          Object
+            .keys(result[address])
+            .forEach((token) => {
+              const value = result[address][token];
 
-                if (value && value.gt(0)) {
-                  combined[address][token] = result[address][token];
-                }
-              });
-          });
+              if (value && value.gt(0)) {
+                combined[address][token] = result[address][token];
+              }
+            });
+        });
 
-        return combined;
-      }, {});
-    });
+      return combined;
+    }, {});
+  });
 }
 
 function getTokenId (...args) {
