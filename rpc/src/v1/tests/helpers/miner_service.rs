@@ -24,13 +24,16 @@ use util::Address;
 use bytes::Bytes;
 use parking_lot::{RwLock, Mutex};
 use ethcore::error::Error;
-use ethcore::client::{MiningBlockChainClient, Nonce, PrepareOpenBlock};
-use ethcore::block::ClosedBlock;
-use ethcore::header::BlockNumber;
+use ethcore::client::{MiningBlockChainClient, Nonce, PrepareOpenBlock, StateInfo};
+use ethcore::block::{Block, ClosedBlock};
+use ethcore::header::{BlockNumber, Header};
 use ethcore::transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult, LocalTransactionStatus};
 use ethcore::account_provider::SignError as AccountError;
+
+use trie;
+use std::sync::Arc;
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -93,7 +96,40 @@ impl TestMinerService {
 	}
 }
 
+struct TestState;
+
+impl StateInfo for TestState {
+	fn nonce(&self, a: &Address) -> trie::Result<U256> {
+		Ok(Default::default())
+	}
+
+	fn balance(&self, a: &Address) -> trie::Result<U256> {
+		Ok(Default::default())
+	}
+
+	fn storage_at(&self, address: &Address, key: &H256) -> trie::Result<H256> {
+		Ok(Default::default())
+	}
+
+	fn code(&self, a: &Address) -> trie::Result<Option<Arc<Bytes>>> {
+		Ok(None)
+	}
+}
+
 impl MinerService for TestMinerService {
+	type State = TestState;
+
+	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Self::State> {
+		None
+	}
+
+	fn pending_block_header(&self, latest_block_number: BlockNumber) -> Option<Header> {
+		None
+	}
+
+	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block> {
+		None
+	}
 
 	/// Returns miner's status.
 	fn status(&self) -> MinerStatus {

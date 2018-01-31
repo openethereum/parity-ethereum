@@ -59,6 +59,7 @@ stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 keccak-hash = { path = "../util/hash" }
 hardware-wallet = { path = "../hw" }
+patricia-trie = { path = "../util/patricia_trie" }
 
 clippy = { version = "0.0.103", optional = true}
 
