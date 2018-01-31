@@ -1,0 +1,49 @@
+
+[package]
+name = "rlp-fuzz"
+version = "0.0.1"
+authors = ["Parity Technologies <admin@parity.io>"]
+publish = false
+build = "build.rs"
+
+[package.metadata]
+cargo-fuzz = true
+
+[features]
+nightly = []
+
+[dependencies]
+ethcore-bigint = { path = "../../bigint" }
+rand = "0.3"
+
+[build-dependencies]
+rustc_version = "0.2.1"
+
+[dependencies.rlp]
+path = ".."
+[dependencies.libfuzzer-sys]
+git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "untrusted"
+path = "fuzz_targets/untrusted.rs"
+
+[[bin]]
+name = "append_raw"
+path = "fuzz_targets/append_raw.rs"
+
+[[bin]]
+name = "untrusted_data"
+path = "fuzz_targets/untrusted_data.rs"
+
+[[bin]]
+name = "gen_untrusted_corpus"
+path = "gen_untrusted_corpus.rs"
+
+[[bin]]
+name = "untrusted_std"
+path = "fuzz_targets/untrusted_std.rs"
