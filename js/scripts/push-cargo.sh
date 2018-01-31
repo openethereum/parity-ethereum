@@ -4,7 +4,7 @@ set -e
 # variables
 PVER="1-9"
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
-BRANCH=$CI_BUILD_REF_NAME
+BRANCH="beta"
 GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/parity.git"
 
 echo "*** [cargo] Setting up GitHub config for parity"
