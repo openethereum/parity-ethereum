@@ -129,7 +129,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningUnsafeClient<D> {
 
 	fn post_transaction(&self, _: Metadata, _: RpcTransactionRequest) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>> {
 		// We don't support this in non-signer mode.
-		Box::new(future::err((errors::signer_disabled())))
+		Box::new(future::err(errors::signer_disabled()))
 	}
 
 	fn check_request(&self, _: RpcU256) -> Result<Option<RpcConfirmationResponse>> {
