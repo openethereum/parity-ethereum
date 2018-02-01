@@ -24,7 +24,7 @@ use util::Address;
 use bytes::Bytes;
 use parking_lot::{RwLock, Mutex};
 use ethcore::error::Error;
-use ethcore::client::{MiningBlockChainClient, Nonce, PrepareOpenBlock, StateInfo, StateClient, EngineInfo};
+use ethcore::client::{MiningBlockChainClient, Nonce, PrepareOpenBlock, StateClient, EngineInfo};
 use ethcore::block::{Block, ClosedBlock};
 use ethcore::header::{BlockNumber, Header};
 use ethcore::transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction};
@@ -33,9 +33,8 @@ use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult, LocalTr
 use ethcore::account_provider::SignError as AccountError;
 use ethcore::ids::BlockId;
 use ethcore::engines::EthEngine;
-
-use trie;
-use std::sync::Arc;
+use ethcore::state::State;
+use ethcore::state_db::StateDB;
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -98,34 +97,14 @@ impl TestMinerService {
 	}
 }
 
-struct TestState;
-
-impl StateInfo for TestState {
-	fn nonce(&self, a: &Address) -> trie::Result<U256> {
-		Ok(Default::default())
-	}
-
-	fn balance(&self, a: &Address) -> trie::Result<U256> {
-		Ok(Default::default())
-	}
-
-	fn storage_at(&self, address: &Address, key: &H256) -> trie::Result<H256> {
-		Ok(Default::default())
-	}
-
-	fn code(&self, a: &Address) -> trie::Result<Option<Arc<Bytes>>> {
-		Ok(None)
-	}
-}
-
 impl StateClient for TestMinerService {
-	type State = TestState;
+	type State = State<StateDB>;
 
 	fn latest_state(&self) -> Self::State {
 		unimplemented!()
 	}
 
-	fn state_at(&self, id: BlockId) -> Option<Self::State> {
+	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
 		None
 	}
 }
@@ -137,17 +116,17 @@ impl EngineInfo for TestMinerService {
 }
 
 impl MinerService for TestMinerService {
-	type State = TestState;
+	type State = State<StateDB>;
 
-	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Self::State> {
+	fn pending_state(&self, _latest_block_number: BlockNumber) -> Option<Self::State> {
 		None
 	}
 
-	fn pending_block_header(&self, latest_block_number: BlockNumber) -> Option<Header> {
+	fn pending_block_header(&self, _latest_block_number: BlockNumber) -> Option<Header> {
 		None
 	}
 
-	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block> {
+	fn pending_block(&self, _latest_block_number: BlockNumber) -> Option<Block> {
 		None
 	}
 

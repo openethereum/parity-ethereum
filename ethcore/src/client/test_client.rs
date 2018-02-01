@@ -40,7 +40,7 @@ use client::{
 	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
-	Call
+	Call, StateClient, EngineInfo
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -66,6 +66,7 @@ use state_db::StateDB;
 use state::State;
 use header::Header;
 use encoded;
+use engines::EthEngine;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -567,6 +568,24 @@ impl Call for TestBlockChainClient {
 
 	fn estimate_gas(&self, _t: &SignedTransaction, _state: &Self::State, _header: &Header) -> Result<U256, CallError> {
 		Ok(21000.into())
+	}
+}
+
+impl StateClient for TestBlockChainClient {
+	type State = State<StateDB>;
+
+	fn latest_state(&self) -> Self::State {
+		unimplemented!()
+	}
+
+	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
+		None
+	}
+}
+
+impl EngineInfo for TestBlockChainClient {
+	fn engine(&self) -> &EthEngine {
+		unimplemented!()
 	}
 }
 
