@@ -76,7 +76,6 @@ extern crate hardware_wallet;
 extern crate hashdb;
 extern crate itertools;
 extern crate lru_cache;
-extern crate native_contracts;
 extern crate num_cpus;
 extern crate num;
 extern crate parity_machine;

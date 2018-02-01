@@ -28,8 +28,6 @@ mod service_transaction;
 mod secretstore_acl_storage;
 mod secretstore_service;
 
-pub mod test_contracts;
-
 pub use self::key_server_set::KeyServerSet;
 pub use self::service_transaction::ServiceTransactionChecker;
 pub use self::secretstore_acl_storage::SecretStoreAclStorage;

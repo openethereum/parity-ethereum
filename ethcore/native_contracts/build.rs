@@ -26,8 +26,6 @@ const SERVICE_TRANSACTION_ABI: &'static str = include_str!("res/service_transact
 const SECRETSTORE_ACL_STORAGE_ABI: &'static str = include_str!("res/secretstore_acl_storage.json");
 const SECRETSTORE_SERVICE_ABI: &'static str = include_str!("res/secretstore_service.json");
 
-const TEST_VALIDATOR_SET_ABI: &'static str = include_str!("res/test_validator_set.json");
-
 fn build_file(name: &str, abi: &str, filename: &str) {
 	let code = ::native_contract_generator::generate_module(name, abi).unwrap();
 
@@ -38,15 +36,9 @@ fn build_file(name: &str, abi: &str, filename: &str) {
 	f.write_all(code.as_bytes()).unwrap();
 }
 
-fn build_test_contracts() {
-	build_file("ValidatorSet", TEST_VALIDATOR_SET_ABI, "test_validator_set.rs");
-}
-
 fn main() {
 	build_file("KeyServerSet", KEY_SERVER_SET_ABI, "key_server_set.rs");
 	build_file("ServiceTransactionChecker", SERVICE_TRANSACTION_ABI, "service_transaction.rs");
 	build_file("SecretStoreAclStorage", SECRETSTORE_ACL_STORAGE_ABI, "secretstore_acl_storage.rs");
 	build_file("SecretStoreService", SECRETSTORE_SERVICE_ABI, "secretstore_service.rs");
-
-	build_test_contracts();
 }
