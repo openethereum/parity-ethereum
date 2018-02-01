@@ -1,3 +1,50 @@
+## Parity [v1.8.8](https://github.com/paritytech/parity/releases/tag/v1.8.8) (2018-02-01)
+
+Parity 1.8.8 is a bug-fix release to improve performance and stability. It restores ERC-20 token balances, improves networking, fixes database corruptions on client shutdown, and fixes issues with the `--password` command-line flag. Happy syncing!
+
+The full list of included changes:
+
+- Gitlab stable ([#7768](https://github.com/paritytech/parity/pull/7768
+  - Fix snapcraft build for stable
+  - Initial support push snap packages to snapcraft.io
+  - Edge-devel
+- Snapcraft push ans fix build ([#7767](https://github.com/paritytech/parity/pull/7767
+  - Fix snapcraft build for stable
+  - Initial support push snap packages to snapcraft.io
+  - Edge-devel
+- Remove snapcraft.yml from scripts
+- Resolve conflicts
+- Token filter balances (throttle) ([#7755](https://github.com/paritytech/parity/pull/7755))
+- Fix snapcraft build (stable) ([#7763](https://github.com/paritytech/parity/pull/7763
+  - Fix snapcraft build for stable
+  - Fix snapcraft build (stable)
+- [Stable] Backports ([#7758](https://github.com/paritytech/parity/pull/7758
+  - Filter-out nodes.json ([#7716](https://github.com/paritytech/parity/pull/7716))
+    - Filter-out nodes.json
+    - Network: sort node table nodes by failure ratio
+    - Network: fix node table tests
+    - Network: fit node failure percentage into buckets of 5%
+    - Network: consider number of attempts in sorting of node table
+    - Network: fix node table grumbles
+  - Fix client not being dropped on shutdown ([#7695](https://github.com/paritytech/parity/pull/7695))
+    - Parity: wait for client to drop on shutdown
+    - Parity: fix grumbles in shutdown wait
+    - Parity: increase shutdown timeouts
+  - Wrap --help output to 120 characters ([#7626](https://github.com/paritytech/parity/pull/7626))
+    - Update Clap dependency and remove workarounds
+    - WIP
+    - Remove line breaks in help messages for now
+    - Multiple values can only be separated by commas (closes [#7428](https://github.com/paritytech/parity/issues/7428))
+    - Grumbles; refactor repeating code; add constant
+    - Use a single Wrapper rather than allocate a new one for each call
+    - Wrap --help to 120 characters rather than 100 characters
+- Use explicit branch name in push ([#7757](https://github.com/paritytech/parity/pull/7757))
+- Bump stable to 1.8.8 ([#7752](https://github.com/paritytech/parity/pull/7752))
+- Fix js-release in stable ([#7682](https://github.com/paritytech/parity/pull/7682
+- Update Info.plist
+- Fix conditions in gitlab-test ([#7675](https://github.com/paritytech/parity/pull/7675))
+- Remove cargo cache
+
 ## Parity [v1.8.7](https://github.com/paritytech/parity/releases/tag/v1.8.7) (2018-01-24)
 
 Parity 1.8.7 is the first stable release of the 1.8 channel. It includes various bug and stability fixes. Users on Kovan or other Aura-based networks are advised to upgrade as this release fixes an issue introduced with 1.8.6 and 1.7.12 that causes Proof-of-Authority nodes to stop synchronizing the chain.

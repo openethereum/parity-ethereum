@@ -1,3 +1,44 @@
+## Parity [v1.9.1](https://github.com/paritytech/parity/releases/tag/v1.9.1) (2018-02-01)
+
+Parity 1.9.1 is a bug-fix release to improve performance and stability. It restores ERC-20 token balances, improves networking, fixes database corruptions on client shutdown, and fixes issues with the `--password` command-line flag. Happy syncing, fellow Ethereans!
+
+In addition, this stabilizes Kovan and other Proof-of-Authority networks. If you run a network with AuRa engine, updating is highly encouraged!
+
+The full list of included changes:
+
+- Beta Backports ([#7756](https://github.com/paritytech/parity/pull/7756))
+  - Filter-out nodes.json ([#7716](https://github.com/paritytech/parity/pull/7716))
+    - Filter-out nodes.json
+    - network: sort node table nodes by failure ratio
+    - network: fix node table tests
+    - network: fit node failure percentage into buckets of 5%
+    - network: consider number of attempts in sorting of node table
+    - network: fix node table grumbles
+  - Fix client not being dropped on shutdown ([#7695](https://github.com/paritytech/parity/pull/7695))
+    - parity: wait for client to drop on shutdown
+    - parity: fix grumbles in shutdown wait
+    - parity: increase shutdown timeouts
+  - Wrap --help output to 120 characters ([#7626](https://github.com/paritytech/parity/pull/7626))
+    - Update Clap dependency and remove workarounds
+    - WIP
+    - Remove line breaks in help messages for now
+    - Multiple values can only be separated by commas (closes [#7428](https://github.com/paritytech/parity/issues/7428))
+    - Grumbles; refactor repeating code; add constant
+    - Use a single Wrapper rather than allocate a new one for each call
+    - Wrap --help to 120 characters rather than 100 characte
+- Token filter balances (throttle) ([#7742](https://github.com/paritytech/parity/pull/7742))
+  - Token filter balances (throttle)
+  - Cleanups
+  - Remove unused uniq
+  - Update @parity/shared to 2.2.23
+  - Remove unused code paths
+- Bump beta to 1.9.1 ([#7751](https://github.com/paritytech/parity/pull/7751))
+- Explicitly add branch name ([#7754](https://github.com/paritytech/parity/pull/7754))
+  - Explicitly add branch name
+  - Fix cargo update branch to beta
+- Revert revert revert ([#7715](https://github.com/paritytech/parity/pull/7715))
+ - This reverts commit 568dc33.
+
 ## Parity [v1.9.0](https://github.com/paritytech/parity/releases/tag/v1.9.0) "Velocity" (2018-01-25)
 
 We are happy to announce our newest Parity 1.9 release. Among others, it enables the following features:
