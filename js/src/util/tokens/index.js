@@ -62,7 +62,7 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
         const tokenIndex = start + index;
 
         return {
-          id: getTokenId(tokenAddress, tokenIndex),
+          id: getTokenId(address, tokenIndex),
           address,
           index: tokenIndex,
           fetched: false
