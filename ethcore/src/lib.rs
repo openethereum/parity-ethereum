@@ -170,12 +170,12 @@ pub mod trace;
 pub mod transaction;
 pub mod verification;
 pub mod views;
+pub mod state_db;
 
 mod cache_manager;
 mod blooms;
 mod basic_types;
 mod pod_account;
-mod state_db;
 mod account_db;
 mod builtin;
 mod executive;
