@@ -26,7 +26,6 @@ extern crate futures;
 extern crate heapsize;
 extern crate keccak_hash as hash;
 extern crate linked_hash_map;
-extern crate native_contracts;
 extern crate parking_lot;
 extern crate table;
 extern crate transient_hashmap;
@@ -38,6 +37,12 @@ extern crate log;
 extern crate rustc_hex;
 #[cfg(test)]
 extern crate ethkey;
+
+extern crate ethabi;
+#[macro_use]
+extern crate ethabi_derive;
+#[macro_use]
+extern crate ethabi_contract;
 
 pub mod banning_queue;
 pub mod external;
