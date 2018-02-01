@@ -444,7 +444,7 @@ impl Engine<EthereumMachine> for Tendermint {
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
 
 	/// (consensus view, proposal signature, authority signatures)
-	fn seal_fields(&self) -> usize { 3 }
+	fn seal_fields(&self, _header: &Header) -> usize { 3 }
 
 	fn machine(&self) -> &EthereumMachine { &self.machine }
 
@@ -573,7 +573,8 @@ impl Engine<EthereumMachine> for Tendermint {
 
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		let seal_length = header.seal().len();
-		if seal_length == self.seal_fields() {
+		let expected_seal_fields = self.seal_fields(header);
+		if seal_length == expected_seal_fields {
 			// Either proposal or commit.
 			if (header.seal()[1] == ::rlp::NULL_RLP)
 				!= (header.seal()[2] == ::rlp::EMPTY_LIST_RLP) {
@@ -584,7 +585,7 @@ impl Engine<EthereumMachine> for Tendermint {
 			}
 		} else {
 			Err(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: seal_length }
+				Mismatch { expected: expected_seal_fields, found: seal_length }
 			).into())
 		}
 	}

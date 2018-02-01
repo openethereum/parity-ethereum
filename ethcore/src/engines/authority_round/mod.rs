@@ -644,7 +644,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Three fields - consensus step and the corresponding proposer signature, and a list of empty
 	/// step messages (which should be empty if no steps are skipped)
-	fn seal_fields(&self) -> usize { 3 }
+	fn seal_fields(&self, _header: &Header) -> usize { 3 }
 
 	fn step(&self) {
 		self.step.increment();

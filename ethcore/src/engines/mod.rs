@@ -184,7 +184,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn machine(&self) -> &M;
 
 	/// The number of additional header fields required for this engine.
-	fn seal_fields(&self) -> usize { 0 }
+	fn seal_fields(&self, _header: &M::Header) -> usize { 0 }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &M::Header) -> BTreeMap<String, String> { BTreeMap::new() }

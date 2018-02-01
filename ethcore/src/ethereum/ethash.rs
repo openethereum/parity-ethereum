@@ -171,11 +171,11 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	fn machine(&self) -> &EthereumMachine { &self.machine }
 
 	// Two fields - nonce and mix.
-	fn seal_fields(&self) -> usize { 2 }
+	fn seal_fields(&self, _header: &Header) -> usize { 2 }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
-		if header.seal().len() == self.seal_fields() {
+		if header.seal().len() == self.seal_fields(header) {
 			map![
 				"nonce".to_owned() => format!("0x{}", header.nonce().hex()),
 				"mixHash".to_owned() => format!("0x{}", header.mix_hash().hex())
@@ -267,9 +267,10 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		// check the seal fields.
-		if header.seal().len() != self.seal_fields() {
+		let expected_seal_fields = self.seal_fields(header);
+		if header.seal().len() != expected_seal_fields {
 			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
+				Mismatch { expected: expected_seal_fields, found: header.seal().len() }
 			)));
 		}
 		UntrustedRlp::new(&header.seal()[0]).as_val::<H256>()?;
@@ -298,9 +299,10 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	}
 
 	fn verify_block_unordered(&self, header: &Header) -> Result<(), Error> {
-		if header.seal().len() != self.seal_fields() {
+		let expected_seal_fields = self.seal_fields(header);
+		if header.seal().len() != expected_seal_fields {
 			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
+				Mismatch { expected: expected_seal_fields, found: header.seal().len() }
 			)));
 		}
 		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, header.nonce().low_u64());
