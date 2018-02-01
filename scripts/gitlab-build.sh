@@ -270,18 +270,17 @@ case $BUILD_PLATFORM in
     push_release
     ;;
   x86_64-unknown-snap-gnu)
-    cd snap
     ARC="amd64"
     EXT="snap"
-    rm -rf *.snap
-    rm -rf *snap
-    sed -i 's/git/'"$VER"'/g' snapcraft.yaml
-    sed -i -e 's/source: ./source: ../' snapcraft.yaml
+    snapcraft clean
+    echo "Prepare snapcraft.yaml for build on Gitlab CI in Docker image"
+    sed -i 's/git/'"$VER"'/g' snap/snapcraft.yaml
     if [[ "$CI_BUILD_REF_NAME" = "stable" ]];
       then
-        sed -i -e 's/grade: devel/grade: stable/' snapcraft.yaml;
+        sed -i -e 's/grade: devel/grade: stable/' snap/snapcraft.yaml;
     fi
-    snapcraft
+    mv -f snap/snapcraft.yaml snapcraft.yaml
+    snapcraft -d
     snapcraft_login=$(expect -c "
       spawn snapcraft login
       expect \"Email:\"
