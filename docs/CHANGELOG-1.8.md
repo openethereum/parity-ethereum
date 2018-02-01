@@ -9,7 +9,7 @@ The full list of included changes:
   - Bump stable to 1.8.9
   - Update ropsten.json ([#7776](https://github.com/paritytech/parity/pull/7776))
 - Fix tokenAddress reference ([#7777](https://github.com/paritytech/parity/pull/7777))
-- snapcraft push stable
+- Snapcraft push stable
 
 ## Parity [v1.8.8](https://github.com/paritytech/parity/releases/tag/v1.8.8) (2018-02-01)
 
