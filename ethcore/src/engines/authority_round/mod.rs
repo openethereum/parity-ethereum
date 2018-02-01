@@ -73,6 +73,8 @@ pub struct AuthorityRoundParams {
 	pub maximum_uncle_count_transition: u64,
 	/// Number of accepted uncles.
 	pub maximum_uncle_count: usize,
+	/// Empty step messages transition block.
+	pub empty_steps_transition: u64,
 	/// Number of accepted empty steps.
 	pub maximum_empty_steps: usize,
 }
@@ -96,6 +98,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
 			maximum_uncle_count_transition: p.maximum_uncle_count_transition.map_or(0, Into::into),
 			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
+			empty_steps_transition: p.empty_steps_transition.map_or(u64::max_value(), |n| ::std::cmp::max(n.into(), 1)),
 			maximum_empty_steps: p.maximum_empty_steps.map_or(0, Into::into),
 		}
 	}
@@ -347,6 +350,7 @@ pub struct AuthorityRound {
 	block_reward: U256,
 	maximum_uncle_count_transition: u64,
 	maximum_uncle_count: usize,
+	empty_steps_transition: u64,
 	maximum_empty_steps: usize,
 	machine: EthereumMachine,
 }
@@ -355,15 +359,16 @@ pub struct AuthorityRound {
 struct EpochVerifier {
 	step: Arc<Step>,
 	subchain_validators: SimpleList,
+	empty_steps_transition: u64,
 }
 
 impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		// Validate the timestamp
-		verify_timestamp(&*self.step, header_step(header)?)?;
+		verify_timestamp(&*self.step, header_step(header, self.empty_steps_transition)?)?;
 		// always check the seal since it's fast.
 		// nothing heavier to do.
-		verify_external(header, &self.subchain_validators)
+		verify_external(header, &self.subchain_validators, self.empty_steps_transition)
 	}
 
 	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
@@ -385,13 +390,18 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 			let mut push_header = |parent_header: &Header, header: Option<&Header>| {
 				// ensure all headers have correct number of seal fields so we can `verify_external`
 				// and get `empty_steps` without panic.
-				if parent_header.seal().len() != 3 { return None }
-				if header.iter().any(|h| h.seal().len() != 3) { return None }
+				if parent_header.seal().len() != header_expected_seal_fields(parent_header, self.empty_steps_transition) {
+					return None
+				}
+				if header.iter().any(|h| h.seal().len() != header_expected_seal_fields(h, self.empty_steps_transition)) {
+					return None
+				}
+
 				// `verify_external` checks that signature is correct and author == signer.
-				otry!(verify_external(parent_header, &self.subchain_validators).ok());
+				otry!(verify_external(parent_header, &self.subchain_validators, self.empty_steps_transition).ok());
 
 				let mut signers = match header {
-					Some(header) => otry!(header_empty_steps_signers(header).ok()),
+					Some(header) => otry!(header_empty_steps_signers(header, self.empty_steps_transition).ok()),
 					_ => Vec::new(),
 				};
 				signers.push(parent_header.author().clone());
@@ -415,36 +425,63 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 	}
 }
 
-fn header_seal_hash(header: &Header, empty_steps: &[u8]) -> H256 {
-	let mut message = header.bare_hash().to_vec();
-	message.extend_from_slice(empty_steps);
-	keccak(message)
+fn header_seal_hash(header: &Header, empty_steps_rlp: Option<&[u8]>) -> H256 {
+	match empty_steps_rlp {
+		Some(empty_steps_rlp) => {
+			let mut message = header.bare_hash().to_vec();
+			message.extend_from_slice(empty_steps_rlp);
+			keccak(message)
+		},
+		None => {
+			header.bare_hash()
+		},
+	}
 }
 
-fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
-	UntrustedRlp::new(&header.seal().get(0).expect("was either checked with verify_block_basic or is genesis; has 3 fields; qed (Make sure the spec file has a correct genesis seal)")).as_val()
+fn header_expected_seal_fields(header: &Header, empty_steps_transition: u64) -> usize {
+	if header.number() >= empty_steps_transition {
+		3
+	} else {
+		2
+	}
 }
 
-fn header_signature(header: &Header) -> Result<Signature, ::rlp::DecoderError> {
-	UntrustedRlp::new(&header.seal().get(1).expect("was checked with verify_block_basic; has 3 fields; qed")).as_val::<H520>().map(Into::into)
+fn header_step(header: &Header, empty_steps_transition: u64) -> Result<usize, ::rlp::DecoderError> {
+	let expected_seal_fields = header_expected_seal_fields(header, empty_steps_transition);
+	UntrustedRlp::new(&header.seal().get(0).expect(
+		&format!("was either checked with verify_block_basic or is genesis; has {} fields; qed (Make sure the spec file has a correct genesis seal)", expected_seal_fields))).as_val()
 }
 
+fn header_signature(header: &Header, empty_steps_transition: u64) -> Result<Signature, ::rlp::DecoderError> {
+	let expected_seal_fields = header_expected_seal_fields(header, empty_steps_transition);
+	UntrustedRlp::new(&header.seal().get(1).expect(
+		&format!("was checked with verify_block_basic; has {} fields; qed", expected_seal_fields))).as_val::<H520>().map(Into::into)
+}
+
+// extracts the raw empty steps vec from the header seal. should only be called when there are 3 fields in the seal
+// (i.e. header.number() >= self.empty_steps_transition)
 fn header_empty_steps_raw(header: &Header) -> &[u8] {
 	header.seal().get(2).expect("was checked with verify_block_basic; has 3 fields; qed")
 }
 
+// extracts the empty steps from the header seal. should only be called when there are 3 fields in the seal
+// (i.e. header.number() >= self.empty_steps_transition)
 fn header_empty_steps(header: &Header) -> Result<Vec<EmptyStep>, ::rlp::DecoderError> {
 	UntrustedRlp::new(header_empty_steps_raw(header)).as_list::<EmptyStep>().map(Into::into)
 }
 
 // gets the signers of empty step messages for the given header, does not include repeated signers
-fn header_empty_steps_signers(header: &Header) -> Result<Vec<Address>, Error> {
-	let mut signers = HashSet::new();
-	for empty_step in header_empty_steps(header)? {
-		signers.insert(empty_step.author()?);
-	}
+fn header_empty_steps_signers(header: &Header, empty_steps_transition: u64) -> Result<Vec<Address>, Error> {
+	if header.number() >= empty_steps_transition {
+		let mut signers = HashSet::new();
+		for empty_step in header_empty_steps(header)? {
+			signers.insert(empty_step.author()?);
+		}
 
-	Ok(Vec::from_iter(signers.into_iter()))
+		Ok(Vec::from_iter(signers.into_iter()))
+	} else {
+		Ok(Vec::new())
+	}
 }
 
 fn step_proposer(validators: &ValidatorSet, bh: &H256, step: usize) -> Address {
@@ -473,13 +510,19 @@ fn verify_timestamp(step: &Step, header_step: usize) -> Result<(), BlockError> {
 	}
 }
 
-fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Error> {
-	let header_step = header_step(header)?;
+fn verify_external(header: &Header, validators: &ValidatorSet, empty_steps_transition: u64) -> Result<(), Error> {
+	let header_step = header_step(header, empty_steps_transition)?;
 
-	let proposer_signature = header_signature(header)?;
+	let proposer_signature = header_signature(header, empty_steps_transition)?;
 	let correct_proposer = validators.get(header.parent_hash(), header_step);
 	let is_invalid_proposer = *header.author() != correct_proposer || {
-		let header_seal_hash = header_seal_hash(header, header_empty_steps_raw(header));
+		let empty_steps_rlp = if header.number() >= empty_steps_transition {
+			Some(header_empty_steps_raw(header))
+		} else {
+			None
+		};
+
+		let header_seal_hash = header_seal_hash(header, empty_steps_rlp);
 		!verify_address(&correct_proposer, &proposer_signature, &header_seal_hash)?
 	};
 
@@ -545,6 +588,7 @@ impl AuthorityRound {
 				block_reward: our_params.block_reward,
 				maximum_uncle_count_transition: our_params.maximum_uncle_count_transition,
 				maximum_uncle_count: our_params.maximum_uncle_count,
+				empty_steps_transition: our_params.empty_steps_transition,
 				maximum_empty_steps: our_params.maximum_empty_steps,
 				machine: machine,
 			});
@@ -644,7 +688,9 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Three fields - consensus step and the corresponding proposer signature, and a list of empty
 	/// step messages (which should be empty if no steps are skipped)
-	fn seal_fields(&self, _header: &Header) -> usize { 3 }
+	fn seal_fields(&self, header: &Header) -> usize {
+		header_expected_seal_fields(header, self.empty_steps_transition)
+	}
 
 	fn step(&self) {
 		self.step.increment();
@@ -658,24 +704,30 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
-		let step = header_step(header).as_ref().map(ToString::to_string).unwrap_or("".into());
-		let signature = header_signature(header).as_ref().map(ToString::to_string).unwrap_or("".into());
-		let empty_steps =
-			if let Ok(empty_steps) = header_empty_steps(header).as_ref() {
-				format!("[{}]",
-						empty_steps.iter().fold(
-							"".to_string(),
-							|acc, e| if acc.len() > 0 { acc + ","} else { acc } + &e.to_string()))
+		let step = header_step(header, self.empty_steps_transition).as_ref().map(ToString::to_string).unwrap_or("".into());
+		let signature = header_signature(header, self.empty_steps_transition).as_ref().map(ToString::to_string).unwrap_or("".into());
 
-			} else {
-				"".into()
-			};
-
-		map![
+		let mut info = map![
 			"step".into() => step,
-			"signature".into() => signature,
-			"emptySteps".into() => empty_steps
-		]
+			"signature".into() => signature
+		];
+
+		if header.number() >= self.empty_steps_transition {
+			let empty_steps =
+				if let Ok(empty_steps) = header_empty_steps(header).as_ref() {
+					format!("[{}]",
+							empty_steps.iter().fold(
+								"".to_string(),
+								|acc, e| if acc.len() > 0 { acc + ","} else { acc } + &e.to_string()))
+
+				} else {
+					"".into()
+				};
+
+			info.insert("emptySteps".into(), empty_steps);
+		}
+
+		info
 	}
 
 	fn maximum_uncle_count(&self, block: BlockNumber) -> usize {
@@ -688,10 +740,16 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		let parent_step = header_step(parent).expect("Header has been verified; qed");
+		let parent_step = header_step(parent, self.empty_steps_transition).expect("Header has been verified; qed");
 		let current_step = self.step.load();
-		let current_empty_steps = self.empty_steps(parent_step.into(), current_step.into(), parent.hash());
-		let score = calculate_score(parent_step.into(), current_step.into(), current_empty_steps.len().into());
+
+		let current_empty_steps_len = if header.number() >= self.empty_steps_transition {
+			self.empty_steps(parent_step.into(), current_step.into(), parent.hash()).len()
+		} else {
+			0
+		};
+
+		let score = calculate_score(parent_step.into(), current_step.into(), current_empty_steps_len.into());
 		header.set_difficulty(score);
 	}
 
@@ -729,13 +787,17 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		if !self.can_propose.load(AtomicOrdering::SeqCst) { return Seal::None; }
 
 		let header = block.header();
-		let parent_step: U256 = header_step(parent)
+		let parent_step: U256 = header_step(parent, self.empty_steps_transition)
 			.expect("Header has been verified; qed").into();
 
 		let step = self.step.load();
 
 		// filter messages from old and future steps and different parents
-		let empty_steps = self.empty_steps(parent_step.into(), step.into(), *header.parent_hash());
+		let empty_steps = if header.number() >= self.empty_steps_transition {
+			self.empty_steps(parent_step.into(), step.into(), *header.parent_hash())
+		} else {
+			Vec::new()
+		};
 
 		let expected_diff = calculate_score(parent_step, step.into(), empty_steps.len().into());
 
@@ -786,14 +848,21 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			// if there are no transactions to include in the block, we don't seal and instead broadcast a signed
 			// `EmptyStep(step, parent_hash)` message. If we exceed the maximum amount of `empty_step` rounds we proceed
 			// with the seal.
-			if block.transactions().is_empty() && empty_steps.len() < self.maximum_empty_steps {
+			if header.number() >= self.empty_steps_transition &&
+				block.transactions().is_empty() &&
+				empty_steps.len() < self.maximum_empty_steps {
+
 				self.generate_empty_step(header.parent_hash());
 				return Seal::None;
 			}
 
-			let empty_steps_rlp = ::rlp::encode_list(&empty_steps).into_vec();
+			let empty_steps_rlp = if header.number() >= self.empty_steps_transition {
+				Some(::rlp::encode_list(&empty_steps).into_vec())
+			} else {
+				None
+			};
 
-			if let Ok(signature) = self.sign(header_seal_hash(header, &empty_steps_rlp)) {
+			if let Ok(signature) = self.sign(header_seal_hash(header, empty_steps_rlp.as_ref().map(|e| &**e))) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 
 				// only issue the seal if we were the first to reach the compare_and_swap.
@@ -801,11 +870,15 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 					// clear old `empty_steps` messages
 					self.empty_steps.lock().retain(|e| U256::from(e.step) > parent_step);
-					let fields = vec![
+
+					let mut fields = vec![
 						encode(&step).into_vec(),
 						encode(&(&H520::from(signature) as &[u8])).into_vec(),
-						empty_steps_rlp,
 					];
+
+					if let Some(empty_steps_rlp) = empty_steps_rlp {
+						fields.push(empty_steps_rlp);
+					}
 
 					return Seal::Regular(fields);
 				}
@@ -869,7 +942,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		// If yes then probably benign reporting needs to be moved further in the verification.
 		let set_number = header.number();
 
-		match verify_timestamp(&*self.step, header_step(header)?) {
+		match verify_timestamp(&*self.step, header_step(header, self.empty_steps_transition)?) {
 			Err(BlockError::InvalidSeal) => {
 				self.validators.report_benign(header.author(), set_number, header.number());
 				Err(BlockError::InvalidSeal.into())
@@ -881,8 +954,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Do the step and gas limit validation.
 	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
-		let step = header_step(header)?;
-		let parent_step = header_step(parent)?;
+		let step = header_step(header, self.empty_steps_transition)?;
+		let parent_step = header_step(parent, self.empty_steps_transition)?;
 		// TODO [ToDr] Should this go from epoch manager?
 		let set_number = header.number();
 
@@ -897,21 +970,23 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		// FIXME: report author
 		// Verify empty steps
-		let empty_steps = header_empty_steps(header)?;
-		for empty_step in empty_steps {
-			if empty_step.step < parent_step || empty_step.step > step {
-				Err(EngineError::InsufficientProof(
-					format!("empty step proof for invalid step: {:?}", empty_step.step)))?;
-			}
+		if header.number() >= self.empty_steps_transition {
+			let empty_steps = header_empty_steps(header)?;
+			for empty_step in empty_steps {
+				if empty_step.step < parent_step || empty_step.step > step {
+					Err(EngineError::InsufficientProof(
+						format!("empty step proof for invalid step: {:?}", empty_step.step)))?;
+				}
 
-			if empty_step.parent_hash != *header.parent_hash() {
-				Err(EngineError::InsufficientProof(
-					format!("empty step proof for invalid parent hash: {:?}", empty_step.parent_hash)))?;
-			}
+				if empty_step.parent_hash != *header.parent_hash() {
+					Err(EngineError::InsufficientProof(
+						format!("empty step proof for invalid parent hash: {:?}", empty_step.parent_hash)))?;
+				}
 
-			if !empty_step.verify(&*self.validators).unwrap_or(false) {
-				Err(EngineError::InsufficientProof(
-					format!("invalid empty step proof: {:?}", empty_step)))?;
+				if !empty_step.verify(&*self.validators).unwrap_or(false) {
+					Err(EngineError::InsufficientProof(
+						format!("invalid empty step proof: {:?}", empty_step)))?;
+				}
 			}
 		}
 
@@ -947,7 +1022,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		// verify signature against fixed list, but reports should go to the
 		// contract itself.
-		verify_external(header, validators)
+		verify_external(header, validators, self.empty_steps_transition);
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
@@ -1002,7 +1077,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				chain_head.hash(), chain_head.parent_hash());
 
 			let mut hash = chain_head.parent_hash().clone();
-			let mut parent_empty_steps_signers = match header_empty_steps_signers(&chain_head) {
+			let mut parent_empty_steps_signers = match header_empty_steps_signers(&chain_head, self.empty_steps_transition) {
 				Ok(empty_step_signers) => empty_step_signers,
 				Err(_) => {
 					warn!(target: "finality", "Failed to get empty step signatures from block {}", chain_head.hash());
@@ -1022,7 +1097,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					let mut signers = vec![header.author().clone()];
 					signers.extend(parent_empty_steps_signers.drain(..));
 
-					if let Ok(empty_step_signers) = header_empty_steps_signers(&header) {
+					if let Ok(empty_step_signers) = header_empty_steps_signers(&header, self.empty_steps_transition) {
 						let res = (hash, signers);
 						trace!(target: "finality", "Ancestry iteration: yielding {:?}", res);
 
@@ -1101,6 +1176,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				let verifier = Box::new(EpochVerifier {
 					step: self.step.clone(),
 					subchain_validators: list,
+					empty_steps_transition: self.empty_steps_transition,
 				});
 
 				match finalize {
