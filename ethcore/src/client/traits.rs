@@ -65,8 +65,12 @@ pub trait Nonce {
 	}
 }
 
+/// State information to be used during client query
 pub enum StateOrBlock {
+	/// State to be used, may be pending
 	State(Box<StateInfo>),
+
+	/// Id of an existing block from a chain to get state from
 	Block(BlockId)
 }
 
@@ -152,6 +156,7 @@ pub trait ImportBlock {
 
 /// Provides methods to access chain state
 pub trait StateClient {
+	/// Type representing chain state
 	type State: StateInfo;
 
 	/// Get a copy of the best block's state.
@@ -167,7 +172,7 @@ pub trait StateClient {
 
 /// Provides `call` and `call_many` methods
 pub trait Call {
-	/// State type accepted by methods
+	/// Type representing chain state
 	type State: StateInfo;
 
 	/// Makes a non-persistent transaction call.

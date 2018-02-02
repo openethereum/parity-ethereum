@@ -80,6 +80,7 @@ use header::Header;
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
+	/// Type representing chain state
 	type State: StateInfo + 'static;
 
 	/// Returns miner's status.
