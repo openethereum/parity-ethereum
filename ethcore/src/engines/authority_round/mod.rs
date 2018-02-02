@@ -977,9 +977,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 
-		// FIXME: report author
-		// Verify empty steps
+		// If empty step messages are enabled we will validate the messages in the seal, missing messages are not
+		// reported as there's no way to tell whether the empty step message was never sent or simply not included.
 		if header.number() >= self.empty_steps_transition {
+			// FIXME: report author
 			let empty_steps = header_empty_steps(header)?;
 			for empty_step in empty_steps {
 				if empty_step.step < parent_step || empty_step.step > step {
@@ -996,6 +997,22 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					Err(EngineError::InsufficientProof(
 						format!("invalid empty step proof: {:?}", empty_step)))?;
 				}
+			}
+		} else {
+			// Report skipped primaries.
+			if let (true, Some(me)) = (step > parent_step + 1, self.signer.read().address()) {
+				debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
+					   header.author(), step, parent_step);
+				let mut reported = HashSet::new();
+				for s in parent_step + 1..step {
+					let skipped_primary = step_proposer(&*self.validators, &parent.hash(), s);
+					// Do not report this signer.
+					if skipped_primary != me {
+						self.validators.report_benign(&skipped_primary, set_number, header.number());
+						// Stop reporting once validators start repeating.
+						if !reported.insert(skipped_primary) { break; }
+ 					}
+ 				}
 			}
 		}
 
