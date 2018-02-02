@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use parking_lot::Mutex;
 use account_provider::AccountProvider;
-use ethereum_types::{H128, Address};
+use ethereum_types::{H128, H256, Address};
 use ethjson;
 use ethkey::{Signature, Public};
 use ethcrypto;
@@ -114,10 +114,7 @@ impl SecretStoreEncryptor {
 			return Ok(key);
 		}
 		// key id in SS is H256 && we have H160 here => expand with assitional zeros
-		let mut contract_address_extended = Vec::with_capacity(32);
-		contract_address_extended.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-		contract_address_extended.extend_from_slice(&**contract_address);
-
+		let contract_address_extended: H256 = contract_address.into();
 		let base_url = self.base_url.clone().ok_or_else(|| PrivateTransactionError::KeyServerNotSet)?;
 
 		// prepare request url
@@ -288,7 +285,7 @@ pub mod tests {
 	}
 
 	#[test]
-	fn my_test() {
+	fn dummy_encryptor_works() {
 		let encryptor = DummyEncryptor::default();
 		let ap = Arc::new(AccountProvider::transient_provider());
 
