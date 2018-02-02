@@ -71,7 +71,6 @@ extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-extern crate futures;
 extern crate hardware_wallet;
 extern crate hashdb;
 extern crate itertools;

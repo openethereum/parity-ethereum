@@ -24,7 +24,6 @@ extern crate parking_lot;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate ethcore;
 extern crate ethsync;
-extern crate futures;
 extern crate target_info;
 extern crate parity_version as version;
 extern crate path;
