@@ -11,8 +11,8 @@ rustc_version = "0.2"
 
 # These are managed by the JS scripts on CI - keep it in a single line
 [dependencies]
-parity-ui-dev = { git = "https://github.com/parity-js/shell.git", rev = "c4ad493b86fd8dda0364881d9cff39c95e2ee73b", optional = true }
-parity-ui-old-dev = { git = "https://github.com/parity-js/dapp-wallet.git", rev = "70accead639e8d6e5af483c654c2dde5450b5558", optional = true }
+parity-ui-dev = { git = "https://github.com/parity-js/shell.git", rev = "27495ad8a73716c08588ab852694a75d9d22ba85", optional = true }
+parity-ui-old-dev = { git = "https://github.com/parity-js/dapp-wallet.git", rev = "9993240efecb415aa880250ecef2710a413cf73f", optional = true }
 parity-ui-old-precompiled = { git = "https://github.com/js-dist-paritytech/parity-master-1-9-v1.git", optional = true }
 parity-ui-precompiled = { git = "https://github.com/js-dist-paritytech/parity-master-1-9-shell.git", optional = true }
 
