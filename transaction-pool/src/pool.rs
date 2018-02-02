@@ -109,6 +109,8 @@ impl<T, S, L> Pool<T, S, L> where
 
 		ensure!(!self.by_hash.contains_key(transaction.hash()), error::ErrorKind::AlreadyImported(*transaction.hash()));
 
+		// TODO [ToDr] Most likely move this after the transsaction is inserted.
+		// Avoid using should_replace, but rather use scoring for that.
 		{
 			let remove_worst = |s: &mut Self, transaction| {
 				match s.remove_worst(&transaction) {
@@ -288,7 +290,7 @@ impl<T, S, L> Pool<T, S, L> where
 	/// Removes single transaction from the pool.
 	/// Depending on the `is_invalid` flag the listener
 	/// will either get a `cancelled` or `invalid` notification.
-	pub fn remove(&mut self, hash: &H256, is_invalid: bool) -> bool {
+	pub fn remove(&mut self, hash: &H256, is_invalid: bool) -> Option<Arc<T>> {
 		if let Some(tx) = self.finalize_remove(hash) {
 			self.remove_from_set(tx.sender(), |set, scoring| {
 				set.remove(&tx, scoring)
@@ -298,9 +300,9 @@ impl<T, S, L> Pool<T, S, L> where
 			} else {
 				self.listener.cancelled(&tx);
 			}
-			true
+			Some(tx)
 		} else {
-			false
+			None
 		}
 	}
 

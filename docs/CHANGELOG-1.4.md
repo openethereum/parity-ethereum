@@ -1,3 +1,5 @@
+Note: Parity 1.4 reached End-of-Life on 2017-03-13 (EOL).
+
 ## Parity [v1.4.12](https://github.com/paritytech/parity/releases/tag/v1.4.12) (2017-02-22)
 
 This stable release fixes an issue with block uncle validation. Parity now allows uncle headers to have timestamp set to arbitrary future value.
