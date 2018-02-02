@@ -615,7 +615,7 @@ impl AuthorityRound {
 		self.empty_steps.lock().retain(|e| U256::from(e.step) > step);
 	}
 
-	fn handle_valid_message(&self, empty_step: EmptyStep) {
+	fn handle_empty_step_message(&self, empty_step: EmptyStep) {
 		let mut empty_steps = self.empty_steps.lock();
 		empty_steps.push(empty_step);
 	}
@@ -632,7 +632,7 @@ impl AuthorityRound {
 
 			trace!(target: "engine", "broadcasting empty step message: {:?}", empty_step);
 			self.broadcast_message(message_rlp);
-			self.handle_valid_message(empty_step);
+			self.handle_empty_step_message(empty_step);
 
 		} else {
 			warn!(target: "engine", "generate_empty_step: FAIL: accounts secret key unavailable");
@@ -774,10 +774,14 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		// FIXME: report
 		if empty_step.verify(&*self.validators).unwrap_or(false) {
-			trace!(target: "engine", "received empty step message {:?}", empty_step);
-			self.handle_valid_message(empty_step);
+			if self.step.check_future(empty_step.step).is_ok() {
+				trace!(target: "engine", "handle_message: received empty step message {:?}", empty_step);
+				self.handle_empty_step_message(empty_step);
+			} else {
+				trace!(target: "engine", "handle_message: empty step message from the future {:?}", empty_step);
+			}
 		} else {
-			trace!(target: "engine", "received invalid step message {:?}", empty_step);
+			trace!(target: "engine", "handle_message: received invalid step message {:?}", empty_step);
 		};
 
 		Ok(())
