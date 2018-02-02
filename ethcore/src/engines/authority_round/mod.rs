@@ -609,6 +609,12 @@ impl AuthorityRound {
 		}).cloned().collect()
 	}
 
+
+	fn clear_empty_steps(&self, step: U256) {
+		// clear old `empty_steps` messages
+		self.empty_steps.lock().retain(|e| U256::from(e.step) > step);
+	}
+
 	fn handle_valid_message(&self, empty_step: EmptyStep) {
 		let mut empty_steps = self.empty_steps.lock();
 		empty_steps.push(empty_step);
@@ -868,8 +874,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				// only issue the seal if we were the first to reach the compare_and_swap.
 				if self.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
 
-					// clear old `empty_steps` messages
-					self.empty_steps.lock().retain(|e| U256::from(e.step) > parent_step);
+					self.clear_empty_steps(parent_step);
 
 					let mut fields = vec![
 						encode(&step).into_vec(),
@@ -1022,7 +1027,12 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 		// verify signature against fixed list, but reports should go to the
 		// contract itself.
-		verify_external(header, validators, self.empty_steps_transition);
+		let res = verify_external(header, validators, self.empty_steps_transition);
+		if res.is_ok() {
+			let header_step = header_step(header, self.empty_steps_transition)?;
+			self.clear_empty_steps(header_step.into());
+		}
+		res
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
