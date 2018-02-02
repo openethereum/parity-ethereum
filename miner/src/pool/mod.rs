@@ -22,9 +22,12 @@ use transaction;
 use txpool;
 
 pub mod client;
+pub mod queue;
 pub mod ready;
 pub mod scoring;
 pub mod verifier;
+
+pub use self::queue::TransactionQueue;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum Priority {

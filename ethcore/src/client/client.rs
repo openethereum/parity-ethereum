@@ -1813,10 +1813,12 @@ impl BlockChainClient for Client {
 	}
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<transaction::ImportResult, EthcoreError> {
+		let mining_params = self.miner.mining_params();
 		let transaction = Transaction {
-			nonce: self.latest_nonce(&self.miner.author()),
+			nonce: self.latest_nonce(&mining_params.author),
 			action: Action::Call(address),
-			gas: self.miner.gas_floor_target(),
+			gas: mining_params.gas_range_target.0,
+			// TODO [ToDr] Do we need gas price here?
 			gas_price: self.miner.sensible_gas_price(),
 			value: U256::zero(),
 			data: data,

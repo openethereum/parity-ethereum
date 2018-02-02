@@ -19,15 +19,17 @@
 //! Miner module
 //! Keeps track of transactions and mined block.
 
+extern crate ansi_term;
 extern crate common_types as types;
-extern crate ethereum_types;
 extern crate ethcore_transaction as transaction;
+extern crate ethereum_types;
 extern crate futures;
 extern crate heapsize;
 extern crate keccak_hash as hash;
 extern crate linked_hash_map;
 extern crate native_contracts;
 extern crate parking_lot;
+extern crate price_info;
 extern crate table;
 extern crate transaction_pool as txpool;
 extern crate transient_hashmap;
@@ -44,9 +46,9 @@ extern crate ethkey;
 
 pub mod banning_queue;
 pub mod external;
+pub mod gas_pricer;
 pub mod local_transactions;
 pub mod pool;
 pub mod service_transaction_checker;
 pub mod transaction_queue;
 pub mod work_notify;
-pub mod queue;

@@ -10,6 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 # TODO [ToDr] Rewrite using reqwest
 hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
 
+ansi_term = "0.10"
 common-types = { path = "../ethcore/types" }
 error-chain = "0.11"
 ethash = { path = "../ethash" }
@@ -23,6 +24,7 @@ linked-hash-map = "0.5"
 log = "0.3"
 native-contracts = { path = "../ethcore/native_contracts" }
 parking_lot = "0.5"
+price-info = { path = "../price-info" }
 rustc-hex = "1.0"
 table = { path = "../util/table" }
 transaction-pool = { path = "../transaction-pool" }

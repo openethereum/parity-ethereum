@@ -2,6 +2,7 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 
+use ethereum_types::H256;
 use parking_lot::{RwLock, RwLockReadGuard};
 use transaction;
 use txpool::{self, Verifier};
@@ -71,6 +72,14 @@ impl TransactionQueue {
 		let state_readiness = ready::State::new(client);
 		let removed = self.pool.write().cull(None, state_readiness);
 		debug!(target: "txqueue", "Removed {} stalled transactions.", removed);
+	}
+
+	pub fn remove(
+		&self,
+		hash: &H256,
+		is_invalid: bool,
+	) {
+		self.pool.write().remove(hash, is_invalid);
 	}
 }
 

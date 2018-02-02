@@ -90,6 +90,7 @@ mod verifier;
 
 pub mod scoring;
 
+pub use self::error::{Error, ErrorKind};
 pub use self::listener::{Listener, NoopListener};
 pub use self::options::Options;
 pub use self::pool::{Pool, PendingIterator};

@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt;
 use std::time::{Instant, Duration};
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
@@ -35,20 +36,18 @@ use error::*;
 // 	AccountDetails,
 // 	TransactionOrigin,
 // };
+use ethcore_miner::pool::{self, TransactionQueue};
 use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
+use ethcore_miner::gas_pricer::{GasPricer, GasPriceCalibratorOptions};
 // use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
-use miner::{MinerService, MinerStatus};
-use price_info::fetch::Client as FetchClient;
-use price_info::{Client as PriceInfoClient, PriceInfo};
+use miner::MinerService;
 use timer::PerfTimer;
 use transaction::{
+	self,
 	Action,
 	UnverifiedTransaction,
 	PendingTransaction,
 	SignedTransaction,
-	Condition as TransactionCondition,
-	ImportResult as TransactionImportResult,
-	Error as TransactionError,
 };
 use using_queue::{UsingQueue, GetAction};
 
@@ -112,10 +111,10 @@ pub struct MinerOptions {
 	pub reseal_on_own_tx: bool,
 	/// Reseal when new uncle block has been imported.
 	pub reseal_on_uncle: bool,
-	// /// Minimum period between transaction-inspired reseals.
-	// pub reseal_min_period: Duration,
-	// /// Maximum period between blocks (enables force sealing after that).
-	// pub reseal_max_period: Duration,
+	/// Minimum period between transaction-inspired reseals.
+	pub reseal_min_period: Duration,
+	/// Maximum period between blocks (enables force sealing after that).
+	pub reseal_max_period: Duration,
 	// /// Maximum amount of gas to bother considering for block insertion.
 	// pub tx_gas_limit: U256,
 	// /// Maximum size of the transaction queue.
@@ -160,116 +159,53 @@ impl Default for MinerOptions {
 			reseal_max_period: Duration::from_secs(120),
 			work_queue_size: 20,
 			enable_resubmission: true,
-			tx_queue_banning: Banning::Disabled,
-			refuse_service_transactions: false,
+			// tx_queue_banning: Banning::Disabled,
+			// refuse_service_transactions: false,
 			infinite_pending_block: false,
 		}
 	}
 }
 
-/// Options for the dynamic gas price recalibrator.
-#[derive(Debug, PartialEq)]
-pub struct GasPriceCalibratorOptions {
-	/// Base transaction price to match against.
-	pub usd_per_tx: f32,
-	/// How frequently we should recalibrate.
-	pub recalibration_period: Duration,
-}
-
-/// The gas price validator variant for a `GasPricer`.
-#[derive(Debug, PartialEq)]
-pub struct GasPriceCalibrator {
-	options: GasPriceCalibratorOptions,
-	next_calibration: Instant,
-	price_info: PriceInfoClient,
-}
-
-impl GasPriceCalibrator {
-	fn recalibrate<F: Fn(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
-		trace!(target: "miner", "Recalibrating {:?} versus {:?}", Instant::now(), self.next_calibration);
-		if Instant::now() >= self.next_calibration {
-			let usd_per_tx = self.options.usd_per_tx;
-			trace!(target: "miner", "Getting price info");
-
-			self.price_info.get(move |price: PriceInfo| {
-				trace!(target: "miner", "Price info arrived: {:?}", price);
-				let usd_per_eth = price.ethusd;
-				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
-				let gas_per_tx: f32 = 21000.0;
-				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
-				info!(target: "miner", "Updated conversion rate to Ξ1 = {} ({} wei/gas)", Colour::White.bold().paint(format!("US${:.2}", usd_per_eth)), Colour::Yellow.bold().paint(format!("{}", wei_per_gas)));
-				set_price(U256::from(wei_per_gas as u64));
-			});
-
-			self.next_calibration = Instant::now() + self.options.recalibration_period;
-		}
-	}
-}
-
-/// Struct to look after updating the acceptable gas price of a miner.
-#[derive(Debug, PartialEq)]
-pub enum GasPricer {
-	/// A fixed gas price in terms of Wei - always the argument given.
-	Fixed(U256),
-	/// Gas price is calibrated according to a fixed amount of USD.
-	Calibrated(GasPriceCalibrator),
-}
-
-impl GasPricer {
-	/// Create a new Calibrated `GasPricer`.
-	pub fn new_calibrated(options: GasPriceCalibratorOptions, fetch: FetchClient) -> GasPricer {
-		GasPricer::Calibrated(GasPriceCalibrator {
-			options: options,
-			next_calibration: Instant::now(),
-			price_info: PriceInfoClient::new(fetch),
-		})
-	}
-
-	/// Create a new Fixed `GasPricer`.
-	pub fn new_fixed(gas_price: U256) -> GasPricer {
-		GasPricer::Fixed(gas_price)
-	}
-
-	fn recalibrate<F: Fn(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
-		match *self {
-			GasPricer::Fixed(ref max) => set_price(max.clone()),
-			GasPricer::Calibrated(ref mut cal) => cal.recalibrate(set_price),
-		}
-	}
+#[derive(Debug, Default, Clone)]
+pub struct MiningParams {
+	pub gas_range_target: (U256, U256),
+	pub author: Address,
+	pub extra_data: Bytes,
 }
 
 struct SealingWork {
 	queue: UsingQueue<ClosedBlock>,
 	enabled: bool,
+	next_allowed_reseal: Instant,
+	next_mandatory_reseal: Instant,
+	sealing_block_last_request: u64,
 }
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
 /// Handles preparing work for "work sealing" or seals "internally" if Engine does not require work.
 pub struct Miner {
 	// NOTE [ToDr]  When locking always lock in this order!
-	sealing_work: Mutex<SealingWork>,
-	next_allowed_reseal: Mutex<Instant>,
-	next_mandatory_reseal: RwLock<Instant>,
-	sealing_block_last_request: Mutex<u64>,
+	sealing: Mutex<SealingWork>,
+	params: RwLock<MiningParams>,
+	listeners: RwLock<Vec<Box<NotifyWork>>>,
+	gas_pricer: Mutex<GasPricer>,
 	options: MinerOptions,
 	transaction_queue: TransactionQueue,
-
-	gas_range_target: RwLock<(U256, U256)>,
-	author: RwLock<Address>,
-	extra_data: RwLock<Bytes>,
 	engine: Arc<EthEngine>,
-
 	accounts: Option<Arc<AccountProvider>>,
-	notifiers: RwLock<Vec<Box<NotifyWork>>>,
-	gas_pricer: Mutex<GasPricer>,
+	// TODO [TodR]] Check log order
 	// service_transaction_action: ServiceTransactionAction,
 }
 
 impl Miner {
 	/// Push notifier that will handle new jobs
-	pub fn push_notifier(&self, notifier: Box<NotifyWork>) {
-		self.notifiers.write().push(notifier);
-		self.sealing_work.lock().enabled = true;
+	pub fn add_work_listener(&self, notifier: Box<NotifyWork>) {
+		self.sealing.lock().enabled = true;
+		self.listeners.write().push(notifier);
+	}
+
+	pub fn add_work_listener_url(&self, urls: &[String]) {
+		self.add_work_listener(Box::new(WorkPoster::new(&urls)));
 	}
 
 	/// Creates new instance of miner Arc.
@@ -279,15 +215,16 @@ impl Miner {
 
 	/// Creates new instance of miner.
 	fn new_raw(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
-		let mem_limit = options.tx_queue_memory_limit.unwrap_or_else(usize::max_value);
+		// let mem_limit = options.tx_queue_memory_limit.unwrap_or_else(usize::max_value);
 
-		let txq = TransactionQueue::with_limits(
-			options.tx_queue_strategy,
-			options.tx_queue_size,
-			mem_limit,
-			gas_limit,
-			options.tx_gas_limit
-		);
+		let txq = unimplemented!();
+		// let txq = TransactionQueue::with_limits(
+		// 	// options.tx_queue_strategy,
+		// 	options.tx_queue_size,
+		// 	mem_limit,
+		// 	// gas_limit,
+		// 	options.tx_gas_limit
+		// );
 		// let txq = match options.tx_queue_banning {
 		// 	Banning::Disabled => BanningTransactionQueue::new(txq, Threshold::NeverBan, Duration::from_secs(180)),
 		// 	Banning::Enabled { ban_duration, min_offends, .. } => BanningTransactionQueue::new(
@@ -299,30 +236,28 @@ impl Miner {
 
 		let notifiers: Vec<Box<NotifyWork>> = match options.new_work_notify.is_empty() {
 			true => Vec::new(),
-			false => vec![Box::new(WorkPoster::new(&options.new_work_notify))],
+			false => vec![)],
 		};
 
 		let (limits, verifier_options) = unimplemented!();
 
 		Miner {
-			transaction_queue: TransactionQueue::new(limits, verifier_options),
-			next_allowed_reseal: Mutex::new(Instant::now()),
-			next_mandatory_reseal: RwLock::new(Instant::now() + options.reseal_max_period),
-			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(SealingWork{
+			sealing: RwLock::new(SealingWork{
 				queue: UsingQueue::new(options.work_queue_size),
 				enabled: options.force_sealing
 					|| !options.new_work_notify.is_empty()
-					|| spec.engine.seals_internally().is_some()
+					|| spec.engine.seals_internally().is_some(),
+				next_allowed_reseal: Instant::now(),
+				next_mandatory_reseal: Instant::now() + options.reseal_max_period,
+				sealing_block_last_request: 0,
 			}),
-			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
-			author: RwLock::new(Address::default()),
-			extra_data: RwLock::new(Vec::new()),
-			options: options,
-			accounts: accounts,
-			engine: spec.engine.clone(),
-			notifiers: RwLock::new(notifiers),
+			params: RwLock::new(MiningParams::default()),
+			notifiers: RwLock::new(vec![]),
 			gas_pricer: Mutex::new(gas_pricer),
+			options,
+			transaction_queue: TransactionQueue::new(limits, verifier_options),
+			accounts,
+			engine: spec.engine.clone(),
 		}
 	}
 
@@ -342,7 +277,7 @@ impl Miner {
 
 	/// Clear all pending block states
 	pub fn clear(&self) {
-		self.sealing_work.lock().queue.reset();
+		self.sealing.lock().queue.reset();
 	}
 
 	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
@@ -374,13 +309,13 @@ impl Miner {
 	fn prepare_block(&self, chain: &MiningBlockChainClient) -> (ClosedBlock, Option<H256>) {
 		let _timer = PerfTimer::new("prepare_block");
 		let chain_info = chain.chain_info();
-		let (transactions, mut open_block, original_work_hash) = {
+		let (pending, mut open_block, original_work_hash) = {
 			let nonce_cap = if chain_info.best_block_number + 1 >= self.engine.params().dust_protection_transition {
 				Some((self.engine.params().nonce_cap_increment * (chain_info.best_block_number + 1)).into())
 			} else { None };
 
-			let mut sealing_work = self.sealing_work.lock();
-			let last_work_hash = sealing_work.queue.peek_last_ref().map(|pb| pb.block().fields().header.hash());
+			let mut sealing = self.sealing.lock();
+			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.block().fields().header.hash());
 			let best_hash = chain_info.best_block_hash;
 
 			// check to see if last ClosedBlock in would_seals is actually same parent block.
@@ -389,7 +324,7 @@ impl Miner {
 			//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
 			//   otherwise, leave everything alone.
 			// otherwise, author a fresh block.
-			let mut open_block = match sealing_work.queue.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
+			let mut open_block = match sealing.queue.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
 					// add transactions to old_block
@@ -398,10 +333,11 @@ impl Miner {
 				None => {
 					// block not found - create it.
 					trace!(target: "miner", "prepare_block: No existing work - making new block");
+					let params = self.params.read().clone();
 					chain.prepare_open_block(
-						self.author(),
-						(self.gas_floor_target(), self.gas_ceil_target()),
-						self.extra_data()
+						params.author,
+						params.gas_range_target,
+						params.extra_data,
 					)
 				}
 			};
@@ -433,7 +369,7 @@ impl Miner {
 			let start = Instant::now();
 			// Check whether transaction type is allowed for sender
 			let result = match self.engine.machine().verify_transaction(&tx, open_block.header(), chain.as_block_chain_client()) {
-				Err(Error::Transaction(TransactionError::NotAllowed)) => Err(TransactionError::NotAllowed.into()),
+				Err(Error::Transaction(transaction::Error::NotAllowed)) => Err(transaction::Error::NotAllowed.into()),
 				_ => open_block.push_transaction(tx, None),
 			};
 			let took = start.elapsed();
@@ -482,8 +418,8 @@ impl Miner {
 					debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?} (expected: {:?}, got: {:?})", hash, expected, got);
 				},
 				// already have transaction - ignore
-				Err(Error::Transaction(TransactionError::AlreadyImported)) => {},
-				Err(Error::Transaction(TransactionError::NotAllowed)) => {
+				Err(Error::Transaction(transaction::Error::AlreadyImported)) => {},
+				Err(Error::Transaction(transaction::Error::NotAllowed)) => {
 					non_allowed_transactions.insert(hash);
 					debug!(target: "miner", "Skipping non-allowed transaction for sender {:?}", hash);
 				},
@@ -501,26 +437,28 @@ impl Miner {
 
 		let block = open_block.close();
 
-		let fetch_nonce = |a: &Address| chain.latest_nonce(a);
+		// let fetch_nonce = |a: &Address| chain.latest_nonce(a);
 
 		{
 			let mut queue = self.transaction_queue.write();
 			for hash in invalid_transactions {
-				queue.remove(&hash, &fetch_nonce, RemovalReason::Invalid);
+				// queue.remove(&hash, &fetch_nonce, RemovalReason::Invalid);
+				queue.remove(&hash, true)
 			}
 			for hash in non_allowed_transactions {
-				queue.remove(&hash, &fetch_nonce, RemovalReason::NotAllowed);
+				// queue.remove(&hash, &fetch_nonce, RemovalReason::NotAllowed);
+				queue.remove(&hash, false)
 			}
-			for hash in transactions_to_penalize {
-				queue.penalize(&hash);
-			}
+			// for hash in transactions_to_penalize {
+				// queue.penalize(&hash);
+			// }
 		}
 
 		(block, original_work_hash)
 	}
 
 	/// Asynchronously updates minimal gas price for transaction queue
-	pub fn recalibrate_minimal_gas_price(&self) {
+	fn recalibrate_minimal_gas_price(&self) {
 		debug!(target: "miner", "minimal_gas_price: recalibrating...");
 		let txq = self.transaction_queue.clone();
 		self.gas_pricer.lock().recalibrate(move |price| {
@@ -531,105 +469,126 @@ impl Miner {
 
 	/// Check is reseal is allowed and necessary.
 	fn requires_reseal(&self, best_block: BlockNumber) -> bool {
-		let has_local_transactions = self.transaction_queue.read().has_local_pending_transactions();
-		let mut sealing_work = self.sealing_work.lock();
-		if sealing_work.enabled {
-			trace!(target: "miner", "requires_reseal: sealing enabled");
-			let last_request = *self.sealing_block_last_request.lock();
-			let should_disable_sealing = !self.forced_sealing()
-				&& !has_local_transactions
-				&& self.engine.seals_internally().is_none()
-				&& best_block > last_request
-				&& best_block - last_request > SEALING_TIMEOUT_IN_BLOCKS;
-
-			trace!(target: "miner", "requires_reseal: should_disable_sealing={}; best_block={}, last_request={}", should_disable_sealing, best_block, last_request);
-
-			if should_disable_sealing {
-				trace!(target: "miner", "Miner sleeping (current {}, last {})", best_block, last_request);
-				sealing_work.enabled = false;
-				sealing_work.queue.reset();
-				false
-			} else {
-				// sealing enabled and we don't want to sleep.
-				*self.next_allowed_reseal.lock() = Instant::now() + self.options.reseal_min_period;
-				true
-			}
-		} else {
+		let mut sealing = self.sealing.lock();
+		if sealing.enabled {
 			trace!(target: "miner", "requires_reseal: sealing is disabled");
+			return false
+		}
+
+		let has_local_transactions = self.transaction_queue.has_local_pending_transactions();
+		trace!(target: "miner", "requires_reseal: sealing enabled");
+
+		let last_request = sealing.sealing_block_last_request;
+		let should_disable_sealing = !self.forced_sealing()
+			&& !has_local_transactions
+			&& self.engine.seals_internally().is_none()
+			&& best_block > last_request
+			&& best_block - last_request > SEALING_TIMEOUT_IN_BLOCKS;
+
+		trace!(target: "miner", "requires_reseal: should_disable_sealing={}; best_block={}, last_request={}", should_disable_sealing, best_block, last_request);
+
+		if should_disable_sealing {
+			trace!(target: "miner", "Miner sleeping (current {}, last {})", best_block, last_request);
+			sealing.enabled = false;
+			sealing.queue.reset();
 			false
+		} else {
+			// sealing enabled and we don't want to sleep.
+			sealing.next_allowed_reseal = Instant::now() + self.options.reseal_min_period;
+			true
 		}
 	}
 
 	/// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the type of Seal.
 	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient, block: ClosedBlock) -> bool {
-		if !block.transactions().is_empty() || self.forced_sealing() || Instant::now() > *self.next_mandatory_reseal.read() {
-			trace!(target: "miner", "seal_block_internally: attempting internal seal.");
+		let mut sealing = self.sealing.lock();
+		if block.transactions().is_empty()
+			&& !self.forced_sealing()
+			&& Instant::now() <= sealing.next_mandatory_reseal
+		{
+			return false
+		}
 
-			let parent_header = match chain.block_header(BlockId::Hash(*block.header().parent_hash())) {
-				Some(hdr) => hdr.decode(),
-				None => return false,
-			};
+		trace!(target: "miner", "seal_block_internally: attempting internal seal.");
 
-			match self.engine.generate_seal(block.block(), &parent_header) {
-				// Save proposal for later seal submission and broadcast it.
-				Seal::Proposal(seal) => {
-					trace!(target: "miner", "Received a Proposal seal.");
-					*self.next_mandatory_reseal.write() = Instant::now() + self.options.reseal_max_period;
-					{
-						let mut sealing_work = self.sealing_work.lock();
-						sealing_work.queue.push(block.clone());
-						sealing_work.queue.use_last_ref();
-					}
-					block
-						.lock()
-						.seal(&*self.engine, seal)
-						.map(|sealed| { chain.broadcast_proposal_block(sealed); true })
-						.unwrap_or_else(|e| {
-							warn!("ERROR: seal failed when given internally generated seal: {}", e);
-							false
-						})
-				},
-				// Directly import a regular sealed block.
-				Seal::Regular(seal) => {
-					*self.next_mandatory_reseal.write() = Instant::now() + self.options.reseal_max_period;
-					block
-						.lock()
-						.seal(&*self.engine, seal)
-						.map(|sealed| chain.import_sealed_block(sealed).is_ok())
-						.unwrap_or_else(|e| {
-							warn!("ERROR: seal failed when given internally generated seal: {}", e);
-							false
-						})
-				},
-				Seal::None => false,
-			}
-		} else {
-			false
+		let parent_header = match chain.block_header(BlockId::Hash(*block.header().parent_hash())) {
+			Some(hdr) => hdr.decode(),
+			None => return false,
+		};
+
+		match self.engine.generate_seal(block.block(), &parent_header) {
+			// Save proposal for later seal submission and broadcast it.
+			Seal::Proposal(seal) => {
+				trace!(target: "miner", "Received a Proposal seal.");
+				sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
+				sealing.queue.push(block.clone());
+				sealing.queue.use_last_ref();
+
+				block
+					.lock()
+					.seal(&*self.engine, seal)
+					.map(|sealed| {
+						chain.broadcast_proposal_block(sealed);
+						true
+					})
+					.unwrap_or_else(|e| {
+						warn!("ERROR: seal failed when given internally generated seal: {}", e);
+						false
+					})
+			},
+			// Directly import a regular sealed block.
+			Seal::Regular(seal) => {
+				sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
+				block
+					.lock()
+					.seal(&*self.engine, seal)
+					.map(|sealed| chain.import_sealed_block(sealed).is_ok())
+					.unwrap_or_else(|e| {
+						warn!("ERROR: seal failed when given internally generated seal: {}", e);
+						false
+					})
+			},
+			Seal::None => false,
 		}
 	}
 
 	/// Prepares work which has to be done to seal.
 	fn prepare_work(&self, block: ClosedBlock, original_work_hash: Option<H256>) {
 		let (work, is_new) = {
-			let mut sealing_work = self.sealing_work.lock();
-			let last_work_hash = sealing_work.queue.peek_last_ref().map(|pb| pb.block().fields().header.hash());
-			trace!(target: "miner", "prepare_work: Checking whether we need to reseal: orig={:?} last={:?}, this={:?}", original_work_hash, last_work_hash, block.block().fields().header.hash());
-			let (work, is_new) = if last_work_hash.map_or(true, |h| h != block.block().fields().header.hash()) {
-				trace!(target: "miner", "prepare_work: Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
-				let pow_hash = block.block().fields().header.hash();
-				let number = block.block().fields().header.number();
-				let difficulty = *block.block().fields().header.difficulty();
-				let is_new = original_work_hash.map_or(true, |h| block.block().fields().header.hash() != h);
-				sealing_work.queue.push(block);
+			let block_header = block.block().fields().header;
+			let block_hash = block_header.hash();
+			let mut sealing = self.sealing.lock();
+			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.block().fields().header.hash());
+
+			trace!(
+				target: "miner",
+				"prepare_work: Checking whether we need to reseal: orig={:?} last={:?}, this={:?}",
+				original_work_hash, last_work_hash, block_hash
+			);
+
+			let (work, is_new) = if last_work_hash.map_or(true, |h| h != block_hash) {
+				trace!(
+					target: "miner",
+					"prepare_work: Pushing a new, refreshed or borrowed pending {}...",
+					block_hash
+				);
+				let is_new = original_work_hash.map_or(true, |h| h != block_hash);
+
+				sealing.queue.push(block);
 				// If push notifications are enabled we assume all work items are used.
-				if !self.notifiers.read().is_empty() && is_new {
-					sealing_work.queue.use_last_ref();
+				if is_new && !self.notifiers.read().is_empty() {
+					sealing.queue.use_last_ref();
 				}
-				(Some((pow_hash, difficulty, number)), is_new)
+
+				(Some((block_hash, block_header.difficulty(), block_header.number())), is_new)
 			} else {
 				(None, false)
 			};
-			trace!(target: "miner", "prepare_work: leaving (last={:?})", sealing_work.queue.peek_last_ref().map(|b| b.block().fields().header.hash()));
+			trace!(
+				target: "miner",
+				"prepare_work: leaving (last={:?})",
+				sealing.queue.peek_last_ref().map(|b| b.block().fields().header.hash())
+			);
 			(work, is_new)
 		};
 		if is_new {
@@ -656,29 +615,35 @@ impl Miner {
 	fn prepare_work_sealing(&self, client: &MiningBlockChainClient) -> bool {
 		trace!(target: "miner", "prepare_work_sealing: entering");
 		let prepare_new = {
-			let mut sealing_work = self.sealing_work.lock();
-			let have_work = sealing_work.queue.peek_last_ref().is_some();
+			let mut sealing = self.sealing.lock();
+			let have_work = sealing.queue.peek_last_ref().is_some();
 			trace!(target: "miner", "prepare_work_sealing: have_work={}", have_work);
 			if !have_work {
-				sealing_work.enabled = true;
+				sealing.enabled = true;
 				true
 			} else {
 				false
 			}
 		};
+
 		if prepare_new {
 			// --------------------------------------------------------------------------
-			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+			// | NOTE Code below requires transaction_queue and sealing locks.          |
 			// | Make sure to release the locks before calling that method.             |
 			// --------------------------------------------------------------------------
 			let (block, original_work_hash) = self.prepare_block(client);
 			self.prepare_work(block, original_work_hash);
 		}
-		let mut sealing_block_last_request = self.sealing_block_last_request.lock();
+
 		let best_number = client.chain_info().best_block_number;
-		if *sealing_block_last_request != best_number {
-			trace!(target: "miner", "prepare_work_sealing: Miner received request (was {}, now {}) - waking up.", *sealing_block_last_request, best_number);
-			*sealing_block_last_request = best_number;
+		let mut sealing = self.sealing.lock();
+		if sealing.sealing_block_last_request != best_number {
+			trace!(
+				target: "miner",
+				"prepare_work_sealing: Miner received request (was {}, now {}) - waking up.",
+				sealing.sealing_block_last_request, best_number
+			);
+			sealing.sealing_block_last_request = best_number;
 		}
 
 		// Return if we restarted
@@ -686,12 +651,14 @@ impl Miner {
 	}
 
 	/// Are we allowed to do a non-mandatory reseal?
-	fn tx_reseal_allowed(&self) -> bool { Instant::now() > *self.next_allowed_reseal.lock() }
+	fn tx_reseal_allowed(&self) -> bool {
+		Instant::now() > self.sealing.lock().next_allowed_reseal
+	}
 
 	fn from_pending_block<H, F, G>(&self, latest_block_number: BlockNumber, from_chain: F, map_block: G) -> H
 		where F: Fn() -> H, G: FnOnce(&ClosedBlock) -> H {
-		let sealing_work = self.sealing_work.lock();
-		sealing_work.queue.peek_last_ref().map_or_else(
+		let sealing = self.sealing.lock();
+		sealing.queue.peek_last_ref().map_or_else(
 			|| from_chain(),
 			|b| {
 				if b.block().header().number() > latest_block_number {
@@ -709,45 +676,39 @@ const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
 impl MinerService for Miner {
 
 	fn clear_and_reset(&self, chain: &MiningBlockChainClient) {
-		self.transaction_queue.write().clear();
+		self.transaction_queue.clear();
 		// --------------------------------------------------------------------------
-		// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+		// | NOTE Code below requires sealing lock.                            |
 		// | Make sure to release the locks before calling that method.             |
 		// --------------------------------------------------------------------------
 		self.update_sealing(chain);
 	}
 
-	fn status(&self) -> MinerStatus {
-		let status = self.transaction_queue.read().status();
-		let sealing_work = self.sealing_work.lock();
-		MinerStatus {
-			transactions_in_pending_queue: status.pending,
-			transactions_in_future_queue: status.future,
-			transactions_in_pending_block: sealing_work.queue.peek_last_ref().map_or(0, |b| b.transactions().len()),
-		}
+	fn mining_params(&self) -> MiningParams {
+		self.params.read().clone()
 	}
 
-	fn set_author(&self, author: Address) {
-		if self.engine.seals_internally().is_some() {
-			let mut sealing_work = self.sealing_work.lock();
-			sealing_work.enabled = true;
-		}
-		*self.author.write() = author;
+	fn set_gas_range_target(&self, gas_range_target: (U256, U256)) {
+		self.params.write().gas_range_target = gas_range_target;
 	}
 
-	fn set_engine_signer(&self, address: Address, password: String) -> Result<(), AccountError> {
+	fn set_extra_data(&self, extra_data: Bytes) {
+		self.params.write().extra_data = extra_data;
+	}
+
+	fn set_author(&self, address: Address, password: Option<String>) -> Result<(), AccountError> {
+		self.params.write().author = address;
+
 		if self.engine.seals_internally().is_some() {
 			if let Some(ref ap) = self.accounts {
+				let password = password.unwrap_or_default();
+				// Sign test message
 				ap.sign(address.clone(), Some(password.clone()), Default::default())?;
-				// Limit the scope of the locks.
-				{
-					let mut sealing_work = self.sealing_work.lock();
-					sealing_work.enabled = true;
-					*self.author.write() = address;
-				}
+				// Enable sealing
+				self.sealing.lock().enabled = true;
 				// --------------------------------------------------------------------------
-				// | NOTE Code below may require author and sealing_work locks              |
-				// | (some `Engine`s call `EngineClient.update_sealing()`)                  |.
+				// | NOTE Code below may require author and sealing locks                   |
+				// | (some `Engine`s call `EngineClient.update_sealing()`)                  |
 				// | Make sure to release the locks before calling that method.             |
 				// --------------------------------------------------------------------------
 				self.engine.set_signer(ap.clone(), address, password);
@@ -756,79 +717,23 @@ impl MinerService for Miner {
 				warn!(target: "miner", "No account provider");
 				Err(AccountError::NotFound)
 			}
-		} else {
-			warn!(target: "miner", "Cannot set engine signer on a PoW chain.");
-			Err(AccountError::InappropriateChain)
 		}
-	}
-
-	fn set_extra_data(&self, extra_data: Bytes) {
-		*self.extra_data.write() = extra_data;
-	}
-
-	/// Set the gas limit we wish to target when sealing a new block.
-	fn set_gas_floor_target(&self, target: U256) {
-		self.gas_range_target.write().0 = target;
-	}
-
-	fn set_gas_ceil_target(&self, target: U256) {
-		self.gas_range_target.write().1 = target;
-	}
-
-	fn set_minimal_gas_price(&self, min_gas_price: U256) {
-		self.transaction_queue.write().set_minimal_gas_price(min_gas_price);
-	}
-
-	fn minimal_gas_price(&self) -> U256 {
-		*self.transaction_queue.read().minimal_gas_price()
 	}
 
 	fn sensible_gas_price(&self) -> U256 {
 		// 10% above our minimum.
-		*self.transaction_queue.read().minimal_gas_price() * 110.into() / 100.into()
+		*self.transaction_queue.minimal_gas_price() * 110.into() / 100.into()
 	}
 
 	fn sensible_gas_limit(&self) -> U256 {
-		self.gas_range_target.read().0 / 5.into()
-	}
-
-	fn transactions_limit(&self) -> usize {
-		self.transaction_queue.read().limit()
-	}
-
-	fn set_transactions_limit(&self, limit: usize) {
-		self.transaction_queue.write().set_limit(limit)
-	}
-
-	fn set_tx_gas_limit(&self, limit: U256) {
-		self.transaction_queue.write().set_tx_gas_limit(limit)
-	}
-
-	/// Get the author that we will seal blocks as.
-	fn author(&self) -> Address {
-		*self.author.read()
-	}
-
-	/// Get the extra_data that we will seal blocks with.
-	fn extra_data(&self) -> Bytes {
-		self.extra_data.read().clone()
-	}
-
-	/// Get the gas limit we wish to target when sealing a new block.
-	fn gas_floor_target(&self) -> U256 {
-		self.gas_range_target.read().0
-	}
-
-	/// Get the gas limit we wish to target when sealing a new block.
-	fn gas_ceil_target(&self) -> U256 {
-		self.gas_range_target.read().1
+		self.params.read().0 / 5.into()
 	}
 
 	fn import_external_transactions(
 		&self,
 		chain: &MiningBlockChainClient,
 		transactions: Vec<UnverifiedTransaction>
-	) -> Vec<Result<TransactionImportResult, Error>> {
+	) -> Vec<Result<transaction::ImportResult, Error>> {
 		trace!(target: "external_tx", "Importing external transactions");
 		let results = self.transaction_queue.import(
 			chain,
@@ -837,7 +742,7 @@ impl MinerService for Miner {
 
 		if !results.is_empty() && self.options.reseal_on_external_tx &&	self.tx_reseal_allowed() {
 			// --------------------------------------------------------------------------
-			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+			// | NOTE Code below requires transaction_queue and sealing locks.          |
 			// | Make sure to release the locks before calling that method.             |
 			// --------------------------------------------------------------------------
 			self.update_sealing(chain);
@@ -849,16 +754,16 @@ impl MinerService for Miner {
 		&self,
 		chain: &MiningBlockChainClient,
 		pending: PendingTransaction,
-	) -> Result<TransactionImportResult, Error> {
+	) -> Result<transaction::ImportResult, Error> {
 
 		trace!(target: "own_tx", "Importing transaction: {:?}", pending);
 
-		let import = self.transaction_queue.import(
+		let imported = self.transaction_queue.import(
 			chain,
 			vec![pool::verifier::Transaction::Pending(pending)]
 		).pop().expect("one result returned per added transaction; one added => one result; qed");
 
-		match import {
+		match imported {
 			Ok(_) => {
 				trace!(target: "own_tx", "Status: {:?}", self.transaction_queue.status());
 			},
@@ -869,7 +774,7 @@ impl MinerService for Miner {
 		}
 
 		// --------------------------------------------------------------------------
-		// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+		// | NOTE Code below requires transaction_queue and sealing locks.          |
 		// | Make sure to release the locks before calling that method.             |
 		// --------------------------------------------------------------------------
 		if imported.is_ok() && self.options.reseal_on_own_tx && self.tx_reseal_allowed() {
@@ -891,13 +796,13 @@ impl MinerService for Miner {
 		queue.pending_transactions(BlockNumber::max_value(), u64::max_value())
 	}
 
-	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
-		let queue = self.transaction_queue.read();
-		queue.local_transactions()
-			.iter()
-			.map(|(hash, status)| (*hash, status.clone()))
-			.collect()
-	}
+	// fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
+	// 	let queue = self.transaction_queue.read();
+	// 	queue.local_transactions()
+	// 		.iter()
+	// 		.map(|(hash, status)| (*hash, status.clone()))
+	// 		.collect()
+	// }
 
 	fn future_transactions(&self) -> Vec<PendingTransaction> {
 		self.transaction_queue.read().future_transactions()
@@ -1034,7 +939,7 @@ impl MinerService for Miner {
 
 		if self.requires_reseal(chain.chain_info().best_block_number) {
 			// --------------------------------------------------------------------------
-			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+			// | NOTE Code below requires transaction_queue and sealing locks.          |
 			// | Make sure to release the locks before calling that method.             |
 			// --------------------------------------------------------------------------
 			trace!(target: "miner", "update_sealing: preparing a block");
@@ -1064,22 +969,22 @@ impl MinerService for Miner {
 	}
 
 	fn is_currently_sealing(&self) -> bool {
-		self.sealing_work.lock().queue.is_in_use()
+		self.sealing.lock().queue.is_in_use()
 	}
 
-	fn map_sealing_work<F, T>(&self, chain: &MiningBlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
+	fn map_pending_block<F, T>(&self, chain: &MiningBlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
 		trace!(target: "miner", "map_sealing_work: entering");
 		self.prepare_work_sealing(chain);
 		trace!(target: "miner", "map_sealing_work: sealing prepared");
-		let mut sealing_work = self.sealing_work.lock();
-		let ret = sealing_work.queue.use_last_ref();
+		let mut sealing = self.sealing.lock();
+		let ret = sealing.queue.use_last_ref();
 		trace!(target: "miner", "map_sealing_work: leaving use_last_ref={:?}", ret.as_ref().map(|b| b.block().fields().header.hash()));
 		ret.map(f)
 	}
 
 	fn submit_seal(&self, chain: &MiningBlockChainClient, block_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
 		let result =
-			if let Some(b) = self.sealing_work.lock().queue.get_used_if(
+			if let Some(b) = self.sealing.lock().queue.get_used_if(
 				if self.options.enable_resubmission {
 					GetAction::Clone
 				} else {
@@ -1136,15 +1041,65 @@ impl MinerService for Miner {
 		}
 
 		// ...and at the end remove the old ones
+		let client = BlockChainClient { chain, engine: &*self.engine };
 		self.transaction_queue.cull(client);
 
 		if enacted.len() > 0 || (imported.len() > 0 && self.options.reseal_on_uncle) {
 			// --------------------------------------------------------------------------
-			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
+			// | NOTE Code below requires transaction_queue and sealing locks.          |
 			// | Make sure to release the locks before calling that method.             |
 			// --------------------------------------------------------------------------
 			self.update_sealing(chain);
 		}
+	}
+}
+
+struct BlockChainClient<'a> {
+	chain: &'a MiningBlockChainClient,
+	engine: &'a EthEngine,
+}
+
+impl<'a> fmt::Debug for BlockChainClient<'a> {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		write!(fmt, "BlockChainClient")
+	}
+}
+
+impl<'a> pool::client::Client for BlockChainClient<'a> {
+	fn transaction_already_included(&self, hash: &H256) -> bool {
+		self.chain.transaction_block(TransactionId::Hash(*hash)).is_some()
+	}
+
+	fn verify_transaction(&self, tx: UnverifiedTransaction)
+		-> Result<SignedTransaction, transaction::Error>
+	{
+		let best_block_header = self.chain.best_block_header().decode();
+
+		self.engine.verify_transaction_basic(&tx, &best_block_header)?;
+		self.engine.verify_transaction_unordered(tx, &best_block_header)
+	}
+
+	fn account_details(&self, address: &Address) -> pool::client::AccountDetails {
+		pool::client::AccountDetails {
+			nonce: self.chain.latest_nonce(address),
+			balance: self.chain.latest_balance(address),
+		}
+	}
+
+	fn account_nonce(&self, address: &Address) -> U256 {
+		self.chain.latest_nonce(address)
+	}
+
+	/// Estimate minimal gas requirurement for given transaction.
+	fn required_gas(&self, tx: &SignedTransaction) -> U256 {
+		tx.gas_required(&self.chain.latest_schedule()).into()
+	}
+
+	/// Classify transaction (check if transaction is filtered by some contracts).
+	fn transaction_type(&self, tx: &SignedTransaction) -> pool::client::TransactionType {
+		// TODO [ToDr] Transaction checker
+		// self.service_transaction_action.check(self.client, tx)
+		unimplemented!()
 	}
 }
 
@@ -1249,7 +1204,7 @@ mod tests {
 		let res = miner.import_own_transaction(&client, PendingTransaction::new(transaction, None));
 
 		// then
-		assert_eq!(res.unwrap(), TransactionImportResult::Current);
+		assert_eq!(res.unwrap(), transaction::ImportResult::Current);
 		assert_eq!(miner.pending_transactions().len(), 1);
 		assert_eq!(miner.ready_transactions(best_block, 0).len(), 1);
 		assert_eq!(miner.pending_transactions_hashes(best_block).len(), 1);
@@ -1269,7 +1224,7 @@ mod tests {
 		let res = miner.import_own_transaction(&client, PendingTransaction::new(transaction, None));
 
 		// then
-		assert_eq!(res.unwrap(), TransactionImportResult::Current);
+		assert_eq!(res.unwrap(), transaction::ImportResult::Current);
 		assert_eq!(miner.pending_transactions().len(), 1);
 		assert_eq!(miner.ready_transactions(best_block, 0).len(), 0);
 		assert_eq!(miner.pending_transactions_hashes(best_block).len(), 0);
@@ -1287,7 +1242,7 @@ mod tests {
 		let res = miner.import_external_transactions(&client, vec![transaction]).pop().unwrap();
 
 		// then
-		assert_eq!(res.unwrap(), TransactionImportResult::Current);
+		assert_eq!(res.unwrap(), transaction::ImportResult::Current);
 		assert_eq!(miner.pending_transactions().len(), 1);
 		assert_eq!(miner.pending_transactions_hashes(best_block).len(), 0);
 		assert_eq!(miner.ready_transactions(best_block, 0).len(), 0);
@@ -1316,14 +1271,14 @@ mod tests {
 
 		let client = generate_dummy_client(2);
 
-		assert_eq!(miner.import_external_transactions(&*client, vec![transaction_with_chain_id(spec.chain_id()).into()]).pop().unwrap().unwrap(), TransactionImportResult::Current);
+		assert_eq!(miner.import_external_transactions(&*client, vec![transaction_with_chain_id(spec.chain_id()).into()]).pop().unwrap().unwrap(), transaction::ImportResult::Current);
 
 		miner.update_sealing(&*client);
 		client.flush_queue();
 		assert!(miner.pending_block(0).is_none());
 		assert_eq!(client.chain_info().best_block_number, 3 as BlockNumber);
 
-		assert_eq!(miner.import_own_transaction(&*client, PendingTransaction::new(transaction_with_chain_id(spec.chain_id()).into(), None)).unwrap(), TransactionImportResult::Current);
+		assert_eq!(miner.import_own_transaction(&*client, PendingTransaction::new(transaction_with_chain_id(spec.chain_id()).into(), None)).unwrap(), transaction::ImportResult::Current);
 
 		miner.update_sealing(&*client);
 		client.flush_queue();
