@@ -1434,6 +1434,8 @@ mod tests {
 			immediate_transitions: true,
 			maximum_uncle_count_transition: 0,
 			maximum_uncle_count: 0,
+			empty_steps_transition: u64::max_value(),
+			maximum_empty_steps: 0,
 			block_reward: Default::default(),
 		};
 
@@ -1474,6 +1476,8 @@ mod tests {
 			immediate_transitions: true,
 			maximum_uncle_count_transition: 1,
 			maximum_uncle_count: 0,
+			empty_steps_transition: u64::max_value(),
+			maximum_empty_steps: 0,
 			block_reward: Default::default(),
 		};
 
@@ -1526,6 +1530,8 @@ mod tests {
 			immediate_transitions: true,
 			maximum_uncle_count_transition: 0,
 			maximum_uncle_count: 0,
+			empty_steps_transition: u64::max_value(),
+			maximum_empty_steps: 0,
 			block_reward: Default::default(),
 		};
 

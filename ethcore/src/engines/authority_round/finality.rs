@@ -164,7 +164,7 @@ mod tests {
 	fn rejects_unknown_signer() {
 		let signers = (0..3).map(|_| Address::random()).collect();
 		let mut finality = RollingFinality::blank(signers);
-		assert!(finality.push_hash(H256::random(), Address::random()).is_err());
+		assert!(finality.push_hash(H256::random(), vec![Address::random()]).is_err());
 	}
 
 	#[test]
@@ -177,19 +177,19 @@ mod tests {
 		// 3 / 6 signers is < 51% so no finality.
 		for (i, hash) in hashes.iter().take(6).cloned().enumerate() {
 			let i = i % 3;
-			assert!(finality.push_hash(hash, signers[i]).unwrap().len() == 0);
+			assert!(finality.push_hash(hash, vec![signers[i]]).unwrap().len() == 0);
 		}
 
 		// after pushing a block signed by a fourth validator, the first four
 		// blocks of the unverified chain become verified.
-		assert_eq!(finality.push_hash(hashes[6], signers[4]).unwrap(),
+		assert_eq!(finality.push_hash(hashes[6], vec![signers[4]]).unwrap(),
 			vec![hashes[0], hashes[1], hashes[2], hashes[3]]);
 	}
 
 	#[test]
 	fn from_ancestry() {
 		let signers: Vec<_> = (0..6).map(|_| Address::random()).collect();
-		let hashes: Vec<_> = (0..12).map(|i| (H256::random(), signers[i % 6])).collect();
+		let hashes: Vec<_> = (0..12).map(|i| (H256::random(), vec![signers[i % 6]])).collect();
 
 		let mut finality = RollingFinality::blank(signers.clone());
 		finality.build_ancestry_subchain(hashes.iter().rev().cloned()).unwrap();
