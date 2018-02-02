@@ -48,6 +48,12 @@ extern crate keccak_hash as hash;
 extern crate kvdb;
 extern crate kvdb_rocksdb;
 
+extern crate ethabi;
+#[macro_use]
+extern crate ethabi_derive;
+#[macro_use]
+extern crate ethabi_contract;
+
 mod key_server_cluster;
 mod types;
 

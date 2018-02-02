@@ -23,10 +23,6 @@ extern crate byteorder;
 extern crate ethabi;
 extern crate ethereum_types;
 
-mod key_server_set;
-mod secretstore_acl_storage;
 mod secretstore_service;
 
-pub use self::key_server_set::KeyServerSet;
-pub use self::secretstore_acl_storage::SecretStoreAclStorage;
 pub use self::secretstore_service::SecretStoreService;
