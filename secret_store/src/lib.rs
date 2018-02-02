@@ -43,7 +43,6 @@ extern crate ethereum_types;
 extern crate ethcrypto;
 extern crate ethkey;
 extern crate ethsync;
-extern crate native_contracts;
 extern crate keccak_hash as hash;
 extern crate kvdb;
 extern crate kvdb_rocksdb;
