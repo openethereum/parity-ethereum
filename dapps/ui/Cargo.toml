@@ -9,10 +9,10 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [build-dependencies]
 rustc_version = "0.2"
 
+# These are managed by the JS scripts on CI - keep it in a single line
 [dependencies]
-parity-ui-dev = { path = "../../js", optional = true }
-parity-ui-old-dev = { path = "../../js-old", optional = true }
-# This is managed by the js/scripts/release.sh script on CI - keep it in a single line
+parity-ui-dev = { git = "https://github.com/parity-js/shell.git", rev = "27495ad8a73716c08588ab852694a75d9d22ba85", optional = true }
+parity-ui-old-dev = { git = "https://github.com/parity-js/dapp-wallet.git", rev = "9993240efecb415aa880250ecef2710a413cf73f", optional = true }
 parity-ui-old-precompiled = { git = "https://github.com/js-dist-paritytech/parity-master-1-9-v1.git", optional = true }
 parity-ui-precompiled = { git = "https://github.com/js-dist-paritytech/parity-master-1-9-shell.git", optional = true }
 
