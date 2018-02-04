@@ -26,7 +26,7 @@ rlp_derive = { path = "../../util/rlp_derive" }
 time = "0.1"
 smallvec = "0.4"
 futures = "0.1"
-rand = "0.3"
+rand = "0.4"
 itertools = "0.5"
 bincode = "0.8.0"
 serde = "1.0"

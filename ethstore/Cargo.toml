@@ -6,7 +6,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 log = "0.3"
 libc = "0.2"
-rand = "0.3"
+rand = "0.4"
 ethkey = { path = "../ethkey" }
 serde = "1.0"
 serde_json = "1.0"
