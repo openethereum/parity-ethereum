@@ -218,10 +218,20 @@ impl<'a> Runtime<'a> {
 		let key = self.h256_at(args.nth(0)?)?;
 		let val_ptr: u32 = args.nth(1)?;
 
-		self.adjusted_charge(|schedule| schedule.sstore_set_gas as u64)?;
-
 		let val = self.h256_at(val_ptr)?;
+		let former_val = self.ext.storage_at(&key).map_err(|_| Error::StorageUpdateError)?;
+
+		if former_val == H256::zero() && val != H256::zero() {
+			self.adjusted_charge(|schedule| schedule.sstore_set_gas as u64)?;
+		} else {
+			self.adjusted_charge(|schedule| schedule.sstore_reset_gas as u64)?;
+		}
+
 		self.ext.set_storage(key, val).map_err(|_| Error::StorageUpdateError)?;
+
+		if former_val != H256::zero() && val == H256::zero() {
+			self.ext.inc_sstore_clears();
+		}
 
 		Ok(())
 	}
