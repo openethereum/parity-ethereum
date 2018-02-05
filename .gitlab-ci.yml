@@ -1,6 +1,5 @@
 stages:
   - test
-  - js-build
   - push-release
   - build
 variables:
@@ -233,26 +232,6 @@ test-rust-nightly:
     - rust
     - rust-nightly
   allow_failure: true
-js-test:
-  stage: test
-  image: parity/rust:gitlab-ci
-  script:
-    - scripts/gitlab-test.sh js-test
-  tags:
-    - rust-stable
-js-release:
-  stage: js-build
-  only:
-    - master
-    - beta
-    - stable
-    - tags
-    - triggers
-  image: parity/rust:gitlab-ci
-  script:
-    - scripts/gitlab-test.sh js-release
-  tags:
-    - javascript
 push-release:
   stage: push-release
   only:
