@@ -21,7 +21,7 @@ use rlp::*;
 use super::node::{Node, OwnedNode};
 use super::lookup::Lookup;
 use super::{Trie, TrieItem, TrieError, TrieIterator, Query};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use bytes::{ToPretty, Bytes};
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
@@ -34,12 +34,12 @@ use bytes::{ToPretty, Bytes};
 /// extern crate patricia_trie as trie;
 /// extern crate hashdb;
 /// extern crate memorydb;
-/// extern crate ethcore_bigint as bigint;
+/// extern crate ethereum_types;
 ///
 /// use trie::*;
 /// use hashdb::*;
 /// use memorydb::*;
-/// use bigint::hash::*;
+/// use ethereum_types::H256;
 ///
 /// fn main() {
 ///   let mut memdb = MemoryDB::new();

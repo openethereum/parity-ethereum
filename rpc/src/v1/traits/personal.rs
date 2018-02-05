@@ -17,7 +17,7 @@
 //! Personal rpc interface.
 use jsonrpc_core::{BoxFuture, Result};
 
-use v1::types::{U128, H160, H256, TransactionRequest, RichRawTransaction as RpcRichRawTransaction};
+use v1::types::{Bytes, U128, H160, H256, H520, TransactionRequest, RichRawTransaction as RpcRichRawTransaction};
 
 build_rpc_trait! {
 	/// Personal rpc interface. Safe (read-only) functions.
@@ -36,6 +36,16 @@ build_rpc_trait! {
 		/// Unlocks specified account for use (can only be one unlocked account at one moment)
 		#[rpc(name = "personal_unlockAccount")]
 		fn unlock_account(&self, H160, String, Option<U128>) -> Result<bool>;
+
+		/// Signs the hash of data with given account signature using the given password to unlock the account during
+		/// the request.
+		#[rpc(name = "personal_sign")]
+		fn sign(&self, Bytes, H160, String) -> BoxFuture<H520>;
+
+		/// Returns the account associated with the private key that was used to calculate the signature in
+		/// `personal_sign`.
+		#[rpc(name = "personal_ecRecover")]
+		fn ec_recover(&self, Bytes, H520) -> BoxFuture<H160>;
 
 		/// Signs transaction. The account is not unlocked in such case.
 		#[rpc(meta, name = "personal_signTransaction")]

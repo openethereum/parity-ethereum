@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use hash::KECCAK_EMPTY;
 use heapsize::HeapSizeOf;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use parking_lot::Mutex;
 use memory_cache::MemoryLruCache;
 use bit_set::BitSet;

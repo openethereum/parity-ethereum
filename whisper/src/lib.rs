@@ -18,9 +18,9 @@
 //! interface.
 
 extern crate byteorder;
-extern crate ethcore_bigint as bigint;
 extern crate ethcore_network as network;
 extern crate ethcrypto;
+extern crate ethereum_types;
 extern crate ethkey;
 extern crate hex;
 extern crate ordered_float;

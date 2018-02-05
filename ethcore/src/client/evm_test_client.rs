@@ -18,8 +18,7 @@
 
 use std::fmt;
 use std::sync::Arc;
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use journaldb;
 use {trie, kvdb_memorydb, bytes};
 use kvdb::{self, KeyValueDB};
@@ -204,7 +203,7 @@ impl<'a> EvmTestClient<'a> {
 		if let Err(error) = is_ok {
 			return TransactResult::Err {
 				state_root: *self.state.root(),
-				error,
+				error: error.into(),
 			};
 		}
 

@@ -1,8 +1,15 @@
-#![no_std]
 #[macro_use]
 extern crate crunchy;
+extern crate ethereum_types;
 
-use core::{hash, mem};
+use std::{hash, mem};
+use std::collections::{HashMap, HashSet};
+use ethereum_types::H256;
+
+/// Specialized version of `HashMap` with H256 keys and fast hashing function.
+pub type H256FastMap<T> = HashMap<H256, T, hash::BuildHasherDefault<PlainHasher>>;
+/// Specialized version of `HashSet` with H256 keys and fast hashing function.
+pub type H256FastSet = HashSet<H256, hash::BuildHasherDefault<PlainHasher>>;
 
 /// Hasher that just takes 8 bytes of the provided value.
 /// May only be used for keys which are 32 bytes.
@@ -41,7 +48,7 @@ impl hash::Hasher for PlainHasher {
 
 #[cfg(test)]
 mod tests {
-	use core::hash::Hasher;
+	use std::hash::Hasher;
 	use super::PlainHasher;
 
 	#[test]

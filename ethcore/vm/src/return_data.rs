@@ -14,7 +14,7 @@
 
 //! Return data structures
 
-use bigint::prelude::U256;
+use ethereum_types::U256;
 
 /// Return data buffer. Holds memory from a previous call and a slice into that memory.
 #[derive(Debug)]

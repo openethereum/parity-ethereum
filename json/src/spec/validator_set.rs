@@ -41,7 +41,7 @@ pub enum ValidatorSet {
 mod tests {
 	use serde_json;
 	use uint::Uint;
-	use bigint::prelude::{H160, U256};
+	use ethereum_types::{H160, U256};
 	use hash::Address;
 	use spec::validator_set::ValidatorSet;
 

@@ -24,7 +24,7 @@ use mio::deprecated::{Handler, EventLoop};
 use mio::udp::*;
 use hash::keccak;
 use time;
-use bigint::hash::*;
+use ethereum_types::{H256, H520};
 use rlp::*;
 use node_table::*;
 use error::{Error, ErrorKind};

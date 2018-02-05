@@ -19,14 +19,13 @@
 use std::sync::Arc;
 
 use byteorder::{LittleEndian, ByteOrder};
+use libc::{memcmp, c_void};
 
 use vm;
 use panic_payload;
 use parity_wasm::interpreter;
 use wasm_utils::rules;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{U256, H256, Address};
 
 use vm::CallType;
 use super::ptr::{WasmPtr, Error as PtrError};
@@ -569,6 +568,30 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		&*self.memory
 	}
 
+	fn mem_cmp(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		//
+		// method signature:
+		//   fn memcmp(cx: *const u8, ct: *const u8, n: usize) -> i32;
+		//
+
+		let len = context.value_stack.pop_as::<i32>()? as u32;
+		let ct = context.value_stack.pop_as::<i32>()? as u32;
+		let cx = context.value_stack.pop_as::<i32>()? as u32;
+
+		self.charge(|schedule| schedule.wasm.mem_cmp as u64 * len as u64)?;
+
+		let ct = self.memory.get(ct, len as usize)?;
+		let cx = self.memory.get(cx, len as usize)?;
+
+		let result = unsafe {
+			memcmp(cx.as_ptr() as *const c_void, ct.as_ptr() as *const c_void, len as usize)
+		};
+
+		Ok(Some(Into::into(result)))
+	}
+
 	fn mem_copy(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
@@ -891,6 +914,9 @@ impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
 			},
 			"_emscripten_memcpy_big" => {
 				self.mem_copy(context)
+			},
+			"_ext_memcmp" => {
+				self.mem_cmp(context)
 			},
 			"_ext_memcpy" => {
 				self.mem_copy(context)

@@ -22,7 +22,7 @@ use self::tx_builder::TransactionBuilder;
 
 use std::sync::Arc;
 
-use bigint::prelude::{H256, U256, H160 as Address};
+use ethereum_types::{H256, U256, Address};
 use super::*;
 
 #[derive(Debug, PartialEq)]
@@ -261,7 +261,7 @@ fn should_remove_transaction() {
 	assert_eq!(txq.light_status().transaction_count, 3);
 
 	// when
-	assert!(txq.remove(&tx2.hash(), false));
+	assert!(txq.remove(&tx2.hash(), false).is_some());
 
 	// then
 	assert_eq!(txq.light_status().transaction_count, 2);

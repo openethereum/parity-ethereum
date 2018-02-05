@@ -28,13 +28,13 @@ use blockchain::{BlockChain, BlockProvider};
 use engines::{EthEngine, EpochVerifier, EpochTransition};
 use machine::EthereumMachine;
 use ids::BlockId;
-use header::Header;
+use header::{Header, Seal};
 use receipt::Receipt;
 use snapshot::{Error, ManifestData};
 
 use itertools::{Position, Itertools};
 use rlp::{RlpStream, UntrustedRlp};
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use kvdb::KeyValueDB;
 use bytes::Bytes;
 
@@ -324,7 +324,7 @@ impl Rebuilder for ChunkRebuilder {
 				transactions: last_rlp.list_at(1)?,
 				uncles: last_rlp.list_at(2)?,
 			};
-			let block_data = block.rlp_bytes(::basic_types::Seal::With);
+			let block_data = block.rlp_bytes(Seal::With);
 			let receipts: Vec<Receipt> = last_rlp.list_at(3)?;
 
 			{
@@ -335,7 +335,7 @@ impl Rebuilder for ChunkRebuilder {
 				}
 			}
 
-			let parent_td: ::bigint::prelude::U256 = last_rlp.val_at(4)?;
+			let parent_td: U256 = last_rlp.val_at(4)?;
 
 			let mut batch = self.db.transaction();
 			self.chain.insert_unordered_block(&mut batch, &block_data, receipts, Some(parent_td), true, false);

@@ -69,7 +69,7 @@
 #![warn(missing_docs)]
 
 extern crate smallvec;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 
 #[macro_use]
 extern crate error_chain;
@@ -92,7 +92,7 @@ pub mod scoring;
 
 pub use self::listener::{Listener, NoopListener};
 pub use self::options::Options;
-pub use self::pool::Pool;
+pub use self::pool::{Pool, PendingIterator};
 pub use self::ready::{Ready, Readiness};
 pub use self::scoring::Scoring;
 pub use self::status::{LightStatus, Status};
@@ -100,7 +100,7 @@ pub use self::verifier::Verifier;
 
 use std::fmt;
 
-use self::bigint::prelude::{H256, H160 as Address};
+use ethereum_types::{H256, Address};
 
 /// Already verified transaction that can be safely queued.
 pub trait VerifiedTransaction: fmt::Debug {

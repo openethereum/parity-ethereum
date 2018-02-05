@@ -17,8 +17,7 @@
 /// Preconfigured validator list.
 
 use heapsize::HeapSizeOf;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, Address};
 
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use header::{BlockNumber, Header};
@@ -108,7 +107,7 @@ impl ValidatorSet for SimpleList {
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
-	use util::Address;
+	use ethereum_types::Address;
 	use super::super::ValidatorSet;
 	use super::SimpleList;
 

@@ -23,7 +23,7 @@ use ethstore::ethkey::{Generator, Random};
 use ethsync::ManageNetwork;
 use node_health::{self, NodeHealth};
 use parity_reactor;
-use util::Address;
+use ethereum_types::{Address, U256, H256};
 
 use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};
@@ -497,9 +497,6 @@ fn rpc_parity_local_transactions() {
 
 #[test]
 fn rpc_parity_chain_status() {
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
-
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
@@ -536,8 +533,6 @@ fn rpc_parity_cid() {
 
 #[test]
 fn rpc_parity_call() {
-	use bigint::prelude::U256;
-
 	let deps = Dependencies::new();
 	deps.client.set_execution_result(Ok(Executed {
 		exception: None,

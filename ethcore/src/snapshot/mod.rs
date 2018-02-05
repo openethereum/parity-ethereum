@@ -30,9 +30,9 @@ use engines::EthEngine;
 use header::Header;
 use ids::BlockId;
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::{HashDB, DBValue};
+use ethereum_types::{H256, U256};
+use hashdb::HashDB;
+use kvdb::DBValue;
 use snappy;
 use bytes::Bytes;
 use parking_lot::Mutex;

@@ -5,12 +5,3 @@ license = "GPL-3.0"
 name = "ethcore-devtools"
 version = "1.9.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-
-[dependencies]
-rand = "0.3"
-
-[features]
-
-[lib]
-path = "src/lib.rs"
-test = true

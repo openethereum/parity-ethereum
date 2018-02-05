@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,12 +22,12 @@ import Cocoa
 class AppDelegate: NSObject, NSApplicationDelegate {
 	@IBOutlet weak var statusMenu: NSMenu!
 	@IBOutlet weak var startAtLogonMenuItem: NSMenuItem!
-	
+
 	let statusItem = NSStatusBar.system().statusItem(withLength: NSVariableStatusItemLength)
 	var parityPid: Int32? = nil
 	var commandLine: [String] = []
 	let defaultDefaults = "{\"fat_db\":false,\"mode\":\"passive\",\"mode.alarm\":3600,\"mode.timeout\":300,\"pruning\":\"fast\",\"tracing\":false}"
-	
+
 	func menuAppPath() -> String {
 		return Bundle.main.executablePath!
 	}
@@ -40,20 +40,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 		return NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier!).count > 1
 
 	}
-	
+
 	func isParityRunning() -> Bool {
 		if let pid = self.parityPid {
 			return kill(pid, 0) == 0
 		}
 		return false
 	}
-	
+
 	func killParity() {
 		if let pid = self.parityPid {
 			kill(pid, SIGKILL)
 		}
 	}
-	
+
 	func openUI() {
 		let parity = Process()
 		parity.launchPath = self.parityPath()
@@ -61,29 +61,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 		parity.arguments!.append("ui")
 		parity.launch()
 	}
-	
+
 	func writeConfigFiles() {
 		let basePath = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
 			.appendingPathComponent(Bundle.main.bundleIdentifier!, isDirectory: true)
-		
+
 		if FileManager.default.fileExists(atPath: basePath!.path) {
 			return
 		}
-		
+
 		do {
 			let defaultsFileDir = basePath?.appendingPathComponent("chains").appendingPathComponent("ethereum")
 			let defaultsFile = defaultsFileDir?.appendingPathComponent("user_defaults")
-			
+
 			try FileManager.default.createDirectory(atPath: (defaultsFileDir?.path)!, withIntermediateDirectories: true, attributes: nil)
 			if !FileManager.default.fileExists(atPath: defaultsFile!.path) {
 				try defaultDefaults.write(to: defaultsFile!, atomically: false, encoding: String.Encoding.utf8)
 			}
-		
+
 			let configFile = basePath?.appendingPathComponent("config.toml")
 		}
 		catch {}
 	}
-	
+
 	func autostartEnabled() -> Bool {
 		return itemReferencesInLoginItems().existingReference != nil
 	}
@@ -123,7 +123,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 		}
 		return (nil, nil)
 	}
-	
+
 	func toggleLaunchAtStartup() {
 		let itemReferences = itemReferencesInLoginItems()
 		let shouldBeToggled = (itemReferences.existingReference == nil)
@@ -155,7 +155,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 	func launchParity() {
 		self.commandLine = CommandLine.arguments.dropFirst().filter({ $0 != "ui"})
-		
+
 		let processes = GetBSDProcessList()!
 		let parityProcess = processes.index(where: {
 			var name = $0.kp_proc.p_comm
@@ -166,7 +166,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 			}
 			return str == "parity"
 		})
-		
+
 		if parityProcess == nil {
 			let parity = Process()
 			let p = self.parityPath()
@@ -178,7 +178,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 			self.parityPid = processes[parityProcess!].kp_proc.p_pid
 		}
 	}
-	
+
 	func applicationDidFinishLaunching(_ aNotification: Notification) {
 		if self.isAlreadyRunning() {
 			openUI()
@@ -188,12 +188,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 		self.writeConfigFiles()
 		self.launchParity()
-		Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true, block: {_ in 
+		Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true, block: {_ in
 			if !self.isParityRunning() {
 				NSApplication.shared().terminate(self)
 			}
 		})
-		
+
 		let icon = NSImage(named: "statusIcon")
 		icon?.isTemplate = true // best for dark mode
 		statusItem.image = icon
@@ -206,19 +206,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 		}
 		return true
 	}
-	
+
 	@IBAction func quitClicked(_ sender: NSMenuItem) {
 		self.killParity()
 		NSApplication.shared().terminate(self)
 	}
-	
+
 	@IBAction func openClicked(_ sender: NSMenuItem) {
 		self.openUI()
 	}
-	
+
 	@IBAction func startAtLogonClicked(_ sender: NSMenuItem) {
 		self.toggleLaunchAtStartup()
 	}
 
 }
-

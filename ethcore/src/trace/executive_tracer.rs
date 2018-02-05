@@ -16,8 +16,7 @@
 
 //! Simple executive tracer.
 
-use bigint::prelude::U256;
-use util::Address;
+use ethereum_types::{U256, Address};
 use bytes::Bytes;
 use vm::ActionParams;
 use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType};
@@ -205,7 +204,7 @@ impl ExecutiveVMTracer {
 impl VMTracer for ExecutiveVMTracer {
 	type Output = VMTrace;
 
-	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool { true }
+	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { true }
 
 	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256) {
 		self.data.operations.push(VMOperation {

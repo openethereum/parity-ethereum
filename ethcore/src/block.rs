@@ -23,23 +23,20 @@ use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use triehash::ordered_trie_root;
 
 use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use unexpected::{Mismatch, OutOfBounds};
 
-use basic_types::{LogBloom, Seal};
 use vm::{EnvInfo, LastHashes};
 use engines::EthEngine;
-use error::{Error, BlockError, TransactionError};
+use error::{Error, BlockError};
 use factory::Factories;
-use header::Header;
+use header::{Header, Seal};
 use receipt::{Receipt, TransactionOutcome};
 use state::State;
 use state_db::StateDB;
 use trace::FlatTrace;
-use transaction::{UnverifiedTransaction, SignedTransaction};
+use transaction::{UnverifiedTransaction, SignedTransaction, Error as TransactionError};
 use verification::PreverifiedBlock;
 use views::BlockView;
 
@@ -455,7 +452,7 @@ impl<'x> OpenBlock<'x> {
 		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
 		s.block.header.set_state_root(s.block.state.root().clone());
 		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().into_vec())));
-		s.block.header.set_log_bloom(s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
+		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
 		s.block.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
 
 		ClosedBlock {
@@ -488,7 +485,7 @@ impl<'x> OpenBlock<'x> {
 		}
 
 		s.block.header.set_state_root(s.block.state.root().clone());
-		s.block.header.set_log_bloom(s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
+		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
 		s.block.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
 
 		LockedBlock {
@@ -723,7 +720,7 @@ mod tests {
 	use factory::Factories;
 	use state_db::StateDB;
 	use views::BlockView;
-	use util::Address;
+	use ethereum_types::Address;
 	use std::sync::Arc;
 	use transaction::SignedTransaction;
 
@@ -739,7 +736,12 @@ mod tests {
 	) -> Result<LockedBlock, Error> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header();
-		let transactions: Result<Vec<_>, Error> = block.transactions().into_iter().map(SignedTransaction::new).collect();
+		let transactions: Result<Vec<_>, Error> = block
+			.transactions()
+			.into_iter()
+			.map(SignedTransaction::new)
+			.map(|r| r.map_err(Into::into))
+			.collect();
 		let transactions = transactions?;
 
 		{

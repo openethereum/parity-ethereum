@@ -33,7 +33,7 @@
 //!
 //! AES-256-GCM will append 12 bytes of metadata to the front of the message.
 
-use bigint::hash::H256;
+use ethereum_types::H256;
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 use ethkey::{Public, Secret};
 use tiny_keccak::keccak256;

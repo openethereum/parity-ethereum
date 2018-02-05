@@ -17,12 +17,12 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use dir::default_data_path;
+use dir::helpers::replace_home;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
 use ethkey::{Secret, Public};
 use ethsync::SyncProvider;
-use helpers::replace_home;
-use util::Address;
+use ethereum_types::Address;
 
 /// This node secret key.
 #[derive(Debug, PartialEq, Clone)]

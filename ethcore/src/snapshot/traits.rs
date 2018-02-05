@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::{ManifestData, RestorationStatus};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use bytes::Bytes;
 
 /// The interface for a snapshot network service.

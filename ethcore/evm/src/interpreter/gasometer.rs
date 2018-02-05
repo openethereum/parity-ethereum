@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{U256, H256};
 use super::u256_to_address;
 
 use {evm, vm};

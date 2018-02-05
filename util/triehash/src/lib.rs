@@ -18,13 +18,13 @@
 //!
 //! This module should be used to generate trie root hash.
 
-extern crate ethcore_bigint;
+extern crate ethereum_types;
 extern crate keccak_hash as hash;
 extern crate rlp;
 
 use std::collections::BTreeMap;
 use std::cmp;
-use ethcore_bigint::hash::H256;
+use ethereum_types::H256;
 use hash::keccak;
 use rlp::RlpStream;
 

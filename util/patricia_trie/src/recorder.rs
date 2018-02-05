@@ -17,7 +17,7 @@
 //! Trie query recorder.
 
 use keccak::keccak;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use bytes::Bytes;
 
 /// A record of a visited node.
@@ -83,7 +83,7 @@ impl Recorder {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 
 	#[test]
 	fn basic_recorder() {

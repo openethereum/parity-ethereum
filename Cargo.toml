@@ -1,10 +1,9 @@
 [package]
 description = "Parity Ethereum client"
 name = "parity"
-version = "1.9.0"
+version = "1.10.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
 
 [dependencies]
 log = "0.3"
@@ -12,13 +11,15 @@ env_logger = "0.4"
 rustc-hex = "1.0"
 docopt = "0.8"
 clap = "2"
+term_size = "0.3"
+textwrap = "0.9"
 time = "0.1"
 num_cpus = "1.2"
 number_prefix = "0.2"
 rpassword = "1.0"
 semver = "0.6"
-ansi_term = "0.9"
-parking_lot = "0.4"
+ansi_term = "0.10"
+parking_lot = "0.5"
 regex = "0.2"
 isatty = "0.1"
 toml = "0.4"
@@ -34,15 +35,16 @@ ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
-ethcore-util = { path = "util" }
 ethcore-bytes = { path = "util/bytes" }
-ethcore-bigint = { path = "util/bigint" }
 ethcore-io = { path = "util/io" }
-ethcore-devtools = { path = "devtools" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
-ethcore-stratum = { path = "stratum" }
+ethcore-migrations = { path = "ethcore/migrations" }
+ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
+ethcore-stratum = { path = "stratum" }
+ethcore-transaction = { path = "ethcore/transaction" }
+ethereum-types = "0.1"
 node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
 node-health = { path = "dapps/node-health" }
@@ -58,7 +60,8 @@ parity-updater = { path = "updater" }
 parity-version = { path = "util/version" }
 parity-whisper = { path = "whisper" }
 path = { path = "util/path" }
-panic_hook = { path = "panic_hook" }
+dir = { path = "util/dir" }
+panic_hook = { path = "util/panic_hook" }
 keccak-hash = { path = "util/hash" }
 migration = { path = "util/migration" }
 kvdb = { path = "util/kvdb" }
@@ -74,6 +77,7 @@ rustc_version = "0.2"
 [dev-dependencies]
 pretty_assertions = "0.1"
 ipnetwork = "0.12.6"
+tempdir = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
@@ -100,6 +104,7 @@ evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
 secretstore = ["ethcore-secretstore"]
+final = ["parity-version/final"]
 
 [[bin]]
 path = "parity/main.rs"
@@ -118,9 +123,11 @@ members = [
 	"chainspec",
 	"dapps/js-glue",
 	"ethcore/wasm/run",
+	"ethcore/types",
 	"ethkey/cli",
 	"ethstore/cli",
 	"evmbin",
+	"miner",
 	"transaction-pool",
 	"whisper",
 ]

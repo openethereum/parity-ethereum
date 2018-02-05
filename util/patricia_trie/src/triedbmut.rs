@@ -30,7 +30,7 @@ use hashdb::DBValue;
 use std::collections::{HashSet, VecDeque};
 use std::mem;
 use std::ops::Index;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use elastic_array::ElasticArray1024;
 use keccak::{KECCAK_NULL_RLP};
 
@@ -265,13 +265,13 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 /// extern crate keccak_hash;
 /// extern crate hashdb;
 /// extern crate memorydb;
-/// extern crate ethcore_bigint as bigint;
+/// extern crate ethereum_types;
 ///
 /// use keccak_hash::KECCAK_NULL_RLP;
 /// use trie::*;
 /// use hashdb::*;
 /// use memorydb::*;
-/// use bigint::hash::*;
+/// use ethereum_types::H256;
 ///
 /// fn main() {
 ///   let mut memdb = MemoryDB::new();

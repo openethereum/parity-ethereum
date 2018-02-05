@@ -17,7 +17,7 @@
 extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 #[macro_use] extern crate serde_derive;
 
 pub mod hash;

@@ -17,18 +17,18 @@
 //! Ledger hardware wallet module. Supports Ledger Blue and Nano S.
 /// See https://github.com/LedgerHQ/blue-app-eth/blob/master/doc/ethapp.asc for protocol details.
 
-use super::{WalletInfo, KeyPath};
-
-use bigint::hash::H256;
-use ethkey::{Address, Signature};
-use hidapi;
-use parking_lot::{Mutex, RwLock};
-
 use std::cmp::min;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
+
+use ethereum_types::{H256, Address};
+use ethkey::Signature;
+use hidapi;
+use parking_lot::{Mutex, RwLock};
+
+use super::{WalletInfo, KeyPath};
 
 const LEDGER_VID: u16 = 0x2c97;
 const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001]; // Nano S and Blue

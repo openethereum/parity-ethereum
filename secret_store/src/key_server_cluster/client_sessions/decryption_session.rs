@@ -17,7 +17,7 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 use parking_lot::{Mutex, Condvar};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use ethkey::{Secret, Signature};
 use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::Cluster;

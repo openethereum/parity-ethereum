@@ -6,7 +6,7 @@
 			"params": {
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
-				"difficultyIncrementDivisor": "60",
+				"difficultyIncrementDivisor": "0x3C",
 				"durationLimit": "0x3C",
 				"blockReward": "0x6f05b59d3b200000",
 				"homesteadTransition": "0x30d40",
@@ -16,7 +16,13 @@
 				"eip150Transition": "0x927C0",
 				"eip160Transition": "0x927C0",
 				"eip161abcTransition": "0x927C0",
-				"eip161dTransition": "0x927C0"
+				"eip161dTransition": "0x927C0",
+				"eip100bTransition": "0xC3500",
+				"metropolisDifficultyIncrementDivisor": "0x1E",
+				"eip649Transition": "0xC3500",
+				"eip649Reward": "0x3782DACE9D900000",
+				"expip2Transition": "0xC3500",
+				"expip2DurationLimit": "0x1E"
 			}
 		}
 	},
@@ -28,10 +34,16 @@
 		"minGasLimit": "0x1388",
 		"networkID": "0x1",
 		"chainID": "0x2",
+		"forkBlock": "0xDBBA0",
+		"forkCanonHash": "0x8e7bed51e24f5174090408664ac476b90b5e1199a947af7442f1ac88263fc8c7",
 		"subprotocolName": "exp",
 		"eip98Transition": "0x7fffffffffffff",
 		"eip86Transition": "0x7fffffffffffff",
-		"eip155Transition": "0x927C0"
+		"eip155Transition": "0x927C0",
+		"eip140Transition": "0xC3500",
+		"eip211Transition": "0xC3500",
+		"eip214Transition": "0xC3500",
+		"eip658Transition": "0xC3500"
 	},
 	"genesis": {
 		"seal": {
@@ -53,7 +65,6 @@
 		"enode://96d3919b903e7f5ad59ac2f73c43be9172d9d27e2771355db03fd194732b795829a31fe2ea6de109d0804786c39a807e155f065b4b94c6fce167becd0ac02383@45.55.22.34:42786",
 		"enode://5f6c625bf287e3c08aad568de42d868781e961cbda805c8397cfb7be97e229419bef9a5a25a75f97632787106bba8a7caf9060fab3887ad2cfbeb182ab0f433f@46.101.182.53:42786",
 		"enode://d33a8d4c2c38a08971ed975b750f21d54c927c0bf7415931e214465a8d01651ecffe4401e1db913f398383381413c78105656d665d83f385244ab302d6138414@128.199.183.48:42786",
-		"enode://df872f81e25f72356152b44cab662caf1f2e57c3a156ecd20e9ac9246272af68a2031b4239a0bc831f2c6ab34733a041464d46b3ea36dce88d6c11714446e06b@178.62.208.109:42786",
 		"enode://f6f0d6b9b7d02ec9e8e4a16e38675f3621ea5e69860c739a65c1597ca28aefb3cec7a6d84e471ac927d42a1b64c1cbdefad75e7ce8872d57548ddcece20afdd1@159.203.64.95:42786"
 	],
 	"accounts": {
@@ -61,6 +72,10 @@
 		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
 		"0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
 		"0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": "0xC3500", "pricing": { "modexp": { "divisor": 20 } } } },
+		"0000000000000000000000000000000000000006": { "builtin": { "name": "alt_bn128_add", "activate_at": "0xC3500", "pricing": { "linear": { "base": 500, "word": 0 } } } },
+		"0000000000000000000000000000000000000007": { "builtin": { "name": "alt_bn128_mul", "activate_at": "0xC3500", "pricing": { "linear": { "base": 40000, "word": 0 } } } },
+		"0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "activate_at": "0xC3500", "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } },
 		"bb94f0ceb32257275b2a7a9c094c13e469b4563e": {
 			"balance": "10000000000000000000000000"
 		},

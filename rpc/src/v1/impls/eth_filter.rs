@@ -22,7 +22,7 @@ use std::collections::HashSet;
 use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::client::{BlockChainClient, BlockId};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use parking_lot::Mutex;
 
 use jsonrpc_core::{BoxFuture, Result};

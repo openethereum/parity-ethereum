@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use std::collections::btree_map::Entry;
 use parking_lot::{Mutex, Condvar};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use ethkey::{Public, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage};
 use key_server_cluster::math;
@@ -284,7 +284,7 @@ impl SessionImpl {
 				self.on_session_error(sender, Error::Io(message.error.clone()));
 				Ok(())
 			},
-			&ServersSetChangeMessage::ServersSetChangeCompleted(ref message) => 
+			&ServersSetChangeMessage::ServersSetChangeCompleted(ref message) =>
 				self.on_session_completed(sender, message),
 		}
 	}
@@ -869,7 +869,7 @@ impl SessionImpl {
 	/// Complete servers set change session.
 	fn complete_session(core: &SessionCore, data: &mut SessionData) -> Result<(), Error> {
 		debug_assert_eq!(core.meta.self_node_id, core.meta.master_node_id);
-		
+
 		// send completion notification
 		core.cluster.broadcast(Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeCompleted(ServersSetChangeCompleted {
 			session: core.meta.id.clone().into(),

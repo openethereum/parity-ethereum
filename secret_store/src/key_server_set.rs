@@ -24,8 +24,7 @@ use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
 use ethkey::public_to_address;
 use native_contracts::KeyServerSet as KeyServerSetContract;
 use hash::keccak;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use types::all::{Error, Public, NodeAddress, NodeId};
 use trusted_client::TrustedClient;
@@ -37,6 +36,8 @@ type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 const KEY_SERVER_SET_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_server_set";
 /// Number of blocks (since latest new_set change) required before actually starting migration.
 const MIGRATION_CONFIRMATIONS_REQUIRED: u64 = 5;
+/// Number of blocks before the same-migration transaction (be it start or confirmation) will be retried.
+const TRANSACTION_RETRY_INTERVAL_BLOCKS: u64 = 30;
 
 /// Key server has been added to the set.
 const ADDED_EVENT_NAME: &'static [u8] = &*b"KeyServerAdded(address)";
@@ -103,6 +104,15 @@ struct FutureNewSet {
 	pub block: H256,
 }
 
+#[derive(Default, Debug, Clone, PartialEq)]
+/// Migration-related transaction information.
+struct PreviousMigrationTransaction {
+	/// Migration id.
+	pub migration_id: H256,
+	/// Latest actual block number at the time this transaction has been sent.
+	pub block: u64,
+}
+
 /// Cached on-chain Key Server set contract.
 struct CachedContract {
 	/// Blockchain client.
@@ -115,6 +125,10 @@ struct CachedContract {
 	snapshot: KeyServerSetSnapshot,
 	/// Scheduled contract state (if any).
 	future_new_set: Option<FutureNewSet>,
+	/// Previous start migration transaction.
+	start_migration_tx: Option<PreviousMigrationTransaction>,
+	/// Previous confirm migration transaction.
+	confirm_migration_tx: Option<PreviousMigrationTransaction>,
 	/// This node key pair.
 	self_key_pair: Arc<NodeKeyPair>,
 }
@@ -168,6 +182,8 @@ impl CachedContract {
 			contract: None,
 			auto_migrate_enabled: auto_migrate_enabled,
 			future_new_set: None,
+			confirm_migration_tx: None,
+			start_migration_tx: None,
 			snapshot: KeyServerSetSnapshot {
 				current_set: server_set.clone(),
 				new_set: server_set,
@@ -191,9 +207,14 @@ impl CachedContract {
 		self.snapshot.clone()
 	}
 
-	fn start_migration(&self, migration_id: H256) {
-		// trust is not needed here, because it is the reaction to the read of the trusted client 
+	fn start_migration(&mut self, migration_id: H256) {
+		// trust is not needed here, because it is the reaction to the read of the trusted client
 		if let (Some(client), Some(contract)) = (self.client.get_untrusted(), self.contract.as_ref()) {
+			// check if we need to send start migration transaction
+			if !update_last_transaction_block(&*client, &migration_id, &mut self.start_migration_tx) {
+				return;
+			}
+
 			// prepare transaction data
 			let transaction_data = match contract.encode_start_migration_input(migration_id) {
 				Ok(transaction_data) => transaction_data,
@@ -208,13 +229,21 @@ impl CachedContract {
 			if let Err(error) = client.transact_contract(contract.address.clone(), transaction_data) {
 				warn!(target: "secretstore_net", "{}: failed to submit auto-migration start transaction: {}",
 					self.self_key_pair.public(), error);
+			} else {
+				trace!(target: "secretstore_net", "{}: sent auto-migration start transaction",
+					self.self_key_pair.public(), );
 			}
 		}
 	}
 
-	fn confirm_migration(&self, migration_id: H256) {
+	fn confirm_migration(&mut self, migration_id: H256) {
 		// trust is not needed here, because we have already completed the action
 		if let (Some(client), Some(contract)) = (self.client.get(), self.contract.as_ref()) {
+			//check if we need to send start migration transaction
+			if !update_last_transaction_block(&*client, &migration_id, &mut self.confirm_migration_tx) {
+				return;
+			}
+
 			// prepare transaction data
 			let transaction_data = match contract.encode_confirm_migration_input(migration_id) {
 				Ok(transaction_data) => transaction_data,
@@ -229,6 +258,9 @@ impl CachedContract {
 			if let Err(error) = client.transact_contract(contract.address.clone(), transaction_data) {
 				warn!(target: "secretstore_net", "{}: failed to submit auto-migration confirmation transaction: {}",
 					self.self_key_pair.public(), error);
+			} else {
+				trace!(target: "secretstore_net", "{}: sent auto-migration confirm transaction",
+					self.self_key_pair.public());
 			}
 		}
 	}
@@ -467,6 +499,36 @@ fn update_number_of_confirmations<F1: Fn() -> H256, F2: Fn(H256) -> Option<u64>>
 	snapshot.new_set = future_new_set.new_set;
 }
 
+fn update_last_transaction_block(client: &Client, migration_id: &H256, previous_transaction: &mut Option<PreviousMigrationTransaction>) -> bool {
+	// TODO [Reliability]: add the same mechanism to the contract listener, if accepted
+	let last_block = client.block_number(BlockId::Latest).unwrap_or_default();
+	match previous_transaction.as_ref() {
+		// no previous transaction => send immideately
+		None => (),
+		// previous transaction has been sent for other migration process => send immideately
+		Some(tx) if tx.migration_id != *migration_id => (),
+		// if we have sent the same type of transaction recently => do nothing (hope it will be mined eventually)
+		// if we have sent the same transaction some time ago =>
+		//   assume that our tx queue was full
+		//   or we didn't have enough eth fot this tx
+		//   or the transaction has been removed from the queue (and never reached any miner node)
+		// if we have restarted after sending tx => assume we have never sent it
+		Some(tx) => {
+			let last_block = client.block_number(BlockId::Latest).unwrap_or_default();
+			if tx.block > last_block || last_block - tx.block < TRANSACTION_RETRY_INTERVAL_BLOCKS {
+				return false;
+			}
+		},
+	}
+
+	*previous_transaction = Some(PreviousMigrationTransaction {
+		migration_id: migration_id.clone(),
+		block: last_block,
+	});
+
+	true
+}
+
 fn latest_block_hash(client: &BlockChainClient) -> H256 {
 	client.block_hash(BlockId::Latest).unwrap_or_default()
 }
@@ -481,7 +543,7 @@ fn block_confirmations(client: &BlockChainClient, block: H256) -> Option<u64> {
 pub mod tests {
 	use std::collections::BTreeMap;
 	use std::net::SocketAddr;
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use ethkey::Public;
 	use super::{update_future_set, update_number_of_confirmations, FutureNewSet,
 		KeyServerSet, KeyServerSetSnapshot, MIGRATION_CONFIRMATIONS_REQUIRED};

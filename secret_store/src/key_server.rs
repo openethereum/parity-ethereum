@@ -215,7 +215,7 @@ pub mod tests {
 	use node_key_pair::PlainNodeKeyPair;
 	use key_server_set::tests::MapKeyServerSet;
 	use key_server_cluster::math;
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use types::all::{Error, Public, ClusterConfiguration, NodeAddress, RequestSignature, ServerKeyId,
 		EncryptedDocumentKey, EncryptedDocumentKeyShadow, MessageHash, EncryptedMessageSignature, NodeId};
 	use traits::{AdminSessionsServer, ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};

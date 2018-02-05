@@ -39,7 +39,7 @@ use light::cache::Cache;
 use light::on_demand::OnDemand;
 use light::client::{LightChainClient, LightChainNotify};
 use parity_reactor::Remote;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use bytes::Bytes;
 use parking_lot::{RwLock, Mutex};
 
@@ -92,12 +92,14 @@ impl EthPubSubClient<LightFetch> {
 		sync: Arc<LightSync>,
 		cache: Arc<Mutex<Cache>>,
 		remote: Remote,
+		gas_price_percentile: usize,
 	) -> Self {
 		let fetch = LightFetch {
 			client,
 			on_demand,
 			sync,
-			cache
+			cache,
+			gas_price_percentile,
 		};
 		EthPubSubClient::new(Arc::new(fetch), remote)
 	}

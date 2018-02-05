@@ -18,9 +18,8 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
-use bigint::hash::H256;
+use ethereum_types::{H256, Address};
 use parking_lot::RwLock;
-use util::Address;
 use bytes::Bytes;
 use ids::BlockId;
 use header::{BlockNumber, Header};
@@ -158,7 +157,7 @@ mod tests {
 	use spec::Spec;
 	use tests::helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
 	use types::ids::BlockId;
-	use util::*;
+	use ethereum_types::Address;
 
 	use super::Multi;
 
