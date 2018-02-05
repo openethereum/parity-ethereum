@@ -19,8 +19,8 @@ use std::sync::Arc;
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
 
-use util::Address;
-use util::misc::version_data;
+use ethereum_types::Address;
+use version::version_data;
 
 use crypto::{DEFAULT_MAC, ecies};
 use ethkey::{Brain, Generator};

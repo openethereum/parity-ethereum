@@ -43,8 +43,8 @@ use ethcore::engines::epoch::{
 
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
 use heapsize::HeapSizeOf;
-use bigint::prelude::U256;
-use bigint::hash::{H256, H256FastMap, H264};
+use ethereum_types::{H256, H264, U256};
+use plain_hasher::H256FastMap;
 use kvdb::{self, DBTransaction, KeyValueDB};
 
 use cache::Cache;

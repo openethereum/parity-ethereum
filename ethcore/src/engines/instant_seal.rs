@@ -55,8 +55,7 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use bigint::hash::H520;
-	use util::*;
+	use ethereum_types::{H520, Address};
 	use tests::helpers::*;
 	use spec::Spec;
 	use header::Header;

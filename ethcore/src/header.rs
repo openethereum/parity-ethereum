@@ -20,17 +20,20 @@ use std::cmp;
 use std::cell::RefCell;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
 use heapsize::HeapSizeOf;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::*;
+use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
-use basic_types::{LogBloom, ZERO_LOGBLOOM};
 use time::get_time;
 use rlp::*;
 
-pub use basic_types::Seal;
-
 pub use types::BlockNumber;
+
+/// Semantic boolean for when a seal/signature is included.
+pub enum Seal {
+	/// The seal/signature is included.
+	With,
+	/// The seal/signature is not included.
+	Without,
+}
 
 /// A block header.
 ///
@@ -61,7 +64,7 @@ pub struct Header {
 	/// Block receipts root.
 	receipts_root: H256,
 	/// Block bloom.
-	log_bloom: LogBloom,
+	log_bloom: Bloom,
 	/// Gas used for contracts execution.
 	gas_used: U256,
 	/// Block gas limit.
@@ -111,7 +114,7 @@ impl Default for Header {
 
 			state_root: KECCAK_NULL_RLP,
 			receipts_root: KECCAK_NULL_RLP,
-			log_bloom: ZERO_LOGBLOOM.clone(),
+			log_bloom: Bloom::default(),
 			gas_used: U256::default(),
 			gas_limit: U256::default(),
 
@@ -148,7 +151,7 @@ impl Header {
 	/// Get the receipts root field of the header.
 	pub fn receipts_root(&self) -> &H256 { &self.receipts_root }
 	/// Get the log bloom field of the header.
-	pub fn log_bloom(&self) -> &LogBloom { &self.log_bloom }
+	pub fn log_bloom(&self) -> &Bloom { &self.log_bloom }
 	/// Get the transactions root field of the header.
 	pub fn transactions_root(&self) -> &H256 { &self.transactions_root }
 	/// Get the uncles hash field of the header.
@@ -182,7 +185,7 @@ impl Header {
 	/// Set the receipts root field of the header.
 	pub fn set_receipts_root(&mut self, a: H256) { self.receipts_root = a; self.note_dirty() }
 	/// Set the log bloom field of the header.
-	pub fn set_log_bloom(&mut self, a: LogBloom) { self.log_bloom = a; self.note_dirty() }
+	pub fn set_log_bloom(&mut self, a: Bloom) { self.log_bloom = a; self.note_dirty() }
 	/// Set the timestamp field of the header.
 	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
 	/// Set the timestamp field of the header to the current time.

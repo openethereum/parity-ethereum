@@ -18,23 +18,23 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+
 use bytes::Bytes;
-use parking_lot::{RwLock, Mutex};
-use ethcore::error::Error;
-use ethcore::client::{MiningBlockChainClient, Nonce, PrepareOpenBlock, StateClient, EngineInfo};
-use ethcore::block::{Block, ClosedBlock};
-use ethcore::header::{BlockNumber, Header};
-use ethcore::transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction};
-use ethcore::receipt::{Receipt, RichReceipt};
-use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult, LocalTransactionStatus};
 use ethcore::account_provider::SignError as AccountError;
-use ethcore::ids::BlockId;
+use ethcore::block::{Block, ClosedBlock};
+use ethcore::client::{MiningBlockChainClient, Nonce, PrepareOpenBlock, StateClient, EngineInfo};
 use ethcore::engines::EthEngine;
+use ethcore::error::Error;
+use ethcore::header::{BlockNumber, Header};
+use ethcore::ids::BlockId;
+use ethcore::miner::{MinerService, MinerStatus};
+use ethcore::receipt::{Receipt, RichReceipt};
 use ethcore::state::State;
 use ethcore::state_db::StateDB;
+use ethereum_types::{H256, U256, Address};
+use miner::local_transactions::Status as LocalTransactionStatus;
+use parking_lot::{RwLock, Mutex};
+use transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction, ImportResult as TransactionImportResult};
 
 /// Test miner service.
 pub struct TestMinerService {

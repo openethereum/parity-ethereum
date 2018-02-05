@@ -19,39 +19,35 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  width: 100%;
 
   .logo {
-    top: 0;
-    right: 0;
-    left: 0;
-    bottom: 0;
-    opacity: 0.2;
-    position: fixed;
-    padding: 7em;
-    text-align: center;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
     z-index: 0;
+    opacity: 0.2;
+  }
 
-    img {
-      display: inline-block;
-      margin: 0 auto;
+  .content {
+    box-sizing: border-box;
+    display: flex;
+    flex-grow: 1;
+    position: relative;
+
+    /* Show scrollbar for Homepage only, dapps' scrollbar are handled inside
+     * their iframe.
+     */
+    & > div {
+      overflow-y: auto;
     }
   }
-}
 
-.container {
-  box-sizing: border-box;
-  display: flex;
-  flex-grow: 1;
-  flex-direction: column;
-}
-
-.content {
-  padding: 0;
-}
-
-.error {
-  padding: 2em;
-  background: red;
-  color: white;
+  .error {
+    padding: 2em;
+    background: red;
+    color: white;
+  }
 }

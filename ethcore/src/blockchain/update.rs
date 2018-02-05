@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use header::BlockNumber;
 use blockchain::block_info::BlockInfo;
 use blooms::BloomGroup;

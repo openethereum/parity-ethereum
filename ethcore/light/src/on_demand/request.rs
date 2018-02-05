@@ -24,17 +24,17 @@ use ethcore::engines::{EthEngine, StateDependentProof};
 use ethcore::machine::EthereumMachine;
 use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
-use ethcore::transaction::SignedTransaction;
+use transaction::SignedTransaction;
 use vm::EnvInfo;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
 
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
 
 use rlp::{RlpStream, UntrustedRlp};
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256, Address};
 use parking_lot::Mutex;
-use util::{Address, DBValue, HashDB};
+use hashdb::HashDB;
+use kvdb::DBValue;
 use bytes::Bytes;
 use memorydb::MemoryDB;
 use trie::{Trie, TrieDB, TrieError};
@@ -941,8 +941,8 @@ impl Signal {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use bigint::hash::H256;
-	use util::{MemoryDB, Address};
+	use ethereum_types::{H256, Address};
+	use memorydb::MemoryDB;
 	use parking_lot::Mutex;
 	use trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
 	use trie::recorder::Recorder;

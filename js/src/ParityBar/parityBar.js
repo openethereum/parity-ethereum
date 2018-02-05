@@ -30,11 +30,11 @@ import ContainerTitle from '@parity/ui/lib/Container/Title';
 import IdentityIcon from '@parity/ui/lib/IdentityIcon';
 import GradientBg from '@parity/ui/lib/GradientBg';
 import SelectionList from '@parity/ui/lib/SelectionList';
-import SignerPending from '@parity/ui/lib/SignerPending';
 import { CancelIcon } from '@parity/ui/lib/Icons';
 
 import DappsStore from '@parity/shared/lib/mobx/dappsStore';
 import Signer from '../Signer/Embedded';
+import SignerPending from './SignerPending';
 
 import AccountStore from './accountStore';
 import Store, { DISPLAY_ACCOUNTS, DISPLAY_SIGNER } from './store';
@@ -151,8 +151,8 @@ class ParityBar extends Component {
     const { moving, position } = this.state;
 
     const containerClassNames = this.store.isOpen
-      ? [ styles.overlay ]
-      : [ styles.bar ];
+      ? [styles.overlay]
+      : [styles.bar];
 
     if (!this.store.isOpen && moving) {
       containerClassNames.push(styles.moving);
@@ -255,13 +255,13 @@ class ParityBar extends Component {
           label={ this.renderSignerLabel() }
           onClick={ this.toggleSignerDisplay }
         />
-        { this.renderDrag() }
+        {this.renderDrag()}
       </GradientBg>
     );
   }
 
   renderDrag () {
-    const dragButtonClasses = [ styles.dragButton ];
+    const dragButtonClasses = [styles.dragButton];
 
     if (this.state.moving) {
       dragButtonClasses.push(styles.moving);
@@ -286,7 +286,7 @@ class ParityBar extends Component {
     if (!externalLink) {
       return (
         <Link to='/'>
-          { button }
+          {button}
         </Link>
       );
     }
@@ -296,7 +296,7 @@ class ParityBar extends Component {
         href={ externalLink }
         target='_parent'
       >
-        { button }
+        {button}
       </a>
     );
   }
@@ -380,9 +380,9 @@ class ParityBar extends Component {
     return (
       <div className={ styles.label }>
         <div className={ styles.labelText }>
-          { name }
+          {name}
         </div>
-        { bubble }
+        {bubble}
       </div>
     );
   }

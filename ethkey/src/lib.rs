@@ -19,7 +19,7 @@
 extern crate byteorder;
 extern crate crypto as rcrypto;
 extern crate edit_distance;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 extern crate parity_wordlist;
 extern crate rand;
 extern crate rustc_hex;
@@ -57,7 +57,10 @@ pub use self::signature::{sign, verify_public, verify_address, recover, Signatur
 pub use self::secret::Secret;
 pub use self::extended::{ExtendedPublic, ExtendedSecret, ExtendedKeyPair, DerivationError, Derivation};
 
-use bigint::hash::{H160, H256, H512};
+use ethereum_types::H256;
+
+pub use ethereum_types::{Address, Public};
+pub type Message = H256;
 
 lazy_static! {
 	pub static ref SECP256K1: secp256k1::Secp256k1 = secp256k1::Secp256k1::new();
@@ -74,7 +77,3 @@ pub trait Generator {
 	/// Should be called to generate new keypair.
 	fn generate(&mut self) -> Result<KeyPair, Self::Error>;
 }
-
-pub type Address = H160;
-pub type Message = H256;
-pub type Public = H512;

@@ -17,9 +17,10 @@
 //! VM Output display utils.
 
 use std::time::Duration;
-use bigint::prelude::U256;
+use ethereum_types::U256;
 
 pub mod json;
+pub mod std_json;
 pub mod simple;
 
 /// Formats duration into human readable format.

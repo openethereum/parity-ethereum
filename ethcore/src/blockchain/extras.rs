@@ -26,8 +26,7 @@ use header::BlockNumber;
 use receipt::Receipt;
 
 use heapsize::HeapSizeOf;
-use bigint::prelude::U256;
-use bigint::hash::{H256, H264};
+use ethereum_types::{H256, H264, U256};
 use kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 
 /// Represents index of extra data in database

@@ -18,37 +18,52 @@ use std::time::{Instant, Duration};
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use parking_lot::{Mutex, RwLock};
-use util::*;
-use bytes::Bytes;
-use timer::PerfTimer;
-use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
+use ansi_term::Colour;
+use ethereum_types::{H256, U256, Address};
+use parking_lot::{Mutex, RwLock};
+use bytes::Bytes;
+use engines::{EthEngine, Seal};
+use error::*;
+use ethcore_miner::banning_queue::{BanningTransactionQueue, Threshold};
+use ethcore_miner::local_transactions::{Status as LocalTransactionStatus};
+use ethcore_miner::transaction_queue::{
+	TransactionQueue,
+	RemovalReason,
+	TransactionDetailsProvider as TransactionQueueDetailsProvider,
+	PrioritizationStrategy,
+	AccountDetails,
+	TransactionOrigin,
+};
+use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
+use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
+use miner::{MinerService, MinerStatus};
+use price_info::fetch::Client as FetchClient;
+use price_info::{Client as PriceInfoClient, PriceInfo};
+use timer::PerfTimer;
+use transaction::{
+	Action,
+	UnverifiedTransaction,
+	PendingTransaction,
+	SignedTransaction,
+	Condition as TransactionCondition,
+	ImportResult as TransactionImportResult,
+	Error as TransactionError,
+};
+use using_queue::{UsingQueue, GetAction};
 use state::State;
+use block::{ClosedBlock, IsBlock, Block};
 use client::{
 	Nonce, Balance, BlockInfo, ChainInfo, TransactionInfo, CallContract, RegistryInfo,
 	PrepareOpenBlock, ReopenBlock, ScheduleInfo, BroadcastProposalBlock, ImportSealedBlock
 };
-use client::{BlockId, TransactionId, MiningBlockChainClient, TransactionImportResult};
+use client::{BlockId, TransactionId, MiningBlockChainClient};
+use client::{MiningBlockChainClient, BlockId, TransactionId};
 use executive::contract_address;
-use block::{ClosedBlock, IsBlock, Block};
-use error::*;
-use transaction::{Action, UnverifiedTransaction, PendingTransaction, SignedTransaction, Condition as TransactionCondition};
+use header::{Header, BlockNumber};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
-use engines::{EthEngine, Seal};
-use miner::{MinerService, MinerStatus, TransactionQueue, RemovalReason, TransactionQueueDetailsProvider, PrioritizationStrategy,
-	AccountDetails, TransactionOrigin};
-use miner::banning_queue::{BanningTransactionQueue, Threshold};
-use miner::work_notify::{WorkPoster, NotifyWork};
-use miner::local_transactions::{Status as LocalTransactionStatus};
-use miner::service_transaction_checker::ServiceTransactionChecker;
-use price_info::{Client as PriceInfoClient, PriceInfo};
-use price_info::fetch::Client as FetchClient;
-use header::{Header, BlockNumber};
-use ansi_term::Colour;
+use state::State;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -369,7 +384,6 @@ impl Miner {
 		)
 	}
 
-	#[cfg_attr(feature="dev", allow(match_same_arms))]
 	/// Prepares new block for sealing including top transactions from queue.
 	fn prepare_block<C: Nonce + ChainInfo + PrepareOpenBlock + ReopenBlock>(&self, chain: &C) -> (ClosedBlock, Option<H256>) {
 		let _timer = PerfTimer::new("prepare_block");
@@ -414,6 +428,7 @@ impl Miner {
 		};
 
 		let mut invalid_transactions = HashSet::new();
+		let mut non_allowed_transactions = HashSet::new();
 		let mut transactions_to_penalize = HashSet::new();
 		let block_number = open_block.block().fields().header.number();
 
@@ -422,7 +437,15 @@ impl Miner {
 		for tx in transactions {
 			let hash = tx.hash();
 			let start = Instant::now();
-			let result = open_block.push_transaction(tx, None);
+			// Check whether transaction type is allowed for sender
+			let result = match self.engine.machine().verify_transaction(&tx, open_block.header(), chain.as_block_chain_client()) {
+				Err(Error::Transaction(TransactionError::NotAllowed)) => {
+					Err(TransactionError::NotAllowed.into())
+				}
+				_ => {
+					open_block.push_transaction(tx, None)
+				}
+			};
 			let took = start.elapsed();
 
 			// Check for heavy transactions
@@ -463,6 +486,12 @@ impl Miner {
 				},
 				// already have transaction - ignore
 				Err(Error::Transaction(TransactionError::AlreadyImported)) => {},
+				Err(Error::Transaction(TransactionError::NotAllowed)) => {
+					non_allowed_transactions.insert(hash);
+					debug!(target: "miner",
+						   "Skipping non-allowed transaction for sender {:?}",
+						   hash);
+				},
 				Err(e) => {
 					invalid_transactions.insert(hash);
 					debug!(target: "miner",
@@ -484,6 +513,9 @@ impl Miner {
 			let mut queue = self.transaction_queue.write();
 			for hash in invalid_transactions {
 				queue.remove(&hash, &fetch_nonce, RemovalReason::Invalid);
+			}
+			for hash in non_allowed_transactions {
+				queue.remove(&hash, &fetch_nonce, RemovalReason::NotAllowed);
 			}
 			for hash in transactions_to_penalize {
 				queue.penalize(&hash);
@@ -685,6 +717,9 @@ impl Miner {
 						Err(e)
 					},
 					Ok(transaction) => {
+						// This check goes here because verify_transaction takes SignedTransaction parameter
+						self.engine.machine().verify_transaction(&transaction, &best_block_header, client.as_block_chain_client())?;
+
 						let origin = self.accounts.as_ref().and_then(|accounts| {
 							match accounts.has_account(transaction.sender()).unwrap_or(false) {
 								true => Some(TransactionOrigin::Local),
@@ -698,10 +733,10 @@ impl Miner {
 						let details_provider = TransactionDetailsProvider::new(client, &self.service_transaction_action);
 						match origin {
 							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-								transaction_queue.add(transaction, origin, insertion_time, condition.clone(), &details_provider)
+								Ok(transaction_queue.add(transaction, origin, insertion_time, condition.clone(), &details_provider)?)
 							},
 							TransactionOrigin::External => {
-								transaction_queue.add_with_banlist(transaction, insertion_time, &details_provider)
+								Ok(transaction_queue.add_with_banlist(transaction, insertion_time, &details_provider)?)
 							},
 						}
 					},
@@ -713,8 +748,6 @@ impl Miner {
 	/// Are we allowed to do a non-mandatory reseal?
 	fn tx_reseal_allowed(&self) -> bool { Instant::now() > *self.next_allowed_reseal.lock() }
 
-	#[cfg_attr(feature="dev", allow(wrong_self_convention))]
-	#[cfg_attr(feature="dev", allow(redundant_closure))]
 	fn from_pending_block<H, F, G>(&self, latest_block_number: BlockNumber, from_chain: F, map_block: G) -> H
 		where F: Fn() -> H, G: FnOnce(&ClosedBlock) -> H {
 		let sealing_work = self.sealing_work.lock();
@@ -875,7 +908,6 @@ impl MinerService for Miner {
 		results
 	}
 
-	#[cfg_attr(feature="dev", allow(collapsible_if))]
 	fn import_own_transaction<C: MiningBlockChainClient>(
 		&self,
 		chain: &C,
@@ -1072,7 +1104,7 @@ impl MinerService for Miner {
 
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
-	fn update_sealing<C>(&self, chain: &C) 
+	fn update_sealing<C>(&self, chain: &C)
 		where C: Nonce + Balance + BlockInfo + ChainInfo + TransactionInfo + RegistryInfo + CallContract
 		         + PrepareOpenBlock + ReopenBlock + BroadcastProposalBlock + ImportSealedBlock
 	{
@@ -1115,7 +1147,7 @@ impl MinerService for Miner {
 		self.sealing_work.lock().queue.is_in_use()
 	}
 
-	fn map_sealing_work<C, F, T>(&self, client: &C, f: F) -> Option<T> 
+	fn map_sealing_work<C, F, T>(&self, client: &C, f: F) -> Option<T>
 		where C: Nonce + ChainInfo + PrepareOpenBlock + ReopenBlock,
 		      F: FnOnce(&ClosedBlock) -> T
 	{
@@ -1156,7 +1188,7 @@ impl MinerService for Miner {
 		})
 	}
 
-	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) 
+	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256])
 		where C: Nonce + Balance + BlockInfo + ChainInfo + TransactionInfo + CallContract + RegistryInfo
 		         + ReopenBlock + PrepareOpenBlock + ScheduleInfo + BroadcastProposalBlock + ImportSealedBlock
 	{
@@ -1231,7 +1263,7 @@ impl ServiceTransactionAction {
 	pub fn update_from_chain_client<C: RegistryInfo>(&self, client: &C)
 	{
 		if let ServiceTransactionAction::Check(ref checker) = *self {
-			checker.update_from_chain_client(client);
+			checker.update_from_chain_client(&client);
 		}
 	}
 
@@ -1239,8 +1271,18 @@ impl ServiceTransactionAction {
 	{
 		match *self {
 			ServiceTransactionAction::Refuse => Err("configured to refuse service transactions".to_owned()),
-			ServiceTransactionAction::Check(ref checker) => checker.check(client, tx),
+			ServiceTransactionAction::Check(ref checker) => checker.check(&client, tx),
 		}
+	}
+}
+
+impl<'a, C: MiningBlockChainClient> ::ethcore_miner::service_transaction_checker::ContractCaller for &'a C {
+	fn registry_address(&self, name: &str) -> Option<Address> {
+		MiningBlockChainClient::registry_address(*self, name.into())
+	}
+
+	fn call_contract(&self, block: BlockId, address: Address, data: Vec<u8>) -> Result<Vec<u8>, String> {
+		MiningBlockChainClient::call_contract(*self, block, address, data)
 	}
 }
 
@@ -1279,20 +1321,18 @@ impl<'a, C> TransactionQueueDetailsProvider for TransactionDetailsProvider<'a, C
 
 #[cfg(test)]
 mod tests {
-
-	use std::sync::Arc;
-	use std::time::Duration;
-	use rustc_hex::FromHex;
-	use hash::keccak;
-	use super::super::{MinerService, PrioritizationStrategy};
 	use super::*;
-	use block::IsBlock;
-	use bigint::prelude::U256;
+	use ethcore_miner::transaction_queue::PrioritizationStrategy;
+	use ethereum_types::U256;
 	use ethkey::{Generator, Random};
-	use client::{TestBlockChainClient, EachBlockWith, TransactionImportResult, ChainInfo};
+	use client::{TestBlockChainClient, EachBlockWith, ChainInfo};
+	use hash::keccak;
 	use header::BlockNumber;
-	use transaction::{SignedTransaction, Transaction, PendingTransaction, Action};
+	use rustc_hex::FromHex;
 	use spec::Spec;
+	use transaction::{SignedTransaction, Transaction, PendingTransaction, Action};
+	use miner::MinerService;
+
 	use tests::helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
 
 	#[test]

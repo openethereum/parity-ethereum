@@ -26,7 +26,7 @@ use fetch::{Fetch, Response, Error as FetchError, Client as FetchClient};
 use futures::Future;
 use parity_reactor::Remote;
 use urlhint::{ContractClient, URLHintContract, URLHint, URLHintResult};
-use bigint::hash::H256;
+use ethereum_types::H256;
 
 /// API for fetching by hash.
 pub trait HashFetch: Send + Sync + 'static {
@@ -149,6 +149,9 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 			.map(|content| match content {
 					URLHintResult::Dapp(dapp) => {
 						dapp.url()
+					},
+					URLHintResult::GithubDapp(content) => {
+						content.url
 					},
 					URLHintResult::Content(content) => {
 						content.url

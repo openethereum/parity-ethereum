@@ -17,9 +17,7 @@
 //! Interface for Evm externalities.
 
 use std::sync::Arc;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::*;
+use ethereum_types::{U256, H256, Address};
 use bytes::Bytes;
 use call_type::CallType;
 use env_info::EnvInfo;
@@ -96,7 +94,6 @@ pub trait Ext {
 	/// Returns Err, if we run out of gas.
 	/// Otherwise returns call_result which contains gas left
 	/// and true if subcall was successfull.
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn call(&mut self,
 		gas: &U256,
 		sender_address: &Address,
@@ -141,7 +138,7 @@ pub trait Ext {
 	fn inc_sstore_clears(&mut self);
 
 	/// Decide if any more operations should be traced. Passthrough for the VM trace.
-	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool { false }
+	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _current_gas: U256) -> bool { false }
 
 	/// Prepare to trace an operation. Passthrough for the VM trace.
 	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256) {}

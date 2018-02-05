@@ -19,7 +19,7 @@
 use std::collections::VecDeque;
 use rlp::*;
 use heapsize::HeapSizeOf;
-use basic_types::LogBloom;
+use ethereum_types::Bloom;
 use super::trace::{Action, Res};
 
 /// Trace localized in vector of traces produced by a single transaction.
@@ -41,7 +41,7 @@ pub struct FlatTrace {
 
 impl FlatTrace {
 	/// Returns bloom of the trace.
-	pub fn bloom(&self) -> LogBloom {
+	pub fn bloom(&self) -> Bloom {
 		self.action.bloom() | self.result.bloom()
 	}
 }
@@ -94,7 +94,7 @@ impl HeapSizeOf for FlatTransactionTraces {
 
 impl FlatTransactionTraces {
 	/// Returns bloom of all traces in the collection.
-	pub fn bloom(&self) -> LogBloom {
+	pub fn bloom(&self) -> Bloom {
 		self.0.iter().fold(Default::default(), | bloom, trace | bloom | trace.bloom())
 	}
 }
@@ -123,7 +123,7 @@ impl From<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 
 impl FlatBlockTraces {
 	/// Returns bloom of all traces in the block.
-	pub fn bloom(&self) -> LogBloom {
+	pub fn bloom(&self) -> Bloom {
 		self.0.iter().fold(Default::default(), | bloom, tx_traces | bloom | tx_traces.bloom())
 	}
 }

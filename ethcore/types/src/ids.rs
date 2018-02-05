@@ -16,7 +16,7 @@
 
 //! Unique identifiers.
 
-use bigint::hash::H256;
+use ethereum_types::H256;
 use {BlockNumber};
 
 /// Uniquely identifies block.

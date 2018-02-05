@@ -52,10 +52,8 @@ use transaction::{UnverifiedTransaction, SignedTransaction};
 
 use ethkey::Signature;
 use parity_machine::{Machine, LocalizedMachine as Localized};
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256, Address};
 use semantic_version::SemanticVersion;
-use util::*;
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
 
@@ -411,7 +409,7 @@ pub mod common {
 	use trace::{Tracer, ExecutiveTracer, RewardType};
 	use state::CleanupMode;
 
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 
 	/// Give reward and trace.
 	pub fn bestow_block_reward(block: &mut ExecutedBlock, reward: U256) -> Result<(), Error> {

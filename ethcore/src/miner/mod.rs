@@ -15,8 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(all(nightly, feature="dev"), feature(plugin))]
-#![cfg_attr(all(nightly, feature="dev"), plugin(clippy))]
 
 //! Miner module
 //! Keeps track of transactions and mined block.
@@ -24,7 +22,6 @@
 //! Usage example:
 //!
 //! ```rust
-//! extern crate ethcore_util as util;
 //! extern crate ethcore;
 //! use std::env;
 //! use ethcore::ethereum;
@@ -41,42 +38,24 @@
 //! }
 //! ```
 
-mod banning_queue;
-mod external;
-mod local_transactions;
 mod miner;
-mod service_transaction_checker;
-mod transaction_queue;
-mod work_notify;
 mod stratum;
 
-pub use self::external::{ExternalMiner, ExternalMinerService};
-
 pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
-pub use self::transaction_queue::{TransactionQueue, RemovalReason, TransactionDetailsProvider as TransactionQueueDetailsProvider,
-	PrioritizationStrategy, AccountDetails, TransactionOrigin};
-pub use self::local_transactions::{Status as LocalTransactionStatus};
-pub use client::{
-	Nonce, Balance, BlockInfo, ChainInfo, TransactionInfo, RegistryInfo, CallContract,
-	PrepareOpenBlock, ReopenBlock, ScheduleInfo, BroadcastProposalBlock, ImportSealedBlock
-};
-pub use client::TransactionImportResult;
-pub use state::StateInfo;
-pub use self::work_notify::NotifyWork;
 pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOptions};
 
+pub use ethcore_miner::local_transactions::Status as LocalTransactionStatus;
+
 use std::collections::BTreeMap;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+
+use block::{ClosedBlock, Block};
 use bytes::Bytes;
 use client::{MiningBlockChainClient};
-use block::{ClosedBlock, Block};
-use header::BlockNumber;
-use receipt::{RichReceipt, Receipt};
 use error::{Error};
-use transaction::{UnverifiedTransaction, PendingTransaction};
-use header::Header;
+use ethereum_types::{H256, U256, Address};
+use header::{BlockNumber, Header};
+use receipt::{RichReceipt, Receipt};
+use transaction::{UnverifiedTransaction, PendingTransaction, ImportResult as TransactionImportResult};
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
@@ -130,11 +109,11 @@ pub trait MinerService : Send + Sync {
 	fn set_tx_gas_limit(&self, limit: U256);
 
 	/// Imports transactions to transaction queue.
-	fn import_external_transactions<C: MiningBlockChainClient>(&self, client: &C, transactions: Vec<UnverifiedTransaction>) -> 
+	fn import_external_transactions<C: MiningBlockChainClient>(&self, client: &C, transactions: Vec<UnverifiedTransaction>) ->
 		Vec<Result<TransactionImportResult, Error>>;
 
 	/// Imports own (node owner) transaction to queue.
-	fn import_own_transaction<C: MiningBlockChainClient>(&self, chain: &C, transaction: PendingTransaction) -> 
+	fn import_own_transaction<C: MiningBlockChainClient>(&self, chain: &C, transaction: PendingTransaction) ->
 		Result<TransactionImportResult, Error>;
 
 	/// Returns hashes of transactions currently in pending
@@ -145,7 +124,7 @@ pub trait MinerService : Send + Sync {
 
 	/// Called when blocks are imported to chain, updates transactions queue.
 	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256])
-		where C: Nonce + Balance + BlockInfo + ChainInfo + TransactionInfo + CallContract + RegistryInfo + ReopenBlock 
+		where C: Nonce + Balance + BlockInfo + ChainInfo + TransactionInfo + CallContract + RegistryInfo + ReopenBlock
 		         + PrepareOpenBlock + ScheduleInfo + BroadcastProposalBlock + ImportSealedBlock;
 
 	/// PoW chain - can produce work package

@@ -68,7 +68,7 @@ impl Into<client::TraceFilter> for TraceFilter {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use util::Address;
+	use ethereum_types::Address;
 	use v1::types::{BlockNumber, TraceFilter};
 
 	#[test]

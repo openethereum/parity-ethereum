@@ -18,7 +18,6 @@ import { action, computed, observable } from 'mobx';
 import store from 'store';
 
 import { sha3 } from '@parity/api/lib/util/sha3';
-import { isHex } from '@parity/api/lib/util/types';
 
 import { methodGroupFromMethod } from './methodGroups';
 
@@ -100,7 +99,7 @@ export default class Store {
     this.requests = { ...this.requests };
   };
 
-  getPermissionId = (method, appId) => `${method}:${isHex(appId) ? appId : sha3(appId)}`; // Create an id to identify permissions based on method and appId
+  getPermissionId = (method, appId) => `${method}:${appId}`; // Create an id to identify permissions based on method and appId
 
   getMethodFromRequest = requestId => {
     const { data: { method, params } } = this.requests[requestId];
@@ -243,14 +242,9 @@ export default class Store {
         return;
       }
 
-      if (
-        (method &&
-          methodGroupFromMethod[method] &&
-          !this.hasTokenPermission(method, token)) ||
-        (api &&
-          methodGroupFromMethod[params[0]] &&
-          !this.hasTokenPermission(method, token))
-      ) {
+      const _method = api ? params[0] : method;
+
+      if (methodGroupFromMethod[_method] && !this.hasTokenPermission(_method, token)) {
         this.queueRequest(id, { // The requestId of a request is the id inside data
           data,
           source

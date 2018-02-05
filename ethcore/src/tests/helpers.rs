@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use account_provider::AccountProvider;
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{H256, U256};
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use bytes::Bytes;
@@ -385,5 +384,7 @@ pub fn get_default_ethash_params() -> EthashParams {
 		eip649_transition: u64::max_value(),
 		eip649_delay: 3_000_000,
 		eip649_reward: None,
+		expip2_transition: u64::max_value(),
+		expip2_duration_limit: 30,
 	}
 }

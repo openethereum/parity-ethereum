@@ -17,7 +17,7 @@
 //! Account management (personal) rpc implementation
 use std::sync::Arc;
 use std::collections::btree_map::{BTreeMap, Entry};
-use util::Address;
+use ethereum_types::Address;
 
 use ethkey::{Brain, Generator, Secret};
 use ethstore::KeyFile;

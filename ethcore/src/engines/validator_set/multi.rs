@@ -18,9 +18,8 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
-use bigint::hash::H256;
+use ethereum_types::{H256, Address};
 use parking_lot::RwLock;
-use util::Address;
 use bytes::Bytes;
 use ids::BlockId;
 use header::{BlockNumber, Header};
@@ -138,7 +137,7 @@ impl ValidatorSet for Multi {
 		}
 		*self.block_number.write() = Box::new(move |id| client
 			.upgrade()
-			.ok_or("No client!".into())
+			.ok_or_else(|| "No client!".into())
 			.and_then(|c| c.block_number(id).ok_or("Unknown block".into())));
 	}
 }
@@ -158,7 +157,7 @@ mod tests {
 	use spec::Spec;
 	use tests::helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
 	use types::ids::BlockId;
-	use util::*;
+	use ethereum_types::Address;
 
 	use super::Multi;
 

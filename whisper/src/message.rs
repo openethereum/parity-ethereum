@@ -19,7 +19,7 @@
 use std::fmt;
 use std::time::{self, SystemTime, Duration};
 
-use bigint::hash::{H256, H512};
+use ethereum_types::{H256, H512};
 use rlp::{self, DecoderError, RlpStream, UntrustedRlp};
 use smallvec::SmallVec;
 use tiny_keccak::{keccak256, Keccak};

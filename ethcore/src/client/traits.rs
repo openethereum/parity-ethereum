@@ -21,8 +21,7 @@ use block::{OpenBlock, SealedBlock, ClosedBlock};
 use blockchain::TreeRoute;
 use encoded;
 use vm::LastHashes;
-use error::{ImportResult, CallError, Error as EthcoreError};
-use error::{TransactionImportResult, BlockImportError};
+use error::{ImportResult, CallError, Error as EthcoreError, BlockImportError};
 use evm::{Factory as EvmFactory, Schedule};
 use executive::Executed;
 use filter::Filter;
@@ -30,15 +29,13 @@ use header::{BlockNumber};
 use log_entry::LocalizedLogEntry;
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
-use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
+use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction, ImportResult as TransactionImportResult};
 use verification::queue::QueueInfo as BlockQueueInfo;
 use state::StateInfo;
 use header::Header;
 use engines::EthEngine;
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address};
 use bytes::Bytes;
 use hashdb::DBValue;
 
@@ -289,6 +286,9 @@ pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockIn
 
 	/// Replays a given transaction for inspection.
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;
+
+	/// Replays all the transactions in a given block for inspection.
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError>;
 
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;

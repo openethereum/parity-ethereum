@@ -24,7 +24,7 @@ use hash::keccak;
 
 use futures::{future, Future};
 use native_contracts::{Registry, Urlhint};
-use util::Address;
+use ethereum_types::{H160, H256, Address};
 use bytes::Bytes;
 
 /// Boxed future that can be shared between threads.
@@ -32,6 +32,10 @@ use bytes::Bytes;
 pub type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 
 const COMMIT_LEN: usize = 20;
+/// GithubHint entries with commit set as `0x0..01` should be treated
+/// as Github Dapp, downloadable zip files, than can be extracted, containing
+/// the manifest.json file along with the dapp
+static GITHUB_DAPP_COMMIT: &[u8; COMMIT_LEN] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
 
 /// RAW Contract interface.
 /// Should execute transaction using current blockchain state.
@@ -93,6 +97,8 @@ pub struct Content {
 pub enum URLHintResult {
 	/// Dapp
 	Dapp(GithubApp),
+	/// GithubDapp
+	GithubDapp(Content),
 	/// Content
 	Content(Content),
 }
@@ -122,7 +128,16 @@ impl URLHintContract {
 	}
 }
 
-fn decode_urlhint_output(output: (String, ::bigint::hash::H160, Address)) -> Option<URLHintResult> {
+fn get_urlhint_content(account_slash_repo: String, owner: Address) -> Content {
+	let mime = guess_mime_type(&account_slash_repo).unwrap_or(mime::APPLICATION_JSON);
+	Content {
+		url: account_slash_repo,
+		mime,
+		owner,
+	}
+}
+
+fn decode_urlhint_output(output: (String, H160, Address)) -> Option<URLHintResult> {
 	let (account_slash_repo, commit, owner) = output;
 
 	if owner == Address::default() {
@@ -130,13 +145,15 @@ fn decode_urlhint_output(output: (String, ::bigint::hash::H160, Address)) -> Opt
 	}
 
 	let commit = GithubApp::commit(&commit);
+
 	if commit == Some(Default::default()) {
-		let mime = guess_mime_type(&account_slash_repo).unwrap_or(mime::APPLICATION_JSON);
-		return Some(URLHintResult::Content(Content {
-			url: account_slash_repo,
-			mime: mime,
-			owner: owner,
-		}));
+		let content = get_urlhint_content(account_slash_repo, owner);
+		return Some(URLHintResult::Content(content));
+	}
+
+	if commit == Some(*GITHUB_DAPP_COMMIT) {
+		let content = get_urlhint_content(account_slash_repo, owner);
+		return Some(URLHintResult::GithubDapp(content));
 	}
 
 	let (account, repo) = {
@@ -182,7 +199,7 @@ impl URLHint for URLHintContract {
 					None => Either::A(future::ok(None)),
 					Some(address) => {
 						let do_call = move |_, data| client.call(address, data);
-						Either::B(urlhint.entries(do_call, ::bigint::hash::H256(fixed_id)).map(decode_urlhint_output))
+						Either::B(urlhint.entries(do_call, H256(fixed_id)).map(decode_urlhint_output))
 					}
 				}
 			}))
@@ -223,7 +240,7 @@ pub mod tests {
 	use super::*;
 	use super::guess_mime_type;
 	use parking_lot::Mutex;
-	use util::Address;
+	use ethereum_types::Address;
 	use bytes::{Bytes, ToPretty};
 
 	pub struct FakeRegistrar {

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use bigint::hash::H256;
+use ethereum_types::H256;
 use keccak::keccak;
 use hashdb::HashDB;
 use super::{TrieDB, Trie, TrieDBIterator, TrieItem, TrieIterator, Query};

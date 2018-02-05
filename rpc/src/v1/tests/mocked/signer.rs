@@ -16,16 +16,15 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use bigint::prelude::U256;
-use util::Address;
+use ethereum_types::{U256, Address};
 use bytes::ToPretty;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
-use ethcore::transaction::{Transaction, Action, SignedTransaction};
 use parity_reactor::EventLoop;
 use parking_lot::Mutex;
 use rlp::encode;
+use transaction::{Transaction, Action, SignedTransaction};
 
 use serde_json;
 use jsonrpc_core::IoHandler;
@@ -65,7 +64,7 @@ fn signer_tester() -> SignerTester {
 	let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 	let event_loop = EventLoop::spawn();
 
-	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations);
+	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations, 50);
 	let mut io = IoHandler::default();
 	io.extend_with(SignerClient::new(&opt_accounts, dispatcher, &signer, event_loop.remote()).to_delegate());
 

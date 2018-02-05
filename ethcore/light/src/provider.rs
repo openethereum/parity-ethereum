@@ -24,8 +24,10 @@ use ethcore::client::{BlockChainClient, ProvingBlockChainClient, ChainInfo, Bloc
 use ethcore::transaction::PendingTransaction;
 use ethcore::ids::BlockId;
 use ethcore::encoded;
-use bigint::hash::H256;
+use ethcore::ids::BlockId;
+use ethereum_types::H256;
 use parking_lot::RwLock;
+use transaction::PendingTransaction;
 
 use cht::{self, BlockInfo};
 use client::{LightChainClient, AsLightClient};
@@ -260,7 +262,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn transaction_proof(&self, req: request::CompleteExecutionRequest) -> Option<request::ExecutionResponse> {
-		use ethcore::transaction::Transaction;
+		use transaction::Transaction;
 
 		let id = BlockId::Hash(req.block_hash);
 		let nonce = match self.nonce(&req.from, id.clone()) {

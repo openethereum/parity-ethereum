@@ -22,9 +22,7 @@ use std::sync::Arc;
 
 use rlp::{self, UntrustedRlp};
 use time::get_time;
-use bigint::prelude::U256;
-use bigint::hash::{H64, H160, H256};
-use util::Address;
+use ethereum_types::{U256, H64, H160, H256, Address};
 use parking_lot::Mutex;
 
 use ethash::SeedHashCompute;
@@ -35,11 +33,12 @@ use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{BlockNumber as EthBlockNumber, Seal};
 use ethcore::log_entry::LogEntry;
-use ethcore::miner::{MinerService, ExternalMinerService};
-use ethcore::transaction::{SignedTransaction, LocalizedTransaction};
+use ethcore::miner::MinerService;
 use ethcore::snapshot::SnapshotService;
 use ethcore::encoded;
 use ethsync::{SyncProvider};
+use miner::external::ExternalMinerService;
+use transaction::SignedTransaction;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
@@ -67,6 +66,8 @@ pub struct EthClientOptions {
 	pub allow_pending_receipt_query: bool,
 	/// Send additional block number when asking for work
 	pub send_block_number_in_get_work: bool,
+	/// Gas Price Percentile used as default gas price.
+	pub gas_price_percentile: usize,
 }
 
 impl EthClientOptions {
@@ -85,6 +86,7 @@ impl Default for EthClientOptions {
 			pending_nonce_from_queue: false,
 			allow_pending_receipt_query: true,
 			send_block_number_in_get_work: true,
+			gas_price_percentile: 50,
 		}
 	}
 }
@@ -185,7 +187,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 			BlockNumberOrId::Number(BlockNumber::Pending) => {
 				let info = self.client.chain_info();
 				let pending_block = self.miner.pending_block(info.best_block_number);
-				let difficulty = { 
+				let difficulty = {
 					let latest_difficulty = self.client.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
 					let pending_difficulty = self.miner.pending_block_header(info.best_block_number).map(|header| *header.difficulty());
 
@@ -513,7 +515,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn gas_price(&self) -> Result<RpcU256> {
-		Ok(RpcU256::from(default_gas_price(&*self.client, &*self.miner)))
+		Ok(RpcU256::from(default_gas_price(&*self.client, &*self.miner, self.options.gas_price_percentile)))
 	}
 
 	fn accounts(&self, meta: Metadata) -> Result<Vec<RpcH160>> {

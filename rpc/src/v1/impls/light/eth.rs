@@ -30,14 +30,14 @@ use light::on_demand::{request, OnDemand};
 
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::encoded;
-use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::transaction::SignedTransaction;
+use ethcore::ids::BlockId;
 use ethsync::LightSync;
-use rlp::UntrustedRlp;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
-use bigint::prelude::U256;
+use ethereum_types::U256;
 use parking_lot::{RwLock, Mutex};
+use rlp::UntrustedRlp;
+use transaction::SignedTransaction;
 
 use v1::impls::eth_filter::Filterable;
 use v1::helpers::{errors, limit_logs};
@@ -62,6 +62,7 @@ pub struct EthClient<T> {
 	accounts: Arc<AccountProvider>,
 	cache: Arc<Mutex<LightDataCache>>,
 	polls: Mutex<PollManager<PollFilter>>,
+	gas_price_percentile: usize,
 }
 
 impl<T> EthClient<T> {
@@ -92,6 +93,7 @@ impl<T> Clone for EthClient<T> {
 			accounts: self.accounts.clone(),
 			cache: self.cache.clone(),
 			polls: Mutex::new(PollManager::new()),
+			gas_price_percentile: self.gas_price_percentile,
 		}
 	}
 }
@@ -106,15 +108,17 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 		transaction_queue: Arc<RwLock<TransactionQueue>>,
 		accounts: Arc<AccountProvider>,
 		cache: Arc<Mutex<LightDataCache>>,
+		gas_price_percentile: usize,
 	) -> Self {
 		EthClient {
-			sync: sync,
-			client: client,
-			on_demand: on_demand,
-			transaction_queue: transaction_queue,
-			accounts: accounts,
-			cache: cache,
+			sync,
+			client,
+			on_demand,
+			transaction_queue,
+			accounts,
+			cache,
 			polls: Mutex::new(PollManager::new()),
+			gas_price_percentile,
 		}
 	}
 
@@ -125,6 +129,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 			on_demand: self.on_demand.clone(),
 			sync: self.sync.clone(),
 			cache: self.cache.clone(),
+			gas_price_percentile: self.gas_price_percentile,
 		}
 	}
 
@@ -256,7 +261,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 
 	fn gas_price(&self) -> Result<RpcU256> {
 		Ok(self.cache.lock().gas_price_corpus()
-			.and_then(|c| c.median().cloned())
+			.and_then(|c| c.percentile(self.gas_price_percentile).cloned())
 			.map(RpcU256::from)
 			.unwrap_or_else(Default::default))
 	}
@@ -361,8 +366,8 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		}))
 	}
 
-	fn code_at(&self, _address: RpcH160, _num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
-		Box::new(future::err(errors::unimplemented(None)))
+	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
+		Box::new(self.fetcher().code(address.into(), num.unwrap_or_default().into()).map(Into::into))
 	}
 
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256> {
@@ -379,7 +384,6 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 
 				self.transaction_queue.write().import(signed.into())
 					.map(|_| hash)
-					.map_err(Into::into)
 					.map_err(errors::transaction)
 			})
 			.map(Into::into)
@@ -529,7 +533,7 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 		self.client.block_hash(id).map(Into::into)
 	}
 
-	fn pending_transactions_hashes(&self, _block_number: u64) -> Vec<::bigint::hash::H256> {
+	fn pending_transactions_hashes(&self, _block_number: u64) -> Vec<::ethereum_types::H256> {
 		Vec::new()
 	}
 

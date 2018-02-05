@@ -17,12 +17,12 @@
 //! Wasm Interpreter
 
 extern crate vm;
-extern crate ethcore_util as util;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 #[macro_use] extern crate log;
 extern crate ethcore_logger;
 extern crate byteorder;
 extern crate parity_wasm;
+extern crate libc;
 extern crate wasm_utils;
 
 mod runtime;
@@ -111,6 +111,7 @@ impl vm::Vm for WasmInterpreter {
 				address: params.address,
 				sender: params.sender,
 				origin: params.origin,
+				code_address: params.code_address,
 				value: params.value.value(),
 			},
 			&self.program,

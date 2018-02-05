@@ -17,16 +17,33 @@
 const methodGroups = {
   shell: {
     methods: [
+      'shell_loadApp'
+    ]
+  },
+  dapps: {
+    methods: [
+      'parity_dappsRefresh',
+      'parity_dappsUrl',
       'shell_getApps',
-      'shell_getFilteredMethods',
-      'shell_getMethodGroups',
-      'shell_getMethodPermissions',
+      'shell_getMethodPermissions'
+    ]
+  },
+  dappsEdit: {
+    methods: [
+      'shell_setAppPinned',
       'shell_setAppVisibility',
       'shell_setMethodPermissions'
     ]
   },
-  accountsView: {
-    methods: ['parity_accountsInfo', 'parity_allAccountsInfo']
+  accounts: {
+    methods: [
+      'parity_accountsInfo',
+      'parity_allAccountsInfo',
+      'parity_getNewDappsAddresses',
+      'parity_getNewDappsDefaultAddress',
+      'parity_hardwareAccountsInfo',
+      'parity_lockedHardwareAccountsInfo'
+    ]
   },
   accountsCreate: {
     methods: [
@@ -40,34 +57,66 @@ const methodGroups = {
     ]
   },
   accountsEdit: {
-    methods: ['parity_setAccountName', 'parity_setAccountMeta']
-  },
-  upgrade: {
     methods: [
-      'parity_consensusCapability',
-      'parity_executeUpgrade',
-      'parity_upgradeReady',
-      'parity_versionInfo'
+      'parity_setAccountName',
+      'parity_setAccountMeta',
+      'parity_hardwarePinMatrixAck',
+      'parity_setNewDappsAddresses',
+      'parity_setNewDappsDefaultAddress'
+    ]
+  },
+  accountsDelete: {
+    methods: [
+      'parity_killAccount',
+      'parity_removeAddress'
     ]
   },
   vaults: {
     methods: [
-      'parity_changeVault',
-      'parity_changeVaultPassword',
       'parity_closeVault',
       'parity_getVaultMeta',
       'parity_listVaults',
       'parity_listOpenedVaults',
-      'parity_newVault',
-      'parity_openVault',
+      'parity_openVault'
+    ]
+  },
+  vaultsCreate: {
+    methods: [
+      'parity_newVault'
+    ]
+  },
+  vaultsEdit: {
+    methods: [
+      'parity_changeVault',
+      'parity_changeVaultPassword',
       'parity_setVaultMeta'
     ]
   },
-  other: {
+  signerRequests: {
     methods: [
       'parity_checkRequest',
-      'parity_hashContent',
       'parity_localTransactions'
+    ]
+  },
+  signerConfirm: {
+    methods: [
+      'parity_confirmRequest',
+      'parity_confirmRequestRaw',
+      'parity_rejectRequest'
+    ]
+  },
+  node: {
+    methods: [
+      'parity_hashContent',
+      'parity_consensusCapability',
+      'parity_upgradeReady',
+      'parity_versionInfo',
+      'parity_wsUrl'
+    ]
+  },
+  nodeUpgrade: {
+    methods: [
+      'parity_executeUpgrade'
     ]
   }
 };

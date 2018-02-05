@@ -42,8 +42,10 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		let rlp: Vec<u8> = test.rlp.into();
 		let res = UntrustedRlp::new(&rlp)
 			.as_val()
-			.map_err(From::from)
-			.and_then(|t: UnverifiedTransaction| t.validate(schedule, schedule.have_delegate_call, allow_chain_id_of_one, allow_unsigned));
+			.map_err(::error::Error::from)
+			.and_then(|t: UnverifiedTransaction| {
+				t.validate(schedule, schedule.have_delegate_call, allow_chain_id_of_one, allow_unsigned).map_err(Into::into)
+			});
 
 		fail_unless(test.transaction.is_none() == res.is_err(), "Validity different");
 		if let (Some(tx), Some(sender)) = (test.transaction, test.sender) {

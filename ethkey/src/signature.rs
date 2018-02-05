@@ -22,7 +22,7 @@ use std::hash::{Hash, Hasher};
 use secp256k1::{Message as SecpMessage, RecoverableSignature, RecoveryId, Error as SecpError};
 use secp256k1::key::{SecretKey, PublicKey};
 use rustc_hex::{ToHex, FromHex};
-use bigint::hash::{H520, H256};
+use ethereum_types::{H520, H256};
 use {Secret, Public, SECP256K1, Error, Message, public_to_address, Address};
 
 /// Signature encoded as RSV components

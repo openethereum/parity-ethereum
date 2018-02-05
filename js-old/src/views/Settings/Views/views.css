@@ -24,7 +24,7 @@
 .view {
 }
 
-.view+.view {
+.view + .view {
   padding-top: 1.5em;
 }
 
@@ -46,7 +46,6 @@
 .logoIcon {
   height: 24px;
   margin-bottom: 5px;
-  opacity: 0.5;
 }
 
 .info {

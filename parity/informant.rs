@@ -35,7 +35,7 @@ use light::client::LightChainClient;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 use parity_rpc::{is_major_importing};
 use parity_rpc::informant::RpcStats;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use bytes::Bytes;
 use parking_lot::{RwLock, Mutex};
 
@@ -252,7 +252,6 @@ impl<T: InformantData> Informant<T> {
 		self.in_shutdown.store(true, ::std::sync::atomic::Ordering::SeqCst);
 	}
 
-	#[cfg_attr(feature="dev", allow(match_bool))]
 	pub fn tick(&self) {
 		let elapsed = self.last_tick.read().elapsed();
 		if elapsed < Duration::from_secs(5) {

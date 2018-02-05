@@ -7,7 +7,7 @@ version = "1.9.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [build-dependencies]
-rustc_version = "0.1"
+rustc_version = "0.2"
 
 [dependencies]
 parity-ui-dev = { path = "../../js", optional = true }

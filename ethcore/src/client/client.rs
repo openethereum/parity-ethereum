@@ -26,14 +26,12 @@ use itertools::Itertools;
 use hash::keccak;
 use timer::PerfTimer;
 use bytes::Bytes;
-use util::{Address, DBValue};
 use journaldb;
 use trie::{TrieSpec, TrieFactory, Trie};
-use kvdb::{KeyValueDB, DBTransaction};
+use kvdb::{DBValue, KeyValueDB, DBTransaction};
 
 // other
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, Address, U256};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
 use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};
 use blockchain::extras::TransactionAddress;
@@ -56,10 +54,10 @@ use evm::{Factory as EvmFactory, Schedule};
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::Factories;
 use futures::{future, Future};
-use header::{BlockNumber, Header};
+use header::{BlockNumber, Header, Seal};
 use io::IoChannel;
 use log_entry::LocalizedLogEntry;
-use miner::{Miner, MinerService, TransactionImportResult};
+use miner::{Miner, MinerService};
 use native_contracts::Registry;
 use parking_lot::{Mutex, RwLock, MutexGuard};
 use rand::OsRng;
@@ -73,7 +71,7 @@ use state::{self, State};
 use trace;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace::FlatTransactionTraces;
-use transaction::{LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
+use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
 use verification;
@@ -193,7 +191,7 @@ pub struct Client {
 	/// Client uses this to store blocks, traces, etc.
 	db: RwLock<Arc<KeyValueDB>>,
 
-	state_db: Mutex<StateDB>,
+	state_db: RwLock<StateDB>,
 
 	/// Report on the status of client
 	report: RwLock<ClientReport>,
@@ -220,7 +218,7 @@ pub struct Client {
 
 	/// Link to a registry object useful for looking up names
 	registrar: Mutex<Option<Registry>>,
-	
+
 	/// A closure to call when we want to restart the client
 	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
 
@@ -245,66 +243,6 @@ impl Importer {
 			rng: Mutex::new(OsRng::new()?),
 			engine,
 		})
-	}
-
-	/// Import a block with transaction receipts.
-	///
-	/// The block is guaranteed to be the next best blocks in the
-	/// first block sequence. Does no sealing or transaction validation.
-	pub fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes, db: &KeyValueDB, chain: &BlockChain) -> Result<H256, ::error::Error> {
-		let block = BlockView::new(&block_bytes);
-		let header = block.header();
-		let receipts = ::rlp::decode_list(&receipts_bytes);
-		let hash = header.hash();
-		let _import_lock = self.import_lock.lock();
-
-		{
-			let _timer = PerfTimer::new("import_old_block");
-			let mut ancient_verifier = self.ancient_verifier.lock();
-
-			{
-				// Closure for verifying a block
-				let verify_with = |verifier: &AncientVerifier| -> Result<(), ::error::Error> {
-					// Verify the block, passing the chain for updating the epoch verifier
-					verifier.verify(&mut *self.rng.lock(), &header, &chain)
-				};
-
-				// Initialize the ancient block verifier if we don't have one already
-				match &mut *ancient_verifier {
-					&mut Some(ref verifier) => {
-						verify_with(verifier)?
-					}
-
-					x @ &mut None => {
-						// Load most recent epoch
-						trace!(target: "client", "Initializing ancient block restoration.");
-						let current_epoch_data = chain.epoch_transitions()
-							.take_while(|&(_, ref t)| t.block_number < header.number())
-							.last()
-							.map(|(_, t)| t.proof)
-							.expect("At least one epoch entry (genesis) always stored; qed");
-
-						let current_verifier = self.engine.epoch_verifier(&header, &current_epoch_data)
-							.known_confirmed()?;
-						let current_verifier = AncientVerifier::new(self.engine.clone(), current_verifier);
-
-						verify_with(&current_verifier)?;
-						*x = Some(current_verifier);
-					}
-				}
-			}
-
-			// Commit results
-			let mut batch = DBTransaction::new();
-			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
-
-			// Final commit to the DB
-			db.write_buffered(batch);
-			chain.commit();
-		}
-
-		db.flush().expect("DB flush failed.");
-		Ok(hash)
 	}
 
 	fn calculate_enacted_retracted(&self, import_results: &[ImportRoute]) -> (Vec<H256>, Vec<H256>) {
@@ -459,7 +397,7 @@ impl Importer {
 
 		// Enact Verified Block
 		let last_hashes = client.build_last_hashes(header.parent_hash());
-		let db = client.state_db.lock().boxed_clone_canon(header.parent_hash());
+		let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
 		let enact_result = enact_verified(block,
@@ -488,6 +426,67 @@ impl Importer {
 		Ok(locked_block)
 	}
 
+	/// Import a block with transaction receipts.
+	///
+	/// The block is guaranteed to be the next best blocks in the
+	/// first block sequence. Does no sealing or transaction validation.
+	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, ::error::Error> {
+		let block = BlockView::new(&block_bytes);
+		let header = block.header();
+		let receipts = ::rlp::decode_list(&receipts_bytes);
+		let hash = header.hash();
+		let _import_lock = self.import_lock.lock();
+
+		{
+			let _timer = PerfTimer::new("import_old_block");
+			let chain = self.chain.read();
+			let mut ancient_verifier = self.ancient_verifier.lock();
+
+			{
+				// closure for verifying a block.
+				let verify_with = |verifier: &AncientVerifier| -> Result<(), ::error::Error> {
+					// verify the block, passing the chain for updating the epoch
+					// verifier.
+					let mut rng = OsRng::new().map_err(UtilError::from)?;
+					verifier.verify(&mut rng, &header, &chain)
+				};
+
+				// initialize the ancient block verifier if we don't have one already.
+				match &mut *ancient_verifier {
+					&mut Some(ref verifier) => {
+						verify_with(verifier)?
+					}
+					x @ &mut None => {
+						// load most recent epoch.
+						trace!(target: "client", "Initializing ancient block restoration.");
+						let current_epoch_data = chain.epoch_transitions()
+							.take_while(|&(_, ref t)| t.block_number < header.number())
+							.last()
+							.map(|(_, t)| t.proof)
+							.expect("At least one epoch entry (genesis) always stored; qed");
+
+						let current_verifier = self.engine.epoch_verifier(&header, &current_epoch_data)
+							.known_confirmed()?;
+						let current_verifier = AncientVerifier::new(self.engine.clone(), current_verifier);
+
+						verify_with(&current_verifier)?;
+						*x = Some(current_verifier);
+					}
+				}
+			}
+
+			// Commit results
+			let mut batch = DBTransaction::new();
+			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
+			// Final commit to the DB
+			self.db.read().write_buffered(batch);
+			chain.commit();
+		}
+		self.db.read().flush().expect("DB flush failed.");
+		Ok(hash)
+	}
+
+>>>>>>> master
 	// NOTE: the header of the block passed here is not necessarily sealed, as
 	// it is for reconstructing the state transition.
 	//
@@ -759,7 +758,7 @@ impl Client {
 
 		// prune old states.
 		{
-			let state_db = client.state_db.lock().boxed_clone();
+			let state_db = client.state_db.read().boxed_clone();
 			let chain = client.chain.read();
 			client.prune_ancient(state_db, &chain)?;
 		}
@@ -1002,7 +1001,7 @@ impl Client {
 	pub fn latest_state(&self) -> State<StateDB> {
 		let header = self.best_block_header();
 		State::from_existing(
-			self.state_db.lock().boxed_clone_canon(&header.hash()),
+			self.state_db.read().boxed_clone_canon(&header.hash()),
 			header.state_root(),
 			self.engine.account_start_nonce(header.number()),
 			self.factories.clone())
@@ -1027,7 +1026,7 @@ impl Client {
 		};
 
 		self.block_header(id).and_then(|header| {
-			let db = self.state_db.lock().boxed_clone();
+			let db = self.state_db.read().boxed_clone();
 
 			// early exit for pruned blocks
 			if db.is_pruned() && self.pruning_info().earliest_state > block_number {
@@ -1052,7 +1051,7 @@ impl Client {
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> Box<StateInfo> {
-		Box::new(self.latest_state()) as Box<StateInfo>
+		Box::new(self.latest_state()) as Box<_>
 	}
 
 	/// Get info on the cache.
@@ -1063,7 +1062,7 @@ impl Client {
 	/// Get the report.
 	pub fn report(&self) -> ClientReport {
 		let mut report = self.report.read().clone();
-		report.state_db_mem = self.state_db.lock().mem_used();
+		report.state_db_mem = self.state_db.read().mem_used();
 		report
 	}
 
@@ -1119,7 +1118,7 @@ impl Client {
 	/// Take a snapshot at the given block.
 	/// If the ID given is "latest", this will default to 1000 blocks behind.
 	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockId, p: &snapshot::Progress) -> Result<(), EthcoreError> {
-		let db = self.state_db.lock().journal_db().boxed_clone();
+		let db = self.state_db.read().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at))?;
 
@@ -1213,7 +1212,13 @@ impl Client {
 		}.fake_sign(from)
 	}
 
-	fn do_virtual_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn do_virtual_call(
+		machine: &::machine::EthereumMachine,
+		env_info: &EnvInfo,
+		state: &mut State<StateDB>,
+		t: &SignedTransaction,
+		analytics: CallAnalytics,
+	) -> Result<Executed, CallError> {
 		fn call<V, T>(
 			state: &mut State<StateDB>,
 			env_info: &EnvInfo,
@@ -1239,7 +1244,6 @@ impl Client {
 		}
 
 		let state_diff = analytics.state_diffing;
-		let machine = self.engine.machine();
 
 		match (analytics.transaction_tracing, analytics.vm_tracing) {
 			(true, true) => call(state, env_info, machine, state_diff, t, TransactOptions::with_tracing_and_vm_tracing()),
@@ -1418,8 +1422,9 @@ impl Call for Client {
 			gas_used: U256::default(),
 			gas_limit: U256::max_value(),
 		};
+		let machine = self.engine.machine();
 
-		self.do_virtual_call(&env_info, state, transaction, analytics)
+		Self::do_virtual_call(machine &env_info, state, transaction, analytics)
 	}
 
 	fn call_many(&self, transactions: &[(SignedTransaction, CallAnalytics)], state: &mut Self::State, header: &Header) -> Result<Vec<Executed>, CallError> {
@@ -1434,9 +1439,10 @@ impl Call for Client {
 		};
 
 		let mut results = Vec::with_capacity(transactions.len());
+		let machine = self.engine.machine();
 
 		for &(ref t, analytics) in transactions {
-			let ret = self.do_virtual_call(&env_info, state, t, analytics)?;
+			let ret = Self::do_virtual_call(machine, &env_info, state, t, analytics)?;
 			env_info.gas_used = ret.cumulative_gas_used;
 			results.push(ret);
 		}
@@ -1525,27 +1531,32 @@ impl EngineInfo for Client {
 impl BlockChainClient for Client {
 	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let address = self.transaction_address(id).ok_or(CallError::TransactionNotFound)?;
-		let mut env_info = self.env_info(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let body = self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let mut state = self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned)?;
-		let mut txs = body.transactions();
+		let block = BlockId::Hash(address.block_hash);
 
-		if address.index >= txs.len() {
-			return Err(CallError::TransactionNotFound);
-		}
+		const PROOF: &'static str = "The transaction address contains a valid index within block; qed";
+		Ok(self.replay_block_transactions(block, analytics)?.nth(address.index).expect(PROOF))
+	}
+
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
+		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+		let body = self.block_body(block).ok_or(CallError::StatePruned)?;
+		let mut state = self.state_at_beginning(block).ok_or(CallError::StatePruned)?;
+		let txs = body.transactions();
+		let engine = self.engine.clone();
 
 		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
-		let rest = txs.split_off(address.index);
-		for t in txs {
-			let t = SignedTransaction::new(t).expect(PROOF);
-			let x = Executive::new(&mut state, &env_info, self.engine.machine()).transact(&t, TransactOptions::with_no_tracing())?;
-			env_info.gas_used = env_info.gas_used + x.gas_used;
-		}
-		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
-		let t = SignedTransaction::new(first).expect(PROOF);
+		const EXECUTE_PROOF: &'static str = "Transaction replayed; qed";
 
-		self.do_virtual_call(&env_info, &mut state, &t, analytics)
+		Ok(Box::new(txs.into_iter()
+			.map(move |t| {
+				let t = SignedTransaction::new(t).expect(PROOF);
+				let machine = engine.machine();
+				let x = Self::do_virtual_call(machine, &env_info, &mut state, &t, analytics).expect(EXECUTE_PROOF);
+				env_info.gas_used = env_info.gas_used + x.gas_used;
+				x
+			})))
 	}
+
 
 	fn mode(&self) -> IpcMode {
 		let r = self.mode.lock().clone().into();
@@ -1779,7 +1790,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn state_data(&self, hash: &H256) -> Option<Bytes> {
-		self.state_db.lock().journal_db().state(hash)
+		self.state_db.read().journal_db().state(hash)
 	}
 
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
@@ -1921,11 +1932,21 @@ impl BlockChainClient for Client {
 	fn pruning_info(&self) -> PruningInfo {
 		PruningInfo {
 			earliest_chain: self.chain.read().first_block_number().unwrap_or(1),
-			earliest_state: self.state_db.lock().journal_db().earliest_era().unwrap_or(0),
+			earliest_state: self.state_db.read().journal_db().earliest_era().unwrap_or(0),
 		}
 	}
 
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
+	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
+		let transaction = self.contract_call_tx(block_id, address, data);
+
+		self.call(&transaction, Default::default(), block_id)
+			.map_err(|e| format!("{:?}", e))
+			.map(|executed| {
+				executed.output
+			})
+	}
+
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<transaction::ImportResult, EthcoreError> {
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&self.importer.miner.author()),
 			action: Action::Call(address),
@@ -1990,8 +2011,8 @@ impl PrepareOpenBlock for Client {
 		let mut open_block = OpenBlock::new(
 			engine,
 			self.factories.clone(),
-			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
-			self.state_db.lock().boxed_clone_canon(&h),
+			self.tracedb.read().tracing_enabled(),
+			self.state_db.read().boxed_clone_canon(&h),
 			best_header,
 			self.build_last_hashes(&h),
 			author,
@@ -2039,7 +2060,7 @@ impl ImportSealedBlock for Client {
 
 			let route = self.importer.commit_block(block, &header, &block_data, self);
 			trace!(target: "client", "Imported sealed block #{} ({})", number, h);
-			self.state_db.lock().sync_cache(&route.enacted, &route.retracted, false);
+			self.state_db.write().sync_cache(&route.enacted, &route.retracted, false);
 			route
 		};
 		let (enacted, retracted) = self.importer.calculate_enacted_retracted(&[route]);
@@ -2126,7 +2147,7 @@ impl ProvingBlockChainClient for Client {
 		};
 
 		env_info.gas_limit = transaction.gas.clone();
-		let mut jdb = self.state_db.lock().journal_db().boxed_clone();
+		let mut jdb = self.state_db.read().journal_db().boxed_clone();
 
 		state::prove_transaction(
 			jdb.as_hashdb_mut(),

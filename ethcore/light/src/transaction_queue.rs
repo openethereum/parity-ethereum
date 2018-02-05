@@ -26,11 +26,9 @@
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
 
-use ethcore::error::{TransactionError, TransactionImportResult};
-use ethcore::transaction::{Condition, PendingTransaction, SignedTransaction};
-use bigint::prelude::U256;
-use bigint::hash::{H256, H256FastMap};
-use util::Address;
+use transaction::{self, Condition, PendingTransaction, SignedTransaction};
+use ethereum_types::{H256, U256, Address};
+use plain_hasher::H256FastMap;
 
 // Knowledge of an account's current nonce.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -124,13 +122,13 @@ pub struct TransactionQueue {
 
 impl TransactionQueue {
 	/// Import a pending transaction to be queued.
-	pub fn import(&mut self, tx: PendingTransaction) -> Result<TransactionImportResult, TransactionError>  {
+	pub fn import(&mut self, tx: PendingTransaction) -> Result<transaction::ImportResult, transaction::Error>  {
 		let sender = tx.sender();
 		let hash = tx.hash();
 		let nonce = tx.nonce;
 		let tx_info = TransactionInfo::from(&tx);
 
-		if self.by_hash.contains_key(&hash) { return Err(TransactionError::AlreadyImported) }
+		if self.by_hash.contains_key(&hash) { return Err(transaction::Error::AlreadyImported) }
 
 		let res = match self.by_account.entry(sender) {
 			Entry::Vacant(entry) => {
@@ -140,14 +138,14 @@ impl TransactionQueue {
 					future: BTreeMap::new(),
 				});
 
-				TransactionImportResult::Current
+				transaction::ImportResult::Current
 			}
 			Entry::Occupied(mut entry) => {
 				let acct_txs = entry.get_mut();
 				if &nonce < acct_txs.cur_nonce.value() {
 					// don't accept txs from before known current nonce.
 					if acct_txs.cur_nonce.is_known() {
-						return Err(TransactionError::Old)
+						return Err(transaction::Error::Old)
 					}
 
 					// lower our assumption until corrected later.
@@ -162,7 +160,7 @@ impl TransactionQueue {
 						let old = ::std::mem::replace(&mut acct_txs.current[idx], tx_info);
 						self.by_hash.remove(&old.hash);
 
-						TransactionImportResult::Current
+						transaction::ImportResult::Current
 					}
 					Err(idx) => {
 						let cur_len = acct_txs.current.len();
@@ -184,13 +182,13 @@ impl TransactionQueue {
 								acct_txs.future.insert(future_nonce, future);
 							}
 
-							TransactionImportResult::Current
+							transaction::ImportResult::Current
 						} else if idx == cur_len && acct_txs.current.last().map_or(false, |f| f.nonce + 1.into() != nonce) {
 							trace!(target: "txqueue", "Queued future transaction for {}, nonce={}", sender, nonce);
 							let future_nonce = nonce;
 							acct_txs.future.insert(future_nonce, tx_info);
 
-							TransactionImportResult::Future
+							transaction::ImportResult::Future
 						} else {
 							trace!(target: "txqueue", "Queued current transaction for {}, nonce={}", sender, nonce);
 
@@ -198,7 +196,7 @@ impl TransactionQueue {
 							acct_txs.current.insert(idx, tx_info);
 							acct_txs.adjust_future();
 
-							TransactionImportResult::Current
+							transaction::ImportResult::Current
 						}
 					}
 				}
@@ -331,8 +329,8 @@ impl TransactionQueue {
 #[cfg(test)]
 mod tests {
 	use super::TransactionQueue;
-	use util::Address;
-	use ethcore::transaction::{Transaction, PendingTransaction, Condition};
+	use ethereum_types::Address;
+	use transaction::{Transaction, PendingTransaction, Condition};
 
 	#[test]
 	fn queued_senders() {

@@ -19,7 +19,7 @@
 use std::fmt;
 use std::ops::*;
 use std::collections::BTreeMap;
-use util::Address;
+use ethereum_types::Address;
 use account_diff::*;
 
 /// Expression for the delta between two system states. Encoded the

@@ -59,8 +59,8 @@
 #![recursion_limit="128"]
 
 extern crate ethcore_io as io;
-extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes;
+extern crate ethereum_types;
 extern crate parking_lot;
 extern crate mio;
 extern crate tiny_keccak;
@@ -80,17 +80,16 @@ extern crate path;
 extern crate ethcore_logger;
 extern crate ipnetwork;
 extern crate keccak_hash as hash;
+extern crate serde;
 extern crate serde_json;
 extern crate snappy;
 
 #[macro_use]
 extern crate error_chain;
-
 #[macro_use]
 extern crate log;
-
-#[cfg(test)]
-extern crate ethcore_devtools as devtools;
+#[macro_use]
+extern crate serde_derive;
 
 #[cfg(test)]
 extern crate tempdir;
@@ -106,9 +105,6 @@ mod node_table;
 mod stats;
 mod ip_utils;
 mod connection_filter;
-
-#[cfg(test)]
-mod tests;
 
 pub use host::{HostInfo, PeerId, PacketId, ProtocolId, NetworkContext, NetworkIoMessage, NetworkConfiguration};
 pub use service::NetworkService;
@@ -213,4 +209,3 @@ pub enum AllowIP {
     /// Block all addresses
     None,
 }
-

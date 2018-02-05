@@ -27,7 +27,8 @@ use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use kvdb::{KeyValueDB, DBTransaction};
 use super::JournalDB;
-use bigint::hash::{H256, H256FastMap};
+use ethereum_types::H256;
+use plain_hasher::H256FastMap;
 use error::{BaseDataError, UtilError};
 use bytes::Bytes;
 
@@ -452,8 +453,6 @@ impl HashDB for OverlayRecentDB {
 
 #[cfg(test)]
 mod tests {
-	#![cfg_attr(feature="dev", allow(blacklisted_name))]
-	#![cfg_attr(feature="dev", allow(similar_names))]
 
 	use keccak::keccak;
 	use super::*;

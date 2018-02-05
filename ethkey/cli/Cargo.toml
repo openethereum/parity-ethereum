@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 docopt = "0.8"
 env_logger = "0.4"
 ethkey = { path = "../" }
-panic_hook = { path = "../../panic_hook" }
+panic_hook = { path = "../../util/panic_hook" }
 parity-wordlist="1.2"
 rustc-hex = "1.0"
 serde = "1.0"

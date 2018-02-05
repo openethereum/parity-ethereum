@@ -86,7 +86,7 @@ impl<F> cmp::PartialEq for Client<F> {
 impl<F: Fetch> Client<F> {
 	/// Creates a new instance of the `Client` given a `fetch::Client`.
 	pub fn new(fetch: F) -> Client<F> {
-		let api_endpoint = "http://api.etherscan.io/api?module=stats&action=ethprice".to_owned();
+		let api_endpoint = "https://api.etherscan.io/api?module=stats&action=ethprice".to_owned();
 		Client { api_endpoint, fetch }
 	}
 
@@ -144,7 +144,7 @@ mod test {
 		type Result = FutureResult<fetch::Response, fetch::Error>;
 		fn new() -> Result<Self, fetch::Error> where Self: Sized { Ok(FakeFetch(None, Default::default())) }
 		fn fetch_with_abort(&self, url: &str, _abort: fetch::Abort) -> Self::Result {
-			assert_eq!(url, "http://api.etherscan.io/api?module=stats&action=ethprice");
+			assert_eq!(url, "https://api.etherscan.io/api?module=stats&action=ethprice");
 			let mut val = self.1.lock();
 			*val = *val + 1;
 			if let Some(ref response) = self.0 {

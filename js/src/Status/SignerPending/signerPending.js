@@ -26,14 +26,16 @@ import Label from 'semantic-ui-react/dist/commonjs/elements/Label';
 import List from 'semantic-ui-react/dist/commonjs/elements/List';
 import Popup from 'semantic-ui-react/dist/commonjs/modules/Popup';
 
-import Store from './store';
+import Store from '../../Signer/pendingStore';
 import ParityBarStore from '../../ParityBar/store';
 import RequestItem from './RequestItem';
 import styles from './signerPending.css';
 
 @observer
 class SignerPending extends Component {
-  static propTypes = {};
+  static propTypes = {
+    className: PropTypes.string
+  };
 
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -91,21 +93,23 @@ class SignerPending extends Component {
   );
 
   render () {
+    const { className } = this.props;
+
     return (
       <Popup
         wide='very'
         trigger={
-          <div className={ [styles.signerPending].join(' ') }>
+          <div className={ [styles.signerPending, className].join(' ') }>
             <Icon
               name={ this.store.pending.length > 0 ? 'bell' : 'bell outline' }
             />
             {this.store.pending.length > 0 && (
               <Label
-                floating
-                color='red'
-                size='mini'
                 circular
                 className={ styles.label }
+                color='red'
+                floating
+                size='mini'
               >
                 {this.store.pending.length}
               </Label>

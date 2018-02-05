@@ -17,21 +17,21 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use bytes::Bytes;
 use dir::default_data_path;
+use dir::helpers::replace_home;
 use ethcore::client::{Client, BlockChainClient, BlockId, CallContract};
-use ethcore::transaction::{Transaction, Action};
 use ethsync::LightSync;
 use futures::{future, IntoFuture, Future};
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
-use helpers::replace_home;
 use light::client::LightChainClient;
 use light::on_demand::{self, OnDemand};
 use node_health::{SyncStatus, NodeHealth};
 use rpc;
 use rpc_apis::SignerService;
-use util::Address;
-use bytes::Bytes;
+use transaction::{Transaction, Action};
+use ethereum_types::Address;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {

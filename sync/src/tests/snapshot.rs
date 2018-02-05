@@ -17,7 +17,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use hash::keccak;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use parking_lot::Mutex;
 use bytes::Bytes;
 use ethcore::snapshot::{SnapshotService, ManifestData, RestorationStatus};

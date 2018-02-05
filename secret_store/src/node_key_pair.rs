@@ -16,10 +16,9 @@
 
 use std::sync::Arc;
 use ethcrypto::ecdh::agree;
-use ethkey::{KeyPair, Public, Signature, Error as EthKeyError, sign};
+use ethkey::{KeyPair, Public, Signature, Error as EthKeyError, sign, public_to_address};
 use ethcore::account_provider::AccountProvider;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, Address};
 use traits::NodeKeyPair;
 
 pub struct PlainNodeKeyPair {
@@ -44,6 +43,10 @@ impl PlainNodeKeyPair {
 impl NodeKeyPair for PlainNodeKeyPair {
 	fn public(&self) -> &Public {
 		self.key_pair.public()
+	}
+
+	fn address(&self) -> Address {
+		public_to_address(self.key_pair.public())
 	}
 
 	fn sign(&self, data: &H256) -> Result<Signature, EthKeyError> {
@@ -71,6 +74,10 @@ impl KeyStoreNodeKeyPair {
 impl NodeKeyPair for KeyStoreNodeKeyPair {
 	fn public(&self) -> &Public {
 		&self.public
+	}
+
+	fn address(&self) -> Address {
+		public_to_address(&self.public)
 	}
 
 	fn sign(&self, data: &H256) -> Result<Signature, EthKeyError> {
