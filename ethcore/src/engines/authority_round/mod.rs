@@ -279,7 +279,6 @@ struct EmptyStep {
 }
 
 impl EmptyStep {
-	// FIXME: report malicious behavior
 	fn verify(&self, validators: &ValidatorSet) -> Result<bool, Error> {
 		let message = keccak(empty_step_rlp(self.step, &self.parent_hash));
 		let correct_proposer = step_proposer(validators, &self.parent_hash, self.step);
@@ -528,6 +527,7 @@ fn verify_external(header: &Header, validators: &ValidatorSet, empty_steps_trans
 
 	if is_invalid_proposer {
 		trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
+		validators.report_benign(header.author(), header.number(), header.number());
 		Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 	} else {
 		Ok(())
@@ -772,7 +772,6 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let rlp = UntrustedRlp::new(rlp);
 		let empty_step: EmptyStep = rlp.as_val().map_err(fmt_err)?;;
 
-		// FIXME: report
 		if empty_step.verify(&*self.validators).unwrap_or(false) {
 			if self.step.check_future(empty_step.step).is_ok() {
 				trace!(target: "engine", "handle_message: received empty step message {:?}", empty_step);
@@ -867,6 +866,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			}
 
 			let empty_steps_rlp = if header.number() >= self.empty_steps_transition {
+				// TODO [andre]: we can save some space by not including the parent hash in each empty step message.
+				//               afterwards for verification we would reconstruct the message using the block's parent.
 				Some(::rlp::encode_list(&empty_steps).into_vec())
 			} else {
 				None
@@ -980,24 +981,32 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		// If empty step messages are enabled we will validate the messages in the seal, missing messages are not
 		// reported as there's no way to tell whether the empty step message was never sent or simply not included.
 		if header.number() >= self.empty_steps_transition {
-			// FIXME: report author
-			let empty_steps = header_empty_steps(header)?;
-			for empty_step in empty_steps {
-				if empty_step.step < parent_step || empty_step.step > step {
-					Err(EngineError::InsufficientProof(
-						format!("empty step proof for invalid step: {:?}", empty_step.step)))?;
-				}
+			let validate_empty_steps = || -> Result<(), Error> {
+				let empty_steps = header_empty_steps(header)?;
+				for empty_step in empty_steps {
+					if empty_step.step < parent_step || empty_step.step > step {
+						Err(EngineError::InsufficientProof(
+							format!("empty step proof for invalid step: {:?}", empty_step.step)))?;
+					}
 
-				if empty_step.parent_hash != *header.parent_hash() {
-					Err(EngineError::InsufficientProof(
-						format!("empty step proof for invalid parent hash: {:?}", empty_step.parent_hash)))?;
-				}
+					if empty_step.parent_hash != *header.parent_hash() {
+						Err(EngineError::InsufficientProof(
+							format!("empty step proof for invalid parent hash: {:?}", empty_step.parent_hash)))?;
+					}
 
-				if !empty_step.verify(&*self.validators).unwrap_or(false) {
-					Err(EngineError::InsufficientProof(
-						format!("invalid empty step proof: {:?}", empty_step)))?;
+					if !empty_step.verify(&*self.validators).unwrap_or(false) {
+						Err(EngineError::InsufficientProof(
+							format!("invalid empty step proof: {:?}", empty_step)))?;
+					}
 				}
+				Ok(())
+			};
+
+			if let err @ Err(_) = validate_empty_steps() {
+				self.validators.report_benign(header.author(), set_number, header.number());
+				return err;
 			}
+
 		} else {
 			// Report skipped primaries.
 			if let (true, Some(me)) = (step > parent_step + 1, self.signer.read().address()) {
