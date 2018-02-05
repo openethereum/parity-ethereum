@@ -1,38 +1,29 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
-
-// Parity is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// Parity is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-
-//! Wasm evm program runtime intstance
-
-use std::sync::Arc;
-
-use byteorder::{LittleEndian, ByteOrder};
-use libc::{memcmp, c_void};
-
-use vm;
-use panic_payload;
-use parity_wasm::interpreter;
-use wasm_utils::rules;
 use ethereum_types::{U256, H256, Address};
+use vm::{self, CallType};
+use wasmi::{self, MemoryRef, RuntimeArgs, RuntimeValue, Error as InterpreterError};
+use super::panic_payload;
 
-use vm::CallType;
-use super::ptr::{WasmPtr, Error as PtrError};
+pub struct RuntimeContext {
+	pub address: Address,
+	pub sender: Address,
+	pub origin: Address,
+	pub code_address: Address,
+	pub value: U256,
+}
+
+pub struct Runtime<'a> {
+	gas_counter: u64,
+	gas_limit: u64,
+	ext: &'a mut vm::Ext,
+	context: RuntimeContext,
+	memory: MemoryRef,
+	args: Vec<u8>,
+	result: Vec<u8>,
+}
 
 /// User trap in native code
 #[derive(Debug, Clone, PartialEq)]
-pub enum UserTrap {
+pub enum Error {
 	/// Storage read error
 	StorageReadError,
 	/// Storage update error
@@ -59,416 +50,95 @@ pub enum UserTrap {
 	Log,
 	/// Other error in native code
 	Other,
+	/// Syscall signature mismatch
+	InvalidSyscall,
 	/// Panic with message
 	Panic(String),
 }
 
-impl ::std::fmt::Display for UserTrap {
-	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+impl wasmi::HostError for Error { }
+
+impl From<InterpreterError> for Error {
+	fn from(interpreter_err: InterpreterError) -> Self {
+		match interpreter_err {
+			InterpreterError::Value(_) => Error::InvalidSyscall,
+			InterpreterError::Memory(_) => Error::MemoryAccessViolation,
+			_ => Error::Other,
+		}
+	}
+}
+
+impl ::std::fmt::Display for Error {
+	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::result::Result<(), ::std::fmt::Error> {
 		match *self {
-			UserTrap::StorageReadError => write!(f, "Storage read error"),
-			UserTrap::StorageUpdateError => write!(f, "Storage update error"),
-			UserTrap::MemoryAccessViolation => write!(f, "Memory access violation"),
-			UserTrap::SuicideAbort => write!(f, "Attempt to suicide resulted in an error"),
-			UserTrap::InvalidGasState => write!(f, "Invalid gas state"),
-			UserTrap::BalanceQueryError => write!(f, "Balance query resulted in an error"),
-			UserTrap::Suicide => write!(f, "Suicide result"),
-			UserTrap::Unknown => write!(f, "Unknown runtime function invoked"),
-			UserTrap::AllocationFailed => write!(f, "Memory allocation failed (OOM)"),
-			UserTrap::BadUtf8 => write!(f, "String encoding is bad utf-8 sequence"),
-			UserTrap::GasLimit => write!(f, "Invocation resulted in gas limit violated"),
-			UserTrap::Log => write!(f, "Error occured while logging an event"),
-			UserTrap::Other => write!(f, "Other unspecified error"),
-			UserTrap::Panic(ref msg) => write!(f, "Panic: {}", msg),
+			Error::StorageReadError => write!(f, "Storage read error"),
+			Error::StorageUpdateError => write!(f, "Storage update error"),
+			Error::MemoryAccessViolation => write!(f, "Memory access violation"),
+			Error::SuicideAbort => write!(f, "Attempt to suicide resulted in an error"),
+			Error::InvalidGasState => write!(f, "Invalid gas state"),
+			Error::BalanceQueryError => write!(f, "Balance query resulted in an error"),
+			Error::Suicide => write!(f, "Suicide result"),
+			Error::Unknown => write!(f, "Unknown runtime function invoked"),
+			Error::AllocationFailed => write!(f, "Memory allocation failed (OOM)"),
+			Error::BadUtf8 => write!(f, "String encoding is bad utf-8 sequence"),
+			Error::GasLimit => write!(f, "Invocation resulted in gas limit violated"),
+			Error::Log => write!(f, "Error occured while logging an event"),
+			Error::InvalidSyscall => write!(f, "Invalid syscall signature encountered at runtime"),
+			Error::Other => write!(f, "Other unspecified error"),
+			Error::Panic(ref msg) => write!(f, "Panic: {}", msg),
 		}
 	}
 }
 
-impl interpreter::UserError for UserTrap { }
+type Result<T> = ::std::result::Result<T, Error>;
 
-pub type InterpreterError = interpreter::Error<UserTrap>;
-pub type InterpreterMemoryInstance = interpreter::MemoryInstance<UserTrap>;
-pub type InterpreterProgramInstance = interpreter::ProgramInstance<UserTrap>;
-pub type InterpreterCallerContext<'a> = interpreter::CallerContext<'a, UserTrap>;
+impl<'a> Runtime<'a> {
 
-impl From<PtrError> for UserTrap {
-	fn from(err: PtrError) -> Self {
-		match err {
-			PtrError::AccessViolation => UserTrap::MemoryAccessViolation,
-		}
-	}
-}
-
-pub struct RuntimeContext {
-	pub address: Address,
-	pub sender: Address,
-	pub origin: Address,
-	pub code_address: Address,
-	pub value: U256,
-}
-
-/// Runtime enviroment data for wasm contract execution
-pub struct Runtime<'a, 'b> {
-	gas_counter: u64,
-	gas_limit: u64,
-	dynamic_top: u32,
-	ext: &'a mut vm::Ext,
-	memory: Arc<InterpreterMemoryInstance>,
-	context: RuntimeContext,
-	instance: &'b InterpreterProgramInstance,
-	gas_rules: rules::Set,
-}
-
-impl<'a, 'b> Runtime<'a, 'b> {
 	/// New runtime for wasm contract with specified params
-	pub fn with_params<'c, 'd>(
-		ext: &'c mut vm::Ext,
-		memory: Arc<InterpreterMemoryInstance>,
-		stack_space: u32,
+	pub fn with_params(
+		ext: &mut vm::Ext,
+		memory: MemoryRef,
 		gas_limit: u64,
+		args: Vec<u8>,
 		context: RuntimeContext,
-		program_instance: &'d InterpreterProgramInstance,
-	) -> Runtime<'c, 'd> {
-
-		let rules = {
-			let schedule = ext.schedule();
-
-			rules::Set::new({
-				let mut vals = ::std::collections::HashMap::with_capacity(4);
-				vals.insert(rules::InstructionType::Load, schedule.wasm.mem as u32);
-				vals.insert(rules::InstructionType::Store, schedule.wasm.mem as u32);
-				vals.insert(rules::InstructionType::Div, schedule.wasm.div as u32);
-				vals.insert(rules::InstructionType::Mul, schedule.wasm.mul as u32);
-				vals
-			})
-		};
-
+	) -> Runtime {
 		Runtime {
 			gas_counter: 0,
 			gas_limit: gas_limit,
-			dynamic_top: stack_space,
 			memory: memory,
 			ext: ext,
 			context: context,
-			instance: program_instance,
-			gas_rules: rules,
+			args: args,
+			result: Vec::new(),
 		}
 	}
 
-	/// Write to the storage from wasm memory
-	pub fn storage_write(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		let mut context = context;
-		let val = self.pop_h256(&mut context)?;
-		let key = self.pop_h256(&mut context)?;
-		trace!(target: "wasm", "storage_write: value {} at @{}", &val, &key);
+	/// Loads 256-bit hash from the specifed sandboxed memory pointer
+	fn h256_at(&self, ptr: u32) -> Result<H256> {
+		let mut buf = [0u8; 32];
+		self.memory.get_into(ptr, &mut buf[..])?;
 
-		self.charge(|schedule| schedule.sstore_set_gas as u64)?;
-
-		self.ext.set_storage(key, val).map_err(|_| UserTrap::StorageUpdateError)?;
-
-		Ok(None)
+		Ok(H256::from(&buf[..]))
 	}
 
-	/// Read from the storage to wasm memory
-	pub fn storage_read(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		let mut context = context;
-		let val_ptr = context.value_stack.pop_as::<i32>()?;
-		let key = self.pop_h256(&mut context)?;
-		let val = self.ext.storage_at(&key).map_err(|_| UserTrap::StorageReadError)?;
+	/// Loads 160-bit hash (Ethereum address) from the specified sandboxed memory pointer
+	fn address_at(&self, ptr: u32) -> Result<Address> {
+		let mut buf = [0u8; 20];
+		self.memory.get_into(ptr, &mut buf[..])?;
 
-		self.charge(|schedule| schedule.sload_gas as u64)?;
-
-		self.memory.set(val_ptr as u32, &*val)?;
-
-		Ok(None)
+		Ok(Address::from(&buf[..]))
 	}
 
-	/// Fetches balance for address
-	pub fn balance(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		let mut context = context;
-		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		let address = self.pop_address(&mut context)?;
+	/// Loads 256-bit integer represented with bigendian from the specified sandboxed memory pointer
+	fn u256_at(&self, ptr: u32) -> Result<U256> {
+		let mut buf = [0u8; 32];
+		self.memory.get_into(ptr, &mut buf[..])?;
 
-		self.charge(|schedule| schedule.balance_gas as u64)?;
-
-		let balance = self.ext.balance(&address).map_err(|_| UserTrap::BalanceQueryError)?;
-		let value: H256 = balance.into();
-		self.memory.set(return_ptr, &*value)?;
-		Ok(None)
+		Ok(U256::from_big_endian(&buf[..]))
 	}
 
-	/// Pass suicide to state runtime
-	pub fn suicide(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		let mut context = context;
-		let refund_address = self.pop_address(&mut context)?;
-
-		if self.ext.exists(&refund_address).map_err(|_| UserTrap::SuicideAbort)? {
-			trace!(target: "wasm", "Suicide: refund to existing address {}", refund_address);
-			self.charge(|schedule| schedule.suicide_gas as u64)?;
-		} else {
-			trace!(target: "wasm", "Suicide: refund to new address {}", refund_address);
-			self.charge(|schedule| schedule.suicide_to_new_account_cost as u64)?;
-		}
-
-		self.ext.suicide(&refund_address).map_err(|_| UserTrap::SuicideAbort)?;
-
-		// We send trap to interpreter so it should abort further execution
-		Err(UserTrap::Suicide.into())
-	}
-
-	/// Charge gas according to closure
-	pub fn charge<F>(&mut self, f: F) -> Result<(), InterpreterError>
-		where F: FnOnce(&vm::Schedule) -> u64
-	{
-		let amount = f(self.ext.schedule());
-		if !self.charge_gas(amount as u64) {
-			Err(UserTrap::GasLimit.into())
-		} else {
-			Ok(())
-		}
-	}
-
-	pub fn overflow_charge<F>(&mut self, f: F) -> Result<(), InterpreterError>
-		where F: FnOnce(&vm::Schedule) -> Option<u64>
-	{
-		let amount = match f(self.ext.schedule()) {
-			Some(amount) => amount,
-			None => { return Err(UserTrap::GasLimit.into()); }
-		};
-
-		if !self.charge_gas(amount as u64) {
-			Err(UserTrap::GasLimit.into())
-		} else {
-			Ok(())
-		}
-	}
-
-	/// Invoke create in the state runtime
-	pub fn create(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		//
-		// method signature:
-		//   fn create(endowment: *const u8, code_ptr: *const u8, code_len: u32, result_ptr: *mut u8) -> i32;
-		//
-
-		trace!(target: "wasm", "runtime: create contract");
-		let mut context = context;
-		let result_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		trace!(target: "wasm", "result_ptr: {:?}", result_ptr);
-		let code_len = context.value_stack.pop_as::<i32>()? as u32;
-		trace!(target: "wasm", "  code_len: {:?}", code_len);
-		let code_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		trace!(target: "wasm", "  code_ptr: {:?}", code_ptr);
-		let endowment = self.pop_u256(&mut context)?;
-		trace!(target: "wasm", "       val: {:?}", endowment);
-
-		let code = self.memory.get(code_ptr, code_len as usize)?;
-
-		self.charge(|schedule| schedule.create_gas as u64)?;
-		self.charge(|schedule| schedule.create_data_gas as u64 * code.len() as u64)?;
-
-		let gas_left = self.gas_left()
-			.map_err(|_| UserTrap::InvalidGasState)?
-			.into();
-
-		match self.ext.create(&gas_left, &endowment, &code, vm::CreateContractAddress::FromSenderAndCodeHash) {
-			vm::ContractCreateResult::Created(address, gas_left) => {
-				self.memory.set(result_ptr, &*address)?;
-				self.gas_counter = self.gas_limit - gas_left.low_u64();
-				trace!(target: "wasm", "runtime: create contract success (@{:?})", address);
-				Ok(Some(0i32.into()))
-			},
-			vm::ContractCreateResult::Failed => {
-				trace!(target: "wasm", "runtime: create contract fail");
-				Ok(Some((-1i32).into()))
-			},
-			vm::ContractCreateResult::Reverted(gas_left, _) => {
-				trace!(target: "wasm", "runtime: create contract reverted");
-				self.gas_counter = self.gas_limit - gas_left.low_u64();
-				Ok(Some((-1i32).into()))
-			},
-		}
-	}
-
-	pub fn call(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		//
-		// method signature:
-		// fn (
-		//  gas: i64,
-		// 	address: *const u8,
-		// 	val_ptr: *const u8,
-		// 	input_ptr: *const u8,
-		// 	input_len: u32,
-		// 	result_ptr: *mut u8,
-		// 	result_len: u32,
-		// ) -> i32
-
-		self.do_call(true, CallType::Call, context)
-	}
-
-
-	fn call_code(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		//
-		// signature (same as static call):
-		// fn (
-		//  gas: i64,
-		// 	address: *const u8,
-		// 	input_ptr: *const u8,
-		// 	input_len: u32,
-		// 	result_ptr: *mut u8,
-		// 	result_len: u32,
-		// ) -> i32
-
-		self.do_call(false, CallType::DelegateCall, context)
-	}
-
-	fn do_call(
-		&mut self,
-		use_val: bool,
-		call_type: CallType,
-		context: InterpreterCallerContext,
-	)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-
-		trace!(target: "wasm", "runtime: call code");
-		let mut context = context;
-		let result_alloc_len = context.value_stack.pop_as::<i32>()? as u32;
-		trace!(target: "wasm", "    result_len: {:?}", result_alloc_len);
-
-		let result_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		trace!(target: "wasm", "    result_ptr: {:?}", result_ptr);
-
-		let input_len = context.value_stack.pop_as::<i32>()? as u32;
-		trace!(target: "wasm", "     input_len: {:?}", input_len);
-
-		let input_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		trace!(target: "wasm", "     input_ptr: {:?}", input_ptr);
-
-		let val = if use_val { Some(self.pop_u256(&mut context)?) }
-		else { None };
-		trace!(target: "wasm", "           val: {:?}", val);
-
-		let address = self.pop_address(&mut context)?;
-		trace!(target: "wasm", "       address: {:?}", address);
-
-		let gas = context.value_stack.pop_as::<i64>()? as u64;
-		trace!(target: "wasm", "           gas: {:?}", gas);
-
-		if let Some(ref val) = val {
-			let address_balance = self.ext.balance(&self.context.address)
-				.map_err(|_| UserTrap::BalanceQueryError)?;
-
-			if &address_balance < val {
-				trace!(target: "wasm", "runtime: call failed due to balance check");
-				return Ok(Some((-1i32).into()));
-			}
-		}
-
-		self.charge(|schedule| schedule.call_gas as u64)?;
-
-		let mut result = Vec::with_capacity(result_alloc_len as usize);
-		result.resize(result_alloc_len as usize, 0);
-
-		// todo: optimize to use memory views once it's in
-		let payload = self.memory.get(input_ptr, input_len as usize)?;
-
-		self.charge(|_| gas.into())?;
-
-		let call_result = self.ext.call(
-			&gas.into(),
-			match call_type { CallType::DelegateCall => &self.context.sender, _ => &self.context.address },
-			match call_type { CallType::Call | CallType::StaticCall => &address, _ => &self.context.address },
-			val,
-			&payload,
-			&address,
-			&mut result[..],
-			call_type,
-		);
-
-		match call_result {
-			vm::MessageCallResult::Success(gas_left, _) => {
-				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
-				self.gas_counter = self.gas_counter - gas_left.low_u64();
-
-				self.memory.set(result_ptr, &result)?;
-				Ok(Some(0i32.into()))
-			},
-			vm::MessageCallResult::Reverted(gas_left, _) => {
-				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
-				self.gas_counter = self.gas_counter - gas_left.low_u64();
-
-				self.memory.set(result_ptr, &result)?;
-				Ok(Some((-1i32).into()))
-			},
-			vm::MessageCallResult::Failed  => {
-				Ok(Some((-1i32).into()))
-			}
-		}
-	}
-
-	pub fn static_call(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		// signature (same as code call):
-		// fn (
-		//  gas: i64,
-		// 	address: *const u8,
-		// 	input_ptr: *const u8,
-		// 	input_len: u32,
-		// 	result_ptr: *mut u8,
-		// 	result_len: u32,
-		// ) -> i32
-
-		self.do_call(false, CallType::StaticCall, context)
-	}
-
-
-	/// Allocate memory using the wasm stack params
-	pub fn malloc(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		let amount = context.value_stack.pop_as::<i32>()? as u32;
-
-		self.charge(|schedule| schedule.wasm.alloc as u64 * amount as u64)?;
-
-		let previous_top = self.dynamic_top;
-		self.dynamic_top = previous_top + amount;
-		Ok(Some((previous_top as i32).into()))
-	}
-
-	/// Allocate memory in wasm memory instance
-	pub fn alloc(&mut self, amount: u32) -> Result<u32, UserTrap> {
-		let previous_top = self.dynamic_top;
-		self.dynamic_top = previous_top + amount;
-		Ok(previous_top.into())
-	}
-
-	/// Report gas cost with the params passed in wasm stack
-	fn gas(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		let amount = context.value_stack.pop_as::<i32>()? as u64;
-		if self.charge_gas(amount) {
-			Ok(None)
-		} else {
-			Err(UserTrap::GasLimit.into())
-		}
-	}
-
+	/// Charge specified amount of gas, returning false is gas limit exceeded, true if not.
+	/// Intuition about the return value sense is to aswer the question 'are we allowed to continue?'
 	fn charge_gas(&mut self, amount: u64) -> bool {
 		let prev = self.gas_counter;
 		if prev + amount > self.gas_limit {
@@ -480,189 +150,138 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		}
 	}
 
-	fn h256_at(&self, ptr: WasmPtr) -> Result<H256, InterpreterError> {
-		Ok(H256::from_slice(&ptr.slice(32, &*self.memory)
-			.map_err(|_| UserTrap::MemoryAccessViolation)?
-		))
-	}
-
-	fn pop_h256(&self, context: &mut InterpreterCallerContext) -> Result<H256, InterpreterError> {
-		let ptr = WasmPtr::from_i32(context.value_stack.pop_as::<i32>()?)
-			.map_err(|_| UserTrap::MemoryAccessViolation)?;
-		self.h256_at(ptr)
-	}
-
-	fn pop_u256(&self, context: &mut InterpreterCallerContext) -> Result<U256, InterpreterError> {
-		let ptr = WasmPtr::from_i32(context.value_stack.pop_as::<i32>()?)
-			.map_err(|_| UserTrap::MemoryAccessViolation)?;
-		self.h256_at(ptr).map(Into::into)
-	}
-
-	fn address_at(&self, ptr: WasmPtr) -> Result<Address, InterpreterError> {
-		Ok(Address::from_slice(&ptr.slice(20, &*self.memory)
-			.map_err(|_| UserTrap::MemoryAccessViolation)?
-		))
-	}
-
-	fn pop_address(&self, context: &mut InterpreterCallerContext) -> Result<Address, InterpreterError> {
-		let ptr = WasmPtr::from_i32(context.value_stack.pop_as::<i32>()?)
-			.map_err(|_| UserTrap::MemoryAccessViolation)?;
-		self.address_at(ptr)
-	}
-
-	fn unknown_trap(&mut self, _context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, UserTrap>
+	/// Charge gas according to closure
+	pub fn charge<F>(&mut self, f: F) -> Result<()>
+		where F: FnOnce(&vm::Schedule) -> u64
 	{
-		Err(UserTrap::Unknown)
+		let amount = f(self.ext.schedule());
+		if !self.charge_gas(amount as u64) {
+			Err(Error::GasLimit)
+		} else {
+			Ok(())
+		}
 	}
 
-	fn user_noop(&mut self,
-		_context: InterpreterCallerContext
-	) -> Result<Option<interpreter::RuntimeValue>, InterpreterError> {
-		Ok(None)
-	}
-
-	/// Write call descriptor to wasm memory
-	pub fn write_descriptor(&mut self, input: &[u8]) -> Result<WasmPtr, InterpreterError> {
-		let d_ptr = self.alloc(16)?;
-
-		let args_len = input.len() as u32;
-		let args_ptr = self.alloc(args_len)?;
-
-		// write call descriptor
-		// call descriptor is [args_ptr, args_len, return_ptr, return_len]
-		//   all are 4 byte length, last 2 are zeroed
-		let mut d_buf = [0u8; 16];
-		LittleEndian::write_u32(&mut d_buf[0..4], args_ptr);
-		LittleEndian::write_u32(&mut d_buf[4..8], args_len);
-		self.memory.set(d_ptr, &d_buf)?;
-
-		// write call args to memory
-		self.memory.set(args_ptr, input)?;
-
-		Ok(d_ptr.into())
-	}
-
-	fn debug_log(&mut self, context: InterpreterCallerContext)
-			-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	/// Adjusted charge of gas which scales actual charge according to the wasm opcode counting coefficient
+	pub fn adjusted_charge<F>(&mut self, f: F) -> Result<()>
+		where F: FnOnce(&vm::Schedule) -> u64
 	{
-		let msg_len = context.value_stack.pop_as::<i32>()? as u32;
-		let msg_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		self.charge(|schedule| f(schedule) * schedule.wasm.opcodes_div as u64 / schedule.wasm.opcodes_mul as u64)
+	}
 
-		let msg = String::from_utf8(self.memory.get(msg_ptr, msg_len as usize)?)
-			.map_err(|_| UserTrap::BadUtf8)?;
+	/// Charge gas provided by the closure, and closure also can return overflowing
+	/// flag as None in gas cost.
+	pub fn overflow_charge<F>(&mut self, f: F) -> Result<()>
+		where F: FnOnce(&vm::Schedule) -> Option<u64>
+	{
+		let amount = match f(self.ext.schedule()) {
+			Some(amount) => amount,
+			None => { return Err(Error::GasLimit.into()); }
+		};
 
-		trace!(target: "wasm", "Contract debug message: {}", msg);
+		if !self.charge_gas(amount as u64) {
+			Err(Error::GasLimit.into())
+		} else {
+			Ok(())
+		}
+	}
 
-		Ok(None)
+	/// Same as overflow_charge, but with amount adjusted by wasm opcodes coeff
+	pub fn adjusted_overflow_charge<F>(&mut self, f: F) -> Result<()>
+		where F: FnOnce(&vm::Schedule) -> Option<u64>
+	{
+		self.overflow_charge(|schedule|
+			f(schedule)
+				.and_then(|x| x.checked_mul(schedule.wasm.opcodes_div as u64))
+				.map(|x| x / schedule.wasm.opcodes_mul as u64)
+		)
+	}
+
+	/// Read from the storage to wasm memory.
+	pub fn storage_read(&mut self, args: RuntimeArgs) -> Result<()>
+	{
+		let key = self.h256_at(args.nth(0)?)?;
+		let val_ptr: u32 = args.nth(1)?;
+
+		let val = self.ext.storage_at(&key).map_err(|_| Error::StorageReadError)?;
+
+		self.adjusted_charge(|schedule| schedule.sload_gas as u64)?;
+
+		self.memory.set(val_ptr as u32, &*val)?;
+
+		Ok(())
+	}
+
+	/// Write to storage from wasm memory.
+	pub fn storage_write(&mut self, args: RuntimeArgs) -> Result<()>
+	{
+		let key = self.h256_at(args.nth(0)?)?;
+		let val_ptr: u32 = args.nth(1)?;
+
+		self.adjusted_charge(|schedule| schedule.sstore_set_gas as u64)?;
+
+		let val = self.h256_at(val_ptr)?;
+		self.ext.set_storage(key, val).map_err(|_| Error::StorageUpdateError)?;
+
+		Ok(())
+	}
+
+	/// Return currently used schedule.
+	pub fn schedule(&self) -> &vm::Schedule {
+		self.ext.schedule()
+	}
+
+	/// Return. Syscall takes 2 arguments - pointer in sandboxed memory where result is and
+	/// the length of the result.
+	pub fn ret(&mut self, args: RuntimeArgs) -> Result<()> {
+		let ptr: u32 = args.nth(0)?;
+		let len: u32 = args.nth(1)?;
+
+		trace!(target: "wasm", "Contract ret: {} bytes @ {}", len, ptr);
+
+		self.result = self.memory.get(ptr, len as usize)?;
+
+		Ok(())
+	}
+
+	/// Destroy the runtime, returning currently recorded result of the execution.
+	pub fn into_result(self) -> Vec<u8> {
+		self.result
 	}
 
 	/// Query current gas left for execution
-	pub fn gas_left(&self) -> Result<u64, UserTrap> {
-		if self.gas_counter > self.gas_limit { return Err(UserTrap::InvalidGasState); }
+	pub fn gas_left(&self) -> Result<u64> {
+		if self.gas_counter > self.gas_limit { return Err(Error::InvalidGasState); }
 		Ok(self.gas_limit - self.gas_counter)
 	}
 
-	/// Shared memory reference
-	pub fn memory(&self) -> &InterpreterMemoryInstance {
-		&*self.memory
+	/// Report gas cost with the params passed in wasm stack
+	fn gas(&mut self, args: RuntimeArgs) -> Result<()> {
+		let amount: u32 = args.nth(0)?;
+		if self.charge_gas(amount as u64) {
+			Ok(())
+		} else {
+			Err(Error::GasLimit.into())
+		}
 	}
 
-	fn mem_cmp(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		//
-		// method signature:
-		//   fn memcmp(cx: *const u8, ct: *const u8, n: usize) -> i32;
-		//
-
-		let len = context.value_stack.pop_as::<i32>()? as u32;
-		let ct = context.value_stack.pop_as::<i32>()? as u32;
-		let cx = context.value_stack.pop_as::<i32>()? as u32;
-
-		self.charge(|schedule| schedule.wasm.mem_cmp as u64 * len as u64)?;
-
-		let ct = self.memory.get(ct, len as usize)?;
-		let cx = self.memory.get(cx, len as usize)?;
-
-		let result = unsafe {
-			memcmp(cx.as_ptr() as *const c_void, ct.as_ptr() as *const c_void, len as usize)
-		};
-
-		Ok(Some(Into::into(result)))
+	/// Query the length of the input bytes
+	fn input_legnth(&mut self) -> RuntimeValue {
+		RuntimeValue::I32(self.args.len() as i32)
 	}
 
-	fn mem_copy(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		//
-		// method signature:
-		//   fn memcpy(dest: *const u8, src: *const u8, len: u32) -> *mut u8;
-		//
-
-		let len = context.value_stack.pop_as::<i32>()? as u32;
-		let src = context.value_stack.pop_as::<i32>()? as u32;
-		let dst = context.value_stack.pop_as::<i32>()? as u32;
-
-		self.charge(|schedule| schedule.wasm.mem_copy as u64 * len as u64)?;
-
-		self.memory().copy_nonoverlapping(src as usize, dst as usize, len as usize)?;
-
-		Ok(Some(Into::into(dst as i32)))
+	/// Write input bytes to the memory location using the passed pointer
+	fn fetch_input(&mut self, args: RuntimeArgs) -> Result<()> {
+		let ptr: u32 = args.nth(0)?;
+		self.memory.set(ptr, &self.args[..])?;
+		Ok(())
 	}
 
-	fn mem_move(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	/// User panic. Contract can invoke this when he encounters unrecoverable error.
+	fn panic(&mut self, args: RuntimeArgs) -> Result<()>
 	{
-		//
-		// method signature:
-		//   fn memmove(dest: *const u8, src: *const u8, len: u32) -> *mut u8;
-		//
-
-		let len = context.value_stack.pop_as::<i32>()? as u32;
-		let src = context.value_stack.pop_as::<i32>()? as u32;
-		let dst = context.value_stack.pop_as::<i32>()? as u32;
-
-		self.charge(|schedule| schedule.wasm.mem_move as u64 * len as u64)?;
-
-		self.memory().copy(src as usize, dst as usize, len as usize)?;
-
-		Ok(Some(Into::into(dst as i32)))
-	}
-
-	fn mem_set(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		//
-		// method signature:
-		//   fn memset(dest: *const u8, c: u32, len: u32) -> *mut u8;
-		//
-
-		let len = context.value_stack.pop_as::<i32>()? as u32;
-		let c = context.value_stack.pop_as::<i32>()? as u32;
-		let dst = context.value_stack.pop_as::<i32>()? as u32;
-
-		self.charge(|schedule| schedule.wasm.mem_set as u64 * len as u64)?;
-
-		self.memory().clear(dst as usize, c as u8, len as usize)?;
-
-		Ok(Some(Into::into(dst as i32)))
-	}
-
-	fn bitswap_i64(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		let x = context.value_stack.pop_as::<i64>()?;
-		let result = x.swap_bytes();
-
-		Ok(Some(result.into()))
-	}
-
-	fn user_panic(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		let payload_len = context.value_stack.pop_as::<i32>()? as u32;
-		let payload_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		let payload_ptr: u32 = args.nth(0)?;
+		let payload_len: u32 = args.nth(1)?;
 
 		let raw_payload = self.memory.get(payload_ptr, payload_len as usize)?;
 		let payload = panic_payload::decode(&raw_payload);
@@ -683,168 +302,287 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		);
 		trace!(target: "wasm", "Contract custom panic message: {}", msg);
 
-		Err(UserTrap::Panic(msg).into())
+		Err(Error::Panic(msg).into())
 	}
 
-	fn block_hash(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	fn do_call(
+		&mut self,
+		use_val: bool,
+		call_type: CallType,
+		args: RuntimeArgs,
+	)
+		-> Result<RuntimeValue>
 	{
-		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		let block_num = context.value_stack.pop_as::<i64>()? as u64;
+		trace!(target: "wasm", "runtime: CALL({:?})", call_type);
 
-		self.charge(|schedule| schedule.blockhash_gas as u64)?;
+		let gas: u64 = args.nth(0)?;
+		trace!(target: "wasm", "           gas: {:?}", gas);
 
-		trace!("Requesting block hash for block #{}", block_num);
-		let hash = self.ext.blockhash(&U256::from(block_num));
+		let address = self.address_at(args.nth(1)?)?;
+		trace!(target: "wasm", "       address: {:?}", address);
 
-		self.memory.set(return_ptr, &*hash)?;
+		let vofs = if use_val { 1 } else { 0 };
+		let val = if use_val { Some(self.u256_at(args.nth(2)?)?) } else { None };
+		trace!(target: "wasm", "           val: {:?}", val);
 
-		Ok(None)
+		let input_ptr: u32 = args.nth(2 + vofs)?;
+		trace!(target: "wasm", "     input_ptr: {:?}", input_ptr);
+
+		let input_len: u32 = args.nth(3 + vofs)?;
+		trace!(target: "wasm", "     input_len: {:?}", input_len);
+
+		let result_ptr: u32 = args.nth(4 + vofs)?;
+		trace!(target: "wasm", "    result_ptr: {:?}", result_ptr);
+
+		let result_alloc_len: u32 = args.nth(5 + vofs)?;
+		trace!(target: "wasm", "    result_len: {:?}", result_alloc_len);
+
+		if let Some(ref val) = val {
+			let address_balance = self.ext.balance(&self.context.address)
+				.map_err(|_| Error::BalanceQueryError)?;
+
+			if &address_balance < val {
+				trace!(target: "wasm", "runtime: call failed due to balance check");
+				return Ok((-1i32).into());
+			}
+		}
+
+		self.adjusted_charge(|schedule| schedule.call_gas as u64)?;
+
+		let mut result = Vec::with_capacity(result_alloc_len as usize);
+		result.resize(result_alloc_len as usize, 0);
+
+		// todo: optimize to use memory views once it's in
+		let payload = self.memory.get(input_ptr, input_len as usize)?;
+
+		let adjusted_gas = match gas.checked_mul(self.ext.schedule().wasm.opcodes_div as u64)
+			.map(|x| x / self.ext.schedule().wasm.opcodes_mul as u64)
+		{
+			Some(x) => x,
+			None => {
+				trace!("CALL overflowed gas, call aborted with error returned");
+				return Ok(RuntimeValue::I32(-1))
+			},
+		};
+
+		self.charge(|_| adjusted_gas)?;
+
+		let call_result = self.ext.call(
+			&gas.into(),
+			match call_type { CallType::DelegateCall => &self.context.sender, _ => &self.context.address },
+			match call_type { CallType::Call | CallType::StaticCall => &address, _ => &self.context.address },
+			val,
+			&payload,
+			&address,
+			&mut result[..],
+			call_type,
+		);
+
+		match call_result {
+			vm::MessageCallResult::Success(gas_left, _) => {
+				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
+				self.gas_counter = self.gas_counter -
+					gas_left.low_u64() * self.ext.schedule().wasm.opcodes_div as u64
+						/ self.ext.schedule().wasm.opcodes_mul as u64;
+
+				self.memory.set(result_ptr, &result)?;
+				Ok(0i32.into())
+			},
+			vm::MessageCallResult::Reverted(gas_left, _) => {
+				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
+				self.gas_counter = self.gas_counter -
+					gas_left.low_u64() * self.ext.schedule().wasm.opcodes_div as u64
+						/ self.ext.schedule().wasm.opcodes_mul as u64;
+
+				self.memory.set(result_ptr, &result)?;
+				Ok((-1i32).into())
+			},
+			vm::MessageCallResult::Failed  => {
+				Ok((-1i32).into())
+			}
+		}
 	}
 
-	fn return_address_ptr(&mut self, ptr: u32, val: Address) -> Result<(), InterpreterError>
+	/// Message call.
+	fn ccall(&mut self, args: RuntimeArgs) -> Result<RuntimeValue> {
+		self.do_call(true, CallType::Call, args)
+	}
+
+	/// Delegate call.
+	fn dcall(&mut self, args: RuntimeArgs) -> Result<RuntimeValue> {
+		self.do_call(false, CallType::DelegateCall, args)
+	}
+
+	/// STatic call.
+	fn scall(&mut self, args: RuntimeArgs) -> Result<RuntimeValue> {
+		self.do_call(false, CallType::StaticCall, args)
+	}
+
+	fn return_address_ptr(&mut self, ptr: u32, val: Address) -> Result<()>
 	{
 		self.charge(|schedule| schedule.wasm.static_address as u64)?;
 		self.memory.set(ptr, &*val)?;
 		Ok(())
 	}
 
-	fn return_u256_ptr(&mut self, ptr: u32, val: U256) -> Result<(), InterpreterError> {
+	fn return_u256_ptr(&mut self, ptr: u32, val: U256) -> Result<()> {
 		let value: H256 = val.into();
 		self.charge(|schedule| schedule.wasm.static_u256 as u64)?;
 		self.memory.set(ptr, &*value)?;
 		Ok(())
 	}
 
-	fn coinbase(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		let author = self.ext.env_info().author;
-		self.return_address_ptr(
-			context.value_stack.pop_as::<i32>()? as u32,
-			author,
-		)?;
-		Ok(None)
+	pub fn value(&mut self, args: RuntimeArgs) -> Result<()> {
+		let val = self.context.value;
+		self.return_u256_ptr(args.nth(0)?, val)
 	}
 
-	fn sender(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	pub fn create(&mut self, args: RuntimeArgs) -> Result<RuntimeValue>
 	{
-		let sender = self.context.sender;
-		self.return_address_ptr(
-			context.value_stack.pop_as::<i32>()? as u32,
-			sender,
-		)?;
-		Ok(None)
+		//
+		// method signature:
+		//   fn create(endowment: *const u8, code_ptr: *const u8, code_len: u32, result_ptr: *mut u8) -> i32;
+		//
+		trace!(target: "wasm", "runtime: CREATE");
+		let endowment = self.u256_at(args.nth(0)?)?;
+		trace!(target: "wasm", "       val: {:?}", endowment);
+		let code_ptr: u32 = args.nth(1)?;
+		trace!(target: "wasm", "  code_ptr: {:?}", code_ptr);
+		let code_len: u32 = args.nth(2)?;
+		trace!(target: "wasm", "  code_len: {:?}", code_len);
+		let result_ptr: u32 = args.nth(3)?;
+		trace!(target: "wasm", "result_ptr: {:?}", result_ptr);
+
+		let code = self.memory.get(code_ptr, code_len as usize)?;
+
+		self.adjusted_charge(|schedule| schedule.create_gas as u64)?;
+		self.adjusted_charge(|schedule| schedule.create_data_gas as u64 * code.len() as u64)?;
+
+		let gas_left: U256 = U256::from(self.gas_left()?)
+			* U256::from(self.ext.schedule().wasm.opcodes_mul)
+			/ U256::from(self.ext.schedule().wasm.opcodes_div);
+
+		match self.ext.create(&gas_left, &endowment, &code, vm::CreateContractAddress::FromSenderAndCodeHash) {
+			vm::ContractCreateResult::Created(address, gas_left) => {
+				self.memory.set(result_ptr, &*address)?;
+				self.gas_counter = self.gas_limit -
+					// this cannot overflow, since initial gas is in [0..u64::max) range,
+					// and gas_left cannot be bigger
+					gas_left.low_u64() * self.ext.schedule().wasm.opcodes_div as u64
+						/ self.ext.schedule().wasm.opcodes_mul as u64;
+				trace!(target: "wasm", "runtime: create contract success (@{:?})", address);
+				Ok(0i32.into())
+			},
+			vm::ContractCreateResult::Failed => {
+				trace!(target: "wasm", "runtime: create contract fail");
+				Ok((-1i32).into())
+			},
+			vm::ContractCreateResult::Reverted(gas_left, _) => {
+				trace!(target: "wasm", "runtime: create contract reverted");
+				self.gas_counter = self.gas_limit -
+					// this cannot overflow, since initial gas is in [0..u64::max) range,
+					// and gas_left cannot be bigger
+					gas_left.low_u64() * self.ext.schedule().wasm.opcodes_div as u64
+						/ self.ext.schedule().wasm.opcodes_mul as u64;
+
+				Ok((-1i32).into())
+			},
+		}
 	}
 
-	fn address(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	fn debug(&mut self, args: RuntimeArgs) -> Result<()>
 	{
-		let addr = self.context.address;
-		self.return_address_ptr(
-			context.value_stack.pop_as::<i32>()? as u32,
-			addr,
-		)?;
-		Ok(None)
+		let msg_ptr: u32 = args.nth(0)?;
+		let msg_len: u32 = args.nth(1)?;
+
+		let msg = String::from_utf8(self.memory.get(msg_ptr, msg_len as usize)?)
+			.map_err(|_| Error::BadUtf8)?;
+
+		trace!(target: "wasm", "Contract debug message: {}", msg);
+
+		Ok(())
 	}
 
-	fn origin(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	/// Pass suicide to state runtime
+	pub fn suicide(&mut self, args: RuntimeArgs) -> Result<()>
 	{
-		let origin = self.context.origin;
-		self.return_address_ptr(
-			context.value_stack.pop_as::<i32>()? as u32,
-			origin,
-		)?;
-		Ok(None)
+		let refund_address = self.address_at(args.nth(0)?)?;
+
+		if self.ext.exists(&refund_address).map_err(|_| Error::SuicideAbort)? {
+			trace!(target: "wasm", "Suicide: refund to existing address {}", refund_address);
+			self.adjusted_charge(|schedule| schedule.suicide_gas as u64)?;
+		} else {
+			trace!(target: "wasm", "Suicide: refund to new address {}", refund_address);
+			self.adjusted_charge(|schedule| schedule.suicide_to_new_account_cost as u64)?;
+		}
+
+		self.ext.suicide(&refund_address).map_err(|_| Error::SuicideAbort)?;
+
+		// We send trap to interpreter so it should abort further execution
+		Err(Error::Suicide.into())
 	}
 
-	fn value(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		let value = self.context.value;
-		self.return_u256_ptr(
-			context.value_stack.pop_as::<i32>()? as u32,
-			value,
-		)?;
-		Ok(None)
+	pub fn blockhash(&mut self, args: RuntimeArgs) -> Result<()> {
+		self.adjusted_charge(|schedule| schedule.blockhash_gas as u64)?;
+		let hash = self.ext.blockhash(&U256::from(args.nth::<u64>(0)?));
+		self.memory.set(args.nth(1)?, &*hash)?;
+
+		Ok(())
 	}
 
-	fn timestamp(&mut self, _context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		let timestamp = self.ext.env_info().timestamp as i64;
-		Ok(Some(timestamp.into()))
+	pub fn blocknumber(&mut self) -> Result<RuntimeValue> {
+		Ok(RuntimeValue::from(self.ext.env_info().number))
 	}
 
-	fn block_number(&mut self, _context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		let block_number = self.ext.env_info().number as i64;
-		Ok(Some(block_number.into()))
+	pub fn coinbase(&mut self, args: RuntimeArgs) -> Result<()> {
+		let coinbase = self.ext.env_info().author;
+		self.return_address_ptr(args.nth(0)?, coinbase)
 	}
 
-	fn difficulty(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
+	pub fn difficulty(&mut self, args: RuntimeArgs) -> Result<()> {
 		let difficulty = self.ext.env_info().difficulty;
-		self.return_u256_ptr(
-			context.value_stack.pop_as::<i32>()? as u32,
-			difficulty,
-		)?;
-		Ok(None)
+		self.return_u256_ptr(args.nth(0)?, difficulty)
 	}
 
-	fn ext_gas_limit(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
+	pub fn gaslimit(&mut self, args: RuntimeArgs) -> Result<()> {
 		let gas_limit = self.ext.env_info().gas_limit;
-		self.return_u256_ptr(
-			context.value_stack.pop_as::<i32>()? as u32,
-			gas_limit,
-		)?;
-		Ok(None)
+		self.return_u256_ptr(args.nth(0)?, gas_limit)
 	}
 
-	pub fn execution_params(&mut self) -> interpreter::ExecutionParams<UserTrap> {
-		use super::env;
-
-		let env_instance = self.instance.module("env")
-			.expect("Env module always exists; qed");
-
-		interpreter::ExecutionParams::with_external(
-			"env".into(),
-			Arc::new(
-				interpreter::env_native_module(env_instance, env::native_bindings(self))
-					.expect("Env module always exists; qed")
-			)
-		)
+	pub fn address(&mut self, args: RuntimeArgs) -> Result<()> {
+		let address = self.context.address;
+		self.return_address_ptr(args.nth(0)?, address)
 	}
 
-	pub fn gas_rules(&self) -> &rules::Set {
-		&self.gas_rules
+	pub fn sender(&mut self, args: RuntimeArgs) -> Result<()> {
+		let sender = self.context.sender;
+		self.return_address_ptr(args.nth(0)?, sender)
 	}
 
-	pub fn ext(&mut self) -> &mut vm::Ext {
-		self.ext
+	pub fn origin(&mut self, args: RuntimeArgs) -> Result<()> {
+		let origin = self.context.origin;
+		self.return_address_ptr(args.nth(0)?, origin)
 	}
 
-	pub fn log(&mut self, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	pub fn timestamp(&mut self) -> Result<RuntimeValue> {
+		let timestamp = self.ext.env_info().timestamp;
+		Ok(RuntimeValue::from(timestamp))
+	}
+
+	pub fn elog(&mut self, args: RuntimeArgs) -> Result<()>
 	{
 		// signature is:
 		// pub fn elog(topic_ptr: *const u8, topic_count: u32, data_ptr: *const u8, data_len: u32);
-		let data_len = context.value_stack.pop_as::<i32>()? as u32;
-		let data_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		let topic_count = context.value_stack.pop_as::<i32>()? as u32;
-		let topic_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		let topic_ptr: u32 = args.nth(0)?;
+		let topic_count: u32 = args.nth(1)?;
+		let data_ptr: u32 = args.nth(2)?;
+		let data_len: u32 = args.nth(3)?;
 
 		if topic_count > 4 {
-			return Err(UserTrap::Log.into());
+			return Err(Error::Log.into());
 		}
 
-		self.overflow_charge(|schedule|
+		self.adjusted_overflow_charge(|schedule|
 			{
 				let topics_gas = schedule.log_gas as u64 + schedule.log_topic_gas as u64 * topic_count as u64;
 				(schedule.log_data_gas as u64)
@@ -856,120 +594,69 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let mut topics: Vec<H256> = Vec::with_capacity(topic_count as usize);
 		topics.resize(topic_count as usize, H256::zero());
 		for i in 0..topic_count {
-			let offset = i.checked_mul(32).ok_or(UserTrap::MemoryAccessViolation)?
-				.checked_add(topic_ptr).ok_or(UserTrap::MemoryAccessViolation)?;
+			let offset = i.checked_mul(32).ok_or(Error::MemoryAccessViolation)?
+				.checked_add(topic_ptr).ok_or(Error::MemoryAccessViolation)?;
 
 			*topics.get_mut(i as usize)
 				.expect("topics is resized to `topic_count`, i is in 0..topic count iterator, get_mut uses i as an indexer, get_mut cannot fail; qed")
 				= H256::from(&self.memory.get(offset, 32)?[..]);
 		}
-		self.ext.log(topics, &self.memory.get(data_ptr, data_len as usize)?).map_err(|_| UserTrap::Log)?;
+		self.ext.log(topics, &self.memory.get(data_ptr, data_len as usize)?).map_err(|_| Error::Log)?;
 
-		Ok(None)
+		Ok(())
 	}
 }
 
-impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
-	fn execute(&mut self, name: &str, context: InterpreterCallerContext)
-		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
-	{
-		match name {
-			"_ext_malloc" => {
-				self.malloc(context)
-			},
-			"_ext_free" => {
-				// Since it is arena allocator, free does nothing
-				// todo: update if changed
-				self.user_noop(context)
-			},
-			"_storage_read" => {
-				self.storage_read(context)
-			},
-			"_storage_write" => {
-				self.storage_write(context)
-			},
-			"_balance" => {
-				self.balance(context)
-			},
-			"_suicide" => {
-				self.suicide(context)
-			},
-			"_create" => {
-				self.create(context)
-			},
-			"_ccall" => {
-				self.call(context)
-			},
-			"_dcall" => {
-				self.call_code(context)
-			},
-			"_scall" => {
-			 	self.static_call(context)
-			},
-			"_debug" => {
-				self.debug_log(context)
-			},
-			"gas" => {
-				self.gas(context)
-			},
-			"_emscripten_memcpy_big" => {
-				self.mem_copy(context)
-			},
-			"_ext_memcmp" => {
-				self.mem_cmp(context)
-			},
-			"_ext_memcpy" => {
-				self.mem_copy(context)
-			},
-			"_ext_memmove" => {
-				self.mem_move(context)
-			},
-			"_ext_memset" => {
-				self.mem_set(context)
-			},
-			"_llvm_bswap_i64" => {
-				self.bitswap_i64(context)
-			},
-			"_panic" => {
-				self.user_panic(context)
-			},
-			"_blockhash" => {
-				self.block_hash(context)
-			},
-			"_coinbase" => {
-				self.coinbase(context)
-			},
-			"_timestamp" => {
-				self.timestamp(context)
-			},
-			"_blocknumber" => {
-				self.block_number(context)
-			},
-			"_difficulty" => {
-				self.difficulty(context)
-			},
-			"_gaslimit" => {
-				self.ext_gas_limit(context)
-			},
-			"_sender" => {
-				self.sender(context)
-			},
-			"_address" => {
-				self.address(context)
-			},
-			"_origin" => {
-				self.origin(context)
-			},
-			"_value" => {
-				self.value(context)
-			},
-			"_elog" => {
-				self.log(context)
-			},
-			_ => {
-				trace!(target: "wasm", "Trapped due to unhandled function: '{}'", name);
-				Ok(self.unknown_trap(context)?)
-			},
+mod ext_impl {
+
+	use wasmi::{Externals, RuntimeArgs, RuntimeValue, Error};
+	use env::ids::*;
+
+	macro_rules! void {
+		{ $e: expr } => { { $e?; Ok(None) } }
+	}
+
+	macro_rules! some {
+		{ $e: expr } => { { Ok(Some($e?)) } }
+	}
+
+	macro_rules! cast {
+		{ $e: expr } => { { Ok(Some($e)) } }
+	}
+
+	impl<'a> Externals for super::Runtime<'a> {
+		fn invoke_index(
+			&mut self,
+			index: usize,
+			args: RuntimeArgs,
+		) -> Result<Option<RuntimeValue>, Error> {
+			match index {
+				STORAGE_WRITE_FUNC => void!(self.storage_write(args)),
+				STORAGE_READ_FUNC => void!(self.storage_read(args)),
+				RET_FUNC => void!(self.ret(args)),
+				GAS_FUNC => void!(self.gas(args)),
+				INPUT_LENGTH_FUNC => cast!(self.input_legnth()),
+				FETCH_INPUT_FUNC => void!(self.fetch_input(args)),
+				PANIC_FUNC => void!(self.panic(args)),
+				DEBUG_FUNC => void!(self.debug(args)),
+				CCALL_FUNC => some!(self.ccall(args)),
+				DCALL_FUNC => some!(self.dcall(args)),
+				SCALL_FUNC => some!(self.scall(args)),
+				VALUE_FUNC => void!(self.value(args)),
+				CREATE_FUNC => some!(self.create(args)),
+				SUICIDE_FUNC => void!(self.suicide(args)),
+				BLOCKHASH_FUNC => void!(self.blockhash(args)),
+				BLOCKNUMBER_FUNC => some!(self.blocknumber()),
+				COINBASE_FUNC => void!(self.coinbase(args)),
+				DIFFICULTY_FUNC => void!(self.difficulty(args)),
+				GASLIMIT_FUNC => void!(self.gaslimit(args)),
+				TIMESTAMP_FUNC => some!(self.timestamp()),
+				ADDRESS_FUNC => void!(self.address(args)),
+				SENDER_FUNC => void!(self.sender(args)),
+				ORIGIN_FUNC => void!(self.origin(args)),
+				ELOG_FUNC => void!(self.elog(args)),
+				_ => panic!("env module doesn't provide function at index {}", index),
+			}
 		}
 	}
 }
