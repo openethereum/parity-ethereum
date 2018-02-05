@@ -136,7 +136,7 @@ impl ConnectionTriggerWithMigration {
 			session_action: None,
 		}
 	}
-	
+
 	/// Actually do mainteinance.
 	fn do_maintain(&mut self) -> Option<Maintain> {
 		loop {

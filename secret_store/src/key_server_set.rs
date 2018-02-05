@@ -208,7 +208,7 @@ impl CachedContract {
 	}
 
 	fn start_migration(&mut self, migration_id: H256) {
-		// trust is not needed here, because it is the reaction to the read of the trusted client 
+		// trust is not needed here, because it is the reaction to the read of the trusted client
 		if let (Some(client), Some(contract)) = (self.client.get_untrusted(), self.contract.as_ref()) {
 			// check if we need to send start migration transaction
 			if !update_last_transaction_block(&*client, &migration_id, &mut self.start_migration_tx) {
@@ -239,7 +239,7 @@ impl CachedContract {
 	fn confirm_migration(&mut self, migration_id: H256) {
 		// trust is not needed here, because we have already completed the action
 		if let (Some(client), Some(contract)) = (self.client.get(), self.contract.as_ref()) {
-			// check if we need to send start migration transaction
+			//check if we need to send start migration transaction
 			if !update_last_transaction_block(&*client, &migration_id, &mut self.confirm_migration_tx) {
 				return;
 			}
