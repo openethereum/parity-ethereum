@@ -1,6 +1,0 @@
-instrumentation:
-  root: src
-  extensions:
-    - .js
-reporting:
-  dir: ./.coverage

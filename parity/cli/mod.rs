@@ -443,7 +443,7 @@ usage! {
 
 			ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-apis=[APIS]",
-			"Specify the APIs available through the JSONRPC interface. APIS is a comma-delimited list of API name. Possible name are all, safe, web3, eth, net, personal, parity, parity_set, traces, rpc, parity_accounts. You can also disable a specific API by putting '-' in the front: all,-personal.",
+			"Specify the APIs available through the JSONRPC interface. APIS is a comma-delimited list of API name. Possible name are all, safe, web3, eth, net, personal, parity, parity_set, traces, rpc, parity_accounts, pubsub, parity_pubsub, shh, shh_pubsub, signer, secretstore. You can also disable a specific API by putting '-' in the front: all,-personal.",
 
 			ARG arg_jsonrpc_hosts: (String) = "none", or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-hosts=[HOSTS]",
@@ -476,7 +476,7 @@ usage! {
 
 			ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
 			"--ws-apis=[APIS]",
-			"Specify the APIs available through the WebSockets interface. APIS is a comma-delimited list of API name. Possible name are web3, eth, pubsub, net, personal, parity, parity_set, traces, rpc, parity_accounts..",
+			"Specify the APIs available through the WebSockets interface. APIS is a comma-delimited list of API name. Possible name are web3, eth, pubsub, net, personal, parity, parity_set, traces, rpc, parity_accounts, pubsub, parity_pubsub, shh, shh_pubsub, signer, secretstore.",
 
 			ARG arg_ws_origins: (String) = "chrome-extension://*,moz-extension://*", or |c: &Config| otry!(c.websockets).origins.as_ref().map(|vec| vec.join(",")),
 			"--ws-origins=[URL]",

@@ -414,7 +414,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "ethabi-derive"
-version = "5.0.2"
+version = "5.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -460,7 +460,7 @@ dependencies = [
  "crossbeam 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi-derive 5.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-derive 5.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.9.0",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-bytes 0.1.0",
@@ -623,7 +623,7 @@ dependencies = [
  "common-types 0.1.0",
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi-derive 5.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-derive 5.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.9.0",
  "ethcore-transaction 0.1.0",
  "ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -682,7 +682,7 @@ dependencies = [
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi-derive 5.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-derive 5.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.9.0",
  "ethcore-bytes 0.1.0",
  "ethcore-logger 1.9.0",
@@ -1732,7 +1732,7 @@ version = "1.9.0"
 dependencies = [
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi-derive 5.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-derive 5.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.9.0",
  "ethcore-bytes 0.1.0",
  "ethcore-io 1.9.0",
@@ -2064,7 +2064,7 @@ version = "1.9.0"
 dependencies = [
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi-derive 5.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-derive 5.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bytes 0.1.0",
  "ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "fetch 0.1.0",
@@ -2226,8 +2226,8 @@ dependencies = [
 name = "parity-ui"
 version = "1.9.0"
 dependencies = [
- "parity-ui-dev 1.9.0",
- "parity-ui-old-dev 1.9.0",
+ "parity-ui-dev 1.9.0 (git+https://github.com/parity-js/shell.git?rev=27495ad8a73716c08588ab852694a75d9d22ba85)",
+ "parity-ui-old-dev 1.9.0 (git+https://github.com/parity-js/dapp-wallet.git?rev=9993240efecb415aa880250ecef2710a413cf73f)",
  "parity-ui-old-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-9-v1.git)",
  "parity-ui-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-9-shell.git)",
  "rustc_version 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2236,6 +2236,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-dev"
 version = "1.9.0"
+source = "git+https://github.com/parity-js/shell.git?rev=27495ad8a73716c08588ab852694a75d9d22ba85#27495ad8a73716c08588ab852694a75d9d22ba85"
 dependencies = [
  "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2243,6 +2244,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-old-dev"
 version = "1.9.0"
+source = "git+https://github.com/parity-js/dapp-wallet.git?rev=9993240efecb415aa880250ecef2710a413cf73f#9993240efecb415aa880250ecef2710a413cf73f"
 dependencies = [
  "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2269,7 +2271,7 @@ version = "1.9.0"
 dependencies = [
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi-derive 5.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-derive 5.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.9.0",
  "ethcore-bytes 0.1.0",
  "ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3640,7 +3642,7 @@ dependencies = [
 "checksum eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1)" = "<none>"
 "checksum ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7d8385a48c8ed984778dcca27efc0de162a191a14ed733a41a07d9b0cfaa999e"
 "checksum ethabi-contract 5.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a45200950dae0b12825100f84050a747a399a9f4ddfdf32e72a6ab2c3cd87195"
-"checksum ethabi-derive 5.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "22bc54e2f03576401f98832f1a1f11e440c01d25d3667cd775958d7efc8b26bc"
+"checksum ethabi-derive 5.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "f4a21aa3541599eb872204ba678b577bc68a7576b0b934896958b2668eb8f736"
 "checksum ethbloom 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "f240172b976e2421fa5485e45cd45287bbdb56d742aa3a1d77005c49071a8518"
 "checksum ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "bad6fb0e4ab648f4d8d8314c340c47f9e805b085b78be1b8da4676534cb419df"
 "checksum ethereum-types-serialize 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4ac59a21a9ce98e188f3dace9eb67a6c4a3c67ec7fbc7218cb827852679dc002"
@@ -3736,6 +3738,8 @@ dependencies = [
 "checksum owning_ref 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "cdf84f41639e037b484f93433aa3897863b561ed65c6e59c7073d7c561710f37"
 "checksum parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)" = "261c025c67ba416e9fe63aa9b3236520ce3c74cfbe43590c9cdcec4ccc8180e4"
 "checksum parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc)" = "<none>"
+"checksum parity-ui-dev 1.9.0 (git+https://github.com/parity-js/shell.git?rev=27495ad8a73716c08588ab852694a75d9d22ba85)" = "<none>"
+"checksum parity-ui-old-dev 1.9.0 (git+https://github.com/parity-js/dapp-wallet.git?rev=9993240efecb415aa880250ecef2710a413cf73f)" = "<none>"
 "checksum parity-ui-old-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-9-v1.git)" = "<none>"
 "checksum parity-ui-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-9-shell.git)" = "<none>"
 "checksum parity-wasm 0.15.3 (registry+https://github.com/rust-lang/crates.io-index)" = "8431a184ad88cfbcd71a792aaca319cc7203a94300c26b8dce2d0df0681ea87d"
