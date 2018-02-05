@@ -20,16 +20,16 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use parking_lot::Mutex;
 use ethcore::client::ChainNotify;
-use ethkey::{Random, Generator, Public, sign};
+use ethkey::{Random, Generator, Public, Signature, sign};
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
 use key_server_set::KeyServerSet;
 use key_server_cluster::{ClusterClient, ClusterSessionsListener, ClusterSession};
 use key_server_cluster::generation_session::SessionImpl as GenerationSession;
 use key_storage::KeyStorage;
-use listener::service_contract::ServiceContract;
+use listener::service_contract::{ServiceContract, SERVER_KEY_REQUESTED_EVENT_NAME_HASH, DOCUMENT_KEY_REQUESTED_EVENT_NAME_HASH};
 use listener::tasks_queue::TasksQueue;
-use {ServerKeyId, NodeKeyPair, KeyServer};
+use {ServerKeyId, NodeKeyPair, KeyServer, EncryptedDocumentKey};
 
 /// Retry interval (in blocks). Every RETRY_INTERVAL_BLOCKS blocks each KeyServer reads pending requests from
 /// service contract && tries to re-execute. The reason to have this mechanism is primarily because keys
@@ -93,7 +93,9 @@ struct ServiceContractListenerData {
 #[derive(Default)]
 struct ServiceContractRetryData {
 	/// Server keys, which we have generated (or tried to generate) since last retry moment.
-	pub generated_keys: HashSet<ServerKeyId>,
+	pub generated_server_keys: HashSet<ServerKeyId>,
+	/// Document keys, which we have generated (or tried to generate) since last retry moment.
+	pub generated_document_keys: HashSet<ServerKeyId>,
 }
 
 /// Service task.
@@ -105,6 +107,10 @@ pub enum ServiceTask {
 	GenerateServerKey(H256, H256),
 	/// Confirm server key (server_key_id).
 	RestoreServerKey(H256),
+	/// Generate document key (server_key_id, threshold, signed server_key_id).
+	GenerateDocumentKey(H256, H256, Signature),
+	/// Restore document key (server_key_id, signed server_key_id).
+	RestoreDocumentKey(H256, Signature),
 	/// Shutdown listener.
 	Shutdown,
 }
@@ -142,26 +148,59 @@ impl ServiceContractListener {
 	/// Process incoming events of service contract.
 	fn process_service_contract_events(&self) {
 		self.data.tasks_queue.push_many(self.data.contract.read_logs()
-			.filter_map(|topics| match topics.len() {
-				// when key is already generated && we have this key
-				3 if self.data.key_storage.get(&topics[1]).map(|k| k.is_some()).unwrap_or_default() => {
-					Some(ServiceTask::RestoreServerKey(
-						topics[1],
-					))
-				}
-				// when key is not yet generated && this node should be master of this key generation session
-				3 if is_processed_by_this_key_server(&*self.data.key_server_set, &*self.data.self_key_pair, &topics[1]) => {
-					Some(ServiceTask::GenerateServerKey(
-						topics[1],
-						topics[2],
-					))
-				},
-				3 => None,
-				l @ _ => {
-					warn!(target: "secretstore", "Ignoring ServerKeyRequested event with wrong number of params {}", l);
+			.filter_map(|topics|
+				if topics[0] == *SERVER_KEY_REQUESTED_EVENT_NAME_HASH {
+					match topics.len() {
+						// when key is already generated && we have this key
+						3 if self.data.key_storage.get(&topics[1]).map(|k| k.is_some()).unwrap_or_default() => {
+							Some(ServiceTask::RestoreServerKey(
+								topics[1],
+							))
+						}
+						// when key is not yet generated && this node should be master of this key generation session
+						3 if is_processed_by_this_key_server(&*self.data.key_server_set, &*self.data.self_key_pair, &topics[1]) => {
+							Some(ServiceTask::GenerateServerKey(
+								topics[1],
+								topics[2],
+							))
+						},
+						3 => None,
+						l => {
+							warn!(target: "secretstore", "Ignoring ServerKeyRequested event with wrong number of params {}", l);
+							None
+						},
+					}
+				} else if topics[0] == *DOCUMENT_KEY_REQUESTED_EVENT_NAME_HASH {
+					match topics.len() {
+						// when (server) key is already generated && we have this key
+						// we do not support separate server + document key generation => trying to restore document key
+						// from 'unbound' server key will lead to an error
+						6 if self.data.key_storage.get(&topics[1]).map(|k| k.is_some()).unwrap_or_default() => {
+							let sig_v = topics[3][0]; // TODO
+							Some(ServiceTask::RestoreDocumentKey(
+								topics[1],
+								Signature::from_rsv(&topics[4], &topics[5], sig_v),
+							))
+						}
+						// when (server) key is not yet generated && this node should be master of this key generation session
+						6 if is_processed_by_this_key_server(&*self.data.key_server_set, &*self.data.self_key_pair, &topics[1]) => {
+							let sig_v = topics[3][0]; // TODO
+							Some(ServiceTask::GenerateDocumentKey(
+								topics[1],
+								topics[2],
+								Signature::from_rsv(&topics[4], &topics[5], sig_v),
+							))
+						},
+						6 => None,
+						l => {
+							warn!(target: "secretstore", "Ignoring DocumentKeyRequested event with wrong number of params {}", l);
+							None
+						},
+					}
+				} else {
 					None
-				},
-			}));
+				}
+			));
 	}
 
 	/// Service thread procedure.
@@ -172,7 +211,7 @@ impl ServiceContractListener {
 
 			match task {
 				ServiceTask::Shutdown => break,
-				task @ _ => {
+				task => {
 					// the only possible reaction to an error is a trace && it is already happened
 					let _ = Self::process_service_task(&data, task);
 				},
@@ -198,7 +237,7 @@ impl ServiceContractListener {
 						error
 					}),
 			ServiceTask::RestoreServerKey(server_key_id) => {
-				data.retry_data.lock().generated_keys.insert(server_key_id.clone());
+				data.retry_data.lock().generated_server_keys.insert(server_key_id.clone());
 				Self::restore_server_key(&data, &server_key_id)
 					.and_then(|server_key| Self::publish_server_key(&data, &server_key_id, &server_key))
 					.map(|_| {
@@ -213,7 +252,7 @@ impl ServiceContractListener {
 					})
 			},
 			ServiceTask::GenerateServerKey(server_key_id, threshold) => {
-				data.retry_data.lock().generated_keys.insert(server_key_id.clone());
+				data.retry_data.lock().generated_server_keys.insert(server_key_id.clone());
 				Self::generate_server_key(&data, &server_key_id, &threshold)
 					.and_then(|server_key| Self::publish_server_key(&data, &server_key_id, &server_key))
 					.map(|_| {
@@ -224,6 +263,40 @@ impl ServiceContractListener {
 					.map_err(|error| {
 						warn!(target: "secretstore", "{}: failed to process GenerateServerKey({}, {}) request with: {}",
 							data.self_key_pair.public(), server_key_id, threshold, error);
+						error
+					})
+			},
+			ServiceTask::RestoreDocumentKey(server_key_id, signed_server_key_id) => {
+				// generating document key generates both server and document key
+				data.retry_data.lock().generated_server_keys.insert(server_key_id.clone());
+				data.retry_data.lock().generated_document_keys.insert(server_key_id.clone());
+				Self::restore_document_key(&data, &server_key_id, &signed_server_key_id)
+					.and_then(|document_key| Self::publish_document_key(&data, &server_key_id, &document_key))
+					.map(|_| {
+						trace!(target: "secretstore", "{}: processed RestoreDocumentKey({}, {}) request",
+							data.self_key_pair.public(), server_key_id, signed_server_key_id);
+						()
+					})
+					.map_err(|error| {
+						warn!(target: "secretstore", "{}: failed to process RestoreDocumentKey({}, {}) request with: {}",
+							data.self_key_pair.public(), server_key_id, signed_server_key_id, error);
+						error
+					})
+			},
+			ServiceTask::GenerateDocumentKey(server_key_id, threshold, signed_server_key_id) => {
+				// generating document key generates both server and document key
+				data.retry_data.lock().generated_server_keys.insert(server_key_id.clone());
+				data.retry_data.lock().generated_document_keys.insert(server_key_id.clone());
+				Self::generate_document_key(&data, &server_key_id, &threshold, &signed_server_key_id)
+					.and_then(|document_key| Self::publish_document_key(&data, &server_key_id, &document_key))
+					.map(|_| {
+						trace!(target: "secretstore", "{}: processed GenerateDocumentKey({}, {}, {}) request",
+							data.self_key_pair.public(), server_key_id, threshold, signed_server_key_id);
+						()
+					})
+					.map_err(|error| {
+						warn!(target: "secretstore", "{}: failed to process GenerateDocumentKey({}, {}, {}) request with: {}",
+							data.self_key_pair.public(), server_key_id, threshold, signed_server_key_id, error);
 						error
 					})
 			},
@@ -247,7 +320,7 @@ impl ServiceContractListener {
 					// only process request, which haven't been processed recently
 					// there could be a lag when we've just generated server key && retrying on the same block
 					// (or before our tx is mined) - state is not updated yet
-					if retry_data.generated_keys.contains(&server_key_id) {
+					if retry_data.generated_server_keys.contains(&server_key_id) {
 						continue;
 					}
 
@@ -303,6 +376,31 @@ impl ServiceContractListener {
 	/// Publish server key.
 	fn publish_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
 		data.contract.publish_server_key(server_key_id, server_key)
+	}
+
+	/// Generate document key.
+	fn generate_document_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, threshold: &H256, server_key_id_signature: &Signature) -> Result<EncryptedDocumentKey, String> {
+		let threshold_num = threshold.low_u64();
+		if threshold != &threshold_num.into() || threshold_num >= ::std::usize::MAX as u64 {
+			return Err(format!("invalid threshold {:?}", threshold));
+		}
+
+		// key server expects signed server_key_id in server_key_generation procedure
+		// only signer could store document key for this server key later
+		// => this API (server key generation) is not suitable for usage in encryption via contract endpoint
+		data.key_server.generate_document_key(server_key_id, server_key_id_signature, threshold_num as usize)
+			.map_err(Into::into)
+	}
+
+	/// Restore document key.
+	fn restore_document_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, server_key_id_signature: &Signature) -> Result<EncryptedDocumentKey, String> {
+		data.key_server.restore_document_key(server_key_id, server_key_id_signature)
+			.map_err(|e| format!("{}", e))
+	}
+
+	/// Publish document key.
+	fn publish_document_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, document_key: &EncryptedDocumentKey) -> Result<(), String> {
+		data.contract.publish_document_key(server_key_id, document_key)
 	}
 }
 
@@ -387,7 +485,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::sync::atomic::Ordering;
 	use ethkey::{Random, Generator, KeyPair};
-	use listener::service_contract::ServiceContract;
+	use listener::service_contract::{ServiceContract, SERVER_KEY_REQUESTED_EVENT_NAME_HASH};
 	use listener::service_contract::tests::DummyServiceContract;
 	use key_server_cluster::DummyClusterClient;
 	use key_server::tests::DummyKeyServer;
@@ -583,9 +681,9 @@ mod tests {
 	}
 
 	#[test]
-	fn server_key_generation_is_scheduled_when_requested_key_is_unknnown() {
+	fn server_key_generation_is_scheduled_when_requested_key_is_unknown() {
 		let mut contract = DummyServiceContract::default();
-		contract.logs.push(vec![Default::default(), Default::default(), Default::default()]);
+		contract.logs.push(vec![*SERVER_KEY_REQUESTED_EVENT_NAME_HASH, Default::default(), Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
 		listener.process_service_contract_events();
@@ -597,7 +695,7 @@ mod tests {
 	fn no_new_tasks_scheduled_when_requested_key_is_unknown_and_request_belongs_to_other_key_server() {
 		let server_key_id = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse().unwrap();
 		let mut contract = DummyServiceContract::default();
-		contract.logs.push(vec![Default::default(), server_key_id, Default::default()]);
+		contract.logs.push(vec![*SERVER_KEY_REQUESTED_EVENT_NAME_HASH, server_key_id, Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
 		listener.process_service_contract_events();
@@ -605,9 +703,9 @@ mod tests {
 	}
 
 	#[test]
-	fn server_key_restore_is_scheduled_when_requested_key_is_knnown() {
+	fn server_key_restore_is_scheduled_when_requested_key_is_known() {
 		let mut contract = DummyServiceContract::default();
-		contract.logs.push(vec![Default::default(), Default::default(), Default::default()]);
+		contract.logs.push(vec![*SERVER_KEY_REQUESTED_EVENT_NAME_HASH, Default::default(), Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		listener.data.key_storage.insert(Default::default(), Default::default()).unwrap();
 		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
@@ -619,7 +717,7 @@ mod tests {
 	#[test]
 	fn no_new_tasks_scheduled_when_wrong_number_of_topics_in_log() {
 		let mut contract = DummyServiceContract::default();
-		contract.logs.push(vec![Default::default(), Default::default()]);
+		contract.logs.push(vec![*SERVER_KEY_REQUESTED_EVENT_NAME_HASH, Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
 		listener.process_service_contract_events();
@@ -643,7 +741,7 @@ mod tests {
 		key_storage.insert(Default::default(), key_share.clone()).unwrap();
 		let listener = make_service_contract_listener(Some(contract.clone()), None, Some(key_storage));
 		ServiceContractListener::process_service_task(&listener.data, ServiceTask::RestoreServerKey(Default::default())).unwrap();
-		assert_eq!(*contract.published_keys.lock(), vec![(Default::default(), key_share.public)]);
+		assert_eq!(*contract.published_server_keys.lock(), vec![(Default::default(), key_share.public)]);
 	}
 
 	#[test]
@@ -652,7 +750,7 @@ mod tests {
 		contract.pending_requests.push((false, ServiceTask::GenerateServerKey(Default::default(), Default::default())));
 		let key_server = Arc::new(DummyKeyServer::default());
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), Some(key_server.clone()), None);
-		listener.data.retry_data.lock().generated_keys.insert(Default::default());
+		listener.data.retry_data.lock().generated_server_keys.insert(Default::default());
 		ServiceContractListener::retry_pending_requests(&listener.data).unwrap();
 		assert_eq!(key_server.generation_requests_count.load(Ordering::Relaxed), 0);
 	}

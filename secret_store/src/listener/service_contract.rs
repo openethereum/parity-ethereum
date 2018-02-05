@@ -25,19 +25,22 @@ use hash::keccak;
 use ethereum_types::{H256, U256};
 use listener::service_contract_listener::ServiceTask;
 use trusted_client::TrustedClient;
-use {ServerKeyId, NodeKeyPair, ContractAddress};
+use {ServerKeyId, NodeKeyPair, ContractAddress, EncryptedDocumentKey};
 
 /// Name of the SecretStore contract in the registry.
 const SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service";
 
-/// Key server has been added to the set.
-const SERVER_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyRequested(bytes32,uint256)";
+/// Server key generation has been requested.
+const SERVER_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyRequested(bytes32)";
+/// Document key generation has been requested.
+const DOCUMENT_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"DocumentKeyRequested(bytes32)";
 
 /// Number of confirmations required before request can be processed.
 const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
 
 lazy_static! {
-	static ref SERVER_KEY_REQUESTED_EVENT_NAME_HASH: H256 = keccak(SERVER_KEY_REQUESTED_EVENT_NAME);
+	pub static ref SERVER_KEY_REQUESTED_EVENT_NAME_HASH: H256 = keccak(SERVER_KEY_REQUESTED_EVENT_NAME);
+	pub static ref DOCUMENT_KEY_REQUESTED_EVENT_NAME_HASH: H256 = keccak(DOCUMENT_KEY_REQUESTED_EVENT_NAME);
 }
 
 /// Service contract trait.
@@ -50,6 +53,8 @@ pub trait ServiceContract: Send + Sync {
 	fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>>;
 	/// Publish server key.
 	fn publish_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String>;
+	/// Publish document key.
+	fn publish_document_key(&self, server_key_id: &ServerKeyId, document_key: &EncryptedDocumentKey) -> Result<(), String>;
 }
 
 /// On-chain service contract.
@@ -73,15 +78,9 @@ struct SecretStoreServiceData {
 }
 
 /// Pending requests iterator.
-struct PendingRequestsIterator {
-	/// Blockchain client.
-	client: Arc<Client>,
-	/// Contract.
-	contract: Arc<SecretStoreService>,
-	/// This node key pair.
-	self_key_pair: Arc<NodeKeyPair>,
-	/// Block, this iterator is created for.
-	block: H256,
+struct PendingRequestsIterator<F: Fn(U256) -> Option<(bool, ServiceTask)>> {
+	/// Pending request read function.
+	read_request: F,
 	/// Current request index.
 	index: U256,
 	/// Requests length.
@@ -177,7 +176,10 @@ impl ServiceContract for OnChainServiceContract {
 			to_block: BlockId::Hash(last_block),
 			address: Some(vec![address]),
 			topics: vec![
-				Some(vec![*SERVER_KEY_REQUESTED_EVENT_NAME_HASH]),
+				Some(vec![
+					*SERVER_KEY_REQUESTED_EVENT_NAME_HASH,
+					*DOCUMENT_KEY_REQUESTED_EVENT_NAME_HASH,
+				]),
 				None,
 				None,
 				None,
@@ -203,22 +205,39 @@ impl ServiceContract for OnChainServiceContract {
 				.and_then(|b| {
 					let do_call = |a, d| future::done(client.call_contract(BlockId::Hash(b.clone()), a, d));
 					data.contract.server_key_generation_requests_count(&do_call).wait()
+						.and_then(|s_l| data.contract.document_key_generation_requests_count(&do_call).wait().map(|d_l| (s_l, d_l)))
 						.map_err(|error| {
 							warn!(target: "secretstore", "{}: call to server_key_generation_requests_count failed: {}",
 								self.self_key_pair.public(), error);
 							error
 						})
-						.map(|l| (b, l))
+						.map(|(s_l, d_l)| (b, (s_l, d_l)))
 						.ok()
 				})
-				.map(|(b, l)| Box::new(PendingRequestsIterator {
-					client: client,
-					contract: data.contract.clone(),
-					self_key_pair: self.self_key_pair.clone(),
-					block: b,
-					index: 0.into(),
-					length: l,
-				}) as Box<Iterator<Item=(bool, ServiceTask)>>)
+				.map(|(b, (s_l, d_l))| {
+					let c_client = client.clone();
+					let contract = data.contract.clone();
+					let self_key_pair = self.self_key_pair.clone();
+					let server_key_generation_requests = PendingRequestsIterator {
+						read_request: move |index| read_pending_server_key_generation_request(
+							&*c_client, &*contract, &BlockId::Hash(b.clone()), &*self_key_pair, index),
+						index: 0.into(),
+						length: s_l,
+					};
+
+					let c_client = client.clone();
+					let contract = data.contract.clone();
+					let self_key_pair = self.self_key_pair.clone();
+					let document_key_generation_requests = PendingRequestsIterator {
+						read_request: move |index| read_pending_document_key_generation_request(
+							&*c_client, &*contract, &BlockId::Hash(b.clone()), &*self_key_pair, index),
+						index: 0.into(),
+						length: d_l,
+					};
+
+					Box::new(server_key_generation_requests.chain(document_key_generation_requests))
+						as Box<Iterator<Item=(bool, ServiceTask)>>
+				})
 				.unwrap_or_else(|| Box::new(::std::iter::empty()))
 		}
 	}
@@ -264,9 +283,51 @@ impl ServiceContract for OnChainServiceContract {
 
 		Ok(())
 	}
+
+	fn publish_document_key(&self, server_key_id: &ServerKeyId, document_key: &EncryptedDocumentKey) -> Result<(), String> {
+		// only publish if contract address is set && client is online
+		let data = self.data.read();
+		if data.contract.address == Default::default() {
+			// it is not an error, because key could be generated even without contract
+			return Ok(());
+		}
+
+		let client = match self.client.get() {
+			Some(client) => client,
+			None => return Err("trusted client is required to publish key".into()),
+		};
+
+		// only publish key if contract waits for publication
+		// failing is ok here - it could be that enough confirmations have been recevied
+		// or key has been requested using HTTP API
+		let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
+		let self_address = public_to_address(self.self_key_pair.public());
+		if data.contract.get_document_key_confirmation_status(&do_call, server_key_id.clone(), self_address).wait().unwrap_or(false) {
+			return Ok(());
+		}
+
+		// prepare transaction data
+		let document_key_hash = keccak(document_key);
+		let signed_document_key = self.self_key_pair.sign(&document_key_hash).map_err(|e| format!("{}", e))?;
+		let signed_document_key: Signature = signed_document_key.into_electrum().into();
+		let transaction_data = data.contract.encode_document_key_generated_input(server_key_id.clone(),
+			document_key.to_vec(),
+			signed_document_key.v(),
+			signed_document_key.r().into(),
+			signed_document_key.s().into()
+		)?;
+
+		// send transaction
+		client.transact_contract(
+			data.contract.address.clone(),
+			transaction_data
+		).map_err(|e| format!("{}", e))?;
+
+		Ok(())
+	}
 }
 
-impl Iterator for PendingRequestsIterator {
+impl<F> Iterator for PendingRequestsIterator<F> where F: Fn(U256) -> Option<(bool, ServiceTask)> {
 	type Item = (bool, ServiceTask);
 
 	fn next(&mut self) -> Option<(bool, ServiceTask)> {
@@ -277,23 +338,7 @@ impl Iterator for PendingRequestsIterator {
 		let index = self.index.clone();
 		self.index = self.index + 1.into();
 
-		let self_address = public_to_address(self.self_key_pair.public());
-		let do_call = |a, d| future::done(self.client.call_contract(BlockId::Hash(self.block.clone()), a, d));
-		self.contract.get_server_key_id(&do_call, index).wait()
-			.and_then(|server_key_id|
-				self.contract.get_server_key_threshold(&do_call, server_key_id.clone()).wait()
-					.map(|threshold| (server_key_id, threshold)))
-			.and_then(|(server_key_id, threshold)|
-				self.contract.get_server_key_confirmation_status(&do_call, server_key_id.clone(), self_address).wait()
-					.map(|is_confirmed| (server_key_id, threshold, is_confirmed)))
-			.map(|(server_key_id, threshold, is_confirmed)|
-				Some((is_confirmed, ServiceTask::GenerateServerKey(server_key_id, threshold.into()))))
-			.map_err(|error| {
-				warn!(target: "secretstore", "{}: reading service contract request failed: {}",
-					self.self_key_pair.public(), error);
-				()
-			})
-			.unwrap_or(None)
+		(self.read_request)(index)
 	}
 }
 
@@ -304,13 +349,58 @@ fn get_confirmed_block_hash(client: &Client, confirmations: u64) -> Option<H256>
 		.and_then(|b| client.block_hash(BlockId::Number(b)))
 }
 
+/// Read pending server key generation request.
+fn read_pending_server_key_generation_request(client: &Client, contract: &SecretStoreService, block: &BlockId, self_key_pair: &NodeKeyPair, index: U256) -> Option<(bool, ServiceTask)> {
+	let self_address = public_to_address(self_key_pair.public());
+	let do_call = |a, d| future::done(client.call_contract(block.clone(), a, d));
+	contract.get_server_key_id(&do_call, index).wait()
+		.and_then(|server_key_id|
+			contract.get_server_key_threshold(&do_call, server_key_id.clone()).wait()
+				.map(|threshold| (server_key_id, threshold)))
+		.and_then(|(server_key_id, threshold)|
+			contract.get_server_key_confirmation_status(&do_call, server_key_id.clone(), self_address).wait()
+				.map(|is_confirmed| (server_key_id, threshold, is_confirmed)))
+		.map(|(server_key_id, threshold, is_confirmed)|
+			Some((is_confirmed, ServiceTask::GenerateServerKey(server_key_id, threshold.into()))))
+		.map_err(|error| {
+			warn!(target: "secretstore", "{}: reading service contract request failed: {}",
+				self_key_pair.public(), error);
+			()
+		})
+		.unwrap_or(None)
+}
+
+/// Read pending document key generation request.
+fn read_pending_document_key_generation_request(client: &Client, contract: &SecretStoreService, block: &BlockId, self_key_pair: &NodeKeyPair, index: U256) -> Option<(bool, ServiceTask)> {
+	let self_address = public_to_address(self_key_pair.public());
+	let do_call = |a, d| future::done(client.call_contract(block.clone(), a, d));
+	contract.get_document_key_id(&do_call, index).wait()
+		.and_then(|server_key_id|
+			contract.get_document_key_threshold(&do_call, server_key_id.clone()).wait()
+				.map(|threshold| (server_key_id, threshold)))
+		.and_then(|(server_key_id, threshold)|
+			contract.get_document_key_signature(&do_call, server_key_id.clone()).wait()
+				.map(|(v, r, s)| (server_key_id, threshold, Signature::from_rsv(&r.into(), &s.into(), v))))
+		.and_then(|(server_key_id, threshold, signature)|
+			contract.get_document_key_confirmation_status(&do_call, server_key_id.clone(), self_address).wait()
+				.map(|is_confirmed| (server_key_id, threshold, signature, is_confirmed)))
+		.map(|(server_key_id, threshold, signature, is_confirmed)|
+			Some((is_confirmed, ServiceTask::GenerateDocumentKey(server_key_id, threshold.into(), signature))))
+		.map_err(|error| {
+			warn!(target: "secretstore", "{}: reading service contract request failed: {}",
+				self_key_pair.public(), error);
+			()
+		})
+		.unwrap_or(None)
+}
+
 #[cfg(test)]
 pub mod tests {
 	use parking_lot::Mutex;
 	use ethkey::Public;
 	use ethereum_types::H256;
 	use listener::service_contract_listener::ServiceTask;
-	use ServerKeyId;
+	use {ServerKeyId, EncryptedDocumentKey};
 	use super::ServiceContract;
 
 	#[derive(Default)]
@@ -318,7 +408,8 @@ pub mod tests {
 		pub is_actual: bool,
 		pub logs: Vec<Vec<H256>>,
 		pub pending_requests: Vec<(bool, ServiceTask)>,
-		pub published_keys: Mutex<Vec<(ServerKeyId, Public)>>,
+		pub published_server_keys: Mutex<Vec<(ServerKeyId, Public)>>,
+		pub published_document_keys: Mutex<Vec<(ServerKeyId, EncryptedDocumentKey)>>,
 	}
 
 	impl ServiceContract for DummyServiceContract {
@@ -335,7 +426,12 @@ pub mod tests {
 		}
 
 		fn publish_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
-			self.published_keys.lock().push((server_key_id.clone(), server_key.clone()));
+			self.published_server_keys.lock().push((server_key_id.clone(), server_key.clone()));
+			Ok(())
+		}
+
+		fn publish_document_key(&self, server_key_id: &ServerKeyId, document_key: &EncryptedDocumentKey) -> Result<(), String> {
+			self.published_document_keys.lock().push((server_key_id.clone(), document_key.clone()));
 			Ok(())
 		}
 	}
