@@ -223,7 +223,10 @@ pub mod tests {
 
 	#[derive(Default)]
 	pub struct DummyKeyServer {
+		pub return_ok: bool,
 		pub generation_requests_count: AtomicUsize,
+		pub document_generation_requests_count: AtomicUsize,
+		pub document_restore_requests_count: AtomicUsize,
 	}
 
 	impl KeyServer for DummyKeyServer {}
@@ -237,7 +240,10 @@ pub mod tests {
 	impl ServerKeyGenerator for DummyKeyServer {
 		fn generate_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _threshold: usize) -> Result<Public, Error> {
 			self.generation_requests_count.fetch_add(1, Ordering::Relaxed);
-			Err(Error::Internal("test error".into()))
+			if !self.return_ok {
+				return Err(Error::Internal("test error".into()));
+			}
+			Ok(Public::zero())
 		}
 	}
 
@@ -247,11 +253,19 @@ pub mod tests {
 		}
 
 		fn generate_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _threshold: usize) -> Result<EncryptedDocumentKey, Error> {
-			unimplemented!("test-only")
+			self.document_generation_requests_count.fetch_add(1, Ordering::Relaxed);
+			if !self.return_ok {
+				return Err(Error::Internal("test error".into()));
+			}
+			Ok(Default::default())
 		}
 
 		fn restore_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature) -> Result<EncryptedDocumentKey, Error> {
-			unimplemented!("test-only")
+			self.document_restore_requests_count.fetch_add(1, Ordering::Relaxed);
+			if !self.return_ok {
+				return Err(Error::Internal("test error".into()));
+			}
+			Ok(Default::default())
 		}
 
 		fn restore_document_key_shadow(&self, _key_id: &ServerKeyId, _signature: &RequestSignature) -> Result<EncryptedDocumentKeyShadow, Error> {
