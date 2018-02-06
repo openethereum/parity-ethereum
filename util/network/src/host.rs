@@ -719,7 +719,7 @@ impl Host {
 			let address = {
 				let mut nodes = self.nodes.write();
 				if let Some(node) = nodes.get_mut(id) {
-					node.last_attempted = Some(::time::now());
+					node.attempts += 1;
 					node.endpoint.address
 				}
 				else {
@@ -738,6 +738,7 @@ impl Host {
 				}
 			}
 		};
+
 		if let Err(e) = self.create_connection(socket, Some(id), io) {
 			debug!(target: "network", "Can't create connection: {:?}", e);
 		}
@@ -1281,4 +1282,3 @@ fn host_client_url() {
 	let host: Host = Host::new(config, Arc::new(NetworkStats::new()), None).unwrap();
 	assert!(host.local_url().starts_with("enode://101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c@"));
 }
-

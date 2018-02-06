@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#![allow(unused_mut, unused_variables, unused_imports)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens)]
 
 //! Registrar contract: maps names to addresses and data.
 // TODO: testing.

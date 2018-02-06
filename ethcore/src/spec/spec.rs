@@ -850,7 +850,7 @@ mod tests {
 		let expected = H256::from_str(
 			"0000000000000000000000000000000000000000000000000000000000000001",
 		).unwrap();
-		let address = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+		let address = Address::from_str("0000000000000000000000000000000000001337").unwrap();
 
 		assert_eq!(state.storage_at(&address, &H256::zero()).unwrap(), expected);
 		assert_eq!(state.balance(&address).unwrap(), 1.into());

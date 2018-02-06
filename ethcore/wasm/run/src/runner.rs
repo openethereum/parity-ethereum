@@ -16,7 +16,7 @@ fn load_code<P: AsRef<path::Path>>(p: P) -> io::Result<Vec<u8>> {
 }
 
 fn wasm_interpreter() -> WasmInterpreter {
-	WasmInterpreter::new().expect("wasm interpreter to create without errors")
+	WasmInterpreter
 }
 
 #[derive(Debug)]
