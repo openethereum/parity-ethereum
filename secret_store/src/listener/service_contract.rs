@@ -18,6 +18,7 @@ use std::sync::Arc;
 use futures::{future, Future};
 use parking_lot::RwLock;
 use ethcore::filter::Filter;
+use ethcore::log_entry::LocalizedLogEntry;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethkey::{Public, Signature, public_to_address};
 use native_contracts::SecretStoreService;
@@ -31,9 +32,9 @@ use {ServerKeyId, NodeKeyPair, ContractAddress, EncryptedDocumentKey};
 const SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service";
 
 /// Server key generation has been requested.
-const SERVER_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyRequested(bytes32)";
+const SERVER_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyRequested(bytes32,uint256)";
 /// Document key generation has been requested.
-const DOCUMENT_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"DocumentKeyRequested(bytes32)";
+const DOCUMENT_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"DocumentKeyRequested(bytes32,uint256,uint8,uint256,uint256)";
 
 /// Number of confirmations required before request can be processed.
 const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
@@ -48,7 +49,7 @@ pub trait ServiceContract: Send + Sync {
 	/// Update contract when new blocks are enacted. Returns true if contract is installed && up-to-date (i.e. chain is synced).
 	fn update(&self) -> bool;
 	/// Read recent contract logs. Returns topics of every entry.
-	fn read_logs(&self) -> Box<Iterator<Item=Vec<H256>>>;
+	fn read_logs(&self) -> Box<Iterator<Item=ServiceTask>>;
 	/// Publish generated key.
 	fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>>;
 	/// Publish server key.
@@ -137,7 +138,7 @@ impl ServiceContract for OnChainServiceContract {
 			&& self.client.get().is_some()
 	}
 
-	fn read_logs(&self) -> Box<Iterator<Item=Vec<H256>>> {
+	fn read_logs(&self) -> Box<Iterator<Item=ServiceTask>> {
 		let client = match self.client.get() {
 			Some(client) => client,
 			None => {
@@ -180,14 +181,27 @@ impl ServiceContract for OnChainServiceContract {
 					*SERVER_KEY_REQUESTED_EVENT_NAME_HASH,
 					*DOCUMENT_KEY_REQUESTED_EVENT_NAME_HASH,
 				]),
-				None,
-				None,
-				None,
 			],
 			limit: None,
 		});
 
-		Box::new(request_logs.into_iter().map(|log| log.entry.topics))
+		let data = self.data.read();
+		Box::new(request_logs.into_iter()
+			.filter_map(|log| {
+				if log.entry.topics[0] == *SERVER_KEY_REQUESTED_EVENT_NAME_HASH {
+					parse_server_key_generation_request(&*data.contract, log)
+				} else if log.entry.topics[0] == *DOCUMENT_KEY_REQUESTED_EVENT_NAME_HASH {
+					parse_document_key_generation_request(&*data.contract, log)
+				} else {
+					Err("unknown type of log entry".into())
+				}
+				.map_err(|error| {
+					warn!(target: "secretstore", "{}: error parsing log entry from service contract: {}",
+						self.self_key_pair.public(), error);
+					error
+				})
+				.ok()
+			}).collect::<Vec<_>>().into_iter())
 	}
 
 	fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>> {
@@ -207,7 +221,7 @@ impl ServiceContract for OnChainServiceContract {
 					data.contract.server_key_generation_requests_count(&do_call).wait()
 						.and_then(|s_l| data.contract.document_key_generation_requests_count(&do_call).wait().map(|d_l| (s_l, d_l)))
 						.map_err(|error| {
-							warn!(target: "secretstore", "{}: call to server_key_generation_requests_count failed: {}",
+							warn!(target: "secretstore", "{}: call to key_generation_requests_count failed: {}",
 								self.self_key_pair.public(), error);
 							error
 						})
@@ -349,6 +363,39 @@ fn get_confirmed_block_hash(client: &Client, confirmations: u64) -> Option<H256>
 		.and_then(|b| client.block_hash(BlockId::Number(b)))
 }
 
+/// Parse server key generation log entry.
+fn parse_server_key_generation_request(contract: &SecretStoreService, log: LocalizedLogEntry) -> Result<ServiceTask, String> {
+	let event = SecretStoreService::contract(contract)
+		.event("ServerKeyRequested".into())
+		.expect("Contract known ahead of time to have `ServerKeyRequested` event; qed");
+	let log_data = (log.entry.topics.into_iter().map(|t| t.0).collect(), log.entry.data).into();
+	event.parse_log(log_data)
+		.map(|l| ServiceTask::GenerateServerKey(
+			(*l.params[0].value.clone().to_fixed_bytes().expect("TODO")).into(),
+			l.params[1].value.clone().to_uint().expect("TODO").into())
+		)
+		.map_err(|e| format!("{}", e))
+}
+
+/// Parse document key generation log entry.
+fn parse_document_key_generation_request(contract: &SecretStoreService, log: LocalizedLogEntry) -> Result<ServiceTask, String> {
+	let event = SecretStoreService::contract(contract)
+		.event("DocumentKeyRequested".into())
+		.expect("Contract known ahead of time to have `DocumentKeyRequested` event; qed");
+	let log_data = (log.entry.topics.into_iter().map(|t| t.0).collect(), log.entry.data).into();
+	event.parse_log(log_data)
+		.map(|l| ServiceTask::GenerateDocumentKey(
+			(*l.params[0].value.clone().to_fixed_bytes().expect("TODO")).into(),
+			l.params[1].value.clone().to_uint().expect("TODO").into(),
+			Signature::from_rsv(
+				&(*l.params[4].value.clone().to_fixed_bytes().expect("TODO")).into(),
+				&(*l.params[5].value.clone().to_fixed_bytes().expect("TODO")).into(),
+				l.params[3].value.clone().to_uint().expect("TODO")[0],
+			)
+		))
+		.map_err(|e| format!("{}", e))
+}
+
 /// Read pending server key generation request.
 fn read_pending_server_key_generation_request(client: &Client, contract: &SecretStoreService, block: &BlockId, self_key_pair: &NodeKeyPair, index: U256) -> Option<(bool, ServiceTask)> {
 	let self_address = public_to_address(self_key_pair.public());
@@ -406,7 +453,7 @@ pub mod tests {
 	#[derive(Default)]
 	pub struct DummyServiceContract {
 		pub is_actual: bool,
-		pub logs: Vec<Vec<H256>>,
+		pub logs: Vec<ServiceTask>,
 		pub pending_requests: Vec<(bool, ServiceTask)>,
 		pub published_server_keys: Mutex<Vec<(ServerKeyId, Public)>>,
 		pub published_document_keys: Mutex<Vec<(ServerKeyId, EncryptedDocumentKey)>>,
@@ -417,7 +464,7 @@ pub mod tests {
 			true
 		}
 
-		fn read_logs(&self) -> Box<Iterator<Item=Vec<H256>>> {
+		fn read_logs(&self) -> Box<Iterator<Item=ServiceTask>> {
 			Box::new(self.logs.clone().into_iter())
 		}
 
