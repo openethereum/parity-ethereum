@@ -161,10 +161,10 @@ mod tests {
 	use super::RollingFinality;
 
 	#[test]
-	fn rejects_unknown_signer() {
-		let signers = (0..3).map(|_| Address::random()).collect();
-		let mut finality = RollingFinality::blank(signers);
-		assert!(finality.push_hash(H256::random(), vec![Address::random()]).is_err());
+	fn rejects_unknown_signers() {
+		let signers = (0..3).map(|_| Address::random()).collect::<Vec<_>>();
+		let mut finality = RollingFinality::blank(signers.clone());
+		assert!(finality.push_hash(H256::random(), vec![signers[0], Address::random()]).is_err());
 	}
 
 	#[test]
@@ -187,6 +187,16 @@ mod tests {
 	}
 
 	#[test]
+	fn finalize_multiple_signers() {
+		let signers: Vec<_> = (0..6).map(|_| Address::random()).collect();
+		let mut finality = RollingFinality::blank(signers.clone());
+		let hash = H256::random();
+
+		// after pushing a block signed by four validators, it becomes verified right away.
+		assert_eq!(finality.push_hash(hash, signers[0..4].to_vec()).unwrap(), vec![hash]);
+	}
+
+	#[test]
 	fn from_ancestry() {
 		let signers: Vec<_> = (0..6).map(|_| Address::random()).collect();
 		let hashes: Vec<_> = (0..12).map(|i| (H256::random(), vec![signers[i % 6]])).collect();
@@ -195,6 +205,22 @@ mod tests {
 		finality.build_ancestry_subchain(hashes.iter().rev().cloned()).unwrap();
 
 		assert_eq!(finality.unfinalized_hashes().count(), 3);
+		assert_eq!(finality.subchain_head(), Some(hashes[11].0));
+	}
+
+	#[test]
+	fn from_ancestry_multiple_signers() {
+		let signers: Vec<_> = (0..6).map(|_| Address::random()).collect();
+		let hashes: Vec<_> = (0..12).map(|i| {
+			(H256::random(), vec![signers[i % 6], signers[(i + 1) % 6], signers[(i + 2) % 6]])
+		}).collect();
+
+		let mut finality = RollingFinality::blank(signers.clone());
+		finality.build_ancestry_subchain(hashes.iter().rev().cloned()).unwrap();
+
+		// only the last hash has < 51% of authorities' signatures
+		assert_eq!(finality.unfinalized_hashes().count(), 1);
+		assert_eq!(finality.unfinalized_hashes().next(), Some(hashes[11].0));
 		assert_eq!(finality.subchain_head(), Some(hashes[11].0));
 	}
 }
