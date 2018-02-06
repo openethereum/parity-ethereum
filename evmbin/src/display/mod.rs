@@ -39,6 +39,6 @@ pub fn u256_as_str(v: &U256) -> String {
 	if v.is_zero() {
 		"\"0x0\"".into()
 	} else {
-		format!("\"{:x}\"", v)
+		format!("\"0x{:x}\"", v)
 	}
 }
