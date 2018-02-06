@@ -84,8 +84,8 @@ pub struct SimpleServersSetChangeSessionCreatorConnector {
 pub enum ConnectionsAction {
 	/// Connect to nodes from old set only.
 	ConnectToCurrentSet,
-	/// Connect to nodes from both old and migration sets.
-	ConnectToCurrentAndMigrationSet,
+	/// Connect to nodes from migration set.
+	ConnectToMigrationSet,
 }
 
 /// Trigger connections.
@@ -151,14 +151,9 @@ impl TriggerConnections {
 			ConnectionsAction::ConnectToCurrentSet => {
 				adjust_connections(self.self_key_pair.public(), data, &server_set.current_set);
 			},
-			ConnectionsAction::ConnectToCurrentAndMigrationSet => {
-				let mut old_and_migration_set = BTreeMap::new();
-				if let Some(migration) = server_set.migration.as_ref() {
-					old_and_migration_set.extend(migration.set.iter().map(|(node_id, node_addr)| (node_id.clone(), node_addr.clone())));
-				}
-				old_and_migration_set.extend(server_set.current_set.iter().map(|(node_id, node_addr)| (node_id.clone(), node_addr.clone())));
-
-				adjust_connections(self.self_key_pair.public(), data, &old_and_migration_set);
+			ConnectionsAction::ConnectToMigrationSet => {
+				let migration_set = server_set.migration.as_ref().map(|s| s.set.clone()).unwrap_or_default();
+				adjust_connections(self.self_key_pair.public(), data, &migration_set);
 			},
 		}
 	}
@@ -335,7 +330,7 @@ mod tests {
 	}
 
 	#[test]
-	fn maintain_connects_to_current_and_migration_set_works() {
+	fn maintain_connects_to_migration_set_works() {
 		let connections = create_connections();
 		let self_node_id = connections.self_key_pair.public().clone();
 		let current_node_id = Random.generate().unwrap().public().clone();
@@ -343,17 +338,17 @@ mod tests {
 		let new_node_id = Random.generate().unwrap().public().clone();
 
 		let mut connections_data: ClusterConnectionsData = Default::default();
-		connections.maintain(ConnectionsAction::ConnectToCurrentAndMigrationSet, &mut connections_data, &KeyServerSetSnapshot {
-			current_set: vec![(self_node_id.clone(), "127.0.0.1:8081".parse().unwrap()),
-				(current_node_id.clone(), "127.0.0.1:8082".parse().unwrap())].into_iter().collect(),
+		connections.maintain(ConnectionsAction::ConnectToMigrationSet, &mut connections_data, &KeyServerSetSnapshot {
+			current_set: vec![(current_node_id.clone(), "127.0.0.1:8082".parse().unwrap())].into_iter().collect(),
 			new_set: vec![(new_node_id.clone(), "127.0.0.1:8083".parse().unwrap())].into_iter().collect(),
 			migration: Some(KeyServerSetMigration {
-				set: vec![(migration_node_id.clone(), "127.0.0.1:8084".parse().unwrap())].into_iter().collect(),
+				set: vec![(self_node_id.clone(), "127.0.0.1:8081".parse().unwrap()),
+					(migration_node_id.clone(), "127.0.0.1:8084".parse().unwrap())].into_iter().collect(),
 				..Default::default()
 			}),
 		});
 
-		assert_eq!(vec![current_node_id, migration_node_id].into_iter().collect::<BTreeSet<_>>(),
+		assert_eq!(vec![migration_node_id].into_iter().collect::<BTreeSet<_>>(),
 			connections_data.nodes.keys().cloned().collect::<BTreeSet<_>>());
 	}
 

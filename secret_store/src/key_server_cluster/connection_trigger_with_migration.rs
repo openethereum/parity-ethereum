@@ -260,12 +260,11 @@ impl TriggerSession {
 			let migration = server_set.migration.as_ref()
 				.expect("action is Start only when migration is started (see maintain_session); qed");
 
-			let old_set: BTreeSet<_> = server_set.current_set.keys()
-				.chain(migration.set.keys())
-				.cloned().collect();
-			let new_set: BTreeSet<_> = migration.set.keys()
-				.cloned()
-				.collect();
+			// we assume that authorities that are removed from the servers set are either offline, or malicious
+			// => they're not involved in ServersSetChangeSession
+			// => both sets are the same
+			let old_set: BTreeSet<_> = migration.set.keys().cloned().collect();
+			let new_set = old_set.clone();
 
 			let signatures = self.self_key_pair.sign(&ordered_nodes_hash(&old_set))
 				.and_then(|old_set_signature| self.self_key_pair.sign(&ordered_nodes_hash(&new_set))
@@ -336,8 +335,7 @@ fn maintain_session(self_node_id: &NodeId, connected: &BTreeSet<NodeId>, snapsho
 		},
 		// migration is active && there's no active session => start it
 		(MigrationState::Started, SessionState::Idle) => {
-			match is_connected_to_all_nodes(self_node_id, &snapshot.current_set, connected) &&
-				is_connected_to_all_nodes(self_node_id, &snapshot.migration.as_ref().expect(migration_data_proof).set, connected) &&
+			match is_connected_to_all_nodes(self_node_id, &snapshot.migration.as_ref().expect(migration_data_proof).set, connected) &&
 				select_master_node(snapshot) == self_node_id {
 				true => Some(SessionAction::Start),
 				// we are not connected to all required nodes yet or we are not on master node => wait for it
@@ -406,7 +404,7 @@ fn maintain_connections(migration_state: MigrationState, session_state: SessionS
 		// but it participates in new key generation session
 		// it is ok, since 'officialy' here means that this node is a owner of all old shares
 		(MigrationState::Required, _) |
-		(MigrationState::Started, _) => Some(ConnectionsAction::ConnectToCurrentAndMigrationSet),
+		(MigrationState::Started, _) => Some(ConnectionsAction::ConnectToMigrationSet),
 	}
 }
 
@@ -430,15 +428,6 @@ fn select_master_node(snapshot: &KeyServerSetSnapshot) -> &NodeId {
 					when Started: migration.is_some() && we return migration.master; qed;\
 					when Required: current_set != new_set; this means that at least one set is non-empty; we try to take node from each set; qed"))
 	}
-	/*server_set_state.migration.as_ref()
-		.map(|m| &m.master)
-		.unwrap_or_else(|| server_set_state.current_set.keys()
-			.filter(|n| server_set_state.new_set.contains_key(n))
-			.nth(0)
-			.or_else(|| server_set_state.new_set.keys().nth(0)))
-		.expect("select_master_node is only called when migration is Required or Started;"
-			"when Started: migration.is_some() && we have migration.master; qed"
-			"when Required: current_set != migration_set; this means that at least one set is non-empty; we select")*/
 }
 
 #[cfg(test)]
@@ -558,13 +547,13 @@ mod tests {
 	#[test]
 	fn maintain_connections_connects_to_current_and_old_set_when_migration_is_required() {
 		assert_eq!(maintain_connections(MigrationState::Required,
-			SessionState::Idle), Some(ConnectionsAction::ConnectToCurrentAndMigrationSet));
+			SessionState::Idle), Some(ConnectionsAction::ConnectToMigrationSet));
 	}
 
 	#[test]
 	fn maintain_connections_connects_to_current_and_old_set_when_migration_is_started() {
 		assert_eq!(maintain_connections(MigrationState::Started,
-			SessionState::Idle), Some(ConnectionsAction::ConnectToCurrentAndMigrationSet));
+			SessionState::Idle), Some(ConnectionsAction::ConnectToMigrationSet));
 	}
 
 	#[test]
@@ -592,20 +581,6 @@ mod tests {
 				master: 1.into(),
 				set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap()),
 					(2.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
-				..Default::default()
-			}),
-		}, MigrationState::Started, SessionState::Idle), None);
-	}
-
-	#[test]
-	fn maintain_session_does_nothing_when_migration_started_on_master_node_and_no_session_and_not_connected_to_current_nodes() {
-		assert_eq!(maintain_session(&1.into(), &Default::default(), &KeyServerSetSnapshot {
-			current_set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap()),
-				(2.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
-			new_set: Default::default(),
-			migration: Some(KeyServerSetMigration {
-				master: 1.into(),
-				set: vec![(1.into(), "127.0.0.1:8181".parse().unwrap())].into_iter().collect(),
 				..Default::default()
 			}),
 		}, MigrationState::Started, SessionState::Idle), None);
