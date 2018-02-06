@@ -564,7 +564,8 @@ impl Engine<EthereumMachine> for Tendermint {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error>{
-		::engines::common::bestow_block_reward(block, self.block_reward)
+		let author = *block.header().author();
+		::engines::common::bestow_block_reward(block, self.block_reward, &[author])
 	}
 
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {

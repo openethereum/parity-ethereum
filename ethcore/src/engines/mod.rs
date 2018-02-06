@@ -409,27 +409,31 @@ pub mod common {
 	use trace::{Tracer, ExecutiveTracer, RewardType};
 	use state::CleanupMode;
 
-	use ethereum_types::U256;
+	use ethereum_types::{Address, U256};
 
-	/// Give reward and trace.
-	pub fn bestow_block_reward(block: &mut ExecutedBlock, reward: U256) -> Result<(), Error> {
+	/// Give rewards and trace.
+	pub fn bestow_block_reward(block: &mut ExecutedBlock, reward: U256, receivers: &[Address]) -> Result<(), Error> {
 		let fields = block.fields_mut();
-		// Bestow block reward
-		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
-			.map_err(::error::Error::from)
-			.and_then(|_| fields.state.commit());
 
-		let block_author = fields.header.author().clone();
-		fields.traces.as_mut().map(move |traces| {
-  			let mut tracer = ExecutiveTracer::default();
-  			tracer.trace_reward(block_author, reward, RewardType::Block);
-  			traces.push(tracer.drain())
-		});
+		for receiver in receivers {
+			// Bestow block reward
+			let res = fields.state.add_balance(&receiver, &reward, CleanupMode::NoEmpty)
+				.map_err(::error::Error::from)
+				.and_then(|_| fields.state.commit());
 
-		// Commit state so that we can actually figure out the state root.
-		if let Err(ref e) = res {
-			warn!("Encountered error on bestowing reward: {}", e);
+			fields.traces.as_mut().map(move |traces| {
+  				let mut tracer = ExecutiveTracer::default();
+  				tracer.trace_reward(*receiver, reward, RewardType::Block);
+  				traces.push(tracer.drain())
+			});
+
+			// Commit state so that we can actually figure out the state root.
+			if let Err(ref e) = res {
+				warn!("Encountered error on bestowing reward: {}", e);
+			}
+			res?
 		}
-		res
+
+		Ok(())
 	}
 }

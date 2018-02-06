@@ -936,8 +936,19 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		// TODO: move to "machine::WithBalances" trait.
-		::engines::common::bestow_block_reward(block, self.block_reward)
+		if block.header().number() >= self.empty_steps_transition {
+			let mut receivers = Vec::new();
+			for empty_step in header_empty_steps(block.header())? {
+				receivers.push(empty_step.author()?)
+			}
+			receivers.push(*block.header().author());
+
+			::engines::common::bestow_block_reward(block, self.block_reward, &receivers)
+
+		} else {
+			let author = *block.header().author();
+			::engines::common::bestow_block_reward(block, self.block_reward, &[author])
+		}
 	}
 
 	/// Check the number of seal fields.
