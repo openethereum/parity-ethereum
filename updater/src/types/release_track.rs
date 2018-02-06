@@ -19,18 +19,19 @@
 use std::fmt;
 
 /// A release's track.
+#[repr(u8)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum ReleaseTrack {
 	/// Stable track.
-	Stable,
+	Stable = 1,
 	/// Beta track.
-	Beta,
+	Beta = 2,
 	/// Nightly track.
-	Nightly,
+	Nightly = 3,
 	/// Testing track.
-	Testing,
+	Testing = 4,
 	/// No known track, also "current executable's track" when it's not yet known.
-	Unknown,
+	Unknown = 0,
 }
 
 impl fmt::Display for ReleaseTrack {
