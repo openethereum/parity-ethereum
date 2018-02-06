@@ -114,18 +114,29 @@ impl<'a> Clone for UntrustedRlp<'a> {
 	}
 }
 
-impl<'a> fmt::Display for UntrustedRlp<'a> {
-	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		match self.prototype() {
-			Ok(Prototype::Null) => write!(f, "null"),
-			Ok(Prototype::Data(_)) => write!(f, "\"0x{}\"", self.data().unwrap().to_hex()),
-			Ok(Prototype::List(len)) => {
-				write!(f, "[")?;
-				for i in 0..len-1 {
-					write!(f, "{}, ", self.at(i).unwrap())?;
-				}
-				write!(f, "{}", self.at(len - 1).unwrap())?;
-				write!(f, "]")
+impl<'a> fmt::Display for UntrustedRlp<'a> {                                                                                                
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {                                                                   
+		match self.prototype() {                                                                                                    
+			Ok(Prototype::Null) => write!(f, "null"),                                                                           
+			Ok(Prototype::Data(_)) => {                                                                                         
+				match self.data() {                                                                                                         
+					Ok(rlp) => write!(f, "\"0x{}\"", rlp.to_hex()),                                                                         
+					Err(err) => write!(f, "{:?}", err)                                                                                      
+				}                                                                                                                           
+			},                                                                                                                              
+			Ok(Prototype::List(len)) => {                                                                                       
+				write!(f, "[")?;                                                                                            
+				for i in 0..len-1 {                                                                                         
+					let _ = match self.at(i) {                                                                                              
+						Ok(itm) => write!(f, "{}, ", itm),                                                              
+						Err(err) => write!(f, "{:?}", err)                                                                                  
+					};                                                                                                                      
+				}                                                                                                           
+				let _ = match self.at(len - 1) {                                                                                            
+					Ok(rlp) => write!(f, "{}", rlp),                                                                        
+					Err(err) => write!(f, "{:?}", err)                                                                                      
+				};                                                                                                                          
+				write!(f, "]")                                                                                              
 			},
 			Err(err) => write!(f, "{:?}", err)
 		}
