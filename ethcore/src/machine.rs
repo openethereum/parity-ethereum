@@ -384,7 +384,7 @@ impl EthereumMachine {
 	/// Additional params.
 	pub fn additional_params(&self) -> HashMap<String, String> {
 		hash_map![
-			"registrar".to_owned() => self.params.registrar.hex()
+			"registrar".to_owned() => format!("{:x}", self.params.registrar)
 		]
 	}
 }

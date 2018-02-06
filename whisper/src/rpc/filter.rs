@@ -111,7 +111,7 @@ impl Manager {
 			.map_err(|_| "unable to acquire secure randomness")?
 			.gen();
 
-		sub.assign_id(::jsonrpc_pubsub::SubscriptionId::String(id.hex()))
+		sub.assign_id(::jsonrpc_pubsub::SubscriptionId::String(format!("{:x}", id)))
 			.map(move |sink| {
 				let entry = FilterEntry::Subscription(Arc::new(filter), sink);
 				self.filters.write().insert(id, entry);

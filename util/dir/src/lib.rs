@@ -156,92 +156,66 @@ impl DatabaseDirectories {
 	/// Base DB directory for the given fork.
 	// TODO: remove in 1.7
 	pub fn legacy_fork_path(&self) -> PathBuf {
-		let mut dir = Path::new(&self.legacy_path).to_path_buf();
-		dir.push(format!("{:?}{}", H64::from(self.genesis_hash), self.fork_name.as_ref().map(|f| format!("-{}", f)).unwrap_or_default()));
-		dir
+		Path::new(&self.legacy_path).join(format!("{:?}{}", H64::from(self.genesis_hash), self.fork_name.as_ref().map(|f| format!("-{}", f)).unwrap_or_default()))
 	}
 
 	/// Spec root directory for the given fork.
 	pub fn spec_root_path(&self) -> PathBuf {
-		let mut dir = Path::new(&self.path).to_path_buf();
-		dir.push(&self.spec_name);
-		dir
+		Path::new(&self.path).join(&self.spec_name)
 	}
 
 	/// Generic client path
 	pub fn client_path(&self, pruning: Algorithm) -> PathBuf {
-		let mut dir = self.db_root_path();
-		dir.push(pruning.as_internal_name_str());
-		dir.push("db");
-		dir
+		self.db_root_path().join(pruning.as_internal_name_str()).join("db")
 	}
 
 	/// DB root path, named after genesis hash
 	pub fn db_root_path(&self) -> PathBuf {
-		let mut dir = self.spec_root_path();
-		dir.push("db");
-		dir.push(H64::from(self.genesis_hash).hex());
-		dir
+		self.spec_root_path().join("db").join(format!("{:x}", H64::from(self.genesis_hash)))
 	}
 
 	/// DB path
 	pub fn db_path(&self, pruning: Algorithm) -> PathBuf {
-		let mut dir = self.db_root_path();
-		dir.push(pruning.as_internal_name_str());
-		dir
+		self.db_root_path().join(pruning.as_internal_name_str())
 	}
 
 	/// Get the root path for database
 	// TODO: remove in 1.7
 	pub fn legacy_version_path(&self, pruning: Algorithm) -> PathBuf {
-		let mut dir = self.legacy_fork_path();
-		dir.push(format!("v{}-sec-{}", LEGACY_CLIENT_DB_VER_STR, pruning.as_internal_name_str()));
-		dir
+		self.legacy_fork_path().join(format!("v{}-sec-{}", LEGACY_CLIENT_DB_VER_STR, pruning.as_internal_name_str()))
 	}
 
 	/// Get user defaults path, legacy way
 	// TODO: remove in 1.7
 	pub fn legacy_user_defaults_path(&self) -> PathBuf {
-		let mut dir = self.legacy_fork_path();
-		dir.push("user_defaults");
-		dir
+		self.legacy_fork_path().join("user_defaults")
 	}
 
 	/// Get snapshot path, legacy way
 	// TODO: remove in 1.7
 	pub fn legacy_snapshot_path(&self) -> PathBuf {
-		let mut dir = self.legacy_fork_path();
-		dir.push("snapshot");
-		dir
+		self.legacy_fork_path().join("snapshot")
 	}
 
 	/// Get user defaults path, legacy way
 	// TODO: remove in 1.7
 	pub fn legacy_network_path(&self) -> PathBuf {
-		let mut dir = self.legacy_fork_path();
-		dir.push("network");
-		dir
+		self.legacy_fork_path().join("network")
 	}
 
 	/// Get user defauls path
 	pub fn user_defaults_path(&self) -> PathBuf {
-		let mut dir = self.spec_root_path();
-		dir.push("user_defaults");
-		dir
+		self.spec_root_path().join("user_defaults")
 	}
 
 	/// Get the path for the snapshot directory given the genesis hash and fork name.
 	pub fn snapshot_path(&self) -> PathBuf {
-		let mut dir = self.db_root_path();
-		dir.push("snapshot");
-		dir
+		self.db_root_path().join("snapshot")
 	}
 
 	/// Get the path for the network directory.
 	pub fn network_path(&self) -> PathBuf {
-		let mut dir = self.spec_root_path();
-		dir.push("network");
-		dir
+		self.spec_root_path().join("network")
 	}
 }
 

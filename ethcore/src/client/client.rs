@@ -218,7 +218,7 @@ impl Client {
 		};
 
 		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(h.state_root())) {
-			warn!("State root not found for block #{} ({})", chain.best_block_number(), chain.best_block_hash().hex());
+			warn!("State root not found for block #{} ({:x})", chain.best_block_number(), chain.best_block_hash());
 		}
 
 		let engine = spec.engine.clone();

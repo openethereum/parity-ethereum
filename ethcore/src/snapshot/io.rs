@@ -156,12 +156,9 @@ impl LooseWriter {
 
 	// writing logic is the same for both kinds of chunks.
 	fn write_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
-		let mut file_path = self.dir.clone();
-		file_path.push(hash.hex());
-
+		let file_path = self.dir.join(format!("{:x}", hash));
 		let mut file = File::create(file_path)?;
 		file.write_all(chunk)?;
-
 		Ok(())
 	}
 }
@@ -327,14 +324,10 @@ impl SnapshotReader for LooseReader {
 	}
 
 	fn chunk(&self, hash: H256) -> io::Result<Bytes> {
-		let mut path = self.dir.clone();
-		path.push(hash.hex());
-
+		let path = self.dir.join(format!("{:x}", hash));
 		let mut buf = Vec::new();
 		let mut file = File::open(&path)?;
-
 		file.read_to_end(&mut buf)?;
-
 		Ok(buf)
 	}
 }
