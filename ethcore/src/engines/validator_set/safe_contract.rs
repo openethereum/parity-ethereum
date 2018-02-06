@@ -38,7 +38,7 @@ use receipt::Receipt;
 use super::{SystemCall, ValidatorSet};
 use super::simple_list::SimpleList;
 
-use_contract!(validator_set, "ValidatorSet", "native_contracts/res/validator_set.json");
+use_contract!(validator_set, "ValidatorSet", "res/contracts/validator_set.json");
 
 const MEMOIZE_CAPACITY: usize = 500;
 

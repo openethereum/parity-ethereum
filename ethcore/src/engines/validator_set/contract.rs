@@ -29,7 +29,7 @@ use machine::{AuxiliaryData, Call, EthereumMachine};
 use super::{ValidatorSet, SimpleList, SystemCall};
 use super::safe_contract::ValidatorSafeContract;
 
-use_contract!(validator_report, "ValidatorReport", "native_contracts/res/validator_report.json");
+use_contract!(validator_report, "ValidatorReport", "res/contracts/validator_report.json");
 
 /// A validator contract with reporting.
 pub struct ValidatorContract {

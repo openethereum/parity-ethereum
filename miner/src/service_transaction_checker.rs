@@ -21,7 +21,7 @@ use ethereum_types::Address;
 use transaction::SignedTransaction;
 use types::ids::BlockId;
 
-use_contract!(service_transaction, "ServiceTransaction", "../ethcore/native_contracts/res/service_transaction.json");
+use_contract!(service_transaction, "ServiceTransaction", "res/service_transaction.json");
 
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
 

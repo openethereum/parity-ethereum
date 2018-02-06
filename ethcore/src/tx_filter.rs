@@ -26,7 +26,7 @@ use spec::CommonParams;
 use transaction::{Action, SignedTransaction};
 use hash::KECCAK_EMPTY;
 
-use_contract!(transact_acl, "TransactAcl", "native_contracts/res/tx_acl.json");
+use_contract!(transact_acl, "TransactAcl", "res/contracts/tx_acl.json");
 
 const MAX_CACHE_SIZE: usize = 4096;
 

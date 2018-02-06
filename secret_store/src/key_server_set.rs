@@ -28,7 +28,7 @@ use types::all::{Error, Public, NodeAddress, NodeId};
 use trusted_client::TrustedClient;
 use {NodeKeyPair};
 
-use_contract!(key_server, "KeyServerSet", "../ethcore/native_contracts/res/key_server_set.json");
+use_contract!(key_server, "KeyServerSet", "res/key_server_set.json");
 
 /// Name of KeyServerSet contract in registry.
 const KEY_SERVER_SET_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_server_set";

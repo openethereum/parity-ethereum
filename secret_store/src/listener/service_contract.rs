@@ -25,7 +25,7 @@ use listener::service_contract_listener::ServiceTask;
 use trusted_client::TrustedClient;
 use {ServerKeyId, NodeKeyPair, ContractAddress};
 
-use_contract!(service, "SecretStoreService", "../ethcore/native_contracts/res/secretstore_service.json");
+use_contract!(service, "Service", "res/service.json");
 
 /// Name of the SecretStore contract in the registry.
 const SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service";
@@ -61,13 +61,13 @@ pub struct OnChainServiceContract {
 	/// Contract addresss.
 	address: ContractAddress,
 	/// Contract.
-	data: RwLock<SecretStoreServiceData>,
+	data: RwLock<ServiceData>,
 }
 
 /// On-chain service contract data.
-struct SecretStoreServiceData {
+struct ServiceData {
 	/// Contract.
-	pub contract: service::SecretStoreService,
+	pub contract: service::Service,
 	/// Contract address.
 	pub contract_address: Address,
 	/// Last block we have read logs from.
@@ -79,7 +79,7 @@ struct PendingRequestsIterator {
 	/// Blockchain client.
 	client: Arc<Client>,
 	/// Contract.
-	contract: service::SecretStoreService,
+	contract: service::Service,
 	/// Contract address.
 	contract_address: Address,
 	/// This node key pair.
@@ -114,8 +114,8 @@ impl OnChainServiceContract {
 			client: client,
 			self_key_pair: self_key_pair,
 			address: address,
-			data: RwLock::new(SecretStoreServiceData {
-				contract: service::SecretStoreService::default(),
+			data: RwLock::new(ServiceData {
+				contract: service::Service::default(),
 				contract_address: contract_addr,
 				last_log_block: None,
 			}),
@@ -219,7 +219,7 @@ impl ServiceContract for OnChainServiceContract {
 				})
 				.map(|(b, l)| Box::new(PendingRequestsIterator {
 					client: client,
-					contract: service::SecretStoreService::default(),
+					contract: service::Service::default(),
 					contract_address: data.contract_address,
 					self_key_pair: self.self_key_pair.clone(),
 					block: b,

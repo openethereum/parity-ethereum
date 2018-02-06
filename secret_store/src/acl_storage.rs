@@ -24,7 +24,7 @@ use bytes::Bytes;
 use trusted_client::TrustedClient;
 use types::all::{Error, ServerKeyId, Public};
 
-use_contract!(acl_storage, "SecretStoreAclStorage", "../ethcore/native_contracts/res/secretstore_acl_storage.json");
+use_contract!(acl_storage, "AclStorage", "res/acl_storage.json");
 
 const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checker";
 
@@ -47,7 +47,7 @@ struct CachedContract {
 	/// Contract address.
 	contract_addr: Option<Address>,
 	/// Contract at given address.
-	contract: acl_storage::SecretStoreAclStorage,
+	contract: acl_storage::AclStorage,
 }
 
 /// Dummy ACL storage implementation (check always passed).
@@ -88,7 +88,7 @@ impl CachedContract {
 		CachedContract {
 			client,
 			contract_addr: None,
-			contract: acl_storage::SecretStoreAclStorage::default(),
+			contract: acl_storage::AclStorage::default(),
 		}
 	}
 

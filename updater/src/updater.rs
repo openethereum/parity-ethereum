@@ -31,7 +31,7 @@ use bytes::Bytes;
 use parking_lot::Mutex;
 use version;
 
-use_contract!(operations_contract, "Operations", "res/operations.abi");
+use_contract!(operations_contract, "Operations", "res/operations.json");
 
 /// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]

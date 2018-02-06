@@ -31,7 +31,7 @@ use transaction::{Transaction, Action, SignedTransaction};
 use ethereum_types::Address;
 use kvdb_memorydb;
 
-use_contract!(test_validator_set, "ValidatorSet", "native_contracts/res/test_validator_set.json");
+use_contract!(test_validator_set, "ValidatorSet", "res/contracts/test_validator_set.json");
 
 const PASS: &'static str = "";
 const TRANSITION_BLOCK_1: usize = 2; // block at which the contract becomes activated.
