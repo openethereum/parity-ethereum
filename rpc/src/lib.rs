@@ -137,10 +137,10 @@ pub fn start_http<M, S, H, T, R>(
 	T: HttpMetaExtractor<Metadata=M>,
 	R: RequestMiddleware,
 {
-	let mut builder = http::ServerBuilder::new(handler)
+	let extractor = http_common::MetaExtractor::new(extractor);
+	let mut builder = http::ServerBuilder::with_meta_extractor(handler, extractor)
 		.threads(threads)
 		.event_loop_remote(remote)
-		.meta_extractor(http_common::MetaExtractor::new(extractor))
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into());
 
@@ -163,9 +163,8 @@ pub fn start_ipc<M, S, H, T>(
 	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
 	T: IpcMetaExtractor<M>,
 {
-	ipc::ServerBuilder::new(handler)
+	ipc::ServerBuilder::with_meta_extractor(handler, extractor)
 		.event_loop_remote(remote)
-		.session_metadata_extractor(extractor)
 		.start(addr)
 }
 
@@ -187,12 +186,11 @@ pub fn start_ws<M, S, H, T, U, V>(
 	U: ws::SessionStats,
 	V: ws::RequestMiddleware,
 {
-	ws::ServerBuilder::new(handler)
+	ws::ServerBuilder::with_meta_extractor(handler, extractor)
 		.event_loop_remote(remote)
 		.request_middleware(middleware)
 		.allowed_origins(allowed_origins)
 		.allowed_hosts(allowed_hosts)
-		.session_meta_extractor(extractor)
 		.session_stats(stats)
 		.start(addr)
 }
