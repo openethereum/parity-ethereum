@@ -36,7 +36,7 @@ use ethcore_miner::transaction_queue::{
 	TransactionOrigin,
 };
 use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
-use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
+use miner::service_transaction_checker::ServiceTransactionChecker;
 use miner::{MinerService, MinerStatus};
 use price_info::fetch::Client as FetchClient;
 use price_info::{Client as PriceInfoClient, PriceInfo};
@@ -1261,7 +1261,7 @@ impl ServiceTransactionAction {
 	pub fn update_from_chain_client<C: RegistryInfo>(&self, client: &C)
 	{
 		if let ServiceTransactionAction::Check(ref checker) = *self {
-			checker.update_from_chain_client(&client);
+			checker.update_from_chain_client(client);
 		}
 	}
 
@@ -1269,18 +1269,8 @@ impl ServiceTransactionAction {
 	{
 		match *self {
 			ServiceTransactionAction::Refuse => Err("configured to refuse service transactions".to_owned()),
-			ServiceTransactionAction::Check(ref checker) => checker.check(&client, tx),
+			ServiceTransactionAction::Check(ref checker) => checker.check(client, tx),
 		}
-	}
-}
-
-impl<'a, C: MiningBlockChainClient> ::ethcore_miner::service_transaction_checker::ContractCaller for &'a C {
-	fn registry_address(&self, name: &str) -> Option<Address> {
-		MiningBlockChainClient::registry_address(*self, name.into())
-	}
-
-	fn call_contract(&self, block: BlockId, address: Address, data: Vec<u8>) -> Result<Vec<u8>, String> {
-		MiningBlockChainClient::call_contract(*self, block, address, data)
 	}
 }
 

@@ -146,7 +146,7 @@ pub trait MinerService : Send + Sync {
 
 	/// Get the sealing work package and if `Some`, apply some transform.
 	fn map_sealing_work<C, F, T>(&self, client: &C, f: F) -> Option<T>
-		where C: Nonce + ChainInfo + PrepareOpenBlock + ReopenBlock,
+		where C: Nonce + BlockInfo + ChainInfo + PrepareOpenBlock + ReopenBlock + CallContract,
 		      F: FnOnce(&ClosedBlock) -> T,
 		      Self: Sized;
 
