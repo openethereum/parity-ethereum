@@ -1243,7 +1243,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-core"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#9f4eb6dbd448ae84fc5c19bb75efb06f76fa01b7"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#f1a0c5124ec760f332e7297e1a1f8c613ce07b8d"
 dependencies = [
  "futures 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1255,7 +1255,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#9f4eb6dbd448ae84fc5c19bb75efb06f76fa01b7"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#f1a0c5124ec760f332e7297e1a1f8c613ce07b8d"
 dependencies = [
  "hyper 0.11.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
@@ -1268,7 +1268,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-ipc-server"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#9f4eb6dbd448ae84fc5c19bb75efb06f76fa01b7"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#f1a0c5124ec760f332e7297e1a1f8c613ce07b8d"
 dependencies = [
  "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
  "jsonrpc-server-utils 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
@@ -1280,7 +1280,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-macros"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#9f4eb6dbd448ae84fc5c19bb75efb06f76fa01b7"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#f1a0c5124ec760f332e7297e1a1f8c613ce07b8d"
 dependencies = [
  "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
  "jsonrpc-pubsub 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
@@ -1290,7 +1290,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-pubsub"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#9f4eb6dbd448ae84fc5c19bb75efb06f76fa01b7"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#f1a0c5124ec760f332e7297e1a1f8c613ce07b8d"
 dependencies = [
  "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1300,7 +1300,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-server-utils"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#9f4eb6dbd448ae84fc5c19bb75efb06f76fa01b7"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#f1a0c5124ec760f332e7297e1a1f8c613ce07b8d"
 dependencies = [
  "bytes 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "globset 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1313,7 +1313,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-tcp-server"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#9f4eb6dbd448ae84fc5c19bb75efb06f76fa01b7"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#f1a0c5124ec760f332e7297e1a1f8c613ce07b8d"
 dependencies = [
  "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
  "jsonrpc-server-utils 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
@@ -1325,7 +1325,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-ws-server"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#9f4eb6dbd448ae84fc5c19bb75efb06f76fa01b7"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9#f1a0c5124ec760f332e7297e1a1f8c613ce07b8d"
 dependencies = [
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
