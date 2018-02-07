@@ -13,6 +13,7 @@ VER="$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
 S3WIN=""
 echo "--------------------"
 echo "Build for platform: " $BUILD_PLATFORM
+echo "Build identifier:   " $IDENT
 echo "Cargo target:       " $PLATFORM
 echo "CC&CXX flags:       " $CC ", " $CXX
 echo "Architecture:       " $ARC
