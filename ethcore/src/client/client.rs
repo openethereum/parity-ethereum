@@ -1273,7 +1273,7 @@ impl snapshot::DatabaseRestore for Client {
 		trace!(target: "snapshot", "Replacing client database with {:?}", new_db);
 
 		let _import_lock = self.importer.import_lock.lock();
-		let mut state_db = self.state_db.read();
+		let mut state_db = self.state_db.write();
 		let mut chain = self.chain.write();
 		let mut tracedb = self.tracedb.write();
 		self.importer.miner.clear();
