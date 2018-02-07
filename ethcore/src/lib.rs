@@ -91,7 +91,6 @@ extern crate memorydb;
 extern crate patricia_trie as trie;
 extern crate triehash;
 extern crate ansi_term;
-extern crate semantic_version;
 extern crate unexpected;
 extern crate kvdb;
 extern crate kvdb_rocksdb;

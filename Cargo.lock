@@ -482,7 +482,6 @@ dependencies = [
  "rlp_derive 0.1.0",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "semantic_version 0.1.0",
  "snappy 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
  "stats 0.1.0",
  "stop-guard 0.1.0",
@@ -2275,6 +2274,7 @@ dependencies = [
  "rlp 0.2.1",
  "rustc_version 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "toml 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "vergen 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2808,10 +2808,6 @@ dependencies = [
  "core-foundation-sys 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
-
-[[package]]
-name = "semantic_version"
-version = "0.1.0"
 
 [[package]]
 name = "semver"
