@@ -147,7 +147,7 @@ struct Importer {
 	pub import_lock: Mutex<()>, // FIXME Maybe wrap the whole `Importer` instead?
 
 	/// Used to verify blocks
-	pub verifier: Box<Verifier>,
+	pub verifier: Box<Verifier<Client>>,
 
 	/// Queue containing pending blocks
 	pub block_queue: BlockQueue,
@@ -382,7 +382,12 @@ impl Importer {
 			header,
 			&parent,
 			engine,
-			Some((&block.bytes, &block.transactions, &**chain, client)),
+			Some(verification::FullFamilyParams {
+				block_bytes: &block.bytes,
+				transactions: &block.transactions,
+				block_provider: &**chain,
+				client
+			}),
 		);
 
 		if let Err(e) = verify_family_result {

@@ -383,7 +383,7 @@ impl Miner {
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
-	fn prepare_block<C: Nonce + ChainInfo + PrepareOpenBlock + ReopenBlock>(&self, chain: &C) -> (ClosedBlock, Option<H256>) {
+	fn prepare_block<C: Nonce + BlockInfo + ChainInfo + PrepareOpenBlock + ReopenBlock + CallContract>(&self, chain: &C) -> (ClosedBlock, Option<H256>) {
 		let _timer = PerfTimer::new("prepare_block");
 		let chain_info = chain.chain_info();
 		let (transactions, mut open_block, original_work_hash) = {
@@ -436,7 +436,7 @@ impl Miner {
 			let hash = tx.hash();
 			let start = Instant::now();
 			// Check whether transaction type is allowed for sender
-			let result = match self.engine.machine().verify_transaction(&tx, open_block.header(), chain.as_block_chain_client()) {
+			let result = match self.engine.machine().verify_transaction(&tx, open_block.header(), chain) {
 				Err(Error::Transaction(TransactionError::NotAllowed)) => {
 					Err(TransactionError::NotAllowed.into())
 				}
@@ -657,7 +657,7 @@ impl Miner {
 	}
 
 	/// Returns true if we had to prepare new pending block.
-	fn prepare_work_sealing<C: Nonce + ChainInfo + PrepareOpenBlock + ReopenBlock>(&self, client: &C) -> bool {
+	fn prepare_work_sealing<C: Nonce + BlockInfo + ChainInfo + PrepareOpenBlock + ReopenBlock + CallContract>(&self, client: &C) -> bool {
 		trace!(target: "miner", "prepare_work_sealing: entering");
 		let prepare_new = {
 			let mut sealing_work = self.sealing_work.lock();
@@ -716,7 +716,7 @@ impl Miner {
 					},
 					Ok(transaction) => {
 						// This check goes here because verify_transaction takes SignedTransaction parameter
-						self.engine.machine().verify_transaction(&transaction, &best_block_header, client.as_block_chain_client())?;
+						self.engine.machine().verify_transaction(&transaction, &best_block_header, client)?;
 
 						let origin = self.accounts.as_ref().and_then(|accounts| {
 							match accounts.has_account(transaction.sender()).unwrap_or(false) {
@@ -1146,7 +1146,7 @@ impl MinerService for Miner {
 	}
 
 	fn map_sealing_work<C, F, T>(&self, client: &C, f: F) -> Option<T>
-		where C: Nonce + ChainInfo + PrepareOpenBlock + ReopenBlock,
+		where C: Nonce + BlockInfo + ChainInfo + PrepareOpenBlock + ReopenBlock + CallContract,
 		      F: FnOnce(&ClosedBlock) -> T
 	{
 		trace!(target: "miner", "map_sealing_work: entering");
