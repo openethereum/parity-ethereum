@@ -339,6 +339,9 @@ pub trait EngineClient: Sync + Send {
 
 	/// Get a block number by ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
+
+	/// Get raw block header data by block id.
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 }
 
 /// Extended client interface for providing proofs of the state.
