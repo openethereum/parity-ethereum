@@ -135,7 +135,6 @@ impl SessionImpl {
 		Self::wait_session(&self.completed, &self.data, timeout, |data| data.result.clone())
 	}
 
-
 	/// Start new session initialization. This must be called on master node.
 	pub fn initialize(&self, requestor_signature: Signature, common_point: Public, encrypted_point: Public) -> Result<(), Error> {
 		let mut data = self.data.lock();

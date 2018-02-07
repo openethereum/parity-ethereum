@@ -26,8 +26,10 @@ use ethereum_types::{H256, U256};
 use key_server_set::KeyServerSet;
 use key_server_cluster::{ClusterClient, ClusterSessionsListener, ClusterSession};
 use key_server_cluster::generation_session::SessionImpl as GenerationSession;
+use key_server_cluster::encryption_session::SessionImpl as EncryptionSession;
+use key_server_cluster::decryption_session::SessionImpl as DecryptionSession;
 use key_storage::KeyStorage;
-use listener::service_contract::{ServiceContract, SERVER_KEY_REQUESTED_EVENT_NAME_HASH, DOCUMENT_KEY_REQUESTED_EVENT_NAME_HASH};
+use listener::service_contract::ServiceContract;
 use listener::tasks_queue::TasksQueue;
 use {ServerKeyId, NodeKeyPair, KeyServer, EncryptedDocumentKey};
 
@@ -142,6 +144,8 @@ impl ServiceContractListener {
 			service_handle: service_handle,
 		});
 		params.cluster.add_generation_listener(contract.clone());
+		params.cluster.add_encryption_listener(contract.clone());
+		params.cluster.add_decryption_listener(contract.clone());
 		contract
 	}
 
@@ -445,6 +449,35 @@ impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 					self.data.self_key_pair.public(), session.id(), error),
 			}
 		}
+	}
+}
+
+impl ClusterSessionsListener<EncryptionSession> for ServiceContractListener {
+	fn on_session_removed(&self, session: Arc<EncryptionSession>) {
+		/*
+
+			The current problem:
+			1) at the end of encryption session: every node should publish the same document_key
+			2) at the end of decryption session: every node should publish the same document key (now it is only restored on master)
+			3) document key generation session is not secure (document key is generated on one of key servers)
+			4) key retrieval session is not secure (document key is restored on one of key servers)
+			5) key shadow retrieval session is hard to use on blockchain, because it returns array and we must return this array via event (several events is the solution???)
+
+			=>
+
+			1) change decryption + retrieval sessions so that at the end every node has document key [shadow] - separate PR!!!
+			2) add StoreDocumentKey API to service contract
+			3) add RestoreDocumentKeyShadow API to service contract
+			4) remove GenerateDocumentKey and RestoreDocumentKey APIs from service contract
+
+		*/
+		42 // ^^^
+	}
+}
+
+impl ClusterSessionsListener<DecryptionSession> for ServiceContractListener {
+	fn on_session_removed(&self, session: Arc<DecryptionSession>) {
+		42 // ^^^
 	}
 }
 

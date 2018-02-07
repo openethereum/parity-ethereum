@@ -34,7 +34,7 @@ const SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service";
 /// Server key generation has been requested.
 const SERVER_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyRequested(bytes32,uint256)";
 /// Document key generation has been requested.
-const DOCUMENT_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"DocumentKeyRequested(bytes32,uint256,uint8,uint256,uint256)";
+const DOCUMENT_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"DocumentKeyRequested(bytes32,uint256,uint8,bytes32,bytes32)";
 
 /// Number of confirmations required before request can be processed.
 const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
@@ -205,6 +205,7 @@ impl ServiceContract for OnChainServiceContract {
 	}
 
 	fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>> {
+return Box::new(::std::iter::empty()); // TODO: remove me
 		let client = match self.client.get() {
 			Some(client) => client,
 			None => return Box::new(::std::iter::empty()),
@@ -388,10 +389,10 @@ fn parse_document_key_generation_request(contract: &SecretStoreService, log: Loc
 			(*l.params[0].value.clone().to_fixed_bytes().expect("TODO")).into(),
 			l.params[1].value.clone().to_uint().expect("TODO").into(),
 			Signature::from_rsv(
+				&(*l.params[3].value.clone().to_fixed_bytes().expect("TODO")).into(),
 				&(*l.params[4].value.clone().to_fixed_bytes().expect("TODO")).into(),
-				&(*l.params[5].value.clone().to_fixed_bytes().expect("TODO")).into(),
-				l.params[3].value.clone().to_uint().expect("TODO")[0],
-			)
+				l.params[2].value.clone().to_uint().expect("TODO")[0],
+			),
 		))
 		.map_err(|e| format!("{}", e))
 }

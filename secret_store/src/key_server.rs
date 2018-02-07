@@ -211,6 +211,7 @@ pub mod tests {
 	use ethcrypto;
 	use ethkey::{self, Secret, Random, Generator};
 	use acl_storage::DummyAclStorage;
+	use key_storage::KeyStorage;
 	use key_storage::tests::DummyKeyStorage;
 	use node_key_pair::PlainNodeKeyPair;
 	use key_server_set::tests::MapKeyServerSet;
@@ -279,7 +280,7 @@ pub mod tests {
 		}
 	}
 
-	fn make_key_servers(start_port: u16, num_nodes: usize) -> Vec<KeyServerImpl> {
+	fn make_key_servers(start_port: u16, num_nodes: usize) -> (Vec<KeyServerImpl>, Vec<Arc<DummyKeyStorage>>) {
 		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
 		let configs: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
 				threads: 1,
@@ -299,11 +300,12 @@ pub mod tests {
 		let key_servers_set: BTreeMap<Public, SocketAddr> = configs[0].nodes.iter()
 			.map(|(k, a)| (k.clone(), format!("{}:{}", a.address, a.port).parse().unwrap()))
 			.collect();
+		let key_storages = (0..num_nodes).map(|_| Arc::new(DummyKeyStorage::default())).collect::<Vec<_>>();
 		let key_servers: Vec<_> = configs.into_iter().enumerate().map(|(i, cfg)|
 			KeyServerImpl::new(&cfg, Arc::new(MapKeyServerSet::new(key_servers_set.clone())),
 				Arc::new(PlainNodeKeyPair::new(key_pairs[i].clone())),
 				Arc::new(DummyAclStorage::default()),
-				Arc::new(DummyKeyStorage::default())).unwrap()
+				key_storages[i].clone()).unwrap()
 		).collect();
 
 		// wait until connections are established. It is fast => do not bother with events here
@@ -333,13 +335,13 @@ pub mod tests {
 			}
 		}
 
-		key_servers
+		(key_servers, key_storages)
 	}
 
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network_with_single_node() {
 		//::logger::init_log();
-		let key_servers = make_key_servers(6070, 1);
+		let (key_servers, _) = make_key_servers(6070, 1);
 
 		// generate document key
 		let threshold = 0;
@@ -360,7 +362,7 @@ pub mod tests {
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network_with_3_nodes() {
 		//::logger::init_log();
-		let key_servers = make_key_servers(6080, 3);
+		let (key_servers, key_storages) = make_key_servers(6080, 3);
 
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
@@ -372,10 +374,14 @@ pub mod tests {
 			let generated_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &generated_key).unwrap();
 
 			// now let's try to retrieve key back
-			for key_server in key_servers.iter() {
+			for (i, key_server) in key_servers.iter().enumerate() {
 				let retrieved_key = key_server.restore_document_key(&document, &signature).unwrap();
 				let retrieved_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
 				assert_eq!(retrieved_key, generated_key);
+
+				let key_share = key_storages[i].get(&Default::default()).unwrap().unwrap();
+				assert!(key_share.common_point.is_some());
+				assert!(key_share.encrypted_point.is_some());
 			}
 		}
 	}
@@ -383,7 +389,7 @@ pub mod tests {
 	#[test]
 	fn server_key_generation_and_storing_document_key_works_over_network_with_3_nodes() {
 		//::logger::init_log();
-		let key_servers = make_key_servers(6090, 3);
+		let (key_servers, _) = make_key_servers(6090, 3);
 
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
@@ -413,7 +419,7 @@ pub mod tests {
 	#[test]
 	fn server_key_generation_and_message_signing_works_over_network_with_3_nodes() {
 		//::logger::init_log();
-		let key_servers = make_key_servers(6100, 3);
+		let (key_servers, _) = make_key_servers(6100, 3);
 
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
@@ -438,7 +444,7 @@ pub mod tests {
 	#[test]
 	fn decryption_session_is_delegated_when_node_does_not_have_key_share() {
 		//::logger::init_log();
-		let key_servers = make_key_servers(6110, 3);
+		let (key_servers, _) = make_key_servers(6110, 3);
 
 		// generate document key
 		let threshold = 0;
@@ -460,7 +466,7 @@ pub mod tests {
 	#[test]
 	fn signing_session_is_delegated_when_node_does_not_have_key_share() {
 		//::logger::init_log();
-		let key_servers = make_key_servers(6114, 3);
+		let (key_servers, _) = make_key_servers(6114, 3);
 		let threshold = 1;
 
 		// generate server key

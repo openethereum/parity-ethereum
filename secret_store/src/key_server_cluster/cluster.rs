@@ -79,6 +79,10 @@ pub trait ClusterClient: Send + Sync {
 
 	/// Listen for new generation sessions.
 	fn add_generation_listener(&self, listener: Arc<ClusterSessionsListener<GenerationSession>>);
+	/// Listen for new encryption sessions.
+	fn add_encryption_listener(&self, listener: Arc<ClusterSessionsListener<EncryptionSession>>);
+	/// Listen for new decryption sessions.
+	fn add_decryption_listener(&self, listener: Arc<ClusterSessionsListener<DecryptionSession>>);
 
 	/// Ask node to make 'faulty' generation sessions.
 	#[cfg(test)]
@@ -1005,6 +1009,14 @@ impl ClusterClient for ClusterClientImpl {
 		self.data.sessions.generation_sessions.add_listener(listener);
 	}
 
+	fn add_encryption_listener(&self, listener: Arc<ClusterSessionsListener<EncryptionSession>>) {
+		self.data.sessions.encryption_sessions.add_listener(listener);
+	}
+
+	fn add_decryption_listener(&self, listener: Arc<ClusterSessionsListener<DecryptionSession>>) {
+		self.data.sessions.decryption_sessions.add_listener(listener);
+	}
+
 	#[cfg(test)]
 	fn connect(&self) {
 		ClusterCore::connect_disconnected_nodes(self.data.clone());
@@ -1076,6 +1088,8 @@ pub mod tests {
 		fn new_servers_set_change_session(&self, _session_id: Option<SessionId>, _migration_id: Option<H256>, _new_nodes_set: BTreeSet<NodeId>, _old_set_signature: Signature, _new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> { unimplemented!("test-only") }
 
 		fn add_generation_listener(&self, _listener: Arc<ClusterSessionsListener<GenerationSession>>) {}
+		fn add_encryption_listener(&self, _listener: Arc<ClusterSessionsListener<EncryptionSession>>) {}
+		fn add_decryption_listener(&self, _listener: Arc<ClusterSessionsListener<DecryptionSession>>) {}
 
 		fn make_faulty_generation_sessions(&self) { unimplemented!("test-only") }
 		fn generation_session(&self, _session_id: &SessionId) -> Option<Arc<GenerationSession>> { unimplemented!("test-only") }
