@@ -37,25 +37,24 @@ impl HttpMetaExtractor for RpcExtractor {
 	type Metadata = Metadata;
 
 	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>, dapps_origin: Option<String>) -> Metadata {
-		let mut metadata = Metadata::default();
-
-		metadata.origin = match (origin.as_ref().map(|s| s.as_str()), user_agent, dapps_origin) {
-			(Some("null"), _, Some(dapp)) => Origin::Dapps(dapp.into()),
-			(Some(dapp), _, _) => Origin::Dapps(dapp.to_owned().into()),
-			(None, Some(service), _) => Origin::Rpc(service.into()),
-			(None, _, _) => Origin::Rpc("unknown".into()),
-		};
-
-		metadata
+		Metadata {
+			origin: match (origin.as_ref().map(|s| s.as_str()), user_agent, dapps_origin) {
+				(Some("null"), _, Some(dapp)) => Origin::Dapps(dapp.into()),
+				(Some(dapp), _, _) => Origin::Dapps(dapp.to_owned().into()),
+				(None, Some(service), _) => Origin::Rpc(service.into()),
+				(None, _, _) => Origin::Rpc("unknown".into()),
+			},
+			session: None,
+		}
 	}
 }
 
 impl ipc::MetaExtractor<Metadata> for RpcExtractor {
 	fn extract(&self, req: &ipc::RequestContext) -> Metadata {
-		let mut metadata = Metadata::default();
-		metadata.origin = Origin::Ipc(req.session_id.into());
-		metadata.session = Some(Arc::new(Session::new(req.sender.clone())));
-		metadata
+		Metadata {
+			origin: Origin::Ipc(req.session_id.into()),
+			session: Some(Arc::new(Session::new(req.sender.clone()))),
+		}
 	}
 }
 
@@ -75,11 +74,10 @@ impl WsExtractor {
 
 impl ws::MetaExtractor<Metadata> for WsExtractor {
 	fn extract(&self, req: &ws::RequestContext) -> Metadata {
-		let mut metadata = Metadata::default();
 		let id = req.session_id as u64;
 
 		let dapp = req.origin.as_ref().map(|origin| (&**origin).into()).unwrap_or_default();
-		metadata.origin = match self.authcodes_path {
+		let origin = match self.authcodes_path {
 			Some(ref path) => {
 				let authorization = req.protocols.get(0).and_then(|p| auth_token_hash(&path, p, true));
 				match authorization {
@@ -89,8 +87,11 @@ impl ws::MetaExtractor<Metadata> for WsExtractor {
 			},
 			None => Origin::Ws { session: id.into(), dapp: dapp },
 		};
-		metadata.session = Some(Arc::new(Session::new(req.sender())));
-		metadata
+		let session = Some(Arc::new(Session::new(req.sender())));
+		Metadata {
+			origin,
+			session,
+		}
 	}
 }
 
