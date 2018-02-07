@@ -165,7 +165,15 @@ impl<C, S> Traces for TracesClient<C> where
 	}
 
 	fn replay_block_transactions(&self, block_number: BlockNumber, flags: TraceOptions) -> Result<Vec<TraceResults>> {
-		self.client.replay_block_transactions(block_number.into(), to_call_analytics(flags))
+		let id = match block_number {
+			BlockNumber::Num(num) => BlockId::Number(num),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
+
+			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
+		};
+
+		self.client.replay_block_transactions(id, to_call_analytics(flags))
 			.map(|results| results.into_iter().map(TraceResults::from).collect())
 			.map_err(errors::call)
 	}
