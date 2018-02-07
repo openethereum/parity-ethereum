@@ -136,8 +136,7 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 			vec![transaction]
 		};
 
-		let contract_1 = test_validator_set::ValidatorSet::default();
-		let contract_2 = test_validator_set::ValidatorSet::default();
+		let contract = test_validator_set::ValidatorSet::default();
 
 		// apply all transitions.
 		for transition in transitions {
@@ -160,9 +159,9 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 
 			let pending = if manual {
 				trace!(target: "snapshot", "applying set transition at block #{}", num);
-				let (contract, address) = match num >= TRANSITION_BLOCK_2 {
-					true => (&contract_2, &CONTRACT_ADDR_2 as &Address),
-					false => (&contract_1, &CONTRACT_ADDR_1 as &Address),
+				let address = match num >= TRANSITION_BLOCK_2 {
+					true => &CONTRACT_ADDR_2 as &Address,
+					false => &CONTRACT_ADDR_1 as &Address,
 				};
 
 				let data = contract.functions().set_validators().input(new_set.clone());
