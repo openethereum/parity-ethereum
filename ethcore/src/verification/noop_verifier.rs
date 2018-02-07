@@ -16,6 +16,7 @@
 
 //! No-op verifier.
 
+use client::{BlockInfo, CallContract};
 use engines::EthEngine;
 use error::Error;
 use header::Header;
@@ -25,13 +26,13 @@ use super::{verification, Verifier};
 #[allow(dead_code)]
 pub struct NoopVerifier;
 
-impl Verifier for NoopVerifier {
+impl<C: BlockInfo + CallContract> Verifier<C> for NoopVerifier {
 	fn verify_block_family(
 		&self,
 		_: &Header,
 		_t: &Header,
 		_: &EthEngine,
-		_: Option<verification::FullFamilyParams>
+		_: Option<verification::FullFamilyParams<C>>
 	) -> Result<(), Error> {
 		Ok(())
 	}
