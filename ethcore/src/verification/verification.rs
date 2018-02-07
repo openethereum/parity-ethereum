@@ -111,11 +111,18 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &EthEngine, 
 	})
 }
 
-/// Parameters for full verification of block family: block bytes, transactions, blockchain, and state access.
+/// Parameters for full verification of block family
 pub struct FullFamilyParams<'a, C: BlockInfo + CallContract + 'a> {
+	/// Serialized block bytes
 	pub block_bytes: &'a [u8],
+
+	/// Signed transactions
 	pub transactions: &'a [SignedTransaction],
+
+	/// Block provider to use during verification
 	pub block_provider: &'a BlockProvider,
+
+	/// Engine client to use during verification
 	pub client: &'a C,
 }
 
