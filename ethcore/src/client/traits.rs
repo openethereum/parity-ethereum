@@ -121,6 +121,9 @@ pub trait BlockInfo {
 
 	/// Get raw block data by block header hash.
 	fn block(&self, id: BlockId) -> Option<encoded::Block>;
+
+	/// Get address code hash at given block's state.
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256>;
 }
 
 /// Provides `call_contract` method
@@ -224,7 +227,6 @@ pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockIn
 	}
 
 	/// Get address code hash at given block's state.
-	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256>;
 
 	/// Get value of the storage at given position at the given block's state.
 	///

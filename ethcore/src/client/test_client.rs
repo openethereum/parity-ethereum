@@ -480,6 +480,13 @@ impl BlockInfo for TestBlockChainClient {
 			.and_then(|hash| self.blocks.read().get(&hash).cloned())
 			.map(encoded::Block::new)
 	}
+
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
+		match id {
+			BlockId::Latest => self.code.read().get(address).map(|c| keccak(&c)),
+			_ => None,
+		}
+	}
 }
 
 impl CallContract for TestBlockChainClient {
@@ -609,13 +616,6 @@ impl BlockChainClient for TestBlockChainClient {
 	fn code(&self, address: &Address, state: StateOrBlock) -> Option<Option<Bytes>> {
 		match state {
 			StateOrBlock::Block(BlockId::Latest) => Some(self.code.read().get(address).cloned()),
-			_ => None,
-		}
-	}
-
-	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
-		match id {
-			BlockId::Latest => self.code.read().get(address).map(|c| keccak(&c)),
 			_ => None,
 		}
 	}

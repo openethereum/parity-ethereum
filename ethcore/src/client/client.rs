@@ -1324,6 +1324,10 @@ impl BlockInfo for Client {
 			chain.block(&hash)
 		})
 	}
+
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
+		self.state_at(id).and_then(|s| s.code_hash(address).ok())
+	}
 }
 
 impl TransactionInfo for Client {
@@ -1648,10 +1652,6 @@ impl BlockChainClient for Client {
 
 		// Converting from `Option<Option<Arc<Bytes>>>` to `Option<Option<Bytes>>`
 		result.map(|c| c.map(|c| (&*c).clone()))
-	}
-
-	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
-		self.state_at(id).and_then(|s| s.code_hash(address).ok())
 	}
 
 	fn storage_at(&self, address: &Address, position: &H256, state: StateOrBlock) -> Option<H256> {
