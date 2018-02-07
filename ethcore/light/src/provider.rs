@@ -21,10 +21,8 @@ use std::sync::Arc;
 
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{BlockChainClient, ProvingBlockChainClient, ChainInfo, BlockInfo as ClientBlockInfo};
-use ethcore::transaction::PendingTransaction;
 use ethcore::ids::BlockId;
 use ethcore::encoded;
-use ethcore::ids::BlockId;
 use ethereum_types::H256;
 use parking_lot::RwLock;
 use transaction::PendingTransaction;

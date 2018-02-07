@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use block::ExecutedBlock;
 use builtin::Builtin;
-use client::{BlockChainClient, BlockInfo, CallContract};
+use client::{BlockInfo, CallContract};
 use error::Error;
 use executive::Executive;
 use header::{BlockNumber, Header};
