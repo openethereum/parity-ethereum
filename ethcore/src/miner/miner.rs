@@ -51,14 +51,12 @@ use transaction::{
 	Error as TransactionError,
 };
 use using_queue::{UsingQueue, GetAction};
-use state::State;
 use block::{ClosedBlock, IsBlock, Block};
 use client::{
 	Nonce, Balance, BlockInfo, ChainInfo, TransactionInfo, CallContract, RegistryInfo,
 	PrepareOpenBlock, ReopenBlock, ScheduleInfo, BroadcastProposalBlock, ImportSealedBlock
 };
 use client::{BlockId, TransactionId, MiningBlockChainClient};
-use client::{MiningBlockChainClient, BlockId, TransactionId};
 use executive::contract_address;
 use header::{Header, BlockNumber};
 use receipt::{Receipt, RichReceipt};

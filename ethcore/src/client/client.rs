@@ -29,6 +29,7 @@ use bytes::Bytes;
 use journaldb;
 use trie::{TrieSpec, TrieFactory, Trie};
 use kvdb::{DBValue, KeyValueDB, DBTransaction};
+use util_error::UtilError;
 
 // other
 use ethereum_types::{H256, Address, U256};
@@ -54,7 +55,7 @@ use evm::{Factory as EvmFactory, Schedule};
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::Factories;
 use futures::{future, Future};
-use header::{BlockNumber, Header, Seal};
+use header::{BlockNumber, Header};
 use io::IoChannel;
 use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
@@ -430,7 +431,7 @@ impl Importer {
 	///
 	/// The block is guaranteed to be the next best blocks in the
 	/// first block sequence. Does no sealing or transaction validation.
-	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, ::error::Error> {
+	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes, db: &KeyValueDB, chain: &BlockChain) -> Result<H256, ::error::Error> {
 		let block = BlockView::new(&block_bytes);
 		let header = block.header();
 		let receipts = ::rlp::decode_list(&receipts_bytes);
@@ -439,7 +440,6 @@ impl Importer {
 
 		{
 			let _timer = PerfTimer::new("import_old_block");
-			let chain = self.chain.read();
 			let mut ancient_verifier = self.ancient_verifier.lock();
 
 			{
@@ -479,14 +479,13 @@ impl Importer {
 			let mut batch = DBTransaction::new();
 			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
 			// Final commit to the DB
-			self.db.read().write_buffered(batch);
+			db.write_buffered(batch);
 			chain.commit();
 		}
-		self.db.read().flush().expect("DB flush failed.");
+		db.flush().expect("DB flush failed.");
 		Ok(hash)
 	}
 
->>>>>>> master
 	// NOTE: the header of the block passed here is not necessarily sealed, as
 	// it is for reconstructing the state transition.
 	//
@@ -742,7 +741,7 @@ impl Client {
 			pruning: config.pruning.clone(),
 			config: config,
 			db: RwLock::new(db),
-			state_db: Mutex::new(state_db),
+			state_db: RwLock::new(state_db),
 			report: RwLock::new(Default::default()),
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
@@ -1269,7 +1268,7 @@ impl snapshot::DatabaseRestore for Client {
 		trace!(target: "snapshot", "Replacing client database with {:?}", new_db);
 
 		let _import_lock = self.importer.import_lock.lock();
-		let mut state_db = self.state_db.lock();
+		let mut state_db = self.state_db.read();
 		let mut chain = self.chain.write();
 		let mut tracedb = self.tracedb.write();
 		self.importer.miner.clear();
@@ -1424,7 +1423,7 @@ impl Call for Client {
 		};
 		let machine = self.engine.machine();
 
-		Self::do_virtual_call(machine &env_info, state, transaction, analytics)
+		Self::do_virtual_call(&machine, &env_info, state, transaction, analytics)
 	}
 
 	fn call_many(&self, transactions: &[(SignedTransaction, CallAnalytics)], state: &mut Self::State, header: &Header) -> Result<Vec<Executed>, CallError> {
@@ -1934,16 +1933,6 @@ impl BlockChainClient for Client {
 			earliest_chain: self.chain.read().first_block_number().unwrap_or(1),
 			earliest_state: self.state_db.read().journal_db().earliest_era().unwrap_or(0),
 		}
-	}
-
-	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
-		let transaction = self.contract_call_tx(block_id, address, data);
-
-		self.call(&transaction, Default::default(), block_id)
-			.map_err(|e| format!("{:?}", e))
-			.map(|executed| {
-				executed.output
-			})
 	}
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<transaction::ImportResult, EthcoreError> {

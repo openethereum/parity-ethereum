@@ -16,7 +16,6 @@
 
 //! A service transactions contract checker.
 
-use client::{CallContract, RegistryInfo};
 use ethereum_types::{U256, Address};
 use futures::{future, Future};
 use native_contracts::ServiceTransactionChecker as Contract;
@@ -43,7 +42,7 @@ pub struct ServiceTransactionChecker {
 
 impl ServiceTransactionChecker {
 	/// Try to create instance, reading contract address from given chain client.
-	pub fn update_from_chain_client<C: RegistryInfo>(&self, client: &C) {
+	pub fn update_from_chain_client<C: ContractCaller>(&self, client: &C) {
 		let mut contract = self.contract.lock();
 		if contract.is_none() {
 			*contract = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME)
@@ -56,7 +55,7 @@ impl ServiceTransactionChecker {
 	}
 
 	/// Checks if service transaction can be appended to the transaction queue.
-	pub fn check<C: CallContract>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
+	pub fn check<C: ContractCaller>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
 		debug_assert_eq!(tx.gas_price, U256::zero());
 
 		if let Some(ref contract) = *self.contract.lock() {

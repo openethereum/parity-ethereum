@@ -50,12 +50,16 @@ use std::collections::BTreeMap;
 
 use block::{ClosedBlock, Block};
 use bytes::Bytes;
-use client::{MiningBlockChainClient};
+use client::{
+	MiningBlockChainClient, Nonce, Balance, BlockInfo, ChainInfo, TransactionInfo, CallContract, RegistryInfo, ReopenBlock,
+	PrepareOpenBlock, ScheduleInfo, BroadcastProposalBlock, ImportSealedBlock
+};
 use error::{Error};
 use ethereum_types::{H256, U256, Address};
 use header::{BlockNumber, Header};
 use receipt::{RichReceipt, Receipt};
 use transaction::{UnverifiedTransaction, PendingTransaction, ImportResult as TransactionImportResult};
+use state::StateInfo;
 
 /// Miner client API
 pub trait MinerService : Send + Sync {

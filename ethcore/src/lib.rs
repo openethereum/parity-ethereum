@@ -151,7 +151,6 @@ pub mod timer;
 pub mod trace;
 pub mod verification;
 pub mod views;
-pub mod state_db;
 
 mod cache_manager;
 mod blooms;
