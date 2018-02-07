@@ -16,7 +16,8 @@
 
 //! A service transactions contract checker.
 
-use ethereum_types::{U256, Address};
+use client::{RegistryInfo, CallContract};
+use ethereum_types::U256;
 use futures::{future, Future};
 use native_contracts::ServiceTransactionChecker as Contract;
 use parking_lot::Mutex;
@@ -24,15 +25,6 @@ use transaction::SignedTransaction;
 use types::ids::BlockId;
 
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
-
-/// A contract calling interface.
-pub trait ContractCaller {
-	/// Returns address of contract from the registry, given it's name
-	fn registry_address(&self, name: &str) -> Option<Address>;
-
-	/// Executes a contract call at given block.
-	fn call_contract(&self, BlockId, Address, Vec<u8>) -> Result<Vec<u8>, String>;
-}
 
 /// Service transactions checker.
 #[derive(Default)]
@@ -42,10 +34,10 @@ pub struct ServiceTransactionChecker {
 
 impl ServiceTransactionChecker {
 	/// Try to create instance, reading contract address from given chain client.
-	pub fn update_from_chain_client<C: ContractCaller>(&self, client: &C) {
+	pub fn update_from_chain_client<C: RegistryInfo>(&self, client: &C) {
 		let mut contract = self.contract.lock();
 		if contract.is_none() {
-			*contract = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME)
+			*contract = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned())
 				.and_then(|contract_addr| {
 					trace!(target: "txqueue", "Configuring for service transaction checker contract from {}", contract_addr);
 
@@ -55,7 +47,7 @@ impl ServiceTransactionChecker {
 	}
 
 	/// Checks if service transaction can be appended to the transaction queue.
-	pub fn check<C: ContractCaller>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
+	pub fn check<C: CallContract>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
 		debug_assert_eq!(tx.gas_price, U256::zero());
 
 		if let Some(ref contract) = *self.contract.lock() {

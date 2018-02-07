@@ -40,6 +40,7 @@
 
 mod miner;
 mod stratum;
+mod service_transaction_checker;
 
 pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
 pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOptions};

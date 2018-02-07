@@ -42,6 +42,5 @@ extern crate ethkey;
 pub mod banning_queue;
 pub mod external;
 pub mod local_transactions;
-pub mod service_transaction_checker;
 pub mod transaction_queue;
 pub mod work_notify;
