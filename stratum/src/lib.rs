@@ -378,7 +378,7 @@ mod tests {
 		let stratum = Stratum::start(&addr, Arc::new(VoidManager), None).unwrap();
 		let request = r#"{"jsonrpc": "2.0", "method": "mining.subscribe", "params": [], "id": 1}"#;
 		dummy_request(&addr, request);
-		assert_eq!(1, stratum.subscribers.read().len());
+		assert_eq!(1, stratum.implementation.subscribers.read().len());
 	}
 
 	struct DummyManager {
@@ -420,7 +420,7 @@ mod tests {
 	#[test]
 	fn receives_initial_paylaod() {
 		let addr = SocketAddr::from_str("127.0.0.1:19975").unwrap();
-		Stratum::start(&addr, DummyManager::new(), None).expect("There should be no error starting stratum");
+		let _stratum = Stratum::start(&addr, DummyManager::new(), None).expect("There should be no error starting stratum");
 		let request = r#"{"jsonrpc": "2.0", "method": "mining.subscribe", "params": [], "id": 2}"#;
 
 		let response = String::from_utf8(dummy_request(&addr, request)).unwrap();
@@ -441,7 +441,7 @@ mod tests {
 		let response = String::from_utf8(dummy_request(&addr, request)).unwrap();
 
 		assert_eq!(terminated_str(r#"{"jsonrpc":"2.0","result":true,"id":1}"#), response);
-		assert_eq!(1, stratum.workers.read().len());
+		assert_eq!(1, stratum.implementation.workers.read().len());
 	}
 
 	#[test]
