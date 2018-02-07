@@ -216,8 +216,8 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
 				trace!(target: "poa", "Invalid message received: {}", e);
 			},
-			ClientIoMessage::NewPrivateTransaction => if let Err(e) = self.client.private_transactions_provider().on_private_transaction_queued() {
-				warn!("Failed to handle private transaction {}", e);
+			ClientIoMessage::NewPrivateTransaction => if let Err(e) = self.client.handle_private_message() {
+				warn!("Failed to handle private transaction {:?}", e);
 			},
 			_ => {} // ignore other messages
 		}

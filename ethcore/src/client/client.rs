@@ -41,11 +41,11 @@ use client::Error as ClientError;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, ChainMessageType,
+	ChainNotify, PruningInfo, ProvingBlockChainClient, ChainMessageType, PrivateNotify,
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
-use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
+use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError, TransactionImportError};
 use vm::{EnvInfo, LastHashes};
 use evm::{Factory as EvmFactory, Schedule};
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -57,7 +57,6 @@ use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
 use native_contracts::Registry;
 use parking_lot::{Mutex, RwLock, MutexGuard};
-use private_transactions::{Provider as PrivateTransactionsProvider};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
 use rlp::UntrustedRlp;
@@ -156,11 +155,11 @@ pub struct Client {
 	import_lock: Mutex<()>,
 	verifier: Box<Verifier>,
 	miner: Arc<Miner>,
-	private_tx_provider: Arc<PrivateTransactionsProvider>,
 	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
 	io_channel: Arc<Mutex<IoChannel<ClientIoMessage>>>,
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
+	private_notify: RwLock<Option<Weak<PrivateNotify>>>,
 	queue_transactions: AtomicUsize,
 	last_hashes: RwLock<VecDeque<H256>>,
 	factories: Factories,
@@ -228,8 +227,6 @@ impl Client {
 
 		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
 
-		let provider = Arc::new(PrivateTransactionsProvider::new()?);
-
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),
 			sleep_state: Mutex::new(SleepState::new(awake)),
@@ -247,9 +244,9 @@ impl Client {
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
 			miner: miner,
-			private_tx_provider: provider.clone(),
 			io_channel: Arc::new(Mutex::new(message_channel)),
 			notify: RwLock::new(Vec::new()),
+			private_notify: RwLock::new(None),
 			queue_transactions: AtomicUsize::new(0),
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
@@ -259,9 +256,6 @@ impl Client {
 			registrar: Mutex::new(None),
 			exit_handler: Mutex::new(None),
 		});
-
-		// register inside private transactions provider
-		provider.register_client(Arc::downgrade(&client));
 
 		// prune old states.
 		{
@@ -1194,9 +1188,20 @@ impl Client {
 		}
 	}
 
-	/// Get private transaction manager.
-	pub fn private_transactions_provider(&self) -> Arc<PrivateTransactionsProvider> {
-		self.private_tx_provider.clone()
+	/// Sets handler for private messages
+	pub fn set_private_notify(&self, notify: Arc<PrivateNotify>) {
+		*self.private_notify.write() = Some(Arc::downgrade(&notify));
+	}
+
+	/// Handle private message from IO
+	pub fn handle_private_message(&self) -> Result<(), TransactionImportError> {
+		if let Some(ref notify) = *self.private_notify.read() {
+			return match notify.upgrade() {
+				Some(handler) => handler.private_transaction_queued(),
+				_ => Ok(()),
+			};
+		}
+		Ok(())
 	}
 }
 

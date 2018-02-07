@@ -34,73 +34,6 @@ use transaction::Error as TransactionError;
 
 pub use executed::{ExecutionError, CallError};
 
-#[derive(Debug, PartialEq, Clone)]
-/// Errors concerning private transaction processing.
-pub enum PrivateTransactionError {
-	/// Encryption error.
-	Encrypt(String),
-	/// Decryption error.
-	Decrypt(String),
-	/// Contract does not exist or is unavailable.
-	NotAuthorised(Address),
-	/// Transaction creates more than one contract.
-	TooManyContracts,
-	/// Contract call error.
-	Call(String),
-	/// State is not available.
-	StatePruned,
-	/// State is incorrect.
-	StateIncorrect,
-	/// Wrong private transaction type.
-	BadTransactonType,
-	/// Contract does not exist or was not created.
-	ContractDoesNotExist,
-	/// Reference to the client is corrupted.
-	ClientIsMalformed,
-	/// Reference to account provider is corrupted.
-	AccountProviderIsMalformed,
-	/// Queue of private transactions is full.
-	QueueIsFull,
-	/// The transaction already exists in queue of private transactions.
-	PrivateTransactionAlreadyImported,
-	/// The information about private transaction is not found in the store
-	PrivateTransactionNotFound,
-	/// Account for signing public transactions not set
-	SignerAccountNotSet,
-	/// Account for signing requests to key server not set
-	KeyServerAccountNotSet,
-	/// Encryption key is not found on key server
-	EncryptionKeyNotFound(Address),
-	/// Key server URL is not set
-	KeyServerNotSet,
-}
-
-impl fmt::Display for PrivateTransactionError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		use self::PrivateTransactionError::*;
-		match *self {
-			Encrypt(ref msg) => f.write_fmt(format_args!("Encryption error. ({})", msg)),
-			Decrypt(ref msg) => f.write_fmt(format_args!("Decryption error. ({})", msg)),
-			NotAuthorised(address) => f.write_fmt(format_args!("Private trsnaction execution is not authorised for {}.", address)),
-			TooManyContracts => f.write_str("Private transaction created too many contracts."),
-			Call(ref msg) => f.write_fmt(format_args!("Contract call error. ({})", msg)),
-			StatePruned => f.write_str("State is not available."),
-			StateIncorrect => f.write_str("State is incorrect."),
-			BadTransactonType => f.write_str("Bad transaction type."),
-			ContractDoesNotExist => f.write_str("Private contract does not exist."),
-			ClientIsMalformed => f.write_str("Client is not registered."),
-			AccountProviderIsMalformed => f.write_str("Account provider is not registered."),
-			QueueIsFull => f.write_str("Private transactions queue is full."),
-			PrivateTransactionAlreadyImported => f.write_str("Private transactions already imported."),
-			PrivateTransactionNotFound => f.write_str("Private transactions is not found in the store."),
-			SignerAccountNotSet => f.write_str("Account for signing public transactions not set."),
-			KeyServerAccountNotSet => f.write_str("Account for signing requets to key server not set."),
-			EncryptionKeyNotFound(address) => f.write_fmt(format_args!("Encryption key is not found on key server for {}.", address)),
-			KeyServerNotSet => f.write_str("URL for key server is not set."),
-		}
-	}
-}
-
 #[derive(Debug, PartialEq, Clone, Copy, Eq)]
 /// Errors concerning block processing.
 pub enum BlockError {
@@ -311,8 +244,6 @@ pub enum Error {
 	Ethkey(EthkeyError),
 	/// Account Provider error.
 	AccountProvider(AccountsError),
-	/// Private transaction error.
-	PrivateTransaction(PrivateTransactionError),
 }
 
 impl fmt::Display for Error {
@@ -337,7 +268,6 @@ impl fmt::Display for Error {
 			Error::Engine(ref err) => err.fmt(f),
 			Error::Ethkey(ref err) => err.fmt(f),
 			Error::AccountProvider(ref err) => err.fmt(f),
-			Error::PrivateTransaction(ref err) => err.fmt(f),
 		}
 	}
 }
@@ -363,12 +293,6 @@ impl From<kvdb::Error> for Error {
 impl From<TransactionError> for Error {
 	fn from(err: TransactionError) -> Error {
 		Error::Transaction(err)
-	}
-}
-
-impl From<PrivateTransactionError> for Error {
-	fn from(err: PrivateTransactionError) -> Error {
-		Error::PrivateTransaction(err)
 	}
 }
 

@@ -23,6 +23,7 @@ use ethcore::error::{Error as EthcoreError, CallError};
 use jsonrpc_core::{futures, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use transaction::Error as TransactionError;
+use privatetransactions::PrivateTransactionError;
 
 mod codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
@@ -39,6 +40,7 @@ mod codes {
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
+	pub const PRIVATE_ERROR: i64 = -32024;
 	pub const REQUEST_REJECTED: i64 = -32040;
 	pub const REQUEST_REJECTED_LIMIT: i64 = -32041;
 	pub const REQUEST_NOT_FOUND: i64 = -32042;
@@ -284,6 +286,14 @@ pub fn password(error: AccountError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::PASSWORD_INVALID),
 		message: "Account password is invalid or account does not exist.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
+	}
+}
+
+pub fn private_message(error: PrivateTransactionError) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::PRIVATE_ERROR),
+		message: "Private transactions call failed.".into(),
 		data: Some(Value::String(format!("{:?}", error))),
 	}
 }

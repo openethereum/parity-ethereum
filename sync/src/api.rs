@@ -25,8 +25,8 @@ use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{BlockChainClient, ChainNotify, ChainMessageType};
 use ethcore::snapshot::SnapshotService;
-use ethcore::private_transactions::Provider as PrivateTransactionProvider;
 use ethcore::header::BlockNumber;
+use privatetransactions::Provider as PrivateTransactionProvider;
 use sync_io::NetSyncIo;
 use chain::{ChainSync, SyncStatus as EthSyncStatus};
 use std::net::{SocketAddr, AddrParseError};
@@ -256,7 +256,7 @@ impl EthSync {
 			})
 		};
 
-		let chain_sync = ChainSync::new(params.config, &*params.chain);
+		let chain_sync = ChainSync::new(params.config, &*params.chain, params.private_tx_provider.clone());
 		let service = NetworkService::new(params.network_config.clone().into_basic()?, connection_filter)?;
 
 		let sync = Arc::new(EthSync {
@@ -265,7 +265,7 @@ impl EthSync {
 				sync: RwLock::new(chain_sync),
 				chain: params.chain,
 				snapshot_service: params.snapshot_service,
-				private_tx_provider: params.private_tx_provider,
+				private_tx_provider: params.private_tx_provider.clone(),
 				overlay: RwLock::new(HashMap::new()),
 			}),
 			light_proto: light_proto,

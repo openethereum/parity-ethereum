@@ -26,7 +26,6 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
 use ethcore::miner::Miner;
 use ethcore::snapshot::SnapshotService;
-use ethcore::private_transactions::Provider as PrivateTransactionManager;
 use ethcore_logger::RotatingLogger;
 use ethsync::{ManageNetwork, SyncProvider, LightSync};
 use hash_fetch::fetch::Client as FetchClient;
@@ -40,6 +39,7 @@ use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
 use parity_rpc::{Metadata, NetworkSettings, Host};
 use parking_lot::{Mutex, RwLock};
+use privatetransactions::Provider as PrivateTransactionManager;
 use updater::Updater;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]

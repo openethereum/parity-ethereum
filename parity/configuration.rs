@@ -30,7 +30,6 @@ use ansi_term::Colour;
 use ethsync::{NetworkConfiguration, validate_node_url, self};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
-use ethcore::private_transactions::{ProviderConfig};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
 use ethcore::verification::queue::VerifierSettings;
 
@@ -46,6 +45,7 @@ use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
+use privatetransactions::ProviderConfig;
 use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;

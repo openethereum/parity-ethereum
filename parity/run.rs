@@ -25,7 +25,6 @@ use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChai
 use ethcore::ethstore::ethkey;
 use ethcore::miner::{Miner, MinerService, MinerOptions};
 use ethcore::miner::{StratumOptions, Stratum};
-use ethcore::private_transactions::{ProviderConfig};
 use ethcore::service::ClientService;
 use ethcore::snapshot;
 use ethcore::spec::{SpecParams, OptimizeFor};
@@ -45,6 +44,7 @@ use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use parking_lot::{Condvar, Mutex};
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
+use privatetransactions::{Provider as PrivateTransactionsProvider, ProviderConfig};
 
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
@@ -604,6 +604,14 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let connection_filter = connection_filter_address.map(|a| Arc::new(NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, a)));
 	let snapshot_service = service.snapshot_service();
 
+	// initialize private transactions provider
+	let private_provider = Arc::new(PrivateTransactionsProvider::new()
+		.map_err(|e| format!("Private provider initialisation error: {:?}", e))?);
+	private_provider.register_account_provider(Arc::downgrade(&account_provider));
+	private_provider.register_client(Arc::downgrade(&client));
+	private_provider.set_config(cmd.private_provider_conf).map_err(|e| format!("Private transaction setup error: {:?}", e))?;
+	client.set_private_notify(private_provider.clone());
+
 	// initialize the local node information store.
 	let store = {
 		let db = service.db();
@@ -668,7 +676,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		net_conf.clone().into(),
 		client.clone(),
 		snapshot_service.clone(),
-		client.private_transactions_provider(),
+		private_provider.clone(),
 		client.clone(),
 		&cmd.logger_config,
 		attached_protos,
@@ -679,11 +687,8 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	if let Some(filter) = connection_filter {
 		service.add_notify(filter);
 	}
-	let provider = client.private_transactions_provider().clone();
-	provider.add_notify(chain_notify.clone());
-	provider.register_account_provider(Arc::downgrade(&account_provider));
-	provider.set_config(cmd.private_provider_conf).map_err(|e| format!("Private transaction setup error: {:?}", e))?;
-	service.add_notify(provider);
+	private_provider.add_notify(chain_notify.clone());
+	service.add_notify(private_provider.clone());
 
 	// start network
 	if network_enabled {
@@ -773,7 +778,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		fetch: fetch.clone(),
 		remote: event_loop.remote(),
 		whisper_rpc: whisper_factory,
-		private_tx_manager: Some(client.private_transactions_provider()),
+		private_tx_manager: Some(private_provider.clone()),
 		gas_price_percentile: cmd.gas_price_percentile,
 	});
 

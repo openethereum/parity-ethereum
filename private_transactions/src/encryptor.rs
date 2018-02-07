@@ -23,7 +23,7 @@ use std::time::{Instant, Duration};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use parking_lot::Mutex;
-use account_provider::AccountProvider;
+use ethcore::account_provider::AccountProvider;
 use ethereum_types::{H128, H256, Address};
 use ethjson;
 use ethkey::{Signature, Public};
@@ -31,7 +31,7 @@ use ethcrypto;
 use futures::Future;
 use fetch::{Fetch, Method as FetchMethod, Client as FetchClient};
 use bytes::{Bytes, ToPretty};
-use error::{Error as EthcoreError, PrivateTransactionError};
+use error::PrivateTransactionError;
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
@@ -50,7 +50,7 @@ pub trait Encryptor: Send + Sync + 'static {
 		unlocked_accounts: Arc<AccountProvider>,
 		initialisation_vector: &H128,
 		plain_data: &[u8]
-	) -> Result<Bytes, EthcoreError>;
+	) -> Result<Bytes, PrivateTransactionError>;
 
 	/// Decrypt data using previously generated contract key.
 	fn decrypt(
@@ -60,7 +60,7 @@ pub trait Encryptor: Send + Sync + 'static {
 		requester: &Address,
 		unlocked_accounts: Arc<AccountProvider>,
 		cypher: &[u8]
-	) -> Result<Bytes, EthcoreError>;
+	) -> Result<Bytes, PrivateTransactionError>;
 }
 
 struct EncryptionSession {
@@ -78,10 +78,10 @@ pub struct SecretStoreEncryptor {
 
 impl SecretStoreEncryptor {
 	/// Create new encryptor with empty parameters.
-	pub fn empty() -> Result<Self, EthcoreError> {
+	pub fn empty() -> Result<Self, PrivateTransactionError> {
 		Ok(SecretStoreEncryptor {
 			client: FetchClient::new()
-				.map_err(|e| EthcoreError::PrivateTransaction(PrivateTransactionError::Encrypt(format!("{}", e))))?,
+				.map_err(|e| PrivateTransactionError::Encrypt(format!("{}", e)))?,
 			base_url: None,
 			threshold: 0,
 			sessions: Mutex::new(HashMap::new()),
@@ -89,10 +89,10 @@ impl SecretStoreEncryptor {
 	}
 
 	/// Create new encryptor
-	pub fn new(key_server_url: Option<String>, threshold: u32) -> Result<Self, EthcoreError> {
+	pub fn new(key_server_url: Option<String>, threshold: u32) -> Result<Self, PrivateTransactionError> {
 		Ok(SecretStoreEncryptor {
 			client: FetchClient::new()
-				.map_err(|e| EthcoreError::PrivateTransaction(PrivateTransactionError::Encrypt(format!("{}", e))))?,
+				.map_err(|e| PrivateTransactionError::Encrypt(format!("{}", e)))?,
 			base_url: key_server_url,
 			threshold: threshold,
 			sessions: Mutex::new(HashMap::new()),
@@ -108,7 +108,7 @@ impl SecretStoreEncryptor {
 		contract_address_signature: &Signature,
 		requester: &Address,
 		unlocked_accounts: Arc<AccountProvider>
-	) -> Result<Bytes, EthcoreError> {
+	) -> Result<Bytes, PrivateTransactionError> {
 		// check if the key was already cached
 		if let Some(key) = self.obtained_key(contract_address) {
 			return Ok(key);
@@ -127,14 +127,14 @@ impl SecretStoreEncryptor {
 
 		// send HTTP request
 		let mut response = self.client.fetch_with_abort(&url, method, Default::default()).wait()
-			.map_err(|e| EthcoreError::PrivateTransaction(PrivateTransactionError::Encrypt(format!("{}", e))))?;
+			.map_err(|e| PrivateTransactionError::Encrypt(format!("{}", e)))?;
 
 		if response.is_not_found() {
-			return Err(EthcoreError::PrivateTransaction(PrivateTransactionError::EncryptionKeyNotFound(*contract_address)));
+			return Err(PrivateTransactionError::EncryptionKeyNotFound(*contract_address));
 		}
 
 		if !response.is_success() {
-			return Err(EthcoreError::PrivateTransaction(PrivateTransactionError::Encrypt(response.status().canonical_reason().unwrap_or("unknown").into())));
+			return Err(PrivateTransactionError::Encrypt(response.status().canonical_reason().unwrap_or("unknown").into()));
 		}
 
 		// read HTTP response
@@ -142,11 +142,7 @@ impl SecretStoreEncryptor {
 		response.read_to_string(&mut result)?;
 
 		// response is JSON string (which is, in turn, hex-encoded, encrypted Public)
-		let result_len = result.len();
-		if result_len == 0 || &result[0..1] != "\"" || &result[result_len - 1..result_len] != "\"" {
-			return Err(EthcoreError::PrivateTransaction(PrivateTransactionError::Encrypt(format!("Invalid SecretStore response: {}", result))));
-		}
-		let encrypted_bytes: ethjson::bytes::Bytes = result[1..result_len-1].parse().map_err(|e| EthcoreError::PrivateTransaction(PrivateTransactionError::Encrypt(e)))?;
+		let encrypted_bytes: ethjson::bytes::Bytes = result.parse().map_err(|e| PrivateTransactionError::Encrypt(e))?;
 
 		// decrypt Public
 		let decrypted_bytes = unlocked_accounts.decrypt(*requester, None, &ethcrypto::DEFAULT_MAC, &encrypted_bytes)?;
@@ -155,12 +151,18 @@ impl SecretStoreEncryptor {
 		// and now take x coordinate of Public as a key
 		let key: Bytes = (*decrypted_key)[..INIT_VEC_LEN].into();
 
-		// cache the key
+		// cache the key in the session and clear expired sessions
 		self.sessions.lock().insert(*contract_address, EncryptionSession{
 			key: key.clone(),
 			end_time: Instant::now() + Duration::from_millis(ENCRYPTION_SESSION_DURATION),
 		});
+		self.clean_expired_sessions();
 		Ok(key)
+	}
+
+	fn clean_expired_sessions(&self) {
+		let mut sessions = self.sessions.lock();
+		sessions.retain(|_, session| session.end_time < Instant::now());
 	}
 
 	fn obtained_key(&self, contract_address: &Address) -> Option<Bytes> {
@@ -170,10 +172,9 @@ impl SecretStoreEncryptor {
 			Entry::Occupied(session) => {
 				if Instant::now() > session.get().end_time {
 					session.remove_entry();
-					return None;
-				}
-				else {
-					return Some(session.get().key.clone());
+					None
+				} else {
+					Some(session.get().key.clone())
 				}
 			}
 			Entry::Vacant(_) => None,
@@ -190,11 +191,11 @@ impl Encryptor for SecretStoreEncryptor {
 		unlocked_accounts: Arc<AccountProvider>,
 		initialisation_vector: &H128,
 		plain_data: &[u8]
-	) -> Result<Bytes, EthcoreError> {
+	) -> Result<Bytes, PrivateTransactionError> {
 		// retrieve the key, try to generate it if it doesn't exist yet
 		let key = match self.retrieve_key("", FetchMethod::Get, contract_address, contract_address_signature, requester, unlocked_accounts.clone()) {
 			Ok(key) => Ok(key),
-			Err(EthcoreError::PrivateTransaction(PrivateTransactionError::EncryptionKeyNotFound(_))) => {
+			Err(PrivateTransactionError::EncryptionKeyNotFound(_)) => {
 				trace!("Key for account wasnt found in sstore. Creating. Address: {:?}", contract_address);
 				self.retrieve_key(&format!("/{}", self.threshold), FetchMethod::Post, contract_address, contract_address_signature, requester, unlocked_accounts.clone())
 			}
@@ -218,11 +219,11 @@ impl Encryptor for SecretStoreEncryptor {
 		requester: &Address,
 		unlocked_accounts: Arc<AccountProvider>,
 		cypher: &[u8]
-	) -> Result<Bytes, EthcoreError> {
+	) -> Result<Bytes, PrivateTransactionError> {
 		// initialization vector takes INIT_VEC_LEN bytes
 		let cypher_len = cypher.len();
 		if cypher_len < INIT_VEC_LEN {
-			return Err(EthcoreError::PrivateTransaction(PrivateTransactionError::Decrypt("Invalid cypher".into())));
+			return Err(PrivateTransactionError::Decrypt("Invalid cypher".into()));
 		}
 
 		// retrieve existing key
@@ -251,7 +252,7 @@ impl Encryptor for DummyEncryptor {
 		_unlocked_accounts: Arc<AccountProvider>,
 		_initialisation_vector: &H128,
 		data: &[u8]
-	) -> Result<Bytes, EthcoreError> {
+	) -> Result<Bytes, PrivateTransactionError> {
 		Ok(data.to_vec())
 	}
 
@@ -262,7 +263,7 @@ impl Encryptor for DummyEncryptor {
 		_requester: &Address,
 		_unlocked_accounts: Arc<AccountProvider>,
 		data: &[u8]
-	) -> Result<Bytes, EthcoreError> {
+	) -> Result<Bytes, PrivateTransactionError> {
 		Ok(data.to_vec())
 	}
 }

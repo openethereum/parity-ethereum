@@ -19,11 +19,33 @@
 pub mod encryptor;
 /// Export the private_transactions module.
 pub mod private_transactions;
+mod messages;
+mod error;
 
+extern crate ethcore;
+extern crate ethcore_bytes as bytes;
+extern crate ethcore_transaction as transaction;
+extern crate ethcore_miner;
+extern crate ethcrypto;
 extern crate ethabi;
+extern crate ethereum_types;
+extern crate ethkey;
+extern crate ethjson;
+extern crate fetch;
+extern crate futures;
+extern crate keccak_hash as hash;
+extern crate native_contracts;
+extern crate parking_lot;
+extern crate patricia_trie as trie;
+extern crate rlp;
+extern crate rustc_hex;
+#[macro_use]
+extern crate log;
 
 pub use self::encryptor::{Encryptor, SecretStoreEncryptor, DummyEncryptor};
-pub use self::private_transactions::*;
+pub use self::private_transactions::{PrivateTransactionDesc, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
+pub use self::messages::{PrivateTransaction, SignedPrivateTransaction};
+pub use self::error::PrivateTransactionError;
 
 use std::sync::{Arc, Weak};
 use std::collections::HashMap;
@@ -31,134 +53,27 @@ use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
 use rlp::*;
 use parking_lot::{Mutex, RwLock};
-use futures::{self, Future};
+use futures::Future;
 use bytes::Bytes;
-use error::Error as EthcoreError;
 use ethkey::{Signature, recover, public_to_address};
-use executive::{Executive, TransactOptions};
-use executed::{Executed};
+use ethcore::executive::{Executive, TransactOptions};
+use ethcore::executed::{Executed};
 use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
-use client::{Client, BlockChainClient, ChainNotify, ChainMessageType, BlockId, MiningBlockChainClient};
-use account_provider::AccountProvider;
-use service::ClientIoMessage;
-use error::{PrivateTransactionError};
+use ethcore::client::{Client, BlockChainClient, ChainNotify, ChainMessageType, BlockId, MiningBlockChainClient, PrivateNotify};
+use ethcore::account_provider::AccountProvider;
+use ethcore::service::ClientIoMessage;
+use ethcore::error::TransactionImportError;
 use ethcore_miner::transaction_queue::{TransactionDetailsProvider as TransactionQueueDetailsProvider, AccountDetails};
-use miner::MinerService;
+use ethcore::miner::MinerService;
 use native_contracts::Private as Contract;
-use trace::{Tracer, VMTracer};
+use ethcore::trace::{Tracer, VMTracer};
 use rustc_hex::FromHex;
 
-// Source avaiable at https://gist.github.com/arkpar/5c8fda407c491163a38aeb90c7fac1d2
-const DEFAULT_STUB_CONTRACT: &'static str = "6060604052341561000f57600080fd5b6040516109ce3803806109ce83398101604052808051820191906020018051820191906020018051820191905050826000908051906020019061005392919061008a565b50816002908051906020019061006a929190610114565b508060019080519060200190610081929190610114565b505050506101fc565b828054828255906000526020600020908101928215610103579160200282015b828111156101025782518260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550916020019190600101906100aa565b5b5090506101109190610194565b5090565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f1061015557805160ff1916838001178555610183565b82800160010185558215610183579182015b82811115610182578251825591602001919060010190610167565b5b50905061019091906101d7565b5090565b6101d491905b808211156101d057600081816101000a81549073ffffffffffffffffffffffffffffffffffffffff02191690555060010161019a565b5090565b90565b6101f991905b808211156101f55760008160009055506001016101dd565b5090565b90565b6107c38061020b6000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806317ac53a21461005e5780631865c57d1461017b578063b7ab4db514610209578063ea8796341461027357600080fd5b341561006957600080fd5b610179600480803590602001908201803590602001908080601f01602080910402602001604051908101604052809392919081815260200183838082843782019150505050505091908035906020019082018035906020019080806020026020016040519081016040528093929190818152602001838360200280828437820191505050505050919080359060200190820180359060200190808060200260200160405190810160405280939291908181526020018383602002808284378201915050505050509190803590602001908201803590602001908080602002602001604051908101604052809392919081815260200183836020028082843782019150505050505091905050610301565b005b341561018657600080fd5b61018e6104e6565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156101ce5780820151818401526020810190506101b3565b50505050905090810190601f1680156101fb5780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b341561021457600080fd5b61021c61058e565b6040518080602001828103825283818151815260200191508051906020019060200280838360005b8381101561025f578082015181840152602081019050610244565b505050509050019250505060405180910390f35b341561027e57600080fd5b610286610622565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156102c65780820151818401526020810190506102ab565b50505050905090810190601f1680156102f35780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b600080856040518082805190602001908083835b60208310151561033a5780518252602082019150602081019050602083039250610315565b6001836020036101000a03801982511681845116808217855250505050505090500191505060405180910390209150600090505b6000805490508110156104c75760008181548110151561038a57fe5b906000526020600020900160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1660018387848151811015156103dd57fe5b9060200190602002015187858151811015156103f557fe5b90602001906020020151878681518110151561040d57fe5b90602001906020020151604051600081526020016040526000604051602001526040518085600019166000191681526020018460ff1660ff16815260200183600019166000191681526020018260001916600019168152602001945050505050602060405160208103908084039060008661646e5a03f1151561048f57600080fd5b50506020604051035173ffffffffffffffffffffffffffffffffffffffff161415156104ba57600080fd5b808060010191505061036e565b85600190805190602001906104dd9291906106ca565b50505050505050565b6104ee61074a565b60018054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156105845780601f1061055957610100808354040283529160200191610584565b820191906000526020600020905b81548152906001019060200180831161056757829003601f168201915b5050505050905090565b61059661075e565b600080548060200260200160405190810160405280929190818152602001828054801561061857602002820191906000526020600020905b8160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190600101908083116105ce575b5050505050905090565b61062a61074a565b60028054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156106c05780601f10610695576101008083540402835291602001916106c0565b820191906000526020600020905b8154815290600101906020018083116106a357829003601f168201915b5050505050905090565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f1061070b57805160ff1916838001178555610739565b82800160010185558215610739579182015b8281111561073857825182559160200191906001019061071d565b5b5090506107469190610772565b5090565b602060405190810160405280600081525090565b602060405190810160405280600081525090565b61079491905b80821115610790576000816000905550600101610778565b5090565b905600a165627a7a7230582012a0ab4be8ba61a3fc7601b05ab9c31c619ceccc4ff930f31cd28e140bcb4d340029";
+// Source avaiable at https://github.com/paritytech/contracts/blob/master/contracts/PrivateContract.sol
+const DEFAULT_STUB_CONTRACT: &'static str = "6060604052341561000f57600080fd5b6040516109f03803806109f0833981016040528080518201919060200180518201919060200180518201919050508260009080519060200190610053929190610092565b50816002908051906020019061006a92919061011c565b50806001908051906020019061008192919061011c565b506001600381905550505050610204565b82805482825590600052602060002090810192821561010b579160200282015b8281111561010a5782518260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550916020019190600101906100b2565b5b509050610118919061019c565b5090565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f1061015d57805160ff191683800117855561018b565b8280016001018555821561018b579182015b8281111561018a57825182559160200191906001019061016f565b5b50905061019891906101df565b5090565b6101dc91905b808211156101d857600081816101000a81549073ffffffffffffffffffffffffffffffffffffffff0219169055506001016101a2565b5090565b90565b61020191905b808211156101fd5760008160009055506001016101e5565b5090565b90565b6107dd806102136000396000f30060606040526004361061006d576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806317ac53a21461007257806324c12bf61461018f57806335aa2e441461021d578063affed0e014610280578063c19d93fb146102a9575b600080fd5b341561007d57600080fd5b61018d600480803590602001908201803590602001908080601f01602080910402602001604051908101604052809392919081815260200183838082843782019150505050505091908035906020019082018035906020019080806020026020016040519081016040528093929190818152602001838360200280828437820191505050505050919080359060200190820180359060200190808060200260200160405190810160405280939291908181526020018383602002808284378201915050505050509190803590602001908201803590602001908080602002602001604051908101604052809392919081815260200183836020028082843782019150505050505091905050610337565b005b341561019a57600080fd5b6101a261058b565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156101e25780820151818401526020810190506101c7565b50505050905090810190601f16801561020f5780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b341561022857600080fd5b61023e6004808035906020019091905050610629565b604051808273ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200191505060405180910390f35b341561028b57600080fd5b610293610668565b6040518082815260200191505060405180910390f35b34156102b457600080fd5b6102bc61066e565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156102fc5780820151818401526020810190506102e1565b50505050905090810190601f1680156103295780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b6000806040805190810160405280876040518082805190602001908083835b60208310151561037b5780518252602082019150602081019050602083039250610356565b6001836020036101000a03801982511681845116808217855250505050505090500191505060405180910390206000191660001916815260200160035460010260001916600019168152506040518082600260200280838360005b838110156103f15780820151818401526020810190506103d6565b5050505090500191505060405180910390209150600090505b6000805490508110156105605760008181548110151561042657fe5b906000526020600020900160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16600183878481518110151561047957fe5b90602001906020020151878581518110151561049157fe5b9060200190602002015187868151811015156104a957fe5b90602001906020020151604051600081526020016040526000604051602001526040518085600019166000191681526020018460ff1660ff16815260200183600019166000191681526020018260001916600019168152602001945050505050602060405160208103908084039060008661646e5a03f1151561052b57600080fd5b50506020604051035173ffffffffffffffffffffffffffffffffffffffff1614151561055357fe5b808060010191505061040a565b856001908051906020019061057692919061070c565b50600160035401600381905550505050505050565b60028054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156106215780601f106105f657610100808354040283529160200191610621565b820191906000526020600020905b81548152906001019060200180831161060457829003601f168201915b505050505081565b60008181548110151561063857fe5b90600052602060002090016000915054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b60035481565b60018054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156107045780601f106106d957610100808354040283529160200191610704565b820191906000526020600020905b8154815290600101906020018083116106e757829003601f168201915b505050505081565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f1061074d57805160ff191683800117855561077b565b8280016001018555821561077b579182015b8281111561077a57825182559160200191906001019061075f565b5b509050610788919061078c565b5090565b6107ae91905b808211156107aa576000816000905550600101610792565b5090565b905600a165627a7a723058203ebcdc6f5c91f76a9dc05c42750ec507581eb92d31a88bd330418afcdcc794aa0029";
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
-
-/// Private transaction message call to the contract
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub struct PrivateTransaction {
-	/// Encrypted data
-	encrypted: Bytes,
-	/// Address of the contract
-	contract: Address,
-}
-
-impl Decodable for PrivateTransaction {
-	fn decode(d: &UntrustedRlp) -> Result<Self, DecoderError> {
-		if d.item_count()? != 2 {
-			return Err(DecoderError::RlpIncorrectListLen);
-		}
-		Ok(PrivateTransaction {
-			encrypted: d.val_at(0)?,
-			contract: d.val_at(1)?,
-		})
-	}
-}
-
-impl Encodable for PrivateTransaction {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2);
-		s.append(&self.encrypted);
-		s.append(&self.contract);
-	}
-}
-
-impl PrivateTransaction {
-	/// Compute hash on private transaction
-	pub fn hash(&self) -> H256 {
-		keccak(&*self.rlp_bytes())
-	}
-}
-
-/// Message about private transaction's signing
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub struct SignedPrivateTransaction {
-	/// Hash of the corresponding private transaction
-	private_transaction_hash: H256,
-	/// Signature of the validator
-	/// The V field of the signature
-	v: u64,
-	/// The R field of the signature
-	r: U256,
-	/// The S field of the signature
-	s: U256,
-}
-
-impl Decodable for SignedPrivateTransaction {
-	fn decode(d: &UntrustedRlp) -> Result<Self, DecoderError> {
-		if d.item_count()? != 4 {
-			return Err(DecoderError::RlpIncorrectListLen);
-		}
-		Ok(SignedPrivateTransaction {
-			private_transaction_hash: d.val_at(0)?,
-			v: d.val_at(1)?,
-			r: d.val_at(2)?,
-			s: d.val_at(3)?,
-		})
-	}
-}
-
-impl Encodable for SignedPrivateTransaction {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4);
-		s.append(&self.private_transaction_hash);
-		s.append(&self.v);
-		s.append(&self.r);
-		s.append(&self.s);
-	}
-}
-
-impl SignedPrivateTransaction {
-	/// Construct a signed private transaction message
-	pub fn new(private_transaction_hash: H256, sig: Signature, chain_id: Option<u64>) -> Self {
-		SignedPrivateTransaction {
-			private_transaction_hash: private_transaction_hash,
-			r: sig.r().into(),
-			s: sig.s().into(),
-			v: sig.v() as u64 + if let Some(n) = chain_id { 35 + n * 2 } else { 27 },
-		}
-	}
-
-	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
-	pub fn standard_v(&self) -> u8 {
-		match self.v {
-			v if v == 27 => 0 as u8,
-			v if v == 28 => 1 as u8,
-			v if v > 36 => ((v - 1) % 2) as u8,
-			 _ => 4
-		}
-	}
-
-	/// Construct a signature object from the sig.
-	pub fn signature(&self) -> Signature {
-		Signature::from_rsv(&self.r.into(), &self.s.into(), self.standard_v())
-	}
-
-	/// Get the hash of of the original transaction.
-	pub fn private_transaction_hash(&self) -> H256 {
-		self.private_transaction_hash
-	}
-}
 
 struct TransactionDetailsProvider<'a> {
 	client: &'a MiningBlockChainClient,
@@ -237,7 +152,7 @@ struct PrivateExecutionResult<T, V> where T: Tracer, V: VMTracer {
 
 impl Provider where {
 	/// Create a new provider.
-	pub fn new() -> Result<Self, EthcoreError> {
+	pub fn new() -> Result<Self, PrivateTransactionError> {
 		Ok(Provider {
 			config: RwLock::new(ProviderConfig::default()),
 			notify: RwLock::new(Vec::new()),
@@ -278,7 +193,7 @@ impl Provider where {
 	}
 
 	/// Sets provider's config.
-	pub fn set_config(&self, config: ProviderConfig) -> Result<(), EthcoreError> {
+	pub fn set_config(&self, config: ProviderConfig) -> Result<(), PrivateTransactionError> {
 		let url = config.key_server_url.clone();
 		let threshold = config.key_server_threshold;
 		*self.config.write() = config;
@@ -291,7 +206,7 @@ impl Provider where {
 	/// 2. Executes private transaction
 	/// 3. Save it with state returned on prev step to the queue for signing
 	/// 4. Broadcast corresponding message to the chain
-	pub fn create_private_transaction(&self, signed_transaction: SignedTransaction) -> Result<Receipt, EthcoreError> {
+	pub fn create_private_transaction(&self, signed_transaction: SignedTransaction) -> Result<Receipt, PrivateTransactionError> {
 		trace!("Creating private transaction from regular transaction: {:?}", signed_transaction);
 		if self.config.read().signer_account.is_none() {
 			trace!("Signing account not set");
@@ -327,7 +242,7 @@ impl Provider where {
 	}
 
 	/// Try to unlock account using stored passwords
-	fn unlock_account(&self, account: &Address) -> Result<bool, EthcoreError> {
+	fn unlock_account(&self, account: &Address) -> Result<bool, PrivateTransactionError> {
 		let accounts = self.accounts.read().clone().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
 		let accounts = accounts.upgrade().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
 		let passwords = self.config.read().passwords.clone();
@@ -340,7 +255,7 @@ impl Provider where {
 	}
 
 	/// Extract signed transaction from private transaction
-	fn extract_original_transaction(&self, private: PrivateTransaction, contract: &Address) -> Result<UnverifiedTransaction, EthcoreError> {
+	fn extract_original_transaction(&self, private: PrivateTransaction, contract: &Address) -> Result<UnverifiedTransaction, PrivateTransactionError> {
 		let encrypted_transaction = private.encrypted.clone();
 		let transaction_bytes = self.decrypt(contract, &encrypted_transaction)?;
 		let original_transaction: UnverifiedTransaction = UntrustedRlp::new(&transaction_bytes).as_val()?;
@@ -348,7 +263,7 @@ impl Provider where {
 	}
 
 	/// Process received private transaction
-	pub fn import_private_transaction(&self, rlp: &[u8]) -> Result<(), EthcoreError> {
+	pub fn import_private_transaction(&self, rlp: &[u8]) -> Result<(), PrivateTransactionError> {
 		let validator_accounts = self.config.read().validator_accounts.clone();
 		trace!("Private transaction received");
 		if validator_accounts.is_empty() {
@@ -395,12 +310,12 @@ impl Provider where {
 	}
 
 	/// Private transaction for validation added into queue
-	pub fn on_private_transaction_queued(&self) -> Result<(), EthcoreError> {
+	pub fn on_private_transaction_queued(&self) -> Result<(), PrivateTransactionError> {
 		self.process_queue()
 	}
 
 	/// Retrieve and verify the first available private transaction for every sender
-	fn process_queue(&self) -> Result<(), EthcoreError> {
+	fn process_queue(&self) -> Result<(), PrivateTransactionError> {
 		let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let ready_transactions = self.transactions_for_verification.lock().ready_transactions();
@@ -437,7 +352,7 @@ impl Provider where {
 
 	/// Add signed private transaction into the store
 	/// Creates corresponding public transaction if last required singature collected and sends it to the chain
-	pub fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<(), EthcoreError> {
+	pub fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<(), PrivateTransactionError> {
 		let tx: SignedPrivateTransaction = UntrustedRlp::new(rlp).as_val()?;
 		trace!("Signature for private transaction received: {:?}", tx);
 		let private_hash = tx.private_transaction_hash();
@@ -496,7 +411,7 @@ impl Provider where {
 		Ok(())
 	}
 
-	fn last_required_signature(&self, desc: &PrivateTransactionSigningDesc, sign: Signature) -> Result<bool, EthcoreError>  {
+	fn last_required_signature(&self, desc: &PrivateTransactionSigningDesc, sign: Signature) -> Result<bool, PrivateTransactionError>  {
 		if desc.received_signatures.contains(&sign) {
 			return Ok(false);
 		}
@@ -543,23 +458,21 @@ impl Provider where {
 		H128::from_slice(iv)
 	}
 
-	fn sign_contract_address(&self, contract_address: &Address) -> Result<Signature, EthcoreError> {
+	fn sign_contract_address(&self, contract_address: &Address) -> Result<Signature, PrivateTransactionError> {
 		let accounts = self.accounts.read().clone().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
 		let accounts = accounts.upgrade().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
 		// key id in SS is H256 && we have H160 here => expand with assitional zeros
-		let mut contract_address_extended = Vec::with_capacity(32);
-		contract_address_extended.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-		contract_address_extended.extend_from_slice(&**contract_address);
+		let contract_address_extended: H256 = contract_address.into();
 		let key_server_account = self.config.read().key_server_account.ok_or_else(|| PrivateTransactionError::KeyServerAccountNotSet)?;
 		if let Ok(true) = self.unlock_account(&key_server_account) {
 			Ok(accounts.sign(key_server_account.clone(), None, H256::from_slice(&contract_address_extended))?)
 		} else {
 			trace!("Cannot unlock account");
-			Err(EthcoreError::PrivateTransaction(PrivateTransactionError::Encrypt("Cannot unlock account".into())))
+			Err(PrivateTransactionError::Encrypt("Cannot unlock account".into()))
 		}
 	}
 
-	fn encrypt(&self, contract_address: &Address, initialisation_vector: &H128, data: &[u8]) -> Result<Bytes, EthcoreError> {
+	fn encrypt(&self, contract_address: &Address, initialisation_vector: &H128, data: &[u8]) -> Result<Bytes, PrivateTransactionError> {
 		trace!("Encrypt data using key(address): {:?}", contract_address);
 		let contract_address_signature = self.sign_contract_address(contract_address)?;
 		let accounts = self.accounts.read().clone().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
@@ -570,11 +483,11 @@ impl Provider where {
 			Ok(encrypted_data)
 		} else {
 			trace!("Cannot unlock account");
-			Err(EthcoreError::PrivateTransaction(PrivateTransactionError::Encrypt("Cannot unlock account".into())))
+			Err(PrivateTransactionError::Encrypt("Cannot unlock account".into()))
 		}
 	}
 
-	fn decrypt(&self, contract_address: &Address, data: &[u8]) -> Result<Bytes, EthcoreError> {
+	fn decrypt(&self, contract_address: &Address, data: &[u8]) -> Result<Bytes, PrivateTransactionError> {
 		trace!("Decrypt data using key(address): {:?}", contract_address);
 		let contract_address_signature = self.sign_contract_address(contract_address)?;
 		let accounts = self.accounts.read().clone().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
@@ -584,11 +497,11 @@ impl Provider where {
 			Ok(self.encryptor.read().decrypt(contract_address, &contract_address_signature, &key_server_account, accounts, data)?)
 		} else {
 			trace!("Cannot unlock account");
-			Err(EthcoreError::PrivateTransaction(PrivateTransactionError::Decrypt("Cannot unlock account".into())))
+			Err(PrivateTransactionError::Decrypt("Cannot unlock account".into()))
 		}
 	}
 
-	fn get_decrypted_state(&self, address: &Address, block: BlockId) -> Result<Bytes, EthcoreError> {
+	fn get_decrypted_state(&self, address: &Address, block: BlockId) -> Result<Bytes, PrivateTransactionError> {
 		let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let contract = Contract::new(*address);
@@ -597,7 +510,7 @@ impl Provider where {
 		self.decrypt(address, &state)
 	}
 
-	fn get_decrypted_code(&self, address: &Address, block: BlockId) -> Result<Bytes, EthcoreError> {
+	fn get_decrypted_code(&self, address: &Address, block: BlockId) -> Result<Bytes, PrivateTransactionError> {
 		let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let contract = Contract::new(*address);
@@ -625,7 +538,7 @@ impl Provider where {
 		raw
 	}
 
-	fn execute_private<T, V>(&self, transaction: &SignedTransaction, options: TransactOptions<T, V>, block: BlockId) -> Result<PrivateExecutionResult<T, V>, EthcoreError>
+	fn execute_private<T, V>(&self, transaction: &SignedTransaction, options: TransactOptions<T, V>, block: BlockId) -> Result<PrivateExecutionResult<T, V>, PrivateTransactionError>
 		where
 			T: Tracer,
 			V: VMTracer,
@@ -710,17 +623,15 @@ impl Provider where {
 	}
 
 	/// Returns the key from the key server associated with the contract
-	pub fn contract_key_id(&self, contract_address: &Address) -> Result<H256, EthcoreError> {
+	pub fn contract_key_id(&self, contract_address: &Address) -> Result<H256, PrivateTransactionError> {
 		//current solution uses contract address extended with 0 as id
-		let mut contract_address_extended = Vec::with_capacity(32);
-		contract_address_extended.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-		contract_address_extended.extend_from_slice(&**contract_address);
+		let contract_address_extended: H256 = contract_address.into();
 
 		Ok(H256::from_slice(&contract_address_extended))
 	}
 
 	/// Create encrypted public contract deployment transaction.
-	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<Transaction, EthcoreError> {
+	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<Transaction, PrivateTransactionError> {
 		if let &Action::Call(_) = &source.action {
 			return Err(PrivateTransactionError::BadTransactonType.into());
 		}
@@ -745,7 +656,7 @@ impl Provider where {
 	}
 
 	/// Create encrypted public contract deployment transaction. Returns updated encrypted state.
-	fn execute_private_transaction(&self, block: BlockId, source: &SignedTransaction) -> Result<Bytes, EthcoreError> {
+	fn execute_private_transaction(&self, block: BlockId, source: &SignedTransaction) -> Result<Bytes, PrivateTransactionError> {
 		if let &Action::Create = &source.action {
 			return Err(PrivateTransactionError::BadTransactonType.into());
 		}
@@ -754,7 +665,7 @@ impl Provider where {
 	}
 
 	/// Create encrypted public contract deployment transaction.
-	pub fn public_transaction(&self, state: Bytes, source: &SignedTransaction, signatures: &[Signature], nonce: U256, gas_price: U256) -> Result<Transaction, EthcoreError> {
+	pub fn public_transaction(&self, state: Bytes, source: &SignedTransaction, signatures: &[Signature], nonce: U256, gas_price: U256) -> Result<Transaction, PrivateTransactionError> {
 		let gas: u64 = 650000 + state.len() as u64 * 8000 + signatures.len() as u64 * 50000;
 		Ok(Transaction {
 			nonce: nonce,
@@ -767,13 +678,13 @@ impl Provider where {
 	}
 
 	/// Call into private contract.
-	pub fn private_call(&self, block: BlockId, transaction: &SignedTransaction) -> Result<Executed, EthcoreError> {
+	pub fn private_call(&self, block: BlockId, transaction: &SignedTransaction) -> Result<Executed, PrivateTransactionError> {
 		let result = self.execute_private(transaction, TransactOptions::with_no_tracing(), block)?;
 		Ok(result.result)
 	}
 
 	/// Returns private validators for a contract.
-	fn get_validators(&self, block: BlockId, contract: &Address) -> Result<Vec<Address>, EthcoreError> {
+	fn get_validators(&self, block: BlockId, contract: &Address) -> Result<Vec<Address>, PrivateTransactionError> {
 		let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let contract = Contract::new(*contract);
@@ -790,6 +701,12 @@ impl ChainNotify for Provider {
 				trace!("Cannot prune private transactions queue. error: {:?}", err);
 			}
 		}
+	}
+}
+
+impl PrivateNotify for Provider {
+	fn private_transaction_queued(&self) -> Result<(), TransactionImportError> {
+		self.on_private_transaction_queued().map_err(|err| TransactionImportError::Other(format!("{:?}", err)))
 	}
 }
 

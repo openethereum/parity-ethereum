@@ -88,6 +88,7 @@
 /// All other messages are ignored.
 ///
 
+use std::sync::Arc;
 use std::collections::{HashSet, HashMap};
 use std::cmp;
 use hash::keccak;
@@ -102,6 +103,7 @@ use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};
 use ethcore::error::*;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
+use privatetransactions::Provider as PrivateTransactionProvider;
 use transaction::PendingTransaction;
 use sync_io::SyncIo;
 use time;
@@ -395,13 +397,15 @@ pub struct ChainSync {
 	download_old_blocks: bool,
 	/// Enable warp sync.
 	enable_warp_sync: bool,
+	/// Shared private tx service.
+	private_tx_provider: Arc<PrivateTransactionProvider>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
 
 impl ChainSync {
 	/// Create a new instance of syncing strategy.
-	pub fn new(config: SyncConfig, chain: &BlockChainClient) -> ChainSync {
+	pub fn new(config: SyncConfig, chain: &BlockChainClient, private_provider: Arc<PrivateTransactionProvider>) -> ChainSync {
 		let chain_info = chain.chain_info();
 		let mut sync = ChainSync {
 			state: if config.warp_sync { SyncState::WaitingPeers } else { SyncState::Idle },
@@ -420,6 +424,7 @@ impl ChainSync {
 			sync_start_time: None,
 			transactions_stats: TransactionsStats::default(),
 			enable_warp_sync: config.warp_sync,
+			private_tx_provider: private_provider,
 		};
 		sync.update_targets(chain);
 		sync
@@ -2217,14 +2222,14 @@ impl ChainSync {
 	}
 
 	/// Called when peer sends us new private transaction packet
-	fn on_private_transaction(&self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_private_transaction(&self, _io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
 		}
 
 		trace!(target: "sync", "Received private transaction packet from {:?}", peer_id);
-		if let Err(e) = io.private_transactions_provider().import_private_transaction(r.as_raw()) {
+		if let Err(e) = self.private_tx_provider.import_private_transaction(r.as_raw()) {
 			debug!("Ignoring the message, error queueing: {}", e);
 		}
 		Ok(())
@@ -2240,14 +2245,14 @@ impl ChainSync {
 	}
 
 	/// Called when peer sends us signed private transaction packet
-	fn on_signed_private_transaction(&self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_signed_private_transaction(&self, _io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
 			return Ok(());
 		}
 
 		trace!(target: "sync", "Received signed private transaction packet from {:?}", peer_id);
-		if let Err(e) = io.private_transactions_provider().import_signed_private_transaction(r.as_raw()) {
+		if let Err(e) = self.private_tx_provider.import_signed_private_transaction(r.as_raw()) {
 			debug!("Ignoring the message, error queueing: {}", e);
 		}
 		Ok(())

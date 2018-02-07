@@ -65,6 +65,7 @@ migration = { path = "util/migration" }
 kvdb = { path = "util/kvdb" }
 kvdb-rocksdb = { path = "util/kvdb-rocksdb" }
 journaldb = { path = "util/journaldb" }
+privatetransactions = { path = "private_transactions" }
 
 parity-dapps = { path = "dapps", optional = true }
 ethcore-secretstore = { path = "secret_store", optional = true }

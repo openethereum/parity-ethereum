@@ -31,6 +31,7 @@ pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactResult};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::chain_notify::{ChainNotify, ChainMessageType};
 pub use self::traits::{BlockChainClient, MiningBlockChainClient, EngineClient};
+pub use self::private_notify::PrivateNotify;
 
 pub use self::traits::ProvingBlockChainClient;
 
@@ -48,3 +49,4 @@ pub use verification::VerifierType;
 mod traits;
 
 mod chain_notify;
+mod private_notify;

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use error::{Error, PrivateTransactionError};
+use error::PrivateTransactionError;
 use ethkey::Signature;
 use bytes::Bytes;
 use std::collections::HashMap;
@@ -23,7 +23,7 @@ use transaction::{UnverifiedTransaction, SignedTransaction};
 use ethcore_miner::transaction_queue::{TransactionQueue, RemovalReason,
 	TransactionDetailsProvider as TransactionQueueDetailsProvider, TransactionOrigin};
 
-use header::BlockNumber;
+use ethcore::header::BlockNumber;
 
 /// Maximum length for private transactions queues.
 const MAX_QUEUE_LEN: usize = 8312;
@@ -65,7 +65,7 @@ impl VerificationStore {
 		private_hash: H256,
 		details_provider: &TransactionQueueDetailsProvider,
 		insertion_time: BlockNumber,
-	) -> Result<(), Error> {
+	) -> Result<(), PrivateTransactionError> {
 		if self.descriptors.len() > MAX_QUEUE_LEN {
 			return Err(PrivateTransactionError::QueueIsFull.into());
 		}
@@ -98,7 +98,7 @@ impl VerificationStore {
 	}
 
 	/// Returns descriptor of the corresponding private transaction
-	pub fn private_transaction_descriptor(&self, transaction_hash: &H256) -> Result<&PrivateTransactionDesc, Error> {
+	pub fn private_transaction_descriptor(&self, transaction_hash: &H256) -> Result<&PrivateTransactionDesc, PrivateTransactionError> {
 		self.descriptors.get(transaction_hash).ok_or(PrivateTransactionError::PrivateTransactionNotFound.into())
 	}
 
@@ -145,7 +145,7 @@ impl SigningStore {
 		transaction: SignedTransaction,
 		validators: Vec<Address>,
 		state: Bytes,
-	) -> Result<(), Error> {
+	) -> Result<(), PrivateTransactionError> {
 		if self.transactions.len() > MAX_QUEUE_LEN {
 			return Err(PrivateTransactionError::QueueIsFull.into());
 		}
@@ -165,13 +165,13 @@ impl SigningStore {
 	}
 
 	/// Removes desc from the store (after verification is completed)
-	pub fn remove(&mut self, private_hash: &H256) -> Result<(), Error> {
+	pub fn remove(&mut self, private_hash: &H256) -> Result<(), PrivateTransactionError> {
 		self.transactions.remove(private_hash);
 		Ok(())
 	}
 
 	/// Adds received signature for the stored private transaction
-	pub fn add_signature(&mut self, private_hash: &H256, signature: Signature) -> Result<(), Error> {
+	pub fn add_signature(&mut self, private_hash: &H256, signature: Signature) -> Result<(), PrivateTransactionError> {
 		let desc = self.transactions.get_mut(private_hash).ok_or_else(|| PrivateTransactionError::PrivateTransactionNotFound)?;
 		if !desc.received_signatures.contains(&signature) {
 			desc.received_signatures.push(signature);
