@@ -1336,6 +1336,7 @@ mod tests {
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
+	use transaction::{Action, Transaction};
 	use engines::{Seal, Engine, EthEngine};
 	use engines::validator_set::TestSet;
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep};
@@ -1682,6 +1683,53 @@ mod tests {
 
 	#[test]
 	fn seal_with_empty_steps() {
+		let (spec, tap, accounts) = setup_empty_steps();
+
+		let addr1 = accounts[0];
+		let addr2 = accounts[1];
+
+		let engine = &*spec.engine;
+		let genesis_header = spec.genesis_header();
+		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+
+		let last_hashes = Arc::new(vec![genesis_header.hash()]);
+
+		// step 2
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b1 = b1.close_and_lock();
+
+		// since the block is empty it isn't sealed and we generate empty steps
+		engine.set_signer(tap.clone(), addr1, "1".into());
+		assert_eq!(engine.generate_seal(b1.block(), &genesis_header), Seal::None);
+		engine.step();
+
+		// step 3
+		let mut b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		b2.push_transaction(Transaction {
+			action: Action::Create,
+			nonce: U256::from(0),
+			gas_price: U256::from(3000),
+			gas: U256::from(53_000),
+			value: U256::from(1),
+			data: vec![],
+		}.fake_sign(addr2), None).unwrap();
+		let b2 = b2.close_and_lock();
+
+		// we will now seal a block with 1tx and include the accumulated empty step message
+		engine.set_signer(tap.clone(), addr2, "0".into());
+		if let Seal::Regular(seal) = engine.generate_seal(b2.block(), &genesis_header) {
+			engine.set_signer(tap.clone(), addr1, "1".into());
+			let empty_step2 = sealed_empty_step(engine, 2, &genesis_header.hash());
+			let empty_steps = ::rlp::encode_list(&vec![empty_step2]);
+
+			assert_eq!(seal[0], encode(&3usize).into_vec());
+			assert_eq!(seal[2], empty_steps.into_vec());
+		}
+	}
+
+	#[test]
+	fn seal_empty_block_with_empty_steps() {
 		let (spec, tap, accounts) = setup_empty_steps();
 
 		let addr1 = accounts[0];
