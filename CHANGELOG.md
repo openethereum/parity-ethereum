@@ -1,3 +1,14 @@
+## Parity [v1.9.2](https://github.com/paritytech/parity/releases/tag/v1.9.2) (2018-02-02)
+
+Parity 1.9.2 is a bug-fix release to improve performance and stability. It adds additional bootnodes for the Ropsten test network.
+
+The full list of included changes:
+
+- Backports beta ([#7780](https://github.com/paritytech/parity/pull/7780))
+  - Bump beta to 1.9.2
+  - Update ropsten.json ([#7776](https://github.com/paritytech/parity/pull/7776))
+- Snapcraft push beta
+
 ## Parity [v1.9.1](https://github.com/paritytech/parity/releases/tag/v1.9.1) (2018-02-01)
 
 Parity 1.9.1 is a bug-fix release to improve performance and stability. It restores ERC-20 token balances, improves networking, fixes database corruptions on client shutdown, and fixes issues with the `--password` command-line flag. Happy syncing, fellow Ethereans!

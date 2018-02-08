@@ -29,7 +29,6 @@ use engines::{self, Engine};
 use ethjson;
 use rlp::{self, UntrustedRlp};
 use machine::EthereumMachine;
-use semantic_version::SemanticVersion;
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty incrment divisor?
@@ -167,7 +166,6 @@ impl engines::EpochVerifier<EthereumMachine> for Arc<Ethash> {
 
 impl Engine<EthereumMachine> for Arc<Ethash> {
 	fn name(&self) -> &str { "Ethash" }
-	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
 	fn machine(&self) -> &EthereumMachine { &self.machine }
 
 	// Two fields - nonce and mix.
@@ -572,7 +570,6 @@ mod tests {
 	fn has_valid_metadata() {
 		let engine = test_spec().engine;
 		assert!(!engine.name().is_empty());
-		assert!(engine.version().major >= 1);
 	}
 
 	#[test]

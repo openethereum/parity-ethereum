@@ -1,24 +1,37 @@
+## Parity [v1.8.9](https://github.com/paritytech/parity/releases/tag/v1.8.9) (2018-02-02)
+
+Parity 1.8.9 is a bug-fix release to improve performance and stability. It restores ERC-20 token balances and adds additional bootnodes for the Ropsten test network.
+
+The full list of included changes:
+
+- Update gitlab-build.sh
+- Backports stable ([#7779](https://github.com/paritytech/parity/pull/7779))
+  - Bump stable to 1.8.9
+  - Update ropsten.json ([#7776](https://github.com/paritytech/parity/pull/7776))
+- Fix tokenAddress reference ([#7777](https://github.com/paritytech/parity/pull/7777))
+- Snapcraft push stable
+
 ## Parity [v1.8.8](https://github.com/paritytech/parity/releases/tag/v1.8.8) (2018-02-01)
 
 Parity 1.8.8 is a bug-fix release to improve performance and stability. It restores ERC-20 token balances, improves networking, fixes database corruptions on client shutdown, and fixes issues with the `--password` command-line flag. Happy syncing!
 
 The full list of included changes:
 
-- Gitlab stable ([#7768](https://github.com/paritytech/parity/pull/7768
+- Gitlab stable ([#7768](https://github.com/paritytech/parity/pull/7768))
   - Fix snapcraft build for stable
   - Initial support push snap packages to snapcraft.io
   - Edge-devel
-- Snapcraft push ans fix build ([#7767](https://github.com/paritytech/parity/pull/7767
+- Snapcraft push ans fix build ([#7767](https://github.com/paritytech/parity/pull/7767))
   - Fix snapcraft build for stable
   - Initial support push snap packages to snapcraft.io
   - Edge-devel
 - Remove snapcraft.yml from scripts
 - Resolve conflicts
 - Token filter balances (throttle) ([#7755](https://github.com/paritytech/parity/pull/7755))
-- Fix snapcraft build (stable) ([#7763](https://github.com/paritytech/parity/pull/7763
+- Fix snapcraft build (stable) ([#7763](https://github.com/paritytech/parity/pull/7763))
   - Fix snapcraft build for stable
   - Fix snapcraft build (stable)
-- [Stable] Backports ([#7758](https://github.com/paritytech/parity/pull/7758
+- [Stable] Backports ([#7758](https://github.com/paritytech/parity/pull/7758))
   - Filter-out nodes.json ([#7716](https://github.com/paritytech/parity/pull/7716))
     - Filter-out nodes.json
     - Network: sort node table nodes by failure ratio
@@ -40,7 +53,7 @@ The full list of included changes:
     - Wrap --help to 120 characters rather than 100 characters
 - Use explicit branch name in push ([#7757](https://github.com/paritytech/parity/pull/7757))
 - Bump stable to 1.8.8 ([#7752](https://github.com/paritytech/parity/pull/7752))
-- Fix js-release in stable ([#7682](https://github.com/paritytech/parity/pull/7682
+- Fix js-release in stable ([#7682](https://github.com/paritytech/parity/pull/7682))
 - Update Info.plist
 - Fix conditions in gitlab-test ([#7675](https://github.com/paritytech/parity/pull/7675))
 - Remove cargo cache
