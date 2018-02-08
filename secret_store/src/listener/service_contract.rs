@@ -18,7 +18,7 @@ use std::sync::Arc;
 use futures::{future, Future};
 use parking_lot::RwLock;
 use ethcore::filter::Filter;
-use ethcore::client::{Client, BlockChainClient, BlockId};
+use ethcore::client::{Client, BlockChainClient, BlockId, RegistryInfo, CallContract};
 use ethkey::{Public, Signature, public_to_address};
 use native_contracts::SecretStoreService;
 use hash::keccak;

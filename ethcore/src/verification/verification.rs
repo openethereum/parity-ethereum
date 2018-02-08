@@ -497,12 +497,12 @@ mod tests {
 		let parent = bc.block_header(header.parent_hash())
 			.ok_or(BlockError::UnknownParent(header.parent_hash().clone()))?;
 
-		let full_params: FullFamilyParams = (
-			bytes,
-			&transactions[..],
-			bc as &BlockProvider,
-			&client as &::client::BlockChainClient
-		);
+		let full_params = FullFamilyParams {
+			block_bytes: bytes,
+			transactions: &transactions[..],
+			block_provider: bc as &BlockProvider,
+			client: &client,
+		};
 		verify_block_family(&header, &parent, engine, Some(full_params))
 	}
 

@@ -25,7 +25,7 @@ use ethcore::block::Block;
 use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo, ImportBlock};
 use ethcore::ethereum;
 use ethcore::ids::BlockId;
-use ethcore::miner::{MinerOptions, Banning, GasPricer, Miner, PendingSet, PrioritizationStrategy, GasLimit};
+use ethcore::miner::{MinerOptions, Banning, GasPricer, Miner, PendingSet, GasLimit};
 use ethcore::spec::{Genesis, Spec};
 use ethcore::views::BlockView;
 use ethjson::blockchain::BlockChain;

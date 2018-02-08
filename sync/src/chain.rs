@@ -2233,7 +2233,6 @@ mod tests {
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::header::*;
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo, BlockInfo};
-	use ethcore::transaction::UnverifiedTransaction;
 	use ethcore::miner::MinerService;
 	use transaction::UnverifiedTransaction;
 
