@@ -8,12 +8,12 @@
         "difficultyBoundDivisor":"0x0800",
         "durationLimit":"0x0d",
         "homesteadTransition":"0x118c30",
-        "eip100bTransition":"0x7fffffffffffff",
-        "eip150Transition":"0x7fffffffffffff",
+        "eip100bTransition":"0x1e8480",
+        "eip150Transition":"0x1e8480",
         "eip160Transition":"0x7fffffffffffff",
         "eip161abcTransition":"0x7fffffffffffff",
         "eip161dTransition":"0x7fffffffffffff",
-        "eip649Transition":"0x7fffffffffffff",
+        "eip649Transition":"0x1e8480",
         "blockReward":"0x1105a0185b50a80000",
         "mcip3Transition":"0x124f81",
         "mcip3MinerReward":"0xd8d726b7177a80000",
@@ -31,15 +31,15 @@
     "maximumExtraDataSize":"0x20",
     "minGasLimit":"0x1388",
     "networkID":"0x76740f",
-    "forkBlock":"0x5b6",
-    "forkCanonHash":"0xa5e88ad9e34d113e264e307bc27e8471452c8fc13780324bb3abb96fd0558343",
+    "forkBlock":"0x1d8015",
+    "forkCanonHash":"0x380602acf82b629a0be6b5adb2b4a801e960a07dc8261bf196d21befdbb8f2f9",
     "eip86Transition":"0x7fffffffffffff",
     "eip98Transition":"0x7fffffffffffff",
-    "eip140Transition":"0x7fffffffffffff",
-    "eip155Transition":"0x7fffffffffffff",
-    "eip211Transition":"0x7fffffffffffff",
-    "eip214Transition":"0x7fffffffffffff",
-    "eip658Transition":"0x7fffffffffffff",
+    "eip140Transition":"0x1e8480",
+    "eip155Transition":"0x1e8480",
+    "eip211Transition":"0x1e8480",
+    "eip214Transition":"0x1e8480",
+    "eip658Transition":"0x1e8480",
     "maxCodeSize":"0x6000"
   },
   "genesis":{
@@ -119,7 +119,7 @@
     "0000000000000000000000000000000000000005":{
       "builtin":{
         "name":"modexp",
-        "activate_at":"0x7fffffffffffff",
+        "activate_at":"0x1e8480",
         "pricing":{
           "modexp":{
             "divisor":20
@@ -130,7 +130,7 @@
     "0000000000000000000000000000000000000006":{
       "builtin":{
         "name":"alt_bn128_add",
-        "activate_at":"0x7fffffffffffff",
+        "activate_at":"0x1e8480",
         "pricing":{
           "linear":{
             "base":500,
@@ -142,7 +142,7 @@
     "0000000000000000000000000000000000000007":{
       "builtin":{
         "name":"alt_bn128_mul",
-        "activate_at":"0x7fffffffffffff",
+        "activate_at":"0x1e8480",
         "pricing":{
           "linear":{
             "base":40000,
@@ -154,7 +154,7 @@
     "0000000000000000000000000000000000000008":{
       "builtin":{
         "name":"alt_bn128_pairing",
-        "activate_at":"0x7fffffffffffff",
+        "activate_at":"0x1e8480",
         "pricing":{
           "alt_bn128_pairing":{
             "base":100000,
