@@ -271,6 +271,9 @@ impl EpochManager {
 	}
 }
 
+/// A message broadcast by authorities when it's their turn to seal a block but there are no
+/// transactions. Other authorities accumulate these messages and later include them in the seal as
+/// proof.
 #[derive(Clone, Debug)]
 struct EmptyStep {
 	signature: H520,
@@ -279,6 +282,13 @@ struct EmptyStep {
 }
 
 impl EmptyStep {
+	fn from_sealed(sealed_empty_step: SealedEmptyStep, parent_hash: &H256) -> EmptyStep {
+		let signature = sealed_empty_step.signature;
+		let step = sealed_empty_step.step;
+		let parent_hash = parent_hash.clone();
+		EmptyStep { signature, step, parent_hash }
+	}
+
 	fn verify(&self, validators: &ValidatorSet) -> Result<bool, Error> {
 		let message = keccak(empty_step_rlp(self.step, &self.parent_hash));
 		let correct_proposer = step_proposer(validators, &self.parent_hash, self.step);
@@ -292,11 +302,17 @@ impl EmptyStep {
 		let public = recover(&self.signature.into(), &message)?;
 		Ok(public_to_address(&public))
 	}
+
+	fn sealed(&self) -> SealedEmptyStep {
+		let signature = self.signature;
+		let step = self.step;
+		SealedEmptyStep { signature, step }
+	}
 }
 
 impl fmt::Display for EmptyStep {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		write!(f, "({}, {})", self.signature, self.step)
+		write!(f, "({}, {}, {})", self.signature, self.step, self.parent_hash)
 	}
 }
 
@@ -331,6 +347,30 @@ pub fn empty_step_rlp(step: usize, parent_hash: &H256) -> Vec<u8> {
 	let mut s = RlpStream::new_list(2);
 	s.append(&step).append(parent_hash);
 	s.out()
+}
+
+/// An empty step message that is included in a seal, the only difference is that it doesn't include
+/// the `parent_hash` in order to save space. The included signature is of the original empty step
+/// message, which can be reconstructed by using the parent hash of the block in which this sealed
+/// empty message is included.
+struct SealedEmptyStep {
+	signature: H520,
+	step: usize,
+}
+
+impl Encodable for SealedEmptyStep {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append(&self.signature).append(&self.step);
+	}
+}
+
+impl Decodable for SealedEmptyStep {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let signature = rlp.val_at(0)?;
+		let step = rlp.val_at(1)?;
+
+		Ok(SealedEmptyStep { signature, step })
+	}
 }
 
 /// Engine using `AuthorityRound` proof-of-authority BFT consensus.
@@ -464,9 +504,10 @@ fn header_empty_steps_raw(header: &Header) -> &[u8] {
 }
 
 // extracts the empty steps from the header seal. should only be called when there are 3 fields in the seal
-// (i.e. header.number() >= self.empty_steps_transition)
+// (i.e. header.number() >= self.empty_steps_transition).
 fn header_empty_steps(header: &Header) -> Result<Vec<EmptyStep>, ::rlp::DecoderError> {
-	UntrustedRlp::new(header_empty_steps_raw(header)).as_list::<EmptyStep>().map(Into::into)
+	let empty_steps = UntrustedRlp::new(header_empty_steps_raw(header)).as_list::<SealedEmptyStep>()?;
+	Ok(empty_steps.into_iter().map(|s| EmptyStep::from_sealed(s, header.parent_hash())).collect())
 }
 
 // gets the signers of empty step messages for the given header, does not include repeated signers
@@ -866,8 +907,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			}
 
 			let empty_steps_rlp = if header.number() >= self.empty_steps_transition {
-				// TODO [andre]: we can save some space by not including the parent hash in each empty step message.
-				//               afterwards for verification we would reconstruct the message using the block's parent.
+				let empty_steps: Vec<_> = empty_steps.iter().map(|e| e.sealed()).collect();
 				Some(::rlp::encode_list(&empty_steps).into_vec())
 			} else {
 				None
@@ -1298,7 +1338,7 @@ mod tests {
 	use spec::Spec;
 	use engines::{Seal, Engine, EthEngine};
 	use engines::validator_set::TestSet;
-	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep};
+	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep};
 
 	#[test]
 	fn has_valid_metadata() {
@@ -1603,6 +1643,12 @@ mod tests {
 		EmptyStep { step, signature, parent_hash }
 	}
 
+	fn sealed_empty_step(engine: &EthEngine, step: usize, parent_hash: &H256) -> SealedEmptyStep {
+		let empty_step_rlp = super::empty_step_rlp(step, parent_hash);
+		let signature = engine.sign(keccak(&empty_step_rlp)).unwrap().into();
+		SealedEmptyStep { signature, step }
+	}
+
 	#[test]
 	fn broadcast_empty_step_message() {
 		let (spec, tap, accounts) = setup_empty_steps();
@@ -1672,9 +1718,9 @@ mod tests {
 
 		engine.set_signer(tap.clone(), addr1, "1".into());
 		if let Seal::Regular(seal) = engine.generate_seal(b3.block(), &genesis_header) {
-			let empty_step2 = empty_step(engine, 2, &genesis_header.hash());
+			let empty_step2 = sealed_empty_step(engine, 2, &genesis_header.hash());
 			engine.set_signer(tap.clone(), addr2, "0".into());
-			let empty_step3 = empty_step(engine, 3, &genesis_header.hash());
+			let empty_step3 = sealed_empty_step(engine, 3, &genesis_header.hash());
 
 			let empty_steps = ::rlp::encode_list(&vec![empty_step2, empty_step3]);
 
