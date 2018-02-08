@@ -44,7 +44,7 @@ use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use parking_lot::{Condvar, Mutex};
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
-use privatetransactions::{Provider as PrivateTransactionsProvider, ProviderConfig};
+use privatetransactions::{Provider as PrivateTransactionsProvider, ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
 
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
@@ -115,6 +115,7 @@ pub struct RunCmd {
 	pub ui_conf: rpc::UiConfiguration,
 	pub secretstore_conf: secretstore::Configuration,
 	pub private_provider_conf: ProviderConfig,
+	pub private_encryptor_conf: EncryptorConfig,
 	pub dapp: Option<String>,
 	pub ui: bool,
 	pub name: String,
@@ -605,11 +606,14 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let snapshot_service = service.snapshot_service();
 
 	// initialize private transactions provider
-	let private_provider = Arc::new(PrivateTransactionsProvider::new()
-		.map_err(|e| format!("Private provider initialisation error: {:?}", e))?);
-	private_provider.register_account_provider(Arc::downgrade(&account_provider));
-	private_provider.register_client(Arc::downgrade(&client));
-	private_provider.set_config(cmd.private_provider_conf).map_err(|e| format!("Private transaction setup error: {:?}", e))?;
+	let private_provider = Arc::new(PrivateTransactionsProvider::new(
+		client.clone(),
+		account_provider.clone(),
+		Arc::new(SecretStoreEncryptor::new(cmd.private_encryptor_conf)
+			.map_err(|e| format!("Private encryptor initialisation error: {:?}", e))?),
+		cmd.private_provider_conf)
+		.map_err(|e| format!("Private provider initialisation error: {:?}", e))?
+	);
 	client.set_private_notify(private_provider.clone());
 
 	// initialize the local node information store.

@@ -45,8 +45,6 @@ pub enum PrivateTransactionError {
 	ContractDoesNotExist,
 	/// Reference to the client is corrupted.
 	ClientIsMalformed,
-	/// Reference to account provider is corrupted.
-	AccountProviderIsMalformed,
 	/// Queue of private transactions is full.
 	QueueIsFull,
 	/// The transaction already exists in queue of private transactions.
@@ -91,7 +89,6 @@ impl fmt::Display for PrivateTransactionError {
 			BadTransactonType => f.write_str("Bad transaction type."),
 			ContractDoesNotExist => f.write_str("Private contract does not exist."),
 			ClientIsMalformed => f.write_str("Client is not registered."),
-			AccountProviderIsMalformed => f.write_str("Account provider is not registered."),
 			QueueIsFull => f.write_str("Private transactions queue is full."),
 			PrivateTransactionAlreadyImported => f.write_str("Private transactions already imported."),
 			PrivateTransactionNotFound => f.write_str("Private transactions is not found in the store."),

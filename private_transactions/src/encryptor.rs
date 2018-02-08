@@ -63,6 +63,15 @@ pub trait Encryptor: Send + Sync + 'static {
 	) -> Result<Bytes, PrivateTransactionError>;
 }
 
+/// Configurtion for key server encryptor
+#[derive(Default, PartialEq, Debug)]
+pub struct EncryptorConfig {
+	/// URL to key server
+	pub base_url: Option<String>,
+	/// Key server's threshold
+	pub threshold: u32,
+}
+
 struct EncryptionSession {
 	key: Bytes,
 	end_time: Instant,
@@ -70,31 +79,18 @@ struct EncryptionSession {
 
 /// SecretStore-based encryption/decryption operations.
 pub struct SecretStoreEncryptor {
+	config: EncryptorConfig,
 	client: FetchClient,
-	base_url: Option<String>,
-	threshold: u32,
 	sessions: Mutex<HashMap<Address, EncryptionSession>>,
 }
 
 impl SecretStoreEncryptor {
-	/// Create new encryptor with empty parameters.
-	pub fn empty() -> Result<Self, PrivateTransactionError> {
-		Ok(SecretStoreEncryptor {
-			client: FetchClient::new()
-				.map_err(|e| PrivateTransactionError::Encrypt(format!("{}", e)))?,
-			base_url: None,
-			threshold: 0,
-			sessions: Mutex::new(HashMap::new()),
-		})
-	}
-
 	/// Create new encryptor
-	pub fn new(key_server_url: Option<String>, threshold: u32) -> Result<Self, PrivateTransactionError> {
+	pub fn new(config: EncryptorConfig) -> Result<Self, PrivateTransactionError> {
 		Ok(SecretStoreEncryptor {
+			config: config,
 			client: FetchClient::new()
 				.map_err(|e| PrivateTransactionError::Encrypt(format!("{}", e)))?,
-			base_url: key_server_url,
-			threshold: threshold,
 			sessions: Mutex::new(HashMap::new()),
 		})
 	}
@@ -115,7 +111,7 @@ impl SecretStoreEncryptor {
 		}
 		// key id in SS is H256 && we have H160 here => expand with assitional zeros
 		let contract_address_extended: H256 = contract_address.into();
-		let base_url = self.base_url.clone().ok_or_else(|| PrivateTransactionError::KeyServerNotSet)?;
+		let base_url = self.config.base_url.clone().ok_or_else(|| PrivateTransactionError::KeyServerNotSet)?;
 
 		// prepare request url
 		let url = format!("{}/{}/{}{}",
@@ -197,7 +193,7 @@ impl Encryptor for SecretStoreEncryptor {
 			Ok(key) => Ok(key),
 			Err(PrivateTransactionError::EncryptionKeyNotFound(_)) => {
 				trace!("Key for account wasnt found in sstore. Creating. Address: {:?}", contract_address);
-				self.retrieve_key(&format!("/{}", self.threshold), FetchMethod::Post, contract_address, contract_address_signature, requester, unlocked_accounts.clone())
+				self.retrieve_key(&format!("/{}", self.config.threshold), FetchMethod::Post, contract_address, contract_address_signature, requester, unlocked_accounts.clone())
 			}
 			Err(err) => Err(err),
 		}?;

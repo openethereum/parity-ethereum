@@ -42,7 +42,7 @@ extern crate rustc_hex;
 #[macro_use]
 extern crate log;
 
-pub use self::encryptor::{Encryptor, SecretStoreEncryptor, DummyEncryptor};
+pub use self::encryptor::{Encryptor, SecretStoreEncryptor, DummyEncryptor, EncryptorConfig};
 pub use self::private_transactions::{PrivateTransactionDesc, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use self::messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use self::error::PrivateTransactionError;
@@ -115,10 +115,6 @@ pub struct ProviderConfig {
 	pub passwords: Vec<String>,
 	/// Account used for signing requests to key server
 	pub key_server_account: Option<Address>,
-	/// URL to key server
-	pub key_server_url: Option<String>,
-	/// Key server's threshold
-	pub key_server_threshold: u32,
 }
 
 #[derive(Debug)]
@@ -134,13 +130,13 @@ pub struct Receipt {
 
 /// Manager of private transactions
 pub struct Provider {
-	encryptor: RwLock<Arc<Encryptor>>,
-	config: RwLock<ProviderConfig>,
+	encryptor: Arc<Encryptor>,
+	config: ProviderConfig,
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	transactions_for_signing: Mutex<SigningStore>,
 	transactions_for_verification: Mutex<VerificationStore>,
-	client: RwLock<Option<Weak<Client>>>,
-	accounts: RwLock<Option<Weak<AccountProvider>>>,
+	client: Arc<Client>,
+	accounts: Arc<AccountProvider>,
 }
 
 #[derive(Debug)]
@@ -152,15 +148,15 @@ struct PrivateExecutionResult<T, V> where T: Tracer, V: VMTracer {
 
 impl Provider where {
 	/// Create a new provider.
-	pub fn new() -> Result<Self, PrivateTransactionError> {
+	pub fn new(client: Arc<Client>, accounts: Arc<AccountProvider>, encryptor: Arc<Encryptor>, config: ProviderConfig) -> Result<Self, PrivateTransactionError> {
 		Ok(Provider {
-			config: RwLock::new(ProviderConfig::default()),
+			config: config,
 			notify: RwLock::new(Vec::new()),
 			transactions_for_signing: Mutex::new(SigningStore::new()),
 			transactions_for_verification: Mutex::new(VerificationStore::new()),
-			client: RwLock::new(None),
-			accounts: RwLock::new(None),
-			encryptor: RwLock::new(Arc::new(SecretStoreEncryptor::empty()?)),
+			client: client,
+			accounts: accounts,
+			encryptor: encryptor,
 		})
 	}
 
@@ -177,38 +173,13 @@ impl Provider where {
 		}
 	}
 
-	/// Register client reference
-	pub fn register_client(&self, client: Weak<Client>) {
-		*self.client.write() = Some(client);
-	}
-
-	/// Register accounts provider
-	pub fn register_account_provider(&self, accounts: Weak<AccountProvider>) {
-		*self.accounts.write() = Some(accounts);
-	}
-
-	/// Sets encryptor
-	pub fn set_encryptor(&self, encryptor: Arc<Encryptor>) {
-		*self.encryptor.write() = encryptor.clone();
-	}
-
-	/// Sets provider's config.
-	pub fn set_config(&self, config: ProviderConfig) -> Result<(), PrivateTransactionError> {
-		let url = config.key_server_url.clone();
-		let threshold = config.key_server_threshold;
-		*self.config.write() = config;
-		//replace encryptor with new one with parameters set
-		*self.encryptor.write() = Arc::new(SecretStoreEncryptor::new(url, threshold)?);
-		Ok(())
-	}
-
 	/// 1. Create private transaction from the signed transaction
 	/// 2. Executes private transaction
 	/// 3. Save it with state returned on prev step to the queue for signing
 	/// 4. Broadcast corresponding message to the chain
 	pub fn create_private_transaction(&self, signed_transaction: SignedTransaction) -> Result<Receipt, PrivateTransactionError> {
 		trace!("Creating private transaction from regular transaction: {:?}", signed_transaction);
-		if self.config.read().signer_account.is_none() {
+		if self.config.signer_account.is_none() {
 			trace!("Signing account not set");
 			return Err(PrivateTransactionError::SignerAccountNotSet.into());
 		}
@@ -243,11 +214,9 @@ impl Provider where {
 
 	/// Try to unlock account using stored passwords
 	fn unlock_account(&self, account: &Address) -> Result<bool, PrivateTransactionError> {
-		let accounts = self.accounts.read().clone().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
-		let accounts = accounts.upgrade().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
-		let passwords = self.config.read().passwords.clone();
+		let passwords = self.config.passwords.clone();
 		for password in passwords {
-			if let Ok(()) = accounts.unlock_account_temporarily(account.clone(), password) {
+			if let Ok(()) = self.accounts.unlock_account_temporarily(account.clone(), password) {
 				return Ok(true);
 			}
 		}
@@ -264,7 +233,7 @@ impl Provider where {
 
 	/// Process received private transaction
 	pub fn import_private_transaction(&self, rlp: &[u8]) -> Result<(), PrivateTransactionError> {
-		let validator_accounts = self.config.read().validator_accounts.clone();
+		let validator_accounts = self.config.validator_accounts.clone();
 		trace!("Private transaction received");
 		if validator_accounts.is_empty() {
 			self.broadcast_private_transaction(rlp.into());
@@ -287,18 +256,16 @@ impl Provider where {
 			},
 			Some(&validation_account) => {
 				trace!("Private transaction taken for verification");
-				let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-				let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 				let original_tx = self.extract_original_transaction(private_tx.clone(), &contract)?;
 				trace!("Validating transaction: {:?}", original_tx);
-				let details_provider = TransactionDetailsProvider::new(&*client as &MiningBlockChainClient);
-				let insertion_time = client.chain_info().best_block_number;
+				let details_provider = TransactionDetailsProvider::new(&*self.client as &MiningBlockChainClient);
+				let insertion_time = self.client.chain_info().best_block_number;
 				// Verify with the first account available
 				trace!("The following account will be used for verification: {:?}", validation_account);
 				let add_res = self.transactions_for_verification.lock().add_transaction(original_tx, contract, validation_account, private_tx.hash(), &details_provider, insertion_time);
 				match add_res {
 					Ok(_) => {
-						let channel = client.get_io_channel();
+						let channel = self.client.get_io_channel();
 						let channel = channel.lock();
 						channel.send(ClientIoMessage::NewPrivateTransaction)
 							.map_err(|_| PrivateTransactionError::ClientIsMalformed.into())
@@ -316,23 +283,19 @@ impl Provider where {
 
 	/// Retrieve and verify the first available private transaction for every sender
 	fn process_queue(&self) -> Result<(), PrivateTransactionError> {
-		let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-		let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let ready_transactions = self.transactions_for_verification.lock().ready_transactions();
-		let fetch_nonce = |a: &Address| client.latest_nonce(a);
+		let fetch_nonce = |a: &Address| self.client.latest_nonce(a);
 		for transaction in ready_transactions {
 			let transaction_hash = transaction.hash();
 			match self.transactions_for_verification.lock().private_transaction_descriptor(&transaction_hash) {
 				Ok(desc) => {
-					match self.config.read().validator_accounts.iter().find(|&&account| account == desc.validator_account) {
+					match self.config.validator_accounts.iter().find(|&&account| account == desc.validator_account) {
 						Some(account) => {
-							let accounts = self.accounts.read().clone().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
-							let accounts = accounts.upgrade().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
 							let private_state = self.execute_private_transaction(BlockId::Latest, &transaction)?;
 							let private_state_hash = keccak(&private_state);
 							trace!("Hashed effective private state for validator: {:?}", private_state_hash);
 							if let Ok(true) = self.unlock_account(&account) {
-								let signed_state = accounts.sign(account.clone(), None, private_state_hash)?;
+								let signed_state = self.accounts.sign(account.clone(), None, private_state_hash)?;
 								let signed_private_transaction = SignedPrivateTransaction::new(desc.private_hash, signed_state, None);
 								trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
 								self.broadcast_signed_private_transaction(signed_private_transaction.rlp_bytes().into_vec());
@@ -379,17 +342,13 @@ impl Provider where {
 			)?;
 			trace!("Last required signature received, public transaction created: {:?}", public_tx);
 			//Sign and add it to the queue
-			let accounts = self.accounts.read().clone().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
-			let accounts = accounts.upgrade().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
 			let chain_id = desc.original_transaction.chain_id();
 			let hash = public_tx.hash(chain_id);
-			let signer_account = self.config.read().signer_account.ok_or_else(|| PrivateTransactionError::SignerAccountNotSet)?;
+			let signer_account = self.config.signer_account.ok_or_else(|| PrivateTransactionError::SignerAccountNotSet)?;
 			if let Ok(true) = self.unlock_account(&signer_account) {
-				let signature = accounts.sign(signer_account.clone(), None, hash)?;
+				let signature = self.accounts.sign(signer_account.clone(), None, hash)?;
 				let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
-				let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-				let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-				match client.miner().import_own_transaction(&*client as &MiningBlockChainClient, signed.into()) {
+				match self.client.miner().import_own_transaction(&*self.client as &MiningBlockChainClient, signed.into()) {
 					Ok(_) => trace!("Public transaction added to queue"),
 					Err(err) => trace!("Failed to add transaction to queue, error: {:?}", err),
 				}
@@ -459,13 +418,11 @@ impl Provider where {
 	}
 
 	fn sign_contract_address(&self, contract_address: &Address) -> Result<Signature, PrivateTransactionError> {
-		let accounts = self.accounts.read().clone().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
-		let accounts = accounts.upgrade().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
 		// key id in SS is H256 && we have H160 here => expand with assitional zeros
 		let contract_address_extended: H256 = contract_address.into();
-		let key_server_account = self.config.read().key_server_account.ok_or_else(|| PrivateTransactionError::KeyServerAccountNotSet)?;
+		let key_server_account = self.config.key_server_account.ok_or_else(|| PrivateTransactionError::KeyServerAccountNotSet)?;
 		if let Ok(true) = self.unlock_account(&key_server_account) {
-			Ok(accounts.sign(key_server_account.clone(), None, H256::from_slice(&contract_address_extended))?)
+			Ok(self.accounts.sign(key_server_account.clone(), None, H256::from_slice(&contract_address_extended))?)
 		} else {
 			trace!("Cannot unlock account");
 			Err(PrivateTransactionError::Encrypt("Cannot unlock account".into()))
@@ -475,11 +432,9 @@ impl Provider where {
 	fn encrypt(&self, contract_address: &Address, initialisation_vector: &H128, data: &[u8]) -> Result<Bytes, PrivateTransactionError> {
 		trace!("Encrypt data using key(address): {:?}", contract_address);
 		let contract_address_signature = self.sign_contract_address(contract_address)?;
-		let accounts = self.accounts.read().clone().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
-		let accounts = accounts.upgrade().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
-		let key_server_account = self.config.read().key_server_account.ok_or_else(|| PrivateTransactionError::KeyServerAccountNotSet)?;
+		let key_server_account = self.config.key_server_account.ok_or_else(|| PrivateTransactionError::KeyServerAccountNotSet)?;
 		if let Ok(true) = self.unlock_account(&key_server_account) {
-			let encrypted_data = self.encryptor.read().encrypt(contract_address, &contract_address_signature, &key_server_account, accounts, initialisation_vector, data)?;
+			let encrypted_data = self.encryptor.encrypt(contract_address, &contract_address_signature, &key_server_account, self.accounts.clone(), initialisation_vector, data)?;
 			Ok(encrypted_data)
 		} else {
 			trace!("Cannot unlock account");
@@ -490,11 +445,9 @@ impl Provider where {
 	fn decrypt(&self, contract_address: &Address, data: &[u8]) -> Result<Bytes, PrivateTransactionError> {
 		trace!("Decrypt data using key(address): {:?}", contract_address);
 		let contract_address_signature = self.sign_contract_address(contract_address)?;
-		let accounts = self.accounts.read().clone().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
-		let accounts = accounts.upgrade().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
-		let key_server_account = self.config.read().key_server_account.ok_or_else(|| PrivateTransactionError::KeyServerAccountNotSet)?;
+		let key_server_account = self.config.key_server_account.ok_or_else(|| PrivateTransactionError::KeyServerAccountNotSet)?;
 		if let Ok(true) = self.unlock_account(&key_server_account) {
-			Ok(self.encryptor.read().decrypt(contract_address, &contract_address_signature, &key_server_account, accounts, data)?)
+			Ok(self.encryptor.decrypt(contract_address, &contract_address_signature, &key_server_account, self.accounts.clone(), data)?)
 		} else {
 			trace!("Cannot unlock account");
 			Err(PrivateTransactionError::Decrypt("Cannot unlock account".into()))
@@ -502,19 +455,15 @@ impl Provider where {
 	}
 
 	fn get_decrypted_state(&self, address: &Address, block: BlockId) -> Result<Bytes, PrivateTransactionError> {
-		let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-		let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let contract = Contract::new(*address);
-		let state = contract.get_state(|addr, data| futures::done(client.call_contract(block, addr, data))).wait()
+		let state = contract.get_state(|addr, data| futures::done(self.client.call_contract(block, addr, data))).wait()
 			.map_err(|e| PrivateTransactionError::Call(e))?;
 		self.decrypt(address, &state)
 	}
 
 	fn get_decrypted_code(&self, address: &Address, block: BlockId) -> Result<Bytes, PrivateTransactionError> {
-		let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-		let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let contract = Contract::new(*address);
-		let code = contract.get_code(|addr, data| futures::done(client.call_contract(block, addr, data))).wait()
+		let code = contract.get_code(|addr, data| futures::done(self.client.call_contract(block, addr, data))).wait()
 			.map_err(|e| PrivateTransactionError::Call(e))?;
 		self.decrypt(address, &code)
 	}
@@ -543,12 +492,10 @@ impl Provider where {
 			T: Tracer,
 			V: VMTracer,
 	{
-		let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-		let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-		let mut env_info = client.env_info(block).ok_or(PrivateTransactionError::StatePruned)?;
+		let mut env_info = self.client.env_info(block).ok_or(PrivateTransactionError::StatePruned)?;
 		env_info.gas_limit = U256::max_value();
 
-		let mut state = client.state_at(block).ok_or(PrivateTransactionError::StatePruned)?;
+		let mut state = self.client.state_at(block).ok_or(PrivateTransactionError::StatePruned)?;
 		// TODO: in case of BlockId::Latest these need to operate on the same state
 		let contract_address = match &transaction.action {
 			&Action::Call(ref contract_address) => {
@@ -561,7 +508,7 @@ impl Provider where {
 			&Action::Create => None,
 		};
 
-		let engine = client.engine();
+		let engine = self.client.engine();
 		let result = Executive::new(&mut state, &env_info, engine.machine()).transact_virtual(transaction, options)?;
 		let contract_address = contract_address.or(result.contracts_created.first().cloned());
 		let (encrypted_code, encrypted_storage) = match contract_address {
@@ -636,9 +583,7 @@ impl Provider where {
 			return Err(PrivateTransactionError::BadTransactonType.into());
 		}
 		let sender = source.sender();
-		let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-		let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-		let state = client.state_at(block).ok_or(PrivateTransactionError::StatePruned)?;
+		let state = self.client.state_at(block).ok_or(PrivateTransactionError::StatePruned)?;
 		let nonce = state.nonce(&sender)?;
 		let executed = self.execute_private(source, TransactOptions::with_no_tracing(), block)?;
 		let gas: u64 = 650000 +
@@ -685,10 +630,8 @@ impl Provider where {
 
 	/// Returns private validators for a contract.
 	fn get_validators(&self, block: BlockId, contract: &Address) -> Result<Vec<Address>, PrivateTransactionError> {
-		let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-		let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let contract = Contract::new(*contract);
-		Ok(contract.get_validators(|addr, data| futures::done(client.call_contract(block, addr, data))).wait()
+		Ok(contract.get_validators(|addr, data| futures::done(self.client.call_contract(block, addr, data))).wait()
 			.map_err(|e| PrivateTransactionError::Call(e))?)
 	}
 }

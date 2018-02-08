@@ -45,7 +45,7 @@ use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
-use privatetransactions::ProviderConfig;
+	use privatetransactions::{ProviderConfig, EncryptorConfig};
 use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
@@ -327,6 +327,7 @@ impl Configuration {
 
 			let verifier_settings = self.verifier_settings();
 			let whisper_config = self.whisper_config();
+			let (private_provider_conf, private_enc_conf) = self.private_provider_config()?;
 
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
@@ -364,7 +365,8 @@ impl Configuration {
 				ipfs_conf: ipfs_conf,
 				ui_conf: ui_conf,
 				secretstore_conf: secretstore_conf,
-				private_provider_conf: self.private_provider_config()?,
+				private_provider_conf: private_provider_conf,
+				private_encryptor_conf: private_enc_conf,
 				dapp: self.dapp_to_open()?,
 				ui: self.args.cmd_ui,
 				name: self.args.arg_identity,
@@ -909,8 +911,8 @@ impl Configuration {
 		Ok(conf)
 	}
 
-	fn private_provider_config(&self) -> Result<ProviderConfig, String> {
-		let conf = ProviderConfig {
+	fn private_provider_config(&self) -> Result<(ProviderConfig, EncryptorConfig), String> {
+		let provider_conf = ProviderConfig {
 			validator_accounts: to_addresses(&self.args.arg_private_validators)?,
 			signer_account: self.args.arg_private_signer.clone().and_then(|account| to_address(Some(account)).ok()),
 			passwords: match self.args.arg_private_passwords.clone() {
@@ -918,11 +920,14 @@ impl Configuration {
 				None => Vec::new(),
 			},
 			key_server_account: self.args.arg_private_account.clone().and_then(|account| to_address(Some(account)).ok()),
-			key_server_url: self.args.arg_private_sstore_url.clone(),
-			key_server_threshold: self.args.arg_private_sstore_threshold.unwrap_or(0),
 		};
 
-		Ok(conf)
+		let encryptor_conf = EncryptorConfig {
+			base_url: self.args.arg_private_sstore_url.clone(),
+			threshold: self.args.arg_private_sstore_threshold.unwrap_or(0),
+		};
+
+		Ok((provider_conf, encryptor_conf))
 	}
 
 	fn network_settings(&self) -> Result<NetworkSettings, String> {
@@ -1415,6 +1420,7 @@ mod tests {
 			ui_conf: Default::default(),
 			secretstore_conf: Default::default(),
 			private_provider_conf: Default::default(),
+			private_encryptor_conf: Default::default(),
 			ui: false,
 			dapp: None,
 			name: "".into(),
