@@ -1058,7 +1058,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			let validate_empty_steps = || -> Result<(), Error> {
 				let empty_steps = header_empty_steps(header)?;
 				for empty_step in empty_steps {
-					if empty_step.step < parent_step || empty_step.step > step {
+					if empty_step.step <= parent_step || empty_step.step >= step {
 						Err(EngineError::InsufficientProof(
 							format!("empty step proof for invalid step: {:?}", empty_step.step)))?;
 					}
@@ -1337,8 +1337,9 @@ mod tests {
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use transaction::{Action, Transaction};
-	use engines::{Seal, Engine, EthEngine};
+	use engines::{Seal, Engine, EngineError, EthEngine};
 	use engines::validator_set::TestSet;
+	use error::Error;
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep};
 
 	#[test]
@@ -1812,5 +1813,86 @@ mod tests {
 
 		// the spec sets the block reward to 10
 		assert_eq!(b2.block().fields().state.balance(&addr1).unwrap(), addr1_balance + (10 * 2).into())
+	}
+
+	#[test]
+	fn verify_seal_empty_steps() {
+		let (spec, tap, accounts) = setup_empty_steps();
+		let addr1 = accounts[0];
+		let addr2 = accounts[1];
+		let engine = &*spec.engine;
+
+		let mut parent_header: Header = Header::default();
+		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
+		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
+
+		let mut header: Header = Header::default();
+		header.set_parent_hash(parent_header.hash());
+		header.set_number(1);
+		header.set_gas_limit("222222".parse::<U256>().unwrap());
+		header.set_author(addr1);
+
+		let signature = tap.sign(addr1, Some("1".into()), header.bare_hash()).unwrap();
+
+		// empty step with invalid step
+		let empty_steps = vec![SealedEmptyStep { signature: 0.into(), step: 2 }];
+		header.set_seal(vec![
+			encode(&2usize).into_vec(),
+			encode(&(&*signature as &[u8])).into_vec(),
+			::rlp::encode_list(&empty_steps).into_vec(),
+		]);
+
+		assert!(match engine.verify_block_family(&header, &parent_header) {
+			Err(Error::Engine(EngineError::InsufficientProof(ref s)))
+				if s.contains("invalid step") => true,
+			_ => false,
+		});
+
+		// empty step with invalid signature
+		let empty_steps = vec![SealedEmptyStep { signature: 0.into(), step: 1 }];
+		header.set_seal(vec![
+			encode(&2usize).into_vec(),
+			encode(&(&*signature as &[u8])).into_vec(),
+			::rlp::encode_list(&empty_steps).into_vec(),
+		]);
+
+		assert!(match engine.verify_block_family(&header, &parent_header) {
+			Err(Error::Engine(EngineError::InsufficientProof(ref s)))
+				if s.contains("invalid empty step proof") => true,
+			_ => false,
+		});
+
+		// empty step with valid signature from incorrect proposer for step
+		engine.set_signer(tap.clone(), addr1, "1".into());
+		let empty_steps = vec![sealed_empty_step(engine, 1, &parent_header.hash())];
+		header.set_seal(vec![
+			encode(&2usize).into_vec(),
+			encode(&(&*signature as &[u8])).into_vec(),
+			::rlp::encode_list(&empty_steps).into_vec(),
+		]);
+
+		assert!(match engine.verify_block_family(&header, &parent_header) {
+			Err(Error::Engine(EngineError::InsufficientProof(ref s)))
+				if s.contains("invalid empty step proof") => true,
+			_ => false,
+		});
+
+		// valid empty steps
+		engine.set_signer(tap.clone(), addr1, "1".into());
+		let empty_step2 = sealed_empty_step(engine, 2, &parent_header.hash());
+		engine.set_signer(tap.clone(), addr2, "0".into());
+		let empty_step3 = sealed_empty_step(engine, 3, &parent_header.hash());
+
+		let empty_steps = vec![empty_step2, empty_step3];
+		header.set_seal(vec![
+			encode(&4usize).into_vec(),
+			encode(&(&*signature as &[u8])).into_vec(),
+			::rlp::encode_list(&empty_steps).into_vec(),
+		]);
+
+		assert!(match engine.verify_block_family(&header, &parent_header) {
+			Ok(_) => true,
+			_ => false,
+		});
 	}
 }
