@@ -28,6 +28,7 @@ use futures::{Async, Poll, Future};
 use futures::sync::oneshot::{self, Sender, Receiver, Canceled};
 use network::PeerId;
 use parking_lot::{RwLock, Mutex};
+use rand;
 
 use net::{
 	self, Handler, PeerStatus, Status, Capabilities,
@@ -389,7 +390,10 @@ impl OnDemand {
 				true => None,
 			})
 			.filter_map(|pending| {
-				for (peer_id, peer) in peers.iter() { // .shuffle?
+				// the peer we dispatch to is chosen randomly
+				let num_peers = peers.len();
+				let rng = rand::random::<usize>() % num_peers;
+				for (peer_id, peer) in peers.iter().chain(peers.iter()).skip(rng).take(num_peers) {
 					// TODO: see which requests can be answered by the cache?
 
 					if !peer.can_fulfill(&pending.required_capabilities) {
