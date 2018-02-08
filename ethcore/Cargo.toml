@@ -65,7 +65,6 @@ vm = { path = "vm" }
 wasm = { path = "wasm" }
 keccak-hash = { path = "../util/hash" }
 triehash = { path = "../util/triehash" }
-semantic_version = { path = "../util/semantic_version" }
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 tempdir = "0.3"

@@ -53,7 +53,6 @@ use transaction::{UnverifiedTransaction, SignedTransaction};
 use ethkey::Signature;
 use parity_machine::{Machine, LocalizedMachine as Localized};
 use ethereum_types::{H256, U256, Address};
-use semantic_version::SemanticVersion;
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
 
@@ -176,8 +175,6 @@ pub enum EpochChange<M: Machine> {
 pub trait Engine<M: Machine>: Sync + Send {
 	/// The name of this engine.
 	fn name(&self) -> &str;
-	/// The version of this engine. Should be of the form
-	fn version(&self) -> SemanticVersion { SemanticVersion::new(0, 0, 0) }
 
 	/// Get access to the underlying state machine.
 	// TODO: decouple.
