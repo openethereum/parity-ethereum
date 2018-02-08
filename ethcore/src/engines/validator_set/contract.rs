@@ -18,9 +18,10 @@
 /// It can also report validators for misbehaviour with two levels: `reportMalicious` and `reportBenign`.
 
 use std::sync::Weak;
+
+use bytes::Bytes;
 use ethereum_types::{H256, Address};
 use parking_lot::RwLock;
-use bytes::Bytes;
 
 use client::EngineClient;
 use header::{Header, BlockNumber};
@@ -52,7 +53,7 @@ impl ValidatorContract {
 
 impl ValidatorContract {
 	fn transact(&self, data: Bytes) -> Result<(), String> {
-		let client = self.client.read().clone().as_ref()
+		let client = self.client.read().as_ref()
 			.and_then(Weak::upgrade)
 			.ok_or_else(|| "No client!")?;
 

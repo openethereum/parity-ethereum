@@ -21,6 +21,7 @@
 #[macro_use]
 extern crate log;
 
+extern crate ethabi;
 extern crate ethcore_bytes as bytes;
 extern crate ethereum_types;
 extern crate futures;
@@ -33,12 +34,10 @@ extern crate rustc_hex;
 
 pub extern crate fetch;
 
-extern crate ethabi;
 #[macro_use]
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
-
 #[cfg(test)]
 extern crate parking_lot;
 

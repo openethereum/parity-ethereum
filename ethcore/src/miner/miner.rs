@@ -720,9 +720,6 @@ impl Miner {
 							}
 						}).unwrap_or(default_origin);
 
-						// try to install service transaction checker before appending transactions
-						self.service_transaction_action.update_from_chain_client(client);
-
 						let details_provider = TransactionDetailsProvider::new(client, &self.service_transaction_action);
 						match origin {
 							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
@@ -1231,12 +1228,6 @@ enum ServiceTransactionAction {
 }
 
 impl ServiceTransactionAction {
-	pub fn update_from_chain_client(&self, client: &MiningBlockChainClient) {
-		if let ServiceTransactionAction::Check(ref checker) = *self {
-			checker.update_from_chain_client(&client);
-		}
-	}
-
 	pub fn check(&self, client: &MiningBlockChainClient, tx: &SignedTransaction) -> Result<bool, String> {
 		match *self {
 			ServiceTransactionAction::Refuse => Err("configured to refuse service transactions".to_owned()),

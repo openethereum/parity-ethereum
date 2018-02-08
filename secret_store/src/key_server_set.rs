@@ -357,10 +357,10 @@ impl CachedContract {
 	}
 
 	fn read_from_registry(&mut self, client: &Client, new_contract_address: Option<Address>) {
-		if let Some(contract_addr) = new_contract_address {
+		if let Some(ref contract_addr) = new_contract_address {
 			trace!(target: "secretstore", "Configuring for key server set contract from {}", contract_addr);
-			self.contract_address = Some(contract_addr);
 		}
+		self.contract_address = new_contract_address;
 
 		let contract_address = match self.contract_address {
 			Some(contract_address) => contract_address,

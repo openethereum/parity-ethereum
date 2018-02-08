@@ -16,7 +16,6 @@
 
 //! A service transactions contract checker.
 
-use parking_lot::Mutex;
 use ethereum_types::Address;
 use transaction::SignedTransaction;
 use types::ids::BlockId;
@@ -38,33 +37,21 @@ pub trait ContractCaller {
 #[derive(Default)]
 pub struct ServiceTransactionChecker {
 	contract: service_transaction::ServiceTransaction,
-	contract_address: Mutex<Option<Address>>,
 }
 
 impl ServiceTransactionChecker {
-	/// Try to create instance, reading contract address from given chain client.
-	pub fn update_from_chain_client(&self, client: &ContractCaller) {
-		let mut contract_address = self.contract_address.lock();
-		if contract_address.is_none() {
-			if let Some(address) = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME) {
-				trace!(target: "txqueue", "Configuring for service transaction checker contract from {}", address);
-				*contract_address = Some(address);
-			}
-		}
-	}
-
 	/// Checks if service transaction can be appended to the transaction queue.
 	pub fn check(&self, client: &ContractCaller, tx: &SignedTransaction) -> Result<bool, String> {
-		debug_assert!(tx.gas_price.is_zero());
+		assert!(tx.gas_price.is_zero());
 
-		match *self.contract_address.lock() {
-			Some(address) => {
-				self.contract.functions()
-					.certified()
-					.call(tx.sender(), &|data| client.call_contract(BlockId::Latest, address, data))
-					.map_err(|e| e.to_string())
-			},
-			None => Err("contract is not configured".into()),
-		}
+		let address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME)
+			.ok_or_else(|| "contract is not configured")?;
+
+		trace!(target: "txqueue", "Checking service transaction checker contract from {}", address);
+
+		self.contract.functions()
+			.certified()
+			.call(tx.sender(), &|data| client.call_contract(BlockId::Latest, address, data))
+			.map_err(|e| e.to_string())
 	}
 }

@@ -16,28 +16,27 @@
 
 //! Smart contract based node filter.
 
+extern crate ethabi;
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_network as network;
 extern crate ethereum_types;
-extern crate parking_lot;
 extern crate lru_cache;
+extern crate parking_lot;
 
-extern crate ethabi;
 #[macro_use]
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
-
+#[cfg(test)]
+extern crate ethcore_io as io;
+#[cfg(test)]
+extern crate kvdb_memorydb;
 #[macro_use]
 extern crate log;
 
-#[cfg(test)]
-extern crate kvdb_memorydb;
-#[cfg(test)]
-extern crate ethcore_io as io;
-
 use std::sync::Weak;
+
 use lru_cache::LruCache;
 use parking_lot::Mutex;
 
