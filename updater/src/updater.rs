@@ -147,12 +147,7 @@ impl Updater {
 		*self.exit_handler.lock() = Some(Box::new(f));
 	}
 
-	fn collect_release_info(&self, release_id: H256) -> Result<ReleaseInfo, String> {
-		let client = self.client.upgrade().ok_or("Cannot obtain client")?;
-		let address = client.registry_address("operations".into()).ok_or("Cannot get operations contract address")?;
-
-		let do_call = |data| client.call_contract(BlockId::Latest, address, data).map_err(|e| format!("{:?}", e));
-
+	fn collect_release_info<T: Fn(Vec<u8>) -> Result<Vec<u8>, String>>(&self, release_id: H256, do_call: &T) -> Result<ReleaseInfo, String> {
 		let (fork, track, semver, is_critical) = self.operations_contract.functions()
 			.release()
 			.call(client_id_hash(), release_id, &do_call)
@@ -183,13 +178,20 @@ impl Updater {
 		}
 	}
 
+	fn latest_in_track<T: Fn(Vec<u8>) -> Result<Vec<u8>, String>>(&self, track: ReleaseTrack, do_call: &T) -> Result<H256, String> {
+		self.operations_contract.functions()
+			.latest_in_track()
+			.call(client_id_hash(), u8::from(track), do_call)
+			.map_err(|e| format!("{:?}", e))
+	}
+
 	fn collect_latest(&self) -> Result<OperationsInfo, String> {
 		if self.track() == ReleaseTrack::Unknown {
 			return Err(format!("Current executable ({}) is unreleased.", self.this.hash));
 		}
 
-		let client = self.client.upgrade().ok_or("Cannot obtain client")?;
-		let address = client.registry_address("operations".into()).ok_or("Cannot get operations contract address")?;
+		let client = self.client.upgrade().ok_or_else(|| "Cannot obtain client")?;
+		let address = client.registry_address("operations".into()).ok_or_else(|| "Cannot get operations contract address")?;
 		let do_call = |data| client.call_contract(BlockId::Latest, address, data).map_err(|e| format!("{:?}", e));
 
 		trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, self.this.hash);
@@ -208,31 +210,23 @@ impl Updater {
 			});
 
 		// get the hash of the latest release in our track
-		let latest_in_track = self.operations_contract.functions()
-			.latest_in_track()
-			.call(client_id_hash(), u8::from(self.track()), &do_call)
-			.map_err(|e| format!("{:?}", e))?;
-
+		let latest_in_track = self.latest_in_track(self.track(), &do_call)?;
 
 		// get the release info for the latest version in track
-		let in_track = self.collect_release_info(latest_in_track)?;
+		let in_track = self.collect_release_info(latest_in_track, &do_call)?;
 		let mut in_minor = Some(in_track.clone());
 		const PROOF: &'static str = "in_minor initialised and assigned with Some; loop breaks if None assigned; qed";
 
 		// if the minor version has changed, let's check the minor version on a different track
 		while in_minor.as_ref().expect(PROOF).version.version.minor != self.this.version.minor {
-			let track = match self.track() {
+			let track = match in_minor.as_ref().expect(PROOF).version.track {
 				ReleaseTrack::Beta => ReleaseTrack::Stable,
 				ReleaseTrack::Nightly => ReleaseTrack::Beta,
 				_ => { in_minor = None; break; }
 			};
 
-			let latest_in_track = self.operations_contract.functions()
-				.latest_in_track()
-				.call(client_id_hash(), u8::from(track), &do_call)
-				.map_err(|e| format!("{:?}", e))?;
-
-			in_minor = Some(self.collect_release_info(latest_in_track)?);
+			let latest_in_track = self.latest_in_track(track, &do_call)?;
+			in_minor = Some(self.collect_release_info(latest_in_track, &do_call)?);
 		}
 
 		let fork = self.operations_contract.functions()
