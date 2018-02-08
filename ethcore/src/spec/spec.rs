@@ -762,6 +762,13 @@ impl Spec {
 		load_bundled!("authority_round")
 	}
 
+	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not
+	/// requiring work) with empty step messages enabled.
+	/// Accounts with secrets keccak("0") and keccak("1") are the validators.
+	pub fn new_test_round_empty_steps() -> Self {
+		load_bundled!("authority_round_empty_steps")
+	}
+
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring
 	/// work).
 	/// Account keccak("0") and keccak("1") are a authorities.

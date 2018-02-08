@@ -1289,16 +1289,16 @@ mod tests {
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 	use hash::keccak;
-	use ethereum_types::{H520, U256};
+	use ethereum_types::{Address, H520, H256, U256};
 	use header::Header;
 	use rlp::encode;
 	use block::*;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
-	use engines::{Seal, Engine};
+	use engines::{Seal, Engine, EthEngine};
 	use engines::validator_set::TestSet;
-	use super::{AuthorityRoundParams, AuthorityRound};
+	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep};
 
 	#[test]
 	fn has_valid_metadata() {
@@ -1582,5 +1582,104 @@ mod tests {
 		c_params.gas_limit_bound_divisor = 5.into();
 		let machine = ::machine::EthereumMachine::regular(c_params, Default::default());
 		AuthorityRound::new(params, machine).unwrap();
+	}
+
+	fn setup_empty_steps() -> (Spec, Arc<AccountProvider>, Vec<Address>) {
+		let spec = Spec::new_test_round_empty_steps();
+		let tap = Arc::new(AccountProvider::transient_provider());
+
+		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
+		let addr2 = tap.insert_account(keccak("0").into(), "0").unwrap();
+
+		let accounts = vec![addr1, addr2];
+
+		(spec, tap, accounts)
+	}
+
+	fn empty_step(engine: &EthEngine, step: usize, parent_hash: &H256) -> EmptyStep {
+		let empty_step_rlp = super::empty_step_rlp(step, parent_hash);
+		let signature = engine.sign(keccak(&empty_step_rlp)).unwrap().into();
+		let parent_hash = parent_hash.clone();
+		EmptyStep { step, signature, parent_hash }
+	}
+
+	#[test]
+	fn broadcast_empty_step_message() {
+		let (spec, tap, accounts) = setup_empty_steps();
+
+		let addr1 = accounts[0];
+
+		let engine = &*spec.engine;
+		let genesis_header = spec.genesis_header();
+		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+
+		let last_hashes = Arc::new(vec![genesis_header.hash()]);
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b1 = b1.close_and_lock();
+
+		let client = generate_dummy_client(0);
+		let notify = Arc::new(TestNotify::default());
+		client.add_notify(notify.clone());
+		engine.register_client(Arc::downgrade(&client) as _);
+
+		engine.set_signer(tap.clone(), addr1, "1".into());
+
+		// the block is empty so we don't seal and instead broadcast an empty step message
+		assert_eq!(engine.generate_seal(b1.block(), &genesis_header), Seal::None);
+
+		// spec starts with step 2
+		let empty_step_rlp = encode(&empty_step(engine, 2, &genesis_header.hash())).into_vec();
+
+		// we've received the message
+		assert!(notify.messages.read().contains(&empty_step_rlp));
+	}
+
+	#[test]
+	fn seal_with_empty_steps() {
+		let (spec, tap, accounts) = setup_empty_steps();
+
+		let addr1 = accounts[0];
+		let addr2 = accounts[1];
+
+		let engine = &*spec.engine;
+		let genesis_header = spec.genesis_header();
+		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let db3 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+
+		let last_hashes = Arc::new(vec![genesis_header.hash()]);
+
+		// step 2
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b1 = b1.close_and_lock();
+
+		// since the block is empty it isn't sealed and we generate empty steps
+		engine.set_signer(tap.clone(), addr1, "1".into());
+		assert_eq!(engine.generate_seal(b1.block(), &genesis_header), Seal::None);
+		engine.step();
+
+		// step 3
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b2 = b2.close_and_lock();
+		engine.set_signer(tap.clone(), addr2, "0".into());
+		assert_eq!(engine.generate_seal(b2.block(), &genesis_header), Seal::None);
+		engine.step();
+
+		// step 4
+		// the spec sets the maximum_empty_steps to 2 so we will now seal an empty block and include the empty step messages
+		let b3 = OpenBlock::new(engine, Default::default(), false, db3, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b3 = b3.close_and_lock();
+
+		engine.set_signer(tap.clone(), addr1, "1".into());
+		if let Seal::Regular(seal) = engine.generate_seal(b3.block(), &genesis_header) {
+			let empty_step2 = empty_step(engine, 2, &genesis_header.hash());
+			engine.set_signer(tap.clone(), addr2, "0".into());
+			let empty_step3 = empty_step(engine, 3, &genesis_header.hash());
+
+			let empty_steps = ::rlp::encode_list(&vec![empty_step2, empty_step3]);
+
+			assert_eq!(seal[0], encode(&4usize).into_vec());
+			assert_eq!(seal[2], empty_steps.into_vec());
+		}
 	}
 }

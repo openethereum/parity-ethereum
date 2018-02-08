@@ -782,7 +782,6 @@ mod tests {
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
-	use client::ChainNotify;
 	use miner::MinerService;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
@@ -840,17 +839,6 @@ mod tests {
 		let addr = insert_and_unlock(tap, acc);
 		engine.set_signer(tap.clone(), addr.clone(), acc.into());
 		addr
-	}
-
-	#[derive(Default)]
-	struct TestNotify {
-		messages: RwLock<Vec<Bytes>>,
-	}
-
-	impl ChainNotify for TestNotify {
-		fn broadcast(&self, data: Vec<u8>) {
-			self.messages.write().push(data);
-		}
 	}
 
 	#[test]
