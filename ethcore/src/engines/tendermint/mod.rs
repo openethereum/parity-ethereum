@@ -50,7 +50,6 @@ use super::transition::TransitionHandler;
 use super::vote_collector::VoteCollector;
 use self::message::*;
 use self::params::TendermintParams;
-use semantic_version::SemanticVersion;
 use machine::{AuxiliaryData, EthereumMachine};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -442,8 +441,6 @@ impl Tendermint {
 
 impl Engine<EthereumMachine> for Tendermint {
 	fn name(&self) -> &str { "Tendermint" }
-
-	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
 
 	/// (consensus view, proposal signature, authority signatures)
 	fn seal_fields(&self) -> usize { 3 }
@@ -857,7 +854,6 @@ mod tests {
 	fn has_valid_metadata() {
 		let engine = Spec::new_test_tendermint().engine;
 		assert!(!engine.name().is_empty());
-		assert!(engine.version().major >= 1);
 	}
 
 	#[test]

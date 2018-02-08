@@ -41,7 +41,6 @@ use itertools::{self, Itertools};
 use rlp::{UntrustedRlp, encode};
 use bigint::prelude::{U256, U128};
 use bigint::hash::{H256, H520};
-use semantic_version::SemanticVersion;
 use parking_lot::{Mutex, RwLock};
 use unexpected::{Mismatch, OutOfBounds};
 use util::Address;
@@ -483,8 +482,6 @@ impl IoHandler<()> for TransitionHandler {
 impl Engine<EthereumMachine> for AuthorityRound {
 	fn name(&self) -> &str { "AuthorityRound" }
 
-	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
-
 	fn machine(&self) -> &EthereumMachine { &self.machine }
 
 	/// Two fields - consensus step and the corresponding proposer signature.
@@ -919,7 +916,6 @@ mod tests {
 	fn has_valid_metadata() {
 		let engine = Spec::new_test_round().engine;
 		assert!(!engine.name().is_empty());
-		assert!(engine.version().major >= 1);
 	}
 
 	#[test]
