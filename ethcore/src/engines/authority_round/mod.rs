@@ -360,7 +360,9 @@ struct SealedEmptyStep {
 
 impl Encodable for SealedEmptyStep {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append(&self.signature).append(&self.step);
+		s.begin_list(2)
+			.append(&self.signature)
+			.append(&self.step);
 	}
 }
 
