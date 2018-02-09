@@ -20,18 +20,21 @@
 use std::cmp::min;
 use std::fmt;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::time::Duration;
+use std::thread;
 
 use ethereum_types::{H256, Address};
 use ethkey::Signature;
 use hidapi;
+use libusb;
 use parking_lot::{Mutex, RwLock};
 
 use super::{WalletInfo, KeyPath};
 
-const LEDGER_VID: u16 = 0x2c97;
-const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001]; // Nano S and Blue
+// Expose these to the callback configuration
+pub const LEDGER_VID: u16 = 0x2c97;
+pub const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001]; // Nano S and Blue
 const ETH_DERIVATION_PATH_BE: [u8; 17] = [4, 0x80, 0, 0, 44, 0x80, 0, 0, 60, 0x80, 0, 0, 0, 0, 0, 0, 0]; // 44'/60'/0'/0
 const ETC_DERIVATION_PATH_BE: [u8; 21] = [5, 0x80, 0, 0, 44, 0x80, 0, 0, 60, 0x80, 0x02, 0x73, 0xd0, 0x80, 0, 0, 0, 0, 0, 0, 0]; // 44'/60'/160720'/0'/0
 
@@ -234,16 +237,10 @@ impl Manager {
 	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
 		where F: Fn() -> Result<R, &'static str>
 	{
-		let mut err = Error::KeyNotFound;
-		// Try to open device a few times.
-		for _ in 0..10 {
-			match f() {
-				Ok(handle) => return Ok(handle),
-				Err(e) => err = From::from(e),
-			}
-			::std::thread::sleep(Duration::from_millis(200));
+		match f() {
+			Ok(handle) => Ok(handle),
+			Err(e) => Err(From::from(e)),
 		}
-		Err(err)
 	}
 
 	fn send_apdu(handle: &hidapi::HidDevice, command: u8, p1: u8, p2: u8, data: &[u8]) -> Result<Vec<u8>, Error> {
@@ -332,6 +329,40 @@ impl Manager {
 		let new_len = message.len() - 2;
 		message.truncate(new_len);
 		Ok(message)
+	}
+}
+
+pub struct EventHandler {
+	ledger: Weak<Manager>,
+}
+
+impl EventHandler {
+	pub fn new(ledger: Weak<Manager>) -> Self {
+		Self { ledger: ledger }
+	}
+}
+
+
+impl libusb::Hotplug for EventHandler {
+	fn device_arrived(&mut self, _device: libusb::Device) {
+		println!("ledger arrived");
+		Duration::from_millis(1000);
+		if let Some(t) = self.ledger.upgrade() {
+			// Wait for the device to bootup
+			thread::sleep(Duration::from_millis(1000));
+			if let Err(e) = t.update_devices() {
+				debug!("Ledger Connect Error: {:?}", e);
+			}
+		}
+	}
+
+	fn device_left(&mut self, _device: libusb::Device) {
+		println!("ledger left");
+		if let Some(l) = self.ledger.upgrade() {
+			if let Err(e) = l.update_devices() {
+				debug!("Ledger Disconnect Error: {:?}", e);
+			}
+		}
 	}
 }
 

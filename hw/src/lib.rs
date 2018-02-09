@@ -33,12 +33,15 @@ use ethkey::{Address, Signature};
 
 use parking_lot::Mutex;
 use std::fmt;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
 use std::thread;
 use std::time::Duration;
 use ethereum_types::U256;
+
+const USB_DEVICE_CLASS_DEVICE: u8 = 0;
+
 
 /// Hardware wallet error.
 #[derive(Debug)]
@@ -128,84 +131,76 @@ impl From<libusb::Error> for Error {
 
 /// Hardware wallet management interface.
 pub struct HardwareWalletManager {
-	update_thread: Option<thread::JoinHandle<()>>,
+	active_threads: Vec<Option<thread::JoinHandle<()>>>,
 	exiting: Arc<AtomicBool>,
 	ledger: Arc<ledger::Manager>,
 	trezor: Arc<trezor::Manager>,
 }
 
-struct EventHandler {
-	ledger: Weak<ledger::Manager>,
-	trezor: Weak<trezor::Manager>,
-}
-
-impl libusb::Hotplug for EventHandler {
-	fn device_arrived(&mut self, _device: libusb::Device) {
-		debug!("USB Device arrived");
-		if let (Some(l), Some(t)) = (self.ledger.upgrade(), self.trezor.upgrade()) {
-			for _ in 0..10 {
-				let l_devices = l.update_devices().unwrap_or_else(|e| {
-					debug!("Error enumerating Ledger devices: {}", e);
-					0
-				});
-				let t_devices = t.update_devices().unwrap_or_else(|e| {
-					debug!("Error enumerating Trezor devices: {}", e);
-					0
-				});
-				if l_devices + t_devices > 0 {
-					break;
-				}
-				thread::sleep(Duration::from_millis(200));
-			}
-		}
-	}
-
-	fn device_left(&mut self, _device: libusb::Device) {
-		debug!("USB Device lost");
-		if let (Some(l), Some(t)) = (self.ledger.upgrade(), self.trezor.upgrade()) {
-			l.update_devices().unwrap_or_else(|e| {debug!("Error enumerating Ledger devices: {}", e); 0});
-			t.update_devices().unwrap_or_else(|e| {debug!("Error enumerating Trezor devices: {}", e); 0});
-		}
-	}
-}
 
 impl HardwareWalletManager {
 	pub fn new() -> Result<HardwareWalletManager, Error> {
-		let usb_context = Arc::new(libusb::Context::new()?);
+		let usb_context_trezor = Arc::new(libusb::Context::new()?);
+		let usb_context_ledger = Arc::new(libusb::Context::new()?);
+		let mut active_threads: Vec<Option<thread::JoinHandle<()>>> = Vec::with_capacity(10);
 		let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().map_err(|e| Error::Hid(e.to_string().clone()))?));
 		let ledger = Arc::new(ledger::Manager::new(hidapi.clone()));
 		let trezor = Arc::new(trezor::Manager::new(hidapi.clone()));
-		usb_context.register_callback(
-			None, None, None,
-			Box::new(EventHandler {
-				ledger: Arc::downgrade(&ledger),
-				trezor: Arc::downgrade(&trezor),
-			}),
-		)?;
+
+		// Note this support only TREZOR V1 becasue TREZOR V2 has both different vendorID and		  // productID
+		usb_context_trezor.register_callback(
+			Some(trezor::TREZOR_VID), Some(trezor::TREZOR_PIDS[0]), Some(USB_DEVICE_CLASS_DEVICE),
+			Box::new(trezor::EventHandler::new(Arc::downgrade(&trezor))))?;
+
+		// Only specify vendorID and usb device class  to start with (unsure if 1 listens for both 0 and 1 or only 1)
+		usb_context_ledger.register_callback(
+			Some(ledger::LEDGER_VID), None, Some(USB_DEVICE_CLASS_DEVICE),
+			Box::new(ledger::EventHandler::new(Arc::downgrade(&ledger))))?;
+
 		let exiting = Arc::new(AtomicBool::new(false));
-		let thread_exiting = exiting.clone();
+		let thread_exiting_ledger = exiting.clone();
+		let thread_exiting_trezor = exiting.clone();
 		let l = ledger.clone();
 		let t = trezor.clone();
-		let thread = thread::Builder::new()
-			.name("hw_wallet".to_string())
+
+		// Ledger event thread
+		// FIXME: check if we can move it to ledger.rs (lifetime issue)
+		active_threads.push(thread::Builder::new()
+			.name("hw_wallet_ledger".to_string())
 			.spawn(move || {
 				if let Err(e) = l.update_devices() {
 					debug!("Error updating ledger devices: {}", e);
 				}
-				if let Err(e) = t.update_devices() {
-					debug!("Error updating trezor devices: {}", e);
-				}
 				loop {
-					usb_context.handle_events(Some(Duration::from_millis(500)))
+					usb_context_ledger.handle_events(Some(Duration::from_millis(500)))
 					           .unwrap_or_else(|e| debug!("Error processing USB events: {}", e));
-					if thread_exiting.load(atomic::Ordering::Acquire) {
+					if thread_exiting_ledger.load(atomic::Ordering::Acquire) {
 						break;
 					}
 				}
 			})
-			.ok();
+			.ok());
+
+		// Trezor event thread
+		// FIXME: check if we can move it to trezor.rs (lifetime issue)
+		active_threads.push(thread::Builder::new()
+			.name("hw_wallet_trezor".to_string())
+			.spawn(move || {
+				if let Err(e) = t.update_devices() {
+					debug!("Error updating ledger devices: {}", e);
+				}
+				loop {
+					usb_context_trezor.handle_events(Some(Duration::from_millis(500)))
+					           .unwrap_or_else(|e| debug!("Error processing USB events: {}", e));
+					if thread_exiting_trezor.load(atomic::Ordering::Acquire) {
+						break;
+					}
+				}
+			})
+			.ok());
+
 		Ok(HardwareWalletManager {
-			update_thread: thread,
+			active_threads: active_threads,
 			exiting: exiting,
 			ledger: ledger,
 			trezor: trezor,
@@ -260,9 +255,11 @@ impl HardwareWalletManager {
 impl Drop for HardwareWalletManager {
 	fn drop(&mut self) {
 		self.exiting.store(true, atomic::Ordering::Release);
-		if let Some(thread) = self.update_thread.take() {
-			thread.thread().unpark();
-			thread.join().ok();
+		for thread in self.active_threads.iter_mut() {
+			if let Some(thread) = thread.take() {
+				thread.thread().unpark();
+				thread.join().ok();
+			}
 		}
 	}
 }

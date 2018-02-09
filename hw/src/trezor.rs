@@ -23,21 +23,24 @@ use super::{WalletInfo, TransactionInfo, KeyPath};
 
 use std::cmp::{min, max};
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::time::Duration;
+use std::thread;
 
 use ethereum_types::{U256, H256, Address};
 
 use ethkey::Signature;
 use hidapi;
+use libusb;
 use parking_lot::{Mutex, RwLock};
 use protobuf;
 use protobuf::{Message, ProtobufEnum};
 
 use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 
-const TREZOR_VID: u16 = 0x534c;
-const TREZOR_PIDS: [u16; 1] = [0x0001]; // Trezor v1, keeping this as an array to leave room for Trezor v2 which is in progress
+// Expose these to the callback configuration
+pub const TREZOR_VID: u16 = 0x534c;
+pub const TREZOR_PIDS: [u16; 1] = [0x0001]; // Trezor v1, keeping this as an array to leave room for Trezor v2 which is in progress
 const ETH_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003C, 0x80000000, 0, 0]; // m/44'/60'/0'/0/0
 const ETC_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003D, 0x80000000, 0, 0]; // m/44'/61'/0'/0/0
 
@@ -201,16 +204,10 @@ impl Manager {
 	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
 		where F: Fn() -> Result<R, &'static str>
 	{
-		let mut err = Error::KeyNotFound;
-		// Try to open device a few times.
-		for _ in 0..10 {
-			match f() {
-				Ok(handle) => return Ok(handle),
-				Err(e) => err = From::from(e),
-			}
-			::std::thread::sleep(Duration::from_millis(200));
+		match f() {
+			Ok(handle) => Ok(handle),
+			Err(e) => Err(From::from(e)),
 		}
-		Err(err)
 	}
 
 	pub fn pin_matrix_ack(&self, device_path: &str, pin: &str) -> Result<bool, Error> {
@@ -406,6 +403,39 @@ impl Manager {
 		Ok((msg_type, data[..msg_size as usize].to_vec()))
 	}
 }
+
+pub struct EventHandler {
+	trezor: Weak<Manager>,
+}
+
+impl EventHandler {
+	pub fn new(trezor: Weak<Manager>) -> Self {
+		Self { trezor: trezor }
+	}
+}
+
+impl libusb::Hotplug for EventHandler {
+	fn device_arrived(&mut self, _device: libusb::Device) {
+		println!("trezor arrived");
+		if let Some(t) = self.trezor.upgrade() {
+			// Wait for the device to boot up
+			thread::sleep(Duration::from_millis(1000));
+			if let Err(e) = t.update_devices() {
+				debug!("TREZOR Connect Error: {:?}", e);
+			}
+		}
+	}
+
+	fn device_left(&mut self, _device: libusb::Device) {
+		println!("trezor left");
+		if let Some(t) = self.trezor.upgrade() {
+			if let Err(e) = t.update_devices() {
+				debug!("TREZOR Disconnect fail: {:?}", e);
+			}
+		}
+	}
+}
+
 
 #[test]
 #[ignore]
