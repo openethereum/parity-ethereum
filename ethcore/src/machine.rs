@@ -377,8 +377,8 @@ impl EthereumMachine {
 	}
 
 	/// If this machine supports wasm.
-	pub fn supports_wasm(&self) -> bool {
-		self.params().wasm
+	pub fn supports_wasm(&self, blocknumber: BlockNumber) -> bool {
+		self.schedule(blocknumber).wasm_activated
 	}
 
 	/// Additional params.

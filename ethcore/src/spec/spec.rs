@@ -111,6 +111,8 @@ pub struct CommonParams {
 	pub remove_dust_contracts: bool,
 	/// Wasm support
 	pub wasm: bool,
+	/// Wasm activation blocknumber, if any disabled initially.
+	pub wasm_activation: BlockNumber,
 	/// Gas limit bound divisor (how much gas limit can change per block)
 	pub gas_limit_bound_divisor: U256,
 	/// Registrar contract address.
@@ -145,6 +147,9 @@ impl CommonParams {
 				true => ::vm::CleanDustMode::WithCodeAndStorage,
 				false => ::vm::CleanDustMode::BasicOnly,
 			};
+		}
+		if self.wasm || block_number >= self.wasm_activation {
+			schedule.wasm_activated = true;
 		}
 	}
 
@@ -220,12 +225,16 @@ impl From<ethjson::spec::Params> for CommonParams {
 			),
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
-			wasm: p.wasm.unwrap_or(false),
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
+			wasm: p.wasm.unwrap_or(false),
+			wasm_activation: p.wasm_activation.map_or(
+				BlockNumber::max_value(),
+				Into::into
+			),
 		}
 	}
 }

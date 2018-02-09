@@ -385,11 +385,6 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 		self.machine().verify_transaction_basic(t, header)
 	}
 
-	/// If this machine supports wasm.
-	fn supports_wasm(&self) -> bool {
-		self.machine().supports_wasm()
-	}
-
 	/// Additional information.
 	fn additional_params(&self) -> HashMap<String, String> {
 		self.machine().additional_params()

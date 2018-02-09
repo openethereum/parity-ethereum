@@ -32,6 +32,7 @@ use trace::{self, Tracer, VMTracer};
 use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use executed::{Executed, ExecutionResult};
+use types::BlockNumber;
 
 /// Roughly estimate what stack size each level of evm depth will use
 /// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
@@ -152,8 +153,13 @@ impl TransactOptions<trace::NoopTracer, trace::NoopVMTracer> {
 	}
 }
 
-pub fn executor(machine: &Machine, vm_factory: &Factory, params: &ActionParams) -> Box<vm::Vm> {
-	if machine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
+pub fn executor(
+	machine: &Machine,
+	vm_factory: &Factory,
+	params: &ActionParams,
+	blocknumber: BlockNumber,
+) -> Box<vm::Vm> {
+	if machine.supports_wasm(blocknumber) && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
 		Box::new(wasm::WasmInterpreter)
 	} else {
 		vm_factory.create(params.gas)
@@ -344,12 +350,14 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let depth_threshold = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get() / STACK_SIZE_PER_DEPTH);
 		let static_call = params.call_type == CallType::StaticCall;
 
+		let block_number = self.info.number;
+
 		// Ordinary execution - keep VM in same thread
 		if (self.depth + 1) % depth_threshold != 0 {
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
-			return executor(self.machine, &vm_factory, &params).exec(params, &mut ext).finalize(ext);
+			return executor(self.machine, &vm_factory, &params, block_number).exec(params, &mut ext).finalize(ext);
 		}
 
 		// Start in new thread to reset stack
@@ -361,7 +369,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 
 			scope.spawn(move || {
-				executor(machine, &vm_factory, &params).exec(params, &mut ext).finalize(ext)
+				executor(machine, &vm_factory, &params, block_number).exec(params, &mut ext).finalize(ext)
 			})
 		}).join()
 	}
@@ -691,6 +699,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 #[cfg(test)]
 #[allow(dead_code)]
 mod tests {
+	extern crate wabt;
+
 	use std::sync::Arc;
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
@@ -708,6 +718,7 @@ mod tests {
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 	use transaction::{Action, Transaction};
+	use self::wabt::wat2wasm;
 
 	fn make_frontier_machine(max_depth: usize) -> EthereumMachine {
 		let mut machine = ::ethereum::new_frontier_test_machine();
@@ -1481,8 +1492,6 @@ mod tests {
 		params.gas = U256::from(20025);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::zero());
-		let mut state = get_temp_state_with_factory(factory);
-		state.add_balance(&sender, &U256::from_str("152d02c7e14af68000000").unwrap(), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let machine = ::ethereum::new_byzantium_test_machine();
 		let mut substate = Substate::new();
@@ -1496,5 +1505,153 @@ mod tests {
 		assert_eq!(result, U256::from(1));
 		assert_eq!(output[..], returns[..]);
 		assert_eq!(state.storage_at(&contract_address, &H256::from(&U256::zero())).unwrap(), H256::from(&U256::from(0)));
+	}
+
+	fn wasm_sample_code() -> Arc<Vec<u8>> {
+		Arc::new(wat2wasm(r#"
+			(module
+			(type (;0;) (func (param i32 i32)))
+			(type (;1;) (func (param i32)))
+			(type (;2;) (func))
+			(import "env" "ret" (func (;0;) (type 0)))
+			(import "env" "sender" (func (;1;) (type 1)))
+			(import "env" "memory" (memory (;0;) 1 16))
+			(func (;2;) (type 2)
+				(local i32 i32 i32 i32 i32 i64)
+				(i32.store offset=4
+				(i32.const 0)
+				(tee_local 4
+					(i32.sub
+					(i32.load offset=4
+						(i32.const 0))
+					(i32.const 64))))
+				(i32.store
+				(tee_local 0
+					(i32.add
+					(i32.add
+						(get_local 4)
+						(i32.const 44))
+					(i32.const 16)))
+				(i32.const 0))
+				(i64.store align=4
+				(tee_local 1
+					(i32.add
+					(i32.add
+						(get_local 4)
+						(i32.const 44))
+					(i32.const 8)))
+				(i64.const 0))
+				(i32.store
+				(tee_local 2
+					(i32.add
+					(i32.add
+						(get_local 4)
+						(i32.const 24))
+					(i32.const 16)))
+				(i32.const 0))
+				(i64.store
+				(tee_local 3
+					(i32.add
+					(i32.add
+						(get_local 4)
+						(i32.const 24))
+					(i32.const 8)))
+				(i64.const 0))
+				(i64.store offset=44 align=4
+				(get_local 4)
+				(i64.const 0))
+				(i32.store offset=28
+				(get_local 4)
+				(i32.const 0))
+				(i32.store offset=24
+				(get_local 4)
+				(i32.const 0))
+				(call 1
+				(i32.add
+					(get_local 4)
+					(i32.const 24)))
+				(i32.store
+				(get_local 0)
+				(tee_local 2
+					(i32.load
+					(get_local 2))))
+				(i64.store align=4
+				(get_local 1)
+				(tee_local 5
+					(i64.load
+					(get_local 3))))
+				(i32.store
+				(i32.add
+					(get_local 4)
+					(i32.const 16))
+				(get_local 2))
+				(i64.store
+				(i32.add
+					(get_local 4)
+					(i32.const 8))
+				(get_local 5))
+				(i64.store offset=44 align=4
+				(get_local 4)
+				(tee_local 5
+					(i64.load offset=24
+					(get_local 4))))
+				(i64.store
+				(get_local 4)
+				(get_local 5))
+				(call 0
+				(get_local 4)
+				(i32.const 20)))
+			(table (;0;) 0 anyfunc)
+			(export "call" (func 2))
+			(data (i32.const 4) "\10\c0\00\00"))
+			"#).unwrap()
+		)
+	}
+
+	#[test]
+	fn wasm_activated_test() {
+		let contract_address = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+
+		let mut state = get_temp_state();
+		state.add_balance(&sender, &U256::from(10000000000u64), CleanupMode::NoEmpty).unwrap();
+		state.commit().unwrap();
+
+		let mut params = ActionParams::default()
+			.from_origin(sender.clone());
+		params.address = contract_address.clone();
+		params.gas = U256::from(20025);
+		params.code = Some(wasm_sample_code());
+
+		let mut info = EnvInfo::default();
+
+		// 100 > 10
+		info.number = 100;
+
+		// Network with wasm activated at block 10
+		let machine = ::ethereum::new_kovan_wasm_test_machine();
+
+		let mut output = [0u8; 20];
+		let FinalizationResult { gas_left: result, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
+			ex.call(params.clone(), &mut Substate::new(), BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
+		};
+
+		assert_eq!(result, U256::from(18435));
+		// Transaction successfully returned sender
+		assert_eq!(output[..], sender[..]);
+
+		// 1 < 10
+		info.number = 1;
+
+		let mut output = [0u8; 20];
+		let FinalizationResult { gas_left: result, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
+			ex.call(params, &mut Substate::new(), BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
+		};
+
+		assert_eq!(result, U256::from(20025));
+		// Since transaction errored due to wasm was not activated, result is just empty
+		assert_eq!(output[..], [0u8; 20][..]);
 	}
 }

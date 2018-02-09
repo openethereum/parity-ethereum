@@ -132,6 +132,9 @@ pub fn new_constantinople_test_machine() -> EthereumMachine { load_machine(inclu
 /// Create a new Musicoin-MCIP3-era spec.
 pub fn new_mcip3_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/mcip3_test.json")) }
 
+/// Create new Kovan spec with wasm activated at certain block
+pub fn new_kovan_wasm_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/kovan_wasm_test.json")) }
+
 #[cfg(test)]
 mod tests {
 	use ethereum_types::U256;

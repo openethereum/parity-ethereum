@@ -112,6 +112,14 @@ impl Default for ActionParams {
 	}
 }
 
+impl ActionParams {
+	pub fn from_origin(mut self, address: Address) -> Self {
+		self.origin = address;
+		self.sender = address;
+		self
+	}
+}
+
 impl From<ethjson::vm::Transaction> for ActionParams {
 	fn from(t: ethjson::vm::Transaction) -> Self {
 		let address: Address = t.address.into();

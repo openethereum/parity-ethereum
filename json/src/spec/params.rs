@@ -98,8 +98,6 @@ pub struct Params {
 	pub nonce_cap_increment: Option<Uint>,
 	/// See `CommonParams` docs.
 	pub remove_dust_contracts : Option<bool>,
-	/// Wasm support flag
-	pub wasm: Option<bool>,
 	/// See `CommonParams` docs.
 	#[serde(rename="gasLimitBoundDivisor")]
 	pub gas_limit_bound_divisor: Uint,
@@ -117,6 +115,11 @@ pub struct Params {
 	/// Transaction permission contract address.
 	#[serde(rename="transactionPermissionContract")]
 	pub transaction_permission_contract: Option<Address>,
+	/// Wasm support flag
+	pub wasm: Option<bool>,
+	/// Wasm activation block height, if not activated from start
+	#[serde(rename="wasmActivation")]
+	pub wasm_activation: Option<Uint>,
 }
 
 #[cfg(test)]
