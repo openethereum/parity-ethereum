@@ -453,7 +453,7 @@ impl BlockCollection {
 
 		self.parents.insert(info.parent_hash().clone(), hash.clone());
 		self.blocks.insert(hash.clone(), block);
-		trace!(target: "sync", "New header: {}", hash.hex());
+		trace!(target: "sync", "New header: {:x}", hash);
 		Ok(hash)
 	}
 

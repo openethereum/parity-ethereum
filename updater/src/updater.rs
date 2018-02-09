@@ -21,19 +21,17 @@ use std::sync::{Arc, Weak};
 
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
 use ethsync::{SyncProvider};
-use futures::future;
 use hash_fetch::{self as fetch, HashFetch};
-use hash_fetch::fetch::Client as FetchService;
-use operations::Operations;
-use parity_reactor::Remote;
 use path::restrict_permissions_owner;
 use service::{Service};
 use target_info::Target;
 use types::{ReleaseInfo, OperationsInfo, CapState, VersionInfo, ReleaseTrack};
-use ethereum_types::{H160, H256, Address};
+use ethereum_types::H256;
 use bytes::Bytes;
 use parking_lot::Mutex;
 use version;
+
+use_contract!(operations_contract, "Operations", "res/operations.json");
 
 /// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -93,8 +91,8 @@ pub struct Updater {
 	weak_self: Mutex<Weak<Updater>>,
 	client: Weak<BlockChainClient>,
 	sync: Weak<SyncProvider>,
-	fetcher: Mutex<Option<fetch::Client>>,
-	operations: Mutex<Option<Operations>>,
+	fetcher: fetch::Client,
+	operations_contract: operations_contract::Operations,
 	exit_handler: Mutex<Option<Box<Fn() + 'static + Send>>>,
 
 	// Our version info (static)
@@ -105,6 +103,10 @@ pub struct Updater {
 }
 
 const CLIENT_ID: &'static str = "parity";
+
+fn client_id_hash() -> H256 {
+	CLIENT_ID.as_bytes().into()
+}
 
 fn platform() -> String {
 	if cfg!(target_os = "macos") {
@@ -118,20 +120,23 @@ fn platform() -> String {
 	}
 }
 
+fn platform_id_hash() -> H256 {
+	platform().as_bytes().into()
+}
+
 impl Updater {
-	pub fn new(client: Weak<BlockChainClient>, sync: Weak<SyncProvider>, update_policy: UpdatePolicy, fetch: FetchService, remote: Remote) -> Arc<Self> {
+	pub fn new(client: Weak<BlockChainClient>, sync: Weak<SyncProvider>, update_policy: UpdatePolicy, fetcher: fetch::Client) -> Arc<Self> {
 		let r = Arc::new(Updater {
 			update_policy: update_policy,
 			weak_self: Mutex::new(Default::default()),
 			client: client.clone(),
 			sync: sync.clone(),
-			fetcher: Mutex::new(None),
-			operations: Mutex::new(None),
+			fetcher,
+			operations_contract: operations_contract::Operations::default(),
 			exit_handler: Mutex::new(None),
 			this: VersionInfo::this(),
 			state: Mutex::new(Default::default()),
 		});
-		*r.fetcher.lock() = Some(fetch::Client::with_fetch(r.clone(), fetch, remote));
 		*r.weak_self.lock() = Arc::downgrade(&r);
 		r.poll();
 		r
@@ -142,17 +147,30 @@ impl Updater {
 		*self.exit_handler.lock() = Some(Box::new(f));
 	}
 
-	fn collect_release_info(operations: &Operations, release_id: &H256) -> Result<ReleaseInfo, String> {
-		let (fork, track, semver, is_critical) = operations.release(CLIENT_ID, release_id)?;
-		let latest_binary = operations.checksum(CLIENT_ID, release_id, &platform())?;
+	fn collect_release_info<T: Fn(Vec<u8>) -> Result<Vec<u8>, String>>(&self, release_id: H256, do_call: &T) -> Result<ReleaseInfo, String> {
+		let (fork, track, semver, is_critical) = self.operations_contract.functions()
+			.release()
+			.call(client_id_hash(), release_id, &do_call)
+			.map_err(|e| format!("{:?}", e))?;
+
+		let (fork, track, semver) = (fork.low_u64(), track.low_u32(), semver.low_u32());
+
+		let latest_binary = self.operations_contract.functions()
+			.checksum()
+			.call(client_id_hash(), release_id, platform_id_hash(), &do_call)
+			.map_err(|e| format!("{:?}", e))?;
+
 		Ok(ReleaseInfo {
-			version: VersionInfo::from_raw(semver, track, release_id.clone().into()),
-			is_critical: is_critical,
-			fork: fork as u64,
+			version: VersionInfo::from_raw(semver, track as u8, release_id.into()),
+			is_critical,
+			fork,
 			binary: if latest_binary.is_zero() { None } else { Some(latest_binary) },
 		})
 	}
 
+	/// Returns release track of the parity node.
+	/// `update_policy.track` is the track specified from the command line, whereas `this.track`
+	/// is the track of the software which is currently run
 	fn track(&self) -> ReleaseTrack {
 		match self.update_policy.track {
 			ReleaseTrack::Unknown => self.this.track,
@@ -160,42 +178,68 @@ impl Updater {
 		}
 	}
 
+	fn latest_in_track<T: Fn(Vec<u8>) -> Result<Vec<u8>, String>>(&self, track: ReleaseTrack, do_call: &T) -> Result<H256, String> {
+		self.operations_contract.functions()
+			.latest_in_track()
+			.call(client_id_hash(), u8::from(track), do_call)
+			.map_err(|e| format!("{:?}", e))
+	}
+
 	fn collect_latest(&self) -> Result<OperationsInfo, String> {
-		if let Some(ref operations) = *self.operations.lock() {
-			let hh: H256 = self.this.hash.into();
-			trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, hh);
-			let this_fork = operations.release(CLIENT_ID, &self.this.hash.into()).ok()
-				.and_then(|(fork, track, _, _)| {
-					trace!(target: "updater", "Operations returned fork={}, track={}", fork as u64, track);
-					if track > 0 {Some(fork as u64)} else {None}
-				});
-
-			if self.track() == ReleaseTrack::Unknown {
-				return Err(format!("Current executable ({}) is unreleased.", H160::from(self.this.hash)));
-			}
-
-			let latest_in_track = operations.latest_in_track(CLIENT_ID, self.track().into())?;
-			let in_track = Self::collect_release_info(operations, &latest_in_track)?;
-			let mut in_minor = Some(in_track.clone());
-			const PROOF: &'static str = "in_minor initialised and assigned with Some; loop breaks if None assigned; qed";
-			while in_minor.as_ref().expect(PROOF).version.track != self.track() {
-				let track = match in_minor.as_ref().expect(PROOF).version.track {
-					ReleaseTrack::Beta => ReleaseTrack::Stable,
-					ReleaseTrack::Nightly => ReleaseTrack::Beta,
-					_ => { in_minor = None; break; }
-				};
-				in_minor = Some(Self::collect_release_info(operations, &operations.latest_in_track(CLIENT_ID, track.into())?)?);
-			}
-
-			Ok(OperationsInfo {
-				fork: operations.latest_fork()? as u64,
-				this_fork: this_fork,
-				track: in_track,
-				minor: in_minor,
-			})
-		} else {
-			Err("Operations not available".into())
+		if self.track() == ReleaseTrack::Unknown {
+			return Err(format!("Current executable ({}) is unreleased.", self.this.hash));
 		}
+
+		let client = self.client.upgrade().ok_or_else(|| "Cannot obtain client")?;
+		let address = client.registry_address("operations".into()).ok_or_else(|| "Cannot get operations contract address")?;
+		let do_call = |data| client.call_contract(BlockId::Latest, address, data).map_err(|e| format!("{:?}", e));
+
+		trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, self.this.hash);
+
+		// get the fork number of this release
+		let this_fork = self.operations_contract.functions()
+			.release()
+			.call(client_id_hash(), self.this.hash, &do_call)
+			.ok()
+			.and_then(|(fork, track, _, _)| {
+				let this_track: ReleaseTrack = (track.low_u64() as u8).into();
+				match this_track {
+					ReleaseTrack::Unknown => None,
+					_ => Some(fork.low_u64()),
+				}
+			});
+
+		// get the hash of the latest release in our track
+		let latest_in_track = self.latest_in_track(self.track(), &do_call)?;
+
+		// get the release info for the latest version in track
+		let in_track = self.collect_release_info(latest_in_track, &do_call)?;
+		let mut in_minor = Some(in_track.clone());
+		const PROOF: &'static str = "in_minor initialised and assigned with Some; loop breaks if None assigned; qed";
+
+		// if the minor version has changed, let's check the minor version on a different track
+		while in_minor.as_ref().expect(PROOF).version.version.minor != self.this.version.minor {
+			let track = match in_minor.as_ref().expect(PROOF).version.track {
+				ReleaseTrack::Beta => ReleaseTrack::Stable,
+				ReleaseTrack::Nightly => ReleaseTrack::Beta,
+				_ => { in_minor = None; break; }
+			};
+
+			let latest_in_track = self.latest_in_track(track, &do_call)?;
+			in_minor = Some(self.collect_release_info(latest_in_track, &do_call)?);
+		}
+
+		let fork = self.operations_contract.functions()
+			.latest_fork()
+			.call(&do_call)
+			.map_err(|e| format!("{:?}", e))?.low_u64();
+
+		Ok(OperationsInfo {
+			fork,
+			this_fork,
+			track: in_track,
+			minor: in_minor,
+		})
 	}
 
 	fn update_file_name(v: &VersionInfo) -> String {
@@ -209,6 +253,7 @@ impl Updater {
 	}
 
 	fn fetch_done(&self, result: Result<PathBuf, fetch::Error>) {
+		// old below
 		(|| -> Result<(), (String, bool)> {
 			let auto = {
 				let mut s = self.state.lock();
@@ -246,17 +291,6 @@ impl Updater {
 			return;
 		}
 
-		if self.operations.lock().is_none() {
-			if let Some(ops_addr) = self.client.upgrade().and_then(|c| c.registry_address("operations".into())) {
-				trace!(target: "updater", "Found operations at {}", ops_addr);
-				let client = self.client.clone();
-				*self.operations.lock() = Some(Operations::new(ops_addr, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(BlockId::Latest, a, d))));
-			} else {
-				// No Operations contract - bail.
-				return;
-			}
-		}
-
 		let current_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
 
 		let mut capability = CapState::Unknown;
@@ -291,7 +325,7 @@ impl Updater {
 							drop(s);
 							let weak_self = self.weak_self.lock().clone();
 							let f = move |r: Result<PathBuf, fetch::Error>| if let Some(this) = weak_self.upgrade() { this.fetch_done(r) };
-							self.fetcher.lock().as_ref().expect("Created on `new`; qed").fetch(b, Box::new(f));
+							self.fetcher.fetch(b, Box::new(f));
 						}
 					}
 				}
@@ -334,22 +368,6 @@ impl ChainNotify for Updater {
 	}
 }
 
-impl fetch::urlhint::ContractClient for Updater {
-	fn registrar(&self) -> Result<Address, String> {
-		self.client.upgrade().ok_or_else(|| "Client not available".to_owned())?
-			.registrar_address()
-			.ok_or_else(|| "Registrar not available".into())
-	}
-
-	fn call(&self, address: Address, data: Bytes) -> fetch::urlhint::BoxFuture<Bytes, String> {
-		Box::new(future::done(
-			self.client.upgrade()
-				.ok_or_else(|| "Client not available".into())
-				.and_then(move |c| c.call_contract(BlockId::Latest, address, data))
-		))
-	}
-}
-
 impl Service for Updater {
 	fn capability(&self) -> CapState {
 		self.state.lock().capability
@@ -360,36 +378,40 @@ impl Service for Updater {
 	}
 
 	fn execute_upgrade(&self) -> bool {
-		(|| -> Result<bool, String> {
-			let mut s = self.state.lock();
-			if let Some(r) = s.ready.take() {
-				let p = Self::update_file_name(&r.version);
-				let n = self.updates_path("latest");
-				// TODO: creating then writing is a bit fragile. would be nice to make it atomic.
-				match fs::File::create(&n).and_then(|mut f| f.write_all(p.as_bytes())) {
-					Ok(_) => {
-						info!(target: "updater", "Completed upgrade to {}", &r.version);
-						s.installed = Some(r);
-						if let Some(ref h) = *self.exit_handler.lock() {
-							(*h)();
-						} else {
-							info!("Update installed; ready for restart.");
-						}
-						Ok(true)
-					}
-					Err(e) => {
-						s.ready = Some(r);
-						Err(format!("Unable to create soft-link for update {:?}", e))
-					}
-				}
-			} else {
+		let mut s = self.state.lock();
+		let ready = match s.ready.take() {
+			Some(ready) => ready,
+			None => {
 				warn!(target: "updater", "Execute upgrade called when no upgrade ready.");
-				Ok(false)
+				return false;
 			}
-		})().unwrap_or_else(|e| { warn!("{}", e); false })
+		};
+
+		let p = Self::update_file_name(&ready.version);
+		let n = self.updates_path("latest");
+
+		// TODO: creating then writing is a bit fragile. would be nice to make it atomic.
+		if let Err(e) = fs::File::create(&n).and_then(|mut f| f.write_all(p.as_bytes())) {
+			s.ready = Some(ready);
+			warn!(target: "updater", "Unable to create soft-link for update {:?}", e);
+			return false;
+		}
+
+		info!(target: "updater", "Completed upgrade to {}", &ready.version);
+		s.installed = Some(ready);
+		match *self.exit_handler.lock() {
+			Some(ref h) => (*h)(),
+			None => info!(target: "updater", "Update installed; ready for restart."),
+		}
+
+		true
 	}
 
-	fn version_info(&self) -> VersionInfo { self.this.clone() }
+	fn version_info(&self) -> VersionInfo {
+		self.this.clone()
+	}
 
-	fn info(&self) -> Option<OperationsInfo> { self.state.lock().latest.clone() }
+	fn info(&self) -> Option<OperationsInfo> {
+		self.state.lock().latest.clone()
+	}
 }

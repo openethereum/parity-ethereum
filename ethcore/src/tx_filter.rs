@@ -19,14 +19,14 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use ethereum_types::{H256, Address};
-use native_contracts::TransactAcl as Contract;
 use client::{BlockChainClient, BlockId, ChainNotify};
 use bytes::Bytes;
 use parking_lot::Mutex;
-use futures::{self, Future};
 use spec::CommonParams;
 use transaction::{Action, SignedTransaction};
 use hash::KECCAK_EMPTY;
+
+use_contract!(transact_acl, "TransactAcl", "res/contracts/tx_acl.json");
 
 const MAX_CACHE_SIZE: usize = 4096;
 
@@ -41,7 +41,7 @@ mod tx_permissions {
 
 /// Connection filter that uses a contract to manage permissions.
 pub struct TransactionFilter {
-	contract: Mutex<Option<Contract>>,
+	contract: transact_acl::TransactAcl,
 	contract_address: Address,
 	permission_cache: Mutex<HashMap<(H256, Address), u32>>,
 }
@@ -51,7 +51,7 @@ impl TransactionFilter {
 	pub fn from_params(params: &CommonParams) -> Option<TransactionFilter> {
 		params.transaction_permission_contract.map(|address|
 			TransactionFilter {
-				contract: Mutex::new(None),
+				contract: transact_acl::TransactAcl::default(),
 				contract_address: address,
 				permission_cache: Mutex::new(HashMap::new()),
 			}
@@ -79,23 +79,15 @@ impl TransactionFilter {
 		match cache.entry((*parent_hash, sender)) {
 			Entry::Occupied(entry) => *entry.get() & tx_type != 0,
 			Entry::Vacant(entry) => {
-				let mut contract = self.contract.lock();
-				if contract.is_none() {
-					*contract = Some(Contract::new(self.contract_address));
-				}
-
-				let permissions = match &*contract {
-					&Some(ref contract) => {
-						contract.allowed_tx_types(
-							|addr, data| futures::done(client.call_contract(BlockId::Hash(*parent_hash), addr, data)),
-							sender,
-						).wait().unwrap_or_else(|e| {
-							debug!("Error callling tx permissions contract: {:?}", e);
-							tx_permissions::NONE
-						})
-					}
-					_ => tx_permissions::NONE,
-				};
+				let contract_address = self.contract_address;
+				let permissions = self.contract.functions()
+					.allowed_tx_types()
+					.call(sender, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
+					.map(|p| p.low_u32())
+					.unwrap_or_else(|e| {
+						debug!("Error callling tx permissions contract: {:?}", e);
+						tx_permissions::NONE
+					});
 
 				if len < MAX_CACHE_SIZE {
 					entry.insert(permissions);

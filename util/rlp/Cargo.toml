@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 elastic-array = "0.9"
-ethereum-types = "0.1"
+ethereum-types = "0.2"
 lazy_static = "1.0"
 rustc-hex = "1.0"
 byteorder = "1.0"

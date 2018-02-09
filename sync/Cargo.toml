@@ -14,7 +14,7 @@ ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethcore = { path = "../ethcore" }
-ethereum-types = "0.1"
+ethereum-types = "0.2"
 plain_hasher = { path = "../util/plain_hasher" }
 rlp = { path = "../util/rlp" }
 keccak-hash = { path = "../util/hash" }
@@ -24,7 +24,7 @@ macros = { path = "../util/macros" }
 log = "0.3"
 env_logger = "0.4"
 time = "0.1.34"
-rand = "0.3.13"
+rand = "0.4"
 heapsize = "0.4"
 semver = "0.6"
 smallvec = { version = "0.4", features = ["heapsizeof"] }

@@ -49,7 +49,7 @@ impl Informant {
 	}
 
 	fn stack(&self) -> String {
-		let items = self.stack.iter().map(display::u256_as_str).collect::<Vec<_>>();
+		let items = self.stack.iter().map(|i| format!("\"0x{:x}\"", i)).collect::<Vec<_>>();
 		format!("[{}]", items.join(","))
 	}
 
@@ -124,12 +124,12 @@ impl trace::VMTracer for Informant {
 		let info = ::evm::INSTRUCTIONS[self.instruction as usize];
 
 		let trace = format!(
-			"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":{gas},\"gasCost\":{gas_cost},\"memory\":{memory},\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
+			"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":\"0x{gas:x}\",\"gasCost\":\"0x{gas_cost:x}\",\"memory\":{memory},\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
 			pc = self.pc,
 			op = self.instruction,
 			name = info.name,
-			gas = display::u256_as_str(&(gas_used.saturating_add(self.gas_cost))),
-			gas_cost = display::u256_as_str(&self.gas_cost),
+			gas = gas_used.saturating_add(self.gas_cost),
+			gas_cost = self.gas_cost,
 			memory = self.memory(),
 			stack = self.stack(),
 			storage = self.storage(),

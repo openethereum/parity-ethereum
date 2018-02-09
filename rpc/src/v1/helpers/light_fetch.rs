@@ -455,7 +455,7 @@ fn execute_tx(gas_known: bool, params: ExecuteParams) -> BoxFuture<ExecutionResu
 						// exception?
 						if executed.exception.is_some() {
 							let old_gas = params.tx.gas;
-							params.tx.gas = params.tx.gas * 2.into();
+							params.tx.gas = params.tx.gas * 2u32;
 							if params.tx.gas > params.hdr.gas_limit() {
 								params.tx.gas = old_gas;
 							} else {

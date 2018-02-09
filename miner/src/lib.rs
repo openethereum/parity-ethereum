@@ -21,13 +21,13 @@
 
 extern crate ansi_term;
 extern crate common_types as types;
+extern crate ethabi;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate futures;
 extern crate heapsize;
 extern crate keccak_hash as hash;
 extern crate linked_hash_map;
-extern crate native_contracts;
 extern crate parking_lot;
 extern crate price_info;
 extern crate table;
@@ -35,14 +35,18 @@ extern crate transaction_pool as txpool;
 extern crate transient_hashmap;
 
 #[macro_use]
-extern crate log;
-#[macro_use]
 extern crate error_chain;
+#[macro_use]
+extern crate ethabi_derive;
+#[macro_use]
+extern crate ethabi_contract;
+#[cfg(test)]
+extern crate ethkey;
+#[macro_use]
+extern crate log;
 
 #[cfg(test)]
 extern crate rustc_hex;
-#[cfg(test)]
-extern crate ethkey;
 
 pub mod banning_queue;
 pub mod external;

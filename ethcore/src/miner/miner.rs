@@ -193,7 +193,7 @@ pub struct Miner {
 	transaction_queue: TransactionQueue,
 	engine: Arc<EthEngine>,
 	accounts: Option<Arc<AccountProvider>>,
-	// TODO [TodR]] Check log order
+	// TODO [ToDr] Check lock order
 	// service_transaction_action: ServiceTransactionAction,
 }
 
@@ -722,7 +722,7 @@ impl MinerService for Miner {
 
 	fn sensible_gas_price(&self) -> U256 {
 		// 10% above our minimum.
-		*self.transaction_queue.minimal_gas_price() * 110.into() / 100.into()
+		*self.transaction_queue.minimal_gas_price() * 110u32 / 100.into()
 	}
 
 	fn sensible_gas_limit(&self) -> U256 {
@@ -1005,7 +1005,7 @@ impl MinerService for Miner {
 			let n = sealed.header().number();
 			let h = sealed.header().hash();
 			chain.import_sealed_block(sealed)?;
-			info!(target: "miner", "Submitted block imported OK. #{}: {}", Colour::White.bold().paint(format!("{}", n)), Colour::White.bold().paint(h.hex()));
+			info!(target: "miner", "Submitted block imported OK. #{}: {}", Colour::White.bold().paint(format!("{}", n)), Colour::White.bold().paint(format!("{:x}", h)));
 			Ok(())
 		})
 	}

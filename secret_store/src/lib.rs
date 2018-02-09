@@ -15,38 +15,42 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate byteorder;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate futures;
+extern crate ethabi;
+extern crate ethcore;
+extern crate ethcore_bytes as bytes;
+extern crate ethcore_logger as logger;
+extern crate ethcrypto;
+extern crate ethereum_types;
+extern crate ethkey;
+extern crate ethsync;
 extern crate futures_cpupool;
 extern crate hyper;
-#[macro_use]
-extern crate lazy_static;
+extern crate keccak_hash as hash;
+extern crate kvdb;
+extern crate kvdb_rocksdb;
 extern crate parking_lot;
 extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
 extern crate tiny_keccak;
-extern crate tokio_io;
 extern crate tokio_core;
-extern crate tokio_service;
+extern crate tokio_io;
 extern crate tokio_proto;
+extern crate tokio_service;
 extern crate url;
 
-extern crate ethcore;
-extern crate ethcore_bytes as bytes;
-extern crate ethcore_logger as logger;
-extern crate ethereum_types;
-extern crate ethcrypto;
-extern crate ethkey;
-extern crate ethsync;
-extern crate native_contracts;
-extern crate keccak_hash as hash;
-extern crate kvdb;
-extern crate kvdb_rocksdb;
+#[macro_use]
+extern crate ethabi_derive;
+#[macro_use]
+extern crate ethabi_contract;
+#[macro_use]
+extern crate futures;
+#[macro_use]
+extern crate serde_derive;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate log;
 
 mod key_server_cluster;
 mod types;
