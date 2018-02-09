@@ -1384,7 +1384,13 @@ mod tests {
 			acc_conf: Default::default(),
 			gas_pricer_conf: Default::default(),
 			miner_extras: Default::default(),
-			update_policy: UpdatePolicy { enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Unknown, path: default_hypervisor_path() },
+			update_policy: UpdatePolicy {
+				enable_downloading: true,
+				require_consensus: true,
+				filter: UpdateFilter::Critical,
+				track: ReleaseTrack::Unknown,
+				path: default_hypervisor_path()
+			},
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),

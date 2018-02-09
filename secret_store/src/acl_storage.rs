@@ -16,15 +16,15 @@
 
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
-use futures::{future, Future};
 use parking_lot::{Mutex, RwLock};
 use ethkey::public_to_address;
 use ethcore::client::{BlockChainClient, BlockId, ChainNotify};
-use native_contracts::SecretStoreAclStorage;
 use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use trusted_client::TrustedClient;
 use types::all::{Error, ServerKeyId, Public};
+
+use_contract!(acl_storage, "AclStorage", "res/acl_storage.json");
 
 const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checker";
 
@@ -47,7 +47,7 @@ struct CachedContract {
 	/// Contract address.
 	contract_addr: Option<Address>,
 	/// Contract at given address.
-	contract: Option<SecretStoreAclStorage>,
+	contract: acl_storage::AclStorage,
 }
 
 /// Dummy ACL storage implementation (check always passed).
@@ -86,23 +86,20 @@ impl ChainNotify for OnChainAclStorage {
 impl CachedContract {
 	pub fn new(client: TrustedClient) -> Self {
 		CachedContract {
-			client: client,
+			client,
 			contract_addr: None,
-			contract: None,
+			contract: acl_storage::AclStorage::default(),
 		}
 	}
 
 	pub fn update(&mut self) {
 		if let Some(client) = self.client.get() {
-			let new_contract_addr = client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.to_owned());
-			if self.contract_addr.as_ref() != new_contract_addr.as_ref() {
-				self.contract = new_contract_addr.map(|contract_addr| {
-					trace!(target: "secretstore", "Configuring for ACL checker contract from {}", contract_addr);
-
-					SecretStoreAclStorage::new(contract_addr)
-				});
-
-				self.contract_addr = new_contract_addr;
+			match client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.to_owned()) {
+				Some(new_contract_addr) if Some(new_contract_addr).as_ref() != self.contract_addr.as_ref() => {
+					trace!(target: "secretstore", "Configuring for ACL checker contract from {}", new_contract_addr);
+					self.contract_addr = Some(new_contract_addr);
+				},
+				Some(_) | None => ()
 			}
 		}
 	}
@@ -110,13 +107,14 @@ impl CachedContract {
 	pub fn check(&mut self, public: &Public, document: &ServerKeyId) -> Result<bool, Error> {
 		if let Some(client) = self.client.get() {
 			// call contract to check accesss
-			match self.contract.as_ref() {
-				Some(contract) => {
+			match self.contract_addr {
+				Some(contract_address) => {
 					let address = public_to_address(&public);
-					let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
-					contract.check_permissions(do_call, address, document.clone())
-						.map_err(|err| Error::Internal(err))
-						.wait()
+					let do_call = |data| client.call_contract(BlockId::Latest, contract_address, data);
+					self.contract.functions()
+						.check_permissions()
+						.call(address, document.clone(), &do_call)
+						.map_err(|e| Error::Internal(e.to_string()))
 				},
 				None => Err(Error::Internal("ACL checker contract is not configured".to_owned())),
 			}

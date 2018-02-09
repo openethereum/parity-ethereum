@@ -50,13 +50,11 @@ use vm::{EnvInfo, LastHashes};
 use evm::{Factory as EvmFactory, Schedule};
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::Factories;
-use futures::{future, Future};
 use header::{BlockNumber, Header, Seal};
 use io::*;
 use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
-use native_contracts::Registry;
-use parking_lot::{Mutex, RwLock, MutexGuard};
+use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
 use rlp::UntrustedRlp;
@@ -81,6 +79,8 @@ pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::queue::QueueInfo as BlockQueueInfo;
+
+use_contract!(registry, "Registry", "res/contracts/registrar.json");
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
@@ -165,7 +165,8 @@ pub struct Client {
 	history: u64,
 	ancient_verifier: Mutex<Option<AncientVerifier>>,
 	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
-	registrar: Mutex<Option<Registry>>,
+	registrar: registry::Registry,
+	registrar_address: Option<Address>,
 	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
 }
 
@@ -217,7 +218,7 @@ impl Client {
 		};
 
 		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(h.state_root())) {
-			warn!("State root not found for block #{} ({})", chain.best_block_number(), chain.best_block_hash().hex());
+			warn!("State root not found for block #{} ({:x})", chain.best_block_number(), chain.best_block_hash());
 		}
 
 		let engine = spec.engine.clone();
@@ -225,6 +226,11 @@ impl Client {
 		let block_queue = BlockQueue::new(config.queue.clone(), engine.clone(), message_channel.clone(), config.verifier_type.verifying_seal());
 
 		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
+
+		let registrar_address = engine.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok());
+		if let Some(ref addr) = registrar_address {
+			trace!(target: "client", "Found registrar at {}", addr);
+		}
 
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),
@@ -251,7 +257,8 @@ impl Client {
 			history: history,
 			ancient_verifier: Mutex::new(None),
 			on_user_defaults_change: Mutex::new(None),
-			registrar: Mutex::new(None),
+			registrar: registry::Registry::default(),
+			registrar_address,
 			exit_handler: Mutex::new(None),
 		});
 
@@ -294,12 +301,6 @@ impl Client {
 			}
 		}
 
-		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
-			trace!(target: "client", "Found registrar at {}", reg_addr);
-			let registrar = Registry::new(reg_addr);
-			*client.registrar.lock() = Some(registrar);
-		}
-
 		// ensure buffered changes are flushed.
 		client.db.read().flush().map_err(ClientError::Database)?;
 		Ok(client)
@@ -338,11 +339,6 @@ impl Client {
 				f(&*n);
 			}
 		}
-	}
-
-	/// Get the Registry object - useful for looking up names.
-	pub fn registrar(&self) -> MutexGuard<Option<Registry>> {
-		self.registrar.lock()
 	}
 
 	/// Register an action to be done if a mode/spec_name change happens.
@@ -1828,18 +1824,24 @@ impl BlockChainClient for Client {
 	}
 
 	fn registrar_address(&self) -> Option<Address> {
-		self.registrar.lock().as_ref().map(|r| r.address)
+		self.registrar_address.clone()
 	}
 
 	fn registry_address(&self, name: String) -> Option<Address> {
-		self.registrar.lock().as_ref()
-			.and_then(|r| {
-				let dispatch = move |reg_addr, data| {
-					future::done(self.call_contract(BlockId::Latest, reg_addr, data))
-				};
-				r.get_address(dispatch, keccak(name.as_bytes()), "A".to_string()).wait().ok()
+		let address = match self.registrar_address {
+			Some(address) => address,
+			None => return None,
+		};
+
+		self.registrar.functions()
+			.get_address()
+			.call(keccak(name.as_bytes()), "A", &|data| self.call_contract(BlockId::Latest, address, data))
+			.ok()
+			.and_then(|a| if a.is_zero() {
+				None
+			} else {
+				Some(a)
 			})
-			.and_then(|a| if a.is_zero() { None } else { Some(a) })
 	}
 
 	fn eip86_transition(&self) -> u64 {

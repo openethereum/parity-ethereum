@@ -24,27 +24,28 @@ ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-stratum = { path = "../stratum" }
 ethcore-transaction = { path = "./transaction" }
-ethereum-types = "0.1"
+ethereum-types = "0.2"
 memory-cache = { path = "../util/memory_cache" }
+ethabi = "5.1"
+ethabi-derive = "5.0"
+ethabi-contract = "5.0"
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 evm = { path = "evm" }
-futures = "0.1"
 hardware-wallet = { path = "../hw" }
 heapsize = "0.4"
 itertools = "0.5"
 lazy_static = "1.0"
 log = "0.3"
 lru-cache = "0.1"
-native-contracts = { path = "native_contracts" }
 num = "0.1"
 num_cpus = "1.2"
 parity-machine = { path = "../machine" }
 parking_lot = "0.5"
 price-info = { path = "../price-info" }
 rayon = "0.8"
-rand = "0.3"
+rand = "0.4"
 rlp = { path = "../util/rlp" }
 rlp_derive = { path = "../util/rlp_derive" }
 kvdb = { path = "../util/kvdb" }
@@ -68,9 +69,6 @@ triehash = { path = "../util/triehash" }
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 tempdir = "0.3"
-
-[dev-dependencies]
-native-contracts = { path = "native_contracts", features = ["test_contracts"] }
 
 [features]
 jit = ["evm/jit"]

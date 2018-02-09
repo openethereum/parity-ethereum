@@ -15,17 +15,17 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use futures::{future, Future};
 use parking_lot::RwLock;
 use ethcore::filter::Filter;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethkey::{Public, Signature, public_to_address};
-use native_contracts::SecretStoreService;
 use hash::keccak;
-use ethereum_types::{H256, U256};
+use ethereum_types::{H256, U256, Address};
 use listener::service_contract_listener::ServiceTask;
 use trusted_client::TrustedClient;
 use {ServerKeyId, NodeKeyPair, ContractAddress};
+
+use_contract!(service, "Service", "res/service.json");
 
 /// Name of the SecretStore contract in the registry.
 const SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service";
@@ -61,13 +61,15 @@ pub struct OnChainServiceContract {
 	/// Contract addresss.
 	address: ContractAddress,
 	/// Contract.
-	data: RwLock<SecretStoreServiceData>,
+	data: RwLock<ServiceData>,
 }
 
 /// On-chain service contract data.
-struct SecretStoreServiceData {
+struct ServiceData {
 	/// Contract.
-	pub contract: Arc<SecretStoreService>,
+	pub contract: service::Service,
+	/// Contract address.
+	pub contract_address: Address,
 	/// Last block we have read logs from.
 	pub last_log_block: Option<H256>,
 }
@@ -77,7 +79,9 @@ struct PendingRequestsIterator {
 	/// Blockchain client.
 	client: Arc<Client>,
 	/// Contract.
-	contract: Arc<SecretStoreService>,
+	contract: service::Service,
+	/// Contract address.
+	contract_address: Address,
 	/// This node key pair.
 	self_key_pair: Arc<NodeKeyPair>,
 	/// Block, this iterator is created for.
@@ -110,8 +114,9 @@ impl OnChainServiceContract {
 			client: client,
 			self_key_pair: self_key_pair,
 			address: address,
-			data: RwLock::new(SecretStoreServiceData {
-				contract: Arc::new(SecretStoreService::new(contract_addr)),
+			data: RwLock::new(ServiceData {
+				contract: service::Service::default(),
+				contract_address: contract_addr,
 				last_log_block: None,
 			}),
 		}
@@ -126,15 +131,15 @@ impl ServiceContract for OnChainServiceContract {
 			if let Some(client) = self.client.get() {
 				// update contract address from registry
 				let service_contract_addr = client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned()).unwrap_or_default();
-				if self.data.read().contract.address != service_contract_addr {
+				if self.data.read().contract_address != service_contract_addr {
 					trace!(target: "secretstore", "{}: installing service contract from address {}",
 						self.self_key_pair.public(), service_contract_addr);
-					self.data.write().contract = Arc::new(SecretStoreService::new(service_contract_addr));
+					self.data.write().contract_address = service_contract_addr;
 				}
 			}
 		}
 
-		self.data.read().contract.address != Default::default()
+		self.data.read().contract_address != Default::default()
 			&& self.client.get().is_some()
 	}
 
@@ -151,7 +156,7 @@ impl ServiceContract for OnChainServiceContract {
 		// prepare range of blocks to read logs from
 		let (address, first_block, last_block) = {
 			let mut data = self.data.write();
-			let address = data.contract.address.clone();
+			let address = data.contract_address;
 			let confirmed_block = match get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED) {
 				Some(confirmed_block) => confirmed_block,
 				None => return Box::new(::std::iter::empty()), // no block with enough confirmations
@@ -197,12 +202,13 @@ impl ServiceContract for OnChainServiceContract {
 		// we only need requests that are here for more than REQUEST_CONFIRMATIONS_REQUIRED blocks
 		// => we're reading from Latest - (REQUEST_CONFIRMATIONS_REQUIRED + 1) block
 		let data = self.data.read();
-		match data.contract.address == Default::default() {
+		match data.contract_address == Default::default() {
 			true => Box::new(::std::iter::empty()),
 			false => get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED + 1)
 				.and_then(|b| {
-					let do_call = |a, d| future::done(client.call_contract(BlockId::Hash(b.clone()), a, d));
-					data.contract.server_key_generation_requests_count(&do_call).wait()
+					let contract_address = data.contract_address;
+					let do_call = |data| client.call_contract(BlockId::Hash(b), contract_address, data);
+					data.contract.functions().server_key_generation_requests_count().call(&do_call)
 						.map_err(|error| {
 							warn!(target: "secretstore", "{}: call to server_key_generation_requests_count failed: {}",
 								self.self_key_pair.public(), error);
@@ -213,7 +219,8 @@ impl ServiceContract for OnChainServiceContract {
 				})
 				.map(|(b, l)| Box::new(PendingRequestsIterator {
 					client: client,
-					contract: data.contract.clone(),
+					contract: service::Service::default(),
+					contract_address: data.contract_address,
 					self_key_pair: self.self_key_pair.clone(),
 					block: b,
 					index: 0.into(),
@@ -226,7 +233,7 @@ impl ServiceContract for OnChainServiceContract {
 	fn publish_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
 		// only publish if contract address is set && client is online
 		let data = self.data.read();
-		if data.contract.address == Default::default() {
+		if data.contract_address == Default::default() {
 			// it is not an error, because key could be generated even without contract
 			return Ok(());
 		}
@@ -239,9 +246,13 @@ impl ServiceContract for OnChainServiceContract {
 		// only publish key if contract waits for publication
 		// failing is ok here - it could be that enough confirmations have been recevied
 		// or key has been requested using HTTP API
-		let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
+		let contract_address = data.contract_address;
+		let do_call = |data| client.call_contract(BlockId::Latest, contract_address, data);
 		let self_address = public_to_address(self.self_key_pair.public());
-		if data.contract.get_server_key_confirmation_status(&do_call, server_key_id.clone(), self_address).wait().unwrap_or(false) {
+		if data.contract.functions()
+			.get_server_key_confirmation_status()
+			.call(*server_key_id, self_address, &do_call)
+			.unwrap_or(false) {
 			return Ok(());
 		}
 
@@ -249,16 +260,18 @@ impl ServiceContract for OnChainServiceContract {
 		let server_key_hash = keccak(server_key);
 		let signed_server_key = self.self_key_pair.sign(&server_key_hash).map_err(|e| format!("{}", e))?;
 		let signed_server_key: Signature = signed_server_key.into_electrum().into();
-		let transaction_data = data.contract.encode_server_key_generated_input(server_key_id.clone(),
-			server_key.to_vec(),
-			signed_server_key.v(),
-			signed_server_key.r().into(),
-			signed_server_key.s().into()
-		)?;
+		let transaction_data = data.contract.functions()
+			.server_key_generated()
+			.input(*server_key_id,
+				server_key.to_vec(),
+				signed_server_key.v(),
+				signed_server_key.r(),
+				signed_server_key.s(),
+			);
 
 		// send transaction
 		client.transact_contract(
-			data.contract.address.clone(),
+			data.contract_address,
 			transaction_data
 		).map_err(|e| format!("{}", e))?;
 
@@ -278,13 +291,14 @@ impl Iterator for PendingRequestsIterator {
 		self.index = self.index + 1.into();
 
 		let self_address = public_to_address(self.self_key_pair.public());
-		let do_call = |a, d| future::done(self.client.call_contract(BlockId::Hash(self.block.clone()), a, d));
-		self.contract.get_server_key_id(&do_call, index).wait()
+		let contract_address = self.contract_address;
+		let do_call = |data| self.client.call_contract(BlockId::Hash(self.block.clone()), contract_address, data);
+		self.contract.functions().get_server_key_id().call(index, &do_call)
 			.and_then(|server_key_id|
-				self.contract.get_server_key_threshold(&do_call, server_key_id.clone()).wait()
+				self.contract.functions().get_server_key_threshold().call(server_key_id, &do_call)
 					.map(|threshold| (server_key_id, threshold)))
 			.and_then(|(server_key_id, threshold)|
-				self.contract.get_server_key_confirmation_status(&do_call, server_key_id.clone(), self_address).wait()
+				self.contract.functions().get_server_key_confirmation_status().call(server_key_id, self_address, &do_call)
 					.map(|is_confirmed| (server_key_id, threshold, is_confirmed)))
 			.map(|(server_key_id, threshold, is_confirmed)|
 				Some((is_confirmed, ServiceTask::GenerateServerKey(server_key_id, threshold.into()))))

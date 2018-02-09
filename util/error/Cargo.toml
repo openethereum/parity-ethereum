@@ -6,6 +6,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 rlp = { path = "../rlp" }
 kvdb = { path = "../kvdb" }
-ethereum-types = "0.1"
+ethereum-types = "0.2"
 error-chain = { version = "0.11", default-features = false }
 rustc-hex = "1.0"

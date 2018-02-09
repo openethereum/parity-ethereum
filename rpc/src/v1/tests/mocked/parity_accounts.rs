@@ -75,7 +75,7 @@ fn should_be_able_to_get_account_info() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_allAccountsInfo", "params": [], "id": 1}"#;
 	let res = tester.io.handle_request_sync(request);
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{foo: 69}}\",\"name\":\"Test\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid);
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{:x}\":{{\"meta\":\"{{foo: 69}}\",\"name\":\"Test\",\"uuid\":\"{}\"}}}},\"id\":1}}", address, uuid);
 	assert_eq!(res, Some(response));
 }
 
@@ -87,7 +87,7 @@ fn should_be_able_to_set_name() {
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
 
-	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_setAccountName", "params": ["0x{}", "Test"], "id": 1}}"#, address.hex());
+	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_setAccountName", "params": ["0x{:x}", "Test"], "id": 1}}"#, address);
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
@@ -96,7 +96,7 @@ fn should_be_able_to_set_name() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_allAccountsInfo", "params": [], "id": 1}"#;
 	let res = tester.io.handle_request_sync(request);
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{}}\",\"name\":\"Test\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid);
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{:x}\":{{\"meta\":\"{{}}\",\"name\":\"Test\",\"uuid\":\"{}\"}}}},\"id\":1}}", address, uuid);
 	assert_eq!(res, Some(response));
 }
 
@@ -108,7 +108,7 @@ fn should_be_able_to_set_meta() {
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
 
-	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_setAccountMeta", "params": ["0x{}", "{{foo: 69}}"], "id": 1}}"#, address.hex());
+	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_setAccountMeta", "params": ["0x{:x}", "{{foo: 69}}"], "id": 1}}"#, address);
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
@@ -117,7 +117,7 @@ fn should_be_able_to_set_meta() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_allAccountsInfo", "params": [], "id": 1}"#;
 	let res = tester.io.handle_request_sync(request);
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{foo: 69}}\",\"name\":\"\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid);
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{:x}\":{{\"meta\":\"{{foo: 69}}\",\"name\":\"\",\"uuid\":\"{}\"}}}},\"id\":1}}", address, uuid);
 	assert_eq!(res, Some(response));
 }
 
@@ -235,7 +235,7 @@ fn should_be_able_to_kill_account() {
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
 
-	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_killAccount", "params": ["0x{}", "password"], "id": 1}}"#, address.hex());
+	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_killAccount", "params": ["0x{:x}", "password"], "id": 1}}"#, address);
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
@@ -334,7 +334,7 @@ fn rpc_parity_change_vault() {
 	let (address, _) = tester.accounts.new_account_and_public("root_password").unwrap();
 	assert!(tester.accounts.create_vault("vault1", "password1").is_ok());
 
-	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_changeVault", "params":["0x{}", "vault1"], "id": 1}}"#, address.hex());
+	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_changeVault", "params":["0x{:x}", "vault1"], "id": 1}}"#, address);
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
@@ -351,7 +351,7 @@ fn rpc_parity_vault_adds_vault_field_to_acount_meta() {
 	assert!(tester.accounts.change_vault(address1, "vault1").is_ok());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_allAccountsInfo", "params":[], "id": 1}"#;
-	let response = format!(r#"{{"jsonrpc":"2.0","result":{{"0x{}":{{"meta":"{{\"vault\":\"vault1\"}}","name":"","uuid":"{}"}}}},"id":1}}"#, address1.hex(), uuid1);
+	let response = format!(r#"{{"jsonrpc":"2.0","result":{{"0x{:x}":{{"meta":"{{\"vault\":\"vault1\"}}","name":"","uuid":"{}"}}}},"id":1}}"#, address1, uuid1);
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
@@ -359,7 +359,7 @@ fn rpc_parity_vault_adds_vault_field_to_acount_meta() {
 	assert!(tester.accounts.change_vault(address1, "").is_ok());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_allAccountsInfo", "params":[], "id": 1}"#;
-	let response = format!(r#"{{"jsonrpc":"2.0","result":{{"0x{}":{{"meta":"{{}}","name":"","uuid":"{}"}}}},"id":1}}"#, address1.hex(), uuid1);
+	let response = format!(r#"{{"jsonrpc":"2.0","result":{{"0x{:x}":{{"meta":"{{}}","name":"","uuid":"{}"}}}},"id":1}}"#, address1, uuid1);
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
