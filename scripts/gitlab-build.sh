@@ -212,7 +212,7 @@ case $BUILD_PLATFORM in
     EXT="deb"
     build
     strip_binaries
-	calculate_checksums
+    calculate_checksums
     make_deb
     make_archive
     push_binaries
@@ -225,7 +225,7 @@ case $BUILD_PLATFORM in
     echo "Use libssl1.1 (>=1.1.0) for Debian builds"
     build
     strip_binaries
-	calculate_checksums
+    calculate_checksums
     make_deb
     make_archive
     push_binaries
@@ -235,7 +235,7 @@ case $BUILD_PLATFORM in
     EXT="rpm"
     build
     strip_binaries
-	calculate_checksums
+    calculate_checksums
     make_rpm
     make_archive
     push_binaries
@@ -246,7 +246,7 @@ case $BUILD_PLATFORM in
     set_env
     build
     strip_binaries
-	calculate_checksums
+    calculate_checksums
     make_deb
     make_archive
     push_binaries
@@ -257,7 +257,7 @@ case $BUILD_PLATFORM in
     set_env
     build
     strip_binaries
-	calculate_checksums
+    calculate_checksums
     make_deb
     make_archive
     push_binaries
@@ -268,7 +268,7 @@ case $BUILD_PLATFORM in
     set_env
     build
     strip_binaries
-	calculate_checksums
+    calculate_checksums
     make_deb
     make_archive
     push_binaries
@@ -279,7 +279,7 @@ case $BUILD_PLATFORM in
     set_env
     build
     strip_binaries
-	calculate_checksums
+    calculate_checksums
     make_deb
     make_archive
     push_binaries
@@ -290,7 +290,7 @@ case $BUILD_PLATFORM in
     EXT="pkg"
     build
     strip_binaries
-	calculate_checksums
+    calculate_checksums
     make_pkg
     make_archive
     push_binaries
@@ -313,10 +313,10 @@ case $BUILD_PLATFORM in
     EXT="exe"
     S3WIN=".exe"
     build
-	sign_exe
-	calculate_checksums
+    sign_exe
+    calculate_checksums
     make_exe
     make_archive
     push_binaries
-	updater_push_release
+    updater_push_release
 esac
