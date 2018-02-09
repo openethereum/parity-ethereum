@@ -22,7 +22,7 @@ use std::collections::hash_map::Entry;
 use bytes::Bytes;
 use ethcore::account_provider::SignError as AccountError;
 use ethcore::block::{Block, ClosedBlock};
-use ethcore::client::{MiningBlockChainClient, Nonce, PrepareOpenBlock, StateClient, EngineInfo};
+use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
 use ethcore::engines::EthEngine;
 use ethcore::error::Error;
 use ethcore::header::{BlockNumber, Header};
@@ -265,7 +265,7 @@ impl MinerService for TestMinerService {
 		self.pending_transactions.lock().get(hash).cloned().map(Into::into)
 	}
 
-	fn remove_pending_transaction(&self, _chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction> {
+	fn remove_pending_transaction<C>(&self, _chain: &C, hash: &H256) -> Option<PendingTransaction> {
 		self.pending_transactions.lock().remove(hash).map(Into::into)
 	}
 
@@ -315,7 +315,7 @@ impl MinerService for TestMinerService {
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, _chain: &MiningBlockChainClient, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
+	fn submit_seal<C>(&self, _chain: &C, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
 		unimplemented!();
 	}
 
