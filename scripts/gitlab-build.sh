@@ -22,8 +22,11 @@ echo "Parity version:     " $VER
 echo "Branch:             " $CI_BUILD_REF_NAME
 echo "--------------------"
 
-MD5_BIN="rhash -p %m"
-SHA256_BIN="rhash -p %{sha-256}"
+# NOTE for md5 and sha256 we want to display filename as well
+# hence we use --* instead of -p *
+MD5_BIN="rhash --md5"
+SHA256_BIN="rhash --sha256"
+# NOTE For SHA3 we need only hash (hence -p)
 SHA3_BIN="rhash -p %{sha3-256}"
 
 set_env () {
@@ -156,7 +159,7 @@ make_exe () {
   cp nsis/installer.exe "parity_"$VER"_"$IDENT"_"$ARC"."$EXT
   ./sign.cmd $keyfile $certpass "parity_"$VER"_"$IDENT"_"$ARC"."$EXT
   $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
-  $SHA3_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
+  $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
 }
 push_binaries () {
   echo "Push binaries to AWS S3"
