@@ -45,7 +45,7 @@ ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
 ethcore-stratum = { path = "stratum" }
 ethcore-transaction = { path = "ethcore/transaction" }
-ethereum-types = "0.1"
+ethereum-types = "0.2"
 node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
 node-health = { path = "dapps/node-health" }

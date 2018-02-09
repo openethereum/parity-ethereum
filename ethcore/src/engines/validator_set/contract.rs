@@ -18,12 +18,10 @@
 /// It can also report validators for misbehaviour with two levels: `reportMalicious` and `reportBenign`.
 
 use std::sync::Weak;
+
+use bytes::Bytes;
 use ethereum_types::{H256, Address};
 use parking_lot::RwLock;
-use bytes::Bytes;
-
-use futures::Future;
-use native_contracts::ValidatorReport as Provider;
 
 use client::EngineClient;
 use header::{Header, BlockNumber};
@@ -32,40 +30,41 @@ use machine::{AuxiliaryData, Call, EthereumMachine};
 use super::{ValidatorSet, SimpleList, SystemCall};
 use super::safe_contract::ValidatorSafeContract;
 
+use_contract!(validator_report, "ValidatorReport", "res/contracts/validator_report.json");
+
 /// A validator contract with reporting.
 pub struct ValidatorContract {
+	contract_address: Address,
 	validators: ValidatorSafeContract,
-	provider: Provider,
+	provider: validator_report::ValidatorReport,
 	client: RwLock<Option<Weak<EngineClient>>>, // TODO [keorn]: remove
 }
 
 impl ValidatorContract {
 	pub fn new(contract_address: Address) -> Self {
 		ValidatorContract {
+			contract_address,
 			validators: ValidatorSafeContract::new(contract_address),
-			provider: Provider::new(contract_address),
+			provider: validator_report::ValidatorReport::default(),
 			client: RwLock::new(None),
 		}
 	}
 }
 
 impl ValidatorContract {
-	// could be `impl Trait`.
-	// note: dispatches transactions to network as well as execute.
-	// TODO [keorn]: Make more general.
-	fn transact(&self) -> Box<Fn(Address, Bytes) -> Result<Bytes, String>> {
-		let client = self.client.read().clone();
-		Box::new(move |a, d| client.as_ref()
+	fn transact(&self, data: Bytes) -> Result<(), String> {
+		let client = self.client.read().as_ref()
 			.and_then(Weak::upgrade)
-			.ok_or_else(|| "No client!".into())
-			.and_then(|c| {
-				match c.as_full_client() {
-					Some(c) => c.transact_contract(a, d)
-						.map_err(|e| format!("Transaction import error: {}", e)),
-					None => Err("No full client!".into()),
-				}
-			})
-			.map(|_| Default::default()))
+			.ok_or_else(|| "No client!")?;
+
+		match client.as_full_client() {
+			Some(c) => {
+				c.transact_contract(self.contract_address, data)
+					.map_err(|e| format!("Transaction import error: {}", e))?;
+				Ok(())
+			},
+			None => Err("No full client!".into()),
+		}
 	}
 }
 
@@ -112,14 +111,16 @@ impl ValidatorSet for ValidatorContract {
 	}
 
 	fn report_malicious(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber, proof: Bytes) {
-		match self.provider.report_malicious(&*self.transact(), *address, block.into(), proof).wait() {
+		let data = self.provider.functions().report_malicious().input(*address, block, proof);
+		match self.transact(data) {
 			Ok(_) => warn!(target: "engine", "Reported malicious validator {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}
 	}
 
 	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber) {
-		match self.provider.report_benign(&*self.transact(), *address, block.into()).wait() {
+		let data = self.provider.functions().report_benign().input(*address, block);
+		match self.transact(data) {
 			Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}

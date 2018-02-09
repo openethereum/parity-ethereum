@@ -17,12 +17,10 @@
 use std::sync::Arc;
 use std::net::SocketAddr;
 use std::collections::{BTreeMap, HashSet};
-use futures::{future, Future, IntoFuture};
 use parking_lot::Mutex;
 use ethcore::filter::Filter;
 use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
 use ethkey::public_to_address;
-use native_contracts::KeyServerSet as KeyServerSetContract;
 use hash::keccak;
 use ethereum_types::{H256, Address};
 use bytes::Bytes;
@@ -30,7 +28,7 @@ use types::all::{Error, Public, NodeAddress, NodeId};
 use trusted_client::TrustedClient;
 use {NodeKeyPair};
 
-type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
+use_contract!(key_server, "KeyServerSet", "res/key_server_set.json");
 
 /// Name of KeyServerSet contract in registry.
 const KEY_SERVER_SET_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_server_set";
@@ -118,7 +116,9 @@ struct CachedContract {
 	/// Blockchain client.
 	client: TrustedClient,
 	/// Contract address.
-	contract: Option<KeyServerSetContract>,
+	contract_address: Option<Address>,
+	/// Contract interface.
+	contract: key_server::KeyServerSet,
 	/// Is auto-migrate enabled?
 	auto_migrate_enabled: bool,
 	/// Current contract state.
@@ -168,6 +168,77 @@ impl ChainNotify for OnChainKeyServerSet {
 	}
 }
 
+trait KeyServerSubset<F: Fn(Vec<u8>) -> Result<Vec<u8>, String>> {
+	fn read_list(&self, f: &F) -> Result<Vec<Address>, String>;
+
+	fn read_public(&self, address: Address, f: &F) -> Result<Bytes, String>;
+
+	fn read_address(&self, address: Address, f: &F) -> Result<String, String>;
+}
+
+#[derive(Default)]
+struct CurrentKeyServerSubset {
+	read_list: key_server::functions::GetCurrentKeyServers,
+	read_public: key_server::functions::GetCurrentKeyServerPublic,
+	read_address: key_server::functions::GetCurrentKeyServerAddress,
+}
+
+impl <F: Fn(Vec<u8>) -> Result<Vec<u8>, String>> KeyServerSubset<F> for CurrentKeyServerSubset {
+	fn read_list(&self, f: &F) -> Result<Vec<Address>, String> {
+		self.read_list.call(f).map_err(|e| e.to_string())
+	}
+
+	fn read_public(&self, address: Address, f: &F) -> Result<Bytes, String> {
+		self.read_public.call(address, f).map_err(|e| e.to_string())
+	}
+
+	fn read_address(&self, address: Address, f: &F) -> Result<String, String> {
+		self.read_address.call(address, f).map_err(|e| e.to_string())
+	}
+}
+
+#[derive(Default)]
+struct MigrationKeyServerSubset {
+	read_list: key_server::functions::GetMigrationKeyServers,
+	read_public: key_server::functions::GetMigrationKeyServerPublic,
+	read_address: key_server::functions::GetMigrationKeyServerAddress,
+}
+
+impl <F: Fn(Vec<u8>) -> Result<Vec<u8>, String>> KeyServerSubset<F> for MigrationKeyServerSubset {
+	fn read_list(&self, f: &F) -> Result<Vec<Address>, String> {
+		self.read_list.call(f).map_err(|e| e.to_string())
+	}
+
+	fn read_public(&self, address: Address, f: &F) -> Result<Bytes, String> {
+		self.read_public.call(address, f).map_err(|e| e.to_string())
+	}
+
+	fn read_address(&self, address: Address, f: &F) -> Result<String, String> {
+		self.read_address.call(address, f).map_err(|e| e.to_string())
+	}
+}
+
+#[derive(Default)]
+struct NewKeyServerSubset {
+	read_list: key_server::functions::GetNewKeyServers,
+	read_public: key_server::functions::GetNewKeyServerPublic,
+	read_address: key_server::functions::GetNewKeyServerAddress,
+}
+
+impl <F: Fn(Vec<u8>) -> Result<Vec<u8>, String>> KeyServerSubset<F> for NewKeyServerSubset {
+	fn read_list(&self, f: &F) -> Result<Vec<Address>, String> {
+		self.read_list.call(f).map_err(|e| e.to_string())
+	}
+
+	fn read_public(&self, address: Address, f: &F) -> Result<Bytes, String> {
+		self.read_public.call(address, f).map_err(|e| e.to_string())
+	}
+
+	fn read_address(&self, address: Address, f: &F) -> Result<String, String> {
+		self.read_address.call(address, f).map_err(|e| e.to_string())
+	}
+}
+
 impl CachedContract {
 	pub fn new(client: TrustedClient, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
 		let server_set = key_servers.into_iter()
@@ -179,7 +250,8 @@ impl CachedContract {
 			.collect::<Result<BTreeMap<_, _>, Error>>()?;
 		Ok(CachedContract {
 			client: client,
-			contract: None,
+			contract_address: None,
+			contract: key_server::KeyServerSet::default(),
 			auto_migrate_enabled: auto_migrate_enabled,
 			future_new_set: None,
 			confirm_migration_tx: None,
@@ -208,54 +280,40 @@ impl CachedContract {
 	}
 
 	fn start_migration(&mut self, migration_id: H256) {
-		// trust is not needed here, because it is the reaction to the read of the trusted client 
-		if let (Some(client), Some(contract)) = (self.client.get_untrusted(), self.contract.as_ref()) {
+		// trust is not needed here, because it is the reaction to the read of the trusted client
+		if let (Some(client), Some(contract_address)) = (self.client.get_untrusted(), self.contract_address) {
 			// check if we need to send start migration transaction
 			if !update_last_transaction_block(&*client, &migration_id, &mut self.start_migration_tx) {
 				return;
 			}
 
 			// prepare transaction data
-			let transaction_data = match contract.encode_start_migration_input(migration_id) {
-				Ok(transaction_data) => transaction_data,
-				Err(error) => {
-					warn!(target: "secretstore_net", "{}: failed to prepare auto-migration start transaction: {}",
-						self.self_key_pair.public(), error);
-					return;
-				},
-			};
+			let transaction_data = self.contract.functions().start_migration().input(migration_id);
 
 			// send transaction
-			if let Err(error) = client.transact_contract(contract.address.clone(), transaction_data) {
+			if let Err(error) = client.transact_contract(contract_address, transaction_data) {
 				warn!(target: "secretstore_net", "{}: failed to submit auto-migration start transaction: {}",
 					self.self_key_pair.public(), error);
 			} else {
 				trace!(target: "secretstore_net", "{}: sent auto-migration start transaction",
-					self.self_key_pair.public(), );
+					self.self_key_pair.public());
 			}
 		}
 	}
 
 	fn confirm_migration(&mut self, migration_id: H256) {
 		// trust is not needed here, because we have already completed the action
-		if let (Some(client), Some(contract)) = (self.client.get(), self.contract.as_ref()) {
+		if let (Some(client), Some(contract_address)) = (self.client.get(), self.contract_address) {
 			// check if we need to send start migration transaction
 			if !update_last_transaction_block(&*client, &migration_id, &mut self.confirm_migration_tx) {
 				return;
 			}
 
 			// prepare transaction data
-			let transaction_data = match contract.encode_confirm_migration_input(migration_id) {
-				Ok(transaction_data) => transaction_data,
-				Err(error) => {
-					warn!(target: "secretstore_net", "{}: failed to prepare auto-migration confirmation transaction: {}",
-						self.self_key_pair.public(), error);
-					return;
-				},
-			};
+			let transaction_data = self.contract.functions().confirm_migration().input(migration_id);
 
 			// send transaction
-			if let Err(error) = client.transact_contract(contract.address.clone(), transaction_data) {
+			if let Err(error) = client.transact_contract(contract_address, transaction_data) {
 				warn!(target: "secretstore_net", "{}: failed to submit auto-migration confirmation transaction: {}",
 					self.self_key_pair.public(), error);
 			} else {
@@ -270,18 +328,18 @@ impl CachedContract {
 		let new_contract_addr = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
 
 		// new contract installed => read nodes set from the contract
-		if self.contract.as_ref().map(|c| &c.address) != new_contract_addr.as_ref() {
+		if self.contract_address.as_ref() != new_contract_addr.as_ref() {
 			self.read_from_registry(&*client, new_contract_addr);
 			return;
 		}
 
 		// check for contract events
-		let is_set_changed = self.contract.is_some() && enacted.iter()
+		let is_set_changed = self.contract_address.is_some() && enacted.iter()
 			.chain(retracted.iter())
 			.any(|block_hash| !client.logs(Filter {
 				from_block: BlockId::Hash(block_hash.clone()),
 				to_block: BlockId::Hash(block_hash.clone()),
-				address: self.contract.as_ref().map(|c| vec![c.address.clone()]),
+				address: self.contract_address.map(|address| vec![address]),
 				topics: vec![
 					Some(vec![*ADDED_EVENT_NAME_HASH, *REMOVED_EVENT_NAME_HASH,
 						*MIGRATION_STARTED_EVENT_NAME_HASH, *MIGRATION_COMPLETED_EVENT_NAME_HASH]),
@@ -299,14 +357,13 @@ impl CachedContract {
 	}
 
 	fn read_from_registry(&mut self, client: &Client, new_contract_address: Option<Address>) {
-		self.contract = new_contract_address.map(|contract_addr| {
+		if let Some(ref contract_addr) = new_contract_address {
 			trace!(target: "secretstore", "Configuring for key server set contract from {}", contract_addr);
+		}
+		self.contract_address = new_contract_address;
 
-			KeyServerSetContract::new(contract_addr)
-		});
-
-		let contract = match self.contract.as_ref() {
-			Some(contract) => contract,
+		let contract_address = match self.contract_address {
+			Some(contract_address) => contract_address,
 			None => {
 				// no contract installed => empty snapshot
 				// WARNING: after restart current_set will be reset to the set from configuration file
@@ -318,28 +375,25 @@ impl CachedContract {
 			},
 		};
 
-		let do_call = |a, d| future::done(client.call_contract(BlockId::Latest, a, d));
+		let do_call = |data| client.call_contract(BlockId::Latest, contract_address, data);
 
-		let current_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_current_key_servers,
-			&KeyServerSetContract::get_current_key_server_public, &KeyServerSetContract::get_current_key_server_address);
+		let current_set = Self::read_key_server_set(CurrentKeyServerSubset::default(), &do_call);
 
 		// read migration-related data if auto migration is enabled
 		let (new_set, migration) = match self.auto_migrate_enabled {
 			true => {
-				let new_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_new_key_servers,
-					&KeyServerSetContract::get_new_key_server_public, &KeyServerSetContract::get_new_key_server_address);
-				let migration_set = Self::read_key_server_set(&contract, &do_call, &KeyServerSetContract::get_migration_key_servers,
-					&KeyServerSetContract::get_migration_key_server_public, &KeyServerSetContract::get_migration_key_server_address);
+				let new_set = Self::read_key_server_set(NewKeyServerSubset::default(), &do_call);
+				let migration_set = Self::read_key_server_set(MigrationKeyServerSubset::default(), &do_call);
 
 				let migration_id = match migration_set.is_empty() {
-					false => contract.get_migration_id(&do_call).wait()
+					false => self.contract.functions().get_migration_id().call(&do_call)
 						.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration id from contract", err); err })
 						.ok(),
 					true => None,
 				};
 
 				let migration_master = match migration_set.is_empty() {
-					false => contract.get_migration_master(&do_call).wait()
+					false => self.contract.functions().get_migration_master().call(&do_call)
 						.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration master from contract", err); err })
 						.ok()
 						.and_then(|address| current_set.keys().chain(migration_set.keys())
@@ -350,7 +404,7 @@ impl CachedContract {
 
 				let is_migration_confirmed = match migration_set.is_empty() {
 					false if current_set.contains_key(self.self_key_pair.public()) || migration_set.contains_key(self.self_key_pair.public()) =>
-						contract.is_migration_confirmed(&do_call, self.self_key_pair.address()).wait()
+						self.contract.functions().is_migration_confirmed().call(self.self_key_pair.address(), &do_call)
 							.map_err(|err| { trace!(target: "secretstore", "Error {} reading migration confirmation from contract", err); err })
 							.ok(),
 					_ => None,
@@ -387,23 +441,19 @@ impl CachedContract {
 		self.snapshot = new_snapshot;
 	}
 
-	fn read_key_server_set<F, U, FL, FP, FA>(contract: &KeyServerSetContract, do_call: F, read_list: FL, read_public: FP, read_address: FA) -> BTreeMap<Public, SocketAddr>
+	fn read_key_server_set<T, F>(subset: T, do_call: F) -> BTreeMap<Public, SocketAddr>
 		where
-			F: FnOnce(Address, Vec<u8>) -> U + Copy,
-			U: IntoFuture<Item=Vec<u8>, Error=String>,
-			U::Future: Send + 'static,
-			FL: Fn(&KeyServerSetContract, F) -> BoxFuture<Vec<Address>, String>,
-			FP: Fn(&KeyServerSetContract, F, Address) -> BoxFuture<Vec<u8>, String>,
-			FA: Fn(&KeyServerSetContract, F, Address) -> BoxFuture<String, String> {
+			T: KeyServerSubset<F>,
+			F: Fn(Vec<u8>) -> Result<Vec<u8>, String> {
 		let mut key_servers = BTreeMap::new();
 		let mut key_servers_addresses = HashSet::new();
-		let key_servers_list = read_list(contract, do_call).wait()
+		let key_servers_list = subset.read_list(&do_call)
 			.map_err(|err| { warn!(target: "secretstore_net", "error {} reading list of key servers from contract", err); err })
 			.unwrap_or_default();
 		for key_server in key_servers_list {
-			let key_server_public = read_public(contract, do_call, key_server).wait()
+			let key_server_public = subset.read_public(key_server, &do_call)
 				.and_then(|p| if p.len() == 64 { Ok(Public::from_slice(&p)) } else { Err(format!("Invalid public length {}", p.len())) });
-			let key_server_address: Result<SocketAddr, _> = read_address(contract, do_call, key_server).wait()
+			let key_server_address: Result<SocketAddr, _> = subset.read_address(key_server, &do_call)
 				.and_then(|a| a.parse().map_err(|e| format!("Invalid ip address: {}", e)));
 
 			// only add successfully parsed nodes

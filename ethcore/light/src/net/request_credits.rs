@@ -320,7 +320,7 @@ impl FlowParams {
 	/// and number of requests made.
 	pub fn compute_cost(&self, request: &Request) -> Option<U256> {
 		match *request {
-			Request::Headers(ref req) => self.costs.headers.map(|c| c * req.max.into()),
+			Request::Headers(ref req) => self.costs.headers.map(|c| c * U256::from(req.max)),
 			Request::HeaderProof(_) => self.costs.header_proof,
 			Request::TransactionIndex(_) => self.costs.transaction_index,
 			Request::Body(_) => self.costs.body,
@@ -444,6 +444,6 @@ mod tests {
 		);
 
 		assert_eq!(flow_params2.costs, flow_params3.costs);
-		assert_eq!(flow_params.costs.headers.unwrap(), flow_params2.costs.headers.unwrap() * 2.into());
+		assert_eq!(flow_params.costs.headers.unwrap(), flow_params2.costs.headers.unwrap() * 2u32);
 	}
 }

@@ -1,9 +1,0 @@
-[package]
-name = "native-contract-generator"
-description = "Generates Rust code for ethereum contract ABIs"
-version = "0.1.0"
-authors = ["Parity Technologies <admin@parity.io>"]
-
-[dependencies]
-ethabi = "4.0"
-heck = "0.3"
