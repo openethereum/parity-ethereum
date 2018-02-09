@@ -48,20 +48,6 @@ use types::block_status::BlockStatus;
 use types::mode::Mode;
 use types::pruning_info::PruningInfo;
 
-/// Provides `nonce` and `latest_nonce` methods
-pub trait Nonce {
-	/// Attempt to get address nonce at given block.
-	/// May not fail on BlockId::Latest.
-	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256>;
-
-	/// Get address nonce at the latest block's state.
-	fn latest_nonce(&self, address: &Address) -> U256 {
-		self.nonce(address, BlockId::Latest)
-			.expect("nonce will return Some when given BlockId::Latest. nonce was given BlockId::Latest. \
-			Therefore nonce has returned Some; qed")
-	}
-}
-
 /// State information to be used during client query
 pub enum StateOrBlock {
 	/// State to be used, may be pending
@@ -89,6 +75,20 @@ impl From<BlockId> for StateOrBlock {
 	}
 }
 
+/// Provides `nonce` and `latest_nonce` methods
+pub trait Nonce {
+	/// Attempt to get address nonce at given block.
+	/// May not fail on BlockId::Latest.
+	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256>;
+
+	/// Get address nonce at the latest block's state.
+	fn latest_nonce(&self, address: &Address) -> U256 {
+		self.nonce(address, BlockId::Latest)
+			.expect("nonce will return Some when given BlockId::Latest. nonce was given BlockId::Latest. \
+			Therefore nonce has returned Some; qed")
+	}
+}
+
 /// Provides `balance` and `latest_balance` methods
 pub trait Balance {
 	/// Get address balance at the given block's state.
@@ -104,6 +104,9 @@ pub trait Balance {
 			Therefore balance has returned Some; qed")
 	}
 }
+
+/// Provides methods to access account info
+pub trait AccountData: Nonce + Balance {}
 
 /// Provides `chain_info` method
 pub trait ChainInfo {
@@ -126,17 +129,30 @@ pub trait BlockInfo {
 	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256>;
 }
 
-/// Provides `call_contract` method
-pub trait CallContract {
-	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
-	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
-}
-
 /// Provides various information on a transaction by it's ID
 pub trait TransactionInfo {
 	/// Get the hash of block that contains the transaction, if any.
 	fn transaction_block(&self, id: TransactionId) -> Option<H256>;
 }
+
+/// Provides methods to access chain state
+pub trait StateClient {
+	/// Type representing chain state
+	type State: StateInfo;
+
+	/// Get a copy of the best block's state.
+	fn latest_state(&self) -> Self::State;
+
+	/// Attempt to get a copy of a specific block's final state.
+	///
+	/// This will not fail if given BlockId::Latest.
+	/// Otherwise, this can fail (but may not) if the DB prunes state or the block
+	/// is unknown.
+	fn state_at(&self, id: BlockId) -> Option<Self::State>;
+}
+
+/// Provides various blockchain information, like block header, chain state etc.
+pub trait BlockChain: ChainInfo + BlockInfo + TransactionInfo + StateClient {}
 
 /// Provides information on a blockchain service and it's registry
 pub trait RegistryInfo {
@@ -154,20 +170,10 @@ pub trait ImportBlock {
 	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
 }
 
-/// Provides methods to access chain state
-pub trait StateClient {
-	/// Type representing chain state
-	type State: StateInfo;
-
-	/// Get a copy of the best block's state.
-	fn latest_state(&self) -> Self::State;
-
-	/// Attempt to get a copy of a specific block's final state.
-	///
-	/// This will not fail if given BlockId::Latest.
-	/// Otherwise, this can fail (but may not) if the DB prunes state or the block
-	/// is unknown.
-	fn state_at(&self, id: BlockId) -> Option<Self::State>;
+/// Provides `call_contract` method
+pub trait CallContract {
+	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
+	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
 }
 
 /// Provides `call` and `call_many` methods
@@ -390,6 +396,9 @@ pub trait PrepareOpenBlock {
 		extra_data: Bytes
 	) -> OpenBlock;
 }
+
+/// Provides methods used for sealing new state
+pub trait BlockProducer: PrepareOpenBlock + ReopenBlock {}
 
 /// Provides `latest_schedule` method
 pub trait ScheduleInfo {

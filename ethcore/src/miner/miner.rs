@@ -1032,7 +1032,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn remove_pending_transaction(&self, chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction> {
+	fn remove_pending_transaction<C: Nonce>(&self, chain: &C, hash: &H256) -> Option<PendingTransaction> {
 		let mut queue = self.transaction_queue.write();
 		let tx = queue.find(hash);
 		if tx.is_some() {
@@ -1158,7 +1158,7 @@ impl MinerService for Miner {
 		ret.map(f)
 	}
 
-	fn submit_seal(&self, chain: &MiningBlockChainClient, block_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
+	fn submit_seal<C: ImportSealedBlock>(&self, chain: &C, block_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
 		let result =
 			if let Some(b) = self.sealing_work.lock().queue.get_used_if(
 				if self.options.enable_resubmission {

@@ -142,7 +142,7 @@ pub trait MinerService : Send + Sync {
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
+	fn submit_seal<C: ImportSealedBlock>(&self, chain: &C, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
 
 	/// Get the sealing work package and if `Some`, apply some transform.
 	fn map_sealing_work<C, F, T>(&self, client: &C, f: F) -> Option<T>
@@ -155,7 +155,7 @@ pub trait MinerService : Send + Sync {
 
 	/// Removes transaction from the queue.
 	/// NOTE: The transaction is not removed from pending block if mining.
-	fn remove_pending_transaction(&self, chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction>;
+	fn remove_pending_transaction<C: Nonce>(&self, chain: &C, hash: &H256) -> Option<PendingTransaction>;
 
 	/// Get a list of all pending transactions in the queue.
 	fn pending_transactions(&self) -> Vec<PendingTransaction>;
