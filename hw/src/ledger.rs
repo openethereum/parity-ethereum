@@ -57,10 +57,14 @@ pub enum Error {
 	Protocol(&'static str),
 	/// Hidapi error.
 	Usb(hidapi::HidError),
+	/// Libusb error
+	LibUsb(libusb::Error),
 	/// Device with request key is not available.
 	KeyNotFound,
 	/// Signing has been cancelled by user.
 	UserCancel,
+	/// Invalid Product
+	InvalidProduct,
 }
 
 impl fmt::Display for Error {
@@ -68,8 +72,10 @@ impl fmt::Display for Error {
 		match *self {
 			Error::Protocol(ref s) => write!(f, "Ledger protocol error: {}", s),
 			Error::Usb(ref e) => write!(f, "USB communication error: {}", e),
+			Error::LibUsb(ref e) => write!(f, "LibUSB communication error: {}", e),
 			Error::KeyNotFound => write!(f, "Key not found"),
 			Error::UserCancel => write!(f, "Operation has been cancelled"),
+			Error::InvalidProduct=> write!(f, "Unsupported product was entered"),
 		}
 	}
 }
@@ -77,6 +83,12 @@ impl fmt::Display for Error {
 impl From<hidapi::HidError> for Error {
 	fn from(err: hidapi::HidError) -> Error {
 		Error::Usb(err)
+	}
+}
+
+impl From<libusb::Error> for Error {
+	fn from(err: libusb::Error) -> Error {
+		Error::LibUsb(err)
 	}
 }
 
@@ -340,14 +352,23 @@ impl EventHandler {
 	pub fn new(ledger: Weak<Manager>) -> Self {
 		Self { ledger: ledger }
 	}
+
+	fn is_valid_product(&self, device: &libusb::Device) -> Result<(), Error> {
+		let product_id = device.device_descriptor()?.product_id();
+		match LEDGER_PIDS.contains(&product_id) {
+			true => Ok(()),
+			false => Err(Error::InvalidProduct),
+		}
+	}
 }
 
 
 impl libusb::Hotplug for EventHandler {
-	fn device_arrived(&mut self, _device: libusb::Device) {
+	fn device_arrived(&mut self, device: libusb::Device) {
 		println!("ledger arrived");
 		Duration::from_millis(1000);
-		if let Some(t) = self.ledger.upgrade() {
+
+		if let (Some(t), Ok(_)) = (self.ledger.upgrade(), self.is_valid_product(&device)) {
 			// Wait for the device to bootup
 			thread::sleep(Duration::from_millis(1000));
 			if let Err(e) = t.update_devices() {
