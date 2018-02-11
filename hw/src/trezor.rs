@@ -91,7 +91,7 @@ impl From<protobuf::ProtobufError> for Error {
 pub struct Manager {
 	usb: Arc<Mutex<hidapi::HidApi>>,
 	devices: RwLock<Vec<Device>>,
-	closed_devices: RwLock<Vec<String>>,
+	locked_devices: RwLock<Vec<String>>,
 	key_path: RwLock<KeyPath>,
 }
 
@@ -113,7 +113,7 @@ impl Manager {
 		Manager {
 			usb: hidapi,
 			devices: RwLock::new(Vec::new()),
-			closed_devices: RwLock::new(Vec::new()),
+			locked_devices: RwLock::new(Vec::new()),
 			key_path: RwLock::new(KeyPath::Ethereum),
 		}
 	}
@@ -124,7 +124,7 @@ impl Manager {
 		usb.refresh_devices();
 		let devices = usb.devices();
 		let mut new_devices = Vec::new();
-		let mut closed_devices = Vec::new();
+		let mut locked_devices = Vec::new();
 		let mut error = None;
 		for usb_device in devices {
 			let is_trezor = usb_device.vendor_id == TREZOR_VID;
@@ -143,7 +143,7 @@ impl Manager {
 			}
 			match self.read_device_info(&usb, &usb_device) {
 				Ok(device) => new_devices.push(device),
-				Err(Error::ClosedDevice(path)) => closed_devices.push(path.to_string()),
+				Err(Error::ClosedDevice(path)) => locked_devices.push(path.to_string()),
 				Err(e) => {
 					warn!("Error reading device: {:?}", e);
 					error = Some(e);
@@ -151,9 +151,9 @@ impl Manager {
 			}
 		}
 		let count = new_devices.len();
-		trace!("Got devices: {:?}, closed: {:?}", new_devices, closed_devices);
+		trace!("Got devices: {:?}, closed: {:?}", new_devices, locked_devices);
 		*self.devices.write() = new_devices;
-		*self.closed_devices.write() = closed_devices;
+		*self.locked_devices.write() = locked_devices;
 		match error {
 			Some(e) => Err(e),
 			None => Ok(count),
@@ -193,7 +193,7 @@ impl Manager {
 	}
 
 	pub fn list_locked_devices(&self) -> Vec<String> {
-		(*self.closed_devices.read()).clone()
+		(*self.locked_devices.read()).clone()
 	}
 
 	/// Get wallet info.
@@ -418,11 +418,14 @@ impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, _device: libusb::Device) {
 		println!("trezor arrived");
 		if let Some(t) = self.trezor.upgrade() {
-			// Wait for the device to boot up
+			// Wait for the device to boot-up
 			thread::sleep(Duration::from_millis(1000));
 			if let Err(e) = t.update_devices() {
 				debug!("TREZOR Connect Error: {:?}", e);
 			}
+			println!("unlocked devices: {:?}", t.list_devices());
+			println!("locked devices: {:?}", t.list_locked_devices());
+
 		}
 	}
 
@@ -435,7 +438,6 @@ impl libusb::Hotplug for EventHandler {
 		}
 	}
 }
-
 
 #[test]
 #[ignore]

@@ -63,8 +63,8 @@ pub enum Error {
 	KeyNotFound,
 	/// Signing has been cancelled by user.
 	UserCancel,
-	/// Invalid Product
-	InvalidProduct,
+	/// Invalid Device
+	InvalidDevice,
 }
 
 impl fmt::Display for Error {
@@ -75,7 +75,7 @@ impl fmt::Display for Error {
 			Error::LibUsb(ref e) => write!(f, "LibUSB communication error: {}", e),
 			Error::KeyNotFound => write!(f, "Key not found"),
 			Error::UserCancel => write!(f, "Operation has been cancelled"),
-			Error::InvalidProduct=> write!(f, "Unsupported product was entered"),
+			Error::InvalidDevice => write!(f, "Unsupported product was entered"),
 		}
 	}
 }
@@ -354,10 +354,14 @@ impl EventHandler {
 	}
 
 	fn is_valid_product(&self, device: &libusb::Device) -> Result<(), Error> {
-		let product_id = device.device_descriptor()?.product_id();
-		match LEDGER_PIDS.contains(&product_id) {
-			true => Ok(()),
-			false => Err(Error::InvalidProduct),
+		let desc = device.device_descriptor()?;
+		let vendor_id = desc.vendor_id();
+		let product_id = desc.product_id();
+
+		if vendor_id == LEDGER_VID && LEDGER_PIDS.contains(&product_id) {
+			Ok(())
+		} else {
+			Err(Error::InvalidDevice)
 		}
 	}
 }

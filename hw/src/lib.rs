@@ -148,16 +148,16 @@ impl HardwareWalletManager {
 		let trezor = Arc::new(trezor::Manager::new(hidapi.clone()));
 
 		// Subscribe to TREZOR V1
-		// Note this support only TREZOR V1 becasue TREZOR V2 has another vendorID for some reason
-		// Because we now only support one product only subscribe to it as the second argument `Some(1)` specifies
+		// Note, this support only TREZOR V1 becasue TREZOR V2 has another vendorID for some reason
+		// Also, we now only support one product as the second argument specifies
 		usb_context_trezor.register_callback(
 			Some(trezor::TREZOR_VID), Some(trezor::TREZOR_PIDS[0]), Some(USB_DEVICE_CLASS_DEVICE),
 			Box::new(trezor::EventHandler::new(Arc::downgrade(&trezor))))?;
 
 		// Subscribe to all Ledger Devices
 		// This means that we need to check that the given productID is supported
-		// None -> LIBUSB_HOTPLUG_MATCH_ANY
-		// http://libusb.sourceforge.net/api-1.0/group__hotplug.html#gae6c5f1add6cc754005549c7259dc35ea
+		// None => LIBUSB_HOTPLUG_MATCH_ANY, in other words that all are subscribed to
+		// More info can be found: http://libusb.sourceforge.net/api-1.0/group__hotplug.html#gae6c5f1add6cc754005549c7259dc35ea
 		usb_context_ledger.register_callback(
 			Some(ledger::LEDGER_VID), None, Some(USB_DEVICE_CLASS_DEVICE),
 			Box::new(ledger::EventHandler::new(Arc::downgrade(&ledger))))?;
