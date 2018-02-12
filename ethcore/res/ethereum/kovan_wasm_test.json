@@ -1,6 +1,6 @@
 {
-	"name": "Kovan",
-	"dataDir": "kovan",
+	"name": "Kovan (Test)",
+	"dataDir": "kovan-test",
 	"engine": {
 		"authorityRound": {
 			"params": {
