@@ -164,7 +164,7 @@ pub fn executor(
 		Some(ref code) => &code[..],
 		None => &[],
 	};
-	vm_factory.create(params.gas, code_ref, block_number)
+	vm_factory.create(params.gas, code_ref, block_numberx)
 }
 
 /// Transaction executor.
