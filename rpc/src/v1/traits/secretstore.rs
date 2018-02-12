@@ -25,9 +25,9 @@ build_rpc_trait! {
 	/// Parity-specific rpc interface.
 	pub trait SecretStore {
 		/// Generate document key to store in secret store.
-		/// Arguments: `server_key_public`.
+		/// Arguments: `account`, `password`, `server_key_public`.
 		#[rpc(name = "secretstore_generateDocumentKey")]
-		fn generate_document_key(&self, H512) -> Result<EncryptedDocumentKey>;
+		fn generate_document_key(&self, H160, String, H512) -> Result<EncryptedDocumentKey>;
 
 		/// Encrypt data with key, received from secret store.
 		/// Arguments: `account`, `password`, `key`, `data`.

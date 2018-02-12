@@ -28,12 +28,22 @@ use tiny_keccak::Keccak;
 const INIT_VEC_LEN: usize = 16;
 
 /// Generate document key to store in secret store.
-pub fn generate_document_key(server_key_public: Public) -> Result<EncryptedDocumentKey, Error> {
+pub fn generate_document_key(account_public: Public, server_key_public: Public) -> Result<EncryptedDocumentKey, Error> {
 	// generate random plain document key
 	let document_key = Random.generate().map_err(errors::encryption)?;
 
-	// encrypt this key using server key
-	encrypt_secret(document_key.public(), &server_key_public)
+	// encrypt document key using server key
+	let (common_point, encrypted_point) = encrypt_secret(document_key.public(), &server_key_public)?;
+
+	// ..and now encrypt document key with account public
+	let encrypted_key = crypto::ecies::encrypt(&account_public, &crypto::DEFAULT_MAC, document_key.public())
+		.map_err(errors::encryption)?;
+
+	Ok(EncryptedDocumentKey {
+		common_point: common_point.into(),
+		encrypted_point: encrypted_point.into(),
+		encrypted_key: encrypted_key.into(),
+	})
 }
 
 /// Encrypt document with distributely generated key.
@@ -123,7 +133,7 @@ fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common_sha
 	Ok(decrypted_shadow)
 }
 
-fn encrypt_secret(secret: &Public, joint_public: &Public) -> Result<EncryptedDocumentKey, Error> {
+fn encrypt_secret(secret: &Public, joint_public: &Public) -> Result<(Public, Public), Error> {
 	// TODO: it is copypaste of `encrypt_secret` from secret_store/src/key_server_cluster/math.rs
 	// use shared version from SS math library, when it'll be available
 
@@ -142,10 +152,7 @@ fn encrypt_secret(secret: &Public, joint_public: &Public) -> Result<EncryptedDoc
 	math::public_add(&mut encrypted_point, secret)
 		.map_err(errors::encryption)?;
 
-	Ok(EncryptedDocumentKey {
-		common_point: common_point.into(),
-		encrypted_point: encrypted_point.into(),
-	})
+	Ok((common_point, encrypted_point))
 }
 
 #[cfg(test)]

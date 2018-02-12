@@ -65,8 +65,11 @@ impl SecretStoreClient {
 }
 
 impl SecretStore for SecretStoreClient {
-	fn generate_document_key(&self, server_key_public: H512) -> Result<EncryptedDocumentKey> {
-		generate_document_key(server_key_public.into())
+	fn generate_document_key(&self, address: H160, password: String, server_key_public: H512) -> Result<EncryptedDocumentKey> {
+		let store = self.account_provider()?;
+		let account_public = store.account_public(address.into(), &password)
+			.map_err(|e| errors::account("Could not read account public.", e))?;
+		generate_document_key(account_public, server_key_public.into())
 	}
 
 	fn encrypt(&self, address: H160, password: String, key: Bytes, data: Bytes) -> Result<Bytes> {
