@@ -9,7 +9,7 @@ ARC=$3
 CC=$4
 CXX=$5
 IDENT=$6
-VER="$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")"
+VER="$(grep -m 1 "version =" Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")"
 S3WIN=""
 echo "--------------------"
 echo "Build for platform: " $BUILD_PLATFORM
