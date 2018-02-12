@@ -583,7 +583,7 @@ mod tests {
 	}
 
 	#[test]
-	fn server_key_generation_is_scheduled_when_requested_key_is_unknnown() {
+	fn server_key_generation_is_scheduled_when_requested_key_is_unknown() {
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(vec![Default::default(), Default::default(), Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
@@ -605,7 +605,7 @@ mod tests {
 	}
 
 	#[test]
-	fn server_key_restore_is_scheduled_when_requested_key_is_knnown() {
+	fn server_key_restore_is_scheduled_when_requested_key_is_known() {
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(vec![Default::default(), Default::default(), Default::default()]);
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
