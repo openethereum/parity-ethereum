@@ -140,7 +140,7 @@ mod tests {
 			"accountStartNonce": "0x01",
 			"gasLimitBoundDivisor": "0x20",
 			"maxCodeSize": "0x1000",
-			"wasmActivationTransition": "0x1010",
+			"wasmActivationTransition": "0x1010"
 		}"#;
 
 		let deserialized: Params = serde_json::from_str(s).unwrap();
