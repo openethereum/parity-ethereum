@@ -56,12 +56,20 @@ pub fn payload<'a>(params: &'a vm::ActionParams, schedule: &vm::Schedule)
 		},
 	};
 
-	let contract_module = wasm_utils::inject_gas_counter(
-		elements::Module::deserialize(
+	let deserialized_module = elements::Module::deserialize(
 			&mut cursor
 		).map_err(|err| {
 			vm::Error::Wasm(format!("Error deserializing contract code ({:?})", err))
-		})?,
+		})?;
+
+	if deserialized_module.memory_section().map_or(false, |ms| ms.entries().len() > 0) {
+		// According to WebAssembly spec, internal memory is hidden from embedder and should not
+		// be interacted with. So we disable this kind of modules at decoding level.
+		return Err(vm::Error::Wasm(format!("Malformed wasm module: internal memory")));
+	}
+
+	let contract_module = wasm_utils::inject_gas_counter(
+		deserialized_module,
 		&gas_rules(schedule),
 	);
 
