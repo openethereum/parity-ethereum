@@ -345,6 +345,11 @@ impl<T, S, L> Pool<T, S, L> where
 		removed
 	}
 
+	/// Returns a transaction if it's part of the pool or `None` otherwise.
+	pub fn find(&self, hash: &H256) -> Option<Arc<T>> {
+		self.by_hash.get(hash).cloned()
+	}
+
 	/// Returns an iterator of pending (ready) transactions.
 	pub fn pending<R: Ready<T>>(&self, ready: R) -> PendingIterator<T, R, S, L> {
 		PendingIterator {

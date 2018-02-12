@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Auto-updates minimal gas price requirement.
+
 use std::time::{Instant, Duration};
 
 use ansi_term::Colour;
@@ -84,7 +86,8 @@ impl GasPricer {
 		GasPricer::Fixed(gas_price)
 	}
 
-	fn recalibrate<F: Fn(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
+	/// Recalibrate current gas price.
+	pub fn recalibrate<F: Fn(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
 		match *self {
 			GasPricer::Fixed(ref max) => set_price(max.clone()),
 			GasPricer::Calibrated(ref mut cal) => cal.recalibrate(set_price),

@@ -34,7 +34,7 @@ use super::client::{Client, TransactionType};
 use super::VerifiedTransaction;
 
 /// Verification options.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Options {
 	/// Minimal allowed gas price.
 	pub minimal_gas_price: U256,

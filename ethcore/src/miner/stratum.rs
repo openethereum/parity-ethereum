@@ -248,7 +248,7 @@ impl Stratum {
 	/// Start STRATUM job dispatcher and register it in the miner
 	pub fn register(cfg: &Options, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), Error> {
 		let stratum = miner::Stratum::start(cfg, Arc::downgrade(&miner.clone()), client)?;
-		miner.push_notifier(Box::new(stratum) as Box<NotifyWork>);
+		miner.push_listener(Box::new(stratum) as Box<NotifyWork>);
 		Ok(())
 	}
 }

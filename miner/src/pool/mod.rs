@@ -28,6 +28,7 @@ pub mod scoring;
 pub mod verifier;
 
 pub use self::queue::TransactionQueue;
+pub use self::txpool::{VerifiedTransaction as PoolVerifiedTransaction, Options};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum Priority {
