@@ -144,3 +144,17 @@ fn rpc_secretstore_sign_raw_hash() {
 	let hash = "0000000000000000000000000000000000000000000000000000000000000001".parse().unwrap();
 	assert!(verify_public(key_pair.public(), &signature, &hash).unwrap());
 }
+
+#[test]
+fn rpc_secretstore_generate_document_key() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	// execute generation request
+	let generation_request = r#"{"jsonrpc": "2.0", "method": "secretstore_generateDocumentKey", "params":[
+		"0x843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91"
+	], "id": 1}"#;
+	let _ = io.handle_request_sync(&generation_request).unwrap();
+
+	// the only thing we can check is that key is generated without errors, because generation is randomized
+}
