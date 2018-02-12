@@ -325,7 +325,7 @@ impl CachedContract {
 
 	fn read_from_registry_if_required(&mut self, client: &Client, enacted: Vec<H256>, retracted: Vec<H256>) {
 		// read new contract from registry
-		let new_contract_addr = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
+		let new_contract_addr = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest);
 
 		// new contract installed => read nodes set from the contract
 		if self.contract_address.as_ref() != new_contract_addr.as_ref() {

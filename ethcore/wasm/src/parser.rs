@@ -34,7 +34,7 @@ fn gas_rules(wasm_costs: &vm::WasmCosts) -> rules::Set {
 
 /// Splits payload to code and data according to params.params_type, also
 /// loads the module instance from payload and injects gas counter according
-/// to wasm costs.
+/// to schedule.
 pub fn payload<'a>(params: &'a vm::ActionParams, wasm_costs: &vm::WasmCosts)
 	-> Result<(elements::Module, &'a [u8]), vm::Error>
 {
@@ -56,12 +56,20 @@ pub fn payload<'a>(params: &'a vm::ActionParams, wasm_costs: &vm::WasmCosts)
 		},
 	};
 
-	let contract_module = wasm_utils::inject_gas_counter(
-		elements::Module::deserialize(
+	let deserialized_module = elements::Module::deserialize(
 			&mut cursor
 		).map_err(|err| {
 			vm::Error::Wasm(format!("Error deserializing contract code ({:?})", err))
-		})?,
+		})?;
+
+	if deserialized_module.memory_section().map_or(false, |ms| ms.entries().len() > 0) {
+		// According to WebAssembly spec, internal memory is hidden from embedder and should not
+		// be interacted with. So we disable this kind of modules at decoding level.
+		return Err(vm::Error::Wasm(format!("Malformed wasm module: internal memory")));
+	}
+
+	let contract_module = wasm_utils::inject_gas_counter(
+		deserialized_module,
 		&gas_rules(wasm_costs),
 	);
 

@@ -474,9 +474,9 @@ impl ClusterCore {
 					Ok((version, master)) => match session.continue_action() {
 						Some(ContinueAction::Decrypt(session, is_shadow_decryption)) => {
 							let initialization_error = if data.self_key_pair.public() == &master {
-								session.initialize(version, is_shadow_decryption)
+								session.initialize(version, is_shadow_decryption, false)
 							} else {
-								session.delegate(master, version, is_shadow_decryption)
+								session.delegate(master, version, is_shadow_decryption, false)
 							};
 
 							if let Err(error) = initialization_error {
@@ -920,7 +920,7 @@ impl ClusterClient for ClusterClientImpl {
 		let session = self.data.sessions.decryption_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, Some(requestor_signature))?;
 
 		let initialization_result = match version {
-			Some(version) => session.initialize(version, is_shadow_decryption),
+			Some(version) => session.initialize(version, is_shadow_decryption, false),
 			None => {
 				self.create_key_version_negotiation_session(session_id.id.clone())
 					.map(|version_session| {

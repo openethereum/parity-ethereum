@@ -1827,7 +1827,7 @@ impl BlockChainClient for Client {
 		self.registrar_address.clone()
 	}
 
-	fn registry_address(&self, name: String) -> Option<Address> {
+	fn registry_address(&self, name: String, block: BlockId) -> Option<Address> {
 		let address = match self.registrar_address {
 			Some(address) => address,
 			None => return None,
@@ -1835,7 +1835,7 @@ impl BlockChainClient for Client {
 
 		self.registrar.functions()
 			.get_address()
-			.call(keccak(name.as_bytes()), "A", &|data| self.call_contract(BlockId::Latest, address, data))
+			.call(keccak(name.as_bytes()), "A", &|data| self.call_contract(block, address, data))
 			.ok()
 			.and_then(|a| if a.is_zero() {
 				None

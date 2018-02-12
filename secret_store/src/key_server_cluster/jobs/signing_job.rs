@@ -50,6 +50,7 @@ pub struct PartialSigningRequest {
 }
 
 /// Signing job partial response.
+#[derive(Clone)]
 pub struct PartialSigningResponse {
 	/// Request id.
 	pub request_id: Secret,
