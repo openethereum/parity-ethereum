@@ -191,7 +191,7 @@ impl Updater {
 		}
 
 		let client = self.client.upgrade().ok_or_else(|| "Cannot obtain client")?;
-		let address = client.registry_address("operations".into()).ok_or_else(|| "Cannot get operations contract address")?;
+		let address = client.registry_address("operations".into(), BlockId::Latest).ok_or_else(|| "Cannot get operations contract address")?;
 		let do_call = |data| client.call_contract(BlockId::Latest, address, data).map_err(|e| format!("{:?}", e));
 
 		trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, self.this.hash);
