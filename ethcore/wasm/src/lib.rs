@@ -39,7 +39,7 @@ use wasmi::Error as InterpreterError;
 
 use runtime::{Runtime, RuntimeContext};
 
-use bigint::U256;
+use bigint::uint::U256;
 
 /// Wrapped interpreter error
 #[derive(Debug)]
