@@ -117,6 +117,7 @@ impl<T: WebApp> Endpoint for Dapp<T> {
 			file,
 			cache: PageCache::Disabled,
 			safe_to_embed_on: self.safe_to_embed_on.clone(),
+			allow_js_eval: self.info.allow_js_eval.clone().unwrap_or(false),
 		}.into_response();
 
 		self.pool.spawn(reader).forget();

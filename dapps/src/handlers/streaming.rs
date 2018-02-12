@@ -51,7 +51,7 @@ impl<R: io::Read> StreamingHandler<R> {
 			.with_status(self.status)
 			.with_header(header::ContentType(self.mimetype))
 			.with_body(body);
-		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on);
+		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on, false);
 
 		(reader, res)
 	}
