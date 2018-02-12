@@ -139,7 +139,7 @@ impl<'a> Runtime<'a> {
 
 	/// Charge specified amount of gas
 	///
-	/// Returns false is gas limit exceeded and true if not.
+	/// Returns false if gas limit exceeded and true if not.
 	/// Intuition about the return value sense is to aswer the question 'are we allowed to continue?'
 	fn charge_gas(&mut self, amount: u64) -> bool {
 		let prev = self.gas_counter;
