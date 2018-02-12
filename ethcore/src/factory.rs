@@ -19,7 +19,7 @@ use account_db::Factory as AccountFactory;
 use evm::{Factory as EvmFactory, VMType};
 use types::BlockNumber;
 use ethereum_types::U256;
-use vm::Vm;
+use vm::{Vm, ActionParams, Schedule};
 
 /// Virtual machine factory
 #[derive(Default, Clone)]
@@ -28,8 +28,8 @@ pub struct VmFactory {
 }
 
 impl VmFactory {
-	pub fn create(&self, gas: U256, code: &[u8], block_number: BlockNumber) -> Box<Vm> {
-		self.evm.create(gas)
+	pub fn create(&self, params: &ActionParams, schedule: &Schedule) -> Box<Vm> {
+		self.evm.create(&params.gas)
 	}
 
 	pub fn new(evm: VMType, cache_size: usize) -> Self {

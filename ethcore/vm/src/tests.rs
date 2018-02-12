@@ -85,6 +85,11 @@ impl FakeExt {
 		ext.schedule = Schedule::new_byzantium();
 		ext
 	}
+
+	pub fn with_wasm(mut self) -> Self {
+		self.schedule.wasm = Some(Default::default());
+		self
+	}
 }
 
 impl Ext for FakeExt {

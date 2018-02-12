@@ -109,10 +109,8 @@ pub struct CommonParams {
 	pub nonce_cap_increment: u64,
 	/// Enable dust cleanup for contracts.
 	pub remove_dust_contracts: bool,
-	/// Wasm support
-	pub wasm: bool,
 	/// Wasm activation blocknumber, if any disabled initially.
-	pub wasm_activation: BlockNumber,
+	pub wasm_activation_transition: BlockNumber,
 	/// Gas limit bound divisor (how much gas limit can change per block)
 	pub gas_limit_bound_divisor: U256,
 	/// Registrar contract address.
@@ -148,8 +146,8 @@ impl CommonParams {
 				false => ::vm::CleanDustMode::BasicOnly,
 			};
 		}
-		if self.wasm || block_number >= self.wasm_activation {
-			schedule.wasm_activated = true;
+		if block_number >= self.wasm_activation_transition {
+			schedule.wasm = Some(Default::default());
 		}
 	}
 

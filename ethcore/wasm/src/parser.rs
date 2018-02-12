@@ -24,12 +24,12 @@ use parity_wasm::peek_size;
 fn gas_rules(schedule: &vm::Schedule) -> rules::Set {
 	rules::Set::new({
 		let mut vals = ::std::collections::HashMap::with_capacity(4);
-		vals.insert(rules::InstructionType::Load, schedule.wasm.mem as u32);
-		vals.insert(rules::InstructionType::Store, schedule.wasm.mem as u32);
-		vals.insert(rules::InstructionType::Div, schedule.wasm.div as u32);
-		vals.insert(rules::InstructionType::Mul, schedule.wasm.mul as u32);
+		vals.insert(rules::InstructionType::Load, schedule.wasm().mem as u32);
+		vals.insert(rules::InstructionType::Store, schedule.wasm().mem as u32);
+		vals.insert(rules::InstructionType::Div, schedule.wasm().div as u32);
+		vals.insert(rules::InstructionType::Mul, schedule.wasm().mul as u32);
 		vals
-	}).with_grow_cost(schedule.wasm.grow_mem)
+	}).with_grow_cost(schedule.wasm().grow_mem)
 }
 
 /// Splits payload to code and data according to params.params_type, also

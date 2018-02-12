@@ -113,10 +113,8 @@ pub struct Schedule {
 	pub kill_dust: CleanDustMode,
 	/// Enable EIP-86 rules
 	pub eip86: bool,
-	/// Is wasm active
-	pub wasm_activated: bool,
-	/// Wasm extra schedule settings
-	pub wasm: WasmCosts,
+	/// Wasm extra schedule settings, if wasm activated
+	pub wasm: Option<WasmCosts>,
 }
 
 /// Wasm cost table
@@ -233,8 +231,7 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip86: false,
-			wasm_activated: false,
-			wasm: Default::default(),
+			wasm: None,
 		}
 	}
 
@@ -297,9 +294,16 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip86: false,
-			wasm_activated: false,
-			wasm: Default::default(),
+			wasm: None,
 		}
+	}
+
+	/// Returns wasm schedule
+	///
+	/// May panic if there is no wasm schedule
+	pub fn wasm(&self) -> &WasmCosts {
+		/// *** Prefer PANIC here instead of silently breaking consensus! ***
+		self.wasm.as_ref().expect("Wasm schedule expected to exist while checking wasm contract. Misconfigured client?")
 	}
 }
 

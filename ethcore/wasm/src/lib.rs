@@ -79,8 +79,8 @@ impl vm::Vm for WasmInterpreter {
 			&wasmi::ImportsBuilder::new().with_resolver("env", &instantiation_resolover)
 		).map_err(Error)?;
 
-		let adjusted_gas = params.gas * U256::from(ext.schedule().wasm.opcodes_div) /
-			U256::from(ext.schedule().wasm.opcodes_mul);
+		let adjusted_gas = params.gas * U256::from(ext.schedule().wasm().opcodes_div) /
+			U256::from(ext.schedule().wasm().opcodes_mul);
 
 		if adjusted_gas > ::std::u64::MAX.into()
 		{
@@ -111,8 +111,8 @@ impl vm::Vm for WasmInterpreter {
 			// total_charge <- static_region * 2^32 * 2^16
 			// total_charge ∈ [0..2^64) if static_region ∈ [0..2^16)
 			// qed
-			assert!(runtime.schedule().wasm.initial_mem < 1 << 16);
-			runtime.charge(|s| initial_memory as u64 * s.wasm.initial_mem as u64)?;
+			assert!(runtime.schedule().wasm().initial_mem < 1 << 16);
+			runtime.charge(|s| initial_memory as u64 * s.wasm().initial_mem as u64)?;
 
 			let module_instance = module_instance.run_start(&mut runtime).map_err(Error)?;
 
@@ -148,8 +148,8 @@ impl vm::Vm for WasmInterpreter {
 		};
 
 		let gas_left =
-			U256::from(gas_left) * U256::from(ext.schedule().wasm.opcodes_mul)
-				/ U256::from(ext.schedule().wasm.opcodes_div);
+			U256::from(gas_left) * U256::from(ext.schedule().wasm().opcodes_mul)
+				/ U256::from(ext.schedule().wasm().opcodes_div);
 
 		if result.is_empty() {
 			trace!(target: "wasm", "Contract execution result is empty.");

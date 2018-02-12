@@ -22,10 +22,12 @@ use ethereum_types::{H256, U256, U512, Address};
 use bytes::{Bytes, BytesRef};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use machine::EthereumMachine as Machine;
-use vm::EnvInfo;
 use error::ExecutionError;
 use evm::{CallType, Finalize, FinalizationResult};
-use vm::{self, Ext, CreateContractAddress, ReturnData, CleanDustMode, ActionParams, ActionValue};
+use vm::{
+	self, Ext, EnvInfo, CreateContractAddress, ReturnData, CleanDustMode, ActionParams,
+	ActionValue, Schedule,
+};
 use factory::VmFactory;
 use wasm;
 use externalities::*;
@@ -152,19 +154,6 @@ impl TransactOptions<trace::NoopTracer, trace::NoopVMTracer> {
 			output_from_init_contract: false,
 		}
 	}
-}
-
-pub fn executor(
-	machine: &Machine,
-	vm_factory: &VmFactory,
-	params: &ActionParams,
-	block_number: BlockNumber,
-) -> Box<vm::Vm> {
-	let code_ref = match params.code {
-		Some(ref code) => &code[..],
-		None => &[],
-	};
-	vm_factory.create(params.gas, code_ref, block_numberx)
 }
 
 /// Transaction executor.
@@ -341,6 +330,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 	fn exec_vm<T, V>(
 		&mut self,
+		schedule: Schedule,
 		params: ActionParams,
 		unconfirmed_substate: &mut Substate,
 		output_policy: OutputPolicy,
@@ -358,7 +348,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
-			return executor(self.machine, &vm_factory, &params, block_number).exec(params, &mut ext).finalize(ext);
+			let mut vm = vm_factory.create(&params, &schedule);
+			return vm.exec(params, &mut ext).finalize(ext);
 		}
 
 		// Start in new thread to reset stack
@@ -370,7 +361,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 
 			scope.spawn(move || {
-				executor(machine, &vm_factory, &params, block_number).exec(params, &mut ext).finalize(ext)
+				let mut vm = vm_factory.create(&params, &schedule);
+				vm.exec(params, &mut ext).finalize(ext)
 			})
 		}).join()
 	}
@@ -480,7 +472,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("scope is conditional on params.code.is_some(); qed"));
 
 				let res = {
-					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
+					self.exec_vm(schedule, params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
 				};
 
 				vm_tracer.done_subtrace(subvmtracer);
@@ -571,9 +563,14 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 		let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("two ways into create (Externalities::create and Executive::transact_with_tracer); both place `Some(...)` `code` in `params`; qed"));
 
-		let res = {
-			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(output.as_mut().or(trace_output.as_mut())), &mut subtracer, &mut subvmtracer)
-		};
+		let res = self.exec_vm(
+			schedule,
+			params,
+			&mut unconfirmed_substate,
+			OutputPolicy::InitContract(output.as_mut().or(trace_output.as_mut())),
+			&mut subtracer,
+			&mut subvmtracer
+		);
 
 		vm_tracer.done_subtrace(subvmtracer);
 
