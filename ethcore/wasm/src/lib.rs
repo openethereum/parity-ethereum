@@ -68,7 +68,7 @@ impl From<runtime::Error> for vm::Error {
 impl vm::Vm for WasmInterpreter {
 
 	fn exec(&mut self, params: ActionParams, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
-		let (module, data) = parser::payload(&params, ext.schedule())?;
+		let (module, data) = parser::payload(&params, ext.schedule().wasm())?;
 
 		let loaded_module = wasmi::Module::from_parity_wasm_module(module).map_err(Error)?;
 
