@@ -19,7 +19,8 @@
 use std::io::Read;
 use serde_json;
 use serde_json::Error;
-use spec::{Params, Genesis, Engine, State};
+
+use spec::{Params, Genesis, Engine, State, Error};
 
 /// Spec deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -44,7 +45,15 @@ pub struct Spec {
 impl Spec {
 	/// Loads test from json.
 	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
-		serde_json::from_reader(reader)
+		let spec: Self = serde_json::from_reader(reader)?;
+
+		let divisor: u64 = spec.params.gas_limit_bound_divisor.into();
+
+		if divisor == 0 {
+			return Err(Error::ZeroValueDivisor)
+		}
+
+		Ok(spec)
 	}
 }
 
