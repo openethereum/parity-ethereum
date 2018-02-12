@@ -28,21 +28,16 @@ use vm::{
 	self, Ext, EnvInfo, CreateContractAddress, ReturnData, CleanDustMode, ActionParams,
 	ActionValue, Schedule,
 };
-use factory::VmFactory;
-use wasm;
 use externalities::*;
 use trace::{self, Tracer, VMTracer};
 use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use executed::{Executed, ExecutionResult};
-use types::BlockNumber;
 
 /// Roughly estimate what stack size each level of evm depth will use
 /// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
 /// Maybe something like here: `https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp`
 const STACK_SIZE_PER_DEPTH: usize = 24*1024;
-
-const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
 
 /// Returns new address created from address, nonce, and code hash
 pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address, nonce: &U256, code: &[u8]) -> (Address, Option<H256>) {
@@ -341,8 +336,6 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let depth_threshold = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get() / STACK_SIZE_PER_DEPTH);
 		let static_call = params.call_type == CallType::StaticCall;
 
-		let block_number = self.info.number;
-
 		// Ordinary execution - keep VM in same thread
 		if (self.depth + 1) % depth_threshold != 0 {
 			let vm_factory = self.state.vm_factory();
@@ -356,7 +349,6 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		// TODO [todr] No thread builder yet, so we need to reset once for a while
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
-			let machine = self.machine;
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 
@@ -697,8 +689,6 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 #[cfg(test)]
 #[allow(dead_code)]
 mod tests {
-	extern crate wabt;
-
 	use std::sync::Arc;
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
@@ -716,7 +706,6 @@ mod tests {
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 	use transaction::{Action, Transaction};
-	use self::wabt::wat2wasm;
 
 	fn make_frontier_machine(max_depth: usize) -> EthereumMachine {
 		let mut machine = ::ethereum::new_frontier_test_machine();
@@ -1506,103 +1495,10 @@ mod tests {
 	}
 
 	fn wasm_sample_code() -> Arc<Vec<u8>> {
-		Arc::new(wat2wasm(r#"
-			(module
-			(type (;0;) (func (param i32 i32)))
-			(type (;1;) (func (param i32)))
-			(type (;2;) (func))
-			(import "env" "ret" (func (;0;) (type 0)))
-			(import "env" "sender" (func (;1;) (type 1)))
-			(import "env" "memory" (memory (;0;) 1 16))
-			(func (;2;) (type 2)
-				(local i32 i32 i32 i32 i32 i64)
-				(i32.store offset=4
-				(i32.const 0)
-				(tee_local 4
-					(i32.sub
-					(i32.load offset=4
-						(i32.const 0))
-					(i32.const 64))))
-				(i32.store
-				(tee_local 0
-					(i32.add
-					(i32.add
-						(get_local 4)
-						(i32.const 44))
-					(i32.const 16)))
-				(i32.const 0))
-				(i64.store align=4
-				(tee_local 1
-					(i32.add
-					(i32.add
-						(get_local 4)
-						(i32.const 44))
-					(i32.const 8)))
-				(i64.const 0))
-				(i32.store
-				(tee_local 2
-					(i32.add
-					(i32.add
-						(get_local 4)
-						(i32.const 24))
-					(i32.const 16)))
-				(i32.const 0))
-				(i64.store
-				(tee_local 3
-					(i32.add
-					(i32.add
-						(get_local 4)
-						(i32.const 24))
-					(i32.const 8)))
-				(i64.const 0))
-				(i64.store offset=44 align=4
-				(get_local 4)
-				(i64.const 0))
-				(i32.store offset=28
-				(get_local 4)
-				(i32.const 0))
-				(i32.store offset=24
-				(get_local 4)
-				(i32.const 0))
-				(call 1
-				(i32.add
-					(get_local 4)
-					(i32.const 24)))
-				(i32.store
-				(get_local 0)
-				(tee_local 2
-					(i32.load
-					(get_local 2))))
-				(i64.store align=4
-				(get_local 1)
-				(tee_local 5
-					(i64.load
-					(get_local 3))))
-				(i32.store
-				(i32.add
-					(get_local 4)
-					(i32.const 16))
-				(get_local 2))
-				(i64.store
-				(i32.add
-					(get_local 4)
-					(i32.const 8))
-				(get_local 5))
-				(i64.store offset=44 align=4
-				(get_local 4)
-				(tee_local 5
-					(i64.load offset=24
-					(get_local 4))))
-				(i64.store
-				(get_local 4)
-				(get_local 5))
-				(call 0
-				(get_local 4)
-				(i32.const 20)))
-			(table (;0;) 0 anyfunc)
-			(export "call" (func 2))
-			(data (i32.const 4) "\10\c0\00\00"))
-			"#).unwrap()
+		Arc::new(
+			"0061736d01000000010d0360027f7f0060017f0060000002270303656e7603726574000003656e760673656e646572000103656e76066d656d6f727902010110030201020404017000000501000708010463616c6c00020901000ac10101be0102057f017e4100410028020441c0006b22043602042004412c6a41106a220041003602002004412c6a41086a22014200370200200441186a41106a22024100360200200441186a41086a220342003703002004420037022c2004410036021c20044100360218200441186a1001200020022802002202360200200120032903002205370200200441106a2002360200200441086a200537030020042004290318220537022c200420053703002004411410004100200441c0006a3602040b0b0a010041040b0410c00000"
+			.from_hex()
+			.unwrap()
 		)
 	}
 
@@ -1615,8 +1511,9 @@ mod tests {
 		state.add_balance(&sender, &U256::from(10000000000u64), CleanupMode::NoEmpty).unwrap();
 		state.commit().unwrap();
 
-		let mut params = ActionParams::default()
-			.from_origin(sender.clone());
+		let mut params = ActionParams::default();
+		params.origin = sender.clone();
+		params.sender = sender.clone();
 		params.address = contract_address.clone();
 		params.gas = U256::from(20025);
 		params.code = Some(wasm_sample_code());
@@ -1635,7 +1532,7 @@ mod tests {
 			ex.call(params.clone(), &mut Substate::new(), BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
-		assert_eq!(result, U256::from(18435));
+		assert_eq!(result, U256::from(18437));
 		// Transaction successfully returned sender
 		assert_eq!(output[..], sender[..]);
 

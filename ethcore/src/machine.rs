@@ -376,11 +376,6 @@ impl EthereumMachine {
 		Ok(())
 	}
 
-	/// If this machine supports wasm.
-	pub fn supports_wasm(&self, blocknumber: BlockNumber) -> bool {
-		self.schedule(blocknumber).wasm_activated
-	}
-
 	/// Additional params.
 	pub fn additional_params(&self) -> HashMap<String, String> {
 		hash_map![

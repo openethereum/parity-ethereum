@@ -23,7 +23,7 @@ use {factory, journaldb, trie, kvdb_memorydb, bytes};
 use kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, transaction, db, spec, pod_state};
 use factory::Factories;
-use evm::{self, VMType, FinalizationResult};
+use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
 
 /// EVM test Error.

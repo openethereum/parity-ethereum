@@ -302,7 +302,7 @@ impl Schedule {
 	///
 	/// May panic if there is no wasm schedule
 	pub fn wasm(&self) -> &WasmCosts {
-		/// *** Prefer PANIC here instead of silently breaking consensus! ***
+		// *** Prefer PANIC here instead of silently breaking consensus! ***
 		self.wasm.as_ref().expect("Wasm schedule expected to exist while checking wasm contract. Misconfigured client?")
 	}
 }

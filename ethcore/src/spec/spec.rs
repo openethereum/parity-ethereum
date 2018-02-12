@@ -228,8 +228,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
-			wasm: p.wasm.unwrap_or(false),
-			wasm_activation: p.wasm_activation.map_or(
+			wasm_activation_transition: p.wasm_activation_transition.map_or(
 				BlockNumber::max_value(),
 				Into::into
 			),

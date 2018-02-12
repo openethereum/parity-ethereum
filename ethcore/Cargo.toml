@@ -70,9 +70,6 @@ unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 tempdir = "0.3"
 
-[dev-dependencies]
-wabt = "0.1"
-
 [features]
 jit = ["evm/jit"]
 evm-debug = ["slow-blocks"]
