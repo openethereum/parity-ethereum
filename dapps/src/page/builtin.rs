@@ -128,12 +128,14 @@ impl<T: WebApp> Endpoint for Dapp<T> {
 impl From<Info> for EndpointInfo {
 	fn from(info: Info) -> Self {
 		EndpointInfo {
+			id: None,
 			name: info.name.into(),
 			description: info.description.into(),
 			author: info.author.into(),
 			icon_url: info.icon_url.into(),
 			local_url: None,
 			version: info.version.into(),
+			allow_js_eval: None,
 		}
 	}
 }
