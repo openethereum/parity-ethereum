@@ -239,6 +239,6 @@ push-release:
     - triggers
   image: parity/rust:gitlab-ci
   script:
-    - source scripts/gitlab-push-release.sh
+    - scripts/gitlab-push-release.sh
   tags:
     - curl

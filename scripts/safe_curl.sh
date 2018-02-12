@@ -5,7 +5,7 @@ set -eu
 DATA=$1
 ADDRESS=$2
 
-CODE=$(curl -s -o out.txt -w '%{http_code}' --data $DATA $ADDRESS)
+CODE=$(curl -o out.txt -w '%{http_code}' --data $DATA $ADDRESS)
 cat out.txt && rm out.txt
 echo "\n"
 
