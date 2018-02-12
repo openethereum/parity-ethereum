@@ -95,7 +95,7 @@ impl Default for Factory {
 
 #[test]
 fn test_create_vm() {
-	let _vm = Factory::default().create(U256::zero());
+	let _vm = Factory::default().create(&U256::zero());
 }
 
 /// Create tests by injecting different VM factories
