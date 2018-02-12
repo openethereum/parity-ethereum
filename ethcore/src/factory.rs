@@ -15,14 +15,39 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use trie::TrieFactory;
-use evm::Factory as EvmFactory;
 use account_db::Factory as AccountFactory;
+use evm::{Factory as EvmFactory, VMType};
+use types::BlockNumber;
+use ethereum_types::U256;
+use vm::Vm;
+
+/// Virtual machine factory
+#[derive(Default, Clone)]
+pub struct VmFactory {
+	evm: EvmFactory,
+}
+
+impl VmFactory {
+	pub fn create(&self, gas: U256, code: &[u8], block_number: BlockNumber) -> Box<Vm> {
+		self.evm.create(gas)
+	}
+
+	pub fn new(evm: VMType, cache_size: usize) -> Self {
+		VmFactory { evm: EvmFactory::new(evm, cache_size) }
+	}
+}
+
+impl From<EvmFactory> for VmFactory {
+	fn from(evm: EvmFactory) -> Self {
+		VmFactory { evm: evm }
+	}
+}
 
 /// Collection of factories.
 #[derive(Default, Clone)]
 pub struct Factories {
 	/// factory for evm.
-	pub vm: EvmFactory,
+	pub vm: VmFactory,
 	/// factory for tries.
 	pub trie: TrieFactory,
 	/// factory for account databases.

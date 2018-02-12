@@ -24,8 +24,9 @@ use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use machine::EthereumMachine as Machine;
 use vm::EnvInfo;
 use error::ExecutionError;
-use evm::{CallType, Factory, Finalize, FinalizationResult};
+use evm::{CallType, Finalize, FinalizationResult};
 use vm::{self, Ext, CreateContractAddress, ReturnData, CleanDustMode, ActionParams, ActionValue};
+use factory::VmFactory;
 use wasm;
 use externalities::*;
 use trace::{self, Tracer, VMTracer};
@@ -155,15 +156,15 @@ impl TransactOptions<trace::NoopTracer, trace::NoopVMTracer> {
 
 pub fn executor(
 	machine: &Machine,
-	vm_factory: &Factory,
+	vm_factory: &VmFactory,
 	params: &ActionParams,
-	blocknumber: BlockNumber,
+	block_number: BlockNumber,
 ) -> Box<vm::Vm> {
-	if machine.supports_wasm(blocknumber) && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
-		Box::new(wasm::WasmInterpreter)
-	} else {
-		vm_factory.create(params.gas)
-	}
+	let code_ref = match params.code {
+		Some(ref code) => &code[..],
+		None => &[],
+	};
+	vm_factory.create(params.gas, code_ref, block_number)
 }
 
 /// Transaction executor.
