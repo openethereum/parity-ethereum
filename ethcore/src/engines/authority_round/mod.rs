@@ -1002,18 +1002,13 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					header_empty_steps(block.header())?
 				};
 
-			let mut receivers = Vec::new();
 			for empty_step in empty_steps {
-				receivers.push(empty_step.author()?)
+				::engines::common::bestow_block_reward(block, self.block_reward, empty_step.author()?)?;
 			}
-			receivers.push(*block.header().author());
-
-			::engines::common::bestow_block_reward(block, self.block_reward, &receivers)
-
-		} else {
-			let author = *block.header().author();
-			::engines::common::bestow_block_reward(block, self.block_reward, &[author])
 		}
+
+		let author = *block.header().author();
+		::engines::common::bestow_block_reward(block, self.block_reward, author)
 	}
 
 	/// Check the number of seal fields.

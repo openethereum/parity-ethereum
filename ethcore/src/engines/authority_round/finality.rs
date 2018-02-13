@@ -56,7 +56,7 @@ impl RollingFinality {
 	{
 		self.clear();
 		for (hash, signers) in iterable {
-			if !signers.iter().all(|s| self.signers.contains(s)) { return Err(UnknownValidator) }
+			if signers.iter().any(|s| !self.signers.contains(s)) { return Err(UnknownValidator) }
 			if self.last_pushed.is_none() { self.last_pushed = Some(hash) }
 
 			// break when we've got our first finalized block.
@@ -107,7 +107,7 @@ impl RollingFinality {
 	/// Returns a list of all newly finalized headers.
 	// TODO: optimize with smallvec.
 	pub fn push_hash(&mut self, head: H256, signers: Vec<Address>) -> Result<Vec<H256>, UnknownValidator> {
-		if !signers.iter().all(|s| self.signers.contains(s)) { return Err(UnknownValidator) }
+		if signers.iter().any(|s| !self.signers.contains(s)) { return Err(UnknownValidator) }
 
 		for signer in signers.iter() {
 			*self.sign_count.entry(*signer).or_insert(0) += 1;
