@@ -154,15 +154,15 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 	}
 
 
-	/// insert account with given filename. if the filename is a duplicate of any stored account, a random suffix is
-	/// appended to the filename.
-	pub fn insert_with_filename(&self, account: SafeAccount, mut filename: String) -> Result<SafeAccount, Error> {
+	/// insert account with given filename. if the filename is a duplicate of any stored account and dedup is set to
+	/// true, a random suffix is appended to the filename.
+	pub fn insert_with_filename(&self, account: SafeAccount, mut filename: String, dedup: bool) -> Result<SafeAccount, Error> {
 		// path to keyfile
 		let mut keyfile_path = self.path.clone();
 		keyfile_path.push(filename.as_str());
 
 		// check for duplicate filename and append random suffix
-		if keyfile_path.exists() {
+		if dedup && keyfile_path.exists() {
 			let suffix = ::random::random_string(4);
 			filename.push_str(&format!("-{}", suffix));
 			keyfile_path.set_file_name(&filename);
@@ -209,17 +209,13 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 
 	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
 		// Disk store handles updates correctly iff filename is the same
-		self.insert(account)
+		let filename = account_filename(&account);
+		self.insert_with_filename(account, filename, false)
 	}
 
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
-		// build file path
-		let filename = account.filename.as_ref().cloned().unwrap_or_else(|| {
-			let timestamp = time::strftime("%Y-%m-%dT%H-%M-%S", &time::now_utc()).expect("Time-format string is valid.");
-			format!("UTC--{}Z--{}", timestamp, Uuid::from(account.id))
-		});
-
-		self.insert_with_filename(account, filename)
+		let filename = account_filename(&account);
+		self.insert_with_filename(account, filename, true)
 	}
 
 	fn remove(&self, account: &SafeAccount) -> Result<(), Error> {
@@ -295,6 +291,14 @@ impl KeyFileManager for DiskKeyFileManager {
 	}
 }
 
+fn account_filename(account: &SafeAccount) -> String {
+	// build file path
+	account.filename.as_ref().cloned().unwrap_or_else(|| {
+		let timestamp = time::strftime("%Y-%m-%dT%H-%M-%S", &time::now_utc()).expect("Time-format string is valid.");
+		format!("UTC--{}Z--{}", timestamp, Uuid::from(account.id))
+	})
+}
+
 #[cfg(test)]
 mod test {
 	extern crate tempdir;
@@ -338,11 +342,12 @@ mod test {
 		// when
 		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned());
 		let filename = "test".to_string();
+		let dedup = true;
 
-		directory.insert_with_filename(account.clone(), "foo".to_string()).unwrap();
-		let file1 = directory.insert_with_filename(account.clone(), filename.clone()).unwrap().filename.unwrap();
-		let file2 = directory.insert_with_filename(account.clone(), filename.clone()).unwrap().filename.unwrap();
-		let file3 = directory.insert_with_filename(account.clone(), filename.clone()).unwrap().filename.unwrap();
+		directory.insert_with_filename(account.clone(), "foo".to_string(), dedup).unwrap();
+		let file1 = directory.insert_with_filename(account.clone(), filename.clone(), dedup).unwrap().filename.unwrap();
+		let file2 = directory.insert_with_filename(account.clone(), filename.clone(), dedup).unwrap().filename.unwrap();
+		let file3 = directory.insert_with_filename(account.clone(), filename.clone(), dedup).unwrap().filename.unwrap();
 
 		// then
 		// the first file should have the original names
