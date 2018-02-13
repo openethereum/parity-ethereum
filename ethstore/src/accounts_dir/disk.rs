@@ -153,8 +153,42 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 		)
 	}
 
-	/// insert account with given file name
-	pub fn insert_with_filename(&self, account: SafeAccount, filename: String) -> Result<SafeAccount, Error> {
+	/// insert account with given file name. if the filename is a duplicate of any stored account, a number is appended
+	/// to the filename.
+	pub fn insert_with_filename(&self, account: SafeAccount, mut filename: String) -> Result<SafeAccount, Error> {
+		// check for duplicate filenames and append/increment counter
+		let dups: Vec<_> = self.files()?.into_iter().filter_map(|f| {
+			match f.file_name().map(|n| n.to_string_lossy()) {
+				Some(ref name) if name.starts_with(&filename) => Some(name.to_string()),
+				_ => None
+			}
+		}).collect();
+
+		if !dups.is_empty() {
+			let mut max = 0;
+			let mut found = false;
+
+			for dup in dups {
+				if dup.len() == filename.len() {
+					// we found a file with the same name
+					found = true;
+				}
+				else if dup[filename.len()..].starts_with("-") {
+					// this is a duplicate file with a counter appended
+					match dup[filename.len() + 1..].parse() {
+						Ok(n) if n > max => {
+							max = n;
+						},
+						_ => {},
+					}
+				}
+			}
+
+			if found {
+				filename.push_str(&format!("-{}", max + 1))
+			}
+		}
+
 		// update account filename
 		let original_account = account.clone();
 		let mut account = account;
@@ -312,6 +346,34 @@ mod test {
 		// then
 		assert!(res.is_ok(), "Should save account succesfuly.");
 		assert!(res.unwrap().filename.is_some(), "Filename has been assigned.");
+
+		// cleanup
+		let _ = fs::remove_dir_all(dir);
+	}
+
+	#[test]
+	fn should_handle_duplicate_filenames() {
+		// given
+		let mut dir = env::temp_dir();
+		dir.push("ethstore_should_handle_duplicate_filenames");
+		let keypair = Random.generate().unwrap();
+		let password = "hello world";
+		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
+
+		// when
+		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned());
+		let filename = "test".to_string();
+
+		directory.insert_with_filename(account.clone(), "foo".to_string()).unwrap();
+		directory.insert_with_filename(account.clone(), "testa".to_string()).unwrap();
+		let res1 = directory.insert_with_filename(account.clone(), filename.clone());
+		let res2 = directory.insert_with_filename(account.clone(), filename.clone());
+		let res3 = directory.insert_with_filename(account.clone(), filename.clone());
+
+		// then
+		assert_eq!(res1.unwrap().filename.unwrap(), filename);
+		assert_eq!(res2.unwrap().filename.unwrap(), format!("{}-1", filename));
+		assert_eq!(res3.unwrap().filename.unwrap(), format!("{}-2", filename));
 
 		// cleanup
 		let _ = fs::remove_dir_all(dir);
