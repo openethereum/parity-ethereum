@@ -74,6 +74,11 @@ calculate_checksums () {
   rm -rf *.sha256
 
   export SHA3="$($SHA3_BIN target/$PLATFORM/release/parity$S3WIN)"
+  # NOTE rhash 1.3.1 doesnt support keccak, workaround
+  if [ "$SHA3" == "%{sha3-256}" ]; then
+    export SHA3="$(target/$PLATFORM/release/parity$S3WIN tools hash target/$PLATFORM/release/parity$S3WIN)"
+  fi
+
   echo "Parity file SHA3: $SHA3"
   $MD5_BIN target/$PLATFORM/release/parity$S3WIN > parity$S3WIN.md5
   $SHA256_BIN target/$PLATFORM/release/parity$S3WIN > parity$S3WIN.sha256
