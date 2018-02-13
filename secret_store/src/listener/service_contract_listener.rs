@@ -22,7 +22,7 @@ use parking_lot::Mutex;
 use ethcore::client::ChainNotify;
 use ethkey::{Random, Generator, Public, Signature, sign};
 use bytes::Bytes;
-use ethereum_types::{H256, U256};
+use ethereum_types::{H256, U256, Address};
 use key_server_set::KeyServerSet;
 use key_server_cluster::{ClusterClient, ClusterSessionsListener, ClusterSession};
 use key_server_cluster::generation_session::SessionImpl as GenerationSession;
@@ -31,7 +31,7 @@ use key_server_cluster::decryption_session::SessionImpl as DecryptionSession;
 use key_storage::KeyStorage;
 use listener::service_contract::ServiceContract;
 use listener::tasks_queue::TasksQueue;
-use {ServerKeyId, NodeKeyPair, KeyServer, EncryptedDocumentKey};
+use {ServerKeyId, RequestSignature, NodeKeyPair, KeyServer, EncryptedDocumentKey};
 
 /// Retry interval (in blocks). Every RETRY_INTERVAL_BLOCKS blocks each KeyServer reads pending requests from
 /// service contract && tries to re-execute. The reason to have this mechanism is primarily because keys
@@ -105,14 +105,14 @@ struct ServiceContractRetryData {
 pub enum ServiceTask {
 	/// Retry all 'stalled' tasks.
 	Retry,
-	/// Generate server key (server_key_id, threshold).
-	GenerateServerKey(H256, U256),
-	/// Confirm server key (server_key_id).
-	RestoreServerKey(H256),
-	/// Generate document key (server_key_id, threshold, signed server_key_id).
-	GenerateDocumentKey(H256, H256, Signature),
-	/// Restore document key (server_key_id, signed server_key_id).
-	RestoreDocumentKey(H256, Signature),
+	/// Generate server key (server_key_id, requester, threshold).
+	GenerateServerKey(ServerKeyId, Address, usize),
+	/// Restore server key (server_key_id).
+	RestoreServerKey(ServerKeyId),
+	/// Store document key (server_key_id, requester, common_point, encrypted_point).
+	StoreDocumentKey(ServerKeyId, Address, Public, Public),
+	/// Restore document key (server_key_id, requester).
+	RestoreDocumentKey(ServerKeyId, Public),
 	/// Shutdown listener.
 	Shutdown,
 }
@@ -154,19 +154,19 @@ impl ServiceContractListener {
 		self.data.tasks_queue.push_many(self.data.contract.read_logs()
 			.filter_map(|task| match task {
 				// when key is already generated && we have this key
-				ServiceTask::GenerateServerKey(server_key_id, _) if self.data.key_storage
+				ServiceTask::GenerateServerKey(server_key_id, _, _) if self.data.key_storage
 					.get(&server_key_id).map(|k| k.is_some()).unwrap_or_default() => {
 					Some(ServiceTask::RestoreServerKey(server_key_id))
 				},
 				// when key is not yet generated && this node should be master of this key generation session
-				ServiceTask::GenerateServerKey(server_key_id, threshold) if is_processed_by_this_key_server(
+				ServiceTask::GenerateServerKey(server_key_id, requester, threshold) if is_processed_by_this_key_server(
 					&*self.data.key_server_set, &*self.data.self_key_pair, &server_key_id) => {
-					Some(ServiceTask::GenerateServerKey(server_key_id, threshold))
+					Some(ServiceTask::GenerateServerKey(server_key_id, requester, threshold))
 				},
 				// when key is not yet generated and generation must be initiated by other node
-				ServiceTask::GenerateServerKey(_, _) => None,
+				ServiceTask::GenerateServerKey(_, _, _) => None,
 
-				// when key is already generated && we have this key
+/*				// when key is already generated && we have this key
 				ServiceTask::GenerateDocumentKey(server_key_id, _, ref signature) if self.data.key_storage
 					.get(&server_key_id).map(|k| k.is_some()).unwrap_or_default() => {
 					Some(ServiceTask::RestoreDocumentKey(server_key_id, signature.clone()))
@@ -177,7 +177,7 @@ impl ServiceContractListener {
 					Some(ServiceTask::GenerateDocumentKey(server_key_id, threshold, signature.clone()))
 				},
 				// when key is not yet generated and generation must be initiated by other node
-				ServiceTask::GenerateDocumentKey(_, _, _) => None,
+				ServiceTask::GenerateDocumentKey(_, _, _) => None,*/
 
 				_ => unreachable!("only generation tasks are returned from read_logs"),
 			}));
@@ -231,9 +231,9 @@ impl ServiceContractListener {
 						error
 					})
 			},
-			ServiceTask::GenerateServerKey(server_key_id, threshold) => {
+			ServiceTask::GenerateServerKey(server_key_id, requester, threshold) => {
 				data.retry_data.lock().generated_server_keys.insert(server_key_id.clone());
-				Self::generate_server_key(&data, &server_key_id, &threshold)
+				Self::generate_server_key(&data, &server_key_id, threshold)
 					.and_then(|server_key| Self::publish_server_key(&data, &server_key_id, &server_key))
 					.map(|_| {
 						trace!(target: "secretstore", "{}: processed GenerateServerKey({}, {}) request",
@@ -246,7 +246,7 @@ impl ServiceContractListener {
 						error
 					})
 			},
-			ServiceTask::RestoreDocumentKey(server_key_id, signed_server_key_id) => {
+			/*ServiceTask::RestoreDocumentKey(server_key_id, signed_server_key_id) => {
 				// generating document key generates both server and document key
 				data.retry_data.lock().generated_server_keys.insert(server_key_id.clone());
 				data.retry_data.lock().generated_document_keys.insert(server_key_id.clone());
@@ -279,8 +279,9 @@ impl ServiceContractListener {
 							data.self_key_pair.public(), server_key_id, threshold, signed_server_key_id, error);
 						error
 					})
-			},
+			},*/
 			ServiceTask::Shutdown => unreachable!("it must be checked outside"),
+			_ =>unimplemented!("TODO"),
 		}
 	}
 
@@ -296,7 +297,7 @@ impl ServiceContractListener {
 			}
 
 			let request_result = match task {
-				ServiceTask::GenerateServerKey(server_key_id, threshold) => {
+				ServiceTask::GenerateServerKey(server_key_id, requester, threshold) => {
 					// only process request, which haven't been processed recently
 					// there could be a lag when we've just generated server key && retrying on the same block
 					// (or before our tx is mined) - state is not updated yet
@@ -307,11 +308,11 @@ impl ServiceContractListener {
 					// process request
 					let is_own_request = is_processed_by_this_key_server(&*data.key_server_set, &*data.self_key_pair, &server_key_id);
 					Self::process_service_task(data, match is_own_request {
-						true => ServiceTask::GenerateServerKey(server_key_id, threshold.into()),
+						true => ServiceTask::GenerateServerKey(server_key_id, requester, threshold),
 						false => ServiceTask::RestoreServerKey(server_key_id),
 					})
 				},
-				ServiceTask::GenerateDocumentKey(server_key_id, threshold, signature) => {
+				/*ServiceTask::GenerateDocumentKey(server_key_id, threshold, signature) => {
 					// only process request, which haven't been processed recently
 					// there could be a lag when we've just generated server key && retrying on the same block
 					// (or before our tx is mined) - state is not updated yet
@@ -325,7 +326,7 @@ impl ServiceContractListener {
 						true => ServiceTask::GenerateDocumentKey(server_key_id, threshold.into(), signature),
 						false => ServiceTask::RestoreDocumentKey(server_key_id, signature),
 					})
-				},
+				},*/
 				_ => Err("not supported".into()),
 			};
 
@@ -345,18 +346,13 @@ impl ServiceContractListener {
 	}
 
 	/// Generate server key.
-	fn generate_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, threshold: &U256) -> Result<Public, String> {
-		let threshold_num = threshold.low_u64();
-		if threshold != &threshold_num.into() || threshold_num >= ::std::usize::MAX as u64 {
-			return Err(format!("invalid threshold {:?}", threshold));
-		}
-
+	fn generate_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, threshold: usize) -> Result<Public, String> {
 		// key server expects signed server_key_id in server_key_generation procedure
 		// only signer could store document key for this server key later
 		// => this API (server key generation) is not suitable for usage in encryption via contract endpoint
 		let author_key = Random.generate().map_err(|e| format!("{}", e))?;
 		let server_key_id_signature = sign(author_key.secret(), server_key_id).map_err(|e| format!("{}", e))?;
-		data.key_server.generate_key(server_key_id, &server_key_id_signature, threshold_num as usize)
+		data.key_server.generate_key(server_key_id, &server_key_id_signature, threshold)
 			.map_err(Into::into)
 	}
 
@@ -755,7 +751,7 @@ mod tests {
 		let key_server = Arc::new(DummyKeyServer::default());
 		let listener = make_service_contract_listener(None, Some(key_server.clone()), None);
 		ServiceContractListener::process_service_task(&listener.data, ServiceTask::GenerateServerKey(
-			Default::default(), Default::default())).unwrap_err();
+			Default::default(), Default::default(), Default::default())).unwrap_err();
 		assert_eq!(key_server.generation_requests_count.load(Ordering::Relaxed), 1);
 	}
 
@@ -775,7 +771,8 @@ mod tests {
 	#[test]
 	fn server_key_generation_is_not_retried_if_tried_in_the_same_cycle() {
 		let mut contract = DummyServiceContract::default();
-		contract.pending_requests.push((false, ServiceTask::GenerateServerKey(Default::default(), Default::default())));
+		contract.pending_requests.push((false, ServiceTask::GenerateServerKey(Default::default(),
+			Default::default(), Default::default())));
 		let key_server = Arc::new(DummyKeyServer::default());
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), Some(key_server.clone()), None);
 		listener.data.retry_data.lock().generated_server_keys.insert(Default::default());

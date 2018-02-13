@@ -386,9 +386,10 @@ fn get_confirmed_block_hash(client: &Client, confirmations: u64) -> Option<H256>
 fn parse_server_key_generation_request(contract: &service::Service, log: LocalizedLogEntry) -> Result<ServiceTask, String> {
 	let event = contract.events().server_key_requested();
 	let log_data = (log.entry.topics.into_iter().map(|t| t.0.into()).collect(), log.entry.data).into();
-	event.parse_log(log_data)
-		.map(|l| ServiceTask::GenerateServerKey(l.server_key_id, l.threshold))
-		.map_err(|e| format!("{}", e))
+	match event.parse_log(log_data) {
+		Ok(l) => Ok(ServiceTask::GenerateServerKey(l.server_key_id, l.requester, parse_threshold(l.threshold)?)),
+		Err(e) => Err(format!("{}", e)),
+	}
 }
 /*
 /// Parse document key generation log entry.
@@ -454,6 +455,17 @@ fn read_pending_document_key_generation_request(client: &Client, contract: &serv
 		.unwrap_or(None)
 }
 */
+
+/// Parse threshold.
+fn parse_threshold(threshold: U256) -> Result<usize, String> {
+	let threshold_num = threshold.low_u64();
+	if threshold != threshold_num.into() || threshold_num >= ::std::usize::MAX as u64 {
+		return Err(format!("invalid threshold {:?}", threshold));
+	}
+
+	Ok(threshold_num as usize)
+}
+
 #[cfg(test)]
 pub mod tests {
 	use parking_lot::Mutex;
