@@ -23,7 +23,6 @@ echo "Branch:             " $CI_BUILD_REF_NAME
 echo "--------------------"
 
 echo "Rhash version:"
-rhash --version
 # NOTE for md5 and sha256 we want to display filename as well
 # hence we use --* instead of -p *
 MD5_BIN="rhash --md5"
@@ -70,6 +69,7 @@ strip_binaries () {
 }
 calculate_checksums () {
   echo "Checksum calculation:"
+  rhash --version
   rm -rf *.md5
   rm -rf *.sha256
 
