@@ -171,7 +171,7 @@ windows:
     - stable
     - triggers
   script:
-    - sh scripts/gitlab-build.sh x86_64-pc-windows-msvc x86_64-pc-windows-msvc installer "" "" "" windows
+    - sh scripts/gitlab-build.sh x86_64-pc-windows-msvc x86_64-pc-windows-msvc installer "" "" windows
   tags:
    - rust-windows
   artifacts:
