@@ -132,9 +132,9 @@ make_pkg () {
   cd ..
   packagesbuild -v mac/Parity.pkgproj
   productsign --sign 'Developer ID Installer: PARITY TECHNOLOGIES LIMITED (P2PX3JU8FT)' target/release/Parity\ Ethereum.pkg target/release/Parity\ Ethereum-signed.pkg
-  mv target/release/Parity\ Ethereum-signed.pkg "parity_"$VER"_"$IDENT"_"$ARC".pkg"
-  md5sum "parity_"$VER"_"$IDENT"_"$ARC"."$EXT >> "parity_"$VER"_"$IDENT"_"$ARC".pkg.md5"
-  sha256sum "parity_"$VER"_"$IDENT"_"$ARC"."$EXT >> "parity_"$VER"_"$IDENT"_"$ARC".pkg.sha256"
+  mv target/release/Parity\ Ethereum-signed.pkg "parity_"$VER"_"$ARC".pkg"
+  md5sum "parity_"$VER"_"$ARC"."$EXT >> "parity_"$VER"_"$ARC".pkg.md5"
+  sha256sum "parity_"$VER"_"$ARC"."$EXT >> "parity_"$VER"_"$ARC".pkg.sha256"
 }
 make_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
