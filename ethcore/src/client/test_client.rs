@@ -436,7 +436,7 @@ impl Nonce for TestBlockChainClient {
 impl Balance for TestBlockChainClient {
 	fn balance(&self, address: &Address, state: StateOrBlock) -> Option<U256> {
 		match state {
-			StateOrBlock::Block(BlockId::Latest) => Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero)),
+			StateOrBlock::Block(BlockId::Latest) | StateOrBlock::State(_) => Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero)),
 			_ => None,
 		}
 	}
