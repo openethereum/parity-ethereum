@@ -32,9 +32,11 @@ use parking_lot::{Mutex, RwLock};
 
 use super::{WalletInfo, KeyPath};
 
-// Expose these to the callback configuration
+/// Ledger vendor ID
 pub const LEDGER_VID: u16 = 0x2c97;
-pub const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001]; // Nano S and Blue
+/// Legder product IDs: [Nano S and Blue]
+pub const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001];
+
 const ETH_DERIVATION_PATH_BE: [u8; 17] = [4, 0x80, 0, 0, 44, 0x80, 0, 0, 60, 0x80, 0, 0, 0, 0, 0, 0, 0]; // 44'/60'/0'/0
 const ETC_DERIVATION_PATH_BE: [u8; 21] = [5, 0x80, 0, 0, 44, 0x80, 0, 0, 60, 0x80, 0x02, 0x73, 0xd0, 0x80, 0, 0, 0, 0, 0, 0, 0]; // 44'/60'/160720'/0'/0
 
@@ -249,10 +251,7 @@ impl Manager {
 	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
 		where F: Fn() -> Result<R, &'static str>
 	{
-		match f() {
-			Ok(handle) => Ok(handle),
-			Err(e) => Err(From::from(e)),
-		}
+		f().map_err(Into::into)
 	}
 
 	fn send_apdu(handle: &hidapi::HidDevice, command: u8, p1: u8, p2: u8, data: &[u8]) -> Result<Vec<u8>, Error> {
@@ -342,18 +341,8 @@ impl Manager {
 		message.truncate(new_len);
 		Ok(message)
 	}
-}
 
-pub struct EventHandler {
-	ledger: Weak<Manager>,
-}
-
-impl EventHandler {
-	pub fn new(ledger: Weak<Manager>) -> Self {
-		Self { ledger: ledger }
-	}
-
-	fn is_valid_product(&self, device: &libusb::Device) -> Result<(), Error> {
+	fn is_valid_ledger(device: &libusb::Device) -> Result<(), Error> {
 		let desc = device.device_descriptor()?;
 		let vendor_id = desc.vendor_id();
 		let product_id = desc.product_id();
@@ -364,28 +353,39 @@ impl EventHandler {
 			Err(Error::InvalidDevice)
 		}
 	}
+
 }
 
+/// Ledger event handler
+/// A seperate thread is handling incoming events
+pub struct EventHandler {
+	ledger: Weak<Manager>,
+}
+
+impl EventHandler {
+	/// Ledger event handler constructor 
+	pub fn new(ledger: Weak<Manager>) -> Self {
+		Self { ledger: ledger }
+	}
+}
 
 impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, device: libusb::Device) {
-		println!("ledger arrived");
-		Duration::from_millis(1000);
-
-		if let (Some(t), Ok(_)) = (self.ledger.upgrade(), self.is_valid_product(&device)) {
-			// Wait for the device to bootup
+		if let (Some(ledger), Ok(_)) = (self.ledger.upgrade(), Manager::is_valid_ledger(&device)) {
+			debug!("Ledger arrived");
+			// Wait for the device to boot up
 			thread::sleep(Duration::from_millis(1000));
-			if let Err(e) = t.update_devices() {
-				debug!("Ledger Connect Error: {:?}", e);
+			if let Err(e) = ledger.update_devices() {
+				debug!("Ledger connect error: {:?}", e);
 			}
 		}
 	}
 
-	fn device_left(&mut self, _device: libusb::Device) {
-		println!("ledger left");
-		if let Some(l) = self.ledger.upgrade() {
-			if let Err(e) = l.update_devices() {
-				debug!("Ledger Disconnect Error: {:?}", e);
+	fn device_left(&mut self, device: libusb::Device) {
+		if let (Some(ledger), Ok(_)) = (self.ledger.upgrade(), Manager::is_valid_ledger(&device)) {
+			debug!("Ledger left");
+			if let Err(e) = ledger.update_devices() {
+				debug!("Ledger disconnect error: {:?}", e);
 			}
 		}
 	}

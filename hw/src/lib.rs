@@ -42,7 +42,6 @@ use ethereum_types::U256;
 
 const USB_DEVICE_CLASS_DEVICE: u8 = 0;
 
-
 /// Hardware wallet error.
 #[derive(Debug)]
 pub enum Error {
@@ -139,10 +138,11 @@ pub struct HardwareWalletManager {
 
 
 impl HardwareWalletManager {
+	/// Hardware wallet constructor
 	pub fn new() -> Result<HardwareWalletManager, Error> {
 		let usb_context_trezor = Arc::new(libusb::Context::new()?);
 		let usb_context_ledger = Arc::new(libusb::Context::new()?);
-		let mut active_threads: Vec<Option<thread::JoinHandle<()>>> = Vec::with_capacity(10);
+		let mut active_threads: Vec<Option<thread::JoinHandle<()>>> = Vec::new();
 		let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().map_err(|e| Error::Hid(e.to_string().clone()))?));
 		let ledger = Arc::new(ledger::Manager::new(hidapi.clone()));
 		let trezor = Arc::new(trezor::Manager::new(hidapi.clone()));
@@ -169,16 +169,15 @@ impl HardwareWalletManager {
 		let t = trezor.clone();
 
 		// Ledger event thread
-		// FIXME: check if we can move it to ledger.rs (lifetime issue)
 		active_threads.push(thread::Builder::new()
 			.name("hw_wallet_ledger".to_string())
 			.spawn(move || {
 				if let Err(e) = l.update_devices() {
-					debug!("Error updating ledger devices: {}", e);
+					debug!("Ledger could not connect at startup, error: {}", e);
 				}
 				loop {
 					usb_context_ledger.handle_events(Some(Duration::from_millis(500)))
-					           .unwrap_or_else(|e| debug!("Error processing USB events: {}", e));
+					           .unwrap_or_else(|e| debug!("Ledger event handler error: {}", e));
 					if thread_exiting_ledger.load(atomic::Ordering::Acquire) {
 						break;
 					}
@@ -187,16 +186,15 @@ impl HardwareWalletManager {
 			.ok());
 
 		// Trezor event thread
-		// FIXME: check if we can move it to trezor.rs (lifetime issue)
 		active_threads.push(thread::Builder::new()
 			.name("hw_wallet_trezor".to_string())
 			.spawn(move || {
 				if let Err(e) = t.update_devices() {
-					debug!("Error updating ledger devices: {}", e);
+					debug!("Trezor could not connect at startup, error: {}", e);
 				}
 				loop {
 					usb_context_trezor.handle_events(Some(Duration::from_millis(500)))
-					           .unwrap_or_else(|e| debug!("Error processing USB events: {}", e));
+					           .unwrap_or_else(|e| debug!("Trezor event handler error: {}", e));
 					if thread_exiting_trezor.load(atomic::Ordering::Acquire) {
 						break;
 					}

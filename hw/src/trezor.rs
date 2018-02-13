@@ -38,12 +38,13 @@ use protobuf::{Message, ProtobufEnum};
 
 use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 
-// Expose these to the callback configuration
+/// Trezor v1 vendor ID
 pub const TREZOR_VID: u16 = 0x534c;
-pub const TREZOR_PIDS: [u16; 1] = [0x0001]; // Trezor v1, keeping this as an array to leave room for Trezor v2 which is in progress
+/// Trezor product IDs 
+pub const TREZOR_PIDS: [u16; 1] = [0x0001]; 
+
 const ETH_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003C, 0x80000000, 0, 0]; // m/44'/60'/0'/0/0
 const ETC_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003D, 0x80000000, 0, 0]; // m/44'/61'/0'/0/0
-
 
 /// Hardware wallet error.
 #[derive(Debug)]
@@ -59,7 +60,7 @@ pub enum Error {
 	/// The Message Type given in the trezor RPC call is not something we recognize
 	BadMessageType,
 	/// Trying to read from a closed device at the given path
-	ClosedDevice(String),
+	LockedDevice(String),
 }
 
 impl fmt::Display for Error {
@@ -70,7 +71,7 @@ impl fmt::Display for Error {
 			Error::KeyNotFound => write!(f, "Key not found"),
 			Error::UserCancel => write!(f, "Operation has been cancelled"),
 			Error::BadMessageType => write!(f, "Bad Message Type in RPC call"),
-			Error::ClosedDevice(ref s) => write!(f, "Device is closed, needs PIN to perform operations: {}", s),
+			Error::LockedDevice(ref s) => write!(f, "Device is locked, needs PIN to perform operations: {}", s),
 		}
 	}
 }
@@ -87,7 +88,7 @@ impl From<protobuf::ProtobufError> for Error {
 	}
 }
 
-/// Ledger device manager.
+/// Ledger device manager
 pub struct Manager {
 	usb: Arc<Mutex<hidapi::HidApi>>,
 	devices: RwLock<Vec<Device>>,
@@ -143,7 +144,7 @@ impl Manager {
 			}
 			match self.read_device_info(&usb, &usb_device) {
 				Ok(device) => new_devices.push(device),
-				Err(Error::ClosedDevice(path)) => locked_devices.push(path.to_string()),
+				Err(Error::LockedDevice(path)) => locked_devices.push(path.to_string()),
 				Err(e) => {
 					warn!("Error reading device: {:?}", e);
 					error = Some(e);
@@ -177,7 +178,7 @@ impl Manager {
 					},
 				})
 			}
-			Ok(None) => Err(Error::ClosedDevice(dev_info.path.clone())),
+			Ok(None) => Err(Error::LockedDevice(dev_info.path.clone())),
 			Err(e) => Err(e),
 		}
 	}
@@ -204,10 +205,7 @@ impl Manager {
 	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
 		where F: Fn() -> Result<R, &'static str>
 	{
-		match f() {
-			Ok(handle) => Ok(handle),
-			Err(e) => Err(From::from(e)),
-		}
+		f().map_err(Into::into)
 	}
 
 	pub fn pin_matrix_ack(&self, device_path: &str, pin: &str) -> Result<bool, Error> {
@@ -404,11 +402,14 @@ impl Manager {
 	}
 }
 
+/// Trezor event handler
+/// A separate thread is handeling incoming events
 pub struct EventHandler {
 	trezor: Weak<Manager>,
 }
 
 impl EventHandler {
+	// Trezor event handler constructor
 	pub fn new(trezor: Weak<Manager>) -> Self {
 		Self { trezor: trezor }
 	}
@@ -416,24 +417,22 @@ impl EventHandler {
 
 impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, _device: libusb::Device) {
-		println!("trezor arrived");
-		if let Some(t) = self.trezor.upgrade() {
-			// Wait for the device to boot-up
+		debug!("Trezor V1 arrived");
+		if let Some(trezor) = self.trezor.upgrade() {
+			// Wait for the device to boot up
 			thread::sleep(Duration::from_millis(1000));
-			if let Err(e) = t.update_devices() {
-				debug!("TREZOR Connect Error: {:?}", e);
+			if let Err(e) = trezor.update_devices() {
+				debug!("Trezor V1 connect error: {:?}", e);
 			}
-			println!("unlocked devices: {:?}", t.list_devices());
-			println!("locked devices: {:?}", t.list_locked_devices());
 
 		}
 	}
 
 	fn device_left(&mut self, _device: libusb::Device) {
-		println!("trezor left");
-		if let Some(t) = self.trezor.upgrade() {
-			if let Err(e) = t.update_devices() {
-				debug!("TREZOR Disconnect fail: {:?}", e);
+		debug!("Trezor V1 left");
+		if let Some(trezor) = self.trezor.upgrade() {
+			if let Err(e) = trezor.update_devices() {
+				debug!("Trezor V1 disconnect error: {:?}", e);
 			}
 		}
 	}
