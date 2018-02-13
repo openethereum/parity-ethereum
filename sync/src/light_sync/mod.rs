@@ -58,7 +58,12 @@ mod sync_round;
 #[cfg(test)]
 mod tests;
 
-const REQ_TIMEOUT_MILLISECS: u64 = 7000;
+// Base number of milliseconds for the header request timeout.
+const REQ_TIMEOUT_MILLISECS_BASE: u64 = 7000;
+// Additional number of milliseconds for each requested header.
+// If we request N headers, then the timeout will be:
+//  REQ_TIMEOUT_MILLISECS_BASE + N * REQ_TIMEOUT_MILLISECS_PER_HEADER
+const REQ_TIMEOUT_MILLISECS_PER_HEADER: u64 = 10;
 
 /// Peer chain info.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -227,10 +232,16 @@ pub struct LightSync<L: AsLightClient> {
 	start_block_number: u64,
 	best_seen: Mutex<Option<ChainInfo>>, // best seen block on the network.
 	peers: RwLock<HashMap<PeerId, Mutex<Peer>>>, // peers which are relevant to synchronization.
-	pending_reqs: Mutex<HashMap<ReqId, Instant>>, // requests from this handler, with their start.
+	pending_reqs: Mutex<HashMap<ReqId, PendingReq>>, // requests from this handler
 	client: Arc<L>,
 	rng: Mutex<OsRng>,
 	state: Mutex<SyncState>,
+}
+
+#[derive(Debug, Clone)]
+struct PendingReq {
+	started: Instant,
+	timeout: Duration,
 }
 
 impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
@@ -508,8 +519,8 @@ impl<L: AsLightClient> LightSync<L> {
 		{
 			let mut pending_reqs = self.pending_reqs.lock();
 			let mut unfulfilled = Vec::new();
-			for (req_id, started) in pending_reqs.iter() {
-				if started.elapsed() >= Duration::from_millis(REQ_TIMEOUT_MILLISECS) {
+			for (req_id, info) in pending_reqs.iter() {
+				if info.started.elapsed() >= info.timeout {
 					debug!(target: "sync", "{} timed out", req_id);
 					unfulfilled.push(req_id.clone());
 				}
@@ -563,7 +574,12 @@ impl<L: AsLightClient> LightSync<L> {
 					if requested_from.contains(peer) { continue }
 					match ctx.request_from(*peer, request.clone()) {
 						Ok(id) => {
-							self.pending_reqs.lock().insert(id.clone(), Instant::now());
+							let timeout_ms = REQ_TIMEOUT_MILLISECS_BASE +
+								req.max * REQ_TIMEOUT_MILLISECS_PER_HEADER;
+							self.pending_reqs.lock().insert(id.clone(), PendingReq {
+								started: Instant::now(),
+								timeout: Duration::from_millis(timeout_ms),
+							});
 							requested_from.insert(peer.clone());
 
 							return Some(id)
