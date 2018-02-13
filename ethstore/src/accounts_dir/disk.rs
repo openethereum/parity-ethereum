@@ -153,56 +153,31 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 		)
 	}
 
-	/// insert account with given file name. if the filename is a duplicate of any stored account, a number is appended
-	/// to the filename.
+
+	/// insert account with given filename. if the filename is a duplicate of any stored account, a random suffix is
+	/// appended to the filename.
 	pub fn insert_with_filename(&self, account: SafeAccount, mut filename: String) -> Result<SafeAccount, Error> {
-		// check for duplicate filenames and append/increment counter
-		let dups: Vec<_> = self.files()?.into_iter().filter_map(|f| {
-			match f.file_name().map(|n| n.to_string_lossy()) {
-				Some(ref name) if name.starts_with(&filename) => Some(name.to_string()),
-				_ => None
-			}
-		}).collect();
+		// path to keyfile
+		let mut keyfile_path = self.path.clone();
+		keyfile_path.push(filename.as_str());
 
-		if !dups.is_empty() {
-			let mut max = 0;
-			let mut found = false;
-
-			for dup in dups {
-				if dup.len() == filename.len() {
-					// we found a file with the same name
-					found = true;
-				}
-				else if dup[filename.len()..].starts_with("-") {
-					// this is a duplicate file with a counter appended
-					match dup[filename.len() + 1..].parse() {
-						Ok(n) if n > max => {
-							max = n;
-						},
-						_ => {},
-					}
-				}
-			}
-
-			if found {
-				filename.push_str(&format!("-{}", max + 1))
-			}
+		// check for duplicate filename and append random suffix
+		if keyfile_path.exists() {
+			let suffix = ::random::random_string(4);
+			filename.push_str(&format!("-{}", suffix));
+			keyfile_path.set_file_name(&filename);
 		}
 
 		// update account filename
 		let original_account = account.clone();
 		let mut account = account;
-		account.filename = Some(filename.clone());
+		account.filename = Some(filename);
 
 		{
-			// Path to keyfile
-			let mut keyfile_path = self.path.clone();
-			keyfile_path.push(filename.as_str());
-
 			// save the file
 			let mut file = fs::File::create(&keyfile_path)?;
 
-			// Write key content
+			// write key content
 			self.key_manager.write(original_account, &mut file).map_err(|e| Error::Custom(format!("{:?}", e)))?;
 
 			file.flush()?;
@@ -365,15 +340,18 @@ mod test {
 		let filename = "test".to_string();
 
 		directory.insert_with_filename(account.clone(), "foo".to_string()).unwrap();
-		directory.insert_with_filename(account.clone(), "testa".to_string()).unwrap();
-		let res1 = directory.insert_with_filename(account.clone(), filename.clone());
-		let res2 = directory.insert_with_filename(account.clone(), filename.clone());
-		let res3 = directory.insert_with_filename(account.clone(), filename.clone());
+		let file1 = directory.insert_with_filename(account.clone(), filename.clone()).unwrap().filename.unwrap();
+		let file2 = directory.insert_with_filename(account.clone(), filename.clone()).unwrap().filename.unwrap();
+		let file3 = directory.insert_with_filename(account.clone(), filename.clone()).unwrap().filename.unwrap();
 
 		// then
-		assert_eq!(res1.unwrap().filename.unwrap(), filename);
-		assert_eq!(res2.unwrap().filename.unwrap(), format!("{}-1", filename));
-		assert_eq!(res3.unwrap().filename.unwrap(), format!("{}-2", filename));
+		// the first file should have the original names
+		assert_eq!(file1, filename);
+
+		// the following duplicate files should have a suffix appended
+		assert!(file2 != file3);
+		assert_eq!(file2.len(), filename.len() + 5);
+		assert_eq!(file3.len(), filename.len() + 5);
 
 		// cleanup
 		let _ = fs::remove_dir_all(dir);
