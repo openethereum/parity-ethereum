@@ -39,6 +39,8 @@ pub struct DecryptionJob {
 	request_id: Option<Secret>,
 	/// Is shadow decryption requested.
 	is_shadow_decryption: Option<bool>,
+	/// Is broadcast decryption requested.
+	is_broadcast_session: Option<bool>,
 }
 
 /// Decryption job partial request.
@@ -47,11 +49,14 @@ pub struct PartialDecryptionRequest {
 	pub id: Secret,
 	/// Is shadow decryption requested.
 	pub is_shadow_decryption: bool,
+	/// Is broadcast decryption requested.
+	pub is_broadcast_session: bool,
 	/// Id of other nodes, participating in decryption.
 	pub other_nodes_ids: BTreeSet<NodeId>,
 }
 
 /// Decryption job partial response.
+#[derive(Clone)]
 pub struct PartialDecryptionResponse {
 	/// Request id.
 	pub request_id: Secret,
@@ -72,10 +77,11 @@ impl DecryptionJob {
 			key_version: key_version,
 			request_id: None,
 			is_shadow_decryption: None,
+			is_broadcast_session: None,
 		})
 	}
 
-	pub fn new_on_master(self_node_id: NodeId, access_key: Secret, requester: Public, key_share: DocumentKeyShare, key_version: H256, is_shadow_decryption: bool) -> Result<Self, Error> {
+	pub fn new_on_master(self_node_id: NodeId, access_key: Secret, requester: Public, key_share: DocumentKeyShare, key_version: H256, is_shadow_decryption: bool, is_broadcast_session: bool) -> Result<Self, Error> {
 		debug_assert!(key_share.common_point.is_some() && key_share.encrypted_point.is_some());
 		Ok(DecryptionJob {
 			self_node_id: self_node_id,
@@ -85,7 +91,16 @@ impl DecryptionJob {
 			key_version: key_version,
 			request_id: Some(math::generate_random_scalar()?),
 			is_shadow_decryption: Some(is_shadow_decryption),
+			is_broadcast_session: Some(is_broadcast_session),
 		})
+	}
+
+	pub fn request_id(&self) -> &Option<Secret> {
+		&self.request_id
+	}
+
+	pub fn set_request_id(&mut self, request_id: Secret) {
+		self.request_id = Some(request_id);
 	}
 }
 
@@ -101,12 +116,15 @@ impl JobExecutor for DecryptionJob {
 			.expect("prepare_partial_request is only called on master nodes; request_id is filed in constructor on master nodes; qed");
 		let is_shadow_decryption = self.is_shadow_decryption
 			.expect("prepare_partial_request is only called on master nodes; is_shadow_decryption is filed in constructor on master nodes; qed");
+		let is_broadcast_session = self.is_broadcast_session
+			.expect("prepare_partial_request is only called on master nodes; is_broadcast_session is filed in constructor on master nodes; qed");
 		let mut other_nodes_ids = nodes.clone();
 		other_nodes_ids.remove(node);
 
 		Ok(PartialDecryptionRequest {
 			id: request_id.clone(),
 			is_shadow_decryption: is_shadow_decryption,
+			is_broadcast_session: is_broadcast_session,
 			other_nodes_ids: other_nodes_ids,
 		})
 	}

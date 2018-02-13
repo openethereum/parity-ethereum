@@ -979,7 +979,7 @@ fn insert_dev_account(account_provider: &AccountProvider) {
 			Ok(address) => {
 				let _ = account_provider.set_account_name(address.clone(), "Development Account".into());
 				let _ = account_provider.set_account_meta(address, ::serde_json::to_string(&(vec![
-					("description", "Never use this account outside of develoopment chain!"),
+					("description", "Never use this account outside of development chain!"),
 					("passwordHint","Password is empty string"),
 				].into_iter().collect::<::std::collections::HashMap<_,_>>())).expect("Serialization of hashmap does not fail."));
 			},

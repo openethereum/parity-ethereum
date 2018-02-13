@@ -16,10 +16,10 @@ rust_test () {
   rustup show
   if [[ "${RUST_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping Rust tests since no Rust files modified.";
-    else ./test.sh;
+    else ./test.sh || exit $?;
   fi
   if [[ "$CI_COMMIT_REF_NAME" == "nightly" ]];
-    then sh scripts/aura-test.sh;
+    then sh scripts/aura-test.sh || exit $?;
   fi
 }
 coverage_test () {

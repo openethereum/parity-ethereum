@@ -785,7 +785,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn registrar_address(&self) -> Option<Address> { None }
 
-	fn registry_address(&self, _name: String) -> Option<Address> { None }
+	fn registry_address(&self, _name: String, _block: BlockId) -> Option<Address> { None }
 
 	fn eip86_transition(&self) -> u64 { u64::max_value() }
 }
