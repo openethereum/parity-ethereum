@@ -62,10 +62,11 @@ use executive::Executed;
 use error::CallError;
 use trace::LocalizedTrace;
 use state_db::StateDB;
-use state::State;
 use header::Header;
 use encoded;
 use engines::EthEngine;
+use trie;
+use state::StateInfo;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -555,7 +556,8 @@ impl ImportBlock for TestBlockChainClient {
 }
 
 impl Call for TestBlockChainClient {
-	type State = State<::state_db::StateDB>;
+	// State will not be used by test client anyway, since all methods that accept state are mocked
+	type State = ();
 
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _state: &mut Self::State, _header: &Header) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
@@ -574,15 +576,23 @@ impl Call for TestBlockChainClient {
 	}
 }
 
+impl StateInfo for () {
+	fn nonce(&self, _address: &Address) -> trie::Result<U256> { unimplemented!() }
+	fn balance(&self, _address: &Address) -> trie::Result<U256> { unimplemented!() }
+	fn storage_at(&self, _address: &Address, _key: &H256) -> trie::Result<H256> { unimplemented!() }
+	fn code(&self, _address: &Address) -> trie::Result<Option<Arc<Bytes>>> { unimplemented!() }
+}
+
 impl StateClient for TestBlockChainClient {
-	type State = State<StateDB>;
+	// State will not be used by test client anyway, since all methods that accept state are mocked
+	type State = ();
 
 	fn latest_state(&self) -> Self::State {
-		unimplemented!()
+		()
 	}
 
 	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
-		None
+		Some(())
 	}
 }
 

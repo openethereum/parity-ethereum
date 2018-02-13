@@ -29,8 +29,6 @@ use ethcore::header::{BlockNumber, Header};
 use ethcore::ids::BlockId;
 use ethcore::miner::{MinerService, MinerStatus};
 use ethcore::receipt::{Receipt, RichReceipt};
-use ethcore::state::State;
-use ethcore::state_db::StateDB;
 use ethereum_types::{H256, U256, Address};
 use miner::local_transactions::Status as LocalTransactionStatus;
 use parking_lot::{RwLock, Mutex};
@@ -98,14 +96,15 @@ impl TestMinerService {
 }
 
 impl StateClient for TestMinerService {
-	type State = State<StateDB>;
+	// State will not be used by test client anyway, since all methods that accept state are mocked
+	type State = ();
 
 	fn latest_state(&self) -> Self::State {
-		unimplemented!()
+		()
 	}
 
 	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
-		None
+		Some(())
 	}
 }
 
@@ -116,7 +115,7 @@ impl EngineInfo for TestMinerService {
 }
 
 impl MinerService for TestMinerService {
-	type State = State<StateDB>;
+	type State = ();
 
 	fn pending_state(&self, _latest_block_number: BlockNumber) -> Option<Self::State> {
 		None
