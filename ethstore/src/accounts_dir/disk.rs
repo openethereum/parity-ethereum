@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{fs, io};
+use std::io::Write;
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 use time;
@@ -166,17 +167,17 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 
 			// save the file
 			let mut file = fs::File::create(&keyfile_path)?;
-			if let Err(err) = self.key_manager.write(original_account, &mut file).map_err(|e| Error::Custom(format!("{:?}", e))) {
-				drop(file);
-				fs::remove_file(keyfile_path).expect("Expected to remove recently created file");
-				return Err(err);
-			}
+
+			// Write key content
+			self.key_manager.write(original_account, &mut file).map_err(|e| Error::Custom(format!("{:?}", e)))?;
+
+			file.flush()?;
 
 			if let Err(_) = restrict_permissions_to_owner(keyfile_path.as_path()) {
-				drop(file);
-				fs::remove_file(keyfile_path).expect("Expected to remove recently created file");
 				return Err(Error::Io(io::Error::last_os_error()));
 			}
+
+			file.sync_all()?;
 		}
 
 		Ok(account)

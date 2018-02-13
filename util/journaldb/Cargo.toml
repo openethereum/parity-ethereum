@@ -7,7 +7,7 @@ license = "GPL3"
 
 [dependencies]
 ethcore-bytes = { path = "../bytes" }
-ethereum-types = "0.1"
+ethereum-types = "0.2"
 hashdb = { path = "../hashdb" }
 heapsize = "0.4"
 kvdb = { path = "../kvdb" }

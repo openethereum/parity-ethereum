@@ -106,7 +106,7 @@ pub enum ServiceTask {
 	/// Retry all 'stalled' tasks.
 	Retry,
 	/// Generate server key (server_key_id, threshold).
-	GenerateServerKey(H256, H256),
+	GenerateServerKey(H256, U256),
 	/// Confirm server key (server_key_id).
 	RestoreServerKey(H256),
 	/// Generate document key (server_key_id, threshold, signed server_key_id).
@@ -345,7 +345,7 @@ impl ServiceContractListener {
 	}
 
 	/// Generate server key.
-	fn generate_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, threshold: &H256) -> Result<Public, String> {
+	fn generate_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, threshold: &U256) -> Result<Public, String> {
 		let threshold_num = threshold.low_u64();
 		if threshold != &threshold_num.into() || threshold_num >= ::std::usize::MAX as u64 {
 			return Err(format!("invalid threshold {:?}", threshold));
@@ -395,7 +395,8 @@ impl ServiceContractListener {
 
 	/// Publish document key.
 	fn publish_document_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, document_key: &EncryptedDocumentKey) -> Result<(), String> {
-		data.contract.publish_document_key(server_key_id, document_key)
+		//data.contract.publish_document_key(server_key_id, document_key)
+		unimplemented!("TODO")
 	}
 }
 
@@ -471,13 +472,13 @@ impl ClusterSessionsListener<EncryptionSession> for ServiceContractListener {
 			4) remove GenerateDocumentKey and RestoreDocumentKey APIs from service contract
 
 		*/
-		42 // ^^^
+		//42 // ^^^
 	}
 }
 
 impl ClusterSessionsListener<DecryptionSession> for ServiceContractListener {
 	fn on_session_removed(&self, session: Arc<DecryptionSession>) {
-		42 // ^^^
+		//42 // ^^^
 	}
 }
 
@@ -498,7 +499,7 @@ fn is_processed_by_this_key_server(key_server_set: &KeyServerSet, self_key_pair:
 
 	let server_key_id_value: U256 = server_key_id.into();
 	let range_interval = U256::max_value() / total_servers_count.into();
-	let range_begin = (range_interval + 1.into()) * this_server_index.into();
+	let range_begin = (range_interval + 1.into()) * this_server_index as u32;
 	let range_end = range_begin.saturating_add(range_interval);
 
 	server_key_id_value >= range_begin && server_key_id_value <= range_end
@@ -509,8 +510,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::sync::atomic::Ordering;
 	use ethkey::{Random, Generator, KeyPair};
-	use listener::service_contract::{ServiceContract, SERVER_KEY_REQUESTED_EVENT_NAME_HASH,
-		DOCUMENT_KEY_REQUESTED_EVENT_NAME_HASH};
+	use listener::service_contract::{ServiceContract, SERVER_KEY_REQUESTED_EVENT_NAME_HASH};
 	use listener::service_contract::tests::DummyServiceContract;
 	use key_server_cluster::DummyClusterClient;
 	use key_server::tests::DummyKeyServer;

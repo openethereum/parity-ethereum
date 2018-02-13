@@ -1,9 +1,22 @@
+# NOTE This file is used by the auto-updater service.
+# Make sure to update the service if it's moved or the structure is changed.
 [package]
 name = "parity-version"
 # NOTE: this value is used for Parity version string (via env CARGO_PKG_VERSION)
 version = "1.10.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
+
+[package.metadata]
+# This versions track. Should be changed to `stable` or `beta` when on respective branches.
+# Used by auto-updater and for Parity version string.
+track = "nightly"
+
+# Latest supported fork blocks for various networks. Used ONLY by auto-updater.
+[package.metadata.forks]
+foundation = 4370000
+ropsten = 10
+kovan = 5067000
 
 [dependencies]
 ethcore-bytes = { path = "../bytes" }
@@ -13,6 +26,7 @@ target_info = "0.1"
 [build-dependencies]
 vergen = "0.1"
 rustc_version = "0.2.0"
+toml = "0.4"
 
 [features]
 final = []

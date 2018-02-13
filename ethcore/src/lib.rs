@@ -71,12 +71,10 @@ extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-extern crate futures;
 extern crate hardware_wallet;
 extern crate hashdb;
 extern crate itertools;
 extern crate lru_cache;
-extern crate native_contracts;
 extern crate num_cpus;
 extern crate num;
 extern crate parity_machine;
@@ -91,7 +89,6 @@ extern crate memorydb;
 extern crate patricia_trie as trie;
 extern crate triehash;
 extern crate ansi_term;
-extern crate semantic_version;
 extern crate unexpected;
 extern crate kvdb;
 extern crate kvdb_rocksdb;
@@ -99,6 +96,12 @@ extern crate kvdb_memorydb;
 extern crate util_error;
 extern crate snappy;
 extern crate migration;
+
+extern crate ethabi;
+#[macro_use]
+extern crate ethabi_derive;
+#[macro_use]
+extern crate ethabi_contract;
 
 #[macro_use]
 extern crate rlp_derive;

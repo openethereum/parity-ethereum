@@ -103,7 +103,7 @@ impl From<ethsync::EthProtocolInfo> for EthProtocolInfo {
 		EthProtocolInfo {
 			version: info.version,
 			difficulty: info.difficulty.map(Into::into),
-			head: info.head.hex(),
+			head: format!("{:x}", info.head),
 		}
 	}
 }
@@ -124,7 +124,7 @@ impl From<ethsync::PipProtocolInfo> for PipProtocolInfo {
 		PipProtocolInfo {
 			version: info.version,
 			difficulty: info.difficulty.into(),
-			head: info.head.hex(),
+			head: format!("{:x}", info.head),
 		}
 	}
 }

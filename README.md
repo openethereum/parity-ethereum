@@ -82,10 +82,20 @@ Once you have rustup, install Parity or download and build from source
 In any of the [supported Linux distros](https://snapcraft.io/docs/core/install):
 
 ```bash
-sudo snap install parity --edge
+sudo snap install parity
 ```
 
-(Note that this is an experimental and unstable release, at the moment)
+Or, if you want to contribute testing the upcoming release:
+
+```bash
+sudo snap install parity --beta
+```
+
+And to test the latest code landed into the master branch:
+
+```bash
+sudo snap install parity --edge
+```
 
 ----
 

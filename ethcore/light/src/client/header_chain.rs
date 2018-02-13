@@ -724,6 +724,7 @@ mod tests {
 	use super::HeaderChain;
 	use std::sync::Arc;
 
+	use ethereum_types::U256;
 	use ethcore::ids::BlockId;
 	use ethcore::header::Header;
 	use ethcore::spec::Spec;
@@ -755,7 +756,7 @@ mod tests {
 			header.set_parent_hash(parent_hash);
 			header.set_number(i);
 			header.set_timestamp(rolling_timestamp);
-			header.set_difficulty(*genesis_header.difficulty() * i.into());
+			header.set_difficulty(*genesis_header.difficulty() * i as u32);
 			parent_hash = header.hash();
 
 			let mut tx = db.transaction();
@@ -788,7 +789,7 @@ mod tests {
 			header.set_parent_hash(parent_hash);
 			header.set_number(i);
 			header.set_timestamp(rolling_timestamp);
-			header.set_difficulty(*genesis_header.difficulty() * i.into());
+			header.set_difficulty(*genesis_header.difficulty() * i as u32);
 			parent_hash = header.hash();
 
 			let mut tx = db.transaction();
@@ -807,7 +808,7 @@ mod tests {
 				header.set_parent_hash(parent_hash);
 				header.set_number(i);
 				header.set_timestamp(rolling_timestamp);
-				header.set_difficulty(*genesis_header.difficulty() * i.into());
+				header.set_difficulty(*genesis_header.difficulty() * i as u32);
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
@@ -831,7 +832,7 @@ mod tests {
 				header.set_parent_hash(parent_hash);
 				header.set_number(i);
 				header.set_timestamp(rolling_timestamp);
-				header.set_difficulty(*genesis_header.difficulty() * (i * i).into());
+				header.set_difficulty(*genesis_header.difficulty() * U256::from(i * i));
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
@@ -884,7 +885,7 @@ mod tests {
 				header.set_parent_hash(parent_hash);
 				header.set_number(i);
 				header.set_timestamp(rolling_timestamp);
-				header.set_difficulty(*genesis_header.difficulty() * i.into());
+				header.set_difficulty(*genesis_header.difficulty() * i as u32);
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
@@ -922,7 +923,7 @@ mod tests {
 				header.set_parent_hash(parent_hash);
 				header.set_number(i);
 				header.set_timestamp(rolling_timestamp);
-				header.set_difficulty(*genesis_header.difficulty() * i.into());
+				header.set_difficulty(*genesis_header.difficulty() * i as u32);
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
@@ -939,7 +940,7 @@ mod tests {
 				header.set_parent_hash(parent_hash);
 				header.set_number(i);
 				header.set_timestamp(rolling_timestamp);
-				header.set_difficulty(*genesis_header.difficulty() * i.into() * 1000.into());
+				header.set_difficulty(*genesis_header.difficulty() * U256::from(i as u32 * 1000u32));
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
@@ -989,7 +990,7 @@ mod tests {
 			header.set_parent_hash(parent_hash);
 			header.set_number(i);
 			header.set_timestamp(rolling_timestamp);
-			header.set_difficulty(*genesis_header.difficulty() * i.into());
+			header.set_difficulty(*genesis_header.difficulty() * i as u32);
 			parent_hash = header.hash();
 
 			let mut tx = db.transaction();
@@ -1023,7 +1024,7 @@ mod tests {
 			header.set_parent_hash(parent_hash);
 			header.set_number(i);
 			header.set_timestamp(rolling_timestamp);
-			header.set_difficulty(*genesis_header.difficulty() * i.into());
+			header.set_difficulty(*genesis_header.difficulty() * i as u32);
 			parent_hash = header.hash();
 
 			let mut tx = db.transaction();

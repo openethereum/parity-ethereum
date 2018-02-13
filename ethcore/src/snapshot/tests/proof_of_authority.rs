@@ -23,8 +23,6 @@ use std::str::FromStr;
 use account_provider::AccountProvider;
 use client::{Client, BlockChainClient};
 use ethkey::Secret;
-use futures::Future;
-use native_contracts::test_contracts::ValidatorSet;
 use snapshot::tests::helpers as snapshot_helpers;
 use spec::Spec;
 use tests::helpers;
@@ -32,6 +30,8 @@ use transaction::{Transaction, Action, SignedTransaction};
 
 use ethereum_types::Address;
 use kvdb_memorydb;
+
+use_contract!(test_validator_set, "ValidatorSet", "res/contracts/test_validator_set.json");
 
 const PASS: &'static str = "";
 const TRANSITION_BLOCK_1: usize = 2; // block at which the contract becomes activated.
@@ -56,7 +56,7 @@ lazy_static! {
 /// Account with secrets keccak("1") is initially the validator.
 /// Transitions to the contract at block 2, initially same validator set.
 /// Create a new Spec with AuthorityRound which uses a contract at address 5 to determine the current validators using `getValidators`.
-/// `native_contracts::test_contracts::ValidatorSet` provides a native wrapper for the ABi.
+/// `test_validator_set::ValidatorSet` provides a native wrapper for the ABi.
 fn spec_fixed_to_contract() -> Spec {
 	let data = include_bytes!("test_validator_contract.json");
 	Spec::load(&::std::env::temp_dir(), &data[..]).unwrap()
@@ -136,8 +136,7 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 			vec![transaction]
 		};
 
-		let contract_1 = ValidatorSet::new(*CONTRACT_ADDR_1);
-		let contract_2 = ValidatorSet::new(*CONTRACT_ADDR_2);
+		let contract = test_validator_set::ValidatorSet::default();
 
 		// apply all transitions.
 		for transition in transitions {
@@ -160,34 +159,24 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 
 			let pending = if manual {
 				trace!(target: "snapshot", "applying set transition at block #{}", num);
-				let contract = match num >= TRANSITION_BLOCK_2 {
-					true => &contract_2,
-					false => &contract_1,
+				let address = match num >= TRANSITION_BLOCK_2 {
+					true => &CONTRACT_ADDR_2 as &Address,
+					false => &CONTRACT_ADDR_1 as &Address,
 				};
 
-				let mut pending = Vec::new();
-				{
-					let mut exec = |addr, data| {
-						let mut nonce = nonce.borrow_mut();
-						let transaction = Transaction {
-							nonce: *nonce,
-							gas_price: 0.into(),
-							gas: 1_000_000.into(),
-							action: Action::Call(addr),
-							value: 0.into(),
-							data: data,
-						}.sign(&*RICH_SECRET, client.signing_chain_id());
+				let data = contract.functions().set_validators().input(new_set.clone());
+				let mut nonce = nonce.borrow_mut();
+				let transaction = Transaction {
+					nonce: *nonce,
+					gas_price: 0.into(),
+					gas: 1_000_000.into(),
+					action: Action::Call(*address),
+					value: 0.into(),
+					data,
+				}.sign(&*RICH_SECRET, client.signing_chain_id());
 
-						pending.push(transaction);
-
-						*nonce = *nonce + 1.into();
-						Ok(Vec::new())
-					};
-
-					contract.set_validators(&mut exec, new_set.clone()).wait().unwrap();
-				}
-
-				pending
+				*nonce = *nonce + 1.into();
+				vec![transaction]
 			} else {
 				make_useless_transactions()
 			};

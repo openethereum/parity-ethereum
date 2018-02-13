@@ -144,7 +144,7 @@ fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
 		let mut f = BufReader::new(File::open(&file).map_err(|_| "Unable to open file".to_owned())?);
 		let hash = keccak_buffer(&mut f).map_err(|_| "Unable to read from file".to_owned())?;
-		Ok(hash.hex())
+		Ok(format!("{:x}", hash))
 	} else {
 		Err("Streaming from standard input not yet supported. Specify a file.".to_owned())
 	}
