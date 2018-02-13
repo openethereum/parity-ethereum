@@ -566,11 +566,28 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				let nonce = self.miner.last_nonce(&address)
 					.map(|n| n + 1.into())
 					.or_else(|| self.client.nonce(&address, BlockId::Latest));
+
 				match nonce {
 					Some(nonce) => Ok(nonce.into()),
 					None => Err(errors::database("latest nonce missing"))
 				}
-			}
+			},
+
+			BlockNumber::Pending => {
+				let info = self.client.chain_info();
+				let count: Option<U256> = self.miner
+					.pending_block(info.best_block_number)
+					.map(|b| b.transactions.len().into())
+					.or_else(|| {
+						warn!("Fallback to `BlockId::Latest`");
+						self.client.nonce(&address, BlockId::Latest)
+					});
+
+				match count {
+					Some(len) => Ok(len.into()),
+					None => Err(errors::database("latest nonce missing"))
+				}
+			},
 
 			number => {
 				try_bf!(check_known(&*self.client, number.clone()));
