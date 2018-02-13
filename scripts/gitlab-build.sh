@@ -22,6 +22,8 @@ echo "Parity version:     " $VER
 echo "Branch:             " $CI_BUILD_REF_NAME
 echo "--------------------"
 
+echo "Rhash version:"
+rhash --version
 # NOTE for md5 and sha256 we want to display filename as well
 # hence we use --* instead of -p *
 MD5_BIN="rhash --md5"
@@ -71,8 +73,8 @@ calculate_checksums () {
   rm -rf *.md5
   rm -rf *.sha256
 
-  export SHA3=$($SHA3_BIN target/$PLATFORM/release/parity$S3WIN)
-  echo "Parity file SHA3:" $SHA3
+  export SHA3="$($SHA3_BIN target/$PLATFORM/release/parity$S3WIN)"
+  echo "Parity file SHA3: $SHA3"
   $MD5_BIN target/$PLATFORM/release/parity$S3WIN > parity$S3WIN.md5
   $SHA256_BIN target/$PLATFORM/release/parity$S3WIN > parity$S3WIN.sha256
   $MD5_BIN target/$PLATFORM/release/parity-evm$S3WIN > parity-evm$S3WIN.md5
@@ -125,6 +127,8 @@ make_rpm () {
   cp target/$PLATFORM/release/parity-evm /install/usr/bin/parity-evm
   cp target/$PLATFORM/release/ethstore /install/usr/bin/ethstore
   cp target/$PLATFORM/release/ethkey /install/usr/bin/ethkey
+
+  rm -rf "parity-"$VER"-1."$ARC".rpm" || true
   fpm -s dir -t rpm -n parity -v $VER --epoch 1 --license GPLv3 -d openssl --provides parity --url https://parity.io --vendor "Parity Technologies" -a x86_64 -m "<devops@parity.io>" --description "Ethereum network client by Parity Technologies" -C /install/
   cp "parity-"$VER"-1."$ARC".rpm" "parity_"$VER"_"$IDENT"_"$ARC".rpm"
   $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC".rpm" > "parity_"$VER"_"$IDENT"_"$ARC".rpm.md5"
