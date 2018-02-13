@@ -239,8 +239,6 @@ push-release:
     - triggers
   image: parity/rust:gitlab-ci
   script:
-    - rustup default stable
-    - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
-    - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
+    - scripts/gitlab-push-release.sh
   tags:
     - curl
