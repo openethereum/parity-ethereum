@@ -167,7 +167,7 @@ push_binaries () {
   echo "Push binaries to AWS S3"
   aws configure set aws_access_key_id $s3_key
   aws configure set aws_secret_access_key $s3_secret
-  if [[ "$CI_BUILD_REF_NAME" = "master" || "$CI_BUILD_REF_NAME" = "beta" || "$CI_BUILD_REF_NAME" = "stable" || "$CI_BUILD_REF_NAME" = "nightly" ]];
+  if [[ "$CI_BUILD_REF_NAME" = "master" || "$CI_BUILD_REF_NAME" = "beta" || "$CI_BUILD_REF_NAME" = "stable" || "$CI_BUILD_REF_NAME" = "nightly" || "$CI_BUILD_REF_NAME" = "beta-release" || "$CI_BUILD_REF_NAME" = "stable-release"]];
   then
     export S3_BUCKET=builds-parity-published;
   else
