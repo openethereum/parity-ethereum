@@ -46,13 +46,13 @@ impl Spec {
 	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
 		let spec: Self = serde_json::from_reader(reader)?;
 
-		Self::validate(&spec)?;
+		spec.validate()?;
 
 		Ok(spec)
 	}
 
-	fn validate(spec: &Self) -> Result<(), Error> {
-		let divisor: u64 = spec.params.gas_limit_bound_divisor.into();
+	fn validate(&self) -> Result<(), Error> {
+		let divisor: u64 = self.params.gas_limit_bound_divisor.into();
 
 		if divisor == 0 {
 			return Err(Error::ZeroValueDivisor)
