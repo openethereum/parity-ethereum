@@ -29,7 +29,7 @@ const ERROR_MSG: &'static str = "Failed to generate metadata files";
 fn main() {
 	vergen(OutputFns::all()).expect(ERROR_MSG);
 
-	let version = rustc_version::version().expect(ERROR_MSG);
+	let version = rustc_version::version();
 
 	let cargo: toml::Value = toml::from_str(include_str!("./Cargo.toml")).expect(ERROR_MSG);
 	let track = cargo["package"]["metadata"]["track"].as_str().expect("'track' has to be a string!");

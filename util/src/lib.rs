@@ -106,6 +106,7 @@ extern crate ethcore_logger;
 extern crate hash as keccak;
 extern crate hashdb;
 extern crate memorydb;
+extern crate kvdb;
 
 #[cfg(test)]
 extern crate kvdb_memorydb;
@@ -113,12 +114,10 @@ extern crate kvdb_memorydb;
 #[macro_use]
 extern crate log as rlog;
 
-pub mod misc;
 pub mod overlaydb;
 pub mod journaldb;
 pub mod cache;
 
-pub use misc::*;
 pub use hashdb::*;
 pub use memorydb::MemoryDB;
 pub use overlaydb::*;
