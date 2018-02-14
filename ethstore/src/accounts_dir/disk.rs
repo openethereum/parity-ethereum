@@ -158,8 +158,7 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 	/// true, a random suffix is appended to the filename.
 	pub fn insert_with_filename(&self, account: SafeAccount, mut filename: String, dedup: bool) -> Result<SafeAccount, Error> {
 		// path to keyfile
-		let mut keyfile_path = self.path.clone();
-		keyfile_path.push(filename.as_str());
+		let mut keyfile_path = self.path.join(filename.as_str());
 
 		// check for duplicate filename and append random suffix
 		if dedup && keyfile_path.exists() {
@@ -293,7 +292,7 @@ impl KeyFileManager for DiskKeyFileManager {
 
 fn account_filename(account: &SafeAccount) -> String {
 	// build file path
-	account.filename.as_ref().cloned().unwrap_or_else(|| {
+	account.filename.clone().unwrap_or_else(|| {
 		let timestamp = time::strftime("%Y-%m-%dT%H-%M-%S", &time::now_utc()).expect("Time-format string is valid.");
 		format!("UTC--{}Z--{}", timestamp, Uuid::from(account.id))
 	})
