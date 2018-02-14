@@ -306,6 +306,7 @@ case $BUILD_PLATFORM in
     updater_push_release
     ;;
   x86_64-unknown-snap-gnu)
+  x86_64-unknown-snap-gnu)
     ARC="amd64"
     EXT="snap"
     apt install -y expect zip rhash
