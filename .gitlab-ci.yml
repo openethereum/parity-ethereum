@@ -130,7 +130,7 @@ linux-aarch64:
     name: "aarch64-unknown-linux-gnu_parity"
 linux-snap:
   stage: build
-  image: parity/snapcraft:gitlab-ci
+  image: snapcore/snapcraft:stable
   only:
     - stable
     - beta
@@ -142,7 +142,7 @@ linux-snap:
     - rust-stable
   artifacts:
     paths:
-    - scripts/parity_*_amd64.snap
+    - parity.zip
     name: "stable-x86_64-unknown-snap-gnu_parity"
   allow_failure: true
 darwin:

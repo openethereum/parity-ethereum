@@ -150,9 +150,9 @@ make_pkg () {
   cd ..
   packagesbuild -v mac/Parity.pkgproj
   productsign --sign 'Developer ID Installer: PARITY TECHNOLOGIES LIMITED (P2PX3JU8FT)' target/release/Parity\ Ethereum.pkg target/release/Parity\ Ethereum-signed.pkg
-  mv target/release/Parity\ Ethereum-signed.pkg "parity_"$VER"_"$ARC".pkg"
-  $MD5_BIN "parity_"$VER"_"$ARC"."$EXT >> "parity_"$VER"_"$ARC".pkg.md5"
-  $SHA256_BIN "parity_"$VER"_"$ARC"."$EXT >> "parity_"$VER"_"$ARC".pkg.sha256"
+  mv target/release/Parity\ Ethereum-signed.pkg "parity_"$VER"_"$IDENT"_"$ARC".pkg"
+  $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT >> "parity_"$VER"_"$IDENT"_"$ARC".pkg.md5"
+  $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT >> "parity_"$VER"_"$IDENT"_"$ARC".pkg.sha256"
 }
 sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
@@ -306,16 +306,34 @@ case $BUILD_PLATFORM in
     updater_push_release
     ;;
   x86_64-unknown-snap-gnu)
-    cd snap
     ARC="amd64"
     EXT="snap"
-    rm -rf *snap
-    sed -i 's/master/'"$VER"'/g' snapcraft.yaml
-    snapcraft
-    cp "parity_"$CI_BUILD_REF_NAME"_amd64.snap" "parity_"$VER"_amd64.snap"
-    $MD5_BIN "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
-    $SHA256_BIN "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.sha256"
-    push_binaries
+    apt install -y expect zip
+    snapcraft clean
+    echo "Prepare snapcraft.yaml for build on Gitlab CI in Docker image"
+    sed -i 's/git/'"$VER"'/g' snap/snapcraft.yaml
+    if [[ "$CI_BUILD_REF_NAME" = "stable" || "$VER" == *1.8* ]];
+      then
+        sed -i -e 's/grade: devel/grade: stable/' snap/snapcraft.yaml;
+    fi
+    mv -f snap/snapcraft.yaml snapcraft.yaml
+    snapcraft -d
+    snapcraft_login=$(expect -c "
+      spawn snapcraft login
+      expect \"Email:\"
+      send \"$SNAP_EMAIL\n\"
+      expect \"Password:\"
+      send \"$SNAP_PASS\n\"
+      expect \"\$\"
+      ")
+    echo "$snapcraft_login"
+    snapcraft push "parity_"$VER"_amd64.snap"
+    snapcraft status parity
+    snapcraft logout
+    md5sum "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
+    echo "add artifacts to archive"
+    rm -rf parity.zip
+    zip -r parity.zip "parity_"$VER"_amd64.snap" "parity_"$VER"_amd64.snap.md5"
     ;;
   x86_64-pc-windows-msvc)
     set_env_win
