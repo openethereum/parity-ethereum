@@ -480,7 +480,7 @@ fn should_export_account() {
 	// given
 	let tester = setup();
 	let wallet = r#"{"id":"6a186c80-7797-cff2-bc2e-7c1d6a6cc76e","version":3,"crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"a1c6ff99070f8032ca1c4e8add006373"},"ciphertext":"df27e3db64aa18d984b6439443f73660643c2d119a6f0fa2fa9a6456fc802d75","kdf":"pbkdf2","kdfparams":{"c":10240,"dklen":32,"prf":"hmac-sha256","salt":"ddc325335cda5567a1719313e73b4842511f3e4a837c9658eeb78e51ebe8c815"},"mac":"3dc888ae79cbb226ff9c455669f6cf2d79be72120f2298f6cb0d444fddc0aa3d"},"address":"0042e5d2a662eeaca8a7e828c174f98f35d8925b","name":"parity-export-test","meta":"{\"passwordHint\":\"parity-export-test\",\"timestamp\":1490017814987}"}"#;
-	tester.accounts.import_wallet(wallet.as_bytes(), "parity-export-test").unwrap();
+	tester.accounts.import_wallet(wallet.as_bytes(), "parity-export-test", false).unwrap();
 	let accounts = tester.accounts.accounts().unwrap();
 	assert_eq!(accounts.len(), 1);
 
@@ -499,6 +499,26 @@ fn should_export_account() {
 	println!("Result: {:?}", result);
 	println!("Response: {:?}", response);
 	assert_eq!(result, Some(response.into()));
+}
+
+#[test]
+fn should_import_wallet() {
+	let tester = setup();
+
+	let id = "6a186c80-7797-cff2-bc2e-7c1d6a6cc76e";
+	let request = r#"{"jsonrpc":"2.0","method":"parity_newAccountFromWallet","params":["{\"id\":\"<ID>\",\"version\":3,\"crypto\":{\"cipher\":\"aes-128-ctr\",\"cipherparams\":{\"iv\":\"478736fb55872c1baf01b27b1998c90b\"},\"ciphertext\":\"fe5a63cc0055d7b0b3b57886f930ad9b63f48950d1348145d95996c41e05f4e0\",\"kdf\":\"pbkdf2\",\"kdfparams\":{\"c\":10240,\"dklen\":32,\"prf\":\"hmac-sha256\",\"salt\":\"658436d6738a19731149a98744e5cf02c8d5aa1f8e80c1a43cc9351c70a984e4\"},\"mac\":\"c7384b26ecf25539d942030230062af9b69de5766cbcc4690bffce1536644631\"},\"address\":\"00bac56a8a27232baa044c03f43bf3648c961735\",\"name\":\"hello world\",\"meta\":\"{}\"}", "himom"],"id":1}"#;
+	let request = request.replace("<ID>", id);
+	let response = r#"{"jsonrpc":"2.0","result":"0x00bac56a8a27232baa044c03f43bf3648c961735","id":1}"#;
+
+	let res = tester.io.handle_request_sync(&request).unwrap();
+
+	assert_eq!(res, response);
+
+	let account_meta = tester.accounts.account_meta("0x00bac56a8a27232baa044c03f43bf3648c961735".into()).unwrap();
+	let account_uuid: String = account_meta.uuid.unwrap().into();
+
+	// the RPC should import the account with a new id
+	assert!(account_uuid != id);
 }
 
 #[test]

@@ -153,22 +153,30 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 		)
 	}
 
-	/// insert account with given file name
-	pub fn insert_with_filename(&self, account: SafeAccount, filename: String) -> Result<SafeAccount, Error> {
+
+	/// insert account with given filename. if the filename is a duplicate of any stored account and dedup is set to
+	/// true, a random suffix is appended to the filename.
+	pub fn insert_with_filename(&self, account: SafeAccount, mut filename: String, dedup: bool) -> Result<SafeAccount, Error> {
+		// path to keyfile
+		let mut keyfile_path = self.path.join(filename.as_str());
+
+		// check for duplicate filename and append random suffix
+		if dedup && keyfile_path.exists() {
+			let suffix = ::random::random_string(4);
+			filename.push_str(&format!("-{}", suffix));
+			keyfile_path.set_file_name(&filename);
+		}
+
 		// update account filename
 		let original_account = account.clone();
 		let mut account = account;
-		account.filename = Some(filename.clone());
+		account.filename = Some(filename);
 
 		{
-			// Path to keyfile
-			let mut keyfile_path = self.path.clone();
-			keyfile_path.push(filename.as_str());
-
 			// save the file
 			let mut file = fs::File::create(&keyfile_path)?;
 
-			// Write key content
+			// write key content
 			self.key_manager.write(original_account, &mut file).map_err(|e| Error::Custom(format!("{:?}", e)))?;
 
 			file.flush()?;
@@ -200,17 +208,13 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 
 	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
 		// Disk store handles updates correctly iff filename is the same
-		self.insert(account)
+		let filename = account_filename(&account);
+		self.insert_with_filename(account, filename, false)
 	}
 
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error> {
-		// build file path
-		let filename = account.filename.as_ref().cloned().unwrap_or_else(|| {
-			let timestamp = time::strftime("%Y-%m-%dT%H-%M-%S", &time::now_utc()).expect("Time-format string is valid.");
-			format!("UTC--{}Z--{}", timestamp, Uuid::from(account.id))
-		});
-
-		self.insert_with_filename(account, filename)
+		let filename = account_filename(&account);
+		self.insert_with_filename(account, filename, true)
 	}
 
 	fn remove(&self, account: &SafeAccount) -> Result<(), Error> {
@@ -286,6 +290,14 @@ impl KeyFileManager for DiskKeyFileManager {
 	}
 }
 
+fn account_filename(account: &SafeAccount) -> String {
+	// build file path
+	account.filename.clone().unwrap_or_else(|| {
+		let timestamp = time::strftime("%Y-%m-%dT%H-%M-%S", &time::now_utc()).expect("Time-format string is valid.");
+		format!("UTC--{}Z--{}", timestamp, Uuid::from(account.id))
+	})
+}
+
 #[cfg(test)]
 mod test {
 	extern crate tempdir;
@@ -312,6 +324,38 @@ mod test {
 		// then
 		assert!(res.is_ok(), "Should save account succesfuly.");
 		assert!(res.unwrap().filename.is_some(), "Filename has been assigned.");
+
+		// cleanup
+		let _ = fs::remove_dir_all(dir);
+	}
+
+	#[test]
+	fn should_handle_duplicate_filenames() {
+		// given
+		let mut dir = env::temp_dir();
+		dir.push("ethstore_should_handle_duplicate_filenames");
+		let keypair = Random.generate().unwrap();
+		let password = "hello world";
+		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
+
+		// when
+		let account = SafeAccount::create(&keypair, [0u8; 16], password, 1024, "Test".to_owned(), "{}".to_owned());
+		let filename = "test".to_string();
+		let dedup = true;
+
+		directory.insert_with_filename(account.clone(), "foo".to_string(), dedup).unwrap();
+		let file1 = directory.insert_with_filename(account.clone(), filename.clone(), dedup).unwrap().filename.unwrap();
+		let file2 = directory.insert_with_filename(account.clone(), filename.clone(), dedup).unwrap().filename.unwrap();
+		let file3 = directory.insert_with_filename(account.clone(), filename.clone(), dedup).unwrap().filename.unwrap();
+
+		// then
+		// the first file should have the original names
+		assert_eq!(file1, filename);
+
+		// the following duplicate files should have a suffix appended
+		assert!(file2 != file3);
+		assert_eq!(file2.len(), filename.len() + 5);
+		assert_eq!(file3.len(), filename.len() + 5);
 
 		// cleanup
 		let _ = fs::remove_dir_all(dir);
