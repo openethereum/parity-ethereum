@@ -2,7 +2,8 @@
 # Make sure to update the service if it's moved or the structure is changed.
 [package]
 name = "parity-version"
-version = "1.8.9"
+# NOTE: this value is used for Parity version string (via env CARGO_PKG_VERSION)
+version = "1.8.10"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
@@ -10,6 +11,9 @@ build = "build.rs"
 # This versions track. Should be changed to `stable` or `beta` when on respective branches.
 # Used by auto-updater and for Parity version string.
 track = "stable"
+
+# Indicates a critical release in this track (i.e. consensus issue)
+critical = false
 
 # Latest supported fork blocks for various networks. Used ONLY by auto-updater.
 [package.metadata.forks]
