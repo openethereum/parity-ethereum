@@ -476,7 +476,7 @@ unsafe impl Sync for SyncAccount {}
 mod tests {
 	use ethereum_types::{H256, U256, Address};
 	use kvdb::DBTransaction;
-	use tests::helpers::*;
+	use test_helpers::*;
 	use state::{Account, Backend};
 	use ethcore_logger::init_log;
 

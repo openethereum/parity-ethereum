@@ -343,7 +343,7 @@ mod tests {
 	use error::BlockError::*;
 	use ethkey::{Random, Generator};
 	use spec::{CommonParams, Spec};
-	use tests::helpers::{create_test_block_with_data, create_test_block};
+	use test_helpers::{create_test_block_with_data, create_test_block};
 	use time::get_time;
 	use transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action};
 	use types::log_entry::{LogEntry, LocalizedLogEntry};

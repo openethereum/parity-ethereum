@@ -1298,7 +1298,7 @@ mod tests {
 
 	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
 	use miner::MinerService;
-	use tests::helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
+	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
 
 	#[test]
 	fn should_prepare_block_to_seal() {

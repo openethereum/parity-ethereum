@@ -1481,7 +1481,7 @@ mod tests {
 	use ethereum_types::*;
 	use receipt::{Receipt, TransactionOutcome};
 	use blockchain::{BlockProvider, BlockChain, Config, ImportRoute};
-	use tests::helpers::*;
+	use test_helpers::*;
 	use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
 	use blockchain::extras::TransactionAddress;
 	use views::BlockView;

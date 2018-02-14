@@ -146,7 +146,7 @@ mod tests {
 	use ethereum_types::U256;
 	use state::*;
 	use super::*;
-	use tests::helpers::*;
+	use test_helpers::*;
 	use views::BlockView;
 
 	#[test]

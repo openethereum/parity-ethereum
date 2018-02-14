@@ -413,7 +413,7 @@ mod tests {
 	use ethereum_types::{U256, Address};
 	use evm::{EnvInfo, Ext, CallType};
 	use state::{State, Substate};
-	use tests::helpers::*;
+	use test_helpers::*;
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};
 

@@ -711,7 +711,7 @@ pub fn enact_verified(
 
 #[cfg(test)]
 mod tests {
-	use tests::helpers::*;
+	use test_helpers::*;
 	use super::*;
 	use engines::EthEngine;
 	use vm::LastHashes;

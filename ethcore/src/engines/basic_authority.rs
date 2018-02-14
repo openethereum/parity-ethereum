@@ -201,7 +201,7 @@ mod tests {
 	use hash::keccak;
 	use ethereum_types::H520;
 	use block::*;
-	use tests::helpers::*;
+	use test_helpers::*;
 	use account_provider::AccountProvider;
 	use header::Header;
 	use spec::Spec;

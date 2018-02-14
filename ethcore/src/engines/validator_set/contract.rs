@@ -145,7 +145,7 @@ mod tests {
 	use miner::MinerService;
 	use types::ids::BlockId;
 	use client::BlockChainClient;
-	use tests::helpers::generate_dummy_client_with_spec_and_accounts;
+	use test_helpers::generate_dummy_client_with_spec_and_accounts;
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
 

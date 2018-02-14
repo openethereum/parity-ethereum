@@ -905,7 +905,7 @@ mod tests {
 	use header::Header;
 	use rlp::encode;
 	use block::*;
-	use tests::helpers::*;
+	use test_helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use engines::{Seal, Engine};

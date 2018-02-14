@@ -228,7 +228,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 mod tests {
 	use std::{time, thread};
 	use super::*;
-	use tests::helpers::*;
+	use test_helpers::*;
 	use client::ClientConfig;
 	use std::sync::Arc;
 	use miner::Miner;

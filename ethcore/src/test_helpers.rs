@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Set of different helpers for client tests
+
 use account_provider::AccountProvider;
 use ethereum_types::{H256, U256, Address};
 use block::{OpenBlock, Drain};
@@ -37,11 +39,13 @@ use std::sync::Arc;
 use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
 
+/// Creates default test spec
 // TODO: move everything over to get_null_spec.
 pub fn get_test_spec() -> Spec {
 	Spec::new_test()
 }
 
+/// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
 	let mut rlp = RlpStream::new_list(3);
 	rlp.append(header);
@@ -79,6 +83,7 @@ fn create_unverifiable_block(order: u32, parent_hash: H256) -> Bytes {
 	create_test_block(&create_unverifiable_block_header(order, parent_hash))
 }
 
+/// Creates test block with corresponding header and data
 pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransaction], uncles: &[Header]) -> Bytes {
 	let mut rlp = RlpStream::new_list(3);
 	rlp.append(header);
@@ -90,23 +95,27 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 	rlp.out()
 }
 
+/// Generates dummy client (not test client) with corresponding amount of blocks
 pub fn generate_dummy_client(block_number: u32) -> Arc<Client> {
 	generate_dummy_client_with_spec_and_data(Spec::new_test, block_number, 0, &[])
 }
 
+/// Generates dummy client (not test client) with corresponding amount of blocks and txs per every block
 pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> {
 	generate_dummy_client_with_spec_and_data(Spec::new_null, block_number, txs_per_block, tx_gas_prices)
 }
 
-
+/// Generates dummy client (not test client) with corresponding amount of blocks, txs per block and spec
 pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
 	generate_dummy_client_with_spec_accounts_and_data(get_test_spec, None, block_number, txs_per_block, tx_gas_prices)
 }
 
+/// Generates dummy client (not test client) with corresponding spec and accounts
 pub fn generate_dummy_client_with_spec_and_accounts<F>(get_test_spec: F, accounts: Option<Arc<AccountProvider>>) -> Arc<Client> where F: Fn()->Spec {
 	generate_dummy_client_with_spec_accounts_and_data(get_test_spec, accounts, 0, 0, &[])
 }
 
+/// Generates dummy client (not test client) with corresponding blocks, accounts and spec
 pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, accounts: Option<Arc<AccountProvider>>, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
 	let test_spec = get_test_spec();
 	let client_db = new_db();
@@ -178,6 +187,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 	client
 }
 
+/// Adds blocks to the client
 pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting_number: usize, block_number: usize) {
 	let test_spec = get_test_spec();
 	let state_root = test_spec.genesis_header().state_root().clone();
@@ -207,6 +217,7 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 	}
 }
 
+/// Adds one block with transactions
 pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[SignedTransaction]) {
 	let test_spec = get_test_spec();
 	let test_engine = &*test_spec.engine;
@@ -229,6 +240,7 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	client.import_verified_blocks();
 }
 
+/// Creates dummy client (not test client) with corresponding blocks
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	let test_spec = get_test_spec();
 	let client_db = new_db();
@@ -255,6 +267,7 @@ fn new_db() -> Arc<::kvdb::KeyValueDB> {
 	Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)))
 }
 
+/// Generates dummy blockchain with corresponding amount of blocks
 pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 	let db = new_db();
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
@@ -268,6 +281,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 	bc
 }
 
+/// Generates dummy blockchain with corresponding amount of blocks (using creation with extra method for blocks creation)
 pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	let db = new_db();
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
@@ -282,17 +296,20 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	bc
 }
 
+/// Returns empty dummy blockchain
 pub fn generate_dummy_empty_blockchain() -> BlockChain {
 	let db = new_db();
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 	bc
 }
 
+/// Returns temp state
 pub fn get_temp_state() -> State<::state_db::StateDB> {
 	let journal_db = get_temp_state_db();
 	State::new(journal_db, U256::from(0), Default::default())
 }
 
+/// Returns temp state using coresponding factory
 pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::StateDB> {
 	let journal_db = get_temp_state_db();
 	let mut factories = Factories::default();
@@ -300,17 +317,20 @@ pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::Sta
 	State::new(journal_db, U256::from(0), factories)
 }
 
+/// Returns temp state db
 pub fn get_temp_state_db() -> StateDB {
 	let db = new_db();
 	let journal_db = ::journaldb::new(db, ::journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
 	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 
+/// Returns sequence of hashes of the dummy blocks
 pub fn get_good_dummy_block_seq(count: usize) -> Vec<Bytes> {
 	let test_spec = get_test_spec();
 	get_good_dummy_block_fork_seq(1, count, &test_spec.genesis_header().hash())
 }
 
+/// Returns sequence of hashes of the dummy blocks beginning from corresponding parent
 pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_hash: &H256) -> Vec<Bytes> {
 	let test_spec = get_test_spec();
 	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
@@ -334,6 +354,7 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 	r
 }
 
+/// Returns hash and header of the correct dummy block
 pub fn get_good_dummy_block_hash() -> (H256, Bytes) {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
@@ -348,11 +369,13 @@ pub fn get_good_dummy_block_hash() -> (H256, Bytes) {
 	(block_header.hash(), create_test_block(&block_header))
 }
 
+/// Returns hash of the correct dummy block
 pub fn get_good_dummy_block() -> Bytes {
 	let (_, bytes) = get_good_dummy_block_hash();
 	bytes
 }
 
+/// Returns hash of the dummy block with incorrect state root
 pub fn get_bad_state_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
@@ -368,6 +391,7 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
+/// Returns default ethash extensions
 pub fn get_default_ethash_extensions() -> EthashExtensions {
 	EthashExtensions {
 		homestead_transition: 1150000,
@@ -381,6 +405,7 @@ pub fn get_default_ethash_extensions() -> EthashExtensions {
 	}
 }
 
+/// Returns default ethash parameters
 pub fn get_default_ethash_params() -> EthashParams {
 	EthashParams {
 		minimum_difficulty: U256::from(131072),

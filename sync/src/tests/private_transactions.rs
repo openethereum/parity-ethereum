@@ -22,9 +22,9 @@ use ethcore::service::ClientIoMessage;
 use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
-use ethcore::transaction::*;
-use private_transactions::{ProviderConfig};
-use private_transactions::encryptor::{DummyEncryptor};
+use transaction::{Transaction, Action};
+use ethcore::test_helpers::push_block_with_transactions;
+use privatetransactions::{ProviderConfig};
 use ethcore::account_provider::AccountProvider;
 use ethkey::KeyPair;
 use tests::helpers::*;
@@ -85,9 +85,25 @@ fn send_private_transaction() {
 	ap.insert_account(s0.secret().clone(), "").unwrap();
 	ap.insert_account(s1.secret().clone(), "").unwrap();
 
-	let mut net = TestNet::with_spec_and_accounts(2, SyncConfig::default(), seal_spec, Some(ap.clone()));
+	// Setup providers
+	let validator_config = ProviderConfig{
+		validator_accounts: vec![s1.address()],
+		signer_account: None,
+		passwords: vec!["".into()],
+		key_server_account: Some(s1.address()),
+	};
+
+	let signer_config = ProviderConfig{
+		validator_accounts: Vec::new(),
+		signer_account: Some(s0.address()),
+		passwords: vec!["".into()],
+		key_server_account: Some(s0.address()),
+	};
+
+	let mut net = TestNet::with_spec_and_accounts(2, SyncConfig::default(), seal_spec, Some(ap.clone()), Some(vec![signer_config, validator_config]));
 	let client0 = net.peer(0).chain.clone();
 	let client1 = net.peer(1).chain.clone();
+	let provider0 = net.peer(0).private_provider.clone().unwrap().clone();
 	let io_handler0: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler { client: client0.clone() });
 	let io_handler1: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler { client: client1.clone() });
 
@@ -104,36 +120,6 @@ fn send_private_transaction() {
 	// Exhange statuses
 	net.sync();
 
-	// Setup providers
-	let provider0 = client0.private_transactions_provider().clone();
-	let provider1 = client1.private_transactions_provider().clone();
-
-	let validator_config = ProviderConfig{
-		validator_accounts: vec![s1.address()],
-		signer_account: None,
-		passwords: vec!["".into()],
-		key_server_url: Some("http://localhost:8082".into()),
-		key_server_account: Some(s1.address()),
-		key_server_threshold: 0,
-	};
-	provider1.set_config(validator_config).unwrap();
-
-	let signer_config = ProviderConfig{
-		validator_accounts: Vec::new(),
-		signer_account: Some(s0.address()),
-		passwords: vec!["".into()],
-		key_server_url: None,
-		key_server_account: Some(s0.address()),
-		key_server_threshold: 0,
-	};
-	provider0.set_config(signer_config).unwrap();
-
-	provider0.register_account_provider(Arc::downgrade(&ap));
-	provider1.register_account_provider(Arc::downgrade(&ap));
-
-	provider0.set_encryptor(Arc::new(DummyEncryptor::default()));
-	provider1.set_encryptor(Arc::new(DummyEncryptor::default()));
-
 	// Create contract
 	let private_contract_test = "6060604052341561000f57600080fd5b60d88061001d6000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680630c55699c146046578063bc64b76d14607457600080fd5b3415605057600080fd5b60566098565b60405180826000191660001916815260200191505060405180910390f35b3415607e57600080fd5b6096600480803560001916906020019091905050609e565b005b60005481565b8060008160001916905550505600a165627a7a723058206acbdf4b15ca4c2d43e1b1879b830451a34f1e9d02ff1f2f394d8d857e79d2080029".from_hex().unwrap();
 	let mut private_create_tx = Transaction::default();
@@ -145,8 +131,8 @@ fn send_private_transaction() {
 	let public_tx = provider0.public_creation_transaction(BlockId::Pending, &private_create_tx_signed, &validators, 0.into()).unwrap();
 	let public_tx = public_tx.sign(&s0.secret(), chain_id);
 	let public_tx_copy = public_tx.clone();
-	push_block_with_transactions(&client0, client0.engine(), &[public_tx]);
-	push_block_with_transactions(&client1, client1.engine(), &[public_tx_copy]);
+	push_block_with_transactions(&client0, &[public_tx]);
+	push_block_with_transactions(&client1, &[public_tx_copy]);
 
 	net.sync();
 

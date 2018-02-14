@@ -152,6 +152,7 @@ impl TransactOptions<trace::NoopTracer, trace::NoopVMTracer> {
 	}
 }
 
+/// Creates corresponding executor
 pub fn executor(machine: &Machine, vm_factory: &Factory, params: &ActionParams) -> Box<vm::Vm> {
 	if machine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
 		Box::new(
@@ -710,7 +711,7 @@ mod tests {
 	use error::ExecutionError;
 	use machine::EthereumMachine;
 	use state::{Substate, CleanupMode};
-	use tests::helpers::*;
+	use test_helpers::*;
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};

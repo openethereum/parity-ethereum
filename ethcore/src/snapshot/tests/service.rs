@@ -24,7 +24,7 @@ use ids::BlockId;
 use snapshot::service::{Service, ServiceParams};
 use snapshot::{self, ManifestData, SnapshotService};
 use spec::Spec;
-use tests::helpers::generate_dummy_client_with_spec_and_data;
+use test_helpers::generate_dummy_client_with_spec_and_data;
 
 use io::IoChannel;
 use kvdb_rocksdb::{Database, DatabaseConfig};

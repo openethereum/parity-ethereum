@@ -491,7 +491,7 @@ mod tests {
 		use ethereum_types::U256;
 
 		let spec = ::ethereum::new_homestead_test();
-		let ethparams = ::tests::helpers::get_default_ethash_extensions();
+		let ethparams = ::test_helpers::get_default_ethash_extensions();
 
 		let machine = EthereumMachine::with_ethash_extensions(
 			spec.params().clone(),

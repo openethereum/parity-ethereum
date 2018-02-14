@@ -23,7 +23,7 @@ use state::{self, State, CleanupMode};
 use executive::{Executive, TransactOptions};
 use ethereum;
 use block::IsBlock;
-use tests::helpers::*;
+use test_helpers::*;
 use types::filter::Filter;
 use ethereum_types::{U256, Address};
 use kvdb_rocksdb::{Database, DatabaseConfig};

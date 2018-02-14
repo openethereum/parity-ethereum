@@ -64,7 +64,7 @@ pub trait Encryptor: Send + Sync + 'static {
 }
 
 /// Configurtion for key server encryptor
-#[derive(Default, PartialEq, Debug)]
+#[derive(Default, PartialEq, Debug, Clone)]
 pub struct EncryptorConfig {
 	/// URL to key server
 	pub base_url: Option<String>,
@@ -270,7 +270,7 @@ pub mod tests {
 	use rand::{Rng, OsRng};
 	use std::sync::Arc;
 	use ethereum_types::H128;
-	use account_provider::AccountProvider;
+	use ethcore::account_provider::AccountProvider;
 
 	const INIT_VEC_LEN: usize = 16;
 

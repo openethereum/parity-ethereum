@@ -807,7 +807,7 @@ mod tests {
 	use super::*;
 	use state::State;
 	use std::str::FromStr;
-	use tests::helpers::get_temp_state_db;
+	use test_helpers::get_temp_state_db;
 	use views::*;
 
 	// https://github.com/paritytech/parity/issues/1840

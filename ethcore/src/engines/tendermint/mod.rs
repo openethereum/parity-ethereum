@@ -781,7 +781,7 @@ mod tests {
 	use header::Header;
 	use client::{ChainNotify, ChainMessageType};
 	use miner::MinerService;
-	use tests::helpers::*;
+	use test_helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use engines::{EthEngine, EngineError, Seal};

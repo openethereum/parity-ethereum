@@ -623,7 +623,7 @@ mod tests {
 	use std::sync::Arc;
 	use service::ClientIoMessage;
 	use io::{IoService};
-	use tests::helpers::get_test_spec;
+	use test_helpers::get_test_spec;
 	use journaldb::Algorithm;
 	use error::Error;
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};

@@ -27,7 +27,7 @@ use futures::Future;
 use native_contracts::test_contracts::ValidatorSet;
 use snapshot::tests::helpers as snapshot_helpers;
 use spec::Spec;
-use tests::helpers;
+use test_helpers::generate_dummy_client_with_spec_and_accounts;
 use transaction::{Transaction, Action, SignedTransaction};
 
 use ethereum_types::Address;
@@ -87,7 +87,7 @@ enum Transition {
 
 // create a chain with the given transitions and some blocks beyond that transition.
 fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions: Vec<Transition>) -> Arc<Client> {
-	let client = helpers::generate_dummy_client_with_spec_and_accounts(
+	let client = generate_dummy_client_with_spec_and_accounts(
 		spec_fixed_to_contract, Some(accounts.clone()));
 
 	let mut cur_signers = vec![*RICH_ADDR];

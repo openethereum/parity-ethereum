@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
 use std::collections::HashMap;
 use network::{NetworkContext, PeerId, PacketId, Error, SessionInfo, ProtocolId};
 use bytes::Bytes;
@@ -42,7 +43,7 @@ pub trait SyncIo {
 	/// Get the snapshot service.
 	fn snapshot_service(&self) -> &SnapshotService;
 	/// Get the private transaction provider.
-	fn private_transactions_provider(&self) -> &PrivateTransactionProvider;
+	fn private_transactions_provider(&self) -> Option<Arc<PrivateTransactionProvider>>;
 	/// Returns peer identifier string
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		peer_id.to_string()
@@ -69,7 +70,7 @@ pub struct NetSyncIo<'s, 'h> where 'h: 's {
 	chain: &'s BlockChainClient,
 	snapshot_service: &'s SnapshotService,
 	chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>,
-	private_tx_provider: &'s PrivateTransactionProvider,
+	private_tx_provider: Option<Arc<PrivateTransactionProvider>>,
 }
 
 impl<'s, 'h> NetSyncIo<'s, 'h> {
@@ -77,7 +78,7 @@ impl<'s, 'h> NetSyncIo<'s, 'h> {
 	pub fn new(network: &'s NetworkContext<'h>,
 		chain: &'s BlockChainClient,
 		snapshot_service: &'s SnapshotService,
-		private_tx_provider: &'s PrivateTransactionProvider,
+		private_tx_provider: Option<Arc<PrivateTransactionProvider>>,
 		chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>) -> NetSyncIo<'s, 'h> {
 		NetSyncIo {
 			network: network,
@@ -122,8 +123,8 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 		self.snapshot_service
 	}
 
-	fn private_transactions_provider(&self) -> &PrivateTransactionProvider {
-		self.private_tx_provider
+	fn private_transactions_provider(&self) -> Option<Arc<PrivateTransactionProvider>> {
+		self.private_tx_provider.clone()
 	}
 
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo> {

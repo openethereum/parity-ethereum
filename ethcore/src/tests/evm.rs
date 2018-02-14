@@ -6,7 +6,7 @@ use vm::{EnvInfo, ActionParams, ActionValue, CallType, ParamsType};
 use evm::{Factory, VMType};
 use executive::Executive;
 use state::Substate;
-use tests::helpers::*;
+use test_helpers::*;
 use trace::{NoopVMTracer, NoopTracer};
 use transaction::SYSTEM_ADDRESS;
 

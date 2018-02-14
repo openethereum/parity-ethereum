@@ -472,7 +472,7 @@ mod tests {
 	use std::sync::Arc;
 	use ethereum_types::{H64, H256, U256, Address};
 	use block::*;
-	use tests::helpers::*;
+	use test_helpers::*;
 	use error::{BlockError, Error};
 	use header::Header;
 	use spec::Spec;

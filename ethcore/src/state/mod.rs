@@ -1078,7 +1078,7 @@ mod tests {
 	use super::*;
 	use ethkey::Secret;
 	use ethereum_types::{H256, U256, Address};
-	use tests::helpers::*;
+	use test_helpers::*;
 	use machine::EthereumMachine;
 	use vm::EnvInfo;
 	use spec::*;
