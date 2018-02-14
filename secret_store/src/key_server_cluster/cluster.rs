@@ -471,7 +471,7 @@ impl ClusterCore {
 			if is_master_node && session.is_finished() {
 				data.sessions.negotiation_sessions.remove(&session.id());
 				match session.wait() {
-					Ok((version, master)) => match session.continue_action() {
+					Ok((version, master)) => match session.take_continue_action() {
 						Some(ContinueAction::Decrypt(session, is_shadow_decryption)) => {
 							let initialization_error = if data.self_key_pair.public() == &master {
 								session.initialize(version, is_shadow_decryption, false)
@@ -498,7 +498,7 @@ impl ClusterCore {
 						},
 						None => (),
 					},
-					Err(error) => match session.continue_action() {
+					Err(error) => match session.take_continue_action() {
 						Some(ContinueAction::Decrypt(session, _)) => {
 							data.sessions.decryption_sessions.remove(&session.id());
 							session.on_session_error(&meta.self_node_id, error);
