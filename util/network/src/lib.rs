@@ -82,6 +82,7 @@ extern crate ipnetwork;
 extern crate hash;
 extern crate serde;
 extern crate serde_json;
+extern crate parity_version as version;
 
 #[macro_use]
 extern crate log;

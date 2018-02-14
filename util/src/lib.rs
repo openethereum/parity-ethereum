@@ -87,6 +87,7 @@
 //!   cargo build --release
 //!   ```
 
+extern crate util_error as error;
 extern crate rustc_hex;
 extern crate rocksdb;
 extern crate env_logger;

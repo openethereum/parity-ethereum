@@ -811,6 +811,7 @@ dependencies = [
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.6.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-version 1.8.9",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "path 0.1.0",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1371,6 +1372,7 @@ dependencies = [
  "ethcore-ipc 1.8.0",
  "ethcore-ipc-codegen 1.8.0",
  "ethcore-util 1.8.9",
+ "parity-version 1.8.9",
  "semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
