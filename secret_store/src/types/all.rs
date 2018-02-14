@@ -117,6 +117,17 @@ pub struct EncryptedDocumentKeyShadow {
 	pub decrypt_shadows: Option<Vec<Vec<u8>>>,
 }
 
+/// Requester identification data.
+#[derive(Debug, Clone)]
+pub enum Requester {
+	/// Requested with server key id signature.
+	Signature(ethkey::Signature),
+	/// Requested with public key.
+	Public(ethkey::Public),
+	/// Requested with verified address.
+	Address(ethereum_types::Address),
+}
+
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
@@ -163,5 +174,27 @@ impl From<key_server_cluster::Error> for Error {
 impl Into<String> for Error {
 	fn into(self) -> String {
 		format!("{}", self)
+	}
+}
+
+impl Default for Requester {
+	fn default() -> Self {
+		Requester::Signature(Default::default())
+	}
+}
+
+impl Requester {
+	pub fn public(&self, server_key_id: &ServerKeyId) -> Option<Public> {
+		match *self {
+			Requester::Signature(ref signature) => ethkey::recover(signature, server_key_id).ok(),
+			Requester::Public(ref public) => Some(public.clone()),
+			Requester::Address(_) => None,
+		}
+	}
+}
+
+impl From<ethkey::Signature> for Requester {
+	fn from(signature: ethkey::Signature) -> Requester {
+		Requester::Signature(signature)
 	}
 }

@@ -20,8 +20,8 @@ use std::sync::atomic::AtomicBool;
 use std::collections::{VecDeque, BTreeMap, BTreeSet};
 use parking_lot::{Mutex, RwLock, Condvar};
 use ethereum_types::H256;
-use ethkey::{Secret, Signature};
-use key_server_cluster::{Error, NodeId, SessionId};
+use ethkey::Secret;
+use key_server_cluster::{Error, NodeId, SessionId, Requester};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterConfiguration, ClusterView};
 use key_server_cluster::connection_trigger::ServersSetChangeSessionCreatorConnector;
 use key_server_cluster::message::{self, Message};
@@ -124,9 +124,9 @@ pub struct ClusterSessions {
 	/// Encryption sessions.
 	pub encryption_sessions: ClusterSessionsContainer<EncryptionSessionImpl, EncryptionSessionCreator, ()>,
 	/// Decryption sessions.
-	pub decryption_sessions: ClusterSessionsContainer<DecryptionSessionImpl, DecryptionSessionCreator, Signature>,
+	pub decryption_sessions: ClusterSessionsContainer<DecryptionSessionImpl, DecryptionSessionCreator, Requester>,
 	/// Signing sessions.
-	pub signing_sessions: ClusterSessionsContainer<SigningSessionImpl, SigningSessionCreator, Signature>,
+	pub signing_sessions: ClusterSessionsContainer<SigningSessionImpl, SigningSessionCreator, Requester>,
 	/// Key version negotiation sessions.
 	pub negotiation_sessions: ClusterSessionsContainer<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>, KeyVersionNegotiationSessionCreator, ()>,
 	/// Administrative sessions.

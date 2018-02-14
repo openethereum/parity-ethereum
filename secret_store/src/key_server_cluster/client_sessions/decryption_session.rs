@@ -18,8 +18,9 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use parking_lot::{Mutex, Condvar};
 use ethereum_types::H256;
-use ethkey::{Secret, Signature};
-use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, EncryptedDocumentKeyShadow, SessionMeta};
+use ethkey::Secret;
+use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, Requester,
+	EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
 use key_server_cluster::message::{Message, DecryptionMessage, DecryptionConsensusMessage, RequestPartialDecryption,
@@ -141,7 +142,7 @@ enum DelegationStatus {
 
 impl SessionImpl {
 	/// Create new decryption session.
-	pub fn new(params: SessionParams, requester_signature: Option<Signature>) -> Result<Self, Error> {
+	pub fn new(params: SessionParams, requester: Option<Requester>) -> Result<Self, Error> {
 		debug_assert_eq!(params.meta.threshold, params.key_share.as_ref().map(|ks| ks.threshold).unwrap_or_default());
 
 		// check that common_point and encrypted_point are already set
@@ -161,8 +162,8 @@ impl SessionImpl {
 		};
 		let consensus_session = ConsensusSession::new(ConsensusSessionParams {
 			meta: params.meta.clone(),
-			consensus_executor: match requester_signature {
-				Some(requester_signature) => KeyAccessJob::new_on_master(params.meta.id.clone(), params.acl_storage.clone(), requester_signature),
+			consensus_executor: match requester {
+				Some(requester) => KeyAccessJob::new_on_master(params.meta.id.clone(), params.acl_storage.clone(), requester),
 				None => KeyAccessJob::new_on_slave(params.meta.id.clone(), params.acl_storage.clone()),
 			},
 			consensus_transport: consensus_transport,
@@ -234,7 +235,7 @@ impl SessionImpl {
 			session: self.core.meta.id.clone().into(),
 			sub_session: self.core.access_key.clone().into(),
 			session_nonce: self.core.nonce,
-			requestor_signature: data.consensus_session.consensus_job().executor().requester_signature()
+			requester: data.consensus_session.consensus_job().executor().requester()
 				.expect("signature is passed to master node on creation; session can be delegated from master node only; qed")
 				.clone().into(),
 			version: version.into(),
@@ -318,7 +319,7 @@ impl SessionImpl {
 				return Err(Error::InvalidStateForRequest);
 			}
 
-			data.consensus_session.consensus_job_mut().executor_mut().set_requester_signature(message.requestor_signature.clone().into());
+			data.consensus_session.consensus_job_mut().executor_mut().set_requester(message.requester.clone().into());
 			data.delegation_status = Some(DelegationStatus::DelegatedFrom(sender.clone(), message.session_nonce));
 		}
 
@@ -393,8 +394,12 @@ impl SessionImpl {
 		let mut data = self.data.lock();
 		let key_version = key_share.version(data.version.as_ref().ok_or(Error::InvalidMessage)?)
 			.map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
-		let requester = data.consensus_session.consensus_job().executor().requester()?.ok_or(Error::InvalidStateForRequest)?.clone();
-		let decryption_job = DecryptionJob::new_on_slave(self.core.meta.self_node_id.clone(), self.core.access_key.clone(), requester, key_share.clone(), key_version)?;
+		let requester_public = data.consensus_session.consensus_job().executor().requester()
+			.ok_or(Error::InvalidStateForRequest)?
+			.public(&self.core.meta.id)
+			.ok_or(Error::InsufficientRequesterData)?;
+		let decryption_job = DecryptionJob::new_on_slave(self.core.meta.self_node_id.clone(), self.core.access_key.clone(),
+			requester_public.clone(), key_share.clone(), key_version)?;
 		let decryption_transport = self.core.decryption_transport(false);
 
 		// respond to request
@@ -409,7 +414,7 @@ impl SessionImpl {
 		if message.is_broadcast_session {
 			let consensus_group: BTreeSet<_> = message.nodes.iter().cloned().map(Into::into).collect();
 			let broadcast_decryption_job = DecryptionJob::new_on_master(self.core.meta.self_node_id.clone(),
-				self.core.access_key.clone(), requester, key_share.clone(), key_version,
+				self.core.access_key.clone(), requester_public, key_share.clone(), key_version,
 				message.is_shadow_decryption, message.is_broadcast_session)?;
 			Self::create_broadcast_decryption_job(&self.core, &mut *data, consensus_group, broadcast_decryption_job,
 				message.request_id.clone().into())?;
@@ -537,10 +542,11 @@ impl SessionImpl {
 		};
 
 		let key_version = key_share.version(version).map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
-		let requester = data.consensus_session.consensus_job().executor().requester()?.ok_or(Error::InvalidStateForRequest)?.clone();
+		let requester = data.consensus_session.consensus_job().executor().requester().ok_or(Error::InvalidStateForRequest)?.clone();
+		let requester_public = requester.public(&core.meta.id).ok_or(Error::InsufficientRequesterData)?;
 		let consensus_group = data.consensus_session.select_consensus_group()?.clone();
 		let decryption_job = DecryptionJob::new_on_master(core.meta.self_node_id.clone(),
-			core.access_key.clone(), requester, key_share.clone(), key_version,
+			core.access_key.clone(), requester_public.clone(), key_share.clone(), key_version,
 			is_shadow_decryption, is_broadcast_session)?;
 		let decryption_request_id = decryption_job.request_id().clone().expect("TODO");
 		let decryption_transport = core.decryption_transport(false);
@@ -549,7 +555,7 @@ impl SessionImpl {
 		// ...and prepare decryption job session if we need to broadcast result
 		if data.is_broadcast_session.expect("TODO") {
 			let broadcast_decryption_job = DecryptionJob::new_on_master(core.meta.self_node_id.clone(),
-				core.access_key.clone(), requester, key_share.clone(), key_version, is_shadow_decryption, is_broadcast_session)?;
+				core.access_key.clone(), requester_public, key_share.clone(), key_version, is_shadow_decryption, is_broadcast_session)?;
 			Self::create_broadcast_decryption_job(&core, data, consensus_group, broadcast_decryption_job,
 				decryption_request_id)?;
 		}
@@ -675,10 +681,10 @@ impl SessionCore {
 }
 
 impl JobTransport for DecryptionConsensusTransport {
-	type PartialJobRequest=Signature;
+	type PartialJobRequest=Requester;
 	type PartialJobResponse=bool;
 
-	fn send_partial_request(&self, node: &NodeId, request: Signature) -> Result<(), Error> {
+	fn send_partial_request(&self, node: &NodeId, request: Requester) -> Result<(), Error> {
 		let version = self.version.as_ref()
 			.expect("send_partial_request is called on initialized master node only; version is filled in before initialization starts on master node; qed");
 		self.cluster.send(node, Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(DecryptionConsensusMessage {
@@ -686,7 +692,7 @@ impl JobTransport for DecryptionConsensusTransport {
 			sub_session: self.access_key.clone().into(),
 			session_nonce: self.nonce,
 			message: ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
-				requestor_signature: request.into(),
+				requester: request.into(),
 				version: version.clone().into(),
 			})
 		})))
@@ -746,7 +752,8 @@ mod tests {
 	use std::collections::{BTreeMap, VecDeque};
 	use acl_storage::DummyAclStorage;
 	use ethkey::{self, KeyPair, Random, Generator, Public, Secret};
-	use key_server_cluster::{NodeId, DocumentKeyShare, DocumentKeyShareVersion, SessionId, Error, EncryptedDocumentKeyShadow, SessionMeta};
+	use key_server_cluster::{NodeId, DocumentKeyShare, DocumentKeyShareVersion, SessionId, Requester,
+		Error, EncryptedDocumentKeyShadow, SessionMeta};
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::decryption_session::{SessionImpl, SessionParams};
@@ -815,7 +822,7 @@ mod tests {
 			acl_storage: acl_storages[i].clone(),
 			cluster: clusters[i].clone(),
 			nonce: 0,
-		}, if i == 0 { signature.clone() } else { None }).unwrap()).collect();
+		}, if i == 0 { signature.clone().map(Into::into) } else { None }).unwrap()).collect();
 
 		(requester, clusters, acl_storages, sessions)
 	}
@@ -889,7 +896,7 @@ mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
-		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())) {
+		}, Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))) {
 			Ok(_) => (),
 			_ => panic!("unexpected"),
 		}
@@ -910,7 +917,7 @@ mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
-		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())).unwrap();
+		}, Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))).unwrap();
 		assert_eq!(session.initialize(Default::default(), false, false), Err(Error::InvalidMessage));
 	}
 
@@ -943,7 +950,7 @@ mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
-		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())).unwrap();
+		}, Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))).unwrap();
 		assert_eq!(session.initialize(Default::default(), false, false), Err(Error::ConsensusUnreachable));
 	}
 
@@ -963,7 +970,8 @@ mod tests {
 				sub_session: sessions[0].access_key().clone().into(),
 				session_nonce: 0,
 				message: message::ConsensusMessage::InitializeConsensusSession(message::InitializeConsensusSession {
-					requestor_signature: ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
+					requester: Requester::Signature(ethkey::sign(
+						Random.generate().unwrap().secret(), &SessionId::default()).unwrap()).into(),
 					version: Default::default(),
 				}),
 			}).unwrap_err(), Error::InvalidMessage);
@@ -977,7 +985,8 @@ mod tests {
 				sub_session: sessions[0].access_key().clone().into(),
 				session_nonce: 0,
 				message: message::ConsensusMessage::InitializeConsensusSession(message::InitializeConsensusSession {
-					requestor_signature: ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
+					requester: Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(),
+						&SessionId::default()).unwrap()).into(),
 					version: Default::default(),
 				}),
 		}).unwrap(), ());
@@ -1000,7 +1009,8 @@ mod tests {
 				sub_session: sessions[0].access_key().clone().into(),
 				session_nonce: 0,
 				message: message::ConsensusMessage::InitializeConsensusSession(message::InitializeConsensusSession {
-					requestor_signature: ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
+					requester: Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(),
+						&SessionId::default()).unwrap()).into(),
 					version: Default::default(),
 				}),
 		}).unwrap(), ());
@@ -1263,8 +1273,8 @@ mod tests {
 		// let's say node1 doesn't have a share && delegates decryption request to node0
 		// initially session is created on node1 => node1 is master for itself, but for other nodes node0 is still master
 		sessions[1].core.meta.master_node_id = sessions[1].core.meta.self_node_id.clone();
-		sessions[1].data.lock().consensus_session.consensus_job_mut().executor_mut().set_requester_signature(
-			sessions[0].data.lock().consensus_session.consensus_job().executor().requester_signature().unwrap().clone()
+		sessions[1].data.lock().consensus_session.consensus_job_mut().executor_mut().set_requester(
+			sessions[0].data.lock().consensus_session.consensus_job().executor().requester().unwrap().clone()
 		);
 
 		// now let's try to do a decryption

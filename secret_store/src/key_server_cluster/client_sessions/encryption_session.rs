@@ -19,8 +19,8 @@ use std::fmt::{Debug, Formatter, Error as FmtError};
 use std::time;
 use std::sync::Arc;
 use parking_lot::{Condvar, Mutex};
-use ethkey::{self, Public, Signature};
-use key_server_cluster::{Error, NodeId, SessionId, KeyStorage, DocumentKeyShare};
+use ethkey::Public;
+use key_server_cluster::{Error, NodeId, SessionId, Requester, KeyStorage, DocumentKeyShare};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{Message, EncryptionMessage, InitializeEncryptionSession,
@@ -137,7 +137,7 @@ impl SessionImpl {
 
 
 	/// Start new session initialization. This must be called on master node.
-	pub fn initialize(&self, requestor_signature: Signature, common_point: Public, encrypted_point: Public) -> Result<(), Error> {
+	pub fn initialize(&self, requester: Requester, common_point: Public, encrypted_point: Public) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
 		// check state
@@ -157,8 +157,8 @@ impl SessionImpl {
 		// save encryption data
 		if let Some(mut encrypted_data) = self.encrypted_data.clone() {
 			// check that the requester is the author of the encrypted data
-			let requestor_public = ethkey::recover(&requestor_signature, &self.id)?;
-			if encrypted_data.author != requestor_public {
+			let requester_public = requester.public(&self.id).ok_or(Error::InsufficientRequesterData)?;
+			if encrypted_data.author != requester_public {
 				return Err(Error::AccessDenied);
 			}
 
@@ -173,7 +173,7 @@ impl SessionImpl {
 			self.cluster.broadcast(Message::Encryption(EncryptionMessage::InitializeEncryptionSession(InitializeEncryptionSession {
 				session: self.id.clone().into(),
 				session_nonce: self.nonce,
-				requestor_signature: requestor_signature.into(),
+				requester: requester.into(),
 				common_point: common_point.into(),
 				encrypted_point: encrypted_point.into(),
 			})))
@@ -200,7 +200,8 @@ impl SessionImpl {
 
 		// check that the requester is the author of the encrypted data
 		if let Some(mut encrypted_data) = self.encrypted_data.clone() {
-			let requestor_public = ethkey::recover(&message.requestor_signature.clone().into(), &self.id)?;
+			let requester: Requester = message.requester.clone().into();
+			let requestor_public = requester.public(&self.id).ok_or(Error::InsufficientRequesterData)?;
 			if encrypted_data.author != requestor_public {
 				return Err(Error::AccessDenied);
 			}
