@@ -48,11 +48,11 @@ extern crate log;
 #[cfg(test)]
 extern crate rustc_hex;
 
-pub mod banning_queue;
+// pub mod banning_queue;
 pub mod external;
 pub mod gas_pricer;
 pub mod local_transactions;
 pub mod pool;
 pub mod service_transaction_checker;
-pub mod transaction_queue;
+// pub mod transaction_queue;
 pub mod work_notify;

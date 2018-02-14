@@ -45,7 +45,7 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
 use blockchain::extras::BlockReceipts;
-use error::{ImportResult, Error as EthcoreError};
+use error::ImportResult;
 use evm::{Factory as EvmFactory, VMType};
 use vm::Schedule;
 use miner::{Miner, MinerService};
@@ -336,8 +336,8 @@ impl TestBlockChainClient {
 		self.set_balance(signed_tx.sender(), 10_000_000_000_000_000_000u64.into());
 		let hash = signed_tx.hash();
 		let res = self.miner.import_external_transactions(self, vec![signed_tx.into()]);
-		let res = res.into_iter().next().unwrap().expect("Successful import");
-		assert_eq!(res, transaction::ImportResult::Current);
+		let res = res.into_iter().next().unwrap();
+		assert!(res.is_ok());
 		hash
 	}
 
@@ -768,7 +768,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
 
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<transaction::ImportResult, EthcoreError> {
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&self.miner.mining_params().author),
 			action: Action::Call(address),

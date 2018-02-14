@@ -120,7 +120,7 @@ impl JobDispatcher for StratumJobDispatcher {
 	}
 
 	fn job(&self) -> Option<String> {
-		self.with_core(|client, miner| miner.map_sealing_work(&*client, |b| {
+		self.with_core(|client, miner| miner.map_pending_block(&*client, |b| {
 				let pow_hash = b.hash();
 				let number = b.block().header().number();
 				let difficulty = b.block().header().difficulty();
@@ -248,7 +248,7 @@ impl Stratum {
 	/// Start STRATUM job dispatcher and register it in the miner
 	pub fn register(cfg: &Options, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), Error> {
 		let stratum = miner::Stratum::start(cfg, Arc::downgrade(&miner.clone()), client)?;
-		miner.push_listener(Box::new(stratum) as Box<NotifyWork>);
+		miner.add_work_listener(Box::new(stratum) as Box<NotifyWork>);
 		Ok(())
 	}
 }

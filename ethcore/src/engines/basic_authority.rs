@@ -19,8 +19,8 @@
 use std::sync::{Weak, Arc};
 use ethereum_types::{H256, H520, Address};
 use parking_lot::RwLock;
-use ethkey::{recover, public_to_address, Signature};
-use account_provider::AccountProvider;
+use ethkey::{self, Signature};
+use account_provider::{AccountProvider, SignError};
 use block::*;
 use engines::{Engine, Seal, ConstructedVerifier, EngineError};
 use error::{BlockError, Error};
@@ -61,7 +61,7 @@ fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Err
 
 	// Check if the signature belongs to a validator, can depend on parent state.
 	let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
-	let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);
+	let signer = ethkey::public_to_address(&ethkey::recover(&sig.into(), &header.bare_hash())?);
 
 	if *header.author() != signer {
 		return Err(EngineError::NotAuthorized(*header.author()).into())
@@ -184,8 +184,8 @@ impl Engine<EthereumMachine> for BasicAuthority {
 		self.signer.write().set(ap, address, password);
 	}
 
-	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		self.signer.read().sign(hash).map_err(Into::into)
+	fn sign(&self, hash: H256) -> Result<Signature, SignError> {
+		self.signer.read().sign(hash)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {

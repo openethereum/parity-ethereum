@@ -37,8 +37,8 @@ use bytes::Bytes;
 use error::{Error, BlockError};
 use header::{Header, BlockNumber};
 use rlp::UntrustedRlp;
-use ethkey::{Message, public_to_address, recover, Signature};
-use account_provider::AccountProvider;
+use ethkey::{self, Message, Signature};
+use account_provider::{AccountProvider, SignError};
 use block::*;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use io::IoService;
@@ -519,8 +519,8 @@ impl Engine<EthereumMachine> for Tendermint {
 		let message: ConsensusMessage = rlp.as_val().map_err(fmt_err)?;
 		if !self.votes.is_old_or_known(&message) {
 			let msg_hash = keccak(rlp.at(1).map_err(fmt_err)?.as_raw());
-			let sender = public_to_address(
-				&recover(&message.signature.into(), &msg_hash).map_err(fmt_err)?
+			let sender = ethkey::public_to_address(
+				&ethkey::recover(&message.signature.into(), &msg_hash).map_err(fmt_err)?
 			);
 
 			if !self.is_authority(&sender) {
@@ -611,7 +611,7 @@ impl Engine<EthereumMachine> for Tendermint {
 				};
 				let address = match self.votes.get(&precommit) {
 					Some(a) => a,
-					None => public_to_address(&recover(&precommit.signature.into(), &precommit_hash)?),
+					None => ethkey::public_to_address(&ethkey::recover(&precommit.signature.into(), &precommit_hash)?),
 				};
 				if !self.validators.contains(header.parent_hash(), &address) {
 					return Err(EngineError::NotAuthorized(address.to_owned()).into());
@@ -666,7 +666,7 @@ impl Engine<EthereumMachine> for Tendermint {
 				let verifier = Box::new(EpochVerifier {
 					subchain_validators: list,
 					recover: |signature: &Signature, message: &Message| {
-						Ok(public_to_address(&::ethkey::recover(&signature, &message)?))
+						Ok(ethkey::public_to_address(&ethkey::recover(&signature, &message)?))
 					},
 				});
 
@@ -686,8 +686,8 @@ impl Engine<EthereumMachine> for Tendermint {
 		self.to_step(Step::Propose);
 	}
 
-	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		self.signer.read().sign(hash).map_err(Into::into)
+	fn sign(&self, hash: H256) -> Result<Signature, SignError> {
+		self.signer.read().sign(hash)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
@@ -1031,7 +1031,7 @@ mod tests {
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_tendermint, Some(tap.clone()));
 		let engine = client.engine();
 
-		client.miner().set_engine_signer(v1.clone(), "1".into()).unwrap();
+		client.miner().set_author(v1.clone(), Some("1".into())).unwrap();
 
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());

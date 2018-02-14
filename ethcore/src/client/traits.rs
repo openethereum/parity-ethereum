@@ -21,7 +21,7 @@ use block::{OpenBlock, SealedBlock, ClosedBlock};
 use blockchain::TreeRoute;
 use encoded;
 use vm::LastHashes;
-use error::{ImportResult, CallError, Error as EthcoreError, BlockImportError};
+use error::{ImportResult, CallError, BlockImportError};
 use evm::{Factory as EvmFactory, Schedule};
 use executive::Executed;
 use filter::Filter;
@@ -29,7 +29,7 @@ use header::{BlockNumber};
 use log_entry::LocalizedLogEntry;
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
-use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction, ImportResult as TransactionImportResult};
+use transaction::{self, LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
 use ethereum_types::{H256, U256, Address};
@@ -273,7 +273,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
 
 	/// Import a transaction: used for misbehaviour reporting.
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError>;
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error>;
 
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;

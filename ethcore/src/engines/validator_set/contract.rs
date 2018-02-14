@@ -169,8 +169,8 @@ mod tests {
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
 
 		// Make sure reporting can be done.
-		client.miner().set_gas_floor_target(1_000_000.into());
-		client.miner().set_engine_signer(v1, "".into()).unwrap();
+		client.miner().set_gas_range_target((1_000_000.into(), 1_000_000.into()));
+		client.miner().set_author(v1, Some("".into())).unwrap();
 
 		// Check a block that is a bit in future, reject it but don't report the validator.
 		let mut header = Header::default();

@@ -350,6 +350,10 @@ impl<T, S, L> Pool<T, S, L> where
 		self.by_hash.get(hash).cloned()
 	}
 
+	pub fn worst_transaction(&self) -> Option<Arc<T>> {
+		self.worst_transactions.iter().next().map(|x| x.transaction.clone())
+	}
+
 	/// Returns an iterator of pending (ready) transactions.
 	pub fn pending<R: Ready<T>>(&self, ready: R) -> PendingIterator<T, R, S, L> {
 		PendingIterator {

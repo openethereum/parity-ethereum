@@ -55,7 +55,7 @@ use client::{MiningBlockChainClient};
 use error::{Error};
 use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
-use transaction::{UnverifiedTransaction, PendingTransaction, ImportResult as TransactionImportResult};
+use transaction::{self, UnverifiedTransaction, PendingTransaction};
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
@@ -99,11 +99,11 @@ pub trait MinerService : Send + Sync {
 
 	/// Imports transactions to transaction queue.
 	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<UnverifiedTransaction>) ->
-		Vec<Result<TransactionImportResult, Error>>;
+		Vec<Result<(), transaction::Error>>;
 
 	/// Imports own (node owner) transaction to queue.
 	fn import_own_transaction(&self, chain: &MiningBlockChainClient, transaction: PendingTransaction) ->
-		Result<TransactionImportResult, Error>;
+		Result<(), transaction::Error>;
 
 	/// Returns hashes of transactions currently in pending
 	fn pending_transactions_hashes(&self, best_block: BlockNumber) -> Vec<H256>;

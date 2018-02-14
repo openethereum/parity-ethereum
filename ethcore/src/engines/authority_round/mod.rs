@@ -21,7 +21,7 @@ use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
 use std::collections::{BTreeMap, HashSet};
 
-use account_provider::AccountProvider;
+use account_provider::{AccountProvider, SignError};
 use block::*;
 use client::EngineClient;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
@@ -35,7 +35,7 @@ use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 use self::finality::RollingFinality;
 
-use ethkey::{verify_address, Signature};
+use ethkey::{self, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{UntrustedRlp, encode};
@@ -365,7 +365,7 @@ fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Err
 	let proposer_signature = header_signature(header)?;
 	let correct_proposer = validators.get(header.parent_hash(), header_step);
 	let is_invalid_proposer = *header.author() != correct_proposer ||
-		!verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
+		!ethkey::verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
 
 	if is_invalid_proposer {
 		trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
@@ -880,8 +880,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		self.signer.write().set(ap, address, password);
 	}
 
-	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		self.signer.read().sign(hash).map_err(Into::into)
+	fn sign(&self, hash: H256) -> Result<Signature, SignError> {
+		self.signer.read().sign(hash)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {

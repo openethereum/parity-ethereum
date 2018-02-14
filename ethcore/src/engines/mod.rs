@@ -41,14 +41,14 @@ use std::fmt;
 
 use self::epoch::PendingTransition;
 
-use account_provider::AccountProvider;
+use account_provider::{AccountProvider, SignError};
 use builtin::Builtin;
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 use error::Error;
 use header::{Header, BlockNumber};
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
-use transaction::{UnverifiedTransaction, SignedTransaction};
+use transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::Signature;
 use parity_machine::{Machine, LocalizedMachine as Localized};
@@ -304,7 +304,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: String) {}
 
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
-	fn sign(&self, _hash: H256) -> Result<Signature, Error> { unimplemented!() }
+	fn sign(&self, _hash: H256) -> Result<Signature, SignError> { unimplemented!() }
 
 	/// Add Client which can be used for sealing, potentially querying the state and sending messages.
 	fn register_client(&self, _client: Weak<M::EngineClient>) {}
@@ -374,14 +374,14 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	}
 
 	/// Verify a particular transaction is valid.
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, Error> {
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
 		self.machine().verify_transaction_unordered(t, header)
 	}
 
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.
 	// TODO: consider including State in the params.
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
 		self.machine().verify_transaction_basic(t, header)
 	}
 

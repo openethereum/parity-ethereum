@@ -101,10 +101,10 @@ pub struct ClientReport {
 
 impl ClientReport {
 	/// Alter internal reporting to reflect the additional `block` has been processed.
-	pub fn accrue_block(&mut self, block: &PreverifiedBlock) {
+	pub fn accrue_block(&mut self, header: &Header, transactions: usize) {
 		self.blocks_imported += 1;
-		self.transactions_applied += block.transactions.len();
-		self.gas_processed = self.gas_processed + block.header.gas_used().clone();
+		self.transactions_applied += transactions;
+		self.gas_processed = self.gas_processed + *header.gas_used();
 	}
 }
 
@@ -401,9 +401,9 @@ impl Client {
 		Arc::new(last_hashes)
 	}
 
-	fn check_and_close_block(&self, block: &PreverifiedBlock) -> Result<LockedBlock, ()> {
+	fn check_and_close_block(&self, block: PreverifiedBlock) -> Result<LockedBlock, ()> {
 		let engine = &*self.engine;
-		let header = &block.header;
+		let header = block.header.clone();
 
 		let chain = self.chain.read();
 		// Check the block isn't so old we won't be able to enact it.
@@ -424,7 +424,7 @@ impl Client {
 
 		// Verify Block Family
 		let verify_family_result = self.verifier.verify_block_family(
-			header,
+			&header,
 			&parent,
 			engine,
 			Some((&block.bytes, &block.transactions, &**chain, self)),
@@ -435,18 +435,19 @@ impl Client {
 			return Err(());
 		};
 
-		let verify_external_result = self.verifier.verify_block_external(header, engine);
+		let verify_external_result = self.verifier.verify_block_external(&header, engine);
 		if let Err(e) = verify_external_result {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
 		};
 
 		// Enact Verified Block
-		let last_hashes = self.build_last_hashes(header.parent_hash().clone());
+		let last_hashes = self.build_last_hashes(*header.parent_hash());
 		let db = self.state_db.read().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
-		let enact_result = enact_verified(block,
+		let enact_result = enact_verified(
+			block,
 			engine,
 			self.tracedb.read().tracing_enabled(),
 			db,
@@ -464,7 +465,7 @@ impl Client {
 		}
 
 		// Final Verification
-		if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
+		if let Err(e) = self.verifier.verify_block_final(&header, locked_block.block().header()) {
 			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
 		}
@@ -522,23 +523,28 @@ impl Client {
 			let start = precise_time_ns();
 
 			for block in blocks {
-				let header = &block.header;
+				let header = block.header.clone();
+				let bytes = block.bytes.clone();
+				let hash = header.hash();
+
 				let is_invalid = invalid_blocks.contains(header.parent_hash());
 				if is_invalid {
-					invalid_blocks.insert(header.hash());
+					invalid_blocks.insert(hash);
 					continue;
 				}
-				if let Ok(closed_block) = self.check_and_close_block(&block) {
-					if self.engine.is_proposal(&block.header) {
-						self.block_queue.mark_as_good(&[header.hash()]);
-						proposed_blocks.push(block.bytes);
+				if let Ok(closed_block) = self.check_and_close_block(block) {
+					if self.engine.is_proposal(&header) {
+						self.block_queue.mark_as_good(&[hash]);
+						proposed_blocks.push(bytes);
 					} else {
-						imported_blocks.push(header.hash());
+						imported_blocks.push(hash);
 
-						let route = self.commit_block(closed_block, &header, &block.bytes);
+						let transactions_len = closed_block.transactions().len();
+
+						let route = self.commit_block(closed_block, &header, &bytes);
 						import_results.push(route);
 
-						self.report.write().accrue_block(&block);
+						self.report.write().accrue_block(&header, transactions_len);
 					}
 				} else {
 					invalid_blocks.insert(header.hash());
@@ -1808,19 +1814,20 @@ impl BlockChainClient for Client {
 			})
 	}
 
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<transaction::ImportResult, EthcoreError> {
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
 		let mining_params = self.miner.mining_params();
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&mining_params.author),
 			action: Action::Call(address),
-			gas: mining_params.gas_range_target.0,
-			// TODO [ToDr] Do we need gas price here?
+			// TODO [ToDr] Check that params carefuly.
+			gas: self.miner.sensible_gas_limit(),
 			gas_price: self.miner.sensible_gas_price(),
 			value: U256::zero(),
 			data: data,
 		};
 		let chain_id = self.engine.signing_chain_id(&self.latest_env_info());
-		let signature = self.engine.sign(transaction.hash(chain_id))?;
+		let signature = self.engine.sign(transaction.hash(chain_id))
+			.map_err(|e| transaction::Error::InvalidSignature(e.to_string()))?;
 		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
 		self.miner.import_own_transaction(self, signed.into())
 	}

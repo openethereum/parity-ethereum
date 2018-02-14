@@ -44,6 +44,17 @@ pub struct Options {
 	pub tx_gas_limit: U256,
 }
 
+#[cfg(test)]
+impl Default for Options {
+	fn default() -> Self {
+		Options {
+			minimal_gas_price: 0.into(),
+			block_gas_limit: U256::max_value(),
+			tx_gas_limit: U256::max_value(),
+		}
+	}
+}
+
 /// Transaction to verify.
 pub enum Transaction {
 	/// Fresh, never verified transaction.

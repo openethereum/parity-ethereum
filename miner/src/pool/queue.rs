@@ -2,13 +2,14 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 
-use ethereum_types::H256;
+use ethereum_types::{H256, U256};
 use parking_lot::{RwLock, RwLockReadGuard};
 use transaction;
 use txpool::{self, Verifier};
 
 use pool::{self, scoring, verifier, client, ready};
 
+// TODO [ToDr] Support logging listener (and custom listeners)
 type Pool = txpool::Pool<pool::VerifiedTransaction, scoring::GasPrice>;
 
 #[derive(Debug)]
@@ -96,6 +97,26 @@ impl TransactionQueue {
 			pool.remove(hash, is_invalid);
 		}
 	}
+
+	pub fn clear(&self) {
+		self.pool.write().clear();
+	}
+
+	pub fn current_worst_gas_price(&self) -> U256 {
+		match self.pool.read().worst_transaction() {
+			Some(tx) => tx.signed().gas_price,
+			None => self.options.read().minimal_gas_price,
+		}
+	}
+
+	pub fn status(&self) -> txpool::LightStatus {
+		self.pool.read().light_status()
+	}
+
+	pub fn has_local_transactions(&self) -> bool {
+		// TODO [ToDr] Take from the listener
+		false
+	}
 }
 
 pub struct PendingReader<'a, R> {
@@ -104,7 +125,60 @@ pub struct PendingReader<'a, R> {
 }
 
 impl<'a, R: txpool::Ready<pool::VerifiedTransaction>> PendingReader<'a, R> {
-	pub fn transactions(&'a mut self) -> txpool::PendingIterator<pool::VerifiedTransaction, R, scoring::GasPrice, txpool::NoopListener> {
+	pub fn transactions(&mut self) -> txpool::PendingIterator<pool::VerifiedTransaction, R, scoring::GasPrice, txpool::NoopListener> {
 		self.guard.pending(self.ready.take().unwrap())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use ethereum_types::Address;
+
+	#[derive(Debug)]
+	struct TestClient;
+	impl client::Client for TestClient {
+		fn transaction_already_included(&self, hash: &H256) -> bool {
+			false
+		}
+
+		fn verify_transaction(&self, tx: transaction::UnverifiedTransaction) -> Result<transaction::SignedTransaction, transaction::Error> {
+			Ok(transaction::SignedTransaction::new(tx)?)
+		}
+
+		/// Fetch account details for given sender.
+		fn account_details(&self, _address: &Address) -> client::AccountDetails {
+			client::AccountDetails {
+				balance: 5_000_000.into(),
+				nonce: 0.into(),
+				is_local: false,
+			}
+		}
+
+		/// Fetch only account nonce for given sender.
+		fn account_nonce(&self, _address: &Address) -> U256 {
+			0.into()
+		}
+
+		/// Estimate minimal gas requirurement for given transaction.
+		fn required_gas(&self, _tx: &transaction::SignedTransaction) -> U256 {
+			0.into()
+		}
+
+		/// Classify transaction (check if transaction is filtered by some contracts).
+		fn transaction_type(&self, tx: &transaction::SignedTransaction) -> client::TransactionType {
+			client::TransactionType::Regular
+		}
+	}
+
+	#[test]
+	fn should_get_pending_transactions() {
+		let queue = TransactionQueue::new(txpool::Options::default(), verifier::Options::default());
+
+		let mut pending = queue.pending(TestClient, 0, 0);
+
+		for tx in pending.transactions() {
+			assert!(tx.signed().nonce > 0.into());
+		}
 	}
 }

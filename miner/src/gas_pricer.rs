@@ -41,7 +41,7 @@ pub struct GasPriceCalibrator {
 }
 
 impl GasPriceCalibrator {
-	fn recalibrate<F: Fn(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
+	fn recalibrate<F: FnOnce(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
 		trace!(target: "miner", "Recalibrating {:?} versus {:?}", Instant::now(), self.next_calibration);
 		if Instant::now() >= self.next_calibration {
 			let usd_per_tx = self.options.usd_per_tx;
@@ -87,7 +87,7 @@ impl GasPricer {
 	}
 
 	/// Recalibrate current gas price.
-	pub fn recalibrate<F: Fn(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
+	pub fn recalibrate<F: FnOnce(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
 		match *self {
 			GasPricer::Fixed(ref max) => set_price(max.clone()),
 			GasPricer::Calibrated(ref mut cal) => cal.recalibrate(set_price),

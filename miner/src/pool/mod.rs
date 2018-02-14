@@ -51,6 +51,14 @@ impl VerifiedTransaction {
 	pub(crate) fn priority(&self) -> Priority {
 		self.priority
 	}
+
+	pub fn signed(&self) -> &transaction::SignedTransaction {
+		&self.transaction.transaction
+	}
+
+	pub fn pending(&self) -> &transaction::PendingTransaction {
+		&self.transaction
+	}
 }
 
 impl txpool::VerifiedTransaction for VerifiedTransaction {
