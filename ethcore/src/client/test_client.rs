@@ -770,7 +770,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
 		let transaction = Transaction {
-			nonce: self.latest_nonce(&self.miner.mining_params().author),
+			nonce: self.latest_nonce(&self.miner.authoring_params().author),
 			action: Action::Call(address),
 			gas: self.spec.gas_limit,
 			gas_price: U256::zero(),

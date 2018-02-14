@@ -41,7 +41,7 @@
 mod miner;
 mod stratum;
 
-pub use self::miner::{Miner, MinerOptions, PendingSet, MiningParams};
+pub use self::miner::{Miner, MinerOptions, PendingSet, AuthoringParams};
 pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOptions};
 
 pub use ethcore_miner::local_transactions::Status as LocalTransactionStatus;
@@ -70,11 +70,13 @@ pub trait MinerService : Send + Sync {
 	/// Get a particular receipt.
 	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt>;
 
+	/// Get current authoring parameters.
+	fn authoring_params(&self) -> AuthoringParams;
 
-	fn mining_params(&self) -> MiningParams;
-
+	/// Set the lower and upper bound of gas limit we wish to target when sealing a new block.
 	fn set_gas_range_target(&self, gas_range_target: (U256, U256));
 
+	/// Set the extra_data that we will seal blocks with.
 	fn set_extra_data(&self, extra_data: Bytes);
 
 	/// Set info necessary to sign consensus messages and block authoring.

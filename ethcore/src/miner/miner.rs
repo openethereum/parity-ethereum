@@ -141,7 +141,9 @@ pub struct MinerOptions {
 	/// will be invalid if mined.
 	pub infinite_pending_block: bool,
 
+	/// Transaction pool limits.
 	pub pool_limits: pool::Options,
+	/// Initial transaction verification options.
 	pub pool_verification_options: pool::verifier::Options,
 }
 
@@ -179,10 +181,14 @@ impl Default for MinerOptions {
 	}
 }
 
+/// Configurable parameters of block authoring.
 #[derive(Debug, Default, Clone)]
-pub struct MiningParams {
+pub struct AuthoringParams {
+	/// Lower and upper bound of block gas limit that we are targeting
 	pub gas_range_target: (U256, U256),
+	/// Block author
 	pub author: Address,
+	/// Block extra data
 	pub extra_data: Bytes,
 }
 
@@ -199,7 +205,7 @@ struct SealingWork {
 pub struct Miner {
 	// NOTE [ToDr]  When locking always lock in this order!
 	sealing: Mutex<SealingWork>,
-	params: RwLock<MiningParams>,
+	params: RwLock<AuthoringParams>,
 	listeners: RwLock<Vec<Box<NotifyWork>>>,
 	gas_pricer: Mutex<GasPricer>,
 	options: MinerOptions,
@@ -212,12 +218,13 @@ pub struct Miner {
 }
 
 impl Miner {
-	/// Push notifier that will handle new jobs
+	/// Push listener that will handle new jobs
 	pub fn add_work_listener(&self, notifier: Box<NotifyWork>) {
 		self.sealing.lock().enabled = true;
 		self.listeners.write().push(notifier);
 	}
 
+	/// Push an URL that will get new job notifications.
 	pub fn add_work_listener_url(&self, urls: &[String]) {
 		self.add_work_listener(Box::new(WorkPoster::new(&urls)));
 	}
@@ -241,7 +248,7 @@ impl Miner {
 				next_mandatory_reseal: Instant::now() + options.reseal_max_period,
 				sealing_block_last_request: 0,
 			}),
-			params: RwLock::new(MiningParams::default()),
+			params: RwLock::new(AuthoringParams::default()),
 			listeners: RwLock::new(vec![]),
 			gas_pricer: Mutex::new(gas_pricer),
 			options,
@@ -326,12 +333,10 @@ impl Miner {
 	/// Prepares new block for sealing including top transactions from queue.
 	fn prepare_block(&self, chain: &MiningBlockChainClient) -> (ClosedBlock, Option<H256>) {
 		let _timer = PerfTimer::new("prepare_block");
-		let (mut pending, mut open_block, original_work_hash) = {
-			let chain_info = chain.chain_info();
-			let nonce_cap: Option<U256> = if chain_info.best_block_number + 1 >= self.engine.params().dust_protection_transition {
-				Some((self.engine.params().nonce_cap_increment * (chain_info.best_block_number + 1)).into())
-			} else { None };
+		let chain_info = chain.chain_info();
 
+		// Open block
+		let (mut open_block, original_work_hash) = {
 			let mut sealing = self.sealing.lock();
 			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.block().fields().header.hash());
 			let best_hash = chain_info.best_block_hash;
@@ -364,14 +369,7 @@ impl Miner {
 				open_block.set_gas_limit(!U256::zero());
 			}
 
-			let pending = self.transaction_queue.pending(
-				self.client(chain),
-				chain_info.best_block_number,
-				chain_info.best_block_timestamp,
-				// nonce_cap,
-			);
-
-			(pending, open_block, last_work_hash)
+			(open_block, last_work_hash)
 		};
 
 		let mut invalid_transactions = HashSet::new();
@@ -383,78 +381,93 @@ impl Miner {
 		let mut skipped_transactions = 0usize;
 
 		let client = self.client(chain);
-		for tx in pending.transactions() {
-			let start = Instant::now();
+		let engine_params = self.engine.params();
+		let nonce_cap: Option<U256> = if chain_info.best_block_number + 1 >= engine_params.dust_protection_transition {
+			Some((engine_params.nonce_cap_increment * (chain_info.best_block_number + 1)).into())
+		} else {
+			None
+		};
+		{
+			let mut pending = self.transaction_queue.pending(
+				client.clone(),
+				chain_info.best_block_number,
+				chain_info.best_block_timestamp,
+				// nonce_cap,
+			);
 
-			let transaction = tx.signed().clone();
-			let hash = transaction.hash();
+			for tx in pending.transactions() {
+				let start = Instant::now();
 
-			// Re-verify transaction again vs current state.
-			let result = client.verify_signed(&transaction)
-				.map_err(Error::Transaction)
-				.and_then(|_| {
-					open_block.push_transaction(transaction, None)
-				});
+				let transaction = tx.signed().clone();
+				let hash = transaction.hash();
 
-			let took = start.elapsed();
+				// Re-verify transaction again vs current state.
+				let result = client.verify_signed(&transaction)
+					.map_err(Error::Transaction)
+					.and_then(|_| {
+						open_block.push_transaction(transaction, None)
+					});
 
-			// Check for heavy transactions
-			// match self.options.tx_queue_banning {
-			// 	Banning::Enabled { ref offend_threshold, .. } if &took > offend_threshold => {
-			// 		match self.transaction_queue.write().ban_transaction(&hash) {
-			// 			true => {
-			// 				warn!(target: "miner", "Detected heavy transaction. Banning the sender and recipient/code.");
-			// 			},
-			// 			false => {
-			// 				transactions_to_penalize.insert(hash);
-			// 				debug!(target: "miner", "Detected heavy transaction. Penalizing sender.")
-			// 			}
-			// 		}
-			// 	},
-			// 	_ => {},
-			// }
-			trace!(target: "miner", "Adding tx {:?} took {:?}", hash, took);
-			match result {
-				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) => {
-					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?} (limit: {:?}, used: {:?}, gas: {:?})", hash, gas_limit, gas_used, gas);
+				let took = start.elapsed();
 
-					// Penalize transaction if it's above current gas limit
-					if gas > gas_limit {
+				// Check for heavy transactions
+				// match self.options.tx_queue_banning {
+				// 	Banning::Enabled { ref offend_threshold, .. } if &took > offend_threshold => {
+				// 		match self.transaction_queue.write().ban_transaction(&hash) {
+				// 			true => {
+				// 				warn!(target: "miner", "Detected heavy transaction. Banning the sender and recipient/code.");
+				// 			},
+				// 			false => {
+				// 				transactions_to_penalize.insert(hash);
+				// 				debug!(target: "miner", "Detected heavy transaction. Penalizing sender.")
+				// 			}
+				// 		}
+				// 	},
+				// 	_ => {},
+				// }
+				trace!(target: "miner", "Adding tx {:?} took {:?}", hash, took);
+				match result {
+					Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) => {
+						debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?} (limit: {:?}, used: {:?}, gas: {:?})", hash, gas_limit, gas_used, gas);
+
+						// Penalize transaction if it's above current gas limit
+						if gas > gas_limit {
+							invalid_transactions.insert(hash);
+						}
+
+						// Exit early if gas left is smaller then min_tx_gas
+						let min_tx_gas: U256 = 21000.into();	// TODO: figure this out properly.
+						let gas_left = gas_limit - gas_used;
+						if gas_left < min_tx_gas {
+							break;
+						}
+
+						// Avoid iterating over the entire queue in case block is almost full.
+						skipped_transactions += 1;
+						if skipped_transactions > 8 {
+							break;
+						}
+					},
+					// Invalid nonce error can happen only if previous transaction is skipped because of gas limit.
+					// If there is errornous state of transaction queue it will be fixed when next block is imported.
+					Err(Error::Execution(ExecutionError::InvalidNonce { expected, got })) => {
+						debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?} (expected: {:?}, got: {:?})", hash, expected, got);
+					},
+					// already have transaction - ignore
+					Err(Error::Transaction(transaction::Error::AlreadyImported)) => {},
+					Err(Error::Transaction(transaction::Error::NotAllowed)) => {
+						not_allowed_transactions.insert(hash);
+						debug!(target: "miner", "Skipping non-allowed transaction for sender {:?}", hash);
+					},
+					Err(e) => {
 						invalid_transactions.insert(hash);
-					}
-
-					// Exit early if gas left is smaller then min_tx_gas
-					let min_tx_gas: U256 = 21000.into();	// TODO: figure this out properly.
-					let gas_left = gas_limit - gas_used;
-					if gas_left < min_tx_gas {
-						break;
-					}
-
-					// Avoid iterating over the entire queue in case block is almost full.
-					skipped_transactions += 1;
-					if skipped_transactions > 8 {
-						break;
-					}
-				},
-				// Invalid nonce error can happen only if previous transaction is skipped because of gas limit.
-				// If there is errornous state of transaction queue it will be fixed when next block is imported.
-				Err(Error::Execution(ExecutionError::InvalidNonce { expected, got })) => {
-					debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?} (expected: {:?}, got: {:?})", hash, expected, got);
-				},
-				// already have transaction - ignore
-				Err(Error::Transaction(transaction::Error::AlreadyImported)) => {},
-				Err(Error::Transaction(transaction::Error::NotAllowed)) => {
-					not_allowed_transactions.insert(hash);
-					debug!(target: "miner", "Skipping non-allowed transaction for sender {:?}", hash);
-				},
-				Err(e) => {
-					invalid_transactions.insert(hash);
-					debug!(
-						target: "miner", "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}", block_number, hash, e
-					);
-				},
-				// imported ok
-				_ => tx_count += 1,
+						debug!(
+							target: "miner", "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}", block_number, hash, e
+						);
+					},
+					// imported ok
+					_ => tx_count += 1,
+				}
 			}
 		}
 		trace!(target: "miner", "Pushed {} transactions", tx_count);
@@ -679,7 +692,7 @@ impl MinerService for Miner {
 		self.update_sealing(chain);
 	}
 
-	fn mining_params(&self) -> MiningParams {
+	fn authoring_params(&self) -> AuthoringParams {
 		self.params.read().clone()
 	}
 
@@ -1083,7 +1096,7 @@ impl<'a> pool::client::Client for BlockChainClient<'a> {
 		self.engine.verify_transaction_basic(&tx, &self.best_block_header)?;
 		let tx = self.engine.verify_transaction_unordered(tx, &self.best_block_header)?;
 
-		self.verify_signed(&tx);
+		self.verify_signed(&tx)?;
 
 		Ok(tx)
 	}

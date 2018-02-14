@@ -1815,9 +1815,9 @@ impl BlockChainClient for Client {
 	}
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
-		let mining_params = self.miner.mining_params();
+		let authoring_params = self.miner.authoring_params();
 		let transaction = Transaction {
-			nonce: self.latest_nonce(&mining_params.author),
+			nonce: self.latest_nonce(&authoring_params.author),
 			action: Action::Call(address),
 			// TODO [ToDr] Check that params carefuly.
 			gas: self.miner.sensible_gas_limit(),

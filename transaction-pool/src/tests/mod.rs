@@ -375,6 +375,20 @@ fn should_re_insert_after_cull() {
 	});
 }
 
+#[test]
+fn should_return_worst_transaction() {
+	// given
+	let b = TransactionBuilder::default();
+	let mut txq = TestPool::default();
+	assert!(txq.worst_transaction().is_none());
+
+	// when
+	txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+
+	// then
+	assert!(txq.worst_transaction().is_some());
+}
+
 mod listener {
 	use std::cell::RefCell;
 	use std::rc::Rc;

@@ -87,6 +87,7 @@ pub struct Verifier<C> {
 }
 
 impl<C> Verifier<C> {
+	/// Creates new transaction verfier with specified options.
 	pub fn new(client: C, options: Options, id: Arc<AtomicUsize>) -> Self {
 		Verifier {
 			client,

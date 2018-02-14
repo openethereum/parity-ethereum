@@ -48,14 +48,17 @@ pub struct VerifiedTransaction {
 }
 
 impl VerifiedTransaction {
+	/// Gets transaction priority.
 	pub(crate) fn priority(&self) -> Priority {
 		self.priority
 	}
 
+	/// Gets wrapped `SignedTransaction`
 	pub fn signed(&self) -> &transaction::SignedTransaction {
 		&self.transaction.transaction
 	}
 
+	/// Gets wrapped `PendingTransaction`
 	pub fn pending(&self) -> &transaction::PendingTransaction {
 		&self.transaction
 	}

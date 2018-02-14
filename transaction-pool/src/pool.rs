@@ -350,6 +350,7 @@ impl<T, S, L> Pool<T, S, L> where
 		self.by_hash.get(hash).cloned()
 	}
 
+	/// Returns worst transaction in the queue (if any).
 	pub fn worst_transaction(&self) -> Option<Arc<T>> {
 		self.worst_transactions.iter().next().map(|x| x.transaction.clone())
 	}

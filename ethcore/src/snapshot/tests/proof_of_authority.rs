@@ -105,7 +105,7 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 			trace!(target: "snapshot", "Pushing block #{}, {} txs, author={}",
 				n, txs.len(), signers[idx]);
 
-			client.miner().set_author(signers[idx], Some(PASS.into()));
+			client.miner().set_author(signers[idx], Some(PASS.into())).unwrap();
 			client.miner().import_external_transactions(&*client,
 				txs.into_iter().map(Into::into).collect());
 
