@@ -23,11 +23,12 @@ rust_test () {
   rustup show
   if [[ "${RUST_FILES_MODIFIED}" == "0" ]];
     then echo "Skipping Rust tests since no Rust files modified.";
-    else ./test.sh;
+    else ./test.sh || exit $?;
   fi
-  if [[ "$CI_COMMIT_REF_NAME" == "nightly" ]];
-    then sh scripts/aura-test.sh;
-  fi
+  # if [[ "$CI_COMMIT_REF_NAME" == "nightly" ]];
+  #   ### @TODO re-enable fail after https://github.com/paritytech/parity-import-tests/issues/3
+  #   then sh scripts/aura-test.sh; # || exit $?;
+  # fi
 }
 js_test () {
   git submodule update --init --recursive
