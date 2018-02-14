@@ -87,6 +87,7 @@
 //!   cargo build --release
 //!   ```
 
+extern crate util_error as error;
 extern crate rustc_hex;
 extern crate rocksdb;
 extern crate env_logger;
@@ -106,9 +107,7 @@ extern crate ethcore_logger;
 extern crate hash as keccak;
 extern crate hashdb;
 extern crate memorydb;
-extern crate patricia_trie as trie;
 extern crate kvdb;
-extern crate util_error as error;
 
 #[cfg(test)]
 extern crate kvdb_memorydb;
@@ -116,12 +115,10 @@ extern crate kvdb_memorydb;
 #[macro_use]
 extern crate log as rlog;
 
-pub mod misc;
 pub mod overlaydb;
 pub mod journaldb;
 pub mod cache;
 
-pub use misc::*;
 pub use hashdb::*;
 pub use memorydb::MemoryDB;
 pub use overlaydb::*;

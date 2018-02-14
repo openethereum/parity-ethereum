@@ -37,6 +37,7 @@ parity-hash-fetch = { path = "../hash-fetch" }
 parity-reactor = { path = "../util/reactor" }
 parity-ui = { path = "./ui" }
 hash = { path = "../util/hash" }
+parity-version = { path = "../util/version" }
 
 clippy = { version = "0.0.103", optional = true}
 

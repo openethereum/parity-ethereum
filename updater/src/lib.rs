@@ -30,6 +30,7 @@ extern crate ethcore_ipc as ipc;
 extern crate futures;
 extern crate target_info;
 extern crate parity_reactor;
+extern crate parity_version as version;
 extern crate path;
 
 mod updater;

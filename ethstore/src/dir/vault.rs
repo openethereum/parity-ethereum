@@ -106,7 +106,7 @@ impl VaultDiskDirectory {
 	fn copy_to_vault(&self, vault: &VaultDiskDirectory) -> Result<(), Error> {
 		for account in self.load()? {
 			let filename = account.filename.clone().expect("self is instance of DiskDirectory; DiskDirectory fills filename in load; qed");
-			vault.insert_with_filename(account, filename)?;
+			vault.insert_with_filename(account, filename, true)?;
 		}
 
 		Ok(())
