@@ -1,5 +1,6 @@
 stages:
   - test
+  - js-build
   - push-release
   - build
 variables:
