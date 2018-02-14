@@ -314,7 +314,7 @@ case $BUILD_PLATFORM in
     sed -i 's/git/'"$VER"'/g' snap/snapcraft.yaml
     if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.9* ]];
       then
-        sed -i -e 's/grade: devel/grade: beta/' snap/snapcraft.yaml;
+        sed -i -e 's/grade: devel/grade: stable/' snap/snapcraft.yaml;
     fi
     mv -f snap/snapcraft.yaml snapcraft.yaml
     snapcraft -d
