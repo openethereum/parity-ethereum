@@ -306,13 +306,14 @@ case $BUILD_PLATFORM in
     updater_push_release
     ;;
   x86_64-unknown-snap-gnu)
+  x86_64-unknown-snap-gnu)
     ARC="amd64"
     EXT="snap"
-    apt install -y expect zip
+    apt install -y expect zip rhash
     snapcraft clean
     echo "Prepare snapcraft.yaml for build on Gitlab CI in Docker image"
     sed -i 's/git/'"$VER"'/g' snap/snapcraft.yaml
-    if [[ "$CI_BUILD_REF_NAME" = "stable" || "$VER" == *1.8* ]];
+    if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.9* ]];
       then
         sed -i -e 's/grade: devel/grade: stable/' snap/snapcraft.yaml;
     fi
@@ -330,10 +331,11 @@ case $BUILD_PLATFORM in
     snapcraft push "parity_"$VER"_amd64.snap"
     snapcraft status parity
     snapcraft logout
-    md5sum "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
+    $MD5_BIN "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
+    $SHA256_BIN "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.sha256"
     echo "add artifacts to archive"
     rm -rf parity.zip
-    zip -r parity.zip "parity_"$VER"_amd64.snap" "parity_"$VER"_amd64.snap.md5"
+    zip -r parity.zip "parity_"$VER"_amd64.snap" "parity_"$VER"_amd64.snap.md5" "parity_"$VER"_amd64.snap.sha256"
     ;;
   x86_64-pc-windows-msvc)
     set_env_win
