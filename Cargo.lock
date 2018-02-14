@@ -2279,7 +2279,7 @@ version = "1.9.3"
 dependencies = [
  "ethcore-bytes 0.1.0",
  "rlp 0.2.1",
- "rustc_version 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "vergen 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
