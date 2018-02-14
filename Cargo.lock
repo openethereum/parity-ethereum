@@ -621,7 +621,6 @@ dependencies = [
  "rlp_derive 0.1.0",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "semantic_version 0.1.0",
  "snappy 0.1.0",
  "stats 0.1.0",
  "table 0.1.0",
@@ -812,6 +811,7 @@ dependencies = [
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.6.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-version 1.8.10",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "path 0.1.0",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1372,6 +1372,7 @@ dependencies = [
  "ethcore-ipc 1.8.0",
  "ethcore-ipc-codegen 1.8.0",
  "ethcore-util 1.8.10",
+ "parity-version 1.8.10",
  "semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2131,6 +2132,7 @@ dependencies = [
  "parity-rpc 1.8.0",
  "parity-rpc-client 1.4.0",
  "parity-updater 1.8.0",
+ "parity-version 1.8.10",
  "parity-whisper 0.1.0",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "path 0.1.0",
@@ -2179,6 +2181,7 @@ dependencies = [
  "parity-hash-fetch 1.8.0",
  "parity-reactor 0.1.0",
  "parity-ui 1.8.0",
+ "parity-version 1.8.10",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2331,6 +2334,7 @@ dependencies = [
  "order-stat 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-reactor 0.1.0",
  "parity-updater 1.8.0",
+ "parity-version 1.8.10",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "pretty_assertions 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2401,7 +2405,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/paritytech/js-precompiled.git?branch=stable#555710ae973da34051d2265adbbc7c6b2392d2ad"
+source = "git+https://github.com/paritytech/js-precompiled.git?branch=stable#51c2edafdef314d9cde995d6e00512d0477f738f"
 dependencies = [
  "parity-dapps-glue 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2423,9 +2427,22 @@ dependencies = [
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.8.0",
  "parity-reactor 0.1.0",
+ "parity-version 1.8.10",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "path 0.1.0",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parity-version"
+version = "1.8.10"
+dependencies = [
+ "ethcore-bytes 0.1.0",
+ "rlp 0.2.0",
+ "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "toml 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "vergen 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2987,10 +3004,6 @@ dependencies = [
  "core-foundation-sys 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
-
-[[package]]
-name = "semantic_version"
-version = "0.1.0"
 
 [[package]]
 name = "semver"
