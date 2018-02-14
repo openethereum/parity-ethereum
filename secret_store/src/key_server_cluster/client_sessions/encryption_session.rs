@@ -157,8 +157,8 @@ impl SessionImpl {
 		// save encryption data
 		if let Some(mut encrypted_data) = self.encrypted_data.clone() {
 			// check that the requester is the author of the encrypted data
-			let requester_public = requester.public(&self.id).ok_or(Error::InsufficientRequesterData)?;
-			if encrypted_data.author != requester_public {
+			let requester_address = requester.address(&self.id).ok_or(Error::InsufficientRequesterData)?;
+			if encrypted_data.author != requester_address {
 				return Err(Error::AccessDenied);
 			}
 
@@ -201,8 +201,8 @@ impl SessionImpl {
 		// check that the requester is the author of the encrypted data
 		if let Some(mut encrypted_data) = self.encrypted_data.clone() {
 			let requester: Requester = message.requester.clone().into();
-			let requestor_public = requester.public(&self.id).ok_or(Error::InsufficientRequesterData)?;
-			if encrypted_data.author != requestor_public {
+			let requestor_address = requester.address(&self.id).ok_or(Error::InsufficientRequesterData)?;
+			if encrypted_data.author != requestor_address {
 				return Err(Error::AccessDenied);
 			}
 

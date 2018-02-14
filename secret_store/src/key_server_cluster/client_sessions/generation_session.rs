@@ -19,6 +19,7 @@ use std::fmt::{Debug, Formatter, Error as FmtError};
 use std::time;
 use std::sync::Arc;
 use parking_lot::{Condvar, Mutex};
+use ethereum_types::Address;
 use ethkey::{Public, Secret};
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
 use key_server_cluster::math;
@@ -77,8 +78,8 @@ struct SessionData {
 	// === Values, filled when session initialization just starts ===
 	/// Reference to the node, which has started this session.
 	master: Option<NodeId>,
-	/// Public key of the creator of the session.
-	author: Option<Public>,
+	/// Address of the creator of the session.
+	author: Option<Address>,
 
 	// === Values, filled when session initialization is completed ===
 	/// Threshold value for this DKG. Only `threshold + 1` will be able to collectively recreate joint secret,
@@ -233,7 +234,7 @@ impl SessionImpl {
 	}
 
 	/// Start new session initialization. This must be called on master node.
-	pub fn initialize(&self, author: Public, threshold: usize, nodes: BTreeSet<NodeId>) -> Result<(), Error> {
+	pub fn initialize(&self, author: Address, threshold: usize, nodes: BTreeSet<NodeId>) -> Result<(), Error> {
 		check_cluster_nodes(self.node(), &nodes)?;
 		check_threshold(threshold, &nodes)?;
 
@@ -868,6 +869,7 @@ pub mod tests {
 	use std::sync::Arc;
 	use std::collections::{BTreeSet, BTreeMap, VecDeque};
 	use tokio_core::reactor::Core;
+	use ethereum_types::Address;
 	use ethkey::{Random, Generator, Public, KeyPair};
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage};
 	use key_server_cluster::message::{self, Message, GenerationMessage};
@@ -996,7 +998,7 @@ pub mod tests {
 
 	fn make_simple_cluster(threshold: usize, num_nodes: usize) -> Result<(SessionId, NodeId, NodeId, MessageLoop), Error> {
 		let l = MessageLoop::new(num_nodes);
-		l.master().initialize(Public::default(), threshold, l.nodes.keys().cloned().collect())?;
+		l.master().initialize(Default::default(), threshold, l.nodes.keys().cloned().collect())?;
 
 		let session_id = l.session_id.clone();
 		let master_id = l.master().node().clone();
@@ -1007,7 +1009,7 @@ pub mod tests {
 	#[test]
 	fn initializes_in_cluster_of_single_node() {
 		let l = MessageLoop::new(1);
-		assert!(l.master().initialize(Public::default(), 0, l.nodes.keys().cloned().collect()).is_ok());
+		assert!(l.master().initialize(Default::default(), 0, l.nodes.keys().cloned().collect()).is_ok());
 	}
 
 	#[test]
@@ -1022,7 +1024,7 @@ pub mod tests {
 			nonce: Some(0),
 		});
 		let cluster_nodes: BTreeSet<_> = (0..2).map(|_| math::generate_random_point().unwrap()).collect();
-		assert_eq!(session.initialize(Public::default(), 0, cluster_nodes).unwrap_err(), Error::InvalidNodesConfiguration);
+		assert_eq!(session.initialize(Default::default(), 0, cluster_nodes).unwrap_err(), Error::InvalidNodesConfiguration);
 	}
 
 	#[test]
@@ -1036,7 +1038,7 @@ pub mod tests {
 	#[test]
 	fn fails_to_initialize_when_already_initialized() {
 		let (_, _, _, l) = make_simple_cluster(0, 2).unwrap();
-		assert_eq!(l.master().initialize(Public::default(), 0, l.nodes.keys().cloned().collect()).unwrap_err(), Error::InvalidStateForRequest);
+		assert_eq!(l.master().initialize(Default::default(), 0, l.nodes.keys().cloned().collect()).unwrap_err(), Error::InvalidStateForRequest);
 	}
 
 	#[test]
@@ -1115,7 +1117,7 @@ pub mod tests {
 		assert_eq!(l.first_slave().on_initialize_session(m, &message::InitializeSession {
 			session: sid.into(),
 			session_nonce: 0,
-			author: Public::default().into(),
+			author: Address::default().into(),
 			nodes: nodes.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
 			threshold: 0,
 			derived_point: math::generate_random_point().unwrap().into(),
@@ -1131,7 +1133,7 @@ pub mod tests {
 		assert_eq!(l.first_slave().on_initialize_session(m, &message::InitializeSession {
 			session: sid.into(),
 			session_nonce: 0,
-			author: Public::default().into(),
+			author: Address::default().into(),
 			nodes: nodes.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
 			threshold: 2,
 			derived_point: math::generate_random_point().unwrap().into(),
@@ -1273,7 +1275,7 @@ pub mod tests {
 		let test_cases = [(0, 5), (2, 5), (3, 5)];
 		for &(threshold, num_nodes) in &test_cases {
 			let mut l = MessageLoop::new(num_nodes);
-			l.master().initialize(Public::default(), threshold, l.nodes.keys().cloned().collect()).unwrap();
+			l.master().initialize(Default::default(), threshold, l.nodes.keys().cloned().collect()).unwrap();
 			assert_eq!(l.nodes.len(), num_nodes);
 
 			// let nodes do initialization + keys dissemination

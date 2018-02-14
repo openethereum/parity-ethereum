@@ -276,7 +276,7 @@ impl SessionImpl {
 				}),
 				nonce: None,
 			});
-			generation_session.initialize(Public::default(), 0, vec![self.core.meta.self_node_id.clone()].into_iter().collect())?;
+			generation_session.initialize(Default::default(), 0, vec![self.core.meta.self_node_id.clone()].into_iter().collect())?;
 
 			debug_assert_eq!(generation_session.state(), GenerationSessionState::WaitingForGenerationConfirmation);
 			let joint_public_and_secret = generation_session
@@ -404,7 +404,7 @@ impl SessionImpl {
 			}),
 			nonce: None,
 		});
-		generation_session.initialize(Public::default(), key_share.threshold, consensus_group)?;
+		generation_session.initialize(Default::default(), key_share.threshold, consensus_group)?;
 		data.generation_session = Some(generation_session);
 		data.state = SessionState::SessionKeyGeneration;
 
@@ -799,7 +799,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
 	use std::collections::{BTreeMap, VecDeque};
-	use ethereum_types::H256;
+	use ethereum_types::{Address, H256};
 	use ethkey::{self, Random, Generator, Public, Secret, KeyPair};
 	use acl_storage::DummyAclStorage;
 	use key_server_cluster::{NodeId, DummyKeyStorage, DocumentKeyShare, DocumentKeyShareVersion, SessionId,
@@ -926,7 +926,7 @@ mod tests {
 	fn prepare_signing_sessions(threshold: usize, num_nodes: usize) -> (KeyGenerationMessageLoop, MessageLoop) {
 		// run key generation sessions
 		let mut gl = KeyGenerationMessageLoop::new(num_nodes);
-		gl.master().initialize(Public::default(), threshold, gl.nodes.keys().cloned().collect()).unwrap();
+		gl.master().initialize(Default::default(), threshold, gl.nodes.keys().cloned().collect()).unwrap();
 		while let Some((from, to, message)) = gl.take_message() {
 			gl.process_message((from, to, message)).unwrap();
 		}
@@ -970,7 +970,7 @@ mod tests {
 			},
 			access_key: Random.generate().unwrap().secret().clone(),
 			key_share: Some(DocumentKeyShare {
-				author: Public::default(),
+				author: Default::default(),
 				threshold: 0,
 				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
@@ -1024,7 +1024,7 @@ mod tests {
 			},
 			access_key: Random.generate().unwrap().secret().clone(),
 			key_share: Some(DocumentKeyShare {
-				author: Public::default(),
+				author: Default::default(),
 				threshold: 2,
 				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
@@ -1112,7 +1112,7 @@ mod tests {
 			message: GenerationMessage::InitializeSession(InitializeSession {
 				session: SessionId::default().into(),
 				session_nonce: 0,
-				author: Public::default().into(),
+				author: Address::default().into(),
 				nodes: BTreeMap::new(),
 				threshold: 1,
 				derived_point: Public::default().into(),

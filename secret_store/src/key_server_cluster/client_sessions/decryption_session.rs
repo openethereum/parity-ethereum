@@ -789,7 +789,7 @@ mod tests {
 		let common_point: Public = "6962be696e1bcbba8e64cc7fddf140f854835354b5804f3bb95ae5a2799130371b589a131bd39699ac7174ccb35fc4342dab05331202209582fc8f3a40916ab0".into();
 		let encrypted_point: Public = "b07031982bde9890e12eff154765f03c56c3ab646ad47431db5dd2d742a9297679c4c65b998557f8008469afd0c43d40b6c5f6c6a1c7354875da4115237ed87a".into();
 		let encrypted_datas: Vec<_> = (0..5).map(|i| DocumentKeyShare {
-			author: Public::default(),
+			author: Default::default(),
 			threshold: 3,
 			public: Default::default(),
 			common_point: Some(common_point.clone()),
@@ -882,7 +882,7 @@ mod tests {
 			},
 			access_key: Random.generate().unwrap().secret().clone(),
 			key_share: Some(DocumentKeyShare {
-				author: Public::default(),
+				author: Default::default(),
 				threshold: 0,
 				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
@@ -936,7 +936,7 @@ mod tests {
 			},
 			access_key: Random.generate().unwrap().secret().clone(),
 			key_share: Some(DocumentKeyShare {
-				author: Public::default(),
+				author: Default::default(),
 				threshold: 2,
 				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),

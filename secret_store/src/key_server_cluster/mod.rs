@@ -26,7 +26,7 @@ pub use super::acl_storage::AclStorage;
 pub use super::key_storage::{KeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
 pub use super::key_server_set::{is_migration_required, KeyServerSet, KeyServerSetSnapshot, KeyServerSetMigration};
 pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic,
-	SerializableRequester, SerializableMessageHash};
+	SerializableRequester, SerializableMessageHash, SerializableAddress};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
 pub use self::cluster_sessions::{ClusterSession, ClusterSessionsListener};
 #[cfg(test)]
