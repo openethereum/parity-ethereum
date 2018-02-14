@@ -306,13 +306,14 @@ case $BUILD_PLATFORM in
     updater_push_release
     ;;
   x86_64-unknown-snap-gnu)
+  x86_64-unknown-snap-gnu)
     ARC="amd64"
     EXT="snap"
-    apt install -y expect zip
+    apt install -y expect zip rhash
     snapcraft clean
     echo "Prepare snapcraft.yaml for build on Gitlab CI in Docker image"
     sed -i 's/git/'"$VER"'/g' snap/snapcraft.yaml
-    if [[ "$CI_BUILD_REF_NAME" = "stable" || "$VER" == *1.8* ]];
+    if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.9* ]];
       then
         sed -i -e 's/grade: devel/grade: stable/' snap/snapcraft.yaml;
     fi
