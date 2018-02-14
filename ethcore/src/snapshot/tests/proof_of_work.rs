@@ -37,19 +37,19 @@ fn chunk_and_restore(amount: u64) {
 	let genesis = BlockBuilder::genesis();
 	let rest = genesis.add_blocks(amount as usize);
 	let mut generator = BlockGenerator::new(vec![genesis.clone(), rest]);
-	let genesis = genesis.last_block();
+	let genesis = genesis.last();
 
 	let engine = ::spec::Spec::new_test().engine;
 	let tempdir = TempDir::new("").unwrap();
 	let snapshot_path = tempdir.path().join("SNAP");
 
 	let old_db = Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
-	let bc = BlockChain::new(Default::default(), &generator.next().unwrap().data(), old_db.clone());
+	let bc = BlockChain::new(Default::default(), &generator.next().unwrap().encoded(), old_db.clone());
 
 	// build the blockchain.
 	let mut batch = DBTransaction::new();
 	for block in generator {
-		bc.insert_block(&mut batch, &block.data(), vec![]);
+		bc.insert_block(&mut batch, &block.encoded(), vec![]);
 		bc.commit();
 	}
 
@@ -80,7 +80,7 @@ fn chunk_and_restore(amount: u64) {
 
 	// restore it.
 	let new_db = Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
-	let new_chain = BlockChain::new(Default::default(), &genesis.data(), new_db.clone());
+	let new_chain = BlockChain::new(Default::default(), &genesis.encoded(), new_db.clone());
 	let mut rebuilder = SNAPSHOT_MODE.rebuilder(new_chain, new_db.clone(), &manifest).unwrap();
 
 	let reader = PackedReader::new(&snapshot_path).unwrap().unwrap();
@@ -95,7 +95,7 @@ fn chunk_and_restore(amount: u64) {
 	drop(rebuilder);
 
 	// and test it.
-	let new_chain = BlockChain::new(Default::default(), &genesis.data(), new_db);
+	let new_chain = BlockChain::new(Default::default(), &genesis.encoded(), new_db);
 	assert_eq!(new_chain.best_block_hash(), best_hash);
 }
 
@@ -122,12 +122,12 @@ fn checks_flag() {
 
 	stream.append_empty_data().append_empty_data();
 
-	let genesis = BlockBuilder::genesis().last_block();
+	let genesis = BlockBuilder::genesis();
 	let chunk = stream.out();
 
 	let db = Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
 	let engine = ::spec::Spec::new_test().engine;
-	let chain = BlockChain::new(Default::default(), &genesis.data(), db.clone());
+	let chain = BlockChain::new(Default::default(), &genesis.last().encoded(), db.clone());
 
 	let manifest = ::snapshot::ManifestData {
 		version: 2,

@@ -35,12 +35,22 @@ pub struct Block {
 
 impl Block {
 	#[inline]
-	pub fn hash(&self) -> H256 {
-		BlockView::new(&self.data()).header_view().hash()
+	pub fn header(&self) -> Header {
+		self.header.clone()
 	}
 
 	#[inline]
-	pub fn data(&self) -> Bytes {
+	pub fn hash(&self) -> H256 {
+		BlockView::new(&self.encoded()).header_view().hash()
+	}
+
+	#[inline]
+	pub fn number(&self) -> u64 {
+		self.header.number()
+	}
+
+	#[inline]
+	pub fn encoded(&self) -> Bytes {
 		encode(self).into_vec()
 	}
 }
@@ -121,8 +131,8 @@ impl BlockBuilder {
 
 	pub fn add_blocks_with<T>(&self, count: usize, get_metadata: T) -> Self where T: Fn() -> BlockMetadata {
 		assert!(count > 0, "There must be at least 1 block");
-		let mut parent_hash = self.last_block_hash();
-		let mut parent_number = self.last_block_number();
+		let mut parent_hash = self.last().hash();
+		let mut parent_number = self.last().number();
 		let mut blocks = VecDeque::with_capacity(count);
 		for _ in 0..count {
 			let mut block = Block::default();
@@ -146,23 +156,8 @@ impl BlockBuilder {
 	}
 
 	#[inline]
-	pub fn last_block_hash(&self) -> H256 {
-		self.blocks.back().expect("There is always at least 1 block").hash()
-	}
-
-	#[inline]
-	pub fn last_block_header(&self) -> Header {
-		self.blocks.back().expect("There is always at least 1 block").header.clone()
-	}
-
-	#[inline]
-	pub fn last_block_number(&self) -> u64 {
-		self.blocks.back().expect("There is always at least 1 block").header.number()
-	}
-
-	#[inline]
-	pub fn last_block(&self) -> Block {
-		self.blocks.back().expect("There is always at least 1 block").clone()
+	pub fn last(&self) -> &Block {
+		self.blocks.back().expect("There is always at least 1 block")
 	}
 }
 
@@ -217,7 +212,7 @@ mod tests {
 		let genesis = BlockBuilder::genesis();
 		let block_10a = genesis.add_blocks(10);
 		let block_11b = genesis.add_blocks(11);
-		assert_eq!(block_10a.last_block_number(), 10);
-		assert_eq!(block_11b.last_block_number(), 11);
+		assert_eq!(block_10a.last().number(), 10);
+		assert_eq!(block_11b.last().number(), 11);
 	}
 }
