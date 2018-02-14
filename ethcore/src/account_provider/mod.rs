@@ -264,9 +264,9 @@ impl AccountProvider {
 		Ok(Address::from(account.address).into())
 	}
 
-	/// Import a new presale wallet.
-	pub fn import_wallet(&self, json: &[u8], password: &str) -> Result<Address, Error> {
-		let account = self.sstore.import_wallet(SecretVaultRef::Root, json, password)?;
+	/// Import a new wallet.
+	pub fn import_wallet(&self, json: &[u8], password: &str, gen_id: bool) -> Result<Address, Error> {
+		let account = self.sstore.import_wallet(SecretVaultRef::Root, json, password, gen_id)?;
 		if self.blacklisted_accounts.contains(&account.address) {
 			self.sstore.remove_account(&account, password)?;
 			return Err(SSError::InvalidAccount.into());
