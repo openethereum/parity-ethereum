@@ -372,20 +372,20 @@ impl EventHandler {
 impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, device: libusb::Device) {
 		if let (Some(ledger), Ok(_)) = (self.ledger.upgrade(), Manager::is_valid_ledger(&device)) {
-			debug!("Ledger arrived");
+			debug!(target: "hw", "Ledger arrived");
 			// Wait for the device to boot up
 			thread::sleep(Duration::from_millis(1000));
 			if let Err(e) = ledger.update_devices() {
-				debug!("Ledger connect error: {:?}", e);
+				debug!(target: "hw", "Ledger connect error: {:?}", e);
 			}
 		}
 	}
 
 	fn device_left(&mut self, device: libusb::Device) {
 		if let (Some(ledger), Ok(_)) = (self.ledger.upgrade(), Manager::is_valid_ledger(&device)) {
-			debug!("Ledger left");
+			debug!(target: "hw", "Ledger left");
 			if let Err(e) = ledger.update_devices() {
-				debug!("Ledger disconnect error: {:?}", e);
+				debug!(target: "hw", "Ledger disconnect error: {:?}", e);
 			}
 		}
 	}

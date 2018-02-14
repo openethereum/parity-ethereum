@@ -417,22 +417,22 @@ impl EventHandler {
 
 impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, _device: libusb::Device) {
-		debug!("Trezor V1 arrived");
+		debug!(target: "hw", "Trezor V1 arrived");
 		if let Some(trezor) = self.trezor.upgrade() {
 			// Wait for the device to boot up
 			thread::sleep(Duration::from_millis(1000));
 			if let Err(e) = trezor.update_devices() {
-				debug!("Trezor V1 connect error: {:?}", e);
+				debug!(target: "hw", "Trezor V1 connect error: {:?}", e);
 			}
 
 		}
 	}
 
 	fn device_left(&mut self, _device: libusb::Device) {
-		debug!("Trezor V1 left");
+		debug!(target: "hw", "Trezor V1 left");
 		if let Some(trezor) = self.trezor.upgrade() {
 			if let Err(e) = trezor.update_devices() {
-				debug!("Trezor V1 disconnect error: {:?}", e);
+				debug!(target: "hw", "Trezor V1 disconnect error: {:?}", e);
 			}
 		}
 	}

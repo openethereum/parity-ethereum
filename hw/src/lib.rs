@@ -173,11 +173,12 @@ impl HardwareWalletManager {
 			.name("hw_wallet_ledger".to_string())
 			.spawn(move || {
 				if let Err(e) = l.update_devices() {
-					debug!("Ledger could not connect at startup, error: {}", e);
+					debug!(target: "hw", "Ledger couldn't connect at startup, error: {}", e);
+					//debug!("Ledger could not connect at startup, error: {}", e);
 				}
 				loop {
 					usb_context_ledger.handle_events(Some(Duration::from_millis(500)))
-					           .unwrap_or_else(|e| debug!("Ledger event handler error: {}", e));
+					           .unwrap_or_else(|e| debug!(target: "hw", "Ledger event handler error: {}", e));
 					if thread_exiting_ledger.load(atomic::Ordering::Acquire) {
 						break;
 					}
@@ -190,11 +191,11 @@ impl HardwareWalletManager {
 			.name("hw_wallet_trezor".to_string())
 			.spawn(move || {
 				if let Err(e) = t.update_devices() {
-					debug!("Trezor could not connect at startup, error: {}", e);
+					debug!(target: "hw", "Trezor couldn't connect at startup, error: {}", e);
 				}
 				loop {
 					usb_context_trezor.handle_events(Some(Duration::from_millis(500)))
-					           .unwrap_or_else(|e| debug!("Trezor event handler error: {}", e));
+					           .unwrap_or_else(|e| debug!(target: "hw", "Trezor event handler error: {}", e));
 					if thread_exiting_trezor.load(atomic::Ordering::Acquire) {
 						break;
 					}
