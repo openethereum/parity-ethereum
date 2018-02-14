@@ -95,7 +95,7 @@ impl ParityAccounts for ParityAccountsClient {
 		let store = self.account_provider()?;
 
 		store.import_presale(json.as_bytes(), &pass)
-			.or_else(|_| store.import_wallet(json.as_bytes(), &pass))
+			.or_else(|_| store.import_wallet(json.as_bytes(), &pass, true))
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not create account.", e))
 	}
