@@ -179,7 +179,7 @@ impl Fetcher {
 		};
 
 		trace!(target: "sync", "Received response for subchain ({} -> {})",
-			request.subchain_parent.0 + 1, request.subchain_end.0);
+			request.subchain_parent.0, request.subchain_end.0);
 
 		let headers = ctx.data();
 
@@ -241,6 +241,8 @@ impl Fetcher {
 	}
 
 	fn requests_abandoned(mut self, abandoned: &[ReqId]) -> SyncRound {
+		trace!(target: "sync", "Abandonned requests {:?}", abandoned);
+
 		for abandoned in abandoned {
 			match self.pending.remove(abandoned) {
 				None => {},
@@ -258,12 +260,14 @@ impl Fetcher {
 		while let Some(pending_req) = self.requests.pop() {
 			match dispatcher(pending_req.headers_request.clone()) {
 				Some(req_id) => {
-					trace!(target: "sync", "Assigned request for subchain ({} -> {})",
-						pending_req.subchain_parent.0 + 1, pending_req.subchain_end.0);
+					trace!(target: "sync", "Assigned request {} for subchain ({} -> {})",
+						req_id, pending_req.subchain_parent.0, pending_req.subchain_end.0);
 
 					self.pending.insert(req_id, pending_req);
 				}
 				None => {
+					trace!(target: "sync", "Failed to assign request for subchain ({} -> {})",
+						pending_req.subchain_parent.0, pending_req.subchain_end.0);
 					self.requests.push(pending_req);
 					break;
 				}
