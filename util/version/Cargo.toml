@@ -2,7 +2,7 @@
 # Make sure to update the service if it's moved or the structure is changed.
 [package]
 name = "parity-version"
-version = "0.1.0"
+version = "1.8.9"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
