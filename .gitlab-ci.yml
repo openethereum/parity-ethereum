@@ -144,7 +144,6 @@ linux-snap:
     paths:
     - parity.zip
     name: "stable-x86_64-unknown-snap-gnu_parity"
-  allow_failure: true
 darwin:
   stage: build
   only:
