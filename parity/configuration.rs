@@ -919,12 +919,16 @@ impl Configuration {
 				Some(file) => passwords_from_files(&vec![file].as_slice())?,
 				None => Vec::new(),
 			},
-			key_server_account: self.args.arg_private_account.clone().and_then(|account| to_address(Some(account)).ok()),
 		};
 
 		let encryptor_conf = EncryptorConfig {
 			base_url: self.args.arg_private_sstore_url.clone(),
 			threshold: self.args.arg_private_sstore_threshold.unwrap_or(0),
+			key_server_account: self.args.arg_private_account.clone().and_then(|account| to_address(Some(account)).ok()),
+			passwords: match self.args.arg_private_passwords.clone() {
+				Some(file) => passwords_from_files(&vec![file].as_slice())?,
+				None => Vec::new(),
+			},
 		};
 
 		Ok((provider_conf, encryptor_conf))

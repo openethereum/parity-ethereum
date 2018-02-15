@@ -90,14 +90,12 @@ fn send_private_transaction() {
 		validator_accounts: vec![s1.address()],
 		signer_account: None,
 		passwords: vec!["".into()],
-		key_server_account: Some(s1.address()),
 	};
 
 	let signer_config = ProviderConfig{
 		validator_accounts: Vec::new(),
 		signer_account: Some(s0.address()),
 		passwords: vec!["".into()],
-		key_server_account: Some(s0.address()),
 	};
 
 	let mut net = TestNet::with_spec_and_accounts(2, SyncConfig::default(), seal_spec, Some(ap.clone()), Some(vec![signer_config, validator_config]));

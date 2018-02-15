@@ -118,8 +118,6 @@ pub struct ProviderConfig {
 	pub signer_account: Option<Address>,
 	/// Passwords used to unlock accounts
 	pub passwords: Vec<String>,
-	/// Account used for signing requests to key server
-	pub key_server_account: Option<Address>,
 }
 
 #[derive(Debug)]
@@ -423,41 +421,14 @@ impl Provider where {
 		H128::from_slice(iv)
 	}
 
-	fn sign_contract_address(&self, contract_address: &Address) -> Result<Signature, PrivateTransactionError> {
-		// key id in SS is H256 && we have H160 here => expand with assitional zeros
-		let contract_address_extended: H256 = contract_address.into();
-		let key_server_account = self.config.key_server_account.ok_or_else(|| PrivateTransactionError::KeyServerAccountNotSet)?;
-		if let Ok(true) = self.unlock_account(&key_server_account) {
-			Ok(self.accounts.sign(key_server_account.clone(), None, H256::from_slice(&contract_address_extended))?)
-		} else {
-			trace!("Cannot unlock account");
-			Err(PrivateTransactionError::Encrypt("Cannot unlock account".into()))
-		}
-	}
-
 	fn encrypt(&self, contract_address: &Address, initialisation_vector: &H128, data: &[u8]) -> Result<Bytes, PrivateTransactionError> {
 		trace!("Encrypt data using key(address): {:?}", contract_address);
-		let contract_address_signature = self.sign_contract_address(contract_address)?;
-		let key_server_account = self.config.key_server_account.ok_or_else(|| PrivateTransactionError::KeyServerAccountNotSet)?;
-		if let Ok(true) = self.unlock_account(&key_server_account) {
-			let encrypted_data = self.encryptor.encrypt(contract_address, &contract_address_signature, &key_server_account, self.accounts.clone(), initialisation_vector, data)?;
-			Ok(encrypted_data)
-		} else {
-			trace!("Cannot unlock account");
-			Err(PrivateTransactionError::Encrypt("Cannot unlock account".into()))
-		}
+		Ok(self.encryptor.encrypt(contract_address, self.accounts.clone(), initialisation_vector, data)?)
 	}
 
 	fn decrypt(&self, contract_address: &Address, data: &[u8]) -> Result<Bytes, PrivateTransactionError> {
 		trace!("Decrypt data using key(address): {:?}", contract_address);
-		let contract_address_signature = self.sign_contract_address(contract_address)?;
-		let key_server_account = self.config.key_server_account.ok_or_else(|| PrivateTransactionError::KeyServerAccountNotSet)?;
-		if let Ok(true) = self.unlock_account(&key_server_account) {
-			Ok(self.encryptor.decrypt(contract_address, &contract_address_signature, &key_server_account, self.accounts.clone(), data)?)
-		} else {
-			trace!("Cannot unlock account");
-			Err(PrivateTransactionError::Decrypt("Cannot unlock account".into()))
-		}
+		Ok(self.encryptor.decrypt(contract_address, self.accounts.clone(), data)?)
 	}
 
 	fn get_decrypted_state(&self, address: &Address, block: BlockId) -> Result<Bytes, PrivateTransactionError> {
@@ -695,7 +666,6 @@ mod test {
 			validator_accounts: vec![key3.address(), key4.address()],
 			signer_account: None,
 			passwords: vec!["".into()],
-			key_server_account: Some(key1.address()),
 		};
 		let pm = Arc::new(Provider::new(client.clone(), ap.clone(), Arc::new(DummyEncryptor::default()), config).unwrap());
 		client.set_private_notify(pm.clone());
