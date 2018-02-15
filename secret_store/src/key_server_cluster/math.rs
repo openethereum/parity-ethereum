@@ -18,6 +18,7 @@ use ethkey::{Public, Secret, Random, Generator, math};
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use key_server_cluster::Error;
+#[cfg(test)] use ethkey::Signature;
 
 /// Encryption result.
 #[derive(Debug)]
@@ -28,14 +29,41 @@ pub struct EncryptedSecret {
 	pub encrypted_point: Public,
 }
 
-/// Generate random scalar
+/// Create zero scalar.
+#[cfg(test)]
+pub fn zero_scalar() -> Secret {
+	Secret::zero()
+}
+
+/// Convert hash to EC scalar (modulo curve order).
+pub fn to_scalar(hash: H256) -> Result<Secret, Error> {
+	let scalar: U256 = hash.into();
+	let scalar: H256 = (scalar % math::curve_order()).into();
+	let scalar = Secret::from_slice(&*scalar);
+	scalar.check_validity()?;
+	Ok(scalar)
+}
+
+/// Generate random scalar.
 pub fn generate_random_scalar() -> Result<Secret, Error> {
 	Ok(Random.generate()?.secret().clone())
 }
 
-/// Generate random point
+/// Generate random point.
 pub fn generate_random_point() -> Result<Public, Error> {
 	Ok(Random.generate()?.public().clone())
+}
+
+/// Get X coordinate of point.
+#[cfg(test)]
+fn public_x(public: &Public) -> H256 {
+	public[0..32].into()
+}
+
+/// Get Y coordinate of point.
+#[cfg(test)]
+fn public_y(public: &Public) -> H256 {
+	public[32..64].into()
 }
 
 /// Compute publics sum.
@@ -342,15 +370,10 @@ pub fn combine_message_hash_with_public(message_hash: &H256, public: &Public) ->
 	let hash = keccak(&buffer[..]);
 
 	// map hash to EC finite field value
-	let hash: U256 = hash.into();
-	let hash: H256 = (hash % math::curve_order()).into();
-	let hash = Secret::from_slice(&*hash);
-	hash.check_validity()?;
-
-	Ok(hash)
+	to_scalar(hash)
 }
 
-/// Compute signature share.
+/// Compute Schnorr signature share.
 pub fn compute_signature_share<'a, I>(threshold: usize, combined_hash: &Secret, one_time_secret_coeff: &Secret, node_secret_share: &Secret, node_number: &Secret, other_nodes_numbers: I)
 	-> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	let mut sum = one_time_secret_coeff.clone();
@@ -364,7 +387,7 @@ pub fn compute_signature_share<'a, I>(threshold: usize, combined_hash: &Secret, 
 	Ok(sum)
 }
 
-/// Check signature share.
+/// Check Schnorr signature share.
 pub fn _check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: &Secret, _public_share: &Public, _one_time_public_share: &Public, _node_numbers: I)
 	-> Result<bool, Error> where I: Iterator<Item=&'a Secret> {
 	// TODO [Trust]: in paper partial signature is checked using comparison:
@@ -384,7 +407,7 @@ pub fn _check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: 
 	Ok(true)
 }
 
-/// Compute signature.
+/// Compute Schnorr signature.
 pub fn compute_signature<'a, I>(signature_shares: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	compute_secret_sum(signature_shares)
 }
@@ -405,7 +428,7 @@ pub fn local_compute_signature(nonce: &Secret, secret: &Secret, message_hash: &S
 	Ok((combined_hash, sig))
 }
 
-/// Verify signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Verifying.
+/// Verify Schnorr signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Verifying.
 #[cfg(test)]
 pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_hash: &H256) -> Result<bool, Error> {
 	let mut addendum = math::generation_point();
@@ -418,10 +441,104 @@ pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_h
 	Ok(combined_hash == signature.0)
 }
 
+/// Compute R part of ECDSA signature.
+#[cfg(test)]
+pub fn compute_ecdsa_r(nonce_public: &Public) -> Result<Secret, Error> {
+	to_scalar(public_x(nonce_public))
+}
+
+/// Compute share of S part of ECDSA signature.
+#[cfg(test)]
+pub fn compute_ecdsa_s_share(inv_nonce_share: &Secret, inv_nonce_mul_secret: &Secret, signature_r: &Secret, message_hash: &Secret) -> Result<Secret, Error> {
+	let mut nonce_inv_share_mul_message_hash = inv_nonce_share.clone();
+	nonce_inv_share_mul_message_hash.mul(&message_hash.clone().into())?;
+
+	let mut nonce_inv_share_mul_secret_share_mul_r = inv_nonce_mul_secret.clone();
+	nonce_inv_share_mul_secret_share_mul_r.mul(signature_r)?;
+
+	let mut signature_s_share = nonce_inv_share_mul_message_hash;
+	signature_s_share.add(&nonce_inv_share_mul_secret_share_mul_r)?;
+
+	Ok(signature_s_share)
+}
+
+/// Compute S part of ECDSA signature from shares.
+#[cfg(test)]
+pub fn compute_ecdsa_s(t: usize, signature_s_shares: &[Secret], id_numbers: &[Secret]) -> Result<Secret, Error> {
+	let double_t = t * 2;
+	debug_assert!(id_numbers.len() >= double_t + 1);
+	debug_assert_eq!(signature_s_shares.len(), id_numbers.len());
+
+	compute_joint_secret_from_shares(double_t,
+		&signature_s_shares.iter().take(double_t + 1).collect::<Vec<_>>(),
+		&id_numbers.iter().take(double_t + 1).collect::<Vec<_>>())
+}
+
+/// Serialize ECDSA signature to [r][s]v form.
+#[cfg(test)]
+pub fn serialize_ecdsa_signature(nonce_public: &Public, signature_r: Secret, mut signature_s: Secret) -> Signature {
+	// compute recvery param
+	let mut signature_v = {
+		let nonce_public_x = public_x(nonce_public);
+		let nonce_public_y: U256 = public_y(nonce_public).into();
+		let nonce_public_y_is_odd = !(nonce_public_y % 2.into()).is_zero();
+		let bit0 = if nonce_public_y_is_odd { 1u8 } else { 0u8 };
+		let bit1 = if nonce_public_x != *signature_r { 2u8 } else { 0u8 };
+		bit0 | bit1
+	};
+
+	// fix high S
+	let curve_order = math::curve_order();
+	let curve_order_half = curve_order / 2.into();
+	let s_numeric: U256 = (*signature_s).into();
+	if s_numeric > curve_order_half {
+		let signature_s_hash: H256 = (curve_order - s_numeric).into();
+		signature_s = signature_s_hash.into();
+		signature_v ^= 1;
+	}
+
+	// serialize as [r][s]v
+	let mut signature = [0u8; 65];
+	signature[..32].copy_from_slice(&**signature_r);
+	signature[32..64].copy_from_slice(&**signature_s);
+	signature[64] = signature_v;
+
+	signature.into()
+}
+
+/// Compute share of ECDSA reversed-nonce coefficient. Result of this_coeff * secret_share gives us a share of inv(nonce).
+#[cfg(test)]
+pub fn compute_ecdsa_inversed_secret_coeff_share(secret_share: &Secret, nonce_share: &Secret, zero_share: &Secret) -> Result<Secret, Error> {
+	let mut coeff = secret_share.clone();
+	coeff.mul(nonce_share).unwrap();
+	coeff.add(zero_share).unwrap();
+	Ok(coeff)
+}
+
+/// Compute ECDSA reversed-nonce coefficient from its shares. Result of this_coeff * secret_share gives us a share of inv(nonce).
+#[cfg(test)]
+pub fn compute_ecdsa_inversed_secret_coeff_from_shares(t: usize, id_numbers: &[Secret], shares: &[Secret]) -> Result<Secret, Error> {
+	debug_assert_eq!(shares.len(), 2 * t + 1);
+	debug_assert_eq!(shares.len(), id_numbers.len());
+
+	let u_shares = (0..2*t+1).map(|i| compute_shadow_mul(&shares[i], &id_numbers[i], id_numbers.iter().enumerate()
+		.filter(|&(j, _)| i != j)
+		.map(|(_, id)| id)
+		.take(2 * t))).collect::<Result<Vec<_>, _>>()?;
+
+	// compute u
+	let u = compute_secret_sum(u_shares.iter())?;
+
+	// compute inv(u)
+	let mut u_inv = u;
+	u_inv.inv()?;
+	Ok(u_inv)
+}
+
 #[cfg(test)]
 pub mod tests {
 	use std::iter::once;
-	use ethkey::KeyPair;
+	use ethkey::{KeyPair, recover, verify_public};
 	use super::*;
 
 	#[derive(Clone)]
@@ -434,7 +551,27 @@ pub mod tests {
 		joint_public: Public,
 	}
 
-	fn run_key_generation(t: usize, n: usize, id_numbers: Option<Vec<Secret>>) -> KeyGenerationArtifacts {
+	struct ZeroGenerationArtifacts {
+		polynoms1: Vec<Vec<Secret>>,
+		secret_shares: Vec<Secret>,
+	}
+
+	fn prepare_polynoms1(t: usize, n: usize, secret_required: Option<Secret>) -> Vec<Vec<Secret>> {
+		let mut polynoms1: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
+		// if we need specific secret to be shared, update polynoms so that sum of their free terms = required secret
+		if let Some(mut secret_required) = secret_required {
+			for polynom1 in polynoms1.iter_mut().take(n - 1) {
+				let secret_coeff1 = generate_random_scalar().unwrap();
+				secret_required.sub(&secret_coeff1).unwrap();
+				polynom1[0] = secret_coeff1;
+			}
+
+			polynoms1[n - 1][0] = secret_required;
+		}
+		polynoms1
+	}
+
+	fn run_key_generation(t: usize, n: usize, id_numbers: Option<Vec<Secret>>, secret_required: Option<Secret>) -> KeyGenerationArtifacts {
 		// === PART1: DKG ===
 
 		// data, gathered during initialization
@@ -445,8 +582,9 @@ pub mod tests {
 		};
 
 		// data, generated during keys dissemination
-		let polynoms1: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
+		let polynoms1 = prepare_polynoms1(t, n, secret_required);
 		let secrets1: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms1[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
+
 		// following data is used only on verification step
 		let polynoms2: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
 		let secrets2: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms2[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
@@ -471,6 +609,20 @@ pub mod tests {
 			public_shares: public_shares,
 			secret_shares: secret_shares,
 			joint_public: joint_public,
+		}
+	}
+
+	fn run_zero_key_generation(t: usize, n: usize, id_numbers: &[Secret]) -> ZeroGenerationArtifacts {
+		// data, generated during keys dissemination
+		let polynoms1 = prepare_polynoms1(t, n, Some(zero_scalar()));
+		let secrets1: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms1[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
+
+		// data, generated during keys generation
+		let secret_shares: Vec<_> = (0..n).map(|i| compute_secret_share(secrets1.iter().map(|s| &s[i])).unwrap()).collect();
+
+		ZeroGenerationArtifacts {
+			polynoms1: polynoms1,
+			secret_shares: secret_shares,
 		}
 	}
 
@@ -528,6 +680,56 @@ pub mod tests {
 		result
 	}
 
+	fn run_multiplication_protocol(t: usize, secret_shares1: &[Secret], secret_shares2: &[Secret]) -> Vec<Secret> {
+		let n = secret_shares1.len();
+		assert!(t * 2 + 1 <= n);
+
+		// shares of secrets multiplication = multiplication of secrets shares
+		let mul_shares: Vec<_> = (0..n).map(|i| {
+			let share1 = secret_shares1[i].clone();
+			let share2 = secret_shares2[i].clone();
+			let mut mul_share = share1;
+			mul_share.mul(&share2).unwrap();
+			mul_share
+		}).collect();
+
+		mul_shares
+	}
+
+	fn run_reciprocal_protocol(t: usize, artifacts: &KeyGenerationArtifacts) -> Vec<Secret> {
+		// === Given a secret x mod r which is shared among n players, it is
+		// === required to generate shares of inv(x) mod r with out revealing
+		// === any information about x or inv(x).
+		// === https://www.researchgate.net/publication/280531698_Robust_Threshold_Elliptic_Curve_Digital_Signature
+	
+		// generate shared random secret e for given t
+		let n = artifacts.id_numbers.len();
+		assert!(t * 2 + 1 <= n);
+		let e_artifacts = run_key_generation(t, n, Some(artifacts.id_numbers.clone()), None);
+
+		// generate shares of zero for 2 * t threshold
+		let z_artifacts = run_zero_key_generation(2 * t, n, &artifacts.id_numbers);
+
+		// each player computes && broadcast u[i] = x[i] * e[i] + z[i]
+		let ui: Vec<_> = (0..n).map(|i| compute_ecdsa_inversed_secret_coeff_share(&artifacts.secret_shares[i],
+			&e_artifacts.secret_shares[i],
+			&z_artifacts.secret_shares[i]).unwrap()).collect();
+
+		// players can interpolate the polynomial of degree 2t and compute u && inv(u):
+		let u_inv = compute_ecdsa_inversed_secret_coeff_from_shares(t,
+			&artifacts.id_numbers.iter().take(2*t + 1).cloned().collect::<Vec<_>>(),
+			&ui.iter().take(2*t + 1).cloned().collect::<Vec<_>>()).unwrap();
+
+		// each player Pi computes his share of inv(x) as e[i] * inv(u)
+		let x_inv_shares: Vec<_> = (0..n).map(|i| {
+			let mut x_inv_share = e_artifacts.secret_shares[i].clone();
+			x_inv_share.mul(&u_inv).unwrap();
+			x_inv_share
+		}).collect();
+
+		x_inv_shares
+	}
+
 	pub fn do_encryption_and_decryption(t: usize, joint_public: &Public, id_numbers: &[Secret], secret_shares: &[Secret], joint_secret: Option<&Secret>, document_secret_plain: Public) -> (Public, Public) {
 		// === PART2: encryption using joint public key ===
 
@@ -576,7 +778,7 @@ pub mod tests {
 		let test_cases = [(0, 2), (1, 2), (1, 3), (2, 3), (1, 4), (2, 4), (3, 4), (1, 5), (2, 5), (3, 5), (4, 5),
 			(1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10)];
 		for &(t, n) in &test_cases {
-			let artifacts = run_key_generation(t, n, None);
+			let artifacts = run_key_generation(t, n, None, None);
 
 			// compute joint private key [just for test]
 			let joint_secret = compute_joint_secret(artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
@@ -608,7 +810,7 @@ pub mod tests {
 	}
 
 	#[test]
-	fn full_signature_math_session() {
+	fn full_schnorr_signature_math_session() {
 		let test_cases = [(0, 1), (0, 2), (1, 2), (1, 3), (2, 3), (1, 4), (2, 4), (3, 4), (1, 5), (2, 5), (3, 5), (4, 5),
 			(1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10)];
 		for &(t, n) in &test_cases {
@@ -617,7 +819,7 @@ pub mod tests {
 
 			// === MiDS-S algorithm ===
 			// setup: all nodes share master secret key && every node knows master public key
-			let artifacts = run_key_generation(t, n, None);
+			let artifacts = run_key_generation(t, n, None, None);
 
 			// in this gap (not related to math):
 			// master node should ask every other node if it is able to do a signing
@@ -628,7 +830,7 @@ pub mod tests {
 
 			// step 1: run DKG to generate one-time secret key (nonce)
 			let id_numbers = artifacts.id_numbers.iter().cloned().take(n).collect();
-			let one_time_artifacts = run_key_generation(t, n, Some(id_numbers));
+			let one_time_artifacts = run_key_generation(t, n, Some(id_numbers), None);
 
 			// step 2: message hash && x coordinate of one-time public value are combined
 			let combined_hash = combine_message_hash_with_public(&message_hash, &one_time_artifacts.joint_public).unwrap();
@@ -682,11 +884,66 @@ pub mod tests {
 	}
 
 	#[test]
+	fn full_ecdsa_signature_math_session() {
+		let test_cases = [(2, 5), (2, 6), (3, 11), (4, 11)];
+		for &(t, n) in &test_cases {
+			// values that can be hardcoded
+			let joint_secret: Secret = Random.generate().unwrap().secret().clone();
+			let joint_nonce: Secret = Random.generate().unwrap().secret().clone();
+			let message_hash: H256 = H256::random();
+
+			// convert message hash to EC scalar
+			let message_hash_scalar = to_scalar(message_hash.clone()).unwrap();
+
+			// generate secret key shares
+			let artifacts = run_key_generation(t, n, None, Some(joint_secret));
+
+			// generate nonce shares
+			let nonce_artifacts = run_key_generation(t, n, Some(artifacts.id_numbers.clone()), Some(joint_nonce));
+
+			// compute nonce public
+			// x coordinate (mapped to EC field) of this public is the r-portion of signature
+			let nonce_public_shares: Vec<_> = (0..n).map(|i| compute_public_share(&nonce_artifacts.polynoms1[i][0]).unwrap()).collect();
+			let nonce_public = compute_joint_public(nonce_public_shares.iter()).unwrap();
+			let signature_r = compute_ecdsa_r(&nonce_public).unwrap();
+
+			// compute shares of inv(nonce) so that both nonce && inv(nonce) are still unknown to all nodes
+			let nonce_inv_shares = run_reciprocal_protocol(t, &nonce_artifacts);
+
+			// compute multiplication of secret-shares * inv-nonce-shares
+			let mul_shares = run_multiplication_protocol(t, &artifacts.secret_shares, &nonce_inv_shares);
+
+			// compute shares for s portion of signature: nonce_inv * (message_hash + secret * signature_r)
+			// every node broadcasts this share
+			let double_t = 2 * t;
+			let signature_s_shares: Vec<_> = (0..double_t+1).map(|i| compute_ecdsa_s_share(
+				&nonce_inv_shares[i],
+				&mul_shares[i],
+				&signature_r,
+				&message_hash_scalar
+			).unwrap()).collect();
+
+			// compute signature_s from received shares
+			let signature_s = compute_ecdsa_s(t,
+				&signature_s_shares,
+				&artifacts.id_numbers.iter().take(double_t + 1).cloned().collect::<Vec<_>>()
+			).unwrap();
+
+			// check signature
+			let signature_actual = serialize_ecdsa_signature(&nonce_public, signature_r, signature_s);
+			let joint_secret = compute_joint_secret(artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
+			let joint_secret_pair = KeyPair::from_secret(joint_secret).unwrap();
+			assert_eq!(recover(&signature_actual, &message_hash).unwrap(), *joint_secret_pair.public());
+			assert!(verify_public(joint_secret_pair.public(), &signature_actual, &message_hash).unwrap());
+		}
+	}
+
+	#[test]
 	fn full_generation_math_session_with_refreshing_shares() {
 		let test_cases = vec![(1, 4), (6, 10)];
 		for (t, n) in test_cases {
 			// generate key using t-of-n session
-			let artifacts1 = run_key_generation(t, n, None);
+			let artifacts1 = run_key_generation(t, n, None, None);
 			let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p1| &p1[0])).unwrap();
 
 			// let's say we want to refresh existing secret shares
@@ -710,7 +967,7 @@ pub mod tests {
 		let test_cases = vec![(1, 3), (1, 4), (6, 10)];
 		for (t, n) in test_cases {
 			// generate key using t-of-n session
-			let artifacts1 = run_key_generation(t, n, None);
+			let artifacts1 = run_key_generation(t, n, None, None);
 			let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p1| &p1[0])).unwrap();
 
 			// let's say we want to include additional couple of servers to the set
@@ -733,7 +990,8 @@ pub mod tests {
 		let (t, n) = (3, 5);
 
 		// generate key using t-of-n session
-		let artifacts1 = run_key_generation(t, n, None);
+		let artifacts1 = run_key_generation(t, n, None, None);
+
 		let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p1| &p1[0])).unwrap();
 
 		// let's say we want to decrease threshold so that it becames (t-1)-of-n
@@ -750,5 +1008,76 @@ pub mod tests {
 		let joint_secret3 = compute_joint_secret_from_shares(new_t, &artifacts3.secret_shares.iter().take(new_t + 1).collect::<Vec<_>>(),
 			&artifacts3.id_numbers.iter().take(new_t + 1).collect::<Vec<_>>()).unwrap();
 		assert_eq!(joint_secret1, joint_secret3);
+	}
+
+	#[test]
+	fn full_zero_secret_generation_math_session() {
+		let test_cases = vec![(1, 4), (2, 4)];
+		for (t, n) in test_cases {
+			// run joint zero generation session
+			let id_numbers: Vec<_> = (0..n).map(|_| generate_random_scalar().unwrap()).collect();
+			let artifacts = run_zero_key_generation(t, n, &id_numbers);
+
+			// check that zero secret is generated
+			// we can't compute secrets sum here, because result will be zero (invalid secret, unsupported by SECP256k1)
+			// so just use complement trick: x + (-x) = 0
+			// TODO [Refac]: switch to SECP256K1-free scalar EC arithmetic
+			let partial_joint_secret = compute_secret_sum(artifacts.polynoms1.iter().take(n - 1).map(|p| &p[0])).unwrap();
+			let mut partial_joint_secret_complement = artifacts.polynoms1[n - 1][0].clone();
+			partial_joint_secret_complement.neg().unwrap();
+			assert_eq!(partial_joint_secret, partial_joint_secret_complement);
+		}
+	}
+
+	#[test]
+	fn full_generation_with_multiplication() {
+		let test_cases = vec![(1, 3), (2, 5), (2, 7), (3, 8)];
+		for (t, n) in test_cases {
+			// generate two shared secrets
+			let artifacts1 = run_key_generation(t, n, None, None);
+			let artifacts2 = run_key_generation(t, n, Some(artifacts1.id_numbers.clone()), None);
+
+			// multiplicate original secrets
+			let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p| &p[0])).unwrap();
+			let joint_secret2 = compute_joint_secret(artifacts2.polynoms1.iter().map(|p| &p[0])).unwrap();
+			let mut expected_joint_secret_mul = joint_secret1;
+			expected_joint_secret_mul.mul(&joint_secret2).unwrap();
+
+			// run multiplication protocol
+			let joint_secret_mul_shares = run_multiplication_protocol(t, &artifacts1.secret_shares, &artifacts2.secret_shares);
+
+			// calculate actual secrets multiplication
+			let double_t = t * 2;
+			let actual_joint_secret_mul = compute_joint_secret_from_shares(double_t,
+				&joint_secret_mul_shares.iter().take(double_t + 1).collect::<Vec<_>>(),
+				&artifacts1.id_numbers.iter().take(double_t + 1).collect::<Vec<_>>()).unwrap();
+
+			assert_eq!(actual_joint_secret_mul, expected_joint_secret_mul);
+		}
+	}
+
+	#[test]
+	fn full_generation_with_reciprocal() {
+		let test_cases = vec![(1, 3), (2, 5), (2, 7), (2, 7), (3, 8)];
+		for (t, n) in test_cases {
+			// generate shared secret
+			let artifacts = run_key_generation(t, n, None, None);
+
+			// calculate inversion of original shared secret
+			let joint_secret = compute_joint_secret(artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
+			let mut expected_joint_secret_inv = joint_secret.clone();
+			expected_joint_secret_inv.inv().unwrap();
+
+			// run inversion protocol
+			let reciprocal_shares = run_reciprocal_protocol(t, &artifacts);
+
+			// calculate actual secret inversion
+			let double_t = t * 2;
+			let actual_joint_secret_inv = compute_joint_secret_from_shares(double_t,
+				&reciprocal_shares.iter().take(double_t + 1).collect::<Vec<_>>(),
+				&artifacts.id_numbers.iter().take(double_t + 1).collect::<Vec<_>>()).unwrap();
+
+			assert_eq!(actual_joint_secret_inv, expected_joint_secret_inv);
+		}
 	}
 }
