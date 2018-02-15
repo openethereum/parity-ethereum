@@ -30,7 +30,7 @@ type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 
 /// Fetch methods.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Method {
+enum Method {
 	/// Get.
 	Get,
 	/// Post.
@@ -85,11 +85,15 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 
 	/// Fetch URL and get a future for the result.
 	/// Supports aborting the request in the middle of execution.
-	fn fetch_with_abort(&self, url: &str, method: Method, abort: Abort) -> Self::Result;
+	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result;
+
+	/// Post to URL, returns the future for the result.
+	/// Supports aborting the request in the middle of execution.
+	fn post_with_abort(&self, url: &str, abort: Abort) -> Self::Result;
 
 	/// Fetch URL and get a future for the result.
 	fn fetch(&self, url: &str) -> Self::Result {
-		self.fetch_with_abort(url, Method::Get, Default::default())
+		self.fetch_with_abort(url, Default::default())
 	}
 
 	/// Fetch URL and get the result synchronously.
@@ -179,7 +183,7 @@ impl Fetch for Client {
 		self.pool.spawn(f).forget()
 	}
 
-	fn fetch_with_abort(&self, url: &str, method: Method, abort: Abort) -> Self::Result {
+	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result {
 		debug!(target: "fetch", "Fetching from: {:?}", url);
 
 		match self.client() {
@@ -189,7 +193,26 @@ impl Fetch for Client {
 					client: client,
 					limit: self.limit,
 					abort: abort,
-					method: method,
+					method: Method::Get,
+				})
+			},
+			Err(err) => {
+				self.pool.spawn(futures::future::err(err))
+			},
+		}
+	}
+
+	fn post_with_abort(&self, url: &str, abort: Abort) -> Self::Result {
+		debug!(target: "fetch", "Posting to: {:?}", url);
+
+		match self.client() {
+			Ok(client) => {
+				self.pool.spawn(FetchTask {
+					url: url.into(),
+					client: client,
+					limit: self.limit,
+					abort: abort,
+					method: Method::Post,
 				})
 			},
 			Err(err) => {

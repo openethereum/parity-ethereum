@@ -18,7 +18,7 @@
 
 use std::{io, thread};
 use jsonrpc_core::futures::{self, Future};
-use fetch::{self, Fetch, Method};
+use fetch::{self, Fetch};
 
 /// Test implementation of fetcher. Will always return the same file.
 #[derive(Default, Clone)]
@@ -31,7 +31,7 @@ impl Fetch for TestFetch {
 		Ok(TestFetch)
 	}
 
-	fn fetch_with_abort(&self, _url: &str, _method: Method, _abort: fetch::Abort) -> Self::Result {
+	fn fetch_with_abort(&self, _url: &str, _abort: fetch::Abort) -> Self::Result {
 		let (tx, rx) = futures::oneshot();
 		thread::spawn(move || {
 			let cursor = io::Cursor::new(b"Some content");
@@ -39,5 +39,9 @@ impl Fetch for TestFetch {
 		});
 
 		Box::new(rx.map_err(|_| fetch::Error::Aborted))
+	}
+
+	fn post_with_abort(&self, _url: &str, _abort: fetch::Abort) -> Self::Result {
+		Box::new(futures::future::ok(fetch::Response::not_found()))
 	}
 }

@@ -30,4 +30,4 @@ pub mod client;
 
 pub use self::reqwest::StatusCode;
 pub use self::reqwest::mime::Mime;
-pub use self::client::{Client, Fetch, Error, Response, Abort, Method};
+pub use self::client::{Client, Fetch, Error, Response, Abort};

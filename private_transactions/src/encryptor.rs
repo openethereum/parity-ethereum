@@ -29,7 +29,7 @@ use ethjson;
 use ethkey::{Signature, Public};
 use ethcrypto;
 use futures::Future;
-use fetch::{Fetch, Method as FetchMethod, Client as FetchClient};
+use fetch::{Fetch, Client as FetchClient};
 use bytes::{Bytes, ToPretty};
 use error::PrivateTransactionError;
 
@@ -99,7 +99,7 @@ impl SecretStoreEncryptor {
 	fn retrieve_key(
 		&self,
 		url_suffix: &str,
-		method: FetchMethod,
+		use_post: bool,
 		contract_address: &Address,
 		contract_address_signature: &Signature,
 		requester: &Address,
@@ -122,8 +122,12 @@ impl SecretStoreEncryptor {
 			);
 
 		// send HTTP request
-		let mut response = self.client.fetch_with_abort(&url, method, Default::default()).wait()
-			.map_err(|e| PrivateTransactionError::Encrypt(format!("{}", e)))?;
+		let mut response = match use_post {
+			true => self.client.post_with_abort(&url, Default::default()).wait()
+				.map_err(|e| PrivateTransactionError::Encrypt(format!("{}", e)))?,
+			false => self.client.fetch_with_abort(&url, Default::default()).wait()
+				.map_err(|e| PrivateTransactionError::Encrypt(format!("{}", e)))?,
+		};
 
 		if response.is_not_found() {
 			return Err(PrivateTransactionError::EncryptionKeyNotFound(*contract_address));
@@ -189,11 +193,11 @@ impl Encryptor for SecretStoreEncryptor {
 		plain_data: &[u8]
 	) -> Result<Bytes, PrivateTransactionError> {
 		// retrieve the key, try to generate it if it doesn't exist yet
-		let key = match self.retrieve_key("", FetchMethod::Get, contract_address, contract_address_signature, requester, unlocked_accounts.clone()) {
+		let key = match self.retrieve_key("", false, contract_address, contract_address_signature, requester, unlocked_accounts.clone()) {
 			Ok(key) => Ok(key),
 			Err(PrivateTransactionError::EncryptionKeyNotFound(_)) => {
 				trace!("Key for account wasnt found in sstore. Creating. Address: {:?}", contract_address);
-				self.retrieve_key(&format!("/{}", self.config.threshold), FetchMethod::Post, contract_address, contract_address_signature, requester, unlocked_accounts.clone())
+				self.retrieve_key(&format!("/{}", self.config.threshold), true, contract_address, contract_address_signature, requester, unlocked_accounts.clone())
 			}
 			Err(err) => Err(err),
 		}?;
@@ -223,7 +227,7 @@ impl Encryptor for SecretStoreEncryptor {
 		}
 
 		// retrieve existing key
-		let key = self.retrieve_key("", FetchMethod::Get, contract_address, contract_address_signature, requester, unlocked_accounts)?;
+		let key = self.retrieve_key("", false, contract_address, contract_address_signature, requester, unlocked_accounts)?;
 
 		// use symmetric decryption to decrypt document
 		let (cypher, iv) = cypher.split_at(cypher_len - INIT_VEC_LEN);

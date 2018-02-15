@@ -19,7 +19,7 @@ use std::sync::{atomic, mpsc, Arc};
 use parking_lot::Mutex;
 
 use futures::{self, Future};
-use fetch::{self, Fetch, Method};
+use fetch::{self, Fetch};
 
 pub struct FetchControl {
 	sender: mpsc::Sender<()>,
@@ -100,7 +100,7 @@ impl Fetch for FakeFetch {
 		Ok(FakeFetch::default())
 	}
 
-	fn fetch_with_abort(&self, url: &str, _method: Method, _abort: fetch::Abort) -> Self::Result {
+	fn fetch_with_abort(&self, url: &str, _abort: fetch::Abort) -> Self::Result {
 		self.requested.lock().push(url.into());
 		let manual = self.manual.clone();
 		let response = self.response.clone();
@@ -118,6 +118,10 @@ impl Fetch for FakeFetch {
 		});
 
 		Box::new(rx.map_err(|_| fetch::Error::Aborted))
+	}
+
+	fn post_with_abort(&self, _url: &str, _abort: fetch::Abort) -> Self::Result {
+		Box::new(futures::future::ok(fetch::Response::not_found()))
 	}
 
 	fn process_and_forget<F, I, E>(&self, f: F) where

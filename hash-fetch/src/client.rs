@@ -196,7 +196,7 @@ mod tests {
 	use std::sync::{Arc, mpsc};
 	use parking_lot::Mutex;
 	use futures::future;
-	use fetch::{self, Fetch, Method};
+	use fetch::{self, Fetch};
 	use parity_reactor::Remote;
 	use urlhint::tests::{FakeRegistrar, URLHINT};
 	use super::{Error, Client, HashFetch, random_temp_path};
@@ -214,7 +214,7 @@ mod tests {
 			Ok(FakeFetch { return_success: true })
 		}
 
-		fn fetch_with_abort(&self, url: &str, _method: Method, _abort: fetch::Abort) -> Self::Result {
+		fn fetch_with_abort(&self, url: &str, _abort: fetch::Abort) -> Self::Result {
 			assert_eq!(url, "https://parity.io/assets/images/ethcore-black-horizontal.png");
 			future::ok(if self.return_success {
 				let cursor = ::std::io::Cursor::new(b"result");
@@ -222,6 +222,10 @@ mod tests {
 			} else {
 				fetch::Response::not_found()
 			})
+		}
+
+		fn post_with_abort(&self, _url: &str, _abort: fetch::Abort) -> Self::Result {
+			future::ok(fetch::Response::not_found())
 		}
 	}
 

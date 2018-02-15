@@ -133,7 +133,7 @@ mod test {
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicBool, Ordering};
 	use fetch;
-	use fetch::{Fetch, Method};
+	use fetch::Fetch;
 	use futures;
 	use futures::future::{Future, FutureResult};
 	use Client;
@@ -143,7 +143,7 @@ mod test {
 	impl Fetch for FakeFetch {
 		type Result = FutureResult<fetch::Response, fetch::Error>;
 		fn new() -> Result<Self, fetch::Error> where Self: Sized { Ok(FakeFetch(None, Default::default())) }
-		fn fetch_with_abort(&self, url: &str, _method: Method, _abort: fetch::Abort) -> Self::Result {
+		fn fetch_with_abort(&self, url: &str, _abort: fetch::Abort) -> Self::Result {
 			assert_eq!(url, "https://api.etherscan.io/api?module=stats&action=ethprice");
 			let mut val = self.1.lock();
 			*val = *val + 1;
@@ -153,6 +153,10 @@ mod test {
 			} else {
 				futures::future::ok(fetch::Response::not_found())
 			}
+		}
+
+		fn post_with_abort(&self, _url: &str, _abort: fetch::Abort) -> Self::Result {
+			futures::future::ok(fetch::Response::not_found())
 		}
 
 		// this guarantees that the calls to price_info::Client::get will block for execution
