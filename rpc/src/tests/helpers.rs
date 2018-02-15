@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::ops::{Deref, DerefMut};
+use std::path::PathBuf;
+use tempdir::TempDir;
 
-use devtools::RandomTempPath;
 use parity_reactor::{EventLoop, TokioRemote};
 
 use authcodes::AuthCodes;
@@ -54,18 +55,20 @@ impl<T> Deref for Server<T> {
 /// Struct representing authcodes
 pub struct GuardedAuthCodes {
 	authcodes: AuthCodes,
+	_tempdir: TempDir,
 	/// The path to the mock authcodes
-	pub path: RandomTempPath,
+	pub path: PathBuf,
 }
 
 impl GuardedAuthCodes {
 	pub fn new() -> Self {
-		let mut path = RandomTempPath::new();
-		path.panic_on_drop_failure = false;
+		let tempdir = TempDir::new("").unwrap();
+		let path = tempdir.path().join("file");
 
 		GuardedAuthCodes {
 			authcodes: AuthCodes::from_file(&path).unwrap(),
-			path: path,
+			_tempdir: tempdir,
+			path,
 		}
 	}
 }

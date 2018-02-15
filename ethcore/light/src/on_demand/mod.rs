@@ -24,10 +24,11 @@ use std::sync::Arc;
 
 use ethcore::executed::{Executed, ExecutionError};
 
-use futures::{Async, Poll, Future};
-use futures::sync::oneshot::{self, Sender, Receiver, Canceled};
+use futures::{Poll, Future};
+use futures::sync::oneshot::{self, Receiver, Canceled};
 use network::PeerId;
 use parking_lot::{RwLock, Mutex};
+use rand;
 
 use net::{
 	self, Handler, PeerStatus, Status, Capabilities,
@@ -352,29 +353,6 @@ impl OnDemand {
 	// dispatch pending requests, and discard those for which the corresponding
 	// receiver has been dropped.
 	fn dispatch_pending(&self, ctx: &BasicContext) {
-
-		// wrapper future for calling `poll_cancel` on our `Senders` to preserve
-		// the invariant that it's always within a task.
-		struct CheckHangup<'a, T: 'a>(&'a mut Sender<T>);
-
-		impl<'a, T: 'a> Future for CheckHangup<'a, T> {
-			type Item = bool;
-			type Error = ();
-
-			fn poll(&mut self) -> Poll<bool, ()> {
-				Ok(Async::Ready(match self.0.poll_cancel() {
-					Ok(Async::NotReady) => false, // hasn't hung up.
-					_ => true, // has hung up.
-				}))
-			}
-		}
-
-		// check whether a sender's hung up (using `wait` to preserve the task invariant)
-		// returns true if has hung up, false otherwise.
-		fn check_hangup<T>(send: &mut Sender<T>) -> bool {
-			CheckHangup(send).wait().expect("CheckHangup always returns ok; qed")
-		}
-
 		if self.pending.read().is_empty() { return }
 		let mut pending = self.pending.write();
 
@@ -384,12 +362,12 @@ impl OnDemand {
 		// then, try and find a peer who can serve it.
 		let peers = self.peers.read();
 		*pending = ::std::mem::replace(&mut *pending, Vec::new()).into_iter()
-			.filter_map(|mut pending| match check_hangup(&mut pending.sender) {
-				false => Some(pending),
-				true => None,
-			})
+			.filter(|pending| !pending.sender.is_canceled())
 			.filter_map(|pending| {
-				for (peer_id, peer) in peers.iter() { // .shuffle?
+				// the peer we dispatch to is chosen randomly
+				let num_peers = peers.len();
+				let rng = rand::random::<usize>() % num_peers;
+				for (peer_id, peer) in peers.iter().chain(peers.iter()).skip(rng).take(num_peers) {
 					// TODO: see which requests can be answered by the cache?
 
 					if !peer.can_fulfill(&pending.required_capabilities) {

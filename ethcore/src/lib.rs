@@ -62,7 +62,6 @@ extern crate common_types as types;
 extern crate crypto;
 extern crate ethash;
 extern crate ethcore_bloom_journal as bloom_journal;
-extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_logger;
@@ -72,12 +71,10 @@ extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-extern crate futures;
 extern crate hardware_wallet;
 extern crate hashdb;
 extern crate itertools;
 extern crate lru_cache;
-extern crate native_contracts;
 extern crate num_cpus;
 extern crate num;
 extern crate parity_machine;
@@ -92,7 +89,6 @@ extern crate memorydb;
 extern crate patricia_trie as trie;
 extern crate triehash;
 extern crate ansi_term;
-extern crate semantic_version;
 extern crate unexpected;
 extern crate kvdb;
 extern crate kvdb_rocksdb;
@@ -101,10 +97,17 @@ extern crate util_error;
 extern crate snappy;
 extern crate migration;
 
+extern crate ethabi;
+#[macro_use]
+extern crate ethabi_derive;
+#[macro_use]
+extern crate ethabi_contract;
+
 #[macro_use]
 extern crate rlp_derive;
 extern crate rustc_hex;
 extern crate stats;
+extern crate stop_guard;
 extern crate time;
 extern crate using_queue;
 extern crate table;
@@ -124,6 +127,8 @@ extern crate evm;
 
 #[cfg(feature = "jit" )]
 extern crate evmjit;
+
+extern crate tempdir;
 
 pub extern crate ethstore;
 

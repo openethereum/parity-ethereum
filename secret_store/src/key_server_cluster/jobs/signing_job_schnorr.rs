@@ -50,6 +50,7 @@ pub struct SchnorrPartialSigningRequest {
 }
 
 /// Signing job partial response.
+#[derive(Clone)]
 pub struct SchnorrPartialSigningResponse {
 	/// Request id.
 	pub request_id: Secret,

@@ -23,7 +23,6 @@ mod installers;
 use std::{fs, env};
 use std::path::PathBuf;
 use std::sync::Arc;
-use rustc_hex::FromHex;
 use futures::{future, Future};
 use futures_cpupool::CpuPool;
 use fetch::{Client as FetchClient, Fetch};
@@ -31,6 +30,7 @@ use hash_fetch::urlhint::{URLHintContract, URLHint, URLHintResult};
 
 use hyper::StatusCode;
 
+use ethereum_types::H256;
 use {Embeddable, SyncStatus, random_filename};
 use parking_lot::Mutex;
 use page::local;
@@ -132,7 +132,7 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 
 	// resolve contract call synchronously.
 	// TODO: port to futures-based hyper and make it all async.
-	fn resolve(&self, content_id: Vec<u8>) -> Option<URLHintResult> {
+	fn resolve(&self, content_id: H256) -> Option<URLHintResult> {
 		self.resolver.resolve(content_id)
 			.wait()
 			.unwrap_or_else(|e| { warn!("Error resolving content-id: {}", e); None })
@@ -149,7 +149,7 @@ impl<R: URLHint + 'static, F: Fetch> Fetcher for ContentFetcher<F, R> {
 			}
 		}
 		// fallback to resolver
-		if let Ok(content_id) = content_id.from_hex() {
+		if let Ok(content_id) = content_id.parse() {
 			// if there is content or we are syncing return true
 			self.sync.is_major_importing() || self.resolve(content_id).is_some()
 		} else {
@@ -178,7 +178,7 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 				// We need to start fetching the content
 				_ => {
 					trace!(target: "dapps", "Content unavailable. Fetching... {:?}", content_id);
-					let content_hex = content_id.from_hex().expect("to_handler is called only when `contains` returns true.");
+					let content_hex = content_id.parse().expect("to_handler is called only when `contains` returns true.");
 					let content = self.resolve(content_hex);
 
 					let cache = self.cache.clone();
@@ -280,10 +280,10 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 mod tests {
 	use std::env;
 	use std::sync::Arc;
-	use bytes::Bytes;
 	use fetch::{Fetch, Client};
-	use futures::future;
-	use hash_fetch::urlhint::{URLHint, URLHintResult, BoxFuture};
+	use futures::{future, Future};
+	use hash_fetch::urlhint::{URLHint, URLHintResult};
+	use ethereum_types::H256;
 
 	use apps::cache::ContentStatus;
 	use endpoint::EndpointInfo;
@@ -294,7 +294,7 @@ mod tests {
 	#[derive(Clone)]
 	struct FakeResolver;
 	impl URLHint for FakeResolver {
-		fn resolve(&self, _id: Bytes) -> BoxFuture<Option<URLHintResult>, String> {
+		fn resolve(&self, _id: H256) -> Box<Future<Item = Option<URLHintResult>, Error = String> + Send> {
 			Box::new(future::ok(None))
 		}
 	}

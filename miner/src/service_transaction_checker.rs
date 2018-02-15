@@ -16,12 +16,11 @@
 
 //! A service transactions contract checker.
 
-use futures::{future, Future};
-use native_contracts::ServiceTransactionChecker as Contract;
-use ethereum_types::{U256, Address};
-use parking_lot::Mutex;
+use ethereum_types::Address;
 use transaction::SignedTransaction;
 use types::ids::BlockId;
+
+use_contract!(service_transaction, "ServiceTransaction", "res/service_transaction.json");
 
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
 
@@ -37,34 +36,22 @@ pub trait ContractCaller {
 /// Service transactions checker.
 #[derive(Default)]
 pub struct ServiceTransactionChecker {
-	contract: Mutex<Option<Contract>>,
+	contract: service_transaction::ServiceTransaction,
 }
 
 impl ServiceTransactionChecker {
-	/// Try to create instance, reading contract address from given chain client.
-	pub fn update_from_chain_client(&self, client: &ContractCaller) {
-		let mut contract = self.contract.lock();
-		if contract.is_none() {
-			*contract = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME)
-				.and_then(|contract_addr| {
-					trace!(target: "txqueue", "Configuring for service transaction checker contract from {}", contract_addr);
-
-					Some(Contract::new(contract_addr))
-				})
-		}
-	}
-
 	/// Checks if service transaction can be appended to the transaction queue.
 	pub fn check(&self, client: &ContractCaller, tx: &SignedTransaction) -> Result<bool, String> {
-		debug_assert_eq!(tx.gas_price, U256::zero());
+		assert!(tx.gas_price.is_zero());
 
-		if let Some(ref contract) = *self.contract.lock() {
-			contract.certified(
-				|addr, data| future::done(client.call_contract(BlockId::Latest, addr, data)),
-				tx.sender()
-			).wait()
-		} else {
-			Err("contract is not configured".to_owned())
-		}
+		let address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME)
+			.ok_or_else(|| "contract is not configured")?;
+
+		trace!(target: "txqueue", "Checking service transaction checker contract from {}", address);
+
+		self.contract.functions()
+			.certified()
+			.call(tx.sender(), &|data| client.call_contract(BlockId::Latest, address, data))
+			.map_err(|e| e.to_string())
 	}
 }

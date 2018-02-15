@@ -8,9 +8,9 @@ license = "GPL-3.0"
 [dependencies]
 elastic-array = "0.9"
 log = "0.3"
-rand = "0.3"
+rand = "0.4"
 ethcore-bytes = { version = "0.1.0", path = "../bytes" }
-ethereum-types = "0.1"
+ethereum-types = "0.2"
 keccak-hash = { version = "0.1.0", path = "../hash" }
 hashdb = { version = "0.1.1", path = "../hashdb" }
 rlp = { version = "0.2.1", path = "../rlp" }

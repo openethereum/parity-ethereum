@@ -28,7 +28,6 @@ use ethjson;
 use header::Header;
 use client::EngineClient;
 use machine::{AuxiliaryData, Call, EthereumMachine};
-use semantic_version::SemanticVersion;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
@@ -94,12 +93,11 @@ impl BasicAuthority {
 
 impl Engine<EthereumMachine> for BasicAuthority {
 	fn name(&self) -> &str { "BasicAuthority" }
-	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
 
 	fn machine(&self) -> &EthereumMachine { &self.machine }
 
 	// One field - the signature
-	fn seal_fields(&self) -> usize { 1 }
+	fn seal_fields(&self, _header: &Header) -> usize { 1 }
 
 	fn seals_internally(&self) -> Option<bool> {
 		Some(self.signer.read().is_some())
@@ -217,7 +215,6 @@ mod tests {
 	fn has_valid_metadata() {
 		let engine = new_test_authority().engine;
 		assert!(!engine.name().is_empty());
-		assert!(engine.version().major >= 1);
 	}
 
 	#[test]

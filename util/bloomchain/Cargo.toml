@@ -8,8 +8,8 @@ license = "MIT"
 keywords = ["ethereum", "ethcore", "bloom", "chain", "filter"]
 
 [dependencies]
-ethbloom = "0.3"
+ethbloom = "0.4"
 
 [dev-dependencies]
-rustc-serialize = "0.3"
+rustc-hex = "1.0"
 rand = "0.4"

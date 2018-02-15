@@ -16,50 +16,55 @@
 
 //! Smart contract based node filter.
 
+extern crate ethabi;
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_network as network;
 extern crate ethereum_types;
-extern crate native_contracts;
-extern crate futures;
+extern crate lru_cache;
 extern crate parking_lot;
 
 #[macro_use]
-extern crate log;
-
-#[cfg(test)]
-extern crate kvdb_memorydb;
+extern crate ethabi_derive;
+#[macro_use]
+extern crate ethabi_contract;
 #[cfg(test)]
 extern crate ethcore_io as io;
+#[cfg(test)]
+extern crate kvdb_memorydb;
+#[macro_use]
+extern crate log;
 
 use std::sync::Weak;
-use std::collections::HashMap;
-use native_contracts::PeerSet as Contract;
-use network::{NodeId, ConnectionFilter, ConnectionDirection};
+
+use lru_cache::LruCache;
+use parking_lot::Mutex;
+
+use bytes::Bytes;
 use ethcore::client::{BlockChainClient, BlockId, ChainNotify};
 use ethereum_types::{H256, Address};
-use bytes::Bytes;
-use parking_lot::Mutex;
-use futures::Future;
+use network::{NodeId, ConnectionFilter, ConnectionDirection};
+
+use_contract!(peer_set, "PeerSet", "res/peer_set.json");
 
 const MAX_CACHE_SIZE: usize = 4096;
 
 /// Connection filter that uses a contract to manage permissions.
 pub struct NodeFilter {
-	contract: Mutex<Option<Contract>>,
+	contract: peer_set::PeerSet,
 	client: Weak<BlockChainClient>,
 	contract_address: Address,
-	permission_cache: Mutex<HashMap<NodeId, bool>>,
+	permission_cache: Mutex<LruCache<NodeId, bool>>,
 }
 
 impl NodeFilter {
 	/// Create a new instance. Accepts a contract address.
 	pub fn new(client: Weak<BlockChainClient>, contract_address: Address) -> NodeFilter {
 		NodeFilter {
-			contract: Mutex::new(None),
+			contract: peer_set::PeerSet::default(),
 			client: client,
 			contract_address: contract_address,
-			permission_cache: Mutex::new(HashMap::new()),
+			permission_cache: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
 		}
 	}
 
@@ -73,40 +78,30 @@ impl ConnectionFilter for NodeFilter {
 	fn connection_allowed(&self, own_id: &NodeId, connecting_id: &NodeId, _direction: ConnectionDirection) -> bool {
 
 		let mut cache = self.permission_cache.lock();
-		if let Some(res) = cache.get(connecting_id) {
+		if let Some(res) = cache.get_mut(connecting_id) {
 			return *res;
 		}
 
-		let mut contract = self.contract.lock();
-		if contract.is_none() {
-			*contract = Some(Contract::new(self.contract_address));
-		}
-
-		let allowed = match (self.client.upgrade(), &*contract) {
-			(Some(ref client), &Some(ref contract)) => {
-				let own_low = H256::from_slice(&own_id[0..32]);
-				let own_high = H256::from_slice(&own_id[32..64]);
-				let id_low = H256::from_slice(&connecting_id[0..32]);
-				let id_high = H256::from_slice(&connecting_id[32..64]);
-				let allowed = contract.connection_allowed(
-					|addr, data| futures::done(client.call_contract(BlockId::Latest, addr, data)),
-					own_low,
-					own_high,
-					id_low,
-					id_high,
-				).wait().unwrap_or_else(|e| {
-					debug!("Error callling peer set contract: {:?}", e);
-					false
-				});
-
-				allowed
-			}
-			_ => false,
+		let client = match self.client.upgrade() {
+			Some(client) => client,
+			None => return false,
 		};
 
-		if cache.len() < MAX_CACHE_SIZE {
-			cache.insert(*connecting_id, allowed);
-		}
+		let address = self.contract_address;
+		let own_low = H256::from_slice(&own_id[0..32]);
+		let own_high = H256::from_slice(&own_id[32..64]);
+		let id_low = H256::from_slice(&connecting_id[0..32]);
+		let id_high = H256::from_slice(&connecting_id[32..64]);
+
+		let allowed = self.contract.functions()
+			.connection_allowed()
+			.call(own_low, own_high, id_low, id_high, &|data| client.call_contract(BlockId::Latest, address, data))
+			.unwrap_or_else(|e| {
+				debug!("Error callling peer set contract: {:?}", e);
+				false
+			});
+
+		cache.insert(*connecting_id, allowed);
 		allowed
 	}
 }

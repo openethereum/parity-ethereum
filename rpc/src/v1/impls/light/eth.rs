@@ -349,8 +349,8 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		}))
 	}
 
-	fn code_at(&self, _address: RpcH160, _num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
-		Box::new(future::err(errors::unimplemented(None)))
+	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
+		Box::new(self.fetcher().code(address.into(), num.unwrap_or_default().into()).map(Into::into))
 	}
 
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256> {

@@ -9,7 +9,7 @@ license = "GPL-3.0"
 bigint = "4.0"
 elastic-array = "0.9"
 heapsize = "0.4"
-ethereum-types = { version = "0.1", features = ["heapsizeof"] }
+ethereum-types = "0.2"
 keccak-hash = { version = "0.1.0", path = "../hash" }
 hashdb = { version = "0.1.1", path = "../hashdb" }
 plain_hasher = { path = "../plain_hasher" }

@@ -19,7 +19,7 @@ use ethereum_types::{H256, U256};
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use bytes::Bytes;
-use client::{BlockChainClient, Client, ClientConfig};
+use client::{BlockChainClient, ChainNotify, Client, ClientConfig};
 use ethereum::ethash::EthashParams;
 use ethkey::KeyPair;
 use evm::Factory as EvmFactory;
@@ -29,6 +29,7 @@ use header::Header;
 use io::*;
 use machine::EthashExtensions;
 use miner::Miner;
+use parking_lot::RwLock;
 use rlp::{self, RlpStream};
 use spec::*;
 use state_db::StateDB;
@@ -386,5 +387,16 @@ pub fn get_default_ethash_params() -> EthashParams {
 		eip649_reward: None,
 		expip2_transition: u64::max_value(),
 		expip2_duration_limit: 30,
+	}
+}
+
+#[derive(Default)]
+pub struct TestNotify {
+	pub messages: RwLock<Vec<Bytes>>,
+}
+
+impl ChainNotify for TestNotify {
+	fn broadcast(&self, data: Vec<u8>) {
+		self.messages.write().push(data);
 	}
 }

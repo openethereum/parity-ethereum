@@ -730,6 +730,9 @@ pub struct RequestPartialDecryption {
 	/// Is shadow decryption requested? When true, decryption result
 	/// will be visible to the owner of requestor public key only.
 	pub is_shadow_decryption: bool,
+	/// Decryption result must be reconstructed on all participating nodes. This is useful
+	/// for service contract API so that all nodes from consensus group can confirm decryption.
+	pub is_broadcast_session: bool,
 	/// Nodes that are agreed to do a decryption.
 	pub nodes: BTreeSet<MessageNodeId>,
 }
@@ -791,6 +794,9 @@ pub struct DecryptionSessionDelegation {
 	/// Is shadow decryption requested? When true, decryption result
 	/// will be visible to the owner of requestor public key only.
 	pub is_shadow_decryption: bool,
+	/// Decryption result must be reconstructed on all participating nodes. This is useful
+	/// for service contract API so that all nodes from consensus group can confirm decryption.
+	pub is_broadcast_session: bool,
 }
 
 /// When delegated decryption session is completed.

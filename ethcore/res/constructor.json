@@ -10,7 +10,12 @@
 		"accountStartNonce": "0x0",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
-		"networkID" : "0x2"
+		"networkID" : "0x2",
+		"registrar" : "0x0000000000000000000000000000000000001337",
+		"eip140Transition": "0x0",
+		"eip211Transition": "0x0",
+		"eip214Transition": "0x0",
+		"eip658Transition": "0x0"
 	},
 	"genesis": {
 		"seal": {
@@ -28,6 +33,10 @@
 		"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
 		"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
 		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
-		"0000000000000000000000000000000000000005": { "balance": "1", "constructor": "60606040526000805460ff19166001179055346000575b6075806100246000396000f300606060405263ffffffff60e060020a60003504166394b91deb81146022575b6000565b34600057602c6040565b604080519115158252519081900360200190f35b60005460ff16815600a165627a7a723058207882eb60ebce23178b3fa06d4cd8e5adc17711937ccddacb18a04abca2a2c9ee0029" }
+		"0000000000000000000000000000000000000005": { "balance": "1", "builtin": { "name": "modexp", "activate_at": 0, "pricing": { "modexp": { "divisor": 20 } } } },
+		"0000000000000000000000000000000000000006": { "balance": "1", "builtin": { "name": "alt_bn128_add", "activate_at": 0, "pricing": { "linear": { "base": 500, "word": 0 } } } },
+		"0000000000000000000000000000000000000007": { "balance": "1", "builtin": { "name": "alt_bn128_mul", "activate_at": 0, "pricing": { "linear": { "base": 40000, "word": 0 } } } },
+		"0000000000000000000000000000000000000008": { "balance": "1", "builtin": { "name": "alt_bn128_pairing", "activate_at": 0, "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } },
+		"0000000000000000000000000000000000001337": { "balance": "1", "constructor": "60606040526000805460ff19166001179055346000575b6075806100246000396000f300606060405263ffffffff60e060020a60003504166394b91deb81146022575b6000565b34600057602c6040565b604080519115158252519081900360200190f35b60005460ff16815600a165627a7a723058207882eb60ebce23178b3fa06d4cd8e5adc17711937ccddacb18a04abca2a2c9ee0029" }
 	}
 }

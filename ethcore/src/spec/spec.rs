@@ -762,6 +762,13 @@ impl Spec {
 		load_bundled!("authority_round")
 	}
 
+	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not
+	/// requiring work) with empty step messages enabled.
+	/// Accounts with secrets keccak("0") and keccak("1") are the validators.
+	pub fn new_test_round_empty_steps() -> Self {
+		load_bundled!("authority_round_empty_steps")
+	}
+
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring
 	/// work).
 	/// Account keccak("0") and keccak("1") are a authorities.
@@ -850,7 +857,7 @@ mod tests {
 		let expected = H256::from_str(
 			"0000000000000000000000000000000000000000000000000000000000000001",
 		).unwrap();
-		let address = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+		let address = Address::from_str("0000000000000000000000000000000000001337").unwrap();
 
 		assert_eq!(state.storage_at(&address, &H256::zero()).unwrap(), expected);
 		assert_eq!(state.balance(&address).unwrap(), 1.into());

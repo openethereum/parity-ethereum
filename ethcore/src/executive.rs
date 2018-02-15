@@ -154,11 +154,7 @@ impl TransactOptions<trace::NoopTracer, trace::NoopVMTracer> {
 
 pub fn executor(machine: &Machine, vm_factory: &Factory, params: &ActionParams) -> Box<vm::Vm> {
 	if machine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
-		Box::new(
-			wasm::WasmInterpreter::new()
-				// prefer to fail fast
-				.expect("Failed to create wasm runtime")
-		)
+		Box::new(wasm::WasmInterpreter)
 	} else {
 		vm_factory.create(params.gas)
 	}
