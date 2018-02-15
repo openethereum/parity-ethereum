@@ -509,6 +509,12 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.gas_price_percentile,
 					);
 					self.client.add_listener(client.handler() as Weak<_>);
+					let h = client.handler();
+					self.transaction_queue.write().add_listener(Box::new(move |transactions| {
+						if let Some(h) = h.upgrade() {
+							h.new_transactions(transactions);
+						}
+					}));
 					handler.extend_with(EthPubSub::to_delegate(client));
 				},
 				Api::Personal => {
