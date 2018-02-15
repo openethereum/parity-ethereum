@@ -36,7 +36,7 @@ const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot { blocks:
 fn chunk_and_restore(amount: u64) {
 	let genesis = BlockBuilder::genesis();
 	let rest = genesis.add_blocks(amount as usize);
-	let mut generator = BlockGenerator::new(vec![genesis.clone(), rest]);
+	let generator = BlockGenerator::new(vec![rest]);
 	let genesis = genesis.last();
 
 	let engine = ::spec::Spec::new_test().engine;
@@ -44,7 +44,7 @@ fn chunk_and_restore(amount: u64) {
 	let snapshot_path = tempdir.path().join("SNAP");
 
 	let old_db = Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
-	let bc = BlockChain::new(Default::default(), &generator.next().unwrap().encoded(), old_db.clone());
+	let bc = BlockChain::new(Default::default(), &genesis.encoded(), old_db.clone());
 
 	// build the blockchain.
 	let mut batch = DBTransaction::new();
