@@ -16,7 +16,7 @@
 
 //! Eth PUB-SUB rpc implementation.
 
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::collections::BTreeMap;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
@@ -85,8 +85,8 @@ impl<C> EthPubSubClient<C> {
 	}
 
 	/// Returns a chain notification handler.
-	pub fn handler(&self) -> Arc<ChainNotificationHandler<C>> {
-		self.handler.clone()
+	pub fn handler(&self) -> Weak<ChainNotificationHandler<C>> {
+		Arc::downgrade(&self.handler)
 	}
 }
 

@@ -296,8 +296,13 @@ impl FullDependencies {
 					if !for_generic_pubsub {
 						let client = EthPubSubClient::new(self.client.clone(), self.remote.clone());
 						let h = client.handler();
-						self.miner.add_transactions_listener(Box::new(move |hashes| h.new_transactions(hashes)));
-						self.client.add_notify(client.handler());
+						self.miner.add_transactions_listener(Box::new(move |hashes| if let Some(h) = h.upgrade() {
+							h.new_transactions(hashes);
+						}));
+
+						if let Some(h) = client.handler().upgrade() {
+							self.client.add_notify(h);
+						}
 						handler.extend_with(client.to_delegate());
 					}
 				},
@@ -503,9 +508,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.remote.clone(),
 						self.gas_price_percentile,
 					);
-					self.client.add_listener(
-						Arc::downgrade(&client.handler()) as Weak<::light::client::LightChainNotify>
-					);
+					self.client.add_listener(client.handler() as Weak<_>);
 					handler.extend_with(EthPubSub::to_delegate(client));
 				},
 				Api::Personal => {

@@ -48,6 +48,11 @@ impl Secret {
 		Secret { inner: h }
 	}
 
+	/// Creates zero key, which is invalid for crypto operations, but valid for math operation.
+	pub fn zero() -> Self {
+		Secret { inner: Default::default() }
+	}
+
 	/// Imports and validates the key.
 	pub fn from_unsafe_slice(key: &[u8]) -> Result<Self, Error> {
 		let secret = key::SecretKey::from_slice(&super::SECP256K1, key)?;
@@ -61,51 +66,91 @@ impl Secret {
 
 	/// Inplace add one secret key to another (scalar + scalar)
 	pub fn add(&mut self, other: &Secret) -> Result<(), Error> {
-		let mut key_secret = self.to_secp256k1_secret()?;
-		let other_secret = other.to_secp256k1_secret()?;
-		key_secret.add_assign(&SECP256K1, &other_secret)?;
+		match (self.is_zero(), other.is_zero()) {
+			(true, true) | (false, true) => Ok(()),
+			(true, false) => {
+				*self = other.clone();
+				Ok(())
+			},
+			(false, false) => {
+				let mut key_secret = self.to_secp256k1_secret()?;
+				let other_secret = other.to_secp256k1_secret()?;
+				key_secret.add_assign(&SECP256K1, &other_secret)?;
 
-		*self = key_secret.into();
-		Ok(())
+				*self = key_secret.into();
+				Ok(())
+			},
+		}
 	}
 
 	/// Inplace subtract one secret key from another (scalar - scalar)
 	pub fn sub(&mut self, other: &Secret) -> Result<(), Error> {
-		let mut key_secret = self.to_secp256k1_secret()?;
-		let mut other_secret = other.to_secp256k1_secret()?;
-		other_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
-		key_secret.add_assign(&SECP256K1, &other_secret)?;
+		match (self.is_zero(), other.is_zero()) {
+			(true, true) | (false, true) => Ok(()),
+			(true, false) => {
+				*self = other.clone();
+				self.neg()
+			},
+			(false, false) => {
+				let mut key_secret = self.to_secp256k1_secret()?;
+				let mut other_secret = other.to_secp256k1_secret()?;
+				other_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+				key_secret.add_assign(&SECP256K1, &other_secret)?;
 
-		*self = key_secret.into();
-		Ok(())
+				*self = key_secret.into();
+				Ok(())
+			},
+		}
 	}
 
 	/// Inplace decrease secret key (scalar - 1)
 	pub fn dec(&mut self) -> Result<(), Error> {
-		let mut key_secret = self.to_secp256k1_secret()?;
-		key_secret.add_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+		match self.is_zero() {
+			true => {
+				*self = key::MINUS_ONE_KEY.into();
+				Ok(())
+			},
+			false => {
+				let mut key_secret = self.to_secp256k1_secret()?;
+				key_secret.add_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
 
-		*self = key_secret.into();
-		Ok(())
+				*self = key_secret.into();
+				Ok(())
+			},
+		}
 	}
 
 	/// Inplace multiply one secret key to another (scalar * scalar)
 	pub fn mul(&mut self, other: &Secret) -> Result<(), Error> {
-		let mut key_secret = self.to_secp256k1_secret()?;
-		let other_secret = other.to_secp256k1_secret()?;
-		key_secret.mul_assign(&SECP256K1, &other_secret)?;
+		match (self.is_zero(), other.is_zero()) {
+			(true, true) | (true, false) => Ok(()),
+			(false, true) => {
+				*self = Self::zero();
+				Ok(())
+			},
+			(false, false) => {
+				let mut key_secret = self.to_secp256k1_secret()?;
+				let other_secret = other.to_secp256k1_secret()?;
+				key_secret.mul_assign(&SECP256K1, &other_secret)?;
 
-		*self = key_secret.into();
-		Ok(())
+				*self = key_secret.into();
+				Ok(())
+			},
+		}
 	}
 
 	/// Inplace negate secret key (-scalar)
 	pub fn neg(&mut self) -> Result<(), Error> {
-		let mut key_secret = self.to_secp256k1_secret()?;
-		key_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+		match self.is_zero() {
+			true => Ok(()),
+			false => {
+				let mut key_secret = self.to_secp256k1_secret()?;
+				key_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
 
-		*self = key_secret.into();
-		Ok(())
+				*self = key_secret.into();
+				Ok(())
+			},
+		}
 	}
 
 	/// Inplace inverse secret key (1 / scalar)
@@ -120,6 +165,10 @@ impl Secret {
 	/// Compute power of secret key inplace (secret ^ pow).
 	/// This function is not intended to be used with large powers.
 	pub fn pow(&mut self, pow: usize) -> Result<(), Error> {
+		if self.is_zero() {
+			return Ok(());
+		}
+		
 		match pow {
 			0 => *self = key::ONE_KEY.into(),
 			1 => (),

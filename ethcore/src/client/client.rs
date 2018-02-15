@@ -2002,6 +2002,10 @@ impl super::traits::EngineClient for Client {
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		BlockChainClient::block_number(self, id)
 	}
+
+	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
+		BlockChainClient::block_header(self, id)
+	}
 }
 
 impl ProvingBlockChainClient for Client {

@@ -37,7 +37,7 @@ fn should_subscribe_to_new_heads() {
 	let h1 = client.block_hash_delta_minus(3);
 
 	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
-	let handler = pubsub.handler();
+	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
 	let mut io = MetaIoHandler::default();
@@ -109,7 +109,7 @@ fn should_subscribe_to_logs() {
 	]);
 
 	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
-	let handler = pubsub.handler();
+	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
 	let mut io = MetaIoHandler::default();
@@ -158,7 +158,7 @@ fn should_subscribe_to_pending_transactions() {
 	let client = TestBlockChainClient::new();
 
 	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
-	let handler = pubsub.handler();
+	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
 	let mut io = MetaIoHandler::default();
