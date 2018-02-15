@@ -38,6 +38,7 @@
 //! }
 //! ```
 
+mod blockchain_client;
 mod miner;
 mod stratum;
 

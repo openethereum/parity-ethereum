@@ -17,8 +17,6 @@
 //! A service transactions contract checker.
 
 use ethereum_types::Address;
-use transaction::SignedTransaction;
-use types::ids::BlockId;
 
 use_contract!(service_transaction, "ServiceTransaction", "res/service_transaction.json");
 
@@ -30,7 +28,7 @@ pub trait ContractCaller {
 	fn registry_address(&self, name: &str) -> Option<Address>;
 
 	/// Executes a contract call at given block.
-	fn call_contract(&self, BlockId, Address, Vec<u8>) -> Result<Vec<u8>, String>;
+	fn call_contract(&self, Address, Vec<u8>) -> Result<Vec<u8>, String>;
 }
 
 /// Service transactions checker.
@@ -39,11 +37,16 @@ pub struct ServiceTransactionChecker {
 	contract: service_transaction::ServiceTransaction,
 }
 
-impl ServiceTransactionChecker {
-	/// Checks if service transaction can be appended to the transaction queue.
-	pub fn check(&self, client: &ContractCaller, tx: &SignedTransaction) -> Result<bool, String> {
-		assert!(tx.gas_price.is_zero());
+// TODO [ToDr] https://github.com/paritytech/ethabi/pull/84
+impl Clone for ServiceTransactionChecker {
+	fn clone(&self) -> Self {
+		Default::default()
+	}
+}
 
+impl ServiceTransactionChecker {
+	/// Checks if given address is whitelisted to send service transactions.
+	pub fn check(&self, client: &ContractCaller, sender: &Address) -> Result<bool, String> {
 		let address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME)
 			.ok_or_else(|| "contract is not configured")?;
 
@@ -51,7 +54,7 @@ impl ServiceTransactionChecker {
 
 		self.contract.functions()
 			.certified()
-			.call(tx.sender(), &|data| client.call_contract(BlockId::Latest, address, data))
+			.call(*sender, &|data| client.call_contract(address, data))
 			.map_err(|e| e.to_string())
 	}
 }

@@ -41,10 +41,8 @@ pub struct AccountDetails {
 pub enum TransactionType {
 	/// Regular transaction
 	Regular,
-	/// Service transaction (allowed by a contract)
+	/// Service transaction (allowed by a contract to have gas_price=0)
 	Service,
-	/// Denied transaction (disallowed by a contract)
-	Denied,
 }
 
 /// State client.

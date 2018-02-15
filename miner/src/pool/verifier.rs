@@ -61,17 +61,24 @@ pub enum Transaction {
 	///
 	/// We need to do full verification of such transactions
 	Unverified(transaction::UnverifiedTransaction),
+
+	/// Transaction from retracted block.
+	///
+	/// We could skip some parts of verification of such transactions
+	Retracted(transaction::UnverifiedTransaction),
+
 	/// Locally signed or retracted transaction.
 	///
 	/// We can skip consistency verifications and just verify readiness.
-	Pending(transaction::PendingTransaction),
+	Local(transaction::PendingTransaction),
 }
 
 impl Transaction {
 	fn hash(&self) -> H256 {
 		match *self {
 			Transaction::Unverified(ref tx) => tx.hash(),
-			Transaction::Pending(ref tx) => tx.transaction.hash(),
+			Transaction::Retracted(ref tx) => tx.hash(),
+			Transaction::Local(ref tx) => tx.transaction.hash(),
 		}
 	}
 }
@@ -109,16 +116,17 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 			bail!(transaction::Error::AlreadyImported)
 		}
 
-		let was_unverified = if let Transaction::Unverified(_) = tx { true } else { false };
+		let is_retracted = if let Transaction::Retracted(_) = tx { true } else { false };
+		let is_own = if let Transaction::Local(_) = tx { true } else { false };
 		let (tx, condition) = match tx {
-			Transaction::Unverified(tx) => match self.client.verify_transaction(tx) {
+			Transaction::Retracted(tx) | Transaction::Unverified(tx) => match self.client.verify_transaction(tx) {
 				Ok(signed) => (signed, None),
 				Err(err) => {
-					debug!(target: "txqueue", "Rejected tx {:?}: invalid signature: {:?}", hash, err);
+					debug!(target: "txqueue", "Rejected tx {:?}: {:?}", hash, err);
 					bail!(err)
 				},
 			},
-			Transaction::Pending(tx) => (tx.transaction, tx.condition),
+			Transaction::Local(tx) => (tx.transaction, tx.condition),
 		};
 
 		let gas_limit = cmp::min(self.options.tx_gas_limit, self.options.block_gas_limit);
@@ -150,18 +158,13 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 		}
 
 		let transaction_type = self.client.transaction_type(&tx);
-		if let TransactionType::Denied = transaction_type {
-			debug!(target: "txqueue", "Rejected tx {:?}: denied by contract.", hash);
-			bail!(transaction::Error::NotAllowed)
-		}
-
 		let sender = tx.sender();
 		let account_details = self.client.account_details(&sender);
 
 		if tx.gas_price < self.options.minimal_gas_price {
 			if let TransactionType::Service = transaction_type {
 				trace!(target: "txqueue", "Service tx {:?} below minimal gas price accepted", hash);
-			} else if account_details.is_local {
+			} else if is_own || account_details.is_local {
 				trace!(target: "txqueue", "Local tx {:?} below minimal gas price accepted", hash);
 			} else {
 				debug!(
@@ -204,10 +207,10 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 			bail!(transaction::Error::AlreadyImported);
 		}
 
-		let priority = match (account_details.is_local, was_unverified) {
+		let priority = match (account_details.is_local, is_retracted) {
 			(true, _) => super::Priority::Local,
-			(false, true) => super::Priority::Regular,
-			(false, false) => super::Priority::Retracted,
+			(false, false) => super::Priority::Regular,
+			(false, true) => super::Priority::Retracted,
 		};
 		Ok(VerifiedTransaction {
 			transaction: transaction::PendingTransaction {
