@@ -467,6 +467,26 @@ impl ClusterSessionsListener<EncryptionSession> for ServiceContractListener {
 			3) add RestoreDocumentKeyShadow API to service contract
 			4) remove GenerateDocumentKey and RestoreDocumentKey APIs from service contract
 
+			//
+
+			SK API:
+			request id is the key id
+			generate(kid, threshold)
+			retrieve(kid)
+				confirmRetrieval should also have a threshold argument
+			the only error that can occur is when several nodes are reporting different threshold
+			on error: remove request and report an error
+
+
+			DK API:
+			request id is the key id + requester
+			store(kid, doc_key)
+			retrieve(kid)
+
+			separate store and retrieve ops.
+			error can occur
+			error reported by any node leads to an error
+
 		*/
 		//42 // ^^^
 	}
