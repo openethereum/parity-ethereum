@@ -210,7 +210,7 @@ impl SocketAddrExt for IpAddr {
 	}
 }
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "android")))]
 mod getinterfaces {
 	use std::{mem, io, ptr};
 	use libc::{AF_INET, AF_INET6};
@@ -280,12 +280,12 @@ mod getinterfaces {
 	}
 }
 
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "android")))]
 fn get_if_addrs() -> io::Result<Vec<IpAddr>> {
 	getinterfaces::get_all()
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "android"))]
 fn get_if_addrs() -> io::Result<Vec<IpAddr>> {
 	Ok(Vec::new())
 }
