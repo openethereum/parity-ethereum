@@ -242,9 +242,10 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 
 /// Check basic header parameters.
 pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) -> Result<(), Error> {
-	if header.seal().len() != engine.seal_fields() {
+	let expected_seal_fields = engine.seal_fields(header);
+	if header.seal().len() != expected_seal_fields {
 		return Err(From::from(BlockError::InvalidSealArity(
-			Mismatch { expected: engine.seal_fields(), found: header.seal().len() }
+			Mismatch { expected: expected_seal_fields, found: header.seal().len() }
 		)));
 	}
 

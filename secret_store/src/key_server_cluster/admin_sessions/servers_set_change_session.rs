@@ -337,7 +337,7 @@ impl SessionImpl {
 		}
 
 		let unknown_sessions_job = UnknownSessionsJob::new_on_master(self.core.key_storage.clone(), self.core.meta.self_node_id.clone());
-		consensus_session.disseminate_jobs(unknown_sessions_job, self.unknown_sessions_transport())
+		consensus_session.disseminate_jobs(unknown_sessions_job, self.unknown_sessions_transport(), false)
 	}
 
 	/// When unknown sessions are requested.

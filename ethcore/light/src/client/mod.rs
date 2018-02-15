@@ -630,4 +630,8 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		self.block_header(id).map(|hdr| hdr.number())
 	}
+
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
+		Client::block_header(self, id)
+	}
 }
