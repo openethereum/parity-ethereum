@@ -279,7 +279,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn registrar_address(&self) -> Option<Address>;
 
 	/// Get the address of a particular blockchain service, if available.
-	fn registry_address(&self, name: String) -> Option<Address>;
+	fn registry_address(&self, name: String, block: BlockId) -> Option<Address>;
 
 	/// Get the EIP-86 transition block number.
 	fn eip86_transition(&self) -> u64;
@@ -339,6 +339,9 @@ pub trait EngineClient: Sync + Send {
 
 	/// Get a block number by ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
+
+	/// Get raw block header data by block id.
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 }
 
 /// Extended client interface for providing proofs of the state.

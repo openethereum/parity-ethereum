@@ -1238,7 +1238,7 @@ impl ServiceTransactionAction {
 
 impl<'a> ::ethcore_miner::service_transaction_checker::ContractCaller for &'a MiningBlockChainClient {
 	fn registry_address(&self, name: &str) -> Option<Address> {
-		MiningBlockChainClient::registry_address(*self, name.into())
+		MiningBlockChainClient::registry_address(*self, name.into(), BlockId::Latest)
 	}
 
 	fn call_contract(&self, block: BlockId, address: Address, data: Vec<u8>) -> Result<Vec<u8>, String> {

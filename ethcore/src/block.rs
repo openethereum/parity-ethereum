@@ -543,9 +543,11 @@ impl LockedBlock {
 	///
 	/// NOTE: This does not check the validity of `seal` with the engine.
 	pub fn seal(self, engine: &EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, BlockError> {
+		let expected_seal_fields = engine.seal_fields(self.header());
 		let mut s = self;
-		if seal.len() != engine.seal_fields() {
-			return Err(BlockError::InvalidSealArity(Mismatch{expected: engine.seal_fields(), found: seal.len()}));
+		if seal.len() != expected_seal_fields {
+			return Err(BlockError::InvalidSealArity(
+				Mismatch { expected: expected_seal_fields, found: seal.len() }));
 		}
 		s.block.header.set_seal(seal);
 		Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes })

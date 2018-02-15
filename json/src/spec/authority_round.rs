@@ -49,6 +49,12 @@ pub struct AuthorityRoundParams {
 	/// Maximum number of accepted uncles.
 	#[serde(rename="maximumUncleCount")]
 	pub maximum_uncle_count: Option<Uint>,
+	/// Block at which empty step messages should start.
+	#[serde(rename="emptyStepsTransition")]
+	pub empty_steps_transition: Option<Uint>,
+	/// Maximum number of accepted empty steps.
+	#[serde(rename="maximumEmptySteps")]
+	pub maximum_empty_steps: Option<Uint>,
 }
 
 /// Authority engine deserialization.

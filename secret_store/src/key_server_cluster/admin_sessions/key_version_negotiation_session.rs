@@ -191,9 +191,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		self.data.lock().continue_with = Some(action);
 	}
 
-	/// Get continue action.
-	pub fn continue_action(&self) -> Option<ContinueAction> {
-		self.data.lock().continue_with.clone()
+	/// Take continue action.
+	pub fn take_continue_action(&self) -> Option<ContinueAction> {
+		self.data.lock().continue_with.take()
 	}
 
 	/// Wait for session completion.
