@@ -80,6 +80,7 @@ impl<C> EthPubSubClient<C> {
 		let client = Self::new(client, remote);
 		*client.heads_subscribers.write() = Subscribers::new_test();
 		*client.logs_subscribers.write() = Subscribers::new_test();
+		*client.transactions_subscribers.write() = Subscribers::new_test();
 		client
 	}
 
@@ -299,7 +300,8 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 	fn unsubscribe(&self, id: SubscriptionId) -> Result<bool> {
 		let res = self.heads_subscribers.write().remove(&id).is_some();
 		let res2 = self.logs_subscribers.write().remove(&id).is_some();
+		let res3 = self.transactions_subscribers.write().remove(&id).is_some();
 
-		Ok(res || res2)
+		Ok(res || res2 || res3)
 	}
 }
