@@ -178,7 +178,7 @@ impl ContentValidator for Dapp {
 			// First find manifest file
 			let (mut manifest, manifest_dir) = Self::find_manifest(&mut zip)?;
 			// Overwrite id to match hash
-			manifest.id = id;
+			manifest.id = Some(id);
 
 			// Unpack zip
 			for i in 0..zip.len() {
