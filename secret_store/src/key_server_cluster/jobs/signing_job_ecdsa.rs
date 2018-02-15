@@ -50,6 +50,7 @@ pub struct EcdsaPartialSigningRequest {
 }
 
 /// Signing job partial response.
+#[derive(Clone)]
 pub struct EcdsaPartialSigningResponse {
 	/// Request id.
 	pub request_id: Secret,

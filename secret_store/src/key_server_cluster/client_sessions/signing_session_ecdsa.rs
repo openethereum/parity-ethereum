@@ -989,7 +989,7 @@ impl SessionCore {
 
 		let key_version = key_share.version(version).map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
 		let signing_job = EcdsaSigningJob::new_on_master(key_share.clone(), key_version, nonce_public, inv_nonce_share, inversed_nonce_coeff, message_hash)?;
-		consensus_session.disseminate_jobs(signing_job, self.signing_transport())
+		consensus_session.disseminate_jobs(signing_job, self.signing_transport(), false)
 	}
 }
 
