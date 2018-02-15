@@ -20,8 +20,13 @@ pub use apps::App as Manifest;
 pub const MANIFEST_FILENAME: &'static str = "manifest.json";
 
 pub fn deserialize_manifest(manifest: String) -> Result<Manifest, String> {
-	serde_json::from_str::<Manifest>(&manifest).map_err(|e| format!("{:?}", e))
-	// TODO [todr] Manifest validation (especialy: id (used as path))
+	let mut manifest = serde_json::from_str::<Manifest>(&manifest).map_err(|e| format!("{:?}", e))?;
+	if manifest.id.is_none() {
+		return Err("App 'id' is missing.".into());
+	}
+	manifest.allow_js_eval = Some(manifest.allow_js_eval.unwrap_or(false));
+
+	Ok(manifest)
 }
 
 pub fn serialize_manifest(manifest: &Manifest) -> Result<String, String> {
