@@ -1483,7 +1483,7 @@ mod tests {
 	use receipt::{Receipt, TransactionOutcome};
 	use blockchain::{BlockProvider, BlockChain, Config, ImportRoute};
 	use tests::helpers::*;
-	use blockchain::generator::{BlockGenerator, BlockBuilder, BlockMetadata};
+	use blockchain::generator::{BlockGenerator, BlockBuilder, BlockOptions};
 	use blockchain::extras::TransactionAddress;
 	use transaction::{Transaction, Action};
 	use log_entry::{LogEntry, LocalizedLogEntry};
@@ -1703,7 +1703,7 @@ mod tests {
 		let b1a = genesis.add_block_with_transactions(vec![t1.clone(), t2.clone()]);
 		// insert transactions in different order,
 		// the block has lower difficulty, so the hash is also different
-		let b1b = genesis.add_block_with(|| BlockMetadata {
+		let b1b = genesis.add_block_with(|| BlockOptions {
 			difficulty: 9.into(),
 			transactions: vec![t2.clone(), t1.clone()],
 			..Default::default()
@@ -2113,7 +2113,7 @@ mod tests {
 		let bloom_ba: Bloom = "00000000000000000000000000000000000000000000020000000800000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000008000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".into();
 
 		let genesis = BlockBuilder::genesis();
-		let b1 = genesis.add_block_with(|| BlockMetadata {
+		let b1 = genesis.add_block_with(|| BlockOptions {
 			bloom: bloom_b1.clone(),
 			difficulty: 9.into(),
 			..Default::default()
@@ -2280,7 +2280,7 @@ mod tests {
 		use ::engines::EpochTransition;
 
 		let genesis = BlockBuilder::genesis();
-		let fork_7 = genesis.add_blocks_with(7, || BlockMetadata {
+		let fork_7 = genesis.add_blocks_with(7, || BlockOptions {
 			difficulty: 9.into(),
 			..Default::default()
 		});

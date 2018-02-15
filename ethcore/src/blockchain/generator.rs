@@ -56,15 +56,15 @@ impl Block {
 }
 
 #[derive(Debug)]
-pub struct BlockMetadata {
+pub struct BlockOptions {
 	pub difficulty: U256,
 	pub bloom: Bloom,
 	pub transactions: Vec<SignedTransaction>,
 }
 
-impl Default for BlockMetadata {
+impl Default for BlockOptions {
 	fn default() -> Self {
-		BlockMetadata {
+		BlockOptions {
 			difficulty: 10.into(),
 			bloom: Bloom::default(),
 			transactions: Vec::new(),
@@ -89,23 +89,23 @@ impl BlockBuilder {
 
 	#[inline]
 	pub fn add_block(&self) -> Self {
-		self.add_block_with(|| BlockMetadata::default())
+		self.add_block_with(|| BlockOptions::default())
 	}
 
 	#[inline]
 	pub fn add_blocks(&self, count: usize) -> Self {
-		self.add_blocks_with(count, || BlockMetadata::default())
+		self.add_blocks_with(count, || BlockOptions::default())
 	}
 
 	#[inline]
-	pub fn add_block_with<T>(&self, get_metadata: T) -> Self where T: Fn() -> BlockMetadata {
+	pub fn add_block_with<T>(&self, get_metadata: T) -> Self where T: Fn() -> BlockOptions {
 		self.add_blocks_with(1, get_metadata)
 	}
 
 	#[inline]
 	pub fn add_block_with_difficulty<T>(&self, difficulty: T) -> Self where T: Into<U256> {
 		let difficulty = difficulty.into();
-		self.add_blocks_with(1, move || BlockMetadata {
+		self.add_blocks_with(1, move || BlockOptions {
 			difficulty,
 			..Default::default()
 		})
@@ -115,7 +115,7 @@ impl BlockBuilder {
 	pub fn add_block_with_transactions<T>(&self, transactions: T) -> Self
 		where T: IntoIterator<Item = SignedTransaction> {
 		let transactions = transactions.into_iter().collect::<Vec<_>>();
-		self.add_blocks_with(1, || BlockMetadata {
+		self.add_blocks_with(1, || BlockOptions {
 			transactions: transactions.clone(),
 			..Default::default()
 		})
@@ -123,13 +123,13 @@ impl BlockBuilder {
 
 	#[inline]
 	pub fn add_block_with_bloom(&self, bloom: Bloom) -> Self {
-		self.add_blocks_with(1, move || BlockMetadata {
+		self.add_blocks_with(1, move || BlockOptions {
 			bloom,
 			..Default::default()
 		})
 	}
 
-	pub fn add_blocks_with<T>(&self, count: usize, get_metadata: T) -> Self where T: Fn() -> BlockMetadata {
+	pub fn add_blocks_with<T>(&self, count: usize, get_metadata: T) -> Self where T: Fn() -> BlockOptions {
 		assert!(count > 0, "There must be at least 1 block");
 		let mut parent_hash = self.last().hash();
 		let mut parent_number = self.last().number();
@@ -195,14 +195,14 @@ impl Iterator for BlockGenerator {
 
 #[cfg(test)]
 mod tests {
-	use super::{BlockBuilder, BlockMetadata, BlockGenerator};
+	use super::{BlockBuilder, BlockOptions, BlockGenerator};
 
 	#[test]
 	fn test_block_builder() {
 		let genesis = BlockBuilder::genesis();
 		let block_1 = genesis.add_block();
 		let block_1001 = block_1.add_blocks(1000);
-		let block_1002 = block_1001.add_block_with(|| BlockMetadata::default());
+		let block_1002 = block_1001.add_block_with(|| BlockOptions::default());
 		let generator = BlockGenerator::new(vec![genesis, block_1, block_1001, block_1002]);
 		assert_eq!(generator.count(), 1003);
 	}
