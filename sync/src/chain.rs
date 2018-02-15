@@ -2232,7 +2232,7 @@ impl ChainSync {
 		match self.private_tx_provider {
 			Some(ref private_provider) => {
 				if let Err(e) = private_provider.import_private_transaction(r.as_raw()) {
-					debug!("Ignoring the message, error queueing: {}", e);
+					trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
 				}
 			}
 			None => trace!(target: "sync", "Private transaction manager is not iniitalized, ignoring packet"),
@@ -2260,7 +2260,7 @@ impl ChainSync {
 		match self.private_tx_provider {
 			Some(ref private_provider) => {
 				if let Err(e) = private_provider.import_signed_private_transaction(r.as_raw()) {
-					debug!("Ignoring the message, error queueing: {}", e);
+					trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
 				}
 			}
 			None => trace!(target: "sync", "Private transaction manager is not iniitalized, ignoring packet"),

@@ -20,7 +20,7 @@ use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 
 use light_sync::*;
-use tests::helpers::{TestNet, Peer as PeerLike, TestPacket, IOMessage, NewBlockMessage};
+use tests::helpers::{TestNet, Peer as PeerLike, TestPacket};
 
 use ethcore::client::TestBlockChainClient;
 use ethcore::spec::Spec;
@@ -205,29 +205,9 @@ impl PeerLike for Peer {
 
 	fn restart_sync(&self) { }
 
-	fn prune_io_messages(&self) {
-		unimplemented!();
-	}
+	fn process_all_io_messages(&self) { }
 
-	fn process_io_message(&self, _message: IOMessage) {
-		unimplemented!();
-	}
-
-	fn is_io_queue_empty(&self) -> bool {
-		true
-	}
-
-	fn prune_new_block_messages(&self) {
-		unimplemented!();
-	}
-
-	fn process_new_block_message(&self, _message: NewBlockMessage) {
-		unimplemented!();
-	}
-
-	fn is_new_blocks_queue_empty(&self) -> bool {
-		true
-	}
+	fn process_all_new_block_messages(&self) { }
 }
 
 impl TestNet<Peer> {

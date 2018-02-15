@@ -288,11 +288,12 @@ impl Provider where {
 
 	/// Retrieve and verify the first available private transaction for every sender
 	fn process_queue(&self) -> Result<(), PrivateTransactionError> {
-		let ready_transactions = self.transactions_for_verification.lock().ready_transactions();
+		let mut verification_queue = self.transactions_for_verification.lock();
+		let ready_transactions = verification_queue.ready_transactions();
 		let fetch_nonce = |a: &Address| self.client.latest_nonce(a);
 		for transaction in ready_transactions {
 			let transaction_hash = transaction.hash();
-			match self.transactions_for_verification.lock().private_transaction_descriptor(&transaction_hash) {
+			match verification_queue.private_transaction_descriptor(&transaction_hash) {
 				Ok(desc) => {
 					match self.config.validator_accounts.iter().find(|&&account| account == desc.validator_account) {
 						Some(account) => {
@@ -313,7 +314,7 @@ impl Provider where {
 				},
 				Err(e) => trace!("Cannot retrieve descriptor for transaction with error {:?}", e),
 			}
-			self.transactions_for_verification.lock().remove_private_transaction(&transaction_hash, &fetch_nonce);
+			verification_queue.remove_private_transaction(&transaction_hash, &fetch_nonce);
 		}
 		Ok(())
 	}
