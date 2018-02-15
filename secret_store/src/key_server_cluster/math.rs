@@ -54,6 +54,18 @@ pub fn generate_random_point() -> Result<Public, Error> {
 	Ok(Random.generate()?.public().clone())
 }
 
+/// Get X coordinate of point.
+#[cfg(test)]
+fn public_x(public: &Public) -> H256 {
+	public[0..32].into()
+}
+
+/// Get Y coordinate of point.
+#[cfg(test)]
+fn public_y(public: &Public) -> H256 {
+	public[32..64].into()
+}
+
 /// Compute publics sum.
 pub fn compute_public_sum<'a, I>(mut publics: I) -> Result<Public, Error> where I: Iterator<Item=&'a Public> {
 	let mut sum = publics.next().expect("compute_public_sum is called when there's at least one public; qed").clone();
@@ -429,11 +441,10 @@ pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_h
 	Ok(combined_hash == signature.0)
 }
 
-
 /// Compute R part of ECDSA signature.
 #[cfg(test)]
 pub fn compute_ecdsa_r(nonce_public: &Public) -> Result<Secret, Error> {
-	to_scalar(nonce_public[0..32].into())
+	to_scalar(public_x(nonce_public))
 }
 
 /// Compute share of S part of ECDSA signature.
@@ -468,11 +479,8 @@ pub fn compute_ecdsa_s(t: usize, signature_s_shares: &[Secret], id_numbers: &[Se
 pub fn serialize_ecdsa_signature(nonce_public: &Public, signature_r: Secret, mut signature_s: Secret) -> Signature {
 	// compute recvery param
 	let mut signature_v = {
-		let nonce_public_x = &nonce_public[0..32];
-		let nonce_public_x: U256 = nonce_public_x.into();
-		let nonce_public_x: H256 = nonce_public_x.into();
-		let nonce_public_y = &nonce_public[32..64];
-		let nonce_public_y: U256 = nonce_public_y.into();
+		let nonce_public_x = public_x(nonce_public);
+		let nonce_public_y: U256 = public_y(nonce_public).into();
 		let nonce_public_y_is_odd = !(nonce_public_y % 2.into()).is_zero();
 		let bit0 = if nonce_public_y_is_odd { 1u8 } else { 0u8 };
 		let bit1 = if nonce_public_x != *signature_r { 2u8 } else { 0u8 };
@@ -907,7 +915,8 @@ pub mod tests {
 
 			// compute shares for s portion of signature: nonce_inv * (message_hash + secret * signature_r)
 			// every node broadcasts this share
-			let signature_s_shares: Vec<_> = (0..n).map(|i| compute_ecdsa_s_share(
+			let double_t = 2 * t;
+			let signature_s_shares: Vec<_> = (0..double_t+1).map(|i| compute_ecdsa_s_share(
 				&nonce_inv_shares[i],
 				&mul_shares[i],
 				&signature_r,
@@ -915,7 +924,10 @@ pub mod tests {
 			).unwrap()).collect();
 
 			// compute signature_s from received shares
-			let signature_s = compute_ecdsa_s(t, &signature_s_shares, &artifacts.id_numbers).unwrap();
+			let signature_s = compute_ecdsa_s(t,
+				&signature_s_shares,
+				&artifacts.id_numbers.iter().take(double_t + 1).cloned().collect::<Vec<_>>()
+			).unwrap();
 
 			// check signature
 			let signature_actual = serialize_ecdsa_signature(&nonce_public, signature_r, signature_s);
