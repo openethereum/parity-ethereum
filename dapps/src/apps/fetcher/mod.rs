@@ -319,12 +319,14 @@ mod tests {
 		).allow_dapps(true);
 
 		let handler = local::Dapp::new(pool, path, EndpointInfo {
+			id: None,
 			name: "fake".into(),
 			description: "".into(),
 			version: "".into(),
 			author: "".into(),
 			icon_url: "".into(),
 			local_url: Some("".into()),
+			allow_js_eval: None,
 		}, Default::default(), None);
 
 		// when

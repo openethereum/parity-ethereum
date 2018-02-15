@@ -52,6 +52,16 @@ pub fn generate_random_point() -> Result<Public, Error> {
 	Ok(Random.generate()?.public().clone())
 }
 
+/// Get X coordinate of point.
+fn public_x(public: &Public) -> H256 {
+	public[0..32].into()
+}
+
+/// Get Y coordinate of point.
+fn public_y(public: &Public) -> H256 {
+	public[32..64].into()
+}
+
 /// Compute publics sum.
 pub fn compute_public_sum<'a, I>(mut publics: I) -> Result<Public, Error> where I: Iterator<Item=&'a Public> {
 	let mut sum = publics.next().expect("compute_public_sum is called when there's at least one public; qed").clone();
@@ -433,10 +443,9 @@ pub fn verify_schnorr_signature(public: &Public, signature: &(Secret, Secret), m
 	Ok(combined_hash == signature.0)
 }
 
-
 /// Compute R part of ECDSA signature.
 pub fn compute_ecdsa_r(nonce_public: &Public) -> Result<Secret, Error> {
-	to_scalar(nonce_public[0..32].into())
+	to_scalar(public_x(nonce_public))
 }
 
 /// Compute share of S part of ECDSA signature.
@@ -466,13 +475,10 @@ pub fn compute_ecdsa_s(t: usize, signature_s_shares: &[Secret], id_numbers: &[Se
 
 /// Serialize ECDSA signature to [r][s]v form.
 pub fn serialize_ecdsa_signature(nonce_public: &Public, signature_r: Secret, mut signature_s: Secret) -> Signature {
-	// compute recvery param
+	// compute recovery param
 	let mut signature_v = {
-		let nonce_public_x = &nonce_public[0..32];
-		let nonce_public_x: U256 = nonce_public_x.into();
-		let nonce_public_x: H256 = nonce_public_x.into();
-		let nonce_public_y = &nonce_public[32..64];
-		let nonce_public_y: U256 = nonce_public_y.into();
+		let nonce_public_x = public_x(nonce_public);
+		let nonce_public_y: U256 = public_y(nonce_public).into();
 		let nonce_public_y_is_odd = !(nonce_public_y % 2.into()).is_zero();
 		let bit0 = if nonce_public_y_is_odd { 1u8 } else { 0u8 };
 		let bit1 = if nonce_public_x != *signature_r { 2u8 } else { 0u8 };
@@ -604,7 +610,7 @@ pub mod tests {
 
 	fn run_zero_key_generation(t: usize, n: usize, id_numbers: &[Secret]) -> ZeroGenerationArtifacts {
 		// data, generated during keys dissemination
-		let polynoms1 = prepare_polynoms1(t, n, Some(Secret::zero()));
+		let polynoms1 = prepare_polynoms1(t, n, Some(zero_scalar()));
 		let secrets1: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms1[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
 
 		// data, generated during keys generation
@@ -688,8 +694,8 @@ pub mod tests {
 
 	fn run_reciprocal_protocol(t: usize, artifacts: &KeyGenerationArtifacts) -> Vec<Secret> {
 		// === Given a secret x mod r which is shared among n players, it is
-		// === required to generate shares of 1/x mod r with out revealing
-		// === any information about x or 1/x.
+		// === required to generate shares of inv(x) mod r with out revealing
+		// === any information about x or inv(x).
 		// === https://www.researchgate.net/publication/280531698_Robust_Threshold_Elliptic_Curve_Digital_Signature
 	
 		// generate shared random secret e for given t
@@ -710,7 +716,7 @@ pub mod tests {
 			&artifacts.id_numbers.iter().take(2*t + 1).cloned().collect::<Vec<_>>(),
 			&ui.iter().take(2*t + 1).cloned().collect::<Vec<_>>()).unwrap();
 
-		// each player Pi computes his share of 1/x as e[i] * 1/u
+		// each player Pi computes his share of inv(x) as e[i] * inv(u)
 		let x_inv_shares: Vec<_> = (0..n).map(|i| {
 			let mut x_inv_share = e_artifacts.secret_shares[i].clone();
 			x_inv_share.mul(&u_inv).unwrap();
@@ -897,7 +903,7 @@ pub mod tests {
 			let nonce_public = compute_joint_public(nonce_public_shares.iter()).unwrap();
 			let signature_r = compute_ecdsa_r(&nonce_public).unwrap();
 
-			// compute shares of 1/nonce so that both nonce && 1/nonce are still unknown to all nodes
+			// compute shares of inv(nonce) so that both nonce && inv(nonce) are still unknown to all nodes
 			let nonce_inv_shares = run_reciprocal_protocol(t, &nonce_artifacts);
 
 			// compute multiplication of secret-shares * inv-nonce-shares
@@ -905,7 +911,8 @@ pub mod tests {
 
 			// compute shares for s portion of signature: nonce_inv * (message_hash + secret * signature_r)
 			// every node broadcasts this share
-			let signature_s_shares: Vec<_> = (0..n).map(|i| compute_ecdsa_s_share(
+			let double_t = 2 * t;
+			let signature_s_shares: Vec<_> = (0..double_t+1).map(|i| compute_ecdsa_s_share(
 				&nonce_inv_shares[i],
 				&mul_shares[i],
 				&signature_r,
@@ -913,7 +920,10 @@ pub mod tests {
 			).unwrap()).collect();
 
 			// compute signature_s from received shares
-			let signature_s = compute_ecdsa_s(t, &signature_s_shares, &artifacts.id_numbers).unwrap();
+			let signature_s = compute_ecdsa_s(t,
+				&signature_s_shares,
+				&artifacts.id_numbers.iter().take(double_t + 1).cloned().collect::<Vec<_>>()
+			).unwrap();
 
 			// check signature
 			let signature_actual = serialize_ecdsa_signature(&nonce_public, signature_r, signature_s);

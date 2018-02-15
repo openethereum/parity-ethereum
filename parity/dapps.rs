@@ -293,7 +293,7 @@ mod server {
 			self.endpoints.list()
 				.into_iter()
 				.map(|app| rpc_apis::LocalDapp {
-					id: app.id,
+					id: app.id.unwrap_or_else(|| "unknown".into()),
 					name: app.name,
 					description: app.description,
 					version: app.version,
