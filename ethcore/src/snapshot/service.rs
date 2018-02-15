@@ -623,12 +623,12 @@ mod tests {
 	use std::sync::Arc;
 	use service::ClientIoMessage;
 	use io::{IoService};
-	use devtools::RandomTempPath;
 	use tests::helpers::get_test_spec;
 	use journaldb::Algorithm;
 	use error::Error;
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
+	use tempdir::TempDir;
 
 	struct NoopDBRestore;
 	impl DatabaseRestore for NoopDBRestore {
@@ -642,11 +642,8 @@ mod tests {
 		let service = IoService::<ClientIoMessage>::start().unwrap();
 		let spec = get_test_spec();
 
-		let dir = RandomTempPath::new();
-		let mut dir = dir.as_path().to_owned();
-		let mut client_db = dir.clone();
-		dir.push("snapshot");
-		client_db.push("client");
+		let tempdir = TempDir::new("").unwrap();
+		let dir = tempdir.path().join("snapshot");
 
 		let snapshot_params = ServiceParams {
 			engine: spec.engine.clone(),
@@ -685,7 +682,7 @@ mod tests {
 		use kvdb_rocksdb::DatabaseConfig;
 
 		let spec = get_test_spec();
-		let dir = RandomTempPath::new();
+		let tempdir = TempDir::new("").unwrap();
 
 		let state_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();
 		let block_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();
@@ -703,7 +700,7 @@ mod tests {
 				block_hash: H256::default(),
 			},
 			pruning: Algorithm::Archive,
-			db_path: dir.as_path().to_owned(),
+			db_path: tempdir.path().to_owned(),
 			db_config: &db_config,
 			writer: None,
 			genesis: &gb,

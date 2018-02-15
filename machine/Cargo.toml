@@ -5,4 +5,4 @@ description = "Generalization of a state machine for consensus engines"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethereum-types = "0.1"
+ethereum-types = "0.2"

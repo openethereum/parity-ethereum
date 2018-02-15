@@ -80,17 +80,16 @@ extern crate path;
 extern crate ethcore_logger;
 extern crate ipnetwork;
 extern crate keccak_hash as hash;
+extern crate serde;
 extern crate serde_json;
 extern crate snappy;
 
 #[macro_use]
 extern crate error_chain;
-
 #[macro_use]
 extern crate log;
-
-#[cfg(test)]
-extern crate ethcore_devtools as devtools;
+#[macro_use]
+extern crate serde_derive;
 
 #[cfg(test)]
 extern crate tempdir;
@@ -210,4 +209,3 @@ pub enum AllowIP {
     /// Block all addresses
     None,
 }
-

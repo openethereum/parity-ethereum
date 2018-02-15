@@ -220,7 +220,7 @@ impl EthereumMachine {
 					let total_lower_limit = cmp::max(lower_limit, gas_floor_target);
 					let total_upper_limit = cmp::min(upper_limit, gas_ceil_target);
 					let gas_limit = cmp::max(gas_floor_target, cmp::min(total_upper_limit,
-						lower_limit + (header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor));
+						lower_limit + (header.gas_used().clone() * 6u32 / 5.into()) / bound_divisor));
 					round_block_gas_limit(gas_limit, total_lower_limit, total_upper_limit)
 				};
 				// ensure that we are not violating protocol limits
@@ -384,7 +384,7 @@ impl EthereumMachine {
 	/// Additional params.
 	pub fn additional_params(&self) -> HashMap<String, String> {
 		hash_map![
-			"registrar".to_owned() => self.params.registrar.hex()
+			"registrar".to_owned() => format!("{:x}", self.params.registrar)
 		]
 	}
 }

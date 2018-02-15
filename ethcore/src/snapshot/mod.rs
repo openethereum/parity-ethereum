@@ -181,8 +181,8 @@ pub fn chunk_secondary<'a>(mut chunker: Box<SnapshotComponents>, chain: &'a Bloc
 			let size = compressed.len();
 
 			writer.lock().write_block_chunk(hash, compressed)?;
-			trace!(target: "snapshot", "wrote secondary chunk. hash: {}, size: {}, uncompressed size: {}",
-				hash.hex(), size, raw_data.len());
+			trace!(target: "snapshot", "wrote secondary chunk. hash: {:x}, size: {}, uncompressed size: {}",
+				hash, size, raw_data.len());
 
 			progress.size.fetch_add(size, Ordering::SeqCst);
 			chunk_hashes.push(hash);

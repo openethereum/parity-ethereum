@@ -17,7 +17,6 @@
 //! VM Output display utils.
 
 use std::time::Duration;
-use ethereum_types::U256;
 
 pub mod json;
 pub mod std_json;
@@ -31,14 +30,4 @@ pub fn format_time(time: &Duration) -> String {
 /// Formats the time as microseconds.
 pub fn as_micros(time: &Duration) -> u64 {
 	time.as_secs() * 1_000_000 + time.subsec_nanos() as u64 / 1_000
-}
-
-/// Converts U256 into string.
-/// TODO Overcomes: https://github.com/paritytech/bigint/issues/13
-pub fn u256_as_str(v: &U256) -> String {
-	if v.is_zero() {
-		"\"0x0\"".into()
-	} else {
-		format!("\"{:x}\"", v)
-	}
 }

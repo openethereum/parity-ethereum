@@ -173,8 +173,8 @@ impl StratumJobDispatcher {
 		let seed_hash = &self.seed_compute.lock().hash_block_number(number);
 		let seed_hash = H256::from_slice(&seed_hash[..]);
 		format!(
-			r#"["0x", "0x{}","0x{}","0x{}","0x{:x}"]"#,
-			pow_hash.hex(), seed_hash.hex(), target.hex(), number
+			r#"["0x", "0x{:x}","0x{:x}","0x{:x}","0x{:x}"]"#,
+			pow_hash, seed_hash, target, number
 		)
 	}
 

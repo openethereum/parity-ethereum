@@ -169,7 +169,18 @@ pub struct AttachedProtocol {
 }
 
 impl AttachedProtocol {
-	fn register(&self, _network: &NetworkService) {}
+	fn register(&self, network: &NetworkService) {
+		let res = network.register_protocol(
+			self.handler.clone(),
+			self.protocol_id,
+			self.packet_count,
+			self.versions
+		);
+
+		if let Err(e) = res {
+			warn!(target: "sync", "Error attaching protocol {:?}: {:?}", self.protocol_id, e);
+		}
+	}
 }
 
 /// EthSync initialization parameters.
@@ -282,7 +293,7 @@ impl SyncProvider for EthSync {
 				};
 
 				Some(PeerInfo {
-					id: session_info.id.map(|id| id.hex()),
+					id: session_info.id.map(|id| format!("{:x}", id)),
 					client_version: session_info.client_version,
 					capabilities: session_info.peer_capabilities.into_iter().map(|c| c.to_string()).collect(),
 					remote_address: session_info.remote_address,
@@ -810,7 +821,7 @@ impl LightSyncProvider for LightSync {
 				};
 
 				Some(PeerInfo {
-					id: session_info.id.map(|id| id.hex()),
+					id: session_info.id.map(|id| format!("{:x}", id)),
 					client_version: session_info.client_version,
 					capabilities: session_info.peer_capabilities.into_iter().map(|c| c.to_string()).collect(),
 					remote_address: session_info.remote_address,

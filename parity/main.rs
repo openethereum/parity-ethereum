@@ -48,7 +48,6 @@ extern crate toml;
 
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
-extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
@@ -97,6 +96,9 @@ extern crate pretty_assertions;
 #[cfg(windows)] extern crate ws2_32;
 #[cfg(windows)] extern crate winapi;
 
+#[cfg(test)]
+extern crate tempdir;
+
 mod account;
 mod blockchain;
 mod cache;
@@ -142,7 +144,7 @@ fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
 		let mut f = BufReader::new(File::open(&file).map_err(|_| "Unable to open file".to_owned())?);
 		let hash = keccak_buffer(&mut f).map_err(|_| "Unable to read from file".to_owned())?;
-		Ok(hash.hex())
+		Ok(format!("{:x}", hash))
 	} else {
 		Err("Streaming from standard input not yet supported. Specify a file.".to_owned())
 	}

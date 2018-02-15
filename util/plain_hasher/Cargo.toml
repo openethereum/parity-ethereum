@@ -9,4 +9,4 @@ homepage = "https://github.com/paritytech/plain_hasher"
 
 [dependencies]
 crunchy = "0.1.6"
-ethereum-types = "0.1"
+ethereum-types = "0.2"

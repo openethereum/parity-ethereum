@@ -276,7 +276,7 @@ impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 		let mut result = bytes;
 		for _ in 0..items {
 			let i = BasicDecoder::payload_info(result)?;
-			result = UntrustedRlp::consume(result, (i.header_len + i.value_len))?;
+			result = UntrustedRlp::consume(result, i.header_len + i.value_len)?;
 		}
 		Ok(result)
 	}

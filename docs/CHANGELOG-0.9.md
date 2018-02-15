@@ -1,3 +1,4 @@
+Note: Parity 0.9 reached End-of-Life on 2016-05-02 (EOL).
 
 ## Parity [beta-0.9.1](https://github.com/paritytech/parity/releases/tag/beta-0.9.1) (2016-02-16)
 

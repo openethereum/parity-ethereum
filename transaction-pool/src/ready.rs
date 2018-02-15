@@ -40,3 +40,15 @@ impl<T, F> Ready<T> for F where F: FnMut(&T) -> Readiness {
 		(*self)(tx)
 	}
 }
+
+impl<T, A, B> Ready<T> for (A, B) where
+	A: Ready<T>,
+	B: Ready<T>,
+{
+	fn is_ready(&mut self, tx: &T) -> Readiness {
+		match self.0.is_ready(tx) {
+			Readiness::Ready => self.1.is_ready(tx),
+			r => r,
+		}
+	}
+}

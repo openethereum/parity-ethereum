@@ -28,7 +28,7 @@ use engines::EthEngine;
 use snapshot::{StateRebuilder};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 
-use devtools::{RandomTempPath, GuardedTempResult};
+use tempdir::TempDir;
 use rand::Rng;
 
 use kvdb::{KeyValueDB, DBValue};
@@ -137,22 +137,20 @@ pub fn compare_dbs(one: &HashDB, two: &HashDB) {
 
 /// Take a snapshot from the given client into a temporary file.
 /// Return a snapshot reader for it.
-pub fn snap(client: &Client) -> GuardedTempResult<Box<SnapshotReader>> {
+pub fn snap(client: &Client) -> (Box<SnapshotReader>, TempDir) {
 	use ids::BlockId;
 
-	let dir = RandomTempPath::new();
-	let writer = PackedWriter::new(dir.as_path()).unwrap();
+	let tempdir = TempDir::new("").unwrap();
+	let path = tempdir.path().join("file");
+	let writer = PackedWriter::new(&path).unwrap();
 	let progress = Default::default();
 
 	let hash = client.chain_info().best_block_hash;
 	client.take_snapshot(writer, BlockId::Hash(hash), &progress).unwrap();
 
-	let reader = PackedReader::new(dir.as_path()).unwrap().unwrap();
+	let reader = PackedReader::new(&path).unwrap().unwrap();
 
-	GuardedTempResult {
-		result: Some(Box::new(reader)),
-		_temp: dir,
-	}
+	(Box::new(reader), tempdir)
 }
 
 /// Restore a snapshot into a given database. This will read chunks from the given reader

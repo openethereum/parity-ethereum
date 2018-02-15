@@ -1,3 +1,22 @@
+Note: Parity 1.7 reached End-of-Life on 2018-01-25 (EOL).
+
+### Parity [v1.7.13](https://github.com/paritytech/parity/releases/tag/v1.7.13) (2018-01-23)
+
+Parity 1.7.13 is a bug-fix release to improve stability of PoA-networks. Users on Kovan or other Aura-based networks are advised to upgrade as this release fixes an issue introduced with 1.7.12 that causes Proof-of-Authority nodes to stop synchronizing the chain.
+
+The full list of included changes:
+
+- AuRa fix for 1.7.x series ([#7666](https://github.com/paritytech/parity/pull/7666))
+  - Fix Temporarily Invalid blocks handling ([#7613](https://github.com/paritytech/parity/pull/7613))
+    - Handle temporarily invalid blocks in sync.
+    - Fix tests.
+    - Bump rustc-serialize
+    - Bump version.
+    - Update .gitlab-ci.yml
+    - Fix lint
+    - Remove slash from gitlab ci script to fix builds
+    - Start build.
+
 ### Parity [v1.7.12](https://github.com/paritytech/parity/releases/tag/v1.7.12) (2018-01-09)
 
 Parity 1.7.12 is a bug-fix release to improve performance and stability.
@@ -133,8 +152,8 @@ The full list of included changes:
   - Always fetch meta data first [badges]
 - Backport ([#6726](https://github.com/paritytech/parity/pull/6726))
   - Check vouch status on appId in addition to contentHash ([#6719](https://github.com/paritytech/parity/pull/6719))
-	  - Check vouch status on appId in addition to contentHash
-	  - Simplify var expansion
+    - Check vouch status on appId in addition to contentHash
+    - Simplify var expansion
   - Merge [#6725](https://github.com/paritytech/parity/pull/6725)
     - Update new token fetching
     - Working Certifications Monitoring

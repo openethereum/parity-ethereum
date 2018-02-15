@@ -16,6 +16,10 @@
 
 //! State snapshotting tests.
 
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use hash::{KECCAK_NULL_RLP, keccak};
+
 use basic_account::BasicAccount;
 use snapshot::account;
 use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder};
@@ -30,11 +34,7 @@ use journaldb::{self, Algorithm};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use memorydb::MemoryDB;
 use parking_lot::Mutex;
-use devtools::RandomTempPath;
-
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-use hash::{KECCAK_NULL_RLP, keccak};
+use tempdir::TempDir;
 
 #[test]
 fn snap_and_restore() {
@@ -47,9 +47,8 @@ fn snap_and_restore() {
 		producer.tick(&mut rng, &mut old_db);
 	}
 
-	let snap_dir = RandomTempPath::create_dir();
-	let mut snap_file = snap_dir.as_path().to_owned();
-	snap_file.push("SNAP");
+	let tempdir = TempDir::new("").unwrap();
+	let snap_file = tempdir.path().join("SNAP");
 
 	let state_root = producer.state_root();
 	let writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
@@ -65,8 +64,7 @@ fn snap_and_restore() {
 		block_hash: H256::default(),
 	}).unwrap();
 
-	let mut db_path = snap_dir.as_path().to_owned();
-	db_path.push("db");
+	let db_path = tempdir.path().join("db");
 	let db = {
 		let new_db = Arc::new(Database::open(&db_cfg, &db_path.to_string_lossy()).unwrap());
 		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::OverlayRecent);
@@ -131,9 +129,9 @@ fn get_code_from_prev_chunk() {
 	let chunk1 = make_chunk(acc.clone(), h1);
 	let chunk2 = make_chunk(acc, h2);
 
-	let db_path = RandomTempPath::create_dir();
+	let tempdir = TempDir::new("").unwrap();
 	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let new_db = Arc::new(Database::open(&db_cfg, &db_path.to_string_lossy()).unwrap());
+	let new_db = Arc::new(Database::open(&db_cfg, tempdir.path().to_str().unwrap()).unwrap());
 
 	{
 		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::OverlayRecent);
@@ -160,9 +158,8 @@ fn checks_flag() {
 		producer.tick(&mut rng, &mut old_db);
 	}
 
-	let snap_dir = RandomTempPath::create_dir();
-	let mut snap_file = snap_dir.as_path().to_owned();
-	snap_file.push("SNAP");
+	let tempdir = TempDir::new("").unwrap();
+	let snap_file = tempdir.path().join("SNAP");
 
 	let state_root = producer.state_root();
 	let writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
@@ -178,8 +175,8 @@ fn checks_flag() {
 		block_hash: H256::default(),
 	}).unwrap();
 
-	let mut db_path = snap_dir.as_path().to_owned();
-	db_path.push("db");
+	let tempdir = TempDir::new("").unwrap();
+	let db_path = tempdir.path().join("db");
 	{
 		let new_db = Arc::new(Database::open(&db_cfg, &db_path.to_string_lossy()).unwrap());
 		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::OverlayRecent);
