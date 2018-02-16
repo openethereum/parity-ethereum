@@ -76,7 +76,7 @@ pub fn all_endpoints<F: Fetch>(
 	}
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
-	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(embeddable.clone()), pool.clone(), false);
+	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(embeddable.clone()), pool.clone(), true);
 	// old version
 	insert::<parity_ui::old::App>(&mut pages, "v1", Embeddable::Yes(embeddable.clone()), pool.clone(), true);
 
