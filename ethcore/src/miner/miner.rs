@@ -248,6 +248,7 @@ struct SealingWork {
 pub struct Miner {
 	// NOTE [ToDr]  When locking always lock in this order!
 	transaction_queue: Arc<RwLock<BanningTransactionQueue>>,
+	transaction_listener: RwLock<Vec<Box<Fn(&[H256]) + Send + Sync>>>,
 	sealing_work: Mutex<SealingWork>,
 	next_allowed_reseal: Mutex<Instant>,
 	next_mandatory_reseal: RwLock<Instant>,
@@ -314,6 +315,7 @@ impl Miner {
 
 		Miner {
 			transaction_queue: Arc::new(RwLock::new(txq)),
+			transaction_listener: RwLock::new(vec![]),
 			next_allowed_reseal: Mutex::new(Instant::now()),
 			next_mandatory_reseal: RwLock::new(Instant::now() + options.reseal_max_period),
 			sealing_block_last_request: Mutex::new(0),
@@ -367,6 +369,11 @@ impl Miner {
 	/// Get `Some` `clone()` of the current pending block header or `None` if we're not sealing.
 	pub fn pending_block_header(&self, latest_block_number: BlockNumber) -> Option<Header> {
 		self.map_pending_block(|b| b.header().clone(), latest_block_number)
+	}
+
+	/// Set a callback to be notified about imported transactions' hashes.
+	pub fn add_transactions_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
+		self.transaction_listener.write().push(f);
 	}
 
 	fn map_pending_block<F, T>(&self, f: F, latest_block_number: BlockNumber) -> Option<T> where
@@ -694,8 +701,9 @@ impl Miner {
 	) -> Vec<Result<TransactionImportResult, Error>> {
 		let best_block_header = client.best_block_header().decode();
 		let insertion_time = client.chain_info().best_block_number;
+		let mut inserted = Vec::with_capacity(transactions.len());
 
-		transactions.into_iter()
+		let results = transactions.into_iter()
 			.map(|tx| {
 				let hash = tx.hash();
 				if client.transaction_block(TransactionId::Hash(hash)).is_some() {
@@ -721,18 +729,28 @@ impl Miner {
 						}).unwrap_or(default_origin);
 
 						let details_provider = TransactionDetailsProvider::new(client, &self.service_transaction_action);
-						match origin {
+						let hash = transaction.hash();
+						let result = match origin {
 							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-								Ok(transaction_queue.add(transaction, origin, insertion_time, condition.clone(), &details_provider)?)
+								transaction_queue.add(transaction, origin, insertion_time, condition.clone(), &details_provider)?
 							},
 							TransactionOrigin::External => {
-								Ok(transaction_queue.add_with_banlist(transaction, insertion_time, &details_provider)?)
+								transaction_queue.add_with_banlist(transaction, insertion_time, &details_provider)?
 							},
-						}
+						};
+
+						inserted.push(hash);
+						Ok(result)
 					},
 				}
 			})
-			.collect()
+			.collect();
+
+		for listener in &*self.transaction_listener.read() {
+			listener(&inserted);
+		}
+
+		results
 	}
 
 	/// Are we allowed to do a non-mandatory reseal?

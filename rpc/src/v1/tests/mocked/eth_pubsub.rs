@@ -37,7 +37,7 @@ fn should_subscribe_to_new_heads() {
 	let h1 = client.block_hash_delta_minus(3);
 
 	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
-	let handler = pubsub.handler();
+	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
 	let mut io = MetaIoHandler::default();
@@ -109,7 +109,7 @@ fn should_subscribe_to_logs() {
 	]);
 
 	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
-	let handler = pubsub.handler();
+	let handler = pubsub.handler().upgrade().unwrap();
 	let pubsub = pubsub.to_delegate();
 
 	let mut io = MetaIoHandler::default();
@@ -150,6 +150,54 @@ fn should_subscribe_to_logs() {
 	assert_eq!(res, None);
 }
 
+
+#[test]
+fn should_subscribe_to_pending_transactions() {
+	// given
+	let el = EventLoop::spawn();
+	let client = TestBlockChainClient::new();
+
+	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
+	let handler = pubsub.handler().upgrade().unwrap();
+	let pubsub = pubsub.to_delegate();
+
+	let mut io = MetaIoHandler::default();
+	io.extend_with(pubsub);
+
+	let mut metadata = Metadata::default();
+	let (sender, receiver) = futures::sync::mpsc::channel(8);
+	metadata.session = Some(Arc::new(Session::new(sender)));
+
+	// Fail if params are provided
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_subscribe", "params": ["newPendingTransactions", {}], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Couldn't parse parameters: newPendingTransactions","data":"\"Expected no parameters.\""},"id":1}"#;
+	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
+
+	// Subscribe
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_subscribe", "params": ["newPendingTransactions"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x416d77337e24399d","id":1}"#;
+	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
+
+	// Send new transactions
+	handler.new_transactions(&[5.into(), 7.into()]);
+
+	let (res, receiver) = receiver.into_future().wait().unwrap();
+	let response = r#"{"jsonrpc":"2.0","method":"eth_subscription","params":{"result":"0x0000000000000000000000000000000000000000000000000000000000000005","subscription":"0x416d77337e24399d"}}"#;
+	assert_eq!(res, Some(response.into()));
+
+	let (res, receiver) = receiver.into_future().wait().unwrap();
+	let response = r#"{"jsonrpc":"2.0","method":"eth_subscription","params":{"result":"0x0000000000000000000000000000000000000000000000000000000000000007","subscription":"0x416d77337e24399d"}}"#;
+	assert_eq!(res, Some(response.into()));
+
+	// And unsubscribe
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_unsubscribe", "params": ["0x416d77337e24399d"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(io.handle_request_sync(request, metadata), Some(response.to_owned()));
+
+	let (res, _receiver) = receiver.into_future().wait().unwrap();
+	assert_eq!(res, None);
+}
+
 #[test]
 fn should_return_unimplemented() {
 	// given
@@ -167,8 +215,6 @@ fn should_return_unimplemented() {
 
 	// Subscribe
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"This request is not implemented yet. Please create an issue on Github repo."},"id":1}"#;
-	let request = r#"{"jsonrpc": "2.0", "method": "eth_subscribe", "params": ["newPendingTransactions"], "id": 1}"#;
-	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_subscribe", "params": ["syncing"], "id": 1}"#;
 	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
 }
