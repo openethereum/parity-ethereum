@@ -617,58 +617,6 @@ impl BlockChain {
 		self.db.read_with_cache(db::COL_EXTRA, &self.block_details, parent).map_or(false, |d| d.children.contains(hash))
 	}
 
-	/// Rewind to a previous block
-	#[cfg(test)]
-	fn rewind(&self) -> Option<H256> {
-		use db::Key;
-		let mut batch =self.db.transaction();
-		// track back to the best block we have in the blocks database
-		if let Some(best_block_hash) = self.db.get(db::COL_EXTRA, b"best").unwrap() {
-			let best_block_hash = H256::from_slice(&best_block_hash);
-			if best_block_hash == self.genesis_hash() {
-				return None;
-			}
-			if let Some(extras) = self.db.read(db::COL_EXTRA, &best_block_hash) as Option<BlockDetails> {
-				type DetailsKey = Key<BlockDetails, Target=::ethereum_types::H264>;
-				batch.delete(db::COL_EXTRA, &(DetailsKey::key(&best_block_hash)));
-				let hash = extras.parent;
-				let range = extras.number as bc::Number .. extras.number as bc::Number;
-				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
-				let changes = chain.replace(&range, vec![]);
-				for (k, v) in changes {
-					batch.write(db::COL_EXTRA, &LogGroupPosition::from(k), &BloomGroup::from(v));
-				}
-				batch.put(db::COL_EXTRA, b"best", &hash);
-
-				let best_block_total_difficulty = self.block_details(&hash).unwrap().total_difficulty;
-				let best_block_rlp = self.block(&hash).unwrap().into_inner();
-
-				let mut best_block = self.best_block.write();
-				*best_block = BestBlock {
-					number: extras.number - 1,
-					total_difficulty: best_block_total_difficulty,
-					hash: hash,
-					timestamp: BlockView::new(&best_block_rlp).header().timestamp(),
-					block: best_block_rlp,
-				};
-				// update parent extras
-				if let Some(mut details) = self.db.read(db::COL_EXTRA, &hash) as Option<BlockDetails> {
-					details.children.clear();
-					batch.write(db::COL_EXTRA, &hash, &details);
-				}
-				self.db.write(batch).expect("Writing to db failed");
-				self.block_details.write().clear();
-				self.block_hashes.write().clear();
-				self.block_headers.write().clear();
-				self.block_bodies.write().clear();
-				self.block_receipts.write().clear();
-				return Some(hash);
-			}
-		}
-
-		None
-	}
-
 	/// Returns a tree route between `from` and `to`, which is a tuple of:
 	///
 	/// - a vector of hashes of all blocks, ordered from `from` to `to`.
@@ -2182,31 +2130,6 @@ mod tests {
 		// re-loading the blockchain should load the correct best block.
 		let bc = new_chain(&genesis.last().encoded(), db);
 		assert_eq!(bc.best_block_number(), 5);
-	}
-
-	#[test]
-	fn test_rewind() {
-		let genesis = BlockBuilder::genesis();
-		let first = genesis.add_block();
-		let second = first.add_block();
-
-		let db = new_db();
-		let bc = new_chain(&genesis.last().encoded(), db.clone());
-
-		let mut batch = db.transaction();
-		bc.insert_block(&mut batch, &first.last().encoded(), vec![]);
-		bc.commit();
-		bc.insert_block(&mut batch, &second.last().encoded(), vec![]);
-		bc.commit();
-		db.write(batch).unwrap();
-
-		assert_eq!(bc.rewind(), Some(first.last().hash()));
-		assert!(!bc.is_known(&second.last().hash()));
-		assert_eq!(bc.best_block_number(), 1);
-		assert_eq!(bc.best_block_hash(), first.last().hash());
-
-		assert_eq!(bc.rewind(), Some(genesis.last().hash()));
-		assert_eq!(bc.rewind(), None);
 	}
 
 	#[test]
