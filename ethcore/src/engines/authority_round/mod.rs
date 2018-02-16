@@ -412,19 +412,10 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 	}
 
 	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
-		macro_rules! otry {
-			($e: expr) => {
-				match $e {
-					Some(x) => x,
-					None => return None,
-				}
-			}
-		}
-
 		let mut finality_checker = RollingFinality::blank(self.subchain_validators.clone().into_inner());
 		let mut finalized = Vec::new();
 
-		let headers: Vec<Header> = otry!(UntrustedRlp::new(proof).as_list().ok());
+		let headers: Vec<Header> = UntrustedRlp::new(proof).as_list().ok()?;
 
 		{
 			let mut push_header = |parent_header: &Header, header: Option<&Header>| {
@@ -438,26 +429,26 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 				}
 
 				// `verify_external` checks that signature is correct and author == signer.
-				otry!(verify_external(parent_header, &self.subchain_validators, self.empty_steps_transition).ok());
+				verify_external(parent_header, &self.subchain_validators, self.empty_steps_transition).ok()?;
 
 				let mut signers = match header {
-					Some(header) => otry!(header_empty_steps_signers(header, self.empty_steps_transition).ok()),
+					Some(header) => header_empty_steps_signers(header, self.empty_steps_transition).ok()?,
 					_ => Vec::new(),
 				};
 				signers.push(parent_header.author().clone());
 
-				let newly_finalized = otry!(finality_checker.push_hash(parent_header.hash(), signers).ok());
+				let newly_finalized = finality_checker.push_hash(parent_header.hash(), signers).ok()?;
 				finalized.extend(newly_finalized);
 
 				Some(())
 			};
 
 			for window in headers.windows(2) {
-				otry!(push_header(&window[0], Some(&window[1])));
+				push_header(&window[0], Some(&window[1]))?;
 			}
 
 			if let Some(last) = headers.last() {
-				otry!(push_header(last, None));
+				push_header(last, None)?;
 			}
 		}
 
