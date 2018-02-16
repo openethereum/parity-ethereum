@@ -20,7 +20,7 @@ use client::{RegistryInfo, CallContract};
 use transaction::SignedTransaction;
 use types::ids::BlockId;
 
-use_contract!(service_transaction, "ServiceTransaction", "res/service_transaction.json");
+use_contract!(service_transaction, "ServiceTransaction", "res/contracts/service_transaction.json");
 
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
 
