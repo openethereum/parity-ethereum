@@ -33,6 +33,7 @@ ethcore-bytes = { path = "bytes" }
 memorydb = { path = "memorydb" }
 util-error = { path = "error" }
 kvdb = { path = "kvdb" }
+parity-version = { path = "version" }
 
 [dev-dependencies]
 kvdb-memorydb = { path = "kvdb-memorydb" }
@@ -40,7 +41,7 @@ kvdb-memorydb = { path = "kvdb-memorydb" }
 [features]
 default = []
 dev = ["clippy"]
-final = []
+final = ["parity-version/final"]
 
 [build-dependencies]
 vergen = "0.1"

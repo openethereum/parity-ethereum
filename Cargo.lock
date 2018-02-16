@@ -909,6 +909,7 @@ dependencies = [
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "memorydb 0.1.0",
+ "parity-version 1.8.10",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia_trie 0.1.0",
  "rlp 0.2.0",
