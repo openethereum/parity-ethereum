@@ -1408,11 +1408,6 @@ impl BlockChain {
 			ancient_block_number: best_ancient_block.as_ref().map(|b| b.number),
 		}
 	}
-
-	#[cfg(test)]
-	pub fn db(&self) -> &Arc<KeyValueDB> {
-		&self.db
-	}
 }
 
 #[cfg(test)]
