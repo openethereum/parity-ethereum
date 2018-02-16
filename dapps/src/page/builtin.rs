@@ -38,13 +38,14 @@ pub struct Dapp<T: WebApp + 'static> {
 
 impl<T: WebApp + 'static> Dapp<T> {
 	/// Creates new `Dapp` for builtin (compile time) Dapp.
-	pub fn new(pool: CpuPool, app: T) -> Self {
-		let info = app.info();
+	pub fn new(pool: CpuPool, allow_js_eval: bool, app: T) -> Self {
+		let mut info = EndpointInfo::from(app.info());
+		info.allow_js_eval = Some(allow_js_eval);
 		Dapp {
 			pool,
 			app,
 			safe_to_embed_on: None,
-			info: EndpointInfo::from(info),
+			info,
 			fallback_to_index_html: false,
 		}
 	}
@@ -65,13 +66,14 @@ impl<T: WebApp + 'static> Dapp<T> {
 	/// Creates new `Dapp` which can be safely used in iframe
 	/// even from different origin. It might be dangerous (clickjacking).
 	/// Use wisely!
-	pub fn new_safe_to_embed(pool: CpuPool, app: T, address: Embeddable) -> Self {
-		let info = app.info();
+	pub fn new_safe_to_embed(pool: CpuPool, allow_js_eval: bool, app: T, address: Embeddable) -> Self {
+		let mut info = EndpointInfo::from(app.info());
+		info.allow_js_eval = Some(allow_js_eval);
 		Dapp {
 			pool,
 			app,
 			safe_to_embed_on: address,
-			info: EndpointInfo::from(info),
+			info,
 			fallback_to_index_html: false,
 		}
 	}
