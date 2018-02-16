@@ -66,7 +66,7 @@ use state::{self, State};
 use trace;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace::FlatTransactionTraces;
-use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
+use transaction::{self, LocalizedTransaction, UnverifiedTransaction, PendingTransaction, SignedTransaction, Transaction, Action};
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
 use verification;
@@ -1769,11 +1769,12 @@ impl BlockChainClient for Client {
 	}
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		let (number, timestamp) = {
-			let chain = self.chain.read();
-			(chain.best_block_number(), chain.best_block_timestamp())
-		};
-		self.miner.ready_transactions(number, timestamp)
+		// TODO [ToDr] Avoid cloning and propagate miner transaction further.
+		self.miner.ready_transactions(self)
+			.into_iter()
+			.map(|x| x.signed().clone())
+			.map(Into::into)
+			.collect()
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {

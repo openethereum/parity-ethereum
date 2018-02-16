@@ -43,7 +43,7 @@ use std::collections::HashMap;
 
 use ethereum_types::{U256, H160 as Address};
 use transaction;
-use txpool::{self, VerifiedTransaction as IVerifiedTransaction};
+use txpool::{self, VerifiedTransaction as PoolVerifiedTransaction};
 
 use super::client::Client;
 use super::VerifiedTransaction;

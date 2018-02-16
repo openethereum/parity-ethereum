@@ -368,7 +368,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		&client_path,
 		&snapshot_path,
 		&cmd.dirs.ipc_path(),
-		Arc::new(Miner::with_spec(&spec)),
+		// TODO [ToDr] don't use test miner here
+		// (actually don't require miner at all)
+		Arc::new(Miner::new_for_tests(&spec, None)),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	// free up the spec in memory.

@@ -166,7 +166,7 @@ impl TestBlockChainClient {
 			receipts: RwLock::new(HashMap::new()),
 			logs: RwLock::new(Vec::new()),
 			queue_size: AtomicUsize::new(0),
-			miner: Arc::new(Miner::with_spec(&spec)),
+			miner: Arc::new(Miner::new_for_tests(&spec, None)),
 			spec: spec,
 			vm_factory: EvmFactory::new(VMType::Interpreter, 1024 * 1024),
 			latest_block_timestamp: RwLock::new(10_000_000),
@@ -741,9 +741,13 @@ impl BlockChainClient for TestBlockChainClient {
 		self.spec.engine.handle_message(&message).unwrap();
 	}
 
+	// TODO [ToDr] Avoid cloning
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		let info = self.chain_info();
-		self.miner.ready_transactions(info.best_block_number, info.best_block_timestamp)
+		self.miner.ready_transactions(self)
+			.into_iter()
+			.map(|tx| tx.signed().clone())
+			.map(Into::into)
+			.collect()
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> { None }

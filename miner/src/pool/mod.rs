@@ -30,7 +30,7 @@ pub mod verifier;
 pub use self::queue::TransactionQueue;
 pub use self::txpool::{VerifiedTransaction as PoolVerifiedTransaction, Options};
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub(crate) enum Priority {
 	Local,
 	Retracted,
@@ -38,9 +38,10 @@ pub(crate) enum Priority {
 }
 
 /// Verified transaction stored in the pool.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct VerifiedTransaction {
 	transaction: transaction::PendingTransaction,
+	// TODO [ToDr] hash and sender should go directly from transaction
 	hash: H256,
 	sender: Address,
 	priority: Priority,
@@ -48,6 +49,19 @@ pub struct VerifiedTransaction {
 }
 
 impl VerifiedTransaction {
+	// Hack?
+	pub fn from_pending_block_transaction(tx: transaction::SignedTransaction) -> Self {
+		let hash = tx.hash();
+		let sender = tx.sender();
+		VerifiedTransaction {
+			transaction: tx.into(),
+			hash,
+			sender,
+			priority: Priority::Retracted,
+			insertion_id: 0,
+		}
+	}
+
 	/// Gets transaction priority.
 	pub(crate) fn priority(&self) -> Priority {
 		self.priority
@@ -55,7 +69,7 @@ impl VerifiedTransaction {
 
 	/// Gets wrapped `SignedTransaction`
 	pub fn signed(&self) -> &transaction::SignedTransaction {
-		&self.transaction.transaction
+		&self.transaction
 	}
 
 	/// Gets wrapped `PendingTransaction`

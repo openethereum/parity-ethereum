@@ -30,7 +30,7 @@ use ethcore_stratum::{
 	JobDispatcher, PushWorkHandler,
 	Stratum as StratumService, Error as StratumServiceError,
 };
-use miner::{self, Miner, MinerService};
+use miner::{Miner, MinerService};
 use parking_lot::Mutex;
 use rlp::encode;
 
@@ -247,7 +247,7 @@ impl Stratum {
 
 	/// Start STRATUM job dispatcher and register it in the miner
 	pub fn register(cfg: &Options, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), Error> {
-		let stratum = miner::Stratum::start(cfg, Arc::downgrade(&miner.clone()), client)?;
+		let stratum = Stratum::start(cfg, Arc::downgrade(&miner.clone()), client)?;
 		miner.add_work_listener(Box::new(stratum) as Box<NotifyWork>);
 		Ok(())
 	}

@@ -58,31 +58,7 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 }
 
 fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
-	Miner::new(
-		MinerOptions {
-			new_work_notify: vec![],
-			force_sealing: true,
-			reseal_on_external_tx: true,
-			reseal_on_own_tx: true,
-			reseal_on_uncle: false,
-			tx_queue_size: 1024,
-			tx_gas_limit: !U256::zero(),
-			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
-			tx_queue_gas_limit: GasLimit::None,
-			tx_queue_banning: Banning::Disabled,
-			tx_queue_memory_limit: None,
-			pending_set: PendingSet::SealingOrElseQueue,
-			reseal_min_period: Duration::from_secs(0),
-			reseal_max_period: Duration::from_secs(120),
-			work_queue_size: 50,
-			enable_resubmission: true,
-			refuse_service_transactions: false,
-			infinite_pending_block: false,
-		},
-		GasPricer::new_fixed(20_000_000_000u64.into()),
-		&spec,
-		Some(accounts),
-	)
+	Arc::new(Miner::new_for_tests(spec, Some(accounts)))
 }
 
 fn snapshot_service() -> Arc<TestSnapshotService> {

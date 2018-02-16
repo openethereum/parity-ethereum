@@ -521,7 +521,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 
 	// create miner
 	let initial_min_gas_price = cmd.gas_pricer_conf.initial_min();
-	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer_conf.to_gas_pricer(fetch.clone()), &spec, Some(account_provider.clone()));
+	let miner = Arc::new(Miner::new(cmd.miner_options, cmd.gas_pricer_conf.to_gas_pricer(fetch.clone()), &spec, Some(account_provider.clone())));
 	miner.set_author(cmd.miner_extras.author);
 	miner.set_gas_floor_target(cmd.miner_extras.gas_floor_target);
 	miner.set_gas_ceil_target(cmd.miner_extras.gas_ceil_target);

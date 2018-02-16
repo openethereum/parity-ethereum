@@ -172,7 +172,7 @@ impl Provider for TestProvider {
 		})
 	}
 
-	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+	fn ready_transactions(&self) -> Vec<SignedTransaction> {
 		self.0.client.ready_transactions()
 	}
 }

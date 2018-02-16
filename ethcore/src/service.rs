@@ -242,7 +242,7 @@ mod tests {
 			&client_path,
 			&snapshot_path,
 			tempdir.path(),
-			Arc::new(Miner::with_spec(&spec)),
+			Arc::new(Miner::new_for_tests(&spec, None)),
 		);
 		assert!(service.is_ok());
 		drop(service.unwrap());

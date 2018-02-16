@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 
 use ethereum_types::{H256, U256};
-use parking_lot::{RwLock, RwLockReadGuard};
+use parking_lot::RwLock;
 use transaction;
 use txpool::{self, Verifier};
 
@@ -90,20 +90,28 @@ impl TransactionQueue {
 	///
 	/// NOTE: During pending iteration importing to the queue is not allowed.
 	/// Make sure to drop the guard in reasonable time.
-	pub fn pending<C: client::Client>(
+	pub fn pending<C, F, T>(
 		&self,
 		client: C,
 		block_number: u64,
 		current_timestamp: u64,
 		// TODO [ToDr] Support nonce_cap
-	) -> PendingReader<(ready::Condition, ready::State<C>)> {
+		collect: F,
+	) -> T where
+		C: client::Client,
+		F: FnOnce(txpool::PendingIterator<
+			pool::VerifiedTransaction,
+			(ready::Condition, ready::State<C>),
+			scoring::GasPrice,
+			txpool::NoopListener
+		>) -> T,
+	{
 		let pending_readiness = ready::Condition::new(block_number, current_timestamp);
 		let state_readiness = ready::State::new(client);
 
-		PendingReader {
-			guard: self.pool.read(),
-			ready: Some((pending_readiness, state_readiness)),
-		}
+		let ready = (pending_readiness, state_readiness);
+
+		collect(self.pool.read().pending(ready))
 	}
 
 	/// Culls all stalled transactions from the pool.
@@ -172,21 +180,6 @@ impl TransactionQueue {
 	pub fn has_local_transactions(&self) -> bool {
 		// TODO [ToDr] Take from the listener
 		false
-	}
-}
-
-/// A pending transactions guard.
-pub struct PendingReader<'a, R> {
-	guard: RwLockReadGuard<'a, Pool>,
-	ready: Option<R>,
-}
-
-impl<'a, R: txpool::Ready<pool::VerifiedTransaction>> PendingReader<'a, R> {
-	/// Returns an iterator over currently pending transactions.
-	///
-	/// NOTE: This method will panic if used twice!
-	pub fn transactions(&mut self) -> txpool::PendingIterator<pool::VerifiedTransaction, R, scoring::GasPrice, txpool::NoopListener> {
-		self.guard.pending(self.ready.take().unwrap())
 	}
 }
 

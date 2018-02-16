@@ -115,7 +115,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 		ClientConfig::default(),
 		&test_spec,
 		client_db,
-		Arc::new(Miner::with_spec_and_accounts(&test_spec, accounts)),
+		Arc::new(Miner::new_for_tests(&test_spec, accounts)),
 		IoChannel::disconnected(),
 	).unwrap();
 	let test_engine = &*test_spec.engine;
@@ -215,7 +215,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 		ClientConfig::default(),
 		&test_spec,
 		client_db,
-		Arc::new(Miner::with_spec(&test_spec)),
+		Arc::new(Miner::new_for_tests(&test_spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 

@@ -200,11 +200,6 @@ impl MinerService for TestMinerService {
 		vec![]
 	}
 
-	/// Removes all transactions from the queue and restart mining operation.
-	fn clear_and_reset(&self, _chain: &MiningBlockChainClient) {
-		unimplemented!();
-	}
-
 	/// Called when blocks are imported to chain, updates transactions queue.
 	fn chain_new_blocks(&self, _chain: &MiningBlockChainClient, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
 		unimplemented!();

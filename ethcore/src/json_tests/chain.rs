@@ -64,7 +64,7 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 					config,
 					&spec,
 					db,
-					Arc::new(Miner::with_spec(&spec)),
+					Arc::new(Miner::new_for_tests(&spec, None)),
 					IoChannel::disconnected(),
 				).unwrap();
 				for b in &blockchain.blocks_rlp() {

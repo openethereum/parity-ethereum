@@ -17,59 +17,48 @@
 #![warn(missing_docs)]
 
 //! Miner module
-//! Keeps track of transactions and mined block.
-//!
-//! Usage example:
-//!
-//! ```rust
-//! extern crate ethcore;
-//! use std::env;
-//! use ethcore::ethereum;
-//! use ethcore::client::{Client, ClientConfig};
-//! use ethcore::miner::{Miner, MinerService};
-//!
-//! fn main() {
-//!		let miner: Miner = Miner::with_spec(&ethereum::new_foundation(&env::temp_dir()));
-//!		// get status
-//!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
-//!
-//!		// Check block for sealing
-//!		//assert!(miner.sealing_block(&*client).lock().is_some());
-//! }
-//! ```
+//! Keeps track of transactions and currently sealed pending block.
 
 mod blockchain_client;
 mod miner;
-mod stratum;
+
+pub mod stratum;
 
 pub use self::miner::{Miner, MinerOptions, PendingSet, AuthoringParams};
-pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOptions};
 
-pub use ethcore_miner::local_transactions::Status as LocalTransactionStatus;
-
+use std::sync::Arc;
 use std::collections::BTreeMap;
-use ethereum_types::{H256, U256, Address};
+
 use bytes::Bytes;
+use ethereum_types::{H256, U256, Address};
+use ethcore_miner::pool::VerifiedTransaction;
 
 use block::ClosedBlock;
 use client::{MiningBlockChainClient};
 use error::{Error};
 use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
-use transaction::{self, UnverifiedTransaction, PendingTransaction};
+use transaction::{self, UnverifiedTransaction, PendingTransaction, SignedTransaction};
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
+
+	// Pending block
 
 	/// Get the sealing work package and if `Some`, apply some transform.
 	fn map_pending_block<F, T>(&self, chain: &MiningBlockChainClient, f: F) -> Option<T>
 		where F: FnOnce(&ClosedBlock) -> T, Self: Sized;
 
-	/// Get a list of all pending receipts.
-	fn pending_receipts(&self, best_block: BlockNumber) -> BTreeMap<H256, Receipt>;
+	/// Get a list of all pending receipts from pending block.
+	fn pending_receipts(&self, best_block: BlockNumber) -> Option<BTreeMap<H256, Receipt>>;
 
-	/// Get a particular receipt.
+	/// Get a particular receipt from pending block.
 	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt>;
+
+	/// Get all transactions in pending block or `None` if not sealing.
+	fn pending_transactions(&self, best_block: BlockNumber) -> Option<Vec<SignedTransaction>>;
+
+	// Block authoring / sealing
 
 	/// Get current authoring parameters.
 	fn authoring_params(&self) -> AuthoringParams;
@@ -92,13 +81,17 @@ pub trait MinerService : Send + Sync {
 	/// PoW chain - can produce work package
 	fn can_produce_work_package(&self) -> bool;
 
-	/// New chain head event. Restart mining operation.
-	fn update_sealing(&self, chain: &MiningBlockChainClient);
-
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.
 	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
 
+	/// New chain head event. Restart mining operation.
+	fn update_sealing(&self, chain: &MiningBlockChainClient);
+
+	/// Called when blocks are imported to chain, updates transactions queue.
+	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
+
+	// Transactions and Pool
 
 	/// Imports transactions to transaction queue.
 	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<UnverifiedTransaction>) ->
@@ -108,30 +101,22 @@ pub trait MinerService : Send + Sync {
 	fn import_own_transaction(&self, chain: &MiningBlockChainClient, transaction: PendingTransaction) ->
 		Result<(), transaction::Error>;
 
-	/// Returns hashes of transactions currently in pending
-	fn pending_transactions_hashes(&self, best_block: BlockNumber) -> Vec<H256>;
-
-	/// Removes all transactions from the queue and restart mining operation.
-	fn clear_and_reset(&self, chain: &MiningBlockChainClient);
-
-	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
-
-	/// Query pending transactions for hash.
-	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction>;
-
 	/// Removes transaction from the queue.
 	/// NOTE: The transaction is not removed from pending block if mining.
 	// fn remove_pending_transaction(&self, chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction>;
 
-	/// Get a list of all pending transactions in the queue.
-	fn pending_transactions(&self) -> Vec<PendingTransaction>;
+	/// Query pending transaction given it's hash.
+	///
+	/// Depending on the settings may look in transaction pool or only in pending block.
+	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction>;
 
-	/// Get a list of all transactions that can go into the given block.
-	fn ready_transactions(&self, best_block: BlockNumber, best_block_timestamp: u64) -> Vec<PendingTransaction>;
+	/// Get a list of all ready transactions.
+	///
+	/// Depending on the settings may look in transaction pool or only in pending block.
+	fn ready_transactions(&self, chain: &MiningBlockChainClient) -> Vec<Arc<VerifiedTransaction>>;
 
-	/// Get a list of all future transactions.
-	fn future_transactions(&self) -> Vec<PendingTransaction>;
+	/// Get a list of all transactions in the pool (some of them might not be ready for inclusion yet).
+	fn future_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
 
 	/// Get a list of local transactions with statuses.
 	// fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus>;

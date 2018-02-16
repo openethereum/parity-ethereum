@@ -78,7 +78,7 @@ impl Transaction {
 		match *self {
 			Transaction::Unverified(ref tx) => tx.hash(),
 			Transaction::Retracted(ref tx) => tx.hash(),
-			Transaction::Local(ref tx) => tx.transaction.hash(),
+			Transaction::Local(ref tx) => tx.hash(),
 		}
 	}
 }
@@ -117,51 +117,51 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 		}
 
 		let is_retracted = if let Transaction::Retracted(_) = tx { true } else { false };
-		let is_own = if let Transaction::Local(_) = tx { true } else { false };
-		let (tx, condition) = match tx {
+		let is_own = if let Transaction::Local(..) = tx { true } else { false };
+		let transaction = match tx {
 			Transaction::Retracted(tx) | Transaction::Unverified(tx) => match self.client.verify_transaction(tx) {
-				Ok(signed) => (signed, None),
+				Ok(signed) => signed.into(),
 				Err(err) => {
 					debug!(target: "txqueue", "Rejected tx {:?}: {:?}", hash, err);
 					bail!(err)
 				},
 			},
-			Transaction::Local(tx) => (tx.transaction, tx.condition),
+			Transaction::Local(tx) => tx,
 		};
 
 		let gas_limit = cmp::min(self.options.tx_gas_limit, self.options.block_gas_limit);
-		if tx.gas > gas_limit {
+		if transaction.gas > gas_limit {
 			debug!(
 				target: "txqueue",
 				"Dropping transaction above gas limit: {:?} ({} > min({}, {}))",
 				hash,
-				tx.gas,
+				transaction.gas,
 				self.options.block_gas_limit,
 				self.options.tx_gas_limit,
 			);
-			bail!(transaction::Error::GasLimitExceeded { limit: gas_limit, got: tx.gas });
+			bail!(transaction::Error::GasLimitExceeded { limit: gas_limit, got: transaction.gas });
 		}
 
-		let minimal_gas = self.client.required_gas(&tx);
-		if tx.gas < minimal_gas {
+		let minimal_gas = self.client.required_gas(&transaction);
+		if transaction.gas < minimal_gas {
 			trace!(target: "txqueue",
 				"Dropping transaction with insufficient gas: {:?} ({} > {})",
-				tx.hash(),
-				tx.gas,
+				transaction.hash(),
+				transaction.gas,
 				minimal_gas,
 			);
 
 			bail!(transaction::Error::InsufficientGas {
 				minimal: minimal_gas,
-				got: tx.gas,
+				got: transaction.gas,
 			})
 		}
 
-		let transaction_type = self.client.transaction_type(&tx);
-		let sender = tx.sender();
+		let transaction_type = self.client.transaction_type(&transaction);
+		let sender = transaction.sender();
 		let account_details = self.client.account_details(&sender);
 
-		if tx.gas_price < self.options.minimal_gas_price {
+		if transaction.gas_price < self.options.minimal_gas_price {
 			if let TransactionType::Service = transaction_type {
 				trace!(target: "txqueue", "Service tx {:?} below minimal gas price accepted", hash);
 			} else if is_own || account_details.is_local {
@@ -171,17 +171,17 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 					target: "txqueue",
 					"Rejected tx {:?}: below minimal gas price threshold (gp: {} < {})",
 					hash,
-					tx.gas_price,
+					transaction.gas_price,
 					self.options.minimal_gas_price,
 				);
 				bail!(transaction::Error::InsufficientGasPrice {
 					minimal: self.options.minimal_gas_price,
-					got: tx.gas_price,
+					got: transaction.gas_price,
 				});
 			}
 		}
 
-		let cost = tx.value + tx.gas_price * tx.gas;
+		let cost = transaction.value + transaction.gas_price * transaction.gas;
 		if account_details.balance < cost {
 			debug!(
 				target: "txqueue",
@@ -196,12 +196,12 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 			});
 		}
 
-		if tx.nonce < account_details.nonce {
+		if transaction.nonce < account_details.nonce {
 			debug!(
 				target: "txqueue",
 				"Rejected tx {:?}: old nonce ({} < {})",
 				hash,
-				tx.nonce,
+				transaction.nonce,
 				account_details.nonce,
 			);
 			bail!(transaction::Error::AlreadyImported);
@@ -213,10 +213,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 			(false, true) => super::Priority::Retracted,
 		};
 		Ok(VerifiedTransaction {
-			transaction: transaction::PendingTransaction {
-				transaction: tx,
-				condition,
-			},
+			transaction,
 			priority,
 			hash,
 			sender,
