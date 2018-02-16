@@ -27,14 +27,14 @@ use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use rlp::*;
 use header::*;
-use super::extras::*;
 use transaction::*;
 use views::*;
 use log_entry::{LogEntry, LocalizedLogEntry};
 use receipt::Receipt;
-use blooms::BloomGroup;
-use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
+use blooms::{BloomGroup, GroupPosition};
 use blockchain::best_block::{BestBlock, BestAncientBlock};
+use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
+use blockchain::extras::{BlockReceipts, BlockDetails, TransactionAddress, EPOCH_KEY_PREFIX, EpochTransitions};
 use types::blockchain_info::BlockChainInfo;
 use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
@@ -163,13 +163,13 @@ enum CacheId {
 	BlockDetails(H256),
 	BlockHashes(BlockNumber),
 	TransactionAddresses(H256),
-	BlocksBlooms(LogGroupPosition),
+	BlocksBlooms(GroupPosition),
 	BlockReceipts(H256),
 }
 
 impl bc::group::BloomGroupDatabase for BlockChain {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
-		let position = LogGroupPosition::from(position.clone());
+		let position = GroupPosition::from(position.clone());
 		let result = self.db.read_with_cache(db::COL_EXTRA, &self.blocks_blooms, &position).map(Into::into);
 		self.cache_man.lock().note_used(CacheId::BlocksBlooms(position));
 		result
@@ -199,7 +199,7 @@ pub struct BlockChain {
 	block_details: RwLock<HashMap<H256, BlockDetails>>,
 	block_hashes: RwLock<HashMap<BlockNumber, H256>>,
 	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
-	blocks_blooms: RwLock<HashMap<LogGroupPosition, BloomGroup>>,
+	blocks_blooms: RwLock<HashMap<GroupPosition, BloomGroup>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
 	db: Arc<KeyValueDB>,
@@ -1260,7 +1260,7 @@ impl BlockChain {
 	/// Later, BloomIndexer is used to map bloom location on filter layer (BloomIndex)
 	/// to bloom location in database (BlocksBloomLocation).
 	///
-	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<LogGroupPosition, BloomGroup> {
+	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<GroupPosition, BloomGroup> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
 
