@@ -291,7 +291,7 @@ impl CachedContract {
 			let transaction_data = self.contract.functions().start_migration().input(migration_id);
 
 			// send transaction
-			if let Err(error) = client.transact_contract(contract_address, transaction_data) {
+			if let Err(error) = client.transact_contract(*contract_address, transaction_data) {
 				warn!(target: "secretstore_net", "{}: failed to submit auto-migration start transaction: {}",
 					self.self_key_pair.public(), error);
 			} else {
