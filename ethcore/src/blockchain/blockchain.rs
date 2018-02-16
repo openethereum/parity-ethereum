@@ -156,10 +156,6 @@ pub trait BlockProvider {
 		where F: Fn(&LogEntry) -> bool + Send + Sync, Self: Sized;
 }
 
-macro_rules! otry {
-	($e:expr) => { match $e { Some(x) => x, None => return None } }
-}
-
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 enum CacheId {
 	BlockHeader(H256),
@@ -722,8 +718,8 @@ impl BlockChain {
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
-		let mut from_details = otry!(self.block_details(&from));
-		let mut to_details = otry!(self.block_details(&to));
+		let mut from_details = self.block_details(&from)?;
+		let mut to_details = self.block_details(&to)?;
 		let mut current_from = from;
 		let mut current_to = to;
 
@@ -731,13 +727,13 @@ impl BlockChain {
 		while from_details.number > to_details.number {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = otry!(self.block_details(&from_details.parent));
+			from_details = self.block_details(&from_details.parent)?;
 		}
 
 		while to_details.number > from_details.number {
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = otry!(self.block_details(&to_details.parent));
+			to_details = self.block_details(&to_details.parent)?;
 		}
 
 		assert_eq!(from_details.number, to_details.number);
@@ -746,11 +742,11 @@ impl BlockChain {
 		while current_from != current_to {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = otry!(self.block_details(&from_details.parent));
+			from_details = self.block_details(&from_details.parent)?;
 
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = otry!(self.block_details(&to_details.parent));
+			to_details = self.block_details(&to_details.parent)?;
 		}
 
 		let index = from_branch.len();
@@ -912,8 +908,8 @@ impl BlockChain {
 	/// The block corresponding the the parent hash must be stored already.
 	pub fn epoch_transition_for(&self, parent_hash: H256) -> Option<EpochTransition> {
 		// slow path: loop back block by block
-		for hash in otry!(self.ancestry_iter(parent_hash)) {
-			let details = otry!(self.block_details(&hash));
+		for hash in self.ancestry_iter(parent_hash)? {
+			let details = self.block_details(&hash)?;
 
 			// look for transition in database.
 			if let Some(transition) = self.epoch_transition(details.number, hash) {
@@ -925,7 +921,7 @@ impl BlockChain {
 			//
 			// if `block_hash` is canonical it will only return transitions up to
 			// the parent.
-			if otry!(self.block_hash(details.number)) == hash {
+			if self.block_hash(details.number)? == hash {
 				return self.epoch_transitions()
 					.map(|(_, t)| t)
 					.take_while(|t| t.block_number <= details.number)
