@@ -41,7 +41,7 @@ impl PodState {
 
 	/// Get the root hash of the trie of the RLP of this.
 	pub fn root(&self) -> H256 {
-		sec_trie_root(self.0.iter().map(|(k, v)| (k.to_vec(), v.rlp())).collect())
+		sec_trie_root(self.0.iter().map(|(k, v)| (k, v.rlp())))
 	}
 
 	/// Drain object to get the underlying map.

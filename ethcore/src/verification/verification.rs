@@ -320,7 +320,7 @@ fn verify_parent(header: &Header, parent: &Header, gas_limit_divisor: U256) -> R
 fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &H256) -> Result<(), Error> {
 	let block = UntrustedRlp::new(block);
 	let tx = block.at(1)?;
-	let expected_root = &ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec())); //TODO: get rid of vectors here
+	let expected_root = &ordered_trie_root(tx.iter().map(|r| r.as_raw()));
 	if expected_root != transactions_root {
 		return Err(From::from(BlockError::InvalidTransactionsRoot(Mismatch { expected: expected_root.clone(), found: transactions_root.clone() })))
 	}
@@ -570,7 +570,7 @@ mod tests {
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append_list(&good_uncles);
 		let good_uncles_hash = keccak(uncles_rlp.as_raw());
-		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<UnverifiedTransaction>(t).into_vec()));
+		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<UnverifiedTransaction>(t)));
 
 		let mut parent = good.clone();
 		parent.set_number(9);

@@ -65,7 +65,7 @@ impl PodAccount {
 		let mut stream = RlpStream::new_list(4);
 		stream.append(&self.nonce);
 		stream.append(&self.balance);
-		stream.append(&sec_trie_root(self.storage.iter().map(|(k, v)| (k.to_vec(), rlp::encode(&U256::from(&**v)).to_vec())).collect()));
+		stream.append(&sec_trie_root(self.storage.iter().map(|(k, v)| (k, rlp::encode(&U256::from(&**v))))));
 		stream.append(&keccak(&self.code.as_ref().unwrap_or(&vec![])));
 		stream.out()
 	}
