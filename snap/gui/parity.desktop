@@ -4,5 +4,5 @@ Encoding=UTF-8
 Name=parity
 Comment=Fast, light, robust Ethereum implementation
 Exec=parity
-Icon=${SNAP}/meta/gui/icon.png
+Icon=/usr/share/pixmaps/icon.png
 Terminal=true

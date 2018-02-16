@@ -12,6 +12,9 @@ build = "build.rs"
 # Used by auto-updater and for Parity version string.
 track = "nightly"
 
+# Indicates a critical release in this track (i.e. consensus issue)
+critical = false
+
 # Latest supported fork blocks for various networks. Used ONLY by auto-updater.
 [package.metadata.forks]
 foundation = 4370000

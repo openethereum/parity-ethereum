@@ -157,7 +157,7 @@ pub trait BlockChain: ChainInfo + BlockInfo + TransactionInfo + StateClient {}
 /// Provides information on a blockchain service and it's registry
 pub trait RegistryInfo {
 	/// Get the address of a particular blockchain service, if available.
-	fn registry_address(&self, name: String) -> Option<Address>;
+	fn registry_address(&self, name: String, block: BlockId) -> Option<Address>;
 }
 
 // FIXME Why these methods belong to BlockChainClient and not MiningBlockChainClient?
@@ -450,6 +450,9 @@ pub trait EngineClient: Sync + Send + ChainInfo {
 
 	/// Get a block number by ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
+
+	/// Get raw block header data by block id.
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 }
 
 /// Extended client interface for providing proofs of the state.

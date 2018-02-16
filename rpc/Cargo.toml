@@ -16,7 +16,7 @@ log = "0.3"
 multihash ="0.7"
 order-stat = "0.1"
 parking_lot = "0.5"
-rand = "0.3"
+rand = "0.4"
 rust-crypto = "0.2"
 rustc-hex = "1.0"
 semver = "0.6"
@@ -46,7 +46,7 @@ ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-transaction = { path = "../ethcore/transaction" }
-ethereum-types = "0.1"
+ethereum-types = "0.2"
 
 ethcrypto = { path = "../ethcrypto" }
 ethjson = { path = "../json" }

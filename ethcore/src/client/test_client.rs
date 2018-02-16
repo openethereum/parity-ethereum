@@ -501,7 +501,7 @@ impl TransactionInfo for TestBlockChainClient {
 }
 
 impl RegistryInfo for TestBlockChainClient {
-	fn registry_address(&self, _name: String) -> Option<Address> { None }
+	fn registry_address(&self, _name: String, _block: BlockId) -> Option<Address> { None }
 }
 
 impl ImportBlock for TestBlockChainClient {
@@ -889,5 +889,9 @@ impl super::traits::EngineClient for TestBlockChainClient {
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		BlockChainClient::block_number(self, id)
+	}
+
+	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
+		BlockChainClient::block_header(self, id)
 	}
 }

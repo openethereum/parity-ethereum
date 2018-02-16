@@ -7,7 +7,7 @@ description = "Whisper Protocol implementation for Parity"
 [dependencies]
 bitflags = "0.9"
 byteorder = "1.0.0"
-ethereum-types = "0.1"
+ethereum-types = "0.2"
 ethcore-network = { path = "../util/network" }
 ethcrypto = { path = "../ethcrypto" }
 ethkey = { path = "../ethkey" }
@@ -15,7 +15,7 @@ hex = "0.2"
 log = "0.3"
 ordered-float = "0.5"
 parking_lot = "0.5"
-rand = "0.3"
+rand = "0.4"
 ring = "0.12"
 rlp = { path = "../util/rlp" }
 serde = "1.0"

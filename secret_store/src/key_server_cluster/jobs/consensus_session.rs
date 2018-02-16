@@ -141,7 +141,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 	/// Initialize session on master node.
 	pub fn initialize(&mut self, nodes: BTreeSet<NodeId>) -> Result<(), Error> {
 		debug_assert!(self.meta.self_node_id == self.meta.master_node_id);
-		let initialization_result = self.consensus_job.initialize(nodes);
+		let initialization_result = self.consensus_job.initialize(nodes, false);
 		self.state = ConsensusSessionState::EstablishingConsensus;
 		self.process_result(initialization_result)
 	}
@@ -180,12 +180,12 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 	}
 
 	/// Disseminate jobs from master node.
-	pub fn disseminate_jobs(&mut self, executor: ComputationExecutor, transport: ComputationTransport) -> Result<(), Error> {
+	pub fn disseminate_jobs(&mut self, executor: ComputationExecutor, transport: ComputationTransport, broadcast_self_response: bool) -> Result<(), Error> {
 		let consensus_group = self.select_consensus_group()?.clone();
 		self.consensus_group.clear();
 
 		let mut computation_job = JobSession::new(self.meta.clone(), executor, transport);
-		let computation_result = computation_job.initialize(consensus_group);
+		let computation_result = computation_job.initialize(consensus_group, broadcast_self_response);
 		self.computation_job = Some(computation_job);
 		self.state = ConsensusSessionState::WaitingForPartialResults;
 		self.process_result(computation_result)
@@ -212,6 +212,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 		let computation_result = self.computation_job.as_mut()
 			.expect("WaitingForPartialResults is only set when computation_job is created; qed")
 			.on_partial_response(node, response);
+
 		self.process_result(computation_result)
 	}
 
@@ -449,7 +450,7 @@ mod tests {
 	#[test]
 	fn consensus_session_job_dissemination_fails_if_consensus_is_not_reached() {
 		let mut session = make_master_consensus_session(1, None, None);
-		assert_eq!(session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap_err(), Error::InvalidStateForRequest);
+		assert_eq!(session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap_err(), Error::InvalidStateForRequest);
 	}
 
 	#[test]
@@ -461,7 +462,7 @@ mod tests {
 			is_confirmed: true,
 		})).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
-		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
+		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::Finished);
 		assert!(session.computation_job().responses().contains_key(&NodeId::from(1)));
 	}
@@ -479,7 +480,7 @@ mod tests {
 			is_confirmed: true,
 		})).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
-		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
+		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
 		assert!(!session.computation_job().responses().contains_key(&NodeId::from(1)));
 	}
@@ -623,7 +624,7 @@ mod tests {
 		session.on_consensus_message(&NodeId::from(3), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 			is_confirmed: true,
 		})).unwrap();
-		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
+		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.on_node_error(&NodeId::from(3)), Ok(false));
 		assert_eq!(session.on_node_error(&NodeId::from(4)), Ok(false));
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
@@ -636,7 +637,7 @@ mod tests {
 		session.on_consensus_message(&NodeId::from(2), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 			is_confirmed: true,
 		})).unwrap();
-		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
+		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
 
 		session.on_consensus_message(&NodeId::from(3), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
@@ -644,7 +645,7 @@ mod tests {
 		})).unwrap();
 		assert_eq!(session.on_node_error(&NodeId::from(2)), Ok(true));
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
-		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
+		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
 
 		assert_eq!(session.on_node_error(&NodeId::from(3)), Ok(false));
@@ -658,7 +659,7 @@ mod tests {
 		session.on_consensus_message(&NodeId::from(2), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 			is_confirmed: true,
 		})).unwrap();
-		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
+		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.on_node_error(&NodeId::from(2)), Err(Error::ConsensusUnreachable));
 		assert_eq!(session.state(), ConsensusSessionState::Failed);
 	}
@@ -677,7 +678,7 @@ mod tests {
 			is_confirmed: true,
 		})).unwrap();
 
-		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
+		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
 
 		session.on_consensus_message(&NodeId::from(3), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
@@ -686,7 +687,7 @@ mod tests {
 		assert_eq!(session.on_session_timeout(), Ok(true));
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
 
-		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
+		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
 
 		assert_eq!(session.on_session_timeout(), Ok(false));
@@ -700,7 +701,7 @@ mod tests {
 		session.on_consensus_message(&NodeId::from(2), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 			is_confirmed: true,
 		})).unwrap();
-		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
+		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
 
 		assert_eq!(session.on_session_timeout(), Err(Error::ConsensusUnreachable));
@@ -732,7 +733,7 @@ mod tests {
 			is_confirmed: true,
 		})).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
-		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
+		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
 		session.on_job_response(&NodeId::from(2), 16).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::Finished);
@@ -749,7 +750,7 @@ mod tests {
 		})).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
 
-		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
+		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
 
 		session.on_consensus_message(&NodeId::from(3), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
@@ -759,7 +760,7 @@ mod tests {
 		assert_eq!(session.on_node_error(&NodeId::from(2)).unwrap(), true);
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
 
-		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
+		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
 
 		assert_eq!(session.on_node_error(&NodeId::from(3)).unwrap(), false);
@@ -770,7 +771,7 @@ mod tests {
 		})).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
 
-		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
+		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
 
 		session.on_job_response(&NodeId::from(4), 16).unwrap();

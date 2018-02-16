@@ -169,14 +169,14 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	fn machine(&self) -> &EthereumMachine { &self.machine }
 
 	// Two fields - nonce and mix.
-	fn seal_fields(&self) -> usize { 2 }
+	fn seal_fields(&self, _header: &Header) -> usize { 2 }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
-		if header.seal().len() == self.seal_fields() {
+		if header.seal().len() == self.seal_fields(header) {
 			map![
-				"nonce".to_owned() => format!("0x{}", header.nonce().hex()),
-				"mixHash".to_owned() => format!("0x{}", header.mix_hash().hex())
+				"nonce".to_owned() => format!("0x{:x}", header.nonce()),
+				"mixHash".to_owned() => format!("0x{:x}", header.mix_hash())
 			]
 		} else {
 			BTreeMap::default()
@@ -265,9 +265,10 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		// check the seal fields.
-		if header.seal().len() != self.seal_fields() {
+		let expected_seal_fields = self.seal_fields(header);
+		if header.seal().len() != expected_seal_fields {
 			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
+				Mismatch { expected: expected_seal_fields, found: header.seal().len() }
 			)));
 		}
 		UntrustedRlp::new(&header.seal()[0]).as_val::<H256>()?;
@@ -296,9 +297,10 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	}
 
 	fn verify_block_unordered(&self, header: &Header) -> Result<(), Error> {
-		if header.seal().len() != self.seal_fields() {
+		let expected_seal_fields = self.seal_fields(header);
+		if header.seal().len() != expected_seal_fields {
 			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
+				Mismatch { expected: expected_seal_fields, found: header.seal().len() }
 			)));
 		}
 		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, header.nonce().low_u64());
@@ -384,9 +386,9 @@ impl Ethash {
 
 			let diff_inc = (header.timestamp() - parent.timestamp()) / increment_divisor;
 			if diff_inc <= threshold {
-				*parent.difficulty() + *parent.difficulty() / difficulty_bound_divisor * (threshold - diff_inc).into()
+				*parent.difficulty() + *parent.difficulty() / difficulty_bound_divisor * U256::from(threshold - diff_inc)
 			} else {
-				let multiplier = cmp::min(diff_inc - threshold, 99).into();
+				let multiplier: U256 = cmp::min(diff_inc - threshold, 99).into();
 				parent.difficulty().saturating_sub(
 					*parent.difficulty() / difficulty_bound_divisor * multiplier
 				)
@@ -474,6 +476,7 @@ mod tests {
 	use error::{BlockError, Error};
 	use header::Header;
 	use spec::Spec;
+	use engines::Engine;
 	use super::super::{new_morden, new_mcip3_test, new_homestead_test_machine};
 	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 	use rlp;
@@ -848,5 +851,17 @@ mod tests {
 
 		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
 		assert_eq!(U256::from(12543204905719u64), difficulty);
+	}
+
+	#[test]
+	fn test_extra_info() {
+		let machine = new_homestead_test_machine();
+		let ethparams = get_default_ethash_params();
+		let ethash = Ethash::new(&::std::env::temp_dir(), ethparams, machine, None);
+		let mut header = Header::default();
+		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
+		let info = ethash.extra_info(&header);
+		assert_eq!(info["nonce"], "0x0000000000000000");
+		assert_eq!(info["mixHash"], "0xb251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d");
 	}
 }

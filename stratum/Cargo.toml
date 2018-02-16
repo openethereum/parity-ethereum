@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ethcore-logger = { path = "../logger" }
-ethereum-types = "0.1"
+ethereum-types = "0.2"
 keccak-hash = { path = "../util/hash" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
