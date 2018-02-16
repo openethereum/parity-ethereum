@@ -732,18 +732,15 @@ impl Miner {
 						let hash = transaction.hash();
 						let result = match origin {
 							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-								Ok(transaction_queue.add(transaction, origin, insertion_time, condition.clone(), &details_provider)?)
+								transaction_queue.add(transaction, origin, insertion_time, condition.clone(), &details_provider)?
 							},
 							TransactionOrigin::External => {
-								Ok(transaction_queue.add_with_banlist(transaction, insertion_time, &details_provider)?)
+								transaction_queue.add_with_banlist(transaction, insertion_time, &details_provider)?
 							},
 						};
 
-						if result.is_ok() {
-							inserted.push(hash);
-						}
-
-						result
+						inserted.push(hash);
+						Ok(result)
 					},
 				}
 			})
