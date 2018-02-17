@@ -56,13 +56,13 @@ mod common;
 mod impls;
 
 use std::borrow::Borrow;
-use elastic_array::ElasticArray1024;
+use elastic_array::{ElasticArray1024, ElasticArray8};
 
 pub use error::DecoderError;
 pub use traits::{Decodable, Encodable, Compressible};
 pub use untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
 pub use rlpin::{Rlp, RlpIterator};
-pub use stream::RlpStream;
+pub use stream::{RlpShortStream, RlpStream, RlpBuffer, RlpConfigurableStream};
 pub use compression::RlpType;
 
 /// The RLP encoded empty data (used to mean "null value").
@@ -104,6 +104,12 @@ pub fn decode_list<T>(bytes: &[u8]) -> Vec<T> where T: Decodable {
 /// ```
 pub fn encode<E>(object: &E) -> ElasticArray1024<u8> where E: Encodable {
 	let mut stream = RlpStream::new();
+	stream.append(object);
+	stream.drain()
+}
+
+pub fn encode_short<E>(object: &E) -> ElasticArray8<u8> where E: Encodable {
+	let mut stream = RlpShortStream::new();
 	stream.append(object);
 	stream.drain()
 }

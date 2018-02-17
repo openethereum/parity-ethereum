@@ -8,7 +8,7 @@
 
 //! Common RLP traits
 use elastic_array::ElasticArray1024;
-use {DecoderError, UntrustedRlp, RlpStream};
+use {DecoderError, UntrustedRlp, RlpConfigurableStream, RlpStream, RlpBuffer};
 
 /// RLP decodable trait
 pub trait Decodable: Sized {
@@ -19,7 +19,7 @@ pub trait Decodable: Sized {
 /// Structure encodable to RLP
 pub trait Encodable {
 	/// Append a value to the stream
-	fn rlp_append(&self, s: &mut RlpStream);
+	fn rlp_append<B: RlpBuffer>(&self, s: &mut RlpConfigurableStream<B>);
 
 	/// Get rlp-encoded bytes for this instance
 	fn rlp_bytes(&self) -> ElasticArray1024<u8> {
