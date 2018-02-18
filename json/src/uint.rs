@@ -100,6 +100,18 @@ pub fn validate_non_zero<'de, D>(d: D) -> Result<Uint, D::Error> where D: Deseri
 	Ok(value)
 }
 
+pub fn validate_optional_non_zero<'de, D>(d: D) -> Result<Option<Uint>, D::Error> where D: Deserializer<'de> {
+	let value: Option<Uint> = Option::deserialize(d)?;
+
+	if let Some(value) = value {
+		if value == Uint(U256::from(0)) {
+			return Err(Error::invalid_value(Unexpected::Unsigned(value.into()), &"a non-zero value"))
+		}
+	}
+
+	Ok(value)
+}
+
 #[cfg(test)]
 mod test {
 	use serde_json;
