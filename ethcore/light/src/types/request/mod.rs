@@ -1755,6 +1755,7 @@ mod tests {
 
 	#[test]
 	fn body_roundtrip() {
+		use rlp::RlpStream;
 		use transaction::{Transaction, UnverifiedTransaction};
 		let req = IncompleteBodyRequest {
 			hash: Field::Scalar(Default::default()),
@@ -1898,6 +1899,7 @@ mod tests {
 
 	#[test]
 	fn responses_vec() {
+		use rlp::RlpStream;
 		use ethcore::receipt::{Receipt, TransactionOutcome};
 		let mut stream = RlpStream::new_list(2);
 				stream.begin_list(0).begin_list(0);
