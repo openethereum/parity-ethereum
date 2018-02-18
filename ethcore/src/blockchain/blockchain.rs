@@ -16,7 +16,7 @@
 
 //! Blockchain database.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, hash_map};
 use std::sync::Arc;
 use std::mem;
 use itertools::Itertools;
@@ -698,6 +698,7 @@ impl BlockChain {
 	/// This is used by snapshot restoration and when downloading missing blocks for the chain gap.
 	/// `is_best` forces the best block to be updated to this block.
 	/// `is_ancient` forces the best block of the first block sequence to be updated to this block.
+	/// `parent_td` is a parent total diffuculty
 	/// Supply a dummy parent total difficulty when the parent block may not be in the chain.
 	/// Returns true if the block is disconnected.
 	pub fn insert_unordered_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, parent_td: Option<U256>, is_best: bool, is_ancient: bool) -> bool {
@@ -990,29 +991,50 @@ impl BlockChain {
 			batch.extend_with_cache(db::COL_EXTRA, &mut *write_receipts, update.block_receipts, CacheUpdatePolicy::Remove);
 		}
 
-		{
-			let mut write_blocks_blooms = self.blocks_blooms.write();
-			batch.extend_with_cache(db::COL_EXTRA, &mut *write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
-		}
-
 		// These cached values must be updated last with all four locks taken to avoid
 		// cache decoherence
 		{
 			let mut best_block = self.pending_best_block.write();
+			let mut write_blocks_blooms = self.blocks_blooms.write();
 			// update best block
 			match update.info.location {
 				BlockLocation::Branch => (),
-				_ => if is_best {
-					batch.put(db::COL_EXTRA, b"best", &update.info.hash);
-					*best_block = Some(BestBlock {
-						hash: update.info.hash,
-						number: update.info.number,
-						total_difficulty: update.info.total_difficulty,
-						timestamp: update.timestamp,
-						block: update.block.to_vec(),
-					});
+				BlockLocation::BranchBecomingCanonChain(_) => {
+					// clear all existing blooms, cause they may be created for block
+					// number higher than current best block
+					*write_blocks_blooms = update.blocks_blooms;
+					for (key, value) in write_blocks_blooms.iter() {
+						batch.write(db::COL_EXTRA, key, value);
+					}
+				},
+				BlockLocation::CanonChain => {
+					// update all existing blooms groups
+					for (key, value) in update.blocks_blooms {
+						match write_blocks_blooms.entry(key) {
+							hash_map::Entry::Occupied(mut entry) => {
+								entry.get_mut().accrue_bloom_group(&value);
+								batch.write(db::COL_EXTRA, entry.key(), entry.get());
+							},
+							hash_map::Entry::Vacant(entry) => {
+								batch.write(db::COL_EXTRA, entry.key(), &value);
+								entry.insert(value);
+							},
+						}
+					}
 				},
 			}
+
+			if is_best && update.info.location != BlockLocation::Branch {
+				batch.put(db::COL_EXTRA, b"best", &update.info.hash);
+				*best_block = Some(BestBlock {
+					hash: update.info.hash,
+					number: update.info.number,
+					total_difficulty: update.info.total_difficulty,
+					timestamp: update.timestamp,
+					block: update.block.to_vec(),
+				});
+			}
+
 			let mut write_hashes = self.pending_block_hashes.write();
 			let mut write_details = self.pending_block_details.write();
 			let mut write_txs = self.pending_transaction_addresses.write();
@@ -2078,6 +2100,45 @@ mod tests {
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![2]);
 		assert_eq!(blocks_ba, vec![3]);
+	}
+
+	#[test]
+	fn test_insert_unordered() {
+		let bloom_b1: Bloom = "00000020000000000000000000000000000000000000000002000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000400000000000000000000002000".into();
+
+		let bloom_b2: Bloom = "00000000000000000000000000000000000000000000020000001000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000008000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".into();
+
+		let bloom_b3: Bloom = "00000000000000000000000000000000000000000000020000000800000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000008000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".into();
+
+		let genesis = BlockBuilder::genesis();
+		let b1 = genesis.add_block_with_bloom(bloom_b1);
+		let b2 = b1.add_block_with_bloom(bloom_b2);
+		let b3 = b2.add_block_with_bloom(bloom_b3);
+		let b1_total_difficulty = genesis.last().difficulty() + b1.last().difficulty();
+
+		let db = new_db();
+		let bc = new_chain(&genesis.last().encoded(), db.clone());
+		let mut batch = db.transaction();
+		bc.insert_unordered_block(&mut batch, &b2.last().encoded(), vec![], Some(b1_total_difficulty), false, false);
+		bc.commit();
+		bc.insert_unordered_block(&mut batch, &b3.last().encoded(), vec![], None, true, false);
+		bc.commit();
+		bc.insert_unordered_block(&mut batch, &b1.last().encoded(), vec![], None, false, false);
+		bc.commit();
+		db.write(batch).unwrap();
+
+		assert_eq!(bc.best_block_hash(), b3.last().hash());
+		assert_eq!(bc.block_hash(1).unwrap(), b1.last().hash());
+		assert_eq!(bc.block_hash(2).unwrap(), b2.last().hash());
+		assert_eq!(bc.block_hash(3).unwrap(), b3.last().hash());
+
+		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 3);
+		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 3);
+		let blocks_b3 = bc.blocks_with_bloom(&bloom_b3, 0, 3);
+
+		assert_eq!(blocks_b1, vec![1]);
+		assert_eq!(blocks_b2, vec![2]);
+		assert_eq!(blocks_b3, vec![3]);
 	}
 
 	#[test]
