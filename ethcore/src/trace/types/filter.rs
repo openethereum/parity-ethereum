@@ -63,8 +63,9 @@ impl AddressesFilter {
 			true => blooms,
 			false => blooms
 				.into_iter()
-				.flat_map(|mut bloom| self.list.iter()
+				.flat_map(|bloom| self.list.iter()
 					.map(|address| {
+						let mut bloom = bloom.clone();
 						bloom.accrue(BloomInput::Raw(address));
 						bloom
 					})
