@@ -172,7 +172,7 @@ mod test {
 		let b = PodState::from(map![
 			1.into() => PodAccount {
 				balance: 69.into(),
-				nonce: 0.into(),
+				nonce: 1.into(),
 				code: Some(Vec::new()),
 				storage: map![],
 			},
