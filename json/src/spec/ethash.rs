@@ -16,7 +16,7 @@
 
 //! Ethash params deserialization.
 
-use uint::Uint;
+use uint::{self, Uint};
 use hash::Address;
 
 /// Deserializable doppelganger of EthashParams.
@@ -27,6 +27,7 @@ pub struct EthashParams {
 	pub minimum_difficulty: Uint,
 	/// See main EthashParams docs.
 	#[serde(rename="difficultyBoundDivisor")]
+	#[serde(deserialize_with="uint::validate_non_zero")]
 	pub difficulty_bound_divisor: Uint,
 	/// See main EthashParams docs.
 	#[serde(rename="difficultyIncrementDivisor")]
@@ -301,5 +302,18 @@ mod tests {
 				expip2_duration_limit: None,
 			}
 		});
+	}
+
+	#[test]
+	#[should_panic(expected = "a non-zero value")]
+	fn test_zero_value_divisor() {
+		let s = r#"{
+			"params": {
+				"difficultyBoundDivisor": "0x0",
+				"minimumDifficulty": "0x020000"
+			}
+		}"#;
+
+		let _deserialized: Ethash = serde_json::from_str(s).unwrap();
 	}
 }
