@@ -144,7 +144,7 @@ pub enum RewardType {
 }
 
 impl Encodable for RewardType {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		let v = match *self {
 			RewardType::Block => 0u32,
 			RewardType::Uncle => 1,
@@ -182,7 +182,7 @@ impl Reward {
 }
 
 impl Encodable for Reward {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.begin_list(3);
 		s.append(&self.author);
 		s.append(&self.value);
@@ -238,7 +238,7 @@ pub enum Action {
 }
 
 impl Encodable for Action {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.begin_list(2);
 		match *self {
 			Action::Call(ref call) => {
@@ -303,7 +303,7 @@ pub enum Res {
 }
 
 impl Encodable for Res {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		match *self {
 			Res::Call(ref call) => {
 				s.begin_list(2);

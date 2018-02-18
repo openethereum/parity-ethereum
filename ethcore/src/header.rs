@@ -242,7 +242,7 @@ impl Header {
 
 	// TODO: make these functions traity
 	/// Place this header into an RLP stream `s`, optionally `with_seal`.
-	pub fn stream_rlp(&self, s: &mut RlpStream, with_seal: Seal) {
+	pub fn stream_rlp<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>, with_seal: Seal) {
 		s.begin_list(13 + match with_seal { Seal::With => self.seal.len(), _ => 0 });
 		s.append(&self.parent_hash);
 		s.append(&self.uncles_hash);
@@ -310,7 +310,7 @@ impl Decodable for Header {
 }
 
 impl Encodable for Header {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		self.stream_rlp(s, Seal::With);
 	}
 }

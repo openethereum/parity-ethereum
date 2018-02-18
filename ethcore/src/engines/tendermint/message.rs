@@ -23,7 +23,7 @@ use bytes::Bytes;
 use super::{Height, View, BlockHash, Step};
 use error::Error;
 use header::Header;
-use rlp::{Rlp, UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
+use rlp::{Rlp, UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError, RlpBuffer, RlpConfigurableStream};
 use ethkey::{recover, public_to_address};
 use super::super::vote_collector::Message;
 
@@ -153,7 +153,7 @@ impl Decodable for Step {
 }
 
 impl Encodable for Step {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.append_internal(&self.number());
 	}
 }
@@ -175,7 +175,7 @@ impl Decodable for ConsensusMessage {
 }
 
 impl Encodable for ConsensusMessage {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		let info = message_info_rlp(&self.vote_step, self.block_hash);
 		s.begin_list(2)
 			.append(&self.signature)

@@ -16,7 +16,7 @@
 
 //! Light protocol request types.
 
-use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+use rlp::{Encodable, Decodable, DecoderError, UntrustedRlp, RlpConfigurableStream, RlpBuffer};
 use ethereum_types::H256;
 
 mod batch;
@@ -161,7 +161,7 @@ impl<T: Decodable> Decodable for Field<T> {
 }
 
 impl<T: Encodable> Encodable for Field<T> {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.begin_list(2);
 		match *self {
 			Field::Scalar(ref data) => {
@@ -231,7 +231,7 @@ impl Decodable for HashOrNumber {
 }
 
 impl Encodable for HashOrNumber {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		match *self {
 			HashOrNumber::Hash(ref hash) => s.append(hash),
 			HashOrNumber::Number(ref num) => s.append(num),
@@ -348,7 +348,7 @@ impl Decodable for Request {
 }
 
 impl Encodable for Request {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.begin_list(2);
 
 		// hack around https://github.com/paritytech/parity/issues/4356
@@ -511,7 +511,7 @@ impl Decodable for Kind {
 }
 
 impl Encodable for Kind {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.append(&(*self as u8));
 	}
 }
@@ -595,7 +595,7 @@ impl Decodable for Response {
 }
 
 impl Encodable for Response {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.begin_list(2);
 
 		// hack around https://github.com/paritytech/parity/issues/4356
@@ -673,7 +673,7 @@ pub trait ResponseLike {
 pub mod header {
 	use super::{Field, HashOrNumber, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+	use rlp::{Encodable, Decodable, DecoderError, UntrustedRlp, RlpConfigurableStream, RlpBuffer};
 
 	/// Potentially incomplete headers request.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -773,7 +773,7 @@ pub mod header {
 	}
 
 	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
+		fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 			s.begin_list(self.headers.len());
 			for header in &self.headers {
 				s.append_raw(header.rlp().as_raw(), 1);
@@ -785,7 +785,7 @@ pub mod header {
 /// Request and response for header proofs.
 pub mod header_proof {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+	use rlp::{Encodable, Decodable, DecoderError, UntrustedRlp, RlpConfigurableStream, RlpBuffer};
 	use ethereum_types::{H256, U256};
 	use bytes::Bytes;
 
@@ -869,7 +869,7 @@ pub mod header_proof {
 	}
 
 	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
+		fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 			s.begin_list(3)
 				.append_list::<Vec<u8>,_>(&self.proof[..])
 				.append(&self.hash)
@@ -1027,7 +1027,7 @@ pub mod block_receipts {
 pub mod block_body {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+	use rlp::{Encodable, Decodable, DecoderError, UntrustedRlp, RlpConfigurableStream, RlpBuffer};
 	use ethereum_types::H256;
 
 	/// Potentially incomplete block body request.
@@ -1107,7 +1107,7 @@ pub mod block_body {
 	}
 
 	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
+		fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 			s.append_raw(&self.body.rlp().as_raw(), 1);
 		}
 	}
@@ -1411,7 +1411,7 @@ pub mod contract_code {
 pub mod execution {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use transaction::Action;
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+	use rlp::{Encodable, Decodable, DecoderError, UntrustedRlp, RlpConfigurableStream, RlpBuffer};
 	use ethereum_types::{H256, U256, Address};
 	use kvdb::DBValue;
 	use bytes::Bytes;
@@ -1523,7 +1523,7 @@ pub mod execution {
 	}
 
 	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
+		fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 			s.begin_list(self.items.len());
 
 			for item in &self.items {
@@ -1536,7 +1536,7 @@ pub mod execution {
 /// A request for epoch signal data.
 pub mod epoch_signal {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+	use rlp::{Encodable, Decodable, DecoderError, UntrustedRlp, RlpConfigurableStream, RlpBuffer};
 	use ethereum_types::H256;
 	use bytes::Bytes;
 
@@ -1556,7 +1556,7 @@ pub mod epoch_signal {
 	}
 
 	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
+		fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 			s.begin_list(1).append(&self.block_hash);
 		}
 	}
@@ -1626,7 +1626,7 @@ pub mod epoch_signal {
 	}
 
 	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
+		fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 			s.append(&self.signal);
 		}
 	}

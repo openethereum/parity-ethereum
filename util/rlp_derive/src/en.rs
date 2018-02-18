@@ -18,7 +18,7 @@ pub fn impl_encodable(ast: &syn::DeriveInput) -> quote::Tokens {
 	let dummy_const = syn::Ident::new(format!("_IMPL_RLP_ENCODABLE_FOR_{}", name));
 	let impl_block = quote! {
 		impl rlp::Encodable for #name {
-			fn rlp_append(&self, stream: &mut rlp::RlpStream) {
+			fn rlp_append<E: rlp::RlpBuffer>(&self, stream: &mut rlp::RlpConfigurableStream<E>) {
 				stream.begin_list(#stmts_len);
 				#(#stmts)*
 			}
@@ -57,7 +57,7 @@ pub fn impl_encodable_wrapper(ast: &syn::DeriveInput) -> quote::Tokens {
 	let dummy_const = syn::Ident::new(format!("_IMPL_RLP_ENCODABLE_FOR_{}", name));
 	let impl_block = quote! {
 		impl rlp::Encodable for #name {
-			fn rlp_append(&self, stream: &mut rlp::RlpStream) {
+			fn rlp_append<E: rlp::RlpBuffer>(&self, stream: &mut rlp::RlpConfigurableStream<E>) {
 				#stmt
 			}
 		}

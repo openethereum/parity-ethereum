@@ -21,7 +21,7 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use heapsize::HeapSizeOf;
-use rlp::*;
+use rlp::{self, RlpStream, Rlp};
 use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
@@ -141,7 +141,7 @@ impl OverlayRecentDB {
 		let mut earliest_era = None;
 		let mut cumulative_size = 0;
 		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
-			let mut era = decode::<u64>(&val);
+			let mut era = rlp::decode::<u64>(&val);
 			latest_era = Some(era);
 			loop {
 				let mut index = 0usize;
@@ -289,7 +289,7 @@ impl JournalDB for OverlayRecentDB {
 		batch.put_vec(self.column, &k.drain(), r.out());
 		if journal_overlay.latest_era.map_or(true, |e| now > e) {
 			trace!(target: "journaldb", "Set latest era to {}", now);
-			batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).into_vec());
+			batch.put(self.column, &LATEST_ERA_KEY, &rlp::encode_short(&now));
 			journal_overlay.latest_era = Some(now);
 		}
 

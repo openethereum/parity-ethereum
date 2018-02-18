@@ -22,7 +22,7 @@ use std::hash::Hash;
 use ethereum_types::{H256, H520, Address};
 use parking_lot:: RwLock;
 use bytes::Bytes;
-use rlp::{Encodable, RlpStream};
+use rlp::{Encodable, RlpBuffer, RlpConfigurableStream};
 
 pub trait Message: Clone + PartialEq + Eq + Hash + Encodable + Debug {
 	type Round: Clone + PartialEq + Eq + Hash + Default + Debug + Ord;
@@ -57,7 +57,7 @@ pub struct DoubleVote<'a, M: Message> {
 }
 
 impl<'a, M: Message> Encodable for DoubleVote<'a, M> {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.begin_list(2)
 			.append(&self.vote_one)
 			.append(&self.vote_two);
@@ -235,7 +235,7 @@ mod tests {
 	}
 
 	impl Encodable for TestMessage {
-		fn rlp_append(&self, s: &mut RlpStream) {
+		fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 			s.begin_list(3)
 				.append(&self.signature)
 				.append(&self.step)

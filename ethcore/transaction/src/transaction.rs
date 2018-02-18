@@ -24,7 +24,7 @@ use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
 use evm::Schedule;
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use rlp::{self, RlpStream, UntrustedRlp, DecoderError, Encodable};
+use rlp::{self, RlpStream, UntrustedRlp, DecoderError, Encodable, RlpConfigurableStream, RlpBuffer};
 // use rlp::*;
 
 type Bytes = Vec<u8>;
@@ -61,7 +61,7 @@ impl rlp::Decodable for Action {
 }
 
 impl rlp::Encodable for Action {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		match *self {
 			Action::Create => s.append_internal(&""),
 			Action::Call(ref addr) => s.append_internal(addr),
@@ -296,7 +296,9 @@ impl rlp::Decodable for UnverifiedTransaction {
 }
 
 impl rlp::Encodable for UnverifiedTransaction {
-	fn rlp_append(&self, s: &mut RlpStream) { self.rlp_append_sealed_transaction(s) }
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
+		self.rlp_append_sealed_transaction(s)
+	}
 }
 
 impl UnverifiedTransaction {
@@ -313,7 +315,7 @@ impl UnverifiedTransaction {
 	}
 
 	/// Append object with a signature into RLP stream
-	fn rlp_append_sealed_transaction(&self, s: &mut RlpStream) {
+	fn rlp_append_sealed_transaction<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.begin_list(9);
 		s.append(&self.nonce);
 		s.append(&self.gas_price);
@@ -420,7 +422,9 @@ impl HeapSizeOf for SignedTransaction {
 }
 
 impl rlp::Encodable for SignedTransaction {
-	fn rlp_append(&self, s: &mut RlpStream) { self.transaction.rlp_append_sealed_transaction(s) }
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
+		self.transaction.rlp_append_sealed_transaction(s)
+	}
 }
 
 impl Deref for SignedTransaction {

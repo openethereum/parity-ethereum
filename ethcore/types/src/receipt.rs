@@ -60,7 +60,7 @@ impl Receipt {
 }
 
 impl Encodable for Receipt {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		match self.outcome {
 			TransactionOutcome::Unknown => {
 				s.begin_list(3);

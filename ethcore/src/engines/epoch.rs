@@ -18,7 +18,7 @@
 
 use ethereum_types::H256;
 
-use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+use rlp::{Encodable, Decodable, DecoderError, UntrustedRlp, RlpBuffer, RlpConfigurableStream};
 
 /// A full epoch transition.
 #[derive(Debug, Clone)]
@@ -32,7 +32,7 @@ pub struct Transition {
 }
 
 impl Encodable for Transition {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.begin_list(3)
 			.append(&self.block_hash)
 			.append(&self.block_number)
@@ -58,7 +58,7 @@ pub struct PendingTransition {
 }
 
 impl Encodable for PendingTransition {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.append(&self.proof);
 	}
 }

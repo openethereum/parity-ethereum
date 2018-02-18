@@ -54,7 +54,7 @@ pub fn ordered_trie_root<I, A>(input: I) -> H256
 		// optimize it later
 		.into_iter()
 		.enumerate()
-		.map(|(i, slice)| (rlp::encode(&i), slice))
+		.map(|(i, slice)| (rlp::encode_short(&i), slice))
 		.collect::<BTreeMap<_, _>>()
 		// then move them to a vector
 		.into_iter()
