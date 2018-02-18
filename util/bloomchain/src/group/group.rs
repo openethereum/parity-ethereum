@@ -1,7 +1,7 @@
 use bloom::Bloom;
 
 /// Group of blooms that are in the same index.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct BloomGroup {
 	pub blooms: Vec<Bloom>,
 }
