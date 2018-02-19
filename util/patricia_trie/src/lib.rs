@@ -25,6 +25,9 @@ extern crate elastic_array;
 extern crate memorydb;
 extern crate ethcore_logger;
 
+#[cfg(test)]
+extern crate trie_standardmap as standardmap;
+
 #[macro_use]
 extern crate log;
 
@@ -33,21 +36,12 @@ use ethereum_types::H256;
 use keccak::KECCAK_NULL_RLP;
 use hashdb::{HashDB, DBValue};
 
-/// Export the standardmap module.
-pub mod standardmap;
-/// Export the node module.
 pub mod node;
-/// Export the triedb module.
 pub mod triedb;
-/// Export the triedbmut module.
 pub mod triedbmut;
-/// Export the sectriedb module.
 pub mod sectriedb;
-/// Export the sectriedbmut module.
 pub mod sectriedbmut;
-/// Trie query recording.
 pub mod recorder;
-
 
 mod fatdb;
 mod fatdbmut;
@@ -55,7 +49,6 @@ mod lookup;
 mod nibbleslice;
 mod nibblevec;
 
-pub use self::standardmap::{Alphabet, StandardMap, ValueMode};
 pub use self::triedbmut::TrieDBMut;
 pub use self::triedb::{TrieDB, TrieDBIterator};
 pub use self::sectriedbmut::SecTrieDBMut;
