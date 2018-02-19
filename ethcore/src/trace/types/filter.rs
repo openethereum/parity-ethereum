@@ -65,7 +65,7 @@ impl AddressesFilter {
 				.into_iter()
 				.flat_map(|bloom| self.list.iter()
 					.map(|address| {
-						let mut bloom = Bloom::from(bloom.0);
+						let mut bloom = bloom.clone();
 						bloom.accrue(BloomInput::Raw(address));
 						bloom
 					})
@@ -91,9 +91,6 @@ pub struct Filter {
 impl BloomFilter for Filter {
 	fn bloom_possibilities(&self) -> Vec<Bloom> {
 		self.bloom_possibilities()
-			.into_iter()
-			.map(|b| Bloom::from(b.0))
-			.collect()
 	}
 
 	fn range(&self) -> Range<Number> {

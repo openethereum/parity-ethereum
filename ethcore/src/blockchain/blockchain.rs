@@ -353,7 +353,7 @@ impl BlockProvider for BlockChain {
 	fn blocks_with_bloom(&self, bloom: &Bloom, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber> {
 		let range = from_block as bc::Number..to_block as bc::Number;
 		let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
-		chain.with_bloom(&range, &Bloom::from(bloom.clone()).into())
+		chain.with_bloom(&range, bloom)
 			.into_iter()
 			.map(|b| b as BlockNumber)
 			.collect()
@@ -1272,7 +1272,7 @@ impl BlockChain {
 					HashMap::new()
 				} else {
 					let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
-					chain.insert(info.number as bc::Number, Bloom::from(log_bloom).into())
+					chain.insert(info.number as bc::Number, log_bloom)
 				}
 			},
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
@@ -1280,14 +1280,12 @@ impl BlockChain {
 				let start_number = ancestor_number + 1;
 				let range = start_number as bc::Number..self.best_block_number() as bc::Number;
 
-				let mut blooms: Vec<bc::Bloom> = data.enacted.iter()
+				let mut blooms: Vec<Bloom> = data.enacted.iter()
 					.map(|hash| self.block_header_data(hash).unwrap())
 					.map(|h| h.log_bloom())
-					.map(Bloom::from)
-					.map(Into::into)
 					.collect();
 
-				blooms.push(Bloom::from(header.log_bloom()).into());
+				blooms.push(header.log_bloom());
 
 				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
 				chain.replace(&range, blooms)
