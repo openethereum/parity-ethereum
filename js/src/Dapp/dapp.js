@@ -135,6 +135,7 @@ export default class Dapp extends Component {
 
     return (
       <iframe
+        allow='camera'
         className={ styles.frame }
         frameBorder={ 0 }
         id='dappFrame'
