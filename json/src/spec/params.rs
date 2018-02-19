@@ -115,8 +115,6 @@ pub struct Params {
 	/// Transaction permission contract address.
 	#[serde(rename="transactionPermissionContract")]
 	pub transaction_permission_contract: Option<Address>,
-	/// Wasm support flag
-	pub wasm: Option<bool>,
 	/// Wasm activation block height, if not activated from start
 	#[serde(rename="wasmActivationTransition")]
 	pub wasm_activation_transition: Option<Uint>,
