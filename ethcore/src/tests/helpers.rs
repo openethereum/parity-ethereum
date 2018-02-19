@@ -275,7 +275,7 @@ pub fn get_temp_state() -> State<::state_db::StateDB> {
 pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::StateDB> {
 	let journal_db = get_temp_state_db();
 	let mut factories = Factories::default();
-	factories.vm = factory;
+	factories.vm = factory.into();
 	State::new(journal_db, U256::from(0), factories)
 }
 

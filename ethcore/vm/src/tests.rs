@@ -76,14 +76,22 @@ pub fn test_finalize(res: Result<GasLeft>) -> Result<U256> {
 }
 
 impl FakeExt {
+	/// New fake externalities
 	pub fn new() -> Self {
 		FakeExt::default()
 	}
 
+	/// New fake externalities with byzantium schedule rules
 	pub fn new_byzantium() -> Self {
 		let mut ext = FakeExt::default();
 		ext.schedule = Schedule::new_byzantium();
 		ext
+	}
+
+	/// Alter fake externalities to allow wasm
+	pub fn with_wasm(mut self) -> Self {
+		self.schedule.wasm = Some(Default::default());
+		self
 	}
 }
 
