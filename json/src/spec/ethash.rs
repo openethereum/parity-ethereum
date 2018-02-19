@@ -31,11 +31,11 @@ pub struct EthashParams {
 	pub difficulty_bound_divisor: Uint,
 	/// See main EthashParams docs.
 	#[serde(rename="difficultyIncrementDivisor")]
-	#[serde(deserialize_with="uint::validate_optional_non_zero")]
+	#[serde(default, deserialize_with="uint::validate_optional_non_zero")]
 	pub difficulty_increment_divisor: Option<Uint>,
 	/// See main EthashParams docs.
 	#[serde(rename="metropolisDifficultyIncrementDivisor")]
-	#[serde(deserialize_with="uint::validate_optional_non_zero")]
+	#[serde(default, deserialize_with="uint::validate_optional_non_zero")]
 	pub metropolis_difficulty_increment_divisor: Option<Uint>,
 	/// See main EthashParams docs.
 	#[serde(rename="durationLimit")]
@@ -63,7 +63,7 @@ pub struct EthashParams {
 	pub difficulty_hardfork_transition: Option<Uint>,
 	/// See main EthashParams docs.
 	#[serde(rename="difficultyHardforkBoundDivisor")]
-	#[serde(deserialize_with="uint::validate_optional_non_zero")]
+	#[serde(default, deserialize_with="uint::validate_optional_non_zero")]
 	pub difficulty_hardfork_bound_divisor: Option<Uint>,
 	/// See main EthashParams docs.
 	#[serde(rename="bombDefuseTransition")]
