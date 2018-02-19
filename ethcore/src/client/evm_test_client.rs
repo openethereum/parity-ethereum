@@ -20,12 +20,11 @@ use std::fmt;
 use std::sync::Arc;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use journaldb;
-use {trie, kvdb_memorydb, bytes};
+use {factory, journaldb, trie, kvdb_memorydb, bytes};
 use kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, transaction, db, spec, pod_state};
 use factory::Factories;
-use evm::{self, VMType, FinalizationResult};
+use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
 
 /// EVM test Error.
@@ -120,7 +119,7 @@ impl<'a> EvmTestClient<'a> {
 
 	fn factories() -> Factories {
 		Factories {
-			vm: evm::Factory::new(VMType::Interpreter, 5 * 1024),
+			vm: factory::VmFactory::new(VMType::Interpreter, 5 * 1024),
 			trie: trie::TrieFactory::new(trie::TrieSpec::Secure),
 			accountdb: Default::default(),
 		}

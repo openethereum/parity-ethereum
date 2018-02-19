@@ -98,8 +98,6 @@ pub struct Params {
 	pub nonce_cap_increment: Option<Uint>,
 	/// See `CommonParams` docs.
 	pub remove_dust_contracts : Option<bool>,
-	/// Wasm support flag
-	pub wasm: Option<bool>,
 	/// See `CommonParams` docs.
 	#[serde(rename="gasLimitBoundDivisor")]
 	#[serde(deserialize_with="uint::validate_non_zero")]
@@ -118,6 +116,9 @@ pub struct Params {
 	/// Transaction permission contract address.
 	#[serde(rename="transactionPermissionContract")]
 	pub transaction_permission_contract: Option<Address>,
+	/// Wasm activation block height, if not activated from start
+	#[serde(rename="wasmActivationTransition")]
+	pub wasm_activation_transition: Option<Uint>,
 }
 
 #[cfg(test)]
@@ -137,7 +138,8 @@ mod tests {
 			"minGasLimit": "0x1388",
 			"accountStartNonce": "0x01",
 			"gasLimitBoundDivisor": "0x20",
-			"maxCodeSize": "0x1000"
+			"maxCodeSize": "0x1000",
+			"wasmActivationTransition": "0x1010"
 		}"#;
 
 		let deserialized: Params = serde_json::from_str(s).unwrap();
@@ -149,6 +151,7 @@ mod tests {
 		assert_eq!(deserialized.account_start_nonce, Some(Uint(U256::from(0x01))));
 		assert_eq!(deserialized.gas_limit_bound_divisor, Uint(U256::from(0x20)));
 		assert_eq!(deserialized.max_code_size, Some(Uint(U256::from(0x1000))));
+		assert_eq!(deserialized.wasm_activation_transition, Some(Uint(U256::from(0x1010))));
 	}
 
 	#[test]

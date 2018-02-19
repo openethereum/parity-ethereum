@@ -60,7 +60,6 @@ extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore;
-extern crate evm;
 extern crate heapsize;
 extern crate futures;
 extern crate itertools;
