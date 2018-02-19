@@ -991,10 +991,7 @@ impl BlockChain {
 			batch.extend_with_cache(db::COL_EXTRA, &mut *write_receipts, update.block_receipts, CacheUpdatePolicy::Remove);
 		}
 
-		// These cached values must be updated last with all four locks taken to avoid
-		// cache decoherence
 		{
-			let mut best_block = self.pending_best_block.write();
 			let mut write_blocks_blooms = self.blocks_blooms.write();
 			// update best block
 			match update.info.location {
@@ -1023,7 +1020,12 @@ impl BlockChain {
 					}
 				},
 			}
+		}
 
+		// These cached values must be updated last with all four locks taken to avoid
+		// cache decoherence
+		{
+			let mut best_block = self.pending_best_block.write();
 			if is_best && update.info.location != BlockLocation::Branch {
 				batch.put(db::COL_EXTRA, b"best", &update.info.hash);
 				*best_block = Some(BestBlock {
