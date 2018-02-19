@@ -24,7 +24,7 @@ use ethcore::client::{Client, BlockChainClient, BlockId, CallContract};
 use ethsync::LightSync;
 use futures::{Future, future, IntoFuture};
 use hash_fetch::fetch::Client as FetchClient;
-use hash_fetch::urlhint::ContractClient;
+use contract_client::ContractClient;
 use light::client::LightChainClient;
 use light::on_demand::{self, OnDemand};
 use node_health::{SyncStatus, NodeHealth};

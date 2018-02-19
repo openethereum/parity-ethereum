@@ -32,6 +32,7 @@ extern crate zip;
 
 extern crate jsonrpc_http_server;
 
+extern crate contract_client;
 extern crate ethcore_bytes as bytes;
 extern crate ethereum_types;
 extern crate fetch;
@@ -80,7 +81,7 @@ use parking_lot::RwLock;
 use fetch::Fetch;
 use node_health::NodeHealth;
 
-pub use hash_fetch::urlhint::ContractClient;
+pub use contract_client::ContractClient;
 pub use node_health::SyncStatus;
 
 

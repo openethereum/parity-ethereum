@@ -69,6 +69,8 @@ keccak-hash = { path = "../util/hash" }
 triehash = { path = "../util/triehash" }
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
+tempdir = "0.3"
+contract-client = { path = "../contract_client" }
 
 [dev-dependencies]
 tempdir = "0.3"

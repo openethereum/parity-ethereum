@@ -25,7 +25,8 @@ use hash::keccak_buffer;
 use fetch::{Fetch, Response, Error as FetchError, Client as FetchClient};
 use futures::{Future, IntoFuture};
 use parity_reactor::Remote;
-use urlhint::{ContractClient, URLHintContract, URLHint, URLHintResult};
+use urlhint::{URLHintContract, URLHint, URLHintResult};
+use contract_client::ContractClient;
 use ethereum_types::H256;
 
 /// API for fetching by hash.

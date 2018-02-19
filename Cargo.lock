@@ -240,6 +240,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "contract-client"
+version = "0.0.1"
+dependencies = [
+ "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-contract 5.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-derive 5.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "conv"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -447,6 +457,7 @@ dependencies = [
  "bn 0.4.4 (git+https://github.com/paritytech/bn)",
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "common-types 0.1.0",
+ "contract-client 0.0.1",
  "crossbeam 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1924,6 +1935,7 @@ dependencies = [
  "ansi_term 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "app_dirs 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.29.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "contract-client 0.0.1",
  "ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)",
  "daemonize 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "dir 0.1.0",
@@ -1997,6 +2009,7 @@ name = "parity-dapps"
 version = "1.11.0"
 dependencies = [
  "base32 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "contract-client 0.0.1",
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bytes 0.1.0",
  "ethcore-devtools 1.11.0",
@@ -2059,6 +2072,7 @@ dependencies = [
 name = "parity-hash-fetch"
 version = "1.11.0"
 dependencies = [
+ "contract-client 0.0.1",
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-derive 5.0.5 (registry+https://github.com/rust-lang/crates.io-index)",

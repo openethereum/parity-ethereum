@@ -77,6 +77,8 @@ extern crate node_filter;
 extern crate keccak_hash as hash;
 extern crate journaldb;
 
+extern crate contract_client;
+
 #[macro_use]
 extern crate log as rlog;
 

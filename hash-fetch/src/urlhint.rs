@@ -25,9 +25,8 @@ use hash::keccak;
 use futures::{future, Future};
 use futures::future::Either;
 use ethereum_types::{H256, Address};
-use bytes::Bytes;
+use contract_client::{RegistryClient, ContractClient};
 
-use_contract!(registry, "Registry", "res/registrar.json");
 use_contract!(urlhint, "Urlhint", "res/urlhint.json");
 
 const COMMIT_LEN: usize = 20;
@@ -36,14 +35,6 @@ const COMMIT_LEN: usize = 20;
 /// the manifest.json file along with the dapp
 static GITHUB_DAPP_COMMIT: &[u8; COMMIT_LEN] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
 
-/// RAW Contract interface.
-/// Should execute transaction using current blockchain state.
-pub trait ContractClient: Send + Sync {
-	/// Get registrar address
-	fn registrar(&self) -> Result<Address, String>;
-	/// Call Contract
-	fn call(&self, address: Address, data: Bytes) -> Box<Future<Item = Bytes, Error = String> + Send>;
-}
 
 /// Github-hosted dapp.
 #[derive(Debug, PartialEq)]
@@ -111,7 +102,7 @@ pub trait URLHint: Send + Sync {
 /// `URLHintContract` API
 pub struct URLHintContract {
 	urlhint: urlhint::Urlhint,
-	registrar: registry::Registry,
+	registrar: RegistryClient,
 	client: Arc<ContractClient>,
 }
 
@@ -120,7 +111,7 @@ impl URLHintContract {
 	pub fn new(client: Arc<ContractClient>) -> Self {
 		URLHintContract {
 			urlhint: urlhint::Urlhint::default(),
-			registrar: registry::Registry::default(),
+			registrar: RegistryClient::new(),
 			client,
 		}
 	}
@@ -178,7 +169,7 @@ impl URLHint for URLHintContract {
 		};
 
 		let client = self.client.clone();
-		let get_address = self.registrar.functions().get_address();
+		let get_address = self.registrar.get_address();
 		let entries = self.urlhint.functions().entries();
 		let data = get_address.input(keccak("githubhint"), "A");
 
