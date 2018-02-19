@@ -358,3 +358,17 @@ impl io::Read for Response {
 		res
 	}
 }
+
+#[cfg(test)]
+mod test {
+	use super::*;
+
+	#[test]
+	fn it_should_fetch() {
+		let fetch = Client::new().unwrap();
+		let ya = fetch.fetch("https://ya.ru").wait();
+		assert!(ya.is_ok());
+		let ya_response = ya.unwrap();
+		assert!(ya_response.is_success());
+	}
+}
