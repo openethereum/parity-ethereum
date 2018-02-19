@@ -34,8 +34,7 @@ use kvdb::{DBValue, KeyValueDB, DBTransaction};
 // other
 use ethereum_types::{H256, Address, U256};
 use block::*;
-use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};
-use blockchain::extras::TransactionAddress;
+use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute, TransactionAddress};
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{

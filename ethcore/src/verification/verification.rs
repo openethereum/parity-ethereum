@@ -337,7 +337,7 @@ mod tests {
 
 	use std::collections::{BTreeMap, HashMap};
 	use ethereum_types::{H256, Bloom, U256};
-	use blockchain::extras::{BlockDetails, TransactionAddress, BlockReceipts};
+	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
 	use encoded;
 	use hash::keccak;
 	use engines::EthEngine;
