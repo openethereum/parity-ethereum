@@ -64,6 +64,7 @@ use ethkey::{Signature, recover, public_to_address};
 use ethcore::executive::{Executive, TransactOptions};
 use ethcore::executed::{Executed};
 use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
+use ethcore::{contract_address as ethcore_contract_address};
 use ethcore::client::{Client, BlockChainClient, ChainNotify, ChainMessageType, BlockId, MiningBlockChainClient, PrivateNotify};
 use ethcore::account_provider::AccountProvider;
 use ethcore::service::ClientIoMessage;
@@ -486,8 +487,13 @@ impl Provider where {
 		};
 
 		let engine = self.client.engine();
+		let contract_address = contract_address.or({
+			let sender = transaction.sender();
+			let nonce = state.nonce(&sender)?;
+			let (new_address, _) = ethcore_contract_address(engine.create_address_scheme(env_info.number), &sender, &nonce, &transaction.data);
+			Some(new_address)
+		});
 		let result = Executive::new(&mut state, &env_info, engine.machine()).transact_virtual(transaction, options)?;
-		let contract_address = contract_address.or(result.contracts_created.first().cloned());
 		let (encrypted_code, encrypted_storage) = match contract_address {
 			Some(address) => {
 				let (code, storage) = state.into_account(&address)?;
@@ -578,7 +584,7 @@ impl Provider where {
 	}
 
 	/// Create encrypted public contract deployment transaction. Returns updated encrypted state.
-	pub fn execute_private_transaction(&self, block: BlockId, source: &SignedTransaction) -> Result<Bytes, PrivateTransactionError> {
+	fn execute_private_transaction(&self, block: BlockId, source: &SignedTransaction) -> Result<Bytes, PrivateTransactionError> {
 		if let &Action::Create = &source.action {
 			return Err(PrivateTransactionError::BadTransactonType.into());
 		}
@@ -606,7 +612,7 @@ impl Provider where {
 	}
 
 	/// Returns private validators for a contract.
-	pub fn get_validators(&self, block: BlockId, contract: &Address) -> Result<Vec<Address>, PrivateTransactionError> {
+	fn get_validators(&self, block: BlockId, contract: &Address) -> Result<Vec<Address>, PrivateTransactionError> {
 		let contract = Contract::new(*contract);
 		Ok(contract.get_validators(|addr, data| futures::done(self.client.call_contract(block, addr, data))).wait()
 			.map_err(|e| PrivateTransactionError::Call(e))?)

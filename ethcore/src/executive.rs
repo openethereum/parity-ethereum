@@ -574,16 +574,13 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		vm_tracer.done_subtrace(subvmtracer);
 
 		match res {
-			Ok(ref res) if res.apply_state => {
-				substate.contracts_created.push(created.clone());
-				tracer.trace_create(
-					trace_info,
-					gas - res.gas_left,
-					trace_output.map(|data| output.as_ref().map(|out| out.to_vec()).unwrap_or(data)),
-					created,
-					subtracer.drain()
-				);
-			}
+			Ok(ref res) if res.apply_state => tracer.trace_create(
+				trace_info,
+				gas - res.gas_left,
+				trace_output.map(|data| output.as_ref().map(|out| out.to_vec()).unwrap_or(data)),
+				created,
+				subtracer.drain()
+			),
 			Ok(_) => tracer.trace_failed_create(trace_info, subtracer.drain(), vm::Error::Reverted.into()),
 			Err(ref e) => tracer.trace_failed_create(trace_info, subtracer.drain(), e.into())
 		};
@@ -756,7 +753,7 @@ mod tests {
 		assert_eq!(state.storage_at(&address, &H256::new()).unwrap(), H256::from(&U256::from(0xf9u64)));
 		assert_eq!(state.balance(&sender).unwrap(), U256::from(0xf9));
 		assert_eq!(state.balance(&address).unwrap(), U256::from(0x7));
-		assert_eq!(substate.contracts_created.len(), 1);
+		assert_eq!(substate.contracts_created.len(), 0);
 
 		// TODO: just test state root.
 	}
@@ -806,8 +803,7 @@ mod tests {
 
 		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &machine);
-			let output = BytesRef::Fixed(&mut[0u8;0]);
-			ex.call(params, &mut substate, output, &mut NoopTracer, &mut NoopVMTracer).unwrap()
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -1142,7 +1138,7 @@ mod tests {
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
-		assert_eq!(substate.contracts_created.len(), 1);
+		assert_eq!(substate.contracts_created.len(), 0);
 	}
 
 	evm_test!{test_create_contract_without_max_depth: test_create_contract_without_max_depth_jit, test_create_contract_without_max_depth_int}
@@ -1192,8 +1188,8 @@ mod tests {
 			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap();
 		}
 
-		assert_eq!(substate.contracts_created.len(), 2);
-		assert_eq!(substate.contracts_created[1], next_address);
+		assert_eq!(substate.contracts_created.len(), 1);
+		assert_eq!(substate.contracts_created[0], next_address);
 	}
 
 	// test is incorrect, mk
