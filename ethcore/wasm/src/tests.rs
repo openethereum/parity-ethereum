@@ -45,7 +45,7 @@ macro_rules! reqrep_test {
 			params.code = Some(Arc::new(code));
 			params.data = Some($input);
 
-			let mut fake_ext = FakeExt::new();
+			let mut fake_ext = FakeExt::new().with_wasm();
 			fake_ext.info = $info;
 			fake_ext.blockhashes = $block_hashes;
 
@@ -81,7 +81,7 @@ fn empty() {
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
 		let mut interpreter = wasm_interpreter();
@@ -110,7 +110,7 @@ fn logger() {
 	params.gas = U256::from(100_000);
 	params.value = ActionValue::transfer(1_000_000_000);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
 		let mut interpreter = wasm_interpreter();
@@ -159,7 +159,7 @@ fn identity() {
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -194,7 +194,7 @@ fn dispersion() {
 	params.data = Some(vec![
 		0u8, 125, 197, 255, 19
 	]);
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -222,7 +222,7 @@ fn suicide_not() {
 	params.data = Some(vec![
 		0u8
 	]);
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -255,7 +255,7 @@ fn suicide() {
 	args.extend(refund.to_vec());
 	params.data = Some(args);
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
 		let mut interpreter = wasm_interpreter();
@@ -282,7 +282,7 @@ fn create() {
 	params.data = Some(vec![0u8, 2, 4, 8, 16, 32, 64, 128]);
 	params.value = ActionValue::transfer(1_000_000_000);
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
 		let mut interpreter = wasm_interpreter();
@@ -326,7 +326,7 @@ fn call_msg() {
 	params.code = Some(Arc::new(load_sample!("call.wasm")));
 	params.data = Some(Vec::new());
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 	ext.balances.insert(receiver.clone(), U256::from(10000000000u64));
 
 	let gas_left = {
@@ -369,7 +369,7 @@ fn call_code() {
 	params.data = Some(Vec::new());
 	params.value = ActionValue::transfer(1_000_000_000);
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -416,7 +416,7 @@ fn call_static() {
 	params.value = ActionValue::transfer(1_000_000_000);
 	params.code_address = contract_address.clone();
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -456,7 +456,7 @@ fn realloc() {
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(code));
 	params.data = Some(vec![0u8]);
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -478,7 +478,7 @@ fn alloc() {
 	params.gas = U256::from(10_000_000);
 	params.code = Some(Arc::new(code));
 	params.data = Some(vec![0u8]);
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -504,7 +504,7 @@ fn storage_read() {
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 	ext.store.insert("0100000000000000000000000000000000000000000000000000000000000000".into(), address.into());
 
 	let (gas_left, result) = {
@@ -531,7 +531,7 @@ fn keccak() {
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(code));
 	params.data = Some(b"something".to_vec());
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -666,7 +666,7 @@ fn storage_metering() {
 	::ethcore_logger::init_log();
 
 	// #1
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let code = Arc::new(load_sample!("setter.wasm"));
 	let address: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
@@ -807,7 +807,7 @@ fn embedded_keccak() {
 	params.code = Some(Arc::new(code));
 	params.params_type = vm::ParamsType::Embedded;
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -835,7 +835,7 @@ fn events() {
 	params.code = Some(Arc::new(code));
 	params.data = Some(b"something".to_vec());
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();

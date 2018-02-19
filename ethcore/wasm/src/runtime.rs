@@ -186,7 +186,7 @@ impl<'a> Runtime<'a> {
 	pub fn adjusted_charge<F>(&mut self, f: F) -> Result<()>
 		where F: FnOnce(&vm::Schedule) -> u64
 	{
-		self.charge(|schedule| f(schedule) * schedule.wasm.opcodes_div as u64 / schedule.wasm.opcodes_mul as u64)
+		self.charge(|schedule| f(schedule) * schedule.wasm().opcodes_div as u64 / schedule.wasm().opcodes_mul as u64)
 	}
 
 	/// Charge gas provided by the closure, and closure also can return overflowing
@@ -212,8 +212,8 @@ impl<'a> Runtime<'a> {
 	{
 		self.overflow_charge(|schedule|
 			f(schedule)
-				.and_then(|x| x.checked_mul(schedule.wasm.opcodes_div as u64))
-				.map(|x| x / schedule.wasm.opcodes_mul as u64)
+				.and_then(|x| x.checked_mul(schedule.wasm().opcodes_div as u64))
+				.map(|x| x / schedule.wasm().opcodes_mul as u64)
 		)
 	}
 
@@ -385,8 +385,8 @@ impl<'a> Runtime<'a> {
 		// todo: optimize to use memory views once it's in
 		let payload = self.memory.get(input_ptr, input_len as usize)?;
 
-		let adjusted_gas = match gas.checked_mul(self.ext.schedule().wasm.opcodes_div as u64)
-			.map(|x| x / self.ext.schedule().wasm.opcodes_mul as u64)
+		let adjusted_gas = match gas.checked_mul(self.ext.schedule().wasm().opcodes_div as u64)
+			.map(|x| x / self.ext.schedule().wasm().opcodes_mul as u64)
 		{
 			Some(x) => x,
 			None => {
@@ -412,8 +412,8 @@ impl<'a> Runtime<'a> {
 			vm::MessageCallResult::Success(gas_left, _) => {
 				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
 				self.gas_counter = self.gas_counter -
-					gas_left.low_u64() * self.ext.schedule().wasm.opcodes_div as u64
-						/ self.ext.schedule().wasm.opcodes_mul as u64;
+					gas_left.low_u64() * self.ext.schedule().wasm().opcodes_div as u64
+						/ self.ext.schedule().wasm().opcodes_mul as u64;
 
 				self.memory.set(result_ptr, &result)?;
 				Ok(0i32.into())
@@ -421,8 +421,8 @@ impl<'a> Runtime<'a> {
 			vm::MessageCallResult::Reverted(gas_left, _) => {
 				// cannot overflow, before making call gas_counter was incremented with gas, and gas_left < gas
 				self.gas_counter = self.gas_counter -
-					gas_left.low_u64() * self.ext.schedule().wasm.opcodes_div as u64
-						/ self.ext.schedule().wasm.opcodes_mul as u64;
+					gas_left.low_u64() * self.ext.schedule().wasm().opcodes_div as u64
+						/ self.ext.schedule().wasm().opcodes_mul as u64;
 
 				self.memory.set(result_ptr, &result)?;
 				Ok((-1i32).into())
@@ -450,14 +450,14 @@ impl<'a> Runtime<'a> {
 
 	fn return_address_ptr(&mut self, ptr: u32, val: Address) -> Result<()>
 	{
-		self.charge(|schedule| schedule.wasm.static_address as u64)?;
+		self.charge(|schedule| schedule.wasm().static_address as u64)?;
 		self.memory.set(ptr, &*val)?;
 		Ok(())
 	}
 
 	fn return_u256_ptr(&mut self, ptr: u32, val: U256) -> Result<()> {
 		let value: H256 = val.into();
-		self.charge(|schedule| schedule.wasm.static_u256 as u64)?;
+		self.charge(|schedule| schedule.wasm().static_u256 as u64)?;
 		self.memory.set(ptr, &*value)?;
 		Ok(())
 	}
@@ -489,8 +489,8 @@ impl<'a> Runtime<'a> {
 		self.adjusted_charge(|schedule| schedule.create_data_gas as u64 * code.len() as u64)?;
 
 		let gas_left: U256 = U256::from(self.gas_left()?)
-			* U256::from(self.ext.schedule().wasm.opcodes_mul)
-			/ U256::from(self.ext.schedule().wasm.opcodes_div);
+			* U256::from(self.ext.schedule().wasm().opcodes_mul)
+			/ U256::from(self.ext.schedule().wasm().opcodes_div);
 
 		match self.ext.create(&gas_left, &endowment, &code, vm::CreateContractAddress::FromSenderAndCodeHash) {
 			vm::ContractCreateResult::Created(address, gas_left) => {
@@ -498,8 +498,8 @@ impl<'a> Runtime<'a> {
 				self.gas_counter = self.gas_limit -
 					// this cannot overflow, since initial gas is in [0..u64::max) range,
 					// and gas_left cannot be bigger
-					gas_left.low_u64() * self.ext.schedule().wasm.opcodes_div as u64
-						/ self.ext.schedule().wasm.opcodes_mul as u64;
+					gas_left.low_u64() * self.ext.schedule().wasm().opcodes_div as u64
+						/ self.ext.schedule().wasm().opcodes_mul as u64;
 				trace!(target: "wasm", "runtime: create contract success (@{:?})", address);
 				Ok(0i32.into())
 			},
@@ -512,8 +512,8 @@ impl<'a> Runtime<'a> {
 				self.gas_counter = self.gas_limit -
 					// this cannot overflow, since initial gas is in [0..u64::max) range,
 					// and gas_left cannot be bigger
-					gas_left.low_u64() * self.ext.schedule().wasm.opcodes_div as u64
-						/ self.ext.schedule().wasm.opcodes_mul as u64;
+					gas_left.low_u64() * self.ext.schedule().wasm().opcodes_div as u64
+						/ self.ext.schedule().wasm().opcodes_mul as u64;
 
 				Ok((-1i32).into())
 			},
