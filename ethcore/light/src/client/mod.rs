@@ -22,12 +22,12 @@ use ethcore::block_status::BlockStatus;
 use ethcore::client::{ClientReport, EnvInfo};
 use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
 use ethcore::machine::EthereumMachine;
-use ethcore::error::BlockImportError;
+use ethcore::error::{Error, BlockImportError};
 use ethcore::ids::BlockId;
 use ethcore::header::{BlockNumber, Header};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::blockchain_info::BlockChainInfo;
-use ethcore::spec::Spec;
+use ethcore::spec::{Spec, SpecHardcodedSync};
 use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
@@ -35,7 +35,7 @@ use parking_lot::{Mutex, RwLock};
 use ethereum_types::{H256, U256};
 use futures::{IntoFuture, Future};
 
-use kvdb::{self, KeyValueDB};
+use kvdb::KeyValueDB;
 
 use self::fetch::ChainDataFetcher;
 use self::header_chain::{AncestryIter, HeaderChain};
@@ -176,7 +176,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		fetcher: T,
 		io_channel: IoChannel<ClientIoMessage>,
 		cache: Arc<Mutex<Cache>>
-	) -> Result<Self, kvdb::Error> {
+	) -> Result<Self, Error> {
 		Ok(Client {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, config.check_seal),
 			engine: spec.engine.clone(),
@@ -188,6 +188,14 @@ impl<T: ChainDataFetcher> Client<T> {
 			fetcher: fetcher,
 			verify_full: config.verify_full,
 		})
+	}
+
+	/// Generates the specifications for hardcoded sync. This is typically only called manually
+	/// from time to time by a Parity developer in order to update the chain specifications.
+	///
+	/// Returns `None` if we are at the genesis block.
+	pub fn read_hardcoded_sync(&self) -> Option<SpecHardcodedSync> {
+		self.chain.read_hardcoded_sync()
 	}
 
 	/// Adds a new `LightChainNotify` listener.

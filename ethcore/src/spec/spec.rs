@@ -28,10 +28,11 @@ use hash::{KECCAK_NULL_RLP, keccak};
 use memorydb::MemoryDB;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
-use rustc_hex::FromHex;
+use rustc_hex::{FromHex, ToHex};
 use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use builtin::Builtin;
+use encoded;
 use engines::{EthEngine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, DEFAULT_BLOCKHASH_CONTRACT};
 use error::Error;
 use executive::Executive;
@@ -319,6 +320,9 @@ pub struct Spec {
 	/// Each seal field, expressed as RLP, concatenated.
 	pub seal_rlp: Bytes,
 
+	/// Hardcoded synchronization. Allows the light client to immediately jump to a specific block.
+	pub hardcoded_sync: Option<SpecHardcodedSync>,
+
 	/// Contract constructors to be executed on genesis.
 	constructors: Vec<(Address, Bytes)>,
 
@@ -347,9 +351,49 @@ impl Clone for Spec {
 			timestamp: self.timestamp.clone(),
 			extra_data: self.extra_data.clone(),
 			seal_rlp: self.seal_rlp.clone(),
+			hardcoded_sync: self.hardcoded_sync.clone(),
 			constructors: self.constructors.clone(),
 			state_root_memo: RwLock::new(*self.state_root_memo.read()),
 			genesis_state: self.genesis_state.clone(),
+		}
+	}
+}
+
+/// Part of `Spec`. Describes the hardcoded synchronization parameters.
+pub struct SpecHardcodedSync {
+	/// Header of the block to jump to for hardcoded sync, and total difficulty.
+	pub header: encoded::Header,
+	/// Total difficulty of the block to jump to.
+	pub total_difficulty: U256,
+	/// List of hardcoded CHTs, in order. If `hardcoded_sync` is set, the CHTs should include the
+	/// header of `hardcoded_sync`.
+	pub chts: Vec<H256>,
+}
+
+impl SpecHardcodedSync {
+	/// Turns this specifications back into JSON. Useful for pretty printing.
+	pub fn to_json(self) -> ethjson::spec::HardcodedSync {
+		self.into()
+	}
+}
+
+#[cfg(test)]
+impl Clone for SpecHardcodedSync {
+	fn clone(&self) -> SpecHardcodedSync {
+		SpecHardcodedSync {
+			header: self.header.clone(),
+			total_difficulty: self.total_difficulty.clone(),
+			chts: self.chts.clone(),
+		}
+	}
+}
+
+impl From<SpecHardcodedSync> for ethjson::spec::HardcodedSync {
+	fn from(sync: SpecHardcodedSync) -> ethjson::spec::HardcodedSync {
+		ethjson::spec::HardcodedSync {
+			header: sync.header.into_inner().to_hex(),
+			total_difficulty: ethjson::uint::Uint(sync.total_difficulty),
+			chts: sync.chts.into_iter().map(Into::into).collect(),
 		}
 	}
 }
@@ -372,6 +416,23 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 	let GenericSeal(seal_rlp) = g.seal.into();
 	let params = CommonParams::from(s.params);
 
+	let hardcoded_sync = if let Some(ref hs) = s.hardcoded_sync {
+		if let Ok(header) = hs.header.from_hex() {
+			Some(SpecHardcodedSync {
+				header: encoded::Header::new(header),
+				total_difficulty: hs.total_difficulty.into(),
+				chts: s.hardcoded_sync
+					.as_ref()
+					.map(|s| s.chts.iter().map(|c| c.clone().into()).collect())
+					.unwrap_or(Vec::new()),
+			})
+		} else {
+			None
+		}
+	} else {
+		None
+	};
+
 	let mut s = Spec {
 		name: s.name.clone().into(),
 		engine: Spec::engine(spec_params, s.engine, params, builtins),
@@ -387,6 +448,7 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 		timestamp: g.timestamp,
 		extra_data: g.extra_data,
 		seal_rlp: seal_rlp,
+		hardcoded_sync: hardcoded_sync,
 		constructors: s.accounts
 			.constructors()
 			.into_iter()

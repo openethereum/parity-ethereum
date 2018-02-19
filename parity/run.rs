@@ -258,6 +258,11 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 	let service = light_client::Service::start(config, &spec, fetch, db, cache.clone())
 		.map_err(|e| format!("Error starting light client: {}", e))?;
 	let client = service.client();
+	// Note: uncomment this code if you want to regenerate the JSON of the hardcoded sync feature
+	// in the chain specifications.
+	/*if let Some(hs) = client.read_hardcoded_sync() {
+		println!("{}", ::serde_json::to_string_pretty(&hs.to_json()).unwrap());
+	}*/
 	let txq = Arc::new(RwLock::new(::light::transaction_queue::TransactionQueue::default()));
 	let provider = ::light::provider::LightProvider::new(client.clone(), txq.clone());
 
