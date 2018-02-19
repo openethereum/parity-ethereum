@@ -24,6 +24,8 @@ use v1::types::{Bytes, PrivateTransactionReceipt, H160, H256, U256, BlockNumber,
 build_rpc_trait! {
 	/// Private transaction management RPC interface.
 	pub trait Private {
+		type Metadata;
+
 		/// Sends private transaction; Transaction will be added to the validation queue and sent out when ready.
 		#[rpc(name = "private_sendTransaction")]
 		fn send_transaction(&self, Bytes) -> Result<PrivateTransactionReceipt, Error>;
@@ -33,8 +35,8 @@ build_rpc_trait! {
 		fn compose_deployment_transaction(&self, BlockNumber, Bytes, Vec<H160>, U256) -> Result<PrivateTransactionReceiptAndTransaction, Error>;
 
 		/// Make a call to the private contract
-		#[rpc(name = "private_call")]
-		fn private_call(&self, BlockNumber, CallRequest) -> Result<Bytes, Error>;
+		#[rpc(meta, name = "private_call")]
+		fn private_call(&self, Self::Metadata, BlockNumber, CallRequest) -> Result<Bytes, Error>;
 
 		/// Retrieve the id of the key associated with the contract
 		#[rpc(name = "private_contractKey")]

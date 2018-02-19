@@ -471,7 +471,7 @@ impl Provider where {
 			V: VMTracer,
 	{
 		let mut env_info = self.client.env_info(block).ok_or(PrivateTransactionError::StatePruned)?;
-		env_info.gas_limit = U256::max_value();
+		env_info.gas_limit = transaction.gas;
 
 		let mut state = self.client.state_at(block).ok_or(PrivateTransactionError::StatePruned)?;
 		// TODO: in case of BlockId::Latest these need to operate on the same state

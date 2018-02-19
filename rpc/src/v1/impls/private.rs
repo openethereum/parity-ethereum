@@ -29,6 +29,7 @@ use jsonrpc_core::{Error};
 use v1::types::{Bytes, PrivateTransactionReceipt, H160, H256, TransactionRequest, U256,
 	BlockNumber, PrivateTransactionReceiptAndTransaction, CallRequest};
 use v1::traits::Private;
+use v1::metadata::Metadata;
 use v1::helpers::{errors, fake_sign};
 
 /// Private transaction manager API endpoint implementation.
@@ -53,6 +54,8 @@ impl PrivateClient {
 }
 
 impl Private for PrivateClient {
+	type Metadata = Metadata;
+
 	fn send_transaction(&self, request: Bytes) -> Result<PrivateTransactionReceipt, Error> {
 		let signed_transaction = UntrustedRlp::new(&request.into_vec()).as_val()
 			.map_err(errors::rlp)
@@ -94,9 +97,9 @@ impl Private for PrivateClient {
 		})
 	}
 
-	fn private_call(&self, num: BlockNumber, request: CallRequest) -> Result<Bytes, Error> {
+	fn private_call(&self, meta: Self::Metadata, num: BlockNumber, request: CallRequest) -> Result<Bytes, Error> {
 		let request = CallRequest::into(request);
-		let signed = fake_sign::sign_call(request, true)?;
+		let signed = fake_sign::sign_call(request, meta.is_dapp())?;
 		let client = self.unwrap_manager()?;
 		let executed_result = client.private_call(num.into(), &signed).map_err(|e| errors::private_message(e))?;
 		Ok(executed_result.output.into())
