@@ -107,7 +107,7 @@ impl AbridgedBlock {
 		let uncles: Vec<Header> = rlp.list_at(9)?;
 
 		header.set_transactions_root(ordered_trie_root(
-			rlp.at(8)?.iter().map(|r| r.as_raw().to_owned())
+			rlp.at(8)?.iter().map(|r| r.as_raw())
 		));
 		header.set_receipts_root(receipts_root);
 
@@ -194,7 +194,7 @@ mod tests {
 
 		let receipts_root = b.header.receipts_root().clone();
 		b.header.set_transactions_root(::triehash::ordered_trie_root(
-			b.transactions.iter().map(::rlp::encode).map(|out| out.into_vec())
+			b.transactions.iter().map(::rlp::encode)
 		));
 
 		let encoded = encode_block(&b);

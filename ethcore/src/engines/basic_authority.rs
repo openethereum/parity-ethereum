@@ -97,7 +97,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 	fn machine(&self) -> &EthereumMachine { &self.machine }
 
 	// One field - the signature
-	fn seal_fields(&self) -> usize { 1 }
+	fn seal_fields(&self, _header: &Header) -> usize { 1 }
 
 	fn seals_internally(&self) -> Option<bool> {
 		Some(self.signer.read().is_some())

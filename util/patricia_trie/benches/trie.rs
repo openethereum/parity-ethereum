@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -17,23 +17,20 @@
 #![feature(test)]
 
 extern crate test;
-extern crate triehash;
-extern crate ethcore_util;
 extern crate ethcore_bytes;
-extern crate ethcore_bigint;
+extern crate ethereum_types;
 extern crate memorydb;
 extern crate patricia_trie as trie;
-#[macro_use]
-extern crate log;
-extern crate hash;
+extern crate keccak_hash;
+extern crate trie_standardmap;
 
+use ethcore_bytes::Bytes;
+use ethereum_types::H256;
+use keccak_hash::keccak;
+use memorydb::MemoryDB;
 use test::{Bencher, black_box};
-use ethcore_bigint::hash::*;
-use ethcore_bytes::*;
-use trie::*;
-use memorydb::*;
-use triehash::*;
-use hash::keccak;
+use trie::{TrieDBMut, TrieDB, TrieMut, Trie};
+use trie_standardmap::{Alphabet, ValueMode, StandardMap};
 
 fn random_word(alphabet: &[u8], min_count: usize, diff_count: usize, seed: &mut H256) -> Vec<u8> {
 	assert!(min_count + diff_count <= 32);
@@ -111,21 +108,6 @@ fn trie_iter(b: &mut Bencher) {
 }
 
 #[bench]
-fn triehash_insertions_32_mir_1k(b: &mut Bencher) {
-	let st = StandardMap {
-		alphabet: Alphabet::All,
-		min_key: 32,
-		journal_key: 0,
-		value_mode: ValueMode::Mirror,
-		count: 1000,
-	};
-	let d = st.make();
-	b.iter(&mut ||{
-		trie_root(d.clone()).clone();
-	});
-}
-
-#[bench]
 fn trie_insertions_32_ran_1k(b: &mut Bencher) {
 	let st = StandardMap {
 		alphabet: Alphabet::All,
@@ -146,22 +128,6 @@ fn trie_insertions_32_ran_1k(b: &mut Bencher) {
 		}
 		hash_count = t.hash_count;
 		r = t.root().clone();
-	});
-//	println!("result: {}", hash_count);
-}
-
-#[bench]
-fn triehash_insertions_32_ran_1k(b: &mut Bencher) {
-	let st = StandardMap {
-		alphabet: Alphabet::All,
-		min_key: 32,
-		journal_key: 0,
-		value_mode: ValueMode::Random,
-		count: 1000,
-	};
-	let d = st.make();
-	b.iter(&mut ||{
-		trie_root(d.clone()).clone();
 	});
 }
 
@@ -186,21 +152,6 @@ fn trie_insertions_six_high(b: &mut Bencher) {
 }
 
 #[bench]
-fn triehash_insertions_six_high(b: &mut Bencher) {
-	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
-	let mut seed = H256::new();
-	for _ in 0..1000 {
-		let k = random_bytes(6, 0, &mut seed);
-		let v = random_value(&mut seed);
-		d.push((k, v))
-	}
-
-	b.iter(&||{
-		trie_root(d.clone());
-	})
-}
-
-#[bench]
 fn trie_insertions_six_mid(b: &mut Bencher) {
 	let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
 	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
@@ -217,22 +168,6 @@ fn trie_insertions_six_mid(b: &mut Bencher) {
 		for i in d.iter() {
 			t.insert(&i.0, &i.1).unwrap();
 		}
-		debug!("hash_count={:?}", t.hash_count);
-	})
-}
-
-#[bench]
-fn triehash_insertions_six_mid(b: &mut Bencher) {
-	let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
-	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
-	let mut seed = H256::new();
-	for _ in 0..1000 {
-		let k = random_word(alphabet, 6, 0, &mut seed);
-		let v = random_value(&mut seed);
-		d.push((k, v))
-	}
-	b.iter(||{
-		trie_root(d.clone());
 	})
 }
 
@@ -258,22 +193,6 @@ fn trie_insertions_random_mid(b: &mut Bencher) {
 }
 
 #[bench]
-fn triehash_insertions_random_mid(b: &mut Bencher) {
-	let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
-	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
-	let mut seed = H256::new();
-	for _ in 0..1000 {
-		let k = random_word(alphabet, 1, 5, &mut seed);
-		let v = random_value(&mut seed);
-		d.push((k, v))
-	}
-
-	b.iter(||{
-		trie_root(d.clone());
-	})
-}
-
-#[bench]
 fn trie_insertions_six_low(b: &mut Bencher) {
 	let alphabet = b"abcdef";
 	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
@@ -290,32 +209,6 @@ fn trie_insertions_six_low(b: &mut Bencher) {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1).unwrap();
-		}
-	})
-}
-
-#[bench]
-fn triehash_insertions_six_low(b: &mut Bencher) {
-	let alphabet = b"abcdef";
-	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
-	let mut seed = H256::new();
-	for _ in 0..1000 {
-		let k = random_word(alphabet, 6, 0, &mut seed);
-		let v = random_value(&mut seed);
-		d.push((k, v))
-	}
-
-	b.iter(||{
-		trie_root(d.clone());
-	})
-}
-
-#[bench]
-fn keccakx10000(b: &mut Bencher) {
-	b.iter(||{
-		let mut seed = H256::new();
-		for _ in 0..10000 {
-			seed = keccak(&seed);
 		}
 	})
 }

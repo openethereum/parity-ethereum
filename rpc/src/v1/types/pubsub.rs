@@ -19,7 +19,7 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::Error;
 use serde_json::{Value, from_value};
-use v1::types::{RichHeader, Filter, Log};
+use v1::types::{RichHeader, Filter, Log, H256};
 
 /// Subscription result.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,6 +28,8 @@ pub enum Result {
 	Header(RichHeader),
 	/// Log
 	Log(Log),
+	/// Transaction hash
+	TransactionHash(H256),
 }
 
 impl Serialize for Result {
@@ -37,6 +39,7 @@ impl Serialize for Result {
 		match *self {
 			Result::Header(ref header) => header.serialize(serializer),
 			Result::Log(ref log) => log.serialize(serializer),
+			Result::TransactionHash(ref hash) => hash.serialize(serializer),
 		}
 	}
 }

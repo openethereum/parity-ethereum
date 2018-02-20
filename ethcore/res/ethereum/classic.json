@@ -15,7 +15,8 @@
 				"ecip1010ContinueTransition": 5000000,
 				"ecip1017EraRounds": 5000000,
 				"eip161abcTransition": "0x7fffffffffffffff",
-				"eip161dTransition": "0x7fffffffffffffff"
+				"eip161dTransition": "0x7fffffffffffffff",
+				"bombDefuseTransition": 5900000
 			}
 		}
 	},

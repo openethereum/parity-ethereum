@@ -9,3 +9,6 @@ license = "GPL-3.0"
 rlp = { version = "0.2.1", path = "../rlp" }
 ethereum-types = "0.2"
 keccak-hash = { version = "0.1", path = "../hash" }
+
+[dev-dependencies]
+trie-standardmap = { path = "../trie-standardmap" }

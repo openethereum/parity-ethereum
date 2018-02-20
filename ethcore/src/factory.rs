@@ -15,14 +15,44 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use trie::TrieFactory;
-use evm::Factory as EvmFactory;
 use account_db::Factory as AccountFactory;
+use evm::{Factory as EvmFactory, VMType};
+use vm::{Vm, ActionParams, Schedule};
+use wasm::WasmInterpreter;
+
+const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
+
+/// Virtual machine factory
+#[derive(Default, Clone)]
+pub struct VmFactory {
+	evm: EvmFactory,
+}
+
+impl VmFactory {
+	pub fn create(&self, params: &ActionParams, schedule: &Schedule) -> Box<Vm> {
+		if schedule.wasm.is_some() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
+			Box::new(WasmInterpreter)
+		} else {
+			self.evm.create(&params.gas)
+		}
+	}
+
+	pub fn new(evm: VMType, cache_size: usize) -> Self {
+		VmFactory { evm: EvmFactory::new(evm, cache_size) }
+	}
+}
+
+impl From<EvmFactory> for VmFactory {
+	fn from(evm: EvmFactory) -> Self {
+		VmFactory { evm: evm }
+	}
+}
 
 /// Collection of factories.
 #[derive(Default, Clone)]
 pub struct Factories {
 	/// factory for evm.
-	pub vm: EvmFactory,
+	pub vm: VmFactory,
 	/// factory for tries.
 	pub trie: TrieFactory,
 	/// factory for account databases.

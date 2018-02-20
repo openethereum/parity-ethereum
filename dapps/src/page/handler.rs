@@ -59,6 +59,8 @@ pub struct PageHandler<T: DappFile> {
 	pub safe_to_embed_on: Embeddable,
 	/// Cache settings for this page.
 	pub cache: PageCache,
+	/// Allow JS unsafe-eval.
+	pub allow_js_eval: bool,
 }
 
 impl<T: DappFile> PageHandler<T> {
@@ -93,7 +95,7 @@ impl<T: DappFile> PageHandler<T> {
 
 			headers.set(header::ContentType(file.content_type().to_owned()));
 
-			add_security_headers(&mut headers, self.safe_to_embed_on);
+			add_security_headers(&mut headers, self.safe_to_embed_on, self.allow_js_eval);
 		}
 
 		let initial_content = if file.content_type().to_owned() == mime::TEXT_HTML {
