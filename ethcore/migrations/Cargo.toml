@@ -13,6 +13,7 @@ log = "0.3"
 macros = { path = "../../util/macros" }
 migration = { path = "../../util/migration" }
 rlp = { path = "../../util/rlp" }
+rlp_compress = { path = "../../util/rlp_compress" }
 patricia-trie = { path = "../../util/patricia_trie" }
 journaldb = { path = "../../util/journaldb" }
 ethcore-bloom-journal = { path = "../../util/bloom" }

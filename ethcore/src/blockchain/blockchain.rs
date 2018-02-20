@@ -26,6 +26,7 @@ use ethereum_types::{H256, Bloom, U256};
 use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use rlp::*;
+use rlp_compress::{compress, decompress, blocks_swapper};
 use header::*;
 use transaction::*;
 use views::*;
@@ -272,7 +273,7 @@ impl BlockProvider for BlockChain {
 
 		let result = match opt {
 			Some(b) => {
-				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).into_vec();
+				let bytes = decompress(&b, blocks_swapper()).into_vec();
 				let mut write = self.block_headers.write();
 				write.insert(*hash, bytes.clone());
 				Some(encoded::Header::new(bytes))
@@ -308,7 +309,7 @@ impl BlockProvider for BlockChain {
 
 		let result = match opt {
 			Some(b) => {
-				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).into_vec();
+				let bytes = decompress(&b, blocks_swapper()).into_vec();
 				let mut write = self.block_bodies.write();
 				write.insert(*hash, bytes.clone());
 				Some(encoded::Body::new(bytes))
@@ -727,9 +728,8 @@ impl BlockChain {
 
 		assert!(self.pending_best_block.read().is_none());
 
-		let block_rlp = UntrustedRlp::new(bytes);
-		let compressed_header = block_rlp.at(0).unwrap().compress(RlpType::Blocks);
-		let compressed_body = UntrustedRlp::new(&Self::block_to_body(bytes)).compress(RlpType::Blocks);
+		let compressed_header = compress(block.header_rlp().as_raw(), blocks_swapper());
+		let compressed_body = compress(&Self::block_to_body(bytes), blocks_swapper());
 
 		// store block in db
 		batch.put(db::COL_HEADERS, &hash, &compressed_header);
@@ -928,9 +928,12 @@ impl BlockChain {
 
 		assert!(self.pending_best_block.read().is_none());
 
+		let compressed_header = compress(block.header_rlp().as_raw(), blocks_swapper());
+		let compressed_body = compress(&Self::block_to_body(bytes), blocks_swapper());
+
 		// store block in db
-		batch.put_compressed(db::COL_HEADERS, &hash, block.header_rlp().as_raw().to_vec());
-		batch.put_compressed(db::COL_BODIES, &hash, Self::block_to_body(bytes));
+		batch.put(db::COL_HEADERS, &hash, &compressed_header);
+		batch.put(db::COL_BODIES, &hash, &compressed_body);
 
 		let info = self.block_info(&header);
 

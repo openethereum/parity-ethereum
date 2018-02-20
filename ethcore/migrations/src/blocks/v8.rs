@@ -17,7 +17,7 @@
 //! This migration compresses the state db.
 
 use migration::{SimpleMigration, Progress};
-use rlp::{Compressible, UntrustedRlp, RlpType};
+use rlp_compress::{compress, blocks_swapper};
 
 /// Compressing migration.
 #[derive(Default)]
@@ -32,6 +32,7 @@ impl SimpleMigration for V8 {
 
 	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 		self.0.tick();
-		Some((key,UntrustedRlp::new(&value).compress(RlpType::Blocks).into_vec()))
+		let compressed = compress(&value, blocks_swapper()).into_vec();
+		Some((key, compressed))
 	}
 }

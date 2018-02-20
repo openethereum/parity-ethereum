@@ -22,6 +22,7 @@ extern crate log;
 extern crate macros;
 extern crate migration;
 extern crate rlp;
+extern crate rlp_compress;
 extern crate ethereum_types;
 extern crate ethcore_bytes as bytes;
 extern crate kvdb;
