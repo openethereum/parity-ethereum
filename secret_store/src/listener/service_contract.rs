@@ -60,8 +60,10 @@ pub trait ServiceContract: Send + Sync {
 	fn publish_retrieved_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String>;
 	/// Publish server key retrieval error.
 	fn publish_server_key_retrieval_error(&self, server_key_id: &ServerKeyId) -> Result<(), String>;
-//	/// Publish document key.
-//	fn publish_document_key(&self, server_key_id: &ServerKeyId, document_key: &EncryptedDocumentKey) -> Result<(), String>;
+	/// Publish stored document key.
+	fn publish_stored_document_key(&self, server_key_id: &ServerKeyId) -> Result<(), String>;
+	/// Publish document key store error.
+	fn publish_document_key_store_error(&self, server_key_id: &ServerKeyId) -> Result<(), String>;
 }
 
 /// On-chain service contract.
@@ -335,6 +337,14 @@ return Box::new(::std::iter::empty()); // TODO: remove me
 		unimplemented!()
 	}
 
+	fn publish_stored_document_key(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
+		unimplemented!()
+	}
+
+	fn publish_document_key_store_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
+		unimplemented!()
+	}
+
 	/*fn publish_document_key(&self, server_key_id: &ServerKeyId, document_key: &EncryptedDocumentKey) -> Result<(), String> {
 		// only publish if contract address is set && client is online
 		let data = self.data.read();
@@ -535,6 +545,14 @@ pub mod tests {
 		fn publish_server_key_retrieval_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
 			self.server_keys_retrieval_failures.lock().push(server_key_id.clone());
 			Ok(())
+		}
+
+		fn publish_stored_document_key(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
+			unimplemented!()
+		}
+
+		fn publish_document_key_store_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
+			unimplemented!()
 		}
 
 		/*fn publish_document_key(&self, server_key_id: &ServerKeyId, document_key: &EncryptedDocumentKey) -> Result<(), String> {

@@ -26,7 +26,7 @@ use ethereum_types::{H256, U256, Address};
 use key_server_set::KeyServerSet;
 use key_server_cluster::{ClusterClient, ClusterSessionsListener, ClusterSession};
 use key_server_cluster::generation_session::SessionImpl as GenerationSession;
-use key_server_cluster::encryption_session::SessionImpl as EncryptionSession;
+use key_server_cluster::encryption_session::{check_encrypted_data, update_encrypted_data};
 use key_server_cluster::decryption_session::SessionImpl as DecryptionSession;
 use key_storage::KeyStorage;
 use listener::service_contract::ServiceContract;
@@ -144,7 +144,6 @@ impl ServiceContractListener {
 			service_handle: service_handle,
 		});
 		contract.data.cluster.add_generation_listener(contract.clone());
-		contract.data.cluster.add_encryption_listener(contract.clone());
 		contract.data.cluster.add_decryption_listener(contract.clone());
 		contract
 	}
@@ -216,8 +215,10 @@ impl ServiceContractListener {
 				log_service_task_result(&task, data.self_key_pair.public(),
 					Self::retrieve_server_key(&data, &server_key_id))
 			},
-			&ServiceTask::StoreDocumentKey(server_key_id, requester, common_point, encrypted_point) => {
-				unimplemented!("TODO")
+			&ServiceTask::StoreDocumentKey(server_key_id, author, common_point, encrypted_point) => {
+				data.retry_data.lock().affected_document_keys.insert((server_key_id.clone(), author.clone()));
+				log_service_task_result(&task, data.self_key_pair.public(),
+					Self::store_document_key(&data, &server_key_id, &author, &common_point, &encrypted_point))
 			},
 			&ServiceTask::RetrieveShadowDocumentKeyCommon(server_key_id, requester) => {
 				unimplemented!("TODO")
@@ -328,6 +329,28 @@ impl ServiceContractListener {
 			}
 		}
 	}
+
+	/// Store document key.
+	fn store_document_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, author: &Address, common_point: &Public, encrypted_point: &Public) -> Result<(), String> {
+		let store_result = data.key_storage.get(server_key_id)
+			.and_then(|key_share| key_share.ok_or(Error::DocumentNotFound))
+			.and_then(|key_share| check_encrypted_data(Some(&key_share)).map(|_| key_share).map_err(Into::into))
+			.and_then(|key_share| update_encrypted_data(&data.key_storage, server_key_id.clone(), key_share,
+				author.clone(), common_point.clone(), encrypted_point.clone()).map_err(Into::into));
+		match store_result {
+			Ok(()) => {
+				data.contract.publish_stored_document_key(server_key_id)
+			},
+			Err(ref error) if is_internal_error(&error) => Err(format!("{}", error)),
+			Err(ref error) => {
+				// ignore error as we're already processing an error
+				let _ = data.contract.publish_document_key_store_error(server_key_id)
+					.map_err(|error| warn!(target: "secretstore", "{}: failed to publish StoreDocumentKey({}) error: {}",
+						data.self_key_pair.public(), server_key_id, error));
+				Err(format!("{}", error))
+			},
+		}
+	}
 }
 
 impl Drop for ServiceContractListener {
@@ -371,49 +394,6 @@ impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 		let server_key_id = session.id();
 		let generation_result = session.wait(Some(Default::default())).map(Some).map_err(Into::into);
 		let _ = Self::process_server_key_generation_result(&self.data, &server_key_id, generation_result);
-	}
-}
-
-impl ClusterSessionsListener<EncryptionSession> for ServiceContractListener {
-	fn on_session_removed(&self, session: Arc<EncryptionSession>) {
-		/*
-
-			The current problem:
-			1) at the end of encryption session: every node should publish the same document_key
-			2) at the end of decryption session: every node should publish the same document key (now it is only restored on master)
-			3) document key generation session is not secure (document key is generated on one of key servers)
-			4) key retrieval session is not secure (document key is restored on one of key servers)
-			5) key shadow retrieval session is hard to use on blockchain, because it returns array and we must return this array via event (several events is the solution???)
-
-			=>
-
-			1) change decryption + retrieval sessions so that at the end every node has document key [shadow] - separate PR!!!
-			2) add StoreDocumentKey API to service contract
-			3) add RestoreDocumentKeyShadow API to service contract
-			4) remove GenerateDocumentKey and RestoreDocumentKey APIs from service contract
-
-			//
-
-			SK API:
-			request id is the key id
-			generate(kid, threshold)
-			retrieve(kid)
-				confirmRetrieval should also have a threshold argument
-			the only error that can occur is when several nodes are reporting different threshold
-			on error: remove request and report an error
-
-
-			DK API:
-			request id is the key id + requester
-			store(kid, doc_key)
-			retrieve(kid)
-
-			separate store and retrieve ops.
-			error can occur
-			error reported by any node leads to an error
-
-		*/
-		//42 // ^^^
 	}
 }
 
