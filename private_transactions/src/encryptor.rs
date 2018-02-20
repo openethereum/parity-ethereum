@@ -143,8 +143,7 @@ impl SecretStoreEncryptor {
 		response.read_to_string(&mut result)?;
 
 		// response is JSON string (which is, in turn, hex-encoded, encrypted Public)
-		let encrypted_bytes: ethjson::bytes::Bytes = result.parse().map_err(|e| PrivateTransactionError::Encrypt(e))?;
-
+		let encrypted_bytes: ethjson::bytes::Bytes = result.trim_matches('\"').parse().map_err(|e| PrivateTransactionError::Encrypt(e))?;
 		if let Err(e) = self.unlock_account(&requester, accounts.clone()) {
 			trace!("Cannot unlock account: {}", e);
 			return Err(PrivateTransactionError::Encrypt(format!("Cannot unlock account {}", e).into()))

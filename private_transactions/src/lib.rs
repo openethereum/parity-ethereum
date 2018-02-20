@@ -744,7 +744,7 @@ mod test {
 		trace!("Modifying private state");
 		let mut private_tx = Transaction::default();
 		private_tx.action = Action::Call(address.clone());
-		private_tx.data = "bc64b76d2b00000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap(); //setX(42)
+		private_tx.data = "bc64b76d2b00000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap(); //setX(43)
 		private_tx.gas = 120000.into();
 		private_tx.nonce = 2.into();
 		let private_tx = private_tx.sign(&key1.secret(), None);
