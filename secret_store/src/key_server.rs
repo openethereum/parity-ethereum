@@ -379,7 +379,7 @@ pub mod tests {
 				let retrieved_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
 				assert_eq!(retrieved_key, generated_key);
 
-				let key_share = key_storages[i].get(&Default::default()).unwrap().unwrap();
+				let key_share = key_storages[i].get(&document).unwrap().unwrap();
 				assert!(key_share.common_point.is_some());
 				assert!(key_share.encrypted_point.is_some());
 			}
