@@ -751,7 +751,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::collections::{BTreeMap, VecDeque};
 	use acl_storage::DummyAclStorage;
-	use ethkey::{self, KeyPair, Random, Generator, Public, Secret};
+	use ethkey::{self, KeyPair, Random, Generator, Public, Secret, public_to_address};
 	use key_server_cluster::{NodeId, DocumentKeyShare, DocumentKeyShareVersion, SessionId, Requester,
 		Error, EncryptedDocumentKeyShadow, SessionMeta};
 	use key_server_cluster::cluster::tests::DummyCluster;
@@ -1086,7 +1086,7 @@ mod tests {
 		let (_, clusters, acl_storages, sessions) = prepare_decryption_sessions();
 		let key_pair = Random.generate().unwrap();
 
-		acl_storages[1].prohibit(key_pair.public().clone(), SessionId::default());
+		acl_storages[1].prohibit(public_to_address(key_pair.public()), SessionId::default());
 		sessions[0].initialize(Default::default(), false, false).unwrap();
 
 		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults).unwrap();
@@ -1219,8 +1219,8 @@ mod tests {
 
 		// we need 4 out of 5 nodes to agree to do a decryption
 		// let's say that 2 of these nodes are disagree
-		acl_storages[1].prohibit(key_pair.public().clone(), SessionId::default());
-		acl_storages[2].prohibit(key_pair.public().clone(), SessionId::default());
+		acl_storages[1].prohibit(public_to_address(key_pair.public()), SessionId::default());
+		acl_storages[2].prohibit(public_to_address(key_pair.public()), SessionId::default());
 
 		assert_eq!(do_messages_exchange(&clusters, &sessions).unwrap_err(), Error::ConsensusUnreachable);
 
@@ -1235,7 +1235,7 @@ mod tests {
 
 		// we need 4 out of 5 nodes to agree to do a decryption
 		// let's say that 1 of these nodes (master) is disagree
-		acl_storages[0].prohibit(key_pair.public().clone(), SessionId::default());
+		acl_storages[0].prohibit(public_to_address(key_pair.public()), SessionId::default());
 
 		// now let's try to do a decryption
 		sessions[0].initialize(Default::default(), false, false).unwrap();

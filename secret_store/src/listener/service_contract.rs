@@ -64,6 +64,10 @@ pub trait ServiceContract: Send + Sync {
 	fn publish_stored_document_key(&self, server_key_id: &ServerKeyId) -> Result<(), String>;
 	/// Publish document key store error.
 	fn publish_document_key_store_error(&self, server_key_id: &ServerKeyId) -> Result<(), String>;
+	/// Publish retrieved document key common.
+	fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public) -> Result<(), String>;
+	/// Publish document key store error.
+	fn publish_document_key_retrieval_error(&self, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String>;
 }
 
 /// On-chain service contract.
@@ -345,6 +349,14 @@ return Box::new(::std::iter::empty()); // TODO: remove me
 		unimplemented!()
 	}
 
+	fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public) -> Result<(), String> {
+		unimplemented!()
+	}
+
+	fn publish_document_key_retrieval_error(&self, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String> {
+		unimplemented!()
+	}
+
 	/*fn publish_document_key(&self, server_key_id: &ServerKeyId, document_key: &EncryptedDocumentKey) -> Result<(), String> {
 		// only publish if contract address is set && client is online
 		let data = self.data.read();
@@ -498,7 +510,7 @@ fn parse_threshold(threshold: U256) -> Result<usize, String> {
 pub mod tests {
 	use parking_lot::Mutex;
 	use ethkey::Public;
-	use ethereum_types::H256;
+	use ethereum_types::{Address, H256};
 	use listener::service_contract_listener::ServiceTask;
 	use {ServerKeyId, EncryptedDocumentKey};
 	use super::ServiceContract;
@@ -552,6 +564,14 @@ pub mod tests {
 		}
 
 		fn publish_document_key_store_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
+			unimplemented!()
+		}
+
+		fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public) -> Result<(), String> {
+			unimplemented!()
+		}
+
+		fn publish_document_key_retrieval_error(&self, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String> {
 			unimplemented!()
 		}
 

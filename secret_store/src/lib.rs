@@ -86,7 +86,7 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<No
 	let key_server_set = key_server_set::OnChainKeyServerSet::new(trusted_client.clone(), self_key_pair.clone(),
 		config.cluster_config.auto_migrate_enabled, config.cluster_config.nodes.clone())?;
 	let key_storage = Arc::new(key_storage::PersistentKeyStorage::new(&config)?);
-	let key_server = Arc::new(key_server::KeyServerImpl::new(&config.cluster_config, key_server_set.clone(), self_key_pair.clone(), acl_storage, key_storage.clone())?);
+	let key_server = Arc::new(key_server::KeyServerImpl::new(&config.cluster_config, key_server_set.clone(), self_key_pair.clone(), acl_storage.clone(), key_storage.clone())?);
 	let cluster = key_server.cluster();
 
 	// prepare listeners
@@ -100,6 +100,7 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<No
 			contract: service_contract,
 			self_key_pair: self_key_pair,
 			key_server_set: key_server_set,
+			acl_storage: acl_storage,
 			cluster: cluster,
 			key_storage: key_storage,
 		});

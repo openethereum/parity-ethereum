@@ -361,7 +361,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use ethkey::{KeyPair, Random, Generator, sign};
+	use ethkey::{KeyPair, Random, Generator, sign, public_to_address};
 	use key_server_cluster::{Error, NodeId, SessionId, Requester, DummyAclStorage};
 	use key_server_cluster::message::{ConsensusMessage, InitializeConsensusSession, ConfirmConsensusInitialization};
 	use key_server_cluster::jobs::job_session::tests::{make_master_session_meta, make_slave_session_meta, SquaredSumJobExecutor, DummyJobTransport};
@@ -414,7 +414,7 @@ mod tests {
 	fn consensus_session_consensus_is_not_reached_when_initializes_with_zero_threshold_and_master_rejects() {
 		let requester = Random.generate().unwrap();
 		let acl_storage = DummyAclStorage::default();
-		acl_storage.prohibit(requester.public().clone(), SessionId::default());
+		acl_storage.prohibit(public_to_address(requester.public()), SessionId::default());
 
 		let mut session = make_master_consensus_session(0, Some(requester), Some(acl_storage));
 		session.initialize(vec![NodeId::from(1), NodeId::from(2)].into_iter().collect()).unwrap();
@@ -429,7 +429,7 @@ mod tests {
 	fn consensus_session_consensus_is_failed_by_master_node() {
 		let requester = Random.generate().unwrap();
 		let acl_storage = DummyAclStorage::default();
-		acl_storage.prohibit(requester.public().clone(), SessionId::default());
+		acl_storage.prohibit(public_to_address(requester.public()), SessionId::default());
 
 		let mut session = make_master_consensus_session(1, Some(requester), Some(acl_storage));
 		assert_eq!(session.initialize(vec![NodeId::from(1), NodeId::from(2)].into_iter().collect()).unwrap_err(), Error::ConsensusUnreachable);
@@ -471,7 +471,7 @@ mod tests {
 	fn consensus_session_job_dissemination_does_not_select_master_node_if_rejected() {
 		let requester = Random.generate().unwrap();
 		let acl_storage = DummyAclStorage::default();
-		acl_storage.prohibit(requester.public().clone(), SessionId::default());
+		acl_storage.prohibit(public_to_address(requester.public()), SessionId::default());
 
 		let mut session = make_master_consensus_session(0, Some(requester), Some(acl_storage));
 		session.initialize(vec![NodeId::from(1), NodeId::from(2)].into_iter().collect()).unwrap();

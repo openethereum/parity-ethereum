@@ -29,6 +29,7 @@ use key_server_cluster::generation_session::SessionImpl as GenerationSession;
 use key_server_cluster::encryption_session::{check_encrypted_data, update_encrypted_data};
 use key_server_cluster::decryption_session::SessionImpl as DecryptionSession;
 use key_storage::KeyStorage;
+use acl_storage::AclStorage;
 use listener::service_contract::ServiceContract;
 use listener::tasks_queue::TasksQueue;
 use {ServerKeyId, RequestSignature, NodeKeyPair, KeyServer, EncryptedDocumentKey, Error};
@@ -62,6 +63,8 @@ pub struct ServiceContractListenerParams {
 	pub self_key_pair: Arc<NodeKeyPair>,
 	/// Key servers set.
 	pub key_server_set: Arc<KeyServerSet>,
+	/// ACL storage reference.
+	pub acl_storage: Arc<AclStorage>,
 	/// Cluster reference.
 	pub cluster: Arc<ClusterClient>,
 	/// Key storage reference.
@@ -78,6 +81,8 @@ struct ServiceContractListenerData {
 	pub tasks_queue: Arc<TasksQueue<ServiceTask>>,
 	/// Service contract.
 	pub contract: Arc<ServiceContract>,
+	/// ACL storage reference.
+	pub acl_storage: Arc<AclStorage>,
 	/// Cluster client reference.
 	pub cluster: Arc<ClusterClient>,
 	/// This node key pair.
@@ -110,7 +115,7 @@ pub enum ServiceTask {
 	/// Store document key (server_key_id, author, common_point, encrypted_point).
 	StoreDocumentKey(ServerKeyId, Address, Public, Public),
 	/// Retrieve common data of document key (server_key_id, requester).
-	RetrieveShadowDocumentKeyCommon(ServerKeyId, Public),
+	RetrieveShadowDocumentKeyCommon(ServerKeyId, Address),
 	/// Retrieve personal data of document key (server_key_id, requester).
 	RetrieveShadowDocumentKeyPersonal(ServerKeyId, Public),
 	/// Shutdown listener.
@@ -125,6 +130,7 @@ impl ServiceContractListener {
 			retry_data: Default::default(),
 			tasks_queue: Arc::new(TasksQueue::new()),
 			contract: params.contract,
+			acl_storage: params.acl_storage,
 			cluster: params.cluster,
 			self_key_pair: params.self_key_pair,
 			key_server_set: params.key_server_set,
@@ -221,7 +227,9 @@ impl ServiceContractListener {
 					Self::store_document_key(&data, &server_key_id, &author, &common_point, &encrypted_point))
 			},
 			&ServiceTask::RetrieveShadowDocumentKeyCommon(server_key_id, requester) => {
-				unimplemented!("TODO")
+				data.retry_data.lock().affected_document_keys.insert((server_key_id.clone(), requester.clone()));
+				log_service_task_result(&task, data.self_key_pair.public(),
+					Self::retrieve_document_key_common(&data, &server_key_id, &requester))
 			},
 			&ServiceTask::RetrieveShadowDocumentKeyPersonal(server_key_id, requester) => {
 				unimplemented!("TODO")
@@ -262,10 +270,10 @@ impl ServiceContractListener {
 			match task {
 				ServiceTask::GenerateServerKey(ref key, _, _) | ServiceTask::RetrieveServerKey(ref key)
 					if retry_data.affected_server_keys.contains(key) => continue,
-				ServiceTask::StoreDocumentKey(ref key, ref author, _, _)
+				ServiceTask::StoreDocumentKey(ref key, ref author, _, _) |
+					ServiceTask::RetrieveShadowDocumentKeyCommon(ref key, ref author)
 					if retry_data.affected_document_keys.contains(&(key.clone(), author.clone())) => continue,
-				ServiceTask::RetrieveShadowDocumentKeyCommon(ref key, ref requester) |
-					ServiceTask::RetrieveShadowDocumentKeyPersonal(ref key, ref requester)
+				ServiceTask::RetrieveShadowDocumentKeyPersonal(ref key, ref requester)
 					if retry_data.affected_document_keys.contains(&(key.clone(), public_to_address(requester))) => continue,
 				_ => (),
 			}
@@ -351,6 +359,29 @@ impl ServiceContractListener {
 			},
 		}
 	}
+
+	/// Retrieve common part of document key.
+	fn retrieve_document_key_common(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String> {
+		let retrieval_result = data.acl_storage.check(requester.clone(), server_key_id)
+			.and_then(|is_allowed| if !is_allowed { Err(Error::AccessDenied) } else { Ok(()) })
+			.and_then(|_| data.key_storage.get(server_key_id).and_then(|key_share| key_share.ok_or(Error::DocumentNotFound)))
+			.and_then(|key_share| key_share.common_point.ok_or(Error::DocumentNotFound)
+				.and_then(|common_point| key_share.encrypted_point.ok_or(Error::DocumentNotFound)
+				.map(|encrypted_point| (common_point, encrypted_point))));
+		match retrieval_result {
+			Ok((common_point, encrypted_point)) => {
+				data.contract.publish_retrieved_document_key_common(server_key_id, requester, common_point, encrypted_point)
+			},
+			Err(ref error) if is_internal_error(&error) => Err(format!("{}", error)),
+			Err(ref error) => {
+				// ignore error as we're already processing an error
+				let _ = data.contract.publish_document_key_retrieval_error(server_key_id, requester)
+					.map_err(|error| warn!(target: "secretstore", "{}: failed to publish RetrieveDocumentKey({}) error: {}",
+						data.self_key_pair.public(), server_key_id, error));
+				Err(format!("{}", error))
+			},
+		}
+	}
 }
 
 impl Drop for ServiceContractListener {
@@ -414,7 +445,7 @@ impl ::std::fmt::Display for ServiceTask {
 			ServiceTask::StoreDocumentKey(ref server_key_id, ref author, _, _) =>
 				write!(f, "StoreDocumentKey({}, {})", server_key_id, author),
 			ServiceTask::RetrieveShadowDocumentKeyCommon(ref server_key_id, ref requester) =>
-				write!(f, "RetrieveShadowDocumentKeyCommon({}, {})", server_key_id, public_to_address(requester)),
+				write!(f, "RetrieveShadowDocumentKeyCommon({}, {})", server_key_id, requester),
 			ServiceTask::RetrieveShadowDocumentKeyPersonal(ref server_key_id, ref requester) =>
 				write!(f, "RetrieveShadowDocumentKeyPersonal({}, {})", server_key_id, public_to_address(requester)),
 			ServiceTask::Shutdown => write!(f, "Shutdown"),
@@ -473,6 +504,7 @@ mod tests {
 	use listener::service_contract::tests::DummyServiceContract;
 	use key_server_cluster::DummyClusterClient;
 	use key_server::tests::DummyKeyServer;
+	use acl_storage::DummyAclStorage;
 	use key_storage::{KeyStorage, DocumentKeyShare};
 	use key_storage::tests::DummyKeyStorage;
 	use key_server_set::tests::MapKeyServerSet;
@@ -496,6 +528,7 @@ mod tests {
 			contract: contract,
 			self_key_pair: self_key_pair,
 			key_server_set: servers_set,
+			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: cluster,
 			key_storage: key_storage,
 		})

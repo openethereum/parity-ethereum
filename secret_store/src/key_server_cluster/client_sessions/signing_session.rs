@@ -800,7 +800,7 @@ mod tests {
 	use std::str::FromStr;
 	use std::collections::{BTreeMap, VecDeque};
 	use ethereum_types::{Address, H256};
-	use ethkey::{self, Random, Generator, Public, Secret, KeyPair};
+	use ethkey::{self, Random, Generator, Public, Secret, KeyPair, public_to_address};
 	use acl_storage::DummyAclStorage;
 	use key_server_cluster::{NodeId, DummyKeyStorage, DocumentKeyShare, DocumentKeyShareVersion, SessionId,
 		Requester, SessionMeta, Error, KeyStorage};
@@ -1154,8 +1154,8 @@ mod tests {
 
 		// we need at least 2-of-3 nodes to agree to reach consensus
 		// let's say 2 of 3 nodes disagee
-		sl.acl_storages[1].prohibit(sl.requester.public().clone(), SessionId::default());
-		sl.acl_storages[2].prohibit(sl.requester.public().clone(), SessionId::default());
+		sl.acl_storages[1].prohibit(public_to_address(sl.requester.public()), SessionId::default());
+		sl.acl_storages[2].prohibit(public_to_address(sl.requester.public()), SessionId::default());
 
 		// then consensus is unreachable
 		assert_eq!(sl.run_until(|_| false), Err(Error::ConsensusUnreachable));
@@ -1168,7 +1168,7 @@ mod tests {
 
 		// we need at least 2-of-3 nodes to agree to reach consensus
 		// let's say 1 of 3 nodes disagee
-		sl.acl_storages[1].prohibit(sl.requester.public().clone(), SessionId::default());
+		sl.acl_storages[1].prohibit(public_to_address(sl.requester.public()), SessionId::default());
 
 		// then consensus reachable, but single node will disagree
 		while let Some((from, to, message)) = sl.take_message() {
@@ -1189,7 +1189,7 @@ mod tests {
 
 		// we need at least 2-of-3 nodes to agree to reach consensus
 		// let's say 1 of 3 nodes disagee
-		sl.acl_storages[0].prohibit(sl.requester.public().clone(), SessionId::default());
+		sl.acl_storages[0].prohibit(public_to_address(sl.requester.public()), SessionId::default());
 
 		// then consensus reachable, but single node will disagree
 		while let Some((from, to, message)) = sl.take_message() {
