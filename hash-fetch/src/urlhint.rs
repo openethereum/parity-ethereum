@@ -20,21 +20,20 @@ use std::sync::Arc;
 use rustc_hex::ToHex;
 use mime::{self, Mime};
 use mime_guess;
-use hash::keccak;
 
 use futures::{future, Future};
 use futures::future::Either;
 use ethereum_types::{H256, Address};
-use contract_client::{RegistryClient, ContractClient};
+use contract_client::{RegistrarClient, ContractClient};
 
 use_contract!(urlhint, "Urlhint", "res/urlhint.json");
 
 const COMMIT_LEN: usize = 20;
+const GITHUB_HINT: &'static str = "githubhint";
 /// GithubHint entries with commit set as `0x0..01` should be treated
 /// as Github Dapp, downloadable zip files, than can be extracted, containing
 /// the manifest.json file along with the dapp
 static GITHUB_DAPP_COMMIT: &[u8; COMMIT_LEN] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
-
 
 /// Github-hosted dapp.
 #[derive(Debug, PartialEq)]
@@ -102,7 +101,7 @@ pub trait URLHint: Send + Sync {
 /// `URLHintContract` API
 pub struct URLHintContract {
 	urlhint: urlhint::Urlhint,
-	registrar: RegistryClient,
+	registrar: RegistrarClient,
 	client: Arc<ContractClient>,
 }
 
@@ -111,7 +110,7 @@ impl URLHintContract {
 	pub fn new(client: Arc<ContractClient>) -> Self {
 		URLHintContract {
 			urlhint: urlhint::Urlhint::default(),
-			registrar: RegistryClient::new(),
+			registrar: RegistrarClient::new(client.clone()),
 			client,
 		}
 	}
@@ -163,18 +162,10 @@ fn decode_urlhint_output(output: (String, [u8; 20], Address)) -> Option<URLHintR
 
 impl URLHint for URLHintContract {
 	fn resolve(&self, id: H256) -> Box<Future<Item = Option<URLHintResult>, Error = String> + Send> {
-		let address = match self.client.registrar() {
-			Ok(a) => a,
-			Err(e) => return Box::new(future::err(e)),
-		};
-
-		let client = self.client.clone();
-		let get_address = self.registrar.get_address();
 		let entries = self.urlhint.functions().entries();
-		let data = get_address.input(keccak("githubhint"), "A");
+		let client = self.client.clone();
 
-		let future = client.call(address, data)
-			.and_then(move |output| get_address.output(&output).map_err(|e| e.to_string()))
+		let future = self.registrar.get_address(GITHUB_HINT)
 			.and_then(move |addr| if !addr.is_zero() {
 				let data = entries.input(id);
 				let result = client.call(addr, data)
@@ -183,8 +174,7 @@ impl URLHint for URLHintContract {
 				Either::B(result)
 			} else {
 				Either::A(future::ok(None))
-			});
-
+		});
 		Box::new(future)
 	}
 }

@@ -16,6 +16,7 @@
 
 extern crate futures;
 extern crate ethabi;
+extern crate keccak_hash;
 
 #[macro_use]
 extern crate ethabi_derive;
@@ -23,4 +24,4 @@ extern crate ethabi_derive;
 extern crate ethabi_contract;
 
 mod contract_client;
-pub use contract_client::{RegistryClient, ContractClient};
+pub use contract_client::{RegistrarClient, ContractClient};
