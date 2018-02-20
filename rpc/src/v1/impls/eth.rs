@@ -534,11 +534,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn work(&self, no_new_work_timeout: Trailing<u64>) -> Result<Work> {
-		if !self.miner.can_produce_work_package() {
-			warn!(target: "miner", "Cannot give work package - engine seals internally.");
-			return Err(errors::no_work_required())
-		}
-
 		let no_new_work_timeout = no_new_work_timeout.unwrap_or_default();
 
 		// check if we're still syncing and return empty strings in that case
@@ -561,45 +556,52 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			warn!(target: "miner", "Cannot give work package - no author is configured. Use --author to configure!");
 			return Err(errors::no_author())
 		}
-		self.miner.map_sealing_work(&*self.client, |b| {
-			let pow_hash = b.hash();
-			let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
-			let seed_hash = self.seed_compute.lock().hash_block_number(b.block().header().number());
 
-			if no_new_work_timeout > 0 && b.block().header().timestamp() + no_new_work_timeout < get_time().sec as u64 {
-				Err(errors::no_new_work())
-			} else if self.options.send_block_number_in_get_work {
-				let block_number = b.block().header().number();
-				Ok(Work {
-					pow_hash: pow_hash.into(),
-					seed_hash: seed_hash.into(),
-					target: target.into(),
-					number: Some(block_number),
-				})
-			} else {
-				Ok(Work {
-					pow_hash: pow_hash.into(),
-					seed_hash: seed_hash.into(),
-					target: target.into(),
-					number: None
-				})
-			}
-		}).unwrap_or(Err(errors::internal("No work found.", "")))
+		let work = self.miner.work_package(&*client).ok_or_else(|| {
+			warn!(target: "miner", "Cannot give work package - engine seals internally.");
+			Err(errors::no_work_required())
+		})?;
+		let (pow_hash, number, timestamp, difficulty) = work;
+		let target = Ethash::difficulty_to_boundary(difficulty);
+		let seed_hash = self.seed_compute.lock().hash_block_number(number);
+
+		if no_new_work_timeout > 0 && timestamp + no_new_work_timeout < get_time().sec as u64 {
+			Err(errors::no_new_work())
+		} else if self.options.send_block_number_in_get_work {
+			Ok(Work {
+				pow_hash: pow_hash.into(),
+				seed_hash: seed_hash.into(),
+				target: target.into(),
+				number: Some(number),
+			})
+		} else {
+			Ok(Work {
+				pow_hash: pow_hash.into(),
+				seed_hash: seed_hash.into(),
+				target: target.into(),
+				number: None
+			})
+		}
 	}
 
 	fn submit_work(&self, nonce: RpcH64, pow_hash: RpcH256, mix_hash: RpcH256) -> Result<bool> {
-		if !self.miner.can_produce_work_package() {
-			warn!(target: "miner", "Cannot submit work - engine seals internally.");
-			return Err(errors::no_work_required())
-		}
-
+		// TODO [ToDr] Should disallow submissions in case of PoA?
 		let nonce: H64 = nonce.into();
 		let pow_hash: H256 = pow_hash.into();
 		let mix_hash: H256 = mix_hash.into();
 		trace!(target: "miner", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 
 		let seal = vec![rlp::encode(&mix_hash).into_vec(), rlp::encode(&nonce).into_vec()];
-		Ok(self.miner.submit_seal(&*self.client, pow_hash, seal).is_ok())
+		let import = self.miner.submit_seal(pow_hash, seal)
+			.and_then(|block| self.client.import_sealed_block(block));
+
+		match import {
+			Ok(_) => Ok(true),
+			Err(err) => {
+				warn!(target: "miner", "Cannot submit work - {:?}.", err);
+				Ok(false)
+			},
+		}
 	}
 
 	fn submit_hashrate(&self, rate: RpcU256, id: RpcH256) -> Result<bool> {

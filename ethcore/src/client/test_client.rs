@@ -818,8 +818,9 @@ impl super::traits::EngineClient for TestBlockChainClient {
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		if self.miner.submit_seal(self, block_hash, seal).is_err() {
-			warn!(target: "poa", "Wrong internal seal submission!")
+		let import = self.miner.submit_seal(block_hash, seal).and_then(|block| self.import_sealed_block(block));
+		if let Err(err) = import {
+			warn!(target: "poa", "Wrong internal seal submission! {:?}", err);
 		}
 	}
 

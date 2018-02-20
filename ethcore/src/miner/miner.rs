@@ -38,7 +38,7 @@ use transaction::{
 use using_queue::{UsingQueue, GetAction};
 
 use account_provider::{AccountProvider, SignError as AccountError};
-use block::{ClosedBlock, IsBlock, Block};
+use block::{ClosedBlock, IsBlock, Block, SealedBlock};
 use client::{MiningBlockChainClient, BlockId};
 use executive::contract_address;
 use header::{Header, BlockNumber};
@@ -163,7 +163,8 @@ struct SealingWork {
 	enabled: bool,
 	next_allowed_reseal: Instant,
 	next_mandatory_reseal: Instant,
-	sealing_block_last_request: u64,
+	// block number when sealing work was last requested
+	last_request: u64,
 }
 
 impl SealingWork {
@@ -213,7 +214,7 @@ impl Miner {
 					|| spec.engine.seals_internally().is_some(),
 				next_allowed_reseal: Instant::now(),
 				next_mandatory_reseal: Instant::now() + options.reseal_max_period,
-				sealing_block_last_request: 0,
+				last_request: 0,
 			}),
 			params: RwLock::new(AuthoringParams::default()),
 			listeners: RwLock::new(vec![]),
@@ -471,22 +472,24 @@ impl Miner {
 			return false
 		}
 
-		let has_local_transactions = self.transaction_queue.has_local_transactions();
 		trace!(target: "miner", "requires_reseal: sealing enabled");
 
-		let last_request = sealing.sealing_block_last_request;
+		// Disable sealing if there were no requests for SEALING_TIMEOUT_IN_BLOCKS
+		let had_requests = best_block > sealing.last_request
+			&& best_block - sealing.last_request <= SEALING_TIMEOUT_IN_BLOCKS;
+
+		// keep sealing enabled if any of the conditions is met
 		let sealing_enabled = self.forced_sealing()
-			|| has_local_transactions
+			|| self.transaction_queue.has_local_transactions()
 			|| self.engine.seals_internally().is_some()
-			// Disable sealing if there were no requests for SEALING_TIMEOUT_IN_BLOCKS
-			|| (best_block > last_request && best_block - last_request <= SEALING_TIMEOUT_IN_BLOCKS);
+			|| had_requests;
 
 		let should_disable_sealing = !sealing_enabled;
 
-		trace!(target: "miner", "requires_reseal: should_disable_sealing={}; best_block={}, last_request={}", should_disable_sealing, best_block, last_request);
+		trace!(target: "miner", "requires_reseal: should_disable_sealing={}; best_block={}, last_request={}", should_disable_sealing, best_block, sealing.last_request);
 
 		if should_disable_sealing {
-			trace!(target: "miner", "Miner sleeping (current {}, last {})", best_block, last_request);
+			trace!(target: "miner", "Miner sleeping (current {}, last {})", best_block, sealing.last_request);
 			sealing.enabled = false;
 			sealing.queue.reset();
 			false
@@ -623,12 +626,12 @@ impl Miner {
 	}
 
 	/// Returns true if we had to prepare new pending block.
-	fn prepare_work_sealing(&self, client: &MiningBlockChainClient) -> bool {
-		trace!(target: "miner", "prepare_work_sealing: entering");
+	fn prepare_pending_block(&self, client: &MiningBlockChainClient) -> bool {
+		trace!(target: "miner", "prepare_pending_block: entering");
 		let prepare_new = {
 			let mut sealing = self.sealing.lock();
 			let have_work = sealing.queue.peek_last_ref().is_some();
-			trace!(target: "miner", "prepare_work_sealing: have_work={}", have_work);
+			trace!(target: "miner", "prepare_pending_block: have_work={}", have_work);
 			if !have_work {
 				sealing.enabled = true;
 				true
@@ -648,13 +651,13 @@ impl Miner {
 
 		let best_number = client.chain_info().best_block_number;
 		let mut sealing = self.sealing.lock();
-		if sealing.sealing_block_last_request != best_number {
+		if sealing.last_request != best_number {
 			trace!(
 				target: "miner",
-				"prepare_work_sealing: Miner received request (was {}, now {}) - waking up.",
-				sealing.sealing_block_last_request, best_number
+				"prepare_pending_block: Miner received request (was {}, now {}) - waking up.",
+				sealing.last_request, best_number
 			);
-			sealing.sealing_block_last_request = best_number;
+			sealing.last_request = best_number;
 		}
 
 		// Return if we restarted
@@ -757,7 +760,7 @@ impl MinerService for Miner {
 		if imported.is_ok() && self.options.reseal_on_own_tx && self.sealing.lock().reseal_allowed() {
 			// Make sure to do it after transaction is imported and lock is droped.
 			// We need to create pending block and enable sealing.
-			if self.engine.seals_internally().unwrap_or(false) || !self.prepare_work_sealing(chain) {
+			if self.engine.seals_internally().unwrap_or(false) || !self.prepare_pending_block(chain) {
 				// If new block has not been prepared (means we already had one)
 				// or Engine might be able to seal internally,
 				// we need to update sealing.
@@ -885,47 +888,45 @@ impl MinerService for Miner {
 		)
 	}
 
-	fn can_produce_work_package(&self) -> bool {
-		self.engine.seals_internally().is_none()
-	}
-
-
 	// TODO [ToDr] Pass sealing lock guard
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "update_sealing");
-		const NO_NEW_CHAIN_WITH_FORKS: &str = "Your chain specification contains one or more hard forks which are required to be \
-			on by default. Please remove these forks and start your chain again.";
 
-		if self.requires_reseal(chain.chain_info().best_block_number) {
-			// --------------------------------------------------------------------------
-			// | NOTE Code below requires transaction_queue and sealing locks.          |
-			// | Make sure to release the locks before calling that method.             |
-			// --------------------------------------------------------------------------
-			trace!(target: "miner", "update_sealing: preparing a block");
-			let (block, original_work_hash) = self.prepare_block(chain);
+		// Do nothing if reseal is not required,
+		// but note that `requires_reseal` updates internal state.
+		if !self.requires_reseal(chain.chain_info().best_block_number) {
+			return;
+		}
 
-			// refuse to seal the first block of the chain if it contains hard forks
-			// which should be on by default.
-			if block.block().fields().header.number() == 1 && self.engine.params().contains_bugfix_hard_fork() {
-				warn!("{}", NO_NEW_CHAIN_WITH_FORKS);
-				return;
-			}
+		// --------------------------------------------------------------------------
+		// | NOTE Code below requires transaction_queue and sealing locks.          |
+		// | Make sure to release the locks before calling that method.             |
+		// --------------------------------------------------------------------------
+		trace!(target: "miner", "update_sealing: preparing a block");
+		let (block, original_work_hash) = self.prepare_block(chain);
 
-			match self.engine.seals_internally() {
-				Some(true) => {
-					trace!(target: "miner", "update_sealing: engine indicates internal sealing");
-					if self.seal_and_import_block_internally(chain, block) {
-						trace!(target: "miner", "update_sealing: imported internally sealed block");
-					}
-				},
-				Some(false) => trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now"),
-				None => {
-					trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
-					self.prepare_work(block, original_work_hash)
-				},
-			}
+		// refuse to seal the first block of the chain if it contains hard forks
+		// which should be on by default.
+		if block.block().fields().header.number() == 1 && self.engine.params().contains_bugfix_hard_fork() {
+			warn!("Your chain specification contains one or more hard forks which are required to be \
+				on by default. Please remove these forks and start your chain again.");
+			return;
+		}
+
+		match self.engine.seals_internally() {
+			Some(true) => {
+				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
+				if self.seal_and_import_block_internally(chain, block) {
+					trace!(target: "miner", "update_sealing: imported internally sealed block");
+				}
+			},
+			Some(false) => trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now"),
+			None => {
+				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
+				self.prepare_work(block, original_work_hash)
+			},
 		}
 	}
 
@@ -933,14 +934,21 @@ impl MinerService for Miner {
 		self.sealing.lock().queue.is_in_use()
 	}
 
-	fn map_pending_block<F, T>(&self, chain: &MiningBlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
-		self.prepare_work_sealing(chain);
-		// mark block as used
-		self.sealing.lock().queue.use_last_ref();
-		self.map_existing_pending_block(f, chain.chain_info().best_block_number)
+	fn work_package(&self, chain: &MiningBlockChainClient) -> Option<(H256, BlockNumber, u64, U256)> {
+		if self.engine.seals_internally().is_some() {
+			return None;
+		}
+
+		self.prepare_pending_block(chain);
+
+		self.sealing.lock().queue.use_last_ref().map(|b| {
+			let header = b.header();
+			(header.hash(), header.number(), header.timestamp(), *header.difficulty())
+		})
 	}
 
-	fn submit_seal(&self, chain: &MiningBlockChainClient, block_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
+	// Note used for external submission (PoW) and internally by sealing engines.
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
 		let result =
 			if let Some(b) = self.sealing.lock().queue.get_used_if(
 				if self.options.enable_resubmission {
@@ -963,9 +971,8 @@ impl MinerService for Miner {
 		result.and_then(|sealed| {
 			let n = sealed.header().number();
 			let h = sealed.header().hash();
-			chain.import_sealed_block(sealed)?;
 			info!(target: "miner", "Submitted block imported OK. #{}: {}", Colour::White.bold().paint(format!("{}", n)), Colour::White.bold().paint(format!("{:x}", h)));
-			Ok(())
+			Ok(sealed)
 		})
 	}
 
@@ -1029,7 +1036,7 @@ mod tests {
 		let miner = Miner::new_for_tests(&Spec::new_test(), None);
 
 		// when
-		let sealing_work = miner.map_pending_block(&client, |_| ());
+		let sealing_work = miner.work_package(&client);
 		assert!(sealing_work.is_some(), "Expected closed block");
 	}
 
@@ -1039,19 +1046,20 @@ mod tests {
 		let client = TestBlockChainClient::default();
 		let miner = Miner::new_for_tests(&Spec::new_test(), None);
 
-		let res = miner.map_pending_block(&client, |b| b.block().fields().header.hash());
-		let hash = res.unwrap();
-		assert_eq!(miner.submit_seal(&client, hash, vec![]).unwrap(), ());
+		let res = miner.work_package(&client);
+		let hash = res.unwrap().0;
+		let block = miner.submit_seal(hash, vec![]).unwrap();
+		client.import_sealed_block(block).unwrap();
 
 		// two more blocks mined, work requested.
 		client.add_blocks(1, EachBlockWith::Uncle);
-		miner.map_pending_block(&client, |b| b.block().fields().header.hash());
+		miner.work_package(&client);
 
 		client.add_blocks(1, EachBlockWith::Uncle);
-		miner.map_pending_block(&client, |b| b.block().fields().header.hash());
+		miner.work_package(&client);
 
 		// solution to original work submitted.
-		assert!(miner.submit_seal(&client, res.unwrap(), vec![]).is_ok());
+		assert!(miner.submit_seal(hash, vec![]).is_ok());
 	}
 
 	fn miner() -> Miner {
@@ -1113,7 +1121,7 @@ mod tests {
 		assert_eq!(miner.pending_receipts(best_block).unwrap().len(), 1);
 		assert_eq!(miner.ready_transactions(&client).len(), 1);
 		// This method will let us know if pending block was created (before calling that method)
-		assert!(!miner.prepare_work_sealing(&client));
+		assert!(!miner.prepare_pending_block(&client));
 	}
 
 	#[test]
@@ -1151,7 +1159,7 @@ mod tests {
 		// By default we use PendingSet::AlwaysSealing, so no transactions yet.
 		assert_eq!(miner.ready_transactions(&client).len(), 0);
 		// This method will let us know if pending block was created (before calling that method)
-		assert!(miner.prepare_work_sealing(&client));
+		assert!(miner.prepare_pending_block(&client));
 		// After pending block is created we should see a transaction.
 		assert_eq!(miner.ready_transactions(&client).len(), 1);
 	}
@@ -1164,7 +1172,7 @@ mod tests {
 		assert!(!miner.requires_reseal(1u8.into()));
 
 		miner.import_external_transactions(&client, vec![transaction().into()]).pop().unwrap().unwrap();
-		assert!(miner.prepare_work_sealing(&client));
+		assert!(miner.prepare_pending_block(&client));
 		// Unless asked to prepare work.
 		assert!(miner.requires_reseal(1u8.into()));
 	}

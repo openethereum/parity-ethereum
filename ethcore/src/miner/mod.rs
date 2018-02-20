@@ -33,7 +33,7 @@ use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
 use ethcore_miner::pool::VerifiedTransaction;
 
-use block::ClosedBlock;
+use block::SealedBlock;
 use client::{MiningBlockChainClient};
 use error::{Error};
 use header::BlockNumber;
@@ -43,11 +43,28 @@ use transaction::{self, UnverifiedTransaction, PendingTransaction, SignedTransac
 /// Miner client API
 pub trait MinerService : Send + Sync {
 
-	// Pending block
 
-	/// Get the sealing work package and if `Some`, apply some transform.
-	fn map_pending_block<F, T>(&self, chain: &MiningBlockChainClient, f: F) -> Option<T>
-		where F: FnOnce(&ClosedBlock) -> T, Self: Sized;
+	/// Get the sealing work package preparing it if doesn't exist yet.
+	///
+	/// Returns `None` if engine seals internally.
+	fn work_package(&self, chain: &MiningBlockChainClient) -> Option<(H256, BlockNumber, u64, U256)>;
+
+	/// Submit `seal` as a valid solution for the header of `pow_hash`.
+	/// Will check the seal, but not actually insert the block into the chain.
+	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<SealedBlock, Error>;
+
+	/// Is it currently sealing?
+	fn is_currently_sealing(&self) -> bool;
+
+	/// Update current pending block
+	fn update_sealing(&self, chain: &MiningBlockChainClient);
+
+	// Notifications
+
+	/// Called when blocks are imported to chain, updates transactions queue.
+	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
+
+	// Pending block
 
 	/// Get a list of all pending receipts from pending block.
 	fn pending_receipts(&self, best_block: BlockNumber) -> Option<BTreeMap<H256, Receipt>>;
@@ -58,7 +75,7 @@ pub trait MinerService : Send + Sync {
 	/// Get all transactions in pending block or `None` if not sealing.
 	fn pending_transactions(&self, best_block: BlockNumber) -> Option<Vec<SignedTransaction>>;
 
-	// Block authoring / sealing
+	// Block authoring
 
 	/// Get current authoring parameters.
 	fn authoring_params(&self) -> AuthoringParams;
@@ -73,23 +90,6 @@ pub trait MinerService : Send + Sync {
 	///
 	/// On PoW password is optional.
 	fn set_author(&self, address: Address, password: Option<String>) -> Result<(), ::account_provider::SignError>;
-
-
-	/// Is it currently sealing?
-	fn is_currently_sealing(&self) -> bool;
-
-	/// PoW chain - can produce work package
-	fn can_produce_work_package(&self) -> bool;
-
-	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
-
-	/// New chain head event. Restart mining operation.
-	fn update_sealing(&self, chain: &MiningBlockChainClient);
-
-	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
 
 	// Transactions and Pool
 

@@ -20,8 +20,7 @@ use std::sync::{Arc, Weak};
 use std::net::{SocketAddr, AddrParseError};
 use std::fmt;
 
-use block::IsBlock;
-use client::Client;
+use client::{Client, MiningBlockChainClient};
 use ethereum_types::{H64, H256, clean_0x, U256};
 use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;
@@ -120,14 +119,9 @@ impl JobDispatcher for StratumJobDispatcher {
 	}
 
 	fn job(&self) -> Option<String> {
-		self.with_core(|client, miner| miner.map_pending_block(&*client, |b| {
-				let pow_hash = b.hash();
-				let number = b.block().header().number();
-				let difficulty = b.block().header().difficulty();
-
-				self.payload(pow_hash, *difficulty, number)
-			})
-		)
+		self.with_core(|client, miner| miner.work_package(&*client).map(|(pow_hash, number, _timestamp, difficulty)| {
+			self.payload(pow_hash, difficulty, number)
+		}))
 	}
 
 	fn submit(&self, payload: Vec<String>) -> Result<(), StratumServiceError> {
@@ -145,7 +139,10 @@ impl JobDispatcher for StratumJobDispatcher {
 
 		self.with_core_result(|client, miner| {
 			let seal = vec![encode(&payload.mix_hash).into_vec(), encode(&payload.nonce).into_vec()];
-			match miner.submit_seal(&*client, payload.pow_hash, seal) {
+
+			let import = miner.submit_seal(payload.pow_hash, seal)
+				.and_then(|block| client.import_sealed_block(block));
+			match import {
 				Ok(_) => Ok(()),
 				Err(e) => {
 					warn!(target: "stratum", "submit_seal error: {:?}", e);
