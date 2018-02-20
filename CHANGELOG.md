@@ -1,4 +1,4 @@
-## Parity [v1.9.3](https://github.com/paritytech/parity/releases/tag/v1.9.3) (2018-02-21)
+## Parity [v1.9.3](https://github.com/paritytech/parity/releases/tag/v1.9.3) (2018-02-20)
 
 Parity 1.9.3 is a bug-fix release to improve performance and stability.
 
