@@ -23,7 +23,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, AdminSessionsServer, KeyServer};
 use types::all::{Error, Public, MessageHash, EncryptedMessageSignature, RequestSignature, ServerKeyId,
-	EncryptedDocumentKey, EncryptedDocumentKeyShadow, NodeId};
+	EncryptedDocumentKey, EncryptedDocumentKeyShadow, NodeId, Requester};
 
 pub struct Listener {
 	key_server: Arc<KeyServer>,
@@ -44,32 +44,32 @@ impl Listener {
 impl KeyServer for Listener {}
 
 impl ServerKeyGenerator for Listener {
-	fn generate_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<Public, Error> {
-		self.key_server.generate_key(key_id, signature, threshold)
+	fn generate_key(&self, key_id: &ServerKeyId, author: &Requester, threshold: usize) -> Result<Public, Error> {
+		self.key_server.generate_key(key_id, author, threshold)
 	}
 }
 
 impl DocumentKeyServer for Listener {
-	fn store_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, common_point: Public, encrypted_document_key: Public) -> Result<(), Error> {
-		self.key_server.store_document_key(key_id, signature, common_point, encrypted_document_key)
+	fn store_document_key(&self, key_id: &ServerKeyId, author: &Requester, common_point: Public, encrypted_document_key: Public) -> Result<(), Error> {
+		self.key_server.store_document_key(key_id, author, common_point, encrypted_document_key)
 	}
 
-	fn generate_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<EncryptedDocumentKey, Error> {
-		self.key_server.generate_document_key(key_id, signature, threshold)
+	fn generate_document_key(&self, key_id: &ServerKeyId, author: &Requester, threshold: usize) -> Result<EncryptedDocumentKey, Error> {
+		self.key_server.generate_document_key(key_id, author, threshold)
 	}
 
-	fn restore_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature) -> Result<EncryptedDocumentKey, Error> {
-		self.key_server.restore_document_key(key_id, signature)
+	fn restore_document_key(&self, key_id: &ServerKeyId, requester: &Requester) -> Result<EncryptedDocumentKey, Error> {
+		self.key_server.restore_document_key(key_id, requester)
 	}
 
-	fn restore_document_key_shadow(&self, key_id: &ServerKeyId, signature: &RequestSignature) -> Result<EncryptedDocumentKeyShadow, Error> {
-		self.key_server.restore_document_key_shadow(key_id, signature)
+	fn restore_document_key_shadow(&self, key_id: &ServerKeyId, requester: &Requester) -> Result<EncryptedDocumentKeyShadow, Error> {
+		self.key_server.restore_document_key_shadow(key_id, requester)
 	}
 }
 
 impl MessageSigner for Listener {
-	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
-		self.key_server.sign_message(key_id, signature, message)
+	fn sign_message(&self, key_id: &ServerKeyId, requester: &Requester, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
+		self.key_server.sign_message(key_id, requester, message)
 	}
 }
 

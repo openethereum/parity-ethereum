@@ -397,7 +397,7 @@ impl SessionImpl {
 		let requester_public = data.consensus_session.consensus_job().executor().requester()
 			.ok_or(Error::InvalidStateForRequest)?
 			.public(&self.core.meta.id)
-			.ok_or(Error::InsufficientRequesterData)?;
+			.map_err(Error::InsufficientRequesterData)?;
 		let decryption_job = DecryptionJob::new_on_slave(self.core.meta.self_node_id.clone(), self.core.access_key.clone(),
 			requester_public.clone(), key_share.clone(), key_version)?;
 		let decryption_transport = self.core.decryption_transport(false);
@@ -543,7 +543,7 @@ impl SessionImpl {
 
 		let key_version = key_share.version(version).map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
 		let requester = data.consensus_session.consensus_job().executor().requester().ok_or(Error::InvalidStateForRequest)?.clone();
-		let requester_public = requester.public(&core.meta.id).ok_or(Error::InsufficientRequesterData)?;
+		let requester_public = requester.public(&core.meta.id).map_err(Error::InsufficientRequesterData)?;
 		let consensus_group = data.consensus_session.select_consensus_group()?.clone();
 		let decryption_job = DecryptionJob::new_on_master(core.meta.self_node_id.clone(),
 			core.access_key.clone(), requester_public.clone(), key_share.clone(), key_version,

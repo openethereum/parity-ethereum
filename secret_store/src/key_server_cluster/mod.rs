@@ -115,7 +115,7 @@ pub enum Error {
 	/// Can't start exclusive session, because there are other active sessions.
 	HasActiveSessions,
 	/// Insufficient requester data.
-	InsufficientRequesterData,
+	InsufficientRequesterData(String),
 }
 
 impl From<ethkey::Error> for Error {
@@ -164,7 +164,7 @@ impl fmt::Display for Error {
 			Error::AccessDenied => write!(f, "Access denied"),
 			Error::ExclusiveSessionActive => write!(f, "Exclusive session active"),
 			Error::HasActiveSessions => write!(f, "Unable to start exclusive session"),
-			Error::InsufficientRequesterData => write!(f, "Insufficient requester data"),
+			Error::InsufficientRequesterData(ref e) => write!(f, "Insufficient requester data: {}", e),
 		}
 	}
 }

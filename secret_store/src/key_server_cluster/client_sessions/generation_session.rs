@@ -1320,7 +1320,7 @@ pub mod tests {
 
 			// run session to completion
 			let session_id = SessionId::default();
-			let session = clusters[0].client().new_generation_session(session_id, Public::default(), threshold).unwrap();
+			let session = clusters[0].client().new_generation_session(session_id, Default::default(), threshold).unwrap();
 			loop_until(&mut core, time::Duration::from_millis(1000), || session.joint_public_and_secret().is_some());
 		}
 	}

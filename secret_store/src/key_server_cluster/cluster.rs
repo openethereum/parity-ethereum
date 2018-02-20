@@ -26,8 +26,8 @@ use parking_lot::{RwLock, Mutex};
 use tokio_io::IoFuture;
 use tokio_core::reactor::{Handle, Remote, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
-use ethkey::{Public, KeyPair, Signature, Random, Generator, public_to_address};
-use ethereum_types::H256;
+use ethkey::{Public, KeyPair, Signature, Random, Generator};
+use ethereum_types::{Address, H256};
 use key_server_cluster::{Error, NodeId, SessionId, Requester, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, AdminSession, ClusterSessions, SessionIdWithSubSession,
 	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID, create_cluster_view, AdminSessionCreationData, ClusterSessionsListener};
@@ -65,9 +65,9 @@ pub trait ClusterClient: Send + Sync {
 	/// Get cluster state.
 	fn cluster_state(&self) -> ClusterState;
 	/// Start new generation session.
-	fn new_generation_session(&self, session_id: SessionId, author: Public, threshold: usize) -> Result<Arc<GenerationSession>, Error>;
+	fn new_generation_session(&self, session_id: SessionId, author: Address, threshold: usize) -> Result<Arc<GenerationSession>, Error>;
 	/// Start new encryption session.
-	fn new_encryption_session(&self, session_id: SessionId, requester: Requester, common_point: Public, encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error>;
+	fn new_encryption_session(&self, session_id: SessionId, author: Requester, common_point: Public, encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error>;
 	/// Start new decryption session.
 	fn new_decryption_session(&self, session_id: SessionId, requester: Requester, version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error>;
 	/// Start new signing session.
@@ -884,13 +884,13 @@ impl ClusterClient for ClusterClientImpl {
 		self.data.connections.cluster_state()
 	}
 
-	fn new_generation_session(&self, session_id: SessionId, author: Public, threshold: usize) -> Result<Arc<GenerationSession>, Error> {
+	fn new_generation_session(&self, session_id: SessionId, author: Address, threshold: usize) -> Result<Arc<GenerationSession>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let cluster = create_cluster_view(&self.data, true)?;
 		let session = self.data.sessions.generation_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, false, None)?;
-		match session.initialize(public_to_address(&author), threshold, connected_nodes) {
+		match session.initialize(author, threshold, connected_nodes) {
 			Ok(()) => Ok(session),
 			Err(error) => {
 				self.data.sessions.generation_sessions.remove(&session.id());
@@ -1051,7 +1051,7 @@ pub mod tests {
 	use std::collections::{BTreeSet, VecDeque};
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
-	use ethereum_types::H256;
+	use ethereum_types::{Address, H256};
 	use ethkey::{Random, Generator, Public, Signature, sign};
 	use key_server_cluster::{NodeId, SessionId, Requester, Error, DummyAclStorage, DummyKeyStorage,
 		MapKeyServerSet, PlainNodeKeyPair, KeyStorage};
@@ -1082,8 +1082,8 @@ pub mod tests {
 
 	impl ClusterClient for DummyClusterClient {
 		fn cluster_state(&self) -> ClusterState { unimplemented!("test-only") }
-		fn new_generation_session(&self, _session_id: SessionId, _author: Public, _threshold: usize) -> Result<Arc<GenerationSession>, Error> { unimplemented!("test-only") }
-		fn new_encryption_session(&self, _session_id: SessionId, _requester: Requester, _common_point: Public, _encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error> { unimplemented!("test-only") }
+		fn new_generation_session(&self, _session_id: SessionId, _author: Address, _threshold: usize) -> Result<Arc<GenerationSession>, Error> { unimplemented!("test-only") }
+		fn new_encryption_session(&self, _session_id: SessionId, _author: Requester, _common_point: Public, _encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error> { unimplemented!("test-only") }
 		fn new_decryption_session(&self, _session_id: SessionId, _requester: Requester, _version: Option<H256>, _is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> { unimplemented!("test-only") }
 		fn new_signing_session(&self, _session_id: SessionId, _requester: Requester, _version: Option<H256>, _message_hash: H256) -> Result<Arc<SigningSession>, Error> { unimplemented!("test-only") }
 		fn new_key_version_negotiation_session(&self, _session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error> { unimplemented!("test-only") }
@@ -1218,7 +1218,7 @@ pub mod tests {
 		let core = Core::new().unwrap();
 		let clusters = make_clusters(&core, 6013, 3);
 		clusters[0].run().unwrap();
-		match clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1) {
+		match clusters[0].client().new_generation_session(SessionId::default(), Default::default(), 1) {
 			Err(Error::NodeDisconnected) => (),
 			Err(e) => panic!("unexpected error {:?}", e),
 			_ => panic!("unexpected success"),
@@ -1237,7 +1237,7 @@ pub mod tests {
 		clusters[1].client().make_faulty_generation_sessions();
 
 		// start && wait for generation session to fail
-		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
+		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), 1).unwrap();
 		loop_until(&mut core, time::Duration::from_millis(300), || session.joint_public_and_secret().is_some()
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_err());
@@ -1266,7 +1266,7 @@ pub mod tests {
 		clusters[0].client().make_faulty_generation_sessions();
 
 		// start && wait for generation session to fail
-		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
+		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), 1).unwrap();
 		loop_until(&mut core, time::Duration::from_millis(300), || session.joint_public_and_secret().is_some()
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_err());
@@ -1292,7 +1292,7 @@ pub mod tests {
 		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
 
 		// start && wait for generation session to complete
-		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
+		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), 1).unwrap();
 		loop_until(&mut core, time::Duration::from_millis(300), || (session.state() == GenerationSessionState::Finished
 			|| session.state() == GenerationSessionState::Failed)
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
@@ -1319,11 +1319,11 @@ pub mod tests {
 		// generation session
 		{
 			// try to start generation session => fail in initialization
-			assert_eq!(clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 100).map(|_| ()),
+			assert_eq!(clusters[0].client().new_generation_session(SessionId::default(), Default::default(), 100).map(|_| ()),
 				Err(Error::InvalidThreshold));
 
 			// try to start generation session => fails in initialization
-			assert_eq!(clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 100).map(|_| ()),
+			assert_eq!(clusters[0].client().new_generation_session(SessionId::default(), Default::default(), 100).map(|_| ()),
 				Err(Error::InvalidThreshold));
 
 			assert!(clusters[0].data.sessions.generation_sessions.is_empty());
@@ -1353,7 +1353,7 @@ pub mod tests {
 		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
 
 		// start && wait for generation session to complete
-		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
+		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), 1).unwrap();
 		loop_until(&mut core, time::Duration::from_millis(300), || (session.state() == GenerationSessionState::Finished
 			|| session.state() == GenerationSessionState::Failed)
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());

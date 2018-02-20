@@ -22,13 +22,12 @@ use futures::{self, Future};
 use parking_lot::Mutex;
 use tokio_core::reactor::Core;
 use ethcrypto;
-use ethkey;
 use super::acl_storage::AclStorage;
 use super::key_storage::KeyStorage;
 use super::key_server_set::KeyServerSet;
 use key_server_cluster::{math, ClusterCore};
 use traits::{AdminSessionsServer, ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer, NodeKeyPair};
-use types::all::{Error, Public, RequestSignature, ServerKeyId, EncryptedDocumentKey, EncryptedDocumentKeyShadow,
+use types::all::{Error, Public, RequestSignature, Requester, ServerKeyId, EncryptedDocumentKey, EncryptedDocumentKeyShadow,
 	ClusterConfiguration, MessageHash, EncryptedMessageSignature, NodeId};
 use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration};
 
@@ -71,10 +70,9 @@ impl AdminSessionsServer for KeyServerImpl {
 }
 
 impl ServerKeyGenerator for KeyServerImpl {
-	fn generate_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<Public, Error> {
+	fn generate_key(&self, key_id: &ServerKeyId, author: &Requester, threshold: usize) -> Result<Public, Error> {
 		// recover requestor' public key from signature
-		let public = ethkey::recover(signature, key_id)
-			.map_err(|_| Error::BadSignature)?;
+		let public = author.address(key_id).map_err(Error::InsufficientRequesterData)?;
 
 		// generate server key
 		let generation_session = self.data.lock().cluster.new_generation_session(key_id.clone(), public, threshold)?;
@@ -83,27 +81,26 @@ impl ServerKeyGenerator for KeyServerImpl {
 }
 
 impl DocumentKeyServer for KeyServerImpl {
-	fn store_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, common_point: Public, encrypted_document_key: Public) -> Result<(), Error> {
+	fn store_document_key(&self, key_id: &ServerKeyId, author: &Requester, common_point: Public, encrypted_document_key: Public) -> Result<(), Error> {
 		// store encrypted key
 		let encryption_session = self.data.lock().cluster.new_encryption_session(key_id.clone(),
-			signature.clone().into(), common_point, encrypted_document_key)?;
+			author.clone(), common_point, encrypted_document_key)?;
 		encryption_session.wait(None).map_err(Into::into)
 	}
 
-	fn generate_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<EncryptedDocumentKey, Error> {
+	fn generate_document_key(&self, key_id: &ServerKeyId, author: &Requester, threshold: usize) -> Result<EncryptedDocumentKey, Error> {
 		// recover requestor' public key from signature
-		let public = ethkey::recover(signature, key_id)
-			.map_err(|_| Error::BadSignature)?;
+		let public = author.public(key_id).map_err(Error::InsufficientRequesterData)?;
 
 		// generate server key
-		let server_key = self.generate_key(key_id, signature, threshold)?;
+		let server_key = self.generate_key(key_id, author, threshold)?;
 
 		// generate random document key
 		let document_key = math::generate_random_point()?;
 		let encrypted_document_key = math::encrypt_secret(&document_key, &server_key)?;
 
 		// store document key in the storage
-		self.store_document_key(key_id, signature, encrypted_document_key.common_point, encrypted_document_key.encrypted_point)?;
+		self.store_document_key(key_id, author, encrypted_document_key.common_point, encrypted_document_key.encrypted_point)?;
 
 		// encrypt document key with requestor public key
 		let document_key = ethcrypto::ecies::encrypt(&public, &ethcrypto::DEFAULT_MAC, &document_key)
@@ -111,14 +108,13 @@ impl DocumentKeyServer for KeyServerImpl {
 		Ok(document_key)
 	}
 
-	fn restore_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature) -> Result<EncryptedDocumentKey, Error> {
+	fn restore_document_key(&self, key_id: &ServerKeyId, requester: &Requester) -> Result<EncryptedDocumentKey, Error> {
 		// recover requestor' public key from signature
-		let public = ethkey::recover(signature, key_id)
-			.map_err(|_| Error::BadSignature)?;
+		let public = requester.public(key_id).map_err(Error::InsufficientRequesterData)?;
 
 		// decrypt document key
 		let decryption_session = self.data.lock().cluster.new_decryption_session(key_id.clone(),
-			signature.clone().into(), None, false)?;
+			requester.clone(), None, false)?;
 		let document_key = decryption_session.wait()?.decrypted_secret;
 
 		// encrypt document key with requestor public key
@@ -127,22 +123,21 @@ impl DocumentKeyServer for KeyServerImpl {
 		Ok(document_key)
 	}
 
-	fn restore_document_key_shadow(&self, key_id: &ServerKeyId, signature: &RequestSignature) -> Result<EncryptedDocumentKeyShadow, Error> {
+	fn restore_document_key_shadow(&self, key_id: &ServerKeyId, requester: &Requester) -> Result<EncryptedDocumentKeyShadow, Error> {
 		let decryption_session = self.data.lock().cluster.new_decryption_session(key_id.clone(),
-			signature.clone().into(), None, true)?;
+			requester.clone(), None, true)?;
 		decryption_session.wait().map_err(Into::into)
 	}
 }
 
 impl MessageSigner for KeyServerImpl {
-	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
+	fn sign_message(&self, key_id: &ServerKeyId, requester: &Requester, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
 		// recover requestor' public key from signature
-		let public = ethkey::recover(signature, key_id)
-			.map_err(|_| Error::BadSignature)?;
+		let public = requester.public(key_id).map_err(Error::InsufficientRequesterData)?;
 
 		// sign message
 		let signing_session = self.data.lock().cluster.new_signing_session(key_id.clone(),
-			signature.clone().into(), None, message)?;
+			requester.clone(), None, message)?;
 		let message_signature = signing_session.wait()?;
 
 		// compose two message signature components into single one
@@ -222,7 +217,8 @@ pub mod tests {
 	use key_server_cluster::math;
 	use ethereum_types::H256;
 	use types::all::{Error, Public, ClusterConfiguration, NodeAddress, RequestSignature, ServerKeyId,
-		EncryptedDocumentKey, EncryptedDocumentKeyShadow, MessageHash, EncryptedMessageSignature, NodeId};
+		EncryptedDocumentKey, EncryptedDocumentKeyShadow, MessageHash, EncryptedMessageSignature,
+		Requester, NodeId};
 	use traits::{AdminSessionsServer, ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
 	use super::KeyServerImpl;
 
@@ -243,7 +239,7 @@ pub mod tests {
 	}
 
 	impl ServerKeyGenerator for DummyKeyServer {
-		fn generate_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _threshold: usize) -> Result<Public, Error> {
+		fn generate_key(&self, _key_id: &ServerKeyId, _author: &Requester, _threshold: usize) -> Result<Public, Error> {
 			self.generation_requests_count.fetch_add(1, Ordering::Relaxed);
 			if !self.return_ok {
 				return Err(Error::Internal("test error".into()));
@@ -253,11 +249,11 @@ pub mod tests {
 	}
 
 	impl DocumentKeyServer for DummyKeyServer {
-		fn store_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _common_point: Public, _encrypted_document_key: Public) -> Result<(), Error> {
+		fn store_document_key(&self, _key_id: &ServerKeyId, _author: &Requester, _common_point: Public, _encrypted_document_key: Public) -> Result<(), Error> {
 			unimplemented!("test-only")
 		}
 
-		fn generate_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _threshold: usize) -> Result<EncryptedDocumentKey, Error> {
+		fn generate_document_key(&self, _key_id: &ServerKeyId, _author: &Requester, _threshold: usize) -> Result<EncryptedDocumentKey, Error> {
 			self.document_generation_requests_count.fetch_add(1, Ordering::Relaxed);
 			if !self.return_ok {
 				return Err(Error::Internal("test error".into()));
@@ -265,7 +261,7 @@ pub mod tests {
 			Ok(Default::default())
 		}
 
-		fn restore_document_key(&self, _key_id: &ServerKeyId, _signature: &RequestSignature) -> Result<EncryptedDocumentKey, Error> {
+		fn restore_document_key(&self, _key_id: &ServerKeyId, _requester: &Requester) -> Result<EncryptedDocumentKey, Error> {
 			self.document_restore_requests_count.fetch_add(1, Ordering::Relaxed);
 			if !self.return_ok {
 				return Err(Error::Internal("test error".into()));
@@ -273,13 +269,13 @@ pub mod tests {
 			Ok(Default::default())
 		}
 
-		fn restore_document_key_shadow(&self, _key_id: &ServerKeyId, _signature: &RequestSignature) -> Result<EncryptedDocumentKeyShadow, Error> {
+		fn restore_document_key_shadow(&self, _key_id: &ServerKeyId, _requester: &Requester) -> Result<EncryptedDocumentKeyShadow, Error> {
 			unimplemented!("test-only")
 		}
 	}
 
 	impl MessageSigner for DummyKeyServer {
-		fn sign_message(&self, _key_id: &ServerKeyId, _signature: &RequestSignature, _message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
+		fn sign_message(&self, _key_id: &ServerKeyId, _requester: &Requester, _message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
 			unimplemented!("test-only")
 		}
 	}
@@ -352,12 +348,12 @@ pub mod tests {
 		let document = Random.generate().unwrap().secret().clone();
 		let secret = Random.generate().unwrap().secret().clone();
 		let signature = ethkey::sign(&secret, &document).unwrap();
-		let generated_key = key_servers[0].generate_document_key(&document, &signature, threshold).unwrap();
+		let generated_key = key_servers[0].generate_document_key(&document, &signature.clone().into(), threshold).unwrap();
 		let generated_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &generated_key).unwrap();
 
 		// now let's try to retrieve key back
 		for key_server in key_servers.iter() {
-			let retrieved_key = key_server.restore_document_key(&document, &signature).unwrap();
+			let retrieved_key = key_server.restore_document_key(&document, &signature.clone().into()).unwrap();
 			let retrieved_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
 			assert_eq!(retrieved_key, generated_key);
 		}
@@ -374,12 +370,12 @@ pub mod tests {
 			let document = Random.generate().unwrap().secret().clone();
 			let secret = Random.generate().unwrap().secret().clone();
 			let signature = ethkey::sign(&secret, &document).unwrap();
-			let generated_key = key_servers[0].generate_document_key(&document, &signature, *threshold).unwrap();
+			let generated_key = key_servers[0].generate_document_key(&document, &signature.clone().into(), *threshold).unwrap();
 			let generated_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &generated_key).unwrap();
 
 			// now let's try to retrieve key back
 			for (i, key_server) in key_servers.iter().enumerate() {
-				let retrieved_key = key_server.restore_document_key(&document, &signature).unwrap();
+				let retrieved_key = key_server.restore_document_key(&document, &signature.clone().into()).unwrap();
 				let retrieved_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
 				assert_eq!(retrieved_key, generated_key);
 
@@ -401,18 +397,19 @@ pub mod tests {
 			let server_key_id = Random.generate().unwrap().secret().clone();
 			let requestor_secret = Random.generate().unwrap().secret().clone();
 			let signature = ethkey::sign(&requestor_secret, &server_key_id).unwrap();
-			let server_public = key_servers[0].generate_key(&server_key_id, &signature, *threshold).unwrap();
+			let server_public = key_servers[0].generate_key(&server_key_id, &signature.clone().into(), *threshold).unwrap();
 
 			// generate document key (this is done by KS client so that document key is unknown to any KS)
 			let generated_key = Random.generate().unwrap().public().clone();
 			let encrypted_document_key = math::encrypt_secret(&generated_key, &server_public).unwrap();
 
 			// store document key
-			key_servers[0].store_document_key(&server_key_id, &signature, encrypted_document_key.common_point, encrypted_document_key.encrypted_point).unwrap();
+			key_servers[0].store_document_key(&server_key_id, &signature.clone().into(),
+				encrypted_document_key.common_point, encrypted_document_key.encrypted_point).unwrap();
 
 			// now let's try to retrieve key back
 			for key_server in key_servers.iter() {
-				let retrieved_key = key_server.restore_document_key(&server_key_id, &signature).unwrap();
+				let retrieved_key = key_server.restore_document_key(&server_key_id, &signature.clone().into()).unwrap();
 				let retrieved_key = ethcrypto::ecies::decrypt(&requestor_secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
 				let retrieved_key = Public::from_slice(&retrieved_key);
 				assert_eq!(retrieved_key, generated_key);
@@ -431,11 +428,11 @@ pub mod tests {
 			let server_key_id = Random.generate().unwrap().secret().clone();
 			let requestor_secret = Random.generate().unwrap().secret().clone();
 			let signature = ethkey::sign(&requestor_secret, &server_key_id).unwrap();
-			let server_public = key_servers[0].generate_key(&server_key_id, &signature, *threshold).unwrap();
+			let server_public = key_servers[0].generate_key(&server_key_id, &signature.clone().into(), *threshold).unwrap();
 
 			// sign message
 			let message_hash = H256::from(42);
-			let combined_signature = key_servers[0].sign_message(&server_key_id, &signature, message_hash.clone()).unwrap();
+			let combined_signature = key_servers[0].sign_message(&server_key_id, &signature.into(), message_hash.clone()).unwrap();
 			let combined_signature = ethcrypto::ecies::decrypt(&requestor_secret, &ethcrypto::DEFAULT_MAC, &combined_signature).unwrap();
 			let signature_c = Secret::from_slice(&combined_signature[..32]);
 			let signature_s = Secret::from_slice(&combined_signature[32..]);
@@ -455,14 +452,14 @@ pub mod tests {
 		let document = Random.generate().unwrap().secret().clone();
 		let secret = Random.generate().unwrap().secret().clone();
 		let signature = ethkey::sign(&secret, &document).unwrap();
-		let generated_key = key_servers[0].generate_document_key(&document, &signature, threshold).unwrap();
+		let generated_key = key_servers[0].generate_document_key(&document, &signature.clone().into(), threshold).unwrap();
 		let generated_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &generated_key).unwrap();
 
 		// remove key from node0
 		key_servers[0].cluster().key_storage().remove(&document).unwrap();
 
 		// now let's try to retrieve key back by requesting it from node0, so that session must be delegated
-		let retrieved_key = key_servers[0].restore_document_key(&document, &signature).unwrap();
+		let retrieved_key = key_servers[0].restore_document_key(&document, &signature.into()).unwrap();
 		let retrieved_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
 		assert_eq!(retrieved_key, generated_key);
 	}
@@ -477,14 +474,14 @@ pub mod tests {
 		let server_key_id = Random.generate().unwrap().secret().clone();
 		let requestor_secret = Random.generate().unwrap().secret().clone();
 		let signature = ethkey::sign(&requestor_secret, &server_key_id).unwrap();
-		let server_public = key_servers[0].generate_key(&server_key_id, &signature, threshold).unwrap();
+		let server_public = key_servers[0].generate_key(&server_key_id, &signature.clone().into(), threshold).unwrap();
 
 		// remove key from node0
 		key_servers[0].cluster().key_storage().remove(&server_key_id).unwrap();
 
 		// sign message
 		let message_hash = H256::from(42);
-		let combined_signature = key_servers[0].sign_message(&server_key_id, &signature, message_hash.clone()).unwrap();
+		let combined_signature = key_servers[0].sign_message(&server_key_id, &signature.into(), message_hash.clone()).unwrap();
 		let combined_signature = ethcrypto::ecies::decrypt(&requestor_secret, &ethcrypto::DEFAULT_MAC, &combined_signature).unwrap();
 		let signature_c = Secret::from_slice(&combined_signature[..32]);
 		let signature_s = Secret::from_slice(&combined_signature[32..]);

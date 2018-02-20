@@ -125,42 +125,42 @@ impl HttpHandler for KeyServerHttpHandler {
 		match &req_uri {
 			&RequestUri::AbsolutePath(ref path) => match parse_request(&req_method, &path, &req_body) {
 				Request::GenerateServerKey(document, signature, threshold) => {
-					return_server_public_key(req, res, self.handler.key_server.generate_key(&document, &signature, threshold)
+					return_server_public_key(req, res, self.handler.key_server.generate_key(&document, &signature.into(), threshold)
 						.map_err(|err| {
 							warn!(target: "secretstore", "GenerateServerKey request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::StoreDocumentKey(document, signature, common_point, encrypted_document_key) => {
-					return_empty(req, res, self.handler.key_server.store_document_key(&document, &signature, common_point, encrypted_document_key)
+					return_empty(req, res, self.handler.key_server.store_document_key(&document, &signature.into(), common_point, encrypted_document_key)
 						.map_err(|err| {
 							warn!(target: "secretstore", "StoreDocumentKey request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::GenerateDocumentKey(document, signature, threshold) => {
-					return_document_key(req, res, self.handler.key_server.generate_document_key(&document, &signature, threshold)
+					return_document_key(req, res, self.handler.key_server.generate_document_key(&document, &signature.into(), threshold)
 						.map_err(|err| {
 							warn!(target: "secretstore", "GenerateDocumentKey request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::GetDocumentKey(document, signature) => {
-					return_document_key(req, res, self.handler.key_server.restore_document_key(&document, &signature)
+					return_document_key(req, res, self.handler.key_server.restore_document_key(&document, &signature.into())
 						.map_err(|err| {
 							warn!(target: "secretstore", "GetDocumentKey request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::GetDocumentKeyShadow(document, signature) => {
-					return_document_key_shadow(req, res, self.handler.key_server.restore_document_key_shadow(&document, &signature)
+					return_document_key_shadow(req, res, self.handler.key_server.restore_document_key_shadow(&document, &signature.into())
 						.map_err(|err| {
 							warn!(target: "secretstore", "GetDocumentKeyShadow request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::SignMessage(document, signature, message_hash) => {
-					return_message_signature(req, res, self.handler.key_server.sign_message(&document, &signature, message_hash)
+					return_message_signature(req, res, self.handler.key_server.sign_message(&document, &signature.into(), message_hash)
 						.map_err(|err| {
 							warn!(target: "secretstore", "SignMessage request {} has failed with: {}", req_uri, err);
 							err
@@ -231,7 +231,7 @@ fn return_bytes<T: Serialize>(req: HttpRequest, mut res: HttpResponse, result: R
 
 fn return_error(mut res: HttpResponse, err: Error) {
 	match err {
-		Error::BadSignature => *res.status_mut() = HttpStatusCode::BadRequest,
+		Error::InsufficientRequesterData(_) => *res.status_mut() = HttpStatusCode::BadRequest,
 		Error::AccessDenied => *res.status_mut() = HttpStatusCode::Forbidden,
 		Error::DocumentNotFound => *res.status_mut() = HttpStatusCode::NotFound,
 		Error::Hyper(_) => *res.status_mut() = HttpStatusCode::BadRequest,
