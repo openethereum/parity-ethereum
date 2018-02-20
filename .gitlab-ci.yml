@@ -171,7 +171,7 @@ windows:
     - stable
     - triggers
   script:
-    - sh scripts/gitlab-build.sh x86_64-pc-windows-msvc x86_64-pc-windows-msvc installer "" "" "" windows
+    - sh scripts/gitlab-build.sh x86_64-pc-windows-msvc x86_64-pc-windows-msvc installer "" "" windows
   tags:
    - rust-windows
   artifacts:
@@ -239,8 +239,6 @@ push-release:
     - triggers
   image: parity/rust:gitlab-ci
   script:
-    - rustup default stable
-    - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1337/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
-    - curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
+    - scripts/gitlab-push-release.sh
   tags:
     - curl
