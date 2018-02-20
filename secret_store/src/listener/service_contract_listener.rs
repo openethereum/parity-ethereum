@@ -220,10 +220,6 @@ impl ServiceContractListener {
 			},
 			&ServiceTask::StoreDocumentKey(server_key_id, requester, common_point, encrypted_point) => {
 				unimplemented!("TODO")
-				/*data.retry_data.lock().affected_server_keys.insert(server_key_id.clone());
-				log_service_task_result(&task, data.self_key_pair.public(),
-					Self::store_document_key(&data, &server_key_id, &requester, &common_point, &encrypted_point)
-						.and_then(|server_key| Self::publish_server_key(&data, &server_key_id, &server_key)))*/
 			},
 			&ServiceTask::RetrieveShadowDocumentKeyCommon(server_key_id, requester) => {
 				unimplemented!("TODO")
@@ -692,7 +688,7 @@ mod tests {
 	}
 
 	#[test]
-	fn server_key_generation_is_scheduled_when_requested_key_is_unknown() {
+	fn server_key_generation_is_scheduled_when_requested() {
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(ServiceTask::GenerateServerKey(Default::default(), Default::default(), 0));
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
@@ -704,7 +700,7 @@ mod tests {
 	}
 
 	#[test]
-	fn no_new_tasks_scheduled_when_requested_server_key_is_unknown_and_request_belongs_to_other_key_server() {
+	fn no_new_tasks_scheduled_when_server_key_generation_requested_and_request_belongs_to_other_key_server() {
 		let server_key_id = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse().unwrap();
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(ServiceTask::GenerateServerKey(server_key_id, Default::default(), 0));
@@ -721,6 +717,29 @@ mod tests {
 		ServiceContractListener::process_service_task(&listener.data, ServiceTask::GenerateServerKey(
 			Default::default(), Default::default(), Default::default())).unwrap_err();
 		assert_eq!(key_server.generation_requests_count.load(Ordering::Relaxed), 1);
+	}
+
+	#[test]
+	fn server_key_retrieval_is_scheduled_when_requested() {
+		let mut contract = DummyServiceContract::default();
+		contract.logs.push(ServiceTask::RetrieveServerKey(Default::default()));
+		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
+		listener.process_service_contract_events();
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 2);
+		assert_eq!(listener.data.tasks_queue.snapshot().pop_back(), Some(ServiceTask::RetrieveServerKey(Default::default())));
+	}
+
+	#[test]
+	fn retrieval_scheduled_when_requested_and_request_belongs_to_other_key_server() {
+		let server_key_id = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse().unwrap();
+		let mut contract = DummyServiceContract::default();
+		contract.logs.push(ServiceTask::RetrieveServerKey(server_key_id.clone()));
+		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
+		listener.process_service_contract_events();
+		assert_eq!(listener.data.tasks_queue.snapshot().len(), 2);
+		assert_eq!(listener.data.tasks_queue.snapshot().pop_back(), Some(ServiceTask::RetrieveServerKey(server_key_id)));
 	}
 
 	#[test]
