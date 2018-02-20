@@ -19,7 +19,7 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 
-use ethereum_types::{H256, U256};
+use ethereum_types::{H256, U256, Address};
 use parking_lot::RwLock;
 use transaction;
 use txpool::{self, Verifier};
@@ -120,8 +120,23 @@ impl TransactionQueue {
 		client: C,
 	) {
 		let state_readiness = ready::State::new(client);
+
 		let removed = self.pool.write().cull(None, state_readiness);
 		debug!(target: "txqueue", "Removed {} stalled transactions.", removed);
+	}
+
+	/// Returns next valid nonce for given sender
+	/// or `None` if there are no pending transactions from that sender.
+	pub fn next_nonce<C: client::Client>(
+		&self,
+		client: C,
+		address: &Address,
+	) -> Option<U256> {
+		let state_readiness = ready::State::new(client);
+
+		self.pool.read().pending_from_sender(state_readiness, address)
+			.last()
+			.map(|tx| tx.signed().nonce + 1.into())
 	}
 
 	/// Retrieve a transaction from the pool.
@@ -186,7 +201,6 @@ impl TransactionQueue {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use ethereum_types::Address;
 
 	#[derive(Debug)]
 	struct TestClient;

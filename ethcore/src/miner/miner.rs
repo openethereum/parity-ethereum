@@ -811,6 +811,12 @@ impl MinerService for Miner {
 		}
 	}
 
+	fn next_nonce(&self, chain: &MiningBlockChainClient, address: &Address) -> U256 {
+		let client = self.client(chain);
+		self.transaction_queue.next_nonce(client, address)
+			.unwrap_or_else(|| chain.nonce(address, BlockId::Latest).unwrap_or_default())
+	}
+
 	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction> {
 		match self.options.pending_set {
 			PendingSet::AlwaysQueue => self.transaction_queue.find(hash).map(|t| t.pending().clone()),
@@ -822,11 +828,6 @@ impl MinerService for Miner {
 				)
 			},
 		}
-	}
-
-	fn last_nonce(&self, address: &Address) -> Option<U256> {
-		// TODO [ToDr] missing!
-		unimplemented!()
 	}
 
 	fn pending_transactions(&self, best_block: BlockNumber) -> Option<Vec<SignedTransaction>> {

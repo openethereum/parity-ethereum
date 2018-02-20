@@ -364,6 +364,25 @@ impl<T, S, L> Pool<T, S, L> where
 		}
 	}
 
+	/// Returns pending (ready) transactions from given sender.
+	pub fn pending_from_sender<R: Ready<T>>(&self, ready: R, sender: &Sender) -> PendingIterator<T, R, S, L> {
+		let best_transactions = self.transactions.get(sender)
+			.and_then(|transactions| transactions.worst_and_best())
+			.map(|(_, best)| ScoreWithRef::new(best.0, best.1))
+			.map(|s| {
+				let mut set = BTreeSet::new();
+				set.insert(s);
+				set
+			})
+			.unwrap_or_default();
+
+		PendingIterator {
+			ready,
+			best_transactions,
+			pool: self
+		}
+	}
+
 	/// Computes the full status of the pool (including readiness).
 	pub fn status<R: Ready<T>>(&self, mut ready: R) -> Status {
 		let mut status = Status::default();

@@ -110,6 +110,14 @@ pub trait MinerService : Send + Sync {
 	/// Depending on the settings may look in transaction pool or only in pending block.
 	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction>;
 
+	/// Returns next valid nonce for given address.
+	///
+	/// This includes nonces of all transactions from this address in the pending queue
+	/// if they are consecutive.
+	/// NOTE: pool may contain some future transactions that will become pending after
+	/// transaction with nonce returned from this function is signed on.
+	fn next_nonce(&self, chain: &MiningBlockChainClient, address: &Address) -> U256;
+
 	/// Get a list of all ready transactions.
 	///
 	/// Depending on the settings may look in transaction pool or only in pending block.
@@ -120,9 +128,6 @@ pub trait MinerService : Send + Sync {
 
 	/// Get a list of local transactions with statuses.
 	// fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus>;
-
-	/// Returns highest transaction nonce for given address.
-	fn last_nonce(&self, address: &Address) -> Option<U256>;
 
 
 	/// Suggested gas price.
