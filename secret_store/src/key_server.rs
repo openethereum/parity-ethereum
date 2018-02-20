@@ -72,10 +72,10 @@ impl AdminSessionsServer for KeyServerImpl {
 impl ServerKeyGenerator for KeyServerImpl {
 	fn generate_key(&self, key_id: &ServerKeyId, author: &Requester, threshold: usize) -> Result<Public, Error> {
 		// recover requestor' public key from signature
-		let public = author.address(key_id).map_err(Error::InsufficientRequesterData)?;
+		let address = author.address(key_id).map_err(Error::InsufficientRequesterData)?;
 
 		// generate server key
-		let generation_session = self.data.lock().cluster.new_generation_session(key_id.clone(), public, threshold)?;
+		let generation_session = self.data.lock().cluster.new_generation_session(key_id.clone(), address, threshold)?;
 		generation_session.wait(None).map_err(Into::into)
 	}
 }
@@ -204,7 +204,6 @@ pub mod tests {
 	use std::collections::BTreeSet;
 	use std::time;
 	use std::sync::Arc;
-	use std::sync::atomic::{AtomicUsize, Ordering};
 	use std::net::SocketAddr;
 	use std::collections::BTreeMap;
 	use ethcrypto;
@@ -223,12 +222,7 @@ pub mod tests {
 	use super::KeyServerImpl;
 
 	#[derive(Default)]
-	pub struct DummyKeyServer {
-		pub return_ok: bool,
-		pub generation_requests_count: AtomicUsize,
-		pub document_generation_requests_count: AtomicUsize,
-		pub document_restore_requests_count: AtomicUsize,
-	}
+	pub struct DummyKeyServer;
 
 	impl KeyServer for DummyKeyServer {}
 
@@ -240,11 +234,7 @@ pub mod tests {
 
 	impl ServerKeyGenerator for DummyKeyServer {
 		fn generate_key(&self, _key_id: &ServerKeyId, _author: &Requester, _threshold: usize) -> Result<Public, Error> {
-			self.generation_requests_count.fetch_add(1, Ordering::Relaxed);
-			if !self.return_ok {
-				return Err(Error::Internal("test error".into()));
-			}
-			Ok(Public::zero())
+			unimplemented!("test-only")
 		}
 	}
 
@@ -254,19 +244,11 @@ pub mod tests {
 		}
 
 		fn generate_document_key(&self, _key_id: &ServerKeyId, _author: &Requester, _threshold: usize) -> Result<EncryptedDocumentKey, Error> {
-			self.document_generation_requests_count.fetch_add(1, Ordering::Relaxed);
-			if !self.return_ok {
-				return Err(Error::Internal("test error".into()));
-			}
-			Ok(Default::default())
+			unimplemented!("test-only")
 		}
 
 		fn restore_document_key(&self, _key_id: &ServerKeyId, _requester: &Requester) -> Result<EncryptedDocumentKey, Error> {
-			self.document_restore_requests_count.fetch_add(1, Ordering::Relaxed);
-			if !self.return_ok {
-				return Err(Error::Internal("test error".into()));
-			}
-			Ok(Default::default())
+			unimplemented!("test-only")
 		}
 
 		fn restore_document_key_shadow(&self, _key_id: &ServerKeyId, _requester: &Requester) -> Result<EncryptedDocumentKeyShadow, Error> {

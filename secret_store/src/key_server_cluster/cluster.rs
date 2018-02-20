@@ -1047,6 +1047,7 @@ fn make_socket_address(address: &str, port: u16) -> Result<SocketAddr, Error> {
 #[cfg(test)]
 pub mod tests {
 	use std::sync::Arc;
+	use std::sync::atomic::{AtomicUsize, Ordering};
 	use std::time;
 	use std::collections::{BTreeSet, VecDeque};
 	use parking_lot::Mutex;
@@ -1066,7 +1067,9 @@ pub mod tests {
 		IsolatedSessionTransport as KeyVersionNegotiationSessionTransport};
 
 	#[derive(Default)]
-	pub struct DummyClusterClient;
+	pub struct DummyClusterClient {
+		pub generation_requests_count: AtomicUsize,
+	}
 
 	#[derive(Debug)]
 	pub struct DummyCluster {
@@ -1082,7 +1085,10 @@ pub mod tests {
 
 	impl ClusterClient for DummyClusterClient {
 		fn cluster_state(&self) -> ClusterState { unimplemented!("test-only") }
-		fn new_generation_session(&self, _session_id: SessionId, _author: Address, _threshold: usize) -> Result<Arc<GenerationSession>, Error> { unimplemented!("test-only") }
+		fn new_generation_session(&self, _session_id: SessionId, _author: Address, _threshold: usize) -> Result<Arc<GenerationSession>, Error> {
+			self.generation_requests_count.fetch_add(1, Ordering::Relaxed);
+			Err(Error::Io("test error".into()))
+		}
 		fn new_encryption_session(&self, _session_id: SessionId, _author: Requester, _common_point: Public, _encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error> { unimplemented!("test-only") }
 		fn new_decryption_session(&self, _session_id: SessionId, _requester: Requester, _version: Option<H256>, _is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> { unimplemented!("test-only") }
 		fn new_signing_session(&self, _session_id: SessionId, _requester: Requester, _version: Option<H256>, _message_hash: H256) -> Result<Arc<SigningSession>, Error> { unimplemented!("test-only") }

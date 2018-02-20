@@ -98,7 +98,6 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<No
 		let service_contract = Arc::new(listener::service_contract::OnChainServiceContract::new(trusted_client, service_contract_address, self_key_pair.clone()));
 		let contract_listener = listener::service_contract_listener::ServiceContractListener::new(listener::service_contract_listener::ServiceContractListenerParams {
 			contract: service_contract,
-			key_server: key_server.clone(),
 			self_key_pair: self_key_pair,
 			key_server_set: key_server_set,
 			cluster: cluster,

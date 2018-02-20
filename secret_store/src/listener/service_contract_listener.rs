@@ -58,8 +58,6 @@ pub struct ServiceContractListener {
 pub struct ServiceContractListenerParams {
 	/// Service contract.
 	pub contract: Arc<ServiceContract>,
-	/// Key server reference.
-	pub key_server: Arc<KeyServer>,
 	/// This node key pair.
 	pub self_key_pair: Arc<NodeKeyPair>,
 	/// Key servers set.
@@ -80,8 +78,8 @@ struct ServiceContractListenerData {
 	pub tasks_queue: Arc<TasksQueue<ServiceTask>>,
 	/// Service contract.
 	pub contract: Arc<ServiceContract>,
-	/// Key server reference.
-	pub key_server: Arc<KeyServer>,
+	/// Cluster client reference.
+	pub cluster: Arc<ClusterClient>,
 	/// This node key pair.
 	pub self_key_pair: Arc<NodeKeyPair>,
 	/// Key servers set.
@@ -127,7 +125,7 @@ impl ServiceContractListener {
 			retry_data: Default::default(),
 			tasks_queue: Arc::new(TasksQueue::new()),
 			contract: params.contract,
-			key_server: params.key_server,
+			cluster: params.cluster,
 			self_key_pair: params.self_key_pair,
 			key_server_set: params.key_server_set,
 			key_storage: params.key_storage,
@@ -145,9 +143,9 @@ impl ServiceContractListener {
 			data: data,
 			service_handle: service_handle,
 		});
-		params.cluster.add_generation_listener(contract.clone());
-		params.cluster.add_encryption_listener(contract.clone());
-		params.cluster.add_decryption_listener(contract.clone());
+		contract.data.cluster.add_generation_listener(contract.clone());
+		contract.data.cluster.add_encryption_listener(contract.clone());
+		contract.data.cluster.add_decryption_listener(contract.clone());
 		contract
 	}
 
@@ -289,9 +287,8 @@ impl ServiceContractListener {
 
 	/// Generate server key (start generation session).
 	fn generate_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, author: Address, threshold: usize) -> Result<(), String> {
-		// TODO: do not wait here!!!!!!!!!!!!!!!!!
-		Self::process_server_key_generation_result(data, server_key_id, data.key_server.generate_key(
-			server_key_id, &author.into(), threshold).map(|_| None))
+		Self::process_server_key_generation_result(data, server_key_id, data.cluster.new_generation_session(
+			server_key_id.clone(), author, threshold).map(|_| None).map_err(Into::into))
 	}
 
 	/// Process server key generation result.
@@ -499,12 +496,12 @@ mod tests {
 	use key_storage::{KeyStorage, DocumentKeyShare};
 	use key_storage::tests::DummyKeyStorage;
 	use key_server_set::tests::MapKeyServerSet;
-	use PlainNodeKeyPair;
+	use {PlainNodeKeyPair, ServerKeyId};
 	use super::{ServiceTask, ServiceContractListener, ServiceContractListenerParams, is_processed_by_this_key_server};
 
-	fn make_service_contract_listener(contract: Option<Arc<ServiceContract>>, key_server: Option<Arc<DummyKeyServer>>, key_storage: Option<Arc<KeyStorage>>) -> Arc<ServiceContractListener> {
+	fn make_service_contract_listener(contract: Option<Arc<ServiceContract>>, cluster: Option<Arc<DummyClusterClient>>, key_storage: Option<Arc<KeyStorage>>) -> Arc<ServiceContractListener> {
 		let contract = contract.unwrap_or_else(|| Arc::new(DummyServiceContract::default()));
-		let key_server = key_server.unwrap_or_else(|| Arc::new(DummyKeyServer::default()));
+		let cluster = cluster.unwrap_or_else(|| Arc::new(DummyClusterClient::default()));
 		let key_storage = key_storage.unwrap_or_else(|| Arc::new(DummyKeyStorage::default()));
 		let servers_set = Arc::new(MapKeyServerSet::new(vec![
 			("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8".parse().unwrap(),
@@ -517,10 +514,9 @@ mod tests {
 		let self_key_pair = Arc::new(PlainNodeKeyPair::new(KeyPair::from_secret("0000000000000000000000000000000000000000000000000000000000000001".parse().unwrap()).unwrap()));
 		ServiceContractListener::new(ServiceContractListenerParams {
 			contract: contract,
-			key_server: key_server,
 			self_key_pair: self_key_pair,
 			key_server_set: servers_set,
-			cluster: Arc::new(DummyClusterClient::default()),
+			cluster: cluster,
 			key_storage: key_storage,
 		})
 	}
@@ -712,11 +708,11 @@ mod tests {
 
 	#[test]
 	fn generation_session_is_created_when_processing_generate_server_key_task() {
-		let key_server = Arc::new(DummyKeyServer::default());
-		let listener = make_service_contract_listener(None, Some(key_server.clone()), None);
+		let cluster = Arc::new(DummyClusterClient::default());
+		let listener = make_service_contract_listener(None, Some(cluster.clone()), None);
 		ServiceContractListener::process_service_task(&listener.data, ServiceTask::GenerateServerKey(
 			Default::default(), Default::default(), Default::default())).unwrap_err();
-		assert_eq!(key_server.generation_requests_count.load(Ordering::Relaxed), 1);
+		assert_eq!(cluster.generation_requests_count.load(Ordering::Relaxed), 1);
 	}
 
 	#[test]
@@ -732,7 +728,7 @@ mod tests {
 
 	#[test]
 	fn retrieval_scheduled_when_requested_and_request_belongs_to_other_key_server() {
-		let server_key_id = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse().unwrap();
+		let server_key_id: ServerKeyId = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse().unwrap();
 		let mut contract = DummyServiceContract::default();
 		contract.logs.push(ServiceTask::RetrieveServerKey(server_key_id.clone()));
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
@@ -760,10 +756,10 @@ mod tests {
 		let mut contract = DummyServiceContract::default();
 		contract.pending_requests.push((false, ServiceTask::GenerateServerKey(Default::default(),
 			Default::default(), Default::default())));
-		let key_server = Arc::new(DummyKeyServer::default());
-		let listener = make_service_contract_listener(Some(Arc::new(contract)), Some(key_server.clone()), None);
+		let cluster = Arc::new(DummyClusterClient::default());
+		let listener = make_service_contract_listener(Some(Arc::new(contract)), Some(cluster.clone()), None);
 		listener.data.retry_data.lock().affected_server_keys.insert(Default::default());
 		ServiceContractListener::retry_pending_requests(&listener.data).unwrap();
-		assert_eq!(key_server.generation_requests_count.load(Ordering::Relaxed), 0);
+		assert_eq!(cluster.generation_requests_count.load(Ordering::Relaxed), 0);
 	}
 }
