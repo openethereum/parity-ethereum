@@ -293,14 +293,9 @@ impl ServiceContractListener {
 
 	/// Generate server key (start generation session).
 	fn generate_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, author: Address, threshold: usize) -> Result<(), String> {
-		// TODO: if key exists => check threshold and either publish it, or publish error (wrong threshold)
 		// TODO: do not wait here!!!!!!!!!!!!!!!!!
-		let generation_result = match data.key_storage.get(server_key_id) {
-			Ok(Some(ref server_key_share)) if server_key_share.threshold == threshold => Ok(Some(server_key_share.public)),
-			_ => data.key_server.generate_key(server_key_id, &author.into(), threshold).map(|_| None),
-		};
-
-		Self::process_server_key_generation_result(data, server_key_id, generation_result)
+		Self::process_server_key_generation_result(data, server_key_id, data.key_server.generate_key(
+			server_key_id, &author.into(), threshold).map(|_| None))
 	}
 
 	/// Process server key generation result.
