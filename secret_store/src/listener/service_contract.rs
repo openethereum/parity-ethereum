@@ -52,8 +52,14 @@ pub trait ServiceContract: Send + Sync {
 	fn read_logs(&self) -> Box<Iterator<Item=ServiceTask>>;
 	/// Publish generated key.
 	fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>>;
-	/// Publish server key.
-	fn publish_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String>;
+	/// Publish generated server key.
+	fn publish_generated_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String>;
+	/// Publish server key generation error.
+	fn publish_server_key_generation_error(&self, server_key_id: &ServerKeyId) -> Result<(), String>;
+	/// Publish retrieved server key.
+	fn publish_retrieved_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String>;
+	/// Publish server key retrieval error.
+	fn publish_server_key_retrieval_error(&self, server_key_id: &ServerKeyId) -> Result<(), String>;
 //	/// Publish document key.
 //	fn publish_document_key(&self, server_key_id: &ServerKeyId, document_key: &EncryptedDocumentKey) -> Result<(), String>;
 }
@@ -269,7 +275,7 @@ return Box::new(::std::iter::empty()); // TODO: remove me
 		}*/
 	}
 
-	fn publish_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
+	fn publish_generated_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
 		// only publish if contract address is set && client is online
 		let data = self.data.read();
 		if data.contract_address == Default::default() {
@@ -315,6 +321,18 @@ return Box::new(::std::iter::empty()); // TODO: remove me
 		).map_err(|e| format!("{}", e))?;
 
 		Ok(())
+	}
+
+	fn publish_server_key_generation_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
+		unimplemented!()
+	}
+
+	fn publish_retrieved_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
+		unimplemented!()
+	}
+
+	fn publish_server_key_retrieval_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
+		unimplemented!()
 	}
 
 	/*fn publish_document_key(&self, server_key_id: &ServerKeyId, document_key: &EncryptedDocumentKey) -> Result<(), String> {
@@ -480,8 +498,10 @@ pub mod tests {
 		pub is_actual: bool,
 		pub logs: Vec<ServiceTask>,
 		pub pending_requests: Vec<(bool, ServiceTask)>,
-		pub published_server_keys: Mutex<Vec<(ServerKeyId, Public)>>,
-		pub published_document_keys: Mutex<Vec<(ServerKeyId, EncryptedDocumentKey)>>,
+		pub generated_server_keys: Mutex<Vec<(ServerKeyId, Public)>>,
+		pub server_keys_generation_failures: Mutex<Vec<ServerKeyId>>,
+		pub retrieved_server_keys: Mutex<Vec<(ServerKeyId, Public)>>,
+		pub server_keys_retrieval_failures: Mutex<Vec<ServerKeyId>>,
 	}
 
 	impl ServiceContract for DummyServiceContract {
@@ -497,8 +517,23 @@ pub mod tests {
 			Box::new(self.pending_requests.clone().into_iter())
 		}
 
-		fn publish_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
-			self.published_server_keys.lock().push((server_key_id.clone(), server_key.clone()));
+		fn publish_generated_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
+			self.generated_server_keys.lock().push((server_key_id.clone(), server_key.clone()));
+			Ok(())
+		}
+
+		fn publish_server_key_generation_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
+			self.server_keys_generation_failures.lock().push(server_key_id.clone());
+			Ok(())
+		}
+
+		fn publish_retrieved_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
+			self.retrieved_server_keys.lock().push((server_key_id.clone(), server_key.clone()));
+			Ok(())
+		}
+
+		fn publish_server_key_retrieval_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
+			self.server_keys_retrieval_failures.lock().push(server_key_id.clone());
 			Ok(())
 		}
 

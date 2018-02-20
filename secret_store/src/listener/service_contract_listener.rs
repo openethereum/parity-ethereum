@@ -31,7 +31,7 @@ use key_server_cluster::decryption_session::SessionImpl as DecryptionSession;
 use key_storage::KeyStorage;
 use listener::service_contract::ServiceContract;
 use listener::tasks_queue::TasksQueue;
-use {ServerKeyId, RequestSignature, NodeKeyPair, KeyServer, EncryptedDocumentKey};
+use {ServerKeyId, RequestSignature, NodeKeyPair, KeyServer, EncryptedDocumentKey, Error};
 
 /// Retry interval (in blocks). Every RETRY_INTERVAL_BLOCKS blocks each KeyServer reads pending requests from
 /// service contract && tries to re-execute. The reason to have this mechanism is primarily because keys
@@ -211,14 +211,12 @@ impl ServiceContractListener {
 			&ServiceTask::GenerateServerKey(server_key_id, author, threshold) => {
 				data.retry_data.lock().affected_server_keys.insert(server_key_id.clone());
 				log_service_task_result(&task, data.self_key_pair.public(),
-					Self::generate_server_key(&data, &server_key_id, author, threshold)
-						.and_then(|server_key| Self::publish_server_key(&data, &server_key_id, &server_key)))
+					Self::generate_server_key(&data, &server_key_id, author, threshold))
 			},
 			&ServiceTask::RetrieveServerKey(server_key_id) => {
 				data.retry_data.lock().affected_server_keys.insert(server_key_id.clone());
 				log_service_task_result(&task, data.self_key_pair.public(),
-					Self::retrieve_server_key(&data, &server_key_id)
-						.and_then(|server_key| Self::publish_server_key(&data, &server_key_id, &server_key)))
+					Self::retrieve_server_key(&data, &server_key_id))
 			},
 			&ServiceTask::StoreDocumentKey(server_key_id, requester, common_point, encrypted_point) => {
 				unimplemented!("TODO")
@@ -293,26 +291,50 @@ impl ServiceContractListener {
 		Ok(processed_requests)
 	}
 
-	/// Generate server key.
-	fn generate_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, author: Address, threshold: usize) -> Result<Public, String> {
-		// key server expects signed server_key_id in server_key_generation procedure
-		// only signer could store document key for this server key later
-		// => this API (server key generation) is not suitable for usage in encryption via contract endpoint
-		data.key_server.generate_key(server_key_id, &author.into(), threshold)
-			.map_err(Into::into)
+	/// Generate server key (start generation session).
+	fn generate_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, author: Address, threshold: usize) -> Result<(), String> {
+		// TODO: if key exists => check threshold and either publish it, or publish error (wrong threshold)
+		// TODO: do not wait here!!!!!!!!!!!!!!!!!
+		Self::process_server_key_generation_result(data, server_key_id,
+			data.key_server.generate_key(server_key_id, &author.into(), threshold).map(|_| None))
 	}
 
-	/// Restore server key.
-	fn retrieve_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId) -> Result<Public, String> {
-		data.key_storage.get(server_key_id)
-			.map_err(|e| format!("{}", e))
-			.and_then(|ks| ks.ok_or("missing key".to_owned()))
-			.map(|ks| ks.public)
+	/// Process server key generation result.
+	fn process_server_key_generation_result(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, result: Result<Option<Public>, Error>) -> Result<(), String> {
+		match result {
+			Ok(None) => Ok(()),
+			Ok(Some(server_key)) => {
+				data.contract.publish_generated_server_key(server_key_id, &server_key)
+			},
+			Err(ref error) if is_internal_error(error) => Err(format!("{}", error)),
+			Err(ref error) => {
+				// ignore error as we're already processing an error
+				let _ = data.contract.publish_server_key_generation_error(server_key_id)
+					.map_err(|error| warn!(target: "secretstore", "{}: failed to publish GenerateServerKey({}) error: {}",
+						data.self_key_pair.public(), server_key_id, error));
+				Err(format!("{}", error))
+			}
+		}
 	}
 
-	/// Publish server key.
-	fn publish_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
-		data.contract.publish_server_key(server_key_id, server_key)
+	/// Retrieve server key.
+	fn retrieve_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId) -> Result<(), String> {
+		match data.key_storage.get(server_key_id) {
+			Ok(Some(server_key_share)) => {
+				data.contract.publish_retrieved_server_key(server_key_id, &server_key_share.public)
+			},
+			Ok(None) => {
+				data.contract.publish_server_key_retrieval_error(server_key_id)
+			}
+			Err(ref error) if is_internal_error(error) => Err(format!("{}", error)),
+			Err(ref error) => {
+				// ignore error as we're already processing an error
+				let _ = data.contract.publish_server_key_retrieval_error(server_key_id)
+					.map_err(|error| warn!(target: "secretstore", "{}: failed to publish RetrieveServerKey({}) error: {}",
+						data.self_key_pair.public(), server_key_id, error));
+				Err(format!("{}", error))
+			}
+		}
 	}
 }
 
@@ -350,21 +372,17 @@ impl ChainNotify for ServiceContractListener {
 
 impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 	fn on_session_removed(&self, session: Arc<GenerationSession>) {
-		// only publish when the session is started by another node
-		// when it is started by this node, it is published from process_service_task
-		if !is_processed_by_this_key_server(&*self.data.key_server_set, &*self.data.self_key_pair, &session.id()) {
-			// by this time sesion must already be completed - either successfully, or not
-			assert!(session.is_finished());
+		// by this time sesion must already be completed - either successfully, or not
+		assert!(session.is_finished());
 
-			// ignore result - the only thing that we can do is to log the error
-			match session.wait(Some(Default::default()))
-				.map_err(|e| format!("{}", e))
-				.and_then(|server_key| Self::publish_server_key(&self.data, &session.id(), &server_key)) {
-				Ok(_) => trace!(target: "secretstore", "{}: completed foreign GenerateServerKey({}) request",
-					self.data.self_key_pair.public(), session.id()),
-				Err(error) => warn!(target: "secretstore", "{}: failed to process GenerateServerKey({}) request with: {}",
-					self.data.self_key_pair.public(), session.id(), error),
-			}
+		// ignore result - the only thing that we can do is to log the error
+		match session.wait(Some(Default::default()))
+			.map_err(|e| format!("{}", e))
+			.and_then(|server_key| self.data.contract.publish_generated_server_key(&session.id(), &server_key)) {
+			Ok(_) => trace!(target: "secretstore", "{}: completed foreign GenerateServerKey({}) request",
+				self.data.self_key_pair.public(), session.id()),
+			Err(error) => warn!(target: "secretstore", "{}: failed to process GenerateServerKey({}) request with: {}",
+				self.data.self_key_pair.public(), session.id(), error),
 		}
 	}
 }
@@ -435,6 +453,15 @@ impl ::std::fmt::Display for ServiceTask {
 			ServiceTask::Shutdown => write!(f, "Shutdown"),
 		}
 	}
+}
+
+/// Is internal error? Internal error means that it is SS who's responsible for it, like: connectivity, db failure, ...
+/// External error is caused by SS misuse, like: trying to generate duplicated key, access denied, ...
+/// When internal error occurs, we just ignore request for now and will retry later.
+/// When external error occurs, we reject request.
+fn is_internal_error(error: &Error) -> bool {
+	// TODO: implement me
+	false
 }
 
 /// Log service task result.
@@ -734,7 +761,7 @@ mod tests {
 		key_storage.insert(Default::default(), key_share.clone()).unwrap();
 		let listener = make_service_contract_listener(Some(contract.clone()), None, Some(key_storage));
 		ServiceContractListener::process_service_task(&listener.data, ServiceTask::RetrieveServerKey(Default::default())).unwrap();
-		assert_eq!(*contract.published_server_keys.lock(), vec![(Default::default(), key_share.public)]);
+		assert_eq!(*contract.retrieved_server_keys.lock(), vec![(Default::default(), key_share.public)]);
 	}
 
 	#[test]
