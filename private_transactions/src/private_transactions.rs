@@ -79,9 +79,9 @@ impl VerificationStore {
 			.add(signed_transaction, TransactionOrigin::External, insertion_time, None, details_provider)
 			.and_then(|_| {
 				self.descriptors.insert(transaction_hash, PrivateTransactionDesc{
-					private_hash: private_hash,
-					contract: contract,
-					validator_account: validator_account,
+					private_hash,
+					contract,
+					validator_account,
 				});
 				Ok(())
 			})
@@ -122,6 +122,8 @@ pub struct PrivateTransactionSigningDesc {
 	pub received_signatures: Vec<Signature>,
 	/// State after transaction execution to compare further with received from validators
 	pub state: Bytes,
+	/// Build-in nonce of the contract
+	pub contract_nonce: U256,
 }
 
 /// Storage for private transactions for signing
@@ -145,6 +147,7 @@ impl SigningStore {
 		transaction: SignedTransaction,
 		validators: Vec<Address>,
 		state: Bytes,
+		contract_nonce: U256,
 	) -> Result<(), PrivateTransactionError> {
 		if self.transactions.len() > MAX_QUEUE_LEN {
 			return Err(PrivateTransactionError::QueueIsFull.into());
@@ -154,7 +157,8 @@ impl SigningStore {
 			original_transaction: transaction.clone(),
 			validators: validators.clone(),
 			received_signatures: Vec::new(),
-			state: state,
+			state,
+			contract_nonce,
 		});
 		Ok(())
 	}
