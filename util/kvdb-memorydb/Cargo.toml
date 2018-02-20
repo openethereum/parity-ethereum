@@ -5,5 +5,4 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 parking_lot = "0.5"
-rlp = { path = "../rlp" }
 kvdb = { path = "../kvdb" }

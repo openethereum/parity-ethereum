@@ -56,11 +56,6 @@ pub enum DBOp {
 		key: ElasticArray32<u8>,
 		value: DBValue,
 	},
-	InsertCompressed {
-		col: Option<u32>,
-		key: ElasticArray32<u8>,
-		value: DBValue,
-	},
 	Delete {
 		col: Option<u32>,
 		key: ElasticArray32<u8>,
@@ -116,18 +111,6 @@ impl DBTransaction {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
 		self.ops.push(DBOp::Insert {
-			col: col,
-			key: ekey,
-			value: DBValue::from_vec(value),
-		});
-	}
-
-	/// Insert a key-value pair in the transaction. Any existing value will be overwritten upon write.
-	/// Value will be RLP-compressed on flush
-	pub fn put_compressed(&mut self, col: Option<u32>, key: &[u8], value: Bytes) {
-		let mut ekey = ElasticArray32::new();
-		ekey.append_slice(key);
-		self.ops.push(DBOp::InsertCompressed {
 			col: col,
 			key: ekey,
 			value: DBValue::from_vec(value),

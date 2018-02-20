@@ -19,9 +19,9 @@
 use hash::keccak;
 use ethereum_types::H256;
 use bytes::Bytes;
-use header::*;
+use header::Header;
 use transaction::*;
-use super::{TransactionView, HeaderView};
+use views::{TransactionView, HeaderView};
 use rlp::Rlp;
 
 /// View onto block rlp.

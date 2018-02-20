@@ -233,17 +233,14 @@ impl BlockProvider for BlockChain {
 
 	/// Get raw block data
 	fn block(&self, hash: &H256) -> Option<encoded::Block> {
-		match (self.block_header_data(hash), self.block_body(hash)) {
-			(Some(header), Some(body)) => {
-				let mut block = RlpStream::new_list(3);
-				let body_rlp = body.rlp();
-				block.append_raw(header.rlp().as_raw(), 1);
-				block.append_raw(body_rlp.at(0).as_raw(), 1);
-				block.append_raw(body_rlp.at(1).as_raw(), 1);
-				Some(encoded::Block::new(block.out()))
-			},
-			_ => None,
-		}
+		let header = self.block_header_data(hash)?;
+		let body = self.block_body(hash)?;
+		let mut block = RlpStream::new_list(3);
+		let body_rlp = body.rlp();
+		block.append_raw(header.rlp().as_raw(), 1);
+		block.append_raw(body_rlp.at(0).as_raw(), 1);
+		block.append_raw(body_rlp.at(1).as_raw(), 1);
+		Some(encoded::Block::new(block.out()))
 	}
 
 	/// Get block header data
@@ -260,9 +257,8 @@ impl BlockProvider for BlockChain {
 		{
 			let best_block = self.best_block.read();
 			if &best_block.hash == hash {
-				return Some(encoded::Header::new(
-					Rlp::new(&best_block.block).at(0).as_raw().to_vec()
-				))
+				let header = BlockView::new(&best_block.block).header_rlp().as_raw().to_vec();
+				return Some(encoded::Header::new(header));
 			}
 		}
 
@@ -271,8 +267,8 @@ impl BlockProvider for BlockChain {
 			.expect("Low level database error. Some issue with disk?");
 
 		let result = match opt {
-			Some(b) => {
-				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).into_vec();
+			Some(bytes) => {
+				let bytes = bytes.to_vec();
 				let mut write = self.block_headers.write();
 				write.insert(*hash, bytes.clone());
 				Some(encoded::Header::new(bytes))
@@ -307,8 +303,8 @@ impl BlockProvider for BlockChain {
 			.expect("Low level database error. Some issue with disk?");
 
 		let result = match opt {
-			Some(b) => {
-				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).into_vec();
+			Some(bytes) => {
+				let bytes = bytes.to_vec();
 				let mut write = self.block_bodies.write();
 				write.insert(*hash, bytes.clone());
 				Some(encoded::Body::new(bytes))
@@ -448,33 +444,28 @@ impl<'a> Iterator for EpochTransitionIter<'a> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		loop {
-			match self.prefix_iter.next() {
-				Some((key, val)) => {
-					// iterator may continue beyond values beginning with this
-					// prefix.
-					if !key.starts_with(&EPOCH_KEY_PREFIX[..]) { return None }
+			let (key, val) = self.prefix_iter.next()?;
 
-					let transitions: EpochTransitions = ::rlp::decode(&val[..]);
+			if !key.starts_with(&EPOCH_KEY_PREFIX[..]) {
+				return None
+			}
 
-					// if there are multiple candidates, at most one will be on the
-					// canon chain.
-					for transition in transitions.candidates.into_iter() {
-						let is_in_canon_chain = self.chain.block_hash(transition.block_number)
-							.map_or(false, |hash| hash == transition.block_hash);
+			let transitions: EpochTransitions = ::rlp::decode(&val[..]);
 
-						// if the transition is within the block gap, there will only be
-						// one candidate, and it will be from a snapshot restored from.
-						let is_ancient = self.chain.first_block_number()
-							.map_or(false, |first| first > transition.block_number);
+			// if there are multiple candidates, at most one will be on the
+			// canon chain.
+			for transition in transitions.candidates.into_iter() {
+				let is_in_canon_chain = self.chain.block_hash(transition.block_number)
+					.map_or(false, |hash| hash == transition.block_hash);
 
-						if is_ancient || is_in_canon_chain {
-							return Some((transitions.number, transition))
-						}
-					}
+				// if the transition is within the block gap, there will only be
+				// one candidate, and it will be from a snapshot restored from.
+				let is_ancient = self.chain.first_block_number()
+					.map_or(false, |first| first > transition.block_number);
 
-					// some epochs never occurred on the main chain.
+				if is_ancient || is_in_canon_chain {
+					return Some((transitions.number, transition))
 				}
-				None => return None,
 			}
 		}
 	}
@@ -727,13 +718,9 @@ impl BlockChain {
 
 		assert!(self.pending_best_block.read().is_none());
 
-		let block_rlp = UntrustedRlp::new(bytes);
-		let compressed_header = block_rlp.at(0).unwrap().compress(RlpType::Blocks);
-		let compressed_body = UntrustedRlp::new(&Self::block_to_body(bytes)).compress(RlpType::Blocks);
-
 		// store block in db
-		batch.put(db::COL_HEADERS, &hash, &compressed_header);
-		batch.put(db::COL_BODIES, &hash, &compressed_body);
+		batch.put(db::COL_HEADERS, &hash, &block.header_rlp().as_raw());
+		batch.put(db::COL_BODIES, &hash, &Self::block_to_body(bytes));
 
 		let maybe_parent = self.block_details(&header.parent_hash());
 
@@ -929,8 +916,8 @@ impl BlockChain {
 		assert!(self.pending_best_block.read().is_none());
 
 		// store block in db
-		batch.put_compressed(db::COL_HEADERS, &hash, block.header_rlp().as_raw().to_vec());
-		batch.put_compressed(db::COL_BODIES, &hash, Self::block_to_body(bytes));
+		batch.put(db::COL_HEADERS, &hash, block.header_rlp().as_raw());
+		batch.put(db::COL_BODIES, &hash, &Self::block_to_body(bytes));
 
 		let info = self.block_info(&header);
 
@@ -1105,10 +1092,7 @@ impl BlockChain {
 		if !self.is_known(parent) { return None; }
 
 		let mut excluded = HashSet::new();
-		let ancestry = match self.ancestry_iter(parent.clone()) {
-			Some(iter) => iter,
-			None => return None,
-		};
+		let ancestry = self.ancestry_iter(parent.clone())?;
 
 		for a in ancestry.clone().take(uncle_generations) {
 			if let Some(uncles) = self.uncle_hashes(&a) {
