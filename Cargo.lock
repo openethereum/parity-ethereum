@@ -3501,7 +3501,7 @@ dependencies = [
 [[package]]
 name = "wasm-utils"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/wasm-utils#492761a00573c25b37e09cbc81909e0280fe332f"
+source = "git+https://github.com/paritytech/wasm-utils#32d54c85409be92fca5cb5a3d0190224a39e0146"
 dependencies = [
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.29.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3515,7 +3515,7 @@ dependencies = [
 [[package]]
 name = "wasmi"
 version = "0.0.0"
-source = "git+https://github.com/pepyakin/wasmi#6b6961bcb62fd837ed2950ea15e274ff87f1c0cf"
+source = "git+https://github.com/pepyakin/wasmi#f1a3f06d5e49798e2aa28150e863af1c7910bfc2"
 dependencies = [
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory_units 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",

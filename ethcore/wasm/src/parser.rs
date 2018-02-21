@@ -23,7 +23,7 @@ use parity_wasm::peek_size;
 
 fn gas_rules(wasm_costs: &vm::WasmCosts) -> rules::Set {
 	rules::Set::new(
-		1,
+		wasm_costs.regular,
 		{
 			let mut vals = ::std::collections::HashMap::with_capacity(8);
 			vals.insert(rules::InstructionType::Load, rules::Metering::Fixed(wasm_costs.mem as u32));
@@ -76,8 +76,6 @@ pub fn payload<'a>(params: &'a vm::ActionParams, wasm_costs: &vm::WasmCosts)
 		deserialized_module,
 		&gas_rules(wasm_costs),
 	).map_err(|_| vm::Error::Wasm(format!("Wasm contract error: bytecode invalid")))?;
-
-	::parity_wasm::elements::serialize_to_file("./debug.wasm", contract_module.clone());
 
 	let data = match params.params_type {
 		vm::ParamsType::Embedded => {

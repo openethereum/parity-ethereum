@@ -53,6 +53,12 @@ impl From<InterpreterError> for Error {
 	}
 }
 
+impl From<Trap> for Error {
+	fn from(e: Trap) -> Self {
+		Error::Trap(e)
+	}
+}
+
 impl From<Error> for vm::Error {
 	fn from(e: Error) -> Self {
 		match e {
@@ -122,31 +128,25 @@ impl vm::Vm for WasmInterpreter {
 
 			let module_instance = module_instance.run_start(&mut runtime).map_err(Error::Trap)?;
 
-			match module_instance.invoke_export("call", &[], &mut runtime) {
-				Ok(_) => { },
-				Err(InterpreterError::Host(boxed)) => {
-					match boxed.downcast_ref::<runtime::Error>() {
-						None => {
-							return Err(vm::Error::Wasm("Invalid user error used in interpreter".to_owned()));
-						}
-						Some(runtime_err) => {
-							match *runtime_err {
-								runtime::Error::Suicide => {
-									// Suicide uses trap to break execution
-								}
-								ref any_err => {
-									trace!(target: "wasm", "Error executing contract: {:?}", boxed);
-									return Err(vm::Error::from(Error::from(InterpreterError::Host(Box::new(any_err.clone())))));
-								}
-							}
-						}
-					}
-				},
-				Err(err) => {
-					trace!(target: "wasm", "Error executing contract: {:?}", err);
-					return Err(vm::Error::from(Error::from(err)))
+			let invoke_result = module_instance.invoke_export("call", &[], &mut runtime);
+
+			let mut suicide = false;
+			if let Err(InterpreterError::Trap(ref trap)) = invoke_result {
+				if let wasmi::TrapKind::Host(ref boxed) = *trap.kind() {
+					let ref runtime_err = boxed.downcast_ref::<runtime::Error>()
+						.expect("Host errors other than runtime::Error never produced; qed");
+
+					if let runtime::Error::Suicide = **runtime_err { suicide = true; }
 				}
 			}
+
+			if !suicide {
+				if let Err(e) = invoke_result {
+					trace!(target: "wasm", "Error executing contract: {:?}", e);
+					return Err(vm::Error::from(Error::from(e)));
+				}
+			}
+
 			(
 				runtime.gas_left().expect("Cannot fail since it was not updated since last charge"),
 				runtime.into_result(),

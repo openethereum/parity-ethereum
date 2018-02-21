@@ -1,6 +1,6 @@
 use ethereum_types::{U256, H256, Address};
 use vm::{self, CallType};
-use wasmi::{self, MemoryRef, RuntimeArgs, RuntimeValue, Error as InterpreterError, Trap};
+use wasmi::{self, MemoryRef, RuntimeArgs, RuntimeValue, Error as InterpreterError, Trap, TrapKind};
 use super::panic_payload;
 
 pub struct RuntimeContext {
@@ -52,6 +52,16 @@ pub enum Error {
 	Other,
 	/// Syscall signature mismatch
 	InvalidSyscall,
+	/// Unreachable instruction encountered
+	Unreachable,
+	/// Invalid virtual call
+	InvalidVirtualCall,
+	/// Division by zero
+	DivisionByZero,
+	/// Invalid conversion to integer
+	InvalidConversionToInt,
+	/// Stack overflow
+	StackOverflow,
 	/// Panic with message
 	Panic(String),
 }
@@ -60,7 +70,16 @@ impl wasmi::HostError for Error { }
 
 impl From<Trap> for Error {
 	fn from(trap: Trap) -> Self {
-		Error::Other
+		match *trap.kind() {
+			TrapKind::Unreachable => Error::Unreachable,
+			TrapKind::MemoryAccessOutOfBounds => Error::MemoryAccessViolation,
+			TrapKind::TableAccessOutOfBounds | TrapKind::ElemUninitialized => Error::InvalidVirtualCall,
+			TrapKind::DivisionByZero => Error::DivisionByZero,
+			TrapKind::InvalidConversionToInt => Error::InvalidConversionToInt,
+			TrapKind::UnexpectedSignature => Error::InvalidVirtualCall,
+			TrapKind::StackOverflow => Error::StackOverflow,
+			TrapKind::Host(_) => Error::Other,
+		}
 	}
 }
 
@@ -91,6 +110,11 @@ impl ::std::fmt::Display for Error {
 			Error::Log => write!(f, "Error occured while logging an event"),
 			Error::InvalidSyscall => write!(f, "Invalid syscall signature encountered at runtime"),
 			Error::Other => write!(f, "Other unspecified error"),
+			Error::Unreachable => write!(f, "Unreachable instruction encountered"),
+			Error::InvalidVirtualCall => write!(f, "Invalid virtual call"),
+			Error::DivisionByZero => write!(f, "Division by zero"),
+			Error::StackOverflow => write!(f, "Stack overflow"),
+			Error::InvalidConversionToInt => write!(f, "Invalid conversion to integer"),
 			Error::Panic(ref msg) => write!(f, "Panic: {}", msg),
 		}
 	}
@@ -649,7 +673,7 @@ impl<'a> Runtime<'a> {
 
 mod ext_impl {
 
-	use wasmi::{Externals, RuntimeArgs, RuntimeValue, Error, Trap};
+	use wasmi::{Externals, RuntimeArgs, RuntimeValue, Trap};
 	use env::ids::*;
 
 	macro_rules! void {
