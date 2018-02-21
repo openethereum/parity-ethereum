@@ -24,4 +24,4 @@ extern crate ethabi_derive;
 extern crate ethabi_contract;
 
 mod contract_client;
-pub use contract_client::{RegistrarClient, ContractClient};
+pub use contract_client::{RegistrarClient, AsyncContractClient, ContractClient};

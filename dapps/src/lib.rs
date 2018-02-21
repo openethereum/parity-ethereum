@@ -81,7 +81,7 @@ use parking_lot::RwLock;
 use fetch::Fetch;
 use node_health::NodeHealth;
 
-pub use contract_client::ContractClient;
+pub use contract_client::AsyncContractClient;
 pub use node_health::SyncStatus;
 
 
@@ -156,7 +156,7 @@ impl Middleware {
 		pool: CpuPool,
 		health: NodeHealth,
 		dapps_domain: &str,
-		registrar: Arc<ContractClient>,
+		registrar: Arc<AsyncContractClient>,
 		sync_status: Arc<SyncStatus>,
 		fetch: F,
 	) -> Self {
@@ -199,7 +199,7 @@ impl Middleware {
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		dapps_domain: &str,
-		registrar: Arc<ContractClient>,
+		registrar: Arc<AsyncContractClient>,
 		sync_status: Arc<SyncStatus>,
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		fetch: F,

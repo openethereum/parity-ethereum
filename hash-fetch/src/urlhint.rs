@@ -24,7 +24,7 @@ use mime_guess;
 use futures::{future, Future};
 use futures::future::Either;
 use ethereum_types::{H256, Address};
-use contract_client::{RegistrarClient, ContractClient};
+use contract_client::{RegistrarClient, AsyncContractClient, ContractClient};
 
 use_contract!(urlhint, "Urlhint", "res/urlhint.json");
 
@@ -102,12 +102,12 @@ pub trait URLHint: Send + Sync {
 pub struct URLHintContract {
 	urlhint: urlhint::Urlhint,
 	registrar: RegistrarClient,
-	client: Arc<ContractClient>,
+	client: Arc<AsyncContractClient>,
 }
 
 impl URLHintContract {
 	/// Creates new `URLHintContract`
-	pub fn new(client: Arc<ContractClient>) -> Self {
+	pub fn new(client: Arc<AsyncContractClient>) -> Self {
 		URLHintContract {
 			urlhint: urlhint::Urlhint::default(),
 			registrar: RegistrarClient::new(client.clone()),
@@ -168,7 +168,7 @@ impl URLHint for URLHintContract {
 		let future = self.registrar.get_address(GITHUB_HINT)
 			.and_then(move |addr| if !addr.is_zero() {
 				let data = entries.input(id);
-				let result = client.call(addr, data)
+				let result = client.call_contract(addr, data)
 					.and_then(move |output| entries.output(&output).map_err(|e| e.to_string()))
 					.map(decode_urlhint_output);
 				Either::B(result)
@@ -238,12 +238,12 @@ pub mod tests {
 		}
 	}
 
-	impl ContractClient for FakeRegistrar {
-		fn registrar(&self) -> Result<Address, String> {
+	impl AsyncContractClient for FakeRegistrar {
+		fn registrar_address(&self) -> Result<Address, String> {
 			Ok(REGISTRAR.parse().unwrap())
 		}
 
-		fn call(&self, address: Address, data: Bytes) -> Box<Future<Item = Bytes, Error = String> + Send> {
+		fn call_contract(&self, address: Address, data: Bytes) -> Box<Future<Item = Bytes, Error = String> + Send> {
 			self.calls.lock().push((address.to_hex(), data.to_hex()));
 			let res = self.responses.lock().remove(0);
 			Box::new(res.into_future())

@@ -74,8 +74,6 @@ use verification;
 use verification::{PreverifiedBlock, Verifier};
 use verification::queue::BlockQueue;
 use views::BlockView;
-use contract_client::RegistryClient;
-
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -241,8 +239,8 @@ impl Importer {
 			ancient_verifier: Mutex::new(None),
 			rng: Mutex::new(OsRng::new()?),
 			on_user_defaults_change: Mutex::new(None),
-			registrar: RegistryClient::new(),
-			registrar_address,
+			// registrar: RegistrarClient::new(Arc::new(FakeRegistrar::new())),
+			// registrar_address,
 			exit_handler: Mutex::new(None),
 		});
 
@@ -2107,24 +2105,28 @@ impl BlockChainClient for Client {
 		self.importer.miner.import_own_transaction(self, signed.into())
 	}
 
+	// MOVE
 	fn registrar_address(&self) -> Option<Address> {
-		self.registrar_address.clone()
+		unimplemented!();
+		// self.registrar_address.clone()
 	}
 
-	fn registry_address(&self, name: String, block: BlockId) -> Option<Address> {
-		let address = match self.registrar_address {
-			Some(address) => address,
-			None => return None,
-		};
+	// MOVE
+	fn registry_address(&self, _name: String, _block: BlockId) -> Option<Address> {
+		unimplemented!();
+		// let address = match self.registrar_address {
+		//     Some(address) => address,
+		//     None => return None,
+		// };
 
-		self.registrar.get_address()
-			.call(keccak(name.as_bytes()), "A", &|data| self.call_contract(block, address, data))
-			.ok()
-			.and_then(|a| if a.is_zero() {
-				None
-			} else {
-				Some(a)
-			})
+		// self.registrar.get_address()
+		//     .call(keccak(name.as_bytes()), "A", &|data| self.call_contract(block, address, data))
+		//     .ok()
+		//     .and_then(|a| if a.is_zero() {
+		//         None
+		//     } else {
+		//         Some(a)
+		//     })
 	}
 
 >>>>>>> Refactor usage of registry contract

@@ -71,6 +71,7 @@ unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 tempdir = "0.3"
 contract-client = { path = "../contract_client" }
+futures = "0.1"
 
 [dev-dependencies]
 tempdir = "0.3"
