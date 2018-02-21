@@ -144,7 +144,7 @@ pub trait BlockProvider {
 	}
 
 	/// Returns numbers of blocks containing given bloom.
-	fn blocks_with_bloom(&self, bloom: &Bloom, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber>;
+	fn blocks_with_blooms(&self, bloom: &[Bloom], from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber>;
 
 	/// Returns logs matching given filter.
 	fn logs<F>(&self, blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
@@ -331,14 +331,13 @@ impl BlockProvider for BlockChain {
 		result
 	}
 
-	/// Returns numbers of blocks containing given bloom.
-	fn blocks_with_bloom(&self, bloom: &Bloom, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber> {
+	fn blocks_with_blooms(&self, blooms: &[Bloom], from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber> {
 		// +1, cause it's inclusive range
 		(from_block..to_block + 1)
-			.into_iter()
+			.into_par_iter()
 			.filter_map(|number| self.block_hash(number).map(|hash| (number, hash)))
 			.map(|(number, hash)| (number, self.block_header_data(&hash).expect("hash exists; qed")))
-			.filter(|&(_, ref header)| header.view().log_bloom().contains(bloom))
+			.filter(|&(_, ref header)| blooms.iter().any(|bloom| header.view().log_bloom().contains_bloom(bloom)))
 			.map(|(number, _)| number)
 			.collect()
 	}
@@ -355,19 +354,15 @@ impl BlockProvider for BlockChain {
 					.filter_map(|number| self.block_hash(*number).map(|hash| (*number, hash)))
 					.filter_map(|(number, hash)| self.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
 					.filter_map(|(number, hash, receipts)| self.block_body(&hash).map(|ref b| (number, hash, receipts, b.transaction_hashes())))
-					.flat_map(|(number, hash, mut receipts, mut hashes)| {
-						if receipts.len() != hashes.len() {
-							warn!("Block {} ({}) has different number of receipts ({}) to transactions ({}). Database corrupt?", number, hash, receipts.len(), hashes.len());
-							assert!(false);
-						}
-						let mut log_index = receipts.iter().fold(0, |sum, receipt| sum + receipt.logs.len());
+					.flat_map(|(number, hash, receipts, hashes)| {
+						assert_eq!(receipts.len(), hashes.len(), "Block {} ({}) has different number of receipts ({}) to transactions ({})", number, hash, receipts.len(), hashes.len());
+						let mut log_index: usize = receipts.iter().map(|r| r.logs.len()).sum();
 
 						let receipts_len = receipts.len();
-						hashes.reverse();
-						receipts.reverse();
 						receipts.into_iter()
 							.map(|receipt| receipt.logs)
 							.zip(hashes)
+							.rev()
 							.enumerate()
 							.flat_map(move |(index, (mut logs, tx_hash))| {
 								let current_log_index = log_index;
@@ -1965,46 +1960,46 @@ mod tests {
 		let db = new_db();
 		let bc = new_chain(&genesis.last().encoded(), db.clone());
 
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+		let blocks_b1 = bc.blocks_with_blooms(&[bloom_b1], 0, 5);
+		let blocks_b2 = bc.blocks_with_blooms(&[bloom_b2], 0, 5);
 		assert!(blocks_b1.is_empty());
 		assert!(blocks_b2.is_empty());
 
 		insert_block(&db, &bc, &b1.last().encoded(), vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+		let blocks_b1 = bc.blocks_with_blooms(&[bloom_b1], 0, 5);
+		let blocks_b2 = bc.blocks_with_blooms(&[bloom_b2], 0, 5);
 		assert_eq!(blocks_b1, vec![1]);
 		assert!(blocks_b2.is_empty());
 
 		insert_block(&db, &bc, &b2.last().encoded(), vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+		let blocks_b1 = bc.blocks_with_blooms(&[bloom_b1], 0, 5);
+		let blocks_b2 = bc.blocks_with_blooms(&[bloom_b2], 0, 5);
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![2]);
 
 		// hasn't been forked yet
 		insert_block(&db, &bc, &b1a.last().encoded(), vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
-		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
+		let blocks_b1 = bc.blocks_with_blooms(&[bloom_b1], 0, 5);
+		let blocks_b2 = bc.blocks_with_blooms(&[bloom_b2], 0, 5);
+		let blocks_ba = bc.blocks_with_blooms(&[bloom_ba], 0, 5);
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![2]);
 		assert!(blocks_ba.is_empty());
 
 		// fork has happend
 		insert_block(&db, &bc, &b2a.last().encoded(), vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
-		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
+		let blocks_b1 = bc.blocks_with_blooms(&[bloom_b1], 0, 5);
+		let blocks_b2 = bc.blocks_with_blooms(&[bloom_b2], 0, 5);
+		let blocks_ba = bc.blocks_with_blooms(&[bloom_ba], 0, 5);
 		assert!(blocks_b1.is_empty());
 		assert!(blocks_b2.is_empty());
 		assert_eq!(blocks_ba, vec![1, 2]);
 
 		// fork back
 		insert_block(&db, &bc, &b3.last().encoded(), vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
-		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
+		let blocks_b1 = bc.blocks_with_blooms(&[bloom_b1], 0, 5);
+		let blocks_b2 = bc.blocks_with_blooms(&[bloom_b2], 0, 5);
+		let blocks_ba = bc.blocks_with_blooms(&[bloom_ba], 0, 5);
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![2]);
 		assert_eq!(blocks_ba, vec![3]);
@@ -2040,9 +2035,9 @@ mod tests {
 		assert_eq!(bc.block_hash(2).unwrap(), b2.last().hash());
 		assert_eq!(bc.block_hash(3).unwrap(), b3.last().hash());
 
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 3);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 3);
-		let blocks_b3 = bc.blocks_with_bloom(&bloom_b3, 0, 3);
+		let blocks_b1 = bc.blocks_with_blooms(&[bloom_b1], 0, 3);
+		let blocks_b2 = bc.blocks_with_blooms(&[bloom_b2], 0, 3);
+		let blocks_b3 = bc.blocks_with_blooms(&[bloom_b3], 0, 3);
 
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![2]);
