@@ -169,7 +169,7 @@ mod test {
 		"#;
 
 		let spec = Spec::load(&::std::env::temp_dir(), spec_data.as_bytes()).unwrap();
-		let client_db = Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
+		let client_db = Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS));
 
 		let client = Client::new(
 			ClientConfig::default(),

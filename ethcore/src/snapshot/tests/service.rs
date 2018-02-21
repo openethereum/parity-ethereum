@@ -50,7 +50,7 @@ fn restored_is_equivalent() {
 	let client_db = tempdir.path().join("client_db");
 	let path = tempdir.path().join("snapshot");
 
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_config = DatabaseConfig::with_columns(Some(::db::NUM_COLUMNS));
 	let client_db = Database::open(&db_config, client_db.to_str().unwrap()).unwrap();
 
 	let spec = Spec::new_null();
@@ -107,7 +107,7 @@ fn guards_delete_folders() {
 	let service_params = ServiceParams {
 		engine: spec.engine.clone(),
 		genesis_block: spec.genesis_block(),
-		db_config: DatabaseConfig::with_columns(::db::NUM_COLUMNS),
+		db_config: DatabaseConfig::with_columns(Some(::db::NUM_COLUMNS)),
 		pruning: ::journaldb::Algorithm::Archive,
 		channel: IoChannel::disconnected(),
 		snapshot_root: tempdir.path().to_owned(),

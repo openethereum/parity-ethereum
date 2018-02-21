@@ -41,7 +41,7 @@ fn snap_and_restore() {
 	let mut producer = StateProducer::new();
 	let mut rng = XorShiftRng::from_seed([1, 2, 3, 4]);
 	let mut old_db = MemoryDB::new();
-	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_cfg = DatabaseConfig::with_columns(Some(::db::NUM_COLUMNS));
 
 	for _ in 0..150 {
 		producer.tick(&mut rng, &mut old_db);
@@ -130,7 +130,7 @@ fn get_code_from_prev_chunk() {
 	let chunk2 = make_chunk(acc, h2);
 
 	let tempdir = TempDir::new("").unwrap();
-	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_cfg = DatabaseConfig::with_columns(Some(::db::NUM_COLUMNS));
 	let new_db = Arc::new(Database::open(&db_cfg, tempdir.path().to_str().unwrap()).unwrap());
 
 	{
@@ -152,7 +152,7 @@ fn checks_flag() {
 	let mut producer = StateProducer::new();
 	let mut rng = XorShiftRng::from_seed([5, 6, 7, 8]);
 	let mut old_db = MemoryDB::new();
-	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_cfg = DatabaseConfig::with_columns(Some(::db::NUM_COLUMNS));
 
 	for _ in 0..10 {
 		producer.tick(&mut rng, &mut old_db);

@@ -251,11 +251,11 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 		let db_path = consolidated_database_path(path);
 		// Remove the database dir (it shouldn't exist anyway, but it might when migration was interrupted)
 		let _ = fs::remove_dir_all(db_path.clone());
-		consolidate_database(legacy::blocks_database_path(path), db_path.clone(), db::COL_HEADERS, Extract::Header, &compaction_profile)?;
-		consolidate_database(legacy::blocks_database_path(path), db_path.clone(), db::COL_BODIES, Extract::Body, &compaction_profile)?;
-		consolidate_database(legacy::extras_database_path(path), db_path.clone(), db::COL_EXTRA, Extract::All, &compaction_profile)?;
-		consolidate_database(legacy::state_database_path(path), db_path.clone(), db::COL_STATE, Extract::All, &compaction_profile)?;
-		consolidate_database(legacy::trace_database_path(path), db_path.clone(), db::COL_TRACE, Extract::All, &compaction_profile)?;
+		consolidate_database(legacy::blocks_database_path(path), db_path.clone(), Some(db::COL_HEADERS), Extract::Header, &compaction_profile)?;
+		consolidate_database(legacy::blocks_database_path(path), db_path.clone(), Some(db::COL_BODIES), Extract::Body, &compaction_profile)?;
+		consolidate_database(legacy::extras_database_path(path), db_path.clone(), Some(db::COL_EXTRA), Extract::All, &compaction_profile)?;
+		consolidate_database(legacy::state_database_path(path), db_path.clone(), Some(db::COL_STATE), Extract::All, &compaction_profile)?;
+		consolidate_database(legacy::trace_database_path(path), db_path.clone(), Some(db::COL_TRACE), Extract::All, &compaction_profile)?;
 		let _ = fs::remove_dir_all(legacy::blocks_database_path(path));
 		let _ = fs::remove_dir_all(legacy::extras_database_path(path));
 		let _ = fs::remove_dir_all(legacy::state_database_path(path));

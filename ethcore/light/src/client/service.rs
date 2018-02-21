@@ -62,7 +62,7 @@ impl<T: ChainDataFetcher> Service<T> {
 	pub fn start(config: ClientConfig, spec: &Spec, fetcher: T, path: &Path, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
 
 		// initialize database.
-		let mut db_config = DatabaseConfig::with_columns(db::NUM_COLUMNS);
+		let mut db_config = DatabaseConfig::with_columns(Some(db::NUM_COLUMNS));
 
 		db_config.memory_budget = config.db_cache_size;
 		db_config.compaction = config.db_compaction;
@@ -76,7 +76,7 @@ impl<T: ChainDataFetcher> Service<T> {
 		let io_service = IoService::<ClientIoMessage>::start().map_err(Error::Io)?;
 		let client = Arc::new(Client::new(config,
 			db,
-			db::COL_LIGHT_CHAIN,
+			Some(db::COL_LIGHT_CHAIN),
 			spec,
 			fetcher,
 			io_service.channel(),

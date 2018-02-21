@@ -150,7 +150,7 @@ impl StateDB {
 	/// Loads accounts bloom from the database
 	/// This bloom is used to handle request for the non-existant account fast
 	pub fn load_bloom(db: &KeyValueDB) -> Bloom {
-		let hash_count_entry = db.get(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
+		let hash_count_entry = db.get(Some(COL_ACCOUNT_BLOOM), ACCOUNT_BLOOM_HASHCOUNT_KEY)
 			.expect("Low-level database error");
 
 		let hash_count_bytes = match hash_count_entry {
@@ -165,7 +165,7 @@ impl StateDB {
 		let mut key = [0u8; 8];
 		for i in 0..ACCOUNT_BLOOM_SPACE / 8 {
 			LittleEndian::write_u64(&mut key, i as u64);
-			bloom_parts[i] = db.get(COL_ACCOUNT_BLOOM, &key).expect("low-level database error")
+			bloom_parts[i] = db.get(Some(COL_ACCOUNT_BLOOM), &key).expect("low-level database error")
 				.and_then(|val| Some(LittleEndian::read_u64(&val[..])))
 				.unwrap_or(0u64);
 		}
@@ -178,14 +178,14 @@ impl StateDB {
 	/// Commit bloom to a database transaction
 	pub fn commit_bloom(batch: &mut DBTransaction, journal: BloomJournal) -> Result<(), UtilError> {
 		assert!(journal.hash_functions <= 255);
-		batch.put(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY, &[journal.hash_functions as u8]);
+		batch.put(Some(COL_ACCOUNT_BLOOM), ACCOUNT_BLOOM_HASHCOUNT_KEY, &[journal.hash_functions as u8]);
 		let mut key = [0u8; 8];
 		let mut val = [0u8; 8];
 
 		for (bloom_part_index, bloom_part_value) in journal.entries {
 			LittleEndian::write_u64(&mut key, bloom_part_index as u64);
 			LittleEndian::write_u64(&mut val, bloom_part_value);
-			batch.put(COL_ACCOUNT_BLOOM, &key, &val);
+			batch.put(Some(COL_ACCOUNT_BLOOM), &key, &val);
 		}
 		Ok(())
 	}

@@ -42,7 +42,7 @@ fn can_trace_block_and_uncle_reward() {
 	let engine = &*spec.engine;
 
 	// Create client
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_config = DatabaseConfig::with_columns(Some(::db::NUM_COLUMNS));
 	let mut client_config = ClientConfig::default();
 	client_config.tracing.enabled = true;
 	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());

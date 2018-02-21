@@ -311,7 +311,7 @@ impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
 	pub fn new(db: Arc<KeyValueDB>, pruning: Algorithm) -> Self {
 		StateRebuilder {
-			db: journaldb::new(db.clone(), pruning, ::db::COL_STATE),
+			db: journaldb::new(db.clone(), pruning, Some(::db::COL_STATE)),
 			state_root: KECCAK_NULL_RLP,
 			known_code: HashMap::new(),
 			missing_code: HashMap::new(),

@@ -221,7 +221,7 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 	// start client and create transaction queue.
 	let mut config = light_client::Config {
 		queue: Default::default(),
-		chain_column: ::ethcore::db::COL_LIGHT_CHAIN,
+		chain_column: Some(::ethcore::db::COL_LIGHT_CHAIN),
 		db_cache_size: Some(cmd.cache_config.blockchain() as usize * 1024 * 1024),
 		db_compaction: compaction,
 		db_wal: cmd.wal,
@@ -604,7 +604,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 			}
 		};
 
-		let store = ::local_store::create(db, ::ethcore::db::COL_NODE_INFO, node_info);
+		let store = ::local_store::create(db, Some(::ethcore::db::COL_NODE_INFO), node_info);
 
 		if cmd.no_persistent_txqueue {
 			info!("Running without a persistent transaction queue.");
