@@ -227,7 +227,7 @@ fn fixed_to_contract_only() {
 	assert_eq!(client.chain_info().best_block_number, 11);
 	let (reader, _tempdir) = snapshot_helpers::snap(&*client);
 
-	let new_db = kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0));
+	let new_db = kvdb_memorydb::create(::db::NUM_COLUMNS);
 	let spec = spec_fixed_to_contract();
 
 	// ensure fresh engine's step matches.
@@ -259,7 +259,7 @@ fn fixed_to_contract_to_contract() {
 
 	assert_eq!(client.chain_info().best_block_number, 16);
 	let (reader, _tempdir) = snapshot_helpers::snap(&*client);
-	let new_db = kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0));
+	let new_db = kvdb_memorydb::create(::db::NUM_COLUMNS);
 	let spec = spec_fixed_to_contract();
 
 	for _ in 0..16 { spec.engine.step() }

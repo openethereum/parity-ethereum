@@ -39,7 +39,7 @@ use tempdir::TempDir;
 fn imports_from_empty() {
 	let tempdir = TempDir::new("").unwrap();
 	let spec = get_test_spec();
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_config = DatabaseConfig::with_columns(Some(::db::NUM_COLUMNS));
 	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
@@ -57,7 +57,7 @@ fn imports_from_empty() {
 fn should_return_registrar() {
 	let tempdir = TempDir::new("").unwrap();
 	let spec = ethereum::new_morden(&tempdir.path().to_owned());
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_config = DatabaseConfig::with_columns(Some(::db::NUM_COLUMNS));
 	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
@@ -87,7 +87,7 @@ fn returns_state_root_basic() {
 fn imports_good_block() {
 	let tempdir = TempDir::new("").unwrap();
 	let spec = get_test_spec();
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_config = DatabaseConfig::with_columns(Some(::db::NUM_COLUMNS));
 	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
@@ -112,7 +112,7 @@ fn imports_good_block() {
 fn query_none_block() {
 	let tempdir = TempDir::new("").unwrap();
 	let spec = get_test_spec();
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_config = DatabaseConfig::with_columns(Some(::db::NUM_COLUMNS));
 	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
@@ -264,7 +264,7 @@ fn change_history_size() {
 	let tempdir = TempDir::new("").unwrap();
 	let test_spec = Spec::new_null();
 	let mut config = ClientConfig::default();
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db_config = DatabaseConfig::with_columns(Some(::db::NUM_COLUMNS));
 	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	config.history = 2;

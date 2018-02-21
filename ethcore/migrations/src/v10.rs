@@ -34,7 +34,7 @@ use kvdb_rocksdb::Database;
 /// Can be called on upgraded database with no issues (will do nothing).
 pub fn generate_bloom(source: Arc<Database>, dest: &mut Database) -> Result<(), Error> {
 	trace!(target: "migration", "Account bloom upgrade started");
-	let best_block_hash = match source.get(COL_EXTRA, b"best")? {
+	let best_block_hash = match source.get(Some(COL_EXTRA), b"best")? {
 		// no migration needed
 		None => {
 			trace!(target: "migration", "No best block hash, skipping");
@@ -42,7 +42,7 @@ pub fn generate_bloom(source: Arc<Database>, dest: &mut Database) -> Result<(), 
 		},
 		Some(hash) => hash,
 	};
-	let best_block_header = match source.get(COL_HEADERS, &best_block_hash)? {
+	let best_block_header = match source.get(Some(COL_HEADERS), &best_block_hash)? {
 		// no best block, nothing to do
 		None => {
 			trace!(target: "migration", "No best block header, skipping");
@@ -110,7 +110,7 @@ impl Migration for ToV10 {
 		}
 		batch.commit(dest)?;
 
-		if col == COL_STATE {
+		if col == Some(COL_STATE) {
 			generate_bloom(source, dest)?;
 		}
 

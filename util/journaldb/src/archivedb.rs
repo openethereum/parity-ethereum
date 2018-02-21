@@ -40,12 +40,12 @@ pub struct ArchiveDB {
 	overlay: MemoryDB,
 	backing: Arc<KeyValueDB>,
 	latest_era: Option<u64>,
-	column: Option<u32>,
+	column: u32,
 }
 
 impl ArchiveDB {
 	/// Create a new instance from a key-value db.
-	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> ArchiveDB {
+	pub fn new(backing: Arc<KeyValueDB>, col: u32) -> ArchiveDB {
 		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
 		ArchiveDB {
 			overlay: MemoryDB::new(),

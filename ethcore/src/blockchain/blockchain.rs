@@ -1427,7 +1427,7 @@ mod tests {
 	use ethkey::Secret;
 
 	fn new_db() -> Arc<KeyValueDB> {
-		Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)))
+		Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS))
 	}
 
 	fn new_chain(genesis: &[u8], db: Arc<KeyValueDB>) -> BlockChain {

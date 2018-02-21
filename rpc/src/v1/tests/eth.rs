@@ -134,7 +134,7 @@ impl EthTester {
 		let client = Client::new(
 			ClientConfig::default(),
 			&spec,
-			Arc::new(kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
+			Arc::new(kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS)),
 			miner_service.clone(),
 			IoChannel::disconnected(),
 		).unwrap();

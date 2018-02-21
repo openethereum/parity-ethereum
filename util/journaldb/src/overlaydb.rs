@@ -38,12 +38,12 @@ use kvdb::{KeyValueDB, DBTransaction};
 pub struct OverlayDB {
 	overlay: MemoryDB,
 	backing: Arc<KeyValueDB>,
-	column: Option<u32>,
+	column: u32,
 }
 
 impl OverlayDB {
 	/// Create a new instance of OverlayDB given a `backing` database.
-	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> OverlayDB {
+	pub fn new(backing: Arc<KeyValueDB>, col: u32) -> OverlayDB {
 		OverlayDB{ overlay: MemoryDB::new(), backing: backing, column: col }
 	}
 

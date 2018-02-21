@@ -187,7 +187,7 @@ pub struct HeaderChain {
 	best_block: RwLock<BlockDescriptor>,
 	live_epoch_proofs: RwLock<H256FastMap<EpochTransition>>,
 	db: Arc<KeyValueDB>,
-	col: Option<u32>,
+	col: u32,
 	cache: Arc<Mutex<Cache>>,
 }
 
@@ -195,7 +195,7 @@ impl HeaderChain {
 	/// Create a new header chain given this genesis block and database to read from.
 	pub fn new(
 		db: Arc<KeyValueDB>,
-		col: Option<u32>,
+		col: u32,
 		spec: &Spec,
 		cache: Arc<Mutex<Cache>>,
 	) -> Result<Self, kvdb::Error> {

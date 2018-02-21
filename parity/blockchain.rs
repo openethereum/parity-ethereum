@@ -196,7 +196,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 
 	let mut config = LightClientConfig {
 		queue: Default::default(),
-		chain_column: ::ethcore::db::COL_LIGHT_CHAIN,
+		chain_column: Some(::ethcore::db::COL_LIGHT_CHAIN),
 		db_cache_size: Some(cmd.cache_config.blockchain() as usize * 1024 * 1024),
 		db_compaction: compaction,
 		db_wal: cmd.wal,

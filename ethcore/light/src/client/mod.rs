@@ -181,7 +181,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	pub fn new(
 		config: Config,
 		db: Arc<KeyValueDB>,
-		chain_col: Option<u32>,
+		chain_col: u32,
 		spec: &Spec,
 		fetcher: T,
 		io_channel: IoChannel<ClientIoMessage>,
@@ -219,7 +219,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		Client::new(
 			config,
 			Arc::new(db),
-			None,
+			0,
 			spec,
 			fetcher,
 			io_channel,

@@ -463,7 +463,7 @@ mod tests {
 	}
 
 	fn new_db() -> Arc<KeyValueDB> {
-		Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)))
+		Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS))
 	}
 
 	#[test]

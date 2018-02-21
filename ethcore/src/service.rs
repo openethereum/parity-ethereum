@@ -78,7 +78,7 @@ impl ClientService {
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 
-		let mut db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+		let mut db_config = DatabaseConfig::with_columns(Some(::db::NUM_COLUMNS));
 
 		db_config.memory_budget = config.db_cache_size;
 		db_config.compaction = config.db_compaction.compaction_profile(client_path);
