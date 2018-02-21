@@ -34,8 +34,7 @@ use kvdb::{DBValue, KeyValueDB, DBTransaction};
 // other
 use ethereum_types::{H256, Address, U256};
 use block::*;
-use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};
-use blockchain::extras::TransactionAddress;
+use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute, TransactionAddress};
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
@@ -47,9 +46,9 @@ use encoded;
 use engines::{EthEngine, EpochTransition};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use vm::{EnvInfo, LastHashes};
-use evm::{Factory as EvmFactory, Schedule};
+use evm::Schedule;
 use executive::{Executive, Executed, TransactOptions, contract_address};
-use factory::Factories;
+use factory::{Factories, VmFactory};
 use header::{BlockNumber, Header, Seal};
 use io::*;
 use log_entry::LocalizedLogEntry;
@@ -187,7 +186,7 @@ impl Client {
 
 		let trie_factory = TrieFactory::new(trie_spec);
 		let factories = Factories {
-			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
+			vm: VmFactory::new(config.vm_type.clone(), config.jump_table_size),
 			trie: trie_factory,
 			accountdb: Default::default(),
 		};
@@ -1692,30 +1691,22 @@ impl BlockChainClient for Client {
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
-		let start = self.block_number(filter.range.start);
-		let end = self.block_number(filter.range.end);
+		let start = self.block_number(filter.range.start)?;
+		let end = self.block_number(filter.range.end)?;
 
-		match (start, end) {
-			(Some(s), Some(e)) => {
-				let db_filter = trace::Filter {
-					range: s as usize..e as usize,
-					from_address: From::from(filter.from_address),
-					to_address: From::from(filter.to_address),
-				};
+		let db_filter = trace::Filter {
+			range: start as usize..end as usize,
+			from_address: filter.from_address.into(),
+			to_address: filter.to_address.into(),
+		};
 
-				let traces = self.tracedb.read().filter(&db_filter);
-				if traces.is_empty() {
-					return Some(vec![]);
-				}
-
-				let traces_iter = traces.into_iter().skip(filter.after.unwrap_or(0));
-				Some(match filter.count {
-					Some(count) => traces_iter.take(count).collect(),
-					None => traces_iter.collect(),
-				})
-			},
-			_ => None,
-		}
+		let traces = self.tracedb.read()
+			.filter(&db_filter)
+			.into_iter()
+			.skip(filter.after.unwrap_or(0))
+			.take(filter.count.unwrap_or(usize::max_value()))
+			.collect();
+		Some(traces)
 	}
 
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace> {
@@ -1921,7 +1912,7 @@ impl MiningBlockChainClient for Client {
 		block
 	}
 
-	fn vm_factory(&self) -> &EvmFactory {
+	fn vm_factory(&self) -> &VmFactory {
 		&self.factories.vm
 	}
 

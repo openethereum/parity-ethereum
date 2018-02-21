@@ -1,3 +1,29 @@
+## Parity [v1.8.10](https://github.com/paritytech/parity/releases/tag/v1.8.10) (2018-02-20)
+
+Parity 1.8.10 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Bump react-qr-reader ([#7941)](https://github.com/paritytech/parity/pull/7941))
+  - Bump react-qr-reader
+  - Explicit add webrtc-adapter, non-napa qrcode-generator
+- Fix feature=final ([#7914)](https://github.com/paritytech/parity/pull/7914))
+- Fix snap build stable ([#7897)](https://github.com/paritytech/parity/pull/7897))
+- Backport core PRs to stable ([#7892)](https://github.com/paritytech/parity/pull/7892))
+  - Update back-references more aggressively after answering from cache ([#7578)](https://github.com/paritytech/parity/pull/7578))
+  - Store updater metadata in a single place ([#7832)](https://github.com/paritytech/parity/pull/7832))
+  - Flush keyfiles. Resolves [#7632](https://github.com/paritytech/parity/issues/7632) ([#7868)](https://github.com/paritytech/parity/pull/7868))
+  - Fix wallet import ([#7873)](https://github.com/paritytech/parity/pull/7873))
+- Backport Master CI PRs to Stable ([#7889)](https://github.com/paritytech/parity/pull/7889))
+  - Add binary identifiers and sha256sum to builds ([#7830)](https://github.com/paritytech/parity/pull/7830))
+  - Fix checksums and auto-update push ([#7846)](https://github.com/paritytech/parity/pull/7846))
+  - Update gitlab-build.sh ([#7855)](https://github.com/paritytech/parity/pull/7855))
+  - Fix installer binary names for macos and windows ([#7881)](https://github.com/paritytech/parity/pull/7881))
+  - Update gitlab-test.sh ([#7883)](https://github.com/paritytech/parity/pull/7883))
+  - Fix snapcraft nightly ([#7884)](https://github.com/paritytech/parity/pull/7884))
+  - Bump stable to 1.8.10
+  - Make track stable
+
 ## Parity [v1.8.9](https://github.com/paritytech/parity/releases/tag/v1.8.9) (2018-02-02)
 
 Parity 1.8.9 is a bug-fix release to improve performance and stability. It restores ERC-20 token balances and adds additional bootnodes for the Ropsten test network.

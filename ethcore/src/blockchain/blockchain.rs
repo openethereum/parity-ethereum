@@ -27,14 +27,14 @@ use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use rlp::*;
 use header::*;
-use super::extras::*;
 use transaction::*;
 use views::*;
 use log_entry::{LogEntry, LocalizedLogEntry};
 use receipt::Receipt;
-use blooms::BloomGroup;
-use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
+use blooms::{BloomGroup, GroupPosition};
 use blockchain::best_block::{BestBlock, BestAncientBlock};
+use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
+use blockchain::extras::{BlockReceipts, BlockDetails, TransactionAddress, EPOCH_KEY_PREFIX, EpochTransitions};
 use types::blockchain_info::BlockChainInfo;
 use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
@@ -163,13 +163,13 @@ enum CacheId {
 	BlockDetails(H256),
 	BlockHashes(BlockNumber),
 	TransactionAddresses(H256),
-	BlocksBlooms(LogGroupPosition),
+	BlocksBlooms(GroupPosition),
 	BlockReceipts(H256),
 }
 
 impl bc::group::BloomGroupDatabase for BlockChain {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
-		let position = LogGroupPosition::from(position.clone());
+		let position = GroupPosition::from(position.clone());
 		let result = self.db.read_with_cache(db::COL_EXTRA, &self.blocks_blooms, &position).map(Into::into);
 		self.cache_man.lock().note_used(CacheId::BlocksBlooms(position));
 		result
@@ -199,7 +199,7 @@ pub struct BlockChain {
 	block_details: RwLock<HashMap<H256, BlockDetails>>,
 	block_hashes: RwLock<HashMap<BlockNumber, H256>>,
 	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
-	blocks_blooms: RwLock<HashMap<LogGroupPosition, BloomGroup>>,
+	blocks_blooms: RwLock<HashMap<GroupPosition, BloomGroup>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
 	db: Arc<KeyValueDB>,
@@ -353,7 +353,7 @@ impl BlockProvider for BlockChain {
 	fn blocks_with_bloom(&self, bloom: &Bloom, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber> {
 		let range = from_block as bc::Number..to_block as bc::Number;
 		let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
-		chain.with_bloom(&range, &Bloom::from(bloom.clone()).into())
+		chain.with_bloom(&range, bloom)
 			.into_iter()
 			.map(|b| b as BlockNumber)
 			.collect()
@@ -1284,7 +1284,7 @@ impl BlockChain {
 	/// Later, BloomIndexer is used to map bloom location on filter layer (BloomIndex)
 	/// to bloom location in database (BlocksBloomLocation).
 	///
-	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<LogGroupPosition, BloomGroup> {
+	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<GroupPosition, BloomGroup> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
 
@@ -1296,7 +1296,7 @@ impl BlockChain {
 					HashMap::new()
 				} else {
 					let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
-					chain.insert(info.number as bc::Number, Bloom::from(log_bloom).into())
+					chain.insert(info.number as bc::Number, log_bloom)
 				}
 			},
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
@@ -1304,14 +1304,12 @@ impl BlockChain {
 				let start_number = ancestor_number + 1;
 				let range = start_number as bc::Number..self.best_block_number() as bc::Number;
 
-				let mut blooms: Vec<bc::Bloom> = data.enacted.iter()
+				let mut blooms: Vec<Bloom> = data.enacted.iter()
 					.map(|hash| self.block_header_data(hash).unwrap())
 					.map(|h| h.log_bloom())
-					.map(Bloom::from)
-					.map(Into::into)
 					.collect();
 
-				blooms.push(Bloom::from(header.log_bloom()).into());
+				blooms.push(header.log_bloom());
 
 				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
 				chain.replace(&range, blooms)

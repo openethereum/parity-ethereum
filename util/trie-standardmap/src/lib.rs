@@ -15,9 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Key-value datastore with a modified Merkle tree.
-use keccak::keccak;
-use bytes::*;
+
+extern crate ethcore_bytes as bytes;
+extern crate ethereum_types;
+extern crate keccak_hash;
+extern crate rlp;
+
+use bytes::Bytes;
 use ethereum_types::H256;
+use keccak_hash::keccak;
 use rlp::encode;
 
 /// Alphabet to use when creating words for insertion into tries.
