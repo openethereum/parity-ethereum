@@ -986,15 +986,18 @@ impl BlockChain {
 		// cache decoherence
 		{
 			let mut best_block = self.pending_best_block.write();
-			if is_best && update.info.location != BlockLocation::Branch {
-				batch.put(db::COL_EXTRA, b"best", &update.info.hash);
-				*best_block = Some(BestBlock {
-					hash: update.info.hash,
-					number: update.info.number,
-					total_difficulty: update.info.total_difficulty,
-					timestamp: update.timestamp,
-					block: update.block.to_vec(),
-				});
+			match update.info.location {
+				BlockLocation::Branch => (),
+				_ => if is_best {
+					batch.put(db::COL_EXTRA, b"best", &update.info.hash);
+					*best_block = Some(BestBlock {
+						hash: update.info.hash,
+						number: update.info.number,
+						total_difficulty: update.info.total_difficulty,
+						timestamp: update.timestamp,
+						block: update.block.to_vec(),
+					});
+				}
 			}
 
 			let mut write_hashes = self.pending_block_hashes.write();
