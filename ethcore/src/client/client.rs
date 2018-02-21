@@ -34,8 +34,7 @@ use kvdb::{DBValue, KeyValueDB, DBTransaction};
 // other
 use ethereum_types::{H256, Address, U256};
 use block::*;
-use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};
-use blockchain::extras::TransactionAddress;
+use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute, TransactionAddress};
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
@@ -47,16 +46,14 @@ use encoded;
 use engines::{EthEngine, EpochTransition};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError, TransactionImportError};
 use vm::{EnvInfo, LastHashes};
-use evm::{Factory as EvmFactory, Schedule};
+use evm::Schedule;
 use executive::{Executive, Executed, TransactOptions, contract_address};
-use factory::Factories;
-use futures::{future, Future};
+use factory::{Factories, VmFactory};
 use header::{BlockNumber, Header, Seal};
 use io::*;
 use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
-use native_contracts::Registry;
-use parking_lot::{Mutex, RwLock, MutexGuard};
+use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
 use rlp::UntrustedRlp;
@@ -81,6 +78,8 @@ pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::queue::QueueInfo as BlockQueueInfo;
+
+use_contract!(registry, "Registry", "res/contracts/registrar.json");
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
@@ -166,7 +165,8 @@ pub struct Client {
 	history: u64,
 	ancient_verifier: Mutex<Option<AncientVerifier>>,
 	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
-	registrar: Mutex<Option<Registry>>,
+	registrar: registry::Registry,
+	registrar_address: Option<Address>,
 	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
 }
 
@@ -187,7 +187,7 @@ impl Client {
 
 		let trie_factory = TrieFactory::new(trie_spec);
 		let factories = Factories {
-			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
+			vm: VmFactory::new(config.vm_type.clone(), config.jump_table_size),
 			trie: trie_factory,
 			accountdb: Default::default(),
 		};
@@ -218,7 +218,7 @@ impl Client {
 		};
 
 		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(h.state_root())) {
-			warn!("State root not found for block #{} ({})", chain.best_block_number(), chain.best_block_hash().hex());
+			warn!("State root not found for block #{} ({:x})", chain.best_block_number(), chain.best_block_hash());
 		}
 
 		let engine = spec.engine.clone();
@@ -226,6 +226,11 @@ impl Client {
 		let block_queue = BlockQueue::new(config.queue.clone(), engine.clone(), message_channel.clone(), config.verifier_type.verifying_seal());
 
 		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
+
+		let registrar_address = engine.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok());
+		if let Some(ref addr) = registrar_address {
+			trace!(target: "client", "Found registrar at {}", addr);
+		}
 
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),
@@ -253,7 +258,8 @@ impl Client {
 			history: history,
 			ancient_verifier: Mutex::new(None),
 			on_user_defaults_change: Mutex::new(None),
-			registrar: Mutex::new(None),
+			registrar: registry::Registry::default(),
+			registrar_address,
 			exit_handler: Mutex::new(None),
 		});
 
@@ -296,12 +302,6 @@ impl Client {
 			}
 		}
 
-		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
-			trace!(target: "client", "Found registrar at {}", reg_addr);
-			let registrar = Registry::new(reg_addr);
-			*client.registrar.lock() = Some(registrar);
-		}
-
 		// ensure buffered changes are flushed.
 		client.db.read().flush().map_err(ClientError::Database)?;
 		Ok(client)
@@ -340,11 +340,6 @@ impl Client {
 				f(&*n);
 			}
 		}
-	}
-
-	/// Get the Registry object - useful for looking up names.
-	pub fn registrar(&self) -> MutexGuard<Option<Registry>> {
-		self.registrar.lock()
 	}
 
 	/// Register an action to be done if a mode/spec_name change happens.
@@ -1719,30 +1714,22 @@ impl BlockChainClient for Client {
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
-		let start = self.block_number(filter.range.start);
-		let end = self.block_number(filter.range.end);
+		let start = self.block_number(filter.range.start)?;
+		let end = self.block_number(filter.range.end)?;
 
-		match (start, end) {
-			(Some(s), Some(e)) => {
-				let db_filter = trace::Filter {
-					range: s as usize..e as usize,
-					from_address: From::from(filter.from_address),
-					to_address: From::from(filter.to_address),
-				};
+		let db_filter = trace::Filter {
+			range: start as usize..end as usize,
+			from_address: filter.from_address.into(),
+			to_address: filter.to_address.into(),
+		};
 
-				let traces = self.tracedb.read().filter(&db_filter);
-				if traces.is_empty() {
-					return Some(vec![]);
-				}
-
-				let traces_iter = traces.into_iter().skip(filter.after.unwrap_or(0));
-				Some(match filter.count {
-					Some(count) => traces_iter.take(count).collect(),
-					None => traces_iter.collect(),
-				})
-			},
-			_ => None,
-		}
+		let traces = self.tracedb.read()
+			.filter(&db_filter)
+			.into_iter()
+			.skip(filter.after.unwrap_or(0))
+			.take(filter.count.unwrap_or(usize::max_value()))
+			.collect();
+		Some(traces)
 	}
 
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace> {
@@ -1851,18 +1838,24 @@ impl BlockChainClient for Client {
 	}
 
 	fn registrar_address(&self) -> Option<Address> {
-		self.registrar.lock().as_ref().map(|r| r.address)
+		self.registrar_address.clone()
 	}
 
-	fn registry_address(&self, name: String) -> Option<Address> {
-		self.registrar.lock().as_ref()
-			.and_then(|r| {
-				let dispatch = move |reg_addr, data| {
-					future::done(self.call_contract(BlockId::Latest, reg_addr, data))
-				};
-				r.get_address(dispatch, keccak(name.as_bytes()), "A".to_string()).wait().ok()
+	fn registry_address(&self, name: String, block: BlockId) -> Option<Address> {
+		let address = match self.registrar_address {
+			Some(address) => address,
+			None => return None,
+		};
+
+		self.registrar.functions()
+			.get_address()
+			.call(keccak(name.as_bytes()), "A", &|data| self.call_contract(block, address, data))
+			.ok()
+			.and_then(|a| if a.is_zero() {
+				None
+			} else {
+				Some(a)
 			})
-			.and_then(|a| if a.is_zero() { None } else { Some(a) })
 	}
 
 	fn eip86_transition(&self) -> u64 {
@@ -1942,7 +1935,7 @@ impl MiningBlockChainClient for Client {
 		block
 	}
 
-	fn vm_factory(&self) -> &EvmFactory {
+	fn vm_factory(&self) -> &VmFactory {
 		&self.factories.vm
 	}
 
@@ -2022,6 +2015,10 @@ impl super::traits::EngineClient for Client {
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		BlockChainClient::block_number(self, id)
+	}
+
+	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
+		BlockChainClient::block_header(self, id)
 	}
 }
 

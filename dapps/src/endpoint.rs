@@ -37,16 +37,7 @@ impl EndpointPath {
 	}
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct EndpointInfo {
-	pub name: String,
-	pub description: String,
-	pub version: String,
-	pub author: String,
-	pub icon_url: String,
-	pub local_url: Option<String>,
-}
-
+pub type EndpointInfo = ::apps::App;
 pub type Endpoints = BTreeMap<String, Box<Endpoint>>;
 pub type Response = Box<Future<Item=hyper::Response, Error=hyper::Error> + Send>;
 pub type Request = hyper::Request;

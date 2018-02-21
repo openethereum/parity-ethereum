@@ -18,6 +18,7 @@
 //! The request service is implemented using Futures. Higher level request handlers
 //! will take the raw data received here and extract meaningful results from it.
 
+use std::cmp;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -28,6 +29,7 @@ use futures::{Poll, Future};
 use futures::sync::oneshot::{self, Receiver, Canceled};
 use network::PeerId;
 use parking_lot::{RwLock, Mutex};
+use rand;
 
 use net::{
 	self, Handler, PeerStatus, Status, Capabilities,
@@ -363,7 +365,10 @@ impl OnDemand {
 		*pending = ::std::mem::replace(&mut *pending, Vec::new()).into_iter()
 			.filter(|pending| !pending.sender.is_canceled())
 			.filter_map(|pending| {
-				for (peer_id, peer) in peers.iter() { // .shuffle?
+				// the peer we dispatch to is chosen randomly
+				let num_peers = peers.len();
+				let rng = rand::random::<usize>() % cmp::max(num_peers, 1);
+				for (peer_id, peer) in peers.iter().chain(peers.iter()).skip(rng).take(num_peers) {
 					// TODO: see which requests can be answered by the cache?
 
 					if !peer.can_fulfill(&pending.required_capabilities) {

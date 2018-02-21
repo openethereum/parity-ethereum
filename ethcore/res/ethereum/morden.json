@@ -14,9 +14,9 @@
 				"ecip1010PauseTransition": 1915000,
 				"ecip1010ContinueTransition": 3415000,
 				"ecip1017EraRounds": 2000000,
-
 				"eip161abcTransition": "0x7fffffffffffffff",
-				"eip161dTransition": "0x7fffffffffffffff"
+				"eip161dTransition": "0x7fffffffffffffff",
+				"bombDefuseTransition": 2300000
 			}
 		}
 	},
@@ -31,7 +31,6 @@
 		"forkBlock": "0x1b34d8",
 		"forkCanonHash": "0xf376243aeff1f256d970714c3de9fd78fa4e63cf63e32a51fe1169e375d98145",
 		"eip155Transition": 1915000,
-
 		"eip98Transition": "0x7fffffffffffff",
 		"eip86Transition": "0x7fffffffffffff"
 	},

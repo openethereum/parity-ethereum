@@ -259,7 +259,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				&mut tracer,
 				&mut vm_tracer,
 			));
-			let mut evm = vm_factory.create(params.gas);
+			let mut evm = vm_factory.create(&params, &machine.schedule(0u64.into()));
 			let res = evm.exec(params, &mut ex);
 			// a return in finalize will not alter callcreates
 			let callcreates = ex.callcreates.clone();

@@ -60,7 +60,7 @@ impl TransactionBuilder {
 			self.insertion_id.set(id);
 			id
 		};
-		let hash = self.nonce ^ (U256::from(100) * self.gas_price) ^ (U256::from(100_000) * self.sender.low_u64().into());
+		let hash = self.nonce ^ (U256::from(100) * self.gas_price) ^ (U256::from(100_000) * U256::from(self.sender.low_u64()));
 		Transaction {
 			hash: hash.into(),
 			nonce: self.nonce,

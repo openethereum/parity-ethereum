@@ -134,14 +134,14 @@ fn rpc_parity_accounts_info() {
 	deps.accounts.set_account_meta(address.clone(), "{foo: 69}".into()).unwrap();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"name\":\"Test\"}}}},\"id\":1}}", address.hex());
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{:x}\":{{\"name\":\"Test\"}}}},\"id\":1}}", address);
 	assert_eq!(io.handle_request_sync(request), Some(response));
 
 	// Change the whitelist
 	let address = Address::from(1);
 	deps.accounts.set_new_dapps_addresses(Some(vec![address.clone()])).unwrap();
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"name\":\"XX\"}}}},\"id\":1}}", address.hex());
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{:x}\":{{\"name\":\"XX\"}}}},\"id\":1}}", address);
 	assert_eq!(io.handle_request_sync(request), Some(response));
 }
 
@@ -154,7 +154,7 @@ fn rpc_parity_default_account() {
 	// Check empty
 	let address = Address::default();
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultAccount", "params": [], "id": 1}"#;
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{}\",\"id\":1}}", address.hex());
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{:x}\",\"id\":1}}", address);
 	assert_eq!(io.handle_request_sync(request), Some(response));
 
 	// With account
@@ -164,7 +164,7 @@ fn rpc_parity_default_account() {
 	let address = accounts[0];
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultAccount", "params": [], "id": 1}"#;
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{}\",\"id\":1}}", address.hex());
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":\"0x{:x}\",\"id\":1}}", address);
 	assert_eq!(io.handle_request_sync(request), Some(response));
 }
 

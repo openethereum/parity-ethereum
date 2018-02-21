@@ -44,5 +44,6 @@ pub trait Listener<T> {
 }
 
 /// A no-op implementation of `Listener`.
+#[derive(Debug)]
 pub struct NoopListener;
 impl<T> Listener<T> for NoopListener {}

@@ -36,7 +36,7 @@ use hyper::header;
 use {apps, address, Embeddable};
 
 /// Adds security-related headers to the Response.
-pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embeddable) {
+pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embeddable, allow_js_eval: bool) {
 	headers.set_raw("X-XSS-Protection", "1; mode=block");
 	headers.set_raw("X-Content-Type-Options", "nosniff");
 
@@ -75,9 +75,12 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embedd
 					 .map(|&(ref host, port)| address(host, port))
 					 .join(" ")
 				).unwrap_or_default();
+			let eval = if allow_js_eval { " 'unsafe-eval'" } else { "" };
+
 			&format!(
-				"script-src 'self' {};",
-				script_src
+				"script-src 'self' {}{};",
+				script_src,
+				eval
 			)
 		}
 		// Same restrictions as script-src with additional

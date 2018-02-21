@@ -225,7 +225,7 @@ pub mod ecies {
 		hasher.result(&mut mkey);
 		let ekey = &key[0..16];
 
-		let mut msg = vec![0u8; (1 + 64 + 16 + plain.len() + 32)];
+		let mut msg = vec![0u8; 1 + 64 + 16 + plain.len() + 32];
 		msg[0] = 0x04u8;
 		{
 			let msgd = &mut msg[1..];
@@ -262,7 +262,7 @@ pub mod ecies {
 		hasher.result(&mut mkey);
 		let ekey = &key[0..16];
 
-		let mut msgd = vec![0u8; (64 + plain.len())];
+		let mut msgd = vec![0u8; 64 + plain.len()];
 		{
 			r.public().copy_to(&mut msgd[0..64]);
 			let iv = H128::from_slice(&z.keccak256()[0..16]);

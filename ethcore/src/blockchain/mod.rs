@@ -18,10 +18,10 @@
 
 mod best_block;
 mod block_info;
-pub mod blockchain;
+mod blockchain;
 mod cache;
 mod config;
-pub mod extras;
+mod extras;
 mod import_route;
 mod update;
 
@@ -31,5 +31,6 @@ pub mod generator;
 pub use self::blockchain::{BlockProvider, BlockChain};
 pub use self::cache::CacheSize;
 pub use self::config::Config;
-pub use types::tree_route::TreeRoute;
+pub use self::extras::{BlockReceipts, BlockDetails, TransactionAddress};
 pub use self::import_route::ImportRoute;
+pub use types::tree_route::TreeRoute;

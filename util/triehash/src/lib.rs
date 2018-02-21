@@ -40,27 +40,28 @@ fn shared_prefix_len<T: Eq>(first: &[T], second: &[T]) -> usize {
 /// use triehash::ordered_trie_root;
 ///
 /// fn main() {
-/// 	let v = vec![From::from("doe"), From::from("reindeer")];
+/// 	let v = &["doe", "reindeer"];
 /// 	let root = "e766d5d51b89dc39d981b41bda63248d7abce4f0225eefd023792a540bcffee3";
-/// 	assert_eq!(ordered_trie_root(v), root.parse().unwrap());
+/// 	assert_eq!(ordered_trie_root(v), root.into());
 /// }
 /// ```
-pub fn ordered_trie_root<I>(input: I) -> H256
-	where I: IntoIterator<Item=Vec<u8>>
+pub fn ordered_trie_root<I, A>(input: I) -> H256
+	where I: IntoIterator<Item = A>,
+		  A: AsRef<[u8]>,
 {
-	let gen_input = input
+	let gen_input: Vec<_> = input
 		// first put elements into btree to sort them by nibbles
 		// optimize it later
 		.into_iter()
 		.enumerate()
-		.map(|(i, vec)| (rlp::encode(&i).into_vec(), vec))
+		.map(|(i, slice)| (rlp::encode(&i), slice))
 		.collect::<BTreeMap<_, _>>()
 		// then move them to a vector
 		.into_iter()
 		.map(|(k, v)| (as_nibbles(&k), v) )
 		.collect();
 
-	gen_trie_root(gen_input)
+	gen_trie_root(&gen_input)
 }
 
 /// Generates a trie root hash for a vector of key-values
@@ -71,28 +72,30 @@ pub fn ordered_trie_root<I>(input: I) -> H256
 ///
 /// fn main() {
 /// 	let v = vec![
-/// 		(From::from("doe"), From::from("reindeer")),
-/// 		(From::from("dog"), From::from("puppy")),
-/// 		(From::from("dogglesworth"), From::from("cat")),
+/// 		("doe", "reindeer"),
+/// 		("dog", "puppy"),
+/// 		("dogglesworth", "cat"),
 /// 	];
 ///
 /// 	let root = "8aad789dff2f538bca5d8ea56e8abe10f4c7ba3a5dea95fea4cd6e7c3a1168d3";
-/// 	assert_eq!(trie_root(v), root.parse().unwrap());
+/// 	assert_eq!(trie_root(v), root.into());
 /// }
 /// ```
-pub fn trie_root<I>(input: I) -> H256
-	where I: IntoIterator<Item=(Vec<u8>, Vec<u8>)>
+pub fn trie_root<I, A, B>(input: I) -> H256
+	where I: IntoIterator<Item = (A, B)>,
+		  A: AsRef<[u8]> + Ord,
+		  B: AsRef<[u8]>,
 {
-	let gen_input = input
+	let gen_input: Vec<_> = input
 		// first put elements into btree to sort them and to remove duplicates
 		.into_iter()
 		.collect::<BTreeMap<_, _>>()
 		// then move them to a vector
 		.into_iter()
-		.map(|(k, v)| (as_nibbles(&k), v) )
+		.map(|(k, v)| (as_nibbles(k.as_ref()), v) )
 		.collect();
 
-	gen_trie_root(gen_input)
+	gen_trie_root(&gen_input)
 }
 
 /// Generates a key-hashed (secure) trie root hash for a vector of key-values.
@@ -103,17 +106,21 @@ pub fn trie_root<I>(input: I) -> H256
 ///
 /// fn main() {
 /// 	let v = vec![
-/// 		(From::from("doe"), From::from("reindeer")),
-/// 		(From::from("dog"), From::from("puppy")),
-/// 		(From::from("dogglesworth"), From::from("cat")),
+/// 		("doe", "reindeer"),
+/// 		("dog", "puppy"),
+/// 		("dogglesworth", "cat"),
 /// 	];
 ///
 /// 	let root = "d4cd937e4a4368d7931a9cf51686b7e10abb3dce38a39000fd7902a092b64585";
-/// 	assert_eq!(sec_trie_root(v), root.parse().unwrap());
+/// 	assert_eq!(sec_trie_root(v), root.into());
 /// }
 /// ```
-pub fn sec_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
-	let gen_input = input
+pub fn sec_trie_root<I, A, B>(input: I) -> H256
+	where I: IntoIterator<Item = (A, B)>,
+		  A: AsRef<[u8]>,
+		  B: AsRef<[u8]>,
+{
+	let gen_input: Vec<_> = input
 		// first put elements into btree to sort them and to remove duplicates
 		.into_iter()
 		.map(|(k, v)| (keccak(k), v))
@@ -123,12 +130,12 @@ pub fn sec_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 		.map(|(k, v)| (as_nibbles(&k), v) )
 		.collect();
 
-	gen_trie_root(gen_input)
+	gen_trie_root(&gen_input)
 }
 
-fn gen_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
+fn gen_trie_root<A: AsRef<[u8]>, B: AsRef<[u8]>>(input: &[(A, B)]) -> H256 {
 	let mut stream = RlpStream::new();
-	hash256rlp(&input, 0, &mut stream);
+	hash256rlp(input, 0, &mut stream);
 	keccak(stream.out())
 }
 
@@ -189,7 +196,7 @@ fn as_nibbles(bytes: &[u8]) -> Vec<u8> {
 	res
 }
 
-fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStream) {
+fn hash256rlp<A: AsRef<[u8]>, B: AsRef<[u8]>>(input: &[(A, B)], pre_len: usize, stream: &mut RlpStream) {
 	let inlen = input.len();
 
 	// in case of empty slice, just append empty data
@@ -199,8 +206,8 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 	}
 
 	// take slices
-	let key: &[u8] = &input[0].0;
-	let value: &[u8] = &input[0].1;
+	let key: &[u8] = &input[0].0.as_ref();
+	let value: &[u8] = &input[0].1.as_ref();
 
 	// if the slice contains just one item, append the suffix of the key
 	// and then append value
@@ -217,7 +224,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 		.skip(1)
 		// get minimum number of shared nibbles between first and each successive
 		.fold(key.len(), | acc, &(ref k, _) | {
-			cmp::min(shared_prefix_len(key, k), acc)
+			cmp::min(shared_prefix_len(key, k.as_ref()), acc)
 		});
 
 	// if shared prefix is higher than current prefix append its
@@ -245,7 +252,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 		// cout how many successive elements have same next nibble
 		let len = match begin < input.len() {
 			true => input[begin..].iter()
-				.take_while(| pair | pair.0[pre_len] == i )
+				.take_while(| pair | pair.0.as_ref()[pre_len] == i )
 				.count(),
 			false => 0
 		};
@@ -266,7 +273,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 	};
 }
 
-fn hash256aux(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStream) {
+fn hash256aux<A: AsRef<[u8]>, B: AsRef<[u8]>>(input: &[(A, B)], pre_len: usize, stream: &mut RlpStream) {
 	let mut s = RlpStream::new();
 	hash256rlp(input, pre_len, &mut s);
 	let out = s.out();
@@ -330,8 +337,8 @@ mod tests {
 	#[test]
 	fn simple_test() {
 		assert_eq!(trie_root(vec![
-			(b"A".to_vec(), b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_vec())
-		]), "d23786fb4a010da3ce639d66d5e904a11dbc02746d1ce25029e53290cabf28ab".parse().unwrap());
+			(b"A", b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" as &[u8])
+		]), "d23786fb4a010da3ce639d66d5e904a11dbc02746d1ce25029e53290cabf28ab".into());
 	}
 
 	#[test]
