@@ -1,3 +1,5 @@
+// TODO: do not participate in document key retrieval session if already confirmed with error
+
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -20,7 +22,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use parking_lot::Mutex;
 use ethcore::client::ChainNotify;
-use ethkey::{Random, Generator, Public, Signature, sign, public_to_address};
+use ethkey::{Random, Generator, Public, Secret, Signature, sign, public_to_address};
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
 use key_server_set::KeyServerSet;
@@ -232,7 +234,9 @@ impl ServiceContractListener {
 					Self::retrieve_document_key_common(&data, &server_key_id, &requester))
 			},
 			&ServiceTask::RetrieveShadowDocumentKeyPersonal(server_key_id, requester) => {
-				unimplemented!("TODO")
+				data.retry_data.lock().affected_server_keys.insert(server_key_id.clone());
+				log_service_task_result(&task, data.self_key_pair.public(),
+					Self::retrieve_document_key_personal(&data, &server_key_id, requester))
 			},
 			&ServiceTask::Retry => {
 				Self::retry_pending_requests(&data)
@@ -382,6 +386,31 @@ impl ServiceContractListener {
 			},
 		}
 	}
+
+	/// Retrieve personal part of document key (start decryption session).
+	fn retrieve_document_key_personal(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, requester: Public) -> Result<(), String> {
+		Self::process_document_key_retrieval_result(data, server_key_id, &requester, data.cluster.new_decryption_session(
+			server_key_id.clone(), requester.clone().into(), None, true).map(|_| None).map_err(Into::into))
+	}
+
+	/// Process document key retrieval result.
+	fn process_document_key_retrieval_result(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, requester: &Public, result: Result<Option<(Vec<Address>, Secret, Bytes)>, Error>) -> Result<(), String> {
+		let requester = public_to_address(requester);
+		match result {
+			Ok(None) => Ok(()),
+			Ok(Some((participants, access_key, shadow))) => {
+				data.contract.publish_retrieved_document_key_personal(server_key_id, &requester, &participants, access_key, shadow)
+			},
+			Err(ref error) if is_internal_error(error) => Err(format!("{}", error)),
+			Err(ref error) => {
+				// ignore error as we're already processing an error
+				let _ = data.contract.publish_document_key_retrieval_error(server_key_id, &requester)
+					.map_err(|error| warn!(target: "secretstore", "{}: failed to publish RetrieveDocumentKey({}) error: {}",
+						data.self_key_pair.public(), server_key_id, error));
+				Err(format!("{}", error))
+			}
+		}
+	}
 }
 
 impl Drop for ServiceContractListener {
@@ -430,7 +459,23 @@ impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 
 impl ClusterSessionsListener<DecryptionSession> for ServiceContractListener {
 	fn on_session_removed(&self, session: Arc<DecryptionSession>) {
-		//42 // ^^^
+		// by this time sesion must already be completed - either successfully, or not
+		assert!(session.is_finished());
+
+		// ignore result - the only thing that we can do is to log the error
+		let session_id = session.id();
+		let server_key_id = session_id.id;
+		let access_key = session_id.access_key;
+		let generation_result = session.wait().map(|_| {
+			// TODO
+			/*Some((
+				session.participants().iter().map(public_to_address).collect(),
+				access_key,
+				session.shadow(),
+			))*/
+			None
+		}).map_err(Into::into);
+		let _ = Self::process_server_key_generation_result(&self.data, &server_key_id, generation_result);
 	}
 }
 
