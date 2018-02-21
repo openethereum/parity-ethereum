@@ -80,9 +80,9 @@ extern crate vm;
 extern crate keccak_hash as hash;
 extern crate triehash;
 extern crate kvdb;
-extern crate kvdb_memorydb;
-extern crate kvdb_rocksdb;
 extern crate memory_cache;
 
+#[cfg(test)]
+extern crate kvdb_memorydb;
 #[cfg(test)]
 extern crate tempdir;
