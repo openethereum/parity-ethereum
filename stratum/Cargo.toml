@@ -6,18 +6,17 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethcore-bigint = { path = "../util/bigint" }
 ethcore-logger = { path = "../logger" }
+ethereum-types = "0.2"
 keccak-hash = { path = "../util/hash" }
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
-jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
-jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
+jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
 log = "0.3"
-parking_lot = "0.4"
+parking_lot = "0.5"
 
 [dev-dependencies]
 env_logger = "0.4"
 tokio-core = "0.1"
 tokio-io = "0.1"
-parking_lot = "0.4"
 ethcore-logger = { path = "../logger" }

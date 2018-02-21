@@ -21,21 +21,19 @@ use block::{OpenBlock, SealedBlock, ClosedBlock};
 use blockchain::TreeRoute;
 use encoded;
 use vm::LastHashes;
-use error::{ImportResult, CallError, Error as EthcoreError};
-use error::{TransactionImportResult, BlockImportError};
-use evm::{Factory as EvmFactory, Schedule};
+use error::{ImportResult, CallError, Error as EthcoreError, BlockImportError};
+use evm::Schedule;
+use factory::VmFactory;
 use executive::Executed;
 use filter::Filter;
 use header::{BlockNumber};
 use log_entry::LocalizedLogEntry;
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
-use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
+use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction, ImportResult as TransactionImportResult};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address};
 use bytes::Bytes;
 use hashdb::DBValue;
 
@@ -196,6 +194,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Replays a given transaction for inspection.
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;
 
+	/// Replays all the transactions in a given block for inspection.
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError>;
+
 	/// Returns traces matching given filter.
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
 
@@ -279,7 +280,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn registrar_address(&self) -> Option<Address>;
 
 	/// Get the address of a particular blockchain service, if available.
-	fn registry_address(&self, name: String) -> Option<Address>;
+	fn registry_address(&self, name: String, block: BlockId) -> Option<Address>;
 
 	/// Get the EIP-86 transition block number.
 	fn eip86_transition(&self) -> u64;
@@ -298,7 +299,7 @@ pub trait MiningBlockChainClient: BlockChainClient {
 	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
 
 	/// Returns EvmFactory.
-	fn vm_factory(&self) -> &EvmFactory;
+	fn vm_factory(&self) -> &VmFactory;
 
 	/// Broadcast a block proposal.
 	fn broadcast_proposal_block(&self, block: SealedBlock);
@@ -308,6 +309,9 @@ pub trait MiningBlockChainClient: BlockChainClient {
 
 	/// Returns latest schedule.
 	fn latest_schedule(&self) -> Schedule;
+
+	/// Returns base of this trait
+	fn as_block_chain_client(&self) -> &BlockChainClient;
 }
 
 /// Client facilities used by internally sealing Engines.
@@ -336,6 +340,9 @@ pub trait EngineClient: Sync + Send {
 
 	/// Get a block number by ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
+
+	/// Get raw block header data by block id.
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 }
 
 /// Extended client interface for providing proofs of the state.

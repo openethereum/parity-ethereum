@@ -24,17 +24,17 @@ use ethcore::engines::{EthEngine, StateDependentProof};
 use ethcore::machine::EthereumMachine;
 use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
-use ethcore::transaction::SignedTransaction;
+use transaction::SignedTransaction;
 use vm::EnvInfo;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
 
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
 
 use rlp::{RlpStream, UntrustedRlp};
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256, Address};
 use parking_lot::Mutex;
-use util::{Address, DBValue, HashDB};
+use hashdb::HashDB;
+use kvdb::DBValue;
 use bytes::Bytes;
 use memorydb::MemoryDB;
 use trie::{Trie, TrieDB, TrieError};
@@ -778,7 +778,7 @@ impl Body {
 	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, body: &encoded::Body) -> Result<encoded::Block, Error> {
 		// check the integrity of the the body against the header
 		let header = self.0.as_ref()?;
-		let tx_root = ::triehash::ordered_trie_root(body.rlp().at(0).iter().map(|r| r.as_raw().to_vec()));
+		let tx_root = ::triehash::ordered_trie_root(body.rlp().at(0).iter().map(|r| r.as_raw()));
 		if tx_root != header.transactions_root() {
 			return Err(Error::WrongTrieRoot(header.transactions_root(), tx_root));
 		}
@@ -808,7 +808,7 @@ impl BlockReceipts {
 	/// Check a response with receipts against the stored header.
 	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, receipts: &[Receipt]) -> Result<Vec<Receipt>, Error> {
 		let receipts_root = self.0.as_ref()?.receipts_root();
-		let found_root = ::triehash::ordered_trie_root(receipts.iter().map(|r| ::rlp::encode(r).into_vec()));
+		let found_root = ::triehash::ordered_trie_root(receipts.iter().map(|r| ::rlp::encode(r)));
 
 		match receipts_root == found_root {
 			true => {
@@ -941,8 +941,8 @@ impl Signal {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use bigint::hash::H256;
-	use util::{MemoryDB, Address};
+	use ethereum_types::{H256, Address};
+	use memorydb::MemoryDB;
 	use parking_lot::Mutex;
 	use trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
 	use trie::recorder::Recorder;
@@ -1028,7 +1028,7 @@ mod tests {
 
 		let mut header = Header::new();
 		let receipts_root = ::triehash::ordered_trie_root(
-			receipts.iter().map(|x| ::rlp::encode(x).into_vec())
+			receipts.iter().map(|x| ::rlp::encode(x))
 		);
 
 		header.set_receipts_root(receipts_root);

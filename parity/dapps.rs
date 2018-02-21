@@ -17,21 +17,21 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use bytes::Bytes;
 use dir::default_data_path;
+use dir::helpers::replace_home;
 use ethcore::client::{Client, BlockChainClient, BlockId};
-use ethcore::transaction::{Transaction, Action};
 use ethsync::LightSync;
-use futures::{future, IntoFuture, Future};
+use futures::{Future, future, IntoFuture};
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
-use helpers::replace_home;
 use light::client::LightChainClient;
 use light::on_demand::{self, OnDemand};
 use node_health::{SyncStatus, NodeHealth};
 use rpc;
 use rpc_apis::SignerService;
-use util::Address;
-use bytes::Bytes;
+use transaction::{Transaction, Action};
+use ethereum_types::Address;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
@@ -70,18 +70,22 @@ pub struct FullRegistrar {
 	pub client: Arc<Client>,
 }
 
+impl FullRegistrar {
+	pub fn new(client: Arc<Client>) -> Self {
+		FullRegistrar {
+			client,
+		}
+	}
+}
+
 impl ContractClient for FullRegistrar {
 	fn registrar(&self) -> Result<Address, String> {
-		self.client.additional_params().get("registrar")
+		self.client.registrar_address()
 			 .ok_or_else(|| "Registrar not defined.".into())
-			 .and_then(|registrar| {
-				 registrar.parse().map_err(|e| format!("Invalid registrar address: {:?}", e))
-			 })
 	}
 
-	fn call(&self, address: Address, data: Bytes) -> Box<Future<Item=Bytes, Error=String> + Send> {
-		Box::new(self.client.call_contract(BlockId::Latest, address, data)
-			.into_future())
+	fn call(&self, address: Address, data: Bytes) -> Box<Future<Item = Bytes, Error = String> + Send> {
+		Box::new(self.client.call_contract(BlockId::Latest, address, data).into_future())
 	}
 }
 
@@ -104,13 +108,13 @@ impl<T: LightChainClient + 'static> ContractClient for LightRegistrar<T> {
 			 })
 	}
 
-	fn call(&self, address: Address, data: Bytes) -> Box<Future<Item=Bytes, Error=String> + Send> {
+	fn call(&self, address: Address, data: Bytes) -> Box<Future<Item = Bytes, Error = String> + Send> {
 		let header = self.client.best_block_header();
 		let env_info = self.client.env_info(BlockId::Hash(header.hash()))
 			.ok_or_else(|| format!("Cannot fetch env info for header {}", header.hash()));
 
 		let env_info = match env_info {
-			Ok(x) => x,
+			Ok(e) => e,
 			Err(e) => return Box::new(future::err(e)),
 		};
 
@@ -194,9 +198,7 @@ mod server {
 
 	pub struct Middleware;
 	impl RequestMiddleware for Middleware {
-		fn on_request(
-			&self, _req: &hyper::server::Request<hyper::net::HttpStream>, _control: &hyper::Control
-		) -> RequestMiddlewareAction {
+		fn on_request(&self, _req: hyper::Request) -> RequestMiddlewareAction {
 			unreachable!()
 		}
 	}
@@ -291,12 +293,13 @@ mod server {
 			self.endpoints.list()
 				.into_iter()
 				.map(|app| rpc_apis::LocalDapp {
-					id: app.id,
+					id: app.id.unwrap_or_else(|| "unknown".into()),
 					name: app.name,
 					description: app.description,
 					version: app.version,
 					author: app.author,
 					icon_url: app.icon_url,
+					local_url: app.local_url,
 				})
 				.collect()
 		}

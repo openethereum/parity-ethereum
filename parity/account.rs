@@ -16,7 +16,7 @@
 
 use std::path::PathBuf;
 use ethcore::ethstore::{EthStore, SecretStore, import_account, import_accounts, read_geth_accounts};
-use ethcore::ethstore::dir::RootDiskDirectory;
+use ethcore::ethstore::accounts_dir::RootDiskDirectory;
 use ethcore::ethstore::SecretVaultRef;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use helpers::{password_prompt, password_from_file};

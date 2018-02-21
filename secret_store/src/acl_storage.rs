@@ -14,17 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
-use futures::{future, Future};
 use parking_lot::{Mutex, RwLock};
 use ethkey::public_to_address;
-use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
-use native_contracts::SecretStoreAclStorage;
-use bigint::hash::H256;
-use util::Address;
+use ethcore::client::{BlockChainClient, BlockId, ChainNotify};
+use ethereum_types::{H256, Address};
 use bytes::Bytes;
+use trusted_client::TrustedClient;
 use types::all::{Error, ServerKeyId, Public};
+
+use_contract!(acl_storage, "AclStorage", "res/acl_storage.json");
 
 const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checker";
 
@@ -43,11 +43,11 @@ pub struct OnChainAclStorage {
 /// Cached on-chain ACL storage contract.
 struct CachedContract {
 	/// Blockchain client.
-	client: Weak<Client>,
+	client: TrustedClient,
 	/// Contract address.
 	contract_addr: Option<Address>,
 	/// Contract at given address.
-	contract: Option<SecretStoreAclStorage>,
+	contract: acl_storage::AclStorage,
 }
 
 /// Dummy ACL storage implementation (check always passed).
@@ -57,12 +57,15 @@ pub struct DummyAclStorage {
 }
 
 impl OnChainAclStorage {
-	pub fn new(client: &Arc<Client>) -> Arc<Self> {
+	pub fn new(trusted_client: TrustedClient) -> Result<Arc<Self>, Error> {
+		let client = trusted_client.get_untrusted();
 		let acl_storage = Arc::new(OnChainAclStorage {
-			contract: Mutex::new(CachedContract::new(client)),
+			contract: Mutex::new(CachedContract::new(trusted_client)),
 		});
-		client.add_notify(acl_storage.clone());
-		acl_storage
+		client
+			.ok_or(Error::Internal("Constructing OnChainAclStorage without active Client".into()))?
+			.add_notify(acl_storage.clone());
+		Ok(acl_storage)
 	}
 }
 
@@ -81,43 +84,42 @@ impl ChainNotify for OnChainAclStorage {
 }
 
 impl CachedContract {
-	pub fn new(client: &Arc<Client>) -> Self {
+	pub fn new(client: TrustedClient) -> Self {
 		CachedContract {
-			client: Arc::downgrade(client),
+			client,
 			contract_addr: None,
-			contract: None,
+			contract: acl_storage::AclStorage::default(),
 		}
 	}
 
 	pub fn update(&mut self) {
-		if let Some(client) = self.client.upgrade() {
-			let new_contract_addr = client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.to_owned());
-			if self.contract_addr.as_ref() != new_contract_addr.as_ref() {
-				self.contract = new_contract_addr.map(|contract_addr| {
-					trace!(target: "secretstore", "Configuring for ACL checker contract from {}", contract_addr);
-
-					SecretStoreAclStorage::new(contract_addr)
-				});
-
-				self.contract_addr = new_contract_addr;
+		if let Some(client) = self.client.get() {
+			match client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest) {
+				Some(new_contract_addr) if Some(new_contract_addr).as_ref() != self.contract_addr.as_ref() => {
+					trace!(target: "secretstore", "Configuring for ACL checker contract from {}", new_contract_addr);
+					self.contract_addr = Some(new_contract_addr);
+				},
+				Some(_) | None => ()
 			}
 		}
 	}
 
 	pub fn check(&mut self, public: &Public, document: &ServerKeyId) -> Result<bool, Error> {
-		match self.contract.as_ref() {
-			Some(contract) => {
-				let address = public_to_address(&public);
-				let do_call = |a, d| future::done(
-					self.client
-						.upgrade()
-						.ok_or("Calling contract without client".into())
-						.and_then(|c| c.call_contract(BlockId::Latest, a, d)));
-				contract.check_permissions(do_call, address, document.clone())
-					.map_err(|err| Error::Internal(err))
-					.wait()
-			},
-			None => Err(Error::Internal("ACL checker contract is not configured".to_owned())),
+		if let Some(client) = self.client.get() {
+			// call contract to check accesss
+			match self.contract_addr {
+				Some(contract_address) => {
+					let address = public_to_address(&public);
+					let do_call = |data| client.call_contract(BlockId::Latest, contract_address, data);
+					self.contract.functions()
+						.check_permissions()
+						.call(address, document.clone(), &do_call)
+						.map_err(|e| Error::Internal(e.to_string()))
+				},
+				None => Err(Error::Internal("ACL checker contract is not configured".to_owned())),
+			}
+		} else {
+			Err(Error::Internal("Calling ACL contract without trusted blockchain client".into()))
 		}
 	}
 }

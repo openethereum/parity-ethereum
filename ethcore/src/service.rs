@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 use std::path::Path;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use kvdb::KeyValueDB;
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use bytes::Bytes;
@@ -31,6 +31,7 @@ use miner::Miner;
 use snapshot::{ManifestData, RestorationStatus};
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use ansi_term::Colour;
+use stop_guard::StopGuard;
 
 /// Message type for external and internal events
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -59,7 +60,7 @@ pub struct ClientService {
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
 	database: Arc<Database>,
-	_stop_guard: ::devtools::StopGuard,
+	_stop_guard: StopGuard,
 }
 
 impl ClientService {
@@ -79,12 +80,7 @@ impl ClientService {
 
 		let mut db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
-		// give all rocksdb cache to state column; everything else has its
-		// own caches.
-		if let Some(size) = config.db_cache_size {
-			db_config.set_cache(::db::COL_STATE, size);
-		}
-
+		db_config.memory_budget = config.db_cache_size;
 		db_config.compaction = config.db_compaction.compaction_profile(client_path);
 		db_config.wal = config.db_wal;
 
@@ -116,7 +112,7 @@ impl ClientService {
 
 		spec.engine.register_client(Arc::downgrade(&client) as _);
 
-		let stop_guard = ::devtools::StopGuard::new();
+		let stop_guard = StopGuard::new();
 
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
@@ -186,7 +182,6 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(single_match))]
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
 		use std::thread;
 
@@ -226,28 +221,19 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 
 #[cfg(test)]
 mod tests {
+	use std::{time, thread};
 	use super::*;
 	use tests::helpers::*;
-	use devtools::*;
 	use client::ClientConfig;
 	use std::sync::Arc;
 	use miner::Miner;
+	use tempdir::TempDir;
 
 	#[test]
 	fn it_can_be_started() {
-		let temp_path = RandomTempPath::new();
-		let path = temp_path.as_path().to_owned();
-		let client_path = {
-			let mut path = path.to_owned();
-			path.push("client");
-			path
-		};
-
-		let snapshot_path = {
-			let mut path = path.to_owned();
-			path.push("snapshot");
-			path
-		};
+		let tempdir = TempDir::new("").unwrap();
+		let client_path = tempdir.path().join("client");
+		let snapshot_path = tempdir.path().join("snapshot");
 
 		let spec = get_test_spec();
 		let service = ClientService::start(
@@ -255,11 +241,11 @@ mod tests {
 			&spec,
 			&client_path,
 			&snapshot_path,
-			&path,
+			tempdir.path(),
 			Arc::new(Miner::with_spec(&spec)),
 		);
 		assert!(service.is_ok());
 		drop(service.unwrap());
-		::std::thread::park_timeout(::std::time::Duration::from_millis(100));
+		thread::park_timeout(time::Duration::from_millis(100));
 	}
 }

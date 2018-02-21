@@ -32,8 +32,7 @@ use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 use parking_lot::{Mutex, RwLock};
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
 use futures::{IntoFuture, Future};
 
 use kvdb::{self, KeyValueDB};
@@ -630,5 +629,9 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		self.block_header(id).map(|hdr| hdr.number())
+	}
+
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
+		Client::block_header(self, id)
 	}
 }

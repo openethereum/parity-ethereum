@@ -23,10 +23,10 @@ use std::path::PathBuf;
 
 use hash::keccak_buffer;
 use fetch::{Fetch, Response, Error as FetchError, Client as FetchClient};
-use futures::Future;
+use futures::{Future, IntoFuture};
 use parity_reactor::Remote;
 use urlhint::{ContractClient, URLHintContract, URLHint, URLHintResult};
-use bigint::hash::H256;
+use ethereum_types::H256;
 
 /// API for fetching by hash.
 pub trait HashFetch: Send + Sync + 'static {
@@ -143,17 +143,21 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 
 		let random_path = self.random_path.clone();
 		let remote_fetch = self.fetch.clone();
-		let future = self.contract.resolve(hash.to_vec())
+		let future = self.contract.resolve(hash)
 			.map_err(|e| { warn!("Error resolving URL: {}", e); Error::NoResolution })
 			.and_then(|maybe_url| maybe_url.ok_or(Error::NoResolution))
 			.map(|content| match content {
 					URLHintResult::Dapp(dapp) => {
 						dapp.url()
 					},
+					URLHintResult::GithubDapp(content) => {
+						content.url
+					},
 					URLHintResult::Content(content) => {
 						content.url
 					},
 			})
+			.into_future()
 			.and_then(move |url| {
 				debug!(target: "fetch", "Resolved {:?} to {:?}. Fetching...", hash, url);
 				let future = remote_fetch.fetch(&url).then(move |result| {

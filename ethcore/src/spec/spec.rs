@@ -21,15 +21,14 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use bigint::hash::{H256, H2048};
-use bigint::prelude::U256;
+use ethereum_types::{H256, Bloom, U256, Address};
+use memorydb::MemoryDB;
 use bytes::Bytes;
 use ethjson;
 use hash::{KECCAK_NULL_RLP, keccak};
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::FromHex;
-use util::*;
 use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use super::genesis::Genesis;
@@ -110,8 +109,8 @@ pub struct CommonParams {
 	pub nonce_cap_increment: u64,
 	/// Enable dust cleanup for contracts.
 	pub remove_dust_contracts: bool,
-	/// Wasm support
-	pub wasm: bool,
+	/// Wasm activation blocknumber, if any disabled initially.
+	pub wasm_activation_transition: BlockNumber,
 	/// Gas limit bound divisor (how much gas limit can change per block)
 	pub gas_limit_bound_divisor: U256,
 	/// Registrar contract address.
@@ -146,6 +145,9 @@ impl CommonParams {
 				true => ::vm::CleanDustMode::WithCodeAndStorage,
 				false => ::vm::CleanDustMode::BasicOnly,
 			};
+		}
+		if block_number >= self.wasm_activation_transition {
+			schedule.wasm = Some(Default::default());
 		}
 	}
 
@@ -221,12 +223,15 @@ impl From<ethjson::spec::Params> for CommonParams {
 			),
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
-			wasm: p.wasm.unwrap_or(false),
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
+			wasm_activation_transition: p.wasm_activation_transition.map_or(
+				BlockNumber::max_value(),
+				Into::into
+			),
 		}
 	}
 }
@@ -577,7 +582,7 @@ impl Spec {
 		header.set_extra_data(self.extra_data.clone());
 		header.set_state_root(self.state_root());
 		header.set_receipts_root(self.receipts_root.clone());
-		header.set_log_bloom(H2048::new().clone());
+		header.set_log_bloom(Bloom::default());
 		header.set_gas_used(self.gas_used.clone());
 		header.set_gas_limit(self.gas_limit.clone());
 		header.set_difficulty(self.difficulty.clone());
@@ -763,6 +768,13 @@ impl Spec {
 		load_bundled!("authority_round")
 	}
 
+	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not
+	/// requiring work) with empty step messages enabled.
+	/// Accounts with secrets keccak("0") and keccak("1") are the validators.
+	pub fn new_test_round_empty_steps() -> Self {
+		load_bundled!("authority_round_empty_steps")
+	}
+
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring
 	/// work).
 	/// Account keccak("0") and keccak("1") are a authorities.
@@ -851,7 +863,7 @@ mod tests {
 		let expected = H256::from_str(
 			"0000000000000000000000000000000000000000000000000000000000000001",
 		).unwrap();
-		let address = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+		let address = Address::from_str("0000000000000000000000000000000000001337").unwrap();
 
 		assert_eq!(state.storage_at(&address, &H256::zero()).unwrap(), expected);
 		assert_eq!(state.balance(&address).unwrap(), 1.into());

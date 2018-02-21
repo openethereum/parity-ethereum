@@ -26,7 +26,7 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
 use bytes::Bytes;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use rlp::{RlpStream, UntrustedRlp};
 
 use super::ManifestData;
@@ -156,12 +156,9 @@ impl LooseWriter {
 
 	// writing logic is the same for both kinds of chunks.
 	fn write_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
-		let mut file_path = self.dir.clone();
-		file_path.push(hash.hex());
-
+		let file_path = self.dir.join(format!("{:x}", hash));
 		let mut file = File::create(file_path)?;
 		file.write_all(chunk)?;
-
 		Ok(())
 	}
 }
@@ -327,21 +324,17 @@ impl SnapshotReader for LooseReader {
 	}
 
 	fn chunk(&self, hash: H256) -> io::Result<Bytes> {
-		let mut path = self.dir.clone();
-		path.push(hash.hex());
-
+		let path = self.dir.join(format!("{:x}", hash));
 		let mut buf = Vec::new();
 		let mut file = File::open(&path)?;
-
 		file.read_to_end(&mut buf)?;
-
 		Ok(buf)
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use devtools::RandomTempPath;
+	use tempdir::TempDir;
 	use hash::keccak;
 
 	use snapshot::ManifestData;
@@ -352,8 +345,9 @@ mod tests {
 
 	#[test]
 	fn packed_write_and_read() {
-		let path = RandomTempPath::new();
-		let mut writer = PackedWriter::new(path.as_path()).unwrap();
+		let tempdir = TempDir::new("").unwrap();
+		let path = tempdir.path().join("packed");
+		let mut writer = PackedWriter::new(&path).unwrap();
 
 		let mut state_hashes = Vec::new();
 		let mut block_hashes = Vec::new();
@@ -381,7 +375,7 @@ mod tests {
 
 		writer.finish(manifest.clone()).unwrap();
 
-		let reader = PackedReader::new(path.as_path()).unwrap().unwrap();
+		let reader = PackedReader::new(&path).unwrap().unwrap();
 		assert_eq!(reader.manifest(), &manifest);
 
 		for hash in manifest.state_hashes.iter().chain(&manifest.block_hashes) {
@@ -391,8 +385,8 @@ mod tests {
 
 	#[test]
 	fn loose_write_and_read() {
-		let path = RandomTempPath::new();
-		let mut writer = LooseWriter::new(path.as_path().into()).unwrap();
+		let tempdir = TempDir::new("").unwrap();
+		let mut writer = LooseWriter::new(tempdir.path().into()).unwrap();
 
 		let mut state_hashes = Vec::new();
 		let mut block_hashes = Vec::new();
@@ -420,7 +414,7 @@ mod tests {
 
 		writer.finish(manifest.clone()).unwrap();
 
-		let reader = LooseReader::new(path.as_path().into()).unwrap();
+		let reader = LooseReader::new(tempdir.path().into()).unwrap();
 		assert_eq!(reader.manifest(), &manifest);
 
 		for hash in manifest.state_hashes.iter().chain(&manifest.block_hashes) {

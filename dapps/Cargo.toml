@@ -14,9 +14,9 @@ futures-cpupool = "0.1"
 linked-hash-map = "0.5"
 log = "0.3"
 parity-dapps-glue = "1.9"
-parking_lot = "0.4"
+parking_lot = "0.5"
 mime_guess = "2.0.0-alpha.2"
-rand = "0.3"
+rand = "0.4"
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
@@ -25,27 +25,23 @@ unicase = "1.4"
 zip = { version = "0.1", default-features = false }
 itertools = "0.5"
 
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
-jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
+jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
 
-ethcore-util = { path = "../util" }
-ethcore-bigint = { path = "../util/bigint" }
 ethcore-bytes = { path = "../util/bytes" }
+ethereum-types = "0.2"
 fetch = { path = "../util/fetch" }
 node-health = { path = "./node-health" }
 parity-hash-fetch = { path = "../hash-fetch" }
 parity-reactor = { path = "../util/reactor" }
 parity-ui = { path = "./ui" }
 keccak-hash = { path = "../util/hash" }
-
-clippy = { version = "0.0.103", optional = true}
+parity-version = { path = "../util/version" }
 
 [dev-dependencies]
 env_logger = "0.4"
 ethcore-devtools = { path = "../devtools" }
 
 [features]
-dev = ["clippy", "ethcore-util/dev"]
-
 ui = ["parity-ui/no-precompiled-js"]
 ui-precompiled = ["parity-ui/use-precompiled-js"]

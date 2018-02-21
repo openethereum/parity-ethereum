@@ -17,6 +17,8 @@
 //! Snapshot test helpers. These are used to build blockchains and state tries
 //! which can be queried before and after a full snapshot/restore cycle.
 
+extern crate trie_standardmap;
+
 use std::sync::Arc;
 use hash::{KECCAK_NULL_RLP};
 
@@ -28,16 +30,15 @@ use engines::EthEngine;
 use snapshot::{StateRebuilder};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 
-use devtools::{RandomTempPath, GuardedTempResult};
+use tempdir::TempDir;
 use rand::Rng;
 
-use util::DBValue;
-use kvdb::KeyValueDB;
-use bigint::hash::H256;
+use kvdb::{KeyValueDB, DBValue};
+use ethereum_types::H256;
 use hashdb::HashDB;
 use journaldb;
-use trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
-use trie::{TrieDB, TrieDBMut, Trie};
+use trie::{SecTrieDBMut, TrieMut, TrieDB, TrieDBMut, Trie};
+use self::trie_standardmap::{Alphabet, StandardMap, ValueMode};
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;
@@ -57,7 +58,6 @@ impl StateProducer {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(let_and_return))]
 	/// Tick the state producer. This alters the state, writing new data into
 	/// the database.
 	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB) {
@@ -139,22 +139,20 @@ pub fn compare_dbs(one: &HashDB, two: &HashDB) {
 
 /// Take a snapshot from the given client into a temporary file.
 /// Return a snapshot reader for it.
-pub fn snap(client: &Client) -> GuardedTempResult<Box<SnapshotReader>> {
+pub fn snap(client: &Client) -> (Box<SnapshotReader>, TempDir) {
 	use ids::BlockId;
 
-	let dir = RandomTempPath::new();
-	let writer = PackedWriter::new(dir.as_path()).unwrap();
+	let tempdir = TempDir::new("").unwrap();
+	let path = tempdir.path().join("file");
+	let writer = PackedWriter::new(&path).unwrap();
 	let progress = Default::default();
 
 	let hash = client.chain_info().best_block_hash;
 	client.take_snapshot(writer, BlockId::Hash(hash), &progress).unwrap();
 
-	let reader = PackedReader::new(dir.as_path()).unwrap().unwrap();
+	let reader = PackedReader::new(&path).unwrap().unwrap();
 
-	GuardedTempResult {
-		result: Some(Box::new(reader)),
-		_temp: dir,
-	}
+	(Box::new(reader), tempdir)
 }
 
 /// Restore a snapshot into a given database. This will read chunks from the given reader

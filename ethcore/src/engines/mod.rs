@@ -52,10 +52,7 @@ use transaction::{UnverifiedTransaction, SignedTransaction};
 
 use ethkey::Signature;
 use parity_machine::{Machine, LocalizedMachine as Localized};
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use semantic_version::SemanticVersion;
-use util::*;
+use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
 
@@ -178,21 +175,20 @@ pub enum EpochChange<M: Machine> {
 pub trait Engine<M: Machine>: Sync + Send {
 	/// The name of this engine.
 	fn name(&self) -> &str;
-	/// The version of this engine. Should be of the form
-	fn version(&self) -> SemanticVersion { SemanticVersion::new(0, 0, 0) }
 
 	/// Get access to the underlying state machine.
 	// TODO: decouple.
 	fn machine(&self) -> &M;
 
 	/// The number of additional header fields required for this engine.
-	fn seal_fields(&self) -> usize { 0 }
+	fn seal_fields(&self, _header: &M::Header) -> usize { 0 }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &M::Header) -> BTreeMap<String, String> { BTreeMap::new() }
 
 	/// Maximum number of uncles a block is allowed to declare.
-	fn maximum_uncle_count(&self) -> usize { 0 }
+	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
+
 	/// The number of generations back that uncles can be.
 	fn maximum_uncle_age(&self) -> usize { 6 }
 
@@ -225,7 +221,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	///
 	/// It is fine to require access to state or a full client for this function, since
 	/// light clients do not generate seals.
-	fn generate_seal(&self, _block: &M::LiveBlock) -> Seal { Seal::None }
+	fn generate_seal(&self, _block: &M::LiveBlock, _parent: &M::Header) -> Seal { Seal::None }
 
 	/// Verify a locally-generated seal of a header.
 	///
@@ -363,7 +359,7 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	}
 
 	/// The nonce with which accounts begin at given block.
-	fn account_start_nonce(&self, block: u64) -> U256 {
+	fn account_start_nonce(&self, block: BlockNumber) -> U256 {
 		self.machine().account_start_nonce(block)
 	}
 
@@ -389,11 +385,6 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 		self.machine().verify_transaction_basic(t, header)
 	}
 
-	/// If this machine supports wasm.
-	fn supports_wasm(&self) -> bool {
-		self.machine().supports_wasm()
-	}
-
 	/// Additional information.
 	fn additional_params(&self) -> HashMap<String, String> {
 		self.machine().additional_params()
@@ -410,27 +401,27 @@ pub mod common {
 	use trace::{Tracer, ExecutiveTracer, RewardType};
 	use state::CleanupMode;
 
-	use bigint::prelude::U256;
+	use ethereum_types::{Address, U256};
 
 	/// Give reward and trace.
-	pub fn bestow_block_reward(block: &mut ExecutedBlock, reward: U256) -> Result<(), Error> {
+	pub fn bestow_block_reward(block: &mut ExecutedBlock, reward: U256, receiver: Address) -> Result<(), Error> {
 		let fields = block.fields_mut();
+
 		// Bestow block reward
-		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
+		let res = fields.state.add_balance(&receiver, &reward, CleanupMode::NoEmpty)
 			.map_err(::error::Error::from)
 			.and_then(|_| fields.state.commit());
 
-		let block_author = fields.header.author().clone();
 		fields.traces.as_mut().map(move |traces| {
   			let mut tracer = ExecutiveTracer::default();
-  			tracer.trace_reward(block_author, reward, RewardType::Block);
+  			tracer.trace_reward(receiver, reward, RewardType::Block);
   			traces.push(tracer.drain())
 		});
 
-		// Commit state so that we can actually figure out the state root.
 		if let Err(ref e) = res {
 			warn!("Encountered error on bestowing reward: {}", e);
 		}
+
 		res
 	}
 }

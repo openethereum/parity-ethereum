@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use ethkey::Secret;
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage};
 use key_server_cluster::cluster::Cluster;

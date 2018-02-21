@@ -17,8 +17,6 @@
 //! Parity RPC.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="dev", feature(plugin))]
-#![cfg_attr(feature="dev", plugin(clippy))]
 
 #[macro_use]
 extern crate futures;
@@ -48,13 +46,14 @@ extern crate jsonrpc_pubsub;
 
 extern crate ethash;
 extern crate ethcore;
-extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
-extern crate ethcore_util as util;
+extern crate ethcore_miner as miner;
+extern crate ethcore_transaction as transaction;
 extern crate ethcrypto as crypto;
+extern crate ethereum_types;
 extern crate ethkey;
 extern crate ethstore;
 extern crate ethsync;
@@ -64,6 +63,7 @@ extern crate fetch;
 extern crate node_health;
 extern crate parity_reactor;
 extern crate parity_updater as updater;
+extern crate parity_version as version;
 extern crate rlp;
 extern crate stats;
 extern crate keccak_hash as hash;
@@ -89,6 +89,8 @@ extern crate macros;
 
 #[cfg(test)]
 extern crate kvdb_memorydb;
+
+extern crate tempdir;
 
 pub extern crate jsonrpc_ws_server as ws;
 
@@ -135,10 +137,10 @@ pub fn start_http<M, S, H, T, R>(
 	T: HttpMetaExtractor<Metadata=M>,
 	R: RequestMiddleware,
 {
-	let mut builder = http::ServerBuilder::new(handler)
+	let extractor = http_common::MetaExtractor::new(extractor);
+	let mut builder = http::ServerBuilder::with_meta_extractor(handler, extractor)
 		.threads(threads)
 		.event_loop_remote(remote)
-		.meta_extractor(http_common::MetaExtractor::new(extractor))
 		.cors(cors_domains.into())
 		.allowed_hosts(allowed_hosts.into());
 
@@ -161,9 +163,8 @@ pub fn start_ipc<M, S, H, T>(
 	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
 	T: IpcMetaExtractor<M>,
 {
-	ipc::ServerBuilder::new(handler)
+	ipc::ServerBuilder::with_meta_extractor(handler, extractor)
 		.event_loop_remote(remote)
-		.session_metadata_extractor(extractor)
 		.start(addr)
 }
 
@@ -185,12 +186,11 @@ pub fn start_ws<M, S, H, T, U, V>(
 	U: ws::SessionStats,
 	V: ws::RequestMiddleware,
 {
-	ws::ServerBuilder::new(handler)
+	ws::ServerBuilder::with_meta_extractor(handler, extractor)
 		.event_loop_remote(remote)
 		.request_middleware(middleware)
 		.allowed_origins(allowed_origins)
 		.allowed_hosts(allowed_hosts)
-		.session_meta_extractor(extractor)
 		.session_stats(stats)
 		.start(addr)
 }

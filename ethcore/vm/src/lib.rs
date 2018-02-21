@@ -16,8 +16,7 @@
 
 //! Virtual machines support library
 
-extern crate ethcore_util as util;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 extern crate ethcore_bytes as bytes;
 extern crate common_types as types;
 extern crate ethjson;
@@ -38,7 +37,7 @@ pub mod tests;
 pub use action_params::{ActionParams, ActionValue, ParamsType};
 pub use call_type::CallType;
 pub use env_info::{EnvInfo, LastHashes};
-pub use schedule::{Schedule, CleanDustMode};
+pub use schedule::{Schedule, CleanDustMode, WasmCosts};
 pub use ext::{Ext, MessageCallResult, ContractCreateResult, CreateContractAddress};
 pub use return_data::{ReturnData, GasLeft};
 pub use error::{Error, Result};

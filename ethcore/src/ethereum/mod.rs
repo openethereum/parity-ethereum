@@ -30,15 +30,6 @@ pub use self::denominations::*;
 use machine::EthereumMachine;
 use super::spec::*;
 
-/// Most recent fork block that we support on Mainnet.
-pub const FORK_SUPPORTED_FOUNDATION: u64 = 4370000;
-
-/// Most recent fork block that we support on Ropsten.
-pub const FORK_SUPPORTED_ROPSTEN: u64 = 10;
-
-/// Most recent fork block that we support on Kovan.
-pub const FORK_SUPPORTED_KOVAN: u64 = 0;
-
 fn load<'a, T: Into<Option<SpecParams<'a>>>>(params: T, b: &[u8]) -> Spec {
 	match params.into() {
 		Some(params) => Spec::load(params, b),
@@ -73,6 +64,11 @@ pub fn new_expanse<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 /// Create a new Musicoin mainnet chain spec.
 pub fn new_musicoin<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/musicoin.json"))
+}
+
+/// Create a new Ellaism mainnet chain spec.
+pub fn new_ellaism<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/ellaism.json"))
 }
 
 /// Create a new Kovan testnet chain spec.
@@ -136,9 +132,12 @@ pub fn new_constantinople_test_machine() -> EthereumMachine { load_machine(inclu
 /// Create a new Musicoin-MCIP3-era spec.
 pub fn new_mcip3_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/mcip3_test.json")) }
 
+/// Create new Kovan spec with wasm activated at certain block
+pub fn new_kovan_wasm_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/kovan_wasm_test.json")) }
+
 #[cfg(test)]
 mod tests {
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use state::*;
 	use super::*;
 	use tests::helpers::*;

@@ -378,6 +378,8 @@ pub struct ConfirmConsensusInitialization {
 /// Node is asked to be part of servers-set consensus group.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InitializeConsensusSessionWithServersSet {
+	/// Migration id (if any).
+	pub migration_id: Option<SerializableH256>,
 	/// Old nodes set.
 	pub old_nodes_set: BTreeSet<MessageNodeId>,
 	/// New nodes set.
@@ -546,6 +548,9 @@ pub struct RequestPartialDecryption {
 	/// Is shadow decryption requested? When true, decryption result
 	/// will be visible to the owner of requestor public key only.
 	pub is_shadow_decryption: bool,
+	/// Decryption result must be reconstructed on all participating nodes. This is useful
+	/// for service contract API so that all nodes from consensus group can confirm decryption.
+	pub is_broadcast_session: bool,
 	/// Nodes that are agreed to do a decryption.
 	pub nodes: BTreeSet<MessageNodeId>,
 }
@@ -607,6 +612,9 @@ pub struct DecryptionSessionDelegation {
 	/// Is shadow decryption requested? When true, decryption result
 	/// will be visible to the owner of requestor public key only.
 	pub is_shadow_decryption: bool,
+	/// Decryption result must be reconstructed on all participating nodes. This is useful
+	/// for service contract API so that all nodes from consensus group can confirm decryption.
+	pub is_broadcast_session: bool,
 }
 
 /// When delegated decryption session is completed.
@@ -773,6 +781,8 @@ pub struct KeyShareCommon {
 	pub threshold: usize,
 	/// Author of key share entry.
 	pub author: SerializablePublic,
+	/// Joint public.
+	pub joint_public: SerializablePublic,
 	/// Common (shared) encryption point.
 	pub common_point: Option<SerializablePublic>,
 	/// Encrypted point.
@@ -872,6 +882,19 @@ impl Message {
 		match *self {
 			Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(_)) => true,
 			Message::Signing(SigningMessage::SigningSessionDelegation(_)) => true,
+			_ => false,
+		}
+	}
+
+	pub fn is_error_message(&self) -> bool {
+		match *self {
+			Message::Generation(GenerationMessage::SessionError(_)) => true,
+			Message::Encryption(EncryptionMessage::EncryptionSessionError(_)) => true,
+			Message::Decryption(DecryptionMessage::DecryptionSessionError(_)) => true,
+			Message::Signing(SigningMessage::SigningConsensusMessage(_)) => true,
+			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersionsError(_)) => true,
+			Message::ShareAdd(ShareAddMessage::ShareAddError(_)) => true,
+			Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(_)) => true,
 			_ => false,
 		}
 	}

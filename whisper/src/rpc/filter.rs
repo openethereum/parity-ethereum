@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::sync::{mpsc, Arc};
 use std::thread;
 
-use bigint::hash::{H256, H512};
+use ethereum_types::{H256, H512};
 use ethkey::Public;
 use jsonrpc_macros::pubsub::{Subscriber, Sink};
 use parking_lot::{Mutex, RwLock};
@@ -111,7 +111,7 @@ impl Manager {
 			.map_err(|_| "unable to acquire secure randomness")?
 			.gen();
 
-		sub.assign_id(::jsonrpc_pubsub::SubscriptionId::String(id.hex()))
+		sub.assign_id(::jsonrpc_pubsub::SubscriptionId::String(format!("{:x}", id)))
 			.map(move |sink| {
 				let entry = FilterEntry::Subscription(Arc::new(filter), sink);
 				self.filters.write().insert(id, entry);

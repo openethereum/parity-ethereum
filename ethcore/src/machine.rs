@@ -23,18 +23,17 @@ use std::sync::Arc;
 use block::ExecutedBlock;
 use builtin::Builtin;
 use client::BlockChainClient;
-use error::{Error, TransactionError};
+use error::Error;
 use executive::Executive;
 use header::{BlockNumber, Header};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
-use transaction::{SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
+use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
 
-use bigint::prelude::U256;
+use ethereum_types::{U256, Address};
 use bytes::BytesRef;
-use util::Address;
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 
@@ -221,7 +220,7 @@ impl EthereumMachine {
 					let total_lower_limit = cmp::max(lower_limit, gas_floor_target);
 					let total_upper_limit = cmp::min(upper_limit, gas_ceil_target);
 					let gas_limit = cmp::max(gas_floor_target, cmp::min(total_upper_limit,
-						lower_limit + (header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor));
+						lower_limit + (header.gas_used().clone() * 6u32 / 5.into()) / bound_divisor));
 					round_block_gas_limit(gas_limit, total_lower_limit, total_upper_limit)
 				};
 				// ensure that we are not violating protocol limits
@@ -342,7 +341,7 @@ impl EthereumMachine {
 
 	/// Verify a particular transaction is valid, regardless of order.
 	pub fn verify_transaction_unordered(&self, t: UnverifiedTransaction, _header: &Header) -> Result<SignedTransaction, Error> {
-		SignedTransaction::new(t)
+		Ok(SignedTransaction::new(t)?)
 	}
 
 	/// Does basic verification of the transaction.
@@ -370,22 +369,17 @@ impl EthereumMachine {
 	pub fn verify_transaction(&self, t: &SignedTransaction, header: &Header, client: &BlockChainClient) -> Result<(), Error> {
 		if let Some(ref filter) = self.tx_filter.as_ref() {
 			if !filter.transaction_allowed(header.parent_hash(), t, client) {
-				return Err(TransactionError::NotAllowed.into())
+				return Err(transaction::Error::NotAllowed.into())
 			}
 		}
 
 		Ok(())
 	}
 
-	/// If this machine supports wasm.
-	pub fn supports_wasm(&self) -> bool {
-		self.params().wasm
-	}
-
 	/// Additional params.
 	pub fn additional_params(&self) -> HashMap<String, String> {
 		hash_map![
-			"registrar".to_owned() => self.params.registrar.hex()
+			"registrar".to_owned() => format!("{:x}", self.params.registrar)
 		]
 	}
 }
@@ -489,7 +483,7 @@ mod tests {
 
 	#[test]
 	fn ethash_gas_limit_is_multiple_of_determinant() {
-		use bigint::prelude::U256;
+		use ethereum_types::U256;
 
 		let spec = ::ethereum::new_homestead_test();
 		let ethparams = ::tests::helpers::get_default_ethash_extensions();

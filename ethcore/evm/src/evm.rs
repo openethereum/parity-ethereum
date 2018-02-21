@@ -17,7 +17,7 @@
 //! Evm interface.
 
 use std::{ops, cmp, fmt};
-use bigint::prelude::{U128, U256, U512};
+use ethereum_types::{U128, U256, U512};
 use vm::{Ext, Result, ReturnData, GasLeft, Error};
 
 /// Finalization result. Gas Left: either it is a known value, or it needs to be computed by processing
@@ -149,7 +149,7 @@ impl CostType for usize {
 
 #[cfg(test)]
 mod tests {
-	use bigint::prelude::U256;
+	use ethereum_types::U256;
 	use super::CostType;
 
 	#[test]

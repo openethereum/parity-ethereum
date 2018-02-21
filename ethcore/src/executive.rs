@@ -18,17 +18,16 @@
 use std::cmp;
 use std::sync::Arc;
 use hash::keccak;
-use bigint::prelude::{U256, U512};
-use bigint::hash::H256;
-use util::*;
+use ethereum_types::{H256, U256, U512, Address};
 use bytes::{Bytes, BytesRef};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use machine::EthereumMachine as Machine;
-use vm::EnvInfo;
 use error::ExecutionError;
-use evm::{CallType, Factory, Finalize, FinalizationResult};
-use vm::{self, Ext, CreateContractAddress, ReturnData, CleanDustMode, ActionParams, ActionValue};
-use wasm;
+use evm::{CallType, Finalize, FinalizationResult};
+use vm::{
+	self, Ext, EnvInfo, CreateContractAddress, ReturnData, CleanDustMode, ActionParams,
+	ActionValue, Schedule,
+};
 use externalities::*;
 use trace::{self, Tracer, VMTracer};
 use transaction::{Action, SignedTransaction};
@@ -39,8 +38,6 @@ pub use executed::{Executed, ExecutionResult};
 /// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
 /// Maybe something like here: `https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp`
 const STACK_SIZE_PER_DEPTH: usize = 24*1024;
-
-const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
 
 /// Returns new address created from address, nonce, and code hash
 pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address, nonce: &U256, code: &[u8]) -> (Address, Option<H256>) {
@@ -151,18 +148,6 @@ impl TransactOptions<trace::NoopTracer, trace::NoopVMTracer> {
 			check_nonce: true,
 			output_from_init_contract: false,
 		}
-	}
-}
-
-pub fn executor(machine: &Machine, vm_factory: &Factory, params: &ActionParams) -> Box<vm::Vm> {
-	if machine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
-		Box::new(
-			wasm::WasmInterpreter::new()
-				// prefer to fail fast
-				.expect("Failed to create wasm runtime")
-		)
-	} else {
-		vm_factory.create(params.gas)
 	}
 }
 
@@ -340,6 +325,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 	fn exec_vm<T, V>(
 		&mut self,
+		schedule: Schedule,
 		params: ActionParams,
 		unconfirmed_substate: &mut Substate,
 		output_policy: OutputPolicy,
@@ -355,19 +341,20 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
-			return executor(self.machine, &vm_factory, &params).exec(params, &mut ext).finalize(ext);
+			let mut vm = vm_factory.create(&params, &schedule);
+			return vm.exec(params, &mut ext).finalize(ext);
 		}
 
 		// Start in new thread to reset stack
 		// TODO [todr] No thread builder yet, so we need to reset once for a while
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
-			let machine = self.machine;
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 
 			scope.spawn(move || {
-				executor(machine, &vm_factory, &params).exec(params, &mut ext).finalize(ext)
+				let mut vm = vm_factory.create(&params, &schedule);
+				vm.exec(params, &mut ext).finalize(ext)
 			})
 		}).join()
 	}
@@ -477,7 +464,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("scope is conditional on params.code.is_some(); qed"));
 
 				let res = {
-					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
+					self.exec_vm(schedule, params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
 				};
 
 				vm_tracer.done_subtrace(subvmtracer);
@@ -486,12 +473,13 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 				let traces = subtracer.drain();
 				match res {
-					Ok(ref res) => tracer.trace_call(
+					Ok(ref res) if res.apply_state => tracer.trace_call(
 						trace_info,
 						gas - res.gas_left,
 						trace_output,
 						traces
 					),
+					Ok(_) => tracer.trace_failed_call(trace_info, traces, vm::Error::Reverted.into()),
 					Err(ref e) => tracer.trace_failed_call(trace_info, traces, e.into()),
 				};
 
@@ -567,20 +555,26 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 		let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("two ways into create (Externalities::create and Executive::transact_with_tracer); both place `Some(...)` `code` in `params`; qed"));
 
-		let res = {
-			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(output.as_mut().or(trace_output.as_mut())), &mut subtracer, &mut subvmtracer)
-		};
+		let res = self.exec_vm(
+			schedule,
+			params,
+			&mut unconfirmed_substate,
+			OutputPolicy::InitContract(output.as_mut().or(trace_output.as_mut())),
+			&mut subtracer,
+			&mut subvmtracer
+		);
 
 		vm_tracer.done_subtrace(subvmtracer);
 
 		match res {
-			Ok(ref res) => tracer.trace_create(
+			Ok(ref res) if res.apply_state => tracer.trace_create(
 				trace_info,
 				gas - res.gas_left,
 				trace_output.map(|data| output.as_ref().map(|out| out.to_vec()).unwrap_or(data)),
 				created,
 				subtracer.drain()
 			),
+			Ok(_) => tracer.trace_failed_create(trace_info, subtracer.drain(), vm::Error::Reverted.into()),
 			Err(ref e) => tracer.trace_failed_create(trace_info, subtracer.drain(), e.into())
 		};
 
@@ -700,9 +694,7 @@ mod tests {
 	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use bigint::prelude::{U256, U512};
-	use bigint::hash::H256;
-	use util::Address;
+	use ethereum_types::{H256, U256, U512, Address};
 	use bytes::BytesRef;
 	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
 	use evm::{Factory, VMType};
@@ -934,6 +926,85 @@ mod tests {
 			]
 		};
 		assert_eq!(vm_tracer.drain().unwrap(), expected_vm_trace);
+	}
+
+	#[test]
+	fn test_trace_reverted_create() {
+		// code:
+		//
+		// 65 60016000fd - push 5 bytes
+		// 60 00 - push 0
+		// 52 mstore
+		// 60 05 - push 5
+		// 60 1b - push 27
+		// 60 17 - push 23
+		// f0 - create
+		// 60 00 - push 0
+		// 55 sstore
+		//
+		// other code:
+		//
+		// 60 01
+		// 60 00
+		// fd - revert
+
+		let code = "6460016000fd6000526005601b6017f0600055".from_hex().unwrap();
+
+		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
+		let mut params = ActionParams::default();
+		params.address = address.clone();
+		params.code_address = address.clone();
+		params.sender = sender.clone();
+		params.origin = sender.clone();
+		params.gas = U256::from(100_000);
+		params.code = Some(Arc::new(code));
+		params.value = ActionValue::Transfer(U256::from(100));
+		params.call_type = CallType::Call;
+		let mut state = get_temp_state();
+		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
+		let info = EnvInfo::default();
+		let machine = ::ethereum::new_byzantium_test_machine();
+		let mut substate = Substate::new();
+		let mut tracer = ExecutiveTracer::default();
+		let mut vm_tracer = ExecutiveVMTracer::toplevel();
+
+		let FinalizationResult { gas_left, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
+			let output = BytesRef::Fixed(&mut[0u8;0]);
+			ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap()
+		};
+
+		assert_eq!(gas_left, U256::from(62967));
+
+		let expected_trace = vec![FlatTrace {
+			trace_address: Default::default(),
+			subtraces: 1,
+			action: trace::Action::Call(trace::Call {
+				from: "cd1722f3947def4cf144679da39c4c32bdc35681".into(),
+				to: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
+				value: 100.into(),
+				gas: 100_000.into(),
+				input: vec![],
+				call_type: CallType::Call,
+			}),
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: U256::from(37_033),
+				output: vec![],
+			}),
+		}, FlatTrace {
+			trace_address: vec![0].into_iter().collect(),
+			subtraces: 0,
+			action: trace::Action::Create(trace::Create {
+				from: "b010143a42d5980c7e5ef0e4a4416dc098a4fed3".into(),
+				value: 23.into(),
+				gas: 66_917.into(),
+				init: vec![0x60, 0x01, 0x60, 0x00, 0xfd]
+			}),
+			result: trace::Res::FailedCreate(vm::Error::Reverted.into()),
+		}];
+
+		assert_eq!(tracer.drain(), expected_trace);
 	}
 
 	#[test]
@@ -1408,8 +1479,6 @@ mod tests {
 		params.gas = U256::from(20025);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::zero());
-		let mut state = get_temp_state_with_factory(factory);
-		state.add_balance(&sender, &U256::from_str("152d02c7e14af68000000").unwrap(), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
 		let machine = ::ethereum::new_byzantium_test_machine();
 		let mut substate = Substate::new();
@@ -1423,5 +1492,61 @@ mod tests {
 		assert_eq!(result, U256::from(1));
 		assert_eq!(output[..], returns[..]);
 		assert_eq!(state.storage_at(&contract_address, &H256::from(&U256::zero())).unwrap(), H256::from(&U256::from(0)));
+	}
+
+	fn wasm_sample_code() -> Arc<Vec<u8>> {
+		Arc::new(
+			"0061736d01000000010d0360027f7f0060017f0060000002270303656e7603726574000003656e760673656e646572000103656e76066d656d6f727902010110030201020404017000000501000708010463616c6c00020901000ac10101be0102057f017e4100410028020441c0006b22043602042004412c6a41106a220041003602002004412c6a41086a22014200370200200441186a41106a22024100360200200441186a41086a220342003703002004420037022c2004410036021c20044100360218200441186a1001200020022802002202360200200120032903002205370200200441106a2002360200200441086a200537030020042004290318220537022c200420053703002004411410004100200441c0006a3602040b0b0a010041040b0410c00000"
+			.from_hex()
+			.unwrap()
+		)
+	}
+
+	#[test]
+	fn wasm_activated_test() {
+		let contract_address = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+
+		let mut state = get_temp_state();
+		state.add_balance(&sender, &U256::from(10000000000u64), CleanupMode::NoEmpty).unwrap();
+		state.commit().unwrap();
+
+		let mut params = ActionParams::default();
+		params.origin = sender.clone();
+		params.sender = sender.clone();
+		params.address = contract_address.clone();
+		params.gas = U256::from(20025);
+		params.code = Some(wasm_sample_code());
+
+		let mut info = EnvInfo::default();
+
+		// 100 > 10
+		info.number = 100;
+
+		// Network with wasm activated at block 10
+		let machine = ::ethereum::new_kovan_wasm_test_machine();
+
+		let mut output = [0u8; 20];
+		let FinalizationResult { gas_left: result, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
+			ex.call(params.clone(), &mut Substate::new(), BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
+		};
+
+		assert_eq!(result, U256::from(18433));
+		// Transaction successfully returned sender
+		assert_eq!(output[..], sender[..]);
+
+		// 1 < 10
+		info.number = 1;
+
+		let mut output = [0u8; 20];
+		let FinalizationResult { gas_left: result, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
+			ex.call(params, &mut Substate::new(), BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
+		};
+
+		assert_eq!(result, U256::from(20025));
+		// Since transaction errored due to wasm was not activated, result is just empty
+		assert_eq!(output[..], [0u8; 20][..]);
 	}
 }

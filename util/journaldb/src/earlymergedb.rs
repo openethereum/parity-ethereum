@@ -16,7 +16,6 @@
 
 //! Disk-backed `HashDB` implementation.
 
-use std::fmt;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
@@ -28,11 +27,11 @@ use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use error::{BaseDataError, UtilError};
 use bytes::Bytes;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct RefInfo {
 	queue_refs: usize,
 	in_archive: bool,
@@ -40,18 +39,6 @@ struct RefInfo {
 
 impl HeapSizeOf for RefInfo {
 	fn heap_size_of_children(&self) -> usize { 0 }
-}
-
-impl fmt::Display for RefInfo {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}+{}", self.queue_refs, if self.in_archive {1} else {0})
-	}
-}
-
-impl fmt::Debug for RefInfo {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}+{}", self.queue_refs, if self.in_archive {1} else {0})
-	}
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -447,7 +434,6 @@ impl JournalDB for EarlyMergeDB {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
 		let mut refs = self.refs.as_ref().unwrap().write();
 
@@ -544,8 +530,6 @@ impl JournalDB for EarlyMergeDB {
 
 #[cfg(test)]
 mod tests {
-	#![cfg_attr(feature="dev", allow(blacklisted_name))]
-	#![cfg_attr(feature="dev", allow(similar_names))]
 
 	use keccak::keccak;
 	use hashdb::{HashDB, DBValue};

@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use mio::*;
 use mio::deprecated::{Handler, EventLoop};
 use mio::tcp::*;
-use bigint::hash::*;
+use ethereum_types::H256;
 use rlp::*;
 use connection::{EncryptedConnection, Packet, Connection, MAX_PAYLOAD_SIZE};
 use handshake::Handshake;
@@ -489,7 +489,7 @@ impl Session {
 		rlp.append_raw(&[PACKET_HELLO as u8], 0);
 		rlp.begin_list(5)
 			.append(&host.protocol_version)
-			.append(&host.client_version)
+			.append(&host.client_version())
 			.append_list(&host.capabilities)
 			.append(&host.local_endpoint.address.port())
 			.append(host.id());

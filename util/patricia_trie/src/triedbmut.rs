@@ -30,7 +30,7 @@ use hashdb::DBValue;
 use std::collections::{HashSet, VecDeque};
 use std::mem;
 use std::ops::Index;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use elastic_array::ElasticArray1024;
 use keccak::{KECCAK_NULL_RLP};
 
@@ -265,13 +265,13 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 /// extern crate keccak_hash;
 /// extern crate hashdb;
 /// extern crate memorydb;
-/// extern crate ethcore_bigint as bigint;
+/// extern crate ethereum_types;
 ///
 /// use keccak_hash::KECCAK_NULL_RLP;
 /// use trie::*;
 /// use hashdb::*;
 /// use memorydb::*;
-/// use bigint::hash::*;
+/// use ethereum_types::H256;
 ///
 /// fn main() {
 ///   let mut memdb = MemoryDB::new();
@@ -436,7 +436,6 @@ impl<'a> TrieDBMut<'a> {
 	}
 
 	/// the insertion inspector.
-	#[cfg_attr(feature = "dev", allow(cyclomatic_complexity))]
 	fn insert_inspector(&mut self, node: Node, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>)
 		-> super::Result<InsertAction>
 	{
@@ -950,7 +949,7 @@ mod tests {
 	use bytes::ToPretty;
 	use keccak::KECCAK_NULL_RLP;
 	use super::super::TrieMut;
-	use super::super::standardmap::*;
+	use standardmap::*;
 
 	fn populate_trie<'db>(db: &'db mut HashDB, root: &'db mut H256, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db> {
 		let mut t = TrieDBMut::new(db, root);

@@ -22,9 +22,7 @@ use std::thread::sleep;
 use std::sync::Arc;
 use rustc_hex::FromHex;
 use hash::{keccak, KECCAK_NULL_RLP};
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
@@ -591,8 +589,12 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 		}
 		let b = client.block(BlockId::Number(i)).ok_or("Error exporting incomplete chain")?.into_inner();
 		match format {
-			DataFormat::Binary => { out.write(&b).expect("Couldn't write to stream."); }
-			DataFormat::Hex => { out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream."); }
+			DataFormat::Binary => {
+				out.write(&b).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
+			}
+			DataFormat::Hex => {
+				out.write_fmt(format_args!("{}", b.pretty())).map_err(|e| format!("Couldn't write to stream. Cause: {}", e))?;
+			}
 		}
 	}
 
@@ -643,17 +645,17 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 			if i != 0 {
 				out.write(b",").expect("Write error");
 			}
-			out.write_fmt(format_args!("\n\"0x{}\": {{\"balance\": \"{:x}\", \"nonce\": \"{:x}\"", account.hex(), balance, client.nonce(&account, at).unwrap_or_else(U256::zero))).expect("Write error");
+			out.write_fmt(format_args!("\n\"0x{:x}\": {{\"balance\": \"{:x}\", \"nonce\": \"{:x}\"", account, balance, client.nonce(&account, at).unwrap_or_else(U256::zero))).expect("Write error");
 			let code = client.code(&account, at).unwrap_or(None).unwrap_or_else(Vec::new);
 			if !code.is_empty() {
-				out.write_fmt(format_args!(", \"code_hash\": \"0x{}\"", keccak(&code).hex())).expect("Write error");
+				out.write_fmt(format_args!(", \"code_hash\": \"0x{:x}\"", keccak(&code))).expect("Write error");
 				if cmd.code {
 					out.write_fmt(format_args!(", \"code\": \"{}\"", code.to_hex())).expect("Write error");
 				}
 			}
 			let storage_root = client.storage_root(&account, at).unwrap_or(KECCAK_NULL_RLP);
 			if storage_root != KECCAK_NULL_RLP {
-				out.write_fmt(format_args!(", \"storage_root\": \"0x{}\"", storage_root.hex())).expect("Write error");
+				out.write_fmt(format_args!(", \"storage_root\": \"0x{:x}\"", storage_root)).expect("Write error");
 				if cmd.storage {
 					out.write_fmt(format_args!(", \"storage\": {{")).expect("Write error");
 					let mut last_storage: Option<H256> = None;
@@ -667,7 +669,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 							if last_storage.is_some() {
 								out.write(b",").expect("Write error");
 							}
-							out.write_fmt(format_args!("\n\t\"0x{}\": \"0x{}\"", key.hex(), client.storage_at(&account, &key, at).unwrap_or_else(Default::default).hex())).expect("Write error");
+							out.write_fmt(format_args!("\n\t\"0x{:x}\": \"0x{:x}\"", key, client.storage_at(&account, &key, at).unwrap_or_else(Default::default))).expect("Write error");
 							last_storage = Some(key);
 						}
 					}

@@ -1,11 +1,10 @@
 
 //! Bridge between Tracedb and Blockchain.
 
-use bigint::hash::H256;
+use ethereum_types::H256;
 use header::BlockNumber;
 use trace::DatabaseExtras as TraceDatabaseExtras;
-use blockchain::{BlockChain, BlockProvider};
-use blockchain::extras::TransactionAddress;
+use blockchain::{BlockChain, BlockProvider, TransactionAddress};
 pub use types::trace_filter::Filter;
 
 impl TraceDatabaseExtras for BlockChain {

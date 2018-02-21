@@ -18,10 +18,9 @@ use std::fmt;
 use std::collections::BTreeMap;
 use itertools::Itertools;
 use hash::{keccak};
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{H256, U256};
+use hashdb::HashDB;
 use triehash::sec_trie_root;
-use util::*;
 use bytes::Bytes;
 use trie::TrieFactory;
 use state::Account;
@@ -44,12 +43,6 @@ pub struct PodAccount {
 }
 
 impl PodAccount {
-	/// Construct new object.
-	#[cfg(test)]
-	pub fn new(balance: U256, nonce: U256, code: Bytes, storage: BTreeMap<H256, H256>) -> PodAccount {
-		PodAccount { balance: balance, nonce: nonce, code: Some(code), storage: storage }
-	}
-
 	/// Convert Account to a PodAccount.
 	/// NOTE: This will silently fail unless the account is fully cached.
 	pub fn from_account(acc: &Account) -> PodAccount {
@@ -66,7 +59,7 @@ impl PodAccount {
 		let mut stream = RlpStream::new_list(4);
 		stream.append(&self.nonce);
 		stream.append(&self.balance);
-		stream.append(&sec_trie_root(self.storage.iter().map(|(k, v)| (k.to_vec(), rlp::encode(&U256::from(&**v)).to_vec())).collect()));
+		stream.append(&sec_trie_root(self.storage.iter().map(|(k, v)| (k, rlp::encode(&U256::from(&**v))))));
 		stream.append(&keccak(&self.code.as_ref().unwrap_or(&vec![])));
 		stream.out()
 	}

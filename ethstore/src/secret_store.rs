@@ -20,7 +20,7 @@ use std::cmp::Ordering;
 use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
 use json::{Uuid, OpaqueKeyFile};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use OpaqueSecret;
 
 /// Key directory reference
@@ -116,7 +116,7 @@ pub trait SecretStore: SimpleSecretStore {
 	/// Imports presale wallet
 	fn import_presale(&self, vault: SecretVaultRef, json: &[u8], password: &str) -> Result<StoreAccountRef, Error>;
 	/// Imports existing JSON wallet
-	fn import_wallet(&self, vault: SecretVaultRef, json: &[u8], password: &str) -> Result<StoreAccountRef, Error>;
+	fn import_wallet(&self, vault: SecretVaultRef, json: &[u8], password: &str, gen_id: bool) -> Result<StoreAccountRef, Error>;
 	/// Copies account between stores and vaults.
 	fn copy_account(&self, new_store: &SimpleSecretStore, new_vault: SecretVaultRef, account: &StoreAccountRef, password: &str, new_password: &str) -> Result<(), Error>;
 	/// Checks if password matches given account.

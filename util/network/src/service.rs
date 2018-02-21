@@ -59,10 +59,9 @@ impl NetworkService {
 		let io_service = IoService::<NetworkIoMessage>::start()?;
 
 		let stats = Arc::new(NetworkStats::new());
-		let host_info = Host::client_version();
 		Ok(NetworkService {
 			io_service: io_service,
-			host_info: host_info,
+			host_info: config.client_version.clone(),
 			stats: stats,
 			host: RwLock::new(None),
 			config: config,

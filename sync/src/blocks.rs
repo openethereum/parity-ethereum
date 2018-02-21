@@ -19,7 +19,7 @@ use std::collections::hash_map::Entry;
 use smallvec::SmallVec;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use heapsize::HeapSizeOf;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use triehash::ordered_trie_root;
 use bytes::Bytes;
 use rlp::*;
@@ -345,7 +345,7 @@ impl BlockCollection {
 		let header_id = {
 			let body = UntrustedRlp::new(&b);
 			let tx = body.at(0)?;
-			let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec())); //TODO: get rid of vectors here
+			let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw()));
 			let uncles = keccak(body.at(1)?.as_raw());
 			HeaderId {
 				transactions_root: tx_root,
@@ -379,7 +379,7 @@ impl BlockCollection {
 	fn insert_receipt(&mut self, r: Bytes) -> Result<(), network::Error> {
 		let receipt_root = {
 			let receipts = UntrustedRlp::new(&r);
-			ordered_trie_root(receipts.iter().map(|r| r.as_raw().to_vec())) //TODO: get rid of vectors here
+			ordered_trie_root(receipts.iter().map(|r| r.as_raw()))
 		};
 		self.downloading_receipts.remove(&receipt_root);
 		match self.receipt_ids.entry(receipt_root) {
@@ -453,7 +453,7 @@ impl BlockCollection {
 
 		self.parents.insert(info.parent_hash().clone(), hash.clone());
 		self.blocks.insert(hash.clone(), block);
-		trace!(target: "sync", "New header: {}", hash.hex());
+		trace!(target: "sync", "New header: {:x}", hash);
 		Ok(hash)
 	}
 

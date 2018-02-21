@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
-use bigint::prelude::U256;
-use bigint::hash::H256;
+use ethereum_types::{U256, H256};
 use super::u256_to_address;
 
 use {evm, vm};
@@ -32,7 +31,6 @@ macro_rules! overflowing {
 	}}
 }
 
-#[cfg_attr(feature="dev", allow(enum_variant_names))]
 enum Request<Cost: ::evm::CostType> {
 	Gas(Cost),
 	GasMem(Cost, Cost),
@@ -101,7 +99,6 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	/// Determine how much gas is used by the given instruction, given the machine's state.
 	///
 	/// We guarantee that the final element of the returned tuple (`provided`) will be `Some`

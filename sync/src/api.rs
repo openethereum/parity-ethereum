@@ -20,8 +20,7 @@ use std::io;
 use bytes::Bytes;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, HostInfo, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind, ConnectionFilter};
-use bigint::prelude::U256;
-use bigint::hash::{H256, H512};
+use ethereum_types::{H256, H512, U256};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{BlockChainClient, ChainNotify};
@@ -170,7 +169,18 @@ pub struct AttachedProtocol {
 }
 
 impl AttachedProtocol {
-	fn register(&self, _network: &NetworkService) {}
+	fn register(&self, network: &NetworkService) {
+		let res = network.register_protocol(
+			self.handler.clone(),
+			self.protocol_id,
+			self.packet_count,
+			self.versions
+		);
+
+		if let Err(e) = res {
+			warn!(target: "sync", "Error attaching protocol {:?}: {:?}", self.protocol_id, e);
+		}
+	}
 }
 
 /// EthSync initialization parameters.
@@ -283,7 +293,7 @@ impl SyncProvider for EthSync {
 				};
 
 				Some(PeerInfo {
-					id: session_info.id.map(|id| id.hex()),
+					id: session_info.id.map(|id| format!("{:x}", id)),
 					client_version: session_info.client_version,
 					capabilities: session_info.peer_capabilities.into_iter().map(|c| c.to_string()).collect(),
 					remote_address: session_info.remote_address,
@@ -441,7 +451,7 @@ impl ChainNotify for EthSync {
 struct TxRelay(Arc<BlockChainClient>);
 
 impl LightHandler for TxRelay {
-	fn on_transactions(&self, ctx: &EventContext, relay: &[::ethcore::transaction::UnverifiedTransaction]) {
+	fn on_transactions(&self, ctx: &EventContext, relay: &[::transaction::UnverifiedTransaction]) {
 		trace!(target: "pip", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
 		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).into_vec()).collect(), ctx.peer())
 	}
@@ -546,6 +556,8 @@ pub struct NetworkConfiguration {
 	pub allow_non_reserved: bool,
 	/// IP Filtering
 	pub ip_filter: IpFilter,
+	/// Client version string
+	pub client_version: String,
 }
 
 impl NetworkConfiguration {
@@ -578,6 +590,7 @@ impl NetworkConfiguration {
 			reserved_nodes: self.reserved_nodes,
 			ip_filter: self.ip_filter,
 			non_reserved_mode: if self.allow_non_reserved { NonReservedPeerMode::Accept } else { NonReservedPeerMode::Deny },
+			client_version: self.client_version,
 		})
 	}
 }
@@ -601,6 +614,7 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 			reserved_nodes: other.reserved_nodes,
 			ip_filter: other.ip_filter,
 			allow_non_reserved: match other.non_reserved_mode { NonReservedPeerMode::Accept => true, _ => false } ,
+			client_version: other.client_version,
 		}
 	}
 }
@@ -807,7 +821,7 @@ impl LightSyncProvider for LightSync {
 				};
 
 				Some(PeerInfo {
-					id: session_info.id.map(|id| id.hex()),
+					id: session_info.id.map(|id| format!("{:x}", id)),
 					client_version: session_info.client_version,
 					capabilities: session_info.peer_capabilities.into_iter().map(|c| c.to_string()).collect(),
 					remote_address: session_info.remote_address,

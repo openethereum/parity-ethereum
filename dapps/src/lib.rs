@@ -16,8 +16,6 @@
 
 //! Ethcore Webapplications for Parity
 #![warn(missing_docs)]
-#![cfg_attr(feature="nightly", feature(plugin))]
-#![cfg_attr(feature="nightly", plugin(clippy))]
 
 extern crate base32;
 extern crate futures_cpupool;
@@ -34,15 +32,15 @@ extern crate zip;
 
 extern crate jsonrpc_http_server;
 
-extern crate ethcore_util as util;
-extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
+extern crate ethereum_types;
 extern crate fetch;
 extern crate node_health;
 extern crate parity_dapps_glue as parity_dapps;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ui;
 extern crate keccak_hash as hash;
+extern crate parity_version;
 
 #[macro_use]
 extern crate futures;
@@ -110,7 +108,7 @@ impl Endpoints {
 	/// Returns a current list of app endpoints.
 	pub fn list(&self) -> Vec<apps::App> {
 		self.endpoints.read().iter().filter_map(|(ref k, ref e)| {
-			e.info().map(|ref info| apps::App::from_info(k, info))
+			e.info().map(|ref info| info.with_id(k))
 		}).collect()
 	}
 

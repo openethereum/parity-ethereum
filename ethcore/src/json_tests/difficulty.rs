@@ -16,7 +16,7 @@
 
 use ethjson;
 use header::Header;
-use bigint::prelude::U256;
+use ethereum_types::U256;
 use spec::Spec;
 
 pub fn json_difficulty_test(json_data: &[u8], spec: Spec) -> Vec<String> {

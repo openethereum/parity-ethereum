@@ -22,7 +22,7 @@ use hash::keccak;
 
 use views::BlockView;
 use rlp::{DecoderError, RlpStream, UntrustedRlp};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use bytes::Bytes;
 use triehash::ordered_trie_root;
 
@@ -107,7 +107,7 @@ impl AbridgedBlock {
 		let uncles: Vec<Header> = rlp.list_at(9)?;
 
 		header.set_transactions_root(ordered_trie_root(
-			rlp.at(8)?.iter().map(|r| r.as_raw().to_owned())
+			rlp.at(8)?.iter().map(|r| r.as_raw())
 		));
 		header.set_receipts_root(receipts_root);
 
@@ -135,16 +135,15 @@ impl AbridgedBlock {
 mod tests {
 	use views::BlockView;
 	use block::Block;
+	use header::Seal;
 	use super::AbridgedBlock;
 	use transaction::{Action, Transaction};
 
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
-	use util::Address;
+	use ethereum_types::{H256, U256, Address};
 	use bytes::Bytes;
 
 	fn encode_block(b: &Block) -> Bytes {
-		b.rlp_bytes(::basic_types::Seal::With)
+		b.rlp_bytes(Seal::With)
 	}
 
 	#[test]
@@ -195,7 +194,7 @@ mod tests {
 
 		let receipts_root = b.header.receipts_root().clone();
 		b.header.set_transactions_root(::triehash::ordered_trie_root(
-			b.transactions.iter().map(::rlp::encode).map(|out| out.into_vec())
+			b.transactions.iter().map(::rlp::encode)
 		));
 
 		let encoded = encode_block(&b);

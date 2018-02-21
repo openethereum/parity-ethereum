@@ -18,7 +18,7 @@ use zip;
 use std::{fs, fmt};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use fetch::{self, Mime};
 use futures_cpupool::CpuPool;
 use hash::keccak_buffer;
@@ -178,7 +178,7 @@ impl ContentValidator for Dapp {
 			// First find manifest file
 			let (mut manifest, manifest_dir) = Self::find_manifest(&mut zip)?;
 			// Overwrite id to match hash
-			manifest.id = id;
+			manifest.id = Some(id);
 
 			// Unpack zip
 			for i in 0..zip.len() {

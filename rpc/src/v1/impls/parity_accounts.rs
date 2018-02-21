@@ -17,7 +17,7 @@
 //! Account management (personal) rpc implementation
 use std::sync::Arc;
 use std::collections::btree_map::{BTreeMap, Entry};
-use util::Address;
+use ethereum_types::Address;
 
 use ethkey::{Brain, Generator, Secret};
 use ethstore::KeyFile;
@@ -95,7 +95,7 @@ impl ParityAccounts for ParityAccountsClient {
 		let store = self.account_provider()?;
 
 		store.import_presale(json.as_bytes(), &pass)
-			.or_else(|_| store.import_wallet(json.as_bytes(), &pass))
+			.or_else(|_| store.import_wallet(json.as_bytes(), &pass, true))
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not create account.", e))
 	}

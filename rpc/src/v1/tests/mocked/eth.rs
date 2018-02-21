@@ -18,22 +18,21 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
-use rustc_hex::{FromHex, ToHex};
-use time::get_time;
-use rlp;
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{H256, U256, Address};
 use parking_lot::Mutex;
-use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
+use ethcore::miner::MinerService;
 use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
-use ethcore::transaction::{Transaction, Action};
-use ethcore::miner::{ExternalMiner, MinerService};
+use ethkey::Secret;
 use ethsync::SyncState;
+use miner::external::ExternalMiner;
+use rlp;
+use rustc_hex::{FromHex, ToHex};
+use time::get_time;
+use transaction::{Transaction, Action};
 
 use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
@@ -93,11 +92,12 @@ impl EthTester {
 		let snapshot = snapshot_service();
 		let hashrates = Arc::new(Mutex::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
+		let gas_price_percentile = options.gas_price_percentile;
 		let eth = EthClient::new(&client, &snapshot, &sync, &opt_ap, &miner, &external_miner, options).to_delegate();
 		let filter = EthFilterClient::new(client.clone(), miner.clone()).to_delegate();
 		let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 
-		let dispatcher = FullDispatcher::new(client.clone(), miner.clone(), reservations);
+		let dispatcher = FullDispatcher::new(client.clone(), miner.clone(), reservations, gas_price_percentile);
 		let sign = SigningUnsafeClient::new(&opt_ap, dispatcher).to_delegate();
 		let mut io: IoHandler<Metadata> = IoHandler::default();
 		io.extend_with(eth);
@@ -538,9 +538,9 @@ fn rpc_eth_transaction_count_by_number_pending() {
 
 #[test]
 fn rpc_eth_pending_transaction_by_hash() {
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use rlp;
-	use ethcore::transaction::SignedTransaction;
+	use transaction::SignedTransaction;
 
 	let tester = EthTester::default();
 	{
@@ -874,12 +874,12 @@ fn rpc_eth_sign_transaction() {
 		r#""input":"0x","# +
 		r#""nonce":"0x1","# +
 		&format!("\"publicKey\":\"0x{:?}\",", t.recover_public().unwrap()) +
-		&format!("\"r\":\"0x{}\",", U256::from(signature.r()).to_hex()) +
+		&format!("\"r\":\"0x{:x}\",", U256::from(signature.r())) +
 		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
-		&format!("\"s\":\"0x{}\",", U256::from(signature.s()).to_hex()) +
-		&format!("\"standardV\":\"0x{}\",", U256::from(t.standard_v()).to_hex()) +
+		&format!("\"s\":\"0x{:x}\",", U256::from(signature.s())) +
+		&format!("\"standardV\":\"0x{:x}\",", U256::from(t.standard_v())) +
 		r#""to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionIndex":null,"# +
-		&format!("\"v\":\"0x{}\",", U256::from(t.original_v()).to_hex()) +
+		&format!("\"v\":\"0x{:x}\",", U256::from(t.original_v())) +
 		r#""value":"0x9184e72a""# +
 		r#"}},"id":1}"#;
 

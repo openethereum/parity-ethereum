@@ -18,12 +18,12 @@ use std::str;
 use std::sync::Arc;
 use std::collections::HashMap;
 
-use bigint::hash::H256;
+use futures::Future;
+use ethereum_types::{H256, Address};
 use bytes::{Bytes, ToPretty};
-use hash_fetch::urlhint::{ContractClient, BoxFuture};
+use hash_fetch::urlhint::ContractClient;
 use parking_lot::Mutex;
 use rustc_hex::FromHex;
-use util::Address;
 
 const REGISTRAR: &'static str = "8e4e9b13d4b45cb0befc93c3061b1408f67316b2";
 const URLHINT: &'static str = "deadbeefcafe0000000000000000000000000000";
@@ -67,7 +67,7 @@ impl ContractClient for FakeRegistrar {
 		Ok(REGISTRAR.parse().unwrap())
 	}
 
-	fn call(&self, address: Address, data: Bytes) -> BoxFuture<Bytes, String> {
+	fn call(&self, address: Address, data: Bytes) -> Box<Future<Item = Bytes, Error = String> + Send> {
 		let call = (address.to_hex(), data.to_hex());
 		self.calls.lock().push(call.clone());
 		let res = self.responses.lock().get(&call).cloned().expect(&format!("No response for call: {:?}", call));

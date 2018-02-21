@@ -113,8 +113,8 @@ pub struct Schedule {
 	pub kill_dust: CleanDustMode,
 	/// Enable EIP-86 rules
 	pub eip86: bool,
-	/// Wasm extra schedule settings
-	pub wasm: WasmCosts,
+	/// Wasm extra schedule settings, if wasm activated
+	pub wasm: Option<WasmCosts>,
 }
 
 /// Wasm cost table
@@ -127,18 +127,19 @@ pub struct WasmCosts {
 	pub mul: u32,
 	/// Memory (load/store) operations multiplier.
 	pub mem: u32,
-	/// Memory copy operation, per byte.
-	pub mem_copy: u32,
-	/// Memory move operation, per byte.
-	pub mem_move: u32,
-	/// Memory set operation, per byte.
-	pub mem_set: u32,
-	/// Static region charge, per byte.
-	pub static_region: u32,
 	/// General static query of U256 value from env-info
 	pub static_u256: u32,
 	/// General static query of Address value from env-info
 	pub static_address: u32,
+	/// Memory stipend. Amount of free memory (in 64kb pages) each contract can use for stack.
+	pub initial_mem: u32,
+	/// Grow memory cost, per page (64kb)
+	pub grow_mem: u32,
+	/// Cost of wasm opcode is calculated as TABLE_ENTRY_COST * `opcodes_mul` / `opcodes_div`
+	pub opcodes_mul: u32,
+	/// Cost of wasm opcode is calculated as TABLE_ENTRY_COST * `opcodes_mul` / `opcodes_div`
+	pub opcodes_div: u32,
+
 }
 
 impl Default for WasmCosts {
@@ -148,12 +149,12 @@ impl Default for WasmCosts {
 			div: 16,
 			mul: 4,
 			mem: 2,
-			mem_copy: 1,
-			mem_move: 1,
-			mem_set: 1,
-			static_region: 1,
 			static_u256: 64,
 			static_address: 40,
+			initial_mem: 4096,
+			grow_mem: 8192,
+			opcodes_mul: 3,
+			opcodes_div: 8,
 		}
 	}
 }
@@ -230,7 +231,7 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip86: false,
-			wasm: Default::default(),
+			wasm: None,
 		}
 	}
 
@@ -293,8 +294,16 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip86: false,
-			wasm: Default::default(),
+			wasm: None,
 		}
+	}
+
+	/// Returns wasm schedule
+	///
+	/// May panic if there is no wasm schedule
+	pub fn wasm(&self) -> &WasmCosts {
+		// *** Prefer PANIC here instead of silently breaking consensus! ***
+		self.wasm.as_ref().expect("Wasm schedule expected to exist while checking wasm contract. Misconfigured client?")
 	}
 }
 

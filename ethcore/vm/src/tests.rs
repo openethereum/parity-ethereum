@@ -17,9 +17,7 @@
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::Address;
+use ethereum_types::{U256, H256, Address};
 use bytes::Bytes;
 use {
 	CallType, Schedule, EnvInfo,
@@ -78,14 +76,22 @@ pub fn test_finalize(res: Result<GasLeft>) -> Result<U256> {
 }
 
 impl FakeExt {
+	/// New fake externalities
 	pub fn new() -> Self {
 		FakeExt::default()
 	}
 
+	/// New fake externalities with byzantium schedule rules
 	pub fn new_byzantium() -> Self {
 		let mut ext = FakeExt::default();
 		ext.schedule = Schedule::new_byzantium();
 		ext
+	}
+
+	/// Alter fake externalities to allow wasm
+	pub fn with_wasm(mut self) -> Self {
+		self.schedule.wasm = Some(Default::default());
+		self
 	}
 }
 
@@ -200,7 +206,7 @@ impl Ext for FakeExt {
 		self.sstore_clears += 1;
 	}
 
-	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool {
+	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8, _gas: U256) -> bool {
 		self.tracing
 	}
 }

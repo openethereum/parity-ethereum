@@ -61,19 +61,10 @@ impl<F, T> Future for Deadline<F> where F: Future<Item = T, Error = io::Error> {
 
 #[cfg(test)]
 mod tests {
-	use std::io;
 	use std::time::Duration;
-	use futures::{Future, empty, done};
+	use futures::{Future, done};
 	use tokio_core::reactor::Core;
 	use super::{deadline, DeadlineStatus};
-
-	//#[test] TODO: not working
-	fn _deadline_timeout_works() {
-		let mut core = Core::new().unwrap();
-		let deadline = deadline(Duration::from_millis(1), &core.handle(), empty::<(), io::Error>()).unwrap();
-		core.turn(Some(Duration::from_millis(3)));
-		assert_eq!(deadline.wait().unwrap(), DeadlineStatus::Timeout);
-	}
 
 	#[test]
 	fn deadline_result_works() {

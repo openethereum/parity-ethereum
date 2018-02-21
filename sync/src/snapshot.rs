@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use hash::keccak;
-use bigint::hash::H256;
+use ethereum_types::H256;
 use std::collections::HashSet;
 use ethcore::snapshot::ManifestData;
 
@@ -73,7 +73,7 @@ impl Snapshot {
 	pub fn validate_chunk(&mut self, chunk: &[u8]) -> Result<ChunkType, ()> {
 		let hash = keccak(chunk);
 		if self.completed_chunks.contains(&hash) {
-			trace!(target: "sync", "Ignored proccessed chunk: {}", hash.hex());
+			trace!(target: "sync", "Ignored proccessed chunk: {:x}", hash);
 			return Err(());
 		}
 		self.downloading_chunks.remove(&hash);
@@ -85,7 +85,7 @@ impl Snapshot {
 			self.completed_chunks.insert(hash.clone());
 			return Ok(ChunkType::State(hash));
 		}
-		trace!(target: "sync", "Ignored unknown chunk: {}", hash.hex());
+		trace!(target: "sync", "Ignored unknown chunk: {:x}", hash);
 		Err(())
 	}
 

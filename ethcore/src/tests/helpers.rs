@@ -15,12 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use account_provider::AccountProvider;
-use bigint::hash::H256;
-use bigint::prelude::U256;
+use ethereum_types::{H256, U256};
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use bytes::Bytes;
-use client::{BlockChainClient, Client, ClientConfig};
+use client::{BlockChainClient, ChainNotify, Client, ClientConfig};
 use ethereum::ethash::EthashParams;
 use ethkey::KeyPair;
 use evm::Factory as EvmFactory;
@@ -30,6 +29,7 @@ use header::Header;
 use io::*;
 use machine::EthashExtensions;
 use miner::Miner;
+use parking_lot::RwLock;
 use rlp::{self, RlpStream};
 use spec::*;
 use state_db::StateDB;
@@ -275,7 +275,7 @@ pub fn get_temp_state() -> State<::state_db::StateDB> {
 pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::StateDB> {
 	let journal_db = get_temp_state_db();
 	let mut factories = Factories::default();
-	factories.vm = factory;
+	factories.vm = factory.into();
 	State::new(journal_db, U256::from(0), factories)
 }
 
@@ -385,5 +385,18 @@ pub fn get_default_ethash_params() -> EthashParams {
 		eip649_transition: u64::max_value(),
 		eip649_delay: 3_000_000,
 		eip649_reward: None,
+		expip2_transition: u64::max_value(),
+		expip2_duration_limit: 30,
+	}
+}
+
+#[derive(Default)]
+pub struct TestNotify {
+	pub messages: RwLock<Vec<Bytes>>,
+}
+
+impl ChainNotify for TestNotify {
+	fn broadcast(&self, data: Vec<u8>) {
+		self.messages.write().push(data);
 	}
 }

@@ -40,11 +40,11 @@ use executed::{Executed, ExecutionError};
 use types::state_diff::StateDiff;
 use transaction::SignedTransaction;
 use state_db::StateDB;
-use evm::{Factory as EvmFactory};
+use factory::VmFactory;
 
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::*;
+use ethereum_types::{H256, U256, Address};
+use hashdb::{HashDB, AsHashDB};
+use kvdb::DBValue;
 use bytes::Bytes;
 
 use trie;
@@ -193,7 +193,7 @@ impl AccountEntry {
 /// `Err(ExecutionError::Internal)` indicates failure, everything else indicates
 /// a successful proof (as the transaction itself may be poorly chosen).
 pub fn check_proof(
-	proof: &[::util::DBValue],
+	proof: &[DBValue],
 	root: H256,
 	transaction: &SignedTransaction,
 	machine: &Machine,
@@ -376,7 +376,7 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Get a VM factory that can execute on this state.
-	pub fn vm_factory(&self) -> EvmFactory {
+	pub fn vm_factory(&self) -> VmFactory {
 		self.factories.vm.clone()
 	}
 
@@ -604,7 +604,6 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Add `incr` to the balance of account `a`.
-	#[cfg_attr(feature="dev", allow(single_match))]
 	pub fn add_balance(&mut self, a: &Address, incr: &U256, cleanup_mode: CleanupMode) -> trie::Result<()> {
 		trace!(target: "state", "add_balance({}, {}): {}", a, incr, self.balance(a)?);
 		let is_value_transfer = !incr.is_zero();
@@ -645,7 +644,7 @@ impl<B: Backend> State<B> {
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn set_storage(&mut self, a: &Address, key: H256, value: H256) -> trie::Result<()> {
-		trace!(target: "state", "set_storage({}:{} to {})", a, key.hex(), value.hex());
+		trace!(target: "state", "set_storage({}:{:x} to {:x})", a, key, value);
 		if self.storage_at(a, &key)? != value {
 			self.require(a, false)?.set_storage(key, value)
 		}
@@ -744,8 +743,6 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Commits our cached account changes into the trie.
-	#[cfg_attr(feature="dev", allow(match_ref_pats))]
-	#[cfg_attr(feature="dev", allow(needless_borrow))]
 	pub fn commit(&mut self) -> Result<(), Error> {
 		// first, commit the sub trees.
 		let mut accounts = self.cache.borrow_mut();
@@ -1068,9 +1065,7 @@ mod tests {
 	use hash::keccak;
 	use super::*;
 	use ethkey::Secret;
-	use bigint::prelude::U256;
-	use bigint::hash::H256;
-	use util::Address;
+	use ethereum_types::{H256, U256, Address};
 	use tests::helpers::*;
 	use machine::EthereumMachine;
 	use vm::EnvInfo;
@@ -1409,7 +1404,7 @@ mod tests {
 	}
 
 	#[test]
-	fn should_not_trace_delegatecall() {
+	fn should_trace_delegatecall_properly() {
 		init_log();
 
 		let mut state = get_temp_state();
@@ -1429,7 +1424,7 @@ mod tests {
 		}.sign(&secret(), None);
 
 		state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap()).unwrap();
-		state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.init_code(&0xb.into(), FromHex::from_hex("60056000526001601ff3").unwrap()).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -1444,23 +1439,23 @@ mod tests {
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(721), // in post-eip150
+				gas_used: U256::from(736), // in post-eip150
 				output: vec![]
 			}),
 		}, FlatTrace {
 			trace_address: vec![0].into_iter().collect(),
 			subtraces: 0,
 			action: trace::Action::Call(trace::Call {
-				from: "9cce34f7ab185c7aba1b7c8140d620b4bda941d6".into(),
-				to: 0xa.into(),
+				from: 0xa.into(),
+				to: 0xb.into(),
 				value: 0.into(),
 				gas: 32768.into(),
 				input: vec![],
 				call_type: CallType::DelegateCall,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: 3.into(),
-				output: vec![],
+				gas_used: 18.into(),
+				output: vec![5],
 			}),
 		}];
 
@@ -2090,7 +2085,7 @@ mod tests {
 		let a = Address::zero();
 		state.require(&a, false).unwrap();
 		state.commit().unwrap();
-		assert_eq!(state.root().hex(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785");
+		assert_eq!(*state.root(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785".into());
 	}
 
 	#[test]
@@ -2127,7 +2122,7 @@ mod tests {
 	fn create_empty() {
 		let mut state = get_temp_state();
 		state.commit().unwrap();
-		assert_eq!(state.root().hex(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
+		assert_eq!(*state.root(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421".into());
 	}
 
 	#[test]

@@ -17,7 +17,7 @@
 //! Web3 rpc implementation.
 use hash::keccak;
 use jsonrpc_core::Result;
-use util::version;
+use version::version;
 use v1::traits::Web3;
 use v1::types::{H256, Bytes};
 

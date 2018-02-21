@@ -17,9 +17,7 @@
 //! Transaction Execution environment.
 use std::cmp;
 use std::sync::Arc;
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::*;
+use ethereum_types::{H256, U256, Address};
 use bytes::{Bytes, BytesRef};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use machine::EthereumMachine as Machine;
@@ -85,7 +83,6 @@ impl<'a, T: 'a, V: 'a, B: 'a> Externalities<'a, T, V, B>
 	where T: Tracer, V: VMTracer, B: StateBackend
 {
 	/// Basic `Externalities` constructor.
-	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	pub fn new(state: &'a mut State<B>,
 		env_info: &'a EnvInfo,
 		machine: &'a Machine,
@@ -302,7 +299,6 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		Ok(self.state.code_size(address)?.unwrap_or(0))
 	}
 
-	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	fn ret(mut self, gas: &U256, data: &ReturnData, apply_state: bool) -> vm::Result<U256>
 		where Self: Sized {
 		let handle_copy = |to: &mut Option<&mut Bytes>| {
@@ -400,8 +396,8 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		self.substate.sstore_clears_count = self.substate.sstore_clears_count + U256::one();
 	}
 
-	fn trace_next_instruction(&mut self, pc: usize, instruction: u8) -> bool {
-		self.vm_tracer.trace_next_instruction(pc, instruction)
+	fn trace_next_instruction(&mut self, pc: usize, instruction: u8, current_gas: U256) -> bool {
+		self.vm_tracer.trace_next_instruction(pc, instruction, current_gas)
 	}
 
 	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256) {
@@ -415,7 +411,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 
 #[cfg(test)]
 mod tests {
-	use util::*;
+	use ethereum_types::{U256, Address};
 	use evm::{EnvInfo, Ext, CallType};
 	use state::{State, Substate};
 	use tests::helpers::*;

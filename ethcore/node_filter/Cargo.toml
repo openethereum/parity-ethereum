@@ -8,14 +8,15 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ethcore = { path = ".."}
-ethcore-util = { path = "../../util" }
-ethcore-bigint = { path = "../../util/bigint" }
 ethcore-bytes = { path = "../../util/bytes" }
 ethcore-network = { path = "../../util/network" }
-native-contracts = { path = "../native_contracts" }
-futures = "0.1"
+ethereum-types = "0.2"
 log = "0.3"
-parking_lot = "0.4"
+parking_lot = "0.5"
+ethabi = "5.1"
+ethabi-derive = "5.0"
+ethabi-contract = "5.0"
+lru-cache = "0.1"
 
 [dev-dependencies]
 kvdb-memorydb = { path = "../../util/kvdb-memorydb" }

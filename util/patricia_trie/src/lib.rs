@@ -16,7 +16,7 @@
 
 //! Trie interface and implementation.
 extern crate rand;
-extern crate ethcore_bigint as bigint;
+extern crate ethereum_types;
 extern crate keccak_hash as keccak;
 extern crate rlp;
 extern crate hashdb;
@@ -25,29 +25,23 @@ extern crate elastic_array;
 extern crate memorydb;
 extern crate ethcore_logger;
 
+#[cfg(test)]
+extern crate trie_standardmap as standardmap;
+
 #[macro_use]
 extern crate log;
 
 use std::{fmt, error};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use keccak::KECCAK_NULL_RLP;
 use hashdb::{HashDB, DBValue};
 
-/// Export the standardmap module.
-pub mod standardmap;
-/// Export the node module.
 pub mod node;
-/// Export the triedb module.
 pub mod triedb;
-/// Export the triedbmut module.
 pub mod triedbmut;
-/// Export the sectriedb module.
 pub mod sectriedb;
-/// Export the sectriedbmut module.
 pub mod sectriedbmut;
-/// Trie query recording.
 pub mod recorder;
-
 
 mod fatdb;
 mod fatdbmut;
@@ -55,7 +49,6 @@ mod lookup;
 mod nibbleslice;
 mod nibblevec;
 
-pub use self::standardmap::{Alphabet, StandardMap, ValueMode};
 pub use self::triedbmut::TrieDBMut;
 pub use self::triedb::{TrieDB, TrieDBIterator};
 pub use self::sectriedbmut::SecTrieDBMut;
@@ -268,7 +261,6 @@ impl<'db> Trie for TrieKinds<'db> {
 	}
 }
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl TrieFactory {
 	/// Creates new factory.
 	pub fn new(spec: TrieSpec) -> Self {

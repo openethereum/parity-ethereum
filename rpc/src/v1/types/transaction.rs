@@ -18,7 +18,7 @@ use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
 use ethcore::miner;
 use ethcore::{contract_address, CreateContractAddress};
-use ethcore::transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
+use transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
 use v1::helpers::errors;
 use v1::types::{Bytes, H160, H256, U256, H512, U64, TransactionCondition};
 

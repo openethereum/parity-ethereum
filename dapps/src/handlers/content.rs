@@ -19,7 +19,7 @@
 use hyper::{self, mime, header};
 use hyper::StatusCode;
 
-use util::version;
+use parity_version::version;
 
 use handlers::add_security_headers;
 use Embeddable;
@@ -82,7 +82,7 @@ impl Into<hyper::Response> for ContentHandler {
 			.with_status(self.code)
 			.with_header(header::ContentType(self.mimetype))
 			.with_body(self.content);
-		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on);
+		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on, false);
 		res
 	}
 }

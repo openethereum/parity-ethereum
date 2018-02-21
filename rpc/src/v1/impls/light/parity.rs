@@ -18,7 +18,7 @@
 use std::sync::Arc;
 use std::collections::{BTreeMap, HashSet};
 
-use util::misc::version_data;
+use version::version_data;
 
 use crypto::{ecies, DEFAULT_MAC};
 use ethkey::{Brain, Generator};
@@ -60,6 +60,7 @@ pub struct ParityClient {
 	dapps_address: Option<Host>,
 	ws_address: Option<Host>,
 	eip86_transition: u64,
+	gas_price_percentile: usize,
 }
 
 impl ParityClient {
@@ -74,6 +75,7 @@ impl ParityClient {
 		signer: Option<Arc<SignerService>>,
 		dapps_address: Option<Host>,
 		ws_address: Option<Host>,
+		gas_price_percentile: usize,
 	) -> Self {
 		ParityClient {
 			light_dispatch,
@@ -85,7 +87,8 @@ impl ParityClient {
 			dapps_address,
 			ws_address,
 			eip86_transition: client.eip86_transition(),
-			client: client,
+			client,
+			gas_price_percentile,
 		}
 	}
 
@@ -96,6 +99,7 @@ impl ParityClient {
 			on_demand: self.light_dispatch.on_demand.clone(),
 			sync: self.light_dispatch.sync.clone(),
 			cache: self.light_dispatch.cache.clone(),
+			gas_price_percentile: self.gas_price_percentile,
 		}
 	}
 }
@@ -204,7 +208,12 @@ impl Parity for ParityClient {
 	}
 
 	fn registry_address(&self) -> Result<Option<H160>> {
-		Err(errors::light_unimplemented(None))
+		let reg = self.light_dispatch.client.engine().params().registrar;
+		if reg == Default::default() {
+			Ok(None)
+		} else {
+			Ok(Some(reg.into()))
+		}
 	}
 
 	fn rpc_settings(&self) -> Result<RpcSettings> {

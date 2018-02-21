@@ -17,7 +17,7 @@
 use std::str::FromStr;
 use std::fmt;
 use serde;
-use bigint::prelude::{U256 as EthU256, U128 as EthU128};
+use ethereum_types::{U256 as EthU256, U128 as EthU128};
 
 macro_rules! impl_uint {
 	($name: ident, $other: ident, $size: expr) => {
@@ -102,13 +102,13 @@ impl_uint!(U64, u64, 1);
 
 impl serde::Serialize for U128 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
-		serializer.serialize_str(&format!("0x{}", self.0.to_hex()))
+		serializer.serialize_str(&format!("0x{:x}", self.0))
 	}
 }
 
 impl serde::Serialize for U256 {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
-		serializer.serialize_str(&format!("0x{}", self.0.to_hex()))
+		serializer.serialize_str(&format!("0x{:x}", self.0))
 	}
 }
 

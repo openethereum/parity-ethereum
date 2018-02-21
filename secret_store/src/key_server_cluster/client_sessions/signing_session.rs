@@ -18,12 +18,12 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use parking_lot::{Mutex, Condvar};
 use ethkey::{Public, Secret, Signature};
-use bigint::hash::H256;
+use ethereum_types::H256;
 use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, AclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::{Cluster};
 use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
 use key_server_cluster::generation_session::{SessionImpl as GenerationSession, SessionParams as GenerationSessionParams,
-	Session as GenerationSessionApi, SessionState as GenerationSessionState};
+	SessionState as GenerationSessionState};
 use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessage, SigningGenerationMessage,
 	RequestPartialSignature, PartialSignature, SigningSessionCompleted, GenerationMessage, ConsensusMessage, SigningSessionError,
 	InitializeConsensusSession, ConfirmConsensusInitialization, SigningSessionDelegation, SigningSessionDelegationCompleted};
@@ -31,12 +31,6 @@ use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 use key_server_cluster::jobs::signing_job::{PartialSigningRequest, PartialSigningResponse, SigningJob};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
-
-/// Signing session API.
-pub trait Session: Send + Sync + 'static {
-	/// Wait until session is completed. Returns signed message.
-	fn wait(&self) -> Result<(Secret, Secret), Error>;
-}
 
 /// Distributed signing session.
 /// Based on "Efficient Multi-Party Digital Signature using Adaptive Secret Sharing for Low-Power Devices in Wireless Network" paper.
@@ -209,6 +203,11 @@ impl SessionImpl {
 	#[cfg(test)]
 	pub fn state(&self) -> SessionState {
 		self.data.lock().state
+	}
+
+	/// Wait for session completion.
+	pub fn wait(&self) -> Result<(Secret, Secret), Error> {
+		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
 	}
 
 	/// Delegate session to other node.
@@ -680,19 +679,6 @@ impl ClusterSession for SessionImpl {
 	}
 }
 
-impl Session for SessionImpl {
-	fn wait(&self) -> Result<(Secret, Secret), Error> {
-		let mut data = self.data.lock();
-		if !data.result.is_some() {
-			self.core.completed.wait(&mut data);
-		}
-
-		data.result.as_ref()
-			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
-			.clone()
-	}
-}
-
 impl SessionKeyGenerationTransport {
 	fn map_message(&self, message: Message) -> Result<Message, Error> {
 		match message {
@@ -748,7 +734,7 @@ impl SessionCore {
 
 		let key_version = key_share.version(version).map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
 		let signing_job = SigningJob::new_on_master(self.meta.self_node_id.clone(), key_share.clone(), key_version, session_public, session_secret_share, message_hash)?;
-		consensus_session.disseminate_jobs(signing_job, self.signing_transport())
+		consensus_session.disseminate_jobs(signing_job, self.signing_transport(), false)
 	}
 }
 
@@ -813,18 +799,17 @@ mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
 	use std::collections::{BTreeMap, VecDeque};
-	use bigint::hash::H256;
+	use ethereum_types::H256;
 	use ethkey::{self, Random, Generator, Public, Secret, KeyPair};
 	use acl_storage::DummyAclStorage;
 	use key_server_cluster::{NodeId, DummyKeyStorage, DocumentKeyShare, DocumentKeyShareVersion, SessionId, SessionMeta, Error, KeyStorage};
 	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::cluster::tests::DummyCluster;
-	use key_server_cluster::generation_session::{Session as GenerationSession};
 	use key_server_cluster::generation_session::tests::MessageLoop as KeyGenerationMessageLoop;
 	use key_server_cluster::math;
 	use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessage, ConsensusMessage, ConfirmConsensusInitialization,
 		SigningGenerationMessage, GenerationMessage, ConfirmInitialization, InitializeSession, RequestPartialSignature};
-	use key_server_cluster::signing_session::{Session, SessionImpl, SessionState, SessionParams};
+	use key_server_cluster::signing_session::{SessionImpl, SessionState, SessionParams};
 
 	struct Node {
 		pub node_id: NodeId,
@@ -986,6 +971,7 @@ mod tests {
 			key_share: Some(DocumentKeyShare {
 				author: Public::default(),
 				threshold: 0,
+				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 				versions: vec![DocumentKeyShareVersion {
@@ -1039,6 +1025,7 @@ mod tests {
 			key_share: Some(DocumentKeyShare {
 				author: Public::default(),
 				threshold: 2,
+				public: Default::default(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 				versions: vec![DocumentKeyShareVersion {
