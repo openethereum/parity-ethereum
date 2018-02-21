@@ -48,6 +48,8 @@ set_env_win () {
   echo "@ signtool sign /f "\%"1 /p "\%"2 /tr http://timestamp.comodoca.com /du https://parity.io "\%"3" > sign.cmd
 }
 build () {
+  echo "Remove index"
+  rm -rf cargo/registry/index/*.
   echo "Build parity:"
   cargo build --target $PLATFORM --features final --release
   echo "Build evmbin:"
