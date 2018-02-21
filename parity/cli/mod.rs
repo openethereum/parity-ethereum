@@ -334,27 +334,27 @@ usage! {
 			"Provide a file containing a password for unlocking an account. Leading and trailing whitespace is trimmed.",
 
 		["Private transactions options"]
-			ARG arg_private_signer: (Option<String>) = None, or |c: &Config| otry!(c.privatetransactions).signer.clone(),
+			ARG arg_private_signer: (Option<String>) = None, or |c: &Config| c.privatetransactions.as_ref()?.signer.clone(),
 			"--private-signer=[ACCOUNT]",
 			"Specify the account for signing public transaction created upon verified private transaction.",
 
-			ARG arg_private_validators: (Option<String>) = None, or |c: &Config| otry!(c.privatetransactions).validators.as_ref().map(|vec| vec.join(",")),
+			ARG arg_private_validators: (Option<String>) = None, or |c: &Config| c.privatetransactions.as_ref()?.validators.as_ref().map(|vec| vec.join(",")),
 			"--private-validators=[ACCOUNTS]",
 			"Specify the accounts for validating private transactions. ACCOUNTS is a comma-delimited list of addresses.",
 
-			ARG arg_private_account: (Option<String>) = None, or |c: &Config| otry!(c.privatetransactions).account.clone(),
+			ARG arg_private_account: (Option<String>) = None, or |c: &Config| c.privatetransactions.as_ref()?.account.clone(),
 			"--private-account=[ACCOUNT]",
 			"Specify the account for signing requests to secret store.",
 
-			ARG arg_private_sstore_url: (Option<String>) = None, or |c: &Config| otry!(c.privatetransactions).sstore_url.clone(),
+			ARG arg_private_sstore_url: (Option<String>) = None, or |c: &Config| c.privatetransactions.as_ref()?.sstore_url.clone(),
 			"--private-sstore-url=[URL]",
 			"Specify secret store URL used for encrypting private transactions.",
 
-			ARG arg_private_sstore_threshold: (Option<u32>) = None, or |c: &Config| otry!(c.privatetransactions).sstore_threshold.clone(),
+			ARG arg_private_sstore_threshold: (Option<u32>) = None, or |c: &Config| c.privatetransactions.as_ref()?.sstore_threshold.clone(),
 			"--private-sstore-threshold=[NUM]",
 			"Specify secret store threshold used for encrypting private transactions.",
 
-			ARG arg_private_passwords: (Option<String>) = None, or |c: &Config| otry!(c.privatetransactions).passwords.clone(),
+			ARG arg_private_passwords: (Option<String>) = None, or |c: &Config| c.privatetransactions.as_ref()?.passwords.clone(),
 			"--private-passwords=[FILE]...",
 			"Provide a file containing passwords for unlocking accounts (signer, private account, validators).",
 

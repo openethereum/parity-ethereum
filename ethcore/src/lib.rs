@@ -69,7 +69,6 @@ extern crate ethcore_miner;
 extern crate ethcore_stratum;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
-extern crate ethcrypto;
 extern crate ethjson;
 extern crate ethkey;
 extern crate hardware_wallet;
@@ -97,7 +96,6 @@ extern crate kvdb_memorydb;
 extern crate util_error;
 extern crate snappy;
 extern crate migration;
-extern crate ethabi;
 
 extern crate ethabi;
 #[macro_use]

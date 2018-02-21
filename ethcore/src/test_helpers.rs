@@ -21,7 +21,7 @@ use ethereum_types::{H256, U256, Address};
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use bytes::Bytes;
-use client::{BlockChainClient, ChainNotify, Client, ClientConfig, MiningBlockChainClient};
+use client::{BlockChainClient, ChainNotify, Client, ChainMessageType, ClientConfig, MiningBlockChainClient};
 use ethereum::ethash::EthashParams;
 use ethkey::KeyPair;
 use evm::Factory as EvmFactory;
@@ -437,13 +437,15 @@ pub fn get_default_ethash_params() -> EthashParams {
 	}
 }
 
+/// Test actor for chain events
 #[derive(Default)]
 pub struct TestNotify {
+	/// Messages store
 	pub messages: RwLock<Vec<Bytes>>,
 }
 
 impl ChainNotify for TestNotify {
-	fn broadcast(&self, data: Vec<u8>) {
+	fn broadcast(&self, _message_type: ChainMessageType, data: Vec<u8>) {
 		self.messages.write().push(data);
 	}
 }
