@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use futures::Future;
 use ethereum_types::{H256, Address};
 use bytes::{Bytes, ToPretty};
-use hash_fetch::urlhint::ContractClient;
+use contract_client::AsyncContractClient;
 use parking_lot::Mutex;
 use rustc_hex::FromHex;
 
@@ -62,12 +62,12 @@ impl FakeRegistrar {
 	}
 }
 
-impl ContractClient for FakeRegistrar {
-	fn registrar(&self) -> Result<Address, String> {
+impl AsyncContractClient for FakeRegistrar {
+	fn registrar_address(&self) -> Result<Address, String> {
 		Ok(REGISTRAR.parse().unwrap())
 	}
 
-	fn call(&self, address: Address, data: Bytes) -> Box<Future<Item = Bytes, Error = String> + Send> {
+	fn call_contract(&self, address: Address, data: Bytes) -> Box<Future<Item = Bytes, Error = String> + Send> {
 		let call = (address.to_hex(), data.to_hex());
 		self.calls.lock().push(call.clone());
 		let res = self.responses.lock().get(&call).cloned().expect(&format!("No response for call: {:?}", call));

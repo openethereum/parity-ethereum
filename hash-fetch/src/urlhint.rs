@@ -24,7 +24,7 @@ use mime_guess;
 use futures::{future, Future};
 use futures::future::Either;
 use ethereum_types::{H256, Address};
-use contract_client::{RegistrarClient, AsyncContractClient, ContractClient};
+use contract_client::{RegistrarClient, AsyncContractClient};
 
 use_contract!(urlhint, "Urlhint", "res/urlhint.json");
 
