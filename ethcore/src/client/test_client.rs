@@ -355,7 +355,7 @@ impl TestBlockChainClient {
 pub fn get_temp_state_db() -> (StateDB, TempDir) {
 	let tempdir = TempDir::new("").unwrap();
 	let db = Database::open(&DatabaseConfig::with_columns(Some(NUM_COLUMNS)), tempdir.path().to_str().unwrap()).unwrap();
-	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, Some(COL_STATE));
+	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, COL_STATE);
 	let state_db = StateDB::new(journal_db, 1024 * 1024);
 	(state_db, tempdir)
 }

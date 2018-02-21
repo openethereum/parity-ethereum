@@ -107,7 +107,10 @@ impl Batch {
 		let mut transaction = DBTransaction::new();
 
 		for keypair in &self.inner {
-			transaction.put(self.column, &keypair.0, &keypair.1);
+			match self.column {
+				Some(col) => transaction.put(col, &keypair.0, &keypair.1),
+				None => transaction.put_none_col(&keypair.0, &keypair.1),
+			}
 		}
 
 		self.inner.clear();

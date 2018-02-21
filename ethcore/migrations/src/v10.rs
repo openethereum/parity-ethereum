@@ -59,7 +59,7 @@ pub fn generate_bloom(source: Arc<Database>, dest: &mut Database) -> Result<(), 
 		let state_db = journaldb::new(
 			source.clone(),
 			journaldb::Algorithm::OverlayRecent,
-			Some(COL_STATE));
+			COL_STATE);
 		let account_trie = TrieDB::new(state_db.as_hashdb(), &state_root).chain_err(|| "Cannot open trie")?;
 		for item in account_trie.iter().map_err(|_| ErrorKind::MigrationImpossible)? {
 			let (ref account_key, _) = item.map_err(|_| ErrorKind::MigrationImpossible)?;

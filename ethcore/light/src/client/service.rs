@@ -76,7 +76,7 @@ impl<T: ChainDataFetcher> Service<T> {
 		let io_service = IoService::<ClientIoMessage>::start().map_err(Error::Io)?;
 		let client = Arc::new(Client::new(config,
 			db,
-			Some(db::COL_LIGHT_CHAIN),
+			db::COL_LIGHT_CHAIN,
 			spec,
 			fetcher,
 			io_service.channel(),

@@ -46,23 +46,20 @@ pub fn create(num_cols: u32) -> InMemory {
 }
 
 impl KeyValueDB for InMemory {
-	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>> {
-		let columns = self.columns.read();
-		match columns.get(&col) {
-			None => Err(format!("No such column family: {:?}", col).into()),
-			Some(map) => Ok(map.get(key).cloned()),
-		}
+	fn get(&self, col: u32, key: &[u8]) -> Result<Option<DBValue>> {
+		self.get_impl(Some(col), key)
 	}
 
-	fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>> {
-		let columns = self.columns.read();
-		match columns.get(&col) {
-			None => None,
-			Some(map) =>
-				map.iter()
-					.find(|&(ref k ,_)| k.starts_with(prefix))
-					.map(|(_, v)| v.to_vec().into_boxed_slice())
-		}
+	fn get_none_col(&self, key: &[u8]) -> Result<Option<DBValue>> {
+		self.get_impl(None, key)
+	}
+
+	fn get_by_prefix(&self, col: u32, prefix: &[u8]) -> Option<Box<[u8]>> {
+		self.get_by_prefix_impl(Some(col), prefix)
+	}
+
+	fn get_by_prefix_none_col(&self, prefix: &[u8]) -> Option<Box<[u8]>> {
+		self.get_by_prefix_impl(None, prefix)
 	}
 
 	fn write_buffered(&self, transaction: DBTransaction) {
@@ -96,7 +93,52 @@ impl KeyValueDB for InMemory {
 		Ok(())
 	}
 
-	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
+	fn iter<'a>(&'a self, col: u32) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
+		self.iter_impl(Some(col))
+	}
+
+	fn iter_none_col<'a>(&'a self) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
+		self.iter_impl(None)
+	}
+
+	fn iter_from_prefix<'a>(&'a self, col: u32, prefix: &'a [u8])
+		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>
+	{
+		self.iter_from_prefix_impl(Some(col), prefix)
+	}
+
+	fn iter_from_prefix_none_col<'a>(&'a self, prefix: &'a [u8])
+		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>
+	{
+		self.iter_from_prefix_impl(None, prefix)
+	}
+
+	fn restore(&self, _new_db: &str) -> Result<()> {
+		Err("Attempted to restore in-memory database".into())
+	}
+}
+
+impl InMemory {
+	fn get_impl(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>> {
+		let columns = self.columns.read();
+		match columns.get(&col) {
+			None => Err(format!("No such column family: {:?}", col).into()),
+			Some(map) => Ok(map.get(key).cloned()),
+		}
+	}
+
+	fn get_by_prefix_impl(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>> {
+		let columns = self.columns.read();
+		match columns.get(&col) {
+			None => None,
+			Some(map) =>
+				map.iter()
+					.find(|&(ref k ,_)| k.starts_with(prefix))
+					.map(|(_, v)| v.to_vec().into_boxed_slice())
+		}
+	}
+
+	fn iter_impl<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
 		match self.columns.read().get(&col) {
 			Some(map) => Box::new( // TODO: worth optimizing at all?
 				map.clone()
@@ -107,7 +149,7 @@ impl KeyValueDB for InMemory {
 		}
 	}
 
-	fn iter_from_prefix<'a>(&'a self, col: Option<u32>, prefix: &'a [u8])
+	fn iter_from_prefix_impl<'a>(&'a self, col: Option<u32>, prefix: &'a [u8])
 		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>
 	{
 		match self.columns.read().get(&col) {
@@ -119,9 +161,5 @@ impl KeyValueDB for InMemory {
 			),
 			None => Box::new(None.into_iter()),
 		}
-	}
-
-	fn restore(&self, _new_db: &str) -> Result<()> {
-		Err("Attempted to restore in-memory database".into())
 	}
 }

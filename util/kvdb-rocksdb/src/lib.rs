@@ -688,12 +688,20 @@ impl Database {
 // duplicate declaration of methods here to avoid trait import in certain existing cases
 // at time of addition.
 impl KeyValueDB for Database {
-	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>> {
-		Database::get(self, col, key)
+	fn get(&self, col: u32, key: &[u8]) -> Result<Option<DBValue>> {
+		Database::get(self, Some(col), key)
 	}
 
-	fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>> {
-		Database::get_by_prefix(self, col, prefix)
+	fn get_none_col(&self, key: &[u8]) -> Result<Option<DBValue>> {
+		Database::get(self, None, key)
+	}
+
+	fn get_by_prefix(&self, col: u32, prefix: &[u8]) -> Option<Box<[u8]>> {
+		Database::get_by_prefix(self, Some(col), prefix)
+	}
+
+	fn get_by_prefix_none_col(&self, prefix: &[u8]) -> Option<Box<[u8]>> {
+		Database::get_by_prefix(self, None, prefix)
 	}
 
 	fn write_buffered(&self, transaction: DBTransaction) {
@@ -708,15 +716,27 @@ impl KeyValueDB for Database {
 		Database::flush(self)
 	}
 
-	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
-		let unboxed = Database::iter(self, col);
+	fn iter<'a>(&'a self, col: u32) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
+		let unboxed = Database::iter(self, Some(col));
 		Box::new(unboxed.into_iter().flat_map(|inner| inner))
 	}
 
-	fn iter_from_prefix<'a>(&'a self, col: Option<u32>, prefix: &'a [u8])
+	fn iter_none_col<'a>(&'a self) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
+		let unboxed = Database::iter(self, None);
+		Box::new(unboxed.into_iter().flat_map(|inner| inner))
+	}
+
+	fn iter_from_prefix<'a>(&'a self, col: u32, prefix: &'a [u8])
 		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>
 	{
-		let unboxed = Database::iter_from_prefix(self, col, prefix);
+		let unboxed = Database::iter_from_prefix(self, Some(col), prefix);
+		Box::new(unboxed.into_iter().flat_map(|inner| inner))
+	}
+
+	fn iter_from_prefix_none_col<'a>(&'a self, prefix: &'a [u8])
+		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>
+	{
+		let unboxed = Database::iter_from_prefix(self, None, prefix);
 		Box::new(unboxed.into_iter().flat_map(|inner| inner))
 	}
 

@@ -56,14 +56,14 @@ pub struct RefCountedDB {
 	latest_era: Option<u64>,
 	inserts: Vec<H256>,
 	removes: Vec<H256>,
-	column: Option<u32>,
+	column: u32,
 }
 
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
-	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> RefCountedDB {
+	pub fn new(backing: Arc<KeyValueDB>, col: u32) -> RefCountedDB {
 		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
 
 		RefCountedDB {

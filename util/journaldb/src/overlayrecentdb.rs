@@ -67,7 +67,7 @@ pub struct OverlayRecentDB {
 	transaction_overlay: MemoryDB,
 	backing: Arc<KeyValueDB>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
-	column: Option<u32>,
+	column: u32,
 }
 
 #[derive(PartialEq)]
@@ -108,7 +108,7 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl OverlayRecentDB {
 	/// Create a new instance.
-	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> OverlayRecentDB {
+	pub fn new(backing: Arc<KeyValueDB>, col: u32) -> OverlayRecentDB {
 		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&*backing, col)));
 		OverlayRecentDB {
 			transaction_overlay: MemoryDB::new(),
@@ -133,7 +133,7 @@ impl OverlayRecentDB {
 		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
-	fn read_overlay(db: &KeyValueDB, col: Option<u32>) -> JournalOverlay {
+	fn read_overlay(db: &KeyValueDB, col: u32) -> JournalOverlay {
 		let mut journal = HashMap::new();
 		let mut overlay = MemoryDB::new();
 		let mut count = 0;

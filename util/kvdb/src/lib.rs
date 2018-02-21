@@ -101,7 +101,16 @@ impl DBTransaction {
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value will be overwritten upon write.
-	pub fn put(&mut self, col: Option<u32>, key: &[u8], value: &[u8]) {
+	pub fn put(&mut self, col: u32, key: &[u8], value: &[u8]) {
+		self.put_impl(Some(col), key, value);
+	}
+
+	/// Same as `put`, but on the special `None` column. Will `Err` on dbs that don't support `None`.
+	pub fn put_none_col(&mut self, key: &[u8], value: &[u8]) {
+		self.put_impl(None, key, value);
+	}
+
+	fn put_impl(&mut self, col: Option<u32>, key: &[u8], value: &[u8]) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
 		self.ops.push(DBOp::Insert {
@@ -112,7 +121,16 @@ impl DBTransaction {
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value will be overwritten upon write.
-	pub fn put_vec(&mut self, col: Option<u32>, key: &[u8], value: Bytes) {
+	pub fn put_vec(&mut self, col: u32, key: &[u8], value: Bytes) {
+		self.put_vec_impl(Some(col), key, value)
+	}
+
+	/// Same as `put`, but on the special `None` column. Will `Err` on dbs that don't support `None`.
+	pub fn put_vec_none_col(&mut self, key: &[u8], value: Bytes) {
+		self.put_vec_impl(None, key, value)
+	}
+
+	fn put_vec_impl(&mut self, col: Option<u32>, key: &[u8], value: Bytes) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
 		self.ops.push(DBOp::Insert {
@@ -124,7 +142,16 @@ impl DBTransaction {
 
 	/// Insert a key-value pair in the transaction. Any existing value will be overwritten upon write.
 	/// Value will be RLP-compressed on flush
-	pub fn put_compressed(&mut self, col: Option<u32>, key: &[u8], value: Bytes) {
+	pub fn put_compressed(&mut self, col: u32, key: &[u8], value: Bytes) {
+		self.put_compressed_impl(Some(col), key, value)
+	}
+
+	/// Same as `put_compressed`, but operates on the `None` column.
+	pub fn put_compressed_none_col(&mut self, key: &[u8], value: Bytes) {
+		self.put_compressed_impl(None, key, value)
+	}
+
+	fn put_compressed_impl(&mut self, col: Option<u32>, key: &[u8], value: Bytes) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
 		self.ops.push(DBOp::InsertCompressed {
@@ -135,7 +162,16 @@ impl DBTransaction {
 	}
 
 	/// Delete value by key.
-	pub fn delete(&mut self, col: Option<u32>, key: &[u8]) {
+	pub fn delete(&mut self, col: u32, key: &[u8]) {
+		self.delete_impl(Some(col), key)
+	}
+
+	/// Same as `delete` but operates on the `None` column. Will `Err` on database that don't support it.
+	pub fn delete_none_col(&mut self, key: &[u8]) {
+		self.delete_impl(None, key)
+	}
+
+	fn delete_impl(&mut self, col: Option<u32>, key: &[u8]) {
 		let mut ekey = ElasticArray32::new();
 		ekey.append_slice(key);
 		self.ops.push(DBOp::Delete {
@@ -168,10 +204,14 @@ pub trait KeyValueDB: Sync + Send {
 	fn transaction(&self) -> DBTransaction { DBTransaction::new() }
 
 	/// Get a value by key.
-	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>>;
+	fn get(&self, col: u32, key: &[u8]) -> Result<Option<DBValue>>;
+	/// Same as `get`, but operates on the special `None` column. Will Err if the DB doesn't support it.
+	fn get_none_col(&self, key: &[u8]) -> Result<Option<DBValue>>;
 
 	/// Get a value by partial key. Only works for flushed data.
-	fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>>;
+	fn get_by_prefix(&self, col: u32, prefix: &[u8]) -> Option<Box<[u8]>>;
+	/// Same as `get_by_prefix`, but operates on the special `None` column. Will Err if the DB doesn't support it.
+	fn get_by_prefix_none_col(&self, prefix: &[u8]) -> Option<Box<[u8]>>;
 
 	/// Write a transaction of changes to the buffer.
 	fn write_buffered(&self, transaction: DBTransaction);
@@ -186,10 +226,15 @@ pub trait KeyValueDB: Sync + Send {
 	fn flush(&self) -> Result<()>;
 
 	/// Iterate over flushed data for a given column.
-	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
+	fn iter<'a>(&'a self, col: u32) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
+	/// Same as `iter`, but operates on the special `None` column. Will Err if the DB doesn't support it.
+	fn iter_none_col<'a>(&'a self) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
 
 	/// Iterate over flushed data for a given column, starting from a given prefix.
-	fn iter_from_prefix<'a>(&'a self, col: Option<u32>, prefix: &'a [u8])
+	fn iter_from_prefix<'a>(&'a self, col: u32, prefix: &'a [u8])
+		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
+	/// Same as `iter_from_prefix`, but operates on the special `None` column. Will Err if the DB doesn't support it.
+	fn iter_from_prefix_none_col<'a>(&'a self, prefix: &'a [u8])
 		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
 
 	/// Attempt to replace this database with a new one located at the given path.

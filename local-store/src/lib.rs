@@ -138,7 +138,7 @@ pub trait NodeInfo: Send + Sync {
 
 /// Create a new local data store, given a database, a column to write to, and a node.
 /// Attempts to read data out of the store, and move it into the node.
-pub fn create<T: NodeInfo>(db: Arc<KeyValueDB>, col: Option<u32>, node: T) -> LocalDataStore<T> {
+pub fn create<T: NodeInfo>(db: Arc<KeyValueDB>, col: u32, node: T) -> LocalDataStore<T> {
 	LocalDataStore {
 		db: db,
 		col: col,
@@ -152,7 +152,7 @@ pub fn create<T: NodeInfo>(db: Arc<KeyValueDB>, col: Option<u32>, node: T) -> Lo
 /// and the node security level.
 pub struct LocalDataStore<T: NodeInfo> {
 	db: Arc<KeyValueDB>,
-	col: Option<u32>,
+	col: u32,
 	node: T,
 }
 

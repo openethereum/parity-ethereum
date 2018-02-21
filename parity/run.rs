@@ -604,7 +604,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 			}
 		};
 
-		let store = ::local_store::create(db, Some(::ethcore::db::COL_NODE_INFO), node_info);
+		let store = ::local_store::create(db, ::ethcore::db::COL_NODE_INFO, node_info);
 
 		if cmd.no_persistent_txqueue {
 			info!("Running without a persistent transaction queue.");
