@@ -220,7 +220,7 @@ fn sign_and_send_test(method: &str) {
 
 	assert_eq!(tester.io.handle_request_sync(request.as_ref()), Some(response));
 
-	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
+	tester.miner.increment_nonce(&address);
 
 	let t = Transaction {
 		nonce: U256::one(),

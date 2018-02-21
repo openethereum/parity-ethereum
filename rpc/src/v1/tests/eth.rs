@@ -17,15 +17,14 @@
 //! rpc integration tests.
 use std::env;
 use std::sync::Arc;
-use std::time::Duration;
 
-use ethereum_types::{U256, H256, Address};
+use ethereum_types::{H256, Address};
 use ethcore::account_provider::AccountProvider;
 use ethcore::block::Block;
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use ethcore::ethereum;
 use ethcore::ids::BlockId;
-use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, Miner, PendingSet, GasLimit};
+use ethcore::miner::{MinerService, Miner};
 use ethcore::spec::{Genesis, Spec};
 use ethcore::views::BlockView;
 use ethjson::blockchain::BlockChain;
@@ -33,7 +32,6 @@ use ethjson::state::test::ForkSpec;
 use io::IoChannel;
 use kvdb_memorydb;
 use miner::external::ExternalMiner;
-use miner::transaction_queue::PrioritizationStrategy;
 use parking_lot::Mutex;
 
 use jsonrpc_core::IoHandler;

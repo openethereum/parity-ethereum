@@ -16,8 +16,8 @@
 
 use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
-use ethcore::miner;
 use ethcore::{contract_address, CreateContractAddress};
+use miner;
 use transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
 use v1::helpers::errors;
 use v1::types::{Bytes, H160, H256, U256, H512, U64, TransactionCondition};
@@ -248,8 +248,8 @@ impl Transaction {
 
 impl LocalTransactionStatus {
 	/// Convert `LocalTransactionStatus` into RPC `LocalTransactionStatus`.
-	pub fn from(s: miner::LocalTransactionStatus, block_number: u64, eip86_transition: u64) -> Self {
-		use ethcore::miner::LocalTransactionStatus::*;
+	pub fn from(s: miner::local_transactions::Status, block_number: u64, eip86_transition: u64) -> Self {
+		use miner::local_transactions::Status::*;
 		match s {
 			Pending => LocalTransactionStatus::Pending,
 			Future => LocalTransactionStatus::Future,

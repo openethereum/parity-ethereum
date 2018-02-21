@@ -21,7 +21,7 @@ use std::collections::HashSet;
 
 use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::client::{BlockChainClient, BlockId};
+use ethcore::client::{MiningBlockChainClient, BlockId};
 use ethereum_types::H256;
 use parking_lot::Mutex;
 
@@ -56,7 +56,7 @@ pub trait Filterable {
 
 /// Eth filter rpc implementation for a full node.
 pub struct EthFilterClient<C, M> where
-	C: BlockChainClient,
+	C: MiningBlockChainClient,
 	M: MinerService {
 
 	client: Arc<C>,
@@ -64,7 +64,7 @@ pub struct EthFilterClient<C, M> where
 	polls: Mutex<PollManager<PollFilter>>,
 }
 
-impl<C, M> EthFilterClient<C, M> where C: BlockChainClient, M: MinerService {
+impl<C, M> EthFilterClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates new Eth filter client.
 	pub fn new(client: Arc<C>, miner: Arc<M>) -> Self {
 		EthFilterClient {
@@ -75,7 +75,7 @@ impl<C, M> EthFilterClient<C, M> where C: BlockChainClient, M: MinerService {
 	}
 }
 
-impl<C, M> Filterable for EthFilterClient<C, M> where C: BlockChainClient, M: MinerService {
+impl<C, M> Filterable for EthFilterClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	fn best_block_number(&self) -> u64 {
 		self.client.chain_info().best_block_number
 	}
@@ -85,7 +85,10 @@ impl<C, M> Filterable for EthFilterClient<C, M> where C: BlockChainClient, M: Mi
 	}
 
 	fn pending_transactions_hashes(&self, best: u64) -> Vec<H256> {
-		self.miner.pending_transactions_hashes(best)
+		self.miner.ready_transactions(&*self.client)
+			.into_iter()
+			.map(|tx| tx.signed().hash())
+			.collect()
 	}
 
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>> {

@@ -17,13 +17,13 @@
 use std::sync::Arc;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, Executed};
-use ethcore::miner::LocalTransactionStatus;
 use ethcore_logger::RotatingLogger;
+use ethereum_types::{Address, U256, H256};
 use ethstore::ethkey::{Generator, Random};
 use ethsync::ManageNetwork;
+use miner::local_transactions::Status as LocalTransactionStatus;
 use node_health::{self, NodeHealth};
 use parity_reactor;
-use ethereum_types::{Address, U256, H256};
 
 use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};
@@ -455,7 +455,9 @@ fn rpc_parity_next_nonce() {
 	let address = Address::default();
 	let io1 = deps.default_client();
 	let deps = Dependencies::new();
-	deps.miner.last_nonces.write().insert(address.clone(), 2.into());
+	deps.miner.increment_nonce(&address);
+	deps.miner.increment_nonce(&address);
+	deps.miner.increment_nonce(&address);
 	let io2 = deps.default_client();
 
 	let request = r#"{

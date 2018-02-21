@@ -76,17 +76,20 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 {
 
 	fn set_min_gas_price(&self, gas_price: U256) -> Result<bool> {
-		self.miner.set_minimal_gas_price(gas_price.into());
-		Ok(true)
+		unimplemented!()
 	}
 
 	fn set_gas_floor_target(&self, target: U256) -> Result<bool> {
-		self.miner.set_gas_floor_target(target.into());
+		let mut range = self.miner.authoring_params().gas_range_target.clone();
+		range.0 = target.into();
+		self.miner.set_gas_range_target(range);
 		Ok(true)
 	}
 
 	fn set_gas_ceil_target(&self, target: U256) -> Result<bool> {
-		self.miner.set_gas_ceil_target(target.into());
+		let mut range = self.miner.authoring_params().gas_range_target.clone();
+		range.1 = target.into();
+		self.miner.set_gas_range_target(range);
 		Ok(true)
 	}
 
@@ -95,24 +98,22 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 		Ok(true)
 	}
 
-	fn set_author(&self, author: H160) -> Result<bool> {
-		self.miner.set_author(author.into());
+	fn set_author(&self, address: H160) -> Result<bool> {
+		self.miner.set_author(address.into(), None).map_err(Into::into).map_err(errors::password)?;
 		Ok(true)
 	}
 
 	fn set_engine_signer(&self, address: H160, password: String) -> Result<bool> {
-		self.miner.set_engine_signer(address.into(), password).map_err(Into::into).map_err(errors::password)?;
+		self.miner.set_author(address.into(), Some(password)).map_err(Into::into).map_err(errors::password)?;
 		Ok(true)
 	}
 
 	fn set_transactions_limit(&self, limit: usize) -> Result<bool> {
-		self.miner.set_transactions_limit(limit);
-		Ok(true)
+		unimplemented!()
 	}
 
 	fn set_tx_gas_limit(&self, limit: U256) -> Result<bool> {
-		self.miner.set_tx_gas_limit(limit.into());
-		Ok(true)
+		unimplemented!()
 	}
 
 	fn add_reserved_peer(&self, peer: String) -> Result<bool> {
@@ -193,9 +194,11 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn remove_transaction(&self, hash: H256) -> Result<Option<Transaction>> {
-		let block_number = self.client.chain_info().best_block_number;
-		let hash = hash.into();
+		// let block_number = self.client.chain_info().best_block_number;
+		// let hash = hash.into();
 
-		Ok(self.miner.remove_pending_transaction(&*self.client, &hash).map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)))
+		// TODO [ToDr]
+		unimplemented!()
+		// Ok(self.miner.remove_pending_transaction(&*self.client, &hash).map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)))
 	}
 }

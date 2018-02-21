@@ -167,23 +167,23 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 	}
 
 	fn transactions_limit(&self) -> Result<usize> {
-		Ok(self.miner.transactions_limit())
+		unimplemented!()
 	}
 
 	fn min_gas_price(&self) -> Result<U256> {
-		Ok(U256::from(self.miner.minimal_gas_price()))
+		unimplemented!()
 	}
 
 	fn extra_data(&self) -> Result<Bytes> {
-		Ok(Bytes::new(self.miner.extra_data()))
+		Ok(Bytes::new(self.miner.authoring_params().extra_data))
 	}
 
 	fn gas_floor_target(&self) -> Result<U256> {
-		Ok(U256::from(self.miner.gas_floor_target()))
+		Ok(U256::from(self.miner.authoring_params().gas_range_target.0))
 	}
 
 	fn gas_ceil_target(&self) -> Result<U256> {
-		Ok(U256::from(self.miner.gas_ceil_target()))
+		Ok(U256::from(self.miner.authoring_params().gas_range_target.1))
 	}
 
 	fn dev_logs(&self) -> Result<Vec<String>> {
@@ -294,12 +294,24 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 
 	fn pending_transactions(&self) -> Result<Vec<Transaction>> {
 		let block_number = self.client.chain_info().best_block_number;
-		Ok(self.miner.pending_transactions().into_iter().map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)).collect::<Vec<_>>())
+		let ready_transactions = self.miner.ready_transactions(&*self.client);
+
+		Ok(ready_transactions
+		   .into_iter()
+		   .map(|t| Transaction::from_pending(t.pending().clone(), block_number, self.eip86_transition))
+		   .collect()
+	  )
 	}
 
 	fn future_transactions(&self) -> Result<Vec<Transaction>> {
 		let block_number = self.client.chain_info().best_block_number;
-		Ok(self.miner.future_transactions().into_iter().map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)).collect::<Vec<_>>())
+		let future_transactions = self.miner.future_transactions();
+
+		Ok(future_transactions
+		   .into_iter()
+		   .map(|t| Transaction::from_pending(t.pending().clone(), block_number, self.eip86_transition))
+		   .collect()
+		)
 	}
 
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>> {
@@ -316,13 +328,14 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 			return Ok(BTreeMap::new());
 		}
 
-		let transactions = self.miner.local_transactions();
-		let block_number = self.client.chain_info().best_block_number;
-		Ok(transactions
-		   .into_iter()
-		   .map(|(hash, status)| (hash.into(), LocalTransactionStatus::from(status, block_number, self.eip86_transition)))
-		   .collect()
-		)
+		unimplemented!()
+		// let transactions = self.miner.local_transactions();
+		// let block_number = self.client.chain_info().best_block_number;
+		// Ok(transactions
+		//    .into_iter()
+		//    .map(|(hash, status)| (hash.into(), LocalTransactionStatus::from(status, block_number, self.eip86_transition)))
+		//    .collect()
+		// )
 	}
 
 	fn dapps_url(&self) -> Result<String> {
@@ -338,11 +351,7 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 	fn next_nonce(&self, address: H160) -> BoxFuture<U256> {
 		let address: Address = address.into();
 
-		Box::new(future::ok(self.miner.last_nonce(&address)
-			.map(|n| n + 1.into())
-			.unwrap_or_else(|| self.client.latest_nonce(&address))
-			.into()
-		))
+		Box::new(future::ok(self.miner.next_nonce(&*self.client, &address).into()))
 	}
 
 	fn mode(&self) -> Result<String> {

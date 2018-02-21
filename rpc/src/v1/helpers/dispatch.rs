@@ -119,8 +119,7 @@ impl<C, M> Clone for FullDispatcher<C, M> {
 
 impl<C: MiningBlockChainClient, M: MinerService> FullDispatcher<C, M> {
 	fn state_nonce(&self, from: &Address) -> U256 {
-		self.miner.last_nonce(from).map(|nonce| nonce + U256::one())
-			.unwrap_or_else(|| self.client.latest_nonce(from))
+		self.miner.next_nonce(&*self.client, from)
 	}
 
 	/// Imports transaction to the miner's queue.

@@ -113,6 +113,18 @@ impl AccountTransactions {
 	}
 }
 
+/// Transaction import result.
+pub enum ImportResult {
+	/// Transaction has been imported to the current queue.
+	///
+	/// It's going to be propagated to peers.
+	Current,
+	/// Transaction has been imported to future queue.
+	///
+	/// It means it won't be propagated until the gap is filled.
+	Future
+}
+
 /// Light transaction queue. See module docs for more details.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct TransactionQueue {
@@ -122,7 +134,7 @@ pub struct TransactionQueue {
 
 impl TransactionQueue {
 	/// Import a pending transaction to be queued.
-	pub fn import(&mut self, tx: PendingTransaction) -> Result<transaction::ImportResult, transaction::Error>  {
+	pub fn import(&mut self, tx: PendingTransaction) -> Result<ImportResult, transaction::Error>  {
 		let sender = tx.sender();
 		let hash = tx.hash();
 		let nonce = tx.nonce;
@@ -138,7 +150,7 @@ impl TransactionQueue {
 					future: BTreeMap::new(),
 				});
 
-				transaction::ImportResult::Current
+				ImportResult::Current
 			}
 			Entry::Occupied(mut entry) => {
 				let acct_txs = entry.get_mut();
@@ -160,7 +172,7 @@ impl TransactionQueue {
 						let old = ::std::mem::replace(&mut acct_txs.current[idx], tx_info);
 						self.by_hash.remove(&old.hash);
 
-						transaction::ImportResult::Current
+						ImportResult::Current
 					}
 					Err(idx) => {
 						let cur_len = acct_txs.current.len();
@@ -182,13 +194,13 @@ impl TransactionQueue {
 								acct_txs.future.insert(future_nonce, future);
 							}
 
-							transaction::ImportResult::Current
+							ImportResult::Current
 						} else if idx == cur_len && acct_txs.current.last().map_or(false, |f| f.nonce + 1.into() != nonce) {
 							trace!(target: "txqueue", "Queued future transaction for {}, nonce={}", sender, nonce);
 							let future_nonce = nonce;
 							acct_txs.future.insert(future_nonce, tx_info);
 
-							transaction::ImportResult::Future
+							ImportResult::Future
 						} else {
 							trace!(target: "txqueue", "Queued current transaction for {}, nonce={}", sender, nonce);
 
@@ -196,7 +208,7 @@ impl TransactionQueue {
 							acct_txs.current.insert(idx, tx_info);
 							acct_txs.adjust_future();
 
-							transaction::ImportResult::Current
+							ImportResult::Current
 						}
 					}
 				}
