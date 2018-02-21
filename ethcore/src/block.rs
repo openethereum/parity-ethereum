@@ -447,11 +447,11 @@ impl<'x> OpenBlock<'x> {
 		if let Err(e) = s.block.state.commit() {
 			warn!("Encountered error on state commit: {}", e);
 		}
-		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().into_vec())));
+		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
 		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
 		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
 		s.block.header.set_state_root(s.block.state.root().clone());
-		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().into_vec())));
+		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
 		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
 		s.block.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
 
@@ -474,14 +474,14 @@ impl<'x> OpenBlock<'x> {
 			warn!("Encountered error on state commit: {}", e);
 		}
 		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &KECCAK_NULL_RLP {
-			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().into_vec())));
+			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
 		}
 		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
 		if s.block.header.uncles_hash().is_zero() || s.block.header.uncles_hash() == &KECCAK_EMPTY_LIST_RLP {
 			s.block.header.set_uncles_hash(keccak(&uncle_bytes));
 		}
 		if s.block.header.receipts_root().is_zero() || s.block.header.receipts_root() == &KECCAK_NULL_RLP {
-			s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().into_vec())));
+			s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
 		}
 
 		s.block.header.set_state_root(s.block.state.root().clone());
@@ -577,7 +577,7 @@ impl LockedBlock {
 		for receipt in &mut block.block.receipts {
 			receipt.outcome = TransactionOutcome::Unknown;
 		}
-		block.block.header.set_receipts_root(ordered_trie_root(block.block.receipts.iter().map(|r| r.rlp_bytes().into_vec())));
+		block.block.header.set_receipts_root(ordered_trie_root(block.block.receipts.iter().map(|r| r.rlp_bytes())));
 		block
 	}
 }

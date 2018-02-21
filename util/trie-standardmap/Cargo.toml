@@ -1,0 +1,11 @@
+[package]
+name = "trie-standardmap"
+version = "0.1.0"
+authors = ["debris <marek.kotewicz@gmail.com>"]
+description = "Standard test map for profiling tries"
+
+[dependencies]
+ethcore-bytes = { path = "../bytes" }
+ethereum-types = "0.2"
+keccak-hash = { path = "../hash" }
+rlp = { path = "../rlp" }

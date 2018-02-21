@@ -67,6 +67,26 @@ pub enum DBOp {
 	}
 }
 
+impl DBOp {
+	/// Returns the key associated with this operation.
+	pub fn key(&self) -> &[u8] {
+		match *self {
+			DBOp::Insert { ref key, .. } => key,
+			DBOp::InsertCompressed { ref key, .. } => key,
+			DBOp::Delete { ref key, .. } => key,
+		}
+	}
+
+	/// Returns the column associated with this operation.
+	pub fn col(&self) -> Option<u32> {
+		match *self {
+			DBOp::Insert { col, .. } => col,
+			DBOp::InsertCompressed { col, .. } => col,
+			DBOp::Delete { col, .. } => col,
+		}
+	}
+}
+
 impl DBTransaction {
 	/// Create new transaction.
 	pub fn new() -> DBTransaction {

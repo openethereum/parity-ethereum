@@ -491,6 +491,9 @@ impl Database {
 				let batch = WriteBatch::new();
 				let ops = tr.ops;
 				for op in ops {
+					// remove any buffered operation for this key
+					self.overlay.write()[Self::to_overlay_column(op.col())].remove(op.key());
+
 					match op {
 						DBOp::Insert { col, key, value } => {
 							col.map_or_else(|| batch.put(&key, &value), |c| batch.put_cf(cfs[c as usize], &key, &value))?
@@ -856,5 +859,22 @@ mod tests {
 			let db = Database::open(&config, tempdir.path().to_str().unwrap()).unwrap();
 			assert_eq!(db.num_columns(), 0);
 		}
+	}
+
+	#[test]
+	fn write_clears_buffered_ops() {
+		let tempdir = TempDir::new("").unwrap();
+		let config = DatabaseConfig::default();
+		let db = Database::open(&config, tempdir.path().to_str().unwrap()).unwrap();
+
+		let mut batch = db.transaction();
+		batch.put(None, b"foo", b"bar");
+		db.write_buffered(batch);
+
+		let mut batch = db.transaction();
+		batch.put(None, b"foo", b"baz");
+		db.write(batch).unwrap();
+
+		assert_eq!(db.get(None, b"foo").unwrap().unwrap().as_ref(), b"baz");
 	}
 }

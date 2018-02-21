@@ -27,14 +27,14 @@ use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use rlp::*;
 use header::*;
-use super::extras::*;
 use transaction::*;
 use views::*;
 use log_entry::{LogEntry, LocalizedLogEntry};
 use receipt::Receipt;
-use blooms::BloomGroup;
-use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
+use blooms::{BloomGroup, GroupPosition};
 use blockchain::best_block::{BestBlock, BestAncientBlock};
+use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
+use blockchain::extras::{BlockReceipts, BlockDetails, TransactionAddress, EPOCH_KEY_PREFIX, EpochTransitions};
 use types::blockchain_info::BlockChainInfo;
 use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
@@ -156,10 +156,6 @@ pub trait BlockProvider {
 		where F: Fn(&LogEntry) -> bool + Send + Sync, Self: Sized;
 }
 
-macro_rules! otry {
-	($e:expr) => { match $e { Some(x) => x, None => return None } }
-}
-
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 enum CacheId {
 	BlockHeader(H256),
@@ -167,13 +163,13 @@ enum CacheId {
 	BlockDetails(H256),
 	BlockHashes(BlockNumber),
 	TransactionAddresses(H256),
-	BlocksBlooms(LogGroupPosition),
+	BlocksBlooms(GroupPosition),
 	BlockReceipts(H256),
 }
 
 impl bc::group::BloomGroupDatabase for BlockChain {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
-		let position = LogGroupPosition::from(position.clone());
+		let position = GroupPosition::from(position.clone());
 		let result = self.db.read_with_cache(db::COL_EXTRA, &self.blocks_blooms, &position).map(Into::into);
 		self.cache_man.lock().note_used(CacheId::BlocksBlooms(position));
 		result
@@ -203,7 +199,7 @@ pub struct BlockChain {
 	block_details: RwLock<HashMap<H256, BlockDetails>>,
 	block_hashes: RwLock<HashMap<BlockNumber, H256>>,
 	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
-	blocks_blooms: RwLock<HashMap<LogGroupPosition, BloomGroup>>,
+	blocks_blooms: RwLock<HashMap<GroupPosition, BloomGroup>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
 	db: Arc<KeyValueDB>,
@@ -357,7 +353,7 @@ impl BlockProvider for BlockChain {
 	fn blocks_with_bloom(&self, bloom: &Bloom, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber> {
 		let range = from_block as bc::Number..to_block as bc::Number;
 		let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
-		chain.with_bloom(&range, &Bloom::from(bloom.clone()).into())
+		chain.with_bloom(&range, bloom)
 			.into_iter()
 			.map(|b| b as BlockNumber)
 			.collect()
@@ -621,58 +617,6 @@ impl BlockChain {
 		self.db.read_with_cache(db::COL_EXTRA, &self.block_details, parent).map_or(false, |d| d.children.contains(hash))
 	}
 
-	/// Rewind to a previous block
-	#[cfg(test)]
-	fn rewind(&self) -> Option<H256> {
-		use db::Key;
-		let mut batch =self.db.transaction();
-		// track back to the best block we have in the blocks database
-		if let Some(best_block_hash) = self.db.get(db::COL_EXTRA, b"best").unwrap() {
-			let best_block_hash = H256::from_slice(&best_block_hash);
-			if best_block_hash == self.genesis_hash() {
-				return None;
-			}
-			if let Some(extras) = self.db.read(db::COL_EXTRA, &best_block_hash) as Option<BlockDetails> {
-				type DetailsKey = Key<BlockDetails, Target=::ethereum_types::H264>;
-				batch.delete(db::COL_EXTRA, &(DetailsKey::key(&best_block_hash)));
-				let hash = extras.parent;
-				let range = extras.number as bc::Number .. extras.number as bc::Number;
-				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
-				let changes = chain.replace(&range, vec![]);
-				for (k, v) in changes {
-					batch.write(db::COL_EXTRA, &LogGroupPosition::from(k), &BloomGroup::from(v));
-				}
-				batch.put(db::COL_EXTRA, b"best", &hash);
-
-				let best_block_total_difficulty = self.block_details(&hash).unwrap().total_difficulty;
-				let best_block_rlp = self.block(&hash).unwrap().into_inner();
-
-				let mut best_block = self.best_block.write();
-				*best_block = BestBlock {
-					number: extras.number - 1,
-					total_difficulty: best_block_total_difficulty,
-					hash: hash,
-					timestamp: BlockView::new(&best_block_rlp).header().timestamp(),
-					block: best_block_rlp,
-				};
-				// update parent extras
-				if let Some(mut details) = self.db.read(db::COL_EXTRA, &hash) as Option<BlockDetails> {
-					details.children.clear();
-					batch.write(db::COL_EXTRA, &hash, &details);
-				}
-				self.db.write(batch).expect("Writing to db failed");
-				self.block_details.write().clear();
-				self.block_hashes.write().clear();
-				self.block_headers.write().clear();
-				self.block_bodies.write().clear();
-				self.block_receipts.write().clear();
-				return Some(hash);
-			}
-		}
-
-		None
-	}
-
 	/// Returns a tree route between `from` and `to`, which is a tuple of:
 	///
 	/// - a vector of hashes of all blocks, ordered from `from` to `to`.
@@ -722,8 +666,8 @@ impl BlockChain {
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
-		let mut from_details = otry!(self.block_details(&from));
-		let mut to_details = otry!(self.block_details(&to));
+		let mut from_details = self.block_details(&from)?;
+		let mut to_details = self.block_details(&to)?;
 		let mut current_from = from;
 		let mut current_to = to;
 
@@ -731,13 +675,13 @@ impl BlockChain {
 		while from_details.number > to_details.number {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = otry!(self.block_details(&from_details.parent));
+			from_details = self.block_details(&from_details.parent)?;
 		}
 
 		while to_details.number > from_details.number {
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = otry!(self.block_details(&to_details.parent));
+			to_details = self.block_details(&to_details.parent)?;
 		}
 
 		assert_eq!(from_details.number, to_details.number);
@@ -746,11 +690,11 @@ impl BlockChain {
 		while current_from != current_to {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = otry!(self.block_details(&from_details.parent));
+			from_details = self.block_details(&from_details.parent)?;
 
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = otry!(self.block_details(&to_details.parent));
+			to_details = self.block_details(&to_details.parent)?;
 		}
 
 		let index = from_branch.len();
@@ -912,8 +856,8 @@ impl BlockChain {
 	/// The block corresponding the the parent hash must be stored already.
 	pub fn epoch_transition_for(&self, parent_hash: H256) -> Option<EpochTransition> {
 		// slow path: loop back block by block
-		for hash in otry!(self.ancestry_iter(parent_hash)) {
-			let details = otry!(self.block_details(&hash));
+		for hash in self.ancestry_iter(parent_hash)? {
+			let details = self.block_details(&hash)?;
 
 			// look for transition in database.
 			if let Some(transition) = self.epoch_transition(details.number, hash) {
@@ -925,7 +869,7 @@ impl BlockChain {
 			//
 			// if `block_hash` is canonical it will only return transitions up to
 			// the parent.
-			if otry!(self.block_hash(details.number)) == hash {
+			if self.block_hash(details.number)? == hash {
 				return self.epoch_transitions()
 					.map(|(_, t)| t)
 					.take_while(|t| t.block_number <= details.number)
@@ -1316,7 +1260,7 @@ impl BlockChain {
 	/// Later, BloomIndexer is used to map bloom location on filter layer (BloomIndex)
 	/// to bloom location in database (BlocksBloomLocation).
 	///
-	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<LogGroupPosition, BloomGroup> {
+	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<GroupPosition, BloomGroup> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
 
@@ -1328,7 +1272,7 @@ impl BlockChain {
 					HashMap::new()
 				} else {
 					let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
-					chain.insert(info.number as bc::Number, Bloom::from(log_bloom).into())
+					chain.insert(info.number as bc::Number, log_bloom)
 				}
 			},
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
@@ -1336,14 +1280,12 @@ impl BlockChain {
 				let start_number = ancestor_number + 1;
 				let range = start_number as bc::Number..self.best_block_number() as bc::Number;
 
-				let mut blooms: Vec<bc::Bloom> = data.enacted.iter()
+				let mut blooms: Vec<Bloom> = data.enacted.iter()
 					.map(|hash| self.block_header_data(hash).unwrap())
 					.map(|h| h.log_bloom())
-					.map(Bloom::from)
-					.map(Into::into)
 					.collect();
 
-				blooms.push(Bloom::from(header.log_bloom()).into());
+				blooms.push(header.log_bloom());
 
 				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
 				chain.replace(&range, blooms)
@@ -1463,11 +1405,6 @@ impl BlockChain {
 			ancient_block_hash: best_ancient_block.as_ref().map(|b| b.hash),
 			ancient_block_number: best_ancient_block.as_ref().map(|b| b.number),
 		}
-	}
-
-	#[cfg(test)]
-	pub fn db(&self) -> &Arc<KeyValueDB> {
-		&self.db
 	}
 }
 
@@ -2186,31 +2123,6 @@ mod tests {
 		// re-loading the blockchain should load the correct best block.
 		let bc = new_chain(&genesis.last().encoded(), db);
 		assert_eq!(bc.best_block_number(), 5);
-	}
-
-	#[test]
-	fn test_rewind() {
-		let genesis = BlockBuilder::genesis();
-		let first = genesis.add_block();
-		let second = first.add_block();
-
-		let db = new_db();
-		let bc = new_chain(&genesis.last().encoded(), db.clone());
-
-		let mut batch = db.transaction();
-		bc.insert_block(&mut batch, &first.last().encoded(), vec![]);
-		bc.commit();
-		bc.insert_block(&mut batch, &second.last().encoded(), vec![]);
-		bc.commit();
-		db.write(batch).unwrap();
-
-		assert_eq!(bc.rewind(), Some(first.last().hash()));
-		assert!(!bc.is_known(&second.last().hash()));
-		assert_eq!(bc.best_block_number(), 1);
-		assert_eq!(bc.best_block_hash(), first.last().hash());
-
-		assert_eq!(bc.rewind(), Some(genesis.last().hash()));
-		assert_eq!(bc.rewind(), None);
 	}
 
 	#[test]

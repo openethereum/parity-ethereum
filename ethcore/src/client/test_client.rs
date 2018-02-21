@@ -33,7 +33,7 @@ use rlp::*;
 use ethkey::{Generator, Random};
 use tempdir::TempDir;
 use transaction::{self, Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
-use blockchain::TreeRoute;
+use blockchain::{TreeRoute, BlockReceipts};
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
 	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
@@ -46,9 +46,9 @@ use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
-use blockchain::extras::BlockReceipts;
 use error::{ImportResult, Error as EthcoreError};
-use evm::{Factory as EvmFactory, VMType};
+use evm::VMType;
+use factory::VmFactory;
 use vm::Schedule;
 use miner::{Miner, MinerService};
 use spec::Spec;
@@ -103,7 +103,7 @@ pub struct TestBlockChainClient {
 	/// Spec
 	pub spec: Spec,
 	/// VM Factory
-	pub vm_factory: EvmFactory,
+	pub vm_factory: VmFactory,
 	/// Timestamp assigned to latest sealed block
 	pub latest_block_timestamp: RwLock<u64>,
 	/// Ancient block info.
@@ -174,7 +174,7 @@ impl TestBlockChainClient {
 			queue_size: AtomicUsize::new(0),
 			miner: Arc::new(Miner::with_spec(&spec)),
 			spec: spec,
-			vm_factory: EvmFactory::new(VMType::Interpreter, 1024 * 1024),
+			vm_factory: VmFactory::new(VMType::Interpreter, 1024 * 1024),
 			latest_block_timestamp: RwLock::new(10_000_000),
 			ancient_block: RwLock::new(None),
 			first_block: RwLock::new(None),
@@ -415,7 +415,7 @@ impl BroadcastProposalBlock for TestBlockChainClient {
 }
 
 impl MiningBlockChainClient for TestBlockChainClient {
-	fn vm_factory(&self) -> &EvmFactory {
+	fn vm_factory(&self) -> &VmFactory {
 		&self.vm_factory
 	}
 }

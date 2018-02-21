@@ -26,26 +26,16 @@ pub struct BloomGroup {
 
 impl From<bc::BloomGroup> for BloomGroup {
 	fn from(group: bc::BloomGroup) -> Self {
-		let blooms = group.blooms
-			.into_iter()
-			.map(From::from)
-			.collect();
-
 		BloomGroup {
-			blooms: blooms
+			blooms: group.blooms
 		}
 	}
 }
 
 impl Into<bc::BloomGroup> for BloomGroup {
 	fn into(self) -> bc::BloomGroup {
-		let blooms = self.blooms
-			.into_iter()
-			.map(Into::into)
-			.collect();
-
 		bc::BloomGroup {
-			blooms: blooms
+			blooms: self.blooms
 		}
 	}
 }
