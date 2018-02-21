@@ -127,6 +127,11 @@ impl Client {
 		})
 	}
 
+	/// Sets a limit on the maximum download size.
+	pub fn set_limit(&mut self, limit: Option<usize>) {
+		self.limit = limit
+	}
+
 	fn client(&self) -> Result<Arc<reqwest::Client>, Error> {
 		{
 			let (ref time, ref client) = *self.client.read();
