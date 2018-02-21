@@ -16,11 +16,13 @@
 
 use std::sync::Arc;
 use parking_lot::RwLock;
+use ethabi::RawLog;
 use ethcore::filter::Filter;
 use ethcore::log_entry::LocalizedLogEntry;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethkey::{Public, Signature, public_to_address};
 use hash::keccak;
+use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
 use listener::service_contract_listener::ServiceTask;
 use trusted_client::TrustedClient;
@@ -32,16 +34,25 @@ use_contract!(service, "Service", "res/service.json");
 const SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service";
 
 /// Server key generation has been requested.
-const SERVER_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyRequested(bytes32,uint256)";
-/// Document key generation has been requested.
-const DOCUMENT_KEY_REQUESTED_EVENT_NAME: &'static [u8] = &*b"DocumentKeyRequested(bytes32,uint256,uint8,bytes32,bytes32)";
+const SERVER_KEY_GENERATION_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyGenerationRequested(bytes32,address,uint256)";
+/// Server key retrieval has been requested.
+const SERVER_KEY_RETRIEVAL_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyRetrievalRequested(bytes32)";
+/// Document key store has been requested.
+const DOCUMENT_KEY_STORE_REQUESTED_EVENT_NAME: &'static [u8] = &*b"DocumentKeyStoreRequested(bytes32,address,bytes,bytes)";
+/// Document key common part retrieval has been requested.
+const DOCUMENT_KEY_COMMON_PART_RETRIEVAL_REQUESTED_EVENT_NAME: &'static [u8] = &*b"DocumentKeyCommonRetrievalRequested(bytes32,address)";
+/// Document key personal part retrieval has been requested.
+const DOCUMENT_KEY_PERSONAL_PART_RETRIEVAL_REQUESTED_EVENT_NAME: &'static [u8] = &*b"DocumentKeyPersonalRetrievalRequested(bytes32,address)";
 
 /// Number of confirmations required before request can be processed.
 const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
 
 lazy_static! {
-	pub static ref SERVER_KEY_REQUESTED_EVENT_NAME_HASH: H256 = keccak(SERVER_KEY_REQUESTED_EVENT_NAME);
-	pub static ref DOCUMENT_KEY_REQUESTED_EVENT_NAME_HASH: H256 = keccak(DOCUMENT_KEY_REQUESTED_EVENT_NAME);
+	pub static ref SERVER_KEY_GENERATION_REQUESTED_EVENT_NAME_HASH: H256 = keccak(SERVER_KEY_GENERATION_REQUESTED_EVENT_NAME);
+	pub static ref SERVER_KEY_RETRIEVAL_REQUESTED_EVENT_NAME_HASH: H256 = keccak(SERVER_KEY_RETRIEVAL_REQUESTED_EVENT_NAME);
+	pub static ref DOCUMENT_KEY_STORE_REQUESTED_EVENT_NAME_HASH: H256 = keccak(DOCUMENT_KEY_STORE_REQUESTED_EVENT_NAME);
+	pub static ref DOCUMENT_KEY_COMMON_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH: H256 = keccak(DOCUMENT_KEY_COMMON_PART_RETRIEVAL_REQUESTED_EVENT_NAME);
+	pub static ref DOCUMENT_KEY_PERSONAL_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH: H256 = keccak(DOCUMENT_KEY_PERSONAL_PART_RETRIEVAL_REQUESTED_EVENT_NAME);
 }
 
 /// Service contract trait.
@@ -53,11 +64,11 @@ pub trait ServiceContract: Send + Sync {
 	/// Publish generated key.
 	fn read_pending_requests(&self) -> Box<Iterator<Item=(bool, ServiceTask)>>;
 	/// Publish generated server key.
-	fn publish_generated_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String>;
+	fn publish_generated_server_key(&self, server_key_id: &ServerKeyId, server_key: Public) -> Result<(), String>;
 	/// Publish server key generation error.
 	fn publish_server_key_generation_error(&self, server_key_id: &ServerKeyId) -> Result<(), String>;
 	/// Publish retrieved server key.
-	fn publish_retrieved_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String>;
+	fn publish_retrieved_server_key(&self, server_key_id: &ServerKeyId, server_key: Public, threshold: usize) -> Result<(), String>;
 	/// Publish server key retrieval error.
 	fn publish_server_key_retrieval_error(&self, server_key_id: &ServerKeyId) -> Result<(), String>;
 	/// Publish stored document key.
@@ -65,7 +76,7 @@ pub trait ServiceContract: Send + Sync {
 	/// Publish document key store error.
 	fn publish_document_key_store_error(&self, server_key_id: &ServerKeyId) -> Result<(), String>;
 	/// Publish retrieved document key common.
-	fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public) -> Result<(), String>;
+	fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public, threshold: usize) -> Result<(), String>;
 	/// Publish document key store error.
 	fn publish_document_key_retrieval_error(&self, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String>;
 }
@@ -102,6 +113,15 @@ struct PendingRequestsIterator<F: Fn(U256) -> Option<(bool, ServiceTask)>> {
 	length: U256,
 }
 
+/// Server key generation related functions.
+struct ServerKeyGenerationService;
+/// Server key retrieval related functions.
+struct ServerKeyRetrievalService;
+/// Document key store related functions.
+struct DocumentKeyStoreService;
+/// Document key shadow retrievalrelated functions.
+struct DocumentKeyShadowRetrievalService;
+
 impl OnChainServiceContract {
 	/// Create new on-chain service contract.
 	pub fn new(client: TrustedClient, address: ContractAddress, self_key_pair: Arc<NodeKeyPair>) -> Self {
@@ -130,6 +150,43 @@ impl OnChainServiceContract {
 				last_log_block: None,
 			}),
 		}
+	}
+
+	/// Send transaction to the service contract.
+	fn send_contract_transaction<C, P>(&self, server_key_id: &ServerKeyId, check: C, prepare_tx: P) -> Result<(), String>
+		where C: Fn(&Client, &Address, &service::Service, &ServerKeyId, &Address) -> bool,
+			P: Fn(&service::Service) -> Result<Bytes, String> {
+		// only publish if contract address is set && client is online
+		let data = self.data.read();
+		if data.contract_address == Default::default() {
+			// it is not an error, because key could be generated even without contract
+			return Ok(());
+		}
+
+		let client = match self.client.get() {
+			Some(client) => client,
+			None => return Err("trusted client is required to publish key".into()),
+		};
+
+		// only publish key if contract waits for publication
+		// failing is ok here - it could be that enough confirmations have been recevied
+		// or key has been requested using HTTP API
+		let contract_address = data.contract_address;
+		let self_address = public_to_address(self.self_key_pair.public());
+		if check(&*client, &contract_address, &data.contract, server_key_id, &self_address) {
+			return Ok(());
+		}
+
+		// prepare transaction data
+		let transaction_data = prepare_tx(&data.contract)?;
+
+		// send transaction
+		client.transact_contract(
+			data.contract_address,
+			transaction_data
+		).map_err(|e| format!("{}", e))?;
+
+		Ok(())
 	}
 }
 
@@ -193,8 +250,11 @@ impl ServiceContract for OnChainServiceContract {
 			address: Some(vec![address]),
 			topics: vec![
 				Some(vec![
-					*SERVER_KEY_REQUESTED_EVENT_NAME_HASH,
-					*DOCUMENT_KEY_REQUESTED_EVENT_NAME_HASH,
+					*SERVER_KEY_GENERATION_REQUESTED_EVENT_NAME_HASH,
+					*SERVER_KEY_RETRIEVAL_REQUESTED_EVENT_NAME_HASH,
+					*DOCUMENT_KEY_STORE_REQUESTED_EVENT_NAME_HASH,
+					*DOCUMENT_KEY_COMMON_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH,
+					*DOCUMENT_KEY_PERSONAL_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH,
 				]),
 			],
 			limit: None,
@@ -203,11 +263,18 @@ impl ServiceContract for OnChainServiceContract {
 		let data = self.data.read();
 		Box::new(request_logs.into_iter()
 			.filter_map(|log| {
-				if log.entry.topics[0] == *SERVER_KEY_REQUESTED_EVENT_NAME_HASH {
-					parse_server_key_generation_request(&data.contract, log)
-				}/* else if log.entry.topics[0] == *DOCUMENT_KEY_REQUESTED_EVENT_NAME_HASH {
-					parse_document_key_generation_request(&data.contract, log)
-				}*/ else {
+				let raw_log: RawLog = (log.entry.topics.into_iter().map(|t| t.0.into()).collect(), log.entry.data).into();
+				if raw_log.topics[0] == *SERVER_KEY_GENERATION_REQUESTED_EVENT_NAME_HASH {
+					ServerKeyGenerationService::parse_log(&data.contract, raw_log)
+				} else if raw_log.topics[0] == *SERVER_KEY_RETRIEVAL_REQUESTED_EVENT_NAME_HASH {
+					ServerKeyRetrievalService::parse_log(&data.contract, raw_log)
+				} else if raw_log.topics[0] == *DOCUMENT_KEY_STORE_REQUESTED_EVENT_NAME_HASH {
+					DocumentKeyStoreService::parse_log(&data.contract, raw_log)
+				} else if raw_log.topics[0] == *DOCUMENT_KEY_COMMON_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH {
+					DocumentKeyShadowRetrievalService::parse_common_request_log(&data.contract, raw_log)
+				//} else if raw_log.topics[0] == *DOCUMENT_KEY_PERSONAL_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH {
+				//	parse_document_key_personal_part_retrieval_request(&data.contract, log)
+				} else {
 					Err("unknown type of log entry".into())
 				}
 				.map_err(|error| {
@@ -281,123 +348,53 @@ return Box::new(::std::iter::empty()); // TODO: remove me
 		}*/
 	}
 
-	fn publish_generated_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
-		// only publish if contract address is set && client is online
-		let data = self.data.read();
-		if data.contract_address == Default::default() {
-			// it is not an error, because key could be generated even without contract
-			return Ok(());
-		}
-
-		let client = match self.client.get() {
-			Some(client) => client,
-			None => return Err("trusted client is required to publish key".into()),
-		};
-
-		// only publish key if contract waits for publication
-		// failing is ok here - it could be that enough confirmations have been recevied
-		// or key has been requested using HTTP API
-		let contract_address = data.contract_address;
-		let do_call = |data| client.call_contract(BlockId::Latest, contract_address, data);
-		let self_address = public_to_address(self.self_key_pair.public());
-		if data.contract.functions()
-			.get_server_key_confirmation_status()
-			.call(*server_key_id, self_address, &do_call)
-			.unwrap_or(false) {
-			return Ok(());
-		}
-
-		// prepare transaction data
-		let server_key_hash = keccak(server_key);
-		let signed_server_key = self.self_key_pair.sign(&server_key_hash).map_err(|e| format!("{}", e))?;
-		let signed_server_key: Signature = signed_server_key.into_electrum().into();
-		let transaction_data = data.contract.functions()
-			.server_key_generated()
-			.input(*server_key_id,
-				server_key.to_vec(),
-				signed_server_key.v(),
-				signed_server_key.r(),
-				signed_server_key.s(),
-			);
-
-		// send transaction
-		client.transact_contract(
-			data.contract_address,
-			transaction_data
-		).map_err(|e| format!("{}", e))?;
-
-		Ok(())
+	fn publish_generated_server_key(&self, server_key_id: &ServerKeyId, server_key: Public) -> Result<(), String> {
+		self.send_contract_transaction(server_key_id, ServerKeyGenerationService::is_confirmed, |service| {
+			Ok(ServerKeyGenerationService::prepare_pubish_tx_data(service, server_key_id, &server_key))
+		})
 	}
 
 	fn publish_server_key_generation_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
-		unimplemented!()
+		self.send_contract_transaction(server_key_id, ServerKeyGenerationService::is_confirmed, |service| {
+			Ok(ServerKeyGenerationService::prepare_error_tx_data(service, server_key_id))
+		})
 	}
 
-	fn publish_retrieved_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
-		unimplemented!()
+	fn publish_retrieved_server_key(&self, server_key_id: &ServerKeyId, server_key: Public, threshold: usize) -> Result<(), String> {
+		self.send_contract_transaction(server_key_id, ServerKeyRetrievalService::is_confirmed, |service| {
+			Ok(ServerKeyRetrievalService::prepare_pubish_tx_data(service, server_key_id, server_key, threshold))
+		})
 	}
 
 	fn publish_server_key_retrieval_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
-		unimplemented!()
+		self.send_contract_transaction(server_key_id, ServerKeyRetrievalService::is_confirmed, |service| {
+			Ok(ServerKeyRetrievalService::prepare_error_tx_data(service, server_key_id))
+		})
 	}
 
 	fn publish_stored_document_key(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
-		unimplemented!()
+		self.send_contract_transaction(server_key_id, DocumentKeyStoreService::is_confirmed, |service| {
+			Ok(DocumentKeyStoreService::prepare_pubish_tx_data(service, server_key_id))
+		})
 	}
 
 	fn publish_document_key_store_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
-		unimplemented!()
+		self.send_contract_transaction(server_key_id, DocumentKeyStoreService::is_confirmed, |service| {
+			Ok(DocumentKeyStoreService::prepare_error_tx_data(service, server_key_id))
+		})
 	}
 
-	fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public) -> Result<(), String> {
-		unimplemented!()
+	fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public, threshold: usize) -> Result<(), String> {
+		self.send_contract_transaction(server_key_id, DocumentKeyShadowRetrievalService::is_confirmed, |service| {
+			Ok(DocumentKeyShadowRetrievalService::prepare_pubish_common_tx_data(service, server_key_id, requester, common_point, encrypted_point, threshold))
+		})
 	}
 
 	fn publish_document_key_retrieval_error(&self, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String> {
-		unimplemented!()
+		self.send_contract_transaction(server_key_id, DocumentKeyShadowRetrievalService::is_confirmed, |service| {
+			Ok(DocumentKeyShadowRetrievalService::prepare_error_tx_data(service, server_key_id, requester))
+		})
 	}
-
-	/*fn publish_document_key(&self, server_key_id: &ServerKeyId, document_key: &EncryptedDocumentKey) -> Result<(), String> {
-		// only publish if contract address is set && client is online
-		let data = self.data.read();
-		if data.contract_address == Default::default() {
-			// it is not an error, because key could be generated even without contract
-			return Ok(());
-		}
-
-		let client = match self.client.get() {
-			Some(client) => client,
-			None => return Err("trusted client is required to publish key".into()),
-		};
-
-		// only publish key if contract waits for publication
-		// failing is ok here - it could be that enough confirmations have been recevied
-		// or key has been requested using HTTP API
-		let do_call = |d| client.call_contract(BlockId::Latest, d);
-		let self_address = public_to_address(self.self_key_pair.public());
-		if data.contract.functions().get_server_key_confirmation_status().call(*server_key_id, self_address, &do_call).unwrap_or(false) {
-			return Ok(());
-		}
-
-		// prepare transaction data
-		let document_key_hash = keccak(document_key);
-		let signed_document_key = self.self_key_pair.sign(&document_key_hash).map_err(|e| format!("{}", e))?;
-		let signed_document_key: Signature = signed_document_key.into_electrum().into();
-		let transaction_data = data.contract.encode_document_key_generated_input(server_key_id.clone(),
-			document_key.to_vec(),
-			signed_document_key.v(),
-			signed_document_key.r().into(),
-			signed_document_key.s().into()
-		)?;
-
-		// send transaction
-		client.transact_contract(
-			data.contract_address.clone(),
-			transaction_data
-		).map_err(|e| format!("{}", e))?;
-
-		Ok(())
-	}*/
 }
 
 impl<F> Iterator for PendingRequestsIterator<F> where F: Fn(U256) -> Option<(bool, ServiceTask)> {
@@ -422,34 +419,142 @@ fn get_confirmed_block_hash(client: &Client, confirmations: u64) -> Option<H256>
 		.and_then(|b| client.block_hash(BlockId::Number(b)))
 }
 
-/// Parse server key generation log entry.
-fn parse_server_key_generation_request(contract: &service::Service, log: LocalizedLogEntry) -> Result<ServiceTask, String> {
-	let event = contract.events().server_key_requested();
-	let log_data = (log.entry.topics.into_iter().map(|t| t.0.into()).collect(), log.entry.data).into();
-	match event.parse_log(log_data) {
-		Ok(l) => Ok(ServiceTask::GenerateServerKey(l.server_key_id, l.requester, parse_threshold(l.threshold)?)),
-		Err(e) => Err(format!("{}", e)),
+impl ServerKeyGenerationService {
+	/// Parse request log entry.
+	pub fn parse_log(contract: &service::Service, raw_log: RawLog) -> Result<ServiceTask, String> {
+		let event = contract.events().server_key_generation_requested();
+		match event.parse_log(raw_log) {
+			Ok(l) => Ok(ServiceTask::GenerateServerKey(l.server_key_id, l.author, parse_threshold(l.threshold)?)),
+			Err(e) => Err(format!("{}", e)),
+		}
+	}
+
+	/// Check if request is confirmed by authority.
+	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, authority: &Address) -> bool {
+		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
+		contract.functions()
+			.get_server_key_generation_request_confirmation_status()
+			.call(*server_key_id, authority.clone(), &do_call)
+			.unwrap_or(false)
+	}
+
+	/// Prepare publish key transaction data.
+	pub fn prepare_pubish_tx_data(contract: &service::Service, server_key_id: &ServerKeyId, server_key_public: &Public) -> Bytes {
+		contract.functions()
+			.server_key_generated()
+			.input(*server_key_id, server_key_public.to_vec())
+	}
+
+	/// Prepare error transaction data.
+	pub fn prepare_error_tx_data(contract: &service::Service, server_key_id: &ServerKeyId) -> Bytes {
+		contract.functions()
+			.server_key_generation_error()
+			.input(*server_key_id)
 	}
 }
-/*
-/// Parse document key generation log entry.
-fn parse_document_key_generation_request(contract: &service::Service, log: LocalizedLogEntry) -> Result<ServiceTask, String> {
-	let event = contract.event("DocumentKeyRequested".into())
-		.expect("Contract known ahead of time to have `DocumentKeyRequested` event; qed");
-	let log_data = (log.entry.topics.into_iter().map(|t| t.0).collect(), log.entry.data).into();
-	event.parse_log(log_data)
-		.map(|l| ServiceTask::GenerateDocumentKey(
-			(*l.params[0].value.clone().to_fixed_bytes().expect("TODO")).into(),
-			l.params[1].value.clone().to_uint().expect("TODO").into(),
-			Signature::from_rsv(
-				&(*l.params[3].value.clone().to_fixed_bytes().expect("TODO")).into(),
-				&(*l.params[4].value.clone().to_fixed_bytes().expect("TODO")).into(),
-				l.params[2].value.clone().to_uint().expect("TODO")[0],
-			),
-		))
-		.map_err(|e| format!("{}", e))
+
+impl ServerKeyRetrievalService {
+	/// Parse request log entry.
+	pub fn parse_log(contract: &service::Service, raw_log: RawLog) -> Result<ServiceTask, String> {
+		let event = contract.events().server_key_retrieval_requested();
+		match event.parse_log(raw_log) {
+			Ok(l) => Ok(ServiceTask::RetrieveServerKey(l.server_key_id)),
+			Err(e) => Err(format!("{}", e)),
+		}
+	}
+
+	/// Check if request is confirmed by authority.
+	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, authority: &Address) -> bool {
+		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
+		contract.functions()
+			.get_server_key_retrieval_request_confirmation_status()
+			.call(*server_key_id, authority.clone(), &do_call)
+			.unwrap_or(false)
+	}
+
+	/// Prepare publish key transaction data.
+	pub fn prepare_pubish_tx_data(contract: &service::Service, server_key_id: &ServerKeyId, server_key_public: Public, threshold: usize) -> Bytes {
+		contract.functions()
+			.server_key_retrieved()
+			.input(*server_key_id, server_key_public.to_vec(), threshold)
+	}
+
+	/// Prepare error transaction data.
+	pub fn prepare_error_tx_data(contract: &service::Service, server_key_id: &ServerKeyId) -> Bytes {
+		contract.functions()
+			.server_key_retrieval_error()
+			.input(*server_key_id)
+	}
 }
-*/
+
+impl DocumentKeyStoreService {
+	/// Parse request log entry.
+	pub fn parse_log(contract: &service::Service, raw_log: RawLog) -> Result<ServiceTask, String> {
+		let event = contract.events().document_key_store_requested();
+		match event.parse_log(raw_log) {
+			Ok(l) => Ok(ServiceTask::StoreDocumentKey(l.server_key_id, l.author, (*l.common_point).into(), (*l.encrypted_point).into())),
+			Err(e) => Err(format!("{}", e)),
+		}
+	}
+
+	/// Check if request is confirmed by authority.
+	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, authority: &Address) -> bool {
+		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
+		contract.functions()
+			.get_document_key_store_request_confirmation_status()
+			.call(*server_key_id, authority.clone(), &do_call)
+			.unwrap_or(false)
+	}
+
+	/// Prepare publish key transaction data.
+	pub fn prepare_pubish_tx_data(contract: &service::Service, server_key_id: &ServerKeyId) -> Bytes {
+		contract.functions()
+			.document_key_stored()
+			.input(*server_key_id)
+	}
+
+	/// Prepare error transaction data.
+	pub fn prepare_error_tx_data(contract: &service::Service, server_key_id: &ServerKeyId) -> Bytes {
+		contract.functions()
+			.document_key_store_error()
+			.input(*server_key_id)
+	}
+}
+
+impl DocumentKeyShadowRetrievalService {
+	/// Parse common request log entry.
+	pub fn parse_common_request_log(contract: &service::Service, raw_log: RawLog) -> Result<ServiceTask, String> {
+		let event = contract.events().document_key_common_retrieval_requested();
+		match event.parse_log(raw_log) {
+			Ok(l) => Ok(ServiceTask::RetrieveShadowDocumentKeyCommon(l.server_key_id, l.requester)),
+			Err(e) => Err(format!("{}", e)),
+		}
+	}
+
+	/// Check if request is confirmed by authority.
+	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, authority: &Address) -> bool {
+		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
+		contract.functions()
+			.get_document_key_shadow_retrieval_request_confirmation_status()
+			.call(*server_key_id, authority.clone(), &do_call)
+			.unwrap_or(false)
+	}
+
+	/// Prepare publish common key transaction data.
+	pub fn prepare_pubish_common_tx_data(contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public, threshold: usize) -> Bytes {
+		contract.functions()
+			.document_key_common_retrieved()
+			.input(*server_key_id, *requester, common_point.to_vec(), encrypted_point.to_vec(), threshold)
+	}
+
+	/// Prepare error transaction data.
+	pub fn prepare_error_tx_data(contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address) -> Bytes {
+		contract.functions()
+			.document_key_shadow_retrieval_error()
+			.input(*server_key_id, *requester)
+	}
+}
+
 /// Read pending server key generation request.
 /*fn read_pending_server_key_generation_request(client: &Client, contract_address: Address, contract: &service::Service, block: &BlockId, self_key_pair: &NodeKeyPair, index: U256) -> Option<(bool, ServiceTask)> {
 	let self_address = public_to_address(self_key_pair.public());
@@ -539,7 +644,7 @@ pub mod tests {
 			Box::new(self.pending_requests.clone().into_iter())
 		}
 
-		fn publish_generated_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
+		fn publish_generated_server_key(&self, server_key_id: &ServerKeyId, server_key: Public) -> Result<(), String> {
 			self.generated_server_keys.lock().push((server_key_id.clone(), server_key.clone()));
 			Ok(())
 		}
@@ -549,7 +654,7 @@ pub mod tests {
 			Ok(())
 		}
 
-		fn publish_retrieved_server_key(&self, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
+		fn publish_retrieved_server_key(&self, server_key_id: &ServerKeyId, server_key: Public, threshold: usize) -> Result<(), String> {
 			self.retrieved_server_keys.lock().push((server_key_id.clone(), server_key.clone()));
 			Ok(())
 		}
@@ -567,17 +672,12 @@ pub mod tests {
 			unimplemented!()
 		}
 
-		fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public) -> Result<(), String> {
+		fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public, threshold: usize) -> Result<(), String> {
 			unimplemented!()
 		}
 
 		fn publish_document_key_retrieval_error(&self, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String> {
 			unimplemented!()
 		}
-
-		/*fn publish_document_key(&self, server_key_id: &ServerKeyId, document_key: &EncryptedDocumentKey) -> Result<(), String> {
-			self.published_document_keys.lock().push((server_key_id.clone(), document_key.clone()));
-			Ok(())
-		}*/
 	}
 }

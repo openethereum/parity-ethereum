@@ -305,7 +305,7 @@ impl ServiceContractListener {
 		match result {
 			Ok(None) => Ok(()),
 			Ok(Some(server_key)) => {
-				data.contract.publish_generated_server_key(server_key_id, &server_key)
+				data.contract.publish_generated_server_key(server_key_id, server_key)
 			},
 			Err(ref error) if is_internal_error(error) => Err(format!("{}", error)),
 			Err(ref error) => {
@@ -322,7 +322,7 @@ impl ServiceContractListener {
 	fn retrieve_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId) -> Result<(), String> {
 		match data.key_storage.get(server_key_id) {
 			Ok(Some(server_key_share)) => {
-				data.contract.publish_retrieved_server_key(server_key_id, &server_key_share.public)
+				data.contract.publish_retrieved_server_key(server_key_id, server_key_share.public, server_key_share.threshold)
 			},
 			Ok(None) => {
 				data.contract.publish_server_key_retrieval_error(server_key_id)
@@ -367,10 +367,10 @@ impl ServiceContractListener {
 			.and_then(|_| data.key_storage.get(server_key_id).and_then(|key_share| key_share.ok_or(Error::DocumentNotFound)))
 			.and_then(|key_share| key_share.common_point.ok_or(Error::DocumentNotFound)
 				.and_then(|common_point| key_share.encrypted_point.ok_or(Error::DocumentNotFound)
-				.map(|encrypted_point| (common_point, encrypted_point))));
+				.map(|encrypted_point| (common_point, encrypted_point, key_share.threshold))));
 		match retrieval_result {
-			Ok((common_point, encrypted_point)) => {
-				data.contract.publish_retrieved_document_key_common(server_key_id, requester, common_point, encrypted_point)
+			Ok((common_point, encrypted_point, threshold)) => {
+				data.contract.publish_retrieved_document_key_common(server_key_id, requester, common_point, encrypted_point, threshold)
 			},
 			Err(ref error) if is_internal_error(&error) => Err(format!("{}", error)),
 			Err(ref error) => {
@@ -500,7 +500,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::sync::atomic::Ordering;
 	use ethkey::{Random, Generator, KeyPair};
-	use listener::service_contract::{ServiceContract, SERVER_KEY_REQUESTED_EVENT_NAME_HASH};
+	use listener::service_contract::ServiceContract;
 	use listener::service_contract::tests::DummyServiceContract;
 	use key_server_cluster::DummyClusterClient;
 	use key_server::tests::DummyKeyServer;
