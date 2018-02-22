@@ -266,11 +266,6 @@ pub struct Miner {
 	notifiers: RwLock<Vec<Box<NotifyWork>>>,
 	gas_pricer: Mutex<GasPricer>,
 	service_transaction_action: ServiceTransactionAction,
-
-	//FIXME: Add registrar here
-	// registrar: RegistrarClient,
-	// registrar_address: Option<Address>,
-	//
 }
 
 impl Miner {

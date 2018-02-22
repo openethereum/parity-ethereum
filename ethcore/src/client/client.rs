@@ -81,6 +81,8 @@ pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 pub use verification::queue::QueueInfo as BlockQueueInfo;
 
+use_contract!(registry, "Registry", "res/contracts/registrar.json");
+
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
 const MIN_HISTORY_SIZE: u64 = 8;
@@ -239,8 +241,8 @@ impl Importer {
 			ancient_verifier: Mutex::new(None),
 			rng: Mutex::new(OsRng::new()?),
 			on_user_defaults_change: Mutex::new(None),
-			// registrar: RegistrarClient::new(Arc::new(FakeRegistrar::new())),
-			// registrar_address,
+			registrar: registry::Registry::default(),
+			registrar_address,
 			exit_handler: Mutex::new(None),
 		});
 
@@ -2105,28 +2107,25 @@ impl BlockChainClient for Client {
 		self.importer.miner.import_own_transaction(self, signed.into())
 	}
 
-	// MOVE
 	fn registrar_address(&self) -> Option<Address> {
-		unimplemented!();
-		// self.registrar_address.clone()
+		self.registrar_address.clone()
 	}
 
-	// MOVE
-	fn registry_address(&self, _name: String, _block: BlockId) -> Option<Address> {
-		unimplemented!();
-		// let address = match self.registrar_address {
-		//     Some(address) => address,
-		//     None => return None,
-		// };
+	fn registry_address(&self, name: String, block: BlockId) -> Option<Address> {
+		let address = match self.registrar_address {
+			Some(address) => address,
+			None => return None,
+		};
 
-		// self.registrar.get_address()
-		//     .call(keccak(name.as_bytes()), "A", &|data| self.call_contract(block, address, data))
-		//     .ok()
-		//     .and_then(|a| if a.is_zero() {
-		//         None
-		//     } else {
-		//         Some(a)
-		//     })
+		self.registrar.functions()
+			.get_address()
+			.call(keccak(name.as_bytes()), "A", &|data| self.call_contract(block, address, data))
+			.ok()
+			.and_then(|a| if a.is_zero() {
+				None
+			} else {
+				Some(a)
+			})
 	}
 
 >>>>>>> Refactor usage of registry contract

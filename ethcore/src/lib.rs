@@ -133,9 +133,6 @@ extern crate evm;
 extern crate evmjit;
 
 extern crate tempdir;
-extern crate contract_client;
-extern crate futures;
-
 
 pub extern crate ethstore;
 

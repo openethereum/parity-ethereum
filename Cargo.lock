@@ -458,7 +458,6 @@ dependencies = [
  "bn 0.4.4 (git+https://github.com/paritytech/bn)",
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "common-types 0.1.0",
- "contract-client 0.0.1",
  "crossbeam 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
