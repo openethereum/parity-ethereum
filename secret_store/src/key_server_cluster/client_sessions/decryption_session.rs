@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, BTreeMap};
 use std::sync::Arc;
+use std::time;
 use parking_lot::{Mutex, Condvar};
 use ethereum_types::H256;
 use ethkey::Secret;
@@ -26,7 +27,7 @@ use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSessi
 use key_server_cluster::message::{Message, DecryptionMessage, DecryptionConsensusMessage, RequestPartialDecryption,
 	PartialDecryption, DecryptionSessionError, DecryptionSessionCompleted, ConsensusMessage, InitializeConsensusSession,
 	ConfirmConsensusInitialization, DecryptionSessionDelegation, DecryptionSessionDelegationCompleted};
-use key_server_cluster::jobs::job_session::{JobSession, JobTransport};
+use key_server_cluster::jobs::job_session::{JobSession, JobSessionState, JobTransport};
 use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 use key_server_cluster::jobs::decryption_job::{PartialDecryptionRequest, PartialDecryptionResponse, DecryptionJob};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
@@ -214,9 +215,33 @@ impl SessionImpl {
 		self.data.lock().result.clone()
 	}
 
+	/// Get key requester.
+	pub fn requester(&self) -> Option<Requester> {
+		self.data.lock().consensus_session.consensus_job().executor().requester().cloned()
+	}
+
 	/// Wait for session completion.
-	pub fn wait(&self) -> Result<EncryptedDocumentKeyShadow, Error> {
-		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
+	pub fn wait(&self, timeout: Option<time::Duration>) -> Option<Result<EncryptedDocumentKeyShadow, Error>> {
+		Self::wait_session(&self.core.completed, &self.data, timeout, |data| data.result.clone())
+	}
+
+	/// Get broadcasted shadows.
+	pub fn broadcast_shadows(&self) -> Option<BTreeMap<NodeId, Vec<u8>>> {
+		let data = self.data.lock();
+
+		if data.result.is_none() || (data.is_broadcast_session, data.is_shadow_decryption) != (Some(true), Some(true)) {
+			return None;
+		}
+
+		let proof = "data.is_shadow_decryption is true; decrypt_shadow.is_some() is checked in DecryptionJob::check_partial_response; qed";
+		Some(match self.core.meta.master_node_id == self.core.meta.self_node_id {
+			true => data.consensus_session.computation_job().responses().iter()
+				.map(|(n, r)| (n.clone(), r.decrypt_shadow.clone().expect(proof)))
+				.collect(),
+			false => data.broadcast_job_session.as_ref().expect("session completed; is_shadow_decryption == true; we're on non-master node; qed").responses().iter()
+				.map(|(n, r)| (n.clone(), r.decrypt_shadow.clone().expect(proof)))
+				.collect(),
+		})
 	}
 
 	/// Delegate session to other node.
@@ -402,6 +427,12 @@ impl SessionImpl {
 			requester_public.clone(), key_share.clone(), key_version)?;
 		let decryption_transport = self.core.decryption_transport(false);
 
+		// update flags if not on master
+		if self.core.meta.self_node_id != self.core.meta.master_node_id {
+			data.is_shadow_decryption = Some(message.is_shadow_decryption);
+			data.is_broadcast_session = Some(message.is_broadcast_session);
+		}
+
 		// respond to request
 		data.consensus_session.on_job_request(sender, PartialDecryptionRequest {
 			id: message.request_id.clone().into(),
@@ -430,38 +461,52 @@ impl SessionImpl {
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		let mut data = self.data.lock();
-		if self.core.meta.self_node_id == self.core.meta.master_node_id {
+		let is_master_node = self.core.meta.self_node_id == self.core.meta.master_node_id;
+		let result = if is_master_node {
 			data.consensus_session.on_job_response(sender, PartialDecryptionResponse {
 				request_id: message.request_id.clone().into(),
 				shadow_point: message.shadow_point.clone().into(),
 				decrypt_shadow: message.decrypt_shadow.clone(),
 			})?;
+
+			if data.consensus_session.state() != ConsensusSessionState::Finished &&
+				data.consensus_session.state() != ConsensusSessionState::Failed { // TODO: whait if failed
+				return Ok(());
+			}
+
+			// send compeltion signal to all nodes, except for rejected nodes
+			if is_master_node {
+				for node in data.consensus_session.consensus_non_rejected_nodes() {
+					self.core.cluster.send(&node, Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(DecryptionSessionCompleted {
+						session: self.core.meta.id.clone().into(),
+						sub_session: self.core.access_key.clone().into(),
+						session_nonce: self.core.nonce,
+					})))?;
+				}
+			}
+
+			data.consensus_session.result()
 		} else {
 			match data.broadcast_job_session.as_mut() {
-				Some(broadcast_job_session) => broadcast_job_session.on_partial_response(sender, PartialDecryptionResponse {
-					request_id: message.request_id.clone().into(),
-					shadow_point: message.shadow_point.clone().into(),
-					decrypt_shadow: message.decrypt_shadow.clone(),
-				})?,
-				None => return Err(Error::TooEarlyForRequest),
+				Some(broadcast_job_session) => {
+					broadcast_job_session.on_partial_response(sender, PartialDecryptionResponse {
+						request_id: message.request_id.clone().into(),
+						shadow_point: message.shadow_point.clone().into(),
+						decrypt_shadow: message.decrypt_shadow.clone(),
+					})?;
+
+					if broadcast_job_session.state() != JobSessionState::Finished &&
+						broadcast_job_session.state() != JobSessionState::Failed { // TODO: whait if failed
+						return Ok(());
+					}
+
+					broadcast_job_session.result()
+				},
+				None => return Err(Error::InvalidMessage),
 			}
-		}
+		};
 
-		if data.consensus_session.state() != ConsensusSessionState::Finished {
-			return Ok(());
-		}
-
-		// send compeltion signal to all nodes, except for rejected nodes
-		for node in data.consensus_session.consensus_non_rejected_nodes() {
-			self.core.cluster.send(&node, Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(DecryptionSessionCompleted {
-				session: self.core.meta.id.clone().into(),
-				sub_session: self.core.access_key.clone().into(),
-				session_nonce: self.core.nonce,
-			})))?;
-		}
-
-		let result = data.consensus_session.result()?;
-		Self::set_decryption_result(&self.core, &mut *data, Ok(result));
+		Self::set_decryption_result(&self.core, &mut *data, result);
 
 		Ok(())
 	}

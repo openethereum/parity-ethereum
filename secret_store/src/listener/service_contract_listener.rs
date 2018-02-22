@@ -389,13 +389,12 @@ impl ServiceContractListener {
 
 	/// Retrieve personal part of document key (start decryption session).
 	fn retrieve_document_key_personal(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, requester: Public) -> Result<(), String> {
-		Self::process_document_key_retrieval_result(data, server_key_id, &requester, data.cluster.new_decryption_session(
-			server_key_id.clone(), requester.clone().into(), None, true).map(|_| None).map_err(Into::into))
+		Self::process_document_key_retrieval_result(data, server_key_id, &public_to_address(&requester), data.cluster.new_decryption_session(
+			server_key_id.clone(), requester.clone().into(), None, true, true).map(|_| None).map_err(Into::into))
 	}
 
 	/// Process document key retrieval result.
-	fn process_document_key_retrieval_result(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, requester: &Public, result: Result<Option<(Vec<Address>, Secret, Bytes)>, Error>) -> Result<(), String> {
-		let requester = public_to_address(requester);
+	fn process_document_key_retrieval_result(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, requester: &Address, result: Result<Option<(Vec<Address>, Secret, Bytes)>, Error>) -> Result<(), String> {
 		match result {
 			Ok(None) => Ok(()),
 			Ok(Some((participants, access_key, shadow))) => {
@@ -452,8 +451,10 @@ impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 
 		// ignore result - the only thing that we can do is to log the error
 		let server_key_id = session.id();
-		let generation_result = session.wait(Some(Default::default())).map(Some).map_err(Into::into);
-		let _ = Self::process_server_key_generation_result(&self.data, &server_key_id, generation_result);
+		if let Some(generation_result) = session.wait(Some(Default::default())) {
+			let generation_result = generation_result.map(Some).map_err(Into::into);
+			let _ = Self::process_server_key_generation_result(&self.data, &server_key_id, generation_result);
+		}
 	}
 }
 
@@ -466,16 +467,22 @@ impl ClusterSessionsListener<DecryptionSession> for ServiceContractListener {
 		let session_id = session.id();
 		let server_key_id = session_id.id;
 		let access_key = session_id.access_key;
-		let generation_result = session.wait().map(|_| {
-			// TODO
-			/*Some((
-				session.participants().iter().map(public_to_address).collect(),
-				access_key,
-				session.shadow(),
-			))*/
-			None
-		}).map_err(Into::into);
-		let _ = Self::process_server_key_generation_result(&self.data, &server_key_id, generation_result);
+		if let Some(requester) = session.requester().and_then(|r| r.address(&server_key_id).ok()) {
+			// TODO: wait with zero timeout
+			if let Some(retrieval_result) = session.wait(Some(Default::default())) {
+				let retrieval_result = retrieval_result.map(|_|
+					session.broadcast_shadows()
+						.and_then(|broadcast_shadows|
+							broadcast_shadows.get(self.data.self_key_pair.public())
+								.map(|self_shadow| (
+									broadcast_shadows.keys().map(public_to_address).collect(),
+									access_key,
+									self_shadow.clone()
+								)))
+				).map_err(Into::into);
+				let _ = Self::process_document_key_retrieval_result(&self.data, &server_key_id, &requester, retrieval_result);
+			}
+		}
 	}
 }
 

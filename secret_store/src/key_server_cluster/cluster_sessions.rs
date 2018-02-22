@@ -82,10 +82,10 @@ pub trait ClusterSession {
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error>;
 
 	/// 'Wait for session completion' helper.
-	fn wait_session<T, U, F: Fn(&U) -> Option<Result<T, Error>>>(completion_event: &Condvar, session_data: &Mutex<U>, timeout: Option<time::Duration>, result_reader: F) -> Result<T, Error> {
+	fn wait_session<T, U, F: Fn(&U) -> Option<Result<T, Error>>>(completion_event: &Condvar, session_data: &Mutex<U>, timeout: Option<time::Duration>, result_reader: F) -> Option<Result<T, Error>> {
 		let mut locked_data = session_data.lock();
 		match result_reader(&locked_data) {
-			Some(result) => result,
+			Some(result) => Some(result),
 			None => {
 				match timeout {
 					None => completion_event.wait(&mut locked_data),
@@ -95,7 +95,6 @@ pub trait ClusterSession {
 				}
 
 				result_reader(&locked_data)
-					.expect("waited for completion; completion is only signaled when result.is_some(); qed")
 			},
 		}
 	}

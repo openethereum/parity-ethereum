@@ -76,7 +76,9 @@ impl ServerKeyGenerator for KeyServerImpl {
 
 		// generate server key
 		let generation_session = self.data.lock().cluster.new_generation_session(key_id.clone(), address, threshold)?;
-		generation_session.wait(None).map_err(Into::into)
+		generation_session.wait(None)
+			.expect("when wait is called without timeout it always returns Some; qed")
+			.map_err(Into::into)
 	}
 }
 
@@ -114,8 +116,10 @@ impl DocumentKeyServer for KeyServerImpl {
 
 		// decrypt document key
 		let decryption_session = self.data.lock().cluster.new_decryption_session(key_id.clone(),
-			requester.clone(), None, false)?;
-		let document_key = decryption_session.wait()?.decrypted_secret;
+			requester.clone(), None, false, false)?;
+		let document_key = decryption_session.wait(None)
+			.expect("when wait is called without timeout it always returns Some; qed")?
+			.decrypted_secret;
 
 		// encrypt document key with requestor public key
 		let document_key = ethcrypto::ecies::encrypt(&public, &ethcrypto::DEFAULT_MAC, &document_key)
@@ -125,8 +129,10 @@ impl DocumentKeyServer for KeyServerImpl {
 
 	fn restore_document_key_shadow(&self, key_id: &ServerKeyId, requester: &Requester) -> Result<EncryptedDocumentKeyShadow, Error> {
 		let decryption_session = self.data.lock().cluster.new_decryption_session(key_id.clone(),
-			requester.clone(), None, true)?;
-		decryption_session.wait().map_err(Into::into)
+			requester.clone(), None, true, false)?;
+		decryption_session.wait(None)
+			.expect("when wait is called without timeout it always returns Some; qed")
+			.map_err(Into::into)
 	}
 }
 

@@ -208,6 +208,7 @@ impl SessionImpl {
 	/// Wait for session completion.
 	pub fn wait(&self) -> Result<(Secret, Secret), Error> {
 		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
+			.expect("wait_session returns Some if called without timeout; qed")
 	}
 
 	/// Delegate session to other node.

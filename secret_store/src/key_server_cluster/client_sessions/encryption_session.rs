@@ -135,6 +135,7 @@ impl SessionImpl {
 	/// Wait for session completion.
 	pub fn wait(&self, timeout: Option<time::Duration>) -> Result<(), Error> {
 		Self::wait_session(&self.completed, &self.data, timeout, |data| data.result.clone())
+			.expect("wait_session returns Some if called without timeout; qed")
 	}
 
 	/// Start new session initialization. This must be called on master node.

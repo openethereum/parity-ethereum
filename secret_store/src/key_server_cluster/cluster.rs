@@ -69,7 +69,7 @@ pub trait ClusterClient: Send + Sync {
 	/// Start new encryption session.
 	fn new_encryption_session(&self, session_id: SessionId, author: Requester, common_point: Public, encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error>;
 	/// Start new decryption session.
-	fn new_decryption_session(&self, session_id: SessionId, requester: Requester, version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error>;
+	fn new_decryption_session(&self, session_id: SessionId, requester: Requester, version: Option<H256>, is_shadow_decryption: bool, is_broadcast_decryption: bool) -> Result<Arc<DecryptionSession>, Error>;
 	/// Start new signing session.
 	fn new_signing_session(&self, session_id: SessionId, requester: Requester, version: Option<H256>, message_hash: H256) -> Result<Arc<SigningSession>, Error>;
 	/// Start new key version negotiation session.
@@ -476,11 +476,11 @@ impl ClusterCore {
 				data.sessions.negotiation_sessions.remove(&session.id());
 				match session.wait() {
 					Ok((version, master)) => match session.take_continue_action() {
-						Some(ContinueAction::Decrypt(session, is_shadow_decryption)) => {
+						Some(ContinueAction::Decrypt(session, is_shadow_decryption, is_broadcast_decryption)) => {
 							let initialization_error = if data.self_key_pair.public() == &master {
-								session.initialize(version, is_shadow_decryption, false)
+								session.initialize(version, is_shadow_decryption, is_broadcast_decryption)
 							} else {
-								session.delegate(master, version, is_shadow_decryption, false)
+								session.delegate(master, version, is_shadow_decryption, is_broadcast_decryption)
 							};
 
 							if let Err(error) = initialization_error {
@@ -503,7 +503,7 @@ impl ClusterCore {
 						None => (),
 					},
 					Err(error) => match session.take_continue_action() {
-						Some(ContinueAction::Decrypt(session, _)) => {
+						Some(ContinueAction::Decrypt(session, _, _)) => {
 							data.sessions.decryption_sessions.remove(&session.id());
 							session.on_session_error(&meta.self_node_id, error);
 						},
@@ -914,7 +914,7 @@ impl ClusterClient for ClusterClientImpl {
 		}
 	}
 
-	fn new_decryption_session(&self, session_id: SessionId, requester: Requester, version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
+	fn new_decryption_session(&self, session_id: SessionId, requester: Requester, version: Option<H256>, is_shadow_decryption: bool, is_broadcast_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
@@ -925,11 +925,11 @@ impl ClusterClient for ClusterClientImpl {
 			session_id.clone(), None, false, Some(requester))?;
 
 		let initialization_result = match version {
-			Some(version) => session.initialize(version, is_shadow_decryption, false),
+			Some(version) => session.initialize(version, is_shadow_decryption, is_broadcast_decryption),
 			None => {
 				self.create_key_version_negotiation_session(session_id.id.clone())
 					.map(|version_session| {
-						version_session.set_continue_action(ContinueAction::Decrypt(session.clone(), is_shadow_decryption));
+						version_session.set_continue_action(ContinueAction::Decrypt(session.clone(), is_shadow_decryption, is_broadcast_decryption));
 						ClusterCore::try_continue_session(&self.data, Some(version_session));
 					})
 			},

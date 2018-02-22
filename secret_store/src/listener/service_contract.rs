@@ -274,8 +274,8 @@ impl ServiceContract for OnChainServiceContract {
 					DocumentKeyStoreService::parse_log(&data.contract, raw_log)
 				} else if raw_log.topics[0] == *DOCUMENT_KEY_COMMON_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH {
 					DocumentKeyShadowRetrievalService::parse_common_request_log(&data.contract, raw_log)
-				//} else if raw_log.topics[0] == *DOCUMENT_KEY_PERSONAL_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH {
-				//	parse_document_key_personal_part_retrieval_request(&data.contract, log)
+				} else if raw_log.topics[0] == *DOCUMENT_KEY_PERSONAL_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH {
+					DocumentKeyShadowRetrievalService::parse_personal_request_log(&data.contract, raw_log)
 				} else {
 					Err("unknown type of log entry".into())
 				}
@@ -395,8 +395,7 @@ return Box::new(::std::iter::empty()); // TODO: remove me
 	}
 
 	fn publish_retrieved_document_key_personal(&self, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], access_key: Secret, shadow: Bytes) -> Result<(), String> {
-		self.send_contract_transaction(server_key_id, |client, contract_address, contract, server_key_id, authority|
-			DocumentKeyShadowRetrievalService::is_confirmed(client, contract_address, contract, server_key_id, requester, authority),
+		self.send_contract_transaction(server_key_id, |_, _, _, _, _| true,
 		move |service|
 			Ok(DocumentKeyShadowRetrievalService::prepare_pubish_personal_tx_data(service, server_key_id, requester, participants, access_key, shadow))
 		)
@@ -541,6 +540,15 @@ impl DocumentKeyShadowRetrievalService {
 		let event = contract.events().document_key_common_retrieval_requested();
 		match event.parse_log(raw_log) {
 			Ok(l) => Ok(ServiceTask::RetrieveShadowDocumentKeyCommon(l.server_key_id, l.requester)),
+			Err(e) => Err(format!("{}", e)),
+		}
+	}
+
+	/// Parse personal request log entry.
+	pub fn parse_personal_request_log(contract: &service::Service, raw_log: RawLog) -> Result<ServiceTask, String> {
+		let event = contract.events().document_key_personal_retrieval_requested();
+		match event.parse_log(raw_log) {
+			Ok(l) => Ok(ServiceTask::RetrieveShadowDocumentKeyPersonal(l.server_key_id, (*l.requester_public).into())),
 			Err(e) => Err(format!("{}", e)),
 		}
 	}

@@ -223,7 +223,7 @@ impl SessionImpl {
 	}
 
 	/// Wait for session completion.
-	pub fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error> {
+	pub fn wait(&self, timeout: Option<time::Duration>) -> Option<Result<Public, Error>> {
 		Self::wait_session(&self.completed, &self.data, timeout, |data| data.joint_public_and_secret.clone()
 			.map(|r| r.map(|r| r.0.clone())))
 	}

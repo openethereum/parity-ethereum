@@ -54,8 +54,8 @@ pub struct SessionImpl<T: SessionTransport> {
 /// Action after key version is negotiated.
 #[derive(Clone)]
 pub enum ContinueAction {
-	/// Decryption session + is_shadow_decryption.
-	Decrypt(Arc<DecryptionSession>, bool),
+	/// Decryption session + is_shadow_decryption + is_broadcast_decryption.
+	Decrypt(Arc<DecryptionSession>, bool, bool),
 	/// Signing session + message hash.
 	Sign(Arc<SigningSession>, H256),
 }
@@ -199,6 +199,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Wait for session completion.
 	pub fn wait(&self) -> Result<(H256, NodeId), Error> {
 		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
+			.expect("wait_session returns Some if called without timeout; qed")
 	}
 
 	/// Initialize session.

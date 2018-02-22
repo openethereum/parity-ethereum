@@ -114,7 +114,6 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 	}
 
 	/// Get computation job reference.
-	#[cfg(test)]
 	pub fn computation_job(&self) -> &JobSession<ComputationExecutor, ComputationTransport> {
 		self.computation_job.as_ref()
 			.expect("computation_job must only be called on master nodes")
