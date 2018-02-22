@@ -680,11 +680,15 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	let contract_client = Arc::new(::dapps::FullRegistrar::new(client.clone()));
 
 	// the updater service
+	let mut updater_fetch = fetch.clone();
+	// parity binaries should be smaller than 128MB
+	updater_fetch.set_limit(Some(128 * 1024 * 1024));
+
 	let updater = Updater::new(
 		Arc::downgrade(&(service.client() as Arc<BlockChainClient>)),
 		Arc::downgrade(&sync_provider),
 		update_policy,
-		hash_fetch::Client::with_fetch(contract_client.clone(), fetch.clone(), event_loop.remote())
+		hash_fetch::Client::with_fetch(contract_client.clone(), updater_fetch, event_loop.remote())
 	);
 	service.add_notify(updater.clone());
 
@@ -979,7 +983,7 @@ fn insert_dev_account(account_provider: &AccountProvider) {
 			Ok(address) => {
 				let _ = account_provider.set_account_name(address.clone(), "Development Account".into());
 				let _ = account_provider.set_account_meta(address, ::serde_json::to_string(&(vec![
-					("description", "Never use this account outside of develoopment chain!"),
+					("description", "Never use this account outside of development chain!"),
 					("passwordHint","Password is empty string"),
 				].into_iter().collect::<::std::collections::HashMap<_,_>>())).expect("Serialization of hashmap does not fail."));
 			},

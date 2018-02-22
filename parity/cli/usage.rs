@@ -21,17 +21,6 @@ macro_rules! println_stderr(
     } }
 );
 
-macro_rules! otry {
-	($e:expr) => (
-		match $e {
-			Some(ref v) => v,
-			None => {
-				return None;
-			}
-		}
-	)
-}
-
 macro_rules! return_if_parse_error {
 	($e:expr) => (
 		match $e {

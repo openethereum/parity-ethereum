@@ -16,7 +16,6 @@ memorydb = { path = "../../util/memorydb" }
 patricia-trie = { path = "../../util/patricia_trie" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
-evm = { path = "../evm" }
 hashdb = { path = "../../util/hashdb" }
 heapsize = "0.4"
 vm = { path = "../vm" }

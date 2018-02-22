@@ -949,7 +949,7 @@ mod tests {
 	use bytes::ToPretty;
 	use keccak::KECCAK_NULL_RLP;
 	use super::super::TrieMut;
-	use super::super::standardmap::*;
+	use standardmap::*;
 
 	fn populate_trie<'db>(db: &'db mut HashDB, root: &'db mut H256, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db> {
 		let mut t = TrieDBMut::new(db, root);

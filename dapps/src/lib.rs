@@ -108,7 +108,7 @@ impl Endpoints {
 	/// Returns a current list of app endpoints.
 	pub fn list(&self) -> Vec<apps::App> {
 		self.endpoints.read().iter().filter_map(|(ref k, ref e)| {
-			e.info().map(|ref info| apps::App::from_info(k, info))
+			e.info().map(|ref info| info.with_id(k))
 		}).collect()
 	}
 

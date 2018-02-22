@@ -41,7 +41,7 @@ impl PodState {
 
 	/// Get the root hash of the trie of the RLP of this.
 	pub fn root(&self) -> H256 {
-		sec_trie_root(self.0.iter().map(|(k, v)| (k.to_vec(), v.rlp())).collect())
+		sec_trie_root(self.0.iter().map(|(k, v)| (k, v.rlp())))
 	}
 
 	/// Drain object to get the underlying map.
@@ -89,7 +89,12 @@ mod test {
 
 	#[test]
 	fn create_delete() {
-		let a = PodState::from(map![ 1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]) ]);
+		let a = PodState::from(map![ 1.into() => PodAccount {
+			balance: 69.into(),
+			nonce: 0.into(),
+			code: Some(Vec::new()),
+			storage: map![],
+		}]);
 		assert_eq!(super::diff_pod(&a, &PodState::new()), StateDiff { raw: map![
 			1.into() => AccountDiff{
 				balance: Diff::Died(69.into()),
@@ -110,10 +115,25 @@ mod test {
 
 	#[test]
 	fn create_delete_with_unchanged() {
-		let a = PodState::from(map![ 1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]) ]);
+		let a = PodState::from(map![ 1.into() => PodAccount {
+			balance: 69.into(),
+			nonce: 0.into(),
+			code: Some(Vec::new()),
+			storage: map![],
+		}]);
 		let b = PodState::from(map![
-			1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]),
-			2.into() => PodAccount::new(69.into(), 0.into(), vec![], map![])
+			1.into() => PodAccount {
+				balance: 69.into(),
+				nonce: 0.into(),
+				code: Some(Vec::new()),
+				storage: map![],
+			},
+			2.into() => PodAccount {
+				balance: 69.into(),
+				nonce: 0.into(),
+				code: Some(Vec::new()),
+				storage: map![],
+			}
 		]);
 		assert_eq!(super::diff_pod(&a, &b), StateDiff { raw: map![
 			2.into() => AccountDiff{
@@ -136,12 +156,32 @@ mod test {
 	#[test]
 	fn change_with_unchanged() {
 		let a = PodState::from(map![
-			1.into() => PodAccount::new(69.into(), 0.into(), vec![], map![]),
-			2.into() => PodAccount::new(69.into(), 0.into(), vec![], map![])
+			1.into() => PodAccount {
+				balance: 69.into(),
+				nonce: 0.into(),
+				code: Some(Vec::new()),
+				storage: map![],
+			},
+			2.into() => PodAccount {
+				balance: 69.into(),
+				nonce: 0.into(),
+				code: Some(Vec::new()),
+				storage: map![],
+			}
 		]);
 		let b = PodState::from(map![
-			1.into() => PodAccount::new(69.into(), 1.into(), vec![], map![]),
-			2.into() => PodAccount::new(69.into(), 0.into(), vec![], map![])
+			1.into() => PodAccount {
+				balance: 69.into(),
+				nonce: 1.into(),
+				code: Some(Vec::new()),
+				storage: map![],
+			},
+			2.into() => PodAccount {
+				balance: 69.into(),
+				nonce: 0.into(),
+				code: Some(Vec::new()),
+				storage: map![],
+			}
 		]);
 		assert_eq!(super::diff_pod(&a, &b), StateDiff { raw: map![
 			1.into() => AccountDiff{

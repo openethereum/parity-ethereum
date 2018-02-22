@@ -22,7 +22,8 @@ use blockchain::TreeRoute;
 use encoded;
 use vm::LastHashes;
 use error::{ImportResult, CallError, BlockImportError};
-use evm::{Factory as EvmFactory, Schedule};
+use evm::Schedule;
+use factory::VmFactory;
 use executive::Executed;
 use filter::Filter;
 use header::{BlockNumber};
@@ -279,7 +280,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn registrar_address(&self) -> Option<Address>;
 
 	/// Get the address of a particular blockchain service, if available.
-	fn registry_address(&self, name: String) -> Option<Address>;
+	fn registry_address(&self, name: String, block: BlockId) -> Option<Address>;
 
 	/// Get the EIP-86 transition block number.
 	fn eip86_transition(&self) -> u64;
@@ -298,7 +299,7 @@ pub trait MiningBlockChainClient: BlockChainClient {
 	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
 
 	/// Returns EvmFactory.
-	fn vm_factory(&self) -> &EvmFactory;
+	fn vm_factory(&self) -> &VmFactory;
 
 	/// Broadcast a block proposal.
 	fn broadcast_proposal_block(&self, block: SealedBlock);
@@ -339,6 +340,9 @@ pub trait EngineClient: Sync + Send {
 
 	/// Get a block number by ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
+
+	/// Get raw block header data by block id.
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 }
 
 /// Extended client interface for providing proofs of the state.

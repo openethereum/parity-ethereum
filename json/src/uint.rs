@@ -19,7 +19,7 @@
 use std::fmt;
 use std::str::FromStr;
 use serde::{Deserialize, Deserializer};
-use serde::de::{Error, Visitor};
+use serde::de::{Error, Visitor, Unexpected};
 use ethereum_types::U256;
 
 /// Lenient uint json deserialization for test json files.
@@ -88,6 +88,28 @@ impl<'a> Visitor<'a> for UintVisitor {
 	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
 		self.visit_str(value.as_ref())
 	}
+}
+
+pub fn validate_non_zero<'de, D>(d: D) -> Result<Uint, D::Error> where D: Deserializer<'de> {
+	let value = Uint::deserialize(d)?;
+
+	if value == Uint(U256::from(0)) {
+		return Err(Error::invalid_value(Unexpected::Unsigned(value.into()), &"a non-zero value"))
+	}
+
+	Ok(value)
+}
+
+pub fn validate_optional_non_zero<'de, D>(d: D) -> Result<Option<Uint>, D::Error> where D: Deserializer<'de> {
+	let value: Option<Uint> = Option::deserialize(d)?;
+
+	if let Some(value) = value {
+		if value == Uint(U256::from(0)) {
+			return Err(Error::invalid_value(Unexpected::Unsigned(value.into()), &"a non-zero value"))
+		}
+	}
+
+	Ok(value)
 }
 
 #[cfg(test)]

@@ -96,7 +96,7 @@ impl OnChainServiceContract {
 	/// Create new on-chain service contract.
 	pub fn new(client: TrustedClient, address: ContractAddress, self_key_pair: Arc<NodeKeyPair>) -> Self {
 		let contract_addr = match address {
-			ContractAddress::Registry => client.get().and_then(|c| c.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned())
+			ContractAddress::Registry => client.get().and_then(|c| c.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
 				.map(|address| {
 					trace!(target: "secretstore", "{}: installing service contract from address {}",
 						self_key_pair.public(), address);
@@ -130,7 +130,7 @@ impl ServiceContract for OnChainServiceContract {
 		if let &ContractAddress::Registry = &self.address {
 			if let Some(client) = self.client.get() {
 				// update contract address from registry
-				let service_contract_addr = client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned()).unwrap_or_default();
+				let service_contract_addr = client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest).unwrap_or_default();
 				if self.data.read().contract_address != service_contract_addr {
 					trace!(target: "secretstore", "{}: installing service contract from address {}",
 						self.self_key_pair.public(), service_contract_addr);

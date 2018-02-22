@@ -21,21 +21,21 @@ use wasm_utils::{self, rules};
 use parity_wasm::elements::{self, Deserialize};
 use parity_wasm::peek_size;
 
-fn gas_rules(schedule: &vm::Schedule) -> rules::Set {
+fn gas_rules(wasm_costs: &vm::WasmCosts) -> rules::Set {
 	rules::Set::new({
 		let mut vals = ::std::collections::HashMap::with_capacity(4);
-		vals.insert(rules::InstructionType::Load, schedule.wasm.mem as u32);
-		vals.insert(rules::InstructionType::Store, schedule.wasm.mem as u32);
-		vals.insert(rules::InstructionType::Div, schedule.wasm.div as u32);
-		vals.insert(rules::InstructionType::Mul, schedule.wasm.mul as u32);
+		vals.insert(rules::InstructionType::Load, wasm_costs.mem as u32);
+		vals.insert(rules::InstructionType::Store, wasm_costs.mem as u32);
+		vals.insert(rules::InstructionType::Div, wasm_costs.div as u32);
+		vals.insert(rules::InstructionType::Mul, wasm_costs.mul as u32);
 		vals
-	}).with_grow_cost(schedule.wasm.grow_mem)
+	}).with_grow_cost(wasm_costs.grow_mem)
 }
 
 /// Splits payload to code and data according to params.params_type, also
 /// loads the module instance from payload and injects gas counter according
 /// to schedule.
-pub fn payload<'a>(params: &'a vm::ActionParams, schedule: &vm::Schedule)
+pub fn payload<'a>(params: &'a vm::ActionParams, wasm_costs: &vm::WasmCosts)
 	-> Result<(elements::Module, &'a [u8]), vm::Error>
 {
 	let code = match params.code {
@@ -56,13 +56,21 @@ pub fn payload<'a>(params: &'a vm::ActionParams, schedule: &vm::Schedule)
 		},
 	};
 
-	let contract_module = wasm_utils::inject_gas_counter(
-		elements::Module::deserialize(
+	let deserialized_module = elements::Module::deserialize(
 			&mut cursor
 		).map_err(|err| {
 			vm::Error::Wasm(format!("Error deserializing contract code ({:?})", err))
-		})?,
-		&gas_rules(schedule),
+		})?;
+
+	if deserialized_module.memory_section().map_or(false, |ms| ms.entries().len() > 0) {
+		// According to WebAssembly spec, internal memory is hidden from embedder and should not
+		// be interacted with. So we disable this kind of modules at decoding level.
+		return Err(vm::Error::Wasm(format!("Malformed wasm module: internal memory")));
+	}
+
+	let contract_module = wasm_utils::inject_gas_counter(
+		deserialized_module,
+		&gas_rules(wasm_costs),
 	);
 
 	let data = match params.params_type {

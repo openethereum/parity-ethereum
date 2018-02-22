@@ -1,3 +1,48 @@
+## Parity [v1.9.3](https://github.com/paritytech/parity/releases/tag/v1.9.3) (2018-02-20)
+
+Parity 1.9.3 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Backports ([#7945](https://github.com/paritytech/parity/pull/7945))
+  - ECIP 1041 - Remove Difficulty Bomb ([#7905](https://github.com/paritytech/parity/pull/7905))
+  - spec: Validate required divisor fields are not 0 ([#7933](https://github.com/paritytech/parity/pull/7933))
+  - Kovan WASM fork code ([#7849](https://github.com/paritytech/parity/pull/7849))
+- Gitlab Cargo Cache ([#7944](https://github.com/paritytech/parity/pull/7944))
+- Bump react-qr-reader ([#7943](https://github.com/paritytech/parity/pull/7943))
+  - Update react-qr-reader
+  - Explicit webrtc-adapter dependency (package-lock workaround)
+  - Iframe with allow (QR, new Chrome policy)
+- Backport of [#7844](https://github.com/paritytech/parity/pull/7844) and [#7917](https://github.com/paritytech/parity/pull/7917) to beta ([#7940](https://github.com/paritytech/parity/pull/7940))
+  - Randomize the peer we dispatch to
+  - Fix a division by zero in light client RPC handler
+- Wallet allowJsEval: true ([#7913](https://github.com/paritytech/parity/pull/7913))
+  - Wallet allowJsEval: true
+  - Fix unsafe wallet.
+  - Enable unsafe-eval for all dapps.
+- Fix CSP for dapps that require eval. ([#7867](https://github.com/paritytech/parity/pull/7867)) ([#7903](https://github.com/paritytech/parity/pull/7903))
+  - Add allowJsEval to manifest.
+  - Enable 'unsafe-eval' if requested in manifest.
+- Fix snap build beta ([#7895](https://github.com/paritytech/parity/pull/7895))
+- Fix snapcraft grade to stable ([#7894](https://github.com/paritytech/parity/pull/7894))
+- Backport Master CI PRs to Beta ([#7890](https://github.com/paritytech/parity/pull/7890))
+  - Add binary identifiers and sha256sum to builds ([#7830](https://github.com/paritytech/parity/pull/7830))
+  - Fix checksums and auto-update push ([#7846](https://github.com/paritytech/parity/pull/7846))
+  - Update gitlab-build.sh ([#7855](https://github.com/paritytech/parity/pull/7855))
+  - Fix installer binary names for macos and windows ([#7881](https://github.com/paritytech/parity/pull/7881))
+  - Update gitlab-test.sh ([#7883](https://github.com/paritytech/parity/pull/7883))
+  - Fix snapcraft nightly ([#7884](https://github.com/paritytech/parity/pull/7884))
+- Backport Core PRs to beta ([#7891](https://github.com/paritytech/parity/pull/7891))
+  - Update back-references more aggressively after answering from cache ([#7578](https://github.com/paritytech/parity/pull/7578))
+  - Updated WASM Runtime & new interpreter (wasmi) ([#7796](https://github.com/paritytech/parity/pull/7796))
+  - Adjust storage update evm-style ([#7812](https://github.com/paritytech/parity/pull/7812))
+  - Add new EF ropstens nodes ([#7824](https://github.com/paritytech/parity/pull/7824))
+  - Store updater metadata in a single place ([#7832](https://github.com/paritytech/parity/pull/7832))
+  - WASM: Disable internal memory ([#7842](https://github.com/paritytech/parity/pull/7842))
+  - Add a timeout for light client sync requests ([#7848](https://github.com/paritytech/parity/pull/7848))
+  - Flush keyfiles. Resolves [#7632](https://github.com/paritytech/parity/issues/7632) ([#7868](https://github.com/paritytech/parity/pull/7868))
+  - Fix wallet import ([#7873](https://github.com/paritytech/parity/pull/7873))
+
 ## Parity [v1.9.2](https://github.com/paritytech/parity/releases/tag/v1.9.2) (2018-02-02)
 
 Parity 1.9.2 is a bug-fix release to improve performance and stability. It adds additional bootnodes for the Ropsten test network.

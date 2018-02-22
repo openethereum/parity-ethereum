@@ -174,7 +174,7 @@ mod tests {
 
 		// Check a block that is a bit in future, reject it but don't report the validator.
 		let mut header = Header::default();
-		let seal = vec![encode(&5u8).into_vec(), encode(&(&H520::default() as &[u8])).into_vec()];
+		let seal = vec![encode(&4u8).into_vec(), encode(&(&H520::default() as &[u8])).into_vec()];
 		header.set_seal(seal);
 		header.set_author(v1);
 		header.set_number(2);

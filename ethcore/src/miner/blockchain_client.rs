@@ -120,7 +120,7 @@ impl<'a> pool::client::Client for BlockChainClient<'a> {
 
 impl<'a> service_transaction_checker::ContractCaller for BlockChainClient<'a> {
 	fn registry_address(&self, name: &str) -> Option<Address> {
-		self.chain.registry_address(name.into())
+		self.chain.registry_address(name.into(), BlockId::Latest)
 	}
 
 	fn call_contract(&self, address: Address, data: Vec<u8>) -> Result<Vec<u8>, String> {

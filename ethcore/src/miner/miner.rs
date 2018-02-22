@@ -186,6 +186,8 @@ pub struct Miner {
 	options: MinerOptions,
 	// TODO [ToDr] Arc is only required because of price updater
 	transaction_queue: Arc<TransactionQueue>,
+	// TODO [ToDr] move listeners to queue
+	transaction_listener: RwLock<Vec<Box<Fn(&[H256]) + Send + Sync>>>,
 	engine: Arc<EthEngine>,
 	accounts: Option<Arc<AccountProvider>>,
 }
@@ -202,13 +204,18 @@ impl Miner {
 		self.add_work_listener(Box::new(WorkPoster::new(&urls)));
 	}
 
+	/// Set a callback to be notified about imported transactions' hashes.
+	pub fn add_transactions_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
+		self.transaction_listener.write().push(f);
+	}
+
 	/// Creates new instance of miner Arc.
 	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
 		let limits = options.pool_limits.clone();
 		let verifier_options = options.pool_verification_options.clone();
 
 		Miner {
-			sealing: Mutex::new(SealingWork{
+			sealing: Mutex::new(SealingWork {
 				queue: UsingQueue::new(options.work_queue_size),
 				enabled: options.force_sealing
 					|| spec.engine.seals_internally().is_some(),
@@ -221,6 +228,7 @@ impl Miner {
 			gas_pricer: Mutex::new(gas_pricer),
 			options,
 			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options)),
+			transaction_listener: RwLock::new(vec![]),
 			accounts,
 			engine: spec.engine.clone(),
 		}
