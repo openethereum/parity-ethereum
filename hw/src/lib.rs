@@ -130,7 +130,6 @@ impl From<libusb::Error> for Error {
 
 /// Hardware wallet management interface.
 pub struct HardwareWalletManager {
-	active_threads: Vec<Option<thread::JoinHandle<()>>>,
 	exiting: Arc<AtomicBool>,
 	ledger: Arc<ledger::Manager>,
 	trezor: Arc<trezor::Manager>,
@@ -142,7 +141,6 @@ impl HardwareWalletManager {
 	pub fn new() -> Result<HardwareWalletManager, Error> {
 		let usb_context_trezor = Arc::new(libusb::Context::new()?);
 		let usb_context_ledger = Arc::new(libusb::Context::new()?);
-		let mut active_threads: Vec<Option<thread::JoinHandle<()>>> = Vec::new();
 		let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().map_err(|e| Error::Hid(e.to_string().clone()))?));
 		let ledger = Arc::new(ledger::Manager::new(hidapi.clone()));
 		let trezor = Arc::new(trezor::Manager::new(hidapi.clone()));
@@ -169,7 +167,7 @@ impl HardwareWalletManager {
 		let t = trezor.clone();
 
 		// Ledger event thread
-		active_threads.push(thread::Builder::new()
+		thread::Builder::new()
 			.name("hw_wallet_ledger".to_string())
 			.spawn(move || {
 				if let Err(e) = l.update_devices() {
@@ -184,10 +182,10 @@ impl HardwareWalletManager {
 					}
 				}
 			})
-			.ok());
+			.ok();
 
 		// Trezor event thread
-		active_threads.push(thread::Builder::new()
+		thread::Builder::new()
 			.name("hw_wallet_trezor".to_string())
 			.spawn(move || {
 				if let Err(e) = t.update_devices() {
@@ -201,10 +199,9 @@ impl HardwareWalletManager {
 					}
 				}
 			})
-			.ok());
+			.ok();
 
 		Ok(HardwareWalletManager {
-			active_threads: active_threads,
 			exiting: exiting,
 			ledger: ledger,
 			trezor: trezor,
@@ -258,12 +255,10 @@ impl HardwareWalletManager {
 
 impl Drop for HardwareWalletManager {
 	fn drop(&mut self) {
+		// Indicate to the USB Hotplug handlers that they
+		// shall terminate but don't wait for them to terminate.
+		// If they don't terminate for some reason USB Hotplug events will be handled
+		// even if the HardwareWalletManger has been dropped
 		self.exiting.store(true, atomic::Ordering::Release);
-		for thread in self.active_threads.iter_mut() {
-			if let Some(thread) = thread.take() {
-				thread.thread().unpark();
-				thread.join().ok();
-			}
-		}
 	}
 }
