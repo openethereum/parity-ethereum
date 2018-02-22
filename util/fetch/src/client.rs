@@ -127,6 +127,11 @@ impl Client {
 		})
 	}
 
+	/// Sets a limit on the maximum download size.
+	pub fn set_limit(&mut self, limit: Option<usize>) {
+		self.limit = limit
+	}
+
 	fn client(&self) -> Result<Arc<reqwest::Client>, Error> {
 		{
 			let (ref time, ref client) = *self.client.read();
@@ -150,8 +155,8 @@ impl Fetch for Client {
 	type Result = CpuFuture<Response, Error>;
 
 	fn new() -> Result<Self, Error> {
-		// Max 50MB will be downloaded.
-		Self::with_limit(Some(50*1024*1024))
+		// Max 64MB will be downloaded.
+		Self::with_limit(Some(64 * 1024 * 1024))
 	}
 
 	fn process<F, I, E>(&self, f: F) -> BoxFuture<I, E> where
