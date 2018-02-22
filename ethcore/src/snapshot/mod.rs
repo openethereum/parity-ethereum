@@ -77,6 +77,11 @@ mod traits;
 // Try to have chunks be around 4MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;
 
+// Maximal chunk size (decompressed)
+// Snappy::decompressed_len estimation may sometimes yield results greater
+// than PREFERRED_CHUNK_SIZE so allow some threshold here.
+const MAX_CHUNK_SIZE: usize = PREFERRED_CHUNK_SIZE / 4 * 5;
+
 // Minimum supported state chunk version.
 const MIN_SUPPORTED_STATE_CHUNK_VERSION: u64 = 1;
 // current state chunk version.
