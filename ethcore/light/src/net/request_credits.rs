@@ -137,8 +137,8 @@ impl Default for CostTable {
 }
 
 impl Encodable for CostTable {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		fn append_cost(s: &mut RlpStream, cost: &Option<U256>, kind: request::Kind) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
+		fn append_cost<E: RlpBuffer>(s: &mut RlpConfigurableStream<E>, cost: &Option<U256>, kind: request::Kind) {
 			if let Some(ref cost) = *cost {
 				s.begin_list(2);
 				// hack around https://github.com/paritytech/parity/issues/4356

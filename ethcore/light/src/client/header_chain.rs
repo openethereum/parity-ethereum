@@ -41,7 +41,7 @@ use ethcore::engines::epoch::{
 	PendingTransition as PendingEpochTransition
 };
 
-use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
+use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp, RlpConfigurableStream, RlpBuffer};
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, H264, U256};
 use plain_hasher::H256FastMap;
@@ -96,7 +96,7 @@ impl HeapSizeOf for Entry {
 }
 
 impl Encodable for Entry {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.begin_list(self.candidates.len());
 
 		for candidate in &self.candidates {

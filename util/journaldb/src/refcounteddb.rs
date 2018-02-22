@@ -19,7 +19,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use heapsize::HeapSizeOf;
-use rlp::*;
+use rlp::{self, RlpStream, Rlp};
 use hashdb::*;
 use overlaydb::OverlayDB;
 use memorydb::MemoryDB;
@@ -64,7 +64,7 @@ const PADDING : [u8; 10] = [ 0u8; 10 ];
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
 	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> RefCountedDB {
-		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
+		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.").map(|val| rlp::decode::<u64>(&val));
 
 		RefCountedDB {
 			forward: OverlayDB::new(backing.clone(), col),
@@ -146,7 +146,7 @@ impl JournalDB for RefCountedDB {
 		self.removes.clear();
 
 		if self.latest_era.map_or(true, |e| now > e) {
-			batch.put(self.column, &LATEST_ERA_KEY, &encode(&now));
+			batch.put(self.column, &LATEST_ERA_KEY, &rlp::encode_short(&now));
 			self.latest_era = Some(now);
 		}
 

@@ -20,7 +20,7 @@ use std::fmt;
 use std::time::{self, SystemTime, Duration};
 
 use ethereum_types::{H256, H512};
-use rlp::{self, DecoderError, RlpStream, UntrustedRlp};
+use rlp::{self, DecoderError, RlpStream, UntrustedRlp, RlpBuffer, RlpConfigurableStream};
 use smallvec::SmallVec;
 use tiny_keccak::{keccak256, Keccak};
 
@@ -79,7 +79,7 @@ impl Topic {
 }
 
 impl rlp::Encodable for Topic {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.encoder().encode_value(&self.0);
 	}
 }
@@ -137,7 +137,7 @@ impl fmt::Display for Error {
 	}
 }
 
-fn append_topics<'a>(s: &'a mut RlpStream, topics: &[Topic]) -> &'a mut RlpStream {
+fn append_topics<'a, E: RlpBuffer>(s: &'a mut RlpConfigurableStream<E>, topics: &[Topic]) -> &'a mut RlpConfigurableStream<E> {
 	if topics.len() == 1 {
 		s.append(&topics[0])
 	} else {
@@ -200,7 +200,7 @@ impl Envelope {
 }
 
 impl rlp::Encodable for Envelope {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.begin_list(5)
 			.append(&self.expiry)
 			.append(&self.ttl);

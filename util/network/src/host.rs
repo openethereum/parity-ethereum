@@ -208,7 +208,7 @@ pub struct CapabilityInfo {
 }
 
 impl Encodable for CapabilityInfo {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.begin_list(2);
 		s.append(&&self.protocol[..]);
 		s.append(&self.version);

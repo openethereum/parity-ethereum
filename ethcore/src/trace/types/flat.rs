@@ -53,7 +53,7 @@ impl HeapSizeOf for FlatTrace {
 }
 
 impl Encodable for FlatTrace {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.begin_list(4);
 		s.append(&self.action);
 		s.append(&self.result);

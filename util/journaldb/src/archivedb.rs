@@ -19,7 +19,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
-use rlp::*;
+use rlp;
 use hashdb::*;
 use super::memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
@@ -46,7 +46,7 @@ pub struct ArchiveDB {
 impl ArchiveDB {
 	/// Create a new instance from a key-value db.
 	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> ArchiveDB {
-		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
+		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.").map(|val| rlp::decode::<u64>(&val));
 		ArchiveDB {
 			overlay: MemoryDB::new(),
 			backing: backing,
@@ -140,7 +140,7 @@ impl JournalDB for ArchiveDB {
 		}
 
 		if self.latest_era.map_or(true, |e| now > e) {
-			batch.put(self.column, &LATEST_ERA_KEY, &encode(&now));
+			batch.put(self.column, &LATEST_ERA_KEY, &rlp::encode_short(&now));
 			self.latest_era = Some(now);
 		}
 		Ok((inserts + deletes) as u32)

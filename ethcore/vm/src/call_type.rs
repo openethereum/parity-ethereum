@@ -1,6 +1,6 @@
 //! EVM call types.
 
-use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+use rlp::{Encodable, Decodable, DecoderError, UntrustedRlp, RlpBuffer, RlpConfigurableStream};
 
 /// The type of the call-like instruction.
 #[derive(Debug, PartialEq, Clone)]
@@ -18,7 +18,7 @@ pub enum CallType {
 }
 
 impl Encodable for CallType {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		let v = match *self {
 			CallType::None => 0u32,
 			CallType::Call => 1,

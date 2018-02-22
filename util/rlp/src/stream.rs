@@ -6,9 +6,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::ops;
 use std::borrow::Borrow;
 use byteorder::{ByteOrder, BigEndian};
-use elastic_array::{ElasticArray16, ElasticArray1024};
+use elastic_array::{ElasticArray8, ElasticArray16, ElasticArray1024};
 use traits::Encodable;
 
 #[derive(Debug, Copy, Clone)]
@@ -28,32 +29,75 @@ impl ListInfo {
 	}
 }
 
-/// Appendable rlp encoder.
-pub struct RlpStream {
-	unfinished_lists: ElasticArray16<ListInfo>,
-	buffer: ElasticArray1024<u8>,
-	finished_list: bool,
+pub trait RlpBuffer: Default + ops::Deref<Target = [u8]> + ops::DerefMut {
+	fn push(&mut self, e: u8);
+
+	fn append_slice(&mut self, elements: &[u8]);
+
+	fn clear(&mut self);
+
+	fn into_vec(self) -> Vec<u8>;
+
+	fn insert_slice(&mut self, index: usize, elements: &[u8]);
 }
 
-impl Default for RlpStream {
-	fn default() -> Self {
-		RlpStream::new()
+macro_rules! impl_rlp_buffer_for_elastic_array {
+	($name: ident) => {
+		impl RlpBuffer for $name<u8> {
+			#[inline]
+			fn push(&mut self, e: u8) {
+				self.push(e)
+			}
+
+			#[inline]
+			fn append_slice(&mut self, elements: &[u8]) {
+				self.append_slice(elements)
+			}
+
+			#[inline]
+			fn clear(&mut self) {
+				self.clear()
+			}
+
+			#[inline]
+			fn into_vec(self) -> Vec<u8> {
+				self.into_vec()
+			}
+
+			#[inline]
+			fn insert_slice(&mut self, index: usize, elements: &[u8]) {
+				self.insert_slice(index, elements)
+			}
+		}
 	}
 }
 
-impl RlpStream {
+impl_rlp_buffer_for_elastic_array!(ElasticArray8);
+impl_rlp_buffer_for_elastic_array!(ElasticArray1024);
+
+/// Should be used to encode should stream of rlp items.
+pub type RlpShortStream  = RlpConfigurableStream<ElasticArray8<u8>>;
+
+/// Should be used to encode stream of rlp items.
+pub type RlpStream = RlpConfigurableStream<ElasticArray1024<u8>>;
+
+/// Appendable rlp encoder.
+#[derive(Default)]
+pub struct RlpConfigurableStream<B> {
+	unfinished_lists: ElasticArray16<ListInfo>,
+	buffer: B,
+	finished_list: bool,
+}
+
+impl<B: RlpBuffer> RlpConfigurableStream<B> {
 	/// Initializes instance of empty `Stream`.
 	pub fn new() -> Self {
-		RlpStream {
-			unfinished_lists: ElasticArray16::new(),
-			buffer: ElasticArray1024::new(),
-			finished_list: false,
-		}
+		Self::default()
 	}
 
 	/// Initializes the `Stream` as a list.
 	pub fn new_list(len: usize) -> Self {
-		let mut stream = RlpStream::new();
+		let mut stream = RlpConfigurableStream::new();
 		stream.begin_list(len);
 		stream
 	}
@@ -110,7 +154,7 @@ impl RlpStream {
 	/// 	assert_eq!(out, vec![0xca, 0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g', 0x80]);
 	/// }
 	/// ```
-	pub fn begin_list(&mut self, len: usize) -> &mut RlpStream {
+	pub fn begin_list(&mut self, len: usize) -> &mut Self {
 		self.finished_list = false;
 		match len {
 			0 => {
@@ -135,7 +179,7 @@ impl RlpStream {
 
 
 	/// Declare appending the list of unknown size, chainable.
-	pub fn begin_unbounded_list(&mut self) -> &mut RlpStream {
+	pub fn begin_unbounded_list(&mut self) -> &mut Self {
 		self.finished_list = false;
 		// payload is longer than 1 byte only for lists > 55 bytes
 		// by pushing always this 1 byte we may avoid unnecessary shift of data
@@ -159,7 +203,7 @@ impl RlpStream {
 	/// 	assert_eq!(out, vec![0xc2, 0x80, 0x80]);
 	/// }
 	/// ```
-	pub fn append_empty_data(&mut self) -> &mut RlpStream {
+	pub fn append_empty_data(&mut self) -> &mut Self {
 		// self push raw item
 		self.buffer.push(0x80);
 
@@ -171,7 +215,7 @@ impl RlpStream {
 	}
 
 	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
-	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut RlpStream {
+	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut Self {
 		// push raw items
 		self.buffer.append_slice(bytes);
 
@@ -298,12 +342,12 @@ impl RlpStream {
 		self.finished_list = should_finish;
 	}
 
-	pub fn encoder(&mut self) -> BasicEncoder {
+	pub fn encoder(&mut self) -> BasicEncoder<B> {
 		BasicEncoder::new(self)
 	}
 
 	/// Drain the object and return the underlying ElasticArray.
-	pub fn drain(self) -> ElasticArray1024<u8> {
+	pub fn drain(self) -> B {
 		match self.is_finished() {
 			true => self.buffer,
 			false => panic!()
@@ -322,12 +366,12 @@ impl RlpStream {
 	}
 }
 
-pub struct BasicEncoder<'a> {
-	buffer: &'a mut ElasticArray1024<u8>,
+pub struct BasicEncoder<'a, B: 'a> {
+	buffer: &'a mut B,
 }
 
-impl<'a> BasicEncoder<'a> {
-	fn new(stream: &'a mut RlpStream) -> Self {
+impl<'a, B: RlpBuffer> BasicEncoder<'a, B> {
+	fn new(stream: &'a mut RlpConfigurableStream<B>) -> Self {
 		BasicEncoder {
 			buffer: &mut stream.buffer
 		}

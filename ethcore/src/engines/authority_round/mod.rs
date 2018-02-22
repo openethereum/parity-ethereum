@@ -41,7 +41,7 @@ use self::finality::RollingFinality;
 use ethkey::{public_to_address, recover, verify_address, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
-use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, UntrustedRlp};
+use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, UntrustedRlp, RlpBuffer, RlpConfigurableStream};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
 use unexpected::{Mismatch, OutOfBounds};
@@ -316,7 +316,7 @@ impl fmt::Display for EmptyStep {
 }
 
 impl Encodable for EmptyStep {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		let empty_step_rlp = empty_step_rlp(self.step, &self.parent_hash);
 		s.begin_list(2)
 			.append(&self.signature)
@@ -358,7 +358,7 @@ struct SealedEmptyStep {
 }
 
 impl Encodable for SealedEmptyStep {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		s.begin_list(2)
 			.append(&self.signature)
 			.append(&self.step);

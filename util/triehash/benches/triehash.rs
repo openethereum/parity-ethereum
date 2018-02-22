@@ -26,7 +26,7 @@ use ethereum_types::H256;
 use keccak_hash::keccak;
 use test::Bencher;
 use trie_standardmap::{Alphabet, ValueMode, StandardMap};
-use triehash::trie_root;
+use triehash::{trie_root, ordered_trie_root};
 
 fn random_word(alphabet: &[u8], min_count: usize, diff_count: usize, seed: &mut H256) -> Vec<u8> {
 	assert!(min_count + diff_count <= 32);
@@ -143,5 +143,21 @@ fn triehash_insertions_six_low(b: &mut Bencher) {
 
 	b.iter(||{
 		trie_root(d.clone());
+	})
+}
+
+#[bench]
+fn triehash_ordered_insertions_random_mid(b: &mut Bencher) {
+	let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
+	let mut d: Vec<Vec<u8>> = Vec::new();
+	let mut seed = H256::new();
+	for _ in 0..1000 {
+		let k = random_word(alphabet, 1, 5, &mut seed);
+		let v = random_value(&mut seed);
+		d.push(k)
+	}
+
+	b.iter(||{
+		ordered_trie_root(d.clone());
 	})
 }

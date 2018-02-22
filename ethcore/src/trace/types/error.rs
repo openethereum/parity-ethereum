@@ -17,7 +17,7 @@
 //! Trace errors.
 
 use std::fmt;
-use rlp::{Encodable, RlpStream, Decodable, DecoderError, UntrustedRlp};
+use rlp::{Encodable, Decodable, DecoderError, UntrustedRlp, RlpBuffer, RlpConfigurableStream};
 use vm::Error as VmError;
 
 /// Trace evm errors.
@@ -94,7 +94,7 @@ impl fmt::Display for Error {
 }
 
 impl Encodable for Error {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<E: RlpBuffer>(&self, s: &mut RlpConfigurableStream<E>) {
 		use self::Error::*;
 		let value = match *self {
 			OutOfGas => 0u8,

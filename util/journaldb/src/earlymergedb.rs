@@ -21,7 +21,7 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use heapsize::HeapSizeOf;
-use rlp::*;
+use rlp::{self, RlpStream, Rlp};
 use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
@@ -264,7 +264,7 @@ impl EarlyMergeDB {
 		let mut refs = HashMap::new();
 		let mut latest_era = None;
 		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
-			let mut era = decode::<u64>(&val);
+			let mut era = rlp::decode::<u64>(&val);
 			latest_era = Some(era);
 			loop {
 				let mut index = 0usize;
@@ -426,7 +426,7 @@ impl JournalDB for EarlyMergeDB {
 
 			batch.put(self.column, &last, r.as_raw());
 			if self.latest_era.map_or(true, |e| now > e) {
-				batch.put(self.column, &LATEST_ERA_KEY, &encode(&now));
+				batch.put(self.column, &LATEST_ERA_KEY, &rlp::encode_short(&now));
 				self.latest_era = Some(now);
 			}
 

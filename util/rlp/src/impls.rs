@@ -10,7 +10,7 @@ use std::{cmp, mem, str};
 use byteorder::{ByteOrder, BigEndian};
 use bigint::{U128, U256, H64, H128, H160, H256, H512, H520, Bloom};
 use traits::{Encodable, Decodable};
-use stream::RlpStream;
+use stream::{RlpConfigurableStream, RlpBuffer};
 use {UntrustedRlp, DecoderError};
 
 pub fn decode_usize(bytes: &[u8]) -> Result<usize, DecoderError> {
@@ -31,7 +31,7 @@ pub fn decode_usize(bytes: &[u8]) -> Result<usize, DecoderError> {
 }
 
 impl Encodable for bool {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<B: RlpBuffer>(&self, s: &mut RlpConfigurableStream<B>) {
 		if *self {
 			s.encoder().encode_value(&[1]);
 		} else {
@@ -53,13 +53,13 @@ impl Decodable for bool {
 }
 
 impl<'a> Encodable for &'a [u8] {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<B: RlpBuffer>(&self, s: &mut RlpConfigurableStream<B>) {
 		s.encoder().encode_value(self);
 	}
 }
 
 impl Encodable for Vec<u8> {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<B: RlpBuffer>(&self, s: &mut RlpConfigurableStream<B>) {
 		s.encoder().encode_value(self);
 	}
 }
@@ -73,7 +73,7 @@ impl Decodable for Vec<u8> {
 }
 
 impl<T> Encodable for Option<T> where T: Encodable {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<B: RlpBuffer>(&self, s: &mut RlpConfigurableStream<B>) {
 		match *self {
 			None => {
 				s.begin_list(0);
@@ -98,7 +98,7 @@ impl<T> Decodable for Option<T> where T: Decodable {
 }
 
 impl Encodable for u8 {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<B: RlpBuffer>(&self, s: &mut RlpConfigurableStream<B>) {
 		if *self != 0 {
 			s.encoder().encode_value(&[*self]);
 		} else {
@@ -123,7 +123,7 @@ impl Decodable for u8 {
 macro_rules! impl_encodable_for_u {
 	($name: ident, $func: ident, $size: expr) => {
 		impl Encodable for $name {
-			fn rlp_append(&self, s: &mut RlpStream) {
+			fn rlp_append<B: RlpBuffer>(&self, s: &mut RlpConfigurableStream<B>) {
 				let leading_empty_bytes = self.leading_zeros() as usize / 8;
 				let mut buffer = [0u8; $size];
 				BigEndian::$func(&mut buffer, *self);
@@ -168,7 +168,7 @@ impl_decodable_for_u!(u32);
 impl_decodable_for_u!(u64);
 
 impl Encodable for usize {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<B: RlpBuffer>(&self, s: &mut RlpConfigurableStream<B>) {
 		(*self as u64).rlp_append(s);
 	}
 }
@@ -182,7 +182,7 @@ impl Decodable for usize {
 macro_rules! impl_encodable_for_hash {
 	($name: ident) => {
 		impl Encodable for $name {
-			fn rlp_append(&self, s: &mut RlpStream) {
+			fn rlp_append<B: RlpBuffer>(&self, s: &mut RlpConfigurableStream<B>) {
 				s.encoder().encode_value(self);
 			}
 		}
@@ -226,7 +226,7 @@ impl_decodable_for_hash!(Bloom, 256);
 macro_rules! impl_encodable_for_uint {
 	($name: ident, $size: expr) => {
 		impl Encodable for $name {
-			fn rlp_append(&self, s: &mut RlpStream) {
+			fn rlp_append<B: RlpBuffer>(&self, s: &mut RlpConfigurableStream<B>) {
 				let leading_empty_bytes = $size - (self.bits() + 7) / 8;
 				let mut buffer = [0u8; $size];
 				self.to_big_endian(&mut buffer);
@@ -261,13 +261,13 @@ impl_decodable_for_uint!(U256, 32);
 impl_decodable_for_uint!(U128, 16);
 
 impl<'a> Encodable for &'a str {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<B: RlpBuffer>(&self, s: &mut RlpConfigurableStream<B>) {
 		s.encoder().encode_value(self.as_bytes());
 	}
 }
 
 impl Encodable for String {
-	fn rlp_append(&self, s: &mut RlpStream) {
+	fn rlp_append<B: RlpBuffer>(&self, s: &mut RlpConfigurableStream<B>) {
 		s.encoder().encode_value(self.as_bytes());
 	}
 }
