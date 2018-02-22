@@ -267,8 +267,9 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		kind: pubsub::Kind,
 		params: Trailing<pubsub::Params>,
 	) {
+
 		let error = match (kind, params.into()) {
-			(pubsub::Kind::NewHeads, None) => {
+			(pubsub::Kind::NewHeads, _) => {
 				self.heads_subscribers.write().push(subscriber);
 				return;
 			},
