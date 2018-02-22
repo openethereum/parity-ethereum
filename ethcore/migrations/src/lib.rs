@@ -16,34 +16,9 @@
 
 //! Database migrations.
 
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate macros;
 extern crate migration;
-extern crate rlp;
-extern crate ethereum_types;
-extern crate ethcore_bytes as bytes;
-extern crate kvdb;
-extern crate kvdb_rocksdb;
-extern crate keccak_hash as hash;
-extern crate journaldb;
-extern crate ethcore_bloom_journal as bloom_journal;
-extern crate ethcore;
-extern crate patricia_trie as trie;
 
-use migration::ChangeColumns;
-
-pub mod state;
-pub mod blocks;
-pub mod extras;
-
-mod v9;
-pub use self::v9::ToV9;
-pub use self::v9::Extract;
-
-mod v10;
-pub use self::v10::ToV10;
+use migration::{ChangeColumns, SimpleMigration};
 
 /// The migration from v10 to v11.
 /// Adds a column for node info.
@@ -60,3 +35,30 @@ pub const TO_V12: ChangeColumns = ChangeColumns {
 	post_columns: Some(8),
 	version: 12,
 };
+
+#[derive(Default)]
+pub struct ToV13;
+
+impl SimpleMigration for ToV13 {
+	fn columns(&self) -> Option<u32> {
+		Some(8)
+	}
+
+	fn version(&self) -> u32 {
+		13
+	}
+
+	fn migrated_column_index(&self) -> Option<u32> {
+		// extras!
+		Some(3)
+	}
+
+	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
+		// remove all bloom groups
+		if key[0] == 3 {
+			None
+		} else {
+			Some((key, value))
+		}
+	}
+}
