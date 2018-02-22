@@ -16,34 +16,9 @@
 
 //! Database migrations.
 
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate macros;
 extern crate migration;
-extern crate rlp;
-extern crate ethereum_types;
-extern crate ethcore_bytes as bytes;
-extern crate kvdb;
-extern crate kvdb_rocksdb;
-extern crate keccak_hash as hash;
-extern crate journaldb;
-extern crate ethcore_bloom_journal as bloom_journal;
-extern crate ethcore;
-extern crate patricia_trie as trie;
 
 use migration::ChangeColumns;
-
-pub mod state;
-pub mod blocks;
-pub mod extras;
-
-mod v9;
-pub use self::v9::ToV9;
-pub use self::v9::Extract;
-
-mod v10;
-pub use self::v10::ToV10;
 
 /// The migration from v10 to v11.
 /// Adds a column for node info.

@@ -138,7 +138,7 @@ pub trait SimpleMigration: 'static {
 	fn version(&self) -> u32;
 	/// Should migrate existing object to new database.
 	/// Returns `None` if the object does not exist in new version of database.
-	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)>;
+	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>, col: Option<u32>) -> Option<(Vec<u8>, Vec<u8>)>;
 }
 
 impl<T: SimpleMigration> Migration for T {
@@ -157,7 +157,7 @@ impl<T: SimpleMigration> Migration for T {
 		};
 
 		for (key, value) in iter {
-			if let Some((key, value)) = self.simple_migrate(key.into_vec(), value.into_vec()) {
+			if let Some((key, value)) = self.simple_migrate(key.into_vec(), value.into_vec(), col) {
 				batch.insert(key, value, dest)?;
 			}
 		}
