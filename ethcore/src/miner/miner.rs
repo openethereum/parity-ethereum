@@ -24,7 +24,7 @@ use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use engines::{EthEngine, Seal};
 use error::{Error, ExecutionError};
-use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction};
+use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus};
 use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
 use ethcore_miner::gas_pricer::GasPricer;
 use timer::PerfTimer;
@@ -817,17 +817,18 @@ impl MinerService for Miner {
 			.unwrap_or_else(|| chain.nonce(address, BlockId::Latest).unwrap_or_default())
 	}
 
-	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction> {
-		match self.options.pending_set {
-			PendingSet::AlwaysQueue => self.transaction_queue.find(hash).map(|t| t.pending().clone()),
-			PendingSet::AlwaysSealing => {
-				self.from_pending_block(
-					best_block,
-					|| None,
-					|sealing| sealing.transactions().iter().find(|t| &t.hash() == hash).cloned().map(Into::into)
-				)
-			},
-		}
+	fn transaction(&self, hash: &H256) -> Option<Arc<VerifiedTransaction>> {
+		self.transaction_queue.find(hash)
+	}
+
+	fn remove_transaction(&self, hash: &H256) -> Option<Arc<VerifiedTransaction>> {
+		self.transaction_queue.remove(::std::iter::once(hash), false)
+			.pop()
+			.expect("remove() returns one result per hash; one hash passed; qed")
+	}
+
+	fn queue_status(&self) -> QueueStatus {
+		self.transaction_queue.status()
 	}
 
 	fn pending_transactions(&self, best_block: BlockNumber) -> Option<Vec<SignedTransaction>> {

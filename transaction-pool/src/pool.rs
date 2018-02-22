@@ -412,6 +412,11 @@ impl<T, S, L> Pool<T, S, L> where
 			senders: self.transactions.len(),
 		}
 	}
+
+	/// Returns current pool options.
+	pub fn options(&self) -> Options {
+		self.options.clone()
+	}
 }
 
 /// An iterator over all pending (ready) transactions.

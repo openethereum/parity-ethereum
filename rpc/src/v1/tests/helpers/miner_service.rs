@@ -28,8 +28,9 @@ use ethcore::header::BlockNumber;
 use ethcore::miner::{MinerService, AuthoringParams};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethereum_types::{H256, U256, Address};
-use miner::pool::VerifiedTransaction;
+use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
 use miner::local_transactions::Status as LocalTransactionStatus;
+use txpool;
 use parking_lot::{RwLock, Mutex};
 use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 
@@ -152,15 +153,19 @@ impl MinerService for TestMinerService {
 		Some((header.hash(), header.number(), header.timestamp(), *header.difficulty()))
 	}
 
-	fn transaction(&self, _best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction> {
-		self.pending_transactions.lock().get(hash).cloned().map(Into::into)
+	fn transaction(&self, hash: &H256) -> Option<Arc<VerifiedTransaction>> {
+		self.pending_transactions.lock().get(hash).cloned().map(|tx| {
+			Arc::new(VerifiedTransaction::from_pending_block_transaction(tx))
+		})
 	}
 
-	// fn remove_pending_transaction(&self, _chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction> {
-	// 	self.pending_transactions.lock().remove(hash).map(Into::into)
-	// }
+	fn remove_transaction(&self, hash: &H256) -> Option<Arc<VerifiedTransaction>> {
+		self.pending_transactions.lock().remove(hash).map(|tx| {
+			Arc::new(VerifiedTransaction::from_pending_block_transaction(tx))
+		})
+	}
 
-	fn pending_transactions(&self, best_block: BlockNumber) -> Option<Vec<SignedTransaction>> {
+	fn pending_transactions(&self, _best_block: BlockNumber) -> Option<Vec<SignedTransaction>> {
 		Some(self.pending_transactions.lock().values().cloned().collect())
 	}
 
@@ -168,9 +173,10 @@ impl MinerService for TestMinerService {
 	// 	self.local_transactions.lock().iter().map(|(hash, stats)| (*hash, stats.clone())).collect()
 	// }
 
-	fn ready_transactions(&self, chain: &MiningBlockChainClient) -> Vec<Arc<VerifiedTransaction>> {
-		// self.pending_transactions.lock().values().cloned().map(Into::into).collect()
-		unimplemented!()
+	fn ready_transactions(&self, _chain: &MiningBlockChainClient) -> Vec<Arc<VerifiedTransaction>> {
+		self.pending_transactions.lock().values().cloned().map(|tx| {
+			Arc::new(VerifiedTransaction::from_pending_block_transaction(tx))
+		}).collect()
 	}
 
 	fn future_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
@@ -203,6 +209,26 @@ impl MinerService for TestMinerService {
 
 	fn is_currently_sealing(&self) -> bool {
 		false
+	}
+
+	fn queue_status(&self) -> QueueStatus {
+		QueueStatus {
+			options: verifier::Options {
+				minimal_gas_price: 0x1312d00.into(),
+				block_gas_limit: 5_000_000.into(),
+				tx_gas_limit: 5_000_000.into(),
+			},
+			status: txpool::LightStatus {
+				mem_usage: 1_000,
+				transaction_count: 52,
+				senders: 1,
+			},
+			limits: txpool::Options {
+				max_count: 1_024,
+				max_per_sender: 16,
+				max_mem_usage: 5_000,
+			},
+		}
 	}
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.

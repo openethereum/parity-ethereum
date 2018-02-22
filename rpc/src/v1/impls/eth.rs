@@ -455,8 +455,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let hash: H256 = hash.into();
 		let block_number = self.client.chain_info().best_block_number;
 		let tx = try_bf!(self.transaction(TransactionId::Hash(hash))).or_else(|| {
-			self.miner.transaction(block_number, &hash)
-				.map(|t| Transaction::from_pending(t, block_number, self.eip86_transition))
+			self.miner.transaction(&hash)
+				.map(|t| Transaction::from_pending(t.pending().clone(), block_number + 1, self.eip86_transition))
 		});
 
 		Box::new(future::ok(tx))

@@ -75,8 +75,19 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	F: Fetch + 'static,
 {
 
-	fn set_min_gas_price(&self, gas_price: U256) -> Result<bool> {
-		unimplemented!()
+	fn set_min_gas_price(&self, _gas_price: U256) -> Result<bool> {
+		warn!("setMinGasPrice is deprecated. Ignoring request.");
+		Ok(false)
+	}
+
+	fn set_transactions_limit(&self, _limit: usize) -> Result<bool> {
+		warn!("setTransactionsLimit is deprecated. Ignoring request.");
+		Ok(false)
+	}
+
+	fn set_tx_gas_limit(&self, _limit: U256) -> Result<bool> {
+		warn!("setTxGasLimit is deprecated. Ignoring request.");
+		Ok(false)
 	}
 
 	fn set_gas_floor_target(&self, target: U256) -> Result<bool> {
@@ -106,14 +117,6 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	fn set_engine_signer(&self, address: H160, password: String) -> Result<bool> {
 		self.miner.set_author(address.into(), Some(password)).map_err(Into::into).map_err(errors::password)?;
 		Ok(true)
-	}
-
-	fn set_transactions_limit(&self, limit: usize) -> Result<bool> {
-		unimplemented!()
-	}
-
-	fn set_tx_gas_limit(&self, limit: U256) -> Result<bool> {
-		unimplemented!()
 	}
 
 	fn add_reserved_peer(&self, peer: String) -> Result<bool> {
@@ -194,11 +197,11 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn remove_transaction(&self, hash: H256) -> Result<Option<Transaction>> {
-		// let block_number = self.client.chain_info().best_block_number;
-		// let hash = hash.into();
+		let block_number = self.client.chain_info().best_block_number;
+		let hash = hash.into();
 
-		// TODO [ToDr]
-		unimplemented!()
-		// Ok(self.miner.remove_pending_transaction(&*self.client, &hash).map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)))
+		Ok(self.miner.remove_transaction(&hash)
+		   .map(|t| Transaction::from_pending(t.pending().clone(), block_number + 1, self.eip86_transition))
+		)
 	}
 }

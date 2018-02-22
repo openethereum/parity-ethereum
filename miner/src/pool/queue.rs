@@ -29,6 +29,18 @@ use pool::{self, scoring, verifier, client, ready};
 // TODO [ToDr] Support logging listener (and custom listeners)
 type Pool = txpool::Pool<pool::VerifiedTransaction, scoring::GasPrice>;
 
+
+/// Transaction queue status
+#[derive(Debug, Clone, PartialEq)]
+pub struct Status {
+	/// Verifier options
+	pub options: verifier::Options,
+	/// Current status of the transaction pool.
+	pub status: txpool::LightStatus,
+	/// Current limits of the transaction pool.
+	pub limits: txpool::Options,
+}
+
 /// Ethereum Transaction Queue
 ///
 /// Responsible for:
@@ -160,11 +172,13 @@ impl TransactionQueue {
 		&self,
 		hashes: T,
 		is_invalid: bool,
-	) {
+	) -> Vec<Option<Arc<pool::VerifiedTransaction>>> {
 		let mut pool = self.pool.write();
-		for hash in hashes {
-			pool.remove(hash, is_invalid);
-		}
+
+		hashes
+			.into_iter()
+			.map(|hash| pool.remove(hash, is_invalid))
+			.collect()
 	}
 
 	/// Clear the entire pool.
@@ -180,9 +194,18 @@ impl TransactionQueue {
 		}
 	}
 
-	/// Returns a status of the pool.
-	pub fn status(&self) -> txpool::LightStatus {
-		self.pool.read().light_status()
+	/// Returns a status of the queue.
+	pub fn status(&self) -> Status {
+		let pool = self.pool.read();
+		let status = pool.light_status();
+		let limits = pool.options();
+		let options = self.options.read().clone();
+
+		Status {
+			options,
+			status,
+			limits,
+		}
 	}
 
 	/// Check if there are any local transactions in the pool.

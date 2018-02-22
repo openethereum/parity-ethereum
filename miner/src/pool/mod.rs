@@ -27,7 +27,7 @@ pub mod ready;
 pub mod scoring;
 pub mod verifier;
 
-pub use self::queue::TransactionQueue;
+pub use self::queue::{TransactionQueue, Status as QueueStatus};
 pub use self::txpool::{VerifiedTransaction as PoolVerifiedTransaction, Options};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

@@ -167,11 +167,11 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 	}
 
 	fn transactions_limit(&self) -> Result<usize> {
-		unimplemented!()
+		Ok(self.miner.queue_status().limits.max_count)
 	}
 
 	fn min_gas_price(&self) -> Result<U256> {
-		unimplemented!()
+		Ok(self.miner.queue_status().options.minimal_gas_price.into())
 	}
 
 	fn extra_data(&self) -> Result<Bytes> {

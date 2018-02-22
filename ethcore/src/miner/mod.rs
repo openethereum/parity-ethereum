@@ -31,7 +31,7 @@ use std::collections::BTreeMap;
 
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
-use ethcore_miner::pool::VerifiedTransaction;
+use ethcore_miner::pool::{VerifiedTransaction, QueueStatus};
 
 use block::SealedBlock;
 use client::{MiningBlockChainClient};
@@ -40,9 +40,13 @@ use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
 use transaction::{self, UnverifiedTransaction, PendingTransaction, SignedTransaction};
 
+// TODO [ToDr] Split into smaller traits?
+// TODO [ToDr] get rid of from_pending_block in miner/miner.rs
+
 /// Miner client API
 pub trait MinerService : Send + Sync {
 
+	// Sealing
 
 	/// Get the sealing work package preparing it if doesn't exist yet.
 	///
@@ -91,7 +95,7 @@ pub trait MinerService : Send + Sync {
 	/// On PoW password is optional.
 	fn set_author(&self, address: Address, password: Option<String>) -> Result<(), ::account_provider::SignError>;
 
-	// Transactions and Pool
+	// Transaction Pool
 
 	/// Imports transactions to transaction queue.
 	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<UnverifiedTransaction>) ->
@@ -101,14 +105,15 @@ pub trait MinerService : Send + Sync {
 	fn import_own_transaction(&self, chain: &MiningBlockChainClient, transaction: PendingTransaction) ->
 		Result<(), transaction::Error>;
 
-	/// Removes transaction from the queue.
-	/// NOTE: The transaction is not removed from pending block if mining.
-	// fn remove_pending_transaction(&self, chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction>;
-
-	/// Query pending transaction given it's hash.
+	/// Removes transaction from the pool.
 	///
-	/// Depending on the settings may look in transaction pool or only in pending block.
-	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction>;
+	/// Attempts to "cancel" a transaction. If it was not propagated yet (or not accepted by other peers)
+	/// there is a good chance that the transaction will actually be removed.
+	/// NOTE: The transaction is not removed from pending block if there is one.
+	fn remove_transaction(&self, hash: &H256) -> Option<Arc<VerifiedTransaction>>;
+
+	/// Query transaction from the pool given it's hash.
+	fn transaction(&self, hash: &H256) -> Option<Arc<VerifiedTransaction>>;
 
 	/// Returns next valid nonce for given address.
 	///
@@ -129,6 +134,12 @@ pub trait MinerService : Send + Sync {
 	/// Get a list of local transactions with statuses.
 	// fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus>;
 
+	/// Get current queue status.
+	///
+	/// Status includes verification thresholds and current pool utilization and limits.
+	fn queue_status(&self) -> QueueStatus;
+
+	// Misc
 
 	/// Suggested gas price.
 	fn sensible_gas_price(&self) -> U256;
