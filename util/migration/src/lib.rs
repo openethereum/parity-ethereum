@@ -159,7 +159,7 @@ impl<T: SimpleMigration> Migration for T {
 			None => return Ok(()),
 		};
 
-		for	(key, value) in iter {
+		for (key, value) in iter {
 			if migration_needed {
 				if let Some((key, value)) = self.simple_migrate(key.into_vec(), value.into_vec()) {
 					batch.insert(key, value, dest)?;
