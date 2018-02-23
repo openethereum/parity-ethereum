@@ -1,23 +1,26 @@
-use futures::{Future, future};
+use futures::{Future, future, IntoFuture};
 use ethabi::{Address, Bytes};
 use std::sync::Arc;
 use keccak_hash::keccak;
 
 use_contract!(registry, "Registry", "res/registrar.json");
 
-// This need to be documented why it is concatenated with the hash
-const MAGIC_CONST: &'static str = "A";
+// Maps a domain name to IPv4 address
+const DNS_A_RECORD: &'static str = "A";
+
+pub type Asynchronous = Box<Future<Item=Bytes, Error=String> + Send>;
+pub type Synchronous = Result<Bytes, String>;
 
 /// Registrar client is a dedicated interface to access the registrar contract
 /// which in turn generates an address when a service requests one
 pub struct RegistrarClient {
 	registrar: registry::Registry,
-	contract_client: Arc<AsyncContractClient>,
+	contract_client: Arc<ContractClient<Call=Asynchronous>>,
 }
 
 impl RegistrarClient {
 	/// Registrar client constructor
-	pub fn new(client: Arc<AsyncContractClient>) -> Self {
+	pub fn new(client: Arc<ContractClient<Call=Asynchronous>>) -> Self {
 		Self {
 			registrar: registry::Registry::default(),
 			contract_client: client,
@@ -33,7 +36,7 @@ impl RegistrarClient {
 		};
 
 		let address_fetcher = self.registrar.functions().get_address();
-		let id = address_fetcher.input(keccak(key), MAGIC_CONST);
+		let id = address_fetcher.input(keccak(key), DNS_A_RECORD);
 
 		let future = self.contract_client.call_contract(registrar_address, id).and_then(move |address| {
 			address_fetcher.output(&address)
@@ -44,21 +47,15 @@ impl RegistrarClient {
 	}
 }
 
-/// Syncronous contract interface.
+/// Contract interface
 /// Should execute transaction using current blockchain state.
 pub trait ContractClient: Send + Sync {
-	/// Get registrar address
-	fn registrar_address(&self) -> Result<Address, String>;
-	/// Call Contract
-	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String>;
-}
+	/// Specifies synchronous or asynchronous communication
+	type Call: IntoFuture<Item=Bytes, Error=String>;
 
-/// Asyncronous contract interface.
-/// Should execute transaction using current blockchain state.
-pub trait AsyncContractClient: Send + Sync {
 	/// Get registrar address
 	fn registrar_address(&self) -> Result<Address, String>;
 	/// Call Contract
-	fn call_contract(&self, address: Address, data: Bytes) -> Box<Future<Item = Bytes, Error = String> + Send>;
+	fn call_contract(&self, address: Address, data: Bytes) -> Self::Call;
 }
 

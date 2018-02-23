@@ -24,7 +24,7 @@ use ethcore::client::{Client, BlockChainClient, BlockId, CallContract};
 use ethsync::LightSync;
 use futures::{Future, future, IntoFuture};
 use hash_fetch::fetch::Client as FetchClient;
-use contract_client::AsyncContractClient;
+use contract_client::{ContractClient, Asynchronous};
 use light::client::LightChainClient;
 use light::on_demand::{self, OnDemand};
 use node_health::{SyncStatus, NodeHealth};
@@ -78,13 +78,15 @@ impl FullRegistrar {
 	}
 }
 
-impl AsyncContractClient for FullRegistrar {
+impl ContractClient for FullRegistrar {
+	type Call = Asynchronous;
+
 	fn registrar_address(&self) -> Result<Address, String> {
 		self.client.registrar_address()
 			 .ok_or_else(|| "Registrar not defined.".into())
 	}
 
-	fn call_contract(&self, address: Address, data: Bytes) -> Box<Future<Item = Bytes, Error = String> + Send> {
+	fn call_contract(&self, address: Address, data: Bytes) -> Self::Call {
 		Box::new(self.client.call_contract(BlockId::Latest, address, data).into_future())
 	}
 }
@@ -99,9 +101,9 @@ pub struct LightRegistrar<T> {
 	pub sync: Arc<LightSync>,
 }
 
-// FIXME: This should implement the ConstractClient trait ideally
-// -> LightClient is syncronous and shouldn't need async i/o
-impl<T: LightChainClient + 'static> AsyncContractClient for LightRegistrar<T> {
+impl<T: LightChainClient + 'static> ContractClient for LightRegistrar<T> {
+	type Call = Box<Future<Item = Bytes, Error = String> + Send>;
+
 	fn registrar_address(&self) -> Result<Address, String> {
 		self.client.engine().additional_params().get("registrar")
 			 .ok_or_else(|| "Registrar not defined.".into())
@@ -110,7 +112,7 @@ impl<T: LightChainClient + 'static> AsyncContractClient for LightRegistrar<T> {
 			 })
 	}
 
-	fn call_contract(&self, address: Address, data: Bytes) -> Box<Future<Item = Bytes, Error = String> + Send> {
+	fn call_contract(&self, address: Address, data: Bytes) -> Self::Call {
 		let header = self.client.best_block_header();
 		let env_info = self.client.env_info(BlockId::Hash(header.hash()))
 			.ok_or_else(|| format!("Cannot fetch env info for header {}", header.hash()));
@@ -156,7 +158,7 @@ impl<T: LightChainClient + 'static> AsyncContractClient for LightRegistrar<T> {
 pub struct Dependencies {
 	pub node_health: NodeHealth,
 	pub sync_status: Arc<SyncStatus>,
-	pub contract_client: Arc<AsyncContractClient>,
+	pub contract_client: Arc<ContractClient<Call=Asynchronous>>,
 	pub fetch: FetchClient,
 	pub signer: Arc<SignerService>,
 	pub ui_address: Option<(String, u16)>,
