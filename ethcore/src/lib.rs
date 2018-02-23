@@ -54,7 +54,6 @@
 //!   cargo build --release
 //!   ```
 
-extern crate bloomchain;
 extern crate bn;
 extern crate byteorder;
 extern crate crossbeam;
@@ -83,6 +82,7 @@ extern crate price_info;
 extern crate rand;
 extern crate rayon;
 extern crate rlp;
+extern crate rlp_compress;
 extern crate keccak_hash as hash;
 extern crate heapsize;
 extern crate memorydb;
@@ -159,7 +159,6 @@ pub mod verification;
 pub mod views;
 
 mod cache_manager;
-mod blooms;
 mod pod_account;
 mod account_db;
 mod builtin;

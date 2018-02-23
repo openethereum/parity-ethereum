@@ -132,4 +132,5 @@ members = [
 	"miner",
 	"transaction-pool",
 	"whisper",
+	"util/rlp_compress"
 ]
