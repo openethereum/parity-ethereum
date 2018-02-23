@@ -31,10 +31,6 @@ extern crate parking_lot;
 extern crate table;
 extern crate transient_hashmap;
 
-#[macro_use]
-extern crate ethabi_derive;
-#[macro_use]
-extern crate ethabi_contract;
 #[cfg(test)]
 extern crate ethkey;
 #[macro_use]
