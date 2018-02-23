@@ -966,6 +966,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+		use parity_machine::WithBalances;
+
 		if block.header().number() >= self.empty_steps_transition {
 			let empty_steps =
 				if block.header().seal().is_empty() {
@@ -991,12 +993,15 @@ impl Engine<EthereumMachine> for AuthorityRound {
 				};
 
 			for empty_step in empty_steps {
-				::engines::common::bestow_block_reward(block, self.block_reward, empty_step.author()?)?;
+				let author = empty_step.author()?;
+				self.machine.add_balance(block, &author, &self.block_reward)?;
+				self.machine.note_rewards(block, &[(author, self.block_reward)], &[])?;
 			}
 		}
 
 		let author = *block.header().author();
-		::engines::common::bestow_block_reward(block, self.block_reward, author)
+		self.machine.add_balance(block, &author, &self.block_reward)?;
+		self.machine.note_rewards(block, &[(author, self.block_reward)], &[])
 	}
 
 	/// Check the number of seal fields.

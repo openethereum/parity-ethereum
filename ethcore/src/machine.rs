@@ -20,7 +20,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::cmp;
 use std::sync::Arc;
 
-use block::ExecutedBlock;
+use block::{ExecutedBlock, Tracing};
 use builtin::Builtin;
 use client::BlockChainClient;
 use error::Error;
@@ -135,7 +135,7 @@ impl EthereumMachine {
 			env_info
 		};
 
-		let mut state = block.fields_mut().state;
+		let mut state = block.state_mut();
 		let params = ActionParams {
 			code_address: contract_address.clone(),
 			address: contract_address.clone(),
@@ -164,7 +164,7 @@ impl EthereumMachine {
 	fn push_last_hash(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		let params = self.params();
 		if block.fields().header.number() == params.eip210_transition {
-			let state = block.fields_mut().state;
+			let state = block.state_mut();
 			state.init_code(&params.eip210_contract_address, params.eip210_contract_code.clone())?;
 		}
 		if block.fields().header.number() >= params.eip210_transition {
@@ -186,7 +186,7 @@ impl EthereumMachine {
 
 		if let Some(ref ethash_params) = self.ethash_extensions {
 			if block.fields().header.number() == ethash_params.dao_hardfork_transition {
-				let state = block.fields_mut().state;
+				let state = block.state_mut();
 				for child in &ethash_params.dao_hardfork_accounts {
 					let beneficiary = &ethash_params.dao_hardfork_beneficiary;
 					state.balance(child)
@@ -430,7 +430,7 @@ impl ::parity_machine::WithBalances for EthereumMachine {
 	}
 
 	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
-		live.fields_mut().state.add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
+		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
 	}
 
 	fn note_rewards(
@@ -439,21 +439,19 @@ impl ::parity_machine::WithBalances for EthereumMachine {
 		direct: &[(Address, U256)],
 		indirect: &[(Address, U256)],
 	) -> Result<(), Self::Error> {
-		use block::IsBlock;
+		if let Tracing::Enabled(ref mut traces) = *live.traces_mut() {
+			let mut tracer = ExecutiveTracer::default();
 
-		if !live.tracing_enabled() { return Ok(()) }
+			for &(address, amount) in direct {
+				tracer.trace_reward(address, amount, RewardType::Block);
+			}
 
-		let mut tracer = ExecutiveTracer::default();
+			for &(address, amount) in indirect {
+				tracer.trace_reward(address, amount, RewardType::Uncle);
+			}
 
-		for &(address, amount) in direct {
-			tracer.trace_reward(address, amount, RewardType::Block);
+			traces.push(tracer.drain().into());
 		}
-
-		for &(address, amount) in indirect {
-			tracer.trace_reward(address, amount, RewardType::Uncle);
-		}
-
-		live.fields_mut().push_traces(tracer);
 
 		Ok(())
 	}
