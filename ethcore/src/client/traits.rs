@@ -153,7 +153,7 @@ pub trait StateClient {
 }
 
 /// Provides various blockchain information, like block header, chain state etc.
-pub trait BlockChain: ChainInfo + BlockInfo + TransactionInfo + StateClient {}
+pub trait BlockChain: ChainInfo + BlockInfo + TransactionInfo /* + StateClient */ {}
 
 /// Provides information on a blockchain service and it's registry
 pub trait RegistryInfo {
@@ -200,7 +200,7 @@ pub trait EngineInfo {
 }
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + AccountData + ChainInfo + BlockInfo + CallContract + TransactionInfo + RegistryInfo + ImportBlock {
+pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContract + RegistryInfo + ImportBlock {
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 

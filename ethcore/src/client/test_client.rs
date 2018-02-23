@@ -39,7 +39,7 @@ use client::{
 	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
-	Call, StateClient, EngineInfo, AccountData
+	Call, StateClient, EngineInfo, AccountData, BlockChain
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -501,6 +501,8 @@ impl TransactionInfo for TestBlockChainClient {
 		None	// Simple default.
 	}
 }
+
+impl BlockChain for TestBlockChainClient {}
 
 impl RegistryInfo for TestBlockChainClient {
 	fn registry_address(&self, _name: String, _block: BlockId) -> Option<Address> { None }

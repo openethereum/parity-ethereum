@@ -44,7 +44,7 @@ use client::{
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo
+	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, BlockChain as BlockChainTrait
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
@@ -1337,6 +1337,8 @@ impl TransactionInfo for Client {
 		self.transaction_address(id).map(|addr| addr.block_hash)
 	}
 }
+
+impl BlockChainTrait for Client {}
 
 impl RegistryInfo for Client {
 	fn registry_address(&self, name: String, block: BlockId) -> Option<Address> {
