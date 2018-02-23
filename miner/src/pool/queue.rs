@@ -18,17 +18,18 @@
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
+use std::collections::BTreeMap;
 
 use ethereum_types::{H256, U256, Address};
 use parking_lot::RwLock;
 use transaction;
 use txpool::{self, Verifier};
 
-use pool::{self, scoring, verifier, client, ready};
+use pool::{self, scoring, verifier, client, ready, listener};
+use pool::local_transactions::LocalTransactionsList;
 
-// TODO [ToDr] Support logging listener (and custom listeners)
-type Pool = txpool::Pool<pool::VerifiedTransaction, scoring::GasPrice>;
-
+type Listener = (LocalTransactionsList, (listener::Notifier, listener::Logger));
+type Pool = txpool::Pool<pool::VerifiedTransaction, scoring::GasPrice, Listener>;
 
 /// Transaction queue status
 #[derive(Debug, Clone, PartialEq)]
@@ -59,7 +60,7 @@ impl TransactionQueue {
 	pub fn new(limits: txpool::Options, verification_options: verifier::Options) -> Self {
 		TransactionQueue {
 			insertion_id: Default::default(),
-			pool: RwLock::new(txpool::Pool::with_scoring(scoring::GasPrice, limits)),
+			pool: RwLock::new(txpool::Pool::new(Default::default(), scoring::GasPrice, limits)),
 			options: RwLock::new(verification_options),
 		}
 	}
@@ -115,7 +116,7 @@ impl TransactionQueue {
 			pool::VerifiedTransaction,
 			(ready::Condition, ready::State<C>),
 			scoring::GasPrice,
-			txpool::NoopListener
+			Listener,
 		>) -> T,
 	{
 		let pending_readiness = ready::Condition::new(block_number, current_timestamp);
@@ -215,9 +216,19 @@ impl TransactionQueue {
 	///
 	/// Local transactions are the ones from accounts managed by this node
 	/// and transactions submitted via local RPC (`eth_sendRawTransaction`)
-	pub fn has_local_transactions(&self) -> bool {
-		// TODO [ToDr] Take from the listener
-		false
+	pub fn has_local_pending_transactions(&self) -> bool {
+		self.pool.read().listener().0.has_pending()
+	}
+
+	/// Returns status of recently seen local transactions.
+	pub fn local_transactions(&self) -> BTreeMap<H256, pool::local_transactions::Status> {
+		self.pool.read().listener().0.all_transactions().iter().map(|(a, b)| (*a, b.clone())).collect()
+	}
+
+	/// Add a callback to be notified about all transactions entering the pool.
+	pub fn add_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
+		let mut pool = self.pool.write();
+		(pool.listener_mut().1).0.add(f);
 	}
 }
 
@@ -228,7 +239,7 @@ mod tests {
 	#[derive(Debug)]
 	struct TestClient;
 	impl client::Client for TestClient {
-		fn transaction_already_included(&self, hash: &H256) -> bool {
+		fn transaction_already_included(&self, _hash: &H256) -> bool {
 			false
 		}
 
@@ -256,7 +267,7 @@ mod tests {
 		}
 
 		/// Classify transaction (check if transaction is filtered by some contracts).
-		fn transaction_type(&self, tx: &transaction::SignedTransaction) -> client::TransactionType {
+		fn transaction_type(&self, _tx: &transaction::SignedTransaction) -> client::TransactionType {
 			client::TransactionType::Regular
 		}
 	}
@@ -265,9 +276,9 @@ mod tests {
 	fn should_get_pending_transactions() {
 		let queue = TransactionQueue::new(txpool::Options::default(), verifier::Options::default());
 
-		let mut pending = queue.pending(TestClient, 0, 0);
+		let pending: Vec<_> = queue.pending(TestClient, 0, 0, |x| x.collect());
 
-		for tx in pending.transactions() {
+		for tx in pending {
 			assert!(tx.signed().nonce > 0.into());
 		}
 	}

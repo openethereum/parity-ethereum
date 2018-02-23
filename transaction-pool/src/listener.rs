@@ -28,7 +28,7 @@ pub trait Listener<T> {
 
 	/// The transaction was rejected from the pool.
 	/// It means that it was too cheap to replace any transaction already in the pool.
-	fn rejected(&mut self, _tx: T) {}
+	fn rejected(&mut self, _tx: &Arc<T>) {}
 
 	/// The transaction was dropped from the pool because of a limit.
 	fn dropped(&mut self, _tx: &Arc<T>) {}
@@ -47,3 +47,38 @@ pub trait Listener<T> {
 #[derive(Debug)]
 pub struct NoopListener;
 impl<T> Listener<T> for NoopListener {}
+
+impl<T, A, B> Listener<T> for (A, B) where
+	A: Listener<T>,
+	B: Listener<T>,
+{
+	fn added(&mut self, tx: &Arc<T>, old: Option<&Arc<T>>) {
+		self.0.added(tx, old);
+		self.1.added(tx, old);
+	}
+
+	fn rejected(&mut self, tx: &Arc<T>) {
+		self.0.rejected(tx);
+		self.1.rejected(tx);
+	}
+
+	fn dropped(&mut self, tx: &Arc<T>) {
+		self.0.rejected(tx);
+		self.1.rejected(tx);
+	}
+
+	fn invalid(&mut self, tx: &Arc<T>) {
+		self.0.invalid(tx);
+		self.1.invalid(tx);
+	}
+
+	fn cancelled(&mut self, tx: &Arc<T>) {
+		self.0.cancelled(tx);
+		self.1.cancelled(tx);
+	}
+
+	fn mined(&mut self, tx: &Arc<T>) {
+		self.0.mined(tx);
+		self.1.mined(tx);
+	}
+}

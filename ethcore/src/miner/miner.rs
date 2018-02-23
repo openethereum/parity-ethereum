@@ -186,8 +186,6 @@ pub struct Miner {
 	options: MinerOptions,
 	// TODO [ToDr] Arc is only required because of price updater
 	transaction_queue: Arc<TransactionQueue>,
-	// TODO [ToDr] move listeners to queue
-	transaction_listener: RwLock<Vec<Box<Fn(&[H256]) + Send + Sync>>>,
 	engine: Arc<EthEngine>,
 	accounts: Option<Arc<AccountProvider>>,
 }
@@ -206,7 +204,7 @@ impl Miner {
 
 	/// Set a callback to be notified about imported transactions' hashes.
 	pub fn add_transactions_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
-		self.transaction_listener.write().push(f);
+		self.transaction_queue.add_listener(f);
 	}
 
 	/// Creates new instance of miner Arc.
@@ -228,7 +226,6 @@ impl Miner {
 			gas_pricer: Mutex::new(gas_pricer),
 			options,
 			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options)),
-			transaction_listener: RwLock::new(vec![]),
 			accounts,
 			engine: spec.engine.clone(),
 		}
@@ -418,6 +415,7 @@ impl Miner {
 
 					// Penalize transaction if it's above current gas limit
 					if gas > gas_limit {
+						debug!(target: "txqueue", "[{:?}] Transaction above block gas limit.", hash);
 						invalid_transactions.insert(hash);
 					}
 
@@ -446,10 +444,11 @@ impl Miner {
 					debug!(target: "miner", "Skipping non-allowed transaction for sender {:?}", hash);
 				},
 				Err(e) => {
-					invalid_transactions.insert(hash);
+					debug!(target: "txqueue", "[{:?}] Marking as invalid: {:?}.", hash, e);
 					debug!(
 						target: "miner", "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}", block_number, hash, e
 					);
+					invalid_transactions.insert(hash);
 				},
 				// imported ok
 				_ => tx_count += 1,
@@ -488,7 +487,7 @@ impl Miner {
 
 		// keep sealing enabled if any of the conditions is met
 		let sealing_enabled = self.forced_sealing()
-			|| self.transaction_queue.has_local_transactions()
+			|| self.transaction_queue.has_local_pending_transactions()
 			|| self.engine.seals_internally().is_some()
 			|| had_requests;
 
@@ -779,13 +778,9 @@ impl MinerService for Miner {
 		imported
 	}
 
-	// fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
-	// 	let queue = self.transaction_queue.read();
-	// 	queue.local_transactions()
-	// 		.iter()
-	// 		.map(|(hash, status)| (*hash, status.clone()))
-	// 		.collect()
-	// }
+	fn local_transactions(&self) -> BTreeMap<H256, pool::local_transactions::Status> {
+		self.transaction_queue.local_transactions()
+	}
 
 	fn future_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
 		unimplemented!()

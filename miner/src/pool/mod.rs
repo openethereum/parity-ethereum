@@ -22,6 +22,8 @@ use transaction;
 use txpool;
 
 pub mod client;
+pub mod listener;
+pub mod local_transactions;
 pub mod queue;
 pub mod ready;
 pub mod scoring;
@@ -35,6 +37,15 @@ pub(crate) enum Priority {
 	Local,
 	Retracted,
 	Regular,
+}
+
+impl Priority {
+	fn is_local(&self) -> bool {
+		match *self {
+			Priority::Local => true,
+			_ => false,
+		}
+	}
 }
 
 /// Verified transaction stored in the pool.

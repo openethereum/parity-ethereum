@@ -29,7 +29,7 @@ use ethcore::miner::{MinerService, AuthoringParams};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethereum_types::{H256, U256, Address};
 use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
-use miner::local_transactions::Status as LocalTransactionStatus;
+use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use txpool;
 use parking_lot::{RwLock, Mutex};
 use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
@@ -169,9 +169,9 @@ impl MinerService for TestMinerService {
 		Some(self.pending_transactions.lock().values().cloned().collect())
 	}
 
-	// fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
-	// 	self.local_transactions.lock().iter().map(|(hash, stats)| (*hash, stats.clone())).collect()
-	// }
+	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
+		self.local_transactions.lock().iter().map(|(hash, stats)| (*hash, stats.clone())).collect()
+	}
 
 	fn ready_transactions(&self, _chain: &MiningBlockChainClient) -> Vec<Arc<VerifiedTransaction>> {
 		self.pending_transactions.lock().values().cloned().map(|tx| {

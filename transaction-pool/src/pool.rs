@@ -115,7 +115,7 @@ impl<T, S, L> Pool<T, S, L> where
 			let remove_worst = |s: &mut Self, transaction| {
 				match s.remove_worst(&transaction) {
 					Err(err) => {
-						s.listener.rejected(transaction);
+						s.listener.rejected(&Arc::new(transaction));
 						Err(err)
 					},
 					Ok(removed) => {
@@ -161,12 +161,12 @@ impl<T, S, L> Pool<T, S, L> where
 			},
 			AddResult::TooCheap { new, old } => {
 				let hash = *new.hash();
-				self.listener.rejected(new);
+				self.listener.rejected(&Arc::new(new));
 				bail!(error::ErrorKind::TooCheapToReplace(*old.hash(), hash))
 			},
 			AddResult::TooCheapToEnter(new) => {
 				let hash = *new.hash();
-				self.listener.rejected(new);
+				self.listener.rejected(&Arc::new(new));
 				bail!(error::ErrorKind::TooCheapToEnter(hash))
 			}
 		}
@@ -416,6 +416,16 @@ impl<T, S, L> Pool<T, S, L> where
 	/// Returns current pool options.
 	pub fn options(&self) -> Options {
 		self.options.clone()
+	}
+
+	/// Borrows listener instance.
+	pub fn listener(&self) -> &L {
+		&self.listener
+	}
+
+	/// Borrows listener mutably.
+	pub fn listener_mut(&mut self) -> &mut L {
+		&mut self.listener
 	}
 }
 

@@ -31,7 +31,7 @@ use std::collections::BTreeMap;
 
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
-use ethcore_miner::pool::{VerifiedTransaction, QueueStatus};
+use ethcore_miner::pool::{VerifiedTransaction, QueueStatus, local_transactions};
 
 use block::SealedBlock;
 use client::{MiningBlockChainClient};
@@ -132,7 +132,7 @@ pub trait MinerService : Send + Sync {
 	fn future_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
 
 	/// Get a list of local transactions with statuses.
-	// fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus>;
+	fn local_transactions(&self) -> BTreeMap<H256, local_transactions::Status>;
 
 	/// Get current queue status.
 	///

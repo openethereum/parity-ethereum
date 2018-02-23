@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
+
 use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
 use ethcore::{contract_address, CreateContractAddress};
 use miner;
 use transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
-use v1::helpers::errors;
 use v1::types::{Bytes, H160, H256, U256, H512, U64, TransactionCondition};
 
 /// Transaction
@@ -88,7 +89,7 @@ pub enum LocalTransactionStatus {
 	/// Transaction was replaced by transaction with higher gas price.
 	Replaced(Transaction, U256, H256),
 	/// Transaction never got into the queue.
-	Rejected(Transaction, String),
+	Rejected(Transaction),
 	/// Transaction is invalid.
 	Invalid(Transaction),
 	/// Transaction was canceled.
@@ -131,10 +132,9 @@ impl Serialize for LocalTransactionStatus {
 				struc.serialize_field(status, "invalid")?;
 				struc.serialize_field(transaction, tx)?;
 			},
-			Rejected(ref tx, ref reason) => {
+			Rejected(ref tx) => {
 				struc.serialize_field(status, "rejected")?;
 				struc.serialize_field(transaction, tx)?;
-				struc.serialize_field("error", reason)?;
 			},
 			Replaced(ref tx, ref gas_price, ref hash) => {
 				struc.serialize_field(status, "replaced")?;
@@ -248,17 +248,23 @@ impl Transaction {
 
 impl LocalTransactionStatus {
 	/// Convert `LocalTransactionStatus` into RPC `LocalTransactionStatus`.
-	pub fn from(s: miner::local_transactions::Status, block_number: u64, eip86_transition: u64) -> Self {
-		use miner::local_transactions::Status::*;
+	pub fn from(s: miner::pool::local_transactions::Status, block_number: u64, eip86_transition: u64) -> Self {
+		let convert = |tx: Arc<miner::pool::VerifiedTransaction>| {
+			Transaction::from_signed(tx.signed().clone(), block_number, eip86_transition)
+		};
+		use miner::pool::local_transactions::Status::*;
 		match s {
-			Pending => LocalTransactionStatus::Pending,
-			Future => LocalTransactionStatus::Future,
-			Mined(tx) => LocalTransactionStatus::Mined(Transaction::from_signed(tx, block_number, eip86_transition)),
-			Dropped(tx) => LocalTransactionStatus::Dropped(Transaction::from_signed(tx, block_number, eip86_transition)),
-			Rejected(tx, err) => LocalTransactionStatus::Rejected(Transaction::from_signed(tx, block_number, eip86_transition), errors::transaction_message(err)),
-			Replaced(tx, gas_price, hash) => LocalTransactionStatus::Replaced(Transaction::from_signed(tx, block_number, eip86_transition), gas_price.into(), hash.into()),
-			Invalid(tx) => LocalTransactionStatus::Invalid(Transaction::from_signed(tx, block_number, eip86_transition)),
-			Canceled(tx) => LocalTransactionStatus::Canceled(Transaction::from_pending(tx, block_number, eip86_transition)),
+			Pending(_) => LocalTransactionStatus::Pending,
+			Mined(tx) => LocalTransactionStatus::Mined(convert(tx)),
+			Dropped(tx) => LocalTransactionStatus::Dropped(convert(tx)),
+			Rejected(tx) => LocalTransactionStatus::Rejected(convert(tx)),
+			Invalid(tx) => LocalTransactionStatus::Invalid(convert(tx)),
+			Canceled(tx) => LocalTransactionStatus::Canceled(convert(tx)),
+			Replaced { tx, by } => LocalTransactionStatus::Replaced(
+				convert(tx),
+				by.signed().gas_price.into(),
+				by.signed().hash().into(),
+			),
 		}
 	}
 }
@@ -283,7 +289,7 @@ mod tests {
 		let status3 = LocalTransactionStatus::Mined(Transaction::default());
 		let status4 = LocalTransactionStatus::Dropped(Transaction::default());
 		let status5 = LocalTransactionStatus::Invalid(Transaction::default());
-		let status6 = LocalTransactionStatus::Rejected(Transaction::default(), "Just because".into());
+		let status6 = LocalTransactionStatus::Rejected(Transaction::default());
 		let status7 = LocalTransactionStatus::Replaced(Transaction::default(), 5.into(), 10.into());
 
 		assert_eq!(
@@ -308,9 +314,7 @@ mod tests {
 		);
 		assert_eq!(
 			serde_json::to_string(&status6).unwrap(),
-			r#"{"status":"rejected","transaction":"#.to_owned() +
-			&format!("{}", tx_ser) +
-			r#","error":"Just because"}"#
+			r#"{"status":"rejected","transaction":"#.to_owned() + &format!("{}", tx_ser) + r#"}"#
 		);
 		assert_eq!(
 			serde_json::to_string(&status7).unwrap(),

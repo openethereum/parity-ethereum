@@ -328,14 +328,13 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 			return Ok(BTreeMap::new());
 		}
 
-		unimplemented!()
-		// let transactions = self.miner.local_transactions();
-		// let block_number = self.client.chain_info().best_block_number;
-		// Ok(transactions
-		//    .into_iter()
-		//    .map(|(hash, status)| (hash.into(), LocalTransactionStatus::from(status, block_number, self.eip86_transition)))
-		//    .collect()
-		// )
+		let transactions = self.miner.local_transactions();
+		let block_number = self.client.chain_info().best_block_number;
+		Ok(transactions
+		   .into_iter()
+		   .map(|(hash, status)| (hash.into(), LocalTransactionStatus::from(status, block_number, self.eip86_transition)))
+		   .collect()
+		)
 	}
 
 	fn dapps_url(&self) -> Result<String> {
