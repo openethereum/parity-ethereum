@@ -53,9 +53,7 @@ use transaction::{
 use using_queue::{UsingQueue, GetAction};
 use block::{ClosedBlock, IsBlock, Block};
 use client::{
-	CallContract, RegistryInfo,
-	ScheduleInfo, BroadcastProposalBlock, ImportSealedBlock,
-	AccountData, BlockChain, BlockProducer
+	AccountData, BlockChain, RegistryInfo, ScheduleInfo, CallContract, BlockProducer, SealedBlockImporter
 };
 use client::{BlockId, TransactionId, MiningBlockChainClient};
 use executive::contract_address;
@@ -573,7 +571,7 @@ impl Miner {
 
 	/// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the type of Seal.
 	fn seal_and_import_block_internally<C>(&self, chain: &C, block: ClosedBlock) -> bool
-		where C: BlockChain + BroadcastProposalBlock + ImportSealedBlock
+		where C: BlockChain + SealedBlockImporter
 	{
 		if !block.transactions().is_empty() || self.forced_sealing() || Instant::now() > *self.next_mandatory_reseal.read() {
 			trace!(target: "miner", "seal_block_internally: attempting internal seal.");
@@ -1119,8 +1117,8 @@ impl MinerService for Miner {
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing<C>(&self, chain: &C)
-		where C: AccountData + BlockChain + RegistryInfo + CallContract
-		         + BlockProducer + BroadcastProposalBlock + ImportSealedBlock
+		where C: AccountData + BlockChain + RegistryInfo
+		         + CallContract + BlockProducer + SealedBlockImporter
 	{
 		trace!(target: "miner", "update_sealing");
 		const NO_NEW_CHAIN_WITH_FORKS: &str = "Your chain specification contains one or more hard forks which are required to be \
@@ -1174,7 +1172,7 @@ impl MinerService for Miner {
 		ret.map(f)
 	}
 
-	fn submit_seal<C: ImportSealedBlock>(&self, chain: &C, block_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
+	fn submit_seal<C: SealedBlockImporter>(&self, chain: &C, block_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
 		let result =
 			if let Some(b) = self.sealing_work.lock().queue.get_used_if(
 				if self.options.enable_resubmission {
@@ -1204,7 +1202,7 @@ impl MinerService for Miner {
 
 	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256])
 		where C: AccountData + BlockChain + CallContract + RegistryInfo
-		         + BlockProducer + ScheduleInfo + BroadcastProposalBlock + ImportSealedBlock
+		         + BlockProducer + ScheduleInfo + SealedBlockImporter
 	{
 		trace!(target: "miner", "chain_new_blocks");
 

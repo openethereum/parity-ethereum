@@ -53,7 +53,7 @@ use block::{ClosedBlock, Block};
 use bytes::Bytes;
 use client::{
 	MiningBlockChainClient, CallContract, RegistryInfo, ScheduleInfo,
-	BroadcastProposalBlock, ImportSealedBlock, BlockChain, AccountData, BlockProducer
+	BlockChain, AccountData, BlockProducer, SealedBlockImporter
 };
 use error::{Error};
 use ethereum_types::{H256, U256, Address};
@@ -129,19 +129,18 @@ pub trait MinerService : Send + Sync {
 
 	/// Called when blocks are imported to chain, updates transactions queue.
 	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256])
-		where C: AccountData + BlockChain + CallContract + RegistryInfo + BlockProducer + ScheduleInfo + BroadcastProposalBlock + ImportSealedBlock;
+		where C: AccountData + BlockChain + CallContract + RegistryInfo + BlockProducer + ScheduleInfo + SealedBlockImporter;
 
 	/// PoW chain - can produce work package
 	fn can_produce_work_package(&self) -> bool;
 
 	/// New chain head event. Restart mining operation.
 	fn update_sealing<C>(&self, chain: &C)
-		where C: AccountData + BlockChain + RegistryInfo + CallContract
-		      + BlockProducer + BroadcastProposalBlock + ImportSealedBlock;
+		where C: AccountData + BlockChain + RegistryInfo + CallContract + BlockProducer + SealedBlockImporter;
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal<C: ImportSealedBlock>(&self, chain: &C, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
+	fn submit_seal<C: SealedBlockImporter>(&self, chain: &C, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
 
 	/// Get the sealing work package and if `Some`, apply some transform.
 	fn map_sealing_work<C, F, T>(&self, client: &C, f: F) -> Option<T>
