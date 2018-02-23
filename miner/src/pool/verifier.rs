@@ -112,7 +112,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 		let hash = tx.hash();
 
 		if self.client.transaction_already_included(&hash) {
-			trace!(target: "txqueue", "Rejected tx {:?}: already in the blockchain", hash);
+			trace!(target: "txqueue", "[{:?}] Rejected tx already in the blockchain", hash);
 			bail!(transaction::Error::AlreadyImported)
 		}
 
@@ -122,7 +122,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 			Transaction::Retracted(tx) | Transaction::Unverified(tx) => match self.client.verify_transaction(tx) {
 				Ok(signed) => signed.into(),
 				Err(err) => {
-					debug!(target: "txqueue", "Rejected tx {:?}: {:?}", hash, err);
+					debug!(target: "txqueue", "[{:?}] Rejected tx {:?}", hash, err);
 					bail!(err)
 				},
 			},
@@ -133,7 +133,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 		if transaction.gas > gas_limit {
 			debug!(
 				target: "txqueue",
-				"Dropping transaction above gas limit: {:?} ({} > min({}, {}))",
+				"[{:?}] Dropping transaction above gas limit: {} > min({}, {})",
 				hash,
 				transaction.gas,
 				self.options.block_gas_limit,
@@ -145,7 +145,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 		let minimal_gas = self.client.required_gas(&transaction);
 		if transaction.gas < minimal_gas {
 			trace!(target: "txqueue",
-				"Dropping transaction with insufficient gas: {:?} ({} > {})",
+				"[{:?}] Dropping transaction with insufficient gas: {} < {}",
 				transaction.hash(),
 				transaction.gas,
 				minimal_gas,
@@ -163,13 +163,13 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 
 		if transaction.gas_price < self.options.minimal_gas_price {
 			if let TransactionType::Service = transaction_type {
-				trace!(target: "txqueue", "Service tx {:?} below minimal gas price accepted", hash);
+				debug!(target: "txqueue", "Service tx {:?} below minimal gas price accepted", hash);
 			} else if is_own || account_details.is_local {
-				trace!(target: "txqueue", "Local tx {:?} below minimal gas price accepted", hash);
+				debug!(target: "txqueue", "Local tx {:?} below minimal gas price accepted", hash);
 			} else {
-				debug!(
+				trace!(
 					target: "txqueue",
-					"Rejected tx {:?}: below minimal gas price threshold (gp: {} < {})",
+					"[{:?}] Rejected tx below minimal gas price threshold: {} < {}",
 					hash,
 					transaction.gas_price,
 					self.options.minimal_gas_price,
@@ -185,7 +185,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 		if account_details.balance < cost {
 			debug!(
 				target: "txqueue",
-				"Rejected tx {:?}: not enough balance: ({} < {})",
+				"[{:?}] Rejected tx with not enough balance: {} < {}",
 				hash,
 				account_details.balance,
 				cost,
@@ -199,7 +199,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 		if transaction.nonce < account_details.nonce {
 			debug!(
 				target: "txqueue",
-				"Rejected tx {:?}: old nonce ({} < {})",
+				"[{:?}] Rejected tx with old nonce ({} < {})",
 				hash,
 				transaction.nonce,
 				account_details.nonce,
