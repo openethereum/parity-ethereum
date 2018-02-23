@@ -40,7 +40,6 @@ use ethcore_miner::service_transaction_checker::ServiceTransactionChecker;
 use miner::{MinerService, MinerStatus};
 use price_info::fetch::Client as FetchClient;
 use price_info::{Client as PriceInfoClient, PriceInfo};
-use timer::PerfTimer;
 use transaction::{
 	Action,
 	UnverifiedTransaction,
@@ -388,7 +387,7 @@ impl Miner {
 
 	/// Prepares new block for sealing including top transactions from queue.
 	fn prepare_block(&self, chain: &MiningBlockChainClient) -> (ClosedBlock, Option<H256>) {
-		let _timer = PerfTimer::new("prepare_block");
+		trace_time!("prepare_block");
 		let chain_info = chain.chain_info();
 		let (transactions, mut open_block, original_work_hash) = {
 			let nonce_cap = if chain_info.best_block_number + 1 >= self.engine.params().dust_protection_transition {
