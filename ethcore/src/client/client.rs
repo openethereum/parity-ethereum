@@ -1191,10 +1191,9 @@ impl Client {
 	/// Handle private message from IO
 	pub fn handle_private_message(&self) -> Result<(), TransactionImportError> {
 		if let Some(ref notify) = *self.private_notify.read() {
-			return match notify.upgrade() {
-				Some(handler) => handler.private_transaction_queued(),
-				_ => Ok(()),
-			};
+			if let Some(handler) = notify.upgrade() {
+				return handler.private_transaction_queued();
+			}
 		}
 		Ok(())
 	}
