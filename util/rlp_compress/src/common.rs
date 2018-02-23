@@ -8,16 +8,16 @@
 
 //! Contains RLPs used for compression.
 
-use compression::InvalidRlpSwapper;
+use Swapper;
 
 lazy_static! {
 	/// Swapper for snapshot compression.
-	pub static ref SNAPSHOT_RLP_SWAPPER: InvalidRlpSwapper<'static> = InvalidRlpSwapper::new(EMPTY_RLPS, INVALID_RLPS);
+	pub static ref SNAPSHOT_SWAPPER: Swapper<'static> = Swapper::new(EMPTY_RLPS, INVALID_RLPS);
 }
 
 lazy_static! {
 	/// Swapper with common long RLPs, up to 127 can be added.
-	pub static ref BLOCKS_RLP_SWAPPER: InvalidRlpSwapper<'static> = InvalidRlpSwapper::new(COMMON_RLPS, INVALID_RLPS);
+	pub static ref BLOCKS_SWAPPER: Swapper<'static> = Swapper::new(COMMON_RLPS, INVALID_RLPS);
 }
 
 static EMPTY_RLPS: &'static [&'static [u8]] = &[
