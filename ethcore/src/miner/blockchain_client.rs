@@ -30,12 +30,17 @@ use client::{MiningBlockChainClient, BlockId, TransactionId};
 use engines::EthEngine;
 use header::Header;
 
+// TODO [ToDr] Shit
+#[derive(Clone)]
+pub struct FakeContainer(Header);
+unsafe impl Sync for FakeContainer {}
+
 #[derive(Clone)]
 pub struct BlockChainClient<'a> {
 	chain: &'a MiningBlockChainClient,
 	engine: &'a EthEngine,
 	accounts: Option<&'a AccountProvider>,
-	best_block_header: Header,
+	best_block_header: FakeContainer,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
 
@@ -47,6 +52,9 @@ impl<'a> BlockChainClient<'a> {
 		refuse_service_transactions: bool,
 	) -> Self {
 		let best_block_header = chain.best_block_header().decode();
+		best_block_header.hash();
+		best_block_header.bare_hash();
+		let best_block_header = FakeContainer(best_block_header);
 		BlockChainClient {
 			chain,
 			engine,
@@ -61,7 +69,7 @@ impl<'a> BlockChainClient<'a> {
 	}
 
 	pub fn verify_signed(&self, tx: &SignedTransaction) -> Result<(), transaction::Error> {
-		self.engine.machine().verify_transaction(&tx, &self.best_block_header, self.chain.as_block_chain_client())
+		self.engine.machine().verify_transaction(&tx, &self.best_block_header.0, self.chain.as_block_chain_client())
 	}
 }
 
@@ -79,8 +87,8 @@ impl<'a> pool::client::Client for BlockChainClient<'a> {
 	fn verify_transaction(&self, tx: UnverifiedTransaction)
 		-> Result<SignedTransaction, transaction::Error>
 	{
-		self.engine.verify_transaction_basic(&tx, &self.best_block_header)?;
-		let tx = self.engine.verify_transaction_unordered(tx, &self.best_block_header)?;
+		self.engine.verify_transaction_basic(&tx, &self.best_block_header.0)?;
+		let tx = self.engine.verify_transaction_unordered(tx, &self.best_block_header.0)?;
 
 		self.verify_signed(&tx)?;
 

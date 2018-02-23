@@ -468,7 +468,7 @@ impl<'a, T, R, S, L> Iterator for PendingIterator<'a, T, R, S, L> where
 
 					return Some(best.transaction)
 				},
-				state => warn!("[{:?}] Ignoring {:?} transaction.", best.transaction.hash(), state),
+				state => trace!("[{:?}] Ignoring {:?} transaction.", best.transaction.hash(), state),
 			}
 		}
 
