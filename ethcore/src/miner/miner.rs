@@ -53,8 +53,9 @@ use transaction::{
 use using_queue::{UsingQueue, GetAction};
 use block::{ClosedBlock, IsBlock, Block};
 use client::{
-	Nonce, Balance, BlockInfo, ChainInfo, TransactionInfo, CallContract, RegistryInfo,
-	PrepareOpenBlock, ReopenBlock, ScheduleInfo, BroadcastProposalBlock, ImportSealedBlock
+	CallContract, RegistryInfo,
+	ScheduleInfo, BroadcastProposalBlock, ImportSealedBlock,
+	AccountData, BlockChain, BlockProducer
 };
 use client::{BlockId, TransactionId, MiningBlockChainClient};
 use executive::contract_address;
@@ -390,7 +391,7 @@ impl Miner {
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
-	fn prepare_block<C: Nonce + BlockInfo + ChainInfo + PrepareOpenBlock + ReopenBlock + CallContract>(&self, chain: &C) -> (ClosedBlock, Option<H256>) {
+	fn prepare_block<C: AccountData + BlockChain + BlockProducer + CallContract>(&self, chain: &C) -> (ClosedBlock, Option<H256>) {
 		let _timer = PerfTimer::new("prepare_block");
 		let chain_info = chain.chain_info();
 		let (transactions, mut open_block, original_work_hash) = {
@@ -572,7 +573,7 @@ impl Miner {
 
 	/// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the type of Seal.
 	fn seal_and_import_block_internally<C>(&self, chain: &C, block: ClosedBlock) -> bool
-		where C: BlockInfo + BroadcastProposalBlock + ImportSealedBlock
+		where C: BlockChain + BroadcastProposalBlock + ImportSealedBlock
 	{
 		if !block.transactions().is_empty() || self.forced_sealing() || Instant::now() > *self.next_mandatory_reseal.read() {
 			trace!(target: "miner", "seal_block_internally: attempting internal seal.");
@@ -653,7 +654,7 @@ impl Miner {
 		}
 	}
 
-	fn update_gas_limit<C: BlockInfo>(&self, client: &C) {
+	fn update_gas_limit<C: BlockChain>(&self, client: &C) {
 		let gas_limit = client.best_block_header().gas_limit();
 		let mut queue = self.transaction_queue.write();
 		queue.set_gas_limit(gas_limit);
@@ -664,7 +665,7 @@ impl Miner {
 	}
 
 	/// Returns true if we had to prepare new pending block.
-	fn prepare_work_sealing<C: Nonce + BlockInfo + ChainInfo + PrepareOpenBlock + ReopenBlock + CallContract>(&self, client: &C) -> bool {
+	fn prepare_work_sealing<C: AccountData + BlockChain + BlockProducer + CallContract>(&self, client: &C) -> bool {
 		trace!(target: "miner", "prepare_work_sealing: entering");
 		let prepare_new = {
 			let mut sealing_work = self.sealing_work.lock();
@@ -696,7 +697,7 @@ impl Miner {
 		prepare_new
 	}
 
-	fn add_transactions_to_queue<C: Nonce + Balance + BlockInfo + ChainInfo + TransactionInfo + CallContract + RegistryInfo + ScheduleInfo>(
+	fn add_transactions_to_queue<C: AccountData + BlockChain + CallContract + RegistryInfo + ScheduleInfo>(
 		&self,
 		client: &C,
 		transactions: Vec<UnverifiedTransaction>,
@@ -1047,7 +1048,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn remove_pending_transaction<C: Nonce>(&self, chain: &C, hash: &H256) -> Option<PendingTransaction> {
+	fn remove_pending_transaction<C: AccountData>(&self, chain: &C, hash: &H256) -> Option<PendingTransaction> {
 		let mut queue = self.transaction_queue.write();
 		let tx = queue.find(hash);
 		if tx.is_some() {
@@ -1118,8 +1119,8 @@ impl MinerService for Miner {
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing<C>(&self, chain: &C)
-		where C: Nonce + Balance + BlockInfo + ChainInfo + TransactionInfo + RegistryInfo + CallContract
-		         + PrepareOpenBlock + ReopenBlock + BroadcastProposalBlock + ImportSealedBlock
+		where C: AccountData + BlockChain + RegistryInfo + CallContract
+		         + BlockProducer + BroadcastProposalBlock + ImportSealedBlock
 	{
 		trace!(target: "miner", "update_sealing");
 		const NO_NEW_CHAIN_WITH_FORKS: &str = "Your chain specification contains one or more hard forks which are required to be \
@@ -1161,7 +1162,7 @@ impl MinerService for Miner {
 	}
 
 	fn map_sealing_work<C, F, T>(&self, client: &C, f: F) -> Option<T>
-		where C: Nonce + BlockInfo + ChainInfo + PrepareOpenBlock + ReopenBlock + CallContract,
+		where C: AccountData + BlockChain + BlockProducer + CallContract,
 		      F: FnOnce(&ClosedBlock) -> T
 	{
 		trace!(target: "miner", "map_sealing_work: entering");
@@ -1202,8 +1203,8 @@ impl MinerService for Miner {
 	}
 
 	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256])
-		where C: Nonce + Balance + BlockInfo + ChainInfo + TransactionInfo + CallContract + RegistryInfo
-		         + ReopenBlock + PrepareOpenBlock + ScheduleInfo + BroadcastProposalBlock + ImportSealedBlock
+		where C: AccountData + BlockChain + CallContract + RegistryInfo
+		         + BlockProducer + ScheduleInfo + BroadcastProposalBlock + ImportSealedBlock
 	{
 		trace!(target: "miner", "chain_new_blocks");
 
@@ -1297,7 +1298,7 @@ impl<'a, C> TransactionDetailsProvider<'a, C> {
 }
 
 impl<'a, C> TransactionQueueDetailsProvider for TransactionDetailsProvider<'a, C>
-	where C: Nonce + Balance + CallContract + RegistryInfo + ScheduleInfo
+	where C: AccountData + CallContract + RegistryInfo + ScheduleInfo
 {
 	fn fetch_account(&self, address: &Address) -> AccountDetails {
 		AccountDetails {

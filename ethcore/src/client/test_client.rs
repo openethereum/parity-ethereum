@@ -39,7 +39,7 @@ use client::{
 	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
-	Call, StateClient, EngineInfo, AccountData, BlockChain
+	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -409,6 +409,8 @@ impl ImportSealedBlock for TestBlockChainClient {
 		Ok(H256::default())
 	}
 }
+
+impl BlockProducer for TestBlockChainClient {}
 
 impl BroadcastProposalBlock for TestBlockChainClient {
 	fn broadcast_proposal_block(&self, _block: SealedBlock) {}

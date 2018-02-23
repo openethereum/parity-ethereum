@@ -420,7 +420,7 @@ pub trait BroadcastProposalBlock {
 }
 
 /// Extended client interface used for mining
-pub trait MiningBlockChainClient: BlockChainClient + ReopenBlock + PrepareOpenBlock + ScheduleInfo + ImportSealedBlock + BroadcastProposalBlock {
+pub trait MiningBlockChainClient: BlockChainClient + BlockProducer + ScheduleInfo + ImportSealedBlock + BroadcastProposalBlock {
 	/// Reopens an OpenBlock and updates uncles.
 	// fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
 

@@ -52,8 +52,8 @@ use std::collections::BTreeMap;
 use block::{ClosedBlock, Block};
 use bytes::Bytes;
 use client::{
-	MiningBlockChainClient, Nonce, Balance, BlockInfo, ChainInfo, TransactionInfo, CallContract, RegistryInfo, ReopenBlock,
-	PrepareOpenBlock, ScheduleInfo, BroadcastProposalBlock, ImportSealedBlock
+	MiningBlockChainClient, CallContract, RegistryInfo, ScheduleInfo,
+	BroadcastProposalBlock, ImportSealedBlock, BlockChain, AccountData, BlockProducer
 };
 use error::{Error};
 use ethereum_types::{H256, U256, Address};
@@ -129,16 +129,15 @@ pub trait MinerService : Send + Sync {
 
 	/// Called when blocks are imported to chain, updates transactions queue.
 	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256])
-		where C: Nonce + Balance + BlockInfo + ChainInfo + TransactionInfo + CallContract + RegistryInfo + ReopenBlock
-		         + PrepareOpenBlock + ScheduleInfo + BroadcastProposalBlock + ImportSealedBlock;
+		where C: AccountData + BlockChain + CallContract + RegistryInfo + BlockProducer + ScheduleInfo + BroadcastProposalBlock + ImportSealedBlock;
 
 	/// PoW chain - can produce work package
 	fn can_produce_work_package(&self) -> bool;
 
 	/// New chain head event. Restart mining operation.
 	fn update_sealing<C>(&self, chain: &C)
-		where C: Nonce + Balance + BlockInfo + ChainInfo + TransactionInfo + RegistryInfo + CallContract
-		         + PrepareOpenBlock + ReopenBlock + BroadcastProposalBlock + ImportSealedBlock;
+		where C: AccountData + BlockChain + RegistryInfo + CallContract
+		      + BlockProducer + BroadcastProposalBlock + ImportSealedBlock;
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.
@@ -146,7 +145,7 @@ pub trait MinerService : Send + Sync {
 
 	/// Get the sealing work package and if `Some`, apply some transform.
 	fn map_sealing_work<C, F, T>(&self, client: &C, f: F) -> Option<T>
-		where C: Nonce + BlockInfo + ChainInfo + PrepareOpenBlock + ReopenBlock + CallContract,
+		where C: AccountData + BlockChain + BlockProducer + CallContract,
 		      F: FnOnce(&ClosedBlock) -> T,
 		      Self: Sized;
 
@@ -155,7 +154,7 @@ pub trait MinerService : Send + Sync {
 
 	/// Removes transaction from the queue.
 	/// NOTE: The transaction is not removed from pending block if mining.
-	fn remove_pending_transaction<C: Nonce>(&self, chain: &C, hash: &H256) -> Option<PendingTransaction>;
+	fn remove_pending_transaction<C: AccountData>(&self, chain: &C, hash: &H256) -> Option<PendingTransaction>;
 
 	/// Get a list of all pending transactions in the queue.
 	fn pending_transactions(&self) -> Vec<PendingTransaction>;

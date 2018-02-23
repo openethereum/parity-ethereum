@@ -39,12 +39,12 @@ use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
-	StateOrBlock, StateInfo, StateClient, Call, AccountData
+	StateOrBlock, StateInfo, StateClient, Call, AccountData, BlockChain as BlockChainTrait, BlockProducer
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, BlockChain as BlockChainTrait
+	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
@@ -2029,6 +2029,8 @@ impl PrepareOpenBlock for Client {
 		open_block
 	}
 }
+
+impl BlockProducer for Client {}
 
 impl ScheduleInfo for Client {
 	fn latest_schedule(&self) -> Schedule {
