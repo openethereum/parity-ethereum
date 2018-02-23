@@ -122,6 +122,8 @@ extern crate macros;
 extern crate log;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate trace_time;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
@@ -150,7 +152,6 @@ pub mod snapshot;
 pub mod spec;
 pub mod state;
 pub mod state_db;
-pub mod timer;
 pub mod trace;
 pub mod verification;
 pub mod views;

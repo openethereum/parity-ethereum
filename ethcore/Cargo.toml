@@ -60,6 +60,7 @@ rust-crypto = "0.2.34"
 rustc-hex = "1.0"
 stats = { path = "../util/stats" }
 time = "0.1"
+trace-time = { path = "../util/trace-time" }
 using_queue = { path = "../util/using_queue" }
 table = { path = "../util/table" }
 vm = { path = "vm" }
