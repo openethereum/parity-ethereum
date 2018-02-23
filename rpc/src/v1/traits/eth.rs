@@ -174,6 +174,10 @@ build_rpc_trait! {
 		/// Used for submitting mining hashrate.
 		#[rpc(name = "eth_submitHashrate")]
 		fn submit_hashrate(&self, U256, H256) -> Result<bool>;
+
+		/// Used for increasing next block time stamp.
+		#[rpc(name = "evm_increaseTime")]
+		fn increase_time(&self, U256) -> Result<bool>;
 	}
 }
 
