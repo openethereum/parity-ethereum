@@ -466,7 +466,7 @@ impl Engine<EthereumMachine> for Tendermint {
 			+ consensus_view(parent).expect("Header has been verified; qed").into()
 			- self.view.load(AtomicOrdering::SeqCst).into();
 
-		header.set_difficulty(new_difficulty);
+		header.alter(|h| h.set_difficulty(new_difficulty));
 	}
 
 	/// Should this node participate.

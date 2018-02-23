@@ -77,6 +77,7 @@ pub trait Transactions: LiveBlock {
 pub trait Machine: for<'a> LocalizedMachine<'a> {
 	/// The block header type.
 	type Header: Header;
+
 	/// The live block type.
 	type LiveBlock: LiveBlock<Header=Self::Header>;
 	/// A handle to a blockchain client for this machine.

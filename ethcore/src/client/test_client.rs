@@ -233,7 +233,7 @@ impl TestBlockChainClient {
 	pub fn add_blocks(&self, count: usize, with: EachBlockWith) {
 		let len = self.numbers.read().len();
 		for n in len..(len + count) {
-			let mut header = BlockHeader::new();
+			let mut header = BlockHeader::new().unlock();
 			header.set_difficulty(From::from(n));
 			header.set_parent_hash(self.last_hash.read().clone());
 			header.set_number(n as BlockNumber);
@@ -242,11 +242,11 @@ impl TestBlockChainClient {
 			let uncles = match with {
 				EachBlockWith::Uncle | EachBlockWith::UncleAndTransaction => {
 					let mut uncles = RlpStream::new_list(1);
-					let mut uncle_header = BlockHeader::new();
+					let mut uncle_header = BlockHeader::new().unlock();
 					uncle_header.set_difficulty(From::from(n));
 					uncle_header.set_parent_hash(self.last_hash.read().clone());
 					uncle_header.set_number(n as BlockNumber);
-					uncles.append(&uncle_header);
+					uncles.append(&uncle_header.lock());
 					header.set_uncles_hash(keccak(uncles.as_raw()));
 					uncles
 				},
@@ -273,6 +273,7 @@ impl TestBlockChainClient {
 				_ => ::rlp::EMPTY_LIST_RLP.to_vec()
 			};
 
+			let header = header.lock();
 			let mut rlp = RlpStream::new_list(3);
 			rlp.append(&header);
 			rlp.append_raw(&txs, 1);
@@ -284,8 +285,10 @@ impl TestBlockChainClient {
 	/// Make a bad block by setting invalid extra data.
 	pub fn corrupt_block(&self, n: BlockNumber) {
 		let hash = self.block_hash(BlockId::Number(n)).unwrap();
-		let mut header: BlockHeader = self.block_header(BlockId::Number(n)).unwrap().decode();
+		let header: BlockHeader = self.block_header(BlockId::Number(n)).unwrap().decode();
+		let mut header = header.unlock();
 		header.set_extra_data(b"This extra data is way too long to be considered valid".to_vec());
+		let header = header.lock();
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
 		rlp.append_raw(&::rlp::NULL_RLP, 1);
@@ -296,8 +299,10 @@ impl TestBlockChainClient {
 	/// Make a bad block by setting invalid parent hash.
 	pub fn corrupt_block_parent(&self, n: BlockNumber) {
 		let hash = self.block_hash(BlockId::Number(n)).unwrap();
-		let mut header: BlockHeader = self.block_header(BlockId::Number(n)).unwrap().decode();
+		let header: BlockHeader = self.block_header(BlockId::Number(n)).unwrap().decode();
+		let mut header = header.unlock();
 		header.set_parent_hash(H256::from(42));
+		let header = header.lock();
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
 		rlp.append_raw(&::rlp::NULL_RLP, 1);
@@ -387,7 +392,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 			false,
 		).expect("Opening block for tests will not fail.");
 		// TODO [todr] Override timestamp for predictability (set_timestamp_now kind of sucks)
-		open_block.set_timestamp(*self.latest_block_timestamp.read());
+		open_block.alter_header(|h| h.set_timestamp(*self.latest_block_timestamp.read()));
 		open_block
 	}
 

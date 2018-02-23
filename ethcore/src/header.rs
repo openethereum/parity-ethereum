@@ -17,7 +17,6 @@
 //! Block header.
 
 use std::cmp;
-use std::cell::RefCell;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
@@ -75,28 +74,19 @@ pub struct Header {
 	/// Vector of post-RLP-encoded fields.
 	seal: Vec<Bytes>,
 
+	/// The memoized RLP representation of this header *including* the seal fields.
+	rlp: Bytes,
 	/// The memoized hash of the RLP representation *including* the seal fields.
-	hash: RefCell<Option<H256>>,
+	hash: H256,
+	/// The memoized RLP representation of this header *without* the seal fields.
+	bare_rlp: Bytes,
 	/// The memoized hash of the RLP representation *without* the seal fields.
-	bare_hash: RefCell<Option<H256>>,
+	bare_hash: H256,
 }
 
 impl PartialEq for Header {
 	fn eq(&self, c: &Header) -> bool {
-		self.parent_hash == c.parent_hash &&
-		self.timestamp == c.timestamp &&
-		self.number == c.number &&
-		self.author == c.author &&
-		self.transactions_root == c.transactions_root &&
-		self.uncles_hash == c.uncles_hash &&
-		self.extra_data == c.extra_data &&
-		self.state_root == c.state_root &&
-		self.receipts_root == c.receipts_root &&
-		self.log_bloom == c.log_bloom &&
-		self.gas_used == c.gas_used &&
-		self.gas_limit == c.gas_limit &&
-		self.difficulty == c.difficulty &&
-		self.seal == c.seal
+		self.hash == c.hash
 	}
 }
 
@@ -120,9 +110,11 @@ impl Default for Header {
 
 			difficulty: U256::default(),
 			seal: vec![],
-			hash: RefCell::new(None),
-			bare_hash: RefCell::new(None),
-		}
+			rlp: vec![],
+			hash: H256::default(),
+			bare_rlp: vec![],
+			bare_hash: H256::default(),
+		}.recompute_hashes()
 	}
 }
 
@@ -143,8 +135,6 @@ impl Header {
 
 	/// Get the extra data field of the header.
 	pub fn extra_data(&self) -> &Bytes { &self.extra_data }
-	/// Get a mutable reference to extra_data
-	pub fn extra_data_mut(&mut self) -> &mut Bytes { self.note_dirty(); &mut self.extra_data }
 
 	/// Get the state root field of the header.
 	pub fn state_root(&self) -> &H256 { &self.state_root }
@@ -170,74 +160,6 @@ impl Header {
 		self.seal.iter().map(|rlp| {
 			UntrustedRlp::new(rlp).data()
 		}).collect()
-	}
-
-	// TODO: seal_at, set_seal_at &c.
-
-	/// Set the number field of the header.
-	pub fn set_parent_hash(&mut self, a: H256) { self.parent_hash = a; self.note_dirty(); }
-	/// Set the uncles hash field of the header.
-	pub fn set_uncles_hash(&mut self, a: H256) { self.uncles_hash = a; self.note_dirty(); }
-	/// Set the state root field of the header.
-	pub fn set_state_root(&mut self, a: H256) { self.state_root = a; self.note_dirty(); }
-	/// Set the transactions root field of the header.
-	pub fn set_transactions_root(&mut self, a: H256) { self.transactions_root = a; self.note_dirty() }
-	/// Set the receipts root field of the header.
-	pub fn set_receipts_root(&mut self, a: H256) { self.receipts_root = a; self.note_dirty() }
-	/// Set the log bloom field of the header.
-	pub fn set_log_bloom(&mut self, a: Bloom) { self.log_bloom = a; self.note_dirty() }
-	/// Set the timestamp field of the header.
-	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
-	/// Set the timestamp field of the header to the current time.
-	pub fn set_timestamp_now(&mut self, but_later_than: u64) { self.timestamp = cmp::max(get_time().sec as u64, but_later_than + 1); self.note_dirty(); }
-	/// Set the number field of the header.
-	pub fn set_number(&mut self, a: BlockNumber) { self.number = a; self.note_dirty(); }
-	/// Set the author field of the header.
-	pub fn set_author(&mut self, a: Address) { if a != self.author { self.author = a; self.note_dirty(); } }
-
-	/// Set the extra data field of the header.
-	pub fn set_extra_data(&mut self, a: Bytes) { if a != self.extra_data { self.extra_data = a; self.note_dirty(); } }
-
-	/// Set the gas used field of the header.
-	pub fn set_gas_used(&mut self, a: U256) { self.gas_used = a; self.note_dirty(); }
-	/// Set the gas limit field of the header.
-	pub fn set_gas_limit(&mut self, a: U256) { self.gas_limit = a; self.note_dirty(); }
-
-	/// Set the difficulty field of the header.
-	pub fn set_difficulty(&mut self, a: U256) { self.difficulty = a; self.note_dirty(); }
-	/// Set the seal field of the header.
-	pub fn set_seal(&mut self, a: Vec<Bytes>) { self.seal = a; self.note_dirty(); }
-
-	/// Get the hash of this header (keccak of the RLP).
-	pub fn hash(&self) -> H256 {
- 		let mut hash = self.hash.borrow_mut();
- 		match &mut *hash {
- 			&mut Some(ref h) => h.clone(),
- 			hash @ &mut None => {
-				let h = self.rlp_keccak(Seal::With);
- 				*hash = Some(h.clone());
- 				h
- 			}
-		}
-	}
-
-	/// Get the hash of the header excluding the seal
-	pub fn bare_hash(&self) -> H256 {
-		let mut hash = self.bare_hash.borrow_mut();
-		match &mut *hash {
-			&mut Some(ref h) => h.clone(),
-			hash @ &mut None => {
-				let h = self.rlp_keccak(Seal::Without);
-				*hash = Some(h.clone());
-				h
-			}
-		}
-	}
-
-	/// Note that some fields have changed. Resets the memoised hash.
-	pub fn note_dirty(&self) {
- 		*self.hash.borrow_mut() = None;
- 		*self.bare_hash.borrow_mut() = None;
 	}
 
 	// TODO: make these functions traity
@@ -266,17 +188,141 @@ impl Header {
 
 	/// Get the RLP of this header, optionally `with_seal`.
 	pub fn rlp(&self, with_seal: Seal) -> Bytes {
-		let mut s = RlpStream::new();
-		self.stream_rlp(&mut s, with_seal);
-		s.out()
+		match with_seal {
+			Seal::With => self.rlp.clone(),
+			Seal::Without => self.bare_rlp.clone(),
+		}
 	}
 
 	/// Get the SHA3 (Keccak) of this header, optionally `with_seal`.
-	pub fn rlp_keccak(&self, with_seal: Seal) -> H256 { keccak(self.rlp(with_seal)) }
+	pub fn rlp_keccak(&self, with_seal: Seal) -> H256 {
+		match with_seal {
+			Seal::With => self.hash,
+			Seal::Without => self.bare_hash,
+		}
+	}
 
 	/// Encode the header, getting a type-safe wrapper around the RLP.
 	pub fn encoded(&self) -> ::encoded::Header {
 		::encoded::Header::new(self.rlp(Seal::With))
+	}
+
+	/// Get the hash of this header (keccak of the RLP).
+	pub fn hash(&self) -> H256 {
+		self.hash
+	}
+
+	/// Get the hash of the header excluding the seal
+	pub fn bare_hash(&self) -> H256 {
+		self.bare_hash
+	}
+
+	pub fn alter<F: FnOnce(&mut HeaderMut)>(&mut self, f: F) {
+		use std::ptr;
+
+		let mut old_t = unsafe { ptr::read(self) }.unlock();
+		f(&mut old_t);
+		unsafe { ptr::write(self, old_t.lock()) };
+	}
+
+	pub fn unlock(self) -> HeaderMut {
+		HeaderMut {
+			header: self,
+			is_dirty: false,
+		}
+	}
+
+	fn recompute_hashes(mut self) -> Self {
+		Self::recompute(&mut self);
+		self
+	}
+
+	fn recompute(header: &mut Self) {
+		let (rlp, bare_rlp) = {
+			let rlp = |with_seal| {
+				let mut s = RlpStream::new();
+				header.stream_rlp(&mut s, with_seal);
+				s.out()
+			};
+			(rlp(Seal::Without), rlp(Seal::With))
+		};
+
+		header.rlp = rlp;
+		header.bare_rlp = bare_rlp;
+
+		header.hash = keccak(&header.rlp);
+		header.bare_hash = keccak(&header.bare_rlp);
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HeaderMut {
+	header: Header,
+	is_dirty: bool,
+}
+
+impl HeaderMut {
+	/// Lock this header and recompute hash.
+	pub fn lock(mut self) -> Header {
+		if self.is_dirty {
+			self.header.recompute_hashes()
+		} else {
+			self.header
+		}
+	}
+
+	/// Get a mutable reference to header.
+	///
+	/// NOTE It's not safe to clone such header! RLP/Hash values are most likely invalid.
+	pub fn mutable_header(&mut self) -> &mut Header {
+		self.note_dirty();
+		&mut self.header
+	}
+	/// Get the number field of the header.
+	pub fn number(&self) -> BlockNumber { self.header.number }
+	/// Get the gas used field of the header.
+	pub fn gas_used(&self) -> &U256 { &self.header.gas_used }
+
+	/// Set the number field of the header.
+	pub fn set_parent_hash(&mut self, a: H256) { self.header.parent_hash = a; self.note_dirty(); }
+	/// Set the uncles hash field of the header.
+	pub fn set_uncles_hash(&mut self, a: H256) { self.header.uncles_hash = a; self.note_dirty(); }
+	/// Set the state root field of the header.
+	pub fn set_state_root(&mut self, a: H256) { self.header.state_root = a; self.note_dirty(); }
+	/// Set the transactions root field of the header.
+	pub fn set_transactions_root(&mut self, a: H256) { self.header.transactions_root = a; self.note_dirty() }
+	/// Set the receipts root field of the header.
+	pub fn set_receipts_root(&mut self, a: H256) { self.header.receipts_root = a; self.note_dirty() }
+	/// Set the log bloom field of the header.
+	pub fn set_log_bloom(&mut self, a: Bloom) { self.header.log_bloom = a; self.note_dirty() }
+	/// Set the timestamp field of the header.
+	pub fn set_timestamp(&mut self, a: u64) { self.header.timestamp = a; self.note_dirty(); }
+	/// Set the timestamp field of the header to the current time.
+	pub fn set_timestamp_now(&mut self, but_later_than: u64) { self.header.timestamp = cmp::max(get_time().sec as u64, but_later_than + 1); self.note_dirty(); }
+	/// Set the number field of the header.
+	pub fn set_number(&mut self, a: BlockNumber) { self.header.number = a; self.note_dirty(); }
+	/// Set the author field of the header.
+	pub fn set_author(&mut self, a: Address) { if a != self.header.author { self.header.author = a; self.note_dirty(); } }
+
+	/// Set the extra data field of the header.
+	pub fn set_extra_data(&mut self, a: Bytes) { if a != self.header.extra_data { self.header.extra_data = a; self.note_dirty(); } }
+
+	/// Get a mutable reference to extra_data
+	pub fn extra_data_mut(&mut self) -> &mut Bytes { self.note_dirty(); &mut self.header.extra_data }
+
+	/// Set the gas used field of the header.
+	pub fn set_gas_used(&mut self, a: U256) { self.header.gas_used = a; self.note_dirty(); }
+	/// Set the gas limit field of the header.
+	pub fn set_gas_limit(&mut self, a: U256) { self.header.gas_limit = a; self.note_dirty(); }
+
+	/// Set the difficulty field of the header.
+	pub fn set_difficulty(&mut self, a: U256) { self.header.difficulty = a; self.note_dirty(); }
+	/// Set the seal field of the header.
+	pub fn set_seal(&mut self, a: Vec<Bytes>) { self.header.seal = a; self.note_dirty(); }
+
+	/// Note that some fields have changed. Resets the memoised hash.
+	pub fn note_dirty(&mut self) {
+		self.is_dirty = true;
 	}
 }
 
@@ -297,15 +343,17 @@ impl Decodable for Header {
 			timestamp: cmp::min(r.val_at::<U256>(11)?, u64::max_value().into()).as_u64(),
 			extra_data: r.val_at(12)?,
 			seal: vec![],
-			hash: RefCell::new(Some(keccak(r.as_raw()))),
-			bare_hash: RefCell::new(None),
+			rlp: vec![],
+			bare_rlp: vec![],
+			hash: Default::default(),
+			bare_hash: Default::default(),
 		};
 
 		for i in 13..r.item_count()? {
 			blockheader.seal.push(r.at(i)?.as_raw().to_vec())
 		}
 
-		Ok(blockheader)
+		Ok(blockheader.recompute_hashes())
 	}
 }
 
@@ -335,7 +383,11 @@ impl ::parity_machine::Header for Header {
 
 impl ::parity_machine::ScoredHeader for Header {
 	fn score(&self) -> &U256 { self.difficulty() }
-	fn set_score(&mut self, score: U256) { self.set_difficulty(score) }
+
+	fn set_score(&mut self, score: U256) {
+		self.difficulty = score;
+		Header::recompute(self)
+	}
 }
 
 #[cfg(test)]

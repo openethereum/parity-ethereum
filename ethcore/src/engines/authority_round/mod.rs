@@ -787,7 +787,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		};
 
 		let score = calculate_score(parent_step.into(), current_step.into(), current_empty_steps_len.into());
-		header.set_difficulty(score);
+		header.alter(|h| h.set_difficulty(score));
 	}
 
 	fn seals_internally(&self) -> Option<bool> {

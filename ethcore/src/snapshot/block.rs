@@ -91,7 +91,7 @@ impl AbridgedBlock {
 	pub fn to_block(&self, parent_hash: H256, number: u64, receipts_root: H256) -> Result<Block, DecoderError> {
 		let rlp = UntrustedRlp::new(&self.rlp);
 
-		let mut header: Header = Default::default();
+		let mut header = Header::default().unlock();
 		header.set_parent_hash(parent_hash);
 		header.set_author(rlp.val_at(0)?);
 		header.set_state_root(rlp.val_at(1)?);
@@ -124,7 +124,7 @@ impl AbridgedBlock {
 		header.set_seal(seal_fields);
 
 		Ok(Block {
-			header: header,
+			header: header.lock(),
 			transactions: transactions,
 			uncles: uncles,
 		})

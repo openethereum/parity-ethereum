@@ -31,7 +31,7 @@ use vm::{EnvInfo, LastHashes};
 use engines::EthEngine;
 use error::{Error, BlockError};
 use factory::Factories;
-use header::{Header, Seal};
+use header::{Header, HeaderMut, Seal};
 use receipt::{Receipt, TransactionOutcome};
 use state::State;
 use state_db::StateDB;
@@ -318,18 +318,18 @@ impl<'x> OpenBlock<'x> {
 			engine: engine,
 		};
 
-		r.block.header.set_parent_hash(parent.hash());
-		r.block.header.set_number(number);
-		r.block.header.set_author(author);
-		r.block.header.set_timestamp_now(parent.timestamp());
-		r.block.header.set_extra_data(extra_data);
-		r.block.header.note_dirty();
+		r.block.header.alter(|header| {
+			header.set_parent_hash(parent.hash());
+			header.set_number(number);
+			header.set_author(author);
+			header.set_timestamp_now(parent.timestamp());
+			header.set_extra_data(extra_data);
 
-		let gas_floor_target = cmp::max(gas_range_target.0, engine.params().min_gas_limit);
-		let gas_ceil_target = cmp::max(gas_range_target.1, gas_floor_target);
-
-		engine.machine().populate_from_parent(&mut r.block.header, parent, gas_floor_target, gas_ceil_target);
-		engine.populate_from_parent(&mut r.block.header, parent);
+			let gas_floor_target = cmp::max(gas_range_target.0, engine.params().min_gas_limit);
+			let gas_ceil_target = cmp::max(gas_range_target.1, gas_floor_target);
+			engine.machine().populate_from_parent(header, parent, gas_floor_target, gas_ceil_target);
+			engine.populate_from_parent(header.mutable_header(), parent);
+		});
 
 		engine.machine().on_new_block(&mut r.block)?;
 		engine.on_new_block(&mut r.block, is_epoch_begin)?;
@@ -337,39 +337,14 @@ impl<'x> OpenBlock<'x> {
 		Ok(r)
 	}
 
-	/// Alter the author for the block.
-	pub fn set_author(&mut self, author: Address) { self.block.header.set_author(author); }
-
-	/// Alter the timestamp of the block.
-	pub fn set_timestamp(&mut self, timestamp: u64) { self.block.header.set_timestamp(timestamp); }
-
-	/// Alter the difficulty for the block.
-	pub fn set_difficulty(&mut self, a: U256) { self.block.header.set_difficulty(a); }
-
-	/// Alter the gas limit for the block.
-	pub fn set_gas_limit(&mut self, a: U256) { self.block.header.set_gas_limit(a); }
-
-	/// Alter the gas limit for the block.
-	pub fn set_gas_used(&mut self, a: U256) { self.block.header.set_gas_used(a); }
-
-	/// Alter the uncles hash the block.
-	pub fn set_uncles_hash(&mut self, h: H256) { self.block.header.set_uncles_hash(h); }
-
-	/// Alter transactions root for the block.
-	pub fn set_transactions_root(&mut self, h: H256) { self.block.header.set_transactions_root(h); }
-
-	/// Alter the receipts root for the block.
-	pub fn set_receipts_root(&mut self, h: H256) { self.block.header.set_receipts_root(h); }
-
-	/// Alter the extra_data for the block.
-	pub fn set_extra_data(&mut self, extra_data: Bytes) -> Result<(), BlockError> {
-		if extra_data.len() > self.engine.maximum_extra_data_size() {
-			Err(BlockError::ExtraDataOutOfBounds(OutOfBounds{min: None, max: Some(self.engine.maximum_extra_data_size()), found: extra_data.len()}))
-		} else {
-			self.block.header.set_extra_data(extra_data);
-			Ok(())
-		}
+	/// Alter header parameters and recompute hash.
+	pub fn alter_header<F: FnOnce(&mut HeaderMut)>(&mut self, f: F) {
+		self.block.header.alter(f)
 	}
+    //
+	// /// Alter the extra_data for the block.
+	// pub fn set_extra_data(&mut self, extra_data: Bytes) -> Result<(), BlockError> {
+	// }
 
 	/// Add an uncle to the block, if possible.
 	///
@@ -450,13 +425,26 @@ impl<'x> OpenBlock<'x> {
 
 	/// Populate self from a header.
 	pub fn populate_from(&mut self, header: &Header) {
-		self.set_difficulty(*header.difficulty());
-		self.set_gas_limit(*header.gas_limit());
-		self.set_timestamp(header.timestamp());
-		self.set_author(header.author().clone());
-		self.set_extra_data(header.extra_data().clone()).unwrap_or_else(|e| warn!("Couldn't set extradata: {}. Ignoring.", e));
-		self.set_uncles_hash(header.uncles_hash().clone());
-		self.set_transactions_root(header.transactions_root().clone());
+		let extra_data = if header.extra_data().len() > self.engine.maximum_extra_data_size() {
+			let e = BlockError::ExtraDataOutOfBounds(OutOfBounds{min: None, max: Some(self.engine.maximum_extra_data_size()), found: header.extra_data().len()});
+			warn!("Couldn't set extradata: {}. Ignoring.", e);
+			None
+		} else {
+			Some(header.extra_data().clone())
+		};
+
+		self.alter_header(|h| {
+			h.set_difficulty(*header.difficulty());
+			h.set_gas_limit(*header.gas_limit());
+			h.set_timestamp(header.timestamp());
+			h.set_author(header.author().clone());
+			h.set_uncles_hash(header.uncles_hash().clone());
+			h.set_transactions_root(header.transactions_root().clone());
+
+			if let Some(extra_data) = extra_data {
+				h.set_extra_data(extra_data);
+			}
+		});
 	}
 
 	/// Turn this into a `ClosedBlock`.
@@ -472,13 +460,22 @@ impl<'x> OpenBlock<'x> {
 		if let Err(e) = s.block.state.commit() {
 			warn!("Encountered error on state commit: {}", e);
 		}
-		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
+		let transactions_root = ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes()));
 		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
-		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
-		s.block.header.set_state_root(s.block.state.root().clone());
-		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
-		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
-		s.block.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
+		let uncle_hash = keccak(&uncle_bytes);
+		let state_root = *s.block.state.root();
+		let receipts_root = ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes()));
+		let log_bloom = s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b}); //TODO: use |= operator
+		let gas_used = s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used);
+
+		s.block.header.alter(|header| {
+			header.set_transactions_root(transactions_root);
+			header.set_uncles_hash(uncle_hash);
+			header.set_state_root(state_root);
+			header.set_receipts_root(receipts_root);
+			header.set_log_bloom(log_bloom);
+			header.set_gas_used(gas_used);
+		});
 
 		ClosedBlock {
 			block: s.block,
@@ -498,20 +495,39 @@ impl<'x> OpenBlock<'x> {
 		if let Err(e) = s.block.state.commit() {
 			warn!("Encountered error on state commit: {}", e);
 		}
-		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &KECCAK_NULL_RLP {
-			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
-		}
-		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
-		if s.block.header.uncles_hash().is_zero() || s.block.header.uncles_hash() == &KECCAK_EMPTY_LIST_RLP {
-			s.block.header.set_uncles_hash(keccak(&uncle_bytes));
-		}
-		if s.block.header.receipts_root().is_zero() || s.block.header.receipts_root() == &KECCAK_NULL_RLP {
-			s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
-		}
 
-		s.block.header.set_state_root(s.block.state.root().clone());
-		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
-		s.block.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
+		let transactions_root = if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &KECCAK_NULL_RLP {
+			Some(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())))
+		} else { None };
+
+		let receipts_root = if s.block.header.receipts_root().is_zero() || s.block.header.receipts_root() == &KECCAK_NULL_RLP {
+			Some(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())))
+		} else { None };
+
+		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| { s.append_raw(&u.rlp(Seal::With), 1); s }).out();
+		let uncles_hash =if s.block.header.uncles_hash().is_zero() || s.block.header.uncles_hash() == &KECCAK_EMPTY_LIST_RLP {
+			Some(keccak(&uncle_bytes))
+		} else { None };
+
+		let state_root = *s.block.state.root();
+		let log_bloom = s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b}); //TODO: use |= operator
+		let gas_used = s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used);
+
+		s.block.header.alter(|header| {
+			if let Some(transactions_root) = transactions_root {
+				header.set_transactions_root(transactions_root);
+			}
+			if let Some(uncles_hash) = uncles_hash {
+				header.set_uncles_hash(uncles_hash);
+			}
+			if let Some(receipts_root) = receipts_root {
+				header.set_receipts_root(receipts_root);
+			}
+
+			header.set_state_root(state_root);
+			header.set_log_bloom(log_bloom);
+			header.set_gas_used(gas_used);
+		});
 
 		LockedBlock {
 			block: s.block,
@@ -574,7 +590,7 @@ impl LockedBlock {
 			return Err(BlockError::InvalidSealArity(
 				Mismatch { expected: expected_seal_fields, found: seal.len() }));
 		}
-		s.block.header.set_seal(seal);
+		s.block.header.alter(|h| h.set_seal(seal));
 		Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes })
 	}
 
@@ -587,7 +603,7 @@ impl LockedBlock {
 		seal: Vec<Bytes>,
 	) -> Result<SealedBlock, (Error, LockedBlock)> {
 		let mut s = self;
-		s.block.header.set_seal(seal);
+		s.block.header.alter(|h| h.set_seal(seal));
 
 		// TODO: passing state context to avoid engines owning it?
 		match engine.verify_local_seal(&s.block.header) {
@@ -602,7 +618,8 @@ impl LockedBlock {
 		for receipt in &mut block.block.receipts {
 			receipt.outcome = TransactionOutcome::Unknown;
 		}
-		block.block.header.set_receipts_root(ordered_trie_root(block.block.receipts.iter().map(|r| r.rlp_bytes())));
+		let receipts_root = ordered_trie_root(block.block.receipts.iter().map(|r| r.rlp_bytes()));
+		block.block.header.alter(|h| h.set_receipts_root(receipts_root));
 		block
 	}
 }
