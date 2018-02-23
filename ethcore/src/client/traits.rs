@@ -208,9 +208,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Block body is an RLP list of two items: uncles and transactions.
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body>;
 
-	/// Get raw block data by block header hash.
-	// fn block(&self, id: BlockId) -> Option<encoded::Block>;
-
 	/// Get block status by block header hash.
 	fn block_status(&self, id: BlockId) -> BlockStatus;
 
@@ -286,9 +283,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get the registrar address, if it exists.
 	fn additional_params(&self) -> BTreeMap<String, String>;
-
-	/// Get the best block header.
-	// fn best_block_header(&self) -> encoded::Header;
 
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
@@ -419,11 +413,11 @@ pub trait BroadcastProposalBlock {
 	fn broadcast_proposal_block(&self, block: SealedBlock);
 }
 
-/// Extended client interface used for mining
-pub trait MiningBlockChainClient: BlockChainClient + BlockProducer + ScheduleInfo + ImportSealedBlock + BroadcastProposalBlock {
-	/// Reopens an OpenBlock and updates uncles.
-	// fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
+/// Provides methods to import sealed block and broadcast a block proposal
+pub trait SealedBlockImporter: ImportSealedBlock + BroadcastProposalBlock {}
 
+/// Extended client interface used for mining
+pub trait MiningBlockChainClient: BlockChainClient + BlockProducer + ScheduleInfo + SealedBlockImporter {
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &VmFactory;
 }
