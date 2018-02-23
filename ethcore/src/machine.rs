@@ -25,7 +25,7 @@ use builtin::Builtin;
 use client::BlockChainClient;
 use error::Error;
 use executive::Executive;
-use header::{BlockNumber, Header, HeaderMut};
+use header::{BlockNumber, Header};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
@@ -201,7 +201,7 @@ impl EthereumMachine {
 	/// Populate a header's fields based on its parent's header.
 	/// Usually implements the chain scoring rule based on weight.
 	/// The gas floor target must not be lower than the engine's minimum gas limit.
-	pub fn populate_from_parent(&self, header: &mut HeaderMut, parent: &Header, gas_floor_target: U256, gas_ceil_target: U256) {
+	pub fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, gas_ceil_target: U256) {
 		header.set_difficulty(parent.difficulty().clone());
 
 		if let Some(ref ethash_params) = self.ethash_extensions {
@@ -495,7 +495,7 @@ mod tests {
 		);
 
 		let mut parent = ::header::Header::new();
-		let mut header = ::header::Header::new().unlock();
+		let mut header = ::header::Header::new();
 		header.set_number(1);
 
 		// this test will work for this constant only
@@ -504,25 +504,25 @@ mod tests {
 		// when parent.gas_limit < gas_floor_target:
 		parent.set_gas_limit(U256::from(50_000));
 		machine.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
-		assert_eq!(*header.clone().lock().gas_limit(), U256::from(50_024));
+		assert_eq!(*header.gas_limit(), U256::from(50_024));
 
 		// when parent.gas_limit > gas_ceil_target:
 		parent.set_gas_limit(U256::from(250_000));
 		machine.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
-		assert_eq!(*header.clone().lock().gas_limit(), U256::from(249_787));
+		assert_eq!(*header.gas_limit(), U256::from(249_787));
 
 		// when parent.gas_limit is in miner's range
 		header.set_gas_used(U256::from(150_000));
 		parent.set_gas_limit(U256::from(150_000));
 		machine.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
-		assert_eq!(*header.clone().lock().gas_limit(), U256::from(150_035));
+		assert_eq!(*header.gas_limit(), U256::from(150_035));
 
 		// when parent.gas_limit is in miner's range
 		// && we can NOT increase it to be multiple of constant
 		header.set_gas_used(U256::from(150_000));
 		parent.set_gas_limit(U256::from(150_000));
 		machine.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(150_002));
-		assert_eq!(*header.clone().lock().gas_limit(), U256::from(149_998));
+		assert_eq!(*header.gas_limit(), U256::from(149_998));
 
 		// when parent.gas_limit is in miner's range
 		// && we can NOT increase it to be multiple of constant
@@ -530,6 +530,6 @@ mod tests {
 		header.set_gas_used(U256::from(150_000));
 		parent.set_gas_limit(U256::from(150_000));
 		machine.populate_from_parent(&mut header, &parent, U256::from(150_000), U256::from(150_002));
-		assert_eq!(*header.clone().lock().gas_limit(), U256::from(150_002));
+		assert_eq!(*header.gas_limit(), U256::from(150_002));
 	}
 }

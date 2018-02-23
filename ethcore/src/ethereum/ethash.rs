@@ -187,7 +187,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		let difficulty = self.calculate_difficulty(header, parent);
-		header.alter(|h| h.set_difficulty(difficulty));
+		header.set_difficulty(difficulty);
 	}
 
 	fn on_new_block(

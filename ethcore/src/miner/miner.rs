@@ -360,7 +360,7 @@ impl Miner {
 			};
 
 			if self.options.infinite_pending_block {
-				open_block.alter_header(|h| h.set_gas_limit(!U256::zero()));
+				open_block.set_gas_limit(!U256::zero());
 			}
 
 			(open_block, last_work_hash)
@@ -696,7 +696,7 @@ impl MinerService for Miner {
 	fn set_author(&self, address: Address, password: Option<String>) -> Result<(), AccountError> {
 		self.params.write().author = address;
 
-		if self.engine.seals_internally().is_some() && password.is_some() {
+		if self.engine.seals_internally().is_some() {
 			if let Some(ref ap) = self.accounts {
 				let password = password.unwrap_or_default();
 				// Sign test message

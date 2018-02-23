@@ -572,7 +572,7 @@ impl Spec {
 
 	/// Get the header of the genesis block.
 	pub fn genesis_header(&self) -> Header {
-		let mut header = Header::default().unlock();
+		let mut header: Header = Default::default();
 		header.set_parent_hash(self.parent_hash.clone());
 		header.set_timestamp(self.timestamp);
 		header.set_number(0);
@@ -590,7 +590,6 @@ impl Spec {
 			let r = Rlp::new(&self.seal_rlp);
 			r.iter().map(|f| f.as_raw().to_vec()).collect()
 		});
-		let header = header.lock();
 		trace!(target: "spec", "Header hash is {}", header.hash());
 		header
 	}
