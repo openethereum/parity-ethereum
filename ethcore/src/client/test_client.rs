@@ -39,7 +39,7 @@ use client::{
 	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
-	Call, StateClient, EngineInfo
+	Call, StateClient, EngineInfo, AccountData
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -445,6 +445,8 @@ impl Balance for TestBlockChainClient {
 		self.balance(address, BlockId::Latest.into()).unwrap()
 	}
 }
+
+impl AccountData for TestBlockChainClient {}
 
 impl ChainInfo for TestBlockChainClient {
 	fn chain_info(&self) -> BlockChainInfo {

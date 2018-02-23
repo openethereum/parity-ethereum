@@ -200,7 +200,7 @@ pub trait EngineInfo {
 }
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo + BlockInfo + CallContract + TransactionInfo + RegistryInfo + ImportBlock {
+pub trait BlockChainClient : Sync + Send + AccountData + ChainInfo + BlockInfo + CallContract + TransactionInfo + RegistryInfo + ImportBlock {
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 

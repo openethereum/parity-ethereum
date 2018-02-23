@@ -39,7 +39,7 @@ use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
-	StateOrBlock, StateInfo, StateClient, Call
+	StateOrBlock, StateInfo, StateClient, Call, AccountData
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -1297,6 +1297,8 @@ impl Balance for Client {
 		}
 	}
 }
+
+impl AccountData for Client {}
 
 impl ChainInfo for Client {
 	fn chain_info(&self) -> BlockChainInfo {
