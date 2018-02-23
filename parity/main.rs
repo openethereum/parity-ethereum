@@ -72,7 +72,7 @@ extern crate parity_updater as updater;
 extern crate parity_version;
 extern crate parity_whisper;
 extern crate path;
-extern crate privatetransactions;
+extern crate private_transactions;
 extern crate rpc_cli;
 extern crate node_filter;
 extern crate keccak_hash as hash;

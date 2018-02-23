@@ -24,7 +24,7 @@ use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
 use transaction::{Transaction, Action};
 use ethcore::test_helpers::push_block_with_transactions;
-use privatetransactions::{ProviderConfig};
+use private_transactions::{ProviderConfig};
 use ethcore::account_provider::AccountProvider;
 use ethkey::KeyPair;
 use tests::helpers::*;

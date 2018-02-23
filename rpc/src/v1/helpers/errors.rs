@@ -23,7 +23,7 @@ use ethcore::error::{Error as EthcoreError, CallError};
 use jsonrpc_core::{futures, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use transaction::Error as TransactionError;
-use privatetransactions::PrivateTransactionError;
+use private_transactions::PrivateTransactionError;
 
 mod codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]

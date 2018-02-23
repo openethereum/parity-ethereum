@@ -1,6 +1,6 @@
 [package]
 description = "Parity Private Transactions"
-name = "privatetransactions"
+name = "private_transactions"
 version = "1.0.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]

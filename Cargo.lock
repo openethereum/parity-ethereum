@@ -884,7 +884,7 @@ dependencies = [
  "macros 0.1.0",
  "parking_lot 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "plain_hasher 0.1.0",
- "privatetransactions 1.0.0",
+ "private_transactions 1.0.0",
  "rand 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1979,7 +1979,7 @@ dependencies = [
  "parking_lot 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "path 0.1.0",
  "pretty_assertions 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "privatetransactions 1.0.0",
+ "private_transactions 1.0.0",
  "regex 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
  "rpassword 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2175,7 +2175,7 @@ dependencies = [
  "parity-version 1.10.0",
  "parking_lot 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "pretty_assertions 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "privatetransactions 1.0.0",
+ "private_transactions 1.0.0",
  "rand 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2514,7 +2514,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "privatetransactions"
+name = "private_transactions"
 version = "1.0.0"
 dependencies = [
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",

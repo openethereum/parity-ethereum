@@ -68,7 +68,7 @@ extern crate rlp;
 extern crate stats;
 extern crate keccak_hash as hash;
 extern crate hardware_wallet;
-extern crate privatetransactions;
+extern crate private_transactions;
 
 #[macro_use]
 extern crate log;

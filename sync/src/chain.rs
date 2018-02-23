@@ -103,7 +103,7 @@ use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};
 use ethcore::error::*;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
-use privatetransactions::Provider as PrivateTransactionProvider;
+use private_transactions::Provider as PrivateTransactionProvider;
 use transaction::PendingTransaction;
 use sync_io::SyncIo;
 use time;

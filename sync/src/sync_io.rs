@@ -22,7 +22,7 @@ use ethcore::client::BlockChainClient;
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use parking_lot::RwLock;
-use privatetransactions::Provider as PrivateTransactionProvider;
+use private_transactions::Provider as PrivateTransactionProvider;
 
 /// IO interface for the syncing handler.
 /// Provides peer connection management and an interface to the blockchain client.

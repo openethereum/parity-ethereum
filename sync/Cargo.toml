@@ -30,7 +30,7 @@ heapsize = "0.4"
 semver = "0.6"
 smallvec = { version = "0.4", features = ["heapsizeof"] }
 parking_lot = "0.5"
-privatetransactions = { path = "../private_transactions" }
+private_transactions = { path = "../private_transactions" }
 ipnetwork = "0.12.6"
 
 [dev-dependencies]
