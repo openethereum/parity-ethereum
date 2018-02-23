@@ -4,16 +4,4 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethcore-bytes = { path = "../../util/bytes" }
-ethereum-types = "0.2"
-keccak-hash = { path = "../../util/hash" }
-kvdb = { path = "../../util/kvdb" }
-kvdb-rocksdb = { path = "../../util/kvdb-rocksdb" }
-log = "0.3"
-macros = { path = "../../util/macros" }
 migration = { path = "../../util/migration" }
-rlp = { path = "../../util/rlp" }
-patricia-trie = { path = "../../util/patricia_trie" }
-journaldb = { path = "../../util/journaldb" }
-ethcore-bloom-journal = { path = "../../util/bloom" }
-ethcore = { path = ".." }

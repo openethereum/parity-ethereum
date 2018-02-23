@@ -485,7 +485,7 @@ impl fmt::Debug for Account {
 
 #[cfg(test)]
 mod tests {
-	use rlp::{UntrustedRlp, RlpType, Compressible};
+	use rlp_compress::{compress, decompress, snapshot_swapper};
 	use ethereum_types::{H256, Address};
 	use memorydb::MemoryDB;
 	use bytes::Bytes;
@@ -495,10 +495,9 @@ mod tests {
 	#[test]
 	fn account_compress() {
 		let raw = Account::new_basic(2.into(), 4.into()).rlp();
-		let rlp = UntrustedRlp::new(&raw);
-		let compact_vec = rlp.compress(RlpType::Snapshot).into_vec();
+		let compact_vec = compress(&raw, snapshot_swapper());
 		assert!(raw.len() > compact_vec.len());
-		let again_raw = UntrustedRlp::new(&compact_vec).decompress(RlpType::Snapshot);
+		let again_raw = decompress(&compact_vec, snapshot_swapper());
 		assert_eq!(raw, again_raw.into_vec());
     }
 

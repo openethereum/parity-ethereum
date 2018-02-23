@@ -63,9 +63,17 @@ fn verify_migration(path: &Path, pairs: BTreeMap<Vec<u8>, Vec<u8>>) {
 struct Migration0;
 
 impl SimpleMigration for Migration0 {
-	fn columns(&self) -> Option<u32> { None }
+	fn columns(&self) -> Option<u32> {
+		None
+	}
 
-	fn version(&self) -> u32 { 1 }
+	fn version(&self) -> u32 {
+		1
+	}
+
+	fn migrated_column_index(&self) -> Option<u32> {
+		None
+	}
 
 	fn simple_migrate(&mut self, mut key: Vec<u8>, mut value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 		key.push(0x11);
@@ -78,9 +86,17 @@ impl SimpleMigration for Migration0 {
 struct Migration1;
 
 impl SimpleMigration for Migration1 {
-	fn columns(&self) -> Option<u32> { None }
+	fn columns(&self) -> Option<u32> {
+		None
+	}
 
-	fn version(&self) -> u32 { 2 }
+	fn version(&self) -> u32 {
+		2
+	}
+
+	fn migrated_column_index(&self) -> Option<u32> {
+		None
+	}
 
 	fn simple_migrate(&mut self, key: Vec<u8>, _value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 		Some((key, vec![]))

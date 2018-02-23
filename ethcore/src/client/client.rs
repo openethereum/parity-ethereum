@@ -24,7 +24,6 @@ use itertools::Itertools;
 
 // util
 use hash::keccak;
-use timer::PerfTimer;
 use bytes::Bytes;
 use journaldb;
 use trie::{TrieSpec, TrieFactory, Trie};
@@ -292,7 +291,7 @@ impl Importer {
 			if blocks.is_empty() {
 				return 0;
 			}
-			let _timer = PerfTimer::new("import_verified_blocks");
+			trace_time!("import_verified_blocks");
 			let start = precise_time_ns();
 
 			for block in blocks {
@@ -444,7 +443,7 @@ impl Importer {
 		let _import_lock = self.import_lock.lock();
 
 		{
-			let _timer = PerfTimer::new("import_old_block");
+			trace_time!("import_old_block");
 			let mut ancient_verifier = self.ancient_verifier.lock();
 
 			{
@@ -975,7 +974,7 @@ impl Client {
 	/// Import transactions from the IO queue
 	pub fn import_queued_transactions(&self, transactions: &[Bytes], peer_id: usize) -> usize {
 		trace!(target: "external_tx", "Importing queued");
-		let _timer = PerfTimer::new("import_queued_transactions");
+		trace_time!("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
 		let txs: Vec<UnverifiedTransaction> = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
 		let hashes: Vec<_> = txs.iter().map(|tx| tx.hash()).collect();
@@ -1825,17 +1824,8 @@ impl BlockChainClient for Client {
 		};
 
 		let chain = self.chain.read();
-		let blocks = filter.bloom_possibilities().iter()
-			.map(move |bloom| {
-				chain.blocks_with_bloom(bloom, from, to)
-			})
-			.flat_map(|m| m)
-			// remove duplicate elements
-			.collect::<HashSet<u64>>()
-			.into_iter()
-			.collect::<Vec<u64>>();
-
-		self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit)
+		let blocks = chain.blocks_with_blooms(&filter.bloom_possibilities(), from, to);
+		chain.logs(blocks, |entry| filter.matches(entry), filter.limit)
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
@@ -2045,7 +2035,7 @@ impl ImportSealedBlock for Client {
 		let route = {
 			// scope for self.import_lock
 			let _import_lock = self.importer.import_lock.lock();
-			let _timer = PerfTimer::new("import_sealed_block");
+			trace_time!("import_sealed_block");
 
 			let number = block.header().number();
 			let block_data = block.rlp_bytes();

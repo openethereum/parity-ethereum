@@ -111,7 +111,8 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 
 	fn new_block_filter(&self) -> Result<RpcU256> {
 		let mut polls = self.polls().lock();
-		let id = polls.create_poll(PollFilter::Block(self.best_block_number()));
+		// +1, since we don't want to include the current block
+		let id = polls.create_poll(PollFilter::Block(self.best_block_number() + 1));
 		Ok(id.into())
 	}
 
@@ -129,7 +130,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 			None => Either::A(future::ok(FilterChanges::Empty)),
 			Some(filter) => match *filter {
 				PollFilter::Block(ref mut block_number) => {
-					// + 1, cause we want to return hashes including current block hash.
+					// +1, cause we want to return hashes including current block hash.
 					let current_number = self.best_block_number() + 1;
 					let hashes = (*block_number..current_number).into_iter()
 						.map(BlockId::Number)

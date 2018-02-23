@@ -8,7 +8,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ansi_term = "0.10"
-bloomchain = { path = "../util/bloomchain" }
 bn = { git = "https://github.com/paritytech/bn" }
 byteorder = "1.0"
 common-types = { path = "types" }
@@ -47,6 +46,7 @@ price-info = { path = "../price-info" }
 rayon = "0.8"
 rand = "0.4"
 rlp = { path = "../util/rlp" }
+rlp_compress = { path = "../util/rlp_compress" }
 rlp_derive = { path = "../util/rlp_derive" }
 kvdb = { path = "../util/kvdb" }
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
@@ -60,6 +60,7 @@ rust-crypto = "0.2.34"
 rustc-hex = "1.0"
 stats = { path = "../util/stats" }
 time = "0.1"
+trace-time = { path = "../util/trace-time" }
 using_queue = { path = "../util/using_queue" }
 table = { path = "../util/table" }
 vm = { path = "vm" }
