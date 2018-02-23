@@ -47,6 +47,7 @@ price-info = { path = "../price-info" }
 rayon = "0.8"
 rand = "0.4"
 rlp = { path = "../util/rlp" }
+rlp_compress = { path = "../util/rlp_compress" }
 rlp_derive = { path = "../util/rlp_derive" }
 kvdb = { path = "../util/kvdb" }
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
