@@ -1,7 +1,5 @@
 #!/bin/bash
-
 set -e # fail on any error
-set -u # treat unset variables as error
 #ARGUMENTS: 1. BUILD_PLATFORM (target for binaries) 2. PLATFORM (target for cargo) 3. ARC (architecture) 4. & 5. CC & CXX flags 6. binary identifier
 BUILD_PLATFORM=$1
 PLATFORM=$2
@@ -20,6 +18,7 @@ echo "Architecture:       " $ARC
 echo "Libssl version:     " $LIBSSL
 echo "Parity version:     " $VER
 echo "Branch:             " $CI_BUILD_REF_NAME
+echo "Protect?            " $protect
 echo "--------------------"
 
 # NOTE for md5 and sha256 we want to display filename as well
@@ -28,7 +27,7 @@ MD5_BIN="rhash --md5"
 SHA256_BIN="rhash --sha256"
 
 set_env () {
-  echo "Set ENVIROMENT"
+  echo "__________Set ENVIROMENT__________"
   export HOST_CC=gcc
   export HOST_CXX=g++
   rm -rf .cargo
@@ -48,33 +47,31 @@ set_env_win () {
   echo "@ signtool sign /f "\%"1 /p "\%"2 /tr http://timestamp.comodoca.com /du https://parity.io "\%"3" > sign.cmd
 }
 build () {
-  echo "Build parity:"
-  cargo build --target $PLATFORM --features final --release
-  echo "Build evmbin:"
-  cargo build --target $PLATFORM --release -p evmbin
-  echo "Build ethstore-cli:"
-  cargo build --target $PLATFORM --release -p ethstore-cli
-  echo "Build ethkey-cli:"
-  cargo build --target $PLATFORM --release -p ethkey-cli
+  echo "__________Build parity__________"
+  time cargo build --target $PLATFORM --features final --release
+  echo "__________Build evmbin__________"
+  time cargo build --target $PLATFORM --release -p evmbin
+  echo "__________Build ethstore-cli__________"
+  time cargo build --target $PLATFORM --release -p ethstore-cli
+  echo "__________Build ethkey-cli__________"
+  time cargo build --target $PLATFORM --release -p ethkey-cli
 }
 strip_binaries () {
-  echo "Strip binaries:"
+  echo "__________Strip binaries__________"
   $STRIP_BIN -v target/$PLATFORM/release/parity
   $STRIP_BIN -v target/$PLATFORM/release/parity-evm
   $STRIP_BIN -v target/$PLATFORM/release/ethstore
   $STRIP_BIN -v target/$PLATFORM/release/ethkey;
 }
 calculate_checksums () {
-  echo "Checksum calculation:"
+  echo "__________Checksum calculation__________"
   rhash --version
-
   rm -rf *.md5
   rm -rf *.sha256
-
   BIN="target/$PLATFORM/release/parity$S3WIN"
   export SHA3="$($BIN tools hash $BIN)"
-
-  echo "Parity file SHA3: $SHA3"
+  echo "__________Parity file SHA3__________"
+  echo $SHA3
   $MD5_BIN target/$PLATFORM/release/parity$S3WIN > parity$S3WIN.md5
   $SHA256_BIN target/$PLATFORM/release/parity$S3WIN > parity$S3WIN.sha256
   $MD5_BIN target/$PLATFORM/release/parity-evm$S3WIN > parity-evm$S3WIN.md5
@@ -86,7 +83,7 @@ calculate_checksums () {
 }
 make_deb () {
   rm -rf deb
-  echo "create DEBIAN files"
+  echo "__________Create DEBIAN files__________"
   mkdir -p deb/usr/bin/
   mkdir -p deb/DEBIAN
   echo "create copyright, docs, compat"
@@ -111,7 +108,7 @@ make_deb () {
   echo "Description: Ethereum network client by Parity Technologies" >> $control
   size=`du deb/|awk 'END {print $1}'`
   echo "Installed-Size: $size" >> $control
-  echo "build .deb package"
+  echo "__________Build .deb package__________"
   cp target/$PLATFORM/release/parity deb/usr/bin/parity
   cp target/$PLATFORM/release/parity-evm deb/usr/bin/parity-evm
   cp target/$PLATFORM/release/ethstore deb/usr/bin/ethstore
@@ -122,6 +119,7 @@ make_deb () {
 }
 make_rpm () {
   rm -rf /install
+  echo "__________Create RPM package__________"
   mkdir -p /install/usr/bin
   cp target/$PLATFORM/release/parity /install/usr/bin
   cp target/$PLATFORM/release/parity-evm /install/usr/bin/parity-evm
@@ -135,7 +133,7 @@ make_rpm () {
   $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC".rpm" > "parity_"$VER"_"$IDENT"_"$ARC".rpm.sha256"
 }
 make_pkg () {
-  echo "make PKG"
+  echo "__________Make OSX PKG__________"
   cp target/$PLATFORM/release/parity target/release/parity
   cp target/$PLATFORM/release/parity-evm target/release/parity-evm
   cp target/$PLATFORM/release/ethstore target/release/ethstore
@@ -150,11 +148,13 @@ make_pkg () {
   $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT >> "parity_"$VER"_"$IDENT"_"$ARC".pkg.sha256"
 }
 sign_exe () {
+  if [[ -z "$protect" ]]; then echo "__________Skipping sign binaries__________"&&return; fi
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
+  ./sign.cmd $keyfile $certpass windows/ptray/x64/release/ptray.exe
 }
 make_exe () {
   ./msbuild.cmd
-  ./sign.cmd $keyfile $certpass windows/ptray/x64/release/ptray.exe
+  sign_exe
   cd nsis
   curl -sL --url "https://github.com/paritytech/win-build/raw/master/vc_redist.x64.exe" -o vc_redist.x64.exe
   echo "makensis.exe installer.nsi" > nsis.cmd
@@ -165,8 +165,71 @@ make_exe () {
   $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
   $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
 }
+push_snap () {
+  if [[ -z "$protect" ]]; then echo "__________Skipping push and release snap__________"&&return; fi
+  snapcraft_login=$(expect -c "
+    spawn snapcraft login
+    expect \"Email:\"
+    send \"$SNAP_EMAIL\n\"
+    expect \"Password:\"
+    send \"$SNAP_PASS\n\"
+    expect \"\$\"
+    ")
+  echo "$snapcraft_login"
+  snapcraft push "parity_"$VER"_"$ARC".snap" >> push.log
+  cat push.log
+  REVISION="$(grep -m 1 "Revision " push.log | awk '{print $2}')"
+  echo "__________Revision__________"
+  echo $REVISION
+  sleep 60
+  if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.9* ]];
+    then
+    snapcraft release parity_"$VER"_"$ARC".snap $REVISION beta
+    snapcraft release parity_"$VER"_"$ARC".snap $REVISION candidate;
+  fi
+  if [[ "$CI_BUILD_REF_NAME" = "nightly" ]];
+    then
+    snapcraft release parity_"$VER"_"$ARC".snap $REVISION edge;
+  fi
+  if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.8* ]];
+    then
+    snapcraft release parity_"$VER"_"$ARC".snap $REVISION stable;
+  fi
+  snapcraft status parity
+  snapcraft logout
+}
+make_snap () {
+  export HOST_CC=gcc
+  export HOST_CXX=g++
+  apt install -y expect zip rhash
+  snapcraft clean
+  echo "__________ Prepare snapcraft.yaml for build on Gitlab CI in Docker image __________"
+  sed -i 's/git/'"$VER"'/g' snap/snapcraft.yaml
+  if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.9* ]];
+    then
+      sed -i -e 's/grade: devel/grade: stable/' snap/snapcraft.yaml;
+  fi
+  if [[ "$ARC" = "i386" ]];
+    then
+      export ARCH=i686&&ln -s /usr/bin/gcc /usr/bin/i386-linux-gnu-gcc;
+  fi
+  mv -f snap/snapcraft.yaml snapcraft.yaml
+  snapcraft --target-arch=$ARC -d
+  echo "__________Build comlete__________"
+  push_snap
+  echo "__________Checksum calculation__________"
+  $MD5_BIN "parity_"$VER"_"$ARC".snap" > "parity_"$VER"_"$ARC".snap.md5"
+  $SHA256_BIN "parity_"$VER"_"$ARC".snap" > "parity_"$VER"_"$ARC".snap.sha256"
+  echo "__________Copy all artifacts to one place__________"
+  rm -rf artifacts
+  mkdir -p artifacts
+  cp "parity_"$VER"_"$ARC".snap" artifacts
+  cp "parity_"$VER"_"$ARC".snap.md5" artifacts
+  cp "parity_"$VER"_"$ARC".snap.sha256" artifacts
+}
 push_binaries () {
-  echo "Push binaries to AWS S3"
+  if [[ -z "$protect" ]]; then echo "__________Skipping push to S3__________"&&return; fi
+  echo "__________Push binaries to AWS S3__________"
   aws configure set aws_access_key_id $s3_key
   aws configure set aws_secret_access_key $s3_secret
   if [[ "$CI_BUILD_REF_NAME" = "master" || "$CI_BUILD_REF_NAME" = "beta" || "$CI_BUILD_REF_NAME" = "stable" || "$CI_BUILD_REF_NAME" = "nightly" ]];
@@ -192,47 +255,54 @@ push_binaries () {
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5" --body "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256" --body "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
 }
-make_archive () {
-  echo "add artifacts to archive"
-  rm -rf parity.zip
-  zip -r parity.zip target/$PLATFORM/release/parity$S3WIN target/$PLATFORM/release/parity-evm$S3WIN target/$PLATFORM/release/ethstore$S3WIN target/$PLATFORM/release/ethkey$S3WIN parity$S3WIN.md5 parity-evm$S3WIN.md5 ethstore$S3WIN.md5 ethkey$S3WIN.md5 parity$S3WIN.sha256 parity-evm$S3WIN.sha256 ethstore$S3WIN.sha256 ethkey$S3WIN.sha256
+prepare_artifacts () {
+  echo "__________Copy all artifacts to one place__________"
+  rm -rf artifacts
+  mkdir -p artifacts
+  cp target/$PLATFORM/release/parity$S3WIN artifacts
+  cp target/$PLATFORM/release/parity-evm$S3WIN artifacts
+  cp target/$PLATFORM/release/ethstore$S3WIN artifacts
+  cp target/$PLATFORM/release/ethkey$S3WIN parity$S3WIN.md5 artifacts
+  cp parity-evm$S3WIN.md5 ethstore$S3WIN.md5 artifacts
+  cp ethkey$S3WIN.md5 artifacts
+  cp parity$S3WIN.sha256 artifacts
+  cp parity-evm$S3WIN.sha256 artifacts
+  cp ethstore$S3WIN.sha256 artifacts
+  cp ethkey$S3WIN.sha256 artifacts
 }
-
 updater_push_release () {
-  echo "push release"
-
+  echo "__________Build comlete__________"
+  if [[ -z "$protect" ]]; then echo "__________Skipping push release__________"&&return; fi
+  echo "__________Push release___________"
   DATA="commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity$S3WIN&secret=$RELEASES_SECRET"
   # Mainnet
   source scripts/safe_curl.sh $DATA "http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$BUILD_PLATFORM"
   # Kovan
   source scripts/safe_curl.sh $DATA "http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$BUILD_PLATFORM"
 }
-
+build_and_push () {
+  build
+  strip_binaries
+  calculate_checksums
+  make_deb
+  prepare_artifacts
+  push_binaries
+  updater_push_release
+}
 case $BUILD_PLATFORM in
   x86_64-unknown-linux-gnu)
     #set strip bin
     STRIP_BIN="strip"
     #package extention
     EXT="deb"
-    build
-    strip_binaries
-    calculate_checksums
-    make_deb
-    make_archive
-    push_binaries
-    updater_push_release
+    build_and_push
     ;;
   x86_64-unknown-debian-gnu)
     STRIP_BIN="strip"
     EXT="deb"
     LIBSSL="libssl1.1 (>=1.1.0)"
-    echo "Use libssl1.1 (>=1.1.0) for Debian builds"
-    build
-    strip_binaries
-    calculate_checksums
-    make_deb
-    make_archive
-    push_binaries
+    echo "__________Use libssl1.1 (>=1.1.0) for Debian builds__________"
+    build_and_push
     ;;
   x86_64-unknown-centos-gnu)
     STRIP_BIN="strip"
@@ -241,52 +311,33 @@ case $BUILD_PLATFORM in
     strip_binaries
     calculate_checksums
     make_rpm
-    make_archive
+    prepare_artifacts
     push_binaries
+    updater_push_release
     ;;
   i686-unknown-linux-gnu)
     STRIP_BIN="strip"
     EXT="deb"
     set_env
-    build
-    strip_binaries
-    calculate_checksums
-    make_deb
-    make_archive
-    push_binaries
+    build_and_push
     ;;
   armv7-unknown-linux-gnueabihf)
     STRIP_BIN="arm-linux-gnueabihf-strip"
     EXT="deb"
     set_env
-    build
-    strip_binaries
-    calculate_checksums
-    make_deb
-    make_archive
-    push_binaries
+    build_and_push
     ;;
   arm-unknown-linux-gnueabihf)
     STRIP_BIN="arm-linux-gnueabihf-strip"
     EXT="deb"
     set_env
-    build
-    strip_binaries
-    calculate_checksums
-    make_deb
-    make_archive
-    push_binaries
+    build_and_push
     ;;
   aarch64-unknown-linux-gnu)
     STRIP_BIN="aarch64-linux-gnu-strip"
     EXT="deb"
     set_env
-    build
-    strip_binaries
-    calculate_checksums
-    make_deb
-    make_archive
-    push_binaries
+    build_and_push
     ;;
   x86_64-apple-darwin)
     STRIP_BIN="strip"
@@ -296,40 +347,22 @@ case $BUILD_PLATFORM in
     strip_binaries
     calculate_checksums
     make_pkg
-    make_archive
+    prepare_artifacts
     push_binaries
     updater_push_release
     ;;
   x86_64-unknown-snap-gnu)
-    ARC="amd64"
-    EXT="snap"
-    apt install -y expect zip rhash
-    snapcraft clean
-    echo "Prepare snapcraft.yaml for build on Gitlab CI in Docker image"
-    sed -i 's/git/'"$VER"'/g' snap/snapcraft.yaml
-    if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.9* ]];
-      then
-        sed -i -e 's/grade: devel/grade: stable/' snap/snapcraft.yaml;
-    fi
-    mv -f snap/snapcraft.yaml snapcraft.yaml
-    snapcraft -d
-    snapcraft_login=$(expect -c "
-      spawn snapcraft login
-      expect \"Email:\"
-      send \"$SNAP_EMAIL\n\"
-      expect \"Password:\"
-      send \"$SNAP_PASS\n\"
-      expect \"\$\"
-      ")
-    echo "$snapcraft_login"
-    snapcraft push "parity_"$VER"_amd64.snap"
-    snapcraft status parity
-    snapcraft logout
-    $MD5_BIN "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
-    $SHA256_BIN "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.sha256"
-    echo "add artifacts to archive"
-    rm -rf parity.zip
-    zip -r parity.zip "parity_"$VER"_amd64.snap" "parity_"$VER"_amd64.snap.md5" "parity_"$VER"_amd64.snap.sha256"
+    make_snap
+    ;;
+  i686-unknown-snap-gnu)
+    set_env
+    make_snap
+    ;;
+  arm64-unknown-snap-gnu)
+    make_snap
+    ;;
+  armhf-unknown-snap-gnu)
+    make_snap
     ;;
   x86_64-pc-windows-msvc)
     set_env_win
@@ -339,7 +372,7 @@ case $BUILD_PLATFORM in
     sign_exe
     calculate_checksums
     make_exe
-    make_archive
+    prepare_artifacts
     push_binaries
     updater_push_release
 esac

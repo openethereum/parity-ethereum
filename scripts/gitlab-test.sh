@@ -15,7 +15,7 @@ rust_test () {
   git submodule update --init --recursive
   rustup show
   if [[ "${RUST_FILES_MODIFIED}" == "0" ]];
-    then echo "Skipping Rust tests since no Rust files modified.";
+    then echo "__________Skipping Rust tests since no Rust files modified__________";
     else ./test.sh || exit $?;
   fi
   # if [[ "$CI_COMMIT_REF_NAME" == "nightly" ]];
@@ -43,5 +43,13 @@ case $TEST_SWITCH in
     ;;
   test-coverage)
     coverage_test
+    ;;
+  rustfmt)
+    cargo install rustfmt-nightly
+    cargo fmt -- --write-mode=diff
+    ;;
+  clippy)
+    cargo install clippy
+    cargo clippy -- -D warnings
     ;;
 esac
