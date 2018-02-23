@@ -81,6 +81,31 @@ impl Transaction {
 			Transaction::Local(ref tx) => tx.hash(),
 		}
 	}
+
+	fn gas(&self) -> &U256 {
+		match *self {
+			Transaction::Unverified(ref tx) => &tx.gas,
+			Transaction::Retracted(ref tx) => &tx.gas,
+			Transaction::Local(ref tx) => &tx.gas,
+		}
+	}
+
+
+	fn gas_price(&self) -> &U256 {
+		match *self {
+			Transaction::Unverified(ref tx) => &tx.gas_price,
+			Transaction::Retracted(ref tx) => &tx.gas_price,
+			Transaction::Local(ref tx) => &tx.gas_price,
+		}
+	}
+
+	fn transaction(&self) -> &transaction::Transaction {
+		match *self {
+			Transaction::Unverified(ref tx) => &*tx,
+			Transaction::Retracted(ref tx) => &*tx,
+			Transaction::Local(ref tx) => &*tx,
+		}
+	}
 }
 
 /// Transaction verifier.
@@ -109,6 +134,9 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 	type VerifiedTransaction = VerifiedTransaction;
 
 	fn verify_transaction(&self, tx: Transaction) -> Result<Self::VerifiedTransaction, Self::Error> {
+		// The checks here should be ordered by cost/complexity.
+		// Cheap checks should be done as early as possible to discard unneeded transactions early.
+
 		let hash = tx.hash();
 
 		if self.client.transaction_already_included(&hash) {
@@ -116,8 +144,59 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 			bail!(transaction::Error::AlreadyImported)
 		}
 
-		let is_retracted = if let Transaction::Retracted(_) = tx { true } else { false };
+		let gas_limit = cmp::min(self.options.tx_gas_limit, self.options.block_gas_limit);
+		if tx.gas() > &gas_limit {
+			debug!(
+				target: "txqueue",
+				"[{:?}] Dropping transaction above gas limit: {} > min({}, {})",
+				hash,
+				tx.gas(),
+				self.options.block_gas_limit,
+				self.options.tx_gas_limit,
+			);
+			bail!(transaction::Error::GasLimitExceeded {
+				limit: gas_limit,
+				got: *tx.gas(),
+			});
+		}
+
+		let minimal_gas = self.client.required_gas(tx.transaction());
+		if tx.gas() < &minimal_gas {
+			trace!(target: "txqueue",
+				"[{:?}] Dropping transaction with insufficient gas: {} < {}",
+				hash,
+				tx.gas(),
+				minimal_gas,
+			);
+
+			bail!(transaction::Error::InsufficientGas {
+				minimal: minimal_gas,
+				got: *tx.gas(),
+			})
+		}
+
 		let is_own = if let Transaction::Local(..) = tx { true } else { false };
+		// Quick exit for non-service transactions
+		if tx.gas_price() < &self.options.minimal_gas_price
+			&& !tx.gas_price().is_zero()
+			&& !is_own
+		{
+			trace!(
+				target: "txqueue",
+				"[{:?}] Rejected tx below minimal gas price threshold: {} < {}",
+				hash,
+				tx.gas_price(),
+				self.options.minimal_gas_price,
+			);
+			bail!(transaction::Error::InsufficientGasPrice {
+				minimal: self.options.minimal_gas_price,
+				got: *tx.gas_price(),
+			});
+		}
+
+		// Some more heavy checks below.
+		// Actually recover sender and verify that transaction
+		let is_retracted = if let Transaction::Retracted(_) = tx { true } else { false };
 		let transaction = match tx {
 			Transaction::Retracted(tx) | Transaction::Unverified(tx) => match self.client.verify_transaction(tx) {
 				Ok(signed) => signed.into(),
@@ -129,38 +208,9 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 			Transaction::Local(tx) => tx,
 		};
 
-		let gas_limit = cmp::min(self.options.tx_gas_limit, self.options.block_gas_limit);
-		if transaction.gas > gas_limit {
-			debug!(
-				target: "txqueue",
-				"[{:?}] Dropping transaction above gas limit: {} > min({}, {})",
-				hash,
-				transaction.gas,
-				self.options.block_gas_limit,
-				self.options.tx_gas_limit,
-			);
-			bail!(transaction::Error::GasLimitExceeded { limit: gas_limit, got: transaction.gas });
-		}
-
-		let minimal_gas = self.client.required_gas(&transaction);
-		if transaction.gas < minimal_gas {
-			trace!(target: "txqueue",
-				"[{:?}] Dropping transaction with insufficient gas: {} < {}",
-				transaction.hash(),
-				transaction.gas,
-				minimal_gas,
-			);
-
-			bail!(transaction::Error::InsufficientGas {
-				minimal: minimal_gas,
-				got: transaction.gas,
-			})
-		}
-
 		let transaction_type = self.client.transaction_type(&transaction);
 		let sender = transaction.sender();
 		let account_details = self.client.account_details(&sender);
-
 		if transaction.gas_price < self.options.minimal_gas_price {
 			if let TransactionType::Service = transaction_type {
 				debug!(target: "txqueue", "Service tx {:?} below minimal gas price accepted", hash);

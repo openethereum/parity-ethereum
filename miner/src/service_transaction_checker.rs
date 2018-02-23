@@ -16,7 +16,8 @@
 
 //! A service transactions contract checker.
 
-use ethereum_types::{H256, Address};
+use ethereum_types::Address;
+use transaction::SignedTransaction;
 
 use_contract!(service_transaction, "ServiceTransaction", "res/service_transaction.json");
 
@@ -46,7 +47,15 @@ impl Clone for ServiceTransactionChecker {
 
 impl ServiceTransactionChecker {
 	/// Checks if given address is whitelisted to send service transactions.
-	pub fn check(&self, client: &ContractCaller, sender: &Address, hash: &H256) -> Result<bool, String> {
+	pub fn check(&self, client: &ContractCaller, tx: &SignedTransaction) -> Result<bool, String> {
+		let sender = tx.sender();
+		let hash = tx.hash();
+
+		// Skip checking the contract if the transaction does not have zero gas price
+		if !tx.gas_price.is_zero() {
+			return Ok(false)
+		}
+
 		let address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME)
 			.ok_or_else(|| "contract is not configured")?;
 
@@ -54,7 +63,7 @@ impl ServiceTransactionChecker {
 
 		self.contract.functions()
 			.certified()
-			.call(*sender, &|data| client.call_contract(address, data))
+			.call(sender, &|data| client.call_contract(address, data))
 			.map_err(|e| e.to_string())
 	}
 }

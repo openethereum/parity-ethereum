@@ -107,14 +107,14 @@ impl<'a> pool::client::Client for BlockChainClient<'a> {
 		self.chain.latest_nonce(address)
 	}
 
-	fn required_gas(&self, tx: &SignedTransaction) -> U256 {
+	fn required_gas(&self, tx: &transaction::Transaction) -> U256 {
 		tx.gas_required(&self.chain.latest_schedule()).into()
 	}
 
 	fn transaction_type(&self, tx: &SignedTransaction) -> pool::client::TransactionType {
 		match self.service_transaction_checker {
 			None => pool::client::TransactionType::Regular,
-			Some(ref checker) => match checker.check(self, &tx.sender(), &tx.hash()) {
+			Some(ref checker) => match checker.check(self, &tx) {
 				Ok(true) => pool::client::TransactionType::Service,
 				Ok(false) => pool::client::TransactionType::Regular,
 				Err(e) => {

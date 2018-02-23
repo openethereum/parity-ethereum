@@ -161,11 +161,13 @@ impl<T, S, L> Pool<T, S, L> where
 			},
 			AddResult::TooCheap { new, old } => {
 				let hash = *new.hash();
+				// TODO [ToDr] Pass errors here
 				self.listener.rejected(&Arc::new(new));
 				bail!(error::ErrorKind::TooCheapToReplace(*old.hash(), hash))
 			},
 			AddResult::TooCheapToEnter(new) => {
 				let hash = *new.hash();
+				// TODO [ToDr] Pass errors here
 				self.listener.rejected(&Arc::new(new));
 				bail!(error::ErrorKind::TooCheapToEnter(hash))
 			}

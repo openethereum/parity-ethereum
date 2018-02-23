@@ -115,7 +115,7 @@ name = "parity"
 panic = "abort"
 
 [profile.release]
-debug = false
+debug = true
 lto = false
 panic = "abort"
 

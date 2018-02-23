@@ -61,7 +61,7 @@ pub trait Client: fmt::Debug + Sync {
 	fn account_nonce(&self, address: &Address) -> U256;
 
 	/// Estimate minimal gas requirurement for given transaction.
-	fn required_gas(&self, tx: &transaction::SignedTransaction) -> U256;
+	fn required_gas(&self, tx: &transaction::Transaction) -> U256;
 
 	/// Classify transaction (check if transaction is filtered by some contracts).
 	fn transaction_type(&self, tx: &transaction::SignedTransaction) -> TransactionType;
