@@ -30,15 +30,16 @@ use ansi_term::Colour;
 use ethsync::{NetworkConfiguration, validate_node_url, self};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
-use ethcore::miner::{MinerOptions, Banning, StratumOptions};
+use ethcore::miner::{stratum, MinerOptions};
 use ethcore::verification::queue::VerifierSettings;
+use miner::pool;
 
 use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration, UiConfiguration};
 use rpc_apis::ApiSet;
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path,
-to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
+to_bootnodes, to_addresses, to_address, to_queue_strategy};
 use dir::helpers::{replace_home, replace_home_and_local};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
@@ -394,12 +395,14 @@ impl Configuration {
 	}
 
 	fn miner_extras(&self) -> Result<MinerExtras, String> {
+		let floor = to_u256(&self.args.arg_gas_floor_target)?;
+		let ceil = to_u256(&self.args.arg_gas_cap)?;
 		let extras = MinerExtras {
 			author: self.author()?,
 			extra_data: self.extra_data()?,
-			gas_floor_target: to_u256(&self.args.arg_gas_floor_target)?,
-			gas_ceil_target: to_u256(&self.args.arg_gas_cap)?,
+			gas_range_target: (floor, ceil),
 			engine_signer: self.engine_signer()?,
+			work_notify: self.work_notify(),
 		};
 
 		Ok(extras)
@@ -496,9 +499,9 @@ impl Configuration {
 		Ok(cfg)
 	}
 
-	fn stratum_options(&self) -> Result<Option<StratumOptions>, String> {
+	fn stratum_options(&self) -> Result<Option<stratum::Options>, String> {
 		if self.args.flag_stratum {
-			Ok(Some(StratumOptions {
+			Ok(Some(stratum::Options {
 				io_path: self.directories().db,
 				listen_addr: self.stratum_interface(),
 				port: self.args.arg_ports_shift + self.args.arg_stratum_port,
@@ -513,42 +516,57 @@ impl Configuration {
 			return Err("Force sealing can't be used with reseal_min_period = 0".into());
 		}
 
+		if let Some(_) = self.args.arg_tx_time_limit {
+			warn!("Banning is not available in this version.");
+		}
+
 		let reseal = self.args.arg_reseal_on_txs.parse::<ResealPolicy>()?;
 
 		let options = MinerOptions {
-			new_work_notify: self.work_notify(),
 			force_sealing: self.args.flag_force_sealing,
 			reseal_on_external_tx: reseal.external,
 			reseal_on_own_tx: reseal.own,
 			reseal_on_uncle: self.args.flag_reseal_on_uncle,
+			reseal_min_period: Duration::from_millis(self.args.arg_reseal_min_period),
+			reseal_max_period: Duration::from_millis(self.args.arg_reseal_max_period),
+
+			pending_set: to_pending_set(&self.args.arg_relay_set)?,
+			work_queue_size: self.args.arg_work_queue_size,
+			enable_resubmission: !self.args.flag_remove_solved,
+			infinite_pending_block: self.args.flag_infinite_pending_block,
+
+			refuse_service_transactions: self.args.flag_refuse_service_transactions,
+
+			pool_limits: self.pool_limits()?,
+			pool_verification_options: self.pool_verification_options()?,
+		};
+
+		Ok(options)
+	}
+
+	fn pool_limits(&self) -> Result<pool::Options, String> {
+		Ok(pool::Options {
+			max_count: self.args.arg_tx_queue_size,
+			// TODO [ToDr] Add seperate parameter for that!
+			max_per_sender: self.args.arg_tx_queue_size,
+			max_mem_usage: if self.args.arg_tx_queue_mem_limit > 0 {
+				self.args.arg_tx_queue_mem_limit as usize * 1024 * 1024
+			} else {
+				usize::max_value()
+			},
+		})
+	}
+
+	fn pool_verification_options(&self) -> Result<pool::verifier::Options, String>{
+		Ok(pool::verifier::Options {
+			// NOTE min_gas_price and block_gas_limit will be overwritten right after start.
+			minimal_gas_price: U256::from(20_000_000) * 1_000u32,
+			block_gas_limit: to_u256(&self.args.arg_gas_floor_target)?,
 			tx_gas_limit: match self.args.arg_tx_gas_limit {
 				Some(ref d) => to_u256(d)?,
 				None => U256::max_value(),
 			},
-			tx_queue_size: self.args.arg_tx_queue_size,
-			tx_queue_memory_limit: if self.args.arg_tx_queue_mem_limit > 0 {
-				Some(self.args.arg_tx_queue_mem_limit as usize * 1024 * 1024)
-			} else { None },
-			tx_queue_gas_limit: to_gas_limit(&self.args.arg_tx_queue_gas)?,
-			tx_queue_strategy: to_queue_strategy(&self.args.arg_tx_queue_strategy)?,
-			pending_set: to_pending_set(&self.args.arg_relay_set)?,
-			reseal_min_period: Duration::from_millis(self.args.arg_reseal_min_period),
-			reseal_max_period: Duration::from_millis(self.args.arg_reseal_max_period),
-			work_queue_size: self.args.arg_work_queue_size,
-			enable_resubmission: !self.args.flag_remove_solved,
-			tx_queue_banning: match self.args.arg_tx_time_limit {
-				Some(limit) => Banning::Enabled {
-					min_offends: self.args.arg_tx_queue_ban_count,
-					offend_threshold: Duration::from_millis(limit),
-					ban_duration: Duration::from_secs(self.args.arg_tx_queue_ban_time as u64),
-				},
-				None => Banning::Disabled,
-			},
-			refuse_service_transactions: self.args.flag_refuse_service_transactions,
-			infinite_pending_block: self.args.flag_infinite_pending_block,
-		};
-
-		Ok(options)
+		})
 	}
 
 	fn ui_port(&self) -> u16 {
@@ -667,12 +685,7 @@ impl Configuration {
 
 		let usd_per_tx = to_price(&self.args.arg_usd_per_tx)?;
 		if "auto" == self.args.arg_usd_per_eth.as_str() {
-			// Just a very rough estimate to avoid accepting
-			// ZGP transactions before the price is fetched
-			// if user does not want it.
-			let last_known_usd_per_eth = 10.0;
 			return Ok(GasPricerConfig::Calibrated {
-				initial_minimum: wei_per_gas(usd_per_tx, last_known_usd_per_eth),
 				usd_per_tx: usd_per_tx,
 				recalibration_period: to_duration(self.args.arg_price_update_period.as_str())?,
 			});

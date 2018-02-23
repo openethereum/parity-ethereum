@@ -92,7 +92,7 @@ impl TransactionQueue {
 			.map(|result| match result {
 				Ok(verified) => match self.pool.write().import(verified) {
 					Ok(_imported) => Ok(()),
-					Err(txpool::Error(kind, _)) => unimplemented!(),
+					Err(err) => Err(convert_error(err)),
 				},
 				Err(err) => Err(err),
 			})
@@ -229,6 +229,21 @@ impl TransactionQueue {
 	pub fn add_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
 		let mut pool = self.pool.write();
 		(pool.listener_mut().1).0.add(f);
+	}
+}
+
+
+fn convert_error(err: txpool::Error) -> transaction::Error {
+	use self::txpool::ErrorKind;
+
+	match *err.kind() {
+		ErrorKind::AlreadyImported(..) => transaction::Error::AlreadyImported,
+		ErrorKind::TooCheapToEnter(..) => transaction::Error::LimitReached,
+		ErrorKind::TooCheapToReplace(..) => transaction::Error::TooCheapToReplace,
+		ref e => {
+			warn!(target: "txqueue", "Unknown import error: {:?}", e);
+			transaction::Error::NotAllowed
+		},
 	}
 }
 

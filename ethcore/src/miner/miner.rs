@@ -54,9 +54,10 @@ pub enum PendingSet {
 	/// Always just the transactions in the queue. These have had only cheap checks.
 	AlwaysQueue,
 	/// Always just the transactions in the sealing block. These have had full checks but
-	/// may be empty if the node is not actively mining or has force_sealing enabled.
+	/// may be empty if the node is not actively mining or has no force_sealing enabled.
 	AlwaysSealing,
-	// TODO [ToDr] Enable mining if AlwaysSealing
+	/// Takes from sealing if mining, from queue otherwise.
+	SealingOrElseQueue,
 }
 
 // /// Transaction queue banning settings.
@@ -107,8 +108,6 @@ pub struct MinerOptions {
 
 	// / Strategy to use for prioritizing transactions in the queue.
 	// pub tx_queue_strategy: PrioritizationStrategy,
-	// / Banning settings.
-	// pub tx_queue_banning: Banning,
 	/// Do we refuse to accept service transactions even if sender is certified.
 	pub refuse_service_transactions: bool,
 	/// Transaction pool limits.
@@ -246,13 +245,24 @@ impl Miner {
 		}, GasPricer::new_fixed(minimal_gas_price), spec, accounts)
 	}
 
-	fn forced_sealing(&self) -> bool {
-		self.options.force_sealing || !self.listeners.read().is_empty()
-	}
-
 	/// Clear all pending block states
 	pub fn clear(&self) {
 		self.sealing.lock().queue.reset();
+	}
+
+	/// Updates transaction queue verification limits.
+	///
+	/// Limits consist of current block gas limit and minimal gas price.
+	pub fn update_transaction_queue_limits(&self, block_gas_limit: U256) {
+		debug!(target: "miner", "minimal_gas_price: recalibrating...");
+		let txq = self.transaction_queue.clone();
+		let mut options = self.options.pool_verification_options.clone();
+		self.gas_pricer.lock().recalibrate(move |gas_price| {
+			debug!(target: "miner", "minimal_gas_price: Got gas price! {}", gas_price);
+			options.minimal_gas_price = gas_price;
+			options.block_gas_limit = block_gas_limit;
+			txq.set_verifier_options(options);
+		});
 	}
 
 	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
@@ -287,8 +297,10 @@ impl Miner {
 	// TODO [ToDr] Get rid of this method.
 	//
 	// We should never fall back to client, this can be handled on RPC level by returning Option<>
-	fn from_pending_block<H, F, G>(&self, latest_block_number: BlockNumber, from_chain: F, map_block: G) -> H
-		where F: Fn() -> H, G: FnOnce(&ClosedBlock) -> H {
+	fn from_pending_block<H, F, G>(&self, latest_block_number: BlockNumber, from_chain: F, map_block: G) -> H where
+		F: Fn() -> H,
+		G: FnOnce(&ClosedBlock) -> H,
+	{
 		let sealing = self.sealing.lock();
 		sealing.queue.peek_last_ref().map_or_else(
 			|| from_chain(),
@@ -471,6 +483,10 @@ impl Miner {
 		(block, original_work_hash)
 	}
 
+	fn forced_sealing(&self) -> bool {
+		self.options.force_sealing || !self.listeners.read().is_empty()
+	}
+
 	/// Check is reseal is allowed and necessary.
 	fn requires_reseal(&self, best_block: BlockNumber) -> bool {
 		let mut sealing = self.sealing.lock();
@@ -618,18 +634,6 @@ impl Miner {
 				}
 			});
 		}
-	}
-
-	fn update_transaction_queue_limits(&self, block_gas_limit: U256) {
-		debug!(target: "miner", "minimal_gas_price: recalibrating...");
-		let txq = self.transaction_queue.clone();
-		let mut options = self.options.pool_verification_options.clone();
-		self.gas_pricer.lock().recalibrate(move |gas_price| {
-			debug!(target: "miner", "minimal_gas_price: Got gas price! {}", gas_price);
-			options.minimal_gas_price = gas_price;
-			options.block_gas_limit = block_gas_limit;
-			txq.set_verifier_options(options);
-		});
 	}
 
 	/// Returns true if we had to prepare new pending block.
@@ -789,27 +793,40 @@ impl MinerService for Miner {
 
 	fn ready_transactions(&self, chain: &MiningBlockChainClient) -> Vec<Arc<VerifiedTransaction>> {
 		let chain_info = chain.chain_info();
+
+		let from_queue = || {
+			let client = self.client(chain);
+
+			self.transaction_queue.pending(
+				client,
+				chain_info.best_block_number,
+				chain_info.best_block_timestamp,
+				|transactions| transactions.collect(),
+			)
+		};
+
+		let from_pending = || {
+			self.from_pending_block(
+				chain_info.best_block_number,
+				|| None,
+				|sealing| Some(sealing.transactions()
+					.iter()
+					.map(|signed| pool::VerifiedTransaction::from_pending_block_transaction(signed.clone()))
+					.map(Arc::new)
+					.collect()
+				)
+			)
+		};
+
 		match self.options.pending_set {
 			PendingSet::AlwaysQueue => {
-				let client = self.client(chain);
-
-				self.transaction_queue.pending(
-					client,
-					chain_info.best_block_number,
-					chain_info.best_block_timestamp,
-					|transactions| transactions.collect(),
-				)
+				from_queue()
 			},
 			PendingSet::AlwaysSealing => {
-				self.from_pending_block(
-					chain_info.best_block_number,
-					Vec::new,
-					|sealing| sealing.transactions()
-						.iter()
-						.map(|signed| pool::VerifiedTransaction::from_pending_block_transaction(signed.clone()))
-						.map(Arc::new)
-						.collect()
-				)
+				from_pending().unwrap_or_default()
+			},
+			PendingSet::SealingOrElseQueue => {
+				from_pending().unwrap_or_else(from_queue)
 			},
 		}
 	}

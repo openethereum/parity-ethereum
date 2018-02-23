@@ -25,8 +25,7 @@ use ctrlc::CtrlC;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
 use ethcore::ethstore::ethkey;
-use ethcore::miner::{Miner, MinerService, MinerOptions};
-use ethcore::miner::{StratumOptions, Stratum};
+use ethcore::miner::{stratum, Miner, MinerService, MinerOptions};
 use ethcore::service::ClientService;
 use ethcore::snapshot;
 use ethcore::spec::{SpecParams, OptimizeFor};
@@ -120,7 +119,7 @@ pub struct RunCmd {
 	pub ui: bool,
 	pub name: String,
 	pub custom_bootnodes: bool,
-	pub stratum: Option<StratumOptions>,
+	pub stratum: Option<stratum::Options>,
 	pub no_periodic_snapshot: bool,
 	pub check_seal: bool,
 	pub download_old_blocks: bool,
@@ -166,11 +165,12 @@ impl ::local_store::NodeInfo for FullNodeInfo {
 			None => return Vec::new(),
 		};
 
-		let local_txs = miner.local_transactions();
-		miner.pending_transactions()
-			.into_iter()
-			.chain(miner.future_transactions())
-			.filter(|tx| local_txs.contains_key(&tx.hash()))
+		miner.local_transactions()
+			.values()
+			.filter_map(|status| match *status {
+				::miner::pool::local_transactions::Status::Pending(ref tx) => Some(tx.pending().clone()),
+				_ => None,
+			})
 			.collect()
 	}
 }
@@ -520,16 +520,18 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	let fetch = FetchClient::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 
 	// create miner
-	let initial_min_gas_price = cmd.gas_pricer_conf.initial_min();
-	let miner = Arc::new(Miner::new(cmd.miner_options, cmd.gas_pricer_conf.to_gas_pricer(fetch.clone()), &spec, Some(account_provider.clone())));
-	miner.set_author(cmd.miner_extras.author);
-	miner.set_gas_floor_target(cmd.miner_extras.gas_floor_target);
-	miner.set_gas_ceil_target(cmd.miner_extras.gas_ceil_target);
+	let miner = Arc::new(Miner::new(
+		cmd.miner_options,
+		cmd.gas_pricer_conf.to_gas_pricer(fetch.clone()),
+		&spec,
+		Some(account_provider.clone())
+	));
+	miner.set_author(cmd.miner_extras.author, None).expect("Fails only if password is Some; password is None; qed");
+	miner.set_gas_range_target(cmd.miner_extras.gas_range_target);
 	miner.set_extra_data(cmd.miner_extras.extra_data);
-	miner.set_minimal_gas_price(initial_min_gas_price);
-	miner.recalibrate_minimal_gas_price();
-	let engine_signer = cmd.miner_extras.engine_signer;
+	miner.add_work_listener_url(&cmd.miner_extras.work_notify);
 
+	let engine_signer = cmd.miner_extras.engine_signer;
 	if engine_signer != Default::default() {
 		// Check if engine signer exists
 		if !account_provider.has_account(engine_signer).unwrap_or(false) {
@@ -542,7 +544,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 		}
 
 		// Attempt to sign in the engine signer.
-		if !passwords.iter().any(|p| miner.set_engine_signer(engine_signer, (*p).clone()).is_ok()) {
+		if !passwords.iter().any(|p| miner.set_author(engine_signer, Some(p.to_owned())).is_ok()) {
 			return Err(format!("No valid password for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
 		}
 	}
@@ -591,6 +593,9 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 
 	// take handle to client
 	let client = service.client();
+	// Update miners block gas limit
+	miner.update_transaction_queue_limits(client.best_block_header().gas_limit());
+
 	let connection_filter = connection_filter_address.map(|a| Arc::new(NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, a)));
 	let snapshot_service = service.snapshot_service();
 
@@ -637,7 +642,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 
 	// start stratum
 	if let Some(ref stratum_config) = cmd.stratum {
-		Stratum::register(stratum_config, miner.clone(), Arc::downgrade(&client))
+		stratum::Stratum::register(stratum_config, miner.clone(), Arc::downgrade(&client))
 			.map_err(|e| format!("Stratum start error: {:?}", e))?;
 	}
 

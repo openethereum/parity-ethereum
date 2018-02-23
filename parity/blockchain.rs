@@ -552,7 +552,9 @@ fn start_client(
 		&client_path,
 		&snapshot_path,
 		&dirs.ipc_path(),
-		Arc::new(Miner::with_spec(&spec)),
+		// It's fine to use test version here,
+		// since we don't care about miner parameters at all
+		Arc::new(Miner::new_for_tests(&spec, None)),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	drop(spec);

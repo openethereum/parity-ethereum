@@ -22,8 +22,8 @@ use ethereum_types::{U256, clean_0x, Address};
 use kvdb_rocksdb::CompactionProfile;
 use journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
-use ethcore::miner::{PendingSet, GasLimit};
-use miner::transaction_queue::PrioritizationStrategy;
+use ethcore::miner::PendingSet;
+use miner::pool::PrioritizationStrategy;
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
 use dir::helpers::replace_home;
@@ -97,19 +97,9 @@ pub fn to_pending_set(s: &str) -> Result<PendingSet, String> {
 	}
 }
 
-pub fn to_gas_limit(s: &str) -> Result<GasLimit, String> {
-	match s {
-		"auto" => Ok(GasLimit::Auto),
-		"off" => Ok(GasLimit::None),
-		other => Ok(GasLimit::Fixed(to_u256(other)?)),
-	}
-}
-
 pub fn to_queue_strategy(s: &str) -> Result<PrioritizationStrategy, String> {
 	match s {
-		"gas" => Ok(PrioritizationStrategy::GasAndGasPrice),
-		"gas_price" => Ok(PrioritizationStrategy::GasPriceOnly),
-		"gas_factor" => Ok(PrioritizationStrategy::GasFactorAndGasPrice),
+		"gas_price" => Ok(PrioritizationStrategy::GasPrice),
 		other => Err(format!("Invalid queue strategy: {}", other)),
 	}
 }

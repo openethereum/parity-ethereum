@@ -32,6 +32,14 @@ pub mod verifier;
 pub use self::queue::{TransactionQueue, Status as QueueStatus};
 pub use self::txpool::{VerifiedTransaction as PoolVerifiedTransaction, Options};
 
+// TODO [ToDr] Actually use that parameter and implement more strategies.
+
+/// How to prioritize transactions in the pool
+pub enum PrioritizationStrategy {
+	/// Simple gas-price based prioritization.
+	GasPrice,
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub(crate) enum Priority {
 	Local,
@@ -60,7 +68,11 @@ pub struct VerifiedTransaction {
 }
 
 impl VerifiedTransaction {
-	// Hack?
+	/// Create `VerifiedTransaction` directly from `SignedTransaction`.
+	///
+	/// This method should be used only:
+	/// 1. for tests
+	/// 2. In case we are converting pending block transactions that are already in the queue to match function signature.
 	pub fn from_pending_block_transaction(tx: transaction::SignedTransaction) -> Self {
 		let hash = tx.hash();
 		let sender = tx.sender();
