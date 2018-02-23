@@ -29,9 +29,8 @@ extern crate keccak_hash as hash;
 extern crate linked_hash_map;
 extern crate parking_lot;
 extern crate price_info;
-extern crate table;
+extern crate rayon;
 extern crate transaction_pool as txpool;
-extern crate transient_hashmap;
 
 #[macro_use]
 extern crate error_chain;
@@ -39,18 +38,17 @@ extern crate error_chain;
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
-#[cfg(test)]
-extern crate ethkey;
 #[macro_use]
 extern crate log;
 
 #[cfg(test)]
 extern crate rustc_hex;
+#[cfg(test)]
+extern crate ethkey;
 
 // pub mod banning_queue;
 pub mod external;
 pub mod gas_pricer;
 pub mod pool;
 pub mod service_transaction_checker;
-// pub mod transaction_queue;
 pub mod work_notify;

@@ -19,14 +19,15 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use ansi_term::Colour;
-use ethereum_types::{H256, U256, Address};
-use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use engines::{EthEngine, Seal};
 use error::{Error, ExecutionError};
+use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus};
 use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
-use ethcore_miner::gas_pricer::GasPricer;
+use ethereum_types::{H256, U256, Address};
+use parking_lot::{Mutex, RwLock};
+use rayon::prelude::*;
 use timer::PerfTimer;
 use transaction::{
 	self,
@@ -1012,19 +1013,20 @@ impl MinerService for Miner {
 		// Then import all transactions...
 		let client = self.client(chain);
 		{
-			// TODO [ToDr] Parallelize
-			for hash in retracted {
-				let block = chain.block(BlockId::Hash(*hash))
-					.expect("Client is sending message after commit to db and inserting to chain; the block is available; qed");
-				let txs = block.transactions()
-					.into_iter()
-					.map(pool::verifier::Transaction::Retracted)
-					.collect();
-				let _ = self.transaction_queue.import(
-					client.clone(),
-					txs,
-				);
-			}
+			retracted
+				.par_iter()
+				.for_each(|hash| {
+					let block = chain.block(BlockId::Hash(*hash))
+						.expect("Client is sending message after commit to db and inserting to chain; the block is available; qed");
+					let txs = block.transactions()
+						.into_iter()
+						.map(pool::verifier::Transaction::Retracted)
+						.collect();
+					let _ = self.transaction_queue.import(
+						client.clone(),
+						txs,
+					);
+				});
 		}
 
 		// ...and at the end remove the old ones

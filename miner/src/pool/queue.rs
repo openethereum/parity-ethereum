@@ -16,12 +16,14 @@
 
 //! Ethereum Transaction Queue
 
+use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::collections::BTreeMap;
 
 use ethereum_types::{H256, U256, Address};
 use parking_lot::RwLock;
+use rayon::prelude::*;
 use transaction;
 use txpool::{self, Verifier};
 
@@ -40,6 +42,22 @@ pub struct Status {
 	pub status: txpool::LightStatus,
 	/// Current limits of the transaction pool.
 	pub limits: txpool::Options,
+}
+
+impl fmt::Display for Status {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		writeln!(
+			fmt,
+			"Pool: {current}/{max} ({senders} senders; {mem}/{mem_max} kB) [minGasPrice: {gp} gwei, maxGas: {max_gas}]",
+			current = self.status.transaction_count,
+			max = self.limits.max_count,
+			senders = self.status.senders,
+			mem = self.status.mem_usage / 1024,
+			mem_max = self.status.mem_usage / 1024,
+			gp = self.options.minimal_gas_price / 1_000_000_000.into(),
+			max_gas = ::std::cmp::min(self.options.block_gas_limit, self.options.tx_gas_limit),
+		)
+	}
 }
 
 /// Ethereum Transaction Queue
@@ -84,10 +102,9 @@ impl TransactionQueue {
 		// Run verification
 		let options = self.options.read().clone();
 
-		// TODO [ToDr] parallelize
 		let verifier = verifier::Verifier::new(client, options, self.insertion_id.clone());
 		transactions
-			.into_iter()
+			.into_par_iter()
 			.map(|transaction| verifier.verify_transaction(transaction))
 			.map(|result| match result {
 				Ok(verified) => match self.pool.write().import(verified) {
@@ -135,7 +152,7 @@ impl TransactionQueue {
 		let state_readiness = ready::State::new(client);
 
 		let removed = self.pool.write().cull(None, state_readiness);
-		debug!(target: "txqueue", "Removed {} stalled transactions.", removed);
+		debug!(target: "txqueue", "Removed {} stalled transactions. {}", removed, self.status());
 	}
 
 	/// Returns next valid nonce for given sender

@@ -106,7 +106,7 @@ impl<'a> pool::client::Client for BlockChainClient<'a> {
 	fn transaction_type(&self, tx: &SignedTransaction) -> pool::client::TransactionType {
 		match self.service_transaction_checker {
 			None => pool::client::TransactionType::Regular,
-			Some(ref checker) => match checker.check(self, &tx.sender()) {
+			Some(ref checker) => match checker.check(self, &tx.sender(), &tx.hash()) {
 				Ok(true) => pool::client::TransactionType::Service,
 				Ok(false) => pool::client::TransactionType::Regular,
 				Err(e) => {

@@ -46,7 +46,7 @@ pub enum TransactionType {
 }
 
 /// State client.
-pub trait Client: fmt::Debug {
+pub trait Client: fmt::Debug + Sync {
 	/// Is transaction with given hash already in the blockchain?
 	fn transaction_already_included(&self, hash: &H256) -> bool;
 

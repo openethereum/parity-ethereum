@@ -109,7 +109,6 @@ extern crate stats;
 extern crate stop_guard;
 extern crate time;
 extern crate using_queue;
-extern crate table;
 extern crate vm;
 extern crate wasm;
 extern crate memory_cache;

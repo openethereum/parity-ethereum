@@ -42,7 +42,7 @@ num = "0.1"
 num_cpus = "1.2"
 parity-machine = { path = "../machine" }
 parking_lot = "0.5"
-rayon = "0.8"
+rayon = "1.0"
 rand = "0.4"
 rlp = { path = "../util/rlp" }
 rlp_compress = { path = "../util/rlp_compress" }
@@ -60,7 +60,6 @@ rustc-hex = "1.0"
 stats = { path = "../util/stats" }
 time = "0.1"
 using_queue = { path = "../util/using_queue" }
-table = { path = "../util/table" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
 keccak-hash = { path = "../util/hash" }
