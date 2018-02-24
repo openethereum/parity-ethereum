@@ -506,10 +506,6 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	fn submit_hashrate(&self, _rate: RpcU256, _id: RpcH256) -> Result<bool> {
 		Err(errors::light_unimplemented(None))
 	}
-
-	fn increase_time(&self, _increase: RpcU256) -> Result<bool> {
-		Err(errors::light_unimplemented(None))
-	}
 }
 
 // This trait implementation triggers a blanked impl of `EthFilter`.

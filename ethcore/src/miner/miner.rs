@@ -431,8 +431,10 @@ impl Miner {
 				open_block.set_gas_limit(!U256::zero());
 			}
 
-			let increase_time = self.increase_time.read();
-			open_block.set_timestamp(( get_time().sec as u64 ) + *increase_time );
+			if self.engine.is_time_increasable() {
+				let increase_time = self.increase_time.read();
+				open_block.set_timestamp(( get_time().sec as u64 ) + *increase_time );
+			}
 
 			(transactions, open_block, last_work_hash)
 		};

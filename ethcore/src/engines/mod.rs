@@ -325,6 +325,9 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn supports_warp(&self) -> bool {
 		self.snapshot_components().is_some()
 	}
+
+	/// Whether this engine allows block time stamp increase
+	fn is_time_increasable(&self) -> bool { false }
 }
 
 /// Common type alias for an engine coupled with an Ethereum-like state machine.

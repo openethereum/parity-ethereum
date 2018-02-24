@@ -607,11 +607,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		Ok(true)
 	}
 
-	fn increase_time(&self, increase: RpcU256) -> Result<bool> {
-		self.miner.increase_time(increase.into());
-		Ok(true)
-	}
-
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256> {
 		UntrustedRlp::new(&raw.into_vec()).as_val()
 			.map_err(errors::rlp)
