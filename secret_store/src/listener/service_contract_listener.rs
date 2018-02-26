@@ -370,11 +370,10 @@ impl ServiceContractListener {
 			.and_then(|is_allowed| if !is_allowed { Err(Error::AccessDenied) } else { Ok(()) })
 			.and_then(|_| data.key_storage.get(server_key_id).and_then(|key_share| key_share.ok_or(Error::DocumentNotFound)))
 			.and_then(|key_share| key_share.common_point.ok_or(Error::DocumentNotFound)
-				.and_then(|common_point| key_share.encrypted_point.ok_or(Error::DocumentNotFound)
-				.map(|encrypted_point| (common_point, encrypted_point, key_share.threshold))));
+				.map(|common_point| (common_point, key_share.threshold)));
 		match retrieval_result {
-			Ok((common_point, encrypted_point, threshold)) => {
-				data.contract.publish_retrieved_document_key_common(server_key_id, requester, common_point, encrypted_point, threshold)
+			Ok((common_point, threshold)) => {
+				data.contract.publish_retrieved_document_key_common(server_key_id, requester, common_point, threshold)
 			},
 			Err(ref error) if is_internal_error(&error) => Err(format!("{}", error)),
 			Err(ref error) => {
@@ -394,11 +393,11 @@ impl ServiceContractListener {
 	}
 
 	/// Process document key retrieval result.
-	fn process_document_key_retrieval_result(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, requester: &Address, result: Result<Option<(Vec<Address>, Secret, Bytes)>, Error>) -> Result<(), String> {
+	fn process_document_key_retrieval_result(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, requester: &Address, result: Result<Option<(Vec<Address>, Public, Bytes)>, Error>) -> Result<(), String> {
 		match result {
 			Ok(None) => Ok(()),
-			Ok(Some((participants, access_key, shadow))) => {
-				data.contract.publish_retrieved_document_key_personal(server_key_id, &requester, &participants, access_key, shadow)
+			Ok(Some((participants, decrypted_secret, shadow))) => {
+				data.contract.publish_retrieved_document_key_personal(server_key_id, &requester, &participants, decrypted_secret, shadow)
 			},
 			Err(ref error) if is_internal_error(error) => Err(format!("{}", error)),
 			Err(ref error) => {
@@ -466,17 +465,16 @@ impl ClusterSessionsListener<DecryptionSession> for ServiceContractListener {
 		// ignore result - the only thing that we can do is to log the error
 		let session_id = session.id();
 		let server_key_id = session_id.id;
-		let access_key = session_id.access_key;
 		if let Some(requester) = session.requester().and_then(|r| r.address(&server_key_id).ok()) {
 			// TODO: wait with zero timeout
 			if let Some(retrieval_result) = session.wait(Some(Default::default())) {
-				let retrieval_result = retrieval_result.map(|_|
+				let retrieval_result = retrieval_result.map(|key_shadow|
 					session.broadcast_shadows()
 						.and_then(|broadcast_shadows|
 							broadcast_shadows.get(self.data.self_key_pair.public())
 								.map(|self_shadow| (
 									broadcast_shadows.keys().map(public_to_address).collect(),
-									access_key,
+									key_shadow.decrypted_secret,
 									self_shadow.clone()
 								)))
 				).map_err(Into::into);

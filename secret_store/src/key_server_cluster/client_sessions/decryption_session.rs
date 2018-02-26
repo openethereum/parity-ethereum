@@ -434,7 +434,7 @@ impl SessionImpl {
 		}
 
 		// respond to request
-		data.consensus_session.on_job_request(sender, PartialDecryptionRequest {
+		let partial_decryption = data.consensus_session.on_job_request(sender, PartialDecryptionRequest {
 			id: message.request_id.clone().into(),
 			is_shadow_decryption: message.is_shadow_decryption,
 			is_broadcast_session: message.is_broadcast_session,
@@ -448,7 +448,7 @@ impl SessionImpl {
 				self.core.access_key.clone(), requester_public, key_share.clone(), key_version,
 				message.is_shadow_decryption, message.is_broadcast_session)?;
 			Self::create_broadcast_decryption_job(&self.core, &mut *data, consensus_group, broadcast_decryption_job,
-				message.request_id.clone().into())?;
+				message.request_id.clone().into(), Some(partial_decryption.take_response()))?;
 		}
 
 		Ok(())
@@ -470,11 +470,11 @@ impl SessionImpl {
 			})?;
 
 			if data.consensus_session.state() != ConsensusSessionState::Finished &&
-				data.consensus_session.state() != ConsensusSessionState::Failed { // TODO: whait if failed
+				data.consensus_session.state() != ConsensusSessionState::Failed {
 				return Ok(());
 			}
 
-			// send compeltion signal to all nodes, except for rejected nodes
+			// send completion signal to all nodes, except for rejected nodes
 			if is_master_node {
 				for node in data.consensus_session.consensus_non_rejected_nodes() {
 					self.core.cluster.send(&node, Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(DecryptionSessionCompleted {
@@ -496,7 +496,7 @@ impl SessionImpl {
 					})?;
 
 					if broadcast_job_session.state() != JobSessionState::Finished &&
-						broadcast_job_session.state() != JobSessionState::Failed { // TODO: whait if failed
+						broadcast_job_session.state() != JobSessionState::Failed {
 						return Ok(());
 					}
 
@@ -595,21 +595,21 @@ impl SessionImpl {
 			is_shadow_decryption, is_broadcast_session)?;
 		let decryption_request_id = decryption_job.request_id().clone().expect("TODO");
 		let decryption_transport = core.decryption_transport(false);
-		data.consensus_session.disseminate_jobs(decryption_job, decryption_transport, data.is_broadcast_session.expect("TODO"))?;
+		let self_response = data.consensus_session.disseminate_jobs(decryption_job, decryption_transport, data.is_broadcast_session.expect("TODO"))?;
 
 		// ...and prepare decryption job session if we need to broadcast result
 		if data.is_broadcast_session.expect("TODO") {
 			let broadcast_decryption_job = DecryptionJob::new_on_master(core.meta.self_node_id.clone(),
 				core.access_key.clone(), requester_public, key_share.clone(), key_version, is_shadow_decryption, is_broadcast_session)?;
 			Self::create_broadcast_decryption_job(&core, data, consensus_group, broadcast_decryption_job,
-				decryption_request_id)?;
+				decryption_request_id, self_response)?;
 		}
 
 		Ok(())
 	}
 
 	/// Create broadcast decryption job.
-	fn create_broadcast_decryption_job(core: &SessionCore, data: &mut SessionData, mut consensus_group: BTreeSet<NodeId>, mut job: DecryptionJob, request_id: Secret) -> Result<(), Error> {
+	fn create_broadcast_decryption_job(core: &SessionCore, data: &mut SessionData, mut consensus_group: BTreeSet<NodeId>, mut job: DecryptionJob, request_id: Secret, self_response: Option<PartialDecryptionResponse>) -> Result<(), Error> {
 		consensus_group.insert(core.meta.self_node_id.clone());
 		job.set_request_id(request_id.clone().into());
 
@@ -620,7 +620,7 @@ impl SessionImpl {
 			self_node_id: core.meta.self_node_id.clone(),
 			threshold: core.meta.threshold,
 		}, job, transport);
-		job_session.initialize(consensus_group, core.meta.self_node_id != core.meta.master_node_id)?;
+		job_session.initialize(consensus_group, self_response, core.meta.self_node_id != core.meta.master_node_id)?;
 		data.broadcast_job_session = Some(job_session);
 
 		Ok(())
@@ -1370,5 +1370,18 @@ mod tests {
 		assert!(result.clone().unwrap().is_ok());
 		assert_eq!(3, sessions.iter().skip(1).filter(|s| s.decrypted_secret() == result).count());
 		assert_eq!(1, sessions.iter().skip(1).filter(|s| s.decrypted_secret().is_none()).count());
+	}
+
+	#[test]
+	fn decryption_shadows_restored_on_all_nodes_if_shadow_broadcast_session_is_completed() {
+		let (_, clusters, _, sessions) = prepare_decryption_sessions();
+		sessions[0].initialize(Default::default(), true, true).unwrap();
+		do_messages_exchange(&clusters, &sessions).unwrap();
+
+		// decryption shadows must be the same and available on 4 nodes
+		let broadcast_shadows = sessions[0].broadcast_shadows();
+		assert!(broadcast_shadows.is_some());
+		assert_eq!(3, sessions.iter().skip(1).filter(|s| s.broadcast_shadows() == broadcast_shadows).count());
+		assert_eq!(1, sessions.iter().skip(1).filter(|s| s.broadcast_shadows().is_none()).count());
 	}
 }

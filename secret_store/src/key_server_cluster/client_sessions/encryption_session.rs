@@ -157,7 +157,7 @@ impl SessionImpl {
 		// TODO [Reliability]: there could be situation when some nodes have failed to store encrypted data
 		// => potential problems during restore. some confirmation step is needed (2pc)?
 		// save encryption data
-		if let Some(mut encrypted_data) = self.encrypted_data.clone() {
+		if let Some(encrypted_data) = self.encrypted_data.clone() {
 			let requester_address = requester.address(&self.id).map_err(Error::InsufficientRequesterData)?;
 			update_encrypted_data(&self.key_storage, self.id.clone(),
 				encrypted_data, requester_address, common_point.clone(), encrypted_point.clone())?;
@@ -194,7 +194,7 @@ impl SessionImpl {
 		}
 
 		// check that the requester is the author of the encrypted data
-		if let Some(mut encrypted_data) = self.encrypted_data.clone() {
+		if let Some(encrypted_data) = self.encrypted_data.clone() {
 			let requester: Requester = message.requester.clone().into();
 			let requester_address = requester.address(&self.id).map_err(Error::InsufficientRequesterData)?;
 			update_encrypted_data(&self.key_storage, self.id.clone(),

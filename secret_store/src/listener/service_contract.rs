@@ -76,9 +76,9 @@ pub trait ServiceContract: Send + Sync {
 	/// Publish document key store error.
 	fn publish_document_key_store_error(&self, server_key_id: &ServerKeyId) -> Result<(), String>;
 	/// Publish retrieved document key common.
-	fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public, threshold: usize) -> Result<(), String>;
+	fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, threshold: usize) -> Result<(), String>;
 	/// Publish retrieved document key personal.
-	fn publish_retrieved_document_key_personal(&self, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], access_key: Secret, shadow: Bytes) -> Result<(), String>;
+	fn publish_retrieved_document_key_personal(&self, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Result<(), String>;
 	/// Publish document key store error.
 	fn publish_document_key_retrieval_error(&self, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String>;
 }
@@ -386,18 +386,18 @@ return Box::new(::std::iter::empty()); // TODO: remove me
 		)
 	}
 
-	fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public, threshold: usize) -> Result<(), String> {
+	fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, threshold: usize) -> Result<(), String> {
 		self.send_contract_transaction(server_key_id, |client, contract_address, contract, server_key_id, authority|
 			DocumentKeyShadowRetrievalService::is_confirmed(client, contract_address, contract, server_key_id, requester, authority),
 		|service|
-			Ok(DocumentKeyShadowRetrievalService::prepare_pubish_common_tx_data(service, server_key_id, requester, common_point, encrypted_point, threshold))
+			Ok(DocumentKeyShadowRetrievalService::prepare_pubish_common_tx_data(service, server_key_id, requester, common_point, threshold))
 		)
 	}
 
-	fn publish_retrieved_document_key_personal(&self, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], access_key: Secret, shadow: Bytes) -> Result<(), String> {
+	fn publish_retrieved_document_key_personal(&self, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Result<(), String> {
 		self.send_contract_transaction(server_key_id, |_, _, _, _, _| true,
 		move |service|
-			Ok(DocumentKeyShadowRetrievalService::prepare_pubish_personal_tx_data(service, server_key_id, requester, participants, access_key, shadow))
+			Ok(DocumentKeyShadowRetrievalService::prepare_pubish_personal_tx_data(service, server_key_id, requester, participants, decrypted_secret, shadow))
 		)
 	}
 
@@ -563,19 +563,18 @@ impl DocumentKeyShadowRetrievalService {
 	}
 
 	/// Prepare publish common key transaction data.
-	pub fn prepare_pubish_common_tx_data(contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public, threshold: usize) -> Bytes {
+	pub fn prepare_pubish_common_tx_data(contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, threshold: usize) -> Bytes {
 		contract.functions()
 			.document_key_common_retrieved()
-			.input(*server_key_id, *requester, common_point.to_vec(), encrypted_point.to_vec(), threshold)
+			.input(*server_key_id, *requester, common_point.to_vec(), threshold)
 	}
 
 	/// Prepare publish personal key transaction data.
-	pub fn prepare_pubish_personal_tx_data(contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], access_key: Secret, shadow: Bytes) -> Bytes {
+	pub fn prepare_pubish_personal_tx_data(contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Bytes {
 		let participants: Vec<_> = participants.iter().cloned().collect();
-		let access_key: H256 = (**access_key).into();
 		contract.functions()
 			.document_key_personal_retrieved()
-			.input(*server_key_id, *requester, participants, access_key, shadow)
+			.input(*server_key_id, *requester, participants, decrypted_secret.to_vec(), shadow)
 	}
 
 	/// Prepare error transaction data.
@@ -704,11 +703,11 @@ pub mod tests {
 			unimplemented!()
 		}
 
-		fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, encrypted_point: Public, threshold: usize) -> Result<(), String> {
+		fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, threshold: usize) -> Result<(), String> {
 			unimplemented!()
 		}
 
-		fn publish_retrieved_document_key_personal(&self, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], access_key: Secret, shadow: Bytes) -> Result<(), String> {
+		fn publish_retrieved_document_key_personal(&self, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Result<(), String> {
 			unimplemented!()
 		}
 

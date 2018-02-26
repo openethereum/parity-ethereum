@@ -17,12 +17,11 @@
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 use parking_lot::{Mutex, RwLock};
-use ethkey::public_to_address;
 use ethcore::client::{BlockChainClient, BlockId, ChainNotify};
 use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use trusted_client::TrustedClient;
-use types::all::{Error, ServerKeyId, Public};
+use types::all::{Error, ServerKeyId};
 
 use_contract!(acl_storage, "AclStorage", "res/acl_storage.json");
 

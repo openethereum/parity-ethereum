@@ -507,7 +507,7 @@ impl SessionImpl {
 			id: message.request_id.clone().into(),
 			message_hash: message.message_hash.clone().into(),
 			other_nodes_ids: message.nodes.iter().cloned().map(Into::into).collect(),
-		}, signing_job, signing_transport)
+		}, signing_job, signing_transport).map(|_| ())
 	}
 
 	/// When partial signature is received.
@@ -735,7 +735,7 @@ impl SessionCore {
 
 		let key_version = key_share.version(version).map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
 		let signing_job = SigningJob::new_on_master(self.meta.self_node_id.clone(), key_share.clone(), key_version, session_public, session_secret_share, message_hash)?;
-		consensus_session.disseminate_jobs(signing_job, self.signing_transport(), false)
+		consensus_session.disseminate_jobs(signing_job, self.signing_transport(), false).map(|_| ())
 	}
 }
 
