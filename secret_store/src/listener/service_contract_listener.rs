@@ -27,6 +27,7 @@ use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
 use key_server_set::KeyServerSet;
 use key_server_cluster::{ClusterClient, ClusterSessionsListener, ClusterSession};
+use key_server_cluster::math;
 use key_server_cluster::generation_session::SessionImpl as GenerationSession;
 use key_server_cluster::encryption_session::{check_encrypted_data, update_encrypted_data};
 use key_server_cluster::decryption_session::SessionImpl as DecryptionSession;
@@ -369,7 +370,10 @@ impl ServiceContractListener {
 		let retrieval_result = data.acl_storage.check(requester.clone(), server_key_id)
 			.and_then(|is_allowed| if !is_allowed { Err(Error::AccessDenied) } else { Ok(()) })
 			.and_then(|_| data.key_storage.get(server_key_id).and_then(|key_share| key_share.ok_or(Error::DocumentNotFound)))
-			.and_then(|key_share| key_share.common_point.ok_or(Error::DocumentNotFound)
+			.and_then(|key_share| key_share.common_point
+				.ok_or(Error::DocumentNotFound)
+				.and_then(|common_point| math::make_common_shadow_point(key_share.threshold, common_point)
+					.map_err(|e| Error::Internal(e.into())))
 				.map(|common_point| (common_point, key_share.threshold)));
 		match retrieval_result {
 			Ok((common_point, threshold)) => {
@@ -466,7 +470,6 @@ impl ClusterSessionsListener<DecryptionSession> for ServiceContractListener {
 		let session_id = session.id();
 		let server_key_id = session_id.id;
 		if let Some(requester) = session.requester().and_then(|r| r.address(&server_key_id).ok()) {
-			// TODO: wait with zero timeout
 			if let Some(retrieval_result) = session.wait(Some(Default::default())) {
 				let retrieval_result = retrieval_result.map(|key_shadow|
 					session.broadcast_shadows()

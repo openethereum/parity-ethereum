@@ -57,7 +57,7 @@ pub struct PartialDecryptionRequest {
 }
 
 /// Decryption job partial response.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct PartialDecryptionResponse {
 	/// Request id.
 	pub request_id: Secret,

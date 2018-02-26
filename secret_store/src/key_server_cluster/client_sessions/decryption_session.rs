@@ -1368,13 +1368,18 @@ mod tests {
 		// decryption result must be the same and available on 4 nodes
 		let result = sessions[0].decrypted_secret();
 		assert!(result.clone().unwrap().is_ok());
+		assert_eq!(result.clone().unwrap().unwrap(), EncryptedDocumentKeyShadow {
+			decrypted_secret: SECRET_PLAIN.into(),
+			common_point: None,
+			decrypt_shadows: None,
+		});
 		assert_eq!(3, sessions.iter().skip(1).filter(|s| s.decrypted_secret() == result).count());
 		assert_eq!(1, sessions.iter().skip(1).filter(|s| s.decrypted_secret().is_none()).count());
 	}
 
 	#[test]
 	fn decryption_shadows_restored_on_all_nodes_if_shadow_broadcast_session_is_completed() {
-		let (_, clusters, _, sessions) = prepare_decryption_sessions();
+		let (key_pair, clusters, _, sessions) = prepare_decryption_sessions();
 		sessions[0].initialize(Default::default(), true, true).unwrap();
 		do_messages_exchange(&clusters, &sessions).unwrap();
 
@@ -1383,5 +1388,16 @@ mod tests {
 		assert!(broadcast_shadows.is_some());
 		assert_eq!(3, sessions.iter().skip(1).filter(|s| s.broadcast_shadows() == broadcast_shadows).count());
 		assert_eq!(1, sessions.iter().skip(1).filter(|s| s.broadcast_shadows().is_none()).count());
+
+		// 4 nodes must be able to recover original secret
+		use ethcrypto::DEFAULT_MAC;
+		use ethcrypto::ecies::decrypt;
+		let result = sessions[0].decrypted_secret().unwrap().unwrap();
+		assert_eq!(3, sessions.iter().skip(1).filter(|s| s.decrypted_secret() == Some(Ok(result.clone()))).count());
+		let decrypt_shadows: Vec<_> = result.decrypt_shadows.unwrap().into_iter()
+			.map(|c| Secret::from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()))
+			.collect();
+		let decrypted_secret = math::decrypt_with_shadow_coefficients(result.decrypted_secret, result.common_point.unwrap(), decrypt_shadows).unwrap();
+		assert_eq!(decrypted_secret, SECRET_PLAIN.into());
 	}
 }

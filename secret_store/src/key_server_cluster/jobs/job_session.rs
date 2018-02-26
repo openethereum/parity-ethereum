@@ -291,7 +291,7 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 		if !active_data.requests.remove(node) {
 			return Err(Error::InvalidNodeForRequest);
 		}
-		
+
 		match self.executor.check_partial_response(node, &response)? {
 			JobPartialResponseAction::Ignore => Ok(()),
 			JobPartialResponseAction::Reject => {
