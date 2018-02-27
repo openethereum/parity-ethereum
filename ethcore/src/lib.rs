@@ -105,7 +105,6 @@ extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
-extern crate timer;
 
 #[macro_use]
 extern crate ethabi_derive;
@@ -119,6 +118,8 @@ extern crate lazy_static;
 extern crate macros;
 #[macro_use]
 extern crate rlp_derive;
+#[macro_use]
+extern crate trace_time;
 
 #[cfg_attr(test, macro_use)]
 extern crate evm;

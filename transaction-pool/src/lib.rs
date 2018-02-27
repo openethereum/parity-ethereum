@@ -76,6 +76,8 @@ extern crate error_chain;
 #[macro_use]
 extern crate log;
 
+extern crate trace_time;
+
 #[cfg(test)]
 mod tests;
 

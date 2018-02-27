@@ -24,7 +24,6 @@ use itertools::Itertools;
 
 // util
 use hash::keccak;
-use timer::PerfTimer;
 use bytes::Bytes;
 use journaldb;
 use util_error::UtilError;
@@ -521,7 +520,7 @@ impl Client {
 			if blocks.is_empty() {
 				return 0;
 			}
-			let _timer = PerfTimer::new("import_verified_blocks");
+			trace_time!("import_verified_blocks");
 			let start = precise_time_ns();
 
 			for block in blocks {
@@ -601,7 +600,7 @@ impl Client {
 		let _import_lock = self.import_lock.lock();
 
 		{
-			let _timer = PerfTimer::new("import_old_block");
+			trace_time!("import_old_block");
 			let chain = self.chain.read();
 			let mut ancient_verifier = self.ancient_verifier.lock();
 
@@ -896,7 +895,7 @@ impl Client {
 
 	/// Import transactions from the IO queue
 	pub fn import_queued_transactions(&self, transactions: &[Bytes], peer_id: usize) -> usize {
-		let _timer = PerfTimer::new("import_queued_transactions");
+		trace_time!("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
 
 		let mut txs: Vec<UnverifiedTransaction> = transactions
@@ -937,7 +936,7 @@ impl Client {
 			queued.split_off(len)
 		};
 
-		let _timer = PerfTimer::new("check_transaction_import_queue");
+		trace_time!("check_transaction_import_queue");
 		self.queue_transactions.fetch_sub(txs.len(), AtomicOrdering::SeqCst);
 		self.miner.import_external_transactions(self, txs);
 	}
@@ -1975,7 +1974,7 @@ impl MiningBlockChainClient for Client {
 		let route = {
 			// scope for self.import_lock
 			let _import_lock = self.import_lock.lock();
-			let _timer = PerfTimer::new("import_sealed_block");
+			trace_time!("import_sealed_block");
 
 			let number = block.header().number();
 			let block_data = block.rlp_bytes();

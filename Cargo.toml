@@ -132,5 +132,4 @@ members = [
 	"transaction-pool",
 	"whisper",
 	"util/rlp_compress",
-	"util/timer"
 ]

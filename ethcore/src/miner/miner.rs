@@ -28,7 +28,6 @@ use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
 use ethereum_types::{H256, U256, Address};
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
-use timer::PerfTimer;
 use transaction::{
 	self,
 	Action,
@@ -326,7 +325,7 @@ impl Miner {
 
 	/// Prepares new block for sealing including top transactions from queue.
 	fn prepare_block(&self, chain: &MiningBlockChainClient) -> (ClosedBlock, Option<H256>) {
-		let _timer = PerfTimer::new("prepare_block");
+		trace_time!("prepare_block");
 		let chain_info = chain.chain_info();
 
 		// Open block
