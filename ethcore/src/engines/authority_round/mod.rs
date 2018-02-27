@@ -968,40 +968,43 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		use parity_machine::WithBalances;
 
+		let mut rewards = Vec::new();
 		if block.header().number() >= self.empty_steps_transition {
-			let empty_steps =
-				if block.header().seal().is_empty() {
-					// this is a new block, calculate rewards based on the empty steps messages we have accumulated
-					let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-						Some(client) => client,
-						None => {
-							debug!(target: "engine", "Unable to close block: missing client ref.");
-							return Err(EngineError::RequiresClient.into())
-						},
-					};
-
-					let parent = client.block_header(::client::BlockId::Hash(*block.header().parent_hash()))
-						.expect("hash is from parent; parent header must exist; qed")
-						.decode();
-
-					let parent_step = header_step(&parent, self.empty_steps_transition)?;
-					let current_step = self.step.load();
-					self.empty_steps(parent_step.into(), current_step.into(), parent.hash())
-				} else {
-					// we're verifying a block, extract empty steps from the seal
-					header_empty_steps(block.header())?
+			let empty_steps = if block.header().seal().is_empty() {
+				// this is a new block, calculate rewards based on the empty steps messages we have accumulated
+				let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+					Some(client) => client,
+					None => {
+						debug!(target: "engine", "Unable to close block: missing client ref.");
+						return Err(EngineError::RequiresClient.into())
+					},
 				};
+
+				let parent = client.block_header(::client::BlockId::Hash(*block.header().parent_hash()))
+					.expect("hash is from parent; parent header must exist; qed")
+					.decode();
+
+				let parent_step = header_step(&parent, self.empty_steps_transition)?;
+				let current_step = self.step.load();
+				self.empty_steps(parent_step.into(), current_step.into(), parent.hash())
+			} else {
+				// we're verifying a block, extract empty steps from the seal
+				header_empty_steps(block.header())?
+			};
 
 			for empty_step in empty_steps {
 				let author = empty_step.author()?;
-				self.machine.add_balance(block, &author, &self.block_reward)?;
-				self.machine.note_rewards(block, &[(author, self.block_reward)], &[])?;
+				rewards.push((author, self.block_reward));
 			}
 		}
 
 		let author = *block.header().author();
-		self.machine.add_balance(block, &author, &self.block_reward)?;
-		self.machine.note_rewards(block, &[(author, self.block_reward)], &[])
+		rewards.push((author, self.block_reward));
+
+		for &(ref author, ref block_reward) in rewards.iter() {
+			self.machine.add_balance(block, author, block_reward)?;
+		}
+		self.machine.note_rewards(block, &rewards, &[])
 	}
 
 	/// Check the number of seal fields.
