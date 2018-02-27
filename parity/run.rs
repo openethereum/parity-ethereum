@@ -680,11 +680,15 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	let event_loop = EventLoop::spawn();
 
 	// the updater service
+	let mut updater_fetch = fetch.clone();
+	// parity binaries should be smaller than 128MB
+	updater_fetch.set_limit(Some(128 * 1024 * 1024));
+
 	let updater = Updater::new(
 		Arc::downgrade(&(service.client() as Arc<BlockChainClient>)),
 		Arc::downgrade(&sync_provider),
 		update_policy,
-		fetch.clone(),
+		updater_fetch,
 		event_loop.remote(),
 	);
 	service.add_notify(updater.clone());

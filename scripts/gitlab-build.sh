@@ -22,13 +22,10 @@ echo "Parity version:     " $VER
 echo "Branch:             " $CI_BUILD_REF_NAME
 echo "--------------------"
 
-echo "Rhash version:"
 # NOTE for md5 and sha256 we want to display filename as well
 # hence we use --* instead of -p *
 MD5_BIN="rhash --md5"
 SHA256_BIN="rhash --sha256"
-# NOTE For SHA3 we need only hash (hence -p)
-SHA3_BIN="rhash -p %{sha3-256}"
 
 set_env () {
   echo "Set ENVIROMENT"
@@ -70,14 +67,12 @@ strip_binaries () {
 calculate_checksums () {
   echo "Checksum calculation:"
   rhash --version
+
   rm -rf *.md5
   rm -rf *.sha256
 
-  export SHA3="$($SHA3_BIN target/$PLATFORM/release/parity$S3WIN)"
-  # NOTE rhash 1.3.1 doesnt support keccak, workaround
-  if [ "$SHA3" == "%{sha3-256}" ]; then
-    export SHA3="$(target/$PLATFORM/release/parity$S3WIN tools hash target/$PLATFORM/release/parity$S3WIN)"
-  fi
+  BIN="target/$PLATFORM/release/parity$S3WIN"
+  export SHA3="$($BIN tools hash $BIN)"
 
   echo "Parity file SHA3: $SHA3"
   $MD5_BIN target/$PLATFORM/release/parity$S3WIN > parity$S3WIN.md5
