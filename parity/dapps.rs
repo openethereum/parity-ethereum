@@ -24,7 +24,7 @@ use ethcore::client::{Client, BlockChainClient, BlockId, CallContract};
 use ethsync::LightSync;
 use futures::{Future, future, IntoFuture};
 use hash_fetch::fetch::Client as FetchClient;
-use contract_client::{ContractClient, Asynchronous};
+use registrar::{RegistrarClient, Asynchronous};
 use light::client::LightChainClient;
 use light::on_demand::{self, OnDemand};
 use node_health::{SyncStatus, NodeHealth};
@@ -78,7 +78,7 @@ impl FullRegistrar {
 	}
 }
 
-impl ContractClient for FullRegistrar {
+impl RegistrarClient for FullRegistrar {
 	type Call = Asynchronous;
 
 	fn registrar_address(&self) -> Result<Address, String> {
@@ -101,7 +101,7 @@ pub struct LightRegistrar<T> {
 	pub sync: Arc<LightSync>,
 }
 
-impl<T: LightChainClient + 'static> ContractClient for LightRegistrar<T> {
+impl<T: LightChainClient + 'static> RegistrarClient for LightRegistrar<T> {
 	type Call = Box<Future<Item = Bytes, Error = String> + Send>;
 
 	fn registrar_address(&self) -> Result<Address, String> {
@@ -158,7 +158,7 @@ impl<T: LightChainClient + 'static> ContractClient for LightRegistrar<T> {
 pub struct Dependencies {
 	pub node_health: NodeHealth,
 	pub sync_status: Arc<SyncStatus>,
-	pub contract_client: Arc<ContractClient<Call=Asynchronous>>,
+	pub contract_client: Arc<RegistrarClient<Call=Asynchronous>>,
 	pub fetch: FetchClient,
 	pub signer: Arc<SignerService>,
 	pub ui_address: Option<(String, u16)>,

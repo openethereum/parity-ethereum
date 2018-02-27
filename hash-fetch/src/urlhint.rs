@@ -24,7 +24,7 @@ use mime_guess;
 use futures::{future, Future};
 use futures::future::Either;
 use ethereum_types::{H256, Address};
-use contract_client::{RegistrarClient, ContractClient, Asynchronous};
+use registrar::{Registrar, RegistrarClient, Asynchronous};
 
 use_contract!(urlhint, "Urlhint", "res/urlhint.json");
 
@@ -101,17 +101,17 @@ pub trait URLHint: Send + Sync {
 /// `URLHintContract` API
 pub struct URLHintContract {
 	urlhint: urlhint::Urlhint,
-	registrar: RegistrarClient,
-	client: Arc<ContractClient<Call=Asynchronous>>,
+	registrar: Registrar,
+	client: Arc<RegistrarClient<Call=Asynchronous>>,
 }
 
 impl URLHintContract {
 	/// Creates new `URLHintContract`
-		pub fn new(client: Arc<ContractClient<Call=Asynchronous>>) -> Self {
+		pub fn new(client: Arc<RegistrarClient<Call=Asynchronous>>) -> Self {
 		URLHintContract {
 			urlhint: urlhint::Urlhint::default(),
-			registrar: RegistrarClient::new(client.clone()),
-			client,
+			registrar: Registrar::new(client.clone()),
+			client: client,
 		}
 	}
 }
@@ -238,7 +238,7 @@ pub mod tests {
 		}
 	}
 
-	impl ContractClient for FakeRegistrar {
+	impl RegistrarClient for FakeRegistrar {
 		type Call = Asynchronous;
 
 		fn registrar_address(&self) -> Result<Address, String> {

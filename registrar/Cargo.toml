@@ -1,6 +1,6 @@
 [package]
-description = "Contract client for Parity"
-name = "contract-client"
+description = "Registar for Parity"
+name = "registrar"
 version = "0.0.1"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]

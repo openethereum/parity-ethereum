@@ -18,7 +18,7 @@ ethcore-bytes = { path = "../util/bytes" }
 ethereum-types = "0.2"
 parity-reactor = { path = "../util/reactor" }
 keccak-hash = { path = "../util/hash" }
-contract-client = { path = "../contract_client" }
+registrar = { path = "../registrar" }
 
 ethabi = "5.1"
 ethabi-derive = "5.0"

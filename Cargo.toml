@@ -72,7 +72,7 @@ journaldb = { path = "util/journaldb" }
 parity-dapps = { path = "dapps", optional = true }
 ethcore-secretstore = { path = "secret_store", optional = true }
 
-contract-client = { path = "contract_client" }
+registrar = { path = "registrar" }
 
 [build-dependencies]
 rustc_version = "0.2"

@@ -26,7 +26,7 @@ use fetch::{Fetch, Response, Error as FetchError, Client as FetchClient};
 use futures::{Future, IntoFuture};
 use parity_reactor::Remote;
 use urlhint::{URLHintContract, URLHint, URLHintResult};
-use contract_client::{ContractClient, Asynchronous};
+use registrar::{RegistrarClient, Asynchronous};
 use ethereum_types::H256;
 
 /// API for fetching by hash.
@@ -121,14 +121,14 @@ pub struct Client<F: Fetch + 'static = FetchClient> {
 
 impl Client {
 	/// Creates new instance of the `Client` given on-chain contract client and task runner.
-	pub fn new(contract: Arc<ContractClient<Call=Asynchronous>>, remote: Remote) -> Self {
+	pub fn new(contract: Arc<RegistrarClient<Call=Asynchronous>>, remote: Remote) -> Self {
 		Client::with_fetch(contract, FetchClient::new().unwrap(), remote)
 	}
 }
 
 impl<F: Fetch + 'static> Client<F> {
 	/// Creates new instance of the `Client` given on-chain contract client, fetch service and task runner.
-	pub fn with_fetch(contract: Arc<ContractClient<Call=Asynchronous>>, fetch: F, remote: Remote) -> Self {
+	pub fn with_fetch(contract: Arc<RegistrarClient<Call=Asynchronous>>, fetch: F, remote: Remote) -> Self {
 		Client {
 			contract: URLHintContract::new(contract),
 			fetch: fetch,

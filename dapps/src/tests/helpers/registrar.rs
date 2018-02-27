@@ -20,7 +20,7 @@ use std::collections::HashMap;
 
 use ethereum_types::{H256, Address};
 use bytes::{Bytes, ToPretty};
-use contract_client::{ContractClient, Asynchronous};
+use registrar::{RegistrarClient, Asynchronous};
 use parking_lot::Mutex;
 use rustc_hex::FromHex;
 
@@ -61,7 +61,7 @@ impl FakeRegistrar {
 	}
 }
 
-impl ContractClient for FakeRegistrar {
+impl RegistrarClient for FakeRegistrar {
 	type Call = Asynchronous;
 
 	fn registrar_address(&self) -> Result<Address, String> {

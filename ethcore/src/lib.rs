@@ -132,8 +132,6 @@ extern crate evm;
 #[cfg(feature = "jit" )]
 extern crate evmjit;
 
-extern crate tempdir;
-
 pub extern crate ethstore;
 
 pub mod account_provider;

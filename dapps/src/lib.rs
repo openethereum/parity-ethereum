@@ -32,7 +32,6 @@ extern crate zip;
 
 extern crate jsonrpc_http_server;
 
-extern crate contract_client;
 extern crate ethcore_bytes as bytes;
 extern crate ethereum_types;
 extern crate fetch;
@@ -42,6 +41,7 @@ extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ui;
 extern crate keccak_hash as hash;
 extern crate parity_version;
+extern crate registrar;
 
 #[macro_use]
 extern crate futures;
@@ -81,7 +81,7 @@ use parking_lot::RwLock;
 use fetch::Fetch;
 use node_health::NodeHealth;
 
-pub use contract_client::{ContractClient, Asynchronous};
+pub use registrar::{RegistrarClient, Asynchronous};
 pub use node_health::SyncStatus;
 
 
@@ -156,7 +156,7 @@ impl Middleware {
 		pool: CpuPool,
 		health: NodeHealth,
 		dapps_domain: &str,
-		registrar: Arc<ContractClient<Call=Asynchronous>>,
+		registrar: Arc<RegistrarClient<Call=Asynchronous>>,
 		sync_status: Arc<SyncStatus>,
 		fetch: F,
 	) -> Self {
@@ -199,7 +199,7 @@ impl Middleware {
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		dapps_domain: &str,
-		registrar: Arc<ContractClient<Call=Asynchronous>>,
+		registrar: Arc<RegistrarClient<Call=Asynchronous>>,
 		sync_status: Arc<SyncStatus>,
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		fetch: F,
