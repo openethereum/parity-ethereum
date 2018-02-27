@@ -20,7 +20,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::cmp;
 use std::sync::Arc;
 
-use block::{ExecutedBlock, Tracing};
+use block::ExecutedBlock;
 use builtin::Builtin;
 use client::BlockChainClient;
 use error::Error;
@@ -28,7 +28,7 @@ use executive::Executive;
 use header::{BlockNumber, Header};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
-use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
+use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
 use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
 

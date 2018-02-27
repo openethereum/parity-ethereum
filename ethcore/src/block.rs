@@ -35,7 +35,7 @@ use header::{Header, Seal};
 use receipt::{Receipt, TransactionOutcome};
 use state::State;
 use state_db::StateDB;
-use trace::FlatTransactionTraces;
+use trace::Tracing;
 use transaction::{UnverifiedTransaction, SignedTransaction, Error as TransactionError};
 use verification::PreverifiedBlock;
 use views::BlockView;
@@ -81,38 +81,6 @@ impl Decodable for Block {
 			transactions: rlp.list_at(1)?,
 			uncles: rlp.list_at(2)?,
 		})
-	}
-}
-
-/// Container for block traces.
-#[derive(Clone)]
-pub enum Tracing {
-	/// This variant should be used when tracing is enabled.
-	Enabled(Vec<FlatTransactionTraces>),
-	/// Tracing is disabled.
-	Disabled,
-}
-
-impl Tracing {
-	/// Creates new instance of enabled tracing object.
-	pub fn enabled() -> Self {
-		Tracing::Enabled(Default::default())
-	}
-
-	/// Returns true if tracing is enabled.
-	pub fn is_enabled(&self) -> bool {
-		match *self {
-			Tracing::Enabled(_) => true,
-			Tracing::Disabled => false,
-		}
-	}
-
-	/// Drain all traces.
-	pub fn drain(self) -> Vec<FlatTransactionTraces> {
-		match self {
-			Tracing::Enabled(traces) => traces,
-			Tracing::Disabled => vec![],
-		}
 	}
 }
 
