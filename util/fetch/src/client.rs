@@ -20,11 +20,17 @@ use std::{io, fmt, time};
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicBool};
 
-use futures::{self, Future};
+use futures::{self, Future, Async};
 use futures_cpupool::{CpuPool, CpuFuture};
 use parking_lot::RwLock;
-use reqwest;
-use reqwest::mime::Mime;
+
+use hyper::{self, Request, Method, StatusCode, Uri};
+use hyper::client::FutureResponse;
+use hyper::header::{UserAgent, ContentType};
+use hyper::mime::Mime;
+
+use hyper_rustls;
+use tokio_core;
 
 type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 
@@ -94,18 +100,20 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 
 const CLIENT_TIMEOUT_SECONDS: u64 = 5;
 
+type HyperClient = hyper::Client<hyper_rustls::HttpsConnector>;
+
 /// Fetch client
 pub struct Client {
-	client: RwLock<(time::Instant, Arc<reqwest::Client>)>,
+	client: RwLock<Arc<HyperClient>>,
 	pool: CpuPool,
 	limit: Option<usize>,
 }
 
 impl Clone for Client {
 	fn clone(&self) -> Self {
-		let (ref time, ref client) = *self.client.read();
+		let client = *self.client.read();
 		Client {
-			client: RwLock::new((time.clone(), client.clone())),
+			client: RwLock::new(client.clone()),
 			pool: self.pool.clone(),
 			limit: self.limit.clone(),
 		}
@@ -113,15 +121,17 @@ impl Clone for Client {
 }
 
 impl Client {
-	fn new_client() -> Result<Arc<reqwest::Client>, Error> {
-		let mut client = reqwest::ClientBuilder::new();
-		client.redirect(reqwest::RedirectPolicy::limited(5));
-		Ok(Arc::new(client.build()?))
+	fn new_client() -> Result<Arc<HyperClient>, Error> {
+		let mut core = tokio_core::reactor::Core::new()?;
+		let mut client = hyper::Client::configure()
+			.connector(hyper_rustls::HttpsConnector::new(4, &core.handle()));
+		// TODO [kirushik] Now it's no longer following redirects automatically
+		Ok(Arc::new(client.build(&core.handle())))
 	}
 
 	fn with_limit(limit: Option<usize>) -> Result<Self, Error> {
 		Ok(Client {
-			client: RwLock::new((time::Instant::now(), Self::new_client()?)),
+			client: RwLock::new(Self::new_client()?),
 			pool: CpuPool::new(4),
 			limit: limit,
 		})
@@ -132,7 +142,7 @@ impl Client {
 		self.limit = limit
 	}
 
-	fn client(&self) -> Result<Arc<reqwest::Client>, Error> {
+	fn client(&self) -> Result<Arc<HyperClient>, Error> {
 		{
 			let (ref time, ref client) = *self.client.read();
 			if time.elapsed() < time::Duration::from_secs(CLIENT_TIMEOUT_SECONDS) {
@@ -177,12 +187,20 @@ impl Fetch for Client {
 
 	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result {
 		debug!(target: "fetch", "Fetching from: {:?}", url);
+		let url: Uri = match url.parse() {
+			Ok(url) => url,
+			Err(err) => return self.pool.spawn(futures::future::err(err.into()))
+		};
+
+		trace!(target: "fetch", "Starting fetch task: {:?}", self.url);
+		let mut request = Request::new(Method::Get, self.url);
+		request.headers_mut().set(UserAgent::new("Parity Fetch Neo"));
 
 		match self.client() {
 			Ok(client) => {
 				self.pool.spawn(FetchTask {
-					url: url.into(),
-					client: client,
+					url: url,
+					response: client.request(request),
 					limit: self.limit,
 					abort: abort,
 				})
@@ -195,8 +213,8 @@ impl Fetch for Client {
 }
 
 struct FetchTask {
-	url: String,
-	client: Arc<reqwest::Client>,
+	url: Uri,
+	response: FutureResponse,
 	limit: Option<usize>,
 	abort: Abort,
 }
@@ -212,17 +230,11 @@ impl Future for FetchTask {
 			return Err(Error::Aborted);
 		}
 
-		trace!(target: "fetch", "Starting fetch task: {:?}", self.url);
-		let result = self.client.get(&self.url)
-						  .header(reqwest::header::UserAgent::new("Parity Fetch"))
-						  .send()?;
+		match self.response.poll()? {
+			Async::Ready(response) => Ok(Async::Ready(response.into())),
+			Async::NotReady => Ok(Async::NotReady)
+		}
 
-		Ok(futures::Async::Ready(Response {
-			inner: ResponseInner::Response(result),
-			abort: self.abort.clone(),
-			limit: self.limit,
-			read: 0,
-		}))
 	}
 }
 
@@ -230,7 +242,11 @@ impl Future for FetchTask {
 #[derive(Debug)]
 pub enum Error {
 	/// Internal fetch error
-	Fetch(reqwest::Error),
+	Fetch(hyper::Error),
+	/// IO error, from tokio core
+	IO(io::Error),
+	/// URI parse error
+	URI(hyper::error::UriError),
 	/// Request aborted
 	Aborted,
 }
@@ -244,14 +260,26 @@ impl fmt::Display for Error {
 	}
 }
 
-impl From<reqwest::Error> for Error {
-	fn from(error: reqwest::Error) -> Self {
+impl From<hyper::Error> for Error {
+	fn from(error: hyper::Error) -> Self {
 		Error::Fetch(error)
 	}
 }
 
+impl From<io::Error> for Error {
+	fn from(error: io::Error) -> Self {
+		Error::IO(error)
+	}
+}
+
+impl From<hyper::error::UriError> for Error {
+	fn from(error: hyper::error::UriError) -> Self {
+		Error::URI(error)
+	}
+}
+
 enum ResponseInner {
-	Response(reqwest::Response),
+	Response(hyper::Response),
 	Reader(Box<io::Read + Send>),
 	NotFound,
 }
@@ -297,17 +325,17 @@ impl Response {
 	}
 
 	/// Returns status code of this response.
-	pub fn status(&self) -> reqwest::StatusCode {
+	pub fn status(&self) -> StatusCode {
 		match self.inner {
 			ResponseInner::Response(ref r) => r.status(),
-			ResponseInner::NotFound => reqwest::StatusCode::NotFound,
-			_ => reqwest::StatusCode::Ok,
+			ResponseInner::NotFound => StatusCode::NotFound,
+			_ => StatusCode::Ok,
 		}
 	}
 
 	/// Returns `true` if response status code is successful.
 	pub fn is_success(&self) -> bool {
-		self.status() == reqwest::StatusCode::Ok
+		self.status() == StatusCode::Ok
 	}
 
 	/// Returns `true` if content type of this response is `text/html`
@@ -322,11 +350,17 @@ impl Response {
 	pub fn content_type(&self) -> Option<Mime> {
 		match self.inner {
 			ResponseInner::Response(ref r) => {
-				let content_type = r.headers().get::<reqwest::header::ContentType>();
+				let content_type = r.headers().get::<ContentType>();
 				content_type.map(|mime| mime.0.clone())
 			},
 			_ => None,
 		}
+	}
+}
+
+impl From<hyper::Response> for Response {
+	fn from(response: hyper::Response) -> Self {
+		unimplemented!()
 	}
 }
 
