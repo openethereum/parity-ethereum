@@ -77,6 +77,11 @@ pub fn payload<'a>(params: &'a vm::ActionParams, wasm_costs: &vm::WasmCosts)
 		&gas_rules(wasm_costs),
 	).map_err(|_| vm::Error::Wasm(format!("Wasm contract error: bytecode invalid")))?;
 
+	let contract_module = wasm_utils::stack_height::inject_limiter(
+		contract_module,
+		wasm_costs.max_stack_height,
+	).map_err(|_| vm::Error::Wasm(format!("Wasm contract error: stack limiter failure")))?;
+
 	let data = match params.params_type {
 		vm::ParamsType::Embedded => {
 			if data_position < code.len() { &code[data_position..] } else { &[] }
