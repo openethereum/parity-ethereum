@@ -395,7 +395,7 @@ impl Miner {
 			} else { None };
 			let transactions = {self.transaction_queue.read().top_transactions_at(chain_info.best_block_number, chain_info.best_block_timestamp, nonce_cap)};
 			let mut sealing_work = self.sealing_work.lock();
-			let last_work_hash = sealing_work.queue.peek_last_ref().map(|pb| pb.block().fields().header.hash());
+			let last_work_hash = sealing_work.queue.peek_last_ref().map(|pb| pb.block().header().hash());
 			let best_hash = chain_info.best_block_hash;
 
 			// check to see if last ClosedBlock in would_seals is actually same parent block.
@@ -404,7 +404,7 @@ impl Miner {
 			//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
 			//   otherwise, leave everything alone.
 			// otherwise, author a fresh block.
-			let mut open_block = match sealing_work.queue.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
+			let mut open_block = match sealing_work.queue.pop_if(|b| b.block().header().parent_hash() == &best_hash) {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
 					// add transactions to old_block
@@ -431,7 +431,7 @@ impl Miner {
 		let mut invalid_transactions = HashSet::new();
 		let mut non_allowed_transactions = HashSet::new();
 		let mut transactions_to_penalize = HashSet::new();
-		let block_number = open_block.block().fields().header.number();
+		let block_number = open_block.block().header().number();
 
 		let mut tx_count: usize = 0;
 		let tx_total = transactions.len();
@@ -618,14 +618,14 @@ impl Miner {
 	fn prepare_work(&self, block: ClosedBlock, original_work_hash: Option<H256>) {
 		let (work, is_new) = {
 			let mut sealing_work = self.sealing_work.lock();
-			let last_work_hash = sealing_work.queue.peek_last_ref().map(|pb| pb.block().fields().header.hash());
-			trace!(target: "miner", "prepare_work: Checking whether we need to reseal: orig={:?} last={:?}, this={:?}", original_work_hash, last_work_hash, block.block().fields().header.hash());
-			let (work, is_new) = if last_work_hash.map_or(true, |h| h != block.block().fields().header.hash()) {
-				trace!(target: "miner", "prepare_work: Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
-				let pow_hash = block.block().fields().header.hash();
-				let number = block.block().fields().header.number();
-				let difficulty = *block.block().fields().header.difficulty();
-				let is_new = original_work_hash.map_or(true, |h| block.block().fields().header.hash() != h);
+			let last_work_hash = sealing_work.queue.peek_last_ref().map(|pb| pb.block().header().hash());
+			trace!(target: "miner", "prepare_work: Checking whether we need to reseal: orig={:?} last={:?}, this={:?}", original_work_hash, last_work_hash, block.block().header().hash());
+			let (work, is_new) = if last_work_hash.map_or(true, |h| h != block.block().header().hash()) {
+				trace!(target: "miner", "prepare_work: Pushing a new, refreshed or borrowed pending {}...", block.block().header().hash());
+				let pow_hash = block.block().header().hash();
+				let number = block.block().header().number();
+				let difficulty = *block.block().header().difficulty();
+				let is_new = original_work_hash.map_or(true, |h| block.block().header().hash() != h);
 				sealing_work.queue.push(block);
 				// If push notifications are enabled we assume all work items are used.
 				if !self.notifiers.read().is_empty() && is_new {
@@ -635,7 +635,7 @@ impl Miner {
 			} else {
 				(None, false)
 			};
-			trace!(target: "miner", "prepare_work: leaving (last={:?})", sealing_work.queue.peek_last_ref().map(|b| b.block().fields().header.hash()));
+			trace!(target: "miner", "prepare_work: leaving (last={:?})", sealing_work.queue.peek_last_ref().map(|b| b.block().header().hash()));
 			(work, is_new)
 		};
 		if is_new {
@@ -1125,7 +1125,7 @@ impl MinerService for Miner {
 
 			// refuse to seal the first block of the chain if it contains hard forks
 			// which should be on by default.
-			if block.block().fields().header.number() == 1 && self.engine.params().contains_bugfix_hard_fork() {
+			if block.block().header().number() == 1 && self.engine.params().contains_bugfix_hard_fork() {
 				warn!("{}", NO_NEW_CHAIN_WITH_FORKS);
 				return;
 			}
@@ -1156,7 +1156,7 @@ impl MinerService for Miner {
 		trace!(target: "miner", "map_sealing_work: sealing prepared");
 		let mut sealing_work = self.sealing_work.lock();
 		let ret = sealing_work.queue.use_last_ref();
-		trace!(target: "miner", "map_sealing_work: leaving use_last_ref={:?}", ret.as_ref().map(|b| b.block().fields().header.hash()));
+		trace!(target: "miner", "map_sealing_work: leaving use_last_ref={:?}", ret.as_ref().map(|b| b.block().header().hash()));
 		ret.map(f)
 	}
 
@@ -1325,16 +1325,16 @@ mod tests {
 		let client = TestBlockChainClient::default();
 		let miner = Miner::with_spec(&Spec::new_test());
 
-		let res = miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
+		let res = miner.map_sealing_work(&client, |b| b.block().header().hash());
 		assert!(res.is_some());
 		assert!(miner.submit_seal(&client, res.unwrap(), vec![]).is_ok());
 
 		// two more blocks mined, work requested.
 		client.add_blocks(1, EachBlockWith::Uncle);
-		miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
+		miner.map_sealing_work(&client, |b| b.block().header().hash());
 
 		client.add_blocks(1, EachBlockWith::Uncle);
-		miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
+		miner.map_sealing_work(&client, |b| b.block().header().hash());
 
 		// solution to original work submitted.
 		assert!(miner.submit_seal(&client, res.unwrap(), vec![]).is_ok());

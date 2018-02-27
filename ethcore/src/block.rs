@@ -35,7 +35,7 @@ use header::{Header, Seal};
 use receipt::{Receipt, TransactionOutcome};
 use state::State;
 use state_db::StateDB;
-use trace::FlatTrace;
+use trace::Tracing;
 use transaction::{UnverifiedTransaction, SignedTransaction, Error as TransactionError};
 use verification::PreverifiedBlock;
 use views::BlockView;
@@ -93,51 +93,8 @@ pub struct ExecutedBlock {
 	receipts: Vec<Receipt>,
 	transactions_set: HashSet<H256>,
 	state: State<StateDB>,
-	traces: Option<Vec<Vec<FlatTrace>>>,
+	traces: Tracing,
 	last_hashes: Arc<LastHashes>,
-}
-
-/// A set of references to `ExecutedBlock` fields that are publicly accessible.
-pub struct BlockRefMut<'a> {
-	/// Block header.
-	pub header: &'a mut Header,
-	/// Block transactions.
-	pub transactions: &'a [SignedTransaction],
-	/// Block uncles.
-	pub uncles: &'a [Header],
-	/// Transaction receipts.
-	pub receipts: &'a [Receipt],
-	/// State.
-	pub state: &'a mut State<StateDB>,
-	/// Traces.
-	pub traces: &'a mut Option<Vec<Vec<FlatTrace>>>,
-}
-
-impl<'a> BlockRefMut<'a> {
-	/// Add traces if tracing is enabled.
-	pub fn push_traces(&mut self, tracer: ::trace::ExecutiveTracer) {
-		use trace::Tracer;
-
-		if let Some(ref mut traces) = self.traces.as_mut() {
-			traces.push(tracer.drain())
-		}
-	}
-}
-
-/// A set of immutable references to `ExecutedBlock` fields that are publicly accessible.
-pub struct BlockRef<'a> {
-	/// Block header.
-	pub header: &'a Header,
-	/// Block transactions.
-	pub transactions: &'a [SignedTransaction],
-	/// Block uncles.
-	pub uncles: &'a [Header],
-	/// Transaction receipts.
-	pub receipts: &'a [Receipt],
-	/// State.
-	pub state: &'a State<StateDB>,
-	/// Traces.
-	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
 }
 
 impl ExecutedBlock {
@@ -150,32 +107,12 @@ impl ExecutedBlock {
 			receipts: Default::default(),
 			transactions_set: Default::default(),
 			state: state,
-			traces: if tracing {Some(Vec::new())} else {None},
+			traces: if tracing {
+				Tracing::enabled()
+			} else {
+				Tracing::Disabled
+			},
 			last_hashes: last_hashes,
-		}
-	}
-
-	/// Get a structure containing individual references to all public fields.
-	pub fn fields_mut(&mut self) -> BlockRefMut {
-		BlockRefMut {
-			header: &mut self.header,
-			transactions: &self.transactions,
-			uncles: &self.uncles,
-			state: &mut self.state,
-			receipts: &self.receipts,
-			traces: &mut self.traces,
-		}
-	}
-
-	/// Get a structure containing individual references to all public fields.
-	pub fn fields(&self) -> BlockRef {
-		BlockRef {
-			header: &self.header,
-			transactions: &self.transactions,
-			uncles: &self.uncles,
-			state: &self.state,
-			receipts: &self.receipts,
-			traces: &self.traces,
 		}
 	}
 
@@ -191,6 +128,16 @@ impl ExecutedBlock {
 			gas_used: self.receipts.last().map_or(U256::zero(), |r| r.gas_used),
 			gas_limit: self.header.gas_limit().clone(),
 		}
+	}
+
+	/// Get mutable access to a state.
+	pub fn state_mut(&mut self) -> &mut State<StateDB> {
+		&mut self.state
+	}
+
+	/// Get mutable reference to traces.
+	pub fn traces_mut(&mut self) -> &mut Tracing {
+		&mut self.traces
 	}
 }
 
@@ -221,13 +168,13 @@ pub trait IsBlock {
 	fn receipts(&self) -> &[Receipt] { &self.block().receipts }
 
 	/// Get all information concerning transaction tracing in this block.
-	fn traces(&self) -> &Option<Vec<Vec<FlatTrace>>> { &self.block().traces }
+	fn traces(&self) -> &Tracing { &self.block().traces }
 
 	/// Get all uncles in this block.
 	fn uncles(&self) -> &[Header] { &self.block().uncles }
 
 	/// Get tracing enabled flag for this block.
-	fn tracing_enabled(&self) -> bool { self.block().traces.is_some() }
+	fn tracing_enabled(&self) -> bool { self.block().traces.is_enabled() }
 }
 
 /// Trait for a object that has a state database.
@@ -405,12 +352,14 @@ impl<'x> OpenBlock<'x> {
 
 		let env_info = self.env_info();
 //		info!("env_info says gas_used={}", env_info.gas_used);
-		match self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_some()) {
+		match self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled()) {
 			Ok(outcome) => {
 				self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
 				self.block.transactions.push(t.into());
 				let t = outcome.trace;
-				self.block.traces.as_mut().map(|traces| traces.push(t));
+				if let Tracing::Enabled(ref mut traces) = self.block.traces {
+					traces.push(t.into());
+				}
 				self.block.receipts.push(outcome.receipt);
 				Ok(self.block.receipts.last().expect("receipt just pushed; qed"))
 			}

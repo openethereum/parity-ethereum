@@ -542,7 +542,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		if !epoch_begin { return Ok(()) }
 
 		// genesis is never a new block, but might as well check.
-		let header = block.fields().header.clone();
+		let header = block.header().clone();
 		let first = header.number() == 0;
 
 		let mut call = |to, data| {
@@ -561,8 +561,10 @@ impl Engine<EthereumMachine> for Tendermint {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error>{
+		use parity_machine::WithBalances;
 		let author = *block.header().author();
-		::engines::common::bestow_block_reward(block, self.block_reward, author)
+		self.machine.add_balance(block, &author, &self.block_reward)?;
+		self.machine.note_rewards(block, &[(author, self.block_reward)], &[])
 	}
 
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
