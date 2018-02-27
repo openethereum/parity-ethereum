@@ -76,7 +76,12 @@ impl fmt::Display for PodState {
 
 /// Calculate and return diff between `pre` state and `post` state.
 pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
-	StateDiff { raw: pre.get().keys().merge(post.get().keys()).filter_map(|acc| pod_account::diff_pod(pre.get().get(acc), post.get().get(acc)).map(|d|(acc.clone(), d))).collect() }
+	StateDiff {
+		raw: pre.get().keys()
+			.merge(post.get().keys())
+			.filter_map(|acc| pod_account::diff_pod(pre.get().get(acc), post.get().get(acc)).map(|d| (acc.clone(), d)))
+			.collect()
+	}
 }
 
 #[cfg(test)]
@@ -89,12 +94,14 @@ mod test {
 
 	#[test]
 	fn create_delete() {
-		let a = PodState::from(map![ 1.into() => PodAccount {
-			balance: 69.into(),
-			nonce: 0.into(),
-			code: Some(Vec::new()),
-			storage: map![],
-		}]);
+		let a = PodState::from(map![
+			1.into() => PodAccount {
+				balance: 69.into(),
+				nonce: 0.into(),
+				code: Some(Vec::new()),
+				storage: map![],
+			}
+		]);
 		assert_eq!(super::diff_pod(&a, &PodState::new()), StateDiff { raw: map![
 			1.into() => AccountDiff{
 				balance: Diff::Died(69.into()),
@@ -115,12 +122,14 @@ mod test {
 
 	#[test]
 	fn create_delete_with_unchanged() {
-		let a = PodState::from(map![ 1.into() => PodAccount {
-			balance: 69.into(),
-			nonce: 0.into(),
-			code: Some(Vec::new()),
-			storage: map![],
-		}]);
+		let a = PodState::from(map![
+			1.into() => PodAccount {
+				balance: 69.into(),
+				nonce: 0.into(),
+				code: Some(Vec::new()),
+				storage: map![],
+			}
+		]);
 		let b = PodState::from(map![
 			1.into() => PodAccount {
 				balance: 69.into(),
