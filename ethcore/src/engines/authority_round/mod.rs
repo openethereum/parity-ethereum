@@ -947,7 +947,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		if self.immediate_transitions || !epoch_begin { return Ok(()) }
 
 		// genesis is never a new block, but might as well check.
-		let header = block.fields().header.clone();
+		let header = block.header().clone();
 		let first = header.number() == 0;
 
 		let mut call = |to, data| {
@@ -1798,13 +1798,13 @@ mod tests {
 		// step 3
 		// the signer of the accumulated empty step message should be rewarded
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
-		let addr1_balance = b2.block().fields().state.balance(&addr1).unwrap();
+		let addr1_balance = b2.block().state().balance(&addr1).unwrap();
 
 		// after closing the block `addr1` should be reward twice, one for the included empty step message and another for block creation
 		let b2 = b2.close_and_lock();
 
 		// the spec sets the block reward to 10
-		assert_eq!(b2.block().fields().state.balance(&addr1).unwrap(), addr1_balance + (10 * 2).into())
+		assert_eq!(b2.block().state().balance(&addr1).unwrap(), addr1_balance + (10 * 2).into())
 	}
 
 	#[test]

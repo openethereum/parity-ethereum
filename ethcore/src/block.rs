@@ -97,22 +97,6 @@ pub struct ExecutedBlock {
 	last_hashes: Arc<LastHashes>,
 }
 
-/// A set of immutable references to `ExecutedBlock` fields that are publicly accessible.
-pub struct BlockRef<'a> {
-	/// Block header.
-	pub header: &'a Header,
-	/// Block transactions.
-	pub transactions: &'a [SignedTransaction],
-	/// Block uncles.
-	pub uncles: &'a [Header],
-	/// Transaction receipts.
-	pub receipts: &'a [Receipt],
-	/// State.
-	pub state: &'a State<StateDB>,
-	/// Traces.
-	pub traces: &'a Tracing,
-}
-
 impl ExecutedBlock {
 	/// Create a new block from the given `state`.
 	fn new(state: State<StateDB>, last_hashes: Arc<LastHashes>, tracing: bool) -> ExecutedBlock {
@@ -129,18 +113,6 @@ impl ExecutedBlock {
 				Tracing::Disabled
 			},
 			last_hashes: last_hashes,
-		}
-	}
-
-	/// Get a structure containing individual references to all public fields.
-	pub fn fields(&self) -> BlockRef {
-		BlockRef {
-			header: &self.header,
-			transactions: &self.transactions,
-			uncles: &self.uncles,
-			state: &self.state,
-			receipts: &self.receipts,
-			traces: &self.traces,
 		}
 	}
 

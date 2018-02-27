@@ -542,7 +542,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		if !epoch_begin { return Ok(()) }
 
 		// genesis is never a new block, but might as well check.
-		let header = block.fields().header.clone();
+		let header = block.header().clone();
 		let first = header.number() == 0;
 
 		let mut call = |to, data| {
