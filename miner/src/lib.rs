@@ -30,6 +30,7 @@ extern crate linked_hash_map;
 extern crate parking_lot;
 extern crate price_info;
 extern crate rayon;
+extern crate timer;
 extern crate transaction_pool as txpool;
 
 #[macro_use]

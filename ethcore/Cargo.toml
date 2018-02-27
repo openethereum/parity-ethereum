@@ -59,6 +59,7 @@ rust-crypto = "0.2.34"
 rustc-hex = "1.0"
 stats = { path = "../util/stats" }
 time = "0.1"
+timer = { path = "../util/timer" }
 using_queue = { path = "../util/using_queue" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }

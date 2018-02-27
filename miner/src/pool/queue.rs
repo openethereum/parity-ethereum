@@ -26,6 +26,7 @@ use parking_lot::RwLock;
 use rayon::prelude::*;
 use transaction;
 use txpool::{self, Verifier};
+use timer::PerfTimer;
 
 use pool::{self, scoring, verifier, client, ready, listener};
 use pool::local_transactions::LocalTransactionsList;
@@ -100,6 +101,7 @@ impl TransactionQueue {
 		transactions: Vec<verifier::Transaction>,
 	) -> Vec<Result<(), transaction::Error>> {
 		// Run verification
+		let _timer = PerfTimer::new("queue::verifyAndImport");
 		let options = self.options.read().clone();
 
 		let verifier = verifier::Verifier::new(client, options, self.insertion_id.clone());

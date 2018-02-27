@@ -26,6 +26,7 @@ log = "0.3"
 parking_lot = "0.5"
 price-info = { path = "../price-info" }
 rayon = "1.0"
+timer = { path = "../util/timer" }
 transaction-pool = { path = "../transaction-pool" }
 
 [dev-dependencies]

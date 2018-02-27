@@ -133,6 +133,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 	type Error = transaction::Error;
 	type VerifiedTransaction = VerifiedTransaction;
 
+	// TODO [ToDr] Add recently rejected.
 	fn verify_transaction(&self, tx: Transaction) -> Result<Self::VerifiedTransaction, Self::Error> {
 		// The checks here should be ordered by cost/complexity.
 		// Cheap checks should be done as early as possible to discard unneeded transactions early.
@@ -215,7 +216,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 			if let TransactionType::Service = transaction_type {
 				debug!(target: "txqueue", "Service tx {:?} below minimal gas price accepted", hash);
 			} else if is_own || account_details.is_local {
-				debug!(target: "txqueue", "Local tx {:?} below minimal gas price accepted", hash);
+				info!(target: "own_tx", "Local tx {:?} below minimal gas price accepted", hash);
 			} else {
 				trace!(
 					target: "txqueue",

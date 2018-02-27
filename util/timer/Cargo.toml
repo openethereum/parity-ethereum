@@ -1,0 +1,9 @@
+[package]
+name = "timer"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "Performance timer with logging"
+
+[dependencies]
+log = "0.3"
+time = "0.1"

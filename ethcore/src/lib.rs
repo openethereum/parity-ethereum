@@ -95,15 +95,7 @@ extern crate kvdb_memorydb;
 extern crate util_error;
 extern crate snappy;
 extern crate migration;
-
 extern crate ethabi;
-#[macro_use]
-extern crate ethabi_derive;
-#[macro_use]
-extern crate ethabi_contract;
-
-#[macro_use]
-extern crate rlp_derive;
 extern crate rustc_hex;
 extern crate stats;
 extern crate stop_guard;
@@ -113,13 +105,21 @@ extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
+extern crate timer;
 
 #[macro_use]
-extern crate macros;
+extern crate ethabi_derive;
+#[macro_use]
+extern crate ethabi_contract;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate macros;
+#[macro_use]
+extern crate rlp_derive;
+
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
@@ -148,7 +148,6 @@ pub mod snapshot;
 pub mod spec;
 pub mod state;
 pub mod state_db;
-pub mod timer;
 pub mod trace;
 pub mod verification;
 pub mod views;

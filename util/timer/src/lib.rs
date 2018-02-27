@@ -15,7 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Performance timer with logging
-use time::precise_time_ns;
+
+#![deny(missing_docs)]
+extern crate time;
+#[macro_use]
+extern crate log;
+
 
 /// Performance timer with logging. Starts measuring time in the constructor, prints
 /// elapsed time in the destructor or when `stop` is called.
@@ -30,7 +35,7 @@ impl PerfTimer {
 	pub fn new(name: &'static str) -> PerfTimer {
 		PerfTimer {
 			name: name,
-			start: precise_time_ns(),
+			start: time::precise_time_ns(),
 			stopped: false,
 		}
 	}
@@ -38,7 +43,7 @@ impl PerfTimer {
 	/// Stop the timer and print elapsed time on trace level with `perf` target.
 	pub fn stop(&mut self) {
 		if !self.stopped {
-			trace!(target: "perf", "{}: {:.2}ms", self.name, (precise_time_ns()  - self.start) as f32 / 1000_000.0);
+			trace!(target: "perf", "{}: {:.2}ms", self.name, (time::precise_time_ns()  - self.start) as f32 / 1000_000.0);
 			self.stopped = true;
 		}
 	}
