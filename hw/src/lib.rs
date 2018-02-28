@@ -172,7 +172,6 @@ impl HardwareWalletManager {
 			.spawn(move || {
 				if let Err(e) = l.update_devices() {
 					debug!(target: "hw", "Ledger couldn't connect at startup, error: {}", e);
-					//debug!("Ledger could not connect at startup, error: {}", e);
 				}
 				loop {
 					usb_context_ledger.handle_events(Some(Duration::from_millis(500)))
