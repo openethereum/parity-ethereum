@@ -39,7 +39,7 @@ cache:
 test:rust:stable: &test
   stage: test
   script:
-    - scripts/gitlab-test.sh stable
+    - scripts/gitlab/test.sh stable
   tags:
     - rust-stable
 
@@ -49,34 +49,33 @@ test:rust:stable: &test
   only:
     - triggers
     - master
-    - gitlab
 
 test:rust:beta:
   <<: *optional_test
   script:
-    - scripts/gitlab-test.sh beta
+    - scripts/gitlab/test.sh beta
 
 test:rust:nightly:
   <<: *optional_test
   script:
-    - scripts/gitlab-test.sh nightly
+    - scripts/gitlab/test.sh nightly
 
 #test:rustfmt:
 #  <<: *optional_test
 #  script:
-#    - scripts/gitlab-test.sh rustfmt
+#    - scripts/gitlab/rustfmt.sh
 
 #test:clippy:
 #  <<: *optional_test
 #  script:
-#    - scripts/gitlab-test.sh clippy
+#    - scripts/gitlab/clippy.sh
 
 test:coverage:
   stage: test
   only:
     - master
   script:
-    - scripts/gitlab-test.sh test-coverage
+    - scripts/gitlab/coverage.sh
   tags:
     - kcov
   allow_failure: true
