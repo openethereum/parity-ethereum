@@ -331,7 +331,7 @@ impl Miner {
 		// Open block
 		let (mut open_block, original_work_hash) = {
 			let mut sealing = self.sealing.lock();
-			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.block().fields().header.hash());
+			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.block().header().hash());
 			let best_hash = chain_info.best_block_hash;
 
 			// check to see if last ClosedBlock in would_seals is actually same parent block.
@@ -340,7 +340,7 @@ impl Miner {
 			//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
 			//   otherwise, leave everything alone.
 			// otherwise, author a fresh block.
-			let mut open_block = match sealing.queue.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
+			let mut open_block = match sealing.queue.pop_if(|b| b.block().header().parent_hash() == &best_hash) {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
 					// add transactions to old_block
@@ -368,7 +368,7 @@ impl Miner {
 		let mut invalid_transactions = HashSet::new();
 		let mut not_allowed_transactions = HashSet::new();
 		// let mut transactions_to_penalize = HashSet::new();
-		let block_number = open_block.block().fields().header.number();
+		let block_number = open_block.block().header().number();
 
 		let mut tx_count = 0usize;
 		let mut skipped_transactions = 0usize;
@@ -588,11 +588,11 @@ impl Miner {
 	/// Prepares work which has to be done to seal.
 	fn prepare_work(&self, block: ClosedBlock, original_work_hash: Option<H256>) {
 		let (work, is_new) = {
-			let block_header = block.block().fields().header.clone();
+			let block_header = block.block().header().clone();
 			let block_hash = block_header.hash();
 
 			let mut sealing = self.sealing.lock();
-			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.block().fields().header.hash());
+			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.block().header().hash());
 
 			trace!(
 				target: "miner",
@@ -621,7 +621,7 @@ impl Miner {
 			trace!(
 				target: "miner",
 				"prepare_work: leaving (last={:?})",
-				sealing.queue.peek_last_ref().map(|b| b.block().fields().header.hash())
+				sealing.queue.peek_last_ref().map(|b| b.block().header().hash())
 			);
 			(work, is_new)
 		};
@@ -928,7 +928,7 @@ impl MinerService for Miner {
 
 		// refuse to seal the first block of the chain if it contains hard forks
 		// which should be on by default.
-		if block.block().fields().header.number() == 1 && self.engine.params().contains_bugfix_hard_fork() {
+		if block.block().header().number() == 1 && self.engine.params().contains_bugfix_hard_fork() {
 			warn!("Your chain specification contains one or more hard forks which are required to be \
 				on by default. Please remove these forks and start your chain again.");
 			return;

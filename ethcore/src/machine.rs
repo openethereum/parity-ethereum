@@ -20,7 +20,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::cmp;
 use std::sync::Arc;
 
-use block::ExecutedBlock;
+use block::{ExecutedBlock, IsBlock};
 use builtin::Builtin;
 use client::BlockChainClient;
 use error::Error;
@@ -28,7 +28,7 @@ use executive::Executive;
 use header::{BlockNumber, Header};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
-use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
+use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
 use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
 
@@ -135,7 +135,7 @@ impl EthereumMachine {
 			env_info
 		};
 
-		let mut state = block.fields_mut().state;
+		let mut state = block.state_mut();
 		let params = ActionParams {
 			code_address: contract_address.clone(),
 			address: contract_address.clone(),
@@ -163,12 +163,12 @@ impl EthereumMachine {
 	/// Push last known block hash to the state.
 	fn push_last_hash(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		let params = self.params();
-		if block.fields().header.number() == params.eip210_transition {
-			let state = block.fields_mut().state;
+		if block.header().number() == params.eip210_transition {
+			let state = block.state_mut();
 			state.init_code(&params.eip210_contract_address, params.eip210_contract_code.clone())?;
 		}
-		if block.fields().header.number() >= params.eip210_transition {
-			let parent_hash = block.fields().header.parent_hash().clone();
+		if block.header().number() >= params.eip210_transition {
+			let parent_hash = block.header().parent_hash().clone();
 			let _ = self.execute_as_system(
 				block,
 				params.eip210_contract_address,
@@ -185,8 +185,8 @@ impl EthereumMachine {
 		self.push_last_hash(block)?;
 
 		if let Some(ref ethash_params) = self.ethash_extensions {
-			if block.fields().header.number() == ethash_params.dao_hardfork_transition {
-				let state = block.fields_mut().state;
+			if block.header().number() == ethash_params.dao_hardfork_transition {
+				let state = block.state_mut();
 				for child in &ethash_params.dao_hardfork_accounts {
 					let beneficiary = &ethash_params.dao_hardfork_beneficiary;
 					state.balance(child)
@@ -426,11 +426,11 @@ impl<'a> ::parity_machine::LocalizedMachine<'a> for EthereumMachine {
 
 impl ::parity_machine::WithBalances for EthereumMachine {
 	fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Error> {
-		live.fields().state.balance(address).map_err(Into::into)
+		live.state().balance(address).map_err(Into::into)
 	}
 
 	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
-		live.fields_mut().state.add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
+		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
 	}
 
 	fn note_rewards(
@@ -439,21 +439,19 @@ impl ::parity_machine::WithBalances for EthereumMachine {
 		direct: &[(Address, U256)],
 		indirect: &[(Address, U256)],
 	) -> Result<(), Self::Error> {
-		use block::IsBlock;
+		if let Tracing::Enabled(ref mut traces) = *live.traces_mut() {
+			let mut tracer = ExecutiveTracer::default();
 
-		if !live.tracing_enabled() { return Ok(()) }
+			for &(address, amount) in direct {
+				tracer.trace_reward(address, amount, RewardType::Block);
+			}
 
-		let mut tracer = ExecutiveTracer::default();
+			for &(address, amount) in indirect {
+				tracer.trace_reward(address, amount, RewardType::Uncle);
+			}
 
-		for &(address, amount) in direct {
-			tracer.trace_reward(address, amount, RewardType::Block);
+			traces.push(tracer.drain().into());
 		}
-
-		for &(address, amount) in indirect {
-			tracer.trace_reward(address, amount, RewardType::Uncle);
-		}
-
-		live.fields_mut().push_traces(tracer);
 
 		Ok(())
 	}

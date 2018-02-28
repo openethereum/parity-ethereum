@@ -23,24 +23,28 @@ use super::{WalletInfo, TransactionInfo, KeyPath};
 
 use std::cmp::{min, max};
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::time::Duration;
+use std::thread;
 
 use ethereum_types::{U256, H256, Address};
 
 use ethkey::Signature;
 use hidapi;
+use libusb;
 use parking_lot::{Mutex, RwLock};
 use protobuf;
 use protobuf::{Message, ProtobufEnum};
 
 use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 
-const TREZOR_VID: u16 = 0x534c;
-const TREZOR_PIDS: [u16; 1] = [0x0001]; // Trezor v1, keeping this as an array to leave room for Trezor v2 which is in progress
+/// Trezor v1 vendor ID
+pub const TREZOR_VID: u16 = 0x534c;
+/// Trezor product IDs 
+pub const TREZOR_PIDS: [u16; 1] = [0x0001]; 
+
 const ETH_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003C, 0x80000000, 0, 0]; // m/44'/60'/0'/0/0
 const ETC_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003D, 0x80000000, 0, 0]; // m/44'/61'/0'/0/0
-
 
 /// Hardware wallet error.
 #[derive(Debug)]
@@ -56,7 +60,7 @@ pub enum Error {
 	/// The Message Type given in the trezor RPC call is not something we recognize
 	BadMessageType,
 	/// Trying to read from a closed device at the given path
-	ClosedDevice(String),
+	LockedDevice(String),
 }
 
 impl fmt::Display for Error {
@@ -67,7 +71,7 @@ impl fmt::Display for Error {
 			Error::KeyNotFound => write!(f, "Key not found"),
 			Error::UserCancel => write!(f, "Operation has been cancelled"),
 			Error::BadMessageType => write!(f, "Bad Message Type in RPC call"),
-			Error::ClosedDevice(ref s) => write!(f, "Device is closed, needs PIN to perform operations: {}", s),
+			Error::LockedDevice(ref s) => write!(f, "Device is locked, needs PIN to perform operations: {}", s),
 		}
 	}
 }
@@ -84,11 +88,11 @@ impl From<protobuf::ProtobufError> for Error {
 	}
 }
 
-/// Ledger device manager.
+/// Ledger device manager
 pub struct Manager {
 	usb: Arc<Mutex<hidapi::HidApi>>,
 	devices: RwLock<Vec<Device>>,
-	closed_devices: RwLock<Vec<String>>,
+	locked_devices: RwLock<Vec<String>>,
 	key_path: RwLock<KeyPath>,
 }
 
@@ -110,7 +114,7 @@ impl Manager {
 		Manager {
 			usb: hidapi,
 			devices: RwLock::new(Vec::new()),
-			closed_devices: RwLock::new(Vec::new()),
+			locked_devices: RwLock::new(Vec::new()),
 			key_path: RwLock::new(KeyPath::Ethereum),
 		}
 	}
@@ -121,7 +125,7 @@ impl Manager {
 		usb.refresh_devices();
 		let devices = usb.devices();
 		let mut new_devices = Vec::new();
-		let mut closed_devices = Vec::new();
+		let mut locked_devices = Vec::new();
 		let mut error = None;
 		for usb_device in devices {
 			let is_trezor = usb_device.vendor_id == TREZOR_VID;
@@ -140,7 +144,7 @@ impl Manager {
 			}
 			match self.read_device_info(&usb, &usb_device) {
 				Ok(device) => new_devices.push(device),
-				Err(Error::ClosedDevice(path)) => closed_devices.push(path.to_string()),
+				Err(Error::LockedDevice(path)) => locked_devices.push(path.to_string()),
 				Err(e) => {
 					warn!("Error reading device: {:?}", e);
 					error = Some(e);
@@ -148,9 +152,9 @@ impl Manager {
 			}
 		}
 		let count = new_devices.len();
-		trace!("Got devices: {:?}, closed: {:?}", new_devices, closed_devices);
+		trace!("Got devices: {:?}, closed: {:?}", new_devices, locked_devices);
 		*self.devices.write() = new_devices;
-		*self.closed_devices.write() = closed_devices;
+		*self.locked_devices.write() = locked_devices;
 		match error {
 			Some(e) => Err(e),
 			None => Ok(count),
@@ -174,7 +178,7 @@ impl Manager {
 					},
 				})
 			}
-			Ok(None) => Err(Error::ClosedDevice(dev_info.path.clone())),
+			Ok(None) => Err(Error::LockedDevice(dev_info.path.clone())),
 			Err(e) => Err(e),
 		}
 	}
@@ -190,7 +194,7 @@ impl Manager {
 	}
 
 	pub fn list_locked_devices(&self) -> Vec<String> {
-		(*self.closed_devices.read()).clone()
+		(*self.locked_devices.read()).clone()
 	}
 
 	/// Get wallet info.
@@ -201,16 +205,7 @@ impl Manager {
 	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
 		where F: Fn() -> Result<R, &'static str>
 	{
-		let mut err = Error::KeyNotFound;
-		// Try to open device a few times.
-		for _ in 0..10 {
-			match f() {
-				Ok(handle) => return Ok(handle),
-				Err(e) => err = From::from(e),
-			}
-			::std::thread::sleep(Duration::from_millis(200));
-		}
-		Err(err)
+		f().map_err(Into::into)
 	}
 
 	pub fn pin_matrix_ack(&self, device_path: &str, pin: &str) -> Result<bool, Error> {
@@ -404,6 +399,42 @@ impl Manager {
 			data.extend_from_slice(&buf[1..]);
 		}
 		Ok((msg_type, data[..msg_size as usize].to_vec()))
+	}
+}
+
+/// Trezor event handler
+/// A separate thread is handeling incoming events
+pub struct EventHandler {
+	trezor: Weak<Manager>,
+}
+
+impl EventHandler {
+	// Trezor event handler constructor
+	pub fn new(trezor: Weak<Manager>) -> Self {
+		Self { trezor: trezor }
+	}
+}
+
+impl libusb::Hotplug for EventHandler {
+	fn device_arrived(&mut self, _device: libusb::Device) {
+		debug!(target: "hw", "Trezor V1 arrived");
+		if let Some(trezor) = self.trezor.upgrade() {
+			// Wait for the device to boot up
+			thread::sleep(Duration::from_millis(1000));
+			if let Err(e) = trezor.update_devices() {
+				debug!(target: "hw", "Trezor V1 connect error: {:?}", e);
+			}
+
+		}
+	}
+
+	fn device_left(&mut self, _device: libusb::Device) {
+		debug!(target: "hw", "Trezor V1 left");
+		if let Some(trezor) = self.trezor.upgrade() {
+			if let Err(e) = trezor.update_devices() {
+				debug!(target: "hw", "Trezor V1 disconnect error: {:?}", e);
+			}
+		}
 	}
 }
 
