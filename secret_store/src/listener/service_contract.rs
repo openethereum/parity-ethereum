@@ -1,3 +1,5 @@
+// TODO: BlockId::Latest - wrong
+
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -157,7 +159,7 @@ impl OnChainServiceContract {
 	/// Send transaction to the service contract.
 	fn send_contract_transaction<C, P>(&self, server_key_id: &ServerKeyId, check: C, prepare_tx: P) -> Result<(), String>
 		where C: FnOnce(&Client, &Address, &service::Service, &ServerKeyId, &Address) -> bool,
-			P: FnOnce(&service::Service) -> Result<Bytes, String> {
+			P: FnOnce(&Client, &Address, &service::Service) -> Result<Bytes, String> {
 		// only publish if contract address is set && client is online
 		let data = self.data.read();
 		if data.contract_address == Default::default() {
@@ -180,7 +182,7 @@ impl OnChainServiceContract {
 		}
 
 		// prepare transaction data
-		let transaction_data = prepare_tx(&data.contract)?;
+		let transaction_data = prepare_tx(&*client, &contract_address, &data.contract)?;
 
 		// send transaction
 		client.transact_contract(
@@ -351,37 +353,37 @@ return Box::new(::std::iter::empty()); // TODO: remove me
 	}
 
 	fn publish_generated_server_key(&self, server_key_id: &ServerKeyId, server_key: Public) -> Result<(), String> {
-		self.send_contract_transaction(server_key_id, ServerKeyGenerationService::is_confirmed, |service|
+		self.send_contract_transaction(server_key_id, ServerKeyGenerationService::is_confirmed, |_, _, service|
 			Ok(ServerKeyGenerationService::prepare_pubish_tx_data(service, server_key_id, &server_key))
 		)
 	}
 
 	fn publish_server_key_generation_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(server_key_id, ServerKeyGenerationService::is_confirmed, |service|
+		self.send_contract_transaction(server_key_id, ServerKeyGenerationService::is_confirmed, |_, _, service|
 			Ok(ServerKeyGenerationService::prepare_error_tx_data(service, server_key_id))
 		)
 	}
 
 	fn publish_retrieved_server_key(&self, server_key_id: &ServerKeyId, server_key: Public, threshold: usize) -> Result<(), String> {
-		self.send_contract_transaction(server_key_id, ServerKeyRetrievalService::is_confirmed, |service|
+		self.send_contract_transaction(server_key_id, ServerKeyRetrievalService::is_confirmed, |_, _, service|
 			Ok(ServerKeyRetrievalService::prepare_pubish_tx_data(service, server_key_id, server_key, threshold))
 		)
 	}
 
 	fn publish_server_key_retrieval_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(server_key_id, ServerKeyRetrievalService::is_confirmed, |service|
+		self.send_contract_transaction(server_key_id, ServerKeyRetrievalService::is_confirmed, |_, _, service|
 			Ok(ServerKeyRetrievalService::prepare_error_tx_data(service, server_key_id))
 		)
 	}
 
 	fn publish_stored_document_key(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(server_key_id, DocumentKeyStoreService::is_confirmed, |service|
+		self.send_contract_transaction(server_key_id, DocumentKeyStoreService::is_confirmed, |_, _, service|
 			Ok(DocumentKeyStoreService::prepare_pubish_tx_data(service, server_key_id))
 		)
 	}
 
 	fn publish_document_key_store_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(server_key_id, DocumentKeyStoreService::is_confirmed, |service|
+		self.send_contract_transaction(server_key_id, DocumentKeyStoreService::is_confirmed, |_, _, service|
 			Ok(DocumentKeyStoreService::prepare_error_tx_data(service, server_key_id))
 		)
 	}
@@ -389,22 +391,22 @@ return Box::new(::std::iter::empty()); // TODO: remove me
 	fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, threshold: usize) -> Result<(), String> {
 		self.send_contract_transaction(server_key_id, |client, contract_address, contract, server_key_id, authority|
 			DocumentKeyShadowRetrievalService::is_confirmed(client, contract_address, contract, server_key_id, requester, authority),
-		|service|
+		|_, _, service|
 			Ok(DocumentKeyShadowRetrievalService::prepare_pubish_common_tx_data(service, server_key_id, requester, common_point, threshold))
 		)
 	}
 
 	fn publish_retrieved_document_key_personal(&self, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Result<(), String> {
 		self.send_contract_transaction(server_key_id, |_, _, _, _, _| true,
-		move |service|
-			Ok(DocumentKeyShadowRetrievalService::prepare_pubish_personal_tx_data(service, server_key_id, requester, participants, decrypted_secret, shadow))
+		move |client, address, service|
+			DocumentKeyShadowRetrievalService::prepare_pubish_personal_tx_data(client, address, service, server_key_id, requester, participants, decrypted_secret, shadow)
 		)
 	}
 
 	fn publish_document_key_retrieval_error(&self, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String> {
 		self.send_contract_transaction(server_key_id, |client, contract_address, contract, server_key_id, authority|
 			DocumentKeyShadowRetrievalService::is_confirmed(client, contract_address, contract, server_key_id, requester, authority),
-		|service|
+		|_, _, service|
 			Ok(DocumentKeyShadowRetrievalService::prepare_error_tx_data(service, server_key_id, requester))
 		)
 	}
@@ -570,11 +572,16 @@ impl DocumentKeyShadowRetrievalService {
 	}
 
 	/// Prepare publish personal key transaction data.
-	pub fn prepare_pubish_personal_tx_data(contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Bytes {
-		let participants: Vec<_> = participants.iter().cloned().collect();
-		contract.functions()
+	pub fn prepare_pubish_personal_tx_data(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Result<Bytes, String> {
+		let mut participants_mask = U256::default();
+		for participant in participants {
+			let participant_index = Self::map_authority_address(client, contract_address, contract, participant.clone())
+				.map_err(|e| format!("Error searching for {} participant: {}", participant, e))?;
+			participants_mask = participants_mask | (U256::one() << participant_index.into());
+		}
+		Ok(contract.functions()
 			.document_key_personal_retrieved()
-			.input(*server_key_id, *requester, participants, decrypted_secret.to_vec(), shadow)
+			.input(*server_key_id, *requester, participants_mask, decrypted_secret.to_vec(), shadow))
 	}
 
 	/// Prepare error transaction data.
@@ -582,6 +589,21 @@ impl DocumentKeyShadowRetrievalService {
 		contract.functions()
 			.document_key_shadow_retrieval_error()
 			.input(*server_key_id, *requester)
+	}
+
+	/// Map from authority address to authority index.
+	fn map_authority_address(client: &Client, contract_address: &Address, contract: &service::Service, authority: Address) -> Result<u8, String> {
+		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
+		contract.functions()
+			.require_authority()
+			.call(authority, &do_call)
+			.map_err(|e| format!("{}", e))
+			.and_then(|index| if index > ::std::u8::MAX.into() {
+				Err(format!("authority index is too big: {}", index))
+			} else {
+				let index: u32 = index.into();
+				Ok(index as u8)
+			})
 	}
 }
 
