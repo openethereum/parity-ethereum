@@ -42,6 +42,39 @@ use std::thread;
 use std::time::Duration;
 use ethereum_types::U256;
 
+#[derive(Debug)]
+pub struct Device {
+	path: String,
+	info: WalletInfo,
+}
+
+pub trait Foo {
+	/// Error
+	type Error;
+
+	/// Transaction format
+	type Transaction;
+
+	/// USB Device Class
+	const USB_DEVICE_CLASS_DEVICE: u8 = 0;
+
+	/// Sign transaction data with wallet managing `address`.
+	fn sign_transaction(&self, address: &Address, transaction: &Self::Transaction) -> Result<Signature, Self::Error>;
+
+	/// Select key derivation path for a chain.
+	// TODO: add return value
+	fn set_key_path(&self, key_path: KeyPath);
+
+	/// Re-populate device list
+	fn update_devices(&self) -> Result<usize, Self::Error>;
+
+	/// Read device info
+	fn read_device_info(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Self::Error>;
+
+	// /// Open path to the HID API
+	// fn open_path<R, F>(&self, f: F) -> Result<R, Error>;
+}
+
 const USB_DEVICE_CLASS_DEVICE: u8 = 0;
 
 /// Hardware wallet error.

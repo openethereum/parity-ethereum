@@ -19,7 +19,7 @@
 //! and https://github.com/trezor/trezor-common/blob/master/protob/protocol.md
 //! for protocol details.
 
-use super::{WalletInfo, TransactionInfo, KeyPath};
+use super::{WalletInfo, TransactionInfo, KeyPath, Foo, Device};
 
 use std::cmp::{min, max};
 use std::fmt;
@@ -94,31 +94,52 @@ pub struct Manager {
 	key_path: RwLock<KeyPath>,
 }
 
-#[derive(Debug)]
-struct Device {
-	path: String,
-	info: WalletInfo,
-}
+impl Foo for Manager {
+	type Error = Error;
+	type Transaction = TransactionInfo;
 
-/// HID Version used for the Trezor device
-enum HidVersion {
-	V1,
-	V2,
-}
 
-impl Manager {
-	/// Create a new instance.
-	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>) -> Manager {
-		Manager {
-			usb: hidapi,
-			devices: RwLock::new(Vec::new()),
-			locked_devices: RwLock::new(Vec::new()),
-			key_path: RwLock::new(KeyPath::Ethereum),
+	fn sign_transaction(&self, address: &Address, t_info: &Self::Transaction) ->
+		Result<Signature, Error> {
+		let usb = self.usb.lock();
+		let devices = self.devices.read();
+		let device = devices.iter().find(|d| &d.info.address == address).ok_or(Error::KeyNotFound)?;
+		let handle = self.open_path(|| usb.open_path(&device.path))?;
+		let msg_type = MessageType::MessageType_EthereumSignTx;
+		let mut message = EthereumSignTx::new();
+		match *self.key_path.read() {
+			KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
+			KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
 		}
+		message.set_nonce(self.u256_to_be_vec(&t_info.nonce));
+		message.set_gas_limit(self.u256_to_be_vec(&t_info.gas_limit));
+		message.set_gas_price(self.u256_to_be_vec(&t_info.gas_price));
+		message.set_value(self.u256_to_be_vec(&t_info.value));
+
+		match t_info.to {
+			Some(addr) => {
+				message.set_to(addr.to_vec())
+			}
+			None => (),
+		}
+		let first_chunk_length = min(t_info.data.len(), 1024);
+		let chunk = &t_info.data[0..first_chunk_length];
+		message.set_data_initial_chunk(chunk.to_vec());
+		message.set_data_length(t_info.data.len() as u32);
+		if let Some(c_id) = t_info.chain_id {
+			message.set_chain_id(c_id as u32);
+		}
+
+		self.send_device_message(&handle, &msg_type, &message)?;
+
+		self.signing_loop(&handle, &t_info.chain_id, &t_info.data[first_chunk_length..])
 	}
 
-	/// Re-populate device list
-	pub fn update_devices(&self) -> Result<usize, Error> {
+	fn set_key_path(&self, key_path: KeyPath) {
+		*self.key_path.write() = key_path;
+	}
+
+	fn update_devices(&self) -> Result<usize, Error> {
 		let mut usb = self.usb.lock();
 		usb.refresh_devices();
 		let devices = usb.devices();
@@ -180,10 +201,46 @@ impl Manager {
 			Err(e) => Err(e),
 		}
 	}
+}
 
-	/// Select key derivation path for a known chain.
-	pub fn set_key_path(&self, key_path: KeyPath) {
-		*self.key_path.write() = key_path;
+
+/// HID Version used for the Trezor device
+enum HidVersion {
+	V1,
+	V2,
+}
+
+impl Manager {
+	/// Create a new instance.
+	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>) -> Manager {
+		Manager {
+			usb: hidapi,
+			devices: RwLock::new(Vec::new()),
+			locked_devices: RwLock::new(Vec::new()),
+			key_path: RwLock::new(KeyPath::Ethereum),
+		}
+	}
+
+	fn read_device_info(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Error> {
+		let handle = self.open_path(|| usb.open_path(&dev_info.path))?;
+		let manufacturer = dev_info.manufacturer_string.clone().unwrap_or("Unknown".to_owned());
+		let name = dev_info.product_string.clone().unwrap_or("Unknown".to_owned());
+		let serial = dev_info.serial_number.clone().unwrap_or("Unknown".to_owned());
+		match self.get_address(&handle) {
+			Ok(Some(addr)) => {
+				Ok(Device {
+					path: dev_info.path.clone(),
+					info: WalletInfo {
+						name: name,
+						manufacturer: manufacturer,
+						serial: serial,
+						address: addr,
+					},
+				})
+			}
+			Ok(None) => Err(Error::LockedDevice(dev_info.path.clone())),
+			Err(e) => Err(e),
+		}
 	}
 
 	/// List connected wallets. This only returns wallets that are ready to be used.

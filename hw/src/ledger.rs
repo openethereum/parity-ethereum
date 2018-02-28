@@ -29,7 +29,7 @@ use hidapi;
 use libusb;
 use parking_lot::{Mutex, RwLock};
 
-use super::{WalletInfo, KeyPath};
+use super::{WalletInfo, KeyPath, Device};
 
 /// Ledger vendor ID
 pub const LEDGER_VID: u16 = 0x2c97;
@@ -98,12 +98,6 @@ pub struct Manager {
 	usb: Arc<Mutex<hidapi::HidApi>>,
 	devices: RwLock<Vec<Device>>,
 	key_path: RwLock<KeyPath>,
-}
-
-#[derive(Debug)]
-struct Device {
-	path: String,
-	info: WalletInfo,
 }
 
 impl Manager {
@@ -364,6 +358,9 @@ fn try_connect_polling(ledger: Arc<Manager>, timeout: Duration) -> bool {
 	}
 	false
 }
+
+
+
 
 /// Ledger event handler
 /// A seperate thread is hanedling incoming events
