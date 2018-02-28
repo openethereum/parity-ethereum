@@ -123,6 +123,30 @@ pub struct EthashParams {
 	/// EXPIP-2 duration limit
 	#[serde(rename="expip2DurationLimit")]
 	pub expip2_duration_limit: Option<Uint>,
+
+	/// Callisto transition block
+	#[serde(rename="callistoTransition")]
+	pub callisto_transition: Option<Uint>,
+
+	/// Callisto Miner reward
+	#[serde(rename="callistoMinerReward")]
+	pub callisto_miner_reward: Option<Uint>,
+
+	/// Callisto Treasury Address
+	#[serde(rename="callistoTreasuryAddress")]
+	pub callisto_treasury_address: Option<Address>,
+
+	/// Callisto Treasury reward
+	#[serde(rename="callistoTreasuryReward")]
+	pub callisto_treasury_reward: Option<Uint>,
+
+	/// Callisto Stake Address
+	#[serde(rename="callistoStakeAddress")]
+	pub callisto_stake_address: Option<Address>,
+
+	/// Callisto Stake reward
+	#[serde(rename="callistoStakeReward")]
+	pub callisto_stake_reward: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
@@ -233,6 +257,12 @@ mod tests {
 				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				callisto_transition: None,
+				callisto_miner_reward: None,
+				callisto_treasury_address: None,
+				callisto_treasury_reward: None,
+				callisto_stake_address: None,
+				callisto_stake_reward: None,
 			}
 		});
 	}
@@ -277,6 +307,12 @@ mod tests {
 				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				callisto_transition: None,
+				callisto_miner_reward: None,
+				callisto_treasury_address: None,
+				callisto_treasury_reward: None,
+				callisto_stake_address: None,
+				callisto_stake_reward: None,
 			}
 		});
 	}
