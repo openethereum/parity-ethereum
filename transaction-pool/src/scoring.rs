@@ -69,7 +69,7 @@ pub enum Change {
 /// Implementation notes:
 /// - Returned `Score`s should match ordering of `compare` method.
 /// - `compare` will be called only within a context of transactions from the same sender.
-/// - `choose` will be called only if `compare` returns `Ordering::Equal`
+/// - `choose` may be called even if `compare` returns `Ordering::Equal`
 /// - `should_replace` is used to decide if new transaction should push out an old transaction already in the queue.
 /// - `Score`s and `compare` should align with `Ready` implementation.
 ///

@@ -29,6 +29,9 @@ pub mod ready;
 pub mod scoring;
 pub mod verifier;
 
+#[cfg(test)]
+mod tests;
+
 pub use self::queue::{TransactionQueue, Status as QueueStatus};
 pub use self::txpool::{VerifiedTransaction as PoolVerifiedTransaction, Options};
 

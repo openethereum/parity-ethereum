@@ -116,7 +116,7 @@ impl Transaction {
 
 impl HeapSizeOf for Transaction {
 	fn heap_size_of_children(&self) -> usize {
-		self.data.heap_size_of_children()
+		self.data.len()
 	}
 }
 

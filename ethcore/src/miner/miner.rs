@@ -385,8 +385,6 @@ impl Miner {
 			client.clone(),
 			chain_info.best_block_number,
 			chain_info.best_block_timestamp,
-			// TODO [ToDr] Take only part?
-			|transactions| transactions.collect(),
 			// nonce_cap,
 		);
 
@@ -801,7 +799,6 @@ impl MinerService for Miner {
 				client,
 				chain_info.best_block_number,
 				chain_info.best_block_timestamp,
-				|transactions| transactions.collect(),
 			)
 		};
 

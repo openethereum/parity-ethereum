@@ -71,6 +71,7 @@ pub struct TransactionQueue {
 	insertion_id: Arc<AtomicUsize>,
 	pool: RwLock<Pool>,
 	options: RwLock<verifier::Options>,
+	cached_pending: RwLock<Option<(u64, Vec<Arc<pool::VerifiedTransaction>>)>>,
 }
 
 impl TransactionQueue {
@@ -80,6 +81,7 @@ impl TransactionQueue {
 			insertion_id: Default::default(),
 			pool: RwLock::new(txpool::Pool::new(Default::default(), scoring::GasPrice, limits)),
 			options: RwLock::new(verification_options),
+			cached_pending: RwLock::new(None),
 		}
 	}
 
@@ -104,7 +106,7 @@ impl TransactionQueue {
 		let options = self.options.read().clone();
 
 		let verifier = verifier::Verifier::new(client, options, self.insertion_id.clone());
-		transactions
+		let results = transactions
 			.into_par_iter()
 			.map(|transaction| verifier.verify_transaction(transaction))
 			.map(|result| match result {
@@ -114,14 +116,52 @@ impl TransactionQueue {
 				},
 				Err(err) => Err(err),
 			})
-			.collect()
+			.collect::<Vec<_>>();
+
+		if results.iter().any(|r| r.is_ok()) {
+			*self.cached_pending.write() = None;
+		}
+		results
 	}
 
-	/// Returns a queue guard that allows to get an iterator for pending transactions.
+	pub fn pending<C>(
+		&self,
+		client: C,
+		block_number: u64,
+		current_timestamp: u64,
+	) -> Vec<Arc<pool::VerifiedTransaction>> where
+		C: client::Client,
+	{
+		// TODO [ToDr] Check if timestamp is within limits.
+		let is_valid = |bn| bn == block_number;
+		{
+			let cached_pending = self.cached_pending.read();
+			match *cached_pending {
+				Some((bn, ref pending)) if is_valid(bn) => {
+					return pending.clone()
+				},
+				_ => {},
+			}
+		}
+
+		let mut cached_pending = self.cached_pending.write();
+		match *cached_pending {
+			Some((bn, ref pending)) if is_valid(bn) => {
+				return pending.clone()
+			},
+			_ => {},
+		}
+
+		let pending: Vec<_> = self.collect_pending(client, block_number, current_timestamp, |i| i.collect());
+		*cached_pending = Some((block_number, pending.clone()));
+		pending
+	}
+
+	/// Collect pending transactions.
 	///
-	/// NOTE: During pending iteration importing to the queue is not allowed.
-	/// Make sure to drop the guard in reasonable time.
-	pub fn pending<C, F, T>(
+	/// NOTE This is re-computing the pending set and it might be expensive to do so.
+	/// Prefer using cached pending set using `#pending` method.
+	pub fn collect_pending<C, F, T>(
 		&self,
 		client: C,
 		block_number: u64,

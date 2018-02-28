@@ -56,6 +56,10 @@ impl txpool::Scoring<VerifiedTransaction> for GasPrice {
 	}
 
 	fn choose(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> txpool::scoring::Choice {
+		if old.transaction.nonce != new.transaction.nonce {
+			return txpool::scoring::Choice::InsertNew
+		}
+
 		let old_gp = old.transaction.gas_price;
 		let new_gp = new.transaction.gas_price;
 
