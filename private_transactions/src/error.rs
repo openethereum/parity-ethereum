@@ -14,144 +14,177 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
 use ethereum_types::Address;
+use rlp::DecoderError;
 use trie::TrieError;
 use ethcore::account_provider::SignError;
 use ethcore::error::ExecutionError;
 use transaction::Error as TransactionError;
 use ethkey::Error as KeyError;
 
-#[derive(Debug)]
-/// Errors concerning private transaction processing.
-pub enum PrivateTransactionError {
-	/// Encryption error.
-	Encrypt(String),
-	/// Decryption error.
-	Decrypt(String),
-	/// Contract does not exist or is unavailable.
-	NotAuthorised(Address),
-	/// Transaction creates more than one contract.
-	TooManyContracts,
-	/// Contract call error.
-	Call(String),
-	/// State is not available.
-	StatePruned,
-	/// State is incorrect.
-	StateIncorrect,
-	/// Wrong private transaction type.
-	BadTransactonType,
-	/// Contract does not exist or was not created.
-	ContractDoesNotExist,
-	/// Reference to the client is corrupted.
-	ClientIsMalformed,
-	/// Queue of private transactions is full.
-	QueueIsFull,
-	/// The transaction already exists in queue of private transactions.
-	PrivateTransactionAlreadyImported,
-	/// The information about private transaction is not found in the store
-	PrivateTransactionNotFound,
-	/// Account for signing public transactions not set
-	SignerAccountNotSet,
-	/// Account for signing requests to key server not set
-	KeyServerAccountNotSet,
-	/// Encryption key is not found on key server
-	EncryptionKeyNotFound(Address),
-	/// Key server URL is not set
-	KeyServerNotSet,
-	/// RLP decoder error.
-	Decode(::rlp::DecoderError),
-	/// Error concerning TrieDBs
-	Trie(TrieError),
-	/// Account provider signing errors
-	Sign(SignError),
-	/// General signing errors
-	Key(KeyError),
-	/// VM execution errors
-	Execution(ExecutionError),
-	/// standard io errors
-	StdIo(::std::io::Error),
-	/// Errors of transactions processing
-	Transaction(TransactionError),
-}
+error_chain! {
+	foreign_links {
+		Io(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
+		Decoder(DecoderError) #[doc = "RLP decoding error."];
+		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
+	}
 
-impl fmt::Display for PrivateTransactionError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		use self::PrivateTransactionError::*;
-		match *self {
-			Encrypt(ref msg) => f.write_fmt(format_args!("Encryption error. ({})", msg)),
-			Decrypt(ref msg) => f.write_fmt(format_args!("Decryption error. ({})", msg)),
-			NotAuthorised(address) => f.write_fmt(format_args!("Private trsnaction execution is not authorised for {}.", address)),
-			TooManyContracts => f.write_str("Private transaction created too many contracts."),
-			Call(ref msg) => f.write_fmt(format_args!("Contract call error. ({})", msg)),
-			StatePruned => f.write_str("State is not available."),
-			StateIncorrect => f.write_str("State is incorrect."),
-			BadTransactonType => f.write_str("Bad transaction type."),
-			ContractDoesNotExist => f.write_str("Private contract does not exist."),
-			ClientIsMalformed => f.write_str("Client is not registered."),
-			QueueIsFull => f.write_str("Private transactions queue is full."),
-			PrivateTransactionAlreadyImported => f.write_str("Private transactions already imported."),
-			PrivateTransactionNotFound => f.write_str("Private transactions is not found in the store."),
-			SignerAccountNotSet => f.write_str("Account for signing public transactions not set."),
-			KeyServerAccountNotSet => f.write_str("Account for signing requets to key server not set."),
-			EncryptionKeyNotFound(address) => f.write_fmt(format_args!("Encryption key is not found on key server for {}.", address)),
-			KeyServerNotSet => f.write_str("URL for key server is not set."),
-			Decode(ref err) => err.fmt(f),
-			Trie(ref err) => err.fmt(f),
-			Sign(ref err) => err.fmt(f),
-			Key(ref err) => err.fmt(f),
-			Execution(ref err) => err.fmt(f),
-			StdIo(ref err) => err.fmt(f),
-			Transaction(ref err) => err.fmt(f),
+	errors {
+		#[doc = "Encryption error."]
+		Encrypt(err: String) {
+			description("Encryption error"),
+			display("Encryption error. ({})", err),
+		}
+
+		#[doc = "Decryption error."]
+		Decrypt(err: String) {
+			description("Decryption error"),
+			display("Decryption error. ({})", err),
+		}
+
+		#[doc = "Address not authorized."]
+		NotAuthorised(address: Address) {
+			description("Address not authorized"),
+			display("Private transaction execution is not authorised for {}", address),
+		}
+
+		#[doc = "Transaction creates more than one contract."]
+		TooManyContracts {
+			description("Transaction creates more than one contract."),
+			display("Private transaction created too many contracts"),
+		}
+
+		#[doc = "Contract call error."]
+		Call(err: String) {
+			description("Contract call error."),
+			display("Contract call error. ({})", err),
+		}
+
+		#[doc = "State is not available."]
+		StatePruned {
+			description("State is not available."),
+			display("State is not available"),
+		}
+
+		#[doc = "State is incorrect."]
+		StateIncorrect {
+			description("State is incorrect."),
+			display("State is incorrect"),
+		}
+
+		#[doc = "Wrong private transaction type."]
+		BadTransactonType {
+			description("Wrong private transaction type."),
+			display("Wrong private transaction type"),
+		}
+
+		#[doc = "Contract does not exist or was not created."]
+		ContractDoesNotExist {
+			description("Contract does not exist or was not created."),
+			display("Contract does not exist or was not created"),
+		}
+
+		#[doc = "Reference to the client is corrupted."]
+		ClientIsMalformed {
+			description("Reference to the client is corrupted."),
+			display("Reference to the client is corrupted"),
+		}
+
+		#[doc = "Queue of private transactions for verification is full."]
+		QueueIsFull {
+			description("Queue of private transactions for verification is full."),
+			display("Queue of private transactions for verification is full"),
+		}
+
+		#[doc = "The transaction already exists in queue of private transactions."]
+		PrivateTransactionAlreadyImported {
+			description("The transaction already exists in queue of private transactions."),
+			display("The transaction already exists in queue of private transactions."),
+		}
+
+		#[doc = "The information about private transaction is not found in the store."]
+		PrivateTransactionNotFound {
+			description("The information about private transaction is not found in the store."),
+			display("The information about private transaction is not found in the store."),
+		}
+
+		#[doc = "Account for signing public transactions not set."]
+		SignerAccountNotSet {
+			description("Account for signing public transactions not set."),
+			display("Account for signing public transactions not set."),
+		}
+
+		#[doc = "Account for signing requests to key server not set."]
+		KeyServerAccountNotSet {
+			description("Account for signing requests to key server not set."),
+			display("Account for signing requests to key server not set."),
+		}
+
+		#[doc = "Encryption key is not found on key server."]
+		EncryptionKeyNotFound(address: Address) {
+			description("Encryption key is not found on key server"),
+			display("Encryption key is not found on key server for {}", address),
+		}
+
+		#[doc = "Key server URL is not set."]
+		KeyServerNotSet {
+			description("Key server URL is not set."),
+			display("Key server URL is not set."),
+		}
+
+		#[doc = "VM execution error."]
+		Execution(err: ExecutionError) {
+			description("VM execution error."),
+			display("VM execution error {}", err),
+		}
+
+		#[doc = "General signing error."]
+		Key(err: KeyError) {
+			description("General signing error."),
+			display("General signing error {}", err),
+		}
+
+		#[doc = "Account provider signing error."]
+		Sign(err: SignError) {
+			description("Account provider signing error."),
+			display("Account provider signing error {}", err),
+		}
+
+		#[doc = "Error of transactions processing."]
+		Transaction(err: TransactionError) {
+			description("Error of transactions processing."),
+			display("Error of transactions processing {}", err),
 		}
 	}
 }
 
-impl From<::rlp::DecoderError> for PrivateTransactionError {
-	fn from(err: ::rlp::DecoderError) -> PrivateTransactionError {
-		PrivateTransactionError::Decode(err)
+impl From<SignError> for Error {
+	fn from(err: SignError) -> Self {
+		ErrorKind::Sign(err).into()
 	}
 }
 
-impl From<TrieError> for PrivateTransactionError {
-	fn from(err: TrieError) -> PrivateTransactionError {
-		PrivateTransactionError::Trie(err)
+impl From<KeyError> for Error {
+	fn from(err: KeyError) -> Self {
+		ErrorKind::Key(err).into()
 	}
 }
 
-impl From<SignError> for PrivateTransactionError {
-	fn from(err: SignError) -> PrivateTransactionError {
-		PrivateTransactionError::Sign(err)
+impl From<ExecutionError> for Error {
+	fn from(err: ExecutionError) -> Self {
+		ErrorKind::Execution(err).into()
 	}
 }
 
-impl From<KeyError> for PrivateTransactionError {
-	fn from(err: KeyError) -> PrivateTransactionError {
-		PrivateTransactionError::Key(err)
+impl From<TransactionError> for Error {
+	fn from(err: TransactionError) -> Self {
+		ErrorKind::Transaction(err).into()
 	}
 }
 
-impl From<ExecutionError> for PrivateTransactionError {
-	fn from(err: ExecutionError) -> PrivateTransactionError {
-		PrivateTransactionError::Execution(err)
-	}
-}
-
-impl From<::std::io::Error> for PrivateTransactionError {
-	fn from(err: ::std::io::Error) -> PrivateTransactionError {
-		PrivateTransactionError::StdIo(err)
-	}
-}
-
-impl From<TransactionError> for PrivateTransactionError {
-	fn from(err: TransactionError) -> PrivateTransactionError {
-		PrivateTransactionError::Transaction(err)
-	}
-}
-
-impl<E> From<Box<E>> for PrivateTransactionError where PrivateTransactionError: From<E> {
-	fn from(err: Box<E>) -> PrivateTransactionError {
-		PrivateTransactionError::from(*err)
+impl<E> From<Box<E>> for Error where Error: From<E> {
+	fn from(err: Box<E>) -> Error {
+		Error::from(*err)
 	}
 }
 

@@ -31,7 +31,7 @@ use ethcrypto;
 use futures::Future;
 use fetch::{Fetch, Client as FetchClient};
 use bytes::{Bytes, ToPretty};
-use error::PrivateTransactionError;
+use error::{Error, ErrorKind};
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
@@ -48,7 +48,7 @@ pub trait Encryptor: Send + Sync + 'static {
 		accounts: Arc<AccountProvider>,
 		initialisation_vector: &H128,
 		plain_data: &[u8]
-	) -> Result<Bytes, PrivateTransactionError>;
+	) -> Result<Bytes, Error>;
 
 	/// Decrypt data using previously generated contract key.
 	fn decrypt(
@@ -56,7 +56,7 @@ pub trait Encryptor: Send + Sync + 'static {
 		contract_address: &Address,
 		accounts: Arc<AccountProvider>,
 		cypher: &[u8]
-	) -> Result<Bytes, PrivateTransactionError>;
+	) -> Result<Bytes, Error>;
 }
 
 /// Configurtion for key server encryptor
@@ -86,11 +86,11 @@ pub struct SecretStoreEncryptor {
 
 impl SecretStoreEncryptor {
 	/// Create new encryptor
-	pub fn new(config: EncryptorConfig) -> Result<Self, PrivateTransactionError> {
+	pub fn new(config: EncryptorConfig) -> Result<Self, Error> {
 		Ok(SecretStoreEncryptor {
 			config: config,
 			client: FetchClient::new()
-				.map_err(|e| PrivateTransactionError::Encrypt(format!("{}", e)))?,
+				.map_err(|e| ErrorKind::Encrypt(format!("{}", e)))?,
 			sessions: Mutex::new(HashMap::new()),
 		})
 	}
@@ -102,17 +102,17 @@ impl SecretStoreEncryptor {
 		use_post: bool,
 		contract_address: &Address,
 		accounts: Arc<AccountProvider>
-	) -> Result<Bytes, PrivateTransactionError> {
+	) -> Result<Bytes, Error> {
 		// check if the key was already cached
 		if let Some(key) = self.obtained_key(contract_address) {
 			return Ok(key);
 		}
 		let contract_address_signature = self.sign_contract_address(contract_address, accounts.clone())?;
-		let requester = self.config.key_server_account.ok_or_else(|| PrivateTransactionError::KeyServerAccountNotSet)?;
+		let requester = self.config.key_server_account.ok_or_else(|| ErrorKind::KeyServerAccountNotSet)?;
 
 		// key id in SS is H256 && we have H160 here => expand with assitional zeros
 		let contract_address_extended: H256 = contract_address.into();
-		let base_url = self.config.base_url.clone().ok_or_else(|| PrivateTransactionError::KeyServerNotSet)?;
+		let base_url = self.config.base_url.clone().ok_or_else(|| ErrorKind::KeyServerNotSet)?;
 
 		// prepare request url
 		let url = format!("{}/{}/{}{}",
@@ -125,17 +125,17 @@ impl SecretStoreEncryptor {
 		// send HTTP request
 		let mut response = match use_post {
 			true => self.client.post_with_abort(&url, Default::default()).wait()
-				.map_err(|e| PrivateTransactionError::Encrypt(format!("{}", e)))?,
+				.map_err(|e| ErrorKind::Encrypt(format!("{}", e)))?,
 			false => self.client.fetch_with_abort(&url, Default::default()).wait()
-				.map_err(|e| PrivateTransactionError::Encrypt(format!("{}", e)))?,
+				.map_err(|e| ErrorKind::Encrypt(format!("{}", e)))?,
 		};
 
 		if response.is_not_found() {
-			return Err(PrivateTransactionError::EncryptionKeyNotFound(*contract_address));
+			return Err(ErrorKind::EncryptionKeyNotFound(*contract_address).into());
 		}
 
 		if !response.is_success() {
-			return Err(PrivateTransactionError::Encrypt(response.status().canonical_reason().unwrap_or("unknown").into()));
+			return Err(ErrorKind::Encrypt(response.status().canonical_reason().unwrap_or("unknown").into()).into());
 		}
 
 		// read HTTP response
@@ -143,10 +143,9 @@ impl SecretStoreEncryptor {
 		response.read_to_string(&mut result)?;
 
 		// response is JSON string (which is, in turn, hex-encoded, encrypted Public)
-		let encrypted_bytes: ethjson::bytes::Bytes = result.trim_matches('\"').parse().map_err(|e| PrivateTransactionError::Encrypt(e))?;
-		if let Err(e) = self.unlock_account(&requester, accounts.clone()) {
-			trace!("Cannot unlock account: {}", e);
-			return Err(PrivateTransactionError::Encrypt(format!("Cannot unlock account {}", e).into()))
+		let encrypted_bytes: ethjson::bytes::Bytes = result.trim_matches('\"').parse().map_err(|e| ErrorKind::Encrypt(e))?;
+		if !self.unlock_account(&requester, accounts.clone()) {
+			return Err(ErrorKind::Encrypt("Cannot unlock account".into()).into())
 		}
 
 		// decrypt Public
@@ -187,25 +186,25 @@ impl SecretStoreEncryptor {
 	}
 
 	/// Try to unlock account using stored passwords
-	fn unlock_account(&self, account: &Address, accounts: Arc<AccountProvider>) -> Result<bool, PrivateTransactionError> {
+	fn unlock_account(&self, account: &Address, accounts: Arc<AccountProvider>) -> bool {
 		let passwords = self.config.passwords.clone();
 		for password in passwords {
 			if let Ok(()) = accounts.unlock_account_temporarily(account.clone(), password) {
-				return Ok(true);
+				return true;
 			}
 		}
-		Ok(false)
+		false
 	}
 
-	fn sign_contract_address(&self, contract_address: &Address, accounts: Arc<AccountProvider>) -> Result<Signature, PrivateTransactionError> {
+	fn sign_contract_address(&self, contract_address: &Address, accounts: Arc<AccountProvider>) -> Result<Signature, Error> {
 		// key id in SS is H256 && we have H160 here => expand with assitional zeros
 		let contract_address_extended: H256 = contract_address.into();
-		let key_server_account = self.config.key_server_account.ok_or_else(|| PrivateTransactionError::KeyServerAccountNotSet)?;
-		if let Ok(true) = self.unlock_account(&key_server_account, accounts.clone()) {
+		let key_server_account = self.config.key_server_account.ok_or_else(|| ErrorKind::KeyServerAccountNotSet)?;
+		if self.unlock_account(&key_server_account, accounts.clone()) {
 			Ok(accounts.sign(key_server_account.clone(), None, H256::from_slice(&contract_address_extended))?)
 		} else {
 			trace!("Cannot unlock account");
-			Err(PrivateTransactionError::Encrypt("Cannot unlock account".into()))
+			Err(ErrorKind::Encrypt("Cannot unlock account".into()).into())
 		}
 	}
 }
@@ -217,11 +216,11 @@ impl Encryptor for SecretStoreEncryptor {
 		accounts: Arc<AccountProvider>,
 		initialisation_vector: &H128,
 		plain_data: &[u8]
-	) -> Result<Bytes, PrivateTransactionError> {
+	) -> Result<Bytes, Error> {
 		// retrieve the key, try to generate it if it doesn't exist yet
 		let key = match self.retrieve_key("", false, contract_address, accounts.clone()) {
 			Ok(key) => Ok(key),
-			Err(PrivateTransactionError::EncryptionKeyNotFound(_)) => {
+			Err(Error(ErrorKind::EncryptionKeyNotFound(_), _)) => {
 				trace!("Key for account wasnt found in sstore. Creating. Address: {:?}", contract_address);
 				self.retrieve_key(&format!("/{}", self.config.threshold), true, contract_address, accounts.clone())
 			}
@@ -243,11 +242,11 @@ impl Encryptor for SecretStoreEncryptor {
 		contract_address: &Address,
 		accounts: Arc<AccountProvider>,
 		cypher: &[u8]
-	) -> Result<Bytes, PrivateTransactionError> {
+	) -> Result<Bytes, Error> {
 		// initialization vector takes INIT_VEC_LEN bytes
 		let cypher_len = cypher.len();
 		if cypher_len < INIT_VEC_LEN {
-			return Err(PrivateTransactionError::Decrypt("Invalid cypher".into()));
+			return Err(ErrorKind::Decrypt("Invalid cypher".into()).into());
 		}
 
 		// retrieve existing key
@@ -274,7 +273,7 @@ impl Encryptor for DummyEncryptor {
 		_accounts: Arc<AccountProvider>,
 		_initialisation_vector: &H128,
 		data: &[u8]
-	) -> Result<Bytes, PrivateTransactionError> {
+	) -> Result<Bytes, Error> {
 		Ok(data.to_vec())
 	}
 
@@ -283,7 +282,7 @@ impl Encryptor for DummyEncryptor {
 		_contract_address: &Address,
 		_accounts: Arc<AccountProvider>,
 		data: &[u8]
-	) -> Result<Bytes, PrivateTransactionError> {
+	) -> Result<Bytes, Error> {
 		Ok(data.to_vec())
 	}
 }

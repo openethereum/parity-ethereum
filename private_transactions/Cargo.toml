@@ -31,3 +31,4 @@ ethcore-bytes = { path = "../util/bytes" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethcore-miner = { path = "../miner" }
 ethcore-logger = { path = "../logger" }
+error-chain = { version = "0.11", default-features = false }

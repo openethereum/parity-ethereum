@@ -2517,6 +2517,7 @@ dependencies = [
 name = "private_transactions"
 version = "1.0.0"
 dependencies = [
+ "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-derive 5.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
