@@ -54,7 +54,6 @@
 //!   cargo build --release
 //!   ```
 
-extern crate bloomchain;
 extern crate bn;
 extern crate byteorder;
 extern crate crossbeam;
@@ -155,7 +154,6 @@ pub mod verification;
 pub mod views;
 
 mod cache_manager;
-mod blooms;
 mod basic_types;
 mod pod_account;
 mod state_db;
