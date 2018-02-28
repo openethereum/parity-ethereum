@@ -81,7 +81,6 @@ pub use verification::queue::QueueInfo as BlockQueueInfo;
 use_contract!(registry, "Registry", "res/contracts/registrar.json");
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
-const MAX_TX_TO_IMPORT: usize = 256;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
 const MIN_HISTORY_SIZE: u64 = 8;
 
@@ -159,7 +158,6 @@ pub struct Client {
 	io_channel: Mutex<IoChannel<ClientIoMessage>>,
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	queue_transactions: AtomicUsize,
-	queued_transactions: Mutex<Vec<UnverifiedTransaction>>,
 	last_hashes: RwLock<VecDeque<H256>>,
 	factories: Factories,
 	history: u64,
@@ -252,7 +250,6 @@ impl Client {
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
-			queued_transactions: Mutex::new(vec![]),
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
 			history: history,
@@ -895,7 +892,7 @@ impl Client {
 		trace_time!("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
 
-		let mut txs: Vec<UnverifiedTransaction> = transactions
+		let txs: Vec<UnverifiedTransaction> = transactions
 			.iter()
 			.filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok())
 			.collect();
@@ -906,36 +903,8 @@ impl Client {
 			notify.transactions_received(hashes.clone(), peer_id);
 		});
 
-		// Import up to MAX_TX_TO_IMPORT transactions at once to prevent long pauses.
-		let len = txs.len();
-		if len > MAX_TX_TO_IMPORT {
-			let diff = len - MAX_TX_TO_IMPORT;
-			self.queue_transactions.fetch_add(diff, AtomicOrdering::SeqCst);
-
-			let mut queued = self.queued_transactions.lock();
-			for tx in txs.drain(MAX_TX_TO_IMPORT .. len) {
-				queued.push(tx);
-			}
-		}
-
 		let results = self.miner.import_external_transactions(self, txs);
 		results.len()
-	}
-
-	fn check_transaction_import_queue(&self) {
-		let txs = {
-			let mut queued = self.queued_transactions.lock();
-			if queued.is_empty() {
-				return;
-			}
-
-			let len = ::std::cmp::min(queued.len(), MAX_TX_TO_IMPORT);
-			queued.split_off(len)
-		};
-
-		trace_time!("check_transaction_import_queue");
-		self.queue_transactions.fetch_sub(txs.len(), AtomicOrdering::SeqCst);
-		self.miner.import_external_transactions(self, txs);
 	}
 
 	/// Get shared miner reference.
@@ -1021,7 +990,6 @@ impl Client {
 	// TODO: manage by real events.
 	pub fn tick(&self, prevent_sleep: bool) {
 		self.check_garbage();
-		self.check_transaction_import_queue();
 		if !prevent_sleep {
 			self.check_snooze();
 		}
