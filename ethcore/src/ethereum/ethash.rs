@@ -124,6 +124,18 @@ pub struct EthashParams {
 	pub expip2_transition: u64,
 	/// EXPIP-2 duration limit
 	pub expip2_duration_limit: u64,
+	/// Callisto transition block
+	pub callisto_transition: u64,
+	/// Callisto Miner reward
+	pub callisto_miner_reward: U256,
+	/// Callisto Treasury Address
+	pub callisto_treasury_address: Address,
+	/// Callisto Treasury reward
+	pub callisto_treasury_reward: U256,
+	/// Callisto Stake Address
+	pub callisto_stake_address: Address,
+	/// Callisto Stake reward
+	pub callisto_stake_reward: U256,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -154,6 +166,12 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			eip649_reward: p.eip649_reward.map(Into::into),
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
 			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
+			callisto_transition: p.callisto_transition.map_or(u64::max_value(), Into::into),
+			callisto_miner_reward: p.callisto_miner_reward.map_or_else(Default::default, Into::into),
+			callisto_treasury_address: p.callisto_treasury_address.map_or_else(Address::new, Into::into),
+			callisto_treasury_reward: p.callisto_treasury_reward.map_or_else(Default::default, Into::into),
+			callisto_stake_address: p.callisto_stake_address.map_or_else(Address::new, Into::into),
+			callisto_stake_reward: p.callisto_stake_reward.map_or_else(Default::default, Into::into),
 		}
 	}
 }
@@ -260,7 +278,16 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			rewards.push((author, RewardKind::Author, result_block_reward));
 			rewards.push((ubi_contract, RewardKind::External, ubi_reward));
 			rewards.push((dev_contract, RewardKind::External, dev_reward));
+		} else if number >= self.ethash_params.callisto_transition {
+			result_block_reward = self.ethash_params.callisto_miner_reward;
+			let treasury_address = self.ethash_params.callisto_treasury_address;
+			let treasury_reward = self.ethash_params.callisto_treasury_reward;
+			let stake_address = self.ethash_params.callisto_stake_address;
+			let stake_reward = self.ethash_params.callisto_stake_reward;
 
+			rewards.push((author, RewardKind::Author, result_block_reward));
+			rewards.push((treasury_address, RewardKind::External, treasury_reward));
+			rewards.push((stake_address, RewardKind::External, stake_reward));
 		} else {
 			rewards.push((author, RewardKind::Author, result_block_reward));
 		}
