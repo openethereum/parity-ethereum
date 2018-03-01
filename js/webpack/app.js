@@ -29,12 +29,14 @@ const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
+const BLACKLIST = require('../src/Dapps/blacklist');
 const DAPPS_BUILTIN = require('@parity/shared/lib/config/dappsBuiltin.json');
 const DAPPS_VIEWS = require('@parity/shared/lib/config/dappsViews.json');
 const DAPPS_ALL = []
   .concat(DAPPS_BUILTIN, DAPPS_VIEWS)
   .filter((dapp) => !dapp.skipBuild)
-  .filter((dapp) => dapp.package);
+  .filter((dapp) => dapp.package)
+  .filter(({ id }) => !BLACKLIST.includes(id));
 
 const FAVICON = path.resolve(__dirname, '../node_modules/@parity/shared/assets/images/parity-logo-black-no-text.png');
 
