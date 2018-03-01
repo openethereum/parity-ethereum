@@ -20,18 +20,23 @@
 use std::cmp::min;
 use std::fmt;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::time::Duration;
+use std::thread;
 
 use ethereum_types::{H256, Address};
 use ethkey::Signature;
 use hidapi;
+use libusb;
 use parking_lot::{Mutex, RwLock};
 
 use super::{WalletInfo, KeyPath};
 
-const LEDGER_VID: u16 = 0x2c97;
-const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001]; // Nano S and Blue
+/// Ledger vendor ID
+pub const LEDGER_VID: u16 = 0x2c97;
+/// Legder product IDs: [Nano S and Blue]
+pub const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001];
+
 const ETH_DERIVATION_PATH_BE: [u8; 17] = [4, 0x80, 0, 0, 44, 0x80, 0, 0, 60, 0x80, 0, 0, 0, 0, 0, 0, 0]; // 44'/60'/0'/0
 const ETC_DERIVATION_PATH_BE: [u8; 21] = [5, 0x80, 0, 0, 44, 0x80, 0, 0, 60, 0x80, 0x02, 0x73, 0xd0, 0x80, 0, 0, 0, 0, 0, 0, 0]; // 44'/60'/160720'/0'/0
 
@@ -54,10 +59,14 @@ pub enum Error {
 	Protocol(&'static str),
 	/// Hidapi error.
 	Usb(hidapi::HidError),
+	/// Libusb error
+	LibUsb(libusb::Error),
 	/// Device with request key is not available.
 	KeyNotFound,
 	/// Signing has been cancelled by user.
 	UserCancel,
+	/// Invalid Device
+	InvalidDevice,
 }
 
 impl fmt::Display for Error {
@@ -65,8 +74,10 @@ impl fmt::Display for Error {
 		match *self {
 			Error::Protocol(ref s) => write!(f, "Ledger protocol error: {}", s),
 			Error::Usb(ref e) => write!(f, "USB communication error: {}", e),
+			Error::LibUsb(ref e) => write!(f, "LibUSB communication error: {}", e),
 			Error::KeyNotFound => write!(f, "Key not found"),
 			Error::UserCancel => write!(f, "Operation has been cancelled"),
+			Error::InvalidDevice => write!(f, "Unsupported product was entered"),
 		}
 	}
 }
@@ -74,6 +85,12 @@ impl fmt::Display for Error {
 impl From<hidapi::HidError> for Error {
 	fn from(err: hidapi::HidError) -> Error {
 		Error::Usb(err)
+	}
+}
+
+impl From<libusb::Error> for Error {
+	fn from(err: libusb::Error) -> Error {
+		Error::LibUsb(err)
 	}
 }
 
@@ -234,16 +251,7 @@ impl Manager {
 	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
 		where F: Fn() -> Result<R, &'static str>
 	{
-		let mut err = Error::KeyNotFound;
-		// Try to open device a few times.
-		for _ in 0..10 {
-			match f() {
-				Ok(handle) => return Ok(handle),
-				Err(e) => err = From::from(e),
-			}
-			::std::thread::sleep(Duration::from_millis(200));
-		}
-		Err(err)
+		f().map_err(Into::into)
 	}
 
 	fn send_apdu(handle: &hidapi::HidDevice, command: u8, p1: u8, p2: u8, data: &[u8]) -> Result<Vec<u8>, Error> {
@@ -332,6 +340,54 @@ impl Manager {
 		let new_len = message.len() - 2;
 		message.truncate(new_len);
 		Ok(message)
+	}
+
+	fn is_valid_ledger(device: &libusb::Device) -> Result<(), Error> {
+		let desc = device.device_descriptor()?;
+		let vendor_id = desc.vendor_id();
+		let product_id = desc.product_id();
+
+		if vendor_id == LEDGER_VID && LEDGER_PIDS.contains(&product_id) {
+			Ok(())
+		} else {
+			Err(Error::InvalidDevice)
+		}
+	}
+
+}
+
+/// Ledger event handler
+/// A seperate thread is handling incoming events
+pub struct EventHandler {
+	ledger: Weak<Manager>,
+}
+
+impl EventHandler {
+	/// Ledger event handler constructor 
+	pub fn new(ledger: Weak<Manager>) -> Self {
+		Self { ledger: ledger }
+	}
+}
+
+impl libusb::Hotplug for EventHandler {
+	fn device_arrived(&mut self, device: libusb::Device) {
+		if let (Some(ledger), Ok(_)) = (self.ledger.upgrade(), Manager::is_valid_ledger(&device)) {
+			debug!(target: "hw", "Ledger arrived");
+			// Wait for the device to boot up
+			thread::sleep(Duration::from_millis(1000));
+			if let Err(e) = ledger.update_devices() {
+				debug!(target: "hw", "Ledger connect error: {:?}", e);
+			}
+		}
+	}
+
+	fn device_left(&mut self, device: libusb::Device) {
+		if let (Some(ledger), Ok(_)) = (self.ledger.upgrade(), Manager::is_valid_ledger(&device)) {
+			debug!(target: "hw", "Ledger left");
+			if let Err(e) = ledger.update_devices() {
+				debug!(target: "hw", "Ledger disconnect error: {:?}", e);
+			}
+		}
 	}
 }
 

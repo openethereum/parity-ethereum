@@ -21,3 +21,37 @@ pub mod filter;
 pub mod flat;
 pub mod trace;
 pub mod localized;
+
+use self::flat::FlatTransactionTraces;
+
+/// Container for block traces.
+#[derive(Clone)]
+pub enum Tracing {
+	/// This variant should be used when tracing is enabled.
+	Enabled(Vec<FlatTransactionTraces>),
+	/// Tracing is disabled.
+	Disabled,
+}
+
+impl Tracing {
+	/// Creates new instance of enabled tracing object.
+	pub fn enabled() -> Self {
+		Tracing::Enabled(Default::default())
+	}
+
+	/// Returns true if tracing is enabled.
+	pub fn is_enabled(&self) -> bool {
+		match *self {
+			Tracing::Enabled(_) => true,
+			Tracing::Disabled => false,
+		}
+	}
+
+	/// Drain all traces.
+	pub fn drain(self) -> Vec<FlatTransactionTraces> {
+		match self {
+			Tracing::Enabled(traces) => traces,
+			Tracing::Disabled => vec![],
+		}
+	}
+}

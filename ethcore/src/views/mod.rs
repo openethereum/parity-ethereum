@@ -17,11 +17,11 @@
 //! Block oriented views onto rlp.
 
 mod block;
+mod body;
 mod header;
 mod transaction;
-mod body;
 
 pub use self::block::BlockView;
-pub use self::header::HeaderView;
 pub use self::body::BodyView;
+pub use self::header::HeaderView;
 pub use self::transaction::TransactionView;

@@ -24,7 +24,6 @@ use itertools::Itertools;
 
 // util
 use hash::keccak;
-use timer::PerfTimer;
 use bytes::Bytes;
 use journaldb;
 use util_error::UtilError;
@@ -34,8 +33,7 @@ use kvdb::{DBValue, KeyValueDB, DBTransaction};
 // other
 use ethereum_types::{H256, Address, U256};
 use block::*;
-use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};
-use blockchain::extras::TransactionAddress;
+use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute, TransactionAddress};
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
@@ -47,9 +45,9 @@ use encoded;
 use engines::{EthEngine, EpochTransition};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use vm::{EnvInfo, LastHashes};
-use evm::{Factory as EvmFactory, Schedule};
+use evm::Schedule;
 use executive::{Executive, Executed, TransactOptions, contract_address};
-use factory::Factories;
+use factory::{Factories, VmFactory};
 use header::{BlockNumber, Header, Seal};
 use io::*;
 use log_entry::LocalizedLogEntry;
@@ -65,7 +63,6 @@ use state_db::StateDB;
 use state::{self, State};
 use trace;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
-use trace::FlatTransactionTraces;
 use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
@@ -187,7 +184,7 @@ impl Client {
 
 		let trie_factory = TrieFactory::new(trie_spec);
 		let factories = Factories {
-			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
+			vm: VmFactory::new(config.vm_type.clone(), config.jump_table_size),
 			trie: trie_factory,
 			accountdb: Default::default(),
 		};
@@ -518,7 +515,7 @@ impl Client {
 			if blocks.is_empty() {
 				return 0;
 			}
-			let _timer = PerfTimer::new("import_verified_blocks");
+			trace_time!("import_verified_blocks");
 			let start = precise_time_ns();
 
 			for block in blocks {
@@ -593,7 +590,7 @@ impl Client {
 		let _import_lock = self.import_lock.lock();
 
 		{
-			let _timer = PerfTimer::new("import_old_block");
+			trace_time!("import_old_block");
 			let chain = self.chain.read();
 			let mut ancient_verifier = self.ancient_verifier.lock();
 
@@ -653,10 +650,7 @@ impl Client {
 
 		// Commit results
 		let receipts = block.receipts().to_owned();
-		let traces = block.traces().clone().unwrap_or_else(Vec::new);
-		let traces: Vec<FlatTransactionTraces> = traces.into_iter()
-			.map(Into::into)
-			.collect();
+		let traces = block.traces().clone().drain();
 
 		assert_eq!(header.hash(), BlockView::new(block_data).header_view().hash());
 
@@ -889,7 +883,7 @@ impl Client {
 	/// Import transactions from the IO queue
 	pub fn import_queued_transactions(&self, transactions: &[Bytes], peer_id: usize) -> usize {
 		trace!(target: "external_tx", "Importing queued");
-		let _timer = PerfTimer::new("import_queued_transactions");
+		trace_time!("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
 		let txs: Vec<UnverifiedTransaction> = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
 		let hashes: Vec<_> = txs.iter().map(|tx| tx.hash()).collect();
@@ -1678,44 +1672,27 @@ impl BlockChainClient for Client {
 		};
 
 		let chain = self.chain.read();
-		let blocks = filter.bloom_possibilities().iter()
-			.map(move |bloom| {
-				chain.blocks_with_bloom(bloom, from, to)
-			})
-			.flat_map(|m| m)
-			// remove duplicate elements
-			.collect::<HashSet<u64>>()
-			.into_iter()
-			.collect::<Vec<u64>>();
-
-		self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit)
+		let blocks = chain.blocks_with_blooms(&filter.bloom_possibilities(), from, to);
+		chain.logs(blocks, |entry| filter.matches(entry), filter.limit)
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
-		let start = self.block_number(filter.range.start);
-		let end = self.block_number(filter.range.end);
+		let start = self.block_number(filter.range.start)?;
+		let end = self.block_number(filter.range.end)?;
 
-		match (start, end) {
-			(Some(s), Some(e)) => {
-				let db_filter = trace::Filter {
-					range: s as usize..e as usize,
-					from_address: From::from(filter.from_address),
-					to_address: From::from(filter.to_address),
-				};
+		let db_filter = trace::Filter {
+			range: start as usize..end as usize,
+			from_address: filter.from_address.into(),
+			to_address: filter.to_address.into(),
+		};
 
-				let traces = self.tracedb.read().filter(&db_filter);
-				if traces.is_empty() {
-					return Some(vec![]);
-				}
-
-				let traces_iter = traces.into_iter().skip(filter.after.unwrap_or(0));
-				Some(match filter.count {
-					Some(count) => traces_iter.take(count).collect(),
-					None => traces_iter.collect(),
-				})
-			},
-			_ => None,
-		}
+		let traces = self.tracedb.read()
+			.filter(&db_filter)
+			.into_iter()
+			.skip(filter.after.unwrap_or(0))
+			.take(filter.count.unwrap_or(usize::max_value()))
+			.collect();
+		Some(traces)
 	}
 
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace> {
@@ -1921,7 +1898,7 @@ impl MiningBlockChainClient for Client {
 		block
 	}
 
-	fn vm_factory(&self) -> &EvmFactory {
+	fn vm_factory(&self) -> &VmFactory {
 		&self.factories.vm
 	}
 
@@ -1945,7 +1922,7 @@ impl MiningBlockChainClient for Client {
 		let route = {
 			// scope for self.import_lock
 			let _import_lock = self.import_lock.lock();
-			let _timer = PerfTimer::new("import_sealed_block");
+			trace_time!("import_sealed_block");
 
 			let number = block.header().number();
 			let block_data = block.rlp_bytes();
@@ -2001,6 +1978,10 @@ impl super::traits::EngineClient for Client {
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		BlockChainClient::block_number(self, id)
+	}
+
+	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
+		BlockChainClient::block_header(self, id)
 	}
 }
 

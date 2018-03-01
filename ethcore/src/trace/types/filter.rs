@@ -17,7 +17,6 @@
 //! Trace filters type definitions
 
 use std::ops::Range;
-use bloomchain::{Filter as BloomFilter, Number};
 use ethereum_types::{Address, Bloom, BloomInput};
 use trace::flat::FlatTrace;
 use super::trace::{Action, Res};
@@ -65,7 +64,7 @@ impl AddressesFilter {
 				.into_iter()
 				.flat_map(|bloom| self.list.iter()
 					.map(|address| {
-						let mut bloom = Bloom::from(bloom.0);
+						let mut bloom = bloom.clone();
 						bloom.accrue(BloomInput::Raw(address));
 						bloom
 					})
@@ -88,22 +87,9 @@ pub struct Filter {
 	pub to_address: AddressesFilter,
 }
 
-impl BloomFilter for Filter {
-	fn bloom_possibilities(&self) -> Vec<Bloom> {
-		self.bloom_possibilities()
-			.into_iter()
-			.map(|b| Bloom::from(b.0))
-			.collect()
-	}
-
-	fn range(&self) -> Range<Number> {
-		self.range.clone()
-	}
-}
-
 impl Filter {
 	/// Returns combinations of each address.
-	fn bloom_possibilities(&self) -> Vec<Bloom> {
+	pub fn bloom_possibilities(&self) -> Vec<Bloom> {
 		self.to_address.with_blooms(self.from_address.blooms())
 	}
 

@@ -30,7 +30,7 @@ pub use self::executive_tracer::{ExecutiveTracer, ExecutiveVMTracer};
 pub use self::import::ImportRequest;
 pub use self::localized::LocalizedTrace;
 
-pub use self::types::{filter, flat, localized, trace};
+pub use self::types::{filter, flat, localized, trace, Tracing};
 pub use self::types::error::Error as TraceError;
 pub use self::types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, RewardType};
 pub use self::types::flat::{FlatTrace, FlatTransactionTraces, FlatBlockTraces};

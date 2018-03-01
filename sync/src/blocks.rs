@@ -345,7 +345,7 @@ impl BlockCollection {
 		let header_id = {
 			let body = UntrustedRlp::new(&b);
 			let tx = body.at(0)?;
-			let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec())); //TODO: get rid of vectors here
+			let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw()));
 			let uncles = keccak(body.at(1)?.as_raw());
 			HeaderId {
 				transactions_root: tx_root,
@@ -379,7 +379,7 @@ impl BlockCollection {
 	fn insert_receipt(&mut self, r: Bytes) -> Result<(), network::Error> {
 		let receipt_root = {
 			let receipts = UntrustedRlp::new(&r);
-			ordered_trie_root(receipts.iter().map(|r| r.as_raw().to_vec())) //TODO: get rid of vectors here
+			ordered_trie_root(receipts.iter().map(|r| r.as_raw()))
 		};
 		self.downloading_receipts.remove(&receipt_root);
 		match self.receipt_ids.entry(receipt_root) {

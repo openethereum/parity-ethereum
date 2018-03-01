@@ -16,6 +16,7 @@
 
 use std::sync::Arc;
 
+use crypto::DEFAULT_MAC;
 use ethcore::account_provider::AccountProvider;
 use ethkey::{KeyPair, Signature, verify_public};
 
@@ -25,7 +26,7 @@ use v1::metadata::Metadata;
 use v1::SecretStoreClient;
 use v1::traits::secretstore::SecretStore;
 use v1::helpers::secretstore::ordered_servers_keccak;
-use v1::types::H256;
+use v1::types::{H256, EncryptedDocumentKey};
 
 struct Dependencies {
 	pub accounts: Arc<AccountProvider>,
@@ -143,4 +144,32 @@ fn rpc_secretstore_sign_raw_hash() {
 
 	let hash = "0000000000000000000000000000000000000000000000000000000000000001".parse().unwrap();
 	assert!(verify_public(key_pair.public(), &signature, &hash).unwrap());
+}
+
+#[test]
+fn rpc_secretstore_generate_document_key() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	// insert new account
+	let secret = "82758356bf46b42710d3946a8efa612b7bf5e125e4d49f28facf1139db4a46f4".parse().unwrap();
+	let key_pair = KeyPair::from_secret(secret).unwrap();
+	deps.accounts.insert_account(key_pair.secret().clone(), "password").unwrap();
+
+	// execute generation request
+	let generation_request = r#"{"jsonrpc": "2.0", "method": "secretstore_generateDocumentKey", "params":[
+		"0x00dfE63B22312ab4329aD0d28CaD8Af987A01932", "password",
+		"0x843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91"
+	], "id": 1}"#;
+	let generation_response = io.handle_request_sync(&generation_request).unwrap();
+	let generation_response = generation_response.replace(r#"{"jsonrpc":"2.0","result":"#, "");
+	let generation_response = generation_response.replace(r#","id":1}"#, "");
+	let generation_response: EncryptedDocumentKey = serde_json::from_str(&generation_response).unwrap();
+
+	// the only thing we can check is that 'encrypted_key' can be decrypted by passed account
+	assert!(deps.accounts.decrypt(
+		"00dfE63B22312ab4329aD0d28CaD8Af987A01932".parse().unwrap(),
+		Some("password".into()),
+		&DEFAULT_MAC,
+		&generation_response.encrypted_key.0).is_ok());
 }

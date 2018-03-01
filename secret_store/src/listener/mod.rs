@@ -68,8 +68,12 @@ impl DocumentKeyServer for Listener {
 }
 
 impl MessageSigner for Listener {
-	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
-		self.key_server.sign_message(key_id, signature, message)
+	fn sign_message_schnorr(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
+		self.key_server.sign_message_schnorr(key_id, signature, message)
+	}
+
+	fn sign_message_ecdsa(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
+		self.key_server.sign_message_ecdsa(key_id, signature, message)
 	}
 }
 

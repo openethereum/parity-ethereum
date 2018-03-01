@@ -22,13 +22,10 @@ echo "Parity version:     " $VER
 echo "Branch:             " $CI_BUILD_REF_NAME
 echo "--------------------"
 
-echo "Rhash version:"
 # NOTE for md5 and sha256 we want to display filename as well
 # hence we use --* instead of -p *
 MD5_BIN="rhash --md5"
 SHA256_BIN="rhash --sha256"
-# NOTE For SHA3 we need only hash (hence -p)
-SHA3_BIN="rhash -p %{sha3-256}"
 
 set_env () {
   echo "Set ENVIROMENT"
@@ -70,14 +67,12 @@ strip_binaries () {
 calculate_checksums () {
   echo "Checksum calculation:"
   rhash --version
+
   rm -rf *.md5
   rm -rf *.sha256
 
-  export SHA3="$($SHA3_BIN target/$PLATFORM/release/parity$S3WIN)"
-  # NOTE rhash 1.3.1 doesnt support keccak, workaround
-  if [ "$SHA3" == "%{sha3-256}" ]; then
-    export SHA3="$(target/$PLATFORM/release/parity$S3WIN tools hash target/$PLATFORM/release/parity$S3WIN)"
-  fi
+  BIN="target/$PLATFORM/release/parity$S3WIN"
+  export SHA3="$($BIN tools hash $BIN)"
 
   echo "Parity file SHA3: $SHA3"
   $MD5_BIN target/$PLATFORM/release/parity$S3WIN > parity$S3WIN.md5
@@ -150,9 +145,9 @@ make_pkg () {
   cd ..
   packagesbuild -v mac/Parity.pkgproj
   productsign --sign 'Developer ID Installer: PARITY TECHNOLOGIES LIMITED (P2PX3JU8FT)' target/release/Parity\ Ethereum.pkg target/release/Parity\ Ethereum-signed.pkg
-  mv target/release/Parity\ Ethereum-signed.pkg "parity_"$VER"_"$ARC".pkg"
-  $MD5_BIN "parity_"$VER"_"$ARC"."$EXT >> "parity_"$VER"_"$ARC".pkg.md5"
-  $SHA256_BIN "parity_"$VER"_"$ARC"."$EXT >> "parity_"$VER"_"$ARC".pkg.sha256"
+  mv target/release/Parity\ Ethereum-signed.pkg "parity_"$VER"_"$IDENT"_"$ARC".pkg"
+  $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT >> "parity_"$VER"_"$IDENT"_"$ARC".pkg.md5"
+  $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT >> "parity_"$VER"_"$IDENT"_"$ARC".pkg.sha256"
 }
 sign_exe () {
   ./sign.cmd $keyfile $certpass "target/$PLATFORM/release/parity.exe"
@@ -306,16 +301,35 @@ case $BUILD_PLATFORM in
     updater_push_release
     ;;
   x86_64-unknown-snap-gnu)
-    cd snap
     ARC="amd64"
     EXT="snap"
-    rm -rf *snap
-    sed -i 's/master/'"$VER"'/g' snapcraft.yaml
-    snapcraft
-    cp "parity_"$CI_BUILD_REF_NAME"_amd64.snap" "parity_"$VER"_amd64.snap"
+    apt install -y expect zip rhash
+    snapcraft clean
+    echo "Prepare snapcraft.yaml for build on Gitlab CI in Docker image"
+    sed -i 's/git/'"$VER"'/g' snap/snapcraft.yaml
+    if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.9* ]];
+      then
+        sed -i -e 's/grade: devel/grade: stable/' snap/snapcraft.yaml;
+    fi
+    mv -f snap/snapcraft.yaml snapcraft.yaml
+    snapcraft -d
+    snapcraft_login=$(expect -c "
+      spawn snapcraft login
+      expect \"Email:\"
+      send \"$SNAP_EMAIL\n\"
+      expect \"Password:\"
+      send \"$SNAP_PASS\n\"
+      expect \"\$\"
+      ")
+    echo "$snapcraft_login"
+    snapcraft push "parity_"$VER"_amd64.snap"
+    snapcraft status parity
+    snapcraft logout
     $MD5_BIN "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
     $SHA256_BIN "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.sha256"
-    push_binaries
+    echo "add artifacts to archive"
+    rm -rf parity.zip
+    zip -r parity.zip "parity_"$VER"_amd64.snap" "parity_"$VER"_amd64.snap.md5" "parity_"$VER"_amd64.snap.sha256"
     ;;
   x86_64-pc-windows-msvc)
     set_env_win
