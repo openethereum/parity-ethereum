@@ -1,4 +1,4 @@
-## Parity [v1.8.11](https://github.com/paritytech/parity/releases/tag/v1.8.11) (2018-02-28)
+## Parity [v1.8.11](https://github.com/paritytech/parity/releases/tag/v1.8.11) (2018-03-01)
 
 Parity 1.8.11 is a bug-fix release to improve performance and stability.
 
