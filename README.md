@@ -21,7 +21,7 @@ Or join our community on Matrix:
 
 Official website: https://parity.io
 
-Be sure to check out [our wiki](https://paritytech.github.io/wiki/) for more information.
+Be sure to check out [our wiki](https://wiki.parity.io) for more information.
 
 ----
 
