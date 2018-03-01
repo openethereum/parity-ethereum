@@ -1,5 +1,3 @@
-// TODO: BlockId::Latest - wrong
-
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -20,15 +18,14 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use ethabi::RawLog;
 use ethcore::filter::Filter;
-use ethcore::log_entry::LocalizedLogEntry;
 use ethcore::client::{Client, BlockChainClient, BlockId};
-use ethkey::{Public, Signature, Secret, public_to_address};
+use ethkey::{Public, public_to_address};
 use hash::keccak;
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
 use listener::service_contract_listener::ServiceTask;
 use trusted_client::TrustedClient;
-use {ServerKeyId, NodeKeyPair, ContractAddress, EncryptedDocumentKey};
+use {ServerKeyId, NodeKeyPair, ContractAddress};
 
 use_contract!(service, "Service", "res/service.json");
 
@@ -297,7 +294,6 @@ impl ServiceContract for OnChainServiceContract {
 			limit: None,
 		});
 
-		let data = self.data.read();
 		Box::new(request_logs.into_iter()
 			.filter_map(|log| {
 				let raw_log: RawLog = (log.entry.topics.into_iter().map(|t| t.0.into()).collect(), log.entry.data).into();
@@ -343,9 +339,12 @@ impl ServiceContract for OnChainServiceContract {
 					.chain(self.create_pending_requests_iterator(client.clone(), &data.contract_address, &block,
 						&ServerKeyRetrievalService::read_pending_requests_count,
 						&ServerKeyRetrievalService::read_pending_request))
-					.chain(self.create_pending_requests_iterator(client, &data.contract_address, &block,
+					.chain(self.create_pending_requests_iterator(client.clone(), &data.contract_address, &block,
 						&DocumentKeyStoreService::read_pending_requests_count,
-						&DocumentKeyStoreService::read_pending_request))) as Box<Iterator<Item=(bool, ServiceTask)>>
+						&DocumentKeyStoreService::read_pending_request))
+					.chain(self.create_pending_requests_iterator(client, &data.contract_address, &block,
+						&DocumentKeyShadowRetrievalService::read_pending_requests_count,
+						&DocumentKeyShadowRetrievalService::read_pending_request))) as Box<Iterator<Item=(bool, ServiceTask)>>
 				})
 				.unwrap_or_else(|| Box::new(::std::iter::empty()))
 		}
@@ -445,6 +444,7 @@ impl ServerKeyGenerationService {
 
 	/// Check if request is confirmed by authority.
 	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, authority: &Address) -> bool {
+		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
 		contract.functions()
 			.get_server_key_generation_request_confirmation_status()
@@ -467,7 +467,7 @@ impl ServerKeyGenerationService {
 	}
 
 	/// Read pending requests count.
-	fn read_pending_requests_count(client: &Client, contract_address: &Address, contract: &service::Service, block: &BlockId) -> Result<U256, String> {
+	fn read_pending_requests_count(client: &Client, contract_address: &Address, _contract: &service::Service, block: &BlockId) -> Result<U256, String> {
 		let do_call = |data| client.call_contract(block.clone(), contract_address.clone(), data);
 		let contract = service::Service::default();
 		contract.functions()
@@ -512,6 +512,7 @@ impl ServerKeyRetrievalService {
 
 	/// Check if request is confirmed by authority.
 	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, authority: &Address) -> bool {
+		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
 		contract.functions()
 			.get_server_key_retrieval_request_confirmation_status()
@@ -534,7 +535,7 @@ impl ServerKeyRetrievalService {
 	}
 
 	/// Read pending requests count.
-	fn read_pending_requests_count(client: &Client, contract_address: &Address, contract: &service::Service, block: &BlockId) -> Result<U256, String> {
+	fn read_pending_requests_count(client: &Client, contract_address: &Address, _contract: &service::Service, block: &BlockId) -> Result<U256, String> {
 		let do_call = |data| client.call_contract(block.clone(), contract_address.clone(), data);
 		let contract = service::Service::default();
 		contract.functions()
@@ -575,6 +576,7 @@ impl DocumentKeyStoreService {
 
 	/// Check if request is confirmed by authority.
 	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, authority: &Address) -> bool {
+		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
 		contract.functions()
 			.get_document_key_store_request_confirmation_status()
@@ -597,7 +599,7 @@ impl DocumentKeyStoreService {
 	}
 
 	/// Read pending requests count.
-	fn read_pending_requests_count(client: &Client, contract_address: &Address, contract: &service::Service, block: &BlockId) -> Result<U256, String> {
+	fn read_pending_requests_count(client: &Client, contract_address: &Address, _contract: &service::Service, block: &BlockId) -> Result<U256, String> {
 		let do_call = |data| client.call_contract(block.clone(), contract_address.clone(), data);
 		let contract = service::Service::default();
 		contract.functions()
@@ -614,7 +616,7 @@ impl DocumentKeyStoreService {
 			.get_document_key_store_request()
 			.call(index, &do_call)
 			.map_err(|error| format!("{}", error))
-			.and_then(|(server_key_id, author, commonPoint, encryptedPoint)| contract.functions()
+			.and_then(|(server_key_id, author, common_point, encrypted_point)| contract.functions()
 				.get_document_key_store_request_confirmation_status()
 				.call(server_key_id.clone(), self_address, &do_call)
 				.map(|not_confirmed| (
@@ -622,8 +624,8 @@ impl DocumentKeyStoreService {
 					ServiceTask::StoreDocumentKey(
 						server_key_id,
 						author,
-						Public::from_slice(&commonPoint),
-						Public::from_slice(&encryptedPoint),
+						Public::from_slice(&common_point),
+						Public::from_slice(&encrypted_point),
 					)))
 				.map_err(|error| format!("{}", error)))
 	}
@@ -650,6 +652,7 @@ impl DocumentKeyShadowRetrievalService {
 
 	/// Check if request is confirmed by authority.
 	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, authority: &Address) -> bool {
+		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
 		contract.functions()
 			.get_document_key_shadow_retrieval_request_confirmation_status()
@@ -685,7 +688,7 @@ impl DocumentKeyShadowRetrievalService {
 	}
 
 	/// Read pending requests count.
-	fn read_pending_requests_count(client: &Client, contract_address: &Address, contract: &service::Service, block: &BlockId) -> Result<U256, String> {
+	fn read_pending_requests_count(client: &Client, contract_address: &Address, _contract: &service::Service, block: &BlockId) -> Result<U256, String> {
 		let do_call = |data| client.call_contract(block.clone(), contract_address.clone(), data);
 		let contract = service::Service::default();
 		contract.functions()
@@ -726,6 +729,7 @@ impl DocumentKeyShadowRetrievalService {
 
 	/// Map from authority address to authority index.
 	fn map_authority_address(client: &Client, contract_address: &Address, contract: &service::Service, authority: Address) -> Result<u8, String> {
+		// we're checking confirmation in Latest block, because tx ,ust be appended to the latest state
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
 		contract.functions()
 			.require_authority()
@@ -754,10 +758,10 @@ fn parse_threshold(threshold: U256) -> Result<usize, String> {
 pub mod tests {
 	use parking_lot::Mutex;
 	use bytes::Bytes;
-	use ethkey::{Public, Secret};
-	use ethereum_types::{Address, H256};
+	use ethkey::Public;
+	use ethereum_types::Address;
 	use listener::service_contract_listener::ServiceTask;
-	use {ServerKeyId, EncryptedDocumentKey};
+	use {ServerKeyId};
 	use super::ServiceContract;
 
 	#[derive(Default)]
@@ -794,7 +798,7 @@ pub mod tests {
 			Ok(())
 		}
 
-		fn publish_retrieved_server_key(&self, server_key_id: &ServerKeyId, server_key: Public, threshold: usize) -> Result<(), String> {
+		fn publish_retrieved_server_key(&self, server_key_id: &ServerKeyId, server_key: Public, _threshold: usize) -> Result<(), String> {
 			self.retrieved_server_keys.lock().push((server_key_id.clone(), server_key.clone()));
 			Ok(())
 		}
@@ -804,23 +808,23 @@ pub mod tests {
 			Ok(())
 		}
 
-		fn publish_stored_document_key(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
+		fn publish_stored_document_key(&self, _server_key_id: &ServerKeyId) -> Result<(), String> {
 			unimplemented!()
 		}
 
-		fn publish_document_key_store_error(&self, server_key_id: &ServerKeyId) -> Result<(), String> {
+		fn publish_document_key_store_error(&self, _server_key_id: &ServerKeyId) -> Result<(), String> {
 			unimplemented!()
 		}
 
-		fn publish_retrieved_document_key_common(&self, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, threshold: usize) -> Result<(), String> {
+		fn publish_retrieved_document_key_common(&self, _server_key_id: &ServerKeyId, _requester: &Address, _common_point: Public, _threshold: usize) -> Result<(), String> {
 			unimplemented!()
 		}
 
-		fn publish_retrieved_document_key_personal(&self, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Result<(), String> {
+		fn publish_retrieved_document_key_personal(&self, _server_key_id: &ServerKeyId, _requester: &Address, _participants: &[Address], _decrypted_secret: Public, _shadow: Bytes) -> Result<(), String> {
 			unimplemented!()
 		}
 
-		fn publish_document_key_retrieval_error(&self, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String> {
+		fn publish_document_key_retrieval_error(&self, _server_key_id: &ServerKeyId, _requester: &Address) -> Result<(), String> {
 			unimplemented!()
 		}
 	}

@@ -937,7 +937,7 @@ pub mod tests {
 	use std::collections::{BTreeSet, BTreeMap, VecDeque};
 	use tokio_core::reactor::Core;
 	use ethereum_types::Address;
-	use ethkey::{Random, Generator, Public, KeyPair};
+	use ethkey::{Random, Generator, KeyPair};
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage};
 	use key_server_cluster::message::{self, Message, GenerationMessage};
 	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, run_clusters, loop_until, all_connections_established};

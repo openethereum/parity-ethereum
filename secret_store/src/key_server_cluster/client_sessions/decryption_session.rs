@@ -593,12 +593,15 @@ impl SessionImpl {
 		let decryption_job = DecryptionJob::new_on_master(core.meta.self_node_id.clone(),
 			core.access_key.clone(), requester_public.clone(), key_share.clone(), key_version,
 			is_shadow_decryption, is_broadcast_session)?;
-		let decryption_request_id = decryption_job.request_id().clone().expect("TODO");
+		let decryption_request_id = decryption_job.request_id().clone()
+			.expect("DecryptionJob always have request_id when created on master; it is created using new_on_master above; qed");
 		let decryption_transport = core.decryption_transport(false);
-		let self_response = data.consensus_session.disseminate_jobs(decryption_job, decryption_transport, data.is_broadcast_session.expect("TODO"))?;
+		let is_broadcast_session = data.is_broadcast_session
+			.expect("disseminate_jobs is called on master node only; on master node is_broadcast_session is filled during initialization; qed");
+		let self_response = data.consensus_session.disseminate_jobs(decryption_job, decryption_transport, is_broadcast_session)?;
 
 		// ...and prepare decryption job session if we need to broadcast result
-		if data.is_broadcast_session.expect("TODO") {
+		if is_broadcast_session {
 			let broadcast_decryption_job = DecryptionJob::new_on_master(core.meta.self_node_id.clone(),
 				core.access_key.clone(), requester_public, key_share.clone(), key_version, is_shadow_decryption, is_broadcast_session)?;
 			Self::create_broadcast_decryption_job(&core, data, consensus_group, broadcast_decryption_job,

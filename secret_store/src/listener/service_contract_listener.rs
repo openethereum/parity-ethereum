@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use parking_lot::Mutex;
 use ethcore::client::ChainNotify;
-use ethkey::{Random, Generator, Public, Secret, Signature, sign, public_to_address};
+use ethkey::{Public, public_to_address};
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
 use key_server_set::KeyServerSet;
@@ -35,7 +35,7 @@ use key_storage::KeyStorage;
 use acl_storage::AclStorage;
 use listener::service_contract::ServiceContract;
 use listener::tasks_queue::TasksQueue;
-use {ServerKeyId, RequestSignature, NodeKeyPair, KeyServer, EncryptedDocumentKey, Error};
+use {ServerKeyId, NodeKeyPair, Error};
 
 /// Retry interval (in blocks). Every RETRY_INTERVAL_BLOCKS blocks each KeyServer reads pending requests from
 /// service contract && tries to re-execute. The reason to have this mechanism is primarily because keys
@@ -510,8 +510,8 @@ impl ::std::fmt::Display for ServiceTask {
 /// External error is caused by SS misuse, like: trying to generate duplicated key, access denied, ...
 /// When internal error occurs, we just ignore request for now and will retry later.
 /// When external error occurs, we reject request.
-fn is_internal_error(error: &Error) -> bool {
-	// TODO: implement me
+fn is_internal_error(_error: &Error) -> bool {
+	// TODO [Reliability]: implement me after proper is passed through network
 	false
 }
 
@@ -556,7 +556,6 @@ mod tests {
 	use listener::service_contract::ServiceContract;
 	use listener::service_contract::tests::DummyServiceContract;
 	use key_server_cluster::DummyClusterClient;
-	use key_server::tests::DummyKeyServer;
 	use acl_storage::DummyAclStorage;
 	use key_storage::{KeyStorage, DocumentKeyShare};
 	use key_storage::tests::DummyKeyStorage;
