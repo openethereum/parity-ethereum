@@ -352,18 +352,17 @@ impl Manager {
 			Err(Error::InvalidDevice)
 		}
 	}
+}
 
-	// Try to connect to the device using polling at most 1 second
-	// Failure will be logged via the debug log
-	fn try_connect_polling(ledger: Arc<Manager>, duration: Duration) -> bool {
-		let start_time = Instant::now();
-		while start_time.elapsed() <= duration {
-			if let Ok(_) = ledger.update_devices() {
-				return true
-			}
+// Try to connect to the device using polling in at most the time specified by the `timeout`
+fn try_connect_polling(ledger: Arc<Manager>, timeout: Duration) -> bool {
+	let start_time = Instant::now();
+	while start_time.elapsed() <= timeout {
+		if let Ok(_) = ledger.update_devices() {
+			return true
 		}
-		false
 	}
+	false
 }
 
 /// Ledger event handler
@@ -386,7 +385,7 @@ impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, device: libusb::Device) {
 		debug!(target: "hw", "Ledger arrived");
 		if let (Some(ledger), Ok(_)) = (self.ledger.upgrade(), Manager::is_valid_ledger(&device)) {
-			if Manager::try_connect_polling(ledger, Duration::from_millis(500)) != true {
+			if try_connect_polling(ledger, Duration::from_millis(500)) != true {
 				debug!(target: "hw", "Ledger connect timeout");
 			}
 		}
@@ -395,7 +394,7 @@ impl libusb::Hotplug for EventHandler {
 	fn device_left(&mut self, device: libusb::Device) {
 		debug!(target: "hw", "Ledger left");
 		if let (Some(ledger), Ok(_)) = (self.ledger.upgrade(), Manager::is_valid_ledger(&device)) {
-			if Manager::try_connect_polling(ledger, Duration::from_millis(500)) != true {
+			if try_connect_polling(ledger, Duration::from_millis(500)) != true {
 				debug!(target: "hw", "Ledger disconnect timeout");
 			}
 		}

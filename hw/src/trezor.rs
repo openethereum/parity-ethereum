@@ -398,18 +398,17 @@ impl Manager {
 		}
 		Ok((msg_type, data[..msg_size as usize].to_vec()))
 	}
+}
 
-	// Try to connect to the device using polling at most 1 second
-	// Failure will be logged via the debug log
-	fn try_connect_polling(trezor: Arc<Manager>, duration: Duration) -> bool {
-		let start_time = Instant::now();
-		while start_time.elapsed() <= duration {
-			if let Ok(_) = trezor.update_devices() {
-				return true
-			}
+// Try to connect to the device using polling in at most the time specified by the `timeout`
+fn try_connect_polling(trezor: Arc<Manager>, duration: Duration) -> bool {
+	let start_time = Instant::now();
+	while start_time.elapsed() <= duration {
+		if let Ok(_) = trezor.update_devices() {
+			return true
 		}
-		false
 	}
+	false
 }
 
 /// Trezor event handler
@@ -432,7 +431,7 @@ impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, _device: libusb::Device) {
 		debug!(target: "hw", "Trezor V1 arrived");
 		if let Some(trezor) = self.trezor.upgrade() {
-			if Manager::try_connect_polling(trezor, Duration::from_millis(500)) != true {
+			if try_connect_polling(trezor, Duration::from_millis(500)) != true {
 				debug!(target: "hw", "Ledger connect timeout");
 			}
 		}
@@ -441,7 +440,7 @@ impl libusb::Hotplug for EventHandler {
 	fn device_left(&mut self, _device: libusb::Device) {
 		debug!(target: "hw", "Trezor V1 left");
 		if let Some(trezor) = self.trezor.upgrade() {
-			if Manager::try_connect_polling(trezor, Duration::from_millis(500)) != true {
+			if try_connect_polling(trezor, Duration::from_millis(500)) != true {
 				debug!(target: "hw", "Ledger disconnect timeout");
 			}
 		}
