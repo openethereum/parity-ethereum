@@ -485,7 +485,7 @@ dependencies = [
  "parity-machine 0.1.0",
  "parking_lot 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.1.0",
- "price-info 1.7.0",
+ "price-info 1.11.0",
  "rand 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
@@ -2434,7 +2434,7 @@ dependencies = [
 
 [[package]]
 name = "price-info"
-version = "1.7.0"
+version = "1.11.0"
 dependencies = [
  "fetch 0.1.0",
  "futures 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
