@@ -10,9 +10,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 rustc_version = "0.2"
 
 [dependencies]
-parity-ui-dev = { git = "https://github.com/parity-js/shell.git", rev = "2f07ecec53a2319f41e5b83c01073b5386243173", optional = true }
+parity-ui-dev = { git = "https://github.com/parity-js/shell.git", rev = "43a46b83821604da9e6a928599d23647a047af19", optional = true }
 parity-ui-old-dev = { git = "https://github.com/parity-js/dapp-wallet.git", rev = "1a58bf4836c84e1632e27ef607b5a388abd2bf2d", optional = true }
-parity-ui-precompiled = { git = "https://github.com/js-dist-paritytech/parity-master-1-10-shell.git", rev="3fb77b61a7f30d6658f81d687e7e415657bd20bd", optional = true }
+parity-ui-precompiled = { git = "https://github.com/js-dist-paritytech/parity-master-1-10-shell.git", rev="1997bd3777a0e0bc1114cac341734d4793cca9e5", optional = true }
 parity-ui-old-precompiled = { git = "https://github.com/js-dist-paritytech/parity-master-1-10-wallet.git", rev="4c067dfa1a17fe71ab2ca26b18c52dcbd0f4fc04", optional = true }
 
 [features]
