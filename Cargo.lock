@@ -553,7 +553,6 @@ dependencies = [
  "keccak-hash 0.1.0",
  "kvdb 0.1.0",
  "kvdb-memorydb 0.1.0",
- "kvdb-rocksdb 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory-cache 0.1.0",
  "memorydb 0.1.1",
