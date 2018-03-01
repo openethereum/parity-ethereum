@@ -50,6 +50,8 @@ extern crate ethabi_derive;
 extern crate ethabi_contract;
 #[macro_use]
 extern crate error_chain;
+#[macro_use]
+extern crate rlp_derive;
 
 #[cfg(test)]
 extern crate rand;
@@ -167,8 +169,8 @@ impl Provider where {
 			encryptor,
 			config,
 			notify: RwLock::new(Vec::new()),
-			transactions_for_signing: Mutex::new(SigningStore::new()),
-			transactions_for_verification: Mutex::new(VerificationStore::new()),
+			transactions_for_signing: Mutex::new(SigningStore::default()),
+			transactions_for_verification: Mutex::new(VerificationStore::default()),
 			client,
 			accounts,
 		})

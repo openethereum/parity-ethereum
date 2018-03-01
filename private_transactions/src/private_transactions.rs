@@ -39,6 +39,7 @@ pub struct PrivateTransactionDesc {
 }
 
 /// Storage for private transactions for verification
+#[derive(Default)]
 pub struct VerificationStore {
 	/// Descriptors for private transactions in queue for verification with key - hash of the original transaction
 	descriptors: HashMap<H256, PrivateTransactionDesc>,
@@ -47,14 +48,6 @@ pub struct VerificationStore {
 }
 
 impl VerificationStore {
-	/// Creates new store
-	pub fn new() -> Self {
-		VerificationStore {
-			transactions: TransactionQueue::default(),
-			descriptors: HashMap::new(),
-		}
-	}
-
 	/// Adds private transaction for verification into the store
 	pub fn add_transaction(
 		&mut self,
@@ -126,19 +119,13 @@ pub struct PrivateTransactionSigningDesc {
 }
 
 /// Storage for private transactions for signing
+#[derive(Default)]
 pub struct SigningStore {
 	/// Transactions and descriptors for signing
 	transactions: HashMap<H256, PrivateTransactionSigningDesc>,
 }
 
 impl SigningStore {
-	/// Creates new store
-	pub fn new() -> Self {
-		SigningStore {
-			transactions: HashMap::new(),
-		}
-	}
-
 	/// Adds new private transaction into the store for signing
 	pub fn add_transaction(
 		&mut self,

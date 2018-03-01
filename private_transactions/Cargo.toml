@@ -26,6 +26,7 @@ ethcrypto = { path = "../ethcrypto" }
 ethkey = { path = "../ethkey" }
 ethjson = { path = "../json" }
 rlp = { path = "../util/rlp" }
+rlp_derive = { path = "../util/rlp_derive" }
 fetch = { path = "../util/fetch" }
 ethcore-bytes = { path = "../util/bytes" }
 ethcore-transaction = { path = "../ethcore/transaction" }

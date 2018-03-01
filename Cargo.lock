@@ -2538,6 +2538,7 @@ dependencies = [
  "patricia-trie 0.1.0",
  "rand 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
+ "rlp_derive 0.1.0",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",

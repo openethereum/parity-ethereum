@@ -16,37 +16,17 @@
 
 use ethereum_types::{H256, U256, Address};
 use bytes::Bytes;
-use rlp::*;
 use hash::keccak;
+use rlp::Encodable;
 use ethkey::Signature;
 
 /// Message with private transaction encrypted
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, RlpEncodable, RlpDecodable, Eq)]
 pub struct PrivateTransaction {
 	/// Encrypted data
 	pub encrypted: Bytes,
 	/// Address of the contract
 	pub contract: Address,
-}
-
-impl Decodable for PrivateTransaction {
-	fn decode(d: &UntrustedRlp) -> Result<Self, DecoderError> {
-		if d.item_count()? != 2 {
-			return Err(DecoderError::RlpIncorrectListLen);
-		}
-		Ok(PrivateTransaction {
-			encrypted: d.val_at(0)?,
-			contract: d.val_at(1)?,
-		})
-	}
-}
-
-impl Encodable for PrivateTransaction {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2);
-		s.append(&self.encrypted);
-		s.append(&self.contract);
-	}
 }
 
 impl PrivateTransaction {
@@ -57,7 +37,7 @@ impl PrivateTransaction {
 }
 
 /// Message about private transaction's signing
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, RlpEncodable, RlpDecodable, Eq)]
 pub struct SignedPrivateTransaction {
 	/// Hash of the corresponding private transaction
 	private_transaction_hash: H256,
@@ -68,30 +48,6 @@ pub struct SignedPrivateTransaction {
 	r: U256,
 	/// The S field of the signature
 	s: U256,
-}
-
-impl Decodable for SignedPrivateTransaction {
-	fn decode(d: &UntrustedRlp) -> Result<Self, DecoderError> {
-		if d.item_count()? != 4 {
-			return Err(DecoderError::RlpIncorrectListLen);
-		}
-		Ok(SignedPrivateTransaction {
-			private_transaction_hash: d.val_at(0)?,
-			v: d.val_at(1)?,
-			r: d.val_at(2)?,
-			s: d.val_at(3)?,
-		})
-	}
-}
-
-impl Encodable for SignedPrivateTransaction {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4);
-		s.append(&self.private_transaction_hash);
-		s.append(&self.v);
-		s.append(&self.r);
-		s.append(&self.s);
-	}
 }
 
 impl SignedPrivateTransaction {
