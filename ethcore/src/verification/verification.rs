@@ -37,7 +37,7 @@ use client::BlockChainClient;
 use engines::EthEngine;
 use error::{BlockError, Error};
 use header::{BlockNumber, Header};
-use transaction::SignedTransaction;
+use transaction::{SignedTransaction, UnverifiedTransaction};
 use views::BlockView;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
@@ -68,11 +68,9 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &EthEngine) -> 
 		verify_header_params(&u, engine, false)?;
 		engine.verify_block_basic(&u)?;
 	}
-	// Verify transactions.
-	// TODO: either use transaction views or cache the decoded transactions.
-	let v = BlockView::new(bytes);
-	for t in v.transactions() {
-		engine.verify_transaction_basic(&t, &header)?;
+
+	for t in UntrustedRlp::new(bytes).at(1)?.iter().map(|rlp| rlp.as_val::<UnverifiedTransaction>()) {
+		engine.verify_transaction_basic(&t?, &header)?;
 	}
 	Ok(())
 }
@@ -348,6 +346,8 @@ mod tests {
 	use time::get_time;
 	use transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action};
 	use types::log_entry::{LogEntry, LocalizedLogEntry};
+	use rlp;
+	use triehash::ordered_trie_root;
 
 	fn check_ok(result: Result<(), Error>) {
 		result.unwrap_or_else(|e| panic!("Block verification failed: {:?}", e));
@@ -499,6 +499,27 @@ mod tests {
 		let header = BlockView::new(bytes).header();
 		verify_block_unordered(header, bytes.to_vec(), engine, false)?;
 		Ok(())
+	}
+
+	#[test]
+	fn test_verify_block_basic_with_invalid_transactions() {
+		let spec = Spec::new_test();
+		let engine = &*spec.engine;
+
+		let block = {
+			let mut rlp = rlp::RlpStream::new_list(3);
+			let mut header = Header::default();
+			// that's an invalid transaction list rlp
+			let invalid_transactions = vec![vec![0u8]];
+			header.set_transactions_root(ordered_trie_root(&invalid_transactions));
+			header.set_gas_limit(engine.params().min_gas_limit);
+			rlp.append(&header);
+			rlp.append_list::<Vec<u8>, _>(&invalid_transactions);
+			rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
+			rlp.out()
+		};
+
+		assert!(basic_test(&block, engine).is_err());
 	}
 
 	#[test]
