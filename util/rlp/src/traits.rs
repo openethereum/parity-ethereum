@@ -28,14 +28,3 @@ pub trait Encodable {
 		s.drain()
 	}
 }
-
-/// Trait for compressing and decompressing RLP by replacement of common terms.
-pub trait Compressible: Sized {
-	/// Indicates the origin of RLP to be compressed.
-	type DataType;
-
-	/// Compress given RLP type using appropriate methods.
-	fn compress(&self, t: Self::DataType) -> ElasticArray1024<u8>;
-	/// Decompress given RLP type using appropriate methods.
-	fn decompress(&self, t: Self::DataType) -> ElasticArray1024<u8>;
-}

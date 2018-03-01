@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! View onto transaction rlp
-use ethereum_types::{H256, U256};
 use bytes::Bytes;
+use ethereum_types::{H256, U256};
 use hash::keccak;
 use rlp::Rlp;
 
@@ -77,9 +77,7 @@ impl<'a> TransactionView<'a> {
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
 	use rustc_hex::FromHex;
-	use ethereum_types::U256;
 	use super::TransactionView;
 
 	#[test]
@@ -87,13 +85,13 @@ mod tests {
 		let rlp = "f87c80018261a894095e7baea6a6c7c4c2dfeb977efac326af552d870a9d00000000000000000000000000000000000000000000000000000000001ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804".from_hex().unwrap();
 
 		let view = TransactionView::new(&rlp);
-		assert_eq!(view.nonce(), U256::from(0));
-		assert_eq!(view.gas_price(), U256::from(1));
-		assert_eq!(view.gas(), U256::from(0x61a8));
-		assert_eq!(view.value(), U256::from(0xa));
+		assert_eq!(view.nonce(), 0.into());
+		assert_eq!(view.gas_price(), 1.into());
+		assert_eq!(view.gas(), 0x61a8.into());
+		assert_eq!(view.value(), 0xa.into());
 		assert_eq!(view.data(), "0000000000000000000000000000000000000000000000000000000000".from_hex().unwrap());
-		assert_eq!(view.r(), U256::from_str("48b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353").unwrap());
-		assert_eq!(view.s(), U256::from_str("efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
+		assert_eq!(view.r(), "48b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353".into());
+		assert_eq!(view.s(), "efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804".into());
 		assert_eq!(view.v(), 0x1b);
 	}
 }

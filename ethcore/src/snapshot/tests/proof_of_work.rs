@@ -21,7 +21,7 @@ use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
 use error::Error;
 
-use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
+use blockchain::generator::{BlockGenerator, BlockBuilder};
 use blockchain::BlockChain;
 use snapshot::{chunk_secondary, Error as SnapshotError, Progress, SnapshotComponents};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
@@ -34,22 +34,22 @@ use kvdb_memorydb;
 const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot { blocks: 30000, max_restore_blocks: 30000 };
 
 fn chunk_and_restore(amount: u64) {
-	let mut canon_chain = ChainGenerator::default();
-	let mut finalizer = BlockFinalizer::default();
-	let genesis = canon_chain.generate(&mut finalizer).unwrap();
+	let genesis = BlockBuilder::genesis();
+	let rest = genesis.add_blocks(amount as usize);
+	let generator = BlockGenerator::new(vec![rest]);
+	let genesis = genesis.last();
 
 	let engine = ::spec::Spec::new_test().engine;
 	let tempdir = TempDir::new("").unwrap();
 	let snapshot_path = tempdir.path().join("SNAP");
 
 	let old_db = Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
-	let bc = BlockChain::new(Default::default(), &genesis, old_db.clone());
+	let bc = BlockChain::new(Default::default(), &genesis.encoded(), old_db.clone());
 
 	// build the blockchain.
 	let mut batch = DBTransaction::new();
-	for _ in 0..amount {
-		let block = canon_chain.generate(&mut finalizer).unwrap();
-		bc.insert_block(&mut batch, &block, vec![]);
+	for block in generator {
+		bc.insert_block(&mut batch, &block.encoded(), vec![]);
 		bc.commit();
 	}
 
@@ -80,7 +80,7 @@ fn chunk_and_restore(amount: u64) {
 
 	// restore it.
 	let new_db = Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
-	let new_chain = BlockChain::new(Default::default(), &genesis, new_db.clone());
+	let new_chain = BlockChain::new(Default::default(), &genesis.encoded(), new_db.clone());
 	let mut rebuilder = SNAPSHOT_MODE.rebuilder(new_chain, new_db.clone(), &manifest).unwrap();
 
 	let reader = PackedReader::new(&snapshot_path).unwrap().unwrap();
@@ -95,15 +95,19 @@ fn chunk_and_restore(amount: u64) {
 	drop(rebuilder);
 
 	// and test it.
-	let new_chain = BlockChain::new(Default::default(), &genesis, new_db);
+	let new_chain = BlockChain::new(Default::default(), &genesis.encoded(), new_db);
 	assert_eq!(new_chain.best_block_hash(), best_hash);
 }
 
 #[test]
-fn chunk_and_restore_500() { chunk_and_restore(500) }
+fn chunk_and_restore_500() {
+	chunk_and_restore(500)
+}
 
 #[test]
-fn chunk_and_restore_40k() { chunk_and_restore(40000) }
+fn chunk_and_restore_4k() {
+	chunk_and_restore(4000)
+}
 
 #[test]
 fn checks_flag() {
@@ -118,17 +122,12 @@ fn checks_flag() {
 
 	stream.append_empty_data().append_empty_data();
 
-	let genesis = {
-		let mut canon_chain = ChainGenerator::default();
-		let mut finalizer = BlockFinalizer::default();
-		canon_chain.generate(&mut finalizer).unwrap()
-	};
-
+	let genesis = BlockBuilder::genesis();
 	let chunk = stream.out();
 
 	let db = Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
 	let engine = ::spec::Spec::new_test().engine;
-	let chain = BlockChain::new(Default::default(), &genesis, db.clone());
+	let chain = BlockChain::new(Default::default(), &genesis.last().encoded(), db.clone());
 
 	let manifest = ::snapshot::ManifestData {
 		version: 2,

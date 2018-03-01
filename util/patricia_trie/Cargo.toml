@@ -17,3 +17,6 @@ rlp = { version = "0.2.1", path = "../rlp" }
 triehash = { version = "0.1.0", path = "../triehash" }
 memorydb = { version = "0.1.0", path = "../memorydb" }
 ethcore-logger = { version = "1.9.0", path = "../../logger" }
+
+[dev-dependencies]
+trie-standardmap = { path = "../trie-standardmap" }
