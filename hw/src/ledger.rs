@@ -29,7 +29,7 @@ use hidapi;
 use libusb;
 use parking_lot::{Mutex, RwLock};
 
-use super::{WalletInfo, KeyPath, Device};
+use super::{WalletInfo, KeyPath, Device, Foo};
 
 /// Ledger vendor ID
 pub const LEDGER_VID: u16 = 0x2c97;
@@ -66,6 +66,8 @@ pub enum Error {
 	UserCancel,
 	/// Invalid Device
 	InvalidDevice,
+	/// Placeholder
+	Placeholder,
 }
 
 impl fmt::Display for Error {
@@ -77,6 +79,7 @@ impl fmt::Display for Error {
 			Error::KeyNotFound => write!(f, "Key not found"),
 			Error::UserCancel => write!(f, "Operation has been cancelled"),
 			Error::InvalidDevice => write!(f, "Unsupported product was entered"),
+			Error::Placeholder => write!(f, "Placeholder error"),
 		}
 	}
 }
@@ -108,96 +111,6 @@ impl Manager {
 			devices: RwLock::new(Vec::new()),
 			key_path: RwLock::new(KeyPath::Ethereum),
 		}
-	}
-
-	/// Re-populate device list. Only those devices that have Ethereum app open will be added.
-	pub fn update_devices(&self) -> Result<usize, Error> {
-		let mut usb = self.usb.lock();
-		usb.refresh_devices();
-		let devices = usb.devices();
-		let mut new_devices = Vec::new();
-		let mut num_new_devices = 0;
-		for device in devices {
-			trace!("Checking device: {:?}", device);
-			if device.vendor_id != LEDGER_VID || !LEDGER_PIDS.contains(&device.product_id) {
-				continue;
-			}
-			match self.read_device_info(&usb, &device) {
-				Ok(info) => {
-					debug!("Found device: {:?}", info);
-					if !self.devices.read().iter().any(|d| d.path == info.path) {
-						num_new_devices += 1;
-					}
-					new_devices.push(info);
-
-				}
-				Err(e) => debug!("Error reading device info: {}", e),
-			};
-		}
-		*self.devices.write() = new_devices;
-		Ok(num_new_devices)
-	}
-
-	/// Select key derivation path for a known chain.
-	pub fn set_key_path(&self, key_path: KeyPath) {
-		*self.key_path.write() = key_path;
-	}
-
-	fn read_device_info(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Error> {
-		let mut handle = self.open_path(|| usb.open_path(&dev_info.path))?;
-		let address = Self::read_wallet_address(&mut handle, *self.key_path.read())?;
-		let manufacturer = dev_info.manufacturer_string.clone().unwrap_or("Unknown".to_owned());
-		let name = dev_info.product_string.clone().unwrap_or("Unknown".to_owned());
-		let serial = dev_info.serial_number.clone().unwrap_or("Unknown".to_owned());
-		Ok(Device {
-			path: dev_info.path.clone(),
-			info: WalletInfo {
-				name: name,
-				manufacturer: manufacturer,
-				serial: serial,
-				address: address,
-			},
-		})
-	}
-
-	fn read_wallet_address(handle: &hidapi::HidDevice, key_path: KeyPath) -> Result<Address, Error> {
-		let ver = Self::send_apdu(handle, commands::GET_APP_CONFIGURATION, 0, 0, &[])?;
-		if ver.len() != 4 {
-			return Err(Error::Protocol("Version packet size mismatch"));
-		}
-
-		let (major, minor, patch) = (ver[1], ver[2], ver[3]);
-		if major < 1 || (major == 1 && minor == 0 && patch < 3) {
-			return Err(Error::Protocol("App version 1.0.3 is required."));
-		}
-
-		let eth_path = &ETH_DERIVATION_PATH_BE[..];
-		let etc_path = &ETC_DERIVATION_PATH_BE[..];
-		let derivation_path = match key_path {
-			KeyPath::Ethereum => eth_path,
-			KeyPath::EthereumClassic => etc_path,
-		};
-		let key_and_address = Self::send_apdu(handle, commands::GET_ETH_PUBLIC_ADDRESS, 0, 0, derivation_path)?;
-		if key_and_address.len() != 107 { // 1 + 65 PK + 1 + 40 Addr (ascii-hex)
-			return Err(Error::Protocol("Key packet size mismatch"));
-		}
-		let address_string = ::std::str::from_utf8(&key_and_address[67..107])
-			.map_err(|_| Error::Protocol("Invalid address string"))?;
-
-		let address = Address::from_str(&address_string)
-			.map_err(|_| Error::Protocol("Invalid address string"))?;
-
-		Ok(address)
-	}
-
-	/// List connected wallets. This only returns wallets that are ready to be used.
-	pub fn list_devices(&self) -> Vec<WalletInfo> {
-		self.devices.read().iter().map(|d| d.info.clone()).collect()
-	}
-
-	/// Get wallet info.
-	pub fn device_info(&self, address: &Address) -> Option<WalletInfo> {
-		self.devices.read().iter().find(|d| &d.info.address == address).map(|d| d.info.clone())
 	}
 
 	/// Sign transaction data with wallet managing `address`.
@@ -359,6 +272,111 @@ fn try_connect_polling(ledger: Arc<Manager>, timeout: Duration) -> bool {
 	false
 }
 
+impl Foo for Manager {
+	type Error = Error;
+	type Transaction = ();
+
+	/// This can be a problem :)
+	fn sign_transaction(&self, _address: &Address, _transaction: &Self::Transaction) -> Result<Signature, Self::Error> {
+		unimplemented!();
+	}
+
+	fn set_key_path(&self, key_path: KeyPath) {
+		*self.key_path.write() = key_path;
+	}
+
+	fn update_devices(&self) -> Result<usize, Self::Error> {
+		let mut usb = self.usb.lock();
+		usb.refresh_devices();
+		let devices = usb.devices();
+		let mut new_devices = Vec::new();
+		let mut num_new_devices = 0;
+		for device in devices {
+			trace!("Checking device: {:?}", device);
+			if device.vendor_id != LEDGER_VID || !LEDGER_PIDS.contains(&device.product_id) {
+				continue;
+			}
+			match self.read_device(&usb, &device) {
+				Ok(info) => {
+					debug!("Found device: {:?}", info);
+					if !self.devices.read().iter().any(|d| d.path == info.path) {
+						num_new_devices += 1;
+					}
+					new_devices.push(info);
+
+				}
+				Err(e) => debug!("Error reading device info: {}", e),
+			};
+		}
+		*self.devices.write() = new_devices;
+		Ok(num_new_devices)
+	}
+
+	fn read_device(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Self::Error> {
+		let handle = self.open_path(|| usb.open_path(&dev_info.path))?;
+		let manufacturer = dev_info.manufacturer_string.clone().unwrap_or("Unknown".to_owned());
+		let name = dev_info.product_string.clone().unwrap_or("Unknown".to_owned());
+		let serial = dev_info.serial_number.clone().unwrap_or("Unknown".to_owned());
+		match self.get_address(&handle) {
+			Ok(Some(addr)) => {
+				Ok(Device {
+					path: dev_info.path.clone(),
+					info: WalletInfo {
+						name: name,
+						manufacturer: manufacturer,
+						serial: serial,
+						address: addr,
+					},
+				})
+			}
+			Ok(None) => Err(Error::Placeholder),
+			Err(e) => Err(e),
+		}
+	}
+
+	fn list_devices(&self) -> Vec<WalletInfo> {
+		self.devices.read().iter().map(|d| d.info.clone()).collect()
+	}
+
+	// Consider to remove this from the trait
+	fn list_locked_devices(&self) -> Vec<String> {
+		unimplemented!();
+	}
+
+	fn get_wallet(&self, address: &Address) -> Option<WalletInfo> {
+		self.devices.read().iter().find(|d| &d.info.address == address).map(|d| d.info.clone())
+	}
+
+	fn get_address(&self, device: &hidapi::HidDevice) -> Result<Option<Address>, Self::Error> {
+		let ver = Self::send_apdu(device, commands::GET_APP_CONFIGURATION, 0, 0, &[])?;
+		if ver.len() != 4 {
+			return Err(Error::Protocol("Version packet size mismatch"));
+		}
+
+		let (major, minor, patch) = (ver[1], ver[2], ver[3]);
+		if major < 1 || (major == 1 && minor == 0 && patch < 3) {
+			return Err(Error::Protocol("App version 1.0.3 is required."));
+		}
+
+		let eth_path = &ETH_DERIVATION_PATH_BE[..];
+		let etc_path = &ETC_DERIVATION_PATH_BE[..];
+		let derivation_path = match *self.key_path.read() {
+			KeyPath::Ethereum => eth_path,
+			KeyPath::EthereumClassic => etc_path,
+		};
+		let key_and_address = Self::send_apdu(device, commands::GET_ETH_PUBLIC_ADDRESS, 0, 0, derivation_path)?;
+		if key_and_address.len() != 107 { // 1 + 65 PK + 1 + 40 Addr (ascii-hex)
+			return Err(Error::Protocol("Key packet size mismatch"));
+		}
+		let address_string = ::std::str::from_utf8(&key_and_address[67..107])
+			.map_err(|_| Error::Protocol("Invalid address string"))?;
+
+		let address = Address::from_str(&address_string)
+			.map_err(|_| Error::Protocol("Invalid address string"))?;
+
+		Ok(Some(address))
+	}
+}
 
 
 

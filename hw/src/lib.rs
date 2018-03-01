@@ -69,10 +69,20 @@ pub trait Foo {
 	fn update_devices(&self) -> Result<usize, Self::Error>;
 
 	/// Read device info
-	fn read_device_info(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Self::Error>;
+	fn read_device(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Self::Error>;
 
-	// /// Open path to the HID API
-	// fn open_path<R, F>(&self, f: F) -> Result<R, Error>;
+	/// List connected and acknowledged wallets
+	fn list_devices(&self) -> Vec<WalletInfo>;
+
+	/// List locked wallets
+	/// Optional with default implementation
+	fn list_locked_devices(&self) -> Vec<String>;
+
+	/// Get wallet info.
+	fn get_wallet(&self, address: &Address) -> Option<WalletInfo>;
+
+	/// Generate ethereum address for a Wallet
+	fn get_address(&self, device: &hidapi::HidDevice) -> Result<Option<Address>, Self::Error>;
 }
 
 const USB_DEVICE_CLASS_DEVICE: u8 = 0;
@@ -269,19 +279,20 @@ impl HardwareWalletManager {
 	}
 
 	/// Get connected wallet info.
+	//TODO: modify with trait
 	pub fn wallet_info(&self, address: &Address) -> Option<WalletInfo> {
-		if let Some(info) = self.ledger.device_info(address) {
+		if let Some(info) = self.ledger.get_wallet(address) {
 			Some(info)
 		} else {
-			self.trezor.device_info(address)
+			self.trezor.get_wallet(address)
 		}
 	}
 
 	/// Sign transaction data with wallet managing `address`.
 	pub fn sign_transaction(&self, address: &Address, t_info: &TransactionInfo, encoded_transaction: &[u8]) -> Result<Signature, Error> {
-		if self.ledger.device_info(address).is_some() {
+		if self.ledger.get_wallet(address).is_some() {
 			Ok(self.ledger.sign_transaction(address, encoded_transaction)?)
-		} else if self.trezor.device_info(address).is_some() {
+		} else if self.trezor.get_wallet(address).is_some() {
 			Ok(self.trezor.sign_transaction(address, t_info)?)
 		} else {
 			Err(Error::KeyNotFound)
