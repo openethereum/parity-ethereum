@@ -10,7 +10,7 @@ build = "build.rs"
 [package.metadata]
 # This versions track. Should be changed to `stable` or `beta` when on respective branches.
 # Used by auto-updater and for Parity version string.
-track = "beta"
+track = "stable"
 
 # Indicates a critical release in this track (i.e. consensus issue)
 critical = false
