@@ -18,7 +18,7 @@
 
 mod genesis;
 mod seal;
-pub mod spec;
+mod spec;
 
-pub use self::spec::*;
 pub use self::genesis::Genesis;
+pub use self::spec::{Spec, SpecParams, CommonParams, OptimizeFor};

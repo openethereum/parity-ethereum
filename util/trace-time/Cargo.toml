@@ -1,8 +1,8 @@
 [package]
-name = "kvdb-memorydb"
+name = "trace-time"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-parking_lot = "0.5"
-kvdb = { path = "../kvdb" }
+time = "0.1.34"
+log = "0.3"

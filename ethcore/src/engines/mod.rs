@@ -393,35 +393,3 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 
 // convenience wrappers for existing functions.
 impl<T> EthEngine for T where T: Engine<::machine::EthereumMachine> { }
-
-/// Common engine utilities
-pub mod common {
-	use block::ExecutedBlock;
-	use error::Error;
-	use trace::{Tracer, ExecutiveTracer, RewardType};
-	use state::CleanupMode;
-
-	use ethereum_types::{Address, U256};
-
-	/// Give reward and trace.
-	pub fn bestow_block_reward(block: &mut ExecutedBlock, reward: U256, receiver: Address) -> Result<(), Error> {
-		let fields = block.fields_mut();
-
-		// Bestow block reward
-		let res = fields.state.add_balance(&receiver, &reward, CleanupMode::NoEmpty)
-			.map_err(::error::Error::from)
-			.and_then(|_| fields.state.commit());
-
-		fields.traces.as_mut().map(move |traces| {
-  			let mut tracer = ExecutiveTracer::default();
-  			tracer.trace_reward(receiver, reward, RewardType::Block);
-  			traces.push(tracer.drain())
-		});
-
-		if let Err(ref e) = res {
-			warn!("Encountered error on bestowing reward: {}", e);
-		}
-
-		res
-	}
-}
