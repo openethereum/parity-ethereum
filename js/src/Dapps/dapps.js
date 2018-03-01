@@ -29,6 +29,8 @@ import DappCard from './DappCard';
 
 import styles from './dapps.css';
 
+import BLACKLIST from './blacklist';
+
 @observer
 class Dapps extends Component {
   static contextTypes = {
@@ -53,8 +55,10 @@ class Dapps extends Component {
     }
   }
 
-  renderSection = (apps) => (
-    apps && apps.length > 0 &&
+  renderSection = (_apps) => {
+    const apps = _apps.filter(({ id }) => !BLACKLIST.includes(id));
+
+    return apps && apps.length > 0 &&
     <div className={ styles.dapps }>
       {
         apps.map((app, index) => (
@@ -68,8 +72,8 @@ class Dapps extends Component {
           />
         ))
       }
-    </div>
-  )
+    </div>;
+  }
 
   render () {
     return (
