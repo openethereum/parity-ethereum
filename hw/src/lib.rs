@@ -16,6 +16,8 @@
 
 //! Hardware wallet management.
 
+#![warn(missing_docs)]
+
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate hidapi;
@@ -61,12 +63,19 @@ pub enum Error {
 /// or less a duplicate of ethcore::transaction::Transaction, but we can't
 /// import ethcore here as that would be a circular dependency.
 pub struct TransactionInfo {
+	/// Nonce
 	pub nonce: U256,
+	/// Gas price
 	pub gas_price: U256,
+	/// Gas limit
 	pub gas_limit: U256,
+	/// Receiver
 	pub to: Option<Address>,
+	/// Value
 	pub value: U256,
+	/// Data
 	pub data: Vec<u8>,
+	/// Chain ID
 	pub chain_id: Option<u64>,
 }
 
