@@ -16,7 +16,8 @@
 
 //! Hardware wallet management.
 
-#![warn(missing_docs)]
+#[deny(missing_docs)]
+#[deny(warnings)]
 
 extern crate ethereum_types;
 extern crate ethkey;
@@ -48,10 +49,14 @@ pub struct Device {
 	info: WalletInfo,
 }
 
-pub trait Foo {
+// The goal with this is to replace the Hardware Wallet Manager completly
+// Because it more or less acts as wrapper on top of the different wallets
+// Also, because it doesn't care about the event handler threads
+// It doesn't make sense to keep it only adds complexity in terms of
+// more code
+pub trait Foo<'a> {
 	/// Error
 	type Error;
-
 	/// Transaction format
 	type Transaction;
 
@@ -59,13 +64,14 @@ pub trait Foo {
 	const USB_DEVICE_CLASS_DEVICE: u8 = 0;
 
 	/// Sign transaction data with wallet managing `address`.
-	fn sign_transaction(&self, address: &Address, transaction: &Self::Transaction) -> Result<Signature, Self::Error>;
+	fn sign_transaction(&self, address: &Address, transaction: Self::Transaction) -> Result<Signature, Self::Error>;
 
-	/// Select key derivation path for a chain.
+	/// Set key derivation path for a chain.
 	// TODO: add return value
 	fn set_key_path(&self, key_path: KeyPath);
 
 	/// Re-populate device list
+	/// Note, this assumes all devices are iterated over and updated
 	fn update_devices(&self) -> Result<usize, Self::Error>;
 
 	/// Read device info
@@ -75,7 +81,6 @@ pub trait Foo {
 	fn list_devices(&self) -> Vec<WalletInfo>;
 
 	/// List locked wallets
-	/// Optional with default implementation
 	fn list_locked_devices(&self) -> Vec<String>;
 
 	/// Get wallet info.
@@ -83,6 +88,15 @@ pub trait Foo {
 
 	/// Generate ethereum address for a Wallet
 	fn get_address(&self, device: &hidapi::HidDevice) -> Result<Option<Address>, Self::Error>;
+
+	/// Open a device using path
+	/// Note, f - is a closure that borrows HidResult<HidDevice>
+	/// HidDevice is in turn as type alias for a `c_void function pointer`
+	/// For further information see:
+	///		* [hidapi-rs](https://github.com/paritytech/hidapi-rs)
+	///		* [libc](https://github.com/rust-lang/libc)
+	fn open_path<R, F>(&self, f: F) -> Result<R, Self::Error>
+		where F: Fn() -> Result<R, &'static str>;
 }
 
 const USB_DEVICE_CLASS_DEVICE: u8 = 0;
@@ -300,6 +314,7 @@ impl HardwareWalletManager {
 	}
 
 	/// Send a pin to a device at a certain path to unlock it
+	/// This is Trezor specific!!!
 	pub fn pin_matrix_ack(&self, path: &str, pin: &str) -> Result<bool, Error> {
 		self.trezor.pin_matrix_ack(path, pin).map_err(Error::TrezorDevice)
 	}

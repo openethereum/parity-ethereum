@@ -113,53 +113,6 @@ impl Manager {
 		}
 	}
 
-	/// Sign transaction data with wallet managing `address`.
-	pub fn sign_transaction(&self, address: &Address, data: &[u8]) -> Result<Signature, Error> {
-		let usb = self.usb.lock();
-		let devices = self.devices.read();
-		let device = devices.iter().find(|d| &d.info.address == address).ok_or(Error::KeyNotFound)?;
-		let handle = self.open_path(|| usb.open_path(&device.path))?;
-
-		let eth_path = &ETH_DERIVATION_PATH_BE[..];
-		let etc_path = &ETC_DERIVATION_PATH_BE[..];
-		let derivation_path = match *self.key_path.read() {
-			KeyPath::Ethereum => eth_path,
-			KeyPath::EthereumClassic => etc_path,
-		};
-		const MAX_CHUNK_SIZE: usize = 255;
-		let mut chunk: [u8; MAX_CHUNK_SIZE] = [0; MAX_CHUNK_SIZE];
-		&mut chunk[0..derivation_path.len()].copy_from_slice(derivation_path);
-		let mut dest_offset = derivation_path.len();
-		let mut data_pos = 0;
-		let mut result;
-		loop {
-			let p1 = if data_pos == 0 { 0x00 } else { 0x80 };
-			let dest_left = MAX_CHUNK_SIZE - dest_offset;
-			let chunk_data_size = min(dest_left, data.len() - data_pos);
-			&mut chunk[dest_offset..][0..chunk_data_size].copy_from_slice(&data[data_pos..][0..chunk_data_size]);
-			result = Self::send_apdu(&handle, commands::SIGN_ETH_TRANSACTION, p1, 0, &chunk[0..(dest_offset + chunk_data_size)])?;
-			dest_offset = 0;
-			data_pos += chunk_data_size;
-			if data_pos == data.len() {
-				break;
-			}
-		}
-
-		if result.len() != 65 {
-			return Err(Error::Protocol("Signature packet size mismatch"));
-		}
-		let v = (result[0] + 1) % 2;
-		let r = H256::from_slice(&result[1..33]);
-		let s = H256::from_slice(&result[33..65]);
-		Ok(Signature::from_rsv(&r, &s, v))
-	}
-
-	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
-		where F: Fn() -> Result<R, &'static str>
-	{
-		f().map_err(Into::into)
-	}
-
 	fn send_apdu(handle: &hidapi::HidDevice, command: u8, p1: u8, p2: u8, data: &[u8]) -> Result<Vec<u8>, Error> {
 		const HID_PACKET_SIZE: usize = 64 + HID_PREFIX_ZERO;
 		let mut offset = 0;
@@ -272,13 +225,49 @@ fn try_connect_polling(ledger: Arc<Manager>, timeout: Duration) -> bool {
 	false
 }
 
-impl Foo for Manager {
+impl <'a>Foo<'a> for Manager {
 	type Error = Error;
-	type Transaction = ();
+	type Transaction = &'a [u8];
 
 	/// This can be a problem :)
-	fn sign_transaction(&self, _address: &Address, _transaction: &Self::Transaction) -> Result<Signature, Self::Error> {
-		unimplemented!();
+	fn sign_transaction(&self, address: &Address, transaction: Self::Transaction) -> Result<Signature, Self::Error> {
+		let usb = self.usb.lock();
+		let devices = self.devices.read();
+		let device = devices.iter().find(|d| &d.info.address == address).ok_or(Error::KeyNotFound)?;
+		let handle = self.open_path(|| usb.open_path(&device.path))?;
+
+		let eth_path = &ETH_DERIVATION_PATH_BE[..];
+		let etc_path = &ETC_DERIVATION_PATH_BE[..];
+		let derivation_path = match *self.key_path.read() {
+			KeyPath::Ethereum => eth_path,
+			KeyPath::EthereumClassic => etc_path,
+		};
+		const MAX_CHUNK_SIZE: usize = 255;
+		let mut chunk: [u8; MAX_CHUNK_SIZE] = [0; MAX_CHUNK_SIZE];
+		&mut chunk[0..derivation_path.len()].copy_from_slice(derivation_path);
+		let mut dest_offset = derivation_path.len();
+		let mut data_pos = 0;
+		let mut result;
+		loop {
+			let p1 = if data_pos == 0 { 0x00 } else { 0x80 };
+			let dest_left = MAX_CHUNK_SIZE - dest_offset;
+			let chunk_data_size = min(dest_left, transaction.len() - data_pos);
+			&mut chunk[dest_offset..][0..chunk_data_size].copy_from_slice(&transaction[data_pos..][0..chunk_data_size]);
+			result = Self::send_apdu(&handle, commands::SIGN_ETH_TRANSACTION, p1, 0, &chunk[0..(dest_offset + chunk_data_size)])?;
+			dest_offset = 0;
+			data_pos += chunk_data_size;
+			if data_pos == transaction.len() {
+				break;
+			}
+		}
+
+		if result.len() != 65 {
+			return Err(Error::Protocol("Signature packet size mismatch"));
+		}
+		let v = (result[0] + 1) % 2;
+		let r = H256::from_slice(&result[1..33]);
+		let s = H256::from_slice(&result[33..65]);
+		Ok(Signature::from_rsv(&r, &s, v))
 	}
 
 	fn set_key_path(&self, key_path: KeyPath) {
@@ -375,6 +364,12 @@ impl Foo for Manager {
 			.map_err(|_| Error::Protocol("Invalid address string"))?;
 
 		Ok(Some(address))
+	}
+
+	fn open_path<R, F>(&self, f: F) -> Result<R, Self::Error>
+		where F: Fn() -> Result<R, &'static str>
+	{
+		f().map_err(Into::into)
 	}
 }
 

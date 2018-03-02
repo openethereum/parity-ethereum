@@ -94,12 +94,12 @@ pub struct Manager {
 	key_path: RwLock<KeyPath>,
 }
 
-impl Foo for Manager {
+impl <'a>Foo<'a> for Manager {
 	type Error = Error;
-	type Transaction = TransactionInfo;
+	type Transaction = &'a TransactionInfo;
 
 
-	fn sign_transaction(&self, address: &Address, t_info: &Self::Transaction) ->
+	fn sign_transaction(&self, address: &Address, t_info: Self::Transaction) ->
 		Result<Signature, Error> {
 		let usb = self.usb.lock();
 		let devices = self.devices.read();
@@ -233,6 +233,12 @@ impl Foo for Manager {
 			_ => Ok(None),
 		}
 	}
+
+	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
+		where F: Fn() -> Result<R, &'static str>
+	{
+		f().map_err(Into::into)
+	}
 }
 
 /// HID Version used for the Trezor device
@@ -250,12 +256,6 @@ impl Manager {
 			locked_devices: RwLock::new(Vec::new()),
 			key_path: RwLock::new(KeyPath::Ethereum),
 		}
-	}
-
-	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
-		where F: Fn() -> Result<R, &'static str>
-	{
-		f().map_err(Into::into)
 	}
 
 	pub fn pin_matrix_ack(&self, device_path: &str, pin: &str) -> Result<bool, Error> {
@@ -395,6 +395,8 @@ impl Manager {
 		}
 		Ok((msg_type, data[..msg_size as usize].to_vec()))
 	}
+
+
 }
 
 // Try to connect to the device using polling in at most the time specified by the `timeout`
