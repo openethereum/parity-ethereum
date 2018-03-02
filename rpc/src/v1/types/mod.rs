@@ -35,6 +35,7 @@ mod node_kind;
 mod provenance;
 mod receipt;
 mod rpc_settings;
+mod secretstore;
 mod sync;
 mod trace;
 mod trace_filter;
@@ -67,6 +68,7 @@ pub use self::node_kind::{NodeKind, Availability, Capability};
 pub use self::provenance::{Origin, DappId};
 pub use self::receipt::Receipt;
 pub use self::rpc_settings::RpcSettings;
+pub use self::secretstore::EncryptedDocumentKey;
 pub use self::sync::{
 	SyncStatus, SyncInfo, Peers, PeerInfo, PeerNetworkInfo, PeerProtocolsInfo,
 	TransactionStats, ChainStatus, EthProtocolInfo, PipProtocolInfo,

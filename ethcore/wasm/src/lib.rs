@@ -88,7 +88,7 @@ impl vm::Vm for WasmInterpreter {
 
 		let module_instance = wasmi::ModuleInstance::new(
 			&loaded_module,
-			&wasmi::ImportsBuilder::new().with_resolver("env", &instantiation_resolover)
+			&wasmi::ImportsBuilder::new().with_resolver("env", &instantiation_resolver)
 		).map_err(Error::Interpreter)?;
 
 		let adjusted_gas = params.gas * U256::from(ext.schedule().wasm().opcodes_div) /
@@ -99,13 +99,13 @@ impl vm::Vm for WasmInterpreter {
 			return Err(vm::Error::Wasm("Wasm interpreter cannot run contracts with gas (wasm adjusted) >= 2^64".to_owned()));
 		}
 
-		let initial_memory = instantiation_resolover.memory_size().map_err(Error::Interpreter)?;
+		let initial_memory = instantiation_resolver.memory_size().map_err(Error::Interpreter)?;
 		trace!(target: "wasm", "Contract requested {:?} pages of initial memory", initial_memory);
 
 		let (gas_left, result) = {
 			let mut runtime = Runtime::with_params(
 				ext,
-				instantiation_resolover.memory_ref(),
+				instantiation_resolver.memory_ref(),
 				// cannot overflow, checked above
 				adjusted_gas.low_u64(),
 				data.to_vec(),

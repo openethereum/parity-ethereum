@@ -280,8 +280,8 @@ fn change_history_size() {
 
 		for _ in 0..20 {
 			let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
-			b.block_mut().fields_mut().state.add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
-			b.block_mut().fields_mut().state.commit().unwrap();
+			b.block_mut().state_mut().add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
+			b.block_mut().state_mut().commit().unwrap();
 			let b = b.close_and_lock().seal(&*test_spec.engine, vec![]).unwrap();
 			client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
 		}
@@ -339,8 +339,8 @@ fn transaction_proof() {
 	let test_spec = Spec::new_test();
 	for _ in 0..20 {
 		let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
-		b.block_mut().fields_mut().state.add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
-		b.block_mut().fields_mut().state.commit().unwrap();
+		b.block_mut().state_mut().add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
+		b.block_mut().state_mut().commit().unwrap();
 		let b = b.close_and_lock().seal(&*test_spec.engine, vec![]).unwrap();
 		client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
 	}

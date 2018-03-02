@@ -22,7 +22,7 @@ use std::time::{Instant, Duration};
 use ethereum_types::{H256, U256, Address};
 use parking_lot::Mutex;
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
+use ethcore::client::{BlockChainClient, BlockId, EachBlockWith, Executed, TestBlockChainClient, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::miner::MinerService;
 use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
@@ -282,6 +282,29 @@ fn rpc_logs_filter() {
 
 	assert_eq!(tester.io.handle_request_sync(request_changes1), Some(response1.to_owned()));
 	assert_eq!(tester.io.handle_request_sync(request_changes2), Some(response2.to_owned()));
+}
+
+#[test]
+fn rpc_blocks_filter() {
+	let tester = EthTester::default();
+	let request_filter = r#"{"jsonrpc": "2.0", "method": "eth_newBlockFilter", "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0","id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request_filter), Some(response.to_owned()));
+
+	let request_changes = r#"{"jsonrpc": "2.0", "method": "eth_getFilterChanges", "params": ["0x0"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request_changes), Some(response.to_owned()));
+
+	tester.client.add_blocks(2, EachBlockWith::Nothing);
+
+	let response = format!(
+		r#"{{"jsonrpc":"2.0","result":["0x{:x}","0x{:x}"],"id":1}}"#,
+		tester.client.block_hash(BlockId::Number(1)).unwrap(),
+		tester.client.block_hash(BlockId::Number(2)).unwrap());
+
+	assert_eq!(tester.io.handle_request_sync(request_changes), Some(response.to_owned()));
 }
 
 #[test]

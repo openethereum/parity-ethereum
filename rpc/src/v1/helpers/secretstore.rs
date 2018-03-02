@@ -16,16 +16,35 @@
 
 use std::collections::BTreeSet;
 use rand::{Rng, OsRng};
-use ethkey::{Public, Secret, math};
+use ethkey::{Public, Secret, Random, Generator, math};
 use crypto;
 use bytes::Bytes;
 use jsonrpc_core::Error;
 use v1::helpers::errors;
-use v1::types::{H256, H512};
+use v1::types::{H256, H512, EncryptedDocumentKey};
 use tiny_keccak::Keccak;
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
+
+/// Generate document key to store in secret store.
+pub fn generate_document_key(account_public: Public, server_key_public: Public) -> Result<EncryptedDocumentKey, Error> {
+	// generate random plain document key
+	let document_key = Random.generate().map_err(errors::encryption)?;
+
+	// encrypt document key using server key
+	let (common_point, encrypted_point) = encrypt_secret(document_key.public(), &server_key_public)?;
+
+	// ..and now encrypt document key with account public
+	let encrypted_key = crypto::ecies::encrypt(&account_public, &crypto::DEFAULT_MAC, document_key.public())
+		.map_err(errors::encryption)?;
+
+	Ok(EncryptedDocumentKey {
+		common_point: common_point.into(),
+		encrypted_point: encrypted_point.into(),
+		encrypted_key: encrypted_key.into(),
+	})
+}
 
 /// Encrypt document with distributely generated key.
 pub fn encrypt_document(key: Bytes, document: Bytes) -> Result<Bytes, Error> {
@@ -112,6 +131,28 @@ fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common_sha
 	math::public_add(&mut decrypted_shadow, &common_shadow_point)
 		.map_err(errors::encryption)?;
 	Ok(decrypted_shadow)
+}
+
+fn encrypt_secret(secret: &Public, joint_public: &Public) -> Result<(Public, Public), Error> {
+	// TODO: it is copypaste of `encrypt_secret` from secret_store/src/key_server_cluster/math.rs
+	// use shared version from SS math library, when it'll be available
+
+	let key_pair = Random.generate()
+		.map_err(errors::encryption)?;
+
+	// k * T
+	let mut common_point = math::generation_point();
+	math::public_mul_secret(&mut common_point, key_pair.secret())
+		.map_err(errors::encryption)?;
+
+	// M + k * y
+	let mut encrypted_point = joint_public.clone();
+	math::public_mul_secret(&mut encrypted_point, key_pair.secret())
+		.map_err(errors::encryption)?;
+	math::public_add(&mut encrypted_point, secret)
+		.map_err(errors::encryption)?;
+
+	Ok((common_point, encrypted_point))
 }
 
 #[cfg(test)]

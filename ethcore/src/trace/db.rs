@@ -15,19 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Trace database.
-use std::ops::Deref;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
-use bloomchain::{Number, Config as BloomConfig};
-use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
 use heapsize::HeapSizeOf;
-use ethereum_types::{H256, H264};
+use ethereum_types::{H256, H264, Bloom};
 use kvdb::{KeyValueDB, DBTransaction};
 use parking_lot::RwLock;
 use header::BlockNumber;
 use trace::{LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras};
 use db::{self, Key, Writable, Readable, CacheUpdatePolicy};
-use blooms;
 use super::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
 use cache_manager::CacheManager;
 
@@ -37,8 +33,8 @@ const TRACE_DB_VER: &'static [u8] = b"1.0";
 enum TraceDBIndex {
 	/// Block traces index.
 	BlockTraces = 0,
-	/// Trace bloom group index.
-	BloomGroups = 1,
+	/// Blooms index.
+	Blooms = 2,
 }
 
 impl Key<FlatBlockTraces> for H256 {
@@ -52,78 +48,35 @@ impl Key<FlatBlockTraces> for H256 {
 	}
 }
 
-/// Wrapper around `blooms::GroupPosition` so it could be
-/// uniquely identified in the database.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-struct TraceGroupPosition(blooms::GroupPosition);
+impl Key<Bloom> for H256 {
+	type Target = H264;
 
-impl From<GroupPosition> for TraceGroupPosition {
-	fn from(position: GroupPosition) -> Self {
-		TraceGroupPosition(From::from(position))
-	}
-}
-
-impl HeapSizeOf for TraceGroupPosition {
-	fn heap_size_of_children(&self) -> usize {
-		0
-	}
-}
-
-/// Helper data structure created cause [u8; 6] does not implement Deref to &[u8].
-pub struct TraceGroupKey([u8; 6]);
-
-impl Deref for TraceGroupKey {
-	type Target = [u8];
-
-	fn deref(&self) -> &Self::Target {
-		&self.0
-	}
-}
-
-impl Key<blooms::BloomGroup> for TraceGroupPosition {
-	type Target = TraceGroupKey;
-
-	fn key(&self) -> Self::Target {
-		let mut result = [0u8; 6];
-		result[0] = TraceDBIndex::BloomGroups as u8;
-		result[1] = self.0.level;
-		result[2] = self.0.index as u8;
-		result[3] = (self.0.index >> 8) as u8;
-		result[4] = (self.0.index >> 16) as u8;
-		result[5] = (self.0.index >> 24) as u8;
-		TraceGroupKey(result)
+	fn key(&self) -> H264 {
+		let mut result = H264::default();
+		result[0] = TraceDBIndex::Blooms as u8;
+		result[1..33].copy_from_slice(self);
+		result
 	}
 }
 
 #[derive(Debug, Hash, Eq, PartialEq)]
 enum CacheId {
 	Trace(H256),
-	Bloom(TraceGroupPosition),
+	Bloom(H256),
 }
 
 /// Trace database.
 pub struct TraceDB<T> where T: DatabaseExtras {
 	// cache
 	traces: RwLock<HashMap<H256, FlatBlockTraces>>,
-	blooms: RwLock<HashMap<TraceGroupPosition, blooms::BloomGroup>>,
+	blooms: RwLock<HashMap<H256, Bloom>>,
 	cache_manager: RwLock<CacheManager<CacheId>>,
 	// db
 	tracesdb: Arc<KeyValueDB>,
-	// config,
-	bloom_config: BloomConfig,
 	// tracing enabled
 	enabled: bool,
 	// extras
 	extras: Arc<T>,
-}
-
-impl<T> BloomGroupDatabase for TraceDB<T> where T: DatabaseExtras {
-	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
-		let position = TraceGroupPosition::from(position.clone());
-		let result = self.tracesdb.read_with_cache(db::COL_TRACE, &self.blooms, &position).map(Into::into);
-		self.note_used(CacheId::Bloom(position));
-		result
-	}
 }
 
 impl<T> TraceDB<T> where T: DatabaseExtras {
@@ -137,13 +90,12 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 		tracesdb.write(batch).expect("failed to update version");
 
 		TraceDB {
-			traces: RwLock::new(HashMap::new()),
-			blooms: RwLock::new(HashMap::new()),
 			cache_manager: RwLock::new(CacheManager::new(config.pref_cache_size, config.max_cache_size, 10 * 1024)),
-			tracesdb: tracesdb,
-			bloom_config: config.blooms,
+			tracesdb,
 			enabled: config.enabled,
-			extras: extras,
+			extras,
+			traces: RwLock::default(),
+			blooms: RwLock::default(),
 		}
 	}
 
@@ -185,6 +137,12 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	fn traces(&self, block_hash: &H256) -> Option<FlatBlockTraces> {
 		let result = self.tracesdb.read_with_cache(db::COL_TRACE, &self.traces, block_hash);
 		self.note_used(CacheId::Trace(block_hash.clone()));
+		result
+	}
+
+	fn bloom(&self, block_hash: &H256) -> Option<Bloom> {
+		let result = self.tracesdb.read_with_cache(db::COL_TRACE, &self.blooms, block_hash);
+		self.note_used(CacheId::Bloom(block_hash.clone()));
 		result
 	}
 
@@ -264,47 +222,16 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			return;
 		}
 
-		// now let's rebuild the blooms
-		if !request.enacted.is_empty() {
-			let range_start = request.block_number as Number + 1 - request.enacted.len();
-			let range_end = range_start + request.retracted;
-			let replaced_range = range_start..range_end;
-			let enacted_blooms = request.enacted
-				.iter()
-				// all traces are expected to be found here. That's why `expect` has been used
-				// instead of `filter_map`. If some traces haven't been found, it meens that
-				// traces database is corrupted or incomplete.
-				.map(|block_hash| if block_hash == &request.block_hash {
-					request.traces.bloom()
-				} else {
-					self.traces(block_hash).expect("Traces database is incomplete.").bloom()
-				})
-				.collect();
-
-			let chain = BloomGroupChain::new(self.bloom_config, self);
-			let trace_blooms = chain.replace(&replaced_range, enacted_blooms);
-			let blooms_to_insert = trace_blooms.into_iter()
-				.map(|p| (From::from(p.0), From::from(p.1)))
-				.collect::<HashMap<TraceGroupPosition, blooms::BloomGroup>>();
-
-			let blooms_keys: Vec<_> = blooms_to_insert.keys().cloned().collect();
-			let mut blooms = self.blooms.write();
-			batch.extend_with_cache(db::COL_TRACE, &mut *blooms, blooms_to_insert, CacheUpdatePolicy::Remove);
-			// note_used must be called after locking blooms to avoid cache/traces deadlock on garbage collection
-			for key in blooms_keys {
-				self.note_used(CacheId::Bloom(key));
-			}
-		}
-
 		// insert new block traces into the cache and the database
-		{
-			let mut traces = self.traces.write();
-			// it's important to use overwrite here,
-			// cause this value might be queried by hash later
-			batch.write_with_cache(db::COL_TRACE, &mut *traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
-			// note_used must be called after locking traces to avoid cache/traces deadlock on garbage collection
-			self.note_used(CacheId::Trace(request.block_hash.clone()));
-		}
+		let mut traces = self.traces.write();
+		let mut blooms = self.blooms.write();
+		// it's important to use overwrite here,
+		// cause this value might be queried by hash later
+		batch.write_with_cache(db::COL_TRACE, &mut *blooms, request.block_hash, request.traces.bloom(), CacheUpdatePolicy::Overwrite);
+		batch.write_with_cache(db::COL_TRACE, &mut *traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
+		// note_used must be called after locking traces to avoid cache/traces deadlock on garbage collection
+		self.note_used(CacheId::Trace(request.block_hash));
+		self.note_used(CacheId::Bloom(request.block_hash));
 	}
 
 	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: Vec<usize>) -> Option<LocalizedTrace> {
@@ -391,15 +318,17 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 	}
 
 	fn filter(&self, filter: &Filter) -> Vec<LocalizedTrace> {
-		let chain = BloomGroupChain::new(self.bloom_config, self);
-		let numbers = chain.filter(filter);
-		numbers.into_iter()
-			.flat_map(|n| {
-				let number = n as BlockNumber;
-				let hash = self.extras.block_hash(number)
-					.expect("Expected to find block hash. Extras db is probably corrupted");
-				let traces = self.traces(&hash)
-					.expect("Expected to find a trace. Db is probably corrupted.");
+		let possibilities = filter.bloom_possibilities();
+		// + 1, cause filters are inclusive
+		(filter.range.start..filter.range.end + 1).into_iter()
+			.map(|n| n as BlockNumber)
+			.filter_map(|n| self.extras.block_hash(n).map(|hash| (n, hash)))
+			.filter(|&(_,ref hash)| {
+				let bloom = self.bloom(hash).expect("hash exists; qed");
+				possibilities.iter().any(|p| bloom.contains_bloom(p))
+			})
+			.flat_map(|(number, hash)| {
+				let traces = self.traces(&hash).expect("hash exists; qed");
 				self.matching_block_traces(filter, traces, hash, number)
 			})
 			.collect()

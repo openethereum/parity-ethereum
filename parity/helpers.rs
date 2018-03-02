@@ -275,7 +275,7 @@ pub fn execute_upgrades(
 	}
 
 	let client_path = dirs.db_path(pruning);
-	migrate(&client_path, pruning, compaction_profile).map_err(|e| format!("{}", e))
+	migrate(&client_path, compaction_profile).map_err(|e| format!("{}", e))
 }
 
 /// Prompts user asking for password.
