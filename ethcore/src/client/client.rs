@@ -1341,10 +1341,7 @@ impl BlockChainTrait for Client {}
 
 impl RegistryInfo for Client {
 	fn registry_address(&self, name: String, block: BlockId) -> Option<Address> {
-		let address = match self.registrar_address {
-			Some(address) => address,
-			None => return None,
-		};
+		let address = self.registrar_address?;
 
 		self.registrar.functions()
 			.get_address()
