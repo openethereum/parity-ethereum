@@ -19,9 +19,10 @@ use std::{fs, fmt};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use ethereum_types::H256;
-use fetch::{self, Mime};
+use fetch;
 use futures_cpupool::CpuPool;
 use hash::keccak_buffer;
+use mime_guess::Mime;
 
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
 use handlers::{ContentValidator, ValidatorResponse};

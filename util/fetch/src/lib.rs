@@ -29,6 +29,7 @@ extern crate hyper;
 extern crate hyper_rustls;
 
 extern crate tokio_core;
+extern crate url;
 
 pub mod client;
 

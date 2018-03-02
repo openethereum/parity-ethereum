@@ -35,7 +35,7 @@ use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use ethsync::{self, SyncConfig};
 use fdlimit::raise_fd_limit;
-use hash_fetch::fetch::{Fetch, Client as FetchClient};
+use hash_fetch::fetch::{Client as FetchClient};
 use hash_fetch;
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
