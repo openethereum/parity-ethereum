@@ -21,8 +21,7 @@ use std::cmp::min;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
-use std::time::Duration;
-use std::thread;
+use std::time::{Duration, Instant};
 
 use ethereum_types::{H256, Address};
 use ethkey::Signature;
@@ -353,17 +352,30 @@ impl Manager {
 			Err(Error::InvalidDevice)
 		}
 	}
+}
 
+// Try to connect to the device using polling in at most the time specified by the `timeout`
+fn try_connect_polling(ledger: Arc<Manager>, timeout: Duration) -> bool {
+	let start_time = Instant::now();
+	while start_time.elapsed() <= timeout {
+		if let Ok(_) = ledger.update_devices() {
+			return true
+		}
+	}
+	false
 }
 
 /// Ledger event handler
-/// A seperate thread is handling incoming events
+/// A seperate thread is hanedling incoming events
+///
+/// Note, that this run to completion and race-conditions can't occur but this can
+/// therefore starve other events for being process with a spinlock or similar
 pub struct EventHandler {
 	ledger: Weak<Manager>,
 }
 
 impl EventHandler {
-	/// Ledger event handler constructor 
+	/// Ledger event handler constructor
 	pub fn new(ledger: Weak<Manager>) -> Self {
 		Self { ledger: ledger }
 	}
@@ -371,21 +383,19 @@ impl EventHandler {
 
 impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, device: libusb::Device) {
+		debug!(target: "hw", "Ledger arrived");
 		if let (Some(ledger), Ok(_)) = (self.ledger.upgrade(), Manager::is_valid_ledger(&device)) {
-			debug!(target: "hw", "Ledger arrived");
-			// Wait for the device to boot up
-			thread::sleep(Duration::from_millis(1000));
-			if let Err(e) = ledger.update_devices() {
-				debug!(target: "hw", "Ledger connect error: {:?}", e);
+			if try_connect_polling(ledger, Duration::from_millis(500)) != true {
+				debug!(target: "hw", "Ledger connect timeout");
 			}
 		}
 	}
 
 	fn device_left(&mut self, device: libusb::Device) {
+		debug!(target: "hw", "Ledger left");
 		if let (Some(ledger), Ok(_)) = (self.ledger.upgrade(), Manager::is_valid_ledger(&device)) {
-			debug!(target: "hw", "Ledger left");
-			if let Err(e) = ledger.update_devices() {
-				debug!(target: "hw", "Ledger disconnect error: {:?}", e);
+			if try_connect_polling(ledger, Duration::from_millis(500)) != true {
+				debug!(target: "hw", "Ledger disconnect timeout");
 			}
 		}
 	}
