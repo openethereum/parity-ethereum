@@ -1002,7 +1002,8 @@ impl Client {
 			self.state_db.read().boxed_clone_canon(&header.hash()),
 			header.state_root(),
 			self.engine.account_start_nonce(header.number()),
-			self.factories.clone())
+			self.factories.clone()
+		)
 		.expect("State root of best block header always valid.")
 	}
 
