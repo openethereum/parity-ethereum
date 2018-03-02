@@ -153,7 +153,7 @@ pub trait StateClient {
 }
 
 /// Provides various blockchain information, like block header, chain state etc.
-pub trait BlockChain: ChainInfo + BlockInfo + TransactionInfo /* + StateClient */ {}
+pub trait BlockChain: ChainInfo + BlockInfo + TransactionInfo {}
 
 /// Provides information on a blockchain service and it's registry
 pub trait RegistryInfo {
