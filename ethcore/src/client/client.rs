@@ -67,7 +67,6 @@ use state_db::StateDB;
 use state::{self, State};
 use trace;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
-use trace::FlatTransactionTraces;
 use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
@@ -502,10 +501,7 @@ impl Importer {
 
 		// Commit results
 		let receipts = block.receipts().to_owned();
-		let traces = block.traces().clone().unwrap_or_else(Vec::new);
-		let traces: Vec<FlatTransactionTraces> = traces.into_iter()
-			.map(Into::into)
-			.collect();
+		let traces = block.traces().clone().drain();
 
 		assert_eq!(header.hash(), BlockView::new(block_data).header_view().hash());
 

@@ -36,7 +36,6 @@ use ethereum_types::{H256, U256};
 use futures::{IntoFuture, Future};
 
 use kvdb::{self, KeyValueDB};
-use kvdb_rocksdb::CompactionProfile;
 
 use self::fetch::ChainDataFetcher;
 use self::header_chain::{AncestryIter, HeaderChain};
@@ -57,12 +56,6 @@ pub struct Config {
 	pub queue: queue::Config,
 	/// Chain column in database.
 	pub chain_column: Option<u32>,
-	/// Database cache size. `None` => rocksdb default.
-	pub db_cache_size: Option<usize>,
-	/// State db compaction profile
-	pub db_compaction: CompactionProfile,
-	/// Should db have WAL enabled?
-	pub db_wal: bool,
 	/// Should it do full verification of blocks?
 	pub verify_full: bool,
 	/// Should it check the seal of blocks?
@@ -74,9 +67,6 @@ impl Default for Config {
 		Config {
 			queue: Default::default(),
 			chain_column: None,
-			db_cache_size: None,
-			db_compaction: CompactionProfile::default(),
-			db_wal: true,
 			verify_full: true,
 			check_seal: true,
 		}
@@ -203,28 +193,6 @@ impl<T: ChainDataFetcher> Client<T> {
 	/// Adds a new `LightChainNotify` listener.
 	pub fn add_listener(&self, listener: Weak<LightChainNotify>) {
 		self.listeners.write().push(listener);
-	}
-
-	/// Create a new `Client` backed purely in-memory.
-	/// This will ignore all database options in the configuration.
-	pub fn in_memory(
-		config: Config,
-		spec: &Spec,
-		fetcher: T,
-		io_channel: IoChannel<ClientIoMessage>,
-		cache: Arc<Mutex<Cache>>
-	) -> Self {
-		let db = ::kvdb_memorydb::create(0);
-
-		Client::new(
-			config,
-			Arc::new(db),
-			None,
-			spec,
-			fetcher,
-			io_channel,
-			cache
-		).expect("New DB creation infallible; qed")
 	}
 
 	/// Import a header to the queue for additional verification.

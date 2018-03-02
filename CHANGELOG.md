@@ -1,3 +1,20 @@
+## Parity [v1.9.4](https://github.com/paritytech/parity/releases/tag/v1.9.4) (2018-03-01)
+
+Parity 1.9.4 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Bump beta to 1.9.4 ([#8016](https://github.com/paritytech/parity/pull/8016))
+- Beta Backports ([#8011](https://github.com/paritytech/parity/pull/8011))
+  - Fix traces, removed bloomchain crate ([#7979](https://github.com/paritytech/parity/pull/7979))
+  - Reject too large packets in snapshot sync. ([#7977](https://github.com/paritytech/parity/pull/7977))
+  - Fixed broken logs ([#7934](https://github.com/paritytech/parity/pull/7934))
+  - Increase max download limit to 128MB ([#7965](https://github.com/paritytech/parity/pull/7965))
+  - Calculate proper keccak256/sha3 using parity. ([#7953](https://github.com/paritytech/parity/pull/7953))
+  - Bump WebSockets ([#7952](https://github.com/paritytech/parity/pull/7952))
+  - Hardware-wallet/usb-subscribe-refactor ([#7860](https://github.com/paritytech/parity/pull/7860))
+  - Make block generator easier to use ([#7888](https://github.com/paritytech/parity/pull/7888))
+
 ## Parity [v1.9.3](https://github.com/paritytech/parity/releases/tag/v1.9.3) (2018-02-20)
 
 Parity 1.9.3 is a bug-fix release to improve performance and stability.

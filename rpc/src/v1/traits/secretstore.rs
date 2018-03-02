@@ -19,11 +19,16 @@
 use std::collections::BTreeSet;
 use jsonrpc_core::Result;
 
-use v1::types::{H160, H256, H512, Bytes};
+use v1::types::{H160, H256, H512, Bytes, EncryptedDocumentKey};
 
 build_rpc_trait! {
 	/// Parity-specific rpc interface.
 	pub trait SecretStore {
+		/// Generate document key to store in secret store.
+		/// Arguments: `account`, `password`, `server_key_public`.
+		#[rpc(name = "secretstore_generateDocumentKey")]
+		fn generate_document_key(&self, H160, String, H512) -> Result<EncryptedDocumentKey>;
+
 		/// Encrypt data with key, received from secret store.
 		/// Arguments: `account`, `password`, `key`, `data`.
 		#[rpc(name = "secretstore_encrypt")]

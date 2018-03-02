@@ -48,6 +48,12 @@ set_env_win () {
   echo "@ signtool sign /f "\%"1 /p "\%"2 /tr http://timestamp.comodoca.com /du https://parity.io "\%"3" > sign.cmd
 }
 build () {
+  if [[ "windows" = $IDENT ]]
+  then
+    # This is a nasty hack till we figure out the proper cargo caching strategy
+    echo "Remove index"
+    rm -rf cargo/registry/index/*.
+  fi
   echo "Build parity:"
   cargo build --target $PLATFORM --features final --release
   echo "Build evmbin:"

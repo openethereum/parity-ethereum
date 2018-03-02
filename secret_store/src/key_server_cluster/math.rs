@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethkey::{Public, Secret, Random, Generator, math};
+use ethkey::{Public, Secret, Signature, Random, Generator, math};
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use key_server_cluster::Error;
-#[cfg(test)] use ethkey::Signature;
 
 /// Encryption result.
 #[derive(Debug)]
@@ -30,7 +29,6 @@ pub struct EncryptedSecret {
 }
 
 /// Create zero scalar.
-#[cfg(test)]
 pub fn zero_scalar() -> Secret {
 	Secret::zero()
 }
@@ -55,13 +53,11 @@ pub fn generate_random_point() -> Result<Public, Error> {
 }
 
 /// Get X coordinate of point.
-#[cfg(test)]
 fn public_x(public: &Public) -> H256 {
 	public[0..32].into()
 }
 
 /// Get Y coordinate of point.
-#[cfg(test)]
 fn public_y(public: &Public) -> H256 {
 	public[32..64].into()
 }
@@ -82,6 +78,13 @@ pub fn compute_secret_sum<'a, I>(mut secrets: I) -> Result<Secret, Error> where 
 		sum.add(secret)?;
 	}
 	Ok(sum)
+}
+
+/// Compute secrets multiplication.
+pub fn compute_secret_mul(secret1: &Secret, secret2: &Secret) -> Result<Secret, Error> {
+	let mut secret_mul = secret1.clone();
+	secret_mul.mul(secret2)?;
+	Ok(secret_mul)
 }
 
 /// Compute secrets 'shadow' multiplication: coeff * multiplication(s[j] / (s[i] - s[j])) for every i != j
@@ -227,7 +230,6 @@ pub fn compute_joint_secret<'a, I>(secret_coeffs: I) -> Result<Secret, Error> wh
 }
 
 /// Compute joint secret key from t+1 secret shares.
-#[cfg(test)]
 pub fn compute_joint_secret_from_shares<'a>(t: usize, secret_shares: &[&'a Secret], id_numbers: &[&'a Secret]) -> Result<Secret, Error> {
 	let secret_share_0 = secret_shares[0];
 	let id_number_0 = id_numbers[0];
@@ -374,7 +376,7 @@ pub fn combine_message_hash_with_public(message_hash: &H256, public: &Public) ->
 }
 
 /// Compute Schnorr signature share.
-pub fn compute_signature_share<'a, I>(threshold: usize, combined_hash: &Secret, one_time_secret_coeff: &Secret, node_secret_share: &Secret, node_number: &Secret, other_nodes_numbers: I)
+pub fn compute_schnorr_signature_share<'a, I>(threshold: usize, combined_hash: &Secret, one_time_secret_coeff: &Secret, node_secret_share: &Secret, node_number: &Secret, other_nodes_numbers: I)
 	-> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	let mut sum = one_time_secret_coeff.clone();
 	let mut subtrahend = compute_shadow_mul(combined_hash, node_number, other_nodes_numbers)?;
@@ -388,7 +390,7 @@ pub fn compute_signature_share<'a, I>(threshold: usize, combined_hash: &Secret, 
 }
 
 /// Check Schnorr signature share.
-pub fn _check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: &Secret, _public_share: &Public, _one_time_public_share: &Public, _node_numbers: I)
+pub fn _check_schnorr_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: &Secret, _public_share: &Public, _one_time_public_share: &Public, _node_numbers: I)
 	-> Result<bool, Error> where I: Iterator<Item=&'a Secret> {
 	// TODO [Trust]: in paper partial signature is checked using comparison:
 	//    sig[i] * T                                  = r[i] - c * lagrange_coeff(i) * y[i]
@@ -408,13 +410,13 @@ pub fn _check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: 
 }
 
 /// Compute Schnorr signature.
-pub fn compute_signature<'a, I>(signature_shares: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+pub fn compute_schnorr_signature<'a, I>(signature_shares: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	compute_secret_sum(signature_shares)
 }
 
 /// Locally compute Schnorr signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Signing.
 #[cfg(test)]
-pub fn local_compute_signature(nonce: &Secret, secret: &Secret, message_hash: &Secret) -> Result<(Secret, Secret), Error> {
+pub fn local_compute_schnorr_signature(nonce: &Secret, secret: &Secret, message_hash: &Secret) -> Result<(Secret, Secret), Error> {
 	let mut nonce_public = math::generation_point();
 	math::public_mul_secret(&mut nonce_public, &nonce).unwrap();
 
@@ -430,7 +432,7 @@ pub fn local_compute_signature(nonce: &Secret, secret: &Secret, message_hash: &S
 
 /// Verify Schnorr signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Verifying.
 #[cfg(test)]
-pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_hash: &H256) -> Result<bool, Error> {
+pub fn verify_schnorr_signature(public: &Public, signature: &(Secret, Secret), message_hash: &H256) -> Result<bool, Error> {
 	let mut addendum = math::generation_point();
 	math::public_mul_secret(&mut addendum, &signature.1)?;
 	let mut nonce_public = public.clone();
@@ -442,13 +444,11 @@ pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_h
 }
 
 /// Compute R part of ECDSA signature.
-#[cfg(test)]
 pub fn compute_ecdsa_r(nonce_public: &Public) -> Result<Secret, Error> {
 	to_scalar(public_x(nonce_public))
 }
 
 /// Compute share of S part of ECDSA signature.
-#[cfg(test)]
 pub fn compute_ecdsa_s_share(inv_nonce_share: &Secret, inv_nonce_mul_secret: &Secret, signature_r: &Secret, message_hash: &Secret) -> Result<Secret, Error> {
 	let mut nonce_inv_share_mul_message_hash = inv_nonce_share.clone();
 	nonce_inv_share_mul_message_hash.mul(&message_hash.clone().into())?;
@@ -463,7 +463,6 @@ pub fn compute_ecdsa_s_share(inv_nonce_share: &Secret, inv_nonce_mul_secret: &Se
 }
 
 /// Compute S part of ECDSA signature from shares.
-#[cfg(test)]
 pub fn compute_ecdsa_s(t: usize, signature_s_shares: &[Secret], id_numbers: &[Secret]) -> Result<Secret, Error> {
 	let double_t = t * 2;
 	debug_assert!(id_numbers.len() >= double_t + 1);
@@ -475,9 +474,8 @@ pub fn compute_ecdsa_s(t: usize, signature_s_shares: &[Secret], id_numbers: &[Se
 }
 
 /// Serialize ECDSA signature to [r][s]v form.
-#[cfg(test)]
 pub fn serialize_ecdsa_signature(nonce_public: &Public, signature_r: Secret, mut signature_s: Secret) -> Signature {
-	// compute recvery param
+	// compute recovery param
 	let mut signature_v = {
 		let nonce_public_x = public_x(nonce_public);
 		let nonce_public_y: U256 = public_y(nonce_public).into();
@@ -507,7 +505,6 @@ pub fn serialize_ecdsa_signature(nonce_public: &Public, signature_r: Secret, mut
 }
 
 /// Compute share of ECDSA reversed-nonce coefficient. Result of this_coeff * secret_share gives us a share of inv(nonce).
-#[cfg(test)]
 pub fn compute_ecdsa_inversed_secret_coeff_share(secret_share: &Secret, nonce_share: &Secret, zero_share: &Secret) -> Result<Secret, Error> {
 	let mut coeff = secret_share.clone();
 	coeff.mul(nonce_share).unwrap();
@@ -516,7 +513,6 @@ pub fn compute_ecdsa_inversed_secret_coeff_share(secret_share: &Secret, nonce_sh
 }
 
 /// Compute ECDSA reversed-nonce coefficient from its shares. Result of this_coeff * secret_share gives us a share of inv(nonce).
-#[cfg(test)]
 pub fn compute_ecdsa_inversed_secret_coeff_from_shares(t: usize, id_numbers: &[Secret], shares: &[Secret]) -> Result<Secret, Error> {
 	debug_assert_eq!(shares.len(), 2 * t + 1);
 	debug_assert_eq!(shares.len(), id_numbers.len());
@@ -805,8 +801,8 @@ pub mod tests {
 		let key_pair = Random.generate().unwrap();
 		let message_hash = "0000000000000000000000000000000000000000000000000000000000000042".parse().unwrap();
 		let nonce = generate_random_scalar().unwrap();
-		let signature = local_compute_signature(&nonce, key_pair.secret(), &message_hash).unwrap();
-		assert_eq!(verify_signature(key_pair.public(), &signature, &message_hash), Ok(true));
+		let signature = local_compute_schnorr_signature(&nonce, key_pair.secret(), &message_hash).unwrap();
+		assert_eq!(verify_schnorr_signature(key_pair.public(), &signature, &message_hash), Ok(true));
 	}
 
 	#[test]
@@ -837,7 +833,7 @@ pub mod tests {
 
 			// step 3: compute signature shares
 			let partial_signatures: Vec<_> = (0..n)
-				.map(|i| compute_signature_share(
+				.map(|i| compute_schnorr_signature_share(
 					t,
 					&combined_hash,
 					&one_time_artifacts.polynoms1[i][0],
@@ -857,7 +853,7 @@ pub mod tests {
 					.filter(|j| i != *j)
 					.map(|j| {
 						let signature_share = partial_signatures[j].clone();
-						assert!(_check_signature_share(&combined_hash,
+						assert!(_check_schnorr_signature_share(&combined_hash,
 							&signature_share,
 							&artifacts.public_shares[j],
 							&one_time_artifacts.public_shares[j],
@@ -869,16 +865,16 @@ pub mod tests {
 
 			// step 5: compute signature
 			let signatures: Vec<_> = (0..n)
-				.map(|i| (combined_hash.clone(), compute_signature(received_signatures[i].iter().chain(once(&partial_signatures[i]))).unwrap()))
+				.map(|i| (combined_hash.clone(), compute_schnorr_signature(received_signatures[i].iter().chain(once(&partial_signatures[i]))).unwrap()))
 				.collect();
 
 			// === verify signature ===
 			let master_secret = compute_joint_secret(artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
 			let nonce = compute_joint_secret(one_time_artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
-			let local_signature = local_compute_signature(&nonce, &master_secret, &message_hash).unwrap();
+			let local_signature = local_compute_schnorr_signature(&nonce, &master_secret, &message_hash).unwrap();
 			for signature in &signatures {
 				assert_eq!(signature, &local_signature);
-				assert_eq!(verify_signature(&artifacts.joint_public, signature, &message_hash), Ok(true));
+				assert_eq!(verify_schnorr_signature(&artifacts.joint_public, signature, &message_hash), Ok(true));
 			}
 		}
 	}

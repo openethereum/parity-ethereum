@@ -18,15 +18,13 @@
 //! Just handles block import messages and passes them to the client.
 
 use std::fmt;
-use std::path::Path;
 use std::sync::Arc;
 
 use ethcore::db;
 use ethcore::service::ClientIoMessage;
 use ethcore::spec::Spec;
 use io::{IoContext, IoError, IoHandler, IoService};
-use kvdb;
-use kvdb_rocksdb::{Database, DatabaseConfig};
+use kvdb::{self, KeyValueDB};
 
 use cache::Cache;
 use parking_lot::Mutex;
@@ -59,19 +57,7 @@ pub struct Service<T> {
 
 impl<T: ChainDataFetcher> Service<T> {
 	/// Start the service: initialize I/O workers and client itself.
-	pub fn start(config: ClientConfig, spec: &Spec, fetcher: T, path: &Path, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
-
-		// initialize database.
-		let mut db_config = DatabaseConfig::with_columns(db::NUM_COLUMNS);
-
-		db_config.memory_budget = config.db_cache_size;
-		db_config.compaction = config.db_compaction;
-		db_config.wal = config.db_wal;
-
-		let db = Arc::new(Database::open(
-			&db_config,
-			&path.to_str().expect("DB path could not be converted to string.")
-		).map_err(Error::Database)?);
+	pub fn start(config: ClientConfig, spec: &Spec, fetcher: T, db: Arc<KeyValueDB>, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
 
 		let io_service = IoService::<ClientIoMessage>::start().map_err(Error::Io)?;
 		let client = Arc::new(Client::new(config,
@@ -123,14 +109,15 @@ mod tests {
 	use client::fetch;
 	use time::Duration;
 	use parking_lot::Mutex;
-	use tempdir::TempDir;
+	use kvdb_memorydb;
+	use ethcore::db::NUM_COLUMNS;
 
 	#[test]
 	fn it_works() {
-		let tempdir = TempDir::new("").unwrap();
+		let db = Arc::new(kvdb_memorydb::create(NUM_COLUMNS.unwrap_or(0)));
 		let spec = Spec::new_test();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		Service::start(Default::default(), &spec, fetch::unavailable(), tempdir.path(), cache).unwrap();
+		Service::start(Default::default(), &spec, fetch::unavailable(), db, cache).unwrap();
 	}
 }
