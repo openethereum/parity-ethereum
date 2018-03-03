@@ -574,6 +574,12 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 	}
 }
 
+impl<T: ChainDataFetcher> ::ethcore::client::ChainInfo for Client<T> {
+	fn chain_info(&self) -> BlockChainInfo {
+		Client::chain_info(self)
+	}
+}
+
 impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 	fn update_sealing(&self) { }
 	fn submit_seal(&self, _block_hash: H256, _seal: Vec<Vec<u8>>) { }
@@ -585,10 +591,6 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 			block_number: hdr.number(),
 			proof: proof,
 		})
-	}
-
-	fn chain_info(&self) -> BlockChainInfo {
-		Client::chain_info(self)
 	}
 
 	fn as_full_client(&self) -> Option<&::ethcore::client::BlockChainClient> {

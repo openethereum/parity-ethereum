@@ -19,7 +19,7 @@ use ethereum_types::{H256, U256};
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use bytes::Bytes;
-use client::{BlockChainClient, ChainNotify, Client, ClientConfig};
+use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify};
 use ethereum::ethash::EthashParams;
 use ethkey::KeyPair;
 use evm::Factory as EvmFactory;

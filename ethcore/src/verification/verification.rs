@@ -33,7 +33,7 @@ use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
 
 use blockchain::*;
-use client::BlockChainClient;
+use client::{BlockInfo, CallContract};
 use engines::EthEngine;
 use error::{BlockError, Error};
 use header::{BlockNumber, Header};
@@ -109,24 +109,36 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &EthEngine, 
 	})
 }
 
-/// Parameters for full verification of block family: block bytes, transactions, blockchain, and state access.
-pub type FullFamilyParams<'a> = (&'a [u8], &'a [SignedTransaction], &'a BlockProvider, &'a BlockChainClient);
+/// Parameters for full verification of block family
+pub struct FullFamilyParams<'a, C: BlockInfo + CallContract + 'a> {
+	/// Serialized block bytes
+	pub block_bytes: &'a [u8],
+
+	/// Signed transactions
+	pub transactions: &'a [SignedTransaction],
+
+	/// Block provider to use during verification
+	pub block_provider: &'a BlockProvider,
+
+	/// Engine client to use during verification
+	pub client: &'a C,
+}
 
 /// Phase 3 verification. Check block information against parent and uncles.
-pub fn verify_block_family(header: &Header, parent: &Header, engine: &EthEngine, do_full: Option<FullFamilyParams>) -> Result<(), Error> {
+pub fn verify_block_family<C: BlockInfo + CallContract>(header: &Header, parent: &Header, engine: &EthEngine, do_full: Option<FullFamilyParams<C>>) -> Result<(), Error> {
 	// TODO: verify timestamp
 	verify_parent(&header, &parent, engine.params().gas_limit_bound_divisor)?;
 	engine.verify_block_family(&header, &parent)?;
 
-	let (bytes, txs, bc, client) = match do_full {
+	let params = match do_full {
 		Some(x) => x,
 		None => return Ok(()),
 	};
 
-	verify_uncles(header, bytes, bc, engine)?;
+	verify_uncles(header, params.block_bytes, params.block_provider, engine)?;
 
-	for transaction in txs {
-		engine.machine().verify_transaction(transaction, header, client)?;
+	for transaction in params.transactions {
+		engine.machine().verify_transaction(transaction, header, params.client)?;
 	}
 
 	Ok(())
@@ -486,12 +498,12 @@ mod tests {
 		let parent = bc.block_header(header.parent_hash())
 			.ok_or(BlockError::UnknownParent(header.parent_hash().clone()))?;
 
-		let full_params: FullFamilyParams = (
-			bytes,
-			&transactions[..],
-			bc as &BlockProvider,
-			&client as &::client::BlockChainClient
-		);
+		let full_params = FullFamilyParams {
+			block_bytes: bytes,
+			transactions: &transactions[..],
+			block_provider: bc as &BlockProvider,
+			client: &client,
+		};
 		verify_block_family(&header, &parent, engine, Some(full_params))
 	}
 

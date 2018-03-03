@@ -2146,6 +2146,7 @@ dependencies = [
  "parity-updater 1.9.0",
  "parity-version 1.10.0",
  "parking_lot 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "patricia-trie 0.1.0",
  "pretty_assertions 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",

@@ -28,16 +28,17 @@ use parking_lot::Mutex;
 use ethash::SeedHashCompute;
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::block::IsBlock;
-use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId};
+use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
 use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
+use ethcore::header::{BlockNumber as EthBlockNumber, Seal};
 use ethcore::log_entry::LogEntry;
 use ethcore::miner::MinerService;
 use ethcore::snapshot::SnapshotService;
+use ethcore::encoded;
 use ethsync::{SyncProvider};
 use miner::external::ExternalMinerService;
-use transaction::SignedTransaction;
+use transaction::{SignedTransaction, LocalizedTransaction};
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
@@ -51,11 +52,11 @@ use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
 	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,
-	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
+	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256, block_number_to_id,
 };
 use v1::metadata::Metadata;
 
-const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
+const EXTRA_INFO_PROOF: &'static str = "Object exists in blockchain (fetched earlier), extra_info is always available if object exists; qed";
 
 /// Eth RPC options
 pub struct EthClientOptions {
@@ -109,11 +110,43 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	eip86_transition: u64,
 }
 
-impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
-	C: MiningBlockChainClient,
+enum BlockNumberOrId {
+	Number(BlockNumber),
+	Id(BlockId),
+}
+
+impl From<BlockId> for BlockNumberOrId {
+	fn from(value: BlockId) -> BlockNumberOrId {
+		BlockNumberOrId::Id(value)
+	}
+}
+
+impl From<BlockNumber> for BlockNumberOrId {
+	fn from(value: BlockNumber) -> BlockNumberOrId {
+		BlockNumberOrId::Number(value)
+	}
+}
+
+enum PendingOrBlock {
+	Block(BlockId),
+	Pending,
+}
+
+struct PendingUncleId {
+	id: PendingOrBlock,
+	position: usize,
+}
+
+enum PendingTransactionId {
+	Hash(H256),
+	Location(PendingOrBlock, usize)
+}
+
+impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S, M, EM> where
+	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo,
 	SN: SnapshotService,
 	S: SyncProvider,
-	M: MinerService,
+	M: MinerService<State=T>,
 	EM: ExternalMinerService {
 
 	/// Creates new EthClient.
@@ -145,9 +178,46 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 		unwrap_provider(&self.accounts)
 	}
 
-	fn block(&self, id: BlockId, include_txs: bool) -> Result<Option<RichBlock>> {
+	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
 		let client = &self.client;
-		match (client.block(id.clone()), client.block_total_difficulty(id)) {
+
+		let client_query = |id| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id));
+
+		let (block, difficulty, extra) = match id {
+			BlockNumberOrId::Number(BlockNumber::Pending) => {
+				let info = self.client.chain_info();
+				let pending_block = self.miner.pending_block(info.best_block_number);
+				let difficulty = {
+					let latest_difficulty = self.client.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
+					let pending_difficulty = self.miner.pending_block_header(info.best_block_number).map(|header| *header.difficulty());
+
+				 	if let Some(difficulty) = pending_difficulty {
+						difficulty + latest_difficulty
+					} else {
+						latest_difficulty
+					}
+				};
+
+				let extra = pending_block.as_ref().map(|b| self.client.engine().extra_info(&b.header));
+
+				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes(Seal::Without))), Some(difficulty), extra)
+			},
+
+			BlockNumberOrId::Number(num) => {
+				let id = match num {
+					BlockNumber::Latest => BlockId::Latest,
+					BlockNumber::Earliest => BlockId::Earliest,
+					BlockNumber::Num(n) => BlockId::Number(n),
+					BlockNumber::Pending => unreachable!(), // Already covered
+				};
+
+				client_query(id)
+			},
+
+			BlockNumberOrId::Id(id) => client_query(id),
+		};
+
+		match (block, difficulty) {
 			(Some(block), Some(total_difficulty)) => {
 				let view = block.header_view();
 				Ok(Some(RichBlock {
@@ -176,29 +246,109 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 						},
 						extra_data: Bytes::new(view.extra_data()),
 					},
-					extra_info: client.block_extra_info(id.clone()).expect(EXTRA_INFO_PROOF),
+					extra_info: extra.expect(EXTRA_INFO_PROOF),
 				}))
 			},
 			_ => Ok(None)
 		}
 	}
 
-	fn transaction(&self, id: TransactionId) -> Result<Option<Transaction>> {
-		match self.client.transaction(id) {
+	fn transaction(&self, id: PendingTransactionId) -> Result<Option<Transaction>> {
+		let client_transaction = |id| match self.client.transaction(id) {
 			Some(t) => Ok(Some(Transaction::from_localized(t, self.eip86_transition))),
 			None => Ok(None),
+		};
+
+		match id {
+			PendingTransactionId::Hash(hash) => client_transaction(TransactionId::Hash(hash)),
+
+			PendingTransactionId::Location(PendingOrBlock::Block(block), index) => {
+				client_transaction(TransactionId::Location(block, index))
+			},
+
+			PendingTransactionId::Location(PendingOrBlock::Pending, index) => {
+				let info = self.client.chain_info();
+				let pending_block = match self.miner.pending_block(info.best_block_number) {
+					Some(block) => block,
+					None => return Ok(None),
+				};
+
+				// Implementation stolen from `extract_transaction_at_index`
+				let transaction = pending_block.transactions.get(index)
+					// Verify if transaction signature is correct.
+					.and_then(|tx| SignedTransaction::new(tx.clone()).ok())
+					.map(|signed_tx| {
+						let (signed, sender, _) = signed_tx.deconstruct();
+						let block_hash = pending_block.header.hash();
+						let block_number = pending_block.header.number();
+						let transaction_index = index;
+						let cached_sender = Some(sender);
+
+						LocalizedTransaction {
+							signed,
+							block_number,
+							block_hash,
+							transaction_index,
+							cached_sender,
+						}
+					})
+					.map(|tx| Transaction::from_localized(tx, self.eip86_transition));
+
+				Ok(transaction)
+			}
 		}
 	}
 
-	fn uncle(&self, id: UncleId) -> Result<Option<RichBlock>> {
+	fn uncle(&self, id: PendingUncleId) -> Result<Option<RichBlock>> {
 		let client = &self.client;
-		let uncle: BlockHeader = match client.uncle(id) {
-			Some(hdr) => hdr.decode(),
-			None => { return Ok(None); }
-		};
-		let parent_difficulty = match client.block_total_difficulty(BlockId::Hash(uncle.parent_hash().clone())) {
-			Some(difficulty) => difficulty,
-			None => { return Ok(None); }
+
+		let (uncle, parent_difficulty, extra) = match id {
+			PendingUncleId { id: PendingOrBlock::Pending, position } => {
+				let info = self.client.chain_info();
+
+				let pending_block = match self.miner.pending_block(info.best_block_number) {
+					Some(block) => block,
+					None => return Ok(None),
+				};
+
+				let uncle = match pending_block.uncles.get(position) {
+					Some(uncle) => uncle.clone(),
+					None => return Ok(None),
+				};
+
+				let difficulty = {
+					let latest_difficulty = self.client.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
+					let pending_difficulty = self.miner.pending_block_header(info.best_block_number).map(|header| *header.difficulty());
+
+					if let Some(difficulty) = pending_difficulty {
+						difficulty + latest_difficulty
+					} else {
+						latest_difficulty
+					}
+				};
+
+				let extra = self.client.engine().extra_info(&pending_block.header);
+
+				(uncle, difficulty, extra)
+			},
+
+			PendingUncleId { id: PendingOrBlock::Block(block_id), position } => {
+				let uncle_id = UncleId { block: block_id, position };
+
+				let uncle = match client.uncle(uncle_id) {
+					Some(hdr) => hdr.decode(),
+					None => { return Ok(None); }
+				};
+
+				let parent_difficulty = match client.block_total_difficulty(BlockId::Hash(uncle.parent_hash().clone())) {
+					Some(difficulty) => difficulty,
+					None => { return Ok(None); }
+				};
+
+				let extra = client.uncle_extra_info(uncle_id).expect(EXTRA_INFO_PROOF);
+
+				(uncle, parent_difficulty, extra)
+			}
 		};
 
 		let size = client.block(BlockId::Hash(uncle.hash()))
@@ -229,7 +379,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 				uncles: vec![],
 				transactions: BlockTransactions::Hashes(vec![]),
 			},
-			extra_info: client.uncle_extra_info(id).expect(EXTRA_INFO_PROOF),
+			extra_info: extra,
 		};
 		Ok(Some(block))
 	}
@@ -240,6 +390,24 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 			.note_dapp_used(dapp.clone())
 			.and_then(|_| store.dapp_addresses(dapp))
 			.map_err(|e| errors::account("Could not fetch accounts.", e))
+	}
+
+	fn get_state(&self, number: BlockNumber) -> StateOrBlock {
+		match number {
+			BlockNumber::Num(num) => BlockId::Number(num).into(),
+			BlockNumber::Earliest => BlockId::Earliest.into(),
+			BlockNumber::Latest => BlockId::Latest.into(),
+
+			BlockNumber::Pending => {
+				let info = self.client.chain_info();
+
+				self.miner
+					.pending_state(info.best_block_number)
+					.map(|s| Box::new(s) as Box<StateInfo>)
+					.unwrap_or(Box::new(self.client.latest_state()) as Box<StateInfo>)
+					.into()
+			}
+		}
 	}
 }
 
@@ -265,20 +433,27 @@ pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFi
 fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: MiningBlockChainClient {
 	use ethcore::block_status::BlockStatus;
 
-	match client.block_status(number.into()) {
+	let id = match number {
+		BlockNumber::Pending => return Ok(()),
+
+		BlockNumber::Num(n) => BlockId::Number(n),
+		BlockNumber::Latest => BlockId::Latest,
+		BlockNumber::Earliest => BlockId::Earliest,
+	};
+
+	match client.block_status(id) {
 		BlockStatus::InChain => Ok(()),
-		BlockStatus::Pending => Ok(()),
 		_ => Err(errors::unknown_block()),
 	}
 }
 
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
-impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
-	C: MiningBlockChainClient + 'static,
+impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<C, SN, S, M, EM> where
+	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo + 'static,
 	SN: SnapshotService + 'static,
 	S: SyncProvider + 'static,
-	M: MinerService + 'static,
+	M: MinerService<State=T> + 'static,
 	EM: ExternalMinerService + 'static,
 {
 	type Metadata = Metadata;
@@ -357,10 +532,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
 		let address = address.into();
 
-		let id = num.unwrap_or_default();
+		let num = num.unwrap_or_default();
 
-		try_bf!(check_known(&*self.client, id.clone()));
-		let res = match self.client.balance(&address, id.into()) {
+		try_bf!(check_known(&*self.client, num.clone()));
+		let res = match self.client.balance(&address, self.get_state(num)) {
 			Some(balance) => Ok(balance.into()),
 			None => Err(errors::state_pruned()),
 		};
@@ -372,10 +547,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let address: Address = RpcH160::into(address);
 		let position: U256 = RpcU256::into(pos);
 
-		let id = num.unwrap_or_default();
+		let num = num.unwrap_or_default();
 
-		try_bf!(check_known(&*self.client, id.clone()));
-		let res = match self.client.storage_at(&address, &H256::from(position), id.into()) {
+		try_bf!(check_known(&*self.client, num.clone()));
+		let res = match self.client.storage_at(&address, &H256::from(position), self.get_state(num)) {
 			Some(s) => Ok(s.into()),
 			None => Err(errors::state_pruned()),
 		};
@@ -390,15 +565,33 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			BlockNumber::Pending if self.options.pending_nonce_from_queue => {
 				let nonce = self.miner.last_nonce(&address)
 					.map(|n| n + 1.into())
-					.or_else(|| self.client.nonce(&address, BlockNumber::Pending.into()));
+					.or_else(|| self.client.nonce(&address, BlockId::Latest));
+
 				match nonce {
 					Some(nonce) => Ok(nonce.into()),
 					None => Err(errors::database("latest nonce missing"))
 				}
-			}
-			id => {
-				try_bf!(check_known(&*self.client, id.clone()));
-				match self.client.nonce(&address, id.into()) {
+			},
+
+			BlockNumber::Pending => {
+				let info = self.client.chain_info();
+				let nonce = self.miner
+					.pending_state(info.best_block_number)
+					.and_then(|s| s.nonce(&address).ok())
+					.or_else(|| {
+						warn!("Fallback to `BlockId::Latest`");
+						self.client.nonce(&address, BlockId::Latest)
+					});
+
+				match nonce {
+					Some(nonce) => Ok(nonce.into()),
+					None => Err(errors::database("latest nonce missing"))
+				}
+			},
+
+			number => {
+				try_bf!(check_known(&*self.client, number.clone()));
+				match self.client.nonce(&address, block_number_to_id(number)) {
 					Some(nonce) => Ok(nonce.into()),
 					None => Err(errors::state_pruned()),
 				}
@@ -419,7 +612,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 				self.miner.status().transactions_in_pending_block.into()
 			),
 			_ =>
-				self.client.block(num.into())
+				self.client.block(block_number_to_id(num))
 					.map(|block| block.transactions_count().into())
 		}))
 	}
@@ -432,7 +625,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn block_uncles_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>> {
 		Box::new(future::ok(match num {
 			BlockNumber::Pending => Some(0.into()),
-			_ => self.client.block(num.into())
+			_ => self.client.block(block_number_to_id(num))
 					.map(|block| block.uncles_count().into()
 			),
 		}))
@@ -441,10 +634,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes> {
 		let address: Address = RpcH160::into(address);
 
-		let id = num.unwrap_or_default();
-		try_bf!(check_known(&*self.client, id.clone()));
+		let num = num.unwrap_or_default();
+		try_bf!(check_known(&*self.client, num.clone()));
 
-		let res = match self.client.code(&address, id.into()) {
+		let res = match self.client.code(&address, self.get_state(num)) {
 			Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
 			None => Err(errors::state_pruned()),
 		};
@@ -453,17 +646,17 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-		Box::new(future::done(self.block(BlockId::Hash(hash.into()), include_txs)))
+		Box::new(future::done(self.rich_block(BlockId::Hash(hash.into()).into(), include_txs)))
 	}
 
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-		Box::new(future::done(self.block(num.into(), include_txs)))
+		Box::new(future::done(self.rich_block(num.into(), include_txs)))
 	}
 
 	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>> {
 		let hash: H256 = hash.into();
 		let block_number = self.client.chain_info().best_block_number;
-		let tx = try_bf!(self.transaction(TransactionId::Hash(hash))).or_else(|| {
+		let tx = try_bf!(self.transaction(PendingTransactionId::Hash(hash))).or_else(|| {
 			self.miner.transaction(block_number, &hash)
 				.map(|t| Transaction::from_pending(t, block_number, self.eip86_transition))
 		});
@@ -472,15 +665,20 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<Transaction>> {
-		Box::new(future::done(
-			self.transaction(TransactionId::Location(BlockId::Hash(hash.into()), index.value()))
-		))
+		let id = PendingTransactionId::Location(PendingOrBlock::Block(BlockId::Hash(hash.into())), index.value());
+		Box::new(future::done(self.transaction(id)))
 	}
 
 	fn transaction_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> BoxFuture<Option<Transaction>> {
-		Box::new(future::done(
-			self.transaction(TransactionId::Location(num.into(), index.value()))
-		))
+		let block_id = match num {
+			BlockNumber::Latest => PendingOrBlock::Block(BlockId::Latest),
+			BlockNumber::Earliest => PendingOrBlock::Block(BlockId::Earliest),
+			BlockNumber::Num(num) => PendingOrBlock::Block(BlockId::Number(num)),
+			BlockNumber::Pending => PendingOrBlock::Pending,
+		};
+
+		let transaction_id = PendingTransactionId::Location(block_id, index.value());
+		Box::new(future::done(self.transaction(transaction_id)))
 	}
 
 	fn transaction_receipt(&self, hash: RpcH256) -> BoxFuture<Option<Receipt>> {
@@ -497,17 +695,22 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<RichBlock>> {
-		Box::new(future::done(self.uncle(UncleId {
-			block: BlockId::Hash(hash.into()),
+		Box::new(future::done(self.uncle(PendingUncleId {
+			id: PendingOrBlock::Block(BlockId::Hash(hash.into())),
 			position: index.value()
 		})))
 	}
 
 	fn uncle_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> BoxFuture<Option<RichBlock>> {
-		Box::new(future::done(self.uncle(UncleId {
-			block: num.into(),
-			position: index.value()
-		})))
+		let id = match num {
+			BlockNumber::Latest => PendingUncleId { id: PendingOrBlock::Block(BlockId::Latest), position: index.value() },
+			BlockNumber::Earliest => PendingUncleId { id: PendingOrBlock::Block(BlockId::Earliest), position: index.value() },
+			BlockNumber::Num(num) => PendingUncleId { id: PendingOrBlock::Block(BlockId::Number(num)), position: index.value() },
+
+			BlockNumber::Pending => PendingUncleId { id: PendingOrBlock::Pending, position: index.value() },
+		};
+
+		Box::new(future::done(self.uncle(id)))
 	}
 
 	fn compilers(&self) -> Result<Vec<String>> {
@@ -630,7 +833,28 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let signed = try_bf!(fake_sign::sign_call(request, meta.is_dapp()));
 
 		let num = num.unwrap_or_default();
-		let result = self.client.call(&signed, Default::default(), num.into());
+
+		let (mut state, header) = if num == BlockNumber::Pending {
+			let info = self.client.chain_info();
+			let state = try_bf!(self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned()));
+			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned()));
+
+			(state, header)
+		} else {
+			let id = match num {
+				BlockNumber::Num(num) => BlockId::Number(num),
+				BlockNumber::Earliest => BlockId::Earliest,
+				BlockNumber::Latest => BlockId::Latest,
+				BlockNumber::Pending => unreachable!(), // Already covered
+			};
+
+			let state = try_bf!(self.client.state_at(id).ok_or(errors::state_pruned()));
+			let header = try_bf!(self.client.block_header(id).ok_or(errors::state_pruned()));
+
+			(state, header.decode())
+		};
+
+		let result = self.client.call(&signed, Default::default(), &mut state, &header);
 
 		Box::new(future::done(result
 			.map(|b| b.output.into())
@@ -641,7 +865,29 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn estimate_gas(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256> {
 		let request = CallRequest::into(request);
 		let signed = try_bf!(fake_sign::sign_call(request, meta.is_dapp()));
-		Box::new(future::done(self.client.estimate_gas(&signed, num.unwrap_or_default().into())
+		let num = num.unwrap_or_default();
+
+		let (state, header) = if num == BlockNumber::Pending {
+			let info = self.client.chain_info();
+			let state = try_bf!(self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned()));
+			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned()));
+
+			(state, header)
+		} else {
+			let id = match num {
+				BlockNumber::Num(num) => BlockId::Number(num),
+				BlockNumber::Earliest => BlockId::Earliest,
+				BlockNumber::Latest => BlockId::Latest,
+				BlockNumber::Pending => unreachable!(), // Already covered
+			};
+
+			let state = try_bf!(self.client.state_at(id).ok_or(errors::state_pruned()));
+			let header = try_bf!(self.client.block_header(id).ok_or(errors::state_pruned()));
+
+			(state, header.decode())
+		};
+
+		Box::new(future::done(self.client.estimate_gas(&signed, &state, &header)
 			.map(Into::into)
 			.map_err(errors::call)
 		))

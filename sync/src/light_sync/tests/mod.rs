@@ -16,7 +16,7 @@
 
 use tests::helpers::TestNet;
 
-use ethcore::client::{BlockChainClient, BlockId, EachBlockWith};
+use ethcore::client::{BlockInfo, BlockId, EachBlockWith};
 
 mod test_net;
 
