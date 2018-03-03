@@ -30,9 +30,12 @@ pub use self::error::Error;
 pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactResult};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::chain_notify::ChainNotify;
-pub use self::traits::{BlockChainClient, MiningBlockChainClient, EngineClient};
-
-pub use self::traits::ProvingBlockChainClient;
+pub use self::traits::{
+    Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, CallContract, TransactionInfo, RegistryInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
+    StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter
+};
+pub use state::StateInfo;
+pub use self::traits::{BlockChainClient, MiningBlockChainClient, EngineClient, ProvingBlockChainClient};
 
 pub use types::ids::*;
 pub use types::trace_filter::Filter as TraceFilter;

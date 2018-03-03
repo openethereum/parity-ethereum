@@ -20,7 +20,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use dir::default_data_path;
 use dir::helpers::replace_home;
-use ethcore::client::{Client, BlockChainClient, BlockId};
+use ethcore::client::{Client, BlockChainClient, BlockId, CallContract};
 use ethsync::LightSync;
 use futures::{Future, future, IntoFuture};
 use hash_fetch::fetch::Client as FetchClient;

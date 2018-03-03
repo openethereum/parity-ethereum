@@ -781,6 +781,7 @@ mod tests {
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
+	use client::ChainInfo;
 	use miner::MinerService;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;

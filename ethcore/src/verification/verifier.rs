@@ -16,20 +16,23 @@
 
 //! A generic verifier trait.
 
+use client::{BlockInfo, CallContract};
 use engines::EthEngine;
 use error::Error;
 use header::Header;
 use super::verification;
 
 /// Should be used to verify blocks.
-pub trait Verifier: Send + Sync {
+pub trait Verifier<C>: Send + Sync
+	where C: BlockInfo + CallContract
+{
 	/// Verify a block relative to its parent and uncles.
-    fn verify_block_family(
+	fn verify_block_family(
 		&self,
 		header: &Header,
 		parent: &Header,
 		engine: &EthEngine,
-		do_full: Option<verification::FullFamilyParams>
+		do_full: Option<verification::FullFamilyParams<C>>
 	) -> Result<(), Error>;
 
 	/// Do a final verification check for an enacted header vs its expected counterpart.
