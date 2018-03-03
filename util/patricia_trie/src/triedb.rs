@@ -62,7 +62,7 @@ impl<'db> TrieDB<'db> {
 	/// Returns an error if `root` does not exist
 	pub fn new(db: &'db HashDB, root: &'db H256) -> super::Result<Self> {
 		if !db.contains(root) {
-			Err(Box::new(TrieError::InvalidStateRoot(*root)))
+			Err(TrieError::InvalidStateRoot(*root))
 		} else {
 			Ok(TrieDB {
 				db: db,
@@ -79,7 +79,7 @@ impl<'db> TrieDB<'db> {
 
 	/// Get the data of the root node.
 	fn root_data(&self) -> super::Result<DBValue> {
-		self.db.get(self.root).ok_or_else(|| Box::new(TrieError::InvalidStateRoot(*self.root)))
+		self.db.get(self.root).ok_or_else(|| TrieError::InvalidStateRoot(*self.root))
 	}
 
 	/// Indentation helper for `format_all`.
@@ -138,7 +138,7 @@ impl<'db> TrieDB<'db> {
 		match r.is_data() && r.size() == 32 {
 			true => {
 				let key = r.as_val::<H256>();
-				self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
+				self.db.get(&key).ok_or_else(|| TrieError::IncompleteDatabase(key))
 			}
 			false => Ok(DBValue::from_slice(node))
 		}

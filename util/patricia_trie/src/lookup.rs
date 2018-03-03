@@ -44,10 +44,10 @@ impl<'a, Q: Query> Lookup<'a, Q> {
 		for depth in 0.. {
 			let node_data = match self.db.get(&hash) {
 				Some(value) => value,
-				None => return Err(Box::new(match depth {
+				None => return Err(match depth {
 					0 => TrieError::InvalidStateRoot(hash),
 					_ => TrieError::IncompleteDatabase(hash),
-				})),
+				}),
 			};
 
 			self.query.record(&hash, &node_data, depth);
