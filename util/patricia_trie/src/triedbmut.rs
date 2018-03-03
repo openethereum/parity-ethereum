@@ -317,7 +317,7 @@ impl<'a> TrieDBMut<'a> {
 	/// Returns an error if `root` does not exist.
 	pub fn from_existing(db: &'a mut HashDB, root: &'a mut H256) -> super::Result<Self> {
 		if !db.contains(root) {
-			return Err(Box::new(TrieError::InvalidStateRoot(*root)));
+			return Err(TrieError::InvalidStateRoot(*root));
 		}
 
 		let root_handle = NodeHandle::Hash(*root);
@@ -342,7 +342,7 @@ impl<'a> TrieDBMut<'a> {
 
 	// cache a node by hash
 	fn cache(&mut self, hash: H256) -> super::Result<StorageHandle> {
-		let node_rlp = self.db.get(&hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(hash)))?;
+		let node_rlp = self.db.get(&hash).ok_or_else(|| TrieError::IncompleteDatabase(hash))?;
 		let node = Node::from_rlp(&node_rlp, &*self.db, &mut self.storage);
 		Ok(self.storage.alloc(Stored::Cached(node, hash)))
 	}

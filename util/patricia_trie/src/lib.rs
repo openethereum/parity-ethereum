@@ -89,7 +89,7 @@ impl error::Error for TrieError {
 }
 
 /// Trie result type. Boxed to avoid copying around extra space for `H256`s on successful queries.
-pub type Result<T> = ::std::result::Result<T, Box<TrieError>>;
+pub type Result<T> = ::std::result::Result<T, TrieError>;
 
 /// Trie-Item type.
 pub type TrieItem<'a> = Result<(Vec<u8>, DBValue)>;
