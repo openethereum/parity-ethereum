@@ -17,7 +17,7 @@
 use ethsync::{ManageNetwork, NetworkConfiguration};
 use self::ethcore_network::{ProtocolId, NetworkContext};
 
-extern crate ethcore_network_devp2p;
+extern crate ethcore_network;
 
 pub struct TestManageNetwork;
 
