@@ -384,7 +384,6 @@ impl NonReservedPeerMode {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct IpFilter {
     pub predefined: AllowIP,
     pub custom_allow: Vec<IpNetwork>,
