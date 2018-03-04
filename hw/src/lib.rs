@@ -43,6 +43,8 @@ use std::thread;
 use std::time::Duration;
 use ethereum_types::U256;
 
+const USB_DEVICE_CLASS_DEVICE: u8 = 0;
+
 #[derive(Debug)]
 pub struct Device {
 	path: String,
@@ -54,20 +56,16 @@ pub struct Device {
 // Also, because it doesn't care about the event handler threads
 // It doesn't make sense to keep it only adds complexity in terms of
 // more code
-pub trait Foo<'a> {
+pub trait Wallet<'a> {
 	/// Error
 	type Error;
 	/// Transaction format
 	type Transaction;
 
-	/// USB Device Class
-	const USB_DEVICE_CLASS_DEVICE: u8 = 0;
-
 	/// Sign transaction data with wallet managing `address`.
 	fn sign_transaction(&self, address: &Address, transaction: Self::Transaction) -> Result<Signature, Self::Error>;
 
 	/// Set key derivation path for a chain.
-	// TODO: add return value
 	fn set_key_path(&self, key_path: KeyPath);
 
 	/// Re-populate device list
@@ -91,15 +89,14 @@ pub trait Foo<'a> {
 
 	/// Open a device using path
 	/// Note, f - is a closure that borrows HidResult<HidDevice>
-	/// HidDevice is in turn as type alias for a `c_void function pointer`
+	/// HidDevice is in turn a type alias for a `c_void function pointer`
 	/// For further information see:
-	///		* [hidapi-rs](https://github.com/paritytech/hidapi-rs)
-	///		* [libc](https://github.com/rust-lang/libc)
+	///		* <https://github.com/paritytech/hidapi-rs>
+	///		* <https://github.com/rust-lang/libc>
 	fn open_path<R, F>(&self, f: F) -> Result<R, Self::Error>
 		where F: Fn() -> Result<R, &'static str>;
 }
 
-const USB_DEVICE_CLASS_DEVICE: u8 = 0;
 
 /// Hardware wallet error.
 #[derive(Debug)]
@@ -201,7 +198,6 @@ pub struct HardwareWalletManager {
 	trezor: Arc<trezor::Manager>,
 }
 
-
 impl HardwareWalletManager {
 	/// Hardware wallet constructor
 	pub fn new() -> Result<HardwareWalletManager, Error> {
@@ -288,12 +284,12 @@ impl HardwareWalletManager {
 	}
 
 	/// Return a list of paths to locked hardware wallets
+	/// TODO: Why does Trezor only provide locked devices and not Ledger?
 	pub fn list_locked_wallets(&self) -> Result<Vec<String>, Error> {
 		Ok(self.trezor.list_locked_devices())
 	}
 
 	/// Get connected wallet info.
-	//TODO: modify with trait
 	pub fn wallet_info(&self, address: &Address) -> Option<WalletInfo> {
 		if let Some(info) = self.ledger.get_wallet(address) {
 			Some(info)
@@ -314,7 +310,7 @@ impl HardwareWalletManager {
 	}
 
 	/// Send a pin to a device at a certain path to unlock it
-	/// This is Trezor specific!!!
+	/// TODO: Assuming this is Trezor specific but check it!
 	pub fn pin_matrix_ack(&self, path: &str, pin: &str) -> Result<bool, Error> {
 		self.trezor.pin_matrix_ack(path, pin).map_err(Error::TrezorDevice)
 	}

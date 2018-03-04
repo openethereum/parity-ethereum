@@ -29,7 +29,7 @@ use hidapi;
 use libusb;
 use parking_lot::{Mutex, RwLock};
 
-use super::{WalletInfo, KeyPath, Device, Foo};
+use super::{WalletInfo, KeyPath, Device, Wallet};
 
 /// Ledger vendor ID
 pub const LEDGER_VID: u16 = 0x2c97;
@@ -225,7 +225,7 @@ fn try_connect_polling(ledger: Arc<Manager>, timeout: Duration) -> bool {
 	false
 }
 
-impl <'a>Foo<'a> for Manager {
+impl <'a>Wallet<'a> for Manager {
 	type Error = Error;
 	type Transaction = &'a [u8];
 

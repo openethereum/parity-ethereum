@@ -19,7 +19,7 @@
 //! and https://github.com/trezor/trezor-common/blob/master/protob/protocol.md
 //! for protocol details.
 
-use super::{WalletInfo, TransactionInfo, KeyPath, Foo, Device};
+use super::{WalletInfo, TransactionInfo, KeyPath, Wallet, Device};
 
 use std::cmp::{min, max};
 use std::fmt;
@@ -94,7 +94,7 @@ pub struct Manager {
 	key_path: RwLock<KeyPath>,
 }
 
-impl <'a>Foo<'a> for Manager {
+impl <'a>Wallet<'a> for Manager {
 	type Error = Error;
 	type Transaction = &'a TransactionInfo;
 
