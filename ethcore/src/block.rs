@@ -22,7 +22,7 @@ use std::collections::HashSet;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use triehash::ordered_trie_root;
 
-use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
+use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use unexpected::{Mismatch, OutOfBounds};
@@ -66,7 +66,6 @@ impl Block {
 		block_rlp.out()
 	}
 }
-
 
 impl Decodable for Block {
 	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
@@ -284,38 +283,12 @@ impl<'x> OpenBlock<'x> {
 		Ok(r)
 	}
 
-	/// Alter the author for the block.
-	pub fn set_author(&mut self, author: Address) { self.block.header.set_author(author); }
-
 	/// Alter the timestamp of the block.
 	pub fn set_timestamp(&mut self, timestamp: u64) { self.block.header.set_timestamp(timestamp); }
 
-	/// Alter the difficulty for the block.
-	pub fn set_difficulty(&mut self, a: U256) { self.block.header.set_difficulty(a); }
-
-	/// Alter the gas limit for the block.
-	pub fn set_gas_limit(&mut self, a: U256) { self.block.header.set_gas_limit(a); }
-
-	/// Alter the gas limit for the block.
-	pub fn set_gas_used(&mut self, a: U256) { self.block.header.set_gas_used(a); }
-
-	/// Alter the uncles hash the block.
-	pub fn set_uncles_hash(&mut self, h: H256) { self.block.header.set_uncles_hash(h); }
-
-	/// Alter transactions root for the block.
-	pub fn set_transactions_root(&mut self, h: H256) { self.block.header.set_transactions_root(h); }
-
-	/// Alter the receipts root for the block.
-	pub fn set_receipts_root(&mut self, h: H256) { self.block.header.set_receipts_root(h); }
-
-	/// Alter the extra_data for the block.
-	pub fn set_extra_data(&mut self, extra_data: Bytes) -> Result<(), BlockError> {
-		if extra_data.len() > self.engine.maximum_extra_data_size() {
-			Err(BlockError::ExtraDataOutOfBounds(OutOfBounds{min: None, max: Some(self.engine.maximum_extra_data_size()), found: extra_data.len()}))
-		} else {
-			self.block.header.set_extra_data(extra_data);
-			Ok(())
-		}
+	/// Removes block gas limit.
+	pub fn remove_gas_limit(&mut self) {
+		self.block.header.set_gas_limit(U256::max_value());
 	}
 
 	/// Add an uncle to the block, if possible.
@@ -347,24 +320,19 @@ impl<'x> OpenBlock<'x> {
 	/// If valid, it will be executed, and archived together with the receipt.
 	pub fn push_transaction(&mut self, t: SignedTransaction, h: Option<H256>) -> Result<&Receipt, Error> {
 		if self.block.transactions_set.contains(&t.hash()) {
-			return Err(From::from(TransactionError::AlreadyImported));
+			return Err(TransactionError::AlreadyImported.into());
 		}
 
 		let env_info = self.env_info();
-//		info!("env_info says gas_used={}", env_info.gas_used);
-		match self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled()) {
-			Ok(outcome) => {
-				self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
-				self.block.transactions.push(t.into());
-				let t = outcome.trace;
-				if let Tracing::Enabled(ref mut traces) = self.block.traces {
-					traces.push(t.into());
-				}
-				self.block.receipts.push(outcome.receipt);
-				Ok(self.block.receipts.last().expect("receipt just pushed; qed"))
-			}
-			Err(x) => Err(From::from(x))
+		let outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
+
+		self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
+		self.block.transactions.push(t.into());
+		if let Tracing::Enabled(ref mut traces) = self.block.traces {
+			traces.push(outcome.trace.into());
 		}
+		self.block.receipts.push(outcome.receipt);
+		Ok(self.block.receipts.last().expect("receipt just pushed; qed"))
 	}
 
 	/// Push transactions onto the block.
@@ -373,14 +341,19 @@ impl<'x> OpenBlock<'x> {
 	}
 
 	/// Populate self from a header.
-	pub fn populate_from(&mut self, header: &Header) {
-		self.set_difficulty(*header.difficulty());
-		self.set_gas_limit(*header.gas_limit());
-		self.set_timestamp(header.timestamp());
-		self.set_author(header.author().clone());
-		self.set_extra_data(header.extra_data().clone()).unwrap_or_else(|e| warn!("Couldn't set extradata: {}. Ignoring.", e));
-		self.set_uncles_hash(header.uncles_hash().clone());
-		self.set_transactions_root(header.transactions_root().clone());
+	fn populate_from(&mut self, header: &Header) {
+		self.block.header.set_difficulty(*header.difficulty());
+		self.block.header.set_gas_limit(*header.gas_limit());
+		self.block.header.set_timestamp(header.timestamp());
+		self.block.header.set_author(*header.author());
+		self.block.header.set_uncles_hash(*header.uncles_hash());
+		self.block.header.set_transactions_root(*header.transactions_root());
+		// TODO: that's horrible. set only for backwards compatibility
+		if header.extra_data().len() > self.engine.maximum_extra_data_size() {
+			warn!("Couldn't set extradata. Ignoring.");
+		} else {
+			self.block.header.set_extra_data(header.extra_data().clone());
+		}
 	}
 
 	/// Turn this into a `ClosedBlock`.
@@ -397,7 +370,7 @@ impl<'x> OpenBlock<'x> {
 			warn!("Encountered error on state commit: {}", e);
 		}
 		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
-		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
+		let uncle_bytes = encode_list(&s.block.uncles).into_vec();
 		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
 		s.block.header.set_state_root(s.block.state.root().clone());
 		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
@@ -406,8 +379,8 @@ impl<'x> OpenBlock<'x> {
 
 		ClosedBlock {
 			block: s.block,
-			uncle_bytes: uncle_bytes,
-			unclosed_state: unclosed_state,
+			uncle_bytes,
+			unclosed_state,
 		}
 	}
 
@@ -425,7 +398,7 @@ impl<'x> OpenBlock<'x> {
 		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &KECCAK_NULL_RLP {
 			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
 		}
-		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
+		let uncle_bytes = encode_list(&s.block.uncles).into_vec();
 		if s.block.header.uncles_hash().is_zero() || s.block.header.uncles_hash() == &KECCAK_EMPTY_LIST_RLP {
 			s.block.header.set_uncles_hash(keccak(&uncle_bytes));
 		}
@@ -439,7 +412,7 @@ impl<'x> OpenBlock<'x> {
 
 		LockedBlock {
 			block: s.block,
-			uncle_bytes: uncle_bytes,
+			uncle_bytes,
 		}
 	}
 

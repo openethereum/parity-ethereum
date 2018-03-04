@@ -424,7 +424,7 @@ impl Miner {
 			};
 
 			if self.options.infinite_pending_block {
-				open_block.set_gas_limit(!U256::zero());
+				open_block.remove_gas_limit();
 			}
 
 			(transactions, open_block, last_work_hash)
