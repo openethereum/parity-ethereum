@@ -262,6 +262,13 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, number);
 
+		// Applies Callisto reward.
+		let reward = if number >= self.ethash_params.callisto_transition {
+			self.ethash_params.callisto_miner_reward
+		} else {
+			reward
+		};
+
 		let n_uncles = LiveBlock::uncles(&*block).len();
 
 		// Bestow block rewards.
@@ -279,7 +286,6 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			rewards.push((ubi_contract, RewardKind::External, ubi_reward));
 			rewards.push((dev_contract, RewardKind::External, dev_reward));
 		} else if number >= self.ethash_params.callisto_transition {
-			result_block_reward = self.ethash_params.callisto_miner_reward;
 			let treasury_address = self.ethash_params.callisto_treasury_address;
 			let treasury_reward = self.ethash_params.callisto_treasury_reward;
 			let stake_address = self.ethash_params.callisto_stake_address;
