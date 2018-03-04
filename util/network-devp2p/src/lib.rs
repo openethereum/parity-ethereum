@@ -16,7 +16,7 @@
 
 //! Network and general IO module.
 //!
-//! Example usage for craeting a network service and adding an IO handler:
+//! Example usage for creating a network service and adding an IO handler:
 //!
 //! ```rust
 //! extern crate ethcore_network_devp2p as net;
