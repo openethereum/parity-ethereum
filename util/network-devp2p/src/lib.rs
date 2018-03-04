@@ -22,7 +22,7 @@
 //! extern crate ethcore_network as net;
 //! extern crate ethcore_network_devp2p as devp2p;
 //! use net::*;
-//! use devp2p::*;
+//! use devp2p::NetworkService;
 //! use std::sync::Arc;
 //!
 //! struct MyHandler;

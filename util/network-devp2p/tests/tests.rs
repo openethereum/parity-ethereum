@@ -31,7 +31,7 @@ use std::time::*;
 use parking_lot::Mutex;
 use ethcore_bytes::Bytes;
 use ethcore_network::*;
-use ethcore_network_devp2p::*;
+use ethcore_network_devp2p::NetworkService;
 use ethkey::{Random, Generator};
 use io::TimerToken;
 
