@@ -58,7 +58,6 @@
 
 //TODO: use Poll from mio
 #![allow(deprecated)]
-#![recursion_limit="128"]
 
 extern crate ethcore_io as io;
 extern crate ethcore_bytes;

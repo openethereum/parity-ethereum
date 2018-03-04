@@ -14,40 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//TODO: use Poll from mio
-#![allow(deprecated)]
 #![recursion_limit="128"]
 
 extern crate ethcore_io as io;
-extern crate ethcore_bytes;
-extern crate ethereum_types;
-extern crate parking_lot;
-extern crate mio;
-extern crate tiny_keccak;
-extern crate crypto as rcrypto;
-extern crate rand;
-extern crate time;
-extern crate ansi_term; //TODO: remove this
-extern crate rustc_hex;
-extern crate igd;
-extern crate libc;
-extern crate slab;
-extern crate ethkey;
 extern crate ethcrypto as crypto;
+extern crate ethereum_types;
+extern crate ethkey;
 extern crate rlp;
-extern crate bytes;
-extern crate path;
 extern crate ipnetwork;
-extern crate keccak_hash as hash;
-extern crate serde;
-extern crate serde_json;
 extern crate snappy;
 
 #[macro_use]
 extern crate error_chain;
-
-#[cfg(test)]
-extern crate tempdir;
 
 mod error;
 
