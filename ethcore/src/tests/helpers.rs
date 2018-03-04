@@ -148,7 +148,6 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 			vec![],
 			false,
 		).unwrap();
-		b.set_difficulty(U256::from(0x20000));
 		rolling_timestamp += 10;
 		b.set_timestamp(rolling_timestamp);
 
