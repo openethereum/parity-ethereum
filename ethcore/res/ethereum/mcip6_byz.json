@@ -1,21 +1,21 @@
 {
-  "name":"Musicoin",
-  "dataDir":"musicoin",
+  "name":"Musicoin Byzantium Test",
+  "dataDir":"mcip6test",
   "engine":{
     "Ethash":{
       "params":{
         "minimumDifficulty":"0x020000",
         "difficultyBoundDivisor":"0x0800",
         "durationLimit":"0x0d",
-        "homesteadTransition":"0x118c30",
-        "eip100bTransition":"0x21e88e",
-        "eip150Transition":"0x21e88e",
+        "homesteadTransition":"0x17",
+        "eip100bTransition":"0x2a",
+        "eip150Transition":"0x2a",
         "eip160Transition":"0x7fffffffffffff",
         "eip161abcTransition":"0x7fffffffffffff",
         "eip161dTransition":"0x7fffffffffffff",
-        "eip649Transition":"0x21e88e",
+        "eip649Transition":"0x2a",
         "blockReward":"0x1105a0185b50a80000",
-        "mcip3Transition":"0x124f81",
+        "mcip3Transition":"0x17",
         "mcip3MinerReward":"0xd8d726b7177a80000",
         "mcip3UbiReward":"0x2b5e3af16b1880000",
         "mcip3UbiContract":"0x00efdd5883ec628983e9063c7d969fe268bbf310",
@@ -30,16 +30,16 @@
     "accountStartNonce":"0x00",
     "maximumExtraDataSize":"0x20",
     "minGasLimit":"0x1388",
-    "networkID":"0x76740f",
-    "forkBlock":"0x1d8015",
-    "forkCanonHash":"0x380602acf82b629a0be6b5adb2b4a801e960a07dc8261bf196d21befdbb8f2f9",
+    "networkID":"0x76740c",
+    "forkBlock":"0x2b",
+    "forkCanonHash":"0x23c3171e864a5d513a3ef85e4cf86dac4cc36b89e5b8e63bf0ebcca68b9e43c9",
     "eip86Transition":"0x7fffffffffffff",
     "eip98Transition":"0x7fffffffffffff",
-    "eip140Transition":"0x21e88e",
-    "eip155Transition":"0x21e88e",
-    "eip211Transition":"0x21e88e",
-    "eip214Transition":"0x21e88e",
-    "eip658Transition":"0x21e88e",
+    "eip140Transition":"0x2a",
+    "eip155Transition":"0x2a",
+    "eip211Transition":"0x2a",
+    "eip214Transition":"0x2a",
+    "eip658Transition":"0x2a",
     "maxCodeSize":"0x6000"
   },
   "genesis":{
@@ -57,12 +57,8 @@
     "gasLimit":"0x7a1200"
   },
   "nodes":[
-    "enode://09fcd36d553044c8b499b9b9e13a228ffd99572c513f77073d41f009717c464cd4399c0e665d6aff1590324254ee4e698b2b2533b1998dd04d896b9d6aff7895@35.185.67.35:30303",
-    "enode://89e51a34770a0badf8ea18c4c4d2c361cde707abd60031d99b1ab3010363e1898230a516ddb37d974af8d8db1b322779d7fe0caae0617bed4924d1b4968cf92b@35.231.48.142:30303",
-    "enode://b58c0c71f08864c0cf7fa9dea2c4cbefae5ae7a36cc30d286603b24982d25f3ccc056b589119324c51768fc2054b8c529ecf682e06e1e9980170b93ff194ed7a@132.148.132.9:30303",
-    "enode://d302f52c8789ad87ee528f1431a67f1aa646c9bec17babb4665dfb3d61de5b9119a70aa77b2147a5f28854092ba09769323c1c552a6ac6f6a34cbcf767e2d2fe@158.69.248.48:30303",
-    "enode://c72564bce8331ae298fb8ece113a456e3927d7e5989c2be3e445678b3600579f722410ef9bbfe339335d676af77343cb21b5b1703b7bebc32be85fce937a2220@191.252.185.71:30303",
-    "enode://e3ae4d25ee64791ff98bf17c37acf90933359f2505c00f65c84f6863231a32a94153cadb0a462e428f18f35ded6bd91cd91033d26576a28558c22678be9cfaee@5.63.158.137:35555"
+    "enode://5ddc110733f6d34101973cdef3f9b43484159acf6f816d3b1ee92bc3c98ea453e857bb1207edf0ec0242008ab3a0f9f05eeaee99d47bd414c08a5bdf4847de13@176.9.3.148:30303",
+		"enode://38f074f4db8e64dfbaf87984bf290eef67772a901a7113d1b62f36216be152b8450c393d6fc562a5e38f04f99bc8f439a99010a230b1d92dc1df43bf0bd00615@176.9.3.148:30403"
   ],
   "accounts":{
     "0000000000000000000000000000000000000001":{
@@ -116,7 +112,7 @@
     "0000000000000000000000000000000000000005":{
       "builtin":{
         "name":"modexp",
-        "activate_at":"0x21e88e",
+        "activate_at":"0x2a",
         "pricing":{
           "modexp":{
             "divisor":20
@@ -127,7 +123,7 @@
     "0000000000000000000000000000000000000006":{
       "builtin":{
         "name":"alt_bn128_add",
-        "activate_at":"0x21e88e",
+        "activate_at":"0x2a",
         "pricing":{
           "linear":{
             "base":500,
@@ -139,7 +135,7 @@
     "0000000000000000000000000000000000000007":{
       "builtin":{
         "name":"alt_bn128_mul",
-        "activate_at":"0x21e88e",
+        "activate_at":"0x2a",
         "pricing":{
           "linear":{
             "base":40000,
@@ -151,7 +147,7 @@
     "0000000000000000000000000000000000000008":{
       "builtin":{
         "name":"alt_bn128_pairing",
-        "activate_at":"0x21e88e",
+        "activate_at":"0x2a",
         "pricing":{
           "alt_bn128_pairing":{
             "base":100000,
