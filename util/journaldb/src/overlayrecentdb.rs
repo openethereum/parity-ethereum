@@ -290,7 +290,6 @@ impl JournalDB for OverlayRecentDB {
 		// flush previous changes
 		journal_overlay.pending_overlay.clear();
 
-		let mut r = RlpStream::new_list(3);
 		let mut tx = self.transaction_overlay.drain();
 		let inserted_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c > 0 { Some(k.clone()) } else { None }).collect();
 		let removed_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c < 0 { Some(k.clone()) } else { None }).collect();
@@ -309,10 +308,6 @@ impl JournalDB for OverlayRecentDB {
 		};
 
 		for (k, v) in insertions {
-			r.begin_list(2);
-			r.append(&k);
-			r.append(&&*v);
-
 			let short_key = to_short_key(&k);
 			if !journal_overlay.backing_overlay.contains(&short_key) {
 				journal_overlay.cumulative_size += v.len();
