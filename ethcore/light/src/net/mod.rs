@@ -1089,23 +1089,23 @@ impl NetworkProtocolHandler for LightProtocol {
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		self.handle_packet(io, peer, packet_id, data);
+		self.handle_packet(&io, peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.on_connect(peer, io);
+		self.on_connect(peer, &io);
 	}
 
 	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.on_disconnect(*peer, io);
+		self.on_disconnect(*peer, &io);
 	}
 
 	fn timeout(&self, io: &NetworkContext, timer: TimerToken) {
 		match timer {
-			TIMEOUT => self.timeout_check(io),
-			TICK_TIMEOUT => self.tick_handlers(io),
-			PROPAGATE_TIMEOUT => self.propagate_transactions(io),
-			RECALCULATE_COSTS_TIMEOUT => self.begin_new_cost_period(io),
+			TIMEOUT => self.timeout_check(&io),
+			TICK_TIMEOUT => self.tick_handlers(&io),
+			PROPAGATE_TIMEOUT => self.propagate_transactions(&io),
+			RECALCULATE_COSTS_TIMEOUT => self.begin_new_cost_period(&io),
 			_ => warn!(target: "pip", "received timeout on unknown token {}", timer),
 		}
 	}

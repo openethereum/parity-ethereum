@@ -1,8 +1,8 @@
 [package]
-description = "DevP2P implementation of the ethcore network library"
+description = "Ethcore network library"
 homepage = "http://parity.io"
 license = "GPL-3.0"
-name = "ethcore-network-devp2p"
+name = "ethcore-network"
 version = "1.11.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -22,7 +22,6 @@ ansi_term = "0.10"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io" }
 ethcore-bytes = { path = "../bytes" }
-ethcore-network = { path = "../network" }
 ethereum-types = "0.2"
 ethkey = { path = "../../ethkey" }
 ethcrypto = { path = "../../ethcrypto" }
