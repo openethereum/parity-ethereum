@@ -17,12 +17,8 @@
 //! Evm rpc implementation.
 
 use std::sync::Arc;
-//use ethereum_types::{U256};
-
 use ethcore::miner::MinerService;
-
 use jsonrpc_core::{Result};
-
 use v1::traits::Evm;
 use v1::types::{U256};
 
@@ -51,9 +47,8 @@ impl<M> EvmClient<M> where
 impl<M> Evm for EvmClient<M> where
 	M: MinerService + 'static,
 {
-	fn increase_time(&self, increase: U256) -> Result<bool> {
-		self.miner.increase_time(increase.into());
-		Ok(true)
+	fn increase_time(&self, increase: U256) -> Result<U256> {
+		Ok(U256::from(self.miner.increase_time(increase.into())))
 	}
 
 }

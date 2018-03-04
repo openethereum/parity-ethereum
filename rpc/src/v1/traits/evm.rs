@@ -24,6 +24,6 @@ build_rpc_trait! {
 	pub trait Evm {
 		/// Used for increasing next block time stamp.
 		#[rpc(name = "evm_increaseTime")]
-		fn increase_time(&self, U256) -> Result<bool>;
+		fn increase_time(&self, U256) -> Result<U256>;
 	}
 }

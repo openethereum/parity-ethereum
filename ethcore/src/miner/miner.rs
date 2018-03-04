@@ -1247,9 +1247,10 @@ impl MinerService for Miner {
 	}
 
 
-	fn increase_time(&self, increase: U256) {
+	fn increase_time(&self, increase: U256) -> U256 {
 		let mut increase_time = self.increase_time.write();
 		*increase_time += increase.low_u64();
+		U256::from(*increase_time)
 	}
 }
 

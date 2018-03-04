@@ -672,6 +672,7 @@ impl ApiSet {
 			},
 			ApiSet::PubSub => [
 				Api::Eth,
+				Api::Evm,
 				Api::Parity,
 				Api::ParityAccounts,
 				Api::ParitySet,
