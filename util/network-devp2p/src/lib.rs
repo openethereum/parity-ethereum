@@ -19,7 +19,7 @@
 //! Example usage for craeting a network service and adding an IO handler:
 //!
 //! ```rust
-//! extern crate ethcore_network as net;
+//! extern crate ethcore_network_devp2p as net;
 //! use net::*;
 //! use std::sync::Arc;
 //!

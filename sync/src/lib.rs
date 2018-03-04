@@ -21,7 +21,7 @@
 //! https://github.com/ethereum/wiki/wiki/Ethereum-Wire-Protocol
 //!
 
-extern crate ethcore_network as network;
+extern crate ethcore_network_devp2p as network;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_io as io;
 extern crate ethcore_transaction as transaction;

@@ -68,5 +68,5 @@ vm = { path = "../ethcore/vm" }
 [dev-dependencies]
 pretty_assertions = "0.1"
 macros = { path = "../util/macros" }
-ethcore-network = { path = "../util/network" }
+ethcore-network-devp2p = { path = "../util/network-devp2p" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }
