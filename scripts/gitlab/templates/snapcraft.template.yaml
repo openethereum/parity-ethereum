@@ -1,5 +1,9 @@
 name: parity
-version: git
+version: $VERSION
+architectures: [$BUILD_ARCH]
+grade: $CHANNEL
+confinement: strict
+
 summary: Fast, light, robust Ethereum implementation
 description: |
   Parity's goal is to be the fastest, lightest, and most secure Ethereum
@@ -7,8 +11,6 @@ description: |
   Rust programming language. Parity is licensed under the GPLv3, and can be
   used for all your Ethereum needs.
 
-grade: devel
-confinement: strict
 
 apps:
   parity:
@@ -29,9 +31,9 @@ parts:
       cp -v gui/icon.png $SNAPCRAFT_PART_INSTALL/usr/share/pixmaps/
   parity:
     source: .
-    plugin: rust
-    build-attributes: [no-system-libraries]
-    build-packages: [g++, libudev-dev, libssl-dev, make, pkg-config]
+    plugin: nil
+    prepare: |
+      cp -v artifacts/parity $SNAPCRAFT_PART_INSTALL/usr/bin/parity
     stage-packages: [libc6, libssl1.0.0, libudev1, libstdc++6]
   df:
     plugin: nil

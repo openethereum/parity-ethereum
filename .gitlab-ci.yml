@@ -1,6 +1,7 @@
 stages:
   - test
   - build
+  - package
   - publish
 
 image: parity/rust:gitlab-ci
@@ -8,8 +9,11 @@ image: parity/rust:gitlab-ci
 variables:
   RUST_BACKTRACE: "1"
   CI_SERVER_NAME: "GitLab CI"
-  LIBSSL: "libssl1.0.0 (>=1.0.0)"
   CARGO_HOME: "$CI_PROJECT_DIR/cargo"
+
+  BUILD_TARGET: ubuntu
+  BUILD_ARCH: x86_64
+  LIBSSL: "libssl1.0.0 (>=1.0.0)"
 
 cache:
   key: "$CI_JOB_NAME"
@@ -23,6 +27,7 @@ cache:
     - stable
     - beta
     - tags
+    - schedules
 
 .publishable_branches: # list of git refs for publishing builds to the "production" locations
   only: &publishable_branches
@@ -37,6 +42,14 @@ cache:
     paths:
     - artifacts/
 
+.determine_version: |
+  export VERSION="$(grep -m 1 "version =" Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")"
+  RELEASE_TRACK="$(git branch --contains HEAD|grep -E 'master|beta|stable'|xargs)"
+  if [[ "master" = "$RELEASE_TRACK" ]]; then RELEASE_TRACK="nightly"; fi
+  export RELEASE_TRACK
+
+before_script:
+  - *determine_version
 
 #### stage: test
 
@@ -84,9 +97,10 @@ test:coverage:
     - kcov
   allow_failure: true
 
+
 #### stage: build
 
-linux:ubuntu:x86_64:
+build:linux:ubuntu:x86_64: &build
   stage: build
   only: *releaseable_branches
   script:
@@ -97,139 +111,177 @@ linux:ubuntu:x86_64:
     - rust-stable
   <<: *collect_artifacts
 
-linux:debian:x86_64:
-  stage: build
-  only: *releaseable_branches
+build:linux:debian:x86_64:
+  <<: *build
   image: parity/rust-debian:gitlab-ci
   variables:
+    BUILD_TARGET: debian
     LIBSSL: "libssl1.1 (>=1.1.0)"
-  script:
-    - scripts/gitlab/build.sh x86_64-unknown-debian-gnu x86_64-unknown-linux-gnu amd64 gcc g++ debian
   tags:
     - rust-debian
-  <<: *collect_artifacts
 
-linux:centos:x86_64:
-  stage: build
-  only: *releaseable_branches
+build:linux:centos:x86_64:
+  <<: *build
   image: parity/rust-centos:gitlab-ci
-  script:
-    - scripts/gitlab/build.sh x86_64-unknown-centos-gnu x86_64-unknown-linux-gnu x86_64 gcc g++ centos
+  variables:
+    BUILD_TARGET: centos
   tags:
     - rust-centos
-  <<: *collect_artifacts
 
-linux:ubuntu:i686:
-  stage: build
-  only: *releaseable_branches
+build:linux:ubuntu:i686:
+  <<: *build
   image: parity/rust-i686:gitlab-ci
-  script:
-    - scripts/gitlab/build.sh i686-unknown-linux-gnu i686-unknown-linux-gnu i386 gcc g++ ubuntu
+  variables:
+    BUILD_ARCH: i686
   tags:
     - rust-i686
-  <<: *collect_artifacts
 
-linux:ubuntu:armv7:
-  stage: build
-  only: *releaseable_branches
+build:linux:ubuntu:armv7:
+  <<: *build
   image: parity/rust-armv7:gitlab-ci
-  script:
-    - scripts/gitlab/build.sh armv7-unknown-linux-gnueabihf armv7-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ ubuntu
+  variables:
+    BUILD_ARCH: armv7
   tags:
     - rust-arm
-  <<: *collect_artifacts
 
-linux:ubuntu:arm:
-  stage: build
-  only: *releaseable_branches
+build:linux:ubuntu:arm:
+  <<: *build
   image: parity/rust-arm:gitlab-ci
-  script:
-    - scripts/gitlab/build.sh arm-unknown-linux-gnueabihf arm-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ ubuntu
+  variables:
+    BUILD_ARCH: arm
   tags:
     - rust-arm
-  <<: *collect_artifacts
 
-linux:ubuntu:aarch64:
-  stage: build
-  only: *releaseable_branches
+build:linux:ubuntu:aarch64:
+  <<: *build
   image: parity/rust-arm64:gitlab-ci
-  script:
-    - scripts/gitlab/build.sh aarch64-unknown-linux-gnu aarch64-unknown-linux-gnu arm64 aarch64-linux-gnu-gcc aarch64-linux-gnu-g++ ubuntu
+  variables:
+    BUILD_ARCH: aarch64
   tags:
     - rust-arm
-  <<: *collect_artifacts
 
-linux:snap:x86_64:
-  stage: build
-  only: *releaseable_branches
-  image: parity/rust:gitlab-ci
-  script:
-    - scripts/gitlab/build.sh x86_64-unknown-snap-gnu x86_64-unknown-linux-gnu amd64 gcc g++ snap
-  tags:
-    - rust-stable
-  <<: *collect_artifacts
-
-linux:snap:i386:
-  stage: build
-  only: *releaseable_branches
-  image: parity/rust-i686:gitlab-ci
-  script:
-    - scripts/gitlab/build.sh i686-unknown-snap-gnu i686-unknown-linux-gnu i386 gcc g++ snap
-  tags:
-    - rust-stable
-  <<: *collect_artifacts
-
-linux:snap:arm64:
-  stage: build
-  only: *releaseable_branches
-  image: parity/rust-arm64:gitlab-ci
-  script:
-    - scripts/gitlab/build.sh arm64-unknown-snap-gnu aarch64-unknown-linux-gnu arm64 aarch64-linux-gnu-gcc aarch64-linux-gnu-g++ snap
-  tags:
-    - rust-stable
-  <<: *collect_artifacts
-
-linux:snap:armhf:
-  stage: build
-  only: *releaseable_branches
-  image: parity/rust-armv7:gitlab-ci
-  script:
-    - scripts/gitlab/build.sh armhf-unknown-snap-gnu armv7-unknown-linux-gnueabihf armhf arm-linux-gnueabihf-gcc arm-linux-gnueabihf-g++ snap
-  tags:
-    - rust-stable
-  <<: *collect_artifacts
-
-macos:x86_64:
-  stage: build
-  only: *releaseable_branches
-  script:
-    - scripts/gitlab/build.sh x86_64-apple-darwin x86_64-apple-darwin macos gcc g++ macos
+build:macos:x86_64:
+  <<: *build
+  variables:
+    BUILD_TARGET: macos
   tags:
     - osx
-  <<: *collect_artifacts
 
-windows:x86_64:
-  stage: build
-  only: *releaseable_branches
+build:windows:x86_64:
+  <<: *build
   cache:
     key: "%CI_JOB_NAME%"
     paths:
       - target/
       # No cargo caching, since fetch-locking on Windows gets stuck
-  script:
-    - sh scripts/gitlab/build.sh x86_64-pc-windows-msvc x86_64-pc-windows-msvc installer "" "" windows
+  variables:
+    BUILD_TARGET: windows
   tags:
    - rust-windows
+
+#### stage: package
+
+package:linux:snap:x86_64:
+  stage: package
+  only: *releaseable_branches
+  variables:
+    BUILD_ARCH: x86_64
+  dependencies:
+    - build:linux:ubuntu:x86_64
+  script:
+    - scripts/gitlab/package-snap.sh
+  <<: *collect_artifacts
+
+package:linux:snap:i686:
+  stage: package
+  only: *releaseable_branches
+  variables:
+    BUILD_ARCH: i686
+  dependencies:
+    - build:linux:ubuntu:i686
+  script:
+    - scripts/gitlab/package-snap.sh
+  <<: *collect_artifacts
+
+package:linux:snap:arm64:
+  stage: package
+  only: *releaseable_branches
+  variables:
+    BUILD_ARCH: arm64
+  dependencies:
+    - build:linux:ubuntu:arm64
+  script:
+    - scripts/gitlab/package-snap.sh
+  <<: *collect_artifacts
+
+package:linux:snap:armhf:
+  stage: package
+  only: *releaseable_branches
+  variables:
+    BUILD_ARCH: armhf
+  dependencies:
+    - build:linux:ubuntu:armhf
+  script:
+    - scripts/gitlab/package-snap.sh
+  <<: *collect_artifacts
+
+package:windows:x86_64:installer:
+  stage: package
+  only: *releaseable_branches
+  dependencies:
+    - build:windows:x86_64
+  script:
+    - scripts/gitlab/package-windows-installer.sh
   <<: *collect_artifacts
 
 #### stage: publish
 
-docker:
+publish:linux:snap:x86_64:
+  stage: publish
+  only: *publishable_branches
+  variables:
+    BUILD_ARCH: x86_64
+  dependencies:
+    - package:linux:snap:x86_64
+  script:
+    - scripts/gitlab/publish-snap.sh
+
+publish:linux:snap:i686:
+  stage: publish
+  only: *publishable_branches
+  variables:
+    BUILD_ARCH: i686
+  dependencies:
+    - package:linux:snap:i686
+  script:
+    - scripts/gitlab/publish-snap.sh
+
+publish:linux:snap:arm64:
+  stage: publish
+  only: *publishable_branches
+  variables:
+    BUILD_ARCH: arm64
+  dependencies:
+    - package:linux:snap:arm64
+  script:
+    - scripts/gitlab/publish-snap.sh
+
+publish:linux:snap:armhf:
+  stage: publish
+  only: *publishable_branches
+  variables:
+    BUILD_ARCH: armhf
+  dependencies:
+    - package:linux:snap:armhf
+  script:
+    - scripts/gitlab/publish-snap.sh
+
+publish:docker:
   stage: publish
   only: *publishable_branches
   dependencies:
-    - linux:ubuntu:x86_64
+    - build:linux:ubuntu:x86_64
   script:
-    - scripts/gitlab/docker-build.sh
+    - scripts/gitlab/publish-docker.sh
   tags:
     - docker
