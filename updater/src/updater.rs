@@ -371,6 +371,11 @@ impl Updater {
 		}
 
 		let mut s = self.state.lock();
+
+		if s.latest != latest {
+			s.backoff = None;
+		}
+
 		s.latest = latest;
 		s.capability = capability;
 	}
