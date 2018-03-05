@@ -23,14 +23,16 @@ use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, Docum
 use key_server_cluster::cluster::{Cluster, ClusterConfiguration};
 use key_server_cluster::connection_trigger::ServersSetChangeSessionCreatorConnector;
 use key_server_cluster::cluster_sessions::{ClusterSession, SessionIdWithSubSession, AdminSession, AdminSessionCreationData};
-use key_server_cluster::message::{self, Message, DecryptionMessage, SigningMessage, ConsensusMessageOfShareAdd,
-	ShareAddMessage, ServersSetChangeMessage, ConsensusMessage, ConsensusMessageWithServersSet};
+use key_server_cluster::message::{self, Message, DecryptionMessage, SchnorrSigningMessage, ConsensusMessageOfShareAdd,
+	ShareAddMessage, ServersSetChangeMessage, ConsensusMessage, ConsensusMessageWithServersSet, EcdsaSigningMessage};
 use key_server_cluster::generation_session::{SessionImpl as GenerationSessionImpl, SessionParams as GenerationSessionParams};
 use key_server_cluster::decryption_session::{SessionImpl as DecryptionSessionImpl,
 	SessionParams as DecryptionSessionParams};
 use key_server_cluster::encryption_session::{SessionImpl as EncryptionSessionImpl, SessionParams as EncryptionSessionParams};
-use key_server_cluster::signing_session::{SessionImpl as SigningSessionImpl,
-	SessionParams as SigningSessionParams};
+use key_server_cluster::signing_session_ecdsa::{SessionImpl as EcdsaSigningSessionImpl,
+	SessionParams as EcdsaSigningSessionParams};
+use key_server_cluster::signing_session_schnorr::{SessionImpl as SchnorrSigningSessionImpl,
+	SessionParams as SchnorrSigningSessionParams};
 use key_server_cluster::share_add_session::{SessionImpl as ShareAddSessionImpl,
 	SessionParams as ShareAddSessionParams, IsolatedSessionTransport as ShareAddTransport};
 use key_server_cluster::servers_set_change_session::{SessionImpl as ServersSetChangeSessionImpl,
@@ -240,26 +242,26 @@ impl ClusterSessionCreator<DecryptionSessionImpl, Signature> for DecryptionSessi
 	}
 }
 
-/// Signing session creator.
-pub struct SigningSessionCreator {
+/// Schnorr signing session creator.
+pub struct SchnorrSigningSessionCreator {
 	/// Creator core.
 	pub core: Arc<SessionCreatorCore>,
 }
 
-impl ClusterSessionCreator<SigningSessionImpl, Signature> for SigningSessionCreator {
+impl ClusterSessionCreator<SchnorrSigningSessionImpl, Signature> for SchnorrSigningSessionCreator {
 	fn creation_data_from_message(message: &Message) -> Result<Option<Signature>, Error> {
 		match *message {
-			Message::Signing(SigningMessage::SigningConsensusMessage(ref message)) => match &message.message {
+			Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningConsensusMessage(ref message)) => match &message.message {
 				&ConsensusMessage::InitializeConsensusSession(ref message) => Ok(Some(message.requestor_signature.clone().into())),
 				_ => Err(Error::InvalidMessage),
 			},
-			Message::Signing(SigningMessage::SigningSessionDelegation(ref message)) => Ok(Some(message.requestor_signature.clone().into())),
+			Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningSessionDelegation(ref message)) => Ok(Some(message.requestor_signature.clone().into())),
 			_ => Err(Error::InvalidMessage),
 		}
 	}
 
 	fn make_error_message(sid: SessionIdWithSubSession, nonce: u64, err: Error) -> Message {
-		message::Message::Signing(message::SigningMessage::SigningSessionError(message::SigningSessionError {
+		message::Message::SchnorrSigning(message::SchnorrSigningMessage::SchnorrSigningSessionError(message::SchnorrSigningSessionError {
 			session: sid.id.into(),
 			sub_session: sid.access_key.into(),
 			session_nonce: nonce,
@@ -267,10 +269,56 @@ impl ClusterSessionCreator<SigningSessionImpl, Signature> for SigningSessionCrea
 		}))
 	}
 
-	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester_signature: Option<Signature>) -> Result<Arc<SigningSessionImpl>, Error> {
+	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester_signature: Option<Signature>) -> Result<Arc<SchnorrSigningSessionImpl>, Error> {
 		let encrypted_data = self.core.read_key_share(&id.id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
-		Ok(Arc::new(SigningSessionImpl::new(SigningSessionParams {
+		Ok(Arc::new(SchnorrSigningSessionImpl::new(SchnorrSigningSessionParams {
+			meta: SessionMeta {
+				id: id.id,
+				self_node_id: self.core.self_node_id.clone(),
+				master_node_id: master,
+				threshold: encrypted_data.as_ref().map(|ks| ks.threshold).unwrap_or_default(),
+			},
+			access_key: id.access_key,
+			key_share: encrypted_data,
+			acl_storage: self.core.acl_storage.clone(),
+			cluster: cluster,
+			nonce: nonce,
+		}, requester_signature)?))
+	}
+}
+
+/// ECDSA signing session creator.
+pub struct EcdsaSigningSessionCreator {
+	/// Creator core.
+	pub core: Arc<SessionCreatorCore>,
+}
+
+impl ClusterSessionCreator<EcdsaSigningSessionImpl, Signature> for EcdsaSigningSessionCreator {
+	fn creation_data_from_message(message: &Message) -> Result<Option<Signature>, Error> {
+		match *message {
+			Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningConsensusMessage(ref message)) => match &message.message {
+				&ConsensusMessage::InitializeConsensusSession(ref message) => Ok(Some(message.requestor_signature.clone().into())),
+				_ => Err(Error::InvalidMessage),
+			},
+			Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningSessionDelegation(ref message)) => Ok(Some(message.requestor_signature.clone().into())),
+			_ => Err(Error::InvalidMessage),
+		}
+	}
+
+	fn make_error_message(sid: SessionIdWithSubSession, nonce: u64, err: Error) -> Message {
+		message::Message::EcdsaSigning(message::EcdsaSigningMessage::EcdsaSigningSessionError(message::EcdsaSigningSessionError {
+			session: sid.id.into(),
+			sub_session: sid.access_key.into(),
+			session_nonce: nonce,
+			error: err.into(),
+		}))
+	}
+
+	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester_signature: Option<Signature>) -> Result<Arc<EcdsaSigningSessionImpl>, Error> {
+		let encrypted_data = self.core.read_key_share(&id.id)?;
+		let nonce = self.core.check_session_nonce(&master, nonce)?;
+		Ok(Arc::new(EcdsaSigningSessionImpl::new(EcdsaSigningSessionParams {
 			meta: SessionMeta {
 				id: id.id,
 				self_node_id: self.core.self_node_id.clone(),
@@ -407,7 +455,8 @@ impl IntoSessionId<SessionId> for Message {
 			Message::Generation(ref message) => Ok(message.session_id().clone()),
 			Message::Encryption(ref message) => Ok(message.session_id().clone()),
 			Message::Decryption(_) => Err(Error::InvalidMessage),
-			Message::Signing(_) => Err(Error::InvalidMessage),
+			Message::SchnorrSigning(_) => Err(Error::InvalidMessage),
+			Message::EcdsaSigning(_) => Err(Error::InvalidMessage),
 			Message::ServersSetChange(ref message) => Ok(message.session_id().clone()),
 			Message::ShareAdd(ref message) => Ok(message.session_id().clone()),
 			Message::KeyVersionNegotiation(_) => Err(Error::InvalidMessage),
@@ -422,7 +471,8 @@ impl IntoSessionId<SessionIdWithSubSession> for Message {
 			Message::Generation(_) => Err(Error::InvalidMessage),
 			Message::Encryption(_) => Err(Error::InvalidMessage),
 			Message::Decryption(ref message) => Ok(SessionIdWithSubSession::new(message.session_id().clone(), message.sub_session_id().clone())),
-			Message::Signing(ref message) => Ok(SessionIdWithSubSession::new(message.session_id().clone(), message.sub_session_id().clone())),
+			Message::SchnorrSigning(ref message) => Ok(SessionIdWithSubSession::new(message.session_id().clone(), message.sub_session_id().clone())),
+			Message::EcdsaSigning(ref message) => Ok(SessionIdWithSubSession::new(message.session_id().clone(), message.sub_session_id().clone())),
 			Message::ServersSetChange(_) => Err(Error::InvalidMessage),
 			Message::ShareAdd(_) => Err(Error::InvalidMessage),
 			Message::KeyVersionNegotiation(ref message) => Ok(SessionIdWithSubSession::new(message.session_id().clone(), message.sub_session_id().clone())),

@@ -22,13 +22,12 @@ use ethereum_types::{H256, H520};
 use ethcore_bytes::Bytes;
 use rlp::*;
 use connection::{Connection};
-use host::{HostInfo};
 use node_table::NodeId;
 use stats::NetworkStats;
 use io::{IoContext, StreamToken};
 use ethkey::{KeyPair, Public, Secret, recover, sign, Generator, Random};
 use crypto::{ecdh, ecies};
-use error::{Error, ErrorKind};
+use network::{Error, ErrorKind, HostInfo};
 
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {

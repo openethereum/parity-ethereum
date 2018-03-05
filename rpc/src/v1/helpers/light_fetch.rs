@@ -197,7 +197,19 @@ impl LightFetch {
 
 		let (sync, on_demand, client) = (self.sync.clone(), self.on_demand.clone(), self.client.clone());
 		let req: CallRequestHelper = req.into();
-		let id = num.unwrap_or_default().into();
+
+		// Note: Here we treat `Pending` as `Latest`.
+		//       Since light clients don't produce pending blocks
+		//       (they don't have state) we can safely fallback to `Latest`.
+		let id = match num.unwrap_or_default() {
+			BlockNumber::Num(n) => BlockId::Number(n),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
+			BlockNumber::Pending => {
+				warn!("`Pending` is deprecated and may be removed in future versions. Falling back to `Latest`");
+				BlockId::Latest
+			}
+		};
 
 		let from = req.from.unwrap_or(Address::zero());
 		let nonce_fut = match req.nonce {
@@ -308,7 +320,7 @@ impl LightFetch {
 		let best_number = self.client.chain_info().best_block_number;
 		let block_number = |id| match id {
 			BlockId::Earliest => Some(0),
-			BlockId::Latest | BlockId::Pending => Some(best_number),
+			BlockId::Latest => Some(best_number),
 			BlockId::Hash(h) => self.client.block_header(BlockId::Hash(h)).map(|hdr| hdr.number()),
 			BlockId::Number(x) => Some(x),
 		};

@@ -18,7 +18,7 @@
 
 use std::fmt;
 use std::sync::Arc;
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
 use ethereum_types::{H256, U256, Address};
 use hashdb::HashDB;
@@ -479,7 +479,12 @@ impl Account {
 
 impl fmt::Debug for Account {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{:?}", PodAccount::from_account(self))
+		f.debug_struct("Account")
+			.field("balance", &self.balance)
+			.field("nonce", &self.nonce)
+			.field("code", &self.code())
+			.field("storage", &self.storage_changes.iter().collect::<BTreeMap<_, _>>())
+			.finish()
 	}
 }
 

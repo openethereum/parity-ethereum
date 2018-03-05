@@ -3,7 +3,7 @@ description = "Parity Miner interface."
 name = "ethcore-miner"
 homepage = "http://parity.io"
 license = "GPL-3.0"
-version = "1.9.0"
+version = "1.11.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Weak};
-use ethcore::client::{Client, BlockChainClient};
+use ethcore::client::{Client, BlockChainClient, ChainInfo};
 use ethsync::SyncProvider;
 
 #[derive(Clone)]

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use client::{EvmTestClient, BlockChainClient, Client, ClientConfig};
+use client::{EvmTestClient, Client, ClientConfig, ChainInfo, ImportBlock};
 use block::Block;
 use spec::Genesis;
 use ethjson;
