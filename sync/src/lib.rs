@@ -22,6 +22,7 @@
 //!
 
 extern crate ethcore_network as network;
+extern crate ethcore_network_devp2p as devp2p;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_io as io;
 extern crate ethcore_transaction as transaction;
@@ -68,4 +69,5 @@ mod api;
 
 pub use api::*;
 pub use chain::{SyncStatus, SyncState};
-pub use network::{validate_node_url, NonReservedPeerMode, Error, ErrorKind, ConnectionFilter, ConnectionDirection};
+pub use devp2p::{validate_node_url, ConnectionFilter, ConnectionDirection};
+pub use network::{NonReservedPeerMode, Error, ErrorKind};

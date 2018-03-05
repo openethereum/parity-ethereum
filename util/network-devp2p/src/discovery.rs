@@ -27,10 +27,10 @@ use time;
 use ethereum_types::{H256, H520};
 use rlp::*;
 use node_table::*;
-use error::{Error, ErrorKind};
+use network::{Error, ErrorKind};
 use io::{StreamToken, IoContext};
 use ethkey::{Secret, KeyPair, sign, recover};
-use IpFilter;
+use network::IpFilter;
 
 use PROTOCOL_VERSION;
 

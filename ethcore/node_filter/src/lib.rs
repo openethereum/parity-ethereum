@@ -19,7 +19,7 @@
 extern crate ethabi;
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
-extern crate ethcore_network as network;
+extern crate ethcore_network_devp2p as network;
 extern crate ethereum_types;
 extern crate lru_cache;
 extern crate parking_lot;
