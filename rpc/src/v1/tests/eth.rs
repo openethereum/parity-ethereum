@@ -21,7 +21,7 @@ use std::sync::Arc;
 use ethereum_types::{H256, Address};
 use ethcore::account_provider::AccountProvider;
 use ethcore::block::Block;
-use ethcore::client::{BlockChainClient, Client, ClientConfig};
+use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo, ImportBlock};
 use ethcore::ethereum;
 use ethcore::ids::BlockId;
 use ethcore::miner::{MinerService, Miner};
@@ -75,7 +75,7 @@ fn make_spec(chain: &BlockChain) -> Spec {
 
 struct EthTester {
 	client: Arc<Client>,
-	_miner: Arc<MinerService>,
+	_miner: Arc<Miner>,
 	_snapshot: Arc<TestSnapshotService>,
 	accounts: Arc<AccountProvider>,
 	handler: IoHandler<Metadata>,

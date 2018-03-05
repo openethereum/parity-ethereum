@@ -105,6 +105,8 @@ extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
+#[cfg(test)]
+extern crate tempdir;
 
 #[macro_use]
 extern crate ethabi_derive;
@@ -126,8 +128,6 @@ extern crate evm;
 
 #[cfg(feature = "jit" )]
 extern crate evmjit;
-
-extern crate tempdir;
 
 pub extern crate ethstore;
 

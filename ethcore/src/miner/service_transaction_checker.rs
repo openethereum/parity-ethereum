@@ -16,21 +16,12 @@
 
 //! A service transactions contract checker.
 
-use ethereum_types::Address;
+use client::{RegistryInfo, CallContract};
 use transaction::SignedTransaction;
 
-use_contract!(service_transaction, "ServiceTransaction", "res/service_transaction.json");
+use_contract!(service_transaction, "ServiceTransaction", "res/contracts/service_transaction.json");
 
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
-
-/// A contract calling interface.
-pub trait ContractCaller {
-	/// Returns address of contract from the registry, given it's name
-	fn registry_address(&self, name: &str) -> Option<Address>;
-
-	/// Executes a contract call at given block.
-	fn call_contract(&self, Address, Vec<u8>) -> Result<Vec<u8>, String>;
-}
 
 /// Service transactions checker.
 #[derive(Default)]
@@ -47,7 +38,7 @@ impl Clone for ServiceTransactionChecker {
 
 impl ServiceTransactionChecker {
 	/// Checks if given address is whitelisted to send service transactions.
-	pub fn check(&self, client: &ContractCaller, tx: &SignedTransaction) -> Result<bool, String> {
+	pub fn check<C: CallContract + RegistryInfo>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
 		let sender = tx.sender();
 		let hash = tx.hash();
 
@@ -56,7 +47,7 @@ impl ServiceTransactionChecker {
 			return Ok(false)
 		}
 
-		let address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME)
+		let address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
 			.ok_or_else(|| "contract is not configured")?;
 
 		trace!(target: "txqueue", "[{:?}] Checking service transaction checker contract from {}", hash, sender);

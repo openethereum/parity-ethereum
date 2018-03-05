@@ -19,7 +19,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use ethereum_types::{H256, Address};
-use client::{BlockChainClient, BlockId, ChainNotify};
+use client::{BlockInfo, CallContract, BlockId, ChainNotify};
 use bytes::Bytes;
 use parking_lot::Mutex;
 use spec::CommonParams;
@@ -64,7 +64,7 @@ impl TransactionFilter {
 	}
 
 	/// Check if transaction is allowed at given block.
-	pub fn transaction_allowed(&self, parent_hash: &H256, transaction: &SignedTransaction, client: &BlockChainClient) -> bool {
+	pub fn transaction_allowed<C: BlockInfo + CallContract>(&self, parent_hash: &H256, transaction: &SignedTransaction, client: &C) -> bool {
 		let mut cache = self.permission_cache.lock(); let len = cache.len();
 
 		let tx_type = match transaction.action {

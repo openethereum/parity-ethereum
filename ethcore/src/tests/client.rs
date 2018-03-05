@@ -18,7 +18,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use hash::keccak;
 use io::IoChannel;
-use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, BlockId};
+use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
 use state::{self, State, CleanupMode};
 use executive::{Executive, TransactOptions};
 use ethereum;

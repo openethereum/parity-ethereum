@@ -1,7 +1,7 @@
 [package]
 description = "Log implementation for Parity"
 name = "ethcore-logger"
-version = "1.9.0"
+version = "1.11.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 

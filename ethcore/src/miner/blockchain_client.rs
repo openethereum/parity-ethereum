@@ -18,7 +18,6 @@ use std::fmt;
 
 use ethereum_types::{H256, U256, Address};
 use ethcore_miner::pool;
-use ethcore_miner::service_transaction_checker::{self, ServiceTransactionChecker};
 use transaction::{
 	self,
 	UnverifiedTransaction,
@@ -29,6 +28,7 @@ use account_provider::AccountProvider;
 use client::{MiningBlockChainClient, BlockId, TransactionId};
 use engines::EthEngine;
 use header::Header;
+use miner::service_transaction_checker::{self, ServiceTransactionChecker};
 
 // TODO [ToDr] Shit
 #[derive(Clone)]

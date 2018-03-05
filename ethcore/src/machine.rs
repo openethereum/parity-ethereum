@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use block::{ExecutedBlock, IsBlock};
 use builtin::Builtin;
-use client::BlockChainClient;
+use client::{BlockInfo, CallContract};
 use error::Error;
 use executive::Executive;
 use header::{BlockNumber, Header};
@@ -364,9 +364,9 @@ impl EthereumMachine {
 	}
 
 	/// Does verification of the transaction against the parent state.
-	// TODO: refine the bound here to be a "state provider" or similar as opposed
-	// to full client functionality.
-	pub fn verify_transaction(&self, t: &SignedTransaction, header: &Header, client: &BlockChainClient) -> Result<(), transaction::Error> {
+	pub fn verify_transaction<C: BlockInfo + CallContract>(&self, t: &SignedTransaction, header: &Header, client: &C)
+		-> Result<(), transaction::Error>
+	{
 		if let Some(ref filter) = self.tx_filter.as_ref() {
 			if !filter.transaction_allowed(header.parent_hash(), t, client) {
 				return Err(transaction::Error::NotAllowed.into())

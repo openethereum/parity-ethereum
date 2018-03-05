@@ -51,5 +51,4 @@ extern crate ethkey;
 pub mod external;
 pub mod gas_pricer;
 pub mod pool;
-pub mod service_transaction_checker;
 pub mod work_notify;

@@ -48,6 +48,12 @@ set_env_win () {
   echo "@ signtool sign /f "\%"1 /p "\%"2 /tr http://timestamp.comodoca.com /du https://parity.io "\%"3" > sign.cmd
 }
 build () {
+  if [[ "windows" = $IDENT ]]
+  then
+    # This is a nasty hack till we figure out the proper cargo caching strategy
+    echo "Remove index"
+    rm -rf cargo/registry/index/*.
+  fi
   echo "Build parity:"
   cargo build --target $PLATFORM --features final --release
   echo "Build evmbin:"
@@ -307,7 +313,7 @@ case $BUILD_PLATFORM in
     snapcraft clean
     echo "Prepare snapcraft.yaml for build on Gitlab CI in Docker image"
     sed -i 's/git/'"$VER"'/g' snap/snapcraft.yaml
-    if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.9* ]];
+    if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.10* ]];
       then
         sed -i -e 's/grade: devel/grade: stable/' snap/snapcraft.yaml;
     fi

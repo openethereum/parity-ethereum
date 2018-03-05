@@ -18,21 +18,25 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeMap, HashMap};
+use std::collections::hash_map::Entry;
 
 use bytes::Bytes;
 use ethcore::account_provider::SignError as AccountError;
 use ethcore::block::{SealedBlock, IsBlock};
-use ethcore::client::MiningBlockChainClient;
+use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
+use ethcore::engines::EthEngine;
 use ethcore::error::Error;
-use ethcore::header::BlockNumber;
+use ethcore::header::{BlockNumber, Header};
+use ethcore::ids::BlockId;
 use ethcore::miner::{MinerService, AuthoringParams};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethereum_types::{H256, U256, Address};
-use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
+use miner::local_transactions::Status as LocalTransactionStatus;
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
-use txpool;
+use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
 use parking_lot::{RwLock, Mutex};
 use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
+use txpool;
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -79,7 +83,39 @@ impl TestMinerService {
 	}
 }
 
+impl StateClient for TestMinerService {
+	// State will not be used by test client anyway, since all methods that accept state are mocked
+	type State = ();
+
+	fn latest_state(&self) -> Self::State {
+		()
+	}
+
+	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
+		Some(())
+	}
+}
+
+impl EngineInfo for TestMinerService {
+	fn engine(&self) -> &EthEngine {
+		unimplemented!()
+	}
+}
+
 impl MinerService for TestMinerService {
+	type State = ();
+
+	fn pending_state(&self, _latest_block_number: BlockNumber) -> Option<Self::State> {
+		None
+	}
+
+	fn pending_block_header(&self, _latest_block_number: BlockNumber) -> Option<Header> {
+		None
+	}
+
+	fn pending_block(&self, _latest_block_number: BlockNumber) -> Option<Block> {
+		None
+	}
 
 	fn authoring_params(&self) -> AuthoringParams {
 		self.authoring_params.read().clone()
@@ -102,8 +138,9 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<UnverifiedTransaction>) ->
-		Vec<Result<(), transaction::Error>> {
+	fn import_external_transactions<C>(&self, _chain: &C, transactions: Vec<UnverifiedTransaction>)
+		-> Vec<Result<(), transaction::Error>>
+	{
 		// lets assume that all txs are valid
 		let transactions: Vec<_> = transactions.into_iter().map(|tx| SignedTransaction::new(tx).unwrap()).collect();
 		self.imported_transactions.lock().extend_from_slice(&transactions);
@@ -120,8 +157,8 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_own_transaction(&self, chain: &MiningBlockChainClient, pending: PendingTransaction) ->
-		Result<(), transaction::Error> {
+	fn import_own_transaction<C: Nonce>(&self, chain: &C, pending: PendingTransaction)
+		-> Result<(), transaction::Error> {
 
 		// keep the pending nonces up to date
 		let sender = pending.transaction.sender();
@@ -135,16 +172,16 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks(&self, _chain: &MiningBlockChainClient, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
+	fn chain_new_blocks<C>(&self, _chain: &C, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
 		unimplemented!();
 	}
 
 	/// New chain head event. Restart mining operation.
-	fn update_sealing(&self, _chain: &MiningBlockChainClient) {
+	fn update_sealing<C>(&self, _chain: &C) {
 		unimplemented!();
 	}
 
-	fn work_package(&self, chain: &MiningBlockChainClient) -> Option<(H256, BlockNumber, u64, U256)> {
+	fn work_package<C: PrepareOpenBlock>(&self, chain: &C) -> Option<(H256, BlockNumber, u64, U256)> {
 		let params = self.authoring_params();
 		let open_block = chain.prepare_open_block(params.author, params.gas_range_target, params.extra_data);
 		let closed = open_block.close();

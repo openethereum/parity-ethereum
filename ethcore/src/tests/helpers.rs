@@ -19,7 +19,7 @@ use ethereum_types::{H256, U256};
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use bytes::Bytes;
-use client::{BlockChainClient, ChainNotify, Client, ClientConfig};
+use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify};
 use ethereum::ethash::EthashParams;
 use ethkey::KeyPair;
 use evm::Factory as EvmFactory;
@@ -148,7 +148,6 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 			vec![],
 			false,
 		).unwrap();
-		b.set_difficulty(U256::from(0x20000));
 		rolling_timestamp += 10;
 		b.set_timestamp(rolling_timestamp);
 

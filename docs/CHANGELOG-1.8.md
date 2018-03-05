@@ -1,3 +1,16 @@
+## Parity [v1.8.11](https://github.com/paritytech/parity/releases/tag/v1.8.11) (2018-03-01)
+
+Parity 1.8.11 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Bump stable to 1.8.11 ([#8010](https://github.com/paritytech/parity/pull/8010))
+- Stable Backports ([#8008](https://github.com/paritytech/parity/pull/8008))
+  - Reject too large packets in snapshot sync. ([#7977](https://github.com/paritytech/parity/pull/7977))
+  - Increase max download limit to 128MB ([#7965](https://github.com/paritytech/parity/pull/7965))
+  - Calculate proper keccak256/sha3 using parity. ([#7953](https://github.com/paritytech/parity/pull/7953))
+  - Bump WebSockets ([#7952](https://github.com/paritytech/parity/pull/7952))
+
 ## Parity [v1.8.10](https://github.com/paritytech/parity/releases/tag/v1.8.10) (2018-02-20)
 
 Parity 1.8.10 is a bug-fix release to improve performance and stability.
