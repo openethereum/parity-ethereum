@@ -27,10 +27,11 @@ use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{MiningBlockChainClient};
+use ethcore::client::{MiningBlockChainClient, StateClient, Call};
 use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
 use ethcore::mode::Mode;
+use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
 use node_health::{NodeHealth, Health};
 use updater::{Service as UpdateService};
@@ -48,7 +49,8 @@ use v1::types::{
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
-	AccountInfo, HwAccountInfo, RichHeader
+	AccountInfo, HwAccountInfo, RichHeader,
+	block_number_to_id
 };
 use Host;
 
@@ -112,9 +114,10 @@ impl<C, M, U> ParityClient<C, M, U> where
 	}
 }
 
-impl<C, M, U> Parity for ParityClient<C, M, U> where
-	C: MiningBlockChainClient + 'static,
-	M: MinerService + 'static,
+impl<C, M, U, S> Parity for ParityClient<C, M, U> where
+	S: StateInfo + 'static,
+	C: MiningBlockChainClient + StateClient<State=S> + Call<State=S> + 'static,
+	M: MinerService<State=S> + 'static,
 	U: UpdateService + 'static,
 {
 	type Metadata = Metadata;
@@ -275,14 +278,32 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 	}
 
 	fn list_accounts(&self, count: u64, after: Option<H160>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H160>>> {
+		let number = match block_number.unwrap_or_default() {
+			BlockNumber::Pending => {
+				warn!("BlockNumber::Pending is unsupported");
+				return Ok(None);
+			},
+
+			num => block_number_to_id(num)
+		};
+
 		Ok(self.client
-			.list_accounts(block_number.unwrap_or_default().into(), after.map(Into::into).as_ref(), count)
+			.list_accounts(number, after.map(Into::into).as_ref(), count)
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
 	fn list_storage_keys(&self, address: H160, count: u64, after: Option<H256>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H256>>> {
+		let number = match block_number.unwrap_or_default() {
+			BlockNumber::Pending => {
+				warn!("BlockNumber::Pending is unsupported");
+				return Ok(None);
+			},
+
+			num => block_number_to_id(num)
+		};
+
 		Ok(self.client
-			.list_storage(block_number.unwrap_or_default().into(), &address.into(), after.map(Into::into).as_ref(), count)
+			.list_storage(number, &address.into(), after.map(Into::into).as_ref(), count)
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
@@ -396,17 +417,31 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 	}
 
 	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader> {
-		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
+		const EXTRA_INFO_PROOF: &str = "Object exists in blockchain (fetched earlier), extra_info is always available if object exists; qed";
+		let number = number.unwrap_or_default();
 
-		let id: BlockId = number.unwrap_or_default().into();
-		let encoded = match self.client.block_header(id.clone()) {
-			Some(encoded) => encoded,
-			None => return Box::new(future::err(errors::unknown_block())),
+		let (header, extra) = if number == BlockNumber::Pending {
+			let info = self.client.chain_info();
+			let header = try_bf!(self.miner.pending_block_header(info.best_block_number).ok_or(errors::unknown_block()));
+
+			(header.encoded(), None)
+		} else {
+			let id = match number {
+				BlockNumber::Num(num) => BlockId::Number(num),
+				BlockNumber::Earliest => BlockId::Earliest,
+				BlockNumber::Latest => BlockId::Latest,
+				BlockNumber::Pending => unreachable!(), // Already covered
+			};
+
+			let header = try_bf!(self.client.block_header(id.clone()).ok_or(errors::unknown_block()));
+			let info = self.client.block_extra_info(id).expect(EXTRA_INFO_PROOF);
+
+			(header, Some(info))
 		};
 
 		Box::new(future::ok(RichHeader {
-			inner: encoded.into(),
-			extra_info: self.client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
+			inner: header.into(),
+			extra_info: extra.unwrap_or_default(),
 		}))
 	}
 
@@ -414,7 +449,7 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 		ipfs::cid(content)
 	}
 
-	fn call(&self, meta: Self::Metadata, requests: Vec<CallRequest>, block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
+	fn call(&self, meta: Self::Metadata, requests: Vec<CallRequest>, num: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
 		let requests = requests
 			.into_iter()
 			.map(|request| Ok((
@@ -423,9 +458,29 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 			)))
 			.collect::<Result<Vec<_>>>()?;
 
-		let block = block.unwrap_or_default();
+		let num = num.unwrap_or_default();
 
-		self.client.call_many(&requests, block.into())
+		let (mut state, header) = if num == BlockNumber::Pending {
+			let info = self.client.chain_info();
+			let state = self.miner.pending_state(info.best_block_number).ok_or(errors::state_pruned())?;
+			let header = self.miner.pending_block_header(info.best_block_number).ok_or(errors::state_pruned())?;
+
+			(state, header)
+		} else {
+			let id = match num {
+				BlockNumber::Num(num) => BlockId::Number(num),
+				BlockNumber::Earliest => BlockId::Earliest,
+				BlockNumber::Latest => BlockId::Latest,
+				BlockNumber::Pending => unreachable!(), // Already covered
+			};
+
+			let state = self.client.state_at(id).ok_or(errors::state_pruned())?;
+			let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
+
+			(state, header.decode())
+		};
+
+		self.client.call_many(&requests, &mut state, &header)
 				.map(|res| res.into_iter().map(|res| res.output.into()).collect())
 				.map_err(errors::call)
 	}

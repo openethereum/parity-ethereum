@@ -26,7 +26,7 @@ use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockId};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock};
 use ethcore::db::NUM_COLUMNS;
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
@@ -650,7 +650,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 		}
 
 		for account in accounts.into_iter() {
-			let balance = client.balance(&account, at).unwrap_or_else(U256::zero);
+			let balance = client.balance(&account, at.into()).unwrap_or_else(U256::zero);
 			if cmd.min_balance.map_or(false, |m| balance < m) || cmd.max_balance.map_or(false, |m| balance > m) {
 				last = Some(account);
 				continue; //filtered out
@@ -660,7 +660,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 				out.write(b",").expect("Write error");
 			}
 			out.write_fmt(format_args!("\n\"0x{:x}\": {{\"balance\": \"{:x}\", \"nonce\": \"{:x}\"", account, balance, client.nonce(&account, at).unwrap_or_else(U256::zero))).expect("Write error");
-			let code = client.code(&account, at).unwrap_or(None).unwrap_or_else(Vec::new);
+			let code = client.code(&account, at.into()).unwrap_or(None).unwrap_or_else(Vec::new);
 			if !code.is_empty() {
 				out.write_fmt(format_args!(", \"code_hash\": \"0x{:x}\"", keccak(&code))).expect("Write error");
 				if cmd.code {
@@ -683,7 +683,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 							if last_storage.is_some() {
 								out.write(b",").expect("Write error");
 							}
-							out.write_fmt(format_args!("\n\t\"0x{:x}\": \"0x{:x}\"", key, client.storage_at(&account, &key, at).unwrap_or_else(Default::default))).expect("Write error");
+							out.write_fmt(format_args!("\n\t\"0x{:x}\": \"0x{:x}\"", key, client.storage_at(&account, &key, at.into()).unwrap_or_else(Default::default))).expect("Write error");
 							last_storage = Some(key);
 						}
 					}

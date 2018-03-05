@@ -31,10 +31,6 @@ extern crate parking_lot;
 extern crate table;
 extern crate transient_hashmap;
 
-#[macro_use]
-extern crate ethabi_derive;
-#[macro_use]
-extern crate ethabi_contract;
 #[cfg(test)]
 extern crate ethkey;
 #[macro_use]
@@ -45,6 +41,5 @@ extern crate rustc_hex;
 pub mod banning_queue;
 pub mod external;
 pub mod local_transactions;
-pub mod service_transaction_checker;
 pub mod transaction_queue;
 pub mod work_notify;

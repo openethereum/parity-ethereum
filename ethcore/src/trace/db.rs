@@ -65,7 +65,12 @@ enum CacheId {
 	Bloom(H256),
 }
 
-/// Trace database.
+/// Database to store transaction execution trace.
+///
+/// Whenever a transaction is executed by EVM it's execution trace is stored
+/// in trace database. Each trace has information, which contracts have been
+/// touched, which have been created during the execution of transaction, and
+/// which calls failed.
 pub struct TraceDB<T> where T: DatabaseExtras {
 	// cache
 	traces: RwLock<HashMap<H256, FlatBlockTraces>>,

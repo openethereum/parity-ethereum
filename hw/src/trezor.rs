@@ -24,11 +24,9 @@ use super::{WalletInfo, TransactionInfo, KeyPath};
 use std::cmp::{min, max};
 use std::fmt;
 use std::sync::{Arc, Weak};
-use std::time::Duration;
-use std::thread;
+use std::time::{Duration, Instant};
 
 use ethereum_types::{U256, H256, Address};
-
 use ethkey::Signature;
 use hidapi;
 use libusb;
@@ -40,8 +38,8 @@ use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumT
 
 /// Trezor v1 vendor ID
 pub const TREZOR_VID: u16 = 0x534c;
-/// Trezor product IDs 
-pub const TREZOR_PIDS: [u16; 1] = [0x0001]; 
+/// Trezor product IDs
+pub const TREZOR_PIDS: [u16; 1] = [0x0001];
 
 const ETH_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003C, 0x80000000, 0, 0]; // m/44'/60'/0'/0/0
 const ETC_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003D, 0x80000000, 0, 0]; // m/44'/61'/0'/0/0
@@ -402,14 +400,28 @@ impl Manager {
 	}
 }
 
+// Try to connect to the device using polling in at most the time specified by the `timeout`
+fn try_connect_polling(trezor: Arc<Manager>, duration: Duration) -> bool {
+	let start_time = Instant::now();
+	while start_time.elapsed() <= duration {
+		if let Ok(_) = trezor.update_devices() {
+			return true
+		}
+	}
+	false
+}
+
 /// Trezor event handler
 /// A separate thread is handeling incoming events
+///
+/// Note, that this run to completion and race-conditions can't occur but this can
+/// therefore starve other events for being process with a spinlock or similar
 pub struct EventHandler {
 	trezor: Weak<Manager>,
 }
 
 impl EventHandler {
-	// Trezor event handler constructor
+	/// Trezor event handler constructor
 	pub fn new(trezor: Weak<Manager>) -> Self {
 		Self { trezor: trezor }
 	}
@@ -419,20 +431,17 @@ impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, _device: libusb::Device) {
 		debug!(target: "hw", "Trezor V1 arrived");
 		if let Some(trezor) = self.trezor.upgrade() {
-			// Wait for the device to boot up
-			thread::sleep(Duration::from_millis(1000));
-			if let Err(e) = trezor.update_devices() {
-				debug!(target: "hw", "Trezor V1 connect error: {:?}", e);
+			if try_connect_polling(trezor, Duration::from_millis(500)) != true {
+				debug!(target: "hw", "Ledger connect timeout");
 			}
-
 		}
 	}
 
 	fn device_left(&mut self, _device: libusb::Device) {
 		debug!(target: "hw", "Trezor V1 left");
 		if let Some(trezor) = self.trezor.upgrade() {
-			if let Err(e) = trezor.update_devices() {
-				debug!(target: "hw", "Trezor V1 disconnect error: {:?}", e);
+			if try_connect_polling(trezor, Duration::from_millis(500)) != true {
+				debug!(target: "hw", "Ledger disconnect timeout");
 			}
 		}
 	}
