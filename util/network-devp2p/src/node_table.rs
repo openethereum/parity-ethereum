@@ -263,8 +263,8 @@ impl NodeTable {
 			.collect()
 	}
 
-	/// Ordered list of all entries by failure percetange, for nodes with the same failure percentage the absolute number of
-	/// failures is considered.
+	/// Ordered list of all entries by failure percentage, for nodes with the same failure percentage the absolute
+	/// number of failures is considered.
 	pub fn entries(&self) -> Vec<NodeEntry> {
 		self.ordered_entries().iter().map(|n| NodeEntry {
 			endpoint: n.endpoint.clone(),
