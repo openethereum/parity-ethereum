@@ -34,16 +34,26 @@ use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
 use ethcore_miner::pool::{VerifiedTransaction, QueueStatus, local_transactions};
 
-use block::{ClosedBlock, Block, SealedBlock};
+use block::{Block, SealedBlock};
 use client::{
-	MiningBlockChainClient, CallContract, RegistryInfo, ScheduleInfo,
-	BlockChain, AccountData, BlockProducer, SealedBlockImporter
+	CallContract, RegistryInfo, ScheduleInfo,
+	BlockChain, BlockProducer, SealedBlockImporter, ChainInfo,
+	AccountData, Nonce,
 };
 use error::Error;
 use header::{BlockNumber, Header};
 use receipt::{RichReceipt, Receipt};
-use transaction::{self, UnverifiedTransaction, PendingTransaction, SignedTransaction};
+use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use state::StateInfo;
+
+pub trait TransactionImporterClient:
+	Sync +
+	// Required for ServiceTransactionChecker
+	CallContract + RegistryInfo +
+	// Required for verifiying transactions
+	BlockChain + ScheduleInfo + AccountData
+
+{}
 
 // TODO [ToDr] Split into smaller traits?
 // TODO [ToDr] get rid of from_pending_block in miner/miner.rs
@@ -66,18 +76,18 @@ pub trait MinerService : Send + Sync {
 	///
 	/// Returns `None` if engine seals internally.
 	fn work_package<C>(&self, chain: &C) -> Option<(H256, BlockNumber, u64, U256)>
-		where C: AccountData + BlockChain + BlockProducer + CallContract;
+		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync;
 
 	/// Update current pending block
 	fn update_sealing<C>(&self, chain: &C)
-		where C: AccountData + BlockChain + RegistryInfo + CallContract + BlockProducer + SealedBlockImporter;
+		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync;
 
 
 	// Notifications
 
 	/// Called when blocks are imported to chain, updates transactions queue.
 	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256])
-		where C: AccountData + BlockChain + CallContract + RegistryInfo + BlockProducer + ScheduleInfo + SealedBlockImporter;
+		where C: TransactionImporterClient + BlockProducer + SealedBlockImporter;
 
 
 	// Pending block
@@ -96,6 +106,9 @@ pub trait MinerService : Send + Sync {
 
 	/// Get `Some` `clone()` of the current pending block or `None` if we're not sealing.
 	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block>;
+
+	/// Get `Some` `clone()` of the current pending block transactions or `None` if we're not sealing.
+	fn pending_transactions(&self, latest_block_number: BlockNumber) -> Option<Vec<SignedTransaction>>;
 
 	// Block authoring
 
@@ -116,12 +129,14 @@ pub trait MinerService : Send + Sync {
 	// Transaction Pool
 
 	/// Imports transactions to transaction queue.
-	fn import_external_transactions<C: MiningBlockChainClient>(&self, client: &C, transactions: Vec<UnverifiedTransaction>)
-		-> Vec<Result<(), transaction::Error>>;
+	fn import_external_transactions<C>(&self, client: &C, transactions: Vec<UnverifiedTransaction>)
+		-> Vec<Result<(), transaction::Error>>
+		where C: TransactionImporterClient + BlockProducer + SealedBlockImporter;
 
 	/// Imports own (node owner) transaction to queue.
-	fn import_own_transaction<C: MiningBlockChainClient>(&self, chain: &C, transaction: PendingTransaction)
-		-> Result<(), transaction::Error>;
+	fn import_own_transaction<C>(&self, chain: &C, transaction: PendingTransaction)
+		-> Result<(), transaction::Error>
+		where C: TransactionImporterClient + BlockProducer + SealedBlockImporter;
 
 	/// Removes transaction from the pool.
 	///
@@ -139,12 +154,14 @@ pub trait MinerService : Send + Sync {
 	/// if they are consecutive.
 	/// NOTE: pool may contain some future transactions that will become pending after
 	/// transaction with nonce returned from this function is signed on.
-	fn next_nonce(&self, chain: &MiningBlockChainClient, address: &Address) -> U256;
+	fn next_nonce<C>(&self, chain: &C, address: &Address) -> U256
+		where C: Nonce + Sync;
 
 	/// Get a list of all ready transactions.
 	///
 	/// Depending on the settings may look in transaction pool or only in pending block.
-	fn ready_transactions(&self, chain: &MiningBlockChainClient) -> Vec<Arc<VerifiedTransaction>>;
+	fn ready_transactions<C>(&self, chain: &C) -> Vec<Arc<VerifiedTransaction>>
+		where C: ChainInfo + Nonce + Sync;
 
 	/// Get a list of all transactions in the pool (some of them might not be ready for inclusion yet).
 	fn future_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;

@@ -20,7 +20,6 @@
 //! Keeps track of transactions and mined block.
 
 extern crate ansi_term;
-extern crate ethabi;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate futures;
@@ -35,10 +34,6 @@ extern crate transaction_pool as txpool;
 
 #[macro_use]
 extern crate error_chain;
-#[macro_use]
-extern crate ethabi_derive;
-#[macro_use]
-extern crate ethabi_contract;
 #[macro_use]
 extern crate log;
 

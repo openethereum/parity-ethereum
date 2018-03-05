@@ -20,7 +20,7 @@ use std::sync::{Arc, Weak};
 use std::net::{SocketAddr, AddrParseError};
 use std::fmt;
 
-use client::{Client, MiningBlockChainClient};
+use client::{Client, ImportSealedBlock};
 use ethereum_types::{H64, H256, clean_0x, U256};
 use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;

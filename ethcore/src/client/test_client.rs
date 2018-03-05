@@ -420,6 +420,8 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	}
 }
 
+impl ::miner::TransactionImporterClient for TestBlockChainClient {}
+
 impl Nonce for TestBlockChainClient {
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
 		match id {

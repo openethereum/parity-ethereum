@@ -124,13 +124,18 @@ impl TransactionQueue {
 		results
 	}
 
+	/// Returns current pneding transactions.
+	///
+	/// NOTE: This may return a cached version of pending transaction set.
+	/// Re-computing the pending set is possible with `#collet_pending` method,
+	/// but be aware that it's a pretty expensive operation.
 	pub fn pending<C>(
 		&self,
 		client: C,
 		block_number: u64,
 		current_timestamp: u64,
 	) -> Vec<Arc<pool::VerifiedTransaction>> where
-		C: client::Client,
+		C: client::StateClient,
 	{
 		// TODO [ToDr] Check if timestamp is within limits.
 		let is_valid = |bn| bn == block_number;
@@ -169,7 +174,7 @@ impl TransactionQueue {
 		// TODO [ToDr] Support nonce_cap
 		collect: F,
 	) -> T where
-		C: client::Client,
+		C: client::StateClient,
 		F: FnOnce(txpool::PendingIterator<
 			pool::VerifiedTransaction,
 			(ready::Condition, ready::State<C>),
@@ -186,7 +191,7 @@ impl TransactionQueue {
 	}
 
 	/// Culls all stalled transactions from the pool.
-	pub fn cull<C: client::Client>(
+	pub fn cull<C: client::StateClient>(
 		&self,
 		client: C,
 	) {
@@ -198,7 +203,7 @@ impl TransactionQueue {
 
 	/// Returns next valid nonce for given sender
 	/// or `None` if there are no pending transactions from that sender.
-	pub fn next_nonce<C: client::Client>(
+	pub fn next_nonce<C: client::StateClient>(
 		&self,
 		client: C,
 		address: &Address,
@@ -329,13 +334,8 @@ mod tests {
 			}
 		}
 
-		/// Fetch only account nonce for given sender.
-		fn account_nonce(&self, _address: &Address) -> U256 {
-			0.into()
-		}
-
 		/// Estimate minimal gas requirurement for given transaction.
-		fn required_gas(&self, _tx: &transaction::SignedTransaction) -> U256 {
+		fn required_gas(&self, _tx: &transaction::Transaction) -> U256 {
 			0.into()
 		}
 
@@ -345,11 +345,18 @@ mod tests {
 		}
 	}
 
+	impl client::StateClient for TestClient {
+		/// Fetch only account nonce for given sender.
+		fn account_nonce(&self, _address: &Address) -> U256 {
+			0.into()
+		}
+	}
+
 	#[test]
 	fn should_get_pending_transactions() {
 		let queue = TransactionQueue::new(txpool::Options::default(), verifier::Options::default());
 
-		let pending: Vec<_> = queue.pending(TestClient, 0, 0, |x| x.collect());
+		let pending: Vec<_> = queue.pending(TestClient, 0, 0);
 
 		for tx in pending {
 			assert!(tx.signed().nonce > 0.into());

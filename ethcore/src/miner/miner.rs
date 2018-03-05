@@ -40,13 +40,13 @@ use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
 use block::{ClosedBlock, IsBlock, Block, SealedBlock};
 use client::{
-	AccountData, BlockChain, RegistryInfo, ScheduleInfo, CallContract, BlockProducer, SealedBlockImporter
+	BlockChain, ChainInfo, CallContract, BlockProducer, SealedBlockImporter, Nonce
 };
-use client::{BlockId, TransactionId, MiningBlockChainClient};
+use client::BlockId;
 use executive::contract_address;
 use header::{Header, BlockNumber};
-use miner::MinerService;
-use miner::blockchain_client::BlockChainClient;
+use miner::{MinerService, TransactionImporterClient};
+use miner::blockchain_client::{BlockChainClient, NonceClient};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use state::State;
@@ -268,21 +268,6 @@ impl Miner {
 		});
 	}
 
-	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
-	pub fn pending_state(&self, latest_block_number: BlockNumber) -> Option<State<::state_db::StateDB>> {
-		self.map_existing_pending_block(|b| b.state().clone(), latest_block_number)
-	}
-
-	/// Get `Some` `clone()` of the current pending block or `None` if we're not sealing.
-	pub fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block> {
-		self.map_existing_pending_block(|b| b.to_base(), latest_block_number)
-	}
-
-	/// Get `Some` `clone()` of the current pending block header or `None` if we're not sealing.
-	pub fn pending_block_header(&self, latest_block_number: BlockNumber) -> Option<Header> {
-		self.map_existing_pending_block(|b| b.header().clone(), latest_block_number)
-	}
-
 	/// Retrieves an existing pending block iff it's not older than given block number.
 	///
 	/// NOTE: This will not prepare a new pending block if it's not existing.
@@ -317,7 +302,9 @@ impl Miner {
 		)
 	}
 
-	fn client<'a>(&'a self, chain: &'a MiningBlockChainClient) -> BlockChainClient<'a> {
+	fn client<'a, C: 'a>(&'a self, chain: &'a C) -> BlockChainClient<'a, C> where
+		C: BlockChain + CallContract,
+	{
 		BlockChainClient::new(
 			chain,
 			&*self.engine,
@@ -327,7 +314,9 @@ impl Miner {
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
-	fn prepare_block<C: AccountData + BlockChain + BlockProducer + CallContract>(&self, chain: &C) -> (ClosedBlock, Option<H256>) {
+	fn prepare_block<C>(&self, chain: &C) -> (ClosedBlock, Option<H256>) where
+		C: BlockChain + CallContract + BlockProducer + Nonce + Sync,
+	{
 		trace_time!("prepare_block");
 		let chain_info = chain.chain_info();
 
@@ -639,18 +628,10 @@ impl Miner {
 		}
 	}
 
-	fn update_gas_limit<C: BlockChain>(&self, client: &C) {
-		let gas_limit = client.best_block_header().gas_limit();
-		let mut queue = self.transaction_queue.write();
-		queue.set_gas_limit(gas_limit);
-		if let GasLimit::Auto = self.options.tx_queue_gas_limit {
-			// Set total tx queue gas limit to be 20x the block gas limit.
-			queue.set_total_gas_limit(gas_limit * 20u32);
-		}
-	}
-
 	/// Returns true if we had to prepare new pending block.
-	fn prepare_pending_block<C: AccountData + BlockChain + BlockProducer + CallContract>(&self, client: &C) -> bool {
+	fn prepare_pending_block<C>(&self, client: &C) -> bool where
+		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
+	{
 		trace!(target: "miner", "prepare_pending_block: entering");
 		let prepare_new = {
 			let mut sealing = self.sealing.lock();
@@ -741,9 +722,9 @@ impl MinerService for Miner {
 		self.params.read().gas_range_target.0 / 5.into()
 	}
 
-	fn import_external_transactions<C: MiningBlockChainClient>(
+	fn import_external_transactions<C: TransactionImporterClient + BlockProducer + SealedBlockImporter>(
 		&self,
-		client: &C,
+		chain: &C,
 		transactions: Vec<UnverifiedTransaction>
 	) -> Vec<Result<(), transaction::Error>> {
 		trace!(target: "external_tx", "Importing external transactions");
@@ -758,13 +739,13 @@ impl MinerService for Miner {
 			// | NOTE Code below requires sealing locks.                                |
 			// | Make sure to release the locks before calling that method.             |
 			// --------------------------------------------------------------------------
-			self.update_sealing(client);
+			self.update_sealing(chain);
 		}
 
 		results
 	}
 
-	fn import_own_transaction<C: MiningBlockChainClient>(
+	fn import_own_transaction<C: TransactionImporterClient + BlockProducer + SealedBlockImporter>(
 		&self,
 		chain: &C,
 		pending: PendingTransaction,
@@ -805,11 +786,13 @@ impl MinerService for Miner {
 		// self.transaction_queue.read().future_transactions()
 	}
 
-	fn ready_transactions(&self, chain: &MiningBlockChainClient) -> Vec<Arc<VerifiedTransaction>> {
+	fn ready_transactions<C>(&self, chain: &C) -> Vec<Arc<VerifiedTransaction>> where
+		C: ChainInfo + Nonce + Sync,
+	{
 		let chain_info = chain.chain_info();
 
 		let from_queue = || {
-			let client = self.client(chain);
+			let client = NonceClient::new(chain);
 
 			self.transaction_queue.pending(
 				client,
@@ -844,10 +827,12 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn next_nonce(&self, chain: &MiningBlockChainClient, address: &Address) -> U256 {
-		let client = self.client(chain);
+	fn next_nonce<C>(&self, chain: &C, address: &Address) -> U256 where
+		C: Nonce + Sync,
+	{
+		let client = NonceClient::new(chain);
 		self.transaction_queue.next_nonce(client, address)
-			.unwrap_or_else(|| chain.nonce(address, BlockId::Latest).unwrap_or_default())
+			.unwrap_or_else(|| chain.latest_nonce(address))
 	}
 
 	fn transaction(&self, hash: &H256) -> Option<Arc<VerifiedTransaction>> {
@@ -862,14 +847,6 @@ impl MinerService for Miner {
 
 	fn queue_status(&self) -> QueueStatus {
 		self.transaction_queue.status()
-	}
-
-	fn pending_transactions(&self, best_block: BlockNumber) -> Option<Vec<SignedTransaction>> {
-		self.from_pending_block(
-			best_block,
-			|| None,
-			|pending| Some(pending.transactions().to_vec()),
-		)
 	}
 
 	// TODO [ToDr] This is pretty inconsistent (you can get a ready_transaction, but no receipt for it)
@@ -926,9 +903,8 @@ impl MinerService for Miner {
 	// TODO [ToDr] Pass sealing lock guard
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
-	fn update_sealing<C>(&self, chain: &C)
-		where C: AccountData + BlockChain + RegistryInfo
-		         + CallContract + BlockProducer + SealedBlockImporter
+	fn update_sealing<C>(&self, chain: &C) where
+		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
 	{
 		trace!(target: "miner", "update_sealing");
 
@@ -972,8 +948,8 @@ impl MinerService for Miner {
 		self.sealing.lock().queue.is_in_use()
 	}
 
-	fn work_package<C>(&self, chain: &C) -> Option<(H256, BlockNumber, u64, U256)>
-		where C: AccountData + BlockChain + BlockProducer + CallContract,
+	fn work_package<C>(&self, chain: &C) -> Option<(H256, BlockNumber, u64, U256)> where
+		C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync,
 	{
 		if self.engine.seals_internally().is_some() {
 			return None;
@@ -1017,8 +993,7 @@ impl MinerService for Miner {
 	}
 
 	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256])
-		where C: AccountData + BlockChain + CallContract + RegistryInfo
-		         + BlockProducer + ScheduleInfo + SealedBlockImporter
+		where C: TransactionImporterClient + BlockChain + BlockProducer + SealedBlockImporter,
 	{
 		trace!(target: "miner", "chain_new_blocks");
 
@@ -1062,15 +1037,19 @@ impl MinerService for Miner {
 	}
 
 	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Self::State> {
-		Miner::pending_state(self, latest_block_number)
+		self.map_existing_pending_block(|b| b.state().clone(), latest_block_number)
 	}
 
 	fn pending_block_header(&self, latest_block_number: BlockNumber) -> Option<Header> {
-		Miner::pending_block_header(self, latest_block_number)
+		self.map_existing_pending_block(|b| b.header().clone(), latest_block_number)
 	}
 
 	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block> {
-		Miner::pending_block(self, latest_block_number)
+		self.map_existing_pending_block(|b| b.to_base(), latest_block_number)
+	}
+
+	fn pending_transactions(&self, latest_block_number: BlockNumber) -> Option<Vec<SignedTransaction>> {
+		self.map_existing_pending_block(|b| b.transactions().into_iter().cloned().collect(), latest_block_number)
 	}
 }
 
@@ -1078,13 +1057,12 @@ impl MinerService for Miner {
 mod tests {
 	use super::*;
 	use ethkey::{Generator, Random};
-	use client::{TestBlockChainClient, EachBlockWith, ChainInfo};
 	use hash::keccak;
 	use header::BlockNumber;
 	use rustc_hex::FromHex;
 
-	use transaction::Transaction;
-	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
+	use transaction::{Transaction};
+	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
 	use tests::helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
 
 	#[test]

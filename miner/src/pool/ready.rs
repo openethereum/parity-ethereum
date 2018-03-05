@@ -20,7 +20,7 @@
 //! particular transaction can be included in the block.
 //!
 //! Regular transactions are ready iff the current state nonce
-//! (obtained from `Client`) equals to the transaction nonce.
+//! (obtained from `StateClient`) equals to the transaction nonce.
 //!
 //! Let's define `S = state nonce`. Transactions are processed
 //! in order, so we first include transaction with nonce `S`,
@@ -45,7 +45,7 @@ use ethereum_types::{U256, H160 as Address};
 use transaction;
 use txpool::{self, VerifiedTransaction as PoolVerifiedTransaction};
 
-use super::client::Client;
+use super::client::StateClient;
 use super::VerifiedTransaction;
 
 /// Checks readiness of transactions by comparing the nonce to state nonce.
@@ -65,7 +65,7 @@ impl<C> State<C> {
 	}
 }
 
-impl<C: Client> txpool::Ready<VerifiedTransaction> for State<C> {
+impl<C: StateClient> txpool::Ready<VerifiedTransaction> for State<C> {
 	fn is_ready(&mut self, tx: &VerifiedTransaction) -> txpool::Readiness {
 		let sender = tx.sender();
 		let state = &self.state;

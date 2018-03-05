@@ -25,28 +25,42 @@ use transaction::{
 };
 
 use account_provider::AccountProvider;
-use client::{MiningBlockChainClient, BlockId, TransactionId};
+use client::{TransactionId, BlockInfo, CallContract, Nonce};
 use engines::EthEngine;
 use header::Header;
-use miner::service_transaction_checker::{self, ServiceTransactionChecker};
+use miner::TransactionImporterClient;
+use miner::service_transaction_checker::ServiceTransactionChecker;
 
 // TODO [ToDr] Shit
 #[derive(Clone)]
 pub struct FakeContainer(Header);
 unsafe impl Sync for FakeContainer {}
 
-#[derive(Clone)]
-pub struct BlockChainClient<'a> {
-	chain: &'a MiningBlockChainClient,
+pub struct BlockChainClient<'a, C: 'a> {
+	chain: &'a C,
 	engine: &'a EthEngine,
 	accounts: Option<&'a AccountProvider>,
 	best_block_header: FakeContainer,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
 
-impl<'a> BlockChainClient<'a> {
+impl<'a, C: 'a> Clone for BlockChainClient<'a, C> {
+	fn clone(&self) -> Self {
+		BlockChainClient {
+			chain: self.chain,
+			engine: self.engine,
+			accounts: self.accounts.clone(),
+			best_block_header: self.best_block_header.clone(),
+			service_transaction_checker: self.service_transaction_checker.clone(),
+		}
+	}
+}
+
+impl<'a, C: 'a> BlockChainClient<'a, C> where
+	C: BlockInfo + CallContract,
+{
 	pub fn new(
-		chain: &'a MiningBlockChainClient,
+		chain: &'a C,
 		engine: &'a EthEngine,
 		accounts: Option<&'a AccountProvider>,
 		refuse_service_transactions: bool,
@@ -69,17 +83,19 @@ impl<'a> BlockChainClient<'a> {
 	}
 
 	pub fn verify_signed(&self, tx: &SignedTransaction) -> Result<(), transaction::Error> {
-		self.engine.machine().verify_transaction(&tx, &self.best_block_header.0, self.chain.as_block_chain_client())
+		self.engine.machine().verify_transaction(&tx, &self.best_block_header.0, self.chain)
 	}
 }
 
-impl<'a> fmt::Debug for BlockChainClient<'a> {
+impl<'a, C: 'a> fmt::Debug for BlockChainClient<'a, C> {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
 		write!(fmt, "BlockChainClient")
 	}
 }
 
-impl<'a> pool::client::Client for BlockChainClient<'a> {
+impl<'a, C: 'a> pool::client::Client for BlockChainClient<'a, C> where
+	C: TransactionImporterClient + Sync,
+{
 	fn transaction_already_included(&self, hash: &H256) -> bool {
 		self.chain.transaction_block(TransactionId::Hash(*hash)).is_some()
 	}
@@ -103,10 +119,6 @@ impl<'a> pool::client::Client for BlockChainClient<'a> {
 		}
 	}
 
-	fn account_nonce(&self, address: &Address) -> U256 {
-		self.chain.latest_nonce(address)
-	}
-
 	fn required_gas(&self, tx: &transaction::Transaction) -> U256 {
 		tx.gas_required(&self.chain.latest_schedule()).into()
 	}
@@ -114,7 +126,7 @@ impl<'a> pool::client::Client for BlockChainClient<'a> {
 	fn transaction_type(&self, tx: &SignedTransaction) -> pool::client::TransactionType {
 		match self.service_transaction_checker {
 			None => pool::client::TransactionType::Regular,
-			Some(ref checker) => match checker.check(self, &tx) {
+			Some(ref checker) => match checker.check(self.chain, &tx) {
 				Ok(true) => pool::client::TransactionType::Service,
 				Ok(false) => pool::client::TransactionType::Regular,
 				Err(e) => {
@@ -126,12 +138,45 @@ impl<'a> pool::client::Client for BlockChainClient<'a> {
 	}
 }
 
-impl<'a> service_transaction_checker::ContractCaller for BlockChainClient<'a> {
-	fn registry_address(&self, name: &str) -> Option<Address> {
-		self.chain.registry_address(name.into(), BlockId::Latest)
+impl<'a, C: 'a> pool::client::StateClient for BlockChainClient<'a, C> where
+	C: Nonce + Sync,
+{
+	fn account_nonce(&self, address: &Address) -> U256 {
+		self.chain.latest_nonce(address)
 	}
+}
 
-	fn call_contract(&self, address: Address, data: Vec<u8>) -> Result<Vec<u8>, String> {
-		self.chain.call_contract(BlockId::Latest, address, data)
+// TODO [ToDr] Remove!
+pub struct NonceClient<'a, C: 'a> {
+	client: &'a C,
+}
+
+impl<'a, C: 'a> Clone for NonceClient<'a, C> {
+	fn clone(&self) -> Self {
+		NonceClient {
+			client: self.client,
+		}
+	}
+}
+
+impl<'a, C: 'a> fmt::Debug for NonceClient<'a, C> {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		write!(fmt, "NonceClient")
+	}
+}
+
+impl<'a, C: 'a> NonceClient<'a, C> {
+	pub fn new(client: &'a C) -> Self {
+		NonceClient {
+			client,
+		}
+	}
+}
+
+impl<'a, C: 'a> pool::client::StateClient for NonceClient<'a, C>
+	where C: Nonce + Sync,
+{
+	fn account_nonce(&self, address: &Address) -> U256 {
+		self.client.latest_nonce(address)
 	}
 }

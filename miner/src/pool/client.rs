@@ -45,7 +45,7 @@ pub enum TransactionType {
 	Service,
 }
 
-/// State client.
+/// Verification client.
 pub trait Client: fmt::Debug + Sync {
 	/// Is transaction with given hash already in the blockchain?
 	fn transaction_already_included(&self, hash: &H256) -> bool;
@@ -54,15 +54,18 @@ pub trait Client: fmt::Debug + Sync {
 	fn verify_transaction(&self, tx: transaction::UnverifiedTransaction)
 		-> Result<transaction::SignedTransaction, transaction::Error>;
 
-	/// Fetch account details for given sender.
-	fn account_details(&self, address: &Address) -> AccountDetails;
-
-	/// Fetch only account nonce for given sender.
-	fn account_nonce(&self, address: &Address) -> U256;
-
 	/// Estimate minimal gas requirurement for given transaction.
 	fn required_gas(&self, tx: &transaction::Transaction) -> U256;
 
+	/// Fetch account details for given sender.
+	fn account_details(&self, address: &Address) -> AccountDetails;
+
 	/// Classify transaction (check if transaction is filtered by some contracts).
 	fn transaction_type(&self, tx: &transaction::SignedTransaction) -> TransactionType;
+}
+
+/// State client
+pub trait StateClient: fmt::Debug + Sync {
+	/// Fetch only account nonce for given sender.
+	fn account_nonce(&self, address: &Address) -> U256;
 }

@@ -67,7 +67,6 @@ use state_db::StateDB;
 use state::{self, State};
 use trace;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
-use trace::FlatTransactionTraces;
 use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
@@ -317,7 +316,7 @@ impl Importer {
 						let route = self.commit_block(closed_block, &header, &bytes, client);
 						import_results.push(route);
 
-						client.report.write().accrue_block(&block);
+						client.report.write().accrue_block(&header, transactions_len);
 					}
 				} else {
 					invalid_blocks.insert(header.hash());
@@ -400,7 +399,7 @@ impl Importer {
 			return Err(());
 		};
 
-		let verify_external_result = self.verifier.verify_block_external(header, engine);
+		let verify_external_result = self.verifier.verify_block_external(&header, engine);
 		if let Err(e) = verify_external_result {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -996,6 +995,7 @@ impl Client {
 	}
 
 	/// Get shared miner reference.
+	#[cfg(test)]
 	pub fn miner(&self) -> Arc<Miner> {
 		self.importer.miner.clone()
 	}
@@ -1901,7 +1901,7 @@ impl BlockChainClient for Client {
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
 		// TODO [ToDr] Avoid cloning and propagate miner transaction further.
-		self.miner.ready_transactions(self)
+		self.importer.miner.ready_transactions(self)
 			.into_iter()
 			.map(|x| x.signed().clone())
 			.map(Into::into)
@@ -1936,15 +1936,13 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<transaction::ImportResult, EthcoreError> {
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
 		let authoring_params = self.importer.miner.authoring_params();
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&authoring_params.author),
 			action: Action::Call(address),
 			// TODO [ToDr] Check that params carefuly.
-			gas: self.miner.sensible_gas_limit(),
-			gas_price: self.miner.sensible_gas_price(),
-			gas: self.importer.miner.gas_floor_target(),
+			gas: self.importer.miner.sensible_gas_limit(),
 			gas_price: self.importer.miner.sensible_gas_price(),
 			value: U256::zero(),
 			data: data,
@@ -2102,13 +2100,15 @@ impl MiningBlockChainClient for Client {
 	}
 }
 
+impl ::miner::TransactionImporterClient for Client {}
+
 impl super::traits::EngineClient for Client {
 	fn update_sealing(&self) {
 		self.importer.miner.update_sealing(self)
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		let import = self.miner.submit_seal(block_hash, seal).and_then(|block| self.import_sealed_block(block));
+		let import = self.importer.miner.submit_seal(block_hash, seal).and_then(|block| self.import_sealed_block(block));
 		if let Err(err) = import {
 			warn!(target: "poa", "Wrong internal seal submission! {:?}", err);
 		}

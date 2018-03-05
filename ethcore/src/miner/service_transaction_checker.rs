@@ -16,7 +16,7 @@
 
 //! A service transactions contract checker.
 
-use client::{RegistryInfo, CallContract};
+use client::{RegistryInfo, CallContract, BlockId};
 use transaction::SignedTransaction;
 
 use_contract!(service_transaction, "ServiceTransaction", "res/contracts/service_transaction.json");
@@ -54,7 +54,7 @@ impl ServiceTransactionChecker {
 
 		self.contract.functions()
 			.certified()
-			.call(sender, &|data| client.call_contract(address, data))
+			.call(sender, &|data| client.call_contract(BlockId::Latest, address, data))
 			.map_err(|e| e.to_string())
 	}
 }
