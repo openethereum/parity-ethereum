@@ -724,5 +724,4 @@ mod tests {
 		let rlp = UntrustedRlp::new(&data[1..]);
 		assert_eq!(ping_data.payload[0..32], rlp.val_at::<Vec<u8>>(1).unwrap()[..])
 	}
-
 }
