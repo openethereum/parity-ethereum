@@ -507,11 +507,6 @@ impl Host {
 		self.sessions.read().iter().any(|e| e.lock().id() == Some(id))
 	}
 
-	fn handshake_count(&self) -> usize {
-		let (handshakes, ..) = self.session_count();
-		handshakes
-	}
-
 	fn keep_alive(&self, io: &IoContext<NetworkIoMessage>) {
 		let mut to_kill = Vec::new();
 		for e in self.sessions.read().iter() {
@@ -574,7 +569,7 @@ impl Host {
 			self.connect_peer(&id, io);
 			started += 1;
 		}
-		debug!(target: "network", "Connecting peers: {} sessions, {} pending, {} started", egress_count + ingress_count, self.handshake_count(), started);
+		debug!(target: "network", "Connecting peers: {} sessions, {} pending + {} started", egress_count + ingress_count, handshake_count, started);
 	}
 
 	fn connect_peer(&self, id: &NodeId, io: &IoContext<NetworkIoMessage>) {
