@@ -41,6 +41,8 @@ extern crate log;
 extern crate rustc_hex;
 #[cfg(test)]
 extern crate ethkey;
+#[cfg(test)]
+extern crate env_logger;
 
 // pub mod banning_queue;
 pub mod external;

@@ -26,7 +26,7 @@ use ethereum_types::{U256, H256, H160 as Address};
 use transaction;
 
 /// Account Details
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AccountDetails {
 	/// Current account nonce
 	pub nonce: U256,
@@ -64,6 +64,7 @@ pub trait Client: fmt::Debug + Sync {
 	fn transaction_type(&self, tx: &transaction::SignedTransaction) -> TransactionType;
 }
 
+// TODO [ToDr] Rename to NonceClient
 /// State client
 pub trait StateClient: fmt::Debug + Sync {
 	/// Fetch only account nonce for given sender.

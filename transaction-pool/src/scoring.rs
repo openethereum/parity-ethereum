@@ -79,7 +79,7 @@ pub enum Change {
 /// - `update_scores`: score defined as `gasPrice` if `n==0` and `max(scores[n-1], gasPrice)` if `n>0`
 /// - `should_replace`: compares `gasPrice` (decides if transaction from a different sender is more valuable)
 ///
-pub trait Scoring<T> {
+pub trait Scoring<T>: fmt::Debug {
 	/// A score of a transaction.
 	type Score: cmp::Ord + Clone + Default + fmt::Debug;
 

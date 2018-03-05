@@ -237,12 +237,20 @@ impl TransactionQueue {
 		hashes: T,
 		is_invalid: bool,
 	) -> Vec<Option<Arc<pool::VerifiedTransaction>>> {
-		let mut pool = self.pool.write();
+		let results = {
+			let mut pool = self.pool.write();
 
-		hashes
-			.into_iter()
-			.map(|hash| pool.remove(hash, is_invalid))
-			.collect()
+			hashes
+				.into_iter()
+				.map(|hash| pool.remove(hash, is_invalid))
+				.collect::<Vec<_>>()
+		};
+
+		if results.iter().any(Option::is_some) {
+			*self.cached_pending.write() = None;
+		}
+
+		results
 	}
 
 	/// Clear the entire pool.

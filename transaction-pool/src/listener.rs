@@ -63,8 +63,8 @@ impl<T, A, B> Listener<T> for (A, B) where
 	}
 
 	fn dropped(&mut self, tx: &Arc<T>) {
-		self.0.rejected(tx);
-		self.1.rejected(tx);
+		self.0.dropped(tx);
+		self.1.dropped(tx);
 	}
 
 	fn invalid(&mut self, tx: &Arc<T>) {

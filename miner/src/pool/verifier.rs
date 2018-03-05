@@ -255,7 +255,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 				transaction.nonce,
 				account_details.nonce,
 			);
-			bail!(transaction::Error::AlreadyImported);
+			bail!(transaction::Error::Old);
 		}
 
 		let priority = match (account_details.is_local, is_retracted) {

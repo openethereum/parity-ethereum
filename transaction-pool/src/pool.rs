@@ -127,10 +127,12 @@ impl<T, S, L> Pool<T, S, L> where
 			};
 
 			while self.by_hash.len() + 1 > self.options.max_count {
+				trace!("Count limit reached: {} > {}", self.by_hash.len() + 1, self.options.max_count);
 				transaction = remove_worst(self, transaction)?;
 			}
 
 			while self.mem_usage + mem_usage > self.options.max_mem_usage {
+				trace!("Mem limit reached: {} > {}", self.mem_usage + mem_usage, self.options.max_mem_usage);
 				transaction = remove_worst(self, transaction)?;
 			}
 		}

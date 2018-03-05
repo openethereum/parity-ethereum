@@ -80,12 +80,18 @@ impl txpool::Scoring<VerifiedTransaction> for GasPrice {
 				super::Priority::Retracted => 5,
 				super::Priority::Regular => 0,
 			};
-			// TODO [ToDr] overflow?
-			scores[i] = scores[i] + scores[i] >> boost;
+			scores[i] = scores[i].saturating_add(scores[i] << boost);
 		}
 	}
 
 	fn should_replace(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> bool {
+		if old.sender == new.sender {
+			// prefer earliest transaction
+			if new.transaction.nonce < old.transaction.nonce {
+				return true
+			}
+		}
+
 		self.choose(old, new) == txpool::scoring::Choice::ReplaceOld
 	}
 }
