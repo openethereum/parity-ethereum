@@ -260,7 +260,8 @@ impl NodeTable {
 	pub fn nodes(&self, filter: IpFilter) -> Vec<NodeId> {
 		self.ordered_entries().iter()
 			.filter(|n| n.endpoint.is_allowed(&filter))
-			.map(|n| n.id).collect()
+			.map(|n| n.id)
+			.collect()
 	}
 
 	/// Ordered list of all entries by failure percetange, for nodes with the same failure percentage the absolute number of
