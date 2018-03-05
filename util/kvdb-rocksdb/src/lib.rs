@@ -26,7 +26,6 @@ extern crate rocksdb;
 
 extern crate ethereum_types;
 extern crate kvdb;
-extern crate rlp;
 
 use std::cmp;
 use std::collections::HashMap;
@@ -42,7 +41,6 @@ use rocksdb::{
 use interleaved_ordered::{interleave_ordered, InterleaveOrdered};
 
 use elastic_array::ElasticArray32;
-use rlp::{UntrustedRlp, RlpType, Compressible};
 use kvdb::{KeyValueDB, DBTransaction, DBValue, DBOp, Result};
 
 #[cfg(target_os = "linux")]
@@ -56,7 +54,6 @@ const DB_DEFAULT_MEMORY_BUDGET_MB: usize = 128;
 
 enum KeyState {
 	Insert(DBValue),
-	InsertCompressed(DBValue),
 	Delete,
 }
 
@@ -406,10 +403,6 @@ impl Database {
 					let c = Self::to_overlay_column(col);
 					overlay[c].insert(key, KeyState::Insert(value));
 				},
-				DBOp::InsertCompressed { col, key, value } => {
-					let c = Self::to_overlay_column(col);
-					overlay[c].insert(key, KeyState::InsertCompressed(value));
-				},
 				DBOp::Delete { col, key } => {
 					let c = Self::to_overlay_column(col);
 					overlay[c].insert(key, KeyState::Delete);
@@ -442,14 +435,6 @@ impl Database {
 										batch.put(&key, &value)?;
 									}
 								},
-								KeyState::InsertCompressed(ref value) => {
-									let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
-									if c > 0 {
-										batch.put_cf(cfs[c - 1], &key, &compressed)?;
-									} else {
-										batch.put(&key, &value)?;
-									}
-								}
 							}
 						}
 					}
@@ -491,13 +476,12 @@ impl Database {
 				let batch = WriteBatch::new();
 				let ops = tr.ops;
 				for op in ops {
+					// remove any buffered operation for this key
+					self.overlay.write()[Self::to_overlay_column(op.col())].remove(op.key());
+
 					match op {
 						DBOp::Insert { col, key, value } => {
 							col.map_or_else(|| batch.put(&key, &value), |c| batch.put_cf(cfs[c as usize], &key, &value))?
-						},
-						DBOp::InsertCompressed { col, key, value } => {
-							let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
-							col.map_or_else(|| batch.put(&key, &compressed), |c| batch.put_cf(cfs[c as usize], &key, &compressed))?
 						},
 						DBOp::Delete { col, key } => {
 							col.map_or_else(|| batch.delete(&key), |c| batch.delete_cf(cfs[c as usize], &key))?
@@ -519,12 +503,12 @@ impl Database {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let overlay = &self.overlay.read()[Self::to_overlay_column(col)];
 				match overlay.get(key) {
-					Some(&KeyState::Insert(ref value)) | Some(&KeyState::InsertCompressed(ref value)) => Ok(Some(value.clone())),
+					Some(&KeyState::Insert(ref value)) => Ok(Some(value.clone())),
 					Some(&KeyState::Delete) => Ok(None),
 					None => {
 						let flushing = &self.flushing.read()[Self::to_overlay_column(col)];
 						match flushing.get(key) {
-							Some(&KeyState::Insert(ref value)) | Some(&KeyState::InsertCompressed(ref value)) => Ok(Some(value.clone())),
+							Some(&KeyState::Insert(ref value)) => Ok(Some(value.clone())),
 							Some(&KeyState::Delete) => Ok(None),
 							None => {
 								col.map_or_else(
@@ -559,8 +543,7 @@ impl Database {
 				let overlay = &self.overlay.read()[Self::to_overlay_column(col)];
 				let mut overlay_data = overlay.iter()
 					.filter_map(|(k, v)| match *v {
-						KeyState::Insert(ref value) |
-						KeyState::InsertCompressed(ref value) =>
+						KeyState::Insert(ref value) =>
 							Some((k.clone().into_vec().into_boxed_slice(), value.clone().into_vec().into_boxed_slice())),
 						KeyState::Delete => None,
 					}).collect::<Vec<_>>();
@@ -856,5 +839,22 @@ mod tests {
 			let db = Database::open(&config, tempdir.path().to_str().unwrap()).unwrap();
 			assert_eq!(db.num_columns(), 0);
 		}
+	}
+
+	#[test]
+	fn write_clears_buffered_ops() {
+		let tempdir = TempDir::new("").unwrap();
+		let config = DatabaseConfig::default();
+		let db = Database::open(&config, tempdir.path().to_str().unwrap()).unwrap();
+
+		let mut batch = db.transaction();
+		batch.put(None, b"foo", b"bar");
+		db.write_buffered(batch);
+
+		let mut batch = db.transaction();
+		batch.put(None, b"foo", b"baz");
+		db.write(batch).unwrap();
+
+		assert_eq!(db.get(None, b"foo").unwrap().unwrap().as_ref(), b"baz");
 	}
 }

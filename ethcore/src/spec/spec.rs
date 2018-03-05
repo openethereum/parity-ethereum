@@ -16,23 +16,20 @@
 
 //! Parameters for a block chain.
 
-use std::io::Read;
 use std::collections::BTreeMap;
+use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
 
-use ethereum_types::{H256, Bloom, U256, Address};
-use memorydb::MemoryDB;
 use bytes::Bytes;
+use ethereum_types::{H256, Bloom, U256, Address};
 use ethjson;
 use hash::{KECCAK_NULL_RLP, keccak};
+use memorydb::MemoryDB;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::FromHex;
 use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
-
-use super::genesis::Genesis;
-use super::seal::Generic as GenericSeal;
 
 use builtin::Builtin;
 use engines::{EthEngine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, DEFAULT_BLOCKHASH_CONTRACT};
@@ -41,9 +38,11 @@ use executive::Executive;
 use factory::Factories;
 use header::{BlockNumber, Header};
 use machine::EthereumMachine;
-use pod_state::*;
-use state::{Backend, State, Substate};
+use pod_state::PodState;
+use spec::Genesis;
+use spec::seal::Generic as GenericSeal;
 use state::backend::Basic as BasicBackend;
+use state::{Backend, State, Substate};
 use trace::{NoopTracer, NoopVMTracer};
 
 pub use ethash::OptimizeFor;
@@ -109,8 +108,8 @@ pub struct CommonParams {
 	pub nonce_cap_increment: u64,
 	/// Enable dust cleanup for contracts.
 	pub remove_dust_contracts: bool,
-	/// Wasm support
-	pub wasm: bool,
+	/// Wasm activation blocknumber, if any disabled initially.
+	pub wasm_activation_transition: BlockNumber,
 	/// Gas limit bound divisor (how much gas limit can change per block)
 	pub gas_limit_bound_divisor: U256,
 	/// Registrar contract address.
@@ -145,6 +144,9 @@ impl CommonParams {
 				true => ::vm::CleanDustMode::WithCodeAndStorage,
 				false => ::vm::CleanDustMode::BasicOnly,
 			};
+		}
+		if block_number >= self.wasm_activation_transition {
+			schedule.wasm = Some(Default::default());
 		}
 	}
 
@@ -220,12 +222,15 @@ impl From<ethjson::spec::Params> for CommonParams {
 			),
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
-			wasm: p.wasm.unwrap_or(false),
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
+			wasm_activation_transition: p.wasm_activation_transition.map_or(
+				BlockNumber::max_value(),
+				Into::into
+			),
 		}
 	}
 }
@@ -813,9 +818,8 @@ impl Spec {
 mod tests {
 	use super::*;
 	use state::State;
-	use std::str::FromStr;
 	use tests::helpers::get_temp_state_db;
-	use views::*;
+	use views::BlockView;
 
 	// https://github.com/paritytech/parity/issues/1840
 	#[test]
@@ -829,16 +833,12 @@ mod tests {
 
 		assert_eq!(
 			test_spec.state_root(),
-			H256::from_str(
-				"f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9",
-			).unwrap()
+			"f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9".into()
 		);
 		let genesis = test_spec.genesis_block();
 		assert_eq!(
 			BlockView::new(&genesis).header_view().hash(),
-			H256::from_str(
-				"0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303",
-			).unwrap()
+			"0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303".into()
 		);
 	}
 
@@ -854,10 +854,8 @@ mod tests {
 			spec.engine.account_start_nonce(0),
 			Default::default(),
 		).unwrap();
-		let expected = H256::from_str(
-			"0000000000000000000000000000000000000000000000000000000000000001",
-		).unwrap();
-		let address = Address::from_str("0000000000000000000000000000000000001337").unwrap();
+		let expected = "0000000000000000000000000000000000000000000000000000000000000001".into();
+		let address = "0000000000000000000000000000000000001337".into();
 
 		assert_eq!(state.storage_at(&address, &H256::zero()).unwrap(), expected);
 		assert_eq!(state.balance(&address).unwrap(), 1.into());

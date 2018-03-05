@@ -28,14 +28,16 @@ use key_server_cluster::message::{self, Message};
 use key_server_cluster::generation_session::{SessionImpl as GenerationSessionImpl};
 use key_server_cluster::decryption_session::{SessionImpl as DecryptionSessionImpl};
 use key_server_cluster::encryption_session::{SessionImpl as EncryptionSessionImpl};
-use key_server_cluster::signing_session::{SessionImpl as SigningSessionImpl};
+use key_server_cluster::signing_session_ecdsa::{SessionImpl as EcdsaSigningSessionImpl};
+use key_server_cluster::signing_session_schnorr::{SessionImpl as SchnorrSigningSessionImpl};
 use key_server_cluster::share_add_session::{SessionImpl as ShareAddSessionImpl, IsolatedSessionTransport as ShareAddTransport};
 use key_server_cluster::servers_set_change_session::{SessionImpl as ServersSetChangeSessionImpl};
 use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVersionNegotiationSessionImpl,
 	IsolatedSessionTransport as VersionNegotiationTransport};
 
-use key_server_cluster::cluster_sessions_creator::{GenerationSessionCreator, EncryptionSessionCreator, DecryptionSessionCreator, SigningSessionCreator,
-	KeyVersionNegotiationSessionCreator, AdminSessionCreator, SessionCreatorCore, ClusterSessionCreator};
+use key_server_cluster::cluster_sessions_creator::{GenerationSessionCreator, EncryptionSessionCreator, DecryptionSessionCreator,
+	SchnorrSigningSessionCreator, KeyVersionNegotiationSessionCreator, AdminSessionCreator, SessionCreatorCore,
+	EcdsaSigningSessionCreator, ClusterSessionCreator};
 
 /// When there are no session-related messages for SESSION_TIMEOUT_INTERVAL seconds,
 /// we must treat this session as stalled && finish it with an error.
@@ -125,8 +127,10 @@ pub struct ClusterSessions {
 	pub encryption_sessions: ClusterSessionsContainer<EncryptionSessionImpl, EncryptionSessionCreator, ()>,
 	/// Decryption sessions.
 	pub decryption_sessions: ClusterSessionsContainer<DecryptionSessionImpl, DecryptionSessionCreator, Signature>,
-	/// Signing sessions.
-	pub signing_sessions: ClusterSessionsContainer<SigningSessionImpl, SigningSessionCreator, Signature>,
+	/// Schnorr signing sessions.
+	pub schnorr_signing_sessions: ClusterSessionsContainer<SchnorrSigningSessionImpl, SchnorrSigningSessionCreator, Signature>,
+	/// ECDSA signing sessions.
+	pub ecdsa_signing_sessions: ClusterSessionsContainer<EcdsaSigningSessionImpl, EcdsaSigningSessionCreator, Signature>,
 	/// Key version negotiation sessions.
 	pub negotiation_sessions: ClusterSessionsContainer<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>, KeyVersionNegotiationSessionCreator, ()>,
 	/// Administrative sessions.
@@ -203,7 +207,10 @@ impl ClusterSessions {
 			decryption_sessions: ClusterSessionsContainer::new(DecryptionSessionCreator {
 				core: creator_core.clone(),
 			}, container_state.clone()),
-			signing_sessions: ClusterSessionsContainer::new(SigningSessionCreator {
+			schnorr_signing_sessions: ClusterSessionsContainer::new(SchnorrSigningSessionCreator {
+				core: creator_core.clone(),
+			}, container_state.clone()),
+			ecdsa_signing_sessions: ClusterSessionsContainer::new(EcdsaSigningSessionCreator {
 				core: creator_core.clone(),
 			}, container_state.clone()),
 			negotiation_sessions: ClusterSessionsContainer::new(KeyVersionNegotiationSessionCreator {
@@ -240,7 +247,8 @@ impl ClusterSessions {
 		self.generation_sessions.stop_stalled_sessions();
 		self.encryption_sessions.stop_stalled_sessions();
 		self.decryption_sessions.stop_stalled_sessions();
-		self.signing_sessions.stop_stalled_sessions();
+		self.schnorr_signing_sessions.stop_stalled_sessions();
+		self.ecdsa_signing_sessions.stop_stalled_sessions();
 		self.negotiation_sessions.stop_stalled_sessions();
 		self.admin_sessions.stop_stalled_sessions();
 	}
@@ -250,7 +258,8 @@ impl ClusterSessions {
 		self.generation_sessions.on_connection_timeout(node_id);
 		self.encryption_sessions.on_connection_timeout(node_id);
 		self.decryption_sessions.on_connection_timeout(node_id);
-		self.signing_sessions.on_connection_timeout(node_id);
+		self.schnorr_signing_sessions.on_connection_timeout(node_id);
+		self.ecdsa_signing_sessions.on_connection_timeout(node_id);
 		self.negotiation_sessions.on_connection_timeout(node_id);
 		self.admin_sessions.on_connection_timeout(node_id);
 		self.creator_core.on_connection_timeout(node_id);

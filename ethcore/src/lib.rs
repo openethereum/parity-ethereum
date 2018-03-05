@@ -54,7 +54,6 @@
 //!   cargo build --release
 //!   ```
 
-extern crate bloomchain;
 extern crate bn;
 extern crate byteorder;
 extern crate crossbeam;
@@ -83,6 +82,7 @@ extern crate price_info;
 extern crate rand;
 extern crate rayon;
 extern crate rlp;
+extern crate rlp_compress;
 extern crate keccak_hash as hash;
 extern crate heapsize;
 extern crate memorydb;
@@ -115,6 +115,8 @@ extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
+#[cfg(test)]
+extern crate tempdir;
 
 #[macro_use]
 extern crate macros;
@@ -122,13 +124,13 @@ extern crate macros;
 extern crate log;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate trace_time;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
 #[cfg(feature = "jit" )]
 extern crate evmjit;
-
-extern crate tempdir;
 
 pub extern crate ethstore;
 
@@ -150,13 +152,11 @@ pub mod snapshot;
 pub mod spec;
 pub mod state;
 pub mod state_db;
-pub mod timer;
 pub mod trace;
 pub mod verification;
 pub mod views;
 
 mod cache_manager;
-mod blooms;
 mod pod_account;
 mod account_db;
 mod builtin;

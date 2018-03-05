@@ -3,7 +3,7 @@ description = "Fetch current ETH price"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "price-info"
-version = "1.7.0"
+version = "1.11.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]

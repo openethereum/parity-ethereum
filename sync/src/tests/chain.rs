@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use ethcore::client::{TestBlockChainClient, BlockChainClient, BlockId, EachBlockWith};
+use ethcore::client::{TestBlockChainClient, BlockChainClient, BlockId, EachBlockWith, ChainInfo, BlockInfo};
 use chain::{SyncState};
 use super::helpers::*;
 use SyncConfig;

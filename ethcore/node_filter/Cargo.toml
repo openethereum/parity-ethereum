@@ -3,7 +3,7 @@ description = "Parity smart network connections"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "node-filter"
-version = "1.9.0"
+version = "1.11.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]

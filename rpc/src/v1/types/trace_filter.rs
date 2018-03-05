@@ -44,8 +44,17 @@ pub struct TraceFilter {
 
 impl Into<client::TraceFilter> for TraceFilter {
 	fn into(self) -> client::TraceFilter {
-		let start = self.from_block.map_or(BlockId::Latest, Into::into);
-		let end = self.to_block.map_or(BlockId::Latest, Into::into);
+		let num_to_id = |num| match num {
+			BlockNumber::Num(n) => BlockId::Number(n),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
+			BlockNumber::Pending => {
+				warn!("Pending traces are not supported and might be removed in future versions. Falling back to Latest");
+				BlockId::Latest
+			}
+		};
+		let start = self.from_block.map_or(BlockId::Latest, &num_to_id);
+		let end = self.to_block.map_or(BlockId::Latest, &num_to_id);
 		client::TraceFilter {
 			range: start..end,
 			from_address: self.from_address.map_or_else(Vec::new, |x| x.into_iter().map(Into::into).collect()),

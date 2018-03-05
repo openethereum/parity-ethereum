@@ -15,9 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethereum_types::{H256, U256, Address};
-use hash::KECCAK_NULL_RLP;
 use ethjson;
-use super::seal::Seal;
+use hash::KECCAK_NULL_RLP;
+use spec::seal::Seal;
 
 /// Genesis components.
 pub struct Genesis {
