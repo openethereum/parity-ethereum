@@ -28,7 +28,7 @@ use account_provider::AccountProvider;
 use client::{TransactionId, BlockInfo, CallContract, Nonce};
 use engines::EthEngine;
 use header::Header;
-use miner::TransactionImporterClient;
+use miner;
 use miner::service_transaction_checker::ServiceTransactionChecker;
 
 // TODO [ToDr] Shit
@@ -94,7 +94,7 @@ impl<'a, C: 'a> fmt::Debug for BlockChainClient<'a, C> {
 }
 
 impl<'a, C: 'a> pool::client::Client for BlockChainClient<'a, C> where
-	C: TransactionImporterClient + Sync,
+	C: miner::TransactionVerifierClient + Sync,
 {
 	fn transaction_already_included(&self, hash: &H256) -> bool {
 		self.chain.transaction_block(TransactionId::Hash(*hash)).is_some()

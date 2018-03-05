@@ -42,7 +42,7 @@ use client::{
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
-	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
+	TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo
 };
 use encoded;
@@ -2094,13 +2094,8 @@ impl BroadcastProposalBlock for Client {
 
 impl SealedBlockImporter for Client {}
 
-impl MiningBlockChainClient for Client {
-	fn vm_factory(&self) -> &VmFactory {
-		&self.factories.vm
-	}
-}
-
-impl ::miner::TransactionImporterClient for Client {}
+impl ::miner::TransactionVerifierClient for Client {}
+impl ::miner::BlockChainClient for Client {}
 
 impl super::traits::EngineClient for Client {
 	fn update_sealing(&self) {

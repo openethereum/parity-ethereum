@@ -27,9 +27,9 @@ use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{MiningBlockChainClient, StateClient, Call};
+use ethcore::client::{BlockChainClient, StateClient, Call};
 use ethcore::ids::BlockId;
-use ethcore::miner::MinerService;
+use ethcore::miner::{self, MinerService};
 use ethcore::mode::Mode;
 use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
@@ -72,7 +72,7 @@ pub struct ParityClient<C, M, U>  {
 }
 
 impl<C, M, U> ParityClient<C, M, U> where
-	C: MiningBlockChainClient,
+	C: BlockChainClient,
 {
 	/// Creates new `ParityClient`.
 	pub fn new(
@@ -116,7 +116,7 @@ impl<C, M, U> ParityClient<C, M, U> where
 
 impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	S: StateInfo + 'static,
-	C: MiningBlockChainClient + StateClient<State=S> + Call<State=S> + 'static,
+	C: miner::BlockChainClient + BlockChainClient + StateClient<State=S> + Call<State=S> + 'static,
 	M: MinerService<State=S> + 'static,
 	U: UpdateService + 'static,
 {

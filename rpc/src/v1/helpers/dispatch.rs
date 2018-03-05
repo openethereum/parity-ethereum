@@ -34,8 +34,8 @@ use stats::Corpus;
 use ethkey::Signature;
 use ethsync::LightSync;
 use ethcore::ids::BlockId;
-use ethcore::miner::MinerService;
-use ethcore::client::MiningBlockChainClient;
+use ethcore::client::BlockChainClient;
+use ethcore::miner::{self, MinerService};
 use ethcore::account_provider::AccountProvider;
 use crypto::DEFAULT_MAC;
 use transaction::{Action, SignedTransaction, PendingTransaction, Transaction};
@@ -117,7 +117,7 @@ impl<C, M> Clone for FullDispatcher<C, M> {
 	}
 }
 
-impl<C: MiningBlockChainClient, M: MinerService> FullDispatcher<C, M> {
+impl<C: miner::BlockChainClient, M: MinerService> FullDispatcher<C, M> {
 	fn state_nonce(&self, from: &Address) -> U256 {
 		self.miner.next_nonce(&*self.client, from)
 	}
@@ -132,7 +132,7 @@ impl<C: MiningBlockChainClient, M: MinerService> FullDispatcher<C, M> {
 	}
 }
 
-impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C, M> {
+impl<C: miner::BlockChainClient + BlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C, M> {
 	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, force_nonce: bool)
 		-> BoxFuture<FilledTransactionRequest>
 	{
@@ -746,7 +746,7 @@ fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: S
 
 /// Extract the default gas price from a client and miner.
 pub fn default_gas_price<C, M>(client: &C, miner: &M, percentile: usize) -> U256 where
-	C: MiningBlockChainClient,
+	C: BlockChainClient,
 	M: MinerService,
 {
 	client.gas_price_corpus(100).percentile(percentile).cloned().unwrap_or_else(|| miner.sensible_gas_price())

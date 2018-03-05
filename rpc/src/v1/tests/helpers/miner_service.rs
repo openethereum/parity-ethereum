@@ -18,11 +18,10 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeMap, HashMap};
-use std::collections::hash_map::Entry;
 
 use bytes::Bytes;
 use ethcore::account_provider::SignError as AccountError;
-use ethcore::block::{SealedBlock, IsBlock};
+use ethcore::block::{Block, SealedBlock, IsBlock};
 use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo};
 use ethcore::engines::EthEngine;
 use ethcore::error::Error;
@@ -31,7 +30,6 @@ use ethcore::ids::BlockId;
 use ethcore::miner::{MinerService, AuthoringParams};
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethereum_types::{H256, U256, Address};
-use miner::local_transactions::Status as LocalTransactionStatus;
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
 use parking_lot::{RwLock, Mutex};
@@ -138,7 +136,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_external_transactions<C>(&self, _chain: &C, transactions: Vec<UnverifiedTransaction>)
+	fn import_external_transactions<C: Nonce + Sync>(&self, chain: &C, transactions: Vec<UnverifiedTransaction>)
 		-> Vec<Result<(), transaction::Error>>
 	{
 		// lets assume that all txs are valid
@@ -157,7 +155,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_own_transaction<C: Nonce>(&self, chain: &C, pending: PendingTransaction)
+	fn import_own_transaction<C: Nonce + Sync>(&self, chain: &C, pending: PendingTransaction)
 		-> Result<(), transaction::Error> {
 
 		// keep the pending nonces up to date
@@ -210,7 +208,7 @@ impl MinerService for TestMinerService {
 		self.local_transactions.lock().iter().map(|(hash, stats)| (*hash, stats.clone())).collect()
 	}
 
-	fn ready_transactions(&self, _chain: &MiningBlockChainClient) -> Vec<Arc<VerifiedTransaction>> {
+	fn ready_transactions<C>(&self, _chain: &C) -> Vec<Arc<VerifiedTransaction>> {
 		self.pending_transactions.lock().values().cloned().map(|tx| {
 			Arc::new(VerifiedTransaction::from_pending_block_transaction(tx))
 		}).collect()
@@ -240,7 +238,7 @@ impl MinerService for TestMinerService {
 		Some(self.pending_receipts.lock().clone())
 	}
 
-	fn next_nonce(&self, _chain: &MiningBlockChainClient, address: &Address) -> U256 {
+	fn next_nonce<C: Nonce + Sync>(&self, _chain: &C, address: &Address) -> U256 {
 		self.next_nonces.read().get(address).cloned().unwrap_or_default()
 	}
 

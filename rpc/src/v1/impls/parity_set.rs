@@ -18,8 +18,8 @@
 use std::io;
 use std::sync::Arc;
 
+use ethcore::client::BlockChainClient;
 use ethcore::miner::MinerService;
-use ethcore::client::MiningBlockChainClient;
 use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
 use fetch::{self, Fetch};
@@ -45,7 +45,7 @@ pub struct ParitySetClient<C, M, U, F = fetch::Client> {
 }
 
 impl<C, M, U, F> ParitySetClient<C, M, U, F>
-	where C: MiningBlockChainClient + 'static,
+	where C: BlockChainClient + 'static,
 {
 	/// Creates new `ParitySetClient` with given `Fetch`.
 	pub fn new(
@@ -69,7 +69,7 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 }
 
 impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
-	C: MiningBlockChainClient + 'static,
+	C: BlockChainClient + 'static,
 	M: MinerService + 'static,
 	U: UpdateService + 'static,
 	F: Fetch + 'static,

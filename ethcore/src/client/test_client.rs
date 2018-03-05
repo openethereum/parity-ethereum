@@ -35,7 +35,7 @@ use transaction::{self, Transaction, LocalizedTransaction, PendingTransaction, S
 use blockchain::{TreeRoute, BlockReceipts};
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
-	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
+	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter
@@ -46,8 +46,6 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
 use error::ImportResult;
-use evm::VMType;
-use factory::VmFactory;
 use vm::Schedule;
 use miner::{Miner, MinerService};
 use spec::Spec;
@@ -101,8 +99,6 @@ pub struct TestBlockChainClient {
 	pub miner: Arc<Miner>,
 	/// Spec
 	pub spec: Spec,
-	/// VM Factory
-	pub vm_factory: VmFactory,
 	/// Timestamp assigned to latest sealed block
 	pub latest_block_timestamp: RwLock<u64>,
 	/// Ancient block info.
@@ -173,7 +169,6 @@ impl TestBlockChainClient {
 			queue_size: AtomicUsize::new(0),
 			miner: Arc::new(Miner::new_for_tests(&spec, None)),
 			spec: spec,
-			vm_factory: VmFactory::new(VMType::Interpreter, 1024 * 1024),
 			latest_block_timestamp: RwLock::new(10_000_000),
 			ancient_block: RwLock::new(None),
 			first_block: RwLock::new(None),
@@ -414,13 +409,8 @@ impl BroadcastProposalBlock for TestBlockChainClient {
 
 impl SealedBlockImporter for TestBlockChainClient {}
 
-impl MiningBlockChainClient for TestBlockChainClient {
-	fn vm_factory(&self) -> &VmFactory {
-		&self.vm_factory
-	}
-}
-
-impl ::miner::TransactionImporterClient for TestBlockChainClient {}
+impl ::miner::TransactionVerifierClient for TestBlockChainClient {}
+impl ::miner::BlockChainClient for TestBlockChainClient {}
 
 impl Nonce for TestBlockChainClient {
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {

@@ -19,9 +19,9 @@
 use std::sync::Arc;
 use std::collections::HashSet;
 
-use ethcore::miner::MinerService;
+use ethcore::miner::{self, MinerService};
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::client::{MiningBlockChainClient, BlockId};
+use ethcore::client::{BlockChainClient, BlockId};
 use ethereum_types::H256;
 use parking_lot::Mutex;
 
@@ -55,16 +55,13 @@ pub trait Filterable {
 }
 
 /// Eth filter rpc implementation for a full node.
-pub struct EthFilterClient<C, M> where
-	C: MiningBlockChainClient,
-	M: MinerService {
-
+pub struct EthFilterClient<C, M> {
 	client: Arc<C>,
 	miner: Arc<M>,
 	polls: Mutex<PollManager<PollFilter>>,
 }
 
-impl<C, M> EthFilterClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+impl<C, M> EthFilterClient<C, M> {
 	/// Creates new Eth filter client.
 	pub fn new(client: Arc<C>, miner: Arc<M>) -> Self {
 		EthFilterClient {
@@ -75,7 +72,10 @@ impl<C, M> EthFilterClient<C, M> where C: MiningBlockChainClient, M: MinerServic
 	}
 }
 
-impl<C, M> Filterable for EthFilterClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+impl<C, M> Filterable for EthFilterClient<C, M> where
+	C: miner::BlockChainClient + BlockChainClient,
+	M: MinerService,
+{
 	fn best_block_number(&self) -> u64 {
 		self.client.chain_info().best_block_number
 	}

@@ -23,7 +23,6 @@ use encoded;
 use vm::LastHashes;
 use error::{ImportResult, CallError, BlockImportError};
 use evm::Schedule;
-use factory::VmFactory;
 use executive::Executed;
 use filter::Filter;
 use header::{BlockNumber};
@@ -415,12 +414,6 @@ pub trait BroadcastProposalBlock {
 
 /// Provides methods to import sealed block and broadcast a block proposal
 pub trait SealedBlockImporter: ImportSealedBlock + BroadcastProposalBlock {}
-
-/// Extended client interface used for mining
-pub trait MiningBlockChainClient: BlockChainClient + BlockProducer + ScheduleInfo + SealedBlockImporter {
-	/// Returns EvmFactory.
-	fn vm_factory(&self) -> &VmFactory;
-}
 
 /// Client facilities used by internally sealing Engines.
 pub trait EngineClient: Sync + Send + ChainInfo {

@@ -23,7 +23,7 @@ use std::net::{TcpListener};
 use ansi_term::Colour;
 use ctrlc::CtrlC;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
-use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
+use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
 use ethcore::db::NUM_COLUMNS;
 use ethcore::ethstore::ethkey;
 use ethcore::miner::{stratum, Miner, MinerService, MinerOptions};

@@ -24,7 +24,7 @@ use ethcore::block::Block;
 use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo, ImportBlock};
 use ethcore::ethereum;
 use ethcore::ids::BlockId;
-use ethcore::miner::{MinerService, Miner};
+use ethcore::miner::Miner;
 use ethcore::spec::{Genesis, Spec};
 use ethcore::views::BlockView;
 use ethjson::blockchain::BlockChain;

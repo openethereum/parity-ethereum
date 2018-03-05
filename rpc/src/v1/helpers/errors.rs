@@ -35,6 +35,7 @@ mod codes {
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const EXECUTION_ERROR: i64 = -32015;
 	pub const EXCEPTION_ERROR: i64 = -32016;
+	pub const DATABASE_ERROR: i64 = -32017;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
@@ -251,6 +252,14 @@ pub fn encoding<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ENCODING_ERROR),
 		message: "Encoding error.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
+	}
+}
+
+pub fn database<T: fmt::Debug>(error: T) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::DATABASE_ERROR),
+		message: "Database error.".into(),
 		data: Some(Value::String(format!("{:?}", error))),
 	}
 }

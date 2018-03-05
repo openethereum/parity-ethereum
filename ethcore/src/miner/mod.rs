@@ -46,14 +46,16 @@ use receipt::{RichReceipt, Receipt};
 use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use state::StateInfo;
 
-pub trait TransactionImporterClient:
-	Sync +
+/// Provides methods to verify incoming external transactions
+pub trait TransactionVerifierClient: Send + Sync
 	// Required for ServiceTransactionChecker
-	CallContract + RegistryInfo +
+	+ CallContract + RegistryInfo
 	// Required for verifiying transactions
-	BlockChain + ScheduleInfo + AccountData
-
+	+ BlockChain + ScheduleInfo + AccountData
 {}
+
+/// Extended client interface used for mining
+pub trait BlockChainClient: TransactionVerifierClient + BlockProducer + SealedBlockImporter {}
 
 // TODO [ToDr] Split into smaller traits?
 // TODO [ToDr] get rid of from_pending_block in miner/miner.rs
@@ -87,7 +89,7 @@ pub trait MinerService : Send + Sync {
 
 	/// Called when blocks are imported to chain, updates transactions queue.
 	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256])
-		where C: TransactionImporterClient + BlockProducer + SealedBlockImporter;
+		where C: BlockChainClient;
 
 
 	// Pending block
@@ -131,12 +133,12 @@ pub trait MinerService : Send + Sync {
 	/// Imports transactions to transaction queue.
 	fn import_external_transactions<C>(&self, client: &C, transactions: Vec<UnverifiedTransaction>)
 		-> Vec<Result<(), transaction::Error>>
-		where C: TransactionImporterClient + BlockProducer + SealedBlockImporter;
+		where C: BlockChainClient;
 
 	/// Imports own (node owner) transaction to queue.
 	fn import_own_transaction<C>(&self, chain: &C, transaction: PendingTransaction)
 		-> Result<(), transaction::Error>
-		where C: TransactionImporterClient + BlockProducer + SealedBlockImporter;
+		where C: BlockChainClient;
 
 	/// Removes transaction from the pool.
 	///

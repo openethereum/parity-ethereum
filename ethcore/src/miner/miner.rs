@@ -45,7 +45,7 @@ use client::{
 use client::BlockId;
 use executive::contract_address;
 use header::{Header, BlockNumber};
-use miner::{MinerService, TransactionImporterClient};
+use miner;
 use miner::blockchain_client::{BlockChainClient, NonceClient};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
@@ -672,7 +672,7 @@ impl Miner {
 
 const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
 
-impl MinerService for Miner {
+impl miner::MinerService for Miner {
 	type State = State<::state_db::StateDB>;
 
 	fn authoring_params(&self) -> AuthoringParams {
@@ -722,7 +722,7 @@ impl MinerService for Miner {
 		self.params.read().gas_range_target.0 / 5.into()
 	}
 
-	fn import_external_transactions<C: TransactionImporterClient + BlockProducer + SealedBlockImporter>(
+	fn import_external_transactions<C: miner::BlockChainClient>(
 		&self,
 		chain: &C,
 		transactions: Vec<UnverifiedTransaction>
@@ -745,7 +745,7 @@ impl MinerService for Miner {
 		results
 	}
 
-	fn import_own_transaction<C: TransactionImporterClient + BlockProducer + SealedBlockImporter>(
+	fn import_own_transaction<C: miner::BlockChainClient>(
 		&self,
 		chain: &C,
 		pending: PendingTransaction,
@@ -993,7 +993,7 @@ impl MinerService for Miner {
 	}
 
 	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256])
-		where C: TransactionImporterClient + BlockChain + BlockProducer + SealedBlockImporter,
+		where C: miner::BlockChainClient,
 	{
 		trace!(target: "miner", "chain_new_blocks");
 
@@ -1063,6 +1063,7 @@ mod tests {
 
 	use transaction::{Transaction};
 	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
+	use miner::MinerService;
 	use tests::helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
 
 	#[test]

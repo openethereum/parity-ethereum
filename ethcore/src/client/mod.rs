@@ -35,7 +35,7 @@ pub use self::traits::{
     StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter
 };
 pub use state::StateInfo;
-pub use self::traits::{BlockChainClient, MiningBlockChainClient, EngineClient, ProvingBlockChainClient};
+pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient};
 
 pub use types::ids::*;
 pub use types::trace_filter::Filter as TraceFilter;

@@ -27,13 +27,12 @@ use parking_lot::Mutex;
 
 use ethash::SeedHashCompute;
 use ethcore::account_provider::{AccountProvider, DappId};
-use ethcore::block::IsBlock;
-use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
+use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
 use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{BlockNumber as EthBlockNumber, Seal};
 use ethcore::log_entry::LogEntry;
-use ethcore::miner::MinerService;
+use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
 use ethcore::encoded;
 use ethsync::{SyncProvider};
@@ -93,7 +92,7 @@ impl Default for EthClientOptions {
 
 /// Eth rpc implementation.
 pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
-	C: MiningBlockChainClient,
+	C: miner::BlockChainClient + BlockChainClient,
 	SN: SnapshotService,
 	S: SyncProvider,
 	M: MinerService,
@@ -143,7 +142,7 @@ enum PendingTransactionId {
 }
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S, M, EM> where
-	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo,
+	C: miner::BlockChainClient + BlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo,
 	SN: SnapshotService,
 	S: SyncProvider,
 	M: MinerService<State=T>,
@@ -430,7 +429,7 @@ pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFi
 	result
 }
 
-fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: MiningBlockChainClient {
+fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: BlockChainClient {
 	use ethcore::block_status::BlockStatus;
 
 	let id = match number {
@@ -450,7 +449,7 @@ fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: Mining
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<C, SN, S, M, EM> where
-	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo + 'static,
+	C: miner::BlockChainClient + BlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo + 'static,
 	SN: SnapshotService + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService<State=T> + 'static,
