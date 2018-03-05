@@ -1267,6 +1267,7 @@ impl MinerService for Miner {
 
 	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block> {
 		Miner::pending_block(self, latest_block_number)
+	}
 
 	fn increase_time(&self, increase: U256) -> U256 {
 		let mut increase_time = self.increase_time.write();
