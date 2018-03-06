@@ -16,6 +16,7 @@
 
 pub mod http_listener;
 pub mod service_contract;
+pub mod service_contract_aggregate;
 pub mod service_contract_listener;
 mod tasks_queue;
 
@@ -25,13 +26,39 @@ use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, AdminSessions
 use types::all::{Error, Public, MessageHash, EncryptedMessageSignature, RequestSignature, ServerKeyId,
 	EncryptedDocumentKey, EncryptedDocumentKeyShadow, NodeId, Requester};
 
+/// Available API mask.
+pub struct ApiMask {
+	/// Accept server key generation requests.
+	pub server_key_generation_requests: bool,
+	/// Accept server key retrieval requests.
+	pub server_key_retrieval_requests: bool,
+	/// Accept document key store requests.
+	pub document_key_store_requests: bool,
+	/// Accept document key shadow retrieval requests.
+	pub document_key_shadow_retrieval_requests: bool,
+}
+
+/// Combined HTTP + service contract listener.
 pub struct Listener {
 	key_server: Arc<KeyServer>,
 	_http: Option<http_listener::KeyServerHttpListener>,
 	_contract: Option<Arc<service_contract_listener::ServiceContractListener>>,
 }
 
+impl ApiMask {
+	/// Create mask that accepts all requests.
+	pub fn all() -> Self {
+		ApiMask {
+			server_key_generation_requests: true,
+			server_key_retrieval_requests: true,
+			document_key_store_requests: true,
+			document_key_shadow_retrieval_requests: true,
+		}
+	}
+}
+
 impl Listener {
+	/// Create new listener.
 	pub fn new(key_server: Arc<KeyServer>, http: Option<http_listener::KeyServerHttpListener>, contract: Option<Arc<service_contract_listener::ServiceContractListener>>) -> Self {
 		Self {
 			key_server: key_server,

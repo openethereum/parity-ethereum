@@ -95,7 +95,8 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<No
 		None => None,
 	};
 	let contract_listener = config.service_contract_address.map(|service_contract_address| {
-		let service_contract = Arc::new(listener::service_contract::OnChainServiceContract::new(trusted_client, service_contract_address, self_key_pair.clone()));
+		let api_mask = listener::ApiMask::all();
+		let service_contract = Arc::new(listener::service_contract::OnChainServiceContract::new(api_mask, trusted_client, service_contract_address, self_key_pair.clone()));
 		let contract_listener = listener::service_contract_listener::ServiceContractListener::new(listener::service_contract_listener::ServiceContractListenerParams {
 			contract: service_contract,
 			self_key_pair: self_key_pair,

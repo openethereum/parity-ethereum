@@ -403,7 +403,7 @@ impl SessionImpl {
 					session_nonce: n,
 					message: m,
 				}));
-		sig_nonce_generation_session.initialize(Default::default(), false, key_share.threshold, consensus_group_map.clone().into())?;
+		sig_nonce_generation_session.initialize(Default::default(), Default::default(), false, key_share.threshold, consensus_group_map.clone().into())?;
 		data.sig_nonce_generation_session = Some(sig_nonce_generation_session);
 
 		// start generation of inversed nonce computation session
@@ -415,7 +415,7 @@ impl SessionImpl {
 					session_nonce: n,
 					message: m,
 				}));
-		inv_nonce_generation_session.initialize(Default::default(), false, key_share.threshold, consensus_group_map.clone().into())?;
+		inv_nonce_generation_session.initialize(Default::default(), Default::default(), false, key_share.threshold, consensus_group_map.clone().into())?;
 		data.inv_nonce_generation_session = Some(inv_nonce_generation_session);
 
 		// start generation of zero-secret shares for inversed nonce computation session
@@ -427,7 +427,7 @@ impl SessionImpl {
 					session_nonce: n,
 					message: m,
 				}));
-		inv_zero_generation_session.initialize(Default::default(), true, key_share.threshold * 2, consensus_group_map.clone().into())?;
+		inv_zero_generation_session.initialize(Default::default(), Default::default(), true, key_share.threshold * 2, consensus_group_map.clone().into())?;
 		data.inv_zero_generation_session = Some(inv_zero_generation_session);
 
 		data.state = SessionState::NoncesGenerating;
@@ -1166,7 +1166,7 @@ mod tests {
 	fn prepare_signing_sessions(threshold: usize, num_nodes: usize) -> (KeyGenerationMessageLoop, MessageLoop) {
 		// run key generation sessions
 		let mut gl = KeyGenerationMessageLoop::new(num_nodes);
-		gl.master().initialize(Default::default(), false, threshold, gl.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap();
+		gl.master().initialize(Default::default(), Default::default(), false, threshold, gl.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap();
 		while let Some((from, to, message)) = gl.take_message() {
 			gl.process_message((from, to, message)).unwrap();
 		}

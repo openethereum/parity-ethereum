@@ -18,7 +18,7 @@ use std::collections::{BTreeSet, BTreeMap};
 use std::sync::Arc;
 use std::time;
 use parking_lot::{Mutex, Condvar};
-use ethereum_types::H256;
+use ethereum_types::{Address, H256};
 use ethkey::Secret;
 use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, Requester,
 	EncryptedDocumentKeyShadow, SessionMeta};
@@ -72,6 +72,8 @@ type BroadcastDecryptionJobSession = JobSession<DecryptionJob, DecryptionJobTran
 struct SessionData {
 	/// Key version to use for decryption.
 	pub version: Option<H256>,
+	/// Session origin (if any).
+	pub origin: Option<Address>,
 	/// Consensus-based decryption session.
 	pub consensus_session: DecryptionConsensusSession,
 	/// Broadcast decryption job.
@@ -111,6 +113,8 @@ struct DecryptionConsensusTransport {
 	access_key: Secret,
 	/// Session-level nonce.
 	nonce: u64,
+	/// Session origin (if any).
+	origin: Option<Address>,
 	/// Selected key version (on master node).
 	version: Option<H256>,
 	/// Cluster.
@@ -158,6 +162,7 @@ impl SessionImpl {
 			id: params.meta.id.clone(),
 			access_key: params.access_key.clone(),
 			nonce: params.nonce,
+			origin: None,
 			version: None,
 			cluster: params.cluster.clone(),
 		};
@@ -181,6 +186,7 @@ impl SessionImpl {
 			},
 			data: Mutex::new(SessionData {
 				version: None,
+				origin: None,
 				consensus_session: consensus_session,
 				broadcast_job_session: None,
 				is_shadow_decryption: None,
@@ -220,6 +226,11 @@ impl SessionImpl {
 		self.data.lock().consensus_session.consensus_job().executor().requester().cloned()
 	}
 
+	/// Get session origin.
+	pub fn origin(&self) -> Option<Address> {
+		self.data.lock().origin.clone()
+	}
+
 	/// Wait for session completion.
 	pub fn wait(&self, timeout: Option<time::Duration>) -> Option<Result<EncryptedDocumentKeyShadow, Error>> {
 		Self::wait_session(&self.core.completed, &self.data, timeout, |data| data.result.clone())
@@ -245,7 +256,7 @@ impl SessionImpl {
 	}
 
 	/// Delegate session to other node.
-	pub fn delegate(&self, master: NodeId, version: H256, is_shadow_decryption: bool, is_broadcast_session: bool) -> Result<(), Error> {
+	pub fn delegate(&self, master: NodeId, origin: Option<Address>, version: H256, is_shadow_decryption: bool, is_broadcast_session: bool) -> Result<(), Error> {
 		if self.core.meta.master_node_id != self.core.meta.self_node_id {
 			return Err(Error::InvalidStateForRequest);
 		}
@@ -260,6 +271,7 @@ impl SessionImpl {
 			session: self.core.meta.id.clone().into(),
 			sub_session: self.core.access_key.clone().into(),
 			session_nonce: self.core.nonce,
+			origin: origin.map(Into::into),
 			requester: data.consensus_session.consensus_job().executor().requester()
 				.expect("signature is passed to master node on creation; session can be delegated from master node only; qed")
 				.clone().into(),
@@ -272,7 +284,7 @@ impl SessionImpl {
 	}
 
 	/// Initialize decryption session on master node.
-	pub fn initialize(&self, version: H256, is_shadow_decryption: bool, is_broadcast_session: bool) -> Result<(), Error> {
+	pub fn initialize(&self, origin: Option<Address>, version: H256, is_shadow_decryption: bool, is_broadcast_session: bool) -> Result<(), Error> {
 		debug_assert_eq!(self.core.meta.self_node_id, self.core.meta.master_node_id);
 
 		// check if version exists
@@ -293,6 +305,8 @@ impl SessionImpl {
 		}
 
 		data.consensus_session.consensus_job_mut().transport_mut().version = Some(version.clone());
+		data.consensus_session.consensus_job_mut().transport_mut().origin = origin.clone();
+		data.origin = origin;
 		data.version = Some(version.clone());
 		data.is_shadow_decryption = Some(is_shadow_decryption);
 		data.is_broadcast_session = Some(is_broadcast_session);
@@ -348,7 +362,7 @@ impl SessionImpl {
 			data.delegation_status = Some(DelegationStatus::DelegatedFrom(sender.clone(), message.session_nonce));
 		}
 
-		self.initialize(message.version.clone().into(), message.is_shadow_decryption, message.is_broadcast_session)
+		self.initialize(message.origin.clone().map(Into::into), message.version.clone().into(), message.is_shadow_decryption, message.is_broadcast_session)
 	}
 
 	/// When delegated session is completed on other node.
@@ -739,6 +753,7 @@ impl JobTransport for DecryptionConsensusTransport {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
 			session_nonce: self.nonce,
+			origin: self.origin.clone().map(Into::into),
 			message: ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
 				requester: request.into(),
 				version: version.clone().into(),
@@ -751,6 +766,7 @@ impl JobTransport for DecryptionConsensusTransport {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
 			session_nonce: self.nonce,
+			origin: None,
 			message: ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 				is_confirmed: response,
 			})
@@ -966,7 +982,7 @@ mod tests {
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
 		}, Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))).unwrap();
-		assert_eq!(session.initialize(Default::default(), false, false), Err(Error::InvalidMessage));
+		assert_eq!(session.initialize(Default::default(), Default::default(), false, false), Err(Error::InvalidMessage));
 	}
 
 	#[test]
@@ -999,24 +1015,25 @@ mod tests {
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
 		}, Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))).unwrap();
-		assert_eq!(session.initialize(Default::default(), false, false), Err(Error::ConsensusUnreachable));
+		assert_eq!(session.initialize(Default::default(), Default::default(), false, false), Err(Error::ConsensusUnreachable));
 	}
 
 	#[test]
 	fn fails_to_initialize_when_already_initialized() {
 		let (_, _, _, sessions) = prepare_decryption_sessions();
-		assert_eq!(sessions[0].initialize(Default::default(), false, false).unwrap(), ());
-		assert_eq!(sessions[0].initialize(Default::default(), false, false).unwrap_err(), Error::InvalidStateForRequest);
+		assert_eq!(sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap(), ());
+		assert_eq!(sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap_err(), Error::InvalidStateForRequest);
 	}
 
 	#[test]
 	fn fails_to_accept_initialization_when_already_initialized() {
 		let (_, _, _, sessions) = prepare_decryption_sessions();
-		assert_eq!(sessions[0].initialize(Default::default(), false, false).unwrap(), ());
+		assert_eq!(sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap(), ());
 		assert_eq!(sessions[0].on_consensus_message(sessions[1].node(), &message::DecryptionConsensusMessage {
 				session: SessionId::default().into(),
 				sub_session: sessions[0].access_key().clone().into(),
 				session_nonce: 0,
+				origin: None,
 				message: message::ConsensusMessage::InitializeConsensusSession(message::InitializeConsensusSession {
 					requester: Requester::Signature(ethkey::sign(
 						Random.generate().unwrap().secret(), &SessionId::default()).unwrap()).into(),
@@ -1032,6 +1049,7 @@ mod tests {
 				session: SessionId::default().into(),
 				sub_session: sessions[0].access_key().clone().into(),
 				session_nonce: 0,
+				origin: None,
 				message: message::ConsensusMessage::InitializeConsensusSession(message::InitializeConsensusSession {
 					requester: Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(),
 						&SessionId::default()).unwrap()).into(),
@@ -1056,6 +1074,7 @@ mod tests {
 				session: SessionId::default().into(),
 				sub_session: sessions[0].access_key().clone().into(),
 				session_nonce: 0,
+				origin: None,
 				message: message::ConsensusMessage::InitializeConsensusSession(message::InitializeConsensusSession {
 					requester: Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(),
 						&SessionId::default()).unwrap()).into(),
@@ -1089,7 +1108,7 @@ mod tests {
 	#[test]
 	fn fails_to_accept_partial_decrypt_twice() {
 		let (_, clusters, _, sessions) = prepare_decryption_sessions();
-		sessions[0].initialize(Default::default(), false, false).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap();
 
 		let mut pd_from = None;
 		let mut pd_msg = None;
@@ -1117,7 +1136,7 @@ mod tests {
 	#[test]
 	fn node_is_marked_rejected_when_timed_out_during_initialization_confirmation() {
 		let (_, _, _, sessions) = prepare_decryption_sessions();
-		sessions[0].initialize(Default::default(), false, false).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap();
 
 		// 1 node disconnects => we still can recover secret
 		sessions[0].on_node_timeout(sessions[1].node());
@@ -1135,7 +1154,7 @@ mod tests {
 		let key_pair = Random.generate().unwrap();
 
 		acl_storages[1].prohibit(public_to_address(key_pair.public()), SessionId::default());
-		sessions[0].initialize(Default::default(), false, false).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap();
 
 		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults).unwrap();
 
@@ -1147,7 +1166,7 @@ mod tests {
 	#[test]
 	fn session_does_not_fail_if_requested_node_disconnects() {
 		let (_, clusters, _, sessions) = prepare_decryption_sessions();
-		sessions[0].initialize(Default::default(), false, false).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap();
 
 		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults).unwrap();
 
@@ -1163,7 +1182,7 @@ mod tests {
 	#[test]
 	fn session_does_not_fail_if_node_with_shadow_point_disconnects() {
 		let (_, clusters, _, sessions) = prepare_decryption_sessions();
-		sessions[0].initialize(Default::default(), false, false).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap();
 
 		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults
 			&& sessions[0].data.lock().consensus_session.computation_job().responses().len() == 2).unwrap();
@@ -1180,7 +1199,7 @@ mod tests {
 	#[test]
 	fn session_restarts_if_confirmed_node_disconnects() {
 		let (_, clusters, _, sessions) = prepare_decryption_sessions();
-		sessions[0].initialize(Default::default(), false, false).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap();
 
 		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults).unwrap();
 
@@ -1195,7 +1214,7 @@ mod tests {
 	#[test]
 	fn session_does_not_fail_if_non_master_node_disconnects_from_non_master_node() {
 		let (_, clusters, _, sessions) = prepare_decryption_sessions();
-		sessions[0].initialize(Default::default(), false, false).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap();
 
 		do_messages_exchange_until(&clusters, &sessions, |_, _, _| sessions[0].state() == ConsensusSessionState::WaitingForPartialResults).unwrap();
 
@@ -1210,7 +1229,7 @@ mod tests {
 		let (_, clusters, _, sessions) = prepare_decryption_sessions();
 
 		// now let's try to do a decryption
-		sessions[0].initialize(Default::default(), false, false).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap();
 
 		do_messages_exchange(&clusters, &sessions).unwrap();
 
@@ -1232,7 +1251,7 @@ mod tests {
 		let (key_pair, clusters, _, sessions) = prepare_decryption_sessions();
 
 		// now let's try to do a decryption
-		sessions[0].initialize(Default::default(), true, false).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), true, false).unwrap();
 
 		do_messages_exchange(&clusters, &sessions).unwrap();
 
@@ -1263,7 +1282,7 @@ mod tests {
 		let (key_pair, clusters, acl_storages, sessions) = prepare_decryption_sessions();
 
 		// now let's try to do a decryption
-		sessions[0].initialize(Default::default(), false, false).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap();
 
 		// we need 4 out of 5 nodes to agree to do a decryption
 		// let's say that 2 of these nodes are disagree
@@ -1286,7 +1305,7 @@ mod tests {
 		acl_storages[0].prohibit(public_to_address(key_pair.public()), SessionId::default());
 
 		// now let's try to do a decryption
-		sessions[0].initialize(Default::default(), false, false).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap();
 
 		do_messages_exchange(&clusters, &sessions).unwrap();
 
@@ -1326,7 +1345,7 @@ mod tests {
 		);
 
 		// now let's try to do a decryption
-		sessions[1].delegate(sessions[0].core.meta.self_node_id.clone(), Default::default(), false, false).unwrap();
+		sessions[1].delegate(sessions[0].core.meta.self_node_id.clone(), Default::default(), Default::default(), false, false).unwrap();
 		do_messages_exchange(&clusters, &sessions).unwrap();
 
 		// now check that:
@@ -1352,7 +1371,7 @@ mod tests {
 		}
 
 		// now let's try to do a decryption
-		sessions[0].initialize(Default::default(), false, false).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), false, false).unwrap();
 		do_messages_exchange(&clusters, &sessions).unwrap();
 
 		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap(), EncryptedDocumentKeyShadow {
@@ -1365,7 +1384,7 @@ mod tests {
 	#[test]
 	fn decryption_result_restored_on_all_nodes_if_broadcast_session_is_completed() {
 		let (_, clusters, _, sessions) = prepare_decryption_sessions();
-		sessions[0].initialize(Default::default(), false, true).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), false, true).unwrap();
 		do_messages_exchange(&clusters, &sessions).unwrap();
 
 		// decryption result must be the same and available on 4 nodes
@@ -1383,7 +1402,7 @@ mod tests {
 	#[test]
 	fn decryption_shadows_restored_on_all_nodes_if_shadow_broadcast_session_is_completed() {
 		let (key_pair, clusters, _, sessions) = prepare_decryption_sessions();
-		sessions[0].initialize(Default::default(), true, true).unwrap();
+		sessions[0].initialize(Default::default(), Default::default(), true, true).unwrap();
 		do_messages_exchange(&clusters, &sessions).unwrap();
 
 		// decryption shadows must be the same and available on 4 nodes

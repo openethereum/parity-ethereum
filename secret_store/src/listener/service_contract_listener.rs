@@ -111,16 +111,16 @@ struct ServiceContractRetryData {
 pub enum ServiceTask {
 	/// Retry all 'stalled' tasks.
 	Retry,
-	/// Generate server key (server_key_id, author, threshold).
-	GenerateServerKey(ServerKeyId, Address, usize),
-	/// Retrieve server key (server_key_id).
-	RetrieveServerKey(ServerKeyId),
-	/// Store document key (server_key_id, author, common_point, encrypted_point).
-	StoreDocumentKey(ServerKeyId, Address, Public, Public),
-	/// Retrieve common data of document key (server_key_id, requester).
-	RetrieveShadowDocumentKeyCommon(ServerKeyId, Address),
-	/// Retrieve personal data of document key (server_key_id, requester).
-	RetrieveShadowDocumentKeyPersonal(ServerKeyId, Public),
+	/// Generate server key (origin, server_key_id, author, threshold).
+	GenerateServerKey(Address, ServerKeyId, Address, usize),
+	/// Retrieve server key (origin, server_key_id).
+	RetrieveServerKey(Address, ServerKeyId),
+	/// Store document key (origin, server_key_id, author, common_point, encrypted_point).
+	StoreDocumentKey(Address, ServerKeyId, Address, Public, Public),
+	/// Retrieve common data of document key (origin, server_key_id, requester).
+	RetrieveShadowDocumentKeyCommon(Address, ServerKeyId, Address),
+	/// Retrieve personal data of document key (origin, server_key_id, requester).
+	RetrieveShadowDocumentKeyPersonal(Address, ServerKeyId, Public),
 	/// Shutdown listener.
 	Shutdown,
 }
@@ -167,29 +167,30 @@ impl ServiceContractListener {
 	fn filter_task(data: &Arc<ServiceContractListenerData>, task: ServiceTask) -> Option<ServiceTask> {
 		match task {
 			// when this node should be master of this server key generation session
-			ServiceTask::GenerateServerKey(server_key_id, author, threshold) if is_processed_by_this_key_server(
+			ServiceTask::GenerateServerKey(origin, server_key_id, author, threshold) if is_processed_by_this_key_server(
 				&*data.key_server_set, &*data.self_key_pair, &server_key_id) =>
-				Some(ServiceTask::GenerateServerKey(server_key_id, author, threshold)),
+				Some(ServiceTask::GenerateServerKey(origin, server_key_id, author, threshold)),
 			// when server key is not yet generated and generation must be initiated by other node
-			ServiceTask::GenerateServerKey(_, _, _) => None,
+			ServiceTask::GenerateServerKey(_, _, _, _) => None,
 
 			// when server key retrieval is requested
-			ServiceTask::RetrieveServerKey(server_key_id) => Some(ServiceTask::RetrieveServerKey(server_key_id)),
+			ServiceTask::RetrieveServerKey(origin, server_key_id) =>
+				Some(ServiceTask::RetrieveServerKey(origin, server_key_id)),
 
 			// when document key store is requested
-			ServiceTask::StoreDocumentKey(server_key_id, author, common_point, encrypted_point) =>
-				Some(ServiceTask::StoreDocumentKey(server_key_id, author, common_point, encrypted_point)),
+			ServiceTask::StoreDocumentKey(origin, server_key_id, author, common_point, encrypted_point) =>
+				Some(ServiceTask::StoreDocumentKey(origin, server_key_id, author, common_point, encrypted_point)),
 
 			// when common document key data retrieval is requested
-			ServiceTask::RetrieveShadowDocumentKeyCommon(server_key_id, requester) =>
-				Some(ServiceTask::RetrieveShadowDocumentKeyCommon(server_key_id, requester)),
+			ServiceTask::RetrieveShadowDocumentKeyCommon(origin, server_key_id, requester) =>
+				Some(ServiceTask::RetrieveShadowDocumentKeyCommon(origin, server_key_id, requester)),
 
 			// when this node should be master of this document key decryption session
-			ServiceTask::RetrieveShadowDocumentKeyPersonal(server_key_id, requester) if is_processed_by_this_key_server(
+			ServiceTask::RetrieveShadowDocumentKeyPersonal(origin, server_key_id, requester) if is_processed_by_this_key_server(
 				&*data.key_server_set, &*data.self_key_pair, &server_key_id) =>
-				Some(ServiceTask::RetrieveShadowDocumentKeyPersonal(server_key_id, requester)),
+				Some(ServiceTask::RetrieveShadowDocumentKeyPersonal(origin, server_key_id, requester)),
 			// when server key is not yet generated and generation must be initiated by other node
-			ServiceTask::RetrieveShadowDocumentKeyPersonal(_, _) => None,
+			ServiceTask::RetrieveShadowDocumentKeyPersonal(_, _, _) => None,
 
 			ServiceTask::Retry | ServiceTask::Shutdown => unreachable!("must be filtered outside"),
 		}
@@ -214,30 +215,30 @@ impl ServiceContractListener {
 	/// Process single service task.
 	fn process_service_task(data: &Arc<ServiceContractListenerData>, task: ServiceTask) -> Result<(), String> {
 		match &task {
-			&ServiceTask::GenerateServerKey(server_key_id, author, threshold) => {
+			&ServiceTask::GenerateServerKey(origin, server_key_id, author, threshold) => {
 				data.retry_data.lock().affected_server_keys.insert(server_key_id.clone());
 				log_service_task_result(&task, data.self_key_pair.public(),
-					Self::generate_server_key(&data, &server_key_id, author, threshold))
+					Self::generate_server_key(&data, origin, &server_key_id, author, threshold))
 			},
-			&ServiceTask::RetrieveServerKey(server_key_id) => {
+			&ServiceTask::RetrieveServerKey(origin, server_key_id) => {
 				data.retry_data.lock().affected_server_keys.insert(server_key_id.clone());
 				log_service_task_result(&task, data.self_key_pair.public(),
-					Self::retrieve_server_key(&data, &server_key_id))
+					Self::retrieve_server_key(&data, origin, &server_key_id))
 			},
-			&ServiceTask::StoreDocumentKey(server_key_id, author, common_point, encrypted_point) => {
+			&ServiceTask::StoreDocumentKey(origin, server_key_id, author, common_point, encrypted_point) => {
 				data.retry_data.lock().affected_document_keys.insert((server_key_id.clone(), author.clone()));
 				log_service_task_result(&task, data.self_key_pair.public(),
-					Self::store_document_key(&data, &server_key_id, &author, &common_point, &encrypted_point))
+					Self::store_document_key(&data, origin, &server_key_id, &author, &common_point, &encrypted_point))
 			},
-			&ServiceTask::RetrieveShadowDocumentKeyCommon(server_key_id, requester) => {
+			&ServiceTask::RetrieveShadowDocumentKeyCommon(origin, server_key_id, requester) => {
 				data.retry_data.lock().affected_document_keys.insert((server_key_id.clone(), requester.clone()));
 				log_service_task_result(&task, data.self_key_pair.public(),
-					Self::retrieve_document_key_common(&data, &server_key_id, &requester))
+					Self::retrieve_document_key_common(&data, origin, &server_key_id, &requester))
 			},
-			&ServiceTask::RetrieveShadowDocumentKeyPersonal(server_key_id, requester) => {
+			&ServiceTask::RetrieveShadowDocumentKeyPersonal(origin, server_key_id, requester) => {
 				data.retry_data.lock().affected_server_keys.insert(server_key_id.clone());
 				log_service_task_result(&task, data.self_key_pair.public(),
-					Self::retrieve_document_key_personal(&data, &server_key_id, requester))
+					Self::retrieve_document_key_personal(&data, origin, &server_key_id, requester))
 			},
 			&ServiceTask::Retry => {
 				Self::retry_pending_requests(&data)
@@ -273,12 +274,12 @@ impl ServiceContractListener {
 			}
 
 			match task {
-				ServiceTask::GenerateServerKey(ref key, _, _) | ServiceTask::RetrieveServerKey(ref key)
+				ServiceTask::GenerateServerKey(_, ref key, _, _) | ServiceTask::RetrieveServerKey(_, ref key)
 					if retry_data.affected_server_keys.contains(key) => continue,
-				ServiceTask::StoreDocumentKey(ref key, ref author, _, _) |
-					ServiceTask::RetrieveShadowDocumentKeyCommon(ref key, ref author)
+				ServiceTask::StoreDocumentKey(_, ref key, ref author, _, _) |
+					ServiceTask::RetrieveShadowDocumentKeyCommon(_, ref key, ref author)
 					if retry_data.affected_document_keys.contains(&(key.clone(), author.clone())) => continue,
-				ServiceTask::RetrieveShadowDocumentKeyPersonal(ref key, ref requester)
+				ServiceTask::RetrieveShadowDocumentKeyPersonal(_, ref key, ref requester)
 					if retry_data.affected_document_keys.contains(&(key.clone(), public_to_address(requester))) => continue,
 				_ => (),
 			}
@@ -300,22 +301,22 @@ impl ServiceContractListener {
 	}
 
 	/// Generate server key (start generation session).
-	fn generate_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, author: Address, threshold: usize) -> Result<(), String> {
-		Self::process_server_key_generation_result(data, server_key_id, data.cluster.new_generation_session(
-			server_key_id.clone(), author, threshold).map(|_| None).map_err(Into::into))
+	fn generate_server_key(data: &Arc<ServiceContractListenerData>, origin: Address, server_key_id: &ServerKeyId, author: Address, threshold: usize) -> Result<(), String> {
+		Self::process_server_key_generation_result(data, origin, server_key_id, data.cluster.new_generation_session(
+			server_key_id.clone(), Some(origin), author, threshold).map(|_| None).map_err(Into::into))
 	}
 
 	/// Process server key generation result.
-	fn process_server_key_generation_result(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, result: Result<Option<Public>, Error>) -> Result<(), String> {
+	fn process_server_key_generation_result(data: &Arc<ServiceContractListenerData>, origin: Address, server_key_id: &ServerKeyId, result: Result<Option<Public>, Error>) -> Result<(), String> {
 		match result {
 			Ok(None) => Ok(()),
 			Ok(Some(server_key)) => {
-				data.contract.publish_generated_server_key(server_key_id, server_key)
+				data.contract.publish_generated_server_key(&origin, server_key_id, server_key)
 			},
 			Err(ref error) if is_internal_error(error) => Err(format!("{}", error)),
 			Err(ref error) => {
 				// ignore error as we're already processing an error
-				let _ = data.contract.publish_server_key_generation_error(server_key_id)
+				let _ = data.contract.publish_server_key_generation_error(&origin, server_key_id)
 					.map_err(|error| warn!(target: "secretstore", "{}: failed to publish GenerateServerKey({}) error: {}",
 						data.self_key_pair.public(), server_key_id, error));
 				Err(format!("{}", error))
@@ -324,18 +325,18 @@ impl ServiceContractListener {
 	}
 
 	/// Retrieve server key.
-	fn retrieve_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId) -> Result<(), String> {
+	fn retrieve_server_key(data: &Arc<ServiceContractListenerData>, origin: Address, server_key_id: &ServerKeyId) -> Result<(), String> {
 		match data.key_storage.get(server_key_id) {
 			Ok(Some(server_key_share)) => {
-				data.contract.publish_retrieved_server_key(server_key_id, server_key_share.public, server_key_share.threshold)
+				data.contract.publish_retrieved_server_key(&origin, server_key_id, server_key_share.public, server_key_share.threshold)
 			},
 			Ok(None) => {
-				data.contract.publish_server_key_retrieval_error(server_key_id)
+				data.contract.publish_server_key_retrieval_error(&origin, server_key_id)
 			}
 			Err(ref error) if is_internal_error(error) => Err(format!("{}", error)),
 			Err(ref error) => {
 				// ignore error as we're already processing an error
-				let _ = data.contract.publish_server_key_retrieval_error(server_key_id)
+				let _ = data.contract.publish_server_key_retrieval_error(&origin, server_key_id)
 					.map_err(|error| warn!(target: "secretstore", "{}: failed to publish RetrieveServerKey({}) error: {}",
 						data.self_key_pair.public(), server_key_id, error));
 				Err(format!("{}", error))
@@ -344,7 +345,7 @@ impl ServiceContractListener {
 	}
 
 	/// Store document key.
-	fn store_document_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, author: &Address, common_point: &Public, encrypted_point: &Public) -> Result<(), String> {
+	fn store_document_key(data: &Arc<ServiceContractListenerData>, origin: Address, server_key_id: &ServerKeyId, author: &Address, common_point: &Public, encrypted_point: &Public) -> Result<(), String> {
 		let store_result = data.key_storage.get(server_key_id)
 			.and_then(|key_share| key_share.ok_or(Error::DocumentNotFound))
 			.and_then(|key_share| check_encrypted_data(Some(&key_share)).map(|_| key_share).map_err(Into::into))
@@ -352,12 +353,12 @@ impl ServiceContractListener {
 				author.clone(), common_point.clone(), encrypted_point.clone()).map_err(Into::into));
 		match store_result {
 			Ok(()) => {
-				data.contract.publish_stored_document_key(server_key_id)
+				data.contract.publish_stored_document_key(&origin, server_key_id)
 			},
 			Err(ref error) if is_internal_error(&error) => Err(format!("{}", error)),
 			Err(ref error) => {
 				// ignore error as we're already processing an error
-				let _ = data.contract.publish_document_key_store_error(server_key_id)
+				let _ = data.contract.publish_document_key_store_error(&origin, server_key_id)
 					.map_err(|error| warn!(target: "secretstore", "{}: failed to publish StoreDocumentKey({}) error: {}",
 						data.self_key_pair.public(), server_key_id, error));
 				Err(format!("{}", error))
@@ -366,7 +367,7 @@ impl ServiceContractListener {
 	}
 
 	/// Retrieve common part of document key.
-	fn retrieve_document_key_common(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String> {
+	fn retrieve_document_key_common(data: &Arc<ServiceContractListenerData>, origin: Address, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String> {
 		let retrieval_result = data.acl_storage.check(requester.clone(), server_key_id)
 			.and_then(|is_allowed| if !is_allowed { Err(Error::AccessDenied) } else { Ok(()) })
 			.and_then(|_| data.key_storage.get(server_key_id).and_then(|key_share| key_share.ok_or(Error::DocumentNotFound)))
@@ -377,12 +378,12 @@ impl ServiceContractListener {
 				.map(|common_point| (common_point, key_share.threshold)));
 		match retrieval_result {
 			Ok((common_point, threshold)) => {
-				data.contract.publish_retrieved_document_key_common(server_key_id, requester, common_point, threshold)
+				data.contract.publish_retrieved_document_key_common(&origin, server_key_id, requester, common_point, threshold)
 			},
 			Err(ref error) if is_internal_error(&error) => Err(format!("{}", error)),
 			Err(ref error) => {
 				// ignore error as we're already processing an error
-				let _ = data.contract.publish_document_key_retrieval_error(server_key_id, requester)
+				let _ = data.contract.publish_document_key_retrieval_error(&origin, server_key_id, requester)
 					.map_err(|error| warn!(target: "secretstore", "{}: failed to publish RetrieveDocumentKey({}) error: {}",
 						data.self_key_pair.public(), server_key_id, error));
 				Err(format!("{}", error))
@@ -391,22 +392,22 @@ impl ServiceContractListener {
 	}
 
 	/// Retrieve personal part of document key (start decryption session).
-	fn retrieve_document_key_personal(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, requester: Public) -> Result<(), String> {
-		Self::process_document_key_retrieval_result(data, server_key_id, &public_to_address(&requester), data.cluster.new_decryption_session(
-			server_key_id.clone(), requester.clone().into(), None, true, true).map(|_| None).map_err(Into::into))
+	fn retrieve_document_key_personal(data: &Arc<ServiceContractListenerData>, origin: Address, server_key_id: &ServerKeyId, requester: Public) -> Result<(), String> {
+		Self::process_document_key_retrieval_result(data, origin, server_key_id, &public_to_address(&requester), data.cluster.new_decryption_session(
+			server_key_id.clone(), Some(origin), requester.clone().into(), None, true, true).map(|_| None).map_err(Into::into))
 	}
 
 	/// Process document key retrieval result.
-	fn process_document_key_retrieval_result(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, requester: &Address, result: Result<Option<(Vec<Address>, Public, Bytes)>, Error>) -> Result<(), String> {
+	fn process_document_key_retrieval_result(data: &Arc<ServiceContractListenerData>, origin: Address, server_key_id: &ServerKeyId, requester: &Address, result: Result<Option<(Vec<Address>, Public, Bytes)>, Error>) -> Result<(), String> {
 		match result {
 			Ok(None) => Ok(()),
 			Ok(Some((participants, decrypted_secret, shadow))) => {
-				data.contract.publish_retrieved_document_key_personal(server_key_id, &requester, &participants, decrypted_secret, shadow)
+				data.contract.publish_retrieved_document_key_personal(&origin, server_key_id, &requester, &participants, decrypted_secret, shadow)
 			},
 			Err(ref error) if is_internal_error(error) => Err(format!("{}", error)),
 			Err(ref error) => {
 				// ignore error as we're already processing an error
-				let _ = data.contract.publish_document_key_retrieval_error(server_key_id, &requester)
+				let _ = data.contract.publish_document_key_retrieval_error(&origin, server_key_id, &requester)
 					.map_err(|error| warn!(target: "secretstore", "{}: failed to publish RetrieveDocumentKey({}) error: {}",
 						data.self_key_pair.public(), server_key_id, error));
 				Err(format!("{}", error))
@@ -454,9 +455,11 @@ impl ClusterSessionsListener<GenerationSession> for ServiceContractListener {
 
 		// ignore result - the only thing that we can do is to log the error
 		let server_key_id = session.id();
-		if let Some(generation_result) = session.wait(Some(Default::default())) {
-			let generation_result = generation_result.map(Some).map_err(Into::into);
-			let _ = Self::process_server_key_generation_result(&self.data, &server_key_id, generation_result);
+		if let Some(origin) = session.origin() {
+			if let Some(generation_result) = session.wait(Some(Default::default())) {
+				let generation_result = generation_result.map(Some).map_err(Into::into);
+				let _ = Self::process_server_key_generation_result(&self.data, origin, &server_key_id, generation_result);
+			}
 		}
 	}
 }
@@ -470,18 +473,20 @@ impl ClusterSessionsListener<DecryptionSession> for ServiceContractListener {
 		let session_id = session.id();
 		let server_key_id = session_id.id;
 		if let Some(requester) = session.requester().and_then(|r| r.address(&server_key_id).ok()) {
-			if let Some(retrieval_result) = session.wait(Some(Default::default())) {
-				let retrieval_result = retrieval_result.map(|key_shadow|
-					session.broadcast_shadows()
-						.and_then(|broadcast_shadows|
-							broadcast_shadows.get(self.data.self_key_pair.public())
-								.map(|self_shadow| (
-									broadcast_shadows.keys().map(public_to_address).collect(),
-									key_shadow.decrypted_secret,
-									self_shadow.clone()
-								)))
-				).map_err(Into::into);
-				let _ = Self::process_document_key_retrieval_result(&self.data, &server_key_id, &requester, retrieval_result);
+			if let Some(origin) = session.origin() {
+				if let Some(retrieval_result) = session.wait(Some(Default::default())) {
+					let retrieval_result = retrieval_result.map(|key_shadow|
+						session.broadcast_shadows()
+							.and_then(|broadcast_shadows|
+								broadcast_shadows.get(self.data.self_key_pair.public())
+									.map(|self_shadow| (
+										broadcast_shadows.keys().map(public_to_address).collect(),
+										key_shadow.decrypted_secret,
+										self_shadow.clone()
+									)))
+					).map_err(Into::into);
+					let _ = Self::process_document_key_retrieval_result(&self.data, origin, &server_key_id, &requester, retrieval_result);
+				}
 			}
 		}
 	}
@@ -491,15 +496,15 @@ impl ::std::fmt::Display for ServiceTask {
 	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
 		match *self {
 			ServiceTask::Retry => write!(f, "Retry"),
-			ServiceTask::GenerateServerKey(ref server_key_id, ref author, ref threshold) =>
+			ServiceTask::GenerateServerKey(_, ref server_key_id, ref author, ref threshold) =>
 				write!(f, "GenerateServerKey({}, {}, {})", server_key_id, author, threshold),
-			ServiceTask::RetrieveServerKey(ref server_key_id) =>
+			ServiceTask::RetrieveServerKey(_, ref server_key_id) =>
 				write!(f, "RetrieveServerKey({})", server_key_id),
-			ServiceTask::StoreDocumentKey(ref server_key_id, ref author, _, _) =>
+			ServiceTask::StoreDocumentKey(_, ref server_key_id, ref author, _, _) =>
 				write!(f, "StoreDocumentKey({}, {})", server_key_id, author),
-			ServiceTask::RetrieveShadowDocumentKeyCommon(ref server_key_id, ref requester) =>
+			ServiceTask::RetrieveShadowDocumentKeyCommon(_, ref server_key_id, ref requester) =>
 				write!(f, "RetrieveShadowDocumentKeyCommon({}, {})", server_key_id, requester),
-			ServiceTask::RetrieveShadowDocumentKeyPersonal(ref server_key_id, ref requester) =>
+			ServiceTask::RetrieveShadowDocumentKeyPersonal(_, ref server_key_id, ref requester) =>
 				write!(f, "RetrieveShadowDocumentKeyPersonal({}, {})", server_key_id, public_to_address(requester)),
 			ServiceTask::Shutdown => write!(f, "Shutdown"),
 		}
@@ -751,20 +756,20 @@ mod tests {
 	#[test]
 	fn server_key_generation_is_scheduled_when_requested() {
 		let mut contract = DummyServiceContract::default();
-		contract.logs.push(ServiceTask::GenerateServerKey(Default::default(), Default::default(), 0));
+		contract.logs.push(ServiceTask::GenerateServerKey(Default::default(), Default::default(), Default::default(), 0));
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
 		listener.process_service_contract_events();
 		assert_eq!(listener.data.tasks_queue.snapshot().len(), 2);
 		assert_eq!(listener.data.tasks_queue.snapshot().pop_back(), Some(ServiceTask::GenerateServerKey(
-			Default::default(), Default::default(), 0)));
+			Default::default(), Default::default(), Default::default(), 0)));
 	}
 
 	#[test]
 	fn no_new_tasks_scheduled_when_server_key_generation_requested_and_request_belongs_to_other_key_server() {
 		let server_key_id = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse().unwrap();
 		let mut contract = DummyServiceContract::default();
-		contract.logs.push(ServiceTask::GenerateServerKey(server_key_id, Default::default(), 0));
+		contract.logs.push(ServiceTask::GenerateServerKey(Default::default(), server_key_id, Default::default(), 0));
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
 		listener.process_service_contract_events();
@@ -776,31 +781,31 @@ mod tests {
 		let cluster = Arc::new(DummyClusterClient::default());
 		let listener = make_service_contract_listener(None, Some(cluster.clone()), None);
 		ServiceContractListener::process_service_task(&listener.data, ServiceTask::GenerateServerKey(
-			Default::default(), Default::default(), Default::default())).unwrap_err();
+			Default::default(), Default::default(), Default::default(), Default::default())).unwrap_err();
 		assert_eq!(cluster.generation_requests_count.load(Ordering::Relaxed), 1);
 	}
 
 	#[test]
 	fn server_key_retrieval_is_scheduled_when_requested() {
 		let mut contract = DummyServiceContract::default();
-		contract.logs.push(ServiceTask::RetrieveServerKey(Default::default()));
+		contract.logs.push(ServiceTask::RetrieveServerKey(Default::default(), Default::default()));
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
 		listener.process_service_contract_events();
 		assert_eq!(listener.data.tasks_queue.snapshot().len(), 2);
-		assert_eq!(listener.data.tasks_queue.snapshot().pop_back(), Some(ServiceTask::RetrieveServerKey(Default::default())));
+		assert_eq!(listener.data.tasks_queue.snapshot().pop_back(), Some(ServiceTask::RetrieveServerKey(Default::default(), Default::default())));
 	}
 
 	#[test]
 	fn retrieval_scheduled_when_requested_and_request_belongs_to_other_key_server() {
 		let server_key_id: ServerKeyId = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse().unwrap();
 		let mut contract = DummyServiceContract::default();
-		contract.logs.push(ServiceTask::RetrieveServerKey(server_key_id.clone()));
+		contract.logs.push(ServiceTask::RetrieveServerKey(Default::default(), server_key_id.clone()));
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), None, None);
 		assert_eq!(listener.data.tasks_queue.snapshot().len(), 1);
 		listener.process_service_contract_events();
 		assert_eq!(listener.data.tasks_queue.snapshot().len(), 2);
-		assert_eq!(listener.data.tasks_queue.snapshot().pop_back(), Some(ServiceTask::RetrieveServerKey(server_key_id)));
+		assert_eq!(listener.data.tasks_queue.snapshot().pop_back(), Some(ServiceTask::RetrieveServerKey(Default::default(), server_key_id)));
 	}
 
 	#[test]
@@ -812,7 +817,7 @@ mod tests {
 			.parse().unwrap()).unwrap().public().clone();
 		key_storage.insert(Default::default(), key_share.clone()).unwrap();
 		let listener = make_service_contract_listener(Some(contract.clone()), None, Some(key_storage));
-		ServiceContractListener::process_service_task(&listener.data, ServiceTask::RetrieveServerKey(Default::default())).unwrap();
+		ServiceContractListener::process_service_task(&listener.data, ServiceTask::RetrieveServerKey(Default::default(), Default::default())).unwrap();
 		assert_eq!(*contract.retrieved_server_keys.lock(), vec![(Default::default(), key_share.public)]);
 	}
 
@@ -820,7 +825,7 @@ mod tests {
 	fn server_key_generation_is_not_retried_if_tried_in_the_same_cycle() {
 		let mut contract = DummyServiceContract::default();
 		contract.pending_requests.push((false, ServiceTask::GenerateServerKey(Default::default(),
-			Default::default(), Default::default())));
+			Default::default(), Default::default(), Default::default())));
 		let cluster = Arc::new(DummyClusterClient::default());
 		let listener = make_service_contract_listener(Some(Arc::new(contract)), Some(cluster.clone()), None);
 		listener.data.retry_data.lock().affected_server_keys.insert(Default::default());
