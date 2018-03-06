@@ -14,33 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Traces config.
-use bloomchain::Config as BloomConfig;
+//! Bridge between bloomchain crate types and ethcore.
 
-/// Traces config.
-#[derive(Debug, PartialEq, Clone)]
-pub struct Config {
-	/// Indicates if tracing should be enabled or not.
-	/// If it's None, it will be automatically configured.
-	pub enabled: bool,
-	/// Traces blooms configuration.
-	pub blooms: BloomConfig,
-	/// Preferef cache-size.
-	pub pref_cache_size: usize,
-	/// Max cache-size.
-	pub max_cache_size: usize,
-}
+mod bloom_group;
+mod group_position;
 
-impl Default for Config {
-	fn default() -> Self {
-		Config {
-			enabled: false,
-			blooms: BloomConfig {
-				levels: 3,
-				elements_per_index: 16,
-			},
-			pref_cache_size: 15 * 1024 * 1024,
-			max_cache_size: 20 * 1024 * 1024,
-		}
-	}
-}
+pub use self::bloom_group::BloomGroup;
+pub use self::group_position::GroupPosition;

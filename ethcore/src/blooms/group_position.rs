@@ -14,33 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Traces config.
-use bloomchain::Config as BloomConfig;
+use bloomchain::group as bc;
+use heapsize::HeapSizeOf;
 
-/// Traces config.
-#[derive(Debug, PartialEq, Clone)]
-pub struct Config {
-	/// Indicates if tracing should be enabled or not.
-	/// If it's None, it will be automatically configured.
-	pub enabled: bool,
-	/// Traces blooms configuration.
-	pub blooms: BloomConfig,
-	/// Preferef cache-size.
-	pub pref_cache_size: usize,
-	/// Max cache-size.
-	pub max_cache_size: usize,
+/// Represents `BloomGroup` position in database.
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+pub struct GroupPosition {
+	/// Bloom level.
+	pub level: u8,
+	/// Group index.
+	pub index: u32,
 }
 
-impl Default for Config {
-	fn default() -> Self {
-		Config {
-			enabled: false,
-			blooms: BloomConfig {
-				levels: 3,
-				elements_per_index: 16,
-			},
-			pref_cache_size: 15 * 1024 * 1024,
-			max_cache_size: 20 * 1024 * 1024,
+impl From<bc::GroupPosition> for GroupPosition {
+	fn from(p: bc::GroupPosition) -> Self {
+		GroupPosition {
+			level: p.level as u8,
+			index: p.index as u32,
 		}
+	}
+}
+
+impl HeapSizeOf for GroupPosition {
+	fn heap_size_of_children(&self) -> usize {
+		0
 	}
 }

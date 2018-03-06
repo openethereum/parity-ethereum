@@ -14,33 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Traces config.
-use bloomchain::Config as BloomConfig;
+use bloomchain::group as bc;
+use heapsize::HeapSizeOf;
+use ethereum_types::Bloom;
 
-/// Traces config.
-#[derive(Debug, PartialEq, Clone)]
-pub struct Config {
-	/// Indicates if tracing should be enabled or not.
-	/// If it's None, it will be automatically configured.
-	pub enabled: bool,
-	/// Traces blooms configuration.
-	pub blooms: BloomConfig,
-	/// Preferef cache-size.
-	pub pref_cache_size: usize,
-	/// Max cache-size.
-	pub max_cache_size: usize,
+/// Represents group of X consecutive blooms.
+#[derive(Debug, Clone, RlpEncodableWrapper, RlpDecodableWrapper)]
+pub struct BloomGroup {
+	blooms: Vec<Bloom>,
 }
 
-impl Default for Config {
-	fn default() -> Self {
-		Config {
-			enabled: false,
-			blooms: BloomConfig {
-				levels: 3,
-				elements_per_index: 16,
-			},
-			pref_cache_size: 15 * 1024 * 1024,
-			max_cache_size: 20 * 1024 * 1024,
+impl From<bc::BloomGroup> for BloomGroup {
+	fn from(group: bc::BloomGroup) -> Self {
+		BloomGroup {
+			blooms: group.blooms
 		}
+	}
+}
+
+impl Into<bc::BloomGroup> for BloomGroup {
+	fn into(self) -> bc::BloomGroup {
+		bc::BloomGroup {
+			blooms: self.blooms
+		}
+	}
+}
+
+impl HeapSizeOf for BloomGroup {
+	fn heap_size_of_children(&self) -> usize {
+		self.blooms.heap_size_of_children()
 	}
 }
