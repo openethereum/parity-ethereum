@@ -16,7 +16,7 @@
 
 //! Private transactions module.
 
-#![recursion_limit="128"]
+#![recursion_limit="256"]
 
 pub mod encryptor;
 pub mod private_transactions;
@@ -326,15 +326,23 @@ impl Provider where {
 									self.broadcast_signed_private_transaction(signed_private_transaction.rlp_bytes().into_vec());
 								} else {
 									trace!("Cannot unlock account");
+									return Err(ErrorKind::CannotUnlockAccount(*account).into());
 								}
 							} else {
 								trace!("Incorrect type of action for the transaction");
+								return Err(ErrorKind::BadTransactonType.into());
 							}
 						}
-						None => trace!("Cannot find validator account in config"),
+						None => {
+							trace!("Cannot find validator account in config");
+							return Err(ErrorKind::ValidatorAccountNotSet.into());
+						}
 					}
 				},
-				Err(e) => trace!("Cannot retrieve descriptor for transaction with error {:?}", e),
+				Err(e) => {
+					trace!("Cannot retrieve descriptor for transaction with error {:?}", e);
+					return Err(e);
+				}
 			}
 			verification_queue.remove_private_transaction(&transaction_hash, &fetch_nonce);
 		}
@@ -373,30 +381,36 @@ impl Provider where {
 			let chain_id = desc.original_transaction.chain_id();
 			let hash = public_tx.hash(chain_id);
 			let signer_account = self.config.signer_account.ok_or_else(|| ErrorKind::SignerAccountNotSet)?;
-			/*let signer_account = match self.config.signer_account {
-				Some(account) => account,
-				None => bail!(ErrorKind::SignerAccountNotSet),
-			};*/
 			if self.unlock_account(&signer_account) {
 				let signature = self.accounts.sign(signer_account.clone(), None, hash)?;
 				let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
 				match self.client.miner().import_own_transaction(&*self.client as &MiningBlockChainClient, signed.into()) {
 					Ok(_) => trace!("Public transaction added to queue"),
-					Err(err) => trace!("Failed to add transaction to queue, error: {:?}", err),
+					Err(err) => {
+						trace!("Failed to add transaction to queue, error: {:?}", err);
+						return Err(err.into());
+					}
 				}
 			} else {
 				trace!("Cannot unlock account");
+				return Err(ErrorKind::CannotUnlockAccount(signer_account).into());
 			}
 			//Remove from store for signing
 			match self.transactions_for_signing.lock().remove(&private_hash) {
 				Ok(_) => {}
-				Err(err) => trace!("Failed to remove transaction from signing store, error: {:?}", err),
+				Err(err) => {
+					trace!("Failed to remove transaction from signing store, error: {:?}", err);
+					return Err(err);
+				}
 			}
 		} else {
 			//Add signature to the store
 			match self.transactions_for_signing.lock().add_signature(&private_hash, tx.signature()) {
 				Ok(_) => trace!("Signature stored for private transaction"),
-				Err(err) => trace!("Failed to add signature to signing store, error: {:?}", err),
+				Err(err) => {
+					trace!("Failed to add signature to signing store, error: {:?}", err);
+					return Err(err);
+				}
 			}
 		}
 		Ok(())

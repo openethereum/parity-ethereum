@@ -18,7 +18,7 @@ use ethereum_types::Address;
 use rlp::DecoderError;
 use trie::TrieError;
 use ethcore::account_provider::SignError;
-use ethcore::error::ExecutionError;
+use ethcore::error::{Error as EthcoreError, ExecutionError};
 use transaction::Error as TransactionError;
 use ethkey::Error as KeyError;
 
@@ -114,6 +114,18 @@ error_chain! {
 			display("Account for signing public transactions not set."),
 		}
 
+		#[doc = "Cannot unlock the account."]
+		CannotUnlockAccount(address: Address) {
+			description("Cannot unlock the account. The password not set or incorrect."),
+			display("Cannot unlock the account."),
+		}
+
+		#[doc = "Account for validating private transactions not set."]
+		ValidatorAccountNotSet {
+			description("Account for validating private transactions not set."),
+			display("Account for validating private transactions not set."),
+		}
+
 		#[doc = "Account for signing requests to key server not set."]
 		KeyServerAccountNotSet {
 			description("Account for signing requests to key server not set."),
@@ -155,6 +167,12 @@ error_chain! {
 			description("Error of transactions processing."),
 			display("Error of transactions processing {}", err),
 		}
+
+		#[doc = "General ethcore error."]
+		Ethcore(err: EthcoreError) {
+			description("General ethcore error."),
+			display("General ethcore error {}", err),
+		}
 	}
 }
 
@@ -179,6 +197,12 @@ impl From<ExecutionError> for Error {
 impl From<TransactionError> for Error {
 	fn from(err: TransactionError) -> Self {
 		ErrorKind::Transaction(err).into()
+	}
+}
+
+impl From<EthcoreError> for Error {
+	fn from(err: EthcoreError) -> Self {
+		ErrorKind::Ethcore(err).into()
 	}
 }
 
