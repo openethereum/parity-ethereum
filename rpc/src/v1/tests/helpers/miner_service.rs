@@ -321,4 +321,8 @@ impl MinerService for TestMinerService {
 	fn sensible_gas_price(&self) -> U256 {
 		20000000000u64.into()
 	}
+
+	fn increase_time(&self, _increase: U256) -> U256 {
+		0.into()
+	}
 }
