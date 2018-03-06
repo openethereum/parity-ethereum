@@ -216,17 +216,15 @@ impl BlockProvider for BlockChain {
 
 	/// Get raw block data
 	fn block(&self, hash: &H256) -> Option<encoded::Block> {
-		match (self.block_header_data(hash), self.block_body(hash)) {
-			(Some(header), Some(body)) => {
-				let mut block = RlpStream::new_list(3);
-				let body_rlp = body.rlp();
-				block.append_raw(header.rlp().as_raw(), 1);
-				block.append_raw(body_rlp.at(0).as_raw(), 1);
-				block.append_raw(body_rlp.at(1).as_raw(), 1);
-				Some(encoded::Block::new(block.out()))
-			},
-			_ => None,
-		}
+		let header = self.block_header_data(hash)?;
+		let body = self.block_body(hash)?;
+
+		let mut block = RlpStream::new_list(3);
+		let body_rlp = body.rlp();
+		block.append_raw(header.rlp().as_raw(), 1);
+		block.append_raw(body_rlp.at(0).as_raw(), 1);
+		block.append_raw(body_rlp.at(1).as_raw(), 1);
+		Some(encoded::Block::new(block.out()))
 	}
 
 	/// Get block header data
@@ -250,21 +248,15 @@ impl BlockProvider for BlockChain {
 		}
 
 		// Read from DB and populate cache
-		let opt = self.db.get(db::COL_HEADERS, hash)
-			.expect("Low level database error. Some issue with disk?");
+		let b = self.db.get(db::COL_HEADERS, hash)
+			.expect("Low level database error. Some issue with disk?")?;
 
-		let result = match opt {
-			Some(b) => {
-				let bytes = decompress(&b, blocks_swapper()).into_vec();
-				let mut write = self.block_headers.write();
-				write.insert(*hash, bytes.clone());
-				Some(encoded::Header::new(bytes))
-			},
-			None => None
-		};
+		let bytes = decompress(&b, blocks_swapper()).into_vec();
+		let mut write = self.block_headers.write();
+		write.insert(*hash, bytes.clone());
 
 		self.cache_man.lock().note_used(CacheId::BlockHeader(*hash));
-		result
+		Some(encoded::Header::new(bytes))
 	}
 
 	/// Get block body data
@@ -286,50 +278,43 @@ impl BlockProvider for BlockChain {
 		}
 
 		// Read from DB and populate cache
-		let opt = self.db.get(db::COL_BODIES, hash)
-			.expect("Low level database error. Some issue with disk?");
+		let b = self.db.get(db::COL_BODIES, hash)
+			.expect("Low level database error. Some issue with disk?")?;
 
-		let result = match opt {
-			Some(b) => {
-				let bytes = decompress(&b, blocks_swapper()).into_vec();
-				let mut write = self.block_bodies.write();
-				write.insert(*hash, bytes.clone());
-				Some(encoded::Body::new(bytes))
-			},
-			None => None
-		};
+		let bytes = decompress(&b, blocks_swapper()).into_vec();
+		let mut write = self.block_bodies.write();
+		write.insert(*hash, bytes.clone());
 
 		self.cache_man.lock().note_used(CacheId::BlockBody(*hash));
-
-		result
+		Some(encoded::Body::new(bytes))
 	}
 
 	/// Get the familial details concerning a block.
 	fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
-		let result = self.db.read_with_cache(db::COL_EXTRA, &self.block_details, hash);
+		let result = self.db.read_with_cache(db::COL_EXTRA, &self.block_details, hash)?;
 		self.cache_man.lock().note_used(CacheId::BlockDetails(*hash));
-		result
+		Some(result)
 	}
 
 	/// Get the hash of given block's number.
 	fn block_hash(&self, index: BlockNumber) -> Option<H256> {
-		let result = self.db.read_with_cache(db::COL_EXTRA, &self.block_hashes, &index);
+		let result = self.db.read_with_cache(db::COL_EXTRA, &self.block_hashes, &index)?;
 		self.cache_man.lock().note_used(CacheId::BlockHashes(index));
-		result
+		Some(result)
 	}
 
 	/// Get the address of transaction with given hash.
 	fn transaction_address(&self, hash: &H256) -> Option<TransactionAddress> {
-		let result = self.db.read_with_cache(db::COL_EXTRA, &self.transaction_addresses, hash);
+		let result = self.db.read_with_cache(db::COL_EXTRA, &self.transaction_addresses, hash)?;
 		self.cache_man.lock().note_used(CacheId::TransactionAddresses(*hash));
-		result
+		Some(result)
 	}
 
 	/// Get receipts of block with given hash.
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
-		let result = self.db.read_with_cache(db::COL_EXTRA, &self.block_receipts, hash);
+		let result = self.db.read_with_cache(db::COL_EXTRA, &self.block_receipts, hash)?;
 		self.cache_man.lock().note_used(CacheId::BlockReceipts(*hash));
-		result
+		Some(result)
 	}
 
 	fn blocks_with_blooms(&self, blooms: &[Bloom], from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber> {
@@ -428,33 +413,31 @@ impl<'a> Iterator for EpochTransitionIter<'a> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		loop {
-			match self.prefix_iter.next() {
-				Some((key, val)) => {
-					// iterator may continue beyond values beginning with this
-					// prefix.
-					if !key.starts_with(&EPOCH_KEY_PREFIX[..]) { return None }
+			// some epochs never occurred on the main chain.
+			let (key, val) = self.prefix_iter.next()?;
 
-					let transitions: EpochTransitions = ::rlp::decode(&val[..]);
+			// iterator may continue beyond values beginning with this
+			// prefix.
+			if !key.starts_with(&EPOCH_KEY_PREFIX[..]) {
+				return None
+			}
 
-					// if there are multiple candidates, at most one will be on the
-					// canon chain.
-					for transition in transitions.candidates.into_iter() {
-						let is_in_canon_chain = self.chain.block_hash(transition.block_number)
-							.map_or(false, |hash| hash == transition.block_hash);
+			let transitions: EpochTransitions = ::rlp::decode(&val[..]);
 
-						// if the transition is within the block gap, there will only be
-						// one candidate, and it will be from a snapshot restored from.
-						let is_ancient = self.chain.first_block_number()
-							.map_or(false, |first| first > transition.block_number);
+			// if there are multiple candidates, at most one will be on the
+			// canon chain.
+			for transition in transitions.candidates.into_iter() {
+				let is_in_canon_chain = self.chain.block_hash(transition.block_number)
+					.map_or(false, |hash| hash == transition.block_hash);
 
-						if is_ancient || is_in_canon_chain {
-							return Some((transitions.number, transition))
-						}
-					}
+				// if the transition is within the block gap, there will only be
+				// one candidate, and it will be from a snapshot restored from.
+				let is_ancient = self.chain.first_block_number()
+					.map_or(false, |first| first > transition.block_number);
 
-					// some epochs never occurred on the main chain.
+				if is_ancient || is_in_canon_chain {
+					return Some((transitions.number, transition))
 				}
-				None => return None,
 			}
 		}
 	}
@@ -879,7 +862,6 @@ impl BlockChain {
 		let mut update = HashMap::new();
 		update.insert(block_hash, parent_details);
 
-
 		let mut write_details = self.block_details.write();
 		batch.extend_with_cache(db::COL_EXTRA, &mut *write_details, update, CacheUpdatePolicy::Overwrite);
 
@@ -1072,13 +1054,12 @@ impl BlockChain {
 
 	/// Given a block's `parent`, find every block hash which represents a valid possible uncle.
 	pub fn find_uncle_hashes(&self, parent: &H256, uncle_generations: usize) -> Option<Vec<H256>> {
-		if !self.is_known(parent) { return None; }
+		if !self.is_known(parent) {
+			return None;
+		}
 
 		let mut excluded = HashSet::new();
-		let ancestry = match self.ancestry_iter(parent.clone()) {
-			Some(iter) => iter,
-			None => return None,
-		};
+		let ancestry = self.ancestry_iter(parent.clone())?;
 
 		for a in ancestry.clone().take(uncle_generations) {
 			if let Some(uncles) = self.uncle_hashes(&a) {
