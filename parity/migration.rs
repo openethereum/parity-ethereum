@@ -136,7 +136,6 @@ fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> R
 	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
 	manager.add_migration(migrations::TO_V11).map_err(|_| Error::MigrationImpossible)?;
 	manager.add_migration(migrations::TO_V12).map_err(|_| Error::MigrationImpossible)?;
-	manager.add_migration(migrations::ToV13::default()).map_err(|_| Error::MigrationImpossible)?;
 	Ok(manager)
 }
 
