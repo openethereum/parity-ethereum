@@ -912,8 +912,8 @@ impl Client {
 	}
 
 	/// Get io channel
-	pub fn get_io_channel(&self) -> Arc<Mutex<IoChannel<ClientIoMessage>>> {
-		self.io_channel.clone()
+	pub fn get_io_channel(&self) -> IoChannel<ClientIoMessage> {
+		self.io_channel.lock().clone()
 	}
 
 	/// Attempt to get a copy of a specific block's final state.

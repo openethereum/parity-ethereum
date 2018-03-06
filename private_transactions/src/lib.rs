@@ -289,7 +289,6 @@ impl Provider where {
 				match add_res {
 					Ok(_) => {
 						let channel = self.client.get_io_channel();
-						let channel = channel.lock();
 						channel.send(ClientIoMessage::NewPrivateTransaction)
 							.map_err(|_| ErrorKind::ClientIsMalformed.into())
 					},
