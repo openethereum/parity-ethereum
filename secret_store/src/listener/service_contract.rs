@@ -30,8 +30,16 @@ use {ServerKeyId, NodeKeyPair, ContractAddress};
 
 use_contract!(service, "Service", "res/service.json");
 
-/// Name of the SecretStore contract in the registry.
-const SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service";
+/// Name of the general SecretStore contract in the registry.
+pub const SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service";
+/// Name of the server key generation SecretStore contract in the registry.
+pub const SRV_KEY_GEN_SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service_srv_gen";
+/// Name of the server key retrieval SecretStore contract in the registry.
+pub const SRV_KEY_RETR_SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service_srv_retr";
+/// Name of the document key store SecretStore contract in the registry.
+pub const DOC_KEY_STORE_SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service_doc_store";
+/// Name of the document key retrieval SecretStore contract in the registry.
+pub const DOC_KEY_RETR_SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service_doc_retr";
 
 /// Server key generation has been requested.
 const SERVER_KEY_GENERATION_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyGenerationRequested(bytes32,address,uint256)";
@@ -91,6 +99,8 @@ pub struct OnChainServiceContract {
 	client: TrustedClient,
 	/// This node key pair.
 	self_key_pair: Arc<NodeKeyPair>,
+	/// Contract registry name (if any).
+	name: String,
 	/// Contract address.
 	address: ContractAddress,
 	/// Contract.
@@ -128,12 +138,12 @@ struct DocumentKeyShadowRetrievalService;
 
 impl OnChainServiceContract {
 	/// Create new on-chain service contract.
-	pub fn new(mask: ApiMask, client: TrustedClient, address: ContractAddress, self_key_pair: Arc<NodeKeyPair>) -> Self {
+	pub fn new(mask: ApiMask, client: TrustedClient, name: String, address: ContractAddress, self_key_pair: Arc<NodeKeyPair>) -> Self {
 		let contract_addr = match address {
-			ContractAddress::Registry => client.get().and_then(|c| c.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
+			ContractAddress::Registry => client.get().and_then(|c| c.registry_address(name.clone(), BlockId::Latest)
 				.map(|address| {
-					trace!(target: "secretstore", "{}: installing service contract from address {}",
-						self_key_pair.public(), address);
+					trace!(target: "secretstore", "{}: installing {} service contract from address {}",
+						self_key_pair.public(), name, address);
 					address
 				}))
 				.unwrap_or_default(),
@@ -148,6 +158,7 @@ impl OnChainServiceContract {
 			mask: mask,
 			client: client,
 			self_key_pair: self_key_pair,
+			name: name,
 			address: address,
 			contract: service::Service::default(),
 			data: RwLock::new(ServiceData {
@@ -228,10 +239,10 @@ impl ServiceContract for OnChainServiceContract {
 		if let &ContractAddress::Registry = &self.address {
 			if let Some(client) = self.client.get() {
 				// update contract address from registry
-				let service_contract_addr = client.registry_address(SERVICE_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest).unwrap_or_default();
+				let service_contract_addr = client.registry_address(self.name.clone(), BlockId::Latest).unwrap_or_default();
 				if self.data.read().contract_address != service_contract_addr {
-					trace!(target: "secretstore", "{}: installing service contract from address {}",
-						self.self_key_pair.public(), service_contract_addr);
+					trace!(target: "secretstore", "{}: installing {} service contract from address {}",
+						self.self_key_pair.public(), self.name, service_contract_addr);
 					self.data.write().contract_address = service_contract_addr;
 				}
 			}
