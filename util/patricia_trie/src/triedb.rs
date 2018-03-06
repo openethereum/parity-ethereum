@@ -54,7 +54,7 @@ pub struct TrieDB<'db> {
 	db: &'db HashDB,
 	root: &'db H256,
 	/// The number of hashes performed so far in operations on this trie.
-	pub hash_count: usize,
+	hash_count: usize,
 }
 
 impl<'db> TrieDB<'db> {
@@ -180,7 +180,7 @@ enum Status {
 	Exiting,
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Eq, PartialEq)]
 struct Crumb {
 	node: OwnedNode,
 	status: Status,
@@ -200,7 +200,6 @@ impl Crumb {
 }
 
 /// Iterator for going through all values in the trie.
-#[derive(Clone)]
 pub struct TrieDBIterator<'a> {
 	db: &'a TrieDB<'a>,
 	trail: Vec<Crumb>,
@@ -340,11 +339,7 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 
 		loop {
 			let iter_step = {
-				match self.trail.last_mut() {
-					Some(b) => { b.increment(); },
-					None => return None,
-				}
-
+				self.trail.last_mut()?.increment();
 				let b = self.trail.last().expect("trail.last_mut().is_some(); qed");
 
 				match (b.status.clone(), &b.node) {
