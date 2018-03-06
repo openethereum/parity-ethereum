@@ -560,41 +560,22 @@ impl Provider where {
 
 	fn generate_constructor(validators: &[Address], code: Bytes, storage: Bytes) -> Bytes {
 		let constructor_code = DEFAULT_STUB_CONTRACT.from_hex().expect("Default contract code is valid");
-		let constructor = ethabi::Constructor { inputs: vec![
-			ethabi::Param { name: "v".into(), kind: ethabi::ParamType::Array(Box::new(ethabi::ParamType::Address)) },
-			ethabi::Param { name: "c".into(), kind: ethabi::ParamType::Bytes },
-			ethabi::Param { name: "s".into(), kind: ethabi::ParamType::Bytes },
-		]};
-
-		let tokens = [
-			ethabi::Token::Array(validators.iter().map(|a| ethabi::Token::Address(a.clone())).collect()),
-			ethabi::Token::Bytes(code),
-			ethabi::Token::Bytes(storage),
-		];
-
-		constructor.encode_input(constructor_code, &tokens).expect("Input is always valid")
+		let private = private::PrivateContract::default();
+		private.constructor(constructor_code, validators.iter().map(|a| a.clone()).collect::<Vec<Address>>(), code, storage)
 	}
 
 	fn generate_set_state_call(signatures: &[Signature], storage: Bytes) -> Bytes {
-		let function = ethabi::Function { name: "setState".into(), constant:false, outputs: vec![], inputs: vec![
-			ethabi::Param { name: "ns".into(), kind: ethabi::ParamType::Bytes },
-			ethabi::Param { name: "v".into(), kind: ethabi::ParamType::Array(Box::new(ethabi::ParamType::Uint(8))) },
-			ethabi::Param { name: "r".into(), kind: ethabi::ParamType::Array(Box::new(ethabi::ParamType::FixedBytes(32))) },
-			ethabi::Param { name: "s".into(), kind: ethabi::ParamType::Array(Box::new(ethabi::ParamType::FixedBytes(32))) },
-		]};
-
-		let tokens = [
-			ethabi::Token::Bytes(storage),
-			ethabi::Token::Array(signatures.iter().map(|s| {
+		let private = private::PrivateContract::default();
+		private.functions().set_state().input(
+			storage,
+			signatures.iter().map(|s| {
 				let mut v: [u8; 32] = [0; 32];
 				v[31] = s.v();
-				ethabi::Token::Uint(v.into())
-			}).collect()),
-			ethabi::Token::Array(signatures.iter().map(|s| ethabi::Token::FixedBytes(s.r().to_vec())).collect()),
-			ethabi::Token::Array(signatures.iter().map(|s| ethabi::Token::FixedBytes(s.s().to_vec())).collect()),
-		];
-
-		function.encode_input(&tokens).expect("Input is always valid")
+				v
+			}).collect::<Vec<[u8; 32]>>(),
+			signatures.iter().map(|s| s.r()).collect::<Vec<&[u8]>>(),
+			signatures.iter().map(|s| s.s()).collect::<Vec<&[u8]>>()
+		)
 	}
 
 	/// Returns the key from the key server associated with the contract
