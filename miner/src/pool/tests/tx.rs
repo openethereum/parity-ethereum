@@ -19,7 +19,7 @@ use ethkey::{Random, Generator};
 use rustc_hex::FromHex;
 use transaction::{self, Transaction, SignedTransaction, UnverifiedTransaction};
 
-use pool::verifier;
+use pool::{verifier, VerifiedTransaction};
 
 #[derive(Clone)]
 pub struct Tx {
@@ -90,6 +90,7 @@ impl Tx {
 }
 pub trait TxExt: Sized {
 	type Out;
+	type Verified;
 	type Hash;
 
 	fn hash(&self) -> Self::Hash;
@@ -99,23 +100,28 @@ pub trait TxExt: Sized {
 	fn retracted(self) -> Self::Out;
 
 	fn unverified(self) -> Self::Out;
+
+	fn verified(self) -> Self::Verified;
 }
 
-impl<A, B, O, H> TxExt for (A, B) where
-	A: TxExt<Out=O, Hash=H>,
-	B: TxExt<Out=O, Hash=H>,
+impl<A, B, O, V, H> TxExt for (A, B) where
+	A: TxExt<Out=O, Verified=V, Hash=H>,
+	B: TxExt<Out=O, Verified=V, Hash=H>,
 {
 	type Out = (O, O);
+	type Verified = (V, V);
 	type Hash = (H, H);
 
 	fn hash(&self) -> Self::Hash { (self.0.hash(), self.1.hash()) }
 	fn local(self) -> Self::Out { (self.0.local(), self.1.local()) }
 	fn retracted(self) -> Self::Out { (self.0.retracted(), self.1.retracted()) }
 	fn unverified(self) -> Self::Out { (self.0.unverified(), self.1.unverified()) }
+	fn verified(self) -> Self::Verified { (self.0.verified(), self.1.verified()) }
 }
 
 impl TxExt for SignedTransaction {
 	type Out = verifier::Transaction;
+	type Verified = VerifiedTransaction;
 	type Hash = H256;
 
 	fn hash(&self) -> Self::Hash {
@@ -133,10 +139,15 @@ impl TxExt for SignedTransaction {
 	fn unverified(self) -> Self::Out {
 		verifier::Transaction::Unverified(self.into())
 	}
+
+	fn verified(self) -> Self::Verified {
+		VerifiedTransaction::from_pending_block_transaction(self)
+	}
 }
 
 impl TxExt for Vec<SignedTransaction> {
 	type Out = Vec<verifier::Transaction>;
+	type Verified = Vec<VerifiedTransaction>;
 	type Hash = Vec<H256>;
 
 	fn hash(&self) -> Self::Hash {
@@ -153,6 +164,10 @@ impl TxExt for Vec<SignedTransaction> {
 
 	fn unverified(self) -> Self::Out {
 		self.into_iter().map(Into::into).map(verifier::Transaction::Unverified).collect()
+	}
+
+	fn verified(self) -> Self::Verified {
+		self.into_iter().map(VerifiedTransaction::from_pending_block_transaction).collect()
 	}
 }
 

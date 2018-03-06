@@ -134,8 +134,9 @@ impl TransactionQueue {
 		client: C,
 		block_number: u64,
 		current_timestamp: u64,
+		nonce_cap: Option<U256>,
 	) -> Vec<Arc<pool::VerifiedTransaction>> where
-		C: client::StateClient,
+		C: client::NonceClient,
 	{
 		// TODO [ToDr] Check if timestamp is within limits.
 		let is_valid = |bn| bn == block_number;
@@ -157,7 +158,7 @@ impl TransactionQueue {
 			_ => {},
 		}
 
-		let pending: Vec<_> = self.collect_pending(client, block_number, current_timestamp, |i| i.collect());
+		let pending: Vec<_> = self.collect_pending(client, block_number, current_timestamp, nonce_cap, |i| i.collect());
 		*cached_pending = Some((block_number, pending.clone()));
 		pending
 	}
@@ -171,10 +172,10 @@ impl TransactionQueue {
 		client: C,
 		block_number: u64,
 		current_timestamp: u64,
-		// TODO [ToDr] Support nonce_cap
+		nonce_cap: Option<U256>,
 		collect: F,
 	) -> T where
-		C: client::StateClient,
+		C: client::NonceClient,
 		F: FnOnce(txpool::PendingIterator<
 			pool::VerifiedTransaction,
 			(ready::Condition, ready::State<C>),
@@ -183,7 +184,7 @@ impl TransactionQueue {
 		>) -> T,
 	{
 		let pending_readiness = ready::Condition::new(block_number, current_timestamp);
-		let state_readiness = ready::State::new(client);
+		let state_readiness = ready::State::new(client, nonce_cap);
 
 		let ready = (pending_readiness, state_readiness);
 
@@ -191,11 +192,12 @@ impl TransactionQueue {
 	}
 
 	/// Culls all stalled transactions from the pool.
-	pub fn cull<C: client::StateClient>(
+	pub fn cull<C: client::NonceClient>(
 		&self,
 		client: C,
 	) {
-		let state_readiness = ready::State::new(client);
+		// We don't care about future transactions, so nonce_cap is not important.
+		let state_readiness = ready::State::new(client, None);
 
 		let removed = self.pool.write().cull(None, state_readiness);
 		debug!(target: "txqueue", "Removed {} stalled transactions. {}", removed, self.status());
@@ -203,12 +205,13 @@ impl TransactionQueue {
 
 	/// Returns next valid nonce for given sender
 	/// or `None` if there are no pending transactions from that sender.
-	pub fn next_nonce<C: client::StateClient>(
+	pub fn next_nonce<C: client::NonceClient>(
 		&self,
 		client: C,
 		address: &Address,
 	) -> Option<U256> {
-		let state_readiness = ready::State::new(client);
+		// Do not take nonce_cap into account when determining next nonce.
+		let state_readiness = ready::State::new(client, None);
 
 		self.pool.read().pending_from_sender(state_readiness, address)
 			.last()
@@ -353,7 +356,7 @@ mod tests {
 		}
 	}
 
-	impl client::StateClient for TestClient {
+	impl client::NonceClient for TestClient {
 		/// Fetch only account nonce for given sender.
 		fn account_nonce(&self, _address: &Address) -> U256 {
 			0.into()
@@ -364,7 +367,7 @@ mod tests {
 	fn should_get_pending_transactions() {
 		let queue = TransactionQueue::new(txpool::Options::default(), verifier::Options::default());
 
-		let pending: Vec<_> = queue.pending(TestClient, 0, 0);
+		let pending: Vec<_> = queue.pending(TestClient, 0, 0, None);
 
 		for tx in pending {
 			assert!(tx.signed().nonce > 0.into());

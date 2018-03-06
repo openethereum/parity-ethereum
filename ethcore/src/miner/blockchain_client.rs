@@ -138,7 +138,7 @@ impl<'a, C: 'a> pool::client::Client for BlockChainClient<'a, C> where
 	}
 }
 
-impl<'a, C: 'a> pool::client::StateClient for BlockChainClient<'a, C> where
+impl<'a, C: 'a> pool::client::NonceClient for BlockChainClient<'a, C> where
 	C: Nonce + Sync,
 {
 	fn account_nonce(&self, address: &Address) -> U256 {
@@ -173,7 +173,7 @@ impl<'a, C: 'a> NonceClient<'a, C> {
 	}
 }
 
-impl<'a, C: 'a> pool::client::StateClient for NonceClient<'a, C>
+impl<'a, C: 'a> pool::client::NonceClient for NonceClient<'a, C>
 	where C: Nonce + Sync,
 {
 	fn account_nonce(&self, address: &Address) -> U256 {

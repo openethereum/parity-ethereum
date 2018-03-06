@@ -72,6 +72,17 @@ impl TestClient {
 		self.is_service_transaction = true;
 		self
 	}
+
+	pub fn verify<T: Into<transaction::PendingTransaction>>(&self, tx: T) -> pool::VerifiedTransaction {
+		let tx = tx.into();
+		pool::VerifiedTransaction {
+			hash: tx.hash(),
+			sender: tx.sender(),
+			priority: pool::Priority::Regular,
+			transaction: tx,
+			insertion_id: 1,
+		}
+	}
 }
 
 impl pool::client::Client for TestClient {
@@ -107,7 +118,7 @@ impl pool::client::Client for TestClient {
 	}
 }
 
-impl pool::client::StateClient for TestClient {
+impl pool::client::NonceClient for TestClient {
 	fn account_nonce(&self, _address: &Address) -> U256 {
 		self.account_details.nonce
 	}

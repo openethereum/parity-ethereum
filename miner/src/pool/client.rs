@@ -64,9 +64,8 @@ pub trait Client: fmt::Debug + Sync {
 	fn transaction_type(&self, tx: &transaction::SignedTransaction) -> TransactionType;
 }
 
-// TODO [ToDr] Rename to NonceClient
-/// State client
-pub trait StateClient: fmt::Debug + Sync {
+/// State nonce client
+pub trait NonceClient: fmt::Debug + Sync {
 	/// Fetch only account nonce for given sender.
 	fn account_nonce(&self, address: &Address) -> U256;
 }

@@ -377,7 +377,7 @@ impl Miner {
 			client.clone(),
 			chain_info.best_block_number,
 			chain_info.best_block_timestamp,
-			// nonce_cap,
+			nonce_cap,
 		);
 
 		for tx in pending {
@@ -792,12 +792,14 @@ impl miner::MinerService for Miner {
 		let chain_info = chain.chain_info();
 
 		let from_queue = || {
-			let client = NonceClient::new(chain);
-
 			self.transaction_queue.pending(
-				client,
+				NonceClient::new(chain),
 				chain_info.best_block_number,
 				chain_info.best_block_timestamp,
+				// We propagate transactions over the nonce cap.
+				// The mechanism is only to limit number of transactions in pending block
+				// those transactions are valid and will just be ready to be included in next block.
+				None,
 			)
 		};
 
@@ -830,8 +832,7 @@ impl miner::MinerService for Miner {
 	fn next_nonce<C>(&self, chain: &C, address: &Address) -> U256 where
 		C: Nonce + Sync,
 	{
-		let client = NonceClient::new(chain);
-		self.transaction_queue.next_nonce(client, address)
+		self.transaction_queue.next_nonce(NonceClient::new(chain), address)
 			.unwrap_or_else(|| chain.latest_nonce(address))
 	}
 

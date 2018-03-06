@@ -133,7 +133,6 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 	type Error = transaction::Error;
 	type VerifiedTransaction = VerifiedTransaction;
 
-	// TODO [ToDr] Add recently rejected.
 	fn verify_transaction(&self, tx: Transaction) -> Result<Self::VerifiedTransaction, Self::Error> {
 		// The checks here should be ordered by cost/complexity.
 		// Cheap checks should be done as early as possible to discard unneeded transactions early.
