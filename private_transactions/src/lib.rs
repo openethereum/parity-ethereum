@@ -234,7 +234,7 @@ impl Provider where {
 		let state_hash = keccak(state);
 		let mut state_buf = [0u8; 64];
 		state_buf[..32].clone_from_slice(&state_hash);
-		state_buf[32..].clone_from_slice(&H256::from(nonce).0);
+		state_buf[32..].clone_from_slice(&H256::from(nonce));
 		keccak(&state_buf.as_ref())
 	}
 
@@ -271,10 +271,7 @@ impl Provider where {
 
 		match contract_validators
 			.iter()
-			.filter(|&&address| validator_accounts
-				.iter()
-				.any(|&validator| validator == address))
-			.next() {
+			.find(|address| validator_accounts.contains(address)) {
 			None => {
 				// Not for verification, broadcast further to peers
 				self.broadcast_private_transaction(rlp.into());
