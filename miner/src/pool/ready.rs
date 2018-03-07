@@ -54,15 +54,21 @@ pub struct State<C> {
 	nonces: HashMap<Address, U256>,
 	state: C,
 	max_nonce: Option<U256>,
+	stale_id: Option<u64>,
 }
 
 impl<C> State<C> {
 	/// Create new State checker, given client interface.
-	pub fn new(state: C, max_nonce: Option<U256>) -> Self {
+	pub fn new(
+		state: C,
+		stale_id: Option<u64>,
+		max_nonce: Option<U256>,
+	) -> Self {
 		State {
 			nonces: Default::default(),
 			state,
 			max_nonce,
+			stale_id,
 		}
 	}
 }
@@ -77,13 +83,17 @@ impl<C: NonceClient> txpool::Ready<VerifiedTransaction> for State<C> {
 			_ => {},
 		}
 
+
 		let sender = tx.sender();
 		let state = &self.state;
-		// TODO [ToDr] Handle null-sender transactions
 		let state_nonce = || state.account_nonce(sender);
 		let nonce = self.nonces.entry(*sender).or_insert_with(state_nonce);
 		match tx.transaction.nonce.cmp(nonce) {
-			cmp::Ordering::Greater => txpool::Readiness::Future,
+			// Before marking as future check for stale ids
+			cmp::Ordering::Greater => match self.stale_id {
+				Some(id) if tx.insertion_id() < id => txpool::Readiness::Stalled,
+				_ => txpool::Readiness::Future,
+			},
 			cmp::Ordering::Less => txpool::Readiness::Stalled,
 			cmp::Ordering::Equal => {
 				*nonce = *nonce + 1.into();
@@ -134,10 +144,10 @@ mod tests {
 		let (tx1, tx2, tx3) = (tx1.verified(), tx2.verified(), tx3.verified());
 
 		// when
-		assert_eq!(State::new(TestClient::new(), None).is_ready(&tx3), txpool::Readiness::Future);
-		assert_eq!(State::new(TestClient::new(), None).is_ready(&tx2), txpool::Readiness::Future);
+		assert_eq!(State::new(TestClient::new(), None, None).is_ready(&tx3), txpool::Readiness::Future);
+		assert_eq!(State::new(TestClient::new(), None, None).is_ready(&tx2), txpool::Readiness::Future);
 
-		let mut ready = State::new(TestClient::new(), None);
+		let mut ready = State::new(TestClient::new(), None, None);
 
 		// then
 		assert_eq!(ready.is_ready(&tx1), txpool::Readiness::Ready);
@@ -151,8 +161,8 @@ mod tests {
 		let tx = Tx::default().signed().verified();
 
 		// when
-		let res1 = State::new(TestClient::new(), Some(10.into())).is_ready(&tx);
-		let res2 = State::new(TestClient::new(), Some(124.into())).is_ready(&tx);
+		let res1 = State::new(TestClient::new(), None, Some(10.into())).is_ready(&tx);
+		let res2 = State::new(TestClient::new(), None, Some(124.into())).is_ready(&tx);
 
 		// then
 		assert_eq!(res1, txpool::Readiness::Future);
@@ -165,7 +175,19 @@ mod tests {
 		let tx = Tx::default().signed().verified();
 
 		// when
-		let res = State::new(TestClient::new().with_nonce(125), None).is_ready(&tx);
+		let res = State::new(TestClient::new().with_nonce(125), None, None).is_ready(&tx);
+
+		// then
+		assert_eq!(res, txpool::Readiness::Stalled);
+	}
+
+	#[test]
+	fn should_return_stale_for_old_transactions() {
+		// given
+		let (_, tx) = Tx::default().signed_pair().verified();
+
+		// when
+		let res = State::new(TestClient::new(), Some(1), None).is_ready(&tx);
 
 		// then
 		assert_eq!(res, txpool::Readiness::Stalled);

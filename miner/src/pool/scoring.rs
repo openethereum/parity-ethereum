@@ -51,7 +51,6 @@ impl txpool::Scoring<VerifiedTransaction> for GasPrice {
 	type Score = U256;
 
 	fn compare(&self, old: &VerifiedTransaction, other: &VerifiedTransaction) -> cmp::Ordering {
-		// TODO [ToDr] Handle null-sender transactions
 		old.transaction.nonce.cmp(&other.transaction.nonce)
 	}
 
@@ -64,7 +63,6 @@ impl txpool::Scoring<VerifiedTransaction> for GasPrice {
 		let new_gp = new.transaction.gas_price;
 
 		let min_required_gp = old_gp + (old_gp >> GAS_PRICE_BUMP_SHIFT);
-		// TODO [ToDr] Handle null-sender transactions
 		match min_required_gp.cmp(&new_gp) {
 			cmp::Ordering::Greater => txpool::scoring::Choice::RejectNew,
 			_ => txpool::scoring::Choice::ReplaceOld,

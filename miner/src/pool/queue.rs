@@ -16,9 +16,9 @@
 
 //! Ethereum Transaction Queue
 
-use std::fmt;
+use std::{cmp, fmt};
 use std::sync::Arc;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{self, AtomicUsize};
 use std::collections::BTreeMap;
 
 use ethereum_types::{H256, U256, Address};
@@ -62,7 +62,7 @@ impl fmt::Display for Status {
 			mem = self.status.mem_usage / 1024,
 			mem_max = self.limits.max_mem_usage / 1024,
 			gp = self.options.minimal_gas_price / 1_000_000.into(),
-			max_gas = ::std::cmp::min(self.options.block_gas_limit, self.options.tx_gas_limit),
+			max_gas = cmp::min(self.options.block_gas_limit, self.options.tx_gas_limit),
 		)
 	}
 }
@@ -251,7 +251,9 @@ impl TransactionQueue {
 		>) -> T,
 	{
 		let pending_readiness = ready::Condition::new(block_number, current_timestamp);
-		let state_readiness = ready::State::new(client, nonce_cap);
+		// don't mark any transactions as stale at this point.
+		let stale_id = None;
+		let state_readiness = ready::State::new(client, stale_id, nonce_cap);
 
 		let ready = (pending_readiness, state_readiness);
 
@@ -264,7 +266,20 @@ impl TransactionQueue {
 		client: C,
 	) {
 		// We don't care about future transactions, so nonce_cap is not important.
-		let state_readiness = ready::State::new(client, None);
+		let nonce_cap = None;
+		// We want to clear stale transactions from the queue as well.
+		// (Transactions that are occuping the queue for a long time without being included)
+		let stale_id = {
+			let current_id = self.insertion_id.load(atomic::Ordering::Relaxed) as u64;
+			// wait at least for half of the queue to be replaced
+			let gap = self.pool.read().options().max_count / 2;
+			// but never less than 100 transactions
+			let gap = cmp::max(100, gap) as u64;
+
+			current_id.checked_sub(gap)
+		};
+
+		let state_readiness = ready::State::new(client, stale_id, nonce_cap);
 
 		let removed = self.pool.write().cull(None, state_readiness);
 		debug!(target: "txqueue", "Removed {} stalled transactions. {}", removed, self.status());
@@ -278,7 +293,11 @@ impl TransactionQueue {
 		address: &Address,
 	) -> Option<U256> {
 		// Do not take nonce_cap into account when determining next nonce.
-		let state_readiness = ready::State::new(client, None);
+		let nonce_cap = None;
+		// Also we ignore stale transactions in the queue.
+		let stale_id = None;
+
+		let state_readiness = ready::State::new(client, stale_id, nonce_cap);
 
 		self.pool.read().pending_from_sender(state_readiness, address)
 			.last()

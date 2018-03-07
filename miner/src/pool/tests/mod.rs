@@ -604,27 +604,38 @@ fn should_reject_transactions_below_base_gas() {
 
 #[test]
 fn should_remove_out_of_date_transactions_occupying_queue() {
-	assert_eq!(true, false);
 	// given
-	// let txq = new_queue();
-	// let (tx1, tx2) = new_tx_pair_default(1.into(), 0.into());
-	// let (tx3, tx4) = new_tx_pair_default(2.into(), 0.into());
-    //
-	// // Insert all transactions
-	// txq.add(tx1.clone(), TransactionOrigin::Local, 0, None, &default_tx_provider()).unwrap();
-	// txq.add(tx2, TransactionOrigin::External, 5, None, &default_tx_provider()).unwrap();
-	// txq.add(tx3.clone(), TransactionOrigin::External, 10, None, &default_tx_provider()).unwrap();
-	// txq.add(tx4, TransactionOrigin::External, 0, None, &default_tx_provider()).unwrap();
-	// assert_eq!(txq.pending(TestClient::new(), 0, 0).len(), 3);
-	// assert_eq!(txq.future_transactions().len(), 1);
-    //
-	// // when
-	// txq.remove_old(&default_account_details_for_addr, 9 + super::DEFAULT_QUEUING_PERIOD);
-    //
-	// // then
-	// assert_eq!(txq.pending(TestClient::new(), 0, 0).len(), 2);
-	// assert_eq!(txq.future_transactions().len(), 0);
-	// assert_eq!(txq.pending(TestClient::new(), 0, 0), vec![tx1, tx3]);
+	let txq = TransactionQueue::new(
+		txpool::Options {
+			max_count: 105,
+			max_per_sender: 3,
+			max_mem_usage: 5_000_000,
+		},
+		verifier::Options {
+			minimal_gas_price: 10.into(),
+			..Default::default()
+		},
+	);
+	// that transaction will be occupying the queue
+	let (_, tx) = Tx::default().signed_pair();
+	let res = txq.import(TestClient::new(), vec![tx.local()]);
+	assert_eq!(res, vec![Ok(())]);
+	// This should not clear the transaction (yet)
+	txq.cull(TestClient::new());
+	assert_eq!(txq.status().status.transaction_count, 1);
+
+	// Now insert at least 100 transactions to have the other one marked as future.
+	for _ in 0..34 {
+		let (tx1, tx2, tx3) = Tx::default().signed_triple();
+		txq.import(TestClient::new(), vec![tx1, tx2, tx3].local());
+	}
+	assert_eq!(txq.status().status.transaction_count, 103);
+
+	// when
+	txq.cull(TestClient::new());
+
+	// then
+	assert_eq!(txq.status().status.transaction_count, 102);
 }
 
 #[test]

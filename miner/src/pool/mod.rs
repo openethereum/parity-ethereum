@@ -63,7 +63,7 @@ impl Priority {
 #[derive(Debug, PartialEq, Eq)]
 pub struct VerifiedTransaction {
 	transaction: transaction::PendingTransaction,
-	// TODO [ToDr] hash and sender should go directly from transaction
+	// TODO [ToDr] hash and sender should go directly from the transaction
 	hash: H256,
 	sender: Address,
 	priority: Priority,
@@ -75,7 +75,7 @@ impl VerifiedTransaction {
 	///
 	/// This method should be used only:
 	/// 1. for tests
-	/// 2. In case we are converting pending block transactions that are already in the queue to match function signature.
+	/// 2. In case we are converting pending block transactions that are already in the queue to match the function signature.
 	pub fn from_pending_block_transaction(tx: transaction::SignedTransaction) -> Self {
 		let hash = tx.hash();
 		let sender = tx.sender();
