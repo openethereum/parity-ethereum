@@ -20,8 +20,11 @@
 use std::cmp::min;
 use std::fmt;
 use std::str::FromStr;
+use std::sync::atomic;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
+use std::thread;
 
 use ethereum_types::{H256, Address};
 use ethkey::Signature;
@@ -29,12 +32,10 @@ use hidapi;
 use libusb;
 use parking_lot::{Mutex, RwLock};
 
-use super::{WalletInfo, KeyPath, Device, Wallet};
+use super::{WalletInfo, KeyPath, Device, Wallet, USB_DEVICE_CLASS_DEVICE};
 
-/// Ledger vendor ID
-pub const LEDGER_VID: u16 = 0x2c97;
-/// Legder product IDs: [Nano S and Blue]
-pub const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001];
+const LEDGER_VID: u16 = 0x2c97;
+const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001];
 
 const ETH_DERIVATION_PATH_BE: [u8; 17] = [4, 0x80, 0, 0, 44, 0x80, 0, 0, 60, 0x80, 0, 0, 0, 0, 0, 0, 0]; // 44'/60'/0'/0
 const ETC_DERIVATION_PATH_BE: [u8; 21] = [5, 0x80, 0, 0, 44, 0x80, 0, 0, 60, 0x80, 0x02, 0x73, 0xd0, 0x80, 0, 0, 0, 0, 0, 0, 0]; // 44'/60'/160720'/0'/0
@@ -105,12 +106,41 @@ pub struct Manager {
 
 impl Manager {
 	/// Create a new instance.
-	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>) -> Manager {
-		Manager {
+	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>, exiting: Arc<AtomicBool>) -> Result<Arc<Manager>, libusb::Error> {
+		let manager = Arc::new(Manager {
 			usb: hidapi,
 			devices: RwLock::new(Vec::new()),
 			key_path: RwLock::new(KeyPath::Ethereum),
-		}
+		});
+
+		let usb_context = Arc::new(libusb::Context::new()?);
+		let m = manager.clone();
+
+		// Subscribe to all Ledger devices
+		// This means that we need to check that the given productID is supported
+		// None => LIBUSB_HOTPLUG_MATCH_ANY, in other words that all are subscribed to
+		// More info can be found: <http://libusb.sourceforge.net/api-1.0/group__hotplug.html#gae6c5f1add6cc754005549c7259dc35ea>
+		usb_context.register_callback(
+			Some(LEDGER_VID), None, Some(USB_DEVICE_CLASS_DEVICE),
+			Box::new(EventHandler::new(Arc::downgrade(&manager))))?;
+
+		// Ledger event handler thread
+		thread::Builder::new()
+			.spawn(move || {
+				if let Err(e) = m.update_devices() {
+					debug!(target: "hw", "Ledger couldn't connect at startup, error: {}", e);
+				}
+				loop {
+					usb_context.handle_events(Some(Duration::from_millis(500)))
+							   .unwrap_or_else(|e| debug!(target: "hw", "Ledger event handler error: {}", e));
+					if exiting.load(atomic::Ordering::Acquire) {
+						break;
+					}
+				}
+			})
+			.ok();
+
+		Ok(manager)
 	}
 
 	fn send_apdu(handle: &hidapi::HidDevice, command: u8, p1: u8, p2: u8, data: &[u8]) -> Result<Vec<u8>, Error> {
@@ -318,6 +348,7 @@ impl <'a>Wallet<'a> for Manager {
 					},
 				})
 			}
+			// This variant is not possible, but the trait forces this return type
 			Ok(None) => Err(Error::Placeholder),
 			Err(e) => Err(e),
 		}
@@ -327,9 +358,9 @@ impl <'a>Wallet<'a> for Manager {
 		self.devices.read().iter().map(|d| d.info.clone()).collect()
 	}
 
-	// Consider to remove this from the trait
+	// Not used because it is not supported by Ledger
 	fn list_locked_devices(&self) -> Vec<String> {
-		unimplemented!();
+		vec![]
 	}
 
 	fn get_wallet(&self, address: &Address) -> Option<WalletInfo> {
@@ -373,20 +404,18 @@ impl <'a>Wallet<'a> for Manager {
 	}
 }
 
-
-
 /// Ledger event handler
-/// A seperate thread is hanedling incoming events
+/// A separate thread is hanedling incoming events
 ///
 /// Note, that this run to completion and race-conditions can't occur but this can
 /// therefore starve other events for being process with a spinlock or similar
-pub struct EventHandler {
+struct EventHandler {
 	ledger: Weak<Manager>,
 }
 
 impl EventHandler {
 	/// Ledger event handler constructor
-	pub fn new(ledger: Weak<Manager>) -> Self {
+	fn new(ledger: Weak<Manager>) -> Self {
 		Self { ledger: ledger }
 	}
 }

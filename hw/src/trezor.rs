@@ -19,12 +19,15 @@
 //! and https://github.com/trezor/trezor-common/blob/master/protob/protocol.md
 //! for protocol details.
 
-use super::{WalletInfo, TransactionInfo, KeyPath, Wallet, Device};
+use super::{WalletInfo, TransactionInfo, KeyPath, Wallet, Device, USB_DEVICE_CLASS_DEVICE};
 
 use std::cmp::{min, max};
 use std::fmt;
 use std::sync::{Arc, Weak};
+use std::sync::atomic;
+use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
+use std::thread;
 
 use ethereum_types::{U256, H256, Address};
 use ethkey::Signature;
@@ -36,10 +39,8 @@ use protobuf::{Message, ProtobufEnum};
 
 use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 
-/// Trezor v1 vendor ID
-pub const TREZOR_VID: u16 = 0x534c;
-/// Trezor product IDs
-pub const TREZOR_PIDS: [u16; 1] = [0x0001];
+const TREZOR_VID: u16 = 0x534c;
+const TREZOR_PIDS: [u16; 1] = [0x0001];
 
 const ETH_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003C, 0x80000000, 0, 0]; // m/44'/60'/0'/0/0
 const ETC_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003D, 0x80000000, 0, 0]; // m/44'/61'/0'/0/0
@@ -94,10 +95,195 @@ pub struct Manager {
 	key_path: RwLock<KeyPath>,
 }
 
+
+/// HID Version used for the Trezor device
+enum HidVersion {
+	V1,
+	V2,
+}
+
+impl Manager {
+	/// Create a new instance.
+	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>, exiting: Arc<AtomicBool>) -> Result<Arc<Manager>, libusb::Error> {
+		let manager = Arc::new(Manager {
+			usb: hidapi,
+			devices: RwLock::new(Vec::new()),
+			locked_devices: RwLock::new(Vec::new()),
+			key_path: RwLock::new(KeyPath::Ethereum),
+		});
+
+		let usb_context = Arc::new(libusb::Context::new()?);
+		let m = manager.clone();
+
+		// Subscribe to TREZOR V1
+		// Note, this support only TREZOR V1 because TREZOR V2 has a different vendorID for some reason
+		// Also, we now only support one product as the second argument specifies
+		usb_context.register_callback(
+			Some(TREZOR_VID), Some(TREZOR_PIDS[0]), Some(USB_DEVICE_CLASS_DEVICE),
+			Box::new(EventHandler::new(Arc::downgrade(&manager))))?;
+
+		// Trezor event thread
+		thread::Builder::new()
+			.name("hw_wallet_trezor".to_string())
+			.spawn(move || {
+				if let Err(e) = m.update_devices() {
+					debug!(target: "hw", "Trezor couldn't connect at startup, error: {}", e);
+				}
+				loop {
+					usb_context.handle_events(Some(Duration::from_millis(500)))
+							   .unwrap_or_else(|e| debug!(target: "hw", "Trezor event handler error: {}", e));
+					if exiting.load(atomic::Ordering::Acquire) {
+						break;
+					}
+				}
+			})
+			.ok();
+
+		Ok(manager)
+	}
+
+	pub fn pin_matrix_ack(&self, device_path: &str, pin: &str) -> Result<bool, Error> {
+		let unlocked = {
+			let usb = self.usb.lock();
+			let device = self.open_path(|| usb.open_path(&device_path))?;
+			let t = MessageType::MessageType_PinMatrixAck;
+			let mut m = PinMatrixAck::new();
+			m.set_pin(pin.to_string());
+			self.send_device_message(&device, &t, &m)?;
+			let (resp_type, _) = self.read_device_response(&device)?;
+			match resp_type {
+				// Getting an Address back means it's unlocked, this is undocumented behavior
+				MessageType::MessageType_EthereumAddress => Ok(true),
+				// Getting anything else means we didn't unlock it
+				_ => Ok(false),
+
+			}
+		};
+		self.update_devices()?;
+		unlocked
+	}
+
+
+	fn u256_to_be_vec(&self, val: &U256) -> Vec<u8> {
+		let mut buf = [0u8; 32];
+		val.to_big_endian(&mut buf);
+		buf.iter().skip_while(|x| **x == 0).cloned().collect()
+	}
+
+	fn signing_loop(&self, handle: &hidapi::HidDevice, chain_id: &Option<u64>, data: &[u8]) -> Result<Signature, Error> {
+		let (resp_type, bytes) = self.read_device_response(&handle)?;
+		match resp_type {
+			MessageType::MessageType_Cancel => Err(Error::UserCancel),
+			MessageType::MessageType_ButtonRequest => {
+				self.send_device_message(handle, &MessageType::MessageType_ButtonAck, &ButtonAck::new())?;
+				// Signing loop goes back to the top and reading blocks
+				// for up to 5 minutes waiting for response from the device
+				// if the user doesn't click any button within 5 minutes you
+				// get a signing error and the device sort of locks up on the signing screen
+				self.signing_loop(handle, chain_id, data)
+			}
+			MessageType::MessageType_EthereumTxRequest => {
+				let resp: EthereumTxRequest = protobuf::core::parse_from_bytes(&bytes)?;
+				if resp.has_data_length() {
+					let mut msg = EthereumTxAck::new();
+					let len = resp.get_data_length() as usize;
+					msg.set_data_chunk(data[..len].to_vec());
+					self.send_device_message(handle, &MessageType::MessageType_EthereumTxAck, &msg)?;
+					self.signing_loop(handle, chain_id, &data[len..])
+				} else {
+					let v = resp.get_signature_v();
+					let r = H256::from_slice(resp.get_signature_r());
+					let s = H256::from_slice(resp.get_signature_s());
+					if let Some(c_id) = *chain_id {
+						// If there is a chain_id supplied, Trezor will return a v
+						// part of the signature that is already adjusted for EIP-155,
+						// so v' = v + 2 * chain_id + 35, but code further down the
+						// pipeline will already do this transformation, so remove it here
+						let adjustment = 35 + 2 * c_id as u32;
+						Ok(Signature::from_rsv(&r, &s, (max(v, adjustment) - adjustment) as u8))
+					} else {
+						// If there isn't a chain_id, v will be returned as v + 27
+						let adjusted_v = if v < 27 { v } else { v - 27 };
+						Ok(Signature::from_rsv(&r, &s, adjusted_v as u8))
+					}
+				}
+			}
+			MessageType::MessageType_Failure => Err(Error::Protocol("Last message sent to Trezor failed")),
+			_ => Err(Error::Protocol("Unexpected response from Trezor device.")),
+		}
+	}
+
+	fn send_device_message(&self, device: &hidapi::HidDevice, msg_type: &MessageType, msg: &Message) -> Result<usize, Error> {
+		let msg_id = *msg_type as u16;
+		let mut message = msg.write_to_bytes()?;
+		let msg_size = message.len();
+		let mut data = Vec::new();
+		let hid_version = self.probe_hid_version(device)?;
+		// Magic constants
+		data.push('#' as u8);
+		data.push('#' as u8);
+		// Convert msg_id to BE and split into bytes
+		data.push(((msg_id >> 8) & 0xFF) as u8);
+		data.push((msg_id & 0xFF) as u8);
+		// Convert msg_size to BE and split into bytes
+		data.push(((msg_size >> 24) & 0xFF) as u8);
+		data.push(((msg_size >> 16) & 0xFF) as u8);
+		data.push(((msg_size >> 8) & 0xFF) as u8);
+		data.push((msg_size & 0xFF) as u8);
+		data.append(&mut message);
+		while data.len() % 63 > 0 {
+			data.push(0);
+		}
+		let mut total_written = 0;
+		for chunk in data.chunks(63) {
+			let mut padded_chunk = match hid_version {
+				HidVersion::V1 => vec!['?' as u8],
+				HidVersion::V2 => vec![0, '?' as u8],
+			};
+			padded_chunk.extend_from_slice(&chunk);
+			total_written += device.write(&padded_chunk)?;
+		}
+		Ok(total_written)
+	}
+
+	fn probe_hid_version(&self, device: &hidapi::HidDevice) -> Result<HidVersion, Error> {
+		let mut buf2 = [0xFFu8; 65];
+		buf2[0] = 0;
+		buf2[1] = 63;
+		let mut buf1 = [0xFFu8; 64];
+		buf1[0] = 63;
+		if device.write(&buf2)? == 65 {
+			Ok(HidVersion::V2)
+		} else if device.write(&buf1)? == 64 {
+			Ok(HidVersion::V1)
+		} else {
+			Err(Error::Usb("Unable to determine HID Version"))
+		}
+	}
+
+	fn read_device_response(&self, device: &hidapi::HidDevice) -> Result<(MessageType, Vec<u8>), Error> {
+		let protocol_err = Error::Protocol(&"Unexpected wire response from Trezor Device");
+		let mut buf = vec![0; 64];
+
+		let first_chunk = device.read_timeout(&mut buf, 300_000)?;
+		if first_chunk < 9 || buf[0] != '?' as u8 || buf[1] != '#' as u8 || buf[2] != '#' as u8 {
+			return Err(protocol_err);
+		}
+		let msg_type = MessageType::from_i32(((buf[3] as i32 & 0xFF) << 8) + (buf[4] as i32 & 0xFF)).ok_or(protocol_err)?;
+		let msg_size = ((buf[5] as u32 & 0xFF) << 24) + ((buf[6] as u32 & 0xFF) << 16) + ((buf[7] as u32 & 0xFF) << 8) + (buf[8] as u32 & 0xFF);
+		let mut data = Vec::new();
+		data.extend_from_slice(&buf[9..]);
+		while data.len() < (msg_size as usize) {
+			device.read_timeout(&mut buf, 10_000)?;
+			data.extend_from_slice(&buf[1..]);
+		}
+		Ok((msg_type, data[..msg_size as usize].to_vec()))
+	}
+}
+
 impl <'a>Wallet<'a> for Manager {
 	type Error = Error;
 	type Transaction = &'a TransactionInfo;
-
 
 	fn sign_transaction(&self, address: &Address, t_info: Self::Transaction) ->
 		Result<Signature, Error> {
@@ -241,164 +427,6 @@ impl <'a>Wallet<'a> for Manager {
 	}
 }
 
-/// HID Version used for the Trezor device
-enum HidVersion {
-	V1,
-	V2,
-}
-
-impl Manager {
-	/// Create a new instance.
-	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>) -> Manager {
-		Manager {
-			usb: hidapi,
-			devices: RwLock::new(Vec::new()),
-			locked_devices: RwLock::new(Vec::new()),
-			key_path: RwLock::new(KeyPath::Ethereum),
-		}
-	}
-
-	pub fn pin_matrix_ack(&self, device_path: &str, pin: &str) -> Result<bool, Error> {
-		let unlocked = {
-			let usb = self.usb.lock();
-			let device = self.open_path(|| usb.open_path(&device_path))?;
-			let t = MessageType::MessageType_PinMatrixAck;
-			let mut m = PinMatrixAck::new();
-			m.set_pin(pin.to_string());
-			self.send_device_message(&device, &t, &m)?;
-			let (resp_type, _) = self.read_device_response(&device)?;
-			match resp_type {
-				// Getting an Address back means it's unlocked, this is undocumented behavior
-				MessageType::MessageType_EthereumAddress => Ok(true),
-				// Getting anything else means we didn't unlock it
-				_ => Ok(false),
-
-			}
-		};
-		self.update_devices()?;
-		unlocked
-	}
-
-
-	fn u256_to_be_vec(&self, val: &U256) -> Vec<u8> {
-		let mut buf = [0u8; 32];
-		val.to_big_endian(&mut buf);
-		buf.iter().skip_while(|x| **x == 0).cloned().collect()
-	}
-
-	fn signing_loop(&self, handle: &hidapi::HidDevice, chain_id: &Option<u64>, data: &[u8]) -> Result<Signature, Error> {
-		let (resp_type, bytes) = self.read_device_response(&handle)?;
-		match resp_type {
-			MessageType::MessageType_Cancel => Err(Error::UserCancel),
-			MessageType::MessageType_ButtonRequest => {
-				self.send_device_message(handle, &MessageType::MessageType_ButtonAck, &ButtonAck::new())?;
-				// Signing loop goes back to the top and reading blocks
-				// for up to 5 minutes waiting for response from the device
-				// if the user doesn't click any button within 5 minutes you
-				// get a signing error and the device sort of locks up on the signing screen
-				self.signing_loop(handle, chain_id, data)
-			}
-			MessageType::MessageType_EthereumTxRequest => {
-				let resp: EthereumTxRequest = protobuf::core::parse_from_bytes(&bytes)?;
-				if resp.has_data_length() {
-					let mut msg = EthereumTxAck::new();
-					let len = resp.get_data_length() as usize;
-					msg.set_data_chunk(data[..len].to_vec());
-					self.send_device_message(handle, &MessageType::MessageType_EthereumTxAck, &msg)?;
-					self.signing_loop(handle, chain_id, &data[len..])
-				} else {
-					let v = resp.get_signature_v();
-					let r = H256::from_slice(resp.get_signature_r());
-					let s = H256::from_slice(resp.get_signature_s());
-					if let Some(c_id) = *chain_id {
-						// If there is a chain_id supplied, Trezor will return a v
-						// part of the signature that is already adjusted for EIP-155,
-						// so v' = v + 2 * chain_id + 35, but code further down the
-						// pipeline will already do this transformation, so remove it here
-						let adjustment = 35 + 2 * c_id as u32;
-						Ok(Signature::from_rsv(&r, &s, (max(v, adjustment) - adjustment) as u8))
-					} else {
-						// If there isn't a chain_id, v will be returned as v + 27
-						let adjusted_v = if v < 27 { v } else { v - 27 };
-						Ok(Signature::from_rsv(&r, &s, adjusted_v as u8))
-					}
-				}
-			}
-			MessageType::MessageType_Failure => Err(Error::Protocol("Last message sent to Trezor failed")),
-			_ => Err(Error::Protocol("Unexpected response from Trezor device.")),
-		}
-	}
-
-	fn send_device_message(&self, device: &hidapi::HidDevice, msg_type: &MessageType, msg: &Message) -> Result<usize, Error> {
-		let msg_id = *msg_type as u16;
-		let mut message = msg.write_to_bytes()?;
-		let msg_size = message.len();
-		let mut data = Vec::new();
-		let hid_version = self.probe_hid_version(device)?;
-		// Magic constants
-		data.push('#' as u8);
-		data.push('#' as u8);
-		// Convert msg_id to BE and split into bytes
-		data.push(((msg_id >> 8) & 0xFF) as u8);
-		data.push((msg_id & 0xFF) as u8);
-		// Convert msg_size to BE and split into bytes
-		data.push(((msg_size >> 24) & 0xFF) as u8);
-		data.push(((msg_size >> 16) & 0xFF) as u8);
-		data.push(((msg_size >> 8) & 0xFF) as u8);
-		data.push((msg_size & 0xFF) as u8);
-		data.append(&mut message);
-		while data.len() % 63 > 0 {
-			data.push(0);
-		}
-		let mut total_written = 0;
-		for chunk in data.chunks(63) {
-			let mut padded_chunk = match hid_version {
-				HidVersion::V1 => vec!['?' as u8],
-				HidVersion::V2 => vec![0, '?' as u8],
-			};
-			padded_chunk.extend_from_slice(&chunk);
-			total_written += device.write(&padded_chunk)?;
-		}
-		Ok(total_written)
-	}
-
-	fn probe_hid_version(&self, device: &hidapi::HidDevice) -> Result<HidVersion, Error> {
-		let mut buf2 = [0xFFu8; 65];
-		buf2[0] = 0;
-		buf2[1] = 63;
-		let mut buf1 = [0xFFu8; 64];
-		buf1[0] = 63;
-		if device.write(&buf2)? == 65 {
-			Ok(HidVersion::V2)
-		} else if device.write(&buf1)? == 64 {
-			Ok(HidVersion::V1)
-		} else {
-			Err(Error::Usb("Unable to determine HID Version"))
-		}
-	}
-
-	fn read_device_response(&self, device: &hidapi::HidDevice) -> Result<(MessageType, Vec<u8>), Error> {
-		let protocol_err = Error::Protocol(&"Unexpected wire response from Trezor Device");
-		let mut buf = vec![0; 64];
-
-		let first_chunk = device.read_timeout(&mut buf, 300_000)?;
-		if first_chunk < 9 || buf[0] != '?' as u8 || buf[1] != '#' as u8 || buf[2] != '#' as u8 {
-			return Err(protocol_err);
-		}
-		let msg_type = MessageType::from_i32(((buf[3] as i32 & 0xFF) << 8) + (buf[4] as i32 & 0xFF)).ok_or(protocol_err)?;
-		let msg_size = ((buf[5] as u32 & 0xFF) << 24) + ((buf[6] as u32 & 0xFF) << 16) + ((buf[7] as u32 & 0xFF) << 8) + (buf[8] as u32 & 0xFF);
-		let mut data = Vec::new();
-		data.extend_from_slice(&buf[9..]);
-		while data.len() < (msg_size as usize) {
-			device.read_timeout(&mut buf, 10_000)?;
-			data.extend_from_slice(&buf[1..]);
-		}
-		Ok((msg_type, data[..msg_size as usize].to_vec()))
-	}
-
-
-}
-
 // Try to connect to the device using polling in at most the time specified by the `timeout`
 fn try_connect_polling(trezor: Arc<Manager>, duration: Duration) -> bool {
 	let start_time = Instant::now();
@@ -415,7 +443,7 @@ fn try_connect_polling(trezor: Arc<Manager>, duration: Duration) -> bool {
 ///
 /// Note, that this run to completion and race-conditions can't occur but this can
 /// therefore starve other events for being process with a spinlock or similar
-pub struct EventHandler {
+struct EventHandler {
 	trezor: Weak<Manager>,
 }
 
