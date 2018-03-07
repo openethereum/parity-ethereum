@@ -56,7 +56,8 @@ pub enum Change {
 	/// The score at that index needs to be update (it contains value from previous transaction).
 	ReplacedAt(usize),
 	/// Given number of stalled transactions has been culled from the beginning.
-	/// Usually the score will have to be re-computed from scratch.
+	/// The scores has been removed from the beginning as well.
+	/// For simple scoring algorithms no action is required here.
 	Culled(usize),
 }
 

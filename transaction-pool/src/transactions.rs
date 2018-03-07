@@ -192,6 +192,10 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 			}
 		}
 
+		if first_non_stalled == 0 {
+			return result;
+		}
+
 		// reverse the vectors to easily remove first elements.
 		self.transactions.reverse();
 		self.scores.reverse();

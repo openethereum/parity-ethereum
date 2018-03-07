@@ -63,22 +63,28 @@ impl txpool::Scoring<VerifiedTransaction> for GasPrice {
 		let new_gp = new.transaction.gas_price;
 
 		let min_required_gp = old_gp + (old_gp >> GAS_PRICE_BUMP_SHIFT);
+
 		match min_required_gp.cmp(&new_gp) {
 			cmp::Ordering::Greater => txpool::scoring::Choice::RejectNew,
 			_ => txpool::scoring::Choice::ReplaceOld,
 		}
 	}
 
-	fn update_scores(&self, txs: &[Arc<VerifiedTransaction>], scores: &mut [U256], _change: txpool::scoring::Change) {
-		// TODO [ToDr] Optimize
-		for i in 0..txs.len() {
-			scores[i] = txs[i].transaction.gas_price;
-			let boost = match txs[i].priority() {
-				super::Priority::Local => 10,
-				super::Priority::Retracted => 5,
-				super::Priority::Regular => 0,
-			};
-			scores[i] = scores[i].saturating_add(scores[i] << boost);
+	fn update_scores(&self, txs: &[Arc<VerifiedTransaction>], scores: &mut [U256], change: txpool::scoring::Change) {
+		use self::txpool::scoring::Change;
+
+		match change {
+			Change::Culled(_) => {},
+			Change::RemovedAt(_) => {}
+			Change::InsertedAt(i) | Change::ReplacedAt(i) => {
+				scores[i] = txs[i].transaction.gas_price;
+				let boost = match txs[i].priority() {
+					super::Priority::Local => 15,
+					super::Priority::Retracted => 10,
+					super::Priority::Regular => 0,
+				};
+				scores[i] = scores[i] << boost;
+			},
 		}
 	}
 
@@ -91,5 +97,59 @@ impl txpool::Scoring<VerifiedTransaction> for GasPrice {
 		}
 
 		self.choose(old, new) == txpool::scoring::Choice::ReplaceOld
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	use pool::tests::tx::{Tx, TxExt};
+	use txpool::Scoring;
+
+	#[test]
+	fn should_calculate_score_correctly() {
+		// given
+		let scoring = GasPrice;
+		let (tx1, tx2, tx3) = Tx::default().signed_triple();
+		let transactions = vec![tx1, tx2, tx3].into_iter().enumerate().map(|(i, tx)| {
+			let mut verified = tx.verified();
+			verified.priority = match i {
+				0 => ::pool::Priority::Local,
+				1 => ::pool::Priority::Retracted,
+				_ => ::pool::Priority::Regular,
+			};
+			Arc::new(verified)
+		}).collect::<Vec<_>>();
+		let initial_scores = vec![U256::from(0), 0.into(), 0.into()];
+
+		// No update required
+		let mut scores = initial_scores.clone();
+		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::Culled(0));
+		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::Culled(1));
+		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::Culled(2));
+		assert_eq!(scores, initial_scores);
+		let mut scores = initial_scores.clone();
+		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::RemovedAt(0));
+		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::RemovedAt(1));
+		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::RemovedAt(2));
+		assert_eq!(scores, initial_scores);
+
+		// Compute score at given index
+		let mut scores = initial_scores.clone();
+		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::InsertedAt(0));
+		assert_eq!(scores, vec![32768.into(), 0.into(), 0.into()]);
+		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::InsertedAt(1));
+		assert_eq!(scores, vec![32768.into(), 1024.into(), 0.into()]);
+		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::InsertedAt(2));
+		assert_eq!(scores, vec![32768.into(), 1024.into(), 1.into()]);
+
+		let mut scores = initial_scores.clone();
+		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::ReplacedAt(0));
+		assert_eq!(scores, vec![32768.into(), 0.into(), 0.into()]);
+		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::ReplacedAt(1));
+		assert_eq!(scores, vec![32768.into(), 1024.into(), 0.into()]);
+		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::ReplacedAt(2));
+		assert_eq!(scores, vec![32768.into(), 1024.into(), 1.into()]);
 	}
 }
