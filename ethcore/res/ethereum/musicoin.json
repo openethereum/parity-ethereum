@@ -40,7 +40,8 @@
     "eip211Transition":"0x21e88e",
     "eip214Transition":"0x21e88e",
     "eip658Transition":"0x21e88e",
-    "maxCodeSize":"0x6000"
+    "maxCodeSize":"0x6000",
+    "maxCodeSizeTransition": "0x7fffffffffffff"
   },
   "genesis":{
     "seal":{
