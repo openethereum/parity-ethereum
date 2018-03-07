@@ -22,6 +22,7 @@ use std::sync::Arc;
 
 use ethsync::ManageNetwork;
 use fetch::Fetch;
+use futures_cpupool::CpuPool;
 use hash::keccak_buffer;
 
 use jsonrpc_core::{Result, BoxFuture};
@@ -36,15 +37,17 @@ pub struct ParitySetClient<F> {
 	net: Arc<ManageNetwork>,
 	dapps: Option<Arc<DappsService>>,
 	fetch: F,
+	pool: CpuPool
 }
 
 impl<F: Fetch> ParitySetClient<F> {
 	/// Creates new `ParitySetClient` with given `Fetch`.
-	pub fn new(net: Arc<ManageNetwork>, dapps: Option<Arc<DappsService>>, fetch: F) -> Self {
+	pub fn new(net: Arc<ManageNetwork>, dapps: Option<Arc<DappsService>>, fetch: F, p: CpuPool) -> Self {
 		ParitySetClient {
 			net: net,
 			dapps: dapps,
 			fetch: fetch,
+			pool: p
 		}
 	}
 }
@@ -125,14 +128,14 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 	}
 
 	fn hash_content(&self, url: String) -> BoxFuture<H256> {
-		self.fetch.process(self.fetch.fetch(&url).then(move |result| {
+		Box::new(self.pool.spawn(self.fetch.fetch(&url).then(move |result| {
 			result
 				.map_err(errors::fetch)
 				.and_then(|response| {
 					keccak_buffer(&mut io::BufReader::new(response)).map_err(errors::fetch)
 				})
 				.map(Into::into)
-		}))
+		})))
 	}
 
 	fn dapps_refresh(&self) -> Result<bool> {

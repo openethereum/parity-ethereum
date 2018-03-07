@@ -25,6 +25,7 @@ extern crate ethabi;
 extern crate ethcore_bytes as bytes;
 extern crate ethereum_types;
 extern crate futures;
+extern crate futures_cpupool;
 extern crate keccak_hash as hash;
 extern crate mime;
 extern crate mime_guess;

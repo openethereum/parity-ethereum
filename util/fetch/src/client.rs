@@ -25,7 +25,6 @@ use std::time::Duration;
 
 use futures::{self, Future, Async, Sink, Stream};
 use futures::future::{self, Either};
-use futures_cpupool::CpuPool;
 use futures::sync::{mpsc, oneshot};
 use parking_lot::{Condvar, Mutex};
 
@@ -61,20 +60,6 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 	/// Result type
 	type Result: Future<Item=Response, Error=Error> + Send + 'static;
 
-	/// Spawn the future in context of this `Fetch` thread pool.
-	fn process<F, I, E>(&self, f: F) -> BoxFuture<I, E>
-		where F: Future<Item=I, Error=E> + Send + 'static,
-			  I: Send + 'static,
-			  E: Send + 'static;
-
-	/// Spawn the future in context of this `Fetch` thread pool as
-	/// "fire and forget", i.e. dropping this future without canceling
-	/// the underlying future.
-	fn process_and_forget<F, I, E>(&self, f: F)
-		where F: Future<Item=I, Error=E> + Send + 'static,
-			  I: Send + 'static,
-			  E: Send + 'static;
-
 	/// Fetch URL and get a future for the result.
 	/// Supports aborting the request in the middle of execution.
 	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result;
@@ -109,7 +94,6 @@ impl Proto {
 /// Fetch client
 #[derive(Clone)]
 pub struct Client {
-	pool:     CpuPool,
 	tx_proto: mpsc::Sender<Proto>,
 	limit:    Option<usize>
 }
@@ -136,11 +120,7 @@ impl Client {
 			return Err(e.into())
 		}
 
-		Ok(Client {
-			pool:     CpuPool::new(4),
-			tx_proto: tx_proto,
-			limit:    Some(64 * 1024 * 1024)
-		})
+		Ok(Client { tx_proto: tx_proto, limit: Some(64 * 1024 * 1024) })
 	}
 
 	fn background_thread(start: StartupCond,
@@ -239,11 +219,6 @@ impl Client {
 	pub fn set_limit(&mut self, limit: Option<usize>) {
 		self.limit = limit;
 	}
-
-	/// Returns a handle to underlying CpuPool of this client.
-	pub fn pool(&self) -> CpuPool {
-		self.pool.clone()
-	}
 }
 
 impl Fetch for Client {
@@ -276,22 +251,6 @@ impl Fetch for Client {
 				}
 			});
 		Box::new(future)
-	}
-
-	fn process<F, I, E>(&self, f: F) -> BoxFuture<I, E>
-		where F: Future<Item=I, Error=E> + Send + 'static,
-			  I: Send + 'static,
-			  E: Send + 'static
-	{
-		Box::new(self.pool.spawn(f))
-	}
-
-	fn process_and_forget<F, I, E>(&self, f: F)
-		where F: Future<Item=I, Error=E> + Send + 'static,
-			  I: Send + 'static,
-			  E: Send + 'static
-	{
-		self.pool.spawn(f).forget()
 	}
 }
 

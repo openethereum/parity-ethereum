@@ -19,6 +19,7 @@
 //! A simple client to get the current ETH price using an external API.
 
 extern crate futures;
+extern crate futures_cpupool;
 extern crate serde_json;
 
 #[macro_use]
@@ -33,6 +34,7 @@ use std::io::Read;
 
 use fetch::{Client as FetchClient, Fetch};
 use futures::Future;
+use futures_cpupool::CpuPool;
 use serde_json::Value;
 
 /// Current ETH price information.
@@ -65,6 +67,7 @@ impl From<fetch::Error> for Error {
 
 /// A client to get the current ETH price using an external API.
 pub struct Client<F = FetchClient> {
+	pool: CpuPool,
 	api_endpoint: String,
 	fetch: F,
 }
@@ -85,14 +88,14 @@ impl<F> cmp::PartialEq for Client<F> {
 
 impl<F: Fetch> Client<F> {
 	/// Creates a new instance of the `Client` given a `fetch::Client`.
-	pub fn new(fetch: F) -> Client<F> {
+	pub fn new(fetch: F, pool: CpuPool) -> Client<F> {
 		let api_endpoint = "https://api.etherscan.io/api?module=stats&action=ethprice".to_owned();
-		Client { api_endpoint, fetch }
+		Client { pool, api_endpoint, fetch }
 	}
 
 	/// Gets the current ETH price and calls `set_price` with the result.
 	pub fn get<G: Fn(PriceInfo) + Sync + Send + 'static>(&self, set_price: G) {
-		self.fetch.process_and_forget(self.fetch.fetch(&self.api_endpoint)
+		self.pool.spawn(self.fetch.fetch(&self.api_endpoint)
 			.map_err(|err| Error::Fetch(err))
 			.and_then(move |mut response| {
 				if !response.is_success() {
@@ -121,7 +124,7 @@ impl<F: Fetch> Client<F> {
 				warn!("Failed to auto-update latest ETH price: {:?}", err);
 				err
 			})
-		);
+		).forget();
 	}
 }
 

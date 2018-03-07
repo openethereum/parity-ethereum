@@ -22,7 +22,6 @@
 extern crate log;
 
 extern crate futures;
-extern crate futures_cpupool;
 extern crate parking_lot;
 
 extern crate hyper;

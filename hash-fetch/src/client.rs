@@ -23,6 +23,7 @@ use std::path::PathBuf;
 
 use hash::keccak_buffer;
 use fetch::{Fetch, Response, Error as FetchError, Client as FetchClient};
+use futures_cpupool::CpuPool;
 use futures::{Future, IntoFuture};
 use parity_reactor::Remote;
 use urlhint::{URLHintContract, URLHint, URLHintResult};
@@ -113,6 +114,7 @@ fn validate_hash(path: PathBuf, hash: H256, result: Result<Response, FetchError>
 
 /// Default Hash-fetching client using on-chain contract to resolve hashes to URLs.
 pub struct Client<F: Fetch + 'static = FetchClient> {
+	pool: CpuPool,
 	contract: URLHintContract,
 	fetch: F,
 	remote: Remote,
@@ -121,15 +123,16 @@ pub struct Client<F: Fetch + 'static = FetchClient> {
 
 impl Client {
 	/// Creates new instance of the `Client` given on-chain contract client and task runner.
-	pub fn new(contract: Arc<RegistrarClient<Call=Asynchronous>>, remote: Remote) -> Self {
-		Client::with_fetch(contract, FetchClient::new().unwrap(), remote)
+	pub fn new(contract: Arc<RegistrarClient<Call=Asynchronous>>, pool: CpuPool, remote: Remote) -> Self {
+		Client::with_fetch(contract, pool, FetchClient::new().unwrap(), remote)
 	}
 }
 
 impl<F: Fetch + 'static> Client<F> {
 	/// Creates new instance of the `Client` given on-chain contract client, fetch service and task runner.
-	pub fn with_fetch(contract: Arc<RegistrarClient<Call=Asynchronous>>, fetch: F, remote: Remote) -> Self {
+	pub fn with_fetch(contract: Arc<RegistrarClient<Call=Asynchronous>>, pool: CpuPool, fetch: F, remote: Remote) -> Self {
 		Client {
+			pool,
 			contract: URLHintContract::new(contract),
 			fetch: fetch,
 			remote: remote,
@@ -144,6 +147,7 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 
 		let random_path = self.random_path.clone();
 		let remote_fetch = self.fetch.clone();
+		let pool = self.pool.clone();
 		let future = self.contract.resolve(hash)
 			.map_err(|e| { warn!("Error resolving URL: {}", e); Error::NoResolution })
 			.and_then(|maybe_url| maybe_url.ok_or(Error::NoResolution))
@@ -161,7 +165,7 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 			.into_future()
 			.and_then(move |url| {
 				debug!(target: "fetch", "Resolved {:?} to {:?}. Fetching...", hash, url);
-				let future = remote_fetch.fetch(&url).then(move |result| {
+				pool.spawn(remote_fetch.fetch(&url).then(move |result| {
 					debug!(target: "fetch", "Content fetched, validating hash ({:?})", hash);
 					let path = random_path();
 					let res = validate_hash(path.clone(), hash, result);
@@ -171,8 +175,7 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 						let _ = fs::remove_file(&path);
 					}
 					res
-				});
-				remote_fetch.process(future)
+				}))
 			})
 			.then(move |res| { on_done(res); Ok(()) as Result<(), ()> });
 
