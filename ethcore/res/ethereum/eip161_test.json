@@ -25,7 +25,8 @@
 		"eip98Transition": "0x7fffffffffffffff",
 		"eip86Transition": "0x7fffffffffffffff",
 		"eip155Transition": "0x7fffffffffffffff",
-		"maxCodeSize": 24576
+		"maxCodeSize": 24576,
+		"maxCodeSizeTransition": "0x0"
 	},
 	"genesis": {
 		"seal": {
