@@ -482,10 +482,10 @@ fn test_signature() {
 	use ethereum_types::{H160, H256, U256};
 
 	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
-	let manager = Manager::new(hidapi.clone());
+	let manager = Manager::new(hidapi.clone(), Arc::new(AtomicBool::new(false))).unwrap();
 	let addr: Address = H160::from("some_addr");
 
-	manager.update_devices().unwrap();
+	assert_eq!(try_connect_polling(manager.clone(), Duration::from_millis(500)), true);
 
 	let t_info = TransactionInfo {
 		nonce: U256::from(1),

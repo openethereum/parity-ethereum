@@ -444,7 +444,7 @@ impl libusb::Hotplug for EventHandler {
 fn smoke() {
 	use rustc_hex::FromHex;
 	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
-	let manager = Manager::new(hidapi.clone());
+	let manager = Manager::new(hidapi.clone(), Arc::new(AtomicBool::new(false))).unwrap();
 	manager.update_devices().unwrap();
 	for d in &*manager.devices.read() {
 		println!("Device: {:?}", d);
