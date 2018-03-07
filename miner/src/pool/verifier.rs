@@ -257,7 +257,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 			bail!(transaction::Error::Old);
 		}
 
-		let priority = match (account_details.is_local, is_retracted) {
+		let priority = match (is_own || account_details.is_local, is_retracted) {
 			(true, _) => super::Priority::Local,
 			(false, false) => super::Priority::Regular,
 			(false, true) => super::Priority::Retracted,

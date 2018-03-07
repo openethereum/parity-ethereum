@@ -32,6 +32,14 @@ use pool::local_transactions::LocalTransactionsList;
 type Listener = (LocalTransactionsList, (listener::Notifier, listener::Logger));
 type Pool = txpool::Pool<pool::VerifiedTransaction, scoring::GasPrice, Listener>;
 
+/// Max cache time in milliseconds for pending transactions.
+///
+/// Pending transactions are cached and will only be computed again
+/// if last cache has been created earler than `TIMESTAMP_CACHE` ms ago.
+/// This timeout applies only if there are local pending transactions
+/// since it only affects transaction Condition.
+const TIMESTAMP_CACHE: u64 = 1000;
+
 /// Transaction queue status
 #[derive(Debug, Clone, PartialEq)]
 pub struct Status {
@@ -59,6 +67,66 @@ impl fmt::Display for Status {
 	}
 }
 
+#[derive(Debug)]
+struct CachedPending {
+	block_number: u64,
+	current_timestamp: u64,
+	nonce_cap: Option<U256>,
+	has_local_pending: bool,
+	pending: Option<Vec<Arc<pool::VerifiedTransaction>>>,
+}
+
+impl CachedPending {
+	/// Creates new `CachedPending` without cached set.
+	pub fn none() -> Self {
+		CachedPending {
+			block_number: 0,
+			current_timestamp: 0,
+			has_local_pending: false,
+			pending: None,
+			nonce_cap: None,
+		}
+	}
+
+	/// Remove cached pending set.
+	pub fn clear(&mut self) {
+		self.pending = None;
+	}
+
+	/// Returns cached pending set (if any) if it's valid.
+	pub fn pending(
+		&self,
+		block_number: u64,
+		current_timestamp: u64,
+		nonce_cap: Option<&U256>,
+	) -> Option<Vec<Arc<pool::VerifiedTransaction>>> {
+		// First check if we have anything in cache.
+		let pending = self.pending.as_ref()?;
+
+		if block_number != self.block_number {
+			return None;
+		}
+
+		// In case we don't have any local pending transactions
+		// there is no need to invalidate the cache because of timestamp.
+		// Timestamp only affects local `PendingTransactions` with `Condition::Timestamp`.
+		if self.has_local_pending && current_timestamp > self.current_timestamp + TIMESTAMP_CACHE {
+			return None;
+		}
+
+		// It's fine to return limited set even if `nonce_cap` is `None`.
+		// The worst thing that may happen is that some transactions won't get propagated in current round,
+		// but they are not really valid in current block anyway. We will propagate them in the next round.
+		// Also there is no way to have both `Some` with different numbers since it depends on the block number
+		// and a constant parameter in schedule (`nonce_cap_increment`)
+		if self.nonce_cap.is_none() && nonce_cap.is_some() {
+			return None;
+		}
+
+		Some(pending.clone())
+	}
+}
+
 /// Ethereum Transaction Queue
 ///
 /// Responsible for:
@@ -70,7 +138,7 @@ pub struct TransactionQueue {
 	insertion_id: Arc<AtomicUsize>,
 	pool: RwLock<Pool>,
 	options: RwLock<verifier::Options>,
-	cached_pending: RwLock<Option<(u64, Vec<Arc<pool::VerifiedTransaction>>)>>,
+	cached_pending: RwLock<CachedPending>,
 }
 
 impl TransactionQueue {
@@ -80,7 +148,7 @@ impl TransactionQueue {
 			insertion_id: Default::default(),
 			pool: RwLock::new(txpool::Pool::new(Default::default(), scoring::GasPrice, limits)),
 			options: RwLock::new(verification_options),
-			cached_pending: RwLock::new(None),
+			cached_pending: RwLock::new(CachedPending::none()),
 		}
 	}
 
@@ -118,7 +186,7 @@ impl TransactionQueue {
 			.collect::<Vec<_>>();
 
 		if results.iter().any(|r| r.is_ok()) {
-			*self.cached_pending.write() = None;
+			self.cached_pending.write().clear();
 		}
 
 		results
@@ -138,28 +206,27 @@ impl TransactionQueue {
 	) -> Vec<Arc<pool::VerifiedTransaction>> where
 		C: client::NonceClient,
 	{
-		// TODO [ToDr] Check if timestamp is within limits.
-		let is_valid = |bn| bn == block_number;
-		{
-			let cached_pending = self.cached_pending.read();
-			match *cached_pending {
-				Some((bn, ref pending)) if is_valid(bn) => {
-					return pending.clone()
-				},
-				_ => {},
-			}
+
+		if let Some(pending) = self.cached_pending.read().pending(block_number, current_timestamp, nonce_cap.as_ref()) {
+			return pending;
 		}
 
+		// Double check after acquiring write lock
 		let mut cached_pending = self.cached_pending.write();
-		match *cached_pending {
-			Some((bn, ref pending)) if is_valid(bn) => {
-				return pending.clone()
-			},
-			_ => {},
+		if let Some(pending) = cached_pending.pending(block_number, current_timestamp, nonce_cap.as_ref()) {
+			return pending;
 		}
 
 		let pending: Vec<_> = self.collect_pending(client, block_number, current_timestamp, nonce_cap, |i| i.collect());
-		*cached_pending = Some((block_number, pending.clone()));
+
+		*cached_pending = CachedPending {
+			block_number,
+			current_timestamp,
+			nonce_cap,
+			has_local_pending: self.has_local_pending_transactions(),
+			pending: Some(pending.clone()),
+		};
+
 		pending
 	}
 
@@ -250,7 +317,7 @@ impl TransactionQueue {
 		};
 
 		if results.iter().any(Option::is_some) {
-			*self.cached_pending.write() = None;
+			self.cached_pending.write().clear();
 		}
 
 		results

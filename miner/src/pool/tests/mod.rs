@@ -697,16 +697,43 @@ fn should_not_accept_external_service_transaction_if_sender_not_certified() {
 
 #[test]
 fn should_not_return_transactions_over_nonce_cap() {
-	assert_eq!(true, false);
-	// // given
-	// let keypair = Random.generate().unwrap();
-	// let txq = new_queue();
-	// // when
-	// for nonce in 123..130 {
-	// 	let tx = new_unsigned_tx(nonce.into(), default_gas_val(), default_gas_price()).sign(keypair.secret(), None);
-	// 	txq.add(tx, TransactionOrigin::External, 0, None, &default_tx_provider()).unwrap();
-	// }
-    //
-	// // then
-	// assert_eq!(txq.top_transactions_at(BlockNumber::max_value(), u64::max_value(), Some(127.into())).len(), 4);
+	// given
+	let txq = new_queue();
+	let (tx1, tx2, tx3) = Tx::default().signed_triple();
+	let res = txq.import(
+		TestClient::new(),
+		vec![tx1, tx2, tx3].local()
+	);
+	assert_eq!(res, vec![Ok(()), Ok(()), Ok(())]);
+
+	// when
+	let all = txq.pending(TestClient::new(), 0, 0, None);
+	// This should invalidate the cache!
+	let limited = txq.pending(TestClient::new(), 0, 0, Some(123.into()));
+
+
+	// then
+	assert_eq!(all.len(), 3);
+	assert_eq!(limited.len(), 1);
+}
+
+#[test]
+fn should_clear_cache_after_timeout_for_local() {
+	// given
+	let txq = new_queue();
+	let (tx, tx2) = Tx::default().signed_pair();
+	let res = txq.import(TestClient::new(), vec![
+		verifier::Transaction::Local(PendingTransaction::new(tx, transaction::Condition::Timestamp(1000).into())),
+		tx2.local()
+	]);
+	assert_eq!(res, vec![Ok(()), Ok(())]);
+
+	// This should populate cache and set timestamp to 1
+	// when
+	assert_eq!(txq.pending(TestClient::new(), 0, 1, None).len(), 0);
+	assert_eq!(txq.pending(TestClient::new(), 0, 1000, None).len(), 0);
+
+	// This should invalidate the cache and trigger transaction ready.
+	// then
+	assert_eq!(txq.pending(TestClient::new(), 0, 1002, None).len(), 2);
 }
