@@ -41,7 +41,7 @@
     "eip214Transition":"0x7fffffffffffff",
     "eip658Transition":"0x7fffffffffffff",
     "maxCodeSize":"0x6000",
-	"maxCodeSizeTransition": "0x7fffffffffffff"
+    "maxCodeSizeTransition": "0x7fffffffffffff"
   },
   "genesis":{
     "seal":{
