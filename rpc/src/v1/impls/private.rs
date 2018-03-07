@@ -27,7 +27,7 @@ use transaction::SignedTransaction;
 
 use jsonrpc_core::{Error};
 use v1::types::{Bytes, PrivateTransactionReceipt, H160, H256, TransactionRequest, U256,
-	BlockNumber, PrivateTransactionReceiptAndTransaction, CallRequest};
+	BlockNumber, PrivateTransactionReceiptAndTransaction, CallRequest, block_number_to_id};
 use v1::traits::Private;
 use v1::metadata::Metadata;
 use v1::helpers::{errors, fake_sign};
@@ -65,15 +65,19 @@ impl Private for PrivateClient {
 		Ok(receipt.into())
 	}
 
-	fn compose_deployment_transaction(&self, num: BlockNumber, request: Bytes, validators: Vec<H160>, gas_price: U256) -> Result<PrivateTransactionReceiptAndTransaction, Error> {
+	fn compose_deployment_transaction(&self, block_number: BlockNumber, request: Bytes, validators: Vec<H160>, gas_price: U256) -> Result<PrivateTransactionReceiptAndTransaction, Error> {
 		let signed_transaction = UntrustedRlp::new(&request.into_vec()).as_val()
 			.map_err(errors::rlp)
 			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))?;
 		let client = self.unwrap_manager()?;
 
 		let addresses: Vec<Address> = validators.into_iter().map(Into::into).collect();
+		let id = match block_number {
+			BlockNumber::Pending => return Err(errors::private_message_block_id_not_supported()),
+			num => block_number_to_id(num)
+		};
 
-		let transaction = client.public_creation_transaction(num.into(), &signed_transaction, addresses.as_slice(), gas_price.into())
+		let transaction = client.public_creation_transaction(id, &signed_transaction, addresses.as_slice(), gas_price.into())
 			.map_err(|e| errors::private_message(e))?;
 		let tx_hash = transaction.hash(None);
 		let request = TransactionRequest {
@@ -97,11 +101,16 @@ impl Private for PrivateClient {
 		})
 	}
 
-	fn private_call(&self, meta: Self::Metadata, num: BlockNumber, request: CallRequest) -> Result<Bytes, Error> {
+	fn private_call(&self, meta: Self::Metadata, block_number: BlockNumber, request: CallRequest) -> Result<Bytes, Error> {
+		let id = match block_number {
+			BlockNumber::Pending => return Err(errors::private_message_block_id_not_supported()),
+			num => block_number_to_id(num)
+		};
+
 		let request = CallRequest::into(request);
 		let signed = fake_sign::sign_call(request, meta.is_dapp())?;
 		let client = self.unwrap_manager()?;
-		let executed_result = client.private_call(num.into(), &signed).map_err(|e| errors::private_message(e))?;
+		let executed_result = client.private_call(id, &signed).map_err(|e| errors::private_message(e))?;
 		Ok(executed_result.output.into())
 	}
 

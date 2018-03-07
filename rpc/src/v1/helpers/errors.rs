@@ -298,6 +298,14 @@ pub fn private_message(error: PrivateTransactionError) -> Error {
 	}
 }
 
+pub fn private_message_block_id_not_supported() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::PRIVATE_ERROR),
+		message: "Pending block id not supported.".into(),
+		data: None,
+	}
+}
+
 pub fn transaction_message(error: TransactionError) -> String {
 	use self::TransactionError::*;
 

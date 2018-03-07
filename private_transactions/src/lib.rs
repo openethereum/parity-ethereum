@@ -76,7 +76,8 @@ use ethcore::executive::{Executive, TransactOptions};
 use ethcore::executed::{Executed};
 use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
 use ethcore::{contract_address as ethcore_contract_address};
-use ethcore::client::{Client, BlockChainClient, ChainNotify, ChainMessageType, BlockId, MiningBlockChainClient, PrivateNotify};
+use ethcore::client::{Client, ChainNotify, ChainMessageType, BlockId,
+	MiningBlockChainClient, PrivateNotify, ChainInfo, Nonce, CallContract};
 use ethcore::account_provider::AccountProvider;
 use ethcore::service::ClientIoMessage;
 use ethcore::error::TransactionImportError;
@@ -384,7 +385,7 @@ impl Provider where {
 			if self.unlock_account(&signer_account) {
 				let signature = self.accounts.sign(signer_account.clone(), None, hash)?;
 				let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
-				match self.client.miner().import_own_transaction(&*self.client as &MiningBlockChainClient, signed.into()) {
+				match self.client.miner().import_own_transaction(&*self.client, signed.into()) {
 					Ok(_) => trace!("Public transaction added to queue"),
 					Err(err) => {
 						trace!("Failed to add transaction to queue, error: {:?}", err);

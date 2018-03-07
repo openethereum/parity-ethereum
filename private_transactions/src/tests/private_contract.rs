@@ -63,7 +63,7 @@ fn private_contract() {
 	private_create_tx.gas = 200000.into();
 	let private_create_tx_signed = private_create_tx.sign(&key1.secret(), None);
 	let validators = vec![key3.address(), key4.address()];
-	let public_tx = pm.public_creation_transaction(BlockId::Pending, &private_create_tx_signed, &validators, 0.into()).unwrap();
+	let public_tx = pm.public_creation_transaction(BlockId::Latest, &private_create_tx_signed, &validators, 0.into()).unwrap();
 	let public_tx = public_tx.sign(&key1.secret(), chain_id);
 	trace!("Transaction created. Pushing block");
 	push_block_with_transactions(&client, &[public_tx]);

@@ -43,7 +43,8 @@ use client::{
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, PrivateNotify
+	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, PrivateNotify,
+	ChainMessageType
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
@@ -998,6 +999,21 @@ impl Client {
 		self.io_channel.lock().clone()
 	}
 
+	/// Sets handler for private messages
+	pub fn set_private_notify(&self, notify: Arc<PrivateNotify>) {
+		*self.private_notify.write() = Some(Arc::downgrade(&notify));
+	}
+
+	/// Handle private message from IO
+	pub fn handle_private_message(&self) -> Result<(), TransactionImportError> {
+		if let Some(ref notify) = *self.private_notify.read() {
+			if let Some(handler) = notify.upgrade() {
+				return handler.private_transaction_queued();
+			}
+		}
+		Ok(())
+	}
+
 	/// Get a copy of the best block's state.
 	pub fn latest_state(&self) -> State<StateDB> {
 		let header = self.best_block_header();
@@ -1407,21 +1423,6 @@ impl ImportBlock for Client {
 		}
 
 		self.importer.import_old_block(block_bytes, receipts_bytes, &**self.db.read(), &*self.chain.read()).map_err(Into::into)
-	}
-
-	/// Sets handler for private messages
-	pub fn set_private_notify(&self, notify: Arc<PrivateNotify>) {
-		*self.private_notify.write() = Some(Arc::downgrade(&notify));
-	}
-
-	/// Handle private message from IO
-	pub fn handle_private_message(&self) -> Result<(), TransactionImportError> {
-		if let Some(ref notify) = *self.private_notify.read() {
-			if let Some(handler) = notify.upgrade() {
-				return handler.private_transaction_queued();
-			}
-		}
-		Ok(())
 	}
 }
 

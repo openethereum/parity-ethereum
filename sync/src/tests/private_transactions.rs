@@ -126,7 +126,7 @@ fn send_private_transaction() {
 	private_create_tx.gas = 200000.into();
 	let private_create_tx_signed = private_create_tx.sign(&s0.secret(), None);
 	let validators = vec![s1.address()];
-	let public_tx = provider0.public_creation_transaction(BlockId::Pending, &private_create_tx_signed, &validators, 0.into()).unwrap();
+	let public_tx = provider0.public_creation_transaction(BlockId::Latest, &private_create_tx_signed, &validators, 0.into()).unwrap();
 	let public_tx = public_tx.sign(&s0.secret(), chain_id);
 	let public_tx_copy = public_tx.clone();
 	push_block_with_transactions(&client0, &[public_tx]);

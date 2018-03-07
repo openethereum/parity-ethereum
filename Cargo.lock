@@ -465,6 +465,7 @@ dependencies = [
  "ethkey 0.3.0",
  "ethstore 0.2.0",
  "evm 0.1.0",
+ "fetch 0.1.0",
  "hardware-wallet 1.11.0",
  "hashdb 0.1.1",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2514,10 +2515,10 @@ dependencies = [
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-derive 5.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore 1.9.0",
+ "ethcore 1.11.0",
  "ethcore-bytes 0.1.0",
- "ethcore-logger 1.9.0",
- "ethcore-miner 1.9.0",
+ "ethcore-logger 1.11.0",
+ "ethcore-miner 1.11.0",
  "ethcore-transaction 0.1.0",
  "ethcrypto 0.1.0",
  "ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2536,7 +2537,7 @@ dependencies = [
  "serde 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "tiny-keccak 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

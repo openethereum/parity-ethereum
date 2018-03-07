@@ -21,7 +21,7 @@ use ethereum_types::{H256, U256, Address};
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use bytes::Bytes;
-use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify};
+use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
 use ethereum::ethash::EthashParams;
 use ethkey::KeyPair;
 use evm::Factory as EvmFactory;
@@ -224,7 +224,6 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	let block_number = client.chain_info().best_block_number as u64 + 1;
 
 	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new());
-	b.set_difficulty(U256::from(0x20000));
 	b.set_timestamp(block_number * 10);
 
 	for t in transactions {
