@@ -16,6 +16,7 @@
 
 //! Canonical verifier.
 
+use client::{BlockInfo, CallContract};
 use engines::EthEngine;
 use error::Error;
 use header::Header;
@@ -25,13 +26,13 @@ use super::verification;
 /// A canonial verifier -- this does full verification.
 pub struct CanonVerifier;
 
-impl Verifier for CanonVerifier {
+impl<C: BlockInfo + CallContract> Verifier<C> for CanonVerifier {
 	fn verify_block_family(
 		&self,
 		header: &Header,
 		parent: &Header,
 		engine: &EthEngine,
-		do_full: Option<verification::FullFamilyParams>,
+		do_full: Option<verification::FullFamilyParams<C>>,
 	) -> Result<(), Error> {
 		verification::verify_block_family(header, parent, engine, do_full)
 	}

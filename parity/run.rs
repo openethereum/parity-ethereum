@@ -24,6 +24,7 @@ use ansi_term::Colour;
 use ctrlc::CtrlC;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
+use ethcore::db::NUM_COLUMNS;
 use ethcore::ethstore::ethkey;
 use ethcore::miner::{Miner, MinerService, MinerOptions};
 use ethcore::miner::{StratumOptions, Stratum};
@@ -38,6 +39,7 @@ use hash_fetch::fetch::{Fetch, Client as FetchClient};
 use hash_fetch;
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
+use kvdb_rocksdb::{Database, DatabaseConfig};
 use light::Cache as LightDataCache;
 use miner::external::ExternalMiner;
 use node_filter::NodeFilter;
@@ -224,9 +226,6 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 	let mut config = light_client::Config {
 		queue: Default::default(),
 		chain_column: ::ethcore::db::COL_LIGHT_CHAIN,
-		db_cache_size: Some(cmd.cache_config.blockchain() as usize * 1024 * 1024),
-		db_compaction: compaction,
-		db_wal: cmd.wal,
 		verify_full: true,
 		check_seal: cmd.check_seal,
 	};
@@ -243,7 +242,22 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 		sync: sync_handle.clone(),
 	};
 
-	let service = light_client::Service::start(config, &spec, fetch, &db_dirs.client_path(algorithm), cache.clone())
+	// initialize database.
+	let db = {
+		let db_config = DatabaseConfig {
+			memory_budget: Some(cmd.cache_config.blockchain() as usize * 1024 * 1024),
+			compaction: compaction,
+			wal: cmd.wal,
+			.. DatabaseConfig::with_columns(NUM_COLUMNS)
+		};
+
+		Arc::new(Database::open(
+			&db_config,
+			&db_dirs.client_path(algorithm).to_str().expect("DB path could not be converted to string.")
+		).map_err(|e| format!("Error opening database: {}", e))?)
+	};
+
+	let service = light_client::Service::start(config, &spec, fetch, db, cache.clone())
 		.map_err(|e| format!("Error starting light client: {}", e))?;
 	let client = service.client();
 	let txq = Arc::new(RwLock::new(::light::transaction_queue::TransactionQueue::default()));
@@ -697,11 +711,15 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	let contract_client = Arc::new(::dapps::FullRegistrar::new(client.clone()));
 
 	// the updater service
+	let mut updater_fetch = fetch.clone();
+	// parity binaries should be smaller than 128MB
+	updater_fetch.set_limit(Some(128 * 1024 * 1024));
+
 	let updater = Updater::new(
 		Arc::downgrade(&(service.client() as Arc<BlockChainClient>)),
 		Arc::downgrade(&sync_provider),
 		update_policy,
-		hash_fetch::Client::with_fetch(contract_client.clone(), fetch.clone(), event_loop.remote())
+		hash_fetch::Client::with_fetch(contract_client.clone(), updater_fetch, event_loop.remote())
 	);
 	service.add_notify(updater.clone());
 

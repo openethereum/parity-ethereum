@@ -266,7 +266,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let password = load_password(&args.arg_password)?;
 		let account_ref = open_args_vault_account(&store, address, &args)?;
 		let signature = store.sign(&account_ref, &password, &message)?;
-		Ok(format!("0x{:?}", signature))
+		Ok(format!("0x{}", signature))
 	} else if args.cmd_public {
 		let address = args.arg_address.parse().map_err(|_| ethstore::Error::InvalidAccount)?;
 		let password = load_password(&args.arg_password)?;

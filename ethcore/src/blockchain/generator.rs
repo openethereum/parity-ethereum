@@ -53,6 +53,11 @@ impl Block {
 	pub fn encoded(&self) -> Bytes {
 		encode(self).into_vec()
 	}
+
+	#[inline]
+	pub fn difficulty(&self) -> U256 {
+		*self.header.difficulty()
+	}
 }
 
 #[derive(Debug)]

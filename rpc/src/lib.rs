@@ -69,6 +69,7 @@ extern crate stats;
 extern crate keccak_hash as hash;
 extern crate hardware_wallet;
 extern crate private_transactions;
+extern crate patricia_trie as trie;
 
 #[macro_use]
 extern crate log;

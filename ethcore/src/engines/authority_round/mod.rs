@@ -947,7 +947,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		if self.immediate_transitions || !epoch_begin { return Ok(()) }
 
 		// genesis is never a new block, but might as well check.
-		let header = block.fields().header.clone();
+		let header = block.header().clone();
 		let first = header.number() == 0;
 
 		let mut call = |to, data| {
@@ -966,37 +966,45 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+		use parity_machine::WithBalances;
+
+		let mut rewards = Vec::new();
 		if block.header().number() >= self.empty_steps_transition {
-			let empty_steps =
-				if block.header().seal().is_empty() {
-					// this is a new block, calculate rewards based on the empty steps messages we have accumulated
-					let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-						Some(client) => client,
-						None => {
-							debug!(target: "engine", "Unable to close block: missing client ref.");
-							return Err(EngineError::RequiresClient.into())
-						},
-					};
-
-					let parent = client.block_header(::client::BlockId::Hash(*block.header().parent_hash()))
-						.expect("hash is from parent; parent header must exist; qed")
-						.decode();
-
-					let parent_step = header_step(&parent, self.empty_steps_transition)?;
-					let current_step = self.step.load();
-					self.empty_steps(parent_step.into(), current_step.into(), parent.hash())
-				} else {
-					// we're verifying a block, extract empty steps from the seal
-					header_empty_steps(block.header())?
+			let empty_steps = if block.header().seal().is_empty() {
+				// this is a new block, calculate rewards based on the empty steps messages we have accumulated
+				let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+					Some(client) => client,
+					None => {
+						debug!(target: "engine", "Unable to close block: missing client ref.");
+						return Err(EngineError::RequiresClient.into())
+					},
 				};
 
+				let parent = client.block_header(::client::BlockId::Hash(*block.header().parent_hash()))
+					.expect("hash is from parent; parent header must exist; qed")
+					.decode();
+
+				let parent_step = header_step(&parent, self.empty_steps_transition)?;
+				let current_step = self.step.load();
+				self.empty_steps(parent_step.into(), current_step.into(), parent.hash())
+			} else {
+				// we're verifying a block, extract empty steps from the seal
+				header_empty_steps(block.header())?
+			};
+
 			for empty_step in empty_steps {
-				::engines::common::bestow_block_reward(block, self.block_reward, empty_step.author()?)?;
+				let author = empty_step.author()?;
+				rewards.push((author, self.block_reward));
 			}
 		}
 
 		let author = *block.header().author();
-		::engines::common::bestow_block_reward(block, self.block_reward, author)
+		rewards.push((author, self.block_reward));
+
+		for &(ref author, ref block_reward) in rewards.iter() {
+			self.machine.add_balance(block, author, block_reward)?;
+		}
+		self.machine.note_rewards(block, &rewards, &[])
 	}
 
 	/// Check the number of seal fields.
@@ -1790,13 +1798,13 @@ mod tests {
 		// step 3
 		// the signer of the accumulated empty step message should be rewarded
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
-		let addr1_balance = b2.block().fields().state.balance(&addr1).unwrap();
+		let addr1_balance = b2.block().state().balance(&addr1).unwrap();
 
 		// after closing the block `addr1` should be reward twice, one for the included empty step message and another for block creation
 		let b2 = b2.close_and_lock();
 
 		// the spec sets the block reward to 10
-		assert_eq!(b2.block().fields().state.balance(&addr1).unwrap(), addr1_balance + (10 * 2).into())
+		assert_eq!(b2.block().state().balance(&addr1).unwrap(), addr1_balance + (10 * 2).into())
 	}
 
 	#[test]

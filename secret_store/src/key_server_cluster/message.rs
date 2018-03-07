@@ -34,8 +34,10 @@ pub enum Message {
 	Encryption(EncryptionMessage),
 	/// Decryption message.
 	Decryption(DecryptionMessage),
-	/// Signing message.
-	Signing(SigningMessage),
+	/// Schnorr signing message.
+	SchnorrSigning(SchnorrSigningMessage),
+	/// ECDSA signing message.
+	EcdsaSigning(EcdsaSigningMessage),
 	/// Key version negotiation message.
 	KeyVersionNegotiation(KeyVersionNegotiationMessage),
 	/// Share add message.
@@ -133,25 +135,52 @@ pub enum DecryptionMessage {
 	DecryptionSessionDelegationCompleted(DecryptionSessionDelegationCompleted),
 }
 
-/// All possible messages that can be sent during signing session.
+/// All possible messages that can be sent during Schnorr signing session.
 #[derive(Clone, Debug)]
-pub enum SigningMessage {
+pub enum SchnorrSigningMessage {
 	/// Consensus establishing message.
-	SigningConsensusMessage(SigningConsensusMessage),
+	SchnorrSigningConsensusMessage(SchnorrSigningConsensusMessage),
 	/// Session key generation message.
-	SigningGenerationMessage(SigningGenerationMessage),
+	SchnorrSigningGenerationMessage(SchnorrSigningGenerationMessage),
 	/// Request partial signature from node.
-	RequestPartialSignature(RequestPartialSignature),
+	SchnorrRequestPartialSignature(SchnorrRequestPartialSignature),
 	/// Partial signature is generated.
-	PartialSignature(PartialSignature),
+	SchnorrPartialSignature(SchnorrPartialSignature),
 	/// Signing error occured.
-	SigningSessionError(SigningSessionError),
+	SchnorrSigningSessionError(SchnorrSigningSessionError),
 	/// Signing session completed.
-	SigningSessionCompleted(SigningSessionCompleted),
+	SchnorrSigningSessionCompleted(SchnorrSigningSessionCompleted),
 	/// When signing session is delegated to another node.
-	SigningSessionDelegation(SigningSessionDelegation),
+	SchnorrSigningSessionDelegation(SchnorrSigningSessionDelegation),
 	/// When delegated signing session is completed.
-	SigningSessionDelegationCompleted(SigningSessionDelegationCompleted),
+	SchnorrSigningSessionDelegationCompleted(SchnorrSigningSessionDelegationCompleted),
+}
+
+/// All possible messages that can be sent during ECDSA signing session.
+#[derive(Clone, Debug)]
+pub enum EcdsaSigningMessage {
+	/// Consensus establishing message.
+	EcdsaSigningConsensusMessage(EcdsaSigningConsensusMessage),
+	/// Signature nonce generation message.
+	EcdsaSignatureNonceGenerationMessage(EcdsaSignatureNonceGenerationMessage),
+	/// Inversion nonce generation message.
+	EcdsaInversionNonceGenerationMessage(EcdsaInversionNonceGenerationMessage),
+	/// Inversion zero generation message.
+	EcdsaInversionZeroGenerationMessage(EcdsaInversionZeroGenerationMessage),
+	/// Inversed nonce coefficient share.
+	EcdsaSigningInversedNonceCoeffShare(EcdsaSigningInversedNonceCoeffShare),
+	/// Request partial signature from node.
+	EcdsaRequestPartialSignature(EcdsaRequestPartialSignature),
+	/// Partial signature is generated.
+	EcdsaPartialSignature(EcdsaPartialSignature),
+	/// Signing error occured.
+	EcdsaSigningSessionError(EcdsaSigningSessionError),
+	/// Signing session completed.
+	EcdsaSigningSessionCompleted(EcdsaSigningSessionCompleted),
+	/// When signing session is delegated to another node.
+	EcdsaSigningSessionDelegation(EcdsaSigningSessionDelegation),
+	/// When delegated signing session is completed.
+	EcdsaSigningSessionDelegationCompleted(EcdsaSigningSessionDelegationCompleted),
 }
 
 /// All possible messages that can be sent during servers set change session.
@@ -246,6 +275,8 @@ pub struct InitializeSession {
 	pub author: SerializablePublic,
 	/// All session participants along with their identification numbers.
 	pub nodes: BTreeMap<MessageNodeId, SerializableSecret>,
+	/// Is zero secret generation session?
+	pub is_zero: bool,
 	/// Decryption threshold. During decryption threshold-of-route.len() nodes must came to
 	/// consensus to successfully decrypt message.
 	pub threshold: usize,
@@ -407,9 +438,9 @@ pub struct InitializeConsensusSessionOfShareAdd {
 	pub new_set_signature: SerializableSignature,
 }
 
-/// Consensus-related signing message.
+/// Consensus-related Schnorr signing message.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SigningConsensusMessage {
+pub struct SchnorrSigningConsensusMessage {
 	/// Generation session Id.
 	pub session: MessageSessionId,
 	/// Signing session Id.
@@ -422,7 +453,7 @@ pub struct SigningConsensusMessage {
 
 /// Session key generation message.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SigningGenerationMessage {
+pub struct SchnorrSigningGenerationMessage {
 	/// Generation session Id.
 	pub session: MessageSessionId,
 	/// Signing session Id.
@@ -433,9 +464,9 @@ pub struct SigningGenerationMessage {
 	pub message: GenerationMessage,
 }
 
-/// Request partial signature.
+/// Request partial Schnorr signature.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RequestPartialSignature {
+pub struct SchnorrRequestPartialSignature {
 	/// Generation session Id.
 	pub session: MessageSessionId,
 	/// Signing session Id.
@@ -450,9 +481,9 @@ pub struct RequestPartialSignature {
 	pub nodes: BTreeSet<MessageNodeId>,
 }
 
-/// Partial signature.
+/// Partial Schnorr signature.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PartialSignature {
+pub struct SchnorrPartialSignature {
 	/// Generation session Id.
 	pub session: MessageSessionId,
 	/// Signing session Id.
@@ -465,9 +496,9 @@ pub struct PartialSignature {
 	pub partial_signature: SerializableSecret,
 }
 
-/// When signing session error has occured.
+/// When Schnorr signing session error has occured.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SigningSessionError {
+pub struct SchnorrSigningSessionError {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
 	/// Signing session Id.
@@ -478,9 +509,9 @@ pub struct SigningSessionError {
 	pub error: String,
 }
 
-/// Signing session completed.
+/// Schnorr signing session completed.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SigningSessionCompleted {
+pub struct SchnorrSigningSessionCompleted {
 	/// Generation session Id.
 	pub session: MessageSessionId,
 	/// Signing session Id.
@@ -489,9 +520,9 @@ pub struct SigningSessionCompleted {
 	pub session_nonce: u64,
 }
 
-/// When signing session is delegated to another node.
+/// When Schnorr signing session is delegated to another node.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SigningSessionDelegation {
+pub struct SchnorrSigningSessionDelegation {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
 	/// Decryption session Id.
@@ -506,9 +537,9 @@ pub struct SigningSessionDelegation {
 	pub message_hash: SerializableH256,
 }
 
-/// When delegated signing session is completed.
+/// When delegated Schnorr signing session is completed.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SigningSessionDelegationCompleted {
+pub struct SchnorrSigningSessionDelegationCompleted {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
 	/// Decryption session Id.
@@ -519,6 +550,157 @@ pub struct SigningSessionDelegationCompleted {
 	pub signature_s: SerializableSecret,
 	/// C-portion of signature.
 	pub signature_c: SerializableSecret,
+}
+
+/// Consensus-related ECDSA signing message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EcdsaSigningConsensusMessage {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Consensus message.
+	pub message: ConsensusMessage,
+}
+
+/// ECDSA signature nonce generation message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EcdsaSignatureNonceGenerationMessage {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Generation message.
+	pub message: GenerationMessage,
+}
+
+/// ECDSA inversion nonce generation message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EcdsaInversionNonceGenerationMessage {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Generation message.
+	pub message: GenerationMessage,
+}
+
+/// ECDSA inversed nonce share message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EcdsaSigningInversedNonceCoeffShare {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Inversed nonce coefficient share.
+	pub inversed_nonce_coeff_share: SerializableSecret,
+}
+
+/// ECDSA inversion zero generation message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EcdsaInversionZeroGenerationMessage {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Generation message.
+	pub message: GenerationMessage,
+}
+
+/// Request partial ECDSA signature.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EcdsaRequestPartialSignature {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Request id.
+	pub request_id: SerializableSecret,
+	///
+	pub inversed_nonce_coeff: SerializableSecret,
+	/// Message hash.
+	pub message_hash: SerializableMessageHash,
+}
+
+/// Partial ECDSA signature.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EcdsaPartialSignature {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Request id.
+	pub request_id: SerializableSecret,
+	/// Partial S part of signature.
+	pub partial_signature_s: SerializableSecret,
+}
+
+/// When ECDSA signing session error has occured.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EcdsaSigningSessionError {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Error message.
+	pub error: String,
+}
+
+/// ECDSA signing session completed.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EcdsaSigningSessionCompleted {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Signing session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+}
+
+/// When ECDSA signing session is delegated to another node.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EcdsaSigningSessionDelegation {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+	/// Decryption session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Requestor signature.
+	pub requestor_signature: SerializableSignature,
+	/// Key version.
+	pub version: SerializableH256,
+	/// Message hash.
+	pub message_hash: SerializableH256,
+}
+
+/// When delegated ECDSA signing session is completed.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EcdsaSigningSessionDelegationCompleted {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+	/// Decryption session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Signature.
+	pub signature: SerializableSignature,
 }
 
 /// Consensus-related decryption message.
@@ -861,7 +1043,11 @@ impl Message {
 				ConsensusMessage::InitializeConsensusSession(_) => true,
 				_ => false
 			},
-			Message::Signing(SigningMessage::SigningConsensusMessage(ref msg)) => match msg.message {
+			Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningConsensusMessage(ref msg)) => match msg.message {
+				ConsensusMessage::InitializeConsensusSession(_) => true,
+				_ => false
+			},
+			Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningConsensusMessage(ref msg)) => match msg.message {
 				ConsensusMessage::InitializeConsensusSession(_) => true,
 				_ => false
 			},
@@ -881,7 +1067,8 @@ impl Message {
 	pub fn is_delegation_message(&self) -> bool {
 		match *self {
 			Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(_)) => true,
-			Message::Signing(SigningMessage::SigningSessionDelegation(_)) => true,
+			Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningSessionDelegation(_)) => true,
+			Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningSessionDelegation(_)) => true,
 			_ => false,
 		}
 	}
@@ -891,7 +1078,8 @@ impl Message {
 			Message::Generation(GenerationMessage::SessionError(_)) => true,
 			Message::Encryption(EncryptionMessage::EncryptionSessionError(_)) => true,
 			Message::Decryption(DecryptionMessage::DecryptionSessionError(_)) => true,
-			Message::Signing(SigningMessage::SigningConsensusMessage(_)) => true,
+			Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningSessionError(_)) => true,
+			Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningSessionError(_)) => true,
 			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersionsError(_)) => true,
 			Message::ShareAdd(ShareAddMessage::ShareAddError(_)) => true,
 			Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(_)) => true,
@@ -912,7 +1100,8 @@ impl Message {
 			Message::Generation(ref message) => Some(message.session_nonce()),
 			Message::Encryption(ref message) => Some(message.session_nonce()),
 			Message::Decryption(ref message) => Some(message.session_nonce()),
-			Message::Signing(ref message) => Some(message.session_nonce()),
+			Message::SchnorrSigning(ref message) => Some(message.session_nonce()),
+			Message::EcdsaSigning(ref message) => Some(message.session_nonce()),
 			Message::ShareAdd(ref message) => Some(message.session_nonce()),
 			Message::ServersSetChange(ref message) => Some(message.session_nonce()),
 			Message::KeyVersionNegotiation(ref message) => Some(message.session_nonce()),
@@ -1002,43 +1191,93 @@ impl DecryptionMessage {
 	}
 }
 
-impl SigningMessage {
+impl SchnorrSigningMessage {
 	pub fn session_id(&self) -> &SessionId {
 		match *self {
-			SigningMessage::SigningConsensusMessage(ref msg) => &msg.session,
-			SigningMessage::SigningGenerationMessage(ref msg) => &msg.session,
-			SigningMessage::RequestPartialSignature(ref msg) => &msg.session,
-			SigningMessage::PartialSignature(ref msg) => &msg.session,
-			SigningMessage::SigningSessionError(ref msg) => &msg.session,
-			SigningMessage::SigningSessionCompleted(ref msg) => &msg.session,
-			SigningMessage::SigningSessionDelegation(ref msg) => &msg.session,
-			SigningMessage::SigningSessionDelegationCompleted(ref msg) => &msg.session,
+			SchnorrSigningMessage::SchnorrSigningConsensusMessage(ref msg) => &msg.session,
+			SchnorrSigningMessage::SchnorrSigningGenerationMessage(ref msg) => &msg.session,
+			SchnorrSigningMessage::SchnorrRequestPartialSignature(ref msg) => &msg.session,
+			SchnorrSigningMessage::SchnorrPartialSignature(ref msg) => &msg.session,
+			SchnorrSigningMessage::SchnorrSigningSessionError(ref msg) => &msg.session,
+			SchnorrSigningMessage::SchnorrSigningSessionCompleted(ref msg) => &msg.session,
+			SchnorrSigningMessage::SchnorrSigningSessionDelegation(ref msg) => &msg.session,
+			SchnorrSigningMessage::SchnorrSigningSessionDelegationCompleted(ref msg) => &msg.session,
 		}
 	}
 
 	pub fn sub_session_id(&self) -> &Secret {
 		match *self {
-			SigningMessage::SigningConsensusMessage(ref msg) => &msg.sub_session,
-			SigningMessage::SigningGenerationMessage(ref msg) => &msg.sub_session,
-			SigningMessage::RequestPartialSignature(ref msg) => &msg.sub_session,
-			SigningMessage::PartialSignature(ref msg) => &msg.sub_session,
-			SigningMessage::SigningSessionError(ref msg) => &msg.sub_session,
-			SigningMessage::SigningSessionCompleted(ref msg) => &msg.sub_session,
-			SigningMessage::SigningSessionDelegation(ref msg) => &msg.sub_session,
-			SigningMessage::SigningSessionDelegationCompleted(ref msg) => &msg.sub_session,
+			SchnorrSigningMessage::SchnorrSigningConsensusMessage(ref msg) => &msg.sub_session,
+			SchnorrSigningMessage::SchnorrSigningGenerationMessage(ref msg) => &msg.sub_session,
+			SchnorrSigningMessage::SchnorrRequestPartialSignature(ref msg) => &msg.sub_session,
+			SchnorrSigningMessage::SchnorrPartialSignature(ref msg) => &msg.sub_session,
+			SchnorrSigningMessage::SchnorrSigningSessionError(ref msg) => &msg.sub_session,
+			SchnorrSigningMessage::SchnorrSigningSessionCompleted(ref msg) => &msg.sub_session,
+			SchnorrSigningMessage::SchnorrSigningSessionDelegation(ref msg) => &msg.sub_session,
+			SchnorrSigningMessage::SchnorrSigningSessionDelegationCompleted(ref msg) => &msg.sub_session,
 		}
 	}
 
 	pub fn session_nonce(&self) -> u64 {
 		match *self {
-			SigningMessage::SigningConsensusMessage(ref msg) => msg.session_nonce,
-			SigningMessage::SigningGenerationMessage(ref msg) => msg.session_nonce,
-			SigningMessage::RequestPartialSignature(ref msg) => msg.session_nonce,
-			SigningMessage::PartialSignature(ref msg) => msg.session_nonce,
-			SigningMessage::SigningSessionError(ref msg) => msg.session_nonce,
-			SigningMessage::SigningSessionCompleted(ref msg) => msg.session_nonce,
-			SigningMessage::SigningSessionDelegation(ref msg) => msg.session_nonce,
-			SigningMessage::SigningSessionDelegationCompleted(ref msg) => msg.session_nonce,
+			SchnorrSigningMessage::SchnorrSigningConsensusMessage(ref msg) => msg.session_nonce,
+			SchnorrSigningMessage::SchnorrSigningGenerationMessage(ref msg) => msg.session_nonce,
+			SchnorrSigningMessage::SchnorrRequestPartialSignature(ref msg) => msg.session_nonce,
+			SchnorrSigningMessage::SchnorrPartialSignature(ref msg) => msg.session_nonce,
+			SchnorrSigningMessage::SchnorrSigningSessionError(ref msg) => msg.session_nonce,
+			SchnorrSigningMessage::SchnorrSigningSessionCompleted(ref msg) => msg.session_nonce,
+			SchnorrSigningMessage::SchnorrSigningSessionDelegation(ref msg) => msg.session_nonce,
+			SchnorrSigningMessage::SchnorrSigningSessionDelegationCompleted(ref msg) => msg.session_nonce,
+		}
+	}
+}
+
+impl EcdsaSigningMessage {
+	pub fn session_id(&self) -> &SessionId {
+		match *self {
+			EcdsaSigningMessage::EcdsaSigningConsensusMessage(ref msg) => &msg.session,
+			EcdsaSigningMessage::EcdsaSignatureNonceGenerationMessage(ref msg) => &msg.session,
+			EcdsaSigningMessage::EcdsaInversionNonceGenerationMessage(ref msg) => &msg.session,
+			EcdsaSigningMessage::EcdsaInversionZeroGenerationMessage(ref msg) => &msg.session,
+			EcdsaSigningMessage::EcdsaSigningInversedNonceCoeffShare(ref msg) => &msg.session,
+			EcdsaSigningMessage::EcdsaRequestPartialSignature(ref msg) => &msg.session,
+			EcdsaSigningMessage::EcdsaPartialSignature(ref msg) => &msg.session,
+			EcdsaSigningMessage::EcdsaSigningSessionError(ref msg) => &msg.session,
+			EcdsaSigningMessage::EcdsaSigningSessionCompleted(ref msg) => &msg.session,
+			EcdsaSigningMessage::EcdsaSigningSessionDelegation(ref msg) => &msg.session,
+			EcdsaSigningMessage::EcdsaSigningSessionDelegationCompleted(ref msg) => &msg.session,
+		}
+	}
+
+	pub fn sub_session_id(&self) -> &Secret {
+		match *self {
+			EcdsaSigningMessage::EcdsaSigningConsensusMessage(ref msg) => &msg.sub_session,
+			EcdsaSigningMessage::EcdsaSignatureNonceGenerationMessage(ref msg) => &msg.sub_session,
+			EcdsaSigningMessage::EcdsaInversionNonceGenerationMessage(ref msg) => &msg.sub_session,
+			EcdsaSigningMessage::EcdsaInversionZeroGenerationMessage(ref msg) => &msg.sub_session,
+			EcdsaSigningMessage::EcdsaSigningInversedNonceCoeffShare(ref msg) => &msg.sub_session,
+			EcdsaSigningMessage::EcdsaRequestPartialSignature(ref msg) => &msg.sub_session,
+			EcdsaSigningMessage::EcdsaPartialSignature(ref msg) => &msg.sub_session,
+			EcdsaSigningMessage::EcdsaSigningSessionError(ref msg) => &msg.sub_session,
+			EcdsaSigningMessage::EcdsaSigningSessionCompleted(ref msg) => &msg.sub_session,
+			EcdsaSigningMessage::EcdsaSigningSessionDelegation(ref msg) => &msg.sub_session,
+			EcdsaSigningMessage::EcdsaSigningSessionDelegationCompleted(ref msg) => &msg.sub_session,
+		}
+	}
+
+	pub fn session_nonce(&self) -> u64 {
+		match *self {
+			EcdsaSigningMessage::EcdsaSigningConsensusMessage(ref msg) => msg.session_nonce,
+			EcdsaSigningMessage::EcdsaSignatureNonceGenerationMessage(ref msg) => msg.session_nonce,
+			EcdsaSigningMessage::EcdsaInversionNonceGenerationMessage(ref msg) => msg.session_nonce,
+			EcdsaSigningMessage::EcdsaInversionZeroGenerationMessage(ref msg) => msg.session_nonce,
+			EcdsaSigningMessage::EcdsaSigningInversedNonceCoeffShare(ref msg) => msg.session_nonce,
+			EcdsaSigningMessage::EcdsaRequestPartialSignature(ref msg) => msg.session_nonce,
+			EcdsaSigningMessage::EcdsaPartialSignature(ref msg) => msg.session_nonce,
+			EcdsaSigningMessage::EcdsaSigningSessionError(ref msg) => msg.session_nonce,
+			EcdsaSigningMessage::EcdsaSigningSessionCompleted(ref msg) => msg.session_nonce,
+			EcdsaSigningMessage::EcdsaSigningSessionDelegation(ref msg) => msg.session_nonce,
+			EcdsaSigningMessage::EcdsaSigningSessionDelegationCompleted(ref msg) => msg.session_nonce,
 		}
 	}
 }
@@ -1130,7 +1369,8 @@ impl fmt::Display for Message {
 			Message::Generation(ref message) => write!(f, "Generation.{}", message),
 			Message::Encryption(ref message) => write!(f, "Encryption.{}", message),
 			Message::Decryption(ref message) => write!(f, "Decryption.{}", message),
-			Message::Signing(ref message) => write!(f, "Signing.{}", message),
+			Message::SchnorrSigning(ref message) => write!(f, "SchnorrSigning.{}", message),
+			Message::EcdsaSigning(ref message) => write!(f, "EcdsaSigning.{}", message),
 			Message::ServersSetChange(ref message) => write!(f, "ServersSetChange.{}", message),
 			Message::ShareAdd(ref message) => write!(f, "ShareAdd.{}", message),
 			Message::KeyVersionNegotiation(ref message) => write!(f, "KeyVersionNegotiation.{}", message),
@@ -1214,17 +1454,35 @@ impl fmt::Display for DecryptionMessage {
 	}
 }
 
-impl fmt::Display for SigningMessage {
+impl fmt::Display for SchnorrSigningMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			SigningMessage::SigningConsensusMessage(ref m) => write!(f, "SigningConsensusMessage.{}", m.message),
-			SigningMessage::SigningGenerationMessage(ref m) => write!(f, "SigningGenerationMessage.{}", m.message),
-			SigningMessage::RequestPartialSignature(_) => write!(f, "RequestPartialSignature"),
-			SigningMessage::PartialSignature(_) => write!(f, "PartialSignature"),
-			SigningMessage::SigningSessionError(_) => write!(f, "SigningSessionError"),
-			SigningMessage::SigningSessionCompleted(_) => write!(f, "SigningSessionCompleted"),
-			SigningMessage::SigningSessionDelegation(_) => write!(f, "SigningSessionDelegation"),
-			SigningMessage::SigningSessionDelegationCompleted(_) => write!(f, "SigningSessionDelegationCompleted"),
+			SchnorrSigningMessage::SchnorrSigningConsensusMessage(ref m) => write!(f, "SchnorrSigningConsensusMessage.{}", m.message),
+			SchnorrSigningMessage::SchnorrSigningGenerationMessage(ref m) => write!(f, "SchnorrSigningGenerationMessage.{}", m.message),
+			SchnorrSigningMessage::SchnorrRequestPartialSignature(_) => write!(f, "SchnorrRequestPartialSignature"),
+			SchnorrSigningMessage::SchnorrPartialSignature(_) => write!(f, "SchnorrPartialSignature"),
+			SchnorrSigningMessage::SchnorrSigningSessionError(_) => write!(f, "SchnorrSigningSessionError"),
+			SchnorrSigningMessage::SchnorrSigningSessionCompleted(_) => write!(f, "SchnorrSigningSessionCompleted"),
+			SchnorrSigningMessage::SchnorrSigningSessionDelegation(_) => write!(f, "SchnorrSigningSessionDelegation"),
+			SchnorrSigningMessage::SchnorrSigningSessionDelegationCompleted(_) => write!(f, "SchnorrSigningSessionDelegationCompleted"),
+		}
+	}
+}
+
+impl fmt::Display for EcdsaSigningMessage {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			EcdsaSigningMessage::EcdsaSigningConsensusMessage(ref m) => write!(f, "EcdsaSigningConsensusMessage.{}", m.message),
+			EcdsaSigningMessage::EcdsaSignatureNonceGenerationMessage(ref m) => write!(f, "EcdsaSignatureNonceGenerationMessage.{}", m.message),
+			EcdsaSigningMessage::EcdsaInversionNonceGenerationMessage(ref m) => write!(f, "EcdsaInversionNonceGenerationMessage.{}", m.message),
+			EcdsaSigningMessage::EcdsaInversionZeroGenerationMessage(ref m) => write!(f, "EcdsaInversionZeroGenerationMessage.{}", m.message),
+			EcdsaSigningMessage::EcdsaSigningInversedNonceCoeffShare(_) => write!(f, "EcdsaSigningInversedNonceCoeffShare"),
+			EcdsaSigningMessage::EcdsaRequestPartialSignature(_) => write!(f, "EcdsaRequestPartialSignature"),
+			EcdsaSigningMessage::EcdsaPartialSignature(_) => write!(f, "EcdsaPartialSignature"),
+			EcdsaSigningMessage::EcdsaSigningSessionError(_) => write!(f, "EcdsaSigningSessionError"),
+			EcdsaSigningMessage::EcdsaSigningSessionCompleted(_) => write!(f, "EcdsaSigningSessionCompleted"),
+			EcdsaSigningMessage::EcdsaSigningSessionDelegation(_) => write!(f, "EcdsaSigningSessionDelegation"),
+			EcdsaSigningMessage::EcdsaSigningSessionDelegationCompleted(_) => write!(f, "EcdsaSigningSessionDelegationCompleted"),
 		}
 	}
 }

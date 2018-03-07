@@ -17,8 +17,8 @@
 use std::sync::Arc;
 use hash::keccak;
 use ethereum_types::{U256, Address};
-use io::{IoHandler, IoChannel};
-use ethcore::client::BlockChainClient;
+use io::{IoHandler, IoContext, IoChannel};
+use ethcore::client::{Client, ChainInfo};
 use ethcore::service::ClientIoMessage;
 use ethcore::spec::Spec;
 use ethcore::miner::MinerService;

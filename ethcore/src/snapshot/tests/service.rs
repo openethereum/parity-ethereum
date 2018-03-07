@@ -19,7 +19,7 @@
 use std::sync::Arc;
 
 use tempdir::TempDir;
-use client::{BlockChainClient, Client};
+use client::{Client, BlockInfo};
 use ids::BlockId;
 use snapshot::service::{Service, ServiceParams};
 use snapshot::{self, ManifestData, SnapshotService};

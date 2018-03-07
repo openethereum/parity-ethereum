@@ -26,9 +26,10 @@ use ethcore::account_provider::AccountProvider;
 use jsonrpc_core::Result;
 use v1::helpers::errors;
 use v1::helpers::accounts::unwrap_provider;
-use v1::helpers::secretstore::{encrypt_document, decrypt_document, decrypt_document_with_shadow, ordered_servers_keccak};
+use v1::helpers::secretstore::{generate_document_key, encrypt_document,
+	decrypt_document, decrypt_document_with_shadow, ordered_servers_keccak};
 use v1::traits::SecretStore;
-use v1::types::{H160, H256, H512, Bytes};
+use v1::types::{H160, H256, H512, Bytes, EncryptedDocumentKey};
 
 /// Parity implementation.
 pub struct SecretStoreClient {
@@ -64,6 +65,13 @@ impl SecretStoreClient {
 }
 
 impl SecretStore for SecretStoreClient {
+	fn generate_document_key(&self, address: H160, password: String, server_key_public: H512) -> Result<EncryptedDocumentKey> {
+		let store = self.account_provider()?;
+		let account_public = store.account_public(address.into(), &password)
+			.map_err(|e| errors::account("Could not read account public.", e))?;
+		generate_document_key(account_public, server_key_public.into())
+	}
+
 	fn encrypt(&self, address: H160, password: String, key: Bytes, data: Bytes) -> Result<Bytes> {
 		encrypt_document(self.decrypt_key(address, password, key)?, data.0)
 			.map(Into::into)

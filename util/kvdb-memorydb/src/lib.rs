@@ -16,12 +16,10 @@
 
 extern crate parking_lot;
 extern crate kvdb;
-extern crate rlp;
 
 use std::collections::{BTreeMap, HashMap};
 use parking_lot::RwLock;
 use kvdb::{DBValue, DBTransaction, KeyValueDB, DBOp, Result};
-use rlp::{RlpType, UntrustedRlp, Compressible};
 
 /// A key-value database fulfilling the `KeyValueDB` trait, living in memory.
 /// This is generally intended for tests and is not particularly optimized.
@@ -72,14 +70,6 @@ impl KeyValueDB for InMemory {
 			match op {
 				DBOp::Insert { col, key, value } => {
 					if let Some(col) = columns.get_mut(&col) {
-						col.insert(key.into_vec(), value);
-					}
-				},
-				DBOp::InsertCompressed { col, key, value } => {
-					if let Some(col) = columns.get_mut(&col) {
-						let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
-						let mut value = DBValue::new();
-						value.append_slice(&compressed);
 						col.insert(key.into_vec(), value);
 					}
 				},

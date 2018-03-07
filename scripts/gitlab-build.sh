@@ -22,13 +22,10 @@ echo "Parity version:     " $VER
 echo "Branch:             " $CI_BUILD_REF_NAME
 echo "--------------------"
 
-echo "Rhash version:"
 # NOTE for md5 and sha256 we want to display filename as well
 # hence we use --* instead of -p *
 MD5_BIN="rhash --md5"
 SHA256_BIN="rhash --sha256"
-# NOTE For SHA3 we need only hash (hence -p)
-SHA3_BIN="rhash -p %{sha3-256}"
 
 set_env () {
   echo "Set ENVIROMENT"
@@ -51,6 +48,12 @@ set_env_win () {
   echo "@ signtool sign /f "\%"1 /p "\%"2 /tr http://timestamp.comodoca.com /du https://parity.io "\%"3" > sign.cmd
 }
 build () {
+  if [[ "windows" = $IDENT ]]
+  then
+    # This is a nasty hack till we figure out the proper cargo caching strategy
+    echo "Remove index"
+    rm -rf cargo/registry/index/*.
+  fi
   echo "Build parity:"
   cargo build --target $PLATFORM --features final --release
   echo "Build evmbin:"
@@ -70,14 +73,12 @@ strip_binaries () {
 calculate_checksums () {
   echo "Checksum calculation:"
   rhash --version
+
   rm -rf *.md5
   rm -rf *.sha256
 
-  export SHA3="$($SHA3_BIN target/$PLATFORM/release/parity$S3WIN)"
-  # NOTE rhash 1.3.1 doesnt support keccak, workaround
-  if [ "$SHA3" == "%{sha3-256}" ]; then
-    export SHA3="$(target/$PLATFORM/release/parity$S3WIN tools hash target/$PLATFORM/release/parity$S3WIN)"
-  fi
+  BIN="target/$PLATFORM/release/parity$S3WIN"
+  export SHA3="$($BIN tools hash $BIN)"
 
   echo "Parity file SHA3: $SHA3"
   $MD5_BIN target/$PLATFORM/release/parity$S3WIN > parity$S3WIN.md5
@@ -312,7 +313,7 @@ case $BUILD_PLATFORM in
     snapcraft clean
     echo "Prepare snapcraft.yaml for build on Gitlab CI in Docker image"
     sed -i 's/git/'"$VER"'/g' snap/snapcraft.yaml
-    if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.9* ]];
+    if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.10* ]];
       then
         sed -i -e 's/grade: devel/grade: stable/' snap/snapcraft.yaml;
     fi

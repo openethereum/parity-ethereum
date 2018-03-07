@@ -20,9 +20,9 @@
 use std::sync::Arc;
 
 use ethcore::blockchain_info::BlockChainInfo;
-use ethcore::client::{BlockChainClient, ProvingBlockChainClient};
-use ethcore::encoded;
+use ethcore::client::{BlockChainClient, ProvingBlockChainClient, ChainInfo, BlockInfo as ClientBlockInfo};
 use ethcore::ids::BlockId;
+use ethcore::encoded;
 use ethereum_types::H256;
 use parking_lot::RwLock;
 use transaction::PendingTransaction;
@@ -138,7 +138,7 @@ pub trait Provider: Send + Sync {
 // Implementation of a light client data provider for a client.
 impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	fn chain_info(&self) -> BlockChainInfo {
-		BlockChainClient::chain_info(self)
+		ChainInfo::chain_info(self)
 	}
 
 	fn reorg_depth(&self, a: &H256, b: &H256) -> Option<u64> {
@@ -150,7 +150,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
-		BlockChainClient::block_header(self, id)
+		ClientBlockInfo::block_header(self, id)
 	}
 
 	fn transaction_index(&self, req: request::CompleteTransactionIndexRequest)

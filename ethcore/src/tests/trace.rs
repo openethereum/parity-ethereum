@@ -88,7 +88,6 @@ fn can_trace_block_and_uncle_reward() {
 		vec![],
 		false,
 	).unwrap();
-	root_block.set_difficulty(U256::from(0x20000));
 	rolling_timestamp += 10;
 	root_block.set_timestamp(rolling_timestamp);
 
@@ -117,7 +116,6 @@ fn can_trace_block_and_uncle_reward() {
 		vec![],
 		false,
 	).unwrap();
-	parent_block.set_difficulty(U256::from(0x20000));
 	rolling_timestamp += 10;
 	parent_block.set_timestamp(rolling_timestamp);
 
@@ -145,7 +143,6 @@ fn can_trace_block_and_uncle_reward() {
 		vec![],
 		false
 		).unwrap();
-	block.set_difficulty(U256::from(0x20000));
 	rolling_timestamp += 10;
 	block.set_timestamp(rolling_timestamp);
 

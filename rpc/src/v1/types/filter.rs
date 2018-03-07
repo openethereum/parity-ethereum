@@ -72,9 +72,15 @@ pub struct Filter {
 
 impl Into<EthFilter> for Filter {
 	fn into(self) -> EthFilter {
+		let num_to_id = |num| match num {
+			BlockNumber::Num(n) => BlockId::Number(n),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest | BlockNumber::Pending => BlockId::Latest,
+		};
+
 		EthFilter {
-			from_block: self.from_block.map_or_else(|| BlockId::Latest, Into::into),
-			to_block: self.to_block.map_or_else(|| BlockId::Latest, Into::into),
+			from_block: self.from_block.map_or_else(|| BlockId::Latest, &num_to_id),
+			to_block: self.to_block.map_or_else(|| BlockId::Latest, &num_to_id),
 			address: self.address.and_then(|address| match address {
 				VariadicValue::Null => None,
 				VariadicValue::Single(a) => Some(vec![a.into()]),

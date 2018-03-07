@@ -497,7 +497,7 @@ impl HeaderChain {
 				if self.best_block.read().number < num { return None }
 				self.candidates.read().get(&num).map(|entry| entry.canonical_hash)
 			}
-			BlockId::Latest | BlockId::Pending => {
+			BlockId::Latest => {
 				Some(self.best_block.read().hash)
 			}
 		}
@@ -539,7 +539,7 @@ impl HeaderChain {
 				self.candidates.read().get(&num).map(|entry| entry.canonical_hash)
 					.and_then(load_from_db)
 			}
-			BlockId::Latest | BlockId::Pending => {
+			BlockId::Latest => {
 				// hold candidates hear to prevent deletion of the header
 				// as we read it.
 				let _candidates = self.candidates.read();
@@ -575,7 +575,7 @@ impl HeaderChain {
 				if self.best_block.read().number < num { return None }
 				candidates.get(&num).map(|era| era.candidates[0].total_difficulty)
 			}
-			BlockId::Latest | BlockId::Pending => Some(self.best_block.read().total_difficulty)
+			BlockId::Latest => Some(self.best_block.read().total_difficulty)
 		}
 	}
 
@@ -866,7 +866,6 @@ mod tests {
 
 		assert!(chain.block_header(BlockId::Earliest).is_some());
 		assert!(chain.block_header(BlockId::Latest).is_some());
-		assert!(chain.block_header(BlockId::Pending).is_some());
 	}
 
 	#[test]
