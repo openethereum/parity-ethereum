@@ -56,7 +56,7 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 mod tests {
 	use std::sync::Arc;
 	use ethereum_types::{H520, Address};
-	use tests::helpers::*;
+	use tests::helpers::{get_temp_state_db};
 	use spec::Spec;
 	use header::Header;
 	use block::*;

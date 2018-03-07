@@ -222,8 +222,8 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 #[cfg(test)]
 mod tests {
 	use std::{time, thread};
+	use spec::Spec;
 	use super::*;
-	use tests::helpers::*;
 	use client::ClientConfig;
 	use std::sync::Arc;
 	use miner::Miner;
@@ -235,7 +235,7 @@ mod tests {
 		let client_path = tempdir.path().join("client");
 		let snapshot_path = tempdir.path().join("snapshot");
 
-		let spec = get_test_spec();
+		let spec = Spec::new_test();
 		let service = ClientService::start(
 			ClientConfig::default(),
 			&spec,
