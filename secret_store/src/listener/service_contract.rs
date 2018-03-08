@@ -42,7 +42,7 @@ pub const DOC_KEY_STORE_SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretst
 pub const DOC_KEY_SRETR_SERVICE_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_service_doc_sretr";
 
 /// Server key generation has been requested.
-const SERVER_KEY_GENERATION_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyGenerationRequested(bytes32,address,uint256)";
+const SERVER_KEY_GENERATION_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyGenerationRequested(bytes32,address,uint8)";
 /// Server key retrieval has been requested.
 const SERVER_KEY_RETRIEVAL_REQUESTED_EVENT_NAME: &'static [u8] = &*b"ServerKeyRetrievalRequested(bytes32)";
 /// Document key store has been requested.
@@ -169,7 +169,7 @@ impl OnChainServiceContract {
 	}
 
 	/// Send transaction to the service contract.
-	fn send_contract_transaction<C, P>(&self, origin: &Address, server_key_id: &ServerKeyId, check: C, prepare_tx: P) -> Result<(), String>
+	fn send_contract_transaction<C, P>(&self, origin: &Address, server_key_id: &ServerKeyId, is_response_required: C, prepare_tx: P) -> Result<(), String>
 		where C: FnOnce(&Client, &Address, &service::Service, &ServerKeyId, &Address) -> bool,
 			P: FnOnce(&Client, &Address, &service::Service) -> Result<Bytes, String> {
 		// only publish if contract address is set && client is online
@@ -182,19 +182,20 @@ impl OnChainServiceContract {
 		// failing is ok here - it could be that enough confirmations have been recevied
 		// or key has been requested using HTTP API
 		let self_address = public_to_address(self.self_key_pair.public());
-		if !check(&*client, origin, &self.contract, server_key_id, &self_address) {
+		if !is_response_required(&*client, origin, &self.contract, server_key_id, &self_address) {
+println!("=== response is not required");
 			return Ok(());
 		}
 
 		// prepare transaction data
 		let transaction_data = prepare_tx(&*client, origin, &self.contract)?;
-
+println!("=== transaction prepared");
 		// send transaction
 		client.transact_contract(
 			origin.clone(),
 			transaction_data
 		).map_err(|e| format!("{}", e))?;
-
+println!("=== transaction sent");
 		Ok(())
 	}
 
@@ -365,44 +366,44 @@ impl ServiceContract for OnChainServiceContract {
 	}
 
 	fn publish_generated_server_key(&self, origin: &Address, server_key_id: &ServerKeyId, server_key: Public) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, ServerKeyGenerationService::is_confirmed, |_, _, service|
+		self.send_contract_transaction(origin, server_key_id, ServerKeyGenerationService::is_response_required, |_, _, service|
 			Ok(ServerKeyGenerationService::prepare_pubish_tx_data(service, server_key_id, &server_key))
 		)
 	}
 
 	fn publish_server_key_generation_error(&self, origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, ServerKeyGenerationService::is_confirmed, |_, _, service|
+		self.send_contract_transaction(origin, server_key_id, ServerKeyGenerationService::is_response_required, |_, _, service|
 			Ok(ServerKeyGenerationService::prepare_error_tx_data(service, server_key_id))
 		)
 	}
 
 	fn publish_retrieved_server_key(&self, origin: &Address, server_key_id: &ServerKeyId, server_key: Public, threshold: usize) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, ServerKeyRetrievalService::is_confirmed, |_, _, service|
+		self.send_contract_transaction(origin, server_key_id, ServerKeyRetrievalService::is_response_required, |_, _, service|
 			Ok(ServerKeyRetrievalService::prepare_pubish_tx_data(service, server_key_id, server_key, threshold))
 		)
 	}
 
 	fn publish_server_key_retrieval_error(&self, origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, ServerKeyRetrievalService::is_confirmed, |_, _, service|
+		self.send_contract_transaction(origin, server_key_id, ServerKeyRetrievalService::is_response_required, |_, _, service|
 			Ok(ServerKeyRetrievalService::prepare_error_tx_data(service, server_key_id))
 		)
 	}
 
 	fn publish_stored_document_key(&self, origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, DocumentKeyStoreService::is_confirmed, |_, _, service|
+		self.send_contract_transaction(origin, server_key_id, DocumentKeyStoreService::is_response_required, |_, _, service|
 			Ok(DocumentKeyStoreService::prepare_pubish_tx_data(service, server_key_id))
 		)
 	}
 
 	fn publish_document_key_store_error(&self, origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, DocumentKeyStoreService::is_confirmed, |_, _, service|
+		self.send_contract_transaction(origin, server_key_id, DocumentKeyStoreService::is_response_required, |_, _, service|
 			Ok(DocumentKeyStoreService::prepare_error_tx_data(service, server_key_id))
 		)
 	}
 
 	fn publish_retrieved_document_key_common(&self, origin: &Address, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, threshold: usize) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, |client, contract_address, contract, server_key_id, authority|
-			DocumentKeyShadowRetrievalService::is_confirmed(client, contract_address, contract, server_key_id, requester, authority),
+		self.send_contract_transaction(origin, server_key_id, |client, contract_address, contract, server_key_id, key_server|
+			DocumentKeyShadowRetrievalService::is_response_required(client, contract_address, contract, server_key_id, requester, key_server),
 		|_, _, service|
 			Ok(DocumentKeyShadowRetrievalService::prepare_pubish_common_tx_data(service, server_key_id, requester, common_point, threshold))
 		)
@@ -416,8 +417,8 @@ impl ServiceContract for OnChainServiceContract {
 	}
 
 	fn publish_document_key_retrieval_error(&self, origin: &Address, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, |client, contract_address, contract, server_key_id, authority|
-			DocumentKeyShadowRetrievalService::is_confirmed(client, contract_address, contract, server_key_id, requester, authority),
+		self.send_contract_transaction(origin, server_key_id, |client, contract_address, contract, server_key_id, key_server|
+			DocumentKeyShadowRetrievalService::is_response_required(client, contract_address, contract, server_key_id, requester, key_server),
 		|_, _, service|
 			Ok(DocumentKeyShadowRetrievalService::prepare_error_tx_data(service, server_key_id, requester))
 		)
@@ -475,13 +476,13 @@ impl ServerKeyGenerationService {
 		}
 	}
 
-	/// Check if request is confirmed by authority.
-	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, authority: &Address) -> bool {
+	/// Check if response from key server is required.
+	pub fn is_response_required(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, key_server: &Address) -> bool {
 		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
-		!contract.functions()
+		contract.functions()
 			.is_server_key_generation_response_required()
-			.call(*server_key_id, authority.clone(), &do_call)
+			.call(*server_key_id, key_server.clone(), &do_call)
 			.unwrap_or(true)
 	}
 
@@ -544,13 +545,13 @@ impl ServerKeyRetrievalService {
 		}
 	}
 
-	/// Check if request is confirmed by authority.
-	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, authority: &Address) -> bool {
+	/// Check if response from key server is required.
+	pub fn is_response_required(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, key_server: &Address) -> bool {
 		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
-		!contract.functions()
+		contract.functions()
 			.is_server_key_retrieval_response_required()
-			.call(*server_key_id, authority.clone(), &do_call)
+			.call(*server_key_id, key_server.clone(), &do_call)
 			.unwrap_or(true)
 	}
 
@@ -609,13 +610,13 @@ impl DocumentKeyStoreService {
 		}
 	}
 
-	/// Check if request is confirmed by authority.
-	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, authority: &Address) -> bool {
+	/// Check if response from key server is required.
+	pub fn is_response_required(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, key_server: &Address) -> bool {
 		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
-		!contract.functions()
+		contract.functions()
 			.is_document_key_store_response_required()
-			.call(*server_key_id, authority.clone(), &do_call)
+			.call(*server_key_id, key_server.clone(), &do_call)
 			.unwrap_or(true)
 	}
 
@@ -686,13 +687,13 @@ impl DocumentKeyShadowRetrievalService {
 		}
 	}
 
-	/// Check if request is confirmed by authority.
-	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, authority: &Address) -> bool {
+	/// Check if response from key server is required.
+	pub fn is_response_required(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, key_server: &Address) -> bool {
 		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
-		!contract.functions()
+		contract.functions()
 			.is_document_key_shadow_retrieval_response_required()
-			.call(*server_key_id, *requester, authority.clone(), &do_call)
+			.call(*server_key_id, *requester, key_server.clone(), &do_call)
 			.unwrap_or(true)
 	}
 
@@ -707,7 +708,7 @@ impl DocumentKeyShadowRetrievalService {
 	pub fn prepare_pubish_personal_tx_data(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Result<Bytes, String> {
 		let mut participants_mask = U256::default();
 		for participant in participants {
-			let participant_index = Self::map_authority_address(client, contract_address, contract, participant.clone())
+			let participant_index = Self::map_key_server_address(client, contract_address, contract, participant.clone())
 				.map_err(|e| format!("Error searching for {} participant: {}", participant, e))?;
 			participants_mask = participants_mask | (U256::one() << participant_index.into());
 		}
@@ -765,16 +766,16 @@ impl DocumentKeyShadowRetrievalService {
 			})
 	}
 
-	/// Map from authority address to authority index.
-	fn map_authority_address(client: &Client, contract_address: &Address, contract: &service::Service, authority: Address) -> Result<u8, String> {
+	/// Map from key server address to key server index.
+	fn map_key_server_address(client: &Client, contract_address: &Address, contract: &service::Service, key_server: Address) -> Result<u8, String> {
 		// we're checking confirmation in Latest block, because tx ,ust be appended to the latest state
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
 		contract.functions()
-			.require_authority()
-			.call(authority, &do_call)
+			.require_key_server()
+			.call(key_server, &do_call)
 			.map_err(|e| format!("{}", e))
 			.and_then(|index| if index > ::std::u8::MAX.into() {
-				Err(format!("authority index is too big: {}", index))
+				Err(format!("key server index is too big: {}", index))
 			} else {
 				let index: u32 = index.into();
 				Ok(index as u8)

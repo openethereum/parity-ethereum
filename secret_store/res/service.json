@@ -1,5 +1,5 @@
 [
-	{"constant":true,"inputs":[{"name":"authority","type":"address"}],"name":"requireAuthority","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"},
+	{"constant":true,"inputs":[{"name":"keyServer","type":"address"}],"name":"requireKeyServer","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"},
 
 	{"constant":true,"inputs":[],"name":"serverKeyGenerationRequestsCount","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
 	{"constant":false,"inputs":[{"name":"serverKeyId","type":"bytes32"}],"name":"serverKeyGenerationError","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
