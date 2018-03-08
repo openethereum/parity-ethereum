@@ -547,7 +547,7 @@ impl Configuration {
 
 		Ok(pool::Options {
 			max_count,
-			max_per_sender: self.args.arg_tx_queue_per_sender.unwrap_or_else(|| cmp::max(16, max_count / 20)),
+			max_per_sender: self.args.arg_tx_queue_per_sender.unwrap_or_else(|| cmp::max(16, max_count / 100)),
 			max_mem_usage: if self.args.arg_tx_queue_mem_limit > 0 {
 				self.args.arg_tx_queue_mem_limit as usize * 1024 * 1024
 			} else {

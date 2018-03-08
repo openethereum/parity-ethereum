@@ -661,7 +661,7 @@ usage! {
 
 			ARG arg_tx_queue_per_sender: (Option<usize>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_per_sender.clone(),
 			"--tx-queue-per-sender=[LIMIT]",
-			"Maximum number of transactions per sender in the queue. By default it's 5% of the entire queue, but not less than 16.",
+			"Maximum number of transactions per sender in the queue. By default it's 1% of the entire queue, but not less than 16.",
 
 			ARG arg_tx_queue_gas: (String) = "off", or |c: &Config| c.mining.as_ref()?.tx_queue_gas.clone(),
 			"--tx-queue-gas=[LIMIT]",
