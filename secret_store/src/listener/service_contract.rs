@@ -479,10 +479,10 @@ impl ServerKeyGenerationService {
 	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, authority: &Address) -> bool {
 		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
-		contract.functions()
-			.get_server_key_generation_request_confirmation_status()
+		!contract.functions()
+			.is_server_key_generation_response_required()
 			.call(*server_key_id, authority.clone(), &do_call)
-			.unwrap_or(false)
+			.unwrap_or(true)
 	}
 
 	/// Prepare publish key transaction data.
@@ -520,7 +520,7 @@ impl ServerKeyGenerationService {
 			.and_then(|(server_key_id, author, threshold)| parse_threshold(threshold)
 				.map(|threshold| (server_key_id, author, threshold)))
 			.and_then(|(server_key_id, author, threshold)| contract.functions()
-				.get_server_key_generation_request_confirmation_status()
+				.is_server_key_generation_response_required()
 				.call(server_key_id.clone(), self_address, &do_call)
 				.map(|not_confirmed| (
 					not_confirmed,
@@ -548,10 +548,10 @@ impl ServerKeyRetrievalService {
 	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, authority: &Address) -> bool {
 		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
-		contract.functions()
-			.get_server_key_retrieval_request_confirmation_status()
+		!contract.functions()
+			.is_server_key_retrieval_response_required()
 			.call(*server_key_id, authority.clone(), &do_call)
-			.unwrap_or(false)
+			.unwrap_or(true)
 	}
 
 	/// Prepare publish key transaction data.
@@ -587,7 +587,7 @@ impl ServerKeyRetrievalService {
 			.call(index, &do_call)
 			.map_err(|error| format!("{}", error))
 			.and_then(|server_key_id| contract.functions()
-				.get_server_key_retrieval_request_confirmation_status()
+				.is_server_key_retrieval_response_required()
 				.call(server_key_id.clone(), self_address, &do_call)
 				.map(|not_confirmed| (
 					not_confirmed,
@@ -613,10 +613,10 @@ impl DocumentKeyStoreService {
 	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, authority: &Address) -> bool {
 		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
-		contract.functions()
-			.get_document_key_store_request_confirmation_status()
+		!contract.functions()
+			.is_document_key_store_response_required()
 			.call(*server_key_id, authority.clone(), &do_call)
-			.unwrap_or(false)
+			.unwrap_or(true)
 	}
 
 	/// Prepare publish key transaction data.
@@ -652,7 +652,7 @@ impl DocumentKeyStoreService {
 			.call(index, &do_call)
 			.map_err(|error| format!("{}", error))
 			.and_then(|(server_key_id, author, common_point, encrypted_point)| contract.functions()
-				.get_document_key_store_request_confirmation_status()
+				.is_document_key_store_response_required()
 				.call(server_key_id.clone(), self_address, &do_call)
 				.map(|not_confirmed| (
 					not_confirmed,
@@ -690,10 +690,10 @@ impl DocumentKeyShadowRetrievalService {
 	pub fn is_confirmed(client: &Client, contract_address: &Address, contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, authority: &Address) -> bool {
 		// we're checking confirmation in Latest block, because we're interested in latest contract state here
 		let do_call = |data| client.call_contract(BlockId::Latest, *contract_address, data);
-		contract.functions()
-			.get_document_key_shadow_retrieval_request_confirmation_status()
+		!contract.functions()
+			.is_document_key_shadow_retrieval_response_required()
 			.call(*server_key_id, *requester, authority.clone(), &do_call)
-			.unwrap_or(false)
+			.unwrap_or(true)
 	}
 
 	/// Prepare publish common key transaction data.
@@ -744,7 +744,7 @@ impl DocumentKeyShadowRetrievalService {
 			.and_then(|(server_key_id, requester, is_common_retrieval_completed)| {
 				let requester = Public::from_slice(&requester);
 				contract.functions()
-					.get_document_key_shadow_retrieval_request_confirmation_status()
+					.is_document_key_shadow_retrieval_response_required()
 					.call(server_key_id.clone(), public_to_address(&requester), self_address, &do_call)
 					.map(|not_confirmed| (
 						not_confirmed,
