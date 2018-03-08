@@ -58,7 +58,7 @@ pub struct Configuration {
 	/// Server key generation service contract address.
 	pub service_contract_srv_gen_address: Option<ContractAddress>,
 	/// Server key retrieval service contract address.
-	pub service_contract_retr_gen_address: Option<ContractAddress>,
+	pub service_contract_srv_retr_address: Option<ContractAddress>,
 	/// Document key store service contract address.
 	pub service_contract_doc_store_address: Option<ContractAddress>,
 	/// Document key shadow retrieval service contract address.
@@ -211,6 +211,10 @@ impl Default for Configuration {
 			acl_check_enabled: true,
 			auto_migrate_enabled: true,
 			service_contract_address: None,
+			service_contract_srv_gen_address: None,
+			service_contract_srv_retr_address: None,
+			service_contract_doc_store_address: None,
+			service_contract_doc_sretr_address: None,
 			self_secret: None,
 			admin_public: None,
 			nodes: BTreeMap::new(),
