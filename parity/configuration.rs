@@ -19,7 +19,7 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
-use std::cmp::max;
+use std::cmp;
 use std::str::FromStr;
 use cli::{Args, ArgsError};
 use hash::keccak;
@@ -459,7 +459,7 @@ impl Configuration {
 
 	fn max_peers(&self) -> u32 {
 		let peers = self.args.arg_max_peers as u32;
-		max(self.min_peers(), peers)
+		cmp::max(self.min_peers(), peers)
 	}
 
 	fn ip_filter(&self) -> Result<IpFilter, String> {
@@ -543,10 +543,11 @@ impl Configuration {
 	}
 
 	fn pool_limits(&self) -> Result<pool::Options, String> {
+		let max_count = self.args.arg_tx_queue_size;
+
 		Ok(pool::Options {
-			max_count: self.args.arg_tx_queue_size,
-			// TODO [ToDr] Add seperate parameter for that!
-			max_per_sender: self.args.arg_tx_queue_size,
+			max_count,
+			max_per_sender: self.args.arg_tx_queue_per_sender.unwrap_or_else(|| cmp::max(16, max_count / 20)),
 			max_mem_usage: if self.args.arg_tx_queue_mem_limit > 0 {
 				self.args.arg_tx_queue_mem_limit as usize * 1024 * 1024
 			} else {
@@ -559,7 +560,7 @@ impl Configuration {
 		Ok(pool::verifier::Options {
 			// NOTE min_gas_price and block_gas_limit will be overwritten right after start.
 			minimal_gas_price: U256::from(20_000_000) * 1_000u32,
-			block_gas_limit: to_u256(&self.args.arg_gas_floor_target)?,
+			block_gas_limit: U256::max_value(),
 			tx_gas_limit: match self.args.arg_tx_gas_limit {
 				Some(ref d) => to_u256(d)?,
 				None => U256::max_value(),
@@ -1154,7 +1155,7 @@ mod tests {
 	use tempdir::TempDir;
 	use ethcore::client::{VMType, BlockId};
 	use ethcore::miner::MinerOptions;
-	use miner::transaction_queue::PrioritizationStrategy;
+	use miner::pool::PrioritizationStrategy;
 	use parity_rpc::NetworkSettings;
 	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 
@@ -1440,18 +1441,12 @@ mod tests {
 
 		// when
 		let conf0 = parse(&["parity"]);
-		let conf1 = parse(&["parity", "--tx-queue-strategy", "gas_factor"]);
 		let conf2 = parse(&["parity", "--tx-queue-strategy", "gas_price"]);
-		let conf3 = parse(&["parity", "--tx-queue-strategy", "gas"]);
 
 		// then
 		assert_eq!(conf0.miner_options().unwrap(), mining_options);
-		mining_options.tx_queue_strategy = PrioritizationStrategy::GasFactorAndGasPrice;
-		assert_eq!(conf1.miner_options().unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasPriceOnly;
 		assert_eq!(conf2.miner_options().unwrap(), mining_options);
-		mining_options.tx_queue_strategy = PrioritizationStrategy::GasAndGasPrice;
-		assert_eq!(conf3.miner_options().unwrap(), mining_options);
 	}
 
 	#[test]
@@ -1708,8 +1703,8 @@ mod tests {
 				assert_eq!(c.miner_options.reseal_on_external_tx, true);
 				assert_eq!(c.miner_options.reseal_on_own_tx, true);
 				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(4000));
-				assert_eq!(c.miner_options.tx_queue_size, 2048);
-				assert_eq!(c.cache_config, CacheConfig::new_with_total_cache_size(256));
+				assert_eq!(c.miner_options.pool_limits.max_count, 8192);
+				assert_eq!(c.cache_config, CacheConfig::new_with_total_cache_size(1024));
 				assert_eq!(c.logger_config.mode.unwrap(), "miner=trace,own_tx=trace");
 			},
 			_ => panic!("Should be Cmd::Run"),

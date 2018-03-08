@@ -35,9 +35,9 @@ pub mod tests;
 pub use self::queue::{TransactionQueue, Status as QueueStatus};
 pub use self::txpool::{VerifiedTransaction as PoolVerifiedTransaction, Options};
 
-// TODO [ToDr] Actually use that parameter and implement more strategies.
-
 /// How to prioritize transactions in the pool
+///
+/// TODO [ToDr] Implement more strategies.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PrioritizationStrategy {
 	/// Simple gas-price based prioritization.

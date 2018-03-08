@@ -151,8 +151,8 @@ impl Default for MinerOptions {
 			tx_queue_penalization: Penalization::Disabled,
 			refuse_service_transactions: false,
 			pool_limits: pool::Options {
-				max_count: 16_384,
-				max_per_sender: 64,
+				max_count: 8_192,
+				max_per_sender: 409,
 				max_mem_usage: 8 * 1024 * 1024,
 			},
 			pool_verification_options: pool::verifier::Options {
