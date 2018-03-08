@@ -939,6 +939,7 @@ impl Configuration {
 				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()),
 			},
 			path: default_hypervisor_path(),
+			max_delay: 100,
 		})
 	}
 

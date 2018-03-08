@@ -21,13 +21,16 @@ use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
+use rand::{self, Rng};
 use target_info::Target;
 
 use bytes::Bytes;
 use ethcore::BlockNumber;
+use ethcore::filter::Filter;
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
 use ethereum_types::H256;
 use ethsync::{SyncProvider};
+use hash::keccak;
 use hash_fetch::{self as fetch, HashFetch};
 use path::restrict_permissions_owner;
 use service::Service;
@@ -35,6 +38,11 @@ use types::{ReleaseInfo, OperationsInfo, CapState, VersionInfo, ReleaseTrack};
 use version;
 
 use_contract!(operations_contract, "Operations", "res/operations.json");
+
+const RELEASE_ADDED_EVENT_NAME: &'static [u8] = &*b"ReleaseAdded(bytes32,uint32,bytes32,uint8,uint24,bool)";
+lazy_static! {
+	static ref RELEASE_ADDED_EVENT_NAME_HASH: H256 = keccak(RELEASE_ADDED_EVENT_NAME);
+}
 
 /// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -60,6 +68,8 @@ pub struct UpdatePolicy {
 	pub track: ReleaseTrack,
 	/// Path for the updates to go.
 	pub path: String,
+	/// Random update delay range in blocks.
+	pub max_delay: u64,
 }
 
 impl Default for UpdatePolicy {
@@ -70,6 +80,7 @@ impl Default for UpdatePolicy {
 			filter: UpdateFilter::None,
 			track: ReleaseTrack::Unknown,
 			path: Default::default(),
+			max_delay: 100,
 		}
 	}
 }
@@ -135,6 +146,10 @@ pub struct Updater {
 }
 
 const CLIENT_ID: &'static str = "parity";
+
+lazy_static! {
+	static ref CLIENT_ID_HASH: H256 = CLIENT_ID.as_bytes().into();
+}
 
 fn client_id_hash() -> H256 {
 	CLIENT_ID.as_bytes().into()
@@ -215,6 +230,39 @@ impl Updater {
 			.latest_in_track()
 			.call(client_id_hash(), u8::from(track), do_call)
 			.map_err(|e| format!("{:?}", e))
+	}
+
+	fn release_block_number(&self, from: BlockNumber, release: &ReleaseInfo) -> Option<BlockNumber> {
+		let client = self.client.upgrade()?;
+		let address = client.registry_address("operations".into(), BlockId::Latest)?;
+
+		let filter = Filter {
+			from_block: BlockId::Number(from),
+			to_block: BlockId::Latest,
+			address: Some(vec![address]),
+			topics: vec![
+				Some(vec![*RELEASE_ADDED_EVENT_NAME_HASH]),
+				Some(vec![*CLIENT_ID_HASH]),
+				Some(vec![release.fork.into()]),
+				Some(vec![if release.is_critical { 1 } else { 0 }.into()]),
+			],
+			limit: None,
+		};
+
+		let event = self.operations_contract.events().release_added();
+
+		client.logs(filter)
+			.iter()
+			.filter_map(|log| {
+				let event = event.parse_log((log.topics.clone(), log.data.clone()).into()).ok()?;
+				let version_info = VersionInfo::from_raw(event.semver.low_u32(), event.track.low_u32() as u8, event.release.into());
+				if version_info == release.version {
+					Some(log.block_number)
+				} else {
+					None
+				}
+			})
+			.last()
 	}
 
 	fn collect_latest(&self) -> Result<OperationsInfo, String> {
@@ -436,8 +484,19 @@ impl Updater {
 									state.status = UpdaterStatus::Ready { release: latest.track.clone() };
 
 								} else if self.update_policy.enable_downloading {
-									// TODO: calculate block_number using random delay
-									state.status = UpdaterStatus::Waiting { release: latest.track.clone(), binary, block_number: 0 };
+									match self.release_block_number(current_block_number - self.update_policy.max_delay, &latest.track) {
+										Some(block_number) => {
+											let delay = rand::thread_rng().gen_range(0, self.update_policy.max_delay);
+											let update_block_number = block_number + delay;
+
+											info!(target: "updater", "Update for binary {} will be triggered at block {}", binary, update_block_number);
+
+											state.status = UpdaterStatus::Waiting { release: latest.track.clone(), binary, block_number: update_block_number };
+										},
+										None => {
+											state.status = UpdaterStatus::Waiting { release: latest.track.clone(), binary, block_number: current_block_number };
+										},
+									}
 								}
 							}
 						}
