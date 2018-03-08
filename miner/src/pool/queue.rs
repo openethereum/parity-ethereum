@@ -347,6 +347,11 @@ impl TransactionQueue {
 		self.pool.write().clear();
 	}
 
+	/// Penalize given senders.
+	pub fn penalize<'a, T: IntoIterator<Item = &'a Address>>(&self, senders: T) {
+
+	}
+
 	/// Returns gas price of currently the worst transaction in the pool.
 	pub fn current_worst_gas_price(&self) -> U256 {
 		match self.pool.read().worst_transaction() {

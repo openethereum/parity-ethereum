@@ -250,6 +250,66 @@ fn should_construct_pending() {
 }
 
 #[test]
+fn should_update_scoring_correctly() {
+	// given
+	let b = TransactionBuilder::default();
+	let mut txq = TestPool::default();
+
+	let tx0 = txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+	let tx1 = txq.import(b.tx().nonce(1).gas_price(5).new()).unwrap();
+	let tx2 = txq.import(b.tx().nonce(2).new()).unwrap();
+	// this transaction doesn't get to the block despite high gas price
+	// because of block gas limit and simplistic ordering algorithm.
+	txq.import(b.tx().nonce(3).gas_price(4).new()).unwrap();
+	//gap
+	txq.import(b.tx().nonce(5).new()).unwrap();
+
+	let tx5 = txq.import(b.tx().sender(1).nonce(0).new()).unwrap();
+	let tx6 = txq.import(b.tx().sender(1).nonce(1).new()).unwrap();
+	let tx7 = txq.import(b.tx().sender(1).nonce(2).new()).unwrap();
+	let tx8 = txq.import(b.tx().sender(1).nonce(3).gas_price(4).new()).unwrap();
+	// gap
+	txq.import(b.tx().sender(1).nonce(5).new()).unwrap();
+
+	let tx9 = txq.import(b.tx().sender(2).nonce(0).new()).unwrap();
+	assert_eq!(txq.light_status().transaction_count, 11);
+	assert_eq!(txq.status(NonceReady::default()), Status {
+		stalled: 0,
+		pending: 9,
+		future: 2,
+	});
+	assert_eq!(txq.status(NonceReady::new(1)), Status {
+		stalled: 3,
+		pending: 6,
+		future: 2,
+	});
+
+	txq.update_score(&0.into(), ());
+
+	// when
+	let mut current_gas = U256::zero();
+	let limit = (21_000 * 8).into();
+	let mut pending = txq.pending(NonceReady::default()).take_while(|tx| {
+		let should_take = tx.gas + current_gas <= limit;
+		if should_take {
+			current_gas = current_gas + tx.gas
+		}
+		should_take
+	});
+
+	assert_eq!(pending.next(), Some(tx9));
+	assert_eq!(pending.next(), Some(tx5));
+	assert_eq!(pending.next(), Some(tx6));
+	assert_eq!(pending.next(), Some(tx7));
+	assert_eq!(pending.next(), Some(tx8));
+	// penalized transactions
+	assert_eq!(pending.next(), Some(tx0));
+	assert_eq!(pending.next(), Some(tx1));
+	assert_eq!(pending.next(), Some(tx2));
+	assert_eq!(pending.next(), None);
+}
+
+#[test]
 fn should_remove_transaction() {
 	// given
 	let b = TransactionBuilder::default();
@@ -403,7 +463,7 @@ mod listener {
 			self.0.borrow_mut().push(if old.is_some() { "replaced" } else { "added" });
 		}
 
-		fn rejected(&mut self, _tx: Transaction) {
+		fn rejected(&mut self, _tx: &SharedTransaction) {
 			self.0.borrow_mut().push("rejected".into());
 		}
 

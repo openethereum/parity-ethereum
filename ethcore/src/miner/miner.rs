@@ -63,24 +63,37 @@ pub enum PendingSet {
 	SealingOrElseQueue,
 }
 
-// /// Transaction queue banning settings.
-// #[derive(Debug, PartialEq, Clone)]
-// pub enum Banning {
-// 	/// Banning in transaction queue is disabled
-// 	Disabled,
-// 	/// Banning in transaction queue is enabled
-// 	Enabled {
-// 		/// Upper limit of transaction processing time before banning.
-// 		offend_threshold: Duration,
-// 		/// Number of similar offending transactions before banning.
-// 		min_offends: u16,
-// 		/// Number of seconds the offender is banned for.
-// 		ban_duration: Duration,
-// 	},
-// }
-//
-//
+/// Transaction queue penalization settings.
+///
+/// Senders of long-running transactions (above defined threshold)
+/// will get lower priority.
+#[derive(Debug, PartialEq, Clone)]
+pub enum Penalization {
+	/// Penalization in transaction queue is disabled
+	Disabled,
+	/// Penalization in transaction queue is enabled
+	Enabled {
+		/// Upper limit of transaction processing time before penalizing.
+		offend_threshold: Duration,
+	},
+}
+
+/// Initial minimal gas price.
+///
+/// Gas price should be later overwritten externally
+/// for instance by a dynamic gas price mechanism or CLI parameter.
+/// This constant controls the initial value.
 const DEFAULT_MINIMAL_GAS_PRICE: u64 = 20_000_000_000;
+
+/// Allowed number of skipped transactions when constructing pending block.
+///
+/// When we push transactions to pending block, some of the transactions might
+/// get skipped because of block gas limit being reached.
+/// This constant controls how many transactions we can skip because of that
+/// before stopping attempts to push more transactions to the block.
+/// This is an optimization that prevents traversing the entire pool
+/// in case we have only a fraction of available block gas limit left.
+const MAX_SKIPPED_TRANSACTIONS: usize = 8;
 
 /// Configures the behaviour of the miner.
 #[derive(Debug, PartialEq)]
@@ -111,6 +124,8 @@ pub struct MinerOptions {
 
 	// / Strategy to use for prioritizing transactions in the queue.
 	// pub tx_queue_strategy: PrioritizationStrategy,
+	/// Simple senders penalization.
+	pub tx_queue_penalization: Penalization,
 	/// Do we refuse to accept service transactions even if sender is certified.
 	pub refuse_service_transactions: bool,
 	/// Transaction pool limits.
@@ -126,14 +141,14 @@ impl Default for MinerOptions {
 			reseal_on_external_tx: false,
 			reseal_on_own_tx: true,
 			reseal_on_uncle: false,
-			pending_set: PendingSet::AlwaysQueue,
 			reseal_min_period: Duration::from_secs(2),
 			reseal_max_period: Duration::from_secs(120),
+			pending_set: PendingSet::AlwaysQueue,
 			work_queue_size: 20,
 			enable_resubmission: true,
 			infinite_pending_block: false,
 			// tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
-			// tx_queue_banning: Banning::Disabled,
+			tx_queue_penalization: Penalization::Disabled,
 			refuse_service_transactions: false,
 			pool_limits: pool::Options {
 				max_count: 16_384,
@@ -359,7 +374,7 @@ impl Miner {
 
 		let mut invalid_transactions = HashSet::new();
 		let mut not_allowed_transactions = HashSet::new();
-		// let mut transactions_to_penalize = HashSet::new();
+		let mut senders_to_penalize = HashSet::new();
 		let block_number = open_block.block().header().number();
 
 		let mut tx_count = 0usize;
@@ -367,6 +382,7 @@ impl Miner {
 
 		let client = self.client(chain);
 		let engine_params = self.engine.params();
+		let min_tx_gas = self.engine.schedule(chain_info.best_block_number).tx_gas.into();
 		let nonce_cap: Option<U256> = if chain_info.best_block_number + 1 >= engine_params.dust_protection_transition {
 			Some((engine_params.nonce_cap_increment * (chain_info.best_block_number + 1)).into())
 		} else {
@@ -385,6 +401,7 @@ impl Miner {
 
 			let transaction = tx.signed().clone();
 			let hash = transaction.hash();
+			let sender = transaction.sender();
 
 			// Re-verify transaction again vs current state.
 			let result = client.verify_signed(&transaction)
@@ -394,23 +411,18 @@ impl Miner {
 				});
 
 			let took = start.elapsed();
+			let took_ms = || took.as_secs() * 1000 + took.subsec_nanos() as u64 / 1_000_000;
 
 			// Check for heavy transactions
-			// match self.options.tx_queue_banning {
-			// 	Banning::Enabled { ref offend_threshold, .. } if &took > offend_threshold => {
-			// 		match self.transaction_queue.write().ban_transaction(&hash) {
-			// 			true => {
-			// 				warn!(target: "miner", "Detected heavy transaction. Banning the sender and recipient/code.");
-			// 			},
-			// 			false => {
-			// 				transactions_to_penalize.insert(hash);
-			// 				debug!(target: "miner", "Detected heavy transaction. Penalizing sender.")
-			// 			}
-			// 		}
-			// 	},
-			// 	_ => {},
-			// }
-			trace!(target: "miner", "Adding tx {:?} took {:?}", hash, took);
+			match self.options.tx_queue_penalization {
+				Penalization::Enabled { ref offend_threshold } if &took > offend_threshold => {
+					senders_to_penalize.insert(sender);
+					debug!(target: "miner", "Detected heavy transaction ({} ms). Penalizing sender.", took_ms());
+				},
+				_ => {},
+			}
+
+			debug!(target: "miner", "Adding tx {:?} took {} ms", hash, took_ms());
 			match result {
 				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) => {
 					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?} (limit: {:?}, used: {:?}, gas: {:?})", hash, gas_limit, gas_used, gas);
@@ -422,15 +434,16 @@ impl Miner {
 					}
 
 					// Exit early if gas left is smaller then min_tx_gas
-					let min_tx_gas: U256 = 21000.into();	// TODO: figure this out properly.
 					let gas_left = gas_limit - gas_used;
 					if gas_left < min_tx_gas {
+						debug!(target: "miner", "Remaining gas is lower than minimal gas for a transaction. Block is full.");
 						break;
 					}
 
 					// Avoid iterating over the entire queue in case block is almost full.
 					skipped_transactions += 1;
-					if skipped_transactions > 8 {
+					if skipped_transactions > MAX_SKIPPED_TRANSACTIONS {
+						debug!(target: "miner", "Reached skipped transactions threshold. Assuming block is full.");
 						break;
 					}
 				},
@@ -463,11 +476,7 @@ impl Miner {
 		{
 			self.transaction_queue.remove(invalid_transactions.iter(), true);
 			self.transaction_queue.remove(not_allowed_transactions.iter(), false);
-
-			// TODO [ToDr] Penalize
-			// for hash in transactions_to_penalize {
-				// queue.penalize(&hash);
-			// }
+			self.transaction_queue.penalize(senders_to_penalize.iter());
 		}
 
 		(block, original_work_hash)
@@ -1113,6 +1122,7 @@ mod tests {
 				work_queue_size: 5,
 				enable_resubmission: true,
 				infinite_pending_block: false,
+				tx_queue_penalization: Penalization::Disabled,
 				refuse_service_transactions: false,
 				pool_limits: Default::default(),
 				pool_verification_options: pool::verifier::Options {

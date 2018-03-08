@@ -21,11 +21,12 @@ use ethereum_types::U256;
 use {scoring, Scoring, Ready, Readiness, Address as Sender};
 use super::{Transaction, SharedTransaction};
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct DummyScoring;
 
 impl Scoring<Transaction> for DummyScoring {
 	type Score = U256;
+	type Event = ();
 
 	fn compare(&self, old: &Transaction, new: &Transaction) -> cmp::Ordering {
 		old.nonce.cmp(&new.nonce)
@@ -43,9 +44,17 @@ impl Scoring<Transaction> for DummyScoring {
 		}
 	}
 
-	fn update_scores(&self, txs: &[SharedTransaction], scores: &mut [Self::Score], _change: scoring::Change) {
-		for i in 0..txs.len() {
-			scores[i] = txs[i].gas_price;
+	fn update_scores(&self, txs: &[SharedTransaction], scores: &mut [Self::Score], change: scoring::Change) {
+		if let scoring::Change::Event(_) = change {
+			// In case of event reset all scores to 0
+			for i in 0..txs.len() {
+				scores[i] = 0.into();
+			}
+		} else {
+			// Set to a gas price otherwise
+			for i in 0..txs.len() {
+				scores[i] = txs[i].gas_price;
+			}
 		}
 	}
 

@@ -260,6 +260,7 @@ impl<T, S, L> Pool<T, S, L> where
 		self.remove_from_set(to_remove.transaction.sender(), |set, scoring| {
 			set.remove(&to_remove.transaction, scoring)
 		});
+
 		Ok(to_remove.transaction)
 	}
 
@@ -384,6 +385,22 @@ impl<T, S, L> Pool<T, S, L> where
 			ready,
 			best_transactions,
 			pool: self
+		}
+	}
+
+	/// Update score of transactions of a particular sender.
+	pub fn update_score(&mut self, sender: &Sender, event: S::Event) {
+		let res = if let Some(set) = self.transactions.get_mut(sender) {
+			let prev = set.worst_and_best();
+			set.update_scores(&self.scoring, event);
+			let current = set.worst_and_best();
+			Some((prev, current))
+		} else {
+			None
+		};
+
+		if let Some((prev, current)) = res {
+			self.update_senders_worst_and_best(prev, current);
 		}
 	}
 

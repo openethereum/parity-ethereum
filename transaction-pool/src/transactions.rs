@@ -107,6 +107,10 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 		}
 	}
 
+	pub fn update_scores(&mut self, scoring: &S, event: S::Event) {
+		scoring.update_scores(&self.transactions, &mut self.scores, scoring::Change::Event(event));
+	}
+
 	pub fn add(&mut self, tx: T, scoring: &S, max_count: usize) -> AddResult<T> {
 		let index = match self.transactions.binary_search_by(|old| scoring.compare(old, &tx)) {
 			Ok(index) => index,

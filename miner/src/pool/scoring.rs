@@ -38,17 +38,16 @@ use super::VerifiedTransaction;
 /// `new_gas_price > old_gas_price + old_gas_price >> SHIFT`
 const GAS_PRICE_BUMP_SHIFT: usize = 3; // 2 = 25%, 3 = 12.5%, 4 = 6.25%
 
-
 /// Simple, gas-price based scoring for transactions.
 ///
-/// TODO [ToDr] Consider including:
-/// - Penalization
-/// - Score of first transaction = Max/Avg(gas price of all transactions)
+/// NOTE: Currently penalization does not apply to new transactions that enter the pool.
+/// We might want to store penalization status in some persistent state.
 #[derive(Debug)]
 pub struct GasPrice;
 
 impl txpool::Scoring<VerifiedTransaction> for GasPrice {
 	type Score = U256;
+	type Event = ();
 
 	fn compare(&self, old: &VerifiedTransaction, other: &VerifiedTransaction) -> cmp::Ordering {
 		old.transaction.nonce.cmp(&other.transaction.nonce)
@@ -77,6 +76,9 @@ impl txpool::Scoring<VerifiedTransaction> for GasPrice {
 			Change::Culled(_) => {},
 			Change::RemovedAt(_) => {}
 			Change::InsertedAt(i) | Change::ReplacedAt(i) => {
+				assert!(i < txs.len());
+				assert!(i < scores.len());
+
 				scores[i] = txs[i].transaction.gas_price;
 				let boost = match txs[i].priority() {
 					super::Priority::Local => 15,
@@ -84,6 +86,16 @@ impl txpool::Scoring<VerifiedTransaction> for GasPrice {
 					super::Priority::Regular => 0,
 				};
 				scores[i] = scores[i] << boost;
+			},
+			// We are only sending an event in case of penalization.
+			// So just lower the priority of all non-local transactions.
+			Change::Event(_) => {
+				for (score, tx) in scores.iter_mut().zip(txs) {
+					// Never penalize local transactions.
+					if !tx.priority().is_local() {
+						*score = *score >> 3;
+					}
+				}
 			},
 		}
 	}
@@ -151,5 +163,9 @@ mod tests {
 		assert_eq!(scores, vec![32768.into(), 1024.into(), 0.into()]);
 		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::ReplacedAt(2));
 		assert_eq!(scores, vec![32768.into(), 1024.into(), 1.into()]);
+
+		// Check penalization
+		scoring.update_scores(&transactions, &mut *scores, txpool::scoring::Change::Event(()));
+		assert_eq!(scores, vec![32768.into(), 128.into(), 0.into()]);
 	}
 }

@@ -42,7 +42,7 @@ pub enum Choice {
 /// The `Scoring` implementations can use this information
 /// to update the `Score` table more efficiently.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Change {
+pub enum Change<T = ()> {
 	/// New transaction has been inserted at given index.
 	/// The Score at that index is initialized with default value
 	/// and needs to be filled in.
@@ -59,6 +59,9 @@ pub enum Change {
 	/// The scores has been removed from the beginning as well.
 	/// For simple scoring algorithms no action is required here.
 	Culled(usize),
+	/// Custom event to update the score triggered outside of the pool.
+	/// Handling this event is up to scoring implementation.
+	Event(T),
 }
 
 /// A transaction ordering.
@@ -83,6 +86,8 @@ pub enum Change {
 pub trait Scoring<T>: fmt::Debug {
 	/// A score of a transaction.
 	type Score: cmp::Ord + Clone + Default + fmt::Debug;
+	/// Custom scoring update event type.
+	type Event: fmt::Debug;
 
 	/// Decides on ordering of `T`s from a particular sender.
 	fn compare(&self, old: &T, other: &T) -> cmp::Ordering;
@@ -93,7 +98,7 @@ pub trait Scoring<T>: fmt::Debug {
 	/// Updates the transaction scores given a list of transactions and a change to previous scoring.
 	/// NOTE: you can safely assume that both slices have the same length.
 	/// (i.e. score at index `i` represents transaction at the same index)
-	fn update_scores(&self, txs: &[Arc<T>], scores: &mut [Self::Score], change: Change);
+	fn update_scores(&self, txs: &[Arc<T>], scores: &mut [Self::Score], change: Change<Self::Event>);
 
 	/// Decides if `new` should push out `old` transaction from the pool.
 	fn should_replace(&self, old: &T, new: &T) -> bool;
