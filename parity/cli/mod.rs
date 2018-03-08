@@ -548,7 +548,23 @@ usage! {
 
 			ARG arg_secretstore_contract: (String) = "none", or |c: &Config| c.secretstore.as_ref()?.service_contract.clone(),
 			"--secretstore-contract=[SOURCE]",
-			"Secret Store Service contract address source: none, registry (contract address is read from registry) or address.",
+			"Secret Store Service contract address source: none, registry (contract address is read from secretstore_service entry in registry) or address.",
+
+			ARG arg_secretstore_srv_gen_contract: (String) = "none", or |c: &Config| c.secretstore.as_ref()?.srv_gen_service_contract.clone(),
+			"--secretstore-srv-gen-contract=[SOURCE]",
+			"Secret Store Service server key generation contract address source: none, registry (contract address is read from secretstore_service_srv_gen entry in registry) or address.",
+
+			ARG arg_secretstore_srv_retr_contract: (String) = "none", or |c: &Config| c.secretstore.as_ref()?.srv_retr_service_contract.clone(),
+			"--secretstore-srv-retr-contract=[SOURCE]",
+			"Secret Store Service server key retrieval contract address source: none, registry (contract address is read from secretstore_service_srv_retr entry in registry) or address.",
+
+			ARG arg_secretstore_doc_store_contract: (String) = "none", or |c: &Config| c.secretstore.as_ref()?.doc_store_service_contract.clone(),
+			"--secretstore-doc-store-contract=[SOURCE]",
+			"Secret Store Service document key store contract address source: none, registry (contract address is read from secretstore_service_doc_store entry in registry) or address.",
+
+			ARG arg_secretstore_doc_sretr_contract: (String) = "none", or |c: &Config| c.secretstore.as_ref()?.doc_sretr_service_contract.clone(),
+			"--secretstore-doc-sretr-contract=[SOURCE]",
+			"Secret Store Service document key shadow retrieval contract address source: none, registry (contract address is read from secretstore_service_doc_sretr entry in registry) or address.",
 
 			ARG arg_secretstore_nodes: (String) = "", or |c: &Config| c.secretstore.as_ref()?.nodes.as_ref().map(|vec| vec.join(",")),
 			"--secretstore-nodes=[NODES]",
@@ -1103,6 +1119,10 @@ struct SecretStore {
 	disable_acl_check: Option<bool>,
 	disable_auto_migrate: Option<bool>,
 	service_contract: Option<String>,
+	service_contract_srv_gen: Option<String>,
+	service_contract_srv_retr: Option<String>,
+	service_contract_doc_store: Option<String>,
+	service_contract_doc_sretr: Option<String>,
 	self_secret: Option<String>,
 	admin_public: Option<String>,
 	nodes: Option<Vec<String>>,
@@ -1771,6 +1791,10 @@ mod tests {
 				disable_acl_check: None,
 				disable_auto_migrate: None,
 				service_contract: None,
+				service_contract_srv_gen: None,
+				service_contract_srv_retr: None,
+				service_contract_doc_store: None,
+				service_contract_doc_sretr: None,
 				self_secret: None,
 				admin_public: None,
 				nodes: None,

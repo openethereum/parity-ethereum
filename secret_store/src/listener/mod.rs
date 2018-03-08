@@ -27,6 +27,7 @@ use types::all::{Error, Public, MessageHash, EncryptedMessageSignature, RequestS
 	EncryptedDocumentKey, EncryptedDocumentKeyShadow, NodeId, Requester};
 
 /// Available API mask.
+#[derive(Debug, Default)]
 pub struct ApiMask {
 	/// Accept server key generation requests.
 	pub server_key_generation_requests: bool,

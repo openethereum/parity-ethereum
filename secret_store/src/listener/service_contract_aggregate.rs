@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
 use bytes::Bytes;
 use ethereum_types::Address;
 use ethkey::Public;
@@ -24,7 +25,17 @@ use {ServerKeyId};
 /// On-chain service contract.
 pub struct OnChainServiceContractAggregate {
 	/// All hosted service contracts.
-	contracts: Vec<Box<ServiceContract>>,
+	contracts: Vec<Arc<ServiceContract>>,
+}
+
+impl OnChainServiceContractAggregate {
+	/// Create new aggregated service contract listener.
+	pub fn new(contracts: Vec<Arc<ServiceContract>>) -> Self {
+		debug_assert!(contracts.len() > 1);
+		OnChainServiceContractAggregate {
+			contracts: contracts,
+		}
+	}
 }
 
 impl ServiceContract for OnChainServiceContractAggregate {
