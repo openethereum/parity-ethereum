@@ -22,7 +22,7 @@ use secp256k1::key;
 use ethereum_types::H256;
 use {Error, SECP256K1};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Secret {
 	inner: H256,
 }
@@ -30,6 +30,12 @@ pub struct Secret {
 impl ToHex for Secret {
 	fn to_hex(&self) -> String {
 		self.inner.to_hex()
+	}
+}
+
+impl fmt::Debug for Secret {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		write!(fmt, "{:?}", self.inner)
 	}
 }
 
@@ -168,7 +174,7 @@ impl Secret {
 		if self.is_zero() {
 			return Ok(());
 		}
-		
+
 		match pow {
 			0 => *self = key::ONE_KEY.into(),
 			1 => (),
