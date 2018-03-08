@@ -10,6 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ethcore-bytes = { path = "../util/bytes" }
 ethcore-network = { path = "../util/network" }
+ethcore-network-devp2p = { path = "../util/network-devp2p" }
 ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-transaction = { path = "../ethcore/transaction" }

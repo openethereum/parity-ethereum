@@ -105,16 +105,23 @@ impl Node {
 			RlpNode::Extension(key, cb) => {
 				Node::Extension(key.encoded(false), Self::inline_or_hash(cb, db, storage))
 			}
-			RlpNode::Branch(children_rlp, val) => {
-				let mut children = empty_children();
-
-				for i in 0..16 {
+			RlpNode::Branch(ref children_rlp, val) => {
+				let mut child = |i| {
 					let raw = children_rlp[i];
 					let child_rlp = Rlp::new(raw);
-					if !child_rlp.is_empty()  {
-						children[i] = Some(Self::inline_or_hash(raw, db, storage));
+					if !child_rlp.is_empty() {
+						Some(Self::inline_or_hash(raw, db, storage))
+					} else {
+						None
 					}
-				}
+				};
+
+				let children = Box::new([
+					child(0), child(1), child(2), child(3),
+					child(4), child(5), child(6), child(7),
+					child(8), child(9), child(10), child(11),
+					child(12), child(13), child(14), child(15),
+				]);
 
 				Node::Branch(children, val.map(DBValue::from_slice))
 			}
@@ -294,7 +301,7 @@ pub struct TrieDBMut<'a> {
 	death_row: HashSet<H256>,
 	/// The number of hash operations this trie has performed.
 	/// Note that none are performed until changes are committed.
-	pub hash_count: usize,
+	hash_count: usize,
 }
 
 impl<'a> TrieDBMut<'a> {

@@ -47,7 +47,7 @@ pub trait IoContext {
 }
 
 
-impl<'a> IoContext for NetworkContext<'a> {
+impl<T> IoContext for T where T: ?Sized + NetworkContext {
 	fn send(&self, peer: PeerId, packet_id: u8, packet_body: Vec<u8>) {
 		if let Err(e) = self.send(peer, packet_id, packet_body) {
 			debug!(target: "pip", "Error sending packet to peer {}: {}", peer, e);

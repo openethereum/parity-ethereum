@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,111 +14,338 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Network and general IO module.
-//!
-//! Example usage for craeting a network service and adding an IO handler:
-//!
-//! ```rust
-//! extern crate ethcore_network as net;
-//! use net::*;
-//! use std::sync::Arc;
-//!
-//! struct MyHandler;
-//!
-//! impl NetworkProtocolHandler for MyHandler {
-//!		fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
-//!			io.register_timer(0, 1000);
-//!		}
-//!
-//!		fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-//!			println!("Received {} ({} bytes) from {}", packet_id, data.len(), peer);
-//!		}
-//!
-//!		fn connected(&self, io: &NetworkContext, peer: &PeerId) {
-//!			println!("Connected {}", peer);
-//!		}
-//!
-//!		fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
-//!			println!("Disconnected {}", peer);
-//!		}
-//! }
-//!
-//! fn main () {
-//! 	let mut service = NetworkService::new(NetworkConfiguration::new_local(), None).expect("Error creating network service");
-//! 	service.start().expect("Error starting service");
-//! 	service.register_protocol(Arc::new(MyHandler), *b"myp", 1, &[1u8]);
-//!
-//! 	// Wait for quit condition
-//! 	// ...
-//! 	// Drop the service
-//! }
-//! ```
-
-//TODO: use Poll from mio
-#![allow(deprecated)]
 #![recursion_limit="128"]
 
 extern crate ethcore_io as io;
-extern crate ethcore_bytes;
-extern crate ethereum_types;
-extern crate parking_lot;
-extern crate mio;
-extern crate tiny_keccak;
-extern crate crypto as rcrypto;
-extern crate rand;
-extern crate time;
-extern crate ansi_term; //TODO: remove this
-extern crate rustc_hex;
-extern crate igd;
-extern crate libc;
-extern crate slab;
-extern crate ethkey;
 extern crate ethcrypto as crypto;
+extern crate ethereum_types;
+extern crate ethkey;
 extern crate rlp;
-extern crate bytes;
-extern crate path;
-extern crate ethcore_logger;
 extern crate ipnetwork;
-extern crate keccak_hash as hash;
-extern crate serde;
-extern crate serde_json;
 extern crate snappy;
 
 #[macro_use]
 extern crate error_chain;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate serde_derive;
 
-#[cfg(test)]
-extern crate tempdir;
-
-mod host;
-mod connection;
-mod handshake;
-mod session;
-mod discovery;
-mod service;
 mod error;
-mod node_table;
-mod stats;
-mod ip_utils;
-mod connection_filter;
-
-pub use host::{HostInfo, PeerId, PacketId, ProtocolId, NetworkContext, NetworkIoMessage, NetworkConfiguration};
-pub use service::NetworkService;
-pub use error::{Error, ErrorKind};
-pub use stats::NetworkStats;
-pub use session::SessionInfo;
-pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 
 pub use io::TimerToken;
-pub use node_table::{validate_node_url, NodeId};
-use ipnetwork::{IpNetwork, IpNetworkError};
-use std::str::FromStr;
+pub use error::{Error, ErrorKind, DisconnectReason};
 
-const PROTOCOL_VERSION: u32 = 5;
+use std::cmp::Ordering;
+use std::collections::HashMap;
+use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
+use std::str::{self, FromStr};
+use std::sync::Arc;
+use ipnetwork::{IpNetwork, IpNetworkError};
+use io::IoChannel;
+use ethkey::Secret;
+use ethereum_types::{H256, H512};
+use rlp::{Decodable, DecoderError, UntrustedRlp};
+
+/// Protocol handler level packet id
+pub type PacketId = u8;
+/// Protocol / handler id
+pub type ProtocolId = [u8; 3];
+
+/// Node public key
+pub type NodeId = H512;
+
+/// Local (temporary) peer session ID.
+pub type PeerId = usize;
+
+/// Messages used to communitate with the event loop from other threads.
+#[derive(Clone)]
+pub enum NetworkIoMessage {
+	/// Register a new protocol handler.
+	AddHandler {
+		/// Handler shared instance.
+		handler: Arc<NetworkProtocolHandler + Sync>,
+		/// Protocol Id.
+		protocol: ProtocolId,
+		/// Supported protocol versions.
+		versions: Vec<u8>,
+		/// Number of packet IDs reserved by the protocol.
+		packet_count: u8,
+	},
+	/// Register a new protocol timer
+	AddTimer {
+		/// Protocol Id.
+		protocol: ProtocolId,
+		/// Timer token.
+		token: TimerToken,
+		/// Timer delay in milliseconds.
+		delay: u64,
+	},
+	/// Initliaze public interface.
+	InitPublicInterface,
+	/// Disconnect a peer.
+	Disconnect(PeerId),
+	/// Disconnect and temporary disable peer.
+	DisablePeer(PeerId),
+	/// Network has been started with the host as the given enode.
+	NetworkStarted(String),
+}
+
+/// Shared session information
+#[derive(Debug, Clone)]
+pub struct SessionInfo {
+	/// Peer public key
+	pub id: Option<NodeId>,
+	/// Peer client ID
+	pub client_version: String,
+	/// Peer RLPx protocol version
+	pub protocol_version: u32,
+	/// Session protocol capabilities
+	pub capabilities: Vec<SessionCapabilityInfo>,
+	/// Peer protocol capabilities
+	pub peer_capabilities: Vec<PeerCapabilityInfo>,
+	/// Peer ping delay in milliseconds
+	pub ping_ms: Option<u64>,
+	/// True if this session was originated by us.
+	pub originated: bool,
+	/// Remote endpoint address of the session
+	pub remote_address: String,
+	/// Local endpoint address of the session
+	pub local_address: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PeerCapabilityInfo {
+	pub protocol: ProtocolId,
+	pub version: u8,
+}
+
+impl Decodable for PeerCapabilityInfo {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let p: Vec<u8> = rlp.val_at(0)?;
+		if p.len() != 3 {
+			return Err(DecoderError::Custom("Invalid subprotocol string length. Should be 3"));
+		}
+		let mut p2: ProtocolId = [0u8; 3];
+		p2.clone_from_slice(&p);
+		Ok(PeerCapabilityInfo {
+			protocol: p2,
+			version: rlp.val_at(1)?
+		})
+	}
+}
+
+impl ToString for PeerCapabilityInfo {
+	fn to_string(&self) -> String {
+		format!("{}/{}", str::from_utf8(&self.protocol[..]).unwrap_or("???"), self.version)
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionCapabilityInfo {
+	pub protocol: [u8; 3],
+	pub version: u8,
+	pub packet_count: u8,
+	pub id_offset: u8,
+}
+
+impl PartialOrd for SessionCapabilityInfo {
+	fn partial_cmp(&self, other: &SessionCapabilityInfo) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for SessionCapabilityInfo {
+	fn cmp(&self, b: &SessionCapabilityInfo) -> Ordering {
+		// By protocol id first
+		if self.protocol != b.protocol {
+			return self.protocol.cmp(&b.protocol);
+		}
+		// By version
+		self.version.cmp(&b.version)
+	}
+}
+
+/// Network service configuration
+#[derive(Debug, PartialEq, Clone)]
+pub struct NetworkConfiguration {
+	/// Directory path to store general network configuration. None means nothing will be saved
+	pub config_path: Option<String>,
+	/// Directory path to store network-specific configuration. None means nothing will be saved
+	pub net_config_path: Option<String>,
+	/// IP address to listen for incoming connections. Listen to all connections by default
+	pub listen_address: Option<SocketAddr>,
+	/// IP address to advertise. Detected automatically if none.
+	pub public_address: Option<SocketAddr>,
+	/// Port for UDP connections, same as TCP by default
+	pub udp_port: Option<u16>,
+	/// Enable NAT configuration
+	pub nat_enabled: bool,
+	/// Enable discovery
+	pub discovery_enabled: bool,
+	/// List of initial node addresses
+	pub boot_nodes: Vec<String>,
+	/// Use provided node key instead of default
+	pub use_secret: Option<Secret>,
+	/// Minimum number of connected peers to maintain
+	pub min_peers: u32,
+	/// Maximum allowed number of peers
+	pub max_peers: u32,
+	/// Maximum handshakes
+	pub max_handshakes: u32,
+	/// Reserved protocols. Peers with <key> protocol get additional <value> connection slots.
+	pub reserved_protocols: HashMap<ProtocolId, u32>,
+	/// List of reserved node addresses.
+	pub reserved_nodes: Vec<String>,
+	/// The non-reserved peer mode.
+	pub non_reserved_mode: NonReservedPeerMode,
+	/// IP filter
+	pub ip_filter: IpFilter,
+	/// Client identifier
+	pub client_version: String,
+}
+
+impl Default for NetworkConfiguration {
+	fn default() -> Self {
+		NetworkConfiguration::new()
+	}
+}
+
+impl NetworkConfiguration {
+	/// Create a new instance of default settings.
+	pub fn new() -> Self {
+		NetworkConfiguration {
+			config_path: None,
+			net_config_path: None,
+			listen_address: None,
+			public_address: None,
+			udp_port: None,
+			nat_enabled: true,
+			discovery_enabled: true,
+			boot_nodes: Vec::new(),
+			use_secret: None,
+			min_peers: 25,
+			max_peers: 50,
+			max_handshakes: 64,
+			reserved_protocols: HashMap::new(),
+			ip_filter: IpFilter::default(),
+			reserved_nodes: Vec::new(),
+			non_reserved_mode: NonReservedPeerMode::Accept,
+			client_version: "Parity-network".into(),
+		}
+	}
+
+	/// Create new default configuration with sepcified listen port.
+	pub fn new_with_port(port: u16) -> NetworkConfiguration {
+		let mut config = NetworkConfiguration::new();
+		config.listen_address = Some(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port)));
+		config
+	}
+
+	/// Create new default configuration for localhost-only connection with random port (usefull for testing)
+	pub fn new_local() -> NetworkConfiguration {
+		let mut config = NetworkConfiguration::new();
+		config.listen_address = Some(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 0)));
+		config.nat_enabled = false;
+		config
+	}
+}
+
+/// IO access point. This is passed to all IO handlers and provides an interface to the IO subsystem.
+pub trait NetworkContext {
+	/// Send a packet over the network to another peer.
+	fn send(&self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
+
+	/// Send a packet over the network to another peer using specified protocol.
+	fn send_protocol(&self, protocol: ProtocolId, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
+
+	/// Respond to a current network message. Panics if no there is no packet in the context. If the session is expired returns nothing.
+	fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
+
+	/// Get an IoChannel.
+	fn io_channel(&self) -> IoChannel<NetworkIoMessage>;
+
+	/// Disconnect a peer and prevent it from connecting again.
+	fn disable_peer(&self, peer: PeerId);
+
+	/// Disconnect peer. Reconnect can be attempted later.
+	fn disconnect_peer(&self, peer: PeerId);
+
+	/// Check if the session is still active.
+	fn is_expired(&self) -> bool;
+
+	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
+	fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), Error>;
+
+	/// Returns peer identification string
+	fn peer_client_version(&self, peer: PeerId) -> String;
+
+	/// Returns information on p2p session
+	fn session_info(&self, peer: PeerId) -> Option<SessionInfo>;
+
+	/// Returns max version for a given protocol.
+	fn protocol_version(&self, protocol: ProtocolId, peer: PeerId) -> Option<u8>;
+
+	/// Returns this object's subprotocol name.
+	fn subprotocol_name(&self) -> ProtocolId;
+}
+
+impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
+	fn send(&self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
+		(**self).send(peer, packet_id, data)
+	}
+
+	fn send_protocol(&self, protocol: ProtocolId, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
+		(**self).send_protocol(protocol, peer, packet_id, data)
+	}
+
+	fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
+		(**self).respond(packet_id, data)
+	}
+
+	fn io_channel(&self) -> IoChannel<NetworkIoMessage> {
+		(**self).io_channel()
+	}
+
+	fn disable_peer(&self, peer: PeerId) {
+		(**self).disable_peer(peer)
+	}
+
+	fn disconnect_peer(&self, peer: PeerId) {
+		(**self).disconnect_peer(peer)
+	}
+
+	fn is_expired(&self) -> bool {
+		(**self).is_expired()
+	}
+
+	fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), Error> {
+		(**self).register_timer(token, ms)
+	}
+
+	fn peer_client_version(&self, peer: PeerId) -> String {
+		(**self).peer_client_version(peer)
+	}
+
+	fn session_info(&self, peer: PeerId) -> Option<SessionInfo> {
+		(**self).session_info(peer)
+	}
+
+	fn protocol_version(&self, protocol: ProtocolId, peer: PeerId) -> Option<u8> {
+		(**self).protocol_version(protocol, peer)
+	}
+
+	fn subprotocol_name(&self) -> ProtocolId {
+		(**self).subprotocol_name()
+	}
+}
+
+pub trait HostInfo {
+	/// Returns public key
+	fn id(&self) -> &NodeId;
+	/// Returns secret key
+	fn secret(&self) -> &Secret;
+	/// Increments and returns connection nonce.
+	fn next_nonce(&mut self) -> H256;
+    /// Returns the client version.
+	fn client_version(&self) -> &str;
+}
 
 /// Network IO protocol handler. This needs to be implemented for each new subprotocol.
 /// All the handler function are called from within IO event loop.
@@ -157,7 +384,6 @@ impl NonReservedPeerMode {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct IpFilter {
     pub predefined: AllowIP,
     pub custom_allow: Vec<IpNetwork>,

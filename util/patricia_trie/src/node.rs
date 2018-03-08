@@ -117,30 +117,6 @@ pub enum OwnedNode {
 	Branch([NodeKey; 16], Option<DBValue>),
 }
 
-impl Clone for OwnedNode {
-	fn clone(&self) -> Self {
-		match *self {
-			OwnedNode::Empty => OwnedNode::Empty,
-			OwnedNode::Leaf(ref k, ref v) => OwnedNode::Leaf(k.clone(), v.clone()),
-			OwnedNode::Extension(ref k, ref c) => OwnedNode::Extension(k.clone(), c.clone()),
-			OwnedNode::Branch(ref c, ref v) => {
-				let mut children = [
-					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
-					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
-					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
-					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
-				];
-
-				for (owned, borrowed) in children.iter_mut().zip(c.iter()) {
-					*owned = borrowed.clone()
-				}
-
-				OwnedNode::Branch(children, v.as_ref().cloned())
-			}
-		}
-	}
-}
-
 impl<'a> From<Node<'a>> for OwnedNode {
 	fn from(node: Node<'a>) -> Self {
 		match node {
@@ -148,16 +124,12 @@ impl<'a> From<Node<'a>> for OwnedNode {
 			Node::Leaf(k, v) => OwnedNode::Leaf(k.into(), DBValue::from_slice(v)),
 			Node::Extension(k, child) => OwnedNode::Extension(k.into(), DBValue::from_slice(child)),
 			Node::Branch(c, val) => {
-				let mut children = [
-					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
-					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
-					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
-					NodeKey::new(), NodeKey::new(), NodeKey::new(), NodeKey::new(),
+				let children = [
+					NodeKey::from_slice(c[0]), NodeKey::from_slice(c[1]), NodeKey::from_slice(c[2]), NodeKey::from_slice(c[3]),
+					NodeKey::from_slice(c[4]), NodeKey::from_slice(c[5]), NodeKey::from_slice(c[6]), NodeKey::from_slice(c[7]),
+					NodeKey::from_slice(c[8]), NodeKey::from_slice(c[9]), NodeKey::from_slice(c[10]), NodeKey::from_slice(c[11]),
+					NodeKey::from_slice(c[12]), NodeKey::from_slice(c[13]), NodeKey::from_slice(c[14]), NodeKey::from_slice(c[15]),
 				];
-
-				for (owned, borrowed) in children.iter_mut().zip(c.iter()) {
-					*owned = NodeKey::from_slice(borrowed)
-				}
 
 				OwnedNode::Branch(children, val.map(DBValue::from_slice))
 			}
