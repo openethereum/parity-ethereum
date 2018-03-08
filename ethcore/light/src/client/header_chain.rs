@@ -180,6 +180,12 @@ pub struct PendingChanges {
 	best_block: Option<BlockDescriptor>, // new best block.
 }
 
+/// Whether or not the hardcoded sync feature is allowed.
+pub enum HardcodedSync {
+	Allow,
+	Deny,
+}
+
 /// Header chain. See module docs for more details.
 pub struct HeaderChain {
 	genesis_header: encoded::Header, // special-case the genesis.
@@ -198,6 +204,7 @@ impl HeaderChain {
 		col: Option<u32>,
 		spec: &Spec,
 		cache: Arc<Mutex<Cache>>,
+		allow_hs: HardcodedSync,
 	) -> Result<Self, Error> {
 		let mut live_epoch_proofs = ::std::collections::HashMap::default();
 
@@ -277,7 +284,7 @@ impl HeaderChain {
 			};
 
 			// insert the hardcoded sync into the database.
-			if let Some(ref hardcoded_sync) = spec.hardcoded_sync {
+			if let (&Some(ref hardcoded_sync), HardcodedSync::Allow) = (&spec.hardcoded_sync, allow_hs) {
 				let mut batch = db.transaction();
 
 				// insert the hardcoded CHT roots into the database.
@@ -286,23 +293,25 @@ impl HeaderChain {
 				}
 
 				let decoded_header = hardcoded_sync.header.decode();
-
-				// check that we have enough hardcoded CHT roots. avoids panicking later.
-				{
-					let cht_num = cht::block_to_cht_number(decoded_header.number() - 1)
-						.expect("specs provided a hardcoded block with height 0");
-					if cht_num >= hardcoded_sync.chts.len() as u64 {
-						panic!("specs didn't provide enough CHT roots for its hardcoded block");
-					}
-				}
+				let decoded_header_num = decoded_header.number();
 
 				// write the block in the DB.
 				info!(target: "chain", "Inserting hardcoded block #{} in chain",
-					  decoded_header.number());
+					  decoded_header_num);
 				let pending = chain.insert_with_td(&mut batch, decoded_header,
-												   hardcoded_sync.total_difficulty, None)?;
-				db.write_buffered(batch);
-				chain.apply_pending(pending);
+												hardcoded_sync.total_difficulty, None)?;
+
+				// check that we have enough hardcoded CHT roots. avoids panicking later.
+				let cht_num = cht::block_to_cht_number(decoded_header_num - 1)
+					.expect("specs provided a hardcoded block with height 0");
+				if cht_num >= hardcoded_sync.chts.len() as u64 {
+					warn!(target: "chain", "specs didn't provide enough CHT roots for its \
+											hardcoded block ; falling back to non-hardcoded sync \
+											mode");
+				} else {
+					db.write_buffered(batch);
+					chain.apply_pending(pending);
+				}
 			}
 
 			chain
@@ -332,7 +341,6 @@ impl HeaderChain {
 	///
 	/// If the block is an epoch transition, provide the transition along with
 	/// the header.
-	#[inline]
 	pub fn insert(
 		&self,
 		transaction: &mut DBTransaction,
@@ -345,7 +353,6 @@ impl HeaderChain {
 	/// Insert a pre-verified header, with a known total difficulty. Similary to `insert`.
 	///
 	/// This blindly trusts that the data given to it is sensible.
-	#[inline]
 	pub fn insert_with_td(
 		&self,
 		transaction: &mut DBTransaction,
@@ -545,44 +552,60 @@ impl HeaderChain {
 	/// Generates the specifications for hardcoded sync. This is typically only called manually
 	/// from time to time by a Parity developer in order to update the chain specifications.
 	///
-	/// Returns `None` if we are at the genesis block.
-	pub fn read_hardcoded_sync(&self) -> Option<SpecHardcodedSync> {
+	/// Returns `None` if we are at the genesis block, or if an error happens .
+	pub fn read_hardcoded_sync(&self) -> Result<Option<SpecHardcodedSync>, Error> {
 		let mut chts = Vec::new();
+		let mut cht_num = 0;
 
-		for cht_num in 0.. {
+		loop {
 			let cht = match self.cht_root(cht_num) {
 				Some(cht) => cht,
-				_ if cht_num != 0 => {
+				None if cht_num != 0 => {
+					// end of the iteration
 					let h_num = 1 + cht_num as u64 * cht::SIZE;
 					let header = if let Some(header) = self.block_header(BlockId::Number(h_num)) {
 						header
 					} else {
-						panic!("Header of block #{} not found in DB", h_num);
+						let msg = format!("header of block #{} not found in DB ; database in an \
+											inconsistent state", h_num);
+						return Err(Error::Database(msg.into()));
 					};
 
 					let decoded = header.decode();
 
-					let entry: Entry = ::rlp::decode(&self.db.get(self.col, era_key(h_num).as_bytes()).unwrap().unwrap());
+					let entry: Entry = {
+						let bytes = self.db.get(self.col, era_key(h_num).as_bytes())?
+							.ok_or_else(|| {
+								let msg = format!("entry for era #{} not found in DB ; database \
+													in an inconsistent state", h_num);
+								Error::Database(msg.into())
+							})?;
+						::rlp::decode(&bytes)
+					};
+
 					let total_difficulty = entry.candidates.iter()
 						.find(|c| c.hash == decoded.hash())
-						.expect("no candidate matching block found in DB")
+						.ok_or_else(|| {
+							let msg = "no candidate matching block found in DB ; database in an \
+										inconsistent state";
+							Error::Database(msg.into())
+						})?
 						.total_difficulty;
 
-					return Some(SpecHardcodedSync {
+					break Ok(Some(SpecHardcodedSync {
 						header: header,
 						total_difficulty: total_difficulty,
 						chts: chts,
-					});
+					}));
 				},
-				_ => {
-					return None;
+				None => {
+					break Ok(None);
 				},
 			};
 
 			chts.push(cht);
+			cht_num += 1;
 		}
-
-		unreachable!("we are after an infinite loop")
 	}
 
 	/// Apply pending changes from a previous `insert` operation.
@@ -827,7 +850,7 @@ impl<'a> Iterator for AncestryIter<'a> {
 
 #[cfg(test)]
 mod tests {
-	use super::HeaderChain;
+	use super::{HeaderChain, HardcodedSync};
 	use std::sync::Arc;
 
 	use ethereum_types::U256;
@@ -853,7 +876,7 @@ mod tests {
 
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -886,7 +909,7 @@ mod tests {
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -968,7 +991,7 @@ mod tests {
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
 
 		assert!(chain.block_header(BlockId::Earliest).is_some());
 		assert!(chain.block_header(BlockId::Latest).is_some());
@@ -982,7 +1005,8 @@ mod tests {
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
 		{
-			let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone()).unwrap();
+			let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone(),
+										HardcodedSync::Allow).unwrap();
 			let mut parent_hash = genesis_header.hash();
 			let mut rolling_timestamp = genesis_header.timestamp();
 			for i in 1..10000 {
@@ -1002,7 +1026,8 @@ mod tests {
 			}
 		}
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone()).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone(),
+									HardcodedSync::Allow).unwrap();
 		assert!(chain.block_header(BlockId::Number(10)).is_none());
 		assert!(chain.block_header(BlockId::Number(9000)).is_some());
 		assert!(chain.cht_root(2).is_some());
@@ -1018,7 +1043,8 @@ mod tests {
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
 		{
-			let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone()).unwrap();
+			let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone(),
+										HardcodedSync::Allow).unwrap();
 			let mut parent_hash = genesis_header.hash();
 			let mut rolling_timestamp = genesis_header.timestamp();
 
@@ -1060,7 +1086,8 @@ mod tests {
 		}
 
 		// after restoration, non-canonical eras should still be loaded.
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone()).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone(),
+									HardcodedSync::Allow).unwrap();
 		assert_eq!(chain.block_header(BlockId::Latest).unwrap().number(), 10);
 		assert!(chain.candidates.read().get(&100).is_some())
 	}
@@ -1072,7 +1099,8 @@ mod tests {
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone()).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone(),
+									HardcodedSync::Allow).unwrap();
 
 		assert!(chain.block_header(BlockId::Earliest).is_some());
 		assert!(chain.block_header(BlockId::Number(0)).is_some());
@@ -1086,7 +1114,7 @@ mod tests {
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -1153,7 +1181,7 @@ mod tests {
 
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -1179,7 +1207,7 @@ mod tests {
 			rolling_timestamp += 10;
 		}
 
-		let hardcoded_sync = chain.read_hardcoded_sync().unwrap();
+		let hardcoded_sync = chain.read_hardcoded_sync().unwrap().unwrap();
 		assert_eq!(hardcoded_sync.chts.len(), 3);
 		assert_eq!(hardcoded_sync.total_difficulty, total_difficulty);
 		let decoded: Header = hardcoded_sync.header.decode();

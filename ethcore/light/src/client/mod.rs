@@ -38,7 +38,7 @@ use futures::{IntoFuture, Future};
 use kvdb::KeyValueDB;
 
 use self::fetch::ChainDataFetcher;
-use self::header_chain::{AncestryIter, HeaderChain};
+use self::header_chain::{AncestryIter, HeaderChain, HardcodedSync};
 
 use cache::Cache;
 
@@ -60,6 +60,8 @@ pub struct Config {
 	pub verify_full: bool,
 	/// Should it check the seal of blocks?
 	pub check_seal: bool,
+	/// Disable hardcoded sync.
+	pub no_hardcoded_sync: bool,
 }
 
 impl Default for Config {
@@ -69,6 +71,7 @@ impl Default for Config {
 			chain_column: None,
 			verify_full: true,
 			check_seal: true,
+			no_hardcoded_sync: false,
 		}
 	}
 }
@@ -180,7 +183,10 @@ impl<T: ChainDataFetcher> Client<T> {
 		Ok(Client {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, config.check_seal),
 			engine: spec.engine.clone(),
-			chain: HeaderChain::new(db.clone(), chain_col, &spec, cache)?,
+			chain: {
+				let hs_cfg = if config.no_hardcoded_sync { HardcodedSync::Deny } else { HardcodedSync::Allow };
+				HeaderChain::new(db.clone(), chain_col, &spec, cache, hs_cfg)?
+			},
 			report: RwLock::new(ClientReport::default()),
 			import_lock: Mutex::new(()),
 			db: db,
@@ -194,7 +200,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	/// from time to time by a Parity developer in order to update the chain specifications.
 	///
 	/// Returns `None` if we are at the genesis block.
-	pub fn read_hardcoded_sync(&self) -> Option<SpecHardcodedSync> {
+	pub fn read_hardcoded_sync(&self) -> Result<Option<SpecHardcodedSync>, Error> {
 		self.chain.read_hardcoded_sync()
 	}
 
