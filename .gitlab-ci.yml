@@ -104,9 +104,7 @@ build:linux:ubuntu:x86_64: &build
   stage: build
   only: *releaseable_branches
   script:
-    - rustup default stable
-    # ARGUMENTS: 1. BUILD_PLATFORM (target for binaries) 2. PLATFORM (target for cargo) 3. ARC (architecture) 4. & 5. CC & CXX flags 6. binary identifier
-    - scripts/gitlab/build.sh x86_64-unknown-linux-gnu x86_64-unknown-linux-gnu amd64 gcc g++ ubuntu
+    - scripts/gitlab/build-linux.sh
   tags:
     - rust-stable
   <<: *collect_artifacts
