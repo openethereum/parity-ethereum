@@ -22,7 +22,7 @@ use ethereum_types::{U256, clean_0x, Address};
 use kvdb_rocksdb::CompactionProfile;
 use journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
-use ethcore::miner::PendingSet;
+use ethcore::miner::{PendingSet, Penalization};
 use miner::pool::PrioritizationStrategy;
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
@@ -99,9 +99,18 @@ pub fn to_pending_set(s: &str) -> Result<PendingSet, String> {
 
 pub fn to_queue_strategy(s: &str) -> Result<PrioritizationStrategy, String> {
 	match s {
-		"gas_price" => Ok(PrioritizationStrategy::GasPrice),
+		"gas_price" => Ok(PrioritizationStrategy::GasPriceOnly),
 		other => Err(format!("Invalid queue strategy: {}", other)),
 	}
+}
+
+pub fn to_queue_penalization(time: Option<u64>) -> Result<Penalization, String> {
+	Ok(match time {
+		Some(threshold_ms) => Penalization::Enabled {
+			offend_threshold: Duration::from_millis(threshold_ms),
+		},
+		None => Penalization::Disabled,
+	})
 }
 
 pub fn to_address(s: Option<String>) -> Result<Address, String> {

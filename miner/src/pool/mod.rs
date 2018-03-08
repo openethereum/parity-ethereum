@@ -38,9 +38,10 @@ pub use self::txpool::{VerifiedTransaction as PoolVerifiedTransaction, Options};
 // TODO [ToDr] Actually use that parameter and implement more strategies.
 
 /// How to prioritize transactions in the pool
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PrioritizationStrategy {
 	/// Simple gas-price based prioritization.
-	GasPrice,
+	GasPriceOnly,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

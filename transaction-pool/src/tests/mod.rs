@@ -284,7 +284,7 @@ fn should_update_scoring_correctly() {
 		future: 2,
 	});
 
-	txq.update_score(&0.into(), ());
+	txq.update_scores(&0.into(), ());
 
 	// when
 	let mut current_gas = U256::zero();

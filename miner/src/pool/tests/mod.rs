@@ -18,7 +18,7 @@ use ethereum_types::U256;
 use transaction::{self, PendingTransaction};
 use txpool;
 
-use pool::{verifier, TransactionQueue};
+use pool::{verifier, TransactionQueue, PrioritizationStrategy};
 
 pub mod tx;
 pub mod client;
@@ -38,6 +38,7 @@ fn new_queue() -> TransactionQueue {
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
 		},
+		PrioritizationStrategy::GasPriceOnly,
 	)
 }
 
@@ -55,6 +56,7 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
 		},
+		PrioritizationStrategy::GasPriceOnly,
 	);
 	let (tx1, tx2) = Tx::gas_price(2).signed_pair();
 	let sender = tx1.sender();
@@ -424,6 +426,7 @@ fn should_prefer_current_transactions_when_hitting_the_limit() {
 			block_gas_limit: 1_000_000.into(),
 			tx_gas_limit: 1_000_000.into(),
 		},
+		PrioritizationStrategy::GasPriceOnly,
 	);
 	let (tx, tx2) = Tx::default().signed_pair();
 	let hash = tx.hash();
@@ -615,6 +618,7 @@ fn should_remove_out_of_date_transactions_occupying_queue() {
 			minimal_gas_price: 10.into(),
 			..Default::default()
 		},
+		PrioritizationStrategy::GasPriceOnly,
 	);
 	// that transaction will be occupying the queue
 	let (_, tx) = Tx::default().signed_pair();
@@ -651,6 +655,7 @@ fn should_accept_local_transactions_below_min_gas_price() {
 			minimal_gas_price: 10.into(),
 			..Default::default()
 		},
+		PrioritizationStrategy::GasPriceOnly,
 	);
 	let tx = Tx::gas_price(1).signed();
 

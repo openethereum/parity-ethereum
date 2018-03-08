@@ -23,7 +23,7 @@ use bytes::Bytes;
 use engines::{EthEngine, Seal};
 use error::{Error, ExecutionError};
 use ethcore_miner::gas_pricer::GasPricer;
-use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus};
+use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
 use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
 use ethereum_types::{H256, U256, Address};
 use parking_lot::{Mutex, RwLock};
@@ -122,8 +122,8 @@ pub struct MinerOptions {
 	pub infinite_pending_block: bool,
 
 
-	// / Strategy to use for prioritizing transactions in the queue.
-	// pub tx_queue_strategy: PrioritizationStrategy,
+	/// Strategy to use for prioritizing transactions in the queue.
+	pub tx_queue_strategy: PrioritizationStrategy,
 	/// Simple senders penalization.
 	pub tx_queue_penalization: Penalization,
 	/// Do we refuse to accept service transactions even if sender is certified.
@@ -147,7 +147,7 @@ impl Default for MinerOptions {
 			work_queue_size: 20,
 			enable_resubmission: true,
 			infinite_pending_block: false,
-			// tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
+			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			tx_queue_penalization: Penalization::Disabled,
 			refuse_service_transactions: false,
 			pool_limits: pool::Options {
@@ -228,6 +228,7 @@ impl Miner {
 	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
 		let limits = options.pool_limits.clone();
 		let verifier_options = options.pool_verification_options.clone();
+		let tx_queue_strategy = options.tx_queue_strategy;
 
 		Miner {
 			sealing: Mutex::new(SealingWork {
@@ -242,7 +243,7 @@ impl Miner {
 			listeners: RwLock::new(vec![]),
 			gas_pricer: Mutex::new(gas_pricer),
 			options,
-			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options)),
+			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options, tx_queue_strategy)),
 			accounts,
 			engine: spec.engine.clone(),
 		}

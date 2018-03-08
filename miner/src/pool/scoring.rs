@@ -32,7 +32,7 @@ use std::sync::Arc;
 
 use ethereum_types::U256;
 use txpool;
-use super::VerifiedTransaction;
+use super::{PrioritizationStrategy, VerifiedTransaction};
 
 /// Transaction with the same (sender, nonce) can be replaced only if
 /// `new_gas_price > old_gas_price + old_gas_price >> SHIFT`
@@ -43,9 +43,9 @@ const GAS_PRICE_BUMP_SHIFT: usize = 3; // 2 = 25%, 3 = 12.5%, 4 = 6.25%
 /// NOTE: Currently penalization does not apply to new transactions that enter the pool.
 /// We might want to store penalization status in some persistent state.
 #[derive(Debug)]
-pub struct GasPrice;
+pub struct NonceAndGasPrice(pub PrioritizationStrategy);
 
-impl txpool::Scoring<VerifiedTransaction> for GasPrice {
+impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 	type Score = U256;
 	type Event = ();
 
@@ -122,7 +122,7 @@ mod tests {
 	#[test]
 	fn should_calculate_score_correctly() {
 		// given
-		let scoring = GasPrice;
+		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
 		let (tx1, tx2, tx3) = Tx::default().signed_triple();
 		let transactions = vec![tx1, tx2, tx3].into_iter().enumerate().map(|(i, tx)| {
 			let mut verified = tx.verified();

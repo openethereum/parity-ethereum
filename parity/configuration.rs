@@ -39,7 +39,7 @@ use rpc_apis::ApiSet;
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path,
-to_bootnodes, to_addresses, to_address, to_queue_strategy};
+to_bootnodes, to_addresses, to_address, to_queue_strategy, to_queue_penalization};
 use dir::helpers::{replace_home, replace_home_and_local};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
@@ -516,10 +516,6 @@ impl Configuration {
 			return Err("Force sealing can't be used with reseal_min_period = 0".into());
 		}
 
-		if let Some(_) = self.args.arg_tx_time_limit {
-			warn!("Banning is not available in this version.");
-		}
-
 		let reseal = self.args.arg_reseal_on_txs.parse::<ResealPolicy>()?;
 
 		let options = MinerOptions {
@@ -535,6 +531,8 @@ impl Configuration {
 			enable_resubmission: !self.args.flag_remove_solved,
 			infinite_pending_block: self.args.flag_infinite_pending_block,
 
+			tx_queue_penalization: to_queue_penalization(self.args.arg_tx_time_limit)?,
+			tx_queue_strategy: to_queue_strategy(&self.args.arg_tx_queue_strategy)?,
 			refuse_service_transactions: self.args.flag_refuse_service_transactions,
 
 			pool_limits: self.pool_limits()?,

@@ -665,15 +665,7 @@ usage! {
 
 			ARG arg_tx_queue_strategy: (String) = "gas_price", or |c: &Config| c.mining.as_ref()?.tx_queue_strategy.clone(),
 			"--tx-queue-strategy=[S]",
-			"Prioritization strategy used to order transactions in the queue. S may be: gas - Prioritize txs with low gas limit; gas_price - Prioritize txs with high gas price; gas_factor - Prioritize txs using gas price and gas limit ratio.",
-
-			ARG arg_tx_queue_ban_count: (u16) = 1u16, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_count.clone(),
-			"--tx-queue-ban-count=[C]",
-			"Number of times maximal time for execution (--tx-time-limit) can be exceeded before banning sender/recipient/code.",
-
-			ARG arg_tx_queue_ban_time: (u16) = 180u16, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_time.clone(),
-			"--tx-queue-ban-time=[SEC]",
-			"Banning time (in seconds) for offenders of specified execution time limit. Also number of offending actions have to reach the threshold within that time.",
+			"Prioritization strategy used to order transactions in the queue. S may be: gas_price - Prioritize txs with high gas price",
 
 			ARG arg_stratum_interface: (String) = "local", or |c: &Config| c.stratum.as_ref()?.interface.clone(),
 			"--stratum-interface=[IP]",
@@ -705,7 +697,7 @@ usage! {
 
 			ARG arg_tx_time_limit: (Option<u64>) = None, or |c: &Config| c.mining.as_ref()?.tx_time_limit.clone(),
 			"--tx-time-limit=[MS]",
-			"Maximal time for processing single transaction. If enabled senders/recipients/code of transactions offending the limit will be banned from being included in transaction queue for 180 seconds.",
+			"Maximal time for processing single transaction. If enabled senders of transactions offending the limit will get other transactions penalized.",
 
 			ARG arg_extra_data: (Option<String>) = None, or |c: &Config| c.mining.as_ref()?.extra_data.clone(),
 			"--extra-data=[STRING]",
@@ -963,6 +955,13 @@ usage! {
 			"--cache=[MB]",
 			"Equivalent to --cache-size MB.",
 
+			ARG arg_tx_queue_ban_count: (u16) = 1u16, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_count.clone(),
+			"--tx-queue-ban-count=[C]",
+			"Not supported.",
+
+			ARG arg_tx_queue_ban_time: (u16) = 180u16, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_time.clone(),
+			"--tx-queue-ban-time=[SEC]",
+			"Not supported.",
 	}
 }
 

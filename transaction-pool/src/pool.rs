@@ -389,7 +389,7 @@ impl<T, S, L> Pool<T, S, L> where
 	}
 
 	/// Update score of transactions of a particular sender.
-	pub fn update_score(&mut self, sender: &Sender, event: S::Event) {
+	pub fn update_scores(&mut self, sender: &Sender, event: S::Event) {
 		let res = if let Some(set) = self.transactions.get_mut(sender) {
 			let prev = set.worst_and_best();
 			set.update_scores(&self.scoring, event);

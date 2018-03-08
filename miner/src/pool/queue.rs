@@ -26,11 +26,11 @@ use parking_lot::RwLock;
 use transaction;
 use txpool::{self, Verifier};
 
-use pool::{self, scoring, verifier, client, ready, listener};
+use pool::{self, scoring, verifier, client, ready, listener, PrioritizationStrategy};
 use pool::local_transactions::LocalTransactionsList;
 
 type Listener = (LocalTransactionsList, (listener::Notifier, listener::Logger));
-type Pool = txpool::Pool<pool::VerifiedTransaction, scoring::GasPrice, Listener>;
+type Pool = txpool::Pool<pool::VerifiedTransaction, scoring::NonceAndGasPrice, Listener>;
 
 /// Max cache time in milliseconds for pending transactions.
 ///
@@ -143,10 +143,10 @@ pub struct TransactionQueue {
 
 impl TransactionQueue {
 	/// Create new queue with given pool limits and initial verification options.
-	pub fn new(limits: txpool::Options, verification_options: verifier::Options) -> Self {
+	pub fn new(limits: txpool::Options, verification_options: verifier::Options, strategy: PrioritizationStrategy) -> Self {
 		TransactionQueue {
 			insertion_id: Default::default(),
-			pool: RwLock::new(txpool::Pool::new(Default::default(), scoring::GasPrice, limits)),
+			pool: RwLock::new(txpool::Pool::new(Default::default(), scoring::NonceAndGasPrice(strategy), limits)),
 			options: RwLock::new(verification_options),
 			cached_pending: RwLock::new(CachedPending::none()),
 		}
@@ -246,7 +246,7 @@ impl TransactionQueue {
 		F: FnOnce(txpool::PendingIterator<
 			pool::VerifiedTransaction,
 			(ready::Condition, ready::State<C>),
-			scoring::GasPrice,
+			scoring::NonceAndGasPrice,
 			Listener,
 		>) -> T,
 	{
@@ -349,7 +349,10 @@ impl TransactionQueue {
 
 	/// Penalize given senders.
 	pub fn penalize<'a, T: IntoIterator<Item = &'a Address>>(&self, senders: T) {
-
+		let mut pool = self.pool.write();
+		for sender in senders {
+			pool.update_scores(sender, ());
+		}
 	}
 
 	/// Returns gas price of currently the worst transaction in the pool.
@@ -415,50 +418,13 @@ fn convert_error(err: txpool::Error) -> transaction::Error {
 #[cfg(test)]
 mod tests {
 	use super::*;
-
-	#[derive(Debug)]
-	struct TestClient;
-	impl client::Client for TestClient {
-		fn transaction_already_included(&self, _hash: &H256) -> bool {
-			false
-		}
-
-		fn verify_transaction(&self, tx: transaction::UnverifiedTransaction) -> Result<transaction::SignedTransaction, transaction::Error> {
-			Ok(transaction::SignedTransaction::new(tx)?)
-		}
-
-		/// Fetch account details for given sender.
-		fn account_details(&self, _address: &Address) -> client::AccountDetails {
-			client::AccountDetails {
-				balance: 5_000_000.into(),
-				nonce: 0.into(),
-				is_local: false,
-			}
-		}
-
-		/// Estimate minimal gas requirurement for given transaction.
-		fn required_gas(&self, _tx: &transaction::Transaction) -> U256 {
-			0.into()
-		}
-
-		/// Classify transaction (check if transaction is filtered by some contracts).
-		fn transaction_type(&self, _tx: &transaction::SignedTransaction) -> client::TransactionType {
-			client::TransactionType::Regular
-		}
-	}
-
-	impl client::NonceClient for TestClient {
-		/// Fetch only account nonce for given sender.
-		fn account_nonce(&self, _address: &Address) -> U256 {
-			0.into()
-		}
-	}
+	use pool::tests::client::TestClient;
 
 	#[test]
 	fn should_get_pending_transactions() {
-		let queue = TransactionQueue::new(txpool::Options::default(), verifier::Options::default());
+		let queue = TransactionQueue::new(txpool::Options::default(), verifier::Options::default(), PrioritizationStrategy::GasPriceOnly);
 
-		let pending: Vec<_> = queue.pending(TestClient, 0, 0, None);
+		let pending: Vec<_> = queue.pending(TestClient::default(), 0, 0, None);
 
 		for tx in pending {
 			assert!(tx.signed().nonce > 0.into());
