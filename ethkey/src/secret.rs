@@ -22,7 +22,7 @@ use secp256k1::key;
 use ethereum_types::H256;
 use {Error, SECP256K1};
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Secret {
 	inner: H256,
 }
@@ -33,7 +33,7 @@ impl ToHex for Secret {
 	}
 }
 
-impl fmt::Debug for Secret {
+impl fmt::Display for Secret {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
 		write!(fmt, "Secret: 0x{:x}{:x}..{:x}{:x}", self.inner[0], self.inner[1], self.inner[30], self.inner[31])
 	}
