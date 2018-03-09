@@ -1454,6 +1454,7 @@ mod tests {
 			arg_keys_path: "$HOME/.parity/keys".into(),
 			arg_identity: "".into(),
 			flag_light: false,
+			flag_no_hardcoded_sync: false,
 			flag_no_persistent_txqueue: false,
 			flag_force_direct: false,
 
@@ -1708,6 +1709,7 @@ mod tests {
 				keys_path: None,
 				identity: None,
 				light: None,
+				no_hardcoded_sync: None,
 				no_persistent_txqueue: None,
 			}),
 			account: Some(Account {
