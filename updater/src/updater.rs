@@ -371,6 +371,8 @@ impl Updater {
 											warn!("{}", err);
 										} else {
 											state.status = UpdaterStatus::Ready { release: release.clone() };
+											// will lock self.state
+											drop(state);
 											this.updater_step();
 										}
 									},
@@ -405,10 +407,12 @@ impl Updater {
 				// we're at (or past) the block that triggers the update, let's fetch the binary
 				UpdaterStatus::Waiting { ref release, block_number, binary } if *release == latest.track && current_block_number >= block_number => {
 					state.status = UpdaterStatus::Fetching { release: latest.track.clone(), binary, backoff: None };
+					drop(state);
 					fetch(binary);
 				},
 				// we're ready to retry the fetch after we applied a backoff for the previous failure
 				UpdaterStatus::Fetching { ref release, backoff: Some(backoff), binary } if *release == latest.track && Instant::now() > backoff.1 => {
+					drop(state);
 					fetch(binary);
 				}
 				UpdaterStatus::Ready { ref release } if *release == latest.track => {
@@ -435,6 +439,8 @@ impl Updater {
 							if path.exists() {
 								info!(target: "updater", "Already fetched binary.");
 								state.status = UpdaterStatus::Ready { release: latest.track.clone() };
+								// will lock self.state
+								drop(state);
 								self.updater_step();
 
 							} else if self.update_policy.enable_downloading {
@@ -449,6 +455,8 @@ impl Updater {
 									},
 									None => {
 										state.status = UpdaterStatus::Waiting { release: latest.track.clone(), binary, block_number: current_block_number };
+										// will lock self.state
+										drop(state);
 										self.updater_step();
 									},
 								}
