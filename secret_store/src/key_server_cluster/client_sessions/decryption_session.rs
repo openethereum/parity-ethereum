@@ -1423,4 +1423,14 @@ mod tests {
 		let decrypted_secret = math::decrypt_with_shadow_coefficients(result.decrypted_secret, result.common_point.unwrap(), decrypt_shadows).unwrap();
 		assert_eq!(decrypted_secret, SECRET_PLAIN.into());
 	}
+
+	#[test]
+	fn decryption_session_origin_is_known_to_all_initialized_nodes() {
+		let (_, clusters, _, sessions) = prepare_decryption_sessions();
+		sessions[0].initialize(Some(1.into()), Default::default(), true, true).unwrap();
+		do_messages_exchange(&clusters, &sessions).unwrap();
+
+		// all session must have origin set
+		assert_eq!(5, sessions.iter().filter(|s| s.origin() == Some(1.into())).count());
+	}
 }
