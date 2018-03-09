@@ -183,19 +183,18 @@ impl OnChainServiceContract {
 		// or key has been requested using HTTP API
 		let self_address = public_to_address(self.self_key_pair.public());
 		if !is_response_required(&*client, origin, &self.contract, server_key_id, &self_address) {
-println!("=== response is not required");
 			return Ok(());
 		}
 
 		// prepare transaction data
 		let transaction_data = prepare_tx(&*client, origin, &self.contract)?;
-println!("=== transaction prepared");
+
 		// send transaction
 		client.transact_contract(
 			origin.clone(),
 			transaction_data
 		).map_err(|e| format!("{}", e))?;
-println!("=== transaction sent");
+
 		Ok(())
 	}
 

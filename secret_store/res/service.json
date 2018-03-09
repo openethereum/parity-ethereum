@@ -12,7 +12,7 @@
 	{"constant":true,"inputs":[],"name":"serverKeyRetrievalRequestsCount","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
 	{"constant":true,"inputs":[{"name":"serverKeyId","type":"bytes32"},{"name":"keyServer","type":"address"}],"name":"isServerKeyRetrievalResponseRequired","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},
 	{"constant":true,"inputs":[{"name":"index","type":"uint256"}],"name":"getServerKeyRetrievalRequest","outputs":[{"name":"","type":"bytes32"}],"payable":false,"stateMutability":"view","type":"function"},
-	{"constant":false,"inputs":[{"name":"serverKeyId","type":"bytes32"},{"name":"serverKeyPublic","type":"bytes"},{"name":"threshold","type":"uint256"}],"name":"serverKeyRetrieved","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
+	{"constant":false,"inputs":[{"name":"serverKeyId","type":"bytes32"},{"name":"serverKeyPublic","type":"bytes"},{"name":"threshold","type":"uint8"}],"name":"serverKeyRetrieved","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
 	{"anonymous":false,"inputs":[{"indexed":false,"name":"serverKeyId","type":"bytes32"}],"name":"ServerKeyRetrievalRequested","type":"event"},
 
 	{"constant":true,"inputs":[],"name":"documentKeyStoreRequestsCount","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},

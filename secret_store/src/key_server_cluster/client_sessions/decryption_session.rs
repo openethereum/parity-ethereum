@@ -403,6 +403,7 @@ impl SessionImpl {
 				.unwrap_or(false);
 			data.consensus_session.consensus_job_mut().executor_mut().set_has_key_share(has_key_share);
 			data.version = Some(version);
+			data.origin = message.origin.clone().map(Into::into);
 		}
 		data.consensus_session.on_consensus_message(&sender, &message.message)?;
 
