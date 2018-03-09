@@ -7,12 +7,13 @@ stages:
 image: parity/rust:gitlab-ci
 
 variables:
-  RUST_BACKTRACE: "1"
+  RUST_BACKTRACE: 1
   CI_SERVER_NAME: "GitLab CI"
   CARGO_HOME: "$CI_PROJECT_DIR/cargo"
 
   BUILD_TARGET: ubuntu
-  BUILD_ARCH: x86_64
+  BUILD_ARCH: amd64
+  CARGO_TARGET: x86_64-unknown-linux-gnu
   LIBSSL: "libssl1.0.0 (>=1.0.0)"
 
 cache:
@@ -100,16 +101,16 @@ test:coverage:
 
 #### stage: build
 
-build:linux:ubuntu:x86_64: &build
+build:linux:ubuntu:amd64: &build
   stage: build
   only: *releaseable_branches
   script:
-    - scripts/gitlab/build-linux.sh
+    - scripts/gitlab/build-unix.sh
   tags:
     - rust-stable
   <<: *collect_artifacts
 
-build:linux:debian:x86_64:
+build:linux:debian:amd64:
   <<: *build
   image: parity/rust-debian:gitlab-ci
   variables:
@@ -122,39 +123,26 @@ build:linux:centos:x86_64:
   <<: *build
   image: parity/rust-centos:gitlab-ci
   variables:
+    BUILD_ARCH: x86_64
     BUILD_TARGET: centos
   tags:
     - rust-centos
 
-build:linux:ubuntu:i686:
-  <<: *build
-  image: parity/rust-i686:gitlab-ci
-  variables:
-    BUILD_ARCH: i686
-  tags:
-    - rust-i686
-
-build:linux:ubuntu:armv7:
-  <<: *build
-  image: parity/rust-armv7:gitlab-ci
-  variables:
-    BUILD_ARCH: armv7
-  tags:
-    - rust-arm
-
-build:linux:ubuntu:arm:
-  <<: *build
-  image: parity/rust-arm:gitlab-ci
-  variables:
-    BUILD_ARCH: arm
-  tags:
-    - rust-arm
-
-build:linux:ubuntu:aarch64:
+build:linux:ubuntu:arm64:
   <<: *build
   image: parity/rust-arm64:gitlab-ci
   variables:
-    BUILD_ARCH: aarch64
+    BUILD_ARCH: arm64
+    CARGO_TARGET: aarch64-unknown-linux-gnu
+  tags:
+    - rust-arm
+
+build:linux:ubuntu:armhf:
+  <<: *build
+  image: parity/rust-armv7:gitlab-ci
+  variables:
+    BUILD_ARCH: armhf
+    CARGO_TARGET: armv7-unknown-linux-gnueabihf
   tags:
     - rust-arm
 
@@ -162,6 +150,7 @@ build:macos:x86_64:
   <<: *build
   variables:
     BUILD_TARGET: macos
+    CARGO_TARGET: x86_64-apple-darwin
   tags:
     - osx
 
@@ -174,29 +163,18 @@ build:windows:x86_64:
       # No cargo caching, since fetch-locking on Windows gets stuck
   variables:
     BUILD_TARGET: windows
+  script:
+    - scripts/gitlab/build-windows.sh
   tags:
    - rust-windows
 
 #### stage: package
 
-package:linux:snap:x86_64:
+package:linux:snap:amd64:
   stage: package
   only: *releaseable_branches
-  variables:
-    BUILD_ARCH: x86_64
   dependencies:
-    - build:linux:ubuntu:x86_64
-  script:
-    - scripts/gitlab/package-snap.sh
-  <<: *collect_artifacts
-
-package:linux:snap:i686:
-  stage: package
-  only: *releaseable_branches
-  variables:
-    BUILD_ARCH: i686
-  dependencies:
-    - build:linux:ubuntu:i686
+    - build:linux:ubuntu:amd64
   script:
     - scripts/gitlab/package-snap.sh
   <<: *collect_artifacts
@@ -234,23 +212,21 @@ package:windows:x86_64:installer:
 
 #### stage: publish
 
-publish:linux:snap:x86_64:
+publish:linux:snap:amd64:
   stage: publish
   only: *publishable_branches
-  variables:
-    BUILD_ARCH: x86_64
   dependencies:
-    - package:linux:snap:x86_64
+    - package:linux:snap:amd64
   script:
     - scripts/gitlab/publish-snap.sh
 
-publish:linux:snap:i686:
+publish:linux:snap:i386:
   stage: publish
   only: *publishable_branches
   variables:
-    BUILD_ARCH: i686
+    BUILD_ARCH: i386
   dependencies:
-    - package:linux:snap:i686
+    - package:linux:snap:i386
   script:
     - scripts/gitlab/publish-snap.sh
 
@@ -274,11 +250,11 @@ publish:linux:snap:armhf:
   script:
     - scripts/gitlab/publish-snap.sh
 
-publish:docker:
+publish:linux:docker:amd64:
   stage: publish
   only: *publishable_branches
   dependencies:
-    - build:linux:ubuntu:x86_64
+    - build:linux:ubuntu:amd64
   script:
     - scripts/gitlab/publish-docker.sh
   tags:
