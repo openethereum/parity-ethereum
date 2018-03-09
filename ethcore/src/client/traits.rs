@@ -31,7 +31,7 @@ use header::{BlockNumber};
 use log_entry::LocalizedLogEntry;
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
-use transaction::{self, LocalizedTransaction, PendingTransaction, SignedTransaction};
+use transaction::{self, LocalizedTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 use state::StateInfo;
 use header::Header;

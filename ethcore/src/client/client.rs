@@ -1937,7 +1937,6 @@ impl BlockChainClient for Client {
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&authoring_params.author),
 			action: Action::Call(address),
-			// TODO [ToDr] Check that params carefuly.
 			gas: self.importer.miner.sensible_gas_limit(),
 			gas_price: self.importer.miner.sensible_gas_price(),
 			value: U256::zero(),
