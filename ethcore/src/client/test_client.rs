@@ -31,7 +31,8 @@ use kvdb_memorydb;
 use bytes::Bytes;
 use rlp::*;
 use ethkey::{Generator, Random};
-use transaction::{self, Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
+use ethcore_miner::pool::VerifiedTransaction;
+use transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::{TreeRoute, BlockReceipts};
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
@@ -801,13 +802,8 @@ impl BlockChainClient for TestBlockChainClient {
 		self.spec.engine.handle_message(&message).unwrap();
 	}
 
-	// TODO [ToDr] Avoid cloning
-	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
 		self.miner.ready_transactions(self)
-			.into_iter()
-			.map(|tx| tx.signed().clone())
-			.map(Into::into)
-			.collect()
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> { None }

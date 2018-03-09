@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
+
 use itertools::Itertools;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
@@ -36,6 +38,7 @@ use header::Header;
 use engines::EthEngine;
 
 use ethereum_types::{H256, U256, Address};
+use ethcore_miner::pool::VerifiedTransaction;
 use bytes::Bytes;
 use hashdb::DBValue;
 
@@ -314,7 +317,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn queue_consensus_message(&self, message: Bytes);
 
 	/// List all transactions that are allowed into the next block.
-	fn ready_transactions(&self) -> Vec<PendingTransaction>;
+	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
 
 	/// Sorted list of transaction gas prices from at least last sample_size blocks.
 	fn gas_price_corpus(&self, sample_size: usize) -> ::stats::Corpus<U256> {

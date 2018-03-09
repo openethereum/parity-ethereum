@@ -792,6 +792,7 @@ impl miner::MinerService for Miner {
 	}
 
 	fn future_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
+		// TODO [ToDr] Implement!
 		unimplemented!()
 		// self.transaction_queue.read().future_transactions()
 	}
@@ -911,7 +912,6 @@ impl miner::MinerService for Miner {
 		)
 	}
 
-	// TODO [ToDr] Pass sealing lock guard
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing<C>(&self, chain: &C) where

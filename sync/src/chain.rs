@@ -102,7 +102,7 @@ use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};
 use ethcore::error::*;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
-use transaction::PendingTransaction;
+use transaction::SignedTransaction;
 use sync_io::SyncIo;
 use time;
 use super::SyncConfig;
@@ -1979,8 +1979,9 @@ impl ChainSync {
 			return 0;
 		}
 
-		let (transactions, service_transactions): (Vec<_>, Vec<_>) = transactions.into_iter()
-			.partition(|tx| !tx.transaction.gas_price.is_zero());
+		let (transactions, service_transactions): (Vec<_>, Vec<_>) = transactions.iter()
+			.map(|tx| tx.signed())
+			.partition(|tx| !tx.gas_price.is_zero());
 
 		// usual transactions could be propagated to all peers
 		let mut affected_peers = HashSet::new();
@@ -2015,13 +2016,13 @@ impl ChainSync {
 			.collect()
 	}
 
-	fn propagate_transactions_to_peers(&mut self, io: &mut SyncIo, peers: Vec<PeerId>, transactions: Vec<PendingTransaction>) -> HashSet<PeerId> {
+	fn propagate_transactions_to_peers(&mut self, io: &mut SyncIo, peers: Vec<PeerId>, transactions: Vec<&SignedTransaction>) -> HashSet<PeerId> {
 		let all_transactions_hashes = transactions.iter()
-			.map(|tx| tx.transaction.hash())
+			.map(|tx| tx.hash())
 			.collect::<HashSet<H256>>();
 		let all_transactions_rlp = {
 			let mut packet = RlpStream::new_list(transactions.len());
-			for tx in &transactions { packet.append(&tx.transaction); }
+			for tx in &transactions { packet.append(&**tx); }
 			packet.out()
 		};
 
@@ -2065,10 +2066,10 @@ impl ChainSync {
 						packet.begin_unbounded_list();
 						let mut pushed = 0;
 						for tx in &transactions {
-							let hash = tx.transaction.hash();
+							let hash = tx.hash();
 							if to_send.contains(&hash) {
 								let mut transaction = RlpStream::new();
-								tx.transaction.rlp_append(&mut transaction);
+								tx.rlp_append(&mut transaction);
 								let appended = packet.append_raw_checked(&transaction.drain(), 1, MAX_TRANSACTION_PACKET_SIZE);
 								if !appended {
 									// Maximal packet size reached just proceed with sending

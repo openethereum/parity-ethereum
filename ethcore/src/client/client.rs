@@ -56,6 +56,7 @@ use header::{BlockNumber, Header};
 use io::IoChannel;
 use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
+use ethcore_miner::pool::VerifiedTransaction;
 use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
@@ -67,7 +68,7 @@ use state_db::StateDB;
 use state::{self, State};
 use trace;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
-use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, PendingTransaction, Action};
+use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, Action};
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
 use verification;
@@ -1899,13 +1900,8 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		// TODO [ToDr] Avoid cloning and propagate miner transaction further.
+	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
 		self.importer.miner.ready_transactions(self)
-			.into_iter()
-			.map(|x| x.signed().clone())
-			.map(Into::into)
-			.collect()
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {

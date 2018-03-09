@@ -281,7 +281,8 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		BlockChainClient::ready_transactions(self)
+		unimplemented!()
+		// BlockChainClient::ready_transactions(self)
 	}
 
 	fn epoch_signal(&self, req: request::CompleteSignalRequest) -> Option<request::SignalResponse> {
