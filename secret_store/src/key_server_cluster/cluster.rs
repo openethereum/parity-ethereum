@@ -82,8 +82,6 @@ pub trait ClusterClient: Send + Sync {
 
 	/// Listen for new generation sessions.
 	fn add_generation_listener(&self, listener: Arc<ClusterSessionsListener<GenerationSession>>);
-	/// Listen for new encryption sessions.
-	fn add_encryption_listener(&self, listener: Arc<ClusterSessionsListener<EncryptionSession>>);
 	/// Listen for new decryption sessions.
 	fn add_decryption_listener(&self, listener: Arc<ClusterSessionsListener<DecryptionSession>>);
 
@@ -1060,10 +1058,6 @@ impl ClusterClient for ClusterClientImpl {
 		self.data.sessions.generation_sessions.add_listener(listener);
 	}
 
-	fn add_encryption_listener(&self, listener: Arc<ClusterSessionsListener<EncryptionSession>>) {
-		self.data.sessions.encryption_sessions.add_listener(listener);
-	}
-
 	fn add_decryption_listener(&self, listener: Arc<ClusterSessionsListener<DecryptionSession>>) {
 		self.data.sessions.decryption_sessions.add_listener(listener);
 	}
@@ -1149,7 +1143,6 @@ pub mod tests {
 		fn new_servers_set_change_session(&self, _session_id: Option<SessionId>, _migration_id: Option<H256>, _new_nodes_set: BTreeSet<NodeId>, _old_set_signature: Signature, _new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> { unimplemented!("test-only") }
 
 		fn add_generation_listener(&self, _listener: Arc<ClusterSessionsListener<GenerationSession>>) {}
-		fn add_encryption_listener(&self, _listener: Arc<ClusterSessionsListener<EncryptionSession>>) {}
 		fn add_decryption_listener(&self, _listener: Arc<ClusterSessionsListener<DecryptionSession>>) {}
 
 		fn make_faulty_generation_sessions(&self) { unimplemented!("test-only") }
@@ -1497,5 +1490,34 @@ pub mod tests {
 		let session = clusters[0].data.sessions.ecdsa_signing_sessions.first().unwrap();
 		loop_until(&mut core, time::Duration::from_millis(1000), || session.is_finished());
 		session1.wait().unwrap_err();
+	}
+
+	#[test]
+	fn generation_listener_works() {
+
+	}
+
+	#[test]
+	fn decryption_listener_works() {
+		
+	}
+
+	#[test]
+	fn generation_session_gathers_enough_data_for_service_contract() {
+
+	}
+
+	#[test]
+	fn generation_session_gathers_enough_data_for_service_contract_when_delegated() {
+		
+	}
+
+	#[test]
+	fn decryption_session_gathers_enough_data_for_service_contract() {
+
+	}
+
+	#[test]
+	fn decryption_session_gathers_enough_data_for_service_contract_when_delegated() {
 	}
 }

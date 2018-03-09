@@ -377,6 +377,7 @@ impl ServiceContract for OnChainServiceContract {
 	}
 
 	fn publish_retrieved_server_key(&self, origin: &Address, server_key_id: &ServerKeyId, server_key: Public, threshold: usize) -> Result<(), String> {
+		let threshold = serialize_threshold(threshold)?;
 		self.send_contract_transaction(origin, server_key_id, ServerKeyRetrievalService::is_response_required, |_, _, service|
 			Ok(ServerKeyRetrievalService::prepare_pubish_tx_data(service, server_key_id, server_key, threshold))
 		)
@@ -401,6 +402,7 @@ impl ServiceContract for OnChainServiceContract {
 	}
 
 	fn publish_retrieved_document_key_common(&self, origin: &Address, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, threshold: usize) -> Result<(), String> {
+		let threshold = serialize_threshold(threshold)?;
 		self.send_contract_transaction(origin, server_key_id, |client, contract_address, contract, server_key_id, key_server|
 			DocumentKeyShadowRetrievalService::is_response_required(client, contract_address, contract, server_key_id, requester, key_server),
 		|_, _, service|
@@ -555,7 +557,7 @@ impl ServerKeyRetrievalService {
 	}
 
 	/// Prepare publish key transaction data.
-	pub fn prepare_pubish_tx_data(contract: &service::Service, server_key_id: &ServerKeyId, server_key_public: Public, threshold: usize) -> Bytes {
+	pub fn prepare_pubish_tx_data(contract: &service::Service, server_key_id: &ServerKeyId, server_key_public: Public, threshold: U256) -> Bytes {
 		contract.functions()
 			.server_key_retrieved()
 			.input(*server_key_id, server_key_public.to_vec(), threshold)
@@ -697,7 +699,7 @@ impl DocumentKeyShadowRetrievalService {
 	}
 
 	/// Prepare publish common key transaction data.
-	pub fn prepare_pubish_common_tx_data(contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, threshold: usize) -> Bytes {
+	pub fn prepare_pubish_common_tx_data(contract: &service::Service, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, threshold: U256) -> Bytes {
 		contract.functions()
 			.document_key_common_retrieved()
 			.input(*server_key_id, *requester, common_point.to_vec(), threshold)
@@ -782,14 +784,22 @@ impl DocumentKeyShadowRetrievalService {
 	}
 }
 
-/// Parse threshold.
+/// Parse threshold (we only supposrt 256 KS at max).
 fn parse_threshold(threshold: U256) -> Result<usize, String> {
 	let threshold_num = threshold.low_u64();
-	if threshold != threshold_num.into() || threshold_num >= ::std::usize::MAX as u64 {
-		return Err(format!("invalid threshold {:?}", threshold));
+	if threshold != threshold_num.into() || threshold_num >= ::std::u8::MAX as u64 {
+		return Err(format!("invalid threshold to use in service contract: {}", threshold));
 	}
 
 	Ok(threshold_num as usize)
+}
+
+/// Serialize threshold (we only support 256 KS at max).
+fn serialize_threshold(threshold: usize) -> Result<U256, String> {
+	if threshold > ::std::u8::MAX as usize {
+		return Err(format!("invalid threshold to use in service contract: {}", threshold));
+	}
+	Ok(threshold.into())
 }
 
 #[cfg(test)]
@@ -809,8 +819,13 @@ pub mod tests {
 		pub pending_requests: Vec<(bool, ServiceTask)>,
 		pub generated_server_keys: Mutex<Vec<(ServerKeyId, Public)>>,
 		pub server_keys_generation_failures: Mutex<Vec<ServerKeyId>>,
-		pub retrieved_server_keys: Mutex<Vec<(ServerKeyId, Public)>>,
+		pub retrieved_server_keys: Mutex<Vec<(ServerKeyId, Public, usize)>>,
 		pub server_keys_retrieval_failures: Mutex<Vec<ServerKeyId>>,
+		pub stored_document_keys: Mutex<Vec<ServerKeyId>>,
+		pub document_keys_store_failures: Mutex<Vec<ServerKeyId>>,
+		pub common_shadow_retrieved_document_keys: Mutex<Vec<(ServerKeyId, Address, Public, usize)>>,
+		pub personal_shadow_retrieved_document_keys: Mutex<Vec<(ServerKeyId, Address, Vec<Address>, Public, Bytes)>>,
+		pub document_keys_shadow_retrieval_failures: Mutex<Vec<(ServerKeyId, Address)>>,
 	}
 
 	impl ServiceContract for DummyServiceContract {
@@ -836,8 +851,8 @@ pub mod tests {
 			Ok(())
 		}
 
-		fn publish_retrieved_server_key(&self, _origin: &Address, server_key_id: &ServerKeyId, server_key: Public, _threshold: usize) -> Result<(), String> {
-			self.retrieved_server_keys.lock().push((server_key_id.clone(), server_key.clone()));
+		fn publish_retrieved_server_key(&self, _origin: &Address, server_key_id: &ServerKeyId, server_key: Public, threshold: usize) -> Result<(), String> {
+			self.retrieved_server_keys.lock().push((server_key_id.clone(), server_key.clone(), threshold));
 			Ok(())
 		}
 
@@ -846,24 +861,29 @@ pub mod tests {
 			Ok(())
 		}
 
-		fn publish_stored_document_key(&self, _origin: &Address, _server_key_id: &ServerKeyId) -> Result<(), String> {
-			unimplemented!()
+		fn publish_stored_document_key(&self, _origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
+			self.stored_document_keys.lock().push((server_key_id.clone()));
+			Ok(())
 		}
 
-		fn publish_document_key_store_error(&self, _origin: &Address, _server_key_id: &ServerKeyId) -> Result<(), String> {
-			unimplemented!()
+		fn publish_document_key_store_error(&self, _origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
+			self.document_keys_store_failures.lock().push(server_key_id.clone());
+			Ok(())
 		}
 
-		fn publish_retrieved_document_key_common(&self, _origin: &Address, _server_key_id: &ServerKeyId, _requester: &Address, _common_point: Public, _threshold: usize) -> Result<(), String> {
-			unimplemented!()
+		fn publish_retrieved_document_key_common(&self, _origin: &Address, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, threshold: usize) -> Result<(), String> {
+			self.common_shadow_retrieved_document_keys.lock().push((server_key_id.clone(), requester.clone(), common_point.clone(), threshold));
+			Ok(())
 		}
 
-		fn publish_retrieved_document_key_personal(&self, _origin: &Address, _server_key_id: &ServerKeyId, _requester: &Address, _participants: &[Address], _decrypted_secret: Public, _shadow: Bytes) -> Result<(), String> {
-			unimplemented!()
+		fn publish_retrieved_document_key_personal(&self, _origin: &Address, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Result<(), String> {
+			self.personal_shadow_retrieved_document_keys.lock().push((server_key_id.clone(), requester.clone(), participants.iter().cloned().collect(), decrypted_secret, shadow));
+			Ok(())
 		}
 
-		fn publish_document_key_retrieval_error(&self, _origin: &Address, _server_key_id: &ServerKeyId, _requester: &Address) -> Result<(), String> {
-			unimplemented!()
+		fn publish_document_key_retrieval_error(&self, _origin: &Address, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String> {
+			self.document_keys_shadow_retrieval_failures.lock().push((server_key_id.clone(), requester.clone()));
+			Ok(())
 		}
 	}
 }

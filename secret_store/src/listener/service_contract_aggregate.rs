@@ -22,7 +22,7 @@ use listener::service_contract::ServiceContract;
 use listener::service_contract_listener::ServiceTask;
 use {ServerKeyId};
 
-/// On-chain service contract.
+/// Aggregated on-chain service contract.
 pub struct OnChainServiceContractAggregate {
 	/// All hosted service contracts.
 	contracts: Vec<Arc<ServiceContract>>,
