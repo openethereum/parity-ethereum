@@ -17,7 +17,6 @@
 use std::fmt;
 use hashdb::*;
 use nibbleslice::NibbleSlice;
-use rlp::*;
 use super::node::{Node, OwnedNode};
 use super::lookup::Lookup;
 use super::{Trie, TrieItem, TrieError, TrieIterator, Query};
@@ -133,14 +132,11 @@ impl<'db> TrieDB<'db> {
 	/// This could be a simple identity operation in the case that the node is sufficiently small, but
 	/// may require a database lookup.
 	fn get_raw_or_lookup(&'db self, node: &'db [u8]) -> super::Result<DBValue> {
-		// check if its keccak + len
-		let r = Rlp::new(node);
-		match r.is_data() && r.size() == 32 {
-			true => {
-				let key = r.as_val::<H256>();
+		match Node::try_decode_hash(node) {
+			Some(key) => {
 				self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
 			}
-			false => Ok(DBValue::from_slice(node))
+			None => Ok(DBValue::from_slice(node))
 		}
 	}
 }

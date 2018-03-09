@@ -18,7 +18,6 @@
 
 use hashdb::HashDB;
 use nibbleslice::NibbleSlice;
-use rlp::Rlp;
 use ethereum_types::H256;
 
 use super::{TrieError, Query};
@@ -82,9 +81,8 @@ impl<'a, Q: Query> Lookup<'a, Q> {
 				}
 
 				// check if new node data is inline or hash.
-				let r = Rlp::new(node_data);
-				if r.is_data() && r.size() == 32 {
-					hash = r.as_val();
+				if let Some(h) = Node::try_decode_hash(&node_data) {
+					hash = h;
 					break
 				}
 			}
