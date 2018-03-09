@@ -54,7 +54,7 @@ fn write_response_and_check_hash(
 
 	// Now write the response
 	let mut file = io::BufWriter::new(fs::File::create(&content_path)?);
-	let mut reader = io::BufReader::new(response);
+	let mut reader = io::BufReader::new(fetch::BodyReader::new(response));
 	io::copy(&mut reader, &mut file)?;
 	file.flush()?;
 

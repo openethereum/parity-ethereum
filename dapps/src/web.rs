@@ -36,7 +36,7 @@ pub struct Web<F> {
 	embeddable_on: Embeddable,
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	fetch: F,
-	pool: CpuPool
+	pool: CpuPool,
 }
 
 impl<F: Fetch> Web<F> {
@@ -44,13 +44,13 @@ impl<F: Fetch> Web<F> {
 		embeddable_on: Embeddable,
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		fetch: F,
-		pool: CpuPool
+		pool: CpuPool,
 	) -> Box<Endpoint> {
 		Box::new(Web {
 			embeddable_on,
 			web_proxy_tokens,
 			fetch,
-			pool
+			pool,
 		})
 	}
 
@@ -133,7 +133,7 @@ impl<F: Fetch> Endpoint for Web<F> {
 			},
 			self.embeddable_on.clone(),
 			self.fetch.clone(),
-			self.pool.clone()
+			self.pool.clone(),
 		))
 	}
 }
@@ -151,7 +151,7 @@ impl ContentValidator for WebInstaller {
 		let is_html = response.is_html();
 		let mime = response.content_type().unwrap_or(mime::TEXT_HTML);
 		let mut handler = StreamingHandler::new(
-			response,
+			fetch::BodyReader::new(response),
 			status,
 			mime,
 			self.embeddable_on,

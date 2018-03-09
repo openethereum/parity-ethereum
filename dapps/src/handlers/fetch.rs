@@ -36,7 +36,7 @@ const FETCH_TIMEOUT: u64 = 300;
 
 pub enum ValidatorResponse {
 	Local(local::Dapp),
-	Streaming(StreamingHandler<fetch::Response>),
+	Streaming(StreamingHandler<fetch::BodyReader>),
 }
 
 pub trait ContentValidator: Sized + Send + 'static {
@@ -253,7 +253,7 @@ impl ContentFetcherHandler {
 		installer: H,
 		embeddable_on: Embeddable,
 		fetch: F,
-		pool: CpuPool
+		pool: CpuPool,
 	) -> Self {
 		let fetch_control = FetchControl::default();
 		let errors = Errors { embeddable_on };
@@ -295,7 +295,7 @@ impl ContentFetcherHandler {
 	) -> Box<Future<Item=FetchState, Error=()> + Send> {
 		// Start fetching the content
 		let pool2 = pool.clone();
-		let future = fetch.fetch_with_abort(url, abort.into()).then(move |result| {
+		let future = fetch.fetch(url, abort.into()).then(move |result| {
 			trace!(target: "dapps", "Fetching content finished. Starting validation: {:?}", result);
 			Ok(match result {
 				Ok(response) => match installer.validate_and_install(response) {

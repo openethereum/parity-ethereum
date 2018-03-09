@@ -357,7 +357,7 @@ impl FullDependencies {
 						&self.net_service,
 						self.dapps_service.clone(),
 						self.fetch.clone(),
-						self.pool.clone()
+						self.pool.clone(),
 					).to_delegate())
 				},
 				Api::Traces => {
@@ -568,7 +568,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.sync.clone(),
 						self.dapps_service.clone(),
 						self.fetch.clone(),
-						self.pool.clone()
+						self.pool.clone(),
 					).to_delegate())
 				},
 				Api::Traces => {

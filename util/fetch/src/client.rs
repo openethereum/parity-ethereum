@@ -14,120 +14,153 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Fetching
-
-use std::cmp::min;
-use std::{io, error, fmt, mem};
+use futures::future::{self, Loop};
+use futures::sync::{mpsc, oneshot};
+use futures::{self, Future, Async, Sink, Stream};
+use futures_timer::FutureExt;
+use hyper::header::{UserAgent, Location, ContentLength, ContentType};
+use hyper::mime::Mime;
+use hyper::{self, Request, Method, StatusCode};
+use hyper_rustls;
+use parking_lot::{Condvar, Mutex};
 use std::sync::Arc;
-use std::sync::atomic::{self, AtomicBool};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
-
-use futures::{self, Future, Async, Sink, Stream};
-use futures::future::{self, Either};
-use futures::sync::{mpsc, oneshot};
-use parking_lot::{Condvar, Mutex};
-
-use hyper::{self, Request, Method, StatusCode};
-use hyper::header::{UserAgent, Location, ContentType};
-use hyper::mime::Mime;
-
-use hyper_rustls;
+use std::{cmp, io, fmt, mem};
 use tokio_core::reactor;
 use url::{self, Url};
 
-type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
+const MAX_SIZE: usize = 64 * 1024 * 1024;
+const MAX_SECS: u64 = 5;
+const MAX_REDR: usize = 5;
 
-/// Fetch abort control
-#[derive(Default, Debug, Clone)]
-pub struct Abort(Arc<AtomicBool>);
+/// A handle to abort requests.
+///
+/// Requests are either aborted based on reaching thresholds such as
+/// maximum response size, timeouts or too many redirects, or else
+/// they can be aborted explicitly by the calling code.
+#[derive(Clone, Debug)]
+pub struct Abort {
+	abort: Arc<AtomicBool>,
+	size: usize,
+	time: Duration,
+	redir: usize,
+}
 
-impl Abort {
-	/// Returns `true` if request is aborted.
-	pub fn is_aborted(&self) -> bool {
-		self.0.load(atomic::Ordering::SeqCst)
+impl Default for Abort {
+	fn default() -> Abort {
+		Abort {
+			abort: Arc::new(AtomicBool::new(false)),
+			size: MAX_SIZE,
+			time: Duration::from_secs(MAX_SECS),
+			redir: MAX_REDR
+		}
 	}
 }
 
 impl From<Arc<AtomicBool>> for Abort {
-	fn from(a: Arc<AtomicBool>) -> Self {
-		Abort(a)
+	fn from(a: Arc<AtomicBool>) -> Abort {
+		Abort {
+			abort: a,
+			size: MAX_SIZE,
+			time: Duration::from_secs(MAX_SECS),
+			redir: MAX_REDR
+		}
 	}
 }
 
-/// Fetch
+impl Abort {
+	/// True if `abort` has been invoked.
+	pub fn is_aborted(&self) -> bool {
+		self.abort.load(Ordering::SeqCst)
+	}
+
+	/// The maximum response body size.
+	pub fn max_size(&self) -> usize {
+		self.size
+	}
+
+	/// The maximum total time, including redirects.
+	pub fn max_duration(&self) -> Duration {
+		self.time
+	}
+
+	/// The maximum number of redirects to allow.
+	pub fn max_redirects(&self) -> usize {
+		self.redir
+	}
+
+	/// Mark as aborted.
+	pub fn abort(&self) {
+		self.abort.store(true, Ordering::SeqCst)
+	}
+
+	/// Set the maximum reponse body size.
+	pub fn with_max_size(self, n: usize) -> Abort {
+		Abort { size: n, .. self }
+	}
+
+	/// Set the maximum duration (including redirects).
+	pub fn with_max_duration(self, d: Duration) -> Abort {
+		Abort { time: d, .. self }
+	}
+
+	/// Set the maximum number of redirects to follow.
+	pub fn with_max_redirects(self, n: usize) -> Abort {
+		Abort { redir: n, .. self }
+	}
+}
+
+/// Types which retrieve content from some URL.
 pub trait Fetch: Clone + Send + Sync + 'static {
-	/// Result type
+	/// The result future.
 	type Result: Future<Item=Response, Error=Error> + Send + 'static;
 
-	/// Fetch URL and get a future for the result.
-	/// Supports aborting the request in the middle of execution.
-	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result;
-
-	/// Fetch URL and get a future for the result.
-	fn fetch(&self, url: &str) -> Self::Result {
-		self.fetch_with_abort(url, Default::default())
-	}
+	/// Get content from some URL.
+	fn fetch(&self, url: &str, abort: Abort) -> Self::Result;
 }
 
-const THREAD_NAME: &str = "fetch";
-const CLIENT_TIMEOUT_SECONDS: u64 = 5;
-const MAX_REDIRECTS: usize = 5;
-
-type TxResponse  = oneshot::Sender<Result<hyper::Response, Error>>;
-type RxResponse  = oneshot::Receiver<Result<hyper::Response, Error>>;
+type TxResponse = oneshot::Sender<Result<Response, Error>>;
 type StartupCond = Arc<(Mutex<Result<(), io::Error>>, Condvar)>;
+type ChanItem = (Url, Abort, TxResponse);
 
-// `Proto`col values are sent over an mpsc channel from clients to
-// their shared background thread with a tokio core and hyper cient inside.
-enum Proto {
-	Request(Url, hyper::Request, TxResponse, usize),
-	Quit // terminates background thread
-}
-
-impl Proto {
-	fn is_quit(&self) -> bool {
-		if let Proto::Quit = *self { true } else { false }
-	}
-}
-
-/// Fetch client
-#[derive(Clone)]
+/// An implementation of `Fetch` using a `hyper` client.
+// Due to the `Send` bound of `Fetch` we spawn a background thread for
+// actual request/response processing as `hyper::Client` itself does
+// not implement `Send` currently.
+#[derive(Debug, Clone)]
 pub struct Client {
-	tx_proto: mpsc::Sender<Proto>,
-	limit:    Option<usize>
+	core: mpsc::Sender<ChanItem>,
 }
 
 impl Client {
-	/// Create a new client which spins up a separate thread running a
-	/// tokio `Core` and a `hyper::Client`.
-	/// Clones of this client share the same background thread.
+	/// Create a new fetch client.
+	///
+	/// This spawns off a background thread for request/response processing.
 	pub fn new() -> Result<Self, Error> {
 		let startup_done = Arc::new((Mutex::new(Ok(())), Condvar::new()));
 		let (tx_proto, rx_proto) = mpsc::channel(64);
 
-		Client::background_thread(startup_done.clone(), tx_proto.clone(), rx_proto)?;
+		Client::background_thread(startup_done.clone(), rx_proto)?;
 
 		let mut guard = startup_done.0.lock();
 		let startup_result = startup_done.1.wait_for(&mut guard, Duration::from_secs(3));
 
 		if startup_result.timed_out() {
-			error!(target: "fetch", "timeout starting {}", THREAD_NAME);
-			return Err(Error::Other("timeout starting background thread".into()))
+			error!(target: "fetch", "timeout starting background thread");
+			return Err(Error::BackgroundThreadDead)
 		}
 		if let Err(e) = mem::replace(&mut *guard, Ok(())) {
 			error!(target: "fetch", "error starting background thread: {}", e);
 			return Err(e.into())
 		}
 
-		Ok(Client { tx_proto: tx_proto, limit: Some(64 * 1024 * 1024) })
+		Ok(Client { core: tx_proto })
 	}
 
-	fn background_thread(start: StartupCond,
-                         tx_proto: mpsc::Sender<Proto>,
-                         rx_proto: mpsc::Receiver<Proto>) -> io::Result<thread::JoinHandle<()>>
-	{
-		thread::Builder::new().name(THREAD_NAME.into()).spawn(move || {
+	fn background_thread(start: StartupCond, rx_proto: mpsc::Receiver<ChanItem>) -> io::Result<thread::JoinHandle<()>> {
+		thread::Builder::new().name("fetch".into()).spawn(move || {
 			let mut core = match reactor::Core::new() {
 				Ok(c)  => c,
 				Err(e) => {
@@ -137,124 +170,96 @@ impl Client {
 				}
 			};
 			let handle = core.handle();
-			let client = hyper::Client::configure()
+			let hyper = hyper::Client::configure()
 				.connector(hyper_rustls::HttpsConnector::new(4, &core.handle()))
 				.build(&core.handle());
 
 			start.1.notify_one();
 			debug!(target: "fetch", "processing requests ...");
 
-			let maxdur = Duration::from_secs(CLIENT_TIMEOUT_SECONDS);
-			let work = rx_proto.take_while(|item| Ok(!item.is_quit())).for_each(|item| {
-				if let Proto::Request(url, rq, sender, redir) = item {
-					trace!(target: "fetch", "new request to {}", url);
-					let timeout = match reactor::Timeout::new(maxdur, &handle) {
-						Ok(t)  => t,
-						Err(e) => {
-							error!(target: "fetch", "failed to create timeout: {}.", e);
-							return future::err(())
-						}
-					};
-					let reschedule = tx_proto.clone();
-					let future = client.request(rq).select2(timeout).then(move |rs| {
-						trace!(target: "fetch", "response received from {}", url);
-						// When sending responses back over the oneshot channels, we treat
-						// the possibility that the other end is gone as normal, hence we
-						// use `unwrap_or(())` and do not error.
-						match rs {
-							Ok(Either::A((rs, _))) => {
-								if let Some(next_url) = redirect_location(url, &rs) {
-									if redir == 0 {
-										Either::A(future::ok(sender.send(Err(Error::TooManyRedirects)).unwrap_or(())))
-									} else {
-										let next_req = get(&next_url);
-										Either::B(reschedule.send(Proto::Request(next_url, next_req, sender, redir - 1)).then(|result| {
-											if let Err(e) = result {
-												error!(target: "fetch", "failed to reschedule request: {}", e);
-											}
-											// We can not recover from this error. Client code will
-											// get a `oneshot::Canceled` error since we dropped the
-											// `oneshot::Sender`. This should not happen as long as
-											// this thread runs, as with `reschedule` we are
-											// sending the `Proto` value back to ourselves.
-											future::ok(())
-										}))
-									}
-								} else {
-									Either::A(future::ok(sender.send(Ok(rs)).unwrap_or(())))
-								}
-							}
-							Ok(Either::B((_, _)))    => Either::A(future::ok(sender.send(Err(Error::Timeout)).unwrap_or(()))),
-							Err(Either::A((err, _))) => Either::A(future::ok(sender.send(Err(err.into())).unwrap_or(()))),
-							Err(Either::B((err, _))) => Either::A(future::ok(sender.send(Err(err.into())).unwrap_or(()))),
-						}
-					});
-					handle.spawn(future);
-					trace!(target: "fetch", "waiting for next request...")
+			let work = rx_proto.for_each(|(url, abort, sender)| {
+				trace!(target: "fetch", "new request to {}", url);
+				if abort.is_aborted() {
+					return future::ok(sender.send(Err(Error::Aborted)).unwrap_or(()))
 				}
+				let ini = (hyper.clone(), url, abort, 0);
+				let fut = future::loop_fn(ini, |(client, url, abort, redirects)| {
+					let url2 = url.clone();
+					let abort2 = abort.clone();
+					client.request(get(&url))
+						.map(move |resp| Response::new(url2, resp, abort2))
+						.from_err()
+						.and_then(move |resp| {
+							if abort.is_aborted() {
+								debug!(target: "fetch", "fetch of {} aborted", url);
+								return Err(Error::Aborted)
+							}
+							if let Some(next_url) = redirect_location(url, &resp) {
+								if redirects >= abort.max_redirects() {
+									return Err(Error::TooManyRedirects)
+								}
+								Ok(Loop::Continue((client, next_url, abort, redirects + 1)))
+							} else {
+								let content_len = resp.headers.get::<ContentLength>().cloned();
+								if content_len.map(|n| *n > abort.max_size() as u64).unwrap_or(false) {
+									return Err(Error::SizeLimit)
+								}
+								Ok(Loop::Break(resp))
+							}
+						})
+					})
+					.then(|result| {
+						future::ok(sender.send(result).unwrap_or(()))
+					});
+				handle.spawn(fut);
+				trace!(target: "fetch", "waiting for next request ...");
 				future::ok(())
 			});
 			if let Err(()) = core.run(work) {
 				error!(target: "fetch", "error while executing future")
 			}
-			debug!(target: "fetch", "{} background thread finished", THREAD_NAME)
+			debug!(target: "fetch", "fetch background thread finished")
 		})
-	}
-
-	/// Close this client by shutting down the background thread.
-	///
-	/// Please note that this will affect all clones of this `Client` as they all
-	/// share the same background thread.
-	pub fn close(self) -> Result<(), Error> {
-		self.tx_proto.clone().send(Proto::Quit).wait()
-			.map_err(|e| {
-				error!(target: "fetch", "failed to send quit to background thread: {}", e);
-				// We can not put `e: SendError<Proto>` into `Other` as it is not `Send`.
-				Error::Other("failed to terminate background thread".into())
-			})?;
-		Ok(())
-	}
-
-	/// (Un-)set size limit on response body.
-	pub fn set_limit(&mut self, limit: Option<usize>) {
-		self.limit = limit;
 	}
 }
 
 impl Fetch for Client {
-	type Result = BoxFuture<Response, Error>;
+	type Result = Box<Future<Item=Response, Error=Error> + Send>;
 
-	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result {
+	fn fetch(&self, url: &str, abort: Abort) -> Self::Result {
 		debug!(target: "fetch", "fetching: {:?}", url);
-
+		if abort.is_aborted() {
+			return Box::new(future::err(Error::Aborted))
+		}
 		let url: Url = match url.parse() {
-			Ok(u)  => u,
-			Err(e) => return Box::new(futures::future::err(e.into()))
+			Ok(u) => u,
+			Err(e) => return Box::new(future::err(e.into()))
 		};
-
-		let req    = get(&url);
-		let sender = self.tx_proto.clone();
-		let limit  = self.limit.clone();
 		let (tx_res, rx_res) = oneshot::channel();
-		let future = sender.send(Proto::Request(url.clone(), req, tx_res, MAX_REDIRECTS))
-			.map(|_| rx_res)
+		let maxdur = abort.max_duration();
+		let sender = self.core.clone();
+		let future = sender.send((url.clone(), abort, tx_res))
 			.map_err(|e| {
 				error!(target: "fetch", "failed to schedule request: {}", e);
-				Error::Other("failed to schedule request".into())
+				Error::BackgroundThreadDead
 			})
-			.and_then(move |rx_res| {
-				FetchTask {
-					url: url,
-					rx_res: rx_res,
-					limit: limit,
-					abort: abort
+			.and_then(|_| rx_res.map_err(|oneshot::Canceled| Error::BackgroundThreadDead))
+			.and_then(future::result)
+			.timeout(maxdur)
+			.map_err(|err| {
+				if let Error::Io(ref e) = err {
+					if let io::ErrorKind::TimedOut = e.kind() {
+						return Error::Timeout
+					}
 				}
+				err.into()
 			});
 		Box::new(future)
 	}
 }
 
-fn redirect_location(u: Url, r: &hyper::Response) -> Option<Url> {
+// Extract redirect location from response.
+fn redirect_location(u: Url, r: &Response) -> Option<Url> {
 	use hyper::StatusCode::*;
 	match r.status() {
 		MovedPermanently
@@ -262,7 +267,7 @@ fn redirect_location(u: Url, r: &hyper::Response) -> Option<Url> {
 		| TemporaryRedirect
 		| Found
 		| SeeOther => {
-			if let Some(loc) = r.headers().get::<Location>() {
+			if let Some(loc) = r.headers.get::<Location>() {
 				u.join(loc).ok()
 			} else {
 				None
@@ -272,166 +277,49 @@ fn redirect_location(u: Url, r: &hyper::Response) -> Option<Url> {
 	}
 }
 
+// Build a simple GET request for the given Url.
 fn get(u: &Url) -> hyper::Request {
-    let uri = u.as_ref().parse().expect("Every valid URL is aso a URI");
+    let uri = u.as_ref().parse().expect("Every valid URL is aso a URI.");
 	let mut rq = Request::new(Method::Get, uri);
 	rq.headers_mut().set(UserAgent::new("Parity Fetch Neo"));
 	rq
 }
 
-struct FetchTask {
-	url:    Url,
-	rx_res: RxResponse,
-	limit:  Option<usize>,
-	abort:  Abort
-}
-
-impl Future for FetchTask {
-	type Item = Response;
-	type Error = Error;
-
-	fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
-		if self.abort.is_aborted() {
-			debug!(target: "fetch", "Fetch of {:?} aborted.", self.url);
-			return Err(Error::Aborted);
-		}
-		match self.rx_res.poll()? {
-			Async::Ready(Err(e)) => Err(e.into()),
-			Async::Ready(Ok(r))  => {
-				let ctype = r.headers().get::<ContentType>().cloned();
-				Ok(Async::Ready(Response {
-					inner: ResponseInner::Response(r.status(), ctype, BodyReader::new(r.body())),
-					abort: self.abort.clone(),
-					limit: self.limit.clone(),
-					read:  0
-				}))
-			}
-			Async::NotReady => Ok(Async::NotReady)
-		}
-	}
-}
-
-/// Fetch related error cases.
-#[derive(Debug)]
-pub enum Error {
-	/// Error produced by hyper.
-	Hyper(hyper::Error),
-	/// I/O error
-	Io(io::Error),
-	/// URL parse error
-	Url(url::ParseError),
-	/// Request aborted
-	Aborted,
-	/// Followed too many redirects
-	TooManyRedirects,
-	/// Request took too long
-	Timeout,
-	/// The background request procesing was canceled
-	Canceled,
-	/// Some other error
-	Other(Box<error::Error + Send + Sync + 'static>)
-}
-
-impl fmt::Display for Error {
-	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			Error::Aborted          => write!(fmt, "The request has been aborted."),
-			Error::Hyper(ref e)     => write!(fmt, "{}", e),
-			Error::Url(ref e)       => write!(fmt, "{}", e),
-			Error::Io(ref e)        => write!(fmt, "{}", e),
-			Error::Other(ref e)     => write!(fmt, "{}", e),
-			Error::TooManyRedirects => write!(fmt, "too many redirects"),
-			Error::Timeout          => write!(fmt, "request timed out"),
-			Error::Canceled         => write!(fmt, "background thread canceled request processing"),
-		}
-	}
-}
-
-impl From<oneshot::Canceled> for Error {
-	fn from(_: oneshot::Canceled) -> Self {
-		Error::Canceled
-	}
-}
-
-impl From<hyper::Error> for Error {
-	fn from(e: hyper::Error) -> Self {
-		Error::Hyper(e)
-	}
-}
-
-impl From<io::Error> for Error {
-	fn from(e: io::Error) -> Self {
-		Error::Io(e)
-	}
-}
-
-impl From<url::ParseError> for Error {
-	fn from(e: url::ParseError) -> Self {
-		Error::Url(e)
-	}
-}
-
-enum ResponseInner {
-	Response(StatusCode, Option<ContentType>, BodyReader),
-	Reader(Box<io::Read + Send>),
-	NotFound
-}
-
-impl fmt::Debug for ResponseInner {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			ResponseInner::Response(s, ..) => write!(f, "hyper response (status={})", s),
-			ResponseInner::NotFound        => write!(f, "not found"),
-			ResponseInner::Reader(_)       => write!(f, "io reader"),
-		}
-	}
-}
-
-/// A fetch response type.
+/// An HTTP response.
 #[derive(Debug)]
 pub struct Response {
-	inner: ResponseInner,
+	url: Url,
+	status: StatusCode,
+	headers: hyper::Headers,
+	body: hyper::Body,
 	abort: Abort,
-	limit: Option<usize>,
-	read:  usize
+	nread: usize
 }
 
 impl Response {
-	/// Creates new successfuly response reading from a file.
-	pub fn from_reader<R: io::Read + Send + 'static>(reader: R) -> Self {
+	/// Create a new response, wrapping a hyper response.
+	pub fn new(u: Url, r: hyper::Response, a: Abort) -> Response {
 		Response {
-			inner: ResponseInner::Reader(Box::new(reader)),
-			abort: Abort::default(),
-			limit: None,
-			read:  0
+			url: u,
+			status: r.status(),
+			headers: r.headers().clone(),
+			body: r.body(),
+			abort: a,
+			nread: 0
 		}
 	}
 
-	/// Creates 404 response (useful for tests)
-	pub fn not_found() -> Self {
-		Response {
-			inner: ResponseInner::NotFound,
-			abort: Abort::default(),
-			limit: None,
-			read:  0
-		}
-	}
-
-	/// Returns status code of this response.
+	/// The response status.
 	pub fn status(&self) -> StatusCode {
-		match self.inner {
-			ResponseInner::Response(s, ..) => s,
-			ResponseInner::NotFound        => StatusCode::NotFound,
-			_                              => StatusCode::Ok
-		}
+		self.status
 	}
 
-	/// Returns `true` if response status code is successful.
+	/// Status code == OK (200)?
 	pub fn is_success(&self) -> bool {
 		self.status() == StatusCode::Ok
 	}
 
-	/// Returns `true` if content type of this response is `text/html`
+	/// Is the content-type text/html?
 	pub fn is_html(&self) -> bool {
 		if let Some(ref mime) = self.content_type() {
 			mime.type_() == "text" && mime.subtype() == "html"
@@ -440,56 +328,53 @@ impl Response {
 		}
 	}
 
-	/// Returns content type of this response (if present)
+	/// The conten-type header value.
 	pub fn content_type(&self) -> Option<Mime> {
-		if let ResponseInner::Response(_, ref c, _) = self.inner {
-			c.as_ref().map(|mime| mime.0.clone())
-		} else {
-			None
-		}
+		self.headers.get::<ContentType>().map(|ct| ct.0.clone())
 	}
 }
 
-impl io::Read for Response {
-	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+impl Stream for Response {
+	type Item = hyper::Chunk;
+	type Error = Error;
+
+	fn poll(&mut self) -> futures::Poll<Option<Self::Item>, Self::Error> {
 		if self.abort.is_aborted() {
-			return Err(io::Error::new(io::ErrorKind::ConnectionAborted, "Fetch aborted."));
+			debug!(target: "fetch", "fetch of {} aborted", self.url);
+			return Err(Error::Aborted)
 		}
-
-		let res = match self.inner {
-			ResponseInner::Response(_, _, ref mut r) => r.read(buf),
-			ResponseInner::NotFound                  => return Ok(0),
-			ResponseInner::Reader(ref mut r)         => r.read(buf)
-		};
-
-		// increase bytes read
-		if let Ok(read) = res {
-			self.read += read
-		}
-
-		// check limit
-		match self.limit {
-			Some(limit) if limit < self.read => {
-				return Err(io::Error::new(io::ErrorKind::PermissionDenied, "Size limit reached."));
+		match try_ready!(self.body.poll()) {
+			None    => Ok(Async::Ready(None)),
+			Some(c) => {
+				if self.nread + c.len() > self.abort.max_size() {
+					debug!(target: "fetch", "size limit {:?} for {} exceeded", self.abort.max_size(), self.url);
+					return Err(Error::SizeLimit)
+				}
+				self.nread += c.len();
+				Ok(Async::Ready(Some(c)))
 			}
-			_ => {}
 		}
-
-		res
 	}
 }
 
-// `BodyReader` serves as a bridge from async to sync I/O. It implements
-// `io::Read` by repedately waiting for the next `Chunk` of hyper's response `Body`.
-struct BodyReader {
+/// `BodyReader` serves as an adapter from async to sync I/O.
+///
+/// It implements `io::Read` by repedately waiting for the next `Chunk`
+/// of hyper's response `Body` which blocks the current thread.
+pub struct BodyReader {
 	chunk:  hyper::Chunk,
 	body:   Option<hyper::Body>,
-	offset: usize
+	offset: usize,
 }
 
 impl BodyReader {
-	fn new(b: hyper::Body) -> BodyReader {
-		BodyReader { body: Some(b), chunk: Default::default(), offset: 0 }
+	/// Create a new body reader for the given response.
+	pub fn new(r: Response) -> BodyReader {
+		BodyReader {
+			body: Some(r.body),
+			chunk: Default::default(),
+			offset: 0,
+		}
 	}
 }
 
@@ -499,7 +384,7 @@ impl io::Read for BodyReader {
 		while self.body.is_some() {
 			// Can we still read from the current chunk?
 			if self.offset < self.chunk.len() {
-				let k = min(self.chunk.len() - self.offset, buf.len() - m);
+				let k = cmp::min(self.chunk.len() - self.offset, buf.len() - m);
 				let c = &self.chunk[self.offset .. self.offset + k];
 				(&mut buf[m .. m + k]).copy_from_slice(c);
 				self.offset += k;
@@ -527,27 +412,80 @@ impl io::Read for BodyReader {
 	}
 }
 
+/// Fetch error cases.
+#[derive(Debug)]
+pub enum Error {
+	/// Hyper gave us an error.
+	Hyper(hyper::Error),
+	/// Some I/O error occured.
+	Io(io::Error),
+	/// Invalid URLs where attempted to parse.
+	Url(url::ParseError),
+	/// Calling code invoked `Abort::abort`.
+	Aborted,
+	/// Too many redirects have been encountered.
+	TooManyRedirects,
+	/// The maximum duration was reached.
+	Timeout,
+	/// The response body is too large.
+	SizeLimit,
+	/// The background processing thread does not run.
+	BackgroundThreadDead,
+}
+
+impl fmt::Display for Error {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			Error::Aborted => write!(fmt, "The request has been aborted."),
+			Error::Hyper(ref e) => write!(fmt, "{}", e),
+			Error::Url(ref e) => write!(fmt, "{}", e),
+			Error::Io(ref e) => write!(fmt, "{}", e),
+			Error::BackgroundThreadDead => write!(fmt, "background thread gond"),
+			Error::TooManyRedirects => write!(fmt, "too many redirects"),
+			Error::Timeout => write!(fmt, "request timed out"),
+			Error::SizeLimit => write!(fmt, "size limit reached"),
+		}
+	}
+}
+
+impl From<hyper::Error> for Error {
+	fn from(e: hyper::Error) -> Self {
+		Error::Hyper(e)
+	}
+}
+
+impl From<io::Error> for Error {
+	fn from(e: io::Error) -> Self {
+		Error::Io(e)
+	}
+}
+
+impl From<url::ParseError> for Error {
+	fn from(e: url::ParseError) -> Self {
+		Error::Url(e)
+	}
+}
+
 #[cfg(test)]
 mod test {
 	use super::*;
-	use std::io::Read;
 
 	#[test]
 	fn it_should_fetch() {
 		let client = Client::new().unwrap();
-		let future = client.fetch("https://httpbin.org/drip?numbytes=3&duration=3&delay=1&code=200");
-		let mut resp = future.wait().unwrap();
+		let abort = Abort::default().with_max_duration(Duration::from_secs(10));
+		let future = client.fetch("https://httpbin.org/drip?numbytes=3&duration=3&delay=1&code=200", abort);
+		let resp = future.wait().unwrap();
 		assert!(resp.is_success());
-		let mut body = Vec::new();
-		resp.read_to_end(&mut body).unwrap();
+		let body = resp.concat2().wait().unwrap();
 		assert_eq!(body.len(), 3)
 	}
 
 	#[test]
 	fn it_should_timeout() {
 		let client = Client::new().unwrap();
-		let future = client.fetch("https://httpbin.org/delay/7");
-		match future.wait() {
+		let abort = Abort::default().with_max_duration(Duration::from_secs(5));
+		match client.fetch("https://httpbin.org/delay/7", abort).wait() {
 			Err(Error::Timeout) => {}
 			other => panic!("expected timeout, got {:?}", other)
 		}
@@ -556,22 +494,24 @@ mod test {
 	#[test]
 	fn it_should_follow_redirects() {
 		let client = Client::new().unwrap();
-		let future = client.fetch("https://httpbin.org/absolute-redirect/3");
+		let abort = Abort::default().with_max_redirects(4).with_max_duration(Duration::from_secs(15));
+		let future = client.fetch("https://httpbin.org/absolute-redirect/3", abort);
 		assert!(future.wait().unwrap().is_success())
 	}
 
 	#[test]
 	fn it_should_follow_relative_redirects() {
 		let client = Client::new().unwrap();
-		let future = client.fetch("https://httpbin.org/relative-redirect/3");
+		let abort = Abort::default().with_max_redirects(4).with_max_duration(Duration::from_secs(15));
+		let future = client.fetch("https://httpbin.org/relative-redirect/3", abort);
 		assert!(future.wait().unwrap().is_success())
 	}
 
 	#[test]
 	fn it_should_not_follow_too_many_redirects() {
 		let client = Client::new().unwrap();
-		let future = client.fetch("https://httpbin.org/absolute-redirect/100");
-		match future.wait() {
+		let abort = Abort::default().with_max_redirects(3);
+		match client.fetch("https://httpbin.org/absolute-redirect/4", abort).wait() {
 			Err(Error::TooManyRedirects) => {}
 			other => panic!("expected too many redirects error, got {:?}", other)
 		}
@@ -580,22 +520,20 @@ mod test {
 	#[test]
 	fn it_should_read_data() {
 		let client = Client::new().unwrap();
-		let future = client.fetch("https://httpbin.org/bytes/1024");
-		let mut resp = future.wait().unwrap();
+		let abort = Abort::default();
+		let future = client.fetch("https://httpbin.org/bytes/1024", abort);
+		let resp = future.wait().unwrap();
 		assert!(resp.is_success());
-		let mut body = Vec::new();
-		resp.read_to_end(&mut body).unwrap();
-		assert_eq!(body.len(), 1024)
+		assert_eq!(resp.concat2().wait().unwrap().len(), 1024)
 	}
 
 	#[test]
-	fn it_should_read_chunked_data() {
+	fn it_should_not_read_too_much_data() {
 		let client = Client::new().unwrap();
-		let future = client.fetch("https://httpbin.org/stream-bytes/1024?chunk_size=19");
-		let mut resp = future.wait().unwrap();
-		assert!(resp.is_success());
-		let mut body = Vec::new();
-		resp.read_to_end(&mut body).unwrap();
-		assert_eq!(body.len(), 1024)
+		let abort = Abort::default().with_max_size(3);
+		match client.fetch("https://httpbin.org/bytes/4", abort).wait() {
+			Err(Error::SizeLimit) => {}
+			other => panic!("expected size limit error, got {:?}", other)
+		}
 	}
 }

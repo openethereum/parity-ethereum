@@ -251,7 +251,7 @@ impl GasPricerConfig {
 						recalibration_period: recalibration_period,
 					},
 					fetch,
-					p
+					p,
 				)
 			}
 		}

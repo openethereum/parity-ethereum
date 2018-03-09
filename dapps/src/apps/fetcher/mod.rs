@@ -216,7 +216,7 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 										),
 										self.embeddable_on.clone(),
 										self.fetch.clone(),
-										self.pool.clone()
+										self.pool.clone(),
 									)
 								},
 							    URLHintResult::GithubDapp(content) => {
@@ -233,7 +233,7 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 										),
 										self.embeddable_on.clone(),
 										self.fetch.clone(),
-										self.pool.clone()
+										self.pool.clone(),
 									)
 							    },
 								URLHintResult::Content(content) => {
@@ -250,7 +250,7 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 										),
 										self.embeddable_on.clone(),
 										self.fetch.clone(),
-										self.pool.clone()
+										self.pool.clone(),
 									)
 								},
 							};
