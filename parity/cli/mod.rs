@@ -397,11 +397,11 @@ usage! {
 			"--port=[PORT]",
 			"Override the port on which the node should listen.",
 
-			ARG arg_min_peers: (u16) = 25u16, or |c: &Config| c.network.as_ref()?.min_peers.clone(),
+			ARG arg_min_peers: (Option<u16>) = None, or |c: &Config| c.network.as_ref()?.min_peers.clone(),
 			"--min-peers=[NUM]",
 			"Try to maintain at least NUM peers.",
 
-			ARG arg_max_peers: (u16) = 50u16, or |c: &Config| c.network.as_ref()?.max_peers.clone(),
+			ARG arg_max_peers: (Option<u16>) = None, or |c: &Config| c.network.as_ref()?.max_peers.clone(),
 			"--max-peers=[NUM]",
 			"Allow up to NUM peers.",
 
@@ -1482,8 +1482,8 @@ mod tests {
 			// -- Networking Options
 			flag_no_warp: false,
 			arg_port: 30303u16,
-			arg_min_peers: 25u16,
-			arg_max_peers: 50u16,
+			arg_min_peers: Some(25u16),
+			arg_max_peers: Some(50u16),
 			arg_max_pending_peers: 64u16,
 			arg_snapshot_peers: 0u16,
 			arg_allow_ips: "all".into(),

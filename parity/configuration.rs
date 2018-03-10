@@ -19,7 +19,7 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
-use std::cmp::max;
+use std::cmp::{min, max};
 use std::str::FromStr;
 use cli::{Args, ArgsError};
 use hash::keccak;
@@ -54,6 +54,9 @@ use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
 use network::{IpFilter};
+
+const DEFAULT_MAX_PEERS: u16 = 50;
+const DEFAULT_MIN_PEERS: u16 = 25;
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -468,8 +471,8 @@ impl Configuration {
 	}
 
 	fn max_peers(&self) -> u32 {
-		let peers = self.args.arg_max_peers as u32;
-		max(self.min_peers(), peers)
+		max(self.args.arg_max_peers.unwrap_or(DEFAULT_MAX_PEERS) as u32,
+			self.args.arg_min_peers.unwrap_or(DEFAULT_MIN_PEERS) as u32)
 	}
 
 	fn ip_filter(&self) -> Result<IpFilter, String> {
@@ -480,7 +483,19 @@ impl Configuration {
 	}
 
 	fn min_peers(&self) -> u32 {
-		self.args.arg_peers.unwrap_or(self.args.arg_min_peers) as u32
+		match (self.args.arg_max_peers, self.args.arg_min_peers) {
+			// Only `max peers``specified and respect that by configuring `min peers` that value
+			(Some(max), None) => max as u32,
+
+			// Only `min_peers` specified pick that value
+			(None, Some(min)) => min as u32,
+
+			// Both or none specified, pick the smallest value
+			(_, _) => {
+				min(self.args.arg_max_peers.unwrap_or(DEFAULT_MAX_PEERS) as u32,
+				    self.args.arg_min_peers.unwrap_or(DEFAULT_MIN_PEERS) as u32)
+			}
+		}
 	}
 
 	fn max_pending_peers(&self) -> u32 {
