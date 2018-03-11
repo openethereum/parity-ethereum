@@ -1,3 +1,4 @@
+
 {
   "name": "CallistoTestnet",
   "dataDir": "CallistoTestnet",
@@ -56,59 +57,16 @@
     "gasLimit": "0x47b760"
   },
   "nodes": [
-    "enode://960fe04f86af9fc61609b79200049333beae15583e343c298b4a676041f0f452329ff3e7bd41651663f82b56f82b3f98fdf85d16f311fa40a00fc900b3db6d7a@159.203.121.76:30303"
+    "enode://a56ba92bf34da673dfaa756b58f497abc90b4bb1c1b29d5a0e4fb98a8a2f50c683aeb16464e60482478def72273faccc7a4f6093b598bee82a77a677c4550baa@192.99.99.18:30303"
   ],
+  "0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+  "0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+  "0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+  "0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+
   "accounts": {
-    "0000000000000000000000000000000000000001": {
-      "balance": "1",
-      "builtin": {
-        "name": "ecrecover",
-        "pricing": {
-          "linear": {
-            "base": 3000,
-            "word": 0
-          }
-        }
-      }
-    },
-    "0000000000000000000000000000000000000002": {
-      "balance": "1",
-      "builtin": {
-        "name": "sha256",
-        "pricing": {
-          "linear": {
-            "base": 60,
-            "word": 12
-          }
-        }
-      }
-    },
-    "0000000000000000000000000000000000000003": {
-      "balance": "1",
-      "builtin": {
-        "name": "ripemd160",
-        "pricing": {
-          "linear": {
-            "base": 600,
-            "word": 120
-          }
-        }
-      }
-    },
-    "0000000000000000000000000000000000000004": {
-      "balance": "1",
-      "builtin": {
-        "name": "identity",
-        "pricing": {
-          "linear": {
-            "base": 15,
-            "word": 3
-          }
-        }
-      }
-    },
     "0000000000000000000000000000000000000005": {
-	  "balance": "1",	
+	  "balance": "1",
       "builtin": {
         "name": "modexp",
         "activate_at": "0x00",
@@ -120,7 +78,7 @@
       }
     },
     "0000000000000000000000000000000000000006": {
-	  "balance": "1",	
+	  "balance": "1",
       "builtin": {
         "name": "alt_bn128_add",
         "activate_at": "0x00",
@@ -146,7 +104,7 @@
       }
     },
     "0000000000000000000000000000000000000008": {
-	  "balance": "1",	
+	  "balance": "1",
       "builtin": {
         "name": "alt_bn128_pairing",
         "activate_at": "0x00",
@@ -158,8 +116,7 @@
         }
       }
     },
-    "c3F70b10CE5EC4aA47ce44Eb0B7900A883cd45Dd": {
-      "balance": "2000000000000000000000000000000"
-    }
+"0x183394f52b2c8c034835edba3bcececa6f60b5a8": {"balance": "100491852286952719463755404"}
   }
 }
+    
