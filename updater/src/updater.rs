@@ -102,7 +102,13 @@ enum UpdaterStatus {
 	Fetching {
 		release: ReleaseInfo,
 		binary: H256,
-		backoff: Option<(u32, Instant)>,
+		retries: u32,
+	},
+	/// Updater failed fetching a new release and it is now backing off until the next retry.
+	FetchBackoff {
+		release: ReleaseInfo,
+		binary: H256,
+		backoff: (u32, Instant),
 	},
 	/// Updater is ready to update to a new release.
 	Ready {
@@ -348,7 +354,7 @@ impl Updater {
 
 						// Check if the latest release and updater status hasn't changed
 						if state.latest.as_ref() == Some(&latest) {
-							if let UpdaterStatus::Fetching { ref release, backoff, binary } = state.status.clone() {
+							if let UpdaterStatus::Fetching { ref release, binary, retries } = state.status.clone() {
 								match res {
 									// We've successfully fetched the binary
 									Ok(path) => {
@@ -378,11 +384,10 @@ impl Updater {
 									},
 									// There was an error fetching the update, apply a backoff delay before retrying
 									Err(err) => {
-										let n = backoff.map(|b| b.0 + 1).unwrap_or(1);
-										let delay = 2usize.pow(n) as u64;
-										let backoff = Some((n, Instant::now() + Duration::from_secs(delay)));
+										let delay = 2usize.pow(retries) as u64;
+										let backoff = (retries, Instant::now() + Duration::from_secs(delay));
 
-										state.status = UpdaterStatus::Fetching { release: release.clone(), backoff, binary };
+										state.status = UpdaterStatus::FetchBackoff { release: release.clone(), backoff, binary };
 
 										warn!("Unable to fetch update ({}): {:?}, retrying in {} seconds.", release.version, err, delay);
 									},
@@ -401,20 +406,25 @@ impl Updater {
 				// the update has already been installed
 				UpdaterStatus::Installed { ref release, .. } if *release == latest.track => {},
 				// we're currently fetching this update
-				UpdaterStatus::Fetching { ref release, backoff: None, .. } if *release == latest.track => {},
+				UpdaterStatus::Fetching { ref release, .. } if *release == latest.track => {},
+				// the fetch has failed and we're backing off the next retry
+				UpdaterStatus::FetchBackoff { ref release, backoff, .. } if *release == latest.track && Instant::now() < backoff.1 => {},
 				// we're delaying the update until the given block number
 				UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest.track && current_block_number < block_number => {},
 				// we're at (or past) the block that triggers the update, let's fetch the binary
 				UpdaterStatus::Waiting { ref release, block_number, binary } if *release == latest.track && current_block_number >= block_number => {
-					state.status = UpdaterStatus::Fetching { release: latest.track.clone(), binary, backoff: None };
+					state.status = UpdaterStatus::Fetching { release: release.clone(), binary, retries: 1 };
+					// will lock self.state
 					drop(state);
 					fetch(binary);
 				},
 				// we're ready to retry the fetch after we applied a backoff for the previous failure
-				UpdaterStatus::Fetching { ref release, backoff: Some(backoff), binary } if *release == latest.track && Instant::now() > backoff.1 => {
+				UpdaterStatus::FetchBackoff { ref release, backoff, binary } if *release == latest.track && Instant::now() >= backoff.1 => {
+					state.status = UpdaterStatus::Fetching { release: release.clone(), binary, retries: backoff.0 + 1 };
+					// will lock self.state
 					drop(state);
 					fetch(binary);
-				}
+				},
 				UpdaterStatus::Ready { ref release } if *release == latest.track => {
 					let auto = match self.update_policy.filter {
 						UpdateFilter::All => true,
