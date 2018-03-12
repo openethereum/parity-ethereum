@@ -33,7 +33,7 @@ const UI_VERSION = PackageJson
   })
   .join('.');
 
-function getPlugins (_isProd = isProd, withCommons = false) {
+function getPlugins (_isProd = isProd) {
   const plugins = [
     new webpack.DefinePlugin({
       'process.env': {
@@ -53,13 +53,6 @@ function getPlugins (_isProd = isProd, withCommons = false) {
   ];
 
   if (_isProd) {
-    if (withCommons) {
-      plugins.push(
-        new webpack.optimize.CommonsChunkPlugin({
-          name: 'commons'
-        })
-      )
-    }
     plugins.push(
       new webpack.optimize.ModuleConcatenationPlugin(),
       new webpack.optimize.UglifyJsPlugin({

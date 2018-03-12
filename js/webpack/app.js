@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const rimraf = require('rimraf');
 const flatten = require('lodash.flatten');
+const webpack = require('webpack');
 // const ReactIntlAggregatePlugin = require('react-intl-aggregate-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
@@ -165,96 +166,103 @@ module.exports = {
   },
 
   plugins: (function () {
-    let plugins = Shared.getPlugins(isProd, true).concat(
-      new WebpackErrorNotificationPlugin(),
-      new ExtractTextPlugin({
-        filename: 'bundle.css',
-        allChunks: true
-      }),
-    );
-
-    plugins = [].concat(
-      plugins,
-
-      new HtmlWebpackPlugin({
-        title: 'Parity Bar',
-        filename: 'embed.html',
-        template: './index.parity.ejs',
-        favicon: FAVICON,
-        chunks: ['commons', 'embed']
-      }),
-
-      new HtmlWebpackPlugin({
-        title: 'Parity',
-        filename: 'index.html',
-        template: './index.parity.ejs',
-        favicon: FAVICON,
-        chunks: ['commons', 'bundle']
-      }),
-
-      new CopyWebpackPlugin(
-        flatten([
-          {
-            from: path.join(__dirname, '../src/dev.web3.html'),
-            to: 'dev.web3/index.html'
-          },
-          {
-            from: path.join(__dirname, '../src/dev.parity.html'),
-            to: 'dev.parity/index.html'
-          },
-          {
-            from: path.join(__dirname, '../src/error_pages.css'),
-            to: 'styles.css'
-          },
-          {
-            from: path.join(__dirname, '../src/index.electron.js'),
-            to: 'electron.js'
-          },
-          {
-            from: path.join(__dirname, '../package.electron.json'),
-            to: 'package.json'
-          },
-          flatten(
-            DAPPS_ALL
-              .map((dapp) => {
-                const dir = path.join(__dirname, '../node_modules', dapp.package);
-
-                if (!fs.existsSync(dir)) {
-                  return null;
-                }
-
-                if (!fs.existsSync(path.join(dir, 'dist'))) {
-                  rimraf.sync(path.join(dir, 'node_modules'));
-
-                  return {
-                    from: path.join(dir),
-                    to: `dapps/${dapp.id}/`
-                  };
-                }
-
-                return [
-                  'icon.png', 'index.html', 'dist.css', 'dist.js',
-                  isProd ? null : 'dist.css.map',
-                  isProd ? null : 'dist.js.map'
-                ]
-                  .filter((file) => file)
-                  .map((file) => path.join(dir, file))
-                  .filter((from) => fs.existsSync(from))
-                  .map((from) => ({
-                    from,
-                    to: `dapps/${dapp.id}/`
-                  }))
-                  .concat({
-                    from: path.join(dir, 'dist'),
-                    to: `dapps/${dapp.id}/dist/`
-                  });
-              })
-              .filter((copy) => copy)
-          )
-        ]),
-        {}
+    let plugins = []
+      .concat(Shared.getPlugins(isProd, true))
+      .concat(
+        new WebpackErrorNotificationPlugin(),
+        new ExtractTextPlugin({
+          filename: '[name].css',
+          allChunks: true
+        })
       )
-    );
+      .concat(
+        new HtmlWebpackPlugin({
+          title: 'Parity Bar',
+          filename: 'embed.html',
+          template: './index.parity.ejs',
+          favicon: FAVICON,
+          chunks: ['commons', 'embed']
+        }),
+
+        new HtmlWebpackPlugin({
+          title: 'Parity',
+          filename: 'index.html',
+          template: './index.parity.ejs',
+          favicon: FAVICON,
+          chunks: ['commons', 'bundle']
+        }),
+
+        new CopyWebpackPlugin(
+          flatten([
+            {
+              from: path.join(__dirname, '../src/dev.web3.html'),
+              to: 'dev.web3/index.html'
+            },
+            {
+              from: path.join(__dirname, '../src/dev.parity.html'),
+              to: 'dev.parity/index.html'
+            },
+            {
+              from: path.join(__dirname, '../src/error_pages.css'),
+              to: 'styles.css'
+            },
+            {
+              from: path.join(__dirname, '../src/index.electron.js'),
+              to: 'electron.js'
+            },
+            {
+              from: path.join(__dirname, '../package.electron.json'),
+              to: 'package.json'
+            },
+            flatten(
+              DAPPS_ALL
+                .map((dapp) => {
+                  const dir = path.join(__dirname, '../node_modules', dapp.package);
+
+                  if (!fs.existsSync(dir)) {
+                    return null;
+                  }
+
+                  if (!fs.existsSync(path.join(dir, 'dist'))) {
+                    rimraf.sync(path.join(dir, 'node_modules'));
+
+                    return {
+                      from: path.join(dir),
+                      to: `dapps/${dapp.id}/`
+                    };
+                  }
+
+                  return [
+                    'icon.png', 'index.html', 'dist.css', 'dist.js',
+                    isProd ? null : 'dist.css.map',
+                    isProd ? null : 'dist.js.map'
+                  ]
+                    .filter((file) => file)
+                    .map((file) => path.join(dir, file))
+                    .filter((from) => fs.existsSync(from))
+                    .map((from) => ({
+                      from,
+                      to: `dapps/${dapp.id}/`
+                    }))
+                    .concat({
+                      from: path.join(dir, 'dist'),
+                      to: `dapps/${dapp.id}/dist/`
+                    });
+                })
+                .filter((copy) => copy)
+            )
+          ]),
+          {}
+        )
+      );
+
+    if (isProd) {
+      plugins.unshift(
+        new webpack.optimize.CommonsChunkPlugin({
+          name: 'commons'
+        })
+      );
+    }
 
     return plugins;
   }())
