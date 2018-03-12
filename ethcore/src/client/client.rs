@@ -1818,8 +1818,17 @@ impl BlockChainClient for Client {
 		};
 
 		let chain = self.chain.read();
-		let blocks = chain.blocks_with_blooms(&filter.bloom_possibilities(), from, to);
-		chain.logs(blocks, |entry| filter.matches(entry), filter.limit)
+		let blocks = filter.bloom_possibilities().iter()
+			.map(move |bloom| {
+				chain.blocks_with_bloom(bloom, from, to)
+			})
+			.flat_map(|m| m)
+			// remove duplicate elements
+			.collect::<HashSet<u64>>()
+			.into_iter()
+			.collect::<Vec<u64>>();
+
+		self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit)
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {

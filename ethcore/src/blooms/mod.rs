@@ -14,24 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Database migrations.
+//! Bridge between bloomchain crate types and ethcore.
 
-extern crate migration;
+mod bloom_group;
+mod group_position;
 
-use migration::ChangeColumns;
-
-/// The migration from v10 to v11.
-/// Adds a column for node info.
-pub const TO_V11: ChangeColumns = ChangeColumns {
-	pre_columns: Some(6),
-	post_columns: Some(7),
-	version: 11,
-};
-
-/// The migration from v11 to v12.
-/// Adds a column for light chain storage.
-pub const TO_V12: ChangeColumns = ChangeColumns {
-	pre_columns: Some(7),
-	post_columns: Some(8),
-	version: 12,
-};
+pub use self::bloom_group::BloomGroup;
+pub use self::group_position::GroupPosition;
