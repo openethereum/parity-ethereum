@@ -291,31 +291,13 @@ impl Miner {
 	fn map_existing_pending_block<F, T>(&self, f: F, latest_block_number: BlockNumber) -> Option<T> where
 		F: FnOnce(&ClosedBlock) -> T,
 	{
-		self.from_pending_block(
-			latest_block_number,
-			|| None,
-			|block| Some(f(block)),
-		)
-	}
-
-	// TODO [ToDr] Get rid of this method.
-	//
-	// We should never fall back to client, this can be handled on RPC level by returning Option<>
-	fn from_pending_block<H, F, G>(&self, latest_block_number: BlockNumber, from_chain: F, map_block: G) -> H where
-		F: Fn() -> H,
-		G: FnOnce(&ClosedBlock) -> H,
-	{
-		let sealing = self.sealing.lock();
-		sealing.queue.peek_last_ref().map_or_else(
-			|| from_chain(),
-			|b| {
-				if b.block().header().number() > latest_block_number {
-					map_block(b)
-				} else {
-					from_chain()
-				}
-			}
-		)
+		self.sealing.lock().queue
+			.peek_last_ref()
+			.and_then(|b| if b.block().header().number() > latest_block_number {
+				Some(f(b))
+			} else {
+				None
+			})
 	}
 
 	fn client<'a, C: 'a>(&'a self, chain: &'a C) -> BlockChainClient<'a, C> where
@@ -818,16 +800,13 @@ impl miner::MinerService for Miner {
 		};
 
 		let from_pending = || {
-			self.from_pending_block(
-				chain_info.best_block_number,
-				|| None,
-				|sealing| Some(sealing.transactions()
+			self.map_existing_pending_block(|sealing| {
+				sealing.transactions()
 					.iter()
 					.map(|signed| pool::VerifiedTransaction::from_pending_block_transaction(signed.clone()))
 					.map(Arc::new)
 					.collect()
-				)
-			)
+			}, chain_info.best_block_number)
 		};
 
 		match self.options.pending_set {
@@ -864,55 +843,44 @@ impl miner::MinerService for Miner {
 		self.transaction_queue.status()
 	}
 
-	// TODO [ToDr] This is pretty inconsistent (you can get a ready_transaction, but no receipt for it)
 	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt> {
-		self.from_pending_block(
-			best_block,
-			// TODO [ToDr] Should try to find transaction in best block!
-			|| None,
-			|pending| {
-				let txs = pending.transactions();
-				txs.iter()
-					.map(|t| t.hash())
-					.position(|t| t == *hash)
-					.map(|index| {
-						let receipts = pending.receipts();
-						let prev_gas = if index == 0 { Default::default() } else { receipts[index - 1].gas_used };
-						let tx = &txs[index];
-						let receipt = &receipts[index];
-						RichReceipt {
-							transaction_hash: hash.clone(),
-							transaction_index: index,
-							cumulative_gas_used: receipt.gas_used,
-							gas_used: receipt.gas_used - prev_gas,
-							contract_address: match tx.action {
-								Action::Call(_) => None,
-								Action::Create => {
-									let sender = tx.sender();
-									Some(contract_address(self.engine.create_address_scheme(pending.header().number()), &sender, &tx.nonce, &tx.data).0)
-								}
-							},
-							logs: receipt.logs.clone(),
-							log_bloom: receipt.log_bloom,
-							outcome: receipt.outcome.clone(),
-						}
-					})
-			}
-		)
+		self.map_existing_pending_block(|pending| {
+			let txs = pending.transactions();
+			txs.iter()
+				.map(|t| t.hash())
+				.position(|t| t == *hash)
+				.map(|index| {
+					let receipts = pending.receipts();
+					let prev_gas = if index == 0 { Default::default() } else { receipts[index - 1].gas_used };
+					let tx = &txs[index];
+					let receipt = &receipts[index];
+					RichReceipt {
+						transaction_hash: hash.clone(),
+						transaction_index: index,
+						cumulative_gas_used: receipt.gas_used,
+						gas_used: receipt.gas_used - prev_gas,
+						contract_address: match tx.action {
+							Action::Call(_) => None,
+							Action::Create => {
+								let sender = tx.sender();
+								Some(contract_address(self.engine.create_address_scheme(pending.header().number()), &sender, &tx.nonce, &tx.data).0)
+							}
+						},
+						logs: receipt.logs.clone(),
+						log_bloom: receipt.log_bloom,
+						outcome: receipt.outcome.clone(),
+					}
+				})
+		}, best_block).and_then(|x| x)
 	}
 
 	fn pending_receipts(&self, best_block: BlockNumber) -> Option<BTreeMap<H256, Receipt>> {
-		self.from_pending_block(
-			best_block,
-			// TODO [ToDr] This is wrong should look in latest block!
-			|| None,
-			|pending| {
-				let hashes = pending.transactions().iter().map(|t| t.hash());
-				let receipts = pending.receipts().iter().cloned();
+		self.map_existing_pending_block(|pending| {
+			let hashes = pending.transactions().iter().map(|t| t.hash());
+			let receipts = pending.receipts().iter().cloned();
 
-				Some(hashes.zip(receipts).collect())
-			}
-		)
+			hashes.zip(receipts).collect()
+		}, best_block)
 	}
 
 	/// Update sealing if required.

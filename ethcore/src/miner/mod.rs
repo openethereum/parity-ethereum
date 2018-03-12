@@ -57,9 +57,6 @@ pub trait TransactionVerifierClient: Send + Sync
 /// Extended client interface used for mining
 pub trait BlockChainClient: TransactionVerifierClient + BlockProducer + SealedBlockImporter {}
 
-// TODO [ToDr] Split into smaller traits?
-// TODO [ToDr] get rid of from_pending_block in miner/miner.rs
-
 /// Miner client API
 pub trait MinerService : Send + Sync {
 	/// Type representing chain state
@@ -109,8 +106,8 @@ pub trait MinerService : Send + Sync {
 	/// Get `Some` `clone()` of the current pending block or `None` if we're not sealing.
 	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block>;
 
-	/// Get `Some` `clone()` of the current pending block transactions or `None` if we're not sealing.
-	fn pending_transactions(&self, latest_block_number: BlockNumber) -> Option<Vec<SignedTransaction>>;
+	// / Get `Some` `clone()` of the current pending block transactions or `None` if we're not sealing.
+	// fn pending_transactions(&self, latest_block_number: BlockNumber) -> Option<Vec<SignedTransaction>>;
 
 	// Block authoring
 
