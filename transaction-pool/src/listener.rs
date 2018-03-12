@@ -31,8 +31,8 @@ pub trait Listener<T> {
 	/// It means that it was too cheap to replace any transaction already in the pool.
 	fn rejected(&mut self, _tx: &Arc<T>, _reason: &ErrorKind) {}
 
-	/// The transaction was dropped from the pool because of a limit.
-	fn dropped(&mut self, _tx: &Arc<T>) {}
+	/// The transaction was pushed out from the pool because of the limit.
+	fn dropped(&mut self, _tx: &Arc<T>, _by: Option<&T>) {}
 
 	/// The transaction was marked as invalid by executor.
 	fn invalid(&mut self, _tx: &Arc<T>) {}
@@ -63,9 +63,9 @@ impl<T, A, B> Listener<T> for (A, B) where
 		self.1.rejected(tx, reason);
 	}
 
-	fn dropped(&mut self, tx: &Arc<T>) {
-		self.0.dropped(tx);
-		self.1.dropped(tx);
+	fn dropped(&mut self, tx: &Arc<T>, by: Option<&T>) {
+		self.0.dropped(tx, by);
+		self.1.dropped(tx, by);
 	}
 
 	fn invalid(&mut self, tx: &Arc<T>) {

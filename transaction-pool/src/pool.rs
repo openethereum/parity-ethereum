@@ -119,7 +119,7 @@ impl<T, S, L> Pool<T, S, L> where
 						Err(err)
 					},
 					Ok(removed) => {
-						s.listener.dropped(&removed);
+						s.listener.dropped(&removed, Some(&transaction));
 						s.finalize_remove(removed.hash());
 						Ok(transaction)
 					},
@@ -286,7 +286,7 @@ impl<T, S, L> Pool<T, S, L> where
 		self.worst_transactions.clear();
 
 		for (_hash, tx) in self.by_hash.drain() {
-			self.listener.dropped(&tx)
+			self.listener.dropped(&tx, None)
 		}
 	}
 

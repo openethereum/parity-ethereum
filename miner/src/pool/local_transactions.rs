@@ -151,12 +151,15 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 		self.clear_old();
 	}
 
-	fn dropped(&mut self, tx: &Arc<Transaction>) {
+	fn dropped(&mut self, tx: &Arc<Transaction>, new: Option<&Transaction>) {
 		if !tx.priority().is_local() {
 			return;
 		}
 
-		warn!(target: "own_tx", "Transaction dropped because of limit (hash {:?})", tx.hash());
+		match new {
+			Some(new) => warn!(target: "own_tx", "Transaction pushed out because of limit (hash {:?}, replacement: {:?})", tx.hash(), new.hash()),
+			None => warn!(target: "own_tx", "Transaction dropped because of limit (hash: {:?})", tx.hash()),
+		}
 		self.transactions.insert(*tx.hash(), Status::Dropped(tx.clone()));
 		self.clear_old();
 	}

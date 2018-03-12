@@ -78,12 +78,15 @@ impl txpool::Listener<Transaction> for Logger {
 		}
 	}
 
-	fn rejected(&mut self, tx: &Arc<Transaction>, reason: &txpool::ErrorKind) {
-		trace!(target: "txqueue", "[{:?}] Rejected. {}.", tx.hash(), reason);
+	fn rejected(&mut self, _tx: &Arc<Transaction>, reason: &txpool::ErrorKind) {
+		trace!(target: "txqueue", "Rejected {}.", reason);
 	}
 
-	fn dropped(&mut self, tx: &Arc<Transaction>) {
-		debug!(target: "txqueue", "[{:?}] Dropped because of limit.", tx.hash());
+	fn dropped(&mut self, tx: &Arc<Transaction>, new: Option<&Transaction>) {
+		match new {
+			Some(new) => debug!(target: "txqueue", "[{:?}] Pushed out by [{:?}]", tx.hash(), new.hash()),
+			None => debug!(target: "txqueue", "[{:?}] Dropped.", tx.hash()),
+		}
 	}
 
 	fn invalid(&mut self, tx: &Arc<Transaction>) {
