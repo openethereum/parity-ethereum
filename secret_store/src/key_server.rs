@@ -177,7 +177,7 @@ impl KeyServerCore {
 	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<KeyServerSet>, self_key_pair: Arc<NodeKeyPair>, acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>) -> Result<Self, Error> {
 		let config = NetClusterConfiguration {
 			threads: config.threads,
-			self_key_pair: self_key_pair,
+			self_key_pair: self_key_pair.clone(),
 			listen_address: (config.listener_address.address.clone(), config.listener_address.port),
 			key_server_set: key_server_set,
 			allow_connecting_to_higher_nodes: config.allow_connecting_to_higher_nodes,
@@ -189,7 +189,7 @@ impl KeyServerCore {
 
 		let (stop, stopped) = futures::oneshot();
 		let (tx, rx) = mpsc::channel();
-		let handle = thread::spawn(move || {
+		let handle = thread::Builder::new().name("KeyServerLoop".into()).spawn(move || {
 			let mut el = match Core::new() {
 				Ok(el) => el,
 				Err(e) => {
@@ -202,7 +202,9 @@ impl KeyServerCore {
 			let cluster_client = cluster.and_then(|c| c.run().map(|_| c.client()));
 			tx.send(cluster_client.map_err(Into::into)).expect("Rx is blocking upper thread.");
 			let _ = el.run(futures::empty().select(stopped));
-		});
+
+			trace!(target: "secretstore_net", "{}: KeyServerLoop thread stopped", self_key_pair.public());
+		}).map_err(|e| Error::Internal(format!("{}", e)))?;
 		let cluster = rx.recv().map_err(|e| Error::Internal(format!("error initializing event loop: {}", e)))??;
 
 		Ok(KeyServerCore {

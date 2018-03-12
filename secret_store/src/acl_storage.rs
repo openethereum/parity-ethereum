@@ -17,7 +17,6 @@
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 use parking_lot::{Mutex, RwLock};
-use ethkey::public_to_address;
 use ethcore::client::{BlockId, ChainNotify, CallContract, RegistryInfo};
 use ethereum_types::{H256, Address};
 use bytes::Bytes;

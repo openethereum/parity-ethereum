@@ -88,10 +88,11 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<No
 	let key_storage = Arc::new(key_storage::PersistentKeyStorage::new(&config)?);
 	let key_server = Arc::new(key_server::KeyServerImpl::new(&config.cluster_config, key_server_set.clone(), self_key_pair.clone(), acl_storage.clone(), key_storage.clone())?);
 	let cluster = key_server.cluster();
+	let key_server: Arc<KeyServer> = key_server;
 
 	// prepare HTTP listener
 	let http_listener = match config.listener_address {
-		Some(listener_address) => Some(listener::http_listener::KeyServerHttpListener::start(listener_address, key_server.clone())?),
+		Some(listener_address) => Some(listener::http_listener::KeyServerHttpListener::start(listener_address, Arc::downgrade(&key_server))?),
 		None => None,
 	};
 
@@ -137,20 +138,23 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<No
 		_ => Some(Arc::new(listener::service_contract_aggregate::OnChainServiceContractAggregate::new(contracts))),
 	};
 
-	let contract_listener = contract.map(|contract| {
-		let listener = listener::service_contract_listener::ServiceContractListener::new(
-			listener::service_contract_listener::ServiceContractListenerParams {
-				contract: contract,
-				self_key_pair: self_key_pair.clone(),
-				key_server_set: key_server_set,
-				acl_storage: acl_storage,
-				cluster: cluster,
-				key_storage: key_storage,
-			}
-		);
-		client.add_notify(listener.clone());
-		listener
-	});
+	let contract_listener = match contract {
+		Some(contract) => Some({
+			let listener = listener::service_contract_listener::ServiceContractListener::new(
+				listener::service_contract_listener::ServiceContractListenerParams {
+					contract: contract,
+					self_key_pair: self_key_pair.clone(),
+					key_server_set: key_server_set,
+					acl_storage: acl_storage,
+					cluster: cluster,
+					key_storage: key_storage,
+				}
+			)?;
+			client.add_notify(listener.clone());
+			listener
+		}),
+		None => None,
+	};
 
 	Ok(Box::new(listener::Listener::new(key_server, http_listener, contract_listener)))
 }

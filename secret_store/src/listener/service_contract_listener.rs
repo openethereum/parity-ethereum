@@ -125,7 +125,7 @@ pub enum ServiceTask {
 
 impl ServiceContractListener {
 	/// Create new service contract listener.
-	pub fn new(params: ServiceContractListenerParams) -> Arc<ServiceContractListener> {
+	pub fn new(params: ServiceContractListenerParams) -> Result<Arc<ServiceContractListener>, Error> {
 		let data = Arc::new(ServiceContractListenerData {
 			last_retry: AtomicUsize::new(0),
 			retry_data: Default::default(),
@@ -144,7 +144,8 @@ impl ServiceContractListener {
 			None
 		} else {
 			let service_thread_data = data.clone();
-			Some(thread::spawn(move || Self::run_service_thread(service_thread_data)))
+			Some(thread::Builder::new().name("ServiceContractListener".into()).spawn(move ||
+				Self::run_service_thread(service_thread_data)).map_err(|e| Error::Internal(format!("{}", e)))?)
 		};
 		let contract = Arc::new(ServiceContractListener {
 			data: data,
@@ -152,7 +153,7 @@ impl ServiceContractListener {
 		});
 		contract.data.cluster.add_generation_listener(contract.clone());
 		contract.data.cluster.add_decryption_listener(contract.clone());
-		contract
+		Ok(contract)
 	}
 
 	/// Process incoming events of service contract.
@@ -208,6 +209,8 @@ impl ServiceContractListener {
 				},
 			};
 		}
+
+		trace!(target: "secretstore_net", "{}: ServiceContractListener thread stopped", data.self_key_pair.public());
 	}
 
 	/// Process single service task.
@@ -600,7 +603,7 @@ mod tests {
 			acl_storage: acl_storage,
 			cluster: cluster,
 			key_storage: key_storage,
-		})
+		}).unwrap()
 	}
 
 	#[test]

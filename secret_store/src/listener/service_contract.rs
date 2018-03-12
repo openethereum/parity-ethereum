@@ -19,7 +19,7 @@ use parking_lot::RwLock;
 use ethabi::RawLog;
 use ethcore::filter::Filter;
 use ethcore::client::{Client, BlockChainClient, BlockId, RegistryInfo, CallContract};
-use ethkey::{Public, Signature, public_to_address};
+use ethkey::{Public, public_to_address};
 use hash::keccak;
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
