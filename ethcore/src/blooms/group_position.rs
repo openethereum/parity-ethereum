@@ -14,24 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// Represents blockchain's in-memory cache size in bytes.
-#[derive(Debug)]
-pub struct CacheSize {
-	/// Blocks cache size.
-	pub blocks: usize,
-	/// BlockDetails cache size.
-	pub block_details: usize,
-	/// Transaction addresses cache size.
-	pub transaction_addresses: usize,
-	/// Blooms cache size.
-	pub blocks_blooms: usize,
-	/// Block receipts size.
-	pub block_receipts: usize,
+use bloomchain::group as bc;
+use heapsize::HeapSizeOf;
+
+/// Represents `BloomGroup` position in database.
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+pub struct GroupPosition {
+	/// Bloom level.
+	pub level: u8,
+	/// Group index.
+	pub index: u32,
 }
 
-impl CacheSize {
-	/// Total amount used by the cache.
-	pub fn total(&self) -> usize {
-		self.blocks + self.block_details + self.transaction_addresses + self.blocks_blooms + self.block_receipts
+impl From<bc::GroupPosition> for GroupPosition {
+	fn from(p: bc::GroupPosition) -> Self {
+		GroupPosition {
+			level: p.level as u8,
+			index: p.index as u32,
+		}
+	}
+}
+
+impl HeapSizeOf for GroupPosition {
+	fn heap_size_of_children(&self) -> usize {
+		0
 	}
 }

@@ -182,6 +182,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bloomchain"
+version = "0.2.0"
+dependencies = [
+ "ethbloom 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "bn"
 version = "0.4.4"
 source = "git+https://github.com/paritytech/bn#c9831a8d10d55045692394cbc10efe0321ddb16f"
@@ -471,6 +480,7 @@ version = "1.9.0"
 dependencies = [
  "ansi_term 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bloomable 0.1.0",
+ "bloomchain 0.2.0",
  "bn 0.4.4 (git+https://github.com/paritytech/bn)",
  "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "common-types 0.1.0",
@@ -773,7 +783,6 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "serde 1.0.29 (registry+https://github.com/rust-lang/crates.io-index)",
->>>>>>> 236692c... Const time comparison (#8113)
 ]
 
 [[package]]

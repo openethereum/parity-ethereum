@@ -17,12 +17,14 @@
 //! Trace filters type definitions
 
 use std::ops::Range;
-use hash::keccak;
-use util::Address;
-use bloomable::Bloomable;
-use bigint::prelude::H2048 as Bloom;
 use basic_types::LogBloom;
+use bigint::prelude::H2048 as Bloom;
+use bloomable::Bloomable;
+use bloomchain::{Filter as BloomFilter, Number};
+use hash::keccak;
 use trace::flat::FlatTrace;
+use util::Address;
+
 use super::trace::{Action, Res};
 
 /// Addresses filter.
@@ -87,9 +89,19 @@ pub struct Filter {
 	pub to_address: AddressesFilter,
 }
 
+impl BloomFilter for Filter {
+	fn bloom_possibilities(&self) -> Vec<Bloom> {
+		self.bloom_possibilities()
+	}
+
+	fn range(&self) -> Range<Number> {
+		self.range.clone()
+	}
+}
+
 impl Filter {
 	/// Returns combinations of each address.
-	pub fn bloom_possibilities(&self) -> Vec<Bloom> {
+	fn bloom_possibilities(&self) -> Vec<Bloom> {
 		self.to_address.with_blooms(self.from_address.blooms())
 	}
 
