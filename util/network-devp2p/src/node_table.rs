@@ -101,6 +101,7 @@ impl NodeEndpoint {
 		self.to_rlp(rlp);
 	}
 
+	/// Validates that the port is not 0 and address IP is specified
 	pub fn is_valid(&self) -> bool {
 		self.udp_port != 0 && self.address.port() != 0 &&
 		match self.address {
