@@ -487,7 +487,7 @@ mod tests {
 	use std::sync::Arc;
 	use ethereum_types::{H64, H256, U256, Address};
 	use block::*;
-	use tests::helpers::*;
+	use tests::helpers::get_temp_state_db;
 	use error::{BlockError, Error};
 	use header::Header;
 	use spec::Spec;
@@ -498,6 +498,36 @@ mod tests {
 
 	fn test_spec() -> Spec {
 		new_morden(&::std::env::temp_dir())
+	}
+
+	fn get_default_ethash_params() -> EthashParams {
+		EthashParams {
+			minimum_difficulty: U256::from(131072),
+			difficulty_bound_divisor: U256::from(2048),
+			difficulty_increment_divisor: 10,
+			metropolis_difficulty_increment_divisor: 9,
+			homestead_transition: 1150000,
+			duration_limit: 13,
+			block_reward: 0.into(),
+			difficulty_hardfork_transition: u64::max_value(),
+			difficulty_hardfork_bound_divisor: U256::from(0),
+			bomb_defuse_transition: u64::max_value(),
+			eip100b_transition: u64::max_value(),
+			ecip1010_pause_transition: u64::max_value(),
+			ecip1010_continue_transition: u64::max_value(),
+			ecip1017_era_rounds: u64::max_value(),
+			mcip3_transition: u64::max_value(),
+			mcip3_miner_reward: 0.into(),
+			mcip3_ubi_reward: 0.into(),
+			mcip3_ubi_contract: "0000000000000000000000000000000000000001".into(),
+			mcip3_dev_reward: 0.into(),
+			mcip3_dev_contract: "0000000000000000000000000000000000000001".into(),
+			eip649_transition: u64::max_value(),
+			eip649_delay: 3_000_000,
+			eip649_reward: None,
+			expip2_transition: u64::max_value(),
+			expip2_duration_limit: 30,
+		}
 	}
 
 	#[test]
