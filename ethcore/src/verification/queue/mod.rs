@@ -28,7 +28,7 @@ use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;
 use error::*;
 use engines::EthEngine;
-use service::*;
+use client::ClientIoMessage;
 
 use self::kind::{BlockLike, Kind};
 

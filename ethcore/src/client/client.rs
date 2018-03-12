@@ -37,8 +37,11 @@ use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute, Transaction
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
-	StateOrBlock, StateInfo, StateClient, Call, AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter
+	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo,
+	RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
+	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
+	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
+	ClientIoMessage
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -60,7 +63,6 @@ use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
 use rlp::UntrustedRlp;
-use service::ClientIoMessage;
 use snapshot::{self, io as snapshot_io};
 use spec::Spec;
 use state_db::StateDB;
