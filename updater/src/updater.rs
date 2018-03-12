@@ -161,24 +161,22 @@ lazy_static! {
 	static ref CLIENT_ID_HASH: H256 = CLIENT_ID.as_bytes().into();
 }
 
-fn client_id_hash() -> H256 {
-	CLIENT_ID.as_bytes().into()
+lazy_static! {
+	static ref PLATFORM: String = {
+		if cfg!(target_os = "macos") {
+			"x86_64-apple-darwin".into()
+		} else if cfg!(windows) {
+			"x86_64-pc-windows-msvc".into()
+		} else if cfg!(target_os = "linux") {
+			format!("{}-unknown-linux-gnu", Target::arch())
+		} else {
+			version::platform()
+		}
+	};
 }
 
-fn platform() -> String {
-	if cfg!(target_os = "macos") {
-		"x86_64-apple-darwin".into()
-	} else if cfg!(windows) {
-		"x86_64-pc-windows-msvc".into()
-	} else if cfg!(target_os = "linux") {
-		format!("{}-unknown-linux-gnu", Target::arch())
-	} else {
-		version::platform()
-	}
-}
-
-fn platform_id_hash() -> H256 {
-	platform().as_bytes().into()
+lazy_static! {
+	static ref PLATFORM_ID_HASH: H256 = PLATFORM.as_bytes().into();
 }
 
 impl Updater {
@@ -207,14 +205,14 @@ impl Updater {
 	fn collect_release_info<T: Fn(Vec<u8>) -> Result<Vec<u8>, String>>(&self, release_id: H256, do_call: &T) -> Result<ReleaseInfo, String> {
 		let (fork, track, semver, is_critical) = self.operations_contract.functions()
 			.release()
-			.call(client_id_hash(), release_id, &do_call)
+			.call(*CLIENT_ID_HASH, release_id, &do_call)
 			.map_err(|e| format!("{:?}", e))?;
 
 		let (fork, track, semver) = (fork.low_u64(), track.low_u32(), semver.low_u32());
 
 		let latest_binary = self.operations_contract.functions()
 			.checksum()
-			.call(client_id_hash(), release_id, platform_id_hash(), &do_call)
+			.call(*CLIENT_ID_HASH, release_id, *PLATFORM_ID_HASH, &do_call)
 			.map_err(|e| format!("{:?}", e))?;
 
 		Ok(ReleaseInfo {
@@ -238,7 +236,7 @@ impl Updater {
 	fn latest_in_track<T: Fn(Vec<u8>) -> Result<Vec<u8>, String>>(&self, track: ReleaseTrack, do_call: &T) -> Result<H256, String> {
 		self.operations_contract.functions()
 			.latest_in_track()
-			.call(client_id_hash(), u8::from(track), do_call)
+			.call(*CLIENT_ID_HASH, u8::from(track), do_call)
 			.map_err(|e| format!("{:?}", e))
 	}
 
@@ -289,7 +287,7 @@ impl Updater {
 		// get the fork number of this release
 		let this_fork = self.operations_contract.functions()
 			.release()
-			.call(client_id_hash(), self.this.hash, &do_call)
+			.call(*CLIENT_ID_HASH, self.this.hash, &do_call)
 			.ok()
 			.and_then(|(fork, track, _, _)| {
 				let this_track: ReleaseTrack = (track.low_u64() as u8).into();
@@ -514,7 +512,7 @@ impl Updater {
 				trace!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
 					   latest.track.version,
 					   if latest.track.is_critical {""} else {"non-"},
-					   &platform(),
+					   *PLATFORM,
 					   latest.track.binary.map(|b| format!("{}", b)).unwrap_or("unreleased".into()));
 
 				trace!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}",
