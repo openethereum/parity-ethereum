@@ -162,7 +162,7 @@ impl Default for WsConfiguration {
 			interface: "127.0.0.1".into(),
 			port: 8546,
 			apis: ApiSet::UnsafeContext,
-			origins: Some(vec!["chrome-extension://*".into(), "moz-extension://*".into()]),
+			origins: Some(vec!["parity://*".into(),"chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(Vec::new()),
 			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
 			support_token_api: true,

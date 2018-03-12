@@ -68,7 +68,6 @@ fn trie_insertions_32_mir_1k(b: &mut Bencher) {
 		count: 1000,
 	};
 	let d = st.make();
-	let mut hash_count = 0usize;
 	b.iter(&mut ||{
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
@@ -76,9 +75,7 @@ fn trie_insertions_32_mir_1k(b: &mut Bencher) {
 		for i in d.iter() {
 			t.insert(&i.0, &i.1).unwrap();
 		}
-		hash_count = t.hash_count;
 	});
-//	println!("hash_count: {}", hash_count);
 }
 #[bench]
 fn trie_iter(b: &mut Bencher) {
@@ -117,7 +114,6 @@ fn trie_insertions_32_ran_1k(b: &mut Bencher) {
 		count: 1000,
 	};
 	let d = st.make();
-	let mut hash_count = 0usize;
 	let mut r = H256::new();
 	b.iter(&mut ||{
 		let mut memdb = MemoryDB::new();
@@ -126,7 +122,6 @@ fn trie_insertions_32_ran_1k(b: &mut Bencher) {
 		for i in d.iter() {
 			t.insert(&i.0, &i.1).unwrap();
 		}
-		hash_count = t.hash_count;
 		r = t.root().clone();
 	});
 }

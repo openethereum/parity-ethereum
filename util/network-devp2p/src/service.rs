@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use {NetworkProtocolHandler, NetworkConfiguration, NonReservedPeerMode};
-use error::Error;
-use host::{Host, NetworkContext, NetworkIoMessage, PeerId, ProtocolId};
+use network::{Error, NetworkConfiguration, NetworkProtocolHandler, NonReservedPeerMode};
+use network::{NetworkContext, PeerId, ProtocolId, NetworkIoMessage};
+use host::Host;
 use stats::NetworkStats;
 use io::*;
 use parking_lot::RwLock;

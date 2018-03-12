@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use block::{ExecutedBlock, IsBlock};
 use builtin::Builtin;
-use client::BlockChainClient;
+use client::{BlockInfo, CallContract};
 use error::Error;
 use executive::Executive;
 use header::{BlockNumber, Header};
@@ -263,15 +263,9 @@ impl EthereumMachine {
 				} else if block_number < ext.eip150_transition {
 					Schedule::new_homestead()
 				} else {
-					// There's no max_code_size transition so we tie it to eip161abc
-					let max_code_size = if block_number >= ext.eip161abc_transition {
-						self.params.max_code_size as usize
-					} else {
-						usize::max_value()
-					};
-
+					let max_code_size = self.params.max_code_size(block_number);
 					let mut schedule = Schedule::new_post_eip150(
-						max_code_size,
+						max_code_size as _,
 						block_number >= ext.eip160_transition,
 						block_number >= ext.eip161abc_transition,
 						block_number >= ext.eip161d_transition
@@ -366,7 +360,7 @@ impl EthereumMachine {
 	/// Does verification of the transaction against the parent state.
 	// TODO: refine the bound here to be a "state provider" or similar as opposed
 	// to full client functionality.
-	pub fn verify_transaction(&self, t: &SignedTransaction, header: &Header, client: &BlockChainClient) -> Result<(), Error> {
+	pub fn verify_transaction<C: BlockInfo + CallContract>(&self, t: &SignedTransaction, header: &Header, client: &C) -> Result<(), Error> {
 		if let Some(ref filter) = self.tx_filter.as_ref() {
 			if !filter.transaction_allowed(header.parent_hash(), t, client) {
 				return Err(transaction::Error::NotAllowed.into())

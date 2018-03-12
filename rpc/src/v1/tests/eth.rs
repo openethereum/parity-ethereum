@@ -22,10 +22,10 @@ use std::time::Duration;
 use ethereum_types::{U256, H256, Address};
 use ethcore::account_provider::AccountProvider;
 use ethcore::block::Block;
-use ethcore::client::{BlockChainClient, Client, ClientConfig};
+use ethcore::client::{BlockChainClient, Client, ClientConfig, ChainInfo, ImportBlock};
 use ethcore::ethereum;
 use ethcore::ids::BlockId;
-use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, Miner, PendingSet, GasLimit};
+use ethcore::miner::{MinerOptions, Banning, GasPricer, Miner, PendingSet, GasLimit};
 use ethcore::spec::{Genesis, Spec};
 use ethcore::views::BlockView;
 use ethjson::blockchain::BlockChain;
@@ -101,7 +101,7 @@ fn make_spec(chain: &BlockChain) -> Spec {
 
 struct EthTester {
 	client: Arc<Client>,
-	_miner: Arc<MinerService>,
+	_miner: Arc<Miner>,
 	_snapshot: Arc<TestSnapshotService>,
 	accounts: Arc<AccountProvider>,
 	handler: IoHandler<Metadata>,

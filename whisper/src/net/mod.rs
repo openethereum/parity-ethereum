@@ -392,7 +392,7 @@ pub trait Context {
 	fn send(&self, PeerId, u8, Vec<u8>);
 }
 
-impl<'a> Context for NetworkContext<'a> {
+impl<T> Context for T where T: ?Sized + NetworkContext {
 	fn disconnect_peer(&self, peer: PeerId) {
 		NetworkContext::disconnect_peer(self, peer);
 	}
@@ -437,7 +437,7 @@ impl<T> Network<T> {
 	}
 
 	/// Post a message to the whisper network to be relayed.
-	pub fn post_message<C: Context>(&self, message: Message, context: &C) -> bool
+	pub fn post_message<C: ?Sized + Context>(&self, message: Message, context: &C) -> bool
 		where T: MessageHandler
 	{
 		let ok = self.messages.write().insert(message);
@@ -452,7 +452,7 @@ impl<T> Network<T> {
 }
 
 impl<T: MessageHandler> Network<T> {
-	fn rally<C: Context>(&self, io: &C) {
+	fn rally<C: ?Sized + Context>(&self, io: &C) {
 		// cannot be greater than 16MB (protocol limitation)
 		const MAX_MESSAGES_PACKET_SIZE: usize = 8 * 1024 * 1024;
 
@@ -627,7 +627,7 @@ impl<T: MessageHandler> Network<T> {
 		Ok(())
 	}
 
-	fn on_connect<C: Context>(&self, io: &C, peer: &PeerId) {
+	fn on_connect<C: ?Sized + Context>(&self, io: &C, peer: &PeerId) {
 		trace!(target: "whisper", "Connecting peer {}", peer);
 
 		let node_key = match io.node_key(*peer) {
@@ -660,7 +660,7 @@ impl<T: MessageHandler> Network<T> {
 		io.send(*peer, packet::STATUS, ::rlp::EMPTY_LIST_RLP.to_vec());
 	}
 
-	fn on_packet<C: Context>(&self, io: &C, peer: &PeerId, packet_id: u8, data: &[u8]) {
+	fn on_packet<C: ?Sized + Context>(&self, io: &C, peer: &PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = UntrustedRlp::new(data);
 		let res = match packet_id {
 			packet::STATUS => self.on_status(peer, rlp),
@@ -708,7 +708,7 @@ impl<T: MessageHandler> ::network::NetworkProtocolHandler for Network<T> {
 		// rally with each peer and handle timeouts.
 		match timer {
 			RALLY_TOKEN => self.rally(io),
-			other => debug!(target: "whisper", "Timout triggered on unknown token {}", other),
+			other => debug!(target: "whisper", "Timeout triggered on unknown token {}", other),
 		}
 	}
 }

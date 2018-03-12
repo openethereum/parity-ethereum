@@ -22,7 +22,7 @@ use std::sync::{Arc};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant, Duration};
 
-use ethcore::client::{BlockId, BlockChainClient, BlockChainInfo, BlockQueueInfo, ChainNotify, ClientReport, Client};
+use ethcore::client::{BlockId, BlockChainClient, ChainInfo, BlockInfo, BlockChainInfo, BlockQueueInfo, ChainNotify, ClientReport, Client};
 use ethcore::header::BlockNumber;
 use ethcore::service::ClientIoMessage;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
