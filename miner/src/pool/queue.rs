@@ -40,10 +40,10 @@ type Pool = txpool::Pool<pool::VerifiedTransaction, scoring::NonceAndGasPrice, L
 /// since it only affects transaction Condition.
 const TIMESTAMP_CACHE: u64 = 1000;
 
-/// Transaction queue status
+/// Transaction queue status.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Status {
-	/// Verifier options
+	/// Verifier options.
 	pub options: verifier::Options,
 	/// Current status of the transaction pool.
 	pub status: txpool::LightStatus,
@@ -190,6 +190,12 @@ impl TransactionQueue {
 		}
 
 		results
+	}
+
+	/// Returns all transactions in the queue ordered by priority.
+	pub fn all_transactions(&self) -> Vec<Arc<pool::VerifiedTransaction>> {
+		let ready = |_tx: &pool::VerifiedTransaction| txpool::Readiness::Ready;
+		self.pool.read().pending(ready).collect()
 	}
 
 	/// Returns current pneding transactions.

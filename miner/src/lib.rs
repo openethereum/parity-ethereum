@@ -44,7 +44,6 @@ extern crate ethkey;
 #[cfg(test)]
 extern crate env_logger;
 
-// pub mod banning_queue;
 pub mod external;
 pub mod gas_pricer;
 pub mod pool;

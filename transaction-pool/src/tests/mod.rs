@@ -475,8 +475,8 @@ mod listener {
 			self.0.borrow_mut().push("invalid".into());
 		}
 
-		fn cancelled(&mut self, _tx: &SharedTransaction) {
-			self.0.borrow_mut().push("cancelled".into());
+		fn canceled(&mut self, _tx: &SharedTransaction) {
+			self.0.borrow_mut().push("canceled".into());
 		}
 
 		fn mined(&mut self, _tx: &SharedTransaction) {
@@ -535,9 +535,9 @@ mod listener {
 
 		// then
 		txq.remove(&tx1.hash(), false);
-		assert_eq!(*results.borrow(), &["added", "added", "cancelled"]);
+		assert_eq!(*results.borrow(), &["added", "added", "canceled"]);
 		txq.remove(&tx2.hash(), true);
-		assert_eq!(*results.borrow(), &["added", "added", "cancelled", "invalid"]);
+		assert_eq!(*results.borrow(), &["added", "added", "canceled", "invalid"]);
 		assert_eq!(txq.light_status().transaction_count, 0);
 	}
 

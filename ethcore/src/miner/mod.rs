@@ -166,7 +166,7 @@ pub trait MinerService : Send + Sync {
 		where C: ChainInfo + Nonce + Sync;
 
 	/// Get a list of all transactions in the pool (some of them might not be ready for inclusion yet).
-	fn future_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
+	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
 
 	/// Get a list of local transactions with statuses.
 	fn local_transactions(&self) -> BTreeMap<H256, local_transactions::Status>;

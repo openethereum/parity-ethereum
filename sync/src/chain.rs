@@ -2971,8 +2971,7 @@ mod tests {
 			let mut io = TestIo::new(&mut client, &ss, &queue, None);
 			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &[], &good_blocks);
 			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);
-			assert_eq!(io.chain.miner.status().transactions_in_future_queue, 0);
-			assert_eq!(io.chain.miner.status().transactions_in_pending_queue, 1);
+			assert_eq!(io.chain.miner.ready_transactions(io.chain).len(), 1);
 		}
 		// We need to update nonce status (because we say that the block has been imported)
 		for h in &[good_blocks[0]] {
@@ -2988,9 +2987,7 @@ mod tests {
 		}
 
 		// then
-		let status = client.miner.status();
-		assert_eq!(status.transactions_in_pending_queue, 1);
-		assert_eq!(status.transactions_in_future_queue, 0);
+		assert_eq!(client.miner.ready_transactions(&client).len(), 1);
 	}
 
 	#[test]
@@ -3011,13 +3008,11 @@ mod tests {
 
 		// when
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);
-		assert_eq!(io.chain.miner.status().transactions_in_future_queue, 0);
-		assert_eq!(io.chain.miner.status().transactions_in_pending_queue, 0);
+		assert_eq!(io.chain.miner.queue_status().status.transaction_count, 0);
 		sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks, &[], &[]);
 
 		// then
-		let status = io.chain.miner.status();
-		assert_eq!(status.transactions_in_pending_queue, 0);
-		assert_eq!(status.transactions_in_future_queue, 0);
+		let status = io.chain.miner.queue_status();
+		assert_eq!(status.status.transaction_count, 0);
 	}
 }

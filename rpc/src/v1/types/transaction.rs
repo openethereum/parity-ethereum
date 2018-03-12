@@ -260,10 +260,10 @@ impl LocalTransactionStatus {
 			Rejected(tx) => LocalTransactionStatus::Rejected(convert(tx)),
 			Invalid(tx) => LocalTransactionStatus::Invalid(convert(tx)),
 			Canceled(tx) => LocalTransactionStatus::Canceled(convert(tx)),
-			Replaced { tx, by } => LocalTransactionStatus::Replaced(
-				convert(tx),
-				by.signed().gas_price.into(),
-				by.signed().hash().into(),
+			Replaced { old, new } => LocalTransactionStatus::Replaced(
+				convert(old),
+				new.signed().gas_price.into(),
+				new.signed().hash().into(),
 			),
 		}
 	}

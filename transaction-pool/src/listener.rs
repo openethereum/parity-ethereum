@@ -36,8 +36,8 @@ pub trait Listener<T> {
 	/// The transaction was marked as invalid by executor.
 	fn invalid(&mut self, _tx: &Arc<T>) {}
 
-	/// The transaction has been cancelled.
-	fn cancelled(&mut self, _tx: &Arc<T>) {}
+	/// The transaction has been canceled.
+	fn canceled(&mut self, _tx: &Arc<T>) {}
 
 	/// The transaction has been mined.
 	fn mined(&mut self, _tx: &Arc<T>) {}
@@ -72,9 +72,9 @@ impl<T, A, B> Listener<T> for (A, B) where
 		self.1.invalid(tx);
 	}
 
-	fn cancelled(&mut self, tx: &Arc<T>) {
-		self.0.cancelled(tx);
-		self.1.cancelled(tx);
+	fn canceled(&mut self, tx: &Arc<T>) {
+		self.0.canceled(tx);
+		self.1.canceled(tx);
 	}
 
 	fn mined(&mut self, tx: &Arc<T>) {

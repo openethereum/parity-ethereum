@@ -106,6 +106,20 @@ impl Transaction {
 			Transaction::Local(ref tx) => &*tx,
 		}
 	}
+
+	fn is_local(&self) -> bool {
+		match *self {
+			Transaction::Local(..) => true,
+			_ => false,
+		}
+	}
+
+	fn is_retracted(&self) -> bool {
+		match *self {
+			Transaction::Retracted(..) => true,
+			_ => false,
+		}
+	}
 }
 
 /// Transaction verifier.
@@ -175,7 +189,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 			})
 		}
 
-		let is_own = if let Transaction::Local(..) = tx { true } else { false };
+		let is_own = tx.is_local();
 		// Quick exit for non-service transactions
 		if tx.gas_price() < &self.options.minimal_gas_price
 			&& !tx.gas_price().is_zero()
@@ -196,7 +210,7 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 
 		// Some more heavy checks below.
 		// Actually recover sender and verify that transaction
-		let is_retracted = if let Transaction::Retracted(_) = tx { true } else { false };
+		let is_retracted = tx.is_retracted();
 		let transaction = match tx {
 			Transaction::Retracted(tx) | Transaction::Unverified(tx) => match self.client.verify_transaction(tx) {
 				Ok(signed) => signed.into(),

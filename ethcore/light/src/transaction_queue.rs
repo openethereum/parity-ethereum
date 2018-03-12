@@ -121,7 +121,7 @@ impl AccountTransactions {
 }
 
 /// Transaction import result.
-pub enum ImportResult {
+pub enum ImportDestination {
 	/// Transaction has been imported to the current queue.
 	///
 	/// It's going to be propagated to peers.
@@ -129,7 +129,7 @@ pub enum ImportResult {
 	/// Transaction has been imported to future queue.
 	///
 	/// It means it won't be propagated until the gap is filled.
-	Future
+	Future,
 }
 
 type Listener = Box<Fn(&[H256]) + Send + Sync>;
@@ -154,7 +154,7 @@ impl fmt::Debug for TransactionQueue {
 
 impl TransactionQueue {
 	/// Import a pending transaction to be queued.
-	pub fn import(&mut self, tx: PendingTransaction) -> Result<ImportResult, transaction::Error>  {
+	pub fn import(&mut self, tx: PendingTransaction) -> Result<ImportDestination, transaction::Error>  {
 		let sender = tx.sender();
 		let hash = tx.hash();
 		let nonce = tx.nonce;
@@ -170,7 +170,7 @@ impl TransactionQueue {
 					future: BTreeMap::new(),
 				});
 
-				(ImportResult::Current, vec![hash])
+				(ImportDestination::Current, vec![hash])
 			}
 			Entry::Occupied(mut entry) => {
 				let acct_txs = entry.get_mut();
@@ -192,7 +192,7 @@ impl TransactionQueue {
 						let old = ::std::mem::replace(&mut acct_txs.current[idx], tx_info);
 						self.by_hash.remove(&old.hash);
 
-						(ImportResult::Current, vec![hash])
+						(ImportDestination::Current, vec![hash])
 					}
 					Err(idx) => {
 						let cur_len = acct_txs.current.len();
@@ -214,13 +214,13 @@ impl TransactionQueue {
 								acct_txs.future.insert(future_nonce, future);
 							}
 
-							(ImportResult::Current, vec![hash])
+							(ImportDestination::Current, vec![hash])
 						} else if idx == cur_len && acct_txs.current.last().map_or(false, |f| f.nonce + 1.into() != nonce) {
 							trace!(target: "txqueue", "Queued future transaction for {}, nonce={}", sender, nonce);
 							let future_nonce = nonce;
 							acct_txs.future.insert(future_nonce, tx_info);
 
-							(ImportResult::Future, vec![])
+							(ImportDestination::Future, vec![])
 						} else {
 							trace!(target: "txqueue", "Queued current transaction for {}, nonce={}", sender, nonce);
 
@@ -229,7 +229,7 @@ impl TransactionQueue {
 							let mut promoted = acct_txs.adjust_future();
 							promoted.insert(0, hash);
 
-							(ImportResult::Current, promoted)
+							(ImportDestination::Current, promoted)
 						}
 					}
 				}

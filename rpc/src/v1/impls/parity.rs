@@ -324,15 +324,19 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	  )
 	}
 
-	fn future_transactions(&self) -> Result<Vec<Transaction>> {
+	fn all_transactions(&self) -> Result<Vec<Transaction>> {
 		let block_number = self.client.chain_info().best_block_number;
-		let future_transactions = self.miner.future_transactions();
+		let all_transactions = self.miner.queued_transactions();
 
-		Ok(future_transactions
+		Ok(all_transactions
 		   .into_iter()
 		   .map(|t| Transaction::from_pending(t.pending().clone(), block_number, self.eip86_transition))
 		   .collect()
 		)
+	}
+
+	fn future_transactions(&self) -> Result<Vec<Transaction>> {
+		Err(errors::deprecated("Use `parity_allTransaction` instead."))
 	}
 
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>> {

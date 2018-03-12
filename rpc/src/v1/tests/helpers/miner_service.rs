@@ -209,13 +209,13 @@ impl MinerService for TestMinerService {
 	}
 
 	fn ready_transactions<C>(&self, _chain: &C) -> Vec<Arc<VerifiedTransaction>> {
+		self.queued_transactions()
+	}
+
+	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
 		self.pending_transactions.lock().values().cloned().map(|tx| {
 			Arc::new(VerifiedTransaction::from_pending_block_transaction(tx))
 		}).collect()
-	}
-
-	fn future_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
-		vec![]
 	}
 
 	fn pending_receipt(&self, _best_block: BlockNumber, hash: &H256) -> Option<RichReceipt> {

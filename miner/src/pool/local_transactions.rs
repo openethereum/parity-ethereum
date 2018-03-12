@@ -36,10 +36,10 @@ pub enum Status {
 	Dropped(Arc<Transaction>),
 	/// Replaced because of higher gas price of another transaction.
 	Replaced {
-		/// Transaction object
-		tx: Arc<Transaction>,
+		/// Replaced transaction
+		old: Arc<Transaction>,
 		/// Transaction that replaced this one.
-		by: Arc<Transaction>,
+		new: Arc<Transaction>,
 	},
 	/// Transaction was never accepted to the queue.
 	/// It means that it was too cheap to replace any transaction already in the pool.
@@ -108,12 +108,12 @@ impl LocalTransactionsList {
 			return;
 		}
 
-		let to_remove = self.transactions
+		let to_remove: Vec<_> = self.transactions
 			.iter()
 			.filter(|&(_, status)| !status.is_pending())
 			.map(|(hash, _)| *hash)
 			.take(number_of_old - self.max_old)
-			.collect::<Vec<_>>();
+			.collect();
 
 		for hash in to_remove {
 			self.transactions.remove(&hash);
@@ -134,8 +134,8 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 		if let Some(old) = old {
 			if self.transactions.contains_key(old.hash()) {
 				self.transactions.insert(*old.hash(), Status::Replaced {
-					tx: old.clone(),
-					by: tx.clone(),
+					old: old.clone(),
+					new: tx.clone(),
 				});
 			}
 		}
@@ -171,7 +171,7 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 		self.clear_old();
 	}
 
-	fn cancelled(&mut self, tx: &Arc<Transaction>) {
+	fn canceled(&mut self, tx: &Arc<Transaction>) {
 		if !tx.priority().is_local() {
 			return;
 		}
@@ -216,8 +216,8 @@ mod tests {
 		list.added(&tx2, None);
 
 		// then
-		assert!(list.contains(tx1.hash()), "Should contain the transaction.");
-		assert!(list.contains(tx2.hash()), "Should contain the transaction.");
+		assert!(list.contains(tx1.hash()));
+		assert!(list.contains(tx2.hash()));
 		let statuses = list.all_transactions().values().cloned().collect::<Vec<Status>>();
 		assert_eq!(statuses, vec![Status::Pending(tx1), Status::Pending(tx2)]);
 	}

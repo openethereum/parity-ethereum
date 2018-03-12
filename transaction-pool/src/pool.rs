@@ -303,7 +303,7 @@ impl<T, S, L> Pool<T, S, L> where
 			if is_invalid {
 				self.listener.invalid(&tx);
 			} else {
-				self.listener.cancelled(&tx);
+				self.listener.canceled(&tx);
 			}
 			Some(tx)
 		} else {

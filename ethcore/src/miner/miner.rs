@@ -483,6 +483,11 @@ impl Miner {
 		(block, original_work_hash)
 	}
 
+	/// Returns `true` if we should create pending block even if some other conditions are not met.
+	///
+	/// In general we always seal iff:
+	/// 1. --force-sealing CLI parameter is provided
+	/// 2. There are listeners awaiting new work packages (e.g. remote work notifications or stratum).
 	fn forced_sealing(&self) -> bool {
 		self.options.force_sealing || !self.listeners.read().is_empty()
 	}
@@ -791,10 +796,8 @@ impl miner::MinerService for Miner {
 		self.transaction_queue.local_transactions()
 	}
 
-	fn future_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
-		// TODO [ToDr] Implement!
-		unimplemented!()
-		// self.transaction_queue.read().future_transactions()
+	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
+		self.transaction_queue.all_transactions()
 	}
 
 	fn ready_transactions<C>(&self, chain: &C) -> Vec<Arc<VerifiedTransaction>> where
@@ -1124,6 +1127,7 @@ mod tests {
 				enable_resubmission: true,
 				infinite_pending_block: false,
 				tx_queue_penalization: Penalization::Disabled,
+				tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 				refuse_service_transactions: false,
 				pool_limits: Default::default(),
 				pool_verification_options: pool::verifier::Options {

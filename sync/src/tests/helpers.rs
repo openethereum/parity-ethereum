@@ -191,6 +191,7 @@ pub struct EthPeer<C> where C: FlushingBlockChainClient {
 	pub snapshot_service: Arc<TestSnapshotService>,
 	pub sync: RwLock<ChainSync>,
 	pub queue: RwLock<VecDeque<TestPacket>>,
+	pub miner: Arc<Miner>,
 }
 
 impl<C: FlushingBlockChainClient> Peer for EthPeer<C> {
@@ -259,6 +260,7 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 		};
 		for _ in 0..n {
 			let chain = TestBlockChainClient::new();
+			let miner = chain.miner.clone();
 			let ss = Arc::new(TestSnapshotService::new());
 			let sync = ChainSync::new(config.clone(), &chain);
 			net.peers.push(Arc::new(EthPeer {
@@ -266,6 +268,7 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 				snapshot_service: ss,
 				chain: Arc::new(chain),
 				queue: RwLock::new(VecDeque::new()),
+				miner,
 			}));
 		}
 		net
@@ -288,11 +291,12 @@ impl TestNet<EthPeer<EthcoreClient>> {
 	}
 
 	pub fn add_peer(&mut self, config: SyncConfig, spec: Spec, accounts: Option<Arc<AccountProvider>>) {
+		let miner = Arc::new(Miner::new_for_tests(&spec, accounts));
 		let client = EthcoreClient::new(
 			ClientConfig::default(),
 			&spec,
 			Arc::new(::kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
-			Arc::new(Miner::new_for_tests(&spec, accounts)),
+			miner.clone(),
 			IoChannel::disconnected(),
 		).unwrap();
 
@@ -301,8 +305,9 @@ impl TestNet<EthPeer<EthcoreClient>> {
 		let peer = Arc::new(EthPeer {
 			sync: RwLock::new(sync),
 			snapshot_service: ss,
-			chain: client,
 			queue: RwLock::new(VecDeque::new()),
+			chain: client,
+			miner,
 		});
 		peer.chain.add_notify(peer.clone());
 		self.peers.push(peer);

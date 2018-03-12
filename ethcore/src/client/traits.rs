@@ -368,7 +368,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Returns information about pruning/data availability.
 	fn pruning_info(&self) -> PruningInfo;
 
-	/// Import a transaction: used for misbehaviour reporting.
+	/// Schedule state-altering transaction to be executed on the next pending block.
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error>;
 
 	/// Get the address of the registry itself.
