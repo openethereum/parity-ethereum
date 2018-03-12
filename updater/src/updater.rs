@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -70,6 +71,8 @@ pub struct UpdatePolicy {
 	pub path: String,
 	/// Random update delay range in blocks.
 	pub max_delay: u64,
+	/// Number of blocks between each check for updates.
+	pub frequency: u64,
 }
 
 impl Default for UpdatePolicy {
@@ -81,6 +84,7 @@ impl Default for UpdatePolicy {
 			track: ReleaseTrack::Unknown,
 			path: Default::default(),
 			max_delay: 100,
+			frequency: 20,
 		}
 	}
 }
@@ -492,6 +496,12 @@ impl Updater {
 			return;
 		}
 
+		// Only check for updates every n blocks
+		let current_block_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
+		if current_block_number % cmp::min(self.update_policy.frequency, 1) != 0 {
+			return;
+		}
+
 		let mut state = self.state.lock();
 
 		// Get the latest available release
@@ -500,8 +510,6 @@ impl Updater {
 		if let Some(latest) = latest {
 			// There's a new release available
 			if state.latest.as_ref() != Some(&latest) {
-				let current_block_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
-
 				trace!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
 					   latest.track.version,
 					   if latest.track.is_critical {""} else {"non-"},
@@ -589,7 +597,7 @@ impl Service for Updater {
 
 				match *self.exit_handler.lock() {
 					Some(ref h) => (*h)(),
-					None => info!(target: "updater", "Update installed; ready for restart."),
+					None => info!(target: "updater", "Update installed, ready for restart."),
 				}
 
 				true
