@@ -14,36 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Hash-addressed content resolver & fetcher.
-
-#![warn(missing_docs)]
-
-#[macro_use]
-extern crate log;
-
-extern crate ethabi;
-extern crate ethcore_bytes as bytes;
-extern crate ethereum_types;
 extern crate futures;
-extern crate keccak_hash as hash;
-extern crate mime;
-extern crate mime_guess;
-extern crate parity_reactor;
-extern crate rand;
-extern crate rustc_hex;
-extern crate registrar;
-
-pub extern crate fetch;
+extern crate ethabi;
+extern crate keccak_hash;
 
 #[macro_use]
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
-#[cfg(test)]
-extern crate parking_lot;
 
-mod client;
-
-pub mod urlhint;
-
-pub use client::{HashFetch, Client, Error};
+mod registrar;
+pub use registrar::{Registrar, RegistrarClient, Synchronous, Asynchronous};

@@ -24,7 +24,7 @@ use jsonrpc_http_server::{self as http, Host, DomainsValidation};
 use parity_reactor::Remote;
 
 use devtools::http_client;
-use hash_fetch::urlhint::ContractClient;
+use registrar::{RegistrarClient, Asynchronous};
 use fetch::{Fetch, Client as FetchClient};
 use node_health::{NodeHealth, TimeChecker, CpuPool};
 
@@ -144,7 +144,7 @@ pub fn assert_security_headers_for_embed(headers: &[String]) {
 /// Webapps HTTP+RPC server build.
 pub struct ServerBuilder<T: Fetch = FetchClient> {
 	dapps_path: PathBuf,
-	registrar: Arc<ContractClient>,
+	registrar: Arc<RegistrarClient<Call=Asynchronous>>,
 	sync_status: Arc<SyncStatus>,
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	signer_address: Option<(String, u16)>,
@@ -155,7 +155,7 @@ pub struct ServerBuilder<T: Fetch = FetchClient> {
 
 impl ServerBuilder {
 	/// Construct new dapps server
-	pub fn new<P: AsRef<Path>>(dapps_path: P, registrar: Arc<ContractClient>) -> Self {
+	pub fn new<P: AsRef<Path>>(dapps_path: P, registrar: Arc<RegistrarClient<Call=Asynchronous>>) -> Self {
 		ServerBuilder {
 			dapps_path: dapps_path.as_ref().to_owned(),
 			registrar: registrar,
@@ -227,7 +227,7 @@ impl Server {
 		signer_address: Option<(String, u16)>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
-		registrar: Arc<ContractClient>,
+		registrar: Arc<RegistrarClient<Call=Asynchronous>>,
 		sync_status: Arc<SyncStatus>,
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		remote: Remote,
