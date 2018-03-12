@@ -14,24 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Database migrations.
+use bloomchain::group as bc;
+use heapsize::HeapSizeOf;
 
-extern crate migration;
+/// Represents `BloomGroup` position in database.
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+pub struct GroupPosition {
+	/// Bloom level.
+	pub level: u8,
+	/// Group index.
+	pub index: u32,
+}
 
-use migration::ChangeColumns;
+impl From<bc::GroupPosition> for GroupPosition {
+	fn from(p: bc::GroupPosition) -> Self {
+		GroupPosition {
+			level: p.level as u8,
+			index: p.index as u32,
+		}
+	}
+}
 
-/// The migration from v10 to v11.
-/// Adds a column for node info.
-pub const TO_V11: ChangeColumns = ChangeColumns {
-	pre_columns: Some(6),
-	post_columns: Some(7),
-	version: 11,
-};
-
-/// The migration from v11 to v12.
-/// Adds a column for light chain storage.
-pub const TO_V12: ChangeColumns = ChangeColumns {
-	pre_columns: Some(7),
-	post_columns: Some(8),
-	version: 12,
-};
+impl HeapSizeOf for GroupPosition {
+	fn heap_size_of_children(&self) -> usize {
+		0
+	}
+}
