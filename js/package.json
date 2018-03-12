@@ -21,10 +21,10 @@
     "Parity"
   ],
   "scripts": {
-    "build": "npm run build:inject && npm run build:app && npm run build:embed",
+    "build": "npm run build:inject && npm run build:app:embed",
     "build:app": "webpack --config webpack/app",
     "build:inject": "webpack --config webpack/inject",
-    "build:embed": "cross-env EMBED=1 node webpack/embed",
+    "build:app:embed": "cross-env EMBED=1 node webpack/embed",
     "build:i18n": "npm run clean && npm run build && babel-node ./scripts/build-i18n.js",
     "ci:build": "cross-env NODE_ENV=production npm run build",
     "clean": "rimraf ./.build ./.coverage ./.happypack",

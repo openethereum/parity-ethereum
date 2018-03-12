@@ -47,9 +47,10 @@ const EMBED = process.env.EMBED;
 const isProd = ENV === 'production';
 const isEmbed = EMBED === '1' || EMBED === 'true';
 
-const entry = isEmbed
-  ? { embed: ['babel-polyfill', './embed.js'] }
-  : { bundle: ['babel-polyfill', './index.parity.js'] };
+const entry = {
+  embed: ['babel-polyfill', './embed.js'],
+  bundle: ['babel-polyfill', './index.parity.js']
+};
 
 module.exports = {
   cache: !isProd,
@@ -164,101 +165,96 @@ module.exports = {
   },
 
   plugins: (function () {
-    let plugins = Shared.getPlugins().concat(
+    let plugins = Shared.getPlugins(isProd, true).concat(
       new WebpackErrorNotificationPlugin(),
       new ExtractTextPlugin({
-        filename: `${isEmbed ? 'embed' : 'bundle'}.css`
+        filename: 'bundle.css',
+        allChunks: true
       }),
     );
 
-    if (!isEmbed) {
-      plugins = [].concat(
-        plugins,
+    plugins = [].concat(
+      plugins,
 
-        new HtmlWebpackPlugin({
-          title: 'Parity',
-          filename: 'index.html',
-          template: './index.parity.ejs',
-          favicon: FAVICON,
-          chunks: ['bundle']
-        }),
+      new HtmlWebpackPlugin({
+        title: 'Parity Bar',
+        filename: 'embed.html',
+        template: './index.parity.ejs',
+        favicon: FAVICON,
+        chunks: ['commons', 'embed']
+      }),
 
-        new CopyWebpackPlugin(
-          flatten([
-            {
-              from: path.join(__dirname, '../src/dev.web3.html'),
-              to: 'dev.web3/index.html'
-            },
-            {
-              from: path.join(__dirname, '../src/dev.parity.html'),
-              to: 'dev.parity/index.html'
-            },
-            {
-              from: path.join(__dirname, '../src/error_pages.css'),
-              to: 'styles.css'
-            },
-            {
-              from: path.join(__dirname, '../src/index.electron.js'),
-              to: 'electron.js'
-            },
-            {
-              from: path.join(__dirname, '../package.electron.json'),
-              to: 'package.json'
-            },
-            flatten(
-              DAPPS_ALL
-                .map((dapp) => {
-                  const dir = path.join(__dirname, '../node_modules', dapp.package);
+      new HtmlWebpackPlugin({
+        title: 'Parity',
+        filename: 'index.html',
+        template: './index.parity.ejs',
+        favicon: FAVICON,
+        chunks: ['commons', 'bundle']
+      }),
 
-                  if (!fs.existsSync(dir)) {
-                    return null;
-                  }
+      new CopyWebpackPlugin(
+        flatten([
+          {
+            from: path.join(__dirname, '../src/dev.web3.html'),
+            to: 'dev.web3/index.html'
+          },
+          {
+            from: path.join(__dirname, '../src/dev.parity.html'),
+            to: 'dev.parity/index.html'
+          },
+          {
+            from: path.join(__dirname, '../src/error_pages.css'),
+            to: 'styles.css'
+          },
+          {
+            from: path.join(__dirname, '../src/index.electron.js'),
+            to: 'electron.js'
+          },
+          {
+            from: path.join(__dirname, '../package.electron.json'),
+            to: 'package.json'
+          },
+          flatten(
+            DAPPS_ALL
+              .map((dapp) => {
+                const dir = path.join(__dirname, '../node_modules', dapp.package);
 
-                  if (!fs.existsSync(path.join(dir, 'dist'))) {
-                    rimraf.sync(path.join(dir, 'node_modules'));
+                if (!fs.existsSync(dir)) {
+                  return null;
+                }
 
-                    return {
-                      from: path.join(dir),
-                      to: `dapps/${dapp.id}/`
-                    };
-                  }
+                if (!fs.existsSync(path.join(dir, 'dist'))) {
+                  rimraf.sync(path.join(dir, 'node_modules'));
 
-                  return [
-                    'icon.png', 'index.html', 'dist.css', 'dist.js',
-                    isProd ? null : 'dist.css.map',
-                    isProd ? null : 'dist.js.map'
-                  ]
-                    .filter((file) => file)
-                    .map((file) => path.join(dir, file))
-                    .filter((from) => fs.existsSync(from))
-                    .map((from) => ({
-                      from,
-                      to: `dapps/${dapp.id}/`
-                    }))
-                    .concat({
-                      from: path.join(dir, 'dist'),
-                      to: `dapps/${dapp.id}/dist/`
-                    });
-                })
-                .filter((copy) => copy)
-            )
-          ]),
-          {}
-        )
-      );
-    }
+                  return {
+                    from: path.join(dir),
+                    to: `dapps/${dapp.id}/`
+                  };
+                }
 
-    if (isEmbed) {
-      plugins.push(
-        new HtmlWebpackPlugin({
-          title: 'Parity Bar',
-          filename: 'embed.html',
-          template: './index.parity.ejs',
-          favicon: FAVICON,
-          chunks: ['embed']
-        })
-      );
-    }
+                return [
+                  'icon.png', 'index.html', 'dist.css', 'dist.js',
+                  isProd ? null : 'dist.css.map',
+                  isProd ? null : 'dist.js.map'
+                ]
+                  .filter((file) => file)
+                  .map((file) => path.join(dir, file))
+                  .filter((from) => fs.existsSync(from))
+                  .map((from) => ({
+                    from,
+                    to: `dapps/${dapp.id}/`
+                  }))
+                  .concat({
+                    from: path.join(dir, 'dist'),
+                    to: `dapps/${dapp.id}/dist/`
+                  });
+              })
+              .filter((copy) => copy)
+          )
+        ]),
+        {}
+      )
+    );
 
     return plugins;
   }())

@@ -77,5 +77,5 @@ module.exports = {
       }
     ]
   },
-  plugins: Shared.getPlugins()
+  plugins: Shared.getPlugins(isProd, false)
 };
