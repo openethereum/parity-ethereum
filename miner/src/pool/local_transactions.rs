@@ -43,7 +43,7 @@ pub enum Status {
 	},
 	/// Transaction was never accepted to the queue.
 	/// It means that it was too cheap to replace any transaction already in the pool.
-	Rejected(Arc<Transaction>),
+	Rejected(Arc<Transaction>, String),
 	/// Transaction is invalid.
 	Invalid(Arc<Transaction>),
 	/// Transaction was canceled.
@@ -141,13 +141,13 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 		}
 	}
 
-	fn rejected(&mut self, tx: &Arc<Transaction>) {
+	fn rejected(&mut self, tx: &Arc<Transaction>, reason: &txpool::ErrorKind) {
 		if !tx.priority().is_local() {
 			return;
 		}
 
-		debug!(target: "own_tx", "Transaction rejected because it was too cheap (hash {:?})", tx.hash());
-		self.transactions.insert(*tx.hash(), Status::Rejected(tx.clone()));
+		debug!(target: "own_tx", "Transaction rejected (hash {:?}). {}", tx.hash(), reason);
+		self.transactions.insert(*tx.hash(), Status::Rejected(tx.clone(), format!("{}", reason)));
 		self.clear_old();
 	}
 

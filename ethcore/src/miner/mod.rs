@@ -106,8 +106,8 @@ pub trait MinerService : Send + Sync {
 	/// Get `Some` `clone()` of the current pending block or `None` if we're not sealing.
 	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block>;
 
-	// / Get `Some` `clone()` of the current pending block transactions or `None` if we're not sealing.
-	// fn pending_transactions(&self, latest_block_number: BlockNumber) -> Option<Vec<SignedTransaction>>;
+	/// Get `Some` `clone()` of the current pending block transactions or `None` if we're not sealing.
+	fn pending_transactions(&self, latest_block_number: BlockNumber) -> Option<Vec<SignedTransaction>>;
 
 	// Block authoring
 

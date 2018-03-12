@@ -78,8 +78,8 @@ impl txpool::Listener<Transaction> for Logger {
 		}
 	}
 
-	fn rejected(&mut self, tx: &Arc<Transaction>) {
-		trace!(target: "txqueue", "[{:?}] Rejected. Too cheap to enter.", tx.hash());
+	fn rejected(&mut self, tx: &Arc<Transaction>, reason: &txpool::ErrorKind) {
+		trace!(target: "txqueue", "[{:?}] Rejected. {}.", tx.hash(), reason);
 	}
 
 	fn dropped(&mut self, tx: &Arc<Transaction>) {

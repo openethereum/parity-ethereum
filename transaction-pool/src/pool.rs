@@ -115,7 +115,7 @@ impl<T, S, L> Pool<T, S, L> where
 			let remove_worst = |s: &mut Self, transaction| {
 				match s.remove_worst(&transaction) {
 					Err(err) => {
-						s.listener.rejected(&Arc::new(transaction));
+						s.listener.rejected(&Arc::new(transaction), err.kind());
 						Err(err)
 					},
 					Ok(removed) => {
@@ -162,16 +162,14 @@ impl<T, S, L> Pool<T, S, L> where
 				Ok(new)
 			},
 			AddResult::TooCheap { new, old } => {
-				let hash = *new.hash();
-				// TODO [ToDr] Pass errors here
-				self.listener.rejected(&Arc::new(new));
-				bail!(error::ErrorKind::TooCheapToReplace(*old.hash(), hash))
+				let error = error::ErrorKind::TooCheapToReplace(*old.hash(), *new.hash());
+				self.listener.rejected(&Arc::new(new), &error);
+				bail!(error)
 			},
 			AddResult::TooCheapToEnter(new) => {
-				let hash = *new.hash();
-				// TODO [ToDr] Pass errors here
-				self.listener.rejected(&Arc::new(new));
-				bail!(error::ErrorKind::TooCheapToEnter(hash))
+				let error = error::ErrorKind::TooCheapToEnter(*new.hash());
+				self.listener.rejected(&Arc::new(new), &error);
+				bail!(error)
 			}
 		}
 	}

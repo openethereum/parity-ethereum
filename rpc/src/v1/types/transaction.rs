@@ -89,7 +89,7 @@ pub enum LocalTransactionStatus {
 	/// Transaction was replaced by transaction with higher gas price.
 	Replaced(Transaction, U256, H256),
 	/// Transaction never got into the queue.
-	Rejected(Transaction),
+	Rejected(Transaction, String),
 	/// Transaction is invalid.
 	Invalid(Transaction),
 	/// Transaction was canceled.
@@ -132,9 +132,10 @@ impl Serialize for LocalTransactionStatus {
 				struc.serialize_field(status, "invalid")?;
 				struc.serialize_field(transaction, tx)?;
 			},
-			Rejected(ref tx) => {
+			Rejected(ref tx, ref reason) => {
 				struc.serialize_field(status, "rejected")?;
 				struc.serialize_field(transaction, tx)?;
+				struc.serialize_field("error", reason)?;
 			},
 			Replaced(ref tx, ref gas_price, ref hash) => {
 				struc.serialize_field(status, "replaced")?;
@@ -257,7 +258,7 @@ impl LocalTransactionStatus {
 			Pending(_) => LocalTransactionStatus::Pending,
 			Mined(tx) => LocalTransactionStatus::Mined(convert(tx)),
 			Dropped(tx) => LocalTransactionStatus::Dropped(convert(tx)),
-			Rejected(tx) => LocalTransactionStatus::Rejected(convert(tx)),
+			Rejected(tx, reason) => LocalTransactionStatus::Rejected(convert(tx), reason),
 			Invalid(tx) => LocalTransactionStatus::Invalid(convert(tx)),
 			Canceled(tx) => LocalTransactionStatus::Canceled(convert(tx)),
 			Replaced { old, new } => LocalTransactionStatus::Replaced(
