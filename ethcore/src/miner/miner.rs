@@ -152,7 +152,7 @@ impl Default for MinerOptions {
 			refuse_service_transactions: false,
 			pool_limits: pool::Options {
 				max_count: 8_192,
-				max_per_sender: 409,
+				max_per_sender: 81,
 				max_mem_usage: 8 * 1024 * 1024,
 			},
 			pool_verification_options: pool::verifier::Options {
