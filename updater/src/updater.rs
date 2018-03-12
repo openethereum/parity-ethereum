@@ -413,6 +413,8 @@ impl Updater {
 				UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest.track && current_block_number < block_number => {},
 				// we're at (or past) the block that triggers the update, let's fetch the binary
 				UpdaterStatus::Waiting { ref release, block_number, binary } if *release == latest.track && current_block_number >= block_number => {
+					info!(target: "updater", "Update for binary {} triggered", binary);
+
 					state.status = UpdaterStatus::Fetching { release: release.clone(), binary, retries: 1 };
 					// will lock self.state
 					drop(state);
@@ -454,21 +456,25 @@ impl Updater {
 								self.updater_step();
 
 							} else if self.update_policy.enable_downloading {
-								match self.release_block_number(current_block_number - self.update_policy.max_delay, &latest.track) {
-									Some(block_number) => {
-										let delay = rand::thread_rng().gen_range(0, self.update_policy.max_delay);
-										let update_block_number = block_number + delay;
+								let update_block_number = {
+									let from = current_block_number.saturating_sub(self.update_policy.max_delay);
+									match self.release_block_number(from, &latest.track) {
+										Some(block_number) => {
+											let delay = rand::thread_rng().gen_range(0, self.update_policy.max_delay);
+											block_number.saturating_add(delay)
+										},
+										None => current_block_number,
+									}
+								};
 
-										info!(target: "updater", "Update for binary {} will be triggered at block {}", binary, update_block_number);
+								state.status = UpdaterStatus::Waiting { release: latest.track.clone(), binary, block_number: update_block_number };
 
-										state.status = UpdaterStatus::Waiting { release: latest.track.clone(), binary, block_number: update_block_number };
-									},
-									None => {
-										state.status = UpdaterStatus::Waiting { release: latest.track.clone(), binary, block_number: current_block_number };
-										// will lock self.state
-										drop(state);
-										self.updater_step();
-									},
+								if update_block_number > current_block_number {
+									info!(target: "updater", "Update for binary {} will be triggered at block {}", binary, update_block_number);
+								} else {
+									// will lock self.state
+									drop(state);
+									self.updater_step();
 								}
 							}
 						}
