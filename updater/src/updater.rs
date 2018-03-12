@@ -369,7 +369,7 @@ impl Updater {
 												fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| format!("Unable to create updates path: {:?}", e))?;
 												fs::copy(path, &dest).map_err(|e| format!("Unable to copy update: {:?}", e))?;
 												restrict_permissions_owner(&dest, false, true).map_err(|e| format!("Unable to update permissions: {}", e))?;
-												info!(target: "updater", "Installed updated binary to {}", dest.display());
+												info!(target: "updater", "Copied updated binary to {}", dest.display());
 											}
 
 											Ok(())
@@ -431,6 +431,7 @@ impl Updater {
 					drop(state);
 					fetch(binary);
 				},
+				// the update is ready to be installed
 				UpdaterStatus::Ready { ref release } if *release == latest.track => {
 					let auto = match self.update_policy.filter {
 						UpdateFilter::All => true,
@@ -498,7 +499,7 @@ impl Updater {
 
 		// Only check for updates every n blocks
 		let current_block_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
-		if current_block_number % cmp::min(self.update_policy.frequency, 1) != 0 {
+		if current_block_number % cmp::max(self.update_policy.frequency, 1) != 0 {
 			return;
 		}
 
