@@ -24,7 +24,7 @@ use hyper::{self, Request, Method, StatusCode};
 use hyper_rustls;
 use parking_lot::{Condvar, Mutex};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::thread;
 use std::time::Duration;
 use std::{cmp, io, fmt, mem};
@@ -54,7 +54,7 @@ impl Default for Abort {
 			abort: Arc::new(AtomicBool::new(false)),
 			size: MAX_SIZE,
 			time: Duration::from_secs(MAX_SECS),
-			redir: MAX_REDR
+			redir: MAX_REDR,
 		}
 	}
 }
@@ -65,7 +65,7 @@ impl From<Arc<AtomicBool>> for Abort {
 			abort: a,
 			size: MAX_SIZE,
 			time: Duration::from_secs(MAX_SECS),
-			redir: MAX_REDR
+			redir: MAX_REDR,
 		}
 	}
 }
@@ -123,15 +123,38 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 
 type TxResponse = oneshot::Sender<Result<Response, Error>>;
 type StartupCond = Arc<(Mutex<Result<(), io::Error>>, Condvar)>;
-type ChanItem = (Url, Abort, TxResponse);
+type ChanItem = Option<(Url, Abort, TxResponse)>;
 
 /// An implementation of `Fetch` using a `hyper` client.
 // Due to the `Send` bound of `Fetch` we spawn a background thread for
 // actual request/response processing as `hyper::Client` itself does
 // not implement `Send` currently.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Client {
 	core: mpsc::Sender<ChanItem>,
+	refs: Arc<AtomicUsize>,
+}
+
+// When cloning a client we increment the internal reference counter.
+impl Clone for Client {
+	fn clone(&self) -> Client {
+		self.refs.fetch_add(1, Ordering::SeqCst);
+		Client {
+			core: self.core.clone(),
+			refs: self.refs.clone(),
+		}
+	}
+}
+
+// When dropping a client, we decrement the reference counter.
+// Once it reaches 0 we terminate the background thread.
+impl Drop for Client {
+	fn drop(&mut self) {
+		if self.refs.fetch_sub(1, Ordering::SeqCst) == 1 {
+			// ignore send error as it means the background thread is gone already
+			let _ = self.core.clone().send(None).wait();
+		}
+	}
 }
 
 impl Client {
@@ -156,7 +179,10 @@ impl Client {
 			return Err(e.into())
 		}
 
-		Ok(Client { core: tx_proto })
+		Ok(Client {
+			core: tx_proto,
+			refs: Arc::new(AtomicUsize::new(1)),
+		})
 	}
 
 	fn background_thread(start: StartupCond, rx_proto: mpsc::Receiver<ChanItem>) -> io::Result<thread::JoinHandle<()>> {
@@ -174,10 +200,10 @@ impl Client {
 				.connector(hyper_rustls::HttpsConnector::new(4, &core.handle()))
 				.build(&core.handle());
 
-			start.1.notify_one();
-			debug!(target: "fetch", "processing requests ...");
-
-			let work = rx_proto.for_each(|(url, abort, sender)| {
+			let future = rx_proto.take_while(|item| Ok(item.is_some()))
+				.map(|item| item.expect("`take_while` is only passing on channel items != None"))
+				.for_each(|(url, abort, sender)|
+			{
 				trace!(target: "fetch", "new request to {}", url);
 				if abort.is_aborted() {
 					return future::ok(sender.send(Err(Error::Aborted)).unwrap_or(()))
@@ -215,7 +241,11 @@ impl Client {
 				trace!(target: "fetch", "waiting for next request ...");
 				future::ok(())
 			});
-			if let Err(()) = core.run(work) {
+
+			start.1.notify_one();
+
+			debug!(target: "fetch", "processing requests ...");
+			if let Err(()) = core.run(future) {
 				error!(target: "fetch", "error while executing future")
 			}
 			debug!(target: "fetch", "fetch background thread finished")
@@ -238,7 +268,7 @@ impl Fetch for Client {
 		let (tx_res, rx_res) = oneshot::channel();
 		let maxdur = abort.max_duration();
 		let sender = self.core.clone();
-		let future = sender.send((url.clone(), abort, tx_res))
+		let future = sender.send(Some((url.clone(), abort, tx_res)))
 			.map_err(|e| {
 				error!(target: "fetch", "failed to schedule request: {}", e);
 				Error::BackgroundThreadDead
@@ -279,7 +309,7 @@ fn redirect_location(u: Url, r: &Response) -> Option<Url> {
 
 // Build a simple GET request for the given Url.
 fn get(u: &Url) -> hyper::Request {
-    let uri = u.as_ref().parse().expect("Every valid URL is aso a URI.");
+	let uri = u.as_ref().parse().expect("Every valid URL is aso a URI.");
 	let mut rq = Request::new(Method::Get, uri);
 	rq.headers_mut().set(UserAgent::new("Parity Fetch Neo"));
 	rq
@@ -293,7 +323,7 @@ pub struct Response {
 	headers: hyper::Headers,
 	body: hyper::Body,
 	abort: Abort,
-	nread: usize
+	nread: usize,
 }
 
 impl Response {
@@ -305,7 +335,7 @@ impl Response {
 			headers: r.headers().clone(),
 			body: r.body(),
 			abort: a,
-			nread: 0
+			nread: 0,
 		}
 	}
 
@@ -393,8 +423,8 @@ impl io::Read for BodyReader {
 					break
 				}
 			} else {
-				// While in this loop, `self.body` is always defined => wait for the next chunk.
-				match self.body.take().unwrap().into_future().wait() {
+				let body = self.body.take().expect("within this loop `self.body` is always defined");
+				match body.into_future().wait() { // wait for next chunk
 					Err((e, _))   => {
 						error!(target: "fetch", "failed to read chunk: {}", e);
 						return Err(io::Error::new(io::ErrorKind::Other, "failed to read body chunk"))

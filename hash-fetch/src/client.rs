@@ -116,13 +116,6 @@ pub struct Client<F: Fetch + 'static = fetch::Client> {
 	random_path: Arc<Fn() -> PathBuf + Sync + Send>,
 }
 
-impl Client {
-	/// Creates new instance of the `Client` given on-chain contract client and task runner.
-	pub fn new(contract: Arc<RegistrarClient<Call=Asynchronous>>, pool: CpuPool, remote: Remote) -> Self {
-		Client::with_fetch(contract, pool, fetch::Client::new().unwrap(), remote)
-	}
-}
-
 impl<F: Fetch + 'static> Client<F> {
 	/// Creates new instance of the `Client` given on-chain contract client, fetch service and task runner.
 	pub fn with_fetch(contract: Arc<RegistrarClient<Call=Asynchronous>>, pool: CpuPool, fetch: F, remote: Remote) -> Self {
