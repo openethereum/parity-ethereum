@@ -17,9 +17,14 @@
 extern crate ansi_term;
 extern crate ethcore;
 extern crate ethcore_io as io;
+extern crate ethsync;
 extern crate kvdb;
 extern crate kvdb_rocksdb;
+extern crate private_transactions;
 extern crate stop_guard;
+
+#[macro_use]
+extern crate error_chain;
 
 #[macro_use]
 extern crate log;
@@ -27,6 +32,8 @@ extern crate log;
 #[cfg(test)]
 extern crate tempdir;
 
+mod error;
 mod service;
 
-pub use service::ClientService;
+pub use error::{Error, ErrorKind};
+pub use service::{ClientService, PrivateTxService};

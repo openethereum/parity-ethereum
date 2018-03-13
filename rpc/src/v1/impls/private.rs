@@ -39,9 +39,9 @@ pub struct PrivateClient {
 
 impl PrivateClient {
 	/// Creates a new instance.
-	pub fn new(private: &Option<Arc<PrivateTransactionManager>>) -> Self {
+	pub fn new(private: Option<Arc<PrivateTransactionManager>>) -> Self {
 		PrivateClient {
-			private: private.clone(),
+			private,
 		}
 	}
 

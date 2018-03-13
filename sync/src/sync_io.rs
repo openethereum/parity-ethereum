@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
 use std::collections::HashMap;
 use network::{NetworkContext, PeerId, PacketId, Error, SessionInfo, ProtocolId};
 use bytes::Bytes;
@@ -22,7 +21,6 @@ use ethcore::client::BlockChainClient;
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use parking_lot::RwLock;
-use private_transactions::Provider as PrivateTransactionProvider;
 
 /// IO interface for the syncing handler.
 /// Provides peer connection management and an interface to the blockchain client.
@@ -42,8 +40,6 @@ pub trait SyncIo {
 	fn chain(&self) -> &BlockChainClient;
 	/// Get the snapshot service.
 	fn snapshot_service(&self) -> &SnapshotService;
-	/// Get the private transaction provider.
-	fn private_transactions_provider(&self) -> Option<Arc<PrivateTransactionProvider>>;
 	/// Returns peer identifier string
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		peer_id.to_string()
@@ -70,7 +66,6 @@ pub struct NetSyncIo<'s> {
 	chain: &'s BlockChainClient,
 	snapshot_service: &'s SnapshotService,
 	chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>,
-	private_tx_provider: Option<Arc<PrivateTransactionProvider>>,
 }
 
 impl<'s> NetSyncIo<'s> {
@@ -78,14 +73,12 @@ impl<'s> NetSyncIo<'s> {
 	pub fn new(network: &'s NetworkContext,
 		chain: &'s BlockChainClient,
 		snapshot_service: &'s SnapshotService,
-		private_tx_provider: Option<Arc<PrivateTransactionProvider>>,
 		chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>) -> NetSyncIo<'s> {
 		NetSyncIo {
 			network: network,
 			chain: chain,
 			snapshot_service: snapshot_service,
 			chain_overlay: chain_overlay,
-			private_tx_provider: private_tx_provider,
 		}
 	}
 }
@@ -121,10 +114,6 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 
 	fn snapshot_service(&self) -> &SnapshotService {
 		self.snapshot_service
-	}
-
-	fn private_transactions_provider(&self) -> Option<Arc<PrivateTransactionProvider>> {
-		self.private_tx_provider.clone()
 	}
 
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo> {

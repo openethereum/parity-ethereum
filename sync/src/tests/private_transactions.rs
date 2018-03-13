@@ -23,7 +23,6 @@ use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
 use transaction::{Transaction, Action};
 use ethcore::test_helpers::push_block_with_transactions;
-use private_transactions::{ProviderConfig};
 use ethcore::account_provider::AccountProvider;
 use ethkey::KeyPair;
 use tests::helpers::*;
@@ -97,12 +96,12 @@ fn send_private_transaction() {
 		passwords: vec!["".into()],
 	};
 
-	let mut net = TestNet::with_spec_and_accounts(2, SyncConfig::default(), seal_spec, Some(ap.clone()), Some(vec![signer_config, validator_config]));
+	let mut net = TestNet::with_spec_and_accounts(2, SyncConfig::default(), seal_spec, Some(ap.clone()), true);
 	let client0 = net.peer(0).chain.clone();
 	let client1 = net.peer(1).chain.clone();
-	let provider0 = net.peer(0).private_provider.clone().unwrap().clone();
-	let io_handler0: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler { client: client0.clone() });
-	let io_handler1: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler { client: client1.clone() });
+	//let provider0 = net.peer(0).private_provider.clone().unwrap().clone();
+	let io_handler0: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(client0.clone()));
+	let io_handler1: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler::new(client1.clone()));
 
 	client0.miner().set_engine_signer(s0.address(), "".to_owned()).unwrap();
 	client1.miner().set_engine_signer(s1.address(), "".to_owned()).unwrap();

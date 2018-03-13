@@ -40,7 +40,6 @@ extern crate ipnetwork;
 extern crate keccak_hash as hash;
 extern crate triehash;
 extern crate kvdb;
-extern crate private_transactions;
 
 extern crate ethcore_light as light;
 
@@ -59,6 +58,7 @@ mod chain;
 mod blocks;
 mod block_sync;
 mod sync_io;
+mod private_tx;
 mod snapshot;
 mod transactions_stats;
 
@@ -73,3 +73,4 @@ pub use api::*;
 pub use chain::{SyncStatus, SyncState};
 pub use devp2p::{validate_node_url, ConnectionFilter, ConnectionDirection};
 pub use network::{NonReservedPeerMode, Error, ErrorKind};
+pub use private_tx::{PrivateTxHandler, NoopPrivateTxHandler, SimplePrivateTxHandler};

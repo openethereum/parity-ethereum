@@ -46,12 +46,11 @@ use client::{
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, PrivateNotify,
-	ChainMessageType
+	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
-use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError, TransactionImportError};
+use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use vm::{EnvInfo, LastHashes};
 use evm::Schedule;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -201,7 +200,7 @@ pub struct Client {
 
 	/// Flag changed by `sleep` and `wake_up` methods. Not to be confused with `enabled`.
 	liveness: AtomicBool,
-	private_notify: RwLock<Option<Weak<PrivateNotify>>>,
+	//private_notify: RwLock<Option<Weak<PrivateNotify>>>,
 	io_channel: Mutex<IoChannel<ClientIoMessage>>,
 
 	/// List of actors to be notified on certain chain events
@@ -752,7 +751,7 @@ impl Client {
 			db: RwLock::new(db),
 			state_db: RwLock::new(state_db),
 			report: RwLock::new(Default::default()),
-			private_notify: RwLock::new(None),
+			//private_notify: RwLock::new(None),
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
@@ -994,26 +993,6 @@ impl Client {
 	/// Replace io channel. Useful for testing.
 	pub fn set_io_channel(&self, io_channel: IoChannel<ClientIoMessage>) {
 		*self.io_channel.lock() = io_channel;
-	}
-
-	/// Get io channel
-	pub fn get_io_channel(&self) -> IoChannel<ClientIoMessage> {
-		self.io_channel.lock().clone()
-	}
-
-	/// Sets handler for private messages
-	pub fn set_private_notify(&self, notify: Arc<PrivateNotify>) {
-		*self.private_notify.write() = Some(Arc::downgrade(&notify));
-	}
-
-	/// Handle private message from IO
-	pub fn handle_private_message(&self) -> Result<(), TransactionImportError> {
-		if let Some(ref notify) = *self.private_notify.read() {
-			if let Some(handler) = notify.upgrade() {
-				return handler.private_transaction_queued();
-			}
-		}
-		Ok(())
 	}
 
 	/// Get a copy of the best block's state.

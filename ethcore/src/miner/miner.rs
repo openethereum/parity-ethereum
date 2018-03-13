@@ -24,7 +24,7 @@ use ethereum_types::{H256, U256, Address};
 use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use engines::{EthEngine, Seal};
-use error::*;
+use error::{ExecutionError, Error};
 use ethcore_miner::banning_queue::{BanningTransactionQueue, Threshold};
 use ethcore_miner::local_transactions::{Status as LocalTransactionStatus};
 use ethcore_miner::transaction_queue::{

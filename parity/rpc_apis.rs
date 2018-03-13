@@ -22,6 +22,7 @@ use std::sync::{Arc, Weak};
 pub use parity_rpc::signer::SignerService;
 pub use parity_rpc::dapps::{DappsService, LocalDapp};
 
+use ethcore_service::PrivateTxService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
 use ethcore::miner::Miner;
@@ -218,7 +219,7 @@ pub struct FullDependencies {
 	pub sync: Arc<SyncProvider>,
 	pub net: Arc<ManageNetwork>,
 	pub secret_store: Option<Arc<AccountProvider>>,
-	pub private_tx_manager: Option<Arc<PrivateTransactionManager>>,
+	pub private_tx_manager: Option<Arc<PrivateTxService>>,
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,
 	pub logger: Arc<RotatingLogger>,
@@ -390,7 +391,7 @@ impl FullDependencies {
 					}
 				},
 				Api::Private => {
-					handler.extend_with(PrivateClient::new(&self.private_tx_manager).to_delegate());
+					handler.extend_with(PrivateClient::new(self.private_tx_manager.as_ref().map(|p| p.provider())).to_delegate());
 				},
 			}
 		}
@@ -602,7 +603,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 				Api::Private => {
 					if let Some(ref tx_manager) = self.private_tx_manager {
 						let private_tx_manager = Some(tx_manager.clone());
-						handler.extend_with(PrivateClient::new(&private_tx_manager).to_delegate());
+						handler.extend_with(PrivateClient::new(private_tx_manager).to_delegate());
 					}
 				}
 			}

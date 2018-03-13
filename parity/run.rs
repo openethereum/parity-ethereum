@@ -49,7 +49,7 @@ use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use parking_lot::{Condvar, Mutex};
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
-use private_transactions::{Provider as PrivateTransactionsProvider, ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
+use private_transactions::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
@@ -600,6 +600,9 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 		&snapshot_path,
 		&cmd.dirs.ipc_path(),
 		miner.clone(),
+		account_provider.clone(),
+		Box::new(SecretStoreEncryptor::new(cmd.private_encryptor_conf).map_err(|e| e.to_string())?),
+		cmd.private_provider_conf,
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	let connection_filter_address = spec.params().node_permission_contract;
@@ -608,19 +611,10 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 
 	// take handle to client
 	let client = service.client();
+	// take handle to private transactions service
+	let private_provider = service.private_tx_service();
 	let connection_filter = connection_filter_address.map(|a| Arc::new(NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, a)));
 	let snapshot_service = service.snapshot_service();
-
-	// initialize private transactions provider
-	let private_provider = Arc::new(PrivateTransactionsProvider::new(
-		client.clone(),
-		account_provider.clone(),
-		Arc::new(SecretStoreEncryptor::new(cmd.private_encryptor_conf)
-			.map_err(|e| format!("Private encryptor initialisation error: {:?}", e))?),
-		cmd.private_provider_conf)
-		.map_err(|e| format!("Private provider initialisation error: {:?}", e))?
-	);
-	client.set_private_notify(private_provider.clone());
 
 	// initialize the local node information store.
 	let store = {
@@ -697,8 +691,6 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	if let Some(filter) = connection_filter {
 		service.add_notify(filter);
 	}
-	private_provider.add_notify(chain_notify.clone());
-	service.add_notify(private_provider.clone());
 
 	// start network
 	if network_enabled {

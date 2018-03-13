@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use hash::keccak;
+use ethcore::account_provider::AccountProvider;
 use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService as SS};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::snapshot::service::Service as SnapshotService;
@@ -35,6 +36,7 @@ use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
 use fdlimit;
+use private_transactions;
 
 /// Kinds of snapshot commands.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -187,7 +189,10 @@ impl SnapshotCommand {
 			&client_path,
 			&snapshot_path,
 			&self.dirs.ipc_path(),
-			Arc::new(Miner::with_spec(&spec))
+			Arc::new(Miner::with_spec(&spec)),
+			Arc::new(AccountProvider::transient_provider()),
+			Box::new(private_transactions::SecretStoreEncryptor::new(Default::default()).unwrap()),
+			Default::default()
 		).map_err(|e| format!("Client service error: {:?}", e))?;
 
 		Ok(service)

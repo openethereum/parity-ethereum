@@ -50,8 +50,9 @@ fn private_contract() {
 		signer_account: None,
 		passwords: vec!["".into()],
 	};
-	let pm = Arc::new(Provider::new(client.clone(), ap.clone(), Arc::new(DummyEncryptor::default()), config).unwrap());
-	client.set_private_notify(pm.clone());
+
+	let io = ::io::IoChannel::disconnected();
+	let pm = Arc::new(Provider::new(client.clone(), ap.clone(), Box::new(DummyEncryptor::default()), config, io).unwrap());
 
 	let (address, _) = contract_address(CreateContractAddress::FromSenderAndNonce, &key1.address(), &0.into(), &[]);
 

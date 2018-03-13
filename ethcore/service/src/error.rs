@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,11 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod helpers;
-pub mod snapshot;
-mod chain;
-mod consensus;
-//mod private_transactions;
+use ethcore;
+use io;
+use private_transactions;
 
-#[cfg(feature = "ipc")]
-mod rpc;
+error_chain! {
+	links {
+		PrivateTransactions(private_transactions::Error, private_transactions::ErrorKind);
+	}
+
+	foreign_links {
+		Ethcore(ethcore::error::Error);
+		IoError(io::IoError);
+	}
+}
