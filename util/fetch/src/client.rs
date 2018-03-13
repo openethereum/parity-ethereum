@@ -159,8 +159,6 @@ impl Drop for Client {
 
 impl Client {
 	/// Create a new fetch client.
-	///
-	/// This spawns off a background thread for request/response processing.
 	pub fn new() -> Result<Self, Error> {
 		let startup_done = Arc::new((Mutex::new(Ok(())), Condvar::new()));
 		let (tx_proto, rx_proto) = mpsc::channel(64);
