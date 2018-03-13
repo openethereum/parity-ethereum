@@ -111,6 +111,7 @@ use rand::Rng;
 use snapshot::{Snapshot, ChunkType};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
+use transaction::UnverifiedTransaction;
 
 known_heap_size!(0, PeerInfo);
 
@@ -457,9 +458,9 @@ impl ChainSync {
 	}
 
 	/// Updates transactions were received by a peer
-	pub fn transactions_received(&mut self, hashes: &[H256], peer_id: PeerId) {
+	pub fn transactions_received(&mut self, txs: &[UnverifiedTransaction], peer_id: PeerId) {
 		if let Some(peer_info) = self.peers.get_mut(&peer_id) {
-			peer_info.last_sent_transactions.extend(hashes);
+			peer_info.last_sent_transactions.extend(txs.iter().map(|tx| tx.hash()));
 		}
 	}
 

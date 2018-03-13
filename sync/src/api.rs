@@ -37,6 +37,7 @@ use light::client::AsLightClient;
 use light::Provider;
 use light::net::{self as light_net, LightProtocol, Params as LightParams, Capabilities, Handler as LightHandler, EventContext};
 use network::IpFilter;
+use transaction::UnverifiedTransaction;
 
 /// Parity sync protocol
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
@@ -441,9 +442,9 @@ impl ChainNotify for EthSync {
 		});
 	}
 
-	fn transactions_received(&self, hashes: &[H256], peer_id: PeerId) {
+	fn transactions_received(&self, txs: &[UnverifiedTransaction], peer_id: PeerId) {
 		let mut sync = self.eth_handler.sync.write();
-		sync.transactions_received(hashes, peer_id);
+		sync.transactions_received(txs, peer_id);
 	}
 }
 
