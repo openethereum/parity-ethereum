@@ -21,8 +21,8 @@ use parking_lot::RwLock;
 use bytes::Bytes;
 use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
 use tests::snapshot::*;
-use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient, ClientConfig, ChainNotify, ChainMessageType};
-use ethcore::service::ClientIoMessage;
+use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient,
+	ClientConfig, ChainNotify, ChainMessageType, ClientIoMessage};
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;

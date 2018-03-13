@@ -21,7 +21,7 @@ use ethereum_types::{H256, U256, Address};
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use bytes::Bytes;
-use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType};
+use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
 use ethkey::KeyPair;
 use evm::Factory as EvmFactory;
 use factory::Factories;
@@ -38,6 +38,7 @@ use std::sync::Arc;
 use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
 
+/// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
 	let mut rlp = RlpStream::new_list(3);
 	rlp.append(header);
@@ -97,14 +98,17 @@ pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, 
 	generate_dummy_client_with_spec_and_data(Spec::new_null, block_number, txs_per_block, tx_gas_prices)
 }
 
+/// Generates dummy client (not test client) with corresponding amount of blocks, txs per block and spec
 pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
 	generate_dummy_client_with_spec_accounts_and_data(test_spec, None, block_number, txs_per_block, tx_gas_prices)
 }
 
+/// Generates dummy client (not test client) with corresponding spec and accounts
 pub fn generate_dummy_client_with_spec_and_accounts<F>(test_spec: F, accounts: Option<Arc<AccountProvider>>) -> Arc<Client> where F: Fn()->Spec {
 	generate_dummy_client_with_spec_accounts_and_data(test_spec, accounts, 0, 0, &[])
 }
 
+/// Generates dummy client (not test client) with corresponding blocks, accounts and spec
 pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accounts: Option<Arc<AccountProvider>>, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
 	let test_spec = test_spec();
 	let client_db = new_db();
@@ -207,7 +211,7 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 
 /// Adds one block with transactions
 pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[SignedTransaction]) {
-	let test_spec = get_test_spec();
+	let test_spec = Spec::new_test();
 	let test_engine = &*test_spec.engine;
 	let block_number = client.chain_info().best_block_number as u64 + 1;
 
@@ -378,6 +382,7 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
+/// Test actor for chain events
 #[derive(Default)]
 pub struct TestNotify {
 	/// Messages store

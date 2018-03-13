@@ -76,10 +76,9 @@ use ethcore::executive::{Executive, TransactOptions};
 use ethcore::executed::{Executed};
 use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
 use ethcore::{contract_address as ethcore_contract_address};
-use ethcore::client::{Client, ChainNotify, ChainMessageType, BlockId,
+use ethcore::client::{Client, ChainNotify, ChainMessageType, ClientIoMessage, BlockId,
 	MiningBlockChainClient, PrivateNotify, ChainInfo, Nonce, CallContract};
 use ethcore::account_provider::AccountProvider;
-use ethcore::service::ClientIoMessage;
 use ethcore::error::TransactionImportError;
 use ethcore_miner::transaction_queue::{TransactionDetailsProvider as TransactionQueueDetailsProvider, AccountDetails};
 use ethcore::miner::MinerService;
