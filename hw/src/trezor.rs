@@ -97,7 +97,6 @@ pub struct Manager {
 	key_path: RwLock<KeyPath>,
 }
 
-
 /// HID Version used for the Trezor device
 enum HidVersion {
 	V1,
@@ -441,7 +440,7 @@ fn try_connect_polling(trezor: Arc<Manager>, duration: Duration) -> bool {
 }
 
 /// Trezor event handler
-/// A separate thread is handeling incoming events
+/// A separate thread is handling incoming events
 ///
 /// Note, that this run to completion and race-conditions can't occur but this can
 /// therefore starve other events for being process with a spinlock or similar

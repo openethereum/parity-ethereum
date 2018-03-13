@@ -67,10 +67,10 @@ pub enum Error {
 	KeyNotFound,
 	/// Signing has been cancelled by user.
 	UserCancel,
-	/// Invalid Device
+	/// Invalid device
 	InvalidDevice,
-	/// Placeholder
-	Placeholder,
+	/// Impossible error
+	ImpossibleError,
 }
 
 impl fmt::Display for Error {
@@ -82,7 +82,7 @@ impl fmt::Display for Error {
 			Error::KeyNotFound => write!(f, "Key not found"),
 			Error::UserCancel => write!(f, "Operation has been cancelled"),
 			Error::InvalidDevice => write!(f, "Unsupported product was entered"),
-			Error::Placeholder => write!(f, "Placeholder error"),
+			Error::ImpossibleError => write!(f, "Placeholder error"),
 		}
 	}
 }
@@ -177,7 +177,7 @@ impl Manager {
 			chunk_index += 1;
 		}
 
-		// read response
+		// Read response
 		chunk_index = 0;
 		let mut message_size = 0;
 		let mut message = Vec::new();
@@ -195,7 +195,7 @@ impl Manager {
 
 			let mut offset = 5;
 			if seq == 0 {
-				// read message size and status word.
+				// Read message size and status word.
 				if chunk_size < 7 {
 					return Err(Error::Protocol("Unexpected chunk header"));
 				}
@@ -261,7 +261,6 @@ impl <'a>Wallet<'a> for Manager {
 	type Error = Error;
 	type Transaction = &'a [u8];
 
-	/// This can be a problem :)
 	fn sign_transaction(&self, address: &Address, transaction: Self::Transaction) -> Result<Signature, Self::Error> {
 		let usb = self.usb.lock();
 		let devices = self.devices.read();
@@ -351,7 +350,7 @@ impl <'a>Wallet<'a> for Manager {
 				})
 			}
 			// This variant is not possible, but the trait forces this return type
-			Ok(None) => Err(Error::Placeholder),
+			Ok(None) => Err(Error::ImpossibleError),
 			Err(e) => Err(e),
 		}
 	}
@@ -407,7 +406,7 @@ impl <'a>Wallet<'a> for Manager {
 }
 
 /// Ledger event handler
-/// A separate thread is hanedling incoming events
+/// A separate thread is handling incoming events
 ///
 /// Note, that this run to completion and race-conditions can't occur but this can
 /// therefore starve other events for being process with a spinlock or similar
