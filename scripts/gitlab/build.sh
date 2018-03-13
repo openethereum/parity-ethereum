@@ -18,7 +18,6 @@ echo "Architecture:       " $ARC
 echo "Libssl version:     " $LIBSSL
 echo "Parity version:     " $VER
 echo "Branch:             " $CI_BUILD_REF_NAME
-echo "Protect?            " $protect
 echo "--------------------"
 
 # NOTE for md5 and sha256 we want to display filename as well
@@ -164,68 +163,6 @@ make_exe () {
   ./sign.cmd $keyfile $certpass "parity_"$VER"_"$IDENT"_"$ARC"."$EXT
   $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
   $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC"."$EXT -p %h > "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
-}
-push_snap () {
-  if [[ -z "$protect" ]]; then echo "__________Skipping push and release snap__________"&&return; fi
-  snapcraft_login=$(expect -c "
-    spawn snapcraft login
-    expect \"Email:\"
-    send \"$SNAP_EMAIL\n\"
-    expect \"Password:\"
-    send \"$SNAP_PASS\n\"
-    expect \"\$\"
-    ")
-  echo "$snapcraft_login"
-  snapcraft push "parity_"$VER"_"$ARC".snap" >> push.log
-  cat push.log
-  REVISION="$(grep -m 1 "Revision " push.log | awk '{print $2}')"
-  echo "__________Revision__________"
-  echo $REVISION
-  sleep 60
-  if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.9* ]];
-    then
-    snapcraft release parity_"$VER"_"$ARC".snap $REVISION beta
-    snapcraft release parity_"$VER"_"$ARC".snap $REVISION candidate;
-  fi
-  if [[ "$CI_BUILD_REF_NAME" = "nightly" ]];
-    then
-    snapcraft release parity_"$VER"_"$ARC".snap $REVISION edge;
-  fi
-  if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.8* ]];
-    then
-    snapcraft release parity_"$VER"_"$ARC".snap $REVISION stable;
-  fi
-  snapcraft status parity
-  snapcraft logout
-}
-make_snap () {
-  export HOST_CC=gcc
-  export HOST_CXX=g++
-  apt install -y expect zip rhash
-  snapcraft clean
-  echo "__________ Prepare snapcraft.yaml for build on Gitlab CI in Docker image __________"
-  sed -i 's/git/'"$VER"'/g' snap/snapcraft.yaml
-  if [[ "$CI_BUILD_REF_NAME" = "beta" || "$VER" == *1.9* ]];
-    then
-      sed -i -e 's/grade: devel/grade: stable/' snap/snapcraft.yaml;
-  fi
-  if [[ "$ARC" = "i386" ]];
-    then
-      export ARCH=i686&&ln -s /usr/bin/gcc /usr/bin/i386-linux-gnu-gcc;
-  fi
-  mv -f snap/snapcraft.yaml snapcraft.yaml
-  snapcraft --target-arch=$ARC -d
-  echo "__________Build comlete__________"
-  push_snap
-  echo "__________Checksum calculation__________"
-  $MD5_BIN "parity_"$VER"_"$ARC".snap" > "parity_"$VER"_"$ARC".snap.md5"
-  $SHA256_BIN "parity_"$VER"_"$ARC".snap" > "parity_"$VER"_"$ARC".snap.sha256"
-  echo "__________Copy all artifacts to one place__________"
-  rm -rf artifacts
-  mkdir -p artifacts
-  cp "parity_"$VER"_"$ARC".snap" artifacts
-  cp "parity_"$VER"_"$ARC".snap.md5" artifacts
-  cp "parity_"$VER"_"$ARC".snap.sha256" artifacts
 }
 push_binaries () {
   if [[ -z "$protect" ]]; then echo "__________Skipping push to S3__________"&&return; fi
