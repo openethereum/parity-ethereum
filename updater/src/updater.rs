@@ -63,7 +63,7 @@ pub struct UpdatePolicy {
 	/// Which track we should be following.
 	pub track: ReleaseTrack,
 	/// Path for the updates to go.
-	pub path: String,
+	pub path: PathBuf,
 	/// Random update delay range in blocks.
 	pub max_delay: u64,
 	/// Number of blocks between each check for updates.
@@ -198,7 +198,7 @@ pub struct OperationsContractClient {
 impl OperationsContractClient {
 	fn new(
 		operations_contract: operations_contract::Operations,
-		client: Weak<BlockChainClient>
+		client: Weak<BlockChainClient>,
 	) -> OperationsContractClient {
 		OperationsContractClient { operations_contract, client }
 	}
@@ -333,7 +333,7 @@ impl Updater {
 		client: Weak<BlockChainClient>,
 		sync: Weak<SyncProvider>,
 		update_policy: UpdatePolicy,
-		fetcher: fetch::Client
+		fetcher: fetch::Client,
 	) -> Arc<Updater> {
 		let r = Arc::new(Updater {
 			update_policy: update_policy,
@@ -375,9 +375,7 @@ impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
 	}
 
 	fn updates_path(&self, name: &str) -> PathBuf {
-		let mut dest = PathBuf::from(self.update_policy.path.clone());
-		dest.push(name);
-		dest
+		self.update_policy.path.join(name)
 	}
 
 	fn updater_step(&self) {
@@ -483,6 +481,11 @@ impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
 						self.execute_upgrade();
 					}
 				},
+				// this is the default case that does the initial triggering to update. we can reach this case by being
+				// `Idle` but also if the latest release is updated, regardless of the state we're in (except if the
+				// updater is in the `Disabled` state). if we push a bad update (e.g. wrong hashes or download url)
+				// clients might eventually be on a really long backoff state for that release, but as soon a new
+				// release is pushed we'll fall through to the default case.
 				_ => {
 					if let Some(binary) = latest.track.binary {
 						let running_later = latest.track.version.version < self.version_info().version;
@@ -531,7 +534,7 @@ impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
 		trace!(target: "updater", "Current release is {} ({:?})", self.this, self.this.hash);
 
 		// We rely on a secure state. Bail if we're unsure about it.
-		if self.client.upgrade().map_or(true, |s| !s.chain_info().security_level().is_full()) {
+		if self.client.upgrade().map_or(true, |c| !c.chain_info().security_level().is_full()) {
 			return;
 		}
 
