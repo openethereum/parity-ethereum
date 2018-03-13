@@ -2678,7 +2678,7 @@ version = "0.0.1"
 dependencies = [
  "ethabi 5.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi-derive 5.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-derive 5.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.0",
 ]
