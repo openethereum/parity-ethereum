@@ -166,7 +166,7 @@ impl Client {
 		Client::background_thread(startup_done.clone(), rx_proto)?;
 
 		let mut guard = startup_done.0.lock();
-		let startup_result = startup_done.1.wait_for(&mut guard, Duration::from_secs(3));
+		let startup_result = startup_done.1.wait_for(&mut guard, Duration::from_secs(10));
 
 		if startup_result.timed_out() {
 			error!(target: "fetch", "timeout starting background thread");
@@ -199,7 +199,7 @@ impl Client {
 				.build(&core.handle());
 
 			let future = rx_proto.take_while(|item| Ok(item.is_some()))
-				.map(|item| item.expect("`take_while` is only passing on channel items != None"))
+				.map(|item| item.expect("`take_while` is only passing on channel items != None; qed"))
 				.for_each(|(url, abort, sender)|
 			{
 				trace!(target: "fetch", "new request to {}", url);
@@ -421,7 +421,7 @@ impl io::Read for BodyReader {
 					break
 				}
 			} else {
-				let body = self.body.take().expect("within this loop `self.body` is always defined");
+				let body = self.body.take().expect("loop condition ensures `self.body` is always defined; qed");
 				match body.into_future().wait() { // wait for next chunk
 					Err((e, _))   => {
 						error!(target: "fetch", "failed to read chunk: {}", e);
