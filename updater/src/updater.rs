@@ -133,13 +133,13 @@ struct UpdaterState {
 }
 
 /// Service for checking for updates and determining whether we can achieve consensus.
-pub struct Updater<O = OperationsContractClient> {
+pub struct Updater<O = OperationsContractClient, F = fetch::Client> {
 	// Useful environmental stuff.
 	update_policy: UpdatePolicy,
-	weak_self: Mutex<Weak<Updater>>,
+	weak_self: Mutex<Weak<Updater<O, F>>>,
 	client: Weak<BlockChainClient>,
-	sync: Weak<SyncProvider>,
-	fetcher: fetch::Client,
+	sync: Option<Weak<SyncProvider>>,
+	fetcher: F,
 	operations_client: O,
 	exit_handler: Mutex<Option<Box<Fn() + 'static + Send>>>,
 
@@ -181,7 +181,7 @@ lazy_static! {
 }
 
 /// Client trait for getting latest release information from operations contract.
-pub trait OperationsClient {
+pub trait OperationsClient: Send + Sync + 'static {
 	/// Get the latest release operations info for the given track.
 	fn latest(&self, this: &VersionInfo, track: ReleaseTrack) -> Result<OperationsInfo, String>;
 
@@ -328,13 +328,18 @@ impl OperationsClient for OperationsContractClient {
 	}
 }
 
-impl Updater {
-	pub fn new(client: Weak<BlockChainClient>, sync: Weak<SyncProvider>, update_policy: UpdatePolicy, fetcher: fetch::Client) -> Arc<Self> {
+impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
+	pub fn new(
+		client: Weak<BlockChainClient>,
+		sync: Weak<SyncProvider>,
+		update_policy: UpdatePolicy,
+		fetcher: fetch::Client
+	) -> Arc<Updater> {
 		let r = Arc::new(Updater {
 			update_policy: update_policy,
 			weak_self: Mutex::new(Default::default()),
 			client: client.clone(),
-			sync: sync.clone(),
+			sync: Some(sync.clone()),
 			fetcher,
 			operations_client: OperationsContractClient::new(
 				operations_contract::Operations::default(),
@@ -349,8 +354,8 @@ impl Updater {
 	}
 
 	/// Set a closure to call when we want to restart the client
-	pub fn set_exit_handler<F>(&self, f: F) where F: Fn() + 'static + Send {
-		*self.exit_handler.lock() = Some(Box::new(f));
+	pub fn set_exit_handler<G>(&self, g: G) where G: Fn() + 'static + Send {
+		*self.exit_handler.lock() = Some(Box::new(g));
 	}
 
 	/// Returns release track of the parity node.
@@ -589,14 +594,14 @@ impl Updater {
 
 impl ChainNotify for Updater {
 	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
-		match (self.client.upgrade(), self.sync.upgrade()) {
+		match (self.client.upgrade(), self.sync.as_ref().and_then(Weak::upgrade)) {
 			(Some(ref c), Some(ref s)) if !s.status().is_syncing(c.queue_info()) => self.poll(),
 			_ => {},
 		}
 	}
 }
 
-impl Service for Updater {
+impl<O: OperationsClient, F: HashFetch> Service for Updater<O, F> {
 	fn capability(&self) -> CapState {
 		self.state.lock().capability
 	}
