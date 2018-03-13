@@ -352,6 +352,10 @@ impl Updater {
 		r.poll();
 		r
 	}
+
+	fn update_file_name(v: &VersionInfo) -> String {
+		format!("parity-{}.{}.{}-{:?}", v.version.major, v.version.minor, v.version.patch, v.hash)
+	}
 }
 
 impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
@@ -368,10 +372,6 @@ impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
 			ReleaseTrack::Unknown => self.this.track,
 			x => x,
 		}
-	}
-
-	fn update_file_name(v: &VersionInfo) -> String {
-		format!("parity-{}.{}.{}-{:?}", v.version.major, v.version.minor, v.version.patch, v.hash)
 	}
 
 	fn updates_path(&self, name: &str) -> PathBuf {
@@ -399,7 +399,7 @@ impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
 									// We've successfully fetched the binary
 									Ok(path) => {
 										let setup = |path: &Path| -> Result<(), String> {
-											let dest = this.updates_path(&Self::update_file_name(&release.version));
+											let dest = this.updates_path(&Updater::update_file_name(&release.version));
 											if !dest.exists() {
 												info!(target: "updater", "Fetched latest version ({}) OK to {}", release.version, path.display());
 												fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| format!("Unable to create updates path: {:?}", e))?;
@@ -493,7 +493,7 @@ impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
 
 						// Check if we're already running the latest version or a newer version
 						if !running_later && !running_latest {
-							let path = self.updates_path(&Self::update_file_name(&latest.track.version));
+							let path = self.updates_path(&Updater::update_file_name(&latest.track.version));
 							if path.exists() {
 								info!(target: "updater", "Already fetched binary.");
 								state.status = UpdaterStatus::Ready { release: latest.track.clone() };
@@ -623,7 +623,7 @@ impl<O: OperationsClient, F: HashFetch> Service for Updater<O, F> {
 
 		match state.status.clone() {
 			UpdaterStatus::Ready { ref release } => {
-				let file = Self::update_file_name(&release.version);
+				let file = Updater::update_file_name(&release.version);
 				let path = self.updates_path("latest");
 
 				// TODO: creating then writing is a bit fragile. would be nice to make it atomic.
@@ -662,18 +662,23 @@ impl<O: OperationsClient, F: HashFetch> Service for Updater<O, F> {
 
 #[cfg(test)]
 pub mod tests {
+	use std::fs::File;
+	use std::io::Read;
 	use std::sync::Arc;
+	use semver::Version;
+	use tempdir::TempDir;
 	use ethcore::client::{TestBlockChainClient, EachBlockWith, BlockId, BlockChainClient};
 	use self::fetch::Error;
 	use super::*;
 
+	#[derive(Clone)]
 	struct FakeOperationsClient {
-		result: Mutex<(Option<OperationsInfo>, Option<BlockNumber>)>,
+		result: Arc<Mutex<(Option<OperationsInfo>, Option<BlockNumber>)>>,
 	}
 
 	impl FakeOperationsClient {
 		fn new() -> FakeOperationsClient {
-			FakeOperationsClient { result: Mutex::new((None, None)) }
+			FakeOperationsClient { result: Arc::new(Mutex::new((None, None))) }
 		}
 
 		fn set_result(&self, operations_info: Option<OperationsInfo>, release_block_number: Option<BlockNumber>) {
@@ -693,13 +698,14 @@ pub mod tests {
 		}
 	}
 
+	#[derive(Clone)]
 	struct FakeFetch {
-		result: Mutex<Option<PathBuf>>,
+		result: Arc<Mutex<Option<PathBuf>>>,
 	}
 
 	impl FakeFetch {
 		fn new() -> FakeFetch {
-			FakeFetch { result: Mutex::new(None) }
+			FakeFetch { result: Arc::new(Mutex::new(None)) }
 		}
 
 		fn set_result(&self, result: Option<PathBuf>) {
@@ -713,34 +719,123 @@ pub mod tests {
 		}
 	}
 
-	fn test_updater(client: Weak<TestBlockChainClient>, update_policy: UpdatePolicy) -> Arc<Updater<FakeOperationsClient, FakeFetch>> {
-		let r = Arc::new(Updater {
+	fn setup(
+		update_policy: UpdatePolicy,
+	) -> (Arc<TestBlockChainClient>, Arc<Updater<FakeOperationsClient, FakeFetch>>, FakeFetch, FakeOperationsClient) {
+		let client = Arc::new(TestBlockChainClient::new());
+		let weak_client = Arc::downgrade(&client);
+
+		let fetcher = FakeFetch::new();
+		let operations_client = FakeOperationsClient::new();
+
+		let this = VersionInfo {
+			track: ReleaseTrack::Beta,
+			version: Version::parse("1.0.0").unwrap(),
+			hash: 0.into(),
+		};
+
+		let updater = Arc::new(Updater {
 			update_policy: update_policy,
 			weak_self: Mutex::new(Default::default()),
-			client: client.clone(),
+			client: weak_client,
 			sync: None,
-			fetcher: FakeFetch::new(),
-			operations_client: FakeOperationsClient::new(),
+			fetcher: fetcher.clone(),
+			operations_client: operations_client.clone(),
 			exit_handler: Mutex::new(None),
-			this: VersionInfo::this(),
+			this: this,
 			state: Mutex::new(Default::default()),
 		});
 
-		*r.weak_self.lock() = Arc::downgrade(&r);
-		r
+		*updater.weak_self.lock() = Arc::downgrade(&updater);
+
+		(client, updater, fetcher, operations_client)
 	}
 
-	fn get_status<O, F>(updater: &Updater<O, F>) -> UpdaterStatus {
-		updater.state.lock().status.clone()
+	fn update_policy() -> (UpdatePolicy, TempDir) {
+		let tempdir = TempDir::new("").unwrap();
+
+		let update_policy = UpdatePolicy {
+			path: tempdir.path().into(),
+			enable_downloading: true,
+			max_delay: 10,
+			frequency: 1,
+			..Default::default()
+		};
+
+		(update_policy, tempdir)
 	}
 
 	#[test]
-	fn stays_idle() {
-		let client = Arc::new(TestBlockChainClient::new());
-		let updater = test_updater(Arc::downgrade(&client), UpdatePolicy::default());
+	fn should_stay_idle_when_no_release() {
+		let (update_policy, _) = update_policy();
+		let (_, updater, _, _) = setup(update_policy);
 
-		assert_eq!(get_status(&updater), UpdaterStatus::Idle);
-		updater.updater_step();
-		assert_eq!(get_status(&updater), UpdaterStatus::Idle);
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Idle);
+		updater.poll();
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Idle);
+	}
+
+	#[test]
+	fn should_update_on_new_release() {
+		let (update_policy, tempdir) = update_policy();
+		let (client, updater, fetcher, operations_client) = setup(update_policy);
+
+		// mock operations contract with a new version
+		let latest_version = VersionInfo {
+			track: ReleaseTrack::Beta,
+			version: Version::parse("1.0.1").unwrap(),
+			hash: 1.into(),
+		};
+
+		let latest_release = ReleaseInfo {
+			version: latest_version.clone(),
+			is_critical: false,
+			fork: 0,
+			binary: Some(0.into()),
+		};
+
+		let latest = OperationsInfo {
+			fork: 0,
+			this_fork: Some(0),
+			track: latest_release.clone(),
+			minor: None,
+		};
+
+		operations_client.set_result(Some(latest.clone()), None);
+
+		// mock fetcher with update binary
+		let update_file = tempdir.path().join("parity");
+		fetcher.set_result(Some(update_file.clone()));
+		File::create(update_file).unwrap();
+
+		// we start in idle state and with no information regarding the latest release
+		assert_eq!(updater.state.lock().latest, None);
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Idle);
+
+		updater.poll();
+
+		// after the first poll the latest release should be set to the one we're mocking
+		// and the update should be ready for install
+		assert_eq!(updater.state.lock().latest, Some(latest));
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release.clone() });
+		assert_eq!(updater.upgrade_ready(), Some(latest_release.clone()));
+
+		// the current update_policy doesn't allow updating automatically, but we can trigger the update manually
+		updater.execute_upgrade();
+
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Installed { release: latest_release });
+
+		// the final binary should exist in the updates folder and the 'latest' file should be updated to point to it
+		let updated_binary = tempdir.path().join(Updater::update_file_name(&latest_version));
+		let latest_file = tempdir.path().join("latest");
+
+		assert!(updated_binary.exists());
+		assert!(latest_file.exists());
+
+		let mut latest_file_content = String::new();
+		File::open(latest_file).unwrap().read_to_string(&mut latest_file_content).unwrap();
+
+		assert_eq!(latest_file_content, updated_binary.file_name().and_then(|n| n.to_str()).unwrap());
+
 	}
 }
