@@ -167,7 +167,7 @@ module.exports = {
 
   plugins: (function () {
     let plugins = []
-      .concat(Shared.getPlugins(isProd, true))
+      .concat(Shared.getPlugins())
       .concat(
         new WebpackErrorNotificationPlugin(),
         new ExtractTextPlugin({
