@@ -91,6 +91,9 @@ extern crate macros;
 #[cfg(test)]
 extern crate kvdb_memorydb;
 
+#[cfg(test)]
+extern crate url;
+
 extern crate tempdir;
 
 pub extern crate jsonrpc_ws_server as ws;

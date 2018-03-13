@@ -2004,6 +2004,7 @@ dependencies = [
  "serde_derive 1.0.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "url 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "zip 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2167,6 +2168,7 @@ dependencies = [
  "tiny-keccak 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-timer 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "url 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",
 ]
 

@@ -283,7 +283,7 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 mod tests {
 	use std::env;
 	use std::sync::Arc;
-	use fetch::{Fetch, Client};
+	use fetch::Client;
 	use futures::{future, Future};
 	use hash_fetch::urlhint::{URLHint, URLHintResult};
 	use ethereum_types::H256;
