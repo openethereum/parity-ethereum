@@ -54,6 +54,7 @@ extern crate ethcore_logger;
 extern crate ethcore_migrations as migrations;
 extern crate ethcore_miner as miner;
 extern crate ethcore_network as network;
+extern crate ethcore_service;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate migration as migr;

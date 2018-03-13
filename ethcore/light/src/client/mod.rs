@@ -19,7 +19,7 @@
 use std::sync::{Weak, Arc};
 
 use ethcore::block_status::BlockStatus;
-use ethcore::client::{ClientReport, EnvInfo};
+use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
 use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
 use ethcore::machine::EthereumMachine;
 use ethcore::error::BlockImportError;
@@ -28,7 +28,6 @@ use ethcore::header::{BlockNumber, Header};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::spec::Spec;
-use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 use parking_lot::{Mutex, RwLock};

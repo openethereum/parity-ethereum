@@ -27,11 +27,10 @@ use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, Snapshot
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
-use client::{Client, ChainInfo};
+use client::{Client, ChainInfo, ClientIoMessage};
 use engines::EthEngine;
 use error::Error;
 use ids::BlockId;
-use service::ClientIoMessage;
 
 use io::IoChannel;
 
@@ -631,7 +630,7 @@ impl Drop for Service {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use service::ClientIoMessage;
+	use client::ClientIoMessage;
 	use io::{IoService};
 	use spec::Spec;
 	use journaldb::Algorithm;

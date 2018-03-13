@@ -716,6 +716,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethcore-service"
+version = "0.1.0"
+dependencies = [
+ "ansi_term 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore 1.11.0",
+ "ethcore-io 1.11.0",
+ "kvdb 0.1.0",
+ "kvdb-rocksdb 0.1.0",
+ "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "stop-guard 0.1.0",
+ "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ethcore-stratum"
 version = "1.11.0"
 dependencies = [
@@ -1948,6 +1962,7 @@ dependencies = [
  "ethcore-miner 1.11.0",
  "ethcore-network 1.11.0",
  "ethcore-secretstore 1.0.0",
+ "ethcore-service 0.1.0",
  "ethcore-stratum 1.11.0",
  "ethcore-transaction 0.1.0",
  "ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",

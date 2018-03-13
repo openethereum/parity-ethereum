@@ -18,41 +18,20 @@
 
 use std::sync::Arc;
 use std::path::Path;
-use ethereum_types::H256;
+
+use ansi_term::Colour;
+use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
 use kvdb::KeyValueDB;
 use kvdb_rocksdb::{Database, DatabaseConfig};
-use bytes::Bytes;
-use io::*;
-use spec::Spec;
-use error::*;
-use client::{Client, ClientConfig, ChainNotify};
-use miner::Miner;
-
-use snapshot::{ManifestData, RestorationStatus};
-use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
-use ansi_term::Colour;
 use stop_guard::StopGuard;
 
-/// Message type for external and internal events
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum ClientIoMessage {
-	/// Best Block Hash in chain has been changed
-	NewChainHead,
-	/// A block is ready
-	BlockVerified,
-	/// New transaction RLPs are ready to be imported
-	NewTransactions(Vec<Bytes>, usize),
-	/// Begin snapshot restoration
-	BeginRestoration(ManifestData),
-	/// Feed a state chunk to the snapshot service
-	FeedStateChunk(H256, Bytes),
-	/// Feed a block chunk to the snapshot service
-	FeedBlockChunk(H256, Bytes),
-	/// Take a snapshot for the block with given number.
-	TakeSnapshot(u64),
-	/// New consensus message received.
-	NewMessage(Bytes)
-}
+use ethcore::client::{self, Client, ClientConfig, ChainNotify, ClientIoMessage};
+use ethcore::db;
+use ethcore::error::Error;
+use ethcore::miner::Miner;
+use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
+use ethcore::snapshot::{RestorationStatus};
+use ethcore::spec::Spec;
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
@@ -78,7 +57,7 @@ impl ClientService {
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 
-		let mut db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+		let mut db_config = DatabaseConfig::with_columns(db::NUM_COLUMNS);
 
 		db_config.memory_budget = config.db_cache_size;
 		db_config.compaction = config.db_compaction.compaction_profile(client_path);
@@ -87,7 +66,7 @@ impl ClientService {
 		let db = Arc::new(Database::open(
 			&db_config,
 			&client_path.to_str().expect("DB path could not be converted to string.")
-		).map_err(::client::Error::Database)?);
+		).map_err(client::Error::Database)?);
 
 
 		let pruning = config.pruning;
@@ -173,7 +152,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
 		match timer {
 			CLIENT_TICK_TIMER => {
-				use snapshot::SnapshotService;
+				use ethcore::snapshot::SnapshotService;
 				let snapshot_restoration = if let RestorationStatus::Ongoing{..} = self.snapshot.status() { true } else { false };
 				self.client.tick(snapshot_restoration)
 			},
@@ -221,13 +200,15 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 
 #[cfg(test)]
 mod tests {
-	use std::{time, thread};
-	use spec::Spec;
-	use super::*;
-	use client::ClientConfig;
 	use std::sync::Arc;
-	use miner::Miner;
+	use std::{time, thread};
+
 	use tempdir::TempDir;
+
+	use ethcore::client::ClientConfig;
+	use ethcore::miner::Miner;
+	use ethcore::spec::Spec;
+	use super::*;
 
 	#[test]
 	fn it_can_be_started() {
