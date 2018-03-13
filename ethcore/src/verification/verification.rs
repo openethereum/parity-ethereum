@@ -466,7 +466,7 @@ mod tests {
 			unimplemented!()
 		}
 
-		fn blocks_with_blooms(&self, _blooms: &[Bloom], _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
+		fn blocks_with_bloom(&self, _bloom: &Bloom, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
 			unimplemented!()
 		}
 

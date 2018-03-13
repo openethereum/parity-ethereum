@@ -18,7 +18,7 @@
 
 extern crate migration;
 
-use migration::{ChangeColumns, SimpleMigration};
+use migration::ChangeColumns;
 
 /// The migration from v10 to v11.
 /// Adds a column for node info.
@@ -35,30 +35,3 @@ pub const TO_V12: ChangeColumns = ChangeColumns {
 	post_columns: Some(8),
 	version: 12,
 };
-
-#[derive(Default)]
-pub struct ToV13;
-
-impl SimpleMigration for ToV13 {
-	fn columns(&self) -> Option<u32> {
-		Some(8)
-	}
-
-	fn version(&self) -> u32 {
-		13
-	}
-
-	fn migrated_column_index(&self) -> Option<u32> {
-		// extras!
-		Some(3)
-	}
-
-	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
-		// remove all bloom groups
-		if key[0] == 3 {
-			None
-		} else {
-			Some((key, value))
-		}
-	}
-}

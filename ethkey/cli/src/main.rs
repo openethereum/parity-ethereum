@@ -31,7 +31,7 @@ use std::{env, fmt, process, io, sync};
 
 use docopt::Docopt;
 use ethkey::{KeyPair, Random, Brain, BrainPrefix, Prefix, Error as EthkeyError, Generator, sign, verify_public, verify_address, brain_recover};
-use rustc_hex::{ToHex, FromHex, FromHexError};
+use rustc_hex::{FromHex, FromHexError};
 
 pub const USAGE: &'static str = r#"
 Ethereum keys generator.
@@ -180,7 +180,7 @@ fn display(result: (KeyPair, Option<String>), mode: DisplayMode) -> String {
 			Some(extra_data) => format!("{}\n{}", extra_data, keypair),
 			None => format!("{}", keypair)
 		},
-		DisplayMode::Secret => format!("{}", keypair.secret().to_hex()),
+		DisplayMode::Secret => format!("{:?}", keypair.secret()),
 		DisplayMode::Public => format!("{:?}", keypair.public()),
 		DisplayMode::Address => format!("{:?}", keypair.address()),
 	}

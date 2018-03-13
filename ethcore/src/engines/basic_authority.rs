@@ -199,7 +199,7 @@ mod tests {
 	use hash::keccak;
 	use ethereum_types::H520;
 	use block::*;
-	use test_helpers::*;
+	use test_helpers::get_temp_state_db;
 	use account_provider::AccountProvider;
 	use header::Header;
 	use spec::Spec;

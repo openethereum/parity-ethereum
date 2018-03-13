@@ -37,6 +37,7 @@ parity-reactor = { path = "../util/reactor" }
 parity-ui = { path = "./ui" }
 keccak-hash = { path = "../util/hash" }
 parity-version = { path = "../util/version" }
+registrar = { path = "../registrar" }
 
 [dev-dependencies]
 env_logger = "0.4"

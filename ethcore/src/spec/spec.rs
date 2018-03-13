@@ -118,6 +118,8 @@ pub struct CommonParams {
 	pub node_permission_contract: Option<Address>,
 	/// Maximum contract code size that can be deployed.
 	pub max_code_size: u64,
+	/// Number of first block where max code size limit is active.
+	pub max_code_size_transition: BlockNumber,
 	/// Transaction permission managing contract address.
 	pub transaction_permission_contract: Option<Address>,
 }
@@ -125,9 +127,18 @@ pub struct CommonParams {
 impl CommonParams {
 	/// Schedule for an EVM in the post-EIP-150-era of the Ethereum main net.
 	pub fn schedule(&self, block_number: u64) -> ::vm::Schedule {
-		let mut schedule = ::vm::Schedule::new_post_eip150(self.max_code_size as _, true, true, true);
+		let mut schedule = ::vm::Schedule::new_post_eip150(self.max_code_size(block_number) as _, true, true, true);
 		self.update_schedule(block_number, &mut schedule);
 		schedule
+	}
+
+	/// Returns max code size at given block.
+	pub fn max_code_size(&self, block_number: u64) -> u64 {
+		if block_number >= self.max_code_size_transition {
+			self.max_code_size
+		} else {
+			u64::max_value()
+		}
 	}
 
 	/// Apply common spec config parameters to the schedule.
@@ -226,6 +237,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
+			max_code_size_transition: p.max_code_size_transition.map_or(0, Into::into),
 			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
 			wasm_activation_transition: p.wasm_activation_transition.map_or(
 				BlockNumber::max_value(),

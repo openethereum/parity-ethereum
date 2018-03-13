@@ -179,6 +179,7 @@ impl Discovery {
 		}
 	}
 
+	/// Removes the timeout of a given NodeId if it can be found in one of the discovery buckets
 	fn clear_ping(&mut self, id: &NodeId) {
 		let bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &keccak(id)) as usize];
 		if let Some(node) = bucket.nodes.iter_mut().find(|n| &n.address.id == id) {
@@ -186,6 +187,7 @@ impl Discovery {
 		}
 	}
 
+	/// Starts the discovery process at round 0
 	fn start(&mut self) {
 		trace!(target: "discovery", "Starting discovery");
 		self.discovery_round = 0;
@@ -379,7 +381,7 @@ impl Discovery {
 		let packet_id = signed[0];
 		let rlp = UntrustedRlp::new(&signed[1..]);
 		match packet_id {
-			PACKET_PING => self.on_ping(&rlp, &node_id, &from),
+			PACKET_PING => self.on_ping(&rlp, &node_id, &from, &hash_signed),
 			PACKET_PONG => self.on_pong(&rlp, &node_id, &from),
 			PACKET_FIND_NODE => self.on_find_node(&rlp, &node_id, &from),
 			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, &node_id, &from),
@@ -390,6 +392,7 @@ impl Discovery {
 		}
 	}
 
+	/// Validate that given timestamp is in within one second of now or in the future
 	fn check_timestamp(&self, timestamp: u64) -> Result<(), Error> {
 		if self.check_timestamps && timestamp < time::get_time().sec as u64{
 			debug!(target: "discovery", "Expired packet");
@@ -402,7 +405,7 @@ impl Discovery {
 		entry.endpoint.is_allowed(&self.ip_filter) && entry.id != self.id
 	}
 
-	fn on_ping(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
+	fn on_ping(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Ping from {:?}", &from);
 		let source = NodeEndpoint::from_rlp(&rlp.at(1)?)?;
 		let dest = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
@@ -418,10 +421,9 @@ impl Discovery {
 			self.update_node(entry.clone());
 			added_map.insert(node.clone(), entry);
 		}
-		let hash = keccak(rlp.as_raw());
 		let mut response = RlpStream::new_list(2);
 		dest.to_rlp_list(&mut response);
-		response.append(&hash);
+		response.append(&echo_hash);
 		self.send_packet(PACKET_PONG, from, &response.drain());
 
 		Ok(Some(TableUpdates { added: added_map, removed: HashSet::new() }))
@@ -429,7 +431,7 @@ impl Discovery {
 
 	fn on_pong(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Pong from {:?}", &from);
-		// TODO: validate pong packet
+		// TODO: validate pong packet in rlp.val_at(1)
 		let dest = NodeEndpoint::from_rlp(&rlp.at(0)?)?;
 		let timestamp: u64 = rlp.val_at(2)?;
 		self.check_timestamp(timestamp)?;
@@ -439,8 +441,6 @@ impl Discovery {
 			entry.endpoint.address = from.clone();
 		}
 		self.clear_ping(node);
-		let mut added_map = HashMap::new();
-		added_map.insert(node.clone(), entry);
 		Ok(None)
 	}
 
@@ -707,4 +707,21 @@ mod tests {
 		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
 	}
 
+	#[test]
+	fn test_ping() {
+		let key1 = Random.generate().unwrap();
+		let key2 = Random.generate().unwrap();
+		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40344").unwrap(), udp_port: 40344 };
+		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40345").unwrap(), udp_port: 40345 };
+		let mut discovery1 = Discovery::new(&key1, ep1.address.clone(), ep1.clone(), 0, IpFilter::default());
+		let mut discovery2 = Discovery::new(&key2, ep2.address.clone(), ep2.clone(), 0, IpFilter::default());
+
+		discovery1.ping(&ep2);
+		let ping_data = discovery1.send_queue.pop_front().unwrap();
+		discovery2.on_packet(&ping_data.payload, ep1.address.clone()).ok();
+		let pong_data = discovery2.send_queue.pop_front().unwrap();
+		let data = &pong_data.payload[(32 + 65)..];
+		let rlp = UntrustedRlp::new(&data[1..]);
+		assert_eq!(ping_data.payload[0..32], rlp.val_at::<Vec<u8>>(1).unwrap()[..])
+	}
 }

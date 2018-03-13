@@ -20,8 +20,8 @@
 use std::fmt;
 use std::sync::Arc;
 
+use ethcore::client::ClientIoMessage;
 use ethcore::db;
-use ethcore::service::ClientIoMessage;
 use ethcore::spec::Spec;
 use io::{IoContext, IoError, IoHandler, IoService};
 use kvdb::{self, KeyValueDB};

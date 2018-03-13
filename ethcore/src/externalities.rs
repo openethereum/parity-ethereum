@@ -414,7 +414,7 @@ mod tests {
 	use ethereum_types::{U256, Address};
 	use evm::{EnvInfo, Ext, CallType};
 	use state::{State, Substate};
-	use test_helpers::*;
+	use test_helpers::get_temp_state;
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};
 

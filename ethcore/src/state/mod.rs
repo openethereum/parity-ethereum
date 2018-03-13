@@ -1100,7 +1100,7 @@ mod tests {
 	use super::*;
 	use ethkey::Secret;
 	use ethereum_types::{H256, U256, Address};
-	use test_helpers::*;
+	use test_helpers::{get_temp_state, get_temp_state_db};
 	use machine::EthereumMachine;
 	use vm::EnvInfo;
 	use spec::*;

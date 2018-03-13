@@ -140,7 +140,7 @@ mod tests {
 	use ethereum_types::U256;
 	use state::*;
 	use super::*;
-	use test_helpers::*;
+	use test_helpers::get_temp_state_db;
 	use views::BlockView;
 
 	#[test]

@@ -263,15 +263,9 @@ impl EthereumMachine {
 				} else if block_number < ext.eip150_transition {
 					Schedule::new_homestead()
 				} else {
-					// There's no max_code_size transition so we tie it to eip161abc
-					let max_code_size = if block_number >= ext.eip161abc_transition {
-						self.params.max_code_size as usize
-					} else {
-						usize::max_value()
-					};
-
+					let max_code_size = self.params.max_code_size(block_number);
 					let mut schedule = Schedule::new_post_eip150(
-						max_code_size,
+						max_code_size as _,
 						block_number >= ext.eip160_transition,
 						block_number >= ext.eip161abc_transition,
 						block_number >= ext.eip161d_transition
@@ -479,12 +473,25 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 mod tests {
 	use super::*;
 
+	fn get_default_ethash_extensions() -> EthashExtensions {
+		EthashExtensions {
+			homestead_transition: 1150000,
+			eip150_transition: u64::max_value(),
+			eip160_transition: u64::max_value(),
+			eip161abc_transition: u64::max_value(),
+			eip161d_transition: u64::max_value(),
+			dao_hardfork_transition: u64::max_value(),
+			dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
+			dao_hardfork_accounts: Vec::new(),
+		}
+	}
+
 	#[test]
 	fn ethash_gas_limit_is_multiple_of_determinant() {
 		use ethereum_types::U256;
 
 		let spec = ::ethereum::new_homestead_test();
-		let ethparams = ::test_helpers::get_default_ethash_extensions();
+		let ethparams = get_default_ethash_extensions();
 
 		let machine = EthereumMachine::with_ethash_extensions(
 			spec.params().clone(),
