@@ -988,7 +988,7 @@ impl Client {
 		// Notify sync that the transactions were received from given peer
 		let hashes: Vec<_> = txs.iter().map(|tx| tx.hash()).collect();
 		self.notify(|notify| {
-			notify.transactions_received(hashes.clone(), peer_id);
+			notify.transactions_received(&hashes, peer_id);
 		});
 
 		let results = self.importer.miner.import_external_transactions(self, txs);

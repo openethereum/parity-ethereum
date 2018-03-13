@@ -457,9 +457,9 @@ impl ChainSync {
 	}
 
 	/// Updates transactions were received by a peer
-	pub fn transactions_received(&mut self, hashes: Vec<H256>, peer_id: PeerId) {
+	pub fn transactions_received(&mut self, hashes: &[H256], peer_id: PeerId) {
 		if let Some(peer_info) = self.peers.get_mut(&peer_id) {
-			peer_info.last_sent_transactions.extend(&hashes);
+			peer_info.last_sent_transactions.extend(hashes);
 		}
 	}
 

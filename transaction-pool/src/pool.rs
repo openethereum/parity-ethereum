@@ -166,8 +166,8 @@ impl<T, S, L> Pool<T, S, L> where
 				self.listener.rejected(&Arc::new(new), &error);
 				bail!(error)
 			},
-			AddResult::TooCheapToEnter(new) => {
-				let error = error::ErrorKind::TooCheapToEnter(*new.hash());
+			AddResult::TooCheapToEnter(new, score) => {
+				let error = error::ErrorKind::TooCheapToEnter(*new.hash(), format!("{:?}", score));
 				self.listener.rejected(&Arc::new(new), &error);
 				bail!(error)
 			}
@@ -243,14 +243,14 @@ impl<T, S, L> Pool<T, S, L> where
 			// No elements to remove? and the pool is still full?
 			None => {
 				warn!("The pool is full but there are no transactions to remove.");
-				return Err(error::ErrorKind::TooCheapToEnter(*transaction.hash()).into());
+				return Err(error::ErrorKind::TooCheapToEnter(*transaction.hash(), "unknown".into()).into());
 			},
 			Some(old) => if self.scoring.should_replace(&old.transaction, transaction) {
 				// New transaction is better than the worst one so we can replace it.
 				old.clone()
 			} else {
 				// otherwise fail
-				return Err(error::ErrorKind::TooCheapToEnter(*transaction.hash()).into())
+				return Err(error::ErrorKind::TooCheapToEnter(*transaction.hash(), format!("{:?}", old.score)).into())
 			},
 		};
 

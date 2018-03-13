@@ -441,7 +441,7 @@ impl ChainNotify for EthSync {
 		});
 	}
 
-	fn transactions_received(&self, hashes: Vec<H256>, peer_id: PeerId) {
+	fn transactions_received(&self, hashes: &[H256], peer_id: PeerId) {
 		let mut sync = self.eth_handler.sync.write();
 		sync.transactions_received(hashes, peer_id);
 	}
