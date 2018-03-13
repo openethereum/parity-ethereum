@@ -18,10 +18,13 @@
 
 extern crate crypto as rcrypto;
 extern crate ethereum_types;
-extern crate ethkey;
-extern crate secp256k1;
 extern crate subtle;
 extern crate tiny_keccak;
+
+#[cfg(feature = "secp256k1")]
+extern crate secp256k1;
+#[cfg(feature = "secp256k1")]
+extern crate ethkey;
 
 use std::fmt;
 use tiny_keccak::Keccak;
@@ -29,6 +32,8 @@ use rcrypto::pbkdf2::pbkdf2;
 use rcrypto::scrypt::{scrypt, ScryptParams};
 use rcrypto::sha2::Sha256;
 use rcrypto::hmac::Hmac;
+
+#[cfg(feature = "secp256k1")]
 use secp256k1::Error as SecpError;
 
 pub const KEY_LENGTH: usize = 32;
@@ -59,6 +64,7 @@ impl fmt::Display for ScryptError {
 
 #[derive(PartialEq, Debug)]
 pub enum Error {
+	#[cfg(feature = "secp256k1")]
 	Secp(SecpError),
 	Scrypt(ScryptError),
 	InvalidMessage,
@@ -73,6 +79,7 @@ impl From<ScryptError> for Error {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		let s = match *self {
+			#[cfg(feature = "secp256k1")]
 			Error::Secp(ref err) => err.to_string(),
 			Error::Scrypt(ref err) => err.to_string(),
 			Error::InvalidMessage => "Invalid message".into(),
@@ -88,6 +95,7 @@ impl Into<String> for Error {
 	}
 }
 
+#[cfg(feature = "secp256k1")]
 impl From<SecpError> for Error {
 	fn from(e: SecpError) -> Self {
 		Error::Secp(e)
@@ -174,6 +182,7 @@ pub mod aes {
 }
 
 /// ECDH functions
+#[cfg(feature = "secp256k1")]
 pub mod ecdh {
 	use secp256k1::{ecdh, key, Error as SecpError};
 	use ethkey::{Secret, Public, SECP256K1};
@@ -198,6 +207,7 @@ pub mod ecdh {
 }
 
 /// ECIES function
+#[cfg(feature = "secp256k1")]
 pub mod ecies {
 	use rcrypto::digest::Digest;
 	use rcrypto::sha2::Sha256;
