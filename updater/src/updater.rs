@@ -507,7 +507,7 @@ impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
 									let from = current_block_number.saturating_sub(self.update_policy.max_delay);
 									match self.operations_client.release_block_number(from, &latest.track) {
 										Some(block_number) => {
-											let delay = rand::thread_rng().gen_range(0, self.update_policy.max_delay);
+											let delay = rand::thread_rng().gen_range(1, self.update_policy.max_delay + 1);
 											block_number.saturating_add(delay)
 										},
 										None => current_block_number,
@@ -862,10 +862,10 @@ pub mod tests {
 		// the update should be delayed for a maximum of 10 blocks according to the update policy
 		let delay =
 			match updater.state.lock().status {
-				UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number >= 100 && block_number < 110 => {
+				UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number > 100 && block_number <= 110 => {
 					block_number - 100
 				},
-				_ => panic!("updater state is incorrect"),
+				ref status => panic!("updater status is incorrect: {:?}", status),
 			};
 
 		// TODO: seed the rng to have deterministic tests
@@ -875,8 +875,8 @@ pub mod tests {
 
 			// we should still be in the waiting state after we push one block
 			match updater.state.lock().status {
-				UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number >= 100 && block_number < 110 => {},
-				_ => panic!("updater state is incorrect"),
+				UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number > 100 && block_number <= 110 => {},
+				ref status => panic!("updater status is incorrect: {:?}", status),
 			};
 		}
 
@@ -905,6 +905,31 @@ pub mod tests {
 		// the update should not be delayed since it's older than the maximum delay
 		// the update was at block 0 (100 blocks ago), and the maximum delay is 10 blocks
 		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release.clone() });
+	}
+
+	#[test]
+	fn should_check_for_updates_with_configured_frequency() {
+		let (mut update_policy, _) = update_policy();
+		update_policy.frequency = 2;
+
+		let (client, updater, _, operations_client) = setup(update_policy);
+		let (_, latest_release, latest) = new_upgrade();
+		operations_client.set_result(Some(latest.clone()), Some(0));
+
+		client.add_blocks(1, EachBlockWith::Nothing);
+		updater.poll();
+
+		// the updater should stay idle since we only check for updates every other block (odd blocks in this case)
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Idle);
+
+		client.add_blocks(1, EachBlockWith::Nothing);
+		updater.poll();
+
+		// after adding a block we check for a new update and trigger the random delay
+		match updater.state.lock().status {
+			UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number > 0 && block_number <= 10 => {},
+			ref status => panic!("updater status is incorrect: {:?}", status),
+		};
 
 	}
 }
