@@ -181,6 +181,7 @@ lazy_static! {
 }
 
 /// Client trait for getting latest release information from operations contract.
+/// Useful for mocking in tests.
 pub trait OperationsClient: Send + Sync + 'static {
 	/// Get the latest release operations info for the given track.
 	fn latest(&self, this: &VersionInfo, track: ReleaseTrack) -> Result<OperationsInfo, String>;
@@ -667,7 +668,7 @@ pub mod tests {
 	use std::sync::Arc;
 	use semver::Version;
 	use tempdir::TempDir;
-	use ethcore::client::{TestBlockChainClient, EachBlockWith, BlockId, BlockChainClient};
+	use ethcore::client::{TestBlockChainClient, EachBlockWith};
 	use self::fetch::Error;
 	use super::*;
 
@@ -689,11 +690,11 @@ pub mod tests {
 	}
 
 	impl OperationsClient for FakeOperationsClient {
-		fn latest(&self, this: &VersionInfo, track: ReleaseTrack) -> Result<OperationsInfo, String> {
+		fn latest(&self, _this: &VersionInfo, _track: ReleaseTrack) -> Result<OperationsInfo, String> {
 			self.result.lock().0.clone().ok_or("unavailable".into())
 		}
 
-		fn release_block_number(&self, from: BlockNumber, release: &ReleaseInfo) -> Option<BlockNumber> {
+		fn release_block_number(&self, _from: BlockNumber, _release: &ReleaseInfo) -> Option<BlockNumber> {
 			self.result.lock().1.clone()
 		}
 	}
@@ -714,7 +715,7 @@ pub mod tests {
 	}
 
 	impl HashFetch for FakeFetch {
-		fn fetch(&self, hash: H256, on_done: Box<Fn(Result<PathBuf, Error>) + Send>) {
+		fn fetch(&self, _hash: H256, on_done: Box<Fn(Result<PathBuf, Error>) + Send>) {
 			on_done(self.result.lock().clone().ok_or(Error::NoResolution))
 		}
 	}
@@ -775,12 +776,7 @@ pub mod tests {
 		assert_eq!(updater.state.lock().status, UpdaterStatus::Idle);
 	}
 
-	#[test]
-	fn should_update_on_new_release() {
-		let (update_policy, tempdir) = update_policy();
-		let (client, updater, fetcher, operations_client) = setup(update_policy);
-
-		// mock operations contract with a new version
+	fn new_upgrade() -> (VersionInfo, ReleaseInfo, OperationsInfo) {
 		let latest_version = VersionInfo {
 			track: ReleaseTrack::Beta,
 			version: Version::parse("1.0.1").unwrap(),
@@ -801,6 +797,16 @@ pub mod tests {
 			minor: None,
 		};
 
+		(latest_version, latest_release, latest)
+	}
+
+	#[test]
+	fn should_update_on_new_release() {
+		let (update_policy, tempdir) = update_policy();
+		let (_, updater, fetcher, operations_client) = setup(update_policy);
+		let (latest_version, latest_release, latest) = new_upgrade();
+
+		// mock operations contract with a new version
 		operations_client.set_result(Some(latest.clone()), None);
 
 		// mock fetcher with update binary
@@ -836,6 +842,69 @@ pub mod tests {
 		File::open(latest_file).unwrap().read_to_string(&mut latest_file_content).unwrap();
 
 		assert_eq!(latest_file_content, updated_binary.file_name().and_then(|n| n.to_str()).unwrap());
+	}
+
+	#[test]
+	fn should_randomly_delay_new_updates() {
+		let (update_policy, tempdir) = update_policy();
+		let (client, updater, fetcher, operations_client) = setup(update_policy);
+		client.add_blocks(100, EachBlockWith::Nothing);
+
+		let (_, latest_release, latest) = new_upgrade();
+		operations_client.set_result(Some(latest.clone()), Some(100));
+
+		let update_file = tempdir.path().join("parity");
+		fetcher.set_result(Some(update_file.clone()));
+		File::create(update_file).unwrap();
+
+		updater.poll();
+
+		// the update should be delayed for a maximum of 10 blocks according to the update policy
+		let delay =
+			match updater.state.lock().status {
+				UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number >= 100 && block_number < 110 => {
+					block_number - 100
+				},
+				_ => panic!("updater state is incorrect"),
+			};
+
+		// TODO: seed the rng to have deterministic tests
+		if delay > 1 {
+			client.add_blocks(1, EachBlockWith::Nothing);
+			updater.poll();
+
+			// we should still be in the waiting state after we push one block
+			match updater.state.lock().status {
+				UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number >= 100 && block_number < 110 => {},
+				_ => panic!("updater state is incorrect"),
+			};
+		}
+
+		client.add_blocks(delay as usize, EachBlockWith::Nothing);
+
+		// after we're past the delay the status should switch
+		updater.poll();
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release.clone() });
+	}
+
+	#[test]
+	fn should_not_delay_old_updates() {
+		let (update_policy, tempdir) = update_policy();
+		let (client, updater, fetcher, operations_client) = setup(update_policy);
+		client.add_blocks(100, EachBlockWith::Nothing);
+
+		let (_, latest_release, latest) = new_upgrade();
+		operations_client.set_result(Some(latest.clone()), Some(0));
+
+		let update_file = tempdir.path().join("parity");
+		fetcher.set_result(Some(update_file.clone()));
+		File::create(update_file).unwrap();
+
+		updater.poll();
+
+		// the update should not be delayed since it's older than the maximum delay
+		// the update was at block 0 (100 blocks ago), and the maximum delay is 10 blocks
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release.clone() });
 
 	}
 }
