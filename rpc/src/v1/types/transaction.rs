@@ -290,7 +290,7 @@ mod tests {
 		let status3 = LocalTransactionStatus::Mined(Transaction::default());
 		let status4 = LocalTransactionStatus::Dropped(Transaction::default());
 		let status5 = LocalTransactionStatus::Invalid(Transaction::default());
-		let status6 = LocalTransactionStatus::Rejected(Transaction::default());
+		let status6 = LocalTransactionStatus::Rejected(Transaction::default(), "Just because".into());
 		let status7 = LocalTransactionStatus::Replaced(Transaction::default(), 5.into(), 10.into());
 
 		assert_eq!(
@@ -315,7 +315,9 @@ mod tests {
 		);
 		assert_eq!(
 			serde_json::to_string(&status6).unwrap(),
-			r#"{"status":"rejected","transaction":"#.to_owned() + &format!("{}", tx_ser) + r#"}"#
+			r#"{"status":"rejected","transaction":"#.to_owned() +
+			&format!("{}", tx_ser) +
+			r#","error":"Just because"}"#
 		);
 		assert_eq!(
 			serde_json::to_string(&status7).unwrap(),

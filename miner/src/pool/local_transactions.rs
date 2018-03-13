@@ -235,7 +235,7 @@ mod tests {
 
 		list.added(&tx1, None);
 		list.invalid(&tx1);
-		list.dropped(&tx2);
+		list.dropped(&tx2, None);
 		assert!(!list.contains(tx1.hash()));
 		assert!(list.contains(tx2.hash()));
 		assert!(!list.contains(tx3.hash()));

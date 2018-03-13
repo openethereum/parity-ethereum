@@ -125,7 +125,7 @@ fn should_reject_if_above_count() {
 	let tx2 = b.tx().nonce(1).new();
 	let hash = *tx2.hash();
 	txq.import(tx1).unwrap();
-	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
+	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0".into()));
 	assert_eq!(txq.light_status().transaction_count, 1);
 
 	txq.clear();
@@ -151,7 +151,7 @@ fn should_reject_if_above_mem_usage() {
 	let tx2 = b.tx().nonce(2).mem_usage(2).new();
 	let hash = *tx2.hash();
 	txq.import(tx1).unwrap();
-	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
+	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0".into()));
 	assert_eq!(txq.light_status().transaction_count, 1);
 
 	txq.clear();
@@ -177,7 +177,7 @@ fn should_reject_if_above_sender_count() {
 	let tx2 = b.tx().nonce(2).new();
 	let hash = *tx2.hash();
 	txq.import(tx1).unwrap();
-	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
+	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0".into()));
 	assert_eq!(txq.light_status().transaction_count, 1);
 
 	txq.clear();
@@ -188,7 +188,7 @@ fn should_reject_if_above_sender_count() {
 	let hash = *tx2.hash();
 	txq.import(tx1).unwrap();
 	// This results in error because we also compare nonces
-	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
+	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0".into()));
 	assert_eq!(txq.light_status().transaction_count, 1);
 }
 
@@ -463,11 +463,11 @@ mod listener {
 			self.0.borrow_mut().push(if old.is_some() { "replaced" } else { "added" });
 		}
 
-		fn rejected(&mut self, _tx: &SharedTransaction) {
+		fn rejected(&mut self, _tx: &SharedTransaction, _reason: &error::ErrorKind) {
 			self.0.borrow_mut().push("rejected".into());
 		}
 
-		fn dropped(&mut self, _tx: &SharedTransaction) {
+		fn dropped(&mut self, _tx: &SharedTransaction, _new: Option<&Transaction>) {
 			self.0.borrow_mut().push("dropped".into());
 		}
 
