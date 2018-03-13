@@ -77,6 +77,12 @@ impl From<runtime::Error> for vm::Error {
 	}
 }
 
+enum ExecutionOutcome {
+	Suicide,
+	Return,
+	NotSpecial,
+}
+
 impl vm::Vm for WasmInterpreter {
 
 	fn exec(&mut self, params: ActionParams, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
@@ -130,21 +136,23 @@ impl vm::Vm for WasmInterpreter {
 
 			let invoke_result = module_instance.invoke_export("call", &[], &mut runtime);
 
-			let mut suicide = false;
+			let mut execution_outcome = ExecutionOutcome::NotSpecial;
 			if let Err(InterpreterError::Trap(ref trap)) = invoke_result {
 				if let wasmi::TrapKind::Host(ref boxed) = *trap.kind() {
 					let ref runtime_err = boxed.downcast_ref::<runtime::Error>()
 						.expect("Host errors other than runtime::Error never produced; qed");
 
-					if let runtime::Error::Suicide = **runtime_err { suicide = true; }
+					match **runtime_err {
+						runtime::Error::Suicide => { execution_outcome = ExecutionOutcome::Suicide; },
+						runtime::Error::Return => { execution_outcome = ExecutionOutcome::Return; },
+						_ => {}
+					}
 				}
 			}
 
-			if !suicide {
-				if let Err(e) = invoke_result {
-					trace!(target: "wasm", "Error executing contract: {:?}", e);
-					return Err(vm::Error::from(Error::from(e)));
-				}
+			if let (ExecutionOutcome::NotSpecial, Err(e)) = (execution_outcome, invoke_result) {
+				trace!(target: "wasm", "Error executing contract: {:?}", e);
+				return Err(vm::Error::from(Error::from(e)));
 			}
 
 			(
