@@ -153,7 +153,7 @@ impl Default for MinerOptions {
 			pool_limits: pool::Options {
 				max_count: 8_192,
 				max_per_sender: 81,
-				max_mem_usage: 8 * 1024 * 1024,
+				max_mem_usage: 4 * 1024 * 1024,
 			},
 			pool_verification_options: pool::verifier::Options {
 				minimal_gas_price: DEFAULT_MINIMAL_GAS_PRICE.into(),

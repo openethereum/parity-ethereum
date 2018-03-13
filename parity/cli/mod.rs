@@ -651,7 +651,7 @@ usage! {
 			"--gas-cap=[GAS]",
 			"A cap on how large we will raise the gas limit per block due to transaction volume.",
 
-			ARG arg_tx_queue_mem_limit: (u32) = 8u32, or |c: &Config| c.mining.as_ref()?.tx_queue_mem_limit.clone(),
+			ARG arg_tx_queue_mem_limit: (u32) = 4u32, or |c: &Config| c.mining.as_ref()?.tx_queue_mem_limit.clone(),
 			"--tx-queue-mem-limit=[MB]",
 			"Maximum amount of memory that can be used by the transaction queue. Setting this parameter to 0 disables limiting.",
 
@@ -1561,7 +1561,7 @@ mod tests {
 			arg_extra_data: Some("Parity".into()),
 			arg_tx_queue_size: 8192usize,
 			arg_tx_queue_per_sender: None,
-			arg_tx_queue_mem_limit: 8u32,
+			arg_tx_queue_mem_limit: 4u32,
 			arg_tx_queue_gas: "off".into(),
 			arg_tx_queue_strategy: "gas_factor".into(),
 			arg_tx_queue_ban_count: 1u16,
