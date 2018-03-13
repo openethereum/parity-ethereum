@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::{Instant, Duration};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashSet, HashMap};
 use std::sync::Arc;
 
 use ansi_term::Colour;
@@ -46,7 +46,7 @@ use client::BlockId;
 use executive::contract_address;
 use header::{Header, BlockNumber};
 use miner;
-use miner::blockchain_client::{BlockChainClient, NonceClient};
+use miner::blockchain_client::{BlockChainClient, CachedNonceClient};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use state::State;
@@ -200,6 +200,7 @@ pub struct Miner {
 	params: RwLock<AuthoringParams>,
 	listeners: RwLock<Vec<Box<NotifyWork>>>,
 	gas_pricer: Mutex<GasPricer>,
+	nonce_cache: RwLock<HashMap<Address, U256>>,
 	options: MinerOptions,
 	// TODO [ToDr] Arc is only required because of price updater
 	transaction_queue: Arc<TransactionQueue>,
@@ -242,6 +243,7 @@ impl Miner {
 			params: RwLock::new(AuthoringParams::default()),
 			listeners: RwLock::new(vec![]),
 			gas_pricer: Mutex::new(gas_pricer),
+			nonce_cache: RwLock::new(HashMap::with_capacity(1024)),
 			options,
 			transaction_queue: Arc::new(TransactionQueue::new(limits, verifier_options, tx_queue_strategy)),
 			accounts,
@@ -305,6 +307,7 @@ impl Miner {
 	{
 		BlockChainClient::new(
 			chain,
+			&self.nonce_cache,
 			&*self.engine,
 			self.accounts.as_ref().map(|x| &**x),
 			self.options.refuse_service_transactions,
@@ -789,7 +792,7 @@ impl miner::MinerService for Miner {
 
 		let from_queue = || {
 			self.transaction_queue.pending(
-				NonceClient::new(chain),
+				CachedNonceClient::new(chain, &self.nonce_cache),
 				chain_info.best_block_number,
 				chain_info.best_block_timestamp,
 				// We propagate transactions over the nonce cap.
@@ -825,7 +828,7 @@ impl miner::MinerService for Miner {
 	fn next_nonce<C>(&self, chain: &C, address: &Address) -> U256 where
 		C: Nonce + Sync,
 	{
-		self.transaction_queue.next_nonce(NonceClient::new(chain), address)
+		self.transaction_queue.next_nonce(CachedNonceClient::new(chain, &self.nonce_cache), address)
 			.unwrap_or_else(|| chain.latest_nonce(address))
 	}
 
@@ -982,6 +985,9 @@ impl miner::MinerService for Miner {
 		// 1. We ignore blocks that were `imported` unless resealing on new uncles is enabled.
 		// 2. We ignore blocks that are `invalid` because it doesn't have any meaning in terms of the transactions that
 		//    are in those blocks
+
+		// Clear nonce cache
+		self.nonce_cache.write().clear();
 
 		// First update gas limit in transaction queue and minimal gas price.
 		let gas_limit = chain.best_block_header().gas_limit();
