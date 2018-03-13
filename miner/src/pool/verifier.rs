@@ -222,10 +222,11 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 			Transaction::Local(tx) => tx,
 		};
 
-		let transaction_type = self.client.transaction_type(&transaction);
 		let sender = transaction.sender();
 		let account_details = self.client.account_details(&sender);
+
 		if transaction.gas_price < self.options.minimal_gas_price {
+			let transaction_type = self.client.transaction_type(&transaction);
 			if let TransactionType::Service = transaction_type {
 				debug!(target: "txqueue", "Service tx {:?} below minimal gas price accepted", hash);
 			} else if is_own || account_details.is_local {

@@ -382,6 +382,8 @@ impl Miner {
 			nonce_cap,
 		);
 
+		debug!(target: "miner", "Attempting to push {} transactions.", pending.len());
+
 		for tx in pending {
 			let start = Instant::now();
 
