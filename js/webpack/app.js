@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const rimraf = require('rimraf');
 const flatten = require('lodash.flatten');
+const webpack = require('webpack');
 // const ReactIntlAggregatePlugin = require('react-intl-aggregate-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
@@ -47,9 +48,10 @@ const EMBED = process.env.EMBED;
 const isProd = ENV === 'production';
 const isEmbed = EMBED === '1' || EMBED === 'true';
 
-const entry = isEmbed
-  ? { embed: ['babel-polyfill', './embed.js'] }
-  : { bundle: ['babel-polyfill', './index.parity.js'] };
+const entry = {
+  embed: ['babel-polyfill', './embed.js'],
+  bundle: ['babel-polyfill', './index.parity.js']
+};
 
 module.exports = {
   cache: !isProd,
@@ -164,23 +166,30 @@ module.exports = {
   },
 
   plugins: (function () {
-    let plugins = Shared.getPlugins().concat(
-      new WebpackErrorNotificationPlugin(),
-      new ExtractTextPlugin({
-        filename: `${isEmbed ? 'embed' : 'bundle'}.css`
-      }),
-    );
-
-    if (!isEmbed) {
-      plugins = [].concat(
-        plugins,
+    let plugins = []
+      .concat(Shared.getPlugins())
+      .concat(
+        new WebpackErrorNotificationPlugin(),
+        new ExtractTextPlugin({
+          filename: '[name].css',
+          allChunks: true
+        })
+      )
+      .concat(
+        new HtmlWebpackPlugin({
+          title: 'Parity Bar',
+          filename: 'embed.html',
+          template: './index.parity.ejs',
+          favicon: FAVICON,
+          chunks: ['commons', 'embed']
+        }),
 
         new HtmlWebpackPlugin({
           title: 'Parity',
           filename: 'index.html',
           template: './index.parity.ejs',
           favicon: FAVICON,
-          chunks: ['bundle']
+          chunks: ['commons', 'bundle']
         }),
 
         new CopyWebpackPlugin(
@@ -246,16 +255,11 @@ module.exports = {
           {}
         )
       );
-    }
 
-    if (isEmbed) {
-      plugins.push(
-        new HtmlWebpackPlugin({
-          title: 'Parity Bar',
-          filename: 'embed.html',
-          template: './index.parity.ejs',
-          favicon: FAVICON,
-          chunks: ['embed']
+    if (isProd) {
+      plugins.unshift(
+        new webpack.optimize.CommonsChunkPlugin({
+          name: 'commons'
         })
       );
     }

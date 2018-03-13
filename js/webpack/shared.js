@@ -19,7 +19,6 @@ const webpack = require('webpack');
 const HappyPack = require('happypack');
 const PackageJson = require('../package.json');
 
-const EMBED = process.env.EMBED;
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
 const UI_VERSION = PackageJson
@@ -38,7 +37,6 @@ function getPlugins (_isProd = isProd) {
   const plugins = [
     new webpack.DefinePlugin({
       'process.env': {
-        EMBED: JSON.stringify(EMBED),
         NODE_ENV: JSON.stringify(ENV),
         RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
         PARITY_URL: JSON.stringify(process.env.PARITY_URL),
