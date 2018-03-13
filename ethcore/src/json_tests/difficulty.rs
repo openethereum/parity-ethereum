@@ -62,7 +62,8 @@ mod difficulty_test_foundation {
 	use tempdir::TempDir;
 
 	fn do_json_test(json_data: &[u8]) -> Vec<String> {
-		json_difficulty_test(json_data, ::ethereum::new_foundation(&TempDir::new("").unwrap().path()))
+		let tempdir = TempDir::new("").unwrap();
+		json_difficulty_test(json_data, ::ethereum::new_foundation(&tempdir.path()))
 	}
 
 	declare_test!{DifficultyTests_difficultyMainNetwork, "BasicTests/difficultyMainNetwork.json"}

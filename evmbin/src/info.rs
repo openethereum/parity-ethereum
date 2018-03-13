@@ -192,7 +192,8 @@ pub mod tests {
 		params.code = Some(Arc::new(code.from_hex().unwrap()));
 		params.gas = gas.into();
 
-		let spec = ::ethcore::ethereum::new_foundation(&TempDir::new("").unwrap().path());
+		let tempdir = TempDir::new("").unwrap();
+		let spec = ::ethcore::ethereum::new_foundation(&tempdir.path());
 		let result = run_action(&spec, params, informant);
 		match result {
 			Ok(Success { traces, .. }) => {

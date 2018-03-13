@@ -140,7 +140,8 @@ impl EthashManager {
 fn test_lru() {
 	use tempdir::TempDir;
 
-	let ethash = EthashManager::new(TempDir::new("").unwrap().path(), None);
+	let tempdir = TempDir::new("").unwrap();
+	let ethash = EthashManager::new(tempdir.path(), None);
 	let hash = [0u8; 32];
 	ethash.compute_light(1, &hash, 1);
 	ethash.compute_light(50000, &hash, 1);

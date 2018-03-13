@@ -387,8 +387,10 @@ mod test {
 			0xe9, 0x7e, 0x53, 0x84,
 		];
 		let nonce = 0xd7b3ac70a301a249;
+
+		let tempdir = TempDir::new("").unwrap();
 		// difficulty = 0x085657254bd9u64;
-		let light = NodeCacheBuilder::new(None).light(TempDir::new("").unwrap().path(), 486382);
+		let light = NodeCacheBuilder::new(None).light(tempdir.path(), 486382);
 		let result = light_compute(&light, &hash, nonce);
 		assert_eq!(result.mix_hash[..], mix_hash[..]);
 		assert_eq!(result.value[..], boundary[..]);

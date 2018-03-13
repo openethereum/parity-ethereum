@@ -837,7 +837,8 @@ mod tests {
 	// https://github.com/paritytech/parity/issues/1840
 	#[test]
 	fn test_load_empty() {
-		assert!(Spec::load(&TempDir::new("").unwrap().path(), &[] as &[u8]).is_err());
+		let tempdir = TempDir::new("").unwrap();
+		assert!(Spec::load(&tempdir.path(), &[] as &[u8]).is_err());
 	}
 
 	#[test]
