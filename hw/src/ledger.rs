@@ -34,7 +34,9 @@ use parking_lot::{Mutex, RwLock};
 
 use super::{WalletInfo, KeyPath, Device, Wallet, USB_DEVICE_CLASS_DEVICE};
 
+/// Ledger vendor ID
 const LEDGER_VID: u16 = 0x2c97;
+/// Ledger product IDs: [Nano S and Blue]
 const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001];
 
 const ETH_DERIVATION_PATH_BE: [u8; 17] = [4, 0x80, 0, 0, 44, 0x80, 0, 0, 60, 0x80, 0, 0, 0, 0, 0, 0, 0]; // 44'/60'/0'/0

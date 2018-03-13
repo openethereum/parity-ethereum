@@ -39,7 +39,9 @@ use protobuf::{Message, ProtobufEnum};
 
 use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 
+/// Trezor v1 vendor ID
 const TREZOR_VID: u16 = 0x534c;
+/// Trezor product IDs
 const TREZOR_PIDS: [u16; 1] = [0x0001];
 
 const ETH_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003C, 0x80000000, 0, 0]; // m/44'/60'/0'/0/0
