@@ -328,7 +328,7 @@ impl OperationsClient for OperationsContractClient {
 	}
 }
 
-impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
+impl Updater {
 	pub fn new(
 		client: Weak<BlockChainClient>,
 		sync: Weak<SyncProvider>,
@@ -352,7 +352,9 @@ impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
 		r.poll();
 		r
 	}
+}
 
+impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
 	/// Set a closure to call when we want to restart the client
 	pub fn set_exit_handler<G>(&self, g: G) where G: Fn() + 'static + Send {
 		*self.exit_handler.lock() = Some(Box::new(g));
