@@ -677,8 +677,14 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn block_number(&self, _id: BlockId) -> Option<BlockNumber> {
-		unimplemented!()
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		match id {
+			BlockId::Number(number) => Some(number),
+			BlockId::Earliest => Some(0),
+			BlockId::Latest => Some(self.chain_info().best_block_number),
+			BlockId::Hash(ref h) =>
+				self.numbers.read().iter().find(|&(_, hash)| hash == h).map(|e| *e.0 as u64)
+		}
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {

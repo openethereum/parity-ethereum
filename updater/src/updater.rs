@@ -85,7 +85,7 @@ impl Default for UpdatePolicy {
 }
 
 /// The current updater status
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 enum UpdaterStatus {
 	/// Updater is currently disabled.
 	Disabled,
@@ -654,5 +654,90 @@ impl<O: OperationsClient, F: HashFetch> Service for Updater<O, F> {
 
 	fn info(&self) -> Option<OperationsInfo> {
 		self.state.lock().latest.clone()
+	}
+}
+
+#[cfg(test)]
+pub mod tests {
+	use std::sync::Arc;
+	use ethcore::client::{TestBlockChainClient, EachBlockWith, BlockId, BlockChainClient};
+	use self::fetch::Error;
+	use super::*;
+
+	struct FakeOperationsClient {
+		result: Mutex<(Option<OperationsInfo>, Option<BlockNumber>)>,
+	}
+
+	impl FakeOperationsClient {
+		fn new() -> FakeOperationsClient {
+			FakeOperationsClient { result: Mutex::new((None, None)) }
+		}
+
+		fn set_result(&self, operations_info: Option<OperationsInfo>, release_block_number: Option<BlockNumber>) {
+			let mut result = self.result.lock();
+			result.0 = operations_info;
+			result.1 = release_block_number;
+		}
+	}
+
+	impl OperationsClient for FakeOperationsClient {
+		fn latest(&self, this: &VersionInfo, track: ReleaseTrack) -> Result<OperationsInfo, String> {
+			self.result.lock().0.clone().ok_or("unavailable".into())
+		}
+
+		fn release_block_number(&self, from: BlockNumber, release: &ReleaseInfo) -> Option<BlockNumber> {
+			self.result.lock().1.clone()
+		}
+	}
+
+	struct FakeFetch {
+		result: Mutex<Option<PathBuf>>,
+	}
+
+	impl FakeFetch {
+		fn new() -> FakeFetch {
+			FakeFetch { result: Mutex::new(None) }
+		}
+
+		fn set_result(&self, result: Option<PathBuf>) {
+			*self.result.lock() = result;
+		}
+	}
+
+	impl HashFetch for FakeFetch {
+		fn fetch(&self, hash: H256, on_done: Box<Fn(Result<PathBuf, Error>) + Send>) {
+			on_done(self.result.lock().clone().ok_or(Error::NoResolution))
+		}
+	}
+
+	fn test_updater(client: Weak<TestBlockChainClient>, update_policy: UpdatePolicy) -> Arc<Updater<FakeOperationsClient, FakeFetch>> {
+		let r = Arc::new(Updater {
+			update_policy: update_policy,
+			weak_self: Mutex::new(Default::default()),
+			client: client.clone(),
+			sync: None,
+			fetcher: FakeFetch::new(),
+			operations_client: FakeOperationsClient::new(),
+			exit_handler: Mutex::new(None),
+			this: VersionInfo::this(),
+			state: Mutex::new(Default::default()),
+		});
+
+		*r.weak_self.lock() = Arc::downgrade(&r);
+		r
+	}
+
+	fn get_status<O, F>(updater: &Updater<O, F>) -> UpdaterStatus {
+		updater.state.lock().status.clone()
+	}
+
+	#[test]
+	fn stays_idle() {
+		let client = Arc::new(TestBlockChainClient::new());
+		let updater = test_updater(Arc::downgrade(&client), UpdatePolicy::default());
+
+		assert_eq!(get_status(&updater), UpdaterStatus::Idle);
+		updater.updater_step();
+		assert_eq!(get_status(&updater), UpdaterStatus::Idle);
 	}
 }
