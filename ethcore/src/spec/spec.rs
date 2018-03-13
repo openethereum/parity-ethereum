@@ -832,11 +832,12 @@ mod tests {
 	use state::State;
 	use tests::helpers::get_temp_state_db;
 	use views::BlockView;
+	use tempdir::TempDir;
 
 	// https://github.com/paritytech/parity/issues/1840
 	#[test]
 	fn test_load_empty() {
-		assert!(Spec::load(&::std::env::temp_dir(), &[] as &[u8]).is_err());
+		assert!(Spec::load(&TempDir::new("").unwrap().path(), &[] as &[u8]).is_err());
 	}
 
 	#[test]
