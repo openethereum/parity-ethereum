@@ -1,21 +1,17 @@
 use {syn, quote};
 
 pub fn impl_encodable(ast: &syn::DeriveInput) -> quote::Tokens {
-	let body = match ast.body {
-		syn::Body::Struct(ref s) => s,
+	let body = match ast.data {
+		syn::Data::Struct(ref s) => s,
 		_ => panic!("#[derive(RlpEncodable)] is only defined for structs."),
 	};
 
-	let stmts: Vec<_> = match *body {
-		syn::VariantData::Struct(ref fields) | syn::VariantData::Tuple(ref fields) =>
-			fields.iter().enumerate().map(encodable_field_map).collect(),
-		syn::VariantData::Unit => panic!("#[derive(RlpEncodable)] is not defined for Unit structs."),
-	};
-
+	let stmts: Vec<_> = body.fields.iter().enumerate().map(encodable_field_map).collect();
 	let name = &ast.ident;
 
-	let stmts_len = syn::Ident::new(stmts.len().to_string());
-	let dummy_const = syn::Ident::new(format!("_IMPL_RLP_ENCODABLE_FOR_{}", name));
+	let stmts_len = stmts.len();
+	let stmts_len = quote! { #stmts_len };
+	let dummy_const: syn::Ident = format!("_IMPL_RLP_ENCODABLE_FOR_{}", name).into();
 	let impl_block = quote! {
 		impl rlp::Encodable for #name {
 			fn rlp_append(&self, stream: &mut rlp::RlpStream) {
@@ -35,26 +31,24 @@ pub fn impl_encodable(ast: &syn::DeriveInput) -> quote::Tokens {
 }
 
 pub fn impl_encodable_wrapper(ast: &syn::DeriveInput) -> quote::Tokens {
-	let body = match ast.body {
-		syn::Body::Struct(ref s) => s,
+	let body = match ast.data {
+		syn::Data::Struct(ref s) => s,
 		_ => panic!("#[derive(RlpEncodableWrapper)] is only defined for structs."),
 	};
 
-	let stmt = match *body {
-		syn::VariantData::Struct(ref fields) | syn::VariantData::Tuple(ref fields) => {
-			if fields.len() == 1 {
-				let field = fields.first().expect("fields.len() == 1; qed");
-				encodable_field(0, field)
-			} else {
-				panic!("#[derive(RlpEncodableWrapper)] is only defined for structs with one field.")
-			}
-		},
-		syn::VariantData::Unit => panic!("#[derive(RlpEncodableWrapper)] is not defined for Unit structs."),
+	let stmt = {
+		let fields: Vec<_> = body.fields.iter().collect();
+		if fields.len() == 1 {
+			let field = fields.first().expect("fields.len() == 1; qed");
+			encodable_field(0, field)
+		} else {
+			panic!("#[derive(RlpEncodableWrapper)] is only defined for structs with one field.")
+		}
 	};
 
 	let name = &ast.ident;
 
-	let dummy_const = syn::Ident::new(format!("_IMPL_RLP_ENCODABLE_FOR_{}", name));
+	let dummy_const: syn::Ident = format!("_IMPL_RLP_ENCODABLE_FOR_{}", name).into();
 	let impl_block = quote! {
 		impl rlp::Encodable for #name {
 			fn rlp_append(&self, stream: &mut rlp::RlpStream) {
@@ -78,22 +72,25 @@ fn encodable_field_map(tuple: (usize, &syn::Field)) -> quote::Tokens {
 
 fn encodable_field(index: usize, field: &syn::Field) -> quote::Tokens {
 	let ident = match field.ident {
-		Some(ref ident) => ident.to_string(),
-		None => index.to_string(),
+		Some(ref ident) => quote! { #ident },
+		None => {
+			let index: syn::Index = index.into();
+			quote! { #index }
+		}
 	};
 
-	let id = syn::Ident::new(format!("self.{}", ident));
+	let id = quote! { self.#ident };
 
 	match field.ty {
-		syn::Ty::Path(_, ref path) => {
-			let top_segment = path.segments.first().expect("there must be at least 1 segment");
-			let ident = &top_segment.ident;
+		syn::Type::Path(ref path) => {
+			let top_segment = path.path.segments.first().expect("there must be at least 1 segment");
+			let ident = &top_segment.value().ident;
 			if &ident.to_string() == "Vec" {
-				let inner_ident = match top_segment.parameters {
-					syn::PathParameters::AngleBracketed(ref angle) => {
-						let ty = angle.types.first().expect("Vec has only one angle bracketed type; qed");
-						match *ty {
-							syn::Ty::Path(_, ref path) => &path.segments.first().expect("there must be at least 1 segment").ident,
+				let inner_ident = match top_segment.value().arguments {
+					syn::PathArguments::AngleBracketed(ref angle) => {
+						let ty = angle.args.first().expect("Vec has only one angle bracketed type; qed");
+						match **ty.value() {
+							syn::GenericArgument::Type(syn::Type::Path(ref path)) => &path.path.segments.first().expect("there must be at least 1 segment").value().ident,
 							_ => panic!("rlp_derive not supported"),
 						}
 					},

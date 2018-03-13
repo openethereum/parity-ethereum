@@ -51,7 +51,7 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 
 					let result = || -> Result<_, EvmTestError> {
 						Ok(EvmTestClient::from_pod_state(spec, pre.clone())?
-							.transact(&env, transaction, trace::NoopVMTracer))
+							.transact(&env, transaction, trace::NoopTracer, trace::NoopVMTracer))
 					};
 					match result() {
 						Err(err) => {
