@@ -67,7 +67,6 @@ extern crate mio;
 extern crate tiny_keccak;
 extern crate crypto as rcrypto;
 extern crate rand;
-extern crate time;
 extern crate ansi_term; //TODO: remove this
 extern crate rustc_hex;
 extern crate igd;

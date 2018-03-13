@@ -16,11 +16,10 @@
 
 //! Performance timer with logging
 
-extern crate time;
 #[macro_use]
 extern crate log;
 
-use time::precise_time_ns;
+use std::time::Instant;
 
 #[macro_export]
 macro_rules! trace_time {
@@ -33,7 +32,7 @@ macro_rules! trace_time {
 /// elapsed time in the destructor or when `stop` is called.
 pub struct PerfTimer {
 	name: &'static str,
-	start: u64,
+	start: Instant,
 }
 
 impl PerfTimer {
@@ -41,13 +40,16 @@ impl PerfTimer {
 	pub fn new(name: &'static str) -> PerfTimer {
 		PerfTimer {
 			name,
-			start: precise_time_ns(),
+			start: Instant::now(),
 		}
 	}
 }
 
 impl Drop for PerfTimer {
 	fn drop(&mut self) {
-		trace!(target: "perf", "{}: {:.2}ms", self.name, (precise_time_ns()  - self.start) as f32 / 1000_000.0);
+		let elapsed = self.start.elapsed();
+		let ms = elapsed.subsec_nanos() as f32 / 1_000_000.0 +
+				 elapsed.as_secs() as f32 * 1_000.0;
+		trace!(target: "perf", "{}: {:.2}ms", self.name, ms);
 	}
 }

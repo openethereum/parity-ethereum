@@ -19,11 +19,11 @@ use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::mem;
 use std::default::Default;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use mio::*;
 use mio::deprecated::{Handler, EventLoop};
 use mio::udp::*;
 use hash::keccak;
-use time;
 use ethereum_types::{H256, H520};
 use rlp::*;
 use node_table::*;
@@ -59,7 +59,7 @@ pub struct NodeEntry {
 pub struct BucketEntry {
 	pub address: NodeEntry,
 	pub id_hash: H256,
-	pub timeout: Option<u64>,
+	pub timeout: Option<Instant>,
 }
 
 pub struct NodeBucket {
@@ -170,7 +170,7 @@ impl Discovery {
 			if bucket.nodes.len() > BUCKET_SIZE {
 				//ping least active node
 				let last = bucket.nodes.back_mut().expect("Last item is always present when len() > 0");
-				last.timeout = Some(time::precise_time_ns());
+				last.timeout = Some(Instant::now());
 				Some(last.address.endpoint.clone())
 			} else { None }
 		};
@@ -262,7 +262,7 @@ impl Discovery {
 		for i in 0 .. source.item_count() {
 			rlp.append_raw(source.at(i).as_raw(), 1);
 		}
-		let timestamp = time::get_time().sec as u32 + 60;
+		let timestamp = 60 + SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as u32;
 		rlp.append(&timestamp);
 
 		let bytes = rlp.drain();
@@ -394,7 +394,8 @@ impl Discovery {
 
 	/// Validate that given timestamp is in within one second of now or in the future
 	fn check_timestamp(&self, timestamp: u64) -> Result<(), Error> {
-		if self.check_timestamps && timestamp < time::get_time().sec as u64{
+		let secs_since_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+		if self.check_timestamps && timestamp < secs_since_epoch {
 			debug!(target: "discovery", "Expired packet");
 			return Err(ErrorKind::Expired.into());
 		}
@@ -504,12 +505,12 @@ impl Discovery {
 	}
 
 	fn check_expired(&mut self, force: bool) -> HashSet<NodeId> {
-		let now = time::precise_time_ns();
+		let now = Instant::now();
 		let mut removed: HashSet<NodeId> = HashSet::new();
 		for bucket in &mut self.node_buckets {
 			bucket.nodes.retain(|node| {
 				if let Some(timeout) = node.timeout {
-					if !force && now - timeout < PING_TIMEOUT_MS * 1000_0000 {
+					if !force && now.duration_since(timeout) < Duration::from_millis(PING_TIMEOUT_MS) {
 						true
 					}
 					else {

@@ -35,6 +35,7 @@ use rlp::*;
 use ethereum_types::{H256, U256, Address};
 
 use std::sync::Arc;
+use std::time::Instant;
 
 // helper for encoding a single request into a packet.
 // panics on bad backreference.
@@ -661,8 +662,8 @@ fn id_guard() {
 
 	let mut pending_requests = RequestSet::default();
 
-	pending_requests.insert(req_id_1, req.clone(), 0.into(), ::time::SteadyTime::now());
-	pending_requests.insert(req_id_2, req, 1.into(), ::time::SteadyTime::now());
+	pending_requests.insert(req_id_1, req.clone(), 0.into(), Instant::now());
+	pending_requests.insert(req_id_2, req, 1.into(), Instant::now());
 
 	proto.peers.write().insert(peer_id, ::parking_lot::Mutex::new(Peer {
 		local_credits: flow_params.create_credits(),
@@ -670,7 +671,7 @@ fn id_guard() {
 		capabilities: capabilities.clone(),
 		remote_flow: Some((flow_params.create_credits(), (&*flow_params).clone())),
 		sent_head: provider.client.chain_info().best_block_hash,
-		last_update: ::time::SteadyTime::now(),
+		last_update: Instant::now(),
 		pending_requests: pending_requests,
 		failed_requests: Vec::new(),
 		propagated_transactions: Default::default(),
