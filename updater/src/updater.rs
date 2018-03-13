@@ -40,11 +40,6 @@ use version;
 
 use_contract!(operations_contract, "Operations", "res/operations.json");
 
-const RELEASE_ADDED_EVENT_NAME: &'static [u8] = &*b"ReleaseAdded(bytes32,uint32,bytes32,uint8,uint24,bool)";
-lazy_static! {
-	static ref RELEASE_ADDED_EVENT_NAME_HASH: H256 = keccak(RELEASE_ADDED_EVENT_NAME);
-}
-
 /// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum UpdateFilter {
@@ -138,14 +133,14 @@ struct UpdaterState {
 }
 
 /// Service for checking for updates and determining whether we can achieve consensus.
-pub struct Updater {
+pub struct Updater<O = OperationsContractClient> {
 	// Useful environmental stuff.
 	update_policy: UpdatePolicy,
 	weak_self: Mutex<Weak<Updater>>,
 	client: Weak<BlockChainClient>,
 	sync: Weak<SyncProvider>,
 	fetcher: fetch::Client,
-	operations_contract: operations_contract::Operations,
+	operations_client: O,
 	exit_handler: Mutex<Option<Box<Fn() + 'static + Send>>>,
 
 	// Our version info (static)
@@ -179,30 +174,47 @@ lazy_static! {
 	static ref PLATFORM_ID_HASH: H256 = PLATFORM.as_bytes().into();
 }
 
-impl Updater {
-	pub fn new(client: Weak<BlockChainClient>, sync: Weak<SyncProvider>, update_policy: UpdatePolicy, fetcher: fetch::Client) -> Arc<Self> {
-		let r = Arc::new(Updater {
-			update_policy: update_policy,
-			weak_self: Mutex::new(Default::default()),
-			client: client.clone(),
-			sync: sync.clone(),
-			fetcher,
-			operations_contract: operations_contract::Operations::default(),
-			exit_handler: Mutex::new(None),
-			this: VersionInfo::this(),
-			state: Mutex::new(Default::default()),
-		});
-		*r.weak_self.lock() = Arc::downgrade(&r);
-		r.poll();
-		r
+const RELEASE_ADDED_EVENT_NAME: &'static [u8] = &*b"ReleaseAdded(bytes32,uint32,bytes32,uint8,uint24,bool)";
+
+lazy_static! {
+	static ref RELEASE_ADDED_EVENT_NAME_HASH: H256 = keccak(RELEASE_ADDED_EVENT_NAME);
+}
+
+/// Client trait for getting latest release information from operations contract.
+pub trait OperationsClient {
+	/// Get the latest release operations info for the given track.
+	fn latest(&self, this: &VersionInfo, track: ReleaseTrack) -> Result<OperationsInfo, String>;
+
+	/// Fetches the block number when the given release was added, checking the interval [from; latest_block].
+	fn release_block_number(&self, from: BlockNumber, release: &ReleaseInfo) -> Option<BlockNumber>;
+}
+
+/// OperationsClient that delegates calls to the operations contract.
+pub struct OperationsContractClient {
+	operations_contract: operations_contract::Operations,
+	client: Weak<BlockChainClient>,
+}
+
+impl OperationsContractClient {
+	fn new(
+		operations_contract: operations_contract::Operations,
+		client: Weak<BlockChainClient>
+	) -> OperationsContractClient {
+		OperationsContractClient { operations_contract, client }
 	}
 
-	/// Set a closure to call when we want to restart the client
-	pub fn set_exit_handler<F>(&self, f: F) where F: Fn() + 'static + Send {
-		*self.exit_handler.lock() = Some(Box::new(f));
+	/// Get the hash of the latest release for the given track
+	fn latest_hash<F>(&self, track: ReleaseTrack, do_call: &F) -> Result<H256, String>
+	where F: Fn(Vec<u8>) -> Result<Vec<u8>, String> {
+		self.operations_contract.functions()
+			.latest_in_track()
+			.call(*CLIENT_ID_HASH, u8::from(track), do_call)
+			.map_err(|e| format!("{:?}", e))
 	}
 
-	fn collect_release_info<T: Fn(Vec<u8>) -> Result<Vec<u8>, String>>(&self, release_id: H256, do_call: &T) -> Result<ReleaseInfo, String> {
+	/// Get release info for the given release
+	fn release_info<F>(&self, release_id: H256, do_call: &F) -> Result<ReleaseInfo, String>
+	where F: Fn(Vec<u8>) -> Result<Vec<u8>, String> {
 		let (fork, track, semver, is_critical) = self.operations_contract.functions()
 			.release()
 			.call(*CLIENT_ID_HASH, release_id, &do_call)
@@ -222,22 +234,64 @@ impl Updater {
 			binary: if latest_binary.is_zero() { None } else { Some(latest_binary) },
 		})
 	}
+}
 
-	/// Returns release track of the parity node.
-	/// `update_policy.track` is the track specified from the command line, whereas `this.track`
-	/// is the track of the software which is currently run
-	fn track(&self) -> ReleaseTrack {
-		match self.update_policy.track {
-			ReleaseTrack::Unknown => self.this.track,
-			x => x,
+impl OperationsClient for OperationsContractClient {
+	fn latest(&self, this: &VersionInfo, track: ReleaseTrack) -> Result<OperationsInfo, String> {
+		if track == ReleaseTrack::Unknown {
+			return Err(format!("Current executable ({}) is unreleased.", this.hash));
 		}
-	}
 
-	fn latest_in_track<T: Fn(Vec<u8>) -> Result<Vec<u8>, String>>(&self, track: ReleaseTrack, do_call: &T) -> Result<H256, String> {
-		self.operations_contract.functions()
-			.latest_in_track()
-			.call(*CLIENT_ID_HASH, u8::from(track), do_call)
-			.map_err(|e| format!("{:?}", e))
+		let client = self.client.upgrade().ok_or_else(|| "Cannot obtain client")?;
+		let address = client.registry_address("operations".into(), BlockId::Latest).ok_or_else(|| "Cannot get operations contract address")?;
+		let do_call = |data| client.call_contract(BlockId::Latest, address, data).map_err(|e| format!("{:?}", e));
+
+		trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, this.hash);
+
+		// get the fork number of this release
+		let this_fork = self.operations_contract.functions()
+			.release()
+			.call(*CLIENT_ID_HASH, this.hash, &do_call)
+			.ok()
+			.and_then(|(fork, track, _, _)| {
+				let this_track: ReleaseTrack = (track.low_u64() as u8).into();
+				match this_track {
+					ReleaseTrack::Unknown => None,
+					_ => Some(fork.low_u64()),
+				}
+			});
+
+		// get the hash of the latest release in our track
+		let latest_in_track = self.latest_hash(track, &do_call)?;
+
+		// get the release info for the latest version in track
+		let in_track = self.release_info(latest_in_track, &do_call)?;
+		let mut in_minor = Some(in_track.clone());
+		const PROOF: &'static str = "in_minor initialised and assigned with Some; loop breaks if None assigned; qed";
+
+		// if the minor version has changed, let's check the minor version on a different track
+		while in_minor.as_ref().expect(PROOF).version.version.minor != this.version.minor {
+			let track = match in_minor.as_ref().expect(PROOF).version.track {
+				ReleaseTrack::Beta => ReleaseTrack::Stable,
+				ReleaseTrack::Nightly => ReleaseTrack::Beta,
+				_ => { in_minor = None; break; }
+			};
+
+			let latest_in_track = self.latest_hash(track, &do_call)?;
+			in_minor = Some(self.release_info(latest_in_track, &do_call)?);
+		}
+
+		let fork = self.operations_contract.functions()
+			.latest_fork()
+			.call(&do_call)
+			.map_err(|e| format!("{:?}", e))?.low_u64();
+
+		Ok(OperationsInfo {
+			fork,
+			this_fork,
+			track: in_track,
+			minor: in_minor,
+		})
 	}
 
 	fn release_block_number(&self, from: BlockNumber, release: &ReleaseInfo) -> Option<BlockNumber> {
@@ -272,62 +326,41 @@ impl Updater {
 			})
 			.last()
 	}
+}
 
-	fn collect_latest(&self) -> Result<OperationsInfo, String> {
-		if self.track() == ReleaseTrack::Unknown {
-			return Err(format!("Current executable ({}) is unreleased.", self.this.hash));
+impl Updater {
+	pub fn new(client: Weak<BlockChainClient>, sync: Weak<SyncProvider>, update_policy: UpdatePolicy, fetcher: fetch::Client) -> Arc<Self> {
+		let r = Arc::new(Updater {
+			update_policy: update_policy,
+			weak_self: Mutex::new(Default::default()),
+			client: client.clone(),
+			sync: sync.clone(),
+			fetcher,
+			operations_client: OperationsContractClient::new(
+				operations_contract::Operations::default(),
+				client.clone()),
+			exit_handler: Mutex::new(None),
+			this: VersionInfo::this(),
+			state: Mutex::new(Default::default()),
+		});
+		*r.weak_self.lock() = Arc::downgrade(&r);
+		r.poll();
+		r
+	}
+
+	/// Set a closure to call when we want to restart the client
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn() + 'static + Send {
+		*self.exit_handler.lock() = Some(Box::new(f));
+	}
+
+	/// Returns release track of the parity node.
+	/// `update_policy.track` is the track specified from the command line, whereas `this.track`
+	/// is the track of the software which is currently run
+	fn track(&self) -> ReleaseTrack {
+		match self.update_policy.track {
+			ReleaseTrack::Unknown => self.this.track,
+			x => x,
 		}
-
-		let client = self.client.upgrade().ok_or_else(|| "Cannot obtain client")?;
-		let address = client.registry_address("operations".into(), BlockId::Latest).ok_or_else(|| "Cannot get operations contract address")?;
-		let do_call = |data| client.call_contract(BlockId::Latest, address, data).map_err(|e| format!("{:?}", e));
-
-		trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, self.this.hash);
-
-		// get the fork number of this release
-		let this_fork = self.operations_contract.functions()
-			.release()
-			.call(*CLIENT_ID_HASH, self.this.hash, &do_call)
-			.ok()
-			.and_then(|(fork, track, _, _)| {
-				let this_track: ReleaseTrack = (track.low_u64() as u8).into();
-				match this_track {
-					ReleaseTrack::Unknown => None,
-					_ => Some(fork.low_u64()),
-				}
-			});
-
-		// get the hash of the latest release in our track
-		let latest_in_track = self.latest_in_track(self.track(), &do_call)?;
-
-		// get the release info for the latest version in track
-		let in_track = self.collect_release_info(latest_in_track, &do_call)?;
-		let mut in_minor = Some(in_track.clone());
-		const PROOF: &'static str = "in_minor initialised and assigned with Some; loop breaks if None assigned; qed";
-
-		// if the minor version has changed, let's check the minor version on a different track
-		while in_minor.as_ref().expect(PROOF).version.version.minor != self.this.version.minor {
-			let track = match in_minor.as_ref().expect(PROOF).version.track {
-				ReleaseTrack::Beta => ReleaseTrack::Stable,
-				ReleaseTrack::Nightly => ReleaseTrack::Beta,
-				_ => { in_minor = None; break; }
-			};
-
-			let latest_in_track = self.latest_in_track(track, &do_call)?;
-			in_minor = Some(self.collect_release_info(latest_in_track, &do_call)?);
-		}
-
-		let fork = self.operations_contract.functions()
-			.latest_fork()
-			.call(&do_call)
-			.map_err(|e| format!("{:?}", e))?.low_u64();
-
-		Ok(OperationsInfo {
-			fork,
-			this_fork,
-			track: in_track,
-			minor: in_minor,
-		})
 	}
 
 	fn update_file_name(v: &VersionInfo) -> String {
@@ -461,7 +494,7 @@ impl Updater {
 							} else if self.update_policy.enable_downloading {
 								let update_block_number = {
 									let from = current_block_number.saturating_sub(self.update_policy.max_delay);
-									match self.release_block_number(from, &latest.track) {
+									match self.operations_client.release_block_number(from, &latest.track) {
 										Some(block_number) => {
 											let delay = rand::thread_rng().gen_range(0, self.update_policy.max_delay);
 											block_number.saturating_add(delay)
@@ -504,7 +537,7 @@ impl Updater {
 		let mut state = self.state.lock();
 
 		// Get the latest available release
-		let latest = self.collect_latest().ok();
+		let latest = self.operations_client.latest(&self.this, self.track()).ok();
 
 		if let Some(latest) = latest {
 			// There's a new release available
