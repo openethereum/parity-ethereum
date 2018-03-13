@@ -27,11 +27,11 @@ use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChai
 use ethcore::db::NUM_COLUMNS;
 use ethcore::ethstore::ethkey;
 use ethcore::miner::{stratum, Miner, MinerService, MinerOptions};
-use ethcore::service::ClientService;
 use ethcore::snapshot;
 use ethcore::spec::{SpecParams, OptimizeFor};
 use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
+use ethcore_service::ClientService;
 use ethsync::{self, SyncConfig};
 use fdlimit::raise_fd_limit;
 use hash_fetch::fetch::{Fetch, Client as FetchClient};

@@ -37,8 +37,11 @@ use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute, Transaction
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
-	StateOrBlock, StateInfo, StateClient, Call, AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter
+	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo,
+	RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
+	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
+	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
+	ClientIoMessage
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -61,7 +64,6 @@ use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
 use rlp::UntrustedRlp;
-use service::ClientIoMessage;
 use snapshot::{self, io as snapshot_io};
 use spec::Spec;
 use state_db::StateDB;
@@ -1831,8 +1833,17 @@ impl BlockChainClient for Client {
 		};
 
 		let chain = self.chain.read();
-		let blocks = chain.blocks_with_blooms(&filter.bloom_possibilities(), from, to);
-		chain.logs(blocks, |entry| filter.matches(entry), filter.limit)
+		let blocks = filter.bloom_possibilities().iter()
+			.map(move |bloom| {
+				chain.blocks_with_bloom(bloom, from, to)
+			})
+			.flat_map(|m| m)
+			// remove duplicate elements
+			.collect::<HashSet<u64>>()
+			.into_iter()
+			.collect::<Vec<u64>>();
+
+		self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit)
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
@@ -2214,7 +2225,7 @@ mod tests {
 	#[test]
 	fn should_not_cache_details_before_commit() {
 		use client::{BlockChainClient, ChainInfo};
-		use tests::helpers::*;
+		use tests::helpers::{generate_dummy_client, get_good_dummy_block_hash};
 
 		use std::thread;
 		use std::time::Duration;

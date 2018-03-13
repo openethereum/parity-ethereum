@@ -31,6 +31,7 @@ extern crate mime_guess;
 extern crate parity_reactor;
 extern crate rand;
 extern crate rustc_hex;
+extern crate registrar;
 
 pub extern crate fetch;
 

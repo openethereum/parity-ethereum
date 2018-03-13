@@ -473,12 +473,25 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 mod tests {
 	use super::*;
 
+	fn get_default_ethash_extensions() -> EthashExtensions {
+		EthashExtensions {
+			homestead_transition: 1150000,
+			eip150_transition: u64::max_value(),
+			eip160_transition: u64::max_value(),
+			eip161abc_transition: u64::max_value(),
+			eip161d_transition: u64::max_value(),
+			dao_hardfork_transition: u64::max_value(),
+			dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
+			dao_hardfork_accounts: Vec::new(),
+		}
+	}
+
 	#[test]
 	fn ethash_gas_limit_is_multiple_of_determinant() {
 		use ethereum_types::U256;
 
 		let spec = ::ethereum::new_homestead_test();
-		let ethparams = ::tests::helpers::get_default_ethash_extensions();
+		let ethparams = get_default_ethash_extensions();
 
 		let machine = EthereumMachine::with_ethash_extensions(
 			spec.params().clone(),

@@ -43,6 +43,7 @@ ethcore-logger = { path = "logger" }
 ethcore-migrations = { path = "ethcore/migrations" }
 ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
+ethcore-service = { path = "ethcore/service" }
 ethcore-stratum = { path = "stratum" }
 ethcore-transaction = { path = "ethcore/transaction" }
 ethereum-types = "0.2"
@@ -71,6 +72,8 @@ journaldb = { path = "util/journaldb" }
 
 parity-dapps = { path = "dapps", optional = true }
 ethcore-secretstore = { path = "secret_store", optional = true }
+
+registrar = { path = "registrar" }
 
 [build-dependencies]
 rustc_version = "0.2"
@@ -131,5 +134,4 @@ members = [
 	"miner",
 	"transaction-pool",
 	"whisper",
-	"util/rlp_compress",
 ]

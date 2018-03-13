@@ -173,12 +173,14 @@ impl<'a> Runtime<'a> {
 	/// Intuition about the return value sense is to aswer the question 'are we allowed to continue?'
 	fn charge_gas(&mut self, amount: u64) -> bool {
 		let prev = self.gas_counter;
-		if prev + amount > self.gas_limit {
-			// exceeds gas
-			false
-		} else {
-			self.gas_counter = prev + amount;
-			true
+		match prev.checked_add(amount) {
+			// gas charge overflow protection
+			None => false,
+			Some(val) if val > self.gas_limit => false,
+			Some(_) => {
+				self.gas_counter = prev + amount;
+				true
+			}
 		}
 	}
 
@@ -548,13 +550,13 @@ impl<'a> Runtime<'a> {
 
 	fn debug(&mut self, args: RuntimeArgs) -> Result<()>
 	{
-		let msg_ptr: u32 = args.nth_checked(0)?;
-		let msg_len: u32 = args.nth_checked(1)?;
+		trace!(target: "wasm", "Contract debug message: {}", {
+			let msg_ptr: u32 = args.nth_checked(0)?;
+			let msg_len: u32 = args.nth_checked(1)?;
 
-		let msg = String::from_utf8(self.memory.get(msg_ptr, msg_len as usize)?)
-			.map_err(|_| Error::BadUtf8)?;
-
-		trace!(target: "wasm", "Contract debug message: {}", msg);
+			String::from_utf8(self.memory.get(msg_ptr, msg_len as usize)?)
+				.map_err(|_| Error::BadUtf8)?
+		});
 
 		Ok(())
 	}

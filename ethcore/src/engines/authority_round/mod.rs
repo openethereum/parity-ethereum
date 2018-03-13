@@ -1326,7 +1326,10 @@ mod tests {
 	use header::Header;
 	use rlp::encode;
 	use block::*;
-	use tests::helpers::*;
+	use tests::helpers::{
+		generate_dummy_client_with_spec_and_accounts, get_temp_state_db, generate_dummy_client,
+		TestNotify
+	};
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use transaction::{Action, Transaction};

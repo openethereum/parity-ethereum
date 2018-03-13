@@ -1,0 +1,16 @@
+[package]
+name = "ethcore-service"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+ansi_term = "0.10"
+ethcore = { path = ".." }
+ethcore-io = { path = "../../util/io" }
+kvdb = { path = "../../util/kvdb" }
+kvdb-rocksdb = { path = "../../util/kvdb-rocksdb" }
+log = "0.3"
+stop-guard = { path = "../../util/stop-guard" }
+
+[dev-dependencies]
+tempdir = "0.3"

@@ -27,11 +27,10 @@ use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, Snapshot
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
-use client::{Client, ChainInfo};
+use client::{Client, ChainInfo, ClientIoMessage};
 use engines::EthEngine;
 use error::Error;
 use ids::BlockId;
-use service::ClientIoMessage;
 
 use io::IoChannel;
 
@@ -631,9 +630,9 @@ impl Drop for Service {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use service::ClientIoMessage;
+	use client::ClientIoMessage;
 	use io::{IoService};
-	use tests::helpers::get_test_spec;
+	use spec::Spec;
 	use journaldb::Algorithm;
 	use error::Error;
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
@@ -650,7 +649,7 @@ mod tests {
 	#[test]
 	fn sends_async_messages() {
 		let service = IoService::<ClientIoMessage>::start().unwrap();
-		let spec = get_test_spec();
+		let spec = Spec::new_test();
 
 		let tempdir = TempDir::new("").unwrap();
 		let dir = tempdir.path().join("snapshot");
@@ -691,7 +690,7 @@ mod tests {
 		use ethereum_types::H256;
 		use kvdb_rocksdb::DatabaseConfig;
 
-		let spec = get_test_spec();
+		let spec = Spec::new_test();
 		let tempdir = TempDir::new("").unwrap();
 
 		let state_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();

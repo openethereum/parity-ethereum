@@ -54,6 +54,7 @@
 //!   cargo build --release
 //!   ```
 
+extern crate bloomchain;
 extern crate bn;
 extern crate byteorder;
 extern crate crossbeam;
@@ -144,7 +145,6 @@ pub mod header;
 pub mod machine;
 pub mod miner;
 pub mod pod_state;
-pub mod service;
 pub mod snapshot;
 pub mod spec;
 pub mod state;
@@ -154,6 +154,7 @@ pub mod verification;
 pub mod views;
 
 mod cache_manager;
+mod blooms;
 mod pod_account;
 mod account_db;
 mod builtin;
