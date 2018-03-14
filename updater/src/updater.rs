@@ -498,7 +498,7 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 					fetch(binary);
 				},
 				// we're ready to retry the fetch after we applied a backoff for the previous failure
-				UpdaterStatus::FetchBackoff { ref release, backoff, binary } if *release == latest.track && Instant::now() >= backoff.1 => {
+				UpdaterStatus::FetchBackoff { ref release, backoff, binary } if *release == latest.track && self.time_provider.now() >= backoff.1 => {
 					state.status = UpdaterStatus::Fetching { release: release.clone(), binary, retries: backoff.0 + 1 };
 					// will lock self.state
 					drop(state);
@@ -773,7 +773,7 @@ pub mod tests {
 
 	impl TimeProvider for FakeTimeProvider {
 		fn now(&self) -> Instant {
-			self.result.lock().clone()
+			*self.result.lock()
 		}
 	}
 
@@ -1010,6 +1010,53 @@ pub mod tests {
 		assert_matches!(
 			updater.state.lock().status,
 			UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number == 5);
+	}
+
+	#[test]
+	fn should_backoff_retry_when_update_fails() {
+		let (update_policy, tempdir) = update_policy();
+		let (_client, updater, operations_client, fetcher, time_provider, ..) = setup(update_policy);
+		let (_, latest_release, latest) = new_upgrade();
+
+		// mock operations contract with a new version
+		operations_client.set_result(Some(latest.clone()), None);
+
+		let now = Instant::now();
+		time_provider.set_result(now);
+
+		updater.poll();
+
+		// we didn't mock the fetcher result so it will error and the updater should backoff any retry
+		assert_matches!(
+			updater.state.lock().status,
+			UpdaterStatus::FetchBackoff { ref release, ref backoff, .. } if *release == latest_release && backoff.0 == 1);
+
+		time_provider.set_result(now + Duration::from_secs(1));
+		updater.poll();
+
+		// if we don't wait for the elapsed time the updater status should stay the same
+		assert_matches!(
+			updater.state.lock().status,
+			UpdaterStatus::FetchBackoff { ref release, ref backoff, .. } if *release == latest_release && backoff.0 == 1);
+
+		time_provider.set_result(now + Duration::from_secs(2));
+		updater.poll();
+
+		// the backoff time has elapsed so we retried again (and failed)
+		assert_matches!(
+			updater.state.lock().status,
+			UpdaterStatus::FetchBackoff { ref release, ref backoff, .. } if *release == latest_release && backoff.0 == 2);
+
+		let update_file = tempdir.path().join("parity");
+		fetcher.set_result(Some(update_file.clone()));
+		File::create(update_file).unwrap();
+
+		// the elapsed time should be 4 seconds, but since we're mocking the current_time the backoff will also be offset by 2 seconds
+		time_provider.set_result(now + Duration::from_secs(6));
+		updater.poll();
+
+		// after setting up the mocked fetch and waiting for the backoff period the update should succeed
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release });
 
 	}
 }
