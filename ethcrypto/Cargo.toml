@@ -9,4 +9,4 @@ tiny-keccak = "1.3"
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
 ethkey = { path = "../ethkey" }
 ethereum-types = "0.2"
-subtle = "0.1"
+subtle = "0.5"
