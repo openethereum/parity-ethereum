@@ -63,7 +63,7 @@ pub fn init_server<F, B>(process: F, io: IoHandler) -> (Server, Arc<FakeRegistra
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
 
-	let mut builder = ServerBuilder::new(&dapps_path, registrar.clone());
+	let mut builder = ServerBuilder::new(FetchClient::new().unwrap(), &dapps_path, registrar.clone());
 	builder.signer_address = Some(("127.0.0.1".into(), SIGNER_PORT));
 	let server = process(builder).start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), io).unwrap();
 	(
@@ -149,13 +149,13 @@ pub struct ServerBuilder<T: Fetch = FetchClient> {
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	signer_address: Option<(String, u16)>,
 	allowed_hosts: DomainsValidation<Host>,
-	fetch: Option<T>,
+	fetch: T,
 	serve_ui: bool,
 }
 
 impl ServerBuilder {
 	/// Construct new dapps server
-	pub fn new<P: AsRef<Path>>(dapps_path: P, registrar: Arc<RegistrarClient<Call=Asynchronous>>) -> Self {
+	pub fn new<P: AsRef<Path>>(fetch: FetchClient, dapps_path: P, registrar: Arc<RegistrarClient<Call=Asynchronous>>) -> Self {
 		ServerBuilder {
 			dapps_path: dapps_path.as_ref().to_owned(),
 			registrar: registrar,
@@ -163,7 +163,7 @@ impl ServerBuilder {
 			web_proxy_tokens: Arc::new(|_| None),
 			signer_address: None,
 			allowed_hosts: DomainsValidation::Disabled,
-			fetch: None,
+			fetch: fetch,
 			serve_ui: false,
 		}
 	}
@@ -179,7 +179,7 @@ impl<T: Fetch> ServerBuilder<T> {
 			web_proxy_tokens: self.web_proxy_tokens,
 			signer_address: self.signer_address,
 			allowed_hosts: self.allowed_hosts,
-			fetch: Some(fetch),
+			fetch: fetch,
 			serve_ui: self.serve_ui,
 		}
 	}
@@ -187,7 +187,6 @@ impl<T: Fetch> ServerBuilder<T> {
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
 	pub fn start_unsecured_http(self, addr: &SocketAddr, io: IoHandler) -> io::Result<Server> {
-		let fetch = self.fetch_client();
 		Server::start_http(
 			addr,
 			io,
@@ -199,16 +198,9 @@ impl<T: Fetch> ServerBuilder<T> {
 			self.sync_status,
 			self.web_proxy_tokens,
 			Remote::new_sync(),
-			fetch,
+			self.fetch,
 			self.serve_ui,
 		)
-	}
-
-	fn fetch_client(&self) -> T {
-		match self.fetch.clone() {
-			Some(fetch) => fetch,
-			None => T::new().unwrap(),
-		}
 	}
 }
 

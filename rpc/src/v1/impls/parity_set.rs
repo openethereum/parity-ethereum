@@ -23,6 +23,7 @@ use ethcore::client::MiningBlockChainClient;
 use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
 use fetch::{self, Fetch};
+use futures_cpupool::CpuPool;
 use hash::keccak_buffer;
 use updater::{Service as UpdateService};
 
@@ -41,6 +42,7 @@ pub struct ParitySetClient<C, M, U, F = fetch::Client> {
 	net: Arc<ManageNetwork>,
 	dapps: Option<Arc<DappsService>>,
 	fetch: F,
+	pool: CpuPool,
 	eip86_transition: u64,
 }
 
@@ -55,6 +57,7 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 		net: &Arc<ManageNetwork>,
 		dapps: Option<Arc<DappsService>>,
 		fetch: F,
+		pool: CpuPool,
 	) -> Self {
 		ParitySetClient {
 			client: client.clone(),
@@ -63,6 +66,7 @@ impl<C, M, U, F> ParitySetClient<C, M, U, F>
 			net: net.clone(),
 			dapps: dapps,
 			fetch: fetch,
+			pool: pool,
 			eip86_transition: client.eip86_transition(),
 		}
 	}
@@ -166,14 +170,16 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn hash_content(&self, url: String) -> BoxFuture<H256> {
-		self.fetch.process(self.fetch.fetch(&url).then(move |result| {
+		let future = self.fetch.fetch(&url, Default::default()).then(move |result| {
 			result
 				.map_err(errors::fetch)
-				.and_then(|response| {
-					keccak_buffer(&mut io::BufReader::new(response)).map_err(errors::fetch)
+				.and_then(move |response| {
+					let mut reader = io::BufReader::new(fetch::BodyReader::new(response));
+					keccak_buffer(&mut reader).map_err(errors::fetch)
 				})
 				.map(Into::into)
-		}))
+		});
+		Box::new(self.pool.spawn(future))
 	}
 
 	fn dapps_refresh(&self) -> Result<bool> {

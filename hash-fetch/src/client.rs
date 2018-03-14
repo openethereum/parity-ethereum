@@ -22,7 +22,8 @@ use std::sync::Arc;
 use std::path::PathBuf;
 
 use hash::keccak_buffer;
-use fetch::{Fetch, Response, Error as FetchError, Client as FetchClient};
+use fetch::{self, Fetch};
+use futures_cpupool::CpuPool;
 use futures::{Future, IntoFuture};
 use parity_reactor::Remote;
 use urlhint::{URLHintContract, URLHint, URLHintResult};
@@ -37,7 +38,7 @@ pub trait HashFetch: Send + Sync + 'static {
 	/// 2. `on_done` - callback function invoked when the content is ready (or there was error during fetch)
 	///
 	/// This function may fail immediately when fetch cannot be initialized or content cannot be resolved.
-	fn fetch(&self, hash: H256, on_done: Box<Fn(Result<PathBuf, Error>) + Send>);
+	fn fetch(&self, hash: H256, abort: fetch::Abort, on_done: Box<Fn(Result<PathBuf, Error>) + Send>);
 }
 
 /// Hash-fetching error.
@@ -57,7 +58,7 @@ pub enum Error {
 	/// IO Error while validating hash.
 	IO(io::Error),
 	/// Error during fetch.
-	Fetch(FetchError),
+	Fetch(fetch::Error),
 }
 
 #[cfg(test)]
@@ -77,8 +78,8 @@ impl PartialEq for Error {
 	}
 }
 
-impl From<FetchError> for Error {
-	fn from(error: FetchError) -> Self {
+impl From<fetch::Error> for Error {
+	fn from(error: fetch::Error) -> Self {
 		Error::Fetch(error)
 	}
 }
@@ -89,14 +90,9 @@ impl From<io::Error> for Error {
 	}
 }
 
-fn validate_hash(path: PathBuf, hash: H256, result: Result<Response, FetchError>) -> Result<PathBuf, Error> {
-	let response = result?;
-	if !response.is_success() {
-		return Err(Error::InvalidStatus);
-	}
-
+fn validate_hash(path: PathBuf, hash: H256, body: fetch::BodyReader) -> Result<PathBuf, Error> {
 	// Read the response
-	let mut reader = io::BufReader::new(response);
+	let mut reader = io::BufReader::new(body);
 	let mut writer = io::BufWriter::new(fs::File::create(&path)?);
 	io::copy(&mut reader, &mut writer)?;
 	writer.flush()?;
@@ -112,24 +108,19 @@ fn validate_hash(path: PathBuf, hash: H256, result: Result<Response, FetchError>
 }
 
 /// Default Hash-fetching client using on-chain contract to resolve hashes to URLs.
-pub struct Client<F: Fetch + 'static = FetchClient> {
+pub struct Client<F: Fetch + 'static = fetch::Client> {
+	pool: CpuPool,
 	contract: URLHintContract,
 	fetch: F,
 	remote: Remote,
 	random_path: Arc<Fn() -> PathBuf + Sync + Send>,
 }
 
-impl Client {
-	/// Creates new instance of the `Client` given on-chain contract client and task runner.
-	pub fn new(contract: Arc<RegistrarClient<Call=Asynchronous>>, remote: Remote) -> Self {
-		Client::with_fetch(contract, FetchClient::new().unwrap(), remote)
-	}
-}
-
 impl<F: Fetch + 'static> Client<F> {
 	/// Creates new instance of the `Client` given on-chain contract client, fetch service and task runner.
-	pub fn with_fetch(contract: Arc<RegistrarClient<Call=Asynchronous>>, fetch: F, remote: Remote) -> Self {
+	pub fn with_fetch(contract: Arc<RegistrarClient<Call=Asynchronous>>, pool: CpuPool, fetch: F, remote: Remote) -> Self {
 		Client {
+			pool,
 			contract: URLHintContract::new(contract),
 			fetch: fetch,
 			remote: remote,
@@ -139,11 +130,12 @@ impl<F: Fetch + 'static> Client<F> {
 }
 
 impl<F: Fetch + 'static> HashFetch for Client<F> {
-	fn fetch(&self, hash: H256, on_done: Box<Fn(Result<PathBuf, Error>) + Send>) {
+	fn fetch(&self, hash: H256, abort: fetch::Abort, on_done: Box<Fn(Result<PathBuf, Error>) + Send>) {
 		debug!(target: "fetch", "Fetching: {:?}", hash);
 
 		let random_path = self.random_path.clone();
 		let remote_fetch = self.fetch.clone();
+		let pool = self.pool.clone();
 		let future = self.contract.resolve(hash)
 			.map_err(|e| { warn!("Error resolving URL: {}", e); Error::NoResolution })
 			.and_then(|maybe_url| maybe_url.ok_or(Error::NoResolution))
@@ -161,19 +153,26 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 			.into_future()
 			.and_then(move |url| {
 				debug!(target: "fetch", "Resolved {:?} to {:?}. Fetching...", hash, url);
-				let future = remote_fetch.fetch(&url).then(move |result| {
-					debug!(target: "fetch", "Content fetched, validating hash ({:?})", hash);
-					let path = random_path();
-					let res = validate_hash(path.clone(), hash, result);
-					if let Err(ref err) = res {
-						trace!(target: "fetch", "Error: {:?}", err);
-						// Remove temporary file in case of error
-						let _ = fs::remove_file(&path);
-					}
-					res
-				});
-				remote_fetch.process(future)
+				remote_fetch.fetch(&url, abort).from_err()
 			})
+			.and_then(move |response| {
+				if !response.is_success() {
+					Err(Error::InvalidStatus)
+				} else {
+					Ok(response)
+				}
+			})
+			.and_then(move |response| pool.spawn_fn(move || {
+				debug!(target: "fetch", "Content fetched, validating hash ({:?})", hash);
+				let path = random_path();
+				let res = validate_hash(path.clone(), hash, fetch::BodyReader::new(response));
+				if let Err(ref err) = res {
+					trace!(target: "fetch", "Error: {:?}", err);
+					// Remove temporary file in case of error
+					let _ = fs::remove_file(&path);
+				}
+				res
+			}))
 			.then(move |res| { on_done(res); Ok(()) as Result<(), ()> });
 
 		self.remote.spawn(future);
@@ -194,14 +193,17 @@ fn random_temp_path() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
+	extern crate hyper;
 	use rustc_hex::FromHex;
 	use std::sync::{Arc, mpsc};
 	use parking_lot::Mutex;
 	use futures::future;
-	use fetch::{self, Fetch};
+	use futures_cpupool::CpuPool;
+	use fetch::{self, Fetch, Url};
 	use parity_reactor::Remote;
 	use urlhint::tests::{FakeRegistrar, URLHINT};
 	use super::{Error, Client, HashFetch, random_temp_path};
+	use self::hyper::StatusCode;
 
 
 	#[derive(Clone)]
@@ -212,17 +214,13 @@ mod tests {
 	impl Fetch for FakeFetch {
 		type Result = future::Ok<fetch::Response, fetch::Error>;
 
-		fn new() -> Result<Self, fetch::Error> where Self: Sized {
-			Ok(FakeFetch { return_success: true })
-		}
-
-		fn fetch_with_abort(&self, url: &str, _abort: fetch::Abort) -> Self::Result {
+		fn fetch(&self, url: &str, abort: fetch::Abort) -> Self::Result {
 			assert_eq!(url, "https://parity.io/assets/images/ethcore-black-horizontal.png");
+			let u = Url::parse(url).unwrap();
 			future::ok(if self.return_success {
-				let cursor = ::std::io::Cursor::new(b"result");
-				fetch::Response::from_reader(cursor)
+				fetch::client::Response::new(u, hyper::Response::new().with_body(&b"result"[..]), abort)
 			} else {
-				fetch::Response::not_found()
+				fetch::client::Response::new(u, hyper::Response::new().with_status(StatusCode::NotFound), abort)
 			})
 		}
 	}
@@ -241,11 +239,11 @@ mod tests {
 		// given
 		let contract = Arc::new(FakeRegistrar::new());
 		let fetch = FakeFetch { return_success: false };
-		let client = Client::with_fetch(contract.clone(), fetch, Remote::new_sync());
+		let client = Client::with_fetch(contract.clone(), CpuPool::new(1), fetch, Remote::new_sync());
 
 		// when
 		let (tx, rx) = mpsc::channel();
-		client.fetch(2.into(), Box::new(move |result| {
+		client.fetch(2.into(), Default::default(), Box::new(move |result| {
 			tx.send(result).unwrap();
 		}));
 
@@ -259,11 +257,11 @@ mod tests {
 		// given
 		let registrar = Arc::new(registrar());
 		let fetch = FakeFetch { return_success: false };
-		let client = Client::with_fetch(registrar.clone(), fetch, Remote::new_sync());
+		let client = Client::with_fetch(registrar.clone(), CpuPool::new(1), fetch, Remote::new_sync());
 
 		// when
 		let (tx, rx) = mpsc::channel();
-		client.fetch(2.into(), Box::new(move |result| {
+		client.fetch(2.into(), Default::default(), Box::new(move |result| {
 			tx.send(result).unwrap();
 		}));
 
@@ -277,14 +275,14 @@ mod tests {
 		// given
 		let registrar = Arc::new(registrar());
 		let fetch = FakeFetch { return_success: true };
-		let mut client = Client::with_fetch(registrar.clone(), fetch, Remote::new_sync());
+		let mut client = Client::with_fetch(registrar.clone(), CpuPool::new(1), fetch, Remote::new_sync());
 		let path = random_temp_path();
 		let path2 = path.clone();
 		client.random_path = Arc::new(move || path2.clone());
 
 		// when
 		let (tx, rx) = mpsc::channel();
-		client.fetch(2.into(), Box::new(move |result| {
+		client.fetch(2.into(), Default::default(), Box::new(move |result| {
 			tx.send(result).unwrap();
 		}));
 
@@ -300,16 +298,17 @@ mod tests {
 		// given
 		let registrar = Arc::new(registrar());
 		let fetch = FakeFetch { return_success: true };
-		let client = Client::with_fetch(registrar.clone(), fetch, Remote::new_sync());
+		let client = Client::with_fetch(registrar.clone(), CpuPool::new(1), fetch, Remote::new_sync());
 
 		// when
 		let (tx, rx) = mpsc::channel();
-		client.fetch("0x06b0a4f426f6713234b2d4b2468640bc4e0bb72657a920ad24c5087153c593c8".into(), Box::new(move |result| {
-			tx.send(result).unwrap();
-		}));
+		client.fetch("0x06b0a4f426f6713234b2d4b2468640bc4e0bb72657a920ad24c5087153c593c8".into(),
+			Default::default(),
+			Box::new(move |result| { tx.send(result).unwrap(); }));
 
 		// then
 		let result = rx.recv().unwrap();
 		assert!(result.is_ok(), "Should return path, got: {:?}", result);
 	}
 }
+

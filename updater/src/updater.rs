@@ -58,6 +58,8 @@ pub struct UpdatePolicy {
 	pub track: ReleaseTrack,
 	/// Path for the updates to go.
 	pub path: String,
+	/// Maximum download size.
+	pub max_size: usize,
 }
 
 impl Default for UpdatePolicy {
@@ -68,6 +70,7 @@ impl Default for UpdatePolicy {
 			filter: UpdateFilter::None,
 			track: ReleaseTrack::Unknown,
 			path: Default::default(),
+			max_size: 128 * 1024 * 1024,
 		}
 	}
 }
@@ -341,7 +344,8 @@ impl Updater {
 								drop(s);
 								let weak_self = self.weak_self.lock().clone();
 								let f = move |r: Result<PathBuf, fetch::Error>| if let Some(this) = weak_self.upgrade() { this.fetch_done(r) };
-								self.fetcher.fetch(b, Box::new(f));
+								let a = fetch::Abort::default().with_max_size(self.update_policy.max_size);
+								self.fetcher.fetch(b, a, Box::new(f));
 							}
 						}
 					}
