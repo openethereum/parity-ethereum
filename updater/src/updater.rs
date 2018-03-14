@@ -750,22 +750,24 @@ pub mod tests {
 
 	#[derive(Clone)]
 	struct FakeFetch {
-		result: Arc<Mutex<Option<PathBuf>>>,
+		on_done: Arc<Mutex<Option<Box<Fn(Result<PathBuf, Error>) + Send>>>>,
 	}
 
 	impl FakeFetch {
 		fn new() -> FakeFetch {
-			FakeFetch { result: Arc::new(Mutex::new(None)) }
+			FakeFetch { on_done: Arc::new(Mutex::new(None)) }
 		}
 
-		fn set_result(&self, result: Option<PathBuf>) {
-			*self.result.lock() = result;
+		fn trigger(&self, result: Option<PathBuf>) {
+			if let Some(ref on_done) = *self.on_done.lock() {
+				on_done(result.ok_or(Error::NoResolution))
+			}
 		}
 	}
 
 	impl HashFetch for FakeFetch {
 		fn fetch(&self, _hash: H256, _abort: fetch::Abort, on_done: Box<Fn(Result<PathBuf, Error>) + Send>) {
-			on_done(self.result.lock().clone().ok_or(Error::NoResolution))
+			*self.on_done.lock() = Some(on_done);
 		}
 	}
 
@@ -909,20 +911,25 @@ pub mod tests {
 		// mock operations contract with a new version
 		operations_client.set_result(Some(latest.clone()), None);
 
-		// mock fetcher with update binary
-		let update_file = tempdir.path().join("parity");
-		fetcher.set_result(Some(update_file.clone()));
-		File::create(update_file).unwrap();
-
 		// we start in idle state and with no information regarding the latest release
 		assert_eq!(updater.state.lock().latest, None);
 		assert_eq!(updater.state.lock().status, UpdaterStatus::Idle);
 
 		updater.poll();
 
-		// after the first poll the latest release should be set to the one we're mocking
-		// and the update should be ready for install
+		// after the first poll the latest release should be set to the one we're mocking and the updater should be
+		// fetching it
 		assert_eq!(updater.state.lock().latest, Some(latest));
+		assert_matches!(
+			updater.state.lock().status,
+			UpdaterStatus::Fetching { ref release, retries, .. } if *release == latest_release && retries == 1);
+
+		// mock fetcher with update binary and trigger the fetch
+		let update_file = tempdir.path().join("parity");
+		File::create(update_file.clone()).unwrap();
+		fetcher.trigger(Some(update_file));
+
+		// after the fetch finishes the upgrade should be ready to install
 		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release.clone() });
 		assert_eq!(updater.upgrade_ready(), Some(latest_release.clone()));
 
@@ -946,15 +953,11 @@ pub mod tests {
 
 	#[test]
 	fn should_randomly_delay_new_updates() {
-		let (update_policy, tempdir) = update_policy();
-		let (client, updater, operations_client, fetcher, _, rng) = setup(update_policy);
+		let (update_policy, _) = update_policy();
+		let (client, updater, operations_client, _, _, rng) = setup(update_policy);
 
 		let (_, latest_release, latest) = new_upgrade("1.0.1");
 		operations_client.set_result(Some(latest.clone()), Some(0));
-
-		let update_file = tempdir.path().join("parity");
-		fetcher.set_result(Some(update_file.clone()));
-		File::create(update_file).unwrap();
 
 		rng.set_result(5);
 
@@ -974,30 +977,30 @@ pub mod tests {
 			UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number == 5);
 
 		client.add_blocks(5, EachBlockWith::Nothing);
-
-		// after we're past the delay the status should switch
 		updater.poll();
-		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release.clone() });
+
+		// after we're past the delay the status should switch to fetching
+		assert_matches!(
+			updater.state.lock().status,
+			UpdaterStatus::Fetching { ref release, .. } if *release == latest_release);
 	}
 
 	#[test]
 	fn should_not_delay_old_updates() {
-		let (update_policy, tempdir) = update_policy();
-		let (client, updater, operations_client, fetcher, ..) = setup(update_policy);
+		let (update_policy, _) = update_policy();
+		let (client, updater, operations_client, ..) = setup(update_policy);
 		client.add_blocks(100, EachBlockWith::Nothing);
 
 		let (_, latest_release, latest) = new_upgrade("1.0.1");
 		operations_client.set_result(Some(latest.clone()), Some(0));
 
-		let update_file = tempdir.path().join("parity");
-		fetcher.set_result(Some(update_file.clone()));
-		File::create(update_file).unwrap();
-
 		updater.poll();
 
 		// the update should not be delayed since it's older than the maximum delay
 		// the update was at block 0 (100 blocks ago), and the maximum delay is 10 blocks
-		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release.clone() });
+		assert_matches!(
+			updater.state.lock().status,
+			UpdaterStatus::Fetching { ref release, .. } if *release == latest_release);
 	}
 
 	#[test]
@@ -1034,17 +1037,19 @@ pub mod tests {
 		// mock operations contract with a new version
 		operations_client.set_result(Some(latest.clone()), None);
 
-		let now = Instant::now();
+		let mut now = Instant::now();
 		time_provider.set_result(now);
 
 		updater.poll();
+		fetcher.trigger(None);
 
-		// we didn't mock the fetcher result so it will error and the updater should backoff any retry
+		// we triggered the fetcher with an error result so the updater should backoff any retry
 		assert_matches!(
 			updater.state.lock().status,
 			UpdaterStatus::FetchBackoff { ref release, ref backoff, .. } if *release == latest_release && backoff.0 == 1);
 
-		time_provider.set_result(now + Duration::from_secs(1));
+		now += Duration::from_secs(1);
+		time_provider.set_result(now);
 		updater.poll();
 
 		// if we don't wait for the elapsed time the updater status should stay the same
@@ -1052,21 +1057,23 @@ pub mod tests {
 			updater.state.lock().status,
 			UpdaterStatus::FetchBackoff { ref release, ref backoff, .. } if *release == latest_release && backoff.0 == 1);
 
-		time_provider.set_result(now + Duration::from_secs(2));
+		now += Duration::from_secs(1);
+		time_provider.set_result(now);
 		updater.poll();
+		fetcher.trigger(None);
 
 		// the backoff time has elapsed so we retried again (and failed)
 		assert_matches!(
 			updater.state.lock().status,
 			UpdaterStatus::FetchBackoff { ref release, ref backoff, .. } if *release == latest_release && backoff.0 == 2);
 
-		let update_file = tempdir.path().join("parity");
-		fetcher.set_result(Some(update_file.clone()));
-		File::create(update_file).unwrap();
-
-		// the elapsed time should be 4 seconds, but since we're mocking the current_time the backoff will also be offset by 2 seconds
-		time_provider.set_result(now + Duration::from_secs(6));
+		now += Duration::from_secs(4);
+		time_provider.set_result(now);
 		updater.poll();
+
+		let update_file = tempdir.path().join("parity");
+		File::create(update_file.clone()).unwrap();
+		fetcher.trigger(Some(update_file));
 
 		// after setting up the mocked fetch and waiting for the backoff period the update should succeed
 		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release });
@@ -1082,22 +1089,43 @@ pub mod tests {
 		operations_client.set_result(Some(latest.clone()), None);
 
 		updater.poll();
+		fetcher.trigger(None);
 
-		// we didn't mock the fetcher result so it will error and the updater should backoff any retry
+		// we triggered the fetcher with an error result so the updater should backoff any retry
 		assert_matches!(
 			updater.state.lock().status,
 			UpdaterStatus::FetchBackoff { ref release, ref backoff, .. } if *release == latest_release && backoff.0 == 1);
 
-		// mock new working release
+		// mock new working release and trigger the fetch afterwards
 		let (_, latest_release, latest) = new_upgrade("1.0.2");
 		operations_client.set_result(Some(latest.clone()), None);
 		let update_file = tempdir.path().join("parity");
-		fetcher.set_result(Some(update_file.clone()));
-		File::create(update_file).unwrap();
+		File::create(update_file.clone()).unwrap();
+
+		updater.poll();
+		fetcher.trigger(Some(update_file));
+
+		// a new release should short-circuit the backoff
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release });
+	}
+
+	#[test]
+	fn should_detect_already_downloaded_releases() {
+		let (update_policy, tempdir) = update_policy();
+		let (_client, updater, operations_client, ..) = setup(update_policy);
+		let (latest_version, latest_release, latest) = new_upgrade("1.0.1");
+
+		// mock operations contract with a new version
+		operations_client.set_result(Some(latest.clone()), None);
+
+		// mock final update file
+		let update_file = tempdir.path().join(Updater::update_file_name(&latest_version));
+		File::create(update_file.clone()).unwrap();
 
 		updater.poll();
 
-		// a new release should short-circuit the backoff
+		// after checking for a new update we immediately declare it as ready since it already exists on disk
+		// there was no need to trigger the fetch
 		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release });
 	}
 }
