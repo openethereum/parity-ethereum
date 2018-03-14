@@ -308,7 +308,7 @@ pub mod ecies {
 		hmac.raw_result(&mut mac);
 
 		// constant time compare to avoid timing attack.
-		if ::subtle::arrays_equal(&mac[..], msg_mac) != 1 {
+		if ::subtle::slices_equal(&mac[..], msg_mac) != 1 {
 			return Err(Error::InvalidMessage);
 		}
 
