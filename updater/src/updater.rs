@@ -1223,4 +1223,39 @@ pub mod tests {
 
 		assert_eq!(latest_file_content, updated_binary.file_name().and_then(|n| n.to_str()).unwrap());
 	}
+
+	#[test]
+	fn should_update_capability() {
+		let (update_policy, tempdir) = update_policy();
+		let (client, updater, operations_client, fetcher, ..) = setup(update_policy);
+		let (latest_version, latest_release, mut latest) = new_upgrade("1.0.1");
+
+		// mock operations contract with a new version
+		operations_client.set_result(Some(latest.clone()), None);
+
+		// we start with no information regarding our node's capabilities
+		assert_eq!(updater.state.lock().capability, CapState::Unknown);
+
+		updater.poll();
+
+		// our node supports the current fork
+		assert_eq!(updater.state.lock().capability, CapState::Capable);
+
+		// lets announce a new fork which our node doesn't support
+		latest.fork = 2;
+		operations_client.set_result(Some(latest.clone()), None);
+		updater.poll();
+
+		// our node is only capable of operating until block #2 when the fork triggers
+		assert_eq!(updater.state.lock().capability, CapState::CapableUntil(2));
+
+		client.add_blocks(3, EachBlockWith::Nothing);
+		updater.poll();
+
+		// after we move past the fork the capability should be updated to incapable
+		assert_eq!(updater.state.lock().capability, CapState::IncapableSince(2));
+
+		// and since our update policy requires consensus, the client should be disabled
+		assert!(client.is_disabled());
+	}
 }
