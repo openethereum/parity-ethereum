@@ -170,7 +170,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks<C>(&self, _chain: &C, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
+	fn chain_new_blocks<C>(&self, _chain: &C, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256], _is_internal: bool) {
 		unimplemented!();
 	}
 
