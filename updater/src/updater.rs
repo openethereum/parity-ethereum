@@ -415,6 +415,56 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 		self.update_policy.path.join(name)
 	}
 
+	fn on_fetch(&self, latest: &OperationsInfo, res: Result<PathBuf, fetch::Error>) {
+		let mut state = self.state.lock();
+
+		// Bail out if the latest release has changed in the meantime
+		if state.latest.as_ref() != Some(&latest) {
+			return;
+		}
+
+		// The updated status should be set to fetching
+		if let UpdaterStatus::Fetching { ref release, binary, retries } = state.status.clone() {
+			match res {
+				// We've successfully fetched the binary
+				Ok(path) => {
+					let setup = |path: &Path| -> Result<(), String> {
+						let dest = self.updates_path(&Updater::update_file_name(&release.version));
+						if !dest.exists() {
+							info!(target: "updater", "Fetched latest version ({}) OK to {}", release.version, path.display());
+							fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| format!("Unable to create updates path: {:?}", e))?;
+							fs::copy(path, &dest).map_err(|e| format!("Unable to copy update: {:?}", e))?;
+							restrict_permissions_owner(&dest, false, true).map_err(|e| format!("Unable to update permissions: {}", e))?;
+							info!(target: "updater", "Copied updated binary to {}", dest.display());
+						}
+
+						Ok(())
+					};
+
+					// There was a fatal error setting up the update, disable the updater
+					if let Err(err) = setup(&path) {
+						state.status = UpdaterStatus::Disabled;
+						warn!("{}", err);
+					} else {
+						state.status = UpdaterStatus::Ready { release: release.clone() };
+						// will lock self.state
+						drop(state);
+						self.updater_step();
+					}
+				},
+				// There was an error fetching the update, apply a backoff delay before retrying
+				Err(err) => {
+					let delay = 2usize.pow(retries) as u64;
+					let backoff = (retries, self.time_provider.now() + Duration::from_secs(delay));
+
+					state.status = UpdaterStatus::FetchBackoff { release: release.clone(), backoff, binary };
+
+					warn!("Unable to fetch update ({}): {:?}, retrying in {} seconds.", release.version, err, delay);
+				},
+			}
+		}
+	}
+
 	fn updater_step(&self) {
 		let current_block_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
 
@@ -425,56 +475,12 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 				info!(target: "updater", "Attempting to get parity binary {}", binary);
 				let weak_self = self.weak_self.lock().clone();
 				let latest = latest.clone();
-				let on_fetch = move |res: Result<PathBuf, fetch::Error>| {
+				let f = move |res: Result<PathBuf, fetch::Error>| {
 					if let Some(this) = weak_self.upgrade() {
-						let mut state = this.state.lock();
-
-						// Check if the latest release and updater status hasn't changed
-						if state.latest.as_ref() == Some(&latest) {
-							if let UpdaterStatus::Fetching { ref release, binary, retries } = state.status.clone() {
-								match res {
-									// We've successfully fetched the binary
-									Ok(path) => {
-										let setup = |path: &Path| -> Result<(), String> {
-											let dest = this.updates_path(&Updater::update_file_name(&release.version));
-											if !dest.exists() {
-												info!(target: "updater", "Fetched latest version ({}) OK to {}", release.version, path.display());
-												fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| format!("Unable to create updates path: {:?}", e))?;
-												fs::copy(path, &dest).map_err(|e| format!("Unable to copy update: {:?}", e))?;
-												restrict_permissions_owner(&dest, false, true).map_err(|e| format!("Unable to update permissions: {}", e))?;
-												info!(target: "updater", "Copied updated binary to {}", dest.display());
-											}
-
-											Ok(())
-										};
-
-										// There was a fatal error setting up the update, disable the updater
-										if let Err(err) = setup(&path) {
-											state.status = UpdaterStatus::Disabled;
-											warn!("{}", err);
-										} else {
-											state.status = UpdaterStatus::Ready { release: release.clone() };
-											// will lock self.state
-											drop(state);
-											this.updater_step();
-										}
-									},
-									// There was an error fetching the update, apply a backoff delay before retrying
-									Err(err) => {
-										let delay = 2usize.pow(retries) as u64;
-										let backoff = (retries, this.time_provider.now() + Duration::from_secs(delay));
-
-										state.status = UpdaterStatus::FetchBackoff { release: release.clone(), backoff, binary };
-
-										warn!("Unable to fetch update ({}): {:?}, retrying in {} seconds.", release.version, err, delay);
-									},
-								}
-							}
-						}
+						this.on_fetch(&latest, res)
 					}
 				};
-
-				self.fetcher.fetch(binary, Box::new(on_fetch));
+				self.fetcher.fetch(binary, Box::new(f));
 			};
 
 			match state.status.clone() {
@@ -528,37 +534,39 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 						let running_later = latest.track.version.version < self.version_info().version;
 						let running_latest = latest.track.version.hash == self.version_info().hash;
 
-						// Check if we're already running the latest version or a newer version
-						if !running_later && !running_latest {
-							let path = self.updates_path(&Updater::update_file_name(&latest.track.version));
-							if path.exists() {
-								info!(target: "updater", "Already fetched binary.");
-								state.status = UpdaterStatus::Ready { release: latest.track.clone() };
+						// Bail out if we're already running the latest version or a later one
+						if running_later || running_latest {
+							return;
+						}
+
+						let path = self.updates_path(&Updater::update_file_name(&latest.track.version));
+						if path.exists() {
+							info!(target: "updater", "Already fetched binary.");
+							state.status = UpdaterStatus::Ready { release: latest.track.clone() };
+							// will lock self.state
+							drop(state);
+							self.updater_step();
+
+						} else if self.update_policy.enable_downloading {
+							let update_block_number = {
+								let from = current_block_number.saturating_sub(self.update_policy.max_delay);
+								match self.operations_client.release_block_number(from, &latest.track) {
+									Some(block_number) => {
+										let delay = self.rng.gen_range(1, self.update_policy.max_delay + 1);
+										block_number.saturating_add(delay)
+									},
+									None => current_block_number,
+								}
+							};
+
+							state.status = UpdaterStatus::Waiting { release: latest.track.clone(), binary, block_number: update_block_number };
+
+							if update_block_number > current_block_number {
+								info!(target: "updater", "Update for binary {} will be triggered at block {}", binary, update_block_number);
+							} else {
 								// will lock self.state
 								drop(state);
 								self.updater_step();
-
-							} else if self.update_policy.enable_downloading {
-								let update_block_number = {
-									let from = current_block_number.saturating_sub(self.update_policy.max_delay);
-									match self.operations_client.release_block_number(from, &latest.track) {
-										Some(block_number) => {
-											let delay = self.rng.gen_range(1, self.update_policy.max_delay + 1);
-											block_number.saturating_add(delay)
-										},
-										None => current_block_number,
-									}
-								};
-
-								state.status = UpdaterStatus::Waiting { release: latest.track.clone(), binary, block_number: update_block_number };
-
-								if update_block_number > current_block_number {
-									info!(target: "updater", "Update for binary {} will be triggered at block {}", binary, update_block_number);
-								} else {
-									// will lock self.state
-									drop(state);
-									self.updater_step();
-								}
 							}
 						}
 					}
@@ -624,7 +632,6 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 
 				// Update latest release
 				state.latest = Some(latest.clone());
-
 			}
 		}
 
@@ -658,34 +665,31 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Service fo
 	fn execute_upgrade(&self) -> bool {
 		let mut state = self.state.lock();
 
-		match state.status.clone() {
-			UpdaterStatus::Ready { ref release } => {
-				let file = Updater::update_file_name(&release.version);
-				let path = self.updates_path("latest");
+		if let UpdaterStatus::Ready { ref release } = state.status.clone() {
+			let file = Updater::update_file_name(&release.version);
+			let path = self.updates_path("latest");
 
-				// TODO: creating then writing is a bit fragile. would be nice to make it atomic.
-				if let Err(err) = fs::File::create(&path).and_then(|mut f| f.write_all(file.as_bytes())) {
-					state.status = UpdaterStatus::Disabled;
+			// TODO: creating then writing is a bit fragile. would be nice to make it atomic.
+			if let Err(err) = fs::File::create(&path).and_then(|mut f| f.write_all(file.as_bytes())) {
+				state.status = UpdaterStatus::Disabled;
 
-					warn!(target: "updater", "Unable to create soft-link for update {:?}", err);
-					return false;
-				}
+				warn!(target: "updater", "Unable to create soft-link for update {:?}", err);
+				return false;
+			}
 
-				info!(target: "updater", "Completed upgrade to {}", &release.version);
-				state.status = UpdaterStatus::Installed { release: release.clone() };
+			info!(target: "updater", "Completed upgrade to {}", &release.version);
+			state.status = UpdaterStatus::Installed { release: release.clone() };
 
-				match *self.exit_handler.lock() {
-					Some(ref h) => (*h)(),
-					None => info!(target: "updater", "Update installed, ready for restart."),
-				}
+			match *self.exit_handler.lock() {
+				Some(ref h) => (*h)(),
+				None => info!(target: "updater", "Update installed, ready for restart."),
+			}
 
-				true
-			},
-			_ => {
-				warn!(target: "updater", "Execute upgrade called when no upgrade ready.");
-				false
-			},
-		}
+			return true;
+		};
+
+		warn!(target: "updater", "Execute upgrade called when no upgrade ready.");
+		false
 	}
 
 	fn version_info(&self) -> VersionInfo {
@@ -1047,13 +1051,13 @@ pub mod tests {
 			updater.state.lock().status,
 			UpdaterStatus::FetchBackoff { ref release, ref backoff, .. } if *release == latest_release && backoff.0 == 2);
 
-		// the elapsed time should be 4 seconds, but since we're mocking the current_time the backoff will also be offset by 2 seconds
-		time_provider.set_result(now + Duration::from_secs(6));
-		updater.poll();
-
 		let update_file = tempdir.path().join("parity");
 		fetcher.set_result(Some(update_file.clone()));
 		File::create(update_file).unwrap();
+
+		// the elapsed time should be 4 seconds, but since we're mocking the current_time the backoff will also be offset by 2 seconds
+		time_provider.set_result(now + Duration::from_secs(6));
+		updater.poll();
 
 		// after setting up the mocked fetch and waiting for the backoff period the update should succeed
 		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release });
@@ -1086,6 +1090,5 @@ pub mod tests {
 
 		// a new release should short-circuit the backoff
 		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release });
-
 	}
 }
