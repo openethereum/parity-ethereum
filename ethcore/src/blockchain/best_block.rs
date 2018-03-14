@@ -24,7 +24,7 @@ use header::BlockNumber;
 /// combined difficulty (usually the block with the highest block number).
 ///
 /// Sometimes refered as 'latest block'.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct BestBlock {
 	/// Best block hash.
 	pub hash: H256,

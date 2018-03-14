@@ -481,15 +481,26 @@ impl Service {
 			let mut reader = self.reader.write();
 			*reader = None; // destroy the old reader if it existed.
 
+			let recovery = self.temp_recovery_dir();
 			let snapshot_dir = self.snapshot_dir();
 
 			if snapshot_dir.exists() {
+				for file in fs::read_dir(&snapshot_dir)? {
+					let file = file?;
+
+					let new_path = recovery.with_file_name(file.file_name());
+
+					fs::copy(file.path(), &new_path)?;
+				}
+
 				trace!(target: "snapshot", "removing old snapshot dir at {}", snapshot_dir.to_string_lossy());
+				// TODO: We should be smarter about what to do if this fails. Maybe rename this,
+				//       then rename the temp folder, then delete the renamed snapshot folder.
 				fs::remove_dir_all(&snapshot_dir)?;
 			}
 
 			trace!(target: "snapshot", "copying restored snapshot files over");
-			fs::rename(self.temp_recovery_dir(), &snapshot_dir)?;
+			fs::rename(recovery, &snapshot_dir)?;
 
 			*reader = Some(LooseReader::new(snapshot_dir)?);
 		}

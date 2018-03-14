@@ -18,7 +18,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::mem;
+use std::{mem, cmp};
 use itertools::Itertools;
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, Bloom, U256};
@@ -173,7 +173,7 @@ pub struct BlockChain {
 	best_ancient_block: RwLock<Option<BestAncientBlock>>,
 	// Stores the last block of the last sequence of blocks. `None` if there are no gaps.
 	// This is calculated on start and does not get updated.
-	first_block: Option<H256>,
+	first_block: RwLock<Option<H256>>,
 
 	// block cache
 	block_headers: RwLock<HashMap<H256, Bytes>>,
@@ -195,6 +195,77 @@ pub struct BlockChain {
 	pending_transaction_addresses: RwLock<HashMap<H256, Option<TransactionAddress>>>,
 }
 
+// TODO: Should this and `BestAncientBlock` be the same struct?
+#[derive(Clone, PartialEq, Eq)]
+struct Block {
+	hash: H256,
+	number: BlockNumber,
+}
+
+impl Block {
+	/// Returns the smallest of the two `Block`s. This is _not_ symmetric, if two `Block`s have
+	/// equal `number`s but different `hash`s this function will prefer `self`
+	fn min<'a>(&'a self, other: &'a Self) -> &'a Self {
+		if other < self {
+			other
+		} else {
+			self
+		}
+	}
+
+	/// Returns the largest of the two `Block`s. This is _not_ symmetric, if two `Block`s have equal
+	/// `number`s but different `hash`s this function will prefer `self`
+	fn max<'a>(&'a self, other: &'a Self) -> &'a Self {
+		if other > self {
+			other
+		} else {
+			self
+		}
+	}
+}
+
+impl cmp::PartialOrd for Block {
+	fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+		match self.number.cmp(&other.number) {
+			cmp::Ordering::Equal => if self.hash == other.hash {
+				Some(cmp::Ordering::Equal)
+			} else {
+				None
+			},
+			other => Some(other),
+		}
+	}
+}
+
+/// An open interval of blocks
+struct Gap {
+	low: Block,
+	high: Block,
+}
+
+impl Gap {
+	fn count(&self) -> BlockNumber {
+		self.high.number - self.low.number
+	}
+
+	fn intersection(&self, other: &Self) -> Option<Self> {
+		if self.high <= other.low || self.low >= other.high {
+			None
+		} else {
+			let out = Gap {
+				low: self.low.max(&other.low).clone(),
+				high: self.high.min(&other.high).clone(),
+			};
+
+			if out.count() <= 1 {
+				None
+			} else {
+				Some(out)
+			}
+		}
+	}
+}
+
 impl BlockProvider for BlockChain {
 	/// Returns true if the given block is known
 	/// (though not necessarily a part of the canon chain).
@@ -203,7 +274,7 @@ impl BlockProvider for BlockChain {
 	}
 
 	fn first_block(&self) -> Option<H256> {
-		self.first_block.clone()
+		self.first_block.read().clone()
 	}
 
 	fn best_ancient_block(&self) -> Option<H256> {
@@ -450,7 +521,7 @@ impl BlockChain {
 		let cache_man = CacheManager::new(config.pref_cache_size, config.max_cache_size, 400);
 
 		let mut bc = BlockChain {
-			first_block: None,
+			first_block: RwLock::new(None),
 			best_block: RwLock::new(BestBlock::default()),
 			best_ancient_block: RwLock::new(None),
 			block_headers: RwLock::new(HashMap::new()),
@@ -539,11 +610,11 @@ impl BlockChain {
 						let mut batch = db.transaction();
 						batch.put(db::COL_EXTRA, b"first", &hash);
 						db.write(batch).expect("Low level database error.");
-						bc.first_block = Some(hash);
+						bc.first_block = RwLock::new(Some(hash));
 					}
 				},
 				Some(raw_first) => {
-					bc.first_block = Some(H256::from_slice(&raw_first));
+					bc.first_block = RwLock::new(Some(H256::from_slice(&raw_first)));
 				},
 			}
 
@@ -956,10 +1027,14 @@ impl BlockChain {
 
 	/// Prepares extras update.
 	fn prepare_update(&self, batch: &mut DBTransaction, update: ExtrasUpdate, is_best: bool) {
-
 		{
 			let mut write_receipts = self.block_receipts.write();
-			batch.extend_with_cache(db::COL_EXTRA, &mut *write_receipts, update.block_receipts, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(
+				db::COL_EXTRA,
+				&mut *write_receipts,
+				update.block_receipts,
+				CacheUpdatePolicy::Remove,
+			);
 		}
 
 		// These cached values must be updated last with all four locks taken to avoid
@@ -984,9 +1059,24 @@ impl BlockChain {
 			let mut write_details = self.pending_block_details.write();
 			let mut write_txs = self.pending_transaction_addresses.write();
 
-			batch.extend_with_cache(db::COL_EXTRA, &mut *write_details, update.block_details, CacheUpdatePolicy::Overwrite);
-			batch.extend_with_cache(db::COL_EXTRA, &mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Overwrite);
-			batch.extend_with_option_cache(db::COL_EXTRA, &mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Overwrite);
+			batch.extend_with_cache(
+				db::COL_EXTRA,
+				&mut *write_details,
+				update.block_details,
+				CacheUpdatePolicy::Overwrite,
+			);
+			batch.extend_with_cache(
+				db::COL_EXTRA,
+				&mut *write_hashes,
+				update.block_hashes,
+				CacheUpdatePolicy::Overwrite,
+			);
+			batch.extend_with_option_cache(
+				db::COL_EXTRA,
+				&mut *write_txs,
+				update.transactions_addresses,
+				CacheUpdatePolicy::Overwrite,
+			);
 		}
 	}
 
@@ -1298,6 +1388,115 @@ impl BlockChain {
 			ancient_block_hash: best_ancient_block.as_ref().map(|b| b.hash),
 			ancient_block_number: best_ancient_block.as_ref().map(|b| b.number),
 		}
+	}
+
+	/// Returns a (low, high) pair which is a fully-open (i.e. exclusive on both ends) range
+	/// containing all blocks that this `BlockChain` is missing. If the blockchain is complete,
+	/// returns `None`. This will never return `Some(range)` where `range` contains no blocks.
+	fn missing_blocks(&self) -> Option<Gap> {
+		let high_hash = self.first_block.read();
+		let high_hash = high_hash.as_ref()?;
+		let high = Block {
+			hash: high_hash.clone(),
+			// TODO: Should this be an invariant? (i.e. should we raise a programmer error if `get`
+			//       returns `None`)
+			number: self.block_details.read().get(high_hash)?.number,
+		};
+
+		// Have to split this because of lifetimes
+		let best_ancient = self.best_ancient_block.read();
+		let best_ancient = best_ancient.as_ref()?;
+
+		let low = Block {
+			hash: best_ancient.hash,
+			number: best_ancient.number,
+		};
+
+		Some(Gap { low, high })
+	}
+
+	// TODO: have a real error type
+	/// Copies all the data from `other` into `self` and updates the metadata accordingly
+	pub fn migrate_from(&self, other: &Self) -> Result<(), ()> {
+		use std::hash;
+
+		fn migrate_hashmap<K: cmp::Eq + hash::Hash + Clone, V: Clone>(
+			into: &mut HashMap<K, V>,
+			from: &HashMap<K, V>,
+		) {
+			into.extend(from.iter().map(|(k, v)| (k.clone(), v.clone())));
+		}
+
+		fn migrate_kvdb(into: &KeyValueDB, from: &KeyValueDB) -> ::kvdb::Result<()> {
+			const MAX_TRANSACTION_SIZE: usize = 1024;
+
+			let mut transaction = into.transaction();
+			let mut count = 0;
+
+			for &column in [db::COL_HEADERS, db::COL_BODIES].iter() {
+				for (key, value) in from.iter(column) {
+					transaction.put(column, &*key, &*value);
+					count += 1;
+
+					if count == MAX_TRANSACTION_SIZE {
+						count = 0;
+						into.write(transaction)?;
+						transaction = into.transaction();
+					}
+				}
+			}
+
+			into.write(transaction)
+		}
+
+		migrate_hashmap(&mut *self.block_headers.write(), &*other.block_headers.read());
+		migrate_hashmap(&mut *self.block_bodies.write(), &*other.block_bodies.read());
+		migrate_hashmap(&mut *self.block_details.write(), &*other.block_details.read());
+		migrate_hashmap(&mut *self.block_hashes.write(), &*other.block_hashes.read());
+		migrate_hashmap(&mut *self.transaction_addresses.write(), &*other.transaction_addresses.read());
+		migrate_hashmap(&mut *self.block_receipts.write(), &*other.block_receipts.read());
+
+		migrate_kvdb(&*self.db, &*other.db).map_err(|_| ())?;
+
+		let best_block_after_merge = {
+			let (my_best, other_best) = (self.best_block.read(), other.best_block.read());
+
+			if my_best.number > other_best.number {
+				my_best.clone()
+			} else {
+				other_best.clone()
+			}
+		};
+
+		*self.best_block.write() = best_block_after_merge;
+
+		let (my_gap, other_gap) = (
+			self.missing_blocks().ok_or(())?,
+			other.missing_blocks(),
+		);
+
+		let new_gap = other_gap.and_then(|other| my_gap.intersection(&other));
+
+		if let Some(Gap { low, high }) = new_gap {
+			*self.first_block.write() = Some(high.hash);
+			*self.best_ancient_block.write() = Some(
+				BestAncientBlock {
+					hash: low.hash,
+					number: low.number,
+				}
+			);
+
+			let mut transaction = self.db.transaction();
+			transaction.put(db::COL_EXTRA, b"first", &high.hash);
+			transaction.put(db::COL_EXTRA, b"ancient", &low.hash);
+
+			self.db.write(transaction).map_err(|_| ())?;
+		} else {
+			*self.first_block.write() = None;
+			*self.best_ancient_block.write() = None;
+		}
+
+		Ok(())
 	}
 }
 
