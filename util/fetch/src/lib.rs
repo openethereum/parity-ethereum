@@ -24,7 +24,6 @@ extern crate log;
 #[macro_use]
 extern crate futures;
 extern crate futures_timer;
-extern crate parking_lot;
 
 extern crate hyper;
 extern crate hyper_rustls;

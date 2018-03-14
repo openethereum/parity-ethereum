@@ -12,7 +12,6 @@ futures-timer = "0.1"
 hyper = "0.11"
 hyper-rustls = "0.11"
 log = "0.4"
-parking_lot = "0.5"
 tokio-core = "0.1"
 url = "1"
 

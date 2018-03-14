@@ -22,13 +22,14 @@ use hyper::header::{UserAgent, Location, ContentLength, ContentType};
 use hyper::mime::Mime;
 use hyper::{self, Request, Method, StatusCode};
 use hyper_rustls;
-use parking_lot::{Condvar, Mutex};
+use std;
 use std::cmp::min;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::mpsc::RecvTimeoutError;
 use std::thread;
 use std::time::Duration;
-use std::{io, fmt, mem};
+use std::{io, fmt};
 use tokio_core::reactor;
 use url::{self, Url};
 
@@ -123,7 +124,7 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 }
 
 type TxResponse = oneshot::Sender<Result<Response, Error>>;
-type StartupCond = Arc<(Mutex<Result<(), io::Error>>, Condvar)>;
+type TxStartup = std::sync::mpsc::SyncSender<Result<(), io::Error>>;
 type ChanItem = Option<(Url, Abort, TxResponse)>;
 
 /// An implementation of `Fetch` using a `hyper` client.
@@ -161,21 +162,25 @@ impl Drop for Client {
 impl Client {
 	/// Create a new fetch client.
 	pub fn new() -> Result<Self, Error> {
-		let startup_done = Arc::new((Mutex::new(Ok(())), Condvar::new()));
+		let (tx_start, rx_start) = std::sync::mpsc::sync_channel(1);
 		let (tx_proto, rx_proto) = mpsc::channel(64);
 
-		Client::background_thread(startup_done.clone(), rx_proto)?;
+		Client::background_thread(tx_start, rx_proto)?;
 
-		let mut guard = startup_done.0.lock();
-		let startup_result = startup_done.1.wait_for(&mut guard, Duration::from_secs(10));
-
-		if startup_result.timed_out() {
-			error!(target: "fetch", "timeout starting background thread");
-			return Err(Error::BackgroundThreadDead)
-		}
-		if let Err(e) = mem::replace(&mut *guard, Ok(())) {
-			error!(target: "fetch", "error starting background thread: {}", e);
-			return Err(e.into())
+		match rx_start.recv_timeout(Duration::from_secs(10)) {
+			Err(RecvTimeoutError::Timeout) => {
+				error!(target: "fetch", "timeout starting background thread");
+				return Err(Error::BackgroundThreadDead)
+			}
+			Err(RecvTimeoutError::Disconnected) => {
+				error!(target: "fetch", "background thread gone");
+				return Err(Error::BackgroundThreadDead)
+			}
+			Ok(Err(e)) => {
+				error!(target: "fetch", "error starting background thread: {}", e);
+				return Err(e.into())
+			}
+			Ok(Ok(())) => {}
 		}
 
 		Ok(Client {
@@ -184,16 +189,13 @@ impl Client {
 		})
 	}
 
-	fn background_thread(start: StartupCond, rx_proto: mpsc::Receiver<ChanItem>) -> io::Result<thread::JoinHandle<()>> {
+	fn background_thread(tx_start: TxStartup, rx_proto: mpsc::Receiver<ChanItem>) -> io::Result<thread::JoinHandle<()>> {
 		thread::Builder::new().name("fetch".into()).spawn(move || {
 			let mut core = match reactor::Core::new() {
 				Ok(c)  => c,
-				Err(e) => {
-					*start.0.lock() = Err(e);
-					start.1.notify_one();
-					return ()
-				}
+				Err(e) => return tx_start.send(Err(e)).unwrap_or(())
 			};
+
 			let handle = core.handle();
 			let hyper = hyper::Client::configure()
 				.connector(hyper_rustls::HttpsConnector::new(4, &core.handle()))
@@ -241,7 +243,7 @@ impl Client {
 				future::ok(())
 			});
 
-			start.1.notify_one();
+			tx_start.send(Ok(())).unwrap_or(());
 
 			debug!(target: "fetch", "processing requests ...");
 			if let Err(()) = core.run(future) {
