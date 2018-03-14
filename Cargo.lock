@@ -2272,6 +2272,7 @@ dependencies = [
  "keccak-hash 0.1.0",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "matches 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.11.0",
  "parity-version 1.11.0",
  "parking_lot 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",

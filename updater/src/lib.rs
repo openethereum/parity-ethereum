@@ -42,6 +42,10 @@ extern crate log;
 #[cfg(test)]
 extern crate tempdir;
 
+#[cfg(test)]
+#[macro_use]
+extern crate matches;
+
 mod updater;
 mod types;
 mod service;

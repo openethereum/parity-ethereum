@@ -133,15 +133,18 @@ struct UpdaterState {
 }
 
 /// Service for checking for updates and determining whether we can achieve consensus.
-pub struct Updater<O = OperationsContractClient, F = fetch::Client> {
+pub struct Updater<O = OperationsContractClient, F = fetch::Client, T = StdTimeProvider, R = ThreadRngGenRange> {
 	// Useful environmental stuff.
 	update_policy: UpdatePolicy,
-	weak_self: Mutex<Weak<Updater<O, F>>>,
+	weak_self: Mutex<Weak<Updater<O, F, T, R>>>,
 	client: Weak<BlockChainClient>,
 	sync: Option<Weak<SyncProvider>>,
 	fetcher: F,
 	operations_client: O,
 	exit_handler: Mutex<Option<Box<Fn() + 'static + Send>>>,
+
+	time_provider: T,
+	rng: R,
 
 	// Our version info (static)
 	this: VersionInfo,
@@ -329,6 +332,37 @@ impl OperationsClient for OperationsContractClient {
 	}
 }
 
+/// Trait to provide current time. Useful for mocking in tests.
+pub trait TimeProvider: Send + Sync + 'static {
+	/// Returns an instant corresponding to "now".
+	fn now(&self) -> Instant;
+}
+
+/// TimeProvider implementation that delegates calls to std::time.
+pub struct StdTimeProvider;
+
+impl TimeProvider for StdTimeProvider {
+	fn now(&self) -> Instant {
+		Instant::now()
+	}
+}
+
+/// Trait to generate a random number within a given range.
+/// Useful for mocking in tests.
+pub trait GenRange: Send + Sync + 'static {
+	/// Generate a random value in the range [low, high), i.e. inclusive of low and exclusive of high.
+	fn gen_range(&self, low: u64, high: u64) -> u64;
+}
+
+/// GenRange implementation that uses a rand::thread_rng for randomness.
+pub struct ThreadRngGenRange;
+
+impl GenRange for ThreadRngGenRange {
+	fn gen_range(&self, low: u64, high: u64) -> u64 {
+		rand::thread_rng().gen_range(low, high)
+	}
+}
+
 impl Updater {
 	pub fn new(
 		client: Weak<BlockChainClient>,
@@ -347,6 +381,8 @@ impl Updater {
 				client.clone()),
 			exit_handler: Mutex::new(None),
 			this: VersionInfo::this(),
+			time_provider: StdTimeProvider,
+			rng: ThreadRngGenRange,
 			state: Mutex::new(Default::default()),
 		});
 		*r.weak_self.lock() = Arc::downgrade(&r);
@@ -359,7 +395,7 @@ impl Updater {
 	}
 }
 
-impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
+impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O, F, T, R> {
 	/// Set a closure to call when we want to restart the client
 	pub fn set_exit_handler<G>(&self, g: G) where G: Fn() + 'static + Send {
 		*self.exit_handler.lock() = Some(Box::new(g));
@@ -426,7 +462,7 @@ impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
 									// There was an error fetching the update, apply a backoff delay before retrying
 									Err(err) => {
 										let delay = 2usize.pow(retries) as u64;
-										let backoff = (retries, Instant::now() + Duration::from_secs(delay));
+										let backoff = (retries, this.time_provider.now() + Duration::from_secs(delay));
 
 										state.status = UpdaterStatus::FetchBackoff { release: release.clone(), backoff, binary };
 
@@ -449,7 +485,7 @@ impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
 				// we're currently fetching this update
 				UpdaterStatus::Fetching { ref release, .. } if *release == latest.track => {},
 				// the fetch has failed and we're backing off the next retry
-				UpdaterStatus::FetchBackoff { ref release, backoff, .. } if *release == latest.track && Instant::now() < backoff.1 => {},
+				UpdaterStatus::FetchBackoff { ref release, backoff, .. } if *release == latest.track && self.time_provider.now() < backoff.1 => {},
 				// we're delaying the update until the given block number
 				UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest.track && current_block_number < block_number => {},
 				// we're at (or past) the block that triggers the update, let's fetch the binary
@@ -507,7 +543,7 @@ impl<O: OperationsClient, F: HashFetch> Updater<O, F> {
 									let from = current_block_number.saturating_sub(self.update_policy.max_delay);
 									match self.operations_client.release_block_number(from, &latest.track) {
 										Some(block_number) => {
-											let delay = rand::thread_rng().gen_range(1, self.update_policy.max_delay + 1);
+											let delay = self.rng.gen_range(1, self.update_policy.max_delay + 1);
 											block_number.saturating_add(delay)
 										},
 										None => current_block_number,
@@ -607,7 +643,7 @@ impl ChainNotify for Updater {
 	}
 }
 
-impl<O: OperationsClient, F: HashFetch> Service for Updater<O, F> {
+impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Service for Updater<O, F, T, R> {
 	fn capability(&self) -> CapState {
 		self.state.lock().capability
 	}
@@ -720,14 +756,63 @@ pub mod tests {
 		}
 	}
 
-	fn setup(
-		update_policy: UpdatePolicy,
-	) -> (Arc<TestBlockChainClient>, Arc<Updater<FakeOperationsClient, FakeFetch>>, FakeFetch, FakeOperationsClient) {
+	#[derive(Clone)]
+	struct FakeTimeProvider {
+		result: Arc<Mutex<Instant>>,
+	}
+
+	impl FakeTimeProvider {
+		fn new() -> FakeTimeProvider {
+			FakeTimeProvider { result: Arc::new(Mutex::new(Instant::now())) }
+		}
+
+		fn set_result(&self, result: Instant) {
+			*self.result.lock() = result;
+		}
+	}
+
+	impl TimeProvider for FakeTimeProvider {
+		fn now(&self) -> Instant {
+			self.result.lock().clone()
+		}
+	}
+
+	#[derive(Clone)]
+	struct FakeGenRange {
+		result: Arc<Mutex<u64>>,
+	}
+
+	impl FakeGenRange {
+		fn new() -> FakeGenRange {
+			FakeGenRange { result: Arc::new(Mutex::new(0)) }
+		}
+
+		fn set_result(&self, result: u64) {
+			*self.result.lock() = result;
+		}
+	}
+
+	impl GenRange for FakeGenRange {
+		fn gen_range(&self, _low: u64, _high: u64) -> u64 {
+			*self.result.lock()
+		}
+	}
+
+	fn setup(update_policy: UpdatePolicy) -> (
+		Arc<TestBlockChainClient>,
+		Arc<Updater<FakeOperationsClient, FakeFetch, FakeTimeProvider, FakeGenRange>>,
+		FakeOperationsClient,
+		FakeFetch,
+		FakeTimeProvider,
+		FakeGenRange) {
+
 		let client = Arc::new(TestBlockChainClient::new());
 		let weak_client = Arc::downgrade(&client);
 
-		let fetcher = FakeFetch::new();
 		let operations_client = FakeOperationsClient::new();
+		let fetcher = FakeFetch::new();
+		let time_provider = FakeTimeProvider::new();
+		let rng = FakeGenRange::new();
 
 		let this = VersionInfo {
 			track: ReleaseTrack::Beta,
@@ -744,12 +829,14 @@ pub mod tests {
 			operations_client: operations_client.clone(),
 			exit_handler: Mutex::new(None),
 			this: this,
+			time_provider: time_provider.clone(),
+			rng: rng.clone(),
 			state: Mutex::new(Default::default()),
 		});
 
 		*updater.weak_self.lock() = Arc::downgrade(&updater);
 
-		(client, updater, fetcher, operations_client)
+		(client, updater, operations_client, fetcher, time_provider, rng)
 	}
 
 	fn update_policy() -> (UpdatePolicy, TempDir) {
@@ -764,16 +851,6 @@ pub mod tests {
 		};
 
 		(update_policy, tempdir)
-	}
-
-	#[test]
-	fn should_stay_idle_when_no_release() {
-		let (update_policy, _) = update_policy();
-		let (_, updater, _, _) = setup(update_policy);
-
-		assert_eq!(updater.state.lock().status, UpdaterStatus::Idle);
-		updater.poll();
-		assert_eq!(updater.state.lock().status, UpdaterStatus::Idle);
 	}
 
 	fn new_upgrade() -> (VersionInfo, ReleaseInfo, OperationsInfo) {
@@ -801,9 +878,19 @@ pub mod tests {
 	}
 
 	#[test]
+	fn should_stay_idle_when_no_release() {
+		let (update_policy, _) = update_policy();
+		let (_client, updater, _, _, ..) = setup(update_policy);
+
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Idle);
+		updater.poll();
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Idle);
+	}
+
+	#[test]
 	fn should_update_on_new_release() {
 		let (update_policy, tempdir) = update_policy();
-		let (_, updater, fetcher, operations_client) = setup(update_policy);
+		let (_client, updater, operations_client, fetcher, ..) = setup(update_policy);
 		let (latest_version, latest_release, latest) = new_upgrade();
 
 		// mock operations contract with a new version
@@ -847,40 +934,33 @@ pub mod tests {
 	#[test]
 	fn should_randomly_delay_new_updates() {
 		let (update_policy, tempdir) = update_policy();
-		let (client, updater, fetcher, operations_client) = setup(update_policy);
-		client.add_blocks(100, EachBlockWith::Nothing);
+		let (client, updater, operations_client, fetcher, _, rng) = setup(update_policy);
 
 		let (_, latest_release, latest) = new_upgrade();
-		operations_client.set_result(Some(latest.clone()), Some(100));
+		operations_client.set_result(Some(latest.clone()), Some(0));
 
 		let update_file = tempdir.path().join("parity");
 		fetcher.set_result(Some(update_file.clone()));
 		File::create(update_file).unwrap();
 
+		rng.set_result(5);
+
 		updater.poll();
 
-		// the update should be delayed for a maximum of 10 blocks according to the update policy
-		let delay =
-			match updater.state.lock().status {
-				UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number > 100 && block_number <= 110 => {
-					block_number - 100
-				},
-				ref status => panic!("updater status is incorrect: {:?}", status),
-			};
+		// the update should be delayed for 5 blocks
+		assert_matches!(
+			updater.state.lock().status,
+			UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number == 5);
 
-		// TODO: seed the rng to have deterministic tests
-		if delay > 1 {
-			client.add_blocks(1, EachBlockWith::Nothing);
-			updater.poll();
+		client.add_blocks(1, EachBlockWith::Nothing);
+		updater.poll();
 
-			// we should still be in the waiting state after we push one block
-			match updater.state.lock().status {
-				UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number > 100 && block_number <= 110 => {},
-				ref status => panic!("updater status is incorrect: {:?}", status),
-			};
-		}
+		// we should still be in the waiting state after we push one block
+		assert_matches!(
+			updater.state.lock().status,
+			UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number == 5);
 
-		client.add_blocks(delay as usize, EachBlockWith::Nothing);
+		client.add_blocks(5, EachBlockWith::Nothing);
 
 		// after we're past the delay the status should switch
 		updater.poll();
@@ -890,7 +970,7 @@ pub mod tests {
 	#[test]
 	fn should_not_delay_old_updates() {
 		let (update_policy, tempdir) = update_policy();
-		let (client, updater, fetcher, operations_client) = setup(update_policy);
+		let (client, updater, operations_client, fetcher, ..) = setup(update_policy);
 		client.add_blocks(100, EachBlockWith::Nothing);
 
 		let (_, latest_release, latest) = new_upgrade();
@@ -912,9 +992,10 @@ pub mod tests {
 		let (mut update_policy, _) = update_policy();
 		update_policy.frequency = 2;
 
-		let (client, updater, _, operations_client) = setup(update_policy);
+		let (client, updater, operations_client, _, _, rng) = setup(update_policy);
 		let (_, latest_release, latest) = new_upgrade();
 		operations_client.set_result(Some(latest.clone()), Some(0));
+		rng.set_result(5);
 
 		client.add_blocks(1, EachBlockWith::Nothing);
 		updater.poll();
@@ -925,11 +1006,10 @@ pub mod tests {
 		client.add_blocks(1, EachBlockWith::Nothing);
 		updater.poll();
 
-		// after adding a block we check for a new update and trigger the random delay
-		match updater.state.lock().status {
-			UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number > 0 && block_number <= 10 => {},
-			ref status => panic!("updater status is incorrect: {:?}", status),
-		};
+		// after adding a block we check for a new update and trigger the random delay (of 5 blocks)
+		assert_matches!(
+			updater.state.lock().status,
+			UpdaterStatus::Waiting { ref release, block_number, .. } if *release == latest_release && block_number == 5);
 
 	}
 }

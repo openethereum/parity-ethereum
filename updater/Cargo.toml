@@ -26,3 +26,4 @@ rand = "0.4"
 
 [dev-dependencies]
 tempdir = "0.3"
+matches = "0.1"
