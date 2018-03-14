@@ -22,13 +22,13 @@
 //! 3. Final verification against the blockchain done before enactment.
 
 use std::collections::HashSet;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use rlp::UntrustedRlp;
-use time::get_time;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
 
@@ -284,7 +284,8 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) 
 
 	if is_full {
 		const ACCEPTABLE_DRIFT_SECS: u64 = 15;
-		let max_time = get_time().sec as u64 + ACCEPTABLE_DRIFT_SECS;
+		let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+		let max_time = now.as_secs() + ACCEPTABLE_DRIFT_SECS;
 		let invalid_threshold = max_time + ACCEPTABLE_DRIFT_SECS * 9;
 		let timestamp = header.timestamp();
 
@@ -346,6 +347,7 @@ mod tests {
 	use super::*;
 
 	use std::collections::{BTreeMap, HashMap};
+	use std::time::{SystemTime, UNIX_EPOCH};
 	use ethereum_types::{H256, Bloom, U256};
 	use blockchain::{BlockDetails, TransactionAddress, BlockReceipts};
 	use encoded;
@@ -355,7 +357,6 @@ mod tests {
 	use ethkey::{Random, Generator};
 	use spec::{CommonParams, Spec};
 	use tests::helpers::{create_test_block_with_data, create_test_block};
-	use time::get_time;
 	use transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action};
 	use types::log_entry::{LogEntry, LocalizedLogEntry};
 	use rlp;
@@ -682,11 +683,11 @@ mod tests {
 		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine), false);
 
 		header = good.clone();
-		header.set_timestamp(get_time().sec as u64 + 20);
+		header.set_timestamp(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 20);
 		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine), true);
 
 		header = good.clone();
-		header.set_timestamp(get_time().sec as u64 + 10);
+		header.set_timestamp(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 10);
 		header.set_uncles_hash(good_uncles_hash.clone());
 		header.set_transactions_root(good_transactions_root.clone());
 		check_ok(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));

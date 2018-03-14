@@ -75,7 +75,6 @@ extern crate rlp_derive;
 extern crate serde;
 extern crate smallvec;
 extern crate stats;
-extern crate time;
 extern crate vm;
 extern crate keccak_hash as hash;
 extern crate triehash;

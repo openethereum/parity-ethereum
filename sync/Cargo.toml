@@ -24,7 +24,6 @@ kvdb = { path = "../util/kvdb" }
 macros = { path = "../util/macros" }
 log = "0.3"
 env_logger = "0.4"
-time = "0.1.34"
 rand = "0.4"
 heapsize = "0.4"
 semver = "0.6"

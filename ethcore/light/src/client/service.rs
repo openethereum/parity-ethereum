@@ -107,7 +107,7 @@ mod tests {
 	use std::sync::Arc;
 	use cache::Cache;
 	use client::fetch;
-	use time::Duration;
+	use std::time::Duration;
 	use parking_lot::Mutex;
 	use kvdb_memorydb;
 	use ethcore::db::NUM_COLUMNS;
@@ -116,7 +116,7 @@ mod tests {
 	fn it_works() {
 		let db = Arc::new(kvdb_memorydb::create(NUM_COLUMNS.unwrap_or(0)));
 		let spec = Spec::new_test();
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		Service::start(Default::default(), &spec, fetch::unavailable(), db, cache).unwrap();
 	}
