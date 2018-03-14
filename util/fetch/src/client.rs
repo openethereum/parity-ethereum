@@ -516,12 +516,15 @@ mod test {
 	use hyper::server::{Http, Request, Response, Service};
 	use std;
 	use std::io::Read;
+	use std::net::SocketAddr;
+
+	const ADDRESS: &str = "127.0.0.1:0";
 
 	#[test]
 	fn it_should_fetch() {
-		let _server = TestServer::run("127.0.0.1:11111");
+		let server = TestServer::run();
 		let client = Client::new().unwrap();
-		let future = client.fetch("http://127.0.0.1:11111?123", Default::default());
+		let future = client.fetch(&format!("http://{}?123", server.addr()), Default::default());
 		let resp = future.wait().unwrap();
 		assert!(resp.is_success());
 		let body = resp.concat2().wait().unwrap();
@@ -530,10 +533,10 @@ mod test {
 
 	#[test]
 	fn it_should_timeout() {
-		let _server = TestServer::run("127.0.0.1:11112");
+		let server = TestServer::run();
 		let client = Client::new().unwrap();
 		let abort = Abort::default().with_max_duration(Duration::from_secs(1));
-		match client.fetch("http://127.0.0.1:11112/delay?3", abort).wait() {
+		match client.fetch(&format!("http://{}/delay?3", server.addr()), abort).wait() {
 			Err(Error::Timeout) => {}
 			other => panic!("expected timeout, got {:?}", other)
 		}
@@ -541,28 +544,28 @@ mod test {
 
 	#[test]
 	fn it_should_follow_redirects() {
-		let _server = TestServer::run("127.0.0.1:11113");
+		let server = TestServer::run();
 		let client = Client::new().unwrap();
 		let abort = Abort::default();
-		let future = client.fetch("http://127.0.0.1:11113/redirect?http://127.0.0.1:11113/", abort);
+		let future = client.fetch(&format!("http://{}/redirect?http://{}/", server.addr(), server.addr()), abort);
 		assert!(future.wait().unwrap().is_success())
 	}
 
 	#[test]
 	fn it_should_follow_relative_redirects() {
-		let _server = TestServer::run("127.0.0.1:11114");
+		let server = TestServer::run();
 		let client = Client::new().unwrap();
 		let abort = Abort::default().with_max_redirects(4);
-		let future = client.fetch("http://127.0.0.1:11114/redirect?/", abort);
+		let future = client.fetch(&format!("http://{}/redirect?/", server.addr()), abort);
 		assert!(future.wait().unwrap().is_success())
 	}
 
 	#[test]
 	fn it_should_not_follow_too_many_redirects() {
-		let _server = TestServer::run("127.0.0.1:11115");
+		let server = TestServer::run();
 		let client = Client::new().unwrap();
 		let abort = Abort::default().with_max_redirects(3);
-		match client.fetch("http://127.0.0.1:11115/loop", abort).wait() {
+		match client.fetch(&format!("http://{}/loop", server.addr()), abort).wait() {
 			Err(Error::TooManyRedirects) => {}
 			other => panic!("expected too many redirects error, got {:?}", other)
 		}
@@ -570,10 +573,10 @@ mod test {
 
 	#[test]
 	fn it_should_read_data() {
-		let _server = TestServer::run("127.0.0.1:11116");
+		let server = TestServer::run();
 		let client = Client::new().unwrap();
 		let abort = Abort::default();
-		let future = client.fetch("http://127.0.0.1:11116?abcdefghijklmnopqrstuvwxyz", abort);
+		let future = client.fetch(&format!("http://{}?abcdefghijklmnopqrstuvwxyz", server.addr()), abort);
 		let resp = future.wait().unwrap();
 		assert!(resp.is_success());
 		assert_eq!(&resp.concat2().wait().unwrap()[..], b"abcdefghijklmnopqrstuvwxyz")
@@ -581,10 +584,10 @@ mod test {
 
 	#[test]
 	fn it_should_not_read_too_much_data() {
-		let _server = TestServer::run("127.0.0.1:11117");
+		let server = TestServer::run();
 		let client = Client::new().unwrap();
 		let abort = Abort::default().with_max_size(3);
-		let resp = client.fetch("http://127.0.0.1:11117/?1234", abort).wait().unwrap();
+		let resp = client.fetch(&format!("http://{}/?1234", server.addr()), abort).wait().unwrap();
 		assert!(resp.is_success());
 		match resp.concat2().wait() {
 			Err(Error::SizeLimit) => {}
@@ -594,10 +597,10 @@ mod test {
 
 	#[test]
 	fn it_should_not_read_too_much_data_sync() {
-		let _server = TestServer::run("127.0.0.1:11118");
+		let server = TestServer::run();
 		let client = Client::new().unwrap();
 		let abort = Abort::default().with_max_size(3);
-		let resp = client.fetch("http://127.0.0.1:11118/?1234", abort).wait().unwrap();
+		let resp = client.fetch(&format!("http://{}/?1234", server.addr()), abort).wait().unwrap();
 		assert!(resp.is_success());
 		let mut buffer = Vec::new();
 		let mut reader = BodyReader::new(resp);
@@ -645,26 +648,31 @@ mod test {
 	}
 
 	impl TestServer {
-		fn run(addr: &'static str) -> Handle {
+		fn run() -> Handle {
 			let (tx_start, rx_start) = std::sync::mpsc::sync_channel(1);
 			let (tx_end, rx_end) = mpsc::channel(0);
 			let rx_end_fut = rx_end.into_future().map(|_| ()).map_err(|_| ());
 			thread::spawn(move || {
-				let addr = addr.parse().unwrap();
+				let addr = ADDRESS.parse().unwrap();
 				let server = Http::new().bind(&addr, || Ok(TestServer)).unwrap();
-				tx_start.send(()).unwrap_or(());
+				tx_start.send(server.local_addr().unwrap()).unwrap_or(());
 				server.run_until(rx_end_fut).unwrap();
 			});
-			rx_start.recv().unwrap();
-			Handle(tx_end)
+			Handle(rx_start.recv().unwrap(), tx_end)
 		}
 	}
 
-	struct Handle(mpsc::Sender<()>);
+	struct Handle(SocketAddr, mpsc::Sender<()>);
+
+	impl Handle {
+		fn addr(&self) -> SocketAddr {
+			self.0
+		}
+	}
 
 	impl Drop for Handle {
 		fn drop(&mut self) {
-			self.0.clone().send(()).wait().unwrap();
+			self.1.clone().send(()).wait().unwrap();
 		}
 	}
 }
