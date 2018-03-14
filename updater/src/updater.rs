@@ -853,10 +853,10 @@ pub mod tests {
 		(update_policy, tempdir)
 	}
 
-	fn new_upgrade() -> (VersionInfo, ReleaseInfo, OperationsInfo) {
+	fn new_upgrade(version: &str) -> (VersionInfo, ReleaseInfo, OperationsInfo) {
 		let latest_version = VersionInfo {
 			track: ReleaseTrack::Beta,
-			version: Version::parse("1.0.1").unwrap(),
+			version: Version::parse(version).unwrap(),
 			hash: 1.into(),
 		};
 
@@ -891,7 +891,7 @@ pub mod tests {
 	fn should_update_on_new_release() {
 		let (update_policy, tempdir) = update_policy();
 		let (_client, updater, operations_client, fetcher, ..) = setup(update_policy);
-		let (latest_version, latest_release, latest) = new_upgrade();
+		let (latest_version, latest_release, latest) = new_upgrade("1.0.1");
 
 		// mock operations contract with a new version
 		operations_client.set_result(Some(latest.clone()), None);
@@ -936,7 +936,7 @@ pub mod tests {
 		let (update_policy, tempdir) = update_policy();
 		let (client, updater, operations_client, fetcher, _, rng) = setup(update_policy);
 
-		let (_, latest_release, latest) = new_upgrade();
+		let (_, latest_release, latest) = new_upgrade("1.0.1");
 		operations_client.set_result(Some(latest.clone()), Some(0));
 
 		let update_file = tempdir.path().join("parity");
@@ -973,7 +973,7 @@ pub mod tests {
 		let (client, updater, operations_client, fetcher, ..) = setup(update_policy);
 		client.add_blocks(100, EachBlockWith::Nothing);
 
-		let (_, latest_release, latest) = new_upgrade();
+		let (_, latest_release, latest) = new_upgrade("1.0.1");
 		operations_client.set_result(Some(latest.clone()), Some(0));
 
 		let update_file = tempdir.path().join("parity");
@@ -993,7 +993,7 @@ pub mod tests {
 		update_policy.frequency = 2;
 
 		let (client, updater, operations_client, _, _, rng) = setup(update_policy);
-		let (_, latest_release, latest) = new_upgrade();
+		let (_, latest_release, latest) = new_upgrade("1.0.1");
 		operations_client.set_result(Some(latest.clone()), Some(0));
 		rng.set_result(5);
 
@@ -1016,7 +1016,7 @@ pub mod tests {
 	fn should_backoff_retry_when_update_fails() {
 		let (update_policy, tempdir) = update_policy();
 		let (_client, updater, operations_client, fetcher, time_provider, ..) = setup(update_policy);
-		let (_, latest_release, latest) = new_upgrade();
+		let (_, latest_release, latest) = new_upgrade("1.0.1");
 
 		// mock operations contract with a new version
 		operations_client.set_result(Some(latest.clone()), None);
@@ -1047,15 +1047,44 @@ pub mod tests {
 			updater.state.lock().status,
 			UpdaterStatus::FetchBackoff { ref release, ref backoff, .. } if *release == latest_release && backoff.0 == 2);
 
-		let update_file = tempdir.path().join("parity");
-		fetcher.set_result(Some(update_file.clone()));
-		File::create(update_file).unwrap();
-
 		// the elapsed time should be 4 seconds, but since we're mocking the current_time the backoff will also be offset by 2 seconds
 		time_provider.set_result(now + Duration::from_secs(6));
 		updater.poll();
 
+		let update_file = tempdir.path().join("parity");
+		fetcher.set_result(Some(update_file.clone()));
+		File::create(update_file).unwrap();
+
 		// after setting up the mocked fetch and waiting for the backoff period the update should succeed
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release });
+	}
+
+	#[test]
+	fn should_quit_backoff_on_new_release() {
+		let (update_policy, tempdir) = update_policy();
+		let (_client, updater, operations_client, fetcher, ..) = setup(update_policy);
+		let (_, latest_release, latest) = new_upgrade("1.0.1");
+
+		// mock operations contract with a new version
+		operations_client.set_result(Some(latest.clone()), None);
+
+		updater.poll();
+
+		// we didn't mock the fetcher result so it will error and the updater should backoff any retry
+		assert_matches!(
+			updater.state.lock().status,
+			UpdaterStatus::FetchBackoff { ref release, ref backoff, .. } if *release == latest_release && backoff.0 == 1);
+
+		// mock new working release
+		let (_, latest_release, latest) = new_upgrade("1.0.2");
+		operations_client.set_result(Some(latest.clone()), None);
+		let update_file = tempdir.path().join("parity");
+		fetcher.set_result(Some(update_file.clone()));
+		File::create(update_file).unwrap();
+
+		updater.poll();
+
+		// a new release should short-circuit the backoff
 		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release });
 
 	}
