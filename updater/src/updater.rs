@@ -618,30 +618,32 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 					   latest.track.fork,
 					   latest.fork);
 
-				// Update current capability
-				state.capability = match latest.this_fork {
-					// We're behind the latest fork. Now is the time to be upgrading, perhaps we're too late...
-					Some(this_fork) if this_fork < latest.fork => {
-						if current_block_number >= latest.fork - 1 {
-							// We're at (or past) the last block we can import. Disable the client.
-							if self.update_policy.require_consensus {
-								if let Some(c) = self.client.upgrade() {
-									c.disable();
-								}
-							}
-
-							CapState::IncapableSince(latest.fork)
-						} else {
-							CapState::CapableUntil(latest.fork)
-						}
-					},
-					Some(_) => CapState::Capable,
-					None => CapState::Unknown,
-				};
-
 				// Update latest release
 				state.latest = Some(latest.clone());
 			}
+		}
+
+		if let Some(latest) = state.latest.clone() {
+			// Update current capability
+			state.capability = match latest.this_fork {
+				// We're behind the latest fork. Now is the time to be upgrading, perhaps we're too late...
+				Some(this_fork) if this_fork < latest.fork => {
+					if current_block_number >= latest.fork - 1 {
+						// We're at (or past) the last block we can import. Disable the client.
+						if self.update_policy.require_consensus {
+							if let Some(c) = self.client.upgrade() {
+								c.disable();
+							}
+						}
+
+						CapState::IncapableSince(latest.fork)
+					} else {
+						CapState::CapableUntil(latest.fork)
+					}
+				},
+				Some(_) => CapState::Capable,
+				None => CapState::Unknown,
+			};
 		}
 
 		// will lock self.state
