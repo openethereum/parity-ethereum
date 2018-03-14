@@ -124,7 +124,7 @@ impl Manager {
 		// More info can be found: <http://libusb.sourceforge.net/api-1.0/group__hotplug.html#gae6c5f1add6cc754005549c7259dc35ea>
 		usb_context.register_callback(
 			Some(LEDGER_VID), None, Some(USB_DEVICE_CLASS_DEVICE),
-			Box::new(EventHandler::new(Arc::downgrade(&manager))))?;
+			Box::new(EventHandler::new(Arc::downgrade(&manager)))).expect("usb_callback");
 
 		// Ledger event handler thread
 		thread::Builder::new()
@@ -213,7 +213,7 @@ impl Manager {
 			return Err(Error::Protocol("No status word"));
 		}
 		let status = (message[message.len() - 2] as usize) << 8 | (message[message.len() - 1] as usize);
-		debug!("Read status {:x}", status);
+		debug!(target: "hw", "Read status {:x}", status);
 		match status {
 			0x6700 => Err(Error::Protocol("Incorrect length")),
 			0x6982 => Err(Error::Protocol("Security status not satisfied (Canceled by user)")),
@@ -318,14 +318,14 @@ impl <'a>Wallet<'a> for Manager {
 			}
 			match self.read_device(&usb, &device) {
 				Ok(info) => {
-					debug!("Found device: {:?}", info);
+					debug!(target: "hw", "Found device: {:?}", info);
 					if !self.devices.read().iter().any(|d| d.path == info.path) {
 						num_new_devices += 1;
 					}
 					new_devices.push(info);
 
 				}
-				Err(e) => debug!("Error reading device info: {}", e),
+				Err(e) => debug!(target: "hw", "Error reading device info: {}", e),
 			};
 		}
 		*self.devices.write() = new_devices;
@@ -444,9 +444,11 @@ impl libusb::Hotplug for EventHandler {
 #[test]
 fn smoke() {
 	use rustc_hex::FromHex;
-	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
-	let manager = Manager::new(hidapi.clone(), Arc::new(AtomicBool::new(false))).unwrap();
-	manager.update_devices().unwrap();
+	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().expect("HidApi couldn't be instanced")));
+	let manager = Manager::new(hidapi.clone(), Arc::new(AtomicBool::new(false))).expect("Ledger::Manager");
+
+	assert_eq!(try_connect_polling(manager.clone(), Duration::from_millis(500)), true);
+
 	for d in &*manager.devices.read() {
 		println!("Device: {:?}", d);
 	}
