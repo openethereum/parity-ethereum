@@ -497,23 +497,29 @@ impl From<url::ParseError> for Error {
 #[cfg(test)]
 mod test {
 	use super::*;
+	use futures::future;
+	use futures::sync::mpsc;
+	use futures_timer::Delay;
+	use hyper::StatusCode;
+	use hyper::server::{Http, Request, Response, Service};
 
 	#[test]
 	fn it_should_fetch() {
+		let _server = TestServer::run("127.0.0.1:11111");
 		let client = Client::new().unwrap();
-		let abort = Abort::default().with_max_duration(Duration::from_secs(10));
-		let future = client.fetch("https://httpbin.org/drip?numbytes=3&duration=3&delay=1&code=200", abort);
+		let future = client.fetch("http://127.0.0.1:11111?123", Default::default());
 		let resp = future.wait().unwrap();
 		assert!(resp.is_success());
 		let body = resp.concat2().wait().unwrap();
-		assert_eq!(body.len(), 3)
+		assert_eq!(&body[..], b"123")
 	}
 
 	#[test]
 	fn it_should_timeout() {
+		let _server = TestServer::run("127.0.0.1:11112");
 		let client = Client::new().unwrap();
-		let abort = Abort::default().with_max_duration(Duration::from_secs(5));
-		match client.fetch("https://httpbin.org/delay/7", abort).wait() {
+		let abort = Abort::default().with_max_duration(Duration::from_secs(3));
+		match client.fetch("http://127.0.0.1:11112/delay?4", abort).wait() {
 			Err(Error::Timeout) => {}
 			other => panic!("expected timeout, got {:?}", other)
 		}
@@ -521,25 +527,28 @@ mod test {
 
 	#[test]
 	fn it_should_follow_redirects() {
+		let _server = TestServer::run("127.0.0.1:11113");
 		let client = Client::new().unwrap();
-		let abort = Abort::default().with_max_redirects(4).with_max_duration(Duration::from_secs(15));
-		let future = client.fetch("https://httpbin.org/absolute-redirect/3", abort);
+		let abort = Abort::default();
+		let future = client.fetch("http://127.0.0.1:11113/redirect?http://127.0.0.1:11113/", abort);
 		assert!(future.wait().unwrap().is_success())
 	}
 
 	#[test]
 	fn it_should_follow_relative_redirects() {
+		let _server = TestServer::run("127.0.0.1:11114");
 		let client = Client::new().unwrap();
-		let abort = Abort::default().with_max_redirects(4).with_max_duration(Duration::from_secs(15));
-		let future = client.fetch("https://httpbin.org/relative-redirect/3", abort);
+		let abort = Abort::default().with_max_redirects(4);
+		let future = client.fetch("http://127.0.0.1:11114/redirect?/", abort);
 		assert!(future.wait().unwrap().is_success())
 	}
 
 	#[test]
 	fn it_should_not_follow_too_many_redirects() {
+		let _server = TestServer::run("127.0.0.1:11115");
 		let client = Client::new().unwrap();
 		let abort = Abort::default().with_max_redirects(3);
-		match client.fetch("https://httpbin.org/absolute-redirect/4", abort).wait() {
+		match client.fetch("http://127.0.0.1:11115/loop", abort).wait() {
 			Err(Error::TooManyRedirects) => {}
 			other => panic!("expected too many redirects error, got {:?}", other)
 		}
@@ -547,21 +556,85 @@ mod test {
 
 	#[test]
 	fn it_should_read_data() {
+		let _server = TestServer::run("127.0.0.1:11116");
 		let client = Client::new().unwrap();
 		let abort = Abort::default();
-		let future = client.fetch("https://httpbin.org/bytes/1024", abort);
+		let future = client.fetch("http://127.0.0.1:11116?abcdefghijklmnopqrstuvwxyz", abort);
 		let resp = future.wait().unwrap();
 		assert!(resp.is_success());
-		assert_eq!(resp.concat2().wait().unwrap().len(), 1024)
+		assert_eq!(&resp.concat2().wait().unwrap()[..], b"abcdefghijklmnopqrstuvwxyz")
 	}
 
 	#[test]
 	fn it_should_not_read_too_much_data() {
+		let _server = TestServer::run("127.0.0.1:11117");
 		let client = Client::new().unwrap();
 		let abort = Abort::default().with_max_size(3);
-		match client.fetch("https://httpbin.org/bytes/4", abort).wait() {
+		let resp = client.fetch("http://127.0.0.1:11117/?1234", abort).wait().unwrap();
+		assert!(resp.is_success());
+		match resp.concat2().wait() {
 			Err(Error::SizeLimit) => {}
 			other => panic!("expected size limit error, got {:?}", other)
+		}
+	}
+
+	struct TestServer;
+
+	impl Service for TestServer {
+		type Request = Request;
+		type Response = Response;
+		type Error = hyper::Error;
+		type Future = Box<Future<Item=Self::Response, Error=Self::Error>>;
+
+		fn call(&self, req: Request) -> Self::Future {
+			match req.uri().path() {
+				"/" => {
+					let body = req.uri().query().unwrap_or("").to_string();
+					let req = Response::new().with_body(body);
+					Box::new(future::ok(req))
+				}
+				"/redirect" => {
+					let loc = Location::new(req.uri().query().unwrap_or("/").to_string());
+					let req = Response::new()
+						.with_status(StatusCode::MovedPermanently)
+						.with_header(loc);
+					Box::new(future::ok(req))
+				}
+				"/loop" => {
+					let req = Response::new()
+						.with_status(StatusCode::MovedPermanently)
+						.with_header(Location::new("/loop".to_string()));
+					Box::new(future::ok(req))
+				}
+				"/delay" => {
+					let d = Duration::from_secs(req.uri().query().unwrap_or("0").parse().unwrap());
+					Box::new(Delay::new(d).from_err().map(|_| Response::new()))
+				}
+				_ => Box::new(future::ok(Response::new().with_status(StatusCode::NotFound)))
+			}
+		}
+	}
+
+	impl TestServer {
+		fn run(addr: &'static str) -> Handle {
+			let (tx, rx) = mpsc::channel(0);
+			let rx_fut = rx.into_future()
+				.map(|_| ())
+				.map_err(|_| ());
+			thread::spawn(move || {
+				let addr = addr.parse().unwrap();
+				let server = Http::new().bind(&addr, || Ok(TestServer)).unwrap();
+				server.run_until(rx_fut).unwrap();
+			});
+			Handle(tx)
+		}
+	}
+
+	struct Handle(mpsc::Sender<()>);
+
+	impl Drop for Handle {
+		fn drop(&mut self) {
+			self.0.clone().send(()).wait().unwrap();
 		}
 	}
 }
