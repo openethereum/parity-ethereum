@@ -303,7 +303,7 @@ impl<'a> Runtime<'a> {
 		Ok(self.gas_limit - self.gas_counter)
 	}
 
-	/// Report gas cost with the params passed in wasm stack
+	/// Charges gas for the current block of execution. Returns an error in case of running out of gas.
 	fn gas(&mut self, args: RuntimeArgs) -> Result<()> {
 		let amount: u32 = args.nth_checked(0)?;
 		if self.charge_gas(amount as u64) {
