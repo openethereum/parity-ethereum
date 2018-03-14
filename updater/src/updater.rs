@@ -1133,7 +1133,7 @@ pub mod tests {
 	fn should_stay_disabled_after_fatal_error() {
 		let (update_policy, tempdir) = update_policy();
 		let (client, updater, operations_client, fetcher, ..) = setup(update_policy);
-		let (latest_version, _, latest) = new_upgrade("1.0.1");
+		let (_, _, latest) = new_upgrade("1.0.1");
 
 		// mock operations contract with a new version
 		operations_client.set_result(Some(latest.clone()), None);
@@ -1158,5 +1158,32 @@ pub mod tests {
 
 		// the updater should stay disabled after a new release is pushed
 		assert_eq!(updater.state.lock().status, UpdaterStatus::Disabled);
+	}
+
+	#[test]
+	fn should_ignore_current_fetch_on_new_release() {
+		let (update_policy, _) = update_policy();
+		let (_client, updater, operations_client, fetcher, ..) = setup(update_policy);
+		let (_, latest_release, latest) = new_upgrade("1.0.1");
+
+		// mock operations contract with a new version
+		operations_client.set_result(Some(latest.clone()), None);
+
+		updater.poll();
+
+		assert_matches!(
+			updater.state.lock().status,
+			UpdaterStatus::Fetching { ref release, .. } if *release == latest_release);
+
+		let (_, latest_release, latest) = new_upgrade("1.0.2");
+		operations_client.set_result(Some(latest.clone()), None);
+		fetcher.trigger(None);
+		updater.poll();
+
+		// even though we triggered the previous fetch with an error, the current state was updated to fetch the new
+		// release, and the previous fetch is ignored
+		assert_matches!(
+			updater.state.lock().status,
+			UpdaterStatus::Fetching { ref release, .. } if *release == latest_release);
 	}
 }
