@@ -1186,4 +1186,41 @@ pub mod tests {
 			updater.state.lock().status,
 			UpdaterStatus::Fetching { ref release, .. } if *release == latest_release);
 	}
+
+	#[test]
+	fn should_auto_install_updates_if_update_policy_allows() {
+		let (mut update_policy, tempdir) = update_policy();
+		update_policy.filter = UpdateFilter::All;
+		let (_client, updater, operations_client, fetcher, ..) = setup(update_policy);
+		let (latest_version, latest_release, latest) = new_upgrade("1.0.1");
+
+		// mock operations contract with a new version
+		operations_client.set_result(Some(latest.clone()), None);
+
+		// we start in idle state and with no information regarding the latest release
+		assert_eq!(updater.state.lock().latest, None);
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Idle);
+
+		updater.poll();
+
+		// mock fetcher with update binary and trigger the fetch
+		let update_file = tempdir.path().join("parity");
+		File::create(update_file.clone()).unwrap();
+		fetcher.trigger(Some(update_file));
+
+		// the update is auto installed since the update policy allows it
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Installed { release: latest_release });
+
+		// the final binary should exist in the updates folder and the 'latest' file should be updated to point to it
+		let updated_binary = tempdir.path().join(Updater::update_file_name(&latest_version));
+		let latest_file = tempdir.path().join("latest");
+
+		assert!(updated_binary.exists());
+		assert!(latest_file.exists());
+
+		let mut latest_file_content = String::new();
+		File::open(latest_file).unwrap().read_to_string(&mut latest_file_content).unwrap();
+
+		assert_eq!(latest_file_content, updated_binary.file_name().and_then(|n| n.to_str()).unwrap());
+	}
 }
