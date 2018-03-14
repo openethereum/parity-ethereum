@@ -72,6 +72,16 @@ pub struct Logger;
 impl txpool::Listener<Transaction> for Logger {
 	fn added(&mut self, tx: &Arc<Transaction>, old: Option<&Arc<Transaction>>) {
 		debug!(target: "txqueue", "[{:?}] Added to the pool.", tx.hash());
+		debug!(
+			target: "txqueue",
+			"[{:?}] Sender: {sender}, nonce: {nonce}, gasPrice: {gas_price}, gas: {gas}, value: {value}, dataLen: {data}))",
+			sender = tx.sender(),
+			nonce = tx.signed().nonce,
+			gas_price = tx.signed().gas_price,
+			gas = tx.signed().gas,
+			value = tx.signed().value,
+			data = tx.signed().data.len(),
+		);
 
 		if let Some(old) = old {
 			debug!(target: "txqueue", "[{:?}] Dropped. Replaced by [{:?}]", old.hash(), tx.hash());

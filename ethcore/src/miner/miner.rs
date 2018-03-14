@@ -217,7 +217,9 @@ impl Miner {
 
 	/// Push an URL that will get new job notifications.
 	pub fn add_work_listener_url(&self, urls: &[String]) {
-		self.add_work_listener(Box::new(WorkPoster::new(&urls)));
+		if !urls.is_empty() {
+			self.add_work_listener(Box::new(WorkPoster::new(urls)));
+		}
 	}
 
 	/// Set a callback to be notified about imported transactions' hashes.
@@ -275,7 +277,7 @@ impl Miner {
 	///
 	/// Limits consist of current block gas limit and minimal gas price.
 	pub fn update_transaction_queue_limits(&self, block_gas_limit: U256) {
-		debug!(target: "miner", "minimal_gas_price: recalibrating...");
+		trace!(target: "miner", "minimal_gas_price: recalibrating...");
 		let txq = self.transaction_queue.clone();
 		let mut options = self.options.pool_verification_options.clone();
 		self.gas_pricer.lock().recalibrate(move |gas_price| {
@@ -382,6 +384,12 @@ impl Miner {
 			nonce_cap,
 		);
 
+		let took_ms = |elapsed: &Duration| {
+			elapsed.as_secs() * 1000 + elapsed.subsec_nanos() as u64 / 1_000_000
+		};
+
+
+		let block_start = Instant::now();
 		debug!(target: "miner", "Attempting to push {} transactions.", pending.len());
 
 		for tx in pending {
@@ -399,18 +407,17 @@ impl Miner {
 				});
 
 			let took = start.elapsed();
-			let took_ms = || took.as_secs() * 1000 + took.subsec_nanos() as u64 / 1_000_000;
 
 			// Check for heavy transactions
 			match self.options.tx_queue_penalization {
 				Penalization::Enabled { ref offend_threshold } if &took > offend_threshold => {
 					senders_to_penalize.insert(sender);
-					debug!(target: "miner", "Detected heavy transaction ({} ms). Penalizing sender.", took_ms());
+					debug!(target: "miner", "Detected heavy transaction ({} ms). Penalizing sender.", took_ms(&took));
 				},
 				_ => {},
 			}
 
-			debug!(target: "miner", "Adding tx {:?} took {} ms", hash, took_ms());
+			debug!(target: "miner", "Adding tx {:?} took {} ms", hash, took_ms(&took));
 			match result {
 				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) => {
 					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?} (limit: {:?}, used: {:?}, gas: {:?})", hash, gas_limit, gas_used, gas);
@@ -457,7 +464,8 @@ impl Miner {
 				_ => tx_count += 1,
 			}
 		}
-		trace!(target: "miner", "Pushed {} transactions", tx_count);
+		let elapsed = block_start.elapsed();
+		debug!(target: "miner", "Pushed {} transactions in {} ms", tx_count, took_ms(&elapsed));
 
 		let block = open_block.close();
 
@@ -496,12 +504,19 @@ impl Miner {
 		// keep sealing enabled if any of the conditions is met
 		let sealing_enabled = self.forced_sealing()
 			|| self.transaction_queue.has_local_pending_transactions()
-			|| self.engine.seals_internally().is_some()
+			|| self.engine.seals_internally() == Some(true)
 			|| had_requests;
+
 
 		let should_disable_sealing = !sealing_enabled;
 
-		trace!(target: "miner", "requires_reseal: should_disable_sealing={}; best_block={}, last_request={}", should_disable_sealing, best_block, sealing.last_request);
+		trace!(target: "miner", "requires_reseal: should_disable_sealing={}; forced={:?}, has_local={:?}, internal={:?}, had_requests={:?}",
+			should_disable_sealing,
+			self.forced_sealing(),
+			self.transaction_queue.has_local_pending_transactions(),
+			self.engine.seals_internally(),
+			had_requests,
+		);
 
 		if should_disable_sealing {
 			trace!(target: "miner", "Miner sleeping (current {}, last {})", best_block, sealing.last_request);
