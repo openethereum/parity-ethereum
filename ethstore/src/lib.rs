@@ -43,6 +43,10 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 
+#[cfg(test)]
+#[macro_use]
+extern crate matches;
+
 pub mod accounts_dir;
 pub mod ethkey;
 
