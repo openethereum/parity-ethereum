@@ -85,7 +85,9 @@ pub trait MinerService : Send + Sync {
 	// Notifications
 
 	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256])
+	/// `is_internal_import` indicates that the block has just been created in miner and internally sealed by the engine,
+	/// so we shouldn't attempt creating new block again.
+	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256], is_internal_import: bool)
 		where C: BlockChainClient;
 
 

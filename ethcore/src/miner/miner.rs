@@ -576,6 +576,7 @@ impl Miner {
 			},
 			// Directly import a regular sealed block.
 			Seal::Regular(seal) => {
+				trace!(target: "miner", "Received a Regular seal.");
 				{
 					let mut sealing = self.sealing.lock();
 					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
@@ -994,7 +995,7 @@ impl miner::MinerService for Miner {
 		})
 	}
 
-	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256])
+	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256], is_internal_import: bool)
 		where C: miner::BlockChainClient,
 	{
 		trace!(target: "miner", "chain_new_blocks");
@@ -1032,7 +1033,7 @@ impl miner::MinerService for Miner {
 		// ...and at the end remove the old ones
 		self.transaction_queue.cull(client);
 
-		if enacted.len() > 0 || (imported.len() > 0 && self.options.reseal_on_uncle) {
+		if !is_internal_import && (enacted.len() > 0 || (imported.len() > 0 && self.options.reseal_on_uncle)) {
 			// --------------------------------------------------------------------------
 			// | NOTE Code below requires transaction_queue and sealing locks.          |
 			// | Make sure to release the locks before calling that method.             |

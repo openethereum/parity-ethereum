@@ -2970,7 +2970,7 @@ mod tests {
 			let queue = RwLock::new(VecDeque::new());
 			let ss = TestSnapshotService::new();
 			let mut io = TestIo::new(&mut client, &ss, &queue, None);
-			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &[], &good_blocks);
+			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &[], &good_blocks, false);
 			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);
 			assert_eq!(io.chain.miner.ready_transactions(io.chain).len(), 1);
 		}
@@ -2983,7 +2983,7 @@ mod tests {
 			let queue = RwLock::new(VecDeque::new());
 			let ss = TestSnapshotService::new();
 			let mut io = TestIo::new(&client, &ss, &queue, None);
-			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &good_blocks, &retracted_blocks);
+			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &good_blocks, &retracted_blocks, false);
 			sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks, &[], &[]);
 		}
 

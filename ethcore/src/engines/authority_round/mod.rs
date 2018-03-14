@@ -824,7 +824,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	fn generate_seal(&self, block: &ExecutedBlock, parent: &Header) -> Seal {
 		// first check to avoid generating signature most of the time
 		// (but there's still a race to the `compare_and_swap`)
-		if !self.can_propose.load(AtomicOrdering::SeqCst) { return Seal::None; }
+		if !self.can_propose.load(AtomicOrdering::SeqCst) {
+			trace!(target: "engine", "Aborting seal generation. Can't propose.");
+			return Seal::None;
+		}
 
 		let header = block.header();
 		let parent_step: U256 = header_step(parent, self.empty_steps_transition)
