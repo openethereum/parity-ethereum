@@ -26,7 +26,7 @@ use rlp::{RlpStream, UntrustedRlp};
 use ethereum_types::{H256, U256};
 use kvdb::DBValue;
 use parking_lot::{Mutex, RwLock};
-use time::{Duration, SteadyTime};
+use std::time::{Duration, Instant};
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -73,7 +73,7 @@ const RECALCULATE_COSTS_TIMEOUT: TimerToken = 3;
 const RECALCULATE_COSTS_INTERVAL_MS: u64 = 60 * 60 * 1000;
 
 // minimum interval between updates.
-const UPDATE_INTERVAL_MS: i64 = 5000;
+const UPDATE_INTERVAL_MS: u64 = 5000;
 
 /// Supported protocol versions.
 pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
@@ -109,20 +109,20 @@ mod packet {
 
 // timeouts for different kinds of requests. all values are in milliseconds.
 mod timeout {
-	pub const HANDSHAKE: i64 = 2500;
-	pub const ACKNOWLEDGE_UPDATE: i64 = 5000;
-	pub const BASE: i64 = 1500; // base timeout for packet.
+	pub const HANDSHAKE: u64 = 2500;
+	pub const ACKNOWLEDGE_UPDATE: u64 = 5000;
+	pub const BASE: u64 = 1500; // base timeout for packet.
 
 	// timeouts per request within packet.
-	pub const HEADERS: i64 = 250; // per header?
-	pub const TRANSACTION_INDEX: i64 = 100;
-	pub const BODY: i64 = 50;
-	pub const RECEIPT: i64 = 50;
-	pub const PROOF: i64 = 100; // state proof
-	pub const CONTRACT_CODE: i64 = 100;
-	pub const HEADER_PROOF: i64 = 100;
-	pub const TRANSACTION_PROOF: i64 = 1000; // per gas?
-	pub const EPOCH_SIGNAL: i64 = 200;
+	pub const HEADERS: u64 = 250; // per header?
+	pub const TRANSACTION_INDEX: u64 = 100;
+	pub const BODY: u64 = 50;
+	pub const RECEIPT: u64 = 50;
+	pub const PROOF: u64 = 100; // state proof
+	pub const CONTRACT_CODE: u64 = 100;
+	pub const HEADER_PROOF: u64 = 100;
+	pub const TRANSACTION_PROOF: u64 = 1000; // per gas?
+	pub const EPOCH_SIGNAL: u64 = 200;
 }
 
 /// A request id.
@@ -144,7 +144,7 @@ impl fmt::Display for ReqId {
 // may not have received one for.
 struct PendingPeer {
 	sent_head: H256,
-	last_update: SteadyTime,
+	last_update: Instant,
 }
 
 /// Relevant data to each peer. Not accessible publicly, only `pub` due to
@@ -155,13 +155,13 @@ pub struct Peer {
 	capabilities: Capabilities,
 	remote_flow: Option<(Credits, FlowParams)>,
 	sent_head: H256, // last chain head we've given them.
-	last_update: SteadyTime,
+	last_update: Instant,
 	pending_requests: RequestSet,
 	failed_requests: Vec<ReqId>,
 	propagated_transactions: HashSet<H256>,
 	skip_update: bool,
 	local_flow: Arc<FlowParams>,
-	awaiting_acknowledge: Option<(SteadyTime, Arc<FlowParams>)>,
+	awaiting_acknowledge: Option<(Instant, Arc<FlowParams>)>,
 }
 
 /// Whether or not a peer was kept by a handler
@@ -447,7 +447,7 @@ impl LightProtocol {
 				});
 
 				// begin timeout.
-				peer.pending_requests.insert(req_id, requests, cost, SteadyTime::now());
+				peer.pending_requests.insert(req_id, requests, cost, Instant::now());
 				Ok(req_id)
 			}
 		}
@@ -457,7 +457,7 @@ impl LightProtocol {
 	/// The announcement is expected to be valid.
 	pub fn make_announcement(&self, io: &IoContext, mut announcement: Announcement) {
 		let mut reorgs_map = HashMap::new();
-		let now = SteadyTime::now();
+		let now = Instant::now();
 
 		// update stored capabilities
 		self.capabilities.write().update_from(&announcement);
@@ -470,7 +470,7 @@ impl LightProtocol {
 			// the timer approach will skip 1 (possibly 2) in rare occasions.
 			if peer_info.sent_head == announcement.head_hash ||
 				peer_info.status.head_num >= announcement.head_num  ||
-				now - peer_info.last_update < Duration::milliseconds(UPDATE_INTERVAL_MS) {
+				now - peer_info.last_update < Duration::from_millis(UPDATE_INTERVAL_MS) {
 				continue
 			}
 
@@ -537,7 +537,7 @@ impl LightProtocol {
 			Some(peer_info) => {
 				let mut peer_info = peer_info.lock();
 				let peer_info: &mut Peer = &mut *peer_info;
-				let req_info = peer_info.pending_requests.remove(&req_id, SteadyTime::now());
+				let req_info = peer_info.pending_requests.remove(&req_id, Instant::now());
 				let last_batched = peer_info.pending_requests.is_empty();
 				let flow_info = peer_info.remote_flow.as_mut();
 
@@ -599,14 +599,14 @@ impl LightProtocol {
 
 	// check timeouts and punish peers.
 	fn timeout_check(&self, io: &IoContext) {
-		let now = SteadyTime::now();
+		let now = Instant::now();
 
 		// handshake timeout
 		{
 			let mut pending = self.pending_peers.write();
 			let slowpokes: Vec<_> = pending.iter()
 				.filter(|&(_, ref peer)| {
-					peer.last_update + Duration::milliseconds(timeout::HANDSHAKE) <= now
+					peer.last_update + Duration::from_millis(timeout::HANDSHAKE) <= now
 				})
 				.map(|(&p, _)| p)
 				.collect();
@@ -619,7 +619,7 @@ impl LightProtocol {
 		}
 
 		// request and update ack timeouts
-		let ack_duration = Duration::milliseconds(timeout::ACKNOWLEDGE_UPDATE);
+		let ack_duration = Duration::from_millis(timeout::ACKNOWLEDGE_UPDATE);
 		{
 			for (peer_id, peer) in self.peers.read().iter() {
 				let peer = peer.lock();
@@ -709,7 +709,7 @@ impl LightProtocol {
 
 		self.pending_peers.write().insert(*peer, PendingPeer {
 			sent_head: chain_info.best_block_hash,
-			last_update: SteadyTime::now(),
+			last_update: Instant::now(),
 		});
 
 		trace!(target: "pip", "Sending status to peer {}", peer);
@@ -771,7 +771,7 @@ impl LightProtocol {
 		*self.flow_params.write() = new_params.clone();
 
 		let peers = self.peers.read();
-		let now = SteadyTime::now();
+		let now = Instant::now();
 
 		let packet_body = {
 			let mut stream = RlpStream::new_list(3);

@@ -17,7 +17,7 @@
 use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Instant, Duration};
+use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use ethereum_types::{H256, U256, Address};
 use parking_lot::Mutex;
@@ -31,7 +31,6 @@ use ethsync::SyncState;
 use miner::external::ExternalMiner;
 use rlp;
 use rustc_hex::{FromHex, ToHex};
-use time::get_time;
 use transaction::{Transaction, Action};
 
 use jsonrpc_core::IoHandler;
@@ -1144,7 +1143,8 @@ fn rpc_get_work_should_not_return_block_number() {
 fn rpc_get_work_should_timeout() {
 	let eth_tester = EthTester::default();
 	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
-	eth_tester.client.set_latest_block_timestamp(get_time().sec as u64 - 1000);  // Set latest block to 1000 seconds ago
+	let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 1000;  // Set latest block to 1000 seconds ago
+	eth_tester.client.set_latest_block_timestamp(timestamp);
 	let hash = eth_tester.miner.map_sealing_work(&*eth_tester.client, |b| b.hash()).unwrap();
 
 	// Request without providing timeout. This should work since we're disabling timeout.

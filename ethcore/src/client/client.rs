@@ -19,7 +19,6 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant};
-use time::precise_time_ns;
 use itertools::Itertools;
 
 // util
@@ -293,7 +292,7 @@ impl Importer {
 				return 0;
 			}
 			trace_time!("import_verified_blocks");
-			let start = precise_time_ns();
+			let start = Instant::now();
 
 			for block in blocks {
 				let header = &block.header;
@@ -326,7 +325,10 @@ impl Importer {
 				self.block_queue.mark_as_bad(&invalid_blocks);
 			}
 			let is_empty = self.block_queue.mark_as_good(&imported_blocks);
-			let duration_ns = precise_time_ns() - start;
+			let duration_ns = {
+				let elapsed = start.elapsed();
+				elapsed.as_secs() * 1_000_000_000 + elapsed.subsec_nanos() as u64
+			};
 			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration_ns, is_empty)
 		};
 
@@ -2036,7 +2038,7 @@ impl ScheduleInfo for Client {
 impl ImportSealedBlock for Client {
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult {
 		let h = block.header().hash();
-		let start = precise_time_ns();
+		let start = Instant::now();
 		let route = {
 			// scope for self.import_lock
 			let _import_lock = self.importer.import_lock.lock();
@@ -2061,7 +2063,10 @@ impl ImportSealedBlock for Client {
 				retracted.clone(),
 				vec![h.clone()],
 				vec![],
-				precise_time_ns() - start,
+				{
+					let elapsed = start.elapsed();
+					elapsed.as_secs() * 1_000_000_000 + elapsed.subsec_nanos() as u64
+				},
 			);
 		});
 		self.db.read().flush().expect("DB flush failed.");
