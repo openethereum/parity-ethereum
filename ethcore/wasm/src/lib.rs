@@ -66,6 +66,12 @@ impl From<runtime::Error> for vm::Error {
 	}
 }
 
+enum ExecutionOutcome {
+	Suicide,
+	Return,
+	NotSpecial,
+}
+
 impl vm::Vm for WasmInterpreter {
 
 	fn exec(&mut self, params: ActionParams, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
@@ -117,31 +123,25 @@ impl vm::Vm for WasmInterpreter {
 
 			let module_instance = module_instance.run_start(&mut runtime).map_err(Error)?;
 
-			match module_instance.invoke_export("call", &[], &mut runtime) {
-				Ok(_) => { },
-				Err(InterpreterError::Host(boxed)) => {
-					match boxed.downcast_ref::<runtime::Error>() {
-						None => {
-							return Err(vm::Error::Wasm("Invalid user error used in interpreter".to_owned()));
-						}
-						Some(runtime_err) => {
-							match *runtime_err {
-								runtime::Error::Suicide => {
-									// Suicide uses trap to break execution
-								}
-								ref any_err => {
-									trace!(target: "wasm", "Error executing contract: {:?}", boxed);
-									return Err(vm::Error::from(Error::from(InterpreterError::Host(Box::new(any_err.clone())))));
-								}
-							}
-						}
-					}
-				},
-				Err(err) => {
-					trace!(target: "wasm", "Error executing contract: {:?}", err);
-					return Err(vm::Error::from(Error::from(err)))
+			let invoke_result = module_instance.invoke_export("call", &[], &mut runtime);
+
+			let mut execution_outcome = ExecutionOutcome::NotSpecial;
+			if let Err(InterpreterError::Host(ref boxed)) = invoke_result {
+				let ref runtime_err = boxed.downcast_ref::<runtime::Error>()
+					.expect("Host errors other than runtime::Error never produced; qed");
+
+				match **runtime_err {
+					runtime::Error::Suicide => { execution_outcome = ExecutionOutcome::Suicide; },
+					runtime::Error::Return => { execution_outcome = ExecutionOutcome::Return; },
+					_ => {}
 				}
 			}
+
+			if let (ExecutionOutcome::NotSpecial, Err(e)) = (execution_outcome, invoke_result) {
+				trace!(target: "wasm", "Error executing contract: {:?}", e);
+				return Err(vm::Error::from(Error::from(e)));
+			}
+
 			(
 				runtime.gas_left().expect("Cannot fail since it was not updated since last charge"),
 				runtime.into_result(),

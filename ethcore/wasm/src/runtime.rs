@@ -52,6 +52,8 @@ pub enum Error {
 	MemoryAccessViolation,
 	/// Native code resulted in suicide
 	Suicide,
+	/// Native code requested execution to finish
+	Return,
 	/// Suicide was requested but coudn't complete
 	SuicideAbort,
 	/// Invalid gas state inside interpreter
@@ -98,6 +100,7 @@ impl ::std::fmt::Display for Error {
 			Error::InvalidGasState => write!(f, "Invalid gas state"),
 			Error::BalanceQueryError => write!(f, "Balance query resulted in an error"),
 			Error::Suicide => write!(f, "Suicide result"),
+			Error::Return => write!(f, "Return result"),
 			Error::Unknown => write!(f, "Unknown runtime function invoked"),
 			Error::AllocationFailed => write!(f, "Memory allocation failed (OOM)"),
 			Error::BadUtf8 => write!(f, "String encoding is bad utf-8 sequence"),
@@ -273,7 +276,7 @@ impl<'a> Runtime<'a> {
 
 		self.result = self.memory.get(ptr, len as usize)?;
 
-		Ok(())
+		Err(Error::Return)
 	}
 
 	/// Destroy the runtime, returning currently recorded result of the execution.
@@ -305,6 +308,10 @@ impl<'a> Runtime<'a> {
 	/// Write input bytes to the memory location using the passed pointer
 	fn fetch_input(&mut self, args: RuntimeArgs) -> Result<()> {
 		let ptr: u32 = args.nth(0)?;
+
+		let args_len = self.args.len() as u64;
+		self.charge(|s| args_len * s.wasm().memcpy as u64)?;
+
 		self.memory.set(ptr, &self.args[..])?;
 		Ok(())
 	}
@@ -525,8 +532,8 @@ impl<'a> Runtime<'a> {
 	fn debug(&mut self, args: RuntimeArgs) -> Result<()>
 	{
 		trace!(target: "wasm", "Contract debug message: {}", {
-			let msg_ptr: u32 = args.nth_checked(0)?;
-			let msg_len: u32 = args.nth_checked(1)?;
+			let msg_ptr: u32 = args.nth(0)?;
+			let msg_len: u32 = args.nth(1)?;
 
 			String::from_utf8(self.memory.get(msg_ptr, msg_len as usize)?)
 				.map_err(|_| Error::BadUtf8)?
