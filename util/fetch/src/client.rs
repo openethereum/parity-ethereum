@@ -23,11 +23,12 @@ use hyper::mime::Mime;
 use hyper::{self, Request, Method, StatusCode};
 use hyper_rustls;
 use parking_lot::{Condvar, Mutex};
+use std::cmp::min;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::thread;
 use std::time::Duration;
-use std::{cmp, io, fmt, mem};
+use std::{io, fmt, mem};
 use tokio_core::reactor;
 use url::{self, Url};
 
@@ -390,9 +391,11 @@ impl Stream for Response {
 /// It implements `io::Read` by repedately waiting for the next `Chunk`
 /// of hyper's response `Body` which blocks the current thread.
 pub struct BodyReader {
-	chunk:  hyper::Chunk,
-	body:   Option<hyper::Body>,
+	chunk: hyper::Chunk,
+	body: Option<hyper::Body>,
+	abort: Abort,
 	offset: usize,
+	count: usize,
 }
 
 impl BodyReader {
@@ -401,23 +404,30 @@ impl BodyReader {
 		BodyReader {
 			body: Some(r.body),
 			chunk: Default::default(),
+			abort: r.abort,
 			offset: 0,
+			count: 0,
 		}
 	}
 }
 
 impl io::Read for BodyReader {
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-		let mut m = 0;
+		let mut n = 0;
 		while self.body.is_some() {
 			// Can we still read from the current chunk?
 			if self.offset < self.chunk.len() {
-				let k = cmp::min(self.chunk.len() - self.offset, buf.len() - m);
+				let k = min(self.chunk.len() - self.offset, buf.len() - n);
+				if self.count + k > self.abort.max_size() {
+					debug!(target: "fetch", "size limit {:?} exceeded", self.abort.max_size());
+					return Err(io::Error::new(io::ErrorKind::PermissionDenied, "size limit exceeded"))
+				}
 				let c = &self.chunk[self.offset .. self.offset + k];
-				(&mut buf[m .. m + k]).copy_from_slice(c);
+				(&mut buf[n .. n + k]).copy_from_slice(c);
 				self.offset += k;
-				m += k;
-				if m == buf.len() {
+				self.count += k;
+				n += k;
+				if n == buf.len() {
 					break
 				}
 			} else {
@@ -436,7 +446,7 @@ impl io::Read for BodyReader {
 				}
 			}
 		}
-		Ok(m)
+		Ok(n)
 	}
 }
 
@@ -502,6 +512,8 @@ mod test {
 	use futures_timer::Delay;
 	use hyper::StatusCode;
 	use hyper::server::{Http, Request, Response, Service};
+	use std;
+	use std::io::Read;
 
 	#[test]
 	fn it_should_fetch() {
@@ -518,8 +530,8 @@ mod test {
 	fn it_should_timeout() {
 		let _server = TestServer::run("127.0.0.1:11112");
 		let client = Client::new().unwrap();
-		let abort = Abort::default().with_max_duration(Duration::from_secs(3));
-		match client.fetch("http://127.0.0.1:11112/delay?4", abort).wait() {
+		let abort = Abort::default().with_max_duration(Duration::from_secs(1));
+		match client.fetch("http://127.0.0.1:11112/delay?3", abort).wait() {
 			Err(Error::Timeout) => {}
 			other => panic!("expected timeout, got {:?}", other)
 		}
@@ -578,6 +590,21 @@ mod test {
 		}
 	}
 
+	#[test]
+	fn it_should_not_read_too_much_data_sync() {
+		let _server = TestServer::run("127.0.0.1:11118");
+		let client = Client::new().unwrap();
+		let abort = Abort::default().with_max_size(3);
+		let resp = client.fetch("http://127.0.0.1:11118/?1234", abort).wait().unwrap();
+		assert!(resp.is_success());
+		let mut buffer = Vec::new();
+		let mut reader = BodyReader::new(resp);
+		match reader.read_to_end(&mut buffer) {
+			Err(ref e) if e.kind() == io::ErrorKind::PermissionDenied => {}
+			other => panic!("expected size limit error, got {:?}", other)
+		}
+	}
+
 	struct TestServer;
 
 	impl Service for TestServer {
@@ -617,16 +644,17 @@ mod test {
 
 	impl TestServer {
 		fn run(addr: &'static str) -> Handle {
-			let (tx, rx) = mpsc::channel(0);
-			let rx_fut = rx.into_future()
-				.map(|_| ())
-				.map_err(|_| ());
+			let (tx_start, rx_start) = std::sync::mpsc::sync_channel(1);
+			let (tx_end, rx_end) = mpsc::channel(0);
+			let rx_end_fut = rx_end.into_future().map(|_| ()).map_err(|_| ());
 			thread::spawn(move || {
 				let addr = addr.parse().unwrap();
 				let server = Http::new().bind(&addr, || Ok(TestServer)).unwrap();
-				server.run_until(rx_fut).unwrap();
+				tx_start.send(()).unwrap_or(());
+				server.run_until(rx_end_fut).unwrap();
 			});
-			Handle(tx)
+			rx_start.recv().unwrap();
+			Handle(tx_end)
 		}
 	}
 
