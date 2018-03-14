@@ -1128,4 +1128,35 @@ pub mod tests {
 		// there was no need to trigger the fetch
 		assert_eq!(updater.state.lock().status, UpdaterStatus::Ready { release: latest_release });
 	}
+
+	#[test]
+	fn should_stay_disabled_after_fatal_error() {
+		let (update_policy, tempdir) = update_policy();
+		let (client, updater, operations_client, fetcher, ..) = setup(update_policy);
+		let (latest_version, _, latest) = new_upgrade("1.0.1");
+
+		// mock operations contract with a new version
+		operations_client.set_result(Some(latest.clone()), None);
+
+		updater.poll();
+		// trigger the fetch but don't create the file on-disk. this should lead to a fatal error that disables the updater
+		let update_file = tempdir.path().join("parity");
+		fetcher.trigger(Some(update_file));
+
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Disabled);
+
+		client.add_blocks(100, EachBlockWith::Nothing);
+		updater.poll();
+
+		// the updater should stay disabled after new blocks are pushed
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Disabled);
+
+		let (_, _, latest) = new_upgrade("1.0.2");
+		operations_client.set_result(Some(latest.clone()), None);
+
+		updater.poll();
+
+		// the updater should stay disabled after a new release is pushed
+		assert_eq!(updater.state.lock().status, UpdaterStatus::Disabled);
+	}
 }
