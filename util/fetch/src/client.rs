@@ -192,7 +192,7 @@ impl Client {
 	fn background_thread(tx_start: TxStartup, rx_proto: mpsc::Receiver<ChanItem>) -> io::Result<thread::JoinHandle<()>> {
 		thread::Builder::new().name("fetch".into()).spawn(move || {
 			let mut core = match reactor::Core::new() {
-				Ok(c)  => c,
+				Ok(c) => c,
 				Err(e) => return tx_start.send(Err(e)).unwrap_or(())
 			};
 
@@ -375,7 +375,7 @@ impl Stream for Response {
 			return Err(Error::Aborted)
 		}
 		match try_ready!(self.body.poll()) {
-			None    => Ok(Async::Ready(None)),
+			None => Ok(Async::Ready(None)),
 			Some(c) => {
 				if self.nread + c.len() > self.abort.max_size() {
 					debug!(target: "fetch", "size limit {:?} for {} exceeded", self.abort.max_size(), self.url);
