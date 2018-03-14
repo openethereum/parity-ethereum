@@ -29,7 +29,7 @@ use error::{BlockError, Error};
 use header::{Header, BlockNumber};
 use engines::{self, Engine};
 use ethjson;
-use rlp::{self, UntrustedRlp};
+use rlp::UntrustedRlp;
 use machine::EthereumMachine;
 use semantic_version::SemanticVersion;
 
@@ -40,6 +40,38 @@ const SNAPSHOT_BLOCKS: u64 = 5000;
 const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
 
 const DEFAULT_EIP649_DELAY: u64 = 3_000_000;
+
+/// Ethash specific seal
+#[derive(Debug, PartialEq)]
+pub struct Seal {
+	/// Ethash seal mix_hash
+	pub mix_hash: H256,
+	/// Ethash seal nonce
+	pub nonce: H64,
+}
+
+impl Seal {
+	/// Tries to parse rlp as ethash seal.
+	pub fn parse_seal<T: AsRef<[u8]>>(seal: &[T]) -> Result<Self, Error> {
+		if seal.len() != 2 {
+			return Err(BlockError::InvalidSealArity(
+				Mismatch {
+					expected: 2,
+					found: seal.len()
+				}
+			).into());
+		}
+
+		let mix_hash = UntrustedRlp::new(seal[0].as_ref()).as_val::<H256>()?;
+		let nonce = UntrustedRlp::new(seal[1].as_ref()).as_val::<H64>()?;
+		let seal = Seal {
+			mix_hash,
+			nonce,
+		};
+
+		Ok(seal)
+	}
+}
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
@@ -177,13 +209,12 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
-		if header.seal().len() == self.seal_fields() {
-			map![
-				"nonce".to_owned() => format!("0x{}", header.nonce().hex()),
-				"mixHash".to_owned() => format!("0x{}", header.mix_hash().hex())
-			]
-		} else {
-			BTreeMap::default()
+		match Seal::parse_seal(header.seal()) {
+			Ok(seal) => map![
+				"nonce".to_owned() => format!("0x{}", seal.nonce.hex()),
+				"mixHash".to_owned() => format!("0x{}", seal.mix_hash.hex())
+			],
+			_ => BTreeMap::default()
 		}
 	}
 
@@ -269,13 +300,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		// check the seal fields.
-		if header.seal().len() != self.seal_fields() {
-			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
-			)));
-		}
-		UntrustedRlp::new(&header.seal()[0]).as_val::<H256>()?;
-		UntrustedRlp::new(&header.seal()[1]).as_val::<H64>()?;
+		let seal = Seal::parse_seal(header.seal())?;
 
 		// TODO: consider removing these lines.
 		let min_difficulty = self.ethash_params.minimum_difficulty;
@@ -285,9 +310,10 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 		let difficulty = Ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
 			&header.bare_hash().0,
-			header.nonce().low_u64(),
-			&header.mix_hash().0
+			seal.nonce.low_u64(),
+			&seal.mix_hash.0
 		)));
+
 		if &difficulty < header.difficulty() {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
 		}
@@ -300,17 +326,20 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	}
 
 	fn verify_block_unordered(&self, header: &Header) -> Result<(), Error> {
-		if header.seal().len() != self.seal_fields() {
-			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
-			)));
-		}
-		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, header.nonce().low_u64());
+		let seal = Seal::parse_seal(header.seal())?;
+
+		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, seal.nonce.low_u64());
 		let mix = H256(result.mix_hash);
 		let difficulty = Ethash::boundary_to_difficulty(&H256(result.value));
-		trace!(target: "miner", "num: {}, seed: {}, h: {}, non: {}, mix: {}, res: {}" , header.number() as u64, H256(slow_hash_block_number(header.number() as u64)), header.bare_hash(), header.nonce().low_u64(), H256(result.mix_hash), H256(result.value));
-		if mix != header.mix_hash() {
-			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: header.mix_hash() })));
+		trace!(target: "miner", "num: {num}, seed: {seed}, h: {h}, non: {non}, mix: {mix}, res: {res}",
+			   num = header.number() as u64,
+			   seed = H256(slow_hash_block_number(header.number() as u64)),
+			   h = header.bare_hash(),
+			   non = seal.nonce.low_u64(),
+			   mix = H256(result.mix_hash),
+			   res = H256(result.value));
+		if mix != seal.mix_hash {
+			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: seal.mix_hash })));
 		}
 		if &difficulty < header.difficulty() {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
@@ -438,18 +467,6 @@ impl Ethash {
 		} else {
 			(((U256::one() << 255) / *difficulty) << 1).into()
 		}
-	}
-}
-
-impl Header {
-	/// Get the nonce field of the header.
-	pub fn nonce(&self) -> H64 {
-		rlp::decode(&self.seal()[1])
-	}
-
-	/// Get the mix hash field of the header.
-	pub fn mix_hash(&self) -> H256 {
-		rlp::decode(&self.seal()[0])
 	}
 }
 
@@ -637,7 +654,7 @@ mod tests {
 	#[test]
 	fn can_do_seal_unordered_verification_fail() {
 		let engine = test_spec().engine;
-		let header: Header = Header::default();
+		let header = Header::default();
 
 		let verify_result = engine.verify_block_unordered(&header);
 
@@ -646,6 +663,17 @@ mod tests {
 			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
+	}
+
+	#[test]
+	fn can_do_seal_unordered_verification_fail2() {
+		let engine = test_spec().engine;
+		let mut header = Header::default();
+		header.set_seal(vec![vec![], vec![]]);
+
+		let verify_result = engine.verify_block_unordered(&header);
+		// rlp error, shouldn't panic
+		assert!(verify_result.is_err());
 	}
 
 	#[test]
