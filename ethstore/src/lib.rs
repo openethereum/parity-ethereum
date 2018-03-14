@@ -28,6 +28,7 @@ extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
 extern crate smallvec;
+extern crate subtle;
 extern crate time;
 extern crate tiny_keccak;
 extern crate tempdir;
