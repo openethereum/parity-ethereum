@@ -435,11 +435,11 @@ impl io::Read for BodyReader {
 			} else {
 				let body = self.body.take().expect("loop condition ensures `self.body` is always defined; qed");
 				match body.into_future().wait() { // wait for next chunk
-					Err((e, _))   => {
+					Err((e, _)) => {
 						error!(target: "fetch", "failed to read chunk: {}", e);
 						return Err(io::Error::new(io::ErrorKind::Other, "failed to read body chunk"))
 					}
-					Ok((None,    _)) => break, // body is exhausted, break out of the loop
+					Ok((None, _)) => break, // body is exhausted, break out of the loop
 					Ok((Some(c), b)) => {
 						self.body = Some(b);
 						self.chunk = c;

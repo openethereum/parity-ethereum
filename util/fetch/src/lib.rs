@@ -34,5 +34,6 @@ extern crate url;
 /// Fetch client implementation.
 pub mod client;
 
+pub use url::Url;
 pub use self::client::{Client, Fetch, Error, Response, Abort, BodyReader};
 

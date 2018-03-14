@@ -18,10 +18,9 @@ use std::{thread, time};
 use std::sync::{atomic, mpsc, Arc};
 use parking_lot::Mutex;
 use hyper;
-use url::Url;
 
 use futures::{self, Future};
-use fetch::{self, Fetch};
+use fetch::{self, Fetch, Url};
 
 pub struct FetchControl {
 	sender: mpsc::Sender<()>,

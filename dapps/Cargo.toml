@@ -42,7 +42,6 @@ registrar = { path = "../registrar" }
 [dev-dependencies]
 env_logger = "0.4"
 ethcore-devtools = { path = "../devtools" }
-url = "1"
 
 [features]
 ui = ["parity-ui/no-precompiled-js"]

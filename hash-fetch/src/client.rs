@@ -194,18 +194,16 @@ fn random_temp_path() -> PathBuf {
 #[cfg(test)]
 mod tests {
 	extern crate hyper;
-	extern crate url;
 	use rustc_hex::FromHex;
 	use std::sync::{Arc, mpsc};
 	use parking_lot::Mutex;
 	use futures::future;
 	use futures_cpupool::CpuPool;
-	use fetch::{self, Fetch};
+	use fetch::{self, Fetch, Url};
 	use parity_reactor::Remote;
 	use urlhint::tests::{FakeRegistrar, URLHINT};
 	use super::{Error, Client, HashFetch, random_temp_path};
 	use self::hyper::StatusCode;
-	use self::url::Url;
 
 
 	#[derive(Clone)]

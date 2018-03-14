@@ -58,8 +58,6 @@ extern crate ethcore_devtools as devtools;
 extern crate jsonrpc_core;
 #[cfg(test)]
 extern crate parity_reactor;
-#[cfg(test)]
-extern crate url;
 
 mod endpoint;
 mod apps;

@@ -134,19 +134,17 @@ impl<F: Fetch> Client<F> {
 #[cfg(test)]
 mod test {
 	extern crate hyper;
-	extern crate url;
 	extern crate parking_lot;
 
 	use self::parking_lot::Mutex;
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicBool, Ordering};
 	use fetch;
-	use fetch::Fetch;
+	use fetch::{Fetch, Url};
 	use futures_cpupool::CpuPool;
 	use futures::future::{self, FutureResult};
 	use Client;
 	use self::hyper::StatusCode;
-	use self::url::Url;
 
 	#[derive(Clone)]
 	struct FakeFetch(Option<String>, Arc<Mutex<u64>>);

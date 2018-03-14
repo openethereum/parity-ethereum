@@ -18,9 +18,8 @@
 
 use std::thread;
 use jsonrpc_core::futures::{self, Future};
-use fetch::{self, Fetch};
+use fetch::{self, Fetch, Url};
 use hyper;
-use url::Url;
 
 /// Test implementation of fetcher. Will always return the same file.
 #[derive(Default, Clone)]
