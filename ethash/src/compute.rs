@@ -315,6 +315,7 @@ fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 mod test {
 	use super::*;
 	use std::fs;
+	use tempdir::TempDir;
 
 	#[test]
 	fn test_get_cache_size() {
@@ -386,8 +387,10 @@ mod test {
 			0xe9, 0x7e, 0x53, 0x84,
 		];
 		let nonce = 0xd7b3ac70a301a249;
+
+		let tempdir = TempDir::new("").unwrap();
 		// difficulty = 0x085657254bd9u64;
-		let light = NodeCacheBuilder::new(None).light(&::std::env::temp_dir(), 486382);
+		let light = NodeCacheBuilder::new(None).light(tempdir.path(), 486382);
 		let result = light_compute(&light, &hash, nonce);
 		assert_eq!(result.mix_hash[..], mix_hash[..]);
 		assert_eq!(result.value[..], boundary[..]);
@@ -395,18 +398,18 @@ mod test {
 
 	#[test]
 	fn test_drop_old_data() {
-		let path = ::std::env::temp_dir();
+		let tempdir = TempDir::new("").unwrap();
 		let builder = NodeCacheBuilder::new(None);
-		let first = builder.light(&path, 0).to_file().unwrap().to_owned();
+		let first = builder.light(tempdir.path(), 0).to_file().unwrap().to_owned();
 
-		let second = builder.light(&path, ETHASH_EPOCH_LENGTH).to_file().unwrap().to_owned();
+		let second = builder.light(tempdir.path(), ETHASH_EPOCH_LENGTH).to_file().unwrap().to_owned();
 		assert!(fs::metadata(&first).is_ok());
 
-		let _ = builder.light(&path, ETHASH_EPOCH_LENGTH * 2).to_file();
+		let _ = builder.light(tempdir.path(), ETHASH_EPOCH_LENGTH * 2).to_file();
 		assert!(fs::metadata(&first).is_err());
 		assert!(fs::metadata(&second).is_ok());
 
-		let _ = builder.light(&path, ETHASH_EPOCH_LENGTH * 3).to_file();
+		let _ = builder.light(tempdir.path(), ETHASH_EPOCH_LENGTH * 3).to_file();
 		assert!(fs::metadata(&second).is_err());
 	}
 }

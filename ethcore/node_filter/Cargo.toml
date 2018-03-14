@@ -21,3 +21,4 @@ lru-cache = "0.1"
 [dev-dependencies]
 kvdb-memorydb = { path = "../../util/kvdb-memorydb" }
 ethcore-io = { path = "../../util/io" }
+tempdir = "0.3"
