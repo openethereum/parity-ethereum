@@ -8,6 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ansi_term = "0.10"
+bloomchain = { path = "../util/bloomchain" }
 bn = { git = "https://github.com/paritytech/bn" }
 byteorder = "1.0"
 common-types = { path = "types" }
@@ -32,6 +33,7 @@ ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 evm = { path = "evm" }
+futures-cpupool = "0.1"
 hardware-wallet = { path = "../hw" }
 heapsize = "0.4"
 itertools = "0.5"
@@ -59,7 +61,6 @@ macros = { path = "../util/macros" }
 rust-crypto = "0.2.34"
 rustc-hex = "1.0"
 stats = { path = "../util/stats" }
-time = "0.1"
 trace-time = { path = "../util/trace-time" }
 using_queue = { path = "../util/using_queue" }
 table = { path = "../util/table" }

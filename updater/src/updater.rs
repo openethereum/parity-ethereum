@@ -64,6 +64,8 @@ pub struct UpdatePolicy {
 	pub track: ReleaseTrack,
 	/// Path for the updates to go.
 	pub path: PathBuf,
+	/// Maximum download size.
+	pub max_size: usize,
 	/// Random update delay range in blocks.
 	pub max_delay: u64,
 	/// Number of blocks between each check for updates.
@@ -78,6 +80,7 @@ impl Default for UpdatePolicy {
 			filter: UpdateFilter::None,
 			track: ReleaseTrack::Unknown,
 			path: Default::default(),
+			max_size: 128 * 1024 * 1024,
 			max_delay: 100,
 			frequency: 20,
 		}
@@ -482,7 +485,11 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 						this.on_fetch(&latest, res)
 					}
 				};
-				self.fetcher.fetch(binary, Box::new(f));
+
+				self.fetcher.fetch(
+					binary,
+					fetch::Abort::default().with_max_size(self.update_policy.max_size),
+					Box::new(f));
 			};
 
 			match state.status.clone() {
@@ -757,7 +764,7 @@ pub mod tests {
 	}
 
 	impl HashFetch for FakeFetch {
-		fn fetch(&self, _hash: H256, on_done: Box<Fn(Result<PathBuf, Error>) + Send>) {
+		fn fetch(&self, _hash: H256, _abort: fetch::Abort, on_done: Box<Fn(Result<PathBuf, Error>) + Send>) {
 			on_done(self.result.lock().clone().ok_or(Error::NoResolution))
 		}
 	}

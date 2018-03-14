@@ -17,7 +17,7 @@
 //! Engine timeout transitioning calls `Engine.step()` on timeout.
 
 use std::sync::Weak;
-use time::Duration;
+use std::time::Duration;
 use io::{IoContext, IoHandler, TimerToken};
 use engines::Engine;
 use parity_machine::Machine;
@@ -51,7 +51,8 @@ impl<S, M: Machine> TransitionHandler<S, M> where S: Sync + Send + Clone {
 pub const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 
 fn set_timeout<S: Sync + Send + Clone>(io: &IoContext<S>, timeout: Duration) {
-	io.register_timer_once(ENGINE_TIMEOUT_TOKEN, timeout.num_milliseconds() as u64)
+	let ms = timeout.as_secs() * 1_000 + timeout.subsec_nanos() as u64 / 1_000_000;
+	io.register_timer_once(ENGINE_TIMEOUT_TOKEN, ms)
 		.unwrap_or_else(|e| warn!(target: "engine", "Failed to set consensus step timeout: {}.", e))
 }
 
@@ -60,7 +61,7 @@ impl<S, M> IoHandler<S> for TransitionHandler<S, M>
 {
 	fn initialize(&self, io: &IoContext<S>) {
 		let initial = self.timeouts.initial();
-		trace!(target: "engine", "Setting the initial timeout to {}.", initial);
+		trace!(target: "engine", "Setting the initial timeout to {:?}.", initial);
 		set_timeout(io, initial);
 	}
 

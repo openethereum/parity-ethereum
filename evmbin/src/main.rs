@@ -36,6 +36,9 @@ extern crate panic_hook;
 #[macro_use]
 extern crate pretty_assertions;
 
+#[cfg(test)]
+extern crate tempdir;
+
 use std::sync::Arc;
 use std::{fmt, fs};
 use std::path::PathBuf;

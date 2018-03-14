@@ -18,6 +18,7 @@ use std::{str, io};
 use std::net::SocketAddr;
 use std::sync::*;
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 use mio::*;
 use mio::deprecated::{Handler, EventLoop};
@@ -32,7 +33,6 @@ use network::{SessionCapabilityInfo, HostInfo as HostInfoTrait};
 use host::*;
 use node_table::NodeId;
 use stats::NetworkStats;
-use time;
 use snappy;
 
 // Timeout must be less than (interval - 1).
@@ -59,8 +59,8 @@ pub struct Session {
 	had_hello: bool,
 	/// Session is no longer active flag.
 	expired: bool,
-	ping_time_ns: u64,
-	pong_time_ns: Option<u64>,
+	ping_time: Instant,
+	pong_time: Option<Instant>,
 	state: State,
 	// Protocol states -- accumulates pending packets until signaled as ready.
 	protocol_states: HashMap<ProtocolId, ProtocolState>,
@@ -123,8 +123,8 @@ impl Session {
 				remote_address: "Handshake".to_owned(),
 				local_address: local_addr,
 			},
-			ping_time_ns: 0,
-			pong_time_ns: None,
+			ping_time: Instant::now(),
+			pong_time: None,
 			expired: false,
 			protocol_states: HashMap::new(),
 			compression: false,
@@ -299,13 +299,13 @@ impl Session {
 		if let State::Handshake(_) = self.state {
 			return true;
 		}
-		let timed_out = if let Some(pong) = self.pong_time_ns {
-			pong - self.ping_time_ns > PING_TIMEOUT_SEC * 1000_000_000
+		let timed_out = if let Some(pong) = self.pong_time {
+			pong.duration_since(self.ping_time) > Duration::from_secs(PING_TIMEOUT_SEC)
 		} else {
-			time::precise_time_ns() - self.ping_time_ns > PING_TIMEOUT_SEC * 1000_000_000
+			self.ping_time.elapsed() > Duration::from_secs(PING_TIMEOUT_SEC)
 		};
 
-		if !timed_out && time::precise_time_ns() - self.ping_time_ns > PING_INTERVAL_SEC * 1000_000_000 {
+		if !timed_out && self.ping_time.elapsed() > Duration::from_secs(PING_INTERVAL_SEC) {
 			if let Err(e) = self.send_ping(io) {
 				debug!("Error sending ping message: {:?}", e);
 			}
@@ -368,9 +368,11 @@ impl Session {
 				Ok(SessionData::Continue)
 			},
 			PACKET_PONG => {
-				let time = time::precise_time_ns();
-				self.pong_time_ns = Some(time);
-				self.info.ping_ms = Some((time - self.ping_time_ns) / 1000_000);
+				let time = Instant::now();
+				self.pong_time = Some(time);
+				let ping_elapsed = time.duration_since(self.ping_time);
+				self.info.ping_ms = Some(ping_elapsed.as_secs() * 1_000 +
+										ping_elapsed.subsec_nanos() as u64 / 1_000_000);
 				Ok(SessionData::Continue)
 			},
 			PACKET_GET_PEERS => Ok(SessionData::None), //TODO;
@@ -482,11 +484,11 @@ impl Session {
 		Ok(())
 	}
 
-	/// Senf ping packet
+	/// Send ping packet
 	pub fn send_ping<Message>(&mut self, io: &IoContext<Message>) -> Result<(), Error> where Message: Send + Sync + Clone {
 		self.send_packet(io, None, PACKET_PING, &EMPTY_LIST_RLP)?;
-		self.ping_time_ns = time::precise_time_ns();
-		self.pong_time_ns = None;
+		self.ping_time = Instant::now();
+		self.pong_time = None;
 		Ok(())
 	}
 

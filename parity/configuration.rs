@@ -939,6 +939,7 @@ impl Configuration {
 				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()),
 			},
 			path: default_hypervisor_path(),
+			max_size: 128 * 1024 * 1024,
 			max_delay: self.args.arg_auto_update_delay as u64,
 			frequency: self.args.arg_auto_update_check_frequency as u64,
 		})
@@ -1392,6 +1393,7 @@ mod tests {
 				filter: UpdateFilter::Critical,
 				track: ReleaseTrack::Unknown,
 				path: default_hypervisor_path(),
+				max_size: 128 * 1024 * 1024,
 				max_delay: 100,
 				frequency: 20,
 			},
@@ -1463,9 +1465,36 @@ mod tests {
 		let conf3 = parse(&["parity", "--auto-update=xxx"]);
 
 		// then
-		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Testing, path: default_hypervisor_path(), max_delay: 100, frequency: 20 });
-		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: false, filter: UpdateFilter::All, track: ReleaseTrack::Unknown, path: default_hypervisor_path(), max_delay: 300, frequency: 20 });
-		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, require_consensus: true, filter: UpdateFilter::All, track: ReleaseTrack::Beta, path: default_hypervisor_path(), max_delay: 300, frequency: 100 });
+		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy {
+			enable_downloading: true,
+			require_consensus: true,
+			filter: UpdateFilter::Critical,
+			track: ReleaseTrack::Testing,
+			path: default_hypervisor_path(),
+			max_size: 128 * 1024 * 1024,
+			max_delay: 100,
+			frequency: 20,
+		});
+		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy {
+			enable_downloading: true,
+			require_consensus: false,
+			filter: UpdateFilter::All,
+			track: ReleaseTrack::Unknown,
+			path: default_hypervisor_path(),
+			max_size: 128 * 1024 * 1024,
+			max_delay: 300,
+			frequency: 20,
+		});
+		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy {
+			enable_downloading: false,
+			require_consensus: true,
+			filter: UpdateFilter::All,
+			track: ReleaseTrack::Beta,
+			path: default_hypervisor_path(),
+			max_size: 128 * 1024 * 1024,
+			max_delay: 300,
+			frequency: 100,
+		});
 		assert!(conf3.update_policy().is_err());
 	}
 

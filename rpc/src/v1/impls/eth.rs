@@ -17,11 +17,10 @@
 //! Eth rpc implementation.
 
 use std::thread;
-use std::time::{Instant, Duration};
+use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
 
 use rlp::{self, UntrustedRlp};
-use time::get_time;
 use ethereum_types::{U256, H64, H160, H256, Address};
 use parking_lot::Mutex;
 
@@ -769,7 +768,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
 			let seed_hash = self.seed_compute.lock().hash_block_number(b.block().header().number());
 
-			if no_new_work_timeout > 0 && b.block().header().timestamp() + no_new_work_timeout < get_time().sec as u64 {
+			let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+			if no_new_work_timeout > 0 && b.block().header().timestamp() + no_new_work_timeout < now {
 				Err(errors::no_new_work())
 			} else if self.options.send_block_number_in_get_work {
 				let block_number = b.block().header().number();
