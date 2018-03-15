@@ -939,7 +939,12 @@ impl miner::MinerService for Miner {
 					trace!(target: "miner", "update_sealing: imported internally sealed block");
 				}
 			},
-			Some(false) => trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now"),
+			Some(false) => {
+				trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now");
+				// anyway, save the block for later use
+				let mut sealing = self.sealing.lock();
+				sealing.queue.push(block);
+			},
 			None => {
 				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
 				self.prepare_work(block, original_work_hash)
