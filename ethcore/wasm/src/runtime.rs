@@ -305,8 +305,10 @@ impl<'a> Runtime<'a> {
 		if self.gas_counter > self.gas_limit { return Err(Error::InvalidGasState); }
 		Ok(self.gas_limit - self.gas_counter)
 	}
-
-	/// Charges gas for the current block of execution. Returns an error in case of running out of gas.
+	
+	/// General gas charging extern.
+	/// https://github.com/paritytech/wasm-utils#gas-counter-wasm-gas injects calls to this extern 
+	/// to charge gas upfront. Returns an error in case of running out of gas.
 	fn gas(&mut self, args: RuntimeArgs) -> Result<()> {
 		let amount: u32 = args.nth_checked(0)?;
 		if self.charge_gas(amount as u64) {
