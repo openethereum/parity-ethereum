@@ -307,8 +307,6 @@ impl<'a> Runtime<'a> {
 	}
 	
 	/// General gas charging extern.
-	/// https://github.com/paritytech/wasm-utils#gas-counter-wasm-gas injects calls to this extern 
-	/// to charge gas upfront. Returns an error in case of running out of gas.
 	fn gas(&mut self, args: RuntimeArgs) -> Result<()> {
 		let amount: u32 = args.nth_checked(0)?;
 		if self.charge_gas(amount as u64) {
