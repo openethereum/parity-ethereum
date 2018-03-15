@@ -231,7 +231,7 @@ impl NetworkConfiguration {
 		}
 	}
 
-	/// Create new default configuration with sepcified listen port.
+	/// Create new default configuration with specified listen port.
 	pub fn new_with_port(port: u16) -> NetworkConfiguration {
 		let mut config = NetworkConfiguration::new();
 		config.listen_address = Some(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port)));
