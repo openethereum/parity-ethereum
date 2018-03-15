@@ -205,7 +205,7 @@ pub mod ecies {
 	use rcrypto::mac::Mac;
 	use ethereum_types::H128;
 	use ethkey::{Random, Generator, Public, Secret};
-	use {Error, ecdh, aes, Keccak256};
+	use {Error, ecdh, aes};
 
 	/// Encrypt a message with a public key, writing an HMAC covering both
 	/// the plaintext and authenticated data.
@@ -245,33 +245,6 @@ pub mod ecies {
 			hmac.raw_result(&mut msgd[(64 + 16 + plain.len())..]);
 		}
 		Ok(msg)
-	}
-
-	/// Encrypt a message with a public key and no HMAC
-	pub fn encrypt_single_message(public: &Public, plain: &[u8]) -> Result<Vec<u8>, Error> {
-		let r = Random.generate()
-			.expect("context known to have key-generation capabilities");
-
-		let z = ecdh::agree(r.secret(), public)?;
-		let mut key = [0u8; 32];
-		let mut mkey = [0u8; 32];
-		kdf(&z, &[0u8; 0], &mut key);
-		let mut hasher = Sha256::new();
-		let mkey_material = &key[16..32];
-		hasher.input(mkey_material);
-		hasher.result(&mut mkey);
-		let ekey = &key[0..16];
-
-		let mut msgd = vec![0u8; 64 + plain.len()];
-		{
-			r.public().copy_to(&mut msgd[0..64]);
-			let iv = H128::from_slice(&z.keccak256()[0..16]);
-			{
-				let cipher = &mut msgd[64..(64 + plain.len())];
-				aes::encrypt(ekey, &iv, plain, cipher);
-			}
-		}
-		Ok(msgd)
 	}
 
 	/// Decrypt a message with a secret key, checking HMAC for ciphertext
@@ -317,33 +290,6 @@ pub mod ecies {
 		Ok(msg)
 	}
 
-	/// Decrypt single message with a secret key and no HMAC.
-	pub fn decrypt_single_message(secret: &Secret, encrypted: &[u8]) -> Result<Vec<u8>, Error> {
-		let meta_len = 64;
-		if encrypted.len() < meta_len {
-			return Err(Error::InvalidMessage); //invalid message: publickey
-		}
-
-		let e = encrypted;
-		let p = Public::from_slice(&e[0..64]);
-		let z = ecdh::agree(secret, &p)?;
-		let mut key = [0u8; 32];
-		kdf(&z, &[0u8; 0], &mut key);
-		let ekey = &key[0..16];
-		let mkey_material = &key[16..32];
-		let mut hasher = Sha256::new();
-		let mut mkey = [0u8; 32];
-		hasher.input(mkey_material);
-		hasher.result(&mut mkey);
-
-		let clen = encrypted.len() - meta_len;
-		let cipher = &e[64..(64+clen)];
-		let mut msg = vec![0u8; clen];
-		let iv = H128::from_slice(&z.keccak256()[0..16]);
-		aes::decrypt(ekey, &iv, cipher, &mut msg[..]);
-		Ok(msg)
-	}
-
 	fn kdf(secret: &Secret, s1: &[u8], dest: &mut [u8]) {
 		let mut hasher = Sha256::new();
 		// SEC/ISO/Shoup specify counter size SHOULD be equivalent
@@ -382,16 +328,6 @@ mod tests {
 
 		assert!(ecies::decrypt(kp.secret(), wrong_shared, &encrypted).is_err());
 		let decrypted = ecies::decrypt(kp.secret(), shared, &encrypted).unwrap();
-		assert_eq!(decrypted[..message.len()], message[..]);
-	}
-
-	#[test]
-	fn ecies_shared_single() {
-		let kp = Random.generate().unwrap();
-		let message = b"So many books, so little time";
-		let encrypted = ecies::encrypt_single_message(kp.public(), message).unwrap();
-		assert!(encrypted[..] != message[..]);
-		let decrypted = ecies::decrypt_single_message(kp.secret(), &encrypted).unwrap();
 		assert_eq!(decrypted[..message.len()], message[..]);
 	}
 }
