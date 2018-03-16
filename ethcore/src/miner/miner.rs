@@ -263,6 +263,7 @@ impl Miner {
 				block_gas_limit: U256::max_value(),
 				tx_gas_limit: U256::max_value(),
 			},
+			reseal_min_period: Duration::from_secs(0),
 			..Default::default()
 		}, GasPricer::new_fixed(minimal_gas_price), spec, accounts)
 	}

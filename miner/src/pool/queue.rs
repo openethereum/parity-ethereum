@@ -241,7 +241,7 @@ impl TransactionQueue {
 	///
 	/// NOTE This is re-computing the pending set and it might be expensive to do so.
 	/// Prefer using cached pending set using `#pending` method.
-	pub fn collect_pending<C, F, T>(
+	fn collect_pending<C, F, T>(
 		&self,
 		client: C,
 		block_number: u64,
