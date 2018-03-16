@@ -75,10 +75,12 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 	let tx2 = Tx::gas_price(2).signed();
 	let tx3 = Tx::gas_price(1).signed();
 	let tx4 = Tx::gas_price(3).signed();
-	let res = txq.import(TestClient::new(), vec![tx1, tx2, tx3, tx4].local());
+	let res = txq.import(TestClient::new(), vec![tx1, tx2].local());
+	let res2 = txq.import(TestClient::new(), vec![tx3, tx4].local());
 
 	// then
-	assert_eq!(res, vec![Ok(()), Ok(()), Err(transaction::Error::LimitReached), Ok(())]);
+	assert_eq!(res, vec![Ok(()), Ok(())]);
+	assert_eq!(res2, vec![Err(transaction::Error::LimitReached), Ok(())]);
 	assert_eq!(txq.status().status.transaction_count, 3);
 	// First inserted transacton got dropped because of limit
 	assert_eq!(txq.next_nonce(TestClient::new(), &sender), None);

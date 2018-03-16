@@ -64,6 +64,7 @@ impl Status {
 pub struct LocalTransactionsList {
 	max_old: usize,
 	transactions: LinkedHashMap<H256, Status>,
+	pending: usize,
 }
 
 impl Default for LocalTransactionsList {
@@ -78,6 +79,7 @@ impl LocalTransactionsList {
 		LocalTransactionsList {
 			max_old,
 			transactions: Default::default(),
+			pending: 0,
 		}
 	}
 
@@ -93,17 +95,11 @@ impl LocalTransactionsList {
 
 	/// Returns true if there are pending local transactions.
 	pub fn has_pending(&self) -> bool {
-		self.transactions
-			.values()
-			.any(|status| status.is_pending())
+		self.pending > 0
 	}
 
 	fn clear_old(&mut self) {
-		let number_of_old = self.transactions
-			.values()
-			.filter(|status| !status.is_pending())
-			.count();
-
+		let number_of_old = self.transactions.len() - self.pending;
 		if self.max_old >= number_of_old {
 			return;
 		}
@@ -119,6 +115,15 @@ impl LocalTransactionsList {
 			self.transactions.remove(&hash);
 		}
 	}
+
+	fn insert(&mut self, hash: H256, status: Status) {
+		let result = self.transactions.insert(hash, status);
+		if let Some(old) = result {
+			if old.is_pending() {
+				self.pending -= 1;
+			}
+		}
+	}
 }
 
 impl txpool::Listener<Transaction> for LocalTransactionsList {
@@ -129,11 +134,12 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 
 		debug!(target: "own_tx", "Imported to the pool (hash {:?})", tx.hash());
 		self.clear_old();
-		self.transactions.insert(*tx.hash(), Status::Pending(tx.clone()));
+		self.insert(*tx.hash(), Status::Pending(tx.clone()));
+		self.pending += 1;
 
 		if let Some(old) = old {
 			if self.transactions.contains_key(old.hash()) {
-				self.transactions.insert(*old.hash(), Status::Replaced {
+				self.insert(*old.hash(), Status::Replaced {
 					old: old.clone(),
 					new: tx.clone(),
 				});
@@ -147,7 +153,7 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 		}
 
 		debug!(target: "own_tx", "Transaction rejected (hash {:?}). {}", tx.hash(), reason);
-		self.transactions.insert(*tx.hash(), Status::Rejected(tx.clone(), format!("{}", reason)));
+		self.insert(*tx.hash(), Status::Rejected(tx.clone(), format!("{}", reason)));
 		self.clear_old();
 	}
 
@@ -160,7 +166,7 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 			Some(new) => warn!(target: "own_tx", "Transaction pushed out because of limit (hash {:?}, replacement: {:?})", tx.hash(), new.hash()),
 			None => warn!(target: "own_tx", "Transaction dropped because of limit (hash: {:?})", tx.hash()),
 		}
-		self.transactions.insert(*tx.hash(), Status::Dropped(tx.clone()));
+		self.insert(*tx.hash(), Status::Dropped(tx.clone()));
 		self.clear_old();
 	}
 
@@ -170,7 +176,7 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 		}
 
 		warn!(target: "own_tx", "Transaction marked invalid (hash {:?})", tx.hash());
-		self.transactions.insert(*tx.hash(), Status::Invalid(tx.clone()));
+		self.insert(*tx.hash(), Status::Invalid(tx.clone()));
 		self.clear_old();
 	}
 
@@ -180,7 +186,7 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 		}
 
 		warn!(target: "own_tx", "Transaction canceled (hash {:?})", tx.hash());
-		self.transactions.insert(*tx.hash(), Status::Canceled(tx.clone()));
+		self.insert(*tx.hash(), Status::Canceled(tx.clone()));
 		self.clear_old();
 	}
 
@@ -192,8 +198,7 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 		}
 
 		info!(target: "own_tx", "Transaction mined (hash {:?})", tx.hash());
-		self.transactions.insert(*tx.hash(), Status::Mined(tx.clone()));
-		self.clear_old();
+		self.insert(*tx.hash(), Status::Mined(tx.clone()));
 	}
 }
 
