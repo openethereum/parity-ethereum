@@ -23,7 +23,7 @@ use itertools::Itertools;
 use bloomchain as bc;
 use heapsize::HeapSizeOf;
 use bigint::prelude::U256;
-use bigint::hash::{H256, H2048};
+use bigint::hash::{H256, H2048 as Bloom};
 use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use rlp::*;

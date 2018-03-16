@@ -18,9 +18,8 @@
 
 use std::ops::Range;
 use basic_types::LogBloom;
-use bigint::prelude::H2048 as Bloom;
 use bloomable::Bloomable;
-use bloomchain::{Filter as BloomFilter, Number};
+use bloomchain::{Filter as BloomFilter, Number, Bloom};
 use hash::keccak;
 use trace::flat::FlatTrace;
 use util::Address;

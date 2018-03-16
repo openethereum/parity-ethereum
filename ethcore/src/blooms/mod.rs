@@ -16,16 +16,10 @@
 
 //! Bridge between bloomchain crate types and ethcore.
 
-<<<<<<< HEAD
 mod bloom;
 mod bloom_group;
 mod group_position;
 
 pub use self::bloom::Bloom;
-=======
-mod bloom_group;
-mod group_position;
-
->>>>>>> 66f3c50... revert removing blooms (#8066)
 pub use self::bloom_group::BloomGroup;
 pub use self::group_position::GroupPosition;
