@@ -768,7 +768,7 @@ usage! {
 
 			ARG arg_pruning_history: (u64) = 64u64, or |c: &Config| c.footprint.as_ref()?.pruning_history.clone(),
 			"--pruning-history=[NUM]",
-			"Set a minimum number of recent states to keep when pruning is active.",
+			"Set a minimum number of recent states to keep in memory when pruning is active.",
 
 			ARG arg_pruning_memory: (usize) = 32usize, or |c: &Config| c.footprint.as_ref()?.pruning_memory.clone(),
 			"--pruning-memory=[MB]",
