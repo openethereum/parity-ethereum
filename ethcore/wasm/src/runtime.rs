@@ -20,7 +20,7 @@ use util::Address;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use vm::{self, CallType};
-use wasmi::{self, MemoryRef, RuntimeArgs, RuntimeValue, Error as InterpreterError};
+use wasmi::{self, MemoryRef, RuntimeArgs, RuntimeValue, Error as InterpreterError, Trap, TrapKind};
 use super::panic_payload;
 
 pub struct RuntimeContext {
@@ -74,15 +74,40 @@ pub enum Error {
 	Other,
 	/// Syscall signature mismatch
 	InvalidSyscall,
+	/// Unreachable instruction encountered
+	Unreachable,
+	/// Invalid virtual call
+	InvalidVirtualCall,
+	/// Division by zero
+	DivisionByZero,
+	/// Invalid conversion to integer
+	InvalidConversionToInt,
+	/// Stack overflow
+	StackOverflow,
 	/// Panic with message
 	Panic(String),
 }
 
 impl wasmi::HostError for Error { }
 
+impl From<Trap> for Error {
+	fn from(trap: Trap) -> Self {
+		match *trap.kind() {
+			TrapKind::Unreachable => Error::Unreachable,
+			TrapKind::MemoryAccessOutOfBounds => Error::MemoryAccessViolation,
+			TrapKind::TableAccessOutOfBounds | TrapKind::ElemUninitialized => Error::InvalidVirtualCall,
+			TrapKind::DivisionByZero => Error::DivisionByZero,
+			TrapKind::InvalidConversionToInt => Error::InvalidConversionToInt,
+			TrapKind::UnexpectedSignature => Error::InvalidVirtualCall,
+			TrapKind::StackOverflow => Error::StackOverflow,
+			TrapKind::Host(_) => Error::Other,
+		}
+	}
+}
+
 impl From<InterpreterError> for Error {
-	fn from(interpreter_err: InterpreterError) -> Self {
-		match interpreter_err {
+	fn from(err: InterpreterError) -> Self {
+		match err {
 			InterpreterError::Value(_) => Error::InvalidSyscall,
 			InterpreterError::Memory(_) => Error::MemoryAccessViolation,
 			_ => Error::Other,
@@ -108,6 +133,11 @@ impl ::std::fmt::Display for Error {
 			Error::Log => write!(f, "Error occured while logging an event"),
 			Error::InvalidSyscall => write!(f, "Invalid syscall signature encountered at runtime"),
 			Error::Other => write!(f, "Other unspecified error"),
+			Error::Unreachable => write!(f, "Unreachable instruction encountered"),
+			Error::InvalidVirtualCall => write!(f, "Invalid virtual call"),
+			Error::DivisionByZero => write!(f, "Division by zero"),
+			Error::StackOverflow => write!(f, "Stack overflow"),
+			Error::InvalidConversionToInt => write!(f, "Invalid conversion to integer"),
 			Error::Panic(ref msg) => write!(f, "Panic: {}", msg),
 		}
 	}
@@ -225,8 +255,8 @@ impl<'a> Runtime<'a> {
 	/// Read from the storage to wasm memory.
 	pub fn storage_read(&mut self, args: RuntimeArgs) -> Result<()>
 	{
-		let key = self.h256_at(args.nth(0)?)?;
-		let val_ptr: u32 = args.nth(1)?;
+		let key = self.h256_at(args.nth_checked(0)?)?;
+		let val_ptr: u32 = args.nth_checked(1)?;
 
 		let val = self.ext.storage_at(&key).map_err(|_| Error::StorageReadError)?;
 
@@ -240,8 +270,8 @@ impl<'a> Runtime<'a> {
 	/// Write to storage from wasm memory.
 	pub fn storage_write(&mut self, args: RuntimeArgs) -> Result<()>
 	{
-		let key = self.h256_at(args.nth(0)?)?;
-		let val_ptr: u32 = args.nth(1)?;
+		let key = self.h256_at(args.nth_checked(0)?)?;
+		let val_ptr: u32 = args.nth_checked(1)?;
 
 		let val = self.h256_at(val_ptr)?;
 		let former_val = self.ext.storage_at(&key).map_err(|_| Error::StorageUpdateError)?;
@@ -269,8 +299,8 @@ impl<'a> Runtime<'a> {
 	/// Return. Syscall takes 2 arguments - pointer in sandboxed memory where result is and
 	/// the length of the result.
 	pub fn ret(&mut self, args: RuntimeArgs) -> Result<()> {
-		let ptr: u32 = args.nth(0)?;
-		let len: u32 = args.nth(1)?;
+		let ptr: u32 = args.nth_checked(0)?;
+		let len: u32 = args.nth_checked(1)?;
 
 		trace!(target: "wasm", "Contract ret: {} bytes @ {}", len, ptr);
 
@@ -292,7 +322,7 @@ impl<'a> Runtime<'a> {
 
 	/// Report gas cost with the params passed in wasm stack
 	fn gas(&mut self, args: RuntimeArgs) -> Result<()> {
-		let amount: u32 = args.nth(0)?;
+		let amount: u32 = args.nth_checked(0)?;
 		if self.charge_gas(amount as u64) {
 			Ok(())
 		} else {
@@ -307,11 +337,10 @@ impl<'a> Runtime<'a> {
 
 	/// Write input bytes to the memory location using the passed pointer
 	fn fetch_input(&mut self, args: RuntimeArgs) -> Result<()> {
-		let ptr: u32 = args.nth(0)?;
-
 		let args_len = self.args.len() as u64;
 		self.charge(|s| args_len * s.wasm().memcpy as u64)?;
 
+		let ptr: u32 = args.nth_checked(0)?;
 		self.memory.set(ptr, &self.args[..])?;
 		Ok(())
 	}
@@ -319,8 +348,8 @@ impl<'a> Runtime<'a> {
 	/// User panic. Contract can invoke this when he encounters unrecoverable error.
 	fn panic(&mut self, args: RuntimeArgs) -> Result<()>
 	{
-		let payload_ptr: u32 = args.nth(0)?;
-		let payload_len: u32 = args.nth(1)?;
+		let payload_ptr: u32 = args.nth_checked(0)?;
+		let payload_len: u32 = args.nth_checked(1)?;
 
 		let raw_payload = self.memory.get(payload_ptr, payload_len as usize)?;
 		let payload = panic_payload::decode(&raw_payload);
@@ -354,26 +383,26 @@ impl<'a> Runtime<'a> {
 	{
 		trace!(target: "wasm", "runtime: CALL({:?})", call_type);
 
-		let gas: u64 = args.nth(0)?;
+		let gas: u64 = args.nth_checked(0)?;
 		trace!(target: "wasm", "           gas: {:?}", gas);
 
-		let address = self.address_at(args.nth(1)?)?;
+		let address = self.address_at(args.nth_checked(1)?)?;
 		trace!(target: "wasm", "       address: {:?}", address);
 
 		let vofs = if use_val { 1 } else { 0 };
-		let val = if use_val { Some(self.u256_at(args.nth(2)?)?) } else { None };
+		let val = if use_val { Some(self.u256_at(args.nth_checked(2)?)?) } else { None };
 		trace!(target: "wasm", "           val: {:?}", val);
 
-		let input_ptr: u32 = args.nth(2 + vofs)?;
+		let input_ptr: u32 = args.nth_checked(2 + vofs)?;
 		trace!(target: "wasm", "     input_ptr: {:?}", input_ptr);
 
-		let input_len: u32 = args.nth(3 + vofs)?;
+		let input_len: u32 = args.nth_checked(3 + vofs)?;
 		trace!(target: "wasm", "     input_len: {:?}", input_len);
 
-		let result_ptr: u32 = args.nth(4 + vofs)?;
+		let result_ptr: u32 = args.nth_checked(4 + vofs)?;
 		trace!(target: "wasm", "    result_ptr: {:?}", result_ptr);
 
-		let result_alloc_len: u32 = args.nth(5 + vofs)?;
+		let result_alloc_len: u32 = args.nth_checked(5 + vofs)?;
 		trace!(target: "wasm", "    result_len: {:?}", result_alloc_len);
 
 		if let Some(ref val) = val {
@@ -473,7 +502,7 @@ impl<'a> Runtime<'a> {
 
 	pub fn value(&mut self, args: RuntimeArgs) -> Result<()> {
 		let val = self.context.value;
-		self.return_u256_ptr(args.nth(0)?, val)
+		self.return_u256_ptr(args.nth_checked(0)?, val)
 	}
 
 	pub fn create(&mut self, args: RuntimeArgs) -> Result<RuntimeValue>
@@ -483,13 +512,13 @@ impl<'a> Runtime<'a> {
 		//   fn create(endowment: *const u8, code_ptr: *const u8, code_len: u32, result_ptr: *mut u8) -> i32;
 		//
 		trace!(target: "wasm", "runtime: CREATE");
-		let endowment = self.u256_at(args.nth(0)?)?;
+		let endowment = self.u256_at(args.nth_checked(0)?)?;
 		trace!(target: "wasm", "       val: {:?}", endowment);
-		let code_ptr: u32 = args.nth(1)?;
+		let code_ptr: u32 = args.nth_checked(1)?;
 		trace!(target: "wasm", "  code_ptr: {:?}", code_ptr);
-		let code_len: u32 = args.nth(2)?;
+		let code_len: u32 = args.nth_checked(2)?;
 		trace!(target: "wasm", "  code_len: {:?}", code_len);
-		let result_ptr: u32 = args.nth(3)?;
+		let result_ptr: u32 = args.nth_checked(3)?;
 		trace!(target: "wasm", "result_ptr: {:?}", result_ptr);
 
 		let code = self.memory.get(code_ptr, code_len as usize)?;
@@ -532,8 +561,8 @@ impl<'a> Runtime<'a> {
 	fn debug(&mut self, args: RuntimeArgs) -> Result<()>
 	{
 		trace!(target: "wasm", "Contract debug message: {}", {
-			let msg_ptr: u32 = args.nth(0)?;
-			let msg_len: u32 = args.nth(1)?;
+			let msg_ptr: u32 = args.nth_checked(0)?;
+			let msg_len: u32 = args.nth_checked(1)?;
 
 			String::from_utf8(self.memory.get(msg_ptr, msg_len as usize)?)
 				.map_err(|_| Error::BadUtf8)?
@@ -545,7 +574,7 @@ impl<'a> Runtime<'a> {
 	/// Pass suicide to state runtime
 	pub fn suicide(&mut self, args: RuntimeArgs) -> Result<()>
 	{
-		let refund_address = self.address_at(args.nth(0)?)?;
+		let refund_address = self.address_at(args.nth_checked(0)?)?;
 
 		if self.ext.exists(&refund_address).map_err(|_| Error::SuicideAbort)? {
 			trace!(target: "wasm", "Suicide: refund to existing address {}", refund_address);
@@ -563,8 +592,8 @@ impl<'a> Runtime<'a> {
 
 	pub fn blockhash(&mut self, args: RuntimeArgs) -> Result<()> {
 		self.adjusted_charge(|schedule| schedule.blockhash_gas as u64)?;
-		let hash = self.ext.blockhash(&U256::from(args.nth::<u64>(0)?));
-		self.memory.set(args.nth(1)?, &*hash)?;
+		let hash = self.ext.blockhash(&U256::from(args.nth_checked::<u64>(0)?));
+		self.memory.set(args.nth_checked(1)?, &*hash)?;
 
 		Ok(())
 	}
@@ -575,32 +604,32 @@ impl<'a> Runtime<'a> {
 
 	pub fn coinbase(&mut self, args: RuntimeArgs) -> Result<()> {
 		let coinbase = self.ext.env_info().author;
-		self.return_address_ptr(args.nth(0)?, coinbase)
+		self.return_address_ptr(args.nth_checked(0)?, coinbase)
 	}
 
 	pub fn difficulty(&mut self, args: RuntimeArgs) -> Result<()> {
 		let difficulty = self.ext.env_info().difficulty;
-		self.return_u256_ptr(args.nth(0)?, difficulty)
+		self.return_u256_ptr(args.nth_checked(0)?, difficulty)
 	}
 
 	pub fn gaslimit(&mut self, args: RuntimeArgs) -> Result<()> {
 		let gas_limit = self.ext.env_info().gas_limit;
-		self.return_u256_ptr(args.nth(0)?, gas_limit)
+		self.return_u256_ptr(args.nth_checked(0)?, gas_limit)
 	}
 
 	pub fn address(&mut self, args: RuntimeArgs) -> Result<()> {
 		let address = self.context.address;
-		self.return_address_ptr(args.nth(0)?, address)
+		self.return_address_ptr(args.nth_checked(0)?, address)
 	}
 
 	pub fn sender(&mut self, args: RuntimeArgs) -> Result<()> {
 		let sender = self.context.sender;
-		self.return_address_ptr(args.nth(0)?, sender)
+		self.return_address_ptr(args.nth_checked(0)?, sender)
 	}
 
 	pub fn origin(&mut self, args: RuntimeArgs) -> Result<()> {
 		let origin = self.context.origin;
-		self.return_address_ptr(args.nth(0)?, origin)
+		self.return_address_ptr(args.nth_checked(0)?, origin)
 	}
 
 	pub fn timestamp(&mut self) -> Result<RuntimeValue> {
@@ -610,12 +639,10 @@ impl<'a> Runtime<'a> {
 
 	pub fn elog(&mut self, args: RuntimeArgs) -> Result<()>
 	{
-		// signature is:
-		// pub fn elog(topic_ptr: *const u8, topic_count: u32, data_ptr: *const u8, data_len: u32);
-		let topic_ptr: u32 = args.nth(0)?;
-		let topic_count: u32 = args.nth(1)?;
-		let data_ptr: u32 = args.nth(2)?;
-		let data_len: u32 = args.nth(3)?;
+		let topic_ptr: u32 = args.nth_checked(0)?;
+		let topic_count: u32 = args.nth_checked(1)?;
+		let data_ptr: u32 = args.nth_checked(2)?;
+		let data_len: u32 = args.nth_checked(3)?;
 
 		if topic_count > 4 {
 			return Err(Error::Log.into());
@@ -648,7 +675,7 @@ impl<'a> Runtime<'a> {
 
 mod ext_impl {
 
-	use wasmi::{Externals, RuntimeArgs, RuntimeValue, Error};
+	use wasmi::{Externals, RuntimeArgs, RuntimeValue, Trap};
 	use env::ids::*;
 
 	macro_rules! void {
@@ -668,7 +695,7 @@ mod ext_impl {
 			&mut self,
 			index: usize,
 			args: RuntimeArgs,
-		) -> Result<Option<RuntimeValue>, Error> {
+		) -> Result<Option<RuntimeValue>, Trap> {
 			match index {
 				STORAGE_WRITE_FUNC => void!(self.storage_write(args)),
 				STORAGE_READ_FUNC => void!(self.storage_read(args)),
