@@ -157,7 +157,7 @@ impl<'a> BloomChain<'a> {
 	}
 }
 
-const BLOOM_SIZE: usize = 32;
+const BLOOM_SIZE: usize = 256;
 
 pub trait BloomCompat {
 	fn contains_bloom(&self, bloom: &Self) -> bool where Self: Sized;
