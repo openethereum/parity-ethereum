@@ -18,6 +18,7 @@
 
 use std::sync::{Arc, Weak};
 use std::collections::BTreeMap;
+use rustc_hex::ToHex;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{self, Future, IntoFuture};
@@ -33,7 +34,7 @@ use v1::types::{pubsub, RichHeader, Log};
 
 use ethcore::encoded;
 use ethcore::filter::Filter as EthFilter;
-use ethcore::client::{BlockChainClient, ChainNotify, BlockId};
+use ethcore::client::{BlockChainClient, ChainNotify, BlockId, TransactionId, CallAnalytics};
 use ethsync::LightSync;
 use light::cache::Cache;
 use light::on_demand::OnDemand;
@@ -51,6 +52,7 @@ pub struct EthPubSubClient<C> {
 	heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
 	logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
 	transactions_subscribers: Arc<RwLock<Subscribers<Client>>>,
+	return_data_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
 impl<C> EthPubSubClient<C> {
@@ -59,6 +61,7 @@ impl<C> EthPubSubClient<C> {
 		let heads_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let logs_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let transactions_subscribers = Arc::new(RwLock::new(Subscribers::default()));
+		let return_data_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 
 		EthPubSubClient {
 			handler: Arc::new(ChainNotificationHandler {
@@ -67,20 +70,23 @@ impl<C> EthPubSubClient<C> {
 				heads_subscribers: heads_subscribers.clone(),
 				logs_subscribers: logs_subscribers.clone(),
 				transactions_subscribers: transactions_subscribers.clone(),
+				return_data_subscribers: return_data_subscribers.clone(),
 			}),
 			heads_subscribers,
 			logs_subscribers,
 			transactions_subscribers,
+			return_data_subscribers,
 		}
 	}
 
-	/// Creates new `EthPubSubCient` with deterministic subscription ids.
+	/// Creates new `EthPubSubClient` with deterministic subscription ids.
 	#[cfg(test)]
 	pub fn new_test(client: Arc<C>, remote: Remote) -> Self {
 		let client = Self::new(client, remote);
 		*client.heads_subscribers.write() = Subscribers::new_test();
 		*client.logs_subscribers.write() = Subscribers::new_test();
 		*client.transactions_subscribers.write() = Subscribers::new_test();
+		*client.return_data_subscribers.write() = Subscribers::new_test();
 		client
 	}
 
@@ -118,6 +124,7 @@ pub struct ChainNotificationHandler<C> {
 	heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
 	logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
 	transactions_subscribers: Arc<RwLock<Subscribers<Client>>>,
+	return_data_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
 impl<C> ChainNotificationHandler<C> {
@@ -169,6 +176,21 @@ impl<C> ChainNotificationHandler<C> {
 				})
 				.map_err(|e| warn!("Unable to fetch latest logs: {:?}", e))
 			);
+		}
+	}
+
+	fn notify_return_data<F>(&self, enacted: &[H256], calculate_return_data: F) where
+		F: Fn(&[H256]) -> Vec<pubsub::ReturnData>
+	{
+		let return_datas = calculate_return_data(enacted);
+
+		for subscriber in self.return_data_subscribers.read().values() {
+			let remote = self.remote.clone();
+			let subscriber = subscriber.clone();
+			for return_data in &return_datas {
+				let data = return_data.clone();
+				Self::notify(&remote, &subscriber, pubsub::Result::ReturnData(data))
+			}
 		}
 	}
 
@@ -254,6 +276,47 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 				log
 			}).collect())
 		});
+
+		fn replay_local_txns<C: BlockChainClient>(client: &C, local_transactions: &Vec<H256>, block_txn_hashes: Vec<H256>, removed: bool) -> Vec<pubsub::ReturnData> {
+			let analytics = CallAnalytics { transaction_tracing: false, vm_tracing: false, state_diffing: false, };
+			block_txn_hashes
+				.iter()
+				.filter(|txn_hash| local_transactions.contains(txn_hash))
+				.filter_map(|txn_hash| {
+					match client.replay(TransactionId::Hash(*txn_hash), analytics) {
+						Ok(executed) => {
+							Some(pubsub::ReturnData {
+								transaction_hash: *txn_hash,
+								return_data: executed.output.to_hex(),
+								removed: removed
+							})
+						},
+						Err(e) => {
+							warn!("Unable to calculate transaction return data for transaction hash {}: {:?}", *txn_hash, e);
+							None
+						}
+					}
+				})
+				.collect()
+		}
+
+		let local_transactions = self.client.local_transactions();
+		self.notify_return_data(&enacted,
+								|block_hashes: &[H256]| -> Vec<pubsub::ReturnData> {
+									block_hashes
+										.iter()
+										.filter_map(|hash| self.client.block_body(BlockId::Hash(*hash)) )
+										.flat_map(|body| replay_local_txns::<C>(&self.client, &local_transactions, body.transaction_hashes(), false) )
+										.collect()
+								});
+		self.notify_return_data(&retracted,
+								|block_hashes: &[H256]| -> Vec<pubsub::ReturnData> {
+									block_hashes
+										.iter()
+										.filter_map(|hash| self.client.block_body(BlockId::Hash(*hash)) )
+										.flat_map(|body| replay_local_txns::<C>(&self.client, &local_transactions, body.transaction_hashes(), true) )
+										.collect()
+								});
 	}
 }
 
@@ -267,6 +330,7 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		kind: pubsub::Kind,
 		params: Trailing<pubsub::Params>,
 	) {
+		info!("New subscription request: {:?}", kind);
 		let error = match (kind, params.into()) {
 			(pubsub::Kind::NewHeads, None) => {
 				self.heads_subscribers.write().push(subscriber);
@@ -289,6 +353,13 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 			(pubsub::Kind::NewPendingTransactions, _) => {
 				errors::invalid_params("newPendingTransactions", "Expected no parameters.")
 			},
+			(pubsub::Kind::ReturnData, None) => {
+				self.return_data_subscribers.write().push(subscriber);
+				return;
+			},
+			(pubsub::Kind::ReturnData, _) => {
+				errors::invalid_params("returnData", "Expected no parameters.")
+			},
 			_ => {
 				errors::unimplemented(None)
 			},
@@ -301,7 +372,8 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		let res = self.heads_subscribers.write().remove(&id).is_some();
 		let res2 = self.logs_subscribers.write().remove(&id).is_some();
 		let res3 = self.transactions_subscribers.write().remove(&id).is_some();
+		let res4 = self.return_data_subscribers.write().remove(&id).is_some();
 
-		Ok(res || res2 || res3)
+		Ok(res || res2 || res3 || res4)
 	}
 }

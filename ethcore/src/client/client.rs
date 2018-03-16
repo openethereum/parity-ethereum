@@ -1956,6 +1956,10 @@ impl BlockChainClient for Client {
 	fn eip86_transition(&self) -> u64 {
 		self.engine().params().eip86_transition
 	}
+
+	fn local_transactions(&self) -> Vec<H256> {
+		self.importer.miner.local_transactions().keys().map(|k| *k).collect::<Vec<_>>()
+	}
 }
 
 impl ReopenBlock for Client {
