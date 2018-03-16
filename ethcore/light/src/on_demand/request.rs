@@ -941,6 +941,7 @@ impl Signal {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::time::Duration;
 	use ethereum_types::{H256, Address};
 	use memorydb::MemoryDB;
 	use parking_lot::Mutex;
@@ -954,7 +955,7 @@ mod tests {
 	use ethcore::receipt::{Receipt, TransactionOutcome};
 
 	fn make_cache() -> ::cache::Cache {
-		::cache::Cache::new(Default::default(), ::time::Duration::seconds(1))
+		::cache::Cache::new(Default::default(), Duration::from_secs(1))
 	}
 
 	#[test]

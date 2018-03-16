@@ -25,7 +25,7 @@ use ethcore::header::BlockNumber;
 use ethcore::receipt::Receipt;
 
 use stats::Corpus;
-use time::{SteadyTime, Duration};
+use std::time::{Instant, Duration};
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256};
 use memory_cache::MemoryLruCache;
@@ -69,7 +69,7 @@ pub struct Cache {
 	bodies: MemoryLruCache<H256, encoded::Body>,
 	receipts: MemoryLruCache<H256, Vec<Receipt>>,
 	chain_score: MemoryLruCache<H256, U256>,
-	corpus: Option<(Corpus<U256>, SteadyTime)>,
+	corpus: Option<(Corpus<U256>, Instant)>,
 	corpus_expiration: Duration,
 }
 
@@ -139,7 +139,7 @@ impl Cache {
 
 	/// Get gas price corpus, if recent enough.
 	pub fn gas_price_corpus(&self) -> Option<Corpus<U256>> {
-		let now = SteadyTime::now();
+		let now = Instant::now();
 
 		self.corpus.as_ref().and_then(|&(ref corpus, ref tm)| {
 			if *tm + self.corpus_expiration >= now {
@@ -152,7 +152,7 @@ impl Cache {
 
 	/// Set the cached gas price corpus.
 	pub fn set_gas_price_corpus(&mut self, corpus: Corpus<U256>) {
-		self.corpus = Some((corpus, SteadyTime::now()))
+		self.corpus = Some((corpus, Instant::now()))
 	}
 
 	/// Get the memory used.
@@ -175,18 +175,18 @@ impl HeapSizeOf for Cache {
 #[cfg(test)]
 mod tests {
 	use super::Cache;
-	use time::Duration;
+	use std::time::Duration;
 
 	#[test]
 	fn corpus_inaccessible() {
-		let mut cache = Cache::new(Default::default(), Duration::hours(5));
+		let mut cache = Cache::new(Default::default(), Duration::from_secs(5 * 3600));
 
 		cache.set_gas_price_corpus(vec![].into());
 		assert_eq!(cache.gas_price_corpus(), Some(vec![].into()));
 
 		{
 			let corpus_time = &mut cache.corpus.as_mut().unwrap().1;
-			*corpus_time = *corpus_time - Duration::hours(6);
+			*corpus_time = *corpus_time - Duration::from_secs(6 * 3600);
 		}
 		assert!(cache.gas_price_corpus().is_none());
 	}

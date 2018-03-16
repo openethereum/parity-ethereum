@@ -189,7 +189,6 @@ impl SealingWork {
 	fn reseal_allowed(&self) -> bool {
 		Instant::now() > self.next_allowed_reseal
 	}
-
 }
 
 /// Keeps track of transactions using priority queue and holds currently mined block.

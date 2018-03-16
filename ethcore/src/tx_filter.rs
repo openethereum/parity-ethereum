@@ -118,6 +118,7 @@ mod test {
 	use ethkey::{Secret, KeyPair};
 	use super::TransactionFilter;
 	use transaction::{Transaction, Action};
+	use tempdir::TempDir;
 
 	/// Contract code: https://gist.github.com/arkpar/38a87cb50165b7e683585eec71acb05a
 	#[test]
@@ -168,7 +169,8 @@ mod test {
 		}
 		"#;
 
-		let spec = Spec::load(&::std::env::temp_dir(), spec_data.as_bytes()).unwrap();
+		let tempdir = TempDir::new("").unwrap();
+		let spec = Spec::load(&tempdir.path(), spec_data.as_bytes()).unwrap();
 		let client_db = Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
 
 		let client = Client::new(

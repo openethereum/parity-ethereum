@@ -193,7 +193,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	cmd.dirs.create_dirs(false, false, false)?;
 
 	let cache = Arc::new(Mutex::new(
-		LightDataCache::new(Default::default(), ::time::Duration::seconds(0))
+		LightDataCache::new(Default::default(), Duration::new(0, 0))
 	));
 
 	let mut config = LightClientConfig {

@@ -128,7 +128,7 @@ impl Filter {
 				from_matches && to_matches
 			},
 			Action::Reward(ref reward) => {
-				self.to_address.matches(&reward.author)
+				self.from_address.matches_all() && self.to_address.matches(&reward.author)
 			},
 		}
 	}
@@ -352,12 +352,48 @@ mod tests {
 			subtraces: 0
 		};
 
-		assert!(f0.matches(&trace));
-		assert!(f1.matches(&trace));
+		assert!(!f0.matches(&trace));
+		assert!(!f1.matches(&trace));
 		assert!(f2.matches(&trace));
 		assert!(f3.matches(&trace));
 		assert!(f4.matches(&trace));
-		assert!(f5.matches(&trace));
+		assert!(!f5.matches(&trace));
 		assert!(!f6.matches(&trace));
+	}
+
+	#[test]
+	fn filter_match_block_reward_fix_8070() {
+		let f0 = Filter {
+			range: (0..0),
+			from_address: vec![1.into()].into(),
+			to_address: vec![].into(),
+		};
+
+		let f1 = Filter {
+			range: (0..0),
+			from_address: vec![].into(),
+			to_address: vec![].into(),
+		};
+
+		let f2 = Filter {
+			range: (0..0),
+			from_address: vec![].into(),
+			to_address: vec![2.into()].into(),
+		};
+
+		let trace = FlatTrace {
+			action: Action::Reward(Reward {
+				author: 2.into(),
+				value: 10.into(),
+				reward_type: RewardType::Block,
+			}),
+			result: Res::None,
+			trace_address: vec![0].into_iter().collect(),
+			subtraces: 0,
+		};
+
+		assert!(!f0.matches(&trace));
+		assert!(f1.matches(&trace));
+		assert!(f2.matches(&trace));
 	}
 }

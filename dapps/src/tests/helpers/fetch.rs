@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{io, thread, time};
+use std::{thread, time};
 use std::sync::{atomic, mpsc, Arc};
 use parking_lot::Mutex;
+use hyper;
 
 use futures::{self, Future};
-use fetch::{self, Fetch};
+use fetch::{self, Fetch, Url};
 
 pub struct FetchControl {
 	sender: mpsc::Sender<()>,
@@ -96,11 +97,8 @@ impl FakeFetch {
 impl Fetch for FakeFetch {
 	type Result = Box<Future<Item = fetch::Response, Error = fetch::Error> + Send>;
 
-	fn new() -> Result<Self, fetch::Error> where Self: Sized {
-		Ok(FakeFetch::default())
-	}
-
-	fn fetch_with_abort(&self, url: &str, _abort: fetch::Abort) -> Self::Result {
+	fn fetch(&self, url: &str, abort: fetch::Abort) -> Self::Result {
+		let u = Url::parse(url).unwrap();
 		self.requested.lock().push(url.into());
 		let manual = self.manual.clone();
 		let response = self.response.clone();
@@ -111,23 +109,10 @@ impl Fetch for FakeFetch {
 				// wait for manual resume
 				let _ = rx.recv();
 			}
-
 			let data = response.lock().take().unwrap_or(b"Some content");
-			let cursor = io::Cursor::new(data);
-			tx.send(fetch::Response::from_reader(cursor)).unwrap();
+			tx.send(fetch::Response::new(u, hyper::Response::new().with_body(data), abort)).unwrap();
 		});
 
 		Box::new(rx.map_err(|_| fetch::Error::Aborted))
-	}
-
-	fn process_and_forget<F, I, E>(&self, f: F) where
-		F: Future<Item=I, Error=E> + Send + 'static,
-		I: Send + 'static,
-		E: Send + 'static,
-	{
-		// Spawn the task in a separate thread.
-		thread::spawn(|| {
-			let _ = f.wait();
-		});
 	}
 }

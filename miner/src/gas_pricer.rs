@@ -20,6 +20,7 @@ use std::time::{Instant, Duration};
 
 use ansi_term::Colour;
 use ethereum_types::U256;
+use futures_cpupool::CpuPool;
 use price_info::{Client as PriceInfoClient, PriceInfo};
 use price_info::fetch::Client as FetchClient;
 
@@ -73,11 +74,11 @@ pub enum GasPricer {
 
 impl GasPricer {
 	/// Create a new Calibrated `GasPricer`.
-	pub fn new_calibrated(options: GasPriceCalibratorOptions, fetch: FetchClient) -> GasPricer {
+	pub fn new_calibrated(options: GasPriceCalibratorOptions, fetch: FetchClient, p: CpuPool) -> GasPricer {
 		GasPricer::Calibrated(GasPriceCalibrator {
 			options: options,
 			next_calibration: Instant::now(),
-			price_info: PriceInfoClient::new(fetch),
+			price_info: PriceInfoClient::new(fetch, p),
 		})
 	}
 

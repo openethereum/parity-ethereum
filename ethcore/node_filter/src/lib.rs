@@ -32,6 +32,8 @@ extern crate ethabi_contract;
 extern crate ethcore_io as io;
 #[cfg(test)]
 extern crate kvdb_memorydb;
+#[cfg(test)]
+extern crate tempdir;
 #[macro_use]
 extern crate log;
 
@@ -126,13 +128,15 @@ mod test {
 	use network::{ConnectionDirection, ConnectionFilter, NodeId};
 	use io::IoChannel;
 	use super::NodeFilter;
+	use tempdir::TempDir;
 
 	/// Contract code: https://gist.github.com/arkpar/467dbcc73cbb85b0997a7a10ffa0695f
 	#[test]
 	fn node_filter() {
 		let contract_addr = Address::from_str("0000000000000000000000000000000000000005").unwrap();
 		let data = include_bytes!("../res/node_filter.json");
-		let spec = Spec::load(&::std::env::temp_dir(), &data[..]).unwrap();
+		let tempdir = TempDir::new("").unwrap();
+		let spec = Spec::load(&tempdir.path(), &data[..]).unwrap();
 		let client_db = Arc::new(::kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0)));
 
 		let client = Client::new(

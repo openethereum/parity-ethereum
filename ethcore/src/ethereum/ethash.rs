@@ -495,9 +495,11 @@ mod tests {
 	use super::super::{new_morden, new_mcip3_test, new_homestead_test_machine};
 	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 	use rlp;
+	use tempdir::TempDir;
 
 	fn test_spec() -> Spec {
-		new_morden(&::std::env::temp_dir())
+		let tempdir = TempDir::new("").unwrap();
+		new_morden(&tempdir.path())
 	}
 
 	fn get_default_ethash_params() -> EthashParams {
@@ -776,7 +778,8 @@ mod tests {
 	fn difficulty_frontier() {
 		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(&::std::env::temp_dir(), ethparams, machine, None);
+		let tempdir = TempDir::new("").unwrap();
+		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(1000000);
@@ -794,7 +797,8 @@ mod tests {
 	fn difficulty_homestead() {
 		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(&::std::env::temp_dir(), ethparams, machine, None);
+		let tempdir = TempDir::new("").unwrap();
+		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(1500000);
@@ -815,7 +819,8 @@ mod tests {
 			ecip1010_pause_transition: 3000000,
 			..get_default_ethash_params()
 		};
-		let ethash = Ethash::new(&::std::env::temp_dir(), ethparams, machine, None);
+		let tempdir = TempDir::new("").unwrap();
+		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(3500000);
@@ -849,7 +854,8 @@ mod tests {
 			ecip1010_continue_transition: 5000000,
 			..get_default_ethash_params()
 		};
-		let ethash = Ethash::new(&::std::env::temp_dir(), ethparams, machine, None);
+		let tempdir = TempDir::new("").unwrap();
+		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(5000102);
@@ -895,7 +901,8 @@ mod tests {
 	fn difficulty_max_timestamp() {
 		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(&::std::env::temp_dir(), ethparams, machine, None);
+		let tempdir = TempDir::new("").unwrap();
+		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(1000000);
@@ -913,7 +920,8 @@ mod tests {
 	fn test_extra_info() {
 		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(&::std::env::temp_dir(), ethparams, machine, None);
+		let tempdir = TempDir::new("").unwrap();
+		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 		let mut header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
 		let info = ethash.extra_info(&header);
