@@ -216,6 +216,7 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 										),
 										self.embeddable_on.clone(),
 										self.fetch.clone(),
+										self.pool.clone(),
 									)
 								},
 							    URLHintResult::GithubDapp(content) => {
@@ -232,6 +233,7 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 										),
 										self.embeddable_on.clone(),
 										self.fetch.clone(),
+										self.pool.clone(),
 									)
 							    },
 								URLHintResult::Content(content) => {
@@ -248,6 +250,7 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 										),
 										self.embeddable_on.clone(),
 										self.fetch.clone(),
+										self.pool.clone(),
 									)
 								},
 							};
@@ -280,7 +283,7 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 mod tests {
 	use std::env;
 	use std::sync::Arc;
-	use fetch::{Fetch, Client};
+	use fetch::Client;
 	use futures::{future, Future};
 	use hash_fetch::urlhint::{URLHint, URLHintResult};
 	use ethereum_types::H256;
