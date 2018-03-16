@@ -17,7 +17,8 @@
 //! Blockchain generator for tests.
 
 use std::collections::VecDeque;
-use bigint::prelude::{U256, H256, H2048 as Bloom};
+use bigint::prelude::{U256, H256};
+use bloomchain::Bloom;
 
 use bytes::Bytes;
 use header::Header;

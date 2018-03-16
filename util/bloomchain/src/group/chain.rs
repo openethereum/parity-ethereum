@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::ops::Range;
-use bloom::Bloom;
+use Bloom;
 use chain::BloomChain;
 use config::Config;
 use number::Number;

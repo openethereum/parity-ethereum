@@ -100,7 +100,7 @@ impl BloomFilter for Filter {
 
 impl Filter {
 	/// Returns combinations of each address.
-	fn bloom_possibilities(&self) -> Vec<Bloom> {
+	fn bloom_possibilities(&self) -> Vec<LogBloom> {
 		self.to_address.with_blooms(self.from_address.blooms())
 	}
 

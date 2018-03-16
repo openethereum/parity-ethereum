@@ -1,4 +1,4 @@
-extern crate ethbloom as bloom;
+extern crate ethcore_bigint as bigint;
 
 mod chain;
 mod config;
@@ -8,8 +8,8 @@ mod number;
 mod position;
 mod filter;
 
-pub use bloom::{Bloom, BloomRef, Input};
-pub use chain::BloomChain;
+pub use bigint::hash::H2048 as Bloom;
+pub use chain::{BloomChain, BloomCompat};
 pub use config::Config;
 pub use database::BloomDatabase;
 pub use number::Number;

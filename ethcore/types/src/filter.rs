@@ -17,7 +17,7 @@
 //! Blockchain filter
 
 use util::Address;
-use bigint::hash::{H256, H2048};
+use bigint::hash::{H256, H2048 as Bloom};
 use bloomable::Bloomable;
 use ids::BlockId;
 use log_entry::LogEntry;
@@ -75,15 +75,15 @@ impl Clone for Filter {
 
 impl Filter {
 	/// Returns combinations of each address and topic.
-	pub fn bloom_possibilities(&self) -> Vec<H2048> {
+	pub fn bloom_possibilities(&self) -> Vec<Bloom> {
 		let blooms = match self.address {
 			Some(ref addresses) if !addresses.is_empty() =>
 				addresses.iter().map(|ref address| {
-					let mut bloom = H2048::default();
+					let mut bloom = Bloom::default();
 					bloom.shift_bloomed(&keccak(address));
 					bloom
 				}).collect(),
-			_ => vec![H2048::default()]
+			_ => vec![Bloom::default()]
 		};
 
 		self.topics.iter().fold(blooms, |bs, topic| match *topic {
@@ -93,7 +93,7 @@ impl Filter {
 					let mut b = bloom.clone();
 					b.shift_bloomed(&keccak(topic));
 					b
-				}).collect::<Vec<H2048>>()
+				}).collect::<Vec<Bloom>>()
 			}).collect()
 		})
 	}

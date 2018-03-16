@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use number::Number;
 use position::{Position, Manager as PositionManager};
-use bloom::Bloom;
+use Bloom;
 use filter::Filter;
 use config::Config;
 use database::BloomDatabase;
@@ -154,5 +154,35 @@ impl<'a> BloomChain<'a> {
 
 		blocks.sort();
 		blocks
+	}
+}
+
+const BLOOM_SIZE: usize = 32;
+
+pub trait BloomCompat {
+	fn contains_bloom(&self, bloom: &Self) -> bool where Self: Sized;
+	fn accrue_bloom(&mut self, bloom: &Self) where Self:Sized;
+}
+
+impl BloomCompat for Bloom {
+	fn contains_bloom(&self, bloom_ref: &Self) -> bool {
+		assert_eq!(self.0.len(), BLOOM_SIZE);
+		assert_eq!(bloom_ref.0.len(), BLOOM_SIZE);
+		for i in 0..BLOOM_SIZE {
+			let a = self.0[i];
+			let b = bloom_ref.0[i];
+			if (a & b) != b {
+				return false;
+			}
+		}
+		true
+	}
+
+	fn accrue_bloom(&mut self, bloom_ref: &Self) {
+		assert_eq!(self.0.len(), BLOOM_SIZE);
+		assert_eq!(bloom_ref.0.len(), BLOOM_SIZE);
+		for i in 0..BLOOM_SIZE {
+			self.0[i] |= bloom_ref.0[i];
+		}
 	}
 }

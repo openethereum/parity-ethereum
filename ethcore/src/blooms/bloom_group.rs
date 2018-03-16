@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bloomchain::group as bc;
-use bloomchain::Bloom;
+use bloomchain::{Bloom, BloomCompat};
 use heapsize::HeapSizeOf;
 
 /// Represents group of X consecutive blooms.

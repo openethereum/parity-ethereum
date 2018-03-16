@@ -1,4 +1,4 @@
-use bloom::Bloom;
+use Bloom;
 use config::Config;
 use database::BloomDatabase;
 use position::Position;
@@ -7,7 +7,7 @@ use super::BloomGroupDatabase;
 
 /// Bridge between `BloomDatabase` and `BloomGroupDatabase`.
 pub struct GroupDatabaseBridge<'a> {
-	positioner: PositionManager,	
+	positioner: PositionManager,
 	db: &'a BloomGroupDatabase,
 }
 

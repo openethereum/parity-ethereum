@@ -1,5 +1,5 @@
 use position::Position;
-use bloom::Bloom;
+use Bloom;
 
 /// Readonly `Bloom` database.
 pub trait BloomDatabase {

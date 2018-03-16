@@ -1,5 +1,5 @@
 use std::ops::Range;
-use bloom::Bloom;
+use Bloom;
 use number::Number;
 
 /// Should be used to filter blocks from `BloomChain`.
