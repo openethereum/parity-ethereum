@@ -119,8 +119,8 @@ pub struct Schedule {
 
 /// Wasm cost table
 pub struct WasmCosts {
-	/// Arena allocator cost, per byte
-	pub alloc: u32,
+	/// Default opcode cost
+	pub regular: u32,
 	/// Div operations multiplier.
 	pub div: u32,
 	/// Div operations multiplier.
@@ -143,13 +143,12 @@ pub struct WasmCosts {
 	pub opcodes_mul: u32,
 	/// Cost of wasm opcode is calculated as TABLE_ENTRY_COST * `opcodes_mul` / `opcodes_div`
 	pub opcodes_div: u32,
-
 }
 
 impl Default for WasmCosts {
 	fn default() -> Self {
 		WasmCosts {
-			alloc: 2,
+			regular: 1,
 			div: 16,
 			mul: 4,
 			mem: 2,

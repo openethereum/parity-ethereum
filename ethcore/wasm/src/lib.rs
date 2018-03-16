@@ -35,7 +35,7 @@ mod panic_payload;
 mod parser;
 
 use vm::{GasLeft, ReturnData, ActionParams};
-use wasmi::Error as InterpreterError;
+use wasmi::{Error as InterpreterError, Trap};
 
 use runtime::{Runtime, RuntimeContext};
 
@@ -43,17 +43,29 @@ use bigint::uint::U256;
 
 /// Wrapped interpreter error
 #[derive(Debug)]
-pub struct Error(InterpreterError);
+pub enum Error {
+	Interpreter(InterpreterError),
+	Trap(Trap),
+}
 
 impl From<InterpreterError> for Error {
 	fn from(e: InterpreterError) -> Self {
-		Error(e)
+		Error::Interpreter(e)
+	}
+}
+
+impl From<Trap> for Error {
+	fn from(e: Trap) -> Self {
+		Error::Trap(e)
 	}
 }
 
 impl From<Error> for vm::Error {
 	fn from(e: Error) -> Self {
-		vm::Error::Wasm(format!("Wasm runtime error: {:?}", e.0))
+		match e {
+			Error::Interpreter(e) => vm::Error::Wasm(format!("Wasm runtime error: {:?}", e)),
+			Error::Trap(e) => vm::Error::Wasm(format!("Wasm contract trap: {:?}", e)),
+		}
 	}
 }
 
@@ -77,14 +89,14 @@ impl vm::Vm for WasmInterpreter {
 	fn exec(&mut self, params: ActionParams, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
 		let (module, data) = parser::payload(&params, ext.schedule().wasm())?;
 
-		let loaded_module = wasmi::Module::from_parity_wasm_module(module).map_err(Error)?;
+		let loaded_module = wasmi::Module::from_parity_wasm_module(module).map_err(Error::Interpreter)?;
 
-		let instantiation_resolover = env::ImportResolver::with_limit(16);
+		let instantiation_resolver = env::ImportResolver::with_limit(16);
 
 		let module_instance = wasmi::ModuleInstance::new(
 			&loaded_module,
-			&wasmi::ImportsBuilder::new().with_resolver("env", &instantiation_resolover)
-		).map_err(Error)?;
+			&wasmi::ImportsBuilder::new().with_resolver("env", &instantiation_resolver)
+		).map_err(Error::Interpreter)?;
 
 		let adjusted_gas = params.gas * U256::from(ext.schedule().wasm().opcodes_div) /
 			U256::from(ext.schedule().wasm().opcodes_mul);
@@ -94,13 +106,13 @@ impl vm::Vm for WasmInterpreter {
 			return Err(vm::Error::Wasm("Wasm interpreter cannot run contracts with gas (wasm adjusted) >= 2^64".to_owned()));
 		}
 
-		let initial_memory = instantiation_resolover.memory_size().map_err(Error)?;
+		let initial_memory = instantiation_resolver.memory_size().map_err(Error::Interpreter)?;
 		trace!(target: "wasm", "Contract requested {:?} pages of initial memory", initial_memory);
 
 		let (gas_left, result) = {
 			let mut runtime = Runtime::with_params(
 				ext,
-				instantiation_resolover.memory_ref(),
+				instantiation_resolver.memory_ref(),
 				// cannot overflow, checked above
 				adjusted_gas.low_u64(),
 				data.to_vec(),
@@ -121,19 +133,21 @@ impl vm::Vm for WasmInterpreter {
 			assert!(runtime.schedule().wasm().initial_mem < 1 << 16);
 			runtime.charge(|s| initial_memory as u64 * s.wasm().initial_mem as u64)?;
 
-			let module_instance = module_instance.run_start(&mut runtime).map_err(Error)?;
+			let module_instance = module_instance.run_start(&mut runtime).map_err(Error::Trap)?;
 
 			let invoke_result = module_instance.invoke_export("call", &[], &mut runtime);
 
 			let mut execution_outcome = ExecutionOutcome::NotSpecial;
-			if let Err(InterpreterError::Host(ref boxed)) = invoke_result {
-				let ref runtime_err = boxed.downcast_ref::<runtime::Error>()
-					.expect("Host errors other than runtime::Error never produced; qed");
+			if let Err(InterpreterError::Trap(ref trap)) = invoke_result {
+				if let wasmi::TrapKind::Host(ref boxed) = *trap.kind() {
+					let ref runtime_err = boxed.downcast_ref::<runtime::Error>()
+						.expect("Host errors other than runtime::Error never produced; qed");
 
-				match **runtime_err {
-					runtime::Error::Suicide => { execution_outcome = ExecutionOutcome::Suicide; },
-					runtime::Error::Return => { execution_outcome = ExecutionOutcome::Return; },
-					_ => {}
+					match **runtime_err {
+						runtime::Error::Suicide => { execution_outcome = ExecutionOutcome::Suicide; },
+						runtime::Error::Return => { execution_outcome = ExecutionOutcome::Return; },
+						_ => {}
+					}
 				}
 			}
 

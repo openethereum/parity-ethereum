@@ -19,7 +19,7 @@
 use std::cell::RefCell;
 use wasmi::{
 	self, Signature, Error, FuncRef, FuncInstance, MemoryDescriptor,
-	MemoryRef, MemoryInstance,
+	MemoryRef, MemoryInstance, memory_units,
 };
 
 /// Internal ids all functions runtime supports. This is just a glue for wasmi interpreter
@@ -219,7 +219,10 @@ impl ImportResolver {
 			let mut mem_ref = self.memory.borrow_mut();
 			if mem_ref.is_none() {
 				*mem_ref = Some(
-					MemoryInstance::alloc(0, Some(0)).expect("Memory allocation (0, 0) should not fail; qed")
+					MemoryInstance::alloc(
+						memory_units::Pages(0),
+						Some(memory_units::Pages(0)),
+					).expect("Memory allocation (0, 0) should not fail; qed")
 				);
 			}
 		}
@@ -229,7 +232,7 @@ impl ImportResolver {
 
 	/// Returns memory size module initially requested
 	pub fn memory_size(&self) -> Result<u32, Error> {
-		Ok(self.memory_ref().size())
+		Ok(self.memory_ref().current_size().0 as u32)
 	}
 }
 
@@ -281,7 +284,10 @@ impl wasmi::ModuleImportResolver for ImportResolver {
 			{
 				Err(Error::Instantiation("Module requested too much memory".to_owned()))
 			} else {
-				let mem = MemoryInstance::alloc(descriptor.initial(), descriptor.maximum())?;
+				let mem = MemoryInstance::alloc(
+					memory_units::Pages(descriptor.initial() as usize),
+					descriptor.maximum().map(|x| memory_units::Pages(x as usize)),
+				)?;
 				*self.memory.borrow_mut() = Some(mem.clone());
 				Ok(mem)
 			}
