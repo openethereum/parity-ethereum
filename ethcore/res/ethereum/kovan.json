@@ -36,14 +36,14 @@
 		"forkCanonHash": "0x0a66d93c2f727dca618fabaf70c39b37018c73d78b939d8b11efbbd09034778f",
 		"eip155Transition": 1000000,
 		"maxCodeSize": 24576,
-		"maxCodeSizeTransition": 6500000,
+		"maxCodeSizeTransition": 6600000,
 		"validateChainIdTransition": 1000000,
 		"validateReceiptsTransition" : 1000000,
 		"eip140Transition": 5067000,
 		"eip211Transition": 5067000,
 		"eip214Transition": 5067000,
 		"eip658Transition": 5067000,
-		"wasmActivationTransition": 6500000
+		"wasmActivationTransition": 6600000
 	},
 	"genesis": {
 		"seal": {
