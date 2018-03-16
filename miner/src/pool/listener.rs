@@ -74,7 +74,8 @@ impl txpool::Listener<Transaction> for Logger {
 		debug!(target: "txqueue", "[{:?}] Added to the pool.", tx.hash());
 		debug!(
 			target: "txqueue",
-			"[{:?}] Sender: {sender}, nonce: {nonce}, gasPrice: {gas_price}, gas: {gas}, value: {value}, dataLen: {data}))",
+			"[{hash:?}] Sender: {sender}, nonce: {nonce}, gasPrice: {gas_price}, gas: {gas}, value: {value}, dataLen: {data}))",
+			hash = tx.hash(),
 			sender = tx.sender(),
 			nonce = tx.signed().nonce,
 			gas_price = tx.signed().gas_price,
