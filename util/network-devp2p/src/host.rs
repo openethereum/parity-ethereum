@@ -467,8 +467,8 @@ impl Host {
 		};
 
 		if let Some(mut discovery) = discovery {
-			discovery.init_node_list(self.nodes.read().unordered_entries());
-			discovery.add_node_list(self.nodes.read().unordered_entries());
+			discovery.init_node_list(self.nodes.read().entries());
+			discovery.add_node_list(self.nodes.read().entries());
 			*self.discovery.lock() = Some(discovery);
 			io.register_stream(DISCOVERY)?;
 			io.register_timer(DISCOVERY_REFRESH, DISCOVERY_REFRESH_TIMEOUT)?;
