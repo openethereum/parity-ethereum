@@ -4,7 +4,7 @@ set -e
 # variables
 PVER="1-9"
 PTYPE="v1"
-TRACK="beta"
+TRACK="stable"
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
 PRE_REPO="js-dist-paritytech/parity-${TRACK}-${PVER}-${PTYPE}.git"
 PRE_REPO_TOKEN="https://${GITHUB_JS_PRECOMPILED}:@github.com/${PRE_REPO}"
