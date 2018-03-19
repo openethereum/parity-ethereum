@@ -28,13 +28,6 @@ impl From<LogBloom> for Bloom {
 	}
 }
 
-impl From<bc::Bloom> for Bloom {
-	fn from(bloom: bc::Bloom) -> Self {
-		let bytes: [u8; 256] = bloom.into();
-		Bloom(LogBloom::from(bytes))
-	}
-}
-
 impl Into<bc::Bloom> for Bloom {
 	fn into(self) -> bc::Bloom {
 		let log = self.0;

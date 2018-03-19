@@ -32,7 +32,7 @@ pub struct BlockInfo {
 }
 
 /// Describes location of newly inserted block.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BlockLocation {
 	/// It's part of the canon chain.
 	CanonChain,
@@ -44,7 +44,7 @@ pub enum BlockLocation {
 	BranchBecomingCanonChain(BranchBecomingCanonChainData),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BranchBecomingCanonChainData {
 	/// Hash of the newest common ancestor with old canon chain.
 	pub ancestor: H256,
