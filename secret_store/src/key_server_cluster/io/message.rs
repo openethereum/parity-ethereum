@@ -19,7 +19,7 @@ use std::u16;
 use std::ops::Deref;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde_json;
-use ethcrypto::ecies::{encrypt_single_message, decrypt_single_message};
+use ethcrypto::ecies;
 use ethkey::{Secret, KeyPair};
 use ethkey::math::curve_order;
 use ethereum_types::{H256, U256};
@@ -241,7 +241,7 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 pub fn encrypt_message(key: &KeyPair, message: SerializedMessage) -> Result<SerializedMessage, Error> {
 	let mut header: Vec<_> = message.into();
 	let payload = header.split_off(MESSAGE_HEADER_SIZE);
-	let encrypted_payload = encrypt_single_message(key.public(), &payload)?;
+	let encrypted_payload = ecies::encrypt(key.public(), &[], &payload)?;
 
 	let header = deserialize_header(&header)?;
 	build_serialized_message(header, encrypted_payload)
@@ -249,7 +249,7 @@ pub fn encrypt_message(key: &KeyPair, message: SerializedMessage) -> Result<Seri
 
 /// Decrypt serialized message.
 pub fn decrypt_message(key: &KeyPair, payload: Vec<u8>) -> Result<Vec<u8>, Error> {
-	Ok(decrypt_single_message(key.secret(), &payload)?)
+	Ok(ecies::decrypt(key.secret(), &[], &payload)?)
 }
 
 /// Fix shared encryption key.

@@ -17,17 +17,19 @@
 //! Blockchain database client.
 
 mod ancient_import;
+mod client;
 mod config;
 mod error;
 mod evm_test_client;
+mod io_message;
 mod test_client;
 mod trace;
-mod client;
 
 pub use self::client::*;
 pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
 pub use self::error::Error;
 pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactResult};
+pub use self::io_message::ClientIoMessage;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::chain_notify::ChainNotify;
 pub use self::traits::{

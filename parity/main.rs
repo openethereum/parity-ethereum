@@ -43,7 +43,6 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
-extern crate time;
 extern crate toml;
 
 extern crate ethcore;
@@ -54,6 +53,7 @@ extern crate ethcore_logger;
 extern crate ethcore_migrations as migrations;
 extern crate ethcore_miner as miner;
 extern crate ethcore_network as network;
+extern crate ethcore_service;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate migration as migr;
@@ -76,6 +76,7 @@ extern crate rpc_cli;
 extern crate node_filter;
 extern crate keccak_hash as hash;
 extern crate journaldb;
+extern crate registrar;
 
 #[macro_use]
 extern crate log as rlog;

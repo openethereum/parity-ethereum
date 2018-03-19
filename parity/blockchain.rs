@@ -25,12 +25,12 @@ use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
-use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock};
 use ethcore::db::NUM_COLUMNS;
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
+use ethcore_service::ClientService;
 use cache::CacheConfig;
 use informant::{Informant, FullNodeInformantData, MillisecondDuration};
 use kvdb_rocksdb::{Database, DatabaseConfig};
@@ -193,7 +193,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	cmd.dirs.create_dirs(false, false, false)?;
 
 	let cache = Arc::new(Mutex::new(
-		LightDataCache::new(Default::default(), ::time::Duration::seconds(0))
+		LightDataCache::new(Default::default(), Duration::new(0, 0))
 	));
 
 	let mut config = LightClientConfig {

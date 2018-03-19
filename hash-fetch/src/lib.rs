@@ -25,12 +25,14 @@ extern crate ethabi;
 extern crate ethcore_bytes as bytes;
 extern crate ethereum_types;
 extern crate futures;
+extern crate futures_cpupool;
 extern crate keccak_hash as hash;
 extern crate mime;
 extern crate mime_guess;
 extern crate parity_reactor;
 extern crate rand;
 extern crate rustc_hex;
+extern crate registrar;
 
 pub extern crate fetch;
 
@@ -46,3 +48,4 @@ mod client;
 pub mod urlhint;
 
 pub use client::{HashFetch, Client, Error};
+pub use fetch::Abort;

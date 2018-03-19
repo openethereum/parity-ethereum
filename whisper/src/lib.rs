@@ -31,7 +31,6 @@ extern crate ring;
 extern crate serde;
 extern crate slab;
 extern crate smallvec;
-extern crate time;
 extern crate tiny_keccak;
 
 extern crate jsonrpc_core;

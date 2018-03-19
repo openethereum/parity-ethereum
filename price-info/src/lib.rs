@@ -19,6 +19,7 @@
 //! A simple client to get the current ETH price using an external API.
 
 extern crate futures;
+extern crate futures_cpupool;
 extern crate serde_json;
 
 #[macro_use]
@@ -29,10 +30,12 @@ pub extern crate fetch;
 use std::cmp;
 use std::fmt;
 use std::io;
-use std::io::Read;
+use std::str;
 
 use fetch::{Client as FetchClient, Fetch};
-use futures::Future;
+use futures::{Future, Stream};
+use futures::future::{self, Either};
+use futures_cpupool::CpuPool;
 use serde_json::Value;
 
 /// Current ETH price information.
@@ -48,7 +51,7 @@ pub enum Error {
 	/// The API returned an unexpected status code.
 	StatusCode(&'static str),
 	/// The API returned an unexpected status content.
-	UnexpectedResponse(String),
+	UnexpectedResponse(Option<String>),
 	/// There was an error when trying to reach the API.
 	Fetch(fetch::Error),
 	/// IO error when reading API response.
@@ -65,6 +68,7 @@ impl From<fetch::Error> for Error {
 
 /// A client to get the current ETH price using an external API.
 pub struct Client<F = FetchClient> {
+	pool: CpuPool,
 	api_endpoint: String,
 	fetch: F,
 }
@@ -85,23 +89,25 @@ impl<F> cmp::PartialEq for Client<F> {
 
 impl<F: Fetch> Client<F> {
 	/// Creates a new instance of the `Client` given a `fetch::Client`.
-	pub fn new(fetch: F) -> Client<F> {
+	pub fn new(fetch: F, pool: CpuPool) -> Client<F> {
 		let api_endpoint = "https://api.etherscan.io/api?module=stats&action=ethprice".to_owned();
-		Client { api_endpoint, fetch }
+		Client { pool, api_endpoint, fetch }
 	}
 
 	/// Gets the current ETH price and calls `set_price` with the result.
 	pub fn get<G: Fn(PriceInfo) + Sync + Send + 'static>(&self, set_price: G) {
-		self.fetch.process_and_forget(self.fetch.fetch(&self.api_endpoint)
-			.map_err(|err| Error::Fetch(err))
-			.and_then(move |mut response| {
+		let future = self.fetch.fetch(&self.api_endpoint, fetch::Abort::default())
+			.from_err()
+			.and_then(|response| {
 				if !response.is_success() {
-					return Err(Error::StatusCode(response.status().canonical_reason().unwrap_or("unknown")));
+					let s = Error::StatusCode(response.status().canonical_reason().unwrap_or("unknown"));
+					return Either::A(future::err(s));
 				}
-				let mut result = String::new();
-				response.read_to_string(&mut result)?;
-
-				let value: Option<Value> = serde_json::from_str(&result).ok();
+				Either::B(response.concat2().from_err())
+			})
+			.map(move |body| {
+				let body_str = str::from_utf8(&body).ok();
+				let value: Option<Value> = body_str.and_then(|s| serde_json::from_str(s).ok());
 
 				let ethusd = value
 					.as_ref()
@@ -114,63 +120,65 @@ impl<F: Fetch> Client<F> {
 						set_price(PriceInfo { ethusd });
 						Ok(())
 					},
-					None => Err(Error::UnexpectedResponse(result)),
+					None => Err(Error::UnexpectedResponse(body_str.map(From::from))),
 				}
 			})
 			.map_err(|err| {
 				warn!("Failed to auto-update latest ETH price: {:?}", err);
 				err
-			})
-		);
+			});
+		self.pool.spawn(future).forget()
 	}
 }
 
 #[cfg(test)]
 mod test {
+	extern crate hyper;
 	extern crate parking_lot;
 
 	use self::parking_lot::Mutex;
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicBool, Ordering};
 	use fetch;
-	use fetch::Fetch;
-	use futures;
-	use futures::future::{Future, FutureResult};
+	use fetch::{Fetch, Url};
+	use futures_cpupool::CpuPool;
+	use futures::future::{self, FutureResult};
 	use Client;
+	use self::hyper::StatusCode;
 
 	#[derive(Clone)]
 	struct FakeFetch(Option<String>, Arc<Mutex<u64>>);
+
+	impl FakeFetch {
+		fn new() -> Result<Self, fetch::Error> {
+			Ok(FakeFetch(None, Default::default()))
+		}
+	}
+
 	impl Fetch for FakeFetch {
 		type Result = FutureResult<fetch::Response, fetch::Error>;
-		fn new() -> Result<Self, fetch::Error> where Self: Sized { Ok(FakeFetch(None, Default::default())) }
-		fn fetch_with_abort(&self, url: &str, _abort: fetch::Abort) -> Self::Result {
+
+		fn fetch(&self, url: &str, abort: fetch::Abort) -> Self::Result {
 			assert_eq!(url, "https://api.etherscan.io/api?module=stats&action=ethprice");
+			let u = Url::parse(url).unwrap();
 			let mut val = self.1.lock();
 			*val = *val + 1;
 			if let Some(ref response) = self.0 {
-				let data = ::std::io::Cursor::new(response.clone());
-				futures::future::ok(fetch::Response::from_reader(data))
+				let r = hyper::Response::new().with_body(response.clone());
+				future::ok(fetch::client::Response::new(u, r, abort))
 			} else {
-				futures::future::ok(fetch::Response::not_found())
+				let r = hyper::Response::new().with_status(StatusCode::NotFound);
+				future::ok(fetch::client::Response::new(u, r, abort))
 			}
-		}
-
-		// this guarantees that the calls to price_info::Client::get will block for execution
-		fn process_and_forget<F, I, E>(&self, f: F) where
-			F: Future<Item=I, Error=E> + Send + 'static,
-			I: Send + 'static,
-			E: Send + 'static,
-		{
-			let _ = f.wait();
 		}
 	}
 
 	fn price_info_ok(response: &str) -> Client<FakeFetch> {
-		Client::new(FakeFetch(Some(response.to_owned()), Default::default()))
+		Client::new(FakeFetch(Some(response.to_owned()), Default::default()), CpuPool::new(1))
 	}
 
 	fn price_info_not_found() -> Client<FakeFetch> {
-		Client::new(FakeFetch::new().unwrap())
+		Client::new(FakeFetch::new().unwrap(), CpuPool::new(1))
 	}
 
 	#[test]

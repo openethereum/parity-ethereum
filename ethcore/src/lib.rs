@@ -54,6 +54,7 @@
 //!   cargo build --release
 //!   ```
 
+extern crate bloomchain;
 extern crate bn;
 extern crate byteorder;
 extern crate crossbeam;
@@ -70,6 +71,7 @@ extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
+extern crate futures_cpupool;
 extern crate hardware_wallet;
 extern crate hashdb;
 extern crate itertools;
@@ -108,7 +110,6 @@ extern crate rlp_derive;
 extern crate rustc_hex;
 extern crate stats;
 extern crate stop_guard;
-extern crate time;
 extern crate using_queue;
 extern crate table;
 extern crate vm;
@@ -147,7 +148,6 @@ pub mod header;
 pub mod machine;
 pub mod miner;
 pub mod pod_state;
-pub mod service;
 pub mod snapshot;
 pub mod spec;
 pub mod state;
@@ -157,6 +157,7 @@ pub mod verification;
 pub mod views;
 
 mod cache_manager;
+mod blooms;
 mod pod_account;
 mod account_db;
 mod builtin;

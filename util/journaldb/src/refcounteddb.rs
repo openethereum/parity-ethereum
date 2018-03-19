@@ -19,7 +19,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use heapsize::HeapSizeOf;
-use rlp::*;
+use rlp::{encode, decode};
 use hashdb::*;
 use overlaydb::OverlayDB;
 use memorydb::MemoryDB;
@@ -29,6 +29,7 @@ use kvdb::{KeyValueDB, DBTransaction};
 use ethereum_types::H256;
 use error::UtilError;
 use bytes::Bytes;
+use util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -59,12 +60,11 @@ pub struct RefCountedDB {
 	column: Option<u32>,
 }
 
-const PADDING : [u8; 10] = [ 0u8; 10 ];
-
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
 	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> RefCountedDB {
-		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
+		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.")
+			.map(|val| decode::<u64>(&val));
 
 		RefCountedDB {
 			forward: OverlayDB::new(backing.clone(), col),
@@ -118,29 +118,32 @@ impl JournalDB for RefCountedDB {
 
 	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
 		// record new commit's details.
-		let mut index = 0usize;
+		let mut db_key = DatabaseKey {
+			era: now,
+			index: 0usize,
+		};
 		let mut last;
 
 		while self.backing.get(self.column, {
-			let mut r = RlpStream::new_list(3);
-			r.append(&now);
-			r.append(&index);
-			r.append(&&PADDING[..]);
-			last = r.drain();
+			last = encode(&db_key);
 			&last
 		})?.is_some() {
-			index += 1;
+			db_key.index += 1;
 		}
 
-		let mut r = RlpStream::new_list(3);
-		r.append(id);
-		r.append_list(&self.inserts);
-		r.append_list(&self.removes);
-		batch.put(self.column, &last, r.as_raw());
+		{
+			let value_ref = DatabaseValueRef {
+				id,
+				inserts: &self.inserts,
+				deletes: &self.removes,
+			};
+
+			batch.put(self.column, &last, &encode(&value_ref));
+		}
 
 		let ops = self.inserts.len() + self.removes.len();
 
-		trace!(target: "rcdb", "new journal for time #{}.{} => {}: inserts={:?}, removes={:?}", now, index, id, self.inserts, self.removes);
+		trace!(target: "rcdb", "new journal for time #{}.{} => {}: inserts={:?}, removes={:?}", now, db_key.index, id, self.inserts, self.removes);
 
 		self.inserts.clear();
 		self.removes.clear();
@@ -155,27 +158,30 @@ impl JournalDB for RefCountedDB {
 
 	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
 		// apply old commits' details
-		let mut index = 0usize;
+		let mut db_key = DatabaseKey {
+			era: end_era,
+			index: 0usize,
+		};
 		let mut last;
 		while let Some(rlp_data) = {
 			self.backing.get(self.column, {
-				let mut r = RlpStream::new_list(3);
-				r.append(&end_era);
-				r.append(&index);
-				r.append(&&PADDING[..]);
-				last = r.drain();
+				last = encode(&db_key);
 				&last
 			})?
 		} {
-			let rlp = Rlp::new(&rlp_data);
-			let our_id: H256 = rlp.val_at(0);
-			let to_remove: Vec<H256> = rlp.list_at(if *canon_id == our_id {2} else {1});
-			trace!(target: "rcdb", "delete journal for time #{}.{}=>{}, (canon was {}): deleting {:?}", end_era, index, our_id, canon_id, to_remove);
+			let view = DatabaseValueView::new(&rlp_data);
+			let our_id = view.id().expect("rlp read from db; qed");
+			let to_remove = if canon_id == &our_id {
+				view.deletes()
+			} else {
+				view.inserts()
+			}.expect("rlp read from db; qed");
+			trace!(target: "rcdb", "delete journal for time #{}.{}=>{}, (canon was {}): deleting {:?}", end_era, db_key.index, our_id, canon_id, to_remove);
 			for i in &to_remove {
 				self.forward.remove(i);
 			}
 			batch.delete(self.column, &last);
-			index += 1;
+			db_key.index += 1;
 		}
 
 		let r = self.forward.commit_to_batch(batch)?;
