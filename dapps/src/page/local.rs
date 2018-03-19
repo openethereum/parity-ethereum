@@ -98,6 +98,7 @@ impl Dapp {
 			file: self.get_file(path),
 			cache: self.cache,
 			safe_to_embed_on: self.embeddable_on.clone(),
+			allow_js_eval: self.info.as_ref().and_then(|x| x.allow_js_eval).unwrap_or(false),
 		}.into_response();
 
 		self.pool.spawn(reader).forget();

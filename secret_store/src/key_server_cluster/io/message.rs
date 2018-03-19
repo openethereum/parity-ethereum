@@ -19,13 +19,13 @@ use std::u16;
 use std::ops::Deref;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde_json;
-use ethcrypto::ecies::{encrypt_single_message, decrypt_single_message};
+use ethcrypto::ecies;
 use ethkey::{Secret, KeyPair};
 use ethkey::math::curve_order;
 use ethereum_types::{H256, U256};
 use key_server_cluster::Error;
-use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, EncryptionMessage,
-	DecryptionMessage, SigningMessage, ServersSetChangeMessage, ShareAddMessage, KeyVersionNegotiationMessage};
+use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
+	SchnorrSigningMessage, EcdsaSigningMessage, ServersSetChangeMessage, ShareAddMessage, KeyVersionNegotiationMessage};
 
 /// Size of serialized header.
 pub const MESSAGE_HEADER_SIZE: usize = 18;
@@ -90,14 +90,20 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::Decryption(DecryptionMessage::DecryptionSessionDelegationCompleted(payload))
 																							=> (156, serde_json::to_vec(&payload)),
 
-		Message::Signing(SigningMessage::SigningConsensusMessage(payload))					=> (200, serde_json::to_vec(&payload)),
-		Message::Signing(SigningMessage::SigningGenerationMessage(payload))					=> (201, serde_json::to_vec(&payload)),
-		Message::Signing(SigningMessage::RequestPartialSignature(payload))					=> (202, serde_json::to_vec(&payload)),
-		Message::Signing(SigningMessage::PartialSignature(payload))							=> (203, serde_json::to_vec(&payload)),
-		Message::Signing(SigningMessage::SigningSessionError(payload))						=> (204, serde_json::to_vec(&payload)),
-		Message::Signing(SigningMessage::SigningSessionCompleted(payload))					=> (205, serde_json::to_vec(&payload)),
-		Message::Signing(SigningMessage::SigningSessionDelegation(payload))					=> (206, serde_json::to_vec(&payload)),
-		Message::Signing(SigningMessage::SigningSessionDelegationCompleted(payload))		=> (207, serde_json::to_vec(&payload)),
+		Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningConsensusMessage(payload))
+																							=> (200, serde_json::to_vec(&payload)),
+		Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningGenerationMessage(payload))
+																							=> (201, serde_json::to_vec(&payload)),
+		Message::SchnorrSigning(SchnorrSigningMessage::SchnorrRequestPartialSignature(payload))
+																							=> (202, serde_json::to_vec(&payload)),
+		Message::SchnorrSigning(SchnorrSigningMessage::SchnorrPartialSignature(payload))	=> (203, serde_json::to_vec(&payload)),
+		Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningSessionError(payload))	=> (204, serde_json::to_vec(&payload)),
+		Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningSessionCompleted(payload))
+																							=> (205, serde_json::to_vec(&payload)),
+		Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningSessionDelegation(payload))
+																							=> (206, serde_json::to_vec(&payload)),
+		Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningSessionDelegationCompleted(payload))
+																							=> (207, serde_json::to_vec(&payload)),
 
 		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(payload))
 																							=> (250, serde_json::to_vec(&payload)),
@@ -130,6 +136,23 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 																							=> (451, serde_json::to_vec(&payload)),
 		Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersionsError(payload))
 																							=> (452, serde_json::to_vec(&payload)),
+
+		Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningConsensusMessage(payload))	=> (500, serde_json::to_vec(&payload)),
+		Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSignatureNonceGenerationMessage(payload))
+																							=> (501, serde_json::to_vec(&payload)),
+		Message::EcdsaSigning(EcdsaSigningMessage::EcdsaInversionNonceGenerationMessage(payload))
+																							=> (502, serde_json::to_vec(&payload)),
+		Message::EcdsaSigning(EcdsaSigningMessage::EcdsaInversionZeroGenerationMessage(payload))
+																							=> (503, serde_json::to_vec(&payload)),
+		Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningInversedNonceCoeffShare(payload))
+																							=> (504, serde_json::to_vec(&payload)),
+		Message::EcdsaSigning(EcdsaSigningMessage::EcdsaRequestPartialSignature(payload))	=> (505, serde_json::to_vec(&payload)),
+		Message::EcdsaSigning(EcdsaSigningMessage::EcdsaPartialSignature(payload))			=> (506, serde_json::to_vec(&payload)),
+		Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningSessionError(payload))		=> (507, serde_json::to_vec(&payload)),
+		Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningSessionCompleted(payload))	=> (508, serde_json::to_vec(&payload)),
+		Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningSessionDelegation(payload))	=> (509, serde_json::to_vec(&payload)),
+		Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningSessionDelegationCompleted(payload))
+																							=> (510, serde_json::to_vec(&payload)),
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
@@ -168,14 +191,14 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		155	=> Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		156	=> Message::Decryption(DecryptionMessage::DecryptionSessionDelegationCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
-		200	=> Message::Signing(SigningMessage::SigningConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		201	=> Message::Signing(SigningMessage::SigningGenerationMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		202	=> Message::Signing(SigningMessage::RequestPartialSignature(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		203	=> Message::Signing(SigningMessage::PartialSignature(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		204	=> Message::Signing(SigningMessage::SigningSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		205	=> Message::Signing(SigningMessage::SigningSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		206	=> Message::Signing(SigningMessage::SigningSessionDelegation(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		207	=> Message::Signing(SigningMessage::SigningSessionDelegationCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		200	=> Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		201	=> Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningGenerationMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		202	=> Message::SchnorrSigning(SchnorrSigningMessage::SchnorrRequestPartialSignature(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		203	=> Message::SchnorrSigning(SchnorrSigningMessage::SchnorrPartialSignature(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		204	=> Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		205	=> Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		206	=> Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningSessionDelegation(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		207	=> Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningSessionDelegationCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		250	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		251	=> Message::ServersSetChange(ServersSetChangeMessage::UnknownSessionsRequest(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
@@ -198,6 +221,18 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		451 => Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersions(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		452 => Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersionsError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
+		500	=> Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		501	=> Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSignatureNonceGenerationMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		502	=> Message::EcdsaSigning(EcdsaSigningMessage::EcdsaInversionNonceGenerationMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		503	=> Message::EcdsaSigning(EcdsaSigningMessage::EcdsaInversionZeroGenerationMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		504	=> Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningInversedNonceCoeffShare(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		505	=> Message::EcdsaSigning(EcdsaSigningMessage::EcdsaRequestPartialSignature(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		506	=> Message::EcdsaSigning(EcdsaSigningMessage::EcdsaPartialSignature(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		507	=> Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		508	=> Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		509	=> Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningSessionDelegation(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		510	=> Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningSessionDelegationCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+
 		_ => return Err(Error::Serde(format!("unknown message type {}", header.kind))),
 	})
 }
@@ -206,7 +241,7 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 pub fn encrypt_message(key: &KeyPair, message: SerializedMessage) -> Result<SerializedMessage, Error> {
 	let mut header: Vec<_> = message.into();
 	let payload = header.split_off(MESSAGE_HEADER_SIZE);
-	let encrypted_payload = encrypt_single_message(key.public(), &payload)?;
+	let encrypted_payload = ecies::encrypt(key.public(), &[], &payload)?;
 
 	let header = deserialize_header(&header)?;
 	build_serialized_message(header, encrypted_payload)
@@ -214,7 +249,7 @@ pub fn encrypt_message(key: &KeyPair, message: SerializedMessage) -> Result<Seri
 
 /// Decrypt serialized message.
 pub fn decrypt_message(key: &KeyPair, payload: Vec<u8>) -> Result<Vec<u8>, Error> {
-	Ok(decrypt_single_message(key.secret(), &payload)?)
+	Ok(ecies::decrypt(key.secret(), &[], &payload)?)
 }
 
 /// Fix shared encryption key.

@@ -337,7 +337,7 @@ impl SessionImpl {
 		}
 
 		let unknown_sessions_job = UnknownSessionsJob::new_on_master(self.core.key_storage.clone(), self.core.meta.self_node_id.clone());
-		consensus_session.disseminate_jobs(unknown_sessions_job, self.unknown_sessions_transport())
+		consensus_session.disseminate_jobs(unknown_sessions_job, self.unknown_sessions_transport(), false)
 	}
 
 	/// When unknown sessions are requested.
@@ -1166,7 +1166,7 @@ pub mod tests {
 
 	pub fn generate_key(threshold: usize, nodes_ids: BTreeSet<NodeId>) -> GenerationMessageLoop {
 		let mut gml = GenerationMessageLoop::with_nodes_ids(nodes_ids);
-		gml.master().initialize(Public::default(), threshold, gml.nodes.keys().cloned().collect()).unwrap();
+		gml.master().initialize(Public::default(), false, threshold, gml.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap();
 		while let Some((from, to, message)) = gml.take_message() {
 			gml.process_message((from, to, message)).unwrap();
 		}

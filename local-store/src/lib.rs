@@ -23,7 +23,7 @@ use transaction::{
 	SignedTransaction, PendingTransaction, UnverifiedTransaction,
 	Condition as TransactionCondition
 };
-use ethcore::service::ClientIoMessage;
+use ethcore::client::ClientIoMessage;
 use io::IoHandler;
 use rlp::UntrustedRlp;
 use kvdb::KeyValueDB;

@@ -18,8 +18,8 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use std::collections::{BTreeMap, HashSet};
 use parking_lot::Mutex;
+use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify, CallContract, RegistryInfo};
 use ethcore::filter::Filter;
-use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
 use ethkey::public_to_address;
 use hash::keccak;
 use ethereum_types::{H256, Address};
@@ -281,7 +281,7 @@ impl CachedContract {
 
 	fn start_migration(&mut self, migration_id: H256) {
 		// trust is not needed here, because it is the reaction to the read of the trusted client
-		if let (Some(client), Some(contract_address)) = (self.client.get_untrusted(), self.contract_address) {
+		if let (Some(client), Some(contract_address)) = (self.client.get_untrusted(), self.contract_address.as_ref()) {
 			// check if we need to send start migration transaction
 			if !update_last_transaction_block(&*client, &migration_id, &mut self.start_migration_tx) {
 				return;
@@ -291,7 +291,7 @@ impl CachedContract {
 			let transaction_data = self.contract.functions().start_migration().input(migration_id);
 
 			// send transaction
-			if let Err(error) = client.transact_contract(contract_address, transaction_data) {
+			if let Err(error) = client.transact_contract(*contract_address, transaction_data) {
 				warn!(target: "secretstore_net", "{}: failed to submit auto-migration start transaction: {}",
 					self.self_key_pair.public(), error);
 			} else {
@@ -325,7 +325,7 @@ impl CachedContract {
 
 	fn read_from_registry_if_required(&mut self, client: &Client, enacted: Vec<H256>, retracted: Vec<H256>) {
 		// read new contract from registry
-		let new_contract_addr = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
+		let new_contract_addr = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest);
 
 		// new contract installed => read nodes set from the contract
 		if self.contract_address.as_ref() != new_contract_addr.as_ref() {

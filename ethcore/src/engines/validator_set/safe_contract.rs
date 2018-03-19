@@ -378,7 +378,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			// ensure receipts match header.
 			// TODO: optimize? these were just decoded.
 			let found_root = ::triehash::ordered_trie_root(
-				receipts.iter().map(::rlp::encode).map(|x| x.to_vec())
+				receipts.iter().map(::rlp::encode)
 			);
 			if found_root != *old_header.receipts_root() {
 				return Err(::error::BlockError::InvalidReceiptsRoot(
@@ -456,7 +456,7 @@ mod tests {
 	use spec::Spec;
 	use account_provider::AccountProvider;
 	use transaction::{Transaction, Action};
-	use client::BlockChainClient;
+	use client::{ChainInfo, BlockInfo, ImportBlock};
 	use ethkey::Secret;
 	use miner::MinerService;
 	use tests::helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};

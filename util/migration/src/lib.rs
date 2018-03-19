@@ -130,12 +130,14 @@ pub trait Migration: 'static {
 	fn migrate(&mut self, source: Arc<Database>, config: &Config, destination: &mut Database, col: Option<u32>) -> Result<()>;
 }
 
-/// A simple migration over key-value pairs.
+/// A simple migration over key-value pairs of a single column.
 pub trait SimpleMigration: 'static {
 	/// Number of columns in database after the migration.
 	fn columns(&self) -> Option<u32>;
 	/// Version of database after the migration.
 	fn version(&self) -> u32;
+	/// Index of column which should be migrated.
+	fn migrated_column_index(&self) -> Option<u32>;
 	/// Should migrate existing object to new database.
 	/// Returns `None` if the object does not exist in new version of database.
 	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)>;
@@ -149,6 +151,7 @@ impl<T: SimpleMigration> Migration for T {
 	fn alters_existing(&self) -> bool { true }
 
 	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<()> {
+		let migration_needed = col == SimpleMigration::migrated_column_index(self);
 		let mut batch = Batch::new(config, col);
 
 		let iter = match source.iter(col) {
@@ -157,8 +160,12 @@ impl<T: SimpleMigration> Migration for T {
 		};
 
 		for (key, value) in iter {
-			if let Some((key, value)) = self.simple_migrate(key.into_vec(), value.into_vec()) {
-				batch.insert(key, value, dest)?;
+			if migration_needed {
+				if let Some((key, value)) = self.simple_migrate(key.into_vec(), value.into_vec()) {
+					batch.insert(key, value, dest)?;
+				}
+			} else {
+				batch.insert(key.into_vec(), value.into_vec(), dest)?;
 			}
 		}
 

@@ -40,7 +40,7 @@ use executed::{Executed, ExecutionError};
 use types::state_diff::StateDiff;
 use transaction::SignedTransaction;
 use state_db::StateDB;
-use evm::{Factory as EvmFactory};
+use factory::VmFactory;
 
 use ethereum_types::{H256, U256, Address};
 use hashdb::{HashDB, AsHashDB};
@@ -334,6 +334,28 @@ pub enum CleanupMode<'a> {
 	TrackTouched(&'a mut HashSet<Address>),
 }
 
+/// Provides subset of `State` methods to query state information
+pub trait StateInfo {
+	/// Get the nonce of account `a`.
+	fn nonce(&self, a: &Address) -> trie::Result<U256>;
+
+	/// Get the balance of account `a`.
+	fn balance(&self, a: &Address) -> trie::Result<U256>;
+
+	/// Mutate storage of account `address` so that it is `value` for `key`.
+	fn storage_at(&self, address: &Address, key: &H256) -> trie::Result<H256>;
+
+	/// Get accounts' code.
+	fn code(&self, a: &Address) -> trie::Result<Option<Arc<Bytes>>>;
+}
+
+impl<B: Backend> StateInfo for State<B> {
+	fn nonce(&self, a: &Address) -> trie::Result<U256> { State::nonce(self, a) }
+	fn balance(&self, a: &Address) -> trie::Result<U256> { State::balance(self, a) }
+	fn storage_at(&self, address: &Address, key: &H256) -> trie::Result<H256> { State::storage_at(self, address, key) }
+	fn code(&self, address: &Address) -> trie::Result<Option<Arc<Bytes>>> { State::code(self, address) }
+}
+
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
 			 Therefore creating a SecTrieDB with this state's root will not fail.";
 
@@ -376,7 +398,7 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Get a VM factory that can execute on this state.
-	pub fn vm_factory(&self) -> EvmFactory {
+	pub fn vm_factory(&self) -> VmFactory {
 		self.factories.vm.clone()
 	}
 
@@ -1066,7 +1088,7 @@ mod tests {
 	use super::*;
 	use ethkey::Secret;
 	use ethereum_types::{H256, U256, Address};
-	use tests::helpers::*;
+	use tests::helpers::{get_temp_state, get_temp_state_db};
 	use machine::EthereumMachine;
 	use vm::EnvInfo;
 	use spec::*;

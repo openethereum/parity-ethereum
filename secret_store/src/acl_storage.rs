@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 use parking_lot::{Mutex, RwLock};
 use ethkey::public_to_address;
-use ethcore::client::{BlockChainClient, BlockId, ChainNotify};
+use ethcore::client::{BlockId, ChainNotify, CallContract, RegistryInfo};
 use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use trusted_client::TrustedClient;
@@ -94,7 +94,7 @@ impl CachedContract {
 
 	pub fn update(&mut self) {
 		if let Some(client) = self.client.get() {
-			match client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.to_owned()) {
+			match client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest) {
 				Some(new_contract_addr) if Some(new_contract_addr).as_ref() != self.contract_addr.as_ref() => {
 					trace!(target: "secretstore", "Configuring for ACL checker contract from {}", new_contract_addr);
 					self.contract_addr = Some(new_contract_addr);

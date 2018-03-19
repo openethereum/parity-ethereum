@@ -1,6 +1,6 @@
 [package]
 name = "ethash"
-version = "1.9.0"
+version = "1.11.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [lib]
@@ -13,6 +13,9 @@ parking_lot = "0.5"
 crunchy = "0.1.0"
 memmap = "0.6"
 either = "1.0.0"
+
+[dev-dependencies]
+tempdir = "0.3"
 
 [features]
 benches = []

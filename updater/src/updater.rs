@@ -18,6 +18,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{PathBuf};
 use std::sync::{Arc, Weak};
+use std::time::{Duration, Instant};
 
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
 use ethsync::{SyncProvider};
@@ -57,6 +58,8 @@ pub struct UpdatePolicy {
 	pub track: ReleaseTrack,
 	/// Path for the updates to go.
 	pub path: String,
+	/// Maximum download size.
+	pub max_size: usize,
 }
 
 impl Default for UpdatePolicy {
@@ -67,6 +70,7 @@ impl Default for UpdatePolicy {
 			filter: UpdateFilter::None,
 			track: ReleaseTrack::Unknown,
 			path: Default::default(),
+			max_size: 128 * 1024 * 1024,
 		}
 	}
 }
@@ -82,6 +86,8 @@ struct UpdaterState {
 	capability: CapState,
 
 	disabled: bool,
+
+	backoff: Option<(u32, Instant)>,
 }
 
 /// Service for checking for updates and determining whether we can achieve consensus.
@@ -191,7 +197,7 @@ impl Updater {
 		}
 
 		let client = self.client.upgrade().ok_or_else(|| "Cannot obtain client")?;
-		let address = client.registry_address("operations".into()).ok_or_else(|| "Cannot get operations contract address")?;
+		let address = client.registry_address("operations".into(), BlockId::Latest).ok_or_else(|| "Cannot get operations contract address")?;
 		let do_call = |data| client.call_contract(BlockId::Latest, address, data).map_err(|e| format!("{:?}", e));
 
 		trace!(target: "updater", "Looking up this_fork for our release: {}/{:?}", CLIENT_ID, self.this.hash);
@@ -260,7 +266,19 @@ impl Updater {
 				let fetched = s.fetching.take().unwrap();
 				let dest = self.updates_path(&Self::update_file_name(&fetched.version));
 				if !dest.exists() {
-					let b = result.map_err(|e| (format!("Unable to fetch update ({}): {:?}", fetched.version, e), false))?;
+					let b = match result {
+						Ok(b) => {
+							s.backoff = None;
+							b
+						},
+						Err(e) => {
+							let mut n = s.backoff.map(|b| b.0 + 1).unwrap_or(1);
+							s.backoff = Some((n, Instant::now() + Duration::from_secs(2usize.pow(n) as u64)));
+
+							return Err((format!("Unable to fetch update ({}): {:?}", fetched.version, e), false));
+						},
+					};
+
 					info!(target: "updater", "Fetched latest version ({}) OK to {}", fetched.version, b.display());
 					fs::create_dir_all(dest.parent().expect("at least one thing pushed; qed")).map_err(|e| (format!("Unable to create updates path: {:?}", e), true))?;
 					fs::copy(&b, &dest).map_err(|e| (format!("Unable to copy update: {:?}", e), true))?;
@@ -320,12 +338,15 @@ impl Updater {
 							drop(s);
 							self.fetch_done(Ok(PathBuf::new()));
 						} else {
-							info!(target: "updater", "Attempting to get parity binary {}", b);
-							s.fetching = Some(latest.track.clone());
-							drop(s);
-							let weak_self = self.weak_self.lock().clone();
-							let f = move |r: Result<PathBuf, fetch::Error>| if let Some(this) = weak_self.upgrade() { this.fetch_done(r) };
-							self.fetcher.fetch(b, Box::new(f));
+							if s.backoff.iter().all(|&(_, instant)| Instant::now() >= instant) {
+								info!(target: "updater", "Attempting to get parity binary {}", b);
+								s.fetching = Some(latest.track.clone());
+								drop(s);
+								let weak_self = self.weak_self.lock().clone();
+								let f = move |r: Result<PathBuf, fetch::Error>| if let Some(this) = weak_self.upgrade() { this.fetch_done(r) };
+								let a = fetch::Abort::default().with_max_size(self.update_policy.max_size);
+								self.fetcher.fetch(b, a, Box::new(f));
+							}
 						}
 					}
 				}
@@ -354,6 +375,11 @@ impl Updater {
 		}
 
 		let mut s = self.state.lock();
+
+		if s.latest != latest {
+			s.backoff = None;
+		}
+
 		s.latest = latest;
 		s.capability = capability;
 	}

@@ -17,13 +17,15 @@
 //! Snapshot test helpers. These are used to build blockchains and state tries
 //! which can be queried before and after a full snapshot/restore cycle.
 
+extern crate trie_standardmap;
+
 use std::sync::Arc;
 use hash::{KECCAK_NULL_RLP};
 
 use account_db::AccountDBMut;
 use basic_account::BasicAccount;
 use blockchain::BlockChain;
-use client::{BlockChainClient, Client};
+use client::{Client, ChainInfo};
 use engines::EthEngine;
 use snapshot::{StateRebuilder};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
@@ -35,8 +37,8 @@ use kvdb::{KeyValueDB, DBValue};
 use ethereum_types::H256;
 use hashdb::HashDB;
 use journaldb;
-use trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
-use trie::{TrieDB, TrieDBMut, Trie};
+use trie::{SecTrieDBMut, TrieMut, TrieDB, TrieDBMut, Trie};
+use self::trie_standardmap::{Alphabet, StandardMap, ValueMode};
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;

@@ -16,13 +16,12 @@
 
 //! Disk-backed `HashDB` implementation.
 
-use std::fmt;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use heapsize::HeapSizeOf;
-use rlp::*;
+use rlp::{encode, decode};
 use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
@@ -31,8 +30,9 @@ use kvdb::{KeyValueDB, DBTransaction};
 use ethereum_types::H256;
 use error::{BaseDataError, UtilError};
 use bytes::Bytes;
+use util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct RefInfo {
 	queue_refs: usize,
 	in_archive: bool,
@@ -40,18 +40,6 @@ struct RefInfo {
 
 impl HeapSizeOf for RefInfo {
 	fn heap_size_of_children(&self) -> usize { 0 }
-}
-
-impl fmt::Display for RefInfo {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}+{}", self.queue_refs, if self.in_archive {1} else {0})
-	}
-}
-
-impl fmt::Debug for RefInfo {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}+{}", self.queue_refs, if self.in_archive {1} else {0})
-	}
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -123,8 +111,6 @@ pub struct EarlyMergeDB {
 	latest_era: Option<u64>,
 	column: Option<u32>,
 }
-
-const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl EarlyMergeDB {
 	/// Create a new instance from file
@@ -280,20 +266,17 @@ impl EarlyMergeDB {
 			let mut era = decode::<u64>(&val);
 			latest_era = Some(era);
 			loop {
-				let mut index = 0usize;
-				while let Some(rlp_data) = db.get(col, {
-					let mut r = RlpStream::new_list(3);
-					r.append(&era);
-					r.append(&index);
-					r.append(&&PADDING[..]);
-					&r.drain()
-				}).expect("Low-level database error.") {
-					let rlp = Rlp::new(&rlp_data);
-					let inserts: Vec<H256> = rlp.list_at(1);
-					Self::replay_keys(&inserts, db, col, &mut refs);
-					index += 1;
+				//let mut index = 0usize;
+				let mut db_key = DatabaseKey {
+					era,
+					index: 0usize,
 				};
-				if index == 0 || era == 0 {
+				while let Some(rlp_data) = db.get(col, &encode(&db_key)).expect("Low-level database error.") {
+					let inserts = DatabaseValueView::new(&rlp_data).inserts().expect("rlp read from db; qed");
+					Self::replay_keys(&inserts, db, col, &mut refs);
+					db_key.index += 1;
+				};
+				if db_key.index == 0 || era == 0 {
 					break;
 				}
 				era -= 1;
@@ -386,18 +369,17 @@ impl JournalDB for EarlyMergeDB {
 		};
 
 		{
-			let mut index = 0usize;
+			let mut db_key = DatabaseKey {
+				era: now,
+				index: 0usize,
+			};
 			let mut last;
 
 			while self.backing.get(self.column, {
-				let mut r = RlpStream::new_list(3);
-				r.append(&now);
-				r.append(&index);
-				r.append(&&PADDING[..]);
-				last = r.drain();
+				last = encode(&db_key);
 				&last
 			})?.is_some() {
-				index += 1;
+				db_key.index += 1;
 			}
 
 			let drained = self.overlay.drain();
@@ -416,28 +398,25 @@ impl JournalDB for EarlyMergeDB {
 
 			// TODO: check all removes are in the db.
 
-			let mut r = RlpStream::new_list(3);
-			r.append(id);
-
 			// Process the new inserts.
 			// We use the inserts for three things. For each:
 			// - we place into the backing DB or increment the counter if already in;
 			// - we note in the backing db that it was already in;
 			// - we write the key into our journal for this block;
 
-			r.begin_list(inserts.len());
-			for &(k, _) in &inserts {
-				r.append(&k);
-			}
-			r.append_list(&removes);
 			Self::insert_keys(&inserts, &*self.backing, self.column, &mut refs, batch);
 
 			let ins = inserts.iter().map(|&(k, _)| k).collect::<Vec<_>>();
+			let value_ref = DatabaseValueRef {
+				id,
+				inserts: &ins,
+				deletes: &removes,
+			};
 
 			trace!(target: "jdb.ops", "  Deletes: {:?}", removes);
 			trace!(target: "jdb.ops", "  Inserts: {:?}", ins);
 
-			batch.put(self.column, &last, r.as_raw());
+			batch.put(self.column, &last, &encode(&value_ref));
 			if self.latest_era.map_or(true, |e| now > e) {
 				batch.put(self.column, &LATEST_ERA_KEY, &encode(&now));
 				self.latest_era = Some(now);
@@ -451,23 +430,22 @@ impl JournalDB for EarlyMergeDB {
 		let mut refs = self.refs.as_ref().unwrap().write();
 
 		// apply old commits' details
-		let mut index = 0usize;
+		let mut db_key = DatabaseKey {
+			era: end_era,
+			index: 0usize,
+		};
 		let mut last;
 
-		while let Some(rlp_data) = self.backing.get(self.column, {
-			let mut r = RlpStream::new_list(3);
-			r.append(&end_era);
-			r.append(&index);
-			r.append(&&PADDING[..]);
-			last = r.drain();
-			&last
-		})? {
-			let rlp = Rlp::new(&rlp_data);
-			let inserts: Vec<H256> = rlp.list_at(1);
+		while let Some(rlp_data) = {
+			last = encode(&db_key);
+			self.backing.get(self.column, &last)
+		}? {
+			let view = DatabaseValueView::new(&rlp_data);
+			let inserts = view.inserts().expect("rlp read from db; qed");
 
-			if canon_id == &rlp.val_at::<H256>(0) {
+			if canon_id == &view.id().expect("rlp read from db; qed") {
 				// Collect keys to be removed. Canon block - remove the (enacted) deletes.
-				let deletes: Vec<H256> = rlp.list_at(2);
+				let deletes = view.deletes().expect("rlp read from db; qed");
 				trace!(target: "jdb.ops", "  Expunging: {:?}", deletes);
 				Self::remove_keys(&deletes, &mut refs, batch, self.column, RemoveFrom::Archive);
 
@@ -501,10 +479,10 @@ impl JournalDB for EarlyMergeDB {
 			}
 
 			batch.delete(self.column, &last);
-			index += 1;
+			db_key.index += 1;
 		}
 
-		trace!(target: "jdb", "EarlyMergeDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
+		trace!(target: "jdb", "EarlyMergeDB: delete journal for time #{}.{}, (canon was {})", end_era, db_key.index, canon_id);
 		trace!(target: "jdb", "OK: {:?}", &*refs);
 
 		Ok(0)

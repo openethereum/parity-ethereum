@@ -23,7 +23,8 @@ use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
 use key_server_cluster::decryption_session::SessionImpl as DecryptionSession;
-use key_server_cluster::signing_session::SessionImpl as SigningSession;
+use key_server_cluster::signing_session_ecdsa::SessionImpl as EcdsaSigningSession;
+use key_server_cluster::signing_session_schnorr::SessionImpl as SchnorrSigningSession;
 use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
@@ -56,8 +57,10 @@ pub struct SessionImpl<T: SessionTransport> {
 pub enum ContinueAction {
 	/// Decryption session + is_shadow_decryption.
 	Decrypt(Arc<DecryptionSession>, bool),
-	/// Signing session + message hash.
-	Sign(Arc<SigningSession>, H256),
+	/// Schnorr signing session + message hash.
+	SchnorrSign(Arc<SchnorrSigningSession>, H256),
+	/// ECDSA signing session + message hash.
+	EcdsaSign(Arc<EcdsaSigningSession>, H256),
 }
 
 /// Immutable session data.
@@ -191,9 +194,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		self.data.lock().continue_with = Some(action);
 	}
 
-	/// Get continue action.
-	pub fn continue_action(&self) -> Option<ContinueAction> {
-		self.data.lock().continue_with.clone()
+	/// Take continue action.
+	pub fn take_continue_action(&self) -> Option<ContinueAction> {
+		self.data.lock().continue_with.take()
 	}
 
 	/// Wait for session completion.

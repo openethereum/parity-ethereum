@@ -778,7 +778,7 @@ impl Body {
 	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, body: &encoded::Body) -> Result<encoded::Block, Error> {
 		// check the integrity of the the body against the header
 		let header = self.0.as_ref()?;
-		let tx_root = ::triehash::ordered_trie_root(body.rlp().at(0).iter().map(|r| r.as_raw().to_vec()));
+		let tx_root = ::triehash::ordered_trie_root(body.rlp().at(0).iter().map(|r| r.as_raw()));
 		if tx_root != header.transactions_root() {
 			return Err(Error::WrongTrieRoot(header.transactions_root(), tx_root));
 		}
@@ -808,7 +808,7 @@ impl BlockReceipts {
 	/// Check a response with receipts against the stored header.
 	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, receipts: &[Receipt]) -> Result<Vec<Receipt>, Error> {
 		let receipts_root = self.0.as_ref()?.receipts_root();
-		let found_root = ::triehash::ordered_trie_root(receipts.iter().map(|r| ::rlp::encode(r).into_vec()));
+		let found_root = ::triehash::ordered_trie_root(receipts.iter().map(|r| ::rlp::encode(r)));
 
 		match receipts_root == found_root {
 			true => {
@@ -941,6 +941,7 @@ impl Signal {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::time::Duration;
 	use ethereum_types::{H256, Address};
 	use memorydb::MemoryDB;
 	use parking_lot::Mutex;
@@ -948,13 +949,13 @@ mod tests {
 	use trie::recorder::Recorder;
 	use hash::keccak;
 
-	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
+	use ethcore::client::{BlockChainClient, BlockInfo, TestBlockChainClient, EachBlockWith};
 	use ethcore::header::Header;
 	use ethcore::encoded;
 	use ethcore::receipt::{Receipt, TransactionOutcome};
 
 	fn make_cache() -> ::cache::Cache {
-		::cache::Cache::new(Default::default(), ::time::Duration::seconds(1))
+		::cache::Cache::new(Default::default(), Duration::from_secs(1))
 	}
 
 	#[test]
@@ -1028,7 +1029,7 @@ mod tests {
 
 		let mut header = Header::new();
 		let receipts_root = ::triehash::ordered_trie_root(
-			receipts.iter().map(|x| ::rlp::encode(x).into_vec())
+			receipts.iter().map(|x| ::rlp::encode(x))
 		);
 
 		header.set_receipts_root(receipts_root);

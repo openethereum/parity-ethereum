@@ -38,7 +38,8 @@ use types::all::{Error, Public, MessageHash, NodeAddress, RequestSignature, Serv
 /// To generate server && document key:				POST		/{server_key_id}/{signature}/{threshold} 
 /// To get document key:							GET			/{server_key_id}/{signature}
 /// To get document key shadow:						GET			/shadow/{server_key_id}/{signature} 
-/// To sign message with server key:				GET			/{server_key_id}/{signature}/{message_hash}
+/// To generate Schnorr signature with server key:	GET			/schnorr/{server_key_id}/{signature}/{message_hash}
+/// To generate ECDSA signature with server key:	GET			/ecdsa/{server_key_id}/{signature}/{message_hash}
 /// To change servers set:							POST		/admin/servers_set_change/{old_signature}/{new_signature} + BODY: json array of hex-encoded nodes ids
 
 pub struct KeyServerHttpListener {
@@ -61,8 +62,10 @@ enum Request {
 	GetDocumentKey(ServerKeyId, RequestSignature),
 	/// Request shadow of encryption key of given document for given requestor.
 	GetDocumentKeyShadow(ServerKeyId, RequestSignature),
-	/// Sign message.
-	SignMessage(ServerKeyId, RequestSignature, MessageHash),
+	/// Generate Schnorr signature for the message.
+	SchnorrSignMessage(ServerKeyId, RequestSignature, MessageHash),
+	/// Generate ECDSA signature for the message.
+	EcdsaSignMessage(ServerKeyId, RequestSignature, MessageHash),
 	/// Change servers set.
 	ChangeServersSet(RequestSignature, RequestSignature, BTreeSet<NodeId>),
 }
@@ -159,10 +162,17 @@ impl HttpHandler for KeyServerHttpHandler {
 							err
 						}));
 				},
-				Request::SignMessage(document, signature, message_hash) => {
-					return_message_signature(req, res, self.handler.key_server.sign_message(&document, &signature, message_hash)
+				Request::SchnorrSignMessage(document, signature, message_hash) => {
+					return_message_signature(req, res, self.handler.key_server.sign_message_schnorr(&document, &signature, message_hash)
 						.map_err(|err| {
-							warn!(target: "secretstore", "SignMessage request {} has failed with: {}", req_uri, err);
+							warn!(target: "secretstore", "SchnorrSignMessage request {} has failed with: {}", req_uri, err);
+							err
+						}));
+				},
+				Request::EcdsaSignMessage(document, signature, message_hash) => {
+					return_message_signature(req, res, self.handler.key_server.sign_message_ecdsa(&document, &signature, message_hash)
+						.map_err(|err| {
+							warn!(target: "secretstore", "EcdsaSignMessage request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
@@ -263,7 +273,8 @@ fn parse_request(method: &HttpMethod, uri_path: &str, body: &str) -> Request {
 		return parse_admin_request(method, path, body);
 	}
 
-	let (is_shadow_request, args_offset) = if &path[0] == "shadow" { (true, 1) } else { (false, 0) };
+	let (prefix, args_offset) = if &path[0] == "shadow" || &path[0] == "schnorr" || &path[0] == "ecdsa"
+		{ (&*path[0], 1) } else { ("", 0) };
 	let args_count = path.len() - args_offset;
 	if args_count < 2 || path[args_offset].is_empty() || path[args_offset + 1].is_empty() {
 		return Request::Invalid;
@@ -282,19 +293,21 @@ fn parse_request(method: &HttpMethod, uri_path: &str, body: &str) -> Request {
 	let message_hash = path.get(args_offset + 2).map(|v| v.parse());
 	let common_point = path.get(args_offset + 2).map(|v| v.parse());
 	let encrypted_key = path.get(args_offset + 3).map(|v| v.parse());
-	match (is_shadow_request, args_count, method, threshold, message_hash, common_point, encrypted_key) {
-		(true, 3, &HttpMethod::Post, Some(Ok(threshold)), _, _, _) =>
+	match (prefix, args_count, method, threshold, message_hash, common_point, encrypted_key) {
+		("shadow", 3, &HttpMethod::Post, Some(Ok(threshold)), _, _, _) =>
 			Request::GenerateServerKey(document, signature, threshold),
-		(true, 4, &HttpMethod::Post, _, _, Some(Ok(common_point)), Some(Ok(encrypted_key))) =>
+		("shadow", 4, &HttpMethod::Post, _, _, Some(Ok(common_point)), Some(Ok(encrypted_key))) =>
 			Request::StoreDocumentKey(document, signature, common_point, encrypted_key),
-		(false, 3, &HttpMethod::Post, Some(Ok(threshold)), _, _, _) =>
+		("", 3, &HttpMethod::Post, Some(Ok(threshold)), _, _, _) =>
 			Request::GenerateDocumentKey(document, signature, threshold),
-		(false, 2, &HttpMethod::Get, _, _, _, _) =>
+		("", 2, &HttpMethod::Get, _, _, _, _) =>
 			Request::GetDocumentKey(document, signature),
-		(true, 2, &HttpMethod::Get, _, _, _, _) =>
+		("shadow", 2, &HttpMethod::Get, _, _, _, _) =>
 			Request::GetDocumentKeyShadow(document, signature),
-		(false, 3, &HttpMethod::Get, _, Some(Ok(message_hash)), _, _) =>
-			Request::SignMessage(document, signature, message_hash),
+		("schnorr", 3, &HttpMethod::Get, _, Some(Ok(message_hash)), _, _) =>
+			Request::SchnorrSignMessage(document, signature, message_hash),
+		("ecdsa", 3, &HttpMethod::Get, _, Some(Ok(message_hash)), _, _) =>
+			Request::EcdsaSignMessage(document, signature, message_hash),
 		_ => Request::Invalid,
 	}
 }
@@ -370,9 +383,14 @@ mod tests {
 		assert_eq!(parse_request(&HttpMethod::Get, "/shadow/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01", Default::default()),
 			Request::GetDocumentKeyShadow("0000000000000000000000000000000000000000000000000000000000000001".into(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap()));
-		// GET		/{server_key_id}/{signature}/{message_hash}							=> sign message with server key
-		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c", Default::default()),
-			Request::SignMessage("0000000000000000000000000000000000000000000000000000000000000001".into(),
+		// GET		/schnorr/{server_key_id}/{signature}/{message_hash}					=> schnorr-sign message with server key
+		assert_eq!(parse_request(&HttpMethod::Get, "/schnorr/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c", Default::default()),
+			Request::SchnorrSignMessage("0000000000000000000000000000000000000000000000000000000000000001".into(),
+				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
+				"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse().unwrap()));
+		// GET		/ecdsa/{server_key_id}/{signature}/{message_hash}					=> ecdsa-sign message with server key
+		assert_eq!(parse_request(&HttpMethod::Get, "/ecdsa/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c", Default::default()),
+			Request::EcdsaSignMessage("0000000000000000000000000000000000000000000000000000000000000001".into(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
 				"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse().unwrap()));
 		// POST		/admin/servers_set_change/{old_set_signature}/{new_set_signature} + body
@@ -398,7 +416,8 @@ mod tests {
 		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001", Default::default()), Request::Invalid);
 		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/", Default::default()), Request::Invalid);
 		assert_eq!(parse_request(&HttpMethod::Get, "/a/b", Default::default()), Request::Invalid);
-		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/0000000000000000000000000000000000000000000000000000000000000002/0000000000000000000000000000000000000000000000000000000000000002", Default::default()), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "/schnorr/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/0000000000000000000000000000000000000000000000000000000000000002/0000000000000000000000000000000000000000000000000000000000000002", Default::default()), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "/ecdsa/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/0000000000000000000000000000000000000000000000000000000000000002/0000000000000000000000000000000000000000000000000000000000000002", Default::default()), Request::Invalid);
 		assert_eq!(parse_request(&HttpMethod::Post, "/admin/servers_set_change/xxx/yyy",
 			&r#"["0x843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91",
 				"0x07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3"]"#),

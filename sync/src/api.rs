@@ -18,8 +18,9 @@ use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::io;
 use bytes::Bytes;
-use network::{NetworkProtocolHandler, NetworkService, NetworkContext, HostInfo, PeerId, ProtocolId,
-	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind, ConnectionFilter};
+use devp2p::{NetworkService, ConnectionFilter};
+use network::{NetworkProtocolHandler, NetworkContext, HostInfo, PeerId, ProtocolId,
+	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind};
 use ethereum_types::{H256, H512, U256};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
@@ -393,7 +394,7 @@ impl ChainNotify for EthSync {
 			};
 
 			let chain_info = self.eth_handler.chain.chain_info();
-			light_proto.make_announcement(context, Announcement {
+			light_proto.make_announcement(&context, Announcement {
 				head_hash: chain_info.best_block_hash,
 				head_num: chain_info.best_block_number,
 				head_td: chain_info.total_difficulty,
@@ -737,7 +738,7 @@ impl LightSync {
 	{
 		self.network.with_context_eval(
 			self.subprotocol_name,
-			move |ctx| self.proto.with_context(ctx, f),
+			move |ctx| self.proto.with_context(&ctx, f),
 		)
 	}
 }

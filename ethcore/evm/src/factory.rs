@@ -33,7 +33,7 @@ impl Factory {
 	/// Create fresh instance of VM
 	/// Might choose implementation depending on supplied gas.
 	#[cfg(feature = "jit")]
-	pub fn create(&self, gas: U256) -> Box<Vm> {
+	pub fn create(&self, gas: &U256) -> Box<Vm> {
 		match self.evm {
 			VMType::Jit => {
 				Box::new(super::jit::JitEvm::default())
@@ -49,7 +49,7 @@ impl Factory {
 	/// Create fresh instance of VM
 	/// Might choose implementation depending on supplied gas.
 	#[cfg(not(feature = "jit"))]
-	pub fn create(&self, gas: U256) -> Box<Vm> {
+	pub fn create(&self, gas: &U256) -> Box<Vm> {
 		match self.evm {
 			VMType::Interpreter => if Self::can_fit_in_usize(gas) {
 				Box::new(super::interpreter::Interpreter::<usize>::new(self.evm_cache.clone()))
@@ -68,8 +68,8 @@ impl Factory {
 		}
 	}
 
-	fn can_fit_in_usize(gas: U256) -> bool {
-		gas == U256::from(gas.low_u64() as usize)
+	fn can_fit_in_usize(gas: &U256) -> bool {
+		gas == &U256::from(gas.low_u64() as usize)
 	}
 }
 
@@ -95,7 +95,7 @@ impl Default for Factory {
 
 #[test]
 fn test_create_vm() {
-	let _vm = Factory::default().create(U256::zero());
+	let _vm = Factory::default().create(&U256::zero());
 }
 
 /// Create tests by injecting different VM factories

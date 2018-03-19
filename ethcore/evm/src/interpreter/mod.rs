@@ -913,8 +913,13 @@ mod tests {
 	use rustc_hex::FromHex;
 	use vmtype::VMType;
 	use factory::Factory;
-	use vm::{ActionParams, ActionValue};
+	use vm::{Vm, ActionParams, ActionValue};
 	use vm::tests::{FakeExt, test_finalize};
+	use ethereum_types::U256;
+
+	fn interpreter(gas: &U256) -> Box<Vm> {
+		Factory::new(VMType::Interpreter, 1).create(gas)
+	}
 
 	#[test]
 	fn should_not_fail_on_tracing_mem() {
@@ -931,7 +936,7 @@ mod tests {
 		ext.tracing = true;
 
 		let gas_left = {
-			let mut vm = Factory::new(VMType::Interpreter, 1).create(params.gas);
+			let mut vm = interpreter(&params.gas);
 			test_finalize(vm.exec(params, &mut ext)).unwrap()
 		};
 
@@ -953,7 +958,7 @@ mod tests {
 		ext.tracing = true;
 
 		let err = {
-			let mut vm = Factory::new(VMType::Interpreter, 1).create(params.gas);
+			let mut vm = interpreter(&params.gas);
 			test_finalize(vm.exec(params, &mut ext)).err().unwrap()
 		};
 

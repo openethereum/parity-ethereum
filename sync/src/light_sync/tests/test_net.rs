@@ -25,13 +25,14 @@ use tests::helpers::{TestNet, Peer as PeerLike, TestPacket};
 use ethcore::client::TestBlockChainClient;
 use ethcore::spec::Spec;
 use io::IoChannel;
+use kvdb_memorydb;
 use light::client::fetch::{self, Unavailable};
 use light::net::{LightProtocol, IoContext, Capabilities, Params as LightParams};
 use light::provider::LightProvider;
 use network::{NodeId, PeerId};
 use parking_lot::RwLock;
 
-use time::Duration;
+use std::time::Duration;
 use light::cache::Cache;
 
 const NETWORK_ID: u64 = 0xcafebabe;
@@ -217,14 +218,17 @@ impl TestNet<Peer> {
 
 			// skip full verification because the blocks are bad.
 			config.verify_full = false;
-			let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
-			let client = LightClient::in_memory(
+			let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
+			let db = kvdb_memorydb::create(0);
+			let client = LightClient::new(
 				config,
+				Arc::new(db),
+				None,
 				&Spec::new_test(),
 				fetch::unavailable(), // TODO: allow fetch from full nodes.
 				IoChannel::disconnected(),
 				cache
-			);
+			).expect("New DB creation infallible; qed");
 
 			peers.push(Arc::new(Peer::new_light(Arc::new(client))))
 		}

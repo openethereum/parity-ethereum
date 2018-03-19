@@ -23,20 +23,16 @@ fn decodable_wrapper_parse_quotes() -> ParseQuotes {
 }
 
 pub fn impl_decodable(ast: &syn::DeriveInput) -> quote::Tokens {
-	let body = match ast.body {
-		syn::Body::Struct(ref s) => s,
+	let body = match ast.data {
+		syn::Data::Struct(ref s) => s,
 		_ => panic!("#[derive(RlpDecodable)] is only defined for structs."),
 	};
 
-	let stmts: Vec<_> = match *body {
-		syn::VariantData::Struct(ref fields) | syn::VariantData::Tuple(ref fields) =>
-			fields.iter().enumerate().map(decodable_field_map).collect(),
-		syn::VariantData::Unit => panic!("#[derive(RlpDecodable)] is not defined for Unit structs."),
-	};
 
+	let stmts: Vec<_> = body.fields.iter().enumerate().map(decodable_field_map).collect();
 	let name = &ast.ident;
 
-	let dummy_const = syn::Ident::new(format!("_IMPL_RLP_DECODABLE_FOR_{}", name));
+	let dummy_const: syn::Ident = format!("_IMPL_RLP_DECODABLE_FOR_{}", name).into();
 	let impl_block = quote! {
 		impl rlp::Decodable for #name {
 			fn decode(rlp: &rlp::UntrustedRlp) -> Result<Self, rlp::DecoderError> {
@@ -59,26 +55,24 @@ pub fn impl_decodable(ast: &syn::DeriveInput) -> quote::Tokens {
 }
 
 pub fn impl_decodable_wrapper(ast: &syn::DeriveInput) -> quote::Tokens {
-	let body = match ast.body {
-		syn::Body::Struct(ref s) => s,
+	let body = match ast.data {
+		syn::Data::Struct(ref s) => s,
 		_ => panic!("#[derive(RlpDecodableWrapper)] is only defined for structs."),
 	};
 
-	let stmt = match *body {
-		syn::VariantData::Struct(ref fields) | syn::VariantData::Tuple(ref fields) => {
-			if fields.len() == 1 {
-				let field = fields.first().expect("fields.len() == 1; qed");
-				decodable_field(0, field, decodable_wrapper_parse_quotes())
-			} else {
-				panic!("#[derive(RlpDecodableWrapper)] is only defined for structs with one field.")
-			}
-		},
-		syn::VariantData::Unit => panic!("#[derive(RlpDecodableWrapper)] is not defined for Unit structs."),
+	let stmt = {
+		let fields: Vec<_> = body.fields.iter().collect();
+		if fields.len() == 1 {
+			let field = fields.first().expect("fields.len() == 1; qed");
+			decodable_field(0, field, decodable_wrapper_parse_quotes())
+		} else {
+			panic!("#[derive(RlpEncodableWrapper)] is only defined for structs with one field.")
+		}
 	};
 
 	let name = &ast.ident;
 
-	let dummy_const = syn::Ident::new(format!("_IMPL_RLP_DECODABLE_FOR_{}", name));
+	let dummy_const: syn::Ident = format!("_IMPL_RLP_DECODABLE_FOR_{}", name).into();
 	let impl_block = quote! {
 		impl rlp::Decodable for #name {
 			fn decode(rlp: &rlp::UntrustedRlp) -> Result<Self, rlp::DecoderError> {
@@ -105,20 +99,22 @@ fn decodable_field_map(tuple: (usize, &syn::Field)) -> quote::Tokens {
 }
 
 fn decodable_field(index: usize, field: &syn::Field, quotes: ParseQuotes) -> quote::Tokens {
-	let ident = match field.ident {
-		Some(ref ident) => ident.to_string(),
-		None => index.to_string(),
+	let id = match field.ident {
+		Some(ref ident) => quote! { #ident },
+		None => {
+			let index: syn::Index = index.into();
+			quote! { #index }
+		}
 	};
 
-	let id = syn::Ident::new(ident);
-	let index = syn::Ident::new(index.to_string());
+	let index = quote! { #index };
 
 	let single = quotes.single;
 	let list = quotes.list;
 
 	match field.ty {
-		syn::Ty::Path(_, ref path) => {
-			let ident = &path.segments.first().expect("there must be at least 1 segment").ident;
+		syn::Type::Path(ref path) => {
+			let ident = &path.path.segments.first().expect("there must be at least 1 segment").value().ident;
 			if &ident.to_string() == "Vec" {
 				if quotes.takes_index {
 					quote! { #id: #list(#index)?, }

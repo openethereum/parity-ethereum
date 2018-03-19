@@ -18,7 +18,12 @@ use ethereum_types::{H256, U256};
 use bytes::Bytes;
 use header::BlockNumber;
 
-/// Best block info.
+/// Contains information on a best block that is specific to the consensus engine.
+///
+/// For GHOST fork-choice rule it would typically describe the block with highest
+/// combined difficulty (usually the block with the highest block number).
+///
+/// Sometimes refered as 'latest block'.
 #[derive(Default)]
 pub struct BestBlock {
 	/// Best block hash.

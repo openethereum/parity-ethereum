@@ -43,7 +43,7 @@ macro_rules! reqrep_test {
 			params.code = Some(Arc::new(code));
 			params.data = Some($input);
 
-			let mut fake_ext = FakeExt::new();
+			let mut fake_ext = FakeExt::new().with_wasm();
 			fake_ext.info = $info;
 			fake_ext.blockhashes = $block_hashes;
 
@@ -79,7 +79,7 @@ fn empty() {
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
 		let mut interpreter = wasm_interpreter();
@@ -108,7 +108,7 @@ fn logger() {
 	params.gas = U256::from(100_000);
 	params.value = ActionValue::transfer(1_000_000_000);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
 		let mut interpreter = wasm_interpreter();
@@ -157,7 +157,7 @@ fn identity() {
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -192,7 +192,7 @@ fn dispersion() {
 	params.data = Some(vec![
 		0u8, 125, 197, 255, 19
 	]);
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -207,7 +207,7 @@ fn dispersion() {
 		result,
 		vec![0u8, 0, 125, 11, 197, 7, 255, 8, 19, 0]
 	);
-	assert_eq!(gas_left, U256::from(93_972));
+	assert_eq!(gas_left, U256::from(94_013));
 }
 
 #[test]
@@ -220,7 +220,7 @@ fn suicide_not() {
 	params.data = Some(vec![
 		0u8
 	]);
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -235,7 +235,7 @@ fn suicide_not() {
 		result,
 		vec![0u8]
 	);
-	assert_eq!(gas_left, U256::from(94_970));
+	assert_eq!(gas_left, U256::from(94_984));
 }
 
 #[test]
@@ -253,7 +253,7 @@ fn suicide() {
 	args.extend(refund.to_vec());
 	params.data = Some(args);
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
 		let mut interpreter = wasm_interpreter();
@@ -267,7 +267,7 @@ fn suicide() {
 	};
 
 	assert!(ext.suicides.contains(&refund));
-	assert_eq!(gas_left, U256::from(94_933));
+	assert_eq!(gas_left, U256::from(94_925));
 }
 
 #[test]
@@ -280,7 +280,7 @@ fn create() {
 	params.data = Some(vec![0u8, 2, 4, 8, 16, 32, 64, 128]);
 	params.value = ActionValue::transfer(1_000_000_000);
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let gas_left = {
 		let mut interpreter = wasm_interpreter();
@@ -297,7 +297,7 @@ fn create() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Create,
-			gas: U256::from(60_917),
+			gas: U256::from(60_914),
 			sender_address: None,
 			receive_address: None,
 			value: Some(1_000_000_000.into()),
@@ -305,7 +305,7 @@ fn create() {
 			code_address: None,
 		}
 	));
-	assert_eq!(gas_left, U256::from(60_903));
+	assert_eq!(gas_left, U256::from(60_900));
 }
 
 #[test]
@@ -324,7 +324,7 @@ fn call_msg() {
 	params.code = Some(Arc::new(load_sample!("call.wasm")));
 	params.data = Some(Vec::new());
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 	ext.balances.insert(receiver.clone(), U256::from(10000000000u64));
 
 	let gas_left = {
@@ -367,7 +367,7 @@ fn call_code() {
 	params.data = Some(Vec::new());
 	params.value = ActionValue::transfer(1_000_000_000);
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -414,7 +414,7 @@ fn call_static() {
 	params.value = ActionValue::transfer(1_000_000_000);
 	params.code_address = contract_address.clone();
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -454,7 +454,7 @@ fn realloc() {
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(code));
 	params.data = Some(vec![0u8]);
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -465,7 +465,7 @@ fn realloc() {
 		}
 	};
 	assert_eq!(result, vec![0u8; 2]);
-	assert_eq!(gas_left, U256::from(94_352));
+	assert_eq!(gas_left, U256::from(94_372));
 }
 
 #[test]
@@ -476,7 +476,7 @@ fn alloc() {
 	params.gas = U256::from(10_000_000);
 	params.code = Some(Arc::new(code));
 	params.data = Some(vec![0u8]);
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -502,7 +502,7 @@ fn storage_read() {
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 	ext.store.insert("0100000000000000000000000000000000000000000000000000000000000000".into(), address.into());
 
 	let (gas_left, result) = {
@@ -529,7 +529,7 @@ fn keccak() {
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(code));
 	params.data = Some(b"something".to_vec());
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -541,7 +541,7 @@ fn keccak() {
 	};
 
 	assert_eq!(H256::from_slice(&result), H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
-	assert_eq!(gas_left, U256::from(84_223));
+	assert_eq!(gas_left, U256::from(84_240));
 }
 
 // math_* tests check the ability of wasm contract to perform big integer operations
@@ -570,7 +570,7 @@ fn math_add() {
 		U256::from_dec_str("1888888888888888888888888888887").unwrap(),
 		(&result[..]).into()
 	);
-	assert_eq!(gas_left, U256::from(93_818));
+	assert_eq!(gas_left, U256::from(93_814));
 }
 
 // multiplication
@@ -592,7 +592,7 @@ fn math_mul() {
 		U256::from_dec_str("888888888888888888888888888887111111111111111111111111111112").unwrap(),
 		(&result[..]).into()
 	);
-	assert_eq!(gas_left, U256::from(93_304));
+	assert_eq!(gas_left, U256::from(93_300));
 }
 
 // subtraction
@@ -614,7 +614,7 @@ fn math_sub() {
 		U256::from_dec_str("111111111111111111111111111111").unwrap(),
 		(&result[..]).into()
 	);
-	assert_eq!(gas_left, U256::from(93_831));
+	assert_eq!(gas_left, U256::from(93_826));
 }
 
 // subtraction with overflow
@@ -656,7 +656,7 @@ fn math_div() {
 		U256::from_dec_str("1125000").unwrap(),
 		(&result[..]).into()
 	);
-	assert_eq!(gas_left, U256::from(90_607));
+	assert_eq!(gas_left, U256::from(90_603));
 }
 
 #[test]
@@ -664,7 +664,7 @@ fn storage_metering() {
 	::ethcore_logger::init_log();
 
 	// #1
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let code = Arc::new(load_sample!("setter.wasm"));
 	let address: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
@@ -684,7 +684,7 @@ fn storage_metering() {
 	};
 
 	// 0 -> not 0
-	assert_eq!(gas_left, U256::from(74_410));
+	assert_eq!(gas_left, U256::from(74_338));
 
 	// #2
 
@@ -703,7 +703,7 @@ fn storage_metering() {
 	};
 
 	// not 0 -> not 0
-	assert_eq!(gas_left, U256::from(89_410));
+	assert_eq!(gas_left, U256::from(89_338));
 }
 
 // This test checks the ability of wasm contract to invoke
@@ -791,7 +791,7 @@ fn externs() {
 		"Gas limit requested and returned does not match"
 	);
 
-	assert_eq!(gas_left, U256::from(92_089));
+	assert_eq!(gas_left, U256::from(92_110));
 }
 
 #[test]
@@ -805,7 +805,7 @@ fn embedded_keccak() {
 	params.code = Some(Arc::new(code));
 	params.params_type = vm::ParamsType::Embedded;
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -817,7 +817,7 @@ fn embedded_keccak() {
 	};
 
 	assert_eq!(H256::from_slice(&result), H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
-	assert_eq!(gas_left, U256::from(84_223));
+	assert_eq!(gas_left, U256::from(84_240));
 }
 
 /// This test checks the correctness of log extern
@@ -833,7 +833,7 @@ fn events() {
 	params.code = Some(Arc::new(code));
 	params.data = Some(b"something".to_vec());
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 
 	let (gas_left, result) = {
 		let mut interpreter = wasm_interpreter();
@@ -852,5 +852,5 @@ fn events() {
 	assert_eq!(&log_entry.data, b"gnihtemos");
 
 	assert_eq!(&result, b"gnihtemos");
-	assert_eq!(gas_left, U256::from(81_235));
+	assert_eq!(gas_left, U256::from(81_292));
 }

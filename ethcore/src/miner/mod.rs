@@ -40,6 +40,7 @@
 
 mod miner;
 mod stratum;
+mod service_transaction_checker;
 
 pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
 pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOptions};
@@ -47,18 +48,24 @@ pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOption
 pub use ethcore_miner::local_transactions::Status as LocalTransactionStatus;
 
 use std::collections::BTreeMap;
-use ethereum_types::{H256, U256, Address};
-use bytes::Bytes;
 
-use block::ClosedBlock;
-use client::{MiningBlockChainClient};
+use block::{ClosedBlock, Block};
+use bytes::Bytes;
+use client::{
+	MiningBlockChainClient, CallContract, RegistryInfo, ScheduleInfo,
+	BlockChain, AccountData, BlockProducer, SealedBlockImporter
+};
 use error::{Error};
-use header::BlockNumber;
+use ethereum_types::{H256, U256, Address};
+use header::{BlockNumber, Header};
 use receipt::{RichReceipt, Receipt};
 use transaction::{UnverifiedTransaction, PendingTransaction, ImportResult as TransactionImportResult};
+use state::StateInfo;
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
+	/// Type representing chain state
+	type State: StateInfo + 'static;
 
 	/// Returns miner's status.
 	fn status(&self) -> MinerStatus;
@@ -107,42 +114,46 @@ pub trait MinerService : Send + Sync {
 	fn set_tx_gas_limit(&self, limit: U256);
 
 	/// Imports transactions to transaction queue.
-	fn import_external_transactions(&self, chain: &MiningBlockChainClient, transactions: Vec<UnverifiedTransaction>) ->
+	fn import_external_transactions<C: MiningBlockChainClient>(&self, client: &C, transactions: Vec<UnverifiedTransaction>) ->
 		Vec<Result<TransactionImportResult, Error>>;
 
 	/// Imports own (node owner) transaction to queue.
-	fn import_own_transaction(&self, chain: &MiningBlockChainClient, transaction: PendingTransaction) ->
+	fn import_own_transaction<C: MiningBlockChainClient>(&self, chain: &C, transaction: PendingTransaction) ->
 		Result<TransactionImportResult, Error>;
 
 	/// Returns hashes of transactions currently in pending
 	fn pending_transactions_hashes(&self, best_block: BlockNumber) -> Vec<H256>;
 
 	/// Removes all transactions from the queue and restart mining operation.
-	fn clear_and_reset(&self, chain: &MiningBlockChainClient);
+	fn clear_and_reset<C: MiningBlockChainClient>(&self, chain: &C);
 
 	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
+	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256])
+		where C: AccountData + BlockChain + CallContract + RegistryInfo + BlockProducer + ScheduleInfo + SealedBlockImporter;
 
 	/// PoW chain - can produce work package
 	fn can_produce_work_package(&self) -> bool;
 
 	/// New chain head event. Restart mining operation.
-	fn update_sealing(&self, chain: &MiningBlockChainClient);
+	fn update_sealing<C>(&self, chain: &C)
+		where C: AccountData + BlockChain + RegistryInfo + CallContract + BlockProducer + SealedBlockImporter;
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
+	fn submit_seal<C: SealedBlockImporter>(&self, chain: &C, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
 
 	/// Get the sealing work package and if `Some`, apply some transform.
-	fn map_sealing_work<F, T>(&self, chain: &MiningBlockChainClient, f: F) -> Option<T>
-		where F: FnOnce(&ClosedBlock) -> T, Self: Sized;
+	fn map_sealing_work<C, F, T>(&self, client: &C, f: F) -> Option<T>
+		where C: AccountData + BlockChain + BlockProducer + CallContract,
+		      F: FnOnce(&ClosedBlock) -> T,
+		      Self: Sized;
 
 	/// Query pending transactions for hash.
 	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction>;
 
 	/// Removes transaction from the queue.
 	/// NOTE: The transaction is not removed from pending block if mining.
-	fn remove_pending_transaction(&self, chain: &MiningBlockChainClient, hash: &H256) -> Option<PendingTransaction>;
+	fn remove_pending_transaction<C: AccountData>(&self, chain: &C, hash: &H256) -> Option<PendingTransaction>;
 
 	/// Get a list of all pending transactions in the queue.
 	fn pending_transactions(&self) -> Vec<PendingTransaction>;
@@ -173,6 +184,15 @@ pub trait MinerService : Send + Sync {
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { 21000.into() }
+
+	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
+	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Self::State>;
+
+	/// Get `Some` `clone()` of the current pending block header or `None` if we're not sealing.
+	fn pending_block_header(&self, latest_block_number: BlockNumber) -> Option<Header>;
+
+	/// Get `Some` `clone()` of the current pending block or `None` if we're not sealing.
+	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block>;
 }
 
 /// Mining status

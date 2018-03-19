@@ -113,14 +113,14 @@ pub struct Schedule {
 	pub kill_dust: CleanDustMode,
 	/// Enable EIP-86 rules
 	pub eip86: bool,
-	/// Wasm extra schedule settings
-	pub wasm: WasmCosts,
+	/// Wasm extra schedule settings, if wasm activated
+	pub wasm: Option<WasmCosts>,
 }
 
 /// Wasm cost table
 pub struct WasmCosts {
-	/// Arena allocator cost, per byte
-	pub alloc: u32,
+	/// Default opcode cost
+	pub regular: u32,
 	/// Div operations multiplier.
 	pub div: u32,
 	/// Div operations multiplier.
@@ -135,17 +135,20 @@ pub struct WasmCosts {
 	pub initial_mem: u32,
 	/// Grow memory cost, per page (64kb)
 	pub grow_mem: u32,
+	/// Memory copy cost, per byte
+	pub memcpy: u32,
+	/// Max stack height (native WebAssembly stack limiter)
+	pub max_stack_height: u32,
 	/// Cost of wasm opcode is calculated as TABLE_ENTRY_COST * `opcodes_mul` / `opcodes_div`
 	pub opcodes_mul: u32,
 	/// Cost of wasm opcode is calculated as TABLE_ENTRY_COST * `opcodes_mul` / `opcodes_div`
 	pub opcodes_div: u32,
-
 }
 
 impl Default for WasmCosts {
 	fn default() -> Self {
 		WasmCosts {
-			alloc: 2,
+			regular: 1,
 			div: 16,
 			mul: 4,
 			mem: 2,
@@ -153,6 +156,8 @@ impl Default for WasmCosts {
 			static_address: 40,
 			initial_mem: 4096,
 			grow_mem: 8192,
+			memcpy: 1,
+			max_stack_height: 64*1024,
 			opcodes_mul: 3,
 			opcodes_div: 8,
 		}
@@ -231,7 +236,7 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip86: false,
-			wasm: Default::default(),
+			wasm: None,
 		}
 	}
 
@@ -294,8 +299,16 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip86: false,
-			wasm: Default::default(),
+			wasm: None,
 		}
+	}
+
+	/// Returns wasm schedule
+	///
+	/// May panic if there is no wasm schedule
+	pub fn wasm(&self) -> &WasmCosts {
+		// *** Prefer PANIC here instead of silently breaking consensus! ***
+		self.wasm.as_ref().expect("Wasm schedule expected to exist while checking wasm contract. Misconfigured client?")
 	}
 }
 

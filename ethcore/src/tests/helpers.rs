@@ -19,28 +19,22 @@ use ethereum_types::{H256, U256};
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use bytes::Bytes;
-use client::{BlockChainClient, Client, ClientConfig};
-use ethereum::ethash::EthashParams;
+use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify};
 use ethkey::KeyPair;
 use evm::Factory as EvmFactory;
 use factory::Factories;
 use hash::keccak;
 use header::Header;
 use io::*;
-use machine::EthashExtensions;
 use miner::Miner;
+use parking_lot::RwLock;
 use rlp::{self, RlpStream};
-use spec::*;
+use spec::Spec;
 use state_db::StateDB;
 use state::*;
 use std::sync::Arc;
 use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
-
-// TODO: move everything over to get_null_spec.
-pub fn get_test_spec() -> Spec {
-	Spec::new_test()
-}
 
 pub fn create_test_block(header: &Header) -> Bytes {
 	let mut rlp = RlpStream::new_list(3);
@@ -99,16 +93,16 @@ pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, 
 }
 
 
-pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
-	generate_dummy_client_with_spec_accounts_and_data(get_test_spec, None, block_number, txs_per_block, tx_gas_prices)
+pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
+	generate_dummy_client_with_spec_accounts_and_data(test_spec, None, block_number, txs_per_block, tx_gas_prices)
 }
 
-pub fn generate_dummy_client_with_spec_and_accounts<F>(get_test_spec: F, accounts: Option<Arc<AccountProvider>>) -> Arc<Client> where F: Fn()->Spec {
-	generate_dummy_client_with_spec_accounts_and_data(get_test_spec, accounts, 0, 0, &[])
+pub fn generate_dummy_client_with_spec_and_accounts<F>(test_spec: F, accounts: Option<Arc<AccountProvider>>) -> Arc<Client> where F: Fn()->Spec {
+	generate_dummy_client_with_spec_accounts_and_data(test_spec, accounts, 0, 0, &[])
 }
 
-pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, accounts: Option<Arc<AccountProvider>>, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
-	let test_spec = get_test_spec();
+pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accounts: Option<Arc<AccountProvider>>, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where F: Fn()->Spec {
+	let test_spec = test_spec();
 	let client_db = new_db();
 
 	let client = Client::new(
@@ -147,7 +141,6 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 			vec![],
 			false,
 		).unwrap();
-		b.set_difficulty(U256::from(0x20000));
 		rolling_timestamp += 10;
 		b.set_timestamp(rolling_timestamp);
 
@@ -179,7 +172,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 }
 
 pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting_number: usize, block_number: usize) {
-	let test_spec = get_test_spec();
+	let test_spec = Spec::new_test();
 	let state_root = test_spec.genesis_header().state_root().clone();
 	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 
@@ -208,7 +201,7 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 }
 
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
-	let test_spec = get_test_spec();
+	let test_spec = Spec::new_test();
 	let client_db = new_db();
 
 	let client = Client::new(
@@ -274,7 +267,7 @@ pub fn get_temp_state() -> State<::state_db::StateDB> {
 pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::StateDB> {
 	let journal_db = get_temp_state_db();
 	let mut factories = Factories::default();
-	factories.vm = factory;
+	factories.vm = factory.into();
 	State::new(journal_db, U256::from(0), factories)
 }
 
@@ -285,12 +278,12 @@ pub fn get_temp_state_db() -> StateDB {
 }
 
 pub fn get_good_dummy_block_seq(count: usize) -> Vec<Bytes> {
-	let test_spec = get_test_spec();
+	let test_spec = Spec::new_test();
 	get_good_dummy_block_fork_seq(1, count, &test_spec.genesis_header().hash())
 }
 
 pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_hash: &H256) -> Vec<Bytes> {
-	let test_spec = get_test_spec();
+	let test_spec = Spec::new_test();
 	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 	let mut rolling_timestamp = start_number as u64 * 10;
 	let mut parent = *parent_hash;
@@ -314,7 +307,7 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 
 pub fn get_good_dummy_block_hash() -> (H256, Bytes) {
 	let mut block_header = Header::new();
-	let test_spec = get_test_spec();
+	let test_spec = Spec::new_test();
 	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 	block_header.set_gas_limit(genesis_gas);
 	block_header.set_difficulty(U256::from(0x20000));
@@ -333,7 +326,7 @@ pub fn get_good_dummy_block() -> Bytes {
 
 pub fn get_bad_state_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
-	let test_spec = get_test_spec();
+	let test_spec = Spec::new_test();
 	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 
 	block_header.set_gas_limit(genesis_gas);
@@ -346,45 +339,13 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
-pub fn get_default_ethash_extensions() -> EthashExtensions {
-	EthashExtensions {
-		homestead_transition: 1150000,
-		eip150_transition: u64::max_value(),
-		eip160_transition: u64::max_value(),
-		eip161abc_transition: u64::max_value(),
-		eip161d_transition: u64::max_value(),
-		dao_hardfork_transition: u64::max_value(),
-		dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
-		dao_hardfork_accounts: Vec::new(),
-	}
+#[derive(Default)]
+pub struct TestNotify {
+	pub messages: RwLock<Vec<Bytes>>,
 }
 
-pub fn get_default_ethash_params() -> EthashParams {
-	EthashParams {
-		minimum_difficulty: U256::from(131072),
-		difficulty_bound_divisor: U256::from(2048),
-		difficulty_increment_divisor: 10,
-		metropolis_difficulty_increment_divisor: 9,
-		homestead_transition: 1150000,
-		duration_limit: 13,
-		block_reward: 0.into(),
-		difficulty_hardfork_transition: u64::max_value(),
-		difficulty_hardfork_bound_divisor: U256::from(0),
-		bomb_defuse_transition: u64::max_value(),
-		eip100b_transition: u64::max_value(),
-		ecip1010_pause_transition: u64::max_value(),
-		ecip1010_continue_transition: u64::max_value(),
-		ecip1017_era_rounds: u64::max_value(),
-		mcip3_transition: u64::max_value(),
-		mcip3_miner_reward: 0.into(),
-		mcip3_ubi_reward: 0.into(),
-		mcip3_ubi_contract: "0000000000000000000000000000000000000001".into(),
-		mcip3_dev_reward: 0.into(),
-		mcip3_dev_contract: "0000000000000000000000000000000000000001".into(),
-		eip649_transition: u64::max_value(),
-		eip649_delay: 3_000_000,
-		eip649_reward: None,
-		expip2_transition: u64::max_value(),
-		expip2_duration_limit: 30,
+impl ChainNotify for TestNotify {
+	fn broadcast(&self, data: Vec<u8>) {
+		self.messages.write().push(data);
 	}
 }

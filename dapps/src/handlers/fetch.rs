@@ -23,6 +23,7 @@ use std::time::{Instant, Duration};
 use fetch::{self, Fetch};
 use futures::sync::oneshot;
 use futures::{self, Future};
+use futures_cpupool::CpuPool;
 use hyper::{self, Method, StatusCode};
 use parking_lot::Mutex;
 
@@ -35,7 +36,7 @@ const FETCH_TIMEOUT: u64 = 300;
 
 pub enum ValidatorResponse {
 	Local(local::Dapp),
-	Streaming(StreamingHandler<fetch::Response>),
+	Streaming(StreamingHandler<fetch::BodyReader>),
 }
 
 pub trait ContentValidator: Sized + Send + 'static {
@@ -252,6 +253,7 @@ impl ContentFetcherHandler {
 		installer: H,
 		embeddable_on: Embeddable,
 		fetch: F,
+		pool: CpuPool,
 	) -> Self {
 		let fetch_control = FetchControl::default();
 		let errors = Errors { embeddable_on };
@@ -262,6 +264,7 @@ impl ContentFetcherHandler {
 			Method::Get => {
 				trace!(target: "dapps", "Fetching content from: {:?}", url);
 				FetchState::InProgress(Self::fetch_content(
+						pool,
 						fetch,
 						url,
 						fetch_control.abort.clone(),
@@ -282,6 +285,7 @@ impl ContentFetcherHandler {
 	}
 
 	fn fetch_content<H: ContentValidator, F: Fetch>(
+		pool: CpuPool,
 		fetch: F,
 		url: &str,
 		abort: Arc<AtomicBool>,
@@ -290,8 +294,8 @@ impl ContentFetcherHandler {
 		installer: H,
 	) -> Box<Future<Item=FetchState, Error=()> + Send> {
 		// Start fetching the content
-		let fetch2 = fetch.clone();
-		let future = fetch.fetch_with_abort(url, abort.into()).then(move |result| {
+		let pool2 = pool.clone();
+		let future = fetch.fetch(url, abort.into()).then(move |result| {
 			trace!(target: "dapps", "Fetching content finished. Starting validation: {:?}", result);
 			Ok(match result {
 				Ok(response) => match installer.validate_and_install(response) {
@@ -303,7 +307,7 @@ impl ContentFetcherHandler {
 					Ok(ValidatorResponse::Streaming(stream)) => {
 						trace!(target: "dapps", "Validation OK. Streaming response.");
 						let (reading, response) = stream.into_response();
-						fetch2.process_and_forget(reading);
+						pool.spawn(reading).forget();
 						FetchState::Streaming(response)
 					},
 					Err(e) => {
@@ -319,7 +323,7 @@ impl ContentFetcherHandler {
 		});
 
 		// make sure to run within fetch thread pool.
-		fetch.process(future)
+		Box::new(pool2.spawn(future))
 	}
 }
 

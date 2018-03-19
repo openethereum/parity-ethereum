@@ -145,7 +145,7 @@ mod tests {
 	use account_provider::AccountProvider;
 	use miner::MinerService;
 	use types::ids::BlockId;
-	use client::BlockChainClient;
+	use client::{BlockChainClient, ChainInfo, BlockInfo, CallContract};
 	use tests::helpers::generate_dummy_client_with_spec_and_accounts;
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
@@ -174,7 +174,7 @@ mod tests {
 
 		// Check a block that is a bit in future, reject it but don't report the validator.
 		let mut header = Header::default();
-		let seal = vec![encode(&5u8).into_vec(), encode(&(&H520::default() as &[u8])).into_vec()];
+		let seal = vec![encode(&4u8).into_vec(), encode(&(&H520::default() as &[u8])).into_vec()];
 		header.set_seal(seal);
 		header.set_author(v1);
 		header.set_number(2);

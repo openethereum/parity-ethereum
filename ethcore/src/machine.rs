@@ -20,15 +20,15 @@ use std::collections::{BTreeMap, HashMap};
 use std::cmp;
 use std::sync::Arc;
 
-use block::ExecutedBlock;
+use block::{ExecutedBlock, IsBlock};
 use builtin::Builtin;
-use client::BlockChainClient;
+use client::{BlockInfo, CallContract};
 use error::Error;
 use executive::Executive;
 use header::{BlockNumber, Header};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
-use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
+use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
 use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
 
@@ -135,7 +135,7 @@ impl EthereumMachine {
 			env_info
 		};
 
-		let mut state = block.fields_mut().state;
+		let mut state = block.state_mut();
 		let params = ActionParams {
 			code_address: contract_address.clone(),
 			address: contract_address.clone(),
@@ -163,12 +163,12 @@ impl EthereumMachine {
 	/// Push last known block hash to the state.
 	fn push_last_hash(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		let params = self.params();
-		if block.fields().header.number() == params.eip210_transition {
-			let state = block.fields_mut().state;
+		if block.header().number() == params.eip210_transition {
+			let state = block.state_mut();
 			state.init_code(&params.eip210_contract_address, params.eip210_contract_code.clone())?;
 		}
-		if block.fields().header.number() >= params.eip210_transition {
-			let parent_hash = block.fields().header.parent_hash().clone();
+		if block.header().number() >= params.eip210_transition {
+			let parent_hash = block.header().parent_hash().clone();
 			let _ = self.execute_as_system(
 				block,
 				params.eip210_contract_address,
@@ -185,8 +185,8 @@ impl EthereumMachine {
 		self.push_last_hash(block)?;
 
 		if let Some(ref ethash_params) = self.ethash_extensions {
-			if block.fields().header.number() == ethash_params.dao_hardfork_transition {
-				let state = block.fields_mut().state;
+			if block.header().number() == ethash_params.dao_hardfork_transition {
+				let state = block.state_mut();
 				for child in &ethash_params.dao_hardfork_accounts {
 					let beneficiary = &ethash_params.dao_hardfork_beneficiary;
 					state.balance(child)
@@ -263,15 +263,9 @@ impl EthereumMachine {
 				} else if block_number < ext.eip150_transition {
 					Schedule::new_homestead()
 				} else {
-					// There's no max_code_size transition so we tie it to eip161abc
-					let max_code_size = if block_number >= ext.eip161abc_transition {
-						self.params.max_code_size as usize
-					} else {
-						usize::max_value()
-					};
-
+					let max_code_size = self.params.max_code_size(block_number);
 					let mut schedule = Schedule::new_post_eip150(
-						max_code_size,
+						max_code_size as _,
 						block_number >= ext.eip160_transition,
 						block_number >= ext.eip161abc_transition,
 						block_number >= ext.eip161d_transition
@@ -366,7 +360,7 @@ impl EthereumMachine {
 	/// Does verification of the transaction against the parent state.
 	// TODO: refine the bound here to be a "state provider" or similar as opposed
 	// to full client functionality.
-	pub fn verify_transaction(&self, t: &SignedTransaction, header: &Header, client: &BlockChainClient) -> Result<(), Error> {
+	pub fn verify_transaction<C: BlockInfo + CallContract>(&self, t: &SignedTransaction, header: &Header, client: &C) -> Result<(), Error> {
 		if let Some(ref filter) = self.tx_filter.as_ref() {
 			if !filter.transaction_allowed(header.parent_hash(), t, client) {
 				return Err(transaction::Error::NotAllowed.into())
@@ -374,11 +368,6 @@ impl EthereumMachine {
 		}
 
 		Ok(())
-	}
-
-	/// If this machine supports wasm.
-	pub fn supports_wasm(&self) -> bool {
-		self.params().wasm
 	}
 
 	/// Additional params.
@@ -431,11 +420,11 @@ impl<'a> ::parity_machine::LocalizedMachine<'a> for EthereumMachine {
 
 impl ::parity_machine::WithBalances for EthereumMachine {
 	fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Error> {
-		live.fields().state.balance(address).map_err(Into::into)
+		live.state().balance(address).map_err(Into::into)
 	}
 
 	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
-		live.fields_mut().state.add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
+		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
 	}
 
 	fn note_rewards(
@@ -444,21 +433,19 @@ impl ::parity_machine::WithBalances for EthereumMachine {
 		direct: &[(Address, U256)],
 		indirect: &[(Address, U256)],
 	) -> Result<(), Self::Error> {
-		use block::IsBlock;
+		if let Tracing::Enabled(ref mut traces) = *live.traces_mut() {
+			let mut tracer = ExecutiveTracer::default();
 
-		if !live.tracing_enabled() { return Ok(()) }
+			for &(address, amount) in direct {
+				tracer.trace_reward(address, amount, RewardType::Block);
+			}
 
-		let mut tracer = ExecutiveTracer::default();
+			for &(address, amount) in indirect {
+				tracer.trace_reward(address, amount, RewardType::Uncle);
+			}
 
-		for &(address, amount) in direct {
-			tracer.trace_reward(address, amount, RewardType::Block);
+			traces.push(tracer.drain().into());
 		}
-
-		for &(address, amount) in indirect {
-			tracer.trace_reward(address, amount, RewardType::Uncle);
-		}
-
-		live.fields_mut().push_traces(tracer);
 
 		Ok(())
 	}
@@ -486,12 +473,25 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 mod tests {
 	use super::*;
 
+	fn get_default_ethash_extensions() -> EthashExtensions {
+		EthashExtensions {
+			homestead_transition: 1150000,
+			eip150_transition: u64::max_value(),
+			eip160_transition: u64::max_value(),
+			eip161abc_transition: u64::max_value(),
+			eip161d_transition: u64::max_value(),
+			dao_hardfork_transition: u64::max_value(),
+			dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
+			dao_hardfork_accounts: Vec::new(),
+		}
+	}
+
 	#[test]
 	fn ethash_gas_limit_is_multiple_of_determinant() {
 		use ethereum_types::U256;
 
 		let spec = ::ethereum::new_homestead_test();
-		let ethparams = ::tests::helpers::get_default_ethash_extensions();
+		let ethparams = get_default_ethash_extensions();
 
 		let machine = EthereumMachine::with_ethash_extensions(
 			spec.params().clone(),

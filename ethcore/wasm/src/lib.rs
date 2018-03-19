@@ -34,7 +34,7 @@ mod panic_payload;
 mod parser;
 
 use vm::{GasLeft, ReturnData, ActionParams};
-use wasmi::Error as InterpreterError;
+use wasmi::{Error as InterpreterError, Trap};
 
 use runtime::{Runtime, RuntimeContext};
 
@@ -42,17 +42,29 @@ use ethereum_types::U256;
 
 /// Wrapped interpreter error
 #[derive(Debug)]
-pub struct Error(InterpreterError);
+pub enum Error {
+	Interpreter(InterpreterError),
+	Trap(Trap),
+}
 
 impl From<InterpreterError> for Error {
 	fn from(e: InterpreterError) -> Self {
-		Error(e)
+		Error::Interpreter(e)
+	}
+}
+
+impl From<Trap> for Error {
+	fn from(e: Trap) -> Self {
+		Error::Trap(e)
 	}
 }
 
 impl From<Error> for vm::Error {
 	fn from(e: Error) -> Self {
-		vm::Error::Wasm(format!("Wasm runtime error: {:?}", e.0))
+		match e {
+			Error::Interpreter(e) => vm::Error::Wasm(format!("Wasm runtime error: {:?}", e)),
+			Error::Trap(e) => vm::Error::Wasm(format!("Wasm contract trap: {:?}", e)),
+		}
 	}
 }
 
@@ -65,35 +77,41 @@ impl From<runtime::Error> for vm::Error {
 	}
 }
 
+enum ExecutionOutcome {
+	Suicide,
+	Return,
+	NotSpecial,
+}
+
 impl vm::Vm for WasmInterpreter {
 
 	fn exec(&mut self, params: ActionParams, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
-		let (module, data) = parser::payload(&params, ext.schedule())?;
+		let (module, data) = parser::payload(&params, ext.schedule().wasm())?;
 
-		let loaded_module = wasmi::Module::from_parity_wasm_module(module).map_err(Error)?;
+		let loaded_module = wasmi::Module::from_parity_wasm_module(module).map_err(Error::Interpreter)?;
 
-		let instantiation_resolover = env::ImportResolver::with_limit(16);
+		let instantiation_resolver = env::ImportResolver::with_limit(16);
 
 		let module_instance = wasmi::ModuleInstance::new(
 			&loaded_module,
-			&wasmi::ImportsBuilder::new().with_resolver("env", &instantiation_resolover)
-		).map_err(Error)?;
+			&wasmi::ImportsBuilder::new().with_resolver("env", &instantiation_resolver)
+		).map_err(Error::Interpreter)?;
 
-		let adjusted_gas = params.gas * U256::from(ext.schedule().wasm.opcodes_div) /
-			U256::from(ext.schedule().wasm.opcodes_mul);
+		let adjusted_gas = params.gas * U256::from(ext.schedule().wasm().opcodes_div) /
+			U256::from(ext.schedule().wasm().opcodes_mul);
 
 		if adjusted_gas > ::std::u64::MAX.into()
 		{
 			return Err(vm::Error::Wasm("Wasm interpreter cannot run contracts with gas (wasm adjusted) >= 2^64".to_owned()));
 		}
 
-		let initial_memory = instantiation_resolover.memory_size().map_err(Error)?;
+		let initial_memory = instantiation_resolver.memory_size().map_err(Error::Interpreter)?;
 		trace!(target: "wasm", "Contract requested {:?} pages of initial memory", initial_memory);
 
 		let (gas_left, result) = {
 			let mut runtime = Runtime::with_params(
 				ext,
-				instantiation_resolover.memory_ref(),
+				instantiation_resolver.memory_ref(),
 				// cannot overflow, checked above
 				adjusted_gas.low_u64(),
 				data.to_vec(),
@@ -111,36 +129,32 @@ impl vm::Vm for WasmInterpreter {
 			// total_charge <- static_region * 2^32 * 2^16
 			// total_charge ∈ [0..2^64) if static_region ∈ [0..2^16)
 			// qed
-			assert!(runtime.schedule().wasm.initial_mem < 1 << 16);
-			runtime.charge(|s| initial_memory as u64 * s.wasm.initial_mem as u64)?;
+			assert!(runtime.schedule().wasm().initial_mem < 1 << 16);
+			runtime.charge(|s| initial_memory as u64 * s.wasm().initial_mem as u64)?;
 
-			let module_instance = module_instance.run_start(&mut runtime).map_err(Error)?;
+			let module_instance = module_instance.run_start(&mut runtime).map_err(Error::Trap)?;
 
-			match module_instance.invoke_export("call", &[], &mut runtime) {
-				Ok(_) => { },
-				Err(InterpreterError::Host(boxed)) => {
-					match boxed.downcast_ref::<runtime::Error>() {
-						None => {
-							return Err(vm::Error::Wasm("Invalid user error used in interpreter".to_owned()));
-						}
-						Some(runtime_err) => {
-							match *runtime_err {
-								runtime::Error::Suicide => {
-									// Suicide uses trap to break execution
-								}
-								ref any_err => {
-									trace!(target: "wasm", "Error executing contract: {:?}", boxed);
-									return Err(vm::Error::from(Error::from(InterpreterError::Host(Box::new(any_err.clone())))));
-								}
-							}
-						}
+			let invoke_result = module_instance.invoke_export("call", &[], &mut runtime);
+
+			let mut execution_outcome = ExecutionOutcome::NotSpecial;
+			if let Err(InterpreterError::Trap(ref trap)) = invoke_result {
+				if let wasmi::TrapKind::Host(ref boxed) = *trap.kind() {
+					let ref runtime_err = boxed.downcast_ref::<runtime::Error>()
+						.expect("Host errors other than runtime::Error never produced; qed");
+
+					match **runtime_err {
+						runtime::Error::Suicide => { execution_outcome = ExecutionOutcome::Suicide; },
+						runtime::Error::Return => { execution_outcome = ExecutionOutcome::Return; },
+						_ => {}
 					}
-				},
-				Err(err) => {
-					trace!(target: "wasm", "Error executing contract: {:?}", err);
-					return Err(vm::Error::from(Error::from(err)))
 				}
 			}
+
+			if let (ExecutionOutcome::NotSpecial, Err(e)) = (execution_outcome, invoke_result) {
+				trace!(target: "wasm", "Error executing contract: {:?}", e);
+				return Err(vm::Error::from(Error::from(e)));
+			}
+
 			(
 				runtime.gas_left().expect("Cannot fail since it was not updated since last charge"),
 				runtime.into_result(),
@@ -148,8 +162,8 @@ impl vm::Vm for WasmInterpreter {
 		};
 
 		let gas_left =
-			U256::from(gas_left) * U256::from(ext.schedule().wasm.opcodes_mul)
-				/ U256::from(ext.schedule().wasm.opcodes_div);
+			U256::from(gas_left) * U256::from(ext.schedule().wasm().opcodes_mul)
+				/ U256::from(ext.schedule().wasm().opcodes_div);
 
 		if result.is_empty() {
 			trace!(target: "wasm", "Contract execution result is empty.");

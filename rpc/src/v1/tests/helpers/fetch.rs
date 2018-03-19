@@ -16,9 +16,10 @@
 
 //! Test implementation of fetch client.
 
-use std::{io, thread};
+use std::thread;
 use jsonrpc_core::futures::{self, Future};
-use fetch::{self, Fetch};
+use fetch::{self, Fetch, Url};
+use hyper;
 
 /// Test implementation of fetcher. Will always return the same file.
 #[derive(Default, Clone)]
@@ -27,15 +28,12 @@ pub struct TestFetch;
 impl Fetch for TestFetch {
 	type Result = Box<Future<Item = fetch::Response, Error = fetch::Error> + Send + 'static>;
 
-	fn new() -> Result<Self, fetch::Error> where Self: Sized {
-		Ok(TestFetch)
-	}
-
-	fn fetch_with_abort(&self, _url: &str, _abort: fetch::Abort) -> Self::Result {
+	fn fetch(&self, url: &str, abort: fetch::Abort) -> Self::Result {
+		let u = Url::parse(url).unwrap();
 		let (tx, rx) = futures::oneshot();
 		thread::spawn(move || {
-			let cursor = io::Cursor::new(b"Some content");
-			tx.send(fetch::Response::from_reader(cursor)).unwrap();
+			let r = hyper::Response::new().with_body(&b"Some content"[..]);
+			tx.send(fetch::Response::new(u, r, abort)).unwrap();
 		});
 
 		Box::new(rx.map_err(|_| fetch::Error::Aborted))

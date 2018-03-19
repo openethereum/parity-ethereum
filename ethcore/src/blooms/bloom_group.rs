@@ -24,28 +24,26 @@ pub struct BloomGroup {
 	blooms: Vec<Bloom>,
 }
 
+impl BloomGroup {
+	pub fn accrue_bloom_group(&mut self, group: &BloomGroup) {
+		for (bloom, other) in self.blooms.iter_mut().zip(group.blooms.iter()) {
+			bloom.accrue_bloom(other);
+		}
+	}
+}
+
 impl From<bc::BloomGroup> for BloomGroup {
 	fn from(group: bc::BloomGroup) -> Self {
-		let blooms = group.blooms
-			.into_iter()
-			.map(From::from)
-			.collect();
-
 		BloomGroup {
-			blooms: blooms
+			blooms: group.blooms
 		}
 	}
 }
 
 impl Into<bc::BloomGroup> for BloomGroup {
 	fn into(self) -> bc::BloomGroup {
-		let blooms = self.blooms
-			.into_iter()
-			.map(Into::into)
-			.collect();
-
 		bc::BloomGroup {
-			blooms: blooms
+			blooms: self.blooms
 		}
 	}
 }

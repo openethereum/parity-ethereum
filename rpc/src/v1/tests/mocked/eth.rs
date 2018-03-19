@@ -17,12 +17,12 @@
 use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Instant, Duration};
+use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 
 use ethereum_types::{H256, U256, Address};
 use parking_lot::Mutex;
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
+use ethcore::client::{BlockChainClient, BlockId, EachBlockWith, Executed, TestBlockChainClient, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::miner::MinerService;
 use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
@@ -31,7 +31,6 @@ use ethsync::SyncState;
 use miner::external::ExternalMiner;
 use rlp;
 use rustc_hex::{FromHex, ToHex};
-use time::get_time;
 use transaction::{Transaction, Action};
 
 use jsonrpc_core::IoHandler;
@@ -282,6 +281,29 @@ fn rpc_logs_filter() {
 
 	assert_eq!(tester.io.handle_request_sync(request_changes1), Some(response1.to_owned()));
 	assert_eq!(tester.io.handle_request_sync(request_changes2), Some(response2.to_owned()));
+}
+
+#[test]
+fn rpc_blocks_filter() {
+	let tester = EthTester::default();
+	let request_filter = r#"{"jsonrpc": "2.0", "method": "eth_newBlockFilter", "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0","id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request_filter), Some(response.to_owned()));
+
+	let request_changes = r#"{"jsonrpc": "2.0", "method": "eth_getFilterChanges", "params": ["0x0"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request_changes), Some(response.to_owned()));
+
+	tester.client.add_blocks(2, EachBlockWith::Nothing);
+
+	let response = format!(
+		r#"{{"jsonrpc":"2.0","result":["0x{:x}","0x{:x}"],"id":1}}"#,
+		tester.client.block_hash(BlockId::Number(1)).unwrap(),
+		tester.client.block_hash(BlockId::Number(2)).unwrap());
+
+	assert_eq!(tester.io.handle_request_sync(request_changes), Some(response.to_owned()));
 }
 
 #[test]
@@ -1121,7 +1143,8 @@ fn rpc_get_work_should_not_return_block_number() {
 fn rpc_get_work_should_timeout() {
 	let eth_tester = EthTester::default();
 	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
-	eth_tester.client.set_latest_block_timestamp(get_time().sec as u64 - 1000);  // Set latest block to 1000 seconds ago
+	let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 1000;  // Set latest block to 1000 seconds ago
+	eth_tester.client.set_latest_block_timestamp(timestamp);
 	let hash = eth_tester.miner.map_sealing_work(&*eth_tester.client, |b| b.hash()).unwrap();
 
 	// Request without providing timeout. This should work since we're disabling timeout.

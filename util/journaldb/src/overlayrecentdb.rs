@@ -21,7 +21,7 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use heapsize::HeapSizeOf;
-use rlp::*;
+use rlp::{UntrustedRlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
 use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
@@ -31,6 +31,7 @@ use ethereum_types::H256;
 use plain_hasher::H256FastMap;
 use error::{BaseDataError, UtilError};
 use bytes::Bytes;
+use util::DatabaseKey;
 
 /// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
 /// and, possibly, latent-removal semantics.
@@ -70,6 +71,52 @@ pub struct OverlayRecentDB {
 	column: Option<u32>,
 }
 
+struct DatabaseValue {
+	id: H256,
+	inserts: Vec<(H256, DBValue)>,
+	deletes: Vec<H256>,
+}
+
+impl Decodable for DatabaseValue {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let id = rlp.val_at(0)?;
+		let inserts = rlp.at(1)?.iter().map(|r| {
+			let k = r.val_at(0)?;
+			let v = DBValue::from_slice(r.at(1)?.data()?);
+			Ok((k, v))
+		}).collect::<Result<Vec<_>, _>>()?;
+		let deletes = rlp.list_at(2)?;
+
+		let value = DatabaseValue {
+			id,
+			inserts,
+			deletes,
+		};
+
+		Ok(value)
+	}
+}
+
+struct DatabaseValueRef<'a> {
+	id: &'a H256,
+	inserts: &'a [(H256, DBValue)],
+	deletes: &'a [H256],
+}
+
+impl<'a> Encodable for DatabaseValueRef<'a> {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(3);
+		s.append(self.id);
+		s.begin_list(self.inserts.len());
+		for kv in self.inserts {
+			s.begin_list(2);
+			s.append(&kv.0);
+			s.append(&&*kv.1);
+		}
+		s.append_list(self.deletes);
+	}
+}
+
 #[derive(PartialEq)]
 struct JournalOverlay {
 	backing_overlay: MemoryDB, // Nodes added in the history period
@@ -103,8 +150,6 @@ impl Clone for OverlayRecentDB {
 		}
 	}
 }
-
-const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl OverlayRecentDB {
 	/// Create a new instance.
@@ -144,43 +189,34 @@ impl OverlayRecentDB {
 			let mut era = decode::<u64>(&val);
 			latest_era = Some(era);
 			loop {
-				let mut index = 0usize;
-				while let Some(rlp_data) = db.get(col, {
-					let mut r = RlpStream::new_list(3);
-					r.append(&era);
-					r.append(&index);
-					r.append(&&PADDING[..]);
-					&r.drain()
-				}).expect("Low-level database error.") {
-					trace!("read_overlay: era={}, index={}", era, index);
-					let rlp = Rlp::new(&rlp_data);
-					let id: H256 = rlp.val_at(0);
-					let insertions = rlp.at(1);
-					let deletions: Vec<H256> = rlp.list_at(2);
+				let mut db_key = DatabaseKey {
+					era,
+					index: 0usize,
+				};
+				while let Some(rlp_data) = db.get(col, &encode(&db_key)).expect("Low-level database error.") {
+					trace!("read_overlay: era={}, index={}", era, db_key.index);
+					let value = decode::<DatabaseValue>(&rlp_data);
+					count += value.inserts.len();
 					let mut inserted_keys = Vec::new();
-					for r in insertions.iter() {
-						let k: H256 = r.val_at(0);
-						let v = r.at(1).data();
-
+					for (k, v) in value.inserts {
 						let short_key = to_short_key(&k);
 
 						if !overlay.contains(&short_key) {
 							cumulative_size += v.len();
 						}
 
-						overlay.emplace(short_key, DBValue::from_slice(v));
+						overlay.emplace(short_key, v);
 						inserted_keys.push(k);
-						count += 1;
 					}
 					journal.entry(era).or_insert_with(Vec::new).push(JournalEntry {
-						id: id,
+						id: value.id,
 						insertions: inserted_keys,
-						deletions: deletions,
+						deletions: value.deletes,
 					});
-					index += 1;
+					db_key.index += 1;
 					earliest_era = Some(era);
 				};
-				if index == 0 || era == 0 {
+				if db_key.index == 0 || era == 0 {
 					break;
 				}
 				era -= 1;
@@ -196,8 +232,6 @@ impl OverlayRecentDB {
 			cumulative_size: cumulative_size,
 		}
 	}
-
-
 }
 
 #[inline]
@@ -256,22 +290,24 @@ impl JournalDB for OverlayRecentDB {
 		// flush previous changes
 		journal_overlay.pending_overlay.clear();
 
-		let mut r = RlpStream::new_list(3);
 		let mut tx = self.transaction_overlay.drain();
 		let inserted_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c > 0 { Some(k.clone()) } else { None }).collect();
 		let removed_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c < 0 { Some(k.clone()) } else { None }).collect();
 		let ops = inserted_keys.len() + removed_keys.len();
 
 		// Increase counter for each inserted key no matter if the block is canonical or not.
-		let insertions = tx.drain().filter_map(|(k, (v, c))| if c > 0 { Some((k, v)) } else { None });
+		let insertions: Vec<_> = tx.drain().filter_map(|(k, (v, c))| if c > 0 { Some((k, v)) } else { None }).collect();
 
-		r.append(id);
-		r.begin_list(inserted_keys.len());
+		let encoded_value = {
+			let value_ref = DatabaseValueRef {
+				id,
+				inserts: &insertions,
+				deletes: &removed_keys,
+			};
+			encode(&value_ref)
+		};
+
 		for (k, v) in insertions {
-			r.begin_list(2);
-			r.append(&k);
-			r.append(&&*v);
-
 			let short_key = to_short_key(&k);
 			if !journal_overlay.backing_overlay.contains(&short_key) {
 				journal_overlay.cumulative_size += v.len();
@@ -279,14 +315,14 @@ impl JournalDB for OverlayRecentDB {
 
 			journal_overlay.backing_overlay.emplace(short_key, v);
 		}
-		r.append_list(&removed_keys);
 
-		let mut k = RlpStream::new_list(3);
 		let index = journal_overlay.journal.get(&now).map_or(0, |j| j.len());
-		k.append(&now);
-		k.append(&index);
-		k.append(&&PADDING[..]);
-		batch.put_vec(self.column, &k.drain(), r.out());
+		let db_key = DatabaseKey {
+			era: now,
+			index,
+		};
+
+		batch.put_vec(self.column, &encode(&db_key), encoded_value.into_vec());
 		if journal_overlay.latest_era.map_or(true, |e| now > e) {
 			trace!(target: "journaldb", "Set latest era to {}", now);
 			batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).into_vec());
@@ -317,11 +353,11 @@ impl JournalDB for OverlayRecentDB {
 			let mut index = 0usize;
 			for mut journal in records.drain(..) {
 				//delete the record from the db
-				let mut r = RlpStream::new_list(3);
-				r.append(&end_era);
-				r.append(&index);
-				r.append(&&PADDING[..]);
-				batch.delete(self.column, &r.drain());
+				let db_key = DatabaseKey {
+					era: end_era,
+					index,
+				};
+				batch.delete(self.column, &encode(&db_key));
 				trace!(target: "journaldb", "Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries", end_era, index, journal.id, canon_id, journal.insertions.len(), journal.deletions.len());
 				{
 					if *canon_id == journal.id {

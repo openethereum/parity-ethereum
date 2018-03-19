@@ -18,12 +18,15 @@ use std::str::FromStr;
 use std::sync::Arc;
 use hash::keccak;
 use io::IoChannel;
-use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, BlockId};
+use client::{BlockChainClient, Client, ClientConfig, BlockId, ChainInfo, BlockInfo, PrepareOpenBlock, ImportSealedBlock, ImportBlock};
 use state::{self, State, CleanupMode};
 use executive::{Executive, TransactOptions};
 use ethereum;
 use block::IsBlock;
-use tests::helpers::*;
+use tests::helpers::{
+	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,
+	generate_dummy_client_with_data, get_good_dummy_block, get_bad_state_dummy_block
+};
 use types::filter::Filter;
 use ethereum_types::{U256, Address};
 use kvdb_rocksdb::{Database, DatabaseConfig};
@@ -38,7 +41,7 @@ use tempdir::TempDir;
 #[test]
 fn imports_from_empty() {
 	let tempdir = TempDir::new("").unwrap();
-	let spec = get_test_spec();
+	let spec = Spec::new_test();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
@@ -77,7 +80,7 @@ fn should_return_registrar() {
 #[test]
 fn returns_state_root_basic() {
 	let client = generate_dummy_client(6);
-	let test_spec = get_test_spec();
+	let test_spec = Spec::new_test();
 	let genesis_header = test_spec.genesis_header();
 
 	assert!(client.state_data(genesis_header.state_root()).is_some());
@@ -86,7 +89,7 @@ fn returns_state_root_basic() {
 #[test]
 fn imports_good_block() {
 	let tempdir = TempDir::new("").unwrap();
-	let spec = get_test_spec();
+	let spec = Spec::new_test();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
@@ -111,7 +114,7 @@ fn imports_good_block() {
 #[test]
 fn query_none_block() {
 	let tempdir = TempDir::new("").unwrap();
-	let spec = get_test_spec();
+	let spec = Spec::new_test();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
@@ -280,8 +283,8 @@ fn change_history_size() {
 
 		for _ in 0..20 {
 			let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
-			b.block_mut().fields_mut().state.add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
-			b.block_mut().fields_mut().state.commit().unwrap();
+			b.block_mut().state_mut().add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
+			b.block_mut().state_mut().commit().unwrap();
 			let b = b.close_and_lock().seal(&*test_spec.engine, vec![]).unwrap();
 			client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
 		}
@@ -339,8 +342,8 @@ fn transaction_proof() {
 	let test_spec = Spec::new_test();
 	for _ in 0..20 {
 		let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
-		b.block_mut().fields_mut().state.add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
-		b.block_mut().fields_mut().state.commit().unwrap();
+		b.block_mut().state_mut().add_balance(&address, &5.into(), CleanupMode::NoEmpty).unwrap();
+		b.block_mut().state_mut().commit().unwrap();
 		let b = b.close_and_lock().seal(&*test_spec.engine, vec![]).unwrap();
 		client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
 	}

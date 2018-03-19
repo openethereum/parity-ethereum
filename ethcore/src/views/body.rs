@@ -16,13 +16,13 @@
 
 //! View onto block body rlp.
 
-use hash::keccak;
-use ethereum_types::H256;
 use bytes::Bytes;
-use header::*;
-use transaction::*;
-use super::{TransactionView, HeaderView};
+use ethereum_types::H256;
+use hash::keccak;
+use header::{Header, BlockNumber};
 use rlp::Rlp;
+use transaction::{LocalizedTransaction, UnverifiedTransaction};
+use views::{TransactionView, HeaderView};
 
 /// View onto block rlp.
 pub struct BodyView<'a> {
@@ -146,4 +146,3 @@ mod tests {
 		assert_eq!(view.uncles_count(), 0);
 	}
 }
-

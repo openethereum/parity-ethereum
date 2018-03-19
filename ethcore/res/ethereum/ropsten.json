@@ -29,6 +29,7 @@
 		"forkBlock": 641350,
 		"forkCanonHash": "0x8033403e9fe5811a7b6d6b469905915de1c59207ce2172cbcf5d6ff14fa6a2eb",
 		"maxCodeSize": 24576,
+		"maxCodeSizeTransition": 10,
 		"eip155Transition": 10,
 		"eip98Transition": "0x7fffffffffffff",
 		"eip86Transition": "0x7fffffffffffff",

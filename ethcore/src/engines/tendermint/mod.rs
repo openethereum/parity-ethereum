@@ -223,7 +223,7 @@ impl Tendermint {
 			(Some(validator), Ok(signature)) => {
 				let message_rlp = message_full_rlp(&signature, &vote_info);
 				let message = ConsensusMessage::new(signature, h, r, s, block_hash);
-				self.votes.vote(message.clone(), &validator);
+				self.votes.vote(message.clone(), validator);
 				debug!(target: "engine", "Generated {:?} as {}.", message, validator);
 				self.handle_valid_message(&message);
 
@@ -441,7 +441,7 @@ impl Engine<EthereumMachine> for Tendermint {
 	fn name(&self) -> &str { "Tendermint" }
 
 	/// (consensus view, proposal signature, authority signatures)
-	fn seal_fields(&self) -> usize { 3 }
+	fn seal_fields(&self, _header: &Header) -> usize { 3 }
 
 	fn machine(&self) -> &EthereumMachine { &self.machine }
 
@@ -493,7 +493,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		if let Ok(signature) = self.sign(keccak(&vote_info)).map(Into::into) {
 			// Insert Propose vote.
 			debug!(target: "engine", "Submitting proposal {} at height {} view {}.", header.bare_hash(), height, view);
-			self.votes.vote(ConsensusMessage::new(signature, height, view, Step::Propose, bh), author);
+			self.votes.vote(ConsensusMessage::new(signature, height, view, Step::Propose, bh), *author);
 			// Remember the owned block.
 			*self.last_proposed.write() = header.bare_hash();
 			// Remember proposal for later seal submission.
@@ -527,7 +527,7 @@ impl Engine<EthereumMachine> for Tendermint {
 				return Err(EngineError::NotAuthorized(sender));
 			}
 			self.broadcast_message(rlp.as_raw().to_vec());
-			if let Some(double) = self.votes.vote(message.clone(), &sender) {
+			if let Some(double) = self.votes.vote(message.clone(), sender) {
 				let height = message.vote_step.height as BlockNumber;
 				self.validators.report_malicious(&sender, height, height, ::rlp::encode(&double).into_vec());
 				return Err(EngineError::DoubleVote(sender));
@@ -542,7 +542,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		if !epoch_begin { return Ok(()) }
 
 		// genesis is never a new block, but might as well check.
-		let header = block.fields().header.clone();
+		let header = block.header().clone();
 		let first = header.number() == 0;
 
 		let mut call = |to, data| {
@@ -561,7 +561,10 @@ impl Engine<EthereumMachine> for Tendermint {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error>{
-		::engines::common::bestow_block_reward(block, self.block_reward)
+		use parity_machine::WithBalances;
+		let author = *block.header().author();
+		self.machine.add_balance(block, &author, &self.block_reward)?;
+		self.machine.note_rewards(block, &[(author, self.block_reward)], &[])
 	}
 
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
@@ -570,7 +573,8 @@ impl Engine<EthereumMachine> for Tendermint {
 
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		let seal_length = header.seal().len();
-		if seal_length == self.seal_fields() {
+		let expected_seal_fields = self.seal_fields(header);
+		if seal_length == expected_seal_fields {
 			// Either proposal or commit.
 			if (header.seal()[1] == ::rlp::NULL_RLP)
 				!= (header.seal()[2] == ::rlp::EMPTY_LIST_RLP) {
@@ -581,7 +585,7 @@ impl Engine<EthereumMachine> for Tendermint {
 			}
 		} else {
 			Err(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: seal_length }
+				Mismatch { expected: expected_seal_fields, found: seal_length }
 			).into())
 		}
 	}
@@ -715,7 +719,7 @@ impl Engine<EthereumMachine> for Tendermint {
 			*self.proposal.write() = proposal.block_hash.clone();
 			*self.proposal_parent.write() = header.parent_hash().clone();
 		}
-		self.votes.vote(proposal, &proposer);
+		self.votes.vote(proposal, proposer);
 		true
 	}
 
@@ -777,9 +781,12 @@ mod tests {
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
-	use client::ChainNotify;
+	use client::ChainInfo;
 	use miner::MinerService;
-	use tests::helpers::*;
+	use tests::helpers::{
+		TestNotify, get_temp_state_db, generate_dummy_client,
+		generate_dummy_client_with_spec_and_accounts
+	};
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use engines::{EthEngine, EngineError, Seal};
@@ -835,17 +842,6 @@ mod tests {
 		let addr = insert_and_unlock(tap, acc);
 		engine.set_signer(tap.clone(), addr.clone(), acc.into());
 		addr
-	}
-
-	#[derive(Default)]
-	struct TestNotify {
-		messages: RwLock<Vec<Bytes>>,
-	}
-
-	impl ChainNotify for TestNotify {
-		fn broadcast(&self, data: Vec<u8>) {
-			self.messages.write().push(data);
-		}
 	}
 
 	#[test]

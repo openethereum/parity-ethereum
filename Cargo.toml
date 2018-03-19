@@ -2,7 +2,7 @@
 description = "Parity Ethereum client"
 name = "parity"
 # NOTE Make sure to update util/version/Cargo.toml as well
-version = "1.10.0"
+version = "1.11.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -14,7 +14,6 @@ docopt = "0.8"
 clap = "2"
 term_size = "0.3"
 textwrap = "0.9"
-time = "0.1"
 num_cpus = "1.2"
 number_prefix = "0.2"
 rpassword = "1.0"
@@ -43,6 +42,7 @@ ethcore-logger = { path = "logger" }
 ethcore-migrations = { path = "ethcore/migrations" }
 ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
+ethcore-service = { path = "ethcore/service" }
 ethcore-stratum = { path = "stratum" }
 ethcore-transaction = { path = "ethcore/transaction" }
 ethereum-types = "0.2"
@@ -71,6 +71,8 @@ journaldb = { path = "util/journaldb" }
 
 parity-dapps = { path = "dapps", optional = true }
 ethcore-secretstore = { path = "secret_store", optional = true }
+
+registrar = { path = "registrar" }
 
 [build-dependencies]
 rustc_version = "0.2"
@@ -130,5 +132,5 @@ members = [
 	"evmbin",
 	"miner",
 	"transaction-pool",
-	"whisper",
+	"whisper"
 ]
