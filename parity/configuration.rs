@@ -19,7 +19,6 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
-use std::cmp::{min, max};
 use std::str::FromStr;
 use cli::{Args, ArgsError};
 use hash::keccak;
@@ -471,8 +470,13 @@ impl Configuration {
 	}
 
 	fn max_peers(&self) -> u32 {
-		max(self.args.arg_max_peers.unwrap_or(DEFAULT_MAX_PEERS) as u32,
-			self.args.arg_min_peers.unwrap_or(DEFAULT_MIN_PEERS) as u32)
+		match (self.args.arg_max_peers, self.args.arg_min_peers) {
+			// Only `min_peers` specified by the user then set `max_peers` to that value
+			(None, Some(min)) => min as u32,
+
+			// Both or none specified by the user and max ensured to be bigger than min
+			(_, _) => self.args.arg_max_peers.unwrap_or(DEFAULT_MAX_PEERS) as u32,
+		}
 	}
 
 	fn ip_filter(&self) -> Result<IpFilter, String> {
@@ -484,17 +488,11 @@ impl Configuration {
 
 	fn min_peers(&self) -> u32 {
 		match (self.args.arg_max_peers, self.args.arg_min_peers) {
-			// Only `max peers``specified and respect that by configuring `min peers` that value
+			// Only `max_peers` specified by the user then set `min_peers` to that value
 			(Some(max), None) => max as u32,
 
-			// Only `min_peers` specified pick that value
-			(None, Some(min)) => min as u32,
-
-			// Both or none specified, pick the smallest value
-			(_, _) => {
-				min(self.args.arg_max_peers.unwrap_or(DEFAULT_MAX_PEERS) as u32,
-				    self.args.arg_min_peers.unwrap_or(DEFAULT_MIN_PEERS) as u32)
-			}
+			// Both or none specified by the user and max ensured to be bigger than min
+			(_, _) => self.args.arg_min_peers.unwrap_or(DEFAULT_MIN_PEERS) as u32,
 		}
 	}
 
@@ -1959,5 +1957,31 @@ mod tests {
 		let local_path = ::dir::default_local_path();
 		assert_eq!(std.directories().cache, dir::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
 		assert_eq!(base.directories().cache, "/test/cache");
+	}
+
+	#[test]
+	fn should_respect_only_max_peers() {
+		let args = vec!["parity", "--max-peers=5"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert!(c.net_conf.min_peers <= 5);
+				assert_eq!(c.net_conf.max_peers, 5);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn should_respect_only_min_peers() {
+		let args = vec!["parity", "--min-peers=500"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 500);
+				assert!(c.net_conf.max_peers >= 500);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
 	}
 }

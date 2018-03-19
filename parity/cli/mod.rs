@@ -1868,4 +1868,18 @@ mod tests {
 			stratum: None,
 		});
 	}
+
+	#[test]
+	fn should_not_accept_min_peers_bigger_than_max_peers() {
+		match Args::parse(&["parity", "--max-peers=39", "--min-peers=40"]) {
+			Err(ArgsError::PeerConfiguration) => (),
+			_ => assert_eq!(false, true),
+		}
+	}
+
+	#[test]
+	fn should_accept_max_peers_equal_or_bigger_than_min_peers() {
+		Args::parse(&["parity", "--max-peers=40", "--min-peers=40"]).unwrap();
+		Args::parse(&["parity", "--max-peers=100", "--min-peers=40"]).unwrap();
+	}
 }

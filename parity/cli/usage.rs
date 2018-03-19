@@ -161,6 +161,7 @@ macro_rules! usage {
 			Clap(ClapError),
 			Decode(toml::de::Error),
 			Config(String, io::Error),
+			PeerConfiguration,
 		}
 
 		impl ArgsError {
@@ -177,6 +178,10 @@ macro_rules! usage {
 						println_stderr!("{}", e);
 						process::exit(2)
 					},
+					ArgsError::PeerConfiguration => {
+						println_stderr!("You have supplied `min_peers` > `max_peers`");
+						process::exit(2)
+					}
 				}
 			}
 		}
@@ -312,9 +317,16 @@ macro_rules! usage {
 			pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
 				let raw_args = RawArgs::parse(command)?;
 
+				// Invalid configuration pattern `mix_peers` > `max_peers`
+				if let (Some(max_peers), Some(min_peers)) = (raw_args.arg_max_peers, raw_args.arg_min_peers) {
+					if min_peers > max_peers {
+						return Err(ArgsError::PeerConfiguration)
+					}
+				} 
+
 				// Skip loading config file if no_config flag is specified
-				if raw_args.flag_no_config {
-					return Ok(raw_args.into_args(Config::default()));
+				else if raw_args.flag_no_config {
+					return Ok(raw_args.into_args(Config::default()))
 				}
 
 				let config_file = raw_args.arg_config.clone().unwrap_or_else(|| raw_args.clone().into_args(Config::default()).arg_config);
