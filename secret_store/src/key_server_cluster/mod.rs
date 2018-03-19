@@ -21,11 +21,12 @@ use ethcrypto;
 use super::types::all::ServerKeyId;
 
 pub use super::traits::NodeKeyPair;
-pub use super::types::all::{NodeId, EncryptedDocumentKeyShadow};
+pub use super::types::all::{NodeId, Requester, EncryptedDocumentKeyShadow};
 pub use super::acl_storage::AclStorage;
 pub use super::key_storage::{KeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
 pub use super::key_server_set::{is_migration_required, KeyServerSet, KeyServerSetSnapshot, KeyServerSetMigration};
-pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic, SerializableMessageHash};
+pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic,
+	SerializableRequester, SerializableMessageHash};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
 pub use self::cluster_sessions::{ClusterSession, ClusterSessionsListener};
 #[cfg(test)]
@@ -113,6 +114,8 @@ pub enum Error {
 	ExclusiveSessionActive,
 	/// Can't start exclusive session, because there are other active sessions.
 	HasActiveSessions,
+	/// Insufficient requester data.
+	InsufficientRequesterData,
 }
 
 impl From<ethkey::Error> for Error {
@@ -161,6 +164,7 @@ impl fmt::Display for Error {
 			Error::AccessDenied => write!(f, "Access denied"),
 			Error::ExclusiveSessionActive => write!(f, "Exclusive session active"),
 			Error::HasActiveSessions => write!(f, "Unable to start exclusive session"),
+			Error::InsufficientRequesterData => write!(f, "Insufficient requester data"),
 		}
 	}
 }

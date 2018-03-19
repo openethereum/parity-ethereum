@@ -18,7 +18,8 @@ use std::fmt;
 use std::collections::{BTreeSet, BTreeMap};
 use ethkey::Secret;
 use key_server_cluster::SessionId;
-use super::{SerializableH256, SerializablePublic, SerializableSecret, SerializableSignature, SerializableMessageHash};
+use super::{SerializableH256, SerializablePublic, SerializableSecret, SerializableSignature,
+	SerializableMessageHash, SerializableRequester};
 
 pub type MessageSessionId = SerializableH256;
 pub type MessageNodeId = SerializablePublic;
@@ -362,8 +363,8 @@ pub struct InitializeEncryptionSession {
 	pub session: MessageSessionId,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Requestor signature.
-	pub requestor_signature: SerializableSignature,
+	/// Requester.
+	pub requester: SerializableRequester,
 	/// Common point.
 	pub common_point: SerializablePublic,
 	/// Encrypted data.
@@ -393,8 +394,8 @@ pub struct EncryptionSessionError {
 /// Node is asked to be part of consensus group.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InitializeConsensusSession {
-	/// Requestor signature.
-	pub requestor_signature: SerializableSignature,
+	/// Requester.
+	pub requester: SerializableRequester,
 	/// Key version.
 	pub version: SerializableH256,
 }
@@ -529,8 +530,8 @@ pub struct SchnorrSigningSessionDelegation {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Requestor signature.
-	pub requestor_signature: SerializableSignature,
+	/// Requester.
+	pub requester: SerializableRequester,
 	/// Key version.
 	pub version: SerializableH256,
 	/// Message hash.
@@ -683,7 +684,7 @@ pub struct EcdsaSigningSessionDelegation {
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Requestor signature.
-	pub requestor_signature: SerializableSignature,
+	pub requester: SerializableRequester,
 	/// Key version.
 	pub version: SerializableH256,
 	/// Message hash.
@@ -787,8 +788,8 @@ pub struct DecryptionSessionDelegation {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Requestor signature.
-	pub requestor_signature: SerializableSignature,
+	/// Requester.
+	pub requester: SerializableRequester,
 	/// Key version.
 	pub version: SerializableH256,
 	/// Is shadow decryption requested? When true, decryption result

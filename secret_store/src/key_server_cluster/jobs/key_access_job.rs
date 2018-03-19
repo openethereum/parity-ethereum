@@ -16,8 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
-use ethkey::{Public, Signature, recover};
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage};
+use key_server_cluster::{Error, NodeId, SessionId, Requester, AclStorage};
 use key_server_cluster::jobs::job_session::{JobPartialResponseAction, JobPartialRequestAction, JobExecutor};
 
 /// Purpose of this job is to construct set of nodes, which have agreed to provide access to the given key for the given requestor.
@@ -28,8 +27,8 @@ pub struct KeyAccessJob {
 	has_key_share: bool,
 	/// ACL storage.
 	acl_storage: Arc<AclStorage>,
-	/// Requester signature.
-	signature: Option<Signature>,
+	/// Requester data.
+	requester: Option<Requester>,
 }
 
 impl KeyAccessJob {
@@ -38,16 +37,16 @@ impl KeyAccessJob {
 			id: id,
 			has_key_share: true,
 			acl_storage: acl_storage,
-			signature: None,
+			requester: None,
 		}
 	}
 
-	pub fn new_on_master(id: SessionId, acl_storage: Arc<AclStorage>, signature: Signature) -> Self {
+	pub fn new_on_master(id: SessionId, acl_storage: Arc<AclStorage>, requester: Requester) -> Self {
 		KeyAccessJob {
 			id: id,
 			has_key_share: true,
 			acl_storage: acl_storage,
-			signature: Some(signature),
+			requester: Some(requester),
 		}
 	}
 
@@ -55,38 +54,31 @@ impl KeyAccessJob {
 		self.has_key_share = has_key_share;
 	}
 
-	pub fn set_requester_signature(&mut self, signature: Signature) {
-		self.signature = Some(signature);
+	pub fn set_requester(&mut self, requester: Requester) {
+		self.requester = Some(requester);
 	}
 
-	pub fn requester_signature(&self) -> Option<&Signature> {
-		self.signature.as_ref()
-	}
-
-	pub fn requester(&self) -> Result<Option<Public>, Error> {
-		match self.signature.as_ref() {
-			Some(signature) => Ok(Some(recover(signature, &self.id)?)),
-			None => Ok(None),
-		}
+	pub fn requester(&self) -> Option<&Requester> {
+		self.requester.as_ref()
 	}
 }
 
 impl JobExecutor for KeyAccessJob {
-	type PartialJobRequest = Signature;
+	type PartialJobRequest = Requester;
 	type PartialJobResponse = bool;
 	type JobResponse = BTreeSet<NodeId>;
 
-	fn prepare_partial_request(&self, _node: &NodeId, _nodes: &BTreeSet<NodeId>) -> Result<Signature, Error> {
-		Ok(self.signature.as_ref().expect("prepare_partial_request is only called on master nodes; new_on_master fills the signature; qed").clone())
+	fn prepare_partial_request(&self, _node: &NodeId, _nodes: &BTreeSet<NodeId>) -> Result<Requester, Error> {
+		Ok(self.requester.as_ref().expect("prepare_partial_request is only called on master nodes; new_on_master fills the signature; qed").clone())
 	}
 
-	fn process_partial_request(&mut self, partial_request: Signature) -> Result<JobPartialRequestAction<bool>, Error> {
+	fn process_partial_request(&mut self, partial_request: Requester) -> Result<JobPartialRequestAction<bool>, Error> {
 		if !self.has_key_share {
 			return Ok(JobPartialRequestAction::Reject(false));
 		}
 		
-		self.signature = Some(partial_request.clone());
-		self.acl_storage.check(&recover(&partial_request, &self.id)?, &self.id)
+		self.requester = Some(partial_request.clone());
+		self.acl_storage.check(&partial_request.public(&self.id).ok_or(Error::InsufficientRequesterData)?, &self.id)
 			.map_err(|_| Error::AccessDenied)
 			.map(|is_confirmed| if is_confirmed { JobPartialRequestAction::Respond(true) } else { JobPartialRequestAction::Reject(false) })
 	}

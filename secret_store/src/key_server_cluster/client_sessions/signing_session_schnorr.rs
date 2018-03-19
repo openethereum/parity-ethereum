@@ -17,9 +17,9 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 use parking_lot::{Mutex, Condvar};
-use ethkey::{Public, Secret, Signature};
+use ethkey::{Public, Secret};
 use ethereum_types::H256;
-use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, AclStorage, DocumentKeyShare};
+use key_server_cluster::{Error, NodeId, SessionId, Requester, SessionMeta, AclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::{Cluster};
 use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
 use key_server_cluster::generation_session::{SessionImpl as GenerationSession, SessionParams as GenerationSessionParams,
@@ -160,7 +160,7 @@ enum DelegationStatus {
 
 impl SessionImpl {
 	/// Create new signing session.
-	pub fn new(params: SessionParams, requester_signature: Option<Signature>) -> Result<Self, Error> {
+	pub fn new(params: SessionParams, requester: Option<Requester>) -> Result<Self, Error> {
 		debug_assert_eq!(params.meta.threshold, params.key_share.as_ref().map(|ks| ks.threshold).unwrap_or_default());
 
 		let consensus_transport = SigningConsensusTransport {
@@ -172,8 +172,8 @@ impl SessionImpl {
 		};
 		let consensus_session = ConsensusSession::new(ConsensusSessionParams {
 			meta: params.meta.clone(),
-			consensus_executor: match requester_signature {
-				Some(requester_signature) => KeyAccessJob::new_on_master(params.meta.id.clone(), params.acl_storage.clone(), requester_signature),
+			consensus_executor: match requester {
+				Some(requester) => KeyAccessJob::new_on_master(params.meta.id.clone(), params.acl_storage.clone(), requester),
 				None => KeyAccessJob::new_on_slave(params.meta.id.clone(), params.acl_storage.clone()),
 			},
 			consensus_transport: consensus_transport,
@@ -227,8 +227,8 @@ impl SessionImpl {
 			session: self.core.meta.id.clone().into(),
 			sub_session: self.core.access_key.clone().into(),
 			session_nonce: self.core.nonce,
-			requestor_signature: data.consensus_session.consensus_job().executor().requester_signature()
-				.expect("signature is passed to master node on creation; session can be delegated from master node only; qed")
+			requester: data.consensus_session.consensus_job().executor().requester()
+				.expect("requester is passed to master node on creation; session can be delegated from master node only; qed")
 				.clone().into(),
 			version: version.into(),
 			message_hash: message_hash.into(),
@@ -333,7 +333,7 @@ impl SessionImpl {
 				return Err(Error::InvalidStateForRequest);
 			}
 
-			data.consensus_session.consensus_job_mut().executor_mut().set_requester_signature(message.requestor_signature.clone().into());
+			data.consensus_session.consensus_job_mut().executor_mut().set_requester(message.requester.clone().into());
 			data.delegation_status = Some(DelegationStatus::DelegatedFrom(sender.clone(), message.session_nonce));
 		}
 
@@ -740,10 +740,10 @@ impl SessionCore {
 }
 
 impl JobTransport for SigningConsensusTransport {
-	type PartialJobRequest=Signature;
+	type PartialJobRequest=Requester;
 	type PartialJobResponse=bool;
 
-	fn send_partial_request(&self, node: &NodeId, request: Signature) -> Result<(), Error> {
+	fn send_partial_request(&self, node: &NodeId, request: Requester) -> Result<(), Error> {
 		let version = self.version.as_ref()
 			.expect("send_partial_request is called on initialized master node only; version is filled in before initialization starts on master node; qed");
 		self.cluster.send(node, Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningConsensusMessage(SchnorrSigningConsensusMessage {
@@ -751,7 +751,7 @@ impl JobTransport for SigningConsensusTransport {
 			sub_session: self.access_key.clone().into(),
 			session_nonce: self.nonce,
 			message: ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
-				requestor_signature: request.into(),
+				requester: request.into(),
 				version: version.clone().into(),
 			})
 		})))
@@ -803,7 +803,8 @@ mod tests {
 	use ethereum_types::H256;
 	use ethkey::{self, Random, Generator, Public, Secret, KeyPair};
 	use acl_storage::DummyAclStorage;
-	use key_server_cluster::{NodeId, DummyKeyStorage, DocumentKeyShare, DocumentKeyShareVersion, SessionId, SessionMeta, Error, KeyStorage};
+	use key_server_cluster::{NodeId, DummyKeyStorage, DocumentKeyShare, DocumentKeyShareVersion, SessionId,
+		Requester, SessionMeta, Error, KeyStorage};
 	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::generation_session::tests::MessageLoop as KeyGenerationMessageLoop;
@@ -853,7 +854,7 @@ mod tests {
 					acl_storage: acl_storage,
 					cluster: cluster.clone(),
 					nonce: 0,
-				}, if i == 0 { signature.clone() } else { None }).unwrap();
+				}, if i == 0 { signature.clone().map(Into::into) } else { None }).unwrap();
 				nodes.insert(gl_node_id.clone(), Node { node_id: gl_node_id.clone(), cluster: cluster, key_storage: gl_node.key_storage.clone(), session: session });
 			}
 
@@ -984,7 +985,7 @@ mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
-		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())) {
+		}, Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))) {
 			Ok(_) => (),
 			_ => panic!("unexpected"),
 		}
@@ -1005,7 +1006,7 @@ mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
-		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())).unwrap();
+		}, Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))).unwrap();
 		assert_eq!(session.initialize(Default::default(), Default::default()), Err(Error::InvalidMessage));
 	}
 
@@ -1038,7 +1039,7 @@ mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
-		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())).unwrap();
+		}, Some(Requester::Signature(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()))).unwrap();
 		assert_eq!(session.initialize(Default::default(), Default::default()), Err(Error::ConsensusUnreachable));
 	}
 
@@ -1231,8 +1232,8 @@ mod tests {
 		sl.nodes[&requested_node].key_storage.remove(&Default::default()).unwrap();
 		sl.nodes.get_mut(&requested_node).unwrap().session.core.key_share = None;
 		sl.nodes.get_mut(&requested_node).unwrap().session.core.meta.master_node_id = sl.nodes[&requested_node].session.core.meta.self_node_id.clone();
-		sl.nodes[&requested_node].session.data.lock().consensus_session.consensus_job_mut().executor_mut().set_requester_signature(
-			sl.nodes[&actual_master].session.data.lock().consensus_session.consensus_job().executor().requester_signature().unwrap().clone()
+		sl.nodes[&requested_node].session.data.lock().consensus_session.consensus_job_mut().executor_mut().set_requester(
+			sl.nodes[&actual_master].session.data.lock().consensus_session.consensus_job().executor().requester().unwrap().clone()
 		);
 
 		// now let's try to do a decryption
