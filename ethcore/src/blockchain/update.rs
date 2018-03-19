@@ -3,6 +3,7 @@ use ethereum_types::H256;
 use header::BlockNumber;
 use blockchain::block_info::BlockInfo;
 use blockchain::extras::{BlockDetails, BlockReceipts, TransactionAddress};
+use blooms::{BloomGroup, GroupPosition};
 
 /// Block extras update info.
 pub struct ExtrasUpdate<'a> {
@@ -18,6 +19,8 @@ pub struct ExtrasUpdate<'a> {
 	pub block_details: HashMap<H256, BlockDetails>,
 	/// Modified block receipts.
 	pub block_receipts: HashMap<H256, BlockReceipts>,
+	/// Modified blocks blooms.
+	pub blocks_blooms: HashMap<GroupPosition, BloomGroup>,
 	/// Modified transaction addresses (None signifies removed transactions).
 	pub transactions_addresses: HashMap<H256, Option<TransactionAddress>>,
 }
