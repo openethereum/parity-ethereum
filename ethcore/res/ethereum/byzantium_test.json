@@ -26,6 +26,7 @@
 		"minGasLimit": "0x1388",
 		"networkID" : "0x1",
 		"maxCodeSize": 24576,
+		"maxCodeSizeTransition": "0x0",
 		"eip98Transition": "0xffffffffffffffff",
 		"eip140Transition": "0x0",
 		"eip211Transition": "0x0",

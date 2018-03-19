@@ -17,7 +17,7 @@
 //! Whisper message parsing, handlers, and construction.
 
 use std::fmt;
-use std::time::{self, SystemTime, Duration};
+use std::time::{self, SystemTime, Duration, Instant};
 
 use ethereum_types::{H256, H512};
 use rlp::{self, DecoderError, RlpStream, UntrustedRlp};
@@ -299,9 +299,9 @@ impl Message {
 		let mut nonce: [u8; 8] = rng.gen();
 		let mut best_found = try_nonce(&nonce);
 
-		let start = ::time::precise_time_ns();
+		let start = Instant::now();
 
-		while ::time::precise_time_ns() <= start + params.work * 1_000_000 {
+		while start.elapsed() <= Duration::from_millis(params.work) {
 			let temp_nonce = rng.gen();
 			let hash = try_nonce(&temp_nonce);
 

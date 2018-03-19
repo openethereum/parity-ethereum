@@ -34,7 +34,6 @@ extern crate rustc_hex;
 extern crate semver;
 extern crate serde;
 extern crate serde_json;
-extern crate time;
 extern crate tiny_keccak;
 extern crate tokio_timer;
 extern crate transient_hashmap;
@@ -68,6 +67,7 @@ extern crate rlp;
 extern crate stats;
 extern crate keccak_hash as hash;
 extern crate hardware_wallet;
+extern crate patricia_trie as trie;
 
 #[macro_use]
 extern crate log;

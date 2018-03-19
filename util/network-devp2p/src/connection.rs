@@ -36,7 +36,7 @@ use rcrypto::buffer::*;
 use tiny_keccak::Keccak;
 use bytes::{Buf, BufMut};
 use crypto;
-use error::{Error, ErrorKind};
+use network::{Error, ErrorKind};
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
 const RECIEVE_PAYLOAD_TIMEOUT: u64 = 30000;

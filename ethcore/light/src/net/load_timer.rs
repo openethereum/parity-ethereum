@@ -27,11 +27,11 @@
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 use request::{CompleteRequest, Kind};
 
 use bincode;
-use time;
 use parking_lot::{RwLock, Mutex};
 
 /// Number of time periods samples should be kept for.
@@ -107,7 +107,7 @@ impl LoadDistribution {
 		};
 
 		LoadTimer {
-			start: time::precise_time_ns(),
+			start: Instant::now(),
 			n: n,
 			dist: self,
 			kind: kind,
@@ -151,10 +151,10 @@ impl LoadDistribution {
 		store.store(&*samples);
 	}
 
-	fn update(&self, kind: Kind, elapsed: u64, n: u64) {
+	fn update(&self, kind: Kind, elapsed: Duration, n: u64) {
 		macro_rules! update_counters {
 			($counters: expr) => {
-				$counters.0 = $counters.0.saturating_add(elapsed);
+				$counters.0 = $counters.0.saturating_add({ elapsed.as_secs() * 1_000_000_000 + elapsed.subsec_nanos() as u64 });
 				$counters.1 = $counters.1.saturating_add(n);
 			}
 		};
@@ -180,7 +180,7 @@ impl LoadDistribution {
 /// A timer for a single request.
 /// On drop, this will update the distribution.
 pub struct LoadTimer<'a> {
-	start: u64,
+	start: Instant,
 	n: u64,
 	dist: &'a LoadDistribution,
 	kind: Kind,
@@ -188,7 +188,7 @@ pub struct LoadTimer<'a> {
 
 impl<'a> Drop for LoadTimer<'a> {
 	fn drop(&mut self) {
-		let elapsed = time::precise_time_ns() - self.start;
+		let elapsed = self.start.elapsed();
 		self.dist.update(self.kind, elapsed, self.n);
 	}
 }
@@ -225,7 +225,7 @@ mod tests {
 		let dist = LoadDistribution::load(&NullStore);
 		assert_eq!(dist.expected_time_ns(Kind::Headers), hardcoded_serve_time(Kind::Headers));
 
-		dist.update(Kind::Headers, 100_000, 100);
+		dist.update(Kind::Headers, Duration::new(0, 100_000), 100);
 		dist.end_period(&NullStore);
 
 		assert_eq!(dist.expected_time_ns(Kind::Headers), 1000);
@@ -238,7 +238,7 @@ mod tests {
 		let mut sum = 0;
 
 		for (i, x) in (0..10).map(|x| x * 10_000).enumerate() {
-			dist.update(Kind::Headers, x, 1);
+			dist.update(Kind::Headers, Duration::new(0, x), 1);
 			dist.end_period(&NullStore);
 
 			sum += x;
@@ -248,7 +248,7 @@ mod tests {
 
 			// should be weighted below the maximum entry.
 			let arith_average = (sum as f64 / (i + 1) as f64) as u64;
-			assert!(moving_average < x);
+			assert!(moving_average < x as u64);
 
 			// when there are only 2 entries, they should be equal due to choice of
 			// ALPHA = 1/N.

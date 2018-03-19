@@ -18,9 +18,9 @@ use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::ops::*;
-use std::cmp::min;
+use std::cmp::{min, max};
 use std::path::{Path, PathBuf};
 use std::io::{Read, Write, self};
 use std::fs;
@@ -31,17 +31,20 @@ use mio::deprecated::{EventLoop};
 use mio::tcp::*;
 use ethereum_types::H256;
 use rlp::*;
-use session::{Session, SessionInfo, SessionData};
+use session::{Session, SessionData};
 use io::*;
-use {NetworkProtocolHandler, NonReservedPeerMode, PROTOCOL_VERSION, IpFilter};
+use PROTOCOL_VERSION;
 use node_table::*;
+use network::{NetworkConfiguration, NetworkIoMessage, ProtocolId, PeerId, PacketId};
+use network::{NonReservedPeerMode, NetworkContext as NetworkContextTrait};
+use network::HostInfo as HostInfoTrait;
+use network::{SessionInfo, Error, ErrorKind, DisconnectReason, NetworkProtocolHandler};
 use stats::NetworkStats;
 use discovery::{Discovery, TableUpdates, NodeEntry};
 use ip_utils::{map_external_address, select_public_address};
 use path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
 use connection_filter::{ConnectionFilter, ConnectionDirection};
-use error::{Error, ErrorKind, DisconnectReason};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -71,132 +74,6 @@ const DISCOVERY_REFRESH_TIMEOUT: u64 = 60_000;
 const DISCOVERY_ROUND_TIMEOUT: u64 = 300;
 // for NODE_TABLE TimerToken
 const NODE_TABLE_TIMEOUT: u64 = 300_000;
-
-#[derive(Debug, PartialEq, Clone)]
-/// Network service configuration
-pub struct NetworkConfiguration {
-	/// Directory path to store general network configuration. None means nothing will be saved
-	pub config_path: Option<String>,
-	/// Directory path to store network-specific configuration. None means nothing will be saved
-	pub net_config_path: Option<String>,
-	/// IP address to listen for incoming connections. Listen to all connections by default
-	pub listen_address: Option<SocketAddr>,
-	/// IP address to advertise. Detected automatically if none.
-	pub public_address: Option<SocketAddr>,
-	/// Port for UDP connections, same as TCP by default
-	pub udp_port: Option<u16>,
-	/// Enable NAT configuration
-	pub nat_enabled: bool,
-	/// Enable discovery
-	pub discovery_enabled: bool,
-	/// List of initial node addresses
-	pub boot_nodes: Vec<String>,
-	/// Use provided node key instead of default
-	pub use_secret: Option<Secret>,
-	/// Minimum number of connected peers to maintain
-	pub min_peers: u32,
-	/// Maximum allowed number of peers
-	pub max_peers: u32,
-	/// Maximum handshakes
-	pub max_handshakes: u32,
-	/// Reserved protocols. Peers with <key> protocol get additional <value> connection slots.
-	pub reserved_protocols: HashMap<ProtocolId, u32>,
-	/// List of reserved node addresses.
-	pub reserved_nodes: Vec<String>,
-	/// The non-reserved peer mode.
-	pub non_reserved_mode: NonReservedPeerMode,
-	/// IP filter
-	pub ip_filter: IpFilter,
-	/// Client identifier
-	pub client_version: String,
-}
-
-impl Default for NetworkConfiguration {
-	fn default() -> Self {
-		NetworkConfiguration::new()
-	}
-}
-
-impl NetworkConfiguration {
-	/// Create a new instance of default settings.
-	pub fn new() -> Self {
-		NetworkConfiguration {
-			config_path: None,
-			net_config_path: None,
-			listen_address: None,
-			public_address: None,
-			udp_port: None,
-			nat_enabled: true,
-			discovery_enabled: true,
-			boot_nodes: Vec::new(),
-			use_secret: None,
-			min_peers: 25,
-			max_peers: 50,
-			max_handshakes: 64,
-			reserved_protocols: HashMap::new(),
-			ip_filter: IpFilter::default(),
-			reserved_nodes: Vec::new(),
-			non_reserved_mode: NonReservedPeerMode::Accept,
-			client_version: "Parity-network".into(),
-		}
-	}
-
-	/// Create new default configuration with sepcified listen port.
-	pub fn new_with_port(port: u16) -> NetworkConfiguration {
-		let mut config = NetworkConfiguration::new();
-		config.listen_address = Some(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port)));
-		config
-	}
-
-	/// Create new default configuration for localhost-only connection with random port (usefull for testing)
-	pub fn new_local() -> NetworkConfiguration {
-		let mut config = NetworkConfiguration::new();
-		config.listen_address = Some(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 0)));
-		config.nat_enabled = false;
-		config
-	}
-}
-
-/// Protocol handler level packet id
-pub type PacketId = u8;
-/// Protocol / handler id
-pub type ProtocolId = [u8; 3];
-
-/// Messages used to communitate with the event loop from other threads.
-#[derive(Clone)]
-pub enum NetworkIoMessage {
-	/// Register a new protocol handler.
-	AddHandler {
-		/// Handler shared instance.
-		handler: Arc<NetworkProtocolHandler + Sync>,
-		/// Protocol Id.
-		protocol: ProtocolId,
-		/// Supported protocol versions.
-		versions: Vec<u8>,
-		/// Number of packet IDs reserved by the protocol.
-		packet_count: u8,
-	},
-	/// Register a new protocol timer
-	AddTimer {
-		/// Protocol Id.
-		protocol: ProtocolId,
-		/// Timer token.
-		token: TimerToken,
-		/// Timer delay in milliseconds.
-		delay: u64,
-	},
-	/// Initliaze public interface.
-	InitPublicInterface,
-	/// Disconnect a peer.
-	Disconnect(PeerId),
-	/// Disconnect and temporary disable peer.
-	DisablePeer(PeerId),
-	/// Network has been started with the host as the given enode.
-	NetworkStarted(String),
-}
-
-/// Local (temporary) peer session ID.
-pub type PeerId = usize;
 
 #[derive(Debug, PartialEq, Eq)]
 /// Protocol info
@@ -248,14 +125,14 @@ impl<'s> NetworkContext<'s> {
 			_ => self.sessions.read().get(peer).cloned(),
 		}
 	}
+}
 
-	/// Send a packet over the network to another peer.
-	pub fn send(&self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
+impl<'s> NetworkContextTrait for NetworkContext<'s> {
+	fn send(&self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
 		self.send_protocol(self.protocol, peer, packet_id, data)
 	}
 
-	/// Send a packet over the network to another peer using specified protocol.
-	pub fn send_protocol(&self, protocol: ProtocolId, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
+	fn send_protocol(&self, protocol: ProtocolId, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
 		let session = self.resolve_session(peer);
 		if let Some(session) = session {
 			session.lock().send_packet(self.io, Some(protocol), packet_id as u8, &data)?;
@@ -265,36 +142,30 @@ impl<'s> NetworkContext<'s> {
 		Ok(())
 	}
 
-	/// Respond to a current network message. Panics if no there is no packet in the context. If the session is expired returns nothing.
-	pub fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
+	fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
 		assert!(self.session.is_some(), "Respond called without network context");
 		self.session_id.map_or_else(|| Err(ErrorKind::Expired.into()), |id| self.send(id, packet_id, data))
 	}
 
-	/// Get an IoChannel.
-	pub fn io_channel(&self) -> IoChannel<NetworkIoMessage> {
+	fn io_channel(&self) -> IoChannel<NetworkIoMessage> {
 		self.io.channel()
 	}
 
-	/// Disconnect a peer and prevent it from connecting again.
-	pub fn disable_peer(&self, peer: PeerId) {
+	fn disable_peer(&self, peer: PeerId) {
 		self.io.message(NetworkIoMessage::DisablePeer(peer))
 			.unwrap_or_else(|e| warn!("Error sending network IO message: {:?}", e));
 	}
 
-	/// Disconnect peer. Reconnect can be attempted later.
-	pub fn disconnect_peer(&self, peer: PeerId) {
+	fn disconnect_peer(&self, peer: PeerId) {
 		self.io.message(NetworkIoMessage::Disconnect(peer))
 			.unwrap_or_else(|e| warn!("Error sending network IO message: {:?}", e));
 	}
 
-	/// Check if the session is still active.
-	pub fn is_expired(&self) -> bool {
+	fn is_expired(&self) -> bool {
 		self.session.as_ref().map_or(false, |s| s.lock().expired())
 	}
 
-	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
-	pub fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), Error> {
+	fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), Error> {
 		self.io.message(NetworkIoMessage::AddTimer {
 			token: token,
 			delay: ms,
@@ -303,24 +174,20 @@ impl<'s> NetworkContext<'s> {
 		Ok(())
 	}
 
-	/// Returns peer identification string
-	pub fn peer_client_version(&self, peer: PeerId) -> String {
+	fn peer_client_version(&self, peer: PeerId) -> String {
 		self.resolve_session(peer).map_or("unknown".to_owned(), |s| s.lock().info.client_version.clone())
 	}
 
-	/// Returns information on p2p session
-	pub fn session_info(&self, peer: PeerId) -> Option<SessionInfo> {
+	fn session_info(&self, peer: PeerId) -> Option<SessionInfo> {
 		self.resolve_session(peer).map(|s| s.lock().info.clone())
 	}
 
-	/// Returns max version for a given protocol.
-	pub fn protocol_version(&self, protocol: ProtocolId, peer: PeerId) -> Option<u8> {
+	fn protocol_version(&self, protocol: ProtocolId, peer: PeerId) -> Option<u8> {
 		let session = self.resolve_session(peer);
 		session.and_then(|s| s.lock().capability_version(protocol))
 	}
 
-	/// Returns this object's subprotocol name.
-	pub fn subprotocol_name(&self) -> ProtocolId { self.protocol }
+	fn subprotocol_name(&self) -> ProtocolId { self.protocol }
 }
 
 /// Shared host information
@@ -341,24 +208,21 @@ pub struct HostInfo {
 	pub public_endpoint: Option<NodeEndpoint>,
 }
 
-impl HostInfo {
-	/// Returns public key
-	pub fn id(&self) -> &NodeId {
+impl HostInfoTrait for HostInfo {
+	fn id(&self) -> &NodeId {
 		self.keys.public()
 	}
 
-	/// Returns secret key
-	pub fn secret(&self) -> &Secret {
+	fn secret(&self) -> &Secret {
 		self.keys.secret()
 	}
 
-	/// Increments and returns connection nonce.
-	pub fn next_nonce(&mut self) -> H256 {
+	fn next_nonce(&mut self) -> H256 {
 		self.nonce = keccak(&self.nonce);
 		self.nonce
 	}
 
-	pub fn client_version(&self) -> &str {
+	fn client_version(&self) -> &str {
 		&self.config.client_version
 	}
 }
@@ -378,12 +242,11 @@ pub struct Host {
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
 	discovery: Mutex<Option<Discovery>>,
 	nodes: RwLock<NodeTable>,
-	handlers: RwLock<HashMap<ProtocolId, Arc<NetworkProtocolHandler>>>,
+	handlers: RwLock<HashMap<ProtocolId, Arc<NetworkProtocolHandler + Sync>>>,
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
 	timer_counter: RwLock<usize>,
 	stats: Arc<NetworkStats>,
 	reserved_nodes: RwLock<HashSet<NodeId>>,
-	num_sessions: AtomicUsize,
 	stopping: AtomicBool,
 	filter: Option<Arc<ConnectionFilter>>,
 }
@@ -440,7 +303,6 @@ impl Host {
 			timer_counter: RwLock::new(USER_TIMER),
 			stats: stats,
 			reserved_nodes: RwLock::new(HashSet::new()),
-			num_sessions: AtomicUsize::new(0),
 			stopping: AtomicBool::new(false),
 			filter: filter,
 		};
@@ -495,7 +357,7 @@ impl Host {
 				// disconnect all non-reserved peers here.
 				let reserved: HashSet<NodeId> = self.reserved_nodes.read().clone();
 				let mut to_kill = Vec::new();
-				for e in self.sessions.write().iter_mut() {
+				for e in self.sessions.read().iter() {
 					let mut s = e.lock();
 					{
 						let id = s.id();
@@ -535,7 +397,7 @@ impl Host {
 	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), Error> {
 		self.stopping.store(true, AtomicOrdering::Release);
 		let mut to_kill = Vec::new();
-		for e in self.sessions.write().iter_mut() {
+		for e in self.sessions.read().iter() {
 			let mut s = e.lock();
 			s.disconnect(io, DisconnectReason::ClientQuit);
 			to_kill.push(s.token());
@@ -605,8 +467,8 @@ impl Host {
 		};
 
 		if let Some(mut discovery) = discovery {
-			discovery.init_node_list(self.nodes.read().unordered_entries());
-			discovery.add_node_list(self.nodes.read().unordered_entries());
+			discovery.init_node_list(self.nodes.read().entries());
+			discovery.add_node_list(self.nodes.read().entries());
 			*self.discovery.lock() = Some(discovery);
 			io.register_stream(DISCOVERY)?;
 			io.register_timer(DISCOVERY_REFRESH, DISCOVERY_REFRESH_TIMEOUT)?;
@@ -626,22 +488,28 @@ impl Host {
 		self.sessions.read().iter().any(|e| e.lock().info.id == Some(id.clone()))
 	}
 
-	fn session_count(&self) -> usize {
-		self.num_sessions.load(AtomicOrdering::Relaxed)
+	// returns (handshakes, egress, ingress)
+	fn session_count(&self) -> (usize, usize, usize) {
+		let mut handshakes = 0;
+		let mut egress = 0;
+		let mut ingress = 0;
+		for s in self.sessions.read().iter() {
+			match s.try_lock() {
+				Some(ref s) if s.is_ready() && s.info.originated => egress += 1,
+				Some(ref s) if s.is_ready() && !s.info.originated => ingress += 1,
+				_ => handshakes +=1,
+			}
+		}
+		(handshakes, egress, ingress)
 	}
 
 	fn connecting_to(&self, id: &NodeId) -> bool {
 		self.sessions.read().iter().any(|e| e.lock().id() == Some(id))
 	}
 
-	fn handshake_count(&self) -> usize {
-		// session_count < total_count is possible because of the data race.
-		self.sessions.read().count().saturating_sub(self.session_count())
-	}
-
 	fn keep_alive(&self, io: &IoContext<NetworkIoMessage>) {
 		let mut to_kill = Vec::new();
-		for e in self.sessions.write().iter_mut() {
+		for e in self.sessions.read().iter() {
 			let mut s = e.lock();
 			if !s.keep_alive(io) {
 				s.disconnect(io, DisconnectReason::PingTimeout);
@@ -665,9 +533,9 @@ impl Host {
 			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.ip_filter.clone(), info.id().clone())
 		};
 
-		let session_count = self.session_count();
+		let (handshake_count, egress_count, ingress_count) = self.session_count();
 		let reserved_nodes = self.reserved_nodes.read();
-		if session_count >= min_peers as usize + reserved_nodes.len() {
+		if egress_count + ingress_count >= min_peers as usize + reserved_nodes.len() {
 			// check if all pinned nodes are connected.
 			if reserved_nodes.iter().all(|n| self.have_session(n) && self.connecting_to(n)) {
 				return;
@@ -677,7 +545,6 @@ impl Host {
 			pin = true;
 		}
 
-		let handshake_count = self.handshake_count();
 		// allow 16 slots for incoming connections
 		if handshake_count >= max_handshakes {
 			return;
@@ -702,7 +569,7 @@ impl Host {
 			self.connect_peer(&id, io);
 			started += 1;
 		}
-		debug!(target: "network", "Connecting peers: {} sessions, {} pending, {} started", self.session_count(), self.handshake_count(), started);
+		debug!(target: "network", "Connecting peers: {} sessions, {} pending + {} started", egress_count + ingress_count, handshake_count, started);
 	}
 
 	fn connect_peer(&self, id: &NodeId, io: &IoContext<NetworkIoMessage>) {
@@ -812,11 +679,11 @@ impl Host {
 		let mut ready_id = None;
 		if let Some(session) = session.clone() {
 			{
-				let mut s = session.lock();
 				loop {
-					let session_result = s.readable(io, &self.info.read());
+					let session_result = session.lock().readable(io, &self.info.read());
 					match session_result {
 						Err(e) => {
+							let s = session.lock();
 							trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
 							if let ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) = *e.kind() {
 								if let Some(id) = s.id() {
@@ -829,9 +696,9 @@ impl Host {
 							break;
 						},
 						Ok(SessionData::Ready) => {
-							self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
-							let session_count = self.session_count();
-							let (min_peers, max_peers, reserved_only, self_id) = {
+							let (_, egress_count, ingress_count) = self.session_count();
+							let mut s = session.lock();
+							let (min_peers, mut max_peers, reserved_only, self_id) = {
 								let info = self.info.read();
 								let mut max_peers = info.config.max_peers;
 								for cap in s.info.capabilities.iter() {
@@ -843,12 +710,17 @@ impl Host {
 								(info.config.min_peers as usize, max_peers as usize, info.config.non_reserved_mode == NonReservedPeerMode::Deny, info.id().clone())
 							};
 
+							max_peers = max(max_peers, min_peers);
+
 							let id = s.id().expect("Ready session always has id").clone();
 
-							// Check for the session limit. session_counts accounts for the new session.
+							// Check for the session limit.
+							// Outgoing connections are allowed as long as their count is <= min_peers
+							// Incoming connections are allowed to take all of the max_peers reserve, or at most half of the slots.
+							let max_ingress = max(max_peers - min_peers, min_peers / 2);
 							if reserved_only ||
-								(s.info.originated && session_count > min_peers) ||
-								(!s.info.originated && session_count > max_peers) {
+								(s.info.originated && egress_count > min_peers) ||
+								(!s.info.originated && ingress_count > max_ingress) {
 								// only proceed if the connecting peer is reserved.
 								if !self.reserved_nodes.read().contains(&id) {
 									s.disconnect(io, DisconnectReason::TooManyPeers);
@@ -952,13 +824,12 @@ impl Host {
 		let mut deregister = false;
 		let mut expired_session = None;
 		if let FIRST_SESSION ... LAST_SESSION = token {
-			let sessions = self.sessions.write();
+			let sessions = self.sessions.read();
 			if let Some(session) = sessions.get(token).cloned() {
 				expired_session = Some(session.clone());
 				let mut s = session.lock();
 				if !s.expired() {
 					if s.is_ready() {
-						self.num_sessions.fetch_sub(1, AtomicOrdering::SeqCst);
 						for (p, _) in self.handlers.read().iter() {
 							if s.have_capability(*p)  {
 								to_disconnect.push(*p);
@@ -990,7 +861,7 @@ impl Host {
 	fn update_nodes(&self, _io: &IoContext<NetworkIoMessage>, node_changes: TableUpdates) {
 		let mut to_remove: Vec<PeerId> = Vec::new();
 		{
-			let sessions = self.sessions.write();
+			let sessions = self.sessions.read();
 			for c in sessions.iter() {
 				let s = c.lock();
 				if let Some(id) = s.id() {
@@ -1006,14 +877,14 @@ impl Host {
 		self.nodes.write().update(node_changes, &*self.reserved_nodes.read());
 	}
 
-	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: FnOnce(&NetworkContext) {
+	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: FnOnce(&NetworkContextTrait) {
 		let reserved = { self.reserved_nodes.read() };
 
 		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
 		action(&context);
 	}
 
-	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) -> T where F: FnOnce(&NetworkContext) -> T {
+	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) -> T where F: FnOnce(&NetworkContextTrait) -> T {
 		let reserved = { self.reserved_nodes.read() };
 
 		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);

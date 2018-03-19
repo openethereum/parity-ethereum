@@ -19,7 +19,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use ethcore::service::ClientIoMessage;
+use ethcore::client::ClientIoMessage;
 use ethsync::LightSync;
 use io::{IoContext, IoHandler, TimerToken};
 

@@ -3,7 +3,7 @@ description = "Parity Light Client Implementation"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-light"
-version = "1.9.0"
+version = "1.11.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
@@ -22,7 +22,6 @@ vm = { path = "../vm" }
 plain_hasher = { path = "../../util/plain_hasher" }
 rlp = { path = "../../util/rlp" }
 rlp_derive = { path = "../../util/rlp_derive" }
-time = "0.1"
 smallvec = "0.4"
 futures = "0.1"
 rand = "0.4"
@@ -35,11 +34,10 @@ stats = { path = "../../util/stats" }
 keccak-hash = { path = "../../util/hash" }
 triehash = { path = "../../util/triehash" }
 kvdb = { path = "../../util/kvdb" }
-kvdb-rocksdb = { path = "../../util/kvdb-rocksdb" }
-kvdb-memorydb = { path = "../../util/kvdb-memorydb" }
 memory-cache = { path = "../../util/memory_cache" }
 
 [dev-dependencies]
+kvdb-memorydb = { path = "../../util/kvdb-memorydb" }
 tempdir = "0.3"
 
 [features]

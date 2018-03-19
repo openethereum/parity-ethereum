@@ -24,7 +24,7 @@ use ethereum_types::{U256, Address};
 use io::*;
 use spec::*;
 use client::*;
-use tests::helpers::*;
+use tests::helpers::get_temp_state_db;
 use client::{BlockChainClient, Client, ClientConfig};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use std::sync::Arc;
@@ -88,7 +88,6 @@ fn can_trace_block_and_uncle_reward() {
 		vec![],
 		false,
 	).unwrap();
-	root_block.set_difficulty(U256::from(0x20000));
 	rolling_timestamp += 10;
 	root_block.set_timestamp(rolling_timestamp);
 
@@ -117,7 +116,6 @@ fn can_trace_block_and_uncle_reward() {
 		vec![],
 		false,
 	).unwrap();
-	parent_block.set_difficulty(U256::from(0x20000));
 	rolling_timestamp += 10;
 	parent_block.set_timestamp(rolling_timestamp);
 
@@ -145,7 +143,6 @@ fn can_trace_block_and_uncle_reward() {
 		vec![],
 		false
 		).unwrap();
-	block.set_difficulty(U256::from(0x20000));
 	rolling_timestamp += 10;
 	block.set_timestamp(rolling_timestamp);
 

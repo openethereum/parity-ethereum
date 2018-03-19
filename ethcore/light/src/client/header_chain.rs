@@ -497,7 +497,7 @@ impl HeaderChain {
 				if self.best_block.read().number < num { return None }
 				self.candidates.read().get(&num).map(|entry| entry.canonical_hash)
 			}
-			BlockId::Latest | BlockId::Pending => {
+			BlockId::Latest => {
 				Some(self.best_block.read().hash)
 			}
 		}
@@ -539,7 +539,7 @@ impl HeaderChain {
 				self.candidates.read().get(&num).map(|entry| entry.canonical_hash)
 					.and_then(load_from_db)
 			}
-			BlockId::Latest | BlockId::Pending => {
+			BlockId::Latest => {
 				// hold candidates hear to prevent deletion of the header
 				// as we read it.
 				let _candidates = self.candidates.read();
@@ -575,7 +575,7 @@ impl HeaderChain {
 				if self.best_block.read().number < num { return None }
 				candidates.get(&num).map(|era| era.candidates[0].total_difficulty)
 			}
-			BlockId::Latest | BlockId::Pending => Some(self.best_block.read().total_difficulty)
+			BlockId::Latest => Some(self.best_block.read().total_difficulty)
 		}
 	}
 
@@ -732,7 +732,7 @@ mod tests {
 	use kvdb::KeyValueDB;
 	use kvdb_memorydb;
 
-	use time::Duration;
+	use std::time::Duration;
 	use parking_lot::Mutex;
 
 	fn make_db() -> Arc<KeyValueDB> {
@@ -745,7 +745,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
 
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		let chain = HeaderChain::new(db.clone(), None, &spec, cache).unwrap();
 
@@ -778,7 +778,7 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		let chain = HeaderChain::new(db.clone(), None, &spec, cache).unwrap();
 
@@ -860,13 +860,12 @@ mod tests {
 	fn earliest_is_latest() {
 		let spec = Spec::new_test();
 		let db = make_db();
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		let chain = HeaderChain::new(db.clone(), None, &spec, cache).unwrap();
 
 		assert!(chain.block_header(BlockId::Earliest).is_some());
 		assert!(chain.block_header(BlockId::Latest).is_some());
-		assert!(chain.block_header(BlockId::Pending).is_some());
 	}
 
 	#[test]
@@ -874,7 +873,7 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		{
 			let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone()).unwrap();
@@ -910,7 +909,7 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		{
 			let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone()).unwrap();
@@ -965,7 +964,7 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone()).unwrap();
 
@@ -979,7 +978,7 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		let chain = HeaderChain::new(db.clone(), None, &spec, cache).unwrap();
 

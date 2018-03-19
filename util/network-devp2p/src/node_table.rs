@@ -23,8 +23,7 @@ use std::str::FromStr;
 use std::{fs, mem, slice};
 use ethereum_types::H512;
 use rlp::*;
-use error::{Error, ErrorKind};
-use {AllowIP, IpFilter};
+use network::{Error, ErrorKind, AllowIP, IpFilter};
 use discovery::{TableUpdates, NodeEntry};
 use ip_utils::*;
 use serde_json;
@@ -102,6 +101,7 @@ impl NodeEndpoint {
 		self.to_rlp(rlp);
 	}
 
+	/// Validates that the port is not 0 and address IP is specified
 	pub fn is_valid(&self) -> bool {
 		self.udp_port != 0 && self.address.port() != 0 &&
 		match self.address {
@@ -241,24 +241,33 @@ impl NodeTable {
 		self.nodes.insert(node.id.clone(), node);
 	}
 
-	/// Returns node ids sorted by failure percentage, for nodes with the same failure percentage the absolute number of
-	/// failures is considered.
-	pub fn nodes(&self, filter: IpFilter) -> Vec<NodeId> {
+	fn ordered_entries(&self) -> Vec<&Node> {
 		let mut refs: Vec<&Node> = self.nodes.values()
 			.filter(|n| !self.useless_nodes.contains(&n.id))
-			.filter(|n| n.endpoint.is_allowed(&filter))
 			.collect();
+
 		refs.sort_by(|a, b| {
 			a.failure_percentage().cmp(&b.failure_percentage())
 				.then_with(|| a.failures.cmp(&b.failures))
 				.then_with(|| b.attempts.cmp(&a.attempts)) // we use reverse ordering for number of attempts
 		});
-		refs.into_iter().map(|n| n.id).collect()
+
+		refs
 	}
 
-	/// Unordered list of all entries
-	pub fn unordered_entries(&self) -> Vec<NodeEntry> {
-		self.nodes.values().map(|n| NodeEntry {
+	/// Returns node ids sorted by failure percentage, for nodes with the same failure percentage the absolute number of
+	/// failures is considered.
+	pub fn nodes(&self, filter: IpFilter) -> Vec<NodeId> {
+		self.ordered_entries().iter()
+			.filter(|n| n.endpoint.is_allowed(&filter))
+			.map(|n| n.id)
+			.collect()
+	}
+
+	/// Ordered list of all entries by failure percentage, for nodes with the same failure percentage the absolute
+	/// number of failures is considered.
+	pub fn entries(&self) -> Vec<NodeEntry> {
+		self.ordered_entries().iter().map(|n| NodeEntry {
 			endpoint: n.endpoint.clone(),
 			id: n.id.clone(),
 		}).collect()

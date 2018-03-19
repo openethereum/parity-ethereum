@@ -46,13 +46,14 @@ mod archivedb;
 mod earlymergedb;
 mod overlayrecentdb;
 mod refcounteddb;
+mod util;
 
 pub mod overlaydb;
 
 /// Export the `JournalDB` trait.
 pub use self::traits::JournalDB;
 
-/// A journal database algorithm.
+/// Journal database operating strategy.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Algorithm {
 	/// Keep all keys forever.

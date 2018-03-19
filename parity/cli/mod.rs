@@ -478,7 +478,7 @@ usage! {
 			"--ws-apis=[APIS]",
 			"Specify the APIs available through the WebSockets interface. APIS is a comma-delimited list of API name. Possible name are web3, eth, pubsub, net, personal, parity, parity_set, traces, rpc, parity_accounts, pubsub, parity_pubsub, shh, shh_pubsub, signer, secretstore.",
 
-			ARG arg_ws_origins: (String) = "chrome-extension://*,moz-extension://*", or |c: &Config| c.websockets.as_ref()?.origins.as_ref().map(|vec| vec.join(",")),
+			ARG arg_ws_origins: (String) = "parity://*,chrome-extension://*,moz-extension://*", or |c: &Config| c.websockets.as_ref()?.origins.as_ref().map(|vec| vec.join(",")),
 			"--ws-origins=[URL]",
 			"Specify Origin header values allowed to connect. Special options: \"all\", \"none\".",
 
@@ -768,7 +768,7 @@ usage! {
 
 			ARG arg_pruning_history: (u64) = 64u64, or |c: &Config| c.footprint.as_ref()?.pruning_history.clone(),
 			"--pruning-history=[NUM]",
-			"Set a minimum number of recent states to keep when pruning is active.",
+			"Set a minimum number of recent states to keep in memory when pruning is active.",
 
 			ARG arg_pruning_memory: (usize) = 32usize, or |c: &Config| c.footprint.as_ref()?.pruning_memory.clone(),
 			"--pruning-memory=[MB]",

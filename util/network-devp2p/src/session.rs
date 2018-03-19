@@ -16,9 +16,9 @@
 
 use std::{str, io};
 use std::net::SocketAddr;
-use std::cmp::Ordering;
 use std::sync::*;
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 use mio::*;
 use mio::deprecated::{Handler, EventLoop};
@@ -28,11 +28,11 @@ use rlp::*;
 use connection::{EncryptedConnection, Packet, Connection, MAX_PAYLOAD_SIZE};
 use handshake::Handshake;
 use io::{IoContext, StreamToken};
-use error::{Error, ErrorKind, DisconnectReason};
+use network::{Error, ErrorKind, DisconnectReason, SessionInfo, ProtocolId, PeerCapabilityInfo};
+use network::{SessionCapabilityInfo, HostInfo as HostInfoTrait};
 use host::*;
 use node_table::NodeId;
 use stats::NetworkStats;
-use time;
 use snappy;
 
 // Timeout must be less than (interval - 1).
@@ -59,8 +59,8 @@ pub struct Session {
 	had_hello: bool,
 	/// Session is no longer active flag.
 	expired: bool,
-	ping_time_ns: u64,
-	pong_time_ns: Option<u64>,
+	ping_time: Instant,
+	pong_time: Option<Instant>,
 	state: State,
 	// Protocol states -- accumulates pending packets until signaled as ready.
 	protocol_states: HashMap<ProtocolId, ProtocolState>,
@@ -88,81 +88,6 @@ pub enum SessionData {
 	},
 	/// Session has more data to be read
 	Continue,
-}
-
-/// Shared session information
-#[derive(Debug, Clone)]
-pub struct SessionInfo {
-	/// Peer public key
-	pub id: Option<NodeId>,
-	/// Peer client ID
-	pub client_version: String,
-	/// Peer RLPx protocol version
-	pub protocol_version: u32,
-	/// Session protocol capabilities
-	pub capabilities: Vec<SessionCapabilityInfo>,
-	/// Peer protocol capabilities
-	pub peer_capabilities: Vec<PeerCapabilityInfo>,
-	/// Peer ping delay in milliseconds
-	pub ping_ms: Option<u64>,
-	/// True if this session was originated by us.
-	pub originated: bool,
-	/// Remote endpoint address of the session
-	pub remote_address: String,
-	/// Local endpoint address of the session
-	pub local_address: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PeerCapabilityInfo {
-	pub protocol: ProtocolId,
-	pub version: u8,
-}
-
-impl Decodable for PeerCapabilityInfo {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let p: Vec<u8> = rlp.val_at(0)?;
-		if p.len() != 3 {
-			return Err(DecoderError::Custom("Invalid subprotocol string length. Should be 3"));
-		}
-		let mut p2: ProtocolId = [0u8; 3];
-		p2.clone_from_slice(&p);
-		Ok(PeerCapabilityInfo {
-			protocol: p2,
-			version: rlp.val_at(1)?
-		})
-	}
-}
-
-impl ToString for PeerCapabilityInfo {
-	fn to_string(&self) -> String {
-		format!("{}/{}", str::from_utf8(&self.protocol[..]).unwrap_or("???"), self.version)
-	}
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SessionCapabilityInfo {
-	pub protocol: [u8; 3],
-	pub version: u8,
-	pub packet_count: u8,
-	pub id_offset: u8,
-}
-
-impl PartialOrd for SessionCapabilityInfo {
-	fn partial_cmp(&self, other: &SessionCapabilityInfo) -> Option<Ordering> {
-		Some(self.cmp(other))
-	}
-}
-
-impl Ord for SessionCapabilityInfo {
-	fn cmp(&self, b: &SessionCapabilityInfo) -> Ordering {
-		// By protocol id first
-		if self.protocol != b.protocol {
-			return self.protocol.cmp(&b.protocol);
-		}
-		// By version
-		self.version.cmp(&b.version)
-	}
 }
 
 const PACKET_HELLO: u8 = 0x80;
@@ -198,8 +123,8 @@ impl Session {
 				remote_address: "Handshake".to_owned(),
 				local_address: local_addr,
 			},
-			ping_time_ns: 0,
-			pong_time_ns: None,
+			ping_time: Instant::now(),
+			pong_time: None,
 			expired: false,
 			protocol_states: HashMap::new(),
 			compression: false,
@@ -374,13 +299,13 @@ impl Session {
 		if let State::Handshake(_) = self.state {
 			return true;
 		}
-		let timed_out = if let Some(pong) = self.pong_time_ns {
-			pong - self.ping_time_ns > PING_TIMEOUT_SEC * 1000_000_000
+		let timed_out = if let Some(pong) = self.pong_time {
+			pong.duration_since(self.ping_time) > Duration::from_secs(PING_TIMEOUT_SEC)
 		} else {
-			time::precise_time_ns() - self.ping_time_ns > PING_TIMEOUT_SEC * 1000_000_000
+			self.ping_time.elapsed() > Duration::from_secs(PING_TIMEOUT_SEC)
 		};
 
-		if !timed_out && time::precise_time_ns() - self.ping_time_ns > PING_INTERVAL_SEC * 1000_000_000 {
+		if !timed_out && self.ping_time.elapsed() > Duration::from_secs(PING_INTERVAL_SEC) {
 			if let Err(e) = self.send_ping(io) {
 				debug!("Error sending ping message: {:?}", e);
 			}
@@ -443,9 +368,11 @@ impl Session {
 				Ok(SessionData::Continue)
 			},
 			PACKET_PONG => {
-				let time = time::precise_time_ns();
-				self.pong_time_ns = Some(time);
-				self.info.ping_ms = Some((time - self.ping_time_ns) / 1000_000);
+				let time = Instant::now();
+				self.pong_time = Some(time);
+				let ping_elapsed = time.duration_since(self.ping_time);
+				self.info.ping_ms = Some(ping_elapsed.as_secs() * 1_000 +
+										ping_elapsed.subsec_nanos() as u64 / 1_000_000);
 				Ok(SessionData::Continue)
 			},
 			PACKET_GET_PEERS => Ok(SessionData::None), //TODO;
@@ -557,11 +484,11 @@ impl Session {
 		Ok(())
 	}
 
-	/// Senf ping packet
+	/// Send ping packet
 	pub fn send_ping<Message>(&mut self, io: &IoContext<Message>) -> Result<(), Error> where Message: Send + Sync + Clone {
 		self.send_packet(io, None, PACKET_PING, &EMPTY_LIST_RLP)?;
-		self.ping_time_ns = time::precise_time_ns();
-		self.pong_time_ns = None;
+		self.ping_time = Instant::now();
+		self.pong_time = None;
 		Ok(())
 	}
 

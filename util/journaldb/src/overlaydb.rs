@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use error::{Result, BaseDataError};
 use ethereum_types::H256;
-use rlp::*;
+use rlp::{UntrustedRlp, RlpStream, Encodable, DecoderError, Decodable, encode, decode};
 use hashdb::*;
 use memorydb::*;
 use kvdb::{KeyValueDB, DBTransaction};
@@ -39,6 +39,39 @@ pub struct OverlayDB {
 	overlay: MemoryDB,
 	backing: Arc<KeyValueDB>,
 	column: Option<u32>,
+}
+
+struct Payload {
+	count: u32,
+	value: DBValue,
+}
+
+impl Payload {
+	fn new(count: u32, value: DBValue) -> Self {
+		Payload {
+			count,
+			value,
+		}
+	}
+}
+
+impl Encodable for Payload {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2);
+		s.append(&self.count);
+		s.append(&&*self.value);
+	}
+}
+
+impl Decodable for Payload {
+	fn decode(rlp: &UntrustedRlp) -> ::std::result::Result<Self, DecoderError> {
+		let payload = Payload {
+			count: rlp.val_at(0)?,
+			value: DBValue::from_slice(rlp.at(1)?.data()?),
+		};
+
+		Ok(payload)
+	}
 }
 
 impl OverlayDB {
@@ -71,18 +104,19 @@ impl OverlayDB {
 			if rc != 0 {
 				match self.payload(&key) {
 					Some(x) => {
-						let (back_value, back_rc) = x;
-						let total_rc: i32 = back_rc as i32 + rc;
+						let total_rc: i32 = x.count as i32 + rc;
 						if total_rc < 0 {
 							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
 						}
-						deletes += if self.put_payload_in_batch(batch, &key, (back_value, total_rc as u32)) {1} else {0};
+						let payload = Payload::new(total_rc as u32, x.value);
+						deletes += if self.put_payload_in_batch(batch, &key, &payload) {1} else {0};
 					}
 					None => {
 						if rc < 0 {
 							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
 						}
-						self.put_payload_in_batch(batch, &key, (value, rc as u32));
+						let payload = Payload::new(rc as u32, value);
+						self.put_payload_in_batch(batch, &key, &payload);
 					}
 				};
 				ret += 1;
@@ -100,22 +134,16 @@ impl OverlayDB {
 	pub fn commit_refs(&self, key: &H256) -> i32 { self.overlay.raw(key).map_or(0, |(_, refs)| refs) }
 
 	/// Get the refs and value of the given key.
-	fn payload(&self, key: &H256) -> Option<(DBValue, u32)> {
+	fn payload(&self, key: &H256) -> Option<Payload> {
 		self.backing.get(self.column, key)
 			.expect("Low-level database error. Some issue with your hard disk?")
-			.map(|d| {
-				let r = Rlp::new(&d);
-				(DBValue::from_slice(r.at(1).data()), r.at(0).as_val())
-			})
+			.map(|d| decode(&d))
 	}
 
 	/// Put the refs and value of the given key, possibly deleting it from the db.
-	fn put_payload_in_batch(&self, batch: &mut DBTransaction, key: &H256, payload: (DBValue, u32)) -> bool {
-		if payload.1 > 0 {
-			let mut s = RlpStream::new_list(2);
-			s.append(&payload.1);
-			s.append(&&*payload.0);
-			batch.put(self.column, key, s.as_raw());
+	fn put_payload_in_batch(&self, batch: &mut DBTransaction, key: &H256, payload: &Payload) -> bool {
+		if payload.count > 0 {
+			batch.put(self.column, key, &encode(payload));
 			false
 		} else {
 			batch.delete(self.column, key);
@@ -129,7 +157,7 @@ impl HashDB for OverlayDB {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| {
 				let h = H256::from_slice(&*key);
-				let r = self.payload(&h).unwrap().1;
+				let r = self.payload(&h).unwrap().count;
 				(h, r as i32)
 			})
 			.collect();
@@ -161,9 +189,8 @@ impl HashDB for OverlayDB {
 		};
 		match self.payload(key) {
 			Some(x) => {
-				let (d, rc) = x;
-				if rc as i32 + memrc > 0 {
-					Some(d)
+				if x.count as i32 + memrc > 0 {
+					Some(x.value)
 				}
 				else {
 					None
@@ -185,8 +212,7 @@ impl HashDB for OverlayDB {
 				let memrc = k.map_or(0, |(_, rc)| rc);
 				match self.payload(key) {
 					Some(x) => {
-						let (_, rc) = x;
-						rc as i32 + memrc > 0
+						x.count as i32 + memrc > 0
 					}
 					// Replace above match arm with this once https://github.com/rust-lang/rust/issues/15287 is done.
 					//Some((d, rc)) if rc + memrc > 0 => true,

@@ -91,14 +91,14 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
 	}
 }
 
-impl Into<BlockId> for BlockNumber {
-	fn into(self) -> BlockId {
-		match self {
-			BlockNumber::Num(n) => BlockId::Number(n),
-			BlockNumber::Earliest => BlockId::Earliest,
-			BlockNumber::Latest => BlockId::Latest,
-			BlockNumber::Pending => BlockId::Pending,
-		}
+/// Converts `BlockNumber` to `BlockId`, panics on `BlockNumber::Pending`
+pub fn block_number_to_id(number: BlockNumber) -> BlockId {
+	match number {
+		BlockNumber::Num(num) => BlockId::Number(num),
+		BlockNumber::Earliest => BlockId::Earliest,
+		BlockNumber::Latest => BlockId::Latest,
+
+		BlockNumber::Pending => panic!("`BlockNumber::Pending` should be handled manually")
 	}
 }
 
@@ -122,11 +122,17 @@ mod tests {
 	}
 
 	#[test]
-	fn block_number_into() {
-		assert_eq!(BlockId::Number(100), BlockNumber::Num(100).into());
-		assert_eq!(BlockId::Earliest, BlockNumber::Earliest.into());
-		assert_eq!(BlockId::Latest, BlockNumber::Latest.into());
-		assert_eq!(BlockId::Pending, BlockNumber::Pending.into());
+	fn normal_block_number_to_id() {
+		assert_eq!(block_number_to_id(BlockNumber::Num(100)), BlockId::Number(100));
+		assert_eq!(block_number_to_id(BlockNumber::Earliest), BlockId::Earliest);
+		assert_eq!(block_number_to_id(BlockNumber::Latest), BlockId::Latest);
+	}
+
+	#[test]
+	#[should_panic]
+	fn pending_block_number_to_id() {
+		// Since this function is not allowed to be called in such way, panic should happen
+		block_number_to_id(BlockNumber::Pending);
 	}
 }
 
