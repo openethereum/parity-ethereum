@@ -13,13 +13,13 @@ build = "build.rs"
 track = "nightly"
 
 # Indicates a critical release in this track (i.e. consensus issue)
-critical = false
+critical = true
 
 # Latest supported fork blocks for various networks. Used ONLY by auto-updater.
 [package.metadata.forks]
 foundation = 4370000
 ropsten = 10
-kovan = 5067000
+kovan = 6600000
 
 [dependencies]
 ethcore-bytes = { path = "../bytes" }
