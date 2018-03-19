@@ -892,6 +892,11 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 }
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
+	if cmd.ui_conf.enabled {
+		warn!("Parity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity Wallet instead.");
+		warn!("Standalone Parity Wallet: https://github.com/Parity-JS/shell/releases");
+	}
+
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
 		let addr = format!("{}:{}", cmd.ui_conf.interface, cmd.ui_conf.port);
