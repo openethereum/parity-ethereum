@@ -32,10 +32,10 @@ pub struct NewToken {
 	pub message: String,
 }
 
-pub fn new_service(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> rpc_apis::SignerService {
-	let signer_path = ws_conf.signer_path.clone();
+pub fn new_service(ws_conf: &rpc::WsConfiguration, logger_config: &LogConfig) -> rpc_apis::SignerService {
 	let logger_config_color = logger_config.color;
-	let signer_enabled = ui_conf.enabled;
+	let signer_path = ws_conf.signer_path.clone();
+	let signer_enabled = ws_conf.support_token_api;
 
 	rpc_apis::SignerService::new(move || {
 		generate_new_token(&signer_path, logger_config_color).map_err(|e| format!("{:?}", e))

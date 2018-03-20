@@ -319,7 +319,7 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 	let rpc_stats = Arc::new(informant::RpcStats::default());
 
 	// the dapps server
-	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf, &cmd.logger_config));
+	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.logger_config));
 	let (node_health, dapps_deps) = {
 		let contract_client = ::dapps::LightRegistrar {
 			client: client.clone(),
@@ -716,7 +716,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 		false => Some(account_provider.clone())
 	};
 
-	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf, &cmd.logger_config));
+	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.logger_config));
 
 	// the dapps server
 	let (node_health, dapps_deps) = {
