@@ -26,6 +26,9 @@ extern crate crunchy;
 #[macro_use]
 extern crate log;
 
+#[cfg(test)]
+extern crate tempdir;
+
 mod compute;
 mod seed_compute;
 mod cache;
@@ -135,7 +138,10 @@ impl EthashManager {
 
 #[test]
 fn test_lru() {
-	let ethash = EthashManager::new(&::std::env::temp_dir(), None);
+	use tempdir::TempDir;
+
+	let tempdir = TempDir::new("").unwrap();
+	let ethash = EthashManager::new(tempdir.path(), None);
 	let hash = [0u8; 32];
 	ethash.compute_light(1, &hash, 1);
 	ethash.compute_light(50000, &hash, 1);

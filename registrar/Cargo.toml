@@ -1,0 +1,13 @@
+[package]
+description = "Registar for Parity"
+name = "registrar"
+version = "0.0.1"
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+futures = "0.1"
+ethabi = "5.1.0"
+ethabi-derive = "5.0.5"
+ethabi-contract = "5.0.3"
+keccak-hash = { path = "../util/hash" }

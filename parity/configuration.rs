@@ -952,6 +952,7 @@ impl Configuration {
 				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()),
 			},
 			path: default_hypervisor_path(),
+			max_size: 128 * 1024 * 1024,
 		})
 	}
 
@@ -1126,7 +1127,7 @@ impl Configuration {
 			self.args.flag_geth ||
 			self.args.flag_no_ui;
 
-		!ui_disabled && cfg!(feature = "ui-enabled")
+		self.args.cmd_ui && !ui_disabled && cfg!(feature = "ui-enabled")
 	}
 
 	fn verifier_settings(&self) -> VerifierSettings {
@@ -1351,11 +1352,11 @@ mod tests {
 			origins: Some(vec!["parity://*".into(),"chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
-			ui_address: Some("127.0.0.1:8180".into()),
+			ui_address: None,
 			dapps_address: Some("127.0.0.1:8545".into()),
 			support_token_api: true
 		}, UiConfiguration {
-			enabled: true,
+			enabled: false,
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1402,7 +1403,8 @@ mod tests {
 				require_consensus: true,
 				filter: UpdateFilter::Critical,
 				track: ReleaseTrack::Unknown,
-				path: default_hypervisor_path()
+				path: default_hypervisor_path(),
+				max_size: 128 * 1024 * 1024,
 			},
 			mode: Default::default(),
 			tracing: Default::default(),
@@ -1473,9 +1475,30 @@ mod tests {
 		let conf3 = parse(&["parity", "--auto-update=xxx"]);
 
 		// then
-		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Testing, path: default_hypervisor_path()});
-		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, require_consensus: false, filter: UpdateFilter::All, track: ReleaseTrack::Unknown, path: default_hypervisor_path()});
-		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, require_consensus: true, filter: UpdateFilter::All, track: ReleaseTrack::Beta, path: default_hypervisor_path()});
+		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy {
+			enable_downloading: true,
+			require_consensus: true,
+			filter: UpdateFilter::Critical,
+			track: ReleaseTrack::Testing,
+			path: default_hypervisor_path(),
+			max_size: 128 * 1024 * 1024,
+		});
+		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy {
+			enable_downloading: true,
+			require_consensus: false,
+			filter: UpdateFilter::All,
+			track: ReleaseTrack::Unknown,
+			path: default_hypervisor_path(),
+			max_size: 128 * 1024 * 1024,
+		});
+		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy {
+			enable_downloading: false,
+			require_consensus: true,
+			filter: UpdateFilter::All,
+			track: ReleaseTrack::Beta,
+			path: default_hypervisor_path(),
+			max_size: 128 * 1024 * 1024,
+		});
 		assert!(conf3.update_policy().is_err());
 	}
 
@@ -1610,19 +1633,38 @@ mod tests {
 		let conf1 = parse(&["parity", "--ui-path=signer", "--ui-no-validation"]);
 		let conf2 = parse(&["parity", "--ui-path=signer", "--ui-port", "3123"]);
 		let conf3 = parse(&["parity", "--ui-path=signer", "--ui-interface", "test"]);
+		let conf4 = parse(&["parity", "--ui-path=signer", "--force-ui"]);
+		let conf5 = parse(&["parity", "--ui-path=signer", "ui"]);
 
 		// then
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
+			enabled: false,
+			interface: "127.0.0.1".into(),
+			port: 8180,
+			hosts: Some(vec![]),
+		});
+		assert!(conf4.ws_config().unwrap().hosts.is_some());
+		assert_eq!(conf4.directories().signer, "signer".to_owned());
+		assert_eq!(conf4.ui_config(), UiConfiguration {
 			enabled: true,
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
 		});
-		assert!(conf0.ws_config().unwrap().hosts.is_some());
+		assert!(conf5.ws_config().unwrap().hosts.is_some());
+		assert!(conf5.ws_config().unwrap().hosts.is_some());
+		assert_eq!(conf5.directories().signer, "signer".to_owned());
+		assert_eq!(conf5.ui_config(), UiConfiguration {
+			enabled: true,
+			interface: "127.0.0.1".into(),
+			port: 8180,
+			hosts: Some(vec![]),
+		});
+		assert!(conf5.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
 		assert_eq!(conf1.ui_config(), UiConfiguration {
-			enabled: true,
+			enabled: false,
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1631,7 +1673,7 @@ mod tests {
 		assert_eq!(conf1.ws_config().unwrap().origins, None);
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
-			enabled: true,
+			enabled: false,
 			interface: "127.0.0.1".into(),
 			port: 3123,
 			hosts: Some(vec![]),
@@ -1639,7 +1681,7 @@ mod tests {
 		assert!(conf2.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
 		assert_eq!(conf3.ui_config(), UiConfiguration {
-			enabled: true,
+			enabled: false,
 			interface: "test".into(),
 			port: 8180,
 			hosts: Some(vec![]),

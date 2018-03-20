@@ -21,14 +21,19 @@
 #[macro_use]
 extern crate log;
 
+#[macro_use]
 extern crate futures;
-extern crate futures_cpupool;
-extern crate parking_lot;
-extern crate reqwest;
+extern crate futures_timer;
 
+extern crate hyper;
+extern crate hyper_rustls;
+
+extern crate tokio_core;
+extern crate url;
+
+/// Fetch client implementation.
 pub mod client;
 
-pub use self::reqwest::StatusCode;
-pub use self::reqwest::mime::Mime;
-pub use self::client::{Client, Fetch, Error, Response, Abort};
+pub use url::Url;
+pub use self::client::{Client, Fetch, Error, Response, Abort, BodyReader};
 

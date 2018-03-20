@@ -207,7 +207,6 @@ impl ExtendedKeyPair {
 // Work is based on BIP0032
 // https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 mod derivation {
-
 	use rcrypto::hmac::Hmac;
 	use rcrypto::mac::Mac;
 	use rcrypto::sha2::Sha512;

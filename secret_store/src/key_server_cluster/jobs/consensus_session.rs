@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeSet;
-use ethkey::Signature;
-use key_server_cluster::{Error, NodeId, SessionMeta};
+use key_server_cluster::{Error, NodeId, SessionMeta, Requester};
 use key_server_cluster::message::ConsensusMessage;
 use key_server_cluster::jobs::job_session::{JobSession, JobSessionState, JobTransport, JobExecutor};
 
@@ -342,7 +341,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 }
 
 impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSession<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTransport>
-	where ConsensusExecutor: JobExecutor<PartialJobRequest=Signature, PartialJobResponse=bool, JobResponse=BTreeSet<NodeId>>,
+	where ConsensusExecutor: JobExecutor<PartialJobRequest=Requester, PartialJobResponse=bool, JobResponse=BTreeSet<NodeId>>,
 		ConsensusTransport: JobTransport<PartialJobRequest=ConsensusExecutor::PartialJobRequest, PartialJobResponse=ConsensusExecutor::PartialJobResponse>,
 		ComputationExecutor: JobExecutor,
 		ComputationTransport: JobTransport<PartialJobRequest=ComputationExecutor::PartialJobRequest, PartialJobResponse=ComputationExecutor::PartialJobResponse> {
@@ -351,7 +350,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 		let consensus_result = match message {
 			
 			&ConsensusMessage::InitializeConsensusSession(ref message) =>
-				self.consensus_job.on_partial_request(sender, message.requestor_signature.clone().into()),
+				self.consensus_job.on_partial_request(sender, message.requester.clone().into()),
 			&ConsensusMessage::ConfirmConsensusInitialization(ref message) =>
 				self.consensus_job.on_partial_response(sender, message.is_confirmed),
 		};
@@ -362,20 +361,21 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use ethkey::{Signature, KeyPair, Random, Generator, sign};
-	use key_server_cluster::{Error, NodeId, SessionId, DummyAclStorage};
+	use ethkey::{KeyPair, Random, Generator, sign};
+	use key_server_cluster::{Error, NodeId, SessionId, Requester, DummyAclStorage};
 	use key_server_cluster::message::{ConsensusMessage, InitializeConsensusSession, ConfirmConsensusInitialization};
 	use key_server_cluster::jobs::job_session::tests::{make_master_session_meta, make_slave_session_meta, SquaredSumJobExecutor, DummyJobTransport};
 	use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 	use super::{ConsensusSession, ConsensusSessionParams, ConsensusSessionState};
 
-	type SquaredSumConsensusSession = ConsensusSession<KeyAccessJob, DummyJobTransport<Signature, bool>, SquaredSumJobExecutor, DummyJobTransport<u32, u32>>;
+	type SquaredSumConsensusSession = ConsensusSession<KeyAccessJob, DummyJobTransport<Requester, bool>, SquaredSumJobExecutor, DummyJobTransport<u32, u32>>;
 
 	fn make_master_consensus_session(threshold: usize, requester: Option<KeyPair>, acl_storage: Option<DummyAclStorage>) -> SquaredSumConsensusSession {
 		let secret = requester.map(|kp| kp.secret().clone()).unwrap_or(Random.generate().unwrap().secret().clone());
 		SquaredSumConsensusSession::new(ConsensusSessionParams {
 			meta: make_master_session_meta(threshold),
-			consensus_executor: KeyAccessJob::new_on_master(SessionId::default(), Arc::new(acl_storage.unwrap_or(DummyAclStorage::default())), sign(&secret, &SessionId::default()).unwrap()),
+			consensus_executor: KeyAccessJob::new_on_master(SessionId::default(), Arc::new(acl_storage.unwrap_or(DummyAclStorage::default())),
+				sign(&secret, &SessionId::default()).unwrap().into()),
 			consensus_transport: DummyJobTransport::default(),
 		}).unwrap()
 	}
@@ -502,7 +502,7 @@ mod tests {
 		let mut session = make_slave_consensus_session(0, None);
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForInitialization);
 		session.on_consensus_message(&NodeId::from(1), &ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
-			requestor_signature: sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
+			requester: Requester::Signature(sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()).into(),
 			version: Default::default(),
 		})).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
@@ -515,7 +515,7 @@ mod tests {
 		let mut session = make_slave_consensus_session(0, None);
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForInitialization);
 		session.on_consensus_message(&NodeId::from(1), &ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
-			requestor_signature: sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
+			requester: Requester::Signature(sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()).into(),
 			version: Default::default(),
 		})).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
@@ -545,7 +545,7 @@ mod tests {
 	fn consessus_session_completion_is_accepted() {
 		let mut session = make_slave_consensus_session(0, None);
 		session.on_consensus_message(&NodeId::from(1), &ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
-			requestor_signature: sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
+			requester: Requester::Signature(sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap()).into(),
 			version: Default::default(),
 		})).unwrap();
 		session.on_session_completed(&NodeId::from(1)).unwrap();

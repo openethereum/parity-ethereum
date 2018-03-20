@@ -18,10 +18,10 @@
 
 use std::fmt;
 use std::sync::Arc;
-use ethereum_types::{H256, U256};
+use ethereum_types::{H256, U256, H160};
 use {factory, journaldb, trie, kvdb_memorydb, bytes};
 use kvdb::{self, KeyValueDB};
-use {state, state_db, client, executive, trace, transaction, db, spec, pod_state};
+use {state, state_db, client, executive, trace, transaction, db, spec, pod_state, log_entry, receipt};
 use factory::Factories;
 use evm::{VMType, FinalizationResult};
 use vm::{self, ActionParams};
@@ -77,6 +77,15 @@ lazy_static! {
 pub struct EvmTestClient<'a> {
 	state: state::State<state_db::StateDB>,
 	spec: &'a spec::Spec,
+}
+
+impl<'a> fmt::Debug for EvmTestClient<'a> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_struct("EvmTestClient")
+            .field("state", &self.state)
+            .field("spec", &self.spec.name)
+            .finish()
+    }
 }
 
 impl<'a> EvmTestClient<'a> {
@@ -160,10 +169,19 @@ impl<'a> EvmTestClient<'a> {
 		Ok(state)
 	}
 
+	/// Return current state.
+	pub fn state(&self) -> &state::State<state_db::StateDB> {
+		&self.state
+	}
+
 	/// Execute the VM given ActionParams and tracer.
 	/// Returns amount of gas left and the output.
-	pub fn call<T: trace::VMTracer>(&mut self, params: ActionParams, vm_tracer: &mut T)
-		-> Result<FinalizationResult, EvmTestError>
+	pub fn call<T: trace::Tracer, V: trace::VMTracer>(
+		&mut self,
+		params: ActionParams,
+		tracer: &mut T,
+		vm_tracer: &mut V,
+	) -> Result<FinalizationResult, EvmTestError>
 	{
 		let genesis = self.spec.genesis_header();
 		let info = client::EnvInfo {
@@ -176,26 +194,26 @@ impl<'a> EvmTestClient<'a> {
 			gas_limit: *genesis.gas_limit(),
 		};
 		let mut substate = state::Substate::new();
-		let mut tracer = trace::NoopTracer;
 		let mut output = vec![];
 		let mut executive = executive::Executive::new(&mut self.state, &info, self.spec.engine.machine());
 		executive.call(
 			params,
 			&mut substate,
 			bytes::BytesRef::Flexible(&mut output),
-			&mut tracer,
+			tracer,
 			vm_tracer,
 		).map_err(EvmTestError::Evm)
 	}
 
 	/// Executes a SignedTransaction within context of the provided state and `EnvInfo`.
 	/// Returns the state root, gas left and the output.
-	pub fn transact<T: trace::VMTracer>(
+	pub fn transact<T: trace::Tracer, V: trace::VMTracer>(
 		&mut self,
 		env_info: &client::EnvInfo,
 		transaction: transaction::SignedTransaction,
-		vm_tracer: T,
-	) -> TransactResult<T::Output> {
+		tracer: T,
+		vm_tracer: V,
+	) -> TransactResult<T::Output, V::Output> {
 		let initial_gas = transaction.gas;
 		// Verify transaction
 		let is_ok = transaction.verify_basic(true, None, env_info.number >= self.spec.engine.params().eip86_transition);
@@ -207,8 +225,8 @@ impl<'a> EvmTestClient<'a> {
 		}
 
 		// Apply transaction
-		let tracer = trace::NoopTracer;
 		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, tracer, vm_tracer);
+		let scheme = self.spec.engine.machine().create_address_scheme(env_info.number);
 
 		match result {
 			Ok(result) => {
@@ -216,8 +234,16 @@ impl<'a> EvmTestClient<'a> {
 				TransactResult::Ok {
 					state_root: *self.state.root(),
 					gas_left: initial_gas - result.receipt.gas_used,
+					outcome: result.receipt.outcome,
 					output: result.output,
+					trace: result.trace,
 					vm_trace: result.vm_trace,
+					logs: result.receipt.logs,
+					contract_address: if let transaction::Action::Create = transaction.action {
+						Some(executive::contract_address(scheme, &transaction.sender(), &transaction.nonce, &transaction.data).0)
+					} else {
+						None
+					}
 				}
 			},
 			Err(error) => TransactResult::Err {
@@ -229,7 +255,8 @@ impl<'a> EvmTestClient<'a> {
 }
 
 /// A result of applying transaction to the state.
-pub enum TransactResult<T> {
+#[derive(Debug)]
+pub enum TransactResult<T, V> {
 	/// Successful execution
 	Ok {
 		/// State root
@@ -238,8 +265,16 @@ pub enum TransactResult<T> {
 		gas_left: U256,
 		/// Output
 		output: Vec<u8>,
+		/// Traces
+		trace: Vec<T>,
 		/// VM Traces
-		vm_trace: Option<T>,
+		vm_trace: Option<V>,
+		/// Created contract address (if any)
+		contract_address: Option<H160>,
+		/// Generated logs
+		logs: Vec<log_entry::LogEntry>,
+		/// outcome
+		outcome: receipt::TransactionOutcome,
 	},
 	/// Transaction failed to run
 	Err {

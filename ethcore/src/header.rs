@@ -18,11 +18,11 @@
 
 use std::cmp;
 use std::cell::RefCell;
+use std::time::{SystemTime, UNIX_EPOCH};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
-use time::get_time;
 use rlp::*;
 
 pub use types::BlockNumber;
@@ -189,7 +189,7 @@ impl Header {
 	/// Set the timestamp field of the header.
 	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
 	/// Set the timestamp field of the header to the current time.
-	pub fn set_timestamp_now(&mut self, but_later_than: u64) { self.timestamp = cmp::max(get_time().sec as u64, but_later_than + 1); self.note_dirty(); }
+	pub fn set_timestamp_now(&mut self, but_later_than: u64) { let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default(); self.timestamp = cmp::max(now.as_secs() as u64, but_later_than + 1); self.note_dirty(); }
 	/// Set the number field of the header.
 	pub fn set_number(&mut self, a: BlockNumber) { self.number = a; self.note_dirty(); }
 	/// Set the author field of the header.

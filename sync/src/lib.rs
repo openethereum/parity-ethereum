@@ -29,7 +29,6 @@ extern crate ethcore_transaction as transaction;
 extern crate ethcore;
 extern crate ethereum_types;
 extern crate env_logger;
-extern crate time;
 extern crate plain_hasher;
 extern crate rand;
 extern crate semver;

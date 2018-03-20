@@ -32,7 +32,7 @@ use light::provider::LightProvider;
 use network::{NodeId, PeerId};
 use parking_lot::RwLock;
 
-use time::Duration;
+use std::time::Duration;
 use light::cache::Cache;
 
 const NETWORK_ID: u64 = 0xcafebabe;
@@ -218,7 +218,7 @@ impl TestNet<Peer> {
 
 			// skip full verification because the blocks are bad.
 			config.verify_full = false;
-			let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+			let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 			let db = kvdb_memorydb::create(0);
 			let client = LightClient::new(
 				config,

@@ -46,6 +46,7 @@ mod archivedb;
 mod earlymergedb;
 mod overlayrecentdb;
 mod refcounteddb;
+mod util;
 
 pub mod overlaydb;
 

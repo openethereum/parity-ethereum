@@ -8,10 +8,12 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 futures = "0.1"
-futures-cpupool = "0.1"
-parking_lot = "0.5"
-log = "0.3"
-reqwest = "0.8"
+futures-timer = "0.1"
+hyper = "0.11"
+hyper-rustls = "0.11"
+log = "0.4"
+tokio-core = "0.1"
+url = "1"
 
 [features]
 default = []

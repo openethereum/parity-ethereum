@@ -861,7 +861,7 @@ mod tests {
 	use kvdb::KeyValueDB;
 	use kvdb_memorydb;
 
-	use time::Duration;
+	use std::time::Duration;
 	use parking_lot::Mutex;
 
 	fn make_db() -> Arc<KeyValueDB> {
@@ -874,7 +874,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
 
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
 
@@ -907,7 +907,7 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
 
@@ -989,7 +989,7 @@ mod tests {
 	fn earliest_is_latest() {
 		let spec = Spec::new_test();
 		let db = make_db();
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
 
@@ -1002,7 +1002,7 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		{
 			let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone(),
@@ -1040,7 +1040,7 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		{
 			let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone(),
@@ -1097,7 +1097,7 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone(),
 									HardcodedSync::Allow).unwrap();
@@ -1112,7 +1112,7 @@ mod tests {
 		let spec = Spec::new_test();
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
 
@@ -1179,7 +1179,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = make_db();
 
-		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
 		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
 

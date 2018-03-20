@@ -17,6 +17,7 @@
 use std::{str, fs, fmt};
 use std::time::Duration;
 use ethereum_types::{U256, Address};
+use futures_cpupool::CpuPool;
 use parity_version::version_data;
 use journaldb::Algorithm;
 use ethcore::spec::{Spec, SpecParams};
@@ -240,7 +241,7 @@ impl Default for GasPricerConfig {
 }
 
 impl GasPricerConfig {
-	pub fn to_gas_pricer(&self, fetch: FetchClient) -> GasPricer {
+	pub fn to_gas_pricer(&self, fetch: FetchClient, p: CpuPool) -> GasPricer {
 		match *self {
 			GasPricerConfig::Fixed(u) => GasPricer::Fixed(u),
 			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period, .. } => {
@@ -249,7 +250,8 @@ impl GasPricerConfig {
 						usd_per_tx: usd_per_tx,
 						recalibration_period: recalibration_period,
 					},
-					fetch
+					fetch,
+					p,
 				)
 			}
 		}

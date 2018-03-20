@@ -28,15 +28,15 @@ use ethcore::db::NUM_COLUMNS;
 use ethcore::ethstore::ethkey;
 use ethcore::miner::{Miner, MinerService, MinerOptions};
 use ethcore::miner::{StratumOptions, Stratum};
-use ethcore::service::ClientService;
 use ethcore::snapshot;
 use ethcore::spec::{SpecParams, OptimizeFor};
 use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
+use ethcore_service::ClientService;
 use ethsync::{self, SyncConfig};
 use fdlimit::raise_fd_limit;
-use hash_fetch::fetch::{Fetch, Client as FetchClient};
-use hash_fetch;
+use futures_cpupool::CpuPool;
+use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
 use kvdb_rocksdb::{Database, DatabaseConfig};
@@ -76,7 +76,7 @@ const SNAPSHOT_HISTORY: u64 = 100;
 
 // Number of minutes before a given gas price corpus should expire.
 // Light client only.
-const GAS_CORPUS_EXPIRATION_MINUTES: i64 = 60 * 6;
+const GAS_CORPUS_EXPIRATION_MINUTES: u64 = 60 * 6;
 
 // Pops along with error messages when a password is missing or invalid.
 const VERIFY_PASSWORD_HINT: &'static str = "Make sure valid password is present in files passed using `--password` or in the configuration file.";
@@ -218,7 +218,7 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 	info!("Running in experimental {} mode.", Colour::Blue.bold().paint("Light Client"));
 
 	// TODO: configurable cache size.
-	let cache = LightDataCache::new(Default::default(), ::time::Duration::minutes(GAS_CORPUS_EXPIRATION_MINUTES));
+	let cache = LightDataCache::new(Default::default(), Duration::from_secs(60 * GAS_CORPUS_EXPIRATION_MINUTES));
 	let cache = Arc::new(Mutex::new(cache));
 
 	// start client and create transaction queue.
@@ -310,8 +310,10 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 	// start the network.
 	light_sync.start_network();
 
+	let cpu_pool = CpuPool::new(4);
+
 	// fetch service
-	let fetch = FetchClient::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
+	let fetch = fetch::Client::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 	let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
 	// prepare account provider
@@ -344,7 +346,7 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 		let sync_status = Arc::new(LightSyncStatus(light_sync.clone()));
 		let node_health = node_health::NodeHealth::new(
 			sync_status.clone(),
-			node_health::TimeChecker::new(&cmd.ntp_servers, fetch.pool()),
+			node_health::TimeChecker::new(&cmd.ntp_servers, cpu_pool.clone()),
 			event_loop.remote(),
 		);
 
@@ -353,6 +355,7 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 			node_health,
 			contract_client: Arc::new(contract_client),
 			fetch: fetch.clone(),
+			pool: cpu_pool.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.redirection_address(),
 		})
@@ -379,6 +382,7 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 		dapps_address: cmd.dapps_conf.address(cmd.http_conf.address()),
 		ws_address: cmd.ws_conf.address(),
 		fetch: fetch,
+		pool: cpu_pool.clone(),
 		geth_compatibility: cmd.geth_compatibility,
 		remote: event_loop.remote(),
 		whisper_rpc: whisper_factory,
@@ -532,12 +536,14 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	// prepare account provider
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
+	let cpu_pool = CpuPool::new(4);
+
 	// fetch service
-	let fetch = FetchClient::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
+	let fetch = fetch::Client::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 
 	// create miner
 	let initial_min_gas_price = cmd.gas_pricer_conf.initial_min();
-	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer_conf.to_gas_pricer(fetch.clone()), &spec, Some(account_provider.clone()));
+	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer_conf.to_gas_pricer(fetch.clone(), cpu_pool.clone()), &spec, Some(account_provider.clone()));
 	miner.set_author(cmd.miner_extras.author);
 	miner.set_gas_floor_target(cmd.miner_extras.gas_floor_target);
 	miner.set_gas_ceil_target(cmd.miner_extras.gas_ceil_target);
@@ -701,15 +707,12 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	let contract_client = Arc::new(::dapps::FullRegistrar::new(client.clone()));
 
 	// the updater service
-	let mut updater_fetch = fetch.clone();
-	// parity binaries should be smaller than 128MB
-	updater_fetch.set_limit(Some(128 * 1024 * 1024));
-
+	let updater_fetch = fetch.clone();
 	let updater = Updater::new(
 		Arc::downgrade(&(service.client() as Arc<BlockChainClient>)),
 		Arc::downgrade(&sync_provider),
 		update_policy,
-		hash_fetch::Client::with_fetch(contract_client.clone(), updater_fetch, event_loop.remote())
+		hash_fetch::Client::with_fetch(contract_client.clone(), cpu_pool.clone(), updater_fetch, event_loop.remote())
 	);
 	service.add_notify(updater.clone());
 
@@ -745,7 +748,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 		let sync_status = Arc::new(SyncStatus(sync, client, net_conf));
 		let node_health = node_health::NodeHealth::new(
 			sync_status.clone(),
-			node_health::TimeChecker::new(&cmd.ntp_servers, fetch.pool()),
+			node_health::TimeChecker::new(&cmd.ntp_servers, cpu_pool.clone()),
 			event_loop.remote(),
 		);
 		(node_health.clone(), dapps::Dependencies {
@@ -753,6 +756,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 			node_health,
 			contract_client,
 			fetch: fetch.clone(),
+			pool: cpu_pool.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.redirection_address(),
 		})
@@ -780,6 +784,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 		dapps_address: cmd.dapps_conf.address(cmd.http_conf.address()),
 		ws_address: cmd.ws_conf.address(),
 		fetch: fetch.clone(),
+		pool: cpu_pool.clone(),
 		remote: event_loop.remote(),
 		whisper_rpc: whisper_factory,
 		gas_price_percentile: cmd.gas_price_percentile,
@@ -894,6 +899,11 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 }
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
+	if cmd.ui_conf.enabled {
+		warn!("Parity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity Wallet instead.");
+		warn!("Standalone Parity Wallet: https://github.com/Parity-JS/shell/releases");
+	}
+
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
 		let addr = format!("{}:{}", cmd.ui_conf.interface, cmd.ui_conf.port);

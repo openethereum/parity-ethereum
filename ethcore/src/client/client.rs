@@ -19,7 +19,6 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant};
-use time::precise_time_ns;
 use itertools::Itertools;
 
 // util
@@ -37,8 +36,11 @@ use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute, Transaction
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo, RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
-	StateOrBlock, StateInfo, StateClient, Call, AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter
+	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo,
+	RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
+	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
+	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
+	ClientIoMessage
 };
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
@@ -60,7 +62,6 @@ use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
 use rlp::UntrustedRlp;
-use service::ClientIoMessage;
 use snapshot::{self, io as snapshot_io};
 use spec::Spec;
 use state_db::StateDB;
@@ -291,7 +292,7 @@ impl Importer {
 				return 0;
 			}
 			trace_time!("import_verified_blocks");
-			let start = precise_time_ns();
+			let start = Instant::now();
 
 			for block in blocks {
 				let header = &block.header;
@@ -324,7 +325,10 @@ impl Importer {
 				self.block_queue.mark_as_bad(&invalid_blocks);
 			}
 			let is_empty = self.block_queue.mark_as_good(&imported_blocks);
-			let duration_ns = precise_time_ns() - start;
+			let duration_ns = {
+				let elapsed = start.elapsed();
+				elapsed.as_secs() * 1_000_000_000 + elapsed.subsec_nanos() as u64
+			};
 			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration_ns, is_empty)
 		};
 
@@ -1818,8 +1822,17 @@ impl BlockChainClient for Client {
 		};
 
 		let chain = self.chain.read();
-		let blocks = chain.blocks_with_blooms(&filter.bloom_possibilities(), from, to);
-		chain.logs(blocks, |entry| filter.matches(entry), filter.limit)
+		let blocks = filter.bloom_possibilities().iter()
+			.map(move |bloom| {
+				chain.blocks_with_bloom(bloom, from, to)
+			})
+			.flat_map(|m| m)
+			// remove duplicate elements
+			.collect::<HashSet<u64>>()
+			.into_iter()
+			.collect::<Vec<u64>>();
+
+		self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit)
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
@@ -2025,7 +2038,7 @@ impl ScheduleInfo for Client {
 impl ImportSealedBlock for Client {
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult {
 		let h = block.header().hash();
-		let start = precise_time_ns();
+		let start = Instant::now();
 		let route = {
 			// scope for self.import_lock
 			let _import_lock = self.importer.import_lock.lock();
@@ -2050,7 +2063,10 @@ impl ImportSealedBlock for Client {
 				retracted.clone(),
 				vec![h.clone()],
 				vec![],
-				precise_time_ns() - start,
+				{
+					let elapsed = start.elapsed();
+					elapsed.as_secs() * 1_000_000_000 + elapsed.subsec_nanos() as u64
+				},
 			);
 		});
 		self.db.read().flush().expect("DB flush failed.");
@@ -2205,7 +2221,7 @@ mod tests {
 	#[test]
 	fn should_not_cache_details_before_commit() {
 		use client::{BlockChainClient, ChainInfo};
-		use tests::helpers::*;
+		use tests::helpers::{generate_dummy_client, get_good_dummy_block_hash};
 
 		use std::thread;
 		use std::time::Duration;
