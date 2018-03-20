@@ -198,8 +198,8 @@ pub struct Miner {
 	sealing: Mutex<SealingWork>,
 	params: RwLock<AuthoringParams>,
 	listeners: RwLock<Vec<Box<NotifyWork>>>,
-	gas_pricer: Mutex<GasPricer>,
 	nonce_cache: RwLock<HashMap<Address, U256>>,
+	gas_pricer: Mutex<GasPricer>,
 	options: MinerOptions,
 	// TODO [ToDr] Arc is only required because of price updater
 	transaction_queue: Arc<TransactionQueue>,
@@ -210,8 +210,8 @@ pub struct Miner {
 impl Miner {
 	/// Push listener that will handle new jobs
 	pub fn add_work_listener(&self, notifier: Box<NotifyWork>) {
-		self.sealing.lock().enabled = true;
 		self.listeners.write().push(notifier);
+		self.sealing.lock().enabled = true;
 	}
 
 	/// Push an URL that will get new job notifications.
@@ -227,7 +227,7 @@ impl Miner {
 	}
 
 	/// Creates new instance of miner Arc.
-	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
+	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Self {
 		let limits = options.pool_limits.clone();
 		let verifier_options = options.pool_verification_options.clone();
 		let tx_queue_strategy = options.tx_queue_strategy;
@@ -669,7 +669,7 @@ impl Miner {
 
 		if prepare_new {
 			// --------------------------------------------------------------------------
-			// | NOTE Code below requires transaction_queue and sealing locks.          |
+			// | NOTE Code below requires sealing locks.                                |
 			// | Make sure to release the locks before calling that method.             |
 			// --------------------------------------------------------------------------
 			let (block, original_work_hash) = self.prepare_block(client);
@@ -782,7 +782,7 @@ impl miner::MinerService for Miner {
 		).pop().expect("one result returned per added transaction; one added => one result; qed");
 
 		// --------------------------------------------------------------------------
-		// | NOTE Code below requires transaction_queue and sealing locks.          |
+		// | NOTE Code below requires sealing locks.                                |
 		// | Make sure to release the locks before calling that method.             |
 		// --------------------------------------------------------------------------
 		if imported.is_ok() && self.options.reseal_on_own_tx && self.sealing.lock().reseal_allowed() {
@@ -922,7 +922,7 @@ impl miner::MinerService for Miner {
 		}
 
 		// --------------------------------------------------------------------------
-		// | NOTE Code below requires transaction_queue and sealing locks.          |
+		// | NOTE Code below requires sealing locks.                                |
 		// | Make sure to release the locks before calling that method.             |
 		// --------------------------------------------------------------------------
 		trace!(target: "miner", "update_sealing: preparing a block");
@@ -946,8 +946,7 @@ impl miner::MinerService for Miner {
 			Some(false) => {
 				trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now");
 				// anyway, save the block for later use
-				let mut sealing = self.sealing.lock();
-				sealing.queue.push(block);
+				self.sealing.lock().queue.push(block);
 			},
 			None => {
 				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
@@ -1050,7 +1049,7 @@ impl miner::MinerService for Miner {
 
 			if !is_internal_import {
 				// --------------------------------------------------------------------------
-				// | NOTE Code below requires transaction_queue and sealing locks.          |
+				// | NOTE Code below requires sealing locks.                                |
 				// | Make sure to release the locks before calling that method.             |
 				// --------------------------------------------------------------------------
 				self.update_sealing(chain);
