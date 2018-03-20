@@ -26,7 +26,7 @@ use parking_lot::{RwLock, Mutex};
 use tokio_io::IoFuture;
 use tokio_core::reactor::{Handle, Remote, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
-use ethkey::{Public, KeyPair, Signature, Random, Generator};
+use ethkey::{Public, KeyPair, Signature, Random, Generator, public_to_address};
 use ethereum_types::H256;
 use key_server_cluster::{Error, NodeId, SessionId, Requester, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, AdminSession, ClusterSessions, SessionIdWithSubSession,
@@ -907,7 +907,7 @@ impl ClusterClient for ClusterClientImpl {
 
 		let cluster = create_cluster_view(&self.data, true)?;
 		let session = self.data.sessions.generation_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, false, None)?;
-		match session.initialize(author, false, threshold, connected_nodes.into()) {
+		match session.initialize(public_to_address(&author), false, threshold, connected_nodes.into()) {
 			Ok(()) => Ok(session),
 			Err(error) => {
 				self.data.sessions.generation_sessions.remove(&session.id());

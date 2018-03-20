@@ -191,6 +191,10 @@ impl Requester {
 			Requester::Address(_) => None,
 		}
 	}
+
+	pub fn address(&self, server_key_id: &ServerKeyId) -> Option<ethkey::Address> {
+		self.public(server_key_id).map(|p| ethkey::public_to_address(&p))
+	}
 }
 
 impl From<ethkey::Signature> for Requester {
