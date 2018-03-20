@@ -62,7 +62,7 @@ pub struct Account {
 	storage_changes: HashMap<H256, H256>,
 	// Code hash of the account.
 	code_hash: H256,
-	// Size of the accoun code.
+	// Size of the account code.
 	code_size: Option<usize>,
 	// Code cache of the account.
 	code_cache: Arc<Bytes>,
@@ -186,7 +186,7 @@ impl Account {
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
-	/// Takes modifed storage into account.
+	/// Takes modified storage into account.
 	pub fn storage_at(&self, db: &HashDB, key: &H256) -> trie::Result<H256> {
 		if let Some(value) = self.cached_storage_at(key) {
 			return Ok(value);
