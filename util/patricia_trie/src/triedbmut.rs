@@ -98,7 +98,7 @@ impl Node {
 
 	// decode a node from rlp without getting its children.
 	fn from_rlp(rlp: &[u8], db: &HashDB, storage: &mut NodeStorage) -> Self {
-		match RlpNode::decoded(rlp) {
+		match RlpNode::decoded(rlp).expect("rlp read from db; qed") {
 			RlpNode::Empty => Node::Empty,
 			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), DBValue::from_slice(&v)),
 			RlpNode::Extension(key, cb) => {
