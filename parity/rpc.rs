@@ -227,7 +227,7 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into()), &None));
 
 	let signer_path;
-	let path = match conf.support_token_api && conf.ui_address.is_some() {
+	let path = match conf.support_token_api {
 		true => {
 			signer_path = ::signer::codes_path(&conf.signer_path);
 			Some(signer_path.as_path())
