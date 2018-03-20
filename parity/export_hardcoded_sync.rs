@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Weak};
+use std::time::Duration;
 
 use ethcore::client::DatabaseCompactionProfile;
 use ethcore::db::NUM_COLUMNS;
@@ -30,7 +31,7 @@ use user_defaults::UserDefaults;
 
 // Number of minutes before a given gas price corpus should expire.
 // Light client only.
-const GAS_CORPUS_EXPIRATION_MINUTES: i64 = 60 * 6;
+const GAS_CORPUS_EXPIRATION_MINUTES: u64 = 60 * 6;
 
 #[derive(Debug, PartialEq)]
 pub struct ExportHsyncCmd {
@@ -73,7 +74,7 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 	cmd.dirs.create_dirs(false, false, false)?;
 
 	// TODO: configurable cache size.
-	let cache = LightDataCache::new(Default::default(), ::time::Duration::minutes(GAS_CORPUS_EXPIRATION_MINUTES));
+	let cache = LightDataCache::new(Default::default(), Duration::from_secs(60 * GAS_CORPUS_EXPIRATION_MINUTES));
 	let cache = Arc::new(Mutex::new(cache));
 
 	// start client and create transaction queue.
