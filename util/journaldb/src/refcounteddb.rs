@@ -169,7 +169,7 @@ impl JournalDB for RefCountedDB {
 				&last
 			})?
 		} {
-			let view = DatabaseValueView::new(&rlp_data);
+			let view = DatabaseValueView::from_rlp(&rlp_data);
 			let our_id = view.id().expect("rlp read from db; qed");
 			let to_remove = if canon_id == &our_id {
 				view.deletes()
