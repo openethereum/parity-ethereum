@@ -86,7 +86,7 @@ tempdir = "0.3"
 winapi = "0.2"
 
 [target.'cfg(not(windows))'.dependencies]
-daemonize = "0.2"
+daemonize = { git = "https://github.com/paritytech/daemonize" }
 
 [features]
 default = ["ui-precompiled"]

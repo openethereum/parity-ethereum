@@ -318,7 +318,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "daemonize"
 version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/paritytech/daemonize#df00295f03450326613f2d616059fd44434a0d74"
 dependencies = [
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1928,7 +1928,7 @@ dependencies = [
  "app_dirs 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.29.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)",
- "daemonize 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "daemonize 0.2.3 (git+https://github.com/paritytech/daemonize)",
  "dir 0.1.0",
  "docopt 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2232,17 +2232,17 @@ dependencies = [
 name = "parity-ui"
 version = "1.11.0"
 dependencies = [
- "parity-ui-dev 1.9.0 (git+https://github.com/parity-js/shell.git?rev=7f2f1ec51d96fc6682a82e95e09ada2e9283e4a0)",
- "parity-ui-old-dev 1.9.0 (git+https://github.com/parity-js/dapp-wallet.git?rev=1a58bf4836c84e1632e27ef607b5a388abd2bf2d)",
- "parity-ui-old-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-10-wallet.git?rev=4c067dfa1a17fe71ab2ca26b18c52dcbd0f4fc04)",
- "parity-ui-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-10-shell.git?rev=ac243b5ce9ce10d5f9f6137e974f195e8403b68e)",
+ "parity-ui-dev 1.9.0 (git+https://github.com/parity-js/shell.git?rev=eecaadcb9e421bce31e91680d14a20bbd38f92a2)",
+ "parity-ui-old-dev 1.9.0 (git+https://github.com/parity-js/dapp-wallet.git?rev=65deb02e7c007a0fd8aab0c089c93e3fd1de6f87)",
+ "parity-ui-old-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-10-wallet.git?rev=4b6f112412716cd05123d32eeb7fda448288a6c6)",
+ "parity-ui-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-10-shell.git?rev=bd25b41cd642c6b822d820dded3aa601a29aa079)",
  "rustc_version 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "parity-ui-dev"
 version = "1.9.0"
-source = "git+https://github.com/parity-js/shell.git?rev=7f2f1ec51d96fc6682a82e95e09ada2e9283e4a0#7f2f1ec51d96fc6682a82e95e09ada2e9283e4a0"
+source = "git+https://github.com/parity-js/shell.git?rev=eecaadcb9e421bce31e91680d14a20bbd38f92a2#eecaadcb9e421bce31e91680d14a20bbd38f92a2"
 dependencies = [
  "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2250,7 +2250,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-old-dev"
 version = "1.9.0"
-source = "git+https://github.com/parity-js/dapp-wallet.git?rev=1a58bf4836c84e1632e27ef607b5a388abd2bf2d#1a58bf4836c84e1632e27ef607b5a388abd2bf2d"
+source = "git+https://github.com/parity-js/dapp-wallet.git?rev=65deb02e7c007a0fd8aab0c089c93e3fd1de6f87#65deb02e7c007a0fd8aab0c089c93e3fd1de6f87"
 dependencies = [
  "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2258,7 +2258,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-old-precompiled"
 version = "1.9.0"
-source = "git+https://github.com/js-dist-paritytech/parity-master-1-10-wallet.git?rev=4c067dfa1a17fe71ab2ca26b18c52dcbd0f4fc04#4c067dfa1a17fe71ab2ca26b18c52dcbd0f4fc04"
+source = "git+https://github.com/js-dist-paritytech/parity-master-1-10-wallet.git?rev=4b6f112412716cd05123d32eeb7fda448288a6c6#4b6f112412716cd05123d32eeb7fda448288a6c6"
 dependencies = [
  "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2266,7 +2266,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.9.0"
-source = "git+https://github.com/js-dist-paritytech/parity-master-1-10-shell.git?rev=ac243b5ce9ce10d5f9f6137e974f195e8403b68e#ac243b5ce9ce10d5f9f6137e974f195e8403b68e"
+source = "git+https://github.com/js-dist-paritytech/parity-master-1-10-shell.git?rev=bd25b41cd642c6b822d820dded3aa601a29aa079#bd25b41cd642c6b822d820dded3aa601a29aa079"
 dependencies = [
  "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -3648,7 +3648,7 @@ dependencies = [
 "checksum ct-logs 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "61cd11fb222fecf889f4531855c614548e92e8bd2eb178e35296885df5ee9a7c"
 "checksum ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)" = "<none>"
 "checksum custom_derive 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "ef8ae57c4978a2acd8b869ce6b9ca1dfe817bff704c220209fdef2c0b75a01b9"
-"checksum daemonize 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0239832c1b4ca406d5ec73728cf4c7336d25cf85dd32db9e047e9e706ee0e935"
+"checksum daemonize 0.2.3 (git+https://github.com/paritytech/daemonize)" = "<none>"
 "checksum difference 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b3304d19798a8e067e48d8e69b2c37f0b5e9b4e462504ad9e27e9f3fce02bba8"
 "checksum docopt 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d8acd393692c503b168471874953a2531df0e9ab77d0b6bbc582395743300a4a"
 "checksum dtoa 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "09c3753c3db574d215cba4ea76018483895d7bff25a31b49ba45db21c48e50ab"
@@ -3754,10 +3754,10 @@ dependencies = [
 "checksum owning_ref 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "cdf84f41639e037b484f93433aa3897863b561ed65c6e59c7073d7c561710f37"
 "checksum parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)" = "261c025c67ba416e9fe63aa9b3236520ce3c74cfbe43590c9cdcec4ccc8180e4"
 "checksum parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc)" = "<none>"
-"checksum parity-ui-dev 1.9.0 (git+https://github.com/parity-js/shell.git?rev=7f2f1ec51d96fc6682a82e95e09ada2e9283e4a0)" = "<none>"
-"checksum parity-ui-old-dev 1.9.0 (git+https://github.com/parity-js/dapp-wallet.git?rev=1a58bf4836c84e1632e27ef607b5a388abd2bf2d)" = "<none>"
-"checksum parity-ui-old-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-10-wallet.git?rev=4c067dfa1a17fe71ab2ca26b18c52dcbd0f4fc04)" = "<none>"
-"checksum parity-ui-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-10-shell.git?rev=ac243b5ce9ce10d5f9f6137e974f195e8403b68e)" = "<none>"
+"checksum parity-ui-dev 1.9.0 (git+https://github.com/parity-js/shell.git?rev=eecaadcb9e421bce31e91680d14a20bbd38f92a2)" = "<none>"
+"checksum parity-ui-old-dev 1.9.0 (git+https://github.com/parity-js/dapp-wallet.git?rev=65deb02e7c007a0fd8aab0c089c93e3fd1de6f87)" = "<none>"
+"checksum parity-ui-old-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-10-wallet.git?rev=4b6f112412716cd05123d32eeb7fda448288a6c6)" = "<none>"
+"checksum parity-ui-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-10-shell.git?rev=bd25b41cd642c6b822d820dded3aa601a29aa079)" = "<none>"
 "checksum parity-wasm 0.27.2 (registry+https://github.com/rust-lang/crates.io-index)" = "9d3c21b85fed4e8490e716b7fcb247185ec201f28845be6e749ab864401463c7"
 "checksum parity-wordlist 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1d0dec124478845b142f68b446cbee953d14d4b41f1bc0425024417720dce693"
 "checksum parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)" = "9fd9d732f2de194336fb02fe11f9eed13d9e76f13f4315b4d88a14ca411750cd"
