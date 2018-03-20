@@ -20,14 +20,6 @@
 //!
 //! Questions that I need to understand:
 //!
-//!		* WhisperPool (is it a pool a instances that can "whisper"?)
-//!		* Communication model: PublishSubscribe/jsonhttp server
-//!		* Use built trait by Whisper?
-//!		* MetaIoHandler?
-//!		* Implement Own Meta data
-//!		* Should communication port be an arg to the CLI?
-//!		*
-//!
 
 extern crate ethcore_network_devp2p as devp2p;
 extern crate ethcore_network as net;
@@ -37,20 +29,20 @@ extern crate docopt;
 
 extern crate jsonrpc_core;
 extern crate jsonrpc_pubsub;
-extern crate jsonrpc_minihttp_server as minihttp;
+extern crate jsonrpc_http_server;
 
-#[macro_use]
-extern crate jsonrpc_macros;
 #[macro_use]
 extern crate serde_derive;
 
-use net::*;
 use docopt::Docopt;
 use std::sync::Arc;
 use std::{fmt, io, process, env};
-use minihttp::{cors, ServerBuilder, DomainsValidation, Req};
+use jsonrpc_core::{Metadata, MetaIoHandler};
+use jsonrpc_pubsub::{PubSubMetadata, Session};
 
-pub const USAGE: &'static str = r#"
+const URL: &'static str = "127.0.0.1:8545";
+
+const USAGE: &'static str = r#"
 Whisper.
     Copyright 2017 Parity Technologies (UK) Ltd
 Usage:
@@ -61,12 +53,22 @@ Options:
     -h, --help                     Display this message and exit.
 "#;
 
+// Dummy
+#[derive(Clone, Default)]
+struct Meta(usize);
+impl Metadata for Meta {}
+impl PubSubMetadata for Meta {
+	fn session(&self) -> Option<Arc<Session>> {
+		unimplemented!();
+	}
+}
+
 #[derive(Debug, Deserialize)]
 struct Args {
 	flag_whisper_pool_size: usize,
 }
 
-pub struct WhisperPoolHandle {
+struct WhisperPoolHandle {
 	/// Pool handle.
 	handle: Arc<whisper::net::Network<Arc<whisper::rpc::FilterManager>>>,
 	/// Network manager.
@@ -74,32 +76,37 @@ pub struct WhisperPoolHandle {
 }
 
 impl whisper::rpc::PoolHandle for WhisperPoolHandle {
-	fn relay(&self, message: whisper::Message) -> bool {
-		unimplemented!();
+	fn relay(&self, message: whisper::message::Message) -> bool {
+		let mut res = false;
+		let mut message = Some(message);
+		self.with_proto_context(whisper::net::PROTOCOL_ID, &mut |ctx| {
+			if let Some(message) = message.take() {
+				res = self.handle.post_message(message, ctx);
+			}
+		});
+		res
 	}
 
 	fn pool_status(&self) -> whisper::net::PoolStatus {
 		self.handle.pool_status()
 	}
 }
-//
+
 impl WhisperPoolHandle {
-	fn with_proto_context(&self, proto: net::ProtocolId, f: &mut FnMut(&devp2p::NetworkContext)) {
-		unimplemented!();
-		// self.net.with_context_eval(proto, f);
+	fn with_proto_context(&self, proto: net::ProtocolId, f: &mut FnMut(&net::NetworkContext)) {
+		self.net.with_context_eval(proto, f);
 	}
 }
-//
-pub struct RpcFactory {
+
+struct RpcFactory {
 	handle: Arc<whisper::Network<Arc<whisper::rpc::FilterManager>>>,
 	manager: Arc<whisper::rpc::FilterManager>,
 }
-//
+
 impl RpcFactory {
-	pub fn make_handler(&self, net: Arc<devp2p::NetworkService>) -> whisper::rpc::WhisperClient<WhisperPoolHandle, whisper::rpc::Meta> {
+	pub fn make_handler(&self, net: Arc<devp2p::NetworkService>) -> whisper::rpc::WhisperClient<WhisperPoolHandle, Meta> {
 		let whisper_pool_handle = WhisperPoolHandle { handle: self.handle.clone(), net: net };
-		let whisper_rpc_handler : whisper::rpc::WhisperClient<WhisperPoolHandle, whisper::rpc::Meta> = whisper::rpc::WhisperClient::new(whisper_pool_handle, self.manager.clone());
-		whisper_rpc_handler
+		whisper::rpc::WhisperClient::new(whisper_pool_handle, self.manager.clone())
 	}
 }
 
@@ -109,7 +116,6 @@ enum Error {
 	Io(io::Error),
 	JsonRpc(jsonrpc_core::Error),
 }
-
 
 impl From<docopt::Error> for Error {
 	fn from(err: docopt::Error) -> Self {
@@ -147,7 +153,6 @@ fn main() {
 			process::exit(1);
 		},
 	}
-
 }
 
 fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item=S>, S: AsRef<str> {
@@ -155,40 +160,49 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	// Parse arguments
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.argv(command).deserialize())?;
 
-	let pool_size = args.flag_whisper_pool_size;
+	// Dummy this should be parsed from the args entered by the user
+	let pool_size = 1000;
 
-	// Create Whisper N/W
+	// Filter manager that will dispatch `decryption tasks`
+	// This provides the `Whisper` trait with all rpcs methods
+	// FIXME: Filter kinds as arg
 	let manager = Arc::new(whisper::rpc::FilterManager::new().unwrap());
+
+	// Whisper protocol network handler
 	let whisper_network_handler = Arc::new(whisper::net::Network::new(pool_size, manager.clone()));
 
-	// Instantiate Whisper network and attach to it the network handler
-	let network = devp2p::NetworkService::new(NetworkConfiguration::new_local(), None).expect("Error creating network service");
+	// Create network service
+	let network = devp2p::NetworkService::new(net::NetworkConfiguration::new_local(), None).expect("Error creating network service");
+
+	// Start network service
 	network.start().expect("Error starting service");
-	network.register_protocol(whisper_network_handler.clone(), whisper::net::PROTOCOL_ID, whisper::net::PACKET_COUNT, whisper::net::SUPPORTED_VERSIONS).unwrap();
-	network.register_protocol(Arc::new(whisper::net::ParityExtensions), whisper::net::PARITY_PROTOCOL_ID, whisper::net::PACKET_COUNT, whisper::net::SUPPORTED_VERSIONS).unwrap();
 
-	// request handler
-	let mut io: jsonrpc_core::MetaIoHandler<whisper::rpc::Meta, _> = jsonrpc_core::MetaIoHandler::default();
-	let rpc = RpcFactory { handle: whisper_network_handler, manager: manager };
+	// Attach whisper protocol to the network service
+	network.register_protocol(whisper_network_handler.clone(), whisper::net::PROTOCOL_ID, whisper::net::PACKET_COUNT,
+							  whisper::net::SUPPORTED_VERSIONS).unwrap();
+	network.register_protocol(Arc::new(whisper::net::ParityExtensions), whisper::net::PARITY_PROTOCOL_ID,
+							  whisper::net::PACKET_COUNT, whisper::net::SUPPORTED_VERSIONS).unwrap();
 
+	// Request handler
+	let mut io = MetaIoHandler::default();
 
-	let n = Arc::new(network);
-	io.extend_with(whisper::rpc::Whisper::to_delegate(rpc.make_handler(n.clone())));
-	io.extend_with(whisper::rpc::WhisperPubSub::to_delegate(rpc.make_handler(n.clone())));
+	// Shared network service
+	let shared_network = Arc::new(network);
 
+	// Pool handler
+	let whisper_factory = RpcFactory { handle: whisper_network_handler, manager: manager };
 
-	let server = ServerBuilder::new(io)
-		.meta_extractor(|req: &Req| {
-			whisper::rpc::Meta(req.header("Origin").map(|v| v.len()).unwrap_or_default())
-		})
-		.threads(1)
-		.start_http(&"127.0.0.1:3030".parse().unwrap())
-		.expect("Unable to start RPC server");
+	io.extend_with(whisper::rpc::Whisper::to_delegate(whisper_factory.make_handler(shared_network.clone())));
+	io.extend_with(whisper::rpc::WhisperPubSub::to_delegate(whisper_factory.make_handler(shared_network.clone())));
 
-	Ok("SUCCESS".to_string())
+	let server = jsonrpc_http_server::ServerBuilder::new(io)
+		.start_http(&URL.parse().unwrap())
+		.expect("Unable to start server");
+
+	server.wait();
+
+	Ok("foo".into())
 }
-
-
 
 
 
