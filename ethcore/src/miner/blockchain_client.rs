@@ -44,7 +44,6 @@ pub struct BlockChainClient<'a, C: 'a> {
 	cached_nonces: CachedNonceClient<'a, C>,
 	engine: &'a EthEngine,
 	accounts: Option<&'a AccountProvider>,
-	best_block_header: SyncHeader,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
 
@@ -55,7 +54,6 @@ impl<'a, C: 'a> Clone for BlockChainClient<'a, C> {
 			cached_nonces: self.cached_nonces.clone(),
 			engine: self.engine,
 			accounts: self.accounts.clone(),
-			best_block_header: self.best_block_header.clone(),
 			service_transaction_checker: self.service_transaction_checker.clone(),
 		}
 	}
@@ -71,14 +69,11 @@ C: BlockInfo + CallContract,
 		accounts: Option<&'a AccountProvider>,
 		refuse_service_transactions: bool,
 	) -> Self {
-		let best_block_header = SyncHeader::new(chain.best_block_header().decode());
-
 		BlockChainClient {
 			chain,
 			cached_nonces: CachedNonceClient::new(chain, cache),
 			engine,
 			accounts,
-			best_block_header,
 			service_transaction_checker: if refuse_service_transactions {
 				None
 			} else {
@@ -88,7 +83,12 @@ C: BlockInfo + CallContract,
 	}
 
 	pub fn verify_signed(&self, tx: &SignedTransaction) -> Result<(), transaction::Error> {
-		self.engine.machine().verify_transaction(&tx, &self.best_block_header.0, self.chain)
+		let best_block_header = self.chain.best_block_header().decode();
+		self.verify_signed_transaction(tx, &best_block_header)
+	}
+
+	pub fn verify_signed_transaction(&self, tx: &SignedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.engine.machine().verify_transaction(&tx, header, self.chain)
 	}
 }
 
@@ -106,10 +106,11 @@ impl<'a, C: 'a> pool::client::Client for BlockChainClient<'a, C> where
 	}
 
 	fn verify_transaction(&self, tx: UnverifiedTransaction)-> Result<SignedTransaction, transaction::Error> {
-		self.engine.verify_transaction_basic(&tx, &self.best_block_header.0)?;
-		let tx = self.engine.verify_transaction_unordered(tx, &self.best_block_header.0)?;
+		let best_block_header = self.chain.best_block_header().decode();
+		self.engine.verify_transaction_basic(&tx, &best_block_header)?;
+		let tx = self.engine.verify_transaction_unordered(tx, &best_block_header)?;
 
-		self.verify_signed(&tx)?;
+		self.verify_signed_transaction(&tx, &best_block_header)?;
 
 		Ok(tx)
 	}
@@ -207,24 +208,4 @@ impl<'a, C: 'a> NonceClient for CachedNonceClient<'a, C> where
 	  }
 	  nonce
   }
-}
-
-/// A `Sync` wrapper for `Header`.
-#[derive(Clone)]
-pub struct SyncHeader(Header);
-// Since hashes are pre-computed
-// we can safely implement Sync here
-//
-// TODO [ToDr] Remove this wrapper when `Header`
-// does not use `RefCells` any more.
-unsafe impl Sync for SyncHeader {}
-
-impl SyncHeader {
-	pub fn new(header: Header) -> Self {
-		// Make sure to compute and memoize hashes.
-		header.hash();
-		header.bare_hash();
-
-		SyncHeader(header)
-	}
 }

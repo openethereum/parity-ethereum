@@ -17,7 +17,7 @@
 //! Block header.
 
 use std::cmp;
-use std::cell::RefCell;
+use std::cell::Cell;
 use std::time::{SystemTime, UNIX_EPOCH};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
 use heapsize::HeapSizeOf;
@@ -76,9 +76,9 @@ pub struct Header {
 	seal: Vec<Bytes>,
 
 	/// The memoized hash of the RLP representation *including* the seal fields.
-	hash: RefCell<Option<H256>>,
+	hash: Cell<Option<H256>>,
 	/// The memoized hash of the RLP representation *without* the seal fields.
-	bare_hash: RefCell<Option<H256>>,
+	bare_hash: Cell<Option<H256>>,
 }
 
 impl PartialEq for Header {
@@ -120,8 +120,8 @@ impl Default for Header {
 
 			difficulty: U256::default(),
 			seal: vec![],
-			hash: RefCell::new(None),
-			bare_hash: RefCell::new(None),
+			hash: Cell::new(None),
+			bare_hash: Cell::new(None),
 		}
 	}
 }
@@ -210,34 +210,32 @@ impl Header {
 
 	/// Get the hash of this header (keccak of the RLP).
 	pub fn hash(&self) -> H256 {
- 		let mut hash = self.hash.borrow_mut();
- 		match &mut *hash {
- 			&mut Some(ref h) => h.clone(),
- 			hash @ &mut None => {
+		match self.hash.get() {
+			Some(h) => h,
+			None => {
 				let h = self.rlp_keccak(Seal::With);
- 				*hash = Some(h.clone());
- 				h
- 			}
+				self.hash.set(Some(h));
+				h
+			},
 		}
 	}
 
 	/// Get the hash of the header excluding the seal
 	pub fn bare_hash(&self) -> H256 {
-		let mut hash = self.bare_hash.borrow_mut();
-		match &mut *hash {
-			&mut Some(ref h) => h.clone(),
-			hash @ &mut None => {
+		match self.bare_hash.get() {
+			Some(h) => h,
+			None => {
 				let h = self.rlp_keccak(Seal::Without);
-				*hash = Some(h.clone());
+				self.bare_hash.set(Some(h));
 				h
-			}
+			},
 		}
 	}
 
 	/// Note that some fields have changed. Resets the memoised hash.
 	pub fn note_dirty(&self) {
- 		*self.hash.borrow_mut() = None;
- 		*self.bare_hash.borrow_mut() = None;
+ 		self.hash.set(None);
+ 		self.bare_hash.set(None);
 	}
 
 	// TODO: make these functions traity
@@ -297,8 +295,8 @@ impl Decodable for Header {
 			timestamp: cmp::min(r.val_at::<U256>(11)?, u64::max_value().into()).as_u64(),
 			extra_data: r.val_at(12)?,
 			seal: vec![],
-			hash: RefCell::new(Some(keccak(r.as_raw()))),
-			bare_hash: RefCell::new(None),
+			hash: Cell::new(Some(keccak(r.as_raw()))),
+			bare_hash: Cell::new(None),
 		};
 
 		for i in 13..r.item_count()? {
@@ -322,9 +320,12 @@ impl HeapSizeOf for Header {
 }
 
 impl ::parity_machine::Header for Header {
-	fn bare_hash(&self) -> H256 { Header::bare_hash(self) }
+	// fn bare_hash(&self) -> H256 { Header::bare_hash(self) }
 
-	fn hash(&self) -> H256 { Header::hash(self) }
+	// fn hash(&self) -> H256 { Header::hash(self) }
+
+	fn bare_hash(&self) -> H256 { unimplemented!() }
+	fn hash(&self) -> H256 { unimplemented!() }
 
 	fn seal(&self) -> &[Vec<u8>] { Header::seal(self) }
 
