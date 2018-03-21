@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::time::Duration;
 
 use ethcore::client::DatabaseCompactionProfile;
 use ethcore::db::NUM_COLUMNS;
 use ethcore::spec::{SpecParams, OptimizeFor};
 use kvdb_rocksdb::{Database, DatabaseConfig};
+use light::client::fetch::Unavailable as UnavailableDataFetcher;
 use light::Cache as LightDataCache;
 
 use params::{SpecType, Pruning};
@@ -45,7 +46,7 @@ pub struct ExportHsyncCmd {
 
 pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 	use light::client as light_client;
-	use parking_lot::{Mutex, RwLock};
+	use parking_lot::Mutex;
 
 	// load spec
 	let spec = cmd.spec.spec(SpecParams::new(cmd.dirs.cache.as_ref(), OptimizeFor::Memory))?;
@@ -88,15 +89,6 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
 
-	// start on_demand service.
-	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
-
-	let sync_handle = Arc::new(RwLock::new(Weak::new()));
-	let fetch = ::light_helpers::EpochFetch {
-		on_demand: on_demand.clone(),
-		sync: sync_handle.clone(),
-	};
-
 	// initialize database.
 	let db = {
 		let db_config = DatabaseConfig {
@@ -112,7 +104,7 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 		).map_err(|e| format!("Error opening database: {}", e))?)
 	};
 
-	let service = light_client::Service::start(config, &spec, fetch, db, cache.clone())
+	let service = light_client::Service::start(config, &spec, UnavailableDataFetcher, db, cache)
 		.map_err(|e| format!("Error starting light client: {}", e))?;
 
 	let hs = service.client().read_hardcoded_sync()
