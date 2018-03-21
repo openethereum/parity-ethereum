@@ -13,4 +13,4 @@ libc = "0.2"
 wasm-utils = { git = "https://github.com/paritytech/wasm-utils" }
 vm = { path = "../vm" }
 ethcore-logger = { path = "../../logger" }
-wasmi = { git = "https://github.com/paritytech/wasmi" }
+wasmi = { version = "0.1", features = ["opt-in-32bit"] }
