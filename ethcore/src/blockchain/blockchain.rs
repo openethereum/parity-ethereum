@@ -581,7 +581,6 @@ impl BlockChain {
 				hash: best_block_hash,
 				timestamp: best_block_timestamp,
 				block: best_block_rlp,
-				header: None,
 			};
 
 			if let (Some(hash), Some(number)) = (best_ancient, best_ancient_number) {
@@ -1035,7 +1034,6 @@ impl BlockChain {
 					total_difficulty: update.info.total_difficulty,
 					timestamp: update.timestamp,
 					block: update.block.to_vec(),
-					header: None,
 				});
 			}
 
@@ -1329,17 +1327,9 @@ impl BlockChain {
 
 	/// Get best block header
 	pub fn best_block_header(&self) -> encoded::Header {
-		if let Some(ref header) = self.best_block.read().header {
-			return header.clone();
-		}
-
-		let header = {
-			let block = self.best_block.read();
-			let raw = BlockView::new(&block.block).header_view().rlp().as_raw().to_vec();
-			encoded::Header::new(raw)
-		};
-		self.best_block.write().header = Some(header.clone());
-		header
+		let block = self.best_block.read();
+		let raw = BlockView::new(&block.block).header_view().rlp().as_raw().to_vec();
+		encoded::Header::new(raw)
 	}
 
 	/// Get current cache size.

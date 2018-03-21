@@ -320,12 +320,9 @@ impl HeapSizeOf for Header {
 }
 
 impl ::parity_machine::Header for Header {
-	// fn bare_hash(&self) -> H256 { Header::bare_hash(self) }
+	fn bare_hash(&self) -> H256 { Header::bare_hash(self) }
 
-	// fn hash(&self) -> H256 { Header::hash(self) }
-
-	fn bare_hash(&self) -> H256 { unimplemented!() }
-	fn hash(&self) -> H256 { unimplemented!() }
+	fn hash(&self) -> H256 { Header::hash(self) }
 
 	fn seal(&self) -> &[Vec<u8>] { Header::seal(self) }
 

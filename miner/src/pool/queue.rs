@@ -186,6 +186,9 @@ impl TransactionQueue {
 			})
 			.collect::<Vec<_>>();
 
+		// Notify about imported transactions.
+		(self.pool.write().listener_mut().1).0.notify();
+
 		if results.iter().any(|r| r.is_ok()) {
 			self.cached_pending.write().clear();
 		}

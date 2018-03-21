@@ -16,21 +16,22 @@
 
 //! Transaction Pool
 
-use ethereum_types::{H256, H160 as Address};
+use ethereum_types::{H256, Address};
 use heapsize::HeapSizeOf;
 use transaction;
 use txpool;
 
+mod listener;
+mod queue;
+mod ready;
+mod scoring;
+
 pub mod client;
-pub mod listener;
 pub mod local_transactions;
-pub mod queue;
-pub mod ready;
-pub mod scoring;
 pub mod verifier;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use self::queue::{TransactionQueue, Status as QueueStatus};
 pub use self::txpool::{VerifiedTransaction as PoolVerifiedTransaction, Options};

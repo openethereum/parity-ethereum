@@ -36,8 +36,6 @@ pub struct BestBlock {
 	pub total_difficulty: U256,
 	/// Best block uncompressed bytes
 	pub block: Bytes,
-	/// Cached header.
-	pub header: Option<::encoded::Header>,
 }
 
 /// Best ancient block info. If the blockchain has a gap this keeps track of where it starts.
