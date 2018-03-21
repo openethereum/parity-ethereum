@@ -26,6 +26,7 @@ extern crate ethcore_network as net;
 extern crate parity_whisper as whisper;
 extern crate serde;
 extern crate docopt;
+extern crate panic_hook;
 
 extern crate jsonrpc_core;
 extern crate jsonrpc_pubsub;
@@ -40,17 +41,20 @@ use std::{fmt, io, process, env};
 use jsonrpc_core::{Metadata, MetaIoHandler};
 use jsonrpc_pubsub::{PubSubMetadata, Session};
 
+const POOL_UNIT: usize = 1024 * 1024;
 const URL: &'static str = "127.0.0.1:8545";
 
-const USAGE: &'static str = r#"
-Whisper.
-    Copyright 2017 Parity Technologies (UK) Ltd
+pub const USAGE: &'static str = r#"
+Whisper CLI.
+	Copyright 2017 Parity Technologies (UK) Ltd
+
 Usage:
-    whisper [options]
-    whisper [-h | --help]
+	whisper [options]
+	whisper [-h | --help]
+
 Options:
-    --whisper-pool-size SIZE       Specify Whisper pool size [default: 10].
-    -h, --help                     Display this message and exit.
+	--whisper-pool-size SIZE       Specify Whisper pool size [default: 10].
+	-h, --help                     Display this message and exit.
 "#;
 
 // Dummy
@@ -146,6 +150,8 @@ impl fmt::Display for Error {
 }
 
 fn main() {
+	panic_hook::set();
+
 	match execute(env::args()) {
 		Ok(ok) => println!("{}", ok),
 		Err(err) => {
@@ -159,13 +165,12 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 
 	// Parse arguments
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.argv(command).deserialize())?;
+	println!("args: {:?}", args);
 
-	// Dummy this should be parsed from the args entered by the user
-	let pool_size = 1000;
+	let pool_size = args.flag_whisper_pool_size * POOL_UNIT;
 
 	// Filter manager that will dispatch `decryption tasks`
 	// This provides the `Whisper` trait with all rpcs methods
-	// FIXME: Filter kinds as arg
 	let manager = Arc::new(whisper::rpc::FilterManager::new().unwrap());
 
 	// Whisper protocol network handler
