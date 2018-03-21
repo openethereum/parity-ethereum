@@ -806,6 +806,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	let secretstore_deps = secretstore::Dependencies {
 		client: client.clone(),
 		sync: sync_provider.clone(),
+		miner: miner,
 		account_provider: account_provider,
 		accounts_passwords: &passwords,
 	};
