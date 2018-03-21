@@ -177,13 +177,11 @@ impl TransactionQueue {
 		let results = transactions
 			.into_par_iter()
 			.map(|transaction| verifier.verify_transaction(transaction))
-			.map(|result| match result {
-				Ok(verified) => match self.pool.write().import(verified) {
-					Ok(_imported) => Ok(()),
-					Err(err) => Err(convert_error(err)),
-				},
-				Err(err) => Err(err),
-			})
+			.map(|result| result.and_then(|verified| {
+				self.pool.write().import(verified)
+					.map(|_imported| ())
+					.map_err(convert_error)
+			}))
 			.collect::<Vec<_>>();
 
 		// Notify about imported transactions.
