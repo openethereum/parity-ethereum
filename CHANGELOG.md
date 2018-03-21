@@ -10,7 +10,7 @@ To reactivate the parity wallet, you have to run Parity either with `parity --fo
 
 ### Introducing the Wasm VM
 
-We are excited to announce support for **Wasm Smart Contracts on Kovan network**. The hard-fork to activate the Wasm-VM will take place on block `6600000`.
+We are excited to announce support for **Wasm Smart Contracts on Kovan network**. The hard-fork to activate the Wasm-VM will take place on block `6_600_000`.
 
 To enable Wasm contracts on your custom network, just schedule a `wasmActivationTransition` at your favorite block number (e.g., `42`, `666`, or `0xbada55`). To hack your first Wasm smart contracts in Rust, have a look at the [Parity Wasm Tutorials](https://github.com/paritytech/pwasm-tutorial).
 
@@ -27,6 +27,10 @@ We removed the old database migrations from 2016. In case you upgrade Parity fro
 We fixed  DELEGATECALL `from` and `to` fields, see [#7166](https://github.com/paritytech/parity/issues/7166).
 
 We reduced the default USD per transaction value to 0.0001. Thanks, @MysticRyuujin!
+
+The Musicoin chain is now enabled with Byzantium features starting at block `2_222_222`.
+
+### Overview of all changes included
 
 The full list of included changes:
 
