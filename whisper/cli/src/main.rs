@@ -18,8 +18,6 @@
 //!
 //! Connects to the Ethereum network and allows to transmit secure messages
 //!
-//! Questions that I need to understand:
-//!
 
 extern crate ethcore_network_devp2p as devp2p;
 extern crate ethcore_network as net;
@@ -42,7 +40,7 @@ use jsonrpc_core::{Metadata, MetaIoHandler};
 use jsonrpc_pubsub::{PubSubMetadata, Session};
 
 const POOL_UNIT: usize = 1024 * 1024;
-const URL: &'static str = "127.0.0.1:8545";
+// const URL: &'static str = "127.0.0.1:8545";
 
 pub const USAGE: &'static str = r#"
 Whisper CLI.
@@ -50,11 +48,17 @@ Whisper CLI.
 
 Usage:
 	whisper [options]
+	whisper rpc <method> [options]
 	whisper [-h | --help]
 
 Options:
 	--whisper-pool-size SIZE       Specify Whisper pool size [default: 10].
+	-p, --port PORT                Specify which port to use [default: 8545].
+	-a, --address ADDRESS          Specify which address to use [default: 127.0.0.1].
 	-h, --help                     Display this message and exit.
+
+Commands:
+	rpc <method>                   Send a json_rpc via the specified method
 "#;
 
 // Dummy
@@ -70,6 +74,8 @@ impl PubSubMetadata for Meta {
 #[derive(Debug, Deserialize)]
 struct Args {
 	flag_whisper_pool_size: usize,
+	flag_port: String,
+	flag_address: String,
 }
 
 struct WhisperPoolHandle {
@@ -168,6 +174,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	println!("args: {:?}", args);
 
 	let pool_size = args.flag_whisper_pool_size * POOL_UNIT;
+	let url = format!("{}:{}", args.flag_address, args.flag_port);
 
 	// Filter manager that will dispatch `decryption tasks`
 	// This provides the `Whisper` trait with all rpcs methods
@@ -201,7 +208,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	io.extend_with(whisper::rpc::WhisperPubSub::to_delegate(whisper_factory.make_handler(shared_network.clone())));
 
 	let server = jsonrpc_http_server::ServerBuilder::new(io)
-		.start_http(&URL.parse().unwrap())
+		.start_http(&url.parse().unwrap())
 		.expect("Unable to start server");
 
 	server.wait();
