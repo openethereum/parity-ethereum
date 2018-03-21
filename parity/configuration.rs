@@ -891,6 +891,12 @@ impl Configuration {
 		let ui = self.ui_config();
 		let http = self.http_config()?;
 
+		let support_token_api =
+			// never enabled for public node
+			!self.args.flag_public_node
+			// enabled when not unlocking unless the ui is forced
+			&& (self.args.arg_unlock.is_none() || ui.enabled);
+
 		let conf = WsConfiguration {
 			enabled: self.ws_enabled(),
 			interface: self.ws_interface(),
@@ -899,7 +905,7 @@ impl Configuration {
 			hosts: self.ws_hosts(),
 			origins: self.ws_origins(),
 			signer_path: self.directories().signer.into(),
-			support_token_api: !self.args.flag_public_node,
+			support_token_api,
 			ui_address: ui.address(),
 			dapps_address: http.address(),
 		};
