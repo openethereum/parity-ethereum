@@ -1,3 +1,85 @@
+## Parity [v1.9.5](https://github.com/paritytech/parity/releases/tag/v1.9.5) (2018-03-21)
+
+Parity 1.9.5 is a bug-fix release to improve performance and stability. This release marks the 1.9 track _stable_.
+
+We are excited to announce support for **Wasm Smart Contracts on Kovan network**. The hard-fork to activate the Wasm-VM will take place on block `6600000`.
+
+The full list of included changes:
+
+- Do a meaningful commit that does not contain the words "ci" or "skip"
+- Triggering build for stable.
+- Postpone Kovan hard fork ([#8137](https://github.com/paritytech/parity/pull/8137)) ([#8152](https://github.com/paritytech/parity/pull/8152))
+  - Postpone Kovan hard fork ([#8137](https://github.com/paritytech/parity/pull/8137))
+    - ethcore: postpone Kovan hard fork
+    - util: update version fork metadata
+  - WASM libraries bump ([#7970](https://github.com/paritytech/parity/pull/7970))
+    - update wasmi, parity-wasm, wasm-utils to latest version
+    - Update to new wasmi & error handling
+    - also utilize new stack limiter
+    - fix typo
+    - replace dependency url
+    - Cargo.lock update
+- Fix scripts. Force JS rebuild. ([#8144](https://github.com/paritytech/parity/pull/8144))
+- Stable Backports ([#8133](https://github.com/paritytech/parity/pull/8133))
+  - updater: apply exponential backoff after download failure ([#8059](https://github.com/paritytech/parity/pull/8059))
+    - updater: apply exponential backoff after download failure
+    - updater: reset backoff on new release
+  - Limit incoming connections.  ([#8060](https://github.com/paritytech/parity/pull/8060))
+    - Limit ingress connections
+    - Optimized handshakes logging
+  - Max code size on Kovan ([#8067](https://github.com/paritytech/parity/pull/8067))
+    - Enable code size limit on kovan
+    - Fix formatting.
+  - add some dos protection ([#8084](https://github.com/paritytech/parity/pull/8084))
+  - more dos protection ([#8104](https://github.com/paritytech/parity/pull/8104))
+  - Const time comparison ([#8113](https://github.com/paritytech/parity/pull/8113))
+    - Use `subtle::slices_equal` for constant time comparison.
+    - Also update the existing version of subtle in `ethcrypto` from
+    - 0.1 to 0.5
+    - Test specifically for InvalidPassword error.
+  - revert removing blooms ([#8066](https://github.com/paritytech/parity/pull/8066))
+  - Revert "fix traces, removed bloomchain crate, closes [#7228](https://github.com/paritytech/parity/pull/7228), closes [#7167](https://github.com/paritytech/parity/pull/7167)"
+  - Revert "fixed broken logs ([#7934](https://github.com/paritytech/parity/pull/7934))"
+    - fixed broken logs
+    - bring back old lock order
+    - remove migration v13
+    - revert CURRENT_VERSION to 12 in migration.rs
+    - Fix compilation.
+    - Check one step deeper if we're on release track branches
+    - add missing pr
+    - Fix blooms?
+    - Fix tests compiilation.
+    - Fix size.
+- Check one step deeper if we're on release track branches ([#8134](https://github.com/paritytech/parity/pull/8134)) ([#8140](https://github.com/paritytech/parity/pull/8140))
+- Trigger js build. ([#8121](https://github.com/paritytech/parity/pull/8121))
+- Stable backports ([#8055](https://github.com/paritytech/parity/pull/8055))
+  - CI: Fix cargo cache ([#7968](https://github.com/paritytech/parity/pull/7968))
+  - Fix cache
+Blocking waiting for file lock on the registry index
+  - Only clean locked cargo cache on windows
+  - fixed ethstore sign ([#8026](https://github.com/paritytech/parity/pull/8026))
+  - fix cache & snapcraft CI build ([#8052](https://github.com/paritytech/parity/pull/8052))
+  - Add MCIP-6 Byzyantium transition to Musicoin spec ([#7841](https://github.com/paritytech/parity/pull/7841))
+    - Add test chain spec for musicoin byzantium testnet
+    - Add MCIP-6 Byzyantium transition to Musicoin spec
+    - Update mcip6_byz.json
+    - ethcore: update musicoin byzantium block number
+    - ethcore: update musicoin bootnodes
+    - Update musicoin.json
+    - More bootnodes.
+- Optimize JS build ([#8093](https://github.com/paritytech/parity/pull/8093))
+  - Extract common chunks plugin.
+  - Fix common CSS.
+  - Fix js push for stable.
+  - Remove arguments to getPlugins.
+- Stable Backports ([#8058](https://github.com/paritytech/parity/pull/8058))
+  - fixed parsing ethash seals and verify_block_undordered ([#8031](https://github.com/paritytech/parity/pull/8031))
+  - fix for verify_block_basic crashing on invalid transaction rlp ([#8032](https://github.com/paritytech/parity/pull/8032))
+- Make 1.9 stable ([#8023](https://github.com/paritytech/parity/pull/8023))
+  - Make 1.9 stable
+  - Bump stable to 1.9.5
+  - Fix gitlab builds
+
 ## Parity [v1.9.4](https://github.com/paritytech/parity/releases/tag/v1.9.4) (2018-03-01)
 
 Parity 1.9.4 is a bug-fix release to improve performance and stability.
@@ -394,16 +476,3 @@ The full list of included changes:
 - Use cc 1.0 instead of gcc ([#6733](https://github.com/paritytech/parity/pull/6733))
 - Version bump to 1.9.0 ([#6727](https://github.com/paritytech/parity/pull/6727))
 - Fix badges not showing up ([#6730](https://github.com/paritytech/parity/pull/6730))
-
-### Previous releases
-
-- [CHANGELOG-1.8](docs/CHANGELOG-1.8.md) (_stable_)
-- [CHANGELOG-1.7](docs/CHANGELOG-1.7.md) (EOL: 2018-01-25)
-- [CHANGELOG-1.6](docs/CHANGELOG-1.6.md) (EOL: 2017-10-15)
-- [CHANGELOG-1.5](docs/CHANGELOG-1.5.md) (EOL: 2017-07-28)
-- [CHANGELOG-1.4](docs/CHANGELOG-1.4.md) (EOL: 2017-03-13)
-- [CHANGELOG-1.3](docs/CHANGELOG-1.3.md) (EOL: 2017-01-19)
-- [CHANGELOG-1.2](docs/CHANGELOG-1.2.md) (EOL: 2016-11-07)
-- [CHANGELOG-1.1](docs/CHANGELOG-1.1.md) (EOL: 2016-08-12)
-- [CHANGELOG-1.0](docs/CHANGELOG-1.0.md) (EOL: 2016-06-24)
-- [CHANGELOG-0.9](docs/CHANGELOG-0.9.md) (EOL: 2016-05-02)
