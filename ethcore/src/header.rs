@@ -23,68 +23,16 @@ use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use rlp::*;
-use parking_lot::RwLock;
 
 pub use types::BlockNumber;
 
 /// Semantic boolean for when a seal/signature is included.
 #[derive(Debug, Clone, Copy)]
-pub enum Seal {
+enum Seal {
 	/// The seal/signature is included.
 	With,
 	/// The seal/signature is not included.
 	Without,
-}
-
-#[derive(Debug, Clone, Default)]
-struct HeaderRlp {
-	/// The memoized RLP and hash of the RLP representation *including* the seal fields.
-	with_seal: Option<(Bytes, H256)>,
-
-	/// The memoized RLP and hash of the RLP representation *without* the seal fields.
-	without_seal: Option<(Bytes, H256)>,
-}
-
-impl HeaderRlp {
-	pub fn from_rlp(rlp: &[u8]) -> Self {
-		HeaderRlp {
-			with_seal: Some((rlp.to_vec(), keccak(rlp))),
-			..Default::default()
-		}
-	}
-	pub fn clear(&mut self) {
-		self.with_seal = None;
-		self.without_seal = None;
-	}
-
-	pub fn get(&self, with_seal: Seal) -> Option<&(Bytes, H256)> {
-		match with_seal {
-			Seal::With => self.with_seal.as_ref(),
-			Seal::Without => self.without_seal.as_ref(),
-		}
-	}
-
-	pub fn compute(&mut self, header: &Header, with_seal: Seal) -> &(Bytes, H256) {
-		let fill = |loc: &mut Option<(Vec<u8>, H256)>| {
-			if let None = *loc {
-				let rlp = header.compute_rlp(with_seal);
-				let hash = keccak(&rlp);
-				*loc = Some((rlp, hash));
-			}
-		};
-
-		const PROOF: &str = "Option is always Some after `fill` is called; qed";
-		match with_seal {
-			Seal::With => {
-				fill(&mut self.with_seal);
-				self.with_seal.as_ref().expect(PROOF)
-			},
-			Seal::Without => {
-				fill(&mut self.without_seal);
-				self.without_seal.as_ref().expect(PROOF)
-			},
-		}
-	}
 }
 
 /// A block header.
@@ -93,7 +41,7 @@ impl HeaderRlp {
 /// which is non-specific.
 ///
 /// Doesn't do all that much on its own.
-#[derive(Debug)]
+#[derive(Debug, Clone, Eq)]
 pub struct Header {
 	/// Parent hash.
 	parent_hash: H256,
@@ -127,36 +75,18 @@ pub struct Header {
 	/// Vector of post-RLP-encoded fields.
 	seal: Vec<Bytes>,
 
-	/// Memoized header RLPs and their hashes.
-	rlp: RwLock<HeaderRlp>,
+	/// Memoized hash of that header and the seal.
+	hash: Option<H256>,
 }
-
-impl Clone for Header {
-	fn clone(&self) -> Self {
-		Header {
-			parent_hash: self.parent_hash,
-			timestamp: self.timestamp,
-			number: self.number,
-			author: self.author,
-			transactions_root: self.transactions_root,
-			uncles_hash: self.uncles_hash,
-			extra_data: self.extra_data.clone(),
-			state_root: self.state_root,
-			receipts_root: self.receipts_root,
-			log_bloom: self.log_bloom,
-			gas_used: self.gas_used,
-			gas_limit: self.gas_limit,
-			difficulty: self.difficulty,
-			seal: self.seal.clone(),
-			rlp: RwLock::new(self.rlp.read().clone()),
-		}
-	}
-}
-
-impl Eq for Header {}
 
 impl PartialEq for Header {
 	fn eq(&self, c: &Header) -> bool {
+		if let (&Some(ref h1), &Some(ref h2)) = (&self.hash, &c.hash) {
+			if h1 == h2 {
+				return true
+			}
+		}
+
 		self.parent_hash == c.parent_hash &&
 		self.timestamp == c.timestamp &&
 		self.number == c.number &&
@@ -194,7 +124,7 @@ impl Default for Header {
 
 			difficulty: U256::default(),
 			seal: vec![],
-			rlp: Default::default(),
+			hash: None,
 		}
 	}
 }
@@ -283,13 +213,48 @@ impl Header {
 
 	/// Note that some fields have changed. Resets the memoised hash.
 	pub fn note_dirty(&mut self) {
-		self.rlp.write().clear();
+		self.hash = None;
 	}
 
-	// TODO: make these functions traity
+	// TODO [ToDr] Make use of it!
+	/// Get & memoize the hash of this header (keccak of the RLP with seal).
+	pub fn compute_hash(&mut self) -> H256 {
+		let hash = self.hash();
+		self.hash = Some(hash);
+		hash
+	}
+
+	/// Get the hash of this header (keccak of the RLP with seal).
+	pub fn hash(&self) -> H256 {
+		println!("Getting hash of {:?}", self.number);
+		self.hash.unwrap_or_else(|| keccak(self.rlp(Seal::With)))
+	}
+
+	/// Get the hash of the header excluding the seal
+	pub fn bare_hash(&self) -> H256 {
+		keccak(self.rlp(Seal::Without))
+	}
+
+	/// Encode the header, getting a type-safe wrapper around the RLP.
+	pub fn encoded(&self) -> ::encoded::Header {
+		::encoded::Header::new(self.rlp(Seal::With))
+	}
+
+	/// Get the RLP representation of this Header.
+	fn rlp(&self, with_seal: Seal) -> Bytes {
+		let mut s = RlpStream::new();
+		self.stream_rlp(&mut s, with_seal);
+		s.out()
+	}
+
 	/// Place this header into an RLP stream `s`, optionally `with_seal`.
-	pub fn stream_rlp(&self, s: &mut RlpStream, with_seal: Seal) {
-		s.begin_list(13 + match with_seal { Seal::With => self.seal.len(), _ => 0 });
+	fn stream_rlp(&self, s: &mut RlpStream, with_seal: Seal) {
+		if let Seal::With = with_seal {
+			s.begin_list(13 + self.seal.len());
+		} else {
+			s.begin_list(13);
+		}
+
 		s.append(&self.parent_hash);
 		s.append(&self.uncles_hash);
 		s.append(&self.author);
@@ -303,49 +268,12 @@ impl Header {
 		s.append(&self.gas_used);
 		s.append(&self.timestamp);
 		s.append(&self.extra_data);
+
 		if let Seal::With = with_seal {
 			for b in &self.seal {
 				s.append_raw(b, 1);
 			}
 		}
-	}
-
-	fn compute_rlp(&self, with_seal: Seal) -> Bytes {
-		let mut s = RlpStream::new();
-		self.stream_rlp(&mut s, with_seal);
-		s.out()
-	}
-
-	/// Get the hash of this header (keccak of the RLP).
-	pub fn hash(&self) -> H256 {
-		if let Some(&(_, ref hash)) = self.rlp.read().get(Seal::With) {
-			return *hash;
-		}
-
-		self.rlp.write().compute(self, Seal::With).1
-	}
-
-	/// Get the hash of the header excluding the seal
-	pub fn bare_hash(&self) -> H256 {
-		if let Some(&(_, ref hash)) = self.rlp.read().get(Seal::Without) {
-			return *hash;
-		}
-
-		self.rlp.write().compute(self, Seal::Without).1
-	}
-
-	/// Get the RLP representation of this Header.
-	pub fn rlp(&self, with_seal: Seal) -> Bytes {
-		if let Some(&(ref rlp, _)) = self.rlp.read().get(with_seal) {
-			return rlp.clone()
-		}
-
-		self.rlp.write().compute(self, with_seal).0.clone()
-	}
-
-	/// Encode the header, getting a type-safe wrapper around the RLP.
-	pub fn encoded(&self) -> ::encoded::Header {
-		::encoded::Header::new(self.rlp(Seal::With))
 	}
 }
 
@@ -366,13 +294,14 @@ impl Decodable for Header {
 			timestamp: cmp::min(r.val_at::<U256>(11)?, u64::max_value().into()).as_u64(),
 			extra_data: r.val_at(12)?,
 			seal: vec![],
-			rlp: RwLock::new(HeaderRlp::from_rlp(r.as_raw())),
+			hash: keccak(r.as_raw()).into(),
 		};
 
 		for i in 13..r.item_count()? {
 			blockheader.seal.push(r.at(i)?.as_raw().to_vec())
 		}
 
+		println!("Decoded: {:?}", blockheader.number());
 		Ok(blockheader)
 	}
 }
@@ -444,3 +373,4 @@ mod tests {
 		assert_eq!(header_rlp, encoded_header);
 	}
 }
+

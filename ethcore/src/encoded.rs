@@ -45,7 +45,11 @@ impl Header {
 	/// Create a new owning header view.
 	/// Expects the data to be an RLP-encoded header -- any other case will likely lead to
 	/// panics further down the line.
-	pub fn new(encoded: Vec<u8>) -> Self { Header(encoded) }
+	pub fn new(encoded: Vec<u8>) -> Self {
+		let h = Header(encoded);
+		println!("Creating encoded: {:?}", h.number());
+		h
+	}
 
 	/// Upgrade this encoded view to a fully owned `Header` object.
 	pub fn decode(&self) -> FullHeader { ::rlp::decode(&self.0) }
@@ -65,7 +69,10 @@ impl Header {
 // forwarders to borrowed view.
 impl Header {
 	/// Returns the header hash.
-	pub fn hash(&self) -> H256 { keccak(&self.0) }
+	pub fn hash(&self) -> H256 {
+		println!("Hash for encoded: {:?}", self.number());
+		keccak(&self.0)
+	}
 
 	/// Returns the parent hash.
 	pub fn parent_hash(&self) -> H256 { self.view().parent_hash() }

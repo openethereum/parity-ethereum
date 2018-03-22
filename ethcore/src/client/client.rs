@@ -370,9 +370,10 @@ impl Importer {
 			return Err(());
 		}
 
+		println!("check_and_close: decode");
 		// Check if parent is in chain
-		let parent = match chain.block_header(header.parent_hash()) {
-			Some(h) => h,
+		let parent = match chain.block_header_data(header.parent_hash()) {
+			Some(h) => h.decode(),
 			None => {
 				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
 				return Err(());
@@ -655,7 +656,7 @@ impl Importer {
 	fn check_epoch_end<'a>(&self, header: &'a Header, chain: &BlockChain, client: &Client) {
 		let is_epoch_end = self.engine.is_epoch_end(
 			header,
-			&(|hash| chain.block_header(&hash)),
+			&(|hash| chain.block_header_data(&hash).map(|h| h.decode())),
 			&(|hash| chain.get_pending_transition(hash)), // TODO: limit to current epoch.
 		);
 
@@ -724,7 +725,7 @@ impl Client {
 			config.history
 		};
 
-		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(h.state_root())) {
+		if !chain.block_header_data(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(&h.state_root())) {
 			warn!("State root not found for block #{} ({:x})", chain.best_block_number(), chain.best_block_hash());
 		}
 
@@ -1000,7 +1001,7 @@ impl Client {
 		let header = self.best_block_header();
 		State::from_existing(
 			self.state_db.read().boxed_clone_canon(&header.hash()),
-			header.state_root(),
+			*header.state_root(),
 			self.engine.account_start_nonce(header.number()),
 			self.factories.clone()
 		)
@@ -1315,7 +1316,7 @@ impl BlockInfo for Client {
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_header_data(&hash))
 	}
 
-	fn best_block_header(&self) -> encoded::Header {
+	fn best_block_header(&self) -> Header {
 		self.chain.read().best_block_header()
 	}
 
@@ -1364,6 +1365,7 @@ impl CallContract for Client {
 
 		let transaction = self.contract_call_tx(block_id, address, data);
 
+		println!("Calling contract: decode");
 		self.call(&transaction, Default::default(), state, &header.decode())
 			.map_err(|e| format!("{:?}", e))
 			.map(|executed| executed.output)
@@ -1918,11 +1920,13 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>> {
+		println!("Block extra info: decode");
 		self.block_header(id)
 			.map(|header| self.engine.extra_info(&header.decode()))
 	}
 
 	fn uncle_extra_info(&self, id: UncleId) -> Option<BTreeMap<String, String>> {
+		println!("Uncle extra info: decode");
 		self.uncle(id)
 			.map(|header| self.engine.extra_info(&header.decode()))
 	}
@@ -1973,8 +1977,8 @@ impl ReopenBlock for Client {
 
 			for h in uncles {
 				if !block.uncles().iter().any(|header| header.hash() == h) {
-					let uncle = chain.block_header(&h).expect("find_uncle_hashes only returns hashes for existing headers; qed");
-					block.push_uncle(uncle).expect("pushing up to maximum_uncle_count;
+					let uncle = chain.block_header_data(&h).expect("find_uncle_hashes only returns hashes for existing headers; qed");
+					block.push_uncle(uncle.decode()).expect("pushing up to maximum_uncle_count;
 												push_uncle is not ok only if more than maximum_uncle_count is pushed;
 												so all push_uncle are Ok;
 												qed");
@@ -1991,9 +1995,8 @@ impl PrepareOpenBlock for Client {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.engine;
 		let chain = self.chain.read();
-		let h = chain.best_block_hash();
-		let best_header = &chain.block_header(&h)
-			.expect("h is best block hash: so its header must exist: qed");
+		let best_header = chain.best_block_header();
+		let h = best_header.hash();
 
 		let is_epoch_begin = chain.epoch_transition(best_header.number(), h).is_some();
 		let mut open_block = OpenBlock::new(
@@ -2001,7 +2004,7 @@ impl PrepareOpenBlock for Client {
 			self.factories.clone(),
 			self.tracedb.read().tracing_enabled(),
 			self.state_db.read().boxed_clone_canon(&h),
-			best_header,
+			&best_header,
 			self.build_last_hashes(&h),
 			author,
 			gas_range_target,
@@ -2016,7 +2019,7 @@ impl PrepareOpenBlock for Client {
 			.into_iter()
 			.take(engine.maximum_uncle_count(open_block.header().number()))
 			.foreach(|h| {
-				open_block.push_uncle(h).expect("pushing maximum_uncle_count;
+				open_block.push_uncle(h.decode()).expect("pushing maximum_uncle_count;
 												open_block was just created;
 												push_uncle is not ok only if more than maximum_uncle_count is pushed;
 												so all push_uncle are Ok;

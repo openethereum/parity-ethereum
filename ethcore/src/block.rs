@@ -31,7 +31,7 @@ use vm::{EnvInfo, LastHashes};
 use engines::EthEngine;
 use error::{Error, BlockError};
 use factory::Factories;
-use header::{Header, Seal};
+use header::Header;
 use receipt::{Receipt, TransactionOutcome};
 use state::State;
 use state_db::StateDB;
@@ -57,10 +57,10 @@ impl Block {
 		UntrustedRlp::new(b).as_val::<Block>().is_ok()
 	}
 
-	/// Get the RLP-encoding of the block with or without the seal.
-	pub fn rlp_bytes(&self, seal: Seal) -> Bytes {
+	/// Get the RLP-encoding of the block with the seal.
+	pub fn rlp_bytes(&self) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
-		self.header.stream_rlp(&mut block_rlp, seal);
+		block_rlp.append(&self.header);
 		block_rlp.append_list(&self.transactions);
 		block_rlp.append_list(&self.uncles);
 		block_rlp.out()
@@ -515,7 +515,7 @@ impl SealedBlock {
 	/// Get the RLP-encoding of the block.
 	pub fn rlp_bytes(&self) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
-		self.block.header.stream_rlp(&mut block_rlp, Seal::With);
+		block_rlp.append(&self.block.header);
 		block_rlp.append_list(&self.block.transactions);
 		block_rlp.append_raw(&self.uncle_bytes, 1);
 		block_rlp.out()

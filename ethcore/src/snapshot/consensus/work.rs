@@ -153,19 +153,19 @@ impl<'a> PowWorker<'a> {
 	fn write_chunk(&mut self, last: H256) -> Result<(), Error> {
 		trace!(target: "snapshot", "prepared block chunk with {} blocks", self.rlps.len());
 
-		let (last_header, last_details) = self.chain.block_header(&last)
+		let (last_header, last_details) = self.chain.block_header_data(&last)
 			.and_then(|n| self.chain.block_details(&last).map(|d| (n, d)))
 			.ok_or(Error::BlockNotFound(last))?;
 
 		let parent_number = last_header.number() - 1;
 		let parent_hash = last_header.parent_hash();
-		let parent_total_difficulty = last_details.total_difficulty - *last_header.difficulty();
+		let parent_total_difficulty = last_details.total_difficulty - last_header.difficulty();
 
 		trace!(target: "snapshot", "parent last written block: {}", parent_hash);
 
 		let num_entries = self.rlps.len();
 		let mut rlp_stream = RlpStream::new_list(3 + num_entries);
-		rlp_stream.append(&parent_number).append(parent_hash).append(&parent_total_difficulty);
+		rlp_stream.append(&parent_number).append(&parent_hash).append(&parent_total_difficulty);
 
 		for pair in self.rlps.drain(..) {
 			rlp_stream.append_raw(&pair, 1);
@@ -220,7 +220,6 @@ impl Rebuilder for PowRebuilder {
 	/// Feed the rebuilder an uncompressed block chunk.
 	/// Returns the number of blocks fed or any errors.
 	fn feed(&mut self, chunk: &[u8], engine: &EthEngine, abort_flag: &AtomicBool) -> Result<(), ::error::Error> {
-		use header::Seal;
 		use views::BlockView;
 		use snapshot::verify_old_block;
 		use ethereum_types::U256;
@@ -251,7 +250,7 @@ impl Rebuilder for PowRebuilder {
 			let receipts_root = ordered_trie_root(pair.at(1)?.iter().map(|r| r.as_raw()));
 
 			let block = abridged_block.to_block(parent_hash, cur_number, receipts_root)?;
-			let block_bytes = block.rlp_bytes(Seal::With);
+			let block_bytes = block.rlp_bytes();
 			let is_best = cur_number == self.best_number;
 
 			if is_best {
