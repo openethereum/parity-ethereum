@@ -8,11 +8,23 @@ The **Parity Wallet (a.k.a. "UI") is now disabled by default**. We are preparing
 
 To reactivate the parity wallet, you have to run Parity either with `parity --force-ui` (not recommended) or `parity ui` (deprecated) from the command line. Or, if you feel super fancy and want to test our pre-releases of the stand-alone electron wallet, head over to the [Parity-JS repositories and check the releases](https://github.com/Parity-JS/shell/releases).
 
+Further reading:
+
+- [Docs: Parity Wallet](https://wiki.parity.io/Parity-Wallet)
+- [Docs: How to customize Parity UI?](https://wiki.parity.io/FAQ-Customize-Parity-UI.html)
+- [Github: Parity-JS](https://github.com/parity-js)
+
 ### Introducing the Wasm VM
 
 We are excited to announce support for **Wasm Smart Contracts on Kovan network**. The hard-fork to activate the Wasm-VM will take place on block `6_600_000`.
 
 To enable Wasm contracts on your custom network, just schedule a `wasmActivationTransition` at your favorite block number (e.g., `42`, `666`, or `0xbada55`). To hack your first Wasm smart contracts in Rust, have a look at the [Parity Wasm Tutorials](https://github.com/paritytech/pwasm-tutorial).
+
+Further reading:
+
+- [Docs: WebAssembly (wasm)](https://wiki.parity.io/WebAssembly-Home)
+- [Docs: Wasm VM Design](https://wiki.parity.io/WebAssembly-Design)
+- [Docs: Wasm tutorials and examples](https://wiki.parity.io/WebAssembly-Links)
 
 ### Empty step messages in PoA
 
