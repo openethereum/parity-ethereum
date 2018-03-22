@@ -1345,36 +1345,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "jsonrpc-core"
-version = "8.0.1"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#06bec6ab682ec4ce16d7e7daf2612870c4272028"
-dependencies = [
- "futures 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.29 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 1.0.29 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "jsonrpc-http-server"
 version = "8.0.0"
 source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#06bec6ab682ec4ce16d7e7daf2612870c4272028"
 dependencies = [
  "hyper 0.11.24 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
- "jsonrpc-server-utils 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
- "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "net2 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
- "unicase 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "jsonrpc-http-server"
-version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#06bec6ab682ec4ce16d7e7daf2612870c4272028"
-dependencies = [
- "hyper 0.11.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
  "jsonrpc-server-utils 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1415,16 +1390,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "jsonrpc-pubsub"
-version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#06bec6ab682ec4ce16d7e7daf2612870c4272028"
-dependencies = [
- "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
- "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "jsonrpc-server-utils"
 version = "8.0.0"
 source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#06bec6ab682ec4ce16d7e7daf2612870c4272028"
@@ -1435,19 +1400,6 @@ dependencies = [
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-core 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-io 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "jsonrpc-server-utils"
-version = "8.0.0"
-source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11#06bec6ab682ec4ce16d7e7daf2612870c4272028"
-dependencies = [
- "bytes 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "globset 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
- "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio-core 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio-io 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3710,15 +3662,17 @@ name = "whisper-cli"
 version = "0.1.0"
 dependencies = [
  "docopt 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-devtools 1.11.0",
  "ethcore-network 1.11.0",
  "ethcore-network-devp2p 1.11.0",
- "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
- "jsonrpc-http-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
- "jsonrpc-pubsub 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
+ "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.10)",
+ "jsonrpc-http-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.10)",
+ "jsonrpc-pubsub 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.10)",
  "panic_hook 0.1.0",
  "parity-whisper 0.1.0",
  "serde 1.0.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.29 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3897,15 +3851,11 @@ dependencies = [
 "checksum itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)" = "4833d6978da405305126af4ac88569b5d71ff758581ce5a987dbfa3755f694fc"
 "checksum itoa 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "8324a32baf01e2ae060e9de58ed0bc2320c9a2833491ee36cd3b4c414de4db8c"
 "checksum jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.10)" = "<none>"
-"checksum jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)" = "<none>"
 "checksum jsonrpc-http-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.10)" = "<none>"
-"checksum jsonrpc-http-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)" = "<none>"
 "checksum jsonrpc-ipc-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.10)" = "<none>"
 "checksum jsonrpc-macros 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.10)" = "<none>"
 "checksum jsonrpc-pubsub 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.10)" = "<none>"
-"checksum jsonrpc-pubsub 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)" = "<none>"
 "checksum jsonrpc-server-utils 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.10)" = "<none>"
-"checksum jsonrpc-server-utils 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)" = "<none>"
 "checksum jsonrpc-tcp-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.10)" = "<none>"
 "checksum jsonrpc-ws-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.10)" = "<none>"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
