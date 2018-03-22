@@ -38,7 +38,6 @@ fn cli_cmd() {
 		.unwrap();
 
 	let dir = TempDir::new("test-vault").unwrap();
-	println!("tempdir: {}", dir.path().to_str().unwrap());
 
 	let mut passwd = File::create(dir.path().join("test-password")).unwrap();
 	writeln!(passwd, "password").unwrap();
