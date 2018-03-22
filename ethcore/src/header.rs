@@ -17,22 +17,74 @@
 //! Block header.
 
 use std::cmp;
-use std::cell::RefCell;
 use std::time::{SystemTime, UNIX_EPOCH};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use rlp::*;
+use parking_lot::RwLock;
 
 pub use types::BlockNumber;
 
 /// Semantic boolean for when a seal/signature is included.
+#[derive(Debug, Clone, Copy)]
 pub enum Seal {
 	/// The seal/signature is included.
 	With,
 	/// The seal/signature is not included.
 	Without,
+}
+
+#[derive(Debug, Clone, Default)]
+struct HeaderRlp {
+	/// The memoized RLP and hash of the RLP representation *including* the seal fields.
+	with_seal: Option<(Bytes, H256)>,
+
+	/// The memoized RLP and hash of the RLP representation *without* the seal fields.
+	without_seal: Option<(Bytes, H256)>,
+}
+
+impl HeaderRlp {
+	pub fn from_rlp(rlp: &[u8]) -> Self {
+		HeaderRlp {
+			with_seal: Some((rlp.to_vec(), keccak(rlp))),
+			..Default::default()
+		}
+	}
+	pub fn clear(&mut self) {
+		self.with_seal = None;
+		self.without_seal = None;
+	}
+
+	pub fn get(&self, with_seal: Seal) -> Option<&(Bytes, H256)> {
+		match with_seal {
+			Seal::With => self.with_seal.as_ref(),
+			Seal::Without => self.without_seal.as_ref(),
+		}
+	}
+
+	pub fn compute(&mut self, header: &Header, with_seal: Seal) -> &(Bytes, H256) {
+		let fill = |loc: &mut Option<(Vec<u8>, H256)>| {
+			if let None = *loc {
+				let rlp = header.compute_rlp(with_seal);
+				let hash = keccak(&rlp);
+				*loc = Some((rlp, hash));
+			}
+		};
+
+		const PROOF: &str = "Option is always Some after `fill` is called; qed";
+		match with_seal {
+			Seal::With => {
+				fill(&mut self.with_seal);
+				self.with_seal.as_ref().expect(PROOF)
+			},
+			Seal::Without => {
+				fill(&mut self.without_seal);
+				self.without_seal.as_ref().expect(PROOF)
+			},
+		}
+	}
 }
 
 /// A block header.
@@ -41,7 +93,7 @@ pub enum Seal {
 /// which is non-specific.
 ///
 /// Doesn't do all that much on its own.
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug)]
 pub struct Header {
 	/// Parent hash.
 	parent_hash: H256,
@@ -75,11 +127,33 @@ pub struct Header {
 	/// Vector of post-RLP-encoded fields.
 	seal: Vec<Bytes>,
 
-	/// The memoized hash of the RLP representation *including* the seal fields.
-	hash: RefCell<Option<H256>>,
-	/// The memoized hash of the RLP representation *without* the seal fields.
-	bare_hash: RefCell<Option<H256>>,
+	/// Memoized header RLPs and their hashes.
+	rlp: RwLock<HeaderRlp>,
 }
+
+impl Clone for Header {
+	fn clone(&self) -> Self {
+		Header {
+			parent_hash: self.parent_hash,
+			timestamp: self.timestamp,
+			number: self.number,
+			author: self.author,
+			transactions_root: self.transactions_root,
+			uncles_hash: self.uncles_hash,
+			extra_data: self.extra_data.clone(),
+			state_root: self.state_root,
+			receipts_root: self.receipts_root,
+			log_bloom: self.log_bloom,
+			gas_used: self.gas_used,
+			gas_limit: self.gas_limit,
+			difficulty: self.difficulty,
+			seal: self.seal.clone(),
+			rlp: RwLock::new(self.rlp.read().clone()),
+		}
+	}
+}
+
+impl Eq for Header {}
 
 impl PartialEq for Header {
 	fn eq(&self, c: &Header) -> bool {
@@ -120,8 +194,7 @@ impl Default for Header {
 
 			difficulty: U256::default(),
 			seal: vec![],
-			hash: RefCell::new(None),
-			bare_hash: RefCell::new(None),
+			rlp: Default::default(),
 		}
 	}
 }
@@ -208,36 +281,9 @@ impl Header {
 	/// Set the seal field of the header.
 	pub fn set_seal(&mut self, a: Vec<Bytes>) { self.seal = a; self.note_dirty(); }
 
-	/// Get the hash of this header (keccak of the RLP).
-	pub fn hash(&self) -> H256 {
- 		let mut hash = self.hash.borrow_mut();
- 		match &mut *hash {
- 			&mut Some(ref h) => h.clone(),
- 			hash @ &mut None => {
-				let h = self.rlp_keccak(Seal::With);
- 				*hash = Some(h.clone());
- 				h
- 			}
-		}
-	}
-
-	/// Get the hash of the header excluding the seal
-	pub fn bare_hash(&self) -> H256 {
-		let mut hash = self.bare_hash.borrow_mut();
-		match &mut *hash {
-			&mut Some(ref h) => h.clone(),
-			hash @ &mut None => {
-				let h = self.rlp_keccak(Seal::Without);
-				*hash = Some(h.clone());
-				h
-			}
-		}
-	}
-
 	/// Note that some fields have changed. Resets the memoised hash.
-	pub fn note_dirty(&self) {
- 		*self.hash.borrow_mut() = None;
- 		*self.bare_hash.borrow_mut() = None;
+	pub fn note_dirty(&mut self) {
+		self.rlp.write().clear();
 	}
 
 	// TODO: make these functions traity
@@ -264,15 +310,38 @@ impl Header {
 		}
 	}
 
-	/// Get the RLP of this header, optionally `with_seal`.
-	pub fn rlp(&self, with_seal: Seal) -> Bytes {
+	fn compute_rlp(&self, with_seal: Seal) -> Bytes {
 		let mut s = RlpStream::new();
 		self.stream_rlp(&mut s, with_seal);
 		s.out()
 	}
 
-	/// Get the SHA3 (Keccak) of this header, optionally `with_seal`.
-	pub fn rlp_keccak(&self, with_seal: Seal) -> H256 { keccak(self.rlp(with_seal)) }
+	/// Get the hash of this header (keccak of the RLP).
+	pub fn hash(&self) -> H256 {
+		if let Some(&(_, ref hash)) = self.rlp.read().get(Seal::With) {
+			return *hash;
+		}
+
+		self.rlp.write().compute(self, Seal::With).1
+	}
+
+	/// Get the hash of the header excluding the seal
+	pub fn bare_hash(&self) -> H256 {
+		if let Some(&(_, ref hash)) = self.rlp.read().get(Seal::Without) {
+			return *hash;
+		}
+
+		self.rlp.write().compute(self, Seal::Without).1
+	}
+
+	/// Get the RLP representation of this Header.
+	pub fn rlp(&self, with_seal: Seal) -> Bytes {
+		if let Some(&(ref rlp, _)) = self.rlp.read().get(with_seal) {
+			return rlp.clone()
+		}
+
+		self.rlp.write().compute(self, with_seal).0.clone()
+	}
 
 	/// Encode the header, getting a type-safe wrapper around the RLP.
 	pub fn encoded(&self) -> ::encoded::Header {
@@ -297,8 +366,7 @@ impl Decodable for Header {
 			timestamp: cmp::min(r.val_at::<U256>(11)?, u64::max_value().into()).as_u64(),
 			extra_data: r.val_at(12)?,
 			seal: vec![],
-			hash: RefCell::new(Some(keccak(r.as_raw()))),
-			bare_hash: RefCell::new(None),
+			rlp: RwLock::new(HeaderRlp::from_rlp(r.as_raw())),
 		};
 
 		for i in 13..r.item_count()? {

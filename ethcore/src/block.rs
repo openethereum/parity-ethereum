@@ -435,7 +435,7 @@ impl<'x> IsBlock for LockedBlock {
 
 impl ClosedBlock {
 	/// Get the hash of the header without seal arguments.
-	pub fn hash(&self) -> H256 { self.header().rlp_keccak(Seal::Without) }
+	pub fn hash(&self) -> H256 { self.header().bare_hash() }
 
 	/// Turn this into a `LockedBlock`, unable to be reopened again.
 	pub fn lock(self) -> LockedBlock {
@@ -459,7 +459,7 @@ impl ClosedBlock {
 
 impl LockedBlock {
 	/// Get the hash of the header without seal arguments.
-	pub fn hash(&self) -> H256 { self.header().rlp_keccak(Seal::Without) }
+	pub fn hash(&self) -> H256 { self.header().bare_hash() }
 
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	///
