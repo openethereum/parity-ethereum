@@ -16,8 +16,7 @@
 
 //! Whisper command line interface
 //!
-//! Spawns an Ethereum network instance and attaches to Whisper protocol to it
-//! That provides RPC's to transmit secure messages
+//! Spawns an Ethereum network instance and attaches the Whisper protocol RPCs to it.
 //!
 
 extern crate ethcore_network_devp2p as devp2p;
@@ -184,7 +183,6 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 
 	// Parse arguments
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.argv(command).deserialize())?;
-
 	let pool_size = args.flag_whisper_pool_size * POOL_UNIT;
 	let url = format!("{}:{}", args.flag_address, args.flag_port);
 
@@ -224,5 +222,15 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 
 	server.wait();
 
+	// This will never return
 	Ok(())
+}
+
+#[cfg(test)]
+mod test {
+	#[test]
+
+	fn test_rpcs() {
+		assert!(true);
+	}
 }

@@ -11,11 +11,10 @@ docopt = "0.8"
 serde = "1.0"
 serde_derive = "1.0"
 panic_hook = { path = "../../util/panic_hook" }
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
-jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
-jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
+jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
+jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 
 [[bin]]
 name = "whisper-cli"
 path = "src/main.rs"
-doc = false
