@@ -16,7 +16,8 @@
 
 //! Whisper command line interface
 //!
-//! Connects to the Ethereum network and allows to transmit secure messages
+//! Spawns an Ethereum network instance and attaches to Whisper protocol to it
+//! That provides RPC's to transmit secure messages
 //!
 
 extern crate ethcore_network_devp2p as devp2p;
@@ -40,15 +41,12 @@ use jsonrpc_core::{Metadata, MetaIoHandler};
 use jsonrpc_pubsub::{PubSubMetadata, Session};
 
 const POOL_UNIT: usize = 1024 * 1024;
-// const URL: &'static str = "127.0.0.1:8545";
-
-pub const USAGE: &'static str = r#"
+const USAGE: &'static str = r#"
 Whisper CLI.
 	Copyright 2017 Parity Technologies (UK) Ltd
 
 Usage:
 	whisper [options]
-	whisper rpc <method> [options]
 	whisper [-h | --help]
 
 Options:
@@ -57,17 +55,16 @@ Options:
 	-a, --address ADDRESS          Specify which address to use [default: 127.0.0.1].
 	-h, --help                     Display this message and exit.
 
-Commands:
-	rpc <method>                   Send a json_rpc via the specified method
 "#;
 
-// Dummy
 #[derive(Clone, Default)]
-struct Meta(usize);
+struct Meta;
+
 impl Metadata for Meta {}
+
 impl PubSubMetadata for Meta {
 	fn session(&self) -> Option<Arc<Session>> {
-		unimplemented!();
+		None
 	}
 }
 
@@ -125,6 +122,20 @@ enum Error {
 	Docopt(docopt::Error),
 	Io(io::Error),
 	JsonRpc(jsonrpc_core::Error),
+	Network(net::Error),
+	SockAddr(std::net::AddrParseError),
+}
+
+impl From<std::net::AddrParseError> for Error {
+	fn from(err: std::net::AddrParseError) -> Self {
+		Error::SockAddr(err)
+	}
+}
+
+impl From<net::Error> for Error {
+	fn from(err: net::Error) -> Self {
+		Error::Network(err)
+	}
 }
 
 impl From<docopt::Error> for Error {
@@ -148,9 +159,11 @@ impl From<jsonrpc_core::Error> for Error {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
+			Error::SockAddr(ref e) => write!(f, "{}", e),
 			Error::Docopt(ref e) => write!(f, "{}", e),
 			Error::Io(ref e) => write!(f, "{}", e),
 			Error::JsonRpc(ref e) => write!(f, "{:?}", e),
+			Error::Network(ref e) => write!(f, "{:?}", e),
 		}
 	}
 }
@@ -159,7 +172,7 @@ fn main() {
 	panic_hook::set();
 
 	match execute(env::args()) {
-		Ok(ok) => println!("{}", ok),
+		Ok(_) => println!("ok"),
 		Err(err) => {
 			println!("{}", err);
 			process::exit(1);
@@ -167,33 +180,32 @@ fn main() {
 	}
 }
 
-fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item=S>, S: AsRef<str> {
+fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>, S: AsRef<str> {
 
 	// Parse arguments
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.argv(command).deserialize())?;
-	println!("args: {:?}", args);
 
 	let pool_size = args.flag_whisper_pool_size * POOL_UNIT;
 	let url = format!("{}:{}", args.flag_address, args.flag_port);
 
 	// Filter manager that will dispatch `decryption tasks`
 	// This provides the `Whisper` trait with all rpcs methods
-	let manager = Arc::new(whisper::rpc::FilterManager::new().unwrap());
+	let manager = Arc::new(whisper::rpc::FilterManager::new()?);
 
 	// Whisper protocol network handler
 	let whisper_network_handler = Arc::new(whisper::net::Network::new(pool_size, manager.clone()));
 
 	// Create network service
-	let network = devp2p::NetworkService::new(net::NetworkConfiguration::new_local(), None).expect("Error creating network service");
+	let network = devp2p::NetworkService::new(net::NetworkConfiguration::new_local(), None)?;
 
 	// Start network service
-	network.start().expect("Error starting service");
+	network.start()?;
 
 	// Attach whisper protocol to the network service
 	network.register_protocol(whisper_network_handler.clone(), whisper::net::PROTOCOL_ID, whisper::net::PACKET_COUNT,
-							  whisper::net::SUPPORTED_VERSIONS).unwrap();
+							  whisper::net::SUPPORTED_VERSIONS)?;
 	network.register_protocol(Arc::new(whisper::net::ParityExtensions), whisper::net::PARITY_PROTOCOL_ID,
-							  whisper::net::PACKET_COUNT, whisper::net::SUPPORTED_VERSIONS).unwrap();
+							  whisper::net::PACKET_COUNT, whisper::net::SUPPORTED_VERSIONS)?;
 
 	// Request handler
 	let mut io = MetaIoHandler::default();
@@ -208,16 +220,9 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	io.extend_with(whisper::rpc::WhisperPubSub::to_delegate(whisper_factory.make_handler(shared_network.clone())));
 
 	let server = jsonrpc_http_server::ServerBuilder::new(io)
-		.start_http(&url.parse().unwrap())
-		.expect("Unable to start server");
+		.start_http(&url.parse()?)?;
 
 	server.wait();
 
-	Ok("foo".into())
+	Ok(())
 }
-
-
-
-
-
-
