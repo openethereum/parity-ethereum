@@ -344,7 +344,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "elastic-array"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1075,7 +1075,7 @@ dependencies = [
 name = "hashdb"
 version = "0.1.1"
 dependencies = [
- "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1398,7 +1398,7 @@ dependencies = [
 name = "kvdb"
 version = "0.1.0"
 dependencies = [
- "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bytes 0.1.0",
 ]
@@ -1415,7 +1415,7 @@ dependencies = [
 name = "kvdb-rocksdb"
 version = "0.1.0"
 dependencies = [
- "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "interleaved-ordered 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb 0.1.0",
@@ -1576,7 +1576,7 @@ name = "memorydb"
 version = "0.1.1"
 dependencies = [
  "bigint 4.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hashdb 0.1.1",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2353,7 +2353,7 @@ version = "0.1.0"
 name = "patricia-trie"
 version = "0.1.0"
 dependencies = [
- "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bytes 0.1.0",
  "ethcore-logger 1.11.0",
  "ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2658,7 +2658,7 @@ name = "rlp"
 version = "0.2.1"
 dependencies = [
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2667,7 +2667,7 @@ dependencies = [
 name = "rlp_compress"
 version = "0.1.0"
 dependencies = [
- "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
 ]
@@ -3270,6 +3270,7 @@ dependencies = [
 name = "triehash"
 version = "0.1.0"
 dependencies = [
+ "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.0",
  "rlp 0.2.1",
@@ -3628,7 +3629,7 @@ dependencies = [
 "checksum dtoa 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "09c3753c3db574d215cba4ea76018483895d7bff25a31b49ba45db21c48e50ab"
 "checksum edit-distance 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6a34f5204fbc13582de418611cf3a7dcdd07c6d312a5b631597ba72c06b9d9c9"
 "checksum either 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "740178ddf48b1a9e878e6d6509a1442a2d42fd2928aae8e7a6f8a36fb01981b3"
-"checksum elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "258ff6a9a94f648d0379dbd79110e057edbb53eb85cc237e33eadf8e5a30df85"
+"checksum elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "88d4851b005ef16de812ea9acdb7bece2f0a40dd86c07b85631d7dafa54537bb"
 "checksum env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3ddf21e73e016298f5cb37d6ef8e8da8e39f91f9ec8b0df44b7deb16a9f8cd5b"
 "checksum error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff511d5dc435d703f4971bc399647c9bc38e20cb41452e3b9feb4765419ed3f3"
 "checksum eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1)" = "<none>"
