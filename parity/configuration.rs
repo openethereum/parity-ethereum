@@ -470,13 +470,9 @@ impl Configuration {
 	}
 
 	fn max_peers(&self) -> u32 {
-		match (self.args.arg_max_peers, self.args.arg_min_peers) {
-			// Only `min_peers` specified by the user then set `max_peers` to that value
-			(None, Some(min)) => min as u32,
-
-			// Both or none specified by the user and max ensured to be bigger than min
-			(_, _) => self.args.arg_max_peers.unwrap_or(DEFAULT_MAX_PEERS) as u32,
-		}
+		self.args.arg_max_peers
+			.or(self.args.arg_min_peers)
+			.unwrap_or(DEFAULT_MAX_PEERS) as u32
 	}
 
 	fn ip_filter(&self) -> Result<IpFilter, String> {
@@ -487,13 +483,9 @@ impl Configuration {
 	}
 
 	fn min_peers(&self) -> u32 {
-		match (self.args.arg_max_peers, self.args.arg_min_peers) {
-			// Only `max_peers` specified by the user then set `min_peers` to that value
-			(Some(max), None) => max as u32,
-
-			// Both or none specified by the user and max ensured to be bigger than min
-			(_, _) => self.args.arg_min_peers.unwrap_or(DEFAULT_MIN_PEERS) as u32,
-		}
+		self.args.arg_min_peers
+			.or(self.args.arg_max_peers)
+			.unwrap_or(DEFAULT_MIN_PEERS) as u32
 	}
 
 	fn max_pending_peers(&self) -> u32 {
