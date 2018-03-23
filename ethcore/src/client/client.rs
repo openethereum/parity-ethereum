@@ -362,24 +362,23 @@ impl Importer {
 		let engine = &*self.engine;
 		let header = &block.header;
 
-		let chain = client.chain.read();
 		// Check the block isn't so old we won't be able to enact it.
-		let best_block_number = chain.best_block_number();
+		let best_block_number = client.chain.read().best_block_number();
 		if client.pruning_info().earliest_state > header.number() {
 			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
 			return Err(());
 		}
 
-		println!("check_and_close: decode");
 		// Check if parent is in chain
-		let parent = match chain.block_header_data(header.parent_hash()) {
-			Some(h) => h.decode(),
+		let parent = match client.block_header_decoded(BlockId::Hash(*header.parent_hash())) {
+			Some(h) => h,
 			None => {
 				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
 				return Err(());
 			}
 		};
 
+		let chain = client.chain.read();
 		// Verify Block Family
 		let verify_family_result = self.verifier.verify_block_family(
 			header,
@@ -656,7 +655,7 @@ impl Importer {
 	fn check_epoch_end<'a>(&self, header: &'a Header, chain: &BlockChain, client: &Client) {
 		let is_epoch_end = self.engine.is_epoch_end(
 			header,
-			&(|hash| chain.block_header_data(&hash).map(|h| h.decode())),
+			&(|hash| client.block_header_decoded(BlockId::Hash(hash))),
 			&(|hash| chain.get_pending_transition(hash)), // TODO: limit to current epoch.
 		);
 
@@ -1261,6 +1260,23 @@ impl Client {
 			BlockId::Latest => Some(self.chain.read().best_block_number()),
 		}
 	}
+
+	/// Retrieve a decoded header given `BlockId`
+	///
+	/// This method optimizes access patterns for latest block header
+	/// to avoid excessive RLP encoding, decoding and hashing.
+	fn block_header_decoded(&self, id: BlockId) -> Option<Header> {
+		match id {
+			BlockId::Latest
+				=> Some(self.chain.read().best_block_header()),
+			BlockId::Hash(ref hash) if hash == &self.chain.read().best_block_hash()
+				=> Some(self.chain.read().best_block_header()),
+			BlockId::Number(number) if number == self.chain.read().best_block_number()
+				=> Some(self.chain.read().best_block_header()),
+			_
+				=> self.block_header(id).map(|h| h.decode()),
+		}
+	}
 }
 
 impl snapshot::DatabaseRestore for Client {
@@ -1323,9 +1339,7 @@ impl BlockInfo for Client {
 	fn block(&self, id: BlockId) -> Option<encoded::Block> {
 		let chain = self.chain.read();
 
-		Self::block_hash(&chain, id).and_then(|hash| {
-			chain.block(&hash)
-		})
+		Self::block_hash(&chain, id).and_then(|hash| chain.block(&hash))
 	}
 
 	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
@@ -1361,12 +1375,11 @@ impl CallContract for Client {
 	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let state_pruned = || CallError::StatePruned.to_string();
 		let state = &mut self.state_at(block_id).ok_or_else(&state_pruned)?;
-		let header = self.block_header(block_id).ok_or_else(&state_pruned)?;
+		let header = self.block_header_decoded(block_id).ok_or_else(&state_pruned)?;
 
 		let transaction = self.contract_call_tx(block_id, address, data);
 
-		println!("Calling contract: decode");
-		self.call(&transaction, Default::default(), state, &header.decode())
+		self.call(&transaction, Default::default(), state, &header)
 			.map_err(|e| format!("{:?}", e))
 			.map(|executed| executed.output)
 	}
@@ -1920,13 +1933,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>> {
-		println!("Block extra info: decode");
-		self.block_header(id)
-			.map(|header| self.engine.extra_info(&header.decode()))
+		self.block_header_decoded(id)
+			.map(|header| self.engine.extra_info(&header))
 	}
 
 	fn uncle_extra_info(&self, id: UncleId) -> Option<BTreeMap<String, String>> {
-		println!("Uncle extra info: decode");
 		self.uncle(id)
 			.map(|header| self.engine.extra_info(&header.decode()))
 	}

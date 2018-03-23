@@ -576,7 +576,6 @@ impl Miner {
 		if !block.transactions().is_empty() || self.forced_sealing() || Instant::now() > *self.next_mandatory_reseal.read() {
 			trace!(target: "miner", "seal_block_internally: attempting internal seal.");
 
-			println!("Import internally: decode");
 			let parent_header = match chain.block_header(BlockId::Hash(*block.header().parent_hash())) {
 				Some(hdr) => hdr.decode(),
 				None => return false,

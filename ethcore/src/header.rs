@@ -226,7 +226,6 @@ impl Header {
 
 	/// Get the hash of this header (keccak of the RLP with seal).
 	pub fn hash(&self) -> H256 {
-		println!("Getting hash of {:?}", self.number);
 		self.hash.unwrap_or_else(|| keccak(self.rlp(Seal::With)))
 	}
 
@@ -301,7 +300,6 @@ impl Decodable for Header {
 			blockheader.seal.push(r.at(i)?.as_raw().to_vec())
 		}
 
-		println!("Decoded: {:?}", blockheader.number());
 		Ok(blockheader)
 	}
 }

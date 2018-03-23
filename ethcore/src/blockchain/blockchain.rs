@@ -254,7 +254,6 @@ impl BlockProvider for BlockChain {
 		{
 			let best_block = self.best_block.read();
 			if &best_block.header.hash() == hash {
-				// println!("Getting encoded best hash");
 				return Some(best_block.header.encoded())
 			}
 		}
@@ -736,7 +735,6 @@ impl BlockChain {
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 				info: info,
-				timestamp: header.timestamp(),
 				block: bytes
 			}, is_best);
 
@@ -785,7 +783,6 @@ impl BlockChain {
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 				info: info,
-				timestamp: header.timestamp(),
 				block: bytes,
 			}, is_best);
 			true
@@ -935,7 +932,6 @@ impl BlockChain {
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 			info: info.clone(),
-			timestamp: header.timestamp(),
 			block: bytes,
 		}, true);
 
@@ -1027,7 +1023,6 @@ impl BlockChain {
 			let mut best_block = self.pending_best_block.write();
 			if is_best && update.info.location != BlockLocation::Branch {
 				batch.put(db::COL_EXTRA, b"best", &update.info.hash);
-				// TODO [ToDr] Perhpas ExtrasUpdate have header already?
 				let block = encoded::Block::new(update.block.to_vec());
 				*best_block = Some(BestBlock {
 					total_difficulty: update.info.total_difficulty,
