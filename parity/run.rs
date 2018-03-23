@@ -20,7 +20,7 @@ use std::time::{Duration, Instant};
 use std::thread;
 use std::net::{TcpListener};
 
-use ansi_term::Colour;
+use ansi_term::{Colour, Style};
 use ctrlc::CtrlC;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
@@ -893,8 +893,8 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
 	if cmd.ui_conf.enabled {
-		warn!("Parity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity Wallet instead.");
-		warn!("Standalone Parity Wallet: https://github.com/Parity-JS/shell/releases");
+		warn!("{}", Style::new().bold().paint("Parity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity UI instead."));
+		warn!("{}", Style::new().bold().paint("Standalone Parity UI: https://github.com/Parity-JS/shell/releases"));
 	}
 
 	if cmd.ui && cmd.dapps_conf.enabled {
