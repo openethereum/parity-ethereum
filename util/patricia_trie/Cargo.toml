@@ -6,7 +6,7 @@ description = "Merkle-Patricia Trie (Ethereum Style)"
 license = "GPL-3.0"
 
 [dependencies]
-elastic-array = "0.9"
+elastic-array = "0.10"
 log = "0.3"
 rand = "0.4"
 ethcore-bytes = { version = "0.1.0", path = "../bytes" }

@@ -33,7 +33,7 @@ use docopt::Docopt;
 use ethkey::{KeyPair, Random, Brain, BrainPrefix, Prefix, Error as EthkeyError, Generator, sign, verify_public, verify_address, brain_recover};
 use rustc_hex::{FromHex, FromHexError};
 
-pub const USAGE: &'static str = r#"
+const USAGE: &'static str = r#"
 Ethereum keys generator.
   Copyright 2016, 2017 Parity Technologies (UK) Ltd
 
