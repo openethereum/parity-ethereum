@@ -17,8 +17,7 @@
 //! Tests for the on-demand service.
 
 use cache::Cache;
-use ethcore::encoded;
-use ethcore::header::{Header, Seal};
+use ethcore::header::Header;
 use futures::Future;
 use network::{PeerId, NodeId};
 use net::*;

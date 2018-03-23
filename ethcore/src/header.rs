@@ -131,43 +131,50 @@ impl Default for Header {
 
 impl Header {
 	/// Create a new, default-valued, header.
-	pub fn new() -> Self {
-		Self::default()
-	}
+	pub fn new() -> Self { Self::default() }
 
 	/// Get the parent_hash field of the header.
 	pub fn parent_hash(&self) -> &H256 { &self.parent_hash }
+
 	/// Get the timestamp field of the header.
 	pub fn timestamp(&self) -> u64 { self.timestamp }
+
 	/// Get the number field of the header.
 	pub fn number(&self) -> BlockNumber { self.number }
+
 	/// Get the author field of the header.
 	pub fn author(&self) -> &Address { &self.author }
 
 	/// Get the extra data field of the header.
 	pub fn extra_data(&self) -> &Bytes { &self.extra_data }
-	/// Get a mutable reference to extra_data
-	pub fn extra_data_mut(&mut self) -> &mut Bytes { self.note_dirty(); &mut self.extra_data }
 
 	/// Get the state root field of the header.
 	pub fn state_root(&self) -> &H256 { &self.state_root }
+
 	/// Get the receipts root field of the header.
 	pub fn receipts_root(&self) -> &H256 { &self.receipts_root }
+
 	/// Get the log bloom field of the header.
 	pub fn log_bloom(&self) -> &Bloom { &self.log_bloom }
+
 	/// Get the transactions root field of the header.
 	pub fn transactions_root(&self) -> &H256 { &self.transactions_root }
+
 	/// Get the uncles hash field of the header.
 	pub fn uncles_hash(&self) -> &H256 { &self.uncles_hash }
+
 	/// Get the gas used field of the header.
 	pub fn gas_used(&self) -> &U256 { &self.gas_used }
+
 	/// Get the gas limit field of the header.
 	pub fn gas_limit(&self) -> &U256 { &self.gas_limit }
 
 	/// Get the difficulty field of the header.
 	pub fn difficulty(&self) -> &U256 { &self.difficulty }
+
 	/// Get the seal field of the header.
 	pub fn seal(&self) -> &[Bytes] { &self.seal }
+
 	/// Get the seal field with RLP-decoded values as bytes.
 	pub fn decode_seal<'a, T: ::std::iter::FromIterator<&'a [u8]>>(&'a self) -> Result<T, DecoderError> {
 		self.seal.iter().map(|rlp| {
@@ -175,48 +182,89 @@ impl Header {
 		}).collect()
 	}
 
-	// TODO: seal_at, set_seal_at &c.
-
-	/// Set the number field of the header.
-	pub fn set_parent_hash(&mut self, a: H256) { self.parent_hash = a; self.note_dirty(); }
-	/// Set the uncles hash field of the header.
-	pub fn set_uncles_hash(&mut self, a: H256) { self.uncles_hash = a; self.note_dirty(); }
-	/// Set the state root field of the header.
-	pub fn set_state_root(&mut self, a: H256) { self.state_root = a; self.note_dirty(); }
-	/// Set the transactions root field of the header.
-	pub fn set_transactions_root(&mut self, a: H256) { self.transactions_root = a; self.note_dirty() }
-	/// Set the receipts root field of the header.
-	pub fn set_receipts_root(&mut self, a: H256) { self.receipts_root = a; self.note_dirty() }
-	/// Set the log bloom field of the header.
-	pub fn set_log_bloom(&mut self, a: Bloom) { self.log_bloom = a; self.note_dirty() }
-	/// Set the timestamp field of the header.
-	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
-	/// Set the timestamp field of the header to the current time.
-	pub fn set_timestamp_now(&mut self, but_later_than: u64) { let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default(); self.timestamp = cmp::max(now.as_secs() as u64, but_later_than + 1); self.note_dirty(); }
-	/// Set the number field of the header.
-	pub fn set_number(&mut self, a: BlockNumber) { self.number = a; self.note_dirty(); }
-	/// Set the author field of the header.
-	pub fn set_author(&mut self, a: Address) { if a != self.author { self.author = a; self.note_dirty(); } }
-
-	/// Set the extra data field of the header.
-	pub fn set_extra_data(&mut self, a: Bytes) { if a != self.extra_data { self.extra_data = a; self.note_dirty(); } }
-
-	/// Set the gas used field of the header.
-	pub fn set_gas_used(&mut self, a: U256) { self.gas_used = a; self.note_dirty(); }
-	/// Set the gas limit field of the header.
-	pub fn set_gas_limit(&mut self, a: U256) { self.gas_limit = a; self.note_dirty(); }
-
-	/// Set the difficulty field of the header.
-	pub fn set_difficulty(&mut self, a: U256) { self.difficulty = a; self.note_dirty(); }
-	/// Set the seal field of the header.
-	pub fn set_seal(&mut self, a: Vec<Bytes>) { self.seal = a; self.note_dirty(); }
-
-	/// Note that some fields have changed. Resets the memoised hash.
-	pub fn note_dirty(&mut self) {
+	/// Get a mutable reference to extra_data
+	#[cfg(test)]
+	pub fn extra_data_mut(&mut self) -> &mut Bytes {
 		self.hash = None;
+		&mut self.extra_data
 	}
 
-	// TODO [ToDr] Make use of it!
+	/// Set the number field of the header.
+	pub fn set_parent_hash(&mut self, a: H256) {
+		change_field(&mut self.hash, &mut self.parent_hash, a);
+	}
+
+	/// Set the uncles hash field of the header.
+	pub fn set_uncles_hash(&mut self, a: H256) {
+		change_field(&mut self.hash, &mut self.uncles_hash, a);
+
+	}
+	/// Set the state root field of the header.
+	pub fn set_state_root(&mut self, a: H256) {
+		change_field(&mut self.hash, &mut self.state_root, a);
+	}
+
+	/// Set the transactions root field of the header.
+	pub fn set_transactions_root(&mut self, a: H256) {
+		change_field(&mut self.hash, &mut self.transactions_root, a);
+	}
+
+	/// Set the receipts root field of the header.
+	pub fn set_receipts_root(&mut self, a: H256) {
+		change_field(&mut self.hash, &mut self.receipts_root, a);
+	}
+
+	/// Set the log bloom field of the header.
+	pub fn set_log_bloom(&mut self, a: Bloom) {
+		change_field(&mut self.hash, &mut self.log_bloom, a);
+	}
+
+	/// Set the timestamp field of the header.
+	pub fn set_timestamp(&mut self, a: u64) {
+		change_field(&mut self.hash, &mut self.timestamp, a);
+	}
+
+	/// Set the timestamp field of the header to the current time.
+	pub fn set_timestamp_now(&mut self, but_later_than: u64) {
+		let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+		self.set_timestamp(cmp::max(now.as_secs() as u64, but_later_than + 1));
+	}
+
+	/// Set the number field of the header.
+	pub fn set_number(&mut self, a: BlockNumber) {
+		change_field(&mut self.hash, &mut self.number, a);
+	}
+
+	/// Set the author field of the header.
+	pub fn set_author(&mut self, a: Address) {
+		change_field(&mut self.hash, &mut self.author, a);
+	}
+
+	/// Set the extra data field of the header.
+	pub fn set_extra_data(&mut self, a: Bytes) {
+		change_field(&mut self.hash, &mut self.extra_data, a);
+	}
+
+	/// Set the gas used field of the header.
+	pub fn set_gas_used(&mut self, a: U256) {
+		change_field(&mut self.hash, &mut self.gas_used, a);
+	}
+
+	/// Set the gas limit field of the header.
+	pub fn set_gas_limit(&mut self, a: U256) {
+		change_field(&mut self.hash, &mut self.gas_limit, a);
+	}
+
+	/// Set the difficulty field of the header.
+	pub fn set_difficulty(&mut self, a: U256) {
+		change_field(&mut self.hash, &mut self.difficulty, a);
+	}
+
+	/// Set the seal field of the header.
+	pub fn set_seal(&mut self, a: Vec<Bytes>) {
+		change_field(&mut self.hash, &mut self.seal, a)
+	}
+
 	/// Get & memoize the hash of this header (keccak of the RLP with seal).
 	pub fn compute_hash(&mut self) -> H256 {
 		let hash = self.hash();
@@ -275,6 +323,15 @@ impl Header {
 		}
 	}
 }
+
+/// Alter value of given field, reset memoised hash if changed.
+fn change_field<T>(hash: &mut Option<H256>, field: &mut T, value: T) where T: PartialEq<T> {
+	if field != &value {
+		*field = value;
+		*hash = None;
+	}
+}
+
 
 impl Decodable for Header {
 	fn decode(r: &UntrustedRlp) -> Result<Self, DecoderError> {

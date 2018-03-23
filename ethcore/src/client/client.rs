@@ -408,6 +408,7 @@ impl Importer {
 		let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
+		let strip_receipts = header.number() < engine.params().validate_receipts_transition;
 		let enact_result = enact_verified(block,
 			engine,
 			client.tracedb.read().tracing_enabled(),
@@ -416,14 +417,12 @@ impl Importer {
 			last_hashes,
 			client.factories.clone(),
 			is_epoch_begin,
+			strip_receipts,
 		);
-		let mut locked_block = enact_result.map_err(|e| {
+
+		let locked_block = enact_result.map_err(|e| {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 		})?;
-
-		if header.number() < engine.params().validate_receipts_transition && header.receipts_root() != locked_block.block().header().receipts_root() {
-			locked_block = locked_block.strip_receipts();
-		}
 
 		// Final Verification
 		if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {

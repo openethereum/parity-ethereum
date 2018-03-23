@@ -470,9 +470,10 @@ impl BlockChain {
 			},
 			first_block: None,
 			best_block: RwLock::new(BestBlock {
+				// BestBlock will be overwritten anyway.
 				header: Default::default(),
 				total_difficulty: Default::default(),
-				block: encoded::Block::new(vec![]),
+				block: encoded::Block::new(genesis.into()),
 			}),
 			best_ancient_block: RwLock::new(None),
 			block_headers: RwLock::new(HashMap::new()),
@@ -524,8 +525,8 @@ impl BlockChain {
 
 		{
 			// Fetch best block details
-			let best_block_rlp = bc.block(&best_block_hash).unwrap();
 			let best_block_total_difficulty = bc.block_details(&best_block_hash).unwrap().total_difficulty;
+			let best_block_rlp = bc.block(&best_block_hash).unwrap();
 
 			// and write them
 			let mut best_block = bc.best_block.write();
