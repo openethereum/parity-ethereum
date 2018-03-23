@@ -75,6 +75,11 @@ impl<T: WebApp + 'static> Dapp<T> {
 			fallback_to_index_html: false,
 		}
 	}
+
+	/// Allow the dapp to use `unsafe-eval` to run JS.
+	pub fn allow_js_eval(&mut self) {
+		self.info.allow_js_eval = Some(true);
+	}
 }
 
 impl<T: WebApp> Endpoint for Dapp<T> {
