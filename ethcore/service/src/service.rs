@@ -277,7 +277,7 @@ mod tests {
 			tempdir.path(),
 			Arc::new(Miner::with_spec(&spec)),
 			Arc::new(AccountProvider::transient_provider()),
-			Box::new(ethcore_private_tx::SecretStoreEncryptor::new(Default::default()).unwrap()),
+			Box::new(ethcore_private_tx::NoopEncryptor),
 			Default::default()
 		);
 		assert!(service.is_ok());
