@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use v1::types::{H160, H256, TransactionRequest};
-use private_transactions::{Receipt as EthPrivateReceipt};
+use ethcore_private_tx::{Receipt as EthPrivateReceipt};
 
 /// Receipt
 #[derive(Debug, Serialize)]

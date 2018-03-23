@@ -34,22 +34,22 @@ use ethcore::snapshot::{RestorationStatus};
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
 
-use private_transactions;
+use ethcore_private_tx;
 use Error;
 
 pub struct PrivateTxService {
-	provider: Arc<private_transactions::Provider>,
+	provider: Arc<ethcore_private_tx::Provider>,
 }
 
 impl PrivateTxService {
-	fn new(provider: Arc<private_transactions::Provider>) -> Self {
+	fn new(provider: Arc<ethcore_private_tx::Provider>) -> Self {
 		PrivateTxService {
 			provider,
 		}
 	}
 
 	/// Returns underlying provider.
-	pub fn provider(&self) -> Arc<private_transactions::Provider> {
+	pub fn provider(&self) -> Arc<ethcore_private_tx::Provider> {
 		self.provider.clone()
 	}
 }
@@ -84,8 +84,8 @@ impl ClientService {
 		_ipc_path: &Path,
 		miner: Arc<Miner>,
 		account_provider: Arc<AccountProvider>,
-		encryptor: Box<private_transactions::Encryptor>,
-		private_tx_conf: private_transactions::ProviderConfig,
+		encryptor: Box<ethcore_private_tx::Encryptor>,
+		private_tx_conf: ethcore_private_tx::ProviderConfig,
 		) -> Result<ClientService, Error>
 	{
 		let io_service = IoService::<ClientIoMessage>::start()?;
@@ -118,7 +118,7 @@ impl ClientService {
 		};
 		let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
-		let provider = Arc::new(private_transactions::Provider::new(client.clone(), account_provider, encryptor, private_tx_conf, io_service.channel())?);
+		let provider = Arc::new(ethcore_private_tx::Provider::new(client.clone(), account_provider, encryptor, private_tx_conf, io_service.channel())?);
 		let private_tx = Arc::new(PrivateTxService::new(provider));
 
 		let client_io = Arc::new(ClientIoHandler {
@@ -260,7 +260,7 @@ mod tests {
 	use ethcore::spec::Spec;
 	use super::*;
 
-	use private_transactions;
+	use ethcore_private_tx;
 
 	#[test]
 	fn it_can_be_started() {
@@ -277,7 +277,7 @@ mod tests {
 			tempdir.path(),
 			Arc::new(Miner::with_spec(&spec)),
 			Arc::new(AccountProvider::transient_provider()),
-			Box::new(private_transactions::SecretStoreEncryptor::new(Default::default()).unwrap()),
+			Box::new(ethcore_private_tx::SecretStoreEncryptor::new(Default::default()).unwrap()),
 			Default::default()
 		);
 		assert!(service.is_ok());

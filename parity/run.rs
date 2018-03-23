@@ -49,7 +49,7 @@ use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use parking_lot::{Condvar, Mutex};
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
-use private_transactions::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
+use ethcore_private_tx::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool

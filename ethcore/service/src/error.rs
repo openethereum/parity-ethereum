@@ -16,11 +16,11 @@
 
 use ethcore;
 use io;
-use private_transactions;
+use ethcore_private_tx;
 
 error_chain! {
 	links {
-		PrivateTransactions(private_transactions::Error, private_transactions::ErrorKind);
+		PrivateTransactions(ethcore_private_tx::Error, ethcore_private_tx::ErrorKind);
 	}
 
 	foreign_links {

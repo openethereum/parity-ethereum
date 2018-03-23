@@ -20,7 +20,7 @@ extern crate ethcore_io as io;
 extern crate ethsync;
 extern crate kvdb;
 extern crate kvdb_rocksdb;
-extern crate private_transactions;
+extern crate ethcore_private_tx;
 extern crate stop_guard;
 
 #[macro_use]

@@ -40,7 +40,7 @@ use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
 use parity_rpc::{Metadata, NetworkSettings, Host};
 use parking_lot::{Mutex, RwLock};
-use private_transactions::Provider as PrivateTransactionManager;
+use ethcore_private_tx::Provider as PrivateTransactionManager;
 use updater::Updater;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]

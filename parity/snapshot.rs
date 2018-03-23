@@ -36,7 +36,7 @@ use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
 use fdlimit;
-use private_transactions;
+use ethcore_private_tx;
 
 /// Kinds of snapshot commands.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -191,7 +191,7 @@ impl SnapshotCommand {
 			&self.dirs.ipc_path(),
 			Arc::new(Miner::with_spec(&spec)),
 			Arc::new(AccountProvider::transient_provider()),
-			Box::new(private_transactions::SecretStoreEncryptor::new(Default::default()).unwrap()),
+			Box::new(ethcore_private_tx::SecretStoreEncryptor::new(Default::default()).unwrap()),
 			Default::default()
 		).map_err(|e| format!("Client service error: {:?}", e))?;
 

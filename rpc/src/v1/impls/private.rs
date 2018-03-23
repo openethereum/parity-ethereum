@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use rlp::UntrustedRlp;
 
-use private_transactions::Provider as PrivateTransactionManager;
+use ethcore_private_tx::Provider as PrivateTransactionManager;
 use ethereum_types::Address;
 use ethcore::{contract_address, CreateContractAddress};
 use transaction::SignedTransaction;

@@ -24,7 +24,6 @@ use light::Provider;
 pub use ethsync::{EthSync, SyncProvider, ManageNetwork, PrivateTxHandler};
 pub use ethcore::client::ChainNotify;
 use ethcore_logger::Config as LogConfig;
-pub use private_transactions::Provider as PrivateTransactionProvider;
 
 pub type SyncModules = (Arc<SyncProvider>, Arc<ManageNetwork>, Arc<ChainNotify>);
 

@@ -45,6 +45,7 @@ ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
+ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.2"
 
@@ -60,7 +61,6 @@ node-health = { path = "../dapps/node-health" }
 parity-reactor = { path = "../util/reactor" }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
-private_transactions = { path = "../private_transactions" }
 patricia-trie = { path = "../util/patricia_trie" }
 rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }

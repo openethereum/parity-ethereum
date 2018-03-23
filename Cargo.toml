@@ -43,6 +43,7 @@ ethcore-logger = { path = "logger" }
 ethcore-migrations = { path = "ethcore/migrations" }
 ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
+ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
 ethcore-stratum = { path = "stratum" }
 ethcore-transaction = { path = "ethcore/transaction" }
@@ -69,7 +70,6 @@ migration = { path = "util/migration" }
 kvdb = { path = "util/kvdb" }
 kvdb-rocksdb = { path = "util/kvdb-rocksdb" }
 journaldb = { path = "util/journaldb" }
-private_transactions = { path = "private_transactions" }
 
 parity-dapps = { path = "dapps", optional = true }
 ethcore-secretstore = { path = "secret_store", optional = true }
