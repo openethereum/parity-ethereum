@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::{fs, mem, slice};
 use ethereum_types::H512;
-use rlp::*;
+use rlp::{Rlp, RlpStream, DecoderError};
 use network::{Error, ErrorKind, AllowIP, IpFilter};
 use discovery::{TableUpdates, NodeEntry};
 use ip_utils::*;

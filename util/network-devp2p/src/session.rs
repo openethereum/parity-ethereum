@@ -24,7 +24,7 @@ use mio::*;
 use mio::deprecated::{Handler, EventLoop};
 use mio::tcp::*;
 use ethereum_types::H256;
-use rlp::*;
+use rlp::{Rlp, RlpStream, EMPTY_LIST_RLP};
 use connection::{EncryptedConnection, Packet, Connection, MAX_PAYLOAD_SIZE};
 use handshake::Handshake;
 use io::{IoContext, StreamToken};

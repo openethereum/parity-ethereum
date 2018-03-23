@@ -25,7 +25,7 @@ use heapsize::HeapSizeOf;
 use ethereum_types::{H256, Bloom, U256};
 use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
-use rlp::*;
+use rlp::{Rlp, RlpStream};
 use rlp_compress::{compress, decompress, blocks_swapper};
 use header::*;
 use transaction::*;

@@ -25,7 +25,7 @@ use mio::deprecated::{Handler, EventLoop};
 use mio::udp::*;
 use hash::keccak;
 use ethereum_types::{H256, H520};
-use rlp::*;
+use rlp::{Rlp, RlpStream, encode_list};
 use node_table::*;
 use network::{Error, ErrorKind};
 use io::{StreamToken, IoContext};

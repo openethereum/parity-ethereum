@@ -97,7 +97,7 @@ use ethereum_types::{H256, U256};
 use plain_hasher::H256FastMap;
 use parking_lot::RwLock;
 use bytes::Bytes;
-use rlp::*;
+use rlp::{Rlp, RlpStream, DecoderError, Encodable};
 use network::{self, PeerId, PacketId};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};

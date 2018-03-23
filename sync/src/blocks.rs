@@ -22,7 +22,7 @@ use heapsize::HeapSizeOf;
 use ethereum_types::H256;
 use triehash::ordered_trie_root;
 use bytes::Bytes;
-use rlp::*;
+use rlp::{Rlp, RlpStream, DecoderError};
 use network;
 use ethcore::header::Header as BlockHeader;
 

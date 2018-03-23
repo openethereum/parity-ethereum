@@ -29,7 +29,7 @@ use journaldb;
 use kvdb::DBValue;
 use kvdb_memorydb;
 use bytes::Bytes;
-use rlp::*;
+use rlp::{Rlp, RlpStream};
 use ethkey::{Generator, Random};
 use transaction::{self, Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::{TreeRoute, BlockReceipts};
