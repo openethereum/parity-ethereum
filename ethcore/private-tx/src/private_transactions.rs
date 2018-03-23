@@ -77,7 +77,7 @@ impl VerificationStore {
 				});
 				Ok(())
 			})
-			.map_err(|err| err.into())
+			.map_err(Into::into)
 	}
 
 	/// Returns transactions ready for verification

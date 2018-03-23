@@ -382,7 +382,7 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 		geth_compatibility: cmd.geth_compatibility,
 		remote: event_loop.remote(),
 		whisper_rpc: whisper_factory,
-		private_tx_manager: None, //TODO: add this to client.
+		private_tx_service: None, //TODO: add this to client.
 		gas_price_percentile: cmd.gas_price_percentile,
 	});
 
@@ -612,7 +612,8 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	// take handle to client
 	let client = service.client();
 	// take handle to private transactions service
-	let private_provider = service.private_tx_service();
+	let private_tx_service = service.private_tx_service();
+	let private_tx_provider = private_tx_service.provider();
 	let connection_filter = connection_filter_address.map(|a| Arc::new(NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, a)));
 	let snapshot_service = service.snapshot_service();
 
@@ -680,7 +681,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 		net_conf.clone().into(),
 		client.clone(),
 		snapshot_service.clone(),
-		private_provider.clone(),
+		private_tx_service.clone(),
 		client.clone(),
 		&cmd.logger_config,
 		attached_protos,
@@ -691,6 +692,8 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	if let Some(filter) = connection_filter {
 		service.add_notify(filter);
 	}
+	private_tx_provider.add_notify(chain_notify.clone());
+	service.add_notify(private_tx_provider.clone());
 
 	// start network
 	if network_enabled {
@@ -784,7 +787,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 		fetch: fetch.clone(),
 		remote: event_loop.remote(),
 		whisper_rpc: whisper_factory,
-		private_tx_manager: Some(private_provider.clone()),
+		private_tx_service: Some(private_tx_service.clone()),
 		gas_price_percentile: cmd.gas_price_percentile,
 	});
 
