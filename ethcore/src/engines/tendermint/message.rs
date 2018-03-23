@@ -100,7 +100,7 @@ impl ConsensusMessage {
 
 	pub fn verify(&self) -> Result<Address, Error> {
 		let full_rlp = ::rlp::encode(self);
-		let block_info = Rlp::new(&full_rlp).at(1).expect("TODO");
+		let block_info = Rlp::new(&full_rlp).at(1)?;
 		let public_key = recover(&self.signature.into(), &keccak(block_info.as_raw()))?;
 		Ok(public_to_address(&public_key))
 	}
