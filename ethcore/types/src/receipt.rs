@@ -81,7 +81,7 @@ impl Encodable for Receipt {
 }
 
 impl Decodable for Receipt {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		if rlp.item_count()? == 3 {
 			Ok(Receipt {
 				outcome: TransactionOutcome::Unknown,

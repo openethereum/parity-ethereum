@@ -206,7 +206,7 @@ impl Handshake {
 		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.auth_cipher.extend_from_slice(data);
 		let auth = ecies::decrypt(secret, &self.auth_cipher[0..2], &self.auth_cipher[2..])?;
-		let rlp = UntrustedRlp::new(&auth);
+		let rlp = Rlp::new(&auth);
 		let signature: H520 = rlp.val_at(0)?;
 		let remote_public: Public = rlp.val_at(1)?;
 		let remote_nonce: H256 = rlp.val_at(2)?;
@@ -249,7 +249,7 @@ impl Handshake {
 		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.ack_cipher.extend_from_slice(data);
 		let ack = ecies::decrypt(secret, &self.ack_cipher[0..2], &self.ack_cipher[2..])?;
-		let rlp = UntrustedRlp::new(&ack);
+		let rlp = Rlp::new(&ack);
 		self.remote_ephemeral = rlp.val_at(0)?;
 		self.remote_nonce = rlp.val_at(1)?;
 		self.remote_version = rlp.val_at(2)?;

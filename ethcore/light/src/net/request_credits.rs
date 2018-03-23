@@ -162,7 +162,7 @@ impl Encodable for CostTable {
 }
 
 impl Decodable for CostTable {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let base = rlp.val_at(0)?;
 
 		let mut headers = None;

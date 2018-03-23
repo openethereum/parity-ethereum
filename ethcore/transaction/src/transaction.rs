@@ -24,7 +24,7 @@ use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
 use evm::Schedule;
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use rlp::{self, RlpStream, UntrustedRlp, DecoderError, Encodable};
+use rlp::{self, RlpStream, Rlp, DecoderError, Encodable};
 // use rlp::*;
 
 type Bytes = Vec<u8>;
@@ -51,7 +51,7 @@ impl Default for Action {
 }
 
 impl rlp::Decodable for Action {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		if rlp.is_empty() {
 			Ok(Action::Create)
 		} else {
@@ -273,7 +273,7 @@ impl Deref for UnverifiedTransaction {
 }
 
 impl rlp::Decodable for UnverifiedTransaction {
-	fn decode(d: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(d: &Rlp) -> Result<Self, DecoderError> {
 		if d.item_count()? != 9 {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}

@@ -41,7 +41,7 @@ use ethcore::engines::epoch::{
 	PendingTransition as PendingEpochTransition
 };
 
-use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
+use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, H264, U256};
 use plain_hasher::H256FastMap;
@@ -109,7 +109,7 @@ impl Encodable for Entry {
 }
 
 impl Decodable for Entry {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let mut candidates = SmallVec::<[Candidate; 3]>::new();
 
 		for item in rlp.iter() {
@@ -170,7 +170,7 @@ fn encode_canonical_transition(header: &Header, proof: &[u8]) -> Vec<u8> {
 
 // decode last canonical transition entry.
 fn decode_canonical_transition(t: &[u8]) -> Result<(Header, &[u8]), DecoderError> {
-	let rlp = UntrustedRlp::new(t);
+	let rlp = Rlp::new(t);
 
 	Ok((rlp.val_at(0)?, rlp.at(1)?.data()?))
 }
@@ -207,7 +207,7 @@ impl HeaderChain {
 		let chain = if let Some(current) = db.get(col, CURRENT_KEY)? {
 			let (best_number, highest_number) = {
 				let rlp = Rlp::new(&current);
-				(rlp.val_at(0), rlp.val_at(1))
+				(rlp.val_at(0).expect("TODO"), rlp.val_at(1).expect("TODO"))
 			};
 
 			let mut cur_number = highest_number;

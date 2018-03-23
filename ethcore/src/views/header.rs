@@ -51,49 +51,49 @@ impl<'a> HeaderView<'a> {
 	pub fn rlp(&self) -> &Rlp<'a> { &self.rlp }
 
 	/// Returns parent hash.
-	pub fn parent_hash(&self) -> H256 { self.rlp.val_at(0) }
+	pub fn parent_hash(&self) -> H256 { self.rlp.val_at(0).expect("TODO") }
 
 	/// Returns uncles hash.
-	pub fn uncles_hash(&self) -> H256 { self.rlp.val_at(1) }
+	pub fn uncles_hash(&self) -> H256 { self.rlp.val_at(1).expect("TODO") }
 
 	/// Returns author.
-	pub fn author(&self) -> Address { self.rlp.val_at(2) }
+	pub fn author(&self) -> Address { self.rlp.val_at(2).expect("TODO") }
 
 	/// Returns state root.
-	pub fn state_root(&self) -> H256 { self.rlp.val_at(3) }
+	pub fn state_root(&self) -> H256 { self.rlp.val_at(3).expect("TODO") }
 
 	/// Returns transactions root.
-	pub fn transactions_root(&self) -> H256 { self.rlp.val_at(4) }
+	pub fn transactions_root(&self) -> H256 { self.rlp.val_at(4).expect("TODO") }
 
 	/// Returns block receipts root.
-	pub fn receipts_root(&self) -> H256 { self.rlp.val_at(5) }
+	pub fn receipts_root(&self) -> H256 { self.rlp.val_at(5).expect("TODO") }
 
 	/// Returns block log bloom.
-	pub fn log_bloom(&self) -> Bloom { self.rlp.val_at(6) }
+	pub fn log_bloom(&self) -> Bloom { self.rlp.val_at(6).expect("TODO") }
 
 	/// Returns block difficulty.
-	pub fn difficulty(&self) -> U256 { self.rlp.val_at(7) }
+	pub fn difficulty(&self) -> U256 { self.rlp.val_at(7).expect("TODO") }
 
 	/// Returns block number.
-	pub fn number(&self) -> BlockNumber { self.rlp.val_at(8) }
+	pub fn number(&self) -> BlockNumber { self.rlp.val_at(8).expect("TODO") }
 
 	/// Returns block gas limit.
-	pub fn gas_limit(&self) -> U256 { self.rlp.val_at(9) }
+	pub fn gas_limit(&self) -> U256 { self.rlp.val_at(9).expect("TODO") }
 
 	/// Returns block gas used.
-	pub fn gas_used(&self) -> U256 { self.rlp.val_at(10) }
+	pub fn gas_used(&self) -> U256 { self.rlp.val_at(10).expect("TODO") }
 
 	/// Returns timestamp.
-	pub fn timestamp(&self) -> u64 { self.rlp.val_at(11) }
+	pub fn timestamp(&self) -> u64 { self.rlp.val_at(11).expect("TODO") }
 
 	/// Returns block extra data.
-	pub fn extra_data(&self) -> Bytes { self.rlp.val_at(12) }
+	pub fn extra_data(&self) -> Bytes { self.rlp.val_at(12).expect("TODO") }
 
 	/// Returns a vector of post-RLP-encoded seal fields.
 	pub fn seal(&self) -> Vec<Bytes> {
 		let mut seal = vec![];
-		for i in 13..self.rlp.item_count() {
-			seal.push(self.rlp.at(i).as_raw().to_vec());
+		for i in 13..self.rlp.item_count().expect("TODO") {
+			seal.push(self.rlp.at(i).expect("TODO").as_raw().to_vec());
 		}
 		seal
 	}
@@ -102,7 +102,7 @@ impl<'a> HeaderView<'a> {
 	pub fn decode_seal(&self) -> Result<Vec<Bytes>, rlp::DecoderError> {
 		let seal = self.seal();
 		seal.into_iter()
-			.map(|s| rlp::UntrustedRlp::new(&s).data().map(|x| x.to_vec()))
+			.map(|s| rlp::Rlp::new(&s).data().map(|x| x.to_vec()))
 			.collect()
 	}
 }

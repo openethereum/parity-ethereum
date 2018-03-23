@@ -688,7 +688,7 @@ fn id_guard() {
 		stream.begin_list(2).append(&125usize).append(&3usize);
 
 		let packet = stream.out();
-		assert!(proto.response(&peer_id, &Expect::Nothing, UntrustedRlp::new(&packet)).is_err());
+		assert!(proto.response(&peer_id, &Expect::Nothing, Rlp::new(&packet)).is_err());
 	}
 
 	// next, do an unexpected response.
@@ -699,7 +699,7 @@ fn id_guard() {
 		stream.begin_list(0);
 
 		let packet = stream.out();
-		assert!(proto.response(&peer_id, &Expect::Nothing, UntrustedRlp::new(&packet)).is_err());
+		assert!(proto.response(&peer_id, &Expect::Nothing, Rlp::new(&packet)).is_err());
 	}
 
 	// lastly, do a valid (but empty) response.
@@ -710,7 +710,7 @@ fn id_guard() {
 		stream.begin_list(0);
 
 		let packet = stream.out();
-		assert!(proto.response(&peer_id, &Expect::Nothing, UntrustedRlp::new(&packet)).is_ok());
+		assert!(proto.response(&peer_id, &Expect::Nothing, Rlp::new(&packet)).is_ok());
 	}
 
 	let peers = proto.peers.read();

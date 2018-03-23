@@ -294,8 +294,8 @@ impl BlockCollection {
 				block_rlp.append_raw(&block.header, 1);
 				{
 					let body = Rlp::new(block.body.as_ref().expect("blocks contains only full blocks; qed"));
-					block_rlp.append_raw(body.at(0).as_raw(), 1);
-					block_rlp.append_raw(body.at(1).as_raw(), 1);
+					block_rlp.append_raw(body.at(0).expect("TODO").as_raw(), 1);
+					block_rlp.append_raw(body.at(1).expect("TODO").as_raw(), 1);
 				}
 				drained.push(BlockAndReceipts {
 					block: block_rlp.out(),
@@ -343,7 +343,7 @@ impl BlockCollection {
 
 	fn insert_body(&mut self, b: Bytes) -> Result<(), network::Error> {
 		let header_id = {
-			let body = UntrustedRlp::new(&b);
+			let body = Rlp::new(&b);
 			let tx = body.at(0)?;
 			let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw()));
 			let uncles = keccak(body.at(1)?.as_raw());
@@ -378,7 +378,7 @@ impl BlockCollection {
 
 	fn insert_receipt(&mut self, r: Bytes) -> Result<(), network::Error> {
 		let receipt_root = {
-			let receipts = UntrustedRlp::new(&r);
+			let receipts = Rlp::new(&r);
 			ordered_trie_root(receipts.iter().map(|r| r.as_raw()))
 		};
 		self.downloading_receipts.remove(&receipt_root);
@@ -406,7 +406,7 @@ impl BlockCollection {
 	}
 
 	fn insert_header(&mut self, header: Bytes) -> Result<H256, DecoderError> {
-		let info: BlockHeader = UntrustedRlp::new(&header).as_val()?;
+		let info: BlockHeader = Rlp::new(&header).as_val()?;
 		let hash = info.hash();
 		if self.blocks.contains_key(&hash) {
 			return Ok(hash);

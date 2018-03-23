@@ -603,7 +603,7 @@ impl ChainSync {
 	}
 
 	/// Called by peer to report status
-	fn on_peer_status(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_status(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		self.handshaking_peers.remove(&peer_id);
 		let protocol_version: u8 = r.val_at(0)?;
 		let warp_protocol = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer_id) != 0;
@@ -672,7 +672,7 @@ impl ChainSync {
 	}
 
 	/// Called by peer once it has new block headers during sync
-	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		let confirmed = match self.peers.get_mut(&peer_id) {
 			Some(ref mut peer) if peer.asking == PeerAsking::ForkHeader => {
 				peer.asking = PeerAsking::Nothing;
@@ -773,7 +773,7 @@ impl ChainSync {
 	}
 
 	/// Called by peer once it has new block bodies
-	fn on_peer_block_bodies(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_block_bodies(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		self.clear_peer_download(peer_id);
 		let block_set = self.peers.get(&peer_id).and_then(|p| p.block_set).unwrap_or(BlockSet::NewBlocks);
 		if !self.reset_peer_asking(peer_id, PeerAsking::BlockBodies) {
@@ -827,7 +827,7 @@ impl ChainSync {
 	}
 
 	/// Called by peer once it has new block receipts
-	fn on_peer_block_receipts(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_block_receipts(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		self.clear_peer_download(peer_id);
 		let block_set = self.peers.get(&peer_id).and_then(|p| p.block_set).unwrap_or(BlockSet::NewBlocks);
 		if !self.reset_peer_asking(peer_id, PeerAsking::BlockReceipts) {
@@ -881,7 +881,7 @@ impl ChainSync {
 	}
 
 	/// Called by peer once it has new block bodies
-	fn on_peer_new_block(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_new_block(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "Ignoring new block from unconfirmed peer {}", peer_id);
 			return Ok(());
@@ -948,7 +948,7 @@ impl ChainSync {
 	}
 
 	/// Handles `NewHashes` packet. Initiates headers download for any unknown hashes.
-	fn on_peer_new_hashes(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_new_hashes(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "Ignoring new hashes from unconfirmed peer {}", peer_id);
 			return Ok(());
@@ -1023,7 +1023,7 @@ impl ChainSync {
 	}
 
 	/// Called when snapshot manifest is downloaded from a peer.
-	fn on_snapshot_manifest(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_snapshot_manifest(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "Ignoring snapshot manifest from unconfirmed peer {}", peer_id);
 			return Ok(());
@@ -1067,7 +1067,7 @@ impl ChainSync {
 	}
 
 	/// Called when snapshot data is downloaded from a peer.
-	fn on_snapshot_data(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_snapshot_data(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "Ignoring snapshot data from unconfirmed peer {}", peer_id);
 			return Ok(());
@@ -1460,7 +1460,7 @@ impl ChainSync {
 	}
 
 	/// Called when peer sends us new transactions
-	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		// Accept transactions only when fully synced
 		if !io.is_chain_queue_empty() || (self.state != SyncState::Idle && self.state != SyncState::NewBlocks) {
 			trace!(target: "sync", "{} Ignoring transactions while syncing", peer_id);
@@ -1513,7 +1513,7 @@ impl ChainSync {
 	}
 
 	/// Respond to GetBlockHeaders request
-	fn return_block_headers(io: &SyncIo, r: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_block_headers(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		// Packet layout:
 		// [ block: { P , B_32 }, maxHeaders: P, skip: P, reverse: P in { 0 , 1 } ]
 		let max_headers: usize = r.val_at(1)?;
@@ -1586,7 +1586,7 @@ impl ChainSync {
 	}
 
 	/// Respond to GetBlockBodies request
-	fn return_block_bodies(io: &SyncIo, r: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_block_bodies(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let mut count = r.item_count().unwrap_or(0);
 		if count == 0 {
 			debug!(target: "sync", "Empty GetBlockBodies request, ignoring.");
@@ -1608,7 +1608,7 @@ impl ChainSync {
 	}
 
 	/// Respond to GetNodeData request
-	fn return_node_data(io: &SyncIo, r: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_node_data(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let mut count = r.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetNodeData: {} entries", peer_id, count);
 		if count == 0 {
@@ -1632,7 +1632,7 @@ impl ChainSync {
 		Ok(Some((NODE_DATA_PACKET, rlp)))
 	}
 
-	fn return_receipts(io: &SyncIo, rlp: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_receipts(io: &SyncIo, rlp: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let mut count = rlp.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetReceipts: {} entries", peer_id, count);
 		if count == 0 {
@@ -1657,7 +1657,7 @@ impl ChainSync {
 	}
 
 	/// Respond to GetSnapshotManifest request
-	fn return_snapshot_manifest(io: &SyncIo, r: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_snapshot_manifest(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let count = r.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetSnapshotManifest", peer_id);
 		if count != 0 {
@@ -1680,7 +1680,7 @@ impl ChainSync {
 	}
 
 	/// Respond to GetSnapshotData request
-	fn return_snapshot_data(io: &SyncIo, r: &UntrustedRlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_snapshot_data(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let hash: H256 = r.val_at(0)?;
 		trace!(target: "sync", "{} -> GetSnapshotData {:?}", peer_id, hash);
 		let rlp = match io.snapshot_service().chunk(hash) {
@@ -1697,8 +1697,8 @@ impl ChainSync {
 		Ok(Some((SNAPSHOT_DATA_PACKET, rlp)))
 	}
 
-	fn return_rlp<FRlp, FError>(io: &mut SyncIo, rlp: &UntrustedRlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketDecodeError>
-		where FRlp : Fn(&SyncIo, &UntrustedRlp, PeerId) -> RlpResponseResult,
+	fn return_rlp<FRlp, FError>(io: &mut SyncIo, rlp: &Rlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketDecodeError>
+		where FRlp : Fn(&SyncIo, &Rlp, PeerId) -> RlpResponseResult,
 			FError : FnOnce(network::Error) -> String
 	{
 		let response = rlp_func(io, rlp, peer);
@@ -1715,7 +1715,7 @@ impl ChainSync {
 
 	/// Dispatch incoming requests and responses
 	pub fn dispatch_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
-		let rlp = UntrustedRlp::new(data);
+		let rlp = Rlp::new(data);
 		let result = match packet_id {
 			GET_BLOCK_BODIES_PACKET => ChainSync::return_rlp(io, &rlp, peer,
 				ChainSync::return_block_bodies,
@@ -1756,7 +1756,7 @@ impl ChainSync {
 			debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_info(peer));
 			return;
 		}
-		let rlp = UntrustedRlp::new(data);
+		let rlp = Rlp::new(data);
 		let result = match packet_id {
 			STATUS_PACKET => self.on_peer_status(io, peer, &rlp),
 			TRANSACTIONS_PACKET => self.on_peer_transactions(io, peer, &rlp),
@@ -2184,7 +2184,7 @@ impl ChainSync {
 	}
 
 	/// Called when peer sends us new consensus packet
-	fn on_consensus_packet(io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_consensus_packet(io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		trace!(target: "sync", "Received consensus packet from {:?}", peer_id);
 		io.chain().queue_consensus_message(r.as_raw().to_vec());
 		Ok(())
@@ -2227,7 +2227,7 @@ mod tests {
 	use ethereum_types::{H256, U256, Address};
 	use parking_lot::RwLock;
 	use bytes::Bytes;
-	use rlp::{Rlp, RlpStream, UntrustedRlp};
+	use rlp::{Rlp, RlpStream, Rlp};
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
@@ -2324,7 +2324,7 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		let io = TestIo::new(&mut client, &ss, &queue, None);
 
-		let result = ChainSync::return_receipts(&io, &UntrustedRlp::new(&[0xc0]), 0);
+		let result = ChainSync::return_receipts(&io, &Rlp::new(&[0xc0]), 0);
 
 		assert!(result.is_ok());
 	}
@@ -2345,7 +2345,7 @@ mod tests {
 
 		let receipts_request = receipt_list.out();
 		// it returns rlp ONLY for hashes started with "f"
-		let result = ChainSync::return_receipts(&io, &UntrustedRlp::new(&receipts_request.clone()), 0);
+		let result = ChainSync::return_receipts(&io, &Rlp::new(&receipts_request.clone()), 0);
 
 		assert!(result.is_ok());
 		let rlp_result = result.unwrap();
@@ -2395,33 +2395,33 @@ mod tests {
 		let io = TestIo::new(&mut client, &ss, &queue, None);
 
 		let unknown: H256 = H256::new();
-		let result = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&make_hash_req(&unknown, 1, 0, false)), 0);
+		let result = ChainSync::return_block_headers(&io, &Rlp::new(&make_hash_req(&unknown, 1, 0, false)), 0);
 		assert!(to_header_vec(result).is_empty());
-		let result = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&make_hash_req(&unknown, 1, 0, true)), 0);
+		let result = ChainSync::return_block_headers(&io, &Rlp::new(&make_hash_req(&unknown, 1, 0, true)), 0);
 		assert!(to_header_vec(result).is_empty());
 
-		let result = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&make_hash_req(&hashes[2], 1, 0, true)), 0);
+		let result = ChainSync::return_block_headers(&io, &Rlp::new(&make_hash_req(&hashes[2], 1, 0, true)), 0);
 		assert_eq!(to_header_vec(result), vec![headers[2].clone()]);
 
-		let result = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&make_hash_req(&hashes[2], 1, 0, false)), 0);
+		let result = ChainSync::return_block_headers(&io, &Rlp::new(&make_hash_req(&hashes[2], 1, 0, false)), 0);
 		assert_eq!(to_header_vec(result), vec![headers[2].clone()]);
 
-		let result = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&make_hash_req(&hashes[50], 3, 5, false)), 0);
+		let result = ChainSync::return_block_headers(&io, &Rlp::new(&make_hash_req(&hashes[50], 3, 5, false)), 0);
 		assert_eq!(to_header_vec(result), vec![headers[50].clone(), headers[56].clone(), headers[62].clone()]);
 
-		let result = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&make_hash_req(&hashes[50], 3, 5, true)), 0);
+		let result = ChainSync::return_block_headers(&io, &Rlp::new(&make_hash_req(&hashes[50], 3, 5, true)), 0);
 		assert_eq!(to_header_vec(result), vec![headers[50].clone(), headers[44].clone(), headers[38].clone()]);
 
-		let result = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&make_num_req(2, 1, 0, true)), 0);
+		let result = ChainSync::return_block_headers(&io, &Rlp::new(&make_num_req(2, 1, 0, true)), 0);
 		assert_eq!(to_header_vec(result), vec![headers[2].clone()]);
 
-		let result = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&make_num_req(2, 1, 0, false)), 0);
+		let result = ChainSync::return_block_headers(&io, &Rlp::new(&make_num_req(2, 1, 0, false)), 0);
 		assert_eq!(to_header_vec(result), vec![headers[2].clone()]);
 
-		let result = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&make_num_req(50, 3, 5, false)), 0);
+		let result = ChainSync::return_block_headers(&io, &Rlp::new(&make_num_req(50, 3, 5, false)), 0);
 		assert_eq!(to_header_vec(result), vec![headers[50].clone(), headers[56].clone(), headers[62].clone()]);
 
-		let result = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&make_num_req(50, 3, 5, true)), 0);
+		let result = ChainSync::return_block_headers(&io, &Rlp::new(&make_num_req(50, 3, 5, true)), 0);
 		assert_eq!(to_header_vec(result), vec![headers[50].clone(), headers[44].clone(), headers[38].clone()]);
 	}
 
@@ -2440,7 +2440,7 @@ mod tests {
 
 		let node_request = node_list.out();
 		// it returns rlp ONLY for hashes started with "f"
-		let result = ChainSync::return_node_data(&io, &UntrustedRlp::new(&node_request.clone()), 0);
+		let result = ChainSync::return_node_data(&io, &Rlp::new(&node_request.clone()), 0);
 
 		assert!(result.is_ok());
 		let rlp_result = result.unwrap();
@@ -2794,7 +2794,7 @@ mod tests {
 					return None;
 				}
 
-				let rlp = UntrustedRlp::new(&*p.data);
+				let rlp = Rlp::new(&*p.data);
 				let item_count = rlp.item_count().unwrap_or(0);
 				if item_count != 1 {
 					return None;
@@ -2821,7 +2821,7 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 
-		let block = UntrustedRlp::new(&block_data);
+		let block = Rlp::new(&block_data);
 
 		let result = sync.on_peer_new_block(&mut io, 0, &block);
 
@@ -2840,7 +2840,7 @@ mod tests {
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 
-		let block = UntrustedRlp::new(&block_data);
+		let block = Rlp::new(&block_data);
 
 		let result = sync.on_peer_new_block(&mut io, 0, &block);
 
@@ -2857,7 +2857,7 @@ mod tests {
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 
 		let empty_data = vec![];
-		let block = UntrustedRlp::new(&empty_data);
+		let block = Rlp::new(&empty_data);
 
 		let result = sync.on_peer_new_block(&mut io, 0, &block);
 
@@ -2874,7 +2874,7 @@ mod tests {
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 
 		let hashes_data = get_dummy_hashes();
-		let hashes_rlp = UntrustedRlp::new(&hashes_data);
+		let hashes_rlp = Rlp::new(&hashes_data);
 
 		let result = sync.on_peer_new_hashes(&mut io, 0, &hashes_rlp);
 
@@ -2891,7 +2891,7 @@ mod tests {
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
 
 		let empty_hashes_data = vec![];
-		let hashes_rlp = UntrustedRlp::new(&empty_hashes_data);
+		let hashes_rlp = Rlp::new(&empty_hashes_data);
 
 		let result = sync.on_peer_new_hashes(&mut io, 0, &hashes_rlp);
 
@@ -2914,7 +2914,7 @@ mod tests {
 		sync.propagate_new_hashes(&chain_info, &mut io, &peers);
 
 		let data = &io.packets[0].data.clone();
-		let result = sync.on_peer_new_hashes(&mut io, 0, &UntrustedRlp::new(data));
+		let result = sync.on_peer_new_hashes(&mut io, 0, &Rlp::new(data));
 		assert!(result.is_ok());
 	}
 
@@ -2934,7 +2934,7 @@ mod tests {
 		sync.propagate_blocks(&chain_info, &mut io, &[], &peers);
 
 		let data = &io.packets[0].data.clone();
-		let result = sync.on_peer_new_block(&mut io, 0, &UntrustedRlp::new(data));
+		let result = sync.on_peer_new_block(&mut io, 0, &Rlp::new(data));
 		assert!(result.is_ok());
 	}
 

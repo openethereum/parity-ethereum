@@ -63,7 +63,7 @@ impl Encodable for FlatTrace {
 }
 
 impl Decodable for FlatTrace {
-	fn decode(d: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(d: &Rlp) -> Result<Self, DecoderError> {
 		let v: Vec<usize> = d.list_at(3)?;
 		let res = FlatTrace {
 			action: d.val_at(0)?,

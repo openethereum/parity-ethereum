@@ -30,7 +30,7 @@ use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
 
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
 
-use rlp::{RlpStream, UntrustedRlp};
+use rlp::{RlpStream, Rlp};
 use ethereum_types::{H256, U256, Address};
 use parking_lot::Mutex;
 use hashdb::HashDB;
@@ -442,8 +442,8 @@ impl CheckedRequest {
 						let mut stream = RlpStream::new_list(3);
 						let body = body.rlp();
 						stream.append_raw(&hdr.rlp().as_raw(), 1);
-						stream.append_raw(&body.at(0).as_raw(), 1);
-						stream.append_raw(&body.at(1).as_raw(), 1);
+						stream.append_raw(&body.at(0).expect("TODO").as_raw(), 1);
+						stream.append_raw(&body.at(1).expect("TODO").as_raw(), 1);
 
 						Response::Body(encoded::Block::new(stream.out()))
 					})
@@ -783,7 +783,7 @@ impl Body {
 			return Err(Error::WrongTrieRoot(header.transactions_root(), tx_root));
 		}
 
-		let uncles_hash = keccak(body.rlp().at(1).as_raw());
+		let uncles_hash = keccak(body.rlp().at(1).expect("TODO").as_raw());
 		if uncles_hash != header.uncles_hash() {
 			return Err(Error::WrongHash(header.uncles_hash(), uncles_hash));
 		}
@@ -791,8 +791,8 @@ impl Body {
 		// concatenate the header and the body.
 		let mut stream = RlpStream::new_list(3);
 		stream.append_raw(header.rlp().as_raw(), 1);
-		stream.append_raw(body.rlp().at(0).as_raw(), 1);
-		stream.append_raw(body.rlp().at(1).as_raw(), 1);
+		stream.append_raw(body.rlp().at(0).expect("TODO").as_raw(), 1);
+		stream.append_raw(body.rlp().at(1).expect("TODO").as_raw(), 1);
 
 		cache.lock().insert_block_body(header.hash(), body.clone());
 
@@ -840,7 +840,7 @@ impl Account {
 
 		match TrieDB::new(&db, &state_root).and_then(|t| t.get(&keccak(&self.address)))? {
 			Some(val) => {
-				let rlp = UntrustedRlp::new(&val);
+				let rlp = Rlp::new(&val);
 				Ok(Some(BasicAccount {
 					nonce: rlp.val_at(0)?,
 					balance: rlp.val_at(1)?,
