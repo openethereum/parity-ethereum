@@ -894,6 +894,20 @@ impl ClusterClientImpl {
 			}
 		}
 	}
+
+	fn process_initialization_result<S: ClusterSession, SC: ClusterSessionCreator<S, D>, D>(result: Result<(), Error>, session: Arc<S>, sessions: &ClusterSessionsContainer<S, SC, D>) -> Result<Arc<S>, Error> {
+		match result {
+			Ok(()) if session.is_finished() => {
+				sessions.remove(&session.id());
+				Ok(session)
+			},
+			Ok(()) => Ok(session),
+			Err(error) => {
+				sessions.remove(&session.id());
+				Err(error)
+			},
+		}
+	}
 }
 
 impl ClusterClient for ClusterClientImpl {
@@ -907,13 +921,9 @@ impl ClusterClient for ClusterClientImpl {
 
 		let cluster = create_cluster_view(&self.data, true)?;
 		let session = self.data.sessions.generation_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, false, None)?;
-		match session.initialize(public_to_address(&author), false, threshold, connected_nodes.into()) {
-			Ok(()) => Ok(session),
-			Err(error) => {
-				self.data.sessions.generation_sessions.remove(&session.id());
-				Err(error)
-			},
-		}
+		Self::process_initialization_result(
+			session.initialize(public_to_address(&author), false, threshold, connected_nodes.into()),
+			session, &self.data.sessions.generation_sessions)
 	}
 
 	fn new_encryption_session(&self, session_id: SessionId, requester: Requester, common_point: Public, encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error> {
@@ -922,13 +932,9 @@ impl ClusterClient for ClusterClientImpl {
 
 		let cluster = create_cluster_view(&self.data, true)?;
 		let session = self.data.sessions.encryption_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, false, None)?;
-		match session.initialize(requester, common_point, encrypted_point) {
-			Ok(()) => Ok(session),
-			Err(error) => {
-				self.data.sessions.encryption_sessions.remove(&session.id());
-				Err(error)
-			},
-		}
+		Self::process_initialization_result(
+			session.initialize(requester, common_point, encrypted_point),
+			session, &self.data.sessions.encryption_sessions)
 	}
 
 	fn new_decryption_session(&self, session_id: SessionId, requester: Requester, version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
@@ -952,13 +958,9 @@ impl ClusterClient for ClusterClientImpl {
 			},
 		};
 
-		match initialization_result {
-			Ok(()) => Ok(session),
-			Err(error) => {
-				self.data.sessions.decryption_sessions.remove(&session.id());
-				Err(error)
-			},
-		}
+		Self::process_initialization_result(
+			initialization_result,
+			session, &self.data.sessions.decryption_sessions)
 	}
 
 	fn new_schnorr_signing_session(&self, session_id: SessionId, requester: Requester, version: Option<H256>, message_hash: H256) -> Result<Arc<SchnorrSigningSession>, Error> {
@@ -981,13 +983,9 @@ impl ClusterClient for ClusterClientImpl {
 			},
 		};
 
-		match initialization_result {
-			Ok(()) => Ok(session),
-			Err(error) => {
-				self.data.sessions.schnorr_signing_sessions.remove(&session.id());
-				Err(error)
-			},
-		}
+		Self::process_initialization_result(
+			initialization_result,
+			session, &self.data.sessions.schnorr_signing_sessions)
 	}
 
 	fn new_ecdsa_signing_session(&self, session_id: SessionId, requester: Requester, version: Option<H256>, message_hash: H256) -> Result<Arc<EcdsaSigningSession>, Error> {
@@ -1010,13 +1008,9 @@ impl ClusterClient for ClusterClientImpl {
 			},
 		};
 
-		match initialization_result {
-			Ok(()) => Ok(session),
-			Err(error) => {
-				self.data.sessions.ecdsa_signing_sessions.remove(&session.id());
-				Err(error)
-			},
-		}
+		Self::process_initialization_result(
+			initialization_result,
+			session, &self.data.sessions.ecdsa_signing_sessions)
 	}
 
 	fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error> {
@@ -1040,16 +1034,13 @@ impl ClusterClient for ClusterClientImpl {
 		let initialization_result = session.as_servers_set_change().expect("servers set change session is created; qed")
 			.initialize(new_nodes_set, old_set_signature, new_set_signature);
 
-		match initialization_result {
-			Ok(()) => {
-				self.data.connections.servers_set_change_creator_connector().set_key_servers_set_change_session(session.clone());
-				Ok(session)
-			},
-			Err(error) => {
-				self.data.sessions.admin_sessions.remove(&session.id());
-				Err(error)
-			},
+		if initialization_result.is_ok() {
+			self.data.connections.servers_set_change_creator_connector().set_key_servers_set_change_session(session.clone());
 		}
+
+		Self::process_initialization_result(
+			initialization_result,
+			session, &self.data.sessions.admin_sessions)
 	}
 
 	fn add_generation_listener(&self, listener: Arc<ClusterSessionsListener<GenerationSession>>) {

@@ -236,9 +236,9 @@ impl ServiceContractListener {
 		let mut failed_requests = 0;
 		let mut processed_requests = 0;
 		let retry_data = ::std::mem::replace(&mut *data.retry_data.lock(), Default::default());
-		for (is_confirmed, task) in data.contract.read_pending_requests() {
+		for (is_response_required, task) in data.contract.read_pending_requests() {
 			// only process requests, which we haven't confirmed yet
-			if is_confirmed {
+			if !is_response_required {
 				continue;
 			}
 
