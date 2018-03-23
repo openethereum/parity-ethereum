@@ -18,7 +18,6 @@ pub mod helpers;
 pub mod snapshot;
 mod chain;
 mod consensus;
-//mod private_transactions;
 
 #[cfg(feature = "ipc")]
 mod rpc;
