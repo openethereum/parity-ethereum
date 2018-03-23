@@ -59,7 +59,7 @@ extern crate rand;
 #[cfg(test)]
 extern crate ethcore_logger;
 
-pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, DummyEncryptor};
+pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, NoopEncryptor};
 pub use private_transactions::{PrivateTransactionDesc, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use error::{Error, ErrorKind};

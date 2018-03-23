@@ -386,7 +386,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 		Arc::new(AccountProvider::transient_provider()),
-		Box::new(ethcore_private_tx::SecretStoreEncryptor::new(Default::default()).unwrap()),
+		Box::new(ethcore_private_tx::NoopEncryptor),
 		Default::default()
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
@@ -571,7 +571,7 @@ fn start_client(
 		&dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 		Arc::new(AccountProvider::transient_provider()),
-		Box::new(ethcore_private_tx::SecretStoreEncryptor::new(Default::default()).unwrap()),
+		Box::new(ethcore_private_tx::NoopEncryptor),
 		Default::default()
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 

@@ -25,7 +25,7 @@ use transaction::{Transaction, Action};
 use ethcore::executive::{contract_address};
 use ethcore::CreateContractAddress;
 use ethcore::client::BlockChainClient;
-use encryptor::DummyEncryptor;
+use encryptor::NoopEncryptor;
 use super::super::{Provider, ProviderConfig};
 use ethcore::account_provider::AccountProvider;
 use ethcore::test_helpers::{generate_dummy_client, push_block_with_transactions};
@@ -52,7 +52,7 @@ fn private_contract() {
 	};
 
 	let io = ::io::IoChannel::disconnected();
-	let pm = Arc::new(Provider::new(client.clone(), ap.clone(), Box::new(DummyEncryptor::default()), config, io).unwrap());
+	let pm = Arc::new(Provider::new(client.clone(), ap.clone(), Box::new(NoopEncryptor::default()), config, io).unwrap());
 
 	let (address, _) = contract_address(CreateContractAddress::FromSenderAndNonce, &key1.address(), &0.into(), &[]);
 

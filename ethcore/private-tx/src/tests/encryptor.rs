@@ -16,7 +16,7 @@
 
 //! Encryptor for private transactions tests.
 
-use encryptor::{Encryptor, DummyEncryptor};
+use encryptor::{Encryptor, NoopEncryptor};
 use rand::{Rng, OsRng};
 use std::sync::Arc;
 use ethereum_types::H128;
@@ -33,7 +33,7 @@ fn initialization_vector() -> H128 {
 
 #[test]
 fn dummy_encryptor_works() {
-	let encryptor = DummyEncryptor::default();
+	let encryptor = NoopEncryptor::default();
 	let ap = Arc::new(AccountProvider::transient_provider());
 
 	let plain_data = vec![42];

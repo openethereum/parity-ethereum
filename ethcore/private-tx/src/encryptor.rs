@@ -86,12 +86,11 @@ pub struct SecretStoreEncryptor {
 
 impl SecretStoreEncryptor {
 	/// Create new encryptor
-	pub fn new(config: EncryptorConfig) -> Result<Self, Error> {
+	pub fn new(config: EncryptorConfig, client: FetchClient) -> Result<Self, Error> {
 		Ok(SecretStoreEncryptor {
-			config: config,
-			client: FetchClient::new()
-				.map_err(|e| ErrorKind::Encrypt(format!("{}", e)))?,
-			sessions: Mutex::new(HashMap::new()),
+			config,
+			client,
+			sessions: Mutex::default(),
 		})
 	}
 
@@ -125,17 +124,17 @@ impl SecretStoreEncryptor {
 		// send HTTP request
 		let mut response = match use_post {
 			true => self.client.post_with_abort(&url, Default::default()).wait()
-				.map_err(|e| ErrorKind::Encrypt(format!("{}", e)))?,
+				.map_err(|e| ErrorKind::Encrypt(e.to_string()))?,
 			false => self.client.fetch_with_abort(&url, Default::default()).wait()
-				.map_err(|e| ErrorKind::Encrypt(format!("{}", e)))?,
+				.map_err(|e| ErrorKind::Encrypt(e.to_string()))?,
 		};
 
 		if response.is_not_found() {
-			return Err(ErrorKind::EncryptionKeyNotFound(*contract_address).into());
+			bail!(ErrorKind::EncryptionKeyNotFound(*contract_address));
 		}
 
 		if !response.is_success() {
-			return Err(ErrorKind::Encrypt(response.status().canonical_reason().unwrap_or("unknown").into()).into());
+			bail!(ErrorKind::Encrypt(response.status().canonical_reason().unwrap_or("unknown").into()));
 		}
 
 		// read HTTP response
@@ -145,7 +144,7 @@ impl SecretStoreEncryptor {
 		// response is JSON string (which is, in turn, hex-encoded, encrypted Public)
 		let encrypted_bytes: ethjson::bytes::Bytes = result.trim_matches('\"').parse().map_err(|e| ErrorKind::Encrypt(e))?;
 		if !self.unlock_account(&requester, accounts.clone()) {
-			return Err(ErrorKind::Encrypt("Cannot unlock account".into()).into())
+			bail!(ErrorKind::Encrypt("Cannot unlock account".into()));
 		}
 
 		// decrypt Public
@@ -187,9 +186,8 @@ impl SecretStoreEncryptor {
 
 	/// Try to unlock account using stored passwords
 	fn unlock_account(&self, account: &Address, accounts: Arc<AccountProvider>) -> bool {
-		let passwords = self.config.passwords.clone();
-		for password in passwords {
-			if let Ok(()) = accounts.unlock_account_temporarily(account.clone(), password) {
+		for password in &self.config.passwords {
+			if let Ok(()) = accounts.unlock_account_temporarily(account.clone(), password.clone()) {
 				return true;
 			}
 		}
@@ -204,7 +202,7 @@ impl SecretStoreEncryptor {
 			Ok(accounts.sign(key_server_account.clone(), None, H256::from_slice(&contract_address_extended))?)
 		} else {
 			trace!("Cannot unlock account");
-			Err(ErrorKind::Encrypt("Cannot unlock account".into()).into())
+			bail!(ErrorKind::Encrypt("Cannot unlock account".into()));
 		}
 	}
 }
@@ -246,7 +244,7 @@ impl Encryptor for SecretStoreEncryptor {
 		// initialization vector takes INIT_VEC_LEN bytes
 		let cypher_len = cypher.len();
 		if cypher_len < INIT_VEC_LEN {
-			return Err(ErrorKind::Decrypt("Invalid cypher".into()).into());
+			bail!(ErrorKind::Decrypt("Invalid cypher".into()));
 		}
 
 		// retrieve existing key
@@ -264,9 +262,9 @@ impl Encryptor for SecretStoreEncryptor {
 
 /// Dummy encryptor.
 #[derive(Default)]
-pub struct DummyEncryptor;
+pub struct NoopEncryptor;
 
-impl Encryptor for DummyEncryptor {
+impl Encryptor for NoopEncryptor {
 	fn encrypt(
 		&self,
 		_contract_address: &Address,

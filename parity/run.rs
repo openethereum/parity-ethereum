@@ -601,7 +601,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 		&cmd.dirs.ipc_path(),
 		miner.clone(),
 		account_provider.clone(),
-		Box::new(SecretStoreEncryptor::new(cmd.private_encryptor_conf).map_err(|e| e.to_string())?),
+		Box::new(SecretStoreEncryptor::new(cmd.private_encryptor_conf, fetch.clone()).map_err(|e| e.to_string())?),
 		cmd.private_provider_conf,
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
