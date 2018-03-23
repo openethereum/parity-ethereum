@@ -23,9 +23,6 @@ mod private_transactions;
 mod messages;
 mod error;
 
-#[cfg(test)]
-mod tests;
-
 extern crate ethcore;
 extern crate ethcore_io as io;
 extern crate ethcore_bytes as bytes;
@@ -161,7 +158,7 @@ pub struct Provider {
 }
 
 #[derive(Debug)]
-struct PrivateExecutionResult<T, V> where T: Tracer, V: VMTracer {
+pub struct PrivateExecutionResult<T, V> where T: Tracer, V: VMTracer {
 	code: Option<Bytes>,
 	state: Bytes,
 	result: Executed<T::Output, V::Output>,
@@ -244,7 +241,7 @@ impl Provider where {
 	}
 
 	/// Calculate hash from united private state and contract nonce
-	fn calculate_state_hash(&self, state: &Bytes, nonce: U256) -> H256 {
+	pub fn calculate_state_hash(&self, state: &Bytes, nonce: U256) -> H256 {
 		let state_hash = keccak(state);
 		let mut state_buf = [0u8; 64];
 		state_buf[..32].clone_from_slice(&state_hash);
@@ -494,7 +491,7 @@ impl Provider where {
 		self.decrypt(address, &code)
 	}
 
-	fn get_contract_nonce(&self, address: &Address, block: BlockId) -> Result<U256, Error> {
+	pub fn get_contract_nonce(&self, address: &Address, block: BlockId) -> Result<U256, Error> {
 		let contract = private::PrivateContract::default();
 		Ok(contract.functions()
 			.nonce()
@@ -521,7 +518,7 @@ impl Provider where {
 		raw
 	}
 
-	fn execute_private<T, V>(&self, transaction: &SignedTransaction, options: TransactOptions<T, V>, block: BlockId) -> Result<PrivateExecutionResult<T, V>, Error>
+	pub fn execute_private<T, V>(&self, transaction: &SignedTransaction, options: TransactOptions<T, V>, block: BlockId) -> Result<PrivateExecutionResult<T, V>, Error>
 		where
 			T: Tracer,
 			V: VMTracer,
@@ -621,7 +618,7 @@ impl Provider where {
 	}
 
 	/// Create encrypted public contract deployment transaction. Returns updated encrypted state.
-	fn execute_private_transaction(&self, block: BlockId, source: &SignedTransaction) -> Result<Bytes, Error> {
+	pub fn execute_private_transaction(&self, block: BlockId, source: &SignedTransaction) -> Result<Bytes, Error> {
 		if let Action::Create = source.action {
 			bail!(ErrorKind::BadTransactonType);
 		}
@@ -649,7 +646,7 @@ impl Provider where {
 	}
 
 	/// Returns private validators for a contract.
-	fn get_validators(&self, block: BlockId, address: &Address) -> Result<Vec<Address>, Error> {
+	pub fn get_validators(&self, block: BlockId, address: &Address) -> Result<Vec<Address>, Error> {
 		let contract = private::PrivateContract::default();
 		Ok(contract.functions()
 			.get_validators()

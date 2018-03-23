@@ -16,24 +16,37 @@
 
 //! Contract for private transactions tests.
 
+extern crate rustc_hex;
+extern crate ethcore;
+extern crate ethkey;
+extern crate keccak_hash as hash;
+extern crate ethcore_io;
+extern crate ethcore_logger;
+extern crate ethcore_private_tx;
+extern crate ethcore_transaction;
+
+#[macro_use]
+extern crate log;
+
 use std::sync::Arc;
 use rustc_hex::FromHex;
-use ethcore::client::BlockId;
-use hash::keccak;
-use ethkey::{Secret, KeyPair, Signature};
-use transaction::{Transaction, Action};
-use ethcore::executive::{contract_address};
+
 use ethcore::CreateContractAddress;
-use ethcore::client::BlockChainClient;
-use encryptor::NoopEncryptor;
-use super::super::{Provider, ProviderConfig};
 use ethcore::account_provider::AccountProvider;
+use ethcore::client::BlockChainClient;
+use ethcore::client::BlockId;
+use ethcore::executive::{contract_address};
 use ethcore::test_helpers::{generate_dummy_client, push_block_with_transactions};
+use ethcore_transaction::{Transaction, Action};
+use ethkey::{Secret, KeyPair, Signature};
+use hash::keccak;
+
+use ethcore_private_tx::{NoopEncryptor, Provider, ProviderConfig};
 
 #[test]
 fn private_contract() {
 	// This uses a simple private contract: contract Test1 { bytes32 public x; function setX(bytes32 _x) { x = _x; } }
-	::ethcore_logger::init_log();
+	ethcore_logger::init_log();
 	let client = generate_dummy_client(0);
 	let chain_id = client.signing_chain_id();
 	let key1 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000011")).unwrap();
@@ -51,7 +64,7 @@ fn private_contract() {
 		passwords: vec!["".into()],
 	};
 
-	let io = ::io::IoChannel::disconnected();
+	let io = ethcore_io::IoChannel::disconnected();
 	let pm = Arc::new(Provider::new(client.clone(), ap.clone(), Box::new(NoopEncryptor::default()), config, io).unwrap());
 
 	let (address, _) = contract_address(CreateContractAddress::FromSenderAndNonce, &key1.address(), &0.into(), &[]);
@@ -120,5 +133,5 @@ fn private_contract() {
 	query_tx.nonce = 3.into();
 	let query_tx = query_tx.sign(&key1.secret(), chain_id);
 	let result = pm.private_call(BlockId::Latest, &query_tx).unwrap();
-	assert_eq!(&result.output[..], &("2a00000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap()[..]));
+	assert_eq!(result.output, "2a00000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap());
 }
