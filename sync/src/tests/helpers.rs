@@ -557,9 +557,6 @@ impl IoHandler<ClientIoMessage> for TestIoHandler {
 			ClientIoMessage::NewPrivateTransaction => {
 				*self.private_tx_queued.lock() += 1;
 			},
-			//ClientIoMessage::NewPrivateTransaction => if let Err(e) = self.private_tx_handler.on_private_transaction_queued() {
-				//warn!("Failed to handle private transaction {:?}", e);
-			//},
 			_ => {} // ignore other messages
 		}
 	}
