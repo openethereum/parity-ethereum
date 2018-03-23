@@ -270,7 +270,7 @@ impl ServiceContract for OnChainServiceContract {
 			);
 
 		// send transaction
-		client.transact_contract(
+		self.client.transact_contract(
 			data.contract_address,
 			transaction_data
 		).map_err(|e| format!("{}", e))?;
