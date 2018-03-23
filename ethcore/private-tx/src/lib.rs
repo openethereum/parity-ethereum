@@ -65,7 +65,7 @@ pub use messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use error::{Error, ErrorKind};
 
 use std::sync::{Arc, Weak};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
 use rlp::*;
@@ -149,7 +149,9 @@ pub struct Receipt {
 /// Manager of private transactions
 pub struct Provider {
 	encryptor: Box<Encryptor>,
-	config: ProviderConfig,
+	validator_accounts: HashSet<Address>,
+	signer_account: Option<Address>,
+	passwords: Vec<String>,
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	transactions_for_signing: Mutex<SigningStore>,
 	transactions_for_verification: Mutex<VerificationStore>,
@@ -176,7 +178,9 @@ impl Provider where {
 	) -> Result<Self, Error> {
 		Ok(Provider {
 			encryptor,
-			config,
+			validator_accounts: config.validator_accounts.into_iter().collect(),
+			signer_account: config.signer_account,
+			passwords: config.passwords,
 			notify: RwLock::default(),
 			transactions_for_signing: Mutex::default(),
 			transactions_for_verification: Mutex::default(),
@@ -205,21 +209,21 @@ impl Provider where {
 	/// 4. Broadcast corresponding message to the chain
 	pub fn create_private_transaction(&self, signed_transaction: SignedTransaction) -> Result<Receipt, Error> {
 		trace!("Creating private transaction from regular transaction: {:?}", signed_transaction);
-		if self.config.signer_account.is_none() {
+		if self.signer_account.is_none() {
 			trace!("Signing account not set");
-			return Err(ErrorKind::SignerAccountNotSet.into());
+			bail!(ErrorKind::SignerAccountNotSet);
 		}
 		let tx_hash = signed_transaction.hash();
 		match signed_transaction.action {
 			Action::Create => {
-				return Err(ErrorKind::BadTransactonType.into());
+				bail!(ErrorKind::BadTransactonType);
 			}
 			Action::Call(contract) => {
 				let data = signed_transaction.rlp_bytes();
 				let encrypted_transaction = self.encrypt(&contract, &Self::iv_from_transaction(&signed_transaction), &data)?;
 				let private = PrivateTransaction {
 					encrypted: encrypted_transaction,
-					contract: contract,
+					contract,
 				};
 				let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
 				let private_state = self.execute_private_transaction(BlockId::Latest, &signed_transaction)?;
@@ -250,9 +254,8 @@ impl Provider where {
 
 	/// Try to unlock account using stored passwords
 	fn unlock_account(&self, account: &Address) -> bool {
-		let passwords = self.config.passwords.clone();
-		for password in passwords {
-			if let Ok(()) = self.accounts.unlock_account_temporarily(account.clone(), password) {
+		for password in &self.passwords {
+			if let Ok(()) = self.accounts.unlock_account_temporarily(account.clone(), password.clone()) {
 				return true;
 			}
 		}
@@ -269,19 +272,16 @@ impl Provider where {
 
 	/// Process received private transaction
 	pub fn import_private_transaction(&self, rlp: &[u8]) -> Result<(), Error> {
-		let validator_accounts = self.config.validator_accounts.clone();
 		trace!("Private transaction received");
-		if validator_accounts.is_empty() {
-			self.broadcast_private_transaction(rlp.into());
-			return Ok(());
-		}
 		let private_tx: PrivateTransaction = UntrustedRlp::new(rlp).as_val()?;
 		let contract = private_tx.contract;
 		let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
 
-		match contract_validators
+		let validation_account = contract_validators
 			.iter()
-			.find(|address| validator_accounts.contains(address)) {
+			.find(|address| self.validator_accounts.contains(address));
+
+		match validation_account {
 			None => {
 				// Not for verification, broadcast further to peers
 				self.broadcast_private_transaction(rlp.into());
@@ -295,14 +295,9 @@ impl Provider where {
 				let insertion_time = self.client.chain_info().best_block_number;
 				// Verify with the first account available
 				trace!("The following account will be used for verification: {:?}", validation_account);
-				let add_res = self.transactions_for_verification.lock().add_transaction(original_tx, contract, validation_account, private_tx.hash(), &details_provider, insertion_time);
-				match add_res {
-					Ok(_) => {
-						self.channel.send(ClientIoMessage::NewPrivateTransaction)
-							.map_err(|_| ErrorKind::ClientIsMalformed.into())
-					},
-					Err(err) => Err(err),
-				}
+				self.transactions_for_verification.lock()
+					.add_transaction(original_tx, contract, validation_account, private_tx.hash(), &details_provider, insertion_time)?;
+				self.channel.send(ClientIoMessage::NewPrivateTransaction).map_err(|_| ErrorKind::ClientIsMalformed.into())
 			}
 		}
 	}
@@ -321,36 +316,33 @@ impl Provider where {
 			let transaction_hash = transaction.hash();
 			match verification_queue.private_transaction_descriptor(&transaction_hash) {
 				Ok(desc) => {
-					match self.config.validator_accounts.iter().find(|&&account| account == desc.validator_account) {
-						Some(account) => {
-							if let Action::Call(contract) = transaction.action {
-								let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
-								let private_state = self.execute_private_transaction(BlockId::Latest, &transaction)?;
-								let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
-								trace!("Hashed effective private state for validator: {:?}", private_state_hash);
-								if self.unlock_account(&account) {
-									let signed_state = self.accounts.sign(account.clone(), None, private_state_hash)?;
-									let signed_private_transaction = SignedPrivateTransaction::new(desc.private_hash, signed_state, None);
-									trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
-									self.broadcast_signed_private_transaction(signed_private_transaction.rlp_bytes().into_vec());
-								} else {
-									trace!("Cannot unlock account");
-									return Err(ErrorKind::CannotUnlockAccount(*account).into());
-								}
-							} else {
-								trace!("Incorrect type of action for the transaction");
-								return Err(ErrorKind::BadTransactonType.into());
-							}
+					if !self.validator_accounts.contains(&desc.validator_account) {
+						trace!("Cannot find validator account in config");
+						bail!(ErrorKind::ValidatorAccountNotSet);
+					}
+					let account = desc.validator_account;
+					if let Action::Call(contract) = transaction.action {
+						let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
+						let private_state = self.execute_private_transaction(BlockId::Latest, &transaction)?;
+						let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
+						trace!("Hashed effective private state for validator: {:?}", private_state_hash);
+						if self.unlock_account(&account) {
+							let signed_state = self.accounts.sign(account.clone(), None, private_state_hash)?;
+							let signed_private_transaction = SignedPrivateTransaction::new(desc.private_hash, signed_state, None);
+							trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
+							self.broadcast_signed_private_transaction(signed_private_transaction.rlp_bytes().into_vec());
+						} else {
+							trace!("Cannot unlock account");
+							bail!(ErrorKind::CannotUnlockAccount(account));
 						}
-						None => {
-							trace!("Cannot find validator account in config");
-							return Err(ErrorKind::ValidatorAccountNotSet.into());
-						}
+					} else {
+						trace!("Incorrect type of action for the transaction");
+						bail!(ErrorKind::BadTransactonType);
 					}
 				},
 				Err(e) => {
 					trace!("Cannot retrieve descriptor for transaction with error {:?}", e);
-					return Err(e);
+					bail!(e);
 				}
 			}
 			verification_queue.remove_private_transaction(&transaction_hash, &fetch_nonce);
@@ -389,7 +381,7 @@ impl Provider where {
 			//Sign and add it to the queue
 			let chain_id = desc.original_transaction.chain_id();
 			let hash = public_tx.hash(chain_id);
-			let signer_account = self.config.signer_account.ok_or_else(|| ErrorKind::SignerAccountNotSet)?;
+			let signer_account = self.signer_account.ok_or_else(|| ErrorKind::SignerAccountNotSet)?;
 			if self.unlock_account(&signer_account) {
 				let signature = self.accounts.sign(signer_account.clone(), None, hash)?;
 				let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
@@ -397,19 +389,19 @@ impl Provider where {
 					Ok(_) => trace!("Public transaction added to queue"),
 					Err(err) => {
 						trace!("Failed to add transaction to queue, error: {:?}", err);
-						return Err(err.into());
+						bail!(err);
 					}
 				}
 			} else {
 				trace!("Cannot unlock account");
-				return Err(ErrorKind::CannotUnlockAccount(signer_account).into());
+				bail!(ErrorKind::CannotUnlockAccount(signer_account));
 			}
 			//Remove from store for signing
 			match self.transactions_for_signing.lock().remove(&private_hash) {
 				Ok(_) => {}
 				Err(err) => {
 					trace!("Failed to remove transaction from signing store, error: {:?}", err);
-					return Err(err);
+					bail!(err);
 				}
 			}
 		} else {
@@ -418,7 +410,7 @@ impl Provider where {
 				Ok(_) => trace!("Signature stored for private transaction"),
 				Err(err) => {
 					trace!("Failed to add signature to signing store, error: {:?}", err);
-					return Err(err);
+					bail!(err);
 				}
 			}
 		}
@@ -439,13 +431,13 @@ impl Provider where {
 					}
 					false => {
 						trace!("Sender's state doesn't correspond to validator's");
-						Err(ErrorKind::StateIncorrect.into())
+						bail!(ErrorKind::StateIncorrect);
 					}
 				}
 			}
 			Err(err) => {
 				trace!("Sender's state doesn't correspond to validator's, error {:?}", err);
-				Err(err.into())
+				bail!(err);
 			}
 		}
 	}
@@ -539,15 +531,15 @@ impl Provider where {
 
 		let mut state = self.client.state_at(block).ok_or(ErrorKind::StatePruned)?;
 		// TODO: in case of BlockId::Latest these need to operate on the same state
-		let contract_address = match &transaction.action {
-			&Action::Call(ref contract_address) => {
+		let contract_address = match transaction.action {
+			Action::Call(ref contract_address) => {
 				let contract_code = Arc::new(self.get_decrypted_code(contract_address, block)?);
 				let contract_state = self.get_decrypted_state(contract_address, block)?;
 				trace!("Patching contract at {:?}, code: {:?}, state: {:?}", contract_address, contract_code, contract_state);
 				state.patch_account(contract_address, contract_code.clone(), Self::snapshot_to_storage(contract_state))?;
 				Some(contract_address.clone())
 			},
-			&Action::Create => None,
+			Action::Create => None,
 		};
 
 		let engine = self.client.engine();
@@ -559,6 +551,7 @@ impl Provider where {
 		});
 		let result = Executive::new(&mut state, &env_info, engine.machine()).transact_virtual(transaction, options)?;
 		let (encrypted_code, encrypted_storage) = match contract_address {
+			None => bail!(ErrorKind::ContractDoesNotExist),
 			Some(address) => {
 				let (code, storage) = state.into_account(&address)?;
 				let enc_code = match code {
@@ -567,7 +560,6 @@ impl Provider where {
 				};
 				(enc_code, self.encrypt(&address, &Self::iv_from_transaction(transaction), &Self::snapshot_from_storage(&storage))?)
 			},
-			None => return Err(ErrorKind::ContractDoesNotExist.into())
 		};
 		trace!("Private contract executed. code: {:?}, state: {:?}, result: {:?}", encrypted_code, encrypted_storage, result.output);
 		Ok(PrivateExecutionResult {
@@ -607,8 +599,8 @@ impl Provider where {
 
 	/// Create encrypted public contract deployment transaction.
 	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<Transaction, Error> {
-		if let &Action::Call(_) = &source.action {
-			return Err(ErrorKind::BadTransactonType.into());
+		if let Action::Call(_) = source.action {
+			bail!(ErrorKind::BadTransactonType);
 		}
 		let sender = source.sender();
 		let state = self.client.state_at(block).ok_or(ErrorKind::StatePruned)?;
@@ -630,8 +622,8 @@ impl Provider where {
 
 	/// Create encrypted public contract deployment transaction. Returns updated encrypted state.
 	fn execute_private_transaction(&self, block: BlockId, source: &SignedTransaction) -> Result<Bytes, Error> {
-		if let &Action::Create = &source.action {
-			return Err(ErrorKind::BadTransactonType.into());
+		if let Action::Create = source.action {
+			bail!(ErrorKind::BadTransactonType);
 		}
 		let result = self.execute_private(source, TransactOptions::with_no_tracing(), block)?;
 		Ok(result.state)
@@ -676,9 +668,3 @@ impl ChainNotify for Provider {
 		}
 	}
 }
-
-//impl PrivateNotify for Provider {
-	//fn private_transaction_queued(&self) -> Result<(), TransactionImportError> {
-		//self.on_private_transaction_queued().map_err(|err| TransactionImportError::Other(format!("{:?}", err)))
-	//}
-//}

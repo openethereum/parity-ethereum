@@ -59,11 +59,11 @@ impl VerificationStore {
 		insertion_time: BlockNumber,
 	) -> Result<(), Error> {
 		if self.descriptors.len() > MAX_QUEUE_LEN {
-			return Err(ErrorKind::QueueIsFull.into());
+			bail!(ErrorKind::QueueIsFull);
 		}
 
 		if self.descriptors.get(&transaction.hash()).is_some() {
-			return Err(ErrorKind::PrivateTransactionAlreadyImported.into());
+			bail!(ErrorKind::PrivateTransactionAlreadyImported);
 		}
 		let transaction_hash = transaction.hash();
 		let signed_transaction = SignedTransaction::new(transaction)?;
@@ -136,7 +136,7 @@ impl SigningStore {
 		contract_nonce: U256,
 	) -> Result<(), Error> {
 		if self.transactions.len() > MAX_QUEUE_LEN {
-			return Err(ErrorKind::QueueIsFull.into());
+			bail!(ErrorKind::QueueIsFull);
 		}
 
 		self.transactions.insert(private_hash, PrivateTransactionSigningDesc {

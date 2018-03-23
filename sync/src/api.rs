@@ -444,9 +444,9 @@ impl ChainNotify for EthSync {
 		self.network.with_context(WARP_SYNC_PROTOCOL_ID, |context| {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
 			match message_type {
-				ChainMessageType::Consensus => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message.clone()),
-				ChainMessageType::PrivateTransaction => self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, message.clone()),
-				ChainMessageType::SignedPrivateTransaction => self.eth_handler.sync.write().propagate_signed_private_transaction(&mut sync_io, message.clone()),
+				ChainMessageType::Consensus => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message),
+				ChainMessageType::PrivateTransaction => self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, message),
+				ChainMessageType::SignedPrivateTransaction => self.eth_handler.sync.write().propagate_signed_private_transaction(&mut sync_io, message),
 			}
 		});
 	}
