@@ -50,6 +50,8 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 	fn verify_local_seal(&self, _header: &M::Header) -> Result<(), M::Error> {
 		Ok(())
 	}
+
+	fn is_time_increasable(&self) -> bool { true }
 }
 
 #[cfg(test)]

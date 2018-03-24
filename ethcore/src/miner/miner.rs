@@ -61,6 +61,7 @@ use header::{Header, BlockNumber};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use state::State;
+use time::get_time;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -267,6 +268,7 @@ pub struct Miner {
 	notifiers: RwLock<Vec<Box<NotifyWork>>>,
 	gas_pricer: Mutex<GasPricer>,
 	service_transaction_action: ServiceTransactionAction,
+	increase_time: RwLock<u64>,
 }
 
 impl Miner {
@@ -336,6 +338,7 @@ impl Miner {
 			notifiers: RwLock::new(notifiers),
 			gas_pricer: Mutex::new(gas_pricer),
 			service_transaction_action: service_transaction_action,
+			increase_time: RwLock::new(0),
 		}
 	}
 
@@ -426,6 +429,11 @@ impl Miner {
 
 			if self.options.infinite_pending_block {
 				open_block.remove_gas_limit();
+			}
+
+			if self.engine.is_time_increasable() {
+				let increase_time = self.increase_time.read();
+				open_block.set_timestamp(( get_time().sec as u64 ) + *increase_time );
 			}
 
 			(transactions, open_block, last_work_hash)
@@ -1260,6 +1268,12 @@ impl MinerService for Miner {
 
 	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block> {
 		Miner::pending_block(self, latest_block_number)
+	}
+
+	fn increase_time(&self, increase: U256) -> U256 {
+		let mut increase_time = self.increase_time.write();
+		*increase_time += increase.low_u64();
+		U256::from(*increase_time)
 	}
 }
 

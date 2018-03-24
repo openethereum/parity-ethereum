@@ -131,6 +131,9 @@ pub trait MinerService : Send + Sync {
 	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256])
 		where C: AccountData + BlockChain + CallContract + RegistryInfo + BlockProducer + ScheduleInfo + SealedBlockImporter;
 
+	/// Increases time stamp for the next and following blocks.
+	fn increase_time(&self, increase: U256) -> U256;
+
 	/// PoW chain - can produce work package
 	fn can_produce_work_package(&self) -> bool;
 

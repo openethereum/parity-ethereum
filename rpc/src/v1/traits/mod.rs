@@ -18,6 +18,7 @@
 
 pub mod web3;
 pub mod eth;
+pub mod evm;
 pub mod eth_pubsub;
 pub mod eth_signing;
 pub mod net;
@@ -34,6 +35,7 @@ pub mod secretstore;
 
 pub use self::web3::Web3;
 pub use self::eth::{Eth, EthFilter};
+pub use self::evm::Evm;
 pub use self::eth_pubsub::EthPubSub;
 pub use self::eth_signing::EthSigning;
 pub use self::net::Net;
