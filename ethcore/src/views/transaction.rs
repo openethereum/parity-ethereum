@@ -51,28 +51,28 @@ impl<'a> TransactionView<'a> {
 	}
 
 	/// Get the nonce field of the transaction.
-	pub fn nonce(&self) -> U256 { self.rlp.val_at(0).expect("TODO") }
+	pub fn nonce(&self) -> U256 { self.rlp.val_at(0) }
 
 	/// Get the gas_price field of the transaction.
-	pub fn gas_price(&self) -> U256 { self.rlp.val_at(1).expect("TODO") }
+	pub fn gas_price(&self) -> U256 { self.rlp.val_at(1) }
 
 	/// Get the gas field of the transaction.
-	pub fn gas(&self) -> U256 { self.rlp.val_at(2).expect("TODO") }
+	pub fn gas(&self) -> U256 { self.rlp.val_at(2) }
 
 	/// Get the value field of the transaction.
-	pub fn value(&self) -> U256 { self.rlp.val_at(4).expect("TODO") }
+	pub fn value(&self) -> U256 { self.rlp.val_at(4) }
 
 	/// Get the data field of the transaction.
-	pub fn data(&self) -> Bytes { self.rlp.val_at(5).expect("TODO") }
+	pub fn data(&self) -> Bytes { self.rlp.val_at(5) }
 
 	/// Get the v field of the transaction.
-	pub fn v(&self) -> u8 { let r: u16 = self.rlp.val_at(6).expect("TODO"); r as u8 }
+	pub fn v(&self) -> u8 { let r: u16 = self.rlp.val_at(6); r as u8 }
 
 	/// Get the r field of the transaction.
-	pub fn r(&self) -> U256 { self.rlp.val_at(7).expect("TODO") }
+	pub fn r(&self) -> U256 { self.rlp.val_at(7) }
 
 	/// Get the s field of the transaction.
-	pub fn s(&self) -> U256 { self.rlp.val_at(8).expect("TODO") }
+	pub fn s(&self) -> U256 { self.rlp.val_at(8) }
 }
 
 #[cfg(test)]

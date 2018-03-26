@@ -33,7 +33,7 @@ use snapshot::block::AbridgedBlock;
 use ethereum_types::H256;
 use kvdb::KeyValueDB;
 use bytes::Bytes;
-use rlp::{RlpStream, Rlp};
+use rlp::{RlpStream, UntrustedRlp};
 use rand::OsRng;
 
 /// Snapshot creation and restoration for PoW chains.
@@ -226,7 +226,7 @@ impl Rebuilder for PowRebuilder {
 		use ethereum_types::U256;
 		use triehash::ordered_trie_root;
 
-		let rlp = Rlp::new(chunk);
+		let rlp = UntrustedRlp::new(chunk);
 		let item_count = rlp.item_count()?;
 		let num_blocks = (item_count - 3) as u64;
 

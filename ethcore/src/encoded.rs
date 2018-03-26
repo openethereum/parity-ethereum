@@ -208,10 +208,10 @@ impl Block {
 	pub fn decode(&self) -> FullBlock { ::rlp::decode(&self.0) }
 
 	/// Decode the header.
-	pub fn decode_header(&self) -> FullHeader { self.rlp().val_at(0).expect("TODO") }
+	pub fn decode_header(&self) -> FullHeader { self.rlp().val_at(0) }
 
 	/// Clone the encoded header.
-	pub fn header(&self) -> Header { Header(self.rlp().at(0).expect("TODO").as_raw().to_vec()) }
+	pub fn header(&self) -> Header { Header(self.rlp().at(0).as_raw().to_vec()) }
 
 	/// Get the rlp of this block.
 	#[inline]

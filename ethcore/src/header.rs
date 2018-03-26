@@ -168,7 +168,7 @@ impl Header {
 	/// Get the seal field with RLP-decoded values as bytes.
 	pub fn decode_seal<'a, T: ::std::iter::FromIterator<&'a [u8]>>(&'a self) -> Result<T, DecoderError> {
 		self.seal.iter().map(|rlp| {
-			Rlp::new(rlp).data()
+			UntrustedRlp::new(rlp).data()
 		}).collect()
 	}
 
@@ -281,7 +281,7 @@ impl Header {
 }
 
 impl Decodable for Header {
-	fn decode(r: &Rlp) -> Result<Self, DecoderError> {
+	fn decode(r: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let mut blockheader = Header {
 			parent_hash: r.val_at(0)?,
 			uncles_hash: r.val_at(1)?,

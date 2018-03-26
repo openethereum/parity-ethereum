@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethereum_types::H256;
-use rlp::{RlpStream, Encodable, Rlp, DecoderError};
+use rlp::{RlpStream, Encodable, UntrustedRlp, DecoderError};
 
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
@@ -34,13 +34,13 @@ impl Encodable for DatabaseKey {
 }
 
 pub struct DatabaseValueView<'a> {
-	rlp: Rlp<'a>,
+	rlp: UntrustedRlp<'a>,
 }
 
 impl<'a> DatabaseValueView<'a> {
 	pub fn from_rlp(data: &'a [u8]) -> Self {
 		DatabaseValueView {
-			rlp: Rlp::new(data),
+			rlp: UntrustedRlp::new(data),
 		}
 	}
 

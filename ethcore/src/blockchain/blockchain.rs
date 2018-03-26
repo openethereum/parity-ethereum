@@ -240,8 +240,8 @@ impl BlockProvider for BlockChain {
 		let mut block = RlpStream::new_list(3);
 		let body_rlp = body.rlp();
 		block.append_raw(header.rlp().as_raw(), 1);
-		block.append_raw(body_rlp.at(0).expect("TODO").as_raw(), 1);
-		block.append_raw(body_rlp.at(1).expect("TODO").as_raw(), 1);
+		block.append_raw(body_rlp.at(0).as_raw(), 1);
+		block.append_raw(body_rlp.at(1).as_raw(), 1);
 		Some(encoded::Block::new(block.out()))
 	}
 
@@ -260,7 +260,7 @@ impl BlockProvider for BlockChain {
 			let best_block = self.best_block.read();
 			if &best_block.hash == hash {
 				return Some(encoded::Header::new(
-					Rlp::new(&best_block.block).at(0).expect("TODO").as_raw().to_vec()
+					Rlp::new(&best_block.block).at(0).as_raw().to_vec()
 				))
 			}
 		}
@@ -1391,8 +1391,8 @@ impl BlockChain {
 	pub fn block_to_body(block: &[u8]) -> Bytes {
 		let mut body = RlpStream::new_list(2);
 		let block_rlp = Rlp::new(block);
-		body.append_raw(block_rlp.at(1).expect("TODO").as_raw(), 1);
-		body.append_raw(block_rlp.at(2).expect("TODO").as_raw(), 1);
+		body.append_raw(block_rlp.at(1).as_raw(), 1);
+		body.append_raw(block_rlp.at(2).as_raw(), 1);
 		body.out()
 	}
 

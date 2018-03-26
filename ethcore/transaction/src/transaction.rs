@@ -50,7 +50,7 @@ impl Default for Action {
 }
 
 impl rlp::Decodable for Action {
-	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		if rlp.is_empty() {
 			Ok(Action::Create)
 		} else {
@@ -272,7 +272,7 @@ impl Deref for UnverifiedTransaction {
 }
 
 impl rlp::Decodable for UnverifiedTransaction {
-	fn decode(d: &Rlp) -> Result<Self, DecoderError> {
+	fn decode(d: &UntrustedRlp) -> Result<Self, DecoderError> {
 		if d.item_count()? != 9 {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}

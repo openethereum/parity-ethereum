@@ -469,6 +469,7 @@ impl ChainInfo for TestBlockChainClient {
 impl BlockInfo for TestBlockChainClient {
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		self.block_hash(id)
+			.and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
 			.and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).unwrap().as_raw().to_vec()))
 			.map(encoded::Header::new)
 	}
@@ -801,7 +802,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>, _peer_id: usize) {
 		// import right here
-		let txs = transactions.into_iter().filter_map(|bytes| Rlp::new(&bytes).as_val().ok()).collect();
+		let txs = transactions.into_iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
 		self.miner.import_external_transactions(self, txs);
 	}
 

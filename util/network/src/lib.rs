@@ -41,7 +41,7 @@ use ipnetwork::{IpNetwork, IpNetworkError};
 use io::IoChannel;
 use ethkey::Secret;
 use ethereum_types::{H256, H512};
-use rlp::{Decodable, DecoderError, Rlp};
+use rlp::{Decodable, DecoderError, UntrustedRlp};
 
 /// Protocol handler level packet id
 pub type PacketId = u8;
@@ -117,7 +117,7 @@ pub struct PeerCapabilityInfo {
 }
 
 impl Decodable for PeerCapabilityInfo {
-	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let p: Vec<u8> = rlp.val_at(0)?;
 		if p.len() != 3 {
 			return Err(DecoderError::Custom("Invalid subprotocol string length. Should be 3"));

@@ -344,7 +344,7 @@ impl BlockCollection {
 
 	fn insert_body(&mut self, b: Bytes) -> Result<(), network::Error> {
 		let header_id = {
-			let body = Rlp::new(&b);
+			let body = UntrustedRlp::new(&b);
 			let tx = body.at(0)?;
 			let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw()));
 			let uncles = keccak(body.at(1)?.as_raw());
@@ -379,7 +379,7 @@ impl BlockCollection {
 
 	fn insert_receipt(&mut self, r: Bytes) -> Result<(), network::Error> {
 		let receipt_root = {
-			let receipts = Rlp::new(&r);
+			let receipts = UntrustedRlp::new(&r);
 			ordered_trie_root(receipts.iter().map(|r| r.as_raw()))
 		};
 		self.downloading_receipts.remove(&receipt_root);
@@ -407,7 +407,7 @@ impl BlockCollection {
 	}
 
 	fn insert_header(&mut self, header: Bytes) -> Result<H256, DecoderError> {
-		let info: BlockHeader = Rlp::new(&header).as_val()?;
+		let info: BlockHeader = UntrustedRlp::new(&header).as_val()?;
 		let hash = info.hash();
 		if self.blocks.contains_key(&hash) {
 			return Ok(hash);
