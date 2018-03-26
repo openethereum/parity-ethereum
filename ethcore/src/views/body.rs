@@ -20,7 +20,7 @@ use bytes::Bytes;
 use ethereum_types::H256;
 use hash::keccak;
 use header::{Header, BlockNumber};
-use rlp::Rlp;
+use rlp::{Rlp, DecoderError};
 use transaction::{LocalizedTransaction, UnverifiedTransaction};
 use views::{TransactionView, HeaderView};
 
@@ -68,24 +68,28 @@ impl<'a> BodyView<'a> {
 			}).collect()
 	}
 
-	/// Return number of transactions in given block, without deserializing them.
-	pub fn transactions_count(&self) -> usize {
-		self.rlp.at(0).expect("TODO").item_count().expect("TODO")
+	/// Return the raw rlp for the transactions in the given block.
+	pub fn transactions_rlp(&self) -> Result<Rlp<'a>, DecoderError> {
+		self.rlp.at(0)
 	}
 
+	/// Return number of transactions in given block, without deserializing them.
+	pub fn transactions_count(&self) -> usize {
+		self.transactions_rlp().expect("TODO").item_count().expect("TODO")
+	}
 	/// Return List of transactions in given block.
 	pub fn transaction_views(&self) -> Vec<TransactionView<'a>> {
-		self.rlp.at(0).expect("TODO").iter().map(TransactionView::new_from_rlp).collect()
+		self.transactions_rlp().expect("TODO").iter().map(TransactionView::new_from_rlp).collect()
 	}
 
 	/// Return transaction hashes.
 	pub fn transaction_hashes(&self) -> Vec<H256> {
-		self.rlp.at(0).expect("TODO").iter().map(|rlp| keccak(rlp.as_raw())).collect()
+		self.transactions_rlp().expect("TODO").iter().map(|rlp| keccak(rlp.as_raw())).collect()
 	}
 
 	/// Returns transaction at given index without deserializing unnecessary data.
 	pub fn transaction_at(&self, index: usize) -> Option<UnverifiedTransaction> {
-		self.rlp.at(0).expect("TODO").iter().nth(index).map(|rlp| rlp.as_val().expect("TODO"))
+		self.transactions_rlp().expect("TODO").iter().nth(index).map(|rlp| rlp.as_val().expect("TODO"))
 	}
 
 	/// Returns localized transaction at given index.
@@ -99,6 +103,11 @@ impl<'a> BodyView<'a> {
 		})
 	}
 
+	/// Returns raw rlp for the uncles in the given block
+	pub fn uncles_rlp(&self) -> Result<Rlp<'a>, DecoderError> {
+		self.rlp.at(0)
+	}
+
 	/// Return list of uncles of given block.
 	pub fn uncles(&self) -> Vec<Header> {
 		self.rlp.list_at(1).expect("TODO")
@@ -106,27 +115,27 @@ impl<'a> BodyView<'a> {
 
 	/// Return number of uncles in given block, without deserializing them.
 	pub fn uncles_count(&self) -> usize {
-		self.rlp.at(1).expect("TODO").item_count().expect("TODO")
+		self.uncles_rlp().expect("TODO").item_count().expect("TODO")
 	}
 
 	/// Return List of transactions in given block.
 	pub fn uncle_views(&self) -> Vec<HeaderView<'a>> {
-		self.rlp.at(1).expect("TODO").iter().map(HeaderView::new_from_rlp).collect()
+		self.uncles_rlp().expect("TODO").iter().map(HeaderView::new_from_rlp).collect()
 	}
 
 	/// Return list of uncle hashes of given block.
 	pub fn uncle_hashes(&self) -> Vec<H256> {
-		self.rlp.at(1).expect("TODO").iter().map(|rlp| keccak(rlp.as_raw())).collect()
+		self.uncles_rlp().expect("TODO").iter().map(|rlp| keccak(rlp.as_raw())).collect()
 	}
 
 	/// Return nth uncle.
 	pub fn uncle_at(&self, index: usize) -> Option<Header> {
-		self.rlp.at(1).expect("TODO").iter().nth(index).map(|rlp| rlp.as_val().expect("TODO"))
+		self.uncles_rlp().expect("TODO").iter().nth(index).map(|rlp| rlp.as_val().expect("TODO"))
 	}
 
 	/// Return nth uncle rlp.
 	pub fn uncle_rlp_at(&self, index: usize) -> Option<Bytes> {
-		self.rlp.at(1).expect("TODO").iter().nth(index).map(|rlp| rlp.as_raw().to_vec())
+		self.uncles_rlp().expect("TODO").iter().nth(index).map(|rlp| rlp.as_raw().to_vec())
 	}
 }
 
