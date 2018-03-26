@@ -130,7 +130,7 @@ pub fn run_fixture(fixture: &Fixture) -> Vec<Fail> {
 		Err(e) => { return Fail::load(e); },
 	};
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 	params.code = Some(Arc::new(
 		if let Source::Constructor { ref arguments, ref sender, ref at, .. } = fixture.source {
 			match construct(&mut ext, source, arguments.clone().into(), sender.clone().into(), at.clone().into()) {

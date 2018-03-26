@@ -24,7 +24,7 @@ extern crate ethcore_bigint as bigint;
 extern crate libc;
 extern crate parity_wasm;
 extern crate vm;
-extern crate wasm_utils;
+extern crate pwasm_utils as wasm_utils;
 extern crate wasmi;
 
 mod runtime;
