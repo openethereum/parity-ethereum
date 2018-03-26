@@ -16,7 +16,6 @@
 
 use std::{str, io};
 use std::net::SocketAddr;
-use std::sync::*;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -32,7 +31,6 @@ use network::{Error, ErrorKind, DisconnectReason, SessionInfo, ProtocolId, PeerC
 use network::{SessionCapabilityInfo, HostInfo as HostInfoTrait};
 use host::*;
 use node_table::NodeId;
-use stats::NetworkStats;
 use snappy;
 
 // Timeout must be less than (interval - 1).
@@ -103,10 +101,10 @@ impl Session {
 	/// Create a new session out of comepleted handshake. This clones the handshake connection object
 	/// and leaves the handhsake in limbo to be deregistered from the event loop.
 	pub fn new<Message>(io: &IoContext<Message>, socket: TcpStream, token: StreamToken, id: Option<&NodeId>,
-		nonce: &H256, stats: Arc<NetworkStats>, host: &HostInfo) -> Result<Session, Error>
+		nonce: &H256, host: &HostInfo) -> Result<Session, Error>
 		where Message: Send + Clone + Sync + 'static {
 		let originated = id.is_some();
-		let mut handshake = Handshake::new(token, id, socket, nonce, stats).expect("Can't create handshake");
+		let mut handshake = Handshake::new(token, id, socket, nonce).expect("Can't create handshake");
 		let local_addr = handshake.connection.local_addr_str();
 		handshake.start(io, host, originated)?;
 		Ok(Session {

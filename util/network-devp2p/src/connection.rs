@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
@@ -28,7 +27,6 @@ use rlp::*;
 use std::io::{self, Cursor, Read, Write};
 use io::{IoContext, StreamToken};
 use handshake::Handshake;
-use stats::NetworkStats;
 use rcrypto::blockmodes::*;
 use rcrypto::aessafe::*;
 use rcrypto::symmetriccipher::*;
@@ -61,8 +59,6 @@ pub struct GenericConnection<Socket: GenericSocket> {
 	send_queue: VecDeque<Cursor<Bytes>>,
 	/// Event flags this connection expects
 	interest: Ready,
-	/// Shared network statistics
-	stats: Arc<NetworkStats>,
 	/// Registered flag
 	registered: AtomicBool,
 }
@@ -87,7 +83,6 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 			match sock_ref.take(max as u64).try_read(unsafe { self.rec_buf.bytes_mut() }) {
 				Ok(Some(size)) if size != 0  => {
 					unsafe { self.rec_buf.advance_mut(size); }
-					self.stats.inc_recv(size);
 					trace!(target:"network", "{}: Read {} of {} bytes", self.token, self.rec_buf.len(), self.rec_size);
 					if self.rec_size != 0 && self.rec_buf.len() == self.rec_size {
 						self.rec_size = 0;
@@ -141,11 +136,9 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 			match self.socket.try_write(Buf::bytes(&buf)) {
 				Ok(Some(size)) if (pos + size) < send_size => {
 					buf.advance(size);
-					self.stats.inc_send(size);
 					Ok(WriteStatus::Ongoing)
 				},
 				Ok(Some(size)) if (pos + size) == send_size => {
-					self.stats.inc_send(size);
 					trace!(target:"network", "{}: Wrote {} bytes", self.token, send_size);
 					Ok(WriteStatus::Complete)
 				},
@@ -171,7 +164,7 @@ pub type Connection = GenericConnection<TcpStream>;
 
 impl Connection {
 	/// Create a new connection with given id and socket.
-	pub fn new(token: StreamToken, socket: TcpStream, stats: Arc<NetworkStats>) -> Connection {
+	pub fn new(token: StreamToken, socket: TcpStream) -> Connection {
 		Connection {
 			token: token,
 			socket: socket,
@@ -179,7 +172,6 @@ impl Connection {
 			rec_buf: Bytes::new(),
 			rec_size: 0,
 			interest: Ready::hup() | Ready::readable(),
-			stats: stats,
 			registered: AtomicBool::new(false),
 		}
 	}
@@ -213,7 +205,6 @@ impl Connection {
 			rec_size: 0,
 			send_queue: self.send_queue.clone(),
 			interest: Ready::hup(),
-			stats: self.stats.clone(),
 			registered: AtomicBool::new(false),
 		})
 	}
@@ -507,13 +498,11 @@ mod tests {
 	use std::cmp;
 	use std::collections::VecDeque;
 	use std::io::{Read, Write, Cursor, ErrorKind, Result, Error};
-	use std::sync::Arc;
 	use std::sync::atomic::AtomicBool;
 
 	use mio::{Ready};
 	use ethcore_bytes::Bytes;
 	use io::*;
-	use super::super::stats::*;
 	use super::*;
 
 	pub struct TestSocket {
@@ -625,7 +614,6 @@ mod tests {
 				rec_buf: Bytes::new(),
 				rec_size: 0,
 				interest: Ready::hup() | Ready::readable(),
-				stats: Arc::<NetworkStats>::new(NetworkStats::new()),
 				registered: AtomicBool::new(false),
 			}
 		}
@@ -648,7 +636,6 @@ mod tests {
 				rec_buf: Bytes::new(),
 				rec_size: 0,
 				interest: Ready::hup() | Ready::readable(),
-				stats: Arc::<NetworkStats>::new(NetworkStats::new()),
 				registered: AtomicBool::new(false),
 			}
 		}
