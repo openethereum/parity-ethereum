@@ -9,7 +9,7 @@ ethereum-types = "0.2"
 log = "0.3"
 parity-wasm = "0.27"
 libc = "0.2"
-wasm-utils = { git = "https://github.com/paritytech/wasm-utils" }
+pwasm-utils = "0.1"
 vm = { path = "../vm" }
 ethcore-logger = { path = "../../logger" }
 wasmi = { version = "0.1", features = ["opt-in-32bit"] }
