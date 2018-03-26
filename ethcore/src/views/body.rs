@@ -105,7 +105,7 @@ impl<'a> BodyView<'a> {
 
 	/// Returns raw rlp for the uncles in the given block
 	pub fn uncles_rlp(&self) -> Result<Rlp<'a>, DecoderError> {
-		self.rlp.at(0)
+		self.rlp.at(1)
 	}
 
 	/// Return list of uncles of given block.
