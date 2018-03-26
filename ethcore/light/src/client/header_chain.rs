@@ -74,6 +74,38 @@ pub struct BlockDescriptor {
 	pub total_difficulty: U256,
 }
 
+// best block data
+struct BestAndLatest {
+	best_num: u64,
+	latest_num: u64
+}
+
+impl BestAndLatest {
+	fn new(best_num: u64, latest_num: u64) -> Self {
+		BestAndLatest {
+			best_num,
+			latest_num,
+		}
+	}
+}
+
+impl Encodable for BestAndLatest {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2);
+		s.append(&self.best_num);
+		s.append(&self.latest_num);
+	}
+}
+
+impl Decodable for BestAndLatest {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+		Ok(BestAndLatest {
+			best_num: rlp.val_at(0)?,
+			latest_num: rlp.val_at(1)?,
+		})
+	}
+}
+
 // candidate block description.
 struct Candidate {
 	hash: H256,
@@ -205,12 +237,9 @@ impl HeaderChain {
 		let decoded_header = spec.genesis_header();
 
 		let chain = if let Some(current) = db.get(col, CURRENT_KEY)? {
-			let (best_number, highest_number) = {
-				let rlp = Rlp::new(&current);
-				(rlp.val_at(0).expect("TODO"), rlp.val_at(1).expect("TODO"))
-			};
+			let curr : BestAndLatest = ::rlp::decode(&current);
 
-			let mut cur_number = highest_number;
+			let mut cur_number = curr.latest_num;
 			let mut candidates = BTreeMap::new();
 
 			// load all era entries, referenced headers within them,
@@ -238,7 +267,7 @@ impl HeaderChain {
 
 			// fill best block block descriptor.
 			let best_block = {
-				let era = match candidates.get(&best_number) {
+				let era = match candidates.get(&curr.best_num) {
 					Some(era) => era,
 					None => return Err("Database corrupt: highest block referenced but no data.".into()),
 				};
@@ -246,7 +275,7 @@ impl HeaderChain {
 				let best = &era.candidates[0];
 				BlockDescriptor {
 					hash: best.hash,
-					number: best_number,
+					number: curr.best_num,
 					total_difficulty: best.total_difficulty,
 				}
 			};
@@ -472,9 +501,8 @@ impl HeaderChain {
 		// write the best and latest eras to the database.
 		{
 			let latest_num = *candidates.iter().rev().next().expect("at least one era just inserted; qed").0;
-			let mut stream = RlpStream::new_list(2);
-			stream.append(&best_num).append(&latest_num);
-			transaction.put(self.col, CURRENT_KEY, &stream.out())
+			let curr = BestAndLatest::new(best_num, latest_num);
+			transaction.put(self.col, CURRENT_KEY, &::rlp::encode(&curr))
 		}
 		Ok(pending)
 	}
