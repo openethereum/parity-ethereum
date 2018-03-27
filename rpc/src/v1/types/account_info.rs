@@ -52,6 +52,22 @@ pub struct EthAccount{
 	
 }
 
+/// Account information.
+#[derive(Debug, Default, Clone, PartialEq, Serialize)]
+pub struct EthAccount{
+	#[serde(rename="address")]
+	pub address: H160,
+	#[serde(rename="balance")]
+	pub balance: U256,
+	#[serde(rename="nonce")]
+	pub nonce: U256,
+	#[serde(rename="codeHash")]
+	pub code_hash: H256,
+	#[serde(rename="storageHash")]
+	pub storage_hash: H256,
+	
+}
+
 /// Extended account information (used by `parity_allAccountInfo`).
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
 pub struct ExtAccountInfo {
