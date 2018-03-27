@@ -46,7 +46,7 @@ use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
-	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,
+	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,EthAccount,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256, block_number_to_id,
 };
 use v1::metadata::Metadata;
@@ -539,6 +539,26 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		try_bf!(check_known(&*self.client, num.clone()));
 		let res = match self.client.balance(&address, self.get_state(num)) {
 			Some(balance) => Ok(balance.into()),
+			None => Err(errors::state_pruned()),
+		};
+
+		Box::new(future::done(res))
+	}
+
+	fn account(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
+		let address = address.into();
+
+		let num = num.unwrap_or_default();
+
+		try_bf!(check_known(&*self.client, num.clone()));
+		let res = match self.client.account(&address, self.get_state(num)) {
+			Some(a) => Ok(EthAccount {
+				 address : address.into(),
+				 balance : a.0.into(),
+				 nonce : a.1.into(),
+				 code_hash : a.2.into(),
+				 storage_hash : a.3.into(),
+			}),
 			None => Err(errors::state_pruned()),
 		};
 

@@ -13,12 +13,29 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+use v1::types::{ H160, H256, U256};
 
 /// Account information.
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
 pub struct AccountInfo {
 	/// Account name
 	pub name: String,
+}
+
+/// Account information.
+#[derive(Debug, Default, Clone, PartialEq, Serialize)]
+pub struct EthAccount{
+	#[serde(rename="address")]
+	pub address: H160,
+	#[serde(rename="balance")]
+	pub balance: U256,
+	#[serde(rename="nonce")]
+	pub nonce: U256,
+	#[serde(rename="codeHash")]
+	pub code_hash: H256,
+	#[serde(rename="storageHash")]
+	pub storage_hash: H256,
+	
 }
 
 /// Extended account information (used by `parity_allAccountInfo`).

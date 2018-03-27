@@ -526,6 +526,23 @@ impl<B: Backend> State<B> {
 		self.ensure_cached(a, RequireCache::CodeSize, false,
 			|a| a.map_or(false, |a| a.code_hash() != KECCAK_EMPTY || *a.nonce() != self.account_start_nonce))
 	}
+		/// Get the balance of account `a`.
+	pub fn account(&self, a: &Address) -> trie::Result<(U256, U256, H256, H256)> {
+		self.ensure_cached(a, RequireCache::None, true, |a| {
+			a.as_ref().map_or(
+				(U256::zero(), self.account_start_nonce, KECCAK_EMPTY, KECCAK_NULL_RLP),
+				|account| {
+					(
+						*account.balance(),
+						*account.nonce(),
+						account.code_hash(),
+						*account.storage_root().unwrap_or(&H256::zero()),
+					)
+				},
+			)
+		})
+	}
+
 
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> TrieResult<U256> {
