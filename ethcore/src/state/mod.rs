@@ -346,14 +346,20 @@ pub trait StateInfo {
 	fn storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256>;
 
 	/// Get accounts' code.
-	fn code(&self, a: &Address) -> TrieResult<Option<Arc<Bytes>>>;
+	fn code(&self, a: &Address) -> trie::Result<Option<Arc<Bytes>>>;
+
+  /// Get the account `a`.
+	fn account(&self, a: &Address) -> trie::Result<(U256, U256, H256, H256)>;
+
+
 }
 
 impl<B: Backend> StateInfo for State<B> {
-	fn nonce(&self, a: &Address) -> TrieResult<U256> { State::nonce(self, a) }
-	fn balance(&self, a: &Address) -> TrieResult<U256> { State::balance(self, a) }
-	fn storage_at(&self, address: &Address, key: &H256) -> TrieResult<H256> { State::storage_at(self, address, key) }
-	fn code(&self, address: &Address) -> TrieResult<Option<Arc<Bytes>>> { State::code(self, address) }
+	fn nonce(&self, a: &Address) -> trie::Result<U256> { State::nonce(self, a) }
+	fn balance(&self, a: &Address) -> trie::Result<U256> { State::balance(self, a) }
+	fn storage_at(&self, address: &Address, key: &H256) -> trie::Result<H256> { State::storage_at(self, address, key) }
+	fn code(&self, address: &Address) -> trie::Result<Option<Arc<Bytes>>> { State::code(self, address) }
+	fn account(&self, a: &Address) -> trie::Result<(U256, U256, H256, H256)> {	State::account(self, a) }
 }
 
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
@@ -526,6 +532,23 @@ impl<B: Backend> State<B> {
 		self.ensure_cached(a, RequireCache::CodeSize, false,
 			|a| a.map_or(false, |a| a.code_hash() != KECCAK_EMPTY || *a.nonce() != self.account_start_nonce))
 	}
+		/// Get the balance of account `a`.
+	pub fn account(&self, a: &Address) -> trie::Result<(U256, U256, H256, H256)> {
+		self.ensure_cached(a, RequireCache::None, true, |a| {
+			a.as_ref().map_or(
+				(U256::zero(), self.account_start_nonce, KECCAK_EMPTY, KECCAK_NULL_RLP),
+				|account| {
+					(
+						*account.balance(),
+						*account.nonce(),
+						account.code_hash(),
+						*account.storage_root().unwrap_or(&H256::zero()),
+					)
+				},
+			)
+		})
+	}
+
 
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> TrieResult<U256> {
