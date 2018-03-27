@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp::{max, min};
 use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
@@ -471,7 +472,7 @@ impl Configuration {
 
 	fn max_peers(&self) -> u32 {
 		self.args.arg_max_peers
-			.or(self.args.arg_min_peers)
+			.or(max(self.args.arg_min_peers, Some(DEFAULT_MAX_PEERS)))
 			.unwrap_or(DEFAULT_MAX_PEERS) as u32
 	}
 
@@ -484,7 +485,7 @@ impl Configuration {
 
 	fn min_peers(&self) -> u32 {
 		self.args.arg_min_peers
-			.or(self.args.arg_max_peers)
+			.or(min(self.args.arg_max_peers, Some(DEFAULT_MIN_PEERS)))
 			.unwrap_or(DEFAULT_MIN_PEERS) as u32
 	}
 
