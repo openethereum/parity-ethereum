@@ -457,7 +457,16 @@ impl Balance for TestBlockChainClient {
 	}
 }
 
-impl AccountData for TestBlockChainClient {}
+impl AccountData for TestBlockChainClient {
+	fn account(&self, address: &Address, state: StateOrBlock) -> Option<(U256, U256, H256, H256)> {
+		match state {
+			StateOrBlock::Block(BlockId::Latest) | StateOrBlock::State(_) => None,
+			_ => None,
+		}
+	}
+
+
+}
 
 impl ChainInfo for TestBlockChainClient {
 	fn chain_info(&self) -> BlockChainInfo {
