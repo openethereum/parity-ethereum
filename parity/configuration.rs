@@ -49,6 +49,7 @@ use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, Cont
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
+use export_hardcoded_sync::ExportHsyncCmd;
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
@@ -79,6 +80,7 @@ pub enum Cmd {
 	},
 	Snapshot(SnapshotCommand),
 	Hash(Option<String>),
+	ExportHardcodedSync(ExportHsyncCmd),
 }
 
 pub struct Execute {
@@ -317,6 +319,16 @@ impl Configuration {
 				block_at: to_block_id("latest")?, // unimportant.
 			};
 			Cmd::Snapshot(restore_cmd)
+		} else if self.args.cmd_export_hardcoded_sync {
+			let export_hs_cmd = ExportHsyncCmd {
+				cache_config: cache_config,
+				dirs: dirs,
+				spec: spec,
+				pruning: pruning,
+				compaction: compaction,
+				wal: wal,
+			};
+			Cmd::ExportHardcodedSync(export_hs_cmd)
 		} else {
 			let daemon = if self.args.cmd_daemon {
 				Some(self.args.arg_daemon_pid_file.clone().expect("CLI argument is required; qed"))
@@ -375,6 +387,7 @@ impl Configuration {
 				light: self.args.flag_light,
 				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
 				whisper: whisper_config,
+				no_hardcoded_sync: self.args.flag_no_hardcoded_sync,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -1422,6 +1435,7 @@ mod tests {
 			verifier_settings: Default::default(),
 			serve_light: true,
 			light: false,
+			no_hardcoded_sync: false,
 			no_persistent_txqueue: false,
 			whisper: Default::default(),
 		};

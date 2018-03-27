@@ -130,7 +130,8 @@ pub struct RunCmd {
 	pub serve_light: bool,
 	pub light: bool,
 	pub no_persistent_txqueue: bool,
-	pub whisper: ::whisper::Config
+	pub whisper: ::whisper::Config,
+	pub no_hardcoded_sync: bool,
 }
 
 pub fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> Result<(), String> {
@@ -226,6 +227,7 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 		chain_column: ::ethcore::db::COL_LIGHT_CHAIN,
 		verify_full: true,
 		check_seal: cmd.check_seal,
+		no_hardcoded_sync: cmd.no_hardcoded_sync,
 	};
 
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
@@ -565,6 +567,11 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 		if !passwords.iter().any(|p| miner.set_engine_signer(engine_signer, (*p).clone()).is_ok()) {
 			return Err(format!("No valid password for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
 		}
+	}
+
+	// display warning if using --no-hardcoded-sync
+	if !cmd.no_hardcoded_sync {
+		warn!("The --no-hardcoded-sync flag has no effect if you don't use --light");
 	}
 
 	// create client config

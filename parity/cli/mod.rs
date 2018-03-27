@@ -231,6 +231,11 @@ usage! {
 				"Clean the database",
 			}
 		}
+
+		CMD cmd_export_hardcoded_sync
+		{
+			"Export the hardcoded sync JSON file from the existing light client database",
+		}
 	}
 	{
 		// Global flags and arguments
@@ -250,6 +255,10 @@ usage! {
 			FLAG flag_light: (bool) = false, or |c: &Config| c.parity.as_ref()?.light,
 			"--light",
 			"Experimental: run in light client mode. Light clients synchronize a bare minimum of data and fetch necessary data on-demand from the network. Much lower in storage, potentially higher in bandwidth. Has no effect with subcommands.",
+
+			FLAG flag_no_hardcoded_sync: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_hardcoded_sync,
+			"--no-hardcoded-sync",
+			"By default, if there is no existing database the light client will automatically jump to a block hardcoded in the chain's specifications. This disables this feature.",
 
 			FLAG flag_force_direct: (bool) = false, or |_| None,
 			"--force-direct",
@@ -1006,6 +1015,7 @@ struct Operating {
 	identity: Option<String>,
 	light: Option<bool>,
 	no_persistent_txqueue: Option<bool>,
+	no_hardcoded_sync: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1409,6 +1419,7 @@ mod tests {
 			cmd_tools_hash: false,
 			cmd_db: false,
 			cmd_db_kill: false,
+			cmd_export_hardcoded_sync: false,
 
 			// Arguments
 			arg_daemon_pid_file: None,
@@ -1443,6 +1454,7 @@ mod tests {
 			arg_keys_path: "$HOME/.parity/keys".into(),
 			arg_identity: "".into(),
 			flag_light: false,
+			flag_no_hardcoded_sync: false,
 			flag_no_persistent_txqueue: false,
 			flag_force_direct: false,
 
@@ -1697,6 +1709,7 @@ mod tests {
 				keys_path: None,
 				identity: None,
 				light: None,
+				no_hardcoded_sync: None,
 				no_persistent_txqueue: None,
 			}),
 			account: Some(Account {
