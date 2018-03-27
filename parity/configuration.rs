@@ -1953,12 +1953,25 @@ mod tests {
 	}
 
 	#[test]
-	fn should_respect_only_max_peers() {
+	fn should_respect_only_max_peers_and_default() {
+		let args = vec!["parity", "--max-peers=50"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 25);
+				assert_eq!(c.net_conf.max_peers, 50);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn should_respect_only_max_peers_less_than_default() {
 		let args = vec!["parity", "--max-peers=5"];
 		let conf = Configuration::parse(&args, None).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
-				assert!(c.net_conf.min_peers <= 5);
+				assert_eq!(c.net_conf.min_peers, 5);
 				assert_eq!(c.net_conf.max_peers, 5);
 			},
 			_ => panic!("Should be Cmd::Run"),
@@ -1966,13 +1979,26 @@ mod tests {
 	}
 
 	#[test]
-	fn should_respect_only_min_peers() {
+	fn should_respect_only_min_peers_and_default() {
+		let args = vec!["parity", "--min-peers=5"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 5);
+				assert_eq!(c.net_conf.max_peers, 50);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn should_respect_only_min_peers_and_greater_than_default() {
 		let args = vec!["parity", "--min-peers=500"];
 		let conf = Configuration::parse(&args, None).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 500);
-				assert!(c.net_conf.max_peers >= 500);
+				assert_eq!(c.net_conf.max_peers, 500);
 			},
 			_ => panic!("Should be Cmd::Run"),
 		}
