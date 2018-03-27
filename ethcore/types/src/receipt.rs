@@ -18,7 +18,7 @@
 
 use ethereum_types::{H256, U256, Address, Bloom};
 use heapsize::HeapSizeOf;
-use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError};
+use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
 
 use {BlockNumber};
 use log_entry::{LogEntry, LocalizedLogEntry};

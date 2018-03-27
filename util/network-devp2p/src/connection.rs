@@ -24,7 +24,7 @@ use mio::deprecated::{Handler, EventLoop, TryRead, TryWrite};
 use mio::tcp::*;
 use ethereum_types::{H128, H256, H512};
 use ethcore_bytes::*;
-use rlp::{Rlp, RlpStream};
+use rlp::{UntrustedRlp, RlpStream};
 use std::io::{self, Cursor, Read, Write};
 use io::{IoContext, StreamToken};
 use handshake::Handshake;

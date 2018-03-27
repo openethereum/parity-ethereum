@@ -29,7 +29,7 @@
 use request::{self, Request};
 use super::error::Error;
 
-use rlp::{Rlp, RlpStream, Decodable, Encodable, DecoderError};
+use rlp::{UntrustedRlp, RlpStream, Decodable, Encodable, DecoderError};
 use ethereum_types::U256;
 use std::time::{Duration, Instant};
 

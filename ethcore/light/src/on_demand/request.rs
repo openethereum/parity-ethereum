@@ -439,7 +439,7 @@ impl CheckedRequest {
 				block_header
 					.and_then(|hdr| cache.block_body(&block_hash).map(|b| (hdr, b)))
 					.map(|(hdr, body)| {
-						Response::Body(encoded::Block::new_from_header_and_body(&hdr, &body).expect("rlp read from cache should be valid; qed"))
+						Response::Body(encoded::Block::new_from_header_and_body(&hdr, &body))
 					})
 			}
 			CheckedRequest::Code(_, ref req) => {
@@ -772,18 +772,18 @@ impl Body {
 	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, body: &encoded::Body) -> Result<encoded::Block, Error> {
 		// check the integrity of the the body against the header
 		let header = self.0.as_ref()?;
-		let tx_root = ::triehash::ordered_trie_root(body.transactions_rlp()?.iter().map(|r| r.as_raw()));
+		let tx_root = ::triehash::ordered_trie_root(body.transactions_rlp().iter().map(|r| r.as_raw()));
 		if tx_root != header.transactions_root() {
 			return Err(Error::WrongTrieRoot(header.transactions_root(), tx_root));
 		}
 
-		let uncles_hash = keccak(body.uncles_rlp()?.as_raw());
+		let uncles_hash = keccak(body.uncles_rlp().as_raw());
 		if uncles_hash != header.uncles_hash() {
 			return Err(Error::WrongHash(header.uncles_hash(), uncles_hash));
 		}
 
 		// concatenate the header and the body.
-		let block = encoded::Block::new_from_header_and_body(&header, &body)?;
+		let block = encoded::Block::new_from_header_and_body(&header, &body);
 
 		cache.lock().insert_block_body(header.hash(), body.clone());
 

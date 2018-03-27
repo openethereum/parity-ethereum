@@ -22,7 +22,7 @@ use heapsize::HeapSizeOf;
 use ethereum_types::H256;
 use triehash::ordered_trie_root;
 use bytes::Bytes;
-use rlp::{Rlp, RlpStream, DecoderError};
+use rlp::{UntrustedRlp, RlpStream, DecoderError};
 use network;
 use ethcore::views::BodyView;
 use ethcore::header::Header as BlockHeader;
@@ -294,9 +294,9 @@ impl BlockCollection {
 				let mut block_rlp = RlpStream::new_list(3);
 				block_rlp.append_raw(&block.header, 1);
 				{
-					let body = BodyView::new(block.body.as_ref().expect("blocks contains only full blocks; qed")); 
-					block_rlp.append_raw(body.transactions_rlp().expect("block contains valid transactions rlp").as_raw(), 1);
-					block_rlp.append_raw(body.uncles_rlp().expect("block contains valid uncles rlp").as_raw(), 1);
+					let body = BodyView::new(block.body.as_ref().expect("blocks contains only full blocks; qed"));
+					block_rlp.append_raw(body.transactions_rlp().as_raw(), 1);
+					block_rlp.append_raw(body.uncles_rlp().as_raw(), 1);
 				}
 				drained.push(BlockAndReceipts {
 					block: block_rlp.out(),

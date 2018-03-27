@@ -41,7 +41,7 @@ use ethcore::engines::epoch::{
 	PendingTransition as PendingEpochTransition
 };
 
-use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
+use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, H264, U256};
 use plain_hasher::H256FastMap;
@@ -98,7 +98,7 @@ impl Encodable for BestAndLatest {
 }
 
 impl Decodable for BestAndLatest {
-	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		Ok(BestAndLatest {
 			best_num: rlp.val_at(0)?,
 			latest_num: rlp.val_at(1)?,

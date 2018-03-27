@@ -25,7 +25,7 @@ use mio::deprecated::{Handler, EventLoop};
 use mio::udp::*;
 use hash::keccak;
 use ethereum_types::{H256, H520};
-use rlp::{Rlp, RlpStream, encode_list};
+use rlp::{UntrustedRlp, RlpStream, encode_list};
 use node_table::*;
 use network::{Error, ErrorKind};
 use io::{StreamToken, IoContext};
@@ -259,7 +259,7 @@ impl Discovery {
 	fn send_packet(&mut self, packet_id: u8, address: &SocketAddr, payload: &[u8]) -> Result<(), Error> {
 		let mut rlp = RlpStream::new();
 		rlp.append_raw(&[packet_id], 1);
-		let source = Rlp::new(payload);
+		let source = UntrustedRlp::new(payload);
 		rlp.begin_list(source.item_count()? + 1);
 		for i in 0 .. source.item_count()? {
 			rlp.append_raw(source.at(i)?.as_raw(), 1);

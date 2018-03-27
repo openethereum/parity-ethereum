@@ -24,7 +24,7 @@ use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
 use evm::Schedule;
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use rlp::{self, RlpStream, Rlp, DecoderError, Encodable};
+use rlp::{self, RlpStream, UntrustedRlp, DecoderError, Encodable};
 
 type Bytes = Vec<u8>;
 type BlockNumber = u64;

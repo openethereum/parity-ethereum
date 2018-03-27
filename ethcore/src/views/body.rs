@@ -20,7 +20,7 @@ use bytes::Bytes;
 use ethereum_types::H256;
 use hash::keccak;
 use header::{Header, BlockNumber};
-use rlp::{Rlp, DecoderError};
+use rlp::Rlp;
 use transaction::{LocalizedTransaction, UnverifiedTransaction};
 use views::{TransactionView, HeaderView};
 
@@ -69,7 +69,7 @@ impl<'a> BodyView<'a> {
 	}
 
 	/// Return the raw rlp for the transactions in the given block.
-	pub fn transactions_rlp(&self) -> Result<Rlp<'a>, DecoderError> {
+	pub fn transactions_rlp(&self) -> Rlp<'a> {
 		self.rlp.at(0)
 	}
 
@@ -104,7 +104,7 @@ impl<'a> BodyView<'a> {
 	}
 
 	/// Returns raw rlp for the uncles in the given block
-	pub fn uncles_rlp(&self) -> Result<Rlp<'a>, DecoderError> {
+	pub fn uncles_rlp(&self) -> Rlp<'a> {
 		self.rlp.at(1)
 	}
 
