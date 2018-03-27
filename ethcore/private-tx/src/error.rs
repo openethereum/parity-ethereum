@@ -114,12 +114,6 @@ error_chain! {
 			display("Account for signing public transactions not set."),
 		}
 
-		#[doc = "Cannot unlock the account."]
-		CannotUnlockAccount(address: Address) {
-			description("Cannot unlock the account. The password not set or incorrect."),
-			display("Cannot unlock the account."),
-		}
-
 		#[doc = "Account for validating private transactions not set."]
 		ValidatorAccountNotSet {
 			description("Account for validating private transactions not set."),
