@@ -9,7 +9,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ansi_term = "0.10"
 bloomchain = { path = "../util/bloomchain" }
-bn = { git = "https://github.com/paritytech/bn" }
+bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
 common-types = { path = "types" }
 crossbeam = "0.3"
@@ -40,7 +40,7 @@ itertools = "0.5"
 lazy_static = "1.0"
 log = "0.3"
 lru-cache = "0.1"
-num = "0.1"
+num = { version = "0.1", default-features = false, features = ["bigint"] }
 num_cpus = "1.2"
 parity-machine = { path = "../machine" }
 parking_lot = "0.5"
