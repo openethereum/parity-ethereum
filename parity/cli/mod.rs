@@ -1630,6 +1630,7 @@ mod tests {
 			flag_geth: false,
 			flag_testnet: false,
 			flag_import_geth_keys: false,
+			arg_warp_after: None,
 			arg_datadir: None,
 			arg_networkid: None,
 			arg_peers: None,
@@ -1735,6 +1736,7 @@ mod tests {
 			}),
 			network: Some(Network {
 				warp: Some(false),
+				warp_after: None,
 				port: None,
 				min_peers: Some(10),
 				max_peers: Some(20),

@@ -1402,6 +1402,7 @@ mod tests {
 			network_id: None,
 			public_node: false,
 			warp_sync: true,
+			warp_after: None,
 			acc_conf: Default::default(),
 			gas_pricer_conf: Default::default(),
 			miner_extras: Default::default(),
