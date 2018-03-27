@@ -46,8 +46,8 @@ use v1::helpers::{SyncPollFilter, PollManager};
 use v1::helpers::light_fetch::{self, LightFetch};
 use v1::traits::Eth;
 use v1::types::{
-	RichBlock, Block, BlockTransactions, BlockNumber, LightBlockNumber, Bytes, SyncStatus, SyncInfo,
-	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,
+	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
+	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,EthAccount,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
 };
 use v1::metadata::Metadata;
