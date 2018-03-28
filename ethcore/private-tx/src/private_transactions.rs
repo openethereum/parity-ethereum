@@ -83,7 +83,9 @@ impl VerificationStore {
 	/// Returns transactions ready for verification
 	/// Returns only one transaction per sender because several cannot be verified in a row without verification from other peers
 	pub fn ready_transactions(&self) -> Vec<SignedTransaction> {
+		// TODO [ToDr] Performance killer, re-work with new transaction queue.
 		let mut transactions = self.transactions.top_transactions();
+		// TODO [ToDr] Potential issue (create low address to have your transactions processed first)
 		transactions.sort_by(|a, b| a.sender().cmp(&b.sender()));
 		transactions.dedup_by(|a, b| a.sender().eq(&b.sender()));
 		transactions
