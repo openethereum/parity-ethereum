@@ -590,6 +590,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			}),
 			None => Err(errors::state_pruned()),
 		};
+
 		Box::new(future::done(res))
 	}
 
