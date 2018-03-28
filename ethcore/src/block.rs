@@ -375,8 +375,11 @@ impl<'x> OpenBlock<'x> {
 		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
 		s.block.header.set_state_root(s.block.state.root().clone());
 		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
-		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |b, r| &b | &r.log_bloom ));
-		s.block.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
+		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {
+			b.accrue_bloom(&r.log_bloom);
+			b
+		}));
+		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
 
 		ClosedBlock {
 			block: s.block,
@@ -409,8 +412,11 @@ impl<'x> OpenBlock<'x> {
 		}
 
 		s.block.header.set_state_root(s.block.state.root().clone());
-		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |b, r| &b | &r.log_bloom));
-		s.block.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
+		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {
+			b.accrue_bloom(&r.log_bloom);
+			b
+		}));
+		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
 
 		LockedBlock {
 			block: s.block,
