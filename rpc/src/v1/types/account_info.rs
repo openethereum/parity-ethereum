@@ -69,7 +69,7 @@ pub struct EthAccount{
   #[serde(rename="accountProof")]
 	pub account_proof: Option<Vec<Bytes>>,
   #[serde(rename="storageProof")]
-	pub storage_proof: Option<Vec<(H256,H256,Vec<Bytes>)>>,
+	pub storage_proof: Option<Vec<StorageProof>>,
 	
 }
 
