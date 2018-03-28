@@ -24,10 +24,16 @@ esac
 
 set -e
 
+# Validate --no-default-features build
+echo "________Validate build________"
+cargo check --no-default-features
+
 # Validate chainspecs
+echo "________Validate chainspecs________"
 ./scripts/validate_chainspecs.sh
+
+# Running test's
+echo "________Running Parity Full Test Suite________"
 
 cargo test -j 8 $OPTIONS --features "$FEATURES" --all --exclude evmjit $1
 
-# Validate --no-default-features build
-cargo check --no-default-features
