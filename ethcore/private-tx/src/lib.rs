@@ -249,16 +249,6 @@ impl Provider where {
 		keccak(&state_buf.as_ref())
 	}
 
-	/// Try to unlock account using stored passwords
-	fn unlock_account(&self, account: &Address) -> bool {
-		for password in &self.passwords {
-			if let Ok(()) = self.accounts.unlock_account_temporarily(account.clone(), password.clone()) {
-				return true;
-			}
-		}
-		false
-	}
-
 	/// Extract signed transaction from private transaction
 	fn extract_original_transaction(&self, private: PrivateTransaction, contract: &Address) -> Result<UnverifiedTransaction, Error> {
 		let encrypted_transaction = private.encrypted.clone();
@@ -323,15 +313,11 @@ impl Provider where {
 						let private_state = self.execute_private_transaction(BlockId::Latest, &transaction)?;
 						let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
 						trace!("Hashed effective private state for validator: {:?}", private_state_hash);
-						if self.unlock_account(&account) {
-							let signed_state = self.accounts.sign(account.clone(), None, private_state_hash)?;
-							let signed_private_transaction = SignedPrivateTransaction::new(desc.private_hash, signed_state, None);
-							trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
-							self.broadcast_signed_private_transaction(signed_private_transaction.rlp_bytes().into_vec());
-						} else {
-							trace!("Cannot unlock account");
-							bail!(ErrorKind::CannotUnlockAccount(account));
-						}
+						let password = find_account_password(&self.passwords, self.accounts.clone(), &account);
+						let signed_state = self.accounts.sign(account.clone(), password, private_state_hash)?;
+						let signed_private_transaction = SignedPrivateTransaction::new(desc.private_hash, signed_state, None);
+						trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
+						self.broadcast_signed_private_transaction(signed_private_transaction.rlp_bytes().into_vec());
 					} else {
 						trace!("Incorrect type of action for the transaction");
 						bail!(ErrorKind::BadTransactonType);
@@ -379,19 +365,15 @@ impl Provider where {
 			let chain_id = desc.original_transaction.chain_id();
 			let hash = public_tx.hash(chain_id);
 			let signer_account = self.signer_account.ok_or_else(|| ErrorKind::SignerAccountNotSet)?;
-			if self.unlock_account(&signer_account) {
-				let signature = self.accounts.sign(signer_account.clone(), None, hash)?;
-				let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
-				match self.client.miner().import_own_transaction(&*self.client, signed.into()) {
-					Ok(_) => trace!("Public transaction added to queue"),
-					Err(err) => {
-						trace!("Failed to add transaction to queue, error: {:?}", err);
-						bail!(err);
-					}
+			let password = find_account_password(&self.passwords, self.accounts.clone(), &signer_account);
+			let signature = self.accounts.sign(signer_account.clone(), password, hash)?;
+			let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
+			match self.client.miner().import_own_transaction(&*self.client, signed.into()) {
+				Ok(_) => trace!("Public transaction added to queue"),
+				Err(err) => {
+					trace!("Failed to add transaction to queue, error: {:?}", err);
+					bail!(err);
 				}
-			} else {
-				trace!("Cannot unlock account");
-				bail!(ErrorKind::CannotUnlockAccount(signer_account));
 			}
 			//Remove from store for signing
 			match self.transactions_for_signing.lock().remove(&private_hash) {
@@ -653,6 +635,16 @@ impl Provider where {
 			.call(&|data| self.client.call_contract(block, *address, data))
 			.map_err(|e| ErrorKind::Call(format!("Contract call failed {:?}", e)))?)
 	}
+}
+
+/// Try to unlock account using stored password, return found password if any
+fn find_account_password(passwords: &Vec<String>, account_provider: Arc<AccountProvider>, account: &Address) -> Option<String> {
+	for password in passwords {
+		if let Ok(true) = account_provider.test_password(account, password) {
+			return Some(password.clone());
+		}
+	}
+	None
 }
 
 impl ChainNotify for Provider {

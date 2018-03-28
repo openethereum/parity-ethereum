@@ -32,6 +32,7 @@ use futures::Future;
 use fetch::{Fetch, Client as FetchClient, Method, BodyReader};
 use bytes::{Bytes, ToPretty};
 use error::{Error, ErrorKind};
+use super::find_account_password;
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
@@ -145,12 +146,10 @@ impl SecretStoreEncryptor {
 
 		// response is JSON string (which is, in turn, hex-encoded, encrypted Public)
 		let encrypted_bytes: ethjson::bytes::Bytes = result.trim_matches('\"').parse().map_err(|e| ErrorKind::Encrypt(e))?;
-		if !self.unlock_account(&requester, accounts.clone()) {
-			bail!(ErrorKind::Encrypt("Cannot unlock account".into()));
-		}
+		let password = find_account_password(&self.config.passwords, accounts.clone(), &requester);
 
 		// decrypt Public
-		let decrypted_bytes = accounts.decrypt(requester, None, &ethcrypto::DEFAULT_MAC, &encrypted_bytes)?;
+		let decrypted_bytes = accounts.decrypt(requester, password, &ethcrypto::DEFAULT_MAC, &encrypted_bytes)?;
 		let decrypted_key = Public::from_slice(&decrypted_bytes);
 
 		// and now take x coordinate of Public as a key
@@ -186,26 +185,12 @@ impl SecretStoreEncryptor {
 		}
 	}
 
-	/// Try to unlock account using stored passwords
-	fn unlock_account(&self, account: &Address, accounts: Arc<AccountProvider>) -> bool {
-		for password in &self.config.passwords {
-			if let Ok(()) = accounts.unlock_account_temporarily(account.clone(), password.clone()) {
-				return true;
-			}
-		}
-		false
-	}
-
 	fn sign_contract_address(&self, contract_address: &Address, accounts: Arc<AccountProvider>) -> Result<Signature, Error> {
 		// key id in SS is H256 && we have H160 here => expand with assitional zeros
 		let contract_address_extended: H256 = contract_address.into();
 		let key_server_account = self.config.key_server_account.ok_or_else(|| ErrorKind::KeyServerAccountNotSet)?;
-		if self.unlock_account(&key_server_account, accounts.clone()) {
-			Ok(accounts.sign(key_server_account.clone(), None, H256::from_slice(&contract_address_extended))?)
-		} else {
-			trace!("Cannot unlock account");
-			bail!(ErrorKind::Encrypt("Cannot unlock account".into()));
-		}
+		let password = find_account_password(&self.config.passwords, accounts.clone(), &key_server_account);
+		Ok(accounts.sign(key_server_account.clone(), password, H256::from_slice(&contract_address_extended))?)
 	}
 }
 
