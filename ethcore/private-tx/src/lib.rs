@@ -16,8 +16,9 @@
 
 //! Private transactions module.
 
-// TODO [ToDr] Is this needed?
-// #![recursion_limit="256"]
+// Recursion limit required because of
+// error_chain foreign_links.
+#![recursion_limit="256"]
 
 mod encryptor;
 mod private_transactions;
@@ -188,6 +189,8 @@ impl Provider where {
 		})
 	}
 
+	// TODO [ToDr] Don't use `ChainNotify` here!
+	// Better to create a separate notification type for this.
 	/// Adds an actor to be notified on certain events
 	pub fn add_notify(&self, target: Arc<ChainNotify>) {
 		self.notify.write().push(Arc::downgrade(&target));
@@ -223,6 +226,12 @@ impl Provider where {
 					encrypted: encrypted_transaction,
 					contract,
 				};
+				// TODO [ToDr] Using BlockId::Latest is bad here,
+				// the block may change in the middle of execution
+				// causing really weird stuff to happen.
+				// We should retrieve hash and stick to that. IMHO
+				// best would be to change the API and only allow H256 instead of BlockID
+				// in private-tx to avoid such mistakes.
 				let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
 				let private_state = self.execute_private_transaction(BlockId::Latest, &signed_transaction)?;
 				trace!("Private transaction created, encrypted transaction: {:?}, private state: {:?}", private, private_state);
@@ -427,12 +436,12 @@ impl Provider where {
 
 	/// Broadcast the private transaction message to the chain
 	fn broadcast_private_transaction(&self, message: Bytes) {
-		self.notify(|notify| notify.broadcast(ChainMessageType::PrivateTransaction, message.clone()));
+		self.notify(|notify| notify.broadcast(ChainMessageType::PrivateTransaction(message.clone())));
 	}
 
 	/// Broadcast signed private transaction message to the chain
 	fn broadcast_signed_private_transaction(&self, message: Bytes) {
-		self.notify(|notify| notify.broadcast(ChainMessageType::SignedPrivateTransaction, message.clone()));
+		self.notify(|notify| notify.broadcast(ChainMessageType::SignedPrivateTransaction(message.clone())));
 	}
 
 	fn iv_from_transaction(transaction: &SignedTransaction) -> H128 {
@@ -661,3 +670,4 @@ impl ChainNotify for Provider {
 		}
 	}
 }
+

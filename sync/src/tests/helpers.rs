@@ -155,12 +155,6 @@ struct NewBlockMessage {
 	proposed: Vec<Bytes>,
 }
 
-/// Mock for emulution of async run of io messages
-pub struct IOMessage {
-	data: Vec<u8>,
-	message_type: ChainMessageType,
-}
-
 /// Abstract messages between peers.
 pub trait Message {
 	/// The intended recipient of this message.
@@ -216,7 +210,7 @@ pub struct EthPeer<C> where C: FlushingBlockChainClient {
 	pub sync: RwLock<ChainSync>,
 	pub queue: RwLock<VecDeque<TestPacket>>,
 	pub private_tx_handler: Arc<PrivateTxHandler>,
-	pub io_queue: RwLock<VecDeque<IOMessage>>,
+	pub io_queue: RwLock<VecDeque<ChainMessageType>>,
 	new_blocks_queue: RwLock<VecDeque<NewBlockMessage>>,
 }
 
@@ -229,12 +223,12 @@ impl<C> EthPeer<C> where C: FlushingBlockChainClient {
 		self.new_blocks_queue.read().is_empty()
 	}
 
-	fn process_io_message(&self, message: IOMessage) {
+	fn process_io_message(&self, message: ChainMessageType) {
 		let mut io = TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None);
-		match message.message_type {
-			ChainMessageType::Consensus => self.sync.write().propagate_consensus_packet(&mut io, message.data.clone()),
-			ChainMessageType::PrivateTransaction => self.sync.write().propagate_private_transaction(&mut io, message.data.clone()),
-			ChainMessageType::SignedPrivateTransaction => self.sync.write().propagate_signed_private_transaction(&mut io, message.data.clone()),
+		match message {
+			ChainMessageType::Consensus(data) => self.sync.write().propagate_consensus_packet(&mut io, data),
+			ChainMessageType::PrivateTransaction(data) => self.sync.write().propagate_private_transaction(&mut io, data),
+			ChainMessageType::SignedPrivateTransaction(data) => self.sync.write().propagate_signed_private_transaction(&mut io, data),
 		}
 	}
 

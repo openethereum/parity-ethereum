@@ -57,6 +57,8 @@ impl SignedPrivateTransaction {
 			private_transaction_hash: private_transaction_hash,
 			r: sig.r().into(),
 			s: sig.s().into(),
+			// TODO [ToDr] Somehow share more code with ethcore_transaction
+			// especially on signing stuff.
 			v: sig.v() as u64 + if let Some(n) = chain_id { 35 + n * 2 } else { 27 },
 		}
 	}
