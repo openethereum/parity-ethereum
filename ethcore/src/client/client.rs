@@ -1324,15 +1324,7 @@ impl Balance for Client {
 	}
 }
 
-impl AccountData for Client {
-	fn account(&self, address: &Address, state: StateOrBlock) -> Option<(U256, U256, H256, H256)> {
-		match state {
-			StateOrBlock::State(s) => s.account(address).ok(),
-			StateOrBlock::Block(id) => self.state_at(id).and_then(|s| s.account(address).ok()),
-		}
-	}
-
-}
+impl AccountData for Client {}
 
 impl ChainInfo for Client {
 	fn chain_info(&self) -> BlockChainInfo {

@@ -65,6 +65,10 @@ pub struct EthAccount{
 	pub code_hash: H256,
 	#[serde(rename="storageHash")]
 	pub storage_hash: H256,
+  #[serde(rename="accountProof")]
+	pub account_proof: Option<Vec<Bytes>>,
+  #[serde(rename="storageProof")]
+	pub storage_proof: Option<Vec<(H256,Vec<H256>)>>,
 	
 }
 
