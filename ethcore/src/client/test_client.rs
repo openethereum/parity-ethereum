@@ -511,16 +511,16 @@ impl RegistryInfo for TestBlockChainClient {
 
 impl ImportBlock for TestBlockChainClient {
 	fn import_block(&self, b: Bytes) -> Result<H256, BlockImportError> {
-		let header = UntrustedRlp::new(&b).val_at::<BlockHeader>(0).unwrap();
+		let header = BlockView::new(&b).header();
 		let h = header.hash();
 		let number: usize = header.number() as usize;
 		if number > self.blocks.read().len() {
 			panic!("Unexpected block number. Expected {}, got {}", self.blocks.read().len(), number);
 		}
 		if number > 0 {
-			match self.blocks.read().get(header.parent_hash()) {
+			match self.blocks.read().get(&header.parent_hash()) {
 				Some(parent) => {
-					let parent = UntrustedRlp::new(parent).val_at::<BlockHeader>(0).unwrap();
+					let parent = BlockView::new(parent).header();
 					if parent.number() != (header.number() - 1) {
 						panic!("Unexpected block parent");
 					}
@@ -545,7 +545,7 @@ impl ImportBlock for TestBlockChainClient {
 				while n > 0 && self.numbers.read()[&n] != parent_hash {
 					*self.numbers.write().get_mut(&n).unwrap() = parent_hash.clone();
 					n -= 1;
-					parent_hash = UntrustedRlp::new(&self.blocks.read()[&parent_hash]).val_at::<BlockHeader>(0).unwrap().parent_hash().clone();
+					parent_hash = BlockView::new(&self.blocks.read()[&parent_hash]).header().parent_hash().clone();
 				}
 			}
 		}
@@ -684,9 +684,10 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| {
+			let block = BlockView::new(r);
 			let mut stream = RlpStream::new_list(2);
-			stream.append_raw(UntrustedRlp::new(r).at(1).unwrap().as_raw(), 1);
-			stream.append_raw(UntrustedRlp::new(r).at(2).unwrap().as_raw(), 1);
+			stream.append_raw(block.transactions_rlp().as_raw(), 1);
+			stream.append_raw(block.uncles_rlp().as_raw(), 1);
 			encoded::Body::new(stream.out())
 		}))
 	}
