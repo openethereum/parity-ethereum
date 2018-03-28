@@ -199,7 +199,6 @@ pub struct Client {
 
 	/// Flag changed by `sleep` and `wake_up` methods. Not to be confused with `enabled`.
 	liveness: AtomicBool,
-	//private_notify: RwLock<Option<Weak<PrivateNotify>>>,
 	io_channel: Mutex<IoChannel<ClientIoMessage>>,
 
 	/// List of actors to be notified on certain chain events
@@ -753,7 +752,6 @@ impl Client {
 			db: RwLock::new(db),
 			state_db: RwLock::new(state_db),
 			report: RwLock::new(Default::default()),
-			//private_notify: RwLock::new(None),
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
