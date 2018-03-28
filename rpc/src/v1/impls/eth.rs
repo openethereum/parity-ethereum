@@ -561,7 +561,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			}
 		};
 
-
 		try_bf!(check_known(&*self.client, num.clone()));
 		let res = match self.client.prove_account(key1, id) {
 			Some(p) => Ok(EthAccount {
@@ -571,10 +570,19 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 				 code_hash : p.1.code_hash.into(),
 				 storage_hash : p.1.storage_root.into(),
 				 account_proof: Some(p.0.iter().map(|b| Bytes::new(b.clone())).collect::<Vec<Bytes>>()), 
-				 storage_proof: None
+				 storage_proof: Some(
+					 values.iter().map(|storageIndex| { 
+						 let key2 : H256 = storageIndex.clone().into();
+					   match self.client.prove_storage(key1, keccak(key2), id) {
+						  	Some(sp) => ( storageIndex.clone(), sp.1.into(), sp.0.iter().map(|b| Bytes::new(b.clone())).collect::<Vec<Bytes>>()),
+							  None => ( storageIndex.clone(), 0.into(), Vec::new())
+				     }
+					 }).collect::<Vec<(RpcH256,RpcH256,Vec<Bytes>)>>()
+				 )
 			}),
 			None => Err(errors::state_pruned()),
 		};
+
 		Box::new(future::done(res))
 	}
 

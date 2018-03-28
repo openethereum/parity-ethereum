@@ -581,7 +581,7 @@ impl Account {
 	/// this will only work correctly under a secure trie.
 	pub fn prove_storage(&self, db: &HashDB<KeccakHasher, DBValue>, storage_key: H256) -> TrieResult<(Vec<Bytes>, H256)> {
 		let mut recorder = Recorder::new();
-
+		
 		let trie = TrieDB::new(db, &self.storage_root)?;
 		let item: U256 = {
 			let panicky_decoder = |bytes:&[u8]| ::rlp::decode(bytes).expect("decoding db value failed");
