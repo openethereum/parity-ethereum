@@ -393,9 +393,9 @@ usage! {
 			"--no-serve-light",
 			"Disable serving of light peers.",
 
-			ARG arg_warp_after: (Option<u64>) = None, or |c: &Config| c.network.as_ref()?.warp_after.clone(),
-			"--warp-after=[NUM]",
-			"When warp enabled only try to warp to a snapshot after block NUM. Never falls back to regular sync until this block is reached.",
+			ARG arg_warp_barrier: (Option<u64>) = None, or |c: &Config| c.network.as_ref()?.warp_barrier.clone(),
+			"--warp-barrier=[NUM]",
+			"When warp enabled never attempt regular sync before warping to block NUM.",
 
 			ARG arg_port: (u16) = 30303u16, or |c: &Config| c.network.as_ref()?.port.clone(),
 			"--port=[PORT]",
@@ -1048,7 +1048,7 @@ struct Ui {
 #[serde(deny_unknown_fields)]
 struct Network {
 	warp: Option<bool>,
-	warp_after: Option<u64>,
+	warp_barrier: Option<u64>,
 	port: Option<u16>,
 	min_peers: Option<u16>,
 	max_peers: Option<u16>,
@@ -1630,7 +1630,7 @@ mod tests {
 			flag_geth: false,
 			flag_testnet: false,
 			flag_import_geth_keys: false,
-			arg_warp_after: None,
+			arg_warp_barrier: None,
 			arg_datadir: None,
 			arg_networkid: None,
 			arg_peers: None,
@@ -1736,7 +1736,7 @@ mod tests {
 			}),
 			network: Some(Network {
 				warp: Some(false),
-				warp_after: None,
+				warp_barrier: None,
 				port: None,
 				min_peers: Some(10),
 				max_peers: Some(20),

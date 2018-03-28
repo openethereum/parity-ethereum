@@ -101,7 +101,7 @@ pub struct RunCmd {
 	pub net_conf: ethsync::NetworkConfiguration,
 	pub network_id: Option<u64>,
 	pub warp_sync: bool,
-	pub warp_after: Option<u64>,
+	pub warp_barrier: Option<u64>,
 	pub public_node: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer_conf: GasPricerConfig,
@@ -528,7 +528,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 			warp_sync = false;
 		}
 	}
-	sync_config.warp_sync = match (warp_sync, cmd.warp_after) {
+	sync_config.warp_sync = match (warp_sync, cmd.warp_barrier) {
 		(true, Some(block)) => ethsync::WarpSync::OnlyAndAfter(block),
 		(true, _) => ethsync::WarpSync::Enabled,
 		_ => ethsync::WarpSync::Disabled,
