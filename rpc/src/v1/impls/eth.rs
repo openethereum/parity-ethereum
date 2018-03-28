@@ -47,7 +47,7 @@ use v1::helpers::block_import::is_major_importing;
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
-	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,EthAccount,
+	Transaction, CallRequest, Index, Filter, Log, Receipt, Work, EthAccount, StorageProof,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256, block_number_to_id,
 };
 use v1::metadata::Metadata;
@@ -574,10 +574,18 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 					 values.iter().map(|storageIndex| { 
 						 let key2 : H256 = storageIndex.clone().into();
 					   match self.client.prove_storage(key1, keccak(key2), id) {
-						  	Some(sp) => ( storageIndex.clone(), sp.1.into(), sp.0.iter().map(|b| Bytes::new(b.clone())).collect::<Vec<Bytes>>()),
-							  None => ( storageIndex.clone(), 0.into(), Vec::new())
+						  	Some(sp) =>  StorageProof {
+									key : key2.into(),
+									value: sp.1.into(),
+									proof: sp.0.iter().map(|b| Bytes::new(b.clone())).collect::<Vec<Bytes>>()
+								},
+							  None => StorageProof {
+									key : key2.into(),
+									value : 0.into(),
+									proof : Vec::new()
+								}
 				     }
-					 }).collect::<Vec<(RpcH256,RpcH256,Vec<Bytes>)>>()
+					 }).collect::<Vec<StorageProof>>()
 				 )
 			}),
 			None => Err(errors::state_pruned()),

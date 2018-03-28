@@ -21,6 +21,16 @@ pub struct AccountInfo {
 	/// Account name
 	pub name: String,
 }
+#[derive(Debug, Default, Clone, PartialEq, Serialize)]
+pub struct StorageProof{
+	#[serde(rename="key")]
+	pub key: U256,
+	#[serde(rename="value")]
+	pub value: U256,
+	#[serde(rename="proof")]
+	pub proof: Vec<Bytes>
+	
+}
 
 /// Account information.
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
@@ -38,7 +48,7 @@ pub struct EthAccount{
   #[serde(rename="accountProof")]
 	pub account_proof: Option<Vec<Bytes>>,
   #[serde(rename="storageProof")]
-	pub storage_proof: Option<Vec<(H256,H256,Vec<Bytes>)>>,
+	pub storage_proof: Option<Vec<StorageProof>>,
 	
 }
 
