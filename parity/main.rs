@@ -43,7 +43,6 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
-extern crate time;
 extern crate toml;
 
 extern crate ethcore;
@@ -108,6 +107,7 @@ mod cache;
 mod cli;
 mod configuration;
 mod dapps;
+mod export_hardcoded_sync;
 mod ipfs;
 mod deprecated;
 mod helpers;
@@ -177,6 +177,7 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 		Cmd::SignerList { port, authfile } => rpc_cli::signer_list(port, authfile).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerReject { id, port, authfile } => rpc_cli::signer_reject(id, port, authfile).map(|s| PostExecutionAction::Print(s)),
 		Cmd::Snapshot(snapshot_cmd) => snapshot::execute(snapshot_cmd).map(|s| PostExecutionAction::Print(s)),
+		Cmd::ExportHardcodedSync(export_hs_cmd) => export_hardcoded_sync::execute(export_hs_cmd).map(|s| PostExecutionAction::Print(s)),
 	}
 }
 

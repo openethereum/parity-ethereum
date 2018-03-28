@@ -35,6 +35,7 @@ use ethcore_miner::transaction_queue::{
 	AccountDetails,
 	TransactionOrigin,
 };
+use futures_cpupool::CpuPool;
 use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
 use miner::service_transaction_checker::ServiceTransactionChecker;
 use miner::{MinerService, MinerStatus};
@@ -218,11 +219,11 @@ pub enum GasPricer {
 
 impl GasPricer {
 	/// Create a new Calibrated `GasPricer`.
-	pub fn new_calibrated(options: GasPriceCalibratorOptions, fetch: FetchClient) -> GasPricer {
+	pub fn new_calibrated(options: GasPriceCalibratorOptions, fetch: FetchClient, p: CpuPool) -> GasPricer {
 		GasPricer::Calibrated(GasPriceCalibrator {
 			options: options,
 			next_calibration: Instant::now(),
-			price_info: PriceInfoClient::new(fetch),
+			price_info: PriceInfoClient::new(fetch, p),
 		})
 	}
 

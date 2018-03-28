@@ -19,6 +19,7 @@ use std::fmt::{Debug, Formatter, Error as FmtError};
 use std::time;
 use std::sync::Arc;
 use parking_lot::{Condvar, Mutex};
+use ethereum_types::Address;
 use ethkey::{Public, Secret};
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
 use key_server_cluster::math;
@@ -77,8 +78,8 @@ struct SessionData {
 	// === Values, filled when session initialization just starts ===
 	/// Reference to the node, which has started this session.
 	master: Option<NodeId>,
-	/// Public key of the creator of the session.
-	author: Option<Public>,
+	/// Address of the creator of the session.
+	author: Option<Address>,
 
 	// === Values, filled when session initialization is completed ===
 	/// Is zero secret generation session?
@@ -262,7 +263,7 @@ impl SessionImpl {
 	}
 
 	/// Start new session initialization. This must be called on master node.
-	pub fn initialize(&self, author: Public, is_zero: bool, threshold: usize, nodes: InitializationNodes) -> Result<(), Error> {
+	pub fn initialize(&self, author: Address, is_zero: bool, threshold: usize, nodes: InitializationNodes) -> Result<(), Error> {
 		check_cluster_nodes(self.node(), &nodes.set())?;
 		check_threshold(threshold, &nodes.set())?;
 
@@ -935,6 +936,7 @@ pub mod tests {
 	use std::sync::Arc;
 	use std::collections::{BTreeSet, BTreeMap, VecDeque};
 	use tokio_core::reactor::Core;
+	use ethereum_types::Address;
 	use ethkey::{Random, Generator, Public, KeyPair};
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage};
 	use key_server_cluster::message::{self, Message, GenerationMessage};
@@ -1063,7 +1065,7 @@ pub mod tests {
 
 	fn make_simple_cluster(threshold: usize, num_nodes: usize) -> Result<(SessionId, NodeId, NodeId, MessageLoop), Error> {
 		let l = MessageLoop::new(num_nodes);
-		l.master().initialize(Public::default(), false, threshold, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into())?;
+		l.master().initialize(Default::default(), false, threshold, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into())?;
 
 		let session_id = l.session_id.clone();
 		let master_id = l.master().node().clone();
@@ -1074,7 +1076,7 @@ pub mod tests {
 	#[test]
 	fn initializes_in_cluster_of_single_node() {
 		let l = MessageLoop::new(1);
-		assert!(l.master().initialize(Public::default(), false, 0, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).is_ok());
+		assert!(l.master().initialize(Default::default(), false, 0, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).is_ok());
 	}
 
 	#[test]
@@ -1089,7 +1091,7 @@ pub mod tests {
 			nonce: Some(0),
 		});
 		let cluster_nodes: BTreeSet<_> = (0..2).map(|_| math::generate_random_point().unwrap()).collect();
-		assert_eq!(session.initialize(Public::default(), false, 0, cluster_nodes.into()).unwrap_err(), Error::InvalidNodesConfiguration);
+		assert_eq!(session.initialize(Default::default(), false, 0, cluster_nodes.into()).unwrap_err(), Error::InvalidNodesConfiguration);
 	}
 
 	#[test]
@@ -1103,7 +1105,7 @@ pub mod tests {
 	#[test]
 	fn fails_to_initialize_when_already_initialized() {
 		let (_, _, _, l) = make_simple_cluster(0, 2).unwrap();
-		assert_eq!(l.master().initialize(Public::default(), false, 0, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap_err(),
+		assert_eq!(l.master().initialize(Default::default(), false, 0, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap_err(),
 			Error::InvalidStateForRequest);
 	}
 
@@ -1183,7 +1185,7 @@ pub mod tests {
 		assert_eq!(l.first_slave().on_initialize_session(m, &message::InitializeSession {
 			session: sid.into(),
 			session_nonce: 0,
-			author: Public::default().into(),
+			author: Address::default().into(),
 			nodes: nodes.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
 			is_zero: false,
 			threshold: 0,
@@ -1200,7 +1202,7 @@ pub mod tests {
 		assert_eq!(l.first_slave().on_initialize_session(m, &message::InitializeSession {
 			session: sid.into(),
 			session_nonce: 0,
-			author: Public::default().into(),
+			author: Address::default().into(),
 			nodes: nodes.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
 			is_zero: false,
 			threshold: 2,
@@ -1343,7 +1345,7 @@ pub mod tests {
 		let test_cases = [(0, 5), (2, 5), (3, 5)];
 		for &(threshold, num_nodes) in &test_cases {
 			let mut l = MessageLoop::new(num_nodes);
-			l.master().initialize(Public::default(), false, threshold, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap();
+			l.master().initialize(Default::default(), false, threshold, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap();
 			assert_eq!(l.nodes.len(), num_nodes);
 
 			// let nodes do initialization + keys dissemination

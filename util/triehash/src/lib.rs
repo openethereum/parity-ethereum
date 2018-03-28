@@ -18,12 +18,14 @@
 //!
 //! This module should be used to generate trie root hash.
 
+extern crate elastic_array;
 extern crate ethereum_types;
 extern crate keccak_hash as hash;
 extern crate rlp;
 
 use std::collections::BTreeMap;
 use std::cmp;
+use elastic_array::{ElasticArray4, ElasticArray8};
 use ethereum_types::H256;
 use hash::keccak;
 use rlp::RlpStream;
@@ -158,12 +160,10 @@ fn gen_trie_root<A: AsRef<[u8]>, B: AsRef<[u8]>>(input: &[(A, B)]) -> H256 {
 ///  [1,2,3,4,5,T]     0x312345   // 5 > 3
 ///  [1,2,3,4,T]       0x201234   // 4 > 3
 /// ```
-fn hex_prefix_encode(nibbles: &[u8], leaf: bool) -> Vec<u8> {
+fn hex_prefix_encode(nibbles: &[u8], leaf: bool) -> ElasticArray4<u8> {
 	let inlen = nibbles.len();
 	let oddness_factor = inlen % 2;
-	// next even number divided by two
-	let reslen = (inlen + 2) >> 1;
-	let mut res = Vec::with_capacity(reslen);
+	let mut res = ElasticArray4::new();
 
 	let first_byte = {
 		let mut bits = ((inlen as u8 & 1) + (2 * leaf as u8)) << 4;
@@ -186,8 +186,8 @@ fn hex_prefix_encode(nibbles: &[u8], leaf: bool) -> Vec<u8> {
 }
 
 /// Converts slice of bytes to nibbles.
-fn as_nibbles(bytes: &[u8]) -> Vec<u8> {
-	let mut res = Vec::with_capacity(bytes.len() * 2);
+fn as_nibbles(bytes: &[u8]) -> ElasticArray8<u8> {
+	let mut res = ElasticArray8::new();
 	for i in 0..bytes.len() {
 		let byte = bytes[i];
 		res.push(byte >> 4);
@@ -213,7 +213,7 @@ fn hash256rlp<A: AsRef<[u8]>, B: AsRef<[u8]>>(input: &[(A, B)], pre_len: usize, 
 	// and then append value
 	if inlen == 1 {
 		stream.begin_list(2);
-		stream.append(&hex_prefix_encode(&key[pre_len..], true));
+		stream.append(&&*hex_prefix_encode(&key[pre_len..], true));
 		stream.append(&value);
 		return;
 	}
@@ -232,7 +232,7 @@ fn hash256rlp<A: AsRef<[u8]>, B: AsRef<[u8]>>(input: &[(A, B)], pre_len: usize, 
 	// then recursively append suffixes of all items who had this key
 	if shared_prefix > pre_len {
 		stream.begin_list(2);
-		stream.append(&hex_prefix_encode(&key[pre_len..shared_prefix], false));
+		stream.append(&&*hex_prefix_encode(&key[pre_len..shared_prefix], false));
 		hash256aux(input, shared_prefix, stream);
 		return;
 	}

@@ -7,7 +7,7 @@ version = "0.2.1"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-elastic-array = "0.9"
+elastic-array = "0.10"
 ethereum-types = "0.2"
 rustc-hex = "1.0"
 byteorder = "1.0"

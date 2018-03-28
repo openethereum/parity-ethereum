@@ -29,7 +29,7 @@ use ethjson;
 use ethkey::{Signature, Public};
 use ethcrypto;
 use futures::Future;
-use fetch::{Fetch, Client as FetchClient};
+use fetch::{Fetch, Client as FetchClient, Method, BodyReader};
 use bytes::{Bytes, ToPretty};
 use error::{Error, ErrorKind};
 
@@ -122,12 +122,14 @@ impl SecretStoreEncryptor {
 			);
 
 		// send HTTP request
-		let mut response = match use_post {
-			true => self.client.post_with_abort(&url, Default::default()).wait()
-				.map_err(|e| ErrorKind::Encrypt(e.to_string()))?,
-			false => self.client.fetch_with_abort(&url, Default::default()).wait()
-				.map_err(|e| ErrorKind::Encrypt(e.to_string()))?,
+		let method = if use_post {
+			Method::Post
+		} else {
+			Method::Get
 		};
+
+		let response = self.client.fetch(&url, method, Default::default()).wait()
+			.map_err(|e| ErrorKind::Encrypt(e.to_string()))?;
 
 		if response.is_not_found() {
 			bail!(ErrorKind::EncryptionKeyNotFound(*contract_address));
@@ -139,7 +141,7 @@ impl SecretStoreEncryptor {
 
 		// read HTTP response
 		let mut result = String::new();
-		response.read_to_string(&mut result)?;
+		BodyReader::new(response).read_to_string(&mut result)?;
 
 		// response is JSON string (which is, in turn, hex-encoded, encrypted Public)
 		let encrypted_bytes: ethjson::bytes::Bytes = result.trim_matches('\"').parse().map_err(|e| ErrorKind::Encrypt(e))?;

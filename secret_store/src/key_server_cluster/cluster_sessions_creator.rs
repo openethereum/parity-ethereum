@@ -18,8 +18,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::collections::BTreeMap;
 use parking_lot::RwLock;
-use ethkey::{Public, Signature};
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, DocumentKeyShare, SessionMeta};
+use ethkey::Public;
+use key_server_cluster::{Error, NodeId, SessionId, Requester, AclStorage, KeyStorage, DocumentKeyShare, SessionMeta};
 use key_server_cluster::cluster::{Cluster, ClusterConfiguration};
 use key_server_cluster::connection_trigger::ServersSetChangeSessionCreatorConnector;
 use key_server_cluster::cluster_sessions::{ClusterSession, SessionIdWithSubSession, AdminSession, AdminSessionCreationData};
@@ -202,14 +202,14 @@ pub struct DecryptionSessionCreator {
 	pub core: Arc<SessionCreatorCore>,
 }
 
-impl ClusterSessionCreator<DecryptionSessionImpl, Signature> for DecryptionSessionCreator {
-	fn creation_data_from_message(message: &Message) -> Result<Option<Signature>, Error> {
+impl ClusterSessionCreator<DecryptionSessionImpl, Requester> for DecryptionSessionCreator {
+	fn creation_data_from_message(message: &Message) -> Result<Option<Requester>, Error> {
 		match *message {
 			Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(ref message)) => match &message.message {
-				&ConsensusMessage::InitializeConsensusSession(ref message) => Ok(Some(message.requestor_signature.clone().into())),
+				&ConsensusMessage::InitializeConsensusSession(ref message) => Ok(Some(message.requester.clone().into())),
 				_ => Err(Error::InvalidMessage),
 			},
-			Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(ref message)) => Ok(Some(message.requestor_signature.clone().into())),
+			Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(ref message)) => Ok(Some(message.requester.clone().into())),
 			_ => Err(Error::InvalidMessage),
 		}
 	}
@@ -223,7 +223,7 @@ impl ClusterSessionCreator<DecryptionSessionImpl, Signature> for DecryptionSessi
 		}))
 	}
 
-	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester_signature: Option<Signature>) -> Result<Arc<DecryptionSessionImpl>, Error> {
+	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester: Option<Requester>) -> Result<Arc<DecryptionSessionImpl>, Error> {
 		let encrypted_data = self.core.read_key_share(&id.id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
 		Ok(Arc::new(DecryptionSessionImpl::new(DecryptionSessionParams {
@@ -238,7 +238,7 @@ impl ClusterSessionCreator<DecryptionSessionImpl, Signature> for DecryptionSessi
 			acl_storage: self.core.acl_storage.clone(),
 			cluster: cluster,
 			nonce: nonce,
-		}, requester_signature)?))
+		}, requester)?))
 	}
 }
 
@@ -248,14 +248,14 @@ pub struct SchnorrSigningSessionCreator {
 	pub core: Arc<SessionCreatorCore>,
 }
 
-impl ClusterSessionCreator<SchnorrSigningSessionImpl, Signature> for SchnorrSigningSessionCreator {
-	fn creation_data_from_message(message: &Message) -> Result<Option<Signature>, Error> {
+impl ClusterSessionCreator<SchnorrSigningSessionImpl, Requester> for SchnorrSigningSessionCreator {
+	fn creation_data_from_message(message: &Message) -> Result<Option<Requester>, Error> {
 		match *message {
 			Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningConsensusMessage(ref message)) => match &message.message {
-				&ConsensusMessage::InitializeConsensusSession(ref message) => Ok(Some(message.requestor_signature.clone().into())),
+				&ConsensusMessage::InitializeConsensusSession(ref message) => Ok(Some(message.requester.clone().into())),
 				_ => Err(Error::InvalidMessage),
 			},
-			Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningSessionDelegation(ref message)) => Ok(Some(message.requestor_signature.clone().into())),
+			Message::SchnorrSigning(SchnorrSigningMessage::SchnorrSigningSessionDelegation(ref message)) => Ok(Some(message.requester.clone().into())),
 			_ => Err(Error::InvalidMessage),
 		}
 	}
@@ -269,7 +269,7 @@ impl ClusterSessionCreator<SchnorrSigningSessionImpl, Signature> for SchnorrSign
 		}))
 	}
 
-	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester_signature: Option<Signature>) -> Result<Arc<SchnorrSigningSessionImpl>, Error> {
+	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester: Option<Requester>) -> Result<Arc<SchnorrSigningSessionImpl>, Error> {
 		let encrypted_data = self.core.read_key_share(&id.id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
 		Ok(Arc::new(SchnorrSigningSessionImpl::new(SchnorrSigningSessionParams {
@@ -284,7 +284,7 @@ impl ClusterSessionCreator<SchnorrSigningSessionImpl, Signature> for SchnorrSign
 			acl_storage: self.core.acl_storage.clone(),
 			cluster: cluster,
 			nonce: nonce,
-		}, requester_signature)?))
+		}, requester)?))
 	}
 }
 
@@ -294,14 +294,14 @@ pub struct EcdsaSigningSessionCreator {
 	pub core: Arc<SessionCreatorCore>,
 }
 
-impl ClusterSessionCreator<EcdsaSigningSessionImpl, Signature> for EcdsaSigningSessionCreator {
-	fn creation_data_from_message(message: &Message) -> Result<Option<Signature>, Error> {
+impl ClusterSessionCreator<EcdsaSigningSessionImpl, Requester> for EcdsaSigningSessionCreator {
+	fn creation_data_from_message(message: &Message) -> Result<Option<Requester>, Error> {
 		match *message {
 			Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningConsensusMessage(ref message)) => match &message.message {
-				&ConsensusMessage::InitializeConsensusSession(ref message) => Ok(Some(message.requestor_signature.clone().into())),
+				&ConsensusMessage::InitializeConsensusSession(ref message) => Ok(Some(message.requester.clone().into())),
 				_ => Err(Error::InvalidMessage),
 			},
-			Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningSessionDelegation(ref message)) => Ok(Some(message.requestor_signature.clone().into())),
+			Message::EcdsaSigning(EcdsaSigningMessage::EcdsaSigningSessionDelegation(ref message)) => Ok(Some(message.requester.clone().into())),
 			_ => Err(Error::InvalidMessage),
 		}
 	}
@@ -315,7 +315,7 @@ impl ClusterSessionCreator<EcdsaSigningSessionImpl, Signature> for EcdsaSigningS
 		}))
 	}
 
-	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester_signature: Option<Signature>) -> Result<Arc<EcdsaSigningSessionImpl>, Error> {
+	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester: Option<Requester>) -> Result<Arc<EcdsaSigningSessionImpl>, Error> {
 		let encrypted_data = self.core.read_key_share(&id.id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
 		Ok(Arc::new(EcdsaSigningSessionImpl::new(EcdsaSigningSessionParams {
@@ -330,7 +330,7 @@ impl ClusterSessionCreator<EcdsaSigningSessionImpl, Signature> for EcdsaSigningS
 			acl_storage: self.core.acl_storage.clone(),
 			cluster: cluster,
 			nonce: nonce,
-		}, requester_signature)?))
+		}, requester)?))
 	}
 }
 

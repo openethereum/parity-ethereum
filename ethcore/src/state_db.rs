@@ -440,12 +440,6 @@ impl state::Backend for StateDB {
 		cache.accounts.get_mut(addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
 	}
 
-	fn get_cached_code(&self, hash: &H256) -> Option<Arc<Vec<u8>>> {
-		let mut cache = self.code_cache.lock();
-
-		cache.get_mut(hash).map(|code| code.clone())
-	}
-
 	fn get_cached<F, U>(&self, a: &Address, f: F) -> Option<U>
 		where F: FnOnce(Option<&mut Account>) -> U {
 		let mut cache = self.account_cache.lock();
@@ -453,6 +447,12 @@ impl state::Backend for StateDB {
 			return None;
 		}
 		cache.accounts.get_mut(a).map(|c| f(c.as_mut()))
+	}
+
+	fn get_cached_code(&self, hash: &H256) -> Option<Arc<Vec<u8>>> {
+		let mut cache = self.code_cache.lock();
+
+		cache.get_mut(hash).map(|code| code.clone())
 	}
 
 	fn note_non_null_account(&self, address: &Address) {

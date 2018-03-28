@@ -4,5 +4,4 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-time = "0.1.34"
 log = "0.3"

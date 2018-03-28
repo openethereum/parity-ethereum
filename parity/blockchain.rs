@@ -195,7 +195,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	cmd.dirs.create_dirs(false, false, false)?;
 
 	let cache = Arc::new(Mutex::new(
-		LightDataCache::new(Default::default(), ::time::Duration::seconds(0))
+		LightDataCache::new(Default::default(), Duration::new(0, 0))
 	));
 
 	let mut config = LightClientConfig {
@@ -203,6 +203,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 		chain_column: ::ethcore::db::COL_LIGHT_CHAIN,
 		verify_full: true,
 		check_seal: cmd.check_seal,
+		no_hardcoded_sync: true,
 	};
 
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;

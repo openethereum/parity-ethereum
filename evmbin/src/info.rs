@@ -175,6 +175,7 @@ pub mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use super::*;
+	use tempdir::TempDir;
 
 	pub fn run_test<T, I, F>(
 		informant: I,
@@ -191,7 +192,8 @@ pub mod tests {
 		params.code = Some(Arc::new(code.from_hex().unwrap()));
 		params.gas = gas.into();
 
-		let spec = ::ethcore::ethereum::new_foundation(&::std::env::temp_dir());
+		let tempdir = TempDir::new("").unwrap();
+		let spec = ::ethcore::ethereum::new_foundation(&tempdir.path());
 		let result = run_action(&spec, params, informant);
 		match result {
 			Ok(Success { traces, .. }) => {

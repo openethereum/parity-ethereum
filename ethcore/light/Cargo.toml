@@ -22,7 +22,6 @@ vm = { path = "../vm" }
 plain_hasher = { path = "../../util/plain_hasher" }
 rlp = { path = "../../util/rlp" }
 rlp_derive = { path = "../../util/rlp_derive" }
-time = "0.1"
 smallvec = "0.4"
 futures = "0.1"
 rand = "0.4"
