@@ -518,7 +518,7 @@ impl ImportBlock for TestBlockChainClient {
 			panic!("Unexpected block number. Expected {}, got {}", self.blocks.read().len(), number);
 		}
 		if number > 0 {
-			match self.blocks.read().get(&header.parent_hash()) {
+			match self.blocks.read().get(header.parent_hash()) {
 				Some(parent) => {
 					let parent = BlockView::new(parent).header();
 					if parent.number() != (header.number() - 1) {
