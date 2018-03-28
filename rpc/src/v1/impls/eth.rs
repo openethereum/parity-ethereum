@@ -35,6 +35,7 @@ use ethcore::encoded;
 use sync::SyncProvider;
 use miner::external::ExternalMinerService;
 use transaction::{SignedTransaction, LocalizedTransaction};
+use hash::keccak;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::future;
@@ -545,23 +546,35 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		Box::new(future::done(res))
 	}
 
-	fn account(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
-		let address = address.into();
+	fn proof(&self, _address: RpcH160, values:Vec<RpcH256>, num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
+		let a : H160 = _address.clone().into();
+		let key1 = keccak(a);
 
 		let num = num.unwrap_or_default();
+		let id = match num {
+			BlockNumber::Num(n) => BlockId::Number(n),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
+			BlockNumber::Pending => {
+				warn!("`Pending` is deprecated and may be removed in future versions. Falling back to `Latest`");
+				BlockId::Latest
+			}
+		};
+
 
 		try_bf!(check_known(&*self.client, num.clone()));
-		let res = match self.client.account(&address, self.get_state(num)) {
-			Some(a) => Ok(EthAccount {
-				 address : address.into(),
-				 balance : a.0.into(),
-				 nonce : a.1.into(),
-				 code_hash : a.2.into(),
-				 storage_hash : a.3.into(),
+		let res = match self.client.prove_account(key1, id) {
+			Some(p) => Ok(EthAccount {
+				 address : _address.into(),
+				 balance : p.1.balance.into(),
+				 nonce : p.1.nonce.into(),
+				 code_hash : p.1.code_hash.into(),
+				 storage_hash : p.1.storage_root.into(),
+				 account_proof: Some(p.0.iter().map(|b| Bytes::new(b.clone())).collect::<Vec<Bytes>>()), 
+				 storage_proof: None
 			}),
 			None => Err(errors::state_pruned()),
 		};
-
 		Box::new(future::done(res))
 	}
 

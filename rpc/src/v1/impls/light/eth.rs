@@ -471,7 +471,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 
-	fn account(&self,	address: RpcH160,	num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
+	fn proof(&self, address: RpcH160, values:Vec<RpcH256>, num: Trailing<BlockNumber>) -> BoxFuture<EthAccount> {
 		Box::new(future::err(errors::unimplemented(None)))
 	}
 

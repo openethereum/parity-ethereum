@@ -13,7 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-use v1::types::{ H160, H256, U256};
+use v1::types::{ H160, H256, U256, Bytes};
 
 /// Account information.
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
@@ -35,6 +35,10 @@ pub struct EthAccount{
 	pub code_hash: H256,
 	#[serde(rename="storageHash")]
 	pub storage_hash: H256,
+  #[serde(rename="accountProof")]
+	pub account_proof: Option<Vec<Bytes>>,
+  #[serde(rename="storageProof")]
+	pub storage_proof: Option<Vec<(H256,Vec<H256>)>>,
 	
 }
 
