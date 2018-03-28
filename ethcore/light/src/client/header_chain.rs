@@ -75,6 +75,7 @@ pub struct BlockDescriptor {
 }
 
 // best block data
+#[derive(RlpEncodable, RlpDecodable)]
 struct BestAndLatest {
 	best_num: u64,
 	latest_num: u64
@@ -86,23 +87,6 @@ impl BestAndLatest {
 			best_num,
 			latest_num,
 		}
-	}
-}
-
-impl Encodable for BestAndLatest {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2);
-		s.append(&self.best_num);
-		s.append(&self.latest_num);
-	}
-}
-
-impl Decodable for BestAndLatest {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		Ok(BestAndLatest {
-			best_num: rlp.val_at(0)?,
-			latest_num: rlp.val_at(1)?,
-		})
 	}
 }
 
