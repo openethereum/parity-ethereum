@@ -110,14 +110,7 @@ pub trait Balance {
 }
 
 /// Provides methods to access account info
-pub trait AccountData: Nonce + Balance {
-		/// Get address balance at the given block's state.
-	///
-	/// May not return None if given BlockId::Latest.
-	/// Returns None if and only if the block's root hash has been pruned from the DB.
-	fn account(&self, address: &Address, state: StateOrBlock) -> Option<(U256, U256, H256, H256)>;
-
-}
+pub trait AccountData: Nonce + Balance {}
 
 /// Provides `chain_info` method
 pub trait ChainInfo {
