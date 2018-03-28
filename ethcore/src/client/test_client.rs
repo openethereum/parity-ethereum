@@ -457,16 +457,7 @@ impl Balance for TestBlockChainClient {
 	}
 }
 
-impl AccountData for TestBlockChainClient {
-	fn account(&self, address: &Address, state: StateOrBlock) -> Option<(U256, U256, H256, H256)> {
-		match state {
-			StateOrBlock::Block(BlockId::Latest) | StateOrBlock::State(_) => None,
-			_ => None,
-		}
-	}
-
-
-}
+impl AccountData for TestBlockChainClient {}
 
 impl ChainInfo for TestBlockChainClient {
 	fn chain_info(&self) -> BlockChainInfo {
@@ -603,8 +594,6 @@ impl StateInfo for () {
 	fn balance(&self, _address: &Address) -> trie::Result<U256> { unimplemented!() }
 	fn storage_at(&self, _address: &Address, _key: &H256) -> trie::Result<H256> { unimplemented!() }
 	fn code(&self, _address: &Address) -> trie::Result<Option<Arc<Bytes>>> { unimplemented!() }
-	fn account(&self, _address: &Address) -> trie::Result<(U256, U256, H256, H256)> { unimplemented!() }
-	
 }
 
 impl StateClient for TestBlockChainClient {
