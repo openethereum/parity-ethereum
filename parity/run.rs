@@ -692,9 +692,6 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	).map_err(|e| format!("Sync error: {}", e))?;
 
 	service.add_notify(chain_notify.clone());
-	if let Some(filter) = connection_filter {
-		service.add_notify(filter);
-	}
 
 	// start network
 	if network_enabled {
