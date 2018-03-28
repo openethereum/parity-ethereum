@@ -66,6 +66,7 @@ use encoded;
 use engines::EthEngine;
 use trie;
 use state::StateInfo;
+use views::BlockView;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -469,7 +470,7 @@ impl ChainInfo for TestBlockChainClient {
 impl BlockInfo for TestBlockChainClient {
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		self.block_hash(id)
-			.and_then(|hash| self.blocks.read().get(&hash).map(|r| UntrustedRlp::new(r).at(0).unwrap().as_raw().to_vec()))
+			.and_then(|hash| self.blocks.read().get(&hash).map(|r| BlockView::new(r).header_rlp().as_raw().to_vec()))
 			.map(encoded::Header::new)
 	}
 
