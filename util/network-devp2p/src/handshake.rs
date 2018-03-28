@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
 use rand::random;
 use hash::write_keccak;
 use mio::tcp::*;
@@ -23,7 +22,6 @@ use ethcore_bytes::Bytes;
 use rlp::*;
 use connection::{Connection};
 use node_table::NodeId;
-use stats::NetworkStats;
 use io::{IoContext, StreamToken};
 use ethkey::{KeyPair, Public, Secret, recover, sign, Generator, Random};
 use crypto::{ecdh, ecies};
@@ -82,10 +80,10 @@ const ECIES_OVERHEAD: usize = 113;
 
 impl Handshake {
 	/// Create a new handshake object
-	pub fn new(token: StreamToken, id: Option<&NodeId>, socket: TcpStream, nonce: &H256, stats: Arc<NetworkStats>) -> Result<Handshake, Error> {
+	pub fn new(token: StreamToken, id: Option<&NodeId>, socket: TcpStream, nonce: &H256) -> Result<Handshake, Error> {
 		Ok(Handshake {
 			id: if let Some(id) = id { id.clone()} else { NodeId::new() },
-			connection: Connection::new(token, socket, stats),
+			connection: Connection::new(token, socket),
 			originated: false,
 			state: HandshakeState::New,
 			ecdhe: Random.generate()?,
@@ -329,13 +327,11 @@ impl Handshake {
 
 #[cfg(test)]
 mod test {
-	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use super::*;
 	use ethereum_types::H256;
 	use io::*;
 	use mio::tcp::TcpStream;
-	use stats::NetworkStats;
 	use ethkey::Public;
 
 	fn check_auth(h: &Handshake, version: u64) {
@@ -355,7 +351,7 @@ mod test {
 		let addr = "127.0.0.1:50556".parse().unwrap();
 		let socket = TcpStream::connect(&addr).unwrap();
 		let nonce = H256::new();
-		Handshake::new(0, to, socket, &nonce, Arc::new(NetworkStats::new())).unwrap()
+		Handshake::new(0, to, socket, &nonce).unwrap()
 	}
 
 	fn test_io() -> IoContext<i32> {

@@ -17,7 +17,6 @@
 use network::{Error, NetworkConfiguration, NetworkProtocolHandler, NonReservedPeerMode};
 use network::{NetworkContext, PeerId, ProtocolId, NetworkIoMessage};
 use host::Host;
-use stats::NetworkStats;
 use io::*;
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -46,7 +45,6 @@ pub struct NetworkService {
 	io_service: IoService<NetworkIoMessage>,
 	host_info: String,
 	host: RwLock<Option<Arc<Host>>>,
-	stats: Arc<NetworkStats>,
 	host_handler: Arc<HostHandler>,
 	config: NetworkConfiguration,
 	filter: Option<Arc<ConnectionFilter>>,
@@ -58,11 +56,9 @@ impl NetworkService {
 		let host_handler = Arc::new(HostHandler { public_url: RwLock::new(None) });
 		let io_service = IoService::<NetworkIoMessage>::start()?;
 
-		let stats = Arc::new(NetworkStats::new());
 		Ok(NetworkService {
 			io_service: io_service,
 			host_info: config.client_version.clone(),
-			stats: stats,
 			host: RwLock::new(None),
 			config: config,
 			host_handler: host_handler,
@@ -91,11 +87,6 @@ impl NetworkService {
 		&self.io_service
 	}
 
-	/// Returns network statistics.
-	pub fn stats(&self) -> &NetworkStats {
-		&self.stats
-	}
-
 	/// Returns network configuration.
 	pub fn config(&self) -> &NetworkConfiguration {
 		&self.config
@@ -117,7 +108,7 @@ impl NetworkService {
 	pub fn start(&self) -> Result<(), Error> {
 		let mut host = self.host.write();
 		if host.is_none() {
-			let h = Arc::new(Host::new(self.config.clone(), self.stats.clone(), self.filter.clone())?);
+			let h = Arc::new(Host::new(self.config.clone(), self.filter.clone())?);
 			self.io_service.register_handler(h.clone())?;
 			*host = Some(h);
 		}
