@@ -439,7 +439,7 @@ impl CheckedRequest {
 				block_header
 					.and_then(|hdr| cache.block_body(&block_hash).map(|b| (hdr, b)))
 					.map(|(hdr, body)| {
-						Response::Body(encoded::Block::new_from_header_and_body(&hdr, &body))
+						Response::Body(encoded::Block::new_from_header_and_body(&hdr.view(), &body.view()))
 					})
 			}
 			CheckedRequest::Code(_, ref req) => {
@@ -783,7 +783,7 @@ impl Body {
 		}
 
 		// concatenate the header and the body.
-		let block = encoded::Block::new_from_header_and_body(&header, &body);
+		let block = encoded::Block::new_from_header_and_body(&header.view(), &body.view());
 
 		cache.lock().insert_block_body(header.hash(), body.clone());
 

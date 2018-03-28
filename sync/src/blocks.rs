@@ -24,7 +24,8 @@ use triehash::ordered_trie_root;
 use bytes::Bytes;
 use rlp::{UntrustedRlp, RlpStream, DecoderError};
 use network;
-use ethcore::views::BodyView;
+use ethcore::encoded::Block;
+use ethcore::views::{HeaderView, BodyView};
 use ethcore::header::Header as BlockHeader;
 
 known_heap_size!(0, HeaderId);
@@ -291,15 +292,10 @@ impl BlockCollection {
 			}
 
 			for block in blocks {
-				let mut block_rlp = RlpStream::new_list(3);
-				block_rlp.append_raw(&block.header, 1);
-				{
-					let body = BodyView::new(block.body.as_ref().expect("blocks contains only full blocks; qed"));
-					block_rlp.append_raw(body.transactions_rlp().as_raw(), 1);
-					block_rlp.append_raw(body.uncles_rlp().as_raw(), 1);
-				}
+				let body = BodyView::new(block.body.as_ref().expect("blocks contains only full blocks; qed"));
+				let block_view = Block::new_from_header_and_body(&HeaderView::new(&block.header), &body);
 				drained.push(BlockAndReceipts {
-					block: block_rlp.out(),
+					block: block_view.rlp().as_raw().to_vec(),
 					receipts: block.receipts.clone(),
 				});
 			}

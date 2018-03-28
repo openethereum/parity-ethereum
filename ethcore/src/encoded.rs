@@ -188,11 +188,11 @@ impl Block {
 	pub fn new(raw: Vec<u8>) -> Self { Block(raw) }
 
 	/// Create a new owning block view by concatenating the encoded header and body
-	pub fn new_from_header_and_body(header: &Header, body: &Body) -> Self {
+	pub fn new_from_header_and_body(header: &views::HeaderView, body: &views::BodyView) -> Self {
 		let mut stream = RlpStream::new_list(3);
 		stream.append_raw(header.rlp().as_raw(), 1);
-		stream.append_raw(body.rlp().at(0).as_raw(), 1);
-		stream.append_raw(body.rlp().at(1).as_raw(), 1);
+		stream.append_raw(body.transactions_rlp().as_raw(), 1);
+		stream.append_raw(body.uncles_rlp().as_raw(), 1);
 		Block::new(stream.out())
 	}
 
