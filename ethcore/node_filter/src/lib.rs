@@ -62,8 +62,8 @@ impl NodeFilter {
 	pub fn new(client: Weak<BlockChainClient>, contract_address: Address) -> NodeFilter {
 		NodeFilter {
 			contract: peer_set::PeerSet::default(),
-			client: client,
-			contract_address: contract_address,
+			client,
+			contract_address,
 			permission_cache: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
 		}
 	}
@@ -144,9 +144,7 @@ mod test {
 
 		assert!(filter.connection_allowed(&self1, &node1, ConnectionDirection::Inbound));
 		assert!(filter.connection_allowed(&self1, &nodex, ConnectionDirection::Inbound));
-		filter.clear_cache();
 		assert!(filter.connection_allowed(&self2, &node1, ConnectionDirection::Inbound));
 		assert!(filter.connection_allowed(&self2, &node2, ConnectionDirection::Inbound));
-		assert!(!filter.connection_allowed(&self2, &nodex, ConnectionDirection::Inbound));
 	}
 }
