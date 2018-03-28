@@ -20,25 +20,25 @@ use bytes::Bytes;
 use ethereum_types::H256;
 use hash::keccak;
 use header::Header;
-use rlp::Rlp;
+use rlp::UntrustedRlp;
 use transaction::{UnverifiedTransaction, LocalizedTransaction};
 use views::{TransactionView, HeaderView};
 
 /// View onto block rlp.
 pub struct BlockView<'a> {
-	rlp: Rlp<'a>
+	rlp: UntrustedRlp<'a>
 }
 
 impl<'a> BlockView<'a> {
 	/// Creates new view onto block from raw bytes.
 	pub fn new(bytes: &'a [u8]) -> BlockView<'a> {
 		BlockView {
-			rlp: Rlp::new(bytes)
+			rlp: UntrustedRlp::new(bytes)
 		}
 	}
 
 	/// Creates new view onto block from rlp.
-	pub fn new_from_rlp(rlp: Rlp<'a>) -> BlockView<'a> {
+	pub fn new_from_rlp(rlp: UntrustedRlp<'a>) -> BlockView<'a> {
 		BlockView {
 			rlp: rlp
 		}
@@ -50,7 +50,7 @@ impl<'a> BlockView<'a> {
 	}
 
 	/// Return reference to underlaying rlp.
-	pub fn rlp(&self) -> &Rlp<'a> {
+	pub fn rlp(&self) -> &UntrustedRlp<'a> {
 		&self.rlp
 	}
 
@@ -60,13 +60,13 @@ impl<'a> BlockView<'a> {
 	}
 
 	/// Return header rlp.
-	pub fn header_rlp(&self) -> Rlp {
+	pub fn header_rlp(&self) -> UntrustedRlp {
 		self.rlp.at(0)
 	}
 
 	/// Create new header view obto block head rlp.
 	pub fn header_view(&self) -> HeaderView<'a> {
-		HeaderView::new_from_rlp(self.rlp.at(0))
+		HeaderView::new_from_rlp(self.header_rlp())
 	}
 
 	/// Return List of transactions in given block.
@@ -92,28 +92,28 @@ impl<'a> BlockView<'a> {
 	}
 
 	/// Return the raw rlp for the transactions in the given block.
-	pub fn transactions_rlp(&self) -> Rlp<'a> {
+	pub fn transactions_rlp(&self) -> UntrustedRlp<'a> {
 		self.rlp.at(1)
 	}
 
 	/// Return number of transactions in given block, without deserializing them.
 	pub fn transactions_count(&self) -> usize {
-		self.rlp.at(1).iter().count()
+		self.transactions_rlp().iter().count()
 	}
 
 	/// Return List of transactions in given block.
 	pub fn transaction_views(&self) -> Vec<TransactionView<'a>> {
-		self.rlp.at(1).iter().map(TransactionView::new_from_rlp).collect()
+		self.transactions_rlp().iter().map(TransactionView::new_from_rlp).collect()
 	}
 
 	/// Return transaction hashes.
 	pub fn transaction_hashes(&self) -> Vec<H256> {
-		self.rlp.at(1).iter().map(|rlp| keccak(rlp.as_raw())).collect()
+		self.transactions_rlp().iter().map(|rlp| keccak(rlp.as_raw())).collect()
 	}
 
 	/// Returns transaction at given index without deserializing unnecessary data.
 	pub fn transaction_at(&self, index: usize) -> Option<UnverifiedTransaction> {
-		self.rlp.at(1).iter().nth(index).map(|rlp| rlp.as_val())
+		self.transactions_rlp().iter().nth(index).map(|rlp| rlp.as_val())
 	}
 
 	/// Returns localized transaction at given index.
@@ -131,8 +131,8 @@ impl<'a> BlockView<'a> {
 	}
 
 	/// Returns raw rlp for the uncles in the given block
-	pub fn uncles_rlp(&self) -> Rlp<'a> {
-		self.rlp.at(2)
+	pub fn uncles_rlp(&self) -> UntrustedRlp<'a> {
+		self.uncles_rlp()
 	}
 
 	/// Return list of uncles of given block.
@@ -142,27 +142,27 @@ impl<'a> BlockView<'a> {
 
 	/// Return number of uncles in given block, without deserializing them.
 	pub fn uncles_count(&self) -> usize {
-		self.rlp.at(2).iter().count()
+		self.uncles_rlp().iter().count()
 	}
 
 	/// Return List of transactions in given block.
 	pub fn uncle_views(&self) -> Vec<HeaderView<'a>> {
-		self.rlp.at(2).iter().map(HeaderView::new_from_rlp).collect()
+		self.uncles_rlp().iter().map(HeaderView::new_from_rlp).collect()
 	}
 
 	/// Return list of uncle hashes of given block.
 	pub fn uncle_hashes(&self) -> Vec<H256> {
-		self.rlp.at(2).iter().map(|rlp| keccak(rlp.as_raw())).collect()
+		self.uncles_rlp().iter().map(|rlp| keccak(rlp.as_raw())).collect()
 	}
 
 	/// Return nth uncle.
 	pub fn uncle_at(&self, index: usize) -> Option<Header> {
-		self.rlp.at(2).iter().nth(index).map(|rlp| rlp.as_val())
+		self.uncles_rlp().iter().nth(index).map(|rlp| rlp.as_val())
 	}
 
 	/// Return nth uncle rlp.
 	pub fn uncle_rlp_at(&self, index: usize) -> Option<Bytes> {
-		self.rlp.at(2).iter().nth(index).map(|rlp| rlp.as_raw().to_vec())
+		self.uncles_rlp().iter().nth(index).map(|rlp| rlp.as_raw().to_vec())
 	}
 }
 

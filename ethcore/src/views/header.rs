@@ -20,23 +20,23 @@ use bytes::Bytes;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
 use header::BlockNumber;
-use rlp::{self, Rlp};
+use rlp::{self, UntrustedRlp};
 
 /// View onto block header rlp.
 pub struct HeaderView<'a> {
-	rlp: Rlp<'a>
+	rlp: UntrustedRlp<'a>
 }
 
 impl<'a> HeaderView<'a> {
 	/// Creates new view onto header from raw bytes.
 	pub fn new(bytes: &'a [u8]) -> HeaderView<'a> {
 		HeaderView {
-			rlp: Rlp::new(bytes)
+			rlp: UntrustedRlp::new(bytes)
 		}
 	}
 
 	/// Creates new view onto header from rlp.
-	pub fn new_from_rlp(rlp: Rlp<'a>) -> HeaderView<'a> {
+	pub fn new_from_rlp(rlp: UntrustedRlp<'a>) -> HeaderView<'a> {
 		HeaderView {
 			rlp: rlp
 		}
@@ -48,46 +48,50 @@ impl<'a> HeaderView<'a> {
 	}
 
 	/// Returns raw rlp.
-	pub fn rlp(&self) -> &Rlp<'a> { &self.rlp }
+	pub fn rlp(&self) -> &UntrustedRlp<'a> { &self.rlp }
+
+	fn val_at_trusted<T>(&self, index: usize) -> T {
+		self.val_at_trusted(index).expect("trusted rlp should be valid")
+	} 
 
 	/// Returns parent hash.
-	pub fn parent_hash(&self) -> H256 { self.rlp.val_at(0) }
+	pub fn parent_hash(&self) -> H256 { self.val_at_trusted(0) }
 
 	/// Returns uncles hash.
-	pub fn uncles_hash(&self) -> H256 { self.rlp.val_at(1) }
+	pub fn uncles_hash(&self) -> H256 { self.val_at_trusted(1) }
 
 	/// Returns author.
-	pub fn author(&self) -> Address { self.rlp.val_at(2) }
+	pub fn author(&self) -> Address { self.val_at_trusted(2) }
 
 	/// Returns state root.
-	pub fn state_root(&self) -> H256 { self.rlp.val_at(3) }
+	pub fn state_root(&self) -> H256 { self.val_at_trusted(3) }
 
 	/// Returns transactions root.
-	pub fn transactions_root(&self) -> H256 { self.rlp.val_at(4) }
+	pub fn transactions_root(&self) -> H256 { self.val_at_trusted(4) }
 
 	/// Returns block receipts root.
-	pub fn receipts_root(&self) -> H256 { self.rlp.val_at(5) }
+	pub fn receipts_root(&self) -> H256 { self.val_at_trusted(5) }
 
 	/// Returns block log bloom.
-	pub fn log_bloom(&self) -> Bloom { self.rlp.val_at(6) }
+	pub fn log_bloom(&self) -> Bloom { self.val_at_trusted(6) }
 
 	/// Returns block difficulty.
-	pub fn difficulty(&self) -> U256 { self.rlp.val_at(7) }
+	pub fn difficulty(&self) -> U256 { self.val_at_trusted(7) }
 
 	/// Returns block number.
-	pub fn number(&self) -> BlockNumber { self.rlp.val_at(8) }
+	pub fn number(&self) -> BlockNumber { self.val_at_trusted(8) }
 
 	/// Returns block gas limit.
-	pub fn gas_limit(&self) -> U256 { self.rlp.val_at(9) }
+	pub fn gas_limit(&self) -> U256 { self.val_at_trusted(9) }
 
 	/// Returns block gas used.
-	pub fn gas_used(&self) -> U256 { self.rlp.val_at(10) }
+	pub fn gas_used(&self) -> U256 { self.val_at_trusted(10) }
 
 	/// Returns timestamp.
-	pub fn timestamp(&self) -> u64 { self.rlp.val_at(11) }
+	pub fn timestamp(&self) -> u64 { self.val_at_trusted(11) }
 
 	/// Returns block extra data.
-	pub fn extra_data(&self) -> Bytes { self.rlp.val_at(12) }
+	pub fn extra_data(&self) -> Bytes { self.val_at_trusted(12) }
 
 	/// Returns a vector of post-RLP-encoded seal fields.
 	pub fn seal(&self) -> Vec<Bytes> {
@@ -105,6 +109,7 @@ impl<'a> HeaderView<'a> {
 			.map(|s| rlp::UntrustedRlp::new(&s).data().map(|x| x.to_vec()))
 			.collect()
 	}
+
 }
 
 #[cfg(test)]

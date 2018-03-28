@@ -31,7 +31,7 @@ use views;
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, Bloom, U256, Address};
-use rlp::{Rlp, RlpStream};
+use rlp::{UntrustedRlp, RlpStream};
 
 /// Owning header view.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,7 +56,7 @@ impl Header {
 
 	/// Get the rlp of the header.
 	#[inline]
-	pub fn rlp(&self) -> Rlp { Rlp::new(&self.0) }
+	pub fn rlp(&self) -> UntrustedRlp { UntrustedRlp::new(&self.0) }
 
 	/// Consume the view and return the raw bytes.
 	pub fn into_inner(self) -> Vec<u8> { self.0 }
@@ -134,8 +134,8 @@ impl Body {
 
 	/// Get the RLP of this block body.
 	#[inline]
-	pub fn rlp(&self) -> Rlp {
-		Rlp::new(&self.0)
+	pub fn rlp(&self) -> UntrustedRlp {
+		UntrustedRlp::new(&self.0)
 	}
 
 	/// Consume the view and return the raw bytes.
@@ -145,7 +145,7 @@ impl Body {
 // forwarders to borrowed view.
 impl Body {
 	/// Get raw rlp of transactions
-	pub fn transactions_rlp(&self) -> Rlp { self.view().transactions_rlp() }
+	pub fn transactions_rlp(&self) -> UntrustedRlp { self.view().transactions_rlp() }
 
 	/// Get a vector of all transactions.
 	pub fn transactions(&self) -> Vec<UnverifiedTransaction> { self.view().transactions() }
@@ -160,7 +160,7 @@ impl Body {
 	pub fn transaction_hashes(&self) -> Vec<H256> { self.view().transaction_hashes() }
 
 	/// Get raw rlp of uncle headers
-	pub fn uncles_rlp(&self) -> Rlp { self.view().uncles_rlp() }
+	pub fn uncles_rlp(&self) -> UntrustedRlp { self.view().uncles_rlp() }
 
 	/// Decode uncle headers.
 	pub fn uncles(&self) -> Vec<FullHeader> { self.view().uncles() }
@@ -208,15 +208,15 @@ impl Block {
 	pub fn decode(&self) -> FullBlock { ::rlp::decode(&self.0) }
 
 	/// Decode the header.
-	pub fn decode_header(&self) -> FullHeader { self.rlp().val_at(0) }
+	pub fn decode_header(&self) -> FullHeader { self.rlp().val_at(0).expect("trusted rlp should be valid") }
 
 	/// Clone the encoded header.
-	pub fn header(&self) -> Header { Header(self.rlp().at(0).as_raw().to_vec()) }
+	pub fn header(&self) -> Header { Header(self.rlp().at(0).expect("trusted rlp should be valid").as_raw().to_vec()) }
 
 	/// Get the rlp of this block.
 	#[inline]
-	pub fn rlp(&self) -> Rlp {
-		Rlp::new(&self.0)
+	pub fn rlp(&self) -> UntrustedRlp {
+		UntrustedRlp::new(&self.0)
 	}
 
 	/// Consume the view and return the raw bytes.

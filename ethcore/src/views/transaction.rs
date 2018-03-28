@@ -18,30 +18,30 @@
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
 use hash::keccak;
-use rlp::Rlp;
+use rlp::UntrustedRlp;
 
 /// View onto transaction rlp.
 pub struct TransactionView<'a> {
-	rlp: Rlp<'a>
+	rlp: UntrustedRlp<'a>
 }
 
 impl<'a> TransactionView<'a> {
 	/// Creates new view onto block from raw bytes.
 	pub fn new(bytes: &'a [u8]) -> TransactionView<'a> {
 		TransactionView {
-			rlp: Rlp::new(bytes)
+			rlp: UntrustedRlp::new(bytes)
 		}
 	}
 
 	/// Creates new view onto block from rlp.
-	pub fn new_from_rlp(rlp: Rlp<'a>) -> TransactionView<'a> {
+	pub fn new_from_rlp(rlp: UntrustedRlp<'a>) -> TransactionView<'a> {
 		TransactionView {
 			rlp: rlp
 		}
 	}
 
 	/// Return reference to underlaying rlp.
-	pub fn rlp(&self) -> &Rlp<'a> {
+	pub fn rlp(&self) -> &UntrustedRlp<'a> {
 		&self.rlp
 	}
 
