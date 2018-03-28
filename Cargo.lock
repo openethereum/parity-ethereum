@@ -869,6 +869,7 @@ dependencies = [
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.29 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
