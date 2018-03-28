@@ -580,10 +580,7 @@ impl ChainNotify for EthPeer<EthcoreClient> {
 
 	fn stop(&self) {}
 
-	fn broadcast(&self, message_type: ChainMessageType, message: Vec<u8>) {
-		self.io_queue.write().push_back(IOMessage {
-			data: message,
-			message_type,
-		});
+	fn broadcast(&self, message_type: ChainMessageType) {
+		self.io_queue.write().push_back(message_type)
 	}
 }
