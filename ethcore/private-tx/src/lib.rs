@@ -84,7 +84,7 @@ use ethcore::miner::MinerService;
 use ethcore::trace::{Tracer, VMTracer};
 use rustc_hex::FromHex;
 
-// Source avaiable at https://github.com/paritytech/contracts/blob/master/contracts/PrivateContract.sol
+// Source avaiable at https://github.com/parity-contracts/private-tx/blob/master/contracts/PrivateContract.sol
 const DEFAULT_STUB_CONTRACT: &'static str = include_str!("../res/private.evm");
 
 use_contract!(private, "PrivateContract", "res/private.json");
