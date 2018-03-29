@@ -343,6 +343,7 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 			pool: cpu_pool.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.redirection_address(),
+			info_page_only: cmd.ui_conf.info_page_only,
 		})
 	};
 
@@ -743,9 +744,11 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 			pool: cpu_pool.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.redirection_address(),
+			info_page_only: cmd.ui_conf.info_page_only,
 		})
 	};
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
+	// TODO [ToDr] disable RPCs if we are in info_page_only mode.
 	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, dapps_deps)?;
 
 	let dapps_service = dapps::service(&dapps_middleware);
@@ -883,7 +886,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 }
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
-	if cmd.ui_conf.enabled {
+	if cmd.ui_conf.enabled && !cmd.ui_conf.info_page_only {
 		warn!("{}", Style::new().bold().paint("Parity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity UI instead."));
 		warn!("{}", Style::new().bold().paint("Standalone Parity UI: https://github.com/Parity-JS/shell/releases"));
 	}
