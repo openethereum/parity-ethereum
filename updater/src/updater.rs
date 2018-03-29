@@ -616,26 +616,6 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 		let latest = self.operations_client.latest(&self.this, self.track()).ok();
 
 		if let Some(latest) = latest {
-			// There's a new release available
-			if state.latest.as_ref() != Some(&latest) {
-				trace!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
-					   latest.track.version,
-					   if latest.track.is_critical {""} else {"non-"},
-					   *PLATFORM,
-					   latest.track.binary.map(|b| format!("{}", b)).unwrap_or("unreleased".into()));
-
-				trace!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}",
-					   latest.this_fork.map(|f| format!("#{}", f)).unwrap_or("unknown".into()),
-					   current_block_number,
-					   latest.track.fork,
-					   latest.fork);
-
-				// Update latest release
-				state.latest = Some(latest.clone());
-			}
-		}
-
-		if let Some(latest) = state.latest.clone() {
 			// Update current capability
 			state.capability = match latest.this_fork {
 				// We're behind the latest fork. Now is the time to be upgrading, perhaps we're too late...
@@ -656,6 +636,24 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 				Some(_) => CapState::Capable,
 				None => CapState::Unknown,
 			};
+
+			// There's a new release available
+			if state.latest.as_ref() != Some(&latest) {
+				trace!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
+					   latest.track.version,
+					   if latest.track.is_critical {""} else {"non-"},
+					   *PLATFORM,
+					   latest.track.binary.map(|b| format!("{}", b)).unwrap_or("unreleased".into()));
+
+				trace!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}",
+					   latest.this_fork.map(|f| format!("#{}", f)).unwrap_or("unknown".into()),
+					   current_block_number,
+					   latest.track.fork,
+					   latest.fork);
+
+				// Update latest release
+				state.latest = Some(latest);
+			}
 		}
 
 		self.updater_step(state);
