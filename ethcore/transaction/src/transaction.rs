@@ -89,8 +89,8 @@ pub mod signature {
 	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
 	pub fn check_replay_protection(v: u64) -> u8 {
 		match v {
-			v if v == 27 => 0 as u8,
-			v if v == 28 => 1 as u8,
+			v if v == 27 => 0,
+			v if v == 28 => 1,
 			v if v > 36 => ((v - 1) % 2) as u8,
 			 _ => 4
 		}
