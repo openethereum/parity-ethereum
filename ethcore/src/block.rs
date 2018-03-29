@@ -22,7 +22,7 @@ use std::collections::HashSet;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use triehash::ordered_trie_root;
 
-use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
+use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use unexpected::{Mismatch, OutOfBounds};
@@ -54,7 +54,7 @@ pub struct Block {
 impl Block {
 	/// Returns true if the given bytes form a valid encoding of a block in RLP.
 	pub fn is_good(b: &[u8]) -> bool {
-		UntrustedRlp::new(b).as_val::<Block>().is_ok()
+		Rlp::new(b).as_val::<Block>().is_ok()
 	}
 
 	/// Get the RLP-encoding of the block with or without the seal.
@@ -68,7 +68,7 @@ impl Block {
 }
 
 impl Decodable for Block {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		if rlp.as_raw().len() != rlp.payload_info()?.total() {
 			return Err(DecoderError::RlpIsTooBig);
 		}

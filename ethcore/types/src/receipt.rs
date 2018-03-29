@@ -18,7 +18,7 @@
 
 use ethereum_types::{H256, U256, Address, Bloom};
 use heapsize::HeapSizeOf;
-use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
+use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError};
 
 use {BlockNumber};
 use log_entry::{LogEntry, LocalizedLogEntry};
@@ -81,7 +81,7 @@ impl Encodable for Receipt {
 }
 
 impl Decodable for Receipt {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		if rlp.item_count()? == 3 {
 			Ok(Receipt {
 				outcome: TransactionOutcome::Unknown,

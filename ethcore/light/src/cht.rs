@@ -26,7 +26,7 @@ use hashdb::HashDB;
 use memorydb::MemoryDB;
 use bytes::Bytes;
 use trie::{self, TrieMut, TrieDBMut, Trie, TrieDB, Recorder};
-use rlp::{RlpStream, UntrustedRlp};
+use rlp::{RlpStream, Rlp};
 
 // encode a key.
 macro_rules! key {
@@ -150,7 +150,7 @@ pub fn check_proof(proof: &[Bytes], num: u64, root: H256) -> Option<(H256, U256)
 	let res = match TrieDB::new(&db, &root) {
 		Err(_) => return None,
 		Ok(trie) => trie.get_with(&key!(num), |val: &[u8]| {
-			let rlp = UntrustedRlp::new(val);
+			let rlp = Rlp::new(val);
 			rlp.val_at::<H256>(0)
 				.and_then(|h| rlp.val_at::<U256>(1).map(|td| (h, td)))
 				.ok()

@@ -20,25 +20,25 @@ use bytes::Bytes;
 use ethereum_types::H256;
 use hash::keccak;
 use header::Header;
-use rlp::UntrustedRlp;
+use rlp::Rlp;
 use transaction::{UnverifiedTransaction, LocalizedTransaction};
 use views::{TransactionView, HeaderView};
 
 /// View onto block rlp.
 pub struct BlockView<'a> {
-	rlp: UntrustedRlp<'a>
+	rlp: Rlp<'a>
 }
 
 impl<'a> BlockView<'a> {
 	/// Creates new view onto block from raw bytes.
 	pub fn new(bytes: &'a [u8]) -> BlockView<'a> {
 		BlockView {
-			rlp: UntrustedRlp::new(bytes)
+			rlp: Rlp::new(bytes)
 		}
 	}
 
 	/// Creates new view onto block from rlp.
-	pub fn new_from_rlp(rlp: UntrustedRlp<'a>) -> BlockView<'a> {
+	pub fn new_from_rlp(rlp: Rlp<'a>) -> BlockView<'a> {
 		BlockView {
 			rlp: rlp
 		}
@@ -50,7 +50,7 @@ impl<'a> BlockView<'a> {
 	}
 
 	/// Return reference to underlaying rlp.
-	pub fn rlp(&self) -> &UntrustedRlp<'a> {
+	pub fn rlp(&self) -> &Rlp<'a> {
 		&self.rlp
 	}
 
@@ -60,7 +60,7 @@ impl<'a> BlockView<'a> {
 	}
 
 	/// Return header rlp.
-	pub fn header_rlp(&self) -> UntrustedRlp<'a> {
+	pub fn header_rlp(&self) -> Rlp<'a> {
 		self.rlp.at(0).expect("trusted rlp should be valid")
 	}
 
@@ -92,7 +92,7 @@ impl<'a> BlockView<'a> {
 	}
 
 	/// Return the raw rlp for the transactions in the given block.
-	pub fn transactions_rlp(&self) -> UntrustedRlp<'a> {
+	pub fn transactions_rlp(&self) -> Rlp<'a> {
 		self.rlp.at(1).expect("trusted rlp should be valid")
 	}
 
@@ -131,7 +131,7 @@ impl<'a> BlockView<'a> {
 	}
 
 	/// Returns raw rlp for the uncles in the given block
-	pub fn uncles_rlp(&self) -> UntrustedRlp<'a> {
+	pub fn uncles_rlp(&self) -> Rlp<'a> {
 		self.rlp.at(2).expect("trusted rlp should be valid")
 	}
 

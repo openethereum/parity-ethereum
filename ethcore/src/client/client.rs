@@ -61,7 +61,7 @@ use miner::{Miner, MinerService};
 use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
-use rlp::UntrustedRlp;
+use rlp::Rlp;
 use snapshot::{self, io as snapshot_io};
 use spec::Spec;
 use state_db::StateDB;
@@ -976,7 +976,7 @@ impl Client {
 		trace!(target: "external_tx", "Importing queued");
 		trace_time!("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
-		let txs: Vec<UnverifiedTransaction> = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
+		let txs: Vec<UnverifiedTransaction> = transactions.iter().filter_map(|bytes| Rlp::new(bytes).as_val().ok()).collect();
 		let hashes: Vec<_> = txs.iter().map(|tx| tx.hash()).collect();
 		self.notify(|notify| {
 			notify.transactions_received(hashes.clone(), peer_id);

@@ -29,7 +29,7 @@
 use request::{self, Request};
 use super::error::Error;
 
-use rlp::{UntrustedRlp, RlpStream, Decodable, Encodable, DecoderError};
+use rlp::{Rlp, RlpStream, Decodable, Encodable, DecoderError};
 use ethereum_types::U256;
 use std::time::{Duration, Instant};
 
@@ -162,7 +162,7 @@ impl Encodable for CostTable {
 }
 
 impl Decodable for CostTable {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let base = rlp.val_at(0)?;
 
 		let mut headers = None;

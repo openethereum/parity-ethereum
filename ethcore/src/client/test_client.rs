@@ -29,7 +29,7 @@ use journaldb;
 use kvdb::DBValue;
 use kvdb_memorydb;
 use bytes::Bytes;
-use rlp::{UntrustedRlp, RlpStream};
+use rlp::{Rlp, RlpStream};
 use ethkey::{Generator, Random};
 use transaction::{self, Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::{TreeRoute, BlockReceipts};
@@ -803,7 +803,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>, _peer_id: usize) {
 		// import right here
-		let txs = transactions.into_iter().filter_map(|bytes| UntrustedRlp::new(&bytes).as_val().ok()).collect();
+		let txs = transactions.into_iter().filter_map(|bytes| Rlp::new(&bytes).as_val().ok()).collect();
 		self.miner.import_external_transactions(self, txs);
 	}
 

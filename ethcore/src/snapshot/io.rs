@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 
 use bytes::Bytes;
 use ethereum_types::H256;
-use rlp::{RlpStream, UntrustedRlp};
+use rlp::{RlpStream, Rlp};
 
 use super::ManifestData;
 
@@ -238,7 +238,7 @@ impl PackedReader {
 		file.seek(SeekFrom::Start(manifest_off))?;
 		file.read_exact(&mut manifest_buf)?;
 
-		let rlp = UntrustedRlp::new(&manifest_buf);
+		let rlp = Rlp::new(&manifest_buf);
 
 		let (start, version) = if rlp.item_count()? == 5 {
 			(0, 1)

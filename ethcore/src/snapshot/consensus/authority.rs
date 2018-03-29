@@ -33,7 +33,7 @@ use receipt::Receipt;
 use snapshot::{Error, ManifestData};
 
 use itertools::{Position, Itertools};
-use rlp::{RlpStream, UntrustedRlp};
+use rlp::{RlpStream, Rlp};
 use ethereum_types::{H256, U256};
 use kvdb::KeyValueDB;
 use bytes::Bytes;
@@ -182,7 +182,7 @@ impl ChunkRebuilder {
 	fn verify_transition(
 		&mut self,
 		last_verifier: &mut Option<Box<EpochVerifier<EthereumMachine>>>,
-		transition_rlp: UntrustedRlp,
+		transition_rlp: Rlp,
 		engine: &EthEngine,
 	) -> Result<Verified, ::error::Error> {
 		use engines::ConstructedVerifier;
@@ -242,7 +242,7 @@ impl Rebuilder for ChunkRebuilder {
 		engine: &EthEngine,
 		abort_flag: &AtomicBool,
 	) -> Result<(), ::error::Error> {
-		let rlp = UntrustedRlp::new(chunk);
+		let rlp = Rlp::new(chunk);
 		let is_last_chunk: bool = rlp.val_at(0)?;
 		let num_items = rlp.item_count()?;
 

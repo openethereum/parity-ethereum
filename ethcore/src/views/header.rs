@@ -20,23 +20,23 @@ use bytes::Bytes;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
 use header::BlockNumber;
-use rlp::{self, UntrustedRlp, Decodable};
+use rlp::{self, Rlp, Decodable};
 
 /// View onto block header rlp.
 pub struct HeaderView<'a> {
-	rlp: UntrustedRlp<'a>
+	rlp: Rlp<'a>
 }
 
 impl<'a> HeaderView<'a> {
 	/// Creates new view onto header from raw bytes.
 	pub fn new(bytes: &'a [u8]) -> HeaderView<'a> {
 		HeaderView {
-			rlp: UntrustedRlp::new(bytes)
+			rlp: Rlp::new(bytes)
 		}
 	}
 
 	/// Creates new view onto header from rlp.
-	pub fn new_from_rlp(rlp: UntrustedRlp<'a>) -> HeaderView<'a> {
+	pub fn new_from_rlp(rlp: Rlp<'a>) -> HeaderView<'a> {
 		HeaderView {
 			rlp: rlp
 		}
@@ -48,7 +48,7 @@ impl<'a> HeaderView<'a> {
 	}
 
 	/// Returns raw rlp.
-	pub fn rlp(&self) -> &UntrustedRlp<'a> { &self.rlp }
+	pub fn rlp(&self) -> &Rlp<'a> { &self.rlp }
 
 	fn val_at_trusted<T>(&self, index: usize) -> T where T : Decodable {
 		self.rlp.val_at(index).expect("trusted rlp should be valid")
@@ -106,7 +106,7 @@ impl<'a> HeaderView<'a> {
 	pub fn decode_seal(&self) -> Result<Vec<Bytes>, rlp::DecoderError> {
 		let seal = self.seal();
 		seal.into_iter()
-			.map(|s| rlp::UntrustedRlp::new(&s).data().map(|x| x.to_vec()))
+			.map(|s| rlp::Rlp::new(&s).data().map(|x| x.to_vec()))
 			.collect()
 	}
 

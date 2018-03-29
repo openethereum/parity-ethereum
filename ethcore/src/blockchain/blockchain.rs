@@ -25,7 +25,7 @@ use heapsize::HeapSizeOf;
 use ethereum_types::{H256, Bloom, U256};
 use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
-use rlp::{Rlp, RlpStream};
+use rlp::RlpStream;
 use rlp_compress::{compress, decompress, blocks_swapper};
 use header::*;
 use transaction::*;
@@ -253,9 +253,7 @@ impl BlockProvider for BlockChain {
 		{
 			let best_block = self.best_block.read();
 			if &best_block.hash == hash {
-				return Some(encoded::Header::new(
-					Rlp::new(&best_block.block).at(0).as_raw().to_vec()
-				))
+				return Some(encoded::Block::new(best_block.block.clone()).header())
 			}
 		}
 
@@ -1384,9 +1382,9 @@ impl BlockChain {
 	/// Create a block body from a block.
 	pub fn block_to_body(block: &[u8]) -> Bytes {
 		let mut body = RlpStream::new_list(2);
-		let block_rlp = Rlp::new(block);
-		body.append_raw(block_rlp.at(1).as_raw(), 1);
-		body.append_raw(block_rlp.at(2).as_raw(), 1);
+		let block_view = BlockView::new(block);
+		body.append_raw(block_view.transactions_rlp().as_raw(), 1);
+		body.append_raw(block_view.uncles_rlp().as_raw(), 1);
 		body.out()
 	}
 

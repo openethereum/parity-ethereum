@@ -17,7 +17,7 @@
 //! Snapshot manifest type definition
 
 use ethereum_types::H256;
-use rlp::{UntrustedRlp, RlpStream, DecoderError};
+use rlp::{Rlp, RlpStream, DecoderError};
 use bytes::Bytes;
 
 /// Manifest data.
@@ -53,7 +53,7 @@ impl ManifestData {
 
 	/// Try to restore manifest data from raw bytes, interpreted as RLP.
 	pub fn from_rlp(raw: &[u8]) -> Result<Self, DecoderError> {
-		let decoder = UntrustedRlp::new(raw);
+		let decoder = Rlp::new(raw);
 		let (start, version) = if decoder.item_count()? == 5 {
 			(0, 1)
 		} else {

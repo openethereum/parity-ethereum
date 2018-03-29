@@ -26,7 +26,7 @@ use ethereum_types::{H256, H512};
 use network::{self, HostInfo, NetworkContext, NodeId, PeerId, ProtocolId, TimerToken};
 use ordered_float::OrderedFloat;
 use parking_lot::{Mutex, RwLock};
-use rlp::{DecoderError, RlpStream, UntrustedRlp};
+use rlp::{DecoderError, RlpStream, Rlp};
 
 use message::{Message, Error as MessageError};
 
@@ -506,7 +506,7 @@ impl<T: MessageHandler> Network<T> {
 	}
 
 	// handle status packet from peer.
-	fn on_status(&self, peer: &PeerId, _status: UntrustedRlp)
+	fn on_status(&self, peer: &PeerId, _status: Rlp)
 		-> Result<(), Error>
 	{
 		let peers = self.peers.read();
@@ -523,7 +523,7 @@ impl<T: MessageHandler> Network<T> {
 		}
 	}
 
-	fn on_messages(&self, peer: &PeerId, message_packet: UntrustedRlp)
+	fn on_messages(&self, peer: &PeerId, message_packet: Rlp)
 		-> Result<(), Error>
 	{
 		let mut messages_vec = {
@@ -568,7 +568,7 @@ impl<T: MessageHandler> Network<T> {
 		Ok(())
 	}
 
-	fn on_pow_requirement(&self, peer: &PeerId, requirement: UntrustedRlp)
+	fn on_pow_requirement(&self, peer: &PeerId, requirement: Rlp)
 		-> Result<(), Error>
 	{
 		use byteorder::{ByteOrder, BigEndian};
@@ -604,7 +604,7 @@ impl<T: MessageHandler> Network<T> {
 		Ok(())
 	}
 
-	fn on_topic_filter(&self, peer: &PeerId, filter: UntrustedRlp)
+	fn on_topic_filter(&self, peer: &PeerId, filter: Rlp)
 		-> Result<(), Error>
 	{
 		let peers = self.peers.read();
@@ -661,7 +661,7 @@ impl<T: MessageHandler> Network<T> {
 	}
 
 	fn on_packet<C: ?Sized + Context>(&self, io: &C, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		let rlp = UntrustedRlp::new(data);
+		let rlp = Rlp::new(data);
 		let res = match packet_id {
 			packet::STATUS => self.on_status(peer, rlp),
 			packet::MESSAGES => self.on_messages(peer, rlp),
