@@ -24,7 +24,6 @@ use proxypac::ProxyPac;
 use web::Web;
 use fetch::Fetch;
 use parity_dapps::WebApp;
-use parity_ui;
 use {WebProxyTokens, ParentFrameSettings};
 
 mod app;
@@ -44,11 +43,15 @@ pub const WEB_PATH: &'static str = "web";
 pub const URL_REFERER: &'static str = "__referer=";
 
 pub fn utils(pool: CpuPool) -> Box<Endpoint> {
-	Box::new(page::builtin::Dapp::new(pool, parity_ui::App::default()))
+	Box::new(page::builtin::Dapp::new(pool, ::parity_ui::App::default()))
 }
 
 pub fn ui(pool: CpuPool) -> Box<Endpoint> {
-	Box::new(page::builtin::Dapp::with_fallback_to_index(pool, parity_ui::App::default()))
+	Box::new(page::builtin::Dapp::with_fallback_to_index(pool, ::parity_ui::App::default()))
+}
+
+pub fn ui_deprecation(pool: CpuPool) -> Box<Endpoint> {
+	Box::new(page::builtin::Dapp::with_fallback_to_index(pool, ::parity_ui_deprecation::App::default()))
 }
 
 pub fn ui_redirection(embeddable: Option<ParentFrameSettings>) -> Box<Endpoint> {
@@ -76,9 +79,9 @@ pub fn all_endpoints<F: Fetch>(
 	}
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
-	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(embeddable.clone()), pool.clone());
+	insert::<::parity_ui::App>(&mut pages, "ui", Embeddable::Yes(embeddable.clone()), pool.clone());
 	// old version
-	insert::<parity_ui::old::App>(&mut pages, "v1", Embeddable::Yes(embeddable.clone()), pool.clone());
+	insert::<::parity_ui::old::App>(&mut pages, "v1", Embeddable::Yes(embeddable.clone()), pool.clone());
 
 	pages.insert("proxy".into(), ProxyPac::boxed(embeddable.clone(), dapps_domain.to_owned()));
 	pages.insert(WEB_PATH.into(), Web::boxed(embeddable.clone(), web_proxy_tokens.clone(), fetch.clone(), pool.clone()));

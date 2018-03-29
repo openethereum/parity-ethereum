@@ -74,6 +74,7 @@ pub struct UiConfiguration {
 	pub interface: String,
 	pub port: u16,
 	pub hosts: Option<Vec<String>>,
+	pub info_page_only: bool,
 }
 
 impl UiConfiguration {
@@ -114,6 +115,7 @@ impl Default for UiConfiguration {
 			port: 8180,
 			interface: "127.0.0.1".into(),
 			hosts: Some(vec![]),
+			info_page_only: true,
 		}
 	}
 }
