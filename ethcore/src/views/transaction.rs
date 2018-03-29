@@ -18,7 +18,7 @@
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
 use hash::keccak;
-use rlp::UntrustedRlp;
+use rlp::{UntrustedRlp, Decodable};
 
 /// View onto transaction rlp.
 pub struct TransactionView<'a> {
@@ -50,29 +50,33 @@ impl<'a> TransactionView<'a> {
 		keccak(self.rlp.as_raw())
 	}
 
+	fn rlp_val_at_trusted<T>(&self, index: usize) -> T where T : Decodable {
+		self.rlp.val_at(index).expect("trusted rlp should be valid")
+	}
+
 	/// Get the nonce field of the transaction.
-	pub fn nonce(&self) -> U256 { self.rlp.val_at(0) }
+	pub fn nonce(&self) -> U256 { self.rlp_val_at_trusted(0) }
 
 	/// Get the gas_price field of the transaction.
-	pub fn gas_price(&self) -> U256 { self.rlp.val_at(1) }
+	pub fn gas_price(&self) -> U256 { self.rlp_val_at_trusted(1) }
 
 	/// Get the gas field of the transaction.
-	pub fn gas(&self) -> U256 { self.rlp.val_at(2) }
+	pub fn gas(&self) -> U256 { self.rlp_val_at_trusted(2) }
 
 	/// Get the value field of the transaction.
-	pub fn value(&self) -> U256 { self.rlp.val_at(4) }
+	pub fn value(&self) -> U256 { self.rlp_val_at_trusted(4) }
 
 	/// Get the data field of the transaction.
-	pub fn data(&self) -> Bytes { self.rlp.val_at(5) }
+	pub fn data(&self) -> Bytes { self.rlp_val_at_trusted(5) }
 
 	/// Get the v field of the transaction.
-	pub fn v(&self) -> u8 { let r: u16 = self.rlp.val_at(6); r as u8 }
+	pub fn v(&self) -> u8 { let r: u16 = self.rlp_val_at_trusted(6); r as u8 }
 
 	/// Get the r field of the transaction.
-	pub fn r(&self) -> U256 { self.rlp.val_at(7) }
+	pub fn r(&self) -> U256 { self.rlp_val_at_trusted(7) }
 
 	/// Get the s field of the transaction.
-	pub fn s(&self) -> U256 { self.rlp.val_at(8) }
+	pub fn s(&self) -> U256 { self.rlp_val_at_trusted(8) }
 }
 
 #[cfg(test)]

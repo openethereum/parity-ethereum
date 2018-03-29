@@ -20,7 +20,7 @@ use bytes::Bytes;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
 use header::BlockNumber;
-use rlp::{self, UntrustedRlp};
+use rlp::{self, UntrustedRlp, Decodable};
 
 /// View onto block header rlp.
 pub struct HeaderView<'a> {
@@ -50,8 +50,8 @@ impl<'a> HeaderView<'a> {
 	/// Returns raw rlp.
 	pub fn rlp(&self) -> &UntrustedRlp<'a> { &self.rlp }
 
-	fn val_at_trusted<T>(&self, index: usize) -> T {
-		self.val_at_trusted(index).expect("trusted rlp should be valid")
+	fn val_at_trusted<T>(&self, index: usize) -> T where T : Decodable {
+		self.rlp.val_at(index).expect("trusted rlp should be valid")
 	} 
 
 	/// Returns parent hash.
@@ -96,8 +96,8 @@ impl<'a> HeaderView<'a> {
 	/// Returns a vector of post-RLP-encoded seal fields.
 	pub fn seal(&self) -> Vec<Bytes> {
 		let mut seal = vec![];
-		for i in 13..self.rlp.item_count() {
-			seal.push(self.rlp.at(i).as_raw().to_vec());
+		for i in 13..self.rlp.item_count().expect("trusted rlp shuld be valid") {
+			seal.push(self.rlp.at(i).expect("trusted rlp should be valid").as_raw().to_vec());
 		}
 		seal
 	}

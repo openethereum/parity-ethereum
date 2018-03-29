@@ -236,13 +236,7 @@ impl BlockProvider for BlockChain {
 	fn block(&self, hash: &H256) -> Option<encoded::Block> {
 		let header = self.block_header_data(hash)?;
 		let body = self.block_body(hash)?;
-
-		let mut block = RlpStream::new_list(3);
-		let body_rlp = body.rlp();
-		block.append_raw(header.rlp().as_raw(), 1);
-		block.append_raw(body_rlp.at(0).as_raw(), 1);
-		block.append_raw(body_rlp.at(1).as_raw(), 1);
-		Some(encoded::Block::new(block.out()))
+		Some(encoded::Block::new_from_header_and_body(&header.view(), &body.view()))
 	}
 
 	/// Get block header data

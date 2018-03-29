@@ -56,12 +56,12 @@ impl<'a> BlockView<'a> {
 
 	/// Create new Header object from header rlp.
 	pub fn header(&self) -> Header {
-		self.rlp.val_at(0)
+		self.rlp.val_at(0).expect("trusted rlp should be valid")
 	}
 
 	/// Return header rlp.
-	pub fn header_rlp(&self) -> UntrustedRlp {
-		self.rlp.at(0)
+	pub fn header_rlp(&self) -> UntrustedRlp<'a> {
+		self.rlp.at(0).expect("trusted rlp should be valid")
 	}
 
 	/// Create new header view obto block head rlp.
@@ -71,7 +71,7 @@ impl<'a> BlockView<'a> {
 
 	/// Return List of transactions in given block.
 	pub fn transactions(&self) -> Vec<UnverifiedTransaction> {
-		self.rlp.list_at(1)
+		self.rlp.list_at(1).expect("trusted rlp should be valid")
 	}
 
 	/// Return List of transactions with additional localization info.
@@ -93,7 +93,7 @@ impl<'a> BlockView<'a> {
 
 	/// Return the raw rlp for the transactions in the given block.
 	pub fn transactions_rlp(&self) -> UntrustedRlp<'a> {
-		self.rlp.at(1)
+		self.rlp.at(1).expect("trusted rlp should be valid")
 	}
 
 	/// Return number of transactions in given block, without deserializing them.
@@ -113,7 +113,7 @@ impl<'a> BlockView<'a> {
 
 	/// Returns transaction at given index without deserializing unnecessary data.
 	pub fn transaction_at(&self, index: usize) -> Option<UnverifiedTransaction> {
-		self.transactions_rlp().iter().nth(index).map(|rlp| rlp.as_val())
+		self.transactions_rlp().iter().nth(index).map(|rlp| rlp.as_val().expect("trusted rlp should be valid"))
 	}
 
 	/// Returns localized transaction at given index.
@@ -132,12 +132,12 @@ impl<'a> BlockView<'a> {
 
 	/// Returns raw rlp for the uncles in the given block
 	pub fn uncles_rlp(&self) -> UntrustedRlp<'a> {
-		self.uncles_rlp()
+		self.rlp.at(2).expect("trusted rlp should be valid")
 	}
 
 	/// Return list of uncles of given block.
 	pub fn uncles(&self) -> Vec<Header> {
-		self.rlp.list_at(2)
+		self.rlp.list_at(2).expect("trusted rlp should be valid")
 	}
 
 	/// Return number of uncles in given block, without deserializing them.
@@ -157,7 +157,7 @@ impl<'a> BlockView<'a> {
 
 	/// Return nth uncle.
 	pub fn uncle_at(&self, index: usize) -> Option<Header> {
-		self.uncles_rlp().iter().nth(index).map(|rlp| rlp.as_val())
+		self.uncles_rlp().iter().nth(index).map(|rlp| rlp.as_val().expect("trusted rlp should be valid"))
 	}
 
 	/// Return nth uncle rlp.
