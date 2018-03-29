@@ -495,6 +495,11 @@ usage! {
 			"--ws-hosts=[HOSTS]",
 			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\".",
 
+			ARG arg_ws_max_connections: (usize) = 100usize, or |c: &Config| c.websockets.as_ref()?.max_connections,
+			"--ws-max-connections=[CONN]",
+			"Maximal number of allowed concurrent WS connections.",
+
+
 		["API and console options – IPC"]
 			FLAG flag_no_ipc: (bool) = false, or |c: &Config| c.ipc.as_ref()?.disable.clone(),
 			"--no-ipc",
@@ -1082,6 +1087,7 @@ struct Ws {
 	apis: Option<Vec<String>>,
 	origins: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
+	max_connections: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]

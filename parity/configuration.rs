@@ -921,6 +921,7 @@ impl Configuration {
 			support_token_api,
 			ui_address: ui.address(),
 			dapps_address: http.address(),
+			max_connections: self.args.arg_ws_max_connections,
 		};
 
 		Ok(conf)
