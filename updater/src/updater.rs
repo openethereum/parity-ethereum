@@ -492,10 +492,9 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 		let current_block_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
 
 		if let Some(latest) = state.latest.clone() {
-			let fetch = |binary| {
+			let fetch = |latest, binary| {
 				info!(target: "updater", "Attempting to get parity binary {}", binary);
 				let weak_self = self.weak_self.lock().clone();
-				let latest = latest.clone();
 				let f = move |res: Result<PathBuf, fetch::Error>| {
 					if let Some(this) = weak_self.upgrade() {
 						this.on_fetch(&latest, res)
@@ -524,12 +523,12 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 					info!(target: "updater", "Update for binary {} triggered", binary);
 
 					state.status = UpdaterStatus::Fetching { release: release.clone(), binary, retries: 1 };
-					fetch(binary);
+					fetch(latest, binary);
 				},
 				// we're ready to retry the fetch after we applied a backoff for the previous failure
 				UpdaterStatus::FetchBackoff { ref release, backoff, binary } if *release == latest.track && self.time_provider.now() >= backoff.1 => {
 					state.status = UpdaterStatus::Fetching { release: release.clone(), binary, retries: backoff.0 + 1 };
-					fetch(binary);
+					fetch(latest, binary);
 				},
 				// the update is ready to be installed
 				UpdaterStatus::Ready { ref release } if *release == latest.track => {
