@@ -450,8 +450,8 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 				// There was an error fetching the update, apply a backoff delay before retrying
 				Err(err) => {
 					let delay = 2usize.pow(retries) as u64;
-					// cap maximum backoff to 1 month
-					let delay = cmp::min(delay, 30 * 24 * 60 * 60);
+					// cap maximum backoff to 1 day
+					let delay = cmp::min(delay, 24 * 60 * 60);
 					let backoff = (retries, self.time_provider.now() + Duration::from_secs(delay));
 
 					state.status = UpdaterStatus::FetchBackoff { release: release.clone(), backoff, binary };
