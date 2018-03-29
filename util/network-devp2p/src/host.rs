@@ -30,7 +30,8 @@ use mio::*;
 use mio::deprecated::{EventLoop};
 use mio::tcp::*;
 use ethereum_types::H256;
-use rlp::*;
+use rlp::{RlpStream, Encodable};
+
 use session::{Session, SessionData};
 use io::*;
 use PROTOCOL_VERSION;

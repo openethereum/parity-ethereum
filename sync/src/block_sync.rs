@@ -22,7 +22,7 @@ use std::collections::{HashSet, VecDeque};
 use std::cmp;
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
-use rlp::*;
+use rlp::UntrustedRlp;
 use ethcore::views::{BlockView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockStatus, BlockId, BlockImportError};

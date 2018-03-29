@@ -23,7 +23,7 @@ use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
-use rlp::*;
+use rlp::{UntrustedRlp, RlpStream, Encodable, DecoderError, Decodable};
 
 pub use types::BlockNumber;
 

@@ -29,7 +29,7 @@ use journaldb;
 use kvdb::DBValue;
 use kvdb_memorydb;
 use bytes::Bytes;
-use rlp::*;
+use rlp::{UntrustedRlp, RlpStream};
 use ethkey::{Generator, Random};
 use transaction::{self, Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::{TreeRoute, BlockReceipts};
@@ -66,6 +66,7 @@ use encoded;
 use engines::EthEngine;
 use trie;
 use state::StateInfo;
+use views::BlockView;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -469,7 +470,7 @@ impl ChainInfo for TestBlockChainClient {
 impl BlockInfo for TestBlockChainClient {
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		self.block_hash(id)
-			.and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
+			.and_then(|hash| self.blocks.read().get(&hash).map(|r| BlockView::new(r).header_rlp().as_raw().to_vec()))
 			.map(encoded::Header::new)
 	}
 
@@ -510,7 +511,7 @@ impl RegistryInfo for TestBlockChainClient {
 
 impl ImportBlock for TestBlockChainClient {
 	fn import_block(&self, b: Bytes) -> Result<H256, BlockImportError> {
-		let header = Rlp::new(&b).val_at::<BlockHeader>(0);
+		let header = BlockView::new(&b).header();
 		let h = header.hash();
 		let number: usize = header.number() as usize;
 		if number > self.blocks.read().len() {
@@ -519,7 +520,7 @@ impl ImportBlock for TestBlockChainClient {
 		if number > 0 {
 			match self.blocks.read().get(header.parent_hash()) {
 				Some(parent) => {
-					let parent = Rlp::new(parent).val_at::<BlockHeader>(0);
+					let parent = BlockView::new(parent).header();
 					if parent.number() != (header.number() - 1) {
 						panic!("Unexpected block parent");
 					}
@@ -544,7 +545,7 @@ impl ImportBlock for TestBlockChainClient {
 				while n > 0 && self.numbers.read()[&n] != parent_hash {
 					*self.numbers.write().get_mut(&n).unwrap() = parent_hash.clone();
 					n -= 1;
-					parent_hash = Rlp::new(&self.blocks.read()[&parent_hash]).val_at::<BlockHeader>(0).parent_hash().clone();
+					parent_hash = BlockView::new(&self.blocks.read()[&parent_hash]).header().parent_hash().clone();
 				}
 			}
 		}
@@ -683,9 +684,10 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| {
+			let block = BlockView::new(r);
 			let mut stream = RlpStream::new_list(2);
-			stream.append_raw(Rlp::new(r).at(1).as_raw(), 1);
-			stream.append_raw(Rlp::new(r).at(2).as_raw(), 1);
+			stream.append_raw(block.transactions_rlp().as_raw(), 1);
+			stream.append_raw(block.uncles_rlp().as_raw(), 1);
 			encoded::Body::new(stream.out())
 		}))
 	}
