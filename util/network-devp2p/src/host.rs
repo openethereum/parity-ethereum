@@ -594,11 +594,11 @@ impl Host {
 			};
 			match TcpStream::connect(&address) {
 				Ok(socket) => {
-					trace!(target: "network", "Connecting to {:?}", address);
+					trace!(target: "network", "{}: Connecting to {:?}", id, address);
 					socket
 				},
 				Err(e) => {
-					debug!(target: "network", "Can't connect to address {:?}: {:?}", address, e);
+					debug!(target: "network", "{}: Can't connect to address {:?}: {:?}", id, address, e);
 					return;
 				}
 			}
@@ -614,6 +614,7 @@ impl Host {
 		let mut sessions = self.sessions.write();
 
 		let token = sessions.insert_with_opt(|token| {
+			trace!(target: "network", "{}: Initiating session {:?}", token, id);
 			match Session::new(io, socket, token, id, &nonce, &self.info.read()) {
 				Ok(s) => Some(Arc::new(Mutex::new(s))),
 				Err(e) => {
