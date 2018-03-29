@@ -460,6 +460,34 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 		}
 	}
 
+	fn execute_upgrade(&self, mut state: MutexGuard<UpdaterState>) -> bool {
+		if let UpdaterStatus::Ready { ref release } = state.status.clone() {
+			let file = Updater::update_file_name(&release.version);
+			let path = self.updates_path("latest");
+
+			// TODO: creating then writing is a bit fragile. would be nice to make it atomic.
+			if let Err(err) = fs::File::create(&path).and_then(|mut f| f.write_all(file.as_bytes())) {
+				state.status = UpdaterStatus::Disabled;
+
+				warn!(target: "updater", "Unable to create soft-link for update {:?}", err);
+				return false;
+			}
+
+			info!(target: "updater", "Completed upgrade to {}", &release.version);
+			state.status = UpdaterStatus::Installed { release: release.clone() };
+
+			match *self.exit_handler.lock() {
+				Some(ref h) => (*h)(),
+				None => info!(target: "updater", "Update installed, ready for restart."),
+			}
+
+			return true;
+		};
+
+		warn!(target: "updater", "Execute upgrade called when no upgrade ready.");
+		false
+	}
+
 	fn updater_step(&self, mut state: MutexGuard<UpdaterState>) {
 		let current_block_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
 
@@ -512,9 +540,7 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 					};
 
 					if auto {
-						// will lock self.state
-						drop(state);
-						self.execute_upgrade();
+						self.execute_upgrade(state);
 					}
 				},
 				// this is the default case that does the initial triggering to update. we can reach this case by being
@@ -658,33 +684,8 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Service fo
 	}
 
 	fn execute_upgrade(&self) -> bool {
-		let mut state = self.state.lock();
-
-		if let UpdaterStatus::Ready { ref release } = state.status.clone() {
-			let file = Updater::update_file_name(&release.version);
-			let path = self.updates_path("latest");
-
-			// TODO: creating then writing is a bit fragile. would be nice to make it atomic.
-			if let Err(err) = fs::File::create(&path).and_then(|mut f| f.write_all(file.as_bytes())) {
-				state.status = UpdaterStatus::Disabled;
-
-				warn!(target: "updater", "Unable to create soft-link for update {:?}", err);
-				return false;
-			}
-
-			info!(target: "updater", "Completed upgrade to {}", &release.version);
-			state.status = UpdaterStatus::Installed { release: release.clone() };
-
-			match *self.exit_handler.lock() {
-				Some(ref h) => (*h)(),
-				None => info!(target: "updater", "Update installed, ready for restart."),
-			}
-
-			return true;
-		};
-
-		warn!(target: "updater", "Execute upgrade called when no upgrade ready.");
-		false
+		let state = self.state.lock();
+		self.execute_upgrade(state)
 	}
 
 	fn version_info(&self) -> VersionInfo {
@@ -799,9 +800,11 @@ pub mod tests {
 		}
 	}
 
+	type TestUpdater = Updater<FakeOperationsClient, FakeFetch, FakeTimeProvider, FakeGenRange>;
+
 	fn setup(update_policy: UpdatePolicy) -> (
 		Arc<TestBlockChainClient>,
-		Arc<Updater<FakeOperationsClient, FakeFetch, FakeTimeProvider, FakeGenRange>>,
+		Arc<TestUpdater>,
 		FakeOperationsClient,
 		FakeFetch,
 		FakeTimeProvider,
@@ -920,7 +923,7 @@ pub mod tests {
 		assert_eq!(updater.upgrade_ready(), Some(latest_release.clone()));
 
 		// the current update_policy doesn't allow updating automatically, but we can trigger the update manually
-		updater.execute_upgrade();
+		<TestUpdater as Service>::execute_upgrade(&*updater);
 
 		assert_eq!(updater.state.lock().status, UpdaterStatus::Installed { release: latest_release });
 
