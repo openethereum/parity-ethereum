@@ -1520,6 +1520,7 @@ mod tests {
 			arg_ws_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			arg_ws_origins: "none".into(),
 			arg_ws_hosts: "none".into(),
+			arg_ws_max_connections: 100,
 
 			// IPC
 			flag_no_ipc: false,
@@ -1757,6 +1758,7 @@ mod tests {
 				apis: None,
 				origins: Some(vec!["none".into()]),
 				hosts: None,
+				max_connections: None,
 			}),
 			rpc: Some(Rpc {
 				disable: Some(true),
