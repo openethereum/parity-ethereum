@@ -550,10 +550,16 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 
 						} else if self.update_policy.enable_downloading {
 							let update_block_number = {
-								let from = current_block_number.saturating_sub(self.update_policy.max_delay);
+								let max_delay = if latest.fork >= current_block_number {
+									cmp::min(latest.fork - current_block_number, self.update_policy.max_delay)
+								} else {
+									self.update_policy.max_delay
+								};
+
+								let from = current_block_number.saturating_sub(max_delay);
 								match self.operations_client.release_block_number(from, &latest.track) {
 									Some(block_number) => {
-										let delay = self.rng.gen_range(1, self.update_policy.max_delay + 1);
+										let delay = self.rng.gen_range(0, max_delay);
 										block_number.saturating_add(delay)
 									},
 									None => current_block_number,
