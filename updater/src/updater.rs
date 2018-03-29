@@ -31,7 +31,6 @@ use ethcore::filter::Filter;
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
 use ethereum_types::H256;
 use ethsync::{SyncProvider};
-use hash::keccak;
 use hash_fetch::{self as fetch, HashFetch};
 use path::restrict_permissions_owner;
 use service::Service;
@@ -180,12 +179,6 @@ lazy_static! {
 	static ref PLATFORM_ID_HASH: H256 = PLATFORM.as_bytes().into();
 }
 
-const RELEASE_ADDED_EVENT_NAME: &'static [u8] = &*b"ReleaseAdded(bytes32,uint32,bytes32,uint8,uint24,bool)";
-
-lazy_static! {
-	static ref RELEASE_ADDED_EVENT_NAME_HASH: H256 = keccak(RELEASE_ADDED_EVENT_NAME);
-}
-
 /// Client trait for getting latest release information from operations contract.
 /// Useful for mocking in tests.
 pub trait OperationsClient: Send + Sync + 'static {
@@ -305,20 +298,19 @@ impl OperationsClient for OperationsContractClient {
 		let client = self.client.upgrade()?;
 		let address = client.registry_address("operations".into(), BlockId::Latest)?;
 
+		let event = self.operations_contract.events().release_added();
+
+		let topics = event.create_filter(Some(*CLIENT_ID_HASH), Some(release.fork.into()), Some(release.is_critical));
+		let topics = vec![topics.topic0, topics.topic1, topics.topic2, topics.topic3];
+		let topics = topics.into_iter().map(Into::into).map(Some).collect();
+
 		let filter = Filter {
 			from_block: BlockId::Number(from),
 			to_block: BlockId::Latest,
 			address: Some(vec![address]),
-			topics: vec![
-				Some(vec![*RELEASE_ADDED_EVENT_NAME_HASH]),
-				Some(vec![*CLIENT_ID_HASH]),
-				Some(vec![release.fork.into()]),
-				Some(vec![if release.is_critical { 1 } else { 0 }.into()]),
-			],
+			topics: topics,
 			limit: None,
 		};
-
-		let event = self.operations_contract.events().release_added();
 
 		client.logs(filter)
 			.iter()
@@ -1228,9 +1220,9 @@ pub mod tests {
 
 	#[test]
 	fn should_update_capability() {
-		let (update_policy, tempdir) = update_policy();
-		let (client, updater, operations_client, fetcher, ..) = setup(update_policy);
-		let (latest_version, latest_release, mut latest) = new_upgrade("1.0.1");
+		let (update_policy, _tempdir) = update_policy();
+		let (client, updater, operations_client, _, ..) = setup(update_policy);
+		let (_, _, mut latest) = new_upgrade("1.0.1");
 
 		// mock operations contract with a new version
 		operations_client.set_result(Some(latest.clone()), None);
