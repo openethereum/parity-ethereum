@@ -499,7 +499,6 @@ usage! {
 			"--ws-max-connections=[CONN]",
 			"Maximal number of allowed concurrent WS connections.",
 
-
 		["API and console options – IPC"]
 			FLAG flag_no_ipc: (bool) = false, or |c: &Config| c.ipc.as_ref()?.disable.clone(),
 			"--no-ipc",
