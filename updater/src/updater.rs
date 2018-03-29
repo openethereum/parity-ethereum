@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
-use parking_lot::Mutex;
+use parking_lot::{Mutex, MutexGuard};
 use rand::{self, Rng};
 use target_info::Target;
 
@@ -442,9 +442,7 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 						warn!("{}", err);
 					} else {
 						state.status = UpdaterStatus::Ready { release: release.clone() };
-						// will lock self.state
-						drop(state);
-						self.updater_step();
+						self.updater_step(state);
 					}
 				},
 				// There was an error fetching the update, apply a backoff delay before retrying
@@ -462,10 +460,8 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 		}
 	}
 
-	fn updater_step(&self) {
+	fn updater_step(&self, mut state: MutexGuard<UpdaterState>) {
 		let current_block_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
-
-		let mut state = self.state.lock();
 
 		if let Some(latest) = state.latest.clone() {
 			let fetch = |binary| {
@@ -500,15 +496,11 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 					info!(target: "updater", "Update for binary {} triggered", binary);
 
 					state.status = UpdaterStatus::Fetching { release: release.clone(), binary, retries: 1 };
-					// will lock self.state
-					drop(state);
 					fetch(binary);
 				},
 				// we're ready to retry the fetch after we applied a backoff for the previous failure
 				UpdaterStatus::FetchBackoff { ref release, backoff, binary } if *release == latest.track && self.time_provider.now() >= backoff.1 => {
 					state.status = UpdaterStatus::Fetching { release: release.clone(), binary, retries: backoff.0 + 1 };
-					// will lock self.state
-					drop(state);
 					fetch(binary);
 				},
 				// the update is ready to be installed
@@ -544,9 +536,7 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 						if path.exists() {
 							info!(target: "updater", "Already fetched binary.");
 							state.status = UpdaterStatus::Ready { release: latest.track.clone() };
-							// will lock self.state
-							drop(state);
-							self.updater_step();
+							self.updater_step(state);
 
 						} else if self.update_policy.enable_downloading {
 							let update_block_number = {
@@ -571,9 +561,7 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 							if update_block_number > current_block_number {
 								info!(target: "updater", "Update for binary {} will be triggered at block {}", binary, update_block_number);
 							} else {
-								// will lock self.state
-								drop(state);
-								self.updater_step();
+								self.updater_step(state);
 							}
 						}
 					}
@@ -644,9 +632,7 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 			};
 		}
 
-		// will lock self.state
-		drop(state);
-		self.updater_step();
+		self.updater_step(state);
 	}
 }
 
