@@ -6,4 +6,4 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ethereum-types = "0.2"
 journaldb = { path = "../journaldb" }
-app_dirs = "1.1.1"
+app_dirs = "1.2.1"
