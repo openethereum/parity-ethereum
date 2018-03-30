@@ -431,7 +431,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 
 fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: Cr,
 						on_updater_rq: Rr) -> Result<RunningClient, String>
-	where Cr: Fn(bool, Option<String>) + 'static + Send,
+	where Cr: Fn(String) + 'static + Send,
 		  Rr: Fn() + 'static + Send
 {
 	// load spec
@@ -962,11 +962,11 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		let e1 = exit.clone();
 		let e2 = exit.clone();
 		execute_impl(cmd, logger,
-					 move |restart, new_chain: Option<String>| { *e1.0.lock() = (restart, new_chain); e1.1.notify_all(); },
+					 move |new_chain: String| { *e1.0.lock() = (true, Some(new_chain)); e1.1.notify_all(); },
 					 move || { *e2.0.lock() = (true, None); e2.1.notify_all(); })?
 	} else {
 		trace!(target: "mode", "Not hypervised: not setting exit handlers.");
-		execute_impl(cmd, logger, move |_, _| {}, move || {})?
+		execute_impl(cmd, logger, move |_| {}, move || {})?
 	};
 
 	// Handle possible exits
