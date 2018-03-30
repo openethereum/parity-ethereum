@@ -180,9 +180,9 @@ fn display(result: (KeyPair, Option<String>), mode: DisplayMode) -> String {
 			Some(extra_data) => format!("{}\n{}", extra_data, keypair),
 			None => format!("{}", keypair)
 		},
-		DisplayMode::Secret => format!("{:?}", keypair.secret()),
-		DisplayMode::Public => format!("{:?}", keypair.public()),
-		DisplayMode::Address => format!("{:?}", keypair.address()),
+		DisplayMode::Secret => format!("{:x}", keypair.secret()),
+		DisplayMode::Public => format!("{:x}", keypair.public()),
+		DisplayMode::Address => format!("{:x}", keypair.address()),
 	}
 }
 

@@ -169,9 +169,9 @@ impl Node {
 impl Display for Node {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		if self.endpoint.udp_port != self.endpoint.address.port() {
-			write!(f, "enode://{}@{}+{}", self.id.hex(), self.endpoint.address, self.endpoint.udp_port)?;
+			write!(f, "enode://{:x}@{}+{}", self.id, self.endpoint.address, self.endpoint.udp_port)?;
 		} else {
-			write!(f, "enode://{}@{}", self.id.hex(), self.endpoint.address)?;
+			write!(f, "enode://{:x}@{}", self.id, self.endpoint.address)?;
 		}
 		Ok(())
 	}
