@@ -57,14 +57,15 @@
     "gasLimit": "0x47b760"
   },
   "nodes": [
-    "enode://1e1d25d9eafd92319ee85f502c2f5274a62029b3f9ec003cba259a600ae0def256a09ec505a569aabc4a447d2fd4df9c682243091730f83556693dab17206bd0@167.99.96.186:30303"
+    "enode://1e1d25d9eafd92319ee85f502c2f5274a62029b3f9ec003cba259a600ae0def256a09ec505a569aabc4a447d2fd4df9c682243091730f83556693dab17206bd0@167.99.96.186:30303",
+    "enode://afaf655fbc100fec62c292753b8d42eccc4fee246568171549fa97a32196f2419ab6afecc03f251cffdb736df69badd79b7cbaeacdc217d5b194027f6f616aad@45.77.21.21:30303",
+    "enode://a56ba92bf34da673dfaa756b58f497abc90b4bb1c1b29d5a0e4fb98a8a2f50c683aeb16464e60482478def72273faccc7a4f6093b598bee82a77a677c4550baa@167.99.96.186:30303"
   ],
-  "0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
-  "0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
-  "0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
-  "0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
-
   "accounts": {
+    "0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+    "0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+    "0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+    "0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },  
     "0000000000000000000000000000000000000005": {
 	  "balance": "1",
       "builtin": {
