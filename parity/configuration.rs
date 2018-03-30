@@ -1362,7 +1362,7 @@ mod tests {
 			origins: Some(vec!["parity://*".into(),"chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
-			ui_address: None,
+			ui_address: Some("127.0.0.1:8180".into()),
 			dapps_address: Some("127.0.0.1:8545".into()),
 			support_token_api: true
 		}, UiConfiguration {
@@ -1624,7 +1624,7 @@ mod tests {
 		// then
 		assert_eq!(conf0.ui_enabled(), UiEnabled {
 			enabled: false,
-			info_page_only: false,
+			info_page_only: true,
 		});
 		assert_eq!(conf1.ui_enabled(), UiEnabled {
 			enabled: true,
@@ -1684,7 +1684,7 @@ mod tests {
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
-			info_page_only: false,
+			info_page_only: true,
 		});
 		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("127.0.0.1".to_owned(), 3000)]);
 
