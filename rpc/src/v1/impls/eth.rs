@@ -180,9 +180,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
 		let client = &self.client;
 
-		let client_query = |id| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id));
+		let client_query = |id, is_pending| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id), is_pending);
 
-		let (block, difficulty, extra) = match id {
+		let (block, difficulty, extra, is_pending) = match id {
 			BlockNumberOrId::Number(BlockNumber::Pending) => {
 				let info = self.client.chain_info();
 				let pending_block = self.miner.pending_block(info.best_block_number);
@@ -199,7 +199,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 				let extra = pending_block.as_ref().map(|b| self.client.engine().extra_info(&b.header));
 
-				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes(Seal::Without))), Some(difficulty), extra)
+				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes(Seal::Without))), Some(difficulty), extra, true)
 			},
 
 			BlockNumberOrId::Number(num) => {
@@ -210,10 +210,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 					BlockNumber::Pending => unreachable!(), // Already covered
 				};
 
-				client_query(id)
+				client_query(id, false)
 			},
 
-			BlockNumberOrId::Id(id) => client_query(id),
+			BlockNumberOrId::Id(id) => client_query(id, false),
 		};
 
 		match (block, difficulty) {
@@ -230,7 +230,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 						state_root: view.state_root().into(),
 						transactions_root: view.transactions_root().into(),
 						receipts_root: view.receipts_root().into(),
-						number: Some(view.number().into()),
+						number: match is_pending {
+							true => None,
+							false => Some(view.number().into()),
+						},
 						gas_used: view.gas_used().into(),
 						gas_limit: view.gas_limit().into(),
 						logs_bloom: view.log_bloom().into(),
