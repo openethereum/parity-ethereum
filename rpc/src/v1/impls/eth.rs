@@ -180,7 +180,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
 		let client = &self.client;
 
-		let client_query = |id, is_pending| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id), is_pending);
+		let client_query = |id| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id), false);
 
 		let (block, difficulty, extra, is_pending) = match id {
 			BlockNumberOrId::Number(BlockNumber::Pending) => {
@@ -210,10 +210,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 					BlockNumber::Pending => unreachable!(), // Already covered
 				};
 
-				client_query(id, false)
+				client_query(id)
 			},
 
-			BlockNumberOrId::Id(id) => client_query(id, false),
+			BlockNumberOrId::Id(id) => client_query(id),
 		};
 
 		match (block, difficulty) {
