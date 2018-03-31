@@ -932,9 +932,9 @@ pub fn check_threshold(threshold: usize, nodes: &BTreeSet<NodeId>) -> Result<(),
 
 #[cfg(test)]
 pub mod tests {
-	use std::time;
 	use std::sync::Arc;
 	use std::collections::{BTreeSet, BTreeMap, VecDeque};
+	use std::time::Duration;
 	use tokio_core::reactor::Core;
 	use ethereum_types::Address;
 	use ethkey::{Random, Generator, Public, KeyPair};

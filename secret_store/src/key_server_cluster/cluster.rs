@@ -49,7 +49,7 @@ use key_server_cluster::connection_trigger_with_migration::ConnectionTriggerWith
 /// 1) checks if connected nodes are responding to KeepAlive messages
 /// 2) tries to connect to disconnected nodes
 /// 3) checks if enc/dec sessions are time-outed
-const MAINTAIN_INTERVAL: Duration = Duration::new(10, 0);
+const MAINTAIN_INTERVAL: u64 = 10;
 
 /// When no messages have been received from node within KEEP_ALIVE_SEND_INTERVAL seconds,
 /// we must send KeepAlive message to the node to check if it still responds to messages.
@@ -324,7 +324,7 @@ impl ClusterCore {
 	/// Schedule mainatain procedures.
 	fn schedule_maintain(handle: &Handle, data: Arc<ClusterData>) {
 		let d = data.clone();
-		let interval: BoxedEmptyFuture = Box::new(Interval::new(MAINTAIN_INTERVAL, handle)
+		let interval: BoxedEmptyFuture = Box::new(Interval::new(Duration::new(MAINTAIN_INTERVAL, 0), handle)
 			.expect("failed to create interval")
 			.and_then(move |_| Ok(ClusterCore::maintain(data.clone())))
 			.for_each(|_| Ok(()))
@@ -1085,7 +1085,7 @@ fn make_socket_address(address: &str, port: u16) -> Result<SocketAddr, Error> {
 #[cfg(test)]
 pub mod tests {
 	use std::sync::Arc;
-	use std::time;
+	use std::time::{Duration, Instant};
 	use std::collections::{BTreeSet, VecDeque};
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
