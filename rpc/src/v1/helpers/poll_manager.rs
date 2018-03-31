@@ -75,10 +75,7 @@ impl<F, T> PollManager<F, T> where T: Timer {
 
 	/// Removes poll info.
 	pub fn remove_poll(&mut self, id: &PollId) -> bool {
-		match self.polls.remove(id) {
-			Some(_) => true,
-			None => false,
-		}
+		self.polls.remove(id).is_some()
 	}
 }
 
