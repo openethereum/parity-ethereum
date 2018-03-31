@@ -221,7 +221,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 				let view = block.header_view();
 				Ok(Some(RichBlock {
 					inner: Block {
-						hash: Some(view.hash().into()),
+						hash: match is_pending {
+							true => None,
+							false => Some(view.hash().into()),
+						},
 						size: Some(block.rlp().as_raw().len().into()),
 						parent_hash: view.parent_hash().into(),
 						uncles_hash: view.uncles_hash().into(),
