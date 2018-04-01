@@ -424,7 +424,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 
 	Ok(RunningClient::Light {
 		informant,
-		client: client.clone(),
+		client,
 		keep_alive: Box::new((service, ws_server, http_server, ipc_server, ui_server)),
 	})
 }
