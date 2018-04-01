@@ -68,11 +68,15 @@ impl<'a> BodyView<'a> {
 			}).collect()
 	}
 
+	/// Return the raw rlp for the transactions in the given block.
+	pub fn transactions_rlp(&self) -> Rlp<'a> {
+		self.rlp.at(0)
+	}
+
 	/// Return number of transactions in given block, without deserializing them.
 	pub fn transactions_count(&self) -> usize {
 		self.rlp.at(0).item_count()
 	}
-
 	/// Return List of transactions in given block.
 	pub fn transaction_views(&self) -> Vec<TransactionView<'a>> {
 		self.rlp.at(0).iter().map(TransactionView::new_from_rlp).collect()
@@ -97,6 +101,11 @@ impl<'a> BodyView<'a> {
 			transaction_index: index,
 			cached_sender: None,
 		})
+	}
+
+	/// Returns raw rlp for the uncles in the given block
+	pub fn uncles_rlp(&self) -> Rlp<'a> {
+		self.rlp.at(1)
 	}
 
 	/// Return list of uncles of given block.

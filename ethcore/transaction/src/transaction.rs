@@ -25,7 +25,6 @@ use evm::Schedule;
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use rlp::{self, RlpStream, UntrustedRlp, DecoderError, Encodable};
-// use rlp::*;
 
 type Bytes = Vec<u8>;
 type BlockNumber = u64;

@@ -31,7 +31,7 @@ use provider::Provider;
 use request;
 use request::*;
 
-use rlp::*;
+use rlp::{UntrustedRlp, RlpStream};
 use ethereum_types::{H256, U256, Address};
 
 use std::sync::Arc;

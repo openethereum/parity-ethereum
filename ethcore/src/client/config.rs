@@ -74,10 +74,10 @@ impl FromStr for DatabaseCompactionProfile {
 pub enum Mode {
 	/// Always on.
 	Active,
-	/// Goes offline after RLP is inactive for some (given) time, but
+	/// Goes offline after client is inactive for some (given) time, but
 	/// comes back online after a while of inactivity.
 	Passive(Duration, Duration),
-	/// Goes offline after RLP is inactive for some (given) time and
+	/// Goes offline after client is inactive for some (given) time and
 	/// stays inactive.
 	Dark(Duration),
 	/// Always off.

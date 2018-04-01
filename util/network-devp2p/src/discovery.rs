@@ -25,7 +25,7 @@ use mio::deprecated::{Handler, EventLoop};
 use mio::udp::*;
 use hash::keccak;
 use ethereum_types::{H256, H520};
-use rlp::*;
+use rlp::{UntrustedRlp, RlpStream, encode_list};
 use node_table::*;
 use network::{Error, ErrorKind};
 use io::{StreamToken, IoContext};
@@ -216,7 +216,8 @@ impl Discovery {
 			let nearest = nearest.filter(|x| !self.discovery_nodes.contains(&x.id)).take(ALPHA).collect::<Vec<_>>();
 			for r in nearest {
 				let rlp = encode_list(&(&[self.discovery_id.clone()][..]));
-				self.send_packet(PACKET_FIND_NODE, &r.endpoint.udp_address(), &rlp);
+				self.send_packet(PACKET_FIND_NODE, &r.endpoint.udp_address(), &rlp)
+					.unwrap_or_else(|e| warn!("Error sending node discovery packet for {:?}: {:?}", &r.endpoint, e));
 				self.discovery_nodes.insert(r.id.clone());
 				tried_count += 1;
 				trace!(target: "discovery", "Sent FindNode to {:?}", &r.endpoint);
@@ -251,16 +252,17 @@ impl Discovery {
 		self.public_endpoint.to_rlp_list(&mut rlp);
 		node.to_rlp_list(&mut rlp);
 		trace!(target: "discovery", "Sent Ping to {:?}", &node);
-		self.send_packet(PACKET_PING, &node.udp_address(), &rlp.drain());
+		self.send_packet(PACKET_PING, &node.udp_address(), &rlp.drain())
+			.unwrap_or_else(|e| warn!("Error sending Ping packet: {:?}", e))
 	}
 
-	fn send_packet(&mut self, packet_id: u8, address: &SocketAddr, payload: &[u8]) {
+	fn send_packet(&mut self, packet_id: u8, address: &SocketAddr, payload: &[u8]) -> Result<(), Error> {
 		let mut rlp = RlpStream::new();
 		rlp.append_raw(&[packet_id], 1);
-		let source = Rlp::new(payload);
-		rlp.begin_list(source.item_count() + 1);
-		for i in 0 .. source.item_count() {
-			rlp.append_raw(source.at(i).as_raw(), 1);
+		let source = UntrustedRlp::new(payload);
+		rlp.begin_list(source.item_count()? + 1);
+		for i in 0 .. source.item_count()? {
+			rlp.append_raw(source.at(i)?.as_raw(), 1);
 		}
 		let timestamp = 60 + SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as u32;
 		rlp.append(&timestamp);
@@ -269,9 +271,9 @@ impl Discovery {
 		let hash = keccak(bytes.as_ref());
 		let signature = match sign(&self.secret, &hash) {
 			Ok(s) => s,
-			Err(_) => {
+			Err(e) => {
 				warn!("Error signing UDP packet");
-				return;
+				return Err(Error::from(e));
 			}
 		};
 		let mut packet = Bytes::with_capacity(bytes.len() + 32 + 65);
@@ -281,6 +283,7 @@ impl Discovery {
 		let signed_hash = keccak(&packet[32..]);
 		packet[0..32].clone_from_slice(&signed_hash);
 		self.send_to(packet, address.clone());
+		Ok(())
 	}
 
 	fn nearest_node_entries(target: &NodeId, buckets: &[NodeBucket]) -> Vec<NodeEntry> {
@@ -425,7 +428,7 @@ impl Discovery {
 		let mut response = RlpStream::new_list(2);
 		dest.to_rlp_list(&mut response);
 		response.append(&echo_hash);
-		self.send_packet(PACKET_PONG, from, &response.drain());
+		self.send_packet(PACKET_PONG, from, &response.drain())?;
 
 		Ok(Some(TableUpdates { added: added_map, removed: HashSet::new() }))
 	}
@@ -456,7 +459,7 @@ impl Discovery {
 		}
 		let mut packets = Discovery::prepare_neighbours_packets(&nearest);
 		for p in packets.drain(..) {
-			self.send_packet(PACKET_NEIGHBOURS, from, &p);
+			self.send_packet(PACKET_NEIGHBOURS, from, &p)?;
 		}
 		trace!(target: "discovery", "Sent {} Neighbours to {:?}", nearest.len(), &from);
 		Ok(None)
