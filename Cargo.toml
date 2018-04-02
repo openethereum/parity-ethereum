@@ -82,6 +82,7 @@ rustc_version = "0.2"
 pretty_assertions = "0.1"
 ipnetwork = "0.12.6"
 tempdir = "0.3"
+fake-fetch = { path = "util/fake-fetch" }
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"

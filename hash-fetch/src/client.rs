@@ -193,7 +193,7 @@ fn random_temp_path() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-	extern crate hyper;
+	use fake_fetch::FakeFetch;
 	use rustc_hex::FromHex;
 	use std::sync::{Arc, mpsc};
 	use parking_lot::Mutex;
@@ -254,7 +254,7 @@ mod tests {
 	fn should_return_error_if_hash_not_found() {
 		// given
 		let contract = Arc::new(FakeRegistrar::new());
-		let fetch = FakeFetch { return_success: false };
+		let fetch = FakeFetch::new(false);
 		let client = Client::with_fetch(contract.clone(), CpuPool::new(1), fetch, Remote::new_sync());
 
 		// when
@@ -272,7 +272,7 @@ mod tests {
 	fn should_return_error_if_response_is_not_successful() {
 		// given
 		let registrar = Arc::new(registrar());
-		let fetch = FakeFetch { return_success: false };
+		let fetch = FakeFetch::new(false);
 		let client = Client::with_fetch(registrar.clone(), CpuPool::new(1), fetch, Remote::new_sync());
 
 		// when
@@ -290,7 +290,7 @@ mod tests {
 	fn should_return_hash_mismatch() {
 		// given
 		let registrar = Arc::new(registrar());
-		let fetch = FakeFetch { return_success: true };
+		let fetch = FakeFetch::new(true);
 		let mut client = Client::with_fetch(registrar.clone(), CpuPool::new(1), fetch, Remote::new_sync());
 		let path = random_temp_path();
 		let path2 = path.clone();
@@ -313,7 +313,7 @@ mod tests {
 	fn should_return_path_if_hash_matches() {
 		// given
 		let registrar = Arc::new(registrar());
-		let fetch = FakeFetch { return_success: true };
+		let fetch = FakeFetch::new(true);
 		let client = Client::with_fetch(registrar.clone(), CpuPool::new(1), fetch, Remote::new_sync());
 
 		// when

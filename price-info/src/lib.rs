@@ -25,6 +25,9 @@ extern crate serde_json;
 #[macro_use]
 extern crate log;
 
+#[cfg(test)]
+extern crate fake_fetch;
+
 pub extern crate fetch;
 
 use std::cmp;
@@ -190,11 +193,11 @@ mod test {
 	}
 
 	fn price_info_ok(response: &str) -> Client<FakeFetch> {
-		Client::new(FakeFetch(Some(response.to_owned()), Default::default()), CpuPool::new(1))
+		Client::new(FakeFetch::new(false), CpuPool::new(1))
 	}
 
 	fn price_info_not_found() -> Client<FakeFetch> {
-		Client::new(FakeFetch::new().unwrap(), CpuPool::new(1))
+		Client::new(FakeFetch::new(false), CpuPool::new(1))
 	}
 
 	#[test]
