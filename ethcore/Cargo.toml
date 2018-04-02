@@ -24,7 +24,7 @@ ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-stratum = { path = "../stratum" }
 ethcore-transaction = { path = "./transaction" }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 memory-cache = { path = "../util/memory_cache" }
 ethabi = "5.1"
 ethabi-derive = "5.0"

@@ -120,7 +120,7 @@ mod testing {
 				Host: 127.0.0.1:{}\r\n\
 				Connection: Close\r\n\
 				Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n\
-				Sec-WebSocket-Protocol: {:?}_{}\r\n\
+				Sec-WebSocket-Protocol: {:x}_{}\r\n\
 				Sec-WebSocket-Version: 13\r\n\
 				\r\n\
 				{{}}
@@ -150,7 +150,7 @@ mod testing {
 				Host: 127.0.0.1:{}\r\n\
 				Connection: Close\r\n\
 				Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n\
-				Sec-WebSocket-Protocol:{:?}_{}\r\n\
+				Sec-WebSocket-Protocol:{:x}_{}\r\n\
 				Sec-WebSocket-Version: 13\r\n\
 				\r\n\
 				{{}}

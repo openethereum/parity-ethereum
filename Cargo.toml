@@ -45,7 +45,7 @@ ethcore-network = { path = "util/network" }
 ethcore-service = { path = "ethcore/service" }
 ethcore-stratum = { path = "stratum" }
 ethcore-transaction = { path = "ethcore/transaction" }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
 node-health = { path = "dapps/node-health" }

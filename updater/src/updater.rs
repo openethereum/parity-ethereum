@@ -249,7 +249,7 @@ impl Updater {
 	}
 
 	fn update_file_name(v: &VersionInfo) -> String {
-		format!("parity-{}.{}.{}-{:?}", v.version.major, v.version.minor, v.version.patch, v.hash)
+		format!("parity-{}.{}.{}-{:x}", v.version.major, v.version.minor, v.version.patch, v.hash)
 	}
 
 	fn updates_path(&self, name: &str) -> PathBuf {
