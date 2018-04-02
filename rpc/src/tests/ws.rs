@@ -40,6 +40,7 @@ pub fn serve() -> (Server<ws::Server>, usize, GuardedAuthCodes) {
 		remote,
 		ws::DomainsValidation::Disabled,
 		ws::DomainsValidation::Disabled,
+		5,
 		extractors::WsExtractor::new(Some(&authcodes.path)),
 		extractors::WsExtractor::new(Some(&authcodes.path)),
 		extractors::WsStats::new(stats),

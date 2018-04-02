@@ -922,6 +922,7 @@ impl Configuration {
 			support_token_api,
 			ui_address: ui.address(),
 			dapps_address: http.address(),
+			max_connections: self.args.arg_ws_max_connections,
 		};
 
 		Ok(conf)
@@ -1361,7 +1362,8 @@ mod tests {
 			signer_path: expected.into(),
 			ui_address: None,
 			dapps_address: Some("127.0.0.1:8545".into()),
-			support_token_api: true
+			support_token_api: true,
+			max_connections: 100,
 		}, UiConfiguration {
 			enabled: false,
 			interface: "127.0.0.1".into(),
@@ -1372,6 +1374,17 @@ mod tests {
             mode: None,
             file: None,
         } ));
+	}
+
+	#[test]
+	fn test_ws_max_connections() {
+		let args = vec!["parity", "--ws-max-connections", "1"];
+		let conf = parse(&args);
+
+		assert_eq!(conf.ws_config().unwrap(), WsConfiguration {
+			max_connections: 1,
+			..Default::default()
+		});
 	}
 
 	#[test]
