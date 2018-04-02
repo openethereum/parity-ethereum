@@ -37,7 +37,7 @@ pub enum Error {
 
 impl From<SemVerError> for Error {
 	fn from(err: SemVerError) -> Self {
-		Error::Semver(err)
+		Error::SemVer(err)
 	}
 }
 
