@@ -32,7 +32,7 @@ pub enum Error {
 	CannotCreateConfigPath,
 	CannotWriteVersionFile,
 	CannotUpdateVersionFile,
-	Semver(SemVerError),
+	SemVer(SemVerError),
 }
 
 impl From<SemVerError> for Error {
