@@ -47,7 +47,7 @@ const PACKET_PONG: u8 = 2;
 const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
 
-const PING_TIMEOUT_MS: u64 = 300;
+const PING_TIMEOUT: Duration = Duration::from_millis(300);
 const MAX_NODES_PING: usize = 32; // Max nodes to add/ping at once
 
 #[derive(Clone, Debug)]
@@ -513,7 +513,7 @@ impl Discovery {
 		for bucket in &mut self.node_buckets {
 			bucket.nodes.retain(|node| {
 				if let Some(timeout) = node.timeout {
-					if !force && now.duration_since(timeout) < Duration::from_millis(PING_TIMEOUT_MS) {
+					if !force && now.duration_since(timeout) < PING_TIMEOUT {
 						true
 					}
 					else {
