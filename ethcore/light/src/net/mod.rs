@@ -73,7 +73,7 @@ const RECALCULATE_COSTS_TIMEOUT: TimerToken = 3;
 const RECALCULATE_COSTS_INTERVAL_MS: u64 = 60 * 60 * 1000;
 
 // minimum interval between updates.
-const UPDATE_INTERVAL_MS: Duration = Duration::from_millis(5000);
+const UPDATE_INTERVAL: Duration = Duration::from_millis(5000);
 
 /// Supported protocol versions.
 pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
@@ -472,7 +472,7 @@ impl LightProtocol {
 			// the timer approach will skip 1 (possibly 2) in rare occasions.
 			if peer_info.sent_head == announcement.head_hash ||
 				peer_info.status.head_num >= announcement.head_num  ||
-				now - peer_info.last_update < UPDATE_INTERVAL_MS {
+				now - peer_info.last_update < UPDATE_INTERVAL {
 				continue
 			}
 

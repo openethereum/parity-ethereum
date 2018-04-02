@@ -26,7 +26,7 @@ use parity_reactor::Remote;
 use parking_lot::Mutex;
 use {SyncStatus};
 
-const TIMEOUT_SECS: Duration = Duration::from_secs(5);
+const TIMEOUT: Duration = Duration::from_secs(5);
 const PROOF: &str = "Only one closure is invoked.";
 
 /// A struct enabling you to query for node's health.
@@ -57,7 +57,7 @@ impl NodeHealth {
 				let _ = tx.lock().take().expect(PROOF).send(Ok(result));
 				Ok(())
 			}),
-			TIMEOUT_SECS,
+			TIMEOUT,
 			move || {
 				let _ = tx2.lock().take().expect(PROOF).send(Err(()));
 			},
