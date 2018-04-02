@@ -180,9 +180,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
 		let client = &self.client;
 
-		let client_query = |id| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id));
+		let client_query = |id| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id), false);
 
-		let (block, difficulty, extra) = match id {
+		let (block, difficulty, extra, is_pending) = match id {
 			BlockNumberOrId::Number(BlockNumber::Pending) => {
 				let info = self.client.chain_info();
 				let pending_block = self.miner.pending_block(info.best_block_number);
@@ -199,7 +199,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 				let extra = pending_block.as_ref().map(|b| self.client.engine().extra_info(&b.header));
 
-				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes(Seal::Without))), Some(difficulty), extra)
+				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes(Seal::Without))), Some(difficulty), extra, true)
 			},
 
 			BlockNumberOrId::Number(num) => {
@@ -221,7 +221,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 				let view = block.header_view();
 				Ok(Some(RichBlock {
 					inner: Block {
-						hash: Some(view.hash().into()),
+						hash: match is_pending {
+							true => None,
+							false => Some(view.hash().into()),
+						},
 						size: Some(block.rlp().as_raw().len().into()),
 						parent_hash: view.parent_hash().into(),
 						uncles_hash: view.uncles_hash().into(),
@@ -230,10 +233,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 						state_root: view.state_root().into(),
 						transactions_root: view.transactions_root().into(),
 						receipts_root: view.receipts_root().into(),
-						number: Some(view.number().into()),
+						number: match is_pending {
+							true => None,
+							false => Some(view.number().into()),
+						},
 						gas_used: view.gas_used().into(),
 						gas_limit: view.gas_limit().into(),
-						logs_bloom: view.log_bloom().into(),
+						logs_bloom: match is_pending {
+							true => None,
+							false => Some(view.log_bloom().into()),
+						},
 						timestamp: view.timestamp().into(),
 						difficulty: view.difficulty().into(),
 						total_difficulty: Some(total_difficulty.into()),
@@ -368,7 +377,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 				number: Some(uncle.number().into()),
 				gas_used: uncle.gas_used().clone().into(),
 				gas_limit: uncle.gas_limit().clone().into(),
-				logs_bloom: uncle.log_bloom().clone().into(),
+				logs_bloom: Some(uncle.log_bloom().clone().into()),
 				timestamp: uncle.timestamp().into(),
 				difficulty: uncle.difficulty().clone().into(),
 				total_difficulty: Some((uncle.difficulty().clone() + parent_difficulty).into()),
