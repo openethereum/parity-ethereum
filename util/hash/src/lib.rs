@@ -105,6 +105,6 @@ mod tests {
 		let hash = keccak_buffer(&mut file).unwrap();
 
 		// then
-		assert_eq!(format!("{:?}", hash), "68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87");
+		assert_eq!(format!("{:x}", hash), "68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87");
 	}
 }

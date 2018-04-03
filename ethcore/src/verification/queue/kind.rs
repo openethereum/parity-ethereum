@@ -69,7 +69,7 @@ pub mod blocks {
 	use super::{Kind, BlockLike};
 
 	use engines::EthEngine;
-	use error::Error;
+	use error::{Error, BlockError};
 	use header::Header;
 	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
 
@@ -88,6 +88,10 @@ pub mod blocks {
 		fn create(input: Self::Input, engine: &EthEngine) -> Result<Self::Unverified, Error> {
 			match verify_block_basic(&input.header, &input.bytes, engine) {
 				Ok(()) => Ok(input),
+				Err(Error::Block(BlockError::TemporarilyInvalid(oob))) => {
+					debug!(target: "client", "Block received too early {}: {:?}", input.hash(), oob);
+					Err(BlockError::TemporarilyInvalid(oob).into())
+				},
 				Err(e) => {
 					warn!(target: "client", "Stage 1 block verification failed for {}: {:?}", input.hash(), e);
 					Err(e)

@@ -575,7 +575,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	}
 
 	// display warning if using --no-hardcoded-sync
-	if !cmd.no_hardcoded_sync {
+	if cmd.no_hardcoded_sync {
 		warn!("The --no-hardcoded-sync flag has no effect if you don't use --light");
 	}
 

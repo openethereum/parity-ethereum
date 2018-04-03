@@ -28,7 +28,7 @@ use blockchain::{BlockChain, BlockProvider};
 use engines::{EthEngine, EpochVerifier, EpochTransition};
 use machine::EthereumMachine;
 use ids::BlockId;
-use header::{Header, Seal};
+use header::Header;
 use receipt::Receipt;
 use snapshot::{Error, ManifestData};
 
@@ -324,7 +324,7 @@ impl Rebuilder for ChunkRebuilder {
 				transactions: last_rlp.list_at(1)?,
 				uncles: last_rlp.list_at(2)?,
 			};
-			let block_data = block.rlp_bytes(Seal::With);
+			let block_data = block.rlp_bytes();
 			let receipts: Vec<Receipt> = last_rlp.list_at(3)?;
 
 			{

@@ -15,7 +15,7 @@ semver = "0.6"
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
 ethcore-bytes = { path = "../util/bytes" }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 parking_lot = "0.5"
 parity-hash-fetch = { path = "../hash-fetch" }
 parity-version = { path = "../util/version" }

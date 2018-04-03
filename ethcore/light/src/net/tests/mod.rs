@@ -405,7 +405,7 @@ fn get_block_receipts() {
 	// by the test client in that case.
 	let block_hashes: Vec<H256> = (0..1000)
 		.map(|i| provider.client.block_header(BlockId::Number(i)).unwrap().hash())
-		.filter(|hash| format!("{}", hash).starts_with("f"))
+		.filter(|hash| format!("{}", hash).starts_with("0xf"))
 		.take(10)
 		.collect();
 

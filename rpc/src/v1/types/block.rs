@@ -80,7 +80,7 @@ pub struct Block {
 	pub extra_data: Bytes,
 	/// Logs bloom
 	#[serde(rename="logsBloom")]
-	pub logs_bloom: H2048,
+	pub logs_bloom: Option<H2048>,
 	/// Timestamp
 	pub timestamp: U256,
 	/// Difficulty
@@ -254,7 +254,7 @@ mod tests {
 			gas_used: U256::default(),
 			gas_limit: U256::default(),
 			extra_data: Bytes::default(),
-			logs_bloom: H2048::default(),
+			logs_bloom: Some(H2048::default()),
 			timestamp: U256::default(),
 			difficulty: U256::default(),
 			total_difficulty: Some(U256::default()),
@@ -292,7 +292,7 @@ mod tests {
 			gas_used: U256::default(),
 			gas_limit: U256::default(),
 			extra_data: Bytes::default(),
-			logs_bloom: H2048::default(),
+			logs_bloom: Some(H2048::default()),
 			timestamp: U256::default(),
 			difficulty: U256::default(),
 			total_difficulty: Some(U256::default()),

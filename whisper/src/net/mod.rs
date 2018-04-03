@@ -45,7 +45,7 @@ pub const PROTOCOL_VERSION: usize = 6;
 pub const SUPPORTED_VERSIONS: &'static [u8] = &[PROTOCOL_VERSION as u8];
 
 // maximum tolerated delay between messages packets.
-const MAX_TOLERATED_DELAY_MS: u64 = 5000;
+const MAX_TOLERATED_DELAY: Duration = Duration::from_millis(5000);
 
 /// Number of packets. A bunch are reserved.
 pub const PACKET_COUNT: u8 = 128;
@@ -469,7 +469,7 @@ impl<T: MessageHandler> Network<T> {
 			peer_data.note_evicted(&pruned_hashes);
 
 			let punish_timeout = |last_activity: &SystemTime| {
-				if *last_activity + Duration::from_millis(MAX_TOLERATED_DELAY_MS) <= now {
+				if *last_activity + MAX_TOLERATED_DELAY <= now {
 					debug!(target: "whisper", "Disconnecting peer {} due to excessive timeout.", peer_id);
 					io.disconnect_peer(*peer_id);
 				}

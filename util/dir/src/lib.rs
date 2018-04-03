@@ -156,7 +156,7 @@ impl DatabaseDirectories {
 	/// Base DB directory for the given fork.
 	// TODO: remove in 1.7
 	pub fn legacy_fork_path(&self) -> PathBuf {
-		Path::new(&self.legacy_path).join(format!("{:?}{}", H64::from(self.genesis_hash), self.fork_name.as_ref().map(|f| format!("-{}", f)).unwrap_or_default()))
+		Path::new(&self.legacy_path).join(format!("{:x}{}", H64::from(self.genesis_hash), self.fork_name.as_ref().map(|f| format!("-{}", f)).unwrap_or_default()))
 	}
 
 	/// Spec root directory for the given fork.

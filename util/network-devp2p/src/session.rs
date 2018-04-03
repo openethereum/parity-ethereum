@@ -34,8 +34,8 @@ use node_table::NodeId;
 use snappy;
 
 // Timeout must be less than (interval - 1).
-const PING_TIMEOUT_SEC: u64 = 60;
-const PING_INTERVAL_SEC: u64 = 120;
+const PING_TIMEOUT_SEC: Duration = Duration::from_secs(60);
+const PING_INTERVAL_SEC: Duration = Duration::from_secs(120);
 const MIN_PROTOCOL_VERSION: u32 = 4;
 const MIN_COMPRESSION_PROTOCOL_VERSION: u32 = 5;
 
@@ -298,12 +298,12 @@ impl Session {
 			return true;
 		}
 		let timed_out = if let Some(pong) = self.pong_time {
-			pong.duration_since(self.ping_time) > Duration::from_secs(PING_TIMEOUT_SEC)
+			pong.duration_since(self.ping_time) > PING_TIMEOUT_SEC
 		} else {
-			self.ping_time.elapsed() > Duration::from_secs(PING_TIMEOUT_SEC)
+			self.ping_time.elapsed() > PING_TIMEOUT_SEC
 		};
 
-		if !timed_out && self.ping_time.elapsed() > Duration::from_secs(PING_INTERVAL_SEC) {
+		if !timed_out && self.ping_time.elapsed() > PING_INTERVAL_SEC {
 			if let Err(e) = self.send_ping(io) {
 				debug!("Error sending ping message: {:?}", e);
 			}

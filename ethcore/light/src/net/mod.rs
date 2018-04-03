@@ -73,7 +73,7 @@ const RECALCULATE_COSTS_TIMEOUT: TimerToken = 3;
 const RECALCULATE_COSTS_INTERVAL_MS: u64 = 60 * 60 * 1000;
 
 // minimum interval between updates.
-const UPDATE_INTERVAL_MS: u64 = 5000;
+const UPDATE_INTERVAL: Duration = Duration::from_millis(5000);
 
 /// Supported protocol versions.
 pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
@@ -109,8 +109,10 @@ mod packet {
 
 // timeouts for different kinds of requests. all values are in milliseconds.
 mod timeout {
-	pub const HANDSHAKE: u64 = 2500;
-	pub const ACKNOWLEDGE_UPDATE: u64 = 5000;
+	use std::time::Duration;
+
+	pub const HANDSHAKE: Duration =  Duration::from_millis(2500);
+	pub const ACKNOWLEDGE_UPDATE: Duration = Duration::from_millis(5000);
 	pub const BASE: u64 = 1500; // base timeout for packet.
 
 	// timeouts per request within packet.
@@ -470,7 +472,7 @@ impl LightProtocol {
 			// the timer approach will skip 1 (possibly 2) in rare occasions.
 			if peer_info.sent_head == announcement.head_hash ||
 				peer_info.status.head_num >= announcement.head_num  ||
-				now - peer_info.last_update < Duration::from_millis(UPDATE_INTERVAL_MS) {
+				now - peer_info.last_update < UPDATE_INTERVAL {
 				continue
 			}
 
@@ -606,7 +608,7 @@ impl LightProtocol {
 			let mut pending = self.pending_peers.write();
 			let slowpokes: Vec<_> = pending.iter()
 				.filter(|&(_, ref peer)| {
-					peer.last_update + Duration::from_millis(timeout::HANDSHAKE) <= now
+					peer.last_update + timeout::HANDSHAKE <= now
 				})
 				.map(|(&p, _)| p)
 				.collect();
@@ -619,7 +621,7 @@ impl LightProtocol {
 		}
 
 		// request and update ack timeouts
-		let ack_duration = Duration::from_millis(timeout::ACKNOWLEDGE_UPDATE);
+		let ack_duration = timeout::ACKNOWLEDGE_UPDATE;
 		{
 			for (peer_id, peer) in self.peers.read().iter() {
 				let peer = peer.lock();

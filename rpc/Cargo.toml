@@ -45,7 +45,7 @@ ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-transaction = { path = "../ethcore/transaction" }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 
 ethcrypto = { path = "../ethcrypto" }
 ethjson = { path = "../json" }

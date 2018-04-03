@@ -311,7 +311,7 @@ impl TestBlockChainClient {
 		self.blocks.write().insert(hash, rlp.out());
 	}
 
-	/// TODO:
+	/// Get block hash with `delta` as offset from the most recent blocks.
 	pub fn block_hash_delta_minus(&mut self, delta: usize) -> H256 {
 		let blocks_read = self.numbers.read();
 		let index = blocks_read.len() - delta;
@@ -474,9 +474,10 @@ impl BlockInfo for TestBlockChainClient {
 			.map(encoded::Header::new)
 	}
 
-	fn best_block_header(&self) -> encoded::Header {
+	fn best_block_header(&self) -> Header {
 		self.block_header(BlockId::Hash(self.chain_info().best_block_hash))
 			.expect("Best block always has header.")
+			.decode()
 	}
 
 	fn block(&self, id: BlockId) -> Option<encoded::Block> {

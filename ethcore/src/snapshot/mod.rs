@@ -130,7 +130,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	writer: W,
 	p: &Progress
 ) -> Result<(), Error> {
-	let start_header = chain.block_header(&block_at)
+	let start_header = chain.block_header_data(&block_at)
 		.ok_or(Error::InvalidStartingBlock(BlockId::Hash(block_at)))?;
 	let state_root = start_header.state_root();
 	let number = start_header.number();
@@ -143,7 +143,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	let (state_hashes, block_hashes) = scope(|scope| {
 		let writer = &writer;
 		let block_guard = scope.spawn(move || chunk_secondary(chunker, chain, block_at, writer, p));
-		let state_res = chunk_state(state_db, state_root, writer, p);
+		let state_res = chunk_state(state_db, &state_root, writer, p);
 
 		state_res.and_then(|state_hashes| {
 			block_guard.join().map(|block_hashes| (state_hashes, block_hashes))
@@ -156,7 +156,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 		version: snapshot_version,
 		state_hashes: state_hashes,
 		block_hashes: block_hashes,
-		state_root: *state_root,
+		state_root: state_root,
 		block_number: number,
 		block_hash: block_at,
 	};
@@ -486,8 +486,8 @@ pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &EthEngine, ch
 
 	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {
 		engine.verify_block_unordered(header)?;
-		match chain.block_header(header.parent_hash()) {
-			Some(parent) => engine.verify_block_family(header, &parent),
+		match chain.block_header_data(header.parent_hash()) {
+			Some(parent) => engine.verify_block_family(header, &parent.decode()),
 			None => Ok(()),
 		}
 	} else {
