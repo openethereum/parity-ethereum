@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp::{max, min};
 use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
-use std::cmp::max;
 use std::str::FromStr;
 use cli::{Args, ArgsError};
 use hash::keccak;
@@ -54,6 +54,9 @@ use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
 use network::{IpFilter};
+
+const DEFAULT_MAX_PEERS: u16 = 50;
+const DEFAULT_MIN_PEERS: u16 = 25;
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -469,8 +472,9 @@ impl Configuration {
 	}
 
 	fn max_peers(&self) -> u32 {
-		let peers = self.args.arg_max_peers as u32;
-		max(self.min_peers(), peers)
+		self.args.arg_max_peers
+			.or(max(self.args.arg_min_peers, Some(DEFAULT_MAX_PEERS)))
+			.unwrap_or(DEFAULT_MAX_PEERS) as u32
 	}
 
 	fn ip_filter(&self) -> Result<IpFilter, String> {
@@ -481,7 +485,9 @@ impl Configuration {
 	}
 
 	fn min_peers(&self) -> u32 {
-		self.args.arg_peers.unwrap_or(self.args.arg_min_peers) as u32
+		self.args.arg_min_peers
+			.or(min(self.args.arg_max_peers, Some(DEFAULT_MIN_PEERS)))
+			.unwrap_or(DEFAULT_MIN_PEERS) as u32
 	}
 
 	fn max_pending_peers(&self) -> u32 {
@@ -1969,5 +1975,57 @@ mod tests {
 		let local_path = ::dir::default_local_path();
 		assert_eq!(std.directories().cache, dir::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
 		assert_eq!(base.directories().cache, "/test/cache");
+	}
+
+	#[test]
+	fn should_respect_only_max_peers_and_default() {
+		let args = vec!["parity", "--max-peers=50"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 25);
+				assert_eq!(c.net_conf.max_peers, 50);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn should_respect_only_max_peers_less_than_default() {
+		let args = vec!["parity", "--max-peers=5"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 5);
+				assert_eq!(c.net_conf.max_peers, 5);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn should_respect_only_min_peers_and_default() {
+		let args = vec!["parity", "--min-peers=5"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 5);
+				assert_eq!(c.net_conf.max_peers, 50);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn should_respect_only_min_peers_and_greater_than_default() {
+		let args = vec!["parity", "--min-peers=500"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 500);
+				assert_eq!(c.net_conf.max_peers, 500);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
 	}
 }

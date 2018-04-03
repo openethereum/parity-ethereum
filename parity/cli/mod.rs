@@ -409,11 +409,11 @@ usage! {
 			"--port=[PORT]",
 			"Override the port on which the node should listen.",
 
-			ARG arg_min_peers: (u16) = 25u16, or |c: &Config| c.network.as_ref()?.min_peers.clone(),
+			ARG arg_min_peers: (Option<u16>) = None, or |c: &Config| c.network.as_ref()?.min_peers.clone(),
 			"--min-peers=[NUM]",
 			"Try to maintain at least NUM peers.",
 
-			ARG arg_max_peers: (u16) = 50u16, or |c: &Config| c.network.as_ref()?.max_peers.clone(),
+			ARG arg_max_peers: (Option<u16>) = None, or |c: &Config| c.network.as_ref()?.max_peers.clone(),
 			"--max-peers=[NUM]",
 			"Allow up to NUM peers.",
 
@@ -1504,8 +1504,8 @@ mod tests {
 			// -- Networking Options
 			flag_no_warp: false,
 			arg_port: 30303u16,
-			arg_min_peers: 25u16,
-			arg_max_peers: 50u16,
+			arg_min_peers: Some(25u16),
+			arg_max_peers: Some(50u16),
 			arg_max_pending_peers: 64u16,
 			arg_snapshot_peers: 0u16,
 			arg_allow_ips: "all".into(),
@@ -1895,5 +1895,19 @@ mod tests {
 			}),
 			stratum: None,
 		});
+	}
+
+	#[test]
+	fn should_not_accept_min_peers_bigger_than_max_peers() {
+		match Args::parse(&["parity", "--max-peers=39", "--min-peers=40"]) {
+			Err(ArgsError::PeerConfiguration) => (),
+			_ => assert_eq!(false, true),
+		}
+	}
+
+	#[test]
+	fn should_accept_max_peers_equal_or_bigger_than_min_peers() {
+		Args::parse(&["parity", "--max-peers=40", "--min-peers=40"]).unwrap();
+		Args::parse(&["parity", "--max-peers=100", "--min-peers=40"]).unwrap();
 	}
 }
