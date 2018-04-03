@@ -855,16 +855,29 @@ impl<B: Backend> State<B> {
 		}))
 	}
 
-	fn query_pod(&mut self, query: &PodState) -> trie::Result<()> {
-		for (address, pod_account) in query.get() {
+	// Return a list of all touched addresses in cache.
+	fn touched_addresses(&self) -> Vec<Address> {
+		assert!(self.checkpoints.borrow().is_empty());
+		self.cache.borrow().iter().map(|(add, _)| *add).collect()
+	}
+
+	fn query_pod(&mut self, query: &PodState, touched_addresses: &[Address]) -> trie::Result<()> {
+		let pod = query.get();
+
+		for address in touched_addresses {
 			if !self.ensure_cached(address, RequireCache::Code, true, |a| a.is_some())? {
 				continue
 			}
 
-			// needs to be split into two parts for the refcell code here
-			// to work.
-			for key in pod_account.storage.keys() {
-				self.storage_at(address, key)?;
+			match pod.get(address) {
+				Some(pod_account) => {
+					// needs to be split into two parts for the refcell code here
+					// to work.
+					for key in pod_account.storage.keys() {
+						self.storage_at(address, key)?;
+					}
+				},
+				None => (),
 			}
 		}
 
@@ -874,9 +887,10 @@ impl<B: Backend> State<B> {
 	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
 	/// Consumes self.
 	pub fn diff_from<X: Backend>(&self, orig: State<X>) -> trie::Result<StateDiff> {
+		let addresses_post = self.touched_addresses();
 		let pod_state_post = self.to_pod();
 		let mut state_pre = orig;
-		state_pre.query_pod(&pod_state_post)?;
+		state_pre.query_pod(&pod_state_post, &addresses_post)?;
 		Ok(pod_state::diff_pod(&state_pre.to_pod(), &pod_state_post))
 	}
 
