@@ -474,9 +474,10 @@ impl BlockInfo for TestBlockChainClient {
 			.map(encoded::Header::new)
 	}
 
-	fn best_block_header(&self) -> encoded::Header {
+	fn best_block_header(&self) -> Header {
 		self.block_header(BlockId::Hash(self.chain_info().best_block_hash))
 			.expect("Best block always has header.")
+			.decode()
 	}
 
 	fn block(&self, id: BlockId) -> Option<encoded::Block> {

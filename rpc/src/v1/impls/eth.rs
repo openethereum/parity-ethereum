@@ -30,7 +30,7 @@ use ethcore::block::IsBlock;
 use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
 use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::header::{BlockNumber as EthBlockNumber, Seal};
+use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::log_entry::LogEntry;
 use ethcore::miner::MinerService;
 use ethcore::snapshot::SnapshotService;
@@ -199,7 +199,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 				let extra = pending_block.as_ref().map(|b| self.client.engine().extra_info(&b.header));
 
-				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes(Seal::Without))), Some(difficulty), extra, true)
+				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes())), Some(difficulty), extra, true)
 			},
 
 			BlockNumberOrId::Number(num) => {

@@ -1974,7 +1974,7 @@ impl ChainSync {
 	fn propagate_new_hashes(&mut self, chain_info: &BlockChainInfo, io: &mut SyncIo, peers: &[PeerId]) -> usize {
 		trace!(target: "sync", "Sending NewHashes to {:?}", peers);
 		let mut sent = 0;
-		let last_parent = &io.chain().best_block_header().parent_hash();
+		let last_parent = *io.chain().best_block_header().parent_hash();
 		for peer_id in peers {
 			sent += match ChainSync::create_new_hashes_rlp(io.chain(), &last_parent, &chain_info.best_block_hash) {
 				Some(rlp) => {

@@ -90,11 +90,6 @@ pub trait BlockProvider {
 	/// Get receipts of block with given hash.
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts>;
 
-	/// Get the partial-header of a block.
-	fn block_header(&self, hash: &H256) -> Option<Header> {
-		self.block_header_data(hash).map(|header| header.decode())
-	}
-
 	/// Get the header RLP of a block.
 	fn block_header_data(&self, hash: &H256) -> Option<encoded::Header>;
 
@@ -115,7 +110,7 @@ pub trait BlockProvider {
 
 	/// Get the number of given block's hash.
 	fn block_number(&self, hash: &H256) -> Option<BlockNumber> {
-		self.block_details(hash).map(|details| details.number)
+		self.block_header_data(hash).map(|header| header.number())
 	}
 
 	/// Get transaction with given transaction hash.
@@ -144,8 +139,8 @@ pub trait BlockProvider {
 	}
 
 	/// Returns the header of the genesis block.
-	fn genesis_header(&self) -> Header {
-		self.block_header(&self.genesis_hash())
+	fn genesis_header(&self) -> encoded::Header {
+		self.block_header_data(&self.genesis_hash())
 			.expect("Genesis header always stored; qed")
 	}
 
@@ -193,8 +188,8 @@ pub struct BlockChain {
 	first_block: Option<H256>,
 
 	// block cache
-	block_headers: RwLock<HashMap<H256, Bytes>>,
-	block_bodies: RwLock<HashMap<H256, Bytes>>,
+	block_headers: RwLock<HashMap<H256, encoded::Header>>,
+	block_bodies: RwLock<HashMap<H256, encoded::Body>>,
 
 	// extra caches
 	block_details: RwLock<HashMap<H256, BlockDetails>>,
@@ -251,17 +246,15 @@ impl BlockProvider for BlockChain {
 		{
 			let read = self.block_headers.read();
 			if let Some(v) = read.get(hash) {
-				return Some(encoded::Header::new(v.clone()));
+				return Some(v.clone());
 			}
 		}
 
 		// Check if it's the best block
 		{
 			let best_block = self.best_block.read();
-			if &best_block.hash == hash {
-				return Some(encoded::Header::new(
-					Rlp::new(&best_block.block).at(0).as_raw().to_vec()
-				))
+			if &best_block.header.hash() == hash {
+				return Some(best_block.header.encoded())
 			}
 		}
 
@@ -269,12 +262,12 @@ impl BlockProvider for BlockChain {
 		let b = self.db.get(db::COL_HEADERS, hash)
 			.expect("Low level database error. Some issue with disk?")?;
 
-		let bytes = decompress(&b, blocks_swapper()).into_vec();
+		let header = encoded::Header::new(decompress(&b, blocks_swapper()).into_vec());
 		let mut write = self.block_headers.write();
-		write.insert(*hash, bytes.clone());
+		write.insert(*hash, header.clone());
 
 		self.cache_man.lock().note_used(CacheId::BlockHeader(*hash));
-		Some(encoded::Header::new(bytes))
+		Some(header)
 	}
 
 	/// Get block body data
@@ -283,15 +276,15 @@ impl BlockProvider for BlockChain {
 		{
 			let read = self.block_bodies.read();
 			if let Some(v) = read.get(hash) {
-				return Some(encoded::Body::new(v.clone()));
+				return Some(v.clone());
 			}
 		}
 
 		// Check if it's the best block
 		{
 			let best_block = self.best_block.read();
-			if &best_block.hash == hash {
-				return Some(encoded::Body::new(Self::block_to_body(&best_block.block)));
+			if &best_block.header.hash() == hash {
+				return Some(encoded::Body::new(Self::block_to_body(best_block.block.rlp().as_raw())));
 			}
 		}
 
@@ -299,12 +292,12 @@ impl BlockProvider for BlockChain {
 		let b = self.db.get(db::COL_BODIES, hash)
 			.expect("Low level database error. Some issue with disk?")?;
 
-		let bytes = decompress(&b, blocks_swapper()).into_vec();
+		let body = encoded::Body::new(decompress(&b, blocks_swapper()).into_vec());
 		let mut write = self.block_bodies.write();
-		write.insert(*hash, bytes.clone());
+		write.insert(*hash, body.clone());
 
 		self.cache_man.lock().note_used(CacheId::BlockBody(*hash));
-		Some(encoded::Body::new(bytes))
+		Some(body)
 	}
 
 	/// Get the familial details concerning a block.
@@ -476,7 +469,12 @@ impl BlockChain {
 				elements_per_index: LOG_BLOOMS_ELEMENTS_PER_INDEX,
 			},
 			first_block: None,
-			best_block: RwLock::new(BestBlock::default()),
+			best_block: RwLock::new(BestBlock {
+				// BestBlock will be overwritten anyway.
+				header: Default::default(),
+				total_difficulty: Default::default(),
+				block: encoded::Block::new(genesis.into()),
+			}),
 			best_ancient_block: RwLock::new(None),
 			block_headers: RwLock::new(HashMap::new()),
 			block_bodies: RwLock::new(HashMap::new()),
@@ -527,11 +525,21 @@ impl BlockChain {
 
 		{
 			// Fetch best block details
-			let best_block_number = bc.block_number(&best_block_hash).unwrap();
 			let best_block_total_difficulty = bc.block_details(&best_block_hash).unwrap().total_difficulty;
-			let best_block_rlp = bc.block(&best_block_hash).unwrap().into_inner();
-			let best_block_timestamp = BlockView::new(&best_block_rlp).header().timestamp();
+			let best_block_rlp = bc.block(&best_block_hash).unwrap();
 
+			// and write them
+			let mut best_block = bc.best_block.write();
+			*best_block = BestBlock {
+				total_difficulty: best_block_total_difficulty,
+				header: best_block_rlp.decode_header(),
+				block: best_block_rlp,
+			};
+		}
+
+		{
+			let best_block_number = bc.best_block.read().header.number();
+			// Fetch first and best ancient block details
 			let raw_first = bc.db.get(db::COL_EXTRA, b"first").unwrap().map(|v| v.into_vec());
 			let mut best_ancient = bc.db.get(db::COL_EXTRA, b"ancient").unwrap().map(|h| H256::from_slice(&h));
 			let best_ancient_number;
@@ -574,15 +582,6 @@ impl BlockChain {
 			}
 
 			// and write them
-			let mut best_block = bc.best_block.write();
-			*best_block = BestBlock {
-				number: best_block_number,
-				total_difficulty: best_block_total_difficulty,
-				hash: best_block_hash,
-				timestamp: best_block_timestamp,
-				block: best_block_rlp,
-			};
-
 			if let (Some(hash), Some(number)) = (best_ancient, best_ancient_number) {
 				let mut best_ancient_block = bc.best_ancient_block.write();
 				*best_ancient_block = Some(BestAncientBlock {
@@ -737,7 +736,6 @@ impl BlockChain {
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 				info: info,
-				timestamp: header.timestamp(),
 				block: bytes
 			}, is_best);
 
@@ -786,7 +784,6 @@ impl BlockChain {
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 				info: info,
-				timestamp: header.timestamp(),
 				block: bytes,
 			}, is_best);
 			true
@@ -936,7 +933,6 @@ impl BlockChain {
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 			info: info.clone(),
-			timestamp: header.timestamp(),
 			block: bytes,
 		}, true);
 
@@ -1028,12 +1024,11 @@ impl BlockChain {
 			let mut best_block = self.pending_best_block.write();
 			if is_best && update.info.location != BlockLocation::Branch {
 				batch.put(db::COL_EXTRA, b"best", &update.info.hash);
+				let block = encoded::Block::new(update.block.to_vec());
 				*best_block = Some(BestBlock {
-					hash: update.info.hash,
-					number: update.info.number,
 					total_difficulty: update.info.total_difficulty,
-					timestamp: update.timestamp,
-					block: update.block.to_vec(),
+					header: block.decode_header(),
+					block,
 				});
 			}
 
@@ -1105,8 +1100,9 @@ impl BlockChain {
 	}
 
 	/// Given a block's `parent`, find every block header which represents a valid possible uncle.
-	pub fn find_uncle_headers(&self, parent: &H256, uncle_generations: usize) -> Option<Vec<Header>> {
-		self.find_uncle_hashes(parent, uncle_generations).map(|v| v.into_iter().filter_map(|h| self.block_header(&h)).collect())
+	pub fn find_uncle_headers(&self, parent: &H256, uncle_generations: usize) -> Option<Vec<encoded::Header>> {
+		self.find_uncle_hashes(parent, uncle_generations)
+			.map(|v| v.into_iter().filter_map(|h| self.block_header_data(&h)).collect())
 	}
 
 	/// Given a block's `parent`, find every block hash which represents a valid possible uncle.
@@ -1307,17 +1303,17 @@ impl BlockChain {
 
 	/// Get best block hash.
 	pub fn best_block_hash(&self) -> H256 {
-		self.best_block.read().hash
+		self.best_block.read().header.hash()
 	}
 
 	/// Get best block number.
 	pub fn best_block_number(&self) -> BlockNumber {
-		self.best_block.read().number
+		self.best_block.read().header.number()
 	}
 
 	/// Get best block timestamp.
 	pub fn best_block_timestamp(&self) -> u64 {
-		self.best_block.read().timestamp
+		self.best_block.read().header.timestamp()
 	}
 
 	/// Get best block total difficulty.
@@ -1326,10 +1322,8 @@ impl BlockChain {
 	}
 
 	/// Get best block header
-	pub fn best_block_header(&self) -> encoded::Header {
-		let block = self.best_block.read();
-		let raw = BlockView::new(&block.block).header_view().rlp().as_raw().to_vec();
-		encoded::Header::new(raw)
+	pub fn best_block_header(&self) -> Header {
+		self.best_block.read().header.clone()
 	}
 
 	/// Get current cache size.
@@ -1402,12 +1396,12 @@ impl BlockChain {
 		let best_block = self.best_block.read();
 		let best_ancient_block = self.best_ancient_block.read();
 		BlockChainInfo {
-			total_difficulty: best_block.total_difficulty.clone(),
-			pending_total_difficulty: best_block.total_difficulty.clone(),
+			total_difficulty: best_block.total_difficulty,
+			pending_total_difficulty: best_block.total_difficulty,
 			genesis_hash: self.genesis_hash(),
-			best_block_hash: best_block.hash,
-			best_block_number: best_block.number,
-			best_block_timestamp: best_block.timestamp,
+			best_block_hash: best_block.header.hash(),
+			best_block_number: best_block.header.number(),
+			best_block_timestamp: best_block.header.timestamp(),
 			first_block_hash: self.first_block(),
 			first_block_number: From::from(self.first_block_number()),
 			ancient_block_hash: best_ancient_block.as_ref().map(|b| b.hash),
@@ -1539,7 +1533,11 @@ mod tests {
 		let b4b = b3a.add_block_with_difficulty(9);
 		let b5b = b4a.add_block_with_difficulty(9);
 
-		let uncle_headers = vec![b4b.last().header(), b3b.last().header(), b2b.last().header()];
+		let uncle_headers = vec![
+			b4b.last().header().encoded(),
+			b3b.last().header().encoded(),
+			b2b.last().header().encoded(),
+		];
 		let b4a_hash = b4a.last().hash();
 
 		let generator = BlockGenerator::new(
@@ -1862,10 +1860,10 @@ mod tests {
 
 		assert_eq!(bc.best_block_number(), 2999);
 		let best_hash = bc.best_block_hash();
-		let mut block_header = bc.block_header(&best_hash);
+		let mut block_header = bc.block_header_data(&best_hash);
 
 		while !block_header.is_none() {
-			block_header = bc.block_header(block_header.unwrap().parent_hash());
+			block_header = bc.block_header_data(&block_header.unwrap().parent_hash());
 		}
 		assert!(bc.cache_size().blocks > 1024 * 1024);
 
