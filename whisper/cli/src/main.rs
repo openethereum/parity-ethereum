@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -30,20 +30,14 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_pubsub;
 extern crate jsonrpc_http_server;
 
-#[cfg(test)]
-extern crate ethcore_devtools;
-
-#[cfg(test)]
-extern crate serde_json;
-
 #[macro_use]
 extern crate serde_derive;
 
 use docopt::Docopt;
-use std::sync::Arc;
-use std::{fmt, io, process, env};
+use std::{fmt, io, process, env, sync::Arc};
 use jsonrpc_core::{Metadata, MetaIoHandler};
 use jsonrpc_pubsub::{PubSubMetadata, Session};
+use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation};
 
 const POOL_UNIT: usize = 1024 * 1024;
 const USAGE: &'static str = r#"
@@ -56,7 +50,7 @@ Usage:
 
 Options:
 	--whisper-pool-size SIZE       Specify Whisper pool size [default: 10].
-	-p, --port PORT                Specify which port to use [default: 8545].
+	-p, --port PORT                Specify which RPC port to use [default: 8545].
 	-a, --address ADDRESS          Specify which address to use [default: 127.0.0.1].
 	-h, --help                     Display this message and exit.
 
@@ -116,7 +110,7 @@ struct RpcFactory {
 }
 
 impl RpcFactory {
-	pub fn make_handler(&self, net: Arc<devp2p::NetworkService>) -> whisper::rpc::WhisperClient<WhisperPoolHandle, Meta> {
+	fn make_handler(&self, net: Arc<devp2p::NetworkService>) -> whisper::rpc::WhisperClient<WhisperPoolHandle, Meta> {
 		let whisper_pool_handle = WhisperPoolHandle { handle: self.handle.clone(), net: net };
 		whisper::rpc::WhisperClient::new(whisper_pool_handle, self.manager.clone())
 	}
@@ -164,11 +158,11 @@ impl From<jsonrpc_core::Error> for Error {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
-			Error::SockAddr(ref e) => write!(f, "{}", e),
-			Error::Docopt(ref e) => write!(f, "{}", e),
-			Error::Io(ref e) => write!(f, "{}", e),
-			Error::JsonRpc(ref e) => write!(f, "{:?}", e),
-			Error::Network(ref e) => write!(f, "{:?}", e),
+			Error::SockAddr(ref e) => write!(f, "SockAddrError: {}", e),
+			Error::Docopt(ref e) => write!(f, "DocoptError: {}", e),
+			Error::Io(ref e) => write!(f, "IoError: {}", e),
+			Error::JsonRpc(ref e) => write!(f, "JsonRpcError: {:?}", e),
+			Error::Network(ref e) => write!(f, "NetworkError: {}", e),
 		}
 	}
 }
@@ -177,7 +171,10 @@ fn main() {
 	panic_hook::set();
 
 	match execute(env::args()) {
-		Ok(_) => println!("ok"),
+		Ok(_) => {
+			println!("whisper-cli terminated");
+			process::exit(1);
+		}
 		Err(err) => {
 			println!("{}", err);
 			process::exit(1);
@@ -223,10 +220,11 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 	io.extend_with(whisper::rpc::WhisperPubSub::to_delegate(whisper_factory.make_handler(shared_network.clone())));
 
 	let server = jsonrpc_http_server::ServerBuilder::new(io)
+		.cors(DomainsValidation::AllowOnly(vec![AccessControlAllowOrigin::Null]))
 		.start_http(&url.parse()?)?;
 
 	server.wait();
 
-	// This will never return
+	// This will never return if the http server runs without errors
 	Ok(())
 }

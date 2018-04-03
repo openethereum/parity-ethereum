@@ -3662,7 +3662,6 @@ name = "whisper-cli"
 version = "0.1.0"
 dependencies = [
  "docopt 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-devtools 1.11.0",
  "ethcore-network 1.11.0",
  "ethcore-network-devp2p 1.11.0",
  "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
@@ -3672,7 +3671,6 @@ dependencies = [
  "parity-whisper 0.1.0",
  "serde 1.0.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.29 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
