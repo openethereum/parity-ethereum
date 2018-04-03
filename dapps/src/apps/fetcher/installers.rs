@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use ethereum_types::H256;
 use fetch;
 use futures_cpupool::CpuPool;
-use hash::keccak_buffer;
+use hash::keccak_pipe;
 use mime_guess::Mime;
 
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
@@ -55,15 +55,15 @@ fn write_response_and_check_hash(
 	// Now write the response
 	let mut file = io::BufWriter::new(fs::File::create(&content_path)?);
 	let mut reader = io::BufReader::new(fetch::BodyReader::new(response));
-	io::copy(&mut reader, &mut file)?;
+	let hash = keccak_pipe(&mut reader, &mut file)?;
+	let mut file = file.into_inner()?;
 	file.flush()?;
 
 	// Validate hash
-	// TODO [ToDr] calculate keccak in-flight while reading the response
-	let mut file = io::BufReader::new(fs::File::open(&content_path)?);
-	let hash = keccak_buffer(&mut file)?;
 	if id == hash {
-		Ok((file.into_inner(), content_path))
+		// The writing above changed the file Read position, which we need later. So we just create a new file handle
+		// here.
+		Ok((fs::File::open(&content_path)?, content_path))
 	} else {
 		Err(ValidationError::HashMismatch {
 			expected: id,
@@ -264,5 +264,11 @@ impl From<io::Error> for ValidationError {
 impl From<zip::result::ZipError> for ValidationError {
 	fn from(err: zip::result::ZipError) -> Self {
 		ValidationError::Zip(err)
+	}
+}
+
+impl From<io::IntoInnerError<io::BufWriter<fs::File>>> for ValidationError {
+	fn from(err: io::IntoInnerError<io::BufWriter<fs::File>>) -> Self {
+		ValidationError::Io(err.into())
 	}
 }

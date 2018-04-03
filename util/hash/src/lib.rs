@@ -52,7 +52,7 @@ pub fn write_keccak<T: AsRef<[u8]>>(s: T, dest: &mut [u8]) {
 	}
 }
 
-pub fn keccak_buffer(r: &mut io::BufRead) -> Result<H256, io::Error> {
+pub fn keccak_pipe(r: &mut io::BufRead, w: &mut io::Write) -> Result<H256, io::Error> {
 	let mut output = [0u8; 32];
 	let mut input = [0u8; 1024];
 	let mut keccak = Keccak::new_keccak256();
@@ -64,10 +64,15 @@ pub fn keccak_buffer(r: &mut io::BufRead) -> Result<H256, io::Error> {
 			break;
 		}
 		keccak.update(&input[0..some]);
+		w.write_all(&input[0..some])?;
 	}
 
 	keccak.finalize(&mut output);
 	Ok(output.into())
+}
+
+pub fn keccak_buffer(r: &mut io::BufRead) -> Result<H256, io::Error> {
+	keccak_pipe(r, &mut io::sink())
 }
 
 #[cfg(test)]
