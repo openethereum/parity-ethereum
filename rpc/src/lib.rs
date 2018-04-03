@@ -175,6 +175,7 @@ pub fn start_ws<M, S, H, T, U, V>(
 	remote: tokio_core::reactor::Remote,
 	allowed_origins: ws::DomainsValidation<ws::Origin>,
 	allowed_hosts: ws::DomainsValidation<ws::Host>,
+	max_connections: usize,
 	extractor: T,
 	middleware: V,
 	stats: U,
@@ -191,6 +192,7 @@ pub fn start_ws<M, S, H, T, U, V>(
 		.request_middleware(middleware)
 		.allowed_origins(allowed_origins)
 		.allowed_hosts(allowed_hosts)
+		.max_connections(max_connections)
 		.session_stats(stats)
 		.start(addr)
 }

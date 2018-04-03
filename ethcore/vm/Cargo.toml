@@ -6,7 +6,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 byteorder = "1.0"
 ethcore-bytes = { path = "../../util/bytes" }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 patricia-trie = { path = "../../util/patricia_trie" }
 log = "0.3"
 common-types = { path = "../types" }

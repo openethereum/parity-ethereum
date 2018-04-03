@@ -45,6 +45,41 @@ pub const ETH_PROTOCOL: ProtocolId = *b"eth";
 /// Ethereum light protocol
 pub const LIGHT_PROTOCOL: ProtocolId = *b"pip";
 
+/// Determine warp sync status.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WarpSync {
+	/// Warp sync is enabled.
+	Enabled,
+	/// Warp sync is disabled.
+	Disabled,
+	/// Only warp sync is allowed (no regular sync) and only after given block number.
+	OnlyAndAfter(BlockNumber),
+}
+
+impl WarpSync {
+	/// Returns true if warp sync is enabled.
+	pub fn is_enabled(&self) -> bool {
+		match *self {
+			WarpSync::Enabled => true,
+			WarpSync::OnlyAndAfter(_) => true,
+			WarpSync::Disabled => false,
+		}
+	}
+
+	/// Returns `true` if we are in warp-only mode.
+	///
+	/// i.e. we will never fall back to regular sync
+	/// until given block number is reached by
+	/// successfuly finding and restoring from a snapshot.
+	pub fn is_warp_only(&self) -> bool {
+		if let WarpSync::OnlyAndAfter(_) = *self {
+			true
+		} else {
+			false
+		}
+	}
+}
+
 /// Sync configuration
 #[derive(Debug, Clone, Copy)]
 pub struct SyncConfig {
@@ -61,7 +96,7 @@ pub struct SyncConfig {
 	/// Fork block to check
 	pub fork_block: Option<(BlockNumber, H256)>,
 	/// Enable snapshot sync
-	pub warp_sync: bool,
+	pub warp_sync: WarpSync,
 	/// Enable light client server.
 	pub serve_light: bool,
 }
@@ -75,7 +110,7 @@ impl Default for SyncConfig {
 			subprotocol_name: ETH_PROTOCOL,
 			light_subprotocol_name: LIGHT_PROTOCOL,
 			fork_block: None,
-			warp_sync: false,
+			warp_sync: WarpSync::Disabled,
 			serve_light: false,
 		}
 	}

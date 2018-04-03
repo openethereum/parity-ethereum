@@ -26,13 +26,13 @@ toml = "0.4"
 serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
-app_dirs = "1.1.1"
+app_dirs = "1.2.1"
 futures = "0.1"
 futures-cpupool = "0.1"
 fdlimit = "0.1"
 ws2_32-sys = "0.2"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.10" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-bytes = { path = "util/bytes" }
@@ -45,7 +45,7 @@ ethcore-network = { path = "util/network" }
 ethcore-service = { path = "ethcore/service" }
 ethcore-stratum = { path = "stratum" }
 ethcore-transaction = { path = "ethcore/transaction" }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
 node-health = { path = "dapps/node-health" }

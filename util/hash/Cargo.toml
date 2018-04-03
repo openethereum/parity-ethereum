@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [dependencies]
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 tiny-keccak = "1.3"
 
 [build-dependencies]

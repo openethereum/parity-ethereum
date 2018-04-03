@@ -81,7 +81,7 @@ fn test_get_swap_position() {
 	assert_eq!(get_swap_position(SWAP10), 10);
 }
 
-/// Returns number of topcis to take from stack
+/// Returns number of topics to take from stack
 /// LOG0 -> 0
 pub fn get_log_topics (i: Instruction) -> usize {
 	assert!(i >= LOG0 && i <= LOG4);
