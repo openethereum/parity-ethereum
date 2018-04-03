@@ -26,8 +26,8 @@ use parking_lot::{RwLock, Mutex};
 use tokio_io::IoFuture;
 use tokio_core::reactor::{Handle, Remote, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
-use ethkey::{Public, KeyPair, Signature, Random, Generator, public_to_address};
-use ethereum_types::H256;
+use ethkey::{Public, KeyPair, Signature, Random, Generator};
+use ethereum_types::{Address, H256};
 use key_server_cluster::{Error, NodeId, SessionId, Requester, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, AdminSession, ClusterSessions, SessionIdWithSubSession,
 	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID, create_cluster_view, AdminSessionCreationData, ClusterSessionsListener};
@@ -66,11 +66,11 @@ pub trait ClusterClient: Send + Sync {
 	/// Get cluster state.
 	fn cluster_state(&self) -> ClusterState;
 	/// Start new generation session.
-	fn new_generation_session(&self, session_id: SessionId, author: Public, threshold: usize) -> Result<Arc<GenerationSession>, Error>;
+	fn new_generation_session(&self, session_id: SessionId, origin: Option<Address>, author: Address, threshold: usize) -> Result<Arc<GenerationSession>, Error>;
 	/// Start new encryption session.
-	fn new_encryption_session(&self, session_id: SessionId, requester: Requester, common_point: Public, encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error>;
+	fn new_encryption_session(&self, session_id: SessionId, author: Requester, common_point: Public, encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error>;
 	/// Start new decryption session.
-	fn new_decryption_session(&self, session_id: SessionId, requester: Requester, version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error>;
+	fn new_decryption_session(&self, session_id: SessionId, origin: Option<Address>, requester: Requester, version: Option<H256>, is_shadow_decryption: bool, is_broadcast_decryption: bool) -> Result<Arc<DecryptionSession>, Error>;
 	/// Start new Schnorr signing session.
 	fn new_schnorr_signing_session(&self, session_id: SessionId, requester: Requester, version: Option<H256>, message_hash: H256) -> Result<Arc<SchnorrSigningSession>, Error>;
 	/// Start new ECDSA session.
@@ -82,6 +82,8 @@ pub trait ClusterClient: Send + Sync {
 
 	/// Listen for new generation sessions.
 	fn add_generation_listener(&self, listener: Arc<ClusterSessionsListener<GenerationSession>>);
+	/// Listen for new decryption sessions.
+	fn add_decryption_listener(&self, listener: Arc<ClusterSessionsListener<DecryptionSession>>);
 
 	/// Ask node to make 'faulty' generation sessions.
 	#[cfg(test)]
@@ -477,11 +479,11 @@ impl ClusterCore {
 				data.sessions.negotiation_sessions.remove(&session.id());
 				match session.wait() {
 					Ok((version, master)) => match session.take_continue_action() {
-						Some(ContinueAction::Decrypt(session, is_shadow_decryption)) => {
+						Some(ContinueAction::Decrypt(session, origin, is_shadow_decryption, is_broadcast_decryption)) => {
 							let initialization_error = if data.self_key_pair.public() == &master {
-								session.initialize(version, is_shadow_decryption, false)
+								session.initialize(origin, version, is_shadow_decryption, is_broadcast_decryption)
 							} else {
-								session.delegate(master, version, is_shadow_decryption, false)
+								session.delegate(master, origin, version, is_shadow_decryption, is_broadcast_decryption)
 							};
 
 							if let Err(error) = initialization_error {
@@ -516,7 +518,7 @@ impl ClusterCore {
 						None => (),
 					},
 					Err(error) => match session.take_continue_action() {
-						Some(ContinueAction::Decrypt(session, _)) => {
+						Some(ContinueAction::Decrypt(session, _, _, _)) => {
 							data.sessions.decryption_sessions.remove(&session.id());
 							session.on_session_error(&meta.self_node_id, error);
 						},
@@ -901,13 +903,13 @@ impl ClusterClient for ClusterClientImpl {
 		self.data.connections.cluster_state()
 	}
 
-	fn new_generation_session(&self, session_id: SessionId, author: Public, threshold: usize) -> Result<Arc<GenerationSession>, Error> {
+	fn new_generation_session(&self, session_id: SessionId, origin: Option<Address>, author: Address, threshold: usize) -> Result<Arc<GenerationSession>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let cluster = create_cluster_view(&self.data, true)?;
 		let session = self.data.sessions.generation_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, false, None)?;
-		match session.initialize(public_to_address(&author), false, threshold, connected_nodes.into()) {
+		match session.initialize(origin, author, false, threshold, connected_nodes.into()) {
 			Ok(()) => Ok(session),
 			Err(error) => {
 				self.data.sessions.generation_sessions.remove(&session.id());
@@ -931,7 +933,7 @@ impl ClusterClient for ClusterClientImpl {
 		}
 	}
 
-	fn new_decryption_session(&self, session_id: SessionId, requester: Requester, version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
+	fn new_decryption_session(&self, session_id: SessionId, origin: Option<Address>, requester: Requester, version: Option<H256>, is_shadow_decryption: bool, is_broadcast_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
@@ -942,11 +944,11 @@ impl ClusterClient for ClusterClientImpl {
 			session_id.clone(), None, false, Some(requester))?;
 
 		let initialization_result = match version {
-			Some(version) => session.initialize(version, is_shadow_decryption, false),
+			Some(version) => session.initialize(origin, version, is_shadow_decryption, is_broadcast_decryption),
 			None => {
 				self.create_key_version_negotiation_session(session_id.id.clone())
 					.map(|version_session| {
-						version_session.set_continue_action(ContinueAction::Decrypt(session.clone(), is_shadow_decryption));
+						version_session.set_continue_action(ContinueAction::Decrypt(session.clone(), origin, is_shadow_decryption, is_broadcast_decryption));
 						ClusterCore::try_continue_session(&self.data, Some(version_session));
 					})
 			},
@@ -1056,6 +1058,10 @@ impl ClusterClient for ClusterClientImpl {
 		self.data.sessions.generation_sessions.add_listener(listener);
 	}
 
+	fn add_decryption_listener(&self, listener: Arc<ClusterSessionsListener<DecryptionSession>>) {
+		self.data.sessions.decryption_sessions.add_listener(listener);
+	}
+
 	#[cfg(test)]
 	fn connect(&self) {
 		ClusterCore::connect_disconnected_nodes(self.data.clone());
@@ -1085,11 +1091,12 @@ fn make_socket_address(address: &str, port: u16) -> Result<SocketAddr, Error> {
 #[cfg(test)]
 pub mod tests {
 	use std::sync::Arc;
+	use std::sync::atomic::{AtomicUsize, Ordering};
 	use std::time::{Duration, Instant};
 	use std::collections::{BTreeSet, VecDeque};
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
-	use ethereum_types::H256;
+	use ethereum_types::{Address, H256};
 	use ethkey::{Random, Generator, Public, Signature, sign};
 	use key_server_cluster::{NodeId, SessionId, Requester, Error, DummyAclStorage, DummyKeyStorage,
 		MapKeyServerSet, PlainNodeKeyPair, KeyStorage};
@@ -1107,7 +1114,9 @@ pub mod tests {
 	const TIMEOUT: Duration = Duration::from_millis(300);
 
 	#[derive(Default)]
-	pub struct DummyClusterClient;
+	pub struct DummyClusterClient {
+		pub generation_requests_count: AtomicUsize,
+	}
 
 	#[derive(Debug)]
 	pub struct DummyCluster {
@@ -1123,15 +1132,20 @@ pub mod tests {
 
 	impl ClusterClient for DummyClusterClient {
 		fn cluster_state(&self) -> ClusterState { unimplemented!("test-only") }
-		fn new_generation_session(&self, _session_id: SessionId, _author: Public, _threshold: usize) -> Result<Arc<GenerationSession>, Error> { unimplemented!("test-only") }
+		fn new_generation_session(&self, _session_id: SessionId, _origin: Option<Address>, _author: Address, _threshold: usize) -> Result<Arc<GenerationSession>, Error> {
+			self.generation_requests_count.fetch_add(1, Ordering::Relaxed);
+			Err(Error::Io("test-errror".into()))
+		}
 		fn new_encryption_session(&self, _session_id: SessionId, _requester: Requester, _common_point: Public, _encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error> { unimplemented!("test-only") }
-		fn new_decryption_session(&self, _session_id: SessionId, _requester: Requester, _version: Option<H256>, _is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> { unimplemented!("test-only") }
+		fn new_decryption_session(&self, _session_id: SessionId, _origin: Option<Address>, _requester: Requester, _version: Option<H256>, _is_shadow_decryption: bool, _is_broadcast_session: bool) -> Result<Arc<DecryptionSession>, Error> { unimplemented!("test-only") }
 		fn new_schnorr_signing_session(&self, _session_id: SessionId, _requester: Requester, _version: Option<H256>, _message_hash: H256) -> Result<Arc<SchnorrSigningSession>, Error> { unimplemented!("test-only") }
 		fn new_ecdsa_signing_session(&self, _session_id: SessionId, _requester: Requester, _version: Option<H256>, _message_hash: H256) -> Result<Arc<EcdsaSigningSession>, Error> { unimplemented!("test-only") }
+
 		fn new_key_version_negotiation_session(&self, _session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession<KeyVersionNegotiationSessionTransport>>, Error> { unimplemented!("test-only") }
 		fn new_servers_set_change_session(&self, _session_id: Option<SessionId>, _migration_id: Option<H256>, _new_nodes_set: BTreeSet<NodeId>, _old_set_signature: Signature, _new_set_signature: Signature) -> Result<Arc<AdminSession>, Error> { unimplemented!("test-only") }
 
 		fn add_generation_listener(&self, _listener: Arc<ClusterSessionsListener<GenerationSession>>) {}
+		fn add_decryption_listener(&self, _listener: Arc<ClusterSessionsListener<DecryptionSession>>) {}
 
 		fn make_faulty_generation_sessions(&self) { unimplemented!("test-only") }
 		fn generation_session(&self, _session_id: &SessionId) -> Option<Arc<GenerationSession>> { unimplemented!("test-only") }
@@ -1258,7 +1272,7 @@ pub mod tests {
 		let core = Core::new().unwrap();
 		let clusters = make_clusters(&core, 6013, 3);
 		clusters[0].run().unwrap();
-		match clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1) {
+		match clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 1) {
 			Err(Error::NodeDisconnected) => (),
 			Err(e) => panic!("unexpected error {:?}", e),
 			_ => panic!("unexpected success"),
@@ -1277,7 +1291,7 @@ pub mod tests {
 		clusters[1].client().make_faulty_generation_sessions();
 
 		// start && wait for generation session to fail
-		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
+		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 1).unwrap();
 		loop_until(&mut core, TIMEOUT, || session.joint_public_and_secret().is_some()
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_err());
@@ -1306,7 +1320,7 @@ pub mod tests {
 		clusters[0].client().make_faulty_generation_sessions();
 
 		// start && wait for generation session to fail
-		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
+		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 1).unwrap();
 		loop_until(&mut core, TIMEOUT, || session.joint_public_and_secret().is_some()
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_err());
@@ -1332,7 +1346,7 @@ pub mod tests {
 		loop_until(&mut core, TIMEOUT, || clusters.iter().all(all_connections_established));
 
 		// start && wait for generation session to complete
-		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
+		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 1).unwrap();
 		loop_until(&mut core, TIMEOUT, || (session.state() == GenerationSessionState::Finished
 			|| session.state() == GenerationSessionState::Failed)
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
@@ -1359,11 +1373,11 @@ pub mod tests {
 		// generation session
 		{
 			// try to start generation session => fail in initialization
-			assert_eq!(clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 100).map(|_| ()),
+			assert_eq!(clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 100).map(|_| ()),
 				Err(Error::InvalidThreshold));
 
 			// try to start generation session => fails in initialization
-			assert_eq!(clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 100).map(|_| ()),
+			assert_eq!(clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 100).map(|_| ()),
 				Err(Error::InvalidThreshold));
 
 			assert!(clusters[0].data.sessions.generation_sessions.is_empty());
@@ -1372,11 +1386,11 @@ pub mod tests {
 		// decryption session
 		{
 			// try to start decryption session => fails in initialization
-			assert_eq!(clusters[0].client().new_decryption_session(Default::default(), Default::default(), Some(Default::default()), false).map(|_| ()),
+			assert_eq!(clusters[0].client().new_decryption_session(Default::default(), Default::default(), Default::default(), Some(Default::default()), false, false).map(|_| ()),
 				Err(Error::InvalidMessage));
 
 			// try to start generation session => fails in initialization
-			assert_eq!(clusters[0].client().new_decryption_session(Default::default(), Default::default(), Some(Default::default()), false).map(|_| ()),
+			assert_eq!(clusters[0].client().new_decryption_session(Default::default(), Default::default(), Default::default(), Some(Default::default()), false, false).map(|_| ()),
 				Err(Error::InvalidMessage));
 
 			assert!(clusters[0].data.sessions.decryption_sessions.is_empty());
@@ -1393,7 +1407,7 @@ pub mod tests {
 		loop_until(&mut core, TIMEOUT, || clusters.iter().all(all_connections_established));
 
 		// start && wait for generation session to complete
-		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
+		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 1).unwrap();
 		loop_until(&mut core, TIMEOUT, || (session.state() == GenerationSessionState::Finished
 			|| session.state() == GenerationSessionState::Failed)
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
@@ -1442,7 +1456,7 @@ pub mod tests {
 		loop_until(&mut core, TIMEOUT, || clusters.iter().all(all_connections_established));
 
 		// start && wait for generation session to complete
-		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
+		let session = clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 1).unwrap();
 		loop_until(&mut core, TIMEOUT, || (session.state() == GenerationSessionState::Finished
 			|| session.state() == GenerationSessionState::Failed)
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());

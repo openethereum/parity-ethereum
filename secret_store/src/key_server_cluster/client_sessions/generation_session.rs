@@ -82,6 +82,8 @@ struct SessionData {
 	author: Option<Address>,
 
 	// === Values, filled when session initialization is completed ===
+	/// Session origin (if any).
+	origin: Option<Address>,
 	/// Is zero secret generation session?
 	is_zero: Option<bool>,
 	/// Threshold value for this DKG. Only `threshold + 1` will be able to collectively recreate joint secret,
@@ -217,6 +219,7 @@ impl SessionImpl {
 				simulate_faulty_behaviour: false,
 				master: None,
 				author: None,
+				origin: None,
 				is_zero: None,
 				threshold: None,
 				derived_point: None,
@@ -251,8 +254,13 @@ impl SessionImpl {
 		self.data.lock().state.clone()
 	}
 
+	/// Get session origin.
+	pub fn origin(&self) -> Option<Address> {
+		self.data.lock().origin.clone()
+	}
+
 	/// Wait for session completion.
-	pub fn wait(&self, timeout: Option<Duration>) -> Result<Public, Error> {
+	pub fn wait(&self, timeout: Option<Duration>) -> Option<Result<Public, Error>> {
 		Self::wait_session(&self.completed, &self.data, timeout, |data| data.joint_public_and_secret.clone()
 			.map(|r| r.map(|r| r.0.clone())))
 	}
@@ -263,7 +271,7 @@ impl SessionImpl {
 	}
 
 	/// Start new session initialization. This must be called on master node.
-	pub fn initialize(&self, author: Address, is_zero: bool, threshold: usize, nodes: InitializationNodes) -> Result<(), Error> {
+	pub fn initialize(&self, origin: Option<Address>, author: Address, is_zero: bool, threshold: usize, nodes: InitializationNodes) -> Result<(), Error> {
 		check_cluster_nodes(self.node(), &nodes.set())?;
 		check_threshold(threshold, &nodes.set())?;
 
@@ -277,6 +285,7 @@ impl SessionImpl {
 		// update state
 		data.master = Some(self.node().clone());
 		data.author = Some(author.clone());
+		data.origin = origin.clone();
 		data.is_zero = Some(is_zero);
 		data.threshold = Some(threshold);
 		match nodes {
@@ -304,6 +313,7 @@ impl SessionImpl {
 				self.cluster.send(&next_node, Message::Generation(GenerationMessage::InitializeSession(InitializeSession {
 						session: self.id.clone().into(),
 						session_nonce: self.nonce,
+						origin: origin.map(Into::into),
 						author: author.into(),
 						nodes: data.nodes.iter().map(|(k, v)| (k.clone().into(), v.id_number.clone().into())).collect(),
 						is_zero: data.is_zero.expect("is_zero is filled in initialization phase; KD phase follows initialization phase; qed"),
@@ -380,6 +390,7 @@ impl SessionImpl {
 		data.author = Some(message.author.clone().into());
 		data.state = SessionState::WaitingForInitializationComplete;
 		data.nodes = message.nodes.iter().map(|(id, number)| (id.clone().into(), NodeData::with_id_number(number.clone().into()))).collect();
+		data.origin = message.origin.clone().map(Into::into);
 		data.is_zero = Some(message.is_zero);
 		data.threshold = Some(message.threshold);
 
@@ -411,6 +422,7 @@ impl SessionImpl {
 			return self.cluster.send(&next_receiver, Message::Generation(GenerationMessage::InitializeSession(InitializeSession {
 					session: self.id.clone().into(),
 					session_nonce: self.nonce,
+					origin: data.origin.clone().map(Into::into),
 					author: data.author.as_ref().expect("author is filled on initialization step; confrm initialization follows initialization; qed").clone().into(),
 					nodes: data.nodes.iter().map(|(k, v)| (k.clone().into(), v.id_number.clone().into())).collect(),
 					is_zero: data.is_zero.expect("is_zero is filled in initialization phase; KD phase follows initialization phase; qed"),
@@ -937,7 +949,7 @@ pub mod tests {
 	use std::time::Duration;
 	use tokio_core::reactor::Core;
 	use ethereum_types::Address;
-	use ethkey::{Random, Generator, Public, KeyPair};
+	use ethkey::{Random, Generator, KeyPair};
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage};
 	use key_server_cluster::message::{self, Message, GenerationMessage};
 	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, run_clusters, loop_until, all_connections_established};
@@ -1065,7 +1077,7 @@ pub mod tests {
 
 	fn make_simple_cluster(threshold: usize, num_nodes: usize) -> Result<(SessionId, NodeId, NodeId, MessageLoop), Error> {
 		let l = MessageLoop::new(num_nodes);
-		l.master().initialize(Default::default(), false, threshold, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into())?;
+		l.master().initialize(Default::default(), Default::default(), false, threshold, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into())?;
 
 		let session_id = l.session_id.clone();
 		let master_id = l.master().node().clone();
@@ -1076,7 +1088,7 @@ pub mod tests {
 	#[test]
 	fn initializes_in_cluster_of_single_node() {
 		let l = MessageLoop::new(1);
-		assert!(l.master().initialize(Default::default(), false, 0, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).is_ok());
+		assert!(l.master().initialize(Default::default(), Default::default(), false, 0, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).is_ok());
 	}
 
 	#[test]
@@ -1091,7 +1103,7 @@ pub mod tests {
 			nonce: Some(0),
 		});
 		let cluster_nodes: BTreeSet<_> = (0..2).map(|_| math::generate_random_point().unwrap()).collect();
-		assert_eq!(session.initialize(Default::default(), false, 0, cluster_nodes.into()).unwrap_err(), Error::InvalidNodesConfiguration);
+		assert_eq!(session.initialize(Default::default(), Default::default(), false, 0, cluster_nodes.into()).unwrap_err(), Error::InvalidNodesConfiguration);
 	}
 
 	#[test]
@@ -1105,7 +1117,7 @@ pub mod tests {
 	#[test]
 	fn fails_to_initialize_when_already_initialized() {
 		let (_, _, _, l) = make_simple_cluster(0, 2).unwrap();
-		assert_eq!(l.master().initialize(Default::default(), false, 0, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap_err(),
+		assert_eq!(l.master().initialize(Default::default(), Default::default(), false, 0, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap_err(),
 			Error::InvalidStateForRequest);
 	}
 
@@ -1185,6 +1197,7 @@ pub mod tests {
 		assert_eq!(l.first_slave().on_initialize_session(m, &message::InitializeSession {
 			session: sid.into(),
 			session_nonce: 0,
+			origin: None,
 			author: Address::default().into(),
 			nodes: nodes.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
 			is_zero: false,
@@ -1202,6 +1215,7 @@ pub mod tests {
 		assert_eq!(l.first_slave().on_initialize_session(m, &message::InitializeSession {
 			session: sid.into(),
 			session_nonce: 0,
+			origin: None,
 			author: Address::default().into(),
 			nodes: nodes.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
 			is_zero: false,
@@ -1345,7 +1359,7 @@ pub mod tests {
 		let test_cases = [(0, 5), (2, 5), (3, 5)];
 		for &(threshold, num_nodes) in &test_cases {
 			let mut l = MessageLoop::new(num_nodes);
-			l.master().initialize(Default::default(), false, threshold, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap();
+			l.master().initialize(Default::default(), Default::default(), false, threshold, l.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap();
 			assert_eq!(l.nodes.len(), num_nodes);
 
 			// let nodes do initialization + keys dissemination
@@ -1377,6 +1391,9 @@ pub mod tests {
 
 	#[test]
 	fn encryption_session_works_over_network() {
+		const CONN_TIMEOUT: Duration = Duration::from_millis(300);
+		const SESSION_TIMEOUT: Duration = Duration::from_millis(1000);
+
 		let test_cases = [(1, 3)];
 		for &(threshold, num_nodes) in &test_cases {
 			let mut core = Core::new().unwrap();
@@ -1386,12 +1403,12 @@ pub mod tests {
 			run_clusters(&clusters);
 
 			// establish connections
-			loop_until(&mut core, Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+			loop_until(&mut core, CONN_TIMEOUT, || clusters.iter().all(all_connections_established));
 
 			// run session to completion
 			let session_id = SessionId::default();
-			let session = clusters[0].client().new_generation_session(session_id, Public::default(), threshold).unwrap();
-			loop_until(&mut core, Duration::from_millis(1000), || session.joint_public_and_secret().is_some());
+			let session = clusters[0].client().new_generation_session(session_id, Default::default(), Default::default(), threshold).unwrap();
+			loop_until(&mut core, SESSION_TIMEOUT, || session.joint_public_and_secret().is_some());
 		}
 	}
 

@@ -44,6 +44,7 @@ pub struct DecryptionJob {
 }
 
 /// Decryption job partial request.
+#[derive(Debug)]
 pub struct PartialDecryptionRequest {
 	/// Request id.
 	pub id: Secret,
@@ -143,10 +144,11 @@ impl JobExecutor for DecryptionJob {
 		let decrypt_shadow = if partial_request.is_shadow_decryption { Some(math::generate_random_scalar()?) } else { None };
 		let common_point = self.key_share.common_point.as_ref().expect("DecryptionJob is only created when common_point is known; qed");
 		let (shadow_point, decrypt_shadow) = math::compute_node_shadow_point(&self.access_key, &common_point, &node_shadow, decrypt_shadow)?;
+
 		Ok(JobPartialRequestAction::Respond(PartialDecryptionResponse {
 			request_id: partial_request.id,
 			shadow_point: shadow_point,
-			decrypt_shadow: match decrypt_shadow {
+			decrypt_shadow: match decrypt_shadow.clone() {
 				None => None,
 				Some(decrypt_shadow) => Some(encrypt(&self.requester, &DEFAULT_MAC, &**decrypt_shadow)?),
 			},

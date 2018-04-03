@@ -84,10 +84,10 @@ pub trait ClusterSession {
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error>;
 
 	/// 'Wait for session completion' helper.
-	fn wait_session<T, U, F: Fn(&U) -> Option<Result<T, Error>>>(completion_event: &Condvar, session_data: &Mutex<U>, timeout: Option<Duration>, result_reader: F) -> Result<T, Error> {
+	fn wait_session<T, U, F: Fn(&U) -> Option<Result<T, Error>>>(completion_event: &Condvar, session_data: &Mutex<U>, timeout: Option<Duration>, result_reader: F) -> Option<Result<T, Error>> {
 		let mut locked_data = session_data.lock();
 		match result_reader(&locked_data) {
-			Some(result) => result,
+			Some(result) => Some(result),
 			None => {
 				match timeout {
 					None => completion_event.wait(&mut locked_data),
@@ -97,7 +97,6 @@ pub trait ClusterSession {
 				}
 
 				result_reader(&locked_data)
-					.expect("waited for completion; completion is only signaled when result.is_some(); qed")
 			},
 		}
 	}
@@ -563,12 +562,14 @@ pub fn create_cluster_view(data: &Arc<ClusterData>, requires_all_connections: bo
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
+	use std::sync::atomic::{AtomicUsize, Ordering};
 	use ethkey::{Random, Generator};
 	use key_server_cluster::{Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet, PlainNodeKeyPair};
 	use key_server_cluster::cluster::ClusterConfiguration;
 	use key_server_cluster::connection_trigger::SimpleServersSetChangeSessionCreatorConnector;
 	use key_server_cluster::cluster::tests::DummyCluster;
-	use super::{ClusterSessions, AdminSessionCreationData};
+	use key_server_cluster::generation_session::{SessionImpl as GenerationSession};
+	use super::{ClusterSessions, AdminSessionCreationData, ClusterSessionsListener};
 
 	pub fn make_cluster_sessions() -> ClusterSessions {
 		let key_pair = Random.generate().unwrap();
@@ -609,5 +610,36 @@ mod tests {
 			Err(e) => unreachable!(format!("{}", e)),
 			Ok(_) => unreachable!("OK"),
 		}
+	}
+
+	#[test]
+	fn session_listener_works() {
+		#[derive(Default)]
+		struct GenerationSessionListener {
+			inserted: AtomicUsize,
+			removed: AtomicUsize,
+		}
+
+		impl ClusterSessionsListener<GenerationSession> for GenerationSessionListener {
+			fn on_session_inserted(&self, _session: Arc<GenerationSession>) {
+				self.inserted.fetch_add(1, Ordering::Relaxed);
+			}
+
+			fn on_session_removed(&self, _session: Arc<GenerationSession>) {
+				self.removed.fetch_add(1, Ordering::Relaxed);
+			}
+		}
+
+		let listener = Arc::new(GenerationSessionListener::default());
+		let sessions = make_cluster_sessions();
+		sessions.generation_sessions.add_listener(listener.clone());
+
+		sessions.generation_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, false, None).unwrap();
+		assert_eq!(listener.inserted.load(Ordering::Relaxed), 1);
+		assert_eq!(listener.removed.load(Ordering::Relaxed), 0);
+
+		sessions.generation_sessions.remove(&Default::default());
+		assert_eq!(listener.inserted.load(Ordering::Relaxed), 1);
+		assert_eq!(listener.removed.load(Ordering::Relaxed), 1);
 	}
 }
