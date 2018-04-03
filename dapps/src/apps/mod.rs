@@ -23,7 +23,6 @@ use page;
 use proxypac::ProxyPac;
 use web::Web;
 use fetch::Fetch;
-use parity_dapps::WebApp;
 use parity_ui;
 use {WebProxyTokens, ParentFrameSettings};
 
@@ -76,25 +75,28 @@ pub fn all_endpoints<F: Fetch>(
 	}
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
-	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(embeddable.clone()), pool.clone());
+	pages.insert(
+		"ui".into(),
+		Box::new(page::builtin::Dapp::new_safe_to_embed(pool.clone(), parity_ui::App::default(), embeddable.clone()))
+	);
 	// old version
-	insert::<parity_ui::old::App>(&mut pages, "v1", Embeddable::Yes(embeddable.clone()), pool.clone());
-
-	pages.insert("proxy".into(), ProxyPac::boxed(embeddable.clone(), dapps_domain.to_owned()));
-	pages.insert(WEB_PATH.into(), Web::boxed(embeddable.clone(), web_proxy_tokens.clone(), fetch.clone(), pool.clone()));
+	pages.insert(
+		"v1".into(),
+		Box::new({
+			let mut page = page::builtin::Dapp::new_safe_to_embed(pool.clone(), parity_ui::old::App::default(), embeddable.clone());
+			// allow JS eval on old Wallet
+			page.allow_js_eval();
+			page
+		})
+	);
+	pages.insert(
+		"proxy".into(),
+		ProxyPac::boxed(embeddable.clone(), dapps_domain.to_owned())
+	);
+	pages.insert(
+		WEB_PATH.into(),
+		Web::boxed(embeddable.clone(), web_proxy_tokens.clone(), fetch.clone(), pool.clone())
+	);
 
 	(local_endpoints, pages)
-}
-
-fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str, embed_at: Embeddable, pool: CpuPool) {
-	pages.insert(id.to_owned(), Box::new(match embed_at {
-		Embeddable::Yes(address) => page::builtin::Dapp::new_safe_to_embed(pool, T::default(), address),
-		Embeddable::No => page::builtin::Dapp::new(pool, T::default()),
-	}));
-}
-
-enum Embeddable {
-	Yes(Option<ParentFrameSettings>),
-	#[allow(dead_code)]
-	No,
 }
