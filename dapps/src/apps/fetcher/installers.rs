@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use ethereum_types::H256;
 use fetch;
 use futures_cpupool::CpuPool;
-use hash::keccak_buffer_and_write;
+use hash::keccak_pipe;
 use mime_guess::Mime;
 
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
@@ -55,7 +55,7 @@ fn write_response_and_check_hash(
 	// Now write the response
 	let mut file = io::BufWriter::new(fs::File::create(&content_path)?);
 	let mut reader = io::BufReader::new(fetch::BodyReader::new(response));
-	let hash = keccak_buffer_and_write(&mut reader, &mut file)?;
+	let hash = keccak_pipe(&mut reader, &mut file)?;
 	let mut file = file.into_inner()?;
 	file.flush()?;
 
