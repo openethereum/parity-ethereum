@@ -833,11 +833,6 @@ usage! {
 			"--no-periodic-snapshot",
 			"Disable automated snapshots which usually occur once every 10000 blocks.",
 
-		["Virtual Machine options"]
-			FLAG flag_jitvm: (bool) = false, or |c: &Config| c.vm.as_ref()?.jit.clone(),
-			"--jitvm",
-			"Enable the JIT VM.",
-
 		["Whisper options"]
 			FLAG flag_whisper: (bool) = false, or |c: &Config| c.whisper.as_ref()?.enabled,
 			"--whisper",
@@ -999,7 +994,6 @@ struct Config {
 	mining: Option<Mining>,
 	footprint: Option<Footprint>,
 	snapshots: Option<Snapshots>,
-	vm: Option<VM>,
 	misc: Option<Misc>,
 	stratum: Option<Stratum>,
 	whisper: Option<Whisper>,
@@ -1212,12 +1206,6 @@ struct Snapshots {
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct VM {
-	jit: Option<bool>,
-}
-
-#[derive(Default, Debug, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
 struct Misc {
 	ntp_servers: Option<Vec<String>>,
 	logging: Option<String>,
@@ -1239,7 +1227,7 @@ mod tests {
 	use super::{
 		Args, ArgsError,
 		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
-		Snapshots, VM, Misc, Whisper, SecretStore,
+		Snapshots, Misc, Whisper, SecretStore,
 	};
 	use toml;
 	use clap::{ErrorKind as ClapErrorKind};
@@ -1624,9 +1612,6 @@ mod tests {
 			arg_snapshot_at: "latest".into(),
 			flag_no_periodic_snapshot: false,
 
-			// -- Virtual Machine Options
-			flag_jitvm: false,
-
 			// -- Whisper options.
 			flag_whisper: false,
 			arg_whisper_pool_size: 20,
@@ -1863,9 +1848,6 @@ mod tests {
 			}),
 			snapshots: Some(Snapshots {
 				disable_periodic: Some(true),
-			}),
-			vm: Some(VM {
-				jit: Some(false),
 			}),
 			misc: Some(Misc {
 				ntp_servers: Some(vec!["0.parity.pool.ntp.org:123".into()]),
