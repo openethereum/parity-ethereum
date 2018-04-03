@@ -279,7 +279,7 @@ impl SessionImpl {
 			});
 			generation_session.initialize(Default::default(), false, 0, vec![self.core.meta.self_node_id.clone()].into_iter().collect::<BTreeSet<_>>().into())?;
 
-			debug_assert_eq!(generation_session.state(), GenerationSessionState::WaitingForGenerationConfirmation);
+			debug_assert_eq!(generation_session.state(), GenerationSessionState::Finished);
 			let joint_public_and_secret = generation_session
 				.joint_public_and_secret()
 				.expect("session key is generated before signature is computed; we are in SignatureComputing state; qed")?;
