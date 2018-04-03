@@ -862,7 +862,7 @@ pub mod tests {
 		}
 
 		fn publish_stored_document_key(&self, _origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
-			self.stored_document_keys.lock().push((server_key_id.clone()));
+			self.stored_document_keys.lock().push(server_key_id.clone());
 			Ok(())
 		}
 

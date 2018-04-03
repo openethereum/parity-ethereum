@@ -473,21 +473,19 @@ impl ClusterSessionsListener<DecryptionSession> for ServiceContractListener {
 		// ignore result - the only thing that we can do is to log the error
 		let session_id = session.id();
 		let server_key_id = session_id.id;
-		if let Some(requester) = session.requester().and_then(|r| r.address(&server_key_id).ok()) {
-			if let Some(origin) = session.origin() {
-				if let Some(retrieval_result) = session.wait(Some(Default::default())) {
-					let retrieval_result = retrieval_result.map(|key_shadow|
-						session.broadcast_shadows()
-							.and_then(|broadcast_shadows|
-								broadcast_shadows.get(self.data.self_key_pair.public())
-									.map(|self_shadow| (
-										broadcast_shadows.keys().map(public_to_address).collect(),
-										key_shadow.decrypted_secret,
-										self_shadow.clone()
-									)))
-					).map_err(Into::into);
-					let _ = Self::process_document_key_retrieval_result(&self.data, origin, &server_key_id, &requester, retrieval_result);
-				}
+		if let (Some(requester), Some(origin)) = (session.requester().and_then(|r| r.address(&server_key_id).ok()), session.origin()) {
+			if let Some(retrieval_result) = session.wait(Some(Default::default())) {
+				let retrieval_result = retrieval_result.map(|key_shadow|
+					session.broadcast_shadows()
+						.and_then(|broadcast_shadows|
+							broadcast_shadows.get(self.data.self_key_pair.public())
+								.map(|self_shadow| (
+									broadcast_shadows.keys().map(public_to_address).collect(),
+									key_shadow.decrypted_secret,
+									self_shadow.clone()
+								)))
+				).map_err(Into::into);
+				let _ = Self::process_document_key_retrieval_result(&self.data, origin, &server_key_id, &requester, retrieval_result);
 			}
 		}
 	}
