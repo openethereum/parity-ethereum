@@ -961,6 +961,8 @@ impl Configuration {
 			},
 			path: default_hypervisor_path(),
 			max_size: 128 * 1024 * 1024,
+			max_delay: self.args.arg_auto_update_delay as u64,
+			frequency: self.args.arg_auto_update_check_frequency as u64,
 		})
 	}
 
@@ -1426,6 +1428,8 @@ mod tests {
 				track: ReleaseTrack::Unknown,
 				path: default_hypervisor_path(),
 				max_size: 128 * 1024 * 1024,
+				max_delay: 100,
+				frequency: 20,
 			},
 			mode: Default::default(),
 			tracing: Default::default(),
@@ -1491,8 +1495,8 @@ mod tests {
 	fn should_parse_updater_options() {
 		// when
 		let conf0 = parse(&["parity", "--release-track=testing"]);
-		let conf1 = parse(&["parity", "--auto-update", "all", "--no-consensus"]);
-		let conf2 = parse(&["parity", "--no-download", "--auto-update=all", "--release-track=beta"]);
+		let conf1 = parse(&["parity", "--auto-update", "all", "--no-consensus", "--auto-update-delay", "300"]);
+		let conf2 = parse(&["parity", "--no-download", "--auto-update=all", "--release-track=beta", "--auto-update-delay=300", "--auto-update-check-frequency=100"]);
 		let conf3 = parse(&["parity", "--auto-update=xxx"]);
 
 		// then
@@ -1503,6 +1507,8 @@ mod tests {
 			track: ReleaseTrack::Testing,
 			path: default_hypervisor_path(),
 			max_size: 128 * 1024 * 1024,
+			max_delay: 100,
+			frequency: 20,
 		});
 		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy {
 			enable_downloading: true,
@@ -1511,6 +1517,8 @@ mod tests {
 			track: ReleaseTrack::Unknown,
 			path: default_hypervisor_path(),
 			max_size: 128 * 1024 * 1024,
+			max_delay: 300,
+			frequency: 20,
 		});
 		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy {
 			enable_downloading: false,
@@ -1519,6 +1527,8 @@ mod tests {
 			track: ReleaseTrack::Beta,
 			path: default_hypervisor_path(),
 			max_size: 128 * 1024 * 1024,
+			max_delay: 300,
+			frequency: 100,
 		});
 		assert!(conf3.update_policy().is_err());
 	}

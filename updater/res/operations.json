@@ -556,5 +556,42 @@
 		],
 		"payable": false,
 		"type": "function"
+	},
+	{
+		"name": "ReleaseAdded",
+		"type": "event",
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"name": "client",
+				"type": "bytes32"
+			},
+			{
+				"indexed": true,
+				"name": "forkBlock",
+				"type": "uint32"
+			},
+			{
+				"indexed": false,
+				"name": "release",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"name": "track",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"name": "semver",
+				"type": "uint24"
+			},
+			{
+				"indexed": true,
+				"name": "critical",
+				"type": "bool"
+			}
+		]
 	}
 ]
