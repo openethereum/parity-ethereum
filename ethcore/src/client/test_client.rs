@@ -311,7 +311,7 @@ impl TestBlockChainClient {
 		self.blocks.write().insert(hash, rlp.out());
 	}
 
-	/// TODO:
+	/// Get block hash with `delta` as offset from the most recent blocks.
 	pub fn block_hash_delta_minus(&mut self, delta: usize) -> H256 {
 		let blocks_read = self.numbers.read();
 		let index = blocks_read.len() - delta;
