@@ -61,7 +61,9 @@ fn write_response_and_check_hash(
 
 	// Validate hash
 	if id == hash {
-		Ok((file, content_path))
+		// The writing above changed the file Read position, which we need later. So we just create a new file handle
+		// here.
+		Ok((fs::File::open(&content_path)?, content_path))
 	} else {
 		Err(ValidationError::HashMismatch {
 			expected: id,
