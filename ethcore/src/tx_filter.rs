@@ -16,11 +16,10 @@
 
 //! Smart contract based transaction filter.
 
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 use ethereum_types::{H256, Address};
-use client::{BlockInfo, CallContract, BlockId, ChainNotify};
-use bytes::Bytes;
+use lru_cache::LruCache;
+
+use client::{BlockInfo, CallContract, BlockId};
 use parking_lot::Mutex;
 use spec::CommonParams;
 use transaction::{Action, SignedTransaction};
@@ -43,7 +42,7 @@ mod tx_permissions {
 pub struct TransactionFilter {
 	contract: transact_acl::TransactAcl,
 	contract_address: Address,
-	permission_cache: Mutex<HashMap<(H256, Address), u32>>,
+	permission_cache: Mutex<LruCache<(H256, Address), u32>>,
 }
 
 impl TransactionFilter {
@@ -53,19 +52,14 @@ impl TransactionFilter {
 			TransactionFilter {
 				contract: transact_acl::TransactAcl::default(),
 				contract_address: address,
-				permission_cache: Mutex::new(HashMap::new()),
+				permission_cache: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
 			}
 		)
 	}
 
-	/// Clear cached permissions.
-	pub fn clear_cache(&self) {
-		self.permission_cache.lock().clear();
-	}
-
 	/// Check if transaction is allowed at given block.
 	pub fn transaction_allowed<C: BlockInfo + CallContract>(&self, parent_hash: &H256, transaction: &SignedTransaction, client: &C) -> bool {
-		let mut cache = self.permission_cache.lock(); let len = cache.len();
+		let mut cache = self.permission_cache.lock();
 
 		let tx_type = match transaction.action {
 			Action::Create => tx_permissions::CREATE,
@@ -75,35 +69,28 @@ impl TransactionFilter {
 				tx_permissions::BASIC
 			}
 		};
+
 		let sender = transaction.sender();
-		match cache.entry((*parent_hash, sender)) {
-			Entry::Occupied(entry) => *entry.get() & tx_type != 0,
-			Entry::Vacant(entry) => {
-				let contract_address = self.contract_address;
-				let permissions = self.contract.functions()
-					.allowed_tx_types()
-					.call(sender, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
-					.map(|p| p.low_u32())
-					.unwrap_or_else(|e| {
-						debug!("Error callling tx permissions contract: {:?}", e);
-						tx_permissions::NONE
-					});
+		let key = (*parent_hash, sender);
 
-				if len < MAX_CACHE_SIZE {
-					entry.insert(permissions);
-				}
-				trace!("Permissions required: {}, got: {}", tx_type, permissions);
-				permissions & tx_type != 0
-			}
+		if let Some(permissions) = cache.get_mut(&key) {
+			return *permissions & tx_type != 0;
 		}
-	}
-}
 
-impl ChainNotify for TransactionFilter {
-	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
-		if !imported.is_empty() {
-			self.clear_cache();
-		}
+		let contract_address = self.contract_address;
+		let permissions = self.contract.functions()
+			.allowed_tx_types()
+			.call(sender, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
+			.map(|p| p.low_u32())
+			.unwrap_or_else(|e| {
+				debug!("Error callling tx permissions contract: {:?}", e);
+				tx_permissions::NONE
+			});
+
+		cache.insert((*parent_hash, sender), permissions);
+
+		trace!("Permissions required: {}, got: {}", tx_type, permissions);
+		permissions & tx_type != 0
 	}
 }
 

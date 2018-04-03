@@ -10,9 +10,9 @@
         "homesteadTransition":"0x118c30",
         "eip100bTransition":"0x21e88e",
         "eip150Transition":"0x21e88e",
-        "eip160Transition":"0x7fffffffffffff",
-        "eip161abcTransition":"0x7fffffffffffff",
-        "eip161dTransition":"0x7fffffffffffff",
+        "eip160Transition":"0x21e88e",
+        "eip161abcTransition":"0x21e88e",
+        "eip161dTransition":"0x21e88e",
         "eip649Transition":"0x21e88e",
         "blockReward":"0x1105a0185b50a80000",
         "mcip3Transition":"0x124f81",
@@ -40,8 +40,7 @@
     "eip211Transition":"0x21e88e",
     "eip214Transition":"0x21e88e",
     "eip658Transition":"0x21e88e",
-    "maxCodeSize":"0x6000",
-    "maxCodeSizeTransition": "0x7fffffffffffff"
+    "maxCodeSize":"0x6000"
   },
   "genesis":{
     "seal":{

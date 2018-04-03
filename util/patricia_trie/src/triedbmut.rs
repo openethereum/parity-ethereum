@@ -24,7 +24,7 @@ use super::node::NodeKey;
 use hashdb::HashDB;
 use bytes::ToPretty;
 use nibbleslice::NibbleSlice;
-use rlp::{Rlp, RlpStream};
+use rlp::{UntrustedRlp, RlpStream};
 use hashdb::DBValue;
 
 use std::collections::{HashSet, VecDeque};
@@ -88,18 +88,17 @@ enum Node {
 impl Node {
 	// load an inline node into memory or get the hash to do the lookup later.
 	fn inline_or_hash(node: &[u8], db: &HashDB, storage: &mut NodeStorage) -> NodeHandle {
-		let r = Rlp::new(node);
-		if r.is_data() && r.size() == 32 {
-			NodeHandle::Hash(r.as_val::<H256>())
-		} else {
-			let child = Node::from_rlp(node, db, storage);
-			NodeHandle::InMemory(storage.alloc(Stored::New(child)))
-		}
+		RlpNode::try_decode_hash(&node)
+			.map(NodeHandle::Hash)
+			.unwrap_or_else(|| {
+				let child = Node::from_rlp(node, db, storage);
+				NodeHandle::InMemory(storage.alloc(Stored::New(child)))
+			})
 	}
 
 	// decode a node from rlp without getting its children.
 	fn from_rlp(rlp: &[u8], db: &HashDB, storage: &mut NodeStorage) -> Self {
-		match RlpNode::decoded(rlp) {
+		match RlpNode::decoded(rlp).expect("rlp read from db; qed") {
 			RlpNode::Empty => Node::Empty,
 			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), DBValue::from_slice(&v)),
 			RlpNode::Extension(key, cb) => {
@@ -108,7 +107,7 @@ impl Node {
 			RlpNode::Branch(ref children_rlp, val) => {
 				let mut child = |i| {
 					let raw = children_rlp[i];
-					let child_rlp = Rlp::new(raw);
+					let child_rlp = UntrustedRlp::new(raw);
 					if !child_rlp.is_empty() {
 						Some(Self::inline_or_hash(raw, db, storage))
 					} else {

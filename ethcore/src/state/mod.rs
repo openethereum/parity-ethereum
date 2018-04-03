@@ -365,7 +365,7 @@ impl<B: Backend> State<B> {
 	pub fn new(mut db: B, account_start_nonce: U256, factories: Factories) -> State<B> {
 		let mut root = H256::new();
 		{
-			// init trie and reset root too null
+			// init trie and reset root to null
 			let _ = factories.trie.create(db.as_hashdb_mut(), &mut root);
 		}
 
@@ -553,8 +553,8 @@ impl<B: Backend> State<B> {
 		// 2. If there's an entry for the account in the global cache check for the key or load it into that account.
 		// 3. If account is missing in the global cache load it into the local cache and cache the key there.
 
-		// check local cache first without updating
 		{
+			// check local cache first without updating
 			let local_cache = self.cache.borrow_mut();
 			let mut local_account = None;
 			if let Some(maybe_acc) = local_cache.get(address) {

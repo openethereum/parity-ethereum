@@ -16,7 +16,7 @@ ethabi-contract = "5.0"
 ethabi-derive = "5.0"
 ethash = { path = "../ethash" }
 ethcore-transaction = { path = "../ethcore/transaction" }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 ethkey = { path = "../ethkey" }
 futures = "0.1"
 heapsize = "0.4"
