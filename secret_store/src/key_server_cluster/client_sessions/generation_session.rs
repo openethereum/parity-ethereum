@@ -1391,6 +1391,9 @@ pub mod tests {
 
 	#[test]
 	fn encryption_session_works_over_network() {
+		const CONN_TIMEOUT: Duration = Duration::from_millis(300);
+		const SESSION_TIMEOUT: Duration = Duration::from_millis(1000);
+
 		let test_cases = [(1, 3)];
 		for &(threshold, num_nodes) in &test_cases {
 			let mut core = Core::new().unwrap();
@@ -1400,12 +1403,12 @@ pub mod tests {
 			run_clusters(&clusters);
 
 			// establish connections
-			loop_until(&mut core, Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+			loop_until(&mut core, CONN_TIMEOUT, || clusters.iter().all(all_connections_established));
 
 			// run session to completion
 			let session_id = SessionId::default();
 			let session = clusters[0].client().new_generation_session(session_id, Default::default(), Default::default(), threshold).unwrap();
-			loop_until(&mut core, Duration::from_millis(1000), || session.joint_public_and_secret().is_some());
+			loop_until(&mut core, SESSION_TIMEOUT, || session.joint_public_and_secret().is_some());
 		}
 	}
 
