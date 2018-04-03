@@ -231,6 +231,11 @@ usage! {
 				"Clean the database",
 			}
 		}
+
+		CMD cmd_export_hardcoded_sync
+		{
+			"Export the hardcoded sync JSON file from the existing light client database",
+		}
 	}
 	{
 		// Global flags and arguments
@@ -250,6 +255,10 @@ usage! {
 			FLAG flag_light: (bool) = false, or |c: &Config| c.parity.as_ref()?.light,
 			"--light",
 			"Experimental: run in light client mode. Light clients synchronize a bare minimum of data and fetch necessary data on-demand from the network. Much lower in storage, potentially higher in bandwidth. Has no effect with subcommands.",
+
+			FLAG flag_no_hardcoded_sync: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_hardcoded_sync,
+			"--no-hardcoded-sync",
+			"By default, if there is no existing database the light client will automatically jump to a block hardcoded in the chain's specifications. This disables this feature.",
 
 			FLAG flag_force_direct: (bool) = false, or |_| None,
 			"--force-direct",
@@ -384,6 +393,10 @@ usage! {
 			"--no-serve-light",
 			"Disable serving of light peers.",
 
+			ARG arg_warp_barrier: (Option<u64>) = None, or |c: &Config| c.network.as_ref()?.warp_barrier.clone(),
+			"--warp-barrier=[NUM]",
+			"When warp enabled never attempt regular sync before warping to block NUM.",
+
 			ARG arg_port: (u16) = 30303u16, or |c: &Config| c.network.as_ref()?.port.clone(),
 			"--port=[PORT]",
 			"Override the port on which the node should listen.",
@@ -443,7 +456,7 @@ usage! {
 
 			ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| c.rpc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-apis=[APIS]",
-			"Specify the APIs available through the JSONRPC interface. APIS is a comma-delimited list of API name. Possible name are all, safe, web3, eth, net, personal, parity, parity_set, traces, rpc, parity_accounts, pubsub, parity_pubsub, shh, shh_pubsub, signer, secretstore. You can also disable a specific API by putting '-' in the front: all,-personal.",
+			"Specify the APIs available through the JSONRPC interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. safe contains following apis: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
 
 			ARG arg_jsonrpc_hosts: (String) = "none", or |c: &Config| c.rpc.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-hosts=[HOSTS]",
@@ -476,7 +489,7 @@ usage! {
 
 			ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| c.websockets.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--ws-apis=[APIS]",
-			"Specify the APIs available through the WebSockets interface. APIS is a comma-delimited list of API name. Possible name are web3, eth, pubsub, net, personal, parity, parity_set, traces, rpc, parity_accounts, pubsub, parity_pubsub, shh, shh_pubsub, signer, secretstore.",
+			"Specify the APIs available through the WebSockets interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. safe contains following apis: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
 
 			ARG arg_ws_origins: (String) = "parity://*,chrome-extension://*,moz-extension://*", or |c: &Config| c.websockets.as_ref()?.origins.as_ref().map(|vec| vec.join(",")),
 			"--ws-origins=[URL]",
@@ -485,6 +498,10 @@ usage! {
 			ARG arg_ws_hosts: (String) = "none", or |c: &Config| c.websockets.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
 			"--ws-hosts=[HOSTS]",
 			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\".",
+
+			ARG arg_ws_max_connections: (usize) = 100usize, or |c: &Config| c.websockets.as_ref()?.max_connections,
+			"--ws-max-connections=[CONN]",
+			"Maximal number of allowed concurrent WS connections.",
 
 		["API and console options – IPC"]
 			FLAG flag_no_ipc: (bool) = false, or |c: &Config| c.ipc.as_ref()?.disable.clone(),
@@ -497,7 +514,7 @@ usage! {
 
 			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,shh,shh_pubsub", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--ipc-apis=[APIS]",
-			"Specify custom API set available via JSON-RPC over IPC.",
+			"Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. safe contains: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
 
 		["API and console options – Dapps"]
 			FLAG flag_no_dapps: (bool) = false, or |c: &Config| c.dapps.as_ref()?.disable.clone(),
@@ -1006,6 +1023,7 @@ struct Operating {
 	identity: Option<String>,
 	light: Option<bool>,
 	no_persistent_txqueue: Option<bool>,
+	no_hardcoded_sync: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1034,6 +1052,7 @@ struct Ui {
 #[serde(deny_unknown_fields)]
 struct Network {
 	warp: Option<bool>,
+	warp_barrier: Option<u64>,
 	port: Option<u16>,
 	min_peers: Option<u16>,
 	max_peers: Option<u16>,
@@ -1072,6 +1091,7 @@ struct Ws {
 	apis: Option<Vec<String>>,
 	origins: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
+	max_connections: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1409,6 +1429,7 @@ mod tests {
 			cmd_tools_hash: false,
 			cmd_db: false,
 			cmd_db_kill: false,
+			cmd_export_hardcoded_sync: false,
 
 			// Arguments
 			arg_daemon_pid_file: None,
@@ -1443,6 +1464,7 @@ mod tests {
 			arg_keys_path: "$HOME/.parity/keys".into(),
 			arg_identity: "".into(),
 			flag_light: false,
+			flag_no_hardcoded_sync: false,
 			flag_no_persistent_txqueue: false,
 			flag_force_direct: false,
 
@@ -1503,6 +1525,7 @@ mod tests {
 			arg_ws_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			arg_ws_origins: "none".into(),
 			arg_ws_hosts: "none".into(),
+			arg_ws_max_connections: 100,
 
 			// IPC
 			flag_no_ipc: false,
@@ -1613,6 +1636,7 @@ mod tests {
 			flag_geth: false,
 			flag_testnet: false,
 			flag_import_geth_keys: false,
+			arg_warp_barrier: None,
 			arg_datadir: None,
 			arg_networkid: None,
 			arg_peers: None,
@@ -1697,6 +1721,7 @@ mod tests {
 				keys_path: None,
 				identity: None,
 				light: None,
+				no_hardcoded_sync: None,
 				no_persistent_txqueue: None,
 			}),
 			account: Some(Account {
@@ -1717,6 +1742,7 @@ mod tests {
 			}),
 			network: Some(Network {
 				warp: Some(false),
+				warp_barrier: None,
 				port: None,
 				min_peers: Some(10),
 				max_peers: Some(20),
@@ -1739,6 +1765,7 @@ mod tests {
 				apis: None,
 				origins: Some(vec!["none".into()]),
 				hosts: None,
+				max_connections: None,
 			}),
 			rpc: Some(Rpc {
 				disable: Some(true),

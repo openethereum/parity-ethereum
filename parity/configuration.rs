@@ -49,6 +49,7 @@ use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, Cont
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
+use export_hardcoded_sync::ExportHsyncCmd;
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
@@ -79,6 +80,7 @@ pub enum Cmd {
 	},
 	Snapshot(SnapshotCommand),
 	Hash(Option<String>),
+	ExportHardcodedSync(ExportHsyncCmd),
 }
 
 pub struct Execute {
@@ -317,6 +319,16 @@ impl Configuration {
 				block_at: to_block_id("latest")?, // unimportant.
 			};
 			Cmd::Snapshot(restore_cmd)
+		} else if self.args.cmd_export_hardcoded_sync {
+			let export_hs_cmd = ExportHsyncCmd {
+				cache_config: cache_config,
+				dirs: dirs,
+				spec: spec,
+				pruning: pruning,
+				compaction: compaction,
+				wal: wal,
+			};
+			Cmd::ExportHardcodedSync(export_hs_cmd)
 		} else {
 			let daemon = if self.args.cmd_daemon {
 				Some(self.args.arg_daemon_pid_file.clone().expect("CLI argument is required; qed"))
@@ -356,6 +368,7 @@ impl Configuration {
 				wal: wal,
 				vm_type: vm_type,
 				warp_sync: warp_sync,
+				warp_barrier: self.args.arg_warp_barrier,
 				public_node: public_node,
 				geth_compatibility: geth_compatibility,
 				net_settings: self.network_settings()?,
@@ -375,6 +388,7 @@ impl Configuration {
 				light: self.args.flag_light,
 				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
 				whisper: whisper_config,
+				no_hardcoded_sync: self.args.flag_no_hardcoded_sync,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -904,6 +918,7 @@ impl Configuration {
 			support_token_api,
 			ui_address: ui.address(),
 			dapps_address: http.address(),
+			max_connections: self.args.arg_ws_max_connections,
 		};
 
 		Ok(conf)
@@ -1343,7 +1358,8 @@ mod tests {
 			signer_path: expected.into(),
 			ui_address: None,
 			dapps_address: Some("127.0.0.1:8545".into()),
-			support_token_api: true
+			support_token_api: true,
+			max_connections: 100,
 		}, UiConfiguration {
 			enabled: false,
 			interface: "127.0.0.1".into(),
@@ -1354,6 +1370,17 @@ mod tests {
             mode: None,
             file: None,
         } ));
+	}
+
+	#[test]
+	fn test_ws_max_connections() {
+		let args = vec!["parity", "--ws-max-connections", "1"];
+		let conf = parse(&args);
+
+		assert_eq!(conf.ws_config().unwrap(), WsConfiguration {
+			max_connections: 1,
+			..Default::default()
+		});
 	}
 
 	#[test]
@@ -1384,6 +1411,7 @@ mod tests {
 			network_id: None,
 			public_node: false,
 			warp_sync: true,
+			warp_barrier: None,
 			acc_conf: Default::default(),
 			gas_pricer_conf: Default::default(),
 			miner_extras: Default::default(),
@@ -1418,6 +1446,7 @@ mod tests {
 			verifier_settings: Default::default(),
 			serve_light: true,
 			light: false,
+			no_hardcoded_sync: false,
 			no_persistent_txqueue: false,
 			whisper: Default::default(),
 		};

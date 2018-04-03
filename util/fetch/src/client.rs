@@ -34,7 +34,7 @@ use tokio_core::reactor;
 use url::{self, Url};
 
 const MAX_SIZE: usize = 64 * 1024 * 1024;
-const MAX_SECS: u64 = 5;
+const MAX_SECS: Duration = Duration::from_secs(5);
 const MAX_REDR: usize = 5;
 
 /// A handle to abort requests.
@@ -55,7 +55,7 @@ impl Default for Abort {
 		Abort {
 			abort: Arc::new(AtomicBool::new(false)),
 			size: MAX_SIZE,
-			time: Duration::from_secs(MAX_SECS),
+			time: MAX_SECS,
 			redir: MAX_REDR,
 		}
 	}
@@ -66,7 +66,7 @@ impl From<Arc<AtomicBool>> for Abort {
 		Abort {
 			abort: a,
 			size: MAX_SIZE,
-			time: Duration::from_secs(MAX_SECS),
+			time: MAX_SECS,
 			redir: MAX_REDR,
 		}
 	}

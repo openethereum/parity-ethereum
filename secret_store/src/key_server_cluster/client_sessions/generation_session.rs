@@ -16,7 +16,7 @@
 
 use std::collections::{BTreeSet, BTreeMap, VecDeque};
 use std::fmt::{Debug, Formatter, Error as FmtError};
-use std::time;
+use std::time::Duration;
 use std::sync::Arc;
 use parking_lot::{Condvar, Mutex};
 use ethereum_types::Address;
@@ -252,7 +252,7 @@ impl SessionImpl {
 	}
 
 	/// Wait for session completion.
-	pub fn wait(&self, timeout: Option<time::Duration>) -> Result<Public, Error> {
+	pub fn wait(&self, timeout: Option<Duration>) -> Result<Public, Error> {
 		Self::wait_session(&self.completed, &self.data, timeout, |data| data.joint_public_and_secret.clone()
 			.map(|r| r.map(|r| r.0.clone())))
 	}
@@ -932,9 +932,9 @@ pub fn check_threshold(threshold: usize, nodes: &BTreeSet<NodeId>) -> Result<(),
 
 #[cfg(test)]
 pub mod tests {
-	use std::time;
 	use std::sync::Arc;
 	use std::collections::{BTreeSet, BTreeMap, VecDeque};
+	use std::time::Duration;
 	use tokio_core::reactor::Core;
 	use ethereum_types::Address;
 	use ethkey::{Random, Generator, Public, KeyPair};
@@ -1386,12 +1386,12 @@ pub mod tests {
 			run_clusters(&clusters);
 
 			// establish connections
-			loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+			loop_until(&mut core, Duration::from_millis(300), || clusters.iter().all(all_connections_established));
 
 			// run session to completion
 			let session_id = SessionId::default();
 			let session = clusters[0].client().new_generation_session(session_id, Public::default(), threshold).unwrap();
-			loop_until(&mut core, time::Duration::from_millis(1000), || session.joint_public_and_secret().is_some());
+			loop_until(&mut core, Duration::from_millis(1000), || session.joint_public_and_secret().is_some());
 		}
 	}
 

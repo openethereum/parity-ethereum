@@ -16,7 +16,6 @@
 
 use std::{str, io};
 use std::net::SocketAddr;
-use std::sync::*;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -24,7 +23,7 @@ use mio::*;
 use mio::deprecated::{Handler, EventLoop};
 use mio::tcp::*;
 use ethereum_types::H256;
-use rlp::*;
+use rlp::{UntrustedRlp, RlpStream, EMPTY_LIST_RLP};
 use connection::{EncryptedConnection, Packet, Connection, MAX_PAYLOAD_SIZE};
 use handshake::Handshake;
 use io::{IoContext, StreamToken};
@@ -32,12 +31,11 @@ use network::{Error, ErrorKind, DisconnectReason, SessionInfo, ProtocolId, PeerC
 use network::{SessionCapabilityInfo, HostInfo as HostInfoTrait};
 use host::*;
 use node_table::NodeId;
-use stats::NetworkStats;
 use snappy;
 
 // Timeout must be less than (interval - 1).
-const PING_TIMEOUT_SEC: u64 = 60;
-const PING_INTERVAL_SEC: u64 = 120;
+const PING_TIMEOUT_SEC: Duration = Duration::from_secs(60);
+const PING_INTERVAL_SEC: Duration = Duration::from_secs(120);
 const MIN_PROTOCOL_VERSION: u32 = 4;
 const MIN_COMPRESSION_PROTOCOL_VERSION: u32 = 5;
 
@@ -103,10 +101,10 @@ impl Session {
 	/// Create a new session out of comepleted handshake. This clones the handshake connection object
 	/// and leaves the handhsake in limbo to be deregistered from the event loop.
 	pub fn new<Message>(io: &IoContext<Message>, socket: TcpStream, token: StreamToken, id: Option<&NodeId>,
-		nonce: &H256, stats: Arc<NetworkStats>, host: &HostInfo) -> Result<Session, Error>
+		nonce: &H256, host: &HostInfo) -> Result<Session, Error>
 		where Message: Send + Clone + Sync + 'static {
 		let originated = id.is_some();
-		let mut handshake = Handshake::new(token, id, socket, nonce, stats).expect("Can't create handshake");
+		let mut handshake = Handshake::new(token, id, socket, nonce).expect("Can't create handshake");
 		let local_addr = handshake.connection.local_addr_str();
 		handshake.start(io, host, originated)?;
 		Ok(Session {
@@ -300,12 +298,12 @@ impl Session {
 			return true;
 		}
 		let timed_out = if let Some(pong) = self.pong_time {
-			pong.duration_since(self.ping_time) > Duration::from_secs(PING_TIMEOUT_SEC)
+			pong.duration_since(self.ping_time) > PING_TIMEOUT_SEC
 		} else {
-			self.ping_time.elapsed() > Duration::from_secs(PING_TIMEOUT_SEC)
+			self.ping_time.elapsed() > PING_TIMEOUT_SEC
 		};
 
-		if !timed_out && self.ping_time.elapsed() > Duration::from_secs(PING_INTERVAL_SEC) {
+		if !timed_out && self.ping_time.elapsed() > PING_INTERVAL_SEC {
 			if let Err(e) = self.send_ping(io) {
 				debug!("Error sending ping message: {:?}", e);
 			}

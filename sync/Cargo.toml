@@ -15,7 +15,7 @@ ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethcore = { path = "../ethcore" }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 plain_hasher = { path = "../util/plain_hasher" }
 rlp = { path = "../util/rlp" }
 keccak-hash = { path = "../util/hash" }

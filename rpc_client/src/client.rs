@@ -74,7 +74,7 @@ impl Handler for RpcHandler {
 				})?;
 				let secs = timestamp.as_secs();
 				let hashed = keccak(format!("{}:{}", self.auth_code, secs));
-				let proto = format!("{:?}_{}", hashed, secs);
+				let proto = format!("{:x}_{}", hashed, secs);
 				r.add_protocol(&proto);
 				Ok(r)
 			},

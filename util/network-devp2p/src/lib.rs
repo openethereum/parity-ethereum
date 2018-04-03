@@ -102,12 +102,10 @@ mod session;
 mod discovery;
 mod service;
 mod node_table;
-mod stats;
 mod ip_utils;
 mod connection_filter;
 
 pub use service::NetworkService;
-pub use stats::NetworkStats;
 pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 pub use host::NetworkContext;
 

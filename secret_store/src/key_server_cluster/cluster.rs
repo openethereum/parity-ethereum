@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io;
-use std::time;
+use std::time::{Duration, Instant};
 use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet};
 use std::collections::btree_map::Entry;
@@ -53,10 +53,10 @@ const MAINTAIN_INTERVAL: u64 = 10;
 
 /// When no messages have been received from node within KEEP_ALIVE_SEND_INTERVAL seconds,
 /// we must send KeepAlive message to the node to check if it still responds to messages.
-const KEEP_ALIVE_SEND_INTERVAL: u64 = 30;
+const KEEP_ALIVE_SEND_INTERVAL: Duration = Duration::from_secs(30);
 /// When no messages have been received from node within KEEP_ALIVE_DISCONNECT_INTERVAL seconds,
 /// we must treat this node as non-responding && disconnect from it.
-const KEEP_ALIVE_DISCONNECT_INTERVAL: u64 = 60;
+const KEEP_ALIVE_DISCONNECT_INTERVAL: Duration = Duration::from_secs(60);
 
 /// Empty future.
 pub type BoxedEmptyFuture = Box<Future<Item = (), Error = ()> + Send>;
@@ -220,7 +220,7 @@ pub struct Connection {
 	/// Connection key.
 	key: KeyPair,
 	/// Last message time.
-	last_message_time: Mutex<time::Instant>,
+	last_message_time: Mutex<Instant>,
 }
 
 impl ClusterCore {
@@ -324,7 +324,7 @@ impl ClusterCore {
 	/// Schedule mainatain procedures.
 	fn schedule_maintain(handle: &Handle, data: Arc<ClusterData>) {
 		let d = data.clone();
-		let interval: BoxedEmptyFuture = Box::new(Interval::new(time::Duration::new(MAINTAIN_INTERVAL, 0), handle)
+		let interval: BoxedEmptyFuture = Box::new(Interval::new(Duration::new(MAINTAIN_INTERVAL, 0), handle)
 			.expect("failed to create interval")
 			.and_then(move |_| Ok(ClusterCore::maintain(data.clone())))
 			.for_each(|_| Ok(()))
@@ -374,12 +374,12 @@ impl ClusterCore {
 	fn keep_alive(data: Arc<ClusterData>) {
 		data.sessions.sessions_keep_alive();
 		for connection in data.connections.active_connections() {
-			let last_message_diff = time::Instant::now() - connection.last_message_time();
-			if last_message_diff > time::Duration::from_secs(KEEP_ALIVE_DISCONNECT_INTERVAL) {
+			let last_message_diff = Instant::now() - connection.last_message_time();
+			if last_message_diff > KEEP_ALIVE_DISCONNECT_INTERVAL {
 				data.connections.remove(data.clone(), connection.node_id(), connection.is_inbound());
 				data.sessions.on_connection_timeout(connection.node_id());
 			}
-			else if last_message_diff > time::Duration::from_secs(KEEP_ALIVE_SEND_INTERVAL) {
+			else if last_message_diff > KEEP_ALIVE_SEND_INTERVAL {
 				data.spawn(connection.send_message(Message::Cluster(ClusterMessage::KeepAlive(message::KeepAlive {}))));
 			}
 		}
@@ -434,7 +434,7 @@ impl ClusterCore {
 
 	/// Process single message from the connection.
 	fn process_connection_message(data: Arc<ClusterData>, connection: Arc<Connection>, message: Message) {
-		connection.set_last_message_time(time::Instant::now());
+		connection.set_last_message_time(Instant::now());
 		trace!(target: "secretstore_net", "{}: received message {} from {}", data.self_key_pair.public(), message, connection.node_id());
 		// error is ignored as we only process errors on session level
 		match message {
@@ -799,7 +799,7 @@ impl Connection {
 			is_inbound: is_inbound,
 			stream: connection.stream,
 			key: connection.key,
-			last_message_time: Mutex::new(time::Instant::now()),
+			last_message_time: Mutex::new(Instant::now()),
 		})
 	}
 
@@ -811,11 +811,11 @@ impl Connection {
 		&self.node_id
 	}
 
-	pub fn last_message_time(&self) -> time::Instant {
+	pub fn last_message_time(&self) -> Instant {
 		*self.last_message_time.lock()
 	}
 
-	pub fn set_last_message_time(&self, last_message_time: time::Instant) {
+	pub fn set_last_message_time(&self, last_message_time: Instant) {
 		*self.last_message_time.lock() = last_message_time;
 	}
 
@@ -1085,7 +1085,7 @@ fn make_socket_address(address: &str, port: u16) -> Result<SocketAddr, Error> {
 #[cfg(test)]
 pub mod tests {
 	use std::sync::Arc;
-	use std::time;
+	use std::time::{Duration, Instant};
 	use std::collections::{BTreeSet, VecDeque};
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
@@ -1103,6 +1103,8 @@ pub mod tests {
 	use key_server_cluster::signing_session_schnorr::{SessionImpl as SchnorrSigningSession};
 	use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVersionNegotiationSession,
 		IsolatedSessionTransport as KeyVersionNegotiationSessionTransport};
+
+	const TIMEOUT: Duration = Duration::from_millis(300);
 
 	#[derive(Default)]
 	pub struct DummyClusterClient;
@@ -1192,15 +1194,15 @@ pub mod tests {
 		}
 	}
 
-	pub fn loop_until<F>(core: &mut Core, timeout: time::Duration, predicate: F) where F: Fn() -> bool {
-		let start = time::Instant::now();
+	pub fn loop_until<F>(core: &mut Core, timeout: Duration, predicate: F) where F: Fn() -> bool {
+		let start = Instant::now();
 		loop {
-			core.turn(Some(time::Duration::from_millis(1)));
+			core.turn(Some(Duration::from_millis(1)));
 			if predicate() {
 				break;
 			}
 
-			if time::Instant::now() - start > timeout {
+			if Instant::now() - start > timeout {
 				panic!("no result in {:?}", timeout);
 			}
 		}
@@ -1248,7 +1250,7 @@ pub mod tests {
 		let mut core = Core::new().unwrap();
 		let clusters = make_clusters(&core, 6010, 3);
 		run_clusters(&clusters);
-		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+		loop_until(&mut core, TIMEOUT, || clusters.iter().all(all_connections_established));
 	}
 
 	#[test]
@@ -1269,14 +1271,14 @@ pub mod tests {
 		let mut core = Core::new().unwrap();
 		let clusters = make_clusters(&core, 6016, 3);
 		run_clusters(&clusters);
-		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+		loop_until(&mut core, TIMEOUT, || clusters.iter().all(all_connections_established));
 
 		// ask one of nodes to produce faulty generation sessions
 		clusters[1].client().make_faulty_generation_sessions();
 
 		// start && wait for generation session to fail
 		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
-		loop_until(&mut core, time::Duration::from_millis(300), || session.joint_public_and_secret().is_some()
+		loop_until(&mut core, TIMEOUT, || session.joint_public_and_secret().is_some()
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_err());
 
@@ -1285,7 +1287,7 @@ pub mod tests {
 			if let Some(session) = clusters[i].client().generation_session(&SessionId::default()) {
 				// wait for both session completion && session removal (session completion event is fired
 				// before session is removed from its own container by cluster)
-				loop_until(&mut core, time::Duration::from_millis(300), || session.joint_public_and_secret().is_some()
+				loop_until(&mut core, TIMEOUT, || session.joint_public_and_secret().is_some()
 					&& clusters[i].client().generation_session(&SessionId::default()).is_none());
 				assert!(session.joint_public_and_secret().unwrap().is_err());
 			}
@@ -1298,14 +1300,14 @@ pub mod tests {
 		let mut core = Core::new().unwrap();
 		let clusters = make_clusters(&core, 6025, 3);
 		run_clusters(&clusters);
-		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+		loop_until(&mut core, TIMEOUT, || clusters.iter().all(all_connections_established));
 
 		// ask one of nodes to produce faulty generation sessions
 		clusters[0].client().make_faulty_generation_sessions();
 
 		// start && wait for generation session to fail
 		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
-		loop_until(&mut core, time::Duration::from_millis(300), || session.joint_public_and_secret().is_some()
+		loop_until(&mut core, TIMEOUT, || session.joint_public_and_secret().is_some()
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_err());
 
@@ -1314,7 +1316,7 @@ pub mod tests {
 			if let Some(session) = clusters[i].client().generation_session(&SessionId::default()) {
 				// wait for both session completion && session removal (session completion event is fired
 				// before session is removed from its own container by cluster)
-				loop_until(&mut core, time::Duration::from_millis(300), || session.joint_public_and_secret().is_some()
+				loop_until(&mut core, TIMEOUT, || session.joint_public_and_secret().is_some()
 					&& clusters[i].client().generation_session(&SessionId::default()).is_none());
 				assert!(session.joint_public_and_secret().unwrap().is_err());
 			}
@@ -1327,11 +1329,11 @@ pub mod tests {
 		let mut core = Core::new().unwrap();
 		let clusters = make_clusters(&core, 6019, 3);
 		run_clusters(&clusters);
-		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+		loop_until(&mut core, TIMEOUT, || clusters.iter().all(all_connections_established));
 
 		// start && wait for generation session to complete
 		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
-		loop_until(&mut core, time::Duration::from_millis(300), || (session.state() == GenerationSessionState::Finished
+		loop_until(&mut core, TIMEOUT, || (session.state() == GenerationSessionState::Finished
 			|| session.state() == GenerationSessionState::Failed)
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_ok());
@@ -1339,7 +1341,7 @@ pub mod tests {
 		// check that session is either removed from all nodes, or nonexistent (already removed)
 		for i in 1..3 {
 			if let Some(session) = clusters[i].client().generation_session(&SessionId::default()) {
-				loop_until(&mut core, time::Duration::from_millis(300), || (session.state() == GenerationSessionState::Finished
+				loop_until(&mut core, TIMEOUT, || (session.state() == GenerationSessionState::Finished
 					|| session.state() == GenerationSessionState::Failed)
 					&& clusters[i].client().generation_session(&SessionId::default()).is_none());
 				assert!(session.joint_public_and_secret().unwrap().is_err());
@@ -1352,7 +1354,7 @@ pub mod tests {
 		let mut core = Core::new().unwrap();
 		let clusters = make_clusters(&core, 6022, 3);
 		run_clusters(&clusters);
-		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+		loop_until(&mut core, TIMEOUT, || clusters.iter().all(all_connections_established));
 
 		// generation session
 		{
@@ -1388,11 +1390,11 @@ pub mod tests {
 		let mut core = Core::new().unwrap();
 		let clusters = make_clusters(&core, 6028, 3);
 		run_clusters(&clusters);
-		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+		loop_until(&mut core, TIMEOUT, || clusters.iter().all(all_connections_established));
 
 		// start && wait for generation session to complete
 		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
-		loop_until(&mut core, time::Duration::from_millis(300), || (session.state() == GenerationSessionState::Finished
+		loop_until(&mut core, TIMEOUT, || (session.state() == GenerationSessionState::Finished
 			|| session.state() == GenerationSessionState::Failed)
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_ok());
@@ -1406,7 +1408,7 @@ pub mod tests {
 		let session0 = clusters[0].client().new_schnorr_signing_session(Default::default(), signature.into(), None, Default::default()).unwrap();
 		let session = clusters[0].data.sessions.schnorr_signing_sessions.first().unwrap();
 
-		loop_until(&mut core, time::Duration::from_millis(300), || session.is_finished() && (0..3).all(|i|
+		loop_until(&mut core, TIMEOUT, || session.is_finished() && (0..3).all(|i|
 			clusters[i].data.sessions.schnorr_signing_sessions.is_empty()));
 		session0.wait().unwrap();
 
@@ -1415,7 +1417,7 @@ pub mod tests {
 		let session2 = clusters[2].client().new_schnorr_signing_session(Default::default(), signature.into(), None, Default::default()).unwrap();
 		let session = clusters[2].data.sessions.schnorr_signing_sessions.first().unwrap();
 
-		loop_until(&mut core, time::Duration::from_millis(300), || session.is_finished()  && (0..3).all(|i|
+		loop_until(&mut core, TIMEOUT, || session.is_finished()  && (0..3).all(|i|
 			clusters[i].data.sessions.schnorr_signing_sessions.is_empty()));
 		session2.wait().unwrap();
 
@@ -1427,7 +1429,7 @@ pub mod tests {
 		let session1 = clusters[0].client().new_schnorr_signing_session(Default::default(), signature.into(), None, Default::default()).unwrap();
 		let session = clusters[0].data.sessions.schnorr_signing_sessions.first().unwrap();
 
-		loop_until(&mut core, time::Duration::from_millis(300), || session.is_finished());
+		loop_until(&mut core, TIMEOUT, || session.is_finished());
 		session1.wait().unwrap_err();
 	}
 
@@ -1437,11 +1439,11 @@ pub mod tests {
 		let mut core = Core::new().unwrap();
 		let clusters = make_clusters(&core, 6041, 4);
 		run_clusters(&clusters);
-		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+		loop_until(&mut core, TIMEOUT, || clusters.iter().all(all_connections_established));
 
 		// start && wait for generation session to complete
 		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
-		loop_until(&mut core, time::Duration::from_millis(300), || (session.state() == GenerationSessionState::Finished
+		loop_until(&mut core, TIMEOUT, || (session.state() == GenerationSessionState::Finished
 			|| session.state() == GenerationSessionState::Failed)
 			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_ok());
@@ -1455,7 +1457,7 @@ pub mod tests {
 		let session0 = clusters[0].client().new_ecdsa_signing_session(Default::default(), signature.into(), None, H256::random()).unwrap();
 		let session = clusters[0].data.sessions.ecdsa_signing_sessions.first().unwrap();
 
-		loop_until(&mut core, time::Duration::from_millis(1000), || session.is_finished() && (0..3).all(|i|
+		loop_until(&mut core, Duration::from_millis(1000), || session.is_finished() && (0..3).all(|i|
 			clusters[i].data.sessions.ecdsa_signing_sessions.is_empty()));
 		session0.wait().unwrap();
 
@@ -1463,7 +1465,7 @@ pub mod tests {
 		let signature = sign(Random.generate().unwrap().secret(), &Default::default()).unwrap();
 		let session2 = clusters[2].client().new_ecdsa_signing_session(Default::default(), signature.into(), None, H256::random()).unwrap();
 		let session = clusters[2].data.sessions.ecdsa_signing_sessions.first().unwrap();
-		loop_until(&mut core, time::Duration::from_millis(1000), || session.is_finished()  && (0..3).all(|i|
+		loop_until(&mut core, Duration::from_millis(1000), || session.is_finished()  && (0..3).all(|i|
 			clusters[i].data.sessions.ecdsa_signing_sessions.is_empty()));
 		session2.wait().unwrap();
 
@@ -1474,7 +1476,7 @@ pub mod tests {
 		let signature = sign(Random.generate().unwrap().secret(), &Default::default()).unwrap();
 		let session1 = clusters[0].client().new_ecdsa_signing_session(Default::default(), signature.into(), None, H256::random()).unwrap();
 		let session = clusters[0].data.sessions.ecdsa_signing_sessions.first().unwrap();
-		loop_until(&mut core, time::Duration::from_millis(1000), || session.is_finished());
+		loop_until(&mut core, Duration::from_millis(1000), || session.is_finished());
 		session1.wait().unwrap_err();
 	}
 }

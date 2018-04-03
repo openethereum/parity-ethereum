@@ -22,22 +22,22 @@ use ethcore::block_status::BlockStatus;
 use ethcore::client::{ClientReport, EnvInfo, ClientIoMessage};
 use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
 use ethcore::machine::EthereumMachine;
-use ethcore::error::BlockImportError;
+use ethcore::error::{Error, BlockImportError};
 use ethcore::ids::BlockId;
 use ethcore::header::{BlockNumber, Header};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::blockchain_info::BlockChainInfo;
-use ethcore::spec::Spec;
+use ethcore::spec::{Spec, SpecHardcodedSync};
 use ethcore::encoded;
 use io::IoChannel;
 use parking_lot::{Mutex, RwLock};
 use ethereum_types::{H256, U256};
 use futures::{IntoFuture, Future};
 
-use kvdb::{self, KeyValueDB};
+use kvdb::KeyValueDB;
 
 use self::fetch::ChainDataFetcher;
-use self::header_chain::{AncestryIter, HeaderChain};
+use self::header_chain::{AncestryIter, HeaderChain, HardcodedSync};
 
 use cache::Cache;
 
@@ -59,6 +59,8 @@ pub struct Config {
 	pub verify_full: bool,
 	/// Should it check the seal of blocks?
 	pub check_seal: bool,
+	/// Disable hardcoded sync.
+	pub no_hardcoded_sync: bool,
 }
 
 impl Default for Config {
@@ -68,6 +70,7 @@ impl Default for Config {
 			chain_column: None,
 			verify_full: true,
 			check_seal: true,
+			no_hardcoded_sync: false,
 		}
 	}
 }
@@ -175,11 +178,14 @@ impl<T: ChainDataFetcher> Client<T> {
 		fetcher: T,
 		io_channel: IoChannel<ClientIoMessage>,
 		cache: Arc<Mutex<Cache>>
-	) -> Result<Self, kvdb::Error> {
+	) -> Result<Self, Error> {
 		Ok(Client {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, config.check_seal),
 			engine: spec.engine.clone(),
-			chain: HeaderChain::new(db.clone(), chain_col, &spec, cache)?,
+			chain: {
+				let hs_cfg = if config.no_hardcoded_sync { HardcodedSync::Deny } else { HardcodedSync::Allow };
+				HeaderChain::new(db.clone(), chain_col, &spec, cache, hs_cfg)?
+			},
 			report: RwLock::new(ClientReport::default()),
 			import_lock: Mutex::new(()),
 			db: db,
@@ -187,6 +193,14 @@ impl<T: ChainDataFetcher> Client<T> {
 			fetcher: fetcher,
 			verify_full: config.verify_full,
 		})
+	}
+
+	/// Generates the specifications for hardcoded sync. This is typically only called manually
+	/// from time to time by a Parity developer in order to update the chain specifications.
+	///
+	/// Returns `None` if we are at the genesis block.
+	pub fn read_hardcoded_sync(&self) -> Result<Option<SpecHardcodedSync>, Error> {
+		self.chain.read_hardcoded_sync()
 	}
 
 	/// Adds a new `LightChainNotify` listener.

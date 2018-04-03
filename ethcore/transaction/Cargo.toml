@@ -12,7 +12,7 @@ heapsize = "0.4"
 keccak-hash = { path = "../../util/hash" }
 rlp = { path = "../../util/rlp" }
 unexpected = { path = "../../util/unexpected" }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 
 [dev-dependencies]
 rustc-hex= "1.0"
