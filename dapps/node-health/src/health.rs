@@ -17,7 +17,7 @@
 //! Reporting node's health.
 
 use std::sync::Arc;
-use std::time;
+use std::time::Duration;
 use futures::Future;
 use futures::sync::oneshot;
 use types::{HealthInfo, HealthStatus, Health};
@@ -26,7 +26,7 @@ use parity_reactor::Remote;
 use parking_lot::Mutex;
 use {SyncStatus};
 
-const TIMEOUT_SECS: u64 = 5;
+const TIMEOUT: Duration = Duration::from_secs(5);
 const PROOF: &str = "Only one closure is invoked.";
 
 /// A struct enabling you to query for node's health.
@@ -57,7 +57,7 @@ impl NodeHealth {
 				let _ = tx.lock().take().expect(PROOF).send(Ok(result));
 				Ok(())
 			}),
-			time::Duration::from_secs(TIMEOUT_SECS),
+			TIMEOUT,
 			move || {
 				let _ = tx2.lock().take().expect(PROOF).send(Err(()));
 			},

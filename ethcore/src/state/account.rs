@@ -27,7 +27,7 @@ use bytes::{Bytes, ToPretty};
 use trie;
 use trie::{SecTrieDB, Trie, TrieFactory, TrieError};
 use pod_account::*;
-use rlp::*;
+use rlp::{RlpStream, encode};
 use lru_cache::LruCache;
 use basic_account::BasicAccount;
 

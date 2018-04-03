@@ -8,7 +8,7 @@ rust-crypto = "0.2.36"
 tiny-keccak = "1.3"
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1", optional = true }
 ethkey = { path = "../ethkey", optional = true }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 subtle = "0.5"
 
 [features]
