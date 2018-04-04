@@ -98,7 +98,7 @@ use ethereum_types::{H256, U256};
 use plain_hasher::H256FastMap;
 use parking_lot::RwLock;
 use bytes::Bytes;
-use rlp::*;
+use rlp::{UntrustedRlp, RlpStream, DecoderError, Encodable};
 use network::{self, PeerId, PacketId};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};
@@ -106,7 +106,7 @@ use ethcore::error::*;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
 use transaction::PendingTransaction;
 use sync_io::SyncIo;
-use super::SyncConfig;
+use super::{WarpSync, SyncConfig};
 use block_sync::{BlockDownloader, BlockRequest, BlockDownloaderImportError as DownloaderImportError, DownloadAction};
 use rand::Rng;
 use snapshot::{Snapshot, ChunkType};
@@ -395,10 +395,10 @@ pub struct ChainSync {
 	transactions_stats: TransactionsStats,
 	/// Enable ancient block downloading
 	download_old_blocks: bool,
-	/// Enable warp sync.
-	enable_warp_sync: bool,
 	/// Shared private tx service.
 	private_tx_handler: Arc<PrivateTxHandler>,
+	/// Enable warp sync.
+	warp_sync: WarpSync,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -407,9 +407,16 @@ impl ChainSync {
 	/// Create a new instance of syncing strategy.
 	pub fn new(config: SyncConfig, chain: &BlockChainClient, private_tx_handler: Arc<PrivateTxHandler>) -> ChainSync {
 		let chain_info = chain.chain_info();
+		let best_block = chain.chain_info().best_block_number;
+		let state = match config.warp_sync {
+			WarpSync::Enabled => SyncState::WaitingPeers,
+			WarpSync::OnlyAndAfter(block) if block > best_block => SyncState::WaitingPeers,
+			_ => SyncState::Idle,
+		};
+
 		let mut sync = ChainSync {
-			state: if config.warp_sync { SyncState::WaitingPeers } else { SyncState::Idle },
-			starting_block: chain.chain_info().best_block_number,
+			state,
+			starting_block: best_block,
 			highest_block: None,
 			peers: HashMap::new(),
 			handshaking_peers: HashMap::new(),
@@ -423,8 +430,8 @@ impl ChainSync {
 			snapshot: Snapshot::new(),
 			sync_start_time: None,
 			transactions_stats: TransactionsStats::default(),
-			enable_warp_sync: config.warp_sync,
 			private_tx_handler,
+			warp_sync: config.warp_sync,
 		};
 		sync.update_targets(chain);
 		sync
@@ -522,10 +529,12 @@ impl ChainSync {
 	}
 
 	fn maybe_start_snapshot_sync(&mut self, io: &mut SyncIo) {
-		if !self.enable_warp_sync || io.snapshot_service().supported_versions().is_none() {
+		if !self.warp_sync.is_enabled() || io.snapshot_service().supported_versions().is_none() {
+			trace!(target: "sync", "Skipping warp sync. Disabled or not supported.");
 			return;
 		}
 		if self.state != SyncState::WaitingPeers && self.state != SyncState::Blocks && self.state != SyncState::Waiting {
+			trace!(target: "sync", "Skipping warp sync. State: {:?}", self.state);
 			return;
 		}
 		// Make sure the snapshot block is not too far away from best block and network best block and
@@ -534,11 +543,16 @@ impl ChainSync {
 		let fork_block = self.fork_block.as_ref().map(|&(n, _)| n).unwrap_or(0);
 
 		let (best_hash, max_peers, snapshot_peers) = {
+			let expected_warp_block = match self.warp_sync {
+				WarpSync::OnlyAndAfter(block) => block,
+				_ => 0,
+			};
 			//collect snapshot infos from peers
 			let snapshots = self.peers.iter()
 				.filter(|&(_, p)| p.is_allowed() && p.snapshot_number.map_or(false, |sn|
 					our_best_block < sn && (sn - our_best_block) > SNAPSHOT_RESTORE_THRESHOLD &&
 					sn > fork_block &&
+					sn > expected_warp_block &&
 					self.highest_block.map_or(true, |highest| highest >= sn && (highest - sn) <= SNAPSHOT_RESTORE_THRESHOLD)
 				))
 				.filter_map(|(p, peer)| peer.snapshot_hash.map(|hash| (p, hash.clone())))
@@ -568,7 +582,7 @@ impl ChainSync {
 				trace!(target: "sync", "Starting unconfirmed snapshot sync {:?} with {:?}", hash, peers);
 				self.start_snapshot_sync(io, peers);
 			}
-		} else if timeout {
+		} else if timeout && !self.warp_sync.is_warp_only() {
 			trace!(target: "sync", "No snapshots found, starting full sync");
 			self.state = SyncState::Idle;
 			self.continue_sync(io);
@@ -640,10 +654,6 @@ impl ChainSync {
 			block_set: None,
 		};
 
-		if self.sync_start_time.is_none() {
-			self.sync_start_time = Some(Instant::now());
-		}
-
 		trace!(target: "sync", "New peer {} (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{}, snapshot:{:?})",
 			peer_id, peer.protocol_version, peer.network_id, peer.difficulty, peer.latest_hash, peer.genesis, peer.snapshot_number);
 		if io.is_expired() {
@@ -671,6 +681,10 @@ impl ChainSync {
 			io.disable_peer(peer_id);
 			trace!(target: "sync", "Peer {} unsupported eth protocol ({})", peer_id, peer.protocol_version);
 			return Ok(());
+		}
+
+		if self.sync_start_time.is_none() {
+			self.sync_start_time = Some(Instant::now());
 		}
 
 		self.peers.insert(peer_id.clone(), peer);
@@ -1182,9 +1196,14 @@ impl ChainSync {
 				self.sync_peer(io, p, false);
 			}
 		}
-		if (self.state != SyncState::WaitingPeers && self.state != SyncState::SnapshotWaiting && self.state != SyncState::Waiting && self.state != SyncState::Idle)
-			&& !self.peers.values().any(|p| p.asking != PeerAsking::Nothing && p.block_set != Some(BlockSet::OldBlocks) && p.can_sync()) {
 
+		if
+			self.state != SyncState::WaitingPeers &&
+			self.state != SyncState::SnapshotWaiting &&
+			self.state != SyncState::Waiting &&
+			self.state != SyncState::Idle &&
+			!self.peers.values().any(|p| p.asking != PeerAsking::Nothing && p.block_set != Some(BlockSet::OldBlocks) && p.can_sync())
+		{
 			self.complete_sync(io);
 		}
 	}
@@ -1235,7 +1254,13 @@ impl ChainSync {
 		if force || higher_difficulty || self.old_blocks.is_some() {
 			match self.state {
 				SyncState::WaitingPeers => {
-					trace!(target: "sync", "Checking snapshot sync: {} vs {}", peer_snapshot_number, chain_info.best_block_number);
+					trace!(
+						target: "sync",
+						"Checking snapshot sync: {} vs {} (peer: {})",
+						peer_snapshot_number,
+						chain_info.best_block_number,
+						peer_id
+					);
 					self.maybe_start_snapshot_sync(io);
 				},
 				SyncState::Idle | SyncState::Blocks | SyncState::NewBlocks => {
@@ -1971,7 +1996,7 @@ impl ChainSync {
 	fn propagate_new_hashes(&mut self, chain_info: &BlockChainInfo, io: &mut SyncIo, peers: &[PeerId]) -> usize {
 		trace!(target: "sync", "Sending NewHashes to {:?}", peers);
 		let mut sent = 0;
-		let last_parent = &io.chain().best_block_header().parent_hash();
+		let last_parent = *io.chain().best_block_header().parent_hash();
 		for peer_id in peers {
 			sent += match ChainSync::create_new_hashes_rlp(io.chain(), &last_parent, &chain_info.best_block_hash) {
 				Some(rlp) => {

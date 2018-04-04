@@ -8,7 +8,7 @@ license = "GPL-3.0"
 [dependencies]
 elastic-array = "0.10"
 rlp = { version = "0.2.1", path = "../rlp" }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 keccak-hash = { version = "0.1", path = "../hash" }
 
 [dev-dependencies]

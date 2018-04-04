@@ -9,4 +9,4 @@ authors = ["Parity Technologies <admin@parity.io>"]
 error-chain = "0.11"
 log = "0.3"
 smallvec = "0.4"
-ethereum-types = "0.2"
+ethereum-types = "0.3"

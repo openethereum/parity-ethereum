@@ -86,26 +86,75 @@ pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<No
 	let key_server_set = key_server_set::OnChainKeyServerSet::new(trusted_client.clone(), self_key_pair.clone(),
 		config.cluster_config.auto_migrate_enabled, config.cluster_config.nodes.clone())?;
 	let key_storage = Arc::new(key_storage::PersistentKeyStorage::new(&config)?);
-	let key_server = Arc::new(key_server::KeyServerImpl::new(&config.cluster_config, key_server_set.clone(), self_key_pair.clone(), acl_storage, key_storage.clone())?);
+	let key_server = Arc::new(key_server::KeyServerImpl::new(&config.cluster_config, key_server_set.clone(), self_key_pair.clone(), acl_storage.clone(), key_storage.clone())?);
 	let cluster = key_server.cluster();
+	let key_server: Arc<KeyServer> = key_server;
 
-	// prepare listeners
+	// prepare HTTP listener
 	let http_listener = match config.listener_address {
-		Some(listener_address) => Some(listener::http_listener::KeyServerHttpListener::start(listener_address, key_server.clone())?),
+		Some(listener_address) => Some(listener::http_listener::KeyServerHttpListener::start(listener_address, Arc::downgrade(&key_server))?),
 		None => None,
 	};
-	let contract_listener = config.service_contract_address.map(|service_contract_address| {
-		let service_contract = Arc::new(listener::service_contract::OnChainServiceContract::new(trusted_client, service_contract_address, self_key_pair.clone()));
-		let contract_listener = listener::service_contract_listener::ServiceContractListener::new(listener::service_contract_listener::ServiceContractListenerParams {
-			contract: service_contract,
-			key_server: key_server.clone(),
-			self_key_pair: self_key_pair,
-			key_server_set: key_server_set,
-			cluster: cluster,
-			key_storage: key_storage,
-		});
-		client.add_notify(contract_listener.clone());
-		contract_listener
-	});
+
+	// prepare service contract listeners
+	let create_service_contract = |address, name, api_mask|
+		Arc::new(listener::service_contract::OnChainServiceContract::new(
+			api_mask,
+			trusted_client.clone(),
+			name,
+			address,
+			self_key_pair.clone()));
+
+	let mut contracts: Vec<Arc<listener::service_contract::ServiceContract>> = Vec::new();
+	config.service_contract_address.map(|address|
+		create_service_contract(address,
+			listener::service_contract::SERVICE_CONTRACT_REGISTRY_NAME.to_owned(),
+			listener::ApiMask::all()))
+		.map(|l| contracts.push(l));
+	config.service_contract_srv_gen_address.map(|address|
+		create_service_contract(address,
+			listener::service_contract::SRV_KEY_GEN_SERVICE_CONTRACT_REGISTRY_NAME.to_owned(),
+			listener::ApiMask { server_key_generation_requests: true, ..Default::default() }))
+		.map(|l| contracts.push(l));
+	config.service_contract_srv_retr_address.map(|address|
+		create_service_contract(address,
+			listener::service_contract::SRV_KEY_RETR_SERVICE_CONTRACT_REGISTRY_NAME.to_owned(),
+			listener::ApiMask { server_key_retrieval_requests: true, ..Default::default() }))
+		.map(|l| contracts.push(l));
+	config.service_contract_doc_store_address.map(|address|
+		create_service_contract(address,
+			listener::service_contract::DOC_KEY_STORE_SERVICE_CONTRACT_REGISTRY_NAME.to_owned(),
+			listener::ApiMask { document_key_store_requests: true, ..Default::default() }))
+		.map(|l| contracts.push(l));
+	config.service_contract_doc_sretr_address.map(|address|
+		create_service_contract(address,
+			listener::service_contract::DOC_KEY_SRETR_SERVICE_CONTRACT_REGISTRY_NAME.to_owned(),
+			listener::ApiMask { document_key_shadow_retrieval_requests: true, ..Default::default() }))
+		.map(|l| contracts.push(l));
+
+	let contract: Option<Arc<listener::service_contract::ServiceContract>> = match contracts.len() {
+		0 => None,
+		1 => Some(contracts.pop().expect("contract.len() is 1; qed")),
+		_ => Some(Arc::new(listener::service_contract_aggregate::OnChainServiceContractAggregate::new(contracts))),
+	};
+
+	let contract_listener = match contract {
+		Some(contract) => Some({
+			let listener = listener::service_contract_listener::ServiceContractListener::new(
+				listener::service_contract_listener::ServiceContractListenerParams {
+					contract: contract,
+					self_key_pair: self_key_pair.clone(),
+					key_server_set: key_server_set,
+					acl_storage: acl_storage,
+					cluster: cluster,
+					key_storage: key_storage,
+				}
+			)?;
+			client.add_notify(listener.clone());
+			listener
+		}),
+		None => None,
+	};
+
 	Ok(Box::new(listener::Listener::new(key_server, http_listener, contract_listener)))
 }

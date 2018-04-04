@@ -31,7 +31,7 @@ use rustc_hex::FromHex;
 use ethereum_types::{H256, Address};
 use bytes::BytesRef;
 
-evm_test!{test_blockhash_eip210: test_blockhash_eip210_jit, test_blockhash_eip210_int}
+evm_test!{test_blockhash_eip210: test_blockhash_eip210_int}
 fn test_blockhash_eip210(factory: Factory) {
 	let get_prev_hash_code = Arc::new("600143034060205260206020f3".from_hex().unwrap()); // this returns previous block hash
 	let get_prev_hash_code_hash = keccak(get_prev_hash_code.as_ref());

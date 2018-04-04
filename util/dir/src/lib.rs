@@ -156,7 +156,7 @@ impl DatabaseDirectories {
 	/// Base DB directory for the given fork.
 	// TODO: remove in 1.7
 	pub fn legacy_fork_path(&self) -> PathBuf {
-		Path::new(&self.legacy_path).join(format!("{:?}{}", H64::from(self.genesis_hash), self.fork_name.as_ref().map(|f| format!("-{}", f)).unwrap_or_default()))
+		Path::new(&self.legacy_path).join(format!("{:x}{}", H64::from(self.genesis_hash), self.fork_name.as_ref().map(|f| format!("-{}", f)).unwrap_or_default()))
 	}
 
 	/// Spec root directory for the given fork.
@@ -232,9 +232,9 @@ pub fn default_local_path() -> String {
 }
 
 /// Default hypervisor path
-pub fn default_hypervisor_path() -> String {
+pub fn default_hypervisor_path() -> PathBuf {
 	let app_info = AppInfo { name: PRODUCT_HYPERVISOR, author: AUTHOR };
-	get_app_root(AppDataType::UserData, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity-hypervisor".to_owned())
+	get_app_root(AppDataType::UserData, &app_info).unwrap_or_else(|_| "$HOME/.parity-hypervisor".into())
 }
 
 /// Get home directory.

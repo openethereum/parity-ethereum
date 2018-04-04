@@ -31,7 +31,7 @@ use views;
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, Bloom, U256, Address};
-use rlp::Rlp;
+use rlp::{Rlp, RlpStream};
 
 /// Owning header view.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -144,6 +144,9 @@ impl Body {
 
 // forwarders to borrowed view.
 impl Body {
+	/// Get raw rlp of transactions
+	pub fn transactions_rlp(&self) -> Rlp { self.view().transactions_rlp() }
+
 	/// Get a vector of all transactions.
 	pub fn transactions(&self) -> Vec<UnverifiedTransaction> { self.view().transactions() }
 
@@ -155,6 +158,9 @@ impl Body {
 
 	/// The hash of each transaction in the block.
 	pub fn transaction_hashes(&self) -> Vec<H256> { self.view().transaction_hashes() }
+
+	/// Get raw rlp of uncle headers
+	pub fn uncles_rlp(&self) -> Rlp { self.view().uncles_rlp() }
 
 	/// Decode uncle headers.
 	pub fn uncles(&self) -> Vec<FullHeader> { self.view().uncles() }
@@ -180,6 +186,15 @@ impl HeapSizeOf for Block {
 impl Block {
 	/// Create a new owning block view. The raw bytes passed in must be an rlp-encoded block.
 	pub fn new(raw: Vec<u8>) -> Self { Block(raw) }
+
+	/// Create a new owning block view by concatenating the encoded header and body
+	pub fn new_from_header_and_body(header: &views::HeaderView, body: &views::BodyView) -> Self {
+		let mut stream = RlpStream::new_list(3);
+		stream.append_raw(header.rlp().as_raw(), 1);
+		stream.append_raw(body.transactions_rlp().as_raw(), 1);
+		stream.append_raw(body.uncles_rlp().as_raw(), 1);
+		Block::new(stream.out())
+	}
 
 	/// Get a borrowed view of the whole block.
 	#[inline]

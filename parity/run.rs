@@ -101,6 +101,7 @@ pub struct RunCmd {
 	pub net_conf: ethsync::NetworkConfiguration,
 	pub network_id: Option<u64>,
 	pub warp_sync: bool,
+	pub warp_barrier: Option<u64>,
 	pub public_node: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer_conf: GasPricerConfig,
@@ -516,7 +517,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	}
 
 	sync_config.fork_block = spec.fork_block();
-	let mut warp_sync = cmd.warp_sync;
+	let mut warp_sync = spec.engine.supports_warp() && cmd.warp_sync;
 	if warp_sync {
 		// Logging is not initialized yet, so we print directly to stderr
 		if fat_db {
@@ -530,7 +531,11 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 			warp_sync = false;
 		}
 	}
-	sync_config.warp_sync = spec.engine.supports_warp() && warp_sync;
+	sync_config.warp_sync = match (warp_sync, cmd.warp_barrier) {
+		(true, Some(block)) => ethsync::WarpSync::OnlyAndAfter(block),
+		(true, _) => ethsync::WarpSync::Enabled,
+		_ => ethsync::WarpSync::Disabled,
+	};
 	sync_config.download_old_blocks = cmd.download_old_blocks;
 	sync_config.serve_light = cmd.serve_light;
 
@@ -573,7 +578,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	}
 
 	// display warning if using --no-hardcoded-sync
-	if !cmd.no_hardcoded_sync {
+	if cmd.no_hardcoded_sync {
 		warn!("The --no-hardcoded-sync flag has no effect if you don't use --light");
 	}
 

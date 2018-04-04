@@ -38,7 +38,7 @@ const TOKEN: TimerToken = 1;
 const TIMEOUT_MS: u64 = 1000 * 60 * 10;
 
 // But make each attempt last only 9 minutes
-const PURGE_TIMEOUT_MS: u64 = 1000 * 60 * 9;
+const PURGE_TIMEOUT: Duration = Duration::from_millis(1000 * 60 * 9);
 
 /// Periodically culls the transaction queue of mined transactions.
 pub struct QueueCull<T> {
@@ -100,6 +100,6 @@ impl<T: LightChainClient + 'static> IoHandler<ClientIoMessage> for QueueCull<T> 
 					future::Either::B(future::ok(()))
 				},
 			}
-		}, Duration::from_millis(PURGE_TIMEOUT_MS), || {})
+		}, PURGE_TIMEOUT, || {})
 	}
 }

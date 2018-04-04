@@ -242,7 +242,6 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 	}
 
 	fn uninstall_filter(&self, index: Index) -> Result<bool> {
-		self.polls().lock().remove_poll(&index.value());
-		Ok(true)
+		Ok(self.polls().lock().remove_poll(&index.value()))
 	}
 }

@@ -653,7 +653,7 @@ impl Miner {
 	}
 
 	fn update_gas_limit<C: BlockChain>(&self, client: &C) {
-		let gas_limit = client.best_block_header().gas_limit();
+		let gas_limit = *client.best_block_header().gas_limit();
 		let mut queue = self.transaction_queue.write();
 		queue.set_gas_limit(gas_limit);
 		if let GasLimit::Auto = self.options.tx_queue_gas_limit {
@@ -703,7 +703,7 @@ impl Miner {
 		condition: Option<TransactionCondition>,
 		transaction_queue: &mut BanningTransactionQueue,
 	) -> Vec<Result<TransactionImportResult, Error>> {
-		let best_block_header = client.best_block_header().decode();
+		let best_block_header = client.best_block_header();
 		let insertion_time = client.chain_info().best_block_number;
 		let mut inserted = Vec::with_capacity(transactions.len());
 

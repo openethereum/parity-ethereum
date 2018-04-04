@@ -55,7 +55,7 @@ impl FakeRegistrar {
 
 	pub fn set_result(&self, hash: H256, result: Result<Bytes, String>) {
 		self.responses.lock().insert(
-			(URLHINT.into(), format!("{}{:?}", URLHINT_RESOLVE, hash)),
+			(URLHINT.into(), format!("{}{:x}", URLHINT_RESOLVE, hash)),
 			result
 		);
 	}

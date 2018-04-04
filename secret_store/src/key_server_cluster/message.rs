@@ -272,6 +272,8 @@ pub struct InitializeSession {
 	pub session: MessageSessionId,
 	/// Session-level nonce.
 	pub session_nonce: u64,
+	/// Session origin address (if any).
+	pub origin: Option<SerializableAddress>,
 	/// Session author.
 	pub author: SerializableAddress,
 	/// All session participants along with their identification numbers.
@@ -713,6 +715,8 @@ pub struct DecryptionConsensusMessage {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
+	/// Session origin (in consensus initialization message).
+	pub origin: Option<SerializableAddress>,
 	/// Consensus message.
 	pub message: ConsensusMessage,
 }
@@ -788,6 +792,8 @@ pub struct DecryptionSessionDelegation {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
+	/// Session origin.
+	pub origin: Option<SerializableAddress>,
 	/// Requester.
 	pub requester: SerializableRequester,
 	/// Key version.

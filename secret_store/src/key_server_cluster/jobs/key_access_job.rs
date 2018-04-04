@@ -78,7 +78,7 @@ impl JobExecutor for KeyAccessJob {
 		}
 		
 		self.requester = Some(partial_request.clone());
-		self.acl_storage.check(&partial_request.public(&self.id).ok_or(Error::InsufficientRequesterData)?, &self.id)
+		self.acl_storage.check(partial_request.address(&self.id).map_err(Error::InsufficientRequesterData)?, &self.id)
 			.map_err(|_| Error::AccessDenied)
 			.map(|is_confirmed| if is_confirmed { JobPartialRequestAction::Respond(true) } else { JobPartialRequestAction::Reject(false) })
 	}

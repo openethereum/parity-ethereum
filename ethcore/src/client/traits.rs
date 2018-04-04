@@ -121,7 +121,7 @@ pub trait BlockInfo {
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
 	/// Get the best block header.
-	fn best_block_header(&self) -> encoded::Header;
+	fn best_block_header(&self) -> Header;
 
 	/// Get raw block data by block header hash.
 	fn block(&self, id: BlockId) -> Option<encoded::Block>;
