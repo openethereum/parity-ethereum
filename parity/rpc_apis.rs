@@ -28,6 +28,7 @@ use ethcore::miner::Miner;
 use ethcore::snapshot::SnapshotService;
 use ethcore_logger::RotatingLogger;
 use ethsync::{ManageNetwork, SyncProvider, LightSync};
+use futures_cpupool::CpuPool;
 use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{self as core, MetaIoHandler};
 use light::client::LightChainClient;
@@ -225,6 +226,7 @@ pub struct FullDependencies {
 	pub dapps_address: Option<Host>,
 	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
+	pub pool: CpuPool,
 	pub remote: parity_reactor::Remote,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
 	pub gas_price_percentile: usize,
@@ -253,7 +255,7 @@ impl FullDependencies {
 			}
 		}
 
-		let nonces = Arc::new(Mutex::new(dispatch::Reservations::with_pool(self.fetch.pool())));
+		let nonces = Arc::new(Mutex::new(dispatch::Reservations::with_pool(self.pool.clone())));
 		let dispatcher = FullDispatcher::new(
 			self.client.clone(),
 			self.miner.clone(),
@@ -355,6 +357,7 @@ impl FullDependencies {
 						&self.net_service,
 						self.dapps_service.clone(),
 						self.fetch.clone(),
+						self.pool.clone(),
 					).to_delegate())
 				},
 				Api::Traces => {
@@ -430,6 +433,7 @@ pub struct LightDependencies<T> {
 	pub dapps_address: Option<Host>,
 	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
+	pub pool: CpuPool,
 	pub geth_compatibility: bool,
 	pub remote: parity_reactor::Remote,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
@@ -451,7 +455,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 			self.on_demand.clone(),
 			self.cache.clone(),
 			self.transaction_queue.clone(),
-			Arc::new(Mutex::new(dispatch::Reservations::with_pool(self.fetch.pool()))),
+			Arc::new(Mutex::new(dispatch::Reservations::with_pool(self.pool.clone()))),
 			self.gas_price_percentile,
 		);
 
@@ -564,6 +568,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.sync.clone(),
 						self.dapps_service.clone(),
 						self.fetch.clone(),
+						self.pool.clone(),
 					).to_delegate())
 				},
 				Api::Traces => {

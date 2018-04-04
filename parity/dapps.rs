@@ -23,6 +23,7 @@ use dir::helpers::replace_home;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethsync::LightSync;
 use futures::{Future, future, IntoFuture};
+use futures_cpupool::CpuPool;
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
 use light::client::LightChainClient;
@@ -156,6 +157,7 @@ pub struct Dependencies {
 	pub sync_status: Arc<SyncStatus>,
 	pub contract_client: Arc<ContractClient>,
 	pub fetch: FetchClient,
+	pub pool: CpuPool,
 	pub signer: Arc<SignerService>,
 	pub ui_address: Option<(String, u16)>,
 }
@@ -249,7 +251,7 @@ mod server {
 		let web_proxy_tokens = Arc::new(move |token| signer.web_proxy_access_token_domain(&token));
 
 		Ok(parity_dapps::Middleware::dapps(
-			deps.fetch.pool(),
+			deps.pool,
 			deps.node_health,
 			deps.ui_address,
 			extra_embed_on,
@@ -269,7 +271,7 @@ mod server {
 		dapps_domain: &str,
 	) -> Result<Middleware, String> {
 		Ok(parity_dapps::Middleware::ui(
-			deps.fetch.pool(),
+			deps.pool,
 			deps.node_health,
 			dapps_domain,
 			deps.contract_client,
