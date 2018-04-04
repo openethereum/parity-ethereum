@@ -304,7 +304,7 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) 
 
 /// Check header parameters agains parent header.
 fn verify_parent(header: &Header, parent: &Header, gas_limit_divisor: U256) -> Result<(), Error> {
-	assert!(!header.parent_hash().is_zero() && &parent.hash() != header.parent_hash(),
+	assert!(header.parent_hash().is_zero() || &parent.hash() == header.parent_hash(),
 			"Parent hash should already have been verified; qed");
 
 	if header.timestamp() <= parent.timestamp() {
