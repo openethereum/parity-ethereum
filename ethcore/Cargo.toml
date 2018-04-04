@@ -45,7 +45,7 @@ num_cpus = "1.2"
 parity-machine = { path = "../machine" }
 parking_lot = "0.5"
 price-info = { path = "../price-info" }
-rayon = "0.9"
+rayon = "1.0"
 rand = "0.4"
 rlp = { path = "../util/rlp" }
 rlp_compress = { path = "../util/rlp_compress" }
