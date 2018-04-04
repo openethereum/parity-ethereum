@@ -255,8 +255,6 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// If a change can be enacted immediately then return `No` from this function but
 	/// `Yes` from `is_epoch_end`.
 	///
-	/// If auxiliary data of the block is required, return an auxiliary request and the function will be
-	/// called again with them.
 	/// Return `Yes` or `No` when the answer is definitively known.
 	///
 	/// Should not interact with state.
