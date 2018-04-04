@@ -548,7 +548,7 @@ pub fn enact(
 	strip_receipts: bool,
 ) -> Result<LockedBlock, Error> {
 	{
-		if ::log::max_log_level() >= ::log::LogLevel::Trace {
+		if ::log::max_level() >= ::log::Level::Trace {
 			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
 			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
 				header.number(), s.root(), header.author(), s.balance(&header.author())?);
@@ -679,7 +679,7 @@ mod tests {
 		let transactions = transactions?;
 
 		{
-			if ::log::max_log_level() >= ::log::LogLevel::Trace {
+			if ::log::max_level() >= ::log::Level::Trace {
 				let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
 				trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
 					header.number(), s.root(), header.author(), s.balance(&header.author())?);

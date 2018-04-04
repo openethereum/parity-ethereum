@@ -22,8 +22,8 @@ keccak-hash = { path = "../util/hash" }
 triehash = { path = "../util/triehash" }
 kvdb = { path = "../util/kvdb" }
 macros = { path = "../util/macros" }
-log = "0.3"
-env_logger = "0.4"
+log = "0.4"
+env_logger = "0.5"
 rand = "0.4"
 heapsize = "0.4"
 semver = "0.9"

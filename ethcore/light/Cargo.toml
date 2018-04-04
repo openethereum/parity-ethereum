@@ -7,7 +7,7 @@ version = "1.11.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-log = "0.3"
+log = "0.4"
 ethcore = { path = ".."}
 ethcore-bytes = { path = "../../util/bytes" }
 ethcore-transaction = { path = "../transaction" }

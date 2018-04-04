@@ -9,7 +9,7 @@ ethcore = { path = ".." }
 ethcore-io = { path = "../../util/io" }
 kvdb = { path = "../../util/kvdb" }
 kvdb-rocksdb = { path = "../../util/kvdb-rocksdb" }
-log = "0.3"
+log = "0.4"
 stop-guard = { path = "../../util/stop-guard" }
 
 [dev-dependencies]

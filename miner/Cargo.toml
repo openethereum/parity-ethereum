@@ -22,7 +22,7 @@ futures = "0.1"
 heapsize = "0.4"
 keccak-hash = { path = "../util/hash" }
 linked-hash-map = "0.5"
-log = "0.3"
+log = "0.4"
 parking_lot = "0.5"
 rustc-hex = "1.0"
 table = { path = "../util/table" }
