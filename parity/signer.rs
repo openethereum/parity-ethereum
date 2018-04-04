@@ -32,10 +32,10 @@ pub struct NewToken {
 	pub message: String,
 }
 
-pub fn new_service(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> rpc_apis::SignerService {
-	let signer_path = ws_conf.signer_path.clone();
+pub fn new_service(ws_conf: &rpc::WsConfiguration, logger_config: &LogConfig) -> rpc_apis::SignerService {
 	let logger_config_color = logger_config.color;
-	let signer_enabled = ui_conf.enabled;
+	let signer_path = ws_conf.signer_path.clone();
+	let signer_enabled = ws_conf.support_token_api;
 
 	rpc_apis::SignerService::new(move || {
 		generate_new_token(&signer_path, logger_config_color).map_err(|e| format!("{:?}", e))
@@ -56,6 +56,24 @@ pub fn execute(ws_conf: rpc::WsConfiguration, ui_conf: rpc::UiConfiguration, log
 pub fn generate_token_and_url(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> Result<NewToken, String> {
 	let code = generate_new_token(&ws_conf.signer_path, logger_config.color).map_err(|err| format!("Error generating token: {:?}", err))?;
 	let auth_url = format!("http://{}:{}/#/auth?token={}", ui_conf.interface, ui_conf.port, code);
+	let colored = |s: String| match logger_config.color {
+		true => format!("{}", White.bold().paint(s)),
+		false => s,
+	};
+
+	if !ui_conf.enabled {
+		return Ok(NewToken {
+			token: code.clone(),
+			url: auth_url.clone(),
+			message: format!(
+				r#"
+Generated token:
+{}
+"#,
+				colored(code)
+			),
+		})
+	}
 
 	// And print in to the console
 	Ok(NewToken {
@@ -67,10 +85,7 @@ Open: {}
 to authorize your browser.
 Or use the generated token:
 {}"#,
-			match logger_config.color {
-				true => format!("{}", White.bold().paint(auth_url)),
-				false => auth_url
-			},
+			colored(auth_url),
 			code
 		)
 	})

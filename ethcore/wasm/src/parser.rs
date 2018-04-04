@@ -22,14 +22,18 @@ use parity_wasm::elements::{self, Deserialize};
 use parity_wasm::peek_size;
 
 fn gas_rules(wasm_costs: &vm::WasmCosts) -> rules::Set {
-	rules::Set::new({
-		let mut vals = ::std::collections::HashMap::with_capacity(4);
-		vals.insert(rules::InstructionType::Load, wasm_costs.mem as u32);
-		vals.insert(rules::InstructionType::Store, wasm_costs.mem as u32);
-		vals.insert(rules::InstructionType::Div, wasm_costs.div as u32);
-		vals.insert(rules::InstructionType::Mul, wasm_costs.mul as u32);
-		vals
-	}).with_grow_cost(wasm_costs.grow_mem)
+	rules::Set::new(
+		wasm_costs.regular,
+		{
+			let mut vals = ::std::collections::HashMap::with_capacity(8);
+			vals.insert(rules::InstructionType::Load, rules::Metering::Fixed(wasm_costs.mem as u32));
+			vals.insert(rules::InstructionType::Store, rules::Metering::Fixed(wasm_costs.mem as u32));
+			vals.insert(rules::InstructionType::Div, rules::Metering::Fixed(wasm_costs.div as u32));
+			vals.insert(rules::InstructionType::Mul, rules::Metering::Fixed(wasm_costs.mul as u32));
+			vals
+		})
+		.with_grow_cost(wasm_costs.grow_mem)
+		.with_forbidden_floats()
 }
 
 /// Splits payload to code and data according to params.params_type, also
@@ -71,7 +75,12 @@ pub fn payload<'a>(params: &'a vm::ActionParams, wasm_costs: &vm::WasmCosts)
 	let contract_module = wasm_utils::inject_gas_counter(
 		deserialized_module,
 		&gas_rules(wasm_costs),
-	);
+	).map_err(|_| vm::Error::Wasm(format!("Wasm contract error: bytecode invalid")))?;
+
+	let contract_module = wasm_utils::stack_height::inject_limiter(
+		contract_module,
+		wasm_costs.max_stack_height,
+	).map_err(|_| vm::Error::Wasm(format!("Wasm contract error: stack limiter failure")))?;
 
 	let data = match params.params_type {
 		vm::ParamsType::Embedded => {

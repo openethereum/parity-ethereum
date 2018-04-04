@@ -21,6 +21,7 @@ use crypto::Keccak256;
 use random::Random;
 use smallvec::SmallVec;
 use account::{Cipher, Kdf, Aes128Ctr, Pbkdf2, Prf};
+use subtle;
 
 /// Encrypted data
 #[derive(Debug, PartialEq, Clone)]
@@ -136,7 +137,7 @@ impl Crypto {
 
 		let mac = crypto::derive_mac(&derived_right_bits, &self.ciphertext).keccak256();
 
-		if mac != self.mac {
+		if subtle::slices_equal(&mac, &self.mac) == 0 {
 			return Err(Error::InvalidPassword);
 		}
 
@@ -158,7 +159,7 @@ impl Crypto {
 #[cfg(test)]
 mod tests {
 	use ethkey::{Generator, Random};
-	use super::Crypto;
+	use super::{Crypto, Error};
 
 	#[test]
 	fn crypto_with_secret_create() {
@@ -169,11 +170,10 @@ mod tests {
 	}
 
 	#[test]
-	#[should_panic]
 	fn crypto_with_secret_invalid_password() {
 		let keypair = Random.generate().unwrap();
 		let crypto = Crypto::with_secret(keypair.secret(), "this is sparta", 10240);
-		let _ = crypto.secret("this is sparta!").unwrap();
+		assert_matches!(crypto.secret("this is sparta!"), Err(Error::InvalidPassword))
 	}
 
 	#[test]
