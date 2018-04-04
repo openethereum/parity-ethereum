@@ -38,8 +38,8 @@ pub use ethkey::Public;
 /// Secret store error
 #[derive(Debug, PartialEq)]
 pub enum Error {
-	/// Bad signature is passed
-	BadSignature,
+	/// Insufficient requester data
+	InsufficientRequesterData(String),
 	/// Access to resource is denied
 	AccessDenied,
 	/// Requested document not found
@@ -77,8 +77,16 @@ pub enum ContractAddress {
 pub struct ServiceConfiguration {
 	/// HTTP listener address. If None, HTTP API is disabled.
 	pub listener_address: Option<NodeAddress>,
-	/// Service contract address. If None, service contract API is disabled.
+	/// Service contract address.
 	pub service_contract_address: Option<ContractAddress>,
+	/// Server key generation service contract address.
+	pub service_contract_srv_gen_address: Option<ContractAddress>,
+	/// Server key retrieval service contract address.
+	pub service_contract_srv_retr_address: Option<ContractAddress>,
+	/// Document key store service contract address.
+	pub service_contract_doc_store_address: Option<ContractAddress>,
+	/// Document key shadow retrieval service contract address.
+	pub service_contract_doc_sretr_address: Option<ContractAddress>,
 	/// Is ACL check enabled. If false, everyone has access to all keys. Useful for tests only.
 	pub acl_check_enabled: bool,
 	/// Data directory path for secret store
@@ -131,7 +139,7 @@ pub enum Requester {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
-			Error::BadSignature => write!(f, "Bad signature"),
+			Error::InsufficientRequesterData(ref e) => write!(f, "Insufficient requester data: {}", e),
 			Error::AccessDenied => write!(f, "Access dened"),
 			Error::DocumentNotFound => write!(f, "Document not found"),
 			Error::Hyper(ref msg) => write!(f, "Hyper error: {}", msg),
@@ -163,6 +171,8 @@ impl From<kvdb::Error> for Error {
 impl From<key_server_cluster::Error> for Error {
 	fn from(err: key_server_cluster::Error) -> Self {
 		match err {
+			key_server_cluster::Error::InsufficientRequesterData(err)
+				=> Error::InsufficientRequesterData(err),
 			key_server_cluster::Error::ConsensusUnreachable
 				| key_server_cluster::Error::AccessDenied => Error::AccessDenied,
 			key_server_cluster::Error::MissingKeyShare => Error::DocumentNotFound,
@@ -184,21 +194,35 @@ impl Default for Requester {
 }
 
 impl Requester {
-	pub fn public(&self, server_key_id: &ServerKeyId) -> Option<Public> {
+	pub fn public(&self, server_key_id: &ServerKeyId) -> Result<Public, String> {
 		match *self {
-			Requester::Signature(ref signature) => ethkey::recover(signature, server_key_id).ok(),
-			Requester::Public(ref public) => Some(public.clone()),
-			Requester::Address(_) => None,
+			Requester::Signature(ref signature) => ethkey::recover(signature, server_key_id)
+				.map_err(|e| format!("bad signature: {}", e)),
+			Requester::Public(ref public) => Ok(public.clone()),
+			Requester::Address(_) => Err("cannot recover public from address".into()),
 		}
 	}
 
-	pub fn address(&self, server_key_id: &ServerKeyId) -> Option<ethkey::Address> {
-		self.public(server_key_id).map(|p| ethkey::public_to_address(&p))
+	pub fn address(&self, server_key_id: &ServerKeyId) -> Result<ethkey::Address, String> {
+		self.public(server_key_id)
+			.map(|p| ethkey::public_to_address(&p))
 	}
 }
 
 impl From<ethkey::Signature> for Requester {
 	fn from(signature: ethkey::Signature) -> Requester {
 		Requester::Signature(signature)
+	}
+}
+
+impl From<ethereum_types::Public> for Requester {
+	fn from(public: ethereum_types::Public) -> Requester {
+		Requester::Public(public)
+	}
+}
+
+impl From<ethereum_types::Address> for Requester {
+	fn from(address: ethereum_types::Address) -> Requester {
+		Requester::Address(address)
 	}
 }

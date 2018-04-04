@@ -16,7 +16,7 @@
 
 //! Test client.
 
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrder};
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::mem;
@@ -114,6 +114,8 @@ pub struct TestBlockChainClient {
 	pub traces: RwLock<Option<Vec<LocalizedTrace>>>,
 	/// Pruning history size to report.
 	pub history: RwLock<Option<u64>>,
+	/// Is disabled
+	pub disabled: AtomicBool,
 }
 
 /// Used for generating test client blocks.
@@ -180,6 +182,7 @@ impl TestBlockChainClient {
 			first_block: RwLock::new(None),
 			traces: RwLock::new(None),
 			history: RwLock::new(None),
+			disabled: AtomicBool::new(false),
 		};
 
 		// insert genesis hash.
@@ -356,6 +359,11 @@ impl TestBlockChainClient {
 	pub fn set_history(&self, h: Option<u64>) {
 		*self.history.write() = h;
 	}
+
+	/// Returns true if the client has been disabled.
+	pub fn is_disabled(&self) -> bool {
+		self.disabled.load(AtomicOrder::Relaxed)
+	}
 }
 
 pub fn get_temp_state_db() -> StateDB {
@@ -474,9 +482,10 @@ impl BlockInfo for TestBlockChainClient {
 			.map(encoded::Header::new)
 	}
 
-	fn best_block_header(&self) -> encoded::Header {
+	fn best_block_header(&self) -> Header {
 		self.block_header(BlockId::Hash(self.chain_info().best_block_hash))
 			.expect("Best block always has header.")
+			.decode()
 	}
 
 	fn block(&self, id: BlockId) -> Option<encoded::Block> {
@@ -678,8 +687,14 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn block_number(&self, _id: BlockId) -> Option<BlockNumber> {
-		unimplemented!()
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		match id {
+			BlockId::Number(number) => Some(number),
+			BlockId::Earliest => Some(0),
+			BlockId::Latest => Some(self.chain_info().best_block_number),
+			BlockId::Hash(ref h) =>
+				self.numbers.read().iter().find(|&(_, hash)| hash == h).map(|e| *e.0 as u64)
+		}
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
@@ -826,7 +841,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn set_spec_name(&self, _: String) { unimplemented!(); }
 
-	fn disable(&self) { unimplemented!(); }
+	fn disable(&self) { self.disabled.store(true, AtomicOrder::Relaxed); }
 
 	fn pruning_info(&self) -> PruningInfo {
 		let best_num = self.chain_info().best_block_number;

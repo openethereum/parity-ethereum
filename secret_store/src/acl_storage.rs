@@ -17,12 +17,11 @@
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 use parking_lot::{Mutex, RwLock};
-use ethkey::public_to_address;
 use ethcore::client::{BlockId, ChainNotify, CallContract, RegistryInfo};
 use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use trusted_client::TrustedClient;
-use types::all::{Error, ServerKeyId, Public};
+use types::all::{Error, ServerKeyId};
 
 use_contract!(acl_storage, "AclStorage", "res/acl_storage.json");
 
@@ -30,8 +29,8 @@ const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checke
 
 /// ACL storage of Secret Store
 pub trait AclStorage: Send + Sync {
-	/// Check if requestor with `public` key can access document with hash `document`
-	fn check(&self, public: &Public, document: &ServerKeyId) -> Result<bool, Error>;
+	/// Check if requestor can access document with hash `document`
+	fn check(&self, requester: Address, document: &ServerKeyId) -> Result<bool, Error>;
 }
 
 /// On-chain ACL storage implementation.
@@ -53,7 +52,7 @@ struct CachedContract {
 /// Dummy ACL storage implementation (check always passed).
 #[derive(Default, Debug)]
 pub struct DummyAclStorage {
-	prohibited: RwLock<HashMap<Public, HashSet<ServerKeyId>>>,
+	prohibited: RwLock<HashMap<Address, HashSet<ServerKeyId>>>,
 }
 
 impl OnChainAclStorage {
@@ -70,8 +69,8 @@ impl OnChainAclStorage {
 }
 
 impl AclStorage for OnChainAclStorage {
-	fn check(&self, public: &Public, document: &ServerKeyId) -> Result<bool, Error> {
-		self.contract.lock().check(public, document)
+	fn check(&self, requester: Address, document: &ServerKeyId) -> Result<bool, Error> {
+		self.contract.lock().check(requester, document)
 	}
 }
 
@@ -104,16 +103,15 @@ impl CachedContract {
 		}
 	}
 
-	pub fn check(&mut self, public: &Public, document: &ServerKeyId) -> Result<bool, Error> {
+	pub fn check(&mut self, requester: Address, document: &ServerKeyId) -> Result<bool, Error> {
 		if let Some(client) = self.client.get() {
 			// call contract to check accesss
 			match self.contract_addr {
 				Some(contract_address) => {
-					let address = public_to_address(&public);
 					let do_call = |data| client.call_contract(BlockId::Latest, contract_address, data);
 					self.contract.functions()
 						.check_permissions()
-						.call(address, document.clone(), &do_call)
+						.call(requester, document.clone(), &do_call)
 						.map_err(|e| Error::Internal(e.to_string()))
 				},
 				None => Err(Error::Internal("ACL checker contract is not configured".to_owned())),
@@ -127,18 +125,18 @@ impl CachedContract {
 impl DummyAclStorage {
 	/// Prohibit given requestor access to given documents
 	#[cfg(test)]
-	pub fn prohibit(&self, public: Public, document: ServerKeyId) {
+	pub fn prohibit(&self, requester: Address, document: ServerKeyId) {
 		self.prohibited.write()
-			.entry(public)
+			.entry(requester)
 			.or_insert_with(Default::default)
 			.insert(document);
 	}
 }
 
 impl AclStorage for DummyAclStorage {
-	fn check(&self, public: &Public, document: &ServerKeyId) -> Result<bool, Error> {
+	fn check(&self, requester: Address, document: &ServerKeyId) -> Result<bool, Error> {
 		Ok(self.prohibited.read()
-			.get(public)
+			.get(&requester)
 			.map(|docs| !docs.contains(document))
 			.unwrap_or(true))
 	}

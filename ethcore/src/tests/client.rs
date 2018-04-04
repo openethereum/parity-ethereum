@@ -362,7 +362,7 @@ fn transaction_proof() {
 
 	let mut factories = ::factory::Factories::default();
 	factories.accountdb = ::account_db::Factory::Plain; // raw state values, no mangled keys.
-	let root = client.best_block_header().state_root();
+	let root = *client.best_block_header().state_root();
 
 	let mut state = State::from_existing(backend, root, 0.into(), factories.clone()).unwrap();
 	Executive::new(&mut state, &client.latest_env_info(), test_spec.engine.machine())

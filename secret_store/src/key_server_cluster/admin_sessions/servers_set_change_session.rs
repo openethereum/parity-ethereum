@@ -221,6 +221,7 @@ impl SessionImpl {
 	/// Wait for session completion.
 	pub fn wait(&self) -> Result<(), Error> {
 		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
+			.expect("wait_session returns Some if called without timeout; qed")
 	}
 
 	/// Initialize servers set change session on master node.
@@ -337,7 +338,7 @@ impl SessionImpl {
 		}
 
 		let unknown_sessions_job = UnknownSessionsJob::new_on_master(self.core.key_storage.clone(), self.core.meta.self_node_id.clone());
-		consensus_session.disseminate_jobs(unknown_sessions_job, self.unknown_sessions_transport(), false)
+		consensus_session.disseminate_jobs(unknown_sessions_job, self.unknown_sessions_transport(), false).map(|_| ())
 	}
 
 	/// When unknown sessions are requested.
@@ -1166,7 +1167,7 @@ pub mod tests {
 
 	pub fn generate_key(threshold: usize, nodes_ids: BTreeSet<NodeId>) -> GenerationMessageLoop {
 		let mut gml = GenerationMessageLoop::with_nodes_ids(nodes_ids);
-		gml.master().initialize(Default::default(), false, threshold, gml.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap();
+		gml.master().initialize(Default::default(), Default::default(), false, threshold, gml.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap();
 		while let Some((from, to, message)) = gml.take_message() {
 			gml.process_message((from, to, message)).unwrap();
 		}

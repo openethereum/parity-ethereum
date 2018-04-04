@@ -9,8 +9,6 @@ use blooms::{BloomGroup, GroupPosition};
 pub struct ExtrasUpdate<'a> {
 	/// Block info.
 	pub info: BlockInfo,
-	/// Block timestamp.
-	pub timestamp: u64,
 	/// Current block uncompressed rlp bytes
 	pub block: &'a [u8],
 	/// Modified block hashes.

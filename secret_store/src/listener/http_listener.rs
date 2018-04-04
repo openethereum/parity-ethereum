@@ -16,7 +16,7 @@
 
 use std::collections::BTreeSet;
 use std::io::Read;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use hyper::header;
 use hyper::uri::RequestUri;
 use hyper::method::Method as HttpMethod;
@@ -77,12 +77,12 @@ struct KeyServerHttpHandler {
 
 /// Shared http handler
 struct KeyServerSharedHttpHandler {
-	key_server: Arc<KeyServer>,
+	key_server: Weak<KeyServer>,
 }
 
 impl KeyServerHttpListener {
 	/// Start KeyServer http listener
-	pub fn start(listener_address: NodeAddress, key_server: Arc<KeyServer>) -> Result<Self, Error> {
+	pub fn start(listener_address: NodeAddress, key_server: Weak<KeyServer>) -> Result<Self, Error> {
 		let shared_handler = Arc::new(KeyServerSharedHttpHandler {
 			key_server: key_server,
 		});
@@ -128,56 +128,72 @@ impl HttpHandler for KeyServerHttpHandler {
 		match &req_uri {
 			&RequestUri::AbsolutePath(ref path) => match parse_request(&req_method, &path, &req_body) {
 				Request::GenerateServerKey(document, signature, threshold) => {
-					return_server_public_key(req, res, self.handler.key_server.generate_key(&document, &signature, threshold)
+					return_server_public_key(req, res, self.handler.key_server.upgrade()
+						.map(|key_server| key_server.generate_key(&document, &signature.into(), threshold))
+						.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 						.map_err(|err| {
 							warn!(target: "secretstore", "GenerateServerKey request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::StoreDocumentKey(document, signature, common_point, encrypted_document_key) => {
-					return_empty(req, res, self.handler.key_server.store_document_key(&document, &signature, common_point, encrypted_document_key)
+					return_empty(req, res, self.handler.key_server.upgrade()
+						.map(|key_server| key_server.store_document_key(&document, &signature.into(), common_point, encrypted_document_key))
+						.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 						.map_err(|err| {
 							warn!(target: "secretstore", "StoreDocumentKey request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::GenerateDocumentKey(document, signature, threshold) => {
-					return_document_key(req, res, self.handler.key_server.generate_document_key(&document, &signature, threshold)
+					return_document_key(req, res, self.handler.key_server.upgrade()
+						.map(|key_server| key_server.generate_document_key(&document, &signature.into(), threshold))
+						.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 						.map_err(|err| {
 							warn!(target: "secretstore", "GenerateDocumentKey request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::GetDocumentKey(document, signature) => {
-					return_document_key(req, res, self.handler.key_server.restore_document_key(&document, &signature)
+					return_document_key(req, res, self.handler.key_server.upgrade()
+						.map(|key_server| key_server.restore_document_key(&document, &signature.into()))
+						.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 						.map_err(|err| {
 							warn!(target: "secretstore", "GetDocumentKey request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::GetDocumentKeyShadow(document, signature) => {
-					return_document_key_shadow(req, res, self.handler.key_server.restore_document_key_shadow(&document, &signature)
+					return_document_key_shadow(req, res, self.handler.key_server.upgrade()
+						.map(|key_server| key_server.restore_document_key_shadow(&document, &signature.into()))
+						.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 						.map_err(|err| {
 							warn!(target: "secretstore", "GetDocumentKeyShadow request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::SchnorrSignMessage(document, signature, message_hash) => {
-					return_message_signature(req, res, self.handler.key_server.sign_message_schnorr(&document, &signature, message_hash)
+					return_message_signature(req, res, self.handler.key_server.upgrade()
+						.map(|key_server| key_server.sign_message_schnorr(&document, &signature.into(), message_hash))
+						.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 						.map_err(|err| {
 							warn!(target: "secretstore", "SchnorrSignMessage request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::EcdsaSignMessage(document, signature, message_hash) => {
-					return_message_signature(req, res, self.handler.key_server.sign_message_ecdsa(&document, &signature, message_hash)
+					return_message_signature(req, res, self.handler.key_server.upgrade()
+						.map(|key_server| key_server.sign_message_ecdsa(&document, &signature.into(), message_hash))
+						.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 						.map_err(|err| {
 							warn!(target: "secretstore", "EcdsaSignMessage request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::ChangeServersSet(old_set_signature, new_set_signature, new_servers_set) => {
-					return_empty(req, res, self.handler.key_server.change_servers_set(old_set_signature, new_set_signature, new_servers_set)
+					return_empty(req, res, self.handler.key_server.upgrade()
+						.map(|key_server| key_server.change_servers_set(old_set_signature, new_set_signature, new_servers_set))
+						.unwrap_or(Err(Error::Internal("KeyServer is already destroyed".into())))
 						.map_err(|err| {
 							warn!(target: "secretstore", "ChangeServersSet request {} has failed with: {}", req_uri, err);
 							err
@@ -241,7 +257,7 @@ fn return_bytes<T: Serialize>(req: HttpRequest, mut res: HttpResponse, result: R
 
 fn return_error(mut res: HttpResponse, err: Error) {
 	match err {
-		Error::BadSignature => *res.status_mut() = HttpStatusCode::BadRequest,
+		Error::InsufficientRequesterData(_) => *res.status_mut() = HttpStatusCode::BadRequest,
 		Error::AccessDenied => *res.status_mut() = HttpStatusCode::Forbidden,
 		Error::DocumentNotFound => *res.status_mut() = HttpStatusCode::NotFound,
 		Error::Hyper(_) => *res.status_mut() = HttpStatusCode::BadRequest,
@@ -342,15 +358,16 @@ mod tests {
 	use std::sync::Arc;
 	use hyper::method::Method as HttpMethod;
 	use ethkey::Public;
+	use traits::KeyServer;
 	use key_server::tests::DummyKeyServer;
 	use types::all::NodeAddress;
 	use super::{parse_request, Request, KeyServerHttpListener};
 
 	#[test]
 	fn http_listener_successfully_drops() {
-		let key_server = Arc::new(DummyKeyServer::default());
+		let key_server: Arc<KeyServer> = Arc::new(DummyKeyServer::default());
 		let address = NodeAddress { address: "127.0.0.1".into(), port: 9000 };
-		let listener = KeyServerHttpListener::start(address, key_server).unwrap();
+		let listener = KeyServerHttpListener::start(address, Arc::downgrade(&key_server)).unwrap();
 		drop(listener);
 	}
  

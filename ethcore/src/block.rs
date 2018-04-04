@@ -31,7 +31,7 @@ use vm::{EnvInfo, LastHashes};
 use engines::EthEngine;
 use error::{Error, BlockError};
 use factory::Factories;
-use header::{Header, Seal};
+use header::Header;
 use receipt::{Receipt, TransactionOutcome};
 use state::State;
 use state_db::StateDB;
@@ -57,10 +57,10 @@ impl Block {
 		UntrustedRlp::new(b).as_val::<Block>().is_ok()
 	}
 
-	/// Get the RLP-encoding of the block with or without the seal.
-	pub fn rlp_bytes(&self, seal: Seal) -> Bytes {
+	/// Get the RLP-encoding of the block with the seal.
+	pub fn rlp_bytes(&self) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
-		self.header.stream_rlp(&mut block_rlp, seal);
+		block_rlp.append(&self.header);
 		block_rlp.append_list(&self.transactions);
 		block_rlp.append_list(&self.uncles);
 		block_rlp.out()
@@ -269,7 +269,6 @@ impl<'x> OpenBlock<'x> {
 		r.block.header.set_author(author);
 		r.block.header.set_timestamp_now(parent.timestamp());
 		r.block.header.set_extra_data(extra_data);
-		r.block.header.note_dirty();
 
 		let gas_floor_target = cmp::max(gas_range_target.0, engine.params().min_gas_limit);
 		let gas_ceil_target = cmp::max(gas_range_target.1, gas_floor_target);
@@ -284,7 +283,9 @@ impl<'x> OpenBlock<'x> {
 	}
 
 	/// Alter the timestamp of the block.
-	pub fn set_timestamp(&mut self, timestamp: u64) { self.block.header.set_timestamp(timestamp); }
+	pub fn set_timestamp(&mut self, timestamp: u64) {
+		self.block.header.set_timestamp(timestamp);
+	}
 
 	/// Removes block gas limit.
 	pub fn remove_gas_limit(&mut self) {
@@ -374,8 +375,11 @@ impl<'x> OpenBlock<'x> {
 		s.block.header.set_uncles_hash(keccak(&uncle_bytes));
 		s.block.header.set_state_root(s.block.state.root().clone());
 		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes())));
-		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
-		s.block.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
+		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {
+			b.accrue_bloom(&r.log_bloom);
+			b
+		}));
+		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
 
 		ClosedBlock {
 			block: s.block,
@@ -395,6 +399,7 @@ impl<'x> OpenBlock<'x> {
 		if let Err(e) = s.block.state.commit() {
 			warn!("Encountered error on state commit: {}", e);
 		}
+
 		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &KECCAK_NULL_RLP {
 			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes())));
 		}
@@ -407,8 +412,11 @@ impl<'x> OpenBlock<'x> {
 		}
 
 		s.block.header.set_state_root(s.block.state.root().clone());
-		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
-		s.block.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
+		s.block.header.set_log_bloom(s.block.receipts.iter().fold(Bloom::zero(), |mut b, r| {
+			b.accrue_bloom(&r.log_bloom);
+			b
+		}));
+		s.block.header.set_gas_used(s.block.receipts.last().map_or_else(U256::zero, |r| r.gas_used));
 
 		LockedBlock {
 			block: s.block,
@@ -435,7 +443,7 @@ impl<'x> IsBlock for LockedBlock {
 
 impl ClosedBlock {
 	/// Get the hash of the header without seal arguments.
-	pub fn hash(&self) -> H256 { self.header().rlp_keccak(Seal::Without) }
+	pub fn hash(&self) -> H256 { self.header().bare_hash() }
 
 	/// Turn this into a `LockedBlock`, unable to be reopened again.
 	pub fn lock(self) -> LockedBlock {
@@ -459,7 +467,7 @@ impl ClosedBlock {
 
 impl LockedBlock {
 	/// Get the hash of the header without seal arguments.
-	pub fn hash(&self) -> H256 { self.header().rlp_keccak(Seal::Without) }
+	pub fn hash(&self) -> H256 { self.header().bare_hash() }
 
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	///
@@ -472,6 +480,7 @@ impl LockedBlock {
 				Mismatch { expected: expected_seal_fields, found: seal.len() }));
 		}
 		s.block.header.set_seal(seal);
+		s.block.header.compute_hash();
 		Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes })
 	}
 
@@ -485,22 +494,13 @@ impl LockedBlock {
 	) -> Result<SealedBlock, (Error, LockedBlock)> {
 		let mut s = self;
 		s.block.header.set_seal(seal);
+		s.block.header.compute_hash();
 
 		// TODO: passing state context to avoid engines owning it?
 		match engine.verify_local_seal(&s.block.header) {
 			Err(e) => Err((e, s)),
 			_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
 		}
-	}
-
-	/// Remove state root from transaction receipts to make them EIP-98 compatible.
-	pub fn strip_receipts(self) -> LockedBlock {
-		let mut block = self;
-		for receipt in &mut block.block.receipts {
-			receipt.outcome = TransactionOutcome::Unknown;
-		}
-		block.block.header.set_receipts_root(ordered_trie_root(block.block.receipts.iter().map(|r| r.rlp_bytes())));
-		block
 	}
 }
 
@@ -515,7 +515,7 @@ impl SealedBlock {
 	/// Get the RLP-encoding of the block.
 	pub fn rlp_bytes(&self) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
-		self.block.header.stream_rlp(&mut block_rlp, Seal::With);
+		block_rlp.append(&self.block.header);
 		block_rlp.append_list(&self.block.transactions);
 		block_rlp.append_raw(&self.uncle_bytes, 1);
 		block_rlp.out()
@@ -545,6 +545,7 @@ pub fn enact(
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 	is_epoch_begin: bool,
+	strip_receipts: bool,
 ) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
@@ -572,6 +573,12 @@ pub fn enact(
 
 	for u in uncles {
 		b.push_uncle(u.clone())?;
+	}
+
+	if strip_receipts {
+		for receipt in &mut b.block.receipts {
+			receipt.outcome = TransactionOutcome::Unknown;
+		}
 	}
 
 	Ok(b.close_and_lock())
@@ -616,6 +623,8 @@ pub fn enact_verified(
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 	is_epoch_begin: bool,
+	// Remove state root from transaction receipts to make them EIP-98 compatible.
+	strip_receipts: bool,
 ) -> Result<LockedBlock, Error> {
 	let view = BlockView::new(&block.bytes);
 
@@ -630,6 +639,7 @@ pub fn enact_verified(
 		last_hashes,
 		factories,
 		is_epoch_begin,
+		strip_receipts,
 	)
 }
 
