@@ -869,15 +869,12 @@ impl<B: Backend> State<B> {
 				continue
 			}
 
-			match pod.get(address) {
-				Some(pod_account) => {
-					// needs to be split into two parts for the refcell code here
-					// to work.
-					for key in pod_account.storage.keys() {
-						self.storage_at(address, key)?;
-					}
-				},
-				None => (),
+			if let Some(pod_account) = pod.get(address) {
+				// needs to be split into two parts for the refcell code here
+				// to work.
+				for key in pod_account.storage.keys() {
+					self.storage_at(address, key)?;
+				}
 			}
 		}
 
