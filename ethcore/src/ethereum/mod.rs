@@ -71,6 +71,11 @@ pub fn new_ellaism<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/ellaism.json"))
 }
 
+/// Create a new Easthub mainnet chain spec.
+pub fn new_easthub<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/easthub.json"))
+}
+
 /// Create a new Kovan testnet chain spec.
 pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/kovan.json"))
