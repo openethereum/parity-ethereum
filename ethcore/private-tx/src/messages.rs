@@ -19,6 +19,7 @@ use bytes::Bytes;
 use hash::keccak;
 use rlp::Encodable;
 use ethkey::Signature;
+use transaction::signature::{add_chain_replay_protection, check_replay_protection};
 
 /// Message with private transaction encrypted
 #[derive(Default, Debug, Clone, PartialEq, RlpEncodable, RlpDecodable, Eq)]
@@ -57,19 +58,11 @@ impl SignedPrivateTransaction {
 			private_transaction_hash: private_transaction_hash,
 			r: sig.r().into(),
 			s: sig.s().into(),
-			v: sig.v() as u64 + if let Some(n) = chain_id { 35 + n * 2 } else { 27 },
+			v: add_chain_replay_protection(sig.v() as u64, chain_id),
 		}
 	}
 
-	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
-	pub fn standard_v(&self) -> u8 {
-		match self.v {
-			v if v == 27 => 0 as u8,
-			v if v == 28 => 1 as u8,
-			v if v > 36 => ((v - 1) % 2) as u8,
-			 _ => 4
-		}
-	}
+	pub fn standard_v(&self) -> u8 { check_replay_protection(self.v) }
 
 	/// Construct a signature object from the sig.
 	pub fn signature(&self) -> Signature {

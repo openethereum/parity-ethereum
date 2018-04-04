@@ -16,7 +16,6 @@
 
 //! Encryption providers.
 
-use std::sync::Arc;
 use std::io::Read;
 use std::iter::repeat;
 use std::time::{Instant, Duration};
@@ -46,17 +45,17 @@ pub trait Encryptor: Send + Sync + 'static {
 	fn encrypt(
 		&self,
 		contract_address: &Address,
-		accounts: Arc<AccountProvider>,
+		accounts: &AccountProvider,
 		initialisation_vector: &H128,
-		plain_data: &[u8]
+		plain_data: &[u8],
 	) -> Result<Bytes, Error>;
 
 	/// Decrypt data using previously generated contract key.
 	fn decrypt(
 		&self,
 		contract_address: &Address,
-		accounts: Arc<AccountProvider>,
-		cypher: &[u8]
+		accounts: &AccountProvider,
+		cypher: &[u8],
 	) -> Result<Bytes, Error>;
 }
 
@@ -101,13 +100,13 @@ impl SecretStoreEncryptor {
 		url_suffix: &str,
 		use_post: bool,
 		contract_address: &Address,
-		accounts: Arc<AccountProvider>
+		accounts: &AccountProvider,
 	) -> Result<Bytes, Error> {
 		// check if the key was already cached
 		if let Some(key) = self.obtained_key(contract_address) {
 			return Ok(key);
 		}
-		let contract_address_signature = self.sign_contract_address(contract_address, accounts.clone())?;
+		let contract_address_signature = self.sign_contract_address(contract_address, accounts)?;
 		let requester = self.config.key_server_account.ok_or_else(|| ErrorKind::KeyServerAccountNotSet)?;
 
 		// key id in SS is H256 && we have H160 here => expand with assitional zeros
@@ -146,7 +145,7 @@ impl SecretStoreEncryptor {
 
 		// response is JSON string (which is, in turn, hex-encoded, encrypted Public)
 		let encrypted_bytes: ethjson::bytes::Bytes = result.trim_matches('\"').parse().map_err(|e| ErrorKind::Encrypt(e))?;
-		let password = find_account_password(&self.config.passwords, accounts.clone(), &requester);
+		let password = find_account_password(&self.config.passwords, &*accounts, &requester);
 
 		// decrypt Public
 		let decrypted_bytes = accounts.decrypt(requester, password, &ethcrypto::DEFAULT_MAC, &encrypted_bytes)?;
@@ -185,12 +184,12 @@ impl SecretStoreEncryptor {
 		}
 	}
 
-	fn sign_contract_address(&self, contract_address: &Address, accounts: Arc<AccountProvider>) -> Result<Signature, Error> {
+	fn sign_contract_address(&self, contract_address: &Address, accounts: &AccountProvider) -> Result<Signature, Error> {
 		// key id in SS is H256 && we have H160 here => expand with assitional zeros
 		let contract_address_extended: H256 = contract_address.into();
 		let key_server_account = self.config.key_server_account.ok_or_else(|| ErrorKind::KeyServerAccountNotSet)?;
-		let password = find_account_password(&self.config.passwords, accounts.clone(), &key_server_account);
-		Ok(accounts.sign(key_server_account.clone(), password, H256::from_slice(&contract_address_extended))?)
+		let password = find_account_password(&self.config.passwords, accounts, &key_server_account);
+		Ok(accounts.sign(key_server_account, password, H256::from_slice(&contract_address_extended))?)
 	}
 }
 
@@ -198,16 +197,16 @@ impl Encryptor for SecretStoreEncryptor {
 	fn encrypt(
 		&self,
 		contract_address: &Address,
-		accounts: Arc<AccountProvider>,
+		accounts: &AccountProvider,
 		initialisation_vector: &H128,
-		plain_data: &[u8]
+		plain_data: &[u8],
 	) -> Result<Bytes, Error> {
 		// retrieve the key, try to generate it if it doesn't exist yet
-		let key = match self.retrieve_key("", false, contract_address, accounts.clone()) {
+		let key = match self.retrieve_key("", false, contract_address, &*accounts) {
 			Ok(key) => Ok(key),
 			Err(Error(ErrorKind::EncryptionKeyNotFound(_), _)) => {
 				trace!("Key for account wasnt found in sstore. Creating. Address: {:?}", contract_address);
-				self.retrieve_key(&format!("/{}", self.config.threshold), true, contract_address, accounts.clone())
+				self.retrieve_key(&format!("/{}", self.config.threshold), true, contract_address, &*accounts)
 			}
 			Err(err) => Err(err),
 		}?;
@@ -225,8 +224,8 @@ impl Encryptor for SecretStoreEncryptor {
 	fn decrypt(
 		&self,
 		contract_address: &Address,
-		accounts: Arc<AccountProvider>,
-		cypher: &[u8]
+		accounts: &AccountProvider,
+		cypher: &[u8],
 	) -> Result<Bytes, Error> {
 		// initialization vector takes INIT_VEC_LEN bytes
 		let cypher_len = cypher.len();
@@ -255,9 +254,9 @@ impl Encryptor for NoopEncryptor {
 	fn encrypt(
 		&self,
 		_contract_address: &Address,
-		_accounts: Arc<AccountProvider>,
+		_accounts: &AccountProvider,
 		_initialisation_vector: &H128,
-		data: &[u8]
+		data: &[u8],
 	) -> Result<Bytes, Error> {
 		Ok(data.to_vec())
 	}
@@ -265,8 +264,8 @@ impl Encryptor for NoopEncryptor {
 	fn decrypt(
 		&self,
 		_contract_address: &Address,
-		_accounts: Arc<AccountProvider>,
-		data: &[u8]
+		_accounts: &AccountProvider,
+		data: &[u8],
 	) -> Result<Bytes, Error> {
 		Ok(data.to_vec())
 	}

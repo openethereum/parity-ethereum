@@ -390,7 +390,12 @@ pub struct TestNotify {
 }
 
 impl ChainNotify for TestNotify {
-	fn broadcast(&self, _message_type: ChainMessageType, data: Vec<u8>) {
+	fn broadcast(&self, message: ChainMessageType) {
+		let data = match message {
+			ChainMessageType::Consensus(data) => data,
+			ChainMessageType::SignedPrivateTransaction(data) => data,
+			ChainMessageType::PrivateTransaction(data) => data,
+		};
 		self.messages.write().push(data);
 	}
 }

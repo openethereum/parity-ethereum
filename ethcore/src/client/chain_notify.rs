@@ -20,11 +20,11 @@ use bytes::Bytes;
 /// Messages to broadcast via chain
 pub enum ChainMessageType {
 	/// Consensus message
-	Consensus,
+	Consensus(Vec<u8>),
 	/// Message with private transaction
-	PrivateTransaction,
+	PrivateTransaction(Vec<u8>),
 	/// Message with signed private transaction
-	SignedPrivateTransaction,
+	SignedPrivateTransaction(Vec<u8>),
 }
 
 /// Represents what has to be handled by actor listening to chain events
@@ -55,7 +55,7 @@ pub trait ChainNotify : Send + Sync {
 	}
 
 	/// fires when chain broadcasts a message
-	fn broadcast(&self, _message_type: ChainMessageType, _data: Vec<u8>) {}
+	fn broadcast(&self, _message_type: ChainMessageType) {}
 
 	/// fires when new transactions are received from a peer
 	fn transactions_received(&self,

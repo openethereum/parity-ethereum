@@ -16,6 +16,8 @@
 
 //! Private transactions module.
 
+// Recursion limit required because of
+// error_chain foreign_links.
 #![recursion_limit="256"]
 
 mod encryptor;
@@ -84,7 +86,7 @@ use ethcore::miner::MinerService;
 use ethcore::trace::{Tracer, VMTracer};
 use rustc_hex::FromHex;
 
-// Source avaiable at https://github.com/paritytech/contracts/blob/master/contracts/PrivateContract.sol
+// Source avaiable at https://github.com/parity-contracts/private-tx/blob/master/contracts/PrivateContract.sol
 const DEFAULT_STUB_CONTRACT: &'static str = include_str!("../res/private.evm");
 
 use_contract!(private, "PrivateContract", "res/private.json");
@@ -161,6 +163,7 @@ pub struct Provider {
 pub struct PrivateExecutionResult<T, V> where T: Tracer, V: VMTracer {
 	code: Option<Bytes>,
 	state: Bytes,
+	contract_address: Option<Address>,
 	result: Executed<T::Output, V::Output>,
 }
 
@@ -171,7 +174,7 @@ impl Provider where {
 		accounts: Arc<AccountProvider>,
 		encryptor: Box<Encryptor>,
 		config: ProviderConfig,
-		channel: IoChannel<ClientIoMessage>
+		channel: IoChannel<ClientIoMessage>,
 	) -> Result<Self, Error> {
 		Ok(Provider {
 			encryptor,
@@ -187,6 +190,8 @@ impl Provider where {
 		})
 	}
 
+	// TODO [ToDr] Don't use `ChainNotify` here!
+	// Better to create a separate notification type for this.
 	/// Adds an actor to be notified on certain events
 	pub fn add_notify(&self, target: Arc<ChainNotify>) {
 		self.notify.write().push(Arc::downgrade(&target));
@@ -222,6 +227,12 @@ impl Provider where {
 					encrypted: encrypted_transaction,
 					contract,
 				};
+				// TODO [ToDr] Using BlockId::Latest is bad here,
+				// the block may change in the middle of execution
+				// causing really weird stuff to happen.
+				// We should retrieve hash and stick to that. IMHO
+				// best would be to change the API and only allow H256 instead of BlockID
+				// in private-tx to avoid such mistakes.
 				let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
 				let private_state = self.execute_private_transaction(BlockId::Latest, &signed_transaction)?;
 				trace!("Private transaction created, encrypted transaction: {:?}, private state: {:?}", private, private_state);
@@ -251,7 +262,7 @@ impl Provider where {
 
 	/// Extract signed transaction from private transaction
 	fn extract_original_transaction(&self, private: PrivateTransaction, contract: &Address) -> Result<UnverifiedTransaction, Error> {
-		let encrypted_transaction = private.encrypted.clone();
+		let encrypted_transaction = private.encrypted;
 		let transaction_bytes = self.decrypt(contract, &encrypted_transaction)?;
 		let original_transaction: UnverifiedTransaction = UntrustedRlp::new(&transaction_bytes).as_val()?;
 		Ok(original_transaction)
@@ -275,15 +286,16 @@ impl Provider where {
 				return Ok(());
 			},
 			Some(&validation_account) => {
+				let hash = private_tx.hash();
 				trace!("Private transaction taken for verification");
-				let original_tx = self.extract_original_transaction(private_tx.clone(), &contract)?;
+				let original_tx = self.extract_original_transaction(private_tx, &contract)?;
 				trace!("Validating transaction: {:?}", original_tx);
 				let details_provider = TransactionDetailsProvider::new(&*self.client as &MiningBlockChainClient);
 				let insertion_time = self.client.chain_info().best_block_number;
 				// Verify with the first account available
 				trace!("The following account will be used for verification: {:?}", validation_account);
 				self.transactions_for_verification.lock()
-					.add_transaction(original_tx, contract, validation_account, private_tx.hash(), &details_provider, insertion_time)?;
+					.add_transaction(original_tx, contract, validation_account, hash, &details_provider, insertion_time)?;
 				self.channel.send(ClientIoMessage::NewPrivateTransaction).map_err(|_| ErrorKind::ClientIsMalformed.into())
 			}
 		}
@@ -313,8 +325,8 @@ impl Provider where {
 						let private_state = self.execute_private_transaction(BlockId::Latest, &transaction)?;
 						let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
 						trace!("Hashed effective private state for validator: {:?}", private_state_hash);
-						let password = find_account_password(&self.passwords, self.accounts.clone(), &account);
-						let signed_state = self.accounts.sign(account.clone(), password, private_state_hash)?;
+						let password = find_account_password(&self.passwords, &*self.accounts, &account);
+						let signed_state = self.accounts.sign(account, password, private_state_hash)?;
 						let signed_private_transaction = SignedPrivateTransaction::new(desc.private_hash, signed_state, None);
 						trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
 						self.broadcast_signed_private_transaction(signed_private_transaction.rlp_bytes().into_vec());
@@ -339,13 +351,15 @@ impl Provider where {
 		let tx: SignedPrivateTransaction = UntrustedRlp::new(rlp).as_val()?;
 		trace!("Signature for private transaction received: {:?}", tx);
 		let private_hash = tx.private_transaction_hash();
-		if self.transactions_for_signing.lock().get(&private_hash).is_none() {
-			// Not our transaction, broadcast further to peers
-			self.broadcast_signed_private_transaction(rlp.into());
-			return Ok(());
-		}
+		let desc = match self.transactions_for_signing.lock().get(&private_hash) {
+			None => {
+				// Not our transaction, broadcast further to peers
+				self.broadcast_signed_private_transaction(rlp.into());
+				return Ok(());
+			},
+			Some(desc) => desc,
+		};
 
-		let desc = self.transactions_for_signing.lock().get(&private_hash).expect("None was checked before; qed");
 		let last = self.last_required_signature(&desc, tx.signature())?;
 
 		if last {
@@ -355,7 +369,7 @@ impl Provider where {
 			//Create public transaction
 			let public_tx = self.public_transaction(
 				desc.state.clone(),
-				&desc.original_transaction.clone(),
+				&desc.original_transaction,
 				&rsv,
 				desc.original_transaction.nonce,
 				desc.original_transaction.gas_price
@@ -365,8 +379,8 @@ impl Provider where {
 			let chain_id = desc.original_transaction.chain_id();
 			let hash = public_tx.hash(chain_id);
 			let signer_account = self.signer_account.ok_or_else(|| ErrorKind::SignerAccountNotSet)?;
-			let password = find_account_password(&self.passwords, self.accounts.clone(), &signer_account);
-			let signature = self.accounts.sign(signer_account.clone(), password, hash)?;
+			let password = find_account_password(&self.passwords, &*self.accounts, &signer_account);
+			let signature = self.accounts.sign(signer_account, password, hash)?;
 			let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
 			match self.client.miner().import_own_transaction(&*self.client, signed.into()) {
 				Ok(_) => trace!("Public transaction added to queue"),
@@ -423,12 +437,12 @@ impl Provider where {
 
 	/// Broadcast the private transaction message to the chain
 	fn broadcast_private_transaction(&self, message: Bytes) {
-		self.notify(|notify| notify.broadcast(ChainMessageType::PrivateTransaction, message.clone()));
+		self.notify(|notify| notify.broadcast(ChainMessageType::PrivateTransaction(message.clone())));
 	}
 
 	/// Broadcast signed private transaction message to the chain
 	fn broadcast_signed_private_transaction(&self, message: Bytes) {
-		self.notify(|notify| notify.broadcast(ChainMessageType::SignedPrivateTransaction, message.clone()));
+		self.notify(|notify| notify.broadcast(ChainMessageType::SignedPrivateTransaction(message.clone())));
 	}
 
 	fn iv_from_transaction(transaction: &SignedTransaction) -> H128 {
@@ -445,12 +459,12 @@ impl Provider where {
 
 	fn encrypt(&self, contract_address: &Address, initialisation_vector: &H128, data: &[u8]) -> Result<Bytes, Error> {
 		trace!("Encrypt data using key(address): {:?}", contract_address);
-		Ok(self.encryptor.encrypt(contract_address, self.accounts.clone(), initialisation_vector, data)?)
+		Ok(self.encryptor.encrypt(contract_address, &*self.accounts, initialisation_vector, data)?)
 	}
 
 	fn decrypt(&self, contract_address: &Address, data: &[u8]) -> Result<Bytes, Error> {
 		trace!("Decrypt data using key(address): {:?}", contract_address);
-		Ok(self.encryptor.decrypt(contract_address, self.accounts.clone(), data)?)
+		Ok(self.encryptor.decrypt(contract_address, &*self.accounts, data)?)
 	}
 
 	fn get_decrypted_state(&self, address: &Address, block: BlockId) -> Result<Bytes, Error> {
@@ -515,8 +529,8 @@ impl Provider where {
 				let contract_code = Arc::new(self.get_decrypted_code(contract_address, block)?);
 				let contract_state = self.get_decrypted_state(contract_address, block)?;
 				trace!("Patching contract at {:?}, code: {:?}, state: {:?}", contract_address, contract_code, contract_state);
-				state.patch_account(contract_address, contract_code.clone(), Self::snapshot_to_storage(contract_state))?;
-				Some(contract_address.clone())
+				state.patch_account(contract_address, contract_code, Self::snapshot_to_storage(contract_state))?;
+				Some(*contract_address)
 			},
 			Action::Create => None,
 		};
@@ -544,6 +558,7 @@ impl Provider where {
 		Ok(PrivateExecutionResult {
 			code: encrypted_code,
 			state: encrypted_storage,
+			contract_address,
 			result,
 		})
 	}
@@ -551,7 +566,7 @@ impl Provider where {
 	fn generate_constructor(validators: &[Address], code: Bytes, storage: Bytes) -> Bytes {
 		let constructor_code = DEFAULT_STUB_CONTRACT.from_hex().expect("Default contract code is valid");
 		let private = private::PrivateContract::default();
-		private.constructor(constructor_code, validators.iter().map(|a| a.clone()).collect::<Vec<Address>>(), code, storage)
+		private.constructor(constructor_code, validators.iter().map(|a| *a).collect::<Vec<Address>>(), code, storage)
 	}
 
 	fn generate_set_state_call(signatures: &[Signature], storage: Bytes) -> Bytes {
@@ -577,7 +592,7 @@ impl Provider where {
 	}
 
 	/// Create encrypted public contract deployment transaction.
-	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<Transaction, Error> {
+	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<(Transaction, Option<Address>), Error> {
 		if let Action::Call(_) = source.action {
 			bail!(ErrorKind::BadTransactonType);
 		}
@@ -589,14 +604,15 @@ impl Provider where {
 			validators.len() as u64 * 30000 +
 			executed.code.as_ref().map_or(0, |c| c.len() as u64) * 8000 +
 			executed.state.len() as u64 * 8000;
-		Ok(Transaction {
+		Ok((Transaction {
 			nonce: nonce,
 			action: Action::Create,
 			gas: gas.into(),
 			gas_price: gas_price,
 			value: source.value,
 			data: Self::generate_constructor(validators, executed.code.unwrap_or_default(), executed.state)
-		})
+		},
+		executed.contract_address))
 	}
 
 	/// Create encrypted public contract deployment transaction. Returns updated encrypted state.
@@ -638,7 +654,7 @@ impl Provider where {
 }
 
 /// Try to unlock account using stored password, return found password if any
-fn find_account_password(passwords: &Vec<String>, account_provider: Arc<AccountProvider>, account: &Address) -> Option<String> {
+fn find_account_password(passwords: &Vec<String>, account_provider: &AccountProvider, account: &Address) -> Option<String> {
 	for password in passwords {
 		if let Ok(true) = account_provider.test_password(account, password) {
 			return Some(password.clone());
@@ -657,3 +673,4 @@ impl ChainNotify for Provider {
 		}
 	}
 }
+

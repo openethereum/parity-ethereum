@@ -702,8 +702,11 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	).map_err(|e| format!("Sync error: {}", e))?;
 
 	service.add_notify(chain_notify.clone());
-	private_tx_provider.add_notify(chain_notify.clone());
 	service.add_notify(private_tx_provider.clone());
+
+	// TODO [ToDr] PrivateTX should use separate notifications
+	// re-using ChainNotify for this is a bit abusive.
+	private_tx_provider.add_notify(chain_notify.clone());
 
 	// start network
 	if network_enabled {

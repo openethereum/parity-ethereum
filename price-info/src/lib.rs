@@ -32,7 +32,7 @@ use std::fmt;
 use std::io;
 use std::str;
 
-use fetch::{Client as FetchClient, Fetch, Method};
+use fetch::{Client as FetchClient, Fetch};
 use futures::{Future, Stream};
 use futures::future::{self, Either};
 use futures_cpupool::CpuPool;
@@ -96,7 +96,7 @@ impl<F: Fetch> Client<F> {
 
 	/// Gets the current ETH price and calls `set_price` with the result.
 	pub fn get<G: Fn(PriceInfo) + Sync + Send + 'static>(&self, set_price: G) {
-		let future = self.fetch.fetch(&self.api_endpoint, Method::Get, fetch::Abort::default())
+		let future = self.fetch.get(&self.api_endpoint, fetch::Abort::default())
 			.from_err()
 			.and_then(|response| {
 				if !response.is_success() {
