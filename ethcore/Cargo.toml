@@ -33,6 +33,7 @@ ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 evm = { path = "evm" }
+futures-cpupool = "0.1"
 hardware-wallet = { path = "../hw" }
 heapsize = "0.4"
 itertools = "0.5"
