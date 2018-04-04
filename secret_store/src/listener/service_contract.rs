@@ -234,16 +234,16 @@ impl OnChainServiceContract {
 
 impl ServiceContract for OnChainServiceContract {
 	fn update(&self) -> bool {
-		// TODO [Sec]: registry_address currently reads from BlockId::Latest, instead of
-		// from block with REQUEST_CONFIRMATIONS_REQUIRED confirmations
 		if let &ContractAddress::Registry = &self.address {
 			if let Some(client) = self.client.get() {
-				// update contract address from registry
-				let service_contract_addr = client.registry_address(self.name.clone(), BlockId::Latest).unwrap_or_default();
-				if self.data.read().contract_address != service_contract_addr {
-					trace!(target: "secretstore", "{}: installing {} service contract from address {}",
-						self.self_key_pair.public(), self.name, service_contract_addr);
-					self.data.write().contract_address = service_contract_addr;
+				if let Some(block_hash) = get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED) {
+					// update contract address from registry
+					let service_contract_addr = client.registry_address(self.name.clone(), BlockId::Hash(block_hash)).unwrap_or_default();
+					if self.data.read().contract_address != service_contract_addr {
+						trace!(target: "secretstore", "{}: installing {} service contract from address {}",
+							   self.self_key_pair.public(), self.name, service_contract_addr);
+						self.data.write().contract_address = service_contract_addr;
+					}
 				}
 			}
 		}
