@@ -22,7 +22,6 @@ use rlp::UntrustedRlp;
 
 use ethcore_private_tx::Provider as PrivateTransactionManager;
 use ethereum_types::Address;
-use ethcore::{contract_address, CreateContractAddress};
 use transaction::SignedTransaction;
 
 use jsonrpc_core::{Error};
@@ -77,7 +76,7 @@ impl Private for PrivateClient {
 			num => block_number_to_id(num)
 		};
 
-		let transaction = client.public_creation_transaction(id, &signed_transaction, addresses.as_slice(), gas_price.into())
+		let (transaction, contract_address) = client.public_creation_transaction(id, &signed_transaction, addresses.as_slice(), gas_price.into())
 			.map_err(|e| errors::private_message(e))?;
 		let tx_hash = transaction.hash(None);
 		let request = TransactionRequest {
@@ -90,17 +89,12 @@ impl Private for PrivateClient {
 			data: Some(transaction.data.into()),
 			condition: None,
 		};
-		// TODO [ToDr] This is invalid?
-		// private-tx/src/lib.rs#L532 uses engine to figure out the scheme.
-		let (contract_address, _) = contract_address(CreateContractAddress::FromSenderAndNonce, &signed_transaction.sender().clone(), &transaction.nonce.into(), &[]);
-		// TODO [ToDr] Figure out this:
-		// Why this type contains the entire transaction (request)?
-		// Why Request and not entire SignedTransaction?
+
 		Ok(PrivateTransactionReceiptAndTransaction {
 			transaction: request,
 			receipt: PrivateTransactionReceipt {
 				transaction_hash: tx_hash.into(),
-				contract_address: Some(contract_address.into()),
+				contract_address: contract_address.map(|address| address.into()),
 				status_code: 0,
 			}
 		})

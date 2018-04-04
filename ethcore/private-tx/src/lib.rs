@@ -86,7 +86,7 @@ use ethcore::miner::MinerService;
 use ethcore::trace::{Tracer, VMTracer};
 use rustc_hex::FromHex;
 
-// Source avaiable at https://github.com/paritytech/contracts/blob/master/contracts/PrivateContract.sol
+// Source avaiable at https://github.com/parity-contracts/private-tx/blob/master/contracts/PrivateContract.sol
 const DEFAULT_STUB_CONTRACT: &'static str = include_str!("../res/private.evm");
 
 use_contract!(private, "PrivateContract", "res/private.json");
@@ -163,6 +163,7 @@ pub struct Provider {
 pub struct PrivateExecutionResult<T, V> where T: Tracer, V: VMTracer {
 	code: Option<Bytes>,
 	state: Bytes,
+	contract_address: Option<Address>,
 	result: Executed<T::Output, V::Output>,
 }
 
@@ -557,6 +558,7 @@ impl Provider where {
 		Ok(PrivateExecutionResult {
 			code: encrypted_code,
 			state: encrypted_storage,
+			contract_address,
 			result,
 		})
 	}
@@ -590,7 +592,7 @@ impl Provider where {
 	}
 
 	/// Create encrypted public contract deployment transaction.
-	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<Transaction, Error> {
+	pub fn public_creation_transaction(&self, block: BlockId, source: &SignedTransaction, validators: &[Address], gas_price: U256) -> Result<(Transaction, Option<Address>), Error> {
 		if let Action::Call(_) = source.action {
 			bail!(ErrorKind::BadTransactonType);
 		}
@@ -602,14 +604,15 @@ impl Provider where {
 			validators.len() as u64 * 30000 +
 			executed.code.as_ref().map_or(0, |c| c.len() as u64) * 8000 +
 			executed.state.len() as u64 * 8000;
-		Ok(Transaction {
+		Ok((Transaction {
 			nonce: nonce,
 			action: Action::Create,
 			gas: gas.into(),
 			gas_price: gas_price,
 			value: source.value,
 			data: Self::generate_constructor(validators, executed.code.unwrap_or_default(), executed.state)
-		})
+		},
+		executed.contract_address))
 	}
 
 	/// Create encrypted public contract deployment transaction. Returns updated encrypted state.
