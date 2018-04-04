@@ -44,9 +44,9 @@ impl PrivateClient {
 		}
 	}
 
-	fn unwrap_manager(&self) -> Result<Arc<PrivateTransactionManager>, Error> {
+	fn unwrap_manager(&self) -> Result<&PrivateTransactionManager, Error> {
 		match self.private {
-			Some(ref arc) => Ok(arc.clone()),
+			Some(ref arc) => Ok(&**arc),
 			None => Err(errors::public_unsupported(None)),
 		}
 	}
@@ -89,6 +89,7 @@ impl Private for PrivateClient {
 			data: Some(transaction.data.into()),
 			condition: None,
 		};
+
 		Ok(PrivateTransactionReceiptAndTransaction {
 			transaction: request,
 			receipt: PrivateTransactionReceipt {

@@ -22,7 +22,7 @@ use std::sync::Arc;
 use std::path::PathBuf;
 
 use hash::keccak_buffer;
-use fetch::{self, Fetch, Method};
+use fetch::{self, Fetch};
 use futures_cpupool::CpuPool;
 use futures::{Future, IntoFuture};
 use parity_reactor::Remote;
@@ -153,7 +153,7 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 			.into_future()
 			.and_then(move |url| {
 				debug!(target: "fetch", "Resolved {:?} to {:?}. Fetching...", hash, url);
-				remote_fetch.fetch(&url, Method::Get, abort).from_err()
+				remote_fetch.get(&url, abort).from_err()
 			})
 			.and_then(move |response| {
 				if !response.is_success() {

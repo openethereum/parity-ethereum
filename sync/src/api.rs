@@ -440,13 +440,13 @@ impl ChainNotify for EthSync {
 		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
 	}
 
-	fn broadcast(&self, message_type: ChainMessageType, message: Vec<u8>) {
+	fn broadcast(&self, message_type: ChainMessageType) {
 		self.network.with_context(WARP_SYNC_PROTOCOL_ID, |context| {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
 			match message_type {
-				ChainMessageType::Consensus => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message),
-				ChainMessageType::PrivateTransaction => self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, message),
-				ChainMessageType::SignedPrivateTransaction => self.eth_handler.sync.write().propagate_signed_private_transaction(&mut sync_io, message),
+				ChainMessageType::Consensus(message) => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message),
+				ChainMessageType::PrivateTransaction(message) => self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, message),
+				ChainMessageType::SignedPrivateTransaction(message) => self.eth_handler.sync.write().propagate_signed_private_transaction(&mut sync_io, message),
 			}
 		});
 	}

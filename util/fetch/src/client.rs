@@ -119,8 +119,18 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 	/// The result future.
 	type Result: Future<Item=Response, Error=Error> + Send + 'static;
 
-	/// Get content from some URL.
+	/// Make a request to given URL
 	fn fetch(&self, url: &str, method: Method, abort: Abort) -> Self::Result;
+
+	/// Get content from some URL.
+	fn get(&self, url: &str, abort: Abort) -> Self::Result {
+		self.fetch(url, Method::Get, abort)
+	}
+
+	/// Post content to some URL.
+	fn post(&self, url: &str, abort: Abort) -> Self::Result {
+		self.fetch(url, Method::Post, abort)
+	}
 }
 
 type TxResponse = oneshot::Sender<Result<Response, Error>>;
