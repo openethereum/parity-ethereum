@@ -19,16 +19,20 @@
 //! Spawns an Ethereum network instance and attaches the Whisper protocol RPCs to it.
 //!
 
+extern crate docopt;
 extern crate ethcore_network_devp2p as devp2p;
 extern crate ethcore_network as net;
 extern crate parity_whisper as whisper;
 extern crate serde;
-extern crate docopt;
 extern crate panic_hook;
 
 extern crate jsonrpc_core;
 extern crate jsonrpc_pubsub;
 extern crate jsonrpc_http_server;
+extern crate ethcore_logger as log;
+
+#[macro_use]
+extern crate log as rlog;
 
 #[macro_use]
 extern crate serde_derive;
@@ -52,6 +56,7 @@ Options:
 	--whisper-pool-size SIZE       Specify Whisper pool size [default: 10].
 	-p, --port PORT                Specify which RPC port to use [default: 8545].
 	-a, --address ADDRESS          Specify which address to use [default: 127.0.0.1].
+	-l, --log LEVEL				   Specify log level to use [default: Error].
 	-h, --help                     Display this message and exit.
 
 "#;
@@ -72,6 +77,7 @@ struct Args {
 	flag_whisper_pool_size: usize,
 	flag_port: String,
 	flag_address: String,
+	flag_log: String,
 }
 
 struct WhisperPoolHandle {
@@ -189,6 +195,9 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 	let pool_size = args.flag_whisper_pool_size * POOL_UNIT;
 	let url = format!("{}:{}", args.flag_address, args.flag_port);
 
+	let _ = set_logger(args.flag_log);
+	info!(target: "whisper-cli", "start");
+
 	// Filter manager that will dispatch `decryption tasks`
 	let manager = Arc::new(whisper::rpc::FilterManager::new()?);
 
@@ -228,3 +237,11 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 	// This will never return if the http server runs without errors
 	Ok(())
 }
+
+fn set_logger(log_level: String) -> Result<(), String> {
+	let mut l = log::Config::default();
+	l.mode = Some(log_level);
+	log::setup_log(&l)?;
+	Ok(())
+}
+
