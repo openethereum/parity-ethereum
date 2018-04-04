@@ -2213,4 +2213,37 @@ mod tests {
 		assert!(state.exists(&d).unwrap());
 		assert!(!state.exists(&e).unwrap());
 	}
+
+	#[test]
+	fn should_trace_diff_suicided_accounts() {
+		use pod_account;
+
+		let a = 10.into();
+		let db = get_temp_state_db();
+		let (root, db) = {
+			let mut state = State::new(db, U256::from(0), Default::default());
+			state.add_balance(&a, &100.into(), CleanupMode::ForceCreate).unwrap();
+			state.commit().unwrap();
+			state.drop()
+		};
+
+		let mut state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
+		let original = state.clone();
+		state.kill_account(&a);
+
+		assert_eq!(original.touched_addresses(), vec![]);
+		assert_eq!(state.touched_addresses(), vec![a]);
+
+		let diff = state.diff_from(original).unwrap();
+		let diff_map = diff.get();
+		assert_eq!(diff_map.len(), 1);
+		assert!(diff_map.get(&a).is_some());
+		assert_eq!(diff_map.get(&a),
+				   pod_account::diff_pod(Some(&PodAccount {
+					   balance: U256::from(100),
+					   nonce: U256::zero(),
+					   code: Some(Default::default()),
+					   storage: Default::default()
+				   }), None).as_ref());
+	}
 }
