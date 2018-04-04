@@ -325,6 +325,19 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn supports_warp(&self) -> bool {
 		self.snapshot_components().is_some()
 	}
+
+	/// Return a new open block header timestamp based on the parent timestamp.
+	fn open_block_header_timestamp(&self, parent_timestamp: u64) -> u64 {
+		use std::{time, cmp};
+
+		let now = time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap_or_default();
+		cmp::max(now.as_secs() as u64, parent_timestamp + 1)
+	}
+
+	/// Check whether the parent timestamp is valid.
+	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
+		header_timestamp > parent_timestamp
+	}
 }
 
 /// Common type alias for an engine coupled with an Ethereum-like state machine.
