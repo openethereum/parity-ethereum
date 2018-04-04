@@ -16,7 +16,7 @@
 
 //! Parity upgrade logic
 
-use semver::Version;
+use semver::{Version, SemVerError};
 use std::collections::*;
 use std::fs::{self, File, create_dir_all};
 use std::env;
@@ -32,6 +32,13 @@ pub enum Error {
 	CannotCreateConfigPath,
 	CannotWriteVersionFile,
 	CannotUpdateVersionFile,
+	SemVer(SemVerError),
+}
+
+impl From<SemVerError> for Error {
+	fn from(err: SemVerError) -> Self {
+		Error::SemVer(err)
+	}
 }
 
 const CURRENT_VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -74,7 +81,7 @@ fn push_upgrades(upgrades: &mut UpgradeList)
 {
 	// dummy upgrade (remove when the first one is in)
 	upgrades.insert(
-		UpgradeKey { old_version: Version::parse("0.9.0").unwrap(), new_version: Version::parse("1.0.0").unwrap() },
+		UpgradeKey { old_version: Version::new(0, 9, 0), new_version: Version::new(1, 0, 0)},
 		dummy_upgrade);
 }
 
@@ -82,7 +89,7 @@ fn upgrade_from_version(previous_version: &Version) -> Result<usize, Error> {
 	let mut upgrades = HashMap::new();
 	push_upgrades(&mut upgrades);
 
-	let current_version = Version::parse(CURRENT_VERSION).unwrap();
+	let current_version = Version::parse(CURRENT_VERSION)?;
 
 	let mut count = 0;
 	for upgrade_key in upgrades.keys() {
@@ -114,12 +121,12 @@ fn with_locked_version<F>(db_path: Option<&str>, script: F) -> Result<usize, Err
 					.ok()
 					.and_then(|_| Version::parse(&version_string).ok())
 			})
-			.unwrap_or_else(|| Version::parse("0.9.0").unwrap());
+			.unwrap_or(Version::new(0, 9, 0));
 
 	let mut lock = File::create(&path).map_err(|_| Error::CannotWriteVersionFile)?;
 	let result = script(&version);
 
-	let written_version = Version::parse(CURRENT_VERSION).unwrap();
+	let written_version = Version::parse(CURRENT_VERSION)?;
 	lock.write_all(written_version.to_string().as_bytes()).map_err(|_| Error::CannotUpdateVersionFile)?;
 	result
 }
