@@ -43,5 +43,5 @@ fi
 # Running test's
 echo "________Running Parity Full Test Suite________"
 
-cargo test -j 8 $OPTIONS --features "$FEATURES" --all --exclude evmjit $1
+cargo test -j 8 $OPTIONS --features "$FEATURES" --all $1
 

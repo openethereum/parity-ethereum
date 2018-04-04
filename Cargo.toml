@@ -100,7 +100,6 @@ ui-precompiled = [
 ]
 ui-enabled = ["dapps"]
 dapps = ["parity-dapps"]
-jit = ["ethcore/jit"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
