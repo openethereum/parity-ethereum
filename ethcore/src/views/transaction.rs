@@ -18,30 +18,24 @@
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
 use hash::keccak;
-use rlp::{Rlp, Decodable};
+// use rlp::{Rlp, Decodable};
+use super::ViewRlp;
 
 /// View onto transaction rlp.
 pub struct TransactionView<'a> {
-	rlp: Rlp<'a>
+	rlp: ViewRlp<'a>
 }
 
 impl<'a> TransactionView<'a> {
-	/// Creates new view onto block from raw bytes.
-	pub fn new(bytes: &'a [u8]) -> TransactionView<'a> {
-		TransactionView {
-			rlp: Rlp::new(bytes)
-		}
-	}
-
 	/// Creates new view onto block from rlp.
-	pub fn new_from_rlp(rlp: Rlp<'a>) -> TransactionView<'a> {
+	pub fn new(rlp: ViewRlp<'a>) -> TransactionView<'a> {
 		TransactionView {
 			rlp: rlp
 		}
 	}
 
 	/// Return reference to underlaying rlp.
-	pub fn rlp(&self) -> &Rlp<'a> {
+	pub fn rlp(&self) -> &ViewRlp<'a> {
 		&self.rlp
 	}
 
@@ -50,45 +44,41 @@ impl<'a> TransactionView<'a> {
 		keccak(self.rlp.as_raw())
 	}
 
-	fn rlp_val_at_trusted<T>(&self, index: usize) -> T where T : Decodable {
-		self.rlp.val_at(index).expect("trusted rlp should be valid")
-	}
-
 	/// Get the nonce field of the transaction.
-	pub fn nonce(&self) -> U256 { self.rlp_val_at_trusted(0) }
+	pub fn nonce(&self) -> U256 { self.rlp.val_at(0) }
 
 	/// Get the gas_price field of the transaction.
-	pub fn gas_price(&self) -> U256 { self.rlp_val_at_trusted(1) }
+	pub fn gas_price(&self) -> U256 { self.rlp.val_at(1) }
 
 	/// Get the gas field of the transaction.
-	pub fn gas(&self) -> U256 { self.rlp_val_at_trusted(2) }
+	pub fn gas(&self) -> U256 { self.rlp.val_at(2) }
 
 	/// Get the value field of the transaction.
-	pub fn value(&self) -> U256 { self.rlp_val_at_trusted(4) }
+	pub fn value(&self) -> U256 { self.rlp.val_at(4) }
 
 	/// Get the data field of the transaction.
-	pub fn data(&self) -> Bytes { self.rlp_val_at_trusted(5) }
+	pub fn data(&self) -> Bytes { self.rlp.val_at(5) }
 
 	/// Get the v field of the transaction.
-	pub fn v(&self) -> u8 { let r: u16 = self.rlp_val_at_trusted(6); r as u8 }
+	pub fn v(&self) -> u8 { let r: u16 = self.rlp.val_at(6); r as u8 }
 
 	/// Get the r field of the transaction.
-	pub fn r(&self) -> U256 { self.rlp_val_at_trusted(7) }
+	pub fn r(&self) -> U256 { self.rlp.val_at(7) }
 
 	/// Get the s field of the transaction.
-	pub fn s(&self) -> U256 { self.rlp_val_at_trusted(8) }
+	pub fn s(&self) -> U256 { self.rlp.val_at(8) }
 }
 
 #[cfg(test)]
 mod tests {
 	use rustc_hex::FromHex;
-	use super::TransactionView;
+	use super::{ViewRlp, TransactionView};
 
 	#[test]
 	fn test_transaction_view() {
 		let rlp = "f87c80018261a894095e7baea6a6c7c4c2dfeb977efac326af552d870a9d00000000000000000000000000000000000000000000000000000000001ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804".from_hex().unwrap();
 
-		let view = TransactionView::new(&rlp);
+		let view = view!(TransactionView, &rlp);
 		assert_eq!(view.nonce(), 0.into());
 		assert_eq!(view.gas_price(), 1.into());
 		assert_eq!(view.gas(), 0x61a8.into());

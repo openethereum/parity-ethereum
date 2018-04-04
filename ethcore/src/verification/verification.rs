@@ -38,7 +38,7 @@ use engines::EthEngine;
 use error::{BlockError, Error};
 use header::{BlockNumber, Header};
 use transaction::{SignedTransaction, UnverifiedTransaction};
-use views::BlockView;
+use views::{ViewRlp, BlockView};
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -91,7 +91,7 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &EthEngine, 
 		Some((engine.params().nonce_cap_increment * header.number()).into())
 	} else { None };
 	{
-		let v = BlockView::new(&bytes);
+		let v = view!(BlockView, &bytes);
 		for t in v.transactions() {
 			let t = engine.verify_transaction_unordered(t, &header)?;
 			if let Some(max_nonce) = nonce_cap {
@@ -405,8 +405,8 @@ mod tests {
 		}
 
 		pub fn insert(&mut self, bytes: Bytes) {
-			let number = BlockView::new(&bytes).header_view().number();
-			let hash = BlockView::new(&bytes).header_view().hash();
+			let number = view!(BlockView, &bytes).header_view().number();
+			let hash = view!(BlockView, &bytes).header_view().hash();
 			self.blocks.insert(hash.clone(), bytes);
 			self.numbers.insert(number, hash.clone());
 		}
@@ -445,7 +445,7 @@ mod tests {
 		/// Get the familial details concerning a block.
 		fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
 			self.blocks.get(hash).map(|bytes| {
-				let header = BlockView::new(bytes).header();
+				let header = view!(BlockView, bytes).header();
 				BlockDetails {
 					number: header.number(),
 					total_difficulty: header.difficulty().clone(),
@@ -479,12 +479,12 @@ mod tests {
 	}
 
 	fn basic_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
-		let header = BlockView::new(bytes).header();
+		let header = view!(BlockView, bytes).header();
 		verify_block_basic(&header, bytes, engine)
 	}
 
 	fn family_test<BC>(bytes: &[u8], engine: &EthEngine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
-		let view = BlockView::new(bytes);
+		let view = view!(BlockView, bytes);
 		let header = view.header();
 		let transactions: Vec<_> = view.transactions()
 			.into_iter()
@@ -511,7 +511,7 @@ mod tests {
 	}
 
 	fn unordered_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
-		let header = BlockView::new(bytes).header();
+		let header = view!(BlockView, bytes).header();
 		verify_block_unordered(header, bytes.to_vec(), engine, false)?;
 		Ok(())
 	}

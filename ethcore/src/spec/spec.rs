@@ -893,7 +893,7 @@ mod tests {
 	use super::*;
 	use state::State;
 	use tests::helpers::get_temp_state_db;
-	use views::BlockView;
+	use views::{ViewRlp, BlockView};
 	use tempdir::TempDir;
 
 	// https://github.com/paritytech/parity/issues/1840
@@ -913,7 +913,7 @@ mod tests {
 		);
 		let genesis = test_spec.genesis_block();
 		assert_eq!(
-			BlockView::new(&genesis).header_view().hash(),
+			view!(BlockView, &genesis).header_view().hash(),
 			"0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303".into()
 		);
 	}

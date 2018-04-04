@@ -135,6 +135,8 @@ extern crate evmjit;
 
 pub extern crate ethstore;
 
+#[macro_use]
+pub mod views;
 pub mod account_provider;
 pub mod block;
 pub mod client;
@@ -154,7 +156,6 @@ pub mod state;
 pub mod state_db;
 pub mod trace;
 pub mod verification;
-pub mod views;
 
 mod cache_manager;
 mod blooms;

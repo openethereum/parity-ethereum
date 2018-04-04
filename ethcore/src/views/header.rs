@@ -20,84 +20,74 @@ use bytes::Bytes;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
 use header::BlockNumber;
-use rlp::{self, Rlp, Decodable};
+use rlp::{self};
+use super::ViewRlp;
 
 /// View onto block header rlp.
 pub struct HeaderView<'a> {
-	rlp: Rlp<'a>
+	rlp: ViewRlp<'a>
 }
 
 impl<'a> HeaderView<'a> {
-	/// Creates new view onto header from raw bytes.
-	pub fn new(bytes: &'a [u8]) -> HeaderView<'a> {
+	/// Creates a new view from existing valid ViewRlp
+	pub fn new(rlp: ViewRlp<'a>) -> HeaderView<'a> {
 		HeaderView {
-			rlp: Rlp::new(bytes)
-		}
-	}
-
-	/// Creates new view onto header from rlp.
-	pub fn new_from_rlp(rlp: Rlp<'a>) -> HeaderView<'a> {
-		HeaderView {
-			rlp: rlp
+			rlp
 		}
 	}
 
 	/// Returns header hash.
 	pub fn hash(&self) -> H256 {
-		keccak(self.rlp.as_raw())
+		keccak(self.rlp.rlp.as_raw())
 	}
 
 	/// Returns raw rlp.
-	pub fn rlp(&self) -> &Rlp<'a> { &self.rlp }
-
-	fn val_at_trusted<T>(&self, index: usize) -> T where T : Decodable {
-		self.rlp.val_at(index).expect("trusted rlp should be valid")
-	} 
+	pub fn rlp(&self) -> &ViewRlp<'a> { &self.rlp }
 
 	/// Returns parent hash.
-	pub fn parent_hash(&self) -> H256 { self.val_at_trusted(0) }
+	pub fn parent_hash(&self) -> H256 { self.rlp.val_at(0) }
 
 	/// Returns uncles hash.
-	pub fn uncles_hash(&self) -> H256 { self.val_at_trusted(1) }
+	pub fn uncles_hash(&self) -> H256 { self.rlp.val_at(1) }
 
 	/// Returns author.
-	pub fn author(&self) -> Address { self.val_at_trusted(2) }
+	pub fn author(&self) -> Address { self.rlp.val_at(2) }
 
 	/// Returns state root.
-	pub fn state_root(&self) -> H256 { self.val_at_trusted(3) }
+	pub fn state_root(&self) -> H256 { self.rlp.val_at(3) }
 
 	/// Returns transactions root.
-	pub fn transactions_root(&self) -> H256 { self.val_at_trusted(4) }
+	pub fn transactions_root(&self) -> H256 { self.rlp.val_at(4) }
 
 	/// Returns block receipts root.
-	pub fn receipts_root(&self) -> H256 { self.val_at_trusted(5) }
+	pub fn receipts_root(&self) -> H256 { self.rlp.val_at(5) }
 
 	/// Returns block log bloom.
-	pub fn log_bloom(&self) -> Bloom { self.val_at_trusted(6) }
+	pub fn log_bloom(&self) -> Bloom { self.rlp.val_at(6) }
 
 	/// Returns block difficulty.
-	pub fn difficulty(&self) -> U256 { self.val_at_trusted(7) }
+	pub fn difficulty(&self) -> U256 { self.rlp.val_at(7) }
 
 	/// Returns block number.
-	pub fn number(&self) -> BlockNumber { self.val_at_trusted(8) }
+	pub fn number(&self) -> BlockNumber { self.rlp.val_at(8) }
 
 	/// Returns block gas limit.
-	pub fn gas_limit(&self) -> U256 { self.val_at_trusted(9) }
+	pub fn gas_limit(&self) -> U256 { self.rlp.val_at(9) }
 
 	/// Returns block gas used.
-	pub fn gas_used(&self) -> U256 { self.val_at_trusted(10) }
+	pub fn gas_used(&self) -> U256 { self.rlp.val_at(10) }
 
 	/// Returns timestamp.
-	pub fn timestamp(&self) -> u64 { self.val_at_trusted(11) }
+	pub fn timestamp(&self) -> u64 { self.rlp.val_at(11) }
 
 	/// Returns block extra data.
-	pub fn extra_data(&self) -> Bytes { self.val_at_trusted(12) }
+	pub fn extra_data(&self) -> Bytes { self.rlp.val_at(12) }
 
 	/// Returns a vector of post-RLP-encoded seal fields.
 	pub fn seal(&self) -> Vec<Bytes> {
 		let mut seal = vec![];
-		for i in 13..self.rlp.item_count().expect("trusted rlp shuld be valid") {
-			seal.push(self.rlp.at(i).expect("trusted rlp should be valid").as_raw().to_vec());
+		for i in 13..self.rlp.item_count() {
+			seal.push(self.rlp.at(i).as_raw().to_vec());
 		}
 		seal
 	}
@@ -116,7 +106,7 @@ impl<'a> HeaderView<'a> {
 mod tests {
 	use rustc_hex::FromHex;
 	use ethereum_types::Bloom;
-	use super::HeaderView;
+	use super::{ViewRlp, HeaderView};
 
 	#[test]
 	fn test_header_view() {
@@ -125,7 +115,7 @@ mod tests {
 		let mix_hash = "a0a0349d8c3df71f1a48a9df7d03fd5f14aeee7d91332c009ecaff0a71ead405bd".from_hex().unwrap();
 		let nonce = "88ab4e252a7e8c2a23".from_hex().unwrap();
 
-		let view = HeaderView::new(&rlp);
+		let view = view!(HeaderView, &rlp);
 		assert_eq!(view.hash(), "2c9747e804293bd3f1a986484343f23bc88fd5be75dfe9d5c2860aff61e6f259".into());
 		assert_eq!(view.parent_hash(), "d405da4e66f1445d455195229624e133f5baafe72b5cf7b3c36c12c8146e98b7".into());
 		assert_eq!(view.uncles_hash(), "1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347".into());

@@ -29,7 +29,7 @@ use rlp::RlpStream;
 use rlp_compress::{compress, decompress, blocks_swapper};
 use header::*;
 use transaction::*;
-use views::*;
+use views::{ViewRlp, BlockView, HeaderView};
 use log_entry::{LogEntry, LocalizedLogEntry};
 use receipt::Receipt;
 use blooms::{BloomGroup, GroupPosition};
@@ -493,7 +493,7 @@ impl BlockChain {
 			None => {
 				// best block does not exist
 				// we need to insert genesis into the cache
-				let block = BlockView::new(genesis);
+				let block = view!(BlockView, genesis);
 				let header = block.header_view();
 				let hash = block.hash();
 
@@ -695,7 +695,7 @@ impl BlockChain {
 	/// Supply a dummy parent total difficulty when the parent block may not be in the chain.
 	/// Returns true if the block is disconnected.
 	pub fn insert_unordered_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, parent_td: Option<U256>, is_best: bool, is_ancient: bool) -> bool {
-		let block = BlockView::new(bytes);
+		let block = view!(BlockView, bytes);
 		let header = block.header_view();
 		let hash = header.hash();
 
@@ -892,7 +892,7 @@ impl BlockChain {
 	/// If the block is already known, does nothing.
 	pub fn insert_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
 		// create views onto rlp
-		let block = BlockView::new(bytes);
+		let block = view!(BlockView, bytes);
 		let header = block.header_view();
 		let hash = header.hash();
 
@@ -1132,7 +1132,7 @@ impl BlockChain {
 	/// This function returns modified block hashes.
 	fn prepare_block_hashes_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<BlockNumber, H256> {
 		let mut block_hashes = HashMap::new();
-		let block = BlockView::new(block_bytes);
+		let block = view!(BlockView, block_bytes);
 		let header = block.header_view();
 		let number = header.number();
 
@@ -1159,7 +1159,7 @@ impl BlockChain {
 	/// This function returns modified block details.
 	/// Uses the given parent details or attempts to load them from the database.
 	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, BlockDetails> {
-		let block = BlockView::new(block_bytes);
+		let block = view!(BlockView, block_bytes);
 		let header = block.header_view();
 		let parent_hash = header.parent_hash();
 
@@ -1191,7 +1191,7 @@ impl BlockChain {
 
 	/// This function returns modified transaction addresses.
 	fn prepare_transaction_addresses_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, Option<TransactionAddress>> {
-		let block = BlockView::new(block_bytes);
+		let block = view!(BlockView, block_bytes);
 		let transaction_hashes = block.transaction_hashes();
 
 		match info.location {
@@ -1259,7 +1259,7 @@ impl BlockChain {
 	/// to bloom location in database (BlocksBloomLocation).
 	///
 	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<GroupPosition, BloomGroup> {
-		let block = BlockView::new(block_bytes);
+		let block = view!(BlockView, block_bytes);
 		let header = block.header_view();
 
 		let log_blooms = match info.location {
@@ -1378,7 +1378,7 @@ impl BlockChain {
 	/// Create a block body from a block.
 	pub fn block_to_body(block: &[u8]) -> Bytes {
 		let mut body = RlpStream::new_list(2);
-		let block_view = BlockView::new(block);
+		let block_view = view!(BlockView, block);
 		body.append_raw(block_view.transactions_rlp().as_raw(), 1);
 		body.append_raw(block_view.uncles_rlp().as_raw(), 1);
 		body.out()

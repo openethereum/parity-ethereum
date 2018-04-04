@@ -220,7 +220,7 @@ impl Rebuilder for PowRebuilder {
 	/// Feed the rebuilder an uncompressed block chunk.
 	/// Returns the number of blocks fed or any errors.
 	fn feed(&mut self, chunk: &[u8], engine: &EthEngine, abort_flag: &AtomicBool) -> Result<(), ::error::Error> {
-		use views::BlockView;
+		use views::{ViewRlp, BlockView};
 		use snapshot::verify_old_block;
 		use ethereum_types::U256;
 		use triehash::ordered_trie_root;
@@ -284,7 +284,7 @@ impl Rebuilder for PowRebuilder {
 			self.db.write_buffered(batch);
 			self.chain.commit();
 
-			parent_hash = BlockView::new(&block_bytes).hash();
+			parent_hash = view!(BlockView, &block_bytes).hash();
 			cur_number += 1;
 		}
 

@@ -23,7 +23,7 @@ use std::cmp;
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
 use rlp::Rlp;
-use ethcore::views::{BlockView};
+use ethcore::views::{ViewRlp, BlockView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockStatus, BlockId, BlockImportError};
 use ethcore::block::Block;
@@ -478,7 +478,7 @@ impl BlockDownloader {
 			let block = block_and_receipts.block;
 			let receipts = block_and_receipts.receipts;
 			let (h, number, parent) = {
-				let header = BlockView::new(&block).header_view();
+				let header = view!(BlockView, &block).header_view();
 				(header.hash(), header.number(), header.parent_hash())
 			};
 

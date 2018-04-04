@@ -234,7 +234,7 @@ mod tests {
 		};
 		let raw_rlp = ::rlp::encode(&message).into_vec();
 		let rlp = Rlp::new(&raw_rlp);
-		assert_eq!(message, rlp.as_val());
+		assert_eq!(Ok(message), rlp.as_val());
 
 		let message = ConsensusMessage {
 			signature: H520::default(),
@@ -247,7 +247,7 @@ mod tests {
 		};
 		let raw_rlp = ::rlp::encode(&message);
 		let rlp = Rlp::new(&raw_rlp);
-		assert_eq!(message, rlp.as_val());
+		assert_eq!(Ok(message), rlp.as_val());
 	}
 
 	#[test]

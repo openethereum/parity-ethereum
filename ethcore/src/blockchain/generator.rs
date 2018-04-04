@@ -23,7 +23,7 @@ use bytes::Bytes;
 use header::Header;
 use rlp::encode;
 use transaction::SignedTransaction;
-use views::BlockView;
+use views::{ViewRlp, BlockView};
 
 /// Helper structure, used for encoding blocks.
 #[derive(Default, Clone, RlpEncodable)]
@@ -41,7 +41,7 @@ impl Block {
 
 	#[inline]
 	pub fn hash(&self) -> H256 {
-		BlockView::new(&self.encoded()).header_view().hash()
+		view!(BlockView, &self.encoded()).header_view().hash()
 	}
 
 	#[inline]

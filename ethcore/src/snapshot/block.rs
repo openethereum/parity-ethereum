@@ -133,7 +133,7 @@ impl AbridgedBlock {
 
 #[cfg(test)]
 mod tests {
-	use views::BlockView;
+	use views::{ViewRlp, BlockView};
 	use block::Block;
 	use super::AbridgedBlock;
 	use transaction::{Action, Transaction};
@@ -151,7 +151,7 @@ mod tests {
 		let receipts_root = b.header.receipts_root().clone();
 		let encoded = encode_block(&b);
 
-		let abridged = AbridgedBlock::from_block_view(&BlockView::new(&encoded));
+		let abridged = AbridgedBlock::from_block_view(&view!(BlockView, &encoded));
 		assert_eq!(abridged.to_block(H256::new(), 0, receipts_root).unwrap(), b);
 	}
 
@@ -162,7 +162,7 @@ mod tests {
 		let receipts_root = b.header.receipts_root().clone();
 		let encoded = encode_block(&b);
 
-		let abridged = AbridgedBlock::from_block_view(&BlockView::new(&encoded));
+		let abridged = AbridgedBlock::from_block_view(&view!(BlockView, &encoded));
 		assert_eq!(abridged.to_block(H256::new(), 2, receipts_root).unwrap(), b);
 	}
 
@@ -198,7 +198,7 @@ mod tests {
 
 		let encoded = encode_block(&b);
 
-		let abridged = AbridgedBlock::from_block_view(&BlockView::new(&encoded[..]));
+		let abridged = AbridgedBlock::from_block_view(&view!(BlockView, &encoded[..]));
 		assert_eq!(abridged.to_block(H256::new(), 0, receipts_root).unwrap(), b);
 	}
 }

@@ -16,12 +16,26 @@
 
 //! Block oriented views onto rlp.
 
+#[macro_use]
+mod view_rlp;
 mod block;
 mod body;
 mod header;
 mod transaction;
 
+pub use self::view_rlp::ViewRlp;
 pub use self::block::BlockView;
 pub use self::body::BodyView;
 pub use self::header::HeaderView;
 pub use self::transaction::TransactionView;
+
+#[cfg(test)]
+mod tests {
+    use super::{ViewRlp, HeaderView};
+
+    #[test]
+    #[should_panic(expected="sfasfasdfsadfasdf")]
+    fn test_file_line_number_included_in_panic_for_invalid_rlp() {
+        let _ = view!(HeaderView, &[]).parent_hash();
+    }
+}

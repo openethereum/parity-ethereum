@@ -120,9 +120,9 @@ pub mod blocks {
 	impl Unverified {
 		/// Create an `Unverified` from raw bytes.
 		pub fn new(bytes: Bytes) -> Self {
-			use views::BlockView;
+			use views::{ViewRlp, BlockView};
 
-			let header = BlockView::new(&bytes).header();
+			let header = view!(BlockView, &bytes).header();
 			Unverified {
 				header: header,
 				bytes: bytes,

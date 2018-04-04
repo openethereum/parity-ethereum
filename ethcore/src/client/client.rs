@@ -74,7 +74,7 @@ use types::mode::Mode as IpcMode;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
 use verification::queue::BlockQueue;
-use views::BlockView;
+use views::{ViewRlp, BlockView};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -438,7 +438,7 @@ impl Importer {
 	/// The block is guaranteed to be the next best blocks in the
 	/// first block sequence. Does no sealing or transaction validation.
 	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes, db: &KeyValueDB, chain: &BlockChain) -> Result<H256, ::error::Error> {
-		let block = BlockView::new(&block_bytes);
+		let block = view!(BlockView, &block_bytes);
 		let header = block.header();
 		let receipts = ::rlp::decode_list(&receipts_bytes);
 		let hash = header.hash();
@@ -506,7 +506,7 @@ impl Importer {
 		let receipts = block.receipts().to_owned();
 		let traces = block.traces().clone().drain();
 
-		assert_eq!(header.hash(), BlockView::new(block_data).header_view().hash());
+		assert_eq!(header.hash(), view!(BlockView, block_data).header_view().hash());
 
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
@@ -1407,7 +1407,7 @@ impl ImportBlock for Client {
 	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
 		{
 			// check block order
-			let header = BlockView::new(&block_bytes).header_view();
+			let header = view!(BlockView, &block_bytes).header_view();
 			if self.chain.read().is_known(&header.hash()) {
 				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}

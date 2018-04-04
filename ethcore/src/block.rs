@@ -38,7 +38,7 @@ use state_db::StateDB;
 use trace::Tracing;
 use transaction::{UnverifiedTransaction, SignedTransaction, Error as TransactionError};
 use verification::PreverifiedBlock;
-use views::BlockView;
+use views::{ViewRlp, BlockView};
 
 /// A block, encoded as it is on the block chain.
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -626,7 +626,7 @@ pub fn enact_verified(
 	// Remove state root from transaction receipts to make them EIP-98 compatible.
 	strip_receipts: bool,
 ) -> Result<LockedBlock, Error> {
-	let view = BlockView::new(&block.bytes);
+	let view = view!(BlockView, &block.bytes);
 
 	enact(
 		&block.header,
@@ -653,7 +653,7 @@ mod tests {
 	use header::Header;
 	use factory::Factories;
 	use state_db::StateDB;
-	use views::BlockView;
+	use views::{ViewRlp, BlockView};
 	use ethereum_types::Address;
 	use std::sync::Arc;
 	use transaction::SignedTransaction;
@@ -668,7 +668,7 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<LockedBlock, Error> {
-		let block = BlockView::new(block_bytes);
+		let block = view!(BlockView, block_bytes);
 		let header = block.header();
 		let transactions: Result<Vec<_>, Error> = block
 			.transactions()
@@ -719,7 +719,7 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<SealedBlock, Error> {
-		let header = BlockView::new(block_bytes).header_view();
+		let header = view!(BlockView, block_bytes).header_view();
 		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?.seal(engine, header.seal())?)
 	}
 
@@ -785,7 +785,7 @@ mod tests {
 
 		let bytes = e.rlp_bytes();
 		assert_eq!(bytes, orig_bytes);
-		let uncles = BlockView::new(&bytes).uncles();
+		let uncles = view!(BlockView, &bytes).uncles();
 		assert_eq!(uncles[1].extra_data(), b"uncle2");
 
 		let db = e.drain();
