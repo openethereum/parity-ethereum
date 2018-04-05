@@ -203,10 +203,11 @@ impl EthereumMachine {
 	/// The gas floor target must not be lower than the engine's minimum gas limit.
 	pub fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, gas_ceil_target: U256) {
 		header.set_difficulty(parent.difficulty().clone());
+		let gas_limit = parent.gas_limit().clone();
+		assert!(!gas_limit.is_zero(), "Gas limit should be > 0");
 
 		if let Some(ref ethash_params) = self.ethash_extensions {
 			let gas_limit = {
-				let gas_limit = parent.gas_limit().clone();
 				let bound_divisor = self.params().gas_limit_bound_divisor;
 				let lower_limit = gas_limit - gas_limit / bound_divisor + 1.into();
 				let upper_limit = gas_limit + gas_limit / bound_divisor - 1.into();
@@ -238,7 +239,6 @@ impl EthereumMachine {
 		}
 
 		header.set_gas_limit({
-			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.params().gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
 				cmp::min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
