@@ -106,7 +106,7 @@ impl<'a> HeaderView<'a> {
 mod tests {
 	use rustc_hex::FromHex;
 	use ethereum_types::Bloom;
-	use super::{ViewRlp, HeaderView};
+	use super::HeaderView;
 
 	#[test]
 	fn test_header_view() {

@@ -72,7 +72,7 @@ impl<'a> TransactionView<'a> {
 #[cfg(test)]
 mod tests {
 	use rustc_hex::FromHex;
-	use super::{ViewRlp, TransactionView};
+	use super::TransactionView;
 
 	#[test]
 	fn test_transaction_view() {

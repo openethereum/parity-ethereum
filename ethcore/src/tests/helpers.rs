@@ -34,7 +34,7 @@ use state_db::StateDB;
 use state::*;
 use std::sync::Arc;
 use transaction::{Action, Transaction, SignedTransaction};
-use views::{ViewRlp, BlockView};
+use views::BlockView;
 
 pub fn create_test_block(header: &Header) -> Bytes {
 	let mut rlp = RlpStream::new_list(3);

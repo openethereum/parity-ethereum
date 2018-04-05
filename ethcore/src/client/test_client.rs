@@ -66,7 +66,7 @@ use encoded;
 use engines::EthEngine;
 use trie;
 use state::StateInfo;
-use views::{ViewRlp, BlockView};
+use views::BlockView;
 
 /// Test client.
 pub struct TestBlockChainClient {

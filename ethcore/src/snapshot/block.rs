@@ -133,7 +133,7 @@ impl AbridgedBlock {
 
 #[cfg(test)]
 mod tests {
-	use views::{ViewRlp, BlockView};
+	use views::BlockView;
 	use block::Block;
 	use super::AbridgedBlock;
 	use transaction::{Action, Transaction};

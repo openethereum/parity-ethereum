@@ -31,7 +31,7 @@ use hash::keccak;
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, Bloom, U256, Address};
 use rlp::{Rlp, RlpStream};
-use views::{self, ViewRlp, BlockView, HeaderView, BodyView};
+use views::{self, BlockView, HeaderView, BodyView};
 
 /// Owning header view.
 #[derive(Debug, Clone, PartialEq, Eq)]

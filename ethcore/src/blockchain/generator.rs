@@ -23,7 +23,7 @@ use bytes::Bytes;
 use header::Header;
 use rlp::encode;
 use transaction::SignedTransaction;
-use views::{ViewRlp, BlockView};
+use views::BlockView;
 
 /// Helper structure, used for encoding blocks.
 #[derive(Default, Clone, RlpEncodable)]

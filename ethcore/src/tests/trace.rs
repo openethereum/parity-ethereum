@@ -31,7 +31,7 @@ use std::sync::Arc;
 use header::Header;
 use miner::Miner;
 use transaction::{Action, Transaction};
-use views::{ViewRlp, BlockView};
+use views::BlockView;
 use trace::{RewardType, LocalizedTrace};
 use trace::trace::Action::Reward;
 

@@ -125,6 +125,6 @@ impl<'a, 'view> Iterator for ViewRlpIterator<'a, 'view> {
 #[macro_export]
 macro_rules! view {
     ($view: ident, $bytes: expr) => {
-        $view::new(ViewRlp::new($bytes, file!(), line!()))
+        $view::new($crate::views::ViewRlp::new($bytes, file!(), line!()))
     };
 }

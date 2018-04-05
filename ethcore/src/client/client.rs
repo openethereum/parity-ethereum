@@ -74,7 +74,7 @@ use types::mode::Mode as IpcMode;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
 use verification::queue::BlockQueue;
-use views::{ViewRlp, BlockView};
+use views::BlockView;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;

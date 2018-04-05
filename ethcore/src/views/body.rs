@@ -135,7 +135,7 @@ impl<'a> BodyView<'a> {
 #[cfg(test)]
 mod tests {
 	use rustc_hex::FromHex;
-	use super::{ViewRlp, BodyView};
+	use super::BodyView;
 	use blockchain::BlockChain;
 
 	#[test]

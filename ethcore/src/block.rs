@@ -38,7 +38,7 @@ use state_db::StateDB;
 use trace::Tracing;
 use transaction::{UnverifiedTransaction, SignedTransaction, Error as TransactionError};
 use verification::PreverifiedBlock;
-use views::{ViewRlp, BlockView};
+use views::BlockView;
 
 /// A block, encoded as it is on the block chain.
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -653,7 +653,7 @@ mod tests {
 	use header::Header;
 	use factory::Factories;
 	use state_db::StateDB;
-	use views::{ViewRlp, BlockView};
+	use views::BlockView;
 	use ethereum_types::Address;
 	use std::sync::Arc;
 	use transaction::SignedTransaction;

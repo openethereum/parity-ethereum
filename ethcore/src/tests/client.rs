@@ -32,7 +32,7 @@ use ethereum_types::{U256, Address};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use miner::Miner;
 use spec::Spec;
-use views::{ViewRlp, BlockView};
+use views::BlockView;
 use ethkey::KeyPair;
 use transaction::{PendingTransaction, Transaction, Action, Condition};
 use miner::MinerService;

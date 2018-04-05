@@ -2252,7 +2252,7 @@ mod tests {
 	use ethereum_types::{H256, U256, Address};
 	use parking_lot::RwLock;
 	use bytes::Bytes;
-	use rlp::{Rlp, RlpStream, Rlp};
+	use rlp::{Rlp, RlpStream};
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
@@ -2412,8 +2412,8 @@ mod tests {
 		client.add_blocks(100, EachBlockWith::Nothing);
 		let blocks: Vec<_> = (0 .. 100)
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).map(|b| b.into_inner()).unwrap()).collect();
-		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).hash()).collect();
+		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).unwrap().as_raw().to_vec()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| view!(HeaderView, h).hash()).collect();
 
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
@@ -2474,7 +2474,7 @@ mod tests {
 		// the length of one rlp-encoded hashe
 		let rlp = rlp_result.unwrap().1.out();
 		let rlp = Rlp::new(&rlp);
-		assert_eq!(1, rlp.item_count());
+		assert_eq!(Ok(1), rlp.item_count());
 
 		io.sender = Some(2usize);
 

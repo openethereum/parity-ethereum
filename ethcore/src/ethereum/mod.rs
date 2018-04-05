@@ -141,7 +141,7 @@ mod tests {
 	use state::*;
 	use super::*;
 	use tests::helpers::get_temp_state_db;
-	use views::{ViewRlp, BlockView};
+	use views::BlockView;
 
 	#[test]
 	fn ensure_db_good() {

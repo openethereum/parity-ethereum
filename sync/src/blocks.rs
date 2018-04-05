@@ -25,7 +25,7 @@ use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError};
 use network;
 use ethcore::encoded::Block;
-use ethcore::views::{ViewRlp, HeaderView, BodyView};
+use ethcore::views::{HeaderView, BodyView};
 use ethcore::header::Header as BlockHeader;
 
 known_heap_size!(0, HeaderId);
@@ -526,8 +526,8 @@ mod test {
 		let blocks: Vec<_> = (0..nblocks)
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
-		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).hash()).collect();
+		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).unwrap().as_raw().to_vec()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| view!(HeaderView, h).hash()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
 		bc.reset_to(heads);
 		assert!(!bc.is_empty());
@@ -581,8 +581,8 @@ mod test {
 		let blocks: Vec<_> = (0..nblocks)
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
-		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).hash()).collect();
+		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).unwrap().as_raw().to_vec()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| view!(HeaderView, h).hash()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
 		bc.reset_to(heads);
 
@@ -605,8 +605,8 @@ mod test {
 		let blocks: Vec<_> = (0..nblocks)
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
-		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).hash()).collect();
+		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).unwrap().as_raw().to_vec()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| view!(HeaderView, h).hash()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
 		bc.reset_to(heads);
 

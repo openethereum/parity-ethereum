@@ -29,7 +29,7 @@ use rlp::RlpStream;
 use rlp_compress::{compress, decompress, blocks_swapper};
 use header::*;
 use transaction::*;
-use views::{ViewRlp, BlockView, HeaderView};
+use views::{BlockView, HeaderView};
 use log_entry::{LogEntry, LocalizedLogEntry};
 use receipt::Receipt;
 use blooms::{BloomGroup, GroupPosition};

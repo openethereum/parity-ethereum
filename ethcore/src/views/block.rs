@@ -162,7 +162,7 @@ impl<'a> BlockView<'a> {
 #[cfg(test)]
 mod tests {
 	use rustc_hex::FromHex;
-	use super::{ViewRlp, BlockView};
+	use super::BlockView;
 
 	#[test]
 	fn test_block_view() {

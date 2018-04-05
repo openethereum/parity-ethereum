@@ -733,7 +733,7 @@ mod tests {
 	use super::kind::blocks::Unverified;
 	use tests::helpers::{get_good_dummy_block_seq, get_good_dummy_block};
 	use error::*;
-	use views::{ViewRlp, BlockView};
+	use views::BlockView;
 
 	// create a test block queue.
 	// auto_scaling enables verifier adjustment.
