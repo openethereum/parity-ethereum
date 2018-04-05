@@ -35,7 +35,7 @@ use cache::CacheConfig;
 use informant::{Informant, FullNodeInformantData, MillisecondDuration};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
-use helpers::{to_client_config, execute_upgrades, open_client_db};
+use helpers::{to_client_config, execute_upgrades, open_client_db, client_db_config, restoration_db_handler};
 use dir::Directories;
 use user_defaults::UserDefaults;
 use fdlimit;
@@ -376,15 +376,17 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
 
-	let (client_db, client_db_config) = open_client_db(&client_path, &client_config)?;
+	let client_db_config = client_db_config(&client_path, &client_config);
+	let client_db = open_client_db(&client_path, &client_db_config)?;
+	let restoration_db_handler = restoration_db_handler(client_db_config);
 
 	// build client
 	let service = ClientService::start(
 		client_config,
 		&spec,
 		client_db,
-		client_db_config,
 		&snapshot_path,
+		restoration_db_handler,
 		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
@@ -562,14 +564,16 @@ fn start_client(
 		true,
 	);
 
-	let (client_db, client_db_config) = open_client_db(&client_path, &client_config)?;
+	let client_db_config = client_db_config(&client_path, &client_config);
+	let client_db = open_client_db(&client_path, &client_db_config)?;
+	let restoration_db_handler = restoration_db_handler(client_db_config);
 
 	let service = ClientService::start(
 		client_config,
 		&spec,
 		client_db,
-		client_db_config,
 		&snapshot_path,
+		restoration_db_handler,
 		&dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e))?;

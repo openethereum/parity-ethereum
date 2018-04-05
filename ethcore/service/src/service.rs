@@ -21,12 +21,10 @@ use std::path::Path;
 
 use ansi_term::Colour;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
-use kvdb::KeyValueDB;
-use kvdb_rocksdb::{Database, DatabaseConfig};
+use kvdb::{KeyValueDB, KeyValueDBHandler};
 use stop_guard::StopGuard;
 
-use ethcore::client::{self, Client, ClientConfig, ChainNotify, ClientIoMessage};
-use ethcore::db;
+use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::error::Error;
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
@@ -48,8 +46,8 @@ impl ClientService {
 		config: ClientConfig,
 		spec: &Spec,
 		client_db: Arc<KeyValueDB>,
-		snapshot_db_config: DatabaseConfig,
 		snapshot_path: &Path,
+		restoration_db_handler: Box<KeyValueDBHandler>,
 		_ipc_path: &Path,
 		miner: Arc<Miner>,
 		) -> Result<ClientService, Error>
@@ -64,7 +62,7 @@ impl ClientService {
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
 			genesis_block: spec.genesis_block(),
-			db_config: snapshot_db_config,
+			restoration_db_handler: restoration_db_handler,
 			pruning: pruning,
 			channel: io_service.channel(),
 			snapshot_root: snapshot_path.into(),

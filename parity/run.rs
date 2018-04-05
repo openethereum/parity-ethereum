@@ -54,7 +54,7 @@ use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
 };
-use helpers::{to_client_config, execute_upgrades, passwords_from_files, open_client_db};
+use helpers::{to_client_config, execute_upgrades, passwords_from_files, client_db_config, open_client_db, restoration_db_handler};
 use upgrade::upgrade_key_location;
 use dir::{Directories, DatabaseDirectories};
 use cache::CacheConfig;
@@ -607,15 +607,17 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
 
-	let (client_db, client_db_config) = open_client_db(&client_path, &client_config)?;
+	let client_db_config = client_db_config(&client_path, &client_config);
+	let client_db = open_client_db(&client_path, &client_db_config)?;
+	let restoration_db_handler = restoration_db_handler(client_db_config);
 
 	// create client service.
 	let service = ClientService::start(
 		client_config,
 		&spec,
 		client_db,
-		client_db_config,
 		&snapshot_path,
+		restoration_db_handler,
 		&cmd.dirs.ipc_path(),
 		miner.clone(),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
