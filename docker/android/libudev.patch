@@ -1,0 +1,216 @@
+diff --git a/src/collect/collect.c b/src/collect/collect.c
+index 2cf1f00..b24f26b 100644
+--- a/src/collect/collect.c
++++ b/src/collect/collect.c
+@@ -84,7 +84,7 @@ static void usage(void)
+                "  invoked for each ID in <idlist>) collect returns 0, the\n"
+                "  number of missing IDs otherwise.\n"
+                "  On error a negative number is returned.\n\n"
+-               , program_invocation_short_name);
++               , "parity");
+ }
+ 
+ /*
+diff --git a/src/scsi_id/scsi_id.c b/src/scsi_id/scsi_id.c
+index 8b76d87..7bf3948 100644
+--- a/src/scsi_id/scsi_id.c
++++ b/src/scsi_id/scsi_id.c
+@@ -321,7 +321,7 @@ static void help(void) {
+                "  -u --replace-whitespace          Replace all whitespace by underscores\n"
+                "  -v --verbose                     Verbose logging\n"
+                "  -x --export                      Print values as environment keys\n"
+-               , program_invocation_short_name);
++               , "parity");
+ 
+ }
+ 
+diff --git a/src/shared/hashmap.h b/src/shared/hashmap.h
+index a03ee58..a7c2005 100644
+--- a/src/shared/hashmap.h
++++ b/src/shared/hashmap.h
+@@ -98,10 +98,7 @@ extern const struct hash_ops uint64_hash_ops;
+ #if SIZEOF_DEV_T != 8
+ unsigned long devt_hash_func(const void *p, const uint8_t hash_key[HASH_KEY_SIZE]) _pure_;
+ int devt_compare_func(const void *a, const void *b) _pure_;
+-extern const struct hash_ops devt_hash_ops = {
+-        .hash = devt_hash_func,
+-        .compare = devt_compare_func
+-};
++extern const struct hash_ops devt_hash_ops;
+ #else
+ #define devt_hash_func uint64_hash_func
+ #define devt_compare_func uint64_compare_func
+diff --git a/src/shared/log.c b/src/shared/log.c
+index 4a40996..1496984 100644
+--- a/src/shared/log.c
++++ b/src/shared/log.c
+@@ -335,7 +335,7 @@ static int write_to_syslog(
+ 
+         IOVEC_SET_STRING(iovec[0], header_priority);
+         IOVEC_SET_STRING(iovec[1], header_time);
+-        IOVEC_SET_STRING(iovec[2], program_invocation_short_name);
++        IOVEC_SET_STRING(iovec[2], "parity");
+         IOVEC_SET_STRING(iovec[3], header_pid);
+         IOVEC_SET_STRING(iovec[4], buffer);
+ 
+@@ -383,7 +383,7 @@ static int write_to_kmsg(
+         char_array_0(header_pid);
+ 
+         IOVEC_SET_STRING(iovec[0], header_priority);
+-        IOVEC_SET_STRING(iovec[1], program_invocation_short_name);
++        IOVEC_SET_STRING(iovec[1], "parity");
+         IOVEC_SET_STRING(iovec[2], header_pid);
+         IOVEC_SET_STRING(iovec[3], buffer);
+         IOVEC_SET_STRING(iovec[4], "\n");
+diff --git a/src/udev/udevadm-control.c b/src/udev/udevadm-control.c
+index 6af7163..3271e56 100644
+--- a/src/udev/udevadm-control.c
++++ b/src/udev/udevadm-control.c
+@@ -41,7 +41,7 @@ static void print_help(void) {
+                "  -p --property=KEY=VALUE  Set a global property for all events\n"
+                "  -m --children-max=N      Maximum number of children\n"
+                "     --timeout=SECONDS     Maximum time to block for a reply\n"
+-               , program_invocation_short_name);
++               , "parity");
+ }
+ 
+ static int adm_control(struct udev *udev, int argc, char *argv[]) {
+diff --git a/src/udev/udevadm-info.c b/src/udev/udevadm-info.c
+index 0aec976..a31ac02 100644
+--- a/src/udev/udevadm-info.c
++++ b/src/udev/udevadm-info.c
+@@ -279,7 +279,7 @@ static void help(void) {
+                "  -P --export-prefix          Export the key name with a prefix\n"
+                "  -e --export-db              Export the content of the udev database\n"
+                "  -c --cleanup-db             Clean up the udev database\n"
+-               , program_invocation_short_name);
++               , "parity");
+ }
+ 
+ static int uinfo(struct udev *udev, int argc, char *argv[]) {
+diff --git a/src/udev/udevadm-monitor.c b/src/udev/udevadm-monitor.c
+index 15ded09..b58dd08 100644
+--- a/src/udev/udevadm-monitor.c
++++ b/src/udev/udevadm-monitor.c
+@@ -73,7 +73,7 @@ static void help(void) {
+                "  -u --udev                                Print udev events\n"
+                "  -s --subsystem-match=SUBSYSTEM[/DEVTYPE] Filter events by subsystem\n"
+                "  -t --tag-match=TAG                       Filter events by tag\n"
+-               , program_invocation_short_name);
++               , "parity");
+ }
+ 
+ static int adm_monitor(struct udev *udev, int argc, char *argv[]) {
+diff --git a/src/udev/udevadm-settle.c b/src/udev/udevadm-settle.c
+index 33597bc..b36a504 100644
+--- a/src/udev/udevadm-settle.c
++++ b/src/udev/udevadm-settle.c
+@@ -43,7 +43,7 @@ static void help(void) {
+                "     --version              Show package version\n"
+                "  -t --timeout=SECONDS      Maximum time to wait for events\n"
+                "  -E --exit-if-exists=FILE  Stop waiting if file exists\n"
+-               , program_invocation_short_name);
++               , "parity");
+ }
+ 
+ static int adm_settle(struct udev *udev, int argc, char *argv[]) {
+diff --git a/src/udev/udevadm-test-builtin.c b/src/udev/udevadm-test-builtin.c
+index baaeca9..50ed812 100644
+--- a/src/udev/udevadm-test-builtin.c
++++ b/src/udev/udevadm-test-builtin.c
+@@ -39,7 +39,7 @@ static void help(struct udev *udev) {
+                "  -h --help     Print this message\n"
+                "     --version  Print version of the program\n\n"
+                "Commands:\n"
+-               , program_invocation_short_name);
++               , "parity");
+ 
+         udev_builtin_list(udev);
+ }
+diff --git a/src/udev/udevadm-test.c b/src/udev/udevadm-test.c
+index 47fd924..a855412 100644
+--- a/src/udev/udevadm-test.c
++++ b/src/udev/udevadm-test.c
+@@ -39,7 +39,7 @@ static void help(void) {
+                "     --version                         Show package version\n"
+                "  -a --action=ACTION                   Set action string\n"
+                "  -N --resolve-names=early|late|never  When to resolve names\n"
+-               , program_invocation_short_name);
++               , "parity");
+ }
+ 
+ static int adm_test(struct udev *udev, int argc, char *argv[]) {
+diff --git a/src/udev/udevadm-trigger.c b/src/udev/udevadm-trigger.c
+index 4dc756a..67787d3 100644
+--- a/src/udev/udevadm-trigger.c
++++ b/src/udev/udevadm-trigger.c
+@@ -92,7 +92,7 @@ static void help(void) {
+                "  -y --sysname-match=NAME           Trigger devices with this /sys path\n"
+                "     --name-match=NAME              Trigger devices with this /dev name\n"
+                "  -b --parent-match=NAME            Trigger devices with that parent device\n"
+-               , program_invocation_short_name);
++               , "parity");
+ }
+ 
+ static int adm_trigger(struct udev *udev, int argc, char *argv[]) {
+diff --git a/src/udev/udevadm.c b/src/udev/udevadm.c
+index 3e57cf6..b03dfaa 100644
+--- a/src/udev/udevadm.c
++++ b/src/udev/udevadm.c
+@@ -62,7 +62,7 @@ static int adm_help(struct udev *udev, int argc, char *argv[]) {
+         printf("%s [--help] [--version] [--debug] COMMAND [COMMAND OPTIONS]\n\n"
+                "Send control commands or test the device manager.\n\n"
+                "Commands:\n"
+-               , program_invocation_short_name);
++               , "parity");
+ 
+         for (i = 0; i < ELEMENTSOF(udevadm_cmds); i++)
+                 if (udevadm_cmds[i]->help != NULL)
+@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
+                                 goto out;
+                         }
+ 
+-        fprintf(stderr, "%s: missing or unknown command\n", program_invocation_short_name);
++        fprintf(stderr, "%s: missing or unknown command\n", "parity");
+         rc = 2;
+ out:
+         mac_selinux_finish();
+diff --git a/src/udev/udevd.c b/src/udev/udevd.c
+index cf826c6..4eec0af 100644
+--- a/src/udev/udevd.c
++++ b/src/udev/udevd.c
+@@ -1041,7 +1041,7 @@ static void help(void) {
+                "  -t --event-timeout=SECONDS  Seconds to wait before terminating an event\n"
+                "  -N --resolve-names=early|late|never\n"
+                "                              When to resolve users and groups\n"
+-               , program_invocation_short_name);
++               , "parity");
+ }
+ 
+ static int parse_argv(int argc, char *argv[]) {
+diff --git a/src/v4l_id/v4l_id.c b/src/v4l_id/v4l_id.c
+index 1dce0d5..f65badf 100644
+--- a/src/v4l_id/v4l_id.c
++++ b/src/v4l_id/v4l_id.c
+@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
+                         printf("%s [-h,--help] <device file>\n\n"
+                                "Video4Linux device identification.\n\n"
+                                "  -h  Print this message\n"
+-                               , program_invocation_short_name);
++                               , "parity");
+                         return 0;
+                 case '?':
+                         return -EINVAL;
+diff --git a/src/shared/path-util.c b/src/shared/path-util.c
+index 0744563..7151356 100644
+--- a/src/shared/path-util.c
++++ b/src/shared/path-util.c
+@@ -109,7 +109,7 @@ char *path_make_absolute_cwd(const char *p) {
+         if (path_is_absolute(p))
+                 return strdup(p);
+ 
+-        cwd = get_current_dir_name();
++        cwd = getcwd(malloc(128), 128);
+         if (!cwd)
+                 return NULL;
+ 
