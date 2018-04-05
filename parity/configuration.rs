@@ -1498,6 +1498,7 @@ mod tests {
 			secretstore_conf: Default::default(),
 			private_provider_conf: Default::default(),
 			private_encryptor_conf: Default::default(),
+			private_tx_enabled: false,
 			ui: false,
 			dapp: None,
 			name: "".into(),
