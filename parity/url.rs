@@ -57,3 +57,10 @@ pub fn open(url: &str) {
 	use std;
 	let _ = std::process::Command::new("xdg-open").arg(url).spawn();
 }
+
+#[cfg(target_os="android")]
+pub fn open(_url: &str) {
+	// TODO: While it is generally always bad to leave a function implemented, there is not much
+	//		 more we can do here. This function will eventually be removed when we compile Parity
+	//		 as a library and not as a full binary.
+}

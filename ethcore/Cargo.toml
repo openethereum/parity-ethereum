@@ -45,7 +45,7 @@ num_cpus = "1.2"
 parity-machine = { path = "../machine" }
 parking_lot = "0.5"
 price-info = { path = "../price-info" }
-rayon = "0.8"
+rayon = "1.0"
 rand = "0.4"
 rlp = { path = "../util/rlp" }
 rlp_compress = { path = "../util/rlp_compress" }
@@ -76,7 +76,6 @@ trie-standardmap = { path = "../util/trie-standardmap" }
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 
 [features]
-jit = ["evm/jit"]
 evm-debug = ["slow-blocks"]
 evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 slow-blocks = [] # Use SLOW_TX_DURATION="50" (compile time!) to track transactions over 50ms

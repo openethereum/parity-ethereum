@@ -17,7 +17,7 @@ textwrap = "0.9"
 num_cpus = "1.2"
 number_prefix = "0.2"
 rpassword = "1.0"
-semver = "0.6"
+semver = "0.9"
 ansi_term = "0.10"
 parking_lot = "0.5"
 regex = "0.2"
@@ -100,7 +100,6 @@ ui-precompiled = [
 ]
 ui-enabled = ["dapps"]
 dapps = ["parity-dapps"]
-jit = ["ethcore/jit"]
 json-tests = ["ethcore/json-tests"]
 test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
@@ -134,3 +133,6 @@ members = [
 	"transaction-pool",
 	"whisper"
 ]
+
+[patch.crates-io]
+ring = { git = "https://github.com/paritytech/ring" }

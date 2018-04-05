@@ -129,9 +129,6 @@ extern crate trace_time;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
-#[cfg(feature = "jit" )]
-extern crate evmjit;
-
 #[cfg(test)]
 extern crate kvdb_rocksdb;
 
