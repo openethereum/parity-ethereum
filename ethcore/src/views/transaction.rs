@@ -27,7 +27,22 @@ pub struct TransactionView<'a> {
 }
 
 impl<'a> TransactionView<'a> {
-	/// Creates new view onto block from rlp.
+	/// Creates new view onto valid transaction rlp.
+	/// Use the `view!` macro to create this view in order to capture debugging info.
+	///
+	/// # Example
+	///
+	/// ```
+	/// #[macro_use]
+	/// extern crate ethcore;
+	/// 
+	/// use ethcore::views::{TransactionView};
+	/// 
+	/// fn main() {
+	/// let bytes : &[u8] = &[];
+	/// let tx_view = view!(TransactionView, bytes);
+	/// }
+	/// ```
 	pub fn new(rlp: ViewRlp<'a>) -> TransactionView<'a> {
 		TransactionView {
 			rlp: rlp

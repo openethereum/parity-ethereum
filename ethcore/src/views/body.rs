@@ -30,7 +30,22 @@ pub struct BodyView<'a> {
 }
 
 impl<'a> BodyView<'a> {
-	/// Creates new view onto block from rlp.
+	/// Creates new view onto block body from rlp.
+	/// Use the `view!` macro to create this view in order to capture debugging info.
+	///
+	/// # Example
+	///
+	/// ```
+	/// #[macro_use]
+	/// extern crate ethcore;
+	/// 
+	/// use ethcore::views::{BodyView};
+	/// 
+	/// fn main() {
+	/// let bytes : &[u8] = &[];
+	/// let body_view = view!(BodyView, bytes);
+	/// }
+	/// ```
 	pub fn new(rlp: ViewRlp<'a>) -> BodyView<'a> {
 		BodyView {
 			rlp: rlp
