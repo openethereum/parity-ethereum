@@ -122,6 +122,7 @@ pub struct RunCmd {
 	pub secretstore_conf: secretstore::Configuration,
 	pub private_provider_conf: ProviderConfig,
 	pub private_encryptor_conf: EncryptorConfig,
+	pub private_tx_enabled: bool,
 	pub dapp: Option<String>,
 	pub ui: bool,
 	pub name: String,
@@ -709,11 +710,15 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	).map_err(|e| format!("Sync error: {}", e))?;
 
 	service.add_notify(chain_notify.clone());
-	service.add_notify(private_tx_provider.clone());
 
-	// TODO [ToDr] PrivateTX should use separate notifications
-	// re-using ChainNotify for this is a bit abusive.
-	private_tx_provider.add_notify(chain_notify.clone());
+	// provider not added to a notification center is effectively disabled
+	// TODO [debris] refactor it later on
+	if cmd.private_tx_enabled {
+		service.add_notify(private_tx_provider.clone());
+		// TODO [ToDr] PrivateTX should use separate notifications
+		// re-using ChainNotify for this is a bit abusive.
+		private_tx_provider.add_notify(chain_notify.clone());
+	}
 
 	// start network
 	if network_enabled {

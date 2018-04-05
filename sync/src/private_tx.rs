@@ -25,7 +25,7 @@ pub trait PrivateTxHandler: Send + Sync + 'static {
 	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<(), String>;
 }
 
-/// Nonoperative private transaction handler. Used for tests.
+/// Nonoperative private transaction handler.
 pub struct NoopPrivateTxHandler;
 
 impl PrivateTxHandler for NoopPrivateTxHandler {
