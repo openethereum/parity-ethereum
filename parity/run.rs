@@ -54,7 +54,7 @@ use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
 };
-use helpers::{to_client_config, execute_upgrades, passwords_from_files, client_db_config, open_client_db, restoration_db_handler};
+use helpers::{to_client_config, execute_upgrades, passwords_from_files, client_db_config, open_client_db, restoration_db_handler, compaction_profile};
 use upgrade::upgrade_key_location;
 use dir::{Directories, DatabaseDirectories};
 use cache::CacheConfig;
@@ -205,7 +205,7 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
-	let compaction = cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path());
+	let compaction = compaction_profile(&cmd.compaction, db_dirs.db_root_path().as_path());
 
 	// execute upgrades
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, compaction.clone())?;
@@ -469,7 +469,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, compaction_profile(&cmd.compaction, db_dirs.db_root_path().as_path()))?;
 
 	// create dirs used by parity
 	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.ui_conf.enabled, cmd.secretstore_conf.enabled)?;
