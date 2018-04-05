@@ -16,8 +16,30 @@
 
 //! Ethash params deserialization.
 
+use std::collections::HashMap;
 use uint::{self, Uint};
-use hash::Address;
+use hash::{Address, H256};
+use bytes::Bytes;
+
+/// Deserializable doppelganger of EthashParams.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct IrregularStateChangeAccount {
+	/// See main EthashParams docs.
+	#[serde(rename="nonce")]
+	pub nonce: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="code")]
+	pub code: Option<Bytes>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="balance")]
+	pub balance: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="storage")]
+	pub storage: Option<HashMap<H256, H256>>,
+}
 
 /// Deserializable doppelganger of EthashParams.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -47,6 +69,10 @@ pub struct EthashParams {
 	/// Reward per block in wei.
 	#[serde(rename="blockReward")]
 	pub block_reward: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="irregularStateChanges")]
+	pub irregular_state_changes: Option<HashMap<Uint, HashMap<Address, IrregularStateChangeAccount>>>,
 
 	/// See main EthashParams docs.
 	#[serde(rename="daoHardforkTransition")]
@@ -233,6 +259,7 @@ mod tests {
 					Address(H160::from("0xbb9bc244d798123fde783fcc1c72d3bb8c189413")),
 					Address(H160::from("0x807640a13483f8ac783c557fcdf27be11ea4ac7a")),
 				]),
+				irregular_state_changes: None,
 				difficulty_hardfork_transition: Some(Uint(U256::from(0x59d9))),
 				difficulty_hardfork_bound_divisor: Some(Uint(U256::from(0x0200))),
 				bomb_defuse_transition: Some(Uint(U256::from(0x41))),
@@ -281,6 +308,7 @@ mod tests {
 				dao_hardfork_transition: None,
 				dao_hardfork_beneficiary: None,
 				dao_hardfork_accounts: None,
+				irregular_state_changes: None,
 				difficulty_hardfork_transition: None,
 				difficulty_hardfork_bound_divisor: None,
 				bomb_defuse_transition: None,

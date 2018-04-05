@@ -349,6 +349,11 @@ impl Account {
 		self.nonce = self.nonce + U256::from(1u8);
 	}
 
+	/// Set the nonce of the account to a particular value.
+	pub fn set_nonce(&mut self, nonce: &U256) {
+		self.nonce = *nonce;
+	}
+
 	/// Increase account balance.
 	pub fn add_balance(&mut self, x: &U256) {
 		self.balance = self.balance + *x;
@@ -359,6 +364,11 @@ impl Account {
 	pub fn sub_balance(&mut self, x: &U256) {
 		assert!(self.balance >= *x);
 		self.balance = self.balance - *x;
+	}
+
+	/// Directly set the account balance.
+	pub fn set_balance(&mut self, x: &U256) {
+		self.balance = *x;
 	}
 
 	/// Commit the `storage_changes` to the backing DB and update `storage_root`.

@@ -32,13 +32,37 @@ use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Traci
 use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
 
-use ethereum_types::{U256, Address};
-use bytes::BytesRef;
+use ethereum_types::{U256, Address, H256};
+use bytes::{Bytes, BytesRef};
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
+
+/// Ireegular state change accounts applied at specific blocks.
+#[derive(Debug, Clone)]
+pub struct IrregularStateChangeAccount {
+	/// New nonce forced setting.
+	pub nonce: Option<U256>,
+	/// New code forced setting.
+	pub code: Option<Bytes>,
+	/// New balance forced setting.
+	pub balance: Option<U256>,
+	/// Storage values forced setting.
+	pub storage: Vec<(H256, H256)>,
+}
+
+impl From<::ethjson::spec::IrregularStateChangeAccount> for IrregularStateChangeAccount {
+	fn from(p: ::ethjson::spec::IrregularStateChangeAccount) -> Self {
+		IrregularStateChangeAccount {
+			nonce: p.nonce.map(Into::into),
+			code: p.code.map(Into::into),
+			balance: p.balance.map(Into::into),
+			storage: p.storage.unwrap_or_default().into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+		}
+	}
+}
 
 /// Ethash-specific extensions.
 #[derive(Debug, Clone)]
@@ -59,6 +83,8 @@ pub struct EthashExtensions {
 	pub dao_hardfork_beneficiary: Address,
 	/// DAO hard-fork DAO accounts list (L)
 	pub dao_hardfork_accounts: Vec<Address>,
+	/// Irregular state change list.
+	pub irregular_state_changes: Vec<(u64, Vec<(Address, IrregularStateChangeAccount)>)>,
 }
 
 impl From<::ethjson::spec::EthashParams> for EthashExtensions {
@@ -72,6 +98,7 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 			dao_hardfork_transition: p.dao_hardfork_transition.map_or(u64::max_value(), Into::into),
 			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
 			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
+			irregular_state_changes: p.irregular_state_changes.unwrap_or_else(HashMap::new).into_iter().map(|(k, v)| (k.into(), v.into_iter().map(|(k, v)| (k.into(), v.into())).collect())).collect(),
 		}
 	}
 }
@@ -191,6 +218,26 @@ impl EthereumMachine {
 					let beneficiary = &ethash_params.dao_hardfork_beneficiary;
 					state.balance(child)
 						.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty))?;
+				}
+			}
+
+			for &(irregular_block_number, ref accounts) in &ethash_params.irregular_state_changes {
+				if block.header().number() == irregular_block_number {
+					let state = block.state_mut();
+					for &(address, ref irregular_account) in accounts {
+						if let Some(nonce) = irregular_account.nonce {
+							state.set_nonce(&address, &nonce)?;
+						}
+						if let Some(balance) = irregular_account.balance {
+							state.set_balance(&address, &balance)?;
+						}
+						if let Some(ref code) = irregular_account.code {
+							state.reset_code(&address, code.clone())?;
+						}
+						for &(key, value) in &irregular_account.storage {
+							state.set_storage(&address, key, value)?;
+						}
+					}
 				}
 			}
 		}
@@ -483,6 +530,7 @@ mod tests {
 			dao_hardfork_transition: u64::max_value(),
 			dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
 			dao_hardfork_accounts: Vec::new(),
+			irregular_state_changes: Vec::new(),
 		}
 	}
 
