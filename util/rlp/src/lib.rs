@@ -75,12 +75,12 @@ pub const EMPTY_LIST_RLP: [u8; 1] = [0xC0; 1];
 /// ```
 pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
 	let rlp = Rlp::new(bytes);
-	rlp.as_val().expect("expected valid rlp - TODO [AJ] remove this")
+	rlp.as_val().expect("trusted rlp should be valid")
 }
 
 pub fn decode_list<T>(bytes: &[u8]) -> Vec<T> where T: Decodable {
 	let rlp = Rlp::new(bytes);
-	rlp.as_list().expect("expected valid rlp - TODO [AJ] remove this")
+	rlp.as_list().expect("trusted rlp should be valid")
 }
 
 /// Shortcut function to encode structure into rlp.
