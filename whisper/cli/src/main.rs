@@ -56,9 +56,8 @@ Options:
 	--whisper-pool-size SIZE       Specify Whisper pool size [default: 10].
 	-p, --port PORT                Specify which RPC port to use [default: 8545].
 	-a, --address ADDRESS          Specify which address to use [default: 127.0.0.1].
-	-l, --log LEVEL				   Specify log level to use [default: Error].
+	-l, --log LEVEL				   Specify the logging level. Must conform to the same format as RUST_LOG [default: Error].
 	-h, --help                     Display this message and exit.
-
 "#;
 
 #[derive(Clone, Default)]
@@ -129,6 +128,7 @@ enum Error {
 	JsonRpc(jsonrpc_core::Error),
 	Network(net::Error),
 	SockAddr(std::net::AddrParseError),
+	Logger(String),
 }
 
 impl From<std::net::AddrParseError> for Error {
@@ -161,6 +161,12 @@ impl From<jsonrpc_core::Error> for Error {
 	}
 }
 
+impl From<String> for Error {
+	fn from(err: String) -> Self {
+		Error::Logger(err)
+	}
+}
+
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
@@ -169,6 +175,7 @@ impl fmt::Display for Error {
 			Error::Io(ref e) => write!(f, "IoError: {}", e),
 			Error::JsonRpc(ref e) => write!(f, "JsonRpcError: {:?}", e),
 			Error::Network(ref e) => write!(f, "NetworkError: {}", e),
+			Error::Logger(ref e) => write!(f, "LoggerError: {}", e),
 		}
 	}
 }
@@ -195,7 +202,7 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 	let pool_size = args.flag_whisper_pool_size * POOL_UNIT;
 	let url = format!("{}:{}", args.flag_address, args.flag_port);
 
-	let _ = set_logger(args.flag_log);
+	initialize_logger(args.flag_log)?;
 	info!(target: "whisper-cli", "start");
 
 	// Filter manager that will dispatch `decryption tasks`
@@ -238,10 +245,55 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 	Ok(())
 }
 
-fn set_logger(log_level: String) -> Result<(), String> {
+fn initialize_logger(log_level: String) -> Result<(), String> {
 	let mut l = log::Config::default();
 	l.mode = Some(log_level);
 	log::setup_log(&l)?;
 	Ok(())
 }
 
+
+#[cfg(test)]
+mod tests {
+	use super::execute;
+
+	#[test]
+	fn invalid_argument() {
+		let command = vec!["whisper-cli", "--foo=12"]
+			.into_iter()
+			.map(Into::into)
+			.collect::<Vec<String>>();
+
+		assert!(execute(command).is_err());
+	}
+
+	#[test]
+	fn privileged_port() {
+		let command = vec!["whisper-cli", "--port=3"]
+			.into_iter()
+			.map(Into::into)
+			.collect::<Vec<String>>();
+
+		assert!(execute(command).is_err());
+	}
+
+	#[test]
+	fn invalid_ip_address() {
+		let command = vec!["whisper-cli", "--address=x.x.x.x"]
+			.into_iter()
+			.map(Into::into)
+			.collect::<Vec<String>>();
+
+		assert!(execute(command).is_err());
+	}
+
+	#[test]
+	fn invalid_whisper_pool_size() {
+		let command = vec!["whisper-cli", "--whisper-pool-size=-100000000000000000000000000000000000000"]
+			.into_iter()
+			.map(Into::into)
+			.collect::<Vec<String>>();
+
+		assert!(execute(command).is_err());
+	}
+}
