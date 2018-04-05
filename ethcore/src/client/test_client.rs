@@ -397,7 +397,7 @@ impl PrepareOpenBlock for TestBlockChainClient {
 			extra_data,
 			false,
 		).expect("Opening block for tests will not fail.");
-		// TODO [todr] Override timestamp for predictability (set_timestamp_now kind of sucks)
+		// TODO [todr] Override timestamp for predictability
 		open_block.set_timestamp(*self.latest_block_timestamp.read());
 		open_block
 	}

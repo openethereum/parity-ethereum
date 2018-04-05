@@ -403,11 +403,7 @@ impl Configuration {
 	}
 
 	fn vm_type(&self) -> Result<VMType, String> {
-		if self.args.flag_jitvm {
-			VMType::jit().ok_or("Parity is built without the JIT EVM.".into())
-		} else {
-			Ok(VMType::Interpreter)
-		}
+		Ok(VMType::Interpreter)
 	}
 
 	fn miner_extras(&self) -> Result<MinerExtras, String> {

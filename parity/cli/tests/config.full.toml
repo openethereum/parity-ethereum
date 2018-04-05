@@ -147,9 +147,6 @@ num_verifiers = 6
 [snapshots]
 disable_periodic = false
 
-[vm]
-jit = false
-
 [misc]
 logging = "own_tx=trace"
 log_file = "/var/log/parity.log"
