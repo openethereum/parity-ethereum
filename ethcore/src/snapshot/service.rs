@@ -635,6 +635,7 @@ mod tests {
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
 	use tempdir::TempDir;
+	use tests::helpers::restoration_db_handler;
 
 	struct NoopDBRestore;
 	impl DatabaseRestore for NoopDBRestore {
@@ -654,7 +655,7 @@ mod tests {
 		let snapshot_params = ServiceParams {
 			engine: spec.engine.clone(),
 			genesis_block: spec.genesis_block(),
-			db_config: Default::default(),
+			restoration_db_handler: restoration_db_handler(Default::default()),
 			pruning: Algorithm::Archive,
 			channel: service.channel(),
 			snapshot_root: dir,
@@ -706,8 +707,7 @@ mod tests {
 				block_hash: H256::default(),
 			},
 			pruning: Algorithm::Archive,
-			db_path: tempdir.path().to_owned(),
-			db_config: &db_config,
+			db: restoration_db_handler(db_config).open(&tempdir.path().to_owned()).unwrap(),
 			writer: None,
 			genesis: &gb,
 			guard: Guard::benign(),
