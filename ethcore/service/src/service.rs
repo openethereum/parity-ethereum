@@ -38,7 +38,7 @@ pub struct ClientService {
 	io_service: Arc<IoService<ClientIoMessage>>,
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
-	database: Arc<Database>,
+	database: Arc<KeyValueDB>,
 	_stop_guard: StopGuard,
 }
 
@@ -47,7 +47,8 @@ impl ClientService {
 	pub fn start(
 		config: ClientConfig,
 		spec: &Spec,
-		client_path: &Path,
+		client_db: Arc<KeyValueDB>,
+		snapshot_db_config: DatabaseConfig,
 		snapshot_path: &Path,
 		_ipc_path: &Path,
 		miner: Arc<Miner>,
@@ -57,25 +58,13 @@ impl ClientService {
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 
-		let mut db_config = DatabaseConfig::with_columns(db::NUM_COLUMNS);
-
-		db_config.memory_budget = config.db_cache_size;
-		db_config.compaction = config.db_compaction.compaction_profile(client_path);
-		db_config.wal = config.db_wal;
-
-		let db = Arc::new(Database::open(
-			&db_config,
-			&client_path.to_str().expect("DB path could not be converted to string.")
-		).map_err(client::Error::Database)?);
-
-
 		let pruning = config.pruning;
-		let client = Client::new(config, &spec, db.clone(), miner, io_service.channel())?;
+		let client = Client::new(config, &spec, client_db.clone(), miner, io_service.channel())?;
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
 			genesis_block: spec.genesis_block(),
-			db_config: db_config.clone(),
+			db_config: snapshot_db_config,
 			pruning: pruning,
 			channel: io_service.channel(),
 			snapshot_root: snapshot_path.into(),
@@ -97,7 +86,7 @@ impl ClientService {
 			io_service: Arc::new(io_service),
 			client: client,
 			snapshot: snapshot,
-			database: db,
+			database: client_db,
 			_stop_guard: stop_guard,
 		})
 	}

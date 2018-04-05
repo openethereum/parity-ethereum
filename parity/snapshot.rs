@@ -31,7 +31,7 @@ use ethcore_service::ClientService;
 
 use cache::CacheConfig;
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
-use helpers::{to_client_config, execute_upgrades};
+use helpers::{to_client_config, execute_upgrades, open_client_db};
 use dir::Directories;
 use user_defaults::UserDefaults;
 use fdlimit;
@@ -181,10 +181,13 @@ impl SnapshotCommand {
 			true
 		);
 
+		let (client_db, client_db_config) = open_client_db(&client_path, &client_config)?;
+
 		let service = ClientService::start(
 			client_config,
 			&spec,
-			&client_path,
+			client_db,
+			client_db_config,
 			&snapshot_path,
 			&self.dirs.ipc_path(),
 			Arc::new(Miner::with_spec(&spec))
