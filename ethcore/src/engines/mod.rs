@@ -242,11 +242,11 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn verify_block_unordered(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 
 	/// Phase 3 verification. Check block information against parent. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_family(&self, _header: &M::Header, _parent: &M::Header) -> Result<(), Error> { Ok(()) }
+	fn verify_block_family(&self, _header: &M::Header, _parent: &M::Header) -> Result<(), M::Error> { Ok(()) }
 
 	/// Phase 4 verification. Verify block header against potentially external data.
 	/// Should only be called when `register_client` has been called previously.
-	fn verify_block_external(&self, _header: &M::Header) -> Result<(), Error> { Ok(()) }
+	fn verify_block_external(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 
 	/// Genesis epoch data.
 	fn genesis_epoch_data<'a>(&self, _header: &M::Header, _state: &<M as Localized<'a>>::StateContext) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
@@ -304,7 +304,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: String) {}
 
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
-	fn sign(&self, _hash: H256) -> Result<Signature, Error> { unimplemented!() }
+	fn sign(&self, _hash: H256) -> Result<Signature, M::Error> { unimplemented!() }
 
 	/// Add Client which can be used for sealing, potentially querying the state and sending messages.
 	fn register_client(&self, _client: Weak<M::EngineClient>) {}
