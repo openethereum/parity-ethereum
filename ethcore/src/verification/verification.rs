@@ -304,11 +304,11 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) 
 
 /// Check header parameters agains parent header.
 fn verify_parent(header: &Header, parent: &Header, engine: &EthEngine) -> Result<(), Error> {
+	assert!(header.parent_hash().is_zero() || &parent.hash() == header.parent_hash(),
+			"Parent hash should already have been verified; qed");
+
 	let gas_limit_divisor = engine.params().gas_limit_bound_divisor;
 
-	if !header.parent_hash().is_zero() && &parent.hash() != header.parent_hash() {
-		return Err(From::from(BlockError::InvalidParentHash(Mismatch { expected: parent.hash(), found: header.parent_hash().clone() })))
-	}
 	if !engine.is_timestamp_valid(header.timestamp(), parent.timestamp()) {
 		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp() + 1), found: header.timestamp() })))
 	}
