@@ -134,3 +134,6 @@ members = [
 	"transaction-pool",
 	"whisper"
 ]
+
+[patch.crates-io]
+ring = { git = "https://github.com/paritytech/ring" }
