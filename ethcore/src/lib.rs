@@ -93,7 +93,6 @@ extern crate triehash;
 extern crate ansi_term;
 extern crate unexpected;
 extern crate kvdb;
-extern crate kvdb_rocksdb;
 extern crate kvdb_memorydb;
 extern crate util_error;
 extern crate snappy;
@@ -132,6 +131,9 @@ extern crate evm;
 
 #[cfg(feature = "jit" )]
 extern crate evmjit;
+
+#[cfg(test)]
+extern crate kvdb_rocksdb;
 
 pub extern crate ethstore;
 
