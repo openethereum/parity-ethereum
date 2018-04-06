@@ -451,7 +451,7 @@ impl Configuration {
 		LogConfig {
 			mode: self.args.arg_logging.clone(),
 			color: !self.args.flag_no_color && !cfg!(windows),
-			file: replace_home(&self.directories().base, &self.args.arg_log_file),
+			file: self.args.arg_log_file.as_ref().map(|log_file| replace_home(&self.directories().base, log_file)),
 		}
 	}
 
