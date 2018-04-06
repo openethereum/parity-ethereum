@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::time::Duration;
 use rand::random;
 use hash::write_keccak;
 use mio::tcp::*;
@@ -73,7 +74,7 @@ pub struct Handshake {
 
 const V4_AUTH_PACKET_SIZE: usize = 307;
 const V4_ACK_PACKET_SIZE: usize = 210;
-const HANDSHAKE_TIMEOUT: u64 = 5000;
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
 const PROTOCOL_VERSION: u64 = 4;
 // Amount of bytes added when encrypting with encryptECIES.
 const ECIES_OVERHEAD: usize = 113;

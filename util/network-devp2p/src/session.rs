@@ -34,8 +34,8 @@ use node_table::NodeId;
 use snappy;
 
 // Timeout must be less than (interval - 1).
-const PING_TIMEOUT_SEC: Duration = Duration::from_secs(60);
-const PING_INTERVAL_SEC: Duration = Duration::from_secs(120);
+const PING_TIMEOUT: Duration = Duration::from_secs(60);
+const PING_INTERVAL: Duration = Duration::from_secs(120);
 const MIN_PROTOCOL_VERSION: u32 = 4;
 const MIN_COMPRESSION_PROTOCOL_VERSION: u32 = 5;
 
@@ -116,7 +116,7 @@ impl Session {
 				protocol_version: 0,
 				capabilities: Vec::new(),
 				peer_capabilities: Vec::new(),
-				ping_ms: None,
+				ping: None,
 				originated: originated,
 				remote_address: "Handshake".to_owned(),
 				local_address: local_addr,
@@ -298,12 +298,12 @@ impl Session {
 			return true;
 		}
 		let timed_out = if let Some(pong) = self.pong_time {
-			pong.duration_since(self.ping_time) > PING_TIMEOUT_SEC
+			pong.duration_since(self.ping_time) > PING_TIMEOUT
 		} else {
-			self.ping_time.elapsed() > PING_TIMEOUT_SEC
+			self.ping_time.elapsed() > PING_TIMEOUT
 		};
 
-		if !timed_out && self.ping_time.elapsed() > PING_INTERVAL_SEC {
+		if !timed_out && self.ping_time.elapsed() > PING_INTERVAL {
 			if let Err(e) = self.send_ping(io) {
 				debug!("Error sending ping message: {:?}", e);
 			}
@@ -368,9 +368,7 @@ impl Session {
 			PACKET_PONG => {
 				let time = Instant::now();
 				self.pong_time = Some(time);
-				let ping_elapsed = time.duration_since(self.ping_time);
-				self.info.ping_ms = Some(ping_elapsed.as_secs() * 1_000 +
-										ping_elapsed.subsec_nanos() as u64 / 1_000_000);
+				self.info.ping = Some(time.duration_since(self.ping_time));
 				Ok(SessionData::Continue)
 			},
 			PACKET_GET_PEERS => Ok(SessionData::None), //TODO;

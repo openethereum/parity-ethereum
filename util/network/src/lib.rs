@@ -37,6 +37,7 @@ use std::collections::HashMap;
 use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
 use std::str::{self, FromStr};
 use std::sync::Arc;
+use std::time::Duration;
 use ipnetwork::{IpNetwork, IpNetworkError};
 use io::IoChannel;
 use ethkey::Secret;
@@ -74,8 +75,8 @@ pub enum NetworkIoMessage {
 		protocol: ProtocolId,
 		/// Timer token.
 		token: TimerToken,
-		/// Timer delay in milliseconds.
-		delay: u64,
+		/// Timer delay.
+		delay: Duration,
 	},
 	/// Initliaze public interface.
 	InitPublicInterface,
@@ -100,8 +101,8 @@ pub struct SessionInfo {
 	pub capabilities: Vec<SessionCapabilityInfo>,
 	/// Peer protocol capabilities
 	pub peer_capabilities: Vec<PeerCapabilityInfo>,
-	/// Peer ping delay in milliseconds
-	pub ping_ms: Option<u64>,
+	/// Peer ping delay
+	pub ping: Option<Duration>,
 	/// True if this session was originated by us.
 	pub originated: bool,
 	/// Remote endpoint address of the session
@@ -271,7 +272,7 @@ pub trait NetworkContext {
 	fn is_expired(&self) -> bool;
 
 	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
-	fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), Error>;
+	fn register_timer(&self, token: TimerToken, delay: Duration) -> Result<(), Error>;
 
 	/// Returns peer identification string
 	fn peer_client_version(&self, peer: PeerId) -> String;
@@ -315,8 +316,8 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 		(**self).is_expired()
 	}
 
-	fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), Error> {
-		(**self).register_timer(token, ms)
+	fn register_timer(&self, token: TimerToken, delay: Duration) -> Result<(), Error> {
+		(**self).register_timer(token, delay)
 	}
 
 	fn peer_client_version(&self, peer: PeerId) -> String {

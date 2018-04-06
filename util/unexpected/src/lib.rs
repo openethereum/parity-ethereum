@@ -44,6 +44,18 @@ pub struct OutOfBounds<T> {
 	pub found: T,
 }
 
+impl<T> OutOfBounds<T> {
+	pub fn map<F, U>(self, map: F) -> OutOfBounds<U>
+		where F: Fn(T) -> U
+	{
+		OutOfBounds {
+			min: self.min.map(&map),
+			max: self.max.map(&map),
+			found: map(self.found),
+		}
+	}
+}
+
 impl<T: fmt::Display> fmt::Display for OutOfBounds<T> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let msg = match (self.min.as_ref(), self.max.as_ref()) {

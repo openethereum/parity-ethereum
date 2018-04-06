@@ -36,7 +36,7 @@ mod tests;
 // how often periodic relays are. when messages are imported
 // we directly broadcast.
 const RALLY_TOKEN: TimerToken = 1;
-const RALLY_TIMEOUT_MS: u64 = 2500;
+const RALLY_TIMEOUT: Duration = Duration::from_millis(2500);
 
 /// Current protocol version.
 pub const PROTOCOL_VERSION: usize = 6;
@@ -685,7 +685,7 @@ impl<T: MessageHandler> Network<T> {
 impl<T: MessageHandler> ::network::NetworkProtocolHandler for Network<T> {
 	fn initialize(&self, io: &NetworkContext, host_info: &HostInfo) {
 		// set up broadcast timer (< 1s)
-		io.register_timer(RALLY_TOKEN, RALLY_TIMEOUT_MS)
+		io.register_timer(RALLY_TOKEN, RALLY_TIMEOUT)
 			.expect("Failed to initialize message rally timer");
 
 		*self.node_key.write() = host_info.id().clone();

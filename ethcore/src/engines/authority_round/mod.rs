@@ -19,7 +19,7 @@
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Weak, Arc};
-use std::time::{UNIX_EPOCH, Duration};
+use std::time::{UNIX_EPOCH, SystemTime, Duration};
 use std::collections::{BTreeMap, HashSet};
 use std::iter::FromIterator;
 
@@ -536,6 +536,7 @@ fn verify_timestamp(step: &Step, header_step: usize) -> Result<(), BlockError> {
 			// NOTE This error might be returned only in early stage of verification (Stage 1).
 			// Returning it further won't recover the sync process.
 			trace!(target: "engine", "verify_timestamp: block too early");
+			let oob = oob.map(|n| SystemTime::now() + Duration::from_secs(n));
 			Err(BlockError::TemporarilyInvalid(oob).into())
 		},
 		Ok(_) => Ok(()),
@@ -694,8 +695,8 @@ const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 impl IoHandler<()> for TransitionHandler {
 	fn initialize(&self, io: &IoContext<()>) {
 		if let Some(engine) = self.engine.upgrade() {
-			let remaining = engine.step.duration_remaining();
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, remaining.as_millis())
+			let remaining = engine.step.duration_remaining().as_millis();
+			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, Duration::from_millis(remaining))
 				.unwrap_or_else(|e| warn!(target: "engine", "Failed to start consensus step timer: {}.", e))
 		}
 	}
@@ -711,7 +712,7 @@ impl IoHandler<()> for TransitionHandler {
 				}
 
 				let next_run_at = engine.step.duration_remaining().as_millis() >> 2;
-				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, next_run_at)
+				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, Duration::from_millis(next_run_at))
 					.unwrap_or_else(|e| warn!(target: "engine", "Failed to restart consensus step timer: {}.", e))
 			}
 		}
