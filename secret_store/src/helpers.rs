@@ -17,6 +17,7 @@
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethereum_types::H256;
 
+// TODO: Instead of a constant, make this based on consensus finality.
 /// Number of confirmations required before request can be processed.
 pub const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
 
