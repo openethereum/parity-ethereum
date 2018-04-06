@@ -26,6 +26,7 @@ use ethereum_types::{H256, U256, Address};
 use listener::ApiMask;
 use listener::service_contract_listener::ServiceTask;
 use trusted_client::TrustedClient;
+use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
 use {ServerKeyId, NodeKeyPair, ContractAddress};
 
 use_contract!(service, "Service", "res/service.json");
@@ -51,9 +52,6 @@ const DOCUMENT_KEY_STORE_REQUESTED_EVENT_NAME: &'static [u8] = &*b"DocumentKeySt
 const DOCUMENT_KEY_COMMON_PART_RETRIEVAL_REQUESTED_EVENT_NAME: &'static [u8] = &*b"DocumentKeyCommonRetrievalRequested(bytes32,address)";
 /// Document key personal part retrieval has been requested.
 const DOCUMENT_KEY_PERSONAL_PART_RETRIEVAL_REQUESTED_EVENT_NAME: &'static [u8] = &*b"DocumentKeyPersonalRetrievalRequested(bytes32,bytes)";
-
-/// Number of confirmations required before request can be processed.
-const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
 
 lazy_static! {
 	pub static ref SERVER_KEY_GENERATION_REQUESTED_EVENT_NAME_HASH: H256 = keccak(SERVER_KEY_GENERATION_REQUESTED_EVENT_NAME);
@@ -234,16 +232,16 @@ impl OnChainServiceContract {
 
 impl ServiceContract for OnChainServiceContract {
 	fn update(&self) -> bool {
-		// TODO [Sec]: registry_address currently reads from BlockId::Latest, instead of
-		// from block with REQUEST_CONFIRMATIONS_REQUIRED confirmations
 		if let &ContractAddress::Registry = &self.address {
 			if let Some(client) = self.client.get() {
-				// update contract address from registry
-				let service_contract_addr = client.registry_address(self.name.clone(), BlockId::Latest).unwrap_or_default();
-				if self.data.read().contract_address != service_contract_addr {
-					trace!(target: "secretstore", "{}: installing {} service contract from address {}",
-						self.self_key_pair.public(), self.name, service_contract_addr);
-					self.data.write().contract_address = service_contract_addr;
+				if let Some(block_hash) = get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED) {
+					// update contract address from registry
+					let service_contract_addr = client.registry_address(self.name.clone(), BlockId::Hash(block_hash)).unwrap_or_default();
+					if self.data.read().contract_address != service_contract_addr {
+						trace!(target: "secretstore", "{}: installing {} service contract from address {}",
+							   self.self_key_pair.public(), self.name, service_contract_addr);
+						self.data.write().contract_address = service_contract_addr;
+					}
 				}
 			}
 		}
@@ -458,13 +456,6 @@ pub fn mask_topics(mask: &ApiMask) -> Vec<H256> {
 		topics.push(*DOCUMENT_KEY_PERSONAL_PART_RETRIEVAL_REQUESTED_EVENT_NAME_HASH);
 	}
 	topics
-}
-
-/// Get hash of the last block with at least n confirmations.
-fn get_confirmed_block_hash(client: &Client, confirmations: u64) -> Option<H256> {
-	client.block_number(BlockId::Latest)
-		.map(|b| b.saturating_sub(confirmations))
-		.and_then(|b| client.block_hash(BlockId::Number(b)))
 }
 
 impl ServerKeyGenerationService {

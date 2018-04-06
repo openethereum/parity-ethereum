@@ -54,6 +54,7 @@ extern crate log;
 
 mod key_server_cluster;
 mod types;
+mod helpers;
 
 mod traits;
 mod acl_storage;
