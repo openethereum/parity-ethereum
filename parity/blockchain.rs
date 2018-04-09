@@ -35,7 +35,7 @@ use cache::CacheConfig;
 use informant::{Informant, FullNodeInformantData, MillisecondDuration};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
-use helpers::{to_client_config, execute_upgrades};
+use helpers::{to_client_config, execute_upgrades, open_client_db, client_db_config, restoration_db_handler, compaction_profile};
 use dir::Directories;
 use user_defaults::UserDefaults;
 use fdlimit;
@@ -186,7 +186,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	let client_path = db_dirs.client_path(algorithm);
 
 	// execute upgrades
-	let compaction = cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path());
+	let compaction = compaction_profile(&cmd.compaction, db_dirs.db_root_path().as_path());
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, compaction)?;
 
 	// create dirs used by parity
@@ -352,7 +352,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, compaction_profile(&cmd.compaction, db_dirs.db_root_path().as_path()))?;
 
 	// create dirs used by parity
 	cmd.dirs.create_dirs(false, false, false)?;
@@ -376,12 +376,17 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
 
+	let client_db_config = client_db_config(&client_path, &client_config);
+	let client_db = open_client_db(&client_path, &client_db_config)?;
+	let restoration_db_handler = restoration_db_handler(client_db_config);
+
 	// build client
 	let service = ClientService::start(
 		client_config,
 		&spec,
-		&client_path,
+		client_db,
 		&snapshot_path,
+		restoration_db_handler,
 		&cmd.dirs.ipc_path(),
 		// TODO [ToDr] don't use test miner here
 		// (actually don't require miner at all)
@@ -539,7 +544,7 @@ fn start_client(
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	execute_upgrades(&dirs.base, &db_dirs, algorithm, compaction.compaction_profile(db_dirs.db_root_path().as_path()))?;
+	execute_upgrades(&dirs.base, &db_dirs, algorithm, compaction_profile(&compaction, db_dirs.db_root_path().as_path()))?;
 
 	// create dirs used by parity
 	dirs.create_dirs(false, false, false)?;
@@ -561,11 +566,16 @@ fn start_client(
 		true,
 	);
 
+	let client_db_config = client_db_config(&client_path, &client_config);
+	let client_db = open_client_db(&client_path, &client_db_config)?;
+	let restoration_db_handler = restoration_db_handler(client_db_config);
+
 	let service = ClientService::start(
 		client_config,
 		&spec,
-		&client_path,
+		client_db,
 		&snapshot_path,
+		restoration_db_handler,
 		&dirs.ipc_path(),
 		// It's fine to use test version here,
 		// since we don't care about miner parameters at all

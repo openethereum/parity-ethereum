@@ -25,7 +25,7 @@ use light::client::fetch::Unavailable as UnavailableDataFetcher;
 use light::Cache as LightDataCache;
 
 use params::{SpecType, Pruning};
-use helpers::execute_upgrades;
+use helpers::{execute_upgrades, compaction_profile};
 use dir::Directories;
 use cache::CacheConfig;
 use user_defaults::UserDefaults;
@@ -66,7 +66,7 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
-	let compaction = cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path());
+	let compaction = compaction_profile(&cmd.compaction, db_dirs.db_root_path().as_path());
 
 	// execute upgrades
 	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, compaction.clone())?;

@@ -24,7 +24,7 @@ use ids::BlockId;
 use snapshot::service::{Service, ServiceParams};
 use snapshot::{self, ManifestData, SnapshotService};
 use spec::Spec;
-use tests::helpers::generate_dummy_client_with_spec_and_data;
+use tests::helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
 
 use io::IoChannel;
 use kvdb_rocksdb::{Database, DatabaseConfig};
@@ -65,7 +65,7 @@ fn restored_is_equivalent() {
 	let service_params = ServiceParams {
 		engine: spec.engine.clone(),
 		genesis_block: spec.genesis_block(),
-		db_config: db_config,
+		restoration_db_handler: restoration_db_handler(db_config),
 		pruning: ::journaldb::Algorithm::Archive,
 		channel: IoChannel::disconnected(),
 		snapshot_root: path,
@@ -107,7 +107,7 @@ fn guards_delete_folders() {
 	let service_params = ServiceParams {
 		engine: spec.engine.clone(),
 		genesis_block: spec.genesis_block(),
-		db_config: DatabaseConfig::with_columns(::db::NUM_COLUMNS),
+		restoration_db_handler: restoration_db_handler(DatabaseConfig::with_columns(::db::NUM_COLUMNS)),
 		pruning: ::journaldb::Algorithm::Archive,
 		channel: IoChannel::disconnected(),
 		snapshot_root: tempdir.path().to_owned(),
