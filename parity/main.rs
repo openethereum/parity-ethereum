@@ -120,7 +120,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 		f();
 		0
 	} else {
-		let mut args = std::env::args().collect::<Vec<_>>();
+		let mut args = std::env::args().skip(1).collect::<Vec<_>>();
 		if force_can_restart && !args.iter().any(|arg| arg == "--can-restart") {
 			args.push("--can-restart".to_owned());
 		}
