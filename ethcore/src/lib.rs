@@ -94,6 +94,7 @@ extern crate ansi_term;
 extern crate unexpected;
 extern crate kvdb;
 extern crate kvdb_memorydb;
+extern crate kvdb_rocksdb;
 extern crate util_error;
 extern crate snappy;
 
@@ -128,9 +129,6 @@ extern crate trace_time;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
-#[cfg(test)]
-extern crate kvdb_rocksdb;
-
 pub extern crate ethstore;
 
 pub mod account_provider;
@@ -142,6 +140,7 @@ pub mod engines;
 pub mod error;
 pub mod ethereum;
 pub mod executed;
+pub mod executive;
 pub mod header;
 pub mod machine;
 pub mod miner;
@@ -150,6 +149,8 @@ pub mod snapshot;
 pub mod spec;
 pub mod state;
 pub mod state_db;
+// Test helpers made public for usage outside ethcore
+pub mod test_helpers;
 pub mod trace;
 pub mod verification;
 pub mod views;
@@ -159,7 +160,6 @@ mod blooms;
 mod pod_account;
 mod account_db;
 mod builtin;
-mod executive;
 mod externalities;
 mod blockchain;
 mod factory;

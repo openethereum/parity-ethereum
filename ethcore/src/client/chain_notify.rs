@@ -17,6 +17,16 @@
 use ethereum_types::H256;
 use bytes::Bytes;
 
+/// Messages to broadcast via chain
+pub enum ChainMessageType {
+	/// Consensus message
+	Consensus(Vec<u8>),
+	/// Message with private transaction
+	PrivateTransaction(Vec<u8>),
+	/// Message with signed private transaction
+	SignedPrivateTransaction(Vec<u8>),
+}
+
 /// Represents what has to be handled by actor listening to chain events
 pub trait ChainNotify : Send + Sync {
 	/// fires when chain has new blocks.
@@ -45,7 +55,7 @@ pub trait ChainNotify : Send + Sync {
 	}
 
 	/// fires when chain broadcasts a message
-	fn broadcast(&self, _data: Vec<u8>) {}
+	fn broadcast(&self, _message_type: ChainMessageType) {}
 
 	/// fires when new transactions are received from a peer
 	fn transactions_received(&self,

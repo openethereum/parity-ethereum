@@ -20,7 +20,7 @@ use parking_lot::Mutex;
 use hyper;
 
 use futures::{self, Future};
-use fetch::{self, Fetch, Url};
+use fetch::{self, Fetch, Url, Method};
 
 pub struct FetchControl {
 	sender: mpsc::Sender<()>,
@@ -97,7 +97,7 @@ impl FakeFetch {
 impl Fetch for FakeFetch {
 	type Result = Box<Future<Item = fetch::Response, Error = fetch::Error> + Send>;
 
-	fn fetch(&self, url: &str, abort: fetch::Abort) -> Self::Result {
+	fn fetch(&self, url: &str, _method: Method, abort: fetch::Abort) -> Self::Result {
 		let u = Url::parse(url).unwrap();
 		self.requested.lock().push(url.into());
 		let manual = self.manual.clone();

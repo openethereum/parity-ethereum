@@ -155,7 +155,7 @@ mod tests {
 	use header::Header;
 	use miner::MinerService;
 	use spec::Spec;
-	use tests::helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
+	use test_helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
 	use types::ids::BlockId;
 	use ethereum_types::Address;
 

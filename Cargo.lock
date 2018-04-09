@@ -519,6 +519,7 @@ dependencies = [
  "ethkey 0.3.0",
  "ethstore 0.2.0",
  "evm 0.1.0",
+ "fetch 0.1.0",
  "futures-cpupool 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "hardware-wallet 1.11.0",
  "hashdb 0.1.1",
@@ -721,6 +722,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethcore-private-tx"
+version = "1.0.0"
+dependencies = [
+ "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 5.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-contract 5.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-derive 5.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore 1.11.0",
+ "ethcore-bytes 0.1.0",
+ "ethcore-io 1.11.0",
+ "ethcore-logger 1.11.0",
+ "ethcore-miner 1.11.0",
+ "ethcore-transaction 0.1.0",
+ "ethcrypto 0.1.0",
+ "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethjson 0.1.0",
+ "ethkey 0.3.0",
+ "fetch 0.1.0",
+ "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "keccak-hash 0.1.0",
+ "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "patricia-trie 0.1.0",
+ "rand 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.2.1",
+ "rlp_derive 0.1.0",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ethcore-secretstore"
 version = "1.0.0"
 dependencies = [
@@ -762,8 +797,11 @@ name = "ethcore-service"
 version = "0.1.0"
 dependencies = [
  "ansi_term 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.11.0",
  "ethcore-io 1.11.0",
+ "ethcore-private-tx 1.0.0",
+ "ethsync 1.11.0",
  "kvdb 0.1.0",
  "kvdb-rocksdb 0.1.0",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -948,6 +986,7 @@ dependencies = [
  "plain_hasher 0.1.0",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "triehash 0.1.0",
@@ -1939,6 +1978,7 @@ dependencies = [
  "ethcore-migrations 0.1.0",
  "ethcore-miner 1.11.0",
  "ethcore-network 1.11.0",
+ "ethcore-private-tx 1.0.0",
  "ethcore-secretstore 1.0.0",
  "ethcore-service 0.1.0",
  "ethcore-stratum 1.11.0",
@@ -2145,6 +2185,7 @@ dependencies = [
  "ethcore-logger 1.11.0",
  "ethcore-miner 1.11.0",
  "ethcore-network 1.11.0",
+ "ethcore-private-tx 1.0.0",
  "ethcore-transaction 0.1.0",
  "ethcrypto 0.1.0",
  "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",

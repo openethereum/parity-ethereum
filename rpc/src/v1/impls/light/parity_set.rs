@@ -128,7 +128,7 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 	}
 
 	fn hash_content(&self, url: String) -> BoxFuture<H256> {
-		let future = self.fetch.fetch(&url, Default::default()).then(move |result| {
+		let future = self.fetch.get(&url, Default::default()).then(move |result| {
 			result
 				.map_err(errors::fetch)
 				.and_then(move |response| {

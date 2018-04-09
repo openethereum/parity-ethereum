@@ -5,8 +5,11 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ansi_term = "0.10"
+error-chain = { version = "0.11", default-features = false }
 ethcore = { path = ".." }
 ethcore-io = { path = "../../util/io" }
+ethcore-private-tx = { path = "../private-tx" }
+ethsync = { path = "../../sync" }
 kvdb = { path = "../../util/kvdb" }
 log = "0.3"
 stop-guard = { path = "../../util/stop-guard" }
