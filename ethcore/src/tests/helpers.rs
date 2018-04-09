@@ -33,8 +33,11 @@ use spec::Spec;
 use state_db::StateDB;
 use state::*;
 use std::sync::Arc;
+use std::path::Path;
 use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
+use kvdb::{KeyValueDB, KeyValueDBHandler};
+use kvdb_rocksdb::{Database, DatabaseConfig};
 
 pub fn create_test_block(header: &Header) -> Bytes {
 	let mut rlp = RlpStream::new_list(3);
@@ -348,4 +351,20 @@ impl ChainNotify for TestNotify {
 	fn broadcast(&self, data: Vec<u8>) {
 		self.messages.write().push(data);
 	}
+}
+
+pub fn restoration_db_handler(config: DatabaseConfig) -> Box<KeyValueDBHandler> {
+	use kvdb::Error;
+
+	struct RestorationDBHandler {
+		config: DatabaseConfig,
+	}
+
+	impl KeyValueDBHandler for RestorationDBHandler {
+		fn open(&self, db_path: &Path) -> Result<Arc<KeyValueDB>, Error> {
+			Ok(Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?))
+		}
+	}
+
+	Box::new(RestorationDBHandler { config })
 }

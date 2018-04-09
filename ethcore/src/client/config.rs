@@ -15,13 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
-use std::path::Path;
 use std::fmt::{Display, Formatter, Error as FmtError};
 
 use mode::Mode as IpcMode;
 use verification::{VerifierType, QueueConfig};
 use journaldb;
-use kvdb_rocksdb::CompactionProfile;
 
 pub use std::time::Duration;
 pub use blockchain::Config as BlockChainConfig;
@@ -42,17 +40,6 @@ pub enum DatabaseCompactionProfile {
 impl Default for DatabaseCompactionProfile {
 	fn default() -> Self {
 		DatabaseCompactionProfile::Auto
-	}
-}
-
-impl DatabaseCompactionProfile {
-	/// Returns corresponding compaction profile.
-	pub fn compaction_profile(&self, db_path: &Path) -> CompactionProfile {
-		match *self {
-			DatabaseCompactionProfile::Auto => CompactionProfile::auto(db_path),
-			DatabaseCompactionProfile::SSD => CompactionProfile::ssd(),
-			DatabaseCompactionProfile::HDD => CompactionProfile::hdd(),
-		}
 	}
 }
 

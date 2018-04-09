@@ -535,7 +535,6 @@ dependencies = [
  "macros 0.1.0",
  "memory-cache 0.1.0",
  "memorydb 0.1.1",
- "migration 0.1.0",
  "num 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-machine 0.1.0",

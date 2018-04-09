@@ -18,7 +18,6 @@ extern crate ansi_term;
 extern crate ethcore;
 extern crate ethcore_io as io;
 extern crate kvdb;
-extern crate kvdb_rocksdb;
 extern crate stop_guard;
 
 #[macro_use]
@@ -26,6 +25,9 @@ extern crate log;
 
 #[cfg(test)]
 extern crate tempdir;
+
+#[cfg(test)]
+extern crate kvdb_rocksdb;
 
 mod service;
 

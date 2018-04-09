@@ -93,11 +93,9 @@ extern crate triehash;
 extern crate ansi_term;
 extern crate unexpected;
 extern crate kvdb;
-extern crate kvdb_rocksdb;
 extern crate kvdb_memorydb;
 extern crate util_error;
 extern crate snappy;
-extern crate migration;
 
 extern crate ethabi;
 #[macro_use]
@@ -129,6 +127,9 @@ extern crate lazy_static;
 extern crate trace_time;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
+
+#[cfg(test)]
+extern crate kvdb_rocksdb;
 
 pub extern crate ethstore;
 

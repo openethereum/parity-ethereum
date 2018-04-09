@@ -18,11 +18,13 @@ use std::io;
 use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
 use std::fs::File;
+use std::sync::Arc;
+use std::path::Path;
 use ethereum_types::{U256, clean_0x, Address};
-use kvdb_rocksdb::CompactionProfile;
 use journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, GasLimit};
+use ethcore::db::NUM_COLUMNS;
 use miner::transaction_queue::PrioritizationStrategy;
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
@@ -30,6 +32,8 @@ use dir::helpers::replace_home;
 use upgrade::{upgrade, upgrade_data_paths};
 use migration::migrate;
 use ethsync::{validate_node_url, self};
+use kvdb::{KeyValueDB, KeyValueDBHandler};
+use kvdb_rocksdb::{Database, DatabaseConfig, CompactionProfile};
 use path;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
@@ -253,6 +257,52 @@ pub fn to_client_config(
 	client_config.verifier_type = if check_seal { VerifierType::Canon } else { VerifierType::CanonNoSeal };
 	client_config.spec_name = spec_name;
 	client_config
+}
+
+// We assume client db has similar config as restoration db.
+pub fn client_db_config(client_path: &Path, client_config: &ClientConfig) -> DatabaseConfig {
+	let mut client_db_config = DatabaseConfig::with_columns(NUM_COLUMNS);
+
+	client_db_config.memory_budget = client_config.db_cache_size;
+	client_db_config.compaction = compaction_profile(&client_config.db_compaction, &client_path);
+	client_db_config.wal = client_config.db_wal;
+
+	client_db_config
+}
+
+pub fn open_client_db(client_path: &Path, client_db_config: &DatabaseConfig) -> Result<Arc<KeyValueDB>, String> {
+	let client_db = Arc::new(Database::open(
+		&client_db_config,
+		&client_path.to_str().expect("DB path could not be converted to string.")
+	).map_err(|e| format!("Client service database error: {:?}", e))?);
+
+	Ok(client_db)
+}
+
+pub fn restoration_db_handler(client_db_config: DatabaseConfig) -> Box<KeyValueDBHandler> {
+	use kvdb::Error;
+
+	struct RestorationDBHandler {
+		config: DatabaseConfig,
+	}
+
+	impl KeyValueDBHandler for RestorationDBHandler {
+		fn open(&self, db_path: &Path) -> Result<Arc<KeyValueDB>, Error> {
+			Ok(Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?))
+		}
+	}
+
+	Box::new(RestorationDBHandler {
+		config: client_db_config,
+	})
+}
+
+pub fn compaction_profile(profile: &DatabaseCompactionProfile, db_path: &Path) -> CompactionProfile {
+	match profile {
+		&DatabaseCompactionProfile::Auto => CompactionProfile::auto(db_path),
+		&DatabaseCompactionProfile::SSD => CompactionProfile::ssd(),
+		&DatabaseCompactionProfile::HDD => CompactionProfile::hdd(),
+	}
 }
 
 pub fn execute_upgrades(

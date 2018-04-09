@@ -39,7 +39,7 @@ use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use util_error::UtilError;
 use bytes::Bytes;
 use journaldb::Algorithm;
-use kvdb_rocksdb::{Database, DatabaseConfig};
+use kvdb::{KeyValueDB, KeyValueDBHandler};
 use snappy;
 
 /// Helper for removing directories in case of error.
@@ -79,14 +79,13 @@ struct Restoration {
 	snappy_buffer: Bytes,
 	final_state_root: H256,
 	guard: Guard,
-	db: Arc<Database>,
+	db: Arc<KeyValueDB>,
 }
 
 struct RestorationParams<'a> {
 	manifest: ManifestData, // manifest to base restoration on.
 	pruning: Algorithm, // pruning algorithm for the database.
-	db_path: PathBuf, // database path
-	db_config: &'a DatabaseConfig, // configuration for the database.
+	db: Arc<KeyValueDB>, // database
 	writer: Option<LooseWriter>, // writer for recovered snapshot.
 	genesis: &'a [u8], // genesis block of the chain.
 	guard: Guard, // guard for the restoration directory.
@@ -101,8 +100,7 @@ impl Restoration {
 		let state_chunks = manifest.state_hashes.iter().cloned().collect();
 		let block_chunks = manifest.block_hashes.iter().cloned().collect();
 
-		let raw_db = Arc::new(Database::open(params.db_config, &*params.db_path.to_string_lossy())
-			.map_err(UtilError::from)?);
+		let raw_db = params.db;
 
 		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone());
 		let components = params.engine.snapshot_components()
@@ -211,10 +209,10 @@ pub struct ServiceParams {
 	pub engine: Arc<EthEngine>,
 	/// The chain's genesis block.
 	pub genesis_block: Bytes,
-	/// Database configuration options.
-	pub db_config: DatabaseConfig,
 	/// State pruning algorithm.
 	pub pruning: Algorithm,
+	/// Handler for opening a restoration DB.
+	pub restoration_db_handler: Box<KeyValueDBHandler>,
 	/// Async IO channel for sending messages.
 	pub channel: Channel,
 	/// The directory to put snapshots in.
@@ -228,8 +226,8 @@ pub struct ServiceParams {
 /// This controls taking snapshots and restoring from them.
 pub struct Service {
 	restoration: Mutex<Option<Restoration>>,
+	restoration_db_handler: Box<KeyValueDBHandler>,
 	snapshot_root: PathBuf,
-	db_config: DatabaseConfig,
 	io_channel: Mutex<Channel>,
 	pruning: Algorithm,
 	status: Mutex<RestorationStatus>,
@@ -249,8 +247,8 @@ impl Service {
 	pub fn new(params: ServiceParams) -> Result<Self, Error> {
 		let mut service = Service {
 			restoration: Mutex::new(None),
+			restoration_db_handler: params.restoration_db_handler,
 			snapshot_root: params.snapshot_root,
-			db_config: params.db_config,
 			io_channel: Mutex::new(params.channel),
 			pruning: params.pruning,
 			status: Mutex::new(RestorationStatus::Inactive),
@@ -437,8 +435,7 @@ impl Service {
 		let params = RestorationParams {
 			manifest: manifest,
 			pruning: self.pruning,
-			db_path: self.restoration_db(),
-			db_config: &self.db_config,
+			db: self.restoration_db_handler.open(&self.restoration_db())?,
 			writer: writer,
 			genesis: &self.genesis_block,
 			guard: Guard::new(rest_dir),
@@ -638,6 +635,7 @@ mod tests {
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
 	use tempdir::TempDir;
+	use tests::helpers::restoration_db_handler;
 
 	struct NoopDBRestore;
 	impl DatabaseRestore for NoopDBRestore {
@@ -657,7 +655,7 @@ mod tests {
 		let snapshot_params = ServiceParams {
 			engine: spec.engine.clone(),
 			genesis_block: spec.genesis_block(),
-			db_config: Default::default(),
+			restoration_db_handler: restoration_db_handler(Default::default()),
 			pruning: Algorithm::Archive,
 			channel: service.channel(),
 			snapshot_root: dir,
@@ -709,8 +707,7 @@ mod tests {
 				block_hash: H256::default(),
 			},
 			pruning: Algorithm::Archive,
-			db_path: tempdir.path().to_owned(),
-			db_config: &db_config,
+			db: restoration_db_handler(db_config).open(&tempdir.path().to_owned()).unwrap(),
 			writer: None,
 			genesis: &gb,
 			guard: Guard::benign(),
