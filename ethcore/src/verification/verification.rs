@@ -680,8 +680,7 @@ mod tests {
 
 		header = good.clone();
 		header.set_timestamp(10);
-		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine, &bc),
-			InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp() + 1), found: header.timestamp() }));
+		check_fail_timestamp(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine, &bc), false);
 
 		header = good.clone();
 		header.set_timestamp(2450000000);

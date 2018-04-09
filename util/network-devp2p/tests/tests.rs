@@ -71,7 +71,7 @@ impl TestProtocol {
 
 impl NetworkProtocolHandler for TestProtocol {
 	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
-		io.register_timer(0, 10).unwrap();
+		io.register_timer(0, Duration::from_millis(10)).unwrap();
 	}
 
 	fn read(&self, _io: &NetworkContext, _peer: &PeerId, packet_id: u8, data: &[u8]) {
