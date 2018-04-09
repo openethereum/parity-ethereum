@@ -424,7 +424,6 @@ impl Account {
 	pub fn clone_dirty(&self) -> Account {
 		let mut account = self.clone_basic();
 		account.storage_changes = self.storage_changes.clone();
-		account.code_cache = self.code_cache.clone();
 		account
 	}
 

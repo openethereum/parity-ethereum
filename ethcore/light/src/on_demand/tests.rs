@@ -17,8 +17,7 @@
 //! Tests for the on-demand service.
 
 use cache::Cache;
-use ethcore::encoded;
-use ethcore::header::{Header, Seal};
+use ethcore::header::Header;
 use futures::Future;
 use network::{PeerId, NodeId};
 use net::*;
@@ -148,7 +147,7 @@ fn single_request() {
 	});
 
 	let header = Header::default();
-	let encoded = encoded::Header::new(header.rlp(Seal::With));
+	let encoded = header.encoded();
 
 	let recv = harness.service.request_raw(
 		&Context::NoOp,
@@ -209,7 +208,7 @@ fn reassign() {
 	});
 
 	let header = Header::default();
-	let encoded = encoded::Header::new(header.rlp(Seal::With));
+	let encoded = header.encoded();
 
 	let recv = harness.service.request_raw(
 		&Context::NoOp,
@@ -257,7 +256,7 @@ fn partial_response() {
 		let mut hdr = Header::default();
 		hdr.set_number(num);
 
-		let encoded = encoded::Header::new(hdr.rlp(Seal::With));
+		let encoded = hdr.encoded();
 		(hdr, encoded)
 	};
 
@@ -316,7 +315,7 @@ fn part_bad_part_good() {
 		let mut hdr = Header::default();
 		hdr.set_number(num);
 
-		let encoded = encoded::Header::new(hdr.rlp(Seal::With));
+		let encoded = hdr.encoded();
 		(hdr, encoded)
 	};
 
@@ -413,7 +412,7 @@ fn back_references() {
 	});
 
 	let header = Header::default();
-	let encoded = encoded::Header::new(header.rlp(Seal::With));
+	let encoded = header.encoded();
 
 	let recv = harness.service.request_raw(
 		&Context::NoOp,
@@ -470,7 +469,7 @@ fn fill_from_cache() {
 	});
 
 	let header = Header::default();
-	let encoded = encoded::Header::new(header.rlp(Seal::With));
+	let encoded = header.encoded();
 
 	let recv = harness.service.request_raw(
 		&Context::NoOp,

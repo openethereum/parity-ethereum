@@ -855,16 +855,26 @@ impl<B: Backend> State<B> {
 		}))
 	}
 
-	fn query_pod(&mut self, query: &PodState) -> trie::Result<()> {
-		for (address, pod_account) in query.get() {
+	// Return a list of all touched addresses in cache.
+	fn touched_addresses(&self) -> Vec<Address> {
+		assert!(self.checkpoints.borrow().is_empty());
+		self.cache.borrow().iter().map(|(add, _)| *add).collect()
+	}
+
+	fn query_pod(&mut self, query: &PodState, touched_addresses: &[Address]) -> trie::Result<()> {
+		let pod = query.get();
+
+		for address in touched_addresses {
 			if !self.ensure_cached(address, RequireCache::Code, true, |a| a.is_some())? {
 				continue
 			}
 
-			// needs to be split into two parts for the refcell code here
-			// to work.
-			for key in pod_account.storage.keys() {
-				self.storage_at(address, key)?;
+			if let Some(pod_account) = pod.get(address) {
+				// needs to be split into two parts for the refcell code here
+				// to work.
+				for key in pod_account.storage.keys() {
+					self.storage_at(address, key)?;
+				}
 			}
 		}
 
@@ -874,9 +884,10 @@ impl<B: Backend> State<B> {
 	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
 	/// Consumes self.
 	pub fn diff_from<X: Backend>(&self, orig: State<X>) -> trie::Result<StateDiff> {
+		let addresses_post = self.touched_addresses();
 		let pod_state_post = self.to_pod();
 		let mut state_pre = orig;
-		state_pre.query_pod(&pod_state_post)?;
+		state_pre.query_pod(&pod_state_post, &addresses_post)?;
 		Ok(pod_state::diff_pod(&state_pre.to_pod(), &pod_state_post))
 	}
 
@@ -2201,5 +2212,38 @@ mod tests {
 		assert!(state.exists(&c).unwrap());
 		assert!(state.exists(&d).unwrap());
 		assert!(!state.exists(&e).unwrap());
+	}
+
+	#[test]
+	fn should_trace_diff_suicided_accounts() {
+		use pod_account;
+
+		let a = 10.into();
+		let db = get_temp_state_db();
+		let (root, db) = {
+			let mut state = State::new(db, U256::from(0), Default::default());
+			state.add_balance(&a, &100.into(), CleanupMode::ForceCreate).unwrap();
+			state.commit().unwrap();
+			state.drop()
+		};
+
+		let mut state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
+		let original = state.clone();
+		state.kill_account(&a);
+
+		assert_eq!(original.touched_addresses(), vec![]);
+		assert_eq!(state.touched_addresses(), vec![a]);
+
+		let diff = state.diff_from(original).unwrap();
+		let diff_map = diff.get();
+		assert_eq!(diff_map.len(), 1);
+		assert!(diff_map.get(&a).is_some());
+		assert_eq!(diff_map.get(&a),
+				   pod_account::diff_pod(Some(&PodAccount {
+					   balance: U256::from(100),
+					   nonce: U256::zero(),
+					   code: Some(Default::default()),
+					   storage: Default::default()
+				   }), None).as_ref());
 	}
 }

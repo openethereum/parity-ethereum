@@ -32,7 +32,7 @@ use handlers::{ContentHandler, StreamingHandler};
 use page::local;
 use {Embeddable};
 
-const FETCH_TIMEOUT: u64 = 300;
+const FETCH_TIMEOUT: Duration = Duration::from_secs(300);
 
 pub enum ValidatorResponse {
 	Local(local::Dapp),
@@ -57,7 +57,7 @@ impl Default for FetchControl {
 		FetchControl {
 			abort: Arc::new(AtomicBool::new(false)),
 			listeners: Arc::new(Mutex::new(Vec::new())),
-			deadline: Instant::now() + Duration::from_secs(FETCH_TIMEOUT),
+			deadline: Instant::now() + FETCH_TIMEOUT,
 		}
 	}
 }
@@ -193,7 +193,7 @@ impl Errors {
 		ContentHandler::error(
 			StatusCode::GatewayTimeout,
 			"Download Timeout",
-			&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT),
+			&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT.as_secs()),
 			None,
 			self.embeddable_on.clone(),
 		)
