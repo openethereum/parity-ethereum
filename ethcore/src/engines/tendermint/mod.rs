@@ -38,7 +38,7 @@ use error::{Error, BlockError};
 use header::{Header, BlockNumber};
 use rlp::UntrustedRlp;
 use ethkey::{self, Message, Signature};
-use account_provider::{AccountProvider, SignError};
+use account_provider::AccountProvider;
 use block::*;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use io::IoService;
@@ -690,8 +690,8 @@ impl Engine<EthereumMachine> for Tendermint {
 		self.to_step(Step::Propose);
 	}
 
-	fn sign(&self, hash: H256) -> Result<Signature, SignError> {
-		self.signer.read().sign(hash)
+	fn sign(&self, hash: H256) -> Result<Signature, Error> {
+		Ok(self.signer.read().sign(hash)?)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {

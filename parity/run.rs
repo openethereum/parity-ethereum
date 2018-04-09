@@ -628,7 +628,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// take handle to client
 	let client = service.client();
 	// Update miners block gas limit
-	miner.update_transaction_queue_limits(client.best_block_header().gas_limit());
+	miner.update_transaction_queue_limits(*client.best_block_header().gas_limit());
 
 	let connection_filter = connection_filter_address.map(|a| Arc::new(NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, a)));
 	let snapshot_service = service.snapshot_service();

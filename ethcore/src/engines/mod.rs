@@ -41,7 +41,7 @@ use std::fmt;
 
 use self::epoch::PendingTransition;
 
-use account_provider::{AccountProvider, SignError};
+use account_provider::AccountProvider;
 use builtin::Builtin;
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 use error::Error;

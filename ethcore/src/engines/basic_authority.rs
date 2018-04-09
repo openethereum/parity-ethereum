@@ -20,7 +20,7 @@ use std::sync::{Weak, Arc};
 use ethereum_types::{H256, H520, Address};
 use parking_lot::RwLock;
 use ethkey::{self, Signature};
-use account_provider::{AccountProvider, SignError};
+use account_provider::AccountProvider;
 use block::*;
 use engines::{Engine, Seal, ConstructedVerifier, EngineError};
 use error::{BlockError, Error};
@@ -184,8 +184,8 @@ impl Engine<EthereumMachine> for BasicAuthority {
 		self.signer.write().set(ap, address, password);
 	}
 
-	fn sign(&self, hash: H256) -> Result<Signature, SignError> {
-		self.signer.read().sign(hash)
+	fn sign(&self, hash: H256) -> Result<Signature, Error> {
+		Ok(self.signer.read().sign(hash)?)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {

@@ -1016,7 +1016,7 @@ impl miner::MinerService for Miner {
 		self.nonce_cache.write().clear();
 
 		// First update gas limit in transaction queue and minimal gas price.
-		let gas_limit = chain.best_block_header().gas_limit();
+		let gas_limit = *chain.best_block_header().gas_limit();
 		self.update_transaction_queue_limits(gas_limit);
 
 		// Then import all transactions...

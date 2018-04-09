@@ -23,7 +23,7 @@ use std::time::{UNIX_EPOCH, Duration};
 use std::collections::{BTreeMap, HashSet};
 use std::iter::FromIterator;
 
-use account_provider::{AccountProvider, SignError};
+use account_provider::AccountProvider;
 use block::*;
 use client::EngineClient;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
@@ -1307,8 +1307,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		self.signer.write().set(ap, address, password);
 	}
 
-	fn sign(&self, hash: H256) -> Result<Signature, SignError> {
-		self.signer.read().sign(hash)
+	fn sign(&self, hash: H256) -> Result<Signature, Error> {
+		Ok(self.signer.read().sign(hash)?)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {

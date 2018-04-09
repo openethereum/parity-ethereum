@@ -71,7 +71,7 @@ C: BlockInfo + CallContract,
 		accounts: Option<&'a AccountProvider>,
 		refuse_service_transactions: bool,
 	) -> Self {
-		let best_block_header = chain.best_block_header().decode();
+		let best_block_header = chain.best_block_header();
 		BlockChainClient {
 			chain,
 			cached_nonces: CachedNonceClient::new(chain, cache),

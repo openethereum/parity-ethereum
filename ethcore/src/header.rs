@@ -267,38 +267,11 @@ impl Header {
 
 	/// Get the hash of this header (keccak of the RLP with seal).
 	pub fn hash(&self) -> H256 {
-<<<<<<< HEAD
-		match self.hash.get() {
-			Some(h) => h,
-			None => {
-				let h = self.rlp_keccak(Seal::With);
-				self.hash.set(Some(h));
-				h
-			},
-		}
-=======
 		self.hash.unwrap_or_else(|| keccak(self.rlp(Seal::With)))
->>>>>>> master
 	}
 
 	/// Get the hash of the header excluding the seal
 	pub fn bare_hash(&self) -> H256 {
-<<<<<<< HEAD
-		match self.bare_hash.get() {
-			Some(h) => h,
-			None => {
-				let h = self.rlp_keccak(Seal::Without);
-				self.bare_hash.set(Some(h));
-				h
-			},
-		}
-	}
-
-	/// Note that some fields have changed. Resets the memoised hash.
-	pub fn note_dirty(&self) {
- 		self.hash.set(None);
- 		self.bare_hash.set(None);
-=======
 		keccak(self.rlp(Seal::Without))
 	}
 
@@ -312,7 +285,6 @@ impl Header {
 		let mut s = RlpStream::new();
 		self.stream_rlp(&mut s, with_seal);
 		s.out()
->>>>>>> master
 	}
 
 	/// Place this header into an RLP stream `s`, optionally `with_seal`.
