@@ -26,7 +26,6 @@ use stop_guard::StopGuard;
 
 use ethsync::PrivateTxHandler;
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
-use ethcore::{db, error};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use ethcore::snapshot::{RestorationStatus};
