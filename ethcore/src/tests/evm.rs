@@ -22,7 +22,7 @@ use vm::{EnvInfo, ActionParams, ActionValue, CallType, ParamsType};
 use evm::{Factory, VMType};
 use executive::Executive;
 use state::Substate;
-use tests::helpers::get_temp_state_with_factory;
+use test_helpers::get_temp_state_with_factory;
 use trace::{NoopVMTracer, NoopTracer};
 use transaction::SYSTEM_ADDRESS;
 

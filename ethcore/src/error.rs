@@ -16,7 +16,7 @@
 
 //! General error types for use in ethcore.
 
-use std::fmt;
+use std::{fmt, error};
 use std::time::SystemTime;
 use kvdb;
 use ethereum_types::{H256, U256, Address, Bloom};
@@ -272,6 +272,13 @@ impl fmt::Display for Error {
 			Error::Ethkey(ref err) => err.fmt(f),
 			Error::AccountProvider(ref err) => err.fmt(f),
 		}
+	}
+}
+
+impl error::Error for Error {
+	fn description(&self) -> &str {
+		// improve description
+		"ethcore error"
 	}
 }
 

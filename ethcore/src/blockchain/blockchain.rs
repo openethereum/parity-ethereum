@@ -1421,7 +1421,7 @@ mod tests {
 	use ethereum_types::*;
 	use receipt::{Receipt, TransactionOutcome};
 	use blockchain::{BlockProvider, BlockChain, Config, ImportRoute};
-	use tests::helpers::{
+	use test_helpers::{
 		generate_dummy_blockchain, generate_dummy_blockchain_with_extra,
 		generate_dummy_empty_blockchain
 	};

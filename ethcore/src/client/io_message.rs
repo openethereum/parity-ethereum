@@ -36,6 +36,8 @@ pub enum ClientIoMessage {
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
 	/// New consensus message received.
-	NewMessage(Bytes)
+	NewMessage(Bytes),
+	/// New private transaction arrived
+	NewPrivateTransaction,
 }
 

@@ -22,6 +22,8 @@ extern crate elastic_array;
 extern crate ethcore_bytes as bytes;
 
 use std::io;
+use std::path::Path;
+use std::sync::Arc;
 use elastic_array::{ElasticArray128, ElasticArray32};
 use bytes::Bytes;
 
@@ -175,4 +177,11 @@ pub trait KeyValueDB: Sync + Send {
 
 	/// Attempt to replace this database with a new one located at the given path.
 	fn restore(&self, new_db: &str) -> Result<()>;
+}
+
+/// Generic key-value database handler. This trait contains one function `open`. When called, it opens database with a
+/// predefined config.
+pub trait KeyValueDBHandler: Send + Sync {
+	/// Open the predefined key-value database.
+	fn open(&self, path: &Path) -> Result<Arc<KeyValueDB>>;
 }

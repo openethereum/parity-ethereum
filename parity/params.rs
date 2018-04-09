@@ -39,6 +39,7 @@ pub enum SpecType {
 	Musicoin,
 	Ellaism,
 	Easthub,
+	Social,
 	Dev,
 	Custom(String),
 }
@@ -64,6 +65,7 @@ impl str::FromStr for SpecType {
 			"musicoin" => SpecType::Musicoin,
 			"ellaism" => SpecType::Ellaism,
 			"easthub" => SpecType::Easthub,
+			"social" => SpecType::Social,
 			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
 		};
@@ -83,6 +85,7 @@ impl fmt::Display for SpecType {
 			SpecType::Musicoin => "musicoin",
 			SpecType::Ellaism => "ellaism",
 			SpecType::Easthub => "easthub",
+			SpecType::Social => "social",
 			SpecType::Kovan => "kovan",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
@@ -103,6 +106,7 @@ impl SpecType {
 			SpecType::Musicoin => Ok(ethereum::new_musicoin(params)),
 			SpecType::Ellaism => Ok(ethereum::new_ellaism(params)),
 			SpecType::Easthub => Ok(ethereum::new_easthub(params)),
+			SpecType::Social => Ok(ethereum::new_social(params)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {

@@ -701,7 +701,7 @@ mod tests {
 	use error::ExecutionError;
 	use machine::EthereumMachine;
 	use state::{Substate, CleanupMode};
-	use tests::helpers::{get_temp_state_with_factory, get_temp_state};
+	use test_helpers::{get_temp_state_with_factory, get_temp_state};
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
@@ -746,7 +746,6 @@ mod tests {
 		assert_eq!(state.storage_at(&address, &H256::new()).unwrap(), H256::from(&U256::from(0xf9u64)));
 		assert_eq!(state.balance(&sender).unwrap(), U256::from(0xf9));
 		assert_eq!(state.balance(&address).unwrap(), U256::from(0x7));
-		// 0 cause contract hasn't returned
 		assert_eq!(substate.contracts_created.len(), 0);
 
 		// TODO: just test state root.

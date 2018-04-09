@@ -23,6 +23,15 @@ unlock = ["0xdeadbeefcafe0000000000000000000000000000"]
 password = ["~/.safe/password.file"]
 keys_iterations = 10240
 
+[private_tx]
+enabled = true
+signer = "0xdeadbeefcafe0000000000000000000000000000"
+validators = ["0xdeadbeefcafe0000000000000000000000000000"]
+passwords = "~/.safe/password.file"
+account = "0xdeadbeefcafe0000000000000000000000000000"
+sstore_url = "http://localhost:8082"
+sstore_threshold = 0
+
 [ui]
 force = false
 disable = false
