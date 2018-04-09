@@ -249,8 +249,8 @@ mod tests {
 			let moving_average = dist.expected_time(Kind::Headers);
 
 			// should be weighted below the maximum entry.
-			let arith_average = (sum as f64 / (i + 1) as f64) as u64;
-			assert!(moving_average < x as u64);
+			let arith_average = (sum as f64 / (i + 1) as f64) as u32;
+			assert!(moving_average < Duration::new(0, x));
 
 			// when there are only 2 entries, they should be equal due to choice of
 			// ALPHA = 1/N.

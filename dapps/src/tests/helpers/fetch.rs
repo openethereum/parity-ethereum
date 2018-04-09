@@ -35,7 +35,7 @@ impl FetchControl {
 
 	pub fn wait_for_requests(&self, len: usize) {
 		const MAX_TIMEOUT: time::Duration = time::Duration::from_millis(5000);
-		const ATTEMPTS: u64 = 10;
+		const ATTEMPTS: u32 = 10;
 		let mut attempts_left = ATTEMPTS;
 		loop {
 			let current = self.fetch.requested.lock().len();

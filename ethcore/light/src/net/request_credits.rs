@@ -433,21 +433,21 @@ mod tests {
 	#[test]
 	fn scale_by_load_share_and_time() {
 		let flow_params = FlowParams::from_request_times(
-			|_| 10_000,
+			|_| Duration::new(0, 10_000),
 			0.05,
-			60,
+			Duration::from_secs(60),
 		);
 
 		let flow_params2 = FlowParams::from_request_times(
-			|_| 10_000,
+			|_| Duration::new(0, 10_000),
 			0.1,
-			60,
+			Duration::from_secs(60),
 		);
 
 		let flow_params3 = FlowParams::from_request_times(
-			|_| 5_000,
+			|_| Duration::new(0, 5_000),
 			0.05,
-			60,
+			Duration::from_secs(60),
 		);
 
 		assert_eq!(flow_params2.costs, flow_params3.costs);
