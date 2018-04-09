@@ -342,7 +342,7 @@ impl Configuration {
 
 			let verifier_settings = self.verifier_settings();
 			let whisper_config = self.whisper_config();
-			let (private_provider_conf, private_enc_conf) = self.private_provider_config()?;
+			let (private_provider_conf, private_enc_conf, private_tx_enabled) = self.private_provider_config()?;
 
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
@@ -383,6 +383,7 @@ impl Configuration {
 				secretstore_conf: secretstore_conf,
 				private_provider_conf: private_provider_conf,
 				private_encryptor_conf: private_enc_conf,
+				private_tx_enabled,
 				dapp: self.dapp_to_open()?,
 				ui: self.args.cmd_ui,
 				name: self.args.arg_identity,
@@ -938,7 +939,7 @@ impl Configuration {
 		Ok(conf)
 	}
 
-	fn private_provider_config(&self) -> Result<(ProviderConfig, EncryptorConfig), String> {
+	fn private_provider_config(&self) -> Result<(ProviderConfig, EncryptorConfig, bool), String> {
 		let provider_conf = ProviderConfig {
 			validator_accounts: to_addresses(&self.args.arg_private_validators)?,
 			signer_account: self.args.arg_private_signer.clone().and_then(|account| to_address(Some(account)).ok()),
@@ -958,7 +959,7 @@ impl Configuration {
 			},
 		};
 
-		Ok((provider_conf, encryptor_conf))
+		Ok((provider_conf, encryptor_conf, self.args.flag_private_enabled))
 	}
 
 	fn network_settings(&self) -> Result<NetworkSettings, String> {
@@ -1497,6 +1498,7 @@ mod tests {
 			secretstore_conf: Default::default(),
 			private_provider_conf: Default::default(),
 			private_encryptor_conf: Default::default(),
+			private_tx_enabled: false,
 			ui: false,
 			dapp: None,
 			name: "".into(),
