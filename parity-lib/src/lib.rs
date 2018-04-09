@@ -188,8 +188,9 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 ///
 /// # Example
 ///
-/// ```
-/// start(vec!["--light".to_owned(), "--logging".to_owned(), "eth=trace".to_owned()])
+/// ```no_run
+/// parity_lib::start(vec!["--light".to_owned(), "--logging".to_owned(), "eth=trace".to_owned()])
+/// 	.unwrap();
 /// ```
 pub fn start(mut args: Vec<String>) -> Result<PostExecutionAction, String> {
 	args.insert(0, "parity".to_owned());
