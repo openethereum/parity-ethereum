@@ -190,10 +190,10 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 /// ```
 /// start(vec!["--light".to_owned(), "--logging".to_owned(), "eth=trace".to_owned()])
 /// ```
-pub fn start(mut args: Vec<String>, spec_name_overide: Option<String>) -> Result<PostExecutionAction, String> {
+pub fn start(mut args: Vec<String>) -> Result<PostExecutionAction, String> {
 	let can_restart = args.iter().any(|arg| arg == "--can-restart");
 	args.insert(0, "parity".to_owned());
-	let conf = Configuration::parse(&args, spec_name_overide).unwrap_or_else(|e| e.exit());
+	let conf = Configuration::parse(&args).unwrap_or_else(|e| e.exit());
 
 	let deprecated = find_deprecated(&conf.args);
 	for d in deprecated {

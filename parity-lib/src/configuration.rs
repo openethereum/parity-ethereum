@@ -94,16 +94,14 @@ pub struct Execute {
 #[derive(Debug, PartialEq)]
 pub struct Configuration {
 	pub args: Args,
-	pub spec_name_override: Option<String>,
 }
 
 impl Configuration {
-	pub fn parse<S: AsRef<str>>(command: &[S], spec_name_override: Option<String>) -> Result<Self, ArgsError> {
+	pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
 		let args = Args::parse(command)?;
 
 		let config = Configuration {
 			args: args,
-			spec_name_override: spec_name_override,
 		};
 
 		Ok(config)
@@ -456,9 +454,7 @@ impl Configuration {
 	}
 
 	fn chain(&self) -> Result<SpecType, String> {
-		let name = if let Some(ref s) = self.spec_name_override {
-			s.clone()
-		} else if self.args.flag_testnet {
+		let name = if self.args.flag_testnet {
 			"testnet".to_owned()
 		} else {
 			self.args.arg_chain.clone()
@@ -1220,7 +1216,6 @@ mod tests {
 	fn parse(args: &[&str]) -> Configuration {
 		Configuration {
 			args: Args::parse_without_config(args).unwrap(),
-			spec_name_override: None,
 		}
 	}
 

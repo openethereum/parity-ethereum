@@ -133,7 +133,20 @@ fn main_direct(force_can_restart: bool) -> i32 {
 			args.push("--can-restart".to_owned());
 		}
 
-		match start(args, take_spec_name_override()) {
+		if let Some(spec_override) = take_spec_name_override() {
+			args.retain(|f| f != "--testnet");
+			args.retain(|f| !f.starts_with("--chain="));
+			while let Some(pos) = args.iter().position(|a| a == "--chain") {
+				if args.len() > pos + 1 {
+					args.remove(pos + 1);
+				}
+				args.remove(pos);
+			}
+			args.push("--chain".to_owned());
+			args.push(spec_override);
+		}
+
+		match start(args) {
 			Ok(result) => match result {
 				PostExecutionAction::Print(s) => { println!("{}", s); 0 },
 				PostExecutionAction::Restart(spec_name_override) => {
