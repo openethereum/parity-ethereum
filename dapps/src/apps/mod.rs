@@ -23,7 +23,6 @@ use page;
 use proxypac::ProxyPac;
 use web::Web;
 use fetch::Fetch;
-use parity_dapps::WebApp;
 use {WebProxyTokens, ParentFrameSettings};
 
 mod app;
