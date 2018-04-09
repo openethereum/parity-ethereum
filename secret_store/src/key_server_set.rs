@@ -140,7 +140,7 @@ impl OnChainKeyServerSet {
 			contract: Mutex::new(CachedContract::new(trusted_client, self_key_pair, auto_migrate_enabled, key_servers)?),
 		});
 		client
-			.ok_or(Error::Internal("Constructing OnChainKeyServerSet without active Client".into()))?
+			.ok_or_else(|| Error::Internal("Constructing OnChainKeyServerSet without active Client".into()))?
 			.add_notify(key_server_set.clone());
 		Ok(key_server_set)
 	}

@@ -68,8 +68,8 @@ impl TrustedClient {
 
 	/// Transact contract.
 	pub fn transact_contract(&self, contract: Address, tx_data: Bytes) -> Result<(), Error> {
-		let client = self.client.upgrade().ok_or(Error::Internal("cannot submit tx when client is offline".into()))?;
-		let miner = self.miner.upgrade().ok_or(Error::Internal("cannot submit tx when miner is offline".into()))?;
+		let client = self.client.upgrade().ok_or_else(|| Error::Internal("cannot submit tx when client is offline".into()))?;
+		let miner = self.miner.upgrade().ok_or_else(|| Error::Internal("cannot submit tx when miner is offline".into()))?;
 		let engine = client.engine();
 		let transaction = Transaction {
 			nonce: client.latest_nonce(&self.self_key_pair.address()),
