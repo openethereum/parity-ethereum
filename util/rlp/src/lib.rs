@@ -27,12 +27,6 @@
 //! * You encode a big set of data.
 //!
 //!### Use `Rlp` when:
-//! * You are working on trusted data (not corrupted).
-//! * You want to get view onto rlp-slice.
-//! * You don't want to decode whole rlp at once.
-//!
-//!### Use `Rlp` when:
-//! * You are working on untrusted data (~corrupted).
 //! * You need to handle data corruption errors.
 //! * You are working on input data.
 //! * You want to get view onto rlp-slice.
