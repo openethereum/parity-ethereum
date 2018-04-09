@@ -209,6 +209,7 @@ impl SessionImpl {
 	/// Wait for session completion.
 	pub fn wait(&self) -> Result<(Secret, Secret), Error> {
 		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
+			.expect("wait_session returns Some if called without timeout; qed")
 	}
 
 	/// Delegate session to other node.
@@ -277,7 +278,7 @@ impl SessionImpl {
 				}),
 				nonce: None,
 			});
-			generation_session.initialize(Default::default(), false, 0, vec![self.core.meta.self_node_id.clone()].into_iter().collect::<BTreeSet<_>>().into())?;
+			generation_session.initialize(Default::default(), Default::default(), false, 0, vec![self.core.meta.self_node_id.clone()].into_iter().collect::<BTreeSet<_>>().into())?;
 
 			debug_assert_eq!(generation_session.state(), GenerationSessionState::WaitingForGenerationConfirmation);
 			let joint_public_and_secret = generation_session
@@ -406,7 +407,7 @@ impl SessionImpl {
 			nonce: None,
 		});
 
-		generation_session.initialize(Default::default(), false, key_share.threshold, consensus_group.into())?;
+		generation_session.initialize(Default::default(), Default::default(), false, key_share.threshold, consensus_group.into())?;
 		data.generation_session = Some(generation_session);
 		data.state = SessionState::SessionKeyGeneration;
 
@@ -508,7 +509,7 @@ impl SessionImpl {
 			id: message.request_id.clone().into(),
 			message_hash: message.message_hash.clone().into(),
 			other_nodes_ids: message.nodes.iter().cloned().map(Into::into).collect(),
-		}, signing_job, signing_transport)
+		}, signing_job, signing_transport).map(|_| ())
 	}
 
 	/// When partial signature is received.
@@ -735,8 +736,9 @@ impl SessionCore {
 		};
 
 		let key_version = key_share.version(version).map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
-		let signing_job = SchnorrSigningJob::new_on_master(self.meta.self_node_id.clone(), key_share.clone(), key_version, session_public, session_secret_share, message_hash)?;
-		consensus_session.disseminate_jobs(signing_job, self.signing_transport(), false)
+		let signing_job = SchnorrSigningJob::new_on_master(self.meta.self_node_id.clone(), key_share.clone(), key_version,
+			session_public, session_secret_share, message_hash)?;
+		consensus_session.disseminate_jobs(signing_job, self.signing_transport(), false).map(|_| ())
 	}
 }
 
@@ -802,7 +804,7 @@ mod tests {
 	use std::str::FromStr;
 	use std::collections::{BTreeSet, BTreeMap, VecDeque};
 	use ethereum_types::{Address, H256};
-	use ethkey::{self, Random, Generator, Public, Secret, KeyPair};
+	use ethkey::{self, Random, Generator, Public, Secret, KeyPair, public_to_address};
 	use acl_storage::DummyAclStorage;
 	use key_server_cluster::{NodeId, DummyKeyStorage, DocumentKeyShare, DocumentKeyShareVersion, SessionId,
 		Requester, SessionMeta, Error, KeyStorage};
@@ -928,7 +930,7 @@ mod tests {
 	fn prepare_signing_sessions(threshold: usize, num_nodes: usize) -> (KeyGenerationMessageLoop, MessageLoop) {
 		// run key generation sessions
 		let mut gl = KeyGenerationMessageLoop::new(num_nodes);
-		gl.master().initialize(Default::default(), false, threshold, gl.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap();
+		gl.master().initialize(Default::default(), Default::default(), false, threshold, gl.nodes.keys().cloned().collect::<BTreeSet<_>>().into()).unwrap();
 		while let Some((from, to, message)) = gl.take_message() {
 			gl.process_message((from, to, message)).unwrap();
 		}
@@ -1114,6 +1116,7 @@ mod tests {
 			message: GenerationMessage::InitializeSession(InitializeSession {
 				session: SessionId::default().into(),
 				session_nonce: 0,
+				origin: None,
 				author: Address::default().into(),
 				nodes: BTreeMap::new(),
 				is_zero: false,
@@ -1157,8 +1160,8 @@ mod tests {
 
 		// we need at least 2-of-3 nodes to agree to reach consensus
 		// let's say 2 of 3 nodes disagee
-		sl.acl_storages[1].prohibit(sl.requester.public().clone(), SessionId::default());
-		sl.acl_storages[2].prohibit(sl.requester.public().clone(), SessionId::default());
+		sl.acl_storages[1].prohibit(public_to_address(sl.requester.public()), SessionId::default());
+		sl.acl_storages[2].prohibit(public_to_address(sl.requester.public()), SessionId::default());
 
 		// then consensus is unreachable
 		assert_eq!(sl.run_until(|_| false), Err(Error::ConsensusUnreachable));
@@ -1171,7 +1174,7 @@ mod tests {
 
 		// we need at least 2-of-3 nodes to agree to reach consensus
 		// let's say 1 of 3 nodes disagee
-		sl.acl_storages[1].prohibit(sl.requester.public().clone(), SessionId::default());
+		sl.acl_storages[1].prohibit(public_to_address(sl.requester.public()), SessionId::default());
 
 		// then consensus reachable, but single node will disagree
 		while let Some((from, to, message)) = sl.take_message() {
@@ -1192,7 +1195,7 @@ mod tests {
 
 		// we need at least 2-of-3 nodes to agree to reach consensus
 		// let's say 1 of 3 nodes disagee
-		sl.acl_storages[0].prohibit(sl.requester.public().clone(), SessionId::default());
+		sl.acl_storages[0].prohibit(public_to_address(sl.requester.public()), SessionId::default());
 
 		// then consensus reachable, but single node will disagree
 		while let Some((from, to, message)) = sl.take_message() {

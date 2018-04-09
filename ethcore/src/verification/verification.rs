@@ -25,7 +25,7 @@ use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
-use ethereum_types::{H256, U256};
+use ethereum_types::H256;
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use rlp::UntrustedRlp;
@@ -127,7 +127,7 @@ pub struct FullFamilyParams<'a, C: BlockInfo + CallContract + 'a> {
 /// Phase 3 verification. Check block information against parent and uncles.
 pub fn verify_block_family<C: BlockInfo + CallContract>(header: &Header, parent: &Header, engine: &EthEngine, do_full: Option<FullFamilyParams<C>>) -> Result<(), Error> {
 	// TODO: verify timestamp
-	verify_parent(&header, &parent, engine.params().gas_limit_bound_divisor)?;
+	verify_parent(&header, &parent, engine)?;
 	engine.verify_block_family(&header, &parent)?;
 
 	let params = match do_full {
@@ -211,7 +211,7 @@ fn verify_uncles(header: &Header, bytes: &[u8], bc: &BlockProvider, engine: &Eth
 			// cB.p^7	-------------/
 			// cB.p^8
 			let mut expected_uncle_parent = header.parent_hash().clone();
-			let uncle_parent = bc.block_header(&uncle.parent_hash()).ok_or_else(|| Error::from(BlockError::UnknownUncleParent(uncle.parent_hash().clone())))?;
+			let uncle_parent = bc.block_header_data(&uncle.parent_hash()).ok_or_else(|| Error::from(BlockError::UnknownUncleParent(uncle.parent_hash().clone())))?;
 			for _ in 0..depth {
 				match bc.block_details(&expected_uncle_parent) {
 					Some(details) => {
@@ -224,7 +224,8 @@ fn verify_uncles(header: &Header, bytes: &[u8], bc: &BlockProvider, engine: &Eth
 				return Err(From::from(BlockError::UncleParentNotInChain(uncle_parent.hash())));
 			}
 
-			verify_parent(&uncle, &uncle_parent, engine.params().gas_limit_bound_divisor)?;
+			let uncle_parent = uncle_parent.decode();
+			verify_parent(&uncle, &uncle_parent, engine)?;
 			engine.verify_block_family(&uncle, &uncle_parent)?;
 			verified.insert(uncle.hash());
 		}
@@ -302,11 +303,13 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) 
 }
 
 /// Check header parameters agains parent header.
-fn verify_parent(header: &Header, parent: &Header, gas_limit_divisor: U256) -> Result<(), Error> {
-	if !header.parent_hash().is_zero() && &parent.hash() != header.parent_hash() {
-		return Err(From::from(BlockError::InvalidParentHash(Mismatch { expected: parent.hash(), found: header.parent_hash().clone() })))
-	}
-	if header.timestamp() <= parent.timestamp() {
+fn verify_parent(header: &Header, parent: &Header, engine: &EthEngine) -> Result<(), Error> {
+	assert!(header.parent_hash().is_zero() || &parent.hash() == header.parent_hash(),
+			"Parent hash should already have been verified; qed");
+
+	let gas_limit_divisor = engine.params().gas_limit_bound_divisor;
+
+	if !engine.is_timestamp_valid(header.timestamp(), parent.timestamp()) {
 		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp() + 1), found: header.timestamp() })))
 	}
 	if header.number() != parent.number() + 1 {
@@ -496,8 +499,9 @@ mod tests {
 		// is fine.
 		let client = ::client::TestBlockChainClient::default();
 
-		let parent = bc.block_header(header.parent_hash())
-			.ok_or(BlockError::UnknownParent(header.parent_hash().clone()))?;
+		let parent = bc.block_header_data(header.parent_hash())
+			.ok_or(BlockError::UnknownParent(header.parent_hash().clone()))?
+			.decode();
 
 		let full_params = FullFamilyParams {
 			block_bytes: bytes,

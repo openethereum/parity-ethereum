@@ -30,7 +30,8 @@ use mio::*;
 use mio::deprecated::{EventLoop};
 use mio::tcp::*;
 use ethereum_types::H256;
-use rlp::*;
+use rlp::{RlpStream, Encodable};
+
 use session::{Session, SessionData};
 use io::*;
 use PROTOCOL_VERSION;
@@ -39,7 +40,6 @@ use network::{NetworkConfiguration, NetworkIoMessage, ProtocolId, PeerId, Packet
 use network::{NonReservedPeerMode, NetworkContext as NetworkContextTrait};
 use network::HostInfo as HostInfoTrait;
 use network::{SessionInfo, Error, ErrorKind, DisconnectReason, NetworkProtocolHandler};
-use stats::NetworkStats;
 use discovery::{Discovery, TableUpdates, NodeEntry};
 use ip_utils::{map_external_address, select_public_address};
 use path::restrict_permissions_owner;
@@ -245,7 +245,6 @@ pub struct Host {
 	handlers: RwLock<HashMap<ProtocolId, Arc<NetworkProtocolHandler + Sync>>>,
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
 	timer_counter: RwLock<usize>,
-	stats: Arc<NetworkStats>,
 	reserved_nodes: RwLock<HashSet<NodeId>>,
 	stopping: AtomicBool,
 	filter: Option<Arc<ConnectionFilter>>,
@@ -253,7 +252,7 @@ pub struct Host {
 
 impl Host {
 	/// Create a new instance
-	pub fn new(mut config: NetworkConfiguration, stats: Arc<NetworkStats>, filter: Option<Arc<ConnectionFilter>>) -> Result<Host, Error> {
+	pub fn new(mut config: NetworkConfiguration, filter: Option<Arc<ConnectionFilter>>) -> Result<Host, Error> {
 		let mut listen_address = match config.listen_address {
 			None => SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), DEFAULT_PORT)),
 			Some(addr) => addr,
@@ -301,7 +300,6 @@ impl Host {
 			handlers: RwLock::new(HashMap::new()),
 			timers: RwLock::new(HashMap::new()),
 			timer_counter: RwLock::new(USER_TIMER),
-			stats: stats,
 			reserved_nodes: RwLock::new(HashSet::new()),
 			stopping: AtomicBool::new(false),
 			filter: filter,
@@ -596,11 +594,11 @@ impl Host {
 			};
 			match TcpStream::connect(&address) {
 				Ok(socket) => {
-					trace!(target: "network", "Connecting to {:?}", address);
+					trace!(target: "network", "{}: Connecting to {:?}", id, address);
 					socket
 				},
 				Err(e) => {
-					debug!(target: "network", "Can't connect to address {:?}: {:?}", address, e);
+					debug!(target: "network", "{}: Can't connect to address {:?}: {:?}", id, address, e);
 					return;
 				}
 			}
@@ -616,7 +614,8 @@ impl Host {
 		let mut sessions = self.sessions.write();
 
 		let token = sessions.insert_with_opt(|token| {
-			match Session::new(io, socket, token, id, &nonce, self.stats.clone(), &self.info.read()) {
+			trace!(target: "network", "{}: Initiating session {:?}", token, id);
+			match Session::new(io, socket, token, id, &nonce, &self.info.read()) {
 				Ok(s) => Some(Arc::new(Mutex::new(s))),
 				Err(e) => {
 					debug!(target: "network", "Session create error: {:?}", e);
@@ -793,7 +792,6 @@ impl Host {
 					return;
 				}
 				for p in ready_data {
-					self.stats.inc_sessions();
 					let reserved = self.reserved_nodes.read();
 					if let Some(h) = handlers.get(&p).clone() {
 						h.connected(&NetworkContext::new(io, p, Some(session.clone()), self.sessions.clone(), &reserved), &token);
@@ -1101,7 +1099,7 @@ fn save_key(path: &Path, key: &Secret) {
 	if let Err(e) = restrict_permissions_owner(path, true, false) {
 		warn!(target: "network", "Failed to modify permissions of the file ({})", e);
 	}
-	if let Err(e) = file.write(&key.hex().into_bytes()) {
+	if let Err(e) = file.write(&key.hex().into_bytes()[2..]) {
 		warn!("Error writing key file: {:?}", e);
 	}
 }
@@ -1150,6 +1148,6 @@ fn host_client_url() {
 	let mut config = NetworkConfiguration::new_local();
 	let key = "6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2".parse().unwrap();
 	config.use_secret = Some(key);
-	let host: Host = Host::new(config, Arc::new(NetworkStats::new()), None).unwrap();
+	let host: Host = Host::new(config, None).unwrap();
 	assert!(host.local_url().starts_with("enode://101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c@"));
 }

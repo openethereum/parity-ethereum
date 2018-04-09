@@ -29,13 +29,19 @@ pub struct Secret {
 
 impl ToHex for Secret {
 	fn to_hex(&self) -> String {
-		self.inner.to_hex()
+		format!("{:x}", self.inner)
+	}
+}
+
+impl fmt::LowerHex for Secret {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		self.inner.fmt(fmt)
 	}
 }
 
 impl fmt::Debug for Secret {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		write!(fmt, "{:?}", self.inner)
+		self.inner.fmt(fmt)
 	}
 }
 

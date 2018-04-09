@@ -86,9 +86,6 @@ pub enum BlockError {
 	TemporarilyInvalid(OutOfBounds<u64>),
 	/// Log bloom header field is invalid.
 	InvalidLogBloom(Mismatch<Bloom>),
-	/// Parent hash field of header is invalid; this is an invalid error indicating a logic flaw in the codebase.
-	/// TODO: remove and favour an assert!/panic!.
-	InvalidParentHash(Mismatch<H256>),
 	/// Number field of header is invalid.
 	InvalidNumber(Mismatch<BlockNumber>),
 	/// Block number isn't sensible.
@@ -131,7 +128,6 @@ impl fmt::Display for BlockError {
 			InvalidTimestamp(ref oob) => format!("Invalid timestamp in header: {}", oob),
 			TemporarilyInvalid(ref oob) => format!("Future timestamp in header: {}", oob),
 			InvalidLogBloom(ref oob) => format!("Invalid log bloom in header: {}", oob),
-			InvalidParentHash(ref mis) => format!("Invalid parent hash: {}", mis),
 			InvalidNumber(ref mis) => format!("Invalid number in header: {}", mis),
 			RidiculousNumber(ref oob) => format!("Implausible block number. {}", oob),
 			UnknownParent(ref hash) => format!("Unknown parent: {}", hash),

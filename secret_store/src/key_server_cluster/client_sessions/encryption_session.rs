@@ -19,8 +19,10 @@ use std::fmt::{Debug, Formatter, Error as FmtError};
 use std::time;
 use std::sync::Arc;
 use parking_lot::{Condvar, Mutex};
+use ethereum_types::Address;
 use ethkey::Public;
-use key_server_cluster::{Error, NodeId, SessionId, Requester, KeyStorage, DocumentKeyShare};
+use key_server_cluster::{Error, NodeId, SessionId, Requester, KeyStorage,
+	DocumentKeyShare, ServerKeyId};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{Message, EncryptionMessage, InitializeEncryptionSession,
@@ -107,7 +109,7 @@ pub enum SessionState {
 impl SessionImpl {
 	/// Create new encryption session.
 	pub fn new(params: SessionParams) -> Result<Self, Error> {
-		check_encrypted_data(&params.encrypted_data)?;
+		check_encrypted_data(params.encrypted_data.as_ref())?;
 
 		Ok(SessionImpl {
 			id: params.id,
@@ -133,8 +135,8 @@ impl SessionImpl {
 	/// Wait for session completion.
 	pub fn wait(&self, timeout: Option<time::Duration>) -> Result<(), Error> {
 		Self::wait_session(&self.completed, &self.data, timeout, |data| data.result.clone())
+			.expect("wait_session returns Some if called without timeout; qed")
 	}
-
 
 	/// Start new session initialization. This must be called on master node.
 	pub fn initialize(&self, requester: Requester, common_point: Public, encrypted_point: Public) -> Result<(), Error> {
@@ -155,17 +157,10 @@ impl SessionImpl {
 		// TODO [Reliability]: there could be situation when some nodes have failed to store encrypted data
 		// => potential problems during restore. some confirmation step is needed (2pc)?
 		// save encryption data
-		if let Some(mut encrypted_data) = self.encrypted_data.clone() {
-			// check that the requester is the author of the encrypted data
-			let requester_address = requester.address(&self.id).ok_or(Error::InsufficientRequesterData)?;
-			if encrypted_data.author != requester_address {
-				return Err(Error::AccessDenied);
-			}
-
-			encrypted_data.common_point = Some(common_point.clone());
-			encrypted_data.encrypted_point = Some(encrypted_point.clone());
-			self.key_storage.update(self.id.clone(), encrypted_data)
-				.map_err(|e| Error::KeyStorage(e.into()))?;
+		if let Some(encrypted_data) = self.encrypted_data.clone() {
+			let requester_address = requester.address(&self.id).map_err(Error::InsufficientRequesterData)?;
+			update_encrypted_data(&self.key_storage, self.id.clone(),
+				encrypted_data, requester_address, common_point.clone(), encrypted_point.clone())?;
 		}
 
 		// start initialization
@@ -199,18 +194,11 @@ impl SessionImpl {
 		}
 
 		// check that the requester is the author of the encrypted data
-		if let Some(mut encrypted_data) = self.encrypted_data.clone() {
+		if let Some(encrypted_data) = self.encrypted_data.clone() {
 			let requester: Requester = message.requester.clone().into();
-			let requestor_address = requester.address(&self.id).ok_or(Error::InsufficientRequesterData)?;
-			if encrypted_data.author != requestor_address {
-				return Err(Error::AccessDenied);
-			}
-
-			// save encryption data
-			encrypted_data.common_point = Some(message.common_point.clone().into());
-			encrypted_data.encrypted_point = Some(message.encrypted_point.clone().into());
-			self.key_storage.update(self.id.clone(), encrypted_data)
-				.map_err(|e| Error::KeyStorage(e.into()))?;
+			let requester_address = requester.address(&self.id).map_err(Error::InsufficientRequesterData)?;
+			update_encrypted_data(&self.key_storage, self.id.clone(),
+				encrypted_data, requester_address, message.common_point.clone().into(), message.encrypted_point.clone().into())?;
 		}
 
 		// update state
@@ -333,13 +321,28 @@ impl Debug for SessionImpl {
 	}
 }
 
-fn check_encrypted_data(encrypted_data: &Option<DocumentKeyShare>) -> Result<(), Error> {
-	if let &Some(ref encrypted_data) = encrypted_data {
+/// Check that common_point and encrypted point are not yet set in key share.
+pub fn check_encrypted_data(key_share: Option<&DocumentKeyShare>) -> Result<(), Error> {
+	if let Some(key_share) = key_share {
 		// check that common_point and encrypted_point are still not set yet
-		if encrypted_data.common_point.is_some() || encrypted_data.encrypted_point.is_some() {
+		if key_share.common_point.is_some() || key_share.encrypted_point.is_some() {
 			return Err(Error::CompletedSessionId);
 		}
 	}
 
 	Ok(())
+}
+
+/// Update key share with encrypted document key.
+pub fn update_encrypted_data(key_storage: &Arc<KeyStorage>, key_id: ServerKeyId, mut key_share: DocumentKeyShare, author: Address, common_point: Public, encrypted_point: Public) -> Result<(), Error> {
+	// author must be the same
+	if key_share.author != author {
+		return Err(Error::AccessDenied);
+	}
+
+	// save encryption data
+	key_share.common_point = Some(common_point);
+	key_share.encrypted_point = Some(encrypted_point);
+	key_storage.update(key_id, key_share)
+		.map_err(|e| Error::KeyStorage(e.into()))
 }

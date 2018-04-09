@@ -15,7 +15,7 @@ ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethcore = { path = "../ethcore" }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 plain_hasher = { path = "../util/plain_hasher" }
 rlp = { path = "../util/rlp" }
 keccak-hash = { path = "../util/hash" }
@@ -26,7 +26,7 @@ log = "0.3"
 env_logger = "0.4"
 rand = "0.4"
 heapsize = "0.4"
-semver = "0.6"
+semver = "0.9"
 smallvec = { version = "0.4", features = ["heapsizeof"] }
 parking_lot = "0.5"
 ipnetwork = "0.12.6"

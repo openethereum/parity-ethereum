@@ -44,6 +44,7 @@ pub struct BlockChainClient<'a, C: 'a> {
 	cached_nonces: CachedNonceClient<'a, C>,
 	engine: &'a EthEngine,
 	accounts: Option<&'a AccountProvider>,
+	best_block_header: Header,
 	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
 
@@ -54,6 +55,7 @@ impl<'a, C: 'a> Clone for BlockChainClient<'a, C> {
 			cached_nonces: self.cached_nonces.clone(),
 			engine: self.engine,
 			accounts: self.accounts.clone(),
+			best_block_header: self.best_block_header.clone(),
 			service_transaction_checker: self.service_transaction_checker.clone(),
 		}
 	}
@@ -69,11 +71,13 @@ C: BlockInfo + CallContract,
 		accounts: Option<&'a AccountProvider>,
 		refuse_service_transactions: bool,
 	) -> Self {
+		let best_block_header = chain.best_block_header().decode();
 		BlockChainClient {
 			chain,
 			cached_nonces: CachedNonceClient::new(chain, cache),
 			engine,
 			accounts,
+			best_block_header,
 			service_transaction_checker: if refuse_service_transactions {
 				None
 			} else {
@@ -83,8 +87,7 @@ C: BlockInfo + CallContract,
 	}
 
 	pub fn verify_signed(&self, tx: &SignedTransaction) -> Result<(), transaction::Error> {
-		let best_block_header = self.chain.best_block_header().decode();
-		self.verify_signed_transaction(tx, &best_block_header)
+		self.verify_signed_transaction(tx, &self.best_block_header)
 	}
 
 	pub fn verify_signed_transaction(&self, tx: &SignedTransaction, header: &Header) -> Result<(), transaction::Error> {
@@ -106,11 +109,10 @@ impl<'a, C: 'a> pool::client::Client for BlockChainClient<'a, C> where
 	}
 
 	fn verify_transaction(&self, tx: UnverifiedTransaction)-> Result<SignedTransaction, transaction::Error> {
-		let best_block_header = self.chain.best_block_header().decode();
-		self.engine.verify_transaction_basic(&tx, &best_block_header)?;
-		let tx = self.engine.verify_transaction_unordered(tx, &best_block_header)?;
+		self.engine.verify_transaction_basic(&tx, &self.best_block_header)?;
+		let tx = self.engine.verify_transaction_unordered(tx, &self.best_block_header)?;
 
-		self.verify_signed_transaction(&tx, &best_block_header)?;
+		self.verify_signed_transaction(&tx, &self.best_block_header)?;
 
 		Ok(tx)
 	}

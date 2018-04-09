@@ -221,7 +221,7 @@ pub struct Client {
 	registrar_address: Option<Address>,
 
 	/// A closure to call when we want to restart the client
-	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
+	exit_handler: Mutex<Option<Box<Fn(String) + 'static + Send>>>,
 
 	importer: Importer,
 }
@@ -369,16 +369,15 @@ impl Importer {
 		let engine = &*self.engine;
 		let header = block.header.clone();
 
-		let chain = client.chain.read();
 		// Check the block isn't so old we won't be able to enact it.
-		let best_block_number = chain.best_block_number();
+		let best_block_number = client.chain.read().best_block_number();
 		if client.pruning_info().earliest_state > header.number() {
 			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
 			return Err(());
 		}
 
 		// Check if parent is in chain
-		let parent = match chain.block_header(header.parent_hash()) {
+		let parent = match client.block_header_decoded(BlockId::Hash(*header.parent_hash())) {
 			Some(h) => h,
 			None => {
 				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
@@ -386,6 +385,7 @@ impl Importer {
 			}
 		};
 
+		let chain = client.chain.read();
 		// Verify Block Family
 		let verify_family_result = self.verifier.verify_block_family(
 			&header,
@@ -415,6 +415,7 @@ impl Importer {
 		let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
+		let strip_receipts = header.number() < engine.params().validate_receipts_transition;
 		let enact_result = enact_verified(
 			block,
 			engine,
@@ -424,14 +425,12 @@ impl Importer {
 			last_hashes,
 			client.factories.clone(),
 			is_epoch_begin,
+			strip_receipts,
 		);
-		let mut locked_block = enact_result.map_err(|e| {
+
+		let locked_block = enact_result.map_err(|e| {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 		})?;
-
-		if header.number() < engine.params().validate_receipts_transition && header.receipts_root() != locked_block.block().header().receipts_root() {
-			locked_block = locked_block.strip_receipts();
-		}
 
 		// Final Verification
 		if let Err(e) = self.verifier.verify_block_final(&header, locked_block.block().header()) {
@@ -663,7 +662,7 @@ impl Importer {
 	fn check_epoch_end<'a>(&self, header: &'a Header, chain: &BlockChain, client: &Client) {
 		let is_epoch_end = self.engine.is_epoch_end(
 			header,
-			&(|hash| chain.block_header(&hash)),
+			&(|hash| client.block_header_decoded(BlockId::Hash(hash))),
 			&(|hash| chain.get_pending_transition(hash)), // TODO: limit to current epoch.
 		);
 
@@ -732,7 +731,7 @@ impl Client {
 			config.history
 		};
 
-		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(h.state_root())) {
+		if !chain.block_header_data(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(&h.state_root())) {
 			warn!("State root not found for block #{} ({:x})", chain.best_block_number(), chain.best_block_hash());
 		}
 
@@ -834,8 +833,11 @@ impl Client {
 		self.notify.write().push(Arc::downgrade(&target));
 	}
 
-	/// Set a closure to call when we want to restart the client
-	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(bool, Option<String>) + 'static + Send {
+	/// Set a closure to call when the client wants to be restarted.
+	///
+	/// The parameter passed to the callback is the name of the new chain spec to use after
+	/// the restart.
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(String) + 'static + Send {
 		*self.exit_handler.lock() = Some(Box::new(f));
 	}
 
@@ -1013,7 +1015,7 @@ impl Client {
 		let header = self.best_block_header();
 		State::from_existing(
 			self.state_db.read().boxed_clone_canon(&header.hash()),
-			header.state_root(),
+			*header.state_root(),
 			self.engine.account_start_nonce(header.number()),
 			self.factories.clone()
 		)
@@ -1273,6 +1275,23 @@ impl Client {
 			BlockId::Latest => Some(self.chain.read().best_block_number()),
 		}
 	}
+
+	/// Retrieve a decoded header given `BlockId`
+	///
+	/// This method optimizes access patterns for latest block header
+	/// to avoid excessive RLP encoding, decoding and hashing.
+	fn block_header_decoded(&self, id: BlockId) -> Option<Header> {
+		match id {
+			BlockId::Latest
+				=> Some(self.chain.read().best_block_header()),
+			BlockId::Hash(ref hash) if hash == &self.chain.read().best_block_hash()
+				=> Some(self.chain.read().best_block_header()),
+			BlockId::Number(number) if number == self.chain.read().best_block_number()
+				=> Some(self.chain.read().best_block_header()),
+			_
+				=> self.block_header(id).map(|h| h.decode()),
+		}
+	}
 }
 
 impl snapshot::DatabaseRestore for Client {
@@ -1328,16 +1347,14 @@ impl BlockInfo for Client {
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_header_data(&hash))
 	}
 
-	fn best_block_header(&self) -> encoded::Header {
+	fn best_block_header(&self) -> Header {
 		self.chain.read().best_block_header()
 	}
 
 	fn block(&self, id: BlockId) -> Option<encoded::Block> {
 		let chain = self.chain.read();
 
-		Self::block_hash(&chain, id).and_then(|hash| {
-			chain.block(&hash)
-		})
+		Self::block_hash(&chain, id).and_then(|hash| chain.block(&hash))
 	}
 
 	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
@@ -1373,11 +1390,11 @@ impl CallContract for Client {
 	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let state_pruned = || CallError::StatePruned.to_string();
 		let state = &mut self.state_at(block_id).ok_or_else(&state_pruned)?;
-		let header = self.block_header(block_id).ok_or_else(&state_pruned)?;
+		let header = self.block_header_decoded(block_id).ok_or_else(&state_pruned)?;
 
 		let transaction = self.contract_call_tx(block_id, address, data);
 
-		self.call(&transaction, Default::default(), state, &header.decode())
+		self.call(&transaction, Default::default(), state, &header)
 			.map_err(|e| format!("{:?}", e))
 			.map(|executed| executed.output)
 	}
@@ -1624,7 +1641,7 @@ impl BlockChainClient for Client {
 			return;
 		}
 		if let Some(ref h) = *self.exit_handler.lock() {
-			(*h)(true, Some(new_spec_name));
+			(*h)(new_spec_name);
 		} else {
 			warn!("Not hypervised; cannot change chain.");
 		}
@@ -1927,8 +1944,8 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>> {
-		self.block_header(id)
-			.map(|header| self.engine.extra_info(&header.decode()))
+		self.block_header_decoded(id)
+			.map(|header| self.engine.extra_info(&header))
 	}
 
 	fn uncle_extra_info(&self, id: UncleId) -> Option<BTreeMap<String, String>> {
@@ -1984,8 +2001,8 @@ impl ReopenBlock for Client {
 
 			for h in uncles {
 				if !block.uncles().iter().any(|header| header.hash() == h) {
-					let uncle = chain.block_header(&h).expect("find_uncle_hashes only returns hashes for existing headers; qed");
-					block.push_uncle(uncle).expect("pushing up to maximum_uncle_count;
+					let uncle = chain.block_header_data(&h).expect("find_uncle_hashes only returns hashes for existing headers; qed");
+					block.push_uncle(uncle.decode()).expect("pushing up to maximum_uncle_count;
 												push_uncle is not ok only if more than maximum_uncle_count is pushed;
 												so all push_uncle are Ok;
 												qed");
@@ -2002,9 +2019,8 @@ impl PrepareOpenBlock for Client {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.engine;
 		let chain = self.chain.read();
-		let h = chain.best_block_hash();
-		let best_header = &chain.block_header(&h)
-			.expect("h is best block hash: so its header must exist: qed");
+		let best_header = chain.best_block_header();
+		let h = best_header.hash();
 
 		let is_epoch_begin = chain.epoch_transition(best_header.number(), h).is_some();
 		let mut open_block = OpenBlock::new(
@@ -2012,7 +2028,7 @@ impl PrepareOpenBlock for Client {
 			self.factories.clone(),
 			self.tracedb.read().tracing_enabled(),
 			self.state_db.read().boxed_clone_canon(&h),
-			best_header,
+			&best_header,
 			self.build_last_hashes(&h),
 			author,
 			gas_range_target,
@@ -2027,7 +2043,7 @@ impl PrepareOpenBlock for Client {
 			.into_iter()
 			.take(engine.maximum_uncle_count(open_block.header().number()))
 			.foreach(|h| {
-				open_block.push_uncle(h).expect("pushing maximum_uncle_count;
+				open_block.push_uncle(h.decode()).expect("pushing maximum_uncle_count;
 												open_block was just created;
 												push_uncle is not ok only if more than maximum_uncle_count is pushed;
 												so all push_uncle are Ok;

@@ -74,9 +74,6 @@ scale_verifiers = false
 [snapshots]
 disable_periodic = true
 
-[vm]
-jit = false
-
 [misc]
 ntp_servers = ["0.parity.pool.ntp.org:123"]
 logging = "own_tx=trace"

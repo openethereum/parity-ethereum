@@ -1,0 +1,89 @@
+{
+  "name": "Easthub",
+  "dataDir": "easthub",
+  "engine": {
+    "Ethash": {
+      "params": {
+        "minimumDifficulty": "0x020000",
+        "difficultyBoundDivisor": "0x0800",
+        "durationLimit": "0x0d",
+        "blockReward": "0x2B5E3AF16B1880000",
+        "homesteadTransition": "0x0",
+        "bombDefuseTransition": "0x0",
+        "eip150Transition": "0x0",
+        "eip160Transition": "0x0",
+        "ecip1017EraRounds": 5000000,
+        "eip161abcTransition": "0x7fffffffffffffff",
+        "eip161dTransition": "0x7fffffffffffffff"
+      }
+    }
+  },
+  "params": {
+    "gasLimitBoundDivisor": "0x0400",
+    "registrar": "0x0000000000000000000000000000000000000000",
+    "accountStartNonce": "0x00",
+    "maximumExtraDataSize": "0x20",
+    "minGasLimit": "0x1388",
+    "networkID": "0x7",
+    "chainID": "0x7",
+    "eip155Transition": "0x0",
+    "eip98Transition": "0x7fffffffffffff",
+    "eip86Transition": "0x7fffffffffffff"
+  },
+  "genesis": {
+    "seal": {
+      "ethereum": {
+        "nonce": "0x0000000000000042",
+        "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    },
+    "difficulty": "0x0400000000",
+    "author": "0x0000000000000000000000000000000000000000",
+    "timestamp": "0x00",
+    "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "extraData": "0x323031382045617374636f696e2050726f6a656374",
+    "gasLimit": "0x1388"
+  },
+  "nodes": [
+    "enode://ca57e40edb95a08a81b85a91e91099a0aaab777ad329ea7f3f772bc0fd511a276a5d84944725d181ff80f8c7dc1034814bff25b9723b03363d48617fed4b15f0@13.125.109.174:30303",
+    "enode://57254e23a7e5fe1e081ee5d1b236e37735a120660daeb4bf1fec6943a82c915c5b6fad23eeb1a43a27c23f236e084e8051aaa28f7d4139149f844747facb62bb@18.217.39.51:30303",
+    "enode://ef248f327c73c0318f4d51a62270b0612f3c4a4fd04b77d04854dc355980e137708d1e48811bc91387b0d7eb85cf447d8bbc095404f39bb7064e76751bda9cd4@52.221.160.236:30303",
+    "enode://bf6f0e37dd733cf04f2b079c753d2dea7cc7c59d8637eff9a8e63e17d08e2bfc91229fbb2dff08fe6ee12e51c1b6f8ed969d7042b89d77029e7ea02b05e17be3@18.197.47.177:30303"
+  ],
+  "accounts": {
+    "0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+    "0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+    "0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+    "0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+    "20c1252a8cb33a7a9a257b2a4cfeed8daf87c847": {
+      "balance": "100000000000000000000000000"
+    },
+    "9dcd37c8e5aea3a0d37c5d0a2db683362d81febd": {
+      "balance": "100000000000000000000000000"
+    },
+    "9eff080302333f44a60bfd8c33bd63015c6d921b": {
+      "balance": "100000000000000000000000000"
+    },
+    "c1df2e5de98d5c41fec0642dc302971f5d3500bd": {
+      "balance": "100000000000000000000000000"
+    },
+    "2e0fb67cd1d029cbaea4b74c361efcc06b3105fd": {
+      "balance": "100000000000000000000000000"
+    },
+    "2b6425cc3cd90654f077889ef7262ac2f5846460": {
+      "balance": "100000000000000000000000000"
+    },
+    "28562041230c6d575e233e4ed1b35c514884d964": {
+      "balance": "100000000000000000000000000"
+    },
+    "16eb6896a5a83d39ac762d79d21f825f5f980d12": {
+      "balance": "100000000000000000000000000"
+    },
+    "f09e3f1de27dd03a1ac0a021b2d9e45bde1b360c": {
+      "balance": "100000000000000000000000000"
+    },
+    "2d87547819c6433f208ee3096161cdb2835a2333": {
+      "balance": "100000000000000000000000000"
+    }
+  }
+}

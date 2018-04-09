@@ -26,6 +26,7 @@ use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use types::all::{Error, Public, NodeAddress, NodeId};
 use trusted_client::TrustedClient;
+use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
 use {NodeKeyPair};
 
 use_contract!(key_server, "KeyServerSet", "res/key_server_set.json");
@@ -325,7 +326,7 @@ impl CachedContract {
 
 	fn read_from_registry_if_required(&mut self, client: &Client, enacted: Vec<H256>, retracted: Vec<H256>) {
 		// read new contract from registry
-		let new_contract_addr = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest);
+		let new_contract_addr = get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED).and_then(|block_hash| client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Hash(block_hash)));
 
 		// new contract installed => read nodes set from the contract
 		if self.contract_address.as_ref() != new_contract_addr.as_ref() {

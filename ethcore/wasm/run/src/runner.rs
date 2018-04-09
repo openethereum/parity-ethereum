@@ -79,17 +79,17 @@ impl fmt::Display for Fail {
 				write!(
 					f,
 					"Storage key {} value mismatch, expected {}, got: {}",
-					key.as_ref().to_vec().to_hex(),
-					expected.as_ref().to_vec().to_hex(),
-					actual.as_ref().to_vec().to_hex(),
+					key.to_vec().to_hex(),
+					expected.to_vec().to_hex(),
+					actual.to_vec().to_hex(),
 				),
 
 			StorageMismatch { ref key, ref expected, actual: None} =>
 				write!(
 					f,
 					"No expected storage value for key {} found, expected {}",
-					key.as_ref().to_vec().to_hex(),
-					expected.as_ref().to_vec().to_hex(),
+					key.to_vec().to_hex(),
+					expected.to_vec().to_hex(),
 				),
 
 			Nonconformity(SpecNonconformity::Address) =>
@@ -130,7 +130,7 @@ pub fn run_fixture(fixture: &Fixture) -> Vec<Fail> {
 		Err(e) => { return Fail::load(e); },
 	};
 
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new().with_wasm();
 	params.code = Some(Arc::new(
 		if let Source::Constructor { ref arguments, ref sender, ref at, .. } = fixture.source {
 			match construct(&mut ext, source, arguments.clone().into(), sender.clone().into(), at.clone().into()) {

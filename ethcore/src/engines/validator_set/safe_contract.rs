@@ -20,7 +20,7 @@ use std::sync::{Weak, Arc};
 use hash::keccak;
 
 use ethereum_types::{H256, U256, Address, Bloom};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 
 use bytes::Bytes;
 use memory_cache::MemoryLruCache;
@@ -53,19 +53,19 @@ lazy_static! {
 // only "first" proofs are such.
 struct StateProof {
 	contract_address: Address,
-	header: Mutex<Header>,
+	header: Header,
 	provider: validator_set::ValidatorSet,
 }
 
 impl ::engines::StateDependentProof<EthereumMachine> for StateProof {
 	fn generate_proof(&self, caller: &Call) -> Result<Vec<u8>, String> {
-		prove_initial(&self.provider, self.contract_address, &*self.header.lock(), caller)
+		prove_initial(&self.provider, self.contract_address, &self.header, caller)
 	}
 
 	fn check_proof(&self, machine: &EthereumMachine, proof: &[u8]) -> Result<(), String> {
 		let (header, state_items) = decode_first_proof(&UntrustedRlp::new(proof))
 			.map_err(|e| format!("proof incorrectly encoded: {}", e))?;
-		if &header != &*self.header.lock(){
+		if &header != &self.header {
 			return Err("wrong header in proof".into());
 		}
 
@@ -325,7 +325,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			debug!(target: "engine", "signalling transition to fresh contract.");
 			let state_proof = Arc::new(StateProof {
 				contract_address: self.contract_address,
-				header: Mutex::new(header.clone()),
+				header: header.clone(),
 				provider: validator_set::ValidatorSet::default(),
 			});
 			return ::engines::EpochChange::Yes(::engines::Proof::WithState(state_proof as Arc<_>));

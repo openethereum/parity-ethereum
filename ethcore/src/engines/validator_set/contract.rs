@@ -201,7 +201,7 @@ mod tests {
 			"0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e"
 		);
 		// Simulate a misbehaving validator by handling a double proposal.
-		let header = client.best_block_header().decode();
+		let header = client.best_block_header();
 		assert!(client.engine().verify_block_family(&header, &header).is_err());
 		// Seal a block.
 		client.engine().step();

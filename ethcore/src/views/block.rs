@@ -91,6 +91,11 @@ impl<'a> BlockView<'a> {
 			}).collect()
 	}
 
+	/// Return the raw rlp for the transactions in the given block.
+	pub fn transactions_rlp(&self) -> Rlp<'a> {
+		self.rlp.at(1)
+	}
+
 	/// Return number of transactions in given block, without deserializing them.
 	pub fn transactions_count(&self) -> usize {
 		self.rlp.at(1).iter().count()
@@ -123,6 +128,11 @@ impl<'a> BlockView<'a> {
 			transaction_index: index,
 			cached_sender: None,
 		})
+	}
+
+	/// Returns raw rlp for the uncles in the given block
+	pub fn uncles_rlp(&self) -> Rlp<'a> {
+		self.rlp.at(2)
 	}
 
 	/// Return list of uncles of given block.
