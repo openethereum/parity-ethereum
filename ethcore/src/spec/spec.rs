@@ -892,7 +892,7 @@ impl Spec {
 mod tests {
 	use super::*;
 	use state::State;
-	use tests::helpers::get_temp_state_db;
+	use test_helpers::get_temp_state_db;
 	use views::BlockView;
 	use tempdir::TempDir;
 

@@ -25,7 +25,7 @@ use vm::{
 	CreateContractAddress, ReturnData,
 };
 use externalities::*;
-use tests::helpers::get_temp_state;
+use test_helpers::get_temp_state;
 use ethjson;
 use trace::{Tracer, NoopTracer};
 use trace::{VMTracer, NoopVMTracer};

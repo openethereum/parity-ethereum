@@ -280,13 +280,21 @@ usage! {
 			"--auto-update=[SET]",
 			"Set a releases set to automatically update and install. SET can be one of: all - All updates in the our release track; critical - Only consensus/security updates; none - No updates will be auto-installed.",
 
+			ARG arg_auto_update_delay: (u16) = 100u16, or |c: &Config| c.parity.as_ref()?.auto_update_delay.clone(),
+			"--auto-update-delay=[NUM]",
+			"Specify the maximum number of blocks used for randomly delaying updates.",
+
+			ARG arg_auto_update_check_frequency: (u16) = 20u16, or |c: &Config| c.parity.as_ref()?.auto_update_check_frequency.clone(),
+			"--auto-update-check-frequency=[NUM]",
+			"Specify the number of blocks between each auto-update check.",
+
 			ARG arg_release_track: (String) = "current", or |c: &Config| c.parity.as_ref()?.release_track.clone(),
 			"--release-track=[TRACK]",
 			"Set which release track we should use for updates. TRACK can be one of: stable - Stable releases; beta - Beta releases; nightly - Nightly releases (unstable); testing - Testing releases (do not use); current - Whatever track this executable was released on.",
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| c.parity.as_ref()?.chain.clone(),
 			"--chain=[CHAIN]",
-			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or olympic, frontier, homestead, mainnet, morden, ropsten, classic, expanse, musicoin, ellaism, testnet, kovan or dev.",
+			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or olympic, frontier, homestead, mainnet, morden, ropsten, classic, expanse, musicoin, ellaism, easthub, social, testnet, kovan or dev.",
 
 			ARG arg_keys_path: (String) = "$BASE/keys", or |c: &Config| c.parity.as_ref()?.keys_path.clone(),
 			"--keys-path=[PATH]",
@@ -341,6 +349,35 @@ usage! {
 			ARG arg_password: (Vec<String>) = Vec::new(), or |c: &Config| c.account.as_ref()?.password.clone(),
 			"--password=[FILE]...",
 			"Provide a file containing a password for unlocking an account. Leading and trailing whitespace is trimmed.",
+
+		["Private transactions options"]
+			FLAG flag_private_enabled: (bool) = false, or |c: &Config| c.private_tx.as_ref()?.enabled,
+			"--private-tx-enabled",
+			"Enable private transactions.",
+
+			ARG arg_private_signer: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.signer.clone(),
+			"--private-signer=[ACCOUNT]",
+			"Specify the account for signing public transaction created upon verified private transaction.",
+
+			ARG arg_private_validators: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.validators.as_ref().map(|vec| vec.join(",")),
+			"--private-validators=[ACCOUNTS]",
+			"Specify the accounts for validating private transactions. ACCOUNTS is a comma-delimited list of addresses.",
+
+			ARG arg_private_account: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.account.clone(),
+			"--private-account=[ACCOUNT]",
+			"Specify the account for signing requests to secret store.",
+
+			ARG arg_private_sstore_url: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.sstore_url.clone(),
+			"--private-sstore-url=[URL]",
+			"Specify secret store URL used for encrypting private transactions.",
+
+			ARG arg_private_sstore_threshold: (Option<u32>) = None, or |c: &Config| c.private_tx.as_ref()?.sstore_threshold.clone(),
+			"--private-sstore-threshold=[NUM]",
+			"Specify secret store threshold used for encrypting private transactions.",
+
+			ARG arg_private_passwords: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.passwords.clone(),
+			"--private-passwords=[FILE]...",
+			"Provide a file containing passwords for unlocking accounts (signer, private account, validators).",
 
 		["UI options"]
 			FLAG flag_force_ui: (bool) = false, or |c: &Config| c.ui.as_ref()?.force.clone(),
@@ -401,11 +438,11 @@ usage! {
 			"--port=[PORT]",
 			"Override the port on which the node should listen.",
 
-			ARG arg_min_peers: (u16) = 25u16, or |c: &Config| c.network.as_ref()?.min_peers.clone(),
+			ARG arg_min_peers: (Option<u16>) = None, or |c: &Config| c.network.as_ref()?.min_peers.clone(),
 			"--min-peers=[NUM]",
 			"Try to maintain at least NUM peers.",
 
-			ARG arg_max_peers: (u16) = 50u16, or |c: &Config| c.network.as_ref()?.max_peers.clone(),
+			ARG arg_max_peers: (Option<u16>) = None, or |c: &Config| c.network.as_ref()?.max_peers.clone(),
 			"--max-peers=[NUM]",
 			"Allow up to NUM peers.",
 
@@ -454,7 +491,7 @@ usage! {
 			"--jsonrpc-interface=[IP]",
 			"Specify the hostname portion of the JSONRPC API server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
-			ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| c.rpc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
+			ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,private,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| c.rpc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--jsonrpc-apis=[APIS]",
 			"Specify the APIs available through the JSONRPC interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. safe contains following apis: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
 
@@ -487,7 +524,7 @@ usage! {
 			"--ws-interface=[IP]",
 			"Specify the hostname portion of the WebSockets server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
-			ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| c.websockets.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
+			ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,private,traces,rpc,shh,shh_pubsub", or |c: &Config| c.websockets.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--ws-apis=[APIS]",
 			"Specify the APIs available through the WebSockets interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. safe contains following apis: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
 
@@ -512,7 +549,7 @@ usage! {
 			"--ipc-path=[PATH]",
 			"Specify custom path for JSON-RPC over IPC service.",
 
-			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,shh,shh_pubsub", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
+			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces,rpc,shh,shh_pubsub", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--ipc-apis=[APIS]",
 			"Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. safe contains: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
 
@@ -565,7 +602,23 @@ usage! {
 
 			ARG arg_secretstore_contract: (String) = "none", or |c: &Config| c.secretstore.as_ref()?.service_contract.clone(),
 			"--secretstore-contract=[SOURCE]",
-			"Secret Store Service contract address source: none, registry (contract address is read from registry) or address.",
+			"Secret Store Service contract address source: none, registry (contract address is read from secretstore_service entry in registry) or address.",
+
+			ARG arg_secretstore_srv_gen_contract: (String) = "none", or |c: &Config| c.secretstore.as_ref()?.service_contract_srv_gen.clone(),
+			"--secretstore-srv-gen-contract=[SOURCE]",
+			"Secret Store Service server key generation contract address source: none, registry (contract address is read from secretstore_service_srv_gen entry in registry) or address.",
+
+			ARG arg_secretstore_srv_retr_contract: (String) = "none", or |c: &Config| c.secretstore.as_ref()?.service_contract_srv_retr.clone(),
+			"--secretstore-srv-retr-contract=[SOURCE]",
+			"Secret Store Service server key retrieval contract address source: none, registry (contract address is read from secretstore_service_srv_retr entry in registry) or address.",
+
+			ARG arg_secretstore_doc_store_contract: (String) = "none", or |c: &Config| c.secretstore.as_ref()?.service_contract_doc_store.clone(),
+			"--secretstore-doc-store-contract=[SOURCE]",
+			"Secret Store Service document key store contract address source: none, registry (contract address is read from secretstore_service_doc_store entry in registry) or address.",
+
+			ARG arg_secretstore_doc_sretr_contract: (String) = "none", or |c: &Config| c.secretstore.as_ref()?.service_contract_doc_sretr.clone(),
+			"--secretstore-doc-sretr-contract=[SOURCE]",
+			"Secret Store Service document key shadow retrieval contract address source: none, registry (contract address is read from secretstore_service_doc_sretr entry in registry) or address.",
 
 			ARG arg_secretstore_nodes: (String) = "", or |c: &Config| c.secretstore.as_ref()?.nodes.as_ref().map(|vec| vec.join(",")),
 			"--secretstore-nodes=[NODES]",
@@ -833,11 +886,6 @@ usage! {
 			"--no-periodic-snapshot",
 			"Disable automated snapshots which usually occur once every 10000 blocks.",
 
-		["Virtual Machine options"]
-			FLAG flag_jitvm: (bool) = false, or |c: &Config| c.vm.as_ref()?.jit.clone(),
-			"--jitvm",
-			"Enable the JIT VM.",
-
 		["Whisper options"]
 			FLAG flag_whisper: (bool) = false, or |c: &Config| c.whisper.as_ref()?.enabled,
 			"--whisper",
@@ -995,11 +1043,11 @@ struct Config {
 	ipc: Option<Ipc>,
 	dapps: Option<Dapps>,
 	secretstore: Option<SecretStore>,
+	private_tx: Option<PrivateTransactions>,
 	ipfs: Option<Ipfs>,
 	mining: Option<Mining>,
 	footprint: Option<Footprint>,
 	snapshots: Option<Snapshots>,
-	vm: Option<VM>,
 	misc: Option<Misc>,
 	stratum: Option<Stratum>,
 	whisper: Option<Whisper>,
@@ -1012,6 +1060,8 @@ struct Operating {
 	mode_timeout: Option<u64>,
 	mode_alarm: Option<u64>,
 	auto_update: Option<String>,
+	auto_update_delay: Option<u16>,
+	auto_update_check_frequency: Option<u16>,
 	release_track: Option<String>,
 	public_node: Option<bool>,
 	no_download: Option<bool>,
@@ -1035,6 +1085,18 @@ struct Account {
 	refresh_time: Option<u64>,
 	disable_hardware: Option<bool>,
 	fast_unlock: Option<bool>,
+}
+
+#[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PrivateTransactions {
+	enabled: Option<bool>,
+	signer: Option<String>,
+	validators: Option<Vec<String>>,
+	account: Option<String>,
+	passwords: Option<String>,
+	sstore_url: Option<String>,
+	sstore_threshold: Option<u32>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1123,6 +1185,10 @@ struct SecretStore {
 	disable_acl_check: Option<bool>,
 	disable_auto_migrate: Option<bool>,
 	service_contract: Option<String>,
+	service_contract_srv_gen: Option<String>,
+	service_contract_srv_retr: Option<String>,
+	service_contract_doc_store: Option<String>,
+	service_contract_doc_sretr: Option<String>,
 	self_secret: Option<String>,
 	admin_public: Option<String>,
 	nodes: Option<Vec<String>>,
@@ -1212,12 +1278,6 @@ struct Snapshots {
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct VM {
-	jit: Option<bool>,
-}
-
-#[derive(Default, Debug, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
 struct Misc {
 	ntp_servers: Option<Vec<String>>,
 	logging: Option<String>,
@@ -1239,7 +1299,7 @@ mod tests {
 	use super::{
 		Args, ArgsError,
 		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
-		Snapshots, VM, Misc, Whisper, SecretStore,
+		Snapshots, Misc, Whisper, SecretStore,
 	};
 	use toml;
 	use clap::{ErrorKind as ClapErrorKind};
@@ -1454,6 +1514,8 @@ mod tests {
 			arg_mode_timeout: 300u64,
 			arg_mode_alarm: 3600u64,
 			arg_auto_update: "none".into(),
+			arg_auto_update_delay: 200u16,
+			arg_auto_update_check_frequency: 50u16,
 			arg_release_track: "current".into(),
 			flag_public_node: false,
 			flag_no_download: false,
@@ -1481,6 +1543,15 @@ mod tests {
 			flag_no_hardware_wallets: false,
 			flag_fast_unlock: false,
 
+			// -- Private Transactions Options
+			flag_private_enabled: true,
+			arg_private_signer: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
+			arg_private_validators: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
+			arg_private_passwords: Some("~/.safe/password.file".into()),
+			arg_private_account: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
+			arg_private_sstore_url: Some("http://localhost:8082".into()),
+			arg_private_sstore_threshold: Some(0),
+
 			flag_force_ui: false,
 			flag_no_ui: false,
 			arg_ui_port: 8180u16,
@@ -1492,8 +1563,8 @@ mod tests {
 			// -- Networking Options
 			flag_no_warp: false,
 			arg_port: 30303u16,
-			arg_min_peers: 25u16,
-			arg_max_peers: 50u16,
+			arg_min_peers: Some(25u16),
+			arg_max_peers: Some(50u16),
 			arg_max_pending_peers: 64u16,
 			arg_snapshot_peers: 0u16,
 			arg_allow_ips: "all".into(),
@@ -1542,6 +1613,10 @@ mod tests {
 			flag_no_secretstore_acl_check: false,
 			flag_no_secretstore_auto_migrate: false,
 			arg_secretstore_contract: "none".into(),
+			arg_secretstore_srv_gen_contract: "none".into(),
+			arg_secretstore_srv_retr_contract: "none".into(),
+			arg_secretstore_doc_store_contract: "none".into(),
+			arg_secretstore_doc_sretr_contract: "none".into(),
 			arg_secretstore_secret: None,
 			arg_secretstore_admin_public: None,
 			arg_secretstore_nodes: "".into(),
@@ -1623,9 +1698,6 @@ mod tests {
 			arg_export_state_at: "latest".into(),
 			arg_snapshot_at: "latest".into(),
 			flag_no_periodic_snapshot: false,
-
-			// -- Virtual Machine Options
-			flag_jitvm: false,
 
 			// -- Whisper options.
 			flag_whisper: false,
@@ -1711,6 +1783,8 @@ mod tests {
 				mode_timeout: Some(15u64),
 				mode_alarm: Some(10u64),
 				auto_update: None,
+				auto_update_delay: None,
+				auto_update_check_frequency: None,
 				release_track: None,
 				public_node: None,
 				no_download: None,
@@ -1798,6 +1872,10 @@ mod tests {
 				disable_acl_check: None,
 				disable_auto_migrate: None,
 				service_contract: None,
+				service_contract_srv_gen: None,
+				service_contract_srv_retr: None,
+				service_contract_doc_store: None,
+				service_contract_doc_sretr: None,
 				self_secret: None,
 				admin_public: None,
 				nodes: None,
@@ -1807,6 +1885,7 @@ mod tests {
 				http_port: Some(8082),
 				path: None,
 			}),
+			private_tx: None,
 			ipfs: Some(Ipfs {
 				enable: Some(false),
 				port: Some(5001),
@@ -1864,9 +1943,6 @@ mod tests {
 			snapshots: Some(Snapshots {
 				disable_periodic: Some(true),
 			}),
-			vm: Some(VM {
-				jit: Some(false),
-			}),
 			misc: Some(Misc {
 				ntp_servers: Some(vec!["0.parity.pool.ntp.org:123".into()]),
 				logging: Some("own_tx=trace".into()),
@@ -1881,5 +1957,19 @@ mod tests {
 			}),
 			stratum: None,
 		});
+	}
+
+	#[test]
+	fn should_not_accept_min_peers_bigger_than_max_peers() {
+		match Args::parse(&["parity", "--max-peers=39", "--min-peers=40"]) {
+			Err(ArgsError::PeerConfiguration) => (),
+			_ => assert_eq!(false, true),
+		}
+	}
+
+	#[test]
+	fn should_accept_max_peers_equal_or_bigger_than_min_peers() {
+		Args::parse(&["parity", "--max-peers=40", "--min-peers=40"]).unwrap();
+		Args::parse(&["parity", "--max-peers=100", "--min-peers=40"]).unwrap();
 	}
 }

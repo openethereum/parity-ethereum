@@ -45,6 +45,7 @@ extern crate ethcore_light as light;
 
 #[cfg(test)] extern crate ethkey;
 #[cfg(test)] extern crate kvdb_memorydb;
+#[cfg(test)] extern crate rustc_hex;
 
 #[macro_use]
 extern crate macros;
@@ -57,6 +58,7 @@ mod chain;
 mod blocks;
 mod block_sync;
 mod sync_io;
+mod private_tx;
 mod snapshot;
 mod transactions_stats;
 
@@ -71,3 +73,4 @@ pub use api::*;
 pub use chain::{SyncStatus, SyncState};
 pub use devp2p::{validate_node_url, ConnectionFilter, ConnectionDirection};
 pub use network::{NonReservedPeerMode, Error, ErrorKind};
+pub use private_tx::{PrivateTxHandler, NoopPrivateTxHandler, SimplePrivateTxHandler};

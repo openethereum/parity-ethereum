@@ -26,6 +26,7 @@ use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use types::all::{Error, Public, NodeAddress, NodeId};
 use trusted_client::TrustedClient;
+use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
 use {NodeKeyPair};
 
 use_contract!(key_server, "KeyServerSet", "res/key_server_set.json");
@@ -140,7 +141,7 @@ impl OnChainKeyServerSet {
 			contract: Mutex::new(CachedContract::new(trusted_client, self_key_pair, auto_migrate_enabled, key_servers)?),
 		});
 		client
-			.ok_or(Error::Internal("Constructing OnChainKeyServerSet without active Client".into()))?
+			.ok_or_else(|| Error::Internal("Constructing OnChainKeyServerSet without active Client".into()))?
 			.add_notify(key_server_set.clone());
 		Ok(key_server_set)
 	}
@@ -291,7 +292,7 @@ impl CachedContract {
 			let transaction_data = self.contract.functions().start_migration().input(migration_id);
 
 			// send transaction
-			if let Err(error) = client.transact_contract(*contract_address, transaction_data) {
+			if let Err(error) = self.client.transact_contract(*contract_address, transaction_data) {
 				warn!(target: "secretstore_net", "{}: failed to submit auto-migration start transaction: {}",
 					self.self_key_pair.public(), error);
 			} else {
@@ -313,7 +314,7 @@ impl CachedContract {
 			let transaction_data = self.contract.functions().confirm_migration().input(migration_id);
 
 			// send transaction
-			if let Err(error) = client.transact_contract(contract_address, transaction_data) {
+			if let Err(error) = self.client.transact_contract(contract_address, transaction_data) {
 				warn!(target: "secretstore_net", "{}: failed to submit auto-migration confirmation transaction: {}",
 					self.self_key_pair.public(), error);
 			} else {
@@ -325,7 +326,7 @@ impl CachedContract {
 
 	fn read_from_registry_if_required(&mut self, client: &Client, enacted: Vec<H256>, retracted: Vec<H256>) {
 		// read new contract from registry
-		let new_contract_addr = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest);
+		let new_contract_addr = get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED).and_then(|block_hash| client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Hash(block_hash)));
 
 		// new contract installed => read nodes set from the contract
 		if self.contract_address.as_ref() != new_contract_addr.as_ref() {
@@ -550,7 +551,6 @@ fn update_number_of_confirmations<F1: Fn() -> H256, F2: Fn(H256) -> Option<u64>>
 }
 
 fn update_last_transaction_block(client: &Client, migration_id: &H256, previous_transaction: &mut Option<PreviousMigrationTransaction>) -> bool {
-	// TODO [Reliability]: add the same mechanism to the contract listener, if accepted
 	let last_block = client.block_number(BlockId::Latest).unwrap_or_default();
 	match previous_transaction.as_ref() {
 		// no previous transaction => send immideately
@@ -564,7 +564,6 @@ fn update_last_transaction_block(client: &Client, migration_id: &H256, previous_
 		//   or the transaction has been removed from the queue (and never reached any miner node)
 		// if we have restarted after sending tx => assume we have never sent it
 		Some(tx) => {
-			let last_block = client.block_number(BlockId::Latest).unwrap_or_default();
 			if tx.block > last_block || last_block - tx.block < TRANSACTION_RETRY_INTERVAL_BLOCKS {
 				return false;
 			}

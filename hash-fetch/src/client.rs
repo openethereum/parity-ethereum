@@ -153,7 +153,7 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
 			.into_future()
 			.and_then(move |url| {
 				debug!(target: "fetch", "Resolved {:?} to {:?}. Fetching...", hash, url);
-				remote_fetch.fetch(&url, abort).from_err()
+				remote_fetch.get(&url, abort).from_err()
 			})
 			.and_then(move |response| {
 				if !response.is_success() {
@@ -199,7 +199,7 @@ mod tests {
 	use parking_lot::Mutex;
 	use futures::future;
 	use futures_cpupool::CpuPool;
-	use fetch::{self, Fetch, Url};
+	use fetch::{self, Fetch, Url, Method};
 	use parity_reactor::Remote;
 	use urlhint::tests::{FakeRegistrar, URLHINT};
 	use super::{Error, Client, HashFetch, random_temp_path};
@@ -214,7 +214,7 @@ mod tests {
 	impl Fetch for FakeFetch {
 		type Result = future::Ok<fetch::Response, fetch::Error>;
 
-		fn fetch(&self, url: &str, abort: fetch::Abort) -> Self::Result {
+		fn fetch(&self, url: &str, _method: Method, abort: fetch::Abort) -> Self::Result {
 			assert_eq!(url, "https://parity.io/assets/images/ethcore-black-horizontal.png");
 			let u = Url::parse(url).unwrap();
 			future::ok(if self.return_success {

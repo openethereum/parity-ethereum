@@ -18,7 +18,7 @@
 
 use std::thread;
 use jsonrpc_core::futures::{self, Future};
-use fetch::{self, Fetch, Url};
+use fetch::{self, Fetch, Url, Method};
 use hyper;
 
 /// Test implementation of fetcher. Will always return the same file.
@@ -28,7 +28,7 @@ pub struct TestFetch;
 impl Fetch for TestFetch {
 	type Result = Box<Future<Item = fetch::Response, Error = fetch::Error> + Send + 'static>;
 
-	fn fetch(&self, url: &str, abort: fetch::Abort) -> Self::Result {
+	fn fetch(&self, url: &str, _method: Method, abort: fetch::Abort) -> Self::Result {
 		let u = Url::parse(url).unwrap();
 		let (tx, rx) = futures::oneshot();
 		thread::spawn(move || {

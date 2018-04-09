@@ -30,9 +30,6 @@ extern crate lazy_static;
 #[cfg_attr(feature = "evm-debug", macro_use)]
 extern crate log;
 
-#[cfg(feature = "jit")]
-extern crate evmjit;
-
 #[cfg(test)]
 extern crate rustc_hex;
 
@@ -43,9 +40,6 @@ pub mod interpreter;
 pub mod factory;
 mod vmtype;
 mod instructions;
-
-#[cfg(feature = "jit" )]
-mod jit;
 
 #[cfg(test)]
 mod tests;

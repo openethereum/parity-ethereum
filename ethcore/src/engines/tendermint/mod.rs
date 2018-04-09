@@ -783,7 +783,7 @@ mod tests {
 	use header::Header;
 	use client::ChainInfo;
 	use miner::MinerService;
-	use tests::helpers::{
+	use test_helpers::{
 		TestNotify, get_temp_state_db, generate_dummy_client,
 		generate_dummy_client_with_spec_and_accounts
 	};

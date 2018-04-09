@@ -96,7 +96,7 @@ impl<F: Fetch> Client<F> {
 
 	/// Gets the current ETH price and calls `set_price` with the result.
 	pub fn get<G: Fn(PriceInfo) + Sync + Send + 'static>(&self, set_price: G) {
-		let future = self.fetch.fetch(&self.api_endpoint, fetch::Abort::default())
+		let future = self.fetch.get(&self.api_endpoint, fetch::Abort::default())
 			.from_err()
 			.and_then(|response| {
 				if !response.is_success() {
@@ -140,7 +140,7 @@ mod test {
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicBool, Ordering};
 	use fetch;
-	use fetch::{Fetch, Url};
+	use fetch::{Fetch, Url, Method};
 	use futures_cpupool::CpuPool;
 	use futures::future::{self, FutureResult};
 	use Client;
@@ -158,7 +158,7 @@ mod test {
 	impl Fetch for FakeFetch {
 		type Result = FutureResult<fetch::Response, fetch::Error>;
 
-		fn fetch(&self, url: &str, abort: fetch::Abort) -> Self::Result {
+		fn fetch(&self, url: &str, _method: Method, abort: fetch::Abort) -> Self::Result {
 			assert_eq!(url, "https://api.etherscan.io/api?module=stats&action=ethprice");
 			let u = Url::parse(url).unwrap();
 			let mut val = self.1.lock();

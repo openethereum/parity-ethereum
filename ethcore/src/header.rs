@@ -17,7 +17,6 @@
 //! Block header.
 
 use std::cmp;
-use std::time::{SystemTime, UNIX_EPOCH};
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
@@ -224,12 +223,6 @@ impl Header {
 		change_field(&mut self.hash, &mut self.timestamp, a);
 	}
 
-	/// Set the timestamp field of the header to the current time.
-	pub fn set_timestamp_now(&mut self, but_later_than: u64) {
-		let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
-		self.set_timestamp(cmp::max(now.as_secs() as u64, but_later_than + 1));
-	}
-
 	/// Set the number field of the header.
 	pub fn set_number(&mut self, a: BlockNumber) {
 		change_field(&mut self.hash, &mut self.number, a);
@@ -428,4 +421,3 @@ mod tests {
 		assert_eq!(header_rlp, encoded_header);
 	}
 }
-

@@ -1326,7 +1326,7 @@ mod tests {
 	use header::Header;
 	use rlp::encode;
 	use block::*;
-	use tests::helpers::{
+	use test_helpers::{
 		generate_dummy_client_with_spec_and_accounts, get_temp_state_db, generate_dummy_client,
 		TestNotify
 	};

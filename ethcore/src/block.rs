@@ -267,7 +267,7 @@ impl<'x> OpenBlock<'x> {
 		r.block.header.set_parent_hash(parent.hash());
 		r.block.header.set_number(number);
 		r.block.header.set_author(author);
-		r.block.header.set_timestamp_now(parent.timestamp());
+		r.block.header.set_timestamp(engine.open_block_header_timestamp(parent.timestamp()));
 		r.block.header.set_extra_data(extra_data);
 
 		let gas_floor_target = cmp::max(gas_range_target.0, engine.params().min_gas_limit);
@@ -645,7 +645,7 @@ pub fn enact_verified(
 
 #[cfg(test)]
 mod tests {
-	use tests::helpers::get_temp_state_db;
+	use test_helpers::get_temp_state_db;
 	use super::*;
 	use engines::EthEngine;
 	use vm::LastHashes;

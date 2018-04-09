@@ -45,7 +45,7 @@ use client::{
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo
+	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
@@ -220,7 +220,7 @@ pub struct Client {
 	registrar_address: Option<Address>,
 
 	/// A closure to call when we want to restart the client
-	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
+	exit_handler: Mutex<Option<Box<Fn(String) + 'static + Send>>>,
 
 	importer: Importer,
 }
@@ -825,8 +825,11 @@ impl Client {
 		self.notify.write().push(Arc::downgrade(&target));
 	}
 
-	/// Set a closure to call when we want to restart the client
-	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(bool, Option<String>) + 'static + Send {
+	/// Set a closure to call when the client wants to be restarted.
+	///
+	/// The parameter passed to the callback is the name of the new chain spec to use after
+	/// the restart.
+	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(String) + 'static + Send {
 		*self.exit_handler.lock() = Some(Box::new(f));
 	}
 
@@ -1625,7 +1628,7 @@ impl BlockChainClient for Client {
 			return;
 		}
 		if let Some(ref h) = *self.exit_handler.lock() {
-			(*h)(true, Some(new_spec_name));
+			(*h)(new_spec_name);
 		} else {
 			warn!("Not hypervised; cannot change chain.");
 		}
@@ -2123,7 +2126,7 @@ impl super::traits::EngineClient for Client {
 	}
 
 	fn broadcast_consensus_message(&self, message: Bytes) {
-		self.notify(|notify| notify.broadcast(message.clone()));
+		self.notify(|notify| notify.broadcast(ChainMessageType::Consensus(message.clone())));
 	}
 
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {
@@ -2234,7 +2237,7 @@ mod tests {
 	#[test]
 	fn should_not_cache_details_before_commit() {
 		use client::{BlockChainClient, ChainInfo};
-		use tests::helpers::{generate_dummy_client, get_good_dummy_block_hash};
+		use test_helpers::{generate_dummy_client, get_good_dummy_block_hash};
 
 		use std::thread;
 		use std::time::Duration;

@@ -77,6 +77,25 @@ pub enum Condition {
 	Timestamp(u64),
 }
 
+/// Replay protection logic for v part of transaction's signature
+pub mod signature {
+	/// Adds chain id into v
+	pub fn add_chain_replay_protection(v: u64, chain_id: Option<u64>) -> u64 {
+		v + if let Some(n) = chain_id { 35 + n * 2 } else { 27 }
+	}
+
+	/// Returns refined v
+	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
+	pub fn check_replay_protection(v: u64) -> u8 {
+		match v {
+			v if v == 27 => 0,
+			v if v == 28 => 1,
+			v if v > 36 => ((v - 1) % 2) as u8,
+			 _ => 4
+		}
+	}
+}
+
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
@@ -186,7 +205,7 @@ impl Transaction {
 			unsigned: self,
 			r: sig.r().into(),
 			s: sig.s().into(),
-			v: sig.v() as u64 + if let Some(n) = chain_id { 35 + n * 2 } else { 27 },
+			v: signature::add_chain_replay_protection(sig.v() as u64, chain_id),
 			hash: 0.into(),
 		}.compute_hash()
 	}
@@ -330,8 +349,7 @@ impl UnverifiedTransaction {
 		&self.unsigned
 	}
 
-	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
-	pub fn standard_v(&self) -> u8 { match self.v { v if v == 27 || v == 28 || v > 36 => ((v - 1) % 2) as u8, _ => 4 } }
+	pub fn standard_v(&self) -> u8 { signature::check_replay_protection(self.v) }
 
 	/// The `v` value that appears in the RLP.
 	pub fn original_v(&self) -> u64 { self.v }

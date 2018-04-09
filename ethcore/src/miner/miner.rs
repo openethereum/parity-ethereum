@@ -24,7 +24,7 @@ use ethereum_types::{H256, U256, Address};
 use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use engines::{EthEngine, Seal};
-use error::*;
+use error::{ExecutionError, Error};
 use ethcore_miner::banning_queue::{BanningTransactionQueue, Threshold};
 use ethcore_miner::local_transactions::{Status as LocalTransactionStatus};
 use ethcore_miner::transaction_queue::{
@@ -1327,8 +1327,7 @@ mod tests {
 	use spec::Spec;
 	use transaction::{SignedTransaction, Transaction, PendingTransaction, Action};
 	use miner::MinerService;
-
-	use tests::helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
+	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
 
 	#[test]
 	fn should_prepare_block_to_seal() {

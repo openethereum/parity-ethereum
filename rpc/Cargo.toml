@@ -19,7 +19,7 @@ parking_lot = "0.5"
 rand = "0.4"
 rust-crypto = "0.2"
 rustc-hex = "1.0"
-semver = "0.6"
+semver = "0.9"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
@@ -44,6 +44,7 @@ ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
+ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.3"
 

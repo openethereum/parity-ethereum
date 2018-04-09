@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp::{max, min};
 use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
-use std::cmp::max;
 use std::str::FromStr;
 use cli::{Args, ArgsError};
 use hash::keccak;
@@ -38,13 +38,14 @@ use rpc_apis::ApiSet;
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path,
-to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
+to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy, passwords_from_files};
 use dir::helpers::{replace_home, replace_home_and_local};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
+use ethcore_private_tx::{ProviderConfig, EncryptorConfig};
 use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
@@ -54,6 +55,9 @@ use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
 use network::{IpFilter};
+
+const DEFAULT_MAX_PEERS: u16 = 50;
+const DEFAULT_MIN_PEERS: u16 = 25;
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -145,7 +149,7 @@ impl Configuration {
 			if self.args.cmd_signer_new_token {
 				Cmd::SignerToken(ws_conf, ui_conf, logger_config.clone())
 			} else if self.args.cmd_signer_sign {
-				let pwfile = self.args.arg_password.first().map(|pwfile| {
+				let pwfile = self.accounts_config()?.password_files.first().map(|pwfile| {
 					PathBuf::from(pwfile)
 				});
 				Cmd::SignerSign {
@@ -182,7 +186,7 @@ impl Configuration {
 					iterations: self.args.arg_keys_iterations,
 					path: dirs.keys,
 					spec: spec,
-					password_file: self.args.arg_password.first().map(|x| x.to_owned()),
+					password_file: self.accounts_config()?.password_files.first().map(|x| x.to_owned()),
 				};
 				AccountCmd::New(new_acc)
 			} else if self.args.cmd_account_list {
@@ -216,8 +220,8 @@ impl Configuration {
 				iterations: self.args.arg_keys_iterations,
 				path: dirs.keys,
 				spec: spec,
-				wallet_path: self.args.arg_wallet_import_path.unwrap().clone(),
-				password_file: self.args.arg_password.first().map(|x| x.to_owned()),
+				wallet_path: self.args.arg_wallet_import_path.clone().unwrap(),
+				password_file: self.accounts_config()?.password_files.first().map(|x| x.to_owned()),
 			};
 			Cmd::ImportPresaleWallet(presale_cmd)
 		} else if self.args.cmd_import {
@@ -338,6 +342,7 @@ impl Configuration {
 
 			let verifier_settings = self.verifier_settings();
 			let whisper_config = self.whisper_config();
+			let (private_provider_conf, private_enc_conf, private_tx_enabled) = self.private_provider_config()?;
 
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
@@ -376,6 +381,9 @@ impl Configuration {
 				ipfs_conf: ipfs_conf,
 				ui_conf: ui_conf,
 				secretstore_conf: secretstore_conf,
+				private_provider_conf: private_provider_conf,
+				private_encryptor_conf: private_enc_conf,
+				private_tx_enabled,
 				dapp: self.dapp_to_open()?,
 				ui: self.args.cmd_ui,
 				name: self.args.arg_identity,
@@ -400,11 +408,7 @@ impl Configuration {
 	}
 
 	fn vm_type(&self) -> Result<VMType, String> {
-		if self.args.flag_jitvm {
-			VMType::jit().ok_or("Parity is built without the JIT EVM.".into())
-		} else {
-			Ok(VMType::Interpreter)
-		}
+		Ok(VMType::Interpreter)
 	}
 
 	fn miner_extras(&self) -> Result<MinerExtras, String> {
@@ -452,7 +456,7 @@ impl Configuration {
 		LogConfig {
 			mode: self.args.arg_logging.clone(),
 			color: !self.args.flag_no_color && !cfg!(windows),
-			file: self.args.arg_log_file.clone(),
+			file: self.args.arg_log_file.as_ref().map(|log_file| replace_home(&self.directories().base, log_file)),
 		}
 	}
 
@@ -469,8 +473,9 @@ impl Configuration {
 	}
 
 	fn max_peers(&self) -> u32 {
-		let peers = self.args.arg_max_peers as u32;
-		max(self.min_peers(), peers)
+		self.args.arg_max_peers
+			.or(max(self.args.arg_min_peers, Some(DEFAULT_MAX_PEERS)))
+			.unwrap_or(DEFAULT_MAX_PEERS) as u32
 	}
 
 	fn ip_filter(&self) -> Result<IpFilter, String> {
@@ -481,7 +486,9 @@ impl Configuration {
 	}
 
 	fn min_peers(&self) -> u32 {
-		self.args.arg_peers.unwrap_or(self.args.arg_min_peers) as u32
+		self.args.arg_min_peers
+			.or(min(self.args.arg_max_peers, Some(DEFAULT_MIN_PEERS)))
+			.unwrap_or(DEFAULT_MIN_PEERS) as u32
 	}
 
 	fn max_pending_peers(&self) -> u32 {
@@ -501,7 +508,7 @@ impl Configuration {
 			iterations: self.args.arg_keys_iterations,
 			refresh_time: self.args.arg_accounts_refresh,
 			testnet: self.args.flag_testnet,
-			password_files: self.args.arg_password.clone(),
+			password_files: self.args.arg_password.iter().map(|s| replace_home(&self.directories().base, s)).collect(),
 			unlocked_accounts: to_addresses(&self.args.arg_unlock)?,
 			enable_hardware_wallets: !self.args.flag_no_hardware_wallets,
 			enable_fast_unlock: self.args.flag_fast_unlock,
@@ -629,6 +636,10 @@ impl Configuration {
 			acl_check_enabled: self.secretstore_acl_check_enabled(),
 			auto_migrate_enabled: self.secretstore_auto_migrate_enabled(),
 			service_contract_address: self.secretstore_service_contract_address()?,
+			service_contract_srv_gen_address: self.secretstore_service_contract_srv_gen_address()?,
+			service_contract_srv_retr_address: self.secretstore_service_contract_srv_retr_address()?,
+			service_contract_doc_store_address: self.secretstore_service_contract_doc_store_address()?,
+			service_contract_doc_sretr_address: self.secretstore_service_contract_doc_sretr_address()?,
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
 			interface: self.secretstore_interface(),
@@ -717,8 +728,10 @@ impl Configuration {
 
 		match self.args.arg_reserved_peers {
 			Some(ref path) => {
+				let path = replace_home(&self.directories().base, path);
+
 				let mut buffer = String::new();
-				let mut node_file = File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e))?;
+				let mut node_file = File::open(&path).map_err(|e| format!("Error opening reserved nodes file: {}", e))?;
 				node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file")?;
 				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty() && !s.starts_with("#")).collect::<Vec<_>>();
 
@@ -928,6 +941,29 @@ impl Configuration {
 		Ok(conf)
 	}
 
+	fn private_provider_config(&self) -> Result<(ProviderConfig, EncryptorConfig, bool), String> {
+		let provider_conf = ProviderConfig {
+			validator_accounts: to_addresses(&self.args.arg_private_validators)?,
+			signer_account: self.args.arg_private_signer.clone().and_then(|account| to_address(Some(account)).ok()),
+			passwords: match self.args.arg_private_passwords.clone() {
+				Some(file) => passwords_from_files(&vec![file].as_slice())?,
+				None => Vec::new(),
+			},
+		};
+
+		let encryptor_conf = EncryptorConfig {
+			base_url: self.args.arg_private_sstore_url.clone(),
+			threshold: self.args.arg_private_sstore_threshold.unwrap_or(0),
+			key_server_account: self.args.arg_private_account.clone().and_then(|account| to_address(Some(account)).ok()),
+			passwords: match self.args.arg_private_passwords.clone() {
+				Some(file) => passwords_from_files(&vec![file].as_slice())?,
+				None => Vec::new(),
+			},
+		};
+
+		Ok((provider_conf, encryptor_conf, self.args.flag_private_enabled))
+	}
+
 	fn network_settings(&self) -> Result<NetworkSettings, String> {
 		let http_conf = self.http_config()?;
 		let net_addresses = self.net_addresses()?;
@@ -961,6 +997,8 @@ impl Configuration {
 			},
 			path: default_hypervisor_path(),
 			max_size: 128 * 1024 * 1024,
+			max_delay: self.args.arg_auto_update_delay as u64,
+			frequency: self.args.arg_auto_update_check_frequency as u64,
 		})
 	}
 
@@ -1119,11 +1157,23 @@ impl Configuration {
 	}
 
 	fn secretstore_service_contract_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
-		Ok(match self.args.arg_secretstore_contract.as_ref() {
-			"none" => None,
-			"registry" => Some(SecretStoreContractAddress::Registry),
-			a => Some(SecretStoreContractAddress::Address(a.parse().map_err(|e| format!("{}", e))?)),
-		})
+		into_secretstore_service_contract_address(self.args.arg_secretstore_contract.as_ref())
+	}
+
+	fn secretstore_service_contract_srv_gen_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
+		into_secretstore_service_contract_address(self.args.arg_secretstore_srv_gen_contract.as_ref())
+	}
+
+	fn secretstore_service_contract_srv_retr_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
+		into_secretstore_service_contract_address(self.args.arg_secretstore_srv_retr_contract.as_ref())
+	}
+
+	fn secretstore_service_contract_doc_store_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
+		into_secretstore_service_contract_address(self.args.arg_secretstore_doc_store_contract.as_ref())
+	}
+
+	fn secretstore_service_contract_doc_sretr_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
+		into_secretstore_service_contract_address(self.args.arg_secretstore_doc_sretr_contract.as_ref())
 	}
 
 	fn ui_enabled(&self) -> bool {
@@ -1153,6 +1203,14 @@ impl Configuration {
 			enabled: self.args.flag_whisper,
 			target_message_pool_size: self.args.arg_whisper_pool_size * 1024 * 1024,
 		}
+	}
+}
+
+fn into_secretstore_service_contract_address(s: &str) -> Result<Option<SecretStoreContractAddress>, String> {
+	match s {
+		"none" => Ok(None),
+		"registry" => Ok(Some(SecretStoreContractAddress::Registry)),
+		a => Ok(Some(SecretStoreContractAddress::Address(a.parse().map_err(|e| format!("{}", e))?))),
 	}
 }
 
@@ -1426,6 +1484,8 @@ mod tests {
 				track: ReleaseTrack::Unknown,
 				path: default_hypervisor_path(),
 				max_size: 128 * 1024 * 1024,
+				max_delay: 100,
+				frequency: 20,
 			},
 			mode: Default::default(),
 			tracing: Default::default(),
@@ -1438,6 +1498,9 @@ mod tests {
 			ipfs_conf: Default::default(),
 			ui_conf: Default::default(),
 			secretstore_conf: Default::default(),
+			private_provider_conf: Default::default(),
+			private_encryptor_conf: Default::default(),
+			private_tx_enabled: false,
 			ui: false,
 			dapp: None,
 			name: "".into(),
@@ -1491,8 +1554,8 @@ mod tests {
 	fn should_parse_updater_options() {
 		// when
 		let conf0 = parse(&["parity", "--release-track=testing"]);
-		let conf1 = parse(&["parity", "--auto-update", "all", "--no-consensus"]);
-		let conf2 = parse(&["parity", "--no-download", "--auto-update=all", "--release-track=beta"]);
+		let conf1 = parse(&["parity", "--auto-update", "all", "--no-consensus", "--auto-update-delay", "300"]);
+		let conf2 = parse(&["parity", "--no-download", "--auto-update=all", "--release-track=beta", "--auto-update-delay=300", "--auto-update-check-frequency=100"]);
 		let conf3 = parse(&["parity", "--auto-update=xxx"]);
 
 		// then
@@ -1503,6 +1566,8 @@ mod tests {
 			track: ReleaseTrack::Testing,
 			path: default_hypervisor_path(),
 			max_size: 128 * 1024 * 1024,
+			max_delay: 100,
+			frequency: 20,
 		});
 		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy {
 			enable_downloading: true,
@@ -1511,6 +1576,8 @@ mod tests {
 			track: ReleaseTrack::Unknown,
 			path: default_hypervisor_path(),
 			max_size: 128 * 1024 * 1024,
+			max_delay: 300,
+			frequency: 20,
 		});
 		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy {
 			enable_downloading: false,
@@ -1519,6 +1586,8 @@ mod tests {
 			track: ReleaseTrack::Beta,
 			path: default_hypervisor_path(),
 			max_size: 128 * 1024 * 1024,
+			max_delay: 300,
+			frequency: 100,
 		});
 		assert!(conf3.update_policy().is_err());
 	}
@@ -1959,5 +2028,57 @@ mod tests {
 		let local_path = ::dir::default_local_path();
 		assert_eq!(std.directories().cache, dir::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
 		assert_eq!(base.directories().cache, "/test/cache");
+	}
+
+	#[test]
+	fn should_respect_only_max_peers_and_default() {
+		let args = vec!["parity", "--max-peers=50"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 25);
+				assert_eq!(c.net_conf.max_peers, 50);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn should_respect_only_max_peers_less_than_default() {
+		let args = vec!["parity", "--max-peers=5"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 5);
+				assert_eq!(c.net_conf.max_peers, 5);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn should_respect_only_min_peers_and_default() {
+		let args = vec!["parity", "--min-peers=5"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 5);
+				assert_eq!(c.net_conf.max_peers, 50);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn should_respect_only_min_peers_and_greater_than_default() {
+		let args = vec!["parity", "--min-peers=500"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 500);
+				assert_eq!(c.net_conf.max_peers, 500);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
 	}
 }
