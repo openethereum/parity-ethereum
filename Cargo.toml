@@ -132,7 +132,8 @@ members = [
 	"evmbin",
 	"miner",
 	"transaction-pool",
-	"whisper"
+	"whisper",
+	"whisper/cli",
 ]
 
 [patch.crates-io]

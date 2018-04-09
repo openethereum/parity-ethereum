@@ -3698,6 +3698,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "whisper-cli"
+version = "0.1.0"
+dependencies = [
+ "docopt 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-logger 1.11.0",
+ "ethcore-network 1.11.0",
+ "ethcore-network-devp2p 1.11.0",
+ "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
+ "jsonrpc-http-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
+ "jsonrpc-pubsub 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
+ "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "panic_hook 0.1.0",
+ "parity-whisper 0.1.0",
+ "serde 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "winapi"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
