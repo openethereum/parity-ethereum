@@ -14,28 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate ansi_term;
-extern crate ethcore;
-extern crate ethcore_io as io;
-extern crate ethsync;
-extern crate kvdb;
-extern crate ethcore_private_tx;
-extern crate stop_guard;
+use ethcore::client::{Client, BlockChainClient, BlockId};
+use ethereum_types::H256;
 
-#[macro_use]
-extern crate error_chain;
+// TODO: Instead of a constant, make this based on consensus finality.
+/// Number of confirmations required before request can be processed.
+pub const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
 
-#[macro_use]
-extern crate log;
-
-#[cfg(test)]
-extern crate tempdir;
-
-mod error;
-mod service;
-
-#[cfg(test)]
-extern crate kvdb_rocksdb;
-
-pub use error::{Error, ErrorKind};
-pub use service::{ClientService, PrivateTxService};
+/// Get hash of the last block with at least n confirmations.
+pub fn get_confirmed_block_hash(client: &Client, confirmations: u64) -> Option<H256> {
+	client.block_number(BlockId::Latest)
+		.map(|b| b.saturating_sub(confirmations))
+		.and_then(|b| client.block_hash(BlockId::Number(b)))
+}

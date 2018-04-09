@@ -21,8 +21,7 @@ use std::path::Path;
 
 use ansi_term::Colour;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
-use kvdb::KeyValueDB;
-use kvdb_rocksdb::{Database, DatabaseConfig};
+use kvdb::{KeyValueDB, KeyValueDBHandler};
 use stop_guard::StopGuard;
 
 use ethsync::PrivateTxHandler;
@@ -70,7 +69,7 @@ pub struct ClientService {
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
 	private_tx: Arc<PrivateTxService>,
-	database: Arc<Database>,
+	database: Arc<KeyValueDB>,
 	_stop_guard: StopGuard,
 }
 
@@ -79,8 +78,9 @@ impl ClientService {
 	pub fn start(
 		config: ClientConfig,
 		spec: &Spec,
-		client_path: &Path,
+		client_db: Arc<KeyValueDB>,
 		snapshot_path: &Path,
+		restoration_db_handler: Box<KeyValueDBHandler>,
 		_ipc_path: &Path,
 		miner: Arc<Miner>,
 		account_provider: Arc<AccountProvider>,
@@ -92,25 +92,13 @@ impl ClientService {
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 
-		let mut db_config = DatabaseConfig::with_columns(db::NUM_COLUMNS);
-
-		db_config.memory_budget = config.db_cache_size;
-		db_config.compaction = config.db_compaction.compaction_profile(client_path);
-		db_config.wal = config.db_wal;
-
-		let db = Arc::new(Database::open(
-			&db_config,
-			&client_path.to_str().expect("DB path could not be converted to string.")
-		).map_err(error::Error::Database)?);
-
-
 		let pruning = config.pruning;
-		let client = Client::new(config, &spec, db.clone(), miner, io_service.channel())?;
+		let client = Client::new(config, &spec, client_db.clone(), miner, io_service.channel())?;
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
 			genesis_block: spec.genesis_block(),
-			db_config: db_config.clone(),
+			restoration_db_handler: restoration_db_handler,
 			pruning: pruning,
 			channel: io_service.channel(),
 			snapshot_root: snapshot_path.into(),
@@ -137,7 +125,7 @@ impl ClientService {
 			client: client,
 			snapshot: snapshot,
 			private_tx,
-			database: db,
+			database: client_db,
 			_stop_guard: stop_guard,
 		})
 	}
@@ -258,6 +246,9 @@ mod tests {
 	use ethcore::client::ClientConfig;
 	use ethcore::miner::Miner;
 	use ethcore::spec::Spec;
+	use ethcore::db::NUM_COLUMNS;
+	use kvdb::Error;
+	use kvdb_rocksdb::{Database, DatabaseConfig, CompactionProfile};
 	use super::*;
 
 	use ethcore_private_tx;
@@ -268,12 +259,39 @@ mod tests {
 		let client_path = tempdir.path().join("client");
 		let snapshot_path = tempdir.path().join("snapshot");
 
+		let client_config = ClientConfig::default();
+		let mut client_db_config = DatabaseConfig::with_columns(NUM_COLUMNS);
+
+		client_db_config.memory_budget = client_config.db_cache_size;
+		client_db_config.compaction = CompactionProfile::auto(&client_path);
+		client_db_config.wal = client_config.db_wal;
+
+		let client_db = Arc::new(Database::open(
+			&client_db_config,
+			&client_path.to_str().expect("DB path could not be converted to string.")
+		).unwrap());
+
+		struct RestorationDBHandler {
+			config: DatabaseConfig,
+		}
+
+		impl KeyValueDBHandler for RestorationDBHandler {
+			fn open(&self, db_path: &Path) -> Result<Arc<KeyValueDB>, Error> {
+				Ok(Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?))
+			}
+		}
+
+		let restoration_db_handler = Box::new(RestorationDBHandler {
+			config: client_db_config,
+		});
+
 		let spec = Spec::new_test();
 		let service = ClientService::start(
 			ClientConfig::default(),
 			&spec,
-			&client_path,
+			client_db,
 			&snapshot_path,
+			restoration_db_handler,
 			tempdir.path(),
 			Arc::new(Miner::with_spec(&spec)),
 			Arc::new(AccountProvider::transient_provider()),

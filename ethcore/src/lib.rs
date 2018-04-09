@@ -93,11 +93,10 @@ extern crate triehash;
 extern crate ansi_term;
 extern crate unexpected;
 extern crate kvdb;
-extern crate kvdb_rocksdb;
 extern crate kvdb_memorydb;
+extern crate kvdb_rocksdb;
 extern crate util_error;
 extern crate snappy;
-extern crate migration;
 
 extern crate ethabi;
 #[macro_use]
