@@ -17,7 +17,7 @@
 use std::fmt;
 use std::io::Error as IoError;
 use ethkey;
-use ethcrypto;
+use crypto;
 use super::types::all::ServerKeyId;
 
 pub use super::traits::NodeKeyPair;

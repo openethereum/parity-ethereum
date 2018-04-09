@@ -26,11 +26,11 @@ mod messages;
 mod error;
 
 extern crate ethcore;
-extern crate ethcore_io as io;
 extern crate ethcore_bytes as bytes;
-extern crate ethcore_transaction as transaction;
+extern crate ethcore_crypto as crypto;
+extern crate ethcore_io as io;
 extern crate ethcore_miner;
-extern crate ethcrypto;
+extern crate ethcore_transaction as transaction;
 extern crate ethabi;
 extern crate ethereum_types;
 extern crate ethkey;

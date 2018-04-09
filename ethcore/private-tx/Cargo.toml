@@ -12,11 +12,11 @@ ethabi-contract = "5.0"
 ethabi-derive = "5.0"
 ethcore = { path = ".." }
 ethcore-bytes = { path = "../../util/bytes" }
+ethcore-crypto = { path = "../crypto" }
 ethcore-io = { path = "../../util/io" }
 ethcore-logger = { path = "../../logger" }
 ethcore-miner = { path = "../../miner" }
 ethcore-transaction = { path = "../transaction" }
-ethcrypto = { path = "../../ethcrypto" }
 ethereum-types = "0.3"
 ethjson = { path = "../../json" }
 ethkey = { path = "../../ethkey" }

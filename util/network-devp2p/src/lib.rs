@@ -61,6 +61,7 @@
 
 extern crate ethcore_io as io;
 extern crate ethcore_bytes;
+extern crate ethcore_crypto as crypto;
 extern crate ethereum_types;
 extern crate parking_lot;
 extern crate mio;
@@ -73,7 +74,6 @@ extern crate igd;
 extern crate libc;
 extern crate slab;
 extern crate ethkey;
-extern crate ethcrypto as crypto;
 extern crate rlp;
 extern crate bytes;
 extern crate path;

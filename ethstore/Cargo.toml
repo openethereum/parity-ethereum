@@ -17,7 +17,7 @@ tiny-keccak = "1.3"
 time = "0.1.34"
 itertools = "0.5"
 parking_lot = "0.5"
-ethcrypto = { path = "../ethcrypto" }
+ethcore-crypto = { path = "../ethcore/crypto" }
 ethereum-types = "0.3"
 dir = { path = "../util/dir" }
 smallvec = "0.4"

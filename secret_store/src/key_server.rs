@@ -21,7 +21,7 @@ use std::sync::mpsc;
 use futures::{self, Future};
 use parking_lot::Mutex;
 use tokio_core::reactor::Core;
-use ethcrypto;
+use crypto;
 use super::acl_storage::AclStorage;
 use super::key_storage::KeyStorage;
 use super::key_server_set::KeyServerSet;
@@ -229,7 +229,7 @@ pub mod tests {
 	use std::sync::Arc;
 	use std::net::SocketAddr;
 	use std::collections::BTreeMap;
-	use ethcrypto;
+	use crypto;
 	use ethkey::{self, Secret, Random, Generator, verify_public};
 	use acl_storage::DummyAclStorage;
 	use key_storage::KeyStorage;
