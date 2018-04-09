@@ -337,7 +337,7 @@ fn eth_transaction_count() {
 	let req_before = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_getTransactionCount",
-		"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "latest"],
+		"params": [""#.to_owned() + format!("0x{:x}", address).as_ref() + r#"", "latest"],
 		"id": 15
 	}"#;
 
@@ -349,7 +349,7 @@ fn eth_transaction_count() {
 		"jsonrpc": "2.0",
 		"method": "eth_sendTransaction",
 		"params": [{
-			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"from": ""#.to_owned() + format!("0x{:x}", address).as_ref() + r#"",
 			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
 			"gas": "0x30000",
 			"gasPrice": "0x1",
@@ -365,7 +365,7 @@ fn eth_transaction_count() {
 	let req_after_latest = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_getTransactionCount",
-		"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "latest"],
+		"params": [""#.to_owned() + format!("0x{:x}", address).as_ref() + r#"", "latest"],
 		"id": 17
 	}"#;
 
@@ -377,7 +377,7 @@ fn eth_transaction_count() {
 	let req_after_pending = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_getTransactionCount",
-		"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "pending"],
+		"params": [""#.to_owned() + format!("0x{:x}", address).as_ref() + r#"", "pending"],
 		"id": 18
 	}"#;
 
@@ -403,7 +403,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 			"jsonrpc": "2.0",
 			"method": "eth_getBlockTransactionCountByHash",
 			"params": [
-				""#.to_owned() + format!("0x{:?}", hash).as_ref() + r#""
+				""#.to_owned() + format!("0x{:x}", hash).as_ref() + r#""
 			],
 			"id": "# + format!("{}", *id).as_ref() + r#"
 		}"#;
@@ -463,7 +463,7 @@ fn starting_nonce_test() {
 		{
 			"jsonrpc": "2.0",
 			"method": "eth_getTransactionCount",
-			"params": [""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"", "latest"],
+			"params": [""#.to_owned() + format!("0x{:x}", address).as_ref() + r#"", "latest"],
 			"id": 15
 		}
 		"#)

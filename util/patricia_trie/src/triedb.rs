@@ -17,7 +17,6 @@
 use std::fmt;
 use hashdb::*;
 use nibbleslice::NibbleSlice;
-use rlp::*;
 use super::node::{Node, OwnedNode};
 use super::lookup::Lookup;
 use super::{Trie, TrieItem, TrieError, TrieIterator, Query};
@@ -97,7 +96,10 @@ impl<'db> TrieDB<'db> {
 			Node::Extension(ref slice, ref item) => {
 				write!(f, "'{:?} ", slice)?;
 				if let Ok(node) = self.get_raw_or_lookup(&*item) {
-					self.fmt_all(Node::decoded(&node), f, deepness)?;
+					match Node::decoded(&node) {
+						Ok(n) => self.fmt_all(n, f, deepness)?,
+						Err(err) => writeln!(f, "ERROR decoding node extension Rlp: {}", err)?,
+					}
 				}
 			},
 			Node::Branch(ref nodes, ref value) => {
@@ -108,12 +110,19 @@ impl<'db> TrieDB<'db> {
 				}
 				for i in 0..16 {
 					let node = self.get_raw_or_lookup(&*nodes[i]);
-					match node.as_ref().map(|n| Node::decoded(&*n)) {
-						Ok(Node::Empty) => {},
+					match node.as_ref() { 
 						Ok(n) => {
-							self.fmt_indent(f, deepness + 1)?;
-							write!(f, "'{:x} ", i)?;
-							self.fmt_all(n, f, deepness + 1)?;
+							match Node::decoded(&*n) {
+								Ok(Node::Empty) => {},
+								Ok(n) => {
+									self.fmt_indent(f, deepness + 1)?;
+									write!(f, "'{:x} ", i)?;
+									self.fmt_all(n, f, deepness + 1)?;
+								}
+								Err(e) => {
+									write!(f, "ERROR decoding node branch Rlp: {}", e)?
+								}
+							}
 						}
 						Err(e) => {
 							write!(f, "ERROR: {}", e)?;
@@ -133,15 +142,17 @@ impl<'db> TrieDB<'db> {
 	/// This could be a simple identity operation in the case that the node is sufficiently small, but
 	/// may require a database lookup.
 	fn get_raw_or_lookup(&'db self, node: &'db [u8]) -> super::Result<DBValue> {
-		// check if its keccak + len
-		let r = Rlp::new(node);
-		match r.is_data() && r.size() == 32 {
-			true => {
-				let key = r.as_val::<H256>();
+		match Node::try_decode_hash(node) {
+			Some(key) => {
 				self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
 			}
-			false => Ok(DBValue::from_slice(node))
+			None => Ok(DBValue::from_slice(node))
 		}
+	}
+
+	/// Create a node from raw rlp bytes, assumes valid rlp because encoded locally
+	fn decode_node(node: &'db [u8]) -> Node {
+		Node::decoded(node).expect("rlp read from db; qed")
 	}
 }
 
@@ -167,7 +178,10 @@ impl<'db> fmt::Debug for TrieDB<'db> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		writeln!(f, "c={:?} [", self.hash_count)?;
 		let root_rlp = self.db.get(self.root).expect("Trie root not found!");
-		self.fmt_all(Node::decoded(&root_rlp), f, 0)?;
+		match Node::decoded(&root_rlp) {
+			Ok(node) => self.fmt_all(node, f, 0)?,
+			Err(e) => writeln!(f, "ERROR decoding node rlp: {}", e)?,
+		}
 		writeln!(f, "]")
 	}
 }
@@ -222,7 +236,7 @@ impl<'a> TrieDBIterator<'a> {
 	fn seek<'key>(&mut self, mut node_data: DBValue, mut key: NibbleSlice<'key>) -> super::Result<()> {
 		loop {
 			let (data, mid) = {
-				let node = Node::decoded(&node_data);
+				let node = TrieDB::decode_node(&node_data);
 				match node {
 					Node::Leaf(slice, _) => {
 						if slice == key {
@@ -284,7 +298,7 @@ impl<'a> TrieDBIterator<'a> {
 
 	/// Descend into a payload.
 	fn descend(&mut self, d: &[u8]) -> super::Result<()> {
-		let node = Node::decoded(&self.db.get_raw_or_lookup(d)?).into();
+		let node = TrieDB::decode_node(&self.db.get_raw_or_lookup(d)?).into();
 		Ok(self.descend_into_node(node))
 	}
 
@@ -382,7 +396,7 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 					self.trail.pop();
 				},
 				IterStep::Descend(Ok(d)) => {
-					self.descend_into_node(Node::decoded(&d).into())
+					self.descend_into_node(TrieDB::decode_node(&d).into())
 				},
 				IterStep::Descend(Err(e)) => {
 					return Some(Err(e))

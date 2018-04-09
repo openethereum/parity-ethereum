@@ -53,11 +53,11 @@ impl ExternalMiner {
 	}
 }
 
-const ENTRY_TIMEOUT: u64 = 2;
+const ENTRY_TIMEOUT: Duration = Duration::from_secs(2);
 
 impl ExternalMinerService for ExternalMiner {
 	fn submit_hashrate(&self, hashrate: U256, id: H256) {
-		self.hashrates.lock().insert(id, (Instant::now() + Duration::from_secs(ENTRY_TIMEOUT), hashrate));
+		self.hashrates.lock().insert(id, (Instant::now() + ENTRY_TIMEOUT, hashrate));
 	}
 
 	fn hashrate(&self) -> U256 {

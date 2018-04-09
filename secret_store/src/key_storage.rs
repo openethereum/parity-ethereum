@@ -475,6 +475,10 @@ pub mod tests {
 		let config = ServiceConfiguration {
 			listener_address: None,
 			service_contract_address: None,
+			service_contract_srv_gen_address: None,
+			service_contract_srv_retr_address: None,
+			service_contract_doc_store_address: None,
+			service_contract_doc_sretr_address: None,
 			acl_check_enabled: true,
 			data_path: tempdir.path().display().to_string(),
 			cluster_config: ClusterConfiguration {

@@ -17,7 +17,7 @@
 //! Flat trace module
 
 use std::collections::VecDeque;
-use rlp::*;
+use rlp::{UntrustedRlp, RlpStream, Decodable, Encodable, DecoderError};
 use heapsize::HeapSizeOf;
 use ethereum_types::Bloom;
 use super::trace::{Action, Res};

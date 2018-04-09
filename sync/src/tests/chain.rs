@@ -18,7 +18,7 @@ use std::sync::Arc;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, BlockId, EachBlockWith, ChainInfo, BlockInfo};
 use chain::{SyncState};
 use super::helpers::*;
-use SyncConfig;
+use {SyncConfig, WarpSync};
 
 #[test]
 fn two_peers() {
@@ -161,7 +161,7 @@ fn status_empty() {
 	let net = TestNet::new(2);
 	assert_eq!(net.peer(0).sync.read().status().state, SyncState::Idle);
 	let mut config = SyncConfig::default();
-	config.warp_sync = true;
+	config.warp_sync = WarpSync::Enabled;
 	let net = TestNet::new_with_config(2, config);
 	assert_eq!(net.peer(0).sync.read().status().state, SyncState::WaitingPeers);
 }

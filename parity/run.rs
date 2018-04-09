@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::any::Any;
 use std::fmt;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 use std::thread;
 use std::net::{TcpListener};
 
-use ansi_term::Colour;
+use ansi_term::{Colour, Style};
 use ctrlc::CtrlC;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
@@ -101,6 +102,7 @@ pub struct RunCmd {
 	pub net_conf: ethsync::NetworkConfiguration,
 	pub network_id: Option<u64>,
 	pub warp_sync: bool,
+	pub warp_barrier: Option<u64>,
 	pub public_node: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer_conf: GasPricerConfig,
@@ -130,7 +132,8 @@ pub struct RunCmd {
 	pub serve_light: bool,
 	pub light: bool,
 	pub no_persistent_txqueue: bool,
-	pub whisper: ::whisper::Config
+	pub whisper: ::whisper::Config,
+	pub no_hardcoded_sync: bool,
 }
 
 pub fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> Result<(), String> {
@@ -180,7 +183,7 @@ impl ::local_store::NodeInfo for FullNodeInfo {
 type LightClient = ::light::client::Client<::light_helpers::EpochFetch>;
 
 // helper for light execution.
-fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<((bool, Option<String>), Weak<LightClient>), String> {
+fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient, String> {
 	use light::client as light_client;
 	use ethsync::{LightSyncParams, LightSync, ManageNetwork};
 	use parking_lot::{Mutex, RwLock};
@@ -226,6 +229,7 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 		chain_column: ::ethcore::db::COL_LIGHT_CHAIN,
 		verify_full: true,
 		check_seal: cmd.check_seal,
+		no_hardcoded_sync: cmd.no_hardcoded_sync,
 	};
 
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
@@ -257,7 +261,7 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 
 	let service = light_client::Service::start(config, &spec, fetch, db, cache.clone())
 		.map_err(|e| format!("Error starting light client: {}", e))?;
-	let client = service.client();
+	let client = service.client().clone();
 	let txq = Arc::new(RwLock::new(::light::transaction_queue::TransactionQueue::default()));
 	let provider = ::light::provider::LightProvider::new(client.clone(), txq.clone());
 
@@ -399,10 +403,10 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 	};
 
 	// start rpc servers
-	let _ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
-	let _http_server = rpc::new_http("HTTP JSON-RPC", "jsonrpc", cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
-	let _ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
-	let _ui_server = rpc::new_http("Parity Wallet (UI)", "ui", cmd.ui_conf.clone().into(), &dependencies, ui_middleware)?;
+	let ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
+	let http_server = rpc::new_http("HTTP JSON-RPC", "jsonrpc", cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
+	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
+	let ui_server = rpc::new_http("Parity Wallet (UI)", "ui", cmd.ui_conf.clone().into(), &dependencies, ui_middleware)?;
 
 	// the informant
 	let informant = Arc::new(Informant::new(
@@ -418,17 +422,18 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 
 	service.register_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
 
-	// wait for ctrl-c and then shut down the informant.
-	let res = wait_for_exit(None, None, can_restart);
-	informant.shutdown();
-
-	// Create a weak reference to the client so that we can wait on shutdown until it is dropped
-	let weak_client = Arc::downgrade(&client);
-
-	Ok((res, weak_client))
+	Ok(RunningClient::Light {
+		informant,
+		client,
+		keep_alive: Box::new((event_loop, service, ws_server, http_server, ipc_server, ui_server)),
+	})
 }
 
-pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<((bool, Option<String>), Weak<Client>), String> {
+fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: Cr,
+						on_updater_rq: Rr) -> Result<RunningClient, String>
+	where Cr: Fn(String) + 'static + Send,
+		  Rr: Fn() + 'static + Send
+{
 	// load spec
 	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
 
@@ -511,7 +516,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	}
 
 	sync_config.fork_block = spec.fork_block();
-	let mut warp_sync = cmd.warp_sync;
+	let mut warp_sync = spec.engine.supports_warp() && cmd.warp_sync;
 	if warp_sync {
 		// Logging is not initialized yet, so we print directly to stderr
 		if fat_db {
@@ -525,7 +530,11 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 			warp_sync = false;
 		}
 	}
-	sync_config.warp_sync = spec.engine.supports_warp() && warp_sync;
+	sync_config.warp_sync = match (warp_sync, cmd.warp_barrier) {
+		(true, Some(block)) => ethsync::WarpSync::OnlyAndAfter(block),
+		(true, _) => ethsync::WarpSync::Enabled,
+		_ => ethsync::WarpSync::Disabled,
+	};
 	sync_config.download_old_blocks = cmd.download_old_blocks;
 	sync_config.serve_light = cmd.serve_light;
 
@@ -565,6 +574,11 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 		if !passwords.iter().any(|p| miner.set_engine_signer(engine_signer, (*p).clone()).is_ok()) {
 			return Err(format!("No valid password for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
 		}
+	}
+
+	// display warning if using --no-hardcoded-sync
+	if cmd.no_hardcoded_sync {
+		warn!("The --no-hardcoded-sync flag has no effect if you don't use --light");
 	}
 
 	// create client config
@@ -685,9 +699,6 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	).map_err(|e| format!("Sync error: {}", e))?;
 
 	service.add_notify(chain_notify.clone());
-	if let Some(filter) = connection_filter {
-		service.add_notify(filter);
-	}
 
 	// start network
 	if network_enabled {
@@ -845,7 +856,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	});
 
 	// the watcher must be kept alive.
-	let _watcher = match cmd.no_periodic_snapshot {
+	let watcher = match cmd.no_periodic_snapshot {
 		true => None,
 		false => {
 			let sync = sync_provider.clone();
@@ -872,29 +883,64 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 		open_dapp(&cmd.dapps_conf, &cmd.http_conf, &dapp)?;
 	}
 
-	// Create a weak reference to the client so that we can wait on shutdown until it is dropped
-	let weak_client = Arc::downgrade(&client);
+	client.set_exit_handler(on_client_rq);
+	updater.set_exit_handler(on_updater_rq);
 
-	// Handle exit
-	let restart = wait_for_exit(Some(updater), Some(client), can_restart);
+	Ok(RunningClient::Full {
+		informant,
+		client,
+		keep_alive: Box::new((watcher, service, updater, ws_server, http_server, ipc_server, ui_server, secretstore_key_server, ipfs_server, event_loop)),
+	})
+}
 
-	info!("Finishing work, please wait...");
+enum RunningClient {
+	Light {
+		informant: Arc<Informant<LightNodeInformantData>>,
+		client: Arc<LightClient>,
+		keep_alive: Box<Any>,
+	},
+	Full {
+		informant: Arc<Informant<FullNodeInformantData>>,
+		client: Arc<Client>,
+		keep_alive: Box<Any>,
+	},
+}
 
-	// drop this stuff as soon as exit detected.
-	drop((ws_server, http_server, ipc_server, ui_server, secretstore_key_server, ipfs_server, event_loop));
-
-	// to make sure timer does not spawn requests while shutdown is in progress
-	informant.shutdown();
-	// just Arc is dropping here, to allow other reference release in its default time
-	drop(informant);
-
-	Ok((restart, weak_client))
+impl RunningClient {
+	fn shutdown(self) {
+		match self {
+			RunningClient::Light { informant, client, keep_alive } => {
+				// Create a weak reference to the client so that we can wait on shutdown
+				// until it is dropped
+				let weak_client = Arc::downgrade(&client);
+				drop(keep_alive);
+				informant.shutdown();
+				drop(informant);
+				drop(client);
+				wait_for_drop(weak_client);
+			},
+			RunningClient::Full { informant, client, keep_alive } => {
+				info!("Finishing work, please wait...");
+				// Create a weak reference to the client so that we can wait on shutdown
+				// until it is dropped
+				let weak_client = Arc::downgrade(&client);
+				// drop this stuff as soon as exit detected.
+				drop(keep_alive);
+				// to make sure timer does not spawn requests while shutdown is in progress
+				informant.shutdown();
+				// just Arc is dropping here, to allow other reference release in its default time
+				drop(informant);
+				drop(client);
+				wait_for_drop(weak_client);
+			}
+		}
+	}
 }
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
 	if cmd.ui_conf.enabled {
-		warn!("Parity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity Wallet instead.");
-		warn!("Standalone Parity Wallet: https://github.com/Parity-JS/shell/releases");
+		warn!("{}", Style::new().bold().paint("Parity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity UI instead."));
+		warn!("{}", Style::new().bold().paint("Standalone Parity UI: https://github.com/Parity-JS/shell/releases"));
 	}
 
 	if cmd.ui && cmd.dapps_conf.enabled {
@@ -908,18 +954,34 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// increase max number of open files
 	raise_fd_limit();
 
-	fn wait<T>(res: Result<((bool, Option<String>), Weak<T>), String>) -> Result<(bool, Option<String>), String> {
-		res.map(|(restart, weak_client)| {
-			wait_for_drop(weak_client);
-			restart
-		})
-	}
+	let exit = Arc::new((Mutex::new((false, None)), Condvar::new()));
 
-	if cmd.light {
-		wait(execute_light_impl(cmd, can_restart, logger))
+	let running_client = if cmd.light {
+		execute_light_impl(cmd, logger)?
+	} else if can_restart {
+		let e1 = exit.clone();
+		let e2 = exit.clone();
+		execute_impl(cmd, logger,
+					 move |new_chain: String| { *e1.0.lock() = (true, Some(new_chain)); e1.1.notify_all(); },
+					 move || { *e2.0.lock() = (true, None); e2.1.notify_all(); })?
 	} else {
-		wait(execute_impl(cmd, can_restart, logger))
-	}
+		trace!(target: "mode", "Not hypervised: not setting exit handlers.");
+		execute_impl(cmd, logger, move |_| {}, move || {})?
+	};
+
+	// Handle possible exits
+	CtrlC::set_handler({
+		let e = exit.clone();
+		move || { e.1.notify_all(); }
+	});
+
+	// Wait for signal
+	let mut l = exit.0.lock();
+	let _ = exit.1.wait(&mut l);
+
+	running_client.shutdown();
+
+	Ok(l.clone())
 }
 
 #[cfg(not(windows))]
@@ -1018,39 +1080,6 @@ fn insert_dev_account(account_provider: &AccountProvider) {
 // Construct an error `String` with an adaptive hint on how to create an account.
 fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
 	format!("You can create an account via RPC, UI or `parity account new --chain {} --keys-path {}`.", spec, keys)
-}
-
-fn wait_for_exit(
-	updater: Option<Arc<Updater>>,
-	client: Option<Arc<Client>>,
-	can_restart: bool
-) -> (bool, Option<String>) {
-	let exit = Arc::new((Mutex::new((false, None)), Condvar::new()));
-
-	// Handle possible exits
-	let e = exit.clone();
-	CtrlC::set_handler(move || { e.1.notify_all(); });
-
-	if can_restart {
-		if let Some(updater) = updater {
-			// Handle updater wanting to restart us
-			let e = exit.clone();
-			updater.set_exit_handler(move || { *e.0.lock() = (true, None); e.1.notify_all(); });
-		}
-
-		if let Some(client) = client {
-			// Handle updater wanting to restart us
-			let e = exit.clone();
-			client.set_exit_handler(move |restart, new_chain: Option<String>| { *e.0.lock() = (restart, new_chain); e.1.notify_all(); });
-		}
-	} else {
-		trace!(target: "mode", "Not hypervised: not setting exit handlers.");
-	}
-
-	// Wait for signal
-	let mut l = exit.0.lock();
-	let _ = exit.1.wait(&mut l);
-	l.clone()
 }
 
 fn wait_for_drop<T>(w: Weak<T>) {

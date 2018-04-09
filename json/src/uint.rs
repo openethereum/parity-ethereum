@@ -18,7 +18,7 @@
 
 use std::fmt;
 use std::str::FromStr;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{Error, Visitor, Unexpected};
 use ethereum_types::U256;
 
@@ -47,6 +47,13 @@ impl Into<usize> for Uint {
 impl Into<u8> for Uint {
 	fn into(self) -> u8 {
 		u64::from(self.0) as u8
+	}
+}
+
+impl Serialize for Uint {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+		where S: Serializer {
+		self.0.to_string().serialize(serializer)
 	}
 }
 
