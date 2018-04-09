@@ -12,7 +12,7 @@ base32 = "0.3"
 futures = "0.1"
 futures-cpupool = "0.1"
 linked-hash-map = "0.5"
-log = "0.3"
+log = "0.4"
 parity-dapps-glue = "1.9"
 parking_lot = "0.5"
 mime_guess = "2.0.0-alpha.2"
@@ -40,7 +40,7 @@ parity-version = { path = "../util/version" }
 registrar = { path = "../registrar" }
 
 [dev-dependencies]
-env_logger = "0.4"
+env_logger = "0.5"
 ethcore-devtools = { path = "../devtools" }
 
 [features]

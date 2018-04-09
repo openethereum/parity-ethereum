@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 elastic-array = "0.10"
 ethereum-types = "0.3"
 kvdb = { path = "../kvdb" }
-log = "0.3"
+log = "0.4"
 num_cpus = "1.0"
 parking_lot = "0.5"
 regex = "0.2"

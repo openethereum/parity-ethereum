@@ -18,7 +18,7 @@ use std::{env, io, str};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use env_logger::LogBuilder;
+use env_logger::Builder;
 use jsonrpc_core::IoHandler;
 use jsonrpc_http_server::{self as http, Host, DomainsValidation};
 use parity_reactor::Remote;
@@ -48,7 +48,7 @@ impl SyncStatus for FakeSync {
 fn init_logger() {
 	// Initialize logger
 	if let Ok(log) = env::var("RUST_LOG") {
-		let mut builder = LogBuilder::new();
+		let mut builder = Builder::new();
 		builder.parse(&log);
 		let _ = builder.init();	// ignore errors since ./test.sh will call this multiple times.
 	}

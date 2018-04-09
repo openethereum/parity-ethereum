@@ -11,7 +11,7 @@ ethereum-types = "0.3"
 hashdb = { path = "../hashdb" }
 heapsize = "0.4"
 kvdb = { path = "../kvdb" }
-log = "0.3"
+log = "0.4"
 memorydb = { path = "../memorydb" }
 parking_lot = "0.5"
 plain_hasher = { path = "../plain_hasher" }

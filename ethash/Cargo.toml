@@ -6,7 +6,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
-log = "0.3"
+log = "0.4"
 keccak-hash = { path = "../util/hash" }
 primal = "0.2.3"
 parking_lot = "0.5"

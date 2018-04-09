@@ -29,11 +29,9 @@ extern crate ansi_term;
 
 mod rotating;
 
-use std::{env, thread, fs};
-use std::sync::{Weak, Arc};
-use std::io::Write;
+use std::{env, thread, fs, sync::{Weak, Arc}, io::Write};
 use isatty::{stderr_isatty, stdout_isatty};
-use env_logger::LogBuilder;
+use env_logger::Builder;
 use regex::Regex;
 use ansi_term::Colour;
 use parking_lot::Mutex;
@@ -63,17 +61,17 @@ lazy_static! {
 
 /// Sets up the logger
 pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
-	use rlog::*;
+	use rlog::{LevelFilter, Level, max_level};
 
 	let mut levels = String::new();
-	let mut builder = LogBuilder::new();
+	let mut builder = Builder::new();
 	// Disable info logging by default for some modules:
-	builder.filter(Some("ws"), LogLevelFilter::Warn);
-	builder.filter(Some("reqwest"), LogLevelFilter::Warn);
-	builder.filter(Some("hyper"), LogLevelFilter::Warn);
-	builder.filter(Some("rustls"), LogLevelFilter::Warn);
+	builder.filter(Some("ws"), LevelFilter::Warn);
+	builder.filter(Some("reqwest"), LevelFilter::Warn);
+	builder.filter(Some("hyper"), LevelFilter::Warn);
+	builder.filter(Some("rustls"), LevelFilter::Warn);
 	// Enable info for others.
-	builder.filter(None, LogLevelFilter::Info);
+	builder.filter(None, LevelFilter::Info);
 
 	if let Ok(lvl) = env::var("RUST_LOG") {
 		levels.push_str(&lvl);
@@ -99,10 +97,10 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 		None => None,
 	};
 
-	let format = move |record: &LogRecord| {
+    builder.format(move |buf, record| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
 
-		let with_color = if max_log_level() <= LogLevelFilter::Info {
+		let with_color = if max_level() <= LevelFilter::Info {
 			format!("{} {}", Colour::Black.bold().paint(timestamp), record.args())
 		} else {
 			let name = thread::current().name().map_or_else(Default::default, |x| format!("{}", Colour::Blue.bold().paint(x)));
@@ -121,17 +119,18 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 			let _ = file.write_all(removed_color.as_bytes());
 			let _ = file.write_all(b"\n");
 		}
+
 		logger.append(removed_color);
-		if !isatty && record.level() <= LogLevel::Info && stdout_isatty() {
+
+		if !isatty && record.level() <= Level::Info && stdout_isatty() {
 			// duplicate INFO/WARN output to console
 			println!("{}", ret);
 		}
 
-		ret
-    };
+        writeln!(buf, "{}", ret)
+    });
 
-	builder.format(format);
-	builder.init()
+	builder.try_init()
 		.and_then(|_| {
 			*ROTATING_LOGGER.lock() = Arc::downgrade(&logs);
 			Ok(logs)
