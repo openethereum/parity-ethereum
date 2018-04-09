@@ -443,8 +443,8 @@ pub mod tests {
 			let message_hash = H256::from(42);
 			let combined_signature = key_servers[0].sign_message_schnorr(&server_key_id, &signature.into(), message_hash.clone()).unwrap();
 			let combined_signature = crypto::ecies::decrypt(&requestor_secret, &crypto::DEFAULT_MAC, &combined_signature).unwrap();
-			let signature_c = Secret::from_slice(&combined_signature[..32]);
-			let signature_s = Secret::from_slice(&combined_signature[32..]);
+			let signature_c = Secret::from_slice(&combined_signature[..32]).unwrap();
+			let signature_s = Secret::from_slice(&combined_signature[32..]).unwrap();
 
 			// check signature
 			assert_eq!(math::verify_schnorr_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
@@ -492,8 +492,8 @@ pub mod tests {
 		let message_hash = H256::from(42);
 		let combined_signature = key_servers[0].sign_message_schnorr(&server_key_id, &signature.into(), message_hash.clone()).unwrap();
 		let combined_signature = crypto::ecies::decrypt(&requestor_secret, &crypto::DEFAULT_MAC, &combined_signature).unwrap();
-		let signature_c = Secret::from_slice(&combined_signature[..32]);
-		let signature_s = Secret::from_slice(&combined_signature[32..]);
+		let signature_c = Secret::from_slice(&combined_signature[..32]).unwrap();
+		let signature_s = Secret::from_slice(&combined_signature[32..]).unwrap();
 
 		// check signature
 		assert_eq!(math::verify_schnorr_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));

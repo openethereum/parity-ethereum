@@ -39,7 +39,7 @@ const TRANSITION_BLOCK_1: usize = 2; // block at which the contract becomes acti
 const TRANSITION_BLOCK_2: usize = 10; // block at which the second contract activates.
 
 macro_rules! secret {
-	($e: expr) => { Secret::from_slice(&$crate::hash::keccak($e)) }
+	($e: expr) => { Secret::from($crate::hash::keccak($e).0) }
 }
 
 lazy_static! {
