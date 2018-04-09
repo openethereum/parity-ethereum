@@ -111,7 +111,7 @@ const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 
 // Run our version of parity.
 // Returns the exit error code.
-fn main_direct(can_restart: bool) -> i32 {
+fn main_direct(force_can_restart: bool) -> i32 {
 	global_init();
 	let mut alt_mains = HashMap::new();
 	sync_main(&mut alt_mains);
@@ -120,7 +120,12 @@ fn main_direct(can_restart: bool) -> i32 {
 		f();
 		0
 	} else {
-		match start(can_restart) {
+		let mut args = std::env::args().collect::<Vec<_>>();
+		if force_can_restart && !args.iter().any(|arg| arg == "--can-restart") {
+			args.push("--can-restart".to_owned());
+		}
+
+		match start(args) {
 			Ok(result) => match result {
 				PostExecutionAction::Print(s) => { println!("{}", s); 0 },
 				PostExecutionAction::Restart(spec_name_override) => {
@@ -200,7 +205,6 @@ fn main() {
 	} else {
 		trace_main!("Running direct");
 		// Otherwise, we're presumably running the version we want. Just run and fall-through.
-		let can_restart = std::env::args().any(|arg| arg == "--can-restart");
-		process::exit(main_direct(can_restart));
+		process::exit(main_direct(false));
 	}
 }

@@ -129,7 +129,6 @@ mod whisper;
 #[cfg(feature="stratum")]
 mod stratum;
 
-use std::env;
 use std::io::{BufReader, Read};
 use std::fs::{remove_file, File};
 use std::path::PathBuf;
@@ -183,8 +182,8 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 }
 
 /// Run Parity. On error, returns what to print on stderr.
-pub fn start(can_restart: bool) -> Result<PostExecutionAction, String> {
-	let args: Vec<String> = env::args().collect();
+pub fn start(args: Vec<String>) -> Result<PostExecutionAction, String> {
+	let can_restart = args.iter().any(|arg| arg == "--can-restart");
 	let conf = Configuration::parse(&args, take_spec_name_override()).unwrap_or_else(|e| e.exit());
 
 	let deprecated = find_deprecated(&conf.args);
