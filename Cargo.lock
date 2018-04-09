@@ -766,6 +766,7 @@ dependencies = [
  "ethcore 1.11.0",
  "ethcore-bytes 0.1.0",
  "ethcore-logger 1.11.0",
+ "ethcore-transaction 0.1.0",
  "ethcrypto 0.1.0",
  "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",

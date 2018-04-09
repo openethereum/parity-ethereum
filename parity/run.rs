@@ -843,6 +843,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let secretstore_deps = secretstore::Dependencies {
 		client: client.clone(),
 		sync: sync_provider.clone(),
+		miner: miner,
 		account_provider: account_provider,
 		accounts_passwords: &passwords,
 	};
