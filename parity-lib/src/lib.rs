@@ -129,15 +129,13 @@ mod whisper;
 #[cfg(feature="stratum")]
 mod stratum;
 
-use std::io::{BufReader, Read};
-use std::fs::{remove_file, File};
-use std::path::PathBuf;
+use std::io::BufReader;
+use std::fs::File;
 use hash::keccak_buffer;
 use cli::Args;
 use configuration::{Cmd, Execute, Configuration};
 use deprecated::find_deprecated;
 use ethcore_logger::setup_log;
-use dir::default_hypervisor_path;
 
 fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
@@ -192,10 +190,10 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 /// ```
 /// start(vec!["--light".to_owned(), "--logging".to_owned(), "eth=trace".to_owned()])
 /// ```
-pub fn start(mut args: Vec<String>) -> Result<PostExecutionAction, String> {
+pub fn start(mut args: Vec<String>, spec_name_overide: Option<String>) -> Result<PostExecutionAction, String> {
 	let can_restart = args.iter().any(|arg| arg == "--can-restart");
 	args.insert(0, "parity".to_owned());
-	let conf = Configuration::parse(&args, take_spec_name_override()).unwrap_or_else(|e| e.exit());
+	let conf = Configuration::parse(&args, spec_name_overide).unwrap_or_else(|e| e.exit());
 
 	let deprecated = find_deprecated(&conf.args);
 	for d in deprecated {
@@ -204,18 +202,4 @@ pub fn start(mut args: Vec<String>) -> Result<PostExecutionAction, String> {
 
 	let cmd = conf.into_command()?;
 	execute(cmd, can_restart)
-}
-
-fn updates_path(name: &str) -> PathBuf {
-	let mut dest = PathBuf::from(default_hypervisor_path());
-	dest.push(name);
-	dest
-}
-
-fn take_spec_name_override() -> Option<String> {
-	let p = updates_path("spec_name_overide");
-	let r = File::open(p.clone()).ok()
-		.and_then(|mut f| { let mut spec_name = String::new(); f.read_to_string(&mut spec_name).ok().map(|_| spec_name) });
-	let _ = remove_file(p);
-	r
 }

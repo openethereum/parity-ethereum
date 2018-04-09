@@ -32,7 +32,7 @@ use dir::default_hypervisor_path;
 use std::{process, env};
 use std::collections::HashMap;
 use std::io::{self as stdio, Read, Write};
-use std::fs::{metadata, File, create_dir_all};
+use std::fs::{metadata, File, create_dir_all, remove_file};
 use std::path::PathBuf;
 use parity_lib::{start, PostExecutionAction};
 
@@ -64,6 +64,14 @@ fn set_spec_name_override(spec_name: String) {
 	{
 		warn!("Couldn't override chain spec: {} at {:?}", e, updates_path("spec_name_overide"));
 	}
+}
+
+fn take_spec_name_override() -> Option<String> {
+	let p = updates_path("spec_name_overide");
+	let r = File::open(p.clone()).ok()
+		.and_then(|mut f| { let mut spec_name = String::new(); f.read_to_string(&mut spec_name).ok().map(|_| spec_name) });
+	let _ = remove_file(p);
+	r
 }
 
 #[cfg(windows)]
@@ -125,7 +133,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 			args.push("--can-restart".to_owned());
 		}
 
-		match start(args) {
+		match start(args, take_spec_name_override()) {
 			Ok(result) => match result {
 				PostExecutionAction::Print(s) => { println!("{}", s); 0 },
 				PostExecutionAction::Restart(spec_name_override) => {
