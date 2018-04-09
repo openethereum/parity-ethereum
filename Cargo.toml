@@ -6,9 +6,40 @@ version = "1.11.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
+[dependencies]
+log = "0.3"
+dir = { path = "util/dir" }
+panic_hook = { path = "util/panic_hook" }
+parity-lib = { path = "parity-lib" }
+
+[target.'cfg(windows)'.dependencies]
+winapi = "0.2"
+
 [[bin]]
 path = "parity/main.rs"
 name = "parity"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+debug = false
+lto = false
+panic = "abort"
+
+[features]
+default = ["parity-lib/default"]
+ui = ["parity-lib/ui"]
+ui-precompiled = ["parity-lib/ui-precompiled"]
+ui-enabled = ["parity-lib/ui-enabled"]
+dapps = ["parity-lib/dapps"]
+json-tests = ["parity-lib/json-tests"]
+test-heavy = ["parity-lib/test-heavy"]
+evm-debug = ["parity-lib/evm-debug"]
+evm-debug-tests = ["parity-lib/evm-debug-tests"]
+slow-blocks = ["parity-lib/slow-blocks"]
+secretstore = ["parity-lib/secretstore"]
+final = ["parity-lib/final"]
 
 [workspace]
 members = [

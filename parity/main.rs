@@ -18,180 +18,23 @@
 
 #![warn(missing_docs)]
 
-extern crate ansi_term;
-extern crate app_dirs;
-extern crate ctrlc;
-extern crate docopt;
-#[macro_use]
-extern crate clap;
-extern crate dir;
-extern crate env_logger;
-extern crate fdlimit;
-extern crate futures;
-extern crate futures_cpupool;
-extern crate isatty;
-extern crate jsonrpc_core;
-extern crate num_cpus;
-extern crate number_prefix;
-extern crate parking_lot;
-extern crate regex;
-extern crate rlp;
-extern crate rpassword;
-extern crate rustc_hex;
-extern crate semver;
-extern crate serde;
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
-extern crate toml;
-
-extern crate ethcore;
-extern crate ethcore_bytes as bytes;
-extern crate ethcore_io as io;
-extern crate ethcore_light as light;
-extern crate ethcore_logger;
-extern crate ethcore_migrations as migrations;
-extern crate ethcore_miner as miner;
-extern crate ethcore_network as network;
-extern crate ethcore_service;
-extern crate ethcore_transaction as transaction;
-extern crate ethereum_types;
-extern crate migration as migr;
-extern crate kvdb;
-extern crate kvdb_rocksdb;
-extern crate ethkey;
-extern crate ethsync;
-extern crate node_health;
 extern crate panic_hook;
-extern crate parity_hash_fetch as hash_fetch;
-extern crate parity_ipfs_api;
-extern crate parity_local_store as local_store;
-extern crate parity_reactor;
-extern crate parity_rpc;
-extern crate parity_updater as updater;
-extern crate parity_version;
-extern crate parity_whisper;
-extern crate path;
-extern crate rpc_cli;
-extern crate node_filter;
-extern crate keccak_hash as hash;
-extern crate journaldb;
-extern crate registrar;
+extern crate parity_lib;
+extern crate dir;
 
 #[macro_use]
-extern crate log as rlog;
-
-#[cfg(feature="stratum")]
-extern crate ethcore_stratum;
-
-#[cfg(feature="secretstore")]
-extern crate ethcore_secretstore;
-
-#[cfg(feature = "dapps")]
-extern crate parity_dapps;
-
-#[cfg(test)]
-#[macro_use]
-extern crate pretty_assertions;
+extern crate log;
 
 #[cfg(windows)] extern crate ws2_32;
 #[cfg(windows)] extern crate winapi;
 
-#[cfg(test)]
-extern crate tempdir;
-
-mod account;
-mod blockchain;
-mod cache;
-mod cli;
-mod configuration;
-mod dapps;
-mod export_hardcoded_sync;
-mod ipfs;
-mod deprecated;
-mod helpers;
-mod informant;
-mod light_helpers;
-mod migration;
-mod modules;
-mod params;
-mod presale;
-mod rpc;
-mod rpc_apis;
-mod run;
-mod secretstore;
-mod signer;
-mod snapshot;
-mod upgrade;
-mod url;
-mod user_defaults;
-mod whisper;
-
-#[cfg(feature="stratum")]
-mod stratum;
-
+use dir::default_hypervisor_path;
 use std::{process, env};
 use std::collections::HashMap;
-use std::io::{self as stdio, BufReader, Read, Write};
-use std::fs::{remove_file, metadata, File, create_dir_all};
+use std::io::{self as stdio, Read, Write};
+use std::fs::{metadata, File, create_dir_all};
 use std::path::PathBuf;
-use hash::keccak_buffer;
-use cli::Args;
-use configuration::{Cmd, Execute, Configuration};
-use deprecated::find_deprecated;
-use ethcore_logger::setup_log;
-use dir::default_hypervisor_path;
-
-fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
-	if let Some(file) = maybe_file {
-		let mut f = BufReader::new(File::open(&file).map_err(|_| "Unable to open file".to_owned())?);
-		let hash = keccak_buffer(&mut f).map_err(|_| "Unable to read from file".to_owned())?;
-		Ok(format!("{:x}", hash))
-	} else {
-		Err("Streaming from standard input not yet supported. Specify a file.".to_owned())
-	}
-}
-
-enum PostExecutionAction {
-	Print(String),
-	Restart(Option<String>),
-	Quit,
-}
-
-fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, String> {
-	let logger = setup_log(&command.logger).expect("Logger is initialized only once; qed");
-
-	match command.cmd {
-		Cmd::Run(run_cmd) => {
-			let (restart, spec_name) = run::execute(run_cmd, can_restart, logger)?;
-			Ok(if restart { PostExecutionAction::Restart(spec_name) } else { PostExecutionAction::Quit })
-		},
-		Cmd::Version => Ok(PostExecutionAction::Print(Args::print_version())),
-		Cmd::Hash(maybe_file) => print_hash_of(maybe_file).map(|s| PostExecutionAction::Print(s)),
-		Cmd::Account(account_cmd) => account::execute(account_cmd).map(|s| PostExecutionAction::Print(s)),
-		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd).map(|s| PostExecutionAction::Print(s)),
-		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd).map(|_| PostExecutionAction::Quit),
-		Cmd::SignerToken(ws_conf, ui_conf, logger_config) => signer::execute(ws_conf, ui_conf, logger_config).map(|s| PostExecutionAction::Print(s)),
-		Cmd::SignerSign { id, pwfile, port, authfile } => rpc_cli::signer_sign(id, pwfile, port, authfile).map(|s| PostExecutionAction::Print(s)),
-		Cmd::SignerList { port, authfile } => rpc_cli::signer_list(port, authfile).map(|s| PostExecutionAction::Print(s)),
-		Cmd::SignerReject { id, port, authfile } => rpc_cli::signer_reject(id, port, authfile).map(|s| PostExecutionAction::Print(s)),
-		Cmd::Snapshot(snapshot_cmd) => snapshot::execute(snapshot_cmd).map(|s| PostExecutionAction::Print(s)),
-		Cmd::ExportHardcodedSync(export_hs_cmd) => export_hardcoded_sync::execute(export_hs_cmd).map(|s| PostExecutionAction::Print(s)),
-	}
-}
-
-fn start(can_restart: bool) -> Result<PostExecutionAction, String> {
-	let args: Vec<String> = env::args().collect();
-	let conf = Configuration::parse(&args, take_spec_name_override()).unwrap_or_else(|e| e.exit());
-
-	let deprecated = find_deprecated(&conf.args);
-	for d in deprecated {
-		println!("{}", d);
-	}
-
-	let cmd = conf.into_command()?;
-	execute(cmd, can_restart)
-}
+use parity_lib::{start, PostExecutionAction};
 
 #[cfg(not(feature="stratum"))]
 fn stratum_main(_: &mut HashMap<String, fn()>) {}
@@ -221,14 +64,6 @@ fn set_spec_name_override(spec_name: String) {
 	{
 		warn!("Couldn't override chain spec: {} at {:?}", e, updates_path("spec_name_overide"));
 	}
-}
-
-fn take_spec_name_override() -> Option<String> {
-	let p = updates_path("spec_name_overide");
-	let r = File::open(p.clone()).ok()
-		.and_then(|mut f| { let mut spec_name = String::new(); f.read_to_string(&mut spec_name).ok().map(|_| spec_name) });
-	let _ = remove_file(p);
-	r
 }
 
 #[cfg(windows)]
