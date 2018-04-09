@@ -1544,7 +1544,7 @@ mod tests {
 			flag_fast_unlock: false,
 
 			// -- Private Transactions Options
-			flag_private_enabled: false,
+			flag_private_enabled: true,
 			arg_private_signer: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_private_validators: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_private_passwords: Some("~/.safe/password.file".into()),
