@@ -550,7 +550,6 @@ fn update_number_of_confirmations<F1: Fn() -> H256, F2: Fn(H256) -> Option<u64>>
 }
 
 fn update_last_transaction_block(client: &Client, migration_id: &H256, previous_transaction: &mut Option<PreviousMigrationTransaction>) -> bool {
-	// TODO [Reliability]: add the same mechanism to the contract listener, if accepted
 	let last_block = client.block_number(BlockId::Latest).unwrap_or_default();
 	match previous_transaction.as_ref() {
 		// no previous transaction => send immideately
@@ -564,7 +563,6 @@ fn update_last_transaction_block(client: &Client, migration_id: &H256, previous_
 		//   or the transaction has been removed from the queue (and never reached any miner node)
 		// if we have restarted after sending tx => assume we have never sent it
 		Some(tx) => {
-			let last_block = client.block_number(BlockId::Latest).unwrap_or_default();
 			if tx.block > last_block || last_block - tx.block < TRANSACTION_RETRY_INTERVAL_BLOCKS {
 				return false;
 			}
