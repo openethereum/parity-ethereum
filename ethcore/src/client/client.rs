@@ -45,7 +45,7 @@ use client::{
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo
+	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
@@ -2126,7 +2126,7 @@ impl super::traits::EngineClient for Client {
 	}
 
 	fn broadcast_consensus_message(&self, message: Bytes) {
-		self.notify(|notify| notify.broadcast(message.clone()));
+		self.notify(|notify| notify.broadcast(ChainMessageType::Consensus(message.clone())));
 	}
 
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {
@@ -2237,7 +2237,7 @@ mod tests {
 	#[test]
 	fn should_not_cache_details_before_commit() {
 		use client::{BlockChainClient, ChainInfo};
-		use tests::helpers::{generate_dummy_client, get_good_dummy_block_hash};
+		use test_helpers::{generate_dummy_client, get_good_dummy_block_hash};
 
 		use std::thread;
 		use std::time::Duration;

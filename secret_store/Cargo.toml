@@ -24,6 +24,7 @@ tokio-proto = "0.1"
 url = "1.0"
 ethcore = { path = "../ethcore" }
 ethcore-bytes = { path = "../util/bytes" }
+ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.3"
 ethsync = { path = "../sync" }
 kvdb = { path = "../util/kvdb" }

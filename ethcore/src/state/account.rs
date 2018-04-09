@@ -180,6 +180,16 @@ impl Account {
 		self.init_code(code);
 	}
 
+	/// Reset this account's code and storage to given values.
+	pub fn reset_code_and_storage(&mut self, code: Arc<Bytes>, storage: HashMap<H256, H256>) {
+		self.code_hash = keccak(&*code);
+		self.code_cache = code;
+		self.code_size = Some(self.code_cache.len());
+		self.code_filth = Filth::Dirty;
+		self.storage_cache = Self::empty_storage_cache();
+		self.storage_changes = storage;
+	}
+
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
 	pub fn set_storage(&mut self, key: H256, value: H256) {
 		self.storage_changes.insert(key, value);
@@ -424,7 +434,6 @@ impl Account {
 	pub fn clone_dirty(&self) -> Account {
 		let mut account = self.clone_basic();
 		account.storage_changes = self.storage_changes.clone();
-		account.code_cache = self.code_cache.clone();
 		account
 	}
 

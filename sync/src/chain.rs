@@ -88,6 +88,7 @@
 /// All other messages are ignored.
 ///
 
+use std::sync::Arc;
 use std::collections::{HashSet, HashMap};
 use std::cmp;
 use std::time::Instant;
@@ -111,15 +112,23 @@ use rand::Rng;
 use snapshot::{Snapshot, ChunkType};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
+use private_tx::PrivateTxHandler;
 
 known_heap_size!(0, PeerInfo);
 
 type PacketDecodeError = DecoderError;
 
-const PROTOCOL_VERSION_63: u8 = 63;
-const PROTOCOL_VERSION_62: u8 = 62;
-const PROTOCOL_VERSION_1: u8 = 1;
-const PROTOCOL_VERSION_2: u8 = 2;
+/// 63 version of Ethereum protocol.
+pub const ETH_PROTOCOL_VERSION_63: u8 = 63;
+/// 62 version of Ethereum protocol.
+pub const ETH_PROTOCOL_VERSION_62: u8 = 62;
+/// 1 version of Parity protocol.
+pub const PAR_PROTOCOL_VERSION_1: u8 = 1;
+/// 2 version of Parity protocol (consensus messages added).
+pub const PAR_PROTOCOL_VERSION_2: u8 = 2;
+/// 3 version of Parity protocol (private transactions messages added).
+pub const PAR_PROTOCOL_VERSION_3: u8 = 3;
+
 const MAX_BODIES_TO_SEND: usize = 256;
 const MAX_HEADERS_TO_SEND: usize = 512;
 const MAX_NODE_DATA_TO_SEND: usize = 1024;
@@ -160,8 +169,10 @@ const SNAPSHOT_MANIFEST_PACKET: u8 = 0x12;
 const GET_SNAPSHOT_DATA_PACKET: u8 = 0x13;
 const SNAPSHOT_DATA_PACKET: u8 = 0x14;
 const CONSENSUS_DATA_PACKET: u8 = 0x15;
+const PRIVATE_TRANSACTION_PACKET: u8 = 0x16;
+const SIGNED_PRIVATE_TRANSACTION_PACKET: u8 = 0x17;
 
-pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x16;
+pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x18;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
@@ -384,6 +395,8 @@ pub struct ChainSync {
 	transactions_stats: TransactionsStats,
 	/// Enable ancient block downloading
 	download_old_blocks: bool,
+	/// Shared private tx service.
+	private_tx_handler: Arc<PrivateTxHandler>,
 	/// Enable warp sync.
 	warp_sync: WarpSync,
 }
@@ -392,7 +405,7 @@ type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError
 
 impl ChainSync {
 	/// Create a new instance of syncing strategy.
-	pub fn new(config: SyncConfig, chain: &BlockChainClient) -> ChainSync {
+	pub fn new(config: SyncConfig, chain: &BlockChainClient, private_tx_handler: Arc<PrivateTxHandler>) -> ChainSync {
 		let chain_info = chain.chain_info();
 		let best_block = chain.chain_info().best_block_number;
 		let state = match config.warp_sync {
@@ -417,6 +430,7 @@ impl ChainSync {
 			snapshot: Snapshot::new(),
 			sync_start_time: None,
 			transactions_stats: TransactionsStats::default(),
+			private_tx_handler,
 			warp_sync: config.warp_sync,
 		};
 		sync.update_targets(chain);
@@ -428,7 +442,7 @@ impl ChainSync {
 		let last_imported_number = self.new_blocks.last_imported_block_number();
 		SyncStatus {
 			state: self.state.clone(),
-			protocol_version: PROTOCOL_VERSION_63,
+			protocol_version: ETH_PROTOCOL_VERSION_63,
 			network_id: self.network_id,
 			start_block_number: self.starting_block,
 			last_imported_block_number: Some(last_imported_number),
@@ -662,7 +676,8 @@ impl ChainSync {
 			trace!(target: "sync", "Peer {} network id mismatch (ours: {}, theirs: {})", peer_id, self.network_id, peer.network_id);
 			return Ok(());
 		}
-		if (warp_protocol && peer.protocol_version != PROTOCOL_VERSION_1 && peer.protocol_version != PROTOCOL_VERSION_2) || (!warp_protocol && peer.protocol_version != PROTOCOL_VERSION_63 && peer.protocol_version != PROTOCOL_VERSION_62) {
+		if (warp_protocol && peer.protocol_version != PAR_PROTOCOL_VERSION_1 && peer.protocol_version != PAR_PROTOCOL_VERSION_2 && peer.protocol_version != PAR_PROTOCOL_VERSION_3)
+			|| (!warp_protocol && peer.protocol_version != ETH_PROTOCOL_VERSION_63 && peer.protocol_version != ETH_PROTOCOL_VERSION_62) {
 			io.disable_peer(peer_id);
 			trace!(target: "sync", "Peer {} unsupported eth protocol ({})", peer_id, peer.protocol_version);
 			return Ok(());
@@ -1493,6 +1508,7 @@ impl ChainSync {
 		}
 		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
 			trace!(target: "sync", "{} Ignoring transactions from unconfirmed/unknown peer", peer_id);
+			return Ok(());
 		}
 
 		let item_count = r.item_count()?;
@@ -1515,7 +1531,7 @@ impl ChainSync {
 	fn send_status(&mut self, io: &mut SyncIo, peer: PeerId) -> Result<(), network::Error> {
 		let warp_protocol_version = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer);
 		let warp_protocol = warp_protocol_version != 0;
-		let protocol = if warp_protocol { warp_protocol_version } else { PROTOCOL_VERSION_63 };
+		let protocol = if warp_protocol { warp_protocol_version } else { ETH_PROTOCOL_VERSION_63 };
 		trace!(target: "sync", "Sending status to {}, protocol version {}", peer, protocol);
 		let mut packet = RlpStream::new_list(if warp_protocol { 7 } else { 5 });
 		let chain = io.chain().chain_info();
@@ -1792,6 +1808,8 @@ impl ChainSync {
 			NEW_BLOCK_HASHES_PACKET => self.on_peer_new_hashes(io, peer, &rlp),
 			SNAPSHOT_MANIFEST_PACKET => self.on_snapshot_manifest(io, peer, &rlp),
 			SNAPSHOT_DATA_PACKET => self.on_snapshot_data(io, peer, &rlp),
+			PRIVATE_TRANSACTION_PACKET => self.on_private_transaction(io, peer, &rlp),
+			SIGNED_PRIVATE_TRANSACTION_PACKET => self.on_signed_private_transaction(io, peer, &rlp),
 			_ => {
 				debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id);
 				Ok(())
@@ -1945,7 +1963,11 @@ impl ChainSync {
 	}
 
 	fn get_consensus_peers(&self) -> Vec<PeerId> {
-		self.peers.iter().filter_map(|(id, p)| if p.protocol_version == PROTOCOL_VERSION_2 { Some(*id) } else { None }).collect()
+		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_2 { Some(*id) } else { None }).collect()
+	}
+
+	fn get_private_transaction_peers(&self) -> Vec<PeerId> {
+		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3 { Some(*id) } else { None }).collect()
 	}
 
 	/// propagates latest block to a set of peers
@@ -2223,6 +2245,54 @@ impl ChainSync {
 			self.send_packet(io, peer_id, CONSENSUS_DATA_PACKET, packet.clone());
 		}
 	}
+
+	/// Called when peer sends us new private transaction packet
+	fn on_private_transaction(&self, _io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
+			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
+			return Ok(());
+		}
+
+		trace!(target: "sync", "Received private transaction packet from {:?}", peer_id);
+
+		if let Err(e) = self.private_tx_handler.import_private_transaction(r.as_raw()) {
+			trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
+		}
+		Ok(())
+	}
+
+	/// Broadcast private transaction message to peers.
+	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, packet: Bytes) {
+		let lucky_peers = ChainSync::select_random_peers(&self.get_private_transaction_peers());
+		trace!(target: "sync", "Sending private transaction packet to {:?}", lucky_peers);
+		for peer_id in lucky_peers {
+			self.send_packet(io, peer_id, PRIVATE_TRANSACTION_PACKET, packet.clone());
+		}
+	}
+
+	/// Called when peer sends us signed private transaction packet
+	fn on_signed_private_transaction(&self, _io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
+			trace!(target: "sync", "{} Ignoring packet from unconfirmed/unknown peer", peer_id);
+			return Ok(());
+		}
+
+		trace!(target: "sync", "Received signed private transaction packet from {:?}", peer_id);
+		if let Err(e) = self.private_tx_handler.import_signed_private_transaction(r.as_raw()) {
+			trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
+		}
+		Ok(())
+	}
+
+	/// Broadcast signed private transaction message to peers.
+	pub fn propagate_signed_private_transaction(&mut self, io: &mut SyncIo, packet: Bytes) {
+		let lucky_peers = ChainSync::select_random_peers(&self.get_private_transaction_peers());
+		trace!(target: "sync", "Sending signed private transaction packet to {:?}", lucky_peers);
+		for peer_id in lucky_peers {
+			self.send_packet(io, peer_id, SIGNED_PRIVATE_TRANSACTION_PACKET, packet.clone());
+		}
+	}
+
 }
 
 /// Checks if peer is able to process service transactions
@@ -2247,7 +2317,7 @@ mod tests {
 	use std::collections::{HashSet, VecDeque};
 	use ethkey;
 	use network::PeerId;
-	use tests::helpers::*;
+	use tests::helpers::{TestIo};
 	use tests::snapshot::TestSnapshotService;
 	use ethereum_types::{H256, U256, Address};
 	use parking_lot::RwLock;
@@ -2260,6 +2330,7 @@ mod tests {
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo, BlockInfo};
 	use ethcore::miner::MinerService;
 	use transaction::UnverifiedTransaction;
+	use private_tx::NoopPrivateTxHandler;
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();
@@ -2483,7 +2554,7 @@ mod tests {
 	}
 
 	fn dummy_sync_with_peer(peer_latest_hash: H256, client: &BlockChainClient) -> ChainSync {
-		let mut sync = ChainSync::new(SyncConfig::default(), client);
+		let mut sync = ChainSync::new(SyncConfig::default(), client, Arc::new(NoopPrivateTxHandler));
 		insert_dummy_peer(&mut sync, 0, peer_latest_hash);
 		sync
 	}
@@ -2608,7 +2679,7 @@ mod tests {
 		client.add_blocks(2, EachBlockWith::Uncle);
 		let queue = RwLock::new(VecDeque::new());
 		let block = client.block(BlockId::Latest).unwrap().into_inner();
-		let mut sync = ChainSync::new(SyncConfig::default(), &client);
+		let mut sync = ChainSync::new(SyncConfig::default(), &client, Arc::new(NoopPrivateTxHandler));
 		sync.peers.insert(0,
 			PeerInfo {
 				// Messaging protocol
@@ -2695,7 +2766,7 @@ mod tests {
 		client.add_blocks(100, EachBlockWith::Uncle);
 		client.insert_transaction_to_queue();
 		// Sync with no peers
-		let mut sync = ChainSync::new(SyncConfig::default(), &client);
+		let mut sync = ChainSync::new(SyncConfig::default(), &client, Arc::new(NoopPrivateTxHandler));
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
@@ -2765,7 +2836,7 @@ mod tests {
 		let mut client = TestBlockChainClient::new();
 		client.insert_transaction_with_gas_price_to_queue(U256::zero());
 		let block_hash = client.block_hash_delta_minus(1);
-		let mut sync = ChainSync::new(SyncConfig::default(), &client);
+		let mut sync = ChainSync::new(SyncConfig::default(), &client, Arc::new(NoopPrivateTxHandler));
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);
@@ -2798,7 +2869,7 @@ mod tests {
 		let tx1_hash = client.insert_transaction_to_queue();
 		let tx2_hash = client.insert_transaction_with_gas_price_to_queue(U256::zero());
 		let block_hash = client.block_hash_delta_minus(1);
-		let mut sync = ChainSync::new(SyncConfig::default(), &client);
+		let mut sync = ChainSync::new(SyncConfig::default(), &client, Arc::new(NoopPrivateTxHandler));
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();
 		let mut io = TestIo::new(&mut client, &ss, &queue, None);

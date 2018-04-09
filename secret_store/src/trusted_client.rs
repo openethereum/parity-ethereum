@@ -15,24 +15,35 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Weak};
-use ethcore::client::{Client, BlockChainClient, ChainInfo};
+use bytes::Bytes;
+use ethereum_types::Address;
+use ethcore::client::{Client, BlockChainClient, ChainInfo, Nonce};
+use ethcore::miner::{Miner, MinerService};
 use ethsync::SyncProvider;
+use transaction::{Transaction, SignedTransaction, Action};
+use {Error, NodeKeyPair};
 
 #[derive(Clone)]
 /// 'Trusted' client weak reference.
 pub struct TrustedClient {
+	/// This key server node key pair.
+	self_key_pair: Arc<NodeKeyPair>,
 	/// Blockchain client.
 	client: Weak<Client>,
 	/// Sync provider.
 	sync: Weak<SyncProvider>,
+	/// Miner service.
+	miner: Weak<Miner>,
 }
 
 impl TrustedClient {
 	/// Create new trusted client.
-	pub fn new(client: Arc<Client>, sync: Arc<SyncProvider>) -> Self {
+	pub fn new(self_key_pair: Arc<NodeKeyPair>, client: Arc<Client>, sync: Arc<SyncProvider>, miner: Arc<Miner>) -> Self {
 		TrustedClient {
+			self_key_pair: self_key_pair,
 			client: Arc::downgrade(&client),
 			sync: Arc::downgrade(&sync),
+			miner: Arc::downgrade(&miner),
 		}
 	}
 
@@ -53,5 +64,26 @@ impl TrustedClient {
 	/// Get untrusted `Client` reference.
 	pub fn get_untrusted(&self) -> Option<Arc<Client>> {
 		self.client.upgrade()
+	}
+
+	/// Transact contract.
+	pub fn transact_contract(&self, contract: Address, tx_data: Bytes) -> Result<(), Error> {
+		let client = self.client.upgrade().ok_or_else(|| Error::Internal("cannot submit tx when client is offline".into()))?;
+		let miner = self.miner.upgrade().ok_or_else(|| Error::Internal("cannot submit tx when miner is offline".into()))?;
+		let engine = client.engine();
+		let transaction = Transaction {
+			nonce: client.latest_nonce(&self.self_key_pair.address()),
+			action: Action::Call(contract),
+			gas: miner.gas_floor_target(),
+			gas_price: miner.sensible_gas_price(),
+			value: Default::default(),
+			data: tx_data,
+		};
+		let chain_id = engine.signing_chain_id(&client.latest_env_info());
+		let signature = self.self_key_pair.sign(&transaction.hash(chain_id))?;
+		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
+		miner.import_own_transaction(&*client, signed.into())
+			.map_err(|e| Error::Internal(format!("failed to import tx: {}", e)))
+			.map(|_| ())
 	}
 }

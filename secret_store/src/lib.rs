@@ -19,6 +19,7 @@ extern crate ethabi;
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_logger as logger;
+extern crate ethcore_transaction as transaction;
 extern crate ethcrypto;
 extern crate ethereum_types;
 extern crate ethkey;
@@ -68,6 +69,7 @@ mod trusted_client;
 
 use std::sync::Arc;
 use ethcore::client::Client;
+use ethcore::miner::Miner;
 use ethsync::SyncProvider;
 
 pub use types::all::{ServerKeyId, EncryptedDocumentKey, RequestSignature, Public,
@@ -76,8 +78,8 @@ pub use traits::{NodeKeyPair, KeyServer};
 pub use self::node_key_pair::{PlainNodeKeyPair, KeyStoreNodeKeyPair};
 
 /// Start new key server instance
-pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, self_key_pair: Arc<NodeKeyPair>, config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
-	let trusted_client = trusted_client::TrustedClient::new(client.clone(), sync);
+pub fn start(client: Arc<Client>, sync: Arc<SyncProvider>, miner: Arc<Miner>, self_key_pair: Arc<NodeKeyPair>, config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
+	let trusted_client = trusted_client::TrustedClient::new(self_key_pair.clone(), client.clone(), sync, miner);
 	let acl_storage: Arc<acl_storage::AclStorage> = if config.acl_check_enabled {
 			acl_storage::OnChainAclStorage::new(trusted_client.clone())?
 		} else {
