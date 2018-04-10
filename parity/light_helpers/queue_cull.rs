@@ -70,7 +70,7 @@ impl<T: LightChainClient + 'static> IoHandler<ClientIoMessage> for QueueCull<T> 
 		let start_nonce = self.client.engine().account_start_nonce(best_header.number());
 
 		info!(target: "cull", "Attempting to cull queued transactions from {} senders.", senders.len());
-		self.remote.spawn_with_timeout(move || {
+		self.remote.spawn_with_timeout(move |_| {
 			let maybe_fetching = sync.with_context(move |ctx| {
 				// fetch the nonce of each sender in the queue.
 				let nonce_reqs = senders.iter()
