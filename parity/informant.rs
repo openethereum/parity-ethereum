@@ -29,7 +29,7 @@ use ethcore::client::{
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
 use ethcore::snapshot::service::Service as SnapshotService;
-use ethsync::{LightSyncProvider, LightSync, SyncProvider, ManageNetwork};
+use sync::{LightSyncProvider, LightSync, SyncProvider, ManageNetwork};
 use io::{TimerToken, IoContext, IoHandler};
 use isatty::{stdout_isatty};
 use light::Cache as LightDataCache;

@@ -32,7 +32,7 @@ use parking_lot::{Mutex, RwLock};
 use stats::Corpus;
 
 use ethkey::Signature;
-use ethsync::LightSync;
+use sync::LightSync;
 use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;

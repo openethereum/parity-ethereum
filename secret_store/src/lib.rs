@@ -19,11 +19,11 @@ extern crate ethabi;
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_logger as logger;
+extern crate ethcore_sync as sync;
 extern crate ethcore_transaction as transaction;
 extern crate ethcrypto;
 extern crate ethereum_types;
 extern crate ethkey;
-extern crate ethsync;
 extern crate futures_cpupool;
 extern crate hyper;
 extern crate keccak_hash as hash;
@@ -70,7 +70,7 @@ mod trusted_client;
 use std::sync::Arc;
 use ethcore::client::Client;
 use ethcore::miner::Miner;
-use ethsync::SyncProvider;
+use sync::SyncProvider;
 
 pub use types::all::{ServerKeyId, EncryptedDocumentKey, RequestSignature, Public,
 	Error, NodeAddress, ContractAddress, ServiceConfiguration, ClusterConfiguration};

@@ -77,10 +77,10 @@ impl Stratum {
 	) -> Result<Arc<Stratum>, Error> {
 
 		let implementation = Arc::new(StratumImpl {
-			subscribers: RwLock::new(Vec::new()),
-			job_que: RwLock::new(HashSet::new()),
+			subscribers: RwLock::default(),
+			job_que: RwLock::default(),
 			dispatcher,
-			workers: Arc::new(RwLock::new(HashMap::new())),
+			workers: Arc::new(RwLock::default()),
 			secret,
 			notify_counter: RwLock::new(NOTIFY_COUNTER_INITIAL),
 		});
@@ -323,7 +323,6 @@ impl MetaExtractor<SocketMetadata> for PeerMetaExtractor {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::str::FromStr;
 	use std::net::SocketAddr;
 	use std::sync::Arc;
 
@@ -366,7 +365,7 @@ mod tests {
 
 	#[test]
 	fn can_be_started() {
-		let stratum = Stratum::start(&SocketAddr::from_str("127.0.0.1:19980").unwrap(), Arc::new(VoidManager), None);
+		let stratum = Stratum::start(&"127.0.0.1:19980".parse().unwrap(), Arc::new(VoidManager), None);
 		assert!(stratum.is_ok());
 	}
 
@@ -374,7 +373,7 @@ mod tests {
 	fn records_subscriber() {
 		init_log();
 
-		let addr = SocketAddr::from_str("127.0.0.1:19985").unwrap();
+		let addr = "127.0.0.1:19985".parse().unwrap();
 		let stratum = Stratum::start(&addr, Arc::new(VoidManager), None).unwrap();
 		let request = r#"{"jsonrpc": "2.0", "method": "mining.subscribe", "params": [], "id": 1}"#;
 		dummy_request(&addr, request);
@@ -419,7 +418,7 @@ mod tests {
 
 	#[test]
 	fn receives_initial_paylaod() {
-		let addr = SocketAddr::from_str("127.0.0.1:19975").unwrap();
+		let addr = "127.0.0.1:19975".parse().unwrap();
 		let _stratum = Stratum::start(&addr, DummyManager::new(), None).expect("There should be no error starting stratum");
 		let request = r#"{"jsonrpc": "2.0", "method": "mining.subscribe", "params": [], "id": 2}"#;
 
@@ -430,7 +429,7 @@ mod tests {
 
 	#[test]
 	fn can_authorize() {
-		let addr = SocketAddr::from_str("127.0.0.1:19970").unwrap();
+		let addr = "127.0.0.1:19970".parse().unwrap();
 		let stratum = Stratum::start(
 			&addr,
 			Arc::new(DummyManager::build().of_initial(r#"["dummy autorize payload"]"#)),
@@ -448,7 +447,7 @@ mod tests {
 	fn can_push_work() {
 		init_log();
 
-		let addr = SocketAddr::from_str("127.0.0.1:19995").unwrap();
+		let addr = "127.0.0.1:19995".parse().unwrap();
 		let stratum = Stratum::start(
 			&addr,
 			Arc::new(DummyManager::build().of_initial(r#"["dummy autorize payload"]"#)),
