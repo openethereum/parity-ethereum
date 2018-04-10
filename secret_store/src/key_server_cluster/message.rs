@@ -18,8 +18,8 @@ use std::fmt;
 use std::collections::{BTreeSet, BTreeMap};
 use ethkey::Secret;
 use key_server_cluster::SessionId;
-use super::{SerializableH256, SerializablePublic, SerializableSecret, SerializableSignature,
-	SerializableMessageHash, SerializableRequester, SerializableAddress};
+use super::{Error, SerializableH256, SerializablePublic, SerializableSecret,
+	SerializableSignature, SerializableMessageHash, SerializableRequester, SerializableAddress};
 
 pub type MessageSessionId = SerializableH256;
 pub type MessageNodeId = SerializablePublic;
@@ -346,7 +346,7 @@ pub struct SessionError {
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Error message.
-	pub error: String,
+	pub error: Error,
 }
 
 /// When session is completed.
@@ -390,7 +390,7 @@ pub struct EncryptionSessionError {
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Error message.
-	pub error: String,
+	pub error: Error,
 }
 
 /// Node is asked to be part of consensus group.
@@ -509,7 +509,7 @@ pub struct SchnorrSigningSessionError {
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Error message.
-	pub error: String,
+	pub error: Error,
 }
 
 /// Schnorr signing session completed.
@@ -662,7 +662,7 @@ pub struct EcdsaSigningSessionError {
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Error message.
-	pub error: String,
+	pub error: Error,
 }
 
 /// ECDSA signing session completed.
@@ -769,7 +769,7 @@ pub struct DecryptionSessionError {
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Error message.
-	pub error: String,
+	pub error: Error,
 }
 
 /// When decryption session is completed.
@@ -936,7 +936,7 @@ pub struct ServersSetChangeError {
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Error message.
-	pub error: String,
+	pub error: Error,
 }
 
 /// When servers set change session is completed.
@@ -999,7 +999,7 @@ pub struct ShareAddError {
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Error message.
-	pub error: String,
+	pub error: Error,
 }
 
 /// Key versions are requested.
@@ -1038,7 +1038,7 @@ pub struct KeyVersionsError {
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Error message.
-	pub error: String,
+	pub error: Error,
 }
 
 impl Message {

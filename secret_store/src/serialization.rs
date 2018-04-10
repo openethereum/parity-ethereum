@@ -22,7 +22,7 @@ use serde::de::{Visitor, Error as SerdeError};
 use ethkey::{Public, Secret, Signature};
 use ethereum_types::{H160, H256};
 use bytes::Bytes;
-use types::all::Requester;
+use types::Requester;
 
 macro_rules! impl_bytes_deserialize {
 	($name: ident, $value: expr, true) => {
