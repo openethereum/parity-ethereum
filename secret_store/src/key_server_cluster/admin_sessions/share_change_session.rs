@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use ethereum_types::H256;
 use ethkey::Secret;
-use key_server_cluster::{Error, NodeId, SessionId, KeyStorage};
+use key_server_cluster::{Error, NodeId, SessionId, ServerKeyId, KeyStorage};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::math;
@@ -235,7 +235,24 @@ impl ShareAddSessionTransport for ShareChangeTransport {
 }
 
 /// Prepare share change plan for moving from old `old_key_version_owners` to `new_nodes_set`.
-pub fn prepare_share_change_session_plan(cluster_nodes: &BTreeSet<NodeId>, threshold: usize, key_version: H256, master: &NodeId, old_key_version_owners: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>) -> Result<ShareChangeSessionPlan, Error> {
+pub fn prepare_share_change_session_plan(cluster_nodes: &BTreeSet<NodeId>, threshold: usize, key_id: &ServerKeyId, key_version: H256, master: &NodeId, old_key_version_owners: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>) -> Result<ShareChangeSessionPlan, Error> {
+	// we can't do anything if there are no enought shares
+	if old_key_version_owners.len() < threshold + 1 {
+		warn!("cannot add shares to key {} with threshold {}: only {} shares owners are available",
+			key_id, threshold, old_key_version_owners.len());
+		return Ok(ShareChangeSessionPlan {
+			key_version: key_version,
+			consensus_group: Default::default(),
+			new_nodes_map: Default::default(),
+		});
+	}
+
+	// warn if we're loosing the key
+	if new_nodes_set.len() < threshold + 1 {
+		warn!("losing key {} with threshold {}: only {} nodes left after servers set change session",
+			key_id, threshold, new_nodes_set.len());
+	}
+
 	// make new nodes map, so that:
 	// all non-isolated old nodes will have their id number preserved
 	// all new nodes will have new id number
@@ -285,7 +302,8 @@ mod tests {
 		let master = cluster_nodes[0].clone();
 		let old_key_version_owners = cluster_nodes.iter().cloned().collect();
 		let new_nodes_set = cluster_nodes.iter().cloned().collect();
-		let plan = prepare_share_change_session_plan(&cluster_nodes.iter().cloned().collect(), 1, Default::default(), &master, &old_key_version_owners, &new_nodes_set).unwrap();
+		let plan = prepare_share_change_session_plan(&cluster_nodes.iter().cloned().collect(),
+			1, &Default::default(), Default::default(), &master, &old_key_version_owners, &new_nodes_set).unwrap();
 
 		assert!(plan.is_empty());
 	}
@@ -296,7 +314,8 @@ mod tests {
 		let master = cluster_nodes[0].clone();
 		let old_key_version_owners = cluster_nodes[0..2].iter().cloned().collect();
 		let new_nodes_set = cluster_nodes.iter().cloned().collect();
-		let plan = prepare_share_change_session_plan(&cluster_nodes.iter().cloned().collect(), 1, Default::default(), &master, &old_key_version_owners, &new_nodes_set).unwrap();
+		let plan = prepare_share_change_session_plan(&cluster_nodes.iter().cloned().collect(),
+			1, &Default::default(), Default::default(), &master, &old_key_version_owners, &new_nodes_set).unwrap();
 
 		assert!(!plan.is_empty());
 		assert_eq!(old_key_version_owners, plan.consensus_group);
