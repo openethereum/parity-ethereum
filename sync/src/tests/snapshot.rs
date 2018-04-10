@@ -24,7 +24,7 @@ use ethcore::snapshot::{SnapshotService, ManifestData, RestorationStatus};
 use ethcore::header::BlockNumber;
 use ethcore::client::{EachBlockWith};
 use super::helpers::*;
-use SyncConfig;
+use {SyncConfig, WarpSync};
 
 pub struct TestSnapshotService {
 	manifest: Option<ManifestData>,
@@ -127,7 +127,7 @@ impl SnapshotService for TestSnapshotService {
 fn snapshot_sync() {
 	::env_logger::init().ok();
 	let mut config = SyncConfig::default();
-	config.warp_sync = true;
+	config.warp_sync = WarpSync::Enabled;
 	let mut net = TestNet::new_with_config(5, config);
 	let snapshot_service = Arc::new(TestSnapshotService::new_with_snapshot(16, H256::new(), 500000));
 	for i in 0..4 {

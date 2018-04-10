@@ -143,7 +143,7 @@ impl Configuration {
 			if self.args.cmd_signer_new_token {
 				Cmd::SignerToken(ws_conf, ui_conf, logger_config.clone())
 			} else if self.args.cmd_signer_sign {
-				let pwfile = self.args.arg_password.first().map(|pwfile| {
+				let pwfile = self.accounts_config()?.password_files.first().map(|pwfile| {
 					PathBuf::from(pwfile)
 				});
 				Cmd::SignerSign {
@@ -180,7 +180,7 @@ impl Configuration {
 					iterations: self.args.arg_keys_iterations,
 					path: dirs.keys,
 					spec: spec,
-					password_file: self.args.arg_password.first().map(|x| x.to_owned()),
+					password_file: self.accounts_config()?.password_files.first().map(|x| x.to_owned()),
 				};
 				AccountCmd::New(new_acc)
 			} else if self.args.cmd_account_list {
@@ -214,8 +214,8 @@ impl Configuration {
 				iterations: self.args.arg_keys_iterations,
 				path: dirs.keys,
 				spec: spec,
-				wallet_path: self.args.arg_wallet_import_path.unwrap().clone(),
-				password_file: self.args.arg_password.first().map(|x| x.to_owned()),
+				wallet_path: self.args.arg_wallet_import_path.clone().unwrap(),
+				password_file: self.accounts_config()?.password_files.first().map(|x| x.to_owned()),
 			};
 			Cmd::ImportPresaleWallet(presale_cmd)
 		} else if self.args.cmd_import {
@@ -356,6 +356,7 @@ impl Configuration {
 				wal: wal,
 				vm_type: vm_type,
 				warp_sync: warp_sync,
+				warp_barrier: self.args.arg_warp_barrier,
 				public_node: public_node,
 				geth_compatibility: geth_compatibility,
 				net_settings: self.network_settings()?,
@@ -438,7 +439,7 @@ impl Configuration {
 		LogConfig {
 			mode: self.args.arg_logging.clone(),
 			color: !self.args.flag_no_color && !cfg!(windows),
-			file: self.args.arg_log_file.clone(),
+			file: self.args.arg_log_file.as_ref().map(|log_file| replace_home(&self.directories().base, log_file)),
 		}
 	}
 
@@ -487,7 +488,7 @@ impl Configuration {
 			iterations: self.args.arg_keys_iterations,
 			refresh_time: self.args.arg_accounts_refresh,
 			testnet: self.args.flag_testnet,
-			password_files: self.args.arg_password.clone(),
+			password_files: self.args.arg_password.iter().map(|s| replace_home(&self.directories().base, s)).collect(),
 			unlocked_accounts: to_addresses(&self.args.arg_unlock)?,
 			enable_hardware_wallets: !self.args.flag_no_hardware_wallets,
 			enable_fast_unlock: self.args.flag_fast_unlock,
@@ -560,11 +561,13 @@ impl Configuration {
 	}
 
 	fn ui_config(&self) -> UiConfiguration {
+		let ui = self.ui_enabled();
 		UiConfiguration {
-			enabled: self.ui_enabled(),
+			enabled: ui.enabled,
 			interface: self.ui_interface(),
 			port: self.ui_port(),
 			hosts: self.ui_hosts(),
+			info_page_only: ui.info_page_only,
 		}
 	}
 
@@ -703,8 +706,10 @@ impl Configuration {
 
 		match self.args.arg_reserved_peers {
 			Some(ref path) => {
+				let path = replace_home(&self.directories().base, path);
+
 				let mut buffer = String::new();
-				let mut node_file = File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e))?;
+				let mut node_file = File::open(&path).map_err(|e| format!("Error opening reserved nodes file: {}", e))?;
 				node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file")?;
 				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty() && !s.starts_with("#")).collect::<Vec<_>>();
 
@@ -1111,16 +1116,22 @@ impl Configuration {
 		})
 	}
 
-	fn ui_enabled(&self) -> bool {
+	fn ui_enabled(&self) -> UiEnabled {
 		if self.args.flag_force_ui {
-			return true;
+			return UiEnabled {
+				enabled: true,
+				info_page_only: false,
+			};
 		}
 
 		let ui_disabled = self.args.arg_unlock.is_some() ||
 			self.args.flag_geth ||
 			self.args.flag_no_ui;
 
-		self.args.cmd_ui && !ui_disabled && cfg!(feature = "ui-enabled")
+		return UiEnabled {
+			enabled: (self.args.cmd_ui || !ui_disabled) && cfg!(feature = "ui-enabled"),
+			info_page_only: !self.args.cmd_ui,
+		}
 	}
 
 	fn verifier_settings(&self) -> VerifierSettings {
@@ -1139,6 +1150,12 @@ impl Configuration {
 			target_message_pool_size: self.args.arg_whisper_pool_size * 1024 * 1024,
 		}
 	}
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+struct UiEnabled {
+	pub enabled: bool,
+	pub info_page_only: bool,
 }
 
 #[cfg(test)]
@@ -1345,14 +1362,15 @@ mod tests {
 			origins: Some(vec!["parity://*".into(),"chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
-			ui_address: None,
+			ui_address: Some("127.0.0.1:8180".into()),
 			dapps_address: Some("127.0.0.1:8545".into()),
 			support_token_api: true
 		}, UiConfiguration {
-			enabled: false,
+			enabled: true,
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
+			info_page_only: true,
 		}, LogConfig {
             color: true,
             mode: None,
@@ -1388,6 +1406,7 @@ mod tests {
 			network_id: None,
 			public_node: false,
 			warp_sync: true,
+			warp_barrier: None,
 			acc_conf: Default::default(),
 			gas_pricer_conf: Default::default(),
 			miner_extras: Default::default(),
@@ -1599,10 +1618,26 @@ mod tests {
 		// when
 		let conf0 = parse(&["parity", "--geth"]);
 		let conf1 = parse(&["parity", "--geth", "--force-ui"]);
+		let conf2 = parse(&["parity", "--geth", "ui"]);
+		let conf3 = parse(&["parity"]);
 
 		// then
-		assert_eq!(conf0.ui_enabled(), false);
-		assert_eq!(conf1.ui_enabled(), true);
+		assert_eq!(conf0.ui_enabled(), UiEnabled {
+			enabled: false,
+			info_page_only: true,
+		});
+		assert_eq!(conf1.ui_enabled(), UiEnabled {
+			enabled: true,
+			info_page_only: false,
+		});
+		assert_eq!(conf2.ui_enabled(), UiEnabled {
+			enabled: true,
+			info_page_only: false,
+		});
+		assert_eq!(conf3.ui_enabled(), UiEnabled {
+			enabled: true,
+			info_page_only: true,
+		});
 	}
 
 	#[test]
@@ -1613,7 +1648,10 @@ mod tests {
 		let conf0 = parse(&["parity", "--unlock", "0x0"]);
 
 		// then
-		assert_eq!(conf0.ui_enabled(), false);
+		assert_eq!(conf0.ui_enabled(), UiEnabled {
+			enabled: false,
+			info_page_only: true,
+		});
 	}
 
 	#[test]
@@ -1631,11 +1669,45 @@ mod tests {
 		// then
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
-			enabled: false,
+			enabled: true,
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
+			info_page_only: true,
 		});
+
+		assert!(conf1.ws_config().unwrap().hosts.is_some());
+		assert_eq!(conf1.ws_config().unwrap().origins, None);
+		assert_eq!(conf1.directories().signer, "signer".to_owned());
+		assert_eq!(conf1.ui_config(), UiConfiguration {
+			enabled: true,
+			interface: "127.0.0.1".into(),
+			port: 8180,
+			hosts: Some(vec![]),
+			info_page_only: true,
+		});
+		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("127.0.0.1".to_owned(), 3000)]);
+
+		assert!(conf2.ws_config().unwrap().hosts.is_some());
+		assert_eq!(conf2.directories().signer, "signer".to_owned());
+		assert_eq!(conf2.ui_config(), UiConfiguration {
+			enabled: true,
+			interface: "127.0.0.1".into(),
+			port: 3123,
+			hosts: Some(vec![]),
+			info_page_only: true,
+		});
+
+		assert!(conf3.ws_config().unwrap().hosts.is_some());
+		assert_eq!(conf3.directories().signer, "signer".to_owned());
+		assert_eq!(conf3.ui_config(), UiConfiguration {
+			enabled: true,
+			interface: "test".into(),
+			port: 8180,
+			hosts: Some(vec![]),
+			info_page_only: true,
+		});
+
 		assert!(conf4.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf4.directories().signer, "signer".to_owned());
 		assert_eq!(conf4.ui_config(), UiConfiguration {
@@ -1643,8 +1715,9 @@ mod tests {
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
+			info_page_only: false,
 		});
-		assert!(conf5.ws_config().unwrap().hosts.is_some());
+
 		assert!(conf5.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf5.directories().signer, "signer".to_owned());
 		assert_eq!(conf5.ui_config(), UiConfiguration {
@@ -1652,33 +1725,8 @@ mod tests {
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
+			info_page_only: false,
 		});
-		assert!(conf5.ws_config().unwrap().hosts.is_some());
-		assert_eq!(conf1.directories().signer, "signer".to_owned());
-		assert_eq!(conf1.ui_config(), UiConfiguration {
-			enabled: false,
-			interface: "127.0.0.1".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-		});
-		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("127.0.0.1".to_owned(), 3000)]);
-		assert_eq!(conf1.ws_config().unwrap().origins, None);
-		assert_eq!(conf2.directories().signer, "signer".to_owned());
-		assert_eq!(conf2.ui_config(), UiConfiguration {
-			enabled: false,
-			interface: "127.0.0.1".into(),
-			port: 3123,
-			hosts: Some(vec![]),
-		});
-		assert!(conf2.ws_config().unwrap().hosts.is_some());
-		assert_eq!(conf3.directories().signer, "signer".to_owned());
-		assert_eq!(conf3.ui_config(), UiConfiguration {
-			enabled: false,
-			interface: "test".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-		});
-		assert!(conf3.ws_config().unwrap().hosts.is_some());
 	}
 
 	#[test]
