@@ -39,7 +39,6 @@ echo "________Validate chainspecs________"
 ./scripts/validate_chainspecs.sh
 fi
 
-
 # Running test's
 echo "________Running Parity Full Test Suite________"
 
