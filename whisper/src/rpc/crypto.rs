@@ -107,12 +107,10 @@ impl EncryptionInstance {
 					}
 					AesEncode::OnTopics(topics) => {
 						let mut buf = Vec::new();
-						let key = H256(key.into());
-
-						for topic in topics {
-							buf.extend(&*(topic ^ key));
+						for mut t in topics {
+							xor(&mut t.0, &key);
+							buf.extend(&t.0);
 						}
-
 						encrypt_plain(&mut buf);
 						buf
 					}
@@ -123,6 +121,13 @@ impl EncryptionInstance {
 					.expect("validity of public key an invariant of the type; qed")
 			}
 		}
+	}
+}
+
+#[inline]
+fn xor(a: &mut [u8; 32], b: &[u8; 32]) {
+	for i in 0 .. 32 {
+		a[i] ^= b[i]
 	}
 }
 

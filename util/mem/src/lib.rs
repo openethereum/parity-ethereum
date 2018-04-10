@@ -55,21 +55,3 @@ impl<T: AsMut<[u8]>> DerefMut for Memzero<T> {
 	}
 }
 
-impl Into<[u8; 8]> for Memzero<[u8; 8]> {
-	fn into(self) -> [u8; 8] {
-		self.mem
-	}
-}
-
-impl Into<[u8; 16]> for Memzero<[u8; 16]> {
-	fn into(self) -> [u8; 16] {
-		self.mem
-	}
-}
-
-impl Into<[u8; 32]> for Memzero<[u8; 32]> {
-	fn into(self) -> [u8; 32] {
-		self.mem
-	}
-}
-
