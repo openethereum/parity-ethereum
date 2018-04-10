@@ -198,47 +198,9 @@ mod tests {
 	use std::sync::{Arc, mpsc};
 	use parking_lot::Mutex;
 	use futures_cpupool::CpuPool;
-	use fetch::{self, Fetch, Url, Request};
 	use parity_reactor::Remote;
 	use urlhint::tests::{FakeRegistrar, URLHINT};
 	use super::{Error, Client, HashFetch, random_temp_path};
-	use self::hyper::StatusCode;
-
-
-	#[derive(Clone)]
-	struct FakeFetch {
-		return_success: bool
-	}
-
-	impl Fetch for FakeFetch {
-		type Result = future::Ok<fetch::Response, fetch::Error>;
-
-		fn fetch(&self, request: Request, abort: fetch::Abort) -> Self::Result {
-			assert_eq!(request.url().as_str(), "https://parity.io/assets/images/ethcore-black-horizontal.png");
-			let u = request.url().clone();
-			future::ok(if self.return_success {
-				fetch::client::Response::new(u, hyper::Response::new().with_body(&b"result"[..]), abort)
-			} else {
-				fetch::client::Response::new(u, hyper::Response::new().with_status(StatusCode::NotFound), abort)
-			})
-		}
-
-		fn get(&self, url: &str, abort: fetch::Abort) -> Self::Result {
-			let url: Url = match url.parse() {
-				Ok(u) => u,
-				Err(e) => return future::err(e.into())
-			};
-			self.fetch(Request::get(url), abort)
-		}
-
-		fn post(&self, url: &str, abort: fetch::Abort) -> Self::Result {
-			let url: Url = match url.parse() {
-				Ok(u) => u,
-				Err(e) => return future::err(e.into())
-			};
-			self.fetch(Request::post(url), abort)
-		}
-	}
 
 	fn registrar() -> FakeRegistrar {
 		let mut registrar = FakeRegistrar::new();

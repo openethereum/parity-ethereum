@@ -2162,7 +2162,6 @@ dependencies = [
  "ethjson 0.1.0",
  "ethkey 0.3.0",
  "ethstore 0.2.0",
- "ethsync 1.11.0",
  "fake-fetch 0.0.1",
  "fetch 0.1.0",
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -20,8 +20,7 @@ extern crate futures;
 
 use hyper::StatusCode;
 use futures::{future, future::FutureResult};
-use fetch::{Fetch, Url, Method};
-
+use fetch::{Fetch, Url, Request};
 
 #[derive(Clone, Default)]
 pub struct FakeFetch {
@@ -37,8 +36,8 @@ impl FakeFetch {
 impl Fetch for FakeFetch {
 	type Result = FutureResult<fetch::Response, fetch::Error>;
 
-	fn fetch(&self, url: &str, _method: Method, abort: fetch::Abort) -> Self::Result {
-		let u = Url::parse(url).unwrap();
+	fn fetch(&self, request: Request, abort: fetch::Abort) -> Self::Result {
+		let u = request.url().clone();
 		future::ok(if self.success {
 			let r = hyper::Response::new().with_body(&b"Some content"[..]);
 			fetch::client::Response::new(u, r, abort)
