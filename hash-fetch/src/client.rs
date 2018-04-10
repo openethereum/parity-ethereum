@@ -197,7 +197,6 @@ mod tests {
 	use rustc_hex::FromHex;
 	use std::sync::{Arc, mpsc};
 	use parking_lot::Mutex;
-	use futures::future;
 	use futures_cpupool::CpuPool;
 	use fetch::{self, Fetch, Url, Request};
 	use parity_reactor::Remote;
@@ -304,7 +303,7 @@ mod tests {
 
 		// then
 		let result = rx.recv().unwrap();
-		let hash = "0x06b0a4f426f6713234b2d4b2468640bc4e0bb72657a920ad24c5087153c593c8".into();
+		let hash = "0x2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e".into();
 		assert_eq!(result.unwrap_err(), Error::HashMismatch { expected: 2.into(), got: hash });
 		assert!(!path.exists(), "Temporary file should be removed.");
 	}
@@ -318,7 +317,7 @@ mod tests {
 
 		// when
 		let (tx, rx) = mpsc::channel();
-		client.fetch("0x06b0a4f426f6713234b2d4b2468640bc4e0bb72657a920ad24c5087153c593c8".into(),
+		client.fetch("0x2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e".into(),
 			Default::default(),
 			Box::new(move |result| { tx.send(result).unwrap(); }));
 
