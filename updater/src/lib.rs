@@ -19,8 +19,8 @@
 extern crate ethabi;
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
+extern crate ethcore_sync as sync;
 extern crate ethereum_types;
-extern crate ethsync;
 extern crate keccak_hash as hash;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_version as version;

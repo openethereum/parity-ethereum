@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethsync::{ManageNetwork, NetworkConfiguration};
+use sync::{ManageNetwork, NetworkConfiguration};
 use self::ethcore_network::{ProtocolId, NetworkContext};
 
 extern crate ethcore_network;
