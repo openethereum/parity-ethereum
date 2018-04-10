@@ -113,8 +113,6 @@ impl EncryptionInstance {
 							buf.extend(&*(topic ^ key));
 						}
 
-						let _ = Memzero::from(key.0);
-
 						encrypt_plain(&mut buf);
 						buf
 					}
