@@ -13,7 +13,7 @@ build = "build.rs"
 track = "beta"
 
 # Indicates a critical release in this track (i.e. consensus issue)
-critical = true
+critical = false
 
 # Latest supported fork blocks for various networks. Used ONLY by auto-updater.
 [package.metadata.forks]
