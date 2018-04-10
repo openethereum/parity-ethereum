@@ -36,7 +36,7 @@ use ethcore_miner::transaction_queue::{
 	TransactionOrigin,
 };
 use futures_cpupool::CpuPool;
-use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
+use ethcore_miner::work_notify::NotifyWork;
 use miner::service_transaction_checker::ServiceTransactionChecker;
 use miner::{MinerService, MinerStatus};
 use price_info::fetch::Client as FetchClient;
@@ -104,8 +104,6 @@ pub enum Banning {
 /// Configures the behaviour of the miner.
 #[derive(Debug, PartialEq)]
 pub struct MinerOptions {
-	/// URLs to notify when there is new work.
-	pub new_work_notify: Vec<String>,
 	/// Force the miner to reseal, even when nobody has asked for work.
 	pub force_sealing: bool,
 	/// Reseal on receipt of new external transactions.
@@ -147,7 +145,6 @@ pub struct MinerOptions {
 impl Default for MinerOptions {
 	fn default() -> Self {
 		MinerOptions {
-			new_work_notify: vec![],
 			force_sealing: false,
 			reseal_on_external_tx: false,
 			reseal_on_own_tx: true,
@@ -305,10 +302,7 @@ impl Miner {
 			),
 		};
 
-		let notifiers: Vec<Box<NotifyWork>> = match options.new_work_notify.is_empty() {
-			true => Vec::new(),
-			false => vec![Box::new(WorkPoster::new(&options.new_work_notify))],
-		};
+		let notifiers: Vec<Box<NotifyWork>> = Vec::new();
 
 		let service_transaction_action = match options.refuse_service_transactions {
 			true => ServiceTransactionAction::Refuse,
@@ -324,7 +318,6 @@ impl Miner {
 			sealing_work: Mutex::new(SealingWork{
 				queue: UsingQueue::new(options.work_queue_size),
 				enabled: options.force_sealing
-					|| !options.new_work_notify.is_empty()
 					|| spec.engine.seals_internally().is_some()
 			}),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
@@ -1364,7 +1357,6 @@ mod tests {
 	fn miner() -> Miner {
 		Arc::try_unwrap(Miner::new(
 			MinerOptions {
-				new_work_notify: Vec::new(),
 				force_sealing: false,
 				reseal_on_external_tx: false,
 				reseal_on_own_tx: true,

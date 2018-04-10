@@ -7,9 +7,6 @@ version = "1.11.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-# TODO [ToDr] Rewrite using reqwest
-hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
-
 common-types = { path = "../ethcore/types" }
 ethabi = "5.1"
 ethabi-contract = "5.0"
@@ -27,3 +24,7 @@ parking_lot = "0.5"
 rustc-hex = "1.0"
 table = { path = "../util/table" }
 transient-hashmap = "0.4"
+fetch = { path = "../util/fetch" }
+parity-reactor = { path = "../util/reactor" }
+url = "1"
+hyper = "0.11"

@@ -35,6 +35,7 @@ use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use sync::{self, SyncConfig};
+use miner::work_notify::WorkPoster;
 use fdlimit::raise_fd_limit;
 use futures_cpupool::CpuPool;
 use hash_fetch::{self, fetch};
@@ -137,6 +138,7 @@ pub struct RunCmd {
 	pub no_persistent_txqueue: bool,
 	pub whisper: ::whisper::Config,
 	pub no_hardcoded_sync: bool,
+	pub work_notify: Vec<String>,
 }
 
 pub fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> Result<(), String> {
@@ -549,6 +551,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	let cpu_pool = CpuPool::new(4);
 
+	// spin up event loop
+	let event_loop = EventLoop::spawn();
+
 	// fetch service
 	let fetch = fetch::Client::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 
@@ -561,6 +566,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	miner.set_extra_data(cmd.miner_extras.extra_data);
 	miner.set_minimal_gas_price(initial_min_gas_price);
 	miner.recalibrate_minimal_gas_price();
+	if !cmd.work_notify.is_empty() {
+		miner.push_notifier(Box::new(WorkPoster::new(&cmd.work_notify, fetch.clone(), event_loop.remote())));
+	}
 	let engine_signer = cmd.miner_extras.engine_signer;
 
 	if engine_signer != Default::default() {
@@ -729,9 +737,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	if network_enabled {
 		chain_notify.start();
 	}
-
-	// spin up event loop
-	let event_loop = EventLoop::spawn();
 
 	let contract_client = Arc::new(::dapps::FullRegistrar::new(client.clone()));
 

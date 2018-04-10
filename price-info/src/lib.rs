@@ -140,7 +140,7 @@ mod test {
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicBool, Ordering};
 	use fetch;
-	use fetch::{Fetch, Url, Method};
+	use fetch::{Fetch, Url, Request};
 	use futures_cpupool::CpuPool;
 	use futures::future::{self, FutureResult};
 	use Client;
@@ -158,9 +158,9 @@ mod test {
 	impl Fetch for FakeFetch {
 		type Result = FutureResult<fetch::Response, fetch::Error>;
 
-		fn fetch(&self, url: &str, _method: Method, abort: fetch::Abort) -> Self::Result {
-			assert_eq!(url, "https://api.etherscan.io/api?module=stats&action=ethprice");
-			let u = Url::parse(url).unwrap();
+		fn fetch(&self, request: Request, abort: fetch::Abort) -> Self::Result {
+			assert_eq!(request.url().as_str(), "https://api.etherscan.io/api?module=stats&action=ethprice");
+			let u = request.url().clone();
 			let mut val = self.1.lock();
 			*val = *val + 1;
 			if let Some(ref response) = self.0 {
@@ -170,6 +170,22 @@ mod test {
 				let r = hyper::Response::new().with_status(StatusCode::NotFound);
 				future::ok(fetch::client::Response::new(u, r, abort))
 			}
+		}
+
+		fn get(&self, url: &str, abort: fetch::Abort) -> Self::Result {
+			let url: Url = match url.parse() {
+				Ok(u) => u,
+				Err(e) => return future::err(e.into())
+			};
+			self.fetch(Request::get(url), abort)
+		}
+
+		fn post(&self, url: &str, abort: fetch::Abort) -> Self::Result {
+			let url: Url = match url.parse() {
+				Ok(u) => u,
+				Err(e) => return future::err(e.into())
+			};
+			self.fetch(Request::post(url), abort)
 		}
 	}
 
