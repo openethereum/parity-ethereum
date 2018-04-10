@@ -26,7 +26,7 @@ use ctrlc::CtrlC;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
 use ethcore::db::NUM_COLUMNS;
-use ethcore::ethstore::ethkey;
+use store::ethkey;
 use ethcore::miner::{Miner, MinerService, MinerOptions};
 use ethcore::miner::{StratumOptions, Stratum};
 use ethcore::snapshot;
@@ -1041,8 +1041,8 @@ fn print_running_environment(spec_name: &String, dirs: &Directories, db_dirs: &D
 }
 
 fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
-	use ethcore::ethstore::EthStore;
-	use ethcore::ethstore::accounts_dir::RootDiskDirectory;
+	use store::EthStore;
+	use store::accounts_dir::RootDiskDirectory;
 
 	let path = dirs.keys_path(data_dir);
 	upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);
@@ -1059,12 +1059,12 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 		},
 	};
 
-	let ethstore = EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?;
+	let store = EthStore::open_with_iterations(dir, cfg.iterations).map_err(|e| format!("Could not open keys directory: {}", e))?;
 	if cfg.refresh_time > 0 {
-		ethstore.set_refresh_time(::std::time::Duration::from_secs(cfg.refresh_time));
+		store.set_refresh_time(::std::time::Duration::from_secs(cfg.refresh_time));
 	}
 	let account_provider = AccountProvider::new(
-		Box::new(ethstore),
+		Box::new(store),
 		account_settings,
 	);
 

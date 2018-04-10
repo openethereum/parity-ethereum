@@ -54,7 +54,7 @@ mod account;
 mod json;
 
 mod error;
-mod ethstore;
+mod store;
 mod import;
 mod presale;
 mod random;
@@ -62,7 +62,7 @@ mod secret_store;
 
 pub use self::account::{SafeAccount, Crypto};
 pub use self::error::Error;
-pub use self::ethstore::{EthStore, EthMultiStore};
+pub use self::store::{EthStore, EthMultiStore};
 pub use self::import::{import_account, import_accounts, read_geth_accounts};
 pub use self::json::OpaqueKeyFile as KeyFile;
 pub use self::presale::PresaleWallet;

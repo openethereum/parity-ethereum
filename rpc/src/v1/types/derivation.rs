@@ -18,7 +18,7 @@ use std::fmt;
 use serde::{Deserialize, Deserializer};
 use serde::de::{Error, Visitor};
 
-use ethstore;
+use store;
 
 use super::hash::H256;
 
@@ -77,16 +77,16 @@ pub enum ConvertError {
 
 impl Derive {
 	/// Convert to account provider struct dealing with possible overflows
-	pub fn to_derivation(self) -> Result<ethstore::Derivation, ConvertError> {
+	pub fn to_derivation(self) -> Result<store::Derivation, ConvertError> {
 		Ok(match self {
 			Derive::Hierarchical(drv) => {
-				ethstore::Derivation::Hierarchical({
-					let mut members = Vec::<ethstore::IndexDerivation>::new();
+				store::Derivation::Hierarchical({
+					let mut members = Vec::<store::IndexDerivation>::new();
 					for h in drv {
 						if h.index > ::std::u32::MAX as u64 { return Err(ConvertError::IndexOverlfow(h.index)); }
 						members.push(match h.d_type {
-							DerivationType::Soft => ethstore::IndexDerivation { soft: true, index: h.index as u32 },
-							DerivationType::Hard => ethstore::IndexDerivation { soft: false, index: h.index as u32 },
+							DerivationType::Soft => store::IndexDerivation { soft: true, index: h.index as u32 },
+							DerivationType::Hard => store::IndexDerivation { soft: false, index: h.index as u32 },
 						});
 					}
 					members
@@ -94,8 +94,8 @@ impl Derive {
 			},
 			Derive::Hash(drv) => {
 				match drv.d_type {
-					DerivationType::Soft => ethstore::Derivation::SoftHash(drv.hash.into()),
-					DerivationType::Hard => ethstore::Derivation::HardHash(drv.hash.into()),
+					DerivationType::Soft => store::Derivation::SoftHash(drv.hash.into()),
+					DerivationType::Hard => store::Derivation::HardHash(drv.hash.into()),
 				}
 			},
 		})

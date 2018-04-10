@@ -14,23 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::io;
+use std::net::AddrParseError;
+use std::sync::Arc;
+
 use bytes::Bytes;
 use devp2p::{NetworkService, ConnectionFilter};
 use network::{NetworkProtocolHandler, NetworkContext, HostInfo, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind};
 use ethereum_types::{H256, H512, U256};
 use io::{TimerToken};
-use ethcore::ethstore::ethkey::Secret;
+use store::ethkey::Secret;
 use ethcore::client::{BlockChainClient, ChainNotify, ChainMessageType};
 use ethcore::snapshot::SnapshotService;
 use ethcore::header::BlockNumber;
 use sync_io::NetSyncIo;
 use chain::{ChainSync, SyncStatus as EthSyncStatus};
-use std::net::{SocketAddr, AddrParseError};
-use std::str::FromStr;
 use parking_lot::RwLock;
 use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT, ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_62,
 	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3};
@@ -622,8 +622,8 @@ impl NetworkConfiguration {
 		Ok(BasicNetworkConfiguration {
 			config_path: self.config_path,
 			net_config_path: self.net_config_path,
-			listen_address: match self.listen_address { None => None, Some(addr) => Some(SocketAddr::from_str(&addr)?) },
-			public_address:  match self.public_address { None => None, Some(addr) => Some(SocketAddr::from_str(&addr)?) },
+			listen_address: match self.listen_address { None => None, Some(addr) => Some(addr.parse()?) },
+			public_address:  match self.public_address { None => None, Some(addr) => Some(addr.parse()?) },
 			udp_port: self.udp_port,
 			nat_enabled: self.nat_enabled,
 			discovery_enabled: self.discovery_enabled,

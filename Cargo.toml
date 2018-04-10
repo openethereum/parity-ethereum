@@ -43,6 +43,7 @@ ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
+ethcore-store = { path = "ethcore/store" }
 ethcore-stratum = { path = "ethcore/stratum" }
 ethcore-sync = { path = "ethcore/sync" }
 ethcore-transaction = { path = "ethcore/transaction" }
@@ -128,7 +129,7 @@ members = [
 	"ethcore/wasm/run",
 	"ethcore/types",
 	"ethkey/cli",
-	"ethstore/cli",
+	"ethcore/store/cli",
 	"evmbin",
 	"miner",
 	"transaction-pool",

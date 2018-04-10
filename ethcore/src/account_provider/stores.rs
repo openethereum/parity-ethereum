@@ -21,7 +21,7 @@ use std::sync::atomic::{self, AtomicUsize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use ethstore::ethkey::Address;
+use store::ethkey::Address;
 use ethjson::misc::{
 	AccountMeta,
 	DappsSettings as JsonSettings,

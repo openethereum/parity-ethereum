@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::thread;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use rlp;
@@ -34,8 +33,7 @@ use ethereum_types::{U256, Address};
 use bytes::ToPretty;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
-use ethkey::Secret;
-use ethstore::ethkey::{Generator, Random};
+use ethkey::{Secret, Generator, Random};
 use parking_lot::Mutex;
 use serde_json;
 use transaction::{Transaction, Action, SignedTransaction};
@@ -295,7 +293,7 @@ fn should_add_sign_transaction_to_the_queue() {
 		nonce: U256::one(),
 		gas_price: U256::from(0x9184e72a000u64),
 		gas: U256::from(0x76c0),
-		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		action: Action::Call("d46e8dd67c5d32be8058bb8eb970870f07244567".into()),
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
@@ -358,7 +356,7 @@ fn should_dispatch_transaction_if_account_is_unlock() {
 		nonce: U256::zero(),
 		gas_price: U256::from(0x9184e72a000u64),
 		gas: U256::from(0x76c0),
-		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		action: Action::Call("d46e8dd67c5d32be8058bb8eb970870f07244567".into()),
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};

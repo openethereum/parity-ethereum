@@ -20,7 +20,7 @@ use http::Origin;
 use parking_lot::Mutex;
 use transient_hashmap::TransientHashMap;
 
-use ethstore::random_string;
+use store::random_string;
 
 use v1::helpers::signing_queue::{ConfirmationsQueue};
 

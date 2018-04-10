@@ -20,7 +20,7 @@ use std::collections::btree_map::{BTreeMap, Entry};
 use ethereum_types::Address;
 
 use ethkey::{Brain, Generator, Secret};
-use ethstore::KeyFile;
+use store::KeyFile;
 use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Result;
