@@ -3,7 +3,7 @@
 [package]
 name = "parity-version"
 # NOTE: this value is used for Parity version string.
-version = "1.9.5"
+version = "1.9.6"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
@@ -13,7 +13,7 @@ build = "build.rs"
 track = "stable"
 
 # Indicates a critical release in this track (i.e. consensus issue)
-critical = true
+critical = false
 
 # Latest supported fork blocks for various networks. Used ONLY by auto-updater.
 [package.metadata.forks]
