@@ -581,11 +581,13 @@ impl Configuration {
 	}
 
 	fn ui_config(&self) -> UiConfiguration {
+		let ui = self.ui_enabled();
 		UiConfiguration {
-			enabled: self.ui_enabled(),
+			enabled: ui.enabled,
 			interface: self.ui_interface(),
 			port: self.ui_port(),
 			hosts: self.ui_hosts(),
+			info_page_only: ui.info_page_only,
 		}
 	}
 
@@ -1176,16 +1178,22 @@ impl Configuration {
 		into_secretstore_service_contract_address(self.args.arg_secretstore_doc_sretr_contract.as_ref())
 	}
 
-	fn ui_enabled(&self) -> bool {
+	fn ui_enabled(&self) -> UiEnabled {
 		if self.args.flag_force_ui {
-			return true;
+			return UiEnabled {
+				enabled: true,
+				info_page_only: false,
+			};
 		}
 
 		let ui_disabled = self.args.arg_unlock.is_some() ||
 			self.args.flag_geth ||
 			self.args.flag_no_ui;
 
-		self.args.cmd_ui && !ui_disabled && cfg!(feature = "ui-enabled")
+		return UiEnabled {
+			enabled: (self.args.cmd_ui || !ui_disabled) && cfg!(feature = "ui-enabled"),
+			info_page_only: !self.args.cmd_ui,
+		}
 	}
 
 	fn verifier_settings(&self) -> VerifierSettings {
@@ -1204,6 +1212,12 @@ impl Configuration {
 			target_message_pool_size: self.args.arg_whisper_pool_size * 1024 * 1024,
 		}
 	}
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+struct UiEnabled {
+	pub enabled: bool,
+	pub info_page_only: bool,
 }
 
 fn into_secretstore_service_contract_address(s: &str) -> Result<Option<SecretStoreContractAddress>, String> {
@@ -1418,15 +1432,16 @@ mod tests {
 			origins: Some(vec!["parity://*".into(),"chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
-			ui_address: None,
+			ui_address: Some("127.0.0.1:8180".into()),
 			dapps_address: Some("127.0.0.1:8545".into()),
 			support_token_api: true,
 			max_connections: 100,
 		}, UiConfiguration {
-			enabled: false,
+			enabled: true,
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
+			info_page_only: true,
 		}, LogConfig {
             color: true,
             mode: None,
@@ -1698,10 +1713,26 @@ mod tests {
 		// when
 		let conf0 = parse(&["parity", "--geth"]);
 		let conf1 = parse(&["parity", "--geth", "--force-ui"]);
+		let conf2 = parse(&["parity", "--geth", "ui"]);
+		let conf3 = parse(&["parity"]);
 
 		// then
-		assert_eq!(conf0.ui_enabled(), false);
-		assert_eq!(conf1.ui_enabled(), true);
+		assert_eq!(conf0.ui_enabled(), UiEnabled {
+			enabled: false,
+			info_page_only: true,
+		});
+		assert_eq!(conf1.ui_enabled(), UiEnabled {
+			enabled: true,
+			info_page_only: false,
+		});
+		assert_eq!(conf2.ui_enabled(), UiEnabled {
+			enabled: true,
+			info_page_only: false,
+		});
+		assert_eq!(conf3.ui_enabled(), UiEnabled {
+			enabled: true,
+			info_page_only: true,
+		});
 	}
 
 	#[test]
@@ -1712,7 +1743,10 @@ mod tests {
 		let conf0 = parse(&["parity", "--unlock", "0x0"]);
 
 		// then
-		assert_eq!(conf0.ui_enabled(), false);
+		assert_eq!(conf0.ui_enabled(), UiEnabled {
+			enabled: false,
+			info_page_only: true,
+		});
 	}
 
 	#[test]
@@ -1730,11 +1764,45 @@ mod tests {
 		// then
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
-			enabled: false,
+			enabled: true,
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
+			info_page_only: true,
 		});
+
+		assert!(conf1.ws_config().unwrap().hosts.is_some());
+		assert_eq!(conf1.ws_config().unwrap().origins, None);
+		assert_eq!(conf1.directories().signer, "signer".to_owned());
+		assert_eq!(conf1.ui_config(), UiConfiguration {
+			enabled: true,
+			interface: "127.0.0.1".into(),
+			port: 8180,
+			hosts: Some(vec![]),
+			info_page_only: true,
+		});
+		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("127.0.0.1".to_owned(), 3000)]);
+
+		assert!(conf2.ws_config().unwrap().hosts.is_some());
+		assert_eq!(conf2.directories().signer, "signer".to_owned());
+		assert_eq!(conf2.ui_config(), UiConfiguration {
+			enabled: true,
+			interface: "127.0.0.1".into(),
+			port: 3123,
+			hosts: Some(vec![]),
+			info_page_only: true,
+		});
+
+		assert!(conf3.ws_config().unwrap().hosts.is_some());
+		assert_eq!(conf3.directories().signer, "signer".to_owned());
+		assert_eq!(conf3.ui_config(), UiConfiguration {
+			enabled: true,
+			interface: "test".into(),
+			port: 8180,
+			hosts: Some(vec![]),
+			info_page_only: true,
+		});
+
 		assert!(conf4.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf4.directories().signer, "signer".to_owned());
 		assert_eq!(conf4.ui_config(), UiConfiguration {
@@ -1742,8 +1810,9 @@ mod tests {
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
+			info_page_only: false,
 		});
-		assert!(conf5.ws_config().unwrap().hosts.is_some());
+
 		assert!(conf5.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf5.directories().signer, "signer".to_owned());
 		assert_eq!(conf5.ui_config(), UiConfiguration {
@@ -1751,33 +1820,8 @@ mod tests {
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
+			info_page_only: false,
 		});
-		assert!(conf5.ws_config().unwrap().hosts.is_some());
-		assert_eq!(conf1.directories().signer, "signer".to_owned());
-		assert_eq!(conf1.ui_config(), UiConfiguration {
-			enabled: false,
-			interface: "127.0.0.1".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-		});
-		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("127.0.0.1".to_owned(), 3000)]);
-		assert_eq!(conf1.ws_config().unwrap().origins, None);
-		assert_eq!(conf2.directories().signer, "signer".to_owned());
-		assert_eq!(conf2.ui_config(), UiConfiguration {
-			enabled: false,
-			interface: "127.0.0.1".into(),
-			port: 3123,
-			hosts: Some(vec![]),
-		});
-		assert!(conf2.ws_config().unwrap().hosts.is_some());
-		assert_eq!(conf3.directories().signer, "signer".to_owned());
-		assert_eq!(conf3.ui_config(), UiConfiguration {
-			enabled: false,
-			interface: "test".into(),
-			port: 8180,
-			hosts: Some(vec![]),
-		});
-		assert!(conf3.ws_config().unwrap().hosts.is_some());
 	}
 
 	#[test]

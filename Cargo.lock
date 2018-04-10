@@ -2037,6 +2037,7 @@ dependencies = [
  "parity-hash-fetch 1.11.0",
  "parity-reactor 0.1.0",
  "parity-ui 1.11.0",
+ "parity-ui-deprecation 1.10.0",
  "parity-version 1.11.0",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2254,6 +2255,13 @@ dependencies = [
  "parity-ui-old-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-10-wallet.git?rev=4b6f112412716cd05123d32eeb7fda448288a6c6)",
  "parity-ui-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-10-shell.git?rev=bd25b41cd642c6b822d820dded3aa601a29aa079)",
  "rustc_version 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parity-ui-deprecation"
+version = "1.10.0"
+dependencies = [
+ "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
