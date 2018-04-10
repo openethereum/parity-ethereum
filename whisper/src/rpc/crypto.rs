@@ -16,6 +16,7 @@
 
 //! Encryption schemes supported by RPC layer.
 
+use crypto;
 use ethereum_types::H256;
 use ethkey::{self, Public, Secret};
 use ring::aead::{self, AES_256_GCM, SealingKey, OpeningKey};
@@ -117,7 +118,7 @@ impl EncryptionInstance {
 				}
 			}
 			EncryptionInner::ECIES(valid_public) => {
-				::ethcrypto::ecies::encrypt(&valid_public, &[], plain)
+				crypto::ecies::encrypt(&valid_public, &[], plain)
 					.expect("validity of public key an invariant of the type; qed")
 			}
 		}
@@ -213,7 +214,7 @@ impl DecryptionInstance {
 			}
 			DecryptionInner::ECIES(secret) => {
 				// secret is checked for validity, so only fails on invalid message.
-				::ethcrypto::ecies::decrypt(&secret, &[], ciphertext).ok()
+				crypto::ecies::decrypt(&secret, &[], ciphertext).ok()
 			}
 		}
 	}

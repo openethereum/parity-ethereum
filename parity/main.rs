@@ -18,6 +18,54 @@
 
 #![warn(missing_docs)]
 
+<<<<<<< HEAD
+=======
+extern crate ansi_term;
+extern crate app_dirs;
+extern crate ctrlc;
+extern crate docopt;
+#[macro_use]
+extern crate clap;
+extern crate dir;
+extern crate env_logger;
+extern crate fdlimit;
+extern crate futures;
+extern crate futures_cpupool;
+extern crate isatty;
+extern crate jsonrpc_core;
+extern crate num_cpus;
+extern crate number_prefix;
+extern crate parking_lot;
+extern crate regex;
+extern crate rlp;
+extern crate rpassword;
+extern crate rustc_hex;
+extern crate semver;
+extern crate serde;
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
+extern crate toml;
+
+extern crate ethcore;
+extern crate ethcore_bytes as bytes;
+extern crate ethcore_io as io;
+extern crate ethcore_light as light;
+extern crate ethcore_logger;
+extern crate ethcore_migrations as migrations;
+extern crate ethcore_miner as miner;
+extern crate ethcore_network as network;
+extern crate ethcore_private_tx;
+extern crate ethcore_service;
+extern crate ethcore_sync as sync;
+extern crate ethcore_transaction as transaction;
+extern crate ethereum_types;
+extern crate ethkey;
+extern crate kvdb;
+extern crate kvdb_rocksdb;
+extern crate migration as migr;
+extern crate node_health;
+>>>>>>> upstream/master
 extern crate panic_hook;
 extern crate parity_lib;
 extern crate dir;

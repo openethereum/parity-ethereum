@@ -19,7 +19,7 @@ use bytes::Bytes;
 use ethereum_types::Address;
 use ethcore::client::{Client, BlockChainClient, ChainInfo, Nonce};
 use ethcore::miner::{Miner, MinerService};
-use ethsync::SyncProvider;
+use sync::SyncProvider;
 use transaction::{Transaction, SignedTransaction, Action};
 use {Error, NodeKeyPair};
 

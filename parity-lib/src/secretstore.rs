@@ -22,7 +22,7 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
 use ethcore::miner::Miner;
 use ethkey::{Secret, Public};
-use ethsync::SyncProvider;
+use sync::SyncProvider;
 use ethereum_types::Address;
 
 /// This node secret key.

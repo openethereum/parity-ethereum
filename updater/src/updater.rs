@@ -30,7 +30,7 @@ use ethcore::BlockNumber;
 use ethcore::filter::Filter;
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
 use ethereum_types::H256;
-use ethsync::{SyncProvider};
+use sync::{SyncProvider};
 use hash_fetch::{self as fetch, HashFetch};
 use path::restrict_permissions_owner;
 use service::Service;

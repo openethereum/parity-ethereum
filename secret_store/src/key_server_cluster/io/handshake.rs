@@ -37,7 +37,7 @@ use std::sync::Arc;
 use std::collections::BTreeSet;
 use futures::{Future, Poll, Async};
 use tokio_io::{AsyncRead, AsyncWrite};
-use ethcrypto::ecdh::agree;
+use crypto::ecdh::agree;
 use ethkey::{Random, Generator, KeyPair, Public, Signature, verify_public, sign, recover};
 use ethereum_types::H256;
 use key_server_cluster::{NodeId, Error, NodeKeyPair};

@@ -21,7 +21,7 @@ use bytes::Bytes;
 use dir::default_data_path;
 use dir::helpers::replace_home;
 use ethcore::client::{Client, BlockChainClient, BlockId, CallContract};
-use ethsync::LightSync;
+use sync::LightSync;
 use futures::{Future, future, IntoFuture};
 use futures_cpupool::CpuPool;
 use hash_fetch::fetch::Client as FetchClient;
@@ -164,6 +164,7 @@ pub struct Dependencies {
 	pub pool: CpuPool,
 	pub signer: Arc<SignerService>,
 	pub ui_address: Option<(String, u16)>,
+	pub info_page_only: bool,
 }
 
 pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Middleware>, String> {
@@ -281,6 +282,7 @@ mod server {
 			deps.contract_client,
 			deps.sync_status,
 			deps.fetch,
+			deps.info_page_only,
 		))
 	}
 

@@ -53,7 +53,7 @@ impl NodeHealth {
 		let tx = Arc::new(Mutex::new(Some(tx)));
 		let tx2 = tx.clone();
 		self.remote.spawn_with_timeout(
-			move || time.then(move |result| {
+			move |_| time.then(move |result| {
 				let _ = tx.lock().take().expect(PROOF).send(Ok(result));
 				Ok(())
 			}),

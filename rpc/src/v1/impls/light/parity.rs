@@ -23,7 +23,7 @@ use version::version_data;
 use crypto::{ecies, DEFAULT_MAC};
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
-use ethsync::LightSyncProvider;
+use sync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
 use ethcore_logger::RotatingLogger;
 use node_health::{NodeHealth, Health};

@@ -17,7 +17,7 @@
 //! Net rpc implementation.
 use std::sync::Arc;
 use jsonrpc_core::Result;
-use ethsync::SyncProvider;
+use sync::SyncProvider;
 use v1::traits::Net;
 
 /// Net rpc implementation.
