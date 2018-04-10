@@ -18,6 +18,7 @@
 
 mod authority_round;
 mod basic_authority;
+mod block_reward;
 mod instant_seal;
 mod null_engine;
 mod signer;
