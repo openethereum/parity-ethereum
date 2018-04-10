@@ -41,6 +41,7 @@ extern crate keccak_hash as hash;
 extern crate parking_lot;
 extern crate patricia_trie as trie;
 extern crate rlp;
+extern crate url;
 extern crate rustc_hex;
 #[macro_use]
 extern crate log;
@@ -673,4 +674,3 @@ impl ChainNotify for Provider {
 		}
 	}
 }
-

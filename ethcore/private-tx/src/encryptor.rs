@@ -17,6 +17,7 @@
 //! Encryption providers.
 
 use std::io::Read;
+use std::str::FromStr;
 use std::iter::repeat;
 use std::time::{Instant, Duration};
 use std::collections::HashMap;
@@ -28,9 +29,10 @@ use ethjson;
 use ethkey::{Signature, Public};
 use ethcrypto;
 use futures::Future;
-use fetch::{Fetch, Client as FetchClient, Method, BodyReader};
+use fetch::{Fetch, Client as FetchClient, Method, BodyReader, Request};
 use bytes::{Bytes, ToPretty};
 use error::{Error, ErrorKind};
+use url::Url;
 use super::find_account_password;
 
 /// Initialization vector length.
@@ -128,7 +130,8 @@ impl SecretStoreEncryptor {
 			Method::Get
 		};
 
-		let response = self.client.fetch(&url, method, Default::default()).wait()
+		let url = Url::from_str(&url).map_err(|e| ErrorKind::Encrypt(e.to_string()))?;
+		let response = self.client.fetch(Request::new(url, method), Default::default()).wait()
 			.map_err(|e| ErrorKind::Encrypt(e.to_string()))?;
 
 		if response.is_not_found() {
