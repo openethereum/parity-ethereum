@@ -44,7 +44,7 @@ ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
-ethcore-stratum = { path = "stratum" }
+ethcore-stratum = { path = "ethcore/stratum" }
 ethcore-transaction = { path = "ethcore/transaction" }
 ethereum-types = "0.3"
 node-filter = { path = "ethcore/node_filter" }
