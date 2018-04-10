@@ -27,7 +27,7 @@ use ethcore::account_provider::AccountProvider;
 use ethereum_types::{H128, H256, Address};
 use ethjson;
 use ethkey::{Signature, Public};
-use ethcrypto;
+use crypto;
 use futures::Future;
 use fetch::{Fetch, Client as FetchClient, Method, BodyReader, Request};
 use bytes::{Bytes, ToPretty};
@@ -151,7 +151,7 @@ impl SecretStoreEncryptor {
 		let password = find_account_password(&self.config.passwords, &*accounts, &requester);
 
 		// decrypt Public
-		let decrypted_bytes = accounts.decrypt(requester, password, &ethcrypto::DEFAULT_MAC, &encrypted_bytes)?;
+		let decrypted_bytes = accounts.decrypt(requester, password, &crypto::DEFAULT_MAC, &encrypted_bytes)?;
 		let decrypted_key = Public::from_slice(&decrypted_bytes);
 
 		// and now take x coordinate of Public as a key
@@ -217,7 +217,7 @@ impl Encryptor for SecretStoreEncryptor {
 		// encrypt data
 		let mut cypher = Vec::with_capacity(plain_data.len() + initialisation_vector.len());
 		cypher.extend(repeat(0).take(plain_data.len()));
-		ethcrypto::aes::encrypt(&key, initialisation_vector, plain_data, &mut cypher);
+		crypto::aes::encrypt(&key, initialisation_vector, plain_data, &mut cypher);
 		cypher.extend_from_slice(&initialisation_vector);
 
 		Ok(cypher)
@@ -243,7 +243,7 @@ impl Encryptor for SecretStoreEncryptor {
 		let (cypher, iv) = cypher.split_at(cypher_len - INIT_VEC_LEN);
 		let mut plain_data = Vec::with_capacity(cypher_len - INIT_VEC_LEN);
 		plain_data.extend(repeat(0).take(cypher_len - INIT_VEC_LEN));
-		ethcrypto::aes::decrypt(&key, &iv, cypher, &mut plain_data);
+		crypto::aes::decrypt(&key, &iv, cypher, &mut plain_data);
 
 		Ok(plain_data)
 	}

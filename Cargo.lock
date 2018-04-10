@@ -567,6 +567,18 @@ name = "ethcore-bytes"
 version = "0.1.0"
 
 [[package]]
+name = "ethcore-crypto"
+version = "0.1.0"
+dependencies = [
+ "eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1)",
+ "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethkey 0.3.0",
+ "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
+ "subtle 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ethcore-devtools"
 version = "1.11.0"
 
@@ -671,8 +683,8 @@ name = "ethcore-network"
 version = "1.11.0"
 dependencies = [
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-crypto 0.1.0",
  "ethcore-io 1.11.0",
- "ethcrypto 0.1.0",
  "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "ipnetwork 0.12.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -688,10 +700,10 @@ dependencies = [
  "bytes 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bytes 0.1.0",
+ "ethcore-crypto 0.1.0",
  "ethcore-io 1.11.0",
  "ethcore-logger 1.11.0",
  "ethcore-network 1.11.0",
- "ethcrypto 0.1.0",
  "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "igd 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -725,11 +737,11 @@ dependencies = [
  "ethabi-derive 5.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.11.0",
  "ethcore-bytes 0.1.0",
+ "ethcore-crypto 0.1.0",
  "ethcore-io 1.11.0",
  "ethcore-logger 1.11.0",
  "ethcore-miner 1.11.0",
  "ethcore-transaction 0.1.0",
- "ethcrypto 0.1.0",
  "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
  "ethkey 0.3.0",
@@ -760,10 +772,10 @@ dependencies = [
  "ethabi-derive 5.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.11.0",
  "ethcore-bytes 0.1.0",
+ "ethcore-crypto 0.1.0",
  "ethcore-logger 1.11.0",
  "ethcore-sync 1.11.0",
  "ethcore-transaction 0.1.0",
- "ethcrypto 0.1.0",
  "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -869,18 +881,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ethcrypto"
-version = "0.1.0"
-dependencies = [
- "eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1)",
- "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethkey 0.3.0",
- "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
- "subtle 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "tiny-keccak 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "ethereum-types"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -950,7 +950,7 @@ name = "ethstore"
 version = "0.2.0"
 dependencies = [
  "dir 0.1.0",
- "ethcrypto 0.1.0",
+ "ethcore-crypto 0.1.0",
  "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2157,6 +2157,7 @@ dependencies = [
  "ethash 1.11.0",
  "ethcore 1.11.0",
  "ethcore-bytes 0.1.0",
+ "ethcore-crypto 0.1.0",
  "ethcore-devtools 1.11.0",
  "ethcore-io 1.11.0",
  "ethcore-light 1.11.0",
@@ -2166,7 +2167,6 @@ dependencies = [
  "ethcore-private-tx 1.0.0",
  "ethcore-sync 1.11.0",
  "ethcore-transaction 0.1.0",
- "ethcrypto 0.1.0",
  "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
  "ethkey 0.3.0",
@@ -2341,8 +2341,8 @@ version = "0.1.0"
 dependencies = [
  "bitflags 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-crypto 0.1.0",
  "ethcore-network 1.11.0",
- "ethcrypto 0.1.0",
  "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "hex 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",

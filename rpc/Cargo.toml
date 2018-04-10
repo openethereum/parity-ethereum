@@ -39,6 +39,7 @@ jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "
 ethash = { path = "../ethash" }
 ethcore = { path = "../ethcore" }
 ethcore-bytes = { path = "../util/bytes" }
+ethcore-crypto = { path = "../ethcore/crypto" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
@@ -49,7 +50,6 @@ ethcore-sync = { path = "../ethcore/sync" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.3"
 
-ethcrypto = { path = "../ethcrypto" }
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }

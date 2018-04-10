@@ -21,13 +21,13 @@ ansi_term = "0.10"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io" }
 ethcore-bytes = { path = "../bytes" }
+ethcore-crypto = { path = "../../ethcore/crypto" }
+ethcore-logger = { path ="../../logger" }
 ethcore-network = { path = "../network" }
 ethereum-types = "0.3"
 ethkey = { path = "../../ethkey" }
-ethcrypto = { path = "../../ethcrypto" }
 rlp = { path = "../rlp" }
 path = { path = "../path" }
-ethcore-logger = { path ="../../logger" }
 ipnetwork = "0.12.6"
 keccak-hash = { path = "../hash" }
 snappy = { git = "https://github.com/paritytech/rust-snappy" }
