@@ -18,6 +18,7 @@ ethcore = { path = "../ethcore" }
 ethereum-types = "0.3"
 plain_hasher = { path = "../util/plain_hasher" }
 rlp = { path = "../util/rlp" }
+rustc-hex = "1.0"
 keccak-hash = { path = "../util/hash" }
 triehash = { path = "../util/triehash" }
 kvdb = { path = "../util/kvdb" }

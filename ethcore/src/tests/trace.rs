@@ -24,7 +24,7 @@ use ethereum_types::{U256, Address};
 use io::*;
 use spec::*;
 use client::*;
-use tests::helpers::get_temp_state_db;
+use test_helpers::get_temp_state_db;
 use client::{BlockChainClient, Client, ClientConfig};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use std::sync::Arc;

@@ -459,7 +459,7 @@ mod tests {
 	use client::{ChainInfo, BlockInfo, ImportBlock};
 	use ethkey::Secret;
 	use miner::MinerService;
-	use tests::helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
+	use test_helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
 	use super::super::ValidatorSet;
 	use super::{ValidatorSafeContract, EVENT_NAME_HASH};
 

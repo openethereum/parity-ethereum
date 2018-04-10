@@ -635,7 +635,7 @@ mod tests {
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
 	use tempdir::TempDir;
-	use tests::helpers::restoration_db_handler;
+	use test_helpers::restoration_db_handler;
 
 	struct NoopDBRestore;
 	impl DatabaseRestore for NoopDBRestore {

@@ -480,7 +480,7 @@ unsafe impl Sync for SyncAccount {}
 mod tests {
 	use ethereum_types::{H256, U256, Address};
 	use kvdb::DBTransaction;
-	use tests::helpers::{get_temp_state_db};
+	use test_helpers::get_temp_state_db;
 	use state::{Account, Backend};
 	use ethcore_logger::init_log;
 

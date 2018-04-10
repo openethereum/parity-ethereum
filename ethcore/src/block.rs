@@ -641,7 +641,7 @@ pub fn enact_verified(
 
 #[cfg(test)]
 mod tests {
-	use tests::helpers::get_temp_state_db;
+	use test_helpers::get_temp_state_db;
 	use super::*;
 	use engines::EthEngine;
 	use vm::LastHashes;

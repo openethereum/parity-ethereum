@@ -205,6 +205,10 @@ impl PeerLike for Peer {
 	}
 
 	fn restart_sync(&self) { }
+
+	fn process_all_io_messages(&self) { }
+
+	fn process_all_new_block_messages(&self) { }
 }
 
 impl TestNet<Peer> {

@@ -731,7 +731,7 @@ mod tests {
 	use spec::Spec;
 	use super::{BlockQueue, Config, State};
 	use super::kind::blocks::Unverified;
-	use tests::helpers::{get_good_dummy_block_seq, get_good_dummy_block};
+	use test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
 	use error::*;
 	use views::*;
 

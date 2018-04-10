@@ -1082,10 +1082,10 @@ mod tests {
 	use header::BlockNumber;
 	use rustc_hex::FromHex;
 
-	use transaction::{Transaction};
 	use client::{TestBlockChainClient, EachBlockWith, ChainInfo, ImportSealedBlock};
 	use miner::MinerService;
-	use tests::helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
+	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
+	use transaction::{Transaction};
 
 	#[test]
 	fn should_prepare_block_to_seal() {

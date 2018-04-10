@@ -25,6 +25,7 @@ use hash::{keccak, KECCAK_NULL_RLP};
 use ethereum_types::{U256, H256, Address};
 use bytes::ToPretty;
 use rlp::PayloadInfo;
+use ethcore::account_provider::AccountProvider;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock};
 use ethcore::db::NUM_COLUMNS;
 use ethcore::error::ImportError;
@@ -39,6 +40,7 @@ use helpers::{to_client_config, execute_upgrades, open_client_db, client_db_conf
 use dir::Directories;
 use user_defaults::UserDefaults;
 use fdlimit;
+use ethcore_private_tx;
 
 #[derive(Debug, PartialEq)]
 pub enum DataFormat {
@@ -391,6 +393,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		// TODO [ToDr] don't use test miner here
 		// (actually don't require miner at all)
 		Arc::new(Miner::new_for_tests(&spec, None)),
+		Arc::new(AccountProvider::transient_provider()),
+		Box::new(ethcore_private_tx::NoopEncryptor),
+		Default::default(),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	// free up the spec in memory.
@@ -577,9 +582,16 @@ fn start_client(
 		&snapshot_path,
 		restoration_db_handler,
 		&dirs.ipc_path(),
+<<<<<<< HEAD
 		// It's fine to use test version here,
 		// since we don't care about miner parameters at all
 		Arc::new(Miner::new_for_tests(&spec, None)),
+=======
+		Arc::new(Miner::with_spec(&spec)),
+		Arc::new(AccountProvider::transient_provider()),
+		Box::new(ethcore_private_tx::NoopEncryptor),
+		Default::default()
+>>>>>>> master
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	drop(spec);
