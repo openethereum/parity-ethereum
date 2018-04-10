@@ -110,7 +110,7 @@ impl From<UiConfiguration> for HttpConfiguration {
 impl Default for UiConfiguration {
 	fn default() -> Self {
 		UiConfiguration {
-			enabled: true && cfg!(feature = "ui-enabled"),
+			enabled: false,
 			port: 8180,
 			interface: "127.0.0.1".into(),
 			hosts: Some(vec![]),
@@ -146,6 +146,7 @@ pub struct WsConfiguration {
 	pub interface: String,
 	pub port: u16,
 	pub apis: ApiSet,
+	pub max_connections: usize,
 	pub origins: Option<Vec<String>>,
 	pub hosts: Option<Vec<String>>,
 	pub signer_path: PathBuf,
@@ -162,11 +163,12 @@ impl Default for WsConfiguration {
 			interface: "127.0.0.1".into(),
 			port: 8546,
 			apis: ApiSet::UnsafeContext,
+			max_connections: 100,
 			origins: Some(vec!["parity://*".into(),"chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(Vec::new()),
 			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
 			support_token_api: true,
-			ui_address: Some("127.0.0.1:8180".into()),
+			ui_address: None,
 			dapps_address: Some("127.0.0.1:8545".into()),
 		}
 	}
@@ -227,7 +229,7 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into()), &None));
 
 	let signer_path;
-	let path = match conf.support_token_api && conf.ui_address.is_some() {
+	let path = match conf.support_token_api {
 		true => {
 			signer_path = ::signer::codes_path(&conf.signer_path);
 			Some(signer_path.as_path())
@@ -240,6 +242,7 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 		remote.clone(),
 		allowed_origins,
 		allowed_hosts,
+		conf.max_connections,
 		rpc::WsExtractor::new(path.clone()),
 		rpc::WsExtractor::new(path.clone()),
 		rpc::WsStats::new(deps.stats.clone()),

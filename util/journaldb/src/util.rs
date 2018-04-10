@@ -38,7 +38,7 @@ pub struct DatabaseValueView<'a> {
 }
 
 impl<'a> DatabaseValueView<'a> {
-	pub fn new(data: &'a [u8]) -> Self {
+	pub fn from_rlp(data: &'a [u8]) -> Self {
 		DatabaseValueView {
 			rlp: UntrustedRlp::new(data),
 		}

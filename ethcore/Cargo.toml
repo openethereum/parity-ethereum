@@ -9,22 +9,23 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ansi_term = "0.10"
 bloomchain = { path = "../util/bloomchain" }
-bn = { git = "https://github.com/paritytech/bn" }
+bn = { git = "https://github.com/paritytech/bn", default-features = false }
 byteorder = "1.0"
 common-types = { path = "types" }
 crossbeam = "0.3"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-bytes = { path = "../util/bytes" }
+fetch = { path = "../util/fetch" }
 hashdb = { path = "../util/hashdb" }
 memorydb = { path = "../util/memorydb" }
 patricia-trie = { path = "../util/patricia_trie" }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
-ethcore-stratum = { path = "../stratum" }
+ethcore-stratum = { path = "./stratum" }
 ethcore-transaction = { path = "./transaction" }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 memory-cache = { path = "../util/memory_cache" }
 ethabi = "5.1"
 ethabi-derive = "5.0"
@@ -40,23 +41,22 @@ itertools = "0.5"
 lazy_static = "1.0"
 log = "0.3"
 lru-cache = "0.1"
-num = "0.1"
+num = { version = "0.1", default-features = false, features = ["bigint"] }
 num_cpus = "1.2"
 parity-machine = { path = "../machine" }
 parking_lot = "0.5"
 price-info = { path = "../price-info" }
-rayon = "0.8"
+rayon = "1.0"
 rand = "0.4"
 rlp = { path = "../util/rlp" }
 rlp_compress = { path = "../util/rlp_compress" }
 rlp_derive = { path = "../util/rlp_derive" }
 kvdb = { path = "../util/kvdb" }
-kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }
+kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 util-error = { path = "../util/error" }
 snappy = { git = "https://github.com/paritytech/rust-snappy" }
 stop-guard = { path = "../util/stop-guard" }
-migration = { path = "../util/migration" }
 macros = { path = "../util/macros" }
 rust-crypto = "0.2.34"
 rustc-hex = "1.0"
@@ -76,7 +76,6 @@ tempdir = "0.3"
 trie-standardmap = { path = "../util/trie-standardmap" }
 
 [features]
-jit = ["evm/jit"]
 evm-debug = ["slow-blocks"]
 evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
 slow-blocks = [] # Use SLOW_TX_DURATION="50" (compile time!) to track transactions over 50ms

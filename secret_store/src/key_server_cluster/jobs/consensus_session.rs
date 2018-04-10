@@ -17,7 +17,7 @@
 use std::collections::BTreeSet;
 use key_server_cluster::{Error, NodeId, SessionMeta, Requester};
 use key_server_cluster::message::ConsensusMessage;
-use key_server_cluster::jobs::job_session::{JobSession, JobSessionState, JobTransport, JobExecutor};
+use key_server_cluster::jobs::job_session::{JobSession, JobSessionState, JobTransport, JobExecutor, JobPartialRequestAction};
 
 /// Consensus session state.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -114,7 +114,6 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 	}
 
 	/// Get computation job reference.
-	#[cfg(test)]
 	pub fn computation_job(&self) -> &JobSession<ComputationExecutor, ComputationTransport> {
 		self.computation_job.as_ref()
 			.expect("computation_job must only be called on master nodes")
@@ -140,15 +139,15 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 	/// Initialize session on master node.
 	pub fn initialize(&mut self, nodes: BTreeSet<NodeId>) -> Result<(), Error> {
 		debug_assert!(self.meta.self_node_id == self.meta.master_node_id);
-		let initialization_result = self.consensus_job.initialize(nodes, false);
+		let initialization_result = self.consensus_job.initialize(nodes, None, false);
 		self.state = ConsensusSessionState::EstablishingConsensus;
-		self.process_result(initialization_result)
+		self.process_result(initialization_result.map(|_| ()))
 	}
 
 	/// Process consensus request message.
 	pub fn on_consensus_partial_request(&mut self, sender: &NodeId, request: ConsensusExecutor::PartialJobRequest) -> Result<(), Error> {
 		let consensus_result = self.consensus_job.on_partial_request(sender, request);
-		self.process_result(consensus_result)
+		self.process_result(consensus_result.map(|_| ()))
 	}
 
 	/// Process consensus message response.
@@ -179,19 +178,22 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 	}
 
 	/// Disseminate jobs from master node.
-	pub fn disseminate_jobs(&mut self, executor: ComputationExecutor, transport: ComputationTransport, broadcast_self_response: bool) -> Result<(), Error> {
+	pub fn disseminate_jobs(&mut self, executor: ComputationExecutor, transport: ComputationTransport, broadcast_self_response: bool) -> Result<Option<ComputationExecutor::PartialJobResponse>, Error> {
 		let consensus_group = self.select_consensus_group()?.clone();
 		self.consensus_group.clear();
 
 		let mut computation_job = JobSession::new(self.meta.clone(), executor, transport);
-		let computation_result = computation_job.initialize(consensus_group, broadcast_self_response);
+		let computation_result = computation_job.initialize(consensus_group, None, broadcast_self_response);
 		self.computation_job = Some(computation_job);
 		self.state = ConsensusSessionState::WaitingForPartialResults;
-		self.process_result(computation_result)
+		match computation_result {
+			Ok(computation_result) => self.process_result(Ok(())).map(|_| computation_result),
+			Err(error) => Err(self.process_result(Err(error)).unwrap_err()),
+		}
 	}
 
 	/// Process job request on slave node.
-	pub fn on_job_request(&mut self, node: &NodeId, request: ComputationExecutor::PartialJobRequest, executor: ComputationExecutor, transport: ComputationTransport) -> Result<(), Error> {
+	pub fn on_job_request(&mut self, node: &NodeId, request: ComputationExecutor::PartialJobRequest, executor: ComputationExecutor, transport: ComputationTransport) -> Result<JobPartialRequestAction<ComputationExecutor::PartialJobResponse>, Error> {
 		if &self.meta.master_node_id != node {
 			return Err(Error::InvalidMessage);
 		}
@@ -350,7 +352,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 		let consensus_result = match message {
 			
 			&ConsensusMessage::InitializeConsensusSession(ref message) =>
-				self.consensus_job.on_partial_request(sender, message.requester.clone().into()),
+				self.consensus_job.on_partial_request(sender, message.requester.clone().into()).map(|_| ()),
 			&ConsensusMessage::ConfirmConsensusInitialization(ref message) =>
 				self.consensus_job.on_partial_response(sender, message.is_confirmed),
 		};
@@ -361,7 +363,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use ethkey::{KeyPair, Random, Generator, sign};
+	use ethkey::{KeyPair, Random, Generator, sign, public_to_address};
 	use key_server_cluster::{Error, NodeId, SessionId, Requester, DummyAclStorage};
 	use key_server_cluster::message::{ConsensusMessage, InitializeConsensusSession, ConfirmConsensusInitialization};
 	use key_server_cluster::jobs::job_session::tests::{make_master_session_meta, make_slave_session_meta, SquaredSumJobExecutor, DummyJobTransport};
@@ -414,7 +416,7 @@ mod tests {
 	fn consensus_session_consensus_is_not_reached_when_initializes_with_zero_threshold_and_master_rejects() {
 		let requester = Random.generate().unwrap();
 		let acl_storage = DummyAclStorage::default();
-		acl_storage.prohibit(requester.public().clone(), SessionId::default());
+		acl_storage.prohibit(public_to_address(requester.public()), SessionId::default());
 
 		let mut session = make_master_consensus_session(0, Some(requester), Some(acl_storage));
 		session.initialize(vec![NodeId::from(1), NodeId::from(2)].into_iter().collect()).unwrap();
@@ -429,7 +431,7 @@ mod tests {
 	fn consensus_session_consensus_is_failed_by_master_node() {
 		let requester = Random.generate().unwrap();
 		let acl_storage = DummyAclStorage::default();
-		acl_storage.prohibit(requester.public().clone(), SessionId::default());
+		acl_storage.prohibit(public_to_address(requester.public()), SessionId::default());
 
 		let mut session = make_master_consensus_session(1, Some(requester), Some(acl_storage));
 		assert_eq!(session.initialize(vec![NodeId::from(1), NodeId::from(2)].into_iter().collect()).unwrap_err(), Error::ConsensusUnreachable);
@@ -471,7 +473,7 @@ mod tests {
 	fn consensus_session_job_dissemination_does_not_select_master_node_if_rejected() {
 		let requester = Random.generate().unwrap();
 		let acl_storage = DummyAclStorage::default();
-		acl_storage.prohibit(requester.public().clone(), SessionId::default());
+		acl_storage.prohibit(public_to_address(requester.public()), SessionId::default());
 
 		let mut session = make_master_consensus_session(0, Some(requester), Some(acl_storage));
 		session.initialize(vec![NodeId::from(1), NodeId::from(2)].into_iter().collect()).unwrap();

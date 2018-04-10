@@ -1,0 +1,36 @@
+[package]
+description = "Parity Private Transactions"
+name = "ethcore-private-tx"
+version = "1.0.0"
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+error-chain = { version = "0.11", default-features = false }
+ethabi = "5.1"
+ethabi-contract = "5.0"
+ethabi-derive = "5.0"
+ethcore = { path = ".." }
+ethcore-bytes = { path = "../../util/bytes" }
+ethcore-io = { path = "../../util/io" }
+ethcore-logger = { path = "../../logger" }
+ethcore-miner = { path = "../../miner" }
+ethcore-transaction = { path = "../transaction" }
+ethcrypto = { path = "../../ethcrypto" }
+ethereum-types = "0.3"
+ethjson = { path = "../../json" }
+ethkey = { path = "../../ethkey" }
+fetch = { path = "../../util/fetch" }
+futures = "0.1"
+keccak-hash = { path = "../../util/hash" }
+log = "0.3"
+parking_lot = "0.5"
+patricia-trie = { path = "../../util/patricia_trie" }
+rand = "0.3"
+rlp = { path = "../../util/rlp" }
+rlp_derive = { path = "../../util/rlp_derive" }
+rustc-hex = "1.0"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+tiny-keccak = "1.3"

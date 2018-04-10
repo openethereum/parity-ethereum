@@ -19,7 +19,7 @@ use std::collections::{BTreeSet, BTreeMap};
 use ethkey::Secret;
 use key_server_cluster::SessionId;
 use super::{SerializableH256, SerializablePublic, SerializableSecret, SerializableSignature,
-	SerializableMessageHash, SerializableRequester};
+	SerializableMessageHash, SerializableRequester, SerializableAddress};
 
 pub type MessageSessionId = SerializableH256;
 pub type MessageNodeId = SerializablePublic;
@@ -272,8 +272,10 @@ pub struct InitializeSession {
 	pub session: MessageSessionId,
 	/// Session-level nonce.
 	pub session_nonce: u64,
+	/// Session origin address (if any).
+	pub origin: Option<SerializableAddress>,
 	/// Session author.
-	pub author: SerializablePublic,
+	pub author: SerializableAddress,
 	/// All session participants along with their identification numbers.
 	pub nodes: BTreeMap<MessageNodeId, SerializableSecret>,
 	/// Is zero secret generation session?
@@ -713,6 +715,8 @@ pub struct DecryptionConsensusMessage {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
+	/// Session origin (in consensus initialization message).
+	pub origin: Option<SerializableAddress>,
 	/// Consensus message.
 	pub message: ConsensusMessage,
 }
@@ -788,6 +792,8 @@ pub struct DecryptionSessionDelegation {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
+	/// Session origin.
+	pub origin: Option<SerializableAddress>,
 	/// Requester.
 	pub requester: SerializableRequester,
 	/// Key version.
@@ -963,7 +969,7 @@ pub struct KeyShareCommon {
 	/// Key threshold.
 	pub threshold: usize,
 	/// Author of key share entry.
-	pub author: SerializablePublic,
+	pub author: SerializableAddress,
 	/// Joint public.
 	pub joint_public: SerializablePublic,
 	/// Common (shared) encryption point.

@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
-use ethereum_types::H256;
+use ethereum_types::{Address, H256};
 use ethkey::Secret;
 use parking_lot::{Mutex, Condvar};
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare};
@@ -55,8 +55,8 @@ pub struct SessionImpl<T: SessionTransport> {
 /// Action after key version is negotiated.
 #[derive(Clone)]
 pub enum ContinueAction {
-	/// Decryption session + is_shadow_decryption.
-	Decrypt(Arc<DecryptionSession>, bool),
+	/// Decryption session + origin + is_shadow_decryption + is_broadcast_decryption.
+	Decrypt(Arc<DecryptionSession>, Option<Address>, bool, bool),
 	/// Schnorr signing session + message hash.
 	SchnorrSign(Arc<SchnorrSigningSession>, H256),
 	/// ECDSA signing session + message hash.
@@ -202,6 +202,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Wait for session completion.
 	pub fn wait(&self) -> Result<(H256, NodeId), Error> {
 		Self::wait_session(&self.core.completed, &self.data, None, |data| data.result.clone())
+			.expect("wait_session returns Some if called without timeout; qed")
 	}
 
 	/// Initialize session.

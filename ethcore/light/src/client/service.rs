@@ -22,9 +22,10 @@ use std::sync::Arc;
 
 use ethcore::client::ClientIoMessage;
 use ethcore::db;
+use ethcore::error::Error as CoreError;
 use ethcore::spec::Spec;
 use io::{IoContext, IoError, IoHandler, IoService};
-use kvdb::{self, KeyValueDB};
+use kvdb::KeyValueDB;
 
 use cache::Cache;
 use parking_lot::Mutex;
@@ -34,16 +35,23 @@ use super::{ChainDataFetcher, Client, Config as ClientConfig};
 /// Errors on service initialization.
 #[derive(Debug)]
 pub enum Error {
-	/// Database error.
-	Database(kvdb::Error),
+	/// Core error.
+	Core(CoreError),
 	/// I/O service error.
 	Io(IoError),
+}
+
+impl From<CoreError> for Error {
+	#[inline]
+	fn from(err: CoreError) -> Error {
+		Error::Core(err)
+	}
 }
 
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			Error::Database(ref msg) => write!(f, "Database error: {}", msg),
+			Error::Core(ref msg) => write!(f, "Core error: {}", msg),
 			Error::Io(ref err) => write!(f, "I/O service error: {}", err),
 		}
 	}
@@ -67,7 +75,7 @@ impl<T: ChainDataFetcher> Service<T> {
 			fetcher,
 			io_service.channel(),
 			cache,
-		).map_err(Error::Database)?);
+		)?);
 
 		io_service.register_handler(Arc::new(ImportBlocks(client.clone()))).map_err(Error::Io)?;
 		spec.engine.register_client(Arc::downgrade(&client) as _);

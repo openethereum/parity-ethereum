@@ -53,14 +53,15 @@ extern crate ethcore_logger;
 extern crate ethcore_migrations as migrations;
 extern crate ethcore_miner as miner;
 extern crate ethcore_network as network;
+extern crate ethcore_private_tx;
 extern crate ethcore_service;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
-extern crate migration as migr;
-extern crate kvdb;
-extern crate kvdb_rocksdb;
 extern crate ethkey;
 extern crate ethsync;
+extern crate kvdb;
+extern crate kvdb_rocksdb;
+extern crate migration as migr;
 extern crate node_health;
 extern crate panic_hook;
 extern crate parity_hash_fetch as hash_fetch;
@@ -106,6 +107,7 @@ mod cache;
 mod cli;
 mod configuration;
 mod dapps;
+mod export_hardcoded_sync;
 mod ipfs;
 mod deprecated;
 mod helpers;
@@ -175,6 +177,7 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 		Cmd::SignerList { port, authfile } => rpc_cli::signer_list(port, authfile).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerReject { id, port, authfile } => rpc_cli::signer_reject(id, port, authfile).map(|s| PostExecutionAction::Print(s)),
 		Cmd::Snapshot(snapshot_cmd) => snapshot::execute(snapshot_cmd).map(|s| PostExecutionAction::Print(s)),
+		Cmd::ExportHardcodedSync(export_hs_cmd) => export_hardcoded_sync::execute(export_hs_cmd).map(|s| PostExecutionAction::Print(s)),
 	}
 }
 

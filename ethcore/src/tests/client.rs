@@ -23,7 +23,7 @@ use state::{self, State, CleanupMode};
 use executive::{Executive, TransactOptions};
 use ethereum;
 use block::IsBlock;
-use tests::helpers::{
+use test_helpers::{
 	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,
 	generate_dummy_client_with_data, get_good_dummy_block, get_bad_state_dummy_block
 };
@@ -362,7 +362,7 @@ fn transaction_proof() {
 
 	let mut factories = ::factory::Factories::default();
 	factories.accountdb = ::account_db::Factory::Plain; // raw state values, no mangled keys.
-	let root = client.best_block_header().state_root();
+	let root = *client.best_block_header().state_root();
 
 	let mut state = State::from_existing(backend, root, 0.into(), factories.clone()).unwrap();
 	Executive::new(&mut state, &client.latest_env_info(), test_spec.engine.machine())

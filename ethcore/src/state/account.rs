@@ -27,7 +27,7 @@ use bytes::{Bytes, ToPretty};
 use trie;
 use trie::{SecTrieDB, Trie, TrieFactory, TrieError};
 use pod_account::*;
-use rlp::*;
+use rlp::{RlpStream, encode};
 use lru_cache::LruCache;
 use basic_account::BasicAccount;
 
@@ -62,7 +62,7 @@ pub struct Account {
 	storage_changes: HashMap<H256, H256>,
 	// Code hash of the account.
 	code_hash: H256,
-	// Size of the accoun code.
+	// Size of the account code.
 	code_size: Option<usize>,
 	// Code cache of the account.
 	code_cache: Arc<Bytes>,
@@ -180,13 +180,23 @@ impl Account {
 		self.init_code(code);
 	}
 
+	/// Reset this account's code and storage to given values.
+	pub fn reset_code_and_storage(&mut self, code: Arc<Bytes>, storage: HashMap<H256, H256>) {
+		self.code_hash = keccak(&*code);
+		self.code_cache = code;
+		self.code_size = Some(self.code_cache.len());
+		self.code_filth = Filth::Dirty;
+		self.storage_cache = Self::empty_storage_cache();
+		self.storage_changes = storage;
+	}
+
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
 	pub fn set_storage(&mut self, key: H256, value: H256) {
 		self.storage_changes.insert(key, value);
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
-	/// Takes modifed storage into account.
+	/// Takes modified storage into account.
 	pub fn storage_at(&self, db: &HashDB, key: &H256) -> trie::Result<H256> {
 		if let Some(value) = self.cached_storage_at(key) {
 			return Ok(value);
@@ -424,7 +434,6 @@ impl Account {
 	pub fn clone_dirty(&self) -> Account {
 		let mut account = self.clone_basic();
 		account.storage_changes = self.storage_changes.clone();
-		account.code_cache = self.code_cache.clone();
 		account
 	}
 

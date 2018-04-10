@@ -18,7 +18,7 @@
 
 use ethereum_types::{U256, Address, Bloom, BloomInput};
 use bytes::Bytes;
-use rlp::*;
+use rlp::{UntrustedRlp, RlpStream, Encodable, DecoderError, Decodable};
 
 use vm::ActionParams;
 use evm::CallType;

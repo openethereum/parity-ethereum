@@ -24,7 +24,7 @@ use network::{NetworkProtocolHandler, NetworkContext, HostInfo, PeerId, Protocol
 use ethereum_types::{H256, H512, U256};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
-use ethcore::client::{BlockChainClient, ChainNotify};
+use ethcore::client::{BlockChainClient, ChainNotify, ChainMessageType};
 use ethcore::snapshot::SnapshotService;
 use ethcore::header::BlockNumber;
 use sync_io::NetSyncIo;
@@ -32,11 +32,13 @@ use chain::{ChainSync, SyncStatus as EthSyncStatus};
 use std::net::{SocketAddr, AddrParseError};
 use std::str::FromStr;
 use parking_lot::RwLock;
-use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT};
+use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT, ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_62,
+	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3};
 use light::client::AsLightClient;
 use light::Provider;
 use light::net::{self as light_net, LightProtocol, Params as LightParams, Capabilities, Handler as LightHandler, EventContext};
 use network::IpFilter;
+use private_tx::PrivateTxHandler;
 
 /// Parity sync protocol
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
@@ -44,6 +46,41 @@ pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
 pub const ETH_PROTOCOL: ProtocolId = *b"eth";
 /// Ethereum light protocol
 pub const LIGHT_PROTOCOL: ProtocolId = *b"pip";
+
+/// Determine warp sync status.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WarpSync {
+	/// Warp sync is enabled.
+	Enabled,
+	/// Warp sync is disabled.
+	Disabled,
+	/// Only warp sync is allowed (no regular sync) and only after given block number.
+	OnlyAndAfter(BlockNumber),
+}
+
+impl WarpSync {
+	/// Returns true if warp sync is enabled.
+	pub fn is_enabled(&self) -> bool {
+		match *self {
+			WarpSync::Enabled => true,
+			WarpSync::OnlyAndAfter(_) => true,
+			WarpSync::Disabled => false,
+		}
+	}
+
+	/// Returns `true` if we are in warp-only mode.
+	///
+	/// i.e. we will never fall back to regular sync
+	/// until given block number is reached by
+	/// successfuly finding and restoring from a snapshot.
+	pub fn is_warp_only(&self) -> bool {
+		if let WarpSync::OnlyAndAfter(_) = *self {
+			true
+		} else {
+			false
+		}
+	}
+}
 
 /// Sync configuration
 #[derive(Debug, Clone, Copy)]
@@ -61,7 +98,7 @@ pub struct SyncConfig {
 	/// Fork block to check
 	pub fork_block: Option<(BlockNumber, H256)>,
 	/// Enable snapshot sync
-	pub warp_sync: bool,
+	pub warp_sync: WarpSync,
 	/// Enable light client server.
 	pub serve_light: bool,
 }
@@ -75,7 +112,7 @@ impl Default for SyncConfig {
 			subprotocol_name: ETH_PROTOCOL,
 			light_subprotocol_name: LIGHT_PROTOCOL,
 			fork_block: None,
-			warp_sync: false,
+			warp_sync: WarpSync::Disabled,
 			serve_light: false,
 		}
 	}
@@ -192,6 +229,8 @@ pub struct Params {
 	pub chain: Arc<BlockChainClient>,
 	/// Snapshot service.
 	pub snapshot_service: Arc<SnapshotService>,
+	/// Private tx service.
+	pub private_tx_handler: Arc<PrivateTxHandler>,
 	/// Light data provider.
 	pub provider: Arc<::light::Provider>,
 	/// Network layer configuration.
@@ -253,7 +292,7 @@ impl EthSync {
 			})
 		};
 
-		let chain_sync = ChainSync::new(params.config, &*params.chain);
+		let chain_sync = ChainSync::new(params.config, &*params.chain, params.private_tx_handler.clone());
 		let service = NetworkService::new(params.network_config.clone().into_basic()?, connection_filter)?;
 
 		let sync = Arc::new(EthSync {
@@ -357,9 +396,10 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	}
 
 	fn timeout(&self, io: &NetworkContext, _timer: TimerToken) {
-		self.sync.write().maintain_peers(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay));
-		self.sync.write().maintain_sync(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay));
-		self.sync.write().propagate_new_transactions(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay));
+		let mut io = NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay);
+		self.sync.write().maintain_peers(&mut io);
+		self.sync.write().maintain_sync(&mut io);
+		self.sync.write().propagate_new_transactions(&mut io);
 	}
 }
 
@@ -376,7 +416,8 @@ impl ChainNotify for EthSync {
 		use light::net::Announcement;
 
 		self.network.with_context(self.subprotocol_name, |context| {
-			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
+			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service,
+				&self.eth_handler.overlay);
 			self.eth_handler.sync.write().chain_new_blocks(
 				&mut sync_io,
 				&imported,
@@ -413,10 +454,10 @@ impl ChainNotify for EthSync {
 			Err(err) => warn!("Error starting network: {}", err),
 			_ => {},
 		}
-		self.network.register_protocol(self.eth_handler.clone(), self.subprotocol_name, ETH_PACKET_COUNT, &[62u8, 63u8])
+		self.network.register_protocol(self.eth_handler.clone(), self.subprotocol_name, ETH_PACKET_COUNT, &[ETH_PROTOCOL_VERSION_62, ETH_PROTOCOL_VERSION_63])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 		// register the warp sync subprotocol
-		self.network.register_protocol(self.eth_handler.clone(), WARP_SYNC_PROTOCOL_ID, SNAPSHOT_SYNC_PACKET_COUNT, &[1u8, 2u8])
+		self.network.register_protocol(self.eth_handler.clone(), WARP_SYNC_PROTOCOL_ID, SNAPSHOT_SYNC_PACKET_COUNT, &[PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3])
 			.unwrap_or_else(|e| warn!("Error registering snapshot sync protocol: {:?}", e));
 
 		// register the light protocol.
@@ -434,10 +475,14 @@ impl ChainNotify for EthSync {
 		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
 	}
 
-	fn broadcast(&self, message: Vec<u8>) {
+	fn broadcast(&self, message_type: ChainMessageType) {
 		self.network.with_context(WARP_SYNC_PROTOCOL_ID, |context| {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
-			self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message.clone());
+			match message_type {
+				ChainMessageType::Consensus(message) => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message),
+				ChainMessageType::PrivateTransaction(message) => self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, message),
+				ChainMessageType::SignedPrivateTransaction(message) => self.eth_handler.sync.write().propagate_signed_private_transaction(&mut sync_io, message),
+			}
 		});
 	}
 

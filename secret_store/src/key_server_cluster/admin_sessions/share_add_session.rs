@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
-use ethereum_types::H256;
+use ethereum_types::{H256, Address};
 use ethkey::{Public, Secret, Signature};
 use parking_lot::{Mutex, Condvar};
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare, DocumentKeyShareVersion, KeyStorage};
@@ -101,7 +101,7 @@ struct NewKeyShare {
 	/// NewKeyShare: threshold.
 	pub threshold: usize,
 	/// NewKeyShare: author.
-	pub author: Public,
+	pub author: Address,
 	/// NewKeyShare: joint public.
 	pub joint_public: Public,
 	/// NewKeyShare: Common (shared) encryption point.

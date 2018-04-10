@@ -22,7 +22,7 @@ use vm::{EnvInfo, ActionParams, ActionValue, CallType, ParamsType};
 use evm::{Factory, VMType};
 use executive::Executive;
 use state::Substate;
-use tests::helpers::get_temp_state_with_factory;
+use test_helpers::get_temp_state_with_factory;
 use trace::{NoopVMTracer, NoopTracer};
 use transaction::SYSTEM_ADDRESS;
 
@@ -31,7 +31,7 @@ use rustc_hex::FromHex;
 use ethereum_types::{H256, Address};
 use bytes::BytesRef;
 
-evm_test!{test_blockhash_eip210: test_blockhash_eip210_jit, test_blockhash_eip210_int}
+evm_test!{test_blockhash_eip210: test_blockhash_eip210_int}
 fn test_blockhash_eip210(factory: Factory) {
 	let get_prev_hash_code = Arc::new("600143034060205260206020f3".from_hex().unwrap()); // this returns previous block hash
 	let get_prev_hash_code_hash = keccak(get_prev_hash_code.as_ref());

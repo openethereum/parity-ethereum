@@ -191,7 +191,7 @@ fn open_args_vault_account(store: &EthStore, address: Address, args: &Args) -> R
 fn format_accounts(accounts: &[Address]) -> String {
 	accounts.iter()
 		.enumerate()
-		.map(|(i, a)| format!("{:2}: 0x{:?}", i, a))
+		.map(|(i, a)| format!("{:2}: 0x{:x}", i, a))
 		.collect::<Vec<String>>()
 		.join("\n")
 }
@@ -220,7 +220,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let password = load_password(&args.arg_password)?;
 		let vault_ref = open_args_vault(&store, &args)?;
 		let account_ref = store.insert_account(vault_ref, secret, &password)?;
-		Ok(format!("0x{:?}", account_ref.address))
+		Ok(format!("0x{:x}", account_ref.address))
 	} else if args.cmd_change_pwd {
 		let address = args.arg_address.parse().map_err(|_| ethstore::Error::InvalidAccount)?;
 		let old_pwd = load_password(&args.arg_old_pwd)?;
@@ -248,7 +248,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let kp = wallet.decrypt(&password)?;
 		let vault_ref = open_args_vault(&store, &args)?;
 		let account_ref = store.insert_account(vault_ref, kp.secret().clone(), &password)?;
-		Ok(format!("0x{:?}", account_ref.address))
+		Ok(format!("0x{:x}", account_ref.address))
 	} else if args.cmd_find_wallet_pass {
 		let passwords = load_password(&args.arg_password)?;
 		let passwords = passwords.lines().map(str::to_owned).collect::<VecDeque<_>>();
@@ -272,7 +272,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let password = load_password(&args.arg_password)?;
 		let account_ref = open_args_vault_account(&store, address, &args)?;
 		let public = store.public(&account_ref, &password)?;
-		Ok(format!("0x{:?}", public))
+		Ok(format!("0x{:x}", public))
 	} else if args.cmd_list_vaults {
 		let vaults = store.list_vaults()?;
 		Ok(format_vaults(&vaults))

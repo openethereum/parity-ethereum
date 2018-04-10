@@ -337,7 +337,7 @@ fn rpc_eth_sign() {
 		"jsonrpc": "2.0",
 		"method": "eth_sign",
 		"params": [
-			""#.to_owned() + &format!("0x{:?}", account) + r#"",
+			""#.to_owned() + &format!("0x{:x}", account) + r#"",
 			"0x0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f"
 		],
 		"id": 1
@@ -349,7 +349,7 @@ fn rpc_eth_sign() {
 
 #[test]
 fn rpc_eth_author() {
-	let make_res = |addr| r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:?}", addr) + r#"","id":1}"#;
+	let make_res = |addr| r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:x}", addr) + r#"","id":1}"#;
 	let tester = EthTester::default();
 
 	let req = r#"{
@@ -402,7 +402,7 @@ fn rpc_eth_accounts() {
 
 	// with current policy it should return the account
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:?}", address) + r#""],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:x}", address) + r#""],"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
 	tester.accounts_provider.set_new_dapps_addresses(Some(vec![1.into()])).unwrap();
@@ -811,7 +811,7 @@ fn rpc_eth_send_transaction() {
 		"jsonrpc": "2.0",
 		"method": "eth_sendTransaction",
 		"params": [{
-			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"from": ""#.to_owned() + format!("0x{:x}", address).as_ref() + r#"",
 			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
 			"gas": "0x76c0",
 			"gasPrice": "0x9184e72a000",
@@ -831,7 +831,7 @@ fn rpc_eth_send_transaction() {
 	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
 
-	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:x}", t.hash()).as_ref() + r#"","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response));
 
@@ -848,7 +848,7 @@ fn rpc_eth_send_transaction() {
 	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
 
-	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:x}", t.hash()).as_ref() + r#"","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response));
 }
@@ -862,7 +862,7 @@ fn rpc_eth_sign_transaction() {
 		"jsonrpc": "2.0",
 		"method": "eth_signTransaction",
 		"params": [{
-			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"from": ""#.to_owned() + format!("0x{:x}", address).as_ref() + r#"",
 			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
 			"gas": "0x76c0",
 			"gasPrice": "0x9184e72a000",
@@ -890,12 +890,12 @@ fn rpc_eth_sign_transaction() {
 		r#""blockHash":null,"blockNumber":null,"# +
 		&format!("\"chainId\":{},", t.chain_id().map_or("null".to_owned(), |n| format!("{}", n))) +
 		r#""condition":null,"creates":null,"# +
-		&format!("\"from\":\"0x{:?}\",", &address) +
+		&format!("\"from\":\"0x{:x}\",", &address) +
 		r#""gas":"0x76c0","gasPrice":"0x9184e72a000","# +
-		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
+		&format!("\"hash\":\"0x{:x}\",", t.hash()) +
 		r#""input":"0x","# +
 		r#""nonce":"0x1","# +
-		&format!("\"publicKey\":\"0x{:?}\",", t.recover_public().unwrap()) +
+		&format!("\"publicKey\":\"0x{:x}\",", t.recover_public().unwrap()) +
 		&format!("\"r\":\"0x{:x}\",", U256::from(signature.r())) +
 		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
 		&format!("\"s\":\"0x{:x}\",", U256::from(signature.s())) +
@@ -918,7 +918,7 @@ fn rpc_eth_send_transaction_with_bad_to() {
 		"jsonrpc": "2.0",
 		"method": "eth_sendTransaction",
 		"params": [{
-			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"from": ""#.to_owned() + format!("0x{:x}", address).as_ref() + r#"",
 			"to": "",
 			"gas": "0x76c0",
 			"gasPrice": "0x9184e72a000",
@@ -941,7 +941,7 @@ fn rpc_eth_send_transaction_error() {
 		"jsonrpc": "2.0",
 		"method": "eth_sendTransaction",
 		"params": [{
-			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"from": ""#.to_owned() + format!("0x{:x}", address).as_ref() + r#"",
 			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
 			"gas": "0x76c0",
 			"gasPrice": "0x9184e72a000",
@@ -999,7 +999,7 @@ fn rpc_eth_send_raw_transaction() {
 		"id": 1
 	}"#;
 
-	let res = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:?}", t.hash()) + r#"","id":1}"#;
+	let res = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &format!("0x{:x}", t.hash()) + r#"","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(&req), Some(res));
 }
@@ -1150,7 +1150,7 @@ fn rpc_get_work_should_timeout() {
 	// Request without providing timeout. This should work since we're disabling timeout.
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
 	let work_response = format!(
-		r#"{{"jsonrpc":"2.0","result":["0x{:?}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x1"],"id":1}}"#,
+		r#"{{"jsonrpc":"2.0","result":["0x{:x}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x1"],"id":1}}"#,
 		hash,
 	);
 	assert_eq!(eth_tester.io.handle_request_sync(request), Some(work_response.to_owned()));
@@ -1158,7 +1158,7 @@ fn rpc_get_work_should_timeout() {
 	// Request with timeout of 0 seconds. This should work since we're disabling timeout.
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [0], "id": 1}"#;
 	let work_response = format!(
-		r#"{{"jsonrpc":"2.0","result":["0x{:?}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x1"],"id":1}}"#,
+		r#"{{"jsonrpc":"2.0","result":["0x{:x}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x1"],"id":1}}"#,
 		hash,
 	);
 	assert_eq!(eth_tester.io.handle_request_sync(request), Some(work_response.to_owned()));

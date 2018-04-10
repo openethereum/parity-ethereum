@@ -33,7 +33,7 @@ use docopt::Docopt;
 use ethkey::{KeyPair, Random, Brain, BrainPrefix, Prefix, Error as EthkeyError, Generator, sign, verify_public, verify_address, brain_recover};
 use rustc_hex::{FromHex, FromHexError};
 
-pub const USAGE: &'static str = r#"
+const USAGE: &'static str = r#"
 Ethereum keys generator.
   Copyright 2016, 2017 Parity Technologies (UK) Ltd
 
@@ -180,9 +180,9 @@ fn display(result: (KeyPair, Option<String>), mode: DisplayMode) -> String {
 			Some(extra_data) => format!("{}\n{}", extra_data, keypair),
 			None => format!("{}", keypair)
 		},
-		DisplayMode::Secret => format!("{:?}", keypair.secret()),
-		DisplayMode::Public => format!("{:?}", keypair.public()),
-		DisplayMode::Address => format!("{:?}", keypair.address()),
+		DisplayMode::Secret => format!("{:x}", keypair.secret()),
+		DisplayMode::Public => format!("{:x}", keypair.public()),
+		DisplayMode::Address => format!("{:x}", keypair.address()),
 	}
 }
 

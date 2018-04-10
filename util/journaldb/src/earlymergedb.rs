@@ -266,13 +266,12 @@ impl EarlyMergeDB {
 			let mut era = decode::<u64>(&val);
 			latest_era = Some(era);
 			loop {
-				//let mut index = 0usize;
 				let mut db_key = DatabaseKey {
 					era,
 					index: 0usize,
 				};
 				while let Some(rlp_data) = db.get(col, &encode(&db_key)).expect("Low-level database error.") {
-					let inserts = DatabaseValueView::new(&rlp_data).inserts().expect("rlp read from db; qed");
+					let inserts = DatabaseValueView::from_rlp(&rlp_data).inserts().expect("rlp read from db; qed");
 					Self::replay_keys(&inserts, db, col, &mut refs);
 					db_key.index += 1;
 				};
@@ -440,7 +439,7 @@ impl JournalDB for EarlyMergeDB {
 			last = encode(&db_key);
 			self.backing.get(self.column, &last)
 		}? {
-			let view = DatabaseValueView::new(&rlp_data);
+			let view = DatabaseValueView::from_rlp(&rlp_data);
 			let inserts = view.inserts().expect("rlp read from db; qed");
 
 			if canon_id == &view.id().expect("rlp read from db; qed") {

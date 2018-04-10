@@ -50,13 +50,24 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 	fn verify_local_seal(&self, _header: &M::Header) -> Result<(), M::Error> {
 		Ok(())
 	}
+
+	fn open_block_header_timestamp(&self, parent_timestamp: u64) -> u64 {
+		use std::{time, cmp};
+
+		let now = time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap_or_default();
+		cmp::max(now.as_secs(), parent_timestamp)
+	}
+
+	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
+		header_timestamp >= parent_timestamp
+	}
 }
 
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
 	use ethereum_types::{H520, Address};
-	use tests::helpers::{get_temp_state_db};
+	use test_helpers::get_temp_state_db;
 	use spec::Spec;
 	use header::Header;
 	use block::*;

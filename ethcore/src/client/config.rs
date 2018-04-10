@@ -15,13 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
-use std::path::Path;
 use std::fmt::{Display, Formatter, Error as FmtError};
 
 use mode::Mode as IpcMode;
 use verification::{VerifierType, QueueConfig};
 use journaldb;
-use kvdb_rocksdb::CompactionProfile;
 
 pub use std::time::Duration;
 pub use blockchain::Config as BlockChainConfig;
@@ -45,17 +43,6 @@ impl Default for DatabaseCompactionProfile {
 	}
 }
 
-impl DatabaseCompactionProfile {
-	/// Returns corresponding compaction profile.
-	pub fn compaction_profile(&self, db_path: &Path) -> CompactionProfile {
-		match *self {
-			DatabaseCompactionProfile::Auto => CompactionProfile::auto(db_path),
-			DatabaseCompactionProfile::SSD => CompactionProfile::ssd(),
-			DatabaseCompactionProfile::HDD => CompactionProfile::hdd(),
-		}
-	}
-}
-
 impl FromStr for DatabaseCompactionProfile {
 	type Err = String;
 
@@ -74,10 +61,10 @@ impl FromStr for DatabaseCompactionProfile {
 pub enum Mode {
 	/// Always on.
 	Active,
-	/// Goes offline after RLP is inactive for some (given) time, but
+	/// Goes offline after client is inactive for some (given) time, but
 	/// comes back online after a while of inactivity.
 	Passive(Duration, Duration),
-	/// Goes offline after RLP is inactive for some (given) time and
+	/// Goes offline after client is inactive for some (given) time and
 	/// stays inactive.
 	Dark(Duration),
 	/// Always off.

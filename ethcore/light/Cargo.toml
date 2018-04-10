@@ -11,7 +11,7 @@ log = "0.3"
 ethcore = { path = ".."}
 ethcore-bytes = { path = "../../util/bytes" }
 ethcore-transaction = { path = "../transaction" }
-ethereum-types = "0.2"
+ethereum-types = "0.3"
 memorydb = { path = "../../util/memorydb" }
 patricia-trie = { path = "../../util/patricia_trie" }
 ethcore-network = { path = "../../util/network" }

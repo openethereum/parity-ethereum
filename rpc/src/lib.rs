@@ -67,6 +67,7 @@ extern crate rlp;
 extern crate stats;
 extern crate keccak_hash as hash;
 extern crate hardware_wallet;
+extern crate ethcore_private_tx;
 extern crate patricia_trie as trie;
 
 #[macro_use]
@@ -175,6 +176,7 @@ pub fn start_ws<M, S, H, T, U, V>(
 	remote: tokio_core::reactor::Remote,
 	allowed_origins: ws::DomainsValidation<ws::Origin>,
 	allowed_hosts: ws::DomainsValidation<ws::Host>,
+	max_connections: usize,
 	extractor: T,
 	middleware: V,
 	stats: U,
@@ -191,6 +193,7 @@ pub fn start_ws<M, S, H, T, U, V>(
 		.request_middleware(middleware)
 		.allowed_origins(allowed_origins)
 		.allowed_hosts(allowed_hosts)
+		.max_connections(max_connections)
 		.session_stats(stats)
 		.start(addr)
 }

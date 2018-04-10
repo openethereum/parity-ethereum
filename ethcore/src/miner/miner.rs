@@ -24,7 +24,7 @@ use ethereum_types::{H256, U256, Address};
 use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use engines::{EthEngine, Seal};
-use error::*;
+use error::{ExecutionError, Error};
 use ethcore_miner::banning_queue::{BanningTransactionQueue, Threshold};
 use ethcore_miner::local_transactions::{Status as LocalTransactionStatus};
 use ethcore_miner::transaction_queue::{
@@ -653,7 +653,7 @@ impl Miner {
 	}
 
 	fn update_gas_limit<C: BlockChain>(&self, client: &C) {
-		let gas_limit = client.best_block_header().gas_limit();
+		let gas_limit = *client.best_block_header().gas_limit();
 		let mut queue = self.transaction_queue.write();
 		queue.set_gas_limit(gas_limit);
 		if let GasLimit::Auto = self.options.tx_queue_gas_limit {
@@ -703,7 +703,7 @@ impl Miner {
 		condition: Option<TransactionCondition>,
 		transaction_queue: &mut BanningTransactionQueue,
 	) -> Vec<Result<TransactionImportResult, Error>> {
-		let best_block_header = client.best_block_header().decode();
+		let best_block_header = client.best_block_header();
 		let insertion_time = client.chain_info().best_block_number;
 		let mut inserted = Vec::with_capacity(transactions.len());
 
@@ -1327,8 +1327,7 @@ mod tests {
 	use spec::Spec;
 	use transaction::{SignedTransaction, Transaction, PendingTransaction, Action};
 	use miner::MinerService;
-
-	use tests::helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
+	use test_helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
 
 	#[test]
 	fn should_prepare_block_to_seal() {

@@ -32,6 +32,7 @@ mod rpc;
 mod secretstore;
 mod traces;
 mod web3;
+mod private;
 
 pub mod light;
 
@@ -51,3 +52,4 @@ pub use self::traces::TracesClient;
 pub use self::web3::Web3Client;
 pub use self::rpc::RpcClient;
 pub use self::secretstore::SecretStoreClient;
+pub use self::private::PrivateClient;

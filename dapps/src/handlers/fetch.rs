@@ -24,7 +24,7 @@ use fetch::{self, Fetch};
 use futures::sync::oneshot;
 use futures::{self, Future};
 use futures_cpupool::CpuPool;
-use hyper::{self, Method, StatusCode};
+use hyper::{self, StatusCode};
 use parking_lot::Mutex;
 
 use endpoint::{self, EndpointPath};
@@ -32,7 +32,7 @@ use handlers::{ContentHandler, StreamingHandler};
 use page::local;
 use {Embeddable};
 
-const FETCH_TIMEOUT: u64 = 300;
+const FETCH_TIMEOUT: Duration = Duration::from_secs(300);
 
 pub enum ValidatorResponse {
 	Local(local::Dapp),
@@ -57,7 +57,7 @@ impl Default for FetchControl {
 		FetchControl {
 			abort: Arc::new(AtomicBool::new(false)),
 			listeners: Arc::new(Mutex::new(Vec::new())),
-			deadline: Instant::now() + Duration::from_secs(FETCH_TIMEOUT),
+			deadline: Instant::now() + FETCH_TIMEOUT,
 		}
 	}
 }
@@ -193,7 +193,7 @@ impl Errors {
 		ContentHandler::error(
 			StatusCode::GatewayTimeout,
 			"Download Timeout",
-			&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT),
+			&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT.as_secs()),
 			None,
 			self.embeddable_on.clone(),
 		)
@@ -261,7 +261,7 @@ impl ContentFetcherHandler {
 		// Validation of method
 		let status = match *method {
 			// Start fetching content
-			Method::Get => {
+			hyper::Method::Get => {
 				trace!(target: "dapps", "Fetching content from: {:?}", url);
 				FetchState::InProgress(Self::fetch_content(
 						pool,
@@ -295,7 +295,7 @@ impl ContentFetcherHandler {
 	) -> Box<Future<Item=FetchState, Error=()> + Send> {
 		// Start fetching the content
 		let pool2 = pool.clone();
-		let future = fetch.fetch(url, abort.into()).then(move |result| {
+		let future = fetch.get(url, abort.into()).then(move |result| {
 			trace!(target: "dapps", "Fetching content finished. Starting validation: {:?}", result);
 			Ok(match result {
 				Ok(response) => match installer.validate_and_install(response) {

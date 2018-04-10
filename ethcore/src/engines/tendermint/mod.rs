@@ -514,7 +514,6 @@ impl Engine<EthereumMachine> for Tendermint {
 		fn fmt_err<T: ::std::fmt::Debug>(x: T) -> EngineError {
 			EngineError::MalformedMessage(format!("{:?}", x))
 		}
-
 		let rlp = UntrustedRlp::new(rlp);
 		let message: ConsensusMessage = rlp.as_val().map_err(fmt_err)?;
 		if !self.votes.is_old_or_known(&message) {
@@ -783,7 +782,7 @@ mod tests {
 	use header::Header;
 	use client::ChainInfo;
 	use miner::MinerService;
-	use tests::helpers::{
+	use test_helpers::{
 		TestNotify, get_temp_state_db, generate_dummy_client,
 		generate_dummy_client_with_spec_and_accounts
 	};

@@ -20,6 +20,7 @@ use dir::default_data_path;
 use dir::helpers::replace_home;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
+use ethcore::miner::Miner;
 use ethkey::{Secret, Public};
 use ethsync::SyncProvider;
 use ethereum_types::Address;
@@ -55,6 +56,14 @@ pub struct Configuration {
 	pub auto_migrate_enabled: bool,
 	/// Service contract address.
 	pub service_contract_address: Option<ContractAddress>,
+	/// Server key generation service contract address.
+	pub service_contract_srv_gen_address: Option<ContractAddress>,
+	/// Server key retrieval service contract address.
+	pub service_contract_srv_retr_address: Option<ContractAddress>,
+	/// Document key store service contract address.
+	pub service_contract_doc_store_address: Option<ContractAddress>,
+	/// Document key shadow retrieval service contract address.
+	pub service_contract_doc_sretr_address: Option<ContractAddress>,
 	/// This node secret.
 	pub self_secret: Option<NodeSecretKey>,
 	/// Other nodes IDs + addresses.
@@ -79,6 +88,8 @@ pub struct Dependencies<'a> {
 	pub client: Arc<Client>,
 	/// Sync provider.
 	pub sync: Arc<SyncProvider>,
+	/// Miner service.
+	pub miner: Arc<Miner>,
 	/// Account provider.
 	pub account_provider: Arc<AccountProvider>,
 	/// Passed accounts passwords.
@@ -107,6 +118,13 @@ mod server {
 	use ethkey::KeyPair;
 	use ansi_term::Colour::Red;
 	use super::{Configuration, Dependencies, NodeSecretKey, ContractAddress};
+
+	fn into_service_contract_address(address: ContractAddress) -> ethcore_secretstore::ContractAddress {
+		match address {
+			ContractAddress::Registry => ethcore_secretstore::ContractAddress::Registry,
+			ContractAddress::Address(address) => ethcore_secretstore::ContractAddress::Address(address),
+		}
+	}
 
 	/// Key server
 	pub struct KeyServer {
@@ -150,10 +168,11 @@ mod server {
 					address: conf.http_interface.clone(),
 					port: conf.http_port,
 				}) } else { None },
-				service_contract_address: conf.service_contract_address.map(|c| match c {
-					ContractAddress::Registry => ethcore_secretstore::ContractAddress::Registry,
-					ContractAddress::Address(address) => ethcore_secretstore::ContractAddress::Address(address),
-				}),
+				service_contract_address: conf.service_contract_address.map(into_service_contract_address),
+				service_contract_srv_gen_address: conf.service_contract_srv_gen_address.map(into_service_contract_address),
+				service_contract_srv_retr_address: conf.service_contract_srv_retr_address.map(into_service_contract_address),
+				service_contract_doc_store_address: conf.service_contract_doc_store_address.map(into_service_contract_address),
+				service_contract_doc_sretr_address: conf.service_contract_doc_sretr_address.map(into_service_contract_address),
 				data_path: conf.data_path.clone(),
 				acl_check_enabled: conf.acl_check_enabled,
 				cluster_config: ethcore_secretstore::ClusterConfiguration {
@@ -174,7 +193,7 @@ mod server {
 
 			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
 
-			let key_server = ethcore_secretstore::start(deps.client, deps.sync, self_secret, cconf)
+			let key_server = ethcore_secretstore::start(deps.client, deps.sync, deps.miner, self_secret, cconf)
 				.map_err(|e| format!("Error starting KeyServer {}: {}", key_server_name, e))?;
 
 			Ok(KeyServer {
@@ -195,6 +214,10 @@ impl Default for Configuration {
 			acl_check_enabled: true,
 			auto_migrate_enabled: true,
 			service_contract_address: None,
+			service_contract_srv_gen_address: None,
+			service_contract_srv_retr_address: None,
+			service_contract_doc_store_address: None,
+			service_contract_doc_sretr_address: None,
 			self_secret: None,
 			admin_public: None,
 			nodes: BTreeMap::new(),

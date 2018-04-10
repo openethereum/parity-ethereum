@@ -145,8 +145,8 @@ mod tests {
 	use account_provider::AccountProvider;
 	use miner::MinerService;
 	use types::ids::BlockId;
+	use test_helpers::generate_dummy_client_with_spec_and_accounts;
 	use client::{BlockChainClient, ChainInfo, BlockInfo, CallContract};
-	use tests::helpers::generate_dummy_client_with_spec_and_accounts;
 	use super::super::ValidatorSet;
 	use super::ValidatorContract;
 
@@ -201,7 +201,7 @@ mod tests {
 			"0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e"
 		);
 		// Simulate a misbehaving validator by handling a double proposal.
-		let header = client.best_block_header().decode();
+		let header = client.best_block_header();
 		assert!(client.engine().verify_block_family(&header, &header).is_err());
 		// Seal a block.
 		client.engine().step();
