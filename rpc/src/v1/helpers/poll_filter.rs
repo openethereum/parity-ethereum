@@ -14,7 +14,9 @@ pub enum PollFilter {
 	/// Hashes of all transactions which client was notified about.
 	PendingTransaction(Vec<H256>),
 	/// Number of From block number, pending logs and log filter itself.
-	Logs(BlockNumber, HashSet<Log>, Filter)
+	Logs(BlockNumber, HashSet<Log>, Filter),
+	/// Return Data from local transaction contract invocations
+	ReturnData(BlockNumber),
 }
 
 /// Returns only last `n` logs
