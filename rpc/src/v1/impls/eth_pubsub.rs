@@ -34,7 +34,7 @@ use v1::types::{pubsub, RichHeader, Log};
 use ethcore::encoded;
 use ethcore::filter::Filter as EthFilter;
 use ethcore::client::{BlockChainClient, ChainNotify, BlockId};
-use ethsync::LightSync;
+use sync::LightSync;
 use light::cache::Cache;
 use light::on_demand::OnDemand;
 use light::client::{LightChainClient, LightChainNotify};

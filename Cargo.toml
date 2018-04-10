@@ -33,7 +33,6 @@ fdlimit = "0.1"
 ws2_32-sys = "0.2"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
-ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-bytes = { path = "util/bytes" }
 ethcore-io = { path = "util/io" }
@@ -45,6 +44,7 @@ ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
 ethcore-stratum = { path = "ethcore/stratum" }
+ethcore-sync = { path = "ethcore/sync" }
 ethcore-transaction = { path = "ethcore/transaction" }
 ethereum-types = "0.3"
 node-filter = { path = "ethcore/node_filter" }

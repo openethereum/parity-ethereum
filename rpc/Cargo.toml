@@ -45,6 +45,7 @@ ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
+ethcore-sync = { path = "../ethcore/sync" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.3"
 
@@ -52,7 +53,6 @@ ethcrypto = { path = "../ethcrypto" }
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
-ethsync = { path = "../sync" }
 fetch = { path = "../util/fetch" }
 hardware-wallet = { path = "../hw" }
 keccak-hash = { path = "../util/hash" }

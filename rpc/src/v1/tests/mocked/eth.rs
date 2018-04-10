@@ -27,7 +27,7 @@ use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::miner::MinerService;
 use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
 use ethkey::Secret;
-use ethsync::SyncState;
+use sync::SyncState;
 use miner::external::ExternalMiner;
 use rlp;
 use rustc_hex::{FromHex, ToHex};

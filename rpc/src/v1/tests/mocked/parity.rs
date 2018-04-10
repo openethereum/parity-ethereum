@@ -20,7 +20,7 @@ use ethcore::client::{TestBlockChainClient, Executed};
 use ethcore::miner::LocalTransactionStatus;
 use ethcore_logger::RotatingLogger;
 use ethstore::ethkey::{Generator, Random};
-use ethsync::ManageNetwork;
+use sync::ManageNetwork;
 use node_health::{self, NodeHealth};
 use parity_reactor;
 use ethereum_types::{Address, U256, H256};

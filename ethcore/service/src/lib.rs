@@ -17,9 +17,9 @@
 extern crate ansi_term;
 extern crate ethcore;
 extern crate ethcore_io as io;
-extern crate ethsync;
-extern crate kvdb;
 extern crate ethcore_private_tx;
+extern crate ethcore_sync as sync;
+extern crate kvdb;
 extern crate stop_guard;
 
 #[macro_use]

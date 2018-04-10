@@ -21,7 +21,7 @@ use bytes::Bytes;
 use dir::default_data_path;
 use dir::helpers::replace_home;
 use ethcore::client::{Client, BlockChainClient, BlockId, CallContract};
-use ethsync::LightSync;
+use sync::LightSync;
 use futures::{Future, future, IntoFuture};
 use futures_cpupool::CpuPool;
 use hash_fetch::fetch::Client as FetchClient;

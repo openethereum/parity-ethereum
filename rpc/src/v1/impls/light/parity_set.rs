@@ -20,7 +20,7 @@
 use std::io;
 use std::sync::Arc;
 
-use ethsync::ManageNetwork;
+use sync::ManageNetwork;
 use fetch::{self, Fetch};
 use futures_cpupool::CpuPool;
 use hash::keccak_buffer;

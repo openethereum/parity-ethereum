@@ -25,7 +25,7 @@ use version::version_data;
 use crypto::{DEFAULT_MAC, ecies};
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
-use ethsync::{SyncProvider, ManageNetwork};
+use sync::{SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, StateClient, Call};
 use ethcore::ids::BlockId;
