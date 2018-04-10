@@ -22,14 +22,17 @@ use std::collections::HashSet;
 use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::client::{BlockChainClient, BlockId};
+use ethcore::executed::{Executed, CallError};
+use ethcore::call_analytics::CallAnalytics;
+use ethcore::encoded;
 use ethereum_types::H256;
 use parking_lot::Mutex;
 
-use jsonrpc_core::{BoxFuture, Result};
+use jsonrpc_core::{BoxFuture, Result as JsonRpcResult};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_core::futures::future::Either;
 use v1::traits::EthFilter;
-use v1::types::{BlockNumber, Index, Filter, FilterChanges, Log, H256 as RpcH256, U256 as RpcU256};
+use v1::types::{BlockNumber, Index, Filter, FilterChanges, Log, H256 as RpcH256, U256 as RpcU256, ReturnData, Bytes};
 use v1::helpers::{errors, PollFilter, PollManager, limit_logs};
 use v1::impls::eth::pending_logs;
 
@@ -40,6 +43,9 @@ pub trait Filterable {
 
 	/// Get a block hash by block id.
 	fn block_hash(&self, id: BlockId) -> Option<RpcH256>;
+
+	/// Get a block body by block id.
+	fn block_body(&self, id: BlockId) -> JsonRpcResult<Option<encoded::Body>>;
 
 	/// pending transaction hashes at the given block.
 	fn pending_transactions_hashes(&self, block_number: u64) -> Vec<H256>;
@@ -52,6 +58,9 @@ pub trait Filterable {
 
 	/// Get a reference to the poll manager.
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>>;
+
+	/// Replay the transactions from the specified block
+	fn replay_block_transactions(&self, block: BlockId) -> JsonRpcResult<Result<Box<Iterator<Item = Executed>>, CallError>>;
 }
 
 /// Eth filter rpc implementation for a full node.
@@ -84,6 +93,10 @@ impl<C, M> Filterable for EthFilterClient<C, M> where C: BlockChainClient, M: Mi
 		self.client.block_hash(id).map(Into::into)
 	}
 
+	fn block_body(&self, id: BlockId) -> JsonRpcResult<Option<encoded::Body>> {
+		Ok(self.client.block_body(id))
+	}
+
 	fn pending_transactions_hashes(&self, best: u64) -> Vec<H256> {
 		self.miner.pending_transactions_hashes(best)
 	}
@@ -97,30 +110,38 @@ impl<C, M> Filterable for EthFilterClient<C, M> where C: BlockChainClient, M: Mi
 	}
 
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> { &self.polls }
+
+	fn replay_block_transactions(&self, block: BlockId) -> JsonRpcResult<Result<Box<Iterator<Item = Executed>>, CallError>> {
+		Ok(self.client.replay_block_transactions(block, CallAnalytics { transaction_tracing: false, vm_tracing: false, state_diffing: false}))
+	}
 }
 
-
-
 impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
-	fn new_filter(&self, filter: Filter) -> Result<RpcU256> {
+	fn new_filter(&self, filter: Filter) -> JsonRpcResult<RpcU256> {
 		let mut polls = self.polls().lock();
 		let block_number = self.best_block_number();
 		let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
 		Ok(id.into())
 	}
 
-	fn new_block_filter(&self) -> Result<RpcU256> {
+	fn new_block_filter(&self) -> JsonRpcResult<RpcU256> {
 		let mut polls = self.polls().lock();
 		// +1, since we don't want to include the current block
 		let id = polls.create_poll(PollFilter::Block(self.best_block_number() + 1));
 		Ok(id.into())
 	}
 
-	fn new_pending_transaction_filter(&self) -> Result<RpcU256> {
+	fn new_pending_transaction_filter(&self) -> JsonRpcResult<RpcU256> {
 		let mut polls = self.polls().lock();
 		let best_block = self.best_block_number();
 		let pending_transactions = self.pending_transactions_hashes(best_block);
 		let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
+		Ok(id.into())
+	}
+
+	fn new_return_data_filter(&self) -> JsonRpcResult<RpcU256> {
+		let mut polls = self.polls().lock();
+		let id = polls.create_poll(PollFilter::ReturnData(self.best_block_number()));
 		Ok(id.into())
 	}
 
@@ -205,6 +226,48 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 						.map(move |mut logs| { logs.extend(pending); logs }) // append fetched pending logs
 						.map(move |logs| limit_logs(logs, limit)) // limit the logs
 						.map(FilterChanges::Logs))
+				},
+				PollFilter::ReturnData(ref mut block_number) => {
+					// +1, cause we want to return hashes including current block hash.
+					let current_number = self.best_block_number() + 1;
+					let return_data = (*block_number..current_number)
+						.filter_map(|block| {
+							let block_id = BlockId::Number(block);
+							let replay_result: JsonRpcResult<Result<Box<Iterator<Item = Executed>>, CallError>> = self.replay_block_transactions(block_id);
+							let body: JsonRpcResult<Option<encoded::Body>> = self.block_body(block_id);
+							match replay_result {
+								Ok(Ok(executed)) => {
+									match body {
+										Ok(Some(body)) => Some(executed.zip(body.transaction_hashes())),
+										Ok(None) => None,
+										Err(e) => {
+											warn!("Error getting block body for {:?}: {:?}", block_id, e);
+											None
+										}
+									}
+								},
+								Ok(Err(e)) => {
+									warn!("Error replaying transactions for block {:?}: {:?}", block_id, e);
+									None
+								},
+								Err(e) => {
+									warn!("Error replaying transactions for block {:?}: {:?}", block_id, e);
+									None
+								},
+							}
+						})
+						.flat_map(|zipped| zipped)
+						.map(|(executed, transaction_hash)| {
+							ReturnData {
+								transaction_hash,
+								return_data: Bytes::from(executed.output),
+								removed: false
+							}
+						})
+						.collect();
+					*block_number = current_number;
+
+					Either::A(future::ok(FilterChanges::ReturnData(return_data)))
 				}
 			}
 		})
@@ -242,7 +305,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 		)
 	}
 
-	fn uninstall_filter(&self, index: Index) -> Result<bool> {
+	fn uninstall_filter(&self, index: Index) -> JsonRpcResult<bool> {
 		Ok(self.polls().lock().remove_poll(&index.value()))
 	}
 }

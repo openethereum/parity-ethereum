@@ -20,6 +20,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrder};
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::mem;
+use std::iter;
 use itertools::Itertools;
 use rustc_hex::FromHex;
 use hash::keccak;
@@ -622,7 +623,10 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn replay_block_transactions(&self, _block: BlockId, _analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
-		Ok(Box::new(self.execution_result.read().clone().unwrap().into_iter()))
+		match self.execution_result.read().clone() {
+			Some(result) => Ok(Box::new(result.into_iter())),
+			None => Ok(Box::new(iter::empty())),
+		}
 	}
 
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {

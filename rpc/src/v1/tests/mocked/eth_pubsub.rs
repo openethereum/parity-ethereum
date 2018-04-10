@@ -22,7 +22,8 @@ use jsonrpc_pubsub::Session;
 
 use v1::{EthPubSub, EthPubSubClient, Metadata};
 
-use ethcore::client::{TestBlockChainClient, EachBlockWith, ChainNotify};
+use ethereum_types::{U256};
+use ethcore::client::{TestBlockChainClient, EachBlockWith, ChainNotify, Executed};
 use parity_reactor::EventLoop;
 
 #[test]
@@ -107,6 +108,19 @@ fn should_subscribe_to_logs() {
 			transaction_log_index: 0,
 		}
 	]);
+	client.set_execution_result(Ok(Executed {
+		exception: None,
+		gas: U256::zero(),
+		gas_used: U256::from(0xff30),
+		refunded: U256::from(0x5),
+		cumulative_gas_used: U256::zero(),
+		logs: vec![],
+		contracts_created: vec![],
+		output: vec![0x00],
+		trace: vec![],
+		vm_trace: None,
+		state_diff: None,
+	}));
 
 	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
 	let handler = pubsub.handler().upgrade().unwrap();
@@ -188,6 +202,91 @@ fn should_subscribe_to_pending_transactions() {
 	let (res, receiver) = receiver.into_future().wait().unwrap();
 	let response = r#"{"jsonrpc":"2.0","method":"eth_subscription","params":{"result":"0x0000000000000000000000000000000000000000000000000000000000000007","subscription":"0x416d77337e24399d"}}"#;
 	assert_eq!(res, Some(response.into()));
+
+	// And unsubscribe
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_unsubscribe", "params": ["0x416d77337e24399d"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(io.handle_request_sync(request, metadata), Some(response.to_owned()));
+
+	let (res, _receiver) = receiver.into_future().wait().unwrap();
+	assert_eq!(res, None);
+}
+
+#[test]
+fn should_subscribe_return_data() {
+	use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
+	use ethcore::ids::BlockId;
+	use ethcore::client::BlockInfo;
+
+	// given
+	let el = EventLoop::spawn();
+	let mut client = TestBlockChainClient::new();
+	// Insert some blocks
+	client.add_blocks(1, EachBlockWith::Transaction);
+	let h1 = client.block_hash_delta_minus(1);
+	let block = client.block(BlockId::Hash(h1)).unwrap();
+	let tx_hash = block.transactions()[0].hash();
+	client.set_logs(vec![
+		LocalizedLogEntry {
+			entry: LogEntry {
+				address: 5.into(),
+				topics: vec![1.into(), 2.into(), 0.into(), 0.into()],
+				data: vec![],
+			},
+			block_hash: h1,
+			block_number: block.header().number(),
+			transaction_hash: tx_hash,
+			transaction_index: 0,
+			log_index: 0,
+			transaction_log_index: 0,
+		}
+	]);
+	client.set_execution_result(Ok(Executed {
+		exception: None,
+		gas: U256::zero(),
+		gas_used: U256::from(0xff30),
+		refunded: U256::from(0x5),
+		cumulative_gas_used: U256::zero(),
+		logs: vec![],
+		contracts_created: vec![],
+		output: vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2a],
+		trace: vec![],
+		vm_trace: None,
+		state_diff: None,
+	}));
+
+	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
+	let handler = pubsub.handler().upgrade().unwrap();
+	let pubsub = pubsub.to_delegate();
+
+	let mut io = MetaIoHandler::default();
+	io.extend_with(pubsub);
+
+	let mut metadata = Metadata::default();
+	let (sender, receiver) = futures::sync::mpsc::channel(8);
+	metadata.session = Some(Arc::new(Session::new(sender)));
+
+	// Subscribe
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_subscribe", "params": ["returnData"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x416d77337e24399d","id":1}"#;
+	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
+
+	// Check notifications (enacted)
+	handler.new_blocks(vec![], vec![], vec![h1], vec![], vec![], vec![], 0);
+	let (res, receiver) = receiver.into_future().wait().unwrap();
+	let response = r#"{"jsonrpc":"2.0","method":"eth_subscription","params":{"result":{"removed":false,"returnData":"0x000000000000000000000000000000000000000000000000000000000000002a","transactionHash":""#.to_owned()
+		+ &format!("{:?}", tx_hash)
+		+ r#""},"subscription":"0x416d77337e24399d"}}"#;
+	assert_eq!(res, Some(response.into()));
+
+	// Check notifications (retracted)
+	handler.new_blocks(vec![], vec![], vec![], vec![h1], vec![], vec![], 0);
+	let (res, receiver) = receiver.into_future().wait().unwrap();
+	let response = r#"{"jsonrpc":"2.0","method":"eth_subscription","params":{"result":{"removed":true,"returnData":"0x000000000000000000000000000000000000000000000000000000000000002a","transactionHash":""#.to_owned()
+		+ &format!("{:?}", tx_hash)
+		+ r#""},"subscription":"0x416d77337e24399d"}}"#;
+	assert_eq!(res, Some(response.into()));
+
 
 	// And unsubscribe
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_unsubscribe", "params": ["0x416d77337e24399d"], "id": 1}"#;

@@ -19,7 +19,7 @@ use serde::de::{Error, DeserializeOwned};
 use serde_json::{Value, from_value};
 use ethcore::filter::Filter as EthFilter;
 use ethcore::client::BlockId;
-use v1::types::{BlockNumber, H160, H256, Log};
+use v1::types::{BlockNumber, H160, H256, Log, ReturnData};
 
 /// Variadic value
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -112,6 +112,8 @@ pub enum FilterChanges {
 	Logs(Vec<Log>),
 	/// New hashes (block or transactions)
 	Hashes(Vec<H256>),
+	/// Contract function return data
+	ReturnData(Vec<ReturnData>),
 	/// Empty result,
 	Empty,
 }
@@ -121,6 +123,7 @@ impl Serialize for FilterChanges {
 		match *self {
 			FilterChanges::Logs(ref logs) => logs.serialize(s),
 			FilterChanges::Hashes(ref hashes) => hashes.serialize(s),
+			FilterChanges::ReturnData(ref return_data) => return_data.serialize(s),
 			FilterChanges::Empty => (&[] as &[Value]).serialize(s),
 		}
 	}

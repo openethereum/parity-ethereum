@@ -307,6 +307,41 @@ fn rpc_blocks_filter() {
 }
 
 #[test]
+fn rpc_return_data_filter() {
+	let tester = EthTester::default();
+	tester.client.add_blocks(1, EachBlockWith::Transaction);
+	let body = tester.client.block_body(BlockId::Number(1)).unwrap();
+	let hash = *body.transaction_hashes().get(0).unwrap();
+	// Set the txn execution
+	tester.client.set_execution_result(Ok(Executed {
+		exception: None,
+		gas: U256::zero(),
+		gas_used: U256::from(0xff30),
+		refunded: U256::from(0x5),
+		cumulative_gas_used: U256::zero(),
+		logs: vec![],
+		contracts_created: vec![],
+		output: vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2a],
+		trace: vec![],
+		vm_trace: None,
+		state_diff: None,
+	}));
+
+	// Register filters first
+	let request_default = r#"{"jsonrpc": "2.0", "method": "eth_newReturnDataFilter", "params": [], "id": 1}"#;
+	let response1 = r#"{"jsonrpc":"2.0","result":"0x0","id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request_default), Some(response1.to_owned()));
+
+	let request_changes1 = r#"{"jsonrpc": "2.0", "method": "eth_getFilterChanges", "params": ["0x0"], "id": 1}"#;
+	let response1 = r#"{"jsonrpc":"2.0","result":[{"removed":false,"returnData":"0x000000000000000000000000000000000000000000000000000000000000002a","transactionHash":""#.to_owned()
+		+ &format!("{:?}", hash )
+		+ r#""}],"id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request_changes1), Some(response1.to_owned()));
+}
+
+#[test]
 fn rpc_eth_submit_hashrate() {
 	let tester = EthTester::default();
 

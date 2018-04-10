@@ -19,7 +19,7 @@
 use std::sync::{Arc, Weak};
 use std::collections::BTreeMap;
 
-use jsonrpc_core::{BoxFuture, Result, Error};
+use jsonrpc_core::{BoxFuture, Result as JsonRpcResult, Error};
 use jsonrpc_core::futures::{self, Future, IntoFuture};
 use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::{Sink, Subscriber};
@@ -29,11 +29,11 @@ use v1::helpers::{errors, limit_logs, Subscribers};
 use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
 use v1::traits::EthPubSub;
-use v1::types::{pubsub, RichHeader, Log};
+use v1::types::{pubsub, RichHeader, Log, ReturnData, Bytes as RpcBytes};
 
 use ethcore::encoded;
 use ethcore::filter::Filter as EthFilter;
-use ethcore::client::{BlockChainClient, ChainNotify, BlockId};
+use ethcore::client::{BlockChainClient, ChainNotify, BlockId, CallAnalytics};
 use sync::LightSync;
 use light::cache::Cache;
 use light::on_demand::OnDemand;
@@ -51,6 +51,7 @@ pub struct EthPubSubClient<C> {
 	heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
 	logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
 	transactions_subscribers: Arc<RwLock<Subscribers<Client>>>,
+	return_data_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
 impl<C> EthPubSubClient<C> {
@@ -59,6 +60,7 @@ impl<C> EthPubSubClient<C> {
 		let heads_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let logs_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 		let transactions_subscribers = Arc::new(RwLock::new(Subscribers::default()));
+		let return_data_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 
 		EthPubSubClient {
 			handler: Arc::new(ChainNotificationHandler {
@@ -67,20 +69,23 @@ impl<C> EthPubSubClient<C> {
 				heads_subscribers: heads_subscribers.clone(),
 				logs_subscribers: logs_subscribers.clone(),
 				transactions_subscribers: transactions_subscribers.clone(),
+				return_data_subscribers: return_data_subscribers.clone(),
 			}),
 			heads_subscribers,
 			logs_subscribers,
 			transactions_subscribers,
+			return_data_subscribers,
 		}
 	}
 
-	/// Creates new `EthPubSubCient` with deterministic subscription ids.
+	/// Creates new `EthPubSubClient` with deterministic subscription ids.
 	#[cfg(test)]
 	pub fn new_test(client: Arc<C>, remote: Remote) -> Self {
 		let client = Self::new(client, remote);
 		*client.heads_subscribers.write() = Subscribers::new_test();
 		*client.logs_subscribers.write() = Subscribers::new_test();
 		*client.transactions_subscribers.write() = Subscribers::new_test();
+		*client.return_data_subscribers.write() = Subscribers::new_test();
 		client
 	}
 
@@ -118,6 +123,7 @@ pub struct ChainNotificationHandler<C> {
 	heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
 	logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
 	transactions_subscribers: Arc<RwLock<Subscribers<Client>>>,
+	return_data_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
 impl<C> ChainNotificationHandler<C> {
@@ -169,6 +175,21 @@ impl<C> ChainNotificationHandler<C> {
 				})
 				.map_err(|e| warn!("Unable to fetch latest logs: {:?}", e))
 			);
+		}
+	}
+
+	fn notify_return_data<F>(&self, enacted: &[H256], calculate_return_data: F) where
+		F: Fn(&[H256]) -> Vec<ReturnData>
+	{
+		let return_data = calculate_return_data(enacted);
+
+		for subscriber in self.return_data_subscribers.read().values() {
+			let remote = self.remote.clone();
+			let subscriber = subscriber.clone();
+
+			for return_datum in return_data.clone() {
+				Self::notify(&remote, &subscriber, pubsub::Result::ReturnData(return_datum))
+			}
 		}
 	}
 
@@ -254,6 +275,34 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 				log
 			}).collect())
 		});
+
+		fn replay_transactions<C: BlockChainClient>(client: &C, block_hashes: &[H256], removed: bool) -> Vec<ReturnData> {
+			let analytics = CallAnalytics { transaction_tracing: false, vm_tracing: false, state_diffing: false, };
+			block_hashes
+				.iter()
+				.filter_map(|hash| {
+					let id = BlockId::Hash(*hash);
+					let body = client.block_body(id)?;
+					match client.replay_block_transactions(id, analytics) {
+						Ok(executed) => Some(body.transaction_hashes().into_iter().zip(executed)),
+						Err(e) => {
+							warn!("Could not execute transactions on block {}; {:?}", hash, e);
+							None
+						}
+					}
+				})
+				.flat_map(|executeds| executeds)
+				.map(|(transaction_hash, executed)| {
+					ReturnData {
+						transaction_hash,
+						return_data: RpcBytes::from(executed.output),
+						removed
+					}
+				})
+				.collect::<Vec<ReturnData>>()
+		}
+		self.notify_return_data(&enacted, |block_hashes: &[H256]| replay_transactions::<C>(&self.client, block_hashes, false));
+		self.notify_return_data(&retracted, |block_hashes: &[H256]| replay_transactions::<C>(&self.client, block_hashes, true));
 	}
 }
 
@@ -289,6 +338,13 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 			(pubsub::Kind::NewPendingTransactions, _) => {
 				errors::invalid_params("newPendingTransactions", "Expected no parameters.")
 			},
+			(pubsub::Kind::ReturnData, None) => {
+				self.return_data_subscribers.write().push(subscriber);
+				return;
+			},
+			(pubsub::Kind::ReturnData, _) => {
+				errors::invalid_params("returnData", "Expected no parameters.")
+			},
 			_ => {
 				errors::unimplemented(None)
 			},
@@ -297,11 +353,12 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		let _ = subscriber.reject(error);
 	}
 
-	fn unsubscribe(&self, id: SubscriptionId) -> Result<bool> {
+	fn unsubscribe(&self, id: SubscriptionId) -> JsonRpcResult<bool> {
 		let res = self.heads_subscribers.write().remove(&id).is_some();
 		let res2 = self.logs_subscribers.write().remove(&id).is_some();
 		let res3 = self.transactions_subscribers.write().remove(&id).is_some();
+		let res4 = self.return_data_subscribers.write().remove(&id).is_some();
 
-		Ok(res || res2 || res3)
+		Ok(res || res2 || res3 || res4)
 	}
 }

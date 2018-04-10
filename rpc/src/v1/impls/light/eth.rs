@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use jsonrpc_core::{Result, BoxFuture};
+use jsonrpc_core::{Result as JsonRpcResult, BoxFuture};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_core::futures::future::Either;
 use jsonrpc_macros::Trailing;
@@ -30,6 +30,7 @@ use light::on_demand::{request, OnDemand};
 
 use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::encoded;
+use ethcore::executed::{Executed, CallError};
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::ids::BlockId;
 use sync::LightSync;
@@ -68,8 +69,8 @@ pub struct EthClient<T> {
 impl<T> EthClient<T> {
 	fn num_to_id(num: BlockNumber) -> BlockId {
 		// Note: Here we treat `Pending` as `Latest`.
-		//       Since light clients don't produce pending blocks
-		//       (they don't have state) we can safely fallback to `Latest`.
+		//		 Since light clients don't produce pending blocks
+		//		 (they don't have state) we can safely fallback to `Latest`.
 		match num {
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
@@ -198,9 +199,9 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 					};
 
 					// three possible outcomes:
-					//   - network is down.
-					//   - we get a score, but our hash is non-canonical.
-					//   - we get a score, and our hash is canonical.
+					//	 - network is down.
+					//	 - we get a score, but our hash is non-canonical.
+					//	 - we get a score, and our hash is canonical.
 					let maybe_fut = sync.with_context(move |ctx| on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS));
 					match maybe_fut {
 						Some(fut) => Either::B(fut
@@ -224,11 +225,11 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	type Metadata = Metadata;
 
-	fn protocol_version(&self) -> Result<String> {
+	fn protocol_version(&self) -> JsonRpcResult<String> {
 		Ok(format!("{}", ::light::net::MAX_PROTOCOL_VERSION))
 	}
 
-	fn syncing(&self) -> Result<SyncStatus> {
+	fn syncing(&self) -> JsonRpcResult<SyncStatus> {
 		if self.sync.is_major_importing() {
 			let chain_info = self.client.chain_info();
 			let current_block = U256::from(chain_info.best_block_number);
@@ -247,26 +248,26 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		}
 	}
 
-	fn author(&self, _meta: Self::Metadata) -> Result<RpcH160> {
+	fn author(&self, _meta: Self::Metadata) -> JsonRpcResult<RpcH160> {
 		Ok(Default::default())
 	}
 
-	fn is_mining(&self) -> Result<bool> {
+	fn is_mining(&self) -> JsonRpcResult<bool> {
 		Ok(false)
 	}
 
-	fn hashrate(&self) -> Result<RpcU256> {
+	fn hashrate(&self) -> JsonRpcResult<RpcU256> {
 		Ok(Default::default())
 	}
 
-	fn gas_price(&self) -> Result<RpcU256> {
+	fn gas_price(&self) -> JsonRpcResult<RpcU256> {
 		Ok(self.cache.lock().gas_price_corpus()
 			.and_then(|c| c.percentile(self.gas_price_percentile).cloned())
 			.map(RpcU256::from)
 			.unwrap_or_else(Default::default))
 	}
 
-	fn accounts(&self, meta: Metadata) -> Result<Vec<RpcH160>> {
+	fn accounts(&self, meta: Metadata) -> JsonRpcResult<Vec<RpcH160>> {
 		let dapp: DappId = meta.dapp_id().into();
 
 		self.accounts
@@ -276,7 +277,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 			.map(|accs| accs.into_iter().map(Into::<RpcH160>::into).collect())
 	}
 
-	fn block_number(&self) -> Result<RpcU256> {
+	fn block_number(&self) -> JsonRpcResult<RpcU256> {
 		Ok(self.client.chain_info().best_block_number.into())
 	}
 
@@ -370,7 +371,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		Box::new(self.fetcher().code(address.into(), Self::num_to_id(num.unwrap_or_default())).map(Into::into))
 	}
 
-	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256> {
+	fn send_raw_transaction(&self, raw: Bytes) -> JsonRpcResult<RpcH256> {
 		let best_header = self.client.best_block_header().decode();
 
 		UntrustedRlp::new(&raw.into_vec()).as_val()
@@ -389,7 +390,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 			.map(Into::into)
 	}
 
-	fn submit_transaction(&self, raw: Bytes) -> Result<RpcH256> {
+	fn submit_transaction(&self, raw: Bytes) -> JsonRpcResult<RpcH256> {
 		self.send_raw_transaction(raw)
 	}
 
@@ -489,19 +490,19 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		}))
 	}
 
-	fn compilers(&self) -> Result<Vec<String>> {
+	fn compilers(&self) -> JsonRpcResult<Vec<String>> {
 		Err(errors::deprecated("Compilation functionality is deprecated.".to_string()))
 	}
 
-	fn compile_lll(&self, _: String) -> Result<Bytes> {
+	fn compile_lll(&self, _: String) -> JsonRpcResult<Bytes> {
 		Err(errors::deprecated("Compilation of LLL via RPC is deprecated".to_string()))
 	}
 
-	fn compile_serpent(&self, _: String) -> Result<Bytes> {
+	fn compile_serpent(&self, _: String) -> JsonRpcResult<Bytes> {
 		Err(errors::deprecated("Compilation of Serpent via RPC is deprecated".to_string()))
 	}
 
-	fn compile_solidity(&self, _: String) -> Result<Bytes> {
+	fn compile_solidity(&self, _: String) -> JsonRpcResult<Bytes> {
 		Err(errors::deprecated("Compilation of Solidity via RPC is deprecated".to_string()))
 	}
 
@@ -512,15 +513,15 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 			.map(move|logs| limit_logs(logs, limit)))
 	}
 
-	fn work(&self, _timeout: Trailing<u64>) -> Result<Work> {
+	fn work(&self, _timeout: Trailing<u64>) -> JsonRpcResult<Work> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn submit_work(&self, _nonce: RpcH64, _pow_hash: RpcH256, _mix_hash: RpcH256) -> Result<bool> {
+	fn submit_work(&self, _nonce: RpcH64, _pow_hash: RpcH256, _mix_hash: RpcH256) -> JsonRpcResult<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn submit_hashrate(&self, _rate: RpcU256, _id: RpcH256) -> Result<bool> {
+	fn submit_hashrate(&self, _rate: RpcU256, _id: RpcH256) -> JsonRpcResult<bool> {
 		Err(errors::light_unimplemented(None))
 	}
 }
@@ -531,6 +532,10 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 
 	fn block_hash(&self, id: BlockId) -> Option<RpcH256> {
 		self.client.block_hash(id).map(Into::into)
+	}
+
+	fn block_body(&self, _id: BlockId) -> JsonRpcResult<Option<encoded::Body>> {
+		Err(errors::light_unimplemented(None))
 	}
 
 	fn pending_transactions_hashes(&self, _block_number: u64) -> Vec<::ethereum_types::H256> {
@@ -547,6 +552,10 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> {
 		&self.polls
+	}
+
+	fn replay_block_transactions(&self, _block: BlockId) -> JsonRpcResult<Result<Box<Iterator<Item = Executed>>, CallError>> {
+		Err(errors::light_unimplemented(None))
 	}
 }
 
