@@ -582,16 +582,12 @@ fn start_client(
 		&snapshot_path,
 		restoration_db_handler,
 		&dirs.ipc_path(),
-<<<<<<< HEAD
 		// It's fine to use test version here,
 		// since we don't care about miner parameters at all
 		Arc::new(Miner::new_for_tests(&spec, None)),
-=======
-		Arc::new(Miner::with_spec(&spec)),
 		Arc::new(AccountProvider::transient_provider()),
 		Box::new(ethcore_private_tx::NoopEncryptor),
-		Default::default()
->>>>>>> master
+		Default::default(),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	drop(spec);

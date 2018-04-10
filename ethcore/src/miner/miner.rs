@@ -46,7 +46,7 @@ use client::BlockId;
 use executive::contract_address;
 use header::{Header, BlockNumber};
 use miner;
-use miner::blockchain_client::{BlockChainClient, CachedNonceClient};
+use miner::pool_client::{PoolClient, CachedNonceClient};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use state::State;
@@ -304,10 +304,10 @@ impl Miner {
 			})
 	}
 
-	fn client<'a, C: 'a>(&'a self, chain: &'a C) -> BlockChainClient<'a, C> where
+	fn pool_client<'a, C: 'a>(&'a self, chain: &'a C) -> PoolClient<'a, C> where
 		C: BlockChain + CallContract,
 	{
-		BlockChainClient::new(
+		PoolClient::new(
 			chain,
 			&self.nonce_cache,
 			&*self.engine,
@@ -368,7 +368,7 @@ impl Miner {
 		let mut tx_count = 0usize;
 		let mut skipped_transactions = 0usize;
 
-		let client = self.client(chain);
+		let client = self.pool_client(chain);
 		let engine_params = self.engine.params();
 		let min_tx_gas = self.engine.schedule(chain_info.best_block_number).tx_gas.into();
 		let nonce_cap: Option<U256> = if chain_info.best_block_number + 1 >= engine_params.dust_protection_transition {
@@ -750,7 +750,7 @@ impl miner::MinerService for Miner {
 		transactions: Vec<UnverifiedTransaction>
 	) -> Vec<Result<(), transaction::Error>> {
 		trace!(target: "external_tx", "Importing external transactions");
-		let client = self.client(chain);
+		let client = self.pool_client(chain);
 		let results = self.transaction_queue.import(
 			client,
 			transactions.into_iter().map(pool::verifier::Transaction::Unverified).collect(),
@@ -775,7 +775,7 @@ impl miner::MinerService for Miner {
 
 		trace!(target: "own_tx", "Importing transaction: {:?}", pending);
 
-		let client = self.client(chain);
+		let client = self.pool_client(chain);
 		let imported = self.transaction_queue.import(
 			client,
 			vec![pool::verifier::Transaction::Local(pending)]
@@ -1020,7 +1020,7 @@ impl miner::MinerService for Miner {
 		self.update_transaction_queue_limits(gas_limit);
 
 		// Then import all transactions...
-		let client = self.client(chain);
+		let client = self.pool_client(chain);
 		{
 			retracted
 				.par_iter()

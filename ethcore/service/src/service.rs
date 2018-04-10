@@ -92,7 +92,7 @@ impl ClientService {
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 
 		let pruning = config.pruning;
-		let client = Client::new(config, &spec, client_db.clone(), miner, io_service.channel())?;
+		let client = Client::new(config, &spec, client_db.clone(), miner.clone(), io_service.channel())?;
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
@@ -105,7 +105,14 @@ impl ClientService {
 		};
 		let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
-		let provider = Arc::new(ethcore_private_tx::Provider::new(client.clone(), account_provider, encryptor, private_tx_conf, io_service.channel())?);
+		let provider = Arc::new(ethcore_private_tx::Provider::new(
+				client.clone(),
+				miner,
+				account_provider,
+				encryptor,
+				private_tx_conf,
+				io_service.channel())?,
+		);
 		let private_tx = Arc::new(PrivateTxService::new(provider));
 
 		let client_io = Arc::new(ClientIoHandler {

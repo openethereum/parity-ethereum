@@ -144,7 +144,11 @@ pub struct TransactionQueue {
 
 impl TransactionQueue {
 	/// Create new queue with given pool limits and initial verification options.
-	pub fn new(limits: txpool::Options, verification_options: verifier::Options, strategy: PrioritizationStrategy) -> Self {
+	pub fn new(
+		limits: txpool::Options,
+		verification_options: verifier::Options,
+		strategy: PrioritizationStrategy,
+	) -> Self {
 		TransactionQueue {
 			insertion_id: Default::default(),
 			pool: RwLock::new(txpool::Pool::new(Default::default(), scoring::NonceAndGasPrice(strategy), limits)),
@@ -203,7 +207,7 @@ impl TransactionQueue {
 	/// Returns current pneding transactions.
 	///
 	/// NOTE: This may return a cached version of pending transaction set.
-	/// Re-computing the pending set is possible with `#collet_pending` method,
+	/// Re-computing the pending set is possible with `#collect_pending` method,
 	/// but be aware that it's a pretty expensive operation.
 	pub fn pending<C>(
 		&self,
@@ -242,7 +246,7 @@ impl TransactionQueue {
 	///
 	/// NOTE This is re-computing the pending set and it might be expensive to do so.
 	/// Prefer using cached pending set using `#pending` method.
-	fn collect_pending<C, F, T>(
+	pub fn collect_pending<C, F, T>(
 		&self,
 		client: C,
 		block_number: u64,

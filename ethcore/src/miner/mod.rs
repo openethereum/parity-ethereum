@@ -19,10 +19,10 @@
 //! Miner module
 //! Keeps track of transactions and currently sealed pending block.
 
-mod blockchain_client;
 mod miner;
 mod service_transaction_checker;
 
+pub mod pool_client;
 pub mod stratum;
 
 pub use self::miner::{Miner, MinerOptions, Penalization, PendingSet, AuthoringParams};

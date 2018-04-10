@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Blockchain access for transaction pool.
+
 use std::fmt;
 use std::collections::HashMap;
 
@@ -39,7 +41,8 @@ type NoncesCache = RwLock<HashMap<Address, U256>>;
 const MAX_NONCE_CACHE_SIZE: usize = 4096;
 const EXPECTED_NONCE_CACHE_SIZE: usize = 2048;
 
-pub struct BlockChainClient<'a, C: 'a> {
+/// Blockchain accesss for transaction pool.
+pub struct PoolClient<'a, C: 'a> {
 	chain: &'a C,
 	cached_nonces: CachedNonceClient<'a, C>,
 	engine: &'a EthEngine,
@@ -48,9 +51,9 @@ pub struct BlockChainClient<'a, C: 'a> {
 	service_transaction_checker: Option<ServiceTransactionChecker>,
 }
 
-impl<'a, C: 'a> Clone for BlockChainClient<'a, C> {
+impl<'a, C: 'a> Clone for PoolClient<'a, C> {
 	fn clone(&self) -> Self {
-		BlockChainClient {
+		PoolClient {
 			chain: self.chain,
 			cached_nonces: self.cached_nonces.clone(),
 			engine: self.engine,
@@ -61,9 +64,10 @@ impl<'a, C: 'a> Clone for BlockChainClient<'a, C> {
 	}
 }
 
-impl<'a, C: 'a> BlockChainClient<'a, C> where
+impl<'a, C: 'a> PoolClient<'a, C> where
 C: BlockInfo + CallContract,
 {
+	/// Creates new client given chain, nonce cache, accounts and service transaction verifier.
 	pub fn new(
 		chain: &'a C,
 		cache: &'a NoncesCache,
@@ -72,7 +76,7 @@ C: BlockInfo + CallContract,
 		refuse_service_transactions: bool,
 	) -> Self {
 		let best_block_header = chain.best_block_header();
-		BlockChainClient {
+		PoolClient {
 			chain,
 			cached_nonces: CachedNonceClient::new(chain, cache),
 			engine,
@@ -86,22 +90,21 @@ C: BlockInfo + CallContract,
 		}
 	}
 
+	/// Verifies if signed transaction is executable.
+	///
+	/// This should perform any verifications that rely on chain status.
 	pub fn verify_signed(&self, tx: &SignedTransaction) -> Result<(), transaction::Error> {
-		self.verify_signed_transaction(tx, &self.best_block_header)
-	}
-
-	pub fn verify_signed_transaction(&self, tx: &SignedTransaction, header: &Header) -> Result<(), transaction::Error> {
-		self.engine.machine().verify_transaction(&tx, header, self.chain)
+		self.engine.machine().verify_transaction(&tx, &self.best_block_header, self.chain)
 	}
 }
 
-impl<'a, C: 'a> fmt::Debug for BlockChainClient<'a, C> {
+impl<'a, C: 'a> fmt::Debug for PoolClient<'a, C> {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		write!(fmt, "BlockChainClient")
+		write!(fmt, "PoolClient")
 	}
 }
 
-impl<'a, C: 'a> pool::client::Client for BlockChainClient<'a, C> where
+impl<'a, C: 'a> pool::client::Client for PoolClient<'a, C> where
 	C: miner::TransactionVerifierClient + Sync,
 {
 	fn transaction_already_included(&self, hash: &H256) -> bool {
@@ -112,7 +115,7 @@ impl<'a, C: 'a> pool::client::Client for BlockChainClient<'a, C> where
 		self.engine.verify_transaction_basic(&tx, &self.best_block_header)?;
 		let tx = self.engine.verify_transaction_unordered(tx, &self.best_block_header)?;
 
-		self.verify_signed_transaction(&tx, &self.best_block_header)?;
+		self.verify_signed(&tx)?;
 
 		Ok(tx)
 	}
@@ -144,7 +147,7 @@ impl<'a, C: 'a> pool::client::Client for BlockChainClient<'a, C> where
 	}
 }
 
-impl<'a, C: 'a> NonceClient for BlockChainClient<'a, C> where
+impl<'a, C: 'a> NonceClient for PoolClient<'a, C> where
 	C: Nonce + Sync,
 {
 	fn account_nonce(&self, address: &Address) -> U256 {
@@ -152,7 +155,7 @@ impl<'a, C: 'a> NonceClient for BlockChainClient<'a, C> where
 	}
 }
 
-pub struct CachedNonceClient<'a, C: 'a> {
+pub(crate) struct CachedNonceClient<'a, C: 'a> {
 	client: &'a C,
 	cache: &'a NoncesCache,
 }
