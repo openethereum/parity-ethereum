@@ -150,10 +150,20 @@ impl Router {
 				}
 			},
 			// RPC by default
-			_ => {
+			_ if self.special.contains_key(&SpecialEndpoint::Rpc) => {
 				trace!(target: "dapps", "Resolving to RPC call.");
 				Response::None(req)
-			}
+			},
+			// 404 otherwise
+			_ => {
+				Response::Some(Box::new(future::ok(handlers::ContentHandler::error(
+					hyper::StatusCode::NotFound,
+					"404 Not Found",
+					"Requested content was not found.",
+					None,
+					self.embeddable_on.clone(),
+				).into())))
+			},
 		})
 	}
 }

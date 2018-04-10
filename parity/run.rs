@@ -99,6 +99,7 @@ pub struct RunCmd {
 	pub net_conf: ethsync::NetworkConfiguration,
 	pub network_id: Option<u64>,
 	pub warp_sync: bool,
+	pub warp_barrier: Option<u64>,
 	pub public_node: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer_conf: GasPricerConfig,
@@ -342,6 +343,7 @@ fn execute_light_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger
 			pool: cpu_pool.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.redirection_address(),
+			info_page_only: cmd.ui_conf.info_page_only,
 		})
 	};
 
@@ -497,7 +499,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 	}
 
 	sync_config.fork_block = spec.fork_block();
-	let mut warp_sync = cmd.warp_sync;
+	let mut warp_sync = spec.engine.supports_warp() && cmd.warp_sync;
 	if warp_sync {
 		// Logging is not initialized yet, so we print directly to stderr
 		if fat_db {
@@ -511,7 +513,11 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 			warp_sync = false;
 		}
 	}
-	sync_config.warp_sync = spec.engine.supports_warp() && warp_sync;
+	sync_config.warp_sync = match (warp_sync, cmd.warp_barrier) {
+		(true, Some(block)) => ethsync::WarpSync::OnlyAndAfter(block),
+		(true, _) => ethsync::WarpSync::Enabled,
+		_ => ethsync::WarpSync::Disabled,
+	};
 	sync_config.download_old_blocks = cmd.download_old_blocks;
 	sync_config.serve_light = cmd.serve_light;
 
@@ -738,6 +744,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 			pool: cpu_pool.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.redirection_address(),
+			info_page_only: cmd.ui_conf.info_page_only,
 		})
 	};
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
@@ -878,7 +885,7 @@ pub fn execute_impl(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>)
 }
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
-	if cmd.ui_conf.enabled {
+	if cmd.ui_conf.enabled && !cmd.ui_conf.info_page_only {
 		warn!("{}", Style::new().bold().paint("Parity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity UI instead."));
 		warn!("{}", Style::new().bold().paint("Standalone Parity UI: https://github.com/Parity-JS/shell/releases"));
 	}
