@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::io;
 
-use ethsync::{AttachedProtocol, ManageNetwork};
+use sync::{AttachedProtocol, ManageNetwork};
 use parity_rpc::Metadata;
 use parity_whisper::message::Message;
 use parity_whisper::net::{self as whisper_net, Network as WhisperNetwork};

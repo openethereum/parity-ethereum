@@ -21,7 +21,7 @@ use ethcore::engines::{EthEngine, StateDependentProof};
 use ethcore::header::Header;
 use ethcore::machine::EthereumMachine;
 use ethcore::receipt::Receipt;
-use ethsync::LightSync;
+use sync::LightSync;
 
 use futures::{future, Future};
 use futures::future::Either;
