@@ -18,7 +18,7 @@
 use std::collections::BTreeMap;
 
 use jsonrpc_core::Result;
-use ethstore::KeyFile;
+use store::KeyFile;
 use v1::types::{H160, H256, H520, DappId, DeriveHash, DeriveHierarchical, ExtAccountInfo};
 
 build_rpc_trait! {

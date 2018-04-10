@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::collections::VecDeque;
 use parking_lot::Mutex;
 
-use ethstore::{PresaleWallet, Error};
+use store::{PresaleWallet, Error};
 use num_cpus;
 
 pub fn run(passwords: VecDeque<String>, wallet_path: &str) -> Result<(), Error> {

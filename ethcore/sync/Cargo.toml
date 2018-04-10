@@ -8,29 +8,30 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
+env_logger = "0.4"
+ethcore = { path = ".." }
 ethcore-bytes = { path = "../../util/bytes" }
-ethcore-network = { path = "../../util/network" }
-ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethcore-io = { path = "../../util/io" }
 ethcore-light = { path = "../light" }
+ethcore-network = { path = "../../util/network" }
+ethcore-network-devp2p = { path = "../../util/network-devp2p" }
+ethcore-store = { path = "../store" }
 ethcore-transaction = { path = "../transaction" }
-ethcore = { path = ".." }
 ethereum-types = "0.3"
+heapsize = "0.4"
+ipnetwork = "0.12.6"
+keccak-hash = { path = "../../util/hash" }
+kvdb = { path = "../../util/kvdb" }
+log = "0.3"
+macros = { path = "../../util/macros" }
+parking_lot = "0.5"
 plain_hasher = { path = "../../util/plain_hasher" }
+rand = "0.4"
 rlp = { path = "../../util/rlp" }
 rustc-hex = "1.0"
-keccak-hash = { path = "../../util/hash" }
-triehash = { path = "../../util/triehash" }
-kvdb = { path = "../../util/kvdb" }
-macros = { path = "../../util/macros" }
-log = "0.3"
-env_logger = "0.4"
-rand = "0.4"
-heapsize = "0.4"
 semver = "0.9"
 smallvec = { version = "0.4", features = ["heapsizeof"] }
-parking_lot = "0.5"
-ipnetwork = "0.12.6"
+triehash = { path = "../../util/triehash" }
 
 [dev-dependencies]
 ethkey = { path = "../../ethkey" }

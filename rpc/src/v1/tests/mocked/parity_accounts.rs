@@ -17,8 +17,8 @@
 use std::sync::Arc;
 
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
-use ethstore::EthStore;
-use ethstore::accounts_dir::RootDiskDirectory;
+use store::EthStore;
+use store::accounts_dir::RootDiskDirectory;
 use tempdir::TempDir;
 
 use jsonrpc_core::IoHandler;

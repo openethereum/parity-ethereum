@@ -55,6 +55,7 @@ extern crate ethcore_miner as miner;
 extern crate ethcore_network as network;
 extern crate ethcore_private_tx;
 extern crate ethcore_service;
+extern crate ethcore_store as store;
 extern crate ethcore_sync as sync;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;

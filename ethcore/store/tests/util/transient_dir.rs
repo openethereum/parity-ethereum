@@ -17,8 +17,8 @@
 use std::path::PathBuf;
 use std::{env, fs};
 use rand::{Rng, OsRng};
-use ethstore::accounts_dir::{KeyDirectory, RootDiskDirectory};
-use ethstore::{Error, SafeAccount};
+use store::accounts_dir::{KeyDirectory, RootDiskDirectory};
+use store::{Error, SafeAccount};
 
 pub fn random_dir() -> PathBuf {
 	let mut rng = OsRng::new().unwrap();

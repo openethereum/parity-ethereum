@@ -62,10 +62,11 @@ extern crate common_types as types;
 extern crate crypto;
 extern crate ethash;
 extern crate ethcore_bloom_journal as bloom_journal;
-extern crate ethcore_io as io;
 extern crate ethcore_bytes as bytes;
+extern crate ethcore_io as io;
 extern crate ethcore_logger;
 extern crate ethcore_miner;
+extern crate ethcore_store as store;
 extern crate ethcore_stratum;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
@@ -128,8 +129,6 @@ extern crate lazy_static;
 extern crate trace_time;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
-
-pub extern crate ethstore;
 
 pub mod account_provider;
 pub mod block;

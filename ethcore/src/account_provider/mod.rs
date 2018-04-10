@@ -24,17 +24,17 @@ use std::fmt;
 use std::collections::{HashMap, HashSet};
 use std::time::{Instant, Duration};
 use parking_lot::RwLock;
-use ethstore::{
+use store::{
 	SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
 };
-use ethstore::accounts_dir::MemoryDirectory;
-use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
+use store::accounts_dir::MemoryDirectory;
+use store::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
 use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
 use super::transaction::{Action, Transaction};
-pub use ethstore::ethkey::Signature;
-pub use ethstore::{Derivation, IndexDerivation, KeyFile};
+pub use store::ethkey::Signature;
+pub use store::{Derivation, IndexDerivation, KeyFile};
 
 /// Type of unlock.
 #[derive(Clone, PartialEq)]
@@ -838,8 +838,8 @@ impl AccountProvider {
 mod tests {
 	use super::{AccountProvider, Unlock, DappId};
 	use std::time::Instant;
-	use ethstore::ethkey::{Generator, Random, Address};
-	use ethstore::{StoreAccountRef, Derivation};
+	use store::ethkey::{Generator, Random, Address};
+	use store::{StoreAccountRef, Derivation};
 	use ethereum_types::H256;
 
 	#[test]

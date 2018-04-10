@@ -16,7 +16,7 @@
 
 extern crate dir;
 extern crate docopt;
-extern crate ethstore;
+extern crate ethcore_store as store;
 extern crate num_cpus;
 extern crate panic_hook;
 extern crate parking_lot;
@@ -31,9 +31,9 @@ use std::io::Read;
 use std::{env, process, fs, fmt};
 
 use docopt::Docopt;
-use ethstore::accounts_dir::{KeyDirectory, RootDiskDirectory};
-use ethstore::ethkey::Address;
-use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, PresaleWallet, SecretVaultRef, StoreAccountRef};
+use store::accounts_dir::{KeyDirectory, RootDiskDirectory};
+use store::ethkey::Address;
+use store::{EthStore, SimpleSecretStore, SecretStore, import_accounts, PresaleWallet, SecretVaultRef, StoreAccountRef};
 
 mod crack;
 
@@ -119,12 +119,12 @@ struct Args {
 }
 
 enum Error {
-	Ethstore(ethstore::Error),
+	Ethstore(store::Error),
 	Docopt(docopt::Error),
 }
 
-impl From<ethstore::Error> for Error {
-	fn from(err: ethstore::Error) -> Self {
+impl From<store::Error> for Error {
+	fn from(err: store::Error) -> Self {
 		Error::Ethstore(err)
 	}
 }
@@ -201,9 +201,9 @@ fn format_vaults(vaults: &[String]) -> String {
 }
 
 fn load_password(path: &str) -> Result<String, Error> {
-	let mut file = fs::File::open(path).map_err(|e| ethstore::Error::Custom(format!("Error opening password file {}: {}", path, e)))?;
+	let mut file = fs::File::open(path).map_err(|e| store::Error::Custom(format!("Error opening password file {}: {}", path, e)))?;
 	let mut password = String::new();
-	file.read_to_string(&mut password).map_err(|e| ethstore::Error::Custom(format!("Error reading password file {}: {}", path, e)))?;
+	file.read_to_string(&mut password).map_err(|e| store::Error::Custom(format!("Error reading password file {}: {}", path, e)))?;
 	// drop EOF
 	let _ = password.pop();
 	Ok(password)
@@ -216,13 +216,13 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	let store = EthStore::open(key_dir(&args.flag_dir)?)?;
 
 	return if args.cmd_insert {
-		let secret = args.arg_secret.parse().map_err(|_| ethstore::Error::InvalidSecret)?;
+		let secret = args.arg_secret.parse().map_err(|_| store::Error::InvalidSecret)?;
 		let password = load_password(&args.arg_password)?;
 		let vault_ref = open_args_vault(&store, &args)?;
 		let account_ref = store.insert_account(vault_ref, secret, &password)?;
 		Ok(format!("0x{:x}", account_ref.address))
 	} else if args.cmd_change_pwd {
-		let address = args.arg_address.parse().map_err(|_| ethstore::Error::InvalidAccount)?;
+		let address = args.arg_address.parse().map_err(|_| store::Error::InvalidAccount)?;
 		let old_pwd = load_password(&args.arg_old_pwd)?;
 		let new_pwd = load_password(&args.arg_new_pwd)?;
 		let account_ref = open_args_vault_account(&store, address, &args)?;
@@ -255,20 +255,20 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		crack::run(passwords, &args.arg_path)?;
 		Ok(format!("Password not found."))
 	} else if args.cmd_remove {
-		let address = args.arg_address.parse().map_err(|_| ethstore::Error::InvalidAccount)?;
+		let address = args.arg_address.parse().map_err(|_| store::Error::InvalidAccount)?;
 		let password = load_password(&args.arg_password)?;
 		let account_ref = open_args_vault_account(&store, address, &args)?;
 		let ok = store.remove_account(&account_ref, &password).is_ok();
 		Ok(format!("{}", ok))
 	} else if args.cmd_sign {
-		let address = args.arg_address.parse().map_err(|_| ethstore::Error::InvalidAccount)?;
-		let message = args.arg_message.parse().map_err(|_| ethstore::Error::InvalidMessage)?;
+		let address = args.arg_address.parse().map_err(|_| store::Error::InvalidAccount)?;
+		let message = args.arg_message.parse().map_err(|_| store::Error::InvalidMessage)?;
 		let password = load_password(&args.arg_password)?;
 		let account_ref = open_args_vault_account(&store, address, &args)?;
 		let signature = store.sign(&account_ref, &password, &message)?;
 		Ok(format!("0x{}", signature))
 	} else if args.cmd_public {
-		let address = args.arg_address.parse().map_err(|_| ethstore::Error::InvalidAccount)?;
+		let address = args.arg_address.parse().map_err(|_| store::Error::InvalidAccount)?;
 		let password = load_password(&args.arg_password)?;
 		let account_ref = open_args_vault_account(&store, address, &args)?;
 		let public = store.public(&account_ref, &password)?;
@@ -287,14 +287,14 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		store.change_vault_password(&args.arg_vault, &new_pwd)?;
 		Ok("OK".to_owned())
 	} else if args.cmd_move_to_vault {
-		let address = args.arg_address.parse().map_err(|_| ethstore::Error::InvalidAccount)?;
+		let address = args.arg_address.parse().map_err(|_| store::Error::InvalidAccount)?;
 		let password = load_password(&args.arg_password)?;
 		let account_ref = open_args_vault_account(&store, address, &args)?;
 		store.open_vault(&args.arg_vault, &password)?;
 		store.change_account_vault(SecretVaultRef::Vault(args.arg_vault), account_ref)?;
 		Ok("OK".to_owned())
 	} else if args.cmd_move_from_vault {
-		let address = args.arg_address.parse().map_err(|_| ethstore::Error::InvalidAccount)?;
+		let address = args.arg_address.parse().map_err(|_| store::Error::InvalidAccount)?;
 		let password = load_password(&args.arg_password)?;
 		store.open_vault(&args.arg_vault, &password)?;
 		store.change_account_vault(SecretVaultRef::Root, StoreAccountRef::vault(&args.arg_vault, address))?;

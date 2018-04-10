@@ -15,13 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate rand;
-extern crate ethstore;
+extern crate ethcore_store as store;
 
 mod util;
 
-use ethstore::{EthStore, SimpleSecretStore, SecretVaultRef, StoreAccountRef};
-use ethstore::ethkey::{Random, Generator, Secret, KeyPair, verify_address};
-use ethstore::accounts_dir::RootDiskDirectory;
+use store::{EthStore, SimpleSecretStore, SecretVaultRef, StoreAccountRef};
+use store::ethkey::{Random, Generator, Secret, KeyPair, verify_address};
+use store::accounts_dir::RootDiskDirectory;
 use util::TransientDir;
 
 #[test]
@@ -89,22 +89,22 @@ fn secret_store_remove_account() {
 }
 
 fn test_path() -> &'static str {
-	match ::std::fs::metadata("ethstore") {
-		Ok(_) => "ethstore/tests/res/geth_keystore",
+	match ::std::fs::metadata("store") {
+		Ok(_) => "store/tests/res/geth_keystore",
  		Err(_) => "tests/res/geth_keystore",
 	}
 }
 
 fn pat_path() -> &'static str {
-	match ::std::fs::metadata("ethstore") {
-		Ok(_) => "ethstore/tests/res/pat",
+	match ::std::fs::metadata("store") {
+		Ok(_) => "store/tests/res/pat",
 		Err(_) => "tests/res/pat",
 	}
 }
 
 fn ciphertext_path() -> &'static str {
-	match ::std::fs::metadata("ethstore") {
-		Ok(_) => "ethstore/tests/res/ciphertext",
+	match ::std::fs::metadata("store") {
+		Ok(_) => "store/tests/res/ciphertext",
 		Err(_) => "tests/res/ciphertext",
 	}
 }

@@ -19,7 +19,7 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, Executed};
 use ethcore::miner::LocalTransactionStatus;
 use ethcore_logger::RotatingLogger;
-use ethstore::ethkey::{Generator, Random};
+use store::ethkey::{Generator, Random};
 use sync::ManageNetwork;
 use node_health::{self, NodeHealth};
 use parity_reactor;

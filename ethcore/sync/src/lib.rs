@@ -21,10 +21,12 @@
 //! https://github.com/ethereum/wiki/wiki/Ethereum-Wire-Protocol
 //!
 
-extern crate ethcore_network as network;
-extern crate ethcore_network_devp2p as devp2p;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_io as io;
+extern crate ethcore_light as light;
+extern crate ethcore_network as network;
+extern crate ethcore_network_devp2p as devp2p;
+extern crate ethcore_store as store;
 extern crate ethcore_transaction as transaction;
 extern crate ethcore;
 extern crate ethereum_types;
@@ -39,8 +41,6 @@ extern crate ipnetwork;
 extern crate keccak_hash as hash;
 extern crate triehash;
 extern crate kvdb;
-
-extern crate ethcore_light as light;
 
 #[cfg(test)] extern crate ethkey;
 #[cfg(test)] extern crate kvdb_memorydb;
