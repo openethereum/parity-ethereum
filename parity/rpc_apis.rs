@@ -28,7 +28,7 @@ use ethcore::client::Client;
 use ethcore::miner::Miner;
 use ethcore::snapshot::SnapshotService;
 use ethcore_logger::RotatingLogger;
-use ethsync::{ManageNetwork, SyncProvider, LightSync};
+use sync::{ManageNetwork, SyncProvider, LightSync};
 use futures_cpupool::CpuPool;
 use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{self as core, MetaIoHandler};

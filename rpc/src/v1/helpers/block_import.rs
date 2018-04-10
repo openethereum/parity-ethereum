@@ -17,7 +17,7 @@
 //! Block import analysis functions.
 
 use ethcore::client::BlockQueueInfo;
-use ethsync::SyncState;
+use sync::SyncState;
 
 /// Check if client is during major sync or during block import.
 pub fn is_major_importing(sync_state: Option<SyncState>, queue_info: BlockQueueInfo) -> bool {
@@ -32,7 +32,7 @@ pub fn is_major_importing(sync_state: Option<SyncState>, queue_info: BlockQueueI
 #[cfg(test)]
 mod tests {
 	use ethcore::client::BlockQueueInfo;
-	use ethsync::SyncState;
+	use sync::SyncState;
 	use super::is_major_importing;
 
 
