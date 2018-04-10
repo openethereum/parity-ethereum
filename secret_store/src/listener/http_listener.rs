@@ -104,7 +104,7 @@ impl KeyServerHttpListener {
 					warn!("Key server handler error: {:?}", e);
 				});
 
-				// TODO: Change this to tokio::spwan once hyper is Send.
+				// TODO: Change this to tokio::spawn once hyper is Send.
 				current_thread::spawn(serve);
 				future::ok(())
 			});
