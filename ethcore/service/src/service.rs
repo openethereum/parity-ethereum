@@ -24,7 +24,7 @@ use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
 use kvdb::{KeyValueDB, KeyValueDBHandler};
 use stop_guard::StopGuard;
 
-use ethsync::PrivateTxHandler;
+use sync::PrivateTxHandler;
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};

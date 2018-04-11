@@ -30,11 +30,11 @@ extern crate hyper_rustls;
 
 extern crate tokio_core;
 extern crate url;
+extern crate bytes;
 
 /// Fetch client implementation.
 pub mod client;
 
 pub use url::Url;
-pub use self::client::{Client, Fetch, Error, Response, Abort, BodyReader};
+pub use self::client::{Client, Fetch, Error, Response, Request, Abort, BodyReader};
 pub use hyper::Method;
-

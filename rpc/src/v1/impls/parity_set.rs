@@ -21,7 +21,7 @@ use std::sync::Arc;
 use ethcore::client::BlockChainClient;
 use ethcore::miner::MinerService;
 use ethcore::mode::Mode;
-use ethsync::ManageNetwork;
+use sync::ManageNetwork;
 use fetch::{self, Fetch};
 use futures_cpupool::CpuPool;
 use hash::keccak_buffer;

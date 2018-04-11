@@ -326,7 +326,12 @@ impl SessionImpl {
 				self.complete_initialization(derived_point)?;
 				self.disseminate_keys()?;
 				self.verify_keys()?;
-				self.complete_generation()
+				self.complete_generation()?;
+
+				self.data.lock().state = SessionState::Finished;
+				self.completed.notify_all();
+
+				Ok(())
 			}
 		}
 	}

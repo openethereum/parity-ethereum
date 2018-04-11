@@ -14,28 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate ansi_term;
-extern crate ethcore;
-extern crate ethcore_io as io;
-extern crate ethcore_private_tx;
-extern crate ethcore_sync as sync;
-extern crate kvdb;
-extern crate stop_guard;
+#[cfg(feature = "with-syntex")]
+include!(concat!(env!("OUT_DIR"), "/lib.rs"));
 
-#[macro_use]
-extern crate error_chain;
-
-#[macro_use]
-extern crate log;
-
-#[cfg(test)]
-extern crate tempdir;
-
-mod error;
-mod service;
-
-#[cfg(test)]
-extern crate kvdb_rocksdb;
-
-pub use error::{Error, ErrorKind};
-pub use service::{ClientService, PrivateTxService};
+#[cfg(not(feature = "with-syntex"))]
+include!("lib.rs.in");

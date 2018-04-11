@@ -34,7 +34,7 @@ use ethcore::log_entry::LogEntry;
 use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
 use ethcore::encoded;
-use ethsync::{SyncProvider};
+use sync::{SyncProvider};
 use miner::external::ExternalMinerService;
 use transaction::{SignedTransaction, LocalizedTransaction};
 

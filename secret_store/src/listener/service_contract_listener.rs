@@ -268,9 +268,9 @@ impl ServiceContractListener {
 		let pending_tasks = data.contract.read_pending_requests()
 			.filter_map(|(is_confirmed, task)| Self::filter_task(data, task)
 				.map(|t| (is_confirmed, t)));
-		for (is_confirmed, task) in pending_tasks {
+		for (is_response_required, task) in pending_tasks {
 			// only process requests, which we haven't confirmed yet
-			if is_confirmed {
+			if !is_response_required {
 				continue;
 			}
 

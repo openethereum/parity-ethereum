@@ -24,7 +24,7 @@ use engines::{EthEngine, Seal};
 use error::{Error, ExecutionError};
 use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
-use ethcore_miner::work_notify::{WorkPoster, NotifyWork};
+use ethcore_miner::work_notify::NotifyWork;
 use ethereum_types::{H256, U256, Address};
 use parking_lot::{Mutex, RwLock};
 use rayon::prelude::*;
@@ -212,13 +212,6 @@ impl Miner {
 	pub fn add_work_listener(&self, notifier: Box<NotifyWork>) {
 		self.listeners.write().push(notifier);
 		self.sealing.lock().enabled = true;
-	}
-
-	/// Push an URL that will get new job notifications.
-	pub fn add_work_listener_url(&self, urls: &[String]) {
-		if !urls.is_empty() {
-			self.add_work_listener(Box::new(WorkPoster::new(urls)));
-		}
 	}
 
 	/// Set a callback to be notified about imported transactions' hashes.

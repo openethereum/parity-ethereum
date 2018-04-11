@@ -20,10 +20,10 @@ use ethcore::client::{TestBlockChainClient, Executed};
 use ethcore_logger::RotatingLogger;
 use ethereum_types::{Address, U256, H256};
 use ethstore::ethkey::{Generator, Random};
-use ethsync::ManageNetwork;
 use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use node_health::{self, NodeHealth};
 use parity_reactor;
+use sync::ManageNetwork;
 
 use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};

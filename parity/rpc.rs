@@ -74,6 +74,7 @@ pub struct UiConfiguration {
 	pub interface: String,
 	pub port: u16,
 	pub hosts: Option<Vec<String>>,
+	pub info_page_only: bool,
 }
 
 impl UiConfiguration {
@@ -110,10 +111,11 @@ impl From<UiConfiguration> for HttpConfiguration {
 impl Default for UiConfiguration {
 	fn default() -> Self {
 		UiConfiguration {
-			enabled: false,
+			enabled: cfg!(feature = "ui-enabled"),
 			port: 8180,
 			interface: "127.0.0.1".into(),
 			hosts: Some(vec![]),
+			info_page_only: true,
 		}
 	}
 }
@@ -168,7 +170,7 @@ impl Default for WsConfiguration {
 			hosts: Some(Vec::new()),
 			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
 			support_token_api: true,
-			ui_address: None,
+			ui_address: Some("127.0.0.1:8180".into()),
 			dapps_address: Some("127.0.0.1:8545".into()),
 		}
 	}

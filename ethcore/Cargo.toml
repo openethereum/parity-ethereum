@@ -23,7 +23,7 @@ patricia-trie = { path = "../util/patricia_trie" }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
-ethcore-stratum = { path = "../stratum" }
+ethcore-stratum = { path = "./stratum" }
 ethcore-transaction = { path = "./transaction" }
 ethereum-types = "0.3"
 memory-cache = { path = "../util/memory_cache" }

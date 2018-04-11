@@ -19,8 +19,8 @@ use std::sync::{atomic, mpsc, Arc};
 use parking_lot::Mutex;
 use hyper;
 
-use futures::{self, Future};
-use fetch::{self, Fetch, Url, Method};
+use futures::{self, future, Future};
+use fetch::{self, Fetch, Url, Request, Abort};
 
 pub struct FetchControl {
 	sender: mpsc::Sender<()>,
@@ -97,9 +97,9 @@ impl FakeFetch {
 impl Fetch for FakeFetch {
 	type Result = Box<Future<Item = fetch::Response, Error = fetch::Error> + Send>;
 
-	fn fetch(&self, url: &str, _method: Method, abort: fetch::Abort) -> Self::Result {
-		let u = Url::parse(url).unwrap();
-		self.requested.lock().push(url.into());
+	fn fetch(&self, request: Request, abort: fetch::Abort) -> Self::Result {
+		let u = request.url().clone();
+		self.requested.lock().push(u.as_str().into());
 		let manual = self.manual.clone();
 		let response = self.response.clone();
 
@@ -114,5 +114,21 @@ impl Fetch for FakeFetch {
 		});
 
 		Box::new(rx.map_err(|_| fetch::Error::Aborted))
+	}
+
+	fn get(&self, url: &str, abort: Abort) -> Self::Result {
+		let url: Url = match url.parse() {
+			Ok(u) => u,
+			Err(e) => return Box::new(future::err(e.into()))
+		};
+		self.fetch(Request::get(url), abort)
+	}
+
+	fn post(&self, url: &str, abort: Abort) -> Self::Result {
+		let url: Url = match url.parse() {
+			Ok(u) => u,
+			Err(e) => return Box::new(future::err(e.into()))
+		};
+		self.fetch(Request::post(url), abort)
 	}
 }

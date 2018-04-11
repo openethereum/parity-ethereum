@@ -21,7 +21,7 @@ use ethereum_types::{U256, Address};
 
 use ethcore::miner::MinerService;
 use ethcore::client::TestBlockChainClient;
-use ethsync::ManageNetwork;
+use sync::ManageNetwork;
 use futures_cpupool::CpuPool;
 
 use jsonrpc_core::IoHandler;

@@ -17,7 +17,7 @@
 use std::fmt;
 use std::io::Error as IoError;
 use ethkey;
-use ethcrypto;
+use crypto;
 use super::types::all::ServerKeyId;
 
 pub use super::traits::NodeKeyPair;
@@ -124,8 +124,8 @@ impl From<ethkey::Error> for Error {
 	}
 }
 
-impl From<ethcrypto::Error> for Error {
-	fn from(err: ethcrypto::Error) -> Self {
+impl From<crypto::Error> for Error {
+	fn from(err: crypto::Error) -> Self {
 		Error::EthKey(err.into())
 	}
 }
