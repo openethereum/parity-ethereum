@@ -1112,9 +1112,6 @@ dependencies = [
 name = "gcc"
 version = "0.3.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "rayon 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "getopts"
@@ -2627,23 +2624,6 @@ dependencies = [
 
 [[package]]
 name = "rayon"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "rayon-core 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rayon"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "either 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rayon-core 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rayon"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
@@ -2707,12 +2687,12 @@ dependencies = [
 [[package]]
 name = "ring"
 version = "0.12.1"
-source = "git+https://github.com/paritytech/ring#13eec16273e5e8fbbb21def81eaeb11972f4f903"
+source = "git+https://github.com/paritytech/ring#b98d7f586c0467d68e9946a5f47b4a04b9a86b4a"
 dependencies = [
  "cc 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
- "rayon 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rayon 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "untrusted 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2986,7 +2966,7 @@ dependencies = [
 [[package]]
 name = "snappy"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/rust-snappy#858eac97192ea25d18d3f3626a8cc13ca0b175bb"
+source = "git+https://github.com/paritytech/rust-snappy#40ac9a0d9fd613e7f38df800a11a589b7296da73"
 dependencies = [
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "snappy-sys 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
@@ -2995,9 +2975,9 @@ dependencies = [
 [[package]]
 name = "snappy-sys"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/rust-snappy#858eac97192ea25d18d3f3626a8cc13ca0b175bb"
+source = "git+https://github.com/paritytech/rust-snappy#40ac9a0d9fd613e7f38df800a11a589b7296da73"
 dependencies = [
- "gcc 0.3.54 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cc 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -3906,8 +3886,6 @@ dependencies = [
 "checksum quote 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7b0ff51282f28dc1b53fd154298feaa2e77c5ea0dba68e1fd8b03b72fbe13d2a"
 "checksum rand 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)" = "512870020642bb8c221bf68baa1b2573da814f6ccfe5c9699b1c303047abe9b1"
 "checksum rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "eba5f8cb59cc50ed56be8880a5c7b496bfd9bd26394e176bc67884094145c2c5"
-"checksum rayon 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b614fe08b6665cb9a231d07ac1364b0ef3cb3698f1239ee0c4c3a88a524f54c8"
-"checksum rayon 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ed02d09394c94ffbdfdc755ad62a132e94c3224a8354e78a1200ced34df12edf"
 "checksum rayon 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "80e811e76f1dbf68abf87a759083d34600017fc4e10b6bd5ad84a700f9dba4b1"
 "checksum rayon-core 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9d24ad214285a7729b174ed6d3bcfcb80177807f959d95fafd5bfc5c4f201ac8"
 "checksum redox_syscall 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)" = "8dde11f18c108289bef24469638a04dce49da56084f2d50618b226e47eb04509"
