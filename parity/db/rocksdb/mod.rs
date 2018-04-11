@@ -14,12 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate kvdb_rocksdb;
+extern crate migration_rocksdb;
+
 use std::sync::Arc;
 use std::path::{Path, PathBuf};
 use ethcore::db::NUM_COLUMNS;
 use ethcore::client::{ClientConfig, DatabaseCompactionProfile};
 use kvdb::{KeyValueDB, KeyValueDBHandler};
-use kvdb_rocksdb::{Database, DatabaseConfig};
+use self::kvdb_rocksdb::{Database, DatabaseConfig};
 
 use cache::CacheConfig;
 

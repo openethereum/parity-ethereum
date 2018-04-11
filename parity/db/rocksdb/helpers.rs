@@ -1,7 +1,7 @@
 use std::path::Path;
 use ethcore::db::NUM_COLUMNS;
 use ethcore::client::{ClientConfig, DatabaseCompactionProfile};
-use kvdb_rocksdb::{CompactionProfile, DatabaseConfig};
+use super::kvdb_rocksdb::{CompactionProfile, DatabaseConfig};
 
 pub fn compaction_profile(profile: &DatabaseCompactionProfile, db_path: &Path) -> CompactionProfile {
 	match profile {
