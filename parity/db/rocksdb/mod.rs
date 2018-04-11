@@ -32,8 +32,7 @@ mod helpers;
 pub use self::migration::migrate;
 
 /// Open a secret store DB using the given secret store data path. The DB path is one level beneath the data path.
-// This function will only be used when compiling with secretstore feature.
-#[allow(dead_code)]
+#[cfg(feature = "secretstore")]
 pub fn open_secretstore_db(data_path: &str) -> Result<Arc<KeyValueDB>, String> {
 	let mut db_path = PathBuf::from(data_path);
 	db_path.push("db");
