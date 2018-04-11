@@ -47,7 +47,7 @@ fn updater_service() -> Arc<TestUpdater> {
 	Arc::new(TestUpdater::default())
 }
 
-pub type TestParitySetClient = ParitySetClient<TestBlockChainClient, TestMinerService, TestUpdater, FakeFetch>;
+pub type TestParitySetClient = ParitySetClient<TestBlockChainClient, TestMinerService, TestUpdater, FakeFetch<usize>>;
 
 fn parity_set_client(
 	client: &Arc<TestBlockChainClient>,
@@ -57,7 +57,7 @@ fn parity_set_client(
 ) -> TestParitySetClient {
 	let dapps_service = Arc::new(TestDappsService);
 	let pool = CpuPool::new(1);
-	ParitySetClient::new(client, miner, updater, &(net.clone() as Arc<ManageNetwork>), Some(dapps_service), FakeFetch::new(true), pool)
+	ParitySetClient::new(client, miner, updater, &(net.clone() as Arc<ManageNetwork>), Some(dapps_service), FakeFetch::new(Some(1)), pool)
 }
 
 #[test]
