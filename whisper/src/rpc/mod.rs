@@ -28,6 +28,7 @@ use jsonrpc_pubsub::{Session, PubSubMetadata, SubscriptionId};
 use jsonrpc_macros::pubsub;
 
 use ethereum_types::H256;
+use mem::Memzero;
 use parking_lot::RwLock;
 
 use self::filter::Filter;
@@ -286,7 +287,7 @@ impl<P: PoolHandle + 'static, M: Send + Sync + 'static> Whisper for WhisperClien
 				let mut rng = OsRng::new()
 					.map_err(|_| whisper_error("unable to acquire secure randomness"))?;
 
-				let key = rng.gen();
+				let key = Memzero::from(rng.gen::<[u8; 32]>());
 				if req.topics.is_empty() {
 					return Err(whisper_error("must supply at least one topic for broadcast message"));
 				}
