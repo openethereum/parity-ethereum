@@ -151,7 +151,6 @@ pub mod spec;
 pub mod state;
 pub mod state_db;
 // Test helpers made public for usage outside ethcore
-#[cfg(test)]
 pub mod test_helpers;
 pub mod trace;
 pub mod verification;
@@ -172,6 +171,8 @@ mod tests;
 #[cfg(test)]
 #[cfg(feature="json-tests")]
 mod json_tests;
+#[cfg(test)]
+mod test_helpers_internal;
 
 pub use types::*;
 pub use executive::contract_address;
