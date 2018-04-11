@@ -151,6 +151,7 @@ pub mod spec;
 pub mod state;
 pub mod state_db;
 // Test helpers made public for usage outside ethcore
+#[cfg(test)]
 pub mod test_helpers;
 pub mod trace;
 pub mod verification;
