@@ -20,6 +20,7 @@ use hyper::{self, header, Chunk, Uri, Request as HttpRequest, Response as HttpRe
 use hyper::server::Http;
 use serde::Serialize;
 use serde_json;
+use tokio;
 use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
 use tokio_service::Service;
@@ -103,9 +104,7 @@ impl KeyServerHttpListener {
 					warn!("Key server handler error: {:?}", e);
 				});
 
-				// TODO: Change this to tokio::spawn once hyper is Send.
-				let _ = serve.wait();
-				future::ok(())
+				tokio::spawn(serve)
 			});
 
 		runtime.spawn(server);
@@ -202,11 +201,13 @@ impl KeyServerHttpHandler {
 	}
 }
 
+unsafe impl Send for KeyServerHttpHandler { }
+
 impl Service for KeyServerHttpHandler {
 	type Request = HttpRequest;
 	type Response = HttpResponse;
 	type Error = hyper::Error;
-	type Future = Box<Future<Item=Self::Response, Error=Self::Error>>;
+	type Future = Box<Future<Item=Self::Response, Error=Self::Error> + Send>;
 
 	fn call(&self, req: HttpRequest) -> Self::Future {
 		if req.headers().has::<header::Origin>() {
