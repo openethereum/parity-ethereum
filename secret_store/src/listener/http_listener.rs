@@ -105,7 +105,7 @@ impl KeyServerHttpListener {
 				});
 
 				// TODO: Change this to tokio::spawn once hyper is Send.
-				serve.wait();
+				let _ = serve.wait();
 				future::ok(())
 			});
 
