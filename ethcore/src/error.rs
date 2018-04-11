@@ -239,7 +239,7 @@ error_chain! {
 		Snappy(InvalidInput) #[doc = "Snappy error."];
 		Engine(EngineError) #[doc = "Consensus vote error."];
 		Ethkey(EthkeyError) #[doc = "Ethkey error."];
-		AccountProvider(AccountsError) #[doc = "Account Provider error"];
+		// AccountProvider(AccountsError) #[doc = "Account Provider error"];
 	}
 
 	errors {
@@ -254,6 +254,12 @@ error_chain! {
 			description("Snapshot error.")
 			display("Snapshot error {}", err)
 		}
+
+		#[doc = "Account Provider error"]
+		AccountProvider(err: AccountsError) {
+			description("Accounts Provider error")
+			display("Accounts Provider error {}", err)
+		} 
 
 	    #[doc = "PoW hash is invalid or out of date."]
 		PowHashInvalid {
@@ -288,9 +294,15 @@ impl From<ClientError> for Error {
 	}
 }
 
+impl From<AccountsError> for Error { 
+	fn from(err: AccountsError) -> Error { 
+		ErrorKind::AccountProvider(err).into()
+	} 
+} 
+
 impl From<::rlp::DecoderError> for Error {
 	fn from(err: ::rlp::DecoderError) -> Error {
-		ErrorKind::Util(UtilError::from(err)).into()
+		UtilError::from(err).into()
 	}
 }
 
@@ -299,7 +311,7 @@ impl From<BlockImportError> for Error {
 		match *err.kind() {
 			BlockImportErrorKind::Block(e) => ErrorKind::Block(e).into(),
 			BlockImportErrorKind::Import(e) => ErrorKind::Import(e).into(),
-			BlockImportErrorKind::Other(s) => ErrorKind::Util(UtilError::from(s)).into(),
+			BlockImportErrorKind::Other(s) => UtilError::from(s).into(),
 		}
 	}
 }
