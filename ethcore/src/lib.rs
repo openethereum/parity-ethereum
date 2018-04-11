@@ -94,6 +94,7 @@ extern crate ansi_term;
 extern crate unexpected;
 extern crate kvdb;
 extern crate kvdb_memorydb;
+#[cfg(test)]
 extern crate kvdb_rocksdb;
 extern crate util_error;
 extern crate snappy;
