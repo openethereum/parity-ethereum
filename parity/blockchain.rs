@@ -209,7 +209,9 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 
 	// initialize database.
 	let db = db::open_db(&client_path.to_str().expect("DB path could not be converted to string."),
-						 &cmd.cache_config, &cmd.compaction, cmd.wal)?;
+						 &cmd.cache_config,
+						 &cmd.compaction,
+						 cmd.wal)?;
 
 	// TODO: could epoch signals be avilable at the end of the file?
 	let fetch = ::light::client::fetch::unavailable();

@@ -248,7 +248,9 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 
 	// initialize database.
 	let db = db::open_db(&db_dirs.client_path(algorithm).to_str().expect("DB path could not be converted to string."),
-						 &cmd.cache_config, &cmd.compaction, cmd.wal)?;
+						 &cmd.cache_config,
+						 &cmd.compaction,
+						 cmd.wal)?;
 
 	let service = light_client::Service::start(config, &spec, fetch, db, cache.clone())
 		.map_err(|e| format!("Error starting light client: {}", e))?;
