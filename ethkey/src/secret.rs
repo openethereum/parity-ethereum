@@ -18,18 +18,20 @@ use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
 use rustc_hex::ToHex;
+use secp256k1::constants::{SECRET_KEY_SIZE as SECP256K1_SECRET_KEY_SIZE};
 use secp256k1::key;
 use ethereum_types::H256;
+use mem::Memzero;
 use {Error, SECP256K1};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Secret {
-	inner: H256,
+	inner: Memzero<H256>,
 }
 
 impl ToHex for Secret {
 	fn to_hex(&self) -> String {
-		format!("{:x}", self.inner)
+		format!("{:x}", *self.inner)
 	}
 }
 
@@ -52,17 +54,19 @@ impl fmt::Display for Secret {
 }
 
 impl Secret {
-	pub fn from_slice(key: &[u8]) -> Self {
-		assert_eq!(32, key.len(), "Caller should provide 32-byte length slice");
-
+	/// Creates a `Secret` from the given slice, returning `None` if the slice length != 32.
+	pub fn from_slice(key: &[u8]) -> Option<Self> {
+		if key.len() != 32 {
+			return None
+		}
 		let mut h = H256::default();
 		h.copy_from_slice(&key[0..32]);
-		Secret { inner: h }
+		Some(Secret { inner: Memzero::from(h) })
 	}
 
 	/// Creates zero key, which is invalid for crypto operations, but valid for math operation.
 	pub fn zero() -> Self {
-		Secret { inner: Default::default() }
+		Secret { inner: Memzero::from(H256::default()) }
 	}
 
 	/// Imports and validates the key.
@@ -208,9 +212,15 @@ impl FromStr for Secret {
 	}
 }
 
+impl From<[u8; 32]> for Secret {
+	fn from(k: [u8; 32]) -> Self {
+		Secret { inner: Memzero::from(H256(k)) }
+	}
+}
+
 impl From<H256> for Secret {
 	fn from(s: H256) -> Self {
-		Secret::from_slice(&s)
+		s.0.into()
 	}
 }
 
@@ -222,7 +232,9 @@ impl From<&'static str> for Secret {
 
 impl From<key::SecretKey> for Secret {
 	fn from(key: key::SecretKey) -> Self {
-		Self::from_slice(&key[0..32])
+		let mut a = [0; SECP256K1_SECRET_KEY_SIZE];
+		a.copy_from_slice(&key[0 .. SECP256K1_SECRET_KEY_SIZE]);
+		a.into()
 	}
 }
 
