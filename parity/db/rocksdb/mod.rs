@@ -18,7 +18,7 @@ extern crate kvdb_rocksdb;
 extern crate migration_rocksdb;
 
 use std::sync::Arc;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use ethcore::db::NUM_COLUMNS;
 use ethcore::client::{ClientConfig, DatabaseCompactionProfile};
 use kvdb::{KeyValueDB, KeyValueDBHandler};
@@ -34,6 +34,8 @@ pub use self::migration::migrate;
 /// Open a secret store DB using the given secret store data path. The DB path is one level beneath the data path.
 #[cfg(feature = "secretstore")]
 pub fn open_secretstore_db(data_path: &str) -> Result<Arc<KeyValueDB>, String> {
+	use std::path::PathBuf;
+
 	let mut db_path = PathBuf::from(data_path);
 	db_path.push("db");
 	let db_path = db_path.to_str().ok_or_else(|| "Invalid secretstore path".to_string())?;
