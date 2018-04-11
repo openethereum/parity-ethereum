@@ -24,7 +24,7 @@ use ethereum_types::{H256, U256, Address};
 use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use engines::{EthEngine, Seal};
-use error::{ExecutionError, Error};
+use error::{ExecutionError, Error, ErrorKind};
 use ethcore_miner::banning_queue::{BanningTransactionQueue, Threshold};
 use ethcore_miner::local_transactions::{Status as LocalTransactionStatus};
 use ethcore_miner::transaction_queue::{
@@ -1182,7 +1182,7 @@ impl MinerService for Miner {
 				})
 			} else {
 				warn!(target: "miner", "Submitted solution rejected: Block unknown or out of date.");
-				Err(Error::PowHashInvalid)
+				Err(ErrorKind::PowHashInvalid)
 			};
 		result.and_then(|sealed| {
 			let n = sealed.header().number();

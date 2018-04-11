@@ -172,23 +172,34 @@ error_chain! {
 	}
 }
 
-/// Error dedicated to import block function
-#[derive(Debug)]
-pub enum BlockImportError {
-	/// Import error
-	Import(ImportError),
-	/// Block error
-	Block(BlockError),
-	/// Other error
-	Other(String),
+error_chain! {
+	types {
+		BlockImportError, BlockImportErrorKind, BlockImportErrorResultExt;
+	}
+
+	links {
+		Import(ImportError, ImportErrorKind) #[doc = "Import error"];
+	}
+
+	foreign_links {
+		Block(BlockError) #[doc = "Block error"];
+	}
+
+	errors {
+		#[doc = "Other error"]
+		Other(err: String) {
+			description("Other error")
+			display("Other error {}", err)
+		}
+	}
 }
 
 impl From<Error> for BlockImportError {
 	fn from(e: Error) -> Self {
 		match *e.kind() {
-			ErrorKind::Block(block_error) => BlockImportError::Block(block_error),
-			ErrorKind::Import(import_error) => BlockImportError::Import(import_error),
-			_ => BlockImportError::Other(format!("other block import error: {:?}", e)),
+			ErrorKind::Block(block_error) => BlockImportErrorKind::Block(block_error).into(),
+			ErrorKind::Import(import_error) => BlockImportErrorKind::Import(import_error.into()).into(),
+			_ => BlockImportErrorKind::Other(format!("other block import error: {:?}", e)).into(),
 		}
 	}
 }
@@ -228,6 +239,7 @@ error_chain! {
 		Snappy(InvalidInput) #[doc = "Snappy error."];
 		Engine(EngineError) #[doc = "Consensus vote error."];
 		Ethkey(EthkeyError) #[doc = "Ethkey error."];
+		AccountProvider(AccountsError) #[doc = "Account Provider error"];
 	}
 
 	errors {
@@ -241,12 +253,6 @@ error_chain! {
 		Snapshot(err: SnapshotError) {
 			description("Snapshot error.")
 			display("Snapshot error {}", err)
-		}
-
-		#[doc = "Account Provider error."]
-		AccountProvider(err: AccountsError) {
-			description("Account Provider error.")
-			display("Account Provider error {}", err)
 		}
 
 	    #[doc = "PoW hash is invalid or out of date."]
@@ -290,10 +296,10 @@ impl From<::rlp::DecoderError> for Error {
 
 impl From<BlockImportError> for Error {
 	fn from(err: BlockImportError) -> Error {
-		match err {
-			BlockImportError::Block(e) => ErrorKind::Block(e).into(),
-			BlockImportError::Import(e) => ErrorKind::Import(e).into(),
-			BlockImportError::Other(s) => ErrorKind::Util(UtilError::from(s)).into(),
+		match *err.kind() {
+			BlockImportErrorKind::Block(e) => ErrorKind::Block(e).into(),
+			BlockImportErrorKind::Import(e) => ErrorKind::Import(e).into(),
+			BlockImportErrorKind::Other(s) => ErrorKind::Util(UtilError::from(s)).into(),
 		}
 	}
 }
