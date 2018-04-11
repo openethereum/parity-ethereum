@@ -37,7 +37,7 @@ pub use self::tendermint::Tendermint;
 
 use std::sync::{Weak, Arc};
 use std::collections::{BTreeMap, HashMap};
-use std::fmt;
+use std::{fmt, error};
 
 use self::epoch::PendingTransition;
 
@@ -99,6 +99,12 @@ impl fmt::Display for EngineError {
 		};
 
 		f.write_fmt(format_args!("Engine error ({})", msg))
+	}
+}
+
+impl error::Error for EngineError {
+	fn description(&self) -> &str {
+		"Engine error"
 	}
 }
 
