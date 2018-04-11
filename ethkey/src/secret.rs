@@ -26,12 +26,12 @@ use {Error, SECP256K1};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Secret {
-	inner: Memzero<H256Mut>,
+	inner: Memzero<H256>,
 }
 
 impl ToHex for Secret {
 	fn to_hex(&self) -> String {
-		format!("{:x}", **self.inner)
+		format!("{:x}", *self.inner)
 	}
 }
 
@@ -61,12 +61,12 @@ impl Secret {
 		}
 		let mut h = H256::default();
 		h.copy_from_slice(&key[0..32]);
-		Some(Secret { inner: Memzero::from(H256Mut::new(h)) })
+		Some(Secret { inner: Memzero::from(h) })
 	}
 
 	/// Creates zero key, which is invalid for crypto operations, but valid for math operation.
 	pub fn zero() -> Self {
-		Secret { inner: Memzero::from(H256Mut::new(Default::default())) }
+		Secret { inner: Memzero::from(H256::default()) }
 	}
 
 	/// Imports and validates the key.
@@ -214,7 +214,7 @@ impl FromStr for Secret {
 
 impl From<[u8; 32]> for Secret {
 	fn from(k: [u8; 32]) -> Self {
-		Secret { inner: Memzero::from(H256Mut::new(H256(k))) }
+		Secret { inner: Memzero::from(H256(k)) }
 	}
 }
 
@@ -243,35 +243,6 @@ impl Deref for Secret {
 
 	fn deref(&self) -> &Self::Target {
 		&self.inner
-	}
-}
-
-// Wrapper to implement `AsMut` for `H256`.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct H256Mut { val: H256 }
-
-impl H256Mut {
-	fn new(val: H256) -> H256Mut {
-		H256Mut { val }
-	}
-}
-
-impl AsRef<[u8]> for H256Mut {
-	fn as_ref(&self) -> &[u8] {
-		&self.val.0
-	}
-}
-
-impl AsMut<[u8]> for H256Mut {
-	fn as_mut(&mut self) -> &mut [u8] {
-		&mut self.val.0
-	}
-}
-
-impl Deref for H256Mut {
-	type Target = H256;
-	fn deref(&self) -> &Self::Target {
-		&self.val
 	}
 }
 
