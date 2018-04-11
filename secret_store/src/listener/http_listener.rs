@@ -20,7 +20,6 @@ use hyper::{self, header, Chunk, Uri, Request as HttpRequest, Response as HttpRe
 use hyper::server::Http;
 use serde::Serialize;
 use serde_json;
-use tokio::executor::current_thread;
 use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
 use tokio_service::Service;
@@ -222,7 +221,7 @@ impl Service for KeyServerHttpHandler {
 
 		Box::new(req.body().concat2().map(move |body| {
 			let path = req_uri.path().to_string();
-			if req_uri.is_absolute() {
+			if path.starts_with("/") {
 				this.process(req_method, req_uri, &path, &body)
 			} else {
 				warn!(target: "secretstore", "Ignoring invalid {}-request {}", req_method, req_uri);
