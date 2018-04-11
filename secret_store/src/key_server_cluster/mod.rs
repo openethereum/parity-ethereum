@@ -124,9 +124,15 @@ impl From<ethkey::Error> for Error {
 	}
 }
 
+impl From<ethkey::crypto::Error> for Error {
+	fn from(err: ethkey::crypto::Error) -> Self {
+		Error::EthKey(err.to_string())
+	}
+}
+
 impl From<crypto::Error> for Error {
 	fn from(err: crypto::Error) -> Self {
-		Error::EthKey(err.into())
+		Error::EthKey(err.to_string())
 	}
 }
 

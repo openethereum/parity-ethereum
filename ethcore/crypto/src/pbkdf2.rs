@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,15 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod cipher;
-mod crypto;
-mod kdf;
-mod safe_account;
-mod version;
+use ring;
 
-pub use self::cipher::{Cipher, Aes128Ctr};
-pub use self::crypto::Crypto;
-pub use self::kdf::{Kdf, Pbkdf2, Scrypt, Prf};
-pub use self::safe_account::SafeAccount;
-pub use self::version::Version;
+pub struct Salt<'a>(pub &'a [u8]);
+pub struct Secret<'a>(pub &'a [u8]);
+
+pub fn sha256(iter: u32, salt: Salt, sec: Secret, out: &mut [u8; 32]) {
+	ring::pbkdf2::derive(&ring::digest::SHA256, iter, salt.0, sec.0, &mut out[..])
+}
+
+pub fn sha512(iter: u32, salt: Salt, sec: Secret, out: &mut [u8; 64]) {
+	ring::pbkdf2::derive(&ring::digest::SHA512, iter, salt.0, sec.0, &mut out[..])
+}
 
