@@ -16,29 +16,29 @@
 
 //! Cross-platform open url in default browser
 
-use std::{io, fmt, process, ffi};
+use std;
 
 #[allow(unused)]
 pub enum Error {
-	ProcessError(io::Error),
-	FfiNull(ffi::NulError),
+	ProcessError(std::io::Error),
+	FfiNull(std::ffi::NulError),
 	WindowsShellExecute,
 }
 
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Self {
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
         Error::ProcessError(err)
     }
 }
 
-impl From<ffi::NulError> for Error {
-    fn from(err: ffi::NulError) -> Self {
+impl From<std::ffi::NulError> for Error {
+    fn from(err: std::ffi::NulError) -> Self {
         Error::FfiNull(err)
     }
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         match *self {
             Error::ProcessError(ref e) => write!(f, "{}", e),
             Error::FfiNull(ref e) => write!(f, "{}", e),
@@ -55,7 +55,7 @@ pub fn open(url: &str) -> Result<(), Error> {
 	use winapi::um::winuser::SW_SHOWNORMAL as Normal;
 	use winapi::shared::minwindef::INT;
 
-	const WINDOWS_SHELL_EXECUTE_SUCCESS: isize = 32;
+	const WINDOWS_SHELL_EXECUTE_SUCCESS: i32 = 32;
 
 	let h_instance = unsafe {
 		ShellExecuteA(ptr::null_mut(),
@@ -72,13 +72,13 @@ pub fn open(url: &str) -> Result<(), Error> {
 
 #[cfg(any(target_os="macos", target_os="freebsd"))]
 pub fn open(url: &str) -> Result<(), Error> {
-	let _ = process::Command::new("open").arg(url).spawn()?;
+	let _ = std::process::Command::new("open").arg(url).spawn()?;
 	Ok(())
 }
 
 #[cfg(target_os="linux")]
 pub fn open(url: &str) -> Result<(), Error> {
-	let _ = process::Command::new("xdg-open").arg(url).spawn()?;
+	let _ = std::process::Command::new("xdg-open").arg(url).spawn()?;
 	Ok(())
 }
 
