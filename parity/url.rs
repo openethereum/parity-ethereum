@@ -23,12 +23,14 @@ pub fn open(url: &str) {
 	use winapi::um::shellapi::ShellExecuteA;
 	use winapi::um::winuser::SW_SHOWNORMAL as Normal;
 
-	ShellExecuteA(ptr::null_mut(),
-		CString::new("open").unwrap().as_ptr(),
-		CString::new(url.to_owned().replace("\n", "%0A")).unwrap().as_ptr(),
-		ptr::null(),
-		ptr::null(),
-		Normal);
+	unsafe {
+		ShellExecuteA(ptr::null_mut(),
+			CString::new("open").unwrap().as_ptr(),
+			CString::new(url.to_owned().replace("\n", "%0A")).unwrap().as_ptr(),
+			ptr::null(),
+			ptr::null(),
+			Normal);
+	}
 }
 
 #[cfg(any(target_os="macos", target_os="freebsd"))]
