@@ -113,7 +113,6 @@ mod deprecated;
 mod helpers;
 mod informant;
 mod light_helpers;
-mod migration;
 mod modules;
 mod params;
 mod presale;

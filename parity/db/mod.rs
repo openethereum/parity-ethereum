@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#[path="rocksdb.rs"]
+#[path="rocksdb/mod.rs"]
 mod impls;
 
-pub use self::impls::open_secretstore_db;
+pub use self::impls::{open_db, open_client_db, open_secretstore_db, restoration_db_handler, migrate};

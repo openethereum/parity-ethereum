@@ -20,7 +20,10 @@ use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
 use migr::{self, Manager as MigrationManager, Config as MigrationConfig};
 use kvdb_rocksdb::CompactionProfile;
+use ethcore::client::DatabaseCompactionProfile;
 use migrations;
+
+use super::helpers;
 
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
@@ -176,7 +179,9 @@ fn exists(path: &Path) -> bool {
 }
 
 /// Migrates the database.
-pub fn migrate(path: &Path, compaction_profile: CompactionProfile) -> Result<(), Error> {
+pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> Result<(), Error> {
+	let compaction_profile = helpers::compaction_profile(&compaction_profile, path);
+
 	// read version file.
 	let version = current_version(path)?;
 
