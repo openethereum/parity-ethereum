@@ -16,8 +16,29 @@
 
 //! Cross-platform open url in default browser
 
+use std::{io, fmt, process};
+
+#[derive(Debug)]
+pub enum Error {
+	ProcessError(io::Error),
+}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Self {
+        Error::ProcessError(err)
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match *self {
+            Error::ProcessError(ref e) => write!(f, "{}", e),
+        }
+    }
+}
+
 #[cfg(windows)]
-pub fn open(url: &str) {
+pub fn open(url: &str) -> Result<(), Error> {
 	use std::ffi::CString;
 	use std::ptr;
 	use winapi::um::shellapi::ShellExecuteA;
@@ -31,18 +52,19 @@ pub fn open(url: &str) {
 			ptr::null(),
 			Normal);
 	}
+	Ok(())
 }
 
 #[cfg(any(target_os="macos", target_os="freebsd"))]
-pub fn open(url: &str) {
-	use std;
-	let _ = std::process::Command::new("open").arg(url).spawn();
+pub fn open(url: &str) -> Result<(), Error> {
+	let _ = process::Command::new("open").arg(url).spawn()?;
+	Ok(())
 }
 
 #[cfg(target_os="linux")]
-pub fn open(url: &str) {
-	use std;
-	let _ = std::process::Command::new("xdg-open").arg(url).spawn();
+pub fn open(url: &str) -> Result<(), Error> {
+	let _ = process::Command::new("xdg-open").arg(url).spawn()?;
+	Ok(())
 }
 
 #[cfg(target_os="android")]
