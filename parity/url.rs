@@ -16,11 +16,13 @@
 
 //! Cross-platform open url in default browser
 
-use std::{io, fmt, process};
+use std::{io, fmt, process, ffi};
 
-#[derive(Debug)]
+#[allow(unused)]
 pub enum Error {
 	ProcessError(io::Error),
+	FfiNull(ffi::NulError),
+	WindowsShellExecute,
 }
 
 impl From<io::Error> for Error {
@@ -29,10 +31,18 @@ impl From<io::Error> for Error {
     }
 }
 
+impl From<ffi::NulError> for Error {
+    fn from(err: ffi::NulError) -> Self {
+        Error::FfiNull(err)
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match *self {
             Error::ProcessError(ref e) => write!(f, "{}", e),
+            Error::FfiNull(ref e) => write!(f, "{}", e),
+			Error::WindowsShellExecute => write!(f, "WindowsShellExecute failed"),
         }
     }
 }
@@ -43,16 +53,21 @@ pub fn open(url: &str) -> Result<(), Error> {
 	use std::ptr;
 	use winapi::um::shellapi::ShellExecuteA;
 	use winapi::um::winuser::SW_SHOWNORMAL as Normal;
+	use winapi::shared::minwindef::INT;
 
-	unsafe {
+	const WINDOWS_SHELL_EXECUTE_SUCCESS: isize = 32;
+
+	let h_instance = unsafe {
 		ShellExecuteA(ptr::null_mut(),
-			CString::new("open").unwrap().as_ptr(),
-			CString::new(url.to_owned().replace("\n", "%0A")).unwrap().as_ptr(),
+			CString::new("open")?.as_ptr(),
+			CString::new(url.to_owned().replace("\n", "%0A"))?.as_ptr(),
 			ptr::null(),
 			ptr::null(),
-			Normal);
-	}
-	Ok(())
+			Normal) as INT
+	};
+	// https://msdn.microsoft.com/en-us/library/windows/desktop/bb762153(v=vs.85).aspx
+	// `ShellExecute` returns a value greater than 32 on success
+	if h_instance > WINDOWS_SHELL_EXECUTE_SUCCESS { Ok(()) } else { Err(Error::WindowsShellExecute) }
 }
 
 #[cfg(any(target_os="macos", target_os="freebsd"))]
