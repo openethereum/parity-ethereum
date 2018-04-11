@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,9 +22,13 @@ use v1::types::Bytes;
 /// Represents return data of a contract function call
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct ReturnData {
+    /// Hash of the transactions.
 	#[serde(rename="transactionHash")]
 	pub transaction_hash: H256,
+    /// Return data as bytes.
 	#[serde(rename="returnData")]
 	pub return_data: Bytes,
+    /// Indication if the block the transaction was
+    /// included on was removed due to a chain re-org
 	pub removed: bool,
 }

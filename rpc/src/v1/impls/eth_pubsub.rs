@@ -19,7 +19,7 @@
 use std::sync::{Arc, Weak};
 use std::collections::BTreeMap;
 
-use jsonrpc_core::{BoxFuture, Result as JsonRpcResult, Error};
+use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{self, Future, IntoFuture};
 use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::{Sink, Subscriber};
@@ -184,11 +184,8 @@ impl<C> ChainNotificationHandler<C> {
 		let return_data = calculate_return_data(enacted);
 
 		for subscriber in self.return_data_subscribers.read().values() {
-			let remote = self.remote.clone();
-			let subscriber = subscriber.clone();
-
-			for return_datum in return_data.clone() {
-				Self::notify(&remote, &subscriber, pubsub::Result::ReturnData(return_datum))
+			for return_datum in &return_data {
+				Self::notify(&self.remote, &subscriber, pubsub::Result::ReturnData(return_datum.clone()))
 			}
 		}
 	}
@@ -353,7 +350,7 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		let _ = subscriber.reject(error);
 	}
 
-	fn unsubscribe(&self, id: SubscriptionId) -> JsonRpcResult<bool> {
+	fn unsubscribe(&self, id: SubscriptionId) -> Result<bool> {
 		let res = self.heads_subscribers.write().remove(&id).is_some();
 		let res2 = self.logs_subscribers.write().remove(&id).is_some();
 		let res3 = self.transactions_subscribers.write().remove(&id).is_some();

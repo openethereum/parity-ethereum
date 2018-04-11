@@ -31,7 +31,7 @@ pub enum Result {
 	/// Transaction hash
 	TransactionHash(H256),
 	/// Transaction return data
-	ReturnData(ReturnData)
+	ReturnData(ReturnData),
 }
 
 impl Serialize for Result {
