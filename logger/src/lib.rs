@@ -16,23 +16,23 @@
 
 //! Logger for parity executables
 
+extern crate ansi_term;
 extern crate arrayvec;
-extern crate log as rlog;
-extern crate isatty;
-extern crate regex;
+extern crate atty;
 extern crate env_logger;
+extern crate log as rlog;
+extern crate parking_lot;
+extern crate regex;
 extern crate time;
+
 #[macro_use]
 extern crate lazy_static;
-extern crate parking_lot;
-extern crate ansi_term;
 
 mod rotating;
 
 use std::{env, thread, fs};
 use std::sync::{Weak, Arc};
 use std::io::Write;
-use isatty::{stderr_isatty, stdout_isatty};
 use env_logger::LogBuilder;
 use regex::Regex;
 use ansi_term::Colour;
@@ -86,7 +86,7 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 		builder.parse(s);
 	}
 
-	let isatty = stderr_isatty();
+	let isatty = atty::is(atty::Stream::Stderr);
 	let enable_color = config.color && isatty;
 	let logs = Arc::new(RotatingLogger::new(levels));
 	let logger = logs.clone();
@@ -122,7 +122,7 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 			let _ = file.write_all(b"\n");
 		}
 		logger.append(removed_color);
-		if !isatty && record.level() <= LogLevel::Info && stdout_isatty() {
+		if !isatty && record.level() <= LogLevel::Info && atty::is(atty::Stream::Stdout) {
 			// duplicate INFO/WARN output to console
 			println!("{}", ret);
 		}
