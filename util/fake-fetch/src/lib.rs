@@ -23,22 +23,22 @@ use futures::{future, future::FutureResult};
 use fetch::{Fetch, Url, Request};
 
 #[derive(Clone, Default)]
-pub struct FakeFetch {
-	success: bool,
+pub struct FakeFetch<T> where T: Clone + Send + Sync {
+	val: Option<T>,
 }
 
-impl FakeFetch {
-	pub fn new(b: bool) -> Self {
-		FakeFetch { success: b }
+impl<T> FakeFetch<T> where T: Clone + Send + Sync {
+	pub fn new(t: Option<T>) -> Self {
+		FakeFetch { val : t }
 	}
 }
 
-impl Fetch for FakeFetch {
+impl<T: 'static> Fetch for FakeFetch<T> where T: Clone + Send+ Sync {
 	type Result = FutureResult<fetch::Response, fetch::Error>;
 
 	fn fetch(&self, request: Request, abort: fetch::Abort) -> Self::Result {
 		let u = request.url().clone();
-		future::ok(if self.success {
+		future::ok(if self.val.is_some() {
 			let r = hyper::Response::new().with_body(&b"Some content"[..]);
 			fetch::client::Response::new(u, r, abort)
 		} else {
