@@ -1026,6 +1026,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fake-fetch"
+version = "0.0.1"
+dependencies = [
+ "fetch 0.1.0",
+ "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper 0.11.24 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "fdlimit"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1940,6 +1949,7 @@ dependencies = [
  "ethcore-transaction 0.1.0",
  "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
+ "fake-fetch 0.0.1",
  "fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2063,6 +2073,7 @@ dependencies = [
  "ethabi-derive 5.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bytes 0.1.0",
  "ethereum-types 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fake-fetch 0.0.1",
  "fetch 0.1.0",
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2148,6 +2159,7 @@ dependencies = [
  "ethjson 0.1.0",
  "ethkey 0.3.0",
  "ethstore 0.2.0",
+ "fake-fetch 0.0.1",
  "fetch 0.1.0",
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2465,6 +2477,7 @@ dependencies = [
 name = "price-info"
 version = "1.11.0"
 dependencies = [
+ "fake-fetch 0.0.1",
  "fetch 0.1.0",
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
