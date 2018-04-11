@@ -67,6 +67,7 @@ vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]
 ethcore-network = { path = "../util/network" }
+fake-fetch = { path = "../util/fake-fetch" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }
 macros = { path = "../util/macros" }
 pretty_assertions = "0.1"

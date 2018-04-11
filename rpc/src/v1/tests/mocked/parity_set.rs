@@ -26,8 +26,10 @@ use futures_cpupool::CpuPool;
 
 use jsonrpc_core::IoHandler;
 use v1::{ParitySet, ParitySetClient};
-use v1::tests::helpers::{TestMinerService, TestFetch, TestUpdater, TestDappsService};
+use v1::tests::helpers::{TestMinerService, TestUpdater, TestDappsService};
 use super::manage_network::TestManageNetwork;
+
+use fake_fetch::FakeFetch;
 
 fn miner_service() -> Arc<TestMinerService> {
 	Arc::new(TestMinerService::default())
@@ -45,7 +47,7 @@ fn updater_service() -> Arc<TestUpdater> {
 	Arc::new(TestUpdater::default())
 }
 
-pub type TestParitySetClient = ParitySetClient<TestBlockChainClient, TestMinerService, TestUpdater, TestFetch>;
+pub type TestParitySetClient = ParitySetClient<TestBlockChainClient, TestMinerService, TestUpdater, FakeFetch<usize>>;
 
 fn parity_set_client(
 	client: &Arc<TestBlockChainClient>,
@@ -55,7 +57,7 @@ fn parity_set_client(
 ) -> TestParitySetClient {
 	let dapps_service = Arc::new(TestDappsService);
 	let pool = CpuPool::new(1);
-	ParitySetClient::new(client, miner, updater, &(net.clone() as Arc<ManageNetwork>), Some(dapps_service), TestFetch::default(), pool)
+	ParitySetClient::new(client, miner, updater, &(net.clone() as Arc<ManageNetwork>), Some(dapps_service), FakeFetch::new(Some(1)), pool)
 }
 
 #[test]
