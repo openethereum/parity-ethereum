@@ -201,8 +201,6 @@ impl KeyServerHttpHandler {
 	}
 }
 
-unsafe impl Send for KeyServerHttpHandler { }
-
 impl Service for KeyServerHttpHandler {
 	type Request = HttpRequest;
 	type Response = HttpResponse;
