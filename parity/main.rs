@@ -127,6 +127,7 @@ mod upgrade;
 mod url;
 mod user_defaults;
 mod whisper;
+mod db;
 
 #[cfg(feature="stratum")]
 mod stratum;
