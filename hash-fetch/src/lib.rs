@@ -42,6 +42,10 @@ extern crate ethabi_derive;
 extern crate ethabi_contract;
 #[cfg(test)]
 extern crate parking_lot;
+#[cfg(test)]
+extern crate hyper;
+#[cfg(test)]
+extern crate fake_fetch;
 
 mod client;
 

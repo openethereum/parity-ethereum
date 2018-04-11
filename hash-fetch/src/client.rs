@@ -193,53 +193,14 @@ fn random_temp_path() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-	extern crate hyper;
+	use fake_fetch::FakeFetch;
 	use rustc_hex::FromHex;
 	use std::sync::{Arc, mpsc};
 	use parking_lot::Mutex;
-	use futures::future;
 	use futures_cpupool::CpuPool;
-	use fetch::{self, Fetch, Url, Request};
 	use parity_reactor::Remote;
 	use urlhint::tests::{FakeRegistrar, URLHINT};
 	use super::{Error, Client, HashFetch, random_temp_path};
-	use self::hyper::StatusCode;
-
-
-	#[derive(Clone)]
-	struct FakeFetch {
-		return_success: bool
-	}
-
-	impl Fetch for FakeFetch {
-		type Result = future::Ok<fetch::Response, fetch::Error>;
-
-		fn fetch(&self, request: Request, abort: fetch::Abort) -> Self::Result {
-			assert_eq!(request.url().as_str(), "https://parity.io/assets/images/ethcore-black-horizontal.png");
-			let u = request.url().clone();
-			future::ok(if self.return_success {
-				fetch::client::Response::new(u, hyper::Response::new().with_body(&b"result"[..]), abort)
-			} else {
-				fetch::client::Response::new(u, hyper::Response::new().with_status(StatusCode::NotFound), abort)
-			})
-		}
-
-		fn get(&self, url: &str, abort: fetch::Abort) -> Self::Result {
-			let url: Url = match url.parse() {
-				Ok(u) => u,
-				Err(e) => return future::err(e.into())
-			};
-			self.fetch(Request::get(url), abort)
-		}
-
-		fn post(&self, url: &str, abort: fetch::Abort) -> Self::Result {
-			let url: Url = match url.parse() {
-				Ok(u) => u,
-				Err(e) => return future::err(e.into())
-			};
-			self.fetch(Request::post(url), abort)
-		}
-	}
 
 	fn registrar() -> FakeRegistrar {
 		let mut registrar = FakeRegistrar::new();
@@ -254,7 +215,7 @@ mod tests {
 	fn should_return_error_if_hash_not_found() {
 		// given
 		let contract = Arc::new(FakeRegistrar::new());
-		let fetch = FakeFetch { return_success: false };
+		let fetch = FakeFetch::new(None::<usize>);
 		let client = Client::with_fetch(contract.clone(), CpuPool::new(1), fetch, Remote::new_sync());
 
 		// when
@@ -272,7 +233,7 @@ mod tests {
 	fn should_return_error_if_response_is_not_successful() {
 		// given
 		let registrar = Arc::new(registrar());
-		let fetch = FakeFetch { return_success: false };
+		let fetch = FakeFetch::new(None::<usize>);
 		let client = Client::with_fetch(registrar.clone(), CpuPool::new(1), fetch, Remote::new_sync());
 
 		// when
@@ -290,7 +251,7 @@ mod tests {
 	fn should_return_hash_mismatch() {
 		// given
 		let registrar = Arc::new(registrar());
-		let fetch = FakeFetch { return_success: true };
+		let fetch = FakeFetch::new(Some(1));
 		let mut client = Client::with_fetch(registrar.clone(), CpuPool::new(1), fetch, Remote::new_sync());
 		let path = random_temp_path();
 		let path2 = path.clone();
@@ -304,7 +265,7 @@ mod tests {
 
 		// then
 		let result = rx.recv().unwrap();
-		let hash = "0x06b0a4f426f6713234b2d4b2468640bc4e0bb72657a920ad24c5087153c593c8".into();
+		let hash = "0x2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e".into();
 		assert_eq!(result.unwrap_err(), Error::HashMismatch { expected: 2.into(), got: hash });
 		assert!(!path.exists(), "Temporary file should be removed.");
 	}
@@ -313,12 +274,12 @@ mod tests {
 	fn should_return_path_if_hash_matches() {
 		// given
 		let registrar = Arc::new(registrar());
-		let fetch = FakeFetch { return_success: true };
+		let fetch = FakeFetch::new(Some(1));
 		let client = Client::with_fetch(registrar.clone(), CpuPool::new(1), fetch, Remote::new_sync());
 
 		// when
 		let (tx, rx) = mpsc::channel();
-		client.fetch("0x06b0a4f426f6713234b2d4b2468640bc4e0bb72657a920ad24c5087153c593c8".into(),
+		client.fetch("0x2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e".into(),
 			Default::default(),
 			Box::new(move |result| { tx.send(result).unwrap(); }));
 

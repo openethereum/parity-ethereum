@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,37 +14,42 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Test implementation of fetch client.
+extern crate fetch;
+extern crate hyper;
+extern crate futures;
 
-use std::thread;
-use std::boxed::Box;
-use jsonrpc_core::futures::{self, Future};
-use fetch::{self, Fetch, Url, Request};
-use futures::future;
-use hyper;
+use hyper::StatusCode;
+use futures::{future, future::FutureResult};
+use fetch::{Fetch, Url, Request};
 
-/// Test implementation of fetcher. Will always return the same file.
-#[derive(Default, Clone)]
-pub struct TestFetch;
+#[derive(Clone, Default)]
+pub struct FakeFetch<T> where T: Clone + Send + Sync {
+	val: Option<T>,
+}
 
-impl Fetch for TestFetch {
-	type Result = Box<Future<Item = fetch::Response, Error = fetch::Error> + Send + 'static>;
+impl<T> FakeFetch<T> where T: Clone + Send + Sync {
+	pub fn new(t: Option<T>) -> Self {
+		FakeFetch { val : t }
+	}
+}
+
+impl<T: 'static> Fetch for FakeFetch<T> where T: Clone + Send+ Sync {
+	type Result = FutureResult<fetch::Response, fetch::Error>;
 
 	fn fetch(&self, request: Request, abort: fetch::Abort) -> Self::Result {
 		let u = request.url().clone();
-		let (tx, rx) = futures::oneshot();
-		thread::spawn(move || {
+		future::ok(if self.val.is_some() {
 			let r = hyper::Response::new().with_body(&b"Some content"[..]);
-			tx.send(fetch::Response::new(u, r, abort)).unwrap();
-		});
-
-		Box::new(rx.map_err(|_| fetch::Error::Aborted))
+			fetch::client::Response::new(u, r, abort)
+		} else {
+			fetch::client::Response::new(u, hyper::Response::new().with_status(StatusCode::NotFound), abort)
+		})
 	}
 
 	fn get(&self, url: &str, abort: fetch::Abort) -> Self::Result {
 		let url: Url = match url.parse() {
 			Ok(u) => u,
-			Err(e) => return Box::new(future::err(e.into()))
+			Err(e) => return future::err(e.into())
 		};
 		self.fetch(Request::get(url), abort)
 	}
@@ -52,7 +57,7 @@ impl Fetch for TestFetch {
 	fn post(&self, url: &str, abort: fetch::Abort) -> Self::Result {
 		let url: Url = match url.parse() {
 			Ok(u) => u,
-			Err(e) => return Box::new(future::err(e.into()))
+			Err(e) => return future::err(e.into())
 		};
 		self.fetch(Request::post(url), abort)
 	}
