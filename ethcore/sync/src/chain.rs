@@ -101,7 +101,7 @@ use bytes::Bytes;
 use rlp::{UntrustedRlp, RlpStream, DecoderError, Encodable};
 use network::{self, PeerId, PacketId};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};
+use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockImportErrorKind, BlockQueueInfo};
 use ethcore::error::*;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
 use transaction::PendingTransaction;
@@ -942,10 +942,10 @@ impl ChainSync {
 			return Ok(());
 		}
 		match io.chain().import_block(block_rlp.as_raw().to_vec()) {
-			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => {
+			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
 				trace!(target: "sync", "New block already in chain {:?}", h);
 			},
-			Err(BlockImportError::Import(ImportError::AlreadyQueued)) => {
+			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
 				trace!(target: "sync", "New block already queued {:?}", h);
 			},
 			Ok(_) => {
@@ -954,7 +954,7 @@ impl ChainSync {
 				self.new_blocks.mark_as_known(&header.hash(), header.number());
 				trace!(target: "sync", "New block queued {:?} ({})", h, header.number());
 			},
-			Err(BlockImportError::Block(BlockError::UnknownParent(p))) => {
+			Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(p)), _)) => {
 				unknown = true;
 				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
 			},

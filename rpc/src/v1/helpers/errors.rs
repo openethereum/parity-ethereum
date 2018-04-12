@@ -19,7 +19,7 @@
 use std::fmt;
 
 use ethcore::account_provider::{SignError as AccountError};
-use ethcore::error::{Error as EthcoreError, CallError};
+use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
 use jsonrpc_core::{futures, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use transaction::Error as TransactionError;
@@ -306,10 +306,10 @@ pub fn private_message_block_id_not_supported() -> Error {
 	}
 }
 
-pub fn transaction_message(error: TransactionError) -> String {
+pub fn transaction_message(error: &TransactionError) -> String {
 	use self::TransactionError::*;
 
-	match error {
+	match *error {
 		AlreadyImported => "Transaction with the same hash was already imported.".into(),
 		Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
 		TooCheapToReplace => {
@@ -330,7 +330,7 @@ pub fn transaction_message(error: TransactionError) -> String {
 		GasLimitExceeded { limit, got } => {
 			format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
 		},
-		InvalidSignature(sig) => format!("Invalid signature: {}", sig),
+		InvalidSignature(ref sig) => format!("Invalid signature: {}", sig),
 		InvalidChainId => "Invalid chain id.".into(),
 		InvalidGasLimit(_) => "Supplied gas is beyond limit.".into(),
 		SenderBanned => "Sender is banned in local queue.".into(),
@@ -342,7 +342,7 @@ pub fn transaction_message(error: TransactionError) -> String {
 
 pub fn transaction<T: Into<EthcoreError>>(error: T) -> Error {
 	let error = error.into();
-	if let EthcoreError::Transaction(e) = error {
+	if let ErrorKind::Transaction(ref e) = *error.kind() {
 		Error {
 			code: ErrorCode::ServerError(codes::TRANSACTION_ERROR),
 			message: transaction_message(e),

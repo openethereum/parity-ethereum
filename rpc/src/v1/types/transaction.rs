@@ -255,7 +255,7 @@ impl LocalTransactionStatus {
 			Future => LocalTransactionStatus::Future,
 			Mined(tx) => LocalTransactionStatus::Mined(Transaction::from_signed(tx, block_number, eip86_transition)),
 			Dropped(tx) => LocalTransactionStatus::Dropped(Transaction::from_signed(tx, block_number, eip86_transition)),
-			Rejected(tx, err) => LocalTransactionStatus::Rejected(Transaction::from_signed(tx, block_number, eip86_transition), errors::transaction_message(err)),
+			Rejected(tx, err) => LocalTransactionStatus::Rejected(Transaction::from_signed(tx, block_number, eip86_transition), errors::transaction_message(&err)),
 			Replaced(tx, gas_price, hash) => LocalTransactionStatus::Replaced(Transaction::from_signed(tx, block_number, eip86_transition), gas_price.into(), hash.into()),
 			Invalid(tx) => LocalTransactionStatus::Invalid(Transaction::from_signed(tx, block_number, eip86_transition)),
 			Canceled(tx) => LocalTransactionStatus::Canceled(Transaction::from_pending(tx, block_number, eip86_transition)),
