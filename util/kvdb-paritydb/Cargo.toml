@@ -1,0 +1,11 @@
+[package]
+name = "kvdb-paritydb"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+kvdb = { path = "../kvdb" }
+paritydb = { git = "https://github.com/sorpaas/paritydb", branch = "temp" }
+log = "0.3"
+elastic-array = "0.10"
+tempdir = "0.3"
