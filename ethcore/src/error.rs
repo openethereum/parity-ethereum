@@ -223,6 +223,10 @@ impl From<Error> for TransactionImportError {
 }
 
 error_chain! {
+	types {
+		Error, ErrorKind, ErrorResultExt, EthcoreResult;
+	}
+
 	links {
 		Database(kvdb::Error, kvdb::ErrorKind) #[doc = "Database error."];
 		Util(UtilError, util_error::ErrorKind) #[doc = "Error concerning a utility"];
@@ -282,7 +286,7 @@ error_chain! {
 
 
 /// Result of import block operation.
-pub type ImportResult = Result<H256>;
+pub type ImportResult = EthcoreResult<H256>;
 
 impl From<ClientError> for Error {
 	fn from(err: ClientError) -> Error {
