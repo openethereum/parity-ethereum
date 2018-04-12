@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
+use std::io;
+use std::net;
 use std::collections::BTreeMap;
 use serde_json;
 
@@ -159,6 +161,18 @@ impl From<serde_json::Error> for Error {
 impl From<ethkey::Error> for Error {
 	fn from(err: ethkey::Error) -> Self {
 		Error::Internal(err.into())
+	}
+}
+
+impl From<io::Error> for Error {
+	fn from(err: io::Error) -> Error {
+		Error::Internal(err.to_string())
+	}
+}
+
+impl From<net::AddrParseError> for Error {
+	fn from(err: net::AddrParseError) -> Error {
+		Error::Internal(err.to_string())
 	}
 }
 

@@ -32,7 +32,7 @@ use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::encoded;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::ids::BlockId;
-use ethsync::LightSync;
+use sync::LightSync;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use ethereum_types::U256;
 use parking_lot::{RwLock, Mutex};

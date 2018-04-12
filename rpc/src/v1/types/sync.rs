@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use ethsync::{self, PeerInfo as SyncPeerInfo, TransactionStats as SyncTransactionStats};
+use sync::{self, PeerInfo as SyncPeerInfo, TransactionStats as SyncTransactionStats};
 use serde::{Serialize, Serializer};
 use v1::types::{U256, H512};
 
@@ -98,8 +98,8 @@ pub struct EthProtocolInfo {
 	pub head: String,
 }
 
-impl From<ethsync::EthProtocolInfo> for EthProtocolInfo {
-	fn from(info: ethsync::EthProtocolInfo) -> Self {
+impl From<sync::EthProtocolInfo> for EthProtocolInfo {
+	fn from(info: sync::EthProtocolInfo) -> Self {
 		EthProtocolInfo {
 			version: info.version,
 			difficulty: info.difficulty.map(Into::into),
@@ -119,8 +119,8 @@ pub struct PipProtocolInfo {
 	pub head: String,
 }
 
-impl From<ethsync::PipProtocolInfo> for PipProtocolInfo {
-	fn from(info: ethsync::PipProtocolInfo) -> Self {
+impl From<sync::PipProtocolInfo> for PipProtocolInfo {
+	fn from(info: sync::PipProtocolInfo) -> Self {
 		PipProtocolInfo {
 			version: info.version,
 			difficulty: info.difficulty.into(),

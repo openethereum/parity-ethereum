@@ -18,11 +18,12 @@
 //! interface.
 
 extern crate byteorder;
+extern crate ethcore_crypto as crypto;
 extern crate ethcore_network as network;
-extern crate ethcrypto;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate hex;
+extern crate mem;
 extern crate ordered_float;
 extern crate parking_lot;
 extern crate rand;

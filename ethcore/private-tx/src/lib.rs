@@ -26,11 +26,11 @@ mod messages;
 mod error;
 
 extern crate ethcore;
-extern crate ethcore_io as io;
 extern crate ethcore_bytes as bytes;
-extern crate ethcore_transaction as transaction;
+extern crate ethcore_crypto as crypto;
+extern crate ethcore_io as io;
 extern crate ethcore_miner;
-extern crate ethcrypto;
+extern crate ethcore_transaction as transaction;
 extern crate ethabi;
 extern crate ethereum_types;
 extern crate ethkey;
@@ -41,6 +41,7 @@ extern crate keccak_hash as hash;
 extern crate parking_lot;
 extern crate patricia_trie as trie;
 extern crate rlp;
+extern crate url;
 extern crate rustc_hex;
 #[macro_use]
 extern crate log;
@@ -673,4 +674,3 @@ impl ChainNotify for Provider {
 		}
 	}
 }
-

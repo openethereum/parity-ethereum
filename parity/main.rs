@@ -29,7 +29,7 @@ extern crate env_logger;
 extern crate fdlimit;
 extern crate futures;
 extern crate futures_cpupool;
-extern crate isatty;
+extern crate atty;
 extern crate jsonrpc_core;
 extern crate num_cpus;
 extern crate number_prefix;
@@ -55,10 +55,10 @@ extern crate ethcore_miner as miner;
 extern crate ethcore_network as network;
 extern crate ethcore_private_tx;
 extern crate ethcore_service;
+extern crate ethcore_sync as sync;
 extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethkey;
-extern crate ethsync;
 extern crate kvdb;
 extern crate kvdb_rocksdb;
 extern crate migration as migr;
@@ -95,7 +95,6 @@ extern crate parity_dapps;
 #[macro_use]
 extern crate pretty_assertions;
 
-#[cfg(windows)] extern crate ws2_32;
 #[cfg(windows)] extern crate winapi;
 
 #[cfg(test)]
@@ -238,7 +237,7 @@ fn global_cleanup() {
 	// The loop is required because of internal refernce counter for winsock dll. We don't know how many crates we use do
 	// initialize it. There's at least 2 now.
 	for _ in 0.. 10 {
-		unsafe { ::ws2_32::WSACleanup(); }
+		unsafe { ::winapi::um::winsock2::WSACleanup(); }
 	}
 }
 
@@ -250,8 +249,8 @@ fn global_init() {
 	// When restarting in the same process this reinits windows sockets.
 	unsafe {
 		const WS_VERSION: u16 = 0x202;
-		let mut wsdata: ::winapi::winsock2::WSADATA = ::std::mem::zeroed();
-		::ws2_32::WSAStartup(WS_VERSION, &mut wsdata);
+		let mut wsdata: ::winapi::um::winsock2::WSADATA = ::std::mem::zeroed();
+		::winapi::um::winsock2::WSAStartup(WS_VERSION, &mut wsdata);
 	}
 }
 

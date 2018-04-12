@@ -33,7 +33,7 @@ extern crate time;
 extern crate tiny_keccak;
 extern crate tempdir;
 
-extern crate ethcrypto as crypto;
+extern crate ethcore_crypto as crypto;
 extern crate ethereum_types;
 extern crate ethkey as _ethkey;
 extern crate parity_wordlist;

@@ -47,17 +47,18 @@ extern crate ethash;
 #[cfg_attr(test, macro_use)]
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
+extern crate ethcore_crypto as crypto;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
+extern crate ethcore_logger;
 extern crate ethcore_miner as miner;
+extern crate ethcore_private_tx;
+extern crate ethcore_sync as sync;
 extern crate ethcore_transaction as transaction;
-extern crate ethcrypto as crypto;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate ethstore;
-extern crate ethsync;
-extern crate ethcore_logger;
 extern crate vm;
 extern crate fetch;
 extern crate node_health;
@@ -68,7 +69,6 @@ extern crate rlp;
 extern crate stats;
 extern crate keccak_hash as hash;
 extern crate hardware_wallet;
-extern crate ethcore_private_tx;
 extern crate patricia_trie as trie;
 
 #[macro_use]
@@ -91,6 +91,9 @@ extern crate macros;
 
 #[cfg(test)]
 extern crate kvdb_memorydb;
+
+#[cfg(test)]
+extern crate fake_fetch;
 
 extern crate tempdir;
 

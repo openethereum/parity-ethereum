@@ -60,7 +60,6 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 	Miner::new(
 		MinerOptions {
-			new_work_notify: vec![],
 			force_sealing: true,
 			reseal_on_external_tx: true,
 			reseal_on_own_tx: true,

@@ -17,6 +17,7 @@
 //! Encryption providers.
 
 use std::io::Read;
+use std::str::FromStr;
 use std::iter::repeat;
 use std::time::{Instant, Duration};
 use std::collections::HashMap;
@@ -26,11 +27,12 @@ use ethcore::account_provider::AccountProvider;
 use ethereum_types::{H128, H256, Address};
 use ethjson;
 use ethkey::{Signature, Public};
-use ethcrypto;
+use crypto;
 use futures::Future;
-use fetch::{Fetch, Client as FetchClient, Method, BodyReader};
+use fetch::{Fetch, Client as FetchClient, Method, BodyReader, Request};
 use bytes::{Bytes, ToPretty};
 use error::{Error, ErrorKind};
+use url::Url;
 use super::find_account_password;
 
 /// Initialization vector length.
@@ -128,7 +130,8 @@ impl SecretStoreEncryptor {
 			Method::Get
 		};
 
-		let response = self.client.fetch(&url, method, Default::default()).wait()
+		let url = Url::from_str(&url).map_err(|e| ErrorKind::Encrypt(e.to_string()))?;
+		let response = self.client.fetch(Request::new(url, method), Default::default()).wait()
 			.map_err(|e| ErrorKind::Encrypt(e.to_string()))?;
 
 		if response.is_not_found() {
@@ -148,7 +151,7 @@ impl SecretStoreEncryptor {
 		let password = find_account_password(&self.config.passwords, &*accounts, &requester);
 
 		// decrypt Public
-		let decrypted_bytes = accounts.decrypt(requester, password, &ethcrypto::DEFAULT_MAC, &encrypted_bytes)?;
+		let decrypted_bytes = accounts.decrypt(requester, password, &crypto::DEFAULT_MAC, &encrypted_bytes)?;
 		let decrypted_key = Public::from_slice(&decrypted_bytes);
 
 		// and now take x coordinate of Public as a key
@@ -214,7 +217,7 @@ impl Encryptor for SecretStoreEncryptor {
 		// encrypt data
 		let mut cypher = Vec::with_capacity(plain_data.len() + initialisation_vector.len());
 		cypher.extend(repeat(0).take(plain_data.len()));
-		ethcrypto::aes::encrypt(&key, initialisation_vector, plain_data, &mut cypher);
+		crypto::aes::encrypt(&key, initialisation_vector, plain_data, &mut cypher);
 		cypher.extend_from_slice(&initialisation_vector);
 
 		Ok(cypher)
@@ -240,7 +243,7 @@ impl Encryptor for SecretStoreEncryptor {
 		let (cypher, iv) = cypher.split_at(cypher_len - INIT_VEC_LEN);
 		let mut plain_data = Vec::with_capacity(cypher_len - INIT_VEC_LEN);
 		plain_data.extend(repeat(0).take(cypher_len - INIT_VEC_LEN));
-		ethcrypto::aes::decrypt(&key, &iv, cypher, &mut plain_data);
+		crypto::aes::decrypt(&key, &iv, cypher, &mut plain_data);
 
 		Ok(plain_data)
 	}

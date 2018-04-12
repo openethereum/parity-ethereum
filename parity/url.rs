@@ -17,32 +17,19 @@
 //! Cross-platform open url in default browser
 
 #[cfg(windows)]
-mod shell {
-	extern crate winapi;
-
-	use self::winapi::*;
-	extern "system" {
-		pub fn ShellExecuteA(
-			hwnd: HWND, lpOperation: LPCSTR, lpFile: LPCSTR, lpParameters: LPCSTR, lpDirectory: LPCSTR,
-			nShowCmd: c_int
-		) -> HINSTANCE;
-	}
-
-	pub use self::winapi::SW_SHOWNORMAL as Normal;
-}
-
-#[cfg(windows)]
 pub fn open(url: &str) {
 	use std::ffi::CString;
 	use std::ptr;
+	use winapi::um::shellapi::ShellExecuteA;
+	use winapi::um::winuser::SW_SHOWNORMAL as Normal;
 
 	unsafe {
-		shell::ShellExecuteA(ptr::null_mut(),
+		ShellExecuteA(ptr::null_mut(),
 			CString::new("open").unwrap().as_ptr(),
 			CString::new(url.to_owned().replace("\n", "%0A")).unwrap().as_ptr(),
 			ptr::null(),
 			ptr::null(),
-			shell::Normal);
+			Normal);
 	}
 }
 

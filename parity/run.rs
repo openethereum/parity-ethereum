@@ -34,7 +34,8 @@ use ethcore::spec::{SpecParams, OptimizeFor};
 use ethcore::verification::queue::VerifierSettings;
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
-use ethsync::{self, SyncConfig};
+use sync::{self, SyncConfig};
+use miner::work_notify::WorkPoster;
 use fdlimit::raise_fd_limit;
 use futures_cpupool::CpuPool;
 use hash_fetch::{self, fetch};
@@ -99,7 +100,7 @@ pub struct RunCmd {
 	pub ws_conf: rpc::WsConfiguration,
 	pub http_conf: rpc::HttpConfiguration,
 	pub ipc_conf: rpc::IpcConfiguration,
-	pub net_conf: ethsync::NetworkConfiguration,
+	pub net_conf: sync::NetworkConfiguration,
 	pub network_id: Option<u64>,
 	pub warp_sync: bool,
 	pub warp_barrier: Option<u64>,
@@ -137,6 +138,7 @@ pub struct RunCmd {
 	pub no_persistent_txqueue: bool,
 	pub whisper: ::whisper::Config,
 	pub no_hardcoded_sync: bool,
+	pub work_notify: Vec<String>,
 }
 
 pub fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> Result<(), String> {
@@ -188,7 +190,7 @@ type LightClient = ::light::client::Client<::light_helpers::EpochFetch>;
 // helper for light execution.
 fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient, String> {
 	use light::client as light_client;
-	use ethsync::{LightSyncParams, LightSync, ManageNetwork};
+	use sync::{LightSyncParams, LightSync, ManageNetwork};
 	use parking_lot::{Mutex, RwLock};
 
 	// load spec
@@ -290,7 +292,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 		network_config: net_conf.into_basic().map_err(|e| format!("Failed to produce network config: {}", e))?,
 		client: Arc::new(provider),
 		network_id: cmd.network_id.unwrap_or(spec.network_id()),
-		subprotocol_name: ethsync::LIGHT_PROTOCOL,
+		subprotocol_name: sync::LIGHT_PROTOCOL,
 		handlers: vec![on_demand.clone()],
 		attached_protos: attached_protos,
 	};
@@ -343,7 +345,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 		impl node_health::SyncStatus for LightSyncStatus {
 			fn is_major_importing(&self) -> bool { self.0.is_major_importing() }
 			fn peers(&self) -> (usize, usize) {
-				let peers = ethsync::LightSyncProvider::peer_numbers(&*self.0);
+				let peers = sync::LightSyncProvider::peer_numbers(&*self.0);
 				(peers.connected, peers.max)
 			}
 		}
@@ -363,6 +365,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 			pool: cpu_pool.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.redirection_address(),
+			info_page_only: cmd.ui_conf.info_page_only,
 		})
 	};
 
@@ -535,9 +538,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		}
 	}
 	sync_config.warp_sync = match (warp_sync, cmd.warp_barrier) {
-		(true, Some(block)) => ethsync::WarpSync::OnlyAndAfter(block),
-		(true, _) => ethsync::WarpSync::Enabled,
-		_ => ethsync::WarpSync::Disabled,
+		(true, Some(block)) => sync::WarpSync::OnlyAndAfter(block),
+		(true, _) => sync::WarpSync::Enabled,
+		_ => sync::WarpSync::Disabled,
 	};
 	sync_config.download_old_blocks = cmd.download_old_blocks;
 	sync_config.serve_light = cmd.serve_light;
@@ -548,6 +551,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
 	let cpu_pool = CpuPool::new(4);
+
+	// spin up event loop
+	let event_loop = EventLoop::spawn();
 
 	// fetch service
 	let fetch = fetch::Client::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
@@ -561,6 +567,9 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	miner.set_extra_data(cmd.miner_extras.extra_data);
 	miner.set_minimal_gas_price(initial_min_gas_price);
 	miner.recalibrate_minimal_gas_price();
+	if !cmd.work_notify.is_empty() {
+		miner.push_notifier(Box::new(WorkPoster::new(&cmd.work_notify, fetch.clone(), event_loop.remote())));
+	}
 	let engine_signer = cmd.miner_extras.engine_signer;
 
 	if engine_signer != Default::default() {
@@ -711,7 +720,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		client.clone(),
 		&cmd.logger_config,
 		attached_protos,
-		connection_filter.clone().map(|f| f as Arc<::ethsync::ConnectionFilter + 'static>),
+		connection_filter.clone().map(|f| f as Arc<::sync::ConnectionFilter + 'static>),
 	).map_err(|e| format!("Sync error: {}", e))?;
 
 	service.add_notify(chain_notify.clone());
@@ -729,9 +738,6 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	if network_enabled {
 		chain_notify.start();
 	}
-
-	// spin up event loop
-	let event_loop = EventLoop::spawn();
 
 	let contract_client = Arc::new(::dapps::FullRegistrar::new(client.clone()));
 
@@ -758,7 +764,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let (node_health, dapps_deps) = {
 		let (sync, client) = (sync_provider.clone(), client.clone());
 
-		struct SyncStatus(Arc<ethsync::SyncProvider>, Arc<Client>, ethsync::NetworkConfiguration);
+		struct SyncStatus(Arc<sync::SyncProvider>, Arc<Client>, sync::NetworkConfiguration);
 		impl fmt::Debug for SyncStatus {
 			fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
 				write!(fmt, "Dapps Sync Status")
@@ -788,6 +794,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 			pool: cpu_pool.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.redirection_address(),
+			info_page_only: cmd.ui_conf.info_page_only,
 		})
 	};
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
@@ -965,7 +972,7 @@ impl RunningClient {
 }
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
-	if cmd.ui_conf.enabled {
+	if cmd.ui_conf.enabled && !cmd.ui_conf.info_page_only {
 		warn!("{}", Style::new().bold().paint("Parity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity UI instead."));
 		warn!("{}", Style::new().bold().paint("Standalone Parity UI: https://github.com/Parity-JS/shell/releases"));
 	}
