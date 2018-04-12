@@ -26,25 +26,25 @@ pub enum Error {
 }
 
 impl From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Self {
-        Error::ProcessError(err)
-    }
+	fn from(err: std::io::Error) -> Self {
+		Error::ProcessError(err)
+	}
 }
 
 impl From<std::ffi::NulError> for Error {
-    fn from(err: std::ffi::NulError) -> Self {
-        Error::FfiNull(err)
-    }
+	fn from(err: std::ffi::NulError) -> Self {
+		Error::FfiNull(err)
+	}
 }
 
 impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        match *self {
-            Error::ProcessError(ref e) => write!(f, "{}", e),
-            Error::FfiNull(ref e) => write!(f, "{}", e),
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+		match *self {
+			Error::ProcessError(ref e) => write!(f, "{}", e),
+			Error::FfiNull(ref e) => write!(f, "{}", e),
 			Error::WindowsShellExecute => write!(f, "WindowsShellExecute failed"),
-        }
-    }
+		}
+	}
 }
 
 #[cfg(windows)]
@@ -64,7 +64,7 @@ pub fn open(url: &str) -> Result<(), Error> {
 			ptr::null(),
 			ptr::null(),
 			Normal) as INT
-	};
+};
 	// https://msdn.microsoft.com/en-us/library/windows/desktop/bb762153(v=vs.85).aspx
 	// `ShellExecute` returns a value greater than 32 on success
 	if h_instance > WINDOWS_SHELL_EXECUTE_SUCCESS { Ok(()) } else { Err(Error::WindowsShellExecute) }
