@@ -264,7 +264,7 @@ error_chain! {
 			display("Accounts Provider error {}", err)
 		} 
 
-	    #[doc = "PoW hash is invalid or out of date."]
+		#[doc = "PoW hash is invalid or out of date."]
 		PowHashInvalid {
 			description("PoW hash is invalid or out of date.")
 			display("PoW hash is invalid or out of date.")
