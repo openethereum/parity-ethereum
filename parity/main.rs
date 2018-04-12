@@ -152,7 +152,7 @@ fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	}
 }
 
-pub enum PostExecutionAction {
+enum PostExecutionAction {
 	Print(String),
 	Restart(Option<String>),
 	Quit,
