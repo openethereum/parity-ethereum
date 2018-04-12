@@ -55,10 +55,12 @@ impl Database {
 			path
 		};
 
+		let mut options = Options::default();
+		options.key_len = 64;
 		if db_file.exists() && meta_file.exists() {
-			Ok(DB::open(path, Options::default()).map_err(|e| format!("ParityDB error: {}", e))?)
+			Ok(DB::open(path, options).map_err(|e| format!("ParityDB error: {}", e))?)
 		} else {
-			Ok(DB::create(path, Options::default()).map_err(|e| format!("ParityDB error: {}", e))?)
+			Ok(DB::create(path, options).map_err(|e| format!("ParityDB error: {}", e))?)
 		}
 	}
 
@@ -94,14 +96,14 @@ impl KeyValueDB for Database {
 		}.map_err(|e| format!("ParityDB error: {}", e))?;
 		let db = db_guard.as_ref().expect("DB should always exist");
 
-		// Postfix the key to 32 bytes.
-		let mut postfixed_key = [0u8; 32];
-		if key.len() > 32 {
-			return Err("ParityDB error: longest key length is 32 bytes.".into());
+		// Postfix the key to 64 bytes.
+		let mut postfixed_key = [0u8; 64];
+		if key.len() > 64 {
+			return Err("ParityDB error: longest key length is 64 bytes.".into());
 		}
 		postfixed_key[0..key.len()].copy_from_slice(key);
 
-		let raw_value = db.get(postfixed_key).map_err(|e| format!("ParityDB error: {}", e))?;
+		let raw_value = db.get(&postfixed_key[..]).map_err(|e| format!("ParityDB error: {}", e))?;
 		let value = raw_value.map(|raw_value| {
 			match raw_value {
 				Value::Raw(data) => DBValue::from_slice(data),
@@ -144,9 +146,9 @@ impl KeyValueDB for Database {
 
 			let postfixed_key = {
 				let key = op.key();
-				let mut postfixed_key = [0u8; 32];
-				if key.len() > 32 {
-					warn!("ParityDB error: longest key length is 32 bytes.");
+				let mut postfixed_key = [0u8; 64];
+				if key.len() > 64 {
+					warn!("ParityDB error: longest key length is 64 bytes.");
 					continue;
 				}
 				postfixed_key[0..key.len()].copy_from_slice(key);
@@ -155,10 +157,10 @@ impl KeyValueDB for Database {
 
 			match op {
 				DBOp::Insert { value, .. } => {
-					transaction.insert(postfixed_key, value).expect("Key length is checked above; qed");
+					transaction.insert(&postfixed_key[..], value).expect("Key length is checked above; qed");
 				},
 				DBOp::Delete { .. } => {
-					transaction.delete(postfixed_key).expect("Key length is checked above; qed");
+					transaction.delete(&postfixed_key[..]).expect("Key length is checked above; qed");
 				},
 			}
 		}
