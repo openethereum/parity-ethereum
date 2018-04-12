@@ -196,9 +196,9 @@ error_chain! {
 
 impl From<Error> for BlockImportError {
 	fn from(e: Error) -> Self {
-		match *e.kind() {
-			ErrorKind::Block(block_error) => BlockImportErrorKind::Block(block_error).into(),
-			ErrorKind::Import(import_error) => BlockImportErrorKind::Import(import_error.into()).into(),
+		match e {
+			Error(ErrorKind::Block(block_error), _) => BlockImportErrorKind::Block(block_error).into(),
+			Error(ErrorKind::Import(import_error), _) => BlockImportErrorKind::Import(import_error.into()).into(),
 			_ => BlockImportErrorKind::Other(format!("other block import error: {:?}", e)).into(),
 		}
 	}
@@ -215,8 +215,8 @@ pub enum TransactionImportError {
 
 impl From<Error> for TransactionImportError {
 	fn from(e: Error) -> Self {
-		match *e.kind() {
-			ErrorKind::Transaction(transaction_error) => TransactionImportError::Transaction(transaction_error),
+		match e {
+			Error(ErrorKind::Transaction(transaction_error), _) => TransactionImportError::Transaction(transaction_error),
 			_ => TransactionImportError::Other(format!("other block import error: {:?}", e)),
 		}
 	}
@@ -239,7 +239,6 @@ error_chain! {
 		Snappy(InvalidInput) #[doc = "Snappy error."];
 		Engine(EngineError) #[doc = "Consensus vote error."];
 		Ethkey(EthkeyError) #[doc = "Ethkey error."];
-		// AccountProvider(AccountsError) #[doc = "Account Provider error"];
 	}
 
 	errors {
@@ -308,10 +307,11 @@ impl From<::rlp::DecoderError> for Error {
 
 impl From<BlockImportError> for Error {
 	fn from(err: BlockImportError) -> Error {
-		match *err.kind() {
-			BlockImportErrorKind::Block(e) => ErrorKind::Block(e).into(),
-			BlockImportErrorKind::Import(e) => ErrorKind::Import(e).into(),
-			BlockImportErrorKind::Other(s) => UtilError::from(s).into(),
+		match err {
+			BlockImportError(BlockImportErrorKind::Block(e), _) => ErrorKind::Block(e).into(),
+			BlockImportError(BlockImportErrorKind::Import(e), _) => ErrorKind::Import(e).into(),
+			BlockImportError(BlockImportErrorKind::Other(s), _) => UtilError::from(s).into(),
+			_ => ErrorKind::Msg(format!("other block import error: {:?}", err)).into(),
 		}
 	}
 }
