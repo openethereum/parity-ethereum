@@ -37,7 +37,7 @@ pub fn zero_scalar() -> Secret {
 pub fn to_scalar(hash: H256) -> Result<Secret, Error> {
 	let scalar: U256 = hash.into();
 	let scalar: H256 = (scalar % math::curve_order()).into();
-	let scalar = Secret::from_slice(&*scalar);
+	let scalar = Secret::from(scalar.0);
 	scalar.check_validity()?;
 	Ok(scalar)
 }
@@ -697,7 +697,7 @@ pub mod tests {
 		// === required to generate shares of inv(x) mod r with out revealing
 		// === any information about x or inv(x).
 		// === https://www.researchgate.net/publication/280531698_Robust_Threshold_Elliptic_Curve_Digital_Signature
-	
+
 		// generate shared random secret e for given t
 		let n = artifacts.id_numbers.len();
 		assert!(t * 2 + 1 <= n);

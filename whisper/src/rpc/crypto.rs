@@ -19,6 +19,7 @@
 use crypto;
 use ethereum_types::H256;
 use ethkey::{self, Public, Secret};
+use mem::Memzero;
 use ring::aead::{self, AES_256_GCM, SealingKey, OpeningKey};
 
 /// Length of AES key
@@ -36,7 +37,7 @@ enum AesEncode {
 }
 
 enum EncryptionInner {
-	AES([u8; AES_KEY_LEN], [u8; AES_NONCE_LEN], AesEncode),
+	AES(Memzero<[u8; AES_KEY_LEN]>, [u8; AES_NONCE_LEN], AesEncode),
 	ECIES(Public),
 }
 
@@ -58,7 +59,7 @@ impl EncryptionInstance {
 	///
 	/// If generating nonces with a secure RNG, limit uses such that
 	/// the chance of collision is negligible.
-	pub fn aes(key: [u8; AES_KEY_LEN], nonce: [u8; AES_NONCE_LEN]) -> Self {
+	pub fn aes(key: Memzero<[u8; AES_KEY_LEN]>, nonce: [u8; AES_NONCE_LEN]) -> Self {
 		EncryptionInstance(EncryptionInner::AES(key, nonce, AesEncode::AppendedNonce))
 	}
 
@@ -66,7 +67,7 @@ impl EncryptionInstance {
 	///
 	/// Key reuse here is extremely dangerous. It should be randomly generated
 	/// with a secure RNG.
-	pub fn broadcast(key: [u8; AES_KEY_LEN], topics: Vec<H256>) -> Self {
+	pub fn broadcast(key: Memzero<[u8; AES_KEY_LEN]>, topics: Vec<H256>) -> Self {
 		EncryptionInstance(EncryptionInner::AES(key, BROADCAST_IV, AesEncode::OnTopics(topics)))
 	}
 
@@ -74,7 +75,7 @@ impl EncryptionInstance {
 	pub fn encrypt(self, plain: &[u8]) -> Vec<u8> {
 		match self.0 {
 			EncryptionInner::AES(key, nonce, encode) => {
-				let sealing_key = SealingKey::new(&AES_256_GCM, &key)
+				let sealing_key = SealingKey::new(&AES_256_GCM, &*key)
 					.expect("key is of correct len; qed");
 
 				let encrypt_plain = move |buf: &mut Vec<u8>| {
@@ -106,12 +107,10 @@ impl EncryptionInstance {
 					}
 					AesEncode::OnTopics(topics) => {
 						let mut buf = Vec::new();
-						let key = H256(key);
-
-						for topic in topics {
-							buf.extend(&*(topic ^ key));
+						for mut t in topics {
+							xor(&mut t.0, &key);
+							buf.extend(&t.0);
 						}
-
 						encrypt_plain(&mut buf);
 						buf
 					}
@@ -125,8 +124,15 @@ impl EncryptionInstance {
 	}
 }
 
+#[inline]
+fn xor(a: &mut [u8; 32], b: &[u8; 32]) {
+	for i in 0 .. 32 {
+		a[i] ^= b[i]
+	}
+}
+
 enum AesExtract {
-	AppendedNonce([u8; AES_KEY_LEN]), // extract appended nonce.
+	AppendedNonce(Memzero<[u8; AES_KEY_LEN]>), // extract appended nonce.
 	OnTopics(usize, usize, H256), // number of topics, index we know, topic we know.
 }
 
@@ -147,7 +153,7 @@ impl DecryptionInstance {
 	}
 
 	/// 256-bit AES GCM decryption with appended nonce.
-	pub fn aes(key: [u8; AES_KEY_LEN]) -> Self {
+	pub fn aes(key: Memzero<[u8; AES_KEY_LEN]>) -> Self {
 		DecryptionInstance(DecryptionInner::AES(AesExtract::AppendedNonce(key)))
 	}
 
@@ -164,13 +170,13 @@ impl DecryptionInstance {
 		match self.0 {
 			DecryptionInner::AES(extract) => {
 				let decrypt = |
-					key: [u8; AES_KEY_LEN],
+					key: Memzero<[u8; AES_KEY_LEN]>,
 					nonce: [u8; AES_NONCE_LEN],
 					ciphertext: &[u8]
 				| {
 					if ciphertext.len() < AES_256_GCM.tag_len() { return None }
 
-					let opening_key = OpeningKey::new(&AES_256_GCM, &key)
+					let opening_key = OpeningKey::new(&AES_256_GCM, &*key)
 						.expect("key length is valid for mode; qed");
 
 					let mut buf = ciphertext.to_vec();
@@ -205,7 +211,7 @@ impl DecryptionInstance {
 						let mut salted_topic = H256::new();
 						salted_topic.copy_from_slice(&ciphertext[(known_index * 32)..][..32]);
 
-						let key = (salted_topic ^ known_topic).0;
+						let key = Memzero::from((salted_topic ^ known_topic).0);
 
 						let offset = num_topics * 32;
 						decrypt(key, BROADCAST_IV, &ciphertext[offset..])
@@ -264,9 +270,9 @@ mod tests {
 
 		let mut rng = OsRng::new().unwrap();
 		let mut test_message = move |message: &[u8]| {
-			let key = rng.gen();
+			let key = Memzero::from(rng.gen::<[u8; 32]>());
 
-			let instance = EncryptionInstance::aes(key, rng.gen());
+			let instance = EncryptionInstance::aes(key.clone(), rng.gen());
 			let ciphertext = instance.encrypt(message);
 
 			if !message.is_empty() {
@@ -294,7 +300,7 @@ mod tests {
 			let all_topics = (0..5).map(|_| rng.gen()).collect::<Vec<_>>();
 			let known_idx = 2;
 			let known_topic = all_topics[2];
-			let key = rng.gen();
+			let key = Memzero::from(rng.gen::<[u8; 32]>());
 
 			let instance = EncryptionInstance::broadcast(key, all_topics);
 			let ciphertext = instance.encrypt(message);

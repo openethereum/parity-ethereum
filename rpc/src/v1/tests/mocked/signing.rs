@@ -211,7 +211,7 @@ fn should_sign_if_account_is_unlocked() {
 	// given
 	let tester = eth_signing();
 	let data = vec![5u8];
-	let acc = tester.accounts.insert_account(Secret::from_slice(&[69u8; 32]), "test").unwrap();
+	let acc = tester.accounts.insert_account(Secret::from([69u8; 32]), "test").unwrap();
 	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
 
 	// when
