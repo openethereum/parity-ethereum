@@ -5,7 +5,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 kvdb = { path = "../kvdb" }
-paritydb = { path = "../../../paritydb/paritydb" }
+paritydb = { git = "https://github.com/sorpaas/paritydb", branch = "temp" }
 log = "0.3"
 elastic-array = "0.10"
 tempdir = "0.3"

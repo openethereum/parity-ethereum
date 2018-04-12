@@ -1493,7 +1493,7 @@ dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb 0.1.0",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "paritydb 0.1.0",
+ "paritydb 0.1.0 (git+https://github.com/sorpaas/paritydb?branch=temp)",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2413,6 +2413,7 @@ dependencies = [
 [[package]]
 name = "paritydb"
 version = "0.1.0"
+source = "git+https://github.com/sorpaas/paritydb?branch=temp#ed0ef4314dbac60fdb00980fbc60bc7fdb9ada9a"
 dependencies = [
  "bit-vec 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3961,6 +3962,7 @@ dependencies = [
 "checksum parity-ui-precompiled 1.9.0 (git+https://github.com/js-dist-paritytech/parity-master-1-10-shell.git?rev=bd25b41cd642c6b822d820dded3aa601a29aa079)" = "<none>"
 "checksum parity-wasm 0.27.5 (registry+https://github.com/rust-lang/crates.io-index)" = "a93ad771f67ce8a6af64c6444a99c07b15f4674203657496fc31244ffb1de2c3"
 "checksum parity-wordlist 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1d0dec124478845b142f68b446cbee953d14d4b41f1bc0425024417720dce693"
+"checksum paritydb 0.1.0 (git+https://github.com/sorpaas/paritydb?branch=temp)" = "<none>"
 "checksum parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)" = "149d8f5b97f3c1133e3cfcd8886449959e856b557ff281e292b733d7c69e005e"
 "checksum parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)" = "9fd9d732f2de194336fb02fe11f9eed13d9e76f13f4315b4d88a14ca411750cd"
 "checksum parking_lot_core 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "4f610cb9664da38e417ea3225f23051f589851999535290e077939838ab7a595"
