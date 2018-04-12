@@ -17,6 +17,7 @@ db_path = "$HOME/.parity/chains"
 keys_path = "$HOME/.parity/keys"
 identity = ""
 light = false
+no_hardcoded_sync = false
 
 [account]
 unlock = ["0xdeadbeefcafe0000000000000000000000000000"]
