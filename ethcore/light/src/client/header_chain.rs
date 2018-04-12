@@ -31,7 +31,7 @@ use std::sync::Arc;
 use cht;
 
 use ethcore::block_status::BlockStatus;
-use ethcore::error::{Error, BlockImportError, BlockError};
+use ethcore::error::{Error, ErrorKind, BlockImportError, BlockImportErrorKind, BlockError};
 use ethcore::encoded;
 use ethcore::header::Header;
 use ethcore::ids::BlockId;
@@ -260,7 +260,7 @@ impl HeaderChain {
 			let best_block = {
 				let era = match candidates.get(&curr.best_num) {
 					Some(era) => era,
-					None => return Err(Error::Database("Database corrupt: highest block referenced but no data.".into())),
+					None => bail!(ErrorKind::Database("Database corrupt: highest block referenced but no data.".into())),
 				};
 
 				let best = &era.candidates[0];
@@ -332,8 +332,7 @@ impl HeaderChain {
 
 		// instantiate genesis epoch data if it doesn't exist.
 		if let None = chain.db.get(col, LAST_CANONICAL_TRANSITION)? {
-			let genesis_data = spec.genesis_epoch_data()
-				.map_err(|s| Error::Database(s.into()))?;
+			let genesis_data = spec.genesis_epoch_data()?;
 
 			{
 				let mut batch = chain.db.transaction();
@@ -411,7 +410,7 @@ impl HeaderChain {
 							.and_then(|entry| entry.candidates.iter().find(|c| c.hash == parent_hash))
 							.map(|c| c.total_difficulty)
 							.ok_or_else(|| BlockError::UnknownParent(parent_hash))
-							.map_err(BlockImportError::Block)?
+							.map_err(BlockImportErrorKind::Block)?
 					};
 
 				parent_td + *header.difficulty()
@@ -580,7 +579,7 @@ impl HeaderChain {
 					} else {
 						let msg = format!("header of block #{} not found in DB ; database in an \
 											inconsistent state", h_num);
-						return Err(Error::Database(msg.into()));
+						bail!(ErrorKind::Database(msg.into()));
 					};
 
 					let decoded = header.decode();
@@ -590,7 +589,7 @@ impl HeaderChain {
 							.ok_or_else(|| {
 								let msg = format!("entry for era #{} not found in DB ; database \
 													in an inconsistent state", h_num);
-								Error::Database(msg.into())
+								ErrorKind::Database(msg.into())
 							})?;
 						::rlp::decode(&bytes)
 					};
@@ -600,7 +599,7 @@ impl HeaderChain {
 						.ok_or_else(|| {
 							let msg = "no candidate matching block found in DB ; database in an \
 										inconsistent state";
-							Error::Database(msg.into())
+							ErrorKind::Database(msg.into())
 						})?
 						.total_difficulty;
 

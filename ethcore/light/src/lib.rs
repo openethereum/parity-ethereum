@@ -80,6 +80,8 @@ extern crate keccak_hash as hash;
 extern crate triehash;
 extern crate kvdb;
 extern crate memory_cache;
+#[macro_use]
+extern crate error_chain;
 
 #[cfg(test)]
 extern crate kvdb_memorydb;
