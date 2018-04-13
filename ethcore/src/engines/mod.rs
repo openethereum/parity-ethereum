@@ -49,6 +49,8 @@ use header::{Header, BlockNumber};
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use transaction::{UnverifiedTransaction, SignedTransaction};
+use views::BlockView;
+use blockchain::BlockProvider;
 
 use ethkey::Signature;
 use parity_machine::{Machine, LocalizedMachine as Localized};
@@ -337,6 +339,16 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Check whether the parent timestamp is valid.
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp > parent_timestamp
+	}
+
+	/// Check whether a given block is the best block.
+	fn is_new_best(&self, bytes: &[u8], best_block_total_difficulty: U256, provider: &BlockProvider) -> bool {
+		let block = BlockView::new(bytes);
+		let header = block.header_view();
+		let parent_hash = header.parent_hash();
+		let parent_details = provider.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
+
+		parent_details.total_difficulty + header.difficulty() > best_block_total_difficulty
 	}
 }
 

@@ -896,7 +896,7 @@ impl BlockChain {
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
-	pub fn insert_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
+	pub fn insert_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, is_new_best: bool) -> ImportRoute {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
@@ -915,7 +915,7 @@ impl BlockChain {
 		batch.put(db::COL_HEADERS, &hash, &compressed_header);
 		batch.put(db::COL_BODIES, &hash, &compressed_body);
 
-		let info = self.block_info(&header);
+		let info = self.block_info(&header, is_new_best);
 
 		if let BlockLocation::BranchBecomingCanonChain(ref d) = info.location {
 			info!(target: "reorg", "Reorg to {} ({} {} {})",
@@ -940,12 +940,11 @@ impl BlockChain {
 	}
 
 	/// Get inserted block info which is critical to prepare extras updates.
-	fn block_info(&self, header: &HeaderView) -> BlockInfo {
+	fn block_info(&self, header: &HeaderView, is_new_best: bool) -> BlockInfo {
 		let hash = header.hash();
 		let number = header.number();
 		let parent_hash = header.parent_hash();
 		let parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
-		let is_new_best = parent_details.total_difficulty + header.difficulty() > self.best_block_total_difficulty();
 
 		BlockInfo {
 			hash: hash,
@@ -1451,7 +1450,7 @@ mod tests {
 
 		// when
 		let mut batch = db.transaction();
-		bc.insert_block(&mut batch, &first.last().encoded(), vec![]);
+		bc.insert_block(&mut batch, &first.last().encoded(), vec![], true);
 		assert_eq!(bc.best_block_number(), 0);
 		bc.commit();
 		// NOTE no db.write here (we want to check if best block is cached)
@@ -1481,7 +1480,7 @@ mod tests {
 		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![]);
 
 		let mut batch = db.transaction();
-		bc.insert_block(&mut batch, &first.encoded(), vec![]);
+		bc.insert_block(&mut batch, &first.encoded(), vec![], true);
 		db.write(batch).unwrap();
 		bc.commit();
 
@@ -1507,7 +1506,7 @@ mod tests {
 		let mut batch = db.transaction();
 		for block in generator {
 			block_hashes.push(block.hash());
-			bc.insert_block(&mut batch, &block.encoded(), vec![]);
+			bc.insert_block(&mut batch, &block.encoded(), vec![], true);
 			bc.commit();
 		}
 		db.write(batch).unwrap();
@@ -1547,13 +1546,9 @@ mod tests {
 		let db = new_db();
 		let bc = new_chain(&genesis.last().encoded(), db.clone());
 
-		let mut batch = db.transaction();
 		for b in generator {
-			bc.insert_block(&mut batch, &b.encoded(), vec![]);
-			bc.commit();
+			insert_block(&db, &bc, &b.encoded(), vec![]);
 		}
-
-		db.write(batch).unwrap();
 
 		assert_eq!(uncle_headers, bc.find_uncle_headers(&b4a_hash, 3).unwrap());
 		// TODO: insert block that already includes one of them as an uncle to check it's not allowed.
@@ -1588,9 +1583,9 @@ mod tests {
 		let bc = new_chain(&genesis.last().encoded(), db.clone());
 
 		let mut batch = db.transaction();
-		let _ = bc.insert_block(&mut batch, &b1a.last().encoded(), vec![]);
+		let _ = bc.insert_block(&mut batch, &b1a.last().encoded(), vec![], true);
 		bc.commit();
-		let _ = bc.insert_block(&mut batch, &b1b.last().encoded(), vec![]);
+		let _ = bc.insert_block(&mut batch, &b1b.last().encoded(), vec![], false);
 		bc.commit();
 		db.write(batch).unwrap();
 
@@ -1602,7 +1597,7 @@ mod tests {
 
 		// now let's make forked chain the canon chain
 		let mut batch = db.transaction();
-		let _ = bc.insert_block(&mut batch, &b2.last().encoded(), vec![]);
+		let _ = bc.insert_block(&mut batch, &b2.last().encoded(), vec![], true);
 		bc.commit();
 		db.write(batch).unwrap();
 
@@ -1663,9 +1658,9 @@ mod tests {
 		let bc = new_chain(&genesis.last().encoded(), db.clone());
 
 		let mut batch = db.transaction();
-		let _ = bc.insert_block(&mut batch, &b1a.last().encoded(), vec![]);
+		let _ = bc.insert_block(&mut batch, &b1a.last().encoded(), vec![], true);
 		bc.commit();
-		let _ = bc.insert_block(&mut batch, &b1b.last().encoded(), vec![]);
+		let _ = bc.insert_block(&mut batch, &b1b.last().encoded(), vec![], false);
 		bc.commit();
 		db.write(batch).unwrap();
 
@@ -1681,7 +1676,7 @@ mod tests {
 
 		// now let's make forked chain the canon chain
 		let mut batch = db.transaction();
-		let _ = bc.insert_block(&mut batch, &b2.last().encoded(), vec![]);
+		let _ = bc.insert_block(&mut batch, &b2.last().encoded(), vec![], true);
 		bc.commit();
 		db.write(batch).unwrap();
 
@@ -1721,16 +1716,16 @@ mod tests {
 		let bc = new_chain(&genesis.last().encoded(), db.clone());
 
 		let mut batch = db.transaction();
-		let ir1 = bc.insert_block(&mut batch, &b1.last().encoded(), vec![]);
+		let ir1 = bc.insert_block(&mut batch, &b1.last().encoded(), vec![], true);
 		bc.commit();
-		let ir2 = bc.insert_block(&mut batch, &b2.last().encoded(), vec![]);
+		let ir2 = bc.insert_block(&mut batch, &b2.last().encoded(), vec![], true);
 		bc.commit();
-		let ir3b = bc.insert_block(&mut batch, &b3b.last().encoded(), vec![]);
+		let ir3b = bc.insert_block(&mut batch, &b3b.last().encoded(), vec![], true);
 		bc.commit();
 		db.write(batch).unwrap();
 		assert_eq!(bc.block_hash(3).unwrap(), b3b_hash);
 		let mut batch = db.transaction();
-		let ir3a = bc.insert_block(&mut batch, &b3a.last().encoded(), vec![]);
+		let ir3a = bc.insert_block(&mut batch, &b3a.last().encoded(), vec![], true);
 		bc.commit();
 		db.write(batch).unwrap();
 
@@ -1835,7 +1830,7 @@ mod tests {
 			let bc = new_chain(&genesis.last().encoded(), db.clone());
 			assert_eq!(bc.best_block_hash(), genesis_hash);
 			let mut batch = db.transaction();
-			bc.insert_block(&mut batch, &first.last().encoded(), vec![]);
+			bc.insert_block(&mut batch, &first.last().encoded(), vec![], true);
 			db.write(batch).unwrap();
 			bc.commit();
 			assert_eq!(bc.best_block_hash(), first_hash);
@@ -1894,7 +1889,7 @@ mod tests {
 		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
 		let mut batch =db.transaction();
-		bc.insert_block(&mut batch, &b1, vec![]);
+		bc.insert_block(&mut batch, &b1, vec![], true);
 		db.write(batch).unwrap();
 		bc.commit();
 
@@ -1906,8 +1901,16 @@ mod tests {
 	}
 
 	fn insert_block(db: &Arc<KeyValueDB>, bc: &BlockChain, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
+		use views::BlockView;
+
+		let block = BlockView::new(bytes);
+		let header = block.header_view();
+		let parent_hash = header.parent_hash();
+		let parent_details = bc.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
+		let is_new_best = parent_details.total_difficulty + header.difficulty() > bc.best_block_total_difficulty();
+
 		let mut batch = db.transaction();
-		let res = bc.insert_block(&mut batch, bytes, receipts);
+		let res = bc.insert_block(&mut batch, bytes, receipts, is_new_best);
 		db.write(batch).unwrap();
 		bc.commit();
 		res
@@ -2158,12 +2161,12 @@ mod tests {
 			let mut batch = db.transaction();
 			// create a longer fork
 			for block in generator {
-				bc.insert_block(&mut batch, &block.encoded(), vec![]);
+				bc.insert_block(&mut batch, &block.encoded(), vec![], true);
 				bc.commit();
 			}
 
 			assert_eq!(bc.best_block_number(), 5);
-			bc.insert_block(&mut batch, &uncle.last().encoded(), vec![]);
+			bc.insert_block(&mut batch, &uncle.last().encoded(), vec![], false);
 			db.write(batch).unwrap();
 			bc.commit();
 		}
@@ -2190,7 +2193,7 @@ mod tests {
 			// create a longer fork
 			for (i, block) in generator.into_iter().enumerate() {
 
-				bc.insert_block(&mut batch, &block.encoded(), vec![]);
+				bc.insert_block(&mut batch, &block.encoded(), vec![], true);
 				bc.insert_epoch_transition(&mut batch, i as u64, EpochTransition {
 					block_hash: block.hash(),
 					block_number: i as u64 + 1,
@@ -2201,7 +2204,7 @@ mod tests {
 
 			assert_eq!(bc.best_block_number(), 5);
 
-			bc.insert_block(&mut batch, &uncle.last().encoded(), vec![]);
+			bc.insert_block(&mut batch, &uncle.last().encoded(), vec![], false);
 			bc.insert_epoch_transition(&mut batch, 999, EpochTransition {
 				block_hash: uncle.last().hash(),
 				block_number: 1,
@@ -2251,11 +2254,7 @@ mod tests {
 		// and a non-canonical fork of 8 from genesis.
 		let fork_hash = {
 			for block in fork_generator {
-				let mut batch = db.transaction();
-
-				bc.insert_block(&mut batch, &block.encoded(), vec![]);
-				bc.commit();
-				db.write(batch).unwrap();
+				insert_block(&db, &bc, &block.encoded(), vec![]);
 			}
 
 			assert_eq!(bc.best_block_number(), 7);
@@ -2263,11 +2262,7 @@ mod tests {
 		};
 
 		for block in next_generator {
-			let mut batch = db.transaction();
-			bc.insert_block(&mut batch, &block.encoded(), vec![]);
-			bc.commit();
-
-			db.write(batch).unwrap();
+			insert_block(&db, &bc, &block.encoded(), vec![]);
 		}
 
 		assert_eq!(bc.best_block_number(), 10);

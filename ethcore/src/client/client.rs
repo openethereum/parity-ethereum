@@ -497,6 +497,8 @@ impl Importer {
 	//
 	// The header passed is from the original block data and is sealed.
 	fn commit_block<B>(&self, block: B, header: &Header, block_data: &[u8], client: &Client) -> ImportRoute where B: IsBlock + Drain {
+		use std::ops::Deref;
+
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
@@ -530,7 +532,8 @@ impl Importer {
 		);
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
-		let route = chain.insert_block(&mut batch, block_data, receipts.clone());
+		let is_new_best = client.engine.is_new_best(block_data, chain.best_block_total_difficulty(), chain.deref().deref());
+		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), is_new_best);
 
 		client.tracedb.read().import(&mut batch, TraceImportRequest {
 			traces: traces.into(),
@@ -2256,7 +2259,7 @@ mod tests {
 			let another_client = client.clone();
 			thread::spawn(move || {
 				let mut batch = DBTransaction::new();
-				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new());
+				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new(), true);
 				go_thread.store(true, Ordering::SeqCst);
 			});
 			go

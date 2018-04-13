@@ -268,7 +268,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 
 	let mut batch = db.transaction();
 	for block_order in 1..block_number {
-		bc.insert_block(&mut batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![]);
+		bc.insert_block(&mut batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![], true);
 		bc.commit();
 	}
 	db.write(batch).unwrap();
@@ -283,7 +283,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 
 	let mut batch = db.transaction();
 	for block_order in 1..block_number {
-		bc.insert_block(&mut batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![]);
+		bc.insert_block(&mut batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![], true);
 		bc.commit();
 	}
 	db.write(batch).unwrap();

@@ -49,7 +49,7 @@ fn chunk_and_restore(amount: u64) {
 	// build the blockchain.
 	let mut batch = DBTransaction::new();
 	for block in generator {
-		bc.insert_block(&mut batch, &block.encoded(), vec![]);
+		bc.insert_block(&mut batch, &block.encoded(), vec![], true);
 		bc.commit();
 	}
 
