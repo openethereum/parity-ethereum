@@ -1335,7 +1335,7 @@ mod tests {
 	use transaction::{Action, Transaction};
 	use engines::{Seal, Engine, EngineError, EthEngine};
 	use engines::validator_set::TestSet;
-	use error::Error;
+	use error::{Error, ErrorKind};
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep};
 
 	#[test]
@@ -1838,7 +1838,7 @@ mod tests {
 		]);
 
 		assert!(match engine.verify_block_family(&header, &parent_header) {
-			Err(Error::Engine(EngineError::InsufficientProof(ref s)))
+			Err(Error(ErrorKind::Engine(EngineError::InsufficientProof(ref s)), _))
 				if s.contains("invalid step") => true,
 			_ => false,
 		});
@@ -1852,7 +1852,7 @@ mod tests {
 		]);
 
 		assert!(match engine.verify_block_family(&header, &parent_header) {
-			Err(Error::Engine(EngineError::InsufficientProof(ref s)))
+			Err(Error(ErrorKind::Engine(EngineError::InsufficientProof(ref s)), _))
 				if s.contains("invalid empty step proof") => true,
 			_ => false,
 		});
@@ -1867,7 +1867,7 @@ mod tests {
 		]);
 
 		assert!(match engine.verify_block_family(&header, &parent_header) {
-			Err(Error::Engine(EngineError::InsufficientProof(ref s)))
+			Err(Error(ErrorKind::Engine(EngineError::InsufficientProof(ref s)), _))
 				if s.contains("invalid empty step proof") => true,
 			_ => false,
 		});
