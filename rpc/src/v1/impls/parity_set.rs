@@ -21,7 +21,7 @@ use std::sync::Arc;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::mode::Mode;
-use ethsync::ManageNetwork;
+use sync::ManageNetwork;
 use fetch::{self, Fetch};
 use futures_cpupool::CpuPool;
 use hash::keccak_buffer;
@@ -170,7 +170,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn hash_content(&self, url: String) -> BoxFuture<H256> {
-		let future = self.fetch.fetch(&url, Default::default()).then(move |result| {
+		let future = self.fetch.get(&url, Default::default()).then(move |result| {
 			result
 				.map_err(errors::fetch)
 				.and_then(move |response| {

@@ -25,7 +25,7 @@ use client::{Client, BlockChainClient, ChainInfo};
 use ethkey::Secret;
 use snapshot::tests::helpers as snapshot_helpers;
 use spec::Spec;
-use tests::helpers;
+use test_helpers::generate_dummy_client_with_spec_and_accounts;
 use transaction::{Transaction, Action, SignedTransaction};
 use tempdir::TempDir;
 
@@ -39,7 +39,7 @@ const TRANSITION_BLOCK_1: usize = 2; // block at which the contract becomes acti
 const TRANSITION_BLOCK_2: usize = 10; // block at which the second contract activates.
 
 macro_rules! secret {
-	($e: expr) => { Secret::from_slice(&$crate::hash::keccak($e)) }
+	($e: expr) => { Secret::from($crate::hash::keccak($e).0) }
 }
 
 lazy_static! {
@@ -89,7 +89,7 @@ enum Transition {
 
 // create a chain with the given transitions and some blocks beyond that transition.
 fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions: Vec<Transition>) -> Arc<Client> {
-	let client = helpers::generate_dummy_client_with_spec_and_accounts(
+	let client = generate_dummy_client_with_spec_and_accounts(
 		spec_fixed_to_contract, Some(accounts.clone()));
 
 	let mut cur_signers = vec![*RICH_ADDR];

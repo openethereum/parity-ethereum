@@ -501,6 +501,7 @@ impl SessionImpl {
 						let local_plan = prepare_share_change_session_plan(
 							&self.core.all_nodes_set,
 							key_share.threshold,
+							&key_id,
 							version,
 							&master_node_id,
 							&key_share_owners,
@@ -792,7 +793,13 @@ impl SessionImpl {
 		let old_nodes_set = selected_version_holders;
 		let new_nodes_set = data.new_nodes_set.as_ref()
 			.expect("this method is called after consensus estabished; new_nodes_set is a result of consensus session; qed");
-		let session_plan = prepare_share_change_session_plan(&core.all_nodes_set, selected_version_threshold, selected_version.clone(), &selected_master, &old_nodes_set, new_nodes_set)?;
+		let session_plan = prepare_share_change_session_plan(&core.all_nodes_set,
+			selected_version_threshold,
+			&key_id,
+			selected_version.clone(),
+			&selected_master,
+			&old_nodes_set,
+			new_nodes_set)?;
 		if session_plan.is_empty() {
 			return Ok(false);
 		}
@@ -1057,7 +1064,7 @@ pub mod tests {
 		}).unwrap()
 	}
 
-	fn create_node(meta: ShareChangeSessionMeta, admin_public: Public, all_nodes_set: BTreeSet<NodeId>, node: GenerationNode) -> Node {
+	fn create_node(meta: ShareChangeSessionMeta, admin_public: Public, all_nodes_set: BTreeSet<NodeId>, node: &GenerationNode) -> Node {
 		for n in &all_nodes_set {
 			node.cluster.add_node(n.clone());
 		}
@@ -1065,18 +1072,18 @@ pub mod tests {
 		Node {
 			cluster: node.cluster.clone(),
 			key_storage: node.key_storage.clone(),
-			session: create_session(meta, node.session.node().clone(), admin_public, all_nodes_set, node.cluster, node.key_storage),
+			session: create_session(meta, node.session.node().clone(), admin_public, all_nodes_set, node.cluster.clone(), node.key_storage.clone()),
 		}
 	}
 
 	impl MessageLoop {
-		pub fn new(gml: GenerationMessageLoop, master_node_id: NodeId, new_nodes_ids: BTreeSet<NodeId>, removed_nodes_ids: BTreeSet<NodeId>, isolated_nodes_ids: BTreeSet<NodeId>) -> Self {
+		pub fn new(gml: &GenerationMessageLoop, master_node_id: NodeId, original_key_pair: Option<KeyPair>, new_nodes_ids: BTreeSet<NodeId>, removed_nodes_ids: BTreeSet<NodeId>, isolated_nodes_ids: BTreeSet<NodeId>) -> Self {
 			// generate admin key pair
 			let admin_key_pair = Random.generate().unwrap();
 			let admin_public = admin_key_pair.public().clone();
 
 			// compute original secret key
-			let original_key_pair = gml.compute_key_pair(1);
+			let original_key_pair = original_key_pair.unwrap_or_else(|| gml.compute_key_pair(1));
 
 			// all active nodes set
 			let mut all_nodes_set: BTreeSet<_> = gml.nodes.keys()
@@ -1099,7 +1106,7 @@ pub mod tests {
 				id: SessionId::default(),
 			};
 
-			let old_nodes = gml.nodes.into_iter().map(|n| create_node(meta.clone(), admin_public.clone(), all_nodes_set.clone(), n.1));
+			let old_nodes = gml.nodes.iter().map(|n| create_node(meta.clone(), admin_public.clone(), all_nodes_set.clone(), n.1));
 			let new_nodes = new_nodes_ids.into_iter().map(|new_node_id| {
 				let new_node_cluster = Arc::new(DummyCluster::new(new_node_id.clone()));
 				for node in &all_nodes_set {
@@ -1182,7 +1189,7 @@ pub mod tests {
 
 		// insert 1 node so that it becames 2-of-4 session
 		let nodes_to_add: BTreeSet<_> = (0..1).map(|_| Random.generate().unwrap().public().clone()).collect();
-		let mut ml = MessageLoop::new(gml, master_node_id, nodes_to_add, BTreeSet::new(), BTreeSet::new());
+		let mut ml = MessageLoop::new(&gml, master_node_id, None, nodes_to_add, BTreeSet::new(), BTreeSet::new());
 		ml.nodes[&master_node_id].session.initialize(ml.nodes.keys().cloned().collect(), ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
 		ml.run();
 
@@ -1205,7 +1212,7 @@ pub mod tests {
 		// 3) delegated session is returned back to added node
 		let nodes_to_add: BTreeSet<_> = (0..1).map(|_| Random.generate().unwrap().public().clone()).collect();
 		let master_node_id = nodes_to_add.iter().cloned().nth(0).unwrap();
-		let mut ml = MessageLoop::new(gml, master_node_id, nodes_to_add, BTreeSet::new(), BTreeSet::new());
+		let mut ml = MessageLoop::new(&gml, master_node_id, None, nodes_to_add, BTreeSet::new(), BTreeSet::new());
 		ml.nodes[&master_node_id].session.initialize(ml.nodes.keys().cloned().collect(), ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
 		ml.run();
 
@@ -1222,7 +1229,7 @@ pub mod tests {
 		// remove 1 node && insert 1 node so that one share is moved
 		let nodes_to_remove: BTreeSet<_> = gml.nodes.keys().cloned().skip(1).take(1).collect();
 		let nodes_to_add: BTreeSet<_> = (0..1).map(|_| Random.generate().unwrap().public().clone()).collect();
-		let mut ml = MessageLoop::new(gml, master_node_id, nodes_to_add.clone(), nodes_to_remove.clone(), BTreeSet::new());
+		let mut ml = MessageLoop::new(&gml, master_node_id, None, nodes_to_add.clone(), nodes_to_remove.clone(), BTreeSet::new());
 		let new_nodes_set = ml.nodes.keys().cloned().filter(|n| !nodes_to_remove.contains(n)).collect();
 		ml.nodes[&master_node_id].session.initialize(new_nodes_set, ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
 		ml.run();
@@ -1249,7 +1256,7 @@ pub mod tests {
 		// remove 1 node so that session becames 2-of-2
 		let nodes_to_remove: BTreeSet<_> = gml.nodes.keys().cloned().skip(1).take(1).collect();
 		let new_nodes_set: BTreeSet<_> = gml.nodes.keys().cloned().filter(|n| !nodes_to_remove.contains(&n)).collect();
-		let mut ml = MessageLoop::new(gml, master_node_id, BTreeSet::new(), nodes_to_remove.clone(), BTreeSet::new());
+		let mut ml = MessageLoop::new(&gml, master_node_id, None, BTreeSet::new(), nodes_to_remove.clone(), BTreeSet::new());
 		ml.nodes[&master_node_id].session.initialize(new_nodes_set, ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
 		ml.run();
 
@@ -1275,7 +1282,7 @@ pub mod tests {
 		// remove 1 node so that session becames 2-of-2
 		let nodes_to_isolate: BTreeSet<_> = gml.nodes.keys().cloned().skip(1).take(1).collect();
 		let new_nodes_set: BTreeSet<_> = gml.nodes.keys().cloned().filter(|n| !nodes_to_isolate.contains(&n)).collect();
-		let mut ml = MessageLoop::new(gml, master_node_id, BTreeSet::new(), BTreeSet::new(), nodes_to_isolate.clone());
+		let mut ml = MessageLoop::new(&gml, master_node_id, None, BTreeSet::new(), BTreeSet::new(), nodes_to_isolate.clone());
 		ml.nodes[&master_node_id].session.initialize(new_nodes_set, ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
 		ml.run();
 
@@ -1290,5 +1297,42 @@ pub mod tests {
 
 		// check that all sessions have finished
 		assert!(ml.nodes.iter().filter(|&(k, _)| !nodes_to_isolate.contains(k)).all(|(_, v)| v.session.is_finished()));
+	}
+
+	#[test]
+	fn having_less_than_required_nodes_after_change_does_not_fail_change_session() {
+		// initial 2-of-3 session
+		let gml = generate_key(1, generate_nodes_ids(3));
+		let master_node_id = gml.nodes.keys().cloned().nth(0).unwrap();
+
+		// remove 2 nodes so that key becomes irrecoverable (make sure the session is completed, even though key is irrecoverable)
+		let nodes_to_remove: BTreeSet<_> = gml.nodes.keys().cloned().skip(1).take(2).collect();
+		let new_nodes_set: BTreeSet<_> = gml.nodes.keys().cloned().filter(|n| !nodes_to_remove.contains(&n)).collect();
+		let mut ml = MessageLoop::new(&gml, master_node_id, None, BTreeSet::new(), nodes_to_remove.clone(), BTreeSet::new());
+		ml.nodes[&master_node_id].session.initialize(new_nodes_set, ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
+		ml.run();
+
+		// check that all removed nodes do not own key share
+		assert!(ml.nodes.iter().filter(|&(k, _)| nodes_to_remove.contains(k)).all(|(_, v)| v.key_storage.get(&SessionId::default()).unwrap().is_none()));
+
+		// check that all sessions have finished
+		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
+
+		// and now let's add new node (make sure the session is completed, even though key is still irrecoverable)
+		// isolated here are not actually isolated, but removed on the previous step
+		let nodes_to_add: BTreeSet<_> = (0..1).map(|_| Random.generate().unwrap().public().clone()).collect();
+		let new_nodes_set: BTreeSet<_> = gml.nodes.keys().cloned().filter(|n| !nodes_to_remove.contains(&n))
+			.chain(nodes_to_add.iter().cloned())
+			.collect();
+		let master_node_id = nodes_to_add.iter().cloned().nth(0).unwrap();
+		let mut ml = MessageLoop::new(&gml, master_node_id, Some(ml.original_key_pair.clone()), nodes_to_add.clone(), BTreeSet::new(), nodes_to_remove.clone());
+		ml.nodes[&master_node_id].session.initialize(new_nodes_set, ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
+		ml.run();
+
+		// check that all added nodes do not own key share (there's not enough nodes to run share add session)
+		assert!(ml.nodes.iter().filter(|&(k, _)| nodes_to_add.contains(k)).all(|(_, v)| v.key_storage.get(&SessionId::default()).unwrap().is_none()));
+
+		// check that all sessions have finished
+		assert!(ml.nodes.iter().filter(|&(k, _)| !nodes_to_remove.contains(k)).all(|(_, n)| n.session.is_finished()));
 	}
 }

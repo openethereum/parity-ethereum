@@ -25,6 +25,9 @@ extern crate serde_json;
 #[macro_use]
 extern crate log;
 
+#[cfg(test)]
+extern crate fake_fetch;
+
 pub extern crate fetch;
 
 use std::cmp;
@@ -96,7 +99,7 @@ impl<F: Fetch> Client<F> {
 
 	/// Gets the current ETH price and calls `set_price` with the result.
 	pub fn get<G: Fn(PriceInfo) + Sync + Send + 'static>(&self, set_price: G) {
-		let future = self.fetch.fetch(&self.api_endpoint, fetch::Abort::default())
+		let future = self.fetch.get(&self.api_endpoint, fetch::Abort::default())
 			.from_err()
 			.and_then(|response| {
 				if !response.is_success() {
@@ -133,52 +136,18 @@ impl<F: Fetch> Client<F> {
 
 #[cfg(test)]
 mod test {
-	extern crate hyper;
-	extern crate parking_lot;
-
-	use self::parking_lot::Mutex;
 	use std::sync::Arc;
-	use std::sync::atomic::{AtomicBool, Ordering};
-	use fetch;
-	use fetch::{Fetch, Url};
 	use futures_cpupool::CpuPool;
-	use futures::future::{self, FutureResult};
 	use Client;
-	use self::hyper::StatusCode;
+	use std::sync::atomic::{AtomicBool, Ordering};
+	use fake_fetch::FakeFetch;
 
-	#[derive(Clone)]
-	struct FakeFetch(Option<String>, Arc<Mutex<u64>>);
-
-	impl FakeFetch {
-		fn new() -> Result<Self, fetch::Error> {
-			Ok(FakeFetch(None, Default::default()))
-		}
+	fn price_info_ok(response: &str) -> Client<FakeFetch<String>> {
+		Client::new(FakeFetch::new(Some(response.to_owned())), CpuPool::new(1))
 	}
 
-	impl Fetch for FakeFetch {
-		type Result = FutureResult<fetch::Response, fetch::Error>;
-
-		fn fetch(&self, url: &str, abort: fetch::Abort) -> Self::Result {
-			assert_eq!(url, "https://api.etherscan.io/api?module=stats&action=ethprice");
-			let u = Url::parse(url).unwrap();
-			let mut val = self.1.lock();
-			*val = *val + 1;
-			if let Some(ref response) = self.0 {
-				let r = hyper::Response::new().with_body(response.clone());
-				future::ok(fetch::client::Response::new(u, r, abort))
-			} else {
-				let r = hyper::Response::new().with_status(StatusCode::NotFound);
-				future::ok(fetch::client::Response::new(u, r, abort))
-			}
-		}
-	}
-
-	fn price_info_ok(response: &str) -> Client<FakeFetch> {
-		Client::new(FakeFetch(Some(response.to_owned()), Default::default()), CpuPool::new(1))
-	}
-
-	fn price_info_not_found() -> Client<FakeFetch> {
-		Client::new(FakeFetch::new().unwrap(), CpuPool::new(1))
+	fn price_info_not_found() -> Client<FakeFetch<String>> {
+		Client::new(FakeFetch::new(None::<String>), CpuPool::new(1))
 	}
 
 	#[test]

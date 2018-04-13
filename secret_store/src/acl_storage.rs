@@ -62,7 +62,7 @@ impl OnChainAclStorage {
 			contract: Mutex::new(CachedContract::new(trusted_client)),
 		});
 		client
-			.ok_or(Error::Internal("Constructing OnChainAclStorage without active Client".into()))?
+			.ok_or_else(|| Error::Internal("Constructing OnChainAclStorage without active Client".into()))?
 			.add_notify(acl_storage.clone());
 		Ok(acl_storage)
 	}

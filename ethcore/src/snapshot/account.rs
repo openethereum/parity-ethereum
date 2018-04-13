@@ -210,7 +210,7 @@ pub fn from_fat_rlp(
 mod tests {
 	use account_db::{AccountDB, AccountDBMut};
 	use basic_account::BasicAccount;
-	use tests::helpers::get_temp_state_db;
+	use test_helpers::get_temp_state_db;
 	use snapshot::tests::helpers::fill_storage;
 
 	use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};

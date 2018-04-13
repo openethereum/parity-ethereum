@@ -27,7 +27,7 @@ use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::miner::MinerService;
 use ethcore::receipt::{LocalizedReceipt, TransactionOutcome};
 use ethkey::Secret;
-use ethsync::SyncState;
+use sync::SyncState;
 use miner::external::ExternalMiner;
 use rlp;
 use rustc_hex::{FromHex, ToHex};
@@ -329,7 +329,7 @@ fn rpc_eth_submit_hashrate() {
 fn rpc_eth_sign() {
 	let tester = EthTester::default();
 
-	let account = tester.accounts_provider.insert_account(Secret::from_slice(&[69u8; 32]), "abcd").unwrap();
+	let account = tester.accounts_provider.insert_account(Secret::from([69u8; 32]), "abcd").unwrap();
 	tester.accounts_provider.unlock_account_permanently(account, "abcd".into()).unwrap();
 	let _message = "0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f".from_hex().unwrap();
 

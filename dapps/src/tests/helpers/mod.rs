@@ -240,6 +240,7 @@ impl Server {
 				registrar,
 				sync_status,
 				fetch,
+				false,
 			)
 		} else {
 			Middleware::dapps(

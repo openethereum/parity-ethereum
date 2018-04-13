@@ -188,7 +188,7 @@ impl OnChainServiceContract {
 		let transaction_data = prepare_tx(&*client, origin, &self.contract)?;
 
 		// send transaction
-		client.transact_contract(
+		self.client.transact_contract(
 			origin.clone(),
 			transaction_data
 		).map_err(|e| format!("{}", e))?;

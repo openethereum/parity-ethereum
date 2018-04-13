@@ -23,7 +23,6 @@ use page;
 use proxypac::ProxyPac;
 use web::Web;
 use fetch::Fetch;
-use parity_ui;
 use {WebProxyTokens, ParentFrameSettings};
 
 mod app;
@@ -43,11 +42,15 @@ pub const WEB_PATH: &'static str = "web";
 pub const URL_REFERER: &'static str = "__referer=";
 
 pub fn utils(pool: CpuPool) -> Box<Endpoint> {
-	Box::new(page::builtin::Dapp::new(pool, parity_ui::App::default()))
+	Box::new(page::builtin::Dapp::new(pool, ::parity_ui::App::default()))
 }
 
 pub fn ui(pool: CpuPool) -> Box<Endpoint> {
-	Box::new(page::builtin::Dapp::with_fallback_to_index(pool, parity_ui::App::default()))
+	Box::new(page::builtin::Dapp::with_fallback_to_index(pool, ::parity_ui::App::default()))
+}
+
+pub fn ui_deprecation(pool: CpuPool) -> Box<Endpoint> {
+	Box::new(page::builtin::Dapp::with_fallback_to_index(pool, ::parity_ui_deprecation::App::default()))
 }
 
 pub fn ui_redirection(embeddable: Option<ParentFrameSettings>) -> Box<Endpoint> {
@@ -77,13 +80,13 @@ pub fn all_endpoints<F: Fetch>(
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	pages.insert(
 		"ui".into(),
-		Box::new(page::builtin::Dapp::new_safe_to_embed(pool.clone(), parity_ui::App::default(), embeddable.clone()))
+		Box::new(page::builtin::Dapp::new_safe_to_embed(pool.clone(), ::parity_ui::App::default(), embeddable.clone()))
 	);
 	// old version
 	pages.insert(
 		"v1".into(),
 		Box::new({
-			let mut page = page::builtin::Dapp::new_safe_to_embed(pool.clone(), parity_ui::old::App::default(), embeddable.clone());
+			let mut page = page::builtin::Dapp::new_safe_to_embed(pool.clone(), ::parity_ui::old::App::default(), embeddable.clone());
 			// allow JS eval on old Wallet
 			page.allow_js_eval();
 			page

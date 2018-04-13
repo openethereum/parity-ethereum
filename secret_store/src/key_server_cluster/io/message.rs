@@ -19,7 +19,7 @@ use std::u16;
 use std::ops::Deref;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde_json;
-use ethcrypto::ecies;
+use crypto::ecies;
 use ethkey::{Secret, KeyPair};
 use ethkey::math::curve_order;
 use ethereum_types::{H256, U256};
@@ -306,7 +306,7 @@ pub mod tests {
 	use futures::Poll;
 	use tokio_io::{AsyncRead, AsyncWrite};
 	use ethkey::{Random, Generator, KeyPair};
-	use ethcrypto::ecdh::agree;
+	use crypto::ecdh::agree;
 	use key_server_cluster::Error;
 	use key_server_cluster::message::Message;
 	use super::{MESSAGE_HEADER_SIZE, CURRENT_HEADER_VERSION, MessageHeader, fix_shared_key, encrypt_message,

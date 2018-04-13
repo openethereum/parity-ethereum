@@ -36,7 +36,7 @@ use light::cht;
 use light::on_demand::{request, OnDemand, HeaderRef, Request as OnDemandRequest, Response as OnDemandResponse};
 use light::request::Field;
 
-use ethsync::LightSync;
+use sync::LightSync;
 use ethereum_types::{U256, Address};
 use hash::H256;
 use parking_lot::Mutex;

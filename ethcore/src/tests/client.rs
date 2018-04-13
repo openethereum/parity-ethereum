@@ -23,7 +23,7 @@ use state::{self, State, CleanupMode};
 use executive::{Executive, TransactOptions};
 use ethereum;
 use block::IsBlock;
-use tests::helpers::{
+use test_helpers::{
 	generate_dummy_client, push_blocks_to_client, get_test_client_with_blocks, get_good_dummy_block_seq,
 	generate_dummy_client_with_data, get_good_dummy_block, get_bad_state_dummy_block
 };

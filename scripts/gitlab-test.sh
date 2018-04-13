@@ -2,7 +2,7 @@
 #ARGUMENT test for RUST and COVERAGE
 set -e # fail on any error
 set -u # treat unset variables as error
-if [[ "$CI_COMMIT_REF_NAME" = "beta" || "$CI_COMMIT_REF_NAME" = "stable" ]]; then
+if [[ "$CI_COMMIT_REF_NAME" = "master" || "$CI_COMMIT_REF_NAME" = "beta" || "$CI_COMMIT_REF_NAME" = "stable" ]]; then
   export GIT_COMPARE=$CI_COMMIT_REF_NAME~;
 else
   export GIT_COMPARE=master;

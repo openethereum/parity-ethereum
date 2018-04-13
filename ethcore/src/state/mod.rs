@@ -494,6 +494,13 @@ impl<B: Backend> State<B> {
 		(self.root, self.db)
 	}
 
+	/// Destroy the current object and return single account data.
+	pub fn into_account(self, account: &Address) -> trie::Result<(Option<Arc<Bytes>>, HashMap<H256, H256>)> {
+		// TODO: deconstruct without cloning.
+		let account = self.require(account, true)?;
+		Ok((account.code().clone(), account.storage_changes().clone()))
+	}
+
 	/// Return reference to root
 	pub fn root(&self) -> &H256 {
 		&self.root
@@ -1014,6 +1021,11 @@ impl<B: Backend> State<B> {
 			}
 		}))
 	}
+
+	/// Replace account code and storage. Creates account if it does not exist.
+	pub fn patch_account(&self, a: &Address, code: Arc<Bytes>, storage: HashMap<H256, H256>) -> trie::Result<()> {
+		Ok(self.require(a, false)?.reset_code_and_storage(code, storage))
+	}
 }
 
 // State proof implementations; useful for light client protocols.
@@ -1099,7 +1111,7 @@ mod tests {
 	use super::*;
 	use ethkey::Secret;
 	use ethereum_types::{H256, U256, Address};
-	use tests::helpers::{get_temp_state, get_temp_state_db};
+	use test_helpers::{get_temp_state, get_temp_state_db};
 	use machine::EthereumMachine;
 	use vm::EnvInfo;
 	use spec::*;

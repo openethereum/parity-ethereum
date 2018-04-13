@@ -30,7 +30,7 @@ use jsonrpc_core::futures::{future, Future};
 use jsonrpc_core::futures::future::Either;
 use v1::traits::EthFilter;
 use v1::types::{BlockNumber, Index, Filter, FilterChanges, Log, H256 as RpcH256, U256 as RpcU256};
-use v1::helpers::{PollFilter, PollManager, limit_logs};
+use v1::helpers::{errors, PollFilter, PollManager, limit_logs};
 use v1::impls::eth::pending_logs;
 
 /// Something which provides data that can be filtered over.
@@ -127,7 +127,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 	fn filter_changes(&self, index: Index) -> BoxFuture<FilterChanges> {
 		let mut polls = self.polls().lock();
 		Box::new(match polls.poll_mut(&index.value()) {
-			None => Either::A(future::ok(FilterChanges::Empty)),
+			None => Either::A(future::err(errors::filter_not_found())),
 			Some(filter) => match *filter {
 				PollFilter::Block(ref mut block_number) => {
 					// +1, cause we want to return hashes including current block hash.
@@ -217,7 +217,8 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 			match polls.poll(&index.value()) {
 				Some(&PollFilter::Logs(ref _block_number, ref _previous_log, ref filter)) => filter.clone(),
 				// just empty array
-				_ => return Box::new(future::ok(Vec::new())),
+				Some(_) => return Box::new(future::ok(Vec::new())),
+				None => return Box::new(future::err(errors::filter_not_found())),
 			}
 		};
 
