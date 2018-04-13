@@ -18,17 +18,16 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use ethcore::client::DatabaseCompactionProfile;
-use ethcore::db::NUM_COLUMNS;
 use ethcore::spec::{SpecParams, OptimizeFor};
-use kvdb_rocksdb::{Database, DatabaseConfig};
 use light::client::fetch::Unavailable as UnavailableDataFetcher;
 use light::Cache as LightDataCache;
 
 use params::{SpecType, Pruning};
-use helpers::{execute_upgrades, compaction_profile};
+use helpers::execute_upgrades;
 use dir::Directories;
 use cache::CacheConfig;
 use user_defaults::UserDefaults;
+use db;
 
 // Number of minutes before a given gas price corpus should expire.
 // Light client only.
@@ -66,10 +65,8 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
-	let compaction = compaction_profile(&cmd.compaction, db_dirs.db_root_path().as_path());
-
 	// execute upgrades
-	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, compaction.clone())?;
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
 
 	// create dirs used by parity
 	cmd.dirs.create_dirs(false, false, false)?;
@@ -90,19 +87,10 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
 
 	// initialize database.
-	let db = {
-		let db_config = DatabaseConfig {
-			memory_budget: Some(cmd.cache_config.blockchain() as usize * 1024 * 1024),
-			compaction: compaction,
-			wal: cmd.wal,
-			.. DatabaseConfig::with_columns(NUM_COLUMNS)
-		};
-
-		Arc::new(Database::open(
-			&db_config,
-			&db_dirs.client_path(algorithm).to_str().expect("DB path could not be converted to string.")
-		).map_err(|e| format!("Error opening database: {}", e))?)
-	};
+	let db = db::open_db(&db_dirs.client_path(algorithm).to_str().expect("DB path could not be converted to string."),
+						 &cmd.cache_config,
+						 &cmd.compaction,
+						 cmd.wal)?;
 
 	let service = light_client::Service::start(config, &spec, UnavailableDataFetcher, db, cache)
 		.map_err(|e| format!("Error starting light client: {}", e))?;

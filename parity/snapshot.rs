@@ -32,11 +32,12 @@ use ethcore_service::ClientService;
 
 use cache::CacheConfig;
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
-use helpers::{to_client_config, execute_upgrades, client_db_config, open_client_db, restoration_db_handler, compaction_profile};
+use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
 use fdlimit;
 use ethcore_private_tx;
+use db;
 
 /// Kinds of snapshot commands.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -164,7 +165,7 @@ impl SnapshotCommand {
 		let snapshot_path = db_dirs.snapshot_path();
 
 		// execute upgrades
-		execute_upgrades(&self.dirs.base, &db_dirs, algorithm, compaction_profile(&self.compaction, db_dirs.db_root_path().as_path()))?;
+		execute_upgrades(&self.dirs.base, &db_dirs, algorithm, &self.compaction)?;
 
 		// prepare client config
 		let client_config = to_client_config(
@@ -183,9 +184,8 @@ impl SnapshotCommand {
 			true
 		);
 
-		let client_db_config = client_db_config(&client_path, &client_config);
-		let client_db = open_client_db(&client_path, &client_db_config)?;
-		let restoration_db_handler = restoration_db_handler(client_db_config);
+		let client_db = db::open_client_db(&client_path, &client_config)?;
+		let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
 
 		let service = ClientService::start(
 			client_config,

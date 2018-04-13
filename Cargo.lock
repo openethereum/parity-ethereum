@@ -642,13 +642,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ethcore-migrations"
-version = "0.1.0"
-dependencies = [
- "migration 0.1.0",
-]
-
-[[package]]
 name = "ethcore-miner"
 version = "1.11.0"
 dependencies = [
@@ -1630,7 +1623,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "migration"
+name = "migration-rocksdb"
 version = "0.1.0"
 dependencies = [
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1933,7 +1926,6 @@ dependencies = [
  "ethcore-io 1.11.0",
  "ethcore-light 1.11.0",
  "ethcore-logger 1.11.0",
- "ethcore-migrations 0.1.0",
  "ethcore-miner 1.11.0",
  "ethcore-network 1.11.0",
  "ethcore-private-tx 1.0.0",
@@ -1956,7 +1948,7 @@ dependencies = [
  "kvdb-rocksdb 0.1.0",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "mem 0.1.0",
- "migration 0.1.0",
+ "migration-rocksdb 0.1.0",
  "node-filter 1.11.0",
  "node-health 0.1.0",
  "num_cpus 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",

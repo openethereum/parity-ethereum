@@ -1,5 +1,5 @@
 [package]
-name = "migration"
+name = "migration-rocksdb"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 

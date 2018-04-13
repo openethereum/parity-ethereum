@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,24 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Database migrations.
+//! Database-related operations.
 
-extern crate migration;
+#[path="rocksdb/mod.rs"]
+mod impls;
 
-use migration::ChangeColumns;
+pub use self::impls::{open_db, open_client_db, restoration_db_handler, migrate};
 
-/// The migration from v10 to v11.
-/// Adds a column for node info.
-pub const TO_V11: ChangeColumns = ChangeColumns {
-	pre_columns: Some(6),
-	post_columns: Some(7),
-	version: 11,
-};
-
-/// The migration from v11 to v12.
-/// Adds a column for light chain storage.
-pub const TO_V12: ChangeColumns = ChangeColumns {
-	pre_columns: Some(7),
-	post_columns: Some(8),
-	version: 12,
-};
+#[cfg(feature = "secretstore")]
+pub use self::impls::open_secretstore_db;

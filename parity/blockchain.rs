@@ -27,20 +27,19 @@ use bytes::ToPretty;
 use rlp::PayloadInfo;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock};
-use ethcore::db::NUM_COLUMNS;
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
 use ethcore_service::ClientService;
 use cache::CacheConfig;
 use informant::{Informant, FullNodeInformantData, MillisecondDuration};
-use kvdb_rocksdb::{Database, DatabaseConfig};
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
-use helpers::{to_client_config, execute_upgrades, open_client_db, client_db_config, restoration_db_handler, compaction_profile};
+use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
 use fdlimit;
 use ethcore_private_tx;
+use db;
 
 #[derive(Debug, PartialEq)]
 pub enum DataFormat {
@@ -188,8 +187,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	let client_path = db_dirs.client_path(algorithm);
 
 	// execute upgrades
-	let compaction = compaction_profile(&cmd.compaction, db_dirs.db_root_path().as_path());
-	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, compaction)?;
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
 
 	// create dirs used by parity
 	cmd.dirs.create_dirs(false, false, false)?;
@@ -210,19 +208,10 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	config.queue.verifier_settings = cmd.verifier_settings;
 
 	// initialize database.
-	let db = {
-		let db_config = DatabaseConfig {
-			memory_budget: Some(cmd.cache_config.blockchain() as usize * 1024 * 1024),
-			compaction: compaction,
-			wal: cmd.wal,
-			.. DatabaseConfig::with_columns(NUM_COLUMNS)
-		};
-
-		Arc::new(Database::open(
-			&db_config,
-			&client_path.to_str().expect("DB path could not be converted to string.")
-		).map_err(|e| format!("Failed to open database: {}", e))?)
-	};
+	let db = db::open_db(&client_path.to_str().expect("DB path could not be converted to string."),
+						 &cmd.cache_config,
+						 &cmd.compaction,
+						 cmd.wal)?;
 
 	// TODO: could epoch signals be avilable at the end of the file?
 	let fetch = ::light::client::fetch::unavailable();
@@ -354,7 +343,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, compaction_profile(&cmd.compaction, db_dirs.db_root_path().as_path()))?;
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
 
 	// create dirs used by parity
 	cmd.dirs.create_dirs(false, false, false)?;
@@ -378,9 +367,8 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
 
-	let client_db_config = client_db_config(&client_path, &client_config);
-	let client_db = open_client_db(&client_path, &client_db_config)?;
-	let restoration_db_handler = restoration_db_handler(client_db_config);
+	let client_db = db::open_client_db(&client_path, &client_config)?;
+	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
 
 	// build client
 	let service = ClientService::start(
@@ -549,7 +537,7 @@ fn start_client(
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	execute_upgrades(&dirs.base, &db_dirs, algorithm, compaction_profile(&compaction, db_dirs.db_root_path().as_path()))?;
+	execute_upgrades(&dirs.base, &db_dirs, algorithm, &compaction)?;
 
 	// create dirs used by parity
 	dirs.create_dirs(false, false, false)?;
@@ -571,9 +559,8 @@ fn start_client(
 		true,
 	);
 
-	let client_db_config = client_db_config(&client_path, &client_config);
-	let client_db = open_client_db(&client_path, &client_db_config)?;
-	let restoration_db_handler = restoration_db_handler(client_db_config);
+	let client_db = db::open_client_db(&client_path, &client_config)?;
+	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
 
 	let service = ClientService::start(
 		client_config,
