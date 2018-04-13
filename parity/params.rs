@@ -16,15 +16,16 @@
 
 use std::{str, fs, fmt};
 use std::time::Duration;
+
+use ethcore::client::Mode;
+use ethcore::ethereum;
+use ethcore::spec::{Spec, SpecParams};
 use ethereum_types::{U256, Address};
 use futures_cpupool::CpuPool;
-use parity_version::version_data;
-use journaldb::Algorithm;
-use ethcore::spec::{Spec, SpecParams};
-use ethcore::ethereum;
-use ethcore::client::Mode;
-use ethcore::miner::{GasPricer, GasPriceCalibratorOptions};
 use hash_fetch::fetch::Client as FetchClient;
+use journaldb::Algorithm;
+use miner::gas_pricer::{GasPricer, GasPriceCalibratorOptions};
+use parity_version::version_data;
 use user_defaults::UserDefaults;
 
 #[derive(Debug, PartialEq)]
@@ -223,25 +224,14 @@ impl Default for AccountsConfig {
 pub enum GasPricerConfig {
 	Fixed(U256),
 	Calibrated {
-		initial_minimum: U256,
 		usd_per_tx: f32,
 		recalibration_period: Duration,
-	}
-}
-
-impl GasPricerConfig {
-	pub fn initial_min(&self) -> U256 {
-		match *self {
-			GasPricerConfig::Fixed(ref min) => min.clone(),
-			GasPricerConfig::Calibrated { ref initial_minimum, .. } => initial_minimum.clone(),
-		}
 	}
 }
 
 impl Default for GasPricerConfig {
 	fn default() -> Self {
 		GasPricerConfig::Calibrated {
-			initial_minimum: 476190464u64.into(),
 			usd_per_tx: 0.0001f32,
 			recalibration_period: Duration::from_secs(3600),
 		}
@@ -269,20 +259,20 @@ impl GasPricerConfig {
 #[derive(Debug, PartialEq)]
 pub struct MinerExtras {
 	pub author: Address,
-	pub extra_data: Vec<u8>,
-	pub gas_floor_target: U256,
-	pub gas_ceil_target: U256,
 	pub engine_signer: Address,
+	pub extra_data: Vec<u8>,
+	pub gas_range_target: (U256, U256),
+	pub work_notify: Vec<String>,
 }
 
 impl Default for MinerExtras {
 	fn default() -> Self {
 		MinerExtras {
 			author: Default::default(),
-			extra_data: version_data(),
-			gas_floor_target: U256::from(4_700_000),
-			gas_ceil_target: U256::from(6_283_184),
 			engine_signer: Default::default(),
+			extra_data: version_data(),
+			gas_range_target: (4_700_000.into(), 6_283_184.into()),
+			work_notify: Default::default(),
 		}
 	}
 }
