@@ -34,7 +34,6 @@ ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 evm = { path = "evm" }
-futures-cpupool = "0.1"
 hardware-wallet = { path = "../hw" }
 heapsize = "0.4"
 itertools = "0.5"
@@ -45,7 +44,6 @@ num = { version = "0.1", default-features = false, features = ["bigint"] }
 num_cpus = "1.2"
 parity-machine = { path = "../machine" }
 parking_lot = "0.5"
-price-info = { path = "../price-info" }
 rayon = "1.0"
 rand = "0.4"
 rlp = { path = "../util/rlp" }
@@ -63,7 +61,6 @@ rustc-hex = "1.0"
 stats = { path = "../util/stats" }
 trace-time = { path = "../util/trace-time" }
 using_queue = { path = "../util/using_queue" }
-table = { path = "../util/table" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
 keccak-hash = { path = "../util/hash" }
@@ -76,10 +73,18 @@ tempdir = "0.3"
 trie-standardmap = { path = "../util/trie-standardmap" }
 
 [features]
+# Display EVM debug traces.
 evm-debug = ["slow-blocks"]
+# Display EVM debug traces when running tests.
 evm-debug-tests = ["evm-debug", "evm/evm-debug-tests"]
-slow-blocks = [] # Use SLOW_TX_DURATION="50" (compile time!) to track transactions over 50ms
+# Measure time of transaction execution.
+# Whenever the transaction execution time (in millis) exceeds the value of
+# SLOW_TX_DURATION env variable (provided compile time!)
+# EVM debug traces are printed.
+slow-blocks = []
+# Run JSON consensus tests.
 json-tests = ["ethcore-transaction/json-tests"]
+# Run memory/cpu heavy tests.
 test-heavy = []
-default = []
+# Compile benches
 benches = []

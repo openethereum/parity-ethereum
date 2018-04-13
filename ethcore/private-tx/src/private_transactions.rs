@@ -14,15 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethkey::Signature;
+use std::sync::Arc;
+use std::collections::{HashMap, HashSet};
+
 use bytes::Bytes;
-use std::collections::HashMap;
+use ethcore_miner::pool;
 use ethereum_types::{H256, U256, Address};
+use ethkey::Signature;
 use transaction::{UnverifiedTransaction, SignedTransaction};
-use ethcore_miner::transaction_queue::{TransactionQueue, RemovalReason,
-	TransactionDetailsProvider as TransactionQueueDetailsProvider, TransactionOrigin};
+
 use error::{Error, ErrorKind};
-use ethcore::header::BlockNumber;
 
 /// Maximum length for private transactions queues.
 const MAX_QUEUE_LEN: usize = 8312;
@@ -39,56 +40,92 @@ pub struct PrivateTransactionDesc {
 }
 
 /// Storage for private transactions for verification
-#[derive(Default)]
 pub struct VerificationStore {
 	/// Descriptors for private transactions in queue for verification with key - hash of the original transaction
 	descriptors: HashMap<H256, PrivateTransactionDesc>,
 	/// Queue with transactions for verification
-	transactions: TransactionQueue,
+	///
+	/// TODO [ToDr] Might actually be better to use `txpool` directly and:
+	/// 1. Store descriptors inside `VerifiedTransaction`
+	/// 2. Use custom `ready` implementation to only fetch one transaction per sender.
+	/// 3. Get rid of passing dummy `block_number` and `timestamp`
+	transactions: pool::TransactionQueue,
+}
+
+impl Default for VerificationStore {
+	fn default() -> Self {
+		VerificationStore {
+			descriptors: Default::default(),
+			transactions: pool::TransactionQueue::new(
+				pool::Options {
+					max_count: MAX_QUEUE_LEN,
+					max_per_sender: MAX_QUEUE_LEN / 10,
+					max_mem_usage: 8 * 1024 * 1024,
+				},
+				pool::verifier::Options {
+					// TODO [ToDr] This should probably be based on some real values?
+					minimal_gas_price: 0.into(),
+					block_gas_limit: 8_000_000.into(),
+					tx_gas_limit: U256::max_value(),
+				},
+				pool::PrioritizationStrategy::GasPriceOnly,
+			)
+		}
+	}
 }
 
 impl VerificationStore {
 	/// Adds private transaction for verification into the store
-	pub fn add_transaction(
+	pub fn add_transaction<C: pool::client::Client>(
 		&mut self,
 		transaction: UnverifiedTransaction,
 		contract: Address,
 		validator_account: Address,
 		private_hash: H256,
-		details_provider: &TransactionQueueDetailsProvider,
-		insertion_time: BlockNumber,
+		client: C,
 	) -> Result<(), Error> {
 		if self.descriptors.len() > MAX_QUEUE_LEN {
 			bail!(ErrorKind::QueueIsFull);
 		}
 
-		if self.descriptors.get(&transaction.hash()).is_some() {
+		let transaction_hash = transaction.hash();
+		if self.descriptors.get(&transaction_hash).is_some() {
 			bail!(ErrorKind::PrivateTransactionAlreadyImported);
 		}
-		let transaction_hash = transaction.hash();
-		let signed_transaction = SignedTransaction::new(transaction)?;
-		self.transactions
-			.add(signed_transaction, TransactionOrigin::External, insertion_time, None, details_provider)
-			.and_then(|_| {
-				self.descriptors.insert(transaction_hash, PrivateTransactionDesc{
-					private_hash,
-					contract,
-					validator_account,
-				});
-				Ok(())
-			})
-			.map_err(Into::into)
+
+		let results = self.transactions.import(
+			client,
+			vec![pool::verifier::Transaction::Unverified(transaction)],
+		);
+
+		// Verify that transaction was imported
+		results.into_iter()
+			.next()
+			.expect("One transaction inserted; one result returned; qed")?;
+
+		self.descriptors.insert(transaction_hash, PrivateTransactionDesc {
+			private_hash,
+			contract,
+			validator_account,
+		});
+
+		Ok(())
 	}
 
 	/// Returns transactions ready for verification
 	/// Returns only one transaction per sender because several cannot be verified in a row without verification from other peers
-	pub fn ready_transactions(&self) -> Vec<SignedTransaction> {
-		// TODO [ToDr] Performance killer, re-work with new transaction queue.
-		let mut transactions = self.transactions.top_transactions();
-		// TODO [ToDr] Potential issue (create low address to have your transactions processed first)
-		transactions.sort_by(|a, b| a.sender().cmp(&b.sender()));
-		transactions.dedup_by(|a, b| a.sender().eq(&b.sender()));
-		transactions
+	pub fn ready_transactions<C: pool::client::NonceClient>(&self, client: C) -> Vec<Arc<pool::VerifiedTransaction>> {
+		// We never store PendingTransactions and we don't use internal cache,
+		// so we don't need to provide real block number of timestamp here
+		let block_number = 0;
+		let timestamp = 0;
+		let nonce_cap = None;
+
+		self.transactions.collect_pending(client, block_number, timestamp, nonce_cap, |transactions| {
+			// take only one transaction per sender
+			let mut senders = HashSet::with_capacity(self.descriptors.len());
+			transactions.filter(move |tx| senders.insert(tx.signed().sender())).collect()
+		})
 	}
 
 	/// Returns descriptor of the corresponding private transaction
@@ -97,11 +134,9 @@ impl VerificationStore {
 	}
 
 	/// Remove transaction from the queue for verification
-	pub fn remove_private_transaction<F>(&mut self, transaction_hash: &H256, fetch_nonce: &F)
-		where F: Fn(&Address) -> U256 {
-
+	pub fn remove_private_transaction(&mut self, transaction_hash: &H256) {
 		self.descriptors.remove(transaction_hash);
-		self.transactions.remove(transaction_hash, fetch_nonce, RemovalReason::Invalid);
+		self.transactions.remove(&[*transaction_hash], true);
 	}
 }
 

@@ -104,15 +104,16 @@ use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};
 use ethcore::error::*;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
-use transaction::PendingTransaction;
+use transaction::SignedTransaction;
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
 use block_sync::{BlockDownloader, BlockRequest, BlockDownloaderImportError as DownloaderImportError, DownloadAction};
 use rand::Rng;
 use snapshot::{Snapshot, ChunkType};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
-use transactions_stats::{TransactionsStats, Stats as TransactionStats};
 use private_tx::PrivateTxHandler;
+use transactions_stats::{TransactionsStats, Stats as TransactionStats};
+use transaction::UnverifiedTransaction;
 
 known_heap_size!(0, PeerInfo);
 
@@ -478,9 +479,9 @@ impl ChainSync {
 	}
 
 	/// Updates transactions were received by a peer
-	pub fn transactions_received(&mut self, hashes: Vec<H256>, peer_id: PeerId) {
+	pub fn transactions_received(&mut self, txs: &[UnverifiedTransaction], peer_id: PeerId) {
 		if let Some(peer_info) = self.peers.get_mut(&peer_id) {
-			peer_info.last_sent_transactions.extend(&hashes);
+			peer_info.last_sent_transactions.extend(txs.iter().map(|tx| tx.hash()));
 		}
 	}
 
@@ -2026,8 +2027,9 @@ impl ChainSync {
 			return 0;
 		}
 
-		let (transactions, service_transactions): (Vec<_>, Vec<_>) = transactions.into_iter()
-			.partition(|tx| !tx.transaction.gas_price.is_zero());
+		let (transactions, service_transactions): (Vec<_>, Vec<_>) = transactions.iter()
+			.map(|tx| tx.signed())
+			.partition(|tx| !tx.gas_price.is_zero());
 
 		// usual transactions could be propagated to all peers
 		let mut affected_peers = HashSet::new();
@@ -2062,13 +2064,13 @@ impl ChainSync {
 			.collect()
 	}
 
-	fn propagate_transactions_to_peers(&mut self, io: &mut SyncIo, peers: Vec<PeerId>, transactions: Vec<PendingTransaction>) -> HashSet<PeerId> {
+	fn propagate_transactions_to_peers(&mut self, io: &mut SyncIo, peers: Vec<PeerId>, transactions: Vec<&SignedTransaction>) -> HashSet<PeerId> {
 		let all_transactions_hashes = transactions.iter()
-			.map(|tx| tx.transaction.hash())
+			.map(|tx| tx.hash())
 			.collect::<HashSet<H256>>();
 		let all_transactions_rlp = {
 			let mut packet = RlpStream::new_list(transactions.len());
-			for tx in &transactions { packet.append(&tx.transaction); }
+			for tx in &transactions { packet.append(&**tx); }
 			packet.out()
 		};
 
@@ -2112,10 +2114,10 @@ impl ChainSync {
 						packet.begin_unbounded_list();
 						let mut pushed = 0;
 						for tx in &transactions {
-							let hash = tx.transaction.hash();
+							let hash = tx.hash();
 							if to_send.contains(&hash) {
 								let mut transaction = RlpStream::new();
-								tx.transaction.rlp_append(&mut transaction);
+								tx.rlp_append(&mut transaction);
 								let appended = packet.append_raw_checked(&transaction.drain(), 1, MAX_TRANSACTION_PACKET_SIZE);
 								if !appended {
 									// Maximal packet size reached just proceed with sending
@@ -2329,7 +2331,6 @@ mod tests {
 	use ethcore::header::*;
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo, BlockInfo};
 	use ethcore::miner::MinerService;
-	use transaction::UnverifiedTransaction;
 	use private_tx::NoopPrivateTxHandler;
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
@@ -3064,10 +3065,9 @@ mod tests {
 			let queue = RwLock::new(VecDeque::new());
 			let ss = TestSnapshotService::new();
 			let mut io = TestIo::new(&mut client, &ss, &queue, None);
-			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &[], &good_blocks);
+			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &[], &good_blocks, false);
 			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);
-			assert_eq!(io.chain.miner.status().transactions_in_future_queue, 0);
-			assert_eq!(io.chain.miner.status().transactions_in_pending_queue, 1);
+			assert_eq!(io.chain.miner.ready_transactions(io.chain).len(), 1);
 		}
 		// We need to update nonce status (because we say that the block has been imported)
 		for h in &[good_blocks[0]] {
@@ -3078,14 +3078,12 @@ mod tests {
 			let queue = RwLock::new(VecDeque::new());
 			let ss = TestSnapshotService::new();
 			let mut io = TestIo::new(&client, &ss, &queue, None);
-			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &good_blocks, &retracted_blocks);
+			io.chain.miner.chain_new_blocks(io.chain, &[], &[], &good_blocks, &retracted_blocks, false);
 			sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks, &[], &[]);
 		}
 
 		// then
-		let status = client.miner.status();
-		assert_eq!(status.transactions_in_pending_queue, 1);
-		assert_eq!(status.transactions_in_future_queue, 0);
+		assert_eq!(client.miner.ready_transactions(&client).len(), 1);
 	}
 
 	#[test]
@@ -3106,13 +3104,11 @@ mod tests {
 
 		// when
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, &[], &[]);
-		assert_eq!(io.chain.miner.status().transactions_in_future_queue, 0);
-		assert_eq!(io.chain.miner.status().transactions_in_pending_queue, 0);
+		assert_eq!(io.chain.miner.queue_status().status.transaction_count, 0);
 		sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks, &[], &[]);
 
 		// then
-		let status = io.chain.miner.status();
-		assert_eq!(status.transactions_in_pending_queue, 0);
-		assert_eq!(status.transactions_in_future_queue, 0);
+		let status = io.chain.miner.queue_status();
+		assert_eq!(status.status.transaction_count, 0);
 	}
 }

@@ -7,24 +7,31 @@ version = "1.11.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-common-types = { path = "../ethcore/types" }
-ethabi = "5.1"
-ethabi-contract = "5.0"
-ethabi-derive = "5.0"
+# Only work_notify, consider a separate crate
 ethash = { path = "../ethash" }
+fetch = { path = "../util/fetch" }
+hyper = "0.11"
+parity-reactor = { path = "../util/reactor" }
+url = "1"
+
+# Miner
+ansi_term = "0.10"
+error-chain = "0.11"
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.3"
-ethkey = { path = "../ethkey" }
 futures = "0.1"
+futures-cpupool = "0.1"
 heapsize = "0.4"
 keccak-hash = { path = "../util/hash" }
 linked-hash-map = "0.5"
 log = "0.3"
 parking_lot = "0.5"
+price-info = { path = "../price-info" }
+rayon = "1.0"
+trace-time = { path = "../util/trace-time" }
+transaction-pool = { path = "../transaction-pool" }
+
+[dev-dependencies]
+env_logger = "0.4"
+ethkey = { path = "../ethkey" }
 rustc-hex = "1.0"
-table = { path = "../util/table" }
-transient-hashmap = "0.4"
-fetch = { path = "../util/fetch" }
-parity-reactor = { path = "../util/reactor" }
-url = "1"
-hyper = "0.11"

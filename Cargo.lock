@@ -511,7 +511,6 @@ dependencies = [
  "ethstore 0.2.0",
  "evm 0.1.0",
  "fetch 0.1.0",
- "futures-cpupool 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "hardware-wallet 1.11.0",
  "hashdb 0.1.1",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -532,7 +531,6 @@ dependencies = [
  "parity-machine 0.1.0",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.1.0",
- "price-info 1.11.0",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
@@ -543,7 +541,6 @@ dependencies = [
  "snappy 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
  "stats 0.1.0",
  "stop-guard 0.1.0",
- "table 0.1.0",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "trace-time 0.1.0",
  "trie-standardmap 0.1.0",
@@ -655,16 +652,16 @@ dependencies = [
 name = "ethcore-miner"
 version = "1.11.0"
 dependencies = [
- "common-types 0.1.0",
- "ethabi 5.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi-contract 5.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi-derive 5.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ansi_term 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.11.0",
  "ethcore-transaction 0.1.0",
  "ethereum-types 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "fetch 0.1.0",
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-cpupool 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.11.24 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.0",
@@ -672,9 +669,11 @@ dependencies = [
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-reactor 0.1.0",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "price-info 1.11.0",
+ "rayon 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "table 0.1.0",
- "transient-hashmap 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trace-time 0.1.0",
+ "transaction-pool 1.11.0",
  "url 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2191,6 +2190,7 @@ dependencies = [
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-timer 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "transaction-pool 1.11.0",
  "transient-hashmap 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",
 ]
@@ -3077,10 +3077,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "table"
-version = "0.1.0"
-
-[[package]]
 name = "take"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3403,6 +3399,7 @@ dependencies = [
  "ethereum-types 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "trace-time 0.1.0",
 ]
 
 [[package]]

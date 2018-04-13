@@ -58,7 +58,7 @@ fn restored_is_equivalent() {
 		Default::default(),
 		&spec,
 		Arc::new(client_db),
-		Arc::new(::miner::Miner::with_spec(&spec)),
+		Arc::new(::miner::Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 
