@@ -60,17 +60,21 @@ impl TransactionFilter {
 	/// Check if transaction is allowed at given block.
 	pub fn transaction_allowed<C: BlockInfo + CallContract>(&self, parent_hash: &H256, transaction: &SignedTransaction, client: &C) -> bool {
 		let mut cache = self.permission_cache.lock();
-
+		let mut to: Address = Address::new();
 		let tx_type = match transaction.action {
 			Action::Create => tx_permissions::CREATE,
-			Action::Call(address) => if client.code_hash(&address, BlockId::Hash(*parent_hash)).map_or(false, |c| c != KECCAK_EMPTY) {
-				tx_permissions::CALL
-			} else {
-				tx_permissions::BASIC
+			Action::Call(address) => {
+				to = address;
+				if client.code_hash(&address, BlockId::Hash(*parent_hash)).map_or(false, |c| c != KECCAK_EMPTY) {
+					tx_permissions::CALL
+				} else {
+					tx_permissions::BASIC
+				}
 			}
 		};
 
 		let sender = transaction.sender();
+		let value = transaction.value;
 		let key = (*parent_hash, sender);
 
 		if let Some(permissions) = cache.get_mut(&key) {
@@ -80,7 +84,7 @@ impl TransactionFilter {
 		let contract_address = self.contract_address;
 		let permissions = self.contract.functions()
 			.allowed_tx_types()
-			.call(sender, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
+			.call(sender, to, value, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
 			.map(|p| p.low_u32())
 			.unwrap_or_else(|e| {
 				debug!("Error callling tx permissions contract: {:?}", e);
