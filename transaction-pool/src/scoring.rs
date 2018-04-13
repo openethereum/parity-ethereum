@@ -42,7 +42,7 @@ pub enum Choice {
 /// The `Scoring` implementations can use this information
 /// to update the `Score` table more efficiently.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Change {
+pub enum Change<T = ()> {
 	/// New transaction has been inserted at given index.
 	/// The Score at that index is initialized with default value
 	/// and needs to be filled in.
@@ -56,8 +56,12 @@ pub enum Change {
 	/// The score at that index needs to be update (it contains value from previous transaction).
 	ReplacedAt(usize),
 	/// Given number of stalled transactions has been culled from the beginning.
-	/// Usually the score will have to be re-computed from scratch.
+	/// The scores has been removed from the beginning as well.
+	/// For simple scoring algorithms no action is required here.
 	Culled(usize),
+	/// Custom event to update the score triggered outside of the pool.
+	/// Handling this event is up to scoring implementation.
+	Event(T),
 }
 
 /// A transaction ordering.
@@ -69,7 +73,7 @@ pub enum Change {
 /// Implementation notes:
 /// - Returned `Score`s should match ordering of `compare` method.
 /// - `compare` will be called only within a context of transactions from the same sender.
-/// - `choose` will be called only if `compare` returns `Ordering::Equal`
+/// - `choose` may be called even if `compare` returns `Ordering::Equal`
 /// - `should_replace` is used to decide if new transaction should push out an old transaction already in the queue.
 /// - `Score`s and `compare` should align with `Ready` implementation.
 ///
@@ -79,9 +83,11 @@ pub enum Change {
 /// - `update_scores`: score defined as `gasPrice` if `n==0` and `max(scores[n-1], gasPrice)` if `n>0`
 /// - `should_replace`: compares `gasPrice` (decides if transaction from a different sender is more valuable)
 ///
-pub trait Scoring<T> {
+pub trait Scoring<T>: fmt::Debug {
 	/// A score of a transaction.
 	type Score: cmp::Ord + Clone + Default + fmt::Debug;
+	/// Custom scoring update event type.
+	type Event: fmt::Debug;
 
 	/// Decides on ordering of `T`s from a particular sender.
 	fn compare(&self, old: &T, other: &T) -> cmp::Ordering;
@@ -92,7 +98,7 @@ pub trait Scoring<T> {
 	/// Updates the transaction scores given a list of transactions and a change to previous scoring.
 	/// NOTE: you can safely assume that both slices have the same length.
 	/// (i.e. score at index `i` represents transaction at the same index)
-	fn update_scores(&self, txs: &[Arc<T>], scores: &mut [Self::Score], change: Change);
+	fn update_scores(&self, txs: &[Arc<T>], scores: &mut [Self::Score], change: Change<Self::Event>);
 
 	/// Decides if `new` should push out `old` transaction from the pool.
 	fn should_replace(&self, old: &T, new: &T) -> bool;

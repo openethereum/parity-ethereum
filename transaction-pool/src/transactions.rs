@@ -23,9 +23,9 @@ use ready::{Ready, Readiness};
 use scoring::{self, Scoring};
 
 #[derive(Debug)]
-pub enum AddResult<T> {
+pub enum AddResult<T, S> {
 	Ok(Arc<T>),
-	TooCheapToEnter(T),
+	TooCheapToEnter(T, S),
 	TooCheap {
 		old: Arc<T>,
 		new: T,
@@ -93,10 +93,11 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 		})
 	}
 
-	fn push_cheapest_transaction(&mut self, tx: T, scoring: &S, max_count: usize) -> AddResult<T> {
+	fn push_cheapest_transaction(&mut self, tx: T, scoring: &S, max_count: usize) -> AddResult<T, S::Score> {
 		let index = self.transactions.len();
 		if index == max_count {
-			AddResult::TooCheapToEnter(tx)
+			let min_score = self.scores[index - 1].clone();
+			AddResult::TooCheapToEnter(tx, min_score)
 		} else {
 			let shared = Arc::new(tx);
 			self.transactions.push(shared.clone());
@@ -107,7 +108,11 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 		}
 	}
 
-	pub fn add(&mut self, tx: T, scoring: &S, max_count: usize) -> AddResult<T> {
+	pub fn update_scores(&mut self, scoring: &S, event: S::Event) {
+		scoring.update_scores(&self.transactions, &mut self.scores, scoring::Change::Event(event));
+	}
+
+	pub fn add(&mut self, tx: T, scoring: &S, max_count: usize) -> AddResult<T, S::Score> {
 		let index = match self.transactions.binary_search_by(|old| scoring.compare(old, &tx)) {
 			Ok(index) => index,
 			Err(index) => index,
@@ -190,6 +195,10 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 				},
 				Readiness::Ready | Readiness::Future => break,
 			}
+		}
+
+		if first_non_stalled == 0 {
+			return result;
 		}
 
 		// reverse the vectors to easily remove first elements.

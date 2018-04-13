@@ -143,7 +143,13 @@ build_rpc_trait! {
 		#[rpc(name = "parity_pendingTransactions")]
 		fn pending_transactions(&self) -> Result<Vec<Transaction>>;
 
-		/// Returns all future transactions from transaction queue.
+		/// Returns all transactions from transaction queue.
+		///
+		/// Some of them might not be ready to be included in a block yet.
+		#[rpc(name = "parity_allTransactions")]
+		fn all_transactions(&self) -> Result<Vec<Transaction>>;
+
+		/// Returns all future transactions from transaction queue (deprecated)
 		#[rpc(name = "parity_futureTransactions")]
 		fn future_transactions(&self) -> Result<Vec<Transaction>>;
 

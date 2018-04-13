@@ -23,9 +23,9 @@ use std::path::Path;
 use ethereum_types::{U256, clean_0x, Address};
 use journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
-use ethcore::miner::{PendingSet, GasLimit};
 use ethcore::db::NUM_COLUMNS;
-use miner::transaction_queue::PrioritizationStrategy;
+use ethcore::miner::{PendingSet, Penalization};
+use miner::pool::PrioritizationStrategy;
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
 use dir::helpers::replace_home;
@@ -101,21 +101,20 @@ pub fn to_pending_set(s: &str) -> Result<PendingSet, String> {
 	}
 }
 
-pub fn to_gas_limit(s: &str) -> Result<GasLimit, String> {
+pub fn to_queue_strategy(s: &str) -> Result<PrioritizationStrategy, String> {
 	match s {
-		"auto" => Ok(GasLimit::Auto),
-		"off" => Ok(GasLimit::None),
-		other => Ok(GasLimit::Fixed(to_u256(other)?)),
+		"gas_price" => Ok(PrioritizationStrategy::GasPriceOnly),
+		other => Err(format!("Invalid queue strategy: {}", other)),
 	}
 }
 
-pub fn to_queue_strategy(s: &str) -> Result<PrioritizationStrategy, String> {
-	match s {
-		"gas" => Ok(PrioritizationStrategy::GasAndGasPrice),
-		"gas_price" => Ok(PrioritizationStrategy::GasPriceOnly),
-		"gas_factor" => Ok(PrioritizationStrategy::GasFactorAndGasPrice),
-		other => Err(format!("Invalid queue strategy: {}", other)),
-	}
+pub fn to_queue_penalization(time: Option<u64>) -> Result<Penalization, String> {
+	Ok(match time {
+		Some(threshold_ms) => Penalization::Enabled {
+			offend_threshold: Duration::from_millis(threshold_ms),
+		},
+		None => Penalization::Disabled,
+	})
 }
 
 pub fn to_address(s: Option<String>) -> Result<Address, String> {

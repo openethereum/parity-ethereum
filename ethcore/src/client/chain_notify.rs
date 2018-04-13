@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethereum_types::H256;
 use bytes::Bytes;
+use ethereum_types::H256;
+use transaction::UnverifiedTransaction;
 
 /// Messages to broadcast via chain
 pub enum ChainMessageType {
@@ -59,7 +60,7 @@ pub trait ChainNotify : Send + Sync {
 
 	/// fires when new transactions are received from a peer
 	fn transactions_received(&self,
-		_hashes: Vec<H256>,
+		_txs: &[UnverifiedTransaction],
 		_peer_id: usize,
 	) {
 		// does nothing by default
