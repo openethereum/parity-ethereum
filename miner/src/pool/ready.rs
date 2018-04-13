@@ -30,9 +30,9 @@
 //! the same sender.
 //!
 //! There are three possible outcomes:
-//! - The transaction is old (stalled; state nonce < transaction nonce)
+//! - The transaction is old (stalled; state nonce > transaction nonce)
 //! - The transaction is ready (current; state nonce == transaction nonce)
-//! - The transaction is not ready yet (future; state nonce > transaction nonce)
+//! - The transaction is not ready yet (future; state nonce < transaction nonce)
 //!
 //! NOTE The transactions are always checked for readines in order they are stored within the queue.
 //! First `Readiness::Future` response also causes all subsequent transactions from the same sender

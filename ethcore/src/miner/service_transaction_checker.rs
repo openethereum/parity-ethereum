@@ -24,16 +24,9 @@ use_contract!(service_transaction, "ServiceTransaction", "res/contracts/service_
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
 
 /// Service transactions checker.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ServiceTransactionChecker {
 	contract: service_transaction::ServiceTransaction,
-}
-
-// TODO [ToDr] https://github.com/paritytech/ethabi/pull/84
-impl Clone for ServiceTransactionChecker {
-	fn clone(&self) -> Self {
-		Default::default()
-	}
 }
 
 impl ServiceTransactionChecker {

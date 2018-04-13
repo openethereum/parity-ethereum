@@ -392,7 +392,7 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	/// i.e. it should only verify stuff that doesn't assume any previous transactions
 	/// has already been verified and executed.
 	///
-	/// NOTE This function consumuses an `UnverifiedTransaction` and produces `SignedTransaction`
+	/// NOTE This function consumes an `UnverifiedTransaction` and produces `SignedTransaction`
 	/// which implies that a heavy check of the signature is performed here.
 	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
 		self.machine().verify_transaction_unordered(t, header)
