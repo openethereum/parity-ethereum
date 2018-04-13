@@ -95,16 +95,14 @@ pub struct Execute {
 #[derive(Debug, PartialEq)]
 pub struct Configuration {
 	pub args: Args,
-	pub spec_name_override: Option<String>,
 }
 
 impl Configuration {
-	pub fn parse<S: AsRef<str>>(command: &[S], spec_name_override: Option<String>) -> Result<Self, ArgsError> {
+	pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
 		let args = Args::parse(command)?;
 
 		let config = Configuration {
 			args: args,
-			spec_name_override: spec_name_override,
 		};
 
 		Ok(config)
@@ -462,9 +460,7 @@ impl Configuration {
 	}
 
 	fn chain(&self) -> Result<SpecType, String> {
-		let name = if let Some(ref s) = self.spec_name_override {
-			s.clone()
-		} else if self.args.flag_testnet {
+		let name = if self.args.flag_testnet {
 			"testnet".to_owned()
 		} else {
 			self.args.arg_chain.clone()
@@ -1264,7 +1260,6 @@ mod tests {
 	fn parse(args: &[&str]) -> Configuration {
 		Configuration {
 			args: Args::parse_without_config(args).unwrap(),
-			spec_name_override: None,
 		}
 	}
 
@@ -1844,7 +1839,7 @@ mod tests {
 		let filename = tempdir.path().join("peers");
 		File::create(&filename).unwrap().write_all(b"  \n\t\n").unwrap();
 		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
 	}
 
@@ -1854,7 +1849,7 @@ mod tests {
 		let filename = tempdir.path().join("peers_comments");
 		File::create(&filename).unwrap().write_all(b"# Sample comment\nenode://6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@172.0.0.1:30303\n").unwrap();
 		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		let reserved_nodes = conf.init_reserved_nodes();
 		assert!(reserved_nodes.is_ok());
 		assert_eq!(reserved_nodes.unwrap().len(), 1);
@@ -1863,7 +1858,7 @@ mod tests {
 	#[test]
 	fn test_dev_preset() {
 		let args = vec!["parity", "--config", "dev"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_settings.chain, "dev");
@@ -1877,7 +1872,7 @@ mod tests {
 	#[test]
 	fn test_mining_preset() {
 		let args = vec!["parity", "--config", "mining"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 50);
@@ -1899,7 +1894,7 @@ mod tests {
 	#[test]
 	fn test_non_standard_ports_preset() {
 		let args = vec!["parity", "--config", "non-standard-ports"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_settings.network_port, 30305);
@@ -1912,7 +1907,7 @@ mod tests {
 	#[test]
 	fn test_insecure_preset() {
 		let args = vec!["parity", "--config", "insecure"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.update_policy.require_consensus, false);
@@ -1932,7 +1927,7 @@ mod tests {
 	#[test]
 	fn test_dev_insecure_preset() {
 		let args = vec!["parity", "--config", "dev-insecure"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_settings.chain, "dev");
@@ -1955,7 +1950,7 @@ mod tests {
 	#[test]
 	fn test_override_preset() {
 		let args = vec!["parity", "--config", "mining", "--min-peers=99"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 99);
@@ -2078,7 +2073,7 @@ mod tests {
 	#[test]
 	fn should_respect_only_max_peers_and_default() {
 		let args = vec!["parity", "--max-peers=50"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 25);
@@ -2091,7 +2086,7 @@ mod tests {
 	#[test]
 	fn should_respect_only_max_peers_less_than_default() {
 		let args = vec!["parity", "--max-peers=5"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 5);
@@ -2104,7 +2099,7 @@ mod tests {
 	#[test]
 	fn should_respect_only_min_peers_and_default() {
 		let args = vec!["parity", "--min-peers=5"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 5);
@@ -2117,7 +2112,7 @@ mod tests {
 	#[test]
 	fn should_respect_only_min_peers_and_greater_than_default() {
 		let args = vec!["parity", "--min-peers=500"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 500);

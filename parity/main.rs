@@ -180,9 +180,10 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 	}
 }
 
-fn start(can_restart: bool) -> Result<PostExecutionAction, String> {
-	let args: Vec<String> = env::args().collect();
-	let conf = Configuration::parse(&args, take_spec_name_override()).unwrap_or_else(|e| e.exit());
+fn start(mut args: Vec<String>) -> Result<PostExecutionAction, String> {
+	args.insert(0, "parity".to_owned());
+	let conf = Configuration::parse(&args).unwrap_or_else(|e| e.exit());
+	let can_restart = conf.args.flag_can_restart;
 
 	let deprecated = find_deprecated(&conf.args);
 	for d in deprecated {
@@ -276,7 +277,7 @@ const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 
 // Run our version of parity.
 // Returns the exit error code.
-fn main_direct(can_restart: bool) -> i32 {
+fn main_direct(force_can_restart: bool) -> i32 {
 	global_init();
 	let mut alt_mains = HashMap::new();
 	sync_main(&mut alt_mains);
@@ -285,7 +286,25 @@ fn main_direct(can_restart: bool) -> i32 {
 		f();
 		0
 	} else {
-		match start(can_restart) {
+		let mut args = std::env::args().skip(1).collect::<Vec<_>>();
+		if force_can_restart && !args.iter().any(|arg| arg == "--can-restart") {
+			args.push("--can-restart".to_owned());
+		}
+
+		if let Some(spec_override) = take_spec_name_override() {
+			args.retain(|f| f != "--testnet");
+			args.retain(|f| !f.starts_with("--chain="));
+			while let Some(pos) = args.iter().position(|a| a == "--chain") {
+				if args.len() > pos + 1 {
+					args.remove(pos + 1);
+				}
+				args.remove(pos);
+			}
+			args.push("--chain".to_owned());
+			args.push(spec_override);
+		}
+
+		match start(args) {
 			Ok(result) => match result {
 				PostExecutionAction::Print(s) => { println!("{}", s); 0 },
 				PostExecutionAction::Restart(spec_name_override) => {
@@ -365,7 +384,6 @@ fn main() {
 	} else {
 		trace_main!("Running direct");
 		// Otherwise, we're presumably running the version we want. Just run and fall-through.
-		let can_restart = std::env::args().any(|arg| arg == "--can-restart");
-		process::exit(main_direct(can_restart));
+		process::exit(main_direct(false));
 	}
 }
