@@ -39,7 +39,7 @@ const TRANSITION_BLOCK_1: usize = 2; // block at which the contract becomes acti
 const TRANSITION_BLOCK_2: usize = 10; // block at which the second contract activates.
 
 macro_rules! secret {
-	($e: expr) => { Secret::from_slice(&$crate::hash::keccak($e)) }
+	($e: expr) => { Secret::from($crate::hash::keccak($e).0) }
 }
 
 lazy_static! {
@@ -107,13 +107,11 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 			trace!(target: "snapshot", "Pushing block #{}, {} txs, author={}",
 				n, txs.len(), signers[idx]);
 
-			client.miner().set_author(signers[idx]);
+			client.miner().set_author(signers[idx], Some(PASS.into())).unwrap();
 			client.miner().import_external_transactions(&*client,
 				txs.into_iter().map(Into::into).collect());
 
-			let engine = client.engine();
-			engine.set_signer(accounts.clone(), signers[idx], PASS.to_owned());
-			engine.step();
+			client.engine().step();
 
 			assert_eq!(client.chain_info().best_block_number, n);
 		};

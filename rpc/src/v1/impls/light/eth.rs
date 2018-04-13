@@ -533,7 +533,7 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 		self.client.block_hash(id).map(Into::into)
 	}
 
-	fn pending_transactions_hashes(&self, _block_number: u64) -> Vec<::ethereum_types::H256> {
+	fn pending_transactions_hashes(&self) -> Vec<::ethereum_types::H256> {
 		Vec::new()
 	}
 

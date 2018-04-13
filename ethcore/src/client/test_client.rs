@@ -31,11 +31,12 @@ use kvdb_memorydb;
 use bytes::Bytes;
 use rlp::{UntrustedRlp, RlpStream};
 use ethkey::{Generator, Random};
-use transaction::{self, Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
+use ethcore_miner::pool::VerifiedTransaction;
+use transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::{TreeRoute, BlockReceipts};
 use client::{
 	Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, CallContract, TransactionInfo, RegistryInfo,
-	PrepareOpenBlock, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
+	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
 	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter
@@ -45,9 +46,7 @@ use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
-use error::{ImportResult, Error as EthcoreError};
-use evm::VMType;
-use factory::VmFactory;
+use error::ImportResult;
 use vm::Schedule;
 use miner::{Miner, MinerService};
 use spec::Spec;
@@ -102,8 +101,6 @@ pub struct TestBlockChainClient {
 	pub miner: Arc<Miner>,
 	/// Spec
 	pub spec: Spec,
-	/// VM Factory
-	pub vm_factory: VmFactory,
 	/// Timestamp assigned to latest sealed block
 	pub latest_block_timestamp: RwLock<u64>,
 	/// Ancient block info.
@@ -174,9 +171,8 @@ impl TestBlockChainClient {
 			receipts: RwLock::new(HashMap::new()),
 			logs: RwLock::new(Vec::new()),
 			queue_size: AtomicUsize::new(0),
-			miner: Arc::new(Miner::with_spec(&spec)),
+			miner: Arc::new(Miner::new_for_tests(&spec, None)),
 			spec: spec,
-			vm_factory: VmFactory::new(VMType::Interpreter, 1024 * 1024),
 			latest_block_timestamp: RwLock::new(10_000_000),
 			ancient_block: RwLock::new(None),
 			first_block: RwLock::new(None),
@@ -345,8 +341,8 @@ impl TestBlockChainClient {
 		self.set_balance(signed_tx.sender(), 10_000_000_000_000_000_000u64.into());
 		let hash = signed_tx.hash();
 		let res = self.miner.import_external_transactions(self, vec![signed_tx.into()]);
-		let res = res.into_iter().next().unwrap().expect("Successful import");
-		assert_eq!(res, transaction::ImportResult::Current);
+		let res = res.into_iter().next().unwrap();
+		assert!(res.is_ok());
 		hash
 	}
 
@@ -423,11 +419,8 @@ impl BroadcastProposalBlock for TestBlockChainClient {
 
 impl SealedBlockImporter for TestBlockChainClient {}
 
-impl MiningBlockChainClient for TestBlockChainClient {
-	fn vm_factory(&self) -> &VmFactory {
-		&self.vm_factory
-	}
-}
+impl ::miner::TransactionVerifierClient for TestBlockChainClient {}
+impl ::miner::BlockChainClient for TestBlockChainClient {}
 
 impl Nonce for TestBlockChainClient {
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
@@ -826,9 +819,8 @@ impl BlockChainClient for TestBlockChainClient {
 		self.spec.engine.handle_message(&message).unwrap();
 	}
 
-	fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		let info = self.chain_info();
-		self.miner.ready_transactions(info.best_block_number, info.best_block_timestamp)
+	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
+		self.miner.ready_transactions(self)
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> { None }
@@ -851,9 +843,9 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<transaction::ImportResult, EthcoreError> {
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
 		let transaction = Transaction {
-			nonce: self.latest_nonce(&self.miner.author()),
+			nonce: self.latest_nonce(&self.miner.authoring_params().author),
 			action: Action::Call(address),
 			gas: self.spec.gas_limit,
 			gas_price: U256::zero(),
@@ -895,8 +887,9 @@ impl super::traits::EngineClient for TestBlockChainClient {
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		if self.miner.submit_seal(self, block_hash, seal).is_err() {
-			warn!(target: "poa", "Wrong internal seal submission!")
+		let import = self.miner.submit_seal(block_hash, seal).and_then(|block| self.import_sealed_block(block));
+		if let Err(err) = import {
+			warn!(target: "poa", "Wrong internal seal submission! {:?}", err);
 		}
 	}
 

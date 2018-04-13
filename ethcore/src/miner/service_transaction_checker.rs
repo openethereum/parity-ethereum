@@ -16,33 +16,38 @@
 
 //! A service transactions contract checker.
 
-use client::{RegistryInfo, CallContract};
+use client::{RegistryInfo, CallContract, BlockId};
 use transaction::SignedTransaction;
-use types::ids::BlockId;
 
 use_contract!(service_transaction, "ServiceTransaction", "res/contracts/service_transaction.json");
 
 const SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME: &'static str = "service_transaction_checker";
 
 /// Service transactions checker.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ServiceTransactionChecker {
 	contract: service_transaction::ServiceTransaction,
 }
 
 impl ServiceTransactionChecker {
-	/// Checks if service transaction can be appended to the transaction queue.
+	/// Checks if given address is whitelisted to send service transactions.
 	pub fn check<C: CallContract + RegistryInfo>(&self, client: &C, tx: &SignedTransaction) -> Result<bool, String> {
-		assert!(tx.gas_price.is_zero());
+		let sender = tx.sender();
+		let hash = tx.hash();
+
+		// Skip checking the contract if the transaction does not have zero gas price
+		if !tx.gas_price.is_zero() {
+			return Ok(false)
+		}
 
 		let address = client.registry_address(SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Latest)
 			.ok_or_else(|| "contract is not configured")?;
 
-		trace!(target: "txqueue", "Checking service transaction checker contract from {}", address);
+		trace!(target: "txqueue", "[{:?}] Checking service transaction checker contract from {}", hash, sender);
 
 		self.contract.functions()
 			.certified()
-			.call(tx.sender(), &|data| client.call_contract(BlockId::Latest, address, data))
+			.call(sender, &|data| client.call_contract(BlockId::Latest, address, data))
 			.map_err(|e| e.to_string())
 	}
 }

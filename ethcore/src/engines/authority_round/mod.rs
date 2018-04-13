@@ -38,7 +38,7 @@ use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 use self::finality::RollingFinality;
 
-use ethkey::{public_to_address, recover, verify_address, Signature};
+use ethkey::{self, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, UntrustedRlp};
@@ -292,14 +292,14 @@ impl EmptyStep {
 		let message = keccak(empty_step_rlp(self.step, &self.parent_hash));
 		let correct_proposer = step_proposer(validators, &self.parent_hash, self.step);
 
-		verify_address(&correct_proposer, &self.signature.into(), &message)
+		ethkey::verify_address(&correct_proposer, &self.signature.into(), &message)
 			.map_err(|e| e.into())
 	}
 
 	fn author(&self) -> Result<Address, Error> {
 		let message = keccak(empty_step_rlp(self.step, &self.parent_hash));
-		let public = recover(&self.signature.into(), &message)?;
-		Ok(public_to_address(&public))
+		let public = ethkey::recover(&self.signature.into(), &message)?;
+		Ok(ethkey::public_to_address(&public))
 	}
 
 	fn sealed(&self) -> SealedEmptyStep {
@@ -555,7 +555,7 @@ fn verify_external(header: &Header, validators: &ValidatorSet, empty_steps_trans
 		};
 
 		let header_seal_hash = header_seal_hash(header, empty_steps_rlp);
-		!verify_address(&correct_proposer, &proposer_signature, &header_seal_hash)?
+		!ethkey::verify_address(&correct_proposer, &proposer_signature, &header_seal_hash)?
 	};
 
 	if is_invalid_proposer {
@@ -824,7 +824,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	fn generate_seal(&self, block: &ExecutedBlock, parent: &Header) -> Seal {
 		// first check to avoid generating signature most of the time
 		// (but there's still a race to the `compare_and_swap`)
-		if !self.can_propose.load(AtomicOrdering::SeqCst) { return Seal::None; }
+		if !self.can_propose.load(AtomicOrdering::SeqCst) {
+			trace!(target: "engine", "Aborting seal generation. Can't propose.");
+			return Seal::None;
+		}
 
 		let header = block.header();
 		let parent_step: U256 = header_step(parent, self.empty_steps_transition)
@@ -1305,7 +1308,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		self.signer.read().sign(hash).map_err(Into::into)
+		Ok(self.signer.read().sign(hash)?)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {

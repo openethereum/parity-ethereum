@@ -390,10 +390,12 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		&snapshot_path,
 		restoration_db_handler,
 		&cmd.dirs.ipc_path(),
-		Arc::new(Miner::with_spec(&spec)),
+		// TODO [ToDr] don't use test miner here
+		// (actually don't require miner at all)
+		Arc::new(Miner::new_for_tests(&spec, None)),
 		Arc::new(AccountProvider::transient_provider()),
 		Box::new(ethcore_private_tx::NoopEncryptor),
-		Default::default()
+		Default::default(),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	// free up the spec in memory.
@@ -580,10 +582,12 @@ fn start_client(
 		&snapshot_path,
 		restoration_db_handler,
 		&dirs.ipc_path(),
-		Arc::new(Miner::with_spec(&spec)),
+		// It's fine to use test version here,
+		// since we don't care about miner parameters at all
+		Arc::new(Miner::new_for_tests(&spec, None)),
 		Arc::new(AccountProvider::transient_provider()),
 		Box::new(ethcore_private_tx::NoopEncryptor),
-		Default::default()
+		Default::default(),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
 	drop(spec);

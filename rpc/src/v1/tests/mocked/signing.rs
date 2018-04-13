@@ -211,7 +211,7 @@ fn should_sign_if_account_is_unlocked() {
 	// given
 	let tester = eth_signing();
 	let data = vec![5u8];
-	let acc = tester.accounts.insert_account(Secret::from_slice(&[69u8; 32]), "test").unwrap();
+	let acc = tester.accounts.insert_account(Secret::from([69u8; 32]), "test").unwrap();
 	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
 
 	// when
@@ -327,7 +327,7 @@ fn should_add_sign_transaction_to_the_queue() {
 		r#"}},"id":1}"#;
 
 	// then
-	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
+	tester.miner.increment_nonce(&address);
 	let promise = tester.io.handle_request(&request);
 
 	// the future must be polled at least once before request is queued.

@@ -17,14 +17,12 @@
 //! Test rpc services.
 
 mod dapps;
-mod fetch;
 mod miner_service;
 mod snapshot_service;
 mod sync_provider;
 mod update_service;
 
 pub use self::dapps::TestDappsService;
-pub use self::fetch::TestFetch;
 pub use self::miner_service::TestMinerService;
 pub use self::snapshot_service::TestSnapshotService;
 pub use self::sync_provider::{Config, TestSyncProvider};

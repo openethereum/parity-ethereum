@@ -194,10 +194,12 @@ impl SnapshotCommand {
 			&snapshot_path,
 			restoration_db_handler,
 			&self.dirs.ipc_path(),
-			Arc::new(Miner::with_spec(&spec)),
+			// TODO [ToDr] don't use test miner here
+			// (actually don't require miner at all)
+			Arc::new(Miner::new_for_tests(&spec, None)),
 			Arc::new(AccountProvider::transient_provider()),
 			Box::new(ethcore_private_tx::NoopEncryptor),
-			Default::default()
+			Default::default(),
 		).map_err(|e| format!("Client service error: {:?}", e))?;
 
 		Ok(service)

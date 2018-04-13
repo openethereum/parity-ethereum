@@ -17,13 +17,13 @@
 use std::sync::Arc;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, Executed};
-use ethcore::miner::LocalTransactionStatus;
 use ethcore_logger::RotatingLogger;
+use ethereum_types::{Address, U256, H256};
 use ethstore::ethkey::{Generator, Random};
-use sync::ManageNetwork;
+use miner::pool::local_transactions::Status as LocalTransactionStatus;
 use node_health::{self, NodeHealth};
 use parity_reactor;
-use ethereum_types::{Address, U256, H256};
+use sync::ManageNetwork;
 
 use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};
@@ -455,7 +455,9 @@ fn rpc_parity_next_nonce() {
 	let address = Address::default();
 	let io1 = deps.default_client();
 	let deps = Dependencies::new();
-	deps.miner.last_nonces.write().insert(address.clone(), 2.into());
+	deps.miner.increment_nonce(&address);
+	deps.miner.increment_nonce(&address);
+	deps.miner.increment_nonce(&address);
 	let io2 = deps.default_client();
 
 	let request = r#"{
@@ -486,11 +488,20 @@ fn rpc_parity_transactions_stats() {
 fn rpc_parity_local_transactions() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
-	deps.miner.local_transactions.lock().insert(10.into(), LocalTransactionStatus::Pending);
-	deps.miner.local_transactions.lock().insert(15.into(), LocalTransactionStatus::Future);
+	let tx = ::transaction::Transaction {
+		value: 5.into(),
+		gas: 3.into(),
+		gas_price: 2.into(),
+		action: ::transaction::Action::Create,
+		data: vec![1, 2, 3],
+		nonce: 0.into(),
+	}.fake_sign(3.into());
+	let tx = Arc::new(::miner::pool::VerifiedTransaction::from_pending_block_transaction(tx));
+	deps.miner.local_transactions.lock().insert(10.into(), LocalTransactionStatus::Pending(tx.clone()));
+	deps.miner.local_transactions.lock().insert(15.into(), LocalTransactionStatus::Pending(tx.clone()));
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_localTransactions", "params":[], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":{"0x000000000000000000000000000000000000000000000000000000000000000a":{"status":"pending"},"0x000000000000000000000000000000000000000000000000000000000000000f":{"status":"future"}},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"0x000000000000000000000000000000000000000000000000000000000000000a":{"status":"pending"},"0x000000000000000000000000000000000000000000000000000000000000000f":{"status":"pending"}},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
