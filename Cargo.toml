@@ -37,7 +37,6 @@ ethcore-bytes = { path = "util/bytes" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
-ethcore-migrations = { path = "ethcore/migrations" }
 ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
@@ -64,7 +63,7 @@ path = { path = "util/path" }
 dir = { path = "util/dir" }
 panic_hook = { path = "util/panic_hook" }
 keccak-hash = { path = "util/hash" }
-migration = { path = "util/migration" }
+migration-rocksdb = { path = "util/migration-rocksdb" }
 kvdb = { path = "util/kvdb" }
 kvdb-rocksdb = { path = "util/kvdb-rocksdb" }
 journaldb = { path = "util/journaldb" }

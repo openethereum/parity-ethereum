@@ -31,7 +31,6 @@ ethcore-sync = { path = "../ethcore/sync" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.3"
 kvdb = { path = "../util/kvdb" }
-kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 keccak-hash = { path = "../util/hash" }
 ethkey = { path = "../ethkey" }
 lazy_static = "1.0"
@@ -41,3 +40,4 @@ ethabi-contract = "5.0"
 
 [dev-dependencies]
 tempdir = "0.3"
+kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }

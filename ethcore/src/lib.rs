@@ -92,7 +92,6 @@ extern crate ansi_term;
 extern crate unexpected;
 extern crate kvdb;
 extern crate kvdb_memorydb;
-extern crate kvdb_rocksdb;
 extern crate util_error;
 extern crate snappy;
 
@@ -127,6 +126,9 @@ extern crate trace_time;
 extern crate evm;
 
 pub extern crate ethstore;
+
+#[cfg(test)]
+extern crate kvdb_rocksdb;
 
 pub mod account_provider;
 pub mod block;
@@ -167,6 +169,8 @@ mod tests;
 #[cfg(test)]
 #[cfg(feature="json-tests")]
 mod json_tests;
+#[cfg(test)]
+mod test_helpers_internal;
 
 pub use types::*;
 pub use executive::contract_address;
