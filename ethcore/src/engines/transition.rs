@@ -51,8 +51,7 @@ impl<S, M: Machine> TransitionHandler<S, M> where S: Sync + Send + Clone {
 pub const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 
 fn set_timeout<S: Sync + Send + Clone>(io: &IoContext<S>, timeout: Duration) {
-	let ms = timeout.as_secs() * 1_000 + timeout.subsec_nanos() as u64 / 1_000_000;
-	io.register_timer_once(ENGINE_TIMEOUT_TOKEN, ms)
+	io.register_timer_once(ENGINE_TIMEOUT_TOKEN, timeout)
 		.unwrap_or_else(|e| warn!(target: "engine", "Failed to set consensus step timeout: {}.", e))
 }
 

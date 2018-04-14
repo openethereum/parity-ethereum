@@ -58,12 +58,12 @@ mod sync_round;
 #[cfg(test)]
 mod tests;
 
-// Base number of milliseconds for the header request timeout.
-const REQ_TIMEOUT_MILLISECS_BASE: u64 = 7000;
-// Additional number of milliseconds for each requested header.
+// Base value for the header request timeout.
+const REQ_TIMEOUT_BASE: Duration = Duration::from_secs(7);
+// Additional value for each requested header.
 // If we request N headers, then the timeout will be:
-//  REQ_TIMEOUT_MILLISECS_BASE + N * REQ_TIMEOUT_MILLISECS_PER_HEADER
-const REQ_TIMEOUT_MILLISECS_PER_HEADER: u64 = 10;
+//  REQ_TIMEOUT_BASE + N * REQ_TIMEOUT_PER_HEADER
+const REQ_TIMEOUT_PER_HEADER: Duration = Duration::from_millis(10);
 
 /// Peer chain info.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -585,11 +585,12 @@ impl<L: AsLightClient> LightSync<L> {
 					if requested_from.contains(peer) { continue }
 					match ctx.request_from(*peer, request.clone()) {
 						Ok(id) => {
-							let timeout_ms = REQ_TIMEOUT_MILLISECS_BASE +
-								req.max * REQ_TIMEOUT_MILLISECS_PER_HEADER;
+							assert!(req.max <= u32::max_value() as u64,
+								"requesting more than 2^32 headers at a time would overflow");
+							let timeout = REQ_TIMEOUT_BASE + REQ_TIMEOUT_PER_HEADER * req.max as u32;
 							self.pending_reqs.lock().insert(id.clone(), PendingReq {
 								started: Instant::now(),
-								timeout: Duration::from_millis(timeout_ms),
+								timeout,
 							});
 							requested_from.insert(peer.clone());
 

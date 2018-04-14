@@ -48,11 +48,11 @@ pub trait SampleStore: Send + Sync {
 }
 
 // get a hardcoded, arbitrarily determined (but intended overestimate)
-// of the time in nanoseconds to serve a request of the given kind.
+// of the time it takes to serve a request of the given kind.
 //
 // TODO: seed this with empirical data.
-fn hardcoded_serve_time(kind: Kind) -> u64 {
-	match kind {
+fn hardcoded_serve_time(kind: Kind) -> Duration {
+	Duration::new(0, match kind {
 		Kind::Headers => 500_000,
 		Kind::HeaderProof => 500_000,
 		Kind::TransactionIndex => 500_000,
@@ -63,7 +63,7 @@ fn hardcoded_serve_time(kind: Kind) -> u64 {
 		Kind::Code => 1_500_000,
 		Kind::Execution => 250, // per gas.
 		Kind::Signal => 500_000,
-	}
+	})
 }
 
 /// A no-op store.
@@ -114,10 +114,10 @@ impl LoadDistribution {
 		}
 	}
 
-	/// Calculate EMA of load in nanoseconds for a specific request kind.
+	/// Calculate EMA of load for a specific request kind.
 	/// If there is no data for the given request kind, no EMA will be calculated,
 	/// but a hardcoded time will be returned.
-	pub fn expected_time_ns(&self, kind: Kind) -> u64 {
+	pub fn expected_time(&self, kind: Kind) -> Duration {
 		let samples = self.samples.read();
 		samples.get(&kind).and_then(|s| {
 			if s.len() == 0 { return None }
@@ -128,7 +128,9 @@ impl LoadDistribution {
 				(alpha * c as f64) + ((1.0 - alpha) * a)
 			});
 
-			Some(ema as u64)
+			// TODO: use `Duration::from_nanos` once stable (https://github.com/rust-lang/rust/issues/46507)
+			let ema = ema as u64;
+			Some(Duration::new(ema / 1_000_000_000, (ema % 1_000_000_000) as u32))
 		}).unwrap_or_else(move || hardcoded_serve_time(kind))
 	}
 
@@ -223,12 +225,12 @@ mod tests {
 	#[test]
 	fn hardcoded_before_data() {
 		let dist = LoadDistribution::load(&NullStore);
-		assert_eq!(dist.expected_time_ns(Kind::Headers), hardcoded_serve_time(Kind::Headers));
+		assert_eq!(dist.expected_time(Kind::Headers), hardcoded_serve_time(Kind::Headers));
 
 		dist.update(Kind::Headers, Duration::new(0, 100_000), 100);
 		dist.end_period(&NullStore);
 
-		assert_eq!(dist.expected_time_ns(Kind::Headers), 1000);
+		assert_eq!(dist.expected_time(Kind::Headers), Duration::new(0, 1000));
 	}
 
 	#[test]
@@ -244,20 +246,20 @@ mod tests {
 			sum += x;
 			if i == 0 { continue }
 
-			let moving_average = dist.expected_time_ns(Kind::Headers);
+			let moving_average = dist.expected_time(Kind::Headers);
 
 			// should be weighted below the maximum entry.
-			let arith_average = (sum as f64 / (i + 1) as f64) as u64;
-			assert!(moving_average < x as u64);
+			let arith_average = (sum as f64 / (i + 1) as f64) as u32;
+			assert!(moving_average < Duration::new(0, x));
 
 			// when there are only 2 entries, they should be equal due to choice of
 			// ALPHA = 1/N.
 			// otherwise, the weight should be below the arithmetic mean because the much
 			// smaller previous values are discounted less.
 			if i == 1 {
-				assert_eq!(moving_average, arith_average);
+				assert_eq!(moving_average, Duration::new(0, arith_average));
 			} else {
-				assert!(moving_average < arith_average)
+				assert!(moving_average < Duration::new(0, arith_average))
 			}
 		}
 	}
