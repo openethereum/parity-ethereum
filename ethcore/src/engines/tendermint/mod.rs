@@ -27,7 +27,7 @@ mod params;
 
 use std::sync::{Weak, Arc};
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-use std::collections::{HashSet, BTreeMap};
+use std::collections::HashSet;
 use hash::keccak;
 use ethereum_types::{H256, H520, U128, U256, Address};
 use parking_lot::RwLock;
@@ -448,17 +448,6 @@ impl Engine<EthereumMachine> for Tendermint {
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
 	fn maximum_uncle_age(&self) -> usize { 0 }
-
-	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
-		let message = ConsensusMessage::new_proposal(header).expect("Invalid header.");
-		map![
-			"signature".into() => message.signature.to_string(),
-			"height".into() => message.vote_step.height.to_string(),
-			"view".into() => message.vote_step.view.to_string(),
-			"block_hash".into() => message.block_hash.as_ref().map(ToString::to_string).unwrap_or("".into())
-		]
-	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - view
