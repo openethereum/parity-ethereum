@@ -50,7 +50,7 @@ fn can_trace_block_and_uncle_reward() {
 		client_config,
 		&spec,
 		client_db,
-		Arc::new(Miner::with_spec(&spec)),
+		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 

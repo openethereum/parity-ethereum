@@ -164,7 +164,7 @@ mod test {
 			ClientConfig::default(),
 			&spec,
 			client_db,
-			Arc::new(Miner::with_spec(&spec)),
+			Arc::new(Miner::new_for_tests(&spec, None)),
 			IoChannel::disconnected(),
 		).unwrap();
 		let key1 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000001")).unwrap();

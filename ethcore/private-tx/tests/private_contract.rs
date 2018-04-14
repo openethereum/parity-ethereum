@@ -36,6 +36,7 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::BlockChainClient;
 use ethcore::client::BlockId;
 use ethcore::executive::{contract_address};
+use ethcore::miner::Miner;
 use ethcore::test_helpers::{generate_dummy_client, push_block_with_transactions};
 use ethcore_transaction::{Transaction, Action};
 use ethkey::{Secret, KeyPair, Signature};
@@ -65,7 +66,15 @@ fn private_contract() {
 	};
 
 	let io = ethcore_io::IoChannel::disconnected();
-	let pm = Arc::new(Provider::new(client.clone(), ap.clone(), Box::new(NoopEncryptor::default()), config, io).unwrap());
+	let miner = Arc::new(Miner::new_for_tests(&::ethcore::spec::Spec::new_test(), None));
+	let pm = Arc::new(Provider::new(
+			client.clone(),
+			miner,
+			ap.clone(),
+			Box::new(NoopEncryptor::default()),
+			config,
+			io,
+	).unwrap());
 
 	let (address, _) = contract_address(CreateContractAddress::FromSenderAndNonce, &key1.address(), &0.into(), &[]);
 

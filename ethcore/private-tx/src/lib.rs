@@ -78,12 +78,10 @@ use ethcore::executed::{Executed};
 use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
 use ethcore::{contract_address as ethcore_contract_address};
 use ethcore::client::{
-	Client, ChainNotify, ChainMessageType, ClientIoMessage, BlockId,
-	MiningBlockChainClient, ChainInfo, Nonce, CallContract
+	Client, ChainNotify, ChainMessageType, ClientIoMessage, BlockId, CallContract
 };
 use ethcore::account_provider::AccountProvider;
-use ethcore_miner::transaction_queue::{TransactionDetailsProvider as TransactionQueueDetailsProvider, AccountDetails};
-use ethcore::miner::MinerService;
+use ethcore::miner::{self, Miner, MinerService};
 use ethcore::trace::{Tracer, VMTracer};
 use rustc_hex::FromHex;
 
@@ -94,35 +92,6 @@ use_contract!(private, "PrivateContract", "res/private.json");
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
-
-struct TransactionDetailsProvider<'a> {
-	client: &'a MiningBlockChainClient,
-}
-
-impl<'a> TransactionDetailsProvider<'a> {
-	pub fn new(client: &'a MiningBlockChainClient) -> Self {
-		TransactionDetailsProvider {
-			client: client,
-		}
-	}
-}
-
-impl<'a> TransactionQueueDetailsProvider for TransactionDetailsProvider<'a> {
-	fn fetch_account(&self, address: &Address) -> AccountDetails {
-		AccountDetails {
-			nonce: self.client.latest_nonce(address),
-			balance: self.client.latest_balance(address),
-		}
-	}
-
-	fn estimate_gas_required(&self, tx: &SignedTransaction) -> U256 {
-		tx.gas_required(&self.client.latest_schedule()).into()
-	}
-
-	fn is_service_transaction_acceptable(&self, _tx: &SignedTransaction) -> Result<bool, String> {
-		Ok(false)
-	}
-}
 
 /// Configurtion for private transaction provider
 #[derive(Default, PartialEq, Debug, Clone)]
@@ -154,8 +123,10 @@ pub struct Provider {
 	passwords: Vec<String>,
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	transactions_for_signing: Mutex<SigningStore>,
+	// TODO [ToDr] Move the Mutex/RwLock inside `VerificationStore` after refactored to `drain`.
 	transactions_for_verification: Mutex<VerificationStore>,
 	client: Arc<Client>,
+	miner: Arc<Miner>,
 	accounts: Arc<AccountProvider>,
 	channel: IoChannel<ClientIoMessage>,
 }
@@ -172,6 +143,7 @@ impl Provider where {
 	/// Create a new provider.
 	pub fn new(
 		client: Arc<Client>,
+		miner: Arc<Miner>,
 		accounts: Arc<AccountProvider>,
 		encryptor: Box<Encryptor>,
 		config: ProviderConfig,
@@ -186,6 +158,7 @@ impl Provider where {
 			transactions_for_signing: Mutex::default(),
 			transactions_for_verification: Mutex::default(),
 			client,
+			miner,
 			accounts,
 			channel,
 		})
@@ -282,6 +255,9 @@ impl Provider where {
 
 		match validation_account {
 			None => {
+				// TODO [ToDr] This still seems a bit invalid, imho we should still import the transaction to the pool.
+				// Importing to pool verifies correctness and nonce; here we are just blindly forwarding.
+				//
 				// Not for verification, broadcast further to peers
 				self.broadcast_private_transaction(rlp.into());
 				return Ok(());
@@ -291,15 +267,35 @@ impl Provider where {
 				trace!("Private transaction taken for verification");
 				let original_tx = self.extract_original_transaction(private_tx, &contract)?;
 				trace!("Validating transaction: {:?}", original_tx);
-				let details_provider = TransactionDetailsProvider::new(&*self.client as &MiningBlockChainClient);
-				let insertion_time = self.client.chain_info().best_block_number;
 				// Verify with the first account available
 				trace!("The following account will be used for verification: {:?}", validation_account);
-				self.transactions_for_verification.lock()
-					.add_transaction(original_tx, contract, validation_account, hash, &details_provider, insertion_time)?;
+				let nonce_cache = Default::default();
+				self.transactions_for_verification.lock().add_transaction(
+					original_tx,
+					contract,
+					validation_account,
+					hash,
+					self.pool_client(&nonce_cache),
+				)?;
+				// NOTE This will just fire `on_private_transaction_queued` but from a client thread.
+				// It seems that a lot of heavy work (verification) is done in this thread anyway
+				// it might actually make sense to decouple it from clientService and just use dedicated thread
+				// for both verification and execution.
 				self.channel.send(ClientIoMessage::NewPrivateTransaction).map_err(|_| ErrorKind::ClientIsMalformed.into())
 			}
 		}
+	}
+
+	fn pool_client<'a>(&'a self, nonce_cache: &'a RwLock<HashMap<Address, U256>>) -> miner::pool_client::PoolClient<'a, Client> {
+		let engine = self.client.engine();
+		let refuse_service_transactions = true;
+		miner::pool_client::PoolClient::new(
+			&*self.client,
+			nonce_cache,
+			engine,
+			Some(&*self.accounts),
+			refuse_service_transactions,
+		)
 	}
 
 	/// Private transaction for validation added into queue
@@ -308,12 +304,22 @@ impl Provider where {
 	}
 
 	/// Retrieve and verify the first available private transaction for every sender
+	///
+	/// TODO [ToDr] It seems that:
+	/// 1. This method will fail on any error without removing invalid transaction.
+	/// 2. It means that the transaction will be stuck there forever and we will never be able to make any progress.
+	///
+	/// It might be more sensible to `drain()` transactions from the queue instead and process all of them,
+	/// possibly printing some errors in case of failures.
+	/// The 3 methods `ready_transaction,get_descriptor,remove` are always used in conjuction so most likely
+	/// can be replaced with a single `drain()` method instead.
+	/// Thanks to this we also don't really need to lock the entire verification for the time of execution.
 	fn process_queue(&self) -> Result<(), Error> {
+		let nonce_cache = Default::default();
 		let mut verification_queue = self.transactions_for_verification.lock();
-		let ready_transactions = verification_queue.ready_transactions();
-		let fetch_nonce = |a: &Address| self.client.latest_nonce(a);
+		let ready_transactions = verification_queue.ready_transactions(self.pool_client(&nonce_cache));
 		for transaction in ready_transactions {
-			let transaction_hash = transaction.hash();
+			let transaction_hash = transaction.signed().hash();
 			match verification_queue.private_transaction_descriptor(&transaction_hash) {
 				Ok(desc) => {
 					if !self.validator_accounts.contains(&desc.validator_account) {
@@ -321,9 +327,10 @@ impl Provider where {
 						bail!(ErrorKind::ValidatorAccountNotSet);
 					}
 					let account = desc.validator_account;
-					if let Action::Call(contract) = transaction.action {
+					if let Action::Call(contract) = transaction.signed().action {
+						// TODO [ToDr] Usage of BlockId::Latest
 						let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
-						let private_state = self.execute_private_transaction(BlockId::Latest, &transaction)?;
+						let private_state = self.execute_private_transaction(BlockId::Latest, transaction.signed())?;
 						let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
 						trace!("Hashed effective private state for validator: {:?}", private_state_hash);
 						let password = find_account_password(&self.passwords, &*self.accounts, &account);
@@ -341,7 +348,7 @@ impl Provider where {
 					bail!(e);
 				}
 			}
-			verification_queue.remove_private_transaction(&transaction_hash, &fetch_nonce);
+			verification_queue.remove_private_transaction(&transaction_hash);
 		}
 		Ok(())
 	}
@@ -354,6 +361,8 @@ impl Provider where {
 		let private_hash = tx.private_transaction_hash();
 		let desc = match self.transactions_for_signing.lock().get(&private_hash) {
 			None => {
+				// TODO [ToDr] Verification (we can't just blindly forward every transaction)
+
 				// Not our transaction, broadcast further to peers
 				self.broadcast_signed_private_transaction(rlp.into());
 				return Ok(());
@@ -383,7 +392,7 @@ impl Provider where {
 			let password = find_account_password(&self.passwords, &*self.accounts, &signer_account);
 			let signature = self.accounts.sign(signer_account, password, hash)?;
 			let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
-			match self.client.miner().import_own_transaction(&*self.client, signed.into()) {
+			match self.miner.import_own_transaction(&*self.client, signed.into()) {
 				Ok(_) => trace!("Public transaction added to queue"),
 				Err(err) => {
 					trace!("Failed to add transaction to queue, error: {:?}", err);

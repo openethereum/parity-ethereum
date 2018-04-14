@@ -26,13 +26,12 @@ use parking_lot::Mutex;
 
 use ethash::SeedHashCompute;
 use ethcore::account_provider::{AccountProvider, DappId};
-use ethcore::block::IsBlock;
-use ethcore::client::{MiningBlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
+use ethcore::client::{BlockChainClient, BlockId, TransactionId, UncleId, StateOrBlock, StateClient, StateInfo, Call, EngineInfo};
 use ethcore::ethereum::Ethash;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::header::{BlockNumber as EthBlockNumber};
 use ethcore::log_entry::LogEntry;
-use ethcore::miner::MinerService;
+use ethcore::miner::{self, MinerService};
 use ethcore::snapshot::SnapshotService;
 use ethcore::encoded;
 use sync::{SyncProvider};
@@ -92,7 +91,7 @@ impl Default for EthClientOptions {
 
 /// Eth rpc implementation.
 pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
-	C: MiningBlockChainClient,
+	C: miner::BlockChainClient + BlockChainClient,
 	SN: SnapshotService,
 	S: SyncProvider,
 	M: MinerService,
@@ -142,7 +141,7 @@ enum PendingTransactionId {
 }
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S, M, EM> where
-	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo,
+	C: miner::BlockChainClient + BlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo,
 	SN: SnapshotService,
 	S: SyncProvider,
 	M: MinerService<State=T>,
@@ -420,7 +419,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 }
 
 pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
-	let receipts = miner.pending_receipts(best_block);
+	let receipts = miner.pending_receipts(best_block).unwrap_or_default();
 
 	let pending_logs = receipts.into_iter()
 		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
@@ -438,7 +437,7 @@ pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFi
 	result
 }
 
-fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: MiningBlockChainClient {
+fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: BlockChainClient {
 	use ethcore::block_status::BlockStatus;
 
 	let id = match number {
@@ -458,7 +457,7 @@ fn check_known<C>(client: &C, number: BlockNumber) -> Result<()> where C: Mining
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
 impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<C, SN, S, M, EM> where
-	C: MiningBlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo + 'static,
+	C: miner::BlockChainClient + BlockChainClient + StateClient<State=T> + Call<State=T> + EngineInfo + 'static,
 	SN: SnapshotService + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService<State=T> + 'static,
@@ -506,7 +505,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	fn author(&self, meta: Metadata) -> Result<RpcH160> {
 		let dapp = meta.dapp_id();
 
-		let mut miner = self.miner.author();
+		let mut miner = self.miner.authoring_params().author;
 		if miner == 0.into() {
 			miner = self.dapp_accounts(dapp.into())?.get(0).cloned().unwrap_or_default();
 		}
@@ -571,16 +570,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 
 		let res = match num.unwrap_or_default() {
 			BlockNumber::Pending if self.options.pending_nonce_from_queue => {
-				let nonce = self.miner.last_nonce(&address)
-					.map(|n| n + 1.into())
-					.or_else(|| self.client.nonce(&address, BlockId::Latest));
-
-				match nonce {
-					Some(nonce) => Ok(nonce.into()),
-					None => Err(errors::database("latest nonce missing"))
-				}
-			},
-
+				Ok(self.miner.next_nonce(&*self.client, &address).into())
+			}
 			BlockNumber::Pending => {
 				let info = self.client.chain_info();
 				let nonce = self.miner
@@ -596,7 +587,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 					None => Err(errors::database("latest nonce missing"))
 				}
 			},
-
 			number => {
 				try_bf!(check_known(&*self.client, number.clone()));
 				match self.client.nonce(&address, block_number_to_id(number)) {
@@ -615,13 +605,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>> {
+		let block_number = self.client.chain_info().best_block_number;
+
 		Box::new(future::ok(match num {
-			BlockNumber::Pending => Some(
-				self.miner.status().transactions_in_pending_block.into()
-			),
+			BlockNumber::Pending =>
+				self.miner.pending_transactions(block_number).map(|x| x.len().into()),
 			_ =>
-				self.client.block(block_number_to_id(num))
-					.map(|block| block.transactions_count().into())
+				self.client.block(block_number_to_id(num)).map(|block| block.transactions_count().into())
 		}))
 	}
 
@@ -665,8 +655,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let hash: H256 = hash.into();
 		let block_number = self.client.chain_info().best_block_number;
 		let tx = try_bf!(self.transaction(PendingTransactionId::Hash(hash))).or_else(|| {
-			self.miner.transaction(block_number, &hash)
-				.map(|t| Transaction::from_pending(t, block_number, self.eip86_transition))
+			self.miner.transaction(&hash)
+				.map(|t| Transaction::from_pending(t.pending().clone(), block_number + 1, self.eip86_transition))
 		});
 
 		Box::new(future::ok(tx))
@@ -745,11 +735,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn work(&self, no_new_work_timeout: Trailing<u64>) -> Result<Work> {
-		if !self.miner.can_produce_work_package() {
-			warn!(target: "miner", "Cannot give work package - engine seals internally.");
-			return Err(errors::no_work_required())
-		}
-
 		let no_new_work_timeout = no_new_work_timeout.unwrap_or_default();
 
 		// check if we're still syncing and return empty strings in that case
@@ -768,50 +753,58 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			}
 		}
 
-		if self.miner.author().is_zero() {
+		if self.miner.authoring_params().author.is_zero() {
 			warn!(target: "miner", "Cannot give work package - no author is configured. Use --author to configure!");
 			return Err(errors::no_author())
 		}
-		self.miner.map_sealing_work(&*self.client, |b| {
-			let pow_hash = b.hash();
-			let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
-			let seed_hash = self.seed_compute.lock().hash_block_number(b.block().header().number());
 
-			let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-			if no_new_work_timeout > 0 && b.block().header().timestamp() + no_new_work_timeout < now {
-				Err(errors::no_new_work())
-			} else if self.options.send_block_number_in_get_work {
-				let block_number = b.block().header().number();
-				Ok(Work {
-					pow_hash: pow_hash.into(),
-					seed_hash: seed_hash.into(),
-					target: target.into(),
-					number: Some(block_number),
-				})
-			} else {
-				Ok(Work {
-					pow_hash: pow_hash.into(),
-					seed_hash: seed_hash.into(),
-					target: target.into(),
-					number: None
-				})
-			}
-		}).unwrap_or(Err(errors::internal("No work found.", "")))
+		let work = self.miner.work_package(&*self.client).ok_or_else(|| {
+			warn!(target: "miner", "Cannot give work package - engine seals internally.");
+			errors::no_work_required()
+		})?;
+
+		let (pow_hash, number, timestamp, difficulty) = work;
+		let target = Ethash::difficulty_to_boundary(&difficulty);
+		let seed_hash = self.seed_compute.lock().hash_block_number(number);
+
+		let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+		if no_new_work_timeout > 0 && timestamp + no_new_work_timeout < now {
+			Err(errors::no_new_work())
+		} else if self.options.send_block_number_in_get_work {
+			Ok(Work {
+				pow_hash: pow_hash.into(),
+				seed_hash: seed_hash.into(),
+				target: target.into(),
+				number: Some(number),
+			})
+		} else {
+			Ok(Work {
+				pow_hash: pow_hash.into(),
+				seed_hash: seed_hash.into(),
+				target: target.into(),
+				number: None
+			})
+		}
 	}
 
 	fn submit_work(&self, nonce: RpcH64, pow_hash: RpcH256, mix_hash: RpcH256) -> Result<bool> {
-		if !self.miner.can_produce_work_package() {
-			warn!(target: "miner", "Cannot submit work - engine seals internally.");
-			return Err(errors::no_work_required())
-		}
-
+		// TODO [ToDr] Should disallow submissions in case of PoA?
 		let nonce: H64 = nonce.into();
 		let pow_hash: H256 = pow_hash.into();
 		let mix_hash: H256 = mix_hash.into();
 		trace!(target: "miner", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 
 		let seal = vec![rlp::encode(&mix_hash).into_vec(), rlp::encode(&nonce).into_vec()];
-		Ok(self.miner.submit_seal(&*self.client, pow_hash, seal).is_ok())
+		let import = self.miner.submit_seal(pow_hash, seal)
+			.and_then(|block| self.client.import_sealed_block(block));
+
+		match import {
+			Ok(_) => Ok(true),
+			Err(err) => {
+				warn!(target: "miner", "Cannot submit work - {:?}.", err);
+				Ok(false)
+			},
+		}
 	}
 
 	fn submit_hashrate(&self, rate: RpcU256, id: RpcH256) -> Result<bool> {
