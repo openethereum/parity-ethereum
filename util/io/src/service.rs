@@ -54,7 +54,7 @@ pub enum IoMessage<Message> where Message: Send + Clone + Sized {
 	AddTimer {
 		handler_id: HandlerId,
 		token: TimerToken,
-		delay: u64,
+		delay: Duration,
 		once: bool,
 	},
 	RemoveTimer {
@@ -93,10 +93,10 @@ impl<Message> IoContext<Message> where Message: Send + Clone + Sync + 'static {
 	}
 
 	/// Register a new recurring IO timer. 'IoHandler::timeout' will be called with the token.
-	pub fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), IoError> {
+	pub fn register_timer(&self, token: TimerToken, delay: Duration) -> Result<(), IoError> {
 		self.channel.send_io(IoMessage::AddTimer {
-			token: token,
-			delay: ms,
+			token,
+			delay,
 			handler_id: self.handler,
 			once: false,
 		})?;
@@ -104,10 +104,10 @@ impl<Message> IoContext<Message> where Message: Send + Clone + Sync + 'static {
 	}
 
 	/// Register a new IO timer once. 'IoHandler::timeout' will be called with the token.
-	pub fn register_timer_once(&self, token: TimerToken, ms: u64) -> Result<(), IoError> {
+	pub fn register_timer_once(&self, token: TimerToken, delay: Duration) -> Result<(), IoError> {
 		self.channel.send_io(IoMessage::AddTimer {
-			token: token,
-			delay: ms,
+			token,
+			delay,
 			handler_id: self.handler,
 			once: true,
 		})?;
@@ -173,7 +173,7 @@ impl<Message> IoContext<Message> where Message: Send + Clone + Sync + 'static {
 
 #[derive(Clone)]
 struct UserTimer {
-	delay: u64,
+	delay: Duration,
 	timeout: Timeout,
 	once: bool,
 }
@@ -252,7 +252,7 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 					self.timers.write().remove(&token_id);
 					event_loop.clear_timeout(&timer.timeout);
 				} else {
-					event_loop.timeout(token, Duration::from_millis(timer.delay)).expect("Error re-registering user timer");
+					event_loop.timeout(token, timer.delay).expect("Error re-registering user timer");
 				}
 				self.worker_channel.push(Work { work_type: WorkType::Timeout, token: token_id, handler: handler.clone(), handler_id: handler_index });
 				self.work_ready.notify_all();
@@ -283,7 +283,7 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 			},
 			IoMessage::AddTimer { handler_id, token, delay, once } => {
 				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
-				let timeout = event_loop.timeout(Token(timer_id), Duration::from_millis(delay)).expect("Error registering user timer");
+				let timeout = event_loop.timeout(Token(timer_id), delay).expect("Error registering user timer");
 				self.timers.write().insert(timer_id, UserTimer { delay: delay, timeout: timeout, once: once });
 			},
 			IoMessage::RemoveTimer { handler_id, token } => {

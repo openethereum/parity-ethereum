@@ -17,6 +17,7 @@
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use std::time::Duration;
 use hash::{keccak, write_keccak};
 use mio::{Token, Ready, PollOpt};
 use mio::deprecated::{Handler, EventLoop, TryRead, TryWrite};
@@ -37,7 +38,7 @@ use crypto;
 use network::{Error, ErrorKind};
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
-const RECIEVE_PAYLOAD_TIMEOUT: u64 = 30000;
+const RECEIVE_PAYLOAD: Duration = Duration::from_secs(30);
 pub const MAX_PAYLOAD_SIZE: usize = (1 << 24) - 1;
 
 pub trait GenericSocket : Read + Write {
@@ -447,7 +448,7 @@ impl EncryptedConnection {
 		if let EncryptedConnectionState::Header = self.read_state {
 			if let Some(data) = self.connection.readable()? {
 				self.read_header(&data)?;
-				io.register_timer(self.connection.token, RECIEVE_PAYLOAD_TIMEOUT)?;
+				io.register_timer(self.connection.token, RECEIVE_PAYLOAD)?;
 			}
 		};
 		if let EncryptedConnectionState::Payload = self.read_state {

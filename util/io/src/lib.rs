@@ -22,6 +22,7 @@
 //! extern crate ethcore_io;
 //! use ethcore_io::*;
 //! use std::sync::Arc;
+//! use std::time::Duration;
 //!
 //! struct MyHandler;
 //!
@@ -32,7 +33,7 @@
 //!
 //! impl IoHandler<MyMessage> for MyHandler {
 //! 	fn initialize(&self, io: &IoContext<MyMessage>) {
-//!			io.register_timer(0, 1000).unwrap();
+//!			io.register_timer(0, Duration::from_secs(1)).unwrap();
 //!		}
 //!
 //!		fn timeout(&self, _io: &IoContext<MyMessage>, timer: TimerToken) {
@@ -147,6 +148,7 @@ pub use service::TOKENS_PER_HANDLER;
 mod tests {
 
 	use std::sync::Arc;
+	use std::time::Duration;
 	use super::*;
 
 	struct MyHandler;
@@ -158,7 +160,7 @@ mod tests {
 
 	impl IoHandler<MyMessage> for MyHandler {
 		fn initialize(&self, io: &IoContext<MyMessage>) {
-			io.register_timer(0, 1000).unwrap();
+			io.register_timer(0, Duration::from_secs(1)).unwrap();
 		}
 
 		fn timeout(&self, _io: &IoContext<MyMessage>, timer: TimerToken) {

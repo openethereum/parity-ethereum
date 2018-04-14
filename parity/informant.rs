@@ -399,7 +399,7 @@ const INFO_TIMER: TimerToken = 0;
 
 impl<T: InformantData> IoHandler<ClientIoMessage> for Informant<T> {
 	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
-		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
+		io.register_timer(INFO_TIMER, Duration::from_secs(5)).expect("Error registering timer");
 	}
 
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {

@@ -22,7 +22,7 @@
 //! 3. Final verification against the blockchain done before enactment.
 
 use std::collections::HashSet;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
 use ethereum_types::H256;
@@ -284,11 +284,10 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) 
 	}
 
 	if is_full {
-		const ACCEPTABLE_DRIFT_SECS: u64 = 15;
-		let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
-		let max_time = now.as_secs() + ACCEPTABLE_DRIFT_SECS;
-		let invalid_threshold = max_time + ACCEPTABLE_DRIFT_SECS * 9;
-		let timestamp = header.timestamp();
+		const ACCEPTABLE_DRIFT: Duration = Duration::from_secs(15);
+		let max_time = SystemTime::now() + ACCEPTABLE_DRIFT;
+		let invalid_threshold = max_time + ACCEPTABLE_DRIFT * 9;
+		let timestamp = UNIX_EPOCH + Duration::from_secs(header.timestamp());
 
 		if timestamp > invalid_threshold {
 			return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: timestamp })))
@@ -310,7 +309,9 @@ fn verify_parent(header: &Header, parent: &Header, engine: &EthEngine) -> Result
 	let gas_limit_divisor = engine.params().gas_limit_bound_divisor;
 
 	if !engine.is_timestamp_valid(header.timestamp(), parent.timestamp()) {
-		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp() + 1), found: header.timestamp() })))
+		let min = SystemTime::now() + Duration::from_secs(parent.timestamp() + 1);
+		let found = SystemTime::now() + Duration::from_secs(header.timestamp());
+		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found })))
 	}
 	if header.number() != parent.number() + 1 {
 		return Err(From::from(BlockError::InvalidNumber(Mismatch { expected: parent.number() + 1, found: header.number() })));
@@ -679,8 +680,7 @@ mod tests {
 
 		header = good.clone();
 		header.set_timestamp(10);
-		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine, &bc),
-			InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp() + 1), found: header.timestamp() }));
+		check_fail_timestamp(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine, &bc), false);
 
 		header = good.clone();
 		header.set_timestamp(2450000000);
