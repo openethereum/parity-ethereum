@@ -74,7 +74,7 @@ impl TrustedClient {
 		let transaction = Transaction {
 			nonce: client.latest_nonce(&self.self_key_pair.address()),
 			action: Action::Call(contract),
-			gas: miner.gas_floor_target(),
+			gas: miner.authoring_params().gas_range_target.0,
 			gas_price: miner.sensible_gas_price(),
 			value: Default::default(),
 			data: tx_data,

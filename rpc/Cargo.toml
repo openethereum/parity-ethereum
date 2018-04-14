@@ -66,8 +66,9 @@ stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 
 [dev-dependencies]
-pretty_assertions = "0.1"
-macros = { path = "../util/macros" }
 ethcore-network = { path = "../util/network" }
-kvdb-memorydb = { path = "../util/kvdb-memorydb" }
 fake-fetch = { path = "../util/fake-fetch" }
+kvdb-memorydb = { path = "../util/kvdb-memorydb" }
+macros = { path = "../util/macros" }
+pretty_assertions = "0.1"
+transaction-pool = { path = "../transaction-pool" }

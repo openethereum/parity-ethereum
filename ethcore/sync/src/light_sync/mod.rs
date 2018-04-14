@@ -427,6 +427,8 @@ impl<L: AsLightClient> LightSync<L> {
 
 	// handles request dispatch, block import, state machine transitions, and timeouts.
 	fn maintain_sync(&self, ctx: &BasicContext) {
+		use ethcore::error::{BlockImportError, ImportError};
+
 		const DRAIN_AMOUNT: usize = 128;
 
 		let client = self.client.as_light_client();
@@ -453,11 +455,20 @@ impl<L: AsLightClient> LightSync<L> {
 				trace!(target: "sync", "Drained {} headers to import", sink.len());
 
 				for header in sink.drain(..) {
-					if let Err(e) = client.queue_header(header) {
-						debug!(target: "sync", "Found bad header ({:?}). Reset to search state.", e);
+					match client.queue_header(header) {
+						Ok(_) => {}
+						Err(BlockImportError::Import(ImportError::AlreadyInChain)) => {
+							trace!(target: "sync", "Block already in chain. Continuing.");
+						},
+						Err(BlockImportError::Import(ImportError::AlreadyQueued)) => {
+							trace!(target: "sync", "Block already queued. Continuing.");
+						},
+						Err(e) => {
+							debug!(target: "sync", "Found bad header ({:?}). Reset to search state.", e);
 
-						self.begin_search(&mut state);
-						break 'a;
+							self.begin_search(&mut state);
+							break 'a;
+						}
 					}
 				}
 			}

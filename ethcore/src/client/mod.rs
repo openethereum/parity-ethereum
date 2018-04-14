@@ -38,7 +38,7 @@ pub use self::traits::{
 };
 //pub use self::private_notify::PrivateNotify;
 pub use state::StateInfo;
-pub use self::traits::{BlockChainClient, MiningBlockChainClient, EngineClient, ProvingBlockChainClient};
+pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient};
 
 pub use types::ids::*;
 pub use types::trace_filter::Filter as TraceFilter;

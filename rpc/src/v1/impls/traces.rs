@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use ethcore::client::{MiningBlockChainClient, CallAnalytics, TransactionId, TraceId, StateClient, StateInfo, Call, BlockId};
+use ethcore::client::{BlockChainClient, CallAnalytics, TransactionId, TraceId, StateClient, StateInfo, Call, BlockId};
 use rlp::UntrustedRlp;
 use transaction::SignedTransaction;
 
@@ -53,7 +53,7 @@ impl<C> TracesClient<C> {
 
 impl<C, S> Traces for TracesClient<C> where
 	S: StateInfo + 'static,
-	C: MiningBlockChainClient + StateClient<State=S> + Call<State=S> + 'static
+	C: BlockChainClient + StateClient<State=S> + Call<State=S> + 'static
 {
 	type Metadata = Metadata;
 
