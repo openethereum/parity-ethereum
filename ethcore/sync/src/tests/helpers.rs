@@ -206,6 +206,7 @@ pub trait Peer {
 
 pub struct EthPeer<C> where C: FlushingBlockChainClient {
 	pub chain: Arc<C>,
+	pub miner: Arc<Miner>,
 	pub snapshot_service: Arc<TestSnapshotService>,
 	pub sync: RwLock<ChainSync>,
 	pub queue: RwLock<VecDeque<TestPacket>>,
@@ -340,6 +341,7 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 				sync: RwLock::new(sync),
 				snapshot_service: ss,
 				chain: Arc::new(chain),
+				miner: Arc::new(Miner::new_for_tests(&Spec::new_test(), None)),
 				queue: RwLock::new(VecDeque::new()),
 				private_tx_handler,
 				io_queue: RwLock::new(VecDeque::new()),
@@ -382,11 +384,12 @@ impl TestNet<EthPeer<EthcoreClient>> {
 
 	pub fn add_peer_with_private_config(&mut self, config: SyncConfig, spec: Spec, accounts: Option<Arc<AccountProvider>>) {
 		let channel = IoChannel::disconnected();
+		let miner = Arc::new(Miner::new_for_tests(&spec, accounts.clone()));
 		let client = EthcoreClient::new(
 			ClientConfig::default(),
 			&spec,
 			Arc::new(::kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
-			Arc::new(Miner::with_spec_and_accounts(&spec, accounts.clone())),
+			miner.clone(),
 			channel.clone()
 		).unwrap();
 
@@ -397,6 +400,7 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			sync: RwLock::new(sync),
 			snapshot_service: ss,
 			chain: client,
+			miner,
 			queue: RwLock::new(VecDeque::new()),
 			private_tx_handler,
 			io_queue: RwLock::new(VecDeque::new()),
@@ -408,11 +412,12 @@ impl TestNet<EthPeer<EthcoreClient>> {
 	}
 
 	pub fn add_peer(&mut self, config: SyncConfig, spec: Spec, accounts: Option<Arc<AccountProvider>>) {
+		let miner = Arc::new(Miner::new_for_tests(&spec, accounts));
 		let client = EthcoreClient::new(
 			ClientConfig::default(),
 			&spec,
 			Arc::new(::kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
-			Arc::new(Miner::with_spec_and_accounts(&spec, accounts)),
+			miner.clone(),
 			IoChannel::disconnected(),
 		).unwrap();
 
@@ -422,8 +427,9 @@ impl TestNet<EthPeer<EthcoreClient>> {
 		let peer = Arc::new(EthPeer {
 			sync: RwLock::new(sync),
 			snapshot_service: ss,
-			chain: client,
 			queue: RwLock::new(VecDeque::new()),
+			chain: client,
+			miner,
 			private_tx_handler,
 			io_queue: RwLock::new(VecDeque::new()),
 			new_blocks_queue: RwLock::new(VecDeque::new()),

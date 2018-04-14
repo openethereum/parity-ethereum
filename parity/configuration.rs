@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::cmp::{max, min};
 use std::time::Duration;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
+use std::cmp;
 use std::str::FromStr;
 use cli::{Args, ArgsError};
 use hash::keccak;
@@ -30,15 +30,15 @@ use ansi_term::Colour;
 use sync::{NetworkConfiguration, validate_node_url, self};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
-use ethcore::miner::{MinerOptions, Banning, StratumOptions};
+use ethcore::miner::{stratum, MinerOptions};
 use ethcore::verification::queue::VerifierSettings;
+use miner::pool;
 
 use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration, UiConfiguration};
 use rpc_apis::ApiSet;
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path,
-to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy, passwords_from_files};
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_queue_strategy, to_queue_penalization, passwords_from_files};
 use dir::helpers::{replace_home, replace_home_and_local};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
@@ -95,16 +95,14 @@ pub struct Execute {
 #[derive(Debug, PartialEq)]
 pub struct Configuration {
 	pub args: Args,
-	pub spec_name_override: Option<String>,
 }
 
 impl Configuration {
-	pub fn parse<S: AsRef<str>>(command: &[S], spec_name_override: Option<String>) -> Result<Self, ArgsError> {
+	pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
 		let args = Args::parse(command)?;
 
 		let config = Configuration {
 			args: args,
-			spec_name_override: spec_name_override,
 		};
 
 		Ok(config)
@@ -354,7 +352,6 @@ impl Configuration {
 				daemon: daemon,
 				logger_config: logger_config.clone(),
 				miner_options: self.miner_options()?,
-				work_notify: self.work_notify(),
 				gas_price_percentile: self.args.arg_gas_price_percentile,
 				ntp_servers: self.ntp_servers(),
 				ws_conf: ws_conf,
@@ -413,12 +410,14 @@ impl Configuration {
 	}
 
 	fn miner_extras(&self) -> Result<MinerExtras, String> {
+		let floor = to_u256(&self.args.arg_gas_floor_target)?;
+		let ceil = to_u256(&self.args.arg_gas_cap)?;
 		let extras = MinerExtras {
 			author: self.author()?,
 			extra_data: self.extra_data()?,
-			gas_floor_target: to_u256(&self.args.arg_gas_floor_target)?,
-			gas_ceil_target: to_u256(&self.args.arg_gas_cap)?,
+			gas_range_target: (floor, ceil),
 			engine_signer: self.engine_signer()?,
+			work_notify: self.work_notify(),
 		};
 
 		Ok(extras)
@@ -462,9 +461,7 @@ impl Configuration {
 	}
 
 	fn chain(&self) -> Result<SpecType, String> {
-		let name = if let Some(ref s) = self.spec_name_override {
-			s.clone()
-		} else if self.args.flag_testnet {
+		let name = if self.args.flag_testnet {
 			"testnet".to_owned()
 		} else {
 			self.args.arg_chain.clone()
@@ -475,7 +472,7 @@ impl Configuration {
 
 	fn max_peers(&self) -> u32 {
 		self.args.arg_max_peers
-			.or(max(self.args.arg_min_peers, Some(DEFAULT_MAX_PEERS)))
+			.or(cmp::max(self.args.arg_min_peers, Some(DEFAULT_MAX_PEERS)))
 			.unwrap_or(DEFAULT_MAX_PEERS) as u32
 	}
 
@@ -488,7 +485,7 @@ impl Configuration {
 
 	fn min_peers(&self) -> u32 {
 		self.args.arg_min_peers
-			.or(min(self.args.arg_max_peers, Some(DEFAULT_MIN_PEERS)))
+			.or(cmp::min(self.args.arg_max_peers, Some(DEFAULT_MIN_PEERS)))
 			.unwrap_or(DEFAULT_MIN_PEERS) as u32
 	}
 
@@ -518,9 +515,9 @@ impl Configuration {
 		Ok(cfg)
 	}
 
-	fn stratum_options(&self) -> Result<Option<StratumOptions>, String> {
+	fn stratum_options(&self) -> Result<Option<stratum::Options>, String> {
 		if self.args.flag_stratum {
-			Ok(Some(StratumOptions {
+			Ok(Some(stratum::Options {
 				io_path: self.directories().db,
 				listen_addr: self.stratum_interface(),
 				port: self.args.arg_ports_shift + self.args.arg_stratum_port,
@@ -542,34 +539,49 @@ impl Configuration {
 			reseal_on_external_tx: reseal.external,
 			reseal_on_own_tx: reseal.own,
 			reseal_on_uncle: self.args.flag_reseal_on_uncle,
+			reseal_min_period: Duration::from_millis(self.args.arg_reseal_min_period),
+			reseal_max_period: Duration::from_millis(self.args.arg_reseal_max_period),
+
+			pending_set: to_pending_set(&self.args.arg_relay_set)?,
+			work_queue_size: self.args.arg_work_queue_size,
+			enable_resubmission: !self.args.flag_remove_solved,
+			infinite_pending_block: self.args.flag_infinite_pending_block,
+
+			tx_queue_penalization: to_queue_penalization(self.args.arg_tx_time_limit)?,
+			tx_queue_strategy: to_queue_strategy(&self.args.arg_tx_queue_strategy)?,
+			refuse_service_transactions: self.args.flag_refuse_service_transactions,
+
+			pool_limits: self.pool_limits()?,
+			pool_verification_options: self.pool_verification_options()?,
+		};
+
+		Ok(options)
+	}
+
+	fn pool_limits(&self) -> Result<pool::Options, String> {
+		let max_count = self.args.arg_tx_queue_size;
+
+		Ok(pool::Options {
+			max_count,
+			max_per_sender: self.args.arg_tx_queue_per_sender.unwrap_or_else(|| cmp::max(16, max_count / 100)),
+			max_mem_usage: if self.args.arg_tx_queue_mem_limit > 0 {
+				self.args.arg_tx_queue_mem_limit as usize * 1024 * 1024
+			} else {
+				usize::max_value()
+			},
+		})
+	}
+
+	fn pool_verification_options(&self) -> Result<pool::verifier::Options, String>{
+		Ok(pool::verifier::Options {
+			// NOTE min_gas_price and block_gas_limit will be overwritten right after start.
+			minimal_gas_price: U256::from(20_000_000) * 1_000u32,
+			block_gas_limit: U256::max_value(),
 			tx_gas_limit: match self.args.arg_tx_gas_limit {
 				Some(ref d) => to_u256(d)?,
 				None => U256::max_value(),
 			},
-			tx_queue_size: self.args.arg_tx_queue_size,
-			tx_queue_memory_limit: if self.args.arg_tx_queue_mem_limit > 0 {
-				Some(self.args.arg_tx_queue_mem_limit as usize * 1024 * 1024)
-			} else { None },
-			tx_queue_gas_limit: to_gas_limit(&self.args.arg_tx_queue_gas)?,
-			tx_queue_strategy: to_queue_strategy(&self.args.arg_tx_queue_strategy)?,
-			pending_set: to_pending_set(&self.args.arg_relay_set)?,
-			reseal_min_period: Duration::from_millis(self.args.arg_reseal_min_period),
-			reseal_max_period: Duration::from_millis(self.args.arg_reseal_max_period),
-			work_queue_size: self.args.arg_work_queue_size,
-			enable_resubmission: !self.args.flag_remove_solved,
-			tx_queue_banning: match self.args.arg_tx_time_limit {
-				Some(limit) => Banning::Enabled {
-					min_offends: self.args.arg_tx_queue_ban_count,
-					offend_threshold: Duration::from_millis(limit),
-					ban_duration: Duration::from_secs(self.args.arg_tx_queue_ban_time as u64),
-				},
-				None => Banning::Disabled,
-			},
-			refuse_service_transactions: self.args.flag_refuse_service_transactions,
-			infinite_pending_block: self.args.flag_infinite_pending_block,
-		};
-
-		Ok(options)
+		})
 	}
 
 	fn ui_port(&self) -> u16 {
@@ -694,12 +706,7 @@ impl Configuration {
 
 		let usd_per_tx = to_price(&self.args.arg_usd_per_tx)?;
 		if "auto" == self.args.arg_usd_per_eth.as_str() {
-			// Just a very rough estimate to avoid accepting
-			// ZGP transactions before the price is fetched
-			// if user does not want it.
-			let last_known_usd_per_eth = 10.0;
 			return Ok(GasPricerConfig::Calibrated {
-				initial_minimum: wei_per_gas(usd_per_tx, last_known_usd_per_eth),
 				usd_per_tx: usd_per_tx,
 				recalibration_period: to_duration(self.args.arg_price_update_period.as_str())?,
 			});
@@ -1237,7 +1244,7 @@ mod tests {
 	use tempdir::TempDir;
 	use ethcore::client::{VMType, BlockId};
 	use ethcore::miner::MinerOptions;
-	use miner::transaction_queue::PrioritizationStrategy;
+	use miner::pool::PrioritizationStrategy;
 	use parity_rpc::NetworkSettings;
 	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 
@@ -1264,7 +1271,6 @@ mod tests {
 	fn parse(args: &[&str]) -> Configuration {
 		Configuration {
 			args: Args::parse_without_config(args).unwrap(),
-			spec_name_override: None,
 		}
 	}
 
@@ -1531,7 +1537,6 @@ mod tests {
 			no_hardcoded_sync: false,
 			no_persistent_txqueue: false,
 			whisper: Default::default(),
-			work_notify: Vec::new(),
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");
@@ -1545,18 +1550,12 @@ mod tests {
 
 		// when
 		let conf0 = parse(&["parity"]);
-		let conf1 = parse(&["parity", "--tx-queue-strategy", "gas_factor"]);
 		let conf2 = parse(&["parity", "--tx-queue-strategy", "gas_price"]);
-		let conf3 = parse(&["parity", "--tx-queue-strategy", "gas"]);
 
 		// then
 		assert_eq!(conf0.miner_options().unwrap(), mining_options);
-		mining_options.tx_queue_strategy = PrioritizationStrategy::GasFactorAndGasPrice;
-		assert_eq!(conf1.miner_options().unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasPriceOnly;
 		assert_eq!(conf2.miner_options().unwrap(), mining_options);
-		mining_options.tx_queue_strategy = PrioritizationStrategy::GasAndGasPrice;
-		assert_eq!(conf3.miner_options().unwrap(), mining_options);
 	}
 
 	#[test]
@@ -1844,7 +1843,7 @@ mod tests {
 		let filename = tempdir.path().join("peers");
 		File::create(&filename).unwrap().write_all(b"  \n\t\n").unwrap();
 		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
 	}
 
@@ -1854,7 +1853,7 @@ mod tests {
 		let filename = tempdir.path().join("peers_comments");
 		File::create(&filename).unwrap().write_all(b"# Sample comment\nenode://6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@172.0.0.1:30303\n").unwrap();
 		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		let reserved_nodes = conf.init_reserved_nodes();
 		assert!(reserved_nodes.is_ok());
 		assert_eq!(reserved_nodes.unwrap().len(), 1);
@@ -1863,7 +1862,7 @@ mod tests {
 	#[test]
 	fn test_dev_preset() {
 		let args = vec!["parity", "--config", "dev"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_settings.chain, "dev");
@@ -1877,7 +1876,7 @@ mod tests {
 	#[test]
 	fn test_mining_preset() {
 		let args = vec!["parity", "--config", "mining"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 50);
@@ -1888,8 +1887,8 @@ mod tests {
 				assert_eq!(c.miner_options.reseal_on_external_tx, true);
 				assert_eq!(c.miner_options.reseal_on_own_tx, true);
 				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(4000));
-				assert_eq!(c.miner_options.tx_queue_size, 2048);
-				assert_eq!(c.cache_config, CacheConfig::new_with_total_cache_size(256));
+				assert_eq!(c.miner_options.pool_limits.max_count, 8192);
+				assert_eq!(c.cache_config, CacheConfig::new_with_total_cache_size(1024));
 				assert_eq!(c.logger_config.mode.unwrap(), "miner=trace,own_tx=trace");
 			},
 			_ => panic!("Should be Cmd::Run"),
@@ -1899,7 +1898,7 @@ mod tests {
 	#[test]
 	fn test_non_standard_ports_preset() {
 		let args = vec!["parity", "--config", "non-standard-ports"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_settings.network_port, 30305);
@@ -1912,7 +1911,7 @@ mod tests {
 	#[test]
 	fn test_insecure_preset() {
 		let args = vec!["parity", "--config", "insecure"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.update_policy.require_consensus, false);
@@ -1932,7 +1931,7 @@ mod tests {
 	#[test]
 	fn test_dev_insecure_preset() {
 		let args = vec!["parity", "--config", "dev-insecure"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_settings.chain, "dev");
@@ -1955,7 +1954,7 @@ mod tests {
 	#[test]
 	fn test_override_preset() {
 		let args = vec!["parity", "--config", "mining", "--min-peers=99"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 99);
@@ -2078,7 +2077,7 @@ mod tests {
 	#[test]
 	fn should_respect_only_max_peers_and_default() {
 		let args = vec!["parity", "--max-peers=50"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 25);
@@ -2091,7 +2090,7 @@ mod tests {
 	#[test]
 	fn should_respect_only_max_peers_less_than_default() {
 		let args = vec!["parity", "--max-peers=5"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 5);
@@ -2104,7 +2103,7 @@ mod tests {
 	#[test]
 	fn should_respect_only_min_peers_and_default() {
 		let args = vec!["parity", "--min-peers=5"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 5);
@@ -2117,7 +2116,7 @@ mod tests {
 	#[test]
 	fn should_respect_only_min_peers_and_greater_than_default() {
 		let args = vec!["parity", "--min-peers=500"];
-		let conf = Configuration::parse(&args, None).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_conf.min_peers, 500);

@@ -48,7 +48,7 @@ use error::Error;
 use header::{Header, BlockNumber};
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
-use transaction::{UnverifiedTransaction, SignedTransaction};
+use transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::Signature;
 use parity_machine::{Machine, LocalizedMachine as Localized};
@@ -387,14 +387,28 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	}
 
 	/// Verify a particular transaction is valid.
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, Error> {
+	///
+	/// Unordered verification doesn't rely on the transaction execution order,
+	/// i.e. it should only verify stuff that doesn't assume any previous transactions
+	/// has already been verified and executed.
+	///
+	/// NOTE This function consumes an `UnverifiedTransaction` and produces `SignedTransaction`
+	/// which implies that a heavy check of the signature is performed here.
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
 		self.machine().verify_transaction_unordered(t, header)
 	}
 
-	/// Additional verification for transactions in blocks.
-	// TODO: Add flags for which bits of the transaction to check.
-	// TODO: consider including State in the params.
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
+	/// Perform basic/cheap transaction verification.
+	///
+	/// This should include all cheap checks that can be done before
+	/// actually checking the signature, like chain-replay protection.
+	///
+	/// NOTE This is done before the signature is recovered so avoid
+	/// doing any state-touching checks that might be expensive.
+	///
+	/// TODO: Add flags for which bits of the transaction to check.
+	/// TODO: consider including State in the params.
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
 		self.machine().verify_transaction_basic(t, header)
 	}
 

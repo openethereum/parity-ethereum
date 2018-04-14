@@ -91,8 +91,6 @@ pub struct ServiceConfiguration {
 	pub service_contract_doc_sretr_address: Option<ContractAddress>,
 	/// Is ACL check enabled. If false, everyone has access to all keys. Useful for tests only.
 	pub acl_check_enabled: bool,
-	/// Data directory path for secret store
-	pub data_path: String,
 	/// Cluster configuration.
 	pub cluster_config: ClusterConfiguration,
 }

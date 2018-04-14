@@ -17,173 +17,87 @@
 #![warn(missing_docs)]
 
 //! Miner module
-//! Keeps track of transactions and mined block.
-//!
-//! Usage example:
-//!
-//! ```rust
-//! extern crate ethcore;
-//! use std::env;
-//! use ethcore::ethereum;
-//! use ethcore::client::{Client, ClientConfig};
-//! use ethcore::miner::{Miner, MinerService};
-//!
-//! fn main() {
-//!		let miner: Miner = Miner::with_spec(&ethereum::new_foundation(&env::temp_dir()));
-//!		// get status
-//!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
-//!
-//!		// Check block for sealing
-//!		//assert!(miner.sealing_block(&*client).lock().is_some());
-//! }
-//! ```
+//! Keeps track of transactions and currently sealed pending block.
 
 mod miner;
-mod stratum;
 mod service_transaction_checker;
 
-pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
-pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOptions};
+pub mod pool_client;
+pub mod stratum;
 
-pub use ethcore_miner::local_transactions::Status as LocalTransactionStatus;
+pub use self::miner::{Miner, MinerOptions, Penalization, PendingSet, AuthoringParams};
 
+use std::sync::Arc;
 use std::collections::BTreeMap;
 
-use block::{ClosedBlock, Block};
 use bytes::Bytes;
-use client::{
-	MiningBlockChainClient, CallContract, RegistryInfo, ScheduleInfo,
-	BlockChain, AccountData, BlockProducer, SealedBlockImporter
-};
-use error::{Error};
 use ethereum_types::{H256, U256, Address};
+use ethcore_miner::pool::{VerifiedTransaction, QueueStatus, local_transactions};
+
+use block::{Block, SealedBlock};
+use client::{
+	CallContract, RegistryInfo, ScheduleInfo,
+	BlockChain, BlockProducer, SealedBlockImporter, ChainInfo,
+	AccountData, Nonce,
+};
+use error::Error;
 use header::{BlockNumber, Header};
 use receipt::{RichReceipt, Receipt};
-use transaction::{UnverifiedTransaction, PendingTransaction, ImportResult as TransactionImportResult};
+use transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use state::StateInfo;
+
+/// Provides methods to verify incoming external transactions
+pub trait TransactionVerifierClient: Send + Sync
+	// Required for ServiceTransactionChecker
+	+ CallContract + RegistryInfo
+	// Required for verifiying transactions
+	+ BlockChain + ScheduleInfo + AccountData
+{}
+
+/// Extended client interface used for mining
+pub trait BlockChainClient: TransactionVerifierClient + BlockProducer + SealedBlockImporter {}
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
 	/// Type representing chain state
 	type State: StateInfo + 'static;
 
-	/// Returns miner's status.
-	fn status(&self) -> MinerStatus;
-
-	/// Get the author that we will seal blocks as.
-	fn author(&self) -> Address;
-
-	/// Set the author that we will seal blocks as.
-	fn set_author(&self, author: Address);
-
-	/// Set info necessary to sign consensus messages.
-	fn set_engine_signer(&self, address: Address, password: String) -> Result<(), ::account_provider::SignError>;
-
-	/// Get the extra_data that we will seal blocks with.
-	fn extra_data(&self) -> Bytes;
-
-	/// Set the extra_data that we will seal blocks with.
-	fn set_extra_data(&self, extra_data: Bytes);
-
-	/// Get current minimal gas price for transactions accepted to queue.
-	fn minimal_gas_price(&self) -> U256;
-
-	/// Set minimal gas price of transaction to be accepted for mining.
-	fn set_minimal_gas_price(&self, min_gas_price: U256);
-
-	/// Get the lower bound of the gas limit we wish to target when sealing a new block.
-	fn gas_floor_target(&self) -> U256;
-
-	/// Get the upper bound of the gas limit we wish to target when sealing a new block.
-	fn gas_ceil_target(&self) -> U256;
-
-	// TODO: coalesce into single set_range function.
-	/// Set the lower bound of gas limit we wish to target when sealing a new block.
-	fn set_gas_floor_target(&self, target: U256);
-
-	/// Set the upper bound of gas limit we wish to target when sealing a new block.
-	fn set_gas_ceil_target(&self, target: U256);
-
-	/// Get current transactions limit in queue.
-	fn transactions_limit(&self) -> usize;
-
-	/// Set maximal number of transactions kept in the queue (both current and future).
-	fn set_transactions_limit(&self, limit: usize);
-
-	/// Set maximum amount of gas allowed for any single transaction to mine.
-	fn set_tx_gas_limit(&self, limit: U256);
-
-	/// Imports transactions to transaction queue.
-	fn import_external_transactions<C: MiningBlockChainClient>(&self, client: &C, transactions: Vec<UnverifiedTransaction>) ->
-		Vec<Result<TransactionImportResult, Error>>;
-
-	/// Imports own (node owner) transaction to queue.
-	fn import_own_transaction<C: MiningBlockChainClient>(&self, chain: &C, transaction: PendingTransaction) ->
-		Result<TransactionImportResult, Error>;
-
-	/// Returns hashes of transactions currently in pending
-	fn pending_transactions_hashes(&self, best_block: BlockNumber) -> Vec<H256>;
-
-	/// Removes all transactions from the queue and restart mining operation.
-	fn clear_and_reset<C: MiningBlockChainClient>(&self, chain: &C);
-
-	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256])
-		where C: AccountData + BlockChain + CallContract + RegistryInfo + BlockProducer + ScheduleInfo + SealedBlockImporter;
-
-	/// PoW chain - can produce work package
-	fn can_produce_work_package(&self) -> bool;
-
-	/// New chain head event. Restart mining operation.
-	fn update_sealing<C>(&self, chain: &C)
-		where C: AccountData + BlockChain + RegistryInfo + CallContract + BlockProducer + SealedBlockImporter;
+	// Sealing
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal<C: SealedBlockImporter>(&self, chain: &C, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
-
-	/// Get the sealing work package and if `Some`, apply some transform.
-	fn map_sealing_work<C, F, T>(&self, client: &C, f: F) -> Option<T>
-		where C: AccountData + BlockChain + BlockProducer + CallContract,
-		      F: FnOnce(&ClosedBlock) -> T,
-		      Self: Sized;
-
-	/// Query pending transactions for hash.
-	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<PendingTransaction>;
-
-	/// Removes transaction from the queue.
-	/// NOTE: The transaction is not removed from pending block if mining.
-	fn remove_pending_transaction<C: AccountData>(&self, chain: &C, hash: &H256) -> Option<PendingTransaction>;
-
-	/// Get a list of all pending transactions in the queue.
-	fn pending_transactions(&self) -> Vec<PendingTransaction>;
-
-	/// Get a list of all transactions that can go into the given block.
-	fn ready_transactions(&self, best_block: BlockNumber, best_block_timestamp: u64) -> Vec<PendingTransaction>;
-
-	/// Get a list of all future transactions.
-	fn future_transactions(&self) -> Vec<PendingTransaction>;
-
-	/// Get a list of local transactions with statuses.
-	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus>;
-
-	/// Get a list of all pending receipts.
-	fn pending_receipts(&self, best_block: BlockNumber) -> BTreeMap<H256, Receipt>;
-
-	/// Get a particular reciept.
-	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt>;
-
-	/// Returns highest transaction nonce for given address.
-	fn last_nonce(&self, address: &Address) -> Option<U256>;
+	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<SealedBlock, Error>;
 
 	/// Is it currently sealing?
 	fn is_currently_sealing(&self) -> bool;
 
-	/// Suggested gas price.
-	fn sensible_gas_price(&self) -> U256;
+	/// Get the sealing work package preparing it if doesn't exist yet.
+	///
+	/// Returns `None` if engine seals internally.
+	fn work_package<C>(&self, chain: &C) -> Option<(H256, BlockNumber, u64, U256)>
+		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync;
 
-	/// Suggested gas limit.
-	fn sensible_gas_limit(&self) -> U256 { 21000.into() }
+	/// Update current pending block
+	fn update_sealing<C>(&self, chain: &C)
+		where C: BlockChain + CallContract + BlockProducer + SealedBlockImporter + Nonce + Sync;
+
+
+	// Notifications
+
+	/// Called when blocks are imported to chain, updates transactions queue.
+	/// `is_internal_import` indicates that the block has just been created in miner and internally sealed by the engine,
+	/// so we shouldn't attempt creating new block again.
+	fn chain_new_blocks<C>(&self, chain: &C, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256], is_internal_import: bool)
+		where C: BlockChainClient;
+
+
+	// Pending block
+
+	/// Get a list of all pending receipts from pending block.
+	fn pending_receipts(&self, best_block: BlockNumber) -> Option<BTreeMap<H256, Receipt>>;
+
+	/// Get a particular receipt from pending block.
+	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt>;
 
 	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
 	fn pending_state(&self, latest_block_number: BlockNumber) -> Option<Self::State>;
@@ -193,15 +107,79 @@ pub trait MinerService : Send + Sync {
 
 	/// Get `Some` `clone()` of the current pending block or `None` if we're not sealing.
 	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block>;
-}
 
-/// Mining status
-#[derive(Debug)]
-pub struct MinerStatus {
-	/// Number of transactions in queue with state `pending` (ready to be included in block)
-	pub transactions_in_pending_queue: usize,
-	/// Number of transactions in queue with state `future` (not yet ready to be included in block)
-	pub transactions_in_future_queue: usize,
-	/// Number of transactions included in currently mined block
-	pub transactions_in_pending_block: usize,
+	/// Get `Some` `clone()` of the current pending block transactions or `None` if we're not sealing.
+	fn pending_transactions(&self, latest_block_number: BlockNumber) -> Option<Vec<SignedTransaction>>;
+
+	// Block authoring
+
+	/// Get current authoring parameters.
+	fn authoring_params(&self) -> AuthoringParams;
+
+	/// Set the lower and upper bound of gas limit we wish to target when sealing a new block.
+	fn set_gas_range_target(&self, gas_range_target: (U256, U256));
+
+	/// Set the extra_data that we will seal blocks with.
+	fn set_extra_data(&self, extra_data: Bytes);
+
+	/// Set info necessary to sign consensus messages and block authoring.
+	///
+	/// On PoW password is optional.
+	fn set_author(&self, address: Address, password: Option<String>) -> Result<(), ::account_provider::SignError>;
+
+	// Transaction Pool
+
+	/// Imports transactions to transaction queue.
+	fn import_external_transactions<C>(&self, client: &C, transactions: Vec<UnverifiedTransaction>)
+		-> Vec<Result<(), transaction::Error>>
+		where C: BlockChainClient;
+
+	/// Imports own (node owner) transaction to queue.
+	fn import_own_transaction<C>(&self, chain: &C, transaction: PendingTransaction)
+		-> Result<(), transaction::Error>
+		where C: BlockChainClient;
+
+	/// Removes transaction from the pool.
+	///
+	/// Attempts to "cancel" a transaction. If it was not propagated yet (or not accepted by other peers)
+	/// there is a good chance that the transaction will actually be removed.
+	/// NOTE: The transaction is not removed from pending block if there is one.
+	fn remove_transaction(&self, hash: &H256) -> Option<Arc<VerifiedTransaction>>;
+
+	/// Query transaction from the pool given it's hash.
+	fn transaction(&self, hash: &H256) -> Option<Arc<VerifiedTransaction>>;
+
+	/// Returns next valid nonce for given address.
+	///
+	/// This includes nonces of all transactions from this address in the pending queue
+	/// if they are consecutive.
+	/// NOTE: pool may contain some future transactions that will become pending after
+	/// transaction with nonce returned from this function is signed on.
+	fn next_nonce<C>(&self, chain: &C, address: &Address) -> U256
+		where C: Nonce + Sync;
+
+	/// Get a list of all ready transactions.
+	///
+	/// Depending on the settings may look in transaction pool or only in pending block.
+	fn ready_transactions<C>(&self, chain: &C) -> Vec<Arc<VerifiedTransaction>>
+		where C: ChainInfo + Nonce + Sync;
+
+	/// Get a list of all transactions in the pool (some of them might not be ready for inclusion yet).
+	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
+
+	/// Get a list of local transactions with statuses.
+	fn local_transactions(&self) -> BTreeMap<H256, local_transactions::Status>;
+
+	/// Get current queue status.
+	///
+	/// Status includes verification thresholds and current pool utilization and limits.
+	fn queue_status(&self) -> QueueStatus;
+
+	// Misc
+
+	/// Suggested gas price.
+	fn sensible_gas_price(&self) -> U256;
+
+	/// Suggested gas limit.
+	fn sensible_gas_limit(&self) -> U256;
 }

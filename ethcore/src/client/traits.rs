@@ -15,28 +15,30 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
+
 use itertools::Itertools;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use blockchain::TreeRoute;
 use encoded;
 use vm::LastHashes;
-use error::{ImportResult, CallError, Error as EthcoreError, BlockImportError};
+use error::{ImportResult, CallError, BlockImportError};
 use evm::Schedule;
-use factory::VmFactory;
 use executive::Executed;
 use filter::Filter;
 use header::{BlockNumber};
 use log_entry::LocalizedLogEntry;
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
-use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction, ImportResult as TransactionImportResult};
+use transaction::{self, LocalizedTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 use state::StateInfo;
 use header::Header;
 use engines::EthEngine;
 
 use ethereum_types::{H256, U256, Address};
+use ethcore_miner::pool::VerifiedTransaction;
 use bytes::Bytes;
 use hashdb::DBValue;
 
@@ -315,7 +317,7 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	fn queue_consensus_message(&self, message: Bytes);
 
 	/// List all transactions that are allowed into the next block.
-	fn ready_transactions(&self) -> Vec<PendingTransaction>;
+	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
 
 	/// Sorted list of transaction gas prices from at least last sample_size blocks.
 	fn gas_price_corpus(&self, sample_size: usize) -> ::stats::Corpus<U256> {
@@ -366,8 +368,8 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// Returns information about pruning/data availability.
 	fn pruning_info(&self) -> PruningInfo;
 
-	/// Import a transaction: used for misbehaviour reporting.
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError>;
+	/// Schedule state-altering transaction to be executed on the next pending block.
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error>;
 
 	/// Get the address of the registry itself.
 	fn registrar_address(&self) -> Option<Address>;
@@ -415,12 +417,6 @@ pub trait BroadcastProposalBlock {
 
 /// Provides methods to import sealed block and broadcast a block proposal
 pub trait SealedBlockImporter: ImportSealedBlock + BroadcastProposalBlock {}
-
-/// Extended client interface used for mining
-pub trait MiningBlockChainClient: BlockChainClient + BlockProducer + ScheduleInfo + SealedBlockImporter {
-	/// Returns EvmFactory.
-	fn vm_factory(&self) -> &VmFactory;
-}
 
 /// Client facilities used by internally sealing Engines.
 pub trait EngineClient: Sync + Send + ChainInfo {

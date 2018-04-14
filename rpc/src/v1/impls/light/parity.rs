@@ -275,6 +275,21 @@ impl Parity for ParityClient {
 		)
 	}
 
+	fn all_transactions(&self) -> Result<Vec<Transaction>> {
+		let txq = self.light_dispatch.transaction_queue.read();
+		let chain_info = self.light_dispatch.client.chain_info();
+
+		let current = txq.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
+		let future = txq.future_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
+		Ok(
+			current
+				.into_iter()
+				.chain(future.into_iter())
+				.map(|tx| Transaction::from_pending(tx, chain_info.best_block_number, self.eip86_transition))
+				.collect::<Vec<_>>()
+		)
+	}
+
 	fn future_transactions(&self) -> Result<Vec<Transaction>> {
 		let txq = self.light_dispatch.transaction_queue.read();
 		let chain_info = self.light_dispatch.client.chain_info();

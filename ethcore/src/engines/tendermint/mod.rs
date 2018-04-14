@@ -27,7 +27,7 @@ mod params;
 
 use std::sync::{Weak, Arc};
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-use std::collections::{HashSet, BTreeMap};
+use std::collections::HashSet;
 use hash::keccak;
 use ethereum_types::{H256, H520, U128, U256, Address};
 use parking_lot::RwLock;
@@ -37,7 +37,7 @@ use bytes::Bytes;
 use error::{Error, BlockError};
 use header::{Header, BlockNumber};
 use rlp::UntrustedRlp;
-use ethkey::{Message, public_to_address, recover, Signature};
+use ethkey::{self, Message, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
@@ -449,17 +449,6 @@ impl Engine<EthereumMachine> for Tendermint {
 
 	fn maximum_uncle_age(&self) -> usize { 0 }
 
-	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
-		let message = ConsensusMessage::new_proposal(header).expect("Invalid header.");
-		map![
-			"signature".into() => message.signature.to_string(),
-			"height".into() => message.vote_step.height.to_string(),
-			"view".into() => message.vote_step.view.to_string(),
-			"block_hash".into() => message.block_hash.as_ref().map(ToString::to_string).unwrap_or("".into())
-		]
-	}
-
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - view
 		let new_difficulty = U256::from(U128::max_value())
@@ -518,8 +507,8 @@ impl Engine<EthereumMachine> for Tendermint {
 		let message: ConsensusMessage = rlp.as_val().map_err(fmt_err)?;
 		if !self.votes.is_old_or_known(&message) {
 			let msg_hash = keccak(rlp.at(1).map_err(fmt_err)?.as_raw());
-			let sender = public_to_address(
-				&recover(&message.signature.into(), &msg_hash).map_err(fmt_err)?
+			let sender = ethkey::public_to_address(
+				&ethkey::recover(&message.signature.into(), &msg_hash).map_err(fmt_err)?
 			);
 
 			if !self.is_authority(&sender) {
@@ -614,7 +603,7 @@ impl Engine<EthereumMachine> for Tendermint {
 				};
 				let address = match self.votes.get(&precommit) {
 					Some(a) => a,
-					None => public_to_address(&recover(&precommit.signature.into(), &precommit_hash)?),
+					None => ethkey::public_to_address(&ethkey::recover(&precommit.signature.into(), &precommit_hash)?),
 				};
 				if !self.validators.contains(header.parent_hash(), &address) {
 					return Err(EngineError::NotAuthorized(address.to_owned()).into());
@@ -669,7 +658,7 @@ impl Engine<EthereumMachine> for Tendermint {
 				let verifier = Box::new(EpochVerifier {
 					subchain_validators: list,
 					recover: |signature: &Signature, message: &Message| {
-						Ok(public_to_address(&::ethkey::recover(&signature, &message)?))
+						Ok(ethkey::public_to_address(&ethkey::recover(&signature, &message)?))
 					},
 				});
 
@@ -690,7 +679,7 @@ impl Engine<EthereumMachine> for Tendermint {
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		self.signer.read().sign(hash).map_err(Into::into)
+		Ok(self.signer.read().sign(hash)?)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
@@ -1026,7 +1015,7 @@ mod tests {
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_test_tendermint, Some(tap.clone()));
 		let engine = client.engine();
 
-		client.miner().set_engine_signer(v1.clone(), "1".into()).unwrap();
+		client.miner().set_author(v1.clone(), Some("1".into())).unwrap();
 
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());

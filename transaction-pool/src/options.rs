@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 /// Transaction Pool options.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Options {
 	/// Maximal number of transactions in the pool.
 	pub max_count: usize,

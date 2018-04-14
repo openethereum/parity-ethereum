@@ -76,6 +76,8 @@ extern crate error_chain;
 #[macro_use]
 extern crate log;
 
+extern crate trace_time;
+
 #[cfg(test)]
 mod tests;
 
@@ -90,6 +92,7 @@ mod verifier;
 
 pub mod scoring;
 
+pub use self::error::{Error, ErrorKind};
 pub use self::listener::{Listener, NoopListener};
 pub use self::options::Options;
 pub use self::pool::{Pool, PendingIterator};

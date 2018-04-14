@@ -377,7 +377,7 @@ impl UnverifiedTransaction {
 		}
 	}
 
-	/// Get the hash of this header (keccak of the RLP).
+	/// Get the hash of this transaction (keccak of the RLP).
 	pub fn hash(&self) -> H256 {
 		self.hash
 	}

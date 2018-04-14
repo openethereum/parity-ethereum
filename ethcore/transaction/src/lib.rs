@@ -33,14 +33,3 @@ mod transaction;
 
 pub use error::Error;
 pub use transaction::*;
-
-// TODO [ToDr] Move to miner!
-
-/// Represents the result of importing transaction.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ImportResult {
-	/// Transaction was imported to current queue.
-	Current,
-	/// Transaction was imported to future queue.
-	Future
-}
