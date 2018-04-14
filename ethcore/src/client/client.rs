@@ -532,8 +532,9 @@ impl Importer {
 		);
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
-		let is_new_best = client.engine.is_new_best(block_data, &chain.best_block_total_difficulty(), chain.deref().deref());
-		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), is_new_best);
+		let block_metadata = client.engine.generate_metadata(block_data, chain.deref().deref());
+		let is_new_best = client.engine.is_new_best(block_data, &block_metadata, &chain.best_block_total_difficulty(), chain.deref().deref());
+		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), block_metadata, is_new_best);
 
 		client.tracedb.read().import(&mut batch, TraceImportRequest {
 			traces: traces.into(),
@@ -2247,6 +2248,7 @@ mod tests {
 		use std::sync::Arc;
 		use std::sync::atomic::{AtomicBool, Ordering};
 		use kvdb::DBTransaction;
+		use ethereum_types::U256;
 
 		let client = generate_dummy_client(0);
 		let genesis = client.chain_info().best_block_hash;
@@ -2259,7 +2261,7 @@ mod tests {
 			let another_client = client.clone();
 			thread::spawn(move || {
 				let mut batch = DBTransaction::new();
-				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new(), true);
+				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new(), U256::zero(), true);
 				go_thread.store(true, Ordering::SeqCst);
 			});
 			go

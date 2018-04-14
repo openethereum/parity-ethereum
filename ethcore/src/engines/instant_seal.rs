@@ -33,7 +33,8 @@ impl<M> InstantSeal<M> {
 }
 
 impl<M: Machine> Engine<M> for InstantSeal<M>
-	where M::LiveBlock: Transactions
+	where M::LiveBlock: Transactions,
+		M::BlockMetadata: Default
 {
 	fn name(&self) -> &str {
 		"InstantSeal"
@@ -62,7 +63,11 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 		header_timestamp >= parent_timestamp
 	}
 
-	fn is_new_best(&self, _bytes: &[u8], _best_block_metadata: &M::BlockMetadata, _provider: &M::BlockProvider) -> bool {
+	fn generate_metadata(&self, _bytes: &[u8], _provider: &M::BlockProvider) -> M::BlockMetadata {
+		M::BlockMetadata::default()
+	}
+
+	fn is_new_best(&self, _bytes: &[u8], _block_metadata: &M::BlockMetadata, _best_block_metadata: &M::BlockMetadata, _provider: &M::BlockProvider) -> bool {
 		true
 	}
 }

@@ -341,18 +341,26 @@ pub trait Engine<M: Machine>: Sync + Send {
 		header_timestamp > parent_timestamp
 	}
 
+	/// Generate metadata for a new block.
+	fn generate_metadata(&self, bytes: &[u8], provider: &M::BlockProvider) -> M::BlockMetadata;
+
 	/// Check whether a given block is the best block.
-	fn is_new_best(&self, bytes: &[u8], best_block_metadata: &M::BlockMetadata, provider: &M::BlockProvider) -> bool;
+	fn is_new_best(&self, bytes: &[u8], block_metadata: &M::BlockMetadata, best_block_metadata: &M::BlockMetadata, provider: &M::BlockProvider) -> bool;
 }
 
-/// Check whether a given block is the best block based on the default total difficulty rule.
-pub fn total_difficulty_is_new_best(bytes: &[u8], best_block_total_difficulty: U256, provider: &BlockProvider) -> bool {
+/// Generate metadata for a new block based on the default total difficulty rule.
+pub fn total_difficulty_generate_metadata(bytes: &[u8], provider: &BlockProvider) -> U256 {
 	let block = BlockView::new(bytes);
 	let header = block.header_view();
 	let parent_hash = header.parent_hash();
 	let parent_details = provider.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 
-	parent_details.total_difficulty + header.difficulty() > best_block_total_difficulty
+	parent_details.total_difficulty + header.difficulty()
+}
+
+/// Check whether a given block is the best block based on the default total difficulty rule.
+pub fn total_difficulty_is_new_best(_bytes: &[u8], block_total_difficulty: U256, best_block_total_difficulty: U256, _provider: &BlockProvider) -> bool {
+	block_total_difficulty > best_block_total_difficulty
 }
 
 /// Common type alias for an engine coupled with an Ethereum-like state machine.

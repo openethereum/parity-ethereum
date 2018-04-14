@@ -56,7 +56,9 @@ impl<M: Default> Default for NullEngine<M> {
 	}
 }
 
-impl<M: WithBalances> Engine<M> for NullEngine<M> {
+impl<M: WithBalances> Engine<M> for NullEngine<M>
+	where M::BlockMetadata: Default
+{
 	fn name(&self) -> &str {
 		"NullEngine"
 	}
@@ -106,7 +108,11 @@ impl<M: WithBalances> Engine<M> for NullEngine<M> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
 	}
 
-	fn is_new_best(&self, _bytes: &[u8], _best_block_metadata: &M::BlockMetadata, _provider: &M::BlockProvider) -> bool {
+	fn generate_metadata(&self, _bytes: &[u8], _provider: &M::BlockProvider) -> M::BlockMetadata {
+		M::BlockMetadata::default()
+	}
+
+	fn is_new_best(&self, _bytes: &[u8], _block_metadata: &M::BlockMetadata, _best_block_metadata: &M::BlockMetadata, _provider: &M::BlockProvider) -> bool {
 		true
 	}
 }

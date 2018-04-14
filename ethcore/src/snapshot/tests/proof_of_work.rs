@@ -48,8 +48,10 @@ fn chunk_and_restore(amount: u64) {
 
 	// build the blockchain.
 	let mut batch = DBTransaction::new();
+	let mut total_difficulty = *genesis.header.difficulty();
 	for block in generator {
-		bc.insert_block(&mut batch, &block.encoded(), vec![], true);
+		total_difficulty = total_difficulty + *block.header.difficulty();
+		bc.insert_block(&mut batch, &block.encoded(), vec![], total_difficulty, true);
 		bc.commit();
 	}
 
