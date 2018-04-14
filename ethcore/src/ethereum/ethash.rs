@@ -365,6 +365,10 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
+
+	fn is_new_best(&self, bytes: &[u8], best_block_metadata: &<EthereumMachine as ::parity_machine::Machine>::BlockMetadata, provider: &<EthereumMachine as ::parity_machine::Machine>::BlockProvider) -> bool {
+		engines::total_difficulty_is_new_best(bytes, *best_block_metadata, provider)
+	}
 }
 
 impl Ethash {

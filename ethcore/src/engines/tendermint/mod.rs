@@ -769,6 +769,10 @@ impl Engine<EthereumMachine> for Tendermint {
 		*self.client.write() = Some(client.clone());
 		self.validators.register_client(client);
 	}
+
+	fn is_new_best(&self, bytes: &[u8], best_block_metadata: &<EthereumMachine as ::parity_machine::Machine>::BlockMetadata, provider: &<EthereumMachine as ::parity_machine::Machine>::BlockProvider) -> bool {
+		super::total_difficulty_is_new_best(bytes, *best_block_metadata, provider)
+	}
 }
 
 #[cfg(test)]

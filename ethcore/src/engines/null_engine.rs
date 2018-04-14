@@ -105,4 +105,8 @@ impl<M: WithBalances> Engine<M> for NullEngine<M> {
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
 	}
+
+	fn is_new_best(&self, _bytes: &[u8], _best_block_metadata: &M::BlockMetadata, _provider: &M::BlockProvider) -> bool {
+		true
+	}
 }

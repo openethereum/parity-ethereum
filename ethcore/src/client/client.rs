@@ -532,7 +532,7 @@ impl Importer {
 		);
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
-		let is_new_best = client.engine.is_new_best(block_data, chain.best_block_total_difficulty(), chain.deref().deref());
+		let is_new_best = client.engine.is_new_best(block_data, &chain.best_block_total_difficulty(), chain.deref().deref());
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), is_new_best);
 
 		client.tracedb.read().import(&mut batch, TraceImportRequest {

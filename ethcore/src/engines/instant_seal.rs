@@ -61,6 +61,10 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp >= parent_timestamp
 	}
+
+	fn is_new_best(&self, _bytes: &[u8], _best_block_metadata: &M::BlockMetadata, _provider: &M::BlockProvider) -> bool {
+		true
+	}
 }
 
 #[cfg(test)]

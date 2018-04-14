@@ -81,8 +81,12 @@ pub trait Machine: for<'a> LocalizedMachine<'a> {
 	type LiveBlock: LiveBlock<Header=Self::Header>;
 	/// A handle to a blockchain client for this machine.
 	type EngineClient: ?Sized;
+	/// A handle to the block provider for this machine.
+	type BlockProvider: ?Sized;
 	/// A description of needed auxiliary data.
 	type AuxiliaryRequest;
+	/// Extra data related to consensus rules stored together with each block.
+	type BlockMetadata;
 
 	/// Errors which can occur when querying or interacting with the machine.
 	type Error;
