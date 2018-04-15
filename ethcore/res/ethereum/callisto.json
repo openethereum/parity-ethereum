@@ -32,7 +32,8 @@
     "accountStartNonce": "0x00",
     "maximumExtraDataSize": "0x20",
     "minGasLimit": "0x1388",
-    "networkID": "0x334",
+    "networkID" : "0x1",
+    "chainID": "0x0334",
     "maxCodeSize": 24576,
     "eip86Transition": "0xffffffffffffffff",
     "eip98Transition": "0xffffffffffffffff",
@@ -54,7 +55,7 @@
     "timestamp": "0x5a939845",
     "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
     "extraData": "0x0000000000000000000000000000000000000000000000000000000000000000",
-    "gasLimit": "0x9eb100"
+    "gasLimit": "0x09eb100"
   },
   "nodes": [
     "enode://ab0d9fe81f23653c3217303d3a4bc035be908b05f8b12d6f155ab4598d7760cfea1e009e414771279c9ffc3499950283afaabe099a5329c5a6013f57d77de0a6@104.236.96.118:30303",
