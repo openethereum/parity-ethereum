@@ -101,6 +101,11 @@ pub fn new_morden<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/morden.json"))
 }
 
+/// Create a new Callisto chaun spec
+pub fn new_callisto<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/callisto.json"))
+}
+
 /// Create a new Callisto testnet chain spec.
 pub fn new_galilei<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/callisto_galilei.json"))
