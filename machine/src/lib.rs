@@ -119,3 +119,10 @@ pub trait WithBalances: Machine {
 		_indirect: &[(Address, U256)],
 	) -> Result<(), Self::Error> { Ok(()) }
 }
+
+/// Metadata with total difficulty information.
+pub trait TotalDifficulty {
+	type Value: Ord + Add;
+
+	fn total_difficulty(&self) -> &Self::Value;
+}
