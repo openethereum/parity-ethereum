@@ -455,7 +455,7 @@ mod tests {
 					parent: header.parent_hash().clone(),
 					children: Vec::new(),
 					finalized: false,
-					metadatas: Default::default(),
+					metadata: Default::default(),
 				}
 			})
 		}

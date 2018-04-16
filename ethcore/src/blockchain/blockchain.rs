@@ -510,7 +510,7 @@ impl BlockChain {
 					parent: header.parent_hash(),
 					children: vec![],
 					finalized: false,
-					metadatas: HashMap::new(),
+					metadata: HashMap::new(),
 				};
 
 				let mut batch = DBTransaction::new();
@@ -784,7 +784,7 @@ impl BlockChain {
 				parent: header.parent_hash(),
 				children: Vec::new(),
 				finalized: false,
-				metadatas: HashMap::new(),
+				metadata: HashMap::new(),
 			};
 
 			let mut update = HashMap::new();
@@ -1006,10 +1006,10 @@ impl BlockChain {
 	}
 
 	/// Update metadata detail for an existing block.
-	pub fn update_metadatas(&self, batch: &mut DBTransaction, block_hash: H256, metadatas: HashMap<Bytes, Bytes>) -> Result<(), MetadataError> {
+	pub fn update_metadata(&self, batch: &mut DBTransaction, block_hash: H256, metadata: HashMap<Bytes, Bytes>) -> Result<(), MetadataError> {
 		let mut block_details = self.block_details(&block_hash).ok_or(MetadataError::UnknownBlock)?;
-		for (key, value) in metadatas {
-			block_details.metadatas.insert(key, value);
+		for (key, value) in metadata {
+			block_details.metadata.insert(key, value);
 		}
 
 		self.update_block_details(batch, block_hash, block_details);
@@ -1227,7 +1227,7 @@ impl BlockChain {
 			parent: parent_hash,
 			children: vec![],
 			finalized: false,
-			metadatas: HashMap::new(),
+			metadata: HashMap::new(),
 		};
 
 		// write to batch
