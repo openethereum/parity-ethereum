@@ -197,23 +197,19 @@ impl EthereumMachine {
 			if let Some(irregular_changes) = self.params.irregular_state_changes.get(&block.header().number()) {
 				let state = block.state_mut();
 				for &(address, ref irregular_account) in irregular_changes {
-					match irregular_account {
-						&IrregularStateChangeAccount::Set {
-							nonce, balance, ref code, ref storage
-						} => {
-							if let Some(nonce) = nonce {
-								state.set_nonce(&address, &nonce)?;
-							}
-							if let Some(balance) = balance {
-								state.set_balance(&address, &balance)?;
-							}
-							if let &Some(ref code) = code {
-								state.reset_code(&address, code.clone())?;
-							}
-							for &(key, value) in storage {
-								state.set_storage(&address, key, value)?;
-							}
-						},
+					let &IrregularStateChangeAccount::Set { nonce, balance, ref code, ref storage } = irregular_account;
+
+					if let Some(nonce) = nonce {
+						state.set_nonce(&address, &nonce)?;
+					}
+					if let Some(balance) = balance {
+						state.set_balance(&address, &balance)?;
+					}
+					if let &Some(ref code) = code {
+						state.reset_code(&address, code.clone())?;
+					}
+					for &(key, value) in storage {
+						state.set_storage(&address, key, value)?;
 					}
 				}
 			}
