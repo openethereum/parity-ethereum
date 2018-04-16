@@ -96,6 +96,7 @@ extern crate kvdb_memorydb;
 #[cfg(test)]
 extern crate fake_fetch;
 
+#[cfg(test)]
 extern crate tempdir;
 
 pub extern crate jsonrpc_ws_server as ws;
@@ -104,6 +105,7 @@ mod authcodes;
 mod http_common;
 pub mod v1;
 
+#[cfg(test)]
 pub mod tests;
 
 pub use jsonrpc_pubsub::Session as PubSubSession;
