@@ -1006,8 +1006,9 @@ impl BlockChain {
 	}
 
 	/// Update metadata detail for an existing block.
-	pub fn update_metadata(&self, batch: &mut DBTransaction, block_hash: H256, metadata: HashMap<Bytes, Bytes>) -> Result<(), MetadataError> {
+	pub fn update_metadata<T: Into<HashMap<Bytes, Bytes>>>(&self, batch: &mut DBTransaction, block_hash: H256, metadata: T) -> Result<(), MetadataError> {
 		let mut block_details = self.block_details(&block_hash).ok_or(MetadataError::UnknownBlock)?;
+		let metadata: HashMap<Bytes, Bytes> = metadata.into();
 		for (key, value) in metadata {
 			block_details.metadata.insert(key, value);
 		}
