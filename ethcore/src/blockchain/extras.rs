@@ -18,6 +18,7 @@
 
 use std::ops;
 use std::io::Write;
+use std::collections::HashMap;
 use blooms::{GroupPosition, BloomGroup};
 use db::Key;
 use engines::epoch::{Transition as EpochTransition};
@@ -182,7 +183,7 @@ pub struct BlockDetails {
 	/// Whether the block is considered finalized
 	pub finalized: bool,
 	/// Metadata information
-	pub metadatas: Vec<BlockMetadata>,
+	pub metadatas: HashMap<Bytes, Bytes>,
 }
 
 impl rlp::Encodable for BlockDetails {
@@ -200,7 +201,11 @@ impl rlp::Encodable for BlockDetails {
 		stream.append_list(&self.children);
 		if !use_short_version {
 			stream.append(&self.finalized);
-			stream.append_list(&self.metadatas);
+
+			let metadatas: Vec<BlockMetadata> = self.metadatas.clone().into_iter().map(|(key, value)| {
+				BlockMetadata { key, value }
+			}).collect();
+			stream.append_list(&metadatas);
 		}
 	}
 }
@@ -224,9 +229,11 @@ impl rlp::Decodable for BlockDetails {
 				rlp.val_at(4)?
 			},
 			metadatas: if use_short_version {
-				Vec::new()
+				HashMap::new()
 			} else {
-				rlp.list_at(5)?
+				let metadatas: Vec<BlockMetadata> = rlp.list_at(5)?;
+
+				metadatas.into_iter().map(|metadata| (metadata.key, metadata.value)).collect()
 			},
 		})
 	}
@@ -240,7 +247,7 @@ impl HeapSizeOf for BlockDetails {
 
 /// Metadata key and value
 #[derive(Debug, Clone, RlpEncodable, RlpDecodable)]
-pub struct BlockMetadata {
+struct BlockMetadata {
 	/// Key of the metadata
 	pub key: Bytes,
 	/// Value of the metadata

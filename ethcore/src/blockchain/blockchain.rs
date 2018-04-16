@@ -509,7 +509,7 @@ impl BlockChain {
 					parent: header.parent_hash(),
 					children: vec![],
 					finalized: false,
-					metadatas: vec![],
+					metadatas: HashMap::new(),
 				};
 
 				let mut batch = DBTransaction::new();
@@ -775,7 +775,7 @@ impl BlockChain {
 				parent: header.parent_hash(),
 				children: Vec::new(),
 				finalized: false,
-				metadatas: Vec::new(),
+				metadatas: HashMap::new(),
 			};
 
 			let mut update = HashMap::new();
@@ -983,6 +983,34 @@ impl BlockChain {
 		}
 	}
 
+	/// Mark a block to be considered finalized. Panic if the hash does not exist.
+	pub fn mark_finalized(&self, batch: &mut DBTransaction, block_hash: H256) {
+		let mut block_details = self.block_details(&block_hash).unwrap_or_else(|| panic!("Invalid block hash: {:?}", block_hash));
+		block_details.finalized = true;
+
+		self.prepare_details_update(batch, block_hash, block_details);
+	}
+
+	/// Update metadata detail for an existing block.
+	pub fn update_metadatas(&self, batch: &mut DBTransaction, block_hash: H256, metadatas: HashMap<Bytes, Bytes>) {
+		let mut block_details = self.block_details(&block_hash).unwrap_or_else(|| panic!("Invalid block hash: {:?}", block_hash));
+		for (key, value) in metadatas {
+			block_details.metadatas.insert(key, value);
+		}
+
+		self.prepare_details_update(batch, block_hash, block_details);
+	}
+
+	/// Prepares extras block detail update.
+	fn prepare_details_update(&self, batch: &mut DBTransaction, block_hash: H256, block_details: BlockDetails) {
+		let mut details_map = HashMap::new();
+		details_map.insert(block_hash, block_details);
+
+		// We're only updating one existing value. So it shouldn't suffer from cache decoherence problem.
+		let mut write_details = self.pending_block_details.write();
+		batch.extend_with_cache(db::COL_EXTRA, &mut *write_details, details_map, CacheUpdatePolicy::Overwrite);
+	}
+
 	/// Prepares extras update.
 	fn prepare_update(&self, batch: &mut DBTransaction, update: ExtrasUpdate, is_best: bool) {
 
@@ -1184,7 +1212,7 @@ impl BlockChain {
 			parent: parent_hash,
 			children: vec![],
 			finalized: false,
-			metadatas: vec![],
+			metadatas: HashMap::new(),
 		};
 
 		// write to batch
