@@ -40,6 +40,13 @@ pub const TO_V12: ChangeColumns = ChangeColumns {
 	version: 12,
 };
 
+/// The migration from v12 to v13.
+/// Adds a column for metadata storage.
+pub const TO_V13: ChangeColumns = ChangeColumns {
+	pre_columns: Some(8),
+	post_columns: Some(9),
+	version: 13,
+};
 
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
@@ -155,6 +162,7 @@ fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> R
 	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
 	manager.add_migration(TO_V11).map_err(|_| Error::MigrationImpossible)?;
 	manager.add_migration(TO_V12).map_err(|_| Error::MigrationImpossible)?;
+	manager.add_migration(TO_V13).map_err(|_| Error::MigrationImpossible)?;
 	Ok(manager)
 }
 
