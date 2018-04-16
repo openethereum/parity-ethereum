@@ -965,16 +965,28 @@ impl BlockChain {
 
 				assert_eq!(number, parent_details.number + 1);
 
-				match route.blocks.len() {
-					0 => BlockLocation::CanonChain,
-					_ => {
-						let retracted = route.blocks.iter().take(route.index).cloned().collect::<Vec<_>>().into_iter().collect::<Vec<_>>();
-						let enacted = route.blocks.into_iter().skip(route.index).collect::<Vec<_>>();
-						BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
-							ancestor: route.ancestor,
-							enacted: enacted,
-							retracted: retracted,
-						})
+				// If anything on the tree route is finalized, refuse to reorg. The common ancestor can be finalized,
+				// but nothing in between.
+				let finalized_block = route.blocks.iter()
+					.map(|route_hash| self.block_details(&route_hash).unwrap_or_else(|| panic!("Invalid block hash in tree route: {:?}", route_hash)))
+					.enumerate()
+					.take_while(|&(i, _)| i < route.index)
+					.any(|(_, details)| details.finalized);
+
+				if finalized_block {
+					BlockLocation::Branch
+				} else {
+					match route.blocks.len() {
+						0 => BlockLocation::CanonChain,
+						_ => {
+							let retracted = route.blocks.iter().take(route.index).cloned().collect::<Vec<_>>().into_iter().collect::<Vec<_>>();
+							let enacted = route.blocks.into_iter().skip(route.index).collect::<Vec<_>>();
+							BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
+								ancestor: route.ancestor,
+								enacted: enacted,
+								retracted: retracted,
+							})
+						}
 					}
 				}
 			} else {
