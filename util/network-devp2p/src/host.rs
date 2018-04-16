@@ -24,6 +24,7 @@ use std::cmp::{min, max};
 use std::path::{Path, PathBuf};
 use std::io::{Read, Write, self};
 use std::fs;
+use std::time::Duration;
 use ethkey::{KeyPair, Secret, Random, Generator};
 use hash::keccak;
 use mio::*;
@@ -67,13 +68,13 @@ const SYS_TIMER: TimerToken = LAST_SESSION + 1;
 
 // Timeouts
 // for IDLE TimerToken
-const MAINTENANCE_TIMEOUT: u64 = 1000;
+const MAINTENANCE_TIMEOUT: Duration = Duration::from_secs(1);
 // for DISCOVERY_REFRESH TimerToken
-const DISCOVERY_REFRESH_TIMEOUT: u64 = 60_000;
+const DISCOVERY_REFRESH_TIMEOUT: Duration = Duration::from_secs(60);
 // for DISCOVERY_ROUND TimerToken
-const DISCOVERY_ROUND_TIMEOUT: u64 = 300;
+const DISCOVERY_ROUND_TIMEOUT: Duration = Duration::from_millis(300);
 // for NODE_TABLE TimerToken
-const NODE_TABLE_TIMEOUT: u64 = 300_000;
+const NODE_TABLE_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Debug, PartialEq, Eq)]
 /// Protocol info
@@ -165,10 +166,10 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 		self.session.as_ref().map_or(false, |s| s.lock().expired())
 	}
 
-	fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), Error> {
+	fn register_timer(&self, token: TimerToken, delay: Duration) -> Result<(), Error> {
 		self.io.message(NetworkIoMessage::AddTimer {
-			token: token,
-			delay: ms,
+			token,
+			delay,
 			protocol: self.protocol,
 		}).unwrap_or_else(|e| warn!("Error sending network IO message: {:?}", e));
 		Ok(())

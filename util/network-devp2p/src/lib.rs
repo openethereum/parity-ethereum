@@ -24,12 +24,13 @@
 //! use net::*;
 //! use devp2p::NetworkService;
 //! use std::sync::Arc;
+//! use std::time::Duration;
 //!
 //! struct MyHandler;
 //!
 //! impl NetworkProtocolHandler for MyHandler {
 //!		fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
-//!			io.register_timer(0, 1000);
+//!			io.register_timer(0, Duration::from_secs(1));
 //!		}
 //!
 //!		fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {

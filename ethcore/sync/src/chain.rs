@@ -91,7 +91,7 @@
 use std::sync::Arc;
 use std::collections::{HashSet, HashMap};
 use std::cmp;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256};
@@ -177,14 +177,14 @@ pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x18;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
-const WAIT_PEERS_TIMEOUT_SEC: u64 = 5;
-const STATUS_TIMEOUT_SEC: u64 = 5;
-const HEADERS_TIMEOUT_SEC: u64 = 15;
-const BODIES_TIMEOUT_SEC: u64 = 20;
-const RECEIPTS_TIMEOUT_SEC: u64 = 10;
-const FORK_HEADER_TIMEOUT_SEC: u64 = 3;
-const SNAPSHOT_MANIFEST_TIMEOUT_SEC: u64 = 5;
-const SNAPSHOT_DATA_TIMEOUT_SEC: u64 = 120;
+const WAIT_PEERS_TIMEOUT: Duration = Duration::from_secs(5);
+const STATUS_TIMEOUT: Duration = Duration::from_secs(5);
+const HEADERS_TIMEOUT: Duration = Duration::from_secs(15);
+const BODIES_TIMEOUT: Duration = Duration::from_secs(20);
+const RECEIPTS_TIMEOUT: Duration = Duration::from_secs(10);
+const FORK_HEADER_TIMEOUT: Duration = Duration::from_secs(3);
+const SNAPSHOT_MANIFEST_TIMEOUT: Duration = Duration::from_secs(5);
+const SNAPSHOT_DATA_TIMEOUT: Duration = Duration::from_secs(120);
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Sync state
@@ -573,7 +573,7 @@ impl ChainSync {
 			(best_hash, max_peers, snapshot_peers)
 		};
 
-		let timeout = (self.state == SyncState::WaitingPeers) && self.sync_start_time.map_or(false, |t| t.elapsed().as_secs() > WAIT_PEERS_TIMEOUT_SEC);
+		let timeout = (self.state == SyncState::WaitingPeers) && self.sync_start_time.map_or(false, |t| t.elapsed() > WAIT_PEERS_TIMEOUT);
 
 		if let (Some(hash), Some(peers)) = (best_hash, best_hash.map_or(None, |h| snapshot_peers.get(&h))) {
 			if max_peers >= SNAPSHOT_MIN_PEERS {
@@ -1825,15 +1825,15 @@ impl ChainSync {
 		let tick = Instant::now();
 		let mut aborting = Vec::new();
 		for (peer_id, peer) in &self.peers {
-			let elapsed = (tick - peer.ask_time).as_secs();
+			let elapsed = tick - peer.ask_time;
 			let timeout = match peer.asking {
-				PeerAsking::BlockHeaders => elapsed > HEADERS_TIMEOUT_SEC,
-				PeerAsking::BlockBodies => elapsed > BODIES_TIMEOUT_SEC,
-				PeerAsking::BlockReceipts => elapsed > RECEIPTS_TIMEOUT_SEC,
+				PeerAsking::BlockHeaders => elapsed > HEADERS_TIMEOUT,
+				PeerAsking::BlockBodies => elapsed > BODIES_TIMEOUT,
+				PeerAsking::BlockReceipts => elapsed > RECEIPTS_TIMEOUT,
 				PeerAsking::Nothing => false,
-				PeerAsking::ForkHeader => elapsed > FORK_HEADER_TIMEOUT_SEC,
-				PeerAsking::SnapshotManifest => elapsed > SNAPSHOT_MANIFEST_TIMEOUT_SEC,
-				PeerAsking::SnapshotData => elapsed > SNAPSHOT_DATA_TIMEOUT_SEC,
+				PeerAsking::ForkHeader => elapsed > FORK_HEADER_TIMEOUT,
+				PeerAsking::SnapshotManifest => elapsed > SNAPSHOT_MANIFEST_TIMEOUT,
+				PeerAsking::SnapshotData => elapsed > SNAPSHOT_DATA_TIMEOUT,
 			};
 			if timeout {
 				trace!(target:"sync", "Timeout {}", peer_id);
@@ -1848,7 +1848,7 @@ impl ChainSync {
 		// Check for handshake timeouts
 		for (peer, &ask_time) in &self.handshaking_peers {
 			let elapsed = (tick - ask_time) / 1_000_000_000;
-			if elapsed.as_secs() > STATUS_TIMEOUT_SEC {
+			if elapsed > STATUS_TIMEOUT {
 				trace!(target:"sync", "Status timeout {}", peer);
 				io.disconnect_peer(*peer);
 			}

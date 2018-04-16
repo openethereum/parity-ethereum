@@ -25,7 +25,6 @@ use ansi_term::{Colour, Style};
 use ctrlc::CtrlC;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
-use ethcore::db::NUM_COLUMNS;
 use ethcore::ethstore::ethkey;
 use ethcore::miner::{stratum, Miner, MinerService, MinerOptions};
 use ethcore::snapshot;
@@ -40,7 +39,6 @@ use futures_cpupool::CpuPool;
 use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
-use kvdb_rocksdb::{Database, DatabaseConfig};
 use light::Cache as LightDataCache;
 use miner::external::ExternalMiner;
 use node_filter::NodeFilter;
@@ -55,7 +53,7 @@ use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
 	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
 };
-use helpers::{to_client_config, execute_upgrades, passwords_from_files, client_db_config, open_client_db, restoration_db_handler, compaction_profile};
+use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use upgrade::upgrade_key_location;
 use dir::{Directories, DatabaseDirectories};
 use cache::CacheConfig;
@@ -68,6 +66,7 @@ use rpc_apis;
 use secretstore;
 use signer;
 use url;
+use db;
 
 // how often to take periodic snapshots.
 const SNAPSHOT_PERIOD: u64 = 5000;
@@ -210,10 +209,8 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
-	let compaction = compaction_profile(&cmd.compaction, db_dirs.db_root_path().as_path());
-
 	// execute upgrades
-	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, compaction.clone())?;
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
 
 	// create dirs used by parity
 	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.ui_conf.enabled, cmd.secretstore_conf.enabled)?;
@@ -249,19 +246,10 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	};
 
 	// initialize database.
-	let db = {
-		let db_config = DatabaseConfig {
-			memory_budget: Some(cmd.cache_config.blockchain() as usize * 1024 * 1024),
-			compaction: compaction,
-			wal: cmd.wal,
-			.. DatabaseConfig::with_columns(NUM_COLUMNS)
-		};
-
-		Arc::new(Database::open(
-			&db_config,
-			&db_dirs.client_path(algorithm).to_str().expect("DB path could not be converted to string.")
-		).map_err(|e| format!("Error opening database: {}", e))?)
-	};
+	let db = db::open_db(&db_dirs.client_path(algorithm).to_str().expect("DB path could not be converted to string."),
+						 &cmd.cache_config,
+						 &cmd.compaction,
+						 cmd.wal)?;
 
 	let service = light_client::Service::start(config, &spec, fetch, db, cache.clone())
 		.map_err(|e| format!("Error starting light client: {}", e))?;
@@ -477,7 +465,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, compaction_profile(&cmd.compaction, db_dirs.db_root_path().as_path()))?;
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
 
 	// create dirs used by parity
 	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.ui_conf.enabled, cmd.secretstore_conf.enabled)?;
@@ -623,9 +611,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
 
-	let client_db_config = client_db_config(&client_path, &client_config);
-	let client_db = open_client_db(&client_path, &client_db_config)?;
-	let restoration_db_handler = restoration_db_handler(client_db_config);
+	let client_db = db::open_client_db(&client_path, &client_config)?;
+	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
 
 	// create client service.
 	let service = ClientService::start(
