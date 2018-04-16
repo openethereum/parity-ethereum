@@ -49,7 +49,7 @@ fn request(server: Server<HttpServer>, request: &str) -> http_client::Response {
 }
 
 #[cfg(test)]
-mod testsing {
+mod testing {
 	use jsonrpc_core::{MetaIoHandler, Value};
 	use v1::Metadata;
 	use super::{request, Server};
