@@ -508,6 +508,8 @@ impl BlockChain {
 					total_difficulty: header.difficulty(),
 					parent: header.parent_hash(),
 					children: vec![],
+					finalized: false,
+					metadatas: vec![],
 				};
 
 				let mut batch = DBTransaction::new();
@@ -772,6 +774,8 @@ impl BlockChain {
 				total_difficulty: info.total_difficulty,
 				parent: header.parent_hash(),
 				children: Vec::new(),
+				finalized: false,
+				metadatas: Vec::new(),
 			};
 
 			let mut update = HashMap::new();
@@ -1179,6 +1183,8 @@ impl BlockChain {
 			total_difficulty: info.total_difficulty,
 			parent: parent_hash,
 			children: vec![],
+			finalized: false,
+			metadatas: vec![],
 		};
 
 		// write to batch
