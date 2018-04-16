@@ -21,7 +21,7 @@ use std::sync::Arc;
 use ansi_term::Colour;
 use bytes::Bytes;
 use engines::{EthEngine, Seal};
-use error::{Error, ExecutionError};
+use error::{Error, ErrorKind, ExecutionError};
 use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
 use ethcore_miner::work_notify::NotifyWork;
@@ -393,7 +393,7 @@ impl Miner {
 
 			// Re-verify transaction again vs current state.
 			let result = client.verify_signed(&transaction)
-				.map_err(Error::Transaction)
+				.map_err(|e| e.into())
 				.and_then(|_| {
 					open_block.push_transaction(transaction, None)
 				});
@@ -440,8 +440,8 @@ impl Miner {
 					debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?} (expected: {:?}, got: {:?})", hash, expected, got);
 				},
 				// already have transaction - ignore
-				Err(Error::Transaction(transaction::Error::AlreadyImported)) => {},
-				Err(Error::Transaction(transaction::Error::NotAllowed)) => {
+				Err(Error(ErrorKind::Transaction(transaction::Error::AlreadyImported), _)) => {},
+				Err(Error(ErrorKind::Transaction(transaction::Error::NotAllowed), _)) => {
 					not_allowed_transactions.insert(hash);
 					debug!(target: "miner", "Skipping non-allowed transaction for sender {:?}", hash);
 				},
