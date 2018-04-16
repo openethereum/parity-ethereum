@@ -60,17 +60,13 @@ impl TransactionFilter {
 	/// Check if transaction is allowed at given block.
 	pub fn transaction_allowed<C: BlockInfo + CallContract>(&self, parent_hash: &H256, transaction: &SignedTransaction, client: &C) -> bool {
 		let mut cache = self.permission_cache.lock();
-		let mut to: Address = Address::new();
-		let tx_type = match transaction.action {
-			Action::Create => tx_permissions::CREATE,
-			Action::Call(address) => {
-				to = address;
-				if client.code_hash(&address, BlockId::Hash(*parent_hash)).map_or(false, |c| c != KECCAK_EMPTY) {
-					tx_permissions::CALL
+		let (tx_type, to) = match transaction.action {
+			Action::Create => (tx_permissions::CREATE, Address::new()),
+			Action::Call(address) => if client.code_hash(&address, BlockId::Hash(*parent_hash)).map_or(false, |c| c != KECCAK_EMPTY) {
+					(tx_permissions::CALL, address)
 				} else {
-					tx_permissions::BASIC
+					(tx_permissions::BASIC, address)
 				}
-			}
 		};
 
 		let sender = transaction.sender();
