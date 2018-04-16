@@ -733,7 +733,7 @@ mod tests {
 	use super::kind::blocks::Unverified;
 	use test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
 	use error::*;
-	use views::*;
+	use views::BlockView;
 
 	// create a test block queue.
 	// auto_scaling enables verifier adjustment.
@@ -785,7 +785,7 @@ mod tests {
 	fn returns_total_difficulty() {
 		let queue = get_test_queue(false);
 		let block = get_good_dummy_block();
-		let hash = BlockView::new(&block).header().hash().clone();
+		let hash = view!(BlockView, &block).header().hash().clone();
 		if let Err(e) = queue.import(Unverified::new(block)) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
@@ -801,7 +801,7 @@ mod tests {
 	fn returns_ok_for_drained_duplicates() {
 		let queue = get_test_queue(false);
 		let block = get_good_dummy_block();
-		let hash = BlockView::new(&block).header().hash().clone();
+		let hash = view!(BlockView, &block).header().hash().clone();
 		if let Err(e) = queue.import(Unverified::new(block)) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}

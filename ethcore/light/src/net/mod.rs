@@ -22,7 +22,7 @@ use transaction::UnverifiedTransaction;
 
 use io::TimerToken;
 use network::{HostInfo, NetworkProtocolHandler, NetworkContext, PeerId};
-use rlp::{RlpStream, UntrustedRlp};
+use rlp::{RlpStream, Rlp};
 use ethereum_types::{H256, U256};
 use kvdb::DBValue;
 use parking_lot::{Mutex, RwLock};
@@ -528,7 +528,7 @@ impl LightProtocol {
 	//   - check whether peer exists
 	//   - check whether request was made
 	//   - check whether request kinds match
-	fn pre_verify_response(&self, peer: &PeerId, raw: &UntrustedRlp) -> Result<IdGuard, Error> {
+	fn pre_verify_response(&self, peer: &PeerId, raw: &Rlp) -> Result<IdGuard, Error> {
 		let req_id = ReqId(raw.val_at(0)?);
 		let cur_credits: U256 = raw.val_at(1)?;
 
@@ -572,7 +572,7 @@ impl LightProtocol {
 	/// Packet data is _untrusted_, which means that invalid data won't lead to
 	/// issues.
 	pub fn handle_packet(&self, io: &IoContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		let rlp = UntrustedRlp::new(data);
+		let rlp = Rlp::new(data);
 
 		trace!(target: "pip", "Incoming packet {} from peer {}", packet_id, peer);
 
@@ -794,7 +794,7 @@ impl LightProtocol {
 
 impl LightProtocol {
 	// Handle status message from peer.
-	fn status(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
+	fn status(&self, peer: &PeerId, io: &IoContext, data: Rlp) -> Result<(), Error> {
 		let pending = match self.pending_peers.write().remove(peer) {
 			Some(pending) => pending,
 			None => {
@@ -855,7 +855,7 @@ impl LightProtocol {
 	}
 
 	// Handle an announcement.
-	fn announcement(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
+	fn announcement(&self, peer: &PeerId, io: &IoContext, data: Rlp) -> Result<(), Error> {
 		if !self.peers.read().contains_key(peer) {
 			debug!(target: "pip", "Ignoring announcement from unknown peer");
 			return Ok(())
@@ -900,7 +900,7 @@ impl LightProtocol {
 	}
 
 	// Receive requests from a peer.
-	fn request(&self, peer_id: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+	fn request(&self, peer_id: &PeerId, io: &IoContext, raw: Rlp) -> Result<(), Error> {
 		// the maximum amount of requests we'll fill in a single packet.
 		const MAX_REQUESTS: usize = 256;
 
@@ -968,7 +968,7 @@ impl LightProtocol {
 	}
 
 	// handle a packet with responses.
-	fn response(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+	fn response(&self, peer: &PeerId, io: &IoContext, raw: Rlp) -> Result<(), Error> {
 		let (req_id, responses) = {
 			let id_guard = self.pre_verify_response(peer, &raw)?;
 			let responses: Vec<Response> = raw.list_at(2)?;
@@ -987,7 +987,7 @@ impl LightProtocol {
 	}
 
 	// handle an update of request credits parameters.
-	fn update_credits(&self, peer_id: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+	fn update_credits(&self, peer_id: &PeerId, io: &IoContext, raw: Rlp) -> Result<(), Error> {
 		let peers = self.peers.read();
 
 		let peer = peers.get(peer_id).ok_or(Error::UnknownPeer)?;
@@ -1022,7 +1022,7 @@ impl LightProtocol {
 	}
 
 	// handle an acknowledgement of request credits update.
-	fn acknowledge_update(&self, peer_id: &PeerId, _io: &IoContext, _raw: UntrustedRlp) -> Result<(), Error> {
+	fn acknowledge_update(&self, peer_id: &PeerId, _io: &IoContext, _raw: Rlp) -> Result<(), Error> {
 		let peers = self.peers.read();
 		let peer = peers.get(peer_id).ok_or(Error::UnknownPeer)?;
 		let mut peer = peer.lock();
@@ -1041,7 +1041,7 @@ impl LightProtocol {
 	}
 
 	// Receive a set of transactions to relay.
-	fn relay_transactions(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
+	fn relay_transactions(&self, peer: &PeerId, io: &IoContext, data: Rlp) -> Result<(), Error> {
 		const MAX_TRANSACTIONS: usize = 256;
 
 		let txs: Vec<_> = data.iter()

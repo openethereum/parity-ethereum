@@ -247,7 +247,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	let do_import = |bytes: Vec<u8>| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
 
-		let header: ::ethcore::header::Header = ::rlp::UntrustedRlp::new(&bytes).val_at(0)
+		let header: ::ethcore::header::Header = ::rlp::Rlp::new(&bytes).val_at(0)
 			.map_err(|e| format!("Bad block: {}", e))?;
 
 		if client.best_block_header().number() >= header.number() { return Ok(()) }

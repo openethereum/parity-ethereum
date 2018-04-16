@@ -97,7 +97,7 @@ fn can_trace_block_and_uncle_reward() {
 		panic!("error importing block which is valid by definition: {:?}", e);
 	}
 
-	last_header = BlockView::new(&root_block.rlp_bytes()).header();
+	last_header = view!(BlockView, &root_block.rlp_bytes()).header();
 	let root_header = last_header.clone();
 	db = root_block.drain();
 
@@ -125,7 +125,7 @@ fn can_trace_block_and_uncle_reward() {
 		panic!("error importing block which is valid by definition: {:?}", e);
 	}
 
-	last_header = BlockView::new(&parent_block.rlp_bytes()).header();
+	last_header = view!(BlockView,&parent_block.rlp_bytes()).header();
 	db = parent_block.drain();
 
 	last_hashes.push(last_header.hash());

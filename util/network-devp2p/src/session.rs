@@ -23,7 +23,7 @@ use mio::*;
 use mio::deprecated::{Handler, EventLoop};
 use mio::tcp::*;
 use ethereum_types::H256;
-use rlp::{UntrustedRlp, RlpStream, EMPTY_LIST_RLP};
+use rlp::{Rlp, RlpStream, EMPTY_LIST_RLP};
 use connection::{EncryptedConnection, Packet, Connection, MAX_PAYLOAD_SIZE};
 use handshake::Handshake;
 use io::{IoContext, StreamToken};
@@ -349,12 +349,12 @@ impl Session {
 		};
 		match packet_id {
 			PACKET_HELLO => {
-				let rlp = UntrustedRlp::new(&data); //TODO: validate rlp expected size
+				let rlp = Rlp::new(&data); //TODO: validate rlp expected size
 				self.read_hello(io, &rlp, host)?;
 				Ok(SessionData::Ready)
 			},
 			PACKET_DISCONNECT => {
-				let rlp = UntrustedRlp::new(&data);
+				let rlp = Rlp::new(&data);
 				let reason: u8 = rlp.val_at(0)?;
 				if self.had_hello {
 					debug!(target:"network", "Disconnected: {}: {:?}", self.token(), DisconnectReason::from_u8(reason));
@@ -419,7 +419,7 @@ impl Session {
 		self.send(io, &rlp.drain())
 	}
 
-	fn read_hello<Message>(&mut self, io: &IoContext<Message>, rlp: &UntrustedRlp, host: &HostInfo) -> Result<(), Error>
+	fn read_hello<Message>(&mut self, io: &IoContext<Message>, rlp: &Rlp, host: &HostInfo) -> Result<(), Error>
 	where Message: Send + Sync + Clone {
 		let protocol = rlp.val_at::<u32>(0)?;
 		let client_version = rlp.val_at::<String>(1)?;

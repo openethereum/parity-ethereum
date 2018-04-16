@@ -127,6 +127,9 @@ extern crate evm;
 
 pub extern crate ethstore;
 
+#[macro_use]
+pub mod views;
+
 #[cfg(test)]
 extern crate kvdb_rocksdb;
 
@@ -152,7 +155,6 @@ pub mod state_db;
 pub mod test_helpers;
 pub mod trace;
 pub mod verification;
-pub mod views;
 
 mod cache_manager;
 mod blooms;

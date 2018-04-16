@@ -22,7 +22,7 @@ use ethcore::account_provider::AccountProvider;
 use ethkey;
 use parity_reactor::Remote;
 use parking_lot::Mutex;
-use rlp::UntrustedRlp;
+use rlp::Rlp;
 use transaction::{SignedTransaction, PendingTransaction};
 
 use jsonrpc_core::{Result, BoxFuture, Error};
@@ -127,7 +127,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 	fn verify_transaction<F>(bytes: Bytes, request: FilledTransactionRequest, process: F) -> Result<ConfirmationResponse> where
 		F: FnOnce(PendingTransaction) -> Result<ConfirmationResponse>,
 	{
-		let signed_transaction = UntrustedRlp::new(&bytes.0).as_val().map_err(errors::rlp)?;
+		let signed_transaction = Rlp::new(&bytes.0).as_val().map_err(errors::rlp)?;
 		let signed_transaction = SignedTransaction::new(signed_transaction).map_err(|e| errors::invalid_params("Invalid signature.", e))?;
 		let sender = signed_transaction.sender();
 

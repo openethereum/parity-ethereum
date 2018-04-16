@@ -141,7 +141,7 @@ fn query_bad_block() {
 fn returns_chain_info() {
 	let dummy_block = get_good_dummy_block();
 	let client = get_test_client_with_blocks(vec![dummy_block.clone()]);
-	let block = BlockView::new(&dummy_block);
+	let block = view!(BlockView, &dummy_block);
 	let info = client.chain_info();
 	assert_eq!(info.best_block_hash, block.header().hash());
 }
@@ -178,12 +178,12 @@ fn returns_logs_with_limit() {
 fn returns_block_body() {
 	let dummy_block = get_good_dummy_block();
 	let client = get_test_client_with_blocks(vec![dummy_block.clone()]);
-	let block = BlockView::new(&dummy_block);
+	let block = view!(BlockView, &dummy_block);
 	let body = client.block_body(BlockId::Hash(block.header().hash())).unwrap();
 	let body = body.rlp();
-	assert_eq!(body.item_count(), 2);
-	assert_eq!(body.at(0).as_raw()[..], block.rlp().at(1).as_raw()[..]);
-	assert_eq!(body.at(1).as_raw()[..], block.rlp().at(2).as_raw()[..]);
+	assert_eq!(body.item_count().unwrap(), 2);
+	assert_eq!(body.at(0).unwrap().as_raw()[..], block.rlp().at(1).as_raw()[..]);
+	assert_eq!(body.at(1).unwrap().as_raw()[..], block.rlp().at(2).as_raw()[..]);
 }
 
 #[test]
@@ -259,7 +259,7 @@ fn can_mine() {
 
 	let b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).close();
 
-	assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().hash());
+	assert_eq!(*b.block().header().parent_hash(), view!(BlockView, &dummy_blocks[0]).header_view().hash());
 }
 
 #[test]

@@ -18,30 +18,39 @@
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
 use hash::keccak;
-use rlp::Rlp;
+// use rlp::{Rlp, Decodable};
+use super::ViewRlp;
 
 /// View onto transaction rlp.
 pub struct TransactionView<'a> {
-	rlp: Rlp<'a>
+	rlp: ViewRlp<'a>
 }
 
 impl<'a> TransactionView<'a> {
-	/// Creates new view onto block from raw bytes.
-	pub fn new(bytes: &'a [u8]) -> TransactionView<'a> {
-		TransactionView {
-			rlp: Rlp::new(bytes)
-		}
-	}
-
-	/// Creates new view onto block from rlp.
-	pub fn new_from_rlp(rlp: Rlp<'a>) -> TransactionView<'a> {
+	/// Creates new view onto valid transaction rlp.
+	/// Use the `view!` macro to create this view in order to capture debugging info.
+	///
+	/// # Example
+	///
+	/// ```
+	/// #[macro_use]
+	/// extern crate ethcore;
+	/// 
+	/// use ethcore::views::{TransactionView};
+	/// 
+	/// fn main() {
+	/// let bytes : &[u8] = &[];
+	/// let tx_view = view!(TransactionView, bytes);
+	/// }
+	/// ```
+	pub fn new(rlp: ViewRlp<'a>) -> TransactionView<'a> {
 		TransactionView {
 			rlp: rlp
 		}
 	}
 
 	/// Return reference to underlaying rlp.
-	pub fn rlp(&self) -> &Rlp<'a> {
+	pub fn rlp(&self) -> &ViewRlp<'a> {
 		&self.rlp
 	}
 
@@ -84,7 +93,7 @@ mod tests {
 	fn test_transaction_view() {
 		let rlp = "f87c80018261a894095e7baea6a6c7c4c2dfeb977efac326af552d870a9d00000000000000000000000000000000000000000000000000000000001ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804".from_hex().unwrap();
 
-		let view = TransactionView::new(&rlp);
+		let view = view!(TransactionView, &rlp);
 		assert_eq!(view.nonce(), 0.into());
 		assert_eq!(view.gas_price(), 1.into());
 		assert_eq!(view.gas(), 0x61a8.into());
