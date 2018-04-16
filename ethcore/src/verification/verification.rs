@@ -28,7 +28,7 @@ use bytes::Bytes;
 use ethereum_types::H256;
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use rlp::UntrustedRlp;
+use rlp::Rlp;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
 
@@ -63,13 +63,13 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &EthEngine) -> 
 	verify_header_params(&header, engine, true)?;
 	verify_block_integrity(bytes, &header.transactions_root(), &header.uncles_hash())?;
 	engine.verify_block_basic(&header)?;
-	for u in UntrustedRlp::new(bytes).at(2)?.iter().map(|rlp| rlp.as_val::<Header>()) {
+	for u in Rlp::new(bytes).at(2)?.iter().map(|rlp| rlp.as_val::<Header>()) {
 		let u = u?;
 		verify_header_params(&u, engine, false)?;
 		engine.verify_block_basic(&u)?;
 	}
 
-	for t in UntrustedRlp::new(bytes).at(1)?.iter().map(|rlp| rlp.as_val::<UnverifiedTransaction>()) {
+	for t in Rlp::new(bytes).at(1)?.iter().map(|rlp| rlp.as_val::<UnverifiedTransaction>()) {
 		engine.verify_transaction_basic(&t?, &header)?;
 	}
 	Ok(())
@@ -81,7 +81,7 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &EthEngine) -> 
 pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &EthEngine, check_seal: bool) -> Result<PreverifiedBlock, Error> {
 	if check_seal {
 		engine.verify_block_unordered(&header)?;
-		for u in UntrustedRlp::new(&bytes).at(2)?.iter().map(|rlp| rlp.as_val::<Header>()) {
+		for u in Rlp::new(&bytes).at(2)?.iter().map(|rlp| rlp.as_val::<Header>()) {
 			engine.verify_block_unordered(&u?)?;
 		}
 	}
@@ -91,7 +91,7 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &EthEngine, 
 		Some((engine.params().nonce_cap_increment * header.number()).into())
 	} else { None };
 	{
-		let v = BlockView::new(&bytes);
+		let v = view!(BlockView, &bytes);
 		for t in v.transactions() {
 			let t = engine.verify_transaction_unordered(t, &header)?;
 			if let Some(max_nonce) = nonce_cap {
@@ -145,7 +145,7 @@ pub fn verify_block_family<C: BlockInfo + CallContract>(header: &Header, parent:
 }
 
 fn verify_uncles(header: &Header, bytes: &[u8], bc: &BlockProvider, engine: &EthEngine) -> Result<(), Error> {
-	let num_uncles = UntrustedRlp::new(bytes).at(2)?.item_count()?;
+	let num_uncles = Rlp::new(bytes).at(2)?.item_count()?;
 	let max_uncles = engine.maximum_uncle_count(header.number());
 	if num_uncles != 0 {
 		if num_uncles > max_uncles {
@@ -174,7 +174,7 @@ fn verify_uncles(header: &Header, bytes: &[u8], bc: &BlockProvider, engine: &Eth
 		}
 
 		let mut verified = HashSet::new();
-		for uncle in UntrustedRlp::new(bytes).at(2)?.iter().map(|rlp| rlp.as_val::<Header>()) {
+		for uncle in Rlp::new(bytes).at(2)?.iter().map(|rlp| rlp.as_val::<Header>()) {
 			let uncle = uncle?;
 			if excluded.contains(&uncle.hash()) {
 				return Err(From::from(BlockError::UncleInChain(uncle.hash())))
@@ -333,7 +333,7 @@ fn verify_parent(header: &Header, parent: &Header, engine: &EthEngine) -> Result
 
 /// Verify block data against header: transactions root and uncles hash.
 fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &H256) -> Result<(), Error> {
-	let block = UntrustedRlp::new(block);
+	let block = Rlp::new(block);
 	let tx = block.at(1)?;
 	let expected_root = &ordered_trie_root(tx.iter().map(|r| r.as_raw()));
 	if expected_root != transactions_root {
@@ -408,8 +408,8 @@ mod tests {
 		}
 
 		pub fn insert(&mut self, bytes: Bytes) {
-			let number = BlockView::new(&bytes).header_view().number();
-			let hash = BlockView::new(&bytes).header_view().hash();
+			let number = view!(BlockView, &bytes).header_view().number();
+			let hash = view!(BlockView, &bytes).header_view().hash();
 			self.blocks.insert(hash.clone(), bytes);
 			self.numbers.insert(number, hash.clone());
 		}
@@ -448,7 +448,7 @@ mod tests {
 		/// Get the familial details concerning a block.
 		fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
 			self.blocks.get(hash).map(|bytes| {
-				let header = BlockView::new(bytes).header();
+				let header = view!(BlockView, bytes).header();
 				BlockDetails {
 					number: header.number(),
 					total_difficulty: header.difficulty().clone(),
@@ -482,12 +482,12 @@ mod tests {
 	}
 
 	fn basic_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
-		let header = BlockView::new(bytes).header();
+		let header = view!(BlockView, bytes).header();
 		verify_block_basic(&header, bytes, engine)
 	}
 
 	fn family_test<BC>(bytes: &[u8], engine: &EthEngine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
-		let view = BlockView::new(bytes);
+		let view = view!(BlockView, bytes);
 		let header = view.header();
 		let transactions: Vec<_> = view.transactions()
 			.into_iter()
@@ -514,7 +514,7 @@ mod tests {
 	}
 
 	fn unordered_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
-		let header = BlockView::new(bytes).header();
+		let header = view!(BlockView, bytes).header();
 		verify_block_unordered(header, bytes.to_vec(), engine, false)?;
 		Ok(())
 	}

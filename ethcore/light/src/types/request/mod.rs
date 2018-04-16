@@ -16,7 +16,7 @@
 
 //! Light protocol request types.
 
-use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 use ethereum_types::H256;
 
 mod batch;
@@ -148,7 +148,7 @@ impl<T> From<T> for Field<T> {
 }
 
 impl<T: Decodable> Decodable for Field<T> {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		match rlp.val_at::<u8>(0)? {
 			0 => Ok(Field::Scalar(rlp.val_at::<T>(1)?)),
 			1 => Ok({
@@ -224,7 +224,7 @@ impl From<u64> for HashOrNumber {
 }
 
 impl Decodable for HashOrNumber {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		rlp.as_val::<H256>().map(HashOrNumber::Hash)
 			.or_else(|_| rlp.as_val().map(HashOrNumber::Number))
 	}
@@ -331,7 +331,7 @@ impl Request {
 }
 
 impl Decodable for Request {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		match rlp.val_at::<Kind>(0)? {
 			Kind::Headers => Ok(Request::Headers(rlp.val_at(1)?)),
 			Kind::HeaderProof => Ok(Request::HeaderProof(rlp.val_at(1)?)),
@@ -493,7 +493,7 @@ pub enum Kind {
 }
 
 impl Decodable for Kind {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		match rlp.as_val::<u8>()? {
 			0 => Ok(Kind::Headers),
 			1 => Ok(Kind::HeaderProof),
@@ -578,7 +578,7 @@ impl Response {
 }
 
 impl Decodable for Response {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		match rlp.val_at::<Kind>(0)? {
 			Kind::Headers => Ok(Response::Headers(rlp.val_at(1)?)),
 			Kind::HeaderProof => Ok(Response::HeaderProof(rlp.val_at(1)?)),
@@ -673,7 +673,7 @@ pub trait ResponseLike {
 pub mod header {
 	use super::{Field, HashOrNumber, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 
 	/// Potentially incomplete headers request.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -754,7 +754,7 @@ pub mod header {
 	}
 
 	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 			use ethcore::header::Header as FullHeader;
 
 			let mut headers = Vec::new();
@@ -785,7 +785,7 @@ pub mod header {
 /// Request and response for header proofs.
 pub mod header_proof {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 	use ethereum_types::{H256, U256};
 	use bytes::Bytes;
 
@@ -859,7 +859,7 @@ pub mod header_proof {
 	}
 
 	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 			Ok(Response {
 				proof: rlp.list_at(0)?,
 				hash: rlp.val_at(1)?,
@@ -1027,7 +1027,7 @@ pub mod block_receipts {
 pub mod block_body {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 	use ethereum_types::H256;
 
 	/// Potentially incomplete block body request.
@@ -1092,7 +1092,7 @@ pub mod block_body {
 	}
 
 	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 			use ethcore::header::Header as FullHeader;
 			use transaction::UnverifiedTransaction;
 
@@ -1411,7 +1411,7 @@ pub mod contract_code {
 pub mod execution {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use transaction::Action;
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 	use ethereum_types::{H256, U256, Address};
 	use kvdb::DBValue;
 	use bytes::Bytes;
@@ -1508,7 +1508,7 @@ pub mod execution {
 	}
 
 	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 			let mut items = Vec::new();
 			for raw_item in rlp.iter() {
 				let mut item = DBValue::new();
@@ -1536,7 +1536,7 @@ pub mod execution {
 /// A request for epoch signal data.
 pub mod epoch_signal {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 	use ethereum_types::H256;
 	use bytes::Bytes;
 
@@ -1548,7 +1548,7 @@ pub mod epoch_signal {
 	}
 
 	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 			Ok(Incomplete {
 				block_hash: rlp.val_at(0)?,
 			})
@@ -1617,7 +1617,7 @@ pub mod epoch_signal {
 	}
 
 	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 
 			Ok(Response {
 				signal: rlp.as_val()?,
@@ -1891,7 +1891,7 @@ mod tests {
 		stream.append(&100usize).append_list(&reqs);
 		let out = stream.out();
 
-		let rlp = UntrustedRlp::new(&out);
+		let rlp = Rlp::new(&out);
 		assert_eq!(rlp.val_at::<usize>(0).unwrap(), 100usize);
 		assert_eq!(rlp.list_at::<Request>(1).unwrap(), reqs);
 	}

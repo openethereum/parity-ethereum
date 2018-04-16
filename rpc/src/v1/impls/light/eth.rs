@@ -36,7 +36,7 @@ use sync::LightSync;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use ethereum_types::U256;
 use parking_lot::{RwLock, Mutex};
-use rlp::UntrustedRlp;
+use rlp::Rlp;
 use transaction::SignedTransaction;
 
 use v1::impls::eth_filter::Filterable;
@@ -373,7 +373,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256> {
 		let best_header = self.client.best_block_header().decode();
 
-		UntrustedRlp::new(&raw.into_vec()).as_val()
+		Rlp::new(&raw.into_vec()).as_val()
 			.map_err(errors::rlp)
 			.and_then(|tx| {
 				self.client.engine().verify_transaction_basic(&tx, &best_header)

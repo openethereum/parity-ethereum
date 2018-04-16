@@ -62,7 +62,7 @@ use ethcore_miner::pool::VerifiedTransaction;
 use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
-use rlp::UntrustedRlp;
+use rlp::Rlp;
 use snapshot::{self, io as snapshot_io};
 use spec::Spec;
 use state_db::StateDB;
@@ -446,7 +446,7 @@ impl Importer {
 	/// The block is guaranteed to be the next best blocks in the
 	/// first block sequence. Does no sealing or transaction validation.
 	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes, db: &KeyValueDB, chain: &BlockChain) -> Result<H256, ::error::Error> {
-		let block = BlockView::new(&block_bytes);
+		let block = view!(BlockView, &block_bytes);
 		let header = block.header();
 		let receipts = ::rlp::decode_list(&receipts_bytes);
 		let hash = header.hash();
@@ -514,7 +514,7 @@ impl Importer {
 		let receipts = block.receipts().to_owned();
 		let traces = block.traces().clone().drain();
 
-		assert_eq!(header.hash(), BlockView::new(block_data).header_view().hash());
+		assert_eq!(header.hash(), view!(BlockView, block_data).header_view().hash());
 
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
@@ -988,7 +988,7 @@ impl Client {
 
 		let txs: Vec<UnverifiedTransaction> = transactions
 			.iter()
-			.filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok())
+			.filter_map(|bytes| Rlp::new(bytes).as_val().ok())
 			.collect();
 
 		self.notify(|notify| {
@@ -1423,7 +1423,7 @@ impl ImportBlock for Client {
 	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
 		{
 			// check block order
-			let header = BlockView::new(&block_bytes).header_view();
+			let header = view!(BlockView, &block_bytes).header_view();
 			if self.chain.read().is_known(&header.hash()) {
 				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}

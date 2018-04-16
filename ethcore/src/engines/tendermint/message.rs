@@ -23,7 +23,7 @@ use bytes::Bytes;
 use super::{Height, View, BlockHash, Step};
 use error::Error;
 use header::Header;
-use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
+use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError};
 use ethkey::{recover, public_to_address};
 use super::super::vote_collector::Message;
 
@@ -61,12 +61,12 @@ impl VoteStep {
 /// Header consensus view.
 pub fn consensus_view(header: &Header) -> Result<View, ::rlp::DecoderError> {
 	let view_rlp = header.seal().get(0).expect("seal passed basic verification; seal has 3 fields; qed");
-	UntrustedRlp::new(view_rlp.as_slice()).as_val()
+	Rlp::new(view_rlp.as_slice()).as_val()
 }
 
 /// Proposal signature.
 pub fn proposal_signature(header: &Header) -> Result<H520, ::rlp::DecoderError> {
-	UntrustedRlp::new(header.seal().get(1).expect("seal passed basic verification; seal has 3 fields; qed").as_slice()).as_val()
+	Rlp::new(header.seal().get(1).expect("seal passed basic verification; seal has 3 fields; qed").as_slice()).as_val()
 }
 
 impl Message for ConsensusMessage {
@@ -100,7 +100,7 @@ impl ConsensusMessage {
 
 	pub fn verify(&self) -> Result<Address, Error> {
 		let full_rlp = ::rlp::encode(self);
-		let block_info = UntrustedRlp::new(&full_rlp).at(1)?;
+		let block_info = Rlp::new(&full_rlp).at(1)?;
 		let public_key = recover(&self.signature.into(), &keccak(block_info.as_raw()))?;
 		Ok(public_to_address(&public_key))
 	}
@@ -142,7 +142,7 @@ impl Step {
 }
 
 impl Decodable for Step {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		match rlp.as_val()? {
 			0u8 => Ok(Step::Propose),
 			1 => Ok(Step::Prevote),
@@ -160,7 +160,7 @@ impl Encodable for Step {
 
 /// (signature, (height, view, step, block_hash))
 impl Decodable for ConsensusMessage {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let m = rlp.at(1)?;
 		let block_message: H256 = m.val_at(3)?;
 		Ok(ConsensusMessage {
@@ -234,7 +234,7 @@ mod tests {
 		};
 		let raw_rlp = ::rlp::encode(&message).into_vec();
 		let rlp = Rlp::new(&raw_rlp);
-		assert_eq!(message, rlp.as_val());
+		assert_eq!(Ok(message), rlp.as_val());
 
 		let message = ConsensusMessage {
 			signature: H520::default(),
@@ -247,7 +247,7 @@ mod tests {
 		};
 		let raw_rlp = ::rlp::encode(&message);
 		let rlp = Rlp::new(&raw_rlp);
-		assert_eq!(message, rlp.as_val());
+		assert_eq!(Ok(message), rlp.as_val());
 	}
 
 	#[test]
@@ -260,7 +260,7 @@ mod tests {
 
 		let raw_rlp = message_full_rlp(&tap.sign(addr, None, keccak(&mi)).unwrap().into(), &mi);
 
-		let rlp = UntrustedRlp::new(&raw_rlp);
+		let rlp = Rlp::new(&raw_rlp);
 		let message: ConsensusMessage = rlp.as_val().unwrap();
 		match message.verify() { Ok(a) if a == addr => {}, _ => panic!(), };
 	}

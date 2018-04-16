@@ -26,7 +26,7 @@ use transaction::{
 };
 use ethcore::client::ClientIoMessage;
 use io::IoHandler;
-use rlp::UntrustedRlp;
+use rlp::Rlp;
 use kvdb::KeyValueDB;
 
 extern crate ethcore;
@@ -103,7 +103,7 @@ struct TransactionEntry {
 
 impl TransactionEntry {
 	fn into_pending(self) -> Option<PendingTransaction> {
-		let tx: UnverifiedTransaction = match UntrustedRlp::new(&self.rlp_bytes).as_val() {
+		let tx: UnverifiedTransaction = match Rlp::new(&self.rlp_bytes).as_val() {
 			Err(e) => {
 				warn!(target: "local_store", "Invalid persistent transaction stored: {}", e);
 				return None

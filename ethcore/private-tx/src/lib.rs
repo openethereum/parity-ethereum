@@ -238,14 +238,14 @@ impl Provider where {
 	fn extract_original_transaction(&self, private: PrivateTransaction, contract: &Address) -> Result<UnverifiedTransaction, Error> {
 		let encrypted_transaction = private.encrypted;
 		let transaction_bytes = self.decrypt(contract, &encrypted_transaction)?;
-		let original_transaction: UnverifiedTransaction = UntrustedRlp::new(&transaction_bytes).as_val()?;
+		let original_transaction: UnverifiedTransaction = Rlp::new(&transaction_bytes).as_val()?;
 		Ok(original_transaction)
 	}
 
 	/// Process received private transaction
 	pub fn import_private_transaction(&self, rlp: &[u8]) -> Result<(), Error> {
 		trace!("Private transaction received");
-		let private_tx: PrivateTransaction = UntrustedRlp::new(rlp).as_val()?;
+		let private_tx: PrivateTransaction = Rlp::new(rlp).as_val()?;
 		let contract = private_tx.contract;
 		let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
 
@@ -356,7 +356,7 @@ impl Provider where {
 	/// Add signed private transaction into the store
 	/// Creates corresponding public transaction if last required singature collected and sends it to the chain
 	pub fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<(), Error> {
-		let tx: SignedPrivateTransaction = UntrustedRlp::new(rlp).as_val()?;
+		let tx: SignedPrivateTransaction = Rlp::new(rlp).as_val()?;
 		trace!("Signature for private transaction received: {:?}", tx);
 		let private_hash = tx.private_transaction_hash();
 		let desc = match self.transactions_for_signing.lock().get(&private_hash) {

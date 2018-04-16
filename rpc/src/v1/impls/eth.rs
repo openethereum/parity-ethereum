@@ -20,7 +20,7 @@ use std::thread;
 use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
 
-use rlp::{self, UntrustedRlp};
+use rlp::{self, Rlp};
 use ethereum_types::{U256, H64, H160, H256, Address};
 use parking_lot::Mutex;
 
@@ -813,7 +813,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256> {
-		UntrustedRlp::new(&raw.into_vec()).as_val()
+		Rlp::new(&raw.into_vec()).as_val()
 			.map_err(errors::rlp)
 			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))
 			.and_then(|signed_transaction| {

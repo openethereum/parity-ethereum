@@ -411,7 +411,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 	let tester = EthTester::from_chain(&chain);
 
 	let mut id = 1;
-	for b in chain.blocks_rlp().iter().filter(|b| Block::is_good(b)).map(|b| BlockView::new(b)) {
+	for b in chain.blocks_rlp().iter().filter(|b| Block::is_good(b)).map(|b| view!(BlockView, b)) {
 		let count = b.transactions_count();
 
 		let hash = b.hash();

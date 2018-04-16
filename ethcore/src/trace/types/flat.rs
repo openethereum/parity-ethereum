@@ -17,7 +17,7 @@
 //! Flat trace module
 
 use std::collections::VecDeque;
-use rlp::{UntrustedRlp, RlpStream, Decodable, Encodable, DecoderError};
+use rlp::{Rlp, RlpStream, Decodable, Encodable, DecoderError};
 use heapsize::HeapSizeOf;
 use ethereum_types::Bloom;
 use super::trace::{Action, Res};
@@ -63,7 +63,7 @@ impl Encodable for FlatTrace {
 }
 
 impl Decodable for FlatTrace {
-	fn decode(d: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(d: &Rlp) -> Result<Self, DecoderError> {
 		let v: Vec<usize> = d.list_at(3)?;
 		let res = FlatTrace {
 			action: d.val_at(0)?,
