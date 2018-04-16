@@ -148,6 +148,23 @@ impl fmt::Display for BlockError {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// Errors related to metadata operations
+pub enum MetadataError {
+	/// The metadata block trying to set is unknown.
+	UnknownBlock,
+}
+
+impl fmt::Display for MetadataError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let msg = match *self {
+			MetadataError::UnknownBlock => "unknown block",
+		};
+
+		f.write_fmt(format_args!("Block metadata error ({})", msg))
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 /// Import to the block queue result
 pub enum ImportError {
 	/// Already in the block chain.
@@ -247,6 +264,8 @@ pub enum Error {
 	Ethkey(EthkeyError),
 	/// Account Provider error.
 	AccountProvider(AccountsError),
+	/// Block metadata error.
+	Metadata(MetadataError),
 }
 
 impl fmt::Display for Error {
@@ -271,6 +290,7 @@ impl fmt::Display for Error {
 			Error::Engine(ref err) => err.fmt(f),
 			Error::Ethkey(ref err) => err.fmt(f),
 			Error::AccountProvider(ref err) => err.fmt(f),
+			Error::Metadata(ref err) => err.fmt(f),
 		}
 	}
 }
@@ -284,6 +304,12 @@ impl error::Error for Error {
 
 /// Result of import block operation.
 pub type ImportResult = Result<H256, Error>;
+
+impl From<MetadataError> for Error {
+	fn from(err: MetadataError) -> Error {
+		Error::Metadata(err)
+	}
+}
 
 impl From<ClientError> for Error {
 	fn from(err: ClientError) -> Error {
