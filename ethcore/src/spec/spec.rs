@@ -848,6 +848,9 @@ impl Spec {
 		load_bundled!("authority_round_empty_steps")
 	}
 
+	/// Create a new Spec with AuthorityRound consensus (with empty steps) using a block reward
+	/// contract. The contract source code can be found at:
+	/// https://github.com/parity-contracts/block-reward/blob/master/contracts/ExampleBlockReward.sol
 	pub fn new_test_round_block_reward_contract() -> Self {
 		load_bundled!("authority_round_block_reward_contract")
 	}

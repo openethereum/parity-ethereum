@@ -26,11 +26,17 @@ pub type SystemCall<'a> = FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + '
 
 use_contract!(block_reward_contract, "BlockReward", "res/contracts/block_reward.json");
 
+/// The kind of block reward.
+/// Depending on the consensus engine the allocated block reward might have
+/// different semantics which could lead e.g. to different reward values.
 #[repr(u8)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum RewardKind {
+	/// Reward attributed to the block author.
 	Author = 0,
+	/// Reward attributed to the block uncle(s).
 	Uncle = 1,
+	/// Reward attributed to the author(s) of empty step(s) included in the block (AuthorityRound engine).
 	EmptyStep = 2,
 }
 
@@ -40,12 +46,15 @@ impl From<RewardKind> for u16 {
 	}
 }
 
+/// A client for the block reward contract.
 pub struct BlockRewardContract {
+	/// Address of the contract.
 	address: Address,
 	block_reward_contract: block_reward_contract::BlockReward,
 }
 
 impl BlockRewardContract {
+	/// Create a new block reward contract client targeting the given address.
 	pub fn new(address: Address) -> BlockRewardContract {
 		BlockRewardContract {
 			address,
@@ -53,6 +62,10 @@ impl BlockRewardContract {
 		}
 	}
 
+	/// Calls the block reward contract with the given benefactors list (and associated reward kind)
+	/// and returns the reward allocation (address - value). The block reward contract *must* be
+	/// called by the system address so the `caller` must ensure that (e.g. using
+	/// `machine.execute_as_system`).
 	pub fn reward(
 		&self,
 		benefactors: &[(Address, RewardKind)],
@@ -98,6 +111,8 @@ impl BlockRewardContract {
 	}
 }
 
+/// Applies the given block rewards, i.e. adds the given balance to each benefactors' address.
+/// If tracing is enabled the operations are recorded.
 pub fn apply_block_rewards(rewards: &[(Address, U256)], block: &mut ExecutedBlock, machine: &EthereumMachine) -> Result<(), Error> {
 	use parity_machine::WithBalances;
 
