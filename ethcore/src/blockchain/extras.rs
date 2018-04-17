@@ -186,7 +186,7 @@ pub struct BlockDetails {
 
 impl rlp::Encodable for BlockDetails {
 	fn rlp_append(&self, stream: &mut rlp::RlpStream) {
-		let use_short_version = !self.finalized;
+		let use_short_version = !self.is_finalized;
 
 		match use_short_version {
 			true => { stream.begin_list(4); },
@@ -198,7 +198,7 @@ impl rlp::Encodable for BlockDetails {
 		stream.append(&self.parent);
 		stream.append_list(&self.children);
 		if !use_short_version {
-			stream.append(&self.finalized);
+			stream.append(&self.is_finalized);
 		}
 	}
 }
@@ -216,7 +216,7 @@ impl rlp::Decodable for BlockDetails {
 			total_difficulty: rlp.val_at(1)?,
 			parent: rlp.val_at(2)?,
 			children: rlp.list_at(3)?,
-			finalized: if use_short_version {
+			is_finalized: if use_short_version {
 				false
 			} else {
 				rlp.val_at(4)?
