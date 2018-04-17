@@ -247,8 +247,6 @@ pub enum Error {
 	Ethkey(EthkeyError),
 	/// Account Provider error.
 	AccountProvider(AccountsError),
-	/// Block metadata error.
-	Metadata(MetadataError),
 }
 
 impl fmt::Display for Error {
@@ -273,7 +271,6 @@ impl fmt::Display for Error {
 			Error::Engine(ref err) => err.fmt(f),
 			Error::Ethkey(ref err) => err.fmt(f),
 			Error::AccountProvider(ref err) => err.fmt(f),
-			Error::Metadata(ref err) => err.fmt(f),
 		}
 	}
 }
@@ -287,12 +284,6 @@ impl error::Error for Error {
 
 /// Result of import block operation.
 pub type ImportResult = Result<H256, Error>;
-
-impl From<MetadataError> for Error {
-	fn from(err: MetadataError) -> Error {
-		Error::Metadata(err)
-	}
-}
 
 impl From<ClientError> for Error {
 	fn from(err: ClientError) -> Error {

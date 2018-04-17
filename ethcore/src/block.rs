@@ -94,7 +94,7 @@ pub struct ExecutedBlock {
 	state: State<StateDB>,
 	traces: Tracing,
 	last_hashes: Arc<LastHashes>,
-	finalized: bool,
+	is_finalized: bool,
 	local_metadata: Vec<u8>,
 	global_metadata: Vec<u8>,
 }
