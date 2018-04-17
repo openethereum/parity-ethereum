@@ -95,12 +95,12 @@ pub struct ExecutedBlock {
 	traces: Tracing,
 	last_hashes: Arc<LastHashes>,
 	is_finalized: bool,
-	metadata: Vec<u8>,
+	metadata: Option<Vec<u8>>,
 }
 
 impl ExecutedBlock {
 	/// Create a new block from the given `state`.
-	fn new(state: State<StateDB>, last_hashes: Arc<LastHashes>, tracing: bool, global_metadata: Vec<u8>, local_metadata: Vec<u8>) -> ExecutedBlock {
+	fn new(state: State<StateDB>, last_hashes: Arc<LastHashes>, tracing: bool) -> ExecutedBlock {
 		ExecutedBlock {
 			header: Default::default(),
 			transactions: Default::default(),
@@ -115,8 +115,7 @@ impl ExecutedBlock {
 			},
 			last_hashes: last_hashes,
 			is_finalized: false,
-			global_metadata: global_metadata,
-			local_metadata: local_metadata,
+			metadata: None,
 		}
 	}
 
@@ -218,11 +217,11 @@ impl ::parity_machine::Finalizable for ExecutedBlock {
 }
 
 impl ::parity_machine::WithMetadata for ExecutedBlock {
-	fn metadata(&self) -> &[u8] {
+	fn metadata(&self) -> Option<&[u8]> {
 		&self.metadata
 	}
 
-	fn set_metadata(&mut self, value: Vec<u8>) {
+	fn set_metadata(&mut self, value: Option<Vec<u8>>) {
 		self.metadata = value;
 	}
 }
