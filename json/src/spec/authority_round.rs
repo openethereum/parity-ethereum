@@ -44,6 +44,9 @@ pub struct AuthorityRoundParams {
 	/// Reward per block in wei.
 	#[serde(rename="blockReward")]
 	pub block_reward: Option<Uint>,
+	/// Block at which the block reward contract should start being used.
+	#[serde(rename="blockRewardContractTransition")]
+	pub block_reward_contract_transition: Option<Uint>,
 	/// Block reward contract address (setting the block reward contract
 	/// overrides the static block reward definition).
 	#[serde(rename="blockRewardContractAddress")]

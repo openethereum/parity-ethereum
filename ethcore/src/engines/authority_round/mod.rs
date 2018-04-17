@@ -70,6 +70,8 @@ pub struct AuthorityRoundParams {
 	pub immediate_transitions: bool,
 	/// Block reward in base units.
 	pub block_reward: U256,
+	/// Block reward contract transition block.
+	pub block_reward_contract_transition: u64,
 	/// Block reward contract.
 	pub block_reward_contract: Option<BlockRewardContract>,
 	/// Number of accepted uncles transition block.
@@ -99,6 +101,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			validate_step_transition: p.validate_step_transition.map_or(0, Into::into),
 			immediate_transitions: p.immediate_transitions.unwrap_or(false),
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
+			block_reward_contract_transition: p.block_reward_contract_transition.map_or(0, Into::into),
 			block_reward_contract: p.block_reward_contract_address.map(BlockRewardContract::new),
 			maximum_uncle_count_transition: p.maximum_uncle_count_transition.map_or(0, Into::into),
 			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
@@ -393,6 +396,7 @@ pub struct AuthorityRound {
 	epoch_manager: Mutex<EpochManager>,
 	immediate_transitions: bool,
 	block_reward: U256,
+	block_reward_contract_transition: u64,
 	block_reward_contract: Option<BlockRewardContract>,
 	maximum_uncle_count_transition: u64,
 	maximum_uncle_count: usize,
@@ -626,6 +630,7 @@ impl AuthorityRound {
 				epoch_manager: Mutex::new(EpochManager::blank()),
 				immediate_transitions: our_params.immediate_transitions,
 				block_reward: our_params.block_reward,
+				block_reward_contract_transition: our_params.block_reward_contract_transition,
 				block_reward_contract: our_params.block_reward_contract,
 				maximum_uncle_count_transition: our_params.maximum_uncle_count_transition,
 				maximum_uncle_count: our_params.maximum_uncle_count,
@@ -1011,7 +1016,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		benefactors.push((author, RewardKind::Author));
 
 		let rewards = match self.block_reward_contract {
-			Some(ref c) => {
+			Some(ref c) if block.header().number() >= self.block_reward_contract_transition => {
 				let mut call = |to, data| {
 					let result = self.machine.execute_as_system(
 						block,
@@ -1024,7 +1029,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 				c.reward(&benefactors, &mut call)?
 			},
-			None => {
+			_ => {
 				benefactors.into_iter().map(|(author, _)| (author, self.block_reward)).collect()
 			},
 		};
@@ -1542,6 +1547,7 @@ mod tests {
 			empty_steps_transition: u64::max_value(),
 			maximum_empty_steps: 0,
 			block_reward: Default::default(),
+			block_reward_contract_transition: 0,
 			block_reward_contract: Default::default(),
 		};
 
@@ -1585,6 +1591,7 @@ mod tests {
 			empty_steps_transition: u64::max_value(),
 			maximum_empty_steps: 0,
 			block_reward: Default::default(),
+			block_reward_contract_transition: 0,
 			block_reward_contract: Default::default(),
 		};
 
@@ -1640,6 +1647,7 @@ mod tests {
 			empty_steps_transition: u64::max_value(),
 			maximum_empty_steps: 0,
 			block_reward: Default::default(),
+			block_reward_contract_transition: 0,
 			block_reward_contract: Default::default(),
 		};
 
