@@ -340,12 +340,6 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp > parent_timestamp
 	}
-
-	/// Generate metadata for a new block.
-	fn generate_metadata(&self, bytes: &[u8], provider: &M::BlockProvider) -> M::BlockMetadata;
-
-	/// Check whether a given block is the best block.
-	fn is_new_best(&self, bytes: &[u8], block_metadata: &M::BlockMetadata, best_block_metadata: &M::BlockMetadata, provider: &M::BlockProvider) -> bool;
 }
 
 /// Generate metadata for a new block based on the default total difficulty rule.

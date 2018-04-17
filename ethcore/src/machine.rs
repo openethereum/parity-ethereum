@@ -409,8 +409,6 @@ impl ::parity_machine::Machine for EthereumMachine {
 	type LiveBlock = ExecutedBlock;
 	type EngineClient = ::client::EngineClient;
 	type AuxiliaryRequest = AuxiliaryRequest;
-	type BlockProvider = ::blockchain::BlockProvider;
-	type BlockMetadata = U256;
 
 	type Error = Error;
 }

@@ -56,7 +56,7 @@ impl<M: Default> Default for NullEngine<M> {
 	}
 }
 
-impl<M: WithBalances<BlockMetadata=U256, BlockProvider=::blockchain::BlockProvider>> Engine<M> for NullEngine<M> {
+impl<M: WithBalances> Engine<M> for NullEngine<M> {
 	fn name(&self) -> &str {
 		"NullEngine"
 	}
@@ -104,13 +104,5 @@ impl<M: WithBalances<BlockMetadata=U256, BlockProvider=::blockchain::BlockProvid
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
-	}
-
-	fn generate_metadata(&self, bytes: &[u8], provider: &<::machine::EthereumMachine as ::parity_machine::Machine>::BlockProvider) -> <::machine::EthereumMachine as ::parity_machine::Machine>::BlockMetadata {
-		super::total_difficulty_generate_metadata(bytes, provider)
-	}
-
-	fn is_new_best(&self, bytes: &[u8], block_metadata: &<::machine::EthereumMachine as ::parity_machine::Machine>::BlockMetadata, best_block_metadata: &<::machine::EthereumMachine as ::parity_machine::Machine>::BlockMetadata, provider: &<::machine::EthereumMachine as ::parity_machine::Machine>::BlockProvider) -> bool {
-		super::total_difficulty_is_new_best(bytes, *block_metadata, *best_block_metadata, provider)
 	}
 }

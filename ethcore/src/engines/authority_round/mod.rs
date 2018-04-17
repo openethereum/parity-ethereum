@@ -1319,14 +1319,6 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			Some(Box::new(::snapshot::PoaSnapshot))
 		}
 	}
-
-	fn generate_metadata(&self, bytes: &[u8], provider: &<EthereumMachine as ::parity_machine::Machine>::BlockProvider) -> <EthereumMachine as ::parity_machine::Machine>::BlockMetadata {
-		super::total_difficulty_generate_metadata(bytes, provider)
-	}
-
-	fn is_new_best(&self, bytes: &[u8], block_metadata: &<EthereumMachine as ::parity_machine::Machine>::BlockMetadata, best_block_metadata: &<EthereumMachine as ::parity_machine::Machine>::BlockMetadata, provider: &<EthereumMachine as ::parity_machine::Machine>::BlockProvider) -> bool {
-		super::total_difficulty_is_new_best(bytes, *block_metadata, *best_block_metadata, provider)
-	}
 }
 
 #[cfg(test)]

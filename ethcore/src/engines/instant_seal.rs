@@ -32,7 +32,7 @@ impl<M> InstantSeal<M> {
 	}
 }
 
-impl<M: Machine<BlockMetadata=::ethereum_types::U256, BlockProvider=::blockchain::BlockProvider>> Engine<M> for InstantSeal<M>
+impl<M: Machine> Engine<M> for InstantSeal<M>
 	where M::LiveBlock: Transactions
 {
 	fn name(&self) -> &str {
@@ -60,14 +60,6 @@ impl<M: Machine<BlockMetadata=::ethereum_types::U256, BlockProvider=::blockchain
 
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp >= parent_timestamp
-	}
-
-	fn generate_metadata(&self, bytes: &[u8], provider: &<::machine::EthereumMachine as ::parity_machine::Machine>::BlockProvider) -> <::machine::EthereumMachine as ::parity_machine::Machine>::BlockMetadata {
-		super::total_difficulty_generate_metadata(bytes, provider)
-	}
-
-	fn is_new_best(&self, bytes: &[u8], block_metadata: &<::machine::EthereumMachine as ::parity_machine::Machine>::BlockMetadata, best_block_metadata: &<::machine::EthereumMachine as ::parity_machine::Machine>::BlockMetadata, provider: &<::machine::EthereumMachine as ::parity_machine::Machine>::BlockProvider) -> bool {
-		super::total_difficulty_is_new_best(bytes, *block_metadata, *best_block_metadata, provider)
 	}
 }
 

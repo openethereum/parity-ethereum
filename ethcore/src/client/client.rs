@@ -32,7 +32,7 @@ use util_error::UtilError;
 // other
 use ethereum_types::{H256, Address, U256};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
-use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute, TransactionAddress};
+use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
@@ -542,10 +542,14 @@ impl Importer {
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
 		let global_metadata: Option<Bytes> = block.block().global_metadata();
 		let local_metadata: Option<Bytes> = block.block().local_metadata();
-
-		let block_metadata = client.engine.generate_metadata(block_data, chain.deref().deref());
-		let is_new_best = client.engine.is_new_best(block_data, &block_metadata, &chain.best_block_total_difficulty(), chain.deref().deref());
-		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), block_metadata, is_new_best);
+		let is_finalized = block.block().is_finalized();
+		let is_new_best = true;
+		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
+			is_new_best: is_new_best,
+			is_finalized: is_finalized,
+			global_metadata: global_metadata,
+			local_metadata: local_metadata
+		});
 
 		client.tracedb.read().import(&mut batch, TraceImportRequest {
 			traces: traces.into(),
