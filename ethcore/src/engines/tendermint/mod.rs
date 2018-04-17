@@ -36,7 +36,7 @@ use client::EngineClient;
 use bytes::Bytes;
 use error::{Error, BlockError};
 use header::{Header, BlockNumber};
-use rlp::UntrustedRlp;
+use rlp::Rlp;
 use ethkey::{self, Message, Signature};
 use account_provider::AccountProvider;
 use block::*;
@@ -118,7 +118,7 @@ impl <F> super::EpochVerifier<EthereumMachine> for EpochVerifier<F>
 
 		let mut addresses = HashSet::new();
 		let ref header_signatures_field = header.seal().get(2).ok_or(BlockError::InvalidSeal)?;
-		for rlp in UntrustedRlp::new(header_signatures_field).iter() {
+		for rlp in Rlp::new(header_signatures_field).iter() {
 			let signature: H520 = rlp.as_val()?;
 			let address = (self.recover)(&signature.into(), &message)?;
 
@@ -154,7 +154,7 @@ fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8], finality_proof: 
 }
 
 fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8], &[u8]), Error> {
-	let rlp = UntrustedRlp::new(combined);
+	let rlp = Rlp::new(combined);
 	Ok((
 		rlp.at(0)?.as_val()?,
 		rlp.at(1)?.data()?,
@@ -503,7 +503,8 @@ impl Engine<EthereumMachine> for Tendermint {
 		fn fmt_err<T: ::std::fmt::Debug>(x: T) -> EngineError {
 			EngineError::MalformedMessage(format!("{:?}", x))
 		}
-		let rlp = UntrustedRlp::new(rlp);
+
+		let rlp = Rlp::new(rlp);
 		let message: ConsensusMessage = rlp.as_val().map_err(fmt_err)?;
 		if !self.votes.is_old_or_known(&message) {
 			let msg_hash = keccak(rlp.at(1).map_err(fmt_err)?.as_raw());
@@ -595,7 +596,7 @@ impl Engine<EthereumMachine> for Tendermint {
 			let precommit_hash = message_hash(vote_step.clone(), header.bare_hash());
 			let ref signatures_field = header.seal().get(2).expect("block went through verify_block_basic; block has .seal_fields() fields; qed");
 			let mut origins = HashSet::new();
-			for rlp in UntrustedRlp::new(signatures_field).iter() {
+			for rlp in Rlp::new(signatures_field).iter() {
 				let precommit = ConsensusMessage {
 					signature: rlp.as_val()?,
 					block_hash: Some(header.bare_hash()),

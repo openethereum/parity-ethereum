@@ -41,7 +41,7 @@ use self::finality::RollingFinality;
 use ethkey::{self, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
-use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, UntrustedRlp};
+use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
 use unexpected::{Mismatch, OutOfBounds};
@@ -325,7 +325,7 @@ impl Encodable for EmptyStep {
 }
 
 impl Decodable for EmptyStep {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let signature = rlp.val_at(0)?;
 		let empty_step_rlp = rlp.at(1)?;
 
@@ -366,7 +366,7 @@ impl Encodable for SealedEmptyStep {
 }
 
 impl Decodable for SealedEmptyStep {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let signature = rlp.val_at(0)?;
 		let step = rlp.val_at(1)?;
 
@@ -415,7 +415,7 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 		let mut finality_checker = RollingFinality::blank(self.subchain_validators.clone().into_inner());
 		let mut finalized = Vec::new();
 
-		let headers: Vec<Header> = UntrustedRlp::new(proof).as_list().ok()?;
+		let headers: Vec<Header> = Rlp::new(proof).as_list().ok()?;
 
 		{
 			let mut push_header = |parent_header: &Header, header: Option<&Header>| {
@@ -479,13 +479,13 @@ fn header_expected_seal_fields(header: &Header, empty_steps_transition: u64) -> 
 
 fn header_step(header: &Header, empty_steps_transition: u64) -> Result<usize, ::rlp::DecoderError> {
 	let expected_seal_fields = header_expected_seal_fields(header, empty_steps_transition);
-	UntrustedRlp::new(&header.seal().get(0).expect(
+	Rlp::new(&header.seal().get(0).expect(
 		&format!("was either checked with verify_block_basic or is genesis; has {} fields; qed (Make sure the spec file has a correct genesis seal)", expected_seal_fields))).as_val()
 }
 
 fn header_signature(header: &Header, empty_steps_transition: u64) -> Result<Signature, ::rlp::DecoderError> {
 	let expected_seal_fields = header_expected_seal_fields(header, empty_steps_transition);
-	UntrustedRlp::new(&header.seal().get(1).expect(
+	Rlp::new(&header.seal().get(1).expect(
 		&format!("was checked with verify_block_basic; has {} fields; qed", expected_seal_fields))).as_val::<H520>().map(Into::into)
 }
 
@@ -498,7 +498,7 @@ fn header_empty_steps_raw(header: &Header) -> &[u8] {
 // extracts the empty steps from the header seal. should only be called when there are 3 fields in the seal
 // (i.e. header.number() >= self.empty_steps_transition).
 fn header_empty_steps(header: &Header) -> Result<Vec<EmptyStep>, ::rlp::DecoderError> {
-	let empty_steps = UntrustedRlp::new(header_empty_steps_raw(header)).as_list::<SealedEmptyStep>()?;
+	let empty_steps = Rlp::new(header_empty_steps_raw(header)).as_list::<SealedEmptyStep>()?;
 	Ok(empty_steps.into_iter().map(|s| EmptyStep::from_sealed(s, header.parent_hash())).collect())
 }
 
@@ -575,7 +575,7 @@ fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8], finality_proof: 
 }
 
 fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8], &[u8]), Error> {
-	let rlp = UntrustedRlp::new(combined);
+	let rlp = Rlp::new(combined);
 	Ok((
 		rlp.at(0)?.as_val()?,
 		rlp.at(1)?.data()?,
@@ -801,7 +801,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			EngineError::MalformedMessage(format!("{:?}", x))
 		}
 
-		let rlp = UntrustedRlp::new(rlp);
+		let rlp = Rlp::new(rlp);
 		let empty_step: EmptyStep = rlp.as_val().map_err(fmt_err)?;;
 
 		if empty_step.verify(&*self.validators).unwrap_or(false) {

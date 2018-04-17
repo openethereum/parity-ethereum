@@ -22,7 +22,7 @@ use std::collections::HashSet;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use triehash::ordered_trie_root;
 
-use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
+use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use unexpected::{Mismatch, OutOfBounds};
@@ -54,7 +54,7 @@ pub struct Block {
 impl Block {
 	/// Returns true if the given bytes form a valid encoding of a block in RLP.
 	pub fn is_good(b: &[u8]) -> bool {
-		UntrustedRlp::new(b).as_val::<Block>().is_ok()
+		Rlp::new(b).as_val::<Block>().is_ok()
 	}
 
 	/// Get the RLP-encoding of the block with the seal.
@@ -68,7 +68,7 @@ impl Block {
 }
 
 impl Decodable for Block {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		if rlp.as_raw().len() != rlp.payload_info()?.total() {
 			return Err(DecoderError::RlpIsTooBig);
 		}
@@ -622,7 +622,7 @@ pub fn enact_verified(
 	// Remove state root from transaction receipts to make them EIP-98 compatible.
 	strip_receipts: bool,
 ) -> Result<LockedBlock, Error> {
-	let view = BlockView::new(&block.bytes);
+	let view = view!(BlockView, &block.bytes);
 
 	enact(
 		block.header,
@@ -664,7 +664,7 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<LockedBlock, Error> {
-		let block = BlockView::new(block_bytes);
+		let block = view!(BlockView, block_bytes);
 		let header = block.header();
 		let transactions: Result<Vec<_>, Error> = block
 			.transactions()
@@ -715,7 +715,7 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<SealedBlock, Error> {
-		let header = BlockView::new(block_bytes).header_view();
+		let header = view!(BlockView, block_bytes).header_view();
 		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?.seal(engine, header.seal())?)
 	}
 
@@ -781,7 +781,7 @@ mod tests {
 
 		let bytes = e.rlp_bytes();
 		assert_eq!(bytes, orig_bytes);
-		let uncles = BlockView::new(&bytes).uncles();
+		let uncles = view!(BlockView, &bytes).uncles();
 		assert_eq!(uncles[1].extra_data(), b"uncle2");
 
 		let db = e.drain();

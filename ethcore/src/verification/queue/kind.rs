@@ -122,7 +122,7 @@ pub mod blocks {
 		pub fn new(bytes: Bytes) -> Self {
 			use views::BlockView;
 
-			let header = BlockView::new(&bytes).header();
+			let header = view!(BlockView, &bytes).header();
 			Unverified {
 				header: header,
 				bytes: bytes,

@@ -20,7 +20,7 @@ use std::fmt;
 use std::time::{self, SystemTime, Duration, Instant};
 
 use ethereum_types::{H256, H512};
-use rlp::{self, DecoderError, RlpStream, UntrustedRlp};
+use rlp::{self, DecoderError, RlpStream, Rlp};
 use smallvec::SmallVec;
 use tiny_keccak::{keccak256, Keccak};
 
@@ -85,7 +85,7 @@ impl rlp::Encodable for Topic {
 }
 
 impl rlp::Decodable for Topic {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		use std::cmp;
 
 		rlp.decoder().decode_value(|bytes| match bytes.len().cmp(&4) {
@@ -145,7 +145,7 @@ fn append_topics<'a>(s: &'a mut RlpStream, topics: &[Topic]) -> &'a mut RlpStrea
 	}
 }
 
-fn decode_topics(rlp: UntrustedRlp) -> Result<SmallVec<[Topic; 4]>, DecoderError> {
+fn decode_topics(rlp: Rlp) -> Result<SmallVec<[Topic; 4]>, DecoderError> {
 	if rlp.is_list() {
 		rlp.iter().map(|r| r.as_val::<Topic>()).collect()
 	} else {
@@ -212,7 +212,7 @@ impl rlp::Encodable for Envelope {
 }
 
 impl rlp::Decodable for Envelope {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		if rlp.item_count()? != 5 { return Err(DecoderError::RlpIncorrectListLen) }
 
 		Ok(Envelope {
@@ -332,7 +332,7 @@ impl Message {
 	}
 
 	/// Decode message from RLP and check for validity against system time.
-	pub fn decode(rlp: UntrustedRlp, now: SystemTime) -> Result<Self, Error> {
+	pub fn decode(rlp: Rlp, now: SystemTime) -> Result<Self, Error> {
 		let envelope: Envelope = rlp.as_val()?;
 		let encoded_size = rlp.as_raw().len();
 		let hash = H256(keccak256(rlp.as_raw()));
@@ -418,7 +418,7 @@ impl Message {
 mod tests {
 	use super::*;
 	use std::time::{self, Duration, SystemTime};
-	use rlp::UntrustedRlp;
+	use rlp::Rlp;
 	use smallvec::SmallVec;
 
 	fn unix_time(x: u64) -> SystemTime {
@@ -481,7 +481,7 @@ mod tests {
 
 		for i in 0..30 {
 			let now = unix_time(100_000 - i);
-			Message::decode(UntrustedRlp::new(&*encoded), now).unwrap();
+			Message::decode(Rlp::new(&*encoded), now).unwrap();
 		}
 	}
 
@@ -499,7 +499,7 @@ mod tests {
 		let encoded = ::rlp::encode(&envelope);
 
 		let now = unix_time(100_000 - 1_000);
-		Message::decode(UntrustedRlp::new(&*encoded), now).unwrap();
+		Message::decode(Rlp::new(&*encoded), now).unwrap();
 	}
 
 	#[test]
@@ -516,6 +516,6 @@ mod tests {
 		let encoded = ::rlp::encode(&envelope);
 
 		let now = unix_time(95_000);
-		Message::decode(UntrustedRlp::new(&*encoded), now).unwrap();
+		Message::decode(Rlp::new(&*encoded), now).unwrap();
 	}
 }

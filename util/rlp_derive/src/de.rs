@@ -35,7 +35,7 @@ pub fn impl_decodable(ast: &syn::DeriveInput) -> quote::Tokens {
 	let dummy_const: syn::Ident = format!("_IMPL_RLP_DECODABLE_FOR_{}", name).into();
 	let impl_block = quote! {
 		impl rlp::Decodable for #name {
-			fn decode(rlp: &rlp::UntrustedRlp) -> Result<Self, rlp::DecoderError> {
+			fn decode(rlp: &rlp::Rlp) -> Result<Self, rlp::DecoderError> {
 				let result = #name {
 					#(#stmts)*
 				};
@@ -75,7 +75,7 @@ pub fn impl_decodable_wrapper(ast: &syn::DeriveInput) -> quote::Tokens {
 	let dummy_const: syn::Ident = format!("_IMPL_RLP_DECODABLE_FOR_{}", name).into();
 	let impl_block = quote! {
 		impl rlp::Decodable for #name {
-			fn decode(rlp: &rlp::UntrustedRlp) -> Result<Self, rlp::DecoderError> {
+			fn decode(rlp: &rlp::Rlp) -> Result<Self, rlp::DecoderError> {
 				let result = #name {
 					#stmt
 				};

@@ -17,7 +17,7 @@
 use super::test_common::*;
 use evm;
 use ethjson;
-use rlp::UntrustedRlp;
+use rlp::Rlp;
 use transaction::{Action, UnverifiedTransaction, SignedTransaction};
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
@@ -40,7 +40,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		let allow_unsigned = number.map_or(false, |n| n >= 3_000_000);
 
 		let rlp: Vec<u8> = test.rlp.into();
-		let res = UntrustedRlp::new(&rlp)
+		let res = Rlp::new(&rlp)
 			.as_val()
 			.map_err(::error::Error::from)
 			.and_then(|t: UnverifiedTransaction| {

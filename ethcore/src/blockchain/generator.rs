@@ -41,7 +41,7 @@ impl Block {
 
 	#[inline]
 	pub fn hash(&self) -> H256 {
-		BlockView::new(&self.encoded()).header_view().hash()
+		view!(BlockView, &self.encoded()).header_view().hash()
 	}
 
 	#[inline]

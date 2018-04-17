@@ -171,7 +171,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 			panic!("error importing block which is valid by definition: {:?}", e);
 		}
 
-		last_header = BlockView::new(&b.rlp_bytes()).header();
+		last_header = view!(BlockView, &b.rlp_bytes()).header();
 		db = b.drain();
 	}
 	client.flush_queue();
