@@ -46,10 +46,10 @@ pub trait ScoredHeader: Header {
 	type Value;
 
 	/// Get the score of this header.
-	fn score(&self) -> &Value;
+	fn score(&self) -> &Self::Value;
 
 	/// Set the score of this header.
-	fn set_score(&mut self, score: Value);
+	fn set_score(&mut self, score: Self::Value);
 }
 
 /// A header with associated total score.
@@ -57,7 +57,7 @@ pub trait TotalScoredHeader: Header {
 	type Value;
 
 	/// Get the total score of this header.
-	fn total_score(&self) -> &Value;
+	fn total_score(&self) -> &Self::Value;
 }
 
 /// A header with finalized information.
