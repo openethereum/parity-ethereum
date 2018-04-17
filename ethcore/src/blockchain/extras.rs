@@ -18,7 +18,6 @@
 
 use std::ops;
 use std::io::Write;
-use std::collections::HashMap;
 use blooms::{GroupPosition, BloomGroup};
 use db::Key;
 use engines::epoch::{Transition as EpochTransition};

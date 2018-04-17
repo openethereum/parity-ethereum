@@ -40,7 +40,6 @@ use types::blockchain_info::BlockChainInfo;
 use types::tree_route::TreeRoute;
 use blockchain::update::{ExtrasUpdate, ExtrasInsert};
 use blockchain::{CacheSize, ImportRoute, Config};
-use error::MetadataError;
 use db::{self, Writable, Readable, CacheUpdatePolicy};
 use cache_manager::CacheManager;
 use encoded;
