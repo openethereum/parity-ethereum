@@ -34,6 +34,14 @@ enum Seal {
 	Without,
 }
 
+/// Extended block header, wrapping `Header` with finalized and total difficulty information.
+#[derive(Debug, Clone, Eq)]
+pub struct ExtendedHeader {
+	pub header: Header,
+	pub finalized: bool,
+	pub total_difficulty: U256,
+}
+
 /// A block header.
 ///
 /// Reflects the specific RLP fields of a block in the chain with additional room for the seal
@@ -368,19 +376,42 @@ impl HeapSizeOf for Header {
 
 impl ::parity_machine::Header for Header {
 	fn bare_hash(&self) -> H256 { Header::bare_hash(self) }
-
 	fn hash(&self) -> H256 { Header::hash(self) }
-
 	fn seal(&self) -> &[Vec<u8>] { Header::seal(self) }
-
 	fn author(&self) -> &Address { Header::author(self) }
-
 	fn number(&self) -> BlockNumber { Header::number(self) }
 }
 
 impl ::parity_machine::ScoredHeader for Header {
+	type Value = U256;
+
 	fn score(&self) -> &U256 { self.difficulty() }
 	fn set_score(&mut self, score: U256) { self.set_difficulty(score) }
+}
+
+impl ::parity_machine::Header for ExtendedHeader {
+	fn bare_hash(&self) -> H256 { self.header.bare_hash() }
+	fn hash(&self) -> H256 { self.header.hash() }
+	fn seal(&self) -> &[Vec<u8>] { self.header.seal() }
+	fn author(&self) -> &Address { self.header.author() }
+	fn number(&self) -> BlockNumber { self.header.number() }
+}
+
+impl ::parity_machine::ScoredHeader for ExtendedHeader {
+	type Value = U256;
+
+	fn score(&self) -> &U256 { self.header.difficulty() }
+	fn set_score(&mut self, score: U256) { self.set_difficulty(score) }
+}
+
+impl ::parity_machine::TotalScoredHeader for ExtendedHeader {
+	type Value = U256;
+
+	fn total_score(&self) -> &U256 { &self.total_difficulty }
+}
+
+impl ::parity_machine::FinalizedHeader for ExtendedHeader {
+	fn is_finalized(&self) -> bool { self.finalized }
 }
 
 #[cfg(test)]

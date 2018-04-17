@@ -94,6 +94,9 @@ pub struct ExecutedBlock {
 	state: State<StateDB>,
 	traces: Tracing,
 	last_hashes: Arc<LastHashes>,
+	finalized: bool,
+	local_metadata: Option<Bytes>,
+	global_metadata: Option<Bytes>,
 }
 
 impl ExecutedBlock {
@@ -112,6 +115,7 @@ impl ExecutedBlock {
 				Tracing::Disabled
 			},
 			last_hashes: last_hashes,
+			finalized: false,
 		}
 	}
 
@@ -203,6 +207,12 @@ impl ::parity_machine::Transactions for ExecutedBlock {
 
 	fn transactions(&self) -> &[SignedTransaction] {
 		&self.transactions
+	}
+}
+
+impl ::parity_machine::Finalizable for ExecutedBlock {
+	fn mark_finalized(&mut self) {
+		self.finalized = true;
 	}
 }
 
@@ -789,4 +799,3 @@ mod tests {
 		assert!(orig_db.journal_db().keys().iter().filter(|k| orig_db.journal_db().get(k.0) != db.journal_db().get(k.0)).next() == None);
 	}
 }
-

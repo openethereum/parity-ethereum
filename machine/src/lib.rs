@@ -41,13 +41,29 @@ pub trait Header {
 	fn number(&self) -> u64;
 }
 
-/// a header with an associated score (difficulty in PoW terms)
+/// A header with an associated score (difficulty in PoW terms)
 pub trait ScoredHeader: Header {
+	type Value;
+
 	/// Get the score of this header.
-	fn score(&self) -> &U256;
+	fn score(&self) -> &Value;
 
 	/// Set the score of this header.
-	fn set_score(&mut self, score: U256);
+	fn set_score(&mut self, score: Value);
+}
+
+/// A header with associated total score.
+pub trait TotalScoredHeader: Header {
+	type Value;
+
+	/// Get the total score of this header.
+	fn total_score(&self) -> &Value;
+}
+
+/// A header with finalized information.
+pub trait FinalizedHeader: Header {
+	/// Get whether this header is considered finalized, so that it will never be replaced in reorganization.
+	fn is_finalized(&self) -> bool;
 }
 
 /// A "live" block is one which is in the process of the transition.
@@ -74,6 +90,24 @@ pub trait Transactions: LiveBlock {
 	fn transactions(&self) -> &[Self::Transaction];
 }
 
+/// Trait for blocks which have finalized information.
+pub trait Finalizable: LiveBlock {
+	/// Mark the block as finalized.
+	fn mark_finalized(&mut self);
+}
+
+/// A state machine with block metadata.
+pub trait WithMetadata: LiveBlock {
+	/// Get the current global metadata.
+	fn global_metadata<T: From<Option<Vec<u8>>>>(&self) -> T;
+	/// Get the current live block metadata.
+	fn local_metadata<T: From<Option<Vec<u8>>>>(&self) -> T;
+	/// Set the current global metadata when the live block is committed.
+	fn set_global_metadata<T: Into<Option<Vec<u8>>>>(&mut self, value: T);
+	/// Set the current live block metadata.
+	fn set_local_metadata<T: Into<Option<Vec<u8>>>>(&mut self, value: T);
+}
+
 /// Generalization of types surrounding blockchain-suitable state machines.
 pub trait Machine: for<'a> LocalizedMachine<'a> {
 	/// The block header type.
@@ -82,12 +116,8 @@ pub trait Machine: for<'a> LocalizedMachine<'a> {
 	type LiveBlock: LiveBlock<Header=Self::Header>;
 	/// A handle to a blockchain client for this machine.
 	type EngineClient: ?Sized;
-	/// A handle to the block provider for this machine.
-	type BlockProvider: ?Sized;
 	/// A description of needed auxiliary data.
 	type AuxiliaryRequest;
-	/// Extra data related to consensus rules stored together with each block.
-	type BlockMetadata;
 
 	/// Errors which can occur when querying or interacting with the machine.
 	type Error;

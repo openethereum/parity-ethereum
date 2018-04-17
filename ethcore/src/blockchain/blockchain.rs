@@ -162,6 +162,7 @@ enum CacheId {
 	TransactionAddresses(H256),
 	BlocksBlooms(GroupPosition),
 	BlockReceipts(H256),
+	Metadata(Option<H256>),
 }
 
 impl bc::group::BloomGroupDatabase for BlockChain {
@@ -900,6 +901,30 @@ impl BlockChain {
 		self.cache_man.lock().note_used(CacheId::BlockDetails(block_hash));
 	}
 
+	/// Read the metadata from the database. If the parameter is provided, read from the block's metadata. Otherwise,
+	/// read the global metadata.
+	pub fn metadata(&self, hash: &Option<H256>) -> Option<Bytes> {
+		// Check cache first
+		{
+			let read = self.metadata.read();
+			if let Some(v) = read.get(hash) {
+				return Some(v.clone());
+			}
+		}
+
+		// Read from DB and populate cache
+		let b = self.db.get(db::COL_METADATA, match hash {
+			Some(hash) => hash.as_ref(),
+			None => &[0],
+		}).expect("Low level database error. Some issue with disk?");
+
+		let mut write = self.metadata.write();
+		write.insert(hash, b.clone());
+
+		self.cache_man.lock().note_used(CacheId::Metadata(hash));
+		Some(b)
+	}
+
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
@@ -1377,6 +1402,7 @@ impl BlockChain {
 			transaction_addresses: self.transaction_addresses.read().heap_size_of_children(),
 			blocks_blooms: self.blocks_blooms.read().heap_size_of_children(),
 			block_receipts: self.block_receipts.read().heap_size_of_children(),
+			metadata: self.metadata.read().heap_size_of_children(),
 		}
 	}
 
@@ -1391,6 +1417,7 @@ impl BlockChain {
 		let mut transaction_addresses = self.transaction_addresses.write();
 		let mut blocks_blooms = self.blocks_blooms.write();
 		let mut block_receipts = self.block_receipts.write();
+		let mut metadata = self.metadata.write();
 
 		let mut cache_man = self.cache_man.lock();
 		cache_man.collect_garbage(current_size, | ids | {
@@ -1403,6 +1430,7 @@ impl BlockChain {
 					CacheId::TransactionAddresses(ref h) => { transaction_addresses.remove(h); }
 					CacheId::BlocksBlooms(ref h) => { blocks_blooms.remove(h); }
 					CacheId::BlockReceipts(ref h) => { block_receipts.remove(h); }
+					CacheId::Metadata(ref h) => { metadata.remove(h); }
 				}
 			}
 
@@ -1413,6 +1441,7 @@ impl BlockChain {
 			transaction_addresses.shrink_to_fit();
 			blocks_blooms.shrink_to_fit();
 			block_receipts.shrink_to_fit();
+			metadata.shrink_to_fit();
 
 			block_headers.heap_size_of_children() +
 			block_bodies.heap_size_of_children() +
@@ -1420,7 +1449,8 @@ impl BlockChain {
 			block_hashes.heap_size_of_children() +
 			transaction_addresses.heap_size_of_children() +
 			blocks_blooms.heap_size_of_children() +
-			block_receipts.heap_size_of_children()
+			block_receipts.heap_size_of_children() +
+			metadata.heap_size_of_children()
 		});
 	}
 

@@ -540,6 +540,9 @@ impl Importer {
 		);
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
+		let global_metadata: Option<Bytes> = block.block().global_metadata();
+		let local_metadata: Option<Bytes> = block.block().local_metadata();
+
 		let block_metadata = client.engine.generate_metadata(block_data, chain.deref().deref());
 		let is_new_best = client.engine.is_new_best(block_data, &block_metadata, &chain.best_block_total_difficulty(), chain.deref().deref());
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), block_metadata, is_new_best);
