@@ -182,17 +182,15 @@ pub struct BlockDetails {
 	pub children: Vec<H256>,
 	/// Whether the block is considered finalized
 	pub finalized: bool,
-	/// Metadata information
-	pub metadata: HashMap<Bytes, Bytes>,
 }
 
 impl rlp::Encodable for BlockDetails {
 	fn rlp_append(&self, stream: &mut rlp::RlpStream) {
-		let use_short_version = self.metadata.len() == 0 && !self.finalized;
+		let use_short_version = !self.finalized;
 
 		match use_short_version {
 			true => { stream.begin_list(4); },
-			false => { stream.begin_list(6); },
+			false => { stream.begin_list(5); },
 		}
 
 		stream.append(&self.number);
@@ -201,11 +199,6 @@ impl rlp::Encodable for BlockDetails {
 		stream.append_list(&self.children);
 		if !use_short_version {
 			stream.append(&self.finalized);
-
-			let metadata: Vec<BlockMetadata> = self.metadata.clone().into_iter().map(|(key, value)| {
-				BlockMetadata { key, value }
-			}).collect();
-			stream.append_list(&metadata);
 		}
 	}
 }
@@ -214,7 +207,7 @@ impl rlp::Decodable for BlockDetails {
 	fn decode(rlp: &rlp::UntrustedRlp) -> Result<Self, rlp::DecoderError> {
 		let use_short_version = match rlp.item_count()? {
 			4 => true,
-			6 => false,
+			5 => false,
 			_ => return Err(rlp::DecoderError::RlpIncorrectListLen),
 		};
 
@@ -227,13 +220,6 @@ impl rlp::Decodable for BlockDetails {
 				false
 			} else {
 				rlp.val_at(4)?
-			},
-			metadata: if use_short_version {
-				HashMap::new()
-			} else {
-				let metadatas: Vec<BlockMetadata> = rlp.list_at(5)?;
-
-				metadatas.into_iter().map(|metadata| (metadata.key, metadata.value)).collect()
 			},
 		})
 	}
