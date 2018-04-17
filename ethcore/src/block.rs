@@ -95,8 +95,7 @@ pub struct ExecutedBlock {
 	traces: Tracing,
 	last_hashes: Arc<LastHashes>,
 	is_finalized: bool,
-	local_metadata: Vec<u8>,
-	global_metadata: Vec<u8>,
+	metadata: Vec<u8>,
 }
 
 impl ExecutedBlock {
@@ -115,7 +114,7 @@ impl ExecutedBlock {
 				Tracing::Disabled
 			},
 			last_hashes: last_hashes,
-			finalized: false,
+			is_finalized: false,
 			global_metadata: global_metadata,
 			local_metadata: local_metadata,
 		}
@@ -214,25 +213,17 @@ impl ::parity_machine::Transactions for ExecutedBlock {
 
 impl ::parity_machine::Finalizable for ExecutedBlock {
 	fn mark_finalized(&mut self) {
-		self.finalized = true;
+		self.is_finalized = true;
 	}
 }
 
 impl ::parity_machine::WithMetadata for ExecutedBlock {
-	fn global_metadata(&self) -> &[u8] {
-		&self.global_metadata
+	fn metadata(&self) -> &[u8] {
+		&self.metadata
 	}
 
-	fn local_metadata(&self) -> &[u8] {
-		&self.local_metadata
-	}
-
-	fn set_global_metadata(&mut self, value: Vec<u8>) {
-		self.global_metadata = value;
-	}
-
-	fn set_local_metadata(&mut self, value: Vec<u8>) {
-		self.local_metadata = value;
+	fn set_metadata(&mut self, value: Vec<u8>) {
+		self.metadata = value;
 	}
 }
 
