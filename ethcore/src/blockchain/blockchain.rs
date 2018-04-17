@@ -199,6 +199,7 @@ pub struct BlockChain {
 	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
 	blocks_blooms: RwLock<HashMap<GroupPosition, BloomGroup>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
+	metadata: RwLock<HashMap<Option<H256>, Vec<u8>>>,
 
 	db: Arc<KeyValueDB>,
 
@@ -1201,7 +1202,7 @@ impl BlockChain {
 
 	/// This function returns modified block details.
 	/// Uses the given parent details or attempts to load them from the database.
-	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, BlockDetails> {
+	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo, is_finalized: bool) -> HashMap<H256, BlockDetails> {
 		let block = view!(BlockView, block_bytes);
 		let header = block.header_view();
 		let parent_hash = header.parent_hash();
@@ -1216,8 +1217,7 @@ impl BlockChain {
 			total_difficulty: info.total_difficulty,
 			parent: parent_hash,
 			children: vec![],
-			finalized: false,
-			metadata: HashMap::new(),
+			is_finalized: is_finalized,
 		};
 
 		// write to batch
@@ -1235,10 +1235,11 @@ impl BlockChain {
 	}
 
 	/// This function returns modified metadata.
-	fn prepare_metadata_update(&self, hash: H256, global_metadata: Option<Bytes>, local_metadata: Option<Bytes>) -> HashMap<Option<H256>, Option<Bytes>> {
+	fn prepare_metadata_update(&self, hash: H256, global_metadata: Vec<u8>, local_metadata: Vec<u8>) -> HashMap<Option<H256>, Vec<u8>> {
 		let mut metadata = HashMap::new();
-		metadata.push(None, global_metadata);
-		metadata.push(Some(hash), local_metadata);
+		metadata.insert(None, global_metadata);
+		metadata.insert(Some(hash), local_metadata);
+		metadata
 	}
 
 	/// This function returns modified transaction addresses.

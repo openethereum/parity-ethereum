@@ -26,11 +26,11 @@ pub struct ExtrasUpdate<'a> {
 /// Extra information in block insertion.
 pub struct ExtrasInsert {
 	/// Is the inserted block considered the best block.
-	is_new_best: bool,
+	pub is_new_best: bool,
 	/// Is the inserted block considered finalized.
-	is_finalized: bool,
+	pub is_finalized: bool,
 	/// New local metadata.
-	local_metadata: Option<Vec<u8>>,
+	pub local_metadata: Option<Vec<u8>>,
 	/// New global metadata.
-	global_metadata: Option<Vec<u8>>,
+	pub global_metadata: Option<Vec<u8>>,
 }
