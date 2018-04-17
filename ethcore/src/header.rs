@@ -413,7 +413,7 @@ impl ::parity_machine::TotalScoredHeader for ExtendedHeader {
 	fn total_score(&self) -> U256 { self.parent_difficulty + *self.header.difficulty() }
 }
 
-impl ::parity_machine::FinalizedHeader for ExtendedHeader {
+impl ::parity_machine::FinalizableHeader for ExtendedHeader {
 	fn is_finalized(&self) -> bool { self.is_finalized }
 }
 

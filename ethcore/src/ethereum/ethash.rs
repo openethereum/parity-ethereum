@@ -24,7 +24,7 @@ use ethereum_types::{H256, H64, U256, Address};
 use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};
-use header::{Header, BlockNumber};
+use header::{Header, BlockNumber, ExtendedHeader};
 use engines::{self, Engine};
 use ethjson;
 use rlp::Rlp;
@@ -364,6 +364,10 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
+	}
+
+	fn is_new_best(&self, new: &ExtendedHeader, current: Box<Iterator<Item=&ExtendedHeader>>) -> bool {
+		engines::total_difficulty_is_new_best(new, current)
 	}
 }
 

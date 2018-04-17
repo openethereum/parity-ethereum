@@ -17,7 +17,7 @@
 use ethereum_types::U256;
 use engines::Engine;
 use header::BlockNumber;
-use parity_machine::{Header, LiveBlock, WithBalances};
+use parity_machine::{Header, LiveBlock, WithBalances, TotalScoredHeader};
 
 /// Params for a null engine.
 #[derive(Clone, Default)]
@@ -56,7 +56,10 @@ impl<M: Default> Default for NullEngine<M> {
 	}
 }
 
-impl<M: WithBalances> Engine<M> for NullEngine<M> {
+impl<M: WithBalances> Engine<M> for NullEngine<M>
+  where M::ExtendedHeader: TotalScoredHeader,
+        <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
+{
 	fn name(&self) -> &str {
 		"NullEngine"
 	}
@@ -104,5 +107,9 @@ impl<M: WithBalances> Engine<M> for NullEngine<M> {
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
+	}
+
+	fn is_new_best(&self, new: &M::ExtendedHeader, current: Box<Iterator<Item=&M::ExtendedHeader>>) -> bool {
+		super::total_difficulty_is_new_best(new, current)
 	}
 }

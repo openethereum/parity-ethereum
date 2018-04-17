@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use engines::{Engine, Seal};
-use parity_machine::{Machine, Transactions};
+use parity_machine::{Machine, Transactions, TotalScoredHeader};
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 /// Only seals blocks which have transactions.
@@ -33,7 +33,9 @@ impl<M> InstantSeal<M> {
 }
 
 impl<M: Machine> Engine<M> for InstantSeal<M>
-	where M::LiveBlock: Transactions
+  where M::LiveBlock: Transactions,
+        M::ExtendedHeader: TotalScoredHeader,
+        <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
 {
 	fn name(&self) -> &str {
 		"InstantSeal"
@@ -60,6 +62,10 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp >= parent_timestamp
+	}
+
+	fn is_new_best(&self, new: &M::ExtendedHeader, current: Box<Iterator<Item=&M::ExtendedHeader>>) -> bool {
+		super::total_difficulty_is_new_best(new, current)
 	}
 }
 

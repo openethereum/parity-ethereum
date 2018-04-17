@@ -25,7 +25,7 @@ use block::*;
 use engines::{Engine, Seal, ConstructedVerifier, EngineError};
 use error::{BlockError, Error};
 use ethjson;
-use header::Header;
+use header::{Header, ExtendedHeader};
 use client::EngineClient;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use super::signer::EngineSigner;
@@ -190,6 +190,10 @@ impl Engine<EthereumMachine> for BasicAuthority {
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		None
+	}
+
+	fn is_new_best(&self, new: &ExtendedHeader, current: Box<Iterator<Item=&ExtendedHeader>>) -> bool {
+		super::total_difficulty_is_new_best(new, current)
 	}
 }
 

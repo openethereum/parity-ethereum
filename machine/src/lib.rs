@@ -61,9 +61,15 @@ pub trait TotalScoredHeader: Header {
 }
 
 /// A header with finalized information.
-pub trait FinalizedHeader: Header {
+pub trait FinalizableHeader: Header {
 	/// Get whether this header is considered finalized, so that it will never be replaced in reorganization.
 	fn is_finalized(&self) -> bool;
+}
+
+/// A header with metadata information.
+pub trait WithMetadataHeader: Header {
+	/// Get the current header metadata.
+	fn metadata(&self) -> Option<&[u8]>;
 }
 
 /// A "live" block is one which is in the process of the transition.
@@ -112,6 +118,8 @@ pub trait Machine: for<'a> LocalizedMachine<'a> {
 	type Header: Header;
 	/// The live block type.
 	type LiveBlock: LiveBlock<Header=Self::Header>;
+	/// Block header with metadata information.
+	type ExtendedHeader: Header;
 	/// A handle to a blockchain client for this machine.
 	type EngineClient: ?Sized;
 	/// A description of needed auxiliary data.

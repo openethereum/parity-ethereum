@@ -31,7 +31,7 @@ use error::{Error, BlockError};
 use ethjson;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use hash::keccak;
-use header::{Header, BlockNumber};
+use header::{Header, BlockNumber, ExtendedHeader};
 
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -1318,6 +1318,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		} else {
 			Some(Box::new(::snapshot::PoaSnapshot))
 		}
+	}
+
+	fn is_new_best(&self, new: &ExtendedHeader, current: Box<Iterator<Item=&ExtendedHeader>>) -> bool {
+		super::total_difficulty_is_new_best(new, current)
 	}
 }
 

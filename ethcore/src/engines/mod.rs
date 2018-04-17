@@ -53,7 +53,7 @@ use views::BlockView;
 use blockchain::BlockProvider;
 
 use ethkey::Signature;
-use parity_machine::{Machine, LocalizedMachine as Localized};
+use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
@@ -340,6 +340,9 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp > parent_timestamp
 	}
+
+	/// Check whether the given new block is the best block.
+	fn is_new_best(&self, new: &M::ExtendedHeader, current: Box<Iterator<Item=&M::ExtendedHeader>>) -> bool;
 }
 
 /// Generate metadata for a new block based on the default total difficulty rule.
@@ -353,8 +356,11 @@ pub fn total_difficulty_generate_metadata(bytes: &[u8], provider: &BlockProvider
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.
-pub fn total_difficulty_is_new_best(_bytes: &[u8], block_total_difficulty: U256, best_block_total_difficulty: U256, _provider: &BlockProvider) -> bool {
-	block_total_difficulty > best_block_total_difficulty
+pub fn total_difficulty_is_new_best<T: TotalScoredHeader>(new: &T, mut current: Box<Iterator<Item=&T>>) -> bool where <T as TotalScoredHeader>::Value: Ord {
+	match current.next() {
+		None => true,
+		Some(current) => new.total_score() < current.total_score(),
+	}
 }
 
 /// Common type alias for an engine coupled with an Ethereum-like state machine.

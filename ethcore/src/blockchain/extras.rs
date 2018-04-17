@@ -24,7 +24,6 @@ use engines::epoch::{Transition as EpochTransition};
 use header::BlockNumber;
 use receipt::Receipt;
 use rlp;
-use bytes::Bytes;
 
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, H264, U256};

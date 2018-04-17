@@ -35,7 +35,7 @@ use unexpected::{OutOfBounds, Mismatch};
 use client::EngineClient;
 use bytes::Bytes;
 use error::{Error, BlockError};
-use header::{Header, BlockNumber};
+use header::{Header, BlockNumber, ExtendedHeader};
 use rlp::Rlp;
 use ethkey::{self, Message, Signature};
 use account_provider::AccountProvider;
@@ -758,6 +758,10 @@ impl Engine<EthereumMachine> for Tendermint {
 		}
 		*self.client.write() = Some(client.clone());
 		self.validators.register_client(client);
+	}
+
+	fn is_new_best(&self, new: &ExtendedHeader, current: Box<Iterator<Item=&ExtendedHeader>>) -> bool {
+		super::total_difficulty_is_new_best(new, current)
 	}
 }
 
