@@ -216,6 +216,24 @@ impl ::parity_machine::Finalizable for ExecutedBlock {
 	}
 }
 
+impl ::parity_machine::WithMetadata for ExecutedBlock {
+	fn global_metadata(&self) -> &[u8] {
+		&self.global_metadata
+	}
+
+	fn local_metadata(&self) -> &[u8] {
+		&self.local_metadata
+	}
+
+	fn set_global_metadata(&mut self, value: Vec<u8>) {
+		self.global_metadata = value;
+	}
+
+	fn set_local_metadata(&mut self, value: Vec<u8>) {
+		self.local_metadata = value;
+	}
+}
+
 /// Block that is ready for transactions to be added.
 ///
 /// It's a bit like a Vec<Transaction>, except that whenever a transaction is pushed, we execute it and
@@ -234,6 +252,8 @@ pub struct ClosedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
 	unclosed_state: State<StateDB>,
+	unclosed_local_metadata: Option<Bytes>,
+	unclosed_global_metadata: Option<Bytes>,
 }
 
 /// Just like `ClosedBlock` except that we can't reopen it and it's faster.

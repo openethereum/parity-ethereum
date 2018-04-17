@@ -99,13 +99,13 @@ pub trait Finalizable: LiveBlock {
 /// A state machine with block metadata.
 pub trait WithMetadata: LiveBlock {
 	/// Get the current global metadata.
-	fn global_metadata<T: From<Option<Vec<u8>>>>(&self) -> T;
+	fn global_metadata(&self) -> &[u8];
 	/// Get the current live block metadata.
-	fn local_metadata<T: From<Option<Vec<u8>>>>(&self) -> T;
+	fn local_metadata(&self) -> &[u8];
 	/// Set the current global metadata when the live block is committed.
-	fn set_global_metadata<T: Into<Option<Vec<u8>>>>(&mut self, value: T);
+	fn set_global_metadata(&mut self, value: Vec<u8>);
 	/// Set the current live block metadata.
-	fn set_local_metadata<T: Into<Option<Vec<u8>>>>(&mut self, value: T);
+	fn set_local_metadata(&mut self, value: Vec<u8>);
 }
 
 /// Generalization of types surrounding blockchain-suitable state machines.
