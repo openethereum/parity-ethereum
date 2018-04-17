@@ -40,6 +40,7 @@ use types::blockchain_info::BlockChainInfo;
 use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
+use error::MetadataError;
 use db::{self, Writable, Readable, CacheUpdatePolicy};
 use cache_manager::CacheManager;
 use encoded;
@@ -502,6 +503,8 @@ impl BlockChain {
 					total_difficulty: header.difficulty(),
 					parent: header.parent_hash(),
 					children: vec![],
+					finalized: false,
+					metadata: HashMap::new(),
 				};
 
 				let mut batch = DBTransaction::new();
@@ -641,7 +644,9 @@ impl BlockChain {
 	/// `None` is returned.
 	pub fn tree_route(&self, from: H256, to: H256) -> Option<TreeRoute> {
 		let mut from_branch = vec![];
+		let mut is_from_route_finalized = false;
 		let mut to_branch = vec![];
+		let mut is_to_route_finalized = false;
 
 		let mut from_details = self.block_details(&from)?;
 		let mut to_details = self.block_details(&to)?;
@@ -653,12 +658,14 @@ impl BlockChain {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
 			from_details = self.block_details(&from_details.parent)?;
+			is_from_route_finalized = is_from_route_finalized || from_details.finalized;
 		}
 
 		while to_details.number > from_details.number {
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
 			to_details = self.block_details(&to_details.parent)?;
+			is_to_route_finalized = is_to_route_finalized || to_details.finalized;
 		}
 
 		assert_eq!(from_details.number, to_details.number);
@@ -668,10 +675,12 @@ impl BlockChain {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
 			from_details = self.block_details(&from_details.parent)?;
+			is_from_route_finalized = is_from_route_finalized || from_details.finalized;
 
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
 			to_details = self.block_details(&to_details.parent)?;
+			is_to_route_finalized = is_to_route_finalized || to_details.finalized;
 		}
 
 		let index = from_branch.len();
@@ -681,7 +690,9 @@ impl BlockChain {
 		Some(TreeRoute {
 			blocks: from_branch,
 			ancestor: current_from,
-			index: index
+			index: index,
+			is_from_route_finalized: is_from_route_finalized,
+			is_to_route_finalized: is_to_route_finalized,
 		})
 	}
 
@@ -766,6 +777,8 @@ impl BlockChain {
 				total_difficulty: info.total_difficulty,
 				parent: header.parent_hash(),
 				children: Vec::new(),
+				finalized: false,
+				metadata: HashMap::new(),
 			};
 
 			let mut update = HashMap::new();
@@ -955,22 +968,57 @@ impl BlockChain {
 
 				assert_eq!(number, parent_details.number + 1);
 
-				match route.blocks.len() {
-					0 => BlockLocation::CanonChain,
-					_ => {
-						let retracted = route.blocks.iter().take(route.index).cloned().collect::<Vec<_>>().into_iter().collect::<Vec<_>>();
-						let enacted = route.blocks.into_iter().skip(route.index).collect::<Vec<_>>();
-						BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
-							ancestor: route.ancestor,
-							enacted: enacted,
-							retracted: retracted,
-						})
+				if route.is_from_route_finalized {
+					BlockLocation::Branch
+				} else {
+					match route.blocks.len() {
+						0 => BlockLocation::CanonChain,
+						_ => {
+							let retracted = route.blocks.iter().take(route.index).cloned().collect::<Vec<_>>().into_iter().collect::<Vec<_>>();
+							let enacted = route.blocks.into_iter().skip(route.index).collect::<Vec<_>>();
+							BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
+								ancestor: route.ancestor,
+								enacted: enacted,
+								retracted: retracted,
+							})
+						}
 					}
 				}
 			} else {
 				BlockLocation::Branch
 			}
 		}
+	}
+
+	/// Mark a block to be considered finalized.
+	pub fn mark_finalized(&self, batch: &mut DBTransaction, block_hash: H256) -> Result<(), MetadataError> {
+		let mut block_details = self.block_details(&block_hash).ok_or(MetadataError::UnknownBlock)?;
+		block_details.finalized = true;
+
+		self.update_block_details(batch, block_hash, block_details);
+		Ok(())
+	}
+
+	/// Update metadata detail for an existing block.
+	pub fn update_metadata<T: Into<HashMap<Bytes, Bytes>>>(&self, batch: &mut DBTransaction, block_hash: H256, metadata: T) -> Result<(), MetadataError> {
+		let mut block_details = self.block_details(&block_hash).ok_or(MetadataError::UnknownBlock)?;
+		let metadata: HashMap<Bytes, Bytes> = metadata.into();
+		for (key, value) in metadata {
+			block_details.metadata.insert(key, value);
+		}
+
+		self.update_block_details(batch, block_hash, block_details);
+		Ok(())
+	}
+
+	/// Prepares extras block detail update.
+	fn update_block_details(&self, batch: &mut DBTransaction, block_hash: H256, block_details: BlockDetails) {
+		let mut details_map = HashMap::new();
+		details_map.insert(block_hash, block_details);
+
+		// We're only updating one existing value. So it shouldn't suffer from cache decoherence problem.
+		let mut write_details = self.pending_block_details.write();
+		batch.extend_with_cache(db::COL_EXTRA, &mut *write_details, details_map, CacheUpdatePolicy::Overwrite);
 	}
 
 	/// Prepares extras update.
@@ -1173,6 +1221,8 @@ impl BlockChain {
 			total_difficulty: info.total_difficulty,
 			parent: parent_hash,
 			children: vec![],
+			finalized: false,
+			metadata: HashMap::new(),
 		};
 
 		// write to batch

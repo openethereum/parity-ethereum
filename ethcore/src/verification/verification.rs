@@ -454,6 +454,8 @@ mod tests {
 					total_difficulty: header.difficulty().clone(),
 					parent: header.parent_hash().clone(),
 					children: Vec::new(),
+					finalized: false,
+					metadata: Default::default(),
 				}
 			})
 		}
