@@ -161,15 +161,20 @@ impl TriggerConnections {
 
 fn adjust_connections(self_node_id: &NodeId, data: &mut ClusterConnectionsData, required_set: &BTreeMap<NodeId, SocketAddr>) {
 	if !required_set.contains_key(self_node_id) {
-		trace!(target: "secretstore_net", "{}: isolated from cluser", self_node_id);
+		if !data.is_isolated {
+			trace!(target: "secretstore_net", "{}: isolated from cluser", self_node_id);
+		}
+
+		data.is_isolated = true;
 		data.connections.clear();
 		data.nodes.clear();
 		return;
 	}
 
+	data.is_isolated = false;
 	for node_to_disconnect in select_nodes_to_disconnect(&data.nodes, required_set) {
 		if let Entry::Occupied(entry) = data.connections.entry(node_to_disconnect.clone()) {
-			trace!(target: "secretstore_net", "{}: removing connection to {} at {}",
+			trace!(target: "secretstore_net", "{}: adjusting connections - removing connection to {} at {}",
 				self_node_id, entry.get().node_id(), entry.get().node_address());
 			entry.remove();
 		}
@@ -203,6 +208,14 @@ mod tests {
 	use key_server_cluster::{MapKeyServerSet, PlainNodeKeyPair, KeyServerSetSnapshot, KeyServerSetMigration};
 	use super::{Maintain, TriggerConnections, ConnectionsAction, ConnectionTrigger, SimpleConnectionTrigger,
 		select_nodes_to_disconnect, adjust_connections};
+
+	fn default_connection_data() -> ClusterConnectionsData {
+		ClusterConnectionsData {
+			is_isolated: false,
+			nodes: Default::default(),
+			connections: Default::default(),
+		}
+	}
 
 	fn create_connections() -> TriggerConnections {
 		TriggerConnections {
@@ -252,59 +265,64 @@ mod tests {
 	fn adjust_connections_disconnects_from_all_nodes_if_not_a_part_of_key_server() {
 		let self_node_id = Random.generate().unwrap().public().clone();
 		let other_node_id = Random.generate().unwrap().public().clone();
-		let mut connection_data: ClusterConnectionsData = Default::default();
+		let mut connection_data = default_connection_data();
 		connection_data.nodes.insert(other_node_id.clone(), "127.0.0.1:8081".parse().unwrap());
 
 		let required_set = connection_data.nodes.clone();
 		adjust_connections(&self_node_id, &mut connection_data, &required_set);
 		assert!(connection_data.nodes.is_empty());
+		assert!(connection_data.is_isolated);
 	}
 
 	#[test]
 	fn adjust_connections_connects_to_new_nodes() {
 		let self_node_id = Random.generate().unwrap().public().clone();
 		let other_node_id = Random.generate().unwrap().public().clone();
-		let mut connection_data: ClusterConnectionsData = Default::default();
+		let mut connection_data = default_connection_data();
 
 		let required_set = vec![(self_node_id.clone(), "127.0.0.1:8081".parse().unwrap()),
 			(other_node_id.clone(), "127.0.0.1:8082".parse().unwrap())].into_iter().collect();
 		adjust_connections(&self_node_id, &mut connection_data, &required_set);
 		assert!(connection_data.nodes.contains_key(&other_node_id));
+		assert!(!connection_data.is_isolated);
 	}
 
 	#[test]
 	fn adjust_connections_reconnects_from_changed_nodes() {
 		let self_node_id = Random.generate().unwrap().public().clone();
 		let other_node_id = Random.generate().unwrap().public().clone();
-		let mut connection_data: ClusterConnectionsData = Default::default();
+		let mut connection_data = default_connection_data();
 		connection_data.nodes.insert(other_node_id.clone(), "127.0.0.1:8082".parse().unwrap());
 
 		let required_set = vec![(self_node_id.clone(), "127.0.0.1:8081".parse().unwrap()),
 			(other_node_id.clone(), "127.0.0.1:8083".parse().unwrap())].into_iter().collect();
 		adjust_connections(&self_node_id, &mut connection_data, &required_set);
 		assert_eq!(connection_data.nodes.get(&other_node_id), Some(&"127.0.0.1:8083".parse().unwrap()));
+		assert!(!connection_data.is_isolated);
 	}
 
 	#[test]
 	fn adjust_connections_disconnects_from_removed_nodes() {
 		let self_node_id = Random.generate().unwrap().public().clone();
 		let other_node_id = Random.generate().unwrap().public().clone();
-		let mut connection_data: ClusterConnectionsData = Default::default();
+		let mut connection_data = default_connection_data();
 		connection_data.nodes.insert(other_node_id.clone(), "127.0.0.1:8082".parse().unwrap());
 
 		let required_set = vec![(self_node_id.clone(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect();
 		adjust_connections(&self_node_id, &mut connection_data, &required_set);
 		assert!(connection_data.nodes.is_empty());
+		assert!(!connection_data.is_isolated);
 	}
 
 	#[test]
 	fn adjust_connections_does_not_connects_to_self() {
 		let self_node_id = Random.generate().unwrap().public().clone();
-		let mut connection_data: ClusterConnectionsData = Default::default();
+		let mut connection_data = default_connection_data();
 
 		let required_set = vec![(self_node_id.clone(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect();
 		adjust_connections(&self_node_id, &mut connection_data, &required_set);
 		assert!(connection_data.nodes.is_empty());
+		assert!(!connection_data.is_isolated);
 	}
 
 	#[test]
@@ -315,7 +333,7 @@ mod tests {
 		let migration_node_id = Random.generate().unwrap().public().clone();
 		let new_node_id = Random.generate().unwrap().public().clone();
 
-		let mut connections_data: ClusterConnectionsData = Default::default();
+		let mut connections_data = default_connection_data();
 		connections.maintain(ConnectionsAction::ConnectToCurrentSet, &mut connections_data, &KeyServerSetSnapshot {
 			current_set: vec![(self_node_id.clone(), "127.0.0.1:8081".parse().unwrap()),
 				(current_node_id.clone(), "127.0.0.1:8082".parse().unwrap())].into_iter().collect(),
@@ -337,7 +355,7 @@ mod tests {
 		let migration_node_id = Random.generate().unwrap().public().clone();
 		let new_node_id = Random.generate().unwrap().public().clone();
 
-		let mut connections_data: ClusterConnectionsData = Default::default();
+		let mut connections_data = default_connection_data();
 		connections.maintain(ConnectionsAction::ConnectToMigrationSet, &mut connections_data, &KeyServerSetSnapshot {
 			current_set: vec![(current_node_id.clone(), "127.0.0.1:8082".parse().unwrap())].into_iter().collect(),
 			new_set: vec![(new_node_id.clone(), "127.0.0.1:8083".parse().unwrap())].into_iter().collect(),
@@ -354,7 +372,7 @@ mod tests {
 
 	#[test]
 	fn simple_connections_trigger_only_maintains_connections() {
-		let key_server_set = Arc::new(MapKeyServerSet::new(Default::default()));
+		let key_server_set = Arc::new(MapKeyServerSet::new(false, Default::default()));
 		let self_key_pair = Arc::new(PlainNodeKeyPair::new(Random.generate().unwrap()));
 		let mut trigger = SimpleConnectionTrigger::new(key_server_set, self_key_pair, None);
 		assert_eq!(trigger.on_maintain(), Some(Maintain::Connections));

@@ -39,7 +39,7 @@ pub trait SessionTransport: Clone + JobTransport<PartialJobRequest=ServersSetCha
 	/// Send message to given node.
 	fn send(&self, node: &NodeId, message: ShareAddMessage) -> Result<(), Error>;
 	/// Set data for master node (sent to slave nodes in consensus session initialization message).
-	fn set_master_data(&mut self, consensus_group: BTreeSet<NodeId>, id_numbers: BTreeMap<NodeId, Option<Secret>>);
+	fn set_master_data(&mut self, consensus_group: BTreeSet<NodeId>, version_holders: BTreeSet<NodeId>, id_numbers: BTreeMap<NodeId, Option<Secret>>);
 }
 
 /// Share addition session.
@@ -86,6 +86,8 @@ struct SessionData<T: SessionTransport> {
 	pub version: Option<H256>,
 	/// Consensus session.
 	pub consensus_session: Option<ShareAddChangeConsensusSession<T>>,
+	/// Holders of key version.
+	pub version_holders: Option<BTreeSet<NodeId>>,
 	/// NewKeyShare (for nodes being added).
 	pub new_key_share: Option<NewKeyShare>,
 	/// Nodes id numbers.
@@ -144,6 +146,8 @@ pub struct IsolatedSessionTransport {
 	version: Option<H256>,
 	/// Session-level nonce.
 	nonce: u64,
+	/// Holders of key version.
+	version_holders: Option<BTreeSet<NodeId>>,
 	/// Consensus group.
 	consensus_group: Option<BTreeSet<NodeId>>,
 	/// Id numbers of all new nodes.
@@ -171,6 +175,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				state: SessionState::ConsensusEstablishing,
 				version: None,
 				consensus_session: None,
+				version_holders: None,
 				new_key_share: None,
 				id_numbers: None,
 				secret_subshares: None,
@@ -180,7 +185,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Set pre-established consensus data.
-	pub fn set_consensus_output(&self, version: &H256, consensus_group: BTreeSet<NodeId>, mut new_nodes_map: BTreeMap<NodeId, Option<Secret>>) -> Result<(), Error> {
+	pub fn set_consensus_output(&self, version: &H256, consensus_group: BTreeSet<NodeId>, version_holders: BTreeSet<NodeId>, mut new_nodes_map: BTreeMap<NodeId, Option<Secret>>) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
 		// check state
@@ -191,18 +196,30 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// key share version is required on ShareAdd master node
 		if let Some(key_share) = self.core.key_share.as_ref() {
 			if let Ok(key_version) = key_share.version(version) {
+				let non_isolated_nodes = self.core.transport.nodes();
 				for (node, id_number) in &key_version.id_numbers {
 					{
 						let external_id_number = new_nodes_map.get(node);
 						match external_id_number {
 							Some(&Some(ref external_id_number)) => {
+								if !version_holders.contains(node) {
+									// possible when joining version holder, that has lost its database
+									// and haven't reported version ownership
+									continue;
+								}
 								if external_id_number == id_number {
 									continue;
 								}
+
 								return Err(Error::ConsensusUnreachable);
 							},
 							Some(&None) => (),
-							None => return Err(Error::ConsensusUnreachable),
+							None => {
+								if non_isolated_nodes.contains(node) {
+									return Err(Error::ConsensusUnreachable)
+								}
+								continue;
+							},
 						}
 					}
 
@@ -217,7 +234,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		// check passed consensus data
-		Self::check_nodes_map(&self.core, version, &consensus_group, &new_nodes_map)?;
+		Self::check_nodes_map(&self.core, version, &consensus_group, &version_holders, &new_nodes_map)?;
 
 		// update data
 		data.version = Some(version.clone());
@@ -225,6 +242,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		data.secret_subshares = Some(consensus_group.into_iter()
 			.map(|n| (n, None))
 			.collect());
+		data.version_holders = Some(version_holders);
 
 		Ok(())
 	}
@@ -281,13 +299,14 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				.take(key_share.threshold)
 				.cloned())
 			.collect();
+		let version_holders = &old_nodes_set;
 
 		// now check nodes map
-		Self::check_nodes_map(&self.core, &version, &consensus_group, &new_nodes_map)?;
+		Self::check_nodes_map(&self.core, &version, &consensus_group, version_holders, &new_nodes_map)?;
 
 		// prepare consensus session transport
 		let mut consensus_transport = self.core.transport.clone();
-		consensus_transport.set_master_data(consensus_group.clone(), new_nodes_map.clone());
+		consensus_transport.set_master_data(consensus_group.clone(), version_holders.clone(), new_nodes_map.clone());
 
 		// create && initialize consensus session
 		let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
@@ -306,6 +325,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		data.consensus_session = Some(consensus_session);
 		data.id_numbers = Some(new_nodes_map);
 		data.secret_subshares = Some(consensus_group.into_iter().map(|n| (n, None)).collect());
+		data.version_holders = Some(version_holders.clone());
 
 		Ok(())
 	}
@@ -351,16 +371,17 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		};
 
 		// process consensus message
-		let (is_establishing_consensus, is_consensus_established, version, new_nodes_map, consensus_group) = {
+		let (is_establishing_consensus, is_consensus_established, version, new_nodes_map, consensus_group, version_holders) = {
 			let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidMessage)?;
 			let is_establishing_consensus = consensus_session.state() == ConsensusSessionState::EstablishingConsensus;
 
-			let (version, new_nodes_map, consensus_group) = match &message.message {
+			let (version, new_nodes_map, consensus_group, version_holders) = match &message.message {
 				&ConsensusMessageOfShareAdd::InitializeConsensusSession(ref message) => {
 					consensus_session.on_consensus_partial_request(sender, ServersSetChangeAccessRequest::from(message))?;
 
 					let version = message.version.clone().into();
 					let consensus_group = message.consensus_group.iter().cloned().map(Into::into).collect();
+					let version_holders = message.version_holders.iter().cloned().map(Into::into).collect();
 					let new_nodes_map: BTreeMap<_, _> = message.new_nodes_map.iter()
 						.map(|(n, nn)| (n.clone().into(), Some(nn.clone().into())))
 						.collect();
@@ -371,13 +392,13 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 					}
 
 					// check old set of nodes
-					Self::check_nodes_map(&self.core, &version, &consensus_group, &new_nodes_map)?;
+					Self::check_nodes_map(&self.core, &version, &consensus_group, &version_holders, &new_nodes_map)?;
 
-					(Some(version), Some(new_nodes_map), Some(consensus_group))
+					(Some(version), Some(new_nodes_map), Some(consensus_group), Some(version_holders))
 				},
 				&ConsensusMessageOfShareAdd::ConfirmConsensusInitialization(ref message) => {
 					consensus_session.on_consensus_partial_response(sender, message.is_confirmed)?;
-					(None, None, None)
+					(None, None, None, None)
 				},
 			};
 
@@ -387,6 +408,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				version,
 				new_nodes_map,
 				consensus_group,
+				version_holders,
 			)
 		};
 
@@ -399,6 +421,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 		if let Some(consensus_group) = consensus_group {
 			data.secret_subshares = Some(consensus_group.into_iter().map(|n| (n, None)).collect());
+		}
+		if let Some(version_holders) = version_holders {
+			data.version_holders = Some(version_holders);
 		}
 
 		// if consensus is stablished, proceed
@@ -451,7 +476,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		});
 
 		let id_numbers = data.id_numbers.as_mut()
-			.expect("common key share data is expected after initialization; id_numers are filled during initialization; qed");
+			.expect("common key share data is expected after initialization; id_numbers are filled during initialization; qed");
 		for (node, id_number) in &message.id_numbers {
 			let id_number: Secret = id_number.clone().into();
 			{
@@ -519,7 +544,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Check nodes map.
-	fn check_nodes_map(core: &SessionCore<T>, version: &H256, consensus_group: &BTreeSet<NodeId>, new_nodes_map: &BTreeMap<NodeId, Option<Secret>>) -> Result<(), Error> {
+	fn check_nodes_map(core: &SessionCore<T>, version: &H256, consensus_group: &BTreeSet<NodeId>, version_holders: &BTreeSet<NodeId>, new_nodes_map: &BTreeMap<NodeId, Option<Secret>>) -> Result<(), Error> {
 		// check if this node has given version
 		let has_this_version = match core.key_share.as_ref() {
 			Some(key_share) => key_share.version(version).is_ok(),
@@ -546,7 +571,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				}
 
 				// there must be at least one new node in new_nodes_map
-				if key_version.id_numbers.len() >= new_nodes_map.len() {
+				if key_version.id_numbers.keys().filter(|n| non_isolated_nodes.contains(n) && version_holders.contains(n)).count() >= new_nodes_map.len() {
 					return Err(Error::ConsensusUnreachable);
 				}
 			},
@@ -607,6 +632,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let explanation = "disseminate_common_share_data is only called on master node; master node has specified version of the key; qed";
 		let old_key_share = core.key_share.as_ref().expect(explanation);
 		let old_key_version = old_key_share.version(data.version.as_ref().expect(explanation)).expect(explanation);
+		let version_holders = data.version_holders.as_ref()
+			.expect("disseminate_common_share_data is only called on master node; version holders is created during initialization on master node; qed");
 		let consensus_group = data.secret_subshares.as_ref()
 			.expect("disseminate_common_share_data is only called on master node; consensus group is created during initialization on master node; qed");
 		let nodes = data.id_numbers.as_ref()
@@ -622,7 +649,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				joint_public: old_key_share.public.clone().into(),
 				common_point: old_key_share.common_point.clone().map(Into::into),
 				encrypted_point: old_key_share.encrypted_point.clone().map(Into::into),
-				id_numbers: old_key_version.id_numbers.iter().map(|(k, v)| (k.clone().into(), v.clone().into())).collect(),
+				id_numbers: old_key_version.id_numbers.iter()
+					.filter(|&(k, _)| version_holders.contains(k))
+					.map(|(k, v)| (k.clone().into(), v.clone().into())).collect(),
 			}))?;
 		}
 
@@ -765,7 +794,8 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 
 		let mut data = self.data.lock();
 
-		warn!("{}: share add session failed: {} on {}", self.core.meta.self_node_id, error, node);
+		warn!(target: "secretstore_net", "{}: share add session failed: {} on {}",
+			self.core.meta.self_node_id, error, node);
 
 		data.state = SessionState::Finished;
 		data.result = Some(Err(error));
@@ -788,6 +818,7 @@ impl IsolatedSessionTransport {
 			nonce: nonce,
 			cluster: cluster,
 			id_numbers: None,
+			version_holders: None,
 			consensus_group: None,
 		}
 	}
@@ -806,6 +837,7 @@ impl JobTransport for IsolatedSessionTransport {
 			session_nonce: self.nonce,
 			message: ConsensusMessageOfShareAdd::InitializeConsensusSession(InitializeConsensusSessionOfShareAdd {
 				version: self.version.clone().expect(explanation).into(),
+				version_holders: self.version_holders.as_ref().expect(explanation).iter().cloned().map(Into::into).collect(),
 				consensus_group: self.consensus_group.as_ref().expect(explanation).iter().cloned().map(Into::into).collect(),
 				old_nodes_set: request.old_servers_set.into_iter().map(Into::into).collect(),
 				new_nodes_map: request.new_servers_set.into_iter()
@@ -836,7 +868,8 @@ impl SessionTransport for IsolatedSessionTransport {
 		self.cluster.nodes()
 	}
 
-	fn set_master_data(&mut self, consensus_group: BTreeSet<NodeId>, id_numbers: BTreeMap<NodeId, Option<Secret>>) {
+	fn set_master_data(&mut self, consensus_group: BTreeSet<NodeId>, version_holders: BTreeSet<NodeId>, id_numbers: BTreeMap<NodeId, Option<Secret>>) {
+		self.version_holders = Some(version_holders);
 		self.consensus_group = Some(consensus_group);
 		self.id_numbers = Some(id_numbers);
 	}

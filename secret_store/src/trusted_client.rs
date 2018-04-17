@@ -85,7 +85,6 @@ impl TrustedClient {
 		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
 		miner.import_own_transaction(&*client, signed.into())
 			.map_err(|e| Error::Internal(format!("failed to import tx: {}", e)))
-			.map(|_| ())
 	}
 
 	/// Read contract address. If address source is registry, address only returned if current client state is

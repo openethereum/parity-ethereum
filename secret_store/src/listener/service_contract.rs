@@ -155,7 +155,7 @@ impl OnChainServiceContract {
 	}
 
 	/// Send transaction to the service contract.
-	fn send_contract_transaction<C, P>(&self, origin: &Address, server_key_id: &ServerKeyId, is_response_required: C, prepare_tx: P) -> Result<(), String>
+	fn send_contract_transaction<C, P>(&self, tx_name: &str, origin: &Address, server_key_id: &ServerKeyId, is_response_required: C, prepare_tx: P) -> Result<(), String>
 		where C: FnOnce(&Client, &Address, &service::Service, &ServerKeyId, &Address) -> bool,
 			P: FnOnce(&Client, &Address, &service::Service) -> Result<Bytes, String> {
 		// only publish if contract address is set && client is online
@@ -180,6 +180,9 @@ impl OnChainServiceContract {
 			origin.clone(),
 			transaction_data
 		).map_err(|e| format!("{}", e))?;
+
+		trace!(target: "secretstore", "{}: transaction {} sent to service contract",
+			self.self_key_pair.public(), tx_name);
 
 		Ok(())
 	}
@@ -353,63 +356,59 @@ impl ServiceContract for OnChainServiceContract {
 	}
 
 	fn publish_generated_server_key(&self, origin: &Address, server_key_id: &ServerKeyId, server_key: Public) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, ServerKeyGenerationService::is_response_required, |_, _, service|
-			Ok(ServerKeyGenerationService::prepare_pubish_tx_data(service, server_key_id, &server_key))
-		)
+		self.send_contract_transaction("publish_generated_server_key", origin, server_key_id, ServerKeyGenerationService::is_response_required,
+			|_, _, service| Ok(ServerKeyGenerationService::prepare_pubish_tx_data(service, server_key_id, &server_key)))
 	}
 
 	fn publish_server_key_generation_error(&self, origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, ServerKeyGenerationService::is_response_required, |_, _, service|
-			Ok(ServerKeyGenerationService::prepare_error_tx_data(service, server_key_id))
-		)
+		self.send_contract_transaction("publish_server_key_generation_error", origin, server_key_id, ServerKeyGenerationService::is_response_required,
+			|_, _, service| Ok(ServerKeyGenerationService::prepare_error_tx_data(service, server_key_id)))
 	}
 
 	fn publish_retrieved_server_key(&self, origin: &Address, server_key_id: &ServerKeyId, server_key: Public, threshold: usize) -> Result<(), String> {
 		let threshold = serialize_threshold(threshold)?;
-		self.send_contract_transaction(origin, server_key_id, ServerKeyRetrievalService::is_response_required, |_, _, service|
-			Ok(ServerKeyRetrievalService::prepare_pubish_tx_data(service, server_key_id, server_key, threshold))
-		)
+		self.send_contract_transaction("publish_retrieved_server_key", origin, server_key_id, ServerKeyRetrievalService::is_response_required,
+			|_, _, service| Ok(ServerKeyRetrievalService::prepare_pubish_tx_data(service, server_key_id, server_key, threshold)))
 	}
 
 	fn publish_server_key_retrieval_error(&self, origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, ServerKeyRetrievalService::is_response_required, |_, _, service|
-			Ok(ServerKeyRetrievalService::prepare_error_tx_data(service, server_key_id))
-		)
+		self.send_contract_transaction("publish_server_key_retrieval_error", origin, server_key_id, ServerKeyRetrievalService::is_response_required,
+			|_, _, service| Ok(ServerKeyRetrievalService::prepare_error_tx_data(service, server_key_id)))
 	}
 
 	fn publish_stored_document_key(&self, origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, DocumentKeyStoreService::is_response_required, |_, _, service|
-			Ok(DocumentKeyStoreService::prepare_pubish_tx_data(service, server_key_id))
-		)
+		self.send_contract_transaction("publish_stored_document_key", origin, server_key_id, DocumentKeyStoreService::is_response_required,
+			|_, _, service| Ok(DocumentKeyStoreService::prepare_pubish_tx_data(service, server_key_id)))
 	}
 
 	fn publish_document_key_store_error(&self, origin: &Address, server_key_id: &ServerKeyId) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, DocumentKeyStoreService::is_response_required, |_, _, service|
-			Ok(DocumentKeyStoreService::prepare_error_tx_data(service, server_key_id))
-		)
+		self.send_contract_transaction("publish_document_key_store_error", origin, server_key_id, DocumentKeyStoreService::is_response_required,
+			|_, _, service| Ok(DocumentKeyStoreService::prepare_error_tx_data(service, server_key_id)))
 	}
 
 	fn publish_retrieved_document_key_common(&self, origin: &Address, server_key_id: &ServerKeyId, requester: &Address, common_point: Public, threshold: usize) -> Result<(), String> {
 		let threshold = serialize_threshold(threshold)?;
-		self.send_contract_transaction(origin, server_key_id, |client, contract_address, contract, server_key_id, key_server|
-			DocumentKeyShadowRetrievalService::is_response_required(client, contract_address, contract, server_key_id, requester, key_server),
-		|_, _, service|
-			Ok(DocumentKeyShadowRetrievalService::prepare_pubish_common_tx_data(service, server_key_id, requester, common_point, threshold))
+		self.send_contract_transaction("publish_retrieved_document_key_common", origin, server_key_id,
+			|client, contract_address, contract, server_key_id, key_server|
+				DocumentKeyShadowRetrievalService::is_response_required(client, contract_address, contract, server_key_id, requester, key_server),
+			|_, _, service|
+				Ok(DocumentKeyShadowRetrievalService::prepare_pubish_common_tx_data(service, server_key_id, requester, common_point, threshold))
 		)
 	}
 
 	fn publish_retrieved_document_key_personal(&self, origin: &Address, server_key_id: &ServerKeyId, requester: &Address, participants: &[Address], decrypted_secret: Public, shadow: Bytes) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, |_, _, _, _, _| true,
+		self.send_contract_transaction("publish_retrieved_document_key_personal", origin, server_key_id, |_, _, _, _, _| true,
 		move |client, address, service|
 			DocumentKeyShadowRetrievalService::prepare_pubish_personal_tx_data(client, address, service, server_key_id, requester, participants, decrypted_secret, shadow)
 		)
 	}
 
 	fn publish_document_key_retrieval_error(&self, origin: &Address, server_key_id: &ServerKeyId, requester: &Address) -> Result<(), String> {
-		self.send_contract_transaction(origin, server_key_id, |client, contract_address, contract, server_key_id, key_server|
-			DocumentKeyShadowRetrievalService::is_response_required(client, contract_address, contract, server_key_id, requester, key_server),
-		|_, _, service|
-			Ok(DocumentKeyShadowRetrievalService::prepare_error_tx_data(service, server_key_id, requester))
+		self.send_contract_transaction("publish_document_key_retrieval_error", origin, server_key_id,
+			|client, contract_address, contract, server_key_id, key_server|
+				DocumentKeyShadowRetrievalService::is_response_required(client, contract_address, contract, server_key_id, requester, key_server),
+			|_, _, service|
+				Ok(DocumentKeyShadowRetrievalService::prepare_error_tx_data(service, server_key_id, requester))
 		)
 	}
 }
@@ -732,16 +731,16 @@ impl DocumentKeyShadowRetrievalService {
 					.map(|not_confirmed| (
 						not_confirmed,
 						match is_common_retrieval_completed {
-							true => ServiceTask::RetrieveShadowDocumentKeyCommon(
+							true => ServiceTask::RetrieveShadowDocumentKeyPersonal(
+								contract_address.clone(),
+								server_key_id,
+								requester,
+							),
+							false => ServiceTask::RetrieveShadowDocumentKeyCommon(
 								contract_address.clone(),
 								server_key_id,
 								public_to_address(&requester),
 							),
-							false => ServiceTask::RetrieveShadowDocumentKeyPersonal(
-								contract_address.clone(),
-								server_key_id,
-								requester,
-							)
 						},
 					))
 					.map_err(|error| format!("{}", error))

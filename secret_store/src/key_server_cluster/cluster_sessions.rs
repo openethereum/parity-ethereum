@@ -330,10 +330,7 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 	}
 
 	pub fn remove(&self, session_id: &S::Id) {
-		if let Some(session) = self.sessions.write().remove(session_id) {
-			self.container_state.lock().on_session_completed();
-			self.notify_listeners(|l| l.on_session_removed(session.session.clone()));
-		}
+		self.do_remove(session_id, &mut *self.sessions.write());
 	}
 
 	pub fn enqueue_message(&self, session_id: &S::Id, sender: NodeId, message: Message, is_queued_message: bool) {
@@ -361,7 +358,7 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 			};
 
 			if remove_session {
-				sessions.remove(&sid);
+				self.do_remove(&sid, &mut *sessions);
 			}
 		}
 	}
@@ -374,9 +371,17 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 				session.session.on_node_timeout(node_id);
 				session.session.is_finished()
 			};
+
 			if remove_session {
-				sessions.remove(&sid);
+				self.do_remove(&sid, &mut *sessions);
 			}
+		}
+	}
+
+	fn do_remove(&self, session_id: &S::Id, sessions: &mut BTreeMap<S::Id, QueuedSession<S>>) {
+		if let Some(session) = sessions.remove(session_id) {
+			self.container_state.lock().on_session_completed();
+			self.notify_listeners(|l| l.on_session_removed(session.session.clone()));
 		}
 	}
 
@@ -554,7 +559,7 @@ pub fn create_cluster_view(data: &Arc<ClusterData>, requires_all_connections: bo
 		}
 	}
 
-	let mut connected_nodes = data.connections.connected_nodes();
+	let mut connected_nodes = data.connections.connected_nodes()?;
 	connected_nodes.insert(data.self_key_pair.public().clone());
 
 	let connected_nodes_count = connected_nodes.len();
@@ -571,7 +576,8 @@ mod tests {
 	use key_server_cluster::connection_trigger::SimpleServersSetChangeSessionCreatorConnector;
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::generation_session::{SessionImpl as GenerationSession};
-	use super::{ClusterSessions, AdminSessionCreationData, ClusterSessionsListener};
+	use super::{ClusterSessions, AdminSessionCreationData, ClusterSessionsListener,
+		ClusterSessionsContainerState, SESSION_TIMEOUT_INTERVAL};
 
 	pub fn make_cluster_sessions() -> ClusterSessions {
 		let key_pair = Random.generate().unwrap();
@@ -579,7 +585,7 @@ mod tests {
 			threads: 1,
 			self_key_pair: Arc::new(PlainNodeKeyPair::new(key_pair.clone())),
 			listen_address: ("127.0.0.1".to_owned(), 100_u16),
-			key_server_set: Arc::new(MapKeyServerSet::new(vec![(key_pair.public().clone(), format!("127.0.0.1:{}", 100).parse().unwrap())].into_iter().collect())),
+			key_server_set: Arc::new(MapKeyServerSet::new(false, vec![(key_pair.public().clone(), format!("127.0.0.1:{}", 100).parse().unwrap())].into_iter().collect())),
 			allow_connecting_to_higher_nodes: false,
 			key_storage: Arc::new(DummyKeyStorage::default()),
 			acl_storage: Arc::new(DummyAclStorage::default()),
@@ -643,5 +649,42 @@ mod tests {
 		sessions.generation_sessions.remove(&Default::default());
 		assert_eq!(listener.inserted.load(Ordering::Relaxed), 1);
 		assert_eq!(listener.removed.load(Ordering::Relaxed), 1);
+	}
+
+	#[test]
+	fn last_session_removal_sets_container_state_to_idle() {
+		let sessions = make_cluster_sessions();
+
+		sessions.generation_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, false, None).unwrap();
+		assert_eq!(*sessions.generation_sessions.container_state.lock(), ClusterSessionsContainerState::Active(1));
+
+		sessions.generation_sessions.remove(&Default::default());
+		assert_eq!(*sessions.generation_sessions.container_state.lock(), ClusterSessionsContainerState::Idle);
+	}
+
+	#[test]
+	fn last_session_removal_by_timeout_sets_container_state_to_idle() {
+		let sessions = make_cluster_sessions();
+
+		sessions.generation_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, false, None).unwrap();
+		assert_eq!(*sessions.generation_sessions.container_state.lock(), ClusterSessionsContainerState::Active(1));
+
+		sessions.generation_sessions.sessions.write().get_mut(&Default::default()).unwrap().last_message_time -= SESSION_TIMEOUT_INTERVAL * 2;
+
+		sessions.generation_sessions.stop_stalled_sessions();
+		assert_eq!(sessions.generation_sessions.sessions.read().len(), 0);
+		assert_eq!(*sessions.generation_sessions.container_state.lock(), ClusterSessionsContainerState::Idle);
+	}
+
+	#[test]
+	fn last_session_removal_by_node_timeout_sets_container_state_to_idle() {
+		let sessions = make_cluster_sessions();
+
+		sessions.generation_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, false, None).unwrap();
+		assert_eq!(*sessions.generation_sessions.container_state.lock(), ClusterSessionsContainerState::Active(1));
+
+		sessions.generation_sessions.on_connection_timeout(&Default::default());
+		assert_eq!(sessions.generation_sessions.sessions.read().len(), 0);
+		assert_eq!(*sessions.generation_sessions.container_state.lock(), ClusterSessionsContainerState::Idle);
 	}
 }

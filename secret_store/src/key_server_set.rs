@@ -20,7 +20,6 @@ use std::collections::{BTreeMap, HashSet};
 use parking_lot::Mutex;
 use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify, CallContract};
 use ethkey::public_to_address;
-use hash::keccak;
 use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use types::{Error, Public, NodeAddress, NodeId};
@@ -35,22 +34,6 @@ const KEY_SERVER_SET_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_server_
 const MIGRATION_CONFIRMATIONS_REQUIRED: u64 = 5;
 /// Number of blocks before the same-migration transaction (be it start or confirmation) will be retried.
 const TRANSACTION_RETRY_INTERVAL_BLOCKS: u64 = 30;
-
-/// Key server has been added to the set.
-const ADDED_EVENT_NAME: &'static [u8] = &*b"KeyServerAdded(address)";
-/// Key server has been removed from the set.
-const REMOVED_EVENT_NAME: &'static [u8] = &*b"KeyServerRemoved(address)";
-/// Migration has started.
-const MIGRATION_STARTED_EVENT_NAME: &'static [u8] = &*b"MigrationStarted()";
-/// Migration has completed.
-const MIGRATION_COMPLETED_EVENT_NAME: &'static [u8] = &*b"MigrationCompleted()";
-
-lazy_static! {
-	static ref ADDED_EVENT_NAME_HASH: H256 = keccak(ADDED_EVENT_NAME);
-	static ref REMOVED_EVENT_NAME_HASH: H256 = keccak(REMOVED_EVENT_NAME);
-	static ref MIGRATION_STARTED_EVENT_NAME_HASH: H256 = keccak(MIGRATION_STARTED_EVENT_NAME);
-	static ref MIGRATION_COMPLETED_EVENT_NAME_HASH: H256 = keccak(MIGRATION_COMPLETED_EVENT_NAME);
-}
 
 #[derive(Default, Debug, Clone, PartialEq)]
 /// Key Server Set state.
@@ -78,6 +61,8 @@ pub struct KeyServerSetMigration {
 
 /// Key Server Set
 pub trait KeyServerSet: Send + Sync {
+	/// Is this node currently isolated from the set?
+	fn is_isolated(&self) -> bool;
 	/// Get server set state.
 	fn snapshot(&self) -> KeyServerSetSnapshot;
 	/// Start migration.
@@ -148,6 +133,10 @@ impl OnChainKeyServerSet {
 }
 
 impl KeyServerSet for OnChainKeyServerSet {
+	fn is_isolated(&self) -> bool {
+		self.contract.lock().is_isolated()
+	}
+
 	fn snapshot(&self) -> KeyServerSetSnapshot {
 		self.contract.lock().snapshot()
 	}
@@ -242,7 +231,6 @@ impl <F: Fn(Vec<u8>) -> Result<Vec<u8>, String>> KeyServerSubset<F> for NewKeySe
 
 impl CachedContract {
 	pub fn new(client: TrustedClient, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
-		// we never use nodes from
 		let server_set = match contract_address_source.is_none() {
 			true => key_servers.into_iter()
 				.map(|(p, addr)| {
@@ -305,6 +293,10 @@ impl CachedContract {
 		}
 	}
 
+	fn is_isolated(&self) -> bool {
+		!self.snapshot.current_set.contains_key(self.self_key_pair.public())
+	}
+
 	fn snapshot(&self) -> KeyServerSetSnapshot {
 		self.snapshot.clone()
 	}
@@ -321,12 +313,11 @@ impl CachedContract {
 			let transaction_data = self.contract.functions().start_migration().input(migration_id);
 
 			// send transaction
-			if let Err(error) = self.client.transact_contract(*contract_address, transaction_data) {
-				warn!(target: "secretstore_net", "{}: failed to submit auto-migration start transaction: {}",
-					self.self_key_pair.public(), error);
-			} else {
-				trace!(target: "secretstore_net", "{}: sent auto-migration start transaction",
-					self.self_key_pair.public());
+			match self.client.transact_contract(*contract_address, transaction_data) {
+				Ok(_) => trace!(target: "secretstore_net", "{}: sent auto-migration start transaction",
+					self.self_key_pair.public()),
+				Err(error) => warn!(target: "secretstore_net", "{}: failed to submit auto-migration start transaction: {}",
+					self.self_key_pair.public(), error),
 			}
 		}
 	}
@@ -343,12 +334,11 @@ impl CachedContract {
 			let transaction_data = self.contract.functions().confirm_migration().input(migration_id);
 
 			// send transaction
-			if let Err(error) = self.client.transact_contract(contract_address, transaction_data) {
-				warn!(target: "secretstore_net", "{}: failed to submit auto-migration confirmation transaction: {}",
-					self.self_key_pair.public(), error);
-			} else {
-				trace!(target: "secretstore_net", "{}: sent auto-migration confirm transaction",
-					self.self_key_pair.public());
+			match self.client.transact_contract(contract_address, transaction_data) {
+				Ok(_) => trace!(target: "secretstore_net", "{}: sent auto-migration confirm transaction",
+					self.self_key_pair.public()),
+				Err(error) => warn!(target: "secretstore_net", "{}: failed to submit auto-migration confirmation transaction: {}",
+					self.self_key_pair.public(), error),
 			}
 		}
 	}
@@ -493,7 +483,7 @@ fn update_future_set(future_new_set: &mut Option<FutureNewSet>, new_snapshot: &m
 		return;
 	}
 
-	// new no migration is required => no need to delay visibility
+	// no migration is required => no need to delay visibility
 	if !is_migration_required(&new_snapshot.current_set, &new_snapshot.new_set) {
 		*future_new_set = None;
 		return;
@@ -590,18 +580,24 @@ pub mod tests {
 
 	#[derive(Default)]
 	pub struct MapKeyServerSet {
+		is_isolated: bool,
 		nodes: BTreeMap<Public, SocketAddr>,
 	}
 
 	impl MapKeyServerSet {
-		pub fn new(nodes: BTreeMap<Public, SocketAddr>) -> Self {
+		pub fn new(is_isolated: bool, nodes: BTreeMap<Public, SocketAddr>) -> Self {
 			MapKeyServerSet {
+				is_isolated: is_isolated,
 				nodes: nodes,
 			}
 		}
 	}
 
 	impl KeyServerSet for MapKeyServerSet {
+		fn is_isolated(&self) -> bool {
+			self.is_isolated
+		}
+
 		fn snapshot(&self) -> KeyServerSetSnapshot {
 			KeyServerSetSnapshot {
 				current_set: self.nodes.clone(),

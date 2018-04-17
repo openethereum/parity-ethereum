@@ -813,6 +813,28 @@ impl JobTransport for DecryptionJobTransport {
 }
 
 #[cfg(test)]
+pub fn create_default_decryption_session() -> Arc<SessionImpl> {
+	use acl_storage::DummyAclStorage;
+	use key_server_cluster::cluster::tests::DummyCluster;
+
+	Arc::new(SessionImpl::new(SessionParams {
+		meta: SessionMeta {
+			id: Default::default(),
+			self_node_id: Default::default(),
+			master_node_id: Default::default(),
+			threshold: 0,
+			configured_nodes_count: 0,
+			connected_nodes_count: 0,
+		},
+		access_key: Secret::zero(),
+		key_share: Default::default(),
+		acl_storage: Arc::new(DummyAclStorage::default()),
+		cluster: Arc::new(DummyCluster::new(Default::default())),
+		nonce: 0,
+	}, Some(Requester::Public(2.into()))).unwrap())
+}
+
+#[cfg(test)]
 mod tests {
 	use std::sync::Arc;
 	use std::collections::{BTreeMap, VecDeque};

@@ -249,9 +249,15 @@ impl SessionImpl {
 		})?;
 
 		consensus_session.initialize(self.core.all_nodes_set.clone())?;
-		debug_assert!(consensus_session.state() != ConsensusSessionState::ConsensusEstablished);
+
+		let is_finished = consensus_session.state() == ConsensusSessionState::ConsensusEstablished;
 		data.consensus_session = Some(consensus_session);
 		data.new_nodes_set = Some(new_nodes_set);
+
+		// this is the case when all other nodes are isolated
+		if is_finished {
+			Self::complete_session(&self.core, &mut *data)?;
+		}
 
 		Ok(())
 	}
@@ -483,6 +489,7 @@ impl SessionImpl {
 			false => {
 				let master_plan = ShareChangeSessionPlan {
 					key_version: message.version.clone().into(),
+					version_holders: message.version_holders.iter().cloned().map(Into::into).collect(),
 					consensus_group: message.consensus_group.iter().cloned().map(Into::into).collect(),
 					new_nodes_map: message.new_nodes_map.iter().map(|(k, v)| (k.clone().into(), v.clone().map(Into::into))).collect(),
 				};
@@ -496,22 +503,20 @@ impl SessionImpl {
 				let master_node_id = message.master_node_id.clone().into();
 				if let Some(key_share) = self.core.key_storage.get(&key_id)? {
 					let version = message.version.clone().into();
-					if let Ok(key_version) = key_share.version(&version) {
-						let key_share_owners = key_version.id_numbers.keys().cloned().collect();
-						let new_nodes_set = data.new_nodes_set.as_ref()
-							.expect("new_nodes_set is filled during consensus establishing; change sessions are running after this; qed");
-						let local_plan = prepare_share_change_session_plan(
-							&self.core.all_nodes_set,
-							key_share.threshold,
-							&key_id,
-							version,
-							&master_node_id,
-							&key_share_owners,
-							new_nodes_set)?;
+					let key_share_owners = message.version_holders.iter().cloned().map(Into::into).collect();
+					let new_nodes_set = data.new_nodes_set.as_ref()
+						.expect("new_nodes_set is filled during consensus establishing; change sessions are running after this; qed");
+					let local_plan = prepare_share_change_session_plan(
+						&self.core.all_nodes_set,
+						key_share.threshold,
+						&key_id,
+						version,
+						&master_node_id,
+						&key_share_owners,
+						new_nodes_set)?;
 
-						if local_plan.new_nodes_map.keys().collect::<BTreeSet<_>>() != master_plan.new_nodes_map.keys().collect::<BTreeSet<_>>() {
-							return Err(Error::InvalidMessage);
-						}
+					if local_plan.new_nodes_map.keys().collect::<BTreeSet<_>>() != master_plan.new_nodes_map.keys().collect::<BTreeSet<_>>() {
+						return Err(Error::InvalidMessage);
 					}
 				}
 
@@ -791,7 +796,9 @@ impl SessionImpl {
 		// get selected version && old nodes set from key negotiation session
 		let negotiation_session = data.negotiation_sessions.remove(&key_id)
 			.expect("share change session is only initialized when negotiation is completed; qed");
-		let (selected_version, selected_master) = negotiation_session.wait()?;
+		let (selected_version, selected_master) = negotiation_session
+			.wait()?
+			.expect("initialize_share_change_session is only called on share change master; negotiation session completes with some on master; qed");
 		let selected_version_holders = negotiation_session.version_holders(&selected_version)?;
 		let selected_version_threshold = negotiation_session.key_threshold()?;
 
@@ -818,6 +825,7 @@ impl SessionImpl {
 			session_nonce: core.nonce,
 			key_id: key_id.clone().into(),
 			version: selected_version.into(),
+			version_holders: old_nodes_set.iter().cloned().map(Into::into).collect(),
 			master_node_id: selected_master.clone().into(),
 			consensus_group: session_plan.consensus_group.iter().cloned().map(Into::into).collect(),
 			new_nodes_map: session_plan.new_nodes_map.iter()
@@ -942,7 +950,8 @@ impl ClusterSession for SessionImpl {
 
 		let mut data = self.data.lock();
 
-		warn!("{}: servers set change session failed: {} on {}", self.core.meta.self_node_id, error, node);
+		warn!(target: "secretstore_net", "{}: servers set change session failed: {} on {}",
+			self.core.meta.self_node_id, error, node);
 
 		data.state = SessionState::Finished;
 		data.result = Some(Err(error));
@@ -1007,6 +1016,14 @@ impl JobTransport for UnknownSessionsJobTransport {
 }
 
 impl KeyVersionNegotiationTransport for ServersSetChangeKeyVersionNegotiationTransport {
+	fn broadcast(&self, message: KeyVersionNegotiationMessage) -> Result<(), Error> {
+		self.cluster.broadcast(Message::ServersSetChange(ServersSetChangeMessage::ShareChangeKeyVersionNegotiation(ShareChangeKeyVersionNegotiation {
+			session: self.id.clone().into(),
+			session_nonce: self.nonce,
+			message: message,
+		})))
+	}
+
 	fn send(&self, node: &NodeId, message: KeyVersionNegotiationMessage) -> Result<(), Error> {
 		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::ShareChangeKeyVersionNegotiation(ShareChangeKeyVersionNegotiation {
 			session: self.id.clone().into(),
@@ -1342,5 +1359,49 @@ pub mod tests {
 
 		// check that all sessions have finished
 		assert!(ml.nodes.iter().filter(|&(k, _)| !nodes_to_remove.contains(k)).all(|(_, n)| n.session.is_finished()));
+	}
+
+	#[test]
+	fn removing_node_from_cluster_of_2_works() {
+		// initial 2-of-2 session
+		let gml = generate_key(1, generate_nodes_ids(2));
+		let master_node_id = gml.nodes.keys().cloned().nth(0).unwrap();
+
+		// make 2nd node isolated so that key becomes irrecoverable (make sure the session is completed, even though key is irrecoverable)
+		let nodes_to_isolate: BTreeSet<_> = gml.nodes.keys().cloned().skip(1).take(1).collect();
+		let new_nodes_set: BTreeSet<_> = gml.nodes.keys().cloned().filter(|n| !nodes_to_isolate.contains(&n)).collect();
+		let mut ml = MessageLoop::new(&gml, master_node_id, None, BTreeSet::new(), BTreeSet::new(), nodes_to_isolate.clone());
+		ml.nodes[&master_node_id].session.initialize(new_nodes_set, ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
+		ml.run();
+
+		// check that session on master node has completed (session on 2nd node is not even started in network mode)
+		assert!(ml.nodes.values().take(1).all(|n| n.session.is_finished()));
+	}
+
+	#[test]
+	fn adding_node_that_has_lost_its_database_works() {
+		// initial 2-of-2 session
+		let gml = generate_key(1, generate_nodes_ids(2));
+		let master_node_id = gml.nodes.keys().cloned().nth(0).unwrap();
+
+		// insert 1 node so that it becames 2-of-3 session
+		let nodes_to_add: BTreeSet<_> = (0..1).map(|_| Random.generate().unwrap().public().clone()).collect();
+		let mut ml = MessageLoop::new(&gml, master_node_id, None, nodes_to_add.clone(), BTreeSet::new(), BTreeSet::new());
+		ml.nodes[&master_node_id].session.initialize(ml.nodes.keys().cloned().collect(), ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
+		ml.run();
+
+		// now let's say new node has lost its db and we're trying to join it again
+		ml.nodes[nodes_to_add.iter().nth(0).unwrap()].key_storage.clear().unwrap();
+
+		// this time old nodes have version, where new node is mentioned, but it doesn't report it when negotiating
+		let mut ml = MessageLoop::new(&gml, master_node_id, None, nodes_to_add, BTreeSet::new(), BTreeSet::new());
+		ml.nodes[&master_node_id].session.initialize(ml.nodes.keys().cloned().collect(), ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
+		ml.run();
+
+		// try to recover secret for every possible combination of nodes && check that secret is the same
+		check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes.iter().map(|(k, v)| (k.clone(), v.key_storage.clone())).collect());
+
+		// check that all sessions have finished
+		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
 	}
 }
