@@ -40,20 +40,20 @@ impl From<RewardKind> for u16 {
 	}
 }
 
-struct BlockRewardContract {
+pub struct BlockRewardContract {
 	address: Address,
 	block_reward_contract: block_reward_contract::BlockReward,
 }
 
 impl BlockRewardContract {
-	fn new(address: Address) -> BlockRewardContract {
+	pub fn new(address: Address) -> BlockRewardContract {
 		BlockRewardContract {
 			address,
 			block_reward_contract: block_reward_contract::BlockReward::default(),
 		}
 	}
 
-	fn reward(
+	pub fn reward(
 		&self,
 		benefactors: &[(Address, RewardKind)],
 		caller: &mut SystemCall,
@@ -98,7 +98,7 @@ impl BlockRewardContract {
 	}
 }
 
-fn apply_block_rewards(rewards: &[(Address, U256)], block: &mut ExecutedBlock, machine: &EthereumMachine) -> Result<(), Error> {
+pub fn apply_block_rewards(rewards: &[(Address, U256)], block: &mut ExecutedBlock, machine: &EthereumMachine) -> Result<(), Error> {
 	use parity_machine::WithBalances;
 
 	for &(ref author, ref block_reward) in rewards {
@@ -118,7 +118,7 @@ mod test {
 	use super::{BlockRewardContract, RewardKind};
 
 	#[test]
-	fn it_should_work() {
+	fn block_reward_contract() {
 		let client = generate_dummy_client_with_spec_and_accounts(
 			Spec::new_test_round_block_reward_contract,
 			None,
