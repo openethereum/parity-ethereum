@@ -21,8 +21,7 @@ use ethereum_types::{H160, Address, U256};
 use block::ExecutedBlock;
 use error::Error;
 use machine::EthereumMachine;
-
-pub type SystemCall<'a> = FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
+use super::SystemCall;
 
 use_contract!(block_reward_contract, "BlockReward", "res/contracts/block_reward.json");
 
