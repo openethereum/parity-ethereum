@@ -18,6 +18,7 @@
 
 use std::sync::Arc;
 use std::fmt;
+use std::time::Duration;
 
 use transaction::{
 	SignedTransaction, PendingTransaction, UnverifiedTransaction,
@@ -50,7 +51,7 @@ extern crate kvdb_memorydb;
 const LOCAL_TRANSACTIONS_KEY: &'static [u8] = &*b"LOCAL_TXS";
 
 const UPDATE_TIMER: ::io::TimerToken = 0;
-const UPDATE_TIMEOUT_MS: u64 = 15 * 60 * 1000; // once every 15 minutes.
+const UPDATE_TIMEOUT: Duration = Duration::from_secs(15 * 60); // once every 15 minutes.
 
 /// Errors which can occur while using the local data store.
 #[derive(Debug)]
@@ -205,7 +206,7 @@ impl<T: NodeInfo> LocalDataStore<T> {
 
 impl<T: NodeInfo> IoHandler<ClientIoMessage> for LocalDataStore<T> {
 	fn initialize(&self, io: &::io::IoContext<ClientIoMessage>) {
-		if let Err(e) = io.register_timer(UPDATE_TIMER, UPDATE_TIMEOUT_MS) {
+		if let Err(e) = io.register_timer(UPDATE_TIMER, UPDATE_TIMEOUT) {
 			warn!(target: "local_store", "Error registering local store update timer: {}", e);
 		}
 	}

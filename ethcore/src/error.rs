@@ -17,6 +17,7 @@
 //! General error types for use in ethcore.
 
 use std::{fmt, error};
+use std::time::SystemTime;
 use kvdb;
 use ethereum_types::{H256, U256, Address, Bloom};
 use util_error::UtilError;
@@ -81,9 +82,9 @@ pub enum BlockError {
 	/// Receipts trie root header field is invalid.
 	InvalidReceiptsRoot(Mismatch<H256>),
 	/// Timestamp header field is invalid.
-	InvalidTimestamp(OutOfBounds<u64>),
+	InvalidTimestamp(OutOfBounds<SystemTime>),
 	/// Timestamp header field is too far in future.
-	TemporarilyInvalid(OutOfBounds<u64>),
+	TemporarilyInvalid(OutOfBounds<SystemTime>),
 	/// Log bloom header field is invalid.
 	InvalidLogBloom(Mismatch<Bloom>),
 	/// Number field of header is invalid.
@@ -125,8 +126,14 @@ impl fmt::Display for BlockError {
 			InvalidSeal => "Block has invalid seal.".into(),
 			InvalidGasLimit(ref oob) => format!("Invalid gas limit: {}", oob),
 			InvalidReceiptsRoot(ref mis) => format!("Invalid receipts trie root in header: {}", mis),
-			InvalidTimestamp(ref oob) => format!("Invalid timestamp in header: {}", oob),
-			TemporarilyInvalid(ref oob) => format!("Future timestamp in header: {}", oob),
+			InvalidTimestamp(ref oob) => {
+				let oob = oob.map(|st| st.elapsed().unwrap_or_default().as_secs());
+				format!("Invalid timestamp in header: {}", oob)
+			},
+			TemporarilyInvalid(ref oob) => {
+				let oob = oob.map(|st| st.elapsed().unwrap_or_default().as_secs());
+				format!("Future timestamp in header: {}", oob)
+			},
 			InvalidLogBloom(ref oob) => format!("Invalid log bloom in header: {}", oob),
 			InvalidNumber(ref mis) => format!("Invalid number in header: {}", mis),
 			RidiculousNumber(ref oob) => format!("Implausible block number. {}", oob),
@@ -137,6 +144,23 @@ impl fmt::Display for BlockError {
 		};
 
 		f.write_fmt(format_args!("Block error ({})", msg))
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+/// Errors related to metadata operations
+pub enum MetadataError {
+	/// The metadata block trying to set is unknown.
+	UnknownBlock,
+}
+
+impl fmt::Display for MetadataError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let msg = match *self {
+			MetadataError::UnknownBlock => "unknown block",
+		};
+
+		f.write_fmt(format_args!("Block metadata error ({})", msg))
 	}
 }
 
@@ -240,6 +264,8 @@ pub enum Error {
 	Ethkey(EthkeyError),
 	/// Account Provider error.
 	AccountProvider(AccountsError),
+	/// Block metadata error.
+	Metadata(MetadataError),
 }
 
 impl fmt::Display for Error {
@@ -264,6 +290,7 @@ impl fmt::Display for Error {
 			Error::Engine(ref err) => err.fmt(f),
 			Error::Ethkey(ref err) => err.fmt(f),
 			Error::AccountProvider(ref err) => err.fmt(f),
+			Error::Metadata(ref err) => err.fmt(f),
 		}
 	}
 }
@@ -277,6 +304,12 @@ impl error::Error for Error {
 
 /// Result of import block operation.
 pub type ImportResult = Result<H256, Error>;
+
+impl From<MetadataError> for Error {
+	fn from(err: MetadataError) -> Error {
+		Error::Metadata(err)
+	}
+}
 
 impl From<ClientError> for Error {
 	fn from(err: ClientError) -> Error {

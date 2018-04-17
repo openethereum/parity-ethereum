@@ -61,16 +61,16 @@ pub use self::load_timer::{SampleStore, FileStore};
 pub use self::status::{Status, Capabilities, Announcement};
 
 const TIMEOUT: TimerToken = 0;
-const TIMEOUT_INTERVAL_MS: u64 = 1000;
+const TIMEOUT_INTERVAL: Duration = Duration::from_secs(1);
 
 const TICK_TIMEOUT: TimerToken = 1;
-const TICK_TIMEOUT_INTERVAL_MS: u64 = 5000;
+const TICK_TIMEOUT_INTERVAL: Duration = Duration::from_secs(5);
 
 const PROPAGATE_TIMEOUT: TimerToken = 2;
-const PROPAGATE_TIMEOUT_INTERVAL_MS: u64 = 5000;
+const PROPAGATE_TIMEOUT_INTERVAL: Duration = Duration::from_secs(5);
 
 const RECALCULATE_COSTS_TIMEOUT: TimerToken = 3;
-const RECALCULATE_COSTS_INTERVAL_MS: u64 = 60 * 60 * 1000;
+const RECALCULATE_COSTS_INTERVAL: Duration = Duration::from_secs(60 * 60);
 
 // minimum interval between updates.
 const UPDATE_INTERVAL: Duration = Duration::from_millis(5000);
@@ -369,9 +369,9 @@ impl LightProtocol {
 		let sample_store = params.sample_store.unwrap_or_else(|| Box::new(NullStore));
 		let load_distribution = LoadDistribution::load(&*sample_store);
 		let flow_params = FlowParams::from_request_times(
-			|kind| load_distribution.expected_time_ns(kind),
+			|kind| load_distribution.expected_time(kind),
 			params.config.load_share,
-			params.config.max_stored_seconds,
+			Duration::from_secs(params.config.max_stored_seconds),
 		);
 
 		LightProtocol {
@@ -766,9 +766,9 @@ impl LightProtocol {
 		self.load_distribution.end_period(&*self.sample_store);
 
 		let new_params = Arc::new(FlowParams::from_request_times(
-			|kind| self.load_distribution.expected_time_ns(kind),
+			|kind| self.load_distribution.expected_time(kind),
 			self.config.load_share,
-			self.config.max_stored_seconds,
+			Duration::from_secs(self.config.max_stored_seconds),
 		));
 		*self.flow_params.write() = new_params.clone();
 
@@ -1080,13 +1080,13 @@ fn punish(peer: PeerId, io: &IoContext, e: Error) {
 
 impl NetworkProtocolHandler for LightProtocol {
 	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
-		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL_MS)
+		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL)
 			.expect("Error registering sync timer.");
-		io.register_timer(TICK_TIMEOUT, TICK_TIMEOUT_INTERVAL_MS)
+		io.register_timer(TICK_TIMEOUT, TICK_TIMEOUT_INTERVAL)
 			.expect("Error registering sync timer.");
-		io.register_timer(PROPAGATE_TIMEOUT, PROPAGATE_TIMEOUT_INTERVAL_MS)
+		io.register_timer(PROPAGATE_TIMEOUT, PROPAGATE_TIMEOUT_INTERVAL)
 			.expect("Error registering sync timer.");
-		io.register_timer(RECALCULATE_COSTS_TIMEOUT, RECALCULATE_COSTS_INTERVAL_MS)
+		io.register_timer(RECALCULATE_COSTS_TIMEOUT, RECALCULATE_COSTS_INTERVAL)
 			.expect("Error registering request timer interval token.");
 	}
 

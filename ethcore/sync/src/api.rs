@@ -17,6 +17,7 @@
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::io;
+use std::time::Duration;
 use bytes::Bytes;
 use devp2p::{NetworkService, ConnectionFilter};
 use network::{NetworkProtocolHandler, NetworkContext, HostInfo, PeerId, ProtocolId,
@@ -373,7 +374,7 @@ struct SyncProtocolHandler {
 impl NetworkProtocolHandler for SyncProtocolHandler {
 	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
 		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
-			io.register_timer(0, 1000).expect("Error registering sync timer");
+			io.register_timer(0, Duration::from_secs(1)).expect("Error registering sync timer");
 		}
 	}
 

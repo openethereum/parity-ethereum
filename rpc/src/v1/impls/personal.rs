@@ -16,6 +16,7 @@
 
 //! Account management (personal) rpc implementation
 use std::sync::Arc;
+use std::time::Duration;
 
 use bytes::{Bytes, ToPretty};
 use ethcore::account_provider::AccountProvider;
@@ -130,8 +131,8 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 				Some("Restart your client with --geth flag or use personal_sendTransaction instead."),
 			)),
 			(true, Some(0)) => store.unlock_account_permanently(account, account_pass),
-			(true, Some(d)) => store.unlock_account_timed(account, account_pass, d * 1000),
-			(true, None) => store.unlock_account_timed(account, account_pass, 300_000),
+			(true, Some(d)) => store.unlock_account_timed(account, account_pass, Duration::from_secs(d.into())),
+			(true, None) => store.unlock_account_timed(account, account_pass, Duration::from_secs(300)),
 		};
 		match r {
 			Ok(_) => Ok(true),
