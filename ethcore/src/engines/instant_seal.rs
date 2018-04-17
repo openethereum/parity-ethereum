@@ -64,7 +64,7 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 		header_timestamp >= parent_timestamp
 	}
 
-	fn is_new_best(&self, new: &M::ExtendedHeader, current: Box<Iterator<Item=&M::ExtendedHeader>>) -> bool {
+	fn is_new_best<'a>(&'a self, new: &'a M::ExtendedHeader, current: Box<Iterator<Item=M::ExtendedHeader> + 'a>) -> bool {
 		super::total_difficulty_is_new_best(new, current)
 	}
 }

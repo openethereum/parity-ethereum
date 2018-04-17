@@ -760,7 +760,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		self.validators.register_client(client);
 	}
 
-	fn is_new_best(&self, new: &ExtendedHeader, current: Box<Iterator<Item=&ExtendedHeader>>) -> bool {
+	fn is_new_best<'a>(&'a self, new: &'a ExtendedHeader, current: Box<Iterator<Item=ExtendedHeader> + 'a>) -> bool {
 		super::total_difficulty_is_new_best(new, current)
 	}
 }

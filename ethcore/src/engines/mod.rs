@@ -342,7 +342,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	}
 
 	/// Check whether the given new block is the best block.
-	fn is_new_best(&self, new: &M::ExtendedHeader, current: Box<Iterator<Item=&M::ExtendedHeader>>) -> bool;
+	fn is_new_best<'a>(&'a self, new: &'a M::ExtendedHeader, current: Box<Iterator<Item=M::ExtendedHeader> + 'a>) -> bool;
 }
 
 /// Generate metadata for a new block based on the default total difficulty rule.
@@ -356,7 +356,7 @@ pub fn total_difficulty_generate_metadata(bytes: &[u8], provider: &BlockProvider
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.
-pub fn total_difficulty_is_new_best<T: TotalScoredHeader>(new: &T, mut current: Box<Iterator<Item=&T>>) -> bool where <T as TotalScoredHeader>::Value: Ord {
+pub fn total_difficulty_is_new_best<'a, T: TotalScoredHeader>(new: &'a T, mut current: Box<Iterator<Item=T> + 'a>) -> bool where <T as TotalScoredHeader>::Value: Ord {
 	match current.next() {
 		None => true,
 		Some(current) => new.total_score() < current.total_score(),

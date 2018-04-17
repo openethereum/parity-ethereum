@@ -54,7 +54,7 @@ use vm::{EnvInfo, LastHashes};
 use evm::Schedule;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::{Factories, VmFactory};
-use header::{BlockNumber, Header};
+use header::{BlockNumber, Header, ExtendedHeader};
 use io::IoChannel;
 use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
@@ -523,7 +523,27 @@ impl Importer {
 
 		let metadata = block.block().metadata().map(Into::into);
 		let is_finalized = block.block().is_finalized();
-		let is_new_best = true;
+
+		let new = ExtendedHeader {
+			header: header.clone(),
+			is_finalized: is_finalized,
+			metadata: metadata,
+			parent_total_difficulty: chain.block_details(&parent).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent)).total_difficulty
+		};
+		let current = chain.ancestry_iter(chain.best_block_hash()).unwrap_or_else(|| panic!("Best block hash must be in the database.")).map(|hash| {
+			let header = chain.block_header_data(&hash).expect("Ancestry must be in the database.").decode();
+			let details = chain.block_details(&hash).expect("Ancestry must be in the database.");
+
+			let parent_total_difficulty = details.total_difficulty - *header.difficulty();
+			let is_finalized = details.is_finalized;
+			let metadata = details.metadata;
+
+			ExtendedHeader {
+				header, parent_total_difficulty, is_finalized, metadata
+			}
+		});
+
+		let is_new_best = self.engine.is_new_best(&new, Box::new(current));
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
@@ -546,7 +566,7 @@ impl Importer {
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
 			is_new_best: is_new_best,
 			is_finalized: is_finalized,
-			metadata: metadata,
+			metadata: new.metadata,
 		});
 
 		client.tracedb.read().import(&mut batch, TraceImportRequest {
