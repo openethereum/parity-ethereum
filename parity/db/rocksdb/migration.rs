@@ -40,6 +40,7 @@ pub const TO_V12: ChangeColumns = ChangeColumns {
 	version: 12,
 };
 
+
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
