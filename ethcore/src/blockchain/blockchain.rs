@@ -991,8 +991,7 @@ impl BlockChain {
 
 	/// Mark a block to be considered finalized. Panic if the block hash is not found.
 	pub fn mark_finalized(&self, batch: &mut DBTransaction, block_hash: H256) {
-		let mut block_details = self.block_details(&block_hash)
-			.unwrap_or_else(|| panic!("Invalid block hash: {:?}", block_hash));
+		let mut block_details = self.block_details(&block_hash).expect("Block hash should exist from caller.");
 		block_details.is_finalized = true;
 
 		self.update_block_details(batch, block_hash, block_details);
