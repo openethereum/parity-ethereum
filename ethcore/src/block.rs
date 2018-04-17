@@ -244,8 +244,8 @@ pub struct ClosedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
 	unclosed_state: State<StateDB>,
-	unclosed_local_metadata: Option<Bytes>,
-	unclosed_global_metadata: Option<Bytes>,
+	unclosed_finalization_state: bool,
+	unclosed_metadata: Option<Vec<u8>>,
 }
 
 /// Just like `ClosedBlock` except that we can't reopen it and it's faster.
