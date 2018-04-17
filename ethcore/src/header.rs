@@ -35,7 +35,7 @@ enum Seal {
 }
 
 /// Extended block header, wrapping `Header` with finalized and total difficulty information.
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtendedHeader {
 	pub header: Header,
 	pub finalized: bool,
