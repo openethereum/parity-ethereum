@@ -38,7 +38,7 @@ enum Seal {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtendedHeader {
 	pub header: Header,
-	pub finalized: bool,
+	pub is_finalized: bool,
 	pub total_difficulty: U256,
 }
 

@@ -198,7 +198,6 @@ pub struct BlockChain {
 	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
 	blocks_blooms: RwLock<HashMap<GroupPosition, BloomGroup>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
-	metadata: RwLock<HashMap<Option<H256>, Vec<u8>>>,
 
 	db: Arc<KeyValueDB>,
 
@@ -960,7 +959,7 @@ impl BlockChain {
 
 		self.prepare_update(batch, ExtrasUpdate {
 			block_hashes: self.prepare_block_hashes_update(bytes, &info),
-			block_details: self.prepare_block_details_update(bytes, &info),
+			block_details: self.prepare_block_details_update(bytes, &info, extras.is_finalized, extras.metadata),
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
@@ -1012,7 +1011,6 @@ impl BlockChain {
 			} else {
 				BlockLocation::Branch
 			},
-			is_finalized: extras.is_finalized,
 		}
 	}
 

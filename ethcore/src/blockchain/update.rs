@@ -29,8 +29,6 @@ pub struct ExtrasInsert {
 	pub is_new_best: bool,
 	/// Is the inserted block considered finalized.
 	pub is_finalized: bool,
-	/// New local metadata.
-	pub local_metadata: Option<Vec<u8>>,
-	/// New global metadata.
-	pub global_metadata: Option<Vec<u8>>,
+	/// New block local metadata.
+	pub metadata: Option<Vec<u8>>,
 }
