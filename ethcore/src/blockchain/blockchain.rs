@@ -161,7 +161,6 @@ enum CacheId {
 	TransactionAddresses(H256),
 	BlocksBlooms(GroupPosition),
 	BlockReceipts(H256),
-	Metadata(Option<H256>),
 }
 
 impl bc::group::BloomGroupDatabase for BlockChain {
@@ -504,7 +503,7 @@ impl BlockChain {
 					parent: header.parent_hash(),
 					children: vec![],
 					finalized: false,
-					metadata: HashMap::new(),
+					metadata: None,
 				};
 
 				let mut batch = DBTransaction::new();

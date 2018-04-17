@@ -218,7 +218,7 @@ impl ::parity_machine::Finalizable for ExecutedBlock {
 
 impl ::parity_machine::WithMetadata for ExecutedBlock {
 	fn metadata(&self) -> Option<&[u8]> {
-		&self.metadata
+		self.metadata.as_ref()
 	}
 
 	fn set_metadata(&mut self, value: Option<Vec<u8>>) {
