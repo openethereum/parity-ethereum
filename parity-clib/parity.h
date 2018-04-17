@@ -17,7 +17,7 @@
 #ifndef _PARITY_H_INCLUDED_
 #define _PARITY_H_INCLUDED_
 
-#include <cstddef>
+#include <stddef.h>
 
 /// Parameters to pass to `parity_start`.
 struct ParityParams {
@@ -31,7 +31,7 @@ struct ParityParams {
 	///
 	/// The first parameter of the callback is the value of `on_client_restart_cb_custom`.
 	/// The second and third parameters of the callback are the string pointer and length.
-	void (*on_client_restart_cb)(void *, const char *, size_t);
+	void (*on_client_restart_cb)(void* custom, const char* new_chain, size_t new_chain_len);
 
 	/// Custom parameter passed to the `on_client_restart_cb` callback as first parameter.
 	void *on_client_restart_cb_custom;
@@ -59,13 +59,13 @@ extern "C" {
 /// }
 /// ```
 ///
-int parity_config_from_cli(char const *const *args, size_t const *arg_lens, size_t len, void **out);
+int parity_config_from_cli(char const* const* args, size_t const* arg_lens, size_t len, void** out);
 
 /// Destroys a configuration object created earlier.
 ///
 /// **Important**: You probably don't need to call this function. Calling `parity_start` destroys
 /// 				the configuration object as well (even on failure).
-void parity_config_destroy(void *);
+void parity_config_destroy(void* cfg);
 
 /// Starts the parity client in background threads. Returns a pointer to a struct that represents
 /// the running client. Can also return NULL if the execution completes instantly.
@@ -74,13 +74,13 @@ void parity_config_destroy(void *);
 /// 				call `parity_start` (even on failure).
 ///
 /// Returns 0 on success, and non-zero on error.
-int parity_start(const ParityParams *, void **);
+int parity_start(const ParityParams* params, void** out);
 
 /// Destroys the parity client created with `parity_start`.
 ///
 /// **Warning**: `parity_start` can return NULL if execution finished instantly, in which case you
 ///					must not call this function.
-void parity_destroy(void *);
+void parity_destroy(void* parity);
 
 #ifdef __cplusplus
 }
