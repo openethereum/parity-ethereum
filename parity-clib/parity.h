@@ -46,15 +46,17 @@ extern "C" {
 /// The first two parameters are string pointers and string lengths. They must have a length equal
 /// to `len`. The strings don't need to be zero-terminated.
 ///
+/// On success, the produced object will be written to the `void*` pointed by `out`.
+///
 /// Returns 0 on success, and non-zero on error.
 ///
 /// # Example
 ///
 /// ```no_run
 /// void* cfg;
-/// const char *args[] = {"--light"};
-/// size_t str_lens[] = {7};
-/// if (parity_config_from_cli(args, str_lens, 1, &cfg) != 0) {
+/// const char *args[] = {"--light", "--can-restart"};
+/// size_t str_lens[] = {7, 13};
+/// if (parity_config_from_cli(args, str_lens, 2, &cfg) != 0) {
 ///     return 1;
 /// }
 /// ```
@@ -72,6 +74,8 @@ void parity_config_destroy(void* cfg);
 ///
 /// **Important**: The configuration object passed inside `cfg` is destroyed when you
 /// 				call `parity_start` (even on failure).
+///
+/// On success, the produced object will be written to the `void*` pointed by `out`.
 ///
 /// Returns 0 on success, and non-zero on error.
 int parity_start(const ParityParams* params, void** out);
