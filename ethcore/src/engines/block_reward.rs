@@ -35,8 +35,8 @@ pub enum RewardKind {
 }
 
 impl From<RewardKind> for u16 {
-	fn from(reward_type: RewardKind) -> Self {
-		reward_type as u16
+	fn from(reward_kind: RewardKind) -> Self {
+		reward_kind as u16
 	}
 }
 
@@ -62,7 +62,7 @@ impl BlockRewardContract {
 
 		let input = reward.input(
 			benefactors.iter().map(|&(address, _)| H160::from(address)),
-			benefactors.iter().map(|&(_, ref reward_type)| u16::from(*reward_type)),
+			benefactors.iter().map(|&(_, ref reward_kind)| u16::from(*reward_kind)),
 		);
 
 		let output = caller(self.address, input)
@@ -106,4 +106,65 @@ fn apply_block_rewards(rewards: &[(Address, U256)], block: &mut ExecutedBlock, m
 	}
 
 	machine.note_rewards(block, &rewards, &[])
+}
+
+#[cfg(test)]
+mod test {
+	use client::PrepareOpenBlock;
+	use ethereum_types::U256;
+	use spec::Spec;
+	use test_helpers::generate_dummy_client_with_spec_and_accounts;
+
+	use super::{BlockRewardContract, RewardKind};
+
+	#[test]
+	fn it_should_work() {
+		let client = generate_dummy_client_with_spec_and_accounts(
+			Spec::new_test_round_block_reward_contract,
+			None,
+		);
+
+		let machine = Spec::new_test_machine();
+
+		// the spec has a block reward contract defined at the given address
+		let block_reward_contract = BlockRewardContract::new(
+			"0000000000000000000000000000000000000042".into(),
+		);
+
+		let mut call = |to, data| {
+			let mut block = client.prepare_open_block(
+				"0000000000000000000000000000000000000001".into(),
+				(3141562.into(), 31415620.into()),
+				vec![],
+			);
+
+			let result = machine.execute_as_system(
+				block.block_mut(),
+				to,
+				U256::max_value(),
+				Some(data),
+			);
+
+			result.map_err(|e| format!("{}", e))
+		};
+
+		// if no benefactors are given no rewards are attributed
+		assert!(block_reward_contract.reward(&vec![], &mut call).unwrap().is_empty());
+
+		// the contract rewards (1000 + kind) for each benefactor
+		let benefactors = vec![
+			("0000000000000000000000000000000000000033".into(), RewardKind::Author),
+			("0000000000000000000000000000000000000034".into(), RewardKind::Uncle),
+			("0000000000000000000000000000000000000035".into(), RewardKind::EmptyStep),
+		];
+
+		let rewards = block_reward_contract.reward(&benefactors, &mut call).unwrap();
+		let expected = vec![
+			("0000000000000000000000000000000000000033".into(), U256::from(1000)),
+			("0000000000000000000000000000000000000034".into(), U256::from(1000 + 1)),
+			("0000000000000000000000000000000000000035".into(), U256::from(1000 + 2)),
+		];
+
+		assert_eq!(expected, rewards);
+	}
 }

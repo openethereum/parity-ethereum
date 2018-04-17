@@ -848,6 +848,10 @@ impl Spec {
 		load_bundled!("authority_round_empty_steps")
 	}
 
+	pub fn new_test_round_block_reward_contract() -> Self {
+		load_bundled!("authority_round_block_reward_contract")
+	}
+
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring
 	/// work).
 	/// Account keccak("0") and keccak("1") are a authorities.
