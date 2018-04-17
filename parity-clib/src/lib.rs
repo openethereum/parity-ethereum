@@ -27,7 +27,7 @@ use std::slice;
 #[repr(C)]
 pub struct ParityParams {
 	pub configuration: *mut c_void,
-	pub on_client_restart_cb: extern "C" fn(*mut c_void, *const c_char, usize),
+	pub on_client_restart_cb: Option<extern "C" fn(*mut c_void, *const c_char, usize)>,
 	pub on_client_restart_cb_custom: *mut c_void,
 }
 
@@ -91,13 +91,14 @@ pub extern fn parity_start(cfg: *const ParityParams, output: *mut *mut c_void) -
 			let config = Box::from_raw(cfg.configuration as *mut parity::Configuration);
 
 			let on_client_restart_cb = {
-				struct Cb(extern "C" fn(*mut c_void, *const c_char, usize), *mut c_void);
+				struct Cb(Option<extern "C" fn(*mut c_void, *const c_char, usize)>, *mut c_void);
 				unsafe impl Send for Cb {}
 				unsafe impl Sync for Cb {}
 				impl Cb {
 					fn call(&self, new_chain: String) {
-						let cb = self.0;
-						cb(self.1, new_chain.as_bytes().as_ptr() as *const _, new_chain.len())
+						if let Some(ref cb) = self.0 {
+							cb(self.1, new_chain.as_bytes().as_ptr() as *const _, new_chain.len())
+						}
 					}
 				}
 				let cb = Cb(cfg.on_client_restart_cb, cfg.on_client_restart_cb_custom);
