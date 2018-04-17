@@ -238,15 +238,6 @@ impl HeapSizeOf for BlockDetails {
 	}
 }
 
-/// Metadata key and value
-#[derive(Debug, Clone, RlpEncodable, RlpDecodable)]
-struct BlockMetadata {
-	/// Key of the metadata
-	pub key: Bytes,
-	/// Value of the metadata
-	pub value: Bytes,
-}
-
 /// Represents address of certain transaction within block
 #[derive(Debug, PartialEq, Clone, RlpEncodable, RlpDecodable)]
 pub struct TransactionAddress {
