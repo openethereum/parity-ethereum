@@ -22,3 +22,15 @@ pub struct ExtrasUpdate<'a> {
 	/// Modified transaction addresses (None signifies removed transactions).
 	pub transactions_addresses: HashMap<H256, Option<TransactionAddress>>,
 }
+
+/// Extra information in block insertion.
+pub struct ExtrasInsert {
+	/// Is the inserted block considered the best block.
+	is_new_best: bool,
+	/// Is the inserted block considered finalized.
+	is_finalized: bool,
+	/// New local metadata.
+	local_metadata: Option<Vec<u8>>,
+	/// New global metadata.
+	global_metadata: Option<Vec<u8>>,
+}

@@ -181,7 +181,7 @@ pub struct BlockDetails {
 	/// List of children block hashes
 	pub children: Vec<H256>,
 	/// Whether the block is considered finalized
-	pub finalized: bool,
+	pub is_finalized: bool,
 }
 
 impl rlp::Encodable for BlockDetails {

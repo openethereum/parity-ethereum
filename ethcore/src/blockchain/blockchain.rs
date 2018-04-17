@@ -928,7 +928,7 @@ impl BlockChain {
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
-	pub fn insert_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, metadata: U256, is_new_best: bool) -> ImportRoute {
+	pub fn insert_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, extras: ExtrasInsert) -> ImportRoute {
 		// create views onto rlp
 		let block = view!(BlockView, bytes);
 		let header = block.header_view();
@@ -964,6 +964,7 @@ impl BlockChain {
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
+			metadata: self.prepare_metadata_update(hash, extras.global_metadata, extras.local_metadata),
 			info: info.clone(),
 			block: bytes,
 		}, true);
@@ -972,7 +973,7 @@ impl BlockChain {
 	}
 
 	/// Get inserted block info which is critical to prepare extras updates.
-	fn block_info(&self, header: &HeaderView, metadata: U256, is_new_best: bool) -> BlockInfo {
+	fn block_info(&self, header: &HeaderView, extras: ExtrasInsert) -> BlockInfo {
 		let hash = header.hash();
 		let number = header.number();
 		let parent_hash = header.parent_hash();
@@ -981,8 +982,8 @@ impl BlockChain {
 		BlockInfo {
 			hash: hash,
 			number: number,
-			total_difficulty: metadata,
-			location: if is_new_best {
+			total_difficulty: parent_details.total_difficulty + header.difficulty(),
+			location: if extras.is_new_best {
 				// on new best block we need to make sure that all ancestors
 				// are moved to "canon chain"
 				// find the route between old best block and the new one
@@ -1010,39 +1011,9 @@ impl BlockChain {
 				}
 			} else {
 				BlockLocation::Branch
-			}
+			},
+			is_finalized: extras.is_finalized,
 		}
-	}
-
-	/// Mark a block to be considered finalized.
-	pub fn mark_finalized(&self, batch: &mut DBTransaction, block_hash: H256) -> Result<(), MetadataError> {
-		let mut block_details = self.block_details(&block_hash).ok_or(MetadataError::UnknownBlock)?;
-		block_details.finalized = true;
-
-		self.update_block_details(batch, block_hash, block_details);
-		Ok(())
-	}
-
-	/// Update metadata detail for an existing block.
-	pub fn update_metadata<T: Into<HashMap<Bytes, Bytes>>>(&self, batch: &mut DBTransaction, block_hash: H256, metadata: T) -> Result<(), MetadataError> {
-		let mut block_details = self.block_details(&block_hash).ok_or(MetadataError::UnknownBlock)?;
-		let metadata: HashMap<Bytes, Bytes> = metadata.into();
-		for (key, value) in metadata {
-			block_details.metadata.insert(key, value);
-		}
-
-		self.update_block_details(batch, block_hash, block_details);
-		Ok(())
-	}
-
-	/// Prepares extras block detail update.
-	fn update_block_details(&self, batch: &mut DBTransaction, block_hash: H256, block_details: BlockDetails) {
-		let mut details_map = HashMap::new();
-		details_map.insert(block_hash, block_details);
-
-		// We're only updating one existing value. So it shouldn't suffer from cache decoherence problem.
-		let mut write_details = self.pending_block_details.write();
-		batch.extend_with_cache(db::COL_EXTRA, &mut *write_details, details_map, CacheUpdatePolicy::Overwrite);
 	}
 
 	/// Prepares extras update.
@@ -1261,6 +1232,13 @@ impl BlockChain {
 		let mut block_receipts = HashMap::new();
 		block_receipts.insert(info.hash, BlockReceipts::new(receipts));
 		block_receipts
+	}
+
+	/// This function returns modified metadata.
+	fn prepare_metadata_update(&self, hash: H256, global_metadata: Option<Bytes>, local_metadata: Option<Bytes>) -> HashMap<Option<H256>, Option<Bytes>> {
+		let mut metadata = HashMap::new();
+		metadata.push(None, global_metadata);
+		metadata.push(Some(hash), local_metadata);
 	}
 
 	/// This function returns modified transaction addresses.
