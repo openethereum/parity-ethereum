@@ -204,7 +204,7 @@ impl rlp::Encodable for BlockDetails {
 }
 
 impl rlp::Decodable for BlockDetails {
-	fn decode(rlp: &rlp::UntrustedRlp) -> Result<Self, rlp::DecoderError> {
+	fn decode(rlp: &rlp::Rlp) -> Result<Self, rlp::DecoderError> {
 		let use_short_version = match rlp.item_count()? {
 			4 => true,
 			5 => false,

@@ -38,7 +38,7 @@ use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainD
 use blockchain::extras::{BlockReceipts, BlockDetails, TransactionAddress, EPOCH_KEY_PREFIX, EpochTransitions};
 use types::blockchain_info::BlockChainInfo;
 use types::tree_route::TreeRoute;
-use blockchain::update::ExtrasUpdate;
+use blockchain::update::{ExtrasUpdate, ExtrasInsert};
 use blockchain::{CacheSize, ImportRoute, Config};
 use error::MetadataError;
 use db::{self, Writable, Readable, CacheUpdatePolicy};
@@ -947,7 +947,7 @@ impl BlockChain {
 		batch.put(db::COL_HEADERS, &hash, &compressed_header);
 		batch.put(db::COL_BODIES, &hash, &compressed_body);
 
-		let info = self.block_info(&header, metadata, is_new_best);
+		let info = self.block_info(&header, &extras);
 
 		if let BlockLocation::BranchBecomingCanonChain(ref d) = info.location {
 			info!(target: "reorg", "Reorg to {} ({} {} {})",
@@ -973,7 +973,7 @@ impl BlockChain {
 	}
 
 	/// Get inserted block info which is critical to prepare extras updates.
-	fn block_info(&self, header: &HeaderView, extras: ExtrasInsert) -> BlockInfo {
+	fn block_info(&self, header: &HeaderView, extras: &ExtrasInsert) -> BlockInfo {
 		let hash = header.hash();
 		let number = header.number();
 		let parent_hash = header.parent_hash();
