@@ -502,7 +502,7 @@ impl BlockChain {
 					total_difficulty: header.difficulty(),
 					parent: header.parent_hash(),
 					children: vec![],
-					finalized: false,
+					is_finalized: false,
 					metadata: None,
 				};
 
@@ -657,14 +657,14 @@ impl BlockChain {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
 			from_details = self.block_details(&from_details.parent)?;
-			is_from_route_finalized = is_from_route_finalized || from_details.finalized;
+			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 		}
 
 		while to_details.number > from_details.number {
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
 			to_details = self.block_details(&to_details.parent)?;
-			is_to_route_finalized = is_to_route_finalized || to_details.finalized;
+			is_to_route_finalized = is_to_route_finalized || to_details.is_finalized;
 		}
 
 		assert_eq!(from_details.number, to_details.number);
@@ -674,12 +674,12 @@ impl BlockChain {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
 			from_details = self.block_details(&from_details.parent)?;
-			is_from_route_finalized = is_from_route_finalized || from_details.finalized;
+			is_from_route_finalized = is_from_route_finalized || from_details.is_finalized;
 
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
 			to_details = self.block_details(&to_details.parent)?;
-			is_to_route_finalized = is_to_route_finalized || to_details.finalized;
+			is_to_route_finalized = is_to_route_finalized || to_details.is_finalized;
 		}
 
 		let index = from_branch.len();
@@ -735,7 +735,7 @@ impl BlockChain {
 
 			self.prepare_update(batch, ExtrasUpdate {
 				block_hashes: self.prepare_block_hashes_update(bytes, &info),
-				block_details: self.prepare_block_details_update(bytes, &info),
+				block_details: self.prepare_block_details_update(bytes, &info, false, None),
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
@@ -771,13 +771,14 @@ impl BlockChain {
 				location: BlockLocation::CanonChain,
 			};
 
+			// TODO [sorpaas] support wrap sync insertion of finalization and metadata.
 			let block_details = BlockDetails {
 				number: header.number(),
 				total_difficulty: info.total_difficulty,
 				parent: header.parent_hash(),
 				children: Vec::new(),
-				finalized: false,
-				metadata: HashMap::new(),
+				is_finalized: false,
+				metadata: None,
 			};
 
 			let mut update = HashMap::new();
@@ -899,30 +900,6 @@ impl BlockChain {
 		self.cache_man.lock().note_used(CacheId::BlockDetails(block_hash));
 	}
 
-	/// Read the metadata from the database. If the parameter is provided, read from the block's metadata. Otherwise,
-	/// read the global metadata.
-	pub fn metadata(&self, hash: &Option<H256>) -> Option<Bytes> {
-		// Check cache first
-		{
-			let read = self.metadata.read();
-			if let Some(v) = read.get(hash) {
-				return Some(v.clone());
-			}
-		}
-
-		// Read from DB and populate cache
-		let b = self.db.get(db::COL_METADATA, match hash {
-			Some(hash) => hash.as_ref(),
-			None => &[0],
-		}).expect("Low level database error. Some issue with disk?");
-
-		let mut write = self.metadata.write();
-		write.insert(hash, b.clone());
-
-		self.cache_man.lock().note_used(CacheId::Metadata(hash));
-		Some(b)
-	}
-
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
@@ -962,7 +939,6 @@ impl BlockChain {
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
-			metadata: self.prepare_metadata_update(hash, extras.global_metadata, extras.local_metadata),
 			info: info.clone(),
 			block: bytes,
 		}, true);
@@ -1011,6 +987,25 @@ impl BlockChain {
 				BlockLocation::Branch
 			},
 		}
+	}
+
+	/// Mark a block to be considered finalized. Panic if the block hash is not found.
+	pub fn mark_finalized(&self, batch: &mut DBTransaction, block_hash: H256) {
+		let mut block_details = self.block_details(&block_hash)
+			.unwrap_or_else(|| panic!("Invalid block hash: {:?}", block_hash));
+		block_details.is_finalized = true;
+
+		self.update_block_details(batch, block_hash, block_details);
+	}
+
+	/// Prepares extras block detail update.
+	fn update_block_details(&self, batch: &mut DBTransaction, block_hash: H256, block_details: BlockDetails) {
+		let mut details_map = HashMap::new();
+		details_map.insert(block_hash, block_details);
+
+		// We're only updating one existing value. So it shouldn't suffer from cache decoherence problem.
+		let mut write_details = self.pending_block_details.write();
+		batch.extend_with_cache(db::COL_EXTRA, &mut *write_details, details_map, CacheUpdatePolicy::Overwrite);
 	}
 
 	/// Prepares extras update.
@@ -1198,7 +1193,7 @@ impl BlockChain {
 
 	/// This function returns modified block details.
 	/// Uses the given parent details or attempts to load them from the database.
-	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo, is_finalized: bool) -> HashMap<H256, BlockDetails> {
+	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo, is_finalized: bool, metadata: Option<Vec<u8>>) -> HashMap<H256, BlockDetails> {
 		let block = view!(BlockView, block_bytes);
 		let header = block.header_view();
 		let parent_hash = header.parent_hash();
@@ -1214,6 +1209,7 @@ impl BlockChain {
 			parent: parent_hash,
 			children: vec![],
 			is_finalized: is_finalized,
+			metadata: metadata,
 		};
 
 		// write to batch
@@ -1228,14 +1224,6 @@ impl BlockChain {
 		let mut block_receipts = HashMap::new();
 		block_receipts.insert(info.hash, BlockReceipts::new(receipts));
 		block_receipts
-	}
-
-	/// This function returns modified metadata.
-	fn prepare_metadata_update(&self, hash: H256, global_metadata: Vec<u8>, local_metadata: Vec<u8>) -> HashMap<Option<H256>, Vec<u8>> {
-		let mut metadata = HashMap::new();
-		metadata.insert(None, global_metadata);
-		metadata.insert(Some(hash), local_metadata);
-		metadata
 	}
 
 	/// This function returns modified transaction addresses.
@@ -1377,7 +1365,6 @@ impl BlockChain {
 			transaction_addresses: self.transaction_addresses.read().heap_size_of_children(),
 			blocks_blooms: self.blocks_blooms.read().heap_size_of_children(),
 			block_receipts: self.block_receipts.read().heap_size_of_children(),
-			metadata: self.metadata.read().heap_size_of_children(),
 		}
 	}
 
@@ -1392,7 +1379,6 @@ impl BlockChain {
 		let mut transaction_addresses = self.transaction_addresses.write();
 		let mut blocks_blooms = self.blocks_blooms.write();
 		let mut block_receipts = self.block_receipts.write();
-		let mut metadata = self.metadata.write();
 
 		let mut cache_man = self.cache_man.lock();
 		cache_man.collect_garbage(current_size, | ids | {
@@ -1405,7 +1391,6 @@ impl BlockChain {
 					CacheId::TransactionAddresses(ref h) => { transaction_addresses.remove(h); }
 					CacheId::BlocksBlooms(ref h) => { blocks_blooms.remove(h); }
 					CacheId::BlockReceipts(ref h) => { block_receipts.remove(h); }
-					CacheId::Metadata(ref h) => { metadata.remove(h); }
 				}
 			}
 
@@ -1416,7 +1401,6 @@ impl BlockChain {
 			transaction_addresses.shrink_to_fit();
 			blocks_blooms.shrink_to_fit();
 			block_receipts.shrink_to_fit();
-			metadata.shrink_to_fit();
 
 			block_headers.heap_size_of_children() +
 			block_bodies.heap_size_of_children() +
@@ -1424,8 +1408,7 @@ impl BlockChain {
 			block_hashes.heap_size_of_children() +
 			transaction_addresses.heap_size_of_children() +
 			blocks_blooms.heap_size_of_children() +
-			block_receipts.heap_size_of_children() +
-			metadata.heap_size_of_children()
+			block_receipts.heap_size_of_children()
 		});
 	}
 

@@ -211,6 +211,10 @@ impl ::parity_machine::Transactions for ExecutedBlock {
 }
 
 impl ::parity_machine::Finalizable for ExecutedBlock {
+	fn is_finalized(&self) -> bool {
+		self.is_finalized
+	}
+
 	fn mark_finalized(&mut self) {
 		self.is_finalized = true;
 	}
@@ -218,7 +222,7 @@ impl ::parity_machine::Finalizable for ExecutedBlock {
 
 impl ::parity_machine::WithMetadata for ExecutedBlock {
 	fn metadata(&self) -> Option<&[u8]> {
-		self.metadata.as_ref()
+		self.metadata.as_ref().map(|v| v.as_ref())
 	}
 
 	fn set_metadata(&mut self, value: Option<Vec<u8>>) {
@@ -409,6 +413,8 @@ impl<'x> OpenBlock<'x> {
 		let mut s = self;
 
 		let unclosed_state = s.block.state.clone();
+		let unclosed_metadata = s.block.metadata.clone();
+		let unclosed_finalization_state = s.block.is_finalized;
 
 		if let Err(e) = s.engine.on_close_block(&mut s.block) {
 			warn!("Encountered error on closing the block: {}", e);
@@ -432,6 +438,8 @@ impl<'x> OpenBlock<'x> {
 			block: s.block,
 			uncle_bytes,
 			unclosed_state,
+			unclosed_metadata,
+			unclosed_finalization_state,
 		}
 	}
 
@@ -505,6 +513,8 @@ impl ClosedBlock {
 		// revert rewards (i.e. set state back at last transaction's state).
 		let mut block = self.block;
 		block.state = self.unclosed_state;
+		block.metadata = self.unclosed_metadata;
+		block.is_finalized = self.unclosed_finalization_state;
 		OpenBlock {
 			block: block,
 			engine: engine,

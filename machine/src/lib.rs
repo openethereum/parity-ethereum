@@ -57,7 +57,7 @@ pub trait TotalScoredHeader: Header {
 	type Value;
 
 	/// Get the total score of this header.
-	fn total_score(&self) -> &Self::Value;
+	fn total_score(&self) -> Self::Value;
 }
 
 /// A header with finalized information.
@@ -92,6 +92,8 @@ pub trait Transactions: LiveBlock {
 
 /// Trait for blocks which have finalized information.
 pub trait Finalizable: LiveBlock {
+	/// Get whether the block is finalized.
+	fn is_finalized(&self) -> bool;
 	/// Mark the block as finalized.
 	fn mark_finalized(&mut self);
 }

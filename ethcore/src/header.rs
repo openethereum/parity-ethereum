@@ -37,9 +37,12 @@ enum Seal {
 /// Extended block header, wrapping `Header` with finalized and total difficulty information.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtendedHeader {
+	/// The actual header.
 	pub header: Header,
+	/// Whether the block underlying this header is considered finalized.
 	pub is_finalized: bool,
-	pub total_difficulty: U256,
+	/// The parent block difficulty.
+	pub parent_difficulty: U256,
 }
 
 /// A block header.
@@ -401,17 +404,17 @@ impl ::parity_machine::ScoredHeader for ExtendedHeader {
 	type Value = U256;
 
 	fn score(&self) -> &U256 { self.header.difficulty() }
-	fn set_score(&mut self, score: U256) { self.set_difficulty(score) }
+	fn set_score(&mut self, score: U256) { self.header.set_difficulty(score) }
 }
 
 impl ::parity_machine::TotalScoredHeader for ExtendedHeader {
 	type Value = U256;
 
-	fn total_score(&self) -> &U256 { &self.total_difficulty }
+	fn total_score(&self) -> U256 { self.parent_difficulty + *self.header.difficulty() }
 }
 
 impl ::parity_machine::FinalizedHeader for ExtendedHeader {
-	fn is_finalized(&self) -> bool { self.finalized }
+	fn is_finalized(&self) -> bool { self.is_finalized }
 }
 
 #[cfg(test)]

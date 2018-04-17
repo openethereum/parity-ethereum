@@ -27,13 +27,11 @@ pub struct CacheSize {
 	pub blocks_blooms: usize,
 	/// Block receipts size.
 	pub block_receipts: usize,
-	/// Metadata size.
-	pub metadata: usize,
 }
 
 impl CacheSize {
 	/// Total amount used by the cache.
 	pub fn total(&self) -> usize {
-		self.blocks + self.block_details + self.transaction_addresses + self.blocks_blooms + self.block_receipts + self.metadata
+		self.blocks + self.block_details + self.transaction_addresses + self.blocks_blooms + self.block_receipts
 	}
 }

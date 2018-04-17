@@ -344,7 +344,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 /// Generate metadata for a new block based on the default total difficulty rule.
 pub fn total_difficulty_generate_metadata(bytes: &[u8], provider: &BlockProvider) -> U256 {
-	let block = BlockView::new(bytes);
+	let block = view!(BlockView, bytes);
 	let header = block.header_view();
 	let parent_hash = header.parent_hash();
 	let parent_details = provider.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));

@@ -76,6 +76,7 @@ use verification;
 use verification::{PreverifiedBlock, Verifier};
 use verification::queue::BlockQueue;
 use views::BlockView;
+use parity_machine::{Finalizable, WithMetadata};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -505,8 +506,6 @@ impl Importer {
 	//
 	// The header passed is from the original block data and is sealed.
 	fn commit_block<B>(&self, block: B, header: &Header, block_data: &[u8], client: &Client) -> ImportRoute where B: IsBlock + Drain {
-		use std::ops::Deref;
-
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
@@ -521,6 +520,10 @@ impl Importer {
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
 		let mut batch = DBTransaction::new();
+
+		let metadata = block.block().metadata().map(Into::into);
+		let is_finalized = block.block().is_finalized();
+		let is_new_best = true;
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
@@ -540,15 +543,10 @@ impl Importer {
 		);
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
-		let global_metadata: Option<Bytes> = block.block().global_metadata();
-		let local_metadata: Option<Bytes> = block.block().local_metadata();
-		let is_finalized = block.block().is_finalized();
-		let is_new_best = true;
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
 			is_new_best: is_new_best,
 			is_finalized: is_finalized,
-			global_metadata: global_metadata,
-			local_metadata: local_metadata
+			metadata: metadata,
 		});
 
 		client.tracedb.read().import(&mut batch, TraceImportRequest {

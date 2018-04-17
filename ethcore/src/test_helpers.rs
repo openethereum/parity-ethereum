@@ -19,7 +19,7 @@
 use account_provider::AccountProvider;
 use ethereum_types::{H256, U256, Address};
 use block::{OpenBlock, Drain};
-use blockchain::{BlockChain, Config as BlockChainConfig};
+use blockchain::{BlockChain, Config as BlockChainConfig, ExtrasInsert};
 use bytes::Bytes;
 use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
 use ethkey::KeyPair;
@@ -266,7 +266,11 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 	let mut batch = db.transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
-		bc.insert_block(&mut batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![], U256::zero(), true);
+		bc.insert_block(&mut batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![], ExtrasInsert {
+			is_new_best: true,
+			is_finalized: false,
+			metadata: None,
+		});
 		bc.commit();
 	}
 	db.write(batch).unwrap();
@@ -282,7 +286,11 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	let mut batch = db.transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
-		bc.insert_block(&mut batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![], U256::zero(), true);
+		bc.insert_block(&mut batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![], ExtrasInsert {
+			is_new_best: true,
+			is_finalized: false,
+			metadata: None,
+		});
 		bc.commit();
 	}
 	db.write(batch).unwrap();
