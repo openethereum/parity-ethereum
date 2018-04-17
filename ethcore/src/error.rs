@@ -148,23 +148,6 @@ impl fmt::Display for BlockError {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-/// Errors related to metadata operations
-pub enum MetadataError {
-	/// The metadata block trying to set is unknown.
-	UnknownBlock,
-}
-
-impl fmt::Display for MetadataError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		let msg = match *self {
-			MetadataError::UnknownBlock => "unknown block",
-		};
-
-		f.write_fmt(format_args!("Block metadata error ({})", msg))
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
 /// Import to the block queue result
 pub enum ImportError {
 	/// Already in the block chain.

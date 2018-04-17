@@ -95,13 +95,13 @@ pub struct ExecutedBlock {
 	traces: Tracing,
 	last_hashes: Arc<LastHashes>,
 	finalized: bool,
-	local_metadata: Option<Bytes>,
-	global_metadata: Option<Bytes>,
+	local_metadata: Vec<u8>,
+	global_metadata: Vec<u8>,
 }
 
 impl ExecutedBlock {
 	/// Create a new block from the given `state`.
-	fn new(state: State<StateDB>, last_hashes: Arc<LastHashes>, tracing: bool) -> ExecutedBlock {
+	fn new(state: State<StateDB>, last_hashes: Arc<LastHashes>, tracing: bool, global_metadata: Vec<u8>, local_metadata: Vec<u8>) -> ExecutedBlock {
 		ExecutedBlock {
 			header: Default::default(),
 			transactions: Default::default(),
@@ -116,6 +116,8 @@ impl ExecutedBlock {
 			},
 			last_hashes: last_hashes,
 			finalized: false,
+			global_metadata: global_metadata,
+			local_metadata: local_metadata,
 		}
 	}
 
