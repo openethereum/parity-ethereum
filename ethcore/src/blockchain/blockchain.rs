@@ -1520,15 +1520,20 @@ mod tests {
 
 	fn insert_block_batch(batch: &mut DBTransaction, bc: &BlockChain, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
 		use views::BlockView;
+		use blockchain::ExtrasInsert;
 
-		let block = BlockView::new(bytes);
+		let block = view!(BlockView, bytes);
 		let header = block.header_view();
 		let parent_hash = header.parent_hash();
 		let parent_details = bc.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 		let block_total_difficulty = parent_details.total_difficulty + header.difficulty();
 		let is_new_best = block_total_difficulty > bc.best_block_total_difficulty();
 
-		bc.insert_block(batch, bytes, receipts, block_total_difficulty, is_new_best)
+		bc.insert_block(batch, bytes, receipts, ExtrasInsert {
+			is_new_best: is_new_best,
+			is_finalized: false,
+			metadata: None
+		})
 	}
 
 	#[test]

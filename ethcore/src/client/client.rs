@@ -2288,7 +2288,7 @@ mod tests {
 		use std::sync::Arc;
 		use std::sync::atomic::{AtomicBool, Ordering};
 		use kvdb::DBTransaction;
-		use ethereum_types::U256;
+		use blockchain::ExtrasInsert;
 
 		let client = generate_dummy_client(0);
 		let genesis = client.chain_info().best_block_hash;
@@ -2301,7 +2301,11 @@ mod tests {
 			let another_client = client.clone();
 			thread::spawn(move || {
 				let mut batch = DBTransaction::new();
-				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new(), U256::zero(), true);
+				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new(), ExtrasInsert {
+					is_new_best: true,
+					is_finalized: false,
+					metadata: None,
+				});
 				go_thread.store(true, Ordering::SeqCst);
 			});
 			go
