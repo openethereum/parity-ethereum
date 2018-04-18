@@ -186,7 +186,7 @@ pub struct BlockDetails {
 
 impl rlp::Encodable for BlockDetails {
 	fn rlp_append(&self, stream: &mut rlp::RlpStream) {
-		let use_short_version = !self.is_finalized;
+		let use_short_version = self.metadata.is_none() && !self.is_finalized;
 
 		match use_short_version {
 			true => { stream.begin_list(4); },
