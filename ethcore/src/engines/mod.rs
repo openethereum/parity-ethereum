@@ -195,11 +195,11 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Block transformation functions, before the transactions.
 	/// `epoch_begin` set to true if this block kicks off an epoch.
-	fn on_new_block<'a>(
+	fn on_new_block(
 		&self,
 		_block: &mut M::LiveBlock,
 		_epoch_begin: bool,
-		_ancestry: Box<Iterator<Item=M::ExtendedHeader> + 'a>,
+		_ancestry: &mut Iterator<Item=M::ExtendedHeader>,
 	) -> Result<(), M::Error> {
 		Ok(())
 	}
@@ -343,7 +343,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Gather all ancestry actions. Called at the last stage when a block is committed. The Engine must guarantee that
 	/// the ancestry exists.
-	fn ancestry_actions<'a>(&self, _block: &M::LiveBlock, _ancestry: Box<Iterator<Item=M::ExtendedHeader> + 'a>) -> Vec<AncestryAction> {
+	fn ancestry_actions(&self, _block: &M::LiveBlock, _ancestry: &mut Iterator<Item=M::ExtendedHeader>) -> Vec<AncestryAction> {
 		Vec::new()
 	}
 

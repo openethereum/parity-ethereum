@@ -409,24 +409,38 @@ impl<'a> Iterator for AncestryIter<'a> {
 	}
 }
 
-impl<'a> AncestryIter<'a> {
-	pub fn to_with_metadata_iter(self) -> Box<Iterator<Item=ExtendedHeader> + 'a> {
-		let chain = self.chain;
+/// An iterator which walks the blockchain towards the genesis, with metadata information.
+pub struct AncestryWithMetadataIter<'a> {
+	current: H256,
+	chain: &'a BlockChain,
+}
 
-		Box::new(self.map(move |hash| {
-			let header = chain.block_header_data(&hash)
-				.expect("Initial hash is checked by iterator constructor; parent block is in the database; qed").decode();
-			let details = chain.block_details(&hash)
-				.expect("Initial hash is checked by iterator constructor; parent block is in the database; qed");
+impl<'a> Iterator for AncestryWithMetadataIter<'a> {
+	type Item = ExtendedHeader;
+	fn next(&mut self) -> Option<ExtendedHeader> {
+		if self.current.is_zero() {
+			None
+		} else {
+			let details = self.chain.block_details(&self.current);
+			let header = self.chain.block_header_data(&self.current).map(|h| h.decode());
 
-			ExtendedHeader {
-				parent_total_difficulty: details.total_difficulty - *header.difficulty(),
-				is_finalized: details.is_finalized,
-				metadata: details.metadata,
+			match (details, header) {
+				(Some(details), Some(header)) => {
+					self.current = details.parent;
+					Some(ExtendedHeader {
+						parent_total_difficulty: details.total_difficulty - *header.difficulty(),
+						is_finalized: details.is_finalized,
+						metadata: details.metadata,
 
-				header: header,
+						header: header,
+					})
+				},
+				_ => {
+					self.current = H256::default();
+					None
+				},
 			}
-		}))
+		}
 	}
 }
 
@@ -1150,17 +1164,15 @@ impl BlockChain {
 	}
 
 	/// Iterator that lists `first` and then all of `first`'s ancestors, by extended header.
-	pub fn ancestry_with_metadata_iter<'a>(&'a self, first: H256) -> Box<Iterator<Item=ExtendedHeader> + 'a> {
-		let hash_iter = AncestryIter {
+	pub fn ancestry_with_metadata_iter<'a>(&'a self, first: H256) -> AncestryWithMetadataIter {
+		AncestryWithMetadataIter {
 			current: if self.is_known(&first) {
 				first
 			} else {
 				H256::default() // zero hash
 			},
 			chain: self
-		};
-
-		hash_iter.to_with_metadata_iter()
+		}
 	}
 
 	/// Given a block's `parent`, find every block header which represents a valid possible uncle.

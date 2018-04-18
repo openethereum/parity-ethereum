@@ -941,11 +941,11 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		Ok(())
 	}
 
-	fn on_new_block<'a>(
+	fn on_new_block(
 		&self,
 		block: &mut ExecutedBlock,
 		epoch_begin: bool,
-		_ancestry: Box<Iterator<Item=ExtendedHeader> + 'a>,
+		_ancestry: &mut Iterator<Item=ExtendedHeader>,
 	) -> Result<(), Error> {
 		// with immediate transitions, we don't use the epoch mechanism anyway.
 		// the genesis is always considered an epoch, but we ignore it intentionally.

@@ -282,7 +282,7 @@ impl<'x> OpenBlock<'x> {
 		gas_range_target: (U256, U256),
 		extra_data: Bytes,
 		is_epoch_begin: bool,
-		ancestry: Box<Iterator<Item=ExtendedHeader> + 'a>,
+		ancestry: &mut Iterator<Item=ExtendedHeader>,
 	) -> Result<Self, Error> {
 		let number = parent.number() + 1;
 		let state = State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(number), factories)?;
@@ -592,7 +592,7 @@ impl IsBlock for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
-fn enact<'a>(
+fn enact(
 	header: Header,
 	transactions: Vec<SignedTransaction>,
 	uncles: Vec<Header>,
@@ -604,7 +604,7 @@ fn enact<'a>(
 	factories: Factories,
 	is_epoch_begin: bool,
 	strip_receipts: bool,
-	ancestry: Box<Iterator<Item=ExtendedHeader> + 'a>,
+	ancestry: &mut Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
@@ -645,7 +645,7 @@ fn enact<'a>(
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-pub fn enact_verified<'a>(
+pub fn enact_verified(
 	block: PreverifiedBlock,
 	engine: &EthEngine,
 	tracing: bool,
@@ -656,7 +656,7 @@ pub fn enact_verified<'a>(
 	is_epoch_begin: bool,
 	// Remove state root from transaction receipts to make them EIP-98 compatible.
 	strip_receipts: bool,
-	ancestry: Box<Iterator<Item=ExtendedHeader> + 'a>,
+	ancestry: &mut Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
 	let view = view!(BlockView, &block.bytes);
 

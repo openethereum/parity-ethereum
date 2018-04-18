@@ -527,7 +527,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		Ok(())
 	}
 
-	fn on_new_block<'a>(&self, block: &mut ExecutedBlock, epoch_begin: bool, _ancestry: Box<Iterator<Item=ExtendedHeader> + 'a>) -> Result<(), Error> {
+	fn on_new_block<'a>(&self, block: &mut ExecutedBlock, epoch_begin: bool, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Result<(), Error> {
 		if !epoch_begin { return Ok(()) }
 
 		// genesis is never a new block, but might as well check.

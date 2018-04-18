@@ -148,7 +148,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
-			Box::new(Vec::new().into_iter()),
+			&mut Vec::new().into_iter(),
 		).unwrap();
 		rolling_timestamp += 10;
 		b.set_timestamp(rolling_timestamp);
