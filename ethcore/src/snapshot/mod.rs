@@ -39,7 +39,7 @@ use parking_lot::Mutex;
 use journaldb::{self, Algorithm, JournalDB};
 use kvdb::KeyValueDB;
 use trie::{TrieDB, TrieDBMut, Trie, TrieMut};
-use rlp::{RlpStream, UntrustedRlp};
+use rlp::{RlpStream, Rlp};
 use bloom_journal::Bloom;
 
 use self::io::SnapshotWriter;
@@ -327,7 +327,7 @@ impl StateRebuilder {
 
 	/// Feed an uncompressed state chunk into the rebuilder.
 	pub fn feed(&mut self, chunk: &[u8], flag: &AtomicBool) -> Result<(), ::error::Error> {
-		let rlp = UntrustedRlp::new(chunk);
+		let rlp = Rlp::new(chunk);
 		let empty_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();
 		let mut pairs = Vec::with_capacity(rlp.item_count()?);
 
@@ -415,7 +415,7 @@ struct RebuiltStatus {
 // returns a status detailing newly-loaded code and accounts missing code.
 fn rebuild_accounts(
 	db: &mut HashDB,
-	account_fat_rlps: UntrustedRlp,
+	account_fat_rlps: Rlp,
 	out_chunk: &mut [(H256, Bytes)],
 	known_code: &HashMap<H256, H256>,
 	known_storage_roots: &mut HashMap<H256, H256>,

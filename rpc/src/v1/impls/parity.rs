@@ -27,9 +27,9 @@ use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use sync::{SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
-use ethcore::client::{MiningBlockChainClient, StateClient, Call};
+use ethcore::client::{BlockChainClient, StateClient, Call};
 use ethcore::ids::BlockId;
-use ethcore::miner::MinerService;
+use ethcore::miner::{self, MinerService};
 use ethcore::mode::Mode;
 use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
@@ -72,7 +72,7 @@ pub struct ParityClient<C, M, U>  {
 }
 
 impl<C, M, U> ParityClient<C, M, U> where
-	C: MiningBlockChainClient,
+	C: BlockChainClient,
 {
 	/// Creates new `ParityClient`.
 	pub fn new(
@@ -116,7 +116,7 @@ impl<C, M, U> ParityClient<C, M, U> where
 
 impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	S: StateInfo + 'static,
-	C: MiningBlockChainClient + StateClient<State=S> + Call<State=S> + 'static,
+	C: miner::BlockChainClient + BlockChainClient + StateClient<State=S> + Call<State=S> + 'static,
 	M: MinerService<State=S> + 'static,
 	U: UpdateService + 'static,
 {
@@ -170,23 +170,23 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn transactions_limit(&self) -> Result<usize> {
-		Ok(self.miner.transactions_limit())
+		Ok(self.miner.queue_status().limits.max_count)
 	}
 
 	fn min_gas_price(&self) -> Result<U256> {
-		Ok(U256::from(self.miner.minimal_gas_price()))
+		Ok(self.miner.queue_status().options.minimal_gas_price.into())
 	}
 
 	fn extra_data(&self) -> Result<Bytes> {
-		Ok(Bytes::new(self.miner.extra_data()))
+		Ok(Bytes::new(self.miner.authoring_params().extra_data))
 	}
 
 	fn gas_floor_target(&self) -> Result<U256> {
-		Ok(U256::from(self.miner.gas_floor_target()))
+		Ok(U256::from(self.miner.authoring_params().gas_range_target.0))
 	}
 
 	fn gas_ceil_target(&self) -> Result<U256> {
-		Ok(U256::from(self.miner.gas_ceil_target()))
+		Ok(U256::from(self.miner.authoring_params().gas_range_target.1))
 	}
 
 	fn dev_logs(&self) -> Result<Vec<String>> {
@@ -315,12 +315,28 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn pending_transactions(&self) -> Result<Vec<Transaction>> {
 		let block_number = self.client.chain_info().best_block_number;
-		Ok(self.miner.pending_transactions().into_iter().map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)).collect::<Vec<_>>())
+		let ready_transactions = self.miner.ready_transactions(&*self.client);
+
+		Ok(ready_transactions
+		   .into_iter()
+		   .map(|t| Transaction::from_pending(t.pending().clone(), block_number, self.eip86_transition))
+		   .collect()
+	  )
+	}
+
+	fn all_transactions(&self) -> Result<Vec<Transaction>> {
+		let block_number = self.client.chain_info().best_block_number;
+		let all_transactions = self.miner.queued_transactions();
+
+		Ok(all_transactions
+		   .into_iter()
+		   .map(|t| Transaction::from_pending(t.pending().clone(), block_number, self.eip86_transition))
+		   .collect()
+		)
 	}
 
 	fn future_transactions(&self) -> Result<Vec<Transaction>> {
-		let block_number = self.client.chain_info().best_block_number;
-		Ok(self.miner.future_transactions().into_iter().map(|t| Transaction::from_pending(t, block_number, self.eip86_transition)).collect::<Vec<_>>())
+		Err(errors::deprecated("Use `parity_allTransaction` instead."))
 	}
 
 	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>> {
@@ -359,11 +375,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	fn next_nonce(&self, address: H160) -> BoxFuture<U256> {
 		let address: Address = address.into();
 
-		Box::new(future::ok(self.miner.last_nonce(&address)
-			.map(|n| n + 1.into())
-			.unwrap_or_else(|| self.client.latest_nonce(&address))
-			.into()
-		))
+		Box::new(future::ok(self.miner.next_nonce(&*self.client, &address).into()))
 	}
 
 	fn mode(&self) -> Result<String> {

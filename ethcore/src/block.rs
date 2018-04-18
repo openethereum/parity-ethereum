@@ -22,7 +22,7 @@ use std::collections::HashSet;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use triehash::ordered_trie_root;
 
-use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
+use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use unexpected::{Mismatch, OutOfBounds};
@@ -54,7 +54,7 @@ pub struct Block {
 impl Block {
 	/// Returns true if the given bytes form a valid encoding of a block in RLP.
 	pub fn is_good(b: &[u8]) -> bool {
-		UntrustedRlp::new(b).as_val::<Block>().is_ok()
+		Rlp::new(b).as_val::<Block>().is_ok()
 	}
 
 	/// Get the RLP-encoding of the block with the seal.
@@ -68,7 +68,7 @@ impl Block {
 }
 
 impl Decodable for Block {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		if rlp.as_raw().len() != rlp.payload_info()?.total() {
 			return Err(DecoderError::RlpIsTooBig);
 		}
@@ -337,8 +337,33 @@ impl<'x> OpenBlock<'x> {
 	}
 
 	/// Push transactions onto the block.
-	pub fn push_transactions(&mut self, transactions: &[SignedTransaction]) -> Result<(), Error> {
-		push_transactions(self, transactions)
+	#[cfg(not(feature = "slow-blocks"))]
+	fn push_transactions(&mut self, transactions: Vec<SignedTransaction>) -> Result<(), Error> {
+		for t in transactions {
+			self.push_transaction(t, None)?;
+		}
+		Ok(())
+	}
+
+	/// Push transactions onto the block.
+	#[cfg(feature = "slow-blocks")]
+	fn push_transactions(&mut self, transactions: Vec<SignedTransaction>) -> Result<(), Error> {
+		use std::time;
+
+		let slow_tx = option_env!("SLOW_TX_DURATION").and_then(|v| v.parse().ok()).unwrap_or(100);
+		for t in transactions {
+			let hash = t.hash();
+			let start = time::Instant::now();
+			self.push_transaction(t, None)?;
+			let took = start.elapsed();
+			let took_ms = took.as_secs() * 1000 + took.subsec_nanos() as u64 / 1000000;
+			if took > time::Duration::from_millis(slow_tx) {
+				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", took_ms, block.header().number(), hash);
+			}
+			debug!(target: "tx", "Transaction {:?} took: {} ms", hash, took_ms);
+		}
+
+		Ok(())
 	}
 
 	/// Populate self from a header.
@@ -534,10 +559,10 @@ impl IsBlock for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
-pub fn enact(
-	header: &Header,
-	transactions: &[SignedTransaction],
-	uncles: &[Header],
+fn enact(
+	header: Header,
+	transactions: Vec<SignedTransaction>,
+	uncles: Vec<Header>,
 	engine: &EthEngine,
 	tracing: bool,
 	db: StateDB,
@@ -568,11 +593,11 @@ pub fn enact(
 		is_epoch_begin,
 	)?;
 
-	b.populate_from(header);
+	b.populate_from(&header);
 	b.push_transactions(transactions)?;
 
 	for u in uncles {
-		b.push_uncle(u.clone())?;
+		b.push_uncle(u)?;
 	}
 
 	if strip_receipts {
@@ -584,38 +609,9 @@ pub fn enact(
 	Ok(b.close_and_lock())
 }
 
-#[inline]
-#[cfg(not(feature = "slow-blocks"))]
-fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) -> Result<(), Error> {
-	for t in transactions {
-		block.push_transaction(t.clone(), None)?;
-	}
-	Ok(())
-}
-
-#[cfg(feature = "slow-blocks")]
-fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) -> Result<(), Error> {
-	use std::time;
-
-	let slow_tx = option_env!("SLOW_TX_DURATION").and_then(|v| v.parse().ok()).unwrap_or(100);
-	for t in transactions {
-		let hash = t.hash();
-		let start = time::Instant::now();
-		block.push_transaction(t.clone(), None)?;
-		let took = start.elapsed();
-		let took_ms = took.as_secs() * 1000 + took.subsec_nanos() as u64 / 1000000;
-		if took > time::Duration::from_millis(slow_tx) {
-			warn!("Heavy ({} ms) transaction in block {:?}: {:?}", took_ms, block.header().number(), hash);
-		}
-		debug!(target: "tx", "Transaction {:?} took: {} ms", hash, took_ms);
-	}
-	Ok(())
-}
-
-// TODO [ToDr] Pass `PreverifiedBlock` by move, this will avoid unecessary allocation
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 pub fn enact_verified(
-	block: &PreverifiedBlock,
+	block: PreverifiedBlock,
 	engine: &EthEngine,
 	tracing: bool,
 	db: StateDB,
@@ -626,12 +622,12 @@ pub fn enact_verified(
 	// Remove state root from transaction receipts to make them EIP-98 compatible.
 	strip_receipts: bool,
 ) -> Result<LockedBlock, Error> {
-	let view = BlockView::new(&block.bytes);
+	let view = view!(BlockView, &block.bytes);
 
 	enact(
-		&block.header,
-		&block.transactions,
-		&view.uncles(),
+		block.header,
+		block.transactions,
+		view.uncles(),
 		engine,
 		tracing,
 		db,
@@ -668,7 +664,7 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<LockedBlock, Error> {
-		let block = BlockView::new(block_bytes);
+		let block = view!(BlockView, block_bytes);
 		let header = block.header();
 		let transactions: Result<Vec<_>, Error> = block
 			.transactions()
@@ -700,7 +696,7 @@ mod tests {
 		)?;
 
 		b.populate_from(&header);
-		b.push_transactions(&transactions)?;
+		b.push_transactions(transactions)?;
 
 		for u in &block.uncles() {
 			b.push_uncle(u.clone())?;
@@ -719,7 +715,7 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<SealedBlock, Error> {
-		let header = BlockView::new(block_bytes).header_view();
+		let header = view!(BlockView, block_bytes).header_view();
 		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?.seal(engine, header.seal())?)
 	}
 
@@ -785,7 +781,7 @@ mod tests {
 
 		let bytes = e.rlp_bytes();
 		assert_eq!(bytes, orig_bytes);
-		let uncles = BlockView::new(&bytes).uncles();
+		let uncles = view!(BlockView, &bytes).uncles();
 		assert_eq!(uncles[1].extra_data(), b"uncle2");
 
 		let db = e.drain();
@@ -793,3 +789,4 @@ mod tests {
 		assert!(orig_db.journal_db().keys().iter().filter(|k| orig_db.journal_db().get(k.0) != db.journal_db().get(k.0)).next() == None);
 	}
 }
+

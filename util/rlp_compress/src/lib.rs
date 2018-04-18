@@ -16,7 +16,7 @@ mod common;
 use std::cmp;
 use std::collections::HashMap;
 use elastic_array::ElasticArray1024;
-use rlp::{UntrustedRlp, RlpStream};
+use rlp::{Rlp, RlpStream};
 use common::{SNAPSHOT_SWAPPER, BLOCKS_SWAPPER};
 
 pub fn snapshot_swapper() -> &'static Swapper<'static> {
@@ -41,7 +41,7 @@ pub trait Decompressor {
 
 /// Call this function to compress rlp.
 pub fn compress(c: &[u8], swapper: &Compressor) -> ElasticArray1024<u8> {
-	let rlp = UntrustedRlp::new(c);
+	let rlp = Rlp::new(c);
 	if rlp.is_data() {
 		ElasticArray1024::from_slice(swapper.compressed(rlp.as_raw()).unwrap_or_else(|| rlp.as_raw()))
 	} else {
@@ -51,7 +51,7 @@ pub fn compress(c: &[u8], swapper: &Compressor) -> ElasticArray1024<u8> {
 
 /// Call this function to decompress rlp.
 pub fn decompress(c: &[u8], swapper: &Decompressor) -> ElasticArray1024<u8> {
-	let rlp = UntrustedRlp::new(c);
+	let rlp = Rlp::new(c);
 	if rlp.is_data() {
 		ElasticArray1024::from_slice(swapper.decompressed(rlp.as_raw()).unwrap_or_else(|| rlp.as_raw()))
 	} else {
@@ -59,7 +59,7 @@ pub fn decompress(c: &[u8], swapper: &Decompressor) -> ElasticArray1024<u8> {
 	}
 }
 
-fn map_rlp<F: Fn(&UntrustedRlp) -> ElasticArray1024<u8>>(rlp: &UntrustedRlp, f: F) -> ElasticArray1024<u8> {
+fn map_rlp<F: Fn(&Rlp) -> ElasticArray1024<u8>>(rlp: &Rlp, f: F) -> ElasticArray1024<u8> {
 	let mut stream = RlpStream::new_list(rlp.item_count().unwrap_or_default());
 	for subrlp in rlp.iter() {
 		stream.append_raw(&f(&subrlp), 1);

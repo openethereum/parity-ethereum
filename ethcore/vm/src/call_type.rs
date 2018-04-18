@@ -1,6 +1,6 @@
 //! EVM call types.
 
-use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 
 /// The type of the call-like instruction.
 #[derive(Debug, PartialEq, Clone)]
@@ -31,7 +31,7 @@ impl Encodable for CallType {
 }
 
 impl Decodable for CallType {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		rlp.as_val().and_then(|v| Ok(match v {
 			0u32 => CallType::None,
 			1 => CallType::Call,

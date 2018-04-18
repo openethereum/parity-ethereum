@@ -22,7 +22,7 @@
 extern crate macros;
 extern crate tempdir;
 extern crate kvdb_rocksdb;
-extern crate migration;
+extern crate migration_rocksdb as migration;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

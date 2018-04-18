@@ -21,7 +21,7 @@ use header::Header;
 use hash::keccak;
 
 use views::BlockView;
-use rlp::{DecoderError, RlpStream, UntrustedRlp};
+use rlp::{DecoderError, RlpStream, Rlp};
 use ethereum_types::H256;
 use bytes::Bytes;
 use triehash::ordered_trie_root;
@@ -89,7 +89,7 @@ impl AbridgedBlock {
 	///
 	/// Will fail if contains invalid rlp.
 	pub fn to_block(&self, parent_hash: H256, number: u64, receipts_root: H256) -> Result<Block, DecoderError> {
-		let rlp = UntrustedRlp::new(&self.rlp);
+		let rlp = Rlp::new(&self.rlp);
 
 		let mut header: Header = Default::default();
 		header.set_parent_hash(parent_hash);
@@ -151,7 +151,7 @@ mod tests {
 		let receipts_root = b.header.receipts_root().clone();
 		let encoded = encode_block(&b);
 
-		let abridged = AbridgedBlock::from_block_view(&BlockView::new(&encoded));
+		let abridged = AbridgedBlock::from_block_view(&view!(BlockView, &encoded));
 		assert_eq!(abridged.to_block(H256::new(), 0, receipts_root).unwrap(), b);
 	}
 
@@ -162,7 +162,7 @@ mod tests {
 		let receipts_root = b.header.receipts_root().clone();
 		let encoded = encode_block(&b);
 
-		let abridged = AbridgedBlock::from_block_view(&BlockView::new(&encoded));
+		let abridged = AbridgedBlock::from_block_view(&view!(BlockView, &encoded));
 		assert_eq!(abridged.to_block(H256::new(), 2, receipts_root).unwrap(), b);
 	}
 
@@ -198,7 +198,7 @@ mod tests {
 
 		let encoded = encode_block(&b);
 
-		let abridged = AbridgedBlock::from_block_view(&BlockView::new(&encoded[..]));
+		let abridged = AbridgedBlock::from_block_view(&view!(BlockView, &encoded[..]));
 		assert_eq!(abridged.to_block(H256::new(), 0, receipts_root).unwrap(), b);
 	}
 }

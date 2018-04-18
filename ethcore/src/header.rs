@@ -21,7 +21,7 @@ use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
-use rlp::{UntrustedRlp, RlpStream, Encodable, DecoderError, Decodable};
+use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable};
 
 pub use types::BlockNumber;
 
@@ -177,7 +177,7 @@ impl Header {
 	/// Get the seal field with RLP-decoded values as bytes.
 	pub fn decode_seal<'a, T: ::std::iter::FromIterator<&'a [u8]>>(&'a self) -> Result<T, DecoderError> {
 		self.seal.iter().map(|rlp| {
-			UntrustedRlp::new(rlp).data()
+			Rlp::new(rlp).data()
 		}).collect()
 	}
 
@@ -327,7 +327,7 @@ fn change_field<T>(hash: &mut Option<H256>, field: &mut T, value: T) where T: Pa
 
 
 impl Decodable for Header {
-	fn decode(r: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(r: &Rlp) -> Result<Self, DecoderError> {
 		let mut blockheader = Header {
 			parent_hash: r.val_at(0)?,
 			uncles_hash: r.val_at(1)?,

@@ -34,8 +34,8 @@ impl FetchControl {
 	}
 
 	pub fn wait_for_requests(&self, len: usize) {
-		const MAX_TIMEOUT_MS: u64 = 5000;
-		const ATTEMPTS: u64 = 10;
+		const MAX_TIMEOUT: time::Duration = time::Duration::from_millis(5000);
+		const ATTEMPTS: u32 = 10;
 		let mut attempts_left = ATTEMPTS;
 		loop {
 			let current = self.fetch.requested.lock().len();
@@ -50,7 +50,7 @@ impl FetchControl {
 			} else {
 				attempts_left -= 1;
 				// Should we handle spurious timeouts better?
-				thread::park_timeout(time::Duration::from_millis(MAX_TIMEOUT_MS / ATTEMPTS));
+				thread::park_timeout(MAX_TIMEOUT / ATTEMPTS);
 			}
 		}
 	}

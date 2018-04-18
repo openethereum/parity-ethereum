@@ -24,7 +24,7 @@ use super::node::NodeKey;
 use hashdb::HashDB;
 use bytes::ToPretty;
 use nibbleslice::NibbleSlice;
-use rlp::{UntrustedRlp, RlpStream};
+use rlp::{Rlp, RlpStream};
 use hashdb::DBValue;
 
 use std::collections::{HashSet, VecDeque};
@@ -107,7 +107,7 @@ impl Node {
 			RlpNode::Branch(ref children_rlp, val) => {
 				let mut child = |i| {
 					let raw = children_rlp[i];
-					let child_rlp = UntrustedRlp::new(raw);
+					let child_rlp = Rlp::new(raw);
 					if !child_rlp.is_empty() {
 						Some(Self::inline_or_hash(raw, db, storage))
 					} else {

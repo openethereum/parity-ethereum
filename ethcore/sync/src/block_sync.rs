@@ -22,8 +22,8 @@ use std::collections::{HashSet, VecDeque};
 use std::cmp;
 use heapsize::HeapSizeOf;
 use ethereum_types::H256;
-use rlp::UntrustedRlp;
-use ethcore::views::{BlockView};
+use rlp::Rlp;
+use ethcore::views::BlockView;
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockStatus, BlockId, BlockImportError};
 use ethcore::block::Block;
@@ -216,7 +216,7 @@ impl BlockDownloader {
 	}
 
 	/// Add new block headers.
-	pub fn import_headers(&mut self, io: &mut SyncIo, r: &UntrustedRlp, expected_hash: Option<H256>) -> Result<DownloadAction, BlockDownloaderImportError> {
+	pub fn import_headers(&mut self, io: &mut SyncIo, r: &Rlp, expected_hash: Option<H256>) -> Result<DownloadAction, BlockDownloaderImportError> {
 		let item_count = r.item_count().unwrap_or(0);
 		if self.state == State::Idle {
 			trace!(target: "sync", "Ignored unexpected block headers");
@@ -316,7 +316,7 @@ impl BlockDownloader {
 	}
 
 	/// Called by peer once it has new block bodies
-	pub fn import_bodies(&mut self, _io: &mut SyncIo, r: &UntrustedRlp) -> Result<(), BlockDownloaderImportError> {
+	pub fn import_bodies(&mut self, _io: &mut SyncIo, r: &Rlp) -> Result<(), BlockDownloaderImportError> {
 		let item_count = r.item_count().unwrap_or(0);
 		if item_count == 0 {
 			return Err(BlockDownloaderImportError::Useless);
@@ -342,7 +342,7 @@ impl BlockDownloader {
 	}
 
 	/// Called by peer once it has new block bodies
-	pub fn import_receipts(&mut self, _io: &mut SyncIo, r: &UntrustedRlp) -> Result<(), BlockDownloaderImportError> {
+	pub fn import_receipts(&mut self, _io: &mut SyncIo, r: &Rlp) -> Result<(), BlockDownloaderImportError> {
 		let item_count = r.item_count().unwrap_or(0);
 		if item_count == 0 {
 			return Err(BlockDownloaderImportError::Useless);
@@ -478,7 +478,7 @@ impl BlockDownloader {
 			let block = block_and_receipts.block;
 			let receipts = block_and_receipts.receipts;
 			let (h, number, parent) = {
-				let header = BlockView::new(&block).header_view();
+				let header = view!(BlockView, &block).header_view();
 				(header.hash(), header.number(), header.parent_hash())
 			};
 

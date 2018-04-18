@@ -391,11 +391,11 @@ pub fn no_light_peers() -> Error {
 	}
 }
 
-pub fn deprecated<T: Into<Option<String>>>(message: T) -> Error {
+pub fn deprecated<S: Into<String>, T: Into<Option<S>>>(message: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::DEPRECATED),
 		message: "Method deprecated".into(),
-		data: message.into().map(Value::String),
+		data: message.into().map(Into::into).map(Value::String),
 	}
 }
 

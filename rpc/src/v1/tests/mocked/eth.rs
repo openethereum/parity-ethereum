@@ -368,7 +368,7 @@ fn rpc_eth_author() {
 
 	for i in 0..20 {
 		let addr = tester.accounts_provider.new_account(&format!("{}", i)).unwrap();
-		tester.miner.set_author(addr.clone());
+		tester.miner.set_author(addr.clone(), None).unwrap();
 
 		assert_eq!(tester.io.handle_request_sync(req), Some(make_res(addr)));
 	}
@@ -377,7 +377,7 @@ fn rpc_eth_author() {
 #[test]
 fn rpc_eth_mining() {
 	let tester = EthTester::default();
-	tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
+	tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap(), None).unwrap();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_mining", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
@@ -498,7 +498,7 @@ fn rpc_eth_transaction_count_next_nonce() {
 	let tester = EthTester::new_with_options(EthClientOptions::with(|options| {
 		options.pending_nonce_from_queue = true;
 	}));
-	tester.miner.increment_last_nonce(1.into());
+	tester.miner.increment_nonce(&1.into());
 
 	let request1 = r#"{
 		"jsonrpc": "2.0",
@@ -553,7 +553,7 @@ fn rpc_eth_transaction_count_by_number_pending() {
 		"params": ["pending"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x1","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0","id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -835,7 +835,7 @@ fn rpc_eth_send_transaction() {
 
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response));
 
-	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
+	tester.miner.increment_nonce(&address);
 
 	let t = Transaction {
 		nonce: U256::one(),
@@ -905,7 +905,7 @@ fn rpc_eth_sign_transaction() {
 		r#""value":"0x9184e72a""# +
 		r#"}},"id":1}"#;
 
-	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
+	tester.miner.increment_nonce(&address);
 
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response));
 }
@@ -1118,7 +1118,7 @@ fn rpc_get_work_returns_no_work_if_cant_mine() {
 #[test]
 fn rpc_get_work_returns_correct_work_package() {
 	let eth_tester = EthTester::default();
-	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
+	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap(), None).unwrap();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x76c7bd86693aee93d1a80a408a09a0585b1a1292afcb56192f171d925ea18e2d","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x1"],"id":1}"#;
@@ -1131,7 +1131,7 @@ fn rpc_get_work_should_not_return_block_number() {
 	let eth_tester = EthTester::new_with_options(EthClientOptions::with(|options| {
 		options.send_block_number_in_get_work = false;
 	}));
-	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
+	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap(), None).unwrap();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x76c7bd86693aee93d1a80a408a09a0585b1a1292afcb56192f171d925ea18e2d","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000"],"id":1}"#;
@@ -1142,10 +1142,10 @@ fn rpc_get_work_should_not_return_block_number() {
 #[test]
 fn rpc_get_work_should_timeout() {
 	let eth_tester = EthTester::default();
-	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
+	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap(), None).unwrap();
 	let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 1000;  // Set latest block to 1000 seconds ago
 	eth_tester.client.set_latest_block_timestamp(timestamp);
-	let hash = eth_tester.miner.map_sealing_work(&*eth_tester.client, |b| b.hash()).unwrap();
+	let hash = eth_tester.miner.work_package(&*eth_tester.client).unwrap().0;
 
 	// Request without providing timeout. This should work since we're disabling timeout.
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;

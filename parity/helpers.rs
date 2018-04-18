@@ -18,22 +18,17 @@ use std::io;
 use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
 use std::fs::File;
-use std::sync::Arc;
-use std::path::Path;
 use ethereum_types::{U256, clean_0x, Address};
 use journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
-use ethcore::miner::{PendingSet, GasLimit};
-use ethcore::db::NUM_COLUMNS;
-use miner::transaction_queue::PrioritizationStrategy;
+use ethcore::miner::{PendingSet, Penalization};
+use miner::pool::PrioritizationStrategy;
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
 use dir::helpers::replace_home;
 use upgrade::{upgrade, upgrade_data_paths};
-use migration::migrate;
 use sync::{validate_node_url, self};
-use kvdb::{KeyValueDB, KeyValueDBHandler};
-use kvdb_rocksdb::{Database, DatabaseConfig, CompactionProfile};
+use db::migrate;
 use path;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
@@ -101,21 +96,20 @@ pub fn to_pending_set(s: &str) -> Result<PendingSet, String> {
 	}
 }
 
-pub fn to_gas_limit(s: &str) -> Result<GasLimit, String> {
+pub fn to_queue_strategy(s: &str) -> Result<PrioritizationStrategy, String> {
 	match s {
-		"auto" => Ok(GasLimit::Auto),
-		"off" => Ok(GasLimit::None),
-		other => Ok(GasLimit::Fixed(to_u256(other)?)),
+		"gas_price" => Ok(PrioritizationStrategy::GasPriceOnly),
+		other => Err(format!("Invalid queue strategy: {}", other)),
 	}
 }
 
-pub fn to_queue_strategy(s: &str) -> Result<PrioritizationStrategy, String> {
-	match s {
-		"gas" => Ok(PrioritizationStrategy::GasAndGasPrice),
-		"gas_price" => Ok(PrioritizationStrategy::GasPriceOnly),
-		"gas_factor" => Ok(PrioritizationStrategy::GasFactorAndGasPrice),
-		other => Err(format!("Invalid queue strategy: {}", other)),
-	}
+pub fn to_queue_penalization(time: Option<u64>) -> Result<Penalization, String> {
+	Ok(match time {
+		Some(threshold_ms) => Penalization::Enabled {
+			offend_threshold: Duration::from_millis(threshold_ms),
+		},
+		None => Penalization::Disabled,
+	})
 }
 
 pub fn to_address(s: Option<String>) -> Result<Address, String> {
@@ -259,57 +253,11 @@ pub fn to_client_config(
 	client_config
 }
 
-// We assume client db has similar config as restoration db.
-pub fn client_db_config(client_path: &Path, client_config: &ClientConfig) -> DatabaseConfig {
-	let mut client_db_config = DatabaseConfig::with_columns(NUM_COLUMNS);
-
-	client_db_config.memory_budget = client_config.db_cache_size;
-	client_db_config.compaction = compaction_profile(&client_config.db_compaction, &client_path);
-	client_db_config.wal = client_config.db_wal;
-
-	client_db_config
-}
-
-pub fn open_client_db(client_path: &Path, client_db_config: &DatabaseConfig) -> Result<Arc<KeyValueDB>, String> {
-	let client_db = Arc::new(Database::open(
-		&client_db_config,
-		&client_path.to_str().expect("DB path could not be converted to string.")
-	).map_err(|e| format!("Client service database error: {:?}", e))?);
-
-	Ok(client_db)
-}
-
-pub fn restoration_db_handler(client_db_config: DatabaseConfig) -> Box<KeyValueDBHandler> {
-	use kvdb::Error;
-
-	struct RestorationDBHandler {
-		config: DatabaseConfig,
-	}
-
-	impl KeyValueDBHandler for RestorationDBHandler {
-		fn open(&self, db_path: &Path) -> Result<Arc<KeyValueDB>, Error> {
-			Ok(Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?))
-		}
-	}
-
-	Box::new(RestorationDBHandler {
-		config: client_db_config,
-	})
-}
-
-pub fn compaction_profile(profile: &DatabaseCompactionProfile, db_path: &Path) -> CompactionProfile {
-	match profile {
-		&DatabaseCompactionProfile::Auto => CompactionProfile::auto(db_path),
-		&DatabaseCompactionProfile::SSD => CompactionProfile::ssd(),
-		&DatabaseCompactionProfile::HDD => CompactionProfile::hdd(),
-	}
-}
-
 pub fn execute_upgrades(
 	base_path: &str,
 	dirs: &DatabaseDirectories,
 	pruning: Algorithm,
-	compaction_profile: CompactionProfile
+	compaction_profile: &DatabaseCompactionProfile
 ) -> Result<(), String> {
 
 	upgrade_data_paths(base_path, dirs, pruning);
