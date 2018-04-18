@@ -356,7 +356,9 @@ pub trait Engine<M: Machine>: Sync + Send {
 		Vec::new()
 	}
 
-	/// Check whether the given new block is the best block.
+	/// Check whether the given new block is the best block. The client will first use this function to determine the
+	/// primitive fork choice rules, and then check on the finalization rules, which might overwrite the primitive fork
+	/// choice. Note this may not work in some edge cases.
 	fn fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> ForkChoice;
 }
 
