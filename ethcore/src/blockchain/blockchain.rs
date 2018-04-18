@@ -43,6 +43,7 @@ use blockchain::{CacheSize, ImportRoute, Config};
 use db::{self, Writable, Readable, CacheUpdatePolicy};
 use cache_manager::CacheManager;
 use encoded;
+use engines::ForkChoice;
 use engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
 use rayon::prelude::*;
 use ansi_term::Colour;
@@ -992,8 +993,12 @@ impl BlockChain {
 			hash: hash,
 			number: number,
 			total_difficulty: parent_details.total_difficulty + header.difficulty(),
-			location: if extras.is_new_best {
-				// on new best block we need to make sure that all ancestors
+			location: if extras.primitive_fork_choice == ForkChoice::New {
+				// The primitive fork choice does not mean we accept it as
+				// the new best block. It still needs to be checked by
+				// finalization rules.
+				//
+				// On new best block we need to make sure that all ancestors
 				// are moved to "canon chain"
 				// find the route between old best block and the new one
 				let best_hash = self.best_block_hash();
@@ -1540,10 +1545,14 @@ mod tests {
 		let parent_hash = header.parent_hash();
 		let parent_details = bc.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 		let block_total_difficulty = parent_details.total_difficulty + header.difficulty();
-		let is_new_best = block_total_difficulty > bc.best_block_total_difficulty();
+		let primitive_fork_choice = if block_total_difficulty > bc.best_block_total_difficulty() {
+			::engines::ForkChoice::New
+		} else {
+			::engines::ForkChoice::Old
+		};
 
 		bc.insert_block(batch, bytes, receipts, ExtrasInsert {
-			is_new_best: is_new_best,
+			primitive_fork_choice: primitive_fork_choice,
 			is_finalized: false,
 			metadata: None
 		})
