@@ -192,7 +192,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
 		None
 	}
 
-	fn is_new_best<'a>(&'a self, new: &'a ExtendedHeader, current: Box<Iterator<Item=ExtendedHeader> + 'a>) -> bool {
+	fn is_new_best(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> bool {
 		super::total_difficulty_is_new_best(new, current)
 	}
 }

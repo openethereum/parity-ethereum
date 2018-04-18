@@ -196,10 +196,11 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Block transformation functions, before the transactions.
 	/// `epoch_begin` set to true if this block kicks off an epoch.
-	fn on_new_block(
+	fn on_new_block<'a>(
 		&self,
 		_block: &mut M::LiveBlock,
 		_epoch_begin: bool,
+		_ancestry: Box<Iterator<Item=M::ExtendedHeader> + 'a>,
 	) -> Result<(), M::Error> {
 		Ok(())
 	}
@@ -342,7 +343,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	}
 
 	/// Check whether the given new block is the best block.
-	fn is_new_best<'a>(&'a self, new: &'a M::ExtendedHeader, current: Box<Iterator<Item=M::ExtendedHeader> + 'a>) -> bool;
+	fn is_new_best(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> bool;
 }
 
 /// Generate metadata for a new block based on the default total difficulty rule.
@@ -356,11 +357,8 @@ pub fn total_difficulty_generate_metadata(bytes: &[u8], provider: &BlockProvider
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.
-pub fn total_difficulty_is_new_best<'a, T: TotalScoredHeader>(new: &'a T, mut current: Box<Iterator<Item=T> + 'a>) -> bool where <T as TotalScoredHeader>::Value: Ord {
-	match current.next() {
-		None => true,
-		Some(current) => new.total_score() < current.total_score(),
-	}
+pub fn total_difficulty_is_new_best<T: TotalScoredHeader>(new: &T, best: &T) -> bool where <T as TotalScoredHeader>::Value: Ord {
+	new.total_score() > best.total_score()
 }
 
 /// Common type alias for an engine coupled with an Ethereum-like state machine.

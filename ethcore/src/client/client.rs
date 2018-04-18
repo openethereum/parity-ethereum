@@ -427,6 +427,7 @@ impl Importer {
 			client.factories.clone(),
 			is_epoch_begin,
 			strip_receipts,
+			chain.ancestry_header_iter(*header.parent_hash()),
 		);
 
 		let locked_block = enact_result.map_err(|e| {
@@ -530,20 +531,24 @@ impl Importer {
 			metadata: metadata,
 			parent_total_difficulty: chain.block_details(&parent).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent)).total_difficulty
 		};
-		let current = chain.ancestry_iter(chain.best_block_hash()).unwrap_or_else(|| panic!("Best block hash must be in the database.")).map(|hash| {
-			let header = chain.block_header_data(&hash).expect("Ancestry must be in the database.").decode();
-			let details = chain.block_details(&hash).expect("Ancestry must be in the database.");
 
-			let parent_total_difficulty = details.total_difficulty - *header.difficulty();
-			let is_finalized = details.is_finalized;
-			let metadata = details.metadata;
+		let best = {
+			let hash = chain.best_block_hash();
+			let header = chain.block_header_data(&hash)
+				.expect("Best block must be in the database.").decode();
+			let details = chain.block_details(&hash)
+				.expect("Best block must be in the database.");
 
 			ExtendedHeader {
-				header, parent_total_difficulty, is_finalized, metadata
-			}
-		});
+				parent_total_difficulty: details.total_difficulty - *header.difficulty(),
+				is_finalized: details.is_finalized,
+				metadata: details.metadata,
 
-		let is_new_best = self.engine.is_new_best(&new, Box::new(current));
+				header: header,
+			}
+		};
+
+		let is_new_best = self.engine.is_new_best(&new, &best);
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
@@ -2063,6 +2068,7 @@ impl PrepareOpenBlock for Client {
 			gas_range_target,
 			extra_data,
 			is_epoch_begin,
+			chain.ancestry_header_iter(best_header.hash()),
 		).expect("OpenBlock::new only fails if parent state root invalid; state root of best block's header is never invalid; qed");
 
 		// Add uncles

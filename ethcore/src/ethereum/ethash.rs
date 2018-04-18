@@ -221,14 +221,6 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		header.set_difficulty(difficulty);
 	}
 
-	fn on_new_block(
-		&self,
-		_block: &mut ExecutedBlock,
-		_begins_epoch: bool,
-	) -> Result<(), Error> {
-		Ok(())
-	}
-
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
@@ -366,7 +358,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
 
-	fn is_new_best<'a>(&'a self, new: &'a ExtendedHeader, current: Box<Iterator<Item=ExtendedHeader> + 'a>) -> bool {
+	fn is_new_best(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> bool {
 		engines::total_difficulty_is_new_best(new, current)
 	}
 }

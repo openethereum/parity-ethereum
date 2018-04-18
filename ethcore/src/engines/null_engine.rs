@@ -109,7 +109,7 @@ impl<M: WithBalances> Engine<M> for NullEngine<M>
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
 	}
 
-	fn is_new_best<'a>(&'a self, new: &'a M::ExtendedHeader, current: Box<Iterator<Item=M::ExtendedHeader> + 'a>) -> bool {
+	fn is_new_best(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader) -> bool {
 		super::total_difficulty_is_new_best(new, current)
 	}
 }

@@ -527,7 +527,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		Ok(())
 	}
 
-	fn on_new_block(&self, block: &mut ExecutedBlock, epoch_begin: bool) -> Result<(), Error> {
+	fn on_new_block<'a>(&self, block: &mut ExecutedBlock, epoch_begin: bool, _ancestry: Box<Iterator<Item=ExtendedHeader> + 'a>) -> Result<(), Error> {
 		if !epoch_begin { return Ok(()) }
 
 		// genesis is never a new block, but might as well check.
@@ -760,7 +760,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		self.validators.register_client(client);
 	}
 
-	fn is_new_best<'a>(&'a self, new: &'a ExtendedHeader, current: Box<Iterator<Item=ExtendedHeader> + 'a>) -> bool {
+	fn is_new_best(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> bool {
 		super::total_difficulty_is_new_best(new, current)
 	}
 }

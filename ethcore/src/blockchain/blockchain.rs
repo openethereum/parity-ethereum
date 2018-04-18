@@ -409,6 +409,27 @@ impl<'a> Iterator for AncestryIter<'a> {
 	}
 }
 
+impl<'a> AncestryIter<'a> {
+	pub fn to_header_iter(self) -> Box<Iterator<Item=ExtendedHeader> + 'a> {
+		let chain = self.chain;
+
+		Box::new(self.map(move |hash| {
+			let header = chain.block_header_data(&hash)
+				.expect("Ancestry must be in the database.").decode();
+			let details = chain.block_details(&hash)
+				.expect("Ancestry must be in the database.");
+
+			ExtendedHeader {
+				parent_total_difficulty: details.total_difficulty - *header.difficulty(),
+				is_finalized: details.is_finalized,
+				metadata: details.metadata,
+
+				header: header,
+			}
+		}))
+	}
+}
+
 /// An iterator which walks all epoch transitions.
 /// Returns epoch transitions.
 pub struct EpochTransitionIter<'a> {
@@ -1125,6 +1146,20 @@ impl BlockChain {
 		} else {
 			None
 		}
+	}
+
+	/// Iterator that lists `first` and then all of `first`'s ancestors, by extended header.
+	pub fn ancestry_header_iter<'a>(&'a self, first: H256) -> Box<Iterator<Item=ExtendedHeader> + 'a> {
+		let hash_iter = AncestryIter {
+			current: if self.is_known(&first) {
+				first
+			} else {
+				H256::default() // zero hash
+			},
+			chain: self
+		};
+
+		hash_iter.to_header_iter()
 	}
 
 	/// Given a block's `parent`, find every block header which represents a valid possible uncle.

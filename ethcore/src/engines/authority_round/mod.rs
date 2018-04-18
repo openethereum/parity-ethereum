@@ -941,10 +941,11 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		Ok(())
 	}
 
-	fn on_new_block(
+	fn on_new_block<'a>(
 		&self,
 		block: &mut ExecutedBlock,
 		epoch_begin: bool,
+		_ancestry: Box<Iterator<Item=ExtendedHeader> + 'a>,
 	) -> Result<(), Error> {
 		// with immediate transitions, we don't use the epoch mechanism anyway.
 		// the genesis is always considered an epoch, but we ignore it intentionally.
@@ -1320,7 +1321,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		}
 	}
 
-	fn is_new_best<'a>(&'a self, new: &'a ExtendedHeader, current: Box<Iterator<Item=ExtendedHeader> + 'a>) -> bool {
+	fn is_new_best(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> bool {
 		super::total_difficulty_is_new_best(new, current)
 	}
 }
