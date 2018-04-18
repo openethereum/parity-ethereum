@@ -551,7 +551,7 @@ impl Importer {
 			}
 		};
 
-		let is_new_best = self.engine.is_new_best(&new, &best);
+		let is_new_best = self.engine.fork_choice(&new, &best);
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.

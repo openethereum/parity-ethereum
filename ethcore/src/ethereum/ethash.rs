@@ -358,8 +358,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
 
-	fn is_new_best(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> bool {
-		engines::total_difficulty_is_new_best(new, current)
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> bool {
+		engines::total_difficulty_fork_choice(new, current)
 	}
 }
 

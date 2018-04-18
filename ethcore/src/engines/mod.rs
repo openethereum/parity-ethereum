@@ -49,8 +49,6 @@ use header::{Header, BlockNumber};
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use transaction::{self, UnverifiedTransaction, SignedTransaction};
-use views::BlockView;
-use blockchain::BlockProvider;
 
 use ethkey::Signature;
 use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
@@ -350,21 +348,11 @@ pub trait Engine<M: Machine>: Sync + Send {
 	}
 
 	/// Check whether the given new block is the best block.
-	fn is_new_best(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> bool;
-}
-
-/// Generate metadata for a new block based on the default total difficulty rule.
-pub fn total_difficulty_generate_metadata(bytes: &[u8], provider: &BlockProvider) -> U256 {
-	let block = view!(BlockView, bytes);
-	let header = block.header_view();
-	let parent_hash = header.parent_hash();
-	let parent_details = provider.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
-
-	parent_details.total_difficulty + header.difficulty()
+	fn fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> bool;
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.
-pub fn total_difficulty_is_new_best<T: TotalScoredHeader>(new: &T, best: &T) -> bool where <T as TotalScoredHeader>::Value: Ord {
+pub fn total_difficulty_fork_choice<T: TotalScoredHeader>(new: &T, best: &T) -> bool where <T as TotalScoredHeader>::Value: Ord {
 	new.total_score() > best.total_score()
 }
 
