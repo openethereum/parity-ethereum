@@ -124,6 +124,8 @@ pub trait Machine: for<'a> LocalizedMachine<'a> {
 	type EngineClient: ?Sized;
 	/// A description of needed auxiliary data.
 	type AuxiliaryRequest;
+	/// Actions taken on ancestry blocks when commiting a new block.
+	type AncestryAction;
 
 	/// Errors which can occur when querying or interacting with the machine.
 	type Error;

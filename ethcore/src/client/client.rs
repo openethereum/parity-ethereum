@@ -72,6 +72,7 @@ use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Databa
 use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, Action};
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
+use types::ancestry_action::AncestryAction;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
 use verification::queue::BlockQueue;
@@ -522,6 +523,8 @@ impl Importer {
 
 		let mut batch = DBTransaction::new();
 
+		let ancestry_actions = self.engine.ancestry_actions(block.block(), chain.ancestry_header_iter(*parent));
+
 		let metadata = block.block().metadata().map(Into::into);
 		let is_finalized = block.block().is_finalized();
 
@@ -568,6 +571,12 @@ impl Importer {
 		);
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
+
+		for ancestry_action in ancestry_actions {
+			let AncestryAction::MarkFinalized(ancestry) = ancestry_action;
+			chain.mark_finalized(&mut batch, ancestry);
+		}
+
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
 			is_new_best: is_new_best,
 			is_finalized: is_finalized,

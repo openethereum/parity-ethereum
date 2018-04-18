@@ -410,6 +410,7 @@ impl ::parity_machine::Machine for EthereumMachine {
 	type LiveBlock = ExecutedBlock;
 	type EngineClient = ::client::EngineClient;
 	type AuxiliaryRequest = AuxiliaryRequest;
+	type AncestryAction = ::types::ancestry_action::AncestryAction;
 
 	type Error = Error;
 }

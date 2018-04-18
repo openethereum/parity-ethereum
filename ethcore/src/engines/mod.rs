@@ -57,6 +57,7 @@ use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
+use types::ancestry_action::AncestryAction;
 
 /// Default EIP-210 contrat code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
@@ -340,6 +341,12 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Check whether the parent timestamp is valid.
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp > parent_timestamp
+	}
+
+	/// Gather all ancestry actions. Called at the last stage when a block is committed. The Engine must guarantee that
+	/// the ancestry exists.
+	fn ancestry_actions<'a>(&self, _block: &M::LiveBlock, _ancestry: Box<Iterator<Item=M::ExtendedHeader> + 'a>) -> Vec<AncestryAction> {
+		Vec::new()
 	}
 
 	/// Check whether the given new block is the best block.
