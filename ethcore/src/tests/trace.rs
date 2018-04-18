@@ -87,7 +87,7 @@ fn can_trace_block_and_uncle_reward() {
 		(3141562.into(), 31415620.into()),
 		vec![],
 		false,
-		Box::new(Vec::new().into_iter()),
+		&mut Vec::new().into_iter(),
 	).unwrap();
 	rolling_timestamp += 10;
 	root_block.set_timestamp(rolling_timestamp);
@@ -116,7 +116,7 @@ fn can_trace_block_and_uncle_reward() {
 		(3141562.into(), 31415620.into()),
 		vec![],
 		false,
-		Box::new(Vec::new().into_iter()),
+		&mut Vec::new().into_iter(),
 	).unwrap();
 	rolling_timestamp += 10;
 	parent_block.set_timestamp(rolling_timestamp);
@@ -144,7 +144,7 @@ fn can_trace_block_and_uncle_reward() {
 		(3141562.into(), 31415620.into()),
 		vec![],
 		false,
-		Box::new(Vec::new().into_iter()),
+		&mut Vec::new().into_iter(),
 		).unwrap();
 	rolling_timestamp += 10;
 	block.set_timestamp(rolling_timestamp);
