@@ -527,7 +527,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		Ok(())
 	}
 
-	fn on_new_block<'a>(&self, block: &mut ExecutedBlock, epoch_begin: bool, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Result<(), Error> {
+	fn on_new_block(&self, block: &mut ExecutedBlock, epoch_begin: bool, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Result<(), Error> {
 		if !epoch_begin { return Ok(()) }
 
 		// genesis is never a new block, but might as well check.
@@ -760,7 +760,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		self.validators.register_client(client);
 	}
 
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
+	fn primitive_fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
 		super::total_difficulty_fork_choice(new, current)
 	}
 }

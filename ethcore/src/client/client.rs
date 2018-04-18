@@ -551,7 +551,7 @@ impl Importer {
 			}
 		};
 
-		let fork_choice = self.engine.fork_choice(&new, &best);
+		let primitive_fork_choice = self.engine.primitive_fork_choice(&new, &best);
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
@@ -578,7 +578,7 @@ impl Importer {
 		}
 
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
-			primitive_fork_choice: fork_choice,
+			primitive_fork_choice: primitive_fork_choice,
 			is_finalized: is_finalized,
 			metadata: new.metadata,
 		});

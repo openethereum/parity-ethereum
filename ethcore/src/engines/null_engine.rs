@@ -109,7 +109,7 @@ impl<M: WithBalances> Engine<M> for NullEngine<M>
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
 	}
 
-	fn fork_choice(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader) -> super::ForkChoice {
+	fn primitive_fork_choice(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader) -> super::ForkChoice {
 		super::total_difficulty_fork_choice(new, current)
 	}
 }
