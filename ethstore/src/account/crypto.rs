@@ -92,7 +92,7 @@ impl Crypto {
 		let mut ciphertext: SmallVec<[u8; 32]> = SmallVec::from_vec(vec![0; plain_len]);
 
 		// aes-128-ctr with initial vector of iv
-		crypto::aes::encrypt(&derived_left_bits, &iv, plain, &mut *ciphertext)?;
+		crypto::aes::encrypt_128_ctr(&derived_left_bits, &iv, plain, &mut *ciphertext)?;
 
 		// KECCAK(DK[16..31] ++ <ciphertext>), where DK[16..31] - derived_right_bits
 		let mac = crypto::derive_mac(&derived_right_bits, &*ciphertext).keccak256();
@@ -148,7 +148,7 @@ impl Crypto {
 				debug_assert!(expected_len >= self.ciphertext.len());
 
 				let from = expected_len - self.ciphertext.len();
-				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, &mut plain[from..])?;
+				crypto::aes::decrypt_128_ctr(&derived_left_bits, &params.iv, &self.ciphertext, &mut plain[from..])?;
 				Ok(plain.into_iter().collect())
 			},
 		}

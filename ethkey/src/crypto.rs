@@ -94,7 +94,7 @@ pub mod ecies {
 			msgd[64..80].copy_from_slice(&iv);
 			{
 				let cipher = &mut msgd[(64 + 16)..(64 + 16 + plain.len())];
-				aes::encrypt(ekey, &iv, plain, cipher)?;
+				aes::encrypt_128_ctr(ekey, &iv, plain, cipher)?;
 			}
 			let mut hmac = hmac::Signer::with(&mkey);
 			{
@@ -142,7 +142,7 @@ pub mod ecies {
 		}
 
 		let mut msg = vec![0u8; clen];
-		aes::decrypt(ekey, cipher_iv, cipher_no_iv, &mut msg[..])?;
+		aes::decrypt_128_ctr(ekey, cipher_iv, cipher_no_iv, &mut msg[..])?;
 		Ok(msg)
 	}
 

@@ -24,7 +24,7 @@ use rcrypto::buffer::{RefReadBuffer, RefWriteBuffer, WriteBuffer};
 ///
 /// Key (`k`) length and initialisation vector (`iv`) length have to be 16 bytes each.
 /// An error is returned if the input lengths are invalid.
-pub fn encrypt(k: &[u8], iv: &[u8], plain: &[u8], dest: &mut [u8]) -> Result<(), SymmError> {
+pub fn encrypt_128_ctr(k: &[u8], iv: &[u8], plain: &[u8], dest: &mut [u8]) -> Result<(), SymmError> {
 	let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv.to_vec());
 	encryptor.encrypt(&mut RefReadBuffer::new(plain), &mut RefWriteBuffer::new(dest), true)?;
 	Ok(())
@@ -34,18 +34,17 @@ pub fn encrypt(k: &[u8], iv: &[u8], plain: &[u8], dest: &mut [u8]) -> Result<(),
 ///
 /// Key (`k`) length and initialisation vector (`iv`) length have to be 16 bytes each.
 /// An error is returned if the input lengths are invalid.
-pub fn decrypt(k: &[u8], iv: &[u8], encrypted: &[u8], dest: &mut [u8]) -> Result<(), SymmError> {
+pub fn decrypt_128_ctr(k: &[u8], iv: &[u8], encrypted: &[u8], dest: &mut [u8]) -> Result<(), SymmError> {
 	let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv.to_vec());
 	encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut RefWriteBuffer::new(dest), true)?;
 	Ok(())
 }
 
-
 /// Decrypt a message (CBC mode).
 ///
 /// Key (`k`) length and initialisation vector (`iv`) length have to be 16 bytes each.
 /// An error is returned if the input lengths are invalid.
-pub fn decrypt_cbc(k: &[u8], iv: &[u8], encrypted: &[u8], dest: &mut [u8]) -> Result<usize, SymmError> {
+pub fn decrypt_128_cbc(k: &[u8], iv: &[u8], encrypted: &[u8], dest: &mut [u8]) -> Result<usize, SymmError> {
 	let mut encryptor = CbcDecryptor::new(AesSafe128Decryptor::new(k), PkcsPadding, iv.to_vec());
 	let len = dest.len();
 	let mut buffer = RefWriteBuffer::new(dest);

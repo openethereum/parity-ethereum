@@ -45,7 +45,8 @@ impl PresaleWallet {
 		pbkdf2::sha256(2000, salt, sec, &mut derived_key);
 
 		let mut key = vec![0; self.ciphertext.len()];
-		let len = crypto::aes::decrypt_cbc(&derived_key[0..16], &self.iv, &self.ciphertext, &mut key).map_err(|_| Error::InvalidPassword)?;
+		let len = crypto::aes::decrypt_128_cbc(&derived_key[0..16], &self.iv, &self.ciphertext, &mut key)
+			.map_err(|_| Error::InvalidPassword)?;
 		let unpadded = &key[..len];
 
 		let secret = Secret::from_unsafe_slice(&unpadded.keccak256())?;
