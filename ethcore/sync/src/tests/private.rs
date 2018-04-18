@@ -27,7 +27,7 @@ use ethcore::test_helpers::{push_block_with_transactions};
 use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor};
 use ethcore::account_provider::AccountProvider;
 use ethkey::{KeyPair};
-use tests::helpers::*;
+use tests::helpers::{TestNet, TestIoHandler};
 use rustc_hex::FromHex;
 use SyncConfig;
 
