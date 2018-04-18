@@ -410,7 +410,7 @@ impl<'a> Iterator for AncestryIter<'a> {
 }
 
 impl<'a> AncestryIter<'a> {
-	pub fn to_header_iter(self) -> Box<Iterator<Item=ExtendedHeader> + 'a> {
+	pub fn to_with_metadata_iter(self) -> Box<Iterator<Item=ExtendedHeader> + 'a> {
 		let chain = self.chain;
 
 		Box::new(self.map(move |hash| {
@@ -1150,7 +1150,7 @@ impl BlockChain {
 	}
 
 	/// Iterator that lists `first` and then all of `first`'s ancestors, by extended header.
-	pub fn ancestry_header_iter<'a>(&'a self, first: H256) -> Box<Iterator<Item=ExtendedHeader> + 'a> {
+	pub fn ancestry_with_metadata_iter<'a>(&'a self, first: H256) -> Box<Iterator<Item=ExtendedHeader> + 'a> {
 		let hash_iter = AncestryIter {
 			current: if self.is_known(&first) {
 				first
@@ -1160,7 +1160,7 @@ impl BlockChain {
 			chain: self
 		};
 
-		hash_iter.to_header_iter()
+		hash_iter.to_with_metadata_iter()
 	}
 
 	/// Given a block's `parent`, find every block header which represents a valid possible uncle.

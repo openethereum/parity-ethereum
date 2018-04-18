@@ -428,7 +428,7 @@ impl Importer {
 			client.factories.clone(),
 			is_epoch_begin,
 			strip_receipts,
-			chain.ancestry_header_iter(*header.parent_hash()),
+			chain.ancestry_with_metadata_iter(*header.parent_hash()),
 		);
 
 		let locked_block = enact_result.map_err(|e| {
@@ -523,7 +523,7 @@ impl Importer {
 
 		let mut batch = DBTransaction::new();
 
-		let ancestry_actions = self.engine.ancestry_actions(block.block(), chain.ancestry_header_iter(*parent));
+		let ancestry_actions = self.engine.ancestry_actions(block.block(), chain.ancestry_with_metadata_iter(*parent));
 
 		let metadata = block.block().metadata().map(Into::into);
 		let is_finalized = block.block().is_finalized();
@@ -2077,7 +2077,7 @@ impl PrepareOpenBlock for Client {
 			gas_range_target,
 			extra_data,
 			is_epoch_begin,
-			chain.ancestry_header_iter(best_header.hash()),
+			chain.ancestry_with_metadata_iter(best_header.hash()),
 		).expect("OpenBlock::new only fails if parent state root invalid; state root of best block's header is never invalid; qed");
 
 		// Add uncles
