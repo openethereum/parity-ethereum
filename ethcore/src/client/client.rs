@@ -538,9 +538,9 @@ impl Importer {
 		let best = {
 			let hash = chain.best_block_hash();
 			let header = chain.block_header_data(&hash)
-				.expect("Best block must be in the database.").decode();
+				.expect("Best block is in the database; qed").decode();
 			let details = chain.block_details(&hash)
-				.expect("Best block must be in the database.");
+				.expect("Best block is in the database; qed");
 
 			ExtendedHeader {
 				parent_total_difficulty: details.total_difficulty - *header.difficulty(),
@@ -574,7 +574,7 @@ impl Importer {
 
 		for ancestry_action in ancestry_actions {
 			let AncestryAction::MarkFinalized(ancestry) = ancestry_action;
-			chain.mark_finalized(&mut batch, ancestry);
+			chain.mark_finalized(&mut batch, ancestry).expect("Engine's ancestry action must be known blocks; qed");
 		}
 
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {

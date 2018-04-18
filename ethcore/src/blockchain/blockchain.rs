@@ -415,9 +415,9 @@ impl<'a> AncestryIter<'a> {
 
 		Box::new(self.map(move |hash| {
 			let header = chain.block_header_data(&hash)
-				.expect("Ancestry must be in the database.").decode();
+				.expect("Initial hash is checked by iterator constructor; parent block is in the database; qed").decode();
 			let details = chain.block_details(&hash)
-				.expect("Ancestry must be in the database.");
+				.expect("Initial hash is checked by iterator constructor; parent block is in the database; qed");
 
 			ExtendedHeader {
 				parent_total_difficulty: details.total_difficulty - *header.difficulty(),
@@ -1011,11 +1011,12 @@ impl BlockChain {
 	}
 
 	/// Mark a block to be considered finalized. Panic if the block hash is not found.
-	pub fn mark_finalized(&self, batch: &mut DBTransaction, block_hash: H256) {
-		let mut block_details = self.block_details(&block_hash).expect("Block hash should exist from caller.");
+	pub fn mark_finalized(&self, batch: &mut DBTransaction, block_hash: H256) -> Option<()> {
+		let mut block_details = self.block_details(&block_hash)?;
 		block_details.is_finalized = true;
 
 		self.update_block_details(batch, block_hash, block_details);
+		Some(())
 	}
 
 	/// Prepares extras block detail update.
