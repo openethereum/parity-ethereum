@@ -532,7 +532,7 @@ impl Importer {
 			header: header.clone(),
 			is_finalized: is_finalized,
 			metadata: metadata,
-			parent_total_difficulty: chain.block_details(&parent).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent)).total_difficulty
+			parent_total_difficulty: chain.block_details(&parent).expect("Parent block is in the database; qed").total_difficulty
 		};
 
 		let best = {
