@@ -239,9 +239,6 @@ mod test {
 		assert!(filter.transaction_allowed(&genesis, &basic_tx_with_ether_and_to_key7.clone().sign(key6.secret(), None), &*client));
 		assert!(filter.transaction_allowed(&genesis, &basic_tx_to_key6.clone().sign(key7.secret(), None), &*client));
 		assert!(!filter.transaction_allowed(&genesis, &basic_tx_with_ether_and_to_key6.clone().sign(key7.secret(), None), &*client));
-
-
-
 	}
 
 	/// Contract code: https://gist.github.com/arkpar/38a87cb50165b7e683585eec71acb05a
