@@ -16,7 +16,7 @@
 
 //! Smart contract based transaction filter.
 
-use ethereum_types::{H256, Address};
+use ethereum_types::{H256, U256, Address};
 use lru_cache::LruCache;
 
 use client::{BlockInfo, CallContract, BlockId};
@@ -25,6 +25,7 @@ use spec::CommonParams;
 use transaction::{Action, SignedTransaction};
 use hash::KECCAK_EMPTY;
 
+use_contract!(transact_acl_deprecated, "TransactAclDeprecated", "res/contracts/tx_acl_deprecated.json");
 use_contract!(transact_acl, "TransactAcl", "res/contracts/tx_acl.json");
 
 const MAX_CACHE_SIZE: usize = 4096;
@@ -40,9 +41,10 @@ mod tx_permissions {
 
 /// Connection filter that uses a contract to manage permissions.
 pub struct TransactionFilter {
+	contract_deprecated: transact_acl_deprecated::TransactAclDeprecated,
 	contract: transact_acl::TransactAcl,
 	contract_address: Address,
-	permission_cache: Mutex<LruCache<(H256, Address), u32>>,
+	permission_cache: Mutex<LruCache<(H256, Address, Address, U256), u32>>,
 }
 
 impl TransactionFilter {
@@ -50,6 +52,7 @@ impl TransactionFilter {
 	pub fn from_params(params: &CommonParams) -> Option<TransactionFilter> {
 		params.transaction_permission_contract.map(|address|
 			TransactionFilter {
+				contract_deprecated: transact_acl_deprecated::TransactAclDeprecated::default(),
 				contract: transact_acl::TransactAcl::default(),
 				contract_address: address,
 				permission_cache: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
@@ -71,25 +74,37 @@ impl TransactionFilter {
 
 		let sender = transaction.sender();
 		let value = transaction.value;
-		let key = (*parent_hash, sender);
+		let key = (*parent_hash, sender, to, value);
 
 		if let Some(permissions) = cache.get_mut(&key) {
 			return *permissions & tx_type != 0;
 		}
 
 		let contract_address = self.contract_address;
+
+		// Check permissions in smart contracts
 		let permissions = self.contract.functions()
 			.allowed_tx_types()
 			.call(sender, to, value, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
 			.map(|p| p.low_u32())
-			.unwrap_or_else(|e| {
-				debug!("Error callling tx permissions contract: {:?}", e);
-				tx_permissions::NONE
+			.unwrap_or_else(|_e| {
+				// If failed, first check deprecated contract
+				trace!(target: "tx_filter", "Fallback to the deprecated version of tx permission contract");
+				self.contract_deprecated.functions()
+					.allowed_tx_types()
+					.call(sender, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
+					.map(|p| p.low_u32())
+					.unwrap_or_else(|e| {
+						error!(target: "tx_filter", "Error calling tx permissions contract: {:?}", e);
+						tx_permissions::NONE
+					})
 			});
 
-		cache.insert((*parent_hash, sender), permissions);
-
-		trace!("Permissions required: {}, got: {}", tx_type, permissions);
+		cache.insert((*parent_hash, sender, to, value), permissions);
+		trace!(target: "tx_filter",
+			"Given transaction data: sender: {:?} to: {:?} value: {}. Permissions required: {:X}, got: {:X}",
+			   sender, to, value, tx_type, permissions
+		);
 		permissions & tx_type != 0
 	}
 }
