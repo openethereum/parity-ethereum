@@ -302,6 +302,7 @@ pub mod tests {
 						address: "127.0.0.1".into(),
 						port: start_port + (j as u16),
 					})).collect(),
+				key_server_set_contract_address: None,
 				allow_connecting_to_higher_nodes: false,
 				admin_public: None,
 				auto_migrate_enabled: false,

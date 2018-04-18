@@ -50,10 +50,10 @@ pub struct Configuration {
 	pub enabled: bool,
 	/// Is HTTP API enabled?
 	pub http_enabled: bool,
-	/// Is ACL check enabled.
-	pub acl_check_enabled: bool,
 	/// Is auto migrate enabled.
 	pub auto_migrate_enabled: bool,
+	/// ACL check contract address.
+	pub acl_check_contract_address: Option<ContractAddress>,
 	/// Service contract address.
 	pub service_contract_address: Option<ContractAddress>,
 	/// Server key generation service contract address.
@@ -68,6 +68,8 @@ pub struct Configuration {
 	pub self_secret: Option<NodeSecretKey>,
 	/// Other nodes IDs + addresses.
 	pub nodes: BTreeMap<Public, (String, u16)>,
+	/// Key Server Set contract address. If None, 'nodes' map is used.
+	pub key_server_set_contract_address: Option<ContractAddress>,
 	/// Interface to listen to
 	pub interface: String,
 	/// Port to listen to
@@ -135,7 +137,7 @@ mod server {
 	impl KeyServer {
 		/// Create new key server
 		pub fn new(mut conf: Configuration, deps: Dependencies) -> Result<Self, String> {
-			if !conf.acl_check_enabled {
+			if conf.acl_check_contract_address.is_none() {
 				warn!("Running SecretStore with disabled ACL check: {}", Red.bold().paint("everyone has access to stored keys"));
 			}
 
@@ -174,7 +176,7 @@ mod server {
 				service_contract_srv_retr_address: conf.service_contract_srv_retr_address.map(into_service_contract_address),
 				service_contract_doc_store_address: conf.service_contract_doc_store_address.map(into_service_contract_address),
 				service_contract_doc_sretr_address: conf.service_contract_doc_sretr_address.map(into_service_contract_address),
-				acl_check_enabled: conf.acl_check_enabled,
+				acl_check_contract_address: conf.acl_check_contract_address.map(into_service_contract_address),
 				cluster_config: ethcore_secretstore::ClusterConfiguration {
 					threads: 4,
 					listener_address: ethcore_secretstore::NodeAddress {
@@ -185,6 +187,7 @@ mod server {
 						address: ip,
 						port: port,
 					})).collect(),
+					key_server_set_contract_address: conf.key_server_set_contract_address.map(into_service_contract_address),
 					allow_connecting_to_higher_nodes: true,
 					admin_public: conf.admin_public,
 					auto_migrate_enabled: conf.auto_migrate_enabled,
@@ -212,8 +215,8 @@ impl Default for Configuration {
 		Configuration {
 			enabled: true,
 			http_enabled: true,
-			acl_check_enabled: true,
 			auto_migrate_enabled: true,
+			acl_check_contract_address: Some(ContractAddress::Registry),
 			service_contract_address: None,
 			service_contract_srv_gen_address: None,
 			service_contract_srv_retr_address: None,
@@ -222,6 +225,7 @@ impl Default for Configuration {
 			self_secret: None,
 			admin_public: None,
 			nodes: BTreeMap::new(),
+			key_server_set_contract_address: Some(ContractAddress::Registry),
 			interface: "127.0.0.1".to_owned(),
 			port: 8083,
 			http_interface: "127.0.0.1".to_owned(),

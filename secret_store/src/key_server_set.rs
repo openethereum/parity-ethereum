@@ -18,16 +18,14 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use std::collections::{BTreeMap, HashSet};
 use parking_lot::Mutex;
-use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify, CallContract, RegistryInfo};
-use ethcore::filter::Filter;
+use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify, CallContract};
 use ethkey::public_to_address;
 use hash::keccak;
 use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use types::{Error, Public, NodeAddress, NodeId};
 use trusted_client::TrustedClient;
-use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
-use {NodeKeyPair};
+use {NodeKeyPair, ContractAddress};
 
 use_contract!(key_server, "KeyServerSet", "res/key_server_set.json");
 
@@ -116,7 +114,9 @@ struct PreviousMigrationTransaction {
 struct CachedContract {
 	/// Blockchain client.
 	client: TrustedClient,
-	/// Contract address.
+	/// Contract address source.
+	contract_address_source: Option<ContractAddress>,
+	/// Current contract address.
 	contract_address: Option<Address>,
 	/// Contract interface.
 	contract: key_server::KeyServerSet,
@@ -135,10 +135,10 @@ struct CachedContract {
 }
 
 impl OnChainKeyServerSet {
-	pub fn new(trusted_client: TrustedClient, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
+	pub fn new(trusted_client: TrustedClient, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
 		let client = trusted_client.get_untrusted();
 		let key_server_set = Arc::new(OnChainKeyServerSet {
-			contract: Mutex::new(CachedContract::new(trusted_client, self_key_pair, auto_migrate_enabled, key_servers)?),
+			contract: Mutex::new(CachedContract::new(trusted_client, contract_address_source, self_key_pair, auto_migrate_enabled, key_servers)?),
 		});
 		client
 			.ok_or_else(|| Error::Internal("Constructing OnChainKeyServerSet without active Client".into()))?
@@ -241,16 +241,22 @@ impl <F: Fn(Vec<u8>) -> Result<Vec<u8>, String>> KeyServerSubset<F> for NewKeySe
 }
 
 impl CachedContract {
-	pub fn new(client: TrustedClient, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
-		let server_set = key_servers.into_iter()
-			.map(|(p, addr)| {
-				let addr = format!("{}:{}", addr.address, addr.port).parse()
-					.map_err(|err| Error::Internal(format!("error parsing node address: {}", err)))?;
-				Ok((p, addr))
-			})
-			.collect::<Result<BTreeMap<_, _>, Error>>()?;
-		Ok(CachedContract {
+	pub fn new(client: TrustedClient, contract_address_source: Option<ContractAddress>, self_key_pair: Arc<NodeKeyPair>, auto_migrate_enabled: bool, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
+		// we never use nodes from
+		let server_set = match contract_address_source.is_none() {
+			true => key_servers.into_iter()
+				.map(|(p, addr)| {
+					let addr = format!("{}:{}", addr.address, addr.port).parse()
+						.map_err(|err| Error::Internal(format!("error parsing node address: {}", err)))?;
+					Ok((p, addr))
+				})
+				.collect::<Result<BTreeMap<_, _>, Error>>()?,
+			false => Default::default(),
+		};
+
+		let mut contract =  CachedContract {
 			client: client,
+			contract_address_source: contract_address_source,
 			contract_address: None,
 			contract: key_server::KeyServerSet::default(),
 			auto_migrate_enabled: auto_migrate_enabled,
@@ -263,13 +269,36 @@ impl CachedContract {
 				..Default::default()
 			},
 			self_key_pair: self_key_pair,
-		})
+		};
+		contract.update_contract_address();
+
+		Ok(contract)
+	}
+
+	pub fn update_contract_address(&mut self) {
+		if let Some(ref contract_address_source) = self.contract_address_source {
+			let contract_address = self.client.read_contract_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.into(), contract_address_source);
+			if contract_address != self.contract_address {
+				trace!(target: "secretstore", "{}: Configuring for key server set contract from address {:?}",
+					self.self_key_pair.public(), contract_address);
+
+				self.contract_address = contract_address;
+			}
+		}
 	}
 
 	pub fn update(&mut self, enacted: Vec<H256>, retracted: Vec<H256>) {
+		// no need to update when servers set is hardcoded
+		if self.contract_address_source.is_none() {
+			return;
+		}
+
 		if let Some(client) = self.client.get() {
 			// read new snapshot from reqistry (if something has chnaged)
-			self.read_from_registry_if_required(&*client, enacted, retracted);
+			if !enacted.is_empty() || !retracted.is_empty() {
+				self.update_contract_address();
+				self.read_from_registry(&*client);
+			}
 
 			// update number of confirmations (if there's future new set)
 			self.update_number_of_confirmations_if_required(&*client);
@@ -324,45 +353,7 @@ impl CachedContract {
 		}
 	}
 
-	fn read_from_registry_if_required(&mut self, client: &Client, enacted: Vec<H256>, retracted: Vec<H256>) {
-		// read new contract from registry
-		let new_contract_addr = get_confirmed_block_hash(&*client, REQUEST_CONFIRMATIONS_REQUIRED).and_then(|block_hash| client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned(), BlockId::Hash(block_hash)));
-
-		// new contract installed => read nodes set from the contract
-		if self.contract_address.as_ref() != new_contract_addr.as_ref() {
-			self.read_from_registry(&*client, new_contract_addr);
-			return;
-		}
-
-		// check for contract events
-		let is_set_changed = self.contract_address.is_some() && enacted.iter()
-			.chain(retracted.iter())
-			.any(|block_hash| !client.logs(Filter {
-				from_block: BlockId::Hash(block_hash.clone()),
-				to_block: BlockId::Hash(block_hash.clone()),
-				address: self.contract_address.map(|address| vec![address]),
-				topics: vec![
-					Some(vec![*ADDED_EVENT_NAME_HASH, *REMOVED_EVENT_NAME_HASH,
-						*MIGRATION_STARTED_EVENT_NAME_HASH, *MIGRATION_COMPLETED_EVENT_NAME_HASH]),
-					None,
-					None,
-					None,
-				],
-				limit: Some(1),
-			}).is_empty());
-
-		// to simplify processing - just re-read the whole nodes set from the contract
-		if is_set_changed {
-			self.read_from_registry(&*client, new_contract_addr);
-		}
-	}
-
-	fn read_from_registry(&mut self, client: &Client, new_contract_address: Option<Address>) {
-		if let Some(ref contract_addr) = new_contract_address {
-			trace!(target: "secretstore", "Configuring for key server set contract from {}", contract_addr);
-		}
-		self.contract_address = new_contract_address;
-
+	fn read_from_registry(&mut self, client: &Client) {
 		let contract_address = match self.contract_address {
 			Some(contract_address) => contract_address,
 			None => {

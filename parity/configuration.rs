@@ -647,8 +647,8 @@ impl Configuration {
 		Ok(SecretStoreConfiguration {
 			enabled: self.secretstore_enabled(),
 			http_enabled: self.secretstore_http_enabled(),
-			acl_check_enabled: self.secretstore_acl_check_enabled(),
 			auto_migrate_enabled: self.secretstore_auto_migrate_enabled(),
+			acl_check_contract_address: self.secretstore_acl_check_contract_address()?,
 			service_contract_address: self.secretstore_service_contract_address()?,
 			service_contract_srv_gen_address: self.secretstore_service_contract_srv_gen_address()?,
 			service_contract_srv_retr_address: self.secretstore_service_contract_srv_retr_address()?,
@@ -656,6 +656,7 @@ impl Configuration {
 			service_contract_doc_sretr_address: self.secretstore_service_contract_doc_sretr_address()?,
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
+			key_server_set_contract_address: self.secretstore_key_server_set_contract_address()?,
 			interface: self.secretstore_interface(),
 			port: self.args.arg_ports_shift + self.args.arg_secretstore_port,
 			http_interface: self.secretstore_http_interface(),
@@ -1157,12 +1158,12 @@ impl Configuration {
 		!self.args.flag_no_secretstore_http && cfg!(feature = "secretstore")
 	}
 
-	fn secretstore_acl_check_enabled(&self) -> bool {
-		!self.args.flag_no_secretstore_acl_check
-	}
-
 	fn secretstore_auto_migrate_enabled(&self) -> bool {
 		!self.args.flag_no_secretstore_auto_migrate
+	}
+
+	fn secretstore_acl_check_contract_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
+		into_secretstore_service_contract_address(self.args.arg_secretstore_acl_contract.as_ref())
 	}
 
 	fn secretstore_service_contract_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
@@ -1183,6 +1184,10 @@ impl Configuration {
 
 	fn secretstore_service_contract_doc_sretr_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
 		into_secretstore_service_contract_address(self.args.arg_secretstore_doc_sretr_contract.as_ref())
+	}
+
+	fn secretstore_key_server_set_contract_address(&self) -> Result<Option<SecretStoreContractAddress>, String> {
+		into_secretstore_service_contract_address(self.args.arg_secretstore_server_set_contract.as_ref())
 	}
 
 	fn ui_enabled(&self) -> UiEnabled {
@@ -1227,11 +1232,11 @@ struct UiEnabled {
 	pub info_page_only: bool,
 }
 
-fn into_secretstore_service_contract_address(s: &str) -> Result<Option<SecretStoreContractAddress>, String> {
-	match s {
-		"none" => Ok(None),
-		"registry" => Ok(Some(SecretStoreContractAddress::Registry)),
-		a => Ok(Some(SecretStoreContractAddress::Address(a.parse().map_err(|e| format!("{}", e))?))),
+fn into_secretstore_service_contract_address(s: Option<&String>) -> Result<Option<SecretStoreContractAddress>, String> {
+	match s.map(|x| &**x) {
+		None | Some("none") => Ok(None),
+		Some("registry") => Ok(Some(SecretStoreContractAddress::Registry)),
+		Some(a) => Ok(Some(SecretStoreContractAddress::Address(a.parse().map_err(|e| format!("{}", e))?))),
 	}
 }
 

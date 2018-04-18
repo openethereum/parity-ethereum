@@ -66,8 +66,8 @@ pub struct ServiceConfiguration {
 	pub service_contract_doc_store_address: Option<ContractAddress>,
 	/// Document key shadow retrieval service contract address.
 	pub service_contract_doc_sretr_address: Option<ContractAddress>,
-	/// Is ACL check enabled. If false, everyone has access to all keys. Useful for tests only.
-	pub acl_check_enabled: bool,
+	/// ACL check contract address. If None, everyone has access to all keys. Useful for tests only.
+	pub acl_check_contract_address: Option<ContractAddress>,
 	/// Cluster configuration.
 	pub cluster_config: ClusterConfiguration,
 }
@@ -81,6 +81,8 @@ pub struct ClusterConfiguration {
 	pub listener_address: NodeAddress,
 	/// All cluster nodes addresses.
 	pub nodes: BTreeMap<ethkey::Public, NodeAddress>,
+	/// Key Server Set contract address. If None, servers from 'nodes' map are used.
+	pub key_server_set_contract_address: Option<ContractAddress>,
 	/// Allow outbound connections to 'higher' nodes.
 	/// This is useful for tests, but slower a bit for production.
 	pub allow_connecting_to_higher_nodes: bool,
