@@ -178,7 +178,7 @@ build_rpc_trait! {
 		fn mode(&self) -> Result<String>;
 
 		/// Returns the chain ID used for transaction signing at the
-		/// current best block. An empty string is returned if not
+		/// current best block. None is returned if not
 		/// available.
 		#[rpc(name = "parity_chainId")]
 		fn chain_id(&self) -> Result<Option<U64>>;
