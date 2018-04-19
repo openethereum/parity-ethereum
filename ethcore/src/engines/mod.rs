@@ -358,7 +358,8 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Check whether the given new block is the best block. The client will first use this function to determine the
 	/// primitive fork choice rules, and then check on the finalization rules, which might overwrite the primitive fork
-	/// choice. Note this may not work in some edge cases.
+	/// choice. This function works for Casper-like finality check, but may not work well for some types of instant
+	/// finality.
 	///
 	/// If finalization rules do not exist. Primitive fork choice is the final fork choice.
 	fn primitive_fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> ForkChoice;
