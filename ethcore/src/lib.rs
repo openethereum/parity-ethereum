@@ -54,6 +54,10 @@
 //!   cargo build --release
 //!   ```
 
+// Recursion limit required because of
+// error_chain foreign_links.
+#![recursion_limit="128"]
+
 extern crate bloomchain;
 extern crate bn;
 extern crate byteorder;
@@ -111,6 +115,8 @@ extern crate tempdir;
 extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
+#[macro_use]
+extern crate error_chain;
 #[macro_use]
 extern crate log;
 #[macro_use]

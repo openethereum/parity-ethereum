@@ -26,7 +26,7 @@ use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use super::helpers::{compare_dbs, StateProducer};
 
-use error::Error;
+use error::{Error, ErrorKind};
 
 use rand::{XorShiftRng, SeedableRng};
 use ethereum_types::H256;
@@ -189,7 +189,7 @@ fn checks_flag() {
 			let chunk = ::snappy::decompress(&raw).unwrap();
 
 			match rebuilder.feed(&chunk, &flag) {
-				Err(Error::Snapshot(SnapshotError::RestorationAborted)) => {},
+				Err(Error(ErrorKind::Snapshot(SnapshotError::RestorationAborted), _)) => {},
 				_ => panic!("unexpected result when feeding with flag off"),
 			}
 		}

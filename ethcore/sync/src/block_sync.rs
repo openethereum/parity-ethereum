@@ -25,9 +25,9 @@ use ethereum_types::H256;
 use rlp::Rlp;
 use ethcore::views::BlockView;
 use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::client::{BlockStatus, BlockId, BlockImportError};
+use ethcore::client::{BlockStatus, BlockId, BlockImportError, BlockImportErrorKind};
 use ethcore::block::Block;
-use ethcore::error::{ImportError, BlockError};
+use ethcore::error::{ImportErrorKind, BlockError};
 use sync_io::SyncIo;
 use blocks::BlockCollection;
 
@@ -502,11 +502,11 @@ impl BlockDownloader {
 			};
 
 			match result {
-				Err(BlockImportError::Import(ImportError::AlreadyInChain)) => {
+				Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
 					trace!(target: "sync", "Block already in chain {:?}", h);
 					self.block_imported(&h, number, &parent);
 				},
-				Err(BlockImportError::Import(ImportError::AlreadyQueued)) => {
+				Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
 					trace!(target: "sync", "Block already queued {:?}", h);
 					self.block_imported(&h, number, &parent);
 				},
@@ -515,14 +515,14 @@ impl BlockDownloader {
 					imported.insert(h.clone());
 					self.block_imported(&h, number, &parent);
 				},
-				Err(BlockImportError::Block(BlockError::UnknownParent(_))) if allow_out_of_order => {
+				Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(_)), _)) if allow_out_of_order => {
 					break;
 				},
-				Err(BlockImportError::Block(BlockError::UnknownParent(_))) => {
+				Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(_)), _)) => {
 					trace!(target: "sync", "Unknown new block parent, restarting sync");
 					break;
 				},
-				Err(BlockImportError::Block(BlockError::TemporarilyInvalid(_))) => {
+				Err(BlockImportError(BlockImportErrorKind::Block(BlockError::TemporarilyInvalid(_)), _)) => {
 					debug!(target: "sync", "Block temporarily invalid, restarting sync");
 					break;
 				},

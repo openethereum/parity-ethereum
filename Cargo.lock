@@ -512,6 +512,7 @@ dependencies = [
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "common-types 0.1.0",
  "crossbeam 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 5.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-contract 5.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-derive 5.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -613,6 +614,7 @@ name = "ethcore-light"
 version = "1.11.0"
 dependencies = [
  "bincode 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.11.0",
  "ethcore-bytes 0.1.0",
  "ethcore-io 1.11.0",

@@ -20,6 +20,7 @@ fetch = { path = "../util/fetch" }
 hashdb = { path = "../util/hashdb" }
 memorydb = { path = "../util/memorydb" }
 patricia-trie = { path = "../util/patricia_trie" }
+error-chain = { version = "0.11", default-features = false }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
 ethcore-miner = { path = "../miner" }
