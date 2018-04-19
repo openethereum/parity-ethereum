@@ -237,27 +237,27 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let base_gas_required = U256::from(t.gas_required(&schedule));
 
 		if t.gas < base_gas_required {
-			return Err(From::from(ExecutionError::NotEnoughBaseGas { required: base_gas_required, got: t.gas }));
+			return Err(ExecutionError::NotEnoughBaseGas { required: base_gas_required, got: t.gas });
 		}
 
 		if !t.is_unsigned() && check_nonce && schedule.kill_dust != CleanDustMode::Off && !self.state.exists(&sender)? {
-			return Err(From::from(ExecutionError::SenderMustExist));
+			return Err(ExecutionError::SenderMustExist);
 		}
 
 		let init_gas = t.gas - base_gas_required;
 
 		// validate transaction nonce
 		if check_nonce && t.nonce != nonce {
-			return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, got: t.nonce }));
+			return Err(ExecutionError::InvalidNonce { expected: nonce, got: t.nonce });
 		}
 
 		// validate if transaction fits into given block
 		if self.info.gas_used + t.gas > self.info.gas_limit {
-			return Err(From::from(ExecutionError::BlockGasLimitReached {
+			return Err(ExecutionError::BlockGasLimitReached {
 				gas_limit: self.info.gas_limit,
 				gas_used: self.info.gas_used,
 				gas: t.gas
-			}));
+			});
 		}
 
 		// TODO: we might need bigints here, or at least check overflows.
@@ -268,7 +268,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		// avoid unaffordable transactions
 		let balance512 = U512::from(balance);
 		if balance512 < total_cost {
-			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: balance512 }));
+			return Err(ExecutionError::NotEnoughCash { required: total_cost, got: balance512 });
 		}
 
 		let mut substate = Substate::new();
