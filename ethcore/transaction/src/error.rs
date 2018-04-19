@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
+use std::{fmt, error};
 
 use ethereum_types::U256;
 use ethkey;
@@ -109,6 +109,12 @@ impl fmt::Display for Error {
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))
+	}
+}
+
+impl error::Error for Error {
+	fn description(&self) -> &str {
+		"Transaction error"
 	}
 }
 

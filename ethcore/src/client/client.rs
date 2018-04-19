@@ -49,7 +49,7 @@ use client::{
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
-use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
+use error::{ImportErrorKind, BlockImportErrorKind, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use vm::{EnvInfo, LastHashes};
 use evm::Schedule;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -1417,11 +1417,11 @@ impl ImportBlock for Client {
 
 		{
 			if self.chain.read().is_known(&unverified.hash()) {
-				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
+				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
 			let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
 			if status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				return Err(BlockImportError::Block(BlockError::UnknownParent(unverified.parent_hash())));
+				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
 			}
 		}
 		Ok(self.importer.block_queue.import(unverified)?)
@@ -1432,11 +1432,11 @@ impl ImportBlock for Client {
 			// check block order
 			let header = view!(BlockView, &block_bytes).header_view();
 			if self.chain.read().is_known(&header.hash()) {
-				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
+				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
 			let status = self.block_status(BlockId::Hash(header.parent_hash()));
 			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
+				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(header.parent_hash())));
 			}
 		}
 
