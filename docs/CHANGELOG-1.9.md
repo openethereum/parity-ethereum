@@ -1,3 +1,30 @@
+## Parity [v1.9.6](https://github.com/paritytech/parity/releases/tag/v1.9.6) (2018-04-16)
+
+Parity 1.9.6 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Bump app_dirs, fixes [#8315](https://github.com/paritytech/parity/issues/8315) ([#8355](https://github.com/paritytech/parity/pull/8355))
+- Fix Cargo lock
+- Backports ([#8352](https://github.com/paritytech/parity/pull/8352))
+  - Update musicoin spec in line with gmc v2.6.2 ([#8242](https://github.com/paritytech/parity/pull/8242))
+  - Supress TemporaryInvalid verification failures. ([#8256](https://github.com/paritytech/parity/pull/8256))
+  - Include suicided accounts in state diff ([#8297](https://github.com/paritytech/parity/pull/8297))
+    - Include suicided accounts in state diff
+    - Shorten form match -> if let
+    - Test suicide trace diff in State
+  - Replace_home for password_files, reserved_peers and log_file ([#8324](https://github.com/paritytech/parity/pull/8324))
+    - Replace_home for password_files, reserved_peers and log_file
+    - Typo: arg_log_file is Option
+    - Bump version in util/version
+- Bump stable to 1.9.6 ([#8348](https://github.com/paritytech/parity/pull/8348))
+- WASM libraries bump ([#8219](https://github.com/paritytech/parity/pull/8219))
+  - Bump wasm libs ([#8171](https://github.com/paritytech/parity/pull/8171))
+  - Bump wasmi version ([#8209](https://github.com/paritytech/parity/pull/8209))
+- Updated jsonrpc to include latest backports (1.9) ([#8182](https://github.com/paritytech/parity/pull/8182))
+  - Updated jsonrpc to include latest backports (1.9)
+  - Update dependencies.
+
 ## Parity [v1.9.5](https://github.com/paritytech/parity/releases/tag/v1.9.5) (2018-03-21)
 
 Parity 1.9.5 is a bug-fix release to improve performance and stability. This release marks the 1.9 track _stable_.
