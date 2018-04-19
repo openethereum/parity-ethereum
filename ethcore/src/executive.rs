@@ -43,7 +43,7 @@ const STACK_SIZE_PER_DEPTH: usize = 128 * 1024;
 const STACK_SIZE_PER_DEPTH: usize = 24 * 1024;
 
 #[cfg(debug_assertions)]
-/// Entry stack overhead prior to execution.
+/// Entry stack overhead prior to execution. (Debug build)
 const STACK_SIZE_ENTRY_OVERHEAD: usize = 100 * 1024;
 
 #[cfg(not(debug_assertions))]
