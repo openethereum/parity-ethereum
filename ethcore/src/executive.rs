@@ -34,10 +34,21 @@ use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use executed::{Executed, ExecutionResult};
 
-/// Roughly estimate what stack size each level of evm depth will use
-/// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
-/// Maybe something like here: `https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp`
-const STACK_SIZE_PER_DEPTH: usize = 24*1024;
+#[cfg(debug_assertions)]
+/// Roughly estimate what stack size each level of evm depth will use. (Debug build)
+const STACK_SIZE_PER_DEPTH: usize = 128 * 1024;
+
+#[cfg(not(debug_assertions))]
+/// Roughly estimate what stack size each level of evm depth will use.
+const STACK_SIZE_PER_DEPTH: usize = 24 * 1024;
+
+#[cfg(debug_assertions)]
+/// Entry stack overhead prior to execution. (Debug build)
+const STACK_SIZE_ENTRY_OVERHEAD: usize = 100 * 1024;
+
+#[cfg(not(debug_assertions))]
+/// Entry stack overhead prior to execution.
+const STACK_SIZE_ENTRY_OVERHEAD: usize = 20 * 1024;
 
 /// Returns new address created from address, nonce, and code hash
 pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address, nonce: &U256, code: &[u8]) -> (Address, Option<H256>) {
@@ -332,12 +343,12 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		tracer: &mut T,
 		vm_tracer: &mut V
 	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
-
-		let depth_threshold = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get() / STACK_SIZE_PER_DEPTH);
+		let local_stack_size = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get());
+		let depth_threshold = local_stack_size.saturating_sub(STACK_SIZE_ENTRY_OVERHEAD) / STACK_SIZE_PER_DEPTH;
 		let static_call = params.call_type == CallType::StaticCall;
 
 		// Ordinary execution - keep VM in same thread
-		if (self.depth + 1) % depth_threshold != 0 {
+		if self.depth != depth_threshold {
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
@@ -345,17 +356,15 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			return vm.exec(params, &mut ext).finalize(ext);
 		}
 
-		// Start in new thread to reset stack
-		// TODO [todr] No thread builder yet, so we need to reset once for a while
-		// https://github.com/aturon/crossbeam/issues/16
+		// Start in new thread with stack size needed up to max depth
 		crossbeam::scope(|scope| {
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 
-			scope.spawn(move || {
+			scope.builder().stack_size(::std::cmp::max(schedule.max_depth.saturating_sub(depth_threshold) * STACK_SIZE_PER_DEPTH, local_stack_size)).spawn(move || {
 				let mut vm = vm_factory.create(&params, &schedule);
 				vm.exec(params, &mut ext).finalize(ext)
-			})
+			}).expect("Sub-thread creation cannot fail; the host might run out of resources; qed")
 		}).join()
 	}
 
