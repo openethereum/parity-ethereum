@@ -19,7 +19,6 @@
 #![warn(missing_docs)]
 
 extern crate ansi_term;
-extern crate app_dirs;
 extern crate ctrlc;
 extern crate docopt;
 #[macro_use]
