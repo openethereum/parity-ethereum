@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethereum_types::{H256, U256};
+
 use encoded;
 use header::{Header, BlockNumber};
 

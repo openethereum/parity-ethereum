@@ -22,7 +22,7 @@ use heapsize::HeapSizeOf;
 use ethereum_types::H256;
 use triehash::ordered_trie_root;
 use bytes::Bytes;
-use rlp::{UntrustedRlp, RlpStream, DecoderError};
+use rlp::{Rlp, RlpStream, DecoderError};
 use network;
 use ethcore::encoded::Block;
 use ethcore::views::{HeaderView, BodyView};
@@ -292,8 +292,9 @@ impl BlockCollection {
 			}
 
 			for block in blocks {
-				let body = BodyView::new(block.body.as_ref().expect("blocks contains only full blocks; qed"));
-				let block_view = Block::new_from_header_and_body(&HeaderView::new(&block.header), &body);
+				let body = view!(BodyView, block.body.as_ref().expect("blocks contains only full blocks; qed"));
+				let header = view!(HeaderView, &block.header);
+				let block_view = Block::new_from_header_and_body(&header, &body);
 				drained.push(BlockAndReceipts {
 					block: block_view.rlp().as_raw().to_vec(),
 					receipts: block.receipts.clone(),
@@ -340,7 +341,7 @@ impl BlockCollection {
 
 	fn insert_body(&mut self, b: Bytes) -> Result<(), network::Error> {
 		let header_id = {
-			let body = UntrustedRlp::new(&b);
+			let body = Rlp::new(&b);
 			let tx = body.at(0)?;
 			let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw()));
 			let uncles = keccak(body.at(1)?.as_raw());
@@ -375,7 +376,7 @@ impl BlockCollection {
 
 	fn insert_receipt(&mut self, r: Bytes) -> Result<(), network::Error> {
 		let receipt_root = {
-			let receipts = UntrustedRlp::new(&r);
+			let receipts = Rlp::new(&r);
 			ordered_trie_root(receipts.iter().map(|r| r.as_raw()))
 		};
 		self.downloading_receipts.remove(&receipt_root);
@@ -403,7 +404,7 @@ impl BlockCollection {
 	}
 
 	fn insert_header(&mut self, header: Bytes) -> Result<H256, DecoderError> {
-		let info: BlockHeader = UntrustedRlp::new(&header).as_val()?;
+		let info: BlockHeader = Rlp::new(&header).as_val()?;
 		let hash = info.hash();
 		if self.blocks.contains_key(&hash) {
 			return Ok(hash);
@@ -525,8 +526,8 @@ mod test {
 		let blocks: Vec<_> = (0..nblocks)
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
-		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).hash()).collect();
+		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).unwrap().as_raw().to_vec()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| view!(HeaderView, h).hash()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
 		bc.reset_to(heads);
 		assert!(!bc.is_empty());
@@ -580,8 +581,8 @@ mod test {
 		let blocks: Vec<_> = (0..nblocks)
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
-		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).hash()).collect();
+		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).unwrap().as_raw().to_vec()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| view!(HeaderView, h).hash()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
 		bc.reset_to(heads);
 
@@ -604,8 +605,8 @@ mod test {
 		let blocks: Vec<_> = (0..nblocks)
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
-		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).hash()).collect();
+		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).unwrap().as_raw().to_vec()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| view!(HeaderView, h).hash()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
 		bc.reset_to(heads);
 

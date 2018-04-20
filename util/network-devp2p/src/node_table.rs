@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::{fs, mem, slice};
 use ethereum_types::H512;
-use rlp::{UntrustedRlp, RlpStream, DecoderError};
+use rlp::{Rlp, RlpStream, DecoderError};
 use network::{Error, ErrorKind, AllowIP, IpFilter};
 use discovery::{TableUpdates, NodeEntry};
 use ip_utils::*;
@@ -66,7 +66,7 @@ impl NodeEndpoint {
 		}
 	}
 
-	pub fn from_rlp(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	pub fn from_rlp(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let tcp_port = rlp.val_at::<u16>(2)?;
 		let udp_port = rlp.val_at::<u16>(1)?;
 		let addr_bytes = rlp.at(0)?.data()?;

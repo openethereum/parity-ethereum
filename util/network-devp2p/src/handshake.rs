@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::time::Duration;
 use rand::random;
 use hash::write_keccak;
 use mio::tcp::*;
 use ethereum_types::{H256, H520};
 use ethcore_bytes::Bytes;
-use rlp::{UntrustedRlp, RlpStream};
+use rlp::{Rlp, RlpStream};
 use connection::{Connection};
 use node_table::NodeId;
 use io::{IoContext, StreamToken};
@@ -73,7 +74,7 @@ pub struct Handshake {
 
 const V4_AUTH_PACKET_SIZE: usize = 307;
 const V4_ACK_PACKET_SIZE: usize = 210;
-const HANDSHAKE_TIMEOUT: u64 = 5000;
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
 const PROTOCOL_VERSION: u64 = 4;
 // Amount of bytes added when encrypting with encryptECIES.
 const ECIES_OVERHEAD: usize = 113;
@@ -204,7 +205,7 @@ impl Handshake {
 		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.auth_cipher.extend_from_slice(data);
 		let auth = ecies::decrypt(secret, &self.auth_cipher[0..2], &self.auth_cipher[2..])?;
-		let rlp = UntrustedRlp::new(&auth);
+		let rlp = Rlp::new(&auth);
 		let signature: H520 = rlp.val_at(0)?;
 		let remote_public: Public = rlp.val_at(1)?;
 		let remote_nonce: H256 = rlp.val_at(2)?;
@@ -247,7 +248,7 @@ impl Handshake {
 		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.ack_cipher.extend_from_slice(data);
 		let ack = ecies::decrypt(secret, &self.ack_cipher[0..2], &self.ack_cipher[2..])?;
-		let rlp = UntrustedRlp::new(&ack);
+		let rlp = Rlp::new(&ack);
 		self.remote_ephemeral = rlp.val_at(0)?;
 		self.remote_nonce = rlp.val_at(1)?;
 		self.remote_version = rlp.val_at(2)?;

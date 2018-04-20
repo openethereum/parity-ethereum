@@ -472,17 +472,17 @@ impl<K: Kind> VerificationQueue<K> {
 		let h = input.hash();
 		{
 			if self.processing.read().contains_key(&h) {
-				return Err(ImportError::AlreadyQueued.into());
+				bail!(ErrorKind::Import(ImportErrorKind::AlreadyQueued));
 			}
 
 			let mut bad = self.verification.bad.lock();
 			if bad.contains(&h) {
-				return Err(ImportError::KnownBad.into());
+				bail!(ErrorKind::Import(ImportErrorKind::KnownBad));
 			}
 
 			if bad.contains(&input.parent_hash()) {
 				bad.insert(h.clone());
-				return Err(ImportError::KnownBad.into());
+				bail!(ErrorKind::Import(ImportErrorKind::KnownBad));
 			}
 		}
 
@@ -502,7 +502,7 @@ impl<K: Kind> VerificationQueue<K> {
 			Err(err) => {
 				match err {
 					// Don't mark future blocks as bad.
-					Error::Block(BlockError::TemporarilyInvalid(_)) => {},
+					Error(ErrorKind::Block(BlockError::TemporarilyInvalid(_)), _) => {},
 					_ => {
 						self.verification.bad.lock().insert(h.clone());
 					}
@@ -733,7 +733,7 @@ mod tests {
 	use super::kind::blocks::Unverified;
 	use test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
 	use error::*;
-	use views::*;
+	use views::BlockView;
 
 	// create a test block queue.
 	// auto_scaling enables verifier adjustment.
@@ -773,7 +773,7 @@ mod tests {
 		match duplicate_import {
 			Err(e) => {
 				match e {
-					Error::Import(ImportError::AlreadyQueued) => {},
+					Error(ErrorKind::Import(ImportErrorKind::AlreadyQueued), _) => {},
 					_ => { panic!("must return AlreadyQueued error"); }
 				}
 			}
@@ -785,7 +785,7 @@ mod tests {
 	fn returns_total_difficulty() {
 		let queue = get_test_queue(false);
 		let block = get_good_dummy_block();
-		let hash = BlockView::new(&block).header().hash().clone();
+		let hash = view!(BlockView, &block).header().hash().clone();
 		if let Err(e) = queue.import(Unverified::new(block)) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
@@ -801,7 +801,7 @@ mod tests {
 	fn returns_ok_for_drained_duplicates() {
 		let queue = get_test_queue(false);
 		let block = get_good_dummy_block();
-		let hash = BlockView::new(&block).header().hash().clone();
+		let hash = view!(BlockView, &block).header().hash().clone();
 		if let Err(e) = queue.import(Unverified::new(block)) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}

@@ -19,7 +19,7 @@ use elastic_array::ElasticArray36;
 use nibbleslice::NibbleSlice;
 use nibblevec::NibbleVec;
 use bytes::*;
-use rlp::{UntrustedRlp, RlpStream, Prototype, DecoderError};
+use rlp::{Rlp, RlpStream, Prototype, DecoderError};
 use hashdb::DBValue;
 
 /// Partial node key type.
@@ -41,7 +41,7 @@ pub enum Node<'a> {
 impl<'a> Node<'a> {
 	/// Decode the `node_rlp` and return the Node.
 	pub fn decoded(node_rlp: &'a [u8]) -> Result<Self, DecoderError> {
-		let r = UntrustedRlp::new(node_rlp);
+		let r = Rlp::new(node_rlp);
 		match r.prototype()? {
 			// either leaf or extension - decode first item with NibbleSlice::???
 			// and use is_leaf return to figure out which.
@@ -105,7 +105,7 @@ impl<'a> Node<'a> {
 	}
 
 	pub fn try_decode_hash(node_data: &[u8]) -> Option<H256> {
-		let r = UntrustedRlp::new(node_data);
+		let r = Rlp::new(node_data);
 		if r.is_data() && r.size() == 32 {
 			Some(r.as_val().expect("Hash is the correct size of 32 bytes; qed"))
 		} else {

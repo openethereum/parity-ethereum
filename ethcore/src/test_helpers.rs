@@ -35,11 +35,8 @@ use spec::Spec;
 use state_db::StateDB;
 use state::*;
 use std::sync::Arc;
-use std::path::Path;
 use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
-use kvdb::{KeyValueDB, KeyValueDBHandler};
-use kvdb_rocksdb::{Database, DatabaseConfig};
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
@@ -120,7 +117,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 		ClientConfig::default(),
 		&test_spec,
 		client_db,
-		Arc::new(Miner::with_spec_and_accounts(&test_spec, accounts)),
+		Arc::new(Miner::new_for_tests(&test_spec, accounts)),
 		IoChannel::disconnected(),
 	).unwrap();
 	let test_engine = &*test_spec.engine;
@@ -174,7 +171,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 			panic!("error importing block which is valid by definition: {:?}", e);
 		}
 
-		last_header = BlockView::new(&b.rlp_bytes()).header();
+		last_header = view!(BlockView, &b.rlp_bytes()).header();
 		db = b.drain();
 	}
 	client.flush_queue();
@@ -243,7 +240,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 		ClientConfig::default(),
 		&test_spec,
 		client_db,
-		Arc::new(Miner::with_spec(&test_spec)),
+		Arc::new(Miner::new_for_tests(&test_spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 
@@ -401,21 +398,4 @@ impl ChainNotify for TestNotify {
 		};
 		self.messages.write().push(data);
 	}
-}
-
-/// Creates new instance of KeyValueDBHandler
-pub fn restoration_db_handler(config: DatabaseConfig) -> Box<KeyValueDBHandler> {
-	use kvdb::Error;
-
-	struct RestorationDBHandler {
-		config: DatabaseConfig,
-	}
-
-	impl KeyValueDBHandler for RestorationDBHandler {
-		fn open(&self, db_path: &Path) -> Result<Arc<KeyValueDB>, Error> {
-			Ok(Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?))
-		}
-	}
-
-	Box::new(RestorationDBHandler { config })
 }

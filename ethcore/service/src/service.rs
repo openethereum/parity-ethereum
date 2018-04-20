@@ -18,6 +18,7 @@
 
 use std::sync::Arc;
 use std::path::Path;
+use std::time::Duration;
 
 use ansi_term::Colour;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
@@ -92,7 +93,7 @@ impl ClientService {
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 
 		let pruning = config.pruning;
-		let client = Client::new(config, &spec, client_db.clone(), miner, io_service.channel())?;
+		let client = Client::new(config, &spec, client_db.clone(), miner.clone(), io_service.channel())?;
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
@@ -105,7 +106,14 @@ impl ClientService {
 		};
 		let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
-		let provider = Arc::new(ethcore_private_tx::Provider::new(client.clone(), account_provider, encryptor, private_tx_conf, io_service.channel())?);
+		let provider = Arc::new(ethcore_private_tx::Provider::new(
+				client.clone(),
+				miner,
+				account_provider,
+				encryptor,
+				private_tx_conf,
+				io_service.channel())?,
+		);
 		let private_tx = Arc::new(PrivateTxService::new(provider));
 
 		let client_io = Arc::new(ClientIoHandler {
@@ -173,13 +181,13 @@ struct ClientIoHandler {
 const CLIENT_TICK_TIMER: TimerToken = 0;
 const SNAPSHOT_TICK_TIMER: TimerToken = 1;
 
-const CLIENT_TICK_MS: u64 = 5000;
-const SNAPSHOT_TICK_MS: u64 = 10000;
+const CLIENT_TICK: Duration = Duration::from_secs(5);
+const SNAPSHOT_TICK: Duration = Duration::from_secs(10);
 
 impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
-		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK_MS).expect("Error registering client timer");
-		io.register_timer(SNAPSHOT_TICK_TIMER, SNAPSHOT_TICK_MS).expect("Error registering snapshot timer");
+		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK).expect("Error registering client timer");
+		io.register_timer(SNAPSHOT_TICK_TIMER, SNAPSHOT_TICK).expect("Error registering snapshot timer");
 	}
 
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
@@ -292,10 +300,10 @@ mod tests {
 			&snapshot_path,
 			restoration_db_handler,
 			tempdir.path(),
-			Arc::new(Miner::with_spec(&spec)),
+			Arc::new(Miner::new_for_tests(&spec, None)),
 			Arc::new(AccountProvider::transient_provider()),
 			Box::new(ethcore_private_tx::NoopEncryptor),
-			Default::default()
+			Default::default(),
 		);
 		assert!(service.is_ok());
 		drop(service.unwrap());

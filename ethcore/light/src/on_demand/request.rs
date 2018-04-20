@@ -30,7 +30,7 @@ use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
 
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
 
-use rlp::{RlpStream, UntrustedRlp};
+use rlp::{RlpStream, Rlp};
 use ethereum_types::{H256, U256, Address};
 use parking_lot::Mutex;
 use hashdb::HashDB;
@@ -831,7 +831,7 @@ impl Account {
 
 		match TrieDB::new(&db, &state_root).and_then(|t| t.get(&keccak(&self.address)))? {
 			Some(val) => {
-				let rlp = UntrustedRlp::new(&val);
+				let rlp = Rlp::new(&val);
 				Ok(Some(BasicAccount {
 					nonce: rlp.val_at(0)?,
 					balance: rlp.val_at(1)?,

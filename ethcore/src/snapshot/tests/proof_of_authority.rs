@@ -107,13 +107,11 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 			trace!(target: "snapshot", "Pushing block #{}, {} txs, author={}",
 				n, txs.len(), signers[idx]);
 
-			client.miner().set_author(signers[idx]);
+			client.miner().set_author(signers[idx], Some(PASS.into())).unwrap();
 			client.miner().import_external_transactions(&*client,
 				txs.into_iter().map(Into::into).collect());
 
-			let engine = client.engine();
-			engine.set_signer(accounts.clone(), signers[idx], PASS.to_owned());
-			engine.step();
+			client.engine().step();
 
 			assert_eq!(client.chain_info().best_block_number, n);
 		};

@@ -18,9 +18,28 @@ use std::fs;
 use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
-use migr::{self, Manager as MigrationManager, Config as MigrationConfig};
-use kvdb_rocksdb::CompactionProfile;
-use migrations;
+use super::migration_rocksdb::{self, Manager as MigrationManager, Config as MigrationConfig, ChangeColumns};
+use super::kvdb_rocksdb::CompactionProfile;
+use ethcore::client::DatabaseCompactionProfile;
+
+use super::helpers;
+
+/// The migration from v10 to v11.
+/// Adds a column for node info.
+pub const TO_V11: ChangeColumns = ChangeColumns {
+	pre_columns: Some(6),
+	post_columns: Some(7),
+	version: 11,
+};
+
+/// The migration from v11 to v12.
+/// Adds a column for light chain storage.
+pub const TO_V12: ChangeColumns = ChangeColumns {
+	pre_columns: Some(7),
+	post_columns: Some(8),
+	version: 12,
+};
+
 
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
@@ -43,7 +62,7 @@ pub enum Error {
 	/// Migration is not possible.
 	MigrationImpossible,
 	/// Internal migration error.
-	Internal(migr::Error),
+	Internal(migration_rocksdb::Error),
 	/// Migration was completed succesfully,
 	/// but there was a problem with io.
 	Io(IoError),
@@ -69,10 +88,10 @@ impl From<IoError> for Error {
 	}
 }
 
-impl From<migr::Error> for Error {
-	fn from(err: migr::Error) -> Self {
+impl From<migration_rocksdb::Error> for Error {
+	fn from(err: migration_rocksdb::Error) -> Self {
 		match err.into() {
-			migr::ErrorKind::Io(e) => Error::Io(e),
+			migration_rocksdb::ErrorKind::Io(e) => Error::Io(e),
 			err => Error::Internal(err.into()),
 		}
 	}
@@ -134,8 +153,8 @@ pub fn default_migration_settings(compaction_profile: &CompactionProfile) -> Mig
 /// Migrations on the consolidated database.
 fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
 	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
-	manager.add_migration(migrations::TO_V11).map_err(|_| Error::MigrationImpossible)?;
-	manager.add_migration(migrations::TO_V12).map_err(|_| Error::MigrationImpossible)?;
+	manager.add_migration(TO_V11).map_err(|_| Error::MigrationImpossible)?;
+	manager.add_migration(TO_V12).map_err(|_| Error::MigrationImpossible)?;
 	Ok(manager)
 }
 
@@ -176,7 +195,9 @@ fn exists(path: &Path) -> bool {
 }
 
 /// Migrates the database.
-pub fn migrate(path: &Path, compaction_profile: CompactionProfile) -> Result<(), Error> {
+pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> Result<(), Error> {
+	let compaction_profile = helpers::compaction_profile(&compaction_profile, path);
+
 	// read version file.
 	let version = current_version(path)?;
 

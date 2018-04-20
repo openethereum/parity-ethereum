@@ -75,7 +75,11 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 	$ rustup default stable-x86_64-pc-windows-msvc
   ```
 
-Once you have rustup, install Parity or download and build from source
+Once you have rustup installed, then you need to install:
+* [Perl](https://www.perl.org)
+* [Yasm](http://yasm.tortall.net)
+
+Make sure that these binaries are in your `PATH`. After that you should be able to build parity from source.
 
 ----
 

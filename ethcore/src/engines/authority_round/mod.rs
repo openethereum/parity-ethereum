@@ -19,7 +19,7 @@
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Weak, Arc};
-use std::time::{UNIX_EPOCH, Duration};
+use std::time::{UNIX_EPOCH, SystemTime, Duration};
 use std::collections::{BTreeMap, HashSet};
 use std::iter::FromIterator;
 
@@ -38,10 +38,10 @@ use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 
 use self::finality::RollingFinality;
 
-use ethkey::{public_to_address, recover, verify_address, Signature};
+use ethkey::{self, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
-use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, UntrustedRlp};
+use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parking_lot::{Mutex, RwLock};
 use unexpected::{Mismatch, OutOfBounds};
@@ -292,14 +292,14 @@ impl EmptyStep {
 		let message = keccak(empty_step_rlp(self.step, &self.parent_hash));
 		let correct_proposer = step_proposer(validators, &self.parent_hash, self.step);
 
-		verify_address(&correct_proposer, &self.signature.into(), &message)
+		ethkey::verify_address(&correct_proposer, &self.signature.into(), &message)
 			.map_err(|e| e.into())
 	}
 
 	fn author(&self) -> Result<Address, Error> {
 		let message = keccak(empty_step_rlp(self.step, &self.parent_hash));
-		let public = recover(&self.signature.into(), &message)?;
-		Ok(public_to_address(&public))
+		let public = ethkey::recover(&self.signature.into(), &message)?;
+		Ok(ethkey::public_to_address(&public))
 	}
 
 	fn sealed(&self) -> SealedEmptyStep {
@@ -325,7 +325,7 @@ impl Encodable for EmptyStep {
 }
 
 impl Decodable for EmptyStep {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let signature = rlp.val_at(0)?;
 		let empty_step_rlp = rlp.at(1)?;
 
@@ -366,7 +366,7 @@ impl Encodable for SealedEmptyStep {
 }
 
 impl Decodable for SealedEmptyStep {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let signature = rlp.val_at(0)?;
 		let step = rlp.val_at(1)?;
 
@@ -415,7 +415,7 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 		let mut finality_checker = RollingFinality::blank(self.subchain_validators.clone().into_inner());
 		let mut finalized = Vec::new();
 
-		let headers: Vec<Header> = UntrustedRlp::new(proof).as_list().ok()?;
+		let headers: Vec<Header> = Rlp::new(proof).as_list().ok()?;
 
 		{
 			let mut push_header = |parent_header: &Header, header: Option<&Header>| {
@@ -479,13 +479,13 @@ fn header_expected_seal_fields(header: &Header, empty_steps_transition: u64) -> 
 
 fn header_step(header: &Header, empty_steps_transition: u64) -> Result<usize, ::rlp::DecoderError> {
 	let expected_seal_fields = header_expected_seal_fields(header, empty_steps_transition);
-	UntrustedRlp::new(&header.seal().get(0).expect(
+	Rlp::new(&header.seal().get(0).expect(
 		&format!("was either checked with verify_block_basic or is genesis; has {} fields; qed (Make sure the spec file has a correct genesis seal)", expected_seal_fields))).as_val()
 }
 
 fn header_signature(header: &Header, empty_steps_transition: u64) -> Result<Signature, ::rlp::DecoderError> {
 	let expected_seal_fields = header_expected_seal_fields(header, empty_steps_transition);
-	UntrustedRlp::new(&header.seal().get(1).expect(
+	Rlp::new(&header.seal().get(1).expect(
 		&format!("was checked with verify_block_basic; has {} fields; qed", expected_seal_fields))).as_val::<H520>().map(Into::into)
 }
 
@@ -498,7 +498,7 @@ fn header_empty_steps_raw(header: &Header) -> &[u8] {
 // extracts the empty steps from the header seal. should only be called when there are 3 fields in the seal
 // (i.e. header.number() >= self.empty_steps_transition).
 fn header_empty_steps(header: &Header) -> Result<Vec<EmptyStep>, ::rlp::DecoderError> {
-	let empty_steps = UntrustedRlp::new(header_empty_steps_raw(header)).as_list::<SealedEmptyStep>()?;
+	let empty_steps = Rlp::new(header_empty_steps_raw(header)).as_list::<SealedEmptyStep>()?;
 	Ok(empty_steps.into_iter().map(|s| EmptyStep::from_sealed(s, header.parent_hash())).collect())
 }
 
@@ -536,6 +536,7 @@ fn verify_timestamp(step: &Step, header_step: usize) -> Result<(), BlockError> {
 			// NOTE This error might be returned only in early stage of verification (Stage 1).
 			// Returning it further won't recover the sync process.
 			trace!(target: "engine", "verify_timestamp: block too early");
+			let oob = oob.map(|n| SystemTime::now() + Duration::from_secs(n));
 			Err(BlockError::TemporarilyInvalid(oob).into())
 		},
 		Ok(_) => Ok(()),
@@ -555,7 +556,7 @@ fn verify_external(header: &Header, validators: &ValidatorSet, empty_steps_trans
 		};
 
 		let header_seal_hash = header_seal_hash(header, empty_steps_rlp);
-		!verify_address(&correct_proposer, &proposer_signature, &header_seal_hash)?
+		!ethkey::verify_address(&correct_proposer, &proposer_signature, &header_seal_hash)?
 	};
 
 	if is_invalid_proposer {
@@ -574,7 +575,7 @@ fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8], finality_proof: 
 }
 
 fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8], &[u8]), Error> {
-	let rlp = UntrustedRlp::new(combined);
+	let rlp = Rlp::new(combined);
 	Ok((
 		rlp.at(0)?.as_val()?,
 		rlp.at(1)?.data()?,
@@ -694,8 +695,8 @@ const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 impl IoHandler<()> for TransitionHandler {
 	fn initialize(&self, io: &IoContext<()>) {
 		if let Some(engine) = self.engine.upgrade() {
-			let remaining = engine.step.duration_remaining();
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, remaining.as_millis())
+			let remaining = engine.step.duration_remaining().as_millis();
+			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, Duration::from_millis(remaining))
 				.unwrap_or_else(|e| warn!(target: "engine", "Failed to start consensus step timer: {}.", e))
 		}
 	}
@@ -711,7 +712,7 @@ impl IoHandler<()> for TransitionHandler {
 				}
 
 				let next_run_at = engine.step.duration_remaining().as_millis() >> 2;
-				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, next_run_at)
+				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, Duration::from_millis(next_run_at))
 					.unwrap_or_else(|e| warn!(target: "engine", "Failed to restart consensus step timer: {}.", e))
 			}
 		}
@@ -800,7 +801,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			EngineError::MalformedMessage(format!("{:?}", x))
 		}
 
-		let rlp = UntrustedRlp::new(rlp);
+		let rlp = Rlp::new(rlp);
 		let empty_step: EmptyStep = rlp.as_val().map_err(fmt_err)?;;
 
 		if empty_step.verify(&*self.validators).unwrap_or(false) {
@@ -824,7 +825,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	fn generate_seal(&self, block: &ExecutedBlock, parent: &Header) -> Seal {
 		// first check to avoid generating signature most of the time
 		// (but there's still a race to the `compare_and_swap`)
-		if !self.can_propose.load(AtomicOrdering::SeqCst) { return Seal::None; }
+		if !self.can_propose.load(AtomicOrdering::SeqCst) {
+			trace!(target: "engine", "Aborting seal generation. Can't propose.");
+			return Seal::None;
+		}
 
 		let header = block.header();
 		let parent_step: U256 = header_step(parent, self.empty_steps_transition)
@@ -1305,7 +1309,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		self.signer.read().sign(hash).map_err(Into::into)
+		Ok(self.signer.read().sign(hash)?)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
@@ -1335,7 +1339,7 @@ mod tests {
 	use transaction::{Action, Transaction};
 	use engines::{Seal, Engine, EngineError, EthEngine};
 	use engines::validator_set::TestSet;
-	use error::Error;
+	use error::{Error, ErrorKind};
 	use super::{AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep};
 
 	#[test]
@@ -1838,7 +1842,7 @@ mod tests {
 		]);
 
 		assert!(match engine.verify_block_family(&header, &parent_header) {
-			Err(Error::Engine(EngineError::InsufficientProof(ref s)))
+			Err(Error(ErrorKind::Engine(EngineError::InsufficientProof(ref s)), _))
 				if s.contains("invalid step") => true,
 			_ => false,
 		});
@@ -1852,7 +1856,7 @@ mod tests {
 		]);
 
 		assert!(match engine.verify_block_family(&header, &parent_header) {
-			Err(Error::Engine(EngineError::InsufficientProof(ref s)))
+			Err(Error(ErrorKind::Engine(EngineError::InsufficientProof(ref s)), _))
 				if s.contains("invalid empty step proof") => true,
 			_ => false,
 		});
@@ -1867,7 +1871,7 @@ mod tests {
 		]);
 
 		assert!(match engine.verify_block_family(&header, &parent_header) {
-			Err(Error::Engine(EngineError::InsufficientProof(ref s)))
+			Err(Error(ErrorKind::Engine(EngineError::InsufficientProof(ref s)), _))
 				if s.contains("invalid empty step proof") => true,
 			_ => false,
 		});

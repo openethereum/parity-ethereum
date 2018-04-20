@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::path::PathBuf;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use serde_json;
 use tiny_keccak::Keccak;
 use ethereum_types::{H256, Address};
 use ethkey::{Secret, Public, public_to_address};
-use kvdb_rocksdb::{Database, DatabaseIterator};
-use types::all::{Error, ServiceConfiguration, ServerKeyId, NodeId};
+use kvdb::KeyValueDB;
+use types::all::{Error, ServerKeyId, NodeId};
 use serialization::{SerializablePublic, SerializableSecret, SerializableH256, SerializableAddress};
 
 /// Key of version value.
@@ -82,17 +82,17 @@ pub trait KeyStorage: Send + Sync {
 
 /// Persistent document encryption keys storage
 pub struct PersistentKeyStorage {
-	db: Database,
+	db: Arc<KeyValueDB>,
 }
 
 /// Persistent document encryption keys storage iterator
 pub struct PersistentKeyStorageIterator<'a> {
-	iter: Option<DatabaseIterator<'a>>,
+	iter: Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>,
 }
 
 /// V0 of encrypted key share, as it is stored by key storage on the single key server.
 #[derive(Serialize, Deserialize)]
-struct SerializableDocumentKeyShareV0 {
+pub struct SerializableDocumentKeyShareV0 {
 	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
 	pub threshold: usize,
 	/// Nodes ids numbers.
@@ -172,12 +172,7 @@ type SerializableDocumentKeyShareVersionV3 = SerializableDocumentKeyShareVersion
 
 impl PersistentKeyStorage {
 	/// Create new persistent document encryption keys storage
-	pub fn new(config: &ServiceConfiguration) -> Result<Self, Error> {
-		let mut db_path = PathBuf::from(&config.data_path);
-		db_path.push("db");
-		let db_path = db_path.to_str().ok_or_else(|| Error::Database("Invalid secretstore path".to_owned()))?;
-
-		let db = Database::open_default(&db_path)?;
+	pub fn new(db: Arc<KeyValueDB>) -> Result<Self, Error> {
 		let db = upgrade_db(db)?;
 
 		Ok(PersistentKeyStorage {
@@ -186,14 +181,14 @@ impl PersistentKeyStorage {
 	}
 }
 
-fn upgrade_db(db: Database) -> Result<Database, Error> {
+fn upgrade_db(db: Arc<KeyValueDB>) -> Result<Arc<KeyValueDB>, Error> {
 	let version = db.get(None, DB_META_KEY_VERSION)?;
 	let version = version.and_then(|v| v.get(0).cloned()).unwrap_or(0);
 	match version {
 		0 => {
 			let mut batch = db.transaction();
 			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
-			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner).filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
+			for (db_key, db_value) in db.iter(None).into_iter().filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
 				let v0_key = serde_json::from_slice::<SerializableDocumentKeyShareV0>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
 				let current_key = CurrentSerializableDocumentKeyShare {
 					// author is used in separate generation + encrypt sessions.
@@ -218,7 +213,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 		1 => {
 			let mut batch = db.transaction();
 			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
-			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner).filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
+			for (db_key, db_value) in db.iter(None).into_iter().filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
 				let v1_key = serde_json::from_slice::<SerializableDocumentKeyShareV1>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
 				let current_key = CurrentSerializableDocumentKeyShare {
 					author: public_to_address(&v1_key.author).into(), // added in v1 + changed in v3
@@ -241,7 +236,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 		2 => {
 			let mut batch = db.transaction();
 			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
-			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner).filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
+			for (db_key, db_value) in db.iter(None).into_iter().filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
 				let v2_key = serde_json::from_slice::<SerializableDocumentKeyShareV2>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
 				let current_key = CurrentSerializableDocumentKeyShare {
 					author: public_to_address(&v2_key.author).into(), // changed in v3
@@ -319,11 +314,10 @@ impl<'a> Iterator for PersistentKeyStorageIterator<'a> {
 	type Item = (ServerKeyId, DocumentKeyShare);
 
 	fn next(&mut self) -> Option<(ServerKeyId, DocumentKeyShare)> {
-		self.iter.as_mut()
-			.and_then(|iter| iter.next()
-				.and_then(|(db_key, db_val)| serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db_val)
-					.ok()
-					.map(|key| ((*db_key).into(), key.into()))))
+		self.iter.as_mut().next()
+			.and_then(|(db_key, db_val)| serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db_val)
+					  .ok()
+					  .map(|key| ((*db_key).into(), key.into())))
 	}
 }
 
@@ -417,14 +411,15 @@ impl From<SerializableDocumentKeyShareV3> for DocumentKeyShare {
 pub mod tests {
 	extern crate tempdir;
 
-	use std::collections::{BTreeMap, HashMap};
+	use std::collections::HashMap;
+	use std::sync::Arc;
 	use parking_lot::RwLock;
 	use serde_json;
 	use self::tempdir::TempDir;
 	use ethereum_types::{Address, H256};
 	use ethkey::{Random, Generator, Public, Secret, public_to_address};
 	use kvdb_rocksdb::Database;
-	use types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
+	use types::all::{Error, ServerKeyId};
 	use super::{DB_META_KEY_VERSION, CURRENT_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
 		DocumentKeyShareVersion, CurrentSerializableDocumentKeyShare, upgrade_db, SerializableDocumentKeyShareV0,
 		SerializableDocumentKeyShareV1, SerializableDocumentKeyShareV2, SerializableDocumentKeyShareVersionV2};
@@ -472,27 +467,6 @@ pub mod tests {
 	#[test]
 	fn persistent_key_storage() {
 		let tempdir = TempDir::new("").unwrap();
-		let config = ServiceConfiguration {
-			listener_address: None,
-			service_contract_address: None,
-			service_contract_srv_gen_address: None,
-			service_contract_srv_retr_address: None,
-			service_contract_doc_store_address: None,
-			service_contract_doc_sretr_address: None,
-			acl_check_enabled: true,
-			data_path: tempdir.path().display().to_string(),
-			cluster_config: ClusterConfiguration {
-				threads: 1,
-				listener_address: NodeAddress {
-					address: "0.0.0.0".to_owned(),
-					port: 8083,
-				},
-				nodes: BTreeMap::new(),
-				allow_connecting_to_higher_nodes: false,
-				admin_public: None,
-				auto_migrate_enabled: false,
-			},
-		};
 
 		let key1 = ServerKeyId::from(1);
 		let value1 = DocumentKeyShare {
@@ -526,7 +500,9 @@ pub mod tests {
 		};
 		let key3 = ServerKeyId::from(3);
 
-		let key_storage = PersistentKeyStorage::new(&config).unwrap();
+		let db = Database::open_default(&tempdir.path().display().to_string()).unwrap();
+
+		let key_storage = PersistentKeyStorage::new(Arc::new(db)).unwrap();
 		key_storage.insert(key1.clone(), value1.clone()).unwrap();
 		key_storage.insert(key2.clone(), value2.clone()).unwrap();
 		assert_eq!(key_storage.get(&key1), Ok(Some(value1.clone())));
@@ -534,7 +510,9 @@ pub mod tests {
 		assert_eq!(key_storage.get(&key3), Ok(None));
 		drop(key_storage);
 
-		let key_storage = PersistentKeyStorage::new(&config).unwrap();
+		let db = Database::open_default(&tempdir.path().display().to_string()).unwrap();
+
+		let key_storage = PersistentKeyStorage::new(Arc::new(db)).unwrap();
 		assert_eq!(key_storage.get(&key1), Ok(Some(value1)));
 		assert_eq!(key_storage.get(&key2), Ok(Some(value2)));
 		assert_eq!(key_storage.get(&key3), Ok(None));
@@ -563,7 +541,7 @@ pub mod tests {
 		}
 
 		// upgrade database
-		let db = upgrade_db(db).unwrap();
+		let db = upgrade_db(Arc::new(db)).unwrap();
 
 		// check upgrade
 		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
@@ -606,7 +584,7 @@ pub mod tests {
 		}
 
 		// upgrade database
-		let db = upgrade_db(db).unwrap();
+		let db = upgrade_db(Arc::new(db)).unwrap();
 
 		// check upgrade
 		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
@@ -654,7 +632,7 @@ pub mod tests {
 		}
 
 		// upgrade database
-		let db = upgrade_db(db).unwrap();
+		let db = upgrade_db(Arc::new(db)).unwrap();
 
 		// check upgrade
 		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
