@@ -80,6 +80,7 @@ linux-i686:
     paths:
       - parity.zip
     name: "i686-unknown-linux-gnu"
+  allow_failure: true
 linux-armv7:
   stage: build
   image: parity/rust-armv7:gitlab-ci
@@ -96,6 +97,7 @@ linux-armv7:
     paths:
     - parity.zip
     name: "armv7_unknown_linux_gnueabihf_parity"
+  allow_failure: true
 linux-arm:
   stage: build
   image: parity/rust-arm:gitlab-ci
@@ -112,6 +114,7 @@ linux-arm:
     paths:
     - parity.zip
     name: "arm-unknown-linux-gnueabihf_parity"
+  allow_failure: true
 linux-aarch64:
   stage: build
   image: parity/rust-arm64:gitlab-ci
