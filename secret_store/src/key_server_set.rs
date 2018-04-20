@@ -17,6 +17,7 @@
 use std::sync::Arc;
 use std::net::SocketAddr;
 use std::collections::{BTreeMap, HashSet};
+use std::time::Duration;
 use parking_lot::Mutex;
 use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify, CallContract, RegistryInfo};
 use ethcore::filter::Filter;
@@ -162,7 +163,7 @@ impl KeyServerSet for OnChainKeyServerSet {
 }
 
 impl ChainNotify for OnChainKeyServerSet {
-	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, enacted: Vec<H256>, retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
+	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, enacted: Vec<H256>, retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
 		if !enacted.is_empty() || !retracted.is_empty() {
 			self.contract.lock().update(enacted, retracted)
 		}

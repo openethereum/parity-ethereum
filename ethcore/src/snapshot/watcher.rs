@@ -24,7 +24,7 @@ use io::IoChannel;
 use ethereum_types::H256;
 use bytes::Bytes;
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 // helper trait for transforming hashes to numbers and checking if syncing.
 trait Oracle: Send + Sync {
@@ -107,7 +107,7 @@ impl ChainNotify for Watcher {
 		_: Vec<H256>,
 		_: Vec<H256>,
 		_: Vec<Bytes>,
-		_duration: u64)
+		_duration: Duration)
 	{
 		if self.oracle.is_major_importing() { return }
 
@@ -136,6 +136,7 @@ mod tests {
 	use ethereum_types::{H256, U256};
 
 	use std::collections::HashMap;
+	use std::time::Duration;
 
 	struct TestOracle(HashMap<H256, u64>);
 
@@ -158,6 +159,8 @@ mod tests {
 
 	// helper harness for tests which expect a notification.
 	fn harness(numbers: Vec<u64>, period: u64, history: u64, expected: Option<u64>) {
+		const DURATION_ZERO: Duration = Duration::from_millis(0);
+
 		let hashes: Vec<_> = numbers.clone().into_iter().map(|x| H256::from(U256::from(x))).collect();
 		let map = hashes.clone().into_iter().zip(numbers).collect();
 
@@ -175,7 +178,7 @@ mod tests {
 			vec![],
 			vec![],
 			vec![],
-			0,
+			DURATION_ZERO,
 		);
 	}
 
