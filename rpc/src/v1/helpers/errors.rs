@@ -376,11 +376,11 @@ pub fn call(error: CallError) -> Error {
 	}
 }
 
-pub fn vm(error: VMError, output: &[u8]) -> Error {
+pub fn vm(error: &VMError, output: &[u8]) -> Error {
 	use rustc_hex::ToHex;
 
 	let data = match error {
-		VMError::Reverted => format!("{} 0x{}", VMError::Reverted, output.to_hex()),
+		&VMError::Reverted => format!("{} 0x{}", VMError::Reverted, output.to_hex()),
 		error => format!("{}", error),
 	};
 
