@@ -857,6 +857,76 @@ fn test_shl(factory: super::Factory) {
 		"fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe");
 }
 
+evm_test!{test_shr: test_shr_int}
+fn test_shr(factory: super::Factory) {
+	push_two_pop_one_constantinople_test(
+		&factory,
+		0x1c,
+		"0000000000000000000000000000000000000000000000000000000000000001",
+		"00",
+		"0000000000000000000000000000000000000000000000000000000000000001");
+	push_two_pop_one_constantinople_test(
+		&factory,
+		0x1c,
+		"0000000000000000000000000000000000000000000000000000000000000001",
+		"01",
+		"0000000000000000000000000000000000000000000000000000000000000000");
+	push_two_pop_one_constantinople_test(
+		&factory,
+		0x1c,
+		"8000000000000000000000000000000000000000000000000000000000000000",
+		"01",
+		"4000000000000000000000000000000000000000000000000000000000000000");
+	push_two_pop_one_constantinople_test(
+		&factory,
+		0x1c,
+		"8000000000000000000000000000000000000000000000000000000000000000",
+		"ff",
+		"0000000000000000000000000000000000000000000000000000000000000001");
+	push_two_pop_one_constantinople_test(
+		&factory,
+		0x1c,
+		"8000000000000000000000000000000000000000000000000000000000000000",
+		"0100",
+		"0000000000000000000000000000000000000000000000000000000000000000");
+	push_two_pop_one_constantinople_test(
+		&factory,
+		0x1c,
+		"8000000000000000000000000000000000000000000000000000000000000000",
+		"0101",
+		"0000000000000000000000000000000000000000000000000000000000000000");
+	push_two_pop_one_constantinople_test(
+		&factory,
+		0x1c,
+		"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		"00",
+		"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+	push_two_pop_one_constantinople_test(
+		&factory,
+		0x1c,
+		"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		"01",
+		"7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+	push_two_pop_one_constantinople_test(
+		&factory,
+		0x1c,
+		"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		"ff",
+		"0000000000000000000000000000000000000000000000000000000000000001");
+	push_two_pop_one_constantinople_test(
+		&factory,
+		0x1c,
+		"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		"0100",
+		"0000000000000000000000000000000000000000000000000000000000000000");
+	push_two_pop_one_constantinople_test(
+		&factory,
+		0x1c,
+		"0000000000000000000000000000000000000000000000000000000000000000",
+		"01",
+		"0000000000000000000000000000000000000000000000000000000000000000");
+}
+
 fn push_two_pop_one_constantinople_test(factory: &super::Factory, opcode: u8, push1: &str, push2: &str, result: &str) {
 	let mut push1 = push1.from_hex().unwrap();
 	let mut push2 = push2.from_hex().unwrap();
