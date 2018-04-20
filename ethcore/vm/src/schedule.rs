@@ -253,6 +253,13 @@ impl Schedule {
 		schedule
 	}
 
+	/// Schedule for the Constantinople fork of the Ethereum main net.
+	pub fn new_constantinople() -> Schedule {
+		let mut schedule = Self::new_byzantium();
+		schedule.have_bitwise_shifting = true;
+		schedule
+	}
+
 	fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
 		Schedule {
 			exceptional_failed_code_deposit: efcd,

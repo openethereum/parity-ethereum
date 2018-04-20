@@ -872,6 +872,19 @@ impl<Cost: CostType> Interpreter<Cost> {
 					});
 				}
 			},
+			instructions::SHL => {
+				const CONST_256: U256 = U256([256, 0, 0, 0]);
+
+				let shift = stack.pop_back();
+				let value = stack.pop_back();
+
+				let result = if shift >= CONST_256 {
+					U256::zero()
+				} else {
+					value << (shift.as_u32() as usize)
+				};
+				stack.push(result);
+			},
 			_ => {
 				return Err(vm::Error::BadInstruction {
 					instruction: instruction
