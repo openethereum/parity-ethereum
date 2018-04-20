@@ -58,13 +58,13 @@ fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
 pub enum IrregularStateChangeAccount {
 	/// Force setting values on an account.
 	Set {
-		/// New nonce forced setting.
+		/// New nonce forced setting. None means not touching the nonce.
 		nonce: Option<U256>,
-		/// New code forced setting.
+		/// New code forced setting. None means not touching the code.
 		code: Option<Bytes>,
-		/// New balance forced setting.
+		/// New balance forced setting. None means not touching the balance.
 		balance: Option<U256>,
-		/// Storage values forced setting.
+		/// Storage values forced setting. Only values in the list will be set.
 		storage: Vec<(H256, H256)>,
 	}
 }
@@ -156,8 +156,8 @@ pub struct CommonParams {
 	pub max_code_size_transition: BlockNumber,
 	/// Transaction permission managing contract address.
 	pub transaction_permission_contract: Option<Address>,
-	/// Irregular state change list.
-	pub irregular_state_changes: HashMap<u64, Vec<(Address, IrregularStateChangeAccount)>>,
+	/// Irregular state change list, applied at the very beginning of the block.
+	pub irregular_state_changes: HashMap<BlockNumber, Vec<(Address, IrregularStateChangeAccount)>>,
 }
 
 impl CommonParams {
@@ -279,7 +279,13 @@ impl From<ethjson::spec::Params> for CommonParams {
 				BlockNumber::max_value(),
 				Into::into
 			),
-			irregular_state_changes: p.irregular_state_changes.unwrap_or_else(HashMap::new).into_iter().map(|(k, v)| (k.into(), v.into_iter().map(|(k, v)| (k.into(), v.into())).collect())).collect(),
+			irregular_state_changes: p.irregular_state_changes
+				.unwrap_or_else(HashMap::new)
+				.into_iter()
+				.map(|(k, v)| (
+					k.into(),
+					v.into_iter().map(|(k, v)| (k.into(), v.into())).collect()
+				)).collect(),
 		}
 	}
 }

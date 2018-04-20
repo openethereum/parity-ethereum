@@ -28,19 +28,12 @@ pub enum IrregularStateChangeAccount {
 	#[serde(rename="set")]
 	Set {
 		/// See main CommonParams docs.
-		#[serde(rename="nonce")]
 		nonce: Option<Uint>,
-
 		/// See main CommonParams docs.
-		#[serde(rename="code")]
 		code: Option<Bytes>,
-
 		/// See main CommonParams docs.
-		#[serde(rename="balance")]
 		balance: Option<Uint>,
-
-		/// See main CommonParams docs.
-		#[serde(rename="storage")]
+		/// See main CommonParams docs. Only values in the map will be set.
 		storage: Option<HashMap<H256, H256>>,
 	}
 }

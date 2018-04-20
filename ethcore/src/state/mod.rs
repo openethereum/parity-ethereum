@@ -653,8 +653,8 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Directly set the balance of account `a`.
-	pub fn set_balance(&mut self, a: &Address, bala: &U256) -> trie::Result<()> {
-		self.require(a, false)?.set_balance(bala);
+	pub fn set_balance(&mut self, a: &Address, balance: &U256) -> trie::Result<()> {
+		self.require(a, false)?.set_balance(balance);
 		Ok(())
 	}
 
