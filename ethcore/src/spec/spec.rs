@@ -848,6 +848,13 @@ impl Spec {
 		load_bundled!("authority_round_empty_steps")
 	}
 
+	/// Create a new Spec with AuthorityRound consensus (with empty steps) using a block reward
+	/// contract. The contract source code can be found at:
+	/// https://github.com/parity-contracts/block-reward/blob/daf7d44383b6cdb11cb6b953b018648e2b027cfb/contracts/ExampleBlockReward.sol
+	pub fn new_test_round_block_reward_contract() -> Self {
+		load_bundled!("authority_round_block_reward_contract")
+	}
+
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring
 	/// work).
 	/// Account keccak("0") and keccak("1") are a authorities.
