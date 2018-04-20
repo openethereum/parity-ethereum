@@ -306,11 +306,6 @@ impl Provider where {
 	/// Retrieve and verify the first available private transaction for every sender
 	///
 	/// TODO [ToDr] It seems that:
-	/// 1. This method will fail on any error without removing invalid transaction.
-	/// 2. It means that the transaction will be stuck there forever and we will never be able to make any progress.
-	///
-	/// It might be more sensible to `drain()` transactions from the queue instead and process all of them,
-	/// possibly printing some errors in case of failures.
 	/// The 3 methods `ready_transaction,get_descriptor,remove` are always used in conjuction so most likely
 	/// can be replaced with a single `drain()` method instead.
 	/// Thanks to this we also don't really need to lock the entire verification for the time of execution.
@@ -339,13 +334,11 @@ impl Provider where {
 						trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
 						self.broadcast_signed_private_transaction(signed_private_transaction.rlp_bytes().into_vec());
 					} else {
-						trace!("Incorrect type of action for the transaction");
-						bail!(ErrorKind::BadTransactonType);
+						warn!("Incorrect type of action for the transaction");
 					}
 				},
 				Err(e) => {
-					trace!("Cannot retrieve descriptor for transaction with error {:?}", e);
-					bail!(e);
+					warn!("Cannot retrieve descriptor for transaction with error {:?}", e);
 				}
 			}
 			verification_queue.remove_private_transaction(&transaction_hash);

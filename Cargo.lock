@@ -858,6 +858,7 @@ dependencies = [
  "ethcore-light 1.11.0",
  "ethcore-network 1.11.0",
  "ethcore-network-devp2p 1.11.0",
+ "ethcore-private-tx 1.0.0",
  "ethcore-transaction 0.1.0",
  "ethereum-types 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
