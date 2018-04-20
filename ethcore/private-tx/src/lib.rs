@@ -334,11 +334,11 @@ impl Provider where {
 						trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
 						self.broadcast_signed_private_transaction(signed_private_transaction.rlp_bytes().into_vec());
 					} else {
-						trace!("Incorrect type of action for the transaction");
+						warn!("Incorrect type of action for the transaction");
 					}
 				},
 				Err(e) => {
-					trace!("Cannot retrieve descriptor for transaction with error {:?}", e);
+					warn!("Cannot retrieve descriptor for transaction with error {:?}", e);
 				}
 			}
 			verification_queue.remove_private_transaction(&transaction_hash);
