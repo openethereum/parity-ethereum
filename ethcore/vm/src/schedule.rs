@@ -109,6 +109,8 @@ pub struct Schedule {
 	pub have_static_call: bool,
 	/// RETURNDATA and RETURNDATASIZE opcodes enabled.
 	pub have_return_data: bool,
+	/// SHL, SHR, SAR opcodes enabled.
+	pub have_bitwise_shifting: bool,
 	/// Kill basic accounts below this balance if touched.
 	pub kill_dust: CleanDustMode,
 	/// Enable EIP-86 rules
@@ -194,6 +196,7 @@ impl Schedule {
 			have_create2: false,
 			have_revert: false,
 			have_return_data: false,
+			have_bitwise_shifting: false,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -257,6 +260,7 @@ impl Schedule {
 			have_create2: false,
 			have_revert: false,
 			have_return_data: false,
+			have_bitwise_shifting: false,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -328,4 +332,3 @@ fn schedule_evm_assumptions() {
 	assert_eq!(s1.quad_coeff_div, 512);
 	assert_eq!(s2.quad_coeff_div, 512);
 }
-

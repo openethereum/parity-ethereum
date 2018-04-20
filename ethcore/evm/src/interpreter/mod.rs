@@ -224,7 +224,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 			(instruction == instructions::CREATE2 && !schedule.have_create2) ||
 			(instruction == instructions::STATICCALL && !schedule.have_static_call) ||
 			((instruction == instructions::RETURNDATACOPY || instruction == instructions::RETURNDATASIZE) && !schedule.have_return_data) ||
-			(instruction == instructions::REVERT && !schedule.have_revert) {
+			(instruction == instructions::REVERT && !schedule.have_revert) ||
+			((instruction == instructions::SHL || instruction == instructions::SHR || instruction == instructions::SAR) && !schedule.have_bitwise_shifting) {
 
 			return Err(vm::Error::BadInstruction {
 				instruction: instruction
