@@ -27,6 +27,8 @@ use account_provider::AccountProvider;
 use block::*;
 use client::EngineClient;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
+use engines::block_reward;
+use engines::block_reward::{BlockRewardContract, RewardKind};
 use error::{Error, BlockError};
 use ethjson;
 use machine::{AuxiliaryData, Call, EthereumMachine};
@@ -68,6 +70,10 @@ pub struct AuthorityRoundParams {
 	pub immediate_transitions: bool,
 	/// Block reward in base units.
 	pub block_reward: U256,
+	/// Block reward contract transition block.
+	pub block_reward_contract_transition: u64,
+	/// Block reward contract.
+	pub block_reward_contract: Option<BlockRewardContract>,
 	/// Number of accepted uncles transition block.
 	pub maximum_uncle_count_transition: u64,
 	/// Number of accepted uncles.
@@ -95,6 +101,8 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			validate_step_transition: p.validate_step_transition.map_or(0, Into::into),
 			immediate_transitions: p.immediate_transitions.unwrap_or(false),
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
+			block_reward_contract_transition: p.block_reward_contract_transition.map_or(0, Into::into),
+			block_reward_contract: p.block_reward_contract_address.map(BlockRewardContract::new),
 			maximum_uncle_count_transition: p.maximum_uncle_count_transition.map_or(0, Into::into),
 			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
 			empty_steps_transition: p.empty_steps_transition.map_or(u64::max_value(), |n| ::std::cmp::max(n.into(), 1)),
@@ -388,6 +396,8 @@ pub struct AuthorityRound {
 	epoch_manager: Mutex<EpochManager>,
 	immediate_transitions: bool,
 	block_reward: U256,
+	block_reward_contract_transition: u64,
+	block_reward_contract: Option<BlockRewardContract>,
 	maximum_uncle_count_transition: u64,
 	maximum_uncle_count: usize,
 	empty_steps_transition: u64,
@@ -620,6 +630,8 @@ impl AuthorityRound {
 				epoch_manager: Mutex::new(EpochManager::blank()),
 				immediate_transitions: our_params.immediate_transitions,
 				block_reward: our_params.block_reward,
+				block_reward_contract_transition: our_params.block_reward_contract_transition,
+				block_reward_contract: our_params.block_reward_contract,
 				maximum_uncle_count_transition: our_params.maximum_uncle_count_transition,
 				maximum_uncle_count: our_params.maximum_uncle_count,
 				empty_steps_transition: our_params.empty_steps_transition,
@@ -970,9 +982,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		use parity_machine::WithBalances;
-
-		let mut rewards = Vec::new();
+		let mut benefactors = Vec::new();
 		if block.header().number() >= self.empty_steps_transition {
 			let empty_steps = if block.header().seal().is_empty() {
 				// this is a new block, calculate rewards based on the empty steps messages we have accumulated
@@ -998,17 +1008,33 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 			for empty_step in empty_steps {
 				let author = empty_step.author()?;
-				rewards.push((author, self.block_reward));
+				benefactors.push((author, RewardKind::EmptyStep));
 			}
 		}
 
 		let author = *block.header().author();
-		rewards.push((author, self.block_reward));
+		benefactors.push((author, RewardKind::Author));
 
-		for &(ref author, ref block_reward) in rewards.iter() {
-			self.machine.add_balance(block, author, block_reward)?;
-		}
-		self.machine.note_rewards(block, &rewards, &[])
+		let rewards = match self.block_reward_contract {
+			Some(ref c) if block.header().number() >= self.block_reward_contract_transition => {
+				let mut call = |to, data| {
+					let result = self.machine.execute_as_system(
+						block,
+						to,
+						U256::max_value(), // unbounded gas? maybe make configurable.
+						Some(data),
+					);
+					result.map_err(|e| format!("{}", e))
+				};
+
+				c.reward(&benefactors, &mut call)?
+			},
+			_ => {
+				benefactors.into_iter().map(|(author, _)| (author, self.block_reward)).collect()
+			},
+		};
+
+		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
 
 	/// Check the number of seal fields.
@@ -1521,6 +1547,8 @@ mod tests {
 			empty_steps_transition: u64::max_value(),
 			maximum_empty_steps: 0,
 			block_reward: Default::default(),
+			block_reward_contract_transition: 0,
+			block_reward_contract: Default::default(),
 		};
 
 		let aura = {
@@ -1563,6 +1591,8 @@ mod tests {
 			empty_steps_transition: u64::max_value(),
 			maximum_empty_steps: 0,
 			block_reward: Default::default(),
+			block_reward_contract_transition: 0,
+			block_reward_contract: Default::default(),
 		};
 
 		let aura = {
@@ -1617,6 +1647,8 @@ mod tests {
 			empty_steps_transition: u64::max_value(),
 			maximum_empty_steps: 0,
 			block_reward: Default::default(),
+			block_reward_contract_transition: 0,
+			block_reward_contract: Default::default(),
 		};
 
 		let mut c_params = ::spec::CommonParams::default();
@@ -1893,5 +1925,72 @@ mod tests {
 			Ok(_) => true,
 			_ => false,
 		});
+	}
+
+	#[test]
+	fn block_reward_contract() {
+		let spec = Spec::new_test_round_block_reward_contract();
+		let tap = Arc::new(AccountProvider::transient_provider());
+
+		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
+
+		let engine = &*spec.engine;
+		let genesis_header = spec.genesis_header();
+		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+
+		let last_hashes = Arc::new(vec![genesis_header.hash()]);
+
+		let client = generate_dummy_client_with_spec_and_accounts(
+			Spec::new_test_round_block_reward_contract,
+			None,
+		);
+		engine.register_client(Arc::downgrade(&client) as _);
+
+		// step 2
+		let b1 = OpenBlock::new(
+			engine,
+			Default::default(),
+			false,
+			db1,
+			&genesis_header,
+			last_hashes.clone(),
+			addr1,
+			(3141562.into(), 31415620.into()),
+			vec![],
+			false,
+		).unwrap();
+		let b1 = b1.close_and_lock();
+
+		// since the block is empty it isn't sealed and we generate empty steps
+		engine.set_signer(tap.clone(), addr1, "1".into());
+		assert_eq!(engine.generate_seal(b1.block(), &genesis_header), Seal::None);
+		engine.step();
+
+		// step 3
+		// the signer of the accumulated empty step message should be rewarded
+		let b2 = OpenBlock::new(
+			engine,
+			Default::default(),
+			false,
+			db2,
+			&genesis_header,
+			last_hashes.clone(),
+			addr1,
+			(3141562.into(), 31415620.into()),
+			vec![],
+			false,
+		).unwrap();
+		let addr1_balance = b2.block().state().balance(&addr1).unwrap();
+
+		// after closing the block `addr1` should be reward twice, one for the included empty step
+		// message and another for block creation
+		let b2 = b2.close_and_lock();
+
+		// the contract rewards (1000 + kind) for each benefactor/reward kind
+		assert_eq!(
+			b2.block().state().balance(&addr1).unwrap(),
+			addr1_balance + (1000 + 0).into() + (1000 + 2).into(),
+		)
 	}
 }
