@@ -74,7 +74,7 @@ ethcore-secretstore = { path = "secret_store", optional = true }
 registrar = { path = "registrar" }
 
 [build-dependencies]
-rustc_version = "0.2"
+rustc_version = "1.24"
 
 [dev-dependencies]
 pretty_assertions = "0.1"
