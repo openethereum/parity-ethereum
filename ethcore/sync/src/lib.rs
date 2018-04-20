@@ -46,6 +46,7 @@ extern crate ethcore_light as light;
 #[cfg(test)] extern crate ethkey;
 #[cfg(test)] extern crate kvdb_memorydb;
 #[cfg(test)] extern crate rustc_hex;
+#[cfg(test)] extern crate ethcore_private_tx;
 
 #[macro_use]
 extern crate macros;

@@ -33,7 +33,7 @@ use io::{IoChannel, IoContext, IoHandler};
 use api::WARP_SYNC_PROTOCOL_ID;
 use chain::{ChainSync, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3};
 use SyncConfig;
-use private_tx::{NoopPrivateTxHandler, PrivateTxHandler, SimplePrivateTxHandler};
+use private_tx::SimplePrivateTxHandler;
 
 pub trait FlushingBlockChainClient: BlockChainClient {
 	fn flush(&self) {}
@@ -210,7 +210,7 @@ pub struct EthPeer<C> where C: FlushingBlockChainClient {
 	pub snapshot_service: Arc<TestSnapshotService>,
 	pub sync: RwLock<ChainSync>,
 	pub queue: RwLock<VecDeque<TestPacket>>,
-	pub private_tx_handler: Arc<PrivateTxHandler>,
+	pub private_tx_handler: Arc<SimplePrivateTxHandler>,
 	pub io_queue: RwLock<VecDeque<ChainMessageType>>,
 	new_blocks_queue: RwLock<VecDeque<NewBlockMessage>>,
 }
@@ -335,7 +335,7 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 		for _ in 0..n {
 			let chain = TestBlockChainClient::new();
 			let ss = Arc::new(TestSnapshotService::new());
-			let private_tx_handler = Arc::new(NoopPrivateTxHandler);
+			let private_tx_handler = Arc::new(SimplePrivateTxHandler::default());
 			let sync = ChainSync::new(config.clone(), &chain, private_tx_handler.clone());
 			net.peers.push(Arc::new(EthPeer {
 				sync: RwLock::new(sync),
@@ -362,8 +362,7 @@ impl TestNet<EthPeer<EthcoreClient>> {
 		n: usize,
 		config: SyncConfig,
 		spec_factory: F,
-		accounts: Option<Arc<AccountProvider>>,
-		private_tx_handler: bool,
+		accounts: Option<Arc<AccountProvider>>
 	) -> Self
 		where F: Fn() -> Spec
 	{
@@ -373,11 +372,7 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			disconnect_events: Vec::new(),
 		};
 		for _ in 0..n {
-			if private_tx_handler {
-				net.add_peer_with_private_config(config.clone(), spec_factory(), accounts.clone());
-			} else {
-				net.add_peer(config.clone(), spec_factory(), accounts.clone());
-			}
+			net.add_peer_with_private_config(config.clone(), spec_factory(), accounts.clone());
 		}
 		net
 	}
@@ -408,33 +403,6 @@ impl TestNet<EthPeer<EthcoreClient>> {
 		});
 		peer.chain.add_notify(peer.clone());
 		//private_provider.add_notify(peer.clone());
-		self.peers.push(peer);
-	}
-
-	pub fn add_peer(&mut self, config: SyncConfig, spec: Spec, accounts: Option<Arc<AccountProvider>>) {
-		let miner = Arc::new(Miner::new_for_tests(&spec, accounts));
-		let client = EthcoreClient::new(
-			ClientConfig::default(),
-			&spec,
-			Arc::new(::kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
-			miner.clone(),
-			IoChannel::disconnected(),
-		).unwrap();
-
-		let ss = Arc::new(TestSnapshotService::new());
-		let private_tx_handler = Arc::new(NoopPrivateTxHandler);
-		let sync = ChainSync::new(config, &*client, private_tx_handler.clone());
-		let peer = Arc::new(EthPeer {
-			sync: RwLock::new(sync),
-			snapshot_service: ss,
-			queue: RwLock::new(VecDeque::new()),
-			chain: client,
-			miner,
-			private_tx_handler,
-			io_queue: RwLock::new(VecDeque::new()),
-			new_blocks_queue: RwLock::new(VecDeque::new()),
-		});
-		peer.chain.add_notify(peer.clone());
 		self.peers.push(peer);
 	}
 }
