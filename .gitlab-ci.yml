@@ -13,7 +13,7 @@ cache:
   paths:
     - target/
   untracked: true
-linux-stable:
+linux-ubuntu:
   stage: build
   image: parity/rust:gitlab-ci
   only:
@@ -31,7 +31,7 @@ linux-stable:
     paths:
     - parity.zip
     name: "stable-x86_64-unknown-linux-gnu_parity"
-linux-stable-debian:
+linux-debian:
   stage: build
   image: parity/rust-debian:gitlab-ci
   only:
