@@ -103,6 +103,8 @@ pub struct CommonParams {
 	pub eip211_transition: BlockNumber,
 	/// Number of first block where EIP-214 rules begin.
 	pub eip214_transition: BlockNumber,
+	/// Number of first block where EIP-145 rules begin.
+	pub eip145_transition: BlockNumber,
 	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
 	pub dust_protection_transition: BlockNumber,
 	/// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
@@ -148,6 +150,7 @@ impl CommonParams {
 		schedule.have_revert = block_number >= self.eip140_transition;
 		schedule.have_static_call = block_number >= self.eip214_transition;
 		schedule.have_return_data = block_number >= self.eip211_transition;
+		schedule.have_bitwise_shifting = block_number >= self.eip145_transition;
 		if block_number >= self.eip210_transition {
 			schedule.blockhash_gas = 800;
 		}
@@ -217,6 +220,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 			),
 			eip210_contract_gas: p.eip210_contract_gas.map_or(1000000.into(), Into::into),
 			eip211_transition: p.eip211_transition.map_or(
+				BlockNumber::max_value(),
+				Into::into,
+			),
+			eip145_transition: p.eip145_transition.map_or(
 				BlockNumber::max_value(),
 				Into::into,
 			),
