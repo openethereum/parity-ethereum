@@ -939,7 +939,22 @@ impl BlockChain {
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
-	pub fn insert_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, extras: ExtrasInsert) -> ImportRoute {
+	pub fn insert_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, extras:ExtrasInsert) -> ImportRoute {
+		let block = view!(BlockView, bytes);
+		let header = block.header_view();
+
+		let parent_hash = header.parent_hash();
+		let best_hash = self.best_block_hash();
+
+		let route = self.tree_route(best_hash, parent_hash).expect("blocks being imported always within recent history; qed");
+
+		self.insert_block_with_route(batch, bytes, receipts, route, extras)
+	}
+
+	/// Inserts the block into backing cache database with already generated route information.
+	/// Expects the block to be valid and already verified and route is tree route information from current best block to new block's parent.
+	/// If the block is already known, does nothing.
+	pub fn insert_block_with_route(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, route: TreeRoute, extras: ExtrasInsert) -> ImportRoute {
 		// create views onto rlp
 		let block = view!(BlockView, bytes);
 		let header = block.header_view();
@@ -958,7 +973,7 @@ impl BlockChain {
 		batch.put(db::COL_HEADERS, &hash, &compressed_header);
 		batch.put(db::COL_BODIES, &hash, &compressed_body);
 
-		let info = self.block_info(&header, &extras);
+		let info = self.block_info(&header, route, &extras);
 
 		if let BlockLocation::BranchBecomingCanonChain(ref d) = info.location {
 			info!(target: "reorg", "Reorg to {} ({} {} {})",
@@ -983,7 +998,7 @@ impl BlockChain {
 	}
 
 	/// Get inserted block info which is critical to prepare extras updates.
-	fn block_info(&self, header: &HeaderView, extras: &ExtrasInsert) -> BlockInfo {
+	fn block_info(&self, header: &HeaderView, route: TreeRoute, extras: &ExtrasInsert) -> BlockInfo {
 		let hash = header.hash();
 		let number = header.number();
 		let parent_hash = header.parent_hash();
@@ -993,23 +1008,11 @@ impl BlockChain {
 			hash: hash,
 			number: number,
 			total_difficulty: parent_details.total_difficulty + header.difficulty(),
-			location: if extras.primitive_fork_choice == ForkChoice::New {
-				// The primitive fork choice does not mean we accept it as
-				// the new best block. It still needs to be checked by
-				// finalization rules.
-				//
-				// On new best block we need to make sure that all ancestors
-				// are moved to "canon chain"
-				// find the route between old best block and the new one
-				let best_hash = self.best_block_hash();
-				let route = self.tree_route(best_hash, parent_hash)
-					.expect("blocks being imported always within recent history; qed");
-
-				assert_eq!(number, parent_details.number + 1);
-
-				if route.is_from_route_finalized {
-					BlockLocation::Branch
-				} else {
+			location: match extras.fork_choice {
+				ForkChoice::New => {
+					// On new best block we need to make sure that all ancestors
+					// are moved to "canon chain"
+					// find the route between old best block and the new one
 					match route.blocks.len() {
 						0 => BlockLocation::CanonChain,
 						_ => {
@@ -1022,9 +1025,8 @@ impl BlockChain {
 							})
 						}
 					}
-				}
-			} else {
-				BlockLocation::Branch
+				},
+				ForkChoice::Old => BlockLocation::Branch,
 			},
 		}
 	}
@@ -1545,14 +1547,14 @@ mod tests {
 		let parent_hash = header.parent_hash();
 		let parent_details = bc.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 		let block_total_difficulty = parent_details.total_difficulty + header.difficulty();
-		let primitive_fork_choice = if block_total_difficulty > bc.best_block_total_difficulty() {
+		let fork_choice = if block_total_difficulty > bc.best_block_total_difficulty() {
 			::engines::ForkChoice::New
 		} else {
 			::engines::ForkChoice::Old
 		};
 
 		bc.insert_block(batch, bytes, receipts, ExtrasInsert {
-			primitive_fork_choice: primitive_fork_choice,
+			fork_choice: fork_choice,
 			is_finalized: false,
 			metadata: None
 		})

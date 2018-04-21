@@ -48,7 +48,7 @@ use client::{
 	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType
 };
 use encoded;
-use engines::{EthEngine, EpochTransition};
+use engines::{EthEngine, EpochTransition, FinalizationInfo};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use vm::{EnvInfo, LastHashes};
 use evm::Schedule;
@@ -532,6 +532,7 @@ impl Importer {
 
 		let ancestry_actions = self.engine.ancestry_actions(block.block(), &mut chain.ancestry_with_metadata_iter(*parent));
 
+		let best_hash = chain.best_block_hash();
 		let metadata = block.block().metadata().map(Into::into);
 		let is_finalized = block.block().is_finalized();
 
@@ -543,7 +544,7 @@ impl Importer {
 		};
 
 		let best = {
-			let hash = chain.best_block_hash();
+			let hash = best_hash;
 			let header = chain.block_header_data(&hash)
 				.expect("Best block is in the database; qed").decode();
 			let details = chain.block_details(&hash)
@@ -558,7 +559,11 @@ impl Importer {
 			}
 		};
 
-		let primitive_fork_choice = self.engine.primitive_fork_choice(&new, &best);
+		let route = chain.tree_route(best_hash, *parent).expect("blocks being imported always within recent history; qed");
+		let fork_choice = self.engine.fork_choice(&new, &best, FinalizationInfo {
+			is_old_route_finalized: route.is_from_route_finalized,
+			is_new_parent_route_finalized: route.is_to_route_finalized,
+		});
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
@@ -585,7 +590,7 @@ impl Importer {
 		}
 
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
-			primitive_fork_choice: primitive_fork_choice,
+			fork_choice: fork_choice,
 			is_finalized: is_finalized,
 			metadata: new.metadata,
 		});
@@ -2318,7 +2323,7 @@ mod tests {
 			thread::spawn(move || {
 				let mut batch = DBTransaction::new();
 				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new(), ExtrasInsert {
-					primitive_fork_choice: ::engines::ForkChoice::New,
+					fork_choice: ::engines::ForkChoice::New,
 					is_finalized: false,
 					metadata: None,
 				});

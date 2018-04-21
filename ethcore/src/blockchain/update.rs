@@ -26,7 +26,7 @@ pub struct ExtrasUpdate<'a> {
 /// Extra information in block insertion.
 pub struct ExtrasInsert {
 	/// The primitive fork choice before applying finalization rules.
-	pub primitive_fork_choice: ::engines::ForkChoice,
+	pub fork_choice: ::engines::ForkChoice,
 	/// Is the inserted block considered finalized.
 	pub is_finalized: bool,
 	/// New block local metadata.

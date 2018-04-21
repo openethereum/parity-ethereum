@@ -70,6 +70,15 @@ pub enum ForkChoice {
 	Old,
 }
 
+/// Finalization related information.
+#[derive(Debug, PartialEq, Eq)]
+pub struct FinalizationInfo {
+	/// Whether the route from current best block to common ancestor is finalized.
+	pub is_old_route_finalized: bool,
+	/// Whether the route from new block's parent to common ancestor is finalized.
+	pub is_new_parent_route_finalized: bool,
+}
+
 /// Voting errors.
 #[derive(Debug)]
 pub enum EngineError {
@@ -356,13 +365,8 @@ pub trait Engine<M: Machine>: Sync + Send {
 		Vec::new()
 	}
 
-	/// Check whether the given new block is the best block. The client will first use this function to determine the
-	/// primitive fork choice rules, and then check on the finalization rules, which might overwrite the primitive fork
-	/// choice. This function works for Casper-like finality check, but may not work well for some types of instant
-	/// finality.
-	///
-	/// If finalization rules do not exist. Primitive fork choice is the final fork choice.
-	fn primitive_fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> ForkChoice;
+	/// Check whether the given new block is the best block.
+	fn fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader, finalization: FinalizationInfo) -> ForkChoice;
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.

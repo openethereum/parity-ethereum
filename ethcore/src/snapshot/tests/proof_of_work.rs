@@ -50,7 +50,7 @@ fn chunk_and_restore(amount: u64) {
 	let mut batch = DBTransaction::new();
 	for block in generator {
 		bc.insert_block(&mut batch, &block.encoded(), vec![], ExtrasInsert {
-			primitive_fork_choice: ::engines::ForkChoice::New,
+			fork_choice: ::engines::ForkChoice::New,
 			is_finalized: false,
 			metadata: None,
 		});
