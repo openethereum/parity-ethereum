@@ -12,4 +12,4 @@ libc = "0.2"
 pwasm-utils = "0.1"
 vm = { path = "../vm" }
 ethcore-logger = { path = "../../logger" }
-wasmi = { version = "0.1.2", features = ["opt-in-32bit"] }
+wasmi = { version = "0.1.3", features = ["opt-in-32bit"] }
