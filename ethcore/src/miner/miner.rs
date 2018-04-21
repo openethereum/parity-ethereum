@@ -21,7 +21,7 @@ use std::sync::Arc;
 use ansi_term::Colour;
 use bytes::Bytes;
 use engines::{EthEngine, Seal};
-use error::{Error, ExecutionError};
+use error::{Error, ErrorKind, ExecutionError};
 use ethcore_miner::gas_pricer::GasPricer;
 use ethcore_miner::pool::{self, TransactionQueue, VerifiedTransaction, QueueStatus, PrioritizationStrategy};
 use ethcore_miner::work_notify::NotifyWork;
@@ -393,7 +393,7 @@ impl Miner {
 
 			// Re-verify transaction again vs current state.
 			let result = client.verify_signed(&transaction)
-				.map_err(Error::Transaction)
+				.map_err(|e| e.into())
 				.and_then(|_| {
 					open_block.push_transaction(transaction, None)
 				});
@@ -411,7 +411,7 @@ impl Miner {
 
 			debug!(target: "miner", "Adding tx {:?} took {} ms", hash, took_ms(&took));
 			match result {
-				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) => {
+				Err(Error(ErrorKind::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas }), _)) => {
 					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?} (limit: {:?}, used: {:?}, gas: {:?})", hash, gas_limit, gas_used, gas);
 
 					// Penalize transaction if it's above current gas limit
@@ -436,12 +436,12 @@ impl Miner {
 				},
 				// Invalid nonce error can happen only if previous transaction is skipped because of gas limit.
 				// If there is errornous state of transaction queue it will be fixed when next block is imported.
-				Err(Error::Execution(ExecutionError::InvalidNonce { expected, got })) => {
+				Err(Error(ErrorKind::Execution(ExecutionError::InvalidNonce { expected, got }), _)) => {
 					debug!(target: "miner", "Skipping adding transaction to block because of invalid nonce: {:?} (expected: {:?}, got: {:?})", hash, expected, got);
 				},
 				// already have transaction - ignore
-				Err(Error::Transaction(transaction::Error::AlreadyImported)) => {},
-				Err(Error::Transaction(transaction::Error::NotAllowed)) => {
+				Err(Error(ErrorKind::Transaction(transaction::Error::AlreadyImported), _)) => {},
+				Err(Error(ErrorKind::Transaction(transaction::Error::NotAllowed), _)) => {
 					not_allowed_transactions.insert(hash);
 					debug!(target: "miner", "Skipping non-allowed transaction for sender {:?}", hash);
 				},
@@ -981,11 +981,11 @@ impl miner::MinerService for Miner {
 				trace!(target: "miner", "Submitted block {}={}={} with seal {:?}", block_hash, b.hash(), b.header().bare_hash(), seal);
 				b.lock().try_seal(&*self.engine, seal).or_else(|(e, _)| {
 					warn!(target: "miner", "Mined solution rejected: {}", e);
-					Err(Error::PowInvalid)
+					Err(ErrorKind::PowInvalid.into())
 				})
 			} else {
 				warn!(target: "miner", "Submitted solution rejected: Block unknown or out of date.");
-				Err(Error::PowHashInvalid)
+				Err(ErrorKind::PowHashInvalid.into())
 			};
 
 		result.and_then(|sealed| {
