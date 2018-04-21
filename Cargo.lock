@@ -444,6 +444,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethbloom"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "crunchy 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types-serialize 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fixed-hash 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ethcore"
 version = "1.9.0"
 dependencies = [
@@ -756,6 +768,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethereum-types"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "crunchy 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethbloom 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types-serialize 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "fixed-hash 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc_version 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.27 (registry+https://github.com/rust-lang/crates.io-index)",
+ "uint 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ethereum-types-serialize"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -945,6 +971,17 @@ dependencies = [
 [[package]]
 name = "fixed-hash"
 version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "fixed-hash"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3277,6 +3314,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "uint"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc_version 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "unexpected"
 version = "0.1.0"
 
@@ -3429,26 +3477,18 @@ version = "0.1.0"
 dependencies = [
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-logger 1.9.0",
- "ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-wasm 0.27.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "pwasm-utils 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",
-<<<<<<< HEAD
- "wasmi 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
-=======
  "wasmi 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
->>>>>>> 650948fee... Update wasmi (#8452)
 ]
 
 [[package]]
 name = "wasmi"
-<<<<<<< HEAD
-version = "0.1.1"
-=======
 version = "0.1.3"
->>>>>>> 650948fee... Update wasmi (#8452)
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3610,10 +3650,13 @@ dependencies = [
 "checksum ethabi-contract 5.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "ca2263c24359e827348ac99aa1f2e28ba5bab0d6c0b83941fa252de8a9e9c073"
 "checksum ethabi-derive 5.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "9a357d3f4f249408af8d8b241b53b39a419328606825d3bb3fef841bb9d8ba13"
 "checksum ethbloom 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "f240172b976e2421fa5485e45cd45287bbdb56d742aa3a1d77005c49071a8518"
+"checksum ethbloom 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1a93a43ce2e9f09071449da36bfa7a1b20b950ee344b6904ff23de493b03b386"
 "checksum ethereum-types 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "bad6fb0e4ab648f4d8d8314c340c47f9e805b085b78be1b8da4676534cb419df"
+"checksum ethereum-types 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3a3ae691a36ce5d25b433e63128ce5579f4a18457b6a9c849832b2c9e0fec92a"
 "checksum ethereum-types-serialize 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4ac59a21a9ce98e188f3dace9eb67a6c4a3c67ec7fbc7218cb827852679dc002"
 "checksum fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b1ee15a7050e5580b3712877157068ea713b245b080ff302ae2ca973cfcd9baa"
 "checksum fixed-hash 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "21c520ebc46522d519aec9cba2b7115d49cea707d771b772c46bec61aa0daeb8"
+"checksum fixed-hash 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b18d6fd718fb4396e7a9c93ac59ba7143501467ca7a143c145b5555a571d5576"
 "checksum flate2 0.2.20 (registry+https://github.com/rust-lang/crates.io-index)" = "e6234dd4468ae5d1e2dbb06fe2b058696fdc50a339c68a393aefbf00bc81e423"
 "checksum fnv 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "6cc484842f1e2884faf56f529f960cc12ad8c71ce96cc7abba0a067c98fee344"
 "checksum fuchsia-zircon 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "2e9763c69ebaae630ba35f74888db465e49e259ba1bc0eda7d06f4a067615d82"
@@ -3805,6 +3848,7 @@ dependencies = [
 "checksum trezor-sys 1.0.0 (git+https://github.com/paritytech/trezor-sys)" = "<none>"
 "checksum typeable 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1410f6f91f21d1612654e7cc69193b0334f909dcf2c790c4826254fbb86f8887"
 "checksum uint 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "53a4340c35703f926ec365c6797bb4a7a10bb6b9affe29ca385c9d804401f5e3"
+"checksum uint 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6477b2716357758c176c36719023e1f9726974d762150e4fc0a9c8c75488c343"
 "checksum unicase 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7f4765f83163b74f957c797ad9253caf97f103fb064d3999aea9568d09fc8a33"
 "checksum unicase 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "284b6d3db520d67fbe88fd778c21510d1b0ba4a551e5d0fbb023d33405f6de8a"
 "checksum unicode-bidi 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "49f2bd0c6468a8230e1db229cff8029217cf623c767ea5d60bfbd42729ea54d5"
@@ -3822,11 +3866,7 @@ dependencies = [
 "checksum vergen 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8c3365f36c57e5df714a34be40902b27a992eeddb9996eca52d0584611cf885d"
 "checksum version_check 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "6b772017e347561807c1aa192438c5fd74242a670a6cffacc40f2defd1dc069d"
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
-<<<<<<< HEAD
-"checksum wasmi 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0dedfb4cbfba1e1921b12ed05762d9d5ae99ce40e72b98bbf271561ef487e8c7"
-=======
 "checksum wasmi 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d19da510b59247935ad5f598357b3cc739912666d75d3d28318026478d95bbdb"
->>>>>>> 650948fee... Update wasmi (#8452)
 "checksum webpki 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9e1622384bcb5458c6a3e3fa572f53ea8fef1cc85e535a2983dea87e9154fac2"
 "checksum webpki-roots 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)" = "155d4060e5befdf3a6076bd28c22513473d9900b763c9e4521acc6f78a75415c"
 "checksum winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
