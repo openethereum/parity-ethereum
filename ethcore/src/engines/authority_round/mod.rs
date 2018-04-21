@@ -1964,6 +1964,7 @@ mod tests {
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
+			&mut Vec::new().into_iter(),
 		).unwrap();
 		let b1 = b1.close_and_lock();
 
@@ -1985,6 +1986,7 @@ mod tests {
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
+			&mut Vec::new().into_iter(),
 		).unwrap();
 		let addr1_balance = b2.block().state().balance(&addr1).unwrap();
 
