@@ -1887,48 +1887,40 @@ impl BlockChainClient for Client {
 
 			} else {
 				// Otherwise, we use a slower version that finds a link between from_block and to_block.
-				let get_hash = |id| {
-					match id {
-						&BlockId::Earliest | &BlockId::Latest | &BlockId::Number(_) =>
-							chain.block_hash(self.block_number_ref(id)?),
-						&BlockId::Hash(hash) => Some(hash),
-					}
-				};
-
-				let from_hash = get_hash(&filter.from_block)?;
+				let from_hash = Self::block_hash(&chain, filter.from_block)?;
 				let from_number = chain.block_number(&from_hash)?;
-				let to_hash = get_hash(&filter.to_block)?;
-				let to_number = chain.block_number(&to_hash)?;
+				let to_hash = Self::block_hash(&chain, filter.from_block)?;
 
 				let blooms = filter.bloom_possibilities();
 				let bloom_match = |header: &encoded::Header| {
 					blooms.iter().any(|bloom| header.log_bloom().contains_bloom(bloom))
 				};
 
-				let mut blocks = Vec::new();
-				let mut current_hash = to_hash;
-				let mut current_number = to_number;
+				let (blocks, last_hash) = {
+					let mut blocks = Vec::new();
+					let mut current_hash = to_hash;
 
-				if bloom_match(&chain.block_header_data(&current_hash)?) {
-					blocks.push(current_hash);
-				}
+					loop {
+						let header = chain.block_header_data(&current_hash)?;
+						if bloom_match(&header) {
+							blocks.push(current_hash);
+						}
 
-				while current_number > from_number {
-					let header = chain.block_header_data(&current_hash)?;
-
-					if bloom_match(&header) {
-						blocks.push(current_hash);
+						if header.number() <= from_number {
+							break;
+						}
+						current_hash = header.parent_hash();
 					}
 
-					current_hash = header.parent_hash();
-					current_number = current_number - 1;
-				}
+					blocks.reverse();
+					(blocks, current_hash)
+				};
 
-				if current_hash != from_hash || blocks.is_empty() {
+				// Check if we've actually reached the expected `from` block.
+				if last_hash != from_hash || blocks.is_empty() {
 					return None;
 				}
 
-				blocks.reverse();
 				blocks
 			};
 
