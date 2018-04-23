@@ -1107,7 +1107,7 @@ pub mod tests {
 	use ethcore::miner::MinerService;
 	use private_tx::NoopPrivateTxHandler;
 
-	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
+	pub fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();
 		header.set_gas_limit(0.into());
 		header.set_difficulty((order * 100).into());
@@ -1123,7 +1123,7 @@ pub mod tests {
 		rlp.out()
 	}
 
-	fn get_dummy_blocks(order: u32, parent_hash: H256) -> Bytes {
+	pub fn get_dummy_blocks(order: u32, parent_hash: H256) -> Bytes {
 		let mut rlp = RlpStream::new_list(1);
 		rlp.append_raw(&get_dummy_block(order, parent_hash), 1);
 		let difficulty: U256 = (100 * order).into();
@@ -1131,7 +1131,7 @@ pub mod tests {
 		rlp.out()
 	}
 
-	fn get_dummy_hashes() -> Bytes {
+	pub fn get_dummy_hashes() -> Bytes {
 		let mut rlp = RlpStream::new_list(5);
 		for _ in 0..5 {
 			let mut hash_d_rlp = RlpStream::new_list(2);
@@ -1537,96 +1537,6 @@ pub mod tests {
 		assert_eq!(sent_transactions.len(), 2);
 		assert!(sent_transactions.iter().any(|tx| tx.hash() == tx1_hash));
 		assert!(sent_transactions.iter().any(|tx| tx.hash() == tx2_hash));
-	}
-
-	#[test]
-	fn handles_peer_new_block_malformed() {
-		let mut client = TestBlockChainClient::new();
-		client.add_blocks(10, EachBlockWith::Uncle);
-
-		let block_data = get_dummy_block(11, client.chain_info().best_block_hash);
-
-		let queue = RwLock::new(VecDeque::new());
-		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
-		//sync.have_common_block = true;
-		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
-
-		let block = Rlp::new(&block_data);
-
-		let result = SyncHandler::on_peer_new_block(&mut sync, &mut io, 0, &block);
-
-		assert!(result.is_err());
-	}
-
-	#[test]
-	fn handles_peer_new_block() {
-		let mut client = TestBlockChainClient::new();
-		client.add_blocks(10, EachBlockWith::Uncle);
-
-		let block_data = get_dummy_blocks(11, client.chain_info().best_block_hash);
-
-		let queue = RwLock::new(VecDeque::new());
-		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
-		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
-
-		let block = Rlp::new(&block_data);
-
-		let result = SyncHandler::on_peer_new_block(&mut sync, &mut io, 0, &block);
-
-		assert!(result.is_ok());
-	}
-
-	#[test]
-	fn handles_peer_new_block_empty() {
-		let mut client = TestBlockChainClient::new();
-		client.add_blocks(10, EachBlockWith::Uncle);
-		let queue = RwLock::new(VecDeque::new());
-		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
-		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
-
-		let empty_data = vec![];
-		let block = Rlp::new(&empty_data);
-
-		let result = SyncHandler::on_peer_new_block(&mut sync, &mut io, 0, &block);
-
-		assert!(result.is_err());
-	}
-
-	#[test]
-	fn handles_peer_new_hashes() {
-		let mut client = TestBlockChainClient::new();
-		client.add_blocks(10, EachBlockWith::Uncle);
-		let queue = RwLock::new(VecDeque::new());
-		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
-		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
-
-		let hashes_data = get_dummy_hashes();
-		let hashes_rlp = Rlp::new(&hashes_data);
-
-		let result = SyncHandler::on_peer_new_hashes(&mut sync, &mut io, 0, &hashes_rlp);
-
-		assert!(result.is_ok());
-	}
-
-	#[test]
-	fn handles_peer_new_hashes_empty() {
-		let mut client = TestBlockChainClient::new();
-		client.add_blocks(10, EachBlockWith::Uncle);
-		let queue = RwLock::new(VecDeque::new());
-		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
-		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
-
-		let empty_hashes_data = vec![];
-		let hashes_rlp = Rlp::new(&empty_hashes_data);
-
-		let result = SyncHandler::on_peer_new_hashes(&mut sync, &mut io, 0, &hashes_rlp);
-
-		assert!(result.is_ok());
 	}
 
 	// idea is that what we produce when propagading latest hashes should be accepted in

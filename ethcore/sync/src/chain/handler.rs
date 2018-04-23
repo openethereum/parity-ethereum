@@ -713,3 +713,111 @@ impl SyncHandler {
 		Ok(())
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use ethcore::client::{ChainInfo, EachBlockWith, TestBlockChainClient};
+	use parking_lot::RwLock;
+	use rlp::{Rlp};
+	use std::collections::{VecDeque};
+	use tests::helpers::{TestIo};
+	use tests::snapshot::TestSnapshotService;
+
+	use super::*;
+	use super::super::tests::{
+		dummy_sync_with_peer,
+		get_dummy_block,
+		get_dummy_blocks,
+		get_dummy_hashes,
+	};
+
+	#[test]
+	fn handles_peer_new_hashes() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(10, EachBlockWith::Uncle);
+		let queue = RwLock::new(VecDeque::new());
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
+		let ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+
+		let hashes_data = get_dummy_hashes();
+		let hashes_rlp = Rlp::new(&hashes_data);
+
+		let result = SyncHandler::on_peer_new_hashes(&mut sync, &mut io, 0, &hashes_rlp);
+
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn handles_peer_new_block_malformed() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(10, EachBlockWith::Uncle);
+
+		let block_data = get_dummy_block(11, client.chain_info().best_block_hash);
+
+		let queue = RwLock::new(VecDeque::new());
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
+		//sync.have_common_block = true;
+		let ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+
+		let block = Rlp::new(&block_data);
+
+		let result = SyncHandler::on_peer_new_block(&mut sync, &mut io, 0, &block);
+
+		assert!(result.is_err());
+	}
+
+	#[test]
+	fn handles_peer_new_block() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(10, EachBlockWith::Uncle);
+
+		let block_data = get_dummy_blocks(11, client.chain_info().best_block_hash);
+
+		let queue = RwLock::new(VecDeque::new());
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
+		let ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+
+		let block = Rlp::new(&block_data);
+
+		let result = SyncHandler::on_peer_new_block(&mut sync, &mut io, 0, &block);
+
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn handles_peer_new_block_empty() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(10, EachBlockWith::Uncle);
+		let queue = RwLock::new(VecDeque::new());
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
+		let ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+
+		let empty_data = vec![];
+		let block = Rlp::new(&empty_data);
+
+		let result = SyncHandler::on_peer_new_block(&mut sync, &mut io, 0, &block);
+
+		assert!(result.is_err());
+	}
+
+	#[test]
+	fn handles_peer_new_hashes_empty() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(10, EachBlockWith::Uncle);
+		let queue = RwLock::new(VecDeque::new());
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5), &client);
+		let ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &ss, &queue, None);
+
+		let empty_hashes_data = vec![];
+		let hashes_rlp = Rlp::new(&empty_hashes_data);
+
+		let result = SyncHandler::on_peer_new_hashes(&mut sync, &mut io, 0, &hashes_rlp);
+
+		assert!(result.is_ok());
+	}
+}
