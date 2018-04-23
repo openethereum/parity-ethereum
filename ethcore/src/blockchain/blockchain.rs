@@ -148,7 +148,7 @@ pub trait BlockProvider {
 	fn blocks_with_bloom(&self, bloom: &Bloom, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber>;
 
 	/// Returns logs matching given filter.
-	fn logs<F>(&self, blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
+	fn logs<F>(&self, blocks: Vec<H256>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
 		where F: Fn(&LogEntry) -> bool + Send + Sync, Self: Sized;
 }
 
@@ -332,16 +332,16 @@ impl BlockProvider for BlockChain {
 			.collect()
 	}
 
-	fn logs<F>(&self, mut blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
+	fn logs<F>(&self, mut blocks: Vec<H256>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
 		where F: Fn(&LogEntry) -> bool + Send + Sync, Self: Sized {
 		// sort in reverse order
-		blocks.sort_by(|a, b| b.cmp(a));
+		blocks.reverse();
 
 		let mut logs = blocks
 			.chunks(128)
 			.flat_map(move |blocks_chunk| {
 				blocks_chunk.into_par_iter()
-					.filter_map(|number| self.block_hash(*number).map(|hash| (*number, hash)))
+					.filter_map(|hash| self.block_number(&hash).map(|r| (r, hash)))
 					.filter_map(|(number, hash)| self.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
 					.filter_map(|(number, hash, receipts)| self.block_body(&hash).map(|ref b| (number, hash, receipts, b.transaction_hashes())))
 					.flat_map(|(number, hash, mut receipts, mut hashes)| {
@@ -368,7 +368,7 @@ impl BlockProvider for BlockChain {
 									.enumerate()
 									.map(move |(i, log)| LocalizedLogEntry {
 										entry: log,
-										block_hash: hash,
+										block_hash: *hash,
 										block_number: number,
 										transaction_hash: tx_hash,
 										// iterating in reverse order

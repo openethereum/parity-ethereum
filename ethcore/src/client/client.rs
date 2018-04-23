@@ -1853,21 +1853,34 @@ impl BlockChainClient for Client {
 	}
 
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
-		let (from, to) = match (self.block_number_ref(&filter.from_block), self.block_number_ref(&filter.to_block)) {
-			(Some(from), Some(to)) => (from, to),
-			_ => return Vec::new(),
-		};
+		let blocks = match &filter.from_block {
+			&BlockId::Hash(hash) if filter.from_block == filter.to_block => {
+				// Skip bloom check and directly use the hash.
+				vec![hash]
+			},
+			_ => {
+				let (from, to) = match (self.block_number_ref(&filter.from_block), self.block_number_ref(&filter.to_block)) {
+					(Some(from), Some(to)) => (from, to),
+					_ => return Vec::new(),
+				};
 
-		let chain = self.chain.read();
-		let blocks = filter.bloom_possibilities().iter()
-			.map(move |bloom| {
-				chain.blocks_with_bloom(bloom, from, to)
-			})
-			.flat_map(|m| m)
-			// remove duplicate elements
-			.collect::<HashSet<u64>>()
-			.into_iter()
-			.collect::<Vec<u64>>();
+				let chain = self.chain.read();
+				let mut numbers = filter.bloom_possibilities().iter()
+					.map(|bloom| {
+						chain.blocks_with_bloom(bloom, from, to)
+					})
+					.flat_map(|m| m)
+				    // remove duplicate elements
+					.collect::<HashSet<u64>>()
+					.into_iter()
+					.collect::<Vec<u64>>();
+
+				numbers.sort_by(|a, b| a.cmp(b));
+				numbers.into_iter()
+					.filter_map(|n| chain.block_hash(n))
+					.collect::<Vec<H256>>()
+			},
+		};
 
 		self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit)
 	}
