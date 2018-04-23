@@ -7,14 +7,14 @@ The full list of included changes:
 - Update Parity stable to 1.9.7 + Backports ([#8456](https://github.com/paritytech/parity/pull/8456))
   - Update Parity stable to 1.9.7
   - Allow 32 bit pipelines to fail ([#8454](https://github.com/paritytech/parity/pull/8454))
-    - Disable 32bit tragets for gitlab
-    - Rename linux pipelines
+    - Disable 32-bit targets for Gitlab
+    - Rename Linux pipelines
   - Update wasmi ([#8452](https://github.com/paritytech/parity/pull/8452))
   - Revert Cargo lock update from master
   - Fix Cargo.lock
 - Backports ([#8449](https://github.com/paritytech/parity/pull/8449))
   - Use forked app_dirs crate for reverted Windows dir behavior  ([#8438](https://github.com/paritytech/parity/pull/8438))
-    - Remove unused appdirs dependency in CLI
+    - Remove unused app_dirs dependency in CLI
     - Use forked app_dirs crate for reverted Windows dir behavior
   - Remove Tendermint extra_info due to seal inconsistencies ([#8367](https://github.com/paritytech/parity/pull/8367))
   - Improve VM executor stack size estimation rules ([#8439](https://github.com/paritytech/parity/pull/8439))
