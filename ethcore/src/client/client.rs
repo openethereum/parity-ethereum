@@ -1853,98 +1853,94 @@ impl BlockChainClient for Client {
 	}
 
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
-		macro_rules! return_empty_if_none {
-			( $v: expr ) => (
-				match $v {
-					Some(value) => value,
-					None => return Vec::new(),
-				}
-			)
-		}
+		// Wrap the logic inside a closure so that we can take advantage of question mark syntax.
+		let fetch_logs = || {
+			let chain = self.chain.read();
 
-		let chain = self.chain.read();
-
-		// First, check whether `filter.from_block` and `filter.to_block` is on the canon chain. If so, we can use the
-		// optimized version.
-		let is_canon = |id| {
-			match id {
-				// If it is referred by number, then it is always on the canon chain.
-				&BlockId::Earliest | &BlockId::Latest | &BlockId::Number(_) => Some(true),
-				// If it is referred by hash, we see whether a hash -> number -> hash conversion gives us the same
-				// result.
-				&BlockId::Hash(hash) =>
-					Some(hash == chain.block_hash(chain.block_number(&hash)?)?),
-			}
-		};
-
-		let blocks = if return_empty_if_none!(is_canon(&filter.from_block)) && return_empty_if_none!(is_canon(&filter.to_block)) {
-			// If we are on the canon chain, use bloom filter to fetch required hashes.
-			let from = return_empty_if_none!(self.block_number_ref(&filter.from_block));
-			let to = return_empty_if_none!(self.block_number_ref(&filter.to_block));
-
-			let mut numbers = filter.bloom_possibilities().iter()
-				.map(|bloom| {
-					chain.blocks_with_bloom(bloom, from, to)
-				})
-				.flat_map(|m| m)
-				// remove duplicate elements
-				.collect::<HashSet<u64>>()
-				.into_iter()
-				.collect::<Vec<u64>>();
-
-			numbers.sort_by(|a, b| a.cmp(b));
-			numbers.into_iter()
-				.filter_map(|n| chain.block_hash(n))
-				.collect::<Vec<H256>>()
-
-		} else {
-			// Otherwise, we use a slower version that finds a link between from_block and to_block.
-			let get_hash = |id| {
+			// First, check whether `filter.from_block` and `filter.to_block` is on the canon chain. If so, we can use the
+			// optimized version.
+			let is_canon = |id| {
 				match id {
-					&BlockId::Earliest | &BlockId::Latest | &BlockId::Number(_) =>
-						chain.block_hash(self.block_number_ref(id)?),
-					&BlockId::Hash(hash) => Some(hash),
+					// If it is referred by number, then it is always on the canon chain.
+					&BlockId::Earliest | &BlockId::Latest | &BlockId::Number(_) => Some(true),
+					// If it is referred by hash, we see whether a hash -> number -> hash conversion gives us the same
+					// result.
+					&BlockId::Hash(hash) =>
+						Some(hash == chain.block_hash(chain.block_number(&hash)?)?),
 				}
 			};
 
-			let from_hash = return_empty_if_none!(get_hash(&filter.from_block));
-			let from_number = return_empty_if_none!(chain.block_number(&from_hash));
-			let to_hash = return_empty_if_none!(get_hash(&filter.to_block));
-			let to_number = return_empty_if_none!(chain.block_number(&to_hash));
+			let blocks = if is_canon(&filter.from_block)? && is_canon(&filter.to_block)? {
+				// If we are on the canon chain, use bloom filter to fetch required hashes.
+				let from = self.block_number_ref(&filter.from_block)?;
+				let to = self.block_number_ref(&filter.to_block)?;
 
-			let blooms = filter.bloom_possibilities();
-			let bloom_match = |header: &encoded::Header| {
-				blooms.iter().any(|bloom| header.log_bloom().contains_bloom(bloom))
-			};
+				let mut numbers = filter.bloom_possibilities().iter()
+					.map(|bloom| {
+						chain.blocks_with_bloom(bloom, from, to)
+					})
+					.flat_map(|m| m)
+					// remove duplicate elements
+					.collect::<HashSet<u64>>()
+					.into_iter()
+					.collect::<Vec<u64>>();
 
-			let mut blocks = Vec::new();
-			let mut current_hash = to_hash;
-			let mut current_number = to_number;
+				numbers.sort_by(|a, b| a.cmp(b));
+				numbers.into_iter()
+					.filter_map(|n| chain.block_hash(n))
+					.collect::<Vec<H256>>()
 
-			if bloom_match(&return_empty_if_none!(chain.block_header_data(&current_hash))) {
-				blocks.push(current_hash);
-			}
+			} else {
+				// Otherwise, we use a slower version that finds a link between from_block and to_block.
+				let get_hash = |id| {
+					match id {
+						&BlockId::Earliest | &BlockId::Latest | &BlockId::Number(_) =>
+							chain.block_hash(self.block_number_ref(id)?),
+						&BlockId::Hash(hash) => Some(hash),
+					}
+				};
 
-			while current_number > from_number {
-				let header = return_empty_if_none!(chain.block_header_data(&current_hash));
+				let from_hash = get_hash(&filter.from_block)?;
+				let from_number = chain.block_number(&from_hash)?;
+				let to_hash = get_hash(&filter.to_block)?;
+				let to_number = chain.block_number(&to_hash)?;
 
-				if bloom_match(&header) {
+				let blooms = filter.bloom_possibilities();
+				let bloom_match = |header: &encoded::Header| {
+					blooms.iter().any(|bloom| header.log_bloom().contains_bloom(bloom))
+				};
+
+				let mut blocks = Vec::new();
+				let mut current_hash = to_hash;
+				let mut current_number = to_number;
+
+				if bloom_match(&chain.block_header_data(&current_hash)?) {
 					blocks.push(current_hash);
 				}
 
-				current_hash = header.parent_hash();
-				current_number = current_number - 1;
-			}
+				while current_number > from_number {
+					let header = chain.block_header_data(&current_hash)?;
 
-			if current_hash != from_hash || blocks.is_empty() {
-				return Vec::new();
-			}
+					if bloom_match(&header) {
+						blocks.push(current_hash);
+					}
 
-			blocks.reverse();
-			blocks
+					current_hash = header.parent_hash();
+					current_number = current_number - 1;
+				}
+
+				if current_hash != from_hash || blocks.is_empty() {
+					return None;
+				}
+
+				blocks.reverse();
+				blocks
+			};
+
+			Some(self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit))
 		};
 
-		self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit)
+		fetch_logs().unwrap_or_default()
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
