@@ -332,6 +332,8 @@ impl BlockProvider for BlockChain {
 			.collect()
 	}
 
+	/// Returns logs matching given filter. The order of logs returned will be the same as the order of the blocks
+	/// provided. And it's the callers responsibility to sort blocks provided in advance.
 	fn logs<F>(&self, mut blocks: Vec<H256>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
 		where F: Fn(&LogEntry) -> bool + Send + Sync, Self: Sized {
 		// sort in reverse order
