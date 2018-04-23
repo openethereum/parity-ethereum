@@ -323,37 +323,45 @@ impl SyncHandler {
 		Ok(())
 	}
 
+	fn on_peer_fork_header(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
+		{
+			let peer = sync.peers.get_mut(&peer_id).expect("Is only called when peer is present in peers");
+			peer.asking = PeerAsking::Nothing;
+			let item_count = r.item_count()?;
+			let (fork_number, fork_hash) = sync.fork_block.expect("ForkHeader request is sent only fork block is Some; qed").clone();
+
+			if item_count == 0 || item_count != 1 {
+				trace!(target: "sync", "{}: Chain is too short to confirm the block", peer_id);
+				io.disable_peer(peer_id);
+				return Ok(());
+			}
+
+			let header = r.at(0)?.as_raw();
+			if keccak(&header) != fork_hash {
+				trace!(target: "sync", "{}: Fork mismatch", peer_id);
+				io.disable_peer(peer_id);
+				return Ok(());
+			}
+
+			trace!(target: "sync", "{}: Confirmed peer", peer_id);
+			peer.confirmation = ForkConfirmation::Confirmed;
+			if !io.chain_overlay().read().contains_key(&fork_number) {
+				io.chain_overlay().write().insert(fork_number, header.to_vec());
+			}
+		}
+		sync.sync_peer(io, peer_id, false);
+		return Ok(());
+	}
+
 	/// Called by peer once it has new block headers during sync
 	fn on_peer_block_headers(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
-		let confirmed = match sync.peers.get_mut(&peer_id) {
-			Some(ref mut peer) if peer.asking == PeerAsking::ForkHeader => {
-				peer.asking = PeerAsking::Nothing;
-				let item_count = r.item_count()?;
-				let (fork_number, fork_hash) = sync.fork_block.expect("ForkHeader request is sent only fork block is Some; qed").clone();
-				if item_count == 0 || item_count != 1 {
-					trace!(target: "sync", "{}: Chain is too short to confirm the block", peer_id);
-					peer.confirmation = ForkConfirmation::TooShort;
-				} else {
-					let header = r.at(0)?.as_raw();
-					if keccak(&header) == fork_hash {
-						trace!(target: "sync", "{}: Confirmed peer", peer_id);
-						peer.confirmation = ForkConfirmation::Confirmed;
-						if !io.chain_overlay().read().contains_key(&fork_number) {
-							io.chain_overlay().write().insert(fork_number, header.to_vec());
-						}
-					} else {
-						trace!(target: "sync", "{}: Fork mismatch", peer_id);
-						io.disable_peer(peer_id);
-						return Ok(());
-					}
-				}
-				true
-			},
+		let is_fork_header_request = match sync.peers.get(&peer_id) {
+			Some(peer) if peer.asking == PeerAsking::ForkHeader => true,
 			_ => false,
 		};
-		if confirmed {
-			sync.sync_peer(io, peer_id, false);
-			return Ok(());
+
+		if is_fork_header_request {
+			return SyncHandler::on_peer_fork_header(sync, io, peer_id, r);
 		}
 
 		sync.clear_peer_download(peer_id);
@@ -649,7 +657,7 @@ impl SyncHandler {
 		sync.active_peers.insert(peer_id.clone());
 		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
 		if let Some((fork_block, _)) = sync.fork_block {
-			SyncRequester::request_fork_header_by_number(sync, io, peer_id, fork_block);
+			SyncRequester::request_fork_header(sync, io, peer_id, fork_block);
 		} else {
 			sync.sync_peer(io, peer_id, false);
 		}

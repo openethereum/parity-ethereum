@@ -297,8 +297,6 @@ pub enum BlockSet {
 pub enum ForkConfirmation {
 	/// Fork block confirmation pending.
 	Unconfirmed,
-	/// Peers chain is too short to confirm the fork.
-	TooShort,
 	/// Fork is confirmed.
 	Confirmed,
 }

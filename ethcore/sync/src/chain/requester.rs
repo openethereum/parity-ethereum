@@ -69,7 +69,7 @@ impl SyncRequester {
 	}
 
 	/// Request headers from a peer by block number
-	pub fn request_fork_header_by_number(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, n: BlockNumber) {
+	pub fn request_fork_header(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, n: BlockNumber) {
 		trace!(target: "sync", "{} <- GetForkHeader: at {}", peer_id, n);
 		let mut rlp = RlpStream::new_list(4);
 		rlp.append(&n);
