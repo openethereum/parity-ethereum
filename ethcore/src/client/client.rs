@@ -1862,15 +1862,14 @@ impl BlockChainClient for Client {
 			let is_canon = |id| {
 				match id {
 					// If it is referred by number, then it is always on the canon chain.
-					&BlockId::Earliest | &BlockId::Latest | &BlockId::Number(_) => Some(true),
+					&BlockId::Earliest | &BlockId::Latest | &BlockId::Number(_) => true,
 					// If it is referred by hash, we see whether a hash -> number -> hash conversion gives us the same
 					// result.
-					&BlockId::Hash(hash) =>
-						Some(hash == chain.block_hash(chain.block_number(&hash)?)?),
+					&BlockId::Hash(hash) => chain.is_canon(hash),
 				}
 			};
 
-			let blocks = if is_canon(&filter.from_block)? && is_canon(&filter.to_block)? {
+			let blocks = if is_canon(&filter.from_block) && is_canon(&filter.to_block) {
 				// If we are on the canon chain, use bloom filter to fetch required hashes.
 				let from = self.block_number_ref(&filter.from_block)?;
 				let to = self.block_number_ref(&filter.to_block)?;

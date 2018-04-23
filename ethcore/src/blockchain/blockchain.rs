@@ -57,6 +57,12 @@ pub trait BlockProvider {
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool;
 
+	/// Returns true if the given block is known and in the canon chain.
+	fn is_canon(&self, hash: &H256) -> bool {
+		let is_canon = || Some(hash == &self.block_hash(self.block_number(hash)?)?);
+		is_canon().unwrap_or(false)
+	}
+
 	/// Get the first block of the best part of the chain.
 	/// Return `None` if there is no gap and the first block is the genesis.
 	/// Any queries of blocks which precede this one are not guaranteed to
