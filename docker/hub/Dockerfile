@@ -59,7 +59,7 @@ cd /build&&git clone https://github.com/paritytech/parity && \
         binutils \
         file \
         pkg-config \
-        dpkg-dev \
+        dpkg-dev &&\
  rm -rf /var/lib/apt/lists/*
 # setup ENTRYPOINT
 EXPOSE 8080 8545 8180
