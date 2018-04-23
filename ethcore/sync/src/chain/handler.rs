@@ -323,6 +323,10 @@ impl SyncHandler {
 		Ok(())
 	}
 
+	fn on_peer_confirmed(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
+		sync.sync_peer(io, peer_id, false);
+	}
+
 	fn on_peer_fork_header(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		{
 			let peer = sync.peers.get_mut(&peer_id).expect("Is only called when peer is present in peers");
@@ -349,7 +353,7 @@ impl SyncHandler {
 				io.chain_overlay().write().insert(fork_number, header.to_vec());
 			}
 		}
-		sync.sync_peer(io, peer_id, false);
+		SyncHandler::on_peer_confirmed(sync, io, peer_id);
 		return Ok(());
 	}
 
@@ -659,7 +663,7 @@ impl SyncHandler {
 		if let Some((fork_block, _)) = sync.fork_block {
 			SyncRequester::request_fork_header(sync, io, peer_id, fork_block);
 		} else {
-			sync.sync_peer(io, peer_id, false);
+			SyncHandler::on_peer_confirmed(sync, io, peer_id);
 		}
 		Ok(())
 	}
