@@ -1933,17 +1933,33 @@ mod tests {
 			value: 103.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
 		}.sign(&secret(), None);
+		let t4 = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Create,
+			value: 104.into(),
+			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
+		}.sign(&secret(), None);
 		let tx_hash1 = t1.hash();
 		let tx_hash2 = t2.hash();
 		let tx_hash3 = t3.hash();
+		let tx_hash4 = t4.hash();
 
 		let genesis = BlockBuilder::genesis();
 		let b1 = genesis.add_block_with_transactions(vec![t1, t2]);
 		let b2 = b1.add_block_with_transactions(iter::once(t3));
+		let b3 = genesis.add_block_with(|| BlockOptions {
+			transactions: vec![t4.clone()],
+			difficulty: U256::from(9),
+			..Default::default()
+		}); // Branch block
 		let b1_hash = b1.last().hash();
 		let b1_number = b1.last().number();
 		let b2_hash = b2.last().hash();
 		let b2_number = b2.last().number();
+		let b3_hash = b3.last().hash();
+		let b3_number = b3.last().number();
 
 		let db = new_db();
 		let bc = new_chain(&genesis.last().encoded(), db.clone());
@@ -1974,10 +1990,21 @@ mod tests {
 				],
 			}
 		]);
+		insert_block(&db, &bc, &b3.last().encoded(), vec![
+			Receipt {
+				outcome: TransactionOutcome::StateRoot(H256::default()),
+				gas_used: 10_000.into(),
+				log_bloom: Default::default(),
+				logs: vec![
+					LogEntry { address: Default::default(), topics: vec![], data: vec![5], },
+				],
+			}
+		]);
 
 		// when
 		let logs1 = bc.logs(vec![b1_hash, b2_hash], |_| true, None);
 		let logs2 = bc.logs(vec![b1_hash, b2_hash], |_| true, Some(1));
+		let logs3 = bc.logs(vec![b3_hash], |_| true, None);
 
 		// then
 		assert_eq!(logs1, vec![
@@ -2024,6 +2051,17 @@ mod tests {
 				block_hash: b2_hash,
 				block_number: b2_number,
 				transaction_hash: tx_hash3,
+				transaction_index: 0,
+				transaction_log_index: 0,
+				log_index: 0,
+			}
+		]);
+		assert_eq!(logs3, vec![
+			LocalizedLogEntry {
+				entry: LogEntry { address: Default::default(), topics: vec![], data: vec![5] },
+				block_hash: b3_hash,
+				block_number: b3_number,
+				transaction_hash: tx_hash4,
 				transaction_index: 0,
 				transaction_log_index: 0,
 				log_index: 0,
