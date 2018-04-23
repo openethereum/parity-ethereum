@@ -134,7 +134,7 @@ pub const PAR_PROTOCOL_VERSION_2: u8 = 2;
 /// 3 version of Parity protocol (private transactions messages added).
 pub const PAR_PROTOCOL_VERSION_3: u8 = 3;
 
-const MAX_BODIES_TO_SEND: usize = 256;
+pub const MAX_BODIES_TO_SEND: usize = 256;
 pub const MAX_HEADERS_TO_SEND: usize = 512;
 pub const MAX_NODE_DATA_TO_SEND: usize = 1024;
 pub const MAX_RECEIPTS_TO_SEND: usize = 1024;
@@ -156,9 +156,9 @@ const SNAPSHOT_MIN_PEERS: usize = 3;
 const STATUS_PACKET: u8 = 0x00;
 const NEW_BLOCK_HASHES_PACKET: u8 = 0x01;
 const TRANSACTIONS_PACKET: u8 = 0x02;
-const GET_BLOCK_HEADERS_PACKET: u8 = 0x03;
+pub const GET_BLOCK_HEADERS_PACKET: u8 = 0x03;
 pub const BLOCK_HEADERS_PACKET: u8 = 0x04;
-const GET_BLOCK_BODIES_PACKET: u8 = 0x05;
+pub const GET_BLOCK_BODIES_PACKET: u8 = 0x05;
 const BLOCK_BODIES_PACKET: u8 = 0x06;
 const NEW_BLOCK_PACKET: u8 = 0x07;
 
@@ -169,11 +169,11 @@ pub const RECEIPTS_PACKET: u8 = 0x10;
 
 pub const ETH_PACKET_COUNT: u8 = 0x11;
 
-const GET_SNAPSHOT_MANIFEST_PACKET: u8 = 0x11;
+pub const GET_SNAPSHOT_MANIFEST_PACKET: u8 = 0x11;
 pub const SNAPSHOT_MANIFEST_PACKET: u8 = 0x12;
-const GET_SNAPSHOT_DATA_PACKET: u8 = 0x13;
+pub const GET_SNAPSHOT_DATA_PACKET: u8 = 0x13;
 pub const SNAPSHOT_DATA_PACKET: u8 = 0x14;
-const CONSENSUS_DATA_PACKET: u8 = 0x15;
+pub const CONSENSUS_DATA_PACKET: u8 = 0x15;
 const PRIVATE_TRANSACTION_PACKET: u8 = 0x16;
 const SIGNED_PRIVATE_TRANSACTION_PACKET: u8 = 0x17;
 
@@ -1558,64 +1558,9 @@ impl ChainSync {
 		io.respond(STATUS_PACKET, packet.out())
 	}
 
-	/// Respond to GetBlockBodies request
-	fn return_block_bodies(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
-		let mut count = r.item_count().unwrap_or(0);
-		if count == 0 {
-			debug!(target: "sync", "Empty GetBlockBodies request, ignoring.");
-			return Ok(None);
-		}
-		count = cmp::min(count, MAX_BODIES_TO_SEND);
-		let mut added = 0usize;
-		let mut data = Bytes::new();
-		for i in 0..count {
-			if let Some(body) = io.chain().block_body(BlockId::Hash(r.val_at::<H256>(i)?)) {
-				data.append(&mut body.into_inner());
-				added += 1;
-			}
-		}
-		let mut rlp = RlpStream::new_list(added);
-		rlp.append_raw(&data, added);
-		trace!(target: "sync", "{} -> GetBlockBodies: returned {} entries", peer_id, added);
-		Ok(Some((BLOCK_BODIES_PACKET, rlp)))
-	}
-
 	/// Dispatch incoming requests and responses
 	pub fn dispatch_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
-		let rlp = Rlp::new(data);
-		let result = match packet_id {
-			GET_BLOCK_BODIES_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
-				ChainSync::return_block_bodies,
-				|e| format!("Error sending block bodies: {:?}", e)),
-
-			GET_BLOCK_HEADERS_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
-				SyncSupplier::return_block_headers,
-				|e| format!("Error sending block headers: {:?}", e)),
-
-			GET_RECEIPTS_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
-				SyncSupplier::return_receipts,
-				|e| format!("Error sending receipts: {:?}", e)),
-
-			GET_NODE_DATA_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
-				SyncSupplier::return_node_data,
-				|e| format!("Error sending nodes: {:?}", e)),
-
-			GET_SNAPSHOT_MANIFEST_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
-				SyncSupplier::return_snapshot_manifest,
-				|e| format!("Error sending snapshot manifest: {:?}", e)),
-
-			GET_SNAPSHOT_DATA_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
-				SyncSupplier::return_snapshot_data,
-				|e| format!("Error sending snapshot data: {:?}", e)),
-			CONSENSUS_DATA_PACKET => ChainSync::on_consensus_packet(io, peer, &rlp),
-			_ => {
-				sync.write().on_packet(io, peer, packet_id, data);
-				Ok(())
-			}
-		};
-		result.unwrap_or_else(|e| {
-			debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e);
-		})
+		SyncSupplier::dispatch_packet(sync, io, peer, packet_id, data)
 	}
 
 	pub fn on_packet(&mut self, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
