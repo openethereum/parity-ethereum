@@ -109,10 +109,9 @@ fn rpc_parity_set_min_gas_price() {
 	io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_setMinGasPrice", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-	assert_eq!(miner.minimal_gas_price(), U256::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
 }
 
 #[test]
@@ -129,7 +128,7 @@ fn rpc_parity_set_gas_floor_target() {
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-	assert_eq!(miner.gas_floor_target(), U256::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
+	assert_eq!(miner.authoring_params().gas_range_target.0, U256::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
 }
 
 #[test]
@@ -146,7 +145,7 @@ fn rpc_parity_set_extra_data() {
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-	assert_eq!(miner.extra_data(), "cd1722f3947def4cf144679da39c4c32bdc35681".from_hex().unwrap());
+	assert_eq!(miner.authoring_params().extra_data, "cd1722f3947def4cf144679da39c4c32bdc35681".from_hex().unwrap());
 }
 
 #[test]
@@ -162,7 +161,7 @@ fn rpc_parity_set_author() {
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-	assert_eq!(miner.author(), Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
+	assert_eq!(miner.authoring_params().author, Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
 }
 
 #[test]
@@ -178,7 +177,7 @@ fn rpc_parity_set_engine_signer() {
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-	assert_eq!(miner.author(), Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
+	assert_eq!(miner.authoring_params().author, Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
 	assert_eq!(*miner.password.read(), "password".to_string());
 }
 
@@ -193,10 +192,9 @@ fn rpc_parity_set_transactions_limit() {
 	io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_setTransactionsLimit", "params":[10240240], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-	assert_eq!(miner.transactions_limit(), 10_240_240);
 }
 
 #[test]

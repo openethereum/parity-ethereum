@@ -49,7 +49,7 @@ fn imports_from_empty() {
 		ClientConfig::default(),
 		&spec,
 		client_db,
-		Arc::new(Miner::with_spec(&spec)),
+		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 	client.import_verified_blocks();
@@ -67,7 +67,7 @@ fn should_return_registrar() {
 		ClientConfig::default(),
 		&spec,
 		client_db,
-		Arc::new(Miner::with_spec(&spec)),
+		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 	let params = client.additional_params();
@@ -97,7 +97,7 @@ fn imports_good_block() {
 		ClientConfig::default(),
 		&spec,
 		client_db,
-		Arc::new(Miner::with_spec(&spec)),
+		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 	let good_block = get_good_dummy_block();
@@ -122,7 +122,7 @@ fn query_none_block() {
 		ClientConfig::default(),
 		&spec,
 		client_db,
-		Arc::new(Miner::with_spec(&spec)),
+		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
     let non_existant = client.block_header(BlockId::Number(188));
@@ -141,7 +141,7 @@ fn query_bad_block() {
 fn returns_chain_info() {
 	let dummy_block = get_good_dummy_block();
 	let client = get_test_client_with_blocks(vec![dummy_block.clone()]);
-	let block = BlockView::new(&dummy_block);
+	let block = view!(BlockView, &dummy_block);
 	let info = client.chain_info();
 	assert_eq!(info.best_block_hash, block.header().hash());
 }
@@ -178,12 +178,12 @@ fn returns_logs_with_limit() {
 fn returns_block_body() {
 	let dummy_block = get_good_dummy_block();
 	let client = get_test_client_with_blocks(vec![dummy_block.clone()]);
-	let block = BlockView::new(&dummy_block);
+	let block = view!(BlockView, &dummy_block);
 	let body = client.block_body(BlockId::Hash(block.header().hash())).unwrap();
 	let body = body.rlp();
-	assert_eq!(body.item_count(), 2);
-	assert_eq!(body.at(0).as_raw()[..], block.rlp().at(1).as_raw()[..]);
-	assert_eq!(body.at(1).as_raw()[..], block.rlp().at(2).as_raw()[..]);
+	assert_eq!(body.item_count().unwrap(), 2);
+	assert_eq!(body.at(0).unwrap().as_raw()[..], block.rlp().at(1).as_raw()[..]);
+	assert_eq!(body.at(1).unwrap().as_raw()[..], block.rlp().at(2).as_raw()[..]);
 }
 
 #[test]
@@ -259,7 +259,7 @@ fn can_mine() {
 
 	let b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).close();
 
-	assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().hash());
+	assert_eq!(*b.block().header().parent_hash(), view!(BlockView, &dummy_blocks[0]).header_view().hash());
 }
 
 #[test]
@@ -277,7 +277,7 @@ fn change_history_size() {
 			ClientConfig::default(),
 			&test_spec,
 			client_db.clone(),
-			Arc::new(Miner::with_spec(&test_spec)),
+			Arc::new(Miner::new_for_tests(&test_spec, None)),
 			IoChannel::disconnected()
 		).unwrap();
 
@@ -295,7 +295,7 @@ fn change_history_size() {
 		config,
 		&test_spec,
 		client_db,
-		Arc::new(Miner::with_spec(&test_spec)),
+		Arc::new(Miner::new_for_tests(&test_spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 	assert_eq!(client.state().balance(&address).unwrap(), 100.into());
@@ -326,11 +326,11 @@ fn does_not_propagate_delayed_transactions() {
 	client.miner().import_own_transaction(&*client, tx0).unwrap();
 	client.miner().import_own_transaction(&*client, tx1).unwrap();
 	assert_eq!(0, client.ready_transactions().len());
-	assert_eq!(2, client.miner().pending_transactions().len());
+	assert_eq!(0, client.miner().ready_transactions(&*client).len());
 	push_blocks_to_client(&client, 53, 2, 2);
 	client.flush_queue();
 	assert_eq!(2, client.ready_transactions().len());
-	assert_eq!(2, client.miner().pending_transactions().len());
+	assert_eq!(2, client.miner().ready_transactions(&*client).len());
 }
 
 #[test]

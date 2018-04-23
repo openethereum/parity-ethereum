@@ -143,7 +143,13 @@ build_rpc_trait! {
 		#[rpc(name = "parity_pendingTransactions")]
 		fn pending_transactions(&self) -> Result<Vec<Transaction>>;
 
-		/// Returns all future transactions from transaction queue.
+		/// Returns all transactions from transaction queue.
+		///
+		/// Some of them might not be ready to be included in a block yet.
+		#[rpc(name = "parity_allTransactions")]
+		fn all_transactions(&self) -> Result<Vec<Transaction>>;
+
+		/// Returns all future transactions from transaction queue (deprecated)
 		#[rpc(name = "parity_futureTransactions")]
 		fn future_transactions(&self) -> Result<Vec<Transaction>>;
 
@@ -172,7 +178,7 @@ build_rpc_trait! {
 		fn mode(&self) -> Result<String>;
 
 		/// Returns the chain ID used for transaction signing at the
-		/// current best block. An empty string is returned if not
+		/// current best block. None is returned if not
 		/// available.
 		#[rpc(name = "parity_chainId")]
 		fn chain_id(&self) -> Result<Option<U64>>;

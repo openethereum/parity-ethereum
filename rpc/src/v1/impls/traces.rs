@@ -18,8 +18,8 @@
 
 use std::sync::Arc;
 
-use ethcore::client::{MiningBlockChainClient, CallAnalytics, TransactionId, TraceId, StateClient, StateInfo, Call, BlockId};
-use rlp::UntrustedRlp;
+use ethcore::client::{BlockChainClient, CallAnalytics, TransactionId, TraceId, StateClient, StateInfo, Call, BlockId};
+use rlp::Rlp;
 use transaction::SignedTransaction;
 
 use jsonrpc_core::Result;
@@ -53,7 +53,7 @@ impl<C> TracesClient<C> {
 
 impl<C, S> Traces for TracesClient<C> where
 	S: StateInfo + 'static,
-	C: MiningBlockChainClient + StateClient<State=S> + Call<State=S> + 'static
+	C: BlockChainClient + StateClient<State=S> + Call<State=S> + 'static
 {
 	type Metadata = Metadata;
 
@@ -139,7 +139,7 @@ impl<C, S> Traces for TracesClient<C> where
 	fn raw_transaction(&self, raw_transaction: Bytes, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults> {
 		let block = block.unwrap_or_default();
 
-		let tx = UntrustedRlp::new(&raw_transaction.into_vec()).as_val().map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))?;
+		let tx = Rlp::new(&raw_transaction.into_vec()).as_val().map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))?;
 		let signed = SignedTransaction::new(tx).map_err(errors::transaction)?;
 
 		let id = match block {

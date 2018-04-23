@@ -17,6 +17,7 @@
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::io;
+use std::time::Duration;
 use bytes::Bytes;
 use devp2p::{NetworkService, ConnectionFilter};
 use network::{NetworkProtocolHandler, NetworkContext, HostInfo, PeerId, ProtocolId,
@@ -39,6 +40,7 @@ use light::Provider;
 use light::net::{self as light_net, LightProtocol, Params as LightParams, Capabilities, Handler as LightHandler, EventContext};
 use network::IpFilter;
 use private_tx::PrivateTxHandler;
+use transaction::UnverifiedTransaction;
 
 /// Parity sync protocol
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
@@ -372,7 +374,7 @@ struct SyncProtocolHandler {
 impl NetworkProtocolHandler for SyncProtocolHandler {
 	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
 		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
-			io.register_timer(0, 1000).expect("Error registering sync timer");
+			io.register_timer(0, Duration::from_secs(1)).expect("Error registering sync timer");
 		}
 	}
 
@@ -486,9 +488,9 @@ impl ChainNotify for EthSync {
 		});
 	}
 
-	fn transactions_received(&self, hashes: Vec<H256>, peer_id: PeerId) {
+	fn transactions_received(&self, txs: &[UnverifiedTransaction], peer_id: PeerId) {
 		let mut sync = self.eth_handler.sync.write();
-		sync.transactions_received(hashes, peer_id);
+		sync.transactions_received(txs, peer_id);
 	}
 }
 

@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use error::{Result, BaseDataError};
 use ethereum_types::H256;
-use rlp::{UntrustedRlp, RlpStream, Encodable, DecoderError, Decodable, encode, decode};
+use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable, encode, decode};
 use hashdb::*;
 use memorydb::*;
 use kvdb::{KeyValueDB, DBTransaction};
@@ -64,7 +64,7 @@ impl Encodable for Payload {
 }
 
 impl Decodable for Payload {
-	fn decode(rlp: &UntrustedRlp) -> ::std::result::Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> ::std::result::Result<Self, DecoderError> {
 		let payload = Payload {
 			count: rlp.val_at(0)?,
 			value: DBValue::from_slice(rlp.at(1)?.data()?),

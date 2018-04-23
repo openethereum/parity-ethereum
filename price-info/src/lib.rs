@@ -98,7 +98,7 @@ impl<F: Fetch> Client<F> {
 	}
 
 	/// Gets the current ETH price and calls `set_price` with the result.
-	pub fn get<G: Fn(PriceInfo) + Sync + Send + 'static>(&self, set_price: G) {
+	pub fn get<G: FnOnce(PriceInfo) + Sync + Send + 'static>(&self, set_price: G) {
 		let future = self.fetch.get(&self.api_endpoint, fetch::Abort::default())
 			.from_err()
 			.and_then(|response| {

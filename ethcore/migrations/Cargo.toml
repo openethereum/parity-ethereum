@@ -1,7 +1,0 @@
-[package]
-name = "ethcore-migrations"
-version = "0.1.0"
-authors = ["Parity Technologies <admin@parity.io>"]
-
-[dependencies]
-migration = { path = "../../util/migration" }

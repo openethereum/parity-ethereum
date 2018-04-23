@@ -19,12 +19,13 @@ force_sealing = true
 reseal_on_txs = "all"
 # New pending block will be created only once per 4000 milliseconds.
 reseal_min_period = 4000
-# Parity will keep/relay at most 2048 transactions in queue.
-tx_queue_size = 2048
+# Parity will keep/relay at most 8192 transactions in queue.
+tx_queue_size = 8192
+tx_queue_per_sender = 128
 
 [footprint]
-# If defined will never use more then 256MB for all caches. (Overrides other cache settings).
-cache_size = 256
+# If defined will never use more then 1024MB for all caches. (Overrides other cache settings).
+cache_size = 1024
 
 [misc]
 # Logging pattern (`<module>=<level>`, e.g. `own_tx=trace`).

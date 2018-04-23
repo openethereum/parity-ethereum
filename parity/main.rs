@@ -19,7 +19,6 @@
 #![warn(missing_docs)]
 
 extern crate ansi_term;
-extern crate app_dirs;
 extern crate ctrlc;
 extern crate docopt;
 #[macro_use]
@@ -50,7 +49,6 @@ extern crate ethcore_bytes as bytes;
 extern crate ethcore_io as io;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
-extern crate ethcore_migrations as migrations;
 extern crate ethcore_miner as miner;
 extern crate ethcore_network as network;
 extern crate ethcore_private_tx;
@@ -60,8 +58,6 @@ extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate kvdb;
-extern crate kvdb_rocksdb;
-extern crate migration as migr;
 extern crate node_health;
 extern crate panic_hook;
 extern crate parity_hash_fetch as hash_fetch;
@@ -112,7 +108,6 @@ mod deprecated;
 mod helpers;
 mod informant;
 mod light_helpers;
-mod migration;
 mod modules;
 mod params;
 mod presale;
@@ -126,6 +121,7 @@ mod upgrade;
 mod url;
 mod user_defaults;
 mod whisper;
+mod db;
 
 #[cfg(feature="stratum")]
 mod stratum;
@@ -180,9 +176,10 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 	}
 }
 
-fn start(can_restart: bool) -> Result<PostExecutionAction, String> {
-	let args: Vec<String> = env::args().collect();
-	let conf = Configuration::parse(&args, take_spec_name_override()).unwrap_or_else(|e| e.exit());
+fn start(mut args: Vec<String>) -> Result<PostExecutionAction, String> {
+	args.insert(0, "parity".to_owned());
+	let conf = Configuration::parse(&args).unwrap_or_else(|e| e.exit());
+	let can_restart = conf.args.flag_can_restart;
 
 	let deprecated = find_deprecated(&conf.args);
 	for d in deprecated {
@@ -234,7 +231,7 @@ fn take_spec_name_override() -> Option<String> {
 #[cfg(windows)]
 fn global_cleanup() {
 	// We need to cleanup all sockets before spawning another Parity process. This makes shure everything is cleaned up.
-	// The loop is required because of internal refernce counter for winsock dll. We don't know how many crates we use do
+	// The loop is required because of internal reference counter for winsock dll. We don't know how many crates we use do
 	// initialize it. There's at least 2 now.
 	for _ in 0.. 10 {
 		unsafe { ::winapi::um::winsock2::WSACleanup(); }
@@ -276,7 +273,7 @@ const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 
 // Run our version of parity.
 // Returns the exit error code.
-fn main_direct(can_restart: bool) -> i32 {
+fn main_direct(force_can_restart: bool) -> i32 {
 	global_init();
 	let mut alt_mains = HashMap::new();
 	sync_main(&mut alt_mains);
@@ -285,7 +282,25 @@ fn main_direct(can_restart: bool) -> i32 {
 		f();
 		0
 	} else {
-		match start(can_restart) {
+		let mut args = std::env::args().skip(1).collect::<Vec<_>>();
+		if force_can_restart && !args.iter().any(|arg| arg == "--can-restart") {
+			args.push("--can-restart".to_owned());
+		}
+
+		if let Some(spec_override) = take_spec_name_override() {
+			args.retain(|f| f != "--testnet");
+			args.retain(|f| !f.starts_with("--chain="));
+			while let Some(pos) = args.iter().position(|a| a == "--chain") {
+				if args.len() > pos + 1 {
+					args.remove(pos + 1);
+				}
+				args.remove(pos);
+			}
+			args.push("--chain".to_owned());
+			args.push(spec_override);
+		}
+
+		match start(args) {
 			Ok(result) => match result {
 				PostExecutionAction::Print(s) => { println!("{}", s); 0 },
 				PostExecutionAction::Restart(spec_name_override) => {
@@ -365,7 +380,6 @@ fn main() {
 	} else {
 		trace_main!("Running direct");
 		// Otherwise, we're presumably running the version we want. Just run and fall-through.
-		let can_restart = std::env::args().any(|arg| arg == "--can-restart");
-		process::exit(main_direct(can_restart));
+		process::exit(main_direct(false));
 	}
 }

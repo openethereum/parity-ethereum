@@ -132,7 +132,7 @@ mod test {
 			ClientConfig::default(),
 			&spec,
 			client_db,
-			Arc::new(Miner::with_spec(&spec)),
+			Arc::new(Miner::new_for_tests(&spec, None)),
 			IoChannel::disconnected(),
 		).unwrap();
 		let filter = NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, contract_addr);

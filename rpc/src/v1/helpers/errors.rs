@@ -19,11 +19,12 @@
 use std::fmt;
 
 use ethcore::account_provider::{SignError as AccountError};
-use ethcore::error::{Error as EthcoreError, CallError};
+use ethcore::error::{Error as EthcoreError, ErrorKind, CallError};
 use jsonrpc_core::{futures, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
+use vm::Error as VMError;
 
 mod codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
@@ -306,10 +307,10 @@ pub fn private_message_block_id_not_supported() -> Error {
 	}
 }
 
-pub fn transaction_message(error: TransactionError) -> String {
+pub fn transaction_message(error: &TransactionError) -> String {
 	use self::TransactionError::*;
 
-	match error {
+	match *error {
 		AlreadyImported => "Transaction with the same hash was already imported.".into(),
 		Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
 		TooCheapToReplace => {
@@ -330,7 +331,7 @@ pub fn transaction_message(error: TransactionError) -> String {
 		GasLimitExceeded { limit, got } => {
 			format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
 		},
-		InvalidSignature(sig) => format!("Invalid signature: {}", sig),
+		InvalidSignature(ref sig) => format!("Invalid signature: {}", sig),
 		InvalidChainId => "Invalid chain id.".into(),
 		InvalidGasLimit(_) => "Supplied gas is beyond limit.".into(),
 		SenderBanned => "Sender is banned in local queue.".into(),
@@ -342,7 +343,7 @@ pub fn transaction_message(error: TransactionError) -> String {
 
 pub fn transaction<T: Into<EthcoreError>>(error: T) -> Error {
 	let error = error.into();
-	if let EthcoreError::Transaction(e) = error {
+	if let ErrorKind::Transaction(ref e) = *error.kind() {
 		Error {
 			code: ErrorCode::ServerError(codes::TRANSACTION_ERROR),
 			message: transaction_message(e),
@@ -375,6 +376,21 @@ pub fn call(error: CallError) -> Error {
 	}
 }
 
+pub fn vm(error: &VMError, output: &[u8]) -> Error {
+	use rustc_hex::ToHex;
+
+	let data = match error {
+		&VMError::Reverted => format!("{} 0x{}", VMError::Reverted, output.to_hex()),
+		error => format!("{}", error),
+	};
+
+	Error {
+		code: ErrorCode::ServerError(codes::EXECUTION_ERROR),
+		message: "VM execution error.".into(),
+		data: Some(Value::String(data)),
+	}
+}
+
 pub fn unknown_block() -> Error {
 	Error {
 		code: ErrorCode::InvalidParams,
@@ -391,11 +407,11 @@ pub fn no_light_peers() -> Error {
 	}
 }
 
-pub fn deprecated<T: Into<Option<String>>>(message: T) -> Error {
+pub fn deprecated<S: Into<String>, T: Into<Option<S>>>(message: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::DEPRECATED),
 		message: "Method deprecated".into(),
-		data: message.into().map(Value::String),
+		data: message.into().map(Into::into).map(Value::String),
 	}
 }
 

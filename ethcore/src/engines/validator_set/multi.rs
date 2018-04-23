@@ -171,22 +171,22 @@ mod tests {
 		client.engine().register_client(Arc::downgrade(&client) as _);
 
 		// Make sure txs go through.
-		client.miner().set_gas_floor_target(1_000_000.into());
+		client.miner().set_gas_range_target((1_000_000.into(), 1_000_000.into()));
 
 		// Wrong signer for the first block.
-		client.miner().set_engine_signer(v1, "".into()).unwrap();
+		client.miner().set_author(v1, Some("".into())).unwrap();
 		client.transact_contract(Default::default(), Default::default()).unwrap();
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 0);
 		// Right signer for the first block.
-		client.miner().set_engine_signer(v0, "".into()).unwrap();
+		client.miner().set_author(v0, Some("".into())).unwrap();
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// This time v0 is wrong.
 		client.transact_contract(Default::default(), Default::default()).unwrap();
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
-		client.miner().set_engine_signer(v1, "".into()).unwrap();
+		client.miner().set_author(v1, Some("".into())).unwrap();
 		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// v1 is still good.

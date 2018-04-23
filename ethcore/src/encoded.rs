@@ -26,12 +26,12 @@
 use block::Block as FullBlock;
 use header::{BlockNumber, Header as FullHeader};
 use transaction::UnverifiedTransaction;
-use views;
 
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, Bloom, U256, Address};
 use rlp::{Rlp, RlpStream};
+use views::{self, BlockView, HeaderView, BodyView};
 
 /// Owning header view.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,7 +52,7 @@ impl Header {
 
 	/// Get a borrowed header view onto the data.
 	#[inline]
-	pub fn view(&self) -> views::HeaderView { views::HeaderView::new(&self.0) }
+	pub fn view(&self) -> HeaderView { view!(HeaderView, &self.0) }
 
 	/// Get the rlp of the header.
 	#[inline]
@@ -125,7 +125,7 @@ impl Body {
 
 	/// Get a borrowed view of the data within.
 	#[inline]
-	pub fn view(&self) -> views::BodyView { views::BodyView::new(&self.0) }
+	pub fn view(&self) -> BodyView { view!(BodyView, &self.0) }
 
 	/// Fully decode this block body.
 	pub fn decode(&self) -> (Vec<UnverifiedTransaction>, Vec<FullHeader>) {
@@ -145,7 +145,7 @@ impl Body {
 // forwarders to borrowed view.
 impl Body {
 	/// Get raw rlp of transactions
-	pub fn transactions_rlp(&self) -> Rlp { self.view().transactions_rlp() }
+	pub fn transactions_rlp(&self) -> Rlp { self.view().transactions_rlp().rlp }
 
 	/// Get a vector of all transactions.
 	pub fn transactions(&self) -> Vec<UnverifiedTransaction> { self.view().transactions() }
@@ -160,7 +160,7 @@ impl Body {
 	pub fn transaction_hashes(&self) -> Vec<H256> { self.view().transaction_hashes() }
 
 	/// Get raw rlp of uncle headers
-	pub fn uncles_rlp(&self) -> Rlp { self.view().uncles_rlp() }
+	pub fn uncles_rlp(&self) -> Rlp { self.view().uncles_rlp().rlp }
 
 	/// Decode uncle headers.
 	pub fn uncles(&self) -> Vec<FullHeader> { self.view().uncles() }
@@ -198,20 +198,20 @@ impl Block {
 
 	/// Get a borrowed view of the whole block.
 	#[inline]
-	pub fn view(&self) -> views::BlockView { views::BlockView::new(&self.0) }
+	pub fn view(&self) -> BlockView { view!(BlockView, &self.0) }
 
 	/// Get a borrowed view of the block header.
 	#[inline]
-	pub fn header_view(&self) -> views::HeaderView { self.view().header_view() }
+	pub fn header_view(&self) -> HeaderView { self.view().header_view() }
 
 	/// Decode to a full block.
 	pub fn decode(&self) -> FullBlock { ::rlp::decode(&self.0) }
 
 	/// Decode the header.
-	pub fn decode_header(&self) -> FullHeader { self.rlp().val_at(0) }
+	pub fn decode_header(&self) -> FullHeader { self.view().rlp().val_at(0) }
 
 	/// Clone the encoded header.
-	pub fn header(&self) -> Header { Header(self.rlp().at(0).as_raw().to_vec()) }
+	pub fn header(&self) -> Header { Header(self.view().rlp().at(0).as_raw().to_vec()) }
 
 	/// Get the rlp of this block.
 	#[inline]

@@ -38,7 +38,7 @@ pub use self::traits::{
 };
 //pub use self::private_notify::PrivateNotify;
 pub use state::StateInfo;
-pub use self::traits::{BlockChainClient, MiningBlockChainClient, EngineClient, ProvingBlockChainClient};
+pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient};
 
 pub use types::ids::*;
 pub use types::trace_filter::Filter as TraceFilter;
@@ -48,7 +48,7 @@ pub use types::call_analytics::CallAnalytics;
 pub use executive::{Executed, Executive, TransactOptions};
 pub use vm::{LastHashes, EnvInfo};
 
-pub use error::{BlockImportError, TransactionImportError};
+pub use error::{BlockImportError, BlockImportErrorKind, TransactionImportError};
 pub use verification::VerifierType;
 
 mod traits;
