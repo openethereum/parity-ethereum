@@ -1865,7 +1865,7 @@ impl BlockChainClient for Client {
 					&BlockId::Earliest | &BlockId::Latest | &BlockId::Number(_) => true,
 					// If it is referred by hash, we see whether a hash -> number -> hash conversion gives us the same
 					// result.
-					&BlockId::Hash(hash) => chain.is_canon(hash),
+					&BlockId::Hash(ref hash) => chain.is_canon(hash),
 				}
 			};
 
