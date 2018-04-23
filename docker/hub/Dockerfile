@@ -30,7 +30,7 @@ RUN apt-get update && \
         # evmjit dependencies
         zlib1g-dev \
         libedit-dev \
-	libudev-dev &&\
+        libudev-dev &&\
 # cmake and llvm ppa's. then update ppa's
  add-apt-repository -y "ppa:george-edison55/cmake-3.x" && \
         add-apt-repository "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.7 main" && \
