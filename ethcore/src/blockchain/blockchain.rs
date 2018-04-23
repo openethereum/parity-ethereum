@@ -1976,8 +1976,8 @@ mod tests {
 		]);
 
 		// when
-		let logs1 = bc.logs(vec![1, 2], |_| true, None);
-		let logs2 = bc.logs(vec![1, 2], |_| true, Some(1));
+		let logs1 = bc.logs(vec![b1_hash, b2_hash], |_| true, None);
+		let logs2 = bc.logs(vec![b1_hash, b2_hash], |_| true, Some(1));
 
 		// then
 		assert_eq!(logs1, vec![
