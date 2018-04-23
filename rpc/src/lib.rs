@@ -67,7 +67,10 @@ extern crate parity_version as version;
 extern crate rlp;
 extern crate stats;
 extern crate keccak_hash as hash;
+
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 extern crate hardware_wallet;
+
 extern crate patricia_trie as trie;
 
 #[macro_use]

@@ -75,7 +75,8 @@ extern crate ethcore_transaction as transaction;
 extern crate ethereum_types;
 extern crate ethjson;
 extern crate ethkey;
-extern crate hardware_wallet;
+
+
 extern crate hashdb;
 extern crate itertools;
 extern crate kvdb;
@@ -99,7 +100,6 @@ extern crate ansi_term;
 extern crate unexpected;
 extern crate util_error;
 extern crate snappy;
-
 extern crate ethabi;
 extern crate rustc_hex;
 extern crate stats;
@@ -109,6 +109,11 @@ extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
+
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
+extern crate hardware_wallet;
+
+#[cfg(test)]
 extern crate tempdir;
 
 #[macro_use]

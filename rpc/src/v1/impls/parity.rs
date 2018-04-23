@@ -34,7 +34,6 @@ use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
 use node_health::{NodeHealth, Health};
 use updater::{Service as UpdateService};
-
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_macros::Trailing;
@@ -51,6 +50,9 @@ use v1::types::{
 	block_number_to_id
 };
 use Host;
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
+use jsonrpc_core::Error;
 
 /// Parity implementation.
 pub struct ParityClient<C, M, U>  {
@@ -135,6 +137,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		)
 	}
 
+    #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
 		let info = self.accounts.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		Ok(info
@@ -143,12 +146,23 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			.collect()
 		)
 	}
+	
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
+    fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
+        Err(Error::parse_error())
+	}
 
+    #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
 		self.accounts.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))
 	}
 
-	fn default_account(&self, meta: Self::Metadata) -> Result<H160> {
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
+	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
+        Err(Error::parse_error())
+	}
+	
+    fn default_account(&self, meta: Self::Metadata) -> Result<H160> {
 		let dapp_id = meta.dapp_id();
 
 		Ok(self.accounts
