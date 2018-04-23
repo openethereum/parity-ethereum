@@ -91,10 +91,10 @@ impl<C: NonceClient> txpool::Ready<VerifiedTransaction> for State<C> {
 		match tx.transaction.nonce.cmp(nonce) {
 			// Before marking as future check for stale ids
 			cmp::Ordering::Greater => match self.stale_id {
-				Some(id) if tx.insertion_id() < id => txpool::Readiness::Stalled,
+				Some(id) if tx.insertion_id() < id => txpool::Readiness::Stale,
 				_ => txpool::Readiness::Future,
 			},
-			cmp::Ordering::Less => txpool::Readiness::Stalled,
+			cmp::Ordering::Less => txpool::Readiness::Stale,
 			cmp::Ordering::Equal => {
 				*nonce = *nonce + 1.into();
 				txpool::Readiness::Ready

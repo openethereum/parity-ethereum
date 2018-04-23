@@ -17,8 +17,8 @@
 use std::cmp;
 use std::collections::HashMap;
 
-use ethereum_types::U256;
-use {scoring, Scoring, Ready, Readiness, Address as Sender};
+use ethereum_types::{H160 as Sender, U256};
+use {scoring, Scoring, Ready, Readiness};
 use super::{Transaction, SharedTransaction};
 
 #[derive(Debug, Default)]
@@ -84,7 +84,7 @@ impl Ready<Transaction> for NonceReady {
 				*nonce = *nonce + 1.into();
 				Readiness::Ready
 			},
-			cmp::Ordering::Less => Readiness::Stalled,
+			cmp::Ordering::Less => Readiness::Stale,
 		}
 	}
 }

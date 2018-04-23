@@ -190,7 +190,7 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 		let mut first_non_stalled = 0;
 		for tx in &self.transactions {
 			match ready.is_ready(tx) {
-				Readiness::Stalled => {
+				Readiness::Stale => {
 					first_non_stalled += 1;
 				},
 				Readiness::Ready | Readiness::Future => break,

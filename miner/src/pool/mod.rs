@@ -117,6 +117,9 @@ impl VerifiedTransaction {
 }
 
 impl txpool::VerifiedTransaction for VerifiedTransaction {
+	type Hash = H256;
+	type Sender = Address;
+
 	fn hash(&self) -> &H256 {
 		&self.hash
 	}
