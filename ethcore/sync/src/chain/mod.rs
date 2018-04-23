@@ -88,6 +88,7 @@
 /// All other messages are ignored.
 ///
 
+mod requester;
 mod supplier;
 
 use std::sync::Arc;
@@ -109,7 +110,7 @@ use ethcore::snapshot::{ManifestData, RestorationStatus};
 use transaction::SignedTransaction;
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
-use block_sync::{BlockDownloader, BlockRequest, BlockDownloaderImportError as DownloaderImportError, DownloadAction};
+use block_sync::{BlockDownloader, BlockDownloaderImportError as DownloaderImportError, DownloadAction};
 use rand::Rng;
 use snapshot::{Snapshot, ChunkType};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
@@ -118,6 +119,7 @@ use transactions_stats::{TransactionsStats, Stats as TransactionStats};
 use transaction::UnverifiedTransaction;
 
 use self::supplier::SyncSupplier;
+use self::requester::SyncRequester;
 
 known_heap_size!(0, PeerInfo);
 
@@ -271,7 +273,7 @@ impl SyncStatus {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// Peer data type requested
-enum PeerAsking {
+pub enum PeerAsking {
 	Nothing,
 	ForkHeader,
 	BlockHeaders,
@@ -283,7 +285,7 @@ enum PeerAsking {
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 /// Block downloader channel.
-enum BlockSet {
+pub enum BlockSet {
 	/// New blocks better than out best blocks
 	NewBlocks,
 	/// Missing old blocks
@@ -301,7 +303,7 @@ enum ForkConfirmation {
 
 #[derive(Clone)]
 /// Syncing peer information
-struct PeerInfo {
+pub struct PeerInfo {
 	/// eth protocol version
 	protocol_version: u8,
 	/// Peer chain genesis hash
@@ -366,6 +368,9 @@ mod random {
 	pub fn new() -> rand::XorShiftRng { rand::XorShiftRng::from_seed([0, 1, 2, 3]) }
 }
 
+pub type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
+pub type Peers = HashMap<PeerId, PeerInfo>;
+
 /// Blockchain sync handler.
 /// See module documentation for more details.
 pub struct ChainSync {
@@ -376,7 +381,7 @@ pub struct ChainSync {
 	/// Highest block number seen
 	highest_block: Option<BlockNumber>,
 	/// All connected peers
-	peers: HashMap<PeerId, PeerInfo>,
+	peers: Peers,
 	/// Peers active for current sync round
 	active_peers: HashSet<PeerId>,
 	/// Block download process for new blocks
@@ -405,8 +410,6 @@ pub struct ChainSync {
 	/// Enable warp sync.
 	warp_sync: WarpSync,
 }
-
-pub type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
 
 impl ChainSync {
 	/// Create a new instance of syncing strategy.
@@ -598,7 +601,7 @@ impl ChainSync {
 		if !self.snapshot.have_manifest() {
 			for p in peers {
 				if self.peers.get(p).map_or(false, |p| p.asking == PeerAsking::Nothing) {
-					self.request_snapshot_manifest(io, *p);
+					SyncRequester::request_snapshot_manifest(&mut self.peers, io, *p);
 				}
 			}
 			self.state = SyncState::SnapshotManifest;
@@ -698,7 +701,7 @@ impl ChainSync {
 		self.active_peers.insert(peer_id.clone());
 		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
 		if let Some((fork_block, _)) = self.fork_block {
-			self.request_fork_header_by_number(io, peer_id, fork_block);
+			SyncRequester::request_fork_header_by_number(&mut self.peers, io, peer_id, fork_block);
 		} else {
 			self.sync_peer(io, peer_id, false);
 		}
@@ -1280,7 +1283,7 @@ impl ChainSync {
 						// check if got new blocks to download
 						trace!(target: "sync", "Syncing with peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
 						if let Some(request) = self.new_blocks.request_blocks(io, num_active_peers) {
-							self.request_blocks(io, peer_id, request, BlockSet::NewBlocks);
+							SyncRequester::request_blocks(&mut self.peers, io, peer_id, request, BlockSet::NewBlocks);
 							if self.state == SyncState::Idle {
 								self.state = SyncState::Blocks;
 							}
@@ -1289,7 +1292,7 @@ impl ChainSync {
 					}
 
 					if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
-						self.request_blocks(io, peer_id, request, BlockSet::OldBlocks);
+						SyncRequester::request_blocks(&mut self.peers, io, peer_id, request, BlockSet::OldBlocks);
 						return;
 					}
 				},
@@ -1302,7 +1305,8 @@ impl ChainSync {
 						}
 					}
 					if peer_snapshot_hash.is_some() && peer_snapshot_hash == self.snapshot.snapshot_hash() {
-						self.request_snapshot_data(io, peer_id);
+						self.clear_peer_download(peer_id);
+						SyncRequester::request_snapshot_data(&mut self.peers, &mut self.snapshot, io, peer_id);
 					}
 				},
 				SyncState::SnapshotManifest | //already downloading from other peer
@@ -1310,33 +1314,6 @@ impl ChainSync {
 			}
 		} else {
 			trace!(target: "sync", "Skipping peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
-		}
-	}
-
-	/// Perofrm block download request`
-	fn request_blocks(&mut self, io: &mut SyncIo, peer_id: PeerId, request: BlockRequest, block_set: BlockSet) {
-		match request {
-			BlockRequest::Headers { start, count, skip } => {
-				self.request_headers_by_hash(io, peer_id, &start, count, skip, false, block_set);
-			},
-			BlockRequest::Bodies { hashes } => {
-				self.request_bodies(io, peer_id, hashes, block_set);
-			},
-			BlockRequest::Receipts { hashes } => {
-				self.request_receipts(io, peer_id, hashes, block_set);
-			},
-		}
-	}
-
-	/// Find some headers or blocks to download for a peer.
-	fn request_snapshot_data(&mut self, io: &mut SyncIo, peer_id: PeerId) {
-		self.clear_peer_download(peer_id);
-		// find chunk data to download
-		if let Some(hash) = self.snapshot.needed_chunk() {
-			if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
-				peer.asking_snapshot_data = Some(hash.clone());
-			}
-			self.request_snapshot_chunk(io, peer_id, &hash);
 		}
 	}
 
@@ -1393,72 +1370,6 @@ impl ChainSync {
 		}
 	}
 
-	/// Request headers from a peer by block hash
-	fn request_headers_by_hash(&mut self, sync: &mut SyncIo, peer_id: PeerId, h: &H256, count: u64, skip: u64, reverse: bool, set: BlockSet) {
-		trace!(target: "sync", "{} <- GetBlockHeaders: {} entries starting from {}, set = {:?}", peer_id, count, h, set);
-		let mut rlp = RlpStream::new_list(4);
-		rlp.append(h);
-		rlp.append(&count);
-		rlp.append(&skip);
-		rlp.append(&if reverse {1u32} else {0u32});
-		self.send_request(sync, peer_id, PeerAsking::BlockHeaders, GET_BLOCK_HEADERS_PACKET, rlp.out());
-		let peer = self.peers.get_mut(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
-		peer.asking_hash = Some(h.clone());
-		peer.block_set = Some(set);
-	}
-
-	/// Request headers from a peer by block number
-	fn request_fork_header_by_number(&mut self, sync: &mut SyncIo, peer_id: PeerId, n: BlockNumber) {
-		trace!(target: "sync", "{} <- GetForkHeader: at {}", peer_id, n);
-		let mut rlp = RlpStream::new_list(4);
-		rlp.append(&n);
-		rlp.append(&1u32);
-		rlp.append(&0u32);
-		rlp.append(&0u32);
-		self.send_request(sync, peer_id, PeerAsking::ForkHeader, GET_BLOCK_HEADERS_PACKET, rlp.out());
-	}
-
-	/// Request snapshot manifest from a peer.
-	fn request_snapshot_manifest(&mut self, sync: &mut SyncIo, peer_id: PeerId) {
-		trace!(target: "sync", "{} <- GetSnapshotManifest", peer_id);
-		let rlp = RlpStream::new_list(0);
-		self.send_request(sync, peer_id, PeerAsking::SnapshotManifest, GET_SNAPSHOT_MANIFEST_PACKET, rlp.out());
-	}
-
-	/// Request snapshot chunk from a peer.
-	fn request_snapshot_chunk(&mut self, sync: &mut SyncIo, peer_id: PeerId, chunk: &H256) {
-		trace!(target: "sync", "{} <- GetSnapshotData {:?}", peer_id, chunk);
-		let mut rlp = RlpStream::new_list(1);
-		rlp.append(chunk);
-		self.send_request(sync, peer_id, PeerAsking::SnapshotData, GET_SNAPSHOT_DATA_PACKET, rlp.out());
-	}
-
-	/// Request block bodies from a peer
-	fn request_bodies(&mut self, sync: &mut SyncIo, peer_id: PeerId, hashes: Vec<H256>, set: BlockSet) {
-		let mut rlp = RlpStream::new_list(hashes.len());
-		trace!(target: "sync", "{} <- GetBlockBodies: {} entries starting from {:?}, set = {:?}", peer_id, hashes.len(), hashes.first(), set);
-		for h in &hashes {
-			rlp.append(&h.clone());
-		}
-		self.send_request(sync, peer_id, PeerAsking::BlockBodies, GET_BLOCK_BODIES_PACKET, rlp.out());
-		let peer = self.peers.get_mut(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
-		peer.asking_blocks = hashes;
-		peer.block_set = Some(set);
-	}
-
-	/// Request block receipts from a peer
-	fn request_receipts(&mut self, sync: &mut SyncIo, peer_id: PeerId, hashes: Vec<H256>, set: BlockSet) {
-		let mut rlp = RlpStream::new_list(hashes.len());
-		trace!(target: "sync", "{} <- GetBlockReceipts: {} entries starting from {:?}, set = {:?}", peer_id, hashes.len(), hashes.first(), set);
-		for h in &hashes {
-			rlp.append(&h.clone());
-		}
-		self.send_request(sync, peer_id, PeerAsking::BlockReceipts, GET_RECEIPTS_PACKET, rlp.out());
-		let peer = self.peers.get_mut(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
-		peer.asking_blocks = hashes;
-		peer.block_set = Some(set);
-	}
-
 	/// Reset peer status after request is complete.
 	fn reset_peer_asking(&mut self, peer_id: PeerId, asking: PeerAsking) -> bool {
 		if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
@@ -1474,26 +1385,6 @@ impl ChainSync {
 			}
 		}
 		false
-	}
-
-	/// Generic request sender
-	fn send_request(&mut self, sync: &mut SyncIo, peer_id: PeerId, asking: PeerAsking,  packet_id: PacketId, packet: Bytes) {
-		if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
-			if peer.asking != PeerAsking::Nothing {
-				warn!(target:"sync", "Asking {:?} while requesting {:?}", peer.asking, asking);
-			}
-			peer.asking = asking;
-			peer.ask_time = Instant::now();
-			let result = if packet_id >= ETH_PACKET_COUNT {
-				sync.send_protocol(WARP_SYNC_PROTOCOL_ID, peer_id, packet_id, packet)
-			} else {
-				sync.send(peer_id, packet_id, packet)
-			};
-			if let Err(e) = result {
-				debug!(target:"sync", "Error sending request: {:?}", e);
-				sync.disconnect_peer(peer_id);
-			}
-		}
 	}
 
 	/// Generic packet sender
