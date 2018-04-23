@@ -1906,6 +1906,7 @@ impl BlockChainClient for Client {
 							blocks.push(current_hash);
 						}
 
+						// Stop if `from` block is reached.
 						if header.number() <= from_number {
 							break;
 						}
