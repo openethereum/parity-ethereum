@@ -6,7 +6,7 @@ The full list of included changes:
 
 - Update Parity beta to 1.10.2 + Backports ([#8455](https://github.com/paritytech/parity/pull/8455))
   - Update Parity beta to 1.10.2
-  - Allow 32 bit pipelines to fail ([#8454](https://github.com/paritytech/parity/pull/8454))
+  - Allow 32-bit pipelines to fail ([#8454](https://github.com/paritytech/parity/pull/8454))
     - Disable 32-bit targets for Gitlab
     - Rename Linux pipelines
   - Update wasmi ([#8452](https://github.com/paritytech/parity/pull/8452))
