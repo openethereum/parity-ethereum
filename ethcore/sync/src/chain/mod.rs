@@ -121,7 +121,7 @@ use self::supplier::SyncSupplier;
 
 known_heap_size!(0, PeerInfo);
 
-type PacketDecodeError = DecoderError;
+pub type PacketDecodeError = DecoderError;
 
 /// 63 version of Ethereum protocol.
 pub const ETH_PROTOCOL_VERSION_63: u8 = 63;
@@ -136,9 +136,9 @@ pub const PAR_PROTOCOL_VERSION_3: u8 = 3;
 
 const MAX_BODIES_TO_SEND: usize = 256;
 pub const MAX_HEADERS_TO_SEND: usize = 512;
-const MAX_NODE_DATA_TO_SEND: usize = 1024;
-const MAX_RECEIPTS_TO_SEND: usize = 1024;
-const MAX_RECEIPTS_HEADERS_TO_SEND: usize = 256;
+pub const MAX_NODE_DATA_TO_SEND: usize = 1024;
+pub const MAX_RECEIPTS_TO_SEND: usize = 1024;
+pub const MAX_RECEIPTS_HEADERS_TO_SEND: usize = 256;
 const MIN_PEERS_PROPAGATION: usize = 4;
 const MAX_PEERS_PROPAGATION: usize = 128;
 const MAX_PEER_LAG_PROPAGATION: BlockNumber = 20;
@@ -162,17 +162,17 @@ const GET_BLOCK_BODIES_PACKET: u8 = 0x05;
 const BLOCK_BODIES_PACKET: u8 = 0x06;
 const NEW_BLOCK_PACKET: u8 = 0x07;
 
-const GET_NODE_DATA_PACKET: u8 = 0x0d;
-const NODE_DATA_PACKET: u8 = 0x0e;
-const GET_RECEIPTS_PACKET: u8 = 0x0f;
-const RECEIPTS_PACKET: u8 = 0x10;
+pub const GET_NODE_DATA_PACKET: u8 = 0x0d;
+pub const NODE_DATA_PACKET: u8 = 0x0e;
+pub const GET_RECEIPTS_PACKET: u8 = 0x0f;
+pub const RECEIPTS_PACKET: u8 = 0x10;
 
 pub const ETH_PACKET_COUNT: u8 = 0x11;
 
 const GET_SNAPSHOT_MANIFEST_PACKET: u8 = 0x11;
-const SNAPSHOT_MANIFEST_PACKET: u8 = 0x12;
+pub const SNAPSHOT_MANIFEST_PACKET: u8 = 0x12;
 const GET_SNAPSHOT_DATA_PACKET: u8 = 0x13;
-const SNAPSHOT_DATA_PACKET: u8 = 0x14;
+pub const SNAPSHOT_DATA_PACKET: u8 = 0x14;
 const CONSENSUS_DATA_PACKET: u8 = 0x15;
 const PRIVATE_TRANSACTION_PACKET: u8 = 0x16;
 const SIGNED_PRIVATE_TRANSACTION_PACKET: u8 = 0x17;
@@ -1580,138 +1580,32 @@ impl ChainSync {
 		Ok(Some((BLOCK_BODIES_PACKET, rlp)))
 	}
 
-	/// Respond to GetNodeData request
-	fn return_node_data(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
-		let mut count = r.item_count().unwrap_or(0);
-		trace!(target: "sync", "{} -> GetNodeData: {} entries", peer_id, count);
-		if count == 0 {
-			debug!(target: "sync", "Empty GetNodeData request, ignoring.");
-			return Ok(None);
-		}
-		count = cmp::min(count, MAX_NODE_DATA_TO_SEND);
-		let mut added = 0usize;
-		let mut data = Vec::new();
-		for i in 0..count {
-			if let Some(node) = io.chain().state_data(&r.val_at::<H256>(i)?) {
-				data.push(node);
-				added += 1;
-			}
-		}
-		trace!(target: "sync", "{} -> GetNodeData: return {} entries", peer_id, added);
-		let mut rlp = RlpStream::new_list(added);
-		for d in data {
-			rlp.append(&d);
-		}
-		Ok(Some((NODE_DATA_PACKET, rlp)))
-	}
-
-	fn return_receipts(io: &SyncIo, rlp: &Rlp, peer_id: PeerId) -> RlpResponseResult {
-		let mut count = rlp.item_count().unwrap_or(0);
-		trace!(target: "sync", "{} -> GetReceipts: {} entries", peer_id, count);
-		if count == 0 {
-			debug!(target: "sync", "Empty GetReceipts request, ignoring.");
-			return Ok(None);
-		}
-		count = cmp::min(count, MAX_RECEIPTS_HEADERS_TO_SEND);
-		let mut added_headers = 0usize;
-		let mut added_receipts = 0usize;
-		let mut data = Bytes::new();
-		for i in 0..count {
-			if let Some(mut receipts_bytes) = io.chain().block_receipts(&rlp.val_at::<H256>(i)?) {
-				data.append(&mut receipts_bytes);
-				added_receipts += receipts_bytes.len();
-				added_headers += 1;
-				if added_receipts > MAX_RECEIPTS_TO_SEND { break; }
-			}
-		}
-		let mut rlp_result = RlpStream::new_list(added_headers);
-		rlp_result.append_raw(&data, added_headers);
-		Ok(Some((RECEIPTS_PACKET, rlp_result)))
-	}
-
-	/// Respond to GetSnapshotManifest request
-	fn return_snapshot_manifest(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
-		let count = r.item_count().unwrap_or(0);
-		trace!(target: "sync", "{} -> GetSnapshotManifest", peer_id);
-		if count != 0 {
-			debug!(target: "sync", "Invalid GetSnapshotManifest request, ignoring.");
-			return Ok(None);
-		}
-		let rlp = match io.snapshot_service().manifest() {
-			Some(manifest) => {
-				trace!(target: "sync", "{} <- SnapshotManifest", peer_id);
-				let mut rlp = RlpStream::new_list(1);
-				rlp.append_raw(&manifest.into_rlp(), 1);
-				rlp
-			},
-			None => {
-				trace!(target: "sync", "{}: No manifest to return", peer_id);
-				RlpStream::new_list(0)
-			}
-		};
-		Ok(Some((SNAPSHOT_MANIFEST_PACKET, rlp)))
-	}
-
-	/// Respond to GetSnapshotData request
-	fn return_snapshot_data(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
-		let hash: H256 = r.val_at(0)?;
-		trace!(target: "sync", "{} -> GetSnapshotData {:?}", peer_id, hash);
-		let rlp = match io.snapshot_service().chunk(hash) {
-			Some(data) => {
-				let mut rlp = RlpStream::new_list(1);
-				trace!(target: "sync", "{} <- SnapshotData", peer_id);
-				rlp.append(&data);
-				rlp
-			},
-			None => {
-				RlpStream::new_list(0)
-			}
-		};
-		Ok(Some((SNAPSHOT_DATA_PACKET, rlp)))
-	}
-
-	fn return_rlp<FRlp, FError>(io: &mut SyncIo, rlp: &Rlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketDecodeError>
-		where FRlp : Fn(&SyncIo, &Rlp, PeerId) -> RlpResponseResult,
-			FError : FnOnce(network::Error) -> String
-	{
-		let response = rlp_func(io, rlp, peer);
-		match response {
-			Err(e) => Err(e),
-			Ok(Some((packet_id, rlp_stream))) => {
-				io.respond(packet_id, rlp_stream.out()).unwrap_or_else(
-					|e| debug!(target: "sync", "{:?}", error_func(e)));
-				Ok(())
-			}
-			_ => Ok(())
-		}
-	}
-
 	/// Dispatch incoming requests and responses
 	pub fn dispatch_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = Rlp::new(data);
 		let result = match packet_id {
-			GET_BLOCK_BODIES_PACKET => ChainSync::return_rlp(io, &rlp, peer,
+			GET_BLOCK_BODIES_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
 				ChainSync::return_block_bodies,
 				|e| format!("Error sending block bodies: {:?}", e)),
 
-			GET_BLOCK_HEADERS_PACKET => ChainSync::return_rlp(io, &rlp, peer,
+			GET_BLOCK_HEADERS_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
 				SyncSupplier::return_block_headers,
 				|e| format!("Error sending block headers: {:?}", e)),
 
-			GET_RECEIPTS_PACKET => ChainSync::return_rlp(io, &rlp, peer,
-				ChainSync::return_receipts,
+			GET_RECEIPTS_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
+				SyncSupplier::return_receipts,
 				|e| format!("Error sending receipts: {:?}", e)),
 
-			GET_NODE_DATA_PACKET => ChainSync::return_rlp(io, &rlp, peer,
-				ChainSync::return_node_data,
+			GET_NODE_DATA_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
+				SyncSupplier::return_node_data,
 				|e| format!("Error sending nodes: {:?}", e)),
 
-			GET_SNAPSHOT_MANIFEST_PACKET => ChainSync::return_rlp(io, &rlp, peer,
-				ChainSync::return_snapshot_manifest,
+			GET_SNAPSHOT_MANIFEST_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
+				SyncSupplier::return_snapshot_manifest,
 				|e| format!("Error sending snapshot manifest: {:?}", e)),
 
-			GET_SNAPSHOT_DATA_PACKET => ChainSync::return_rlp(io, &rlp, peer,
-				ChainSync::return_snapshot_data,
+			GET_SNAPSHOT_DATA_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
+				SyncSupplier::return_snapshot_data,
 				|e| format!("Error sending snapshot data: {:?}", e)),
 			CONSENSUS_DATA_PACKET => ChainSync::on_consensus_packet(io, peer, &rlp),
 			_ => {
@@ -2246,7 +2140,7 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 	use std::collections::{HashSet, VecDeque};
 	use ethkey;
 	use network::PeerId;
@@ -2345,81 +2239,7 @@ mod tests {
 		assert!(!sync_status(SyncState::Idle).is_syncing(queue_info(0, 0)));
 	}
 
-	#[test]
-	fn return_receipts_empty() {
-		let mut client = TestBlockChainClient::new();
-		let queue = RwLock::new(VecDeque::new());
-		let ss = TestSnapshotService::new();
-		let io = TestIo::new(&mut client, &ss, &queue, None);
-
-		let result = ChainSync::return_receipts(&io, &Rlp::new(&[0xc0]), 0);
-
-		assert!(result.is_ok());
-	}
-
-	#[test]
-	fn return_receipts() {
-		let mut client = TestBlockChainClient::new();
-		let queue = RwLock::new(VecDeque::new());
-		let sync = dummy_sync_with_peer(H256::new(), &client);
-		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
-
-		let mut receipt_list = RlpStream::new_list(4);
-		receipt_list.append(&H256::from("0000000000000000000000000000000000000000000000005555555555555555"));
-		receipt_list.append(&H256::from("ff00000000000000000000000000000000000000000000000000000000000000"));
-		receipt_list.append(&H256::from("fff0000000000000000000000000000000000000000000000000000000000000"));
-		receipt_list.append(&H256::from("aff0000000000000000000000000000000000000000000000000000000000000"));
-
-		let receipts_request = receipt_list.out();
-		// it returns rlp ONLY for hashes started with "f"
-		let result = ChainSync::return_receipts(&io, &Rlp::new(&receipts_request.clone()), 0);
-
-		assert!(result.is_ok());
-		let rlp_result = result.unwrap();
-		assert!(rlp_result.is_some());
-
-		// the length of two rlp-encoded receipts
-		assert_eq!(603, rlp_result.unwrap().1.out().len());
-
-		io.sender = Some(2usize);
-		ChainSync::dispatch_packet(&RwLock::new(sync), &mut io, 0usize, super::GET_RECEIPTS_PACKET, &receipts_request);
-		assert_eq!(1, io.packets.len());
-	}
-
-	#[test]
-	fn return_nodes() {
-		let mut client = TestBlockChainClient::new();
-		let queue = RwLock::new(VecDeque::new());
-		let sync = dummy_sync_with_peer(H256::new(), &client);
-		let ss = TestSnapshotService::new();
-		let mut io = TestIo::new(&mut client, &ss, &queue, None);
-
-		let mut node_list = RlpStream::new_list(3);
-		node_list.append(&H256::from("0000000000000000000000000000000000000000000000005555555555555555"));
-		node_list.append(&H256::from("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa"));
-		node_list.append(&H256::from("aff0000000000000000000000000000000000000000000000000000000000000"));
-
-		let node_request = node_list.out();
-		// it returns rlp ONLY for hashes started with "f"
-		let result = ChainSync::return_node_data(&io, &Rlp::new(&node_request.clone()), 0);
-
-		assert!(result.is_ok());
-		let rlp_result = result.unwrap();
-		assert!(rlp_result.is_some());
-
-		// the length of one rlp-encoded hashe
-		let rlp = rlp_result.unwrap().1.out();
-		let rlp = Rlp::new(&rlp);
-		assert_eq!(Ok(1), rlp.item_count());
-
-		io.sender = Some(2usize);
-
-		ChainSync::dispatch_packet(&RwLock::new(sync), &mut io, 0usize, super::GET_NODE_DATA_PACKET, &node_request);
-		assert_eq!(1, io.packets.len());
-	}
-
-	fn dummy_sync_with_peer(peer_latest_hash: H256, client: &BlockChainClient) -> ChainSync {
+	pub fn dummy_sync_with_peer(peer_latest_hash: H256, client: &BlockChainClient) -> ChainSync {
 		let mut sync = ChainSync::new(SyncConfig::default(), client, Arc::new(NoopPrivateTxHandler));
 		insert_dummy_peer(&mut sync, 0, peer_latest_hash);
 		sync
