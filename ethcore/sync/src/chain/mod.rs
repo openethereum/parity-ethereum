@@ -603,7 +603,7 @@ impl ChainSync {
 		if !self.snapshot.have_manifest() {
 			for p in peers {
 				if self.peers.get(p).map_or(false, |p| p.asking == PeerAsking::Nothing) {
-					SyncRequester::request_snapshot_manifest(&mut self.peers, io, *p);
+					SyncRequester::request_snapshot_manifest(self, io, *p);
 				}
 			}
 			self.state = SyncState::SnapshotManifest;
@@ -732,7 +732,7 @@ impl ChainSync {
 						// check if got new blocks to download
 						trace!(target: "sync", "Syncing with peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
 						if let Some(request) = self.new_blocks.request_blocks(io, num_active_peers) {
-							SyncRequester::request_blocks(&mut self.peers, io, peer_id, request, BlockSet::NewBlocks);
+							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::NewBlocks);
 							if self.state == SyncState::Idle {
 								self.state = SyncState::Blocks;
 							}
@@ -741,7 +741,7 @@ impl ChainSync {
 					}
 
 					if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
-						SyncRequester::request_blocks(&mut self.peers, io, peer_id, request, BlockSet::OldBlocks);
+						SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
 						return;
 					}
 				},
@@ -755,7 +755,7 @@ impl ChainSync {
 					}
 					if peer_snapshot_hash.is_some() && peer_snapshot_hash == self.snapshot.snapshot_hash() {
 						self.clear_peer_download(peer_id);
-						SyncRequester::request_snapshot_data(&mut self.peers, &mut self.snapshot, io, peer_id);
+						SyncRequester::request_snapshot_data(self, io, peer_id);
 					}
 				},
 				SyncState::SnapshotManifest | //already downloading from other peer
@@ -860,11 +860,6 @@ impl ChainSync {
 			packet.append(&block_number);
 		}
 		io.respond(STATUS_PACKET, packet.out())
-	}
-
-	/// Dispatch incoming requests and responses
-	pub fn dispatch_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
-		SyncSupplier::dispatch_packet(sync, io, peer, packet_id, data)
 	}
 
 	pub fn maintain_peers(&mut self, io: &mut SyncIo) {
@@ -1046,6 +1041,11 @@ impl ChainSync {
 				peer_info.last_sent_transactions.clear()
 			);
 		}
+	}
+
+	/// Dispatch incoming requests and responses
+	pub fn dispatch_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
+		SyncSupplier::dispatch_packet(sync, io, peer, packet_id, data)
 	}
 
 	pub fn on_packet(&mut self, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {

@@ -649,7 +649,7 @@ impl SyncHandler {
 		sync.active_peers.insert(peer_id.clone());
 		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
 		if let Some((fork_block, _)) = sync.fork_block {
-			SyncRequester::request_fork_header_by_number(&mut sync.peers, io, peer_id, fork_block);
+			SyncRequester::request_fork_header_by_number(sync, io, peer_id, fork_block);
 		} else {
 			sync.sync_peer(io, peer_id, false);
 		}
