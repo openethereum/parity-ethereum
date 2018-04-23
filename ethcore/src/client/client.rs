@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
+use std::collections::{HashSet, HashMap, BTreeMap, BTreeSet, VecDeque};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
@@ -1875,18 +1875,14 @@ impl BlockChainClient for Client {
 				let from = self.block_number_ref(&filter.from_block)?;
 				let to = self.block_number_ref(&filter.to_block)?;
 
-				let mut numbers = filter.bloom_possibilities().iter()
+				filter.bloom_possibilities().iter()
 					.map(|bloom| {
 						chain.blocks_with_bloom(bloom, from, to)
 					})
 					.flat_map(|m| m)
 					// remove duplicate elements
-					.collect::<HashSet<u64>>()
+					.collect::<BTreeSet<u64>>()
 					.into_iter()
-					.collect::<Vec<u64>>();
-
-				numbers.sort_by(|a, b| a.cmp(b));
-				numbers.into_iter()
 					.filter_map(|n| chain.block_hash(n))
 					.collect::<Vec<H256>>()
 
