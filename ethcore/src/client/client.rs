@@ -1936,7 +1936,7 @@ impl BlockChainClient for Client {
 				current_number = current_number - 1;
 			}
 
-			if current_hash != from_hash || blocks.empty() {
+			if current_hash != from_hash || blocks.is_empty() {
 				return Vec::new();
 			}
 
