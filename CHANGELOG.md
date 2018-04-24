@@ -1,3 +1,28 @@
+## Parity [v1.10.2](https://github.com/paritytech/parity/releases/tag/v1.10.2) (2018-04-24)
+
+Parity 1.10.2 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Update Parity beta to 1.10.2 + Backports ([#8455](https://github.com/paritytech/parity/pull/8455))
+  - Update Parity beta to 1.10.2
+  - Allow 32-bit pipelines to fail ([#8454](https://github.com/paritytech/parity/pull/8454))
+    - Disable 32-bit targets for Gitlab
+    - Rename Linux pipelines
+  - Update wasmi ([#8452](https://github.com/paritytech/parity/pull/8452))
+  - Fix Cargo.lock
+- Backports ([#8450](https://github.com/paritytech/parity/pull/8450))
+  - Use forked app_dirs crate for reverted Windows dir behavior  ([#8438](https://github.com/paritytech/parity/pull/8438))
+    - Remove unused app_dirs dependency in CLI
+    - Use forked app_dirs crate for reverted Windows dir behavior
+  - Remove Tendermint extra_info due to seal inconsistencies ([#8367](https://github.com/paritytech/parity/pull/8367))
+  - Handle queue import errors a bit more gracefully ([#8385](https://github.com/paritytech/parity/pull/8385))
+  - Improve VM executor stack size estimation rules ([#8439](https://github.com/paritytech/parity/pull/8439))
+    - Improve VM executor stack size estimation rules
+    - Typo: docs add "(Debug build)" comment
+    - Fix an off by one typo and set minimal stack size
+    - Use saturating_sub to avoid potential overflow
+
 ## Parity [v1.10.1](https://github.com/paritytech/parity/releases/tag/v1.10.1) (2018-04-17)
 
 Parity 1.10.1 is a bug-fix release to improve performance and stability. Among other changes, you can now use `--warp-barrier [BLOCK]` to specify a minimum block number to `--warp` to. This is useful in cases where clients restore to outdated snapshots far behind the latest chain head.
