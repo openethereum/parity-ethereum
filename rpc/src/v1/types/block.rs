@@ -111,8 +111,7 @@ pub struct Header {
 	pub uncles_hash: H256,
 	/// Authors address
 	pub author: H160,
-	// TODO: get rid of this one
-	/// ?
+	/// Alias of `author`
 	pub miner: H160,
 	/// State root hash
 	#[serde(rename="stateRoot")]
