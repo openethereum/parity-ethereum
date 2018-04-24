@@ -286,7 +286,7 @@ dependencies = [
  "ethbloom 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bigint 0.2.1",
  "ethcore-bytes 0.1.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "ethjson 0.1.0",
  "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.0",
@@ -513,7 +513,7 @@ dependencies = [
  "ethcore-io 1.9.0",
  "ethcore-logger 1.9.0",
  "ethcore-stratum 1.9.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "ethjson 0.1.0",
  "ethkey 0.3.0",
  "ethstore 0.2.0",
@@ -628,7 +628,7 @@ dependencies = [
  "ethcore-bytes 0.1.0",
  "ethcore-io 1.9.0",
  "ethcore-network 1.9.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "futures 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -714,7 +714,7 @@ dependencies = [
  "ethcore-bigint 0.2.1",
  "ethcore-bytes 0.1.0",
  "ethcore-logger 1.9.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "ethcrypto 0.1.0",
  "ethkey 0.3.0",
  "ethsync 1.9.0",
@@ -760,7 +760,7 @@ dependencies = [
 
 [[package]]
 name = "ethcore-util"
-version = "1.9.7"
+version = "1.9.8"
 dependencies = [
  "ethcore-bigint 0.2.1",
  "ethcore-bytes 0.1.0",
@@ -880,7 +880,7 @@ dependencies = [
  "ethcore-io 1.9.0",
  "ethcore-light 1.9.0",
  "ethcore-network 1.9.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "ethkey 0.3.0",
  "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ipnetwork 0.12.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -904,7 +904,7 @@ version = "0.1.0"
 dependencies = [
  "bit-set 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bigint 0.2.1",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "evmjit 1.9.0",
  "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.0",
@@ -924,7 +924,7 @@ dependencies = [
  "ethcore 1.9.0",
  "ethcore-bigint 0.2.1",
  "ethcore-bytes 0.1.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "ethjson 0.1.0",
  "evm 0.1.0",
  "panic_hook 0.1.0",
@@ -1782,7 +1782,7 @@ dependencies = [
  "ethcore-bytes 0.1.0",
  "ethcore-io 1.9.0",
  "ethcore-network 1.9.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "futures 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb-memorydb 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1976,7 +1976,7 @@ dependencies = [
 
 [[package]]
 name = "parity"
-version = "1.9.7"
+version = "1.9.8"
 dependencies = [
  "ansi_term 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.29.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1995,7 +1995,7 @@ dependencies = [
  "ethcore-network 1.9.0",
  "ethcore-secretstore 1.0.0",
  "ethcore-stratum 1.9.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "ethkey 0.3.0",
  "ethsync 1.9.0",
  "fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2023,7 +2023,7 @@ dependencies = [
  "parity-rpc 1.9.0",
  "parity-rpc-client 1.4.0",
  "parity-updater 1.9.0",
- "parity-version 1.9.7",
+ "parity-version 1.9.8",
  "parity-whisper 0.1.0",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "path 0.1.0",
@@ -2055,7 +2055,7 @@ dependencies = [
  "ethcore-bigint 0.2.1",
  "ethcore-bytes 0.1.0",
  "ethcore-devtools 1.9.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "fetch 0.1.0",
  "futures 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2071,7 +2071,7 @@ dependencies = [
  "parity-hash-fetch 1.9.0",
  "parity-reactor 0.1.0",
  "parity-ui 1.9.0",
- "parity-version 1.9.7",
+ "parity-version 1.9.8",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2117,7 +2117,7 @@ dependencies = [
  "ethabi 4.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bigint 0.2.1",
  "ethcore-bytes 0.1.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "fetch 0.1.0",
  "futures 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.0",
@@ -2167,7 +2167,7 @@ name = "parity-machine"
 version = "0.1.0"
 dependencies = [
  "ethcore-bigint 0.2.1",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
 ]
 
 [[package]]
@@ -2193,7 +2193,7 @@ dependencies = [
  "ethcore-light 1.9.0",
  "ethcore-logger 1.9.0",
  "ethcore-network 1.9.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "ethcrypto 0.1.0",
  "ethjson 0.1.0",
  "ethkey 0.3.0",
@@ -2219,7 +2219,7 @@ dependencies = [
  "order-stat 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-reactor 0.1.0",
  "parity-updater 1.9.0",
- "parity-version 1.9.7",
+ "parity-version 1.9.8",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "pretty_assertions 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2321,13 +2321,13 @@ dependencies = [
  "ethcore 1.9.0",
  "ethcore-bigint 0.2.1",
  "ethcore-bytes 0.1.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "ethsync 1.9.0",
  "futures 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.9.0",
  "parity-reactor 0.1.0",
- "parity-version 1.9.7",
+ "parity-version 1.9.8",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "path 0.1.0",
  "semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2336,7 +2336,7 @@ dependencies = [
 
 [[package]]
 name = "parity-version"
-version = "1.9.7"
+version = "1.9.8"
 dependencies = [
  "ethcore-bytes 0.1.0",
  "rlp 0.2.1",
@@ -2833,7 +2833,7 @@ name = "rpc-cli"
 version = "1.4.0"
 dependencies = [
  "bigint 4.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "futures 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-rpc 1.9.0",
  "parity-rpc-client 1.4.0",
@@ -3564,7 +3564,7 @@ dependencies = [
  "common-types 0.1.0",
  "ethcore-bigint 0.2.1",
  "ethcore-bytes 0.1.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "ethjson 0.1.0",
  "keccak-hash 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3584,7 +3584,7 @@ dependencies = [
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bigint 0.2.1",
  "ethcore-logger 1.9.0",
- "ethcore-util 1.9.7",
+ "ethcore-util 1.9.8",
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-wasm 0.27.5 (registry+https://github.com/rust-lang/crates.io-index)",
