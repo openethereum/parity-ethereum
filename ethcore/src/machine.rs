@@ -33,7 +33,8 @@ use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction
 use tx_filter::TransactionFilter;
 
 use ethereum_types::{U256, Address};
-use bytes::BytesRef;
+use bytes::{BytesRef, Bytes};
+use rlp::Rlp;
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 
@@ -375,6 +376,16 @@ impl EthereumMachine {
 		hash_map![
 			"registrar".to_owned() => format!("{:x}", self.params.registrar)
 		]
+	}
+
+	/// Performs pre-validation of RLP decoded transaction before other processing
+	pub fn decode_transaction(&self, transaction: Bytes) -> Result<UnverifiedTransaction, transaction::Error> {
+		let rlp = Rlp::new(&transaction);
+		if rlp.as_raw().len() > self.params().max_transaction_size {
+			debug!("Rejected oversized transaction of {} bytes", rlp.as_raw().len());
+			return Err(transaction::Error::TooBig)
+		}
+		rlp.as_val().map_err(|e| transaction::Error::InvalidRlp(e.to_string()))
 	}
 }
 
