@@ -115,6 +115,7 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 mod tests {
 	use super::*;
 
+	use std::sync::Arc;
 	use pool::tests::tx::{Tx, TxExt};
 	use txpool::Scoring;
 
@@ -130,7 +131,10 @@ mod tests {
 				1 => ::pool::Priority::Retracted,
 				_ => ::pool::Priority::Regular,
 			};
-			Arc::new(verified)
+			txpool::Transaction {
+				insertion_id: 0,
+				transaction: Arc::new(verified),
+			}
 		}).collect::<Vec<_>>();
 		let initial_scores = vec![U256::from(0), 0.into(), 0.into()];
 

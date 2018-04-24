@@ -178,7 +178,7 @@ mod tests {
 		let res = State::new(TestClient::new().with_nonce(125), None, None).is_ready(&tx);
 
 		// then
-		assert_eq!(res, txpool::Readiness::Stalled);
+		assert_eq!(res, txpool::Readiness::Stale);
 	}
 
 	#[test]
@@ -190,7 +190,7 @@ mod tests {
 		let res = State::new(TestClient::new(), Some(1), None).is_ready(&tx);
 
 		// then
-		assert_eq!(res, txpool::Readiness::Stalled);
+		assert_eq!(res, txpool::Readiness::Stale);
 	}
 
 	#[test]
