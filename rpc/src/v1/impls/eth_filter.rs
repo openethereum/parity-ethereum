@@ -31,7 +31,7 @@ use parking_lot::Mutex;
 
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
-use jsonrpc_core::futures::future::Either;
+use jsonrpc_core::futures::future::{Either, join_all};
 use v1::traits::EthFilter;
 use v1::types::{BlockNumber, Index, Filter, FilterChanges, Log, H256 as RpcH256, U256 as RpcU256, ReturnData, Bytes};
 use v1::helpers::{errors, PollFilter, PollManager, limit_logs};
@@ -46,7 +46,7 @@ pub trait Filterable {
 	fn block_hash(&self, id: BlockId) -> Option<RpcH256>;
 
 	/// Get a block body by block id.
-	fn block_body(&self, id: BlockId) -> Result<Option<encoded::Body>>;
+	fn block_body(&self, id: BlockId) -> BoxFuture<Option<encoded::Body>>;
 
 	/// pending transaction hashes at the given block.
 	fn pending_transactions_hashes(&self) -> Vec<H256>;
@@ -94,8 +94,8 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 		self.client.block_hash(id).map(Into::into)
 	}
 
-	fn block_body(&self, id: BlockId) -> Result<Option<encoded::Body>> {
-		Ok(self.client.block_body(id))
+	fn block_body(&self, id: BlockId) -> BoxFuture<Option<encoded::Body>> {
+		Box::new(future::ok(self.client.block_body(id)))
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<H256> {
@@ -224,54 +224,75 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 
 					// retrieve logs in range from_block..min(BlockId::Latest..to_block)
 					let limit = filter.limit;
-					Either::B(self.logs(filter)
+					Either::B(Either::A(self.logs(filter)
 						.map(move |mut logs| { logs.extend(pending); logs }) // append fetched pending logs
 						.map(move |logs| limit_logs(logs, limit)) // limit the logs
-						.map(FilterChanges::Logs))
+						.map(FilterChanges::Logs)))
 				},
-				PollFilter::ReturnData(ref mut block_number) => {
-					// +1, cause we want to return hashes including current block hash.
-					let current_number = self.best_block_number() + 1;
-					let return_data = (*block_number..current_number)
-						.filter_map(|block| {
-							let block_id = BlockId::Number(block);
-							let replay_result: Result<result::Result<Box<Iterator<Item = Executed>>, CallError>> = self.replay_block_transactions(block_id);
-							let body: Result<Option<encoded::Body>> = self.block_body(block_id);
-							match replay_result {
-								Ok(Ok(executed)) => {
-									match body {
-										Ok(Some(body)) => Some(executed.zip(body.transaction_hashes())),
-										Ok(None) => None,
-										Err(e) => {
-											warn!("Error getting block body for {:?}: {:?}", block_id, e);
-											None
-										}
-									}
-								},
-								Ok(Err(e)) => {
-									warn!("Error replaying transactions for block {:?}: {:?}", block_id, e);
-									None
-								},
-								Err(e) => {
-									warn!("Error replaying transactions for block {:?}: {:?}", block_id, e);
-									None
-								},
-							}
-						})
-						.flat_map(|zipped| zipped)
-						.map(|(executed, transaction_hash)| {
-							ReturnData {
-								transaction_hash,
-								return_data: Bytes::from(executed.output),
-								removed: false
-							}
-						})
-						.collect();
-					*block_number = current_number;
+                PollFilter::ReturnData(ref mut block_number) => {
+                    // +1, cause we want to return hashes including current block hash.
+                    let current_number = self.best_block_number() + 1;
+                    let executed: Vec<(BlockId, Box<Vec<Bytes>>)> = (*block_number..current_number)
+                        .filter_map(|block| {
+                            let block_id = BlockId::Number(block);
+                            let replay_result: Result<result::Result<Box<Iterator<Item = Executed>>, CallError>> = self.replay_block_transactions(block_id);
+                            match replay_result {
+                                Ok(Ok(executeds)) => {
+                                    let output_bytes: Box<Vec<Bytes>> = Box::new(executeds
+                                                                                 .map(|executed| executed.output)
+                                                                                 .map(Bytes::from)
+                                                                                 .collect()
+                                                                                );
+                                    Some((block_id, output_bytes))
+                                },
+                                Ok(Err(e)) => {
+                                    warn!("Error replaying transactions for block {:?}: {:?}", block_id, e);
+                                    None
+                                },
+                                Err(e) => {
+                                    warn!("Error replaying transactions for block {:?}: {:?}", block_id, e);
+                                    None
+                                },
+                            }
+                        })
+                    .collect();
+                    let return_data: Vec<Box<_>> = executed
+                        .into_iter()
+                        .map(|(block_id, output_bytes)| {
+                            Box::new(self.block_body(block_id)
+                                .map(|body| {
+                                    match body {
+                                        None => vec![],
+                                        Some(body) => {
+                                            output_bytes
+                                                .into_iter()
+                                                .zip(body.transaction_hashes())
+                                                .map(|(output_bytes, transaction_hash)| {
+                                                    ReturnData {
+                                                        transaction_hash,
+                                                        return_data: output_bytes,
+                                                        removed: false
+                                                    }
+                                                })
+                                            .collect()
+                                        },
+                                    }
+                                }))
+                        }).collect();
 
-					Either::A(future::ok(FilterChanges::ReturnData(return_data)))
-				}
-			}
+                    *block_number = current_number;
+                    Either::B(Either::B(join_all(return_data)
+                                        .map(|return_data: Vec<Vec<ReturnData>>| {
+                                            let return_data = return_data
+                                                .into_iter()
+                                                .flat_map(|rd| rd)
+                                                .collect::<Vec<ReturnData>>();
+                                            FilterChanges::ReturnData(return_data)
+                                        })
+                                       )
+                             )
+                }
+            }
 		})
 	}
 

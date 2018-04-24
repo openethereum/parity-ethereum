@@ -535,8 +535,13 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 		self.client.block_hash(id).map(Into::into)
 	}
 
-	fn block_body(&self, _id: BlockId) -> Result<Option<encoded::Body>> {
-		Err(errors::light_unimplemented(None))
+	fn block_body(&self, id: BlockId) -> BoxFuture<Option<encoded::Body>> {
+        Box::new(self.fetcher()
+            .block(id)
+            .map(|block| {
+				Some(encoded::Body::new(block.rlp().as_raw().to_owned()))
+            })
+        )
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<::ethereum_types::H256> {
