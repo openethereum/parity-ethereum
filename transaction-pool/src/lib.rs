@@ -96,7 +96,7 @@ pub mod scoring;
 pub use self::error::{Error, ErrorKind};
 pub use self::listener::{Listener, NoopListener};
 pub use self::options::Options;
-pub use self::pool::{Pool, PendingIterator};
+pub use self::pool::{Pool, PendingIterator, Transaction};
 pub use self::ready::{Ready, Readiness};
 pub use self::scoring::Scoring;
 pub use self::status::{LightStatus, Status};
@@ -121,7 +121,4 @@ pub trait VerifiedTransaction: fmt::Debug {
 
 	/// Transaction sender
 	fn sender(&self) -> &Self::Sender;
-
-	/// Unique index of insertion (lower = older).
-	fn insertion_id(&self) -> u64;
 }

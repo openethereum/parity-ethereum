@@ -32,7 +32,6 @@ pub struct Transaction {
 	pub gas_price: U256,
 	pub gas: U256,
 	pub sender: Address,
-	pub insertion_id: u64,
 	pub mem_usage: usize,
 }
 
@@ -43,7 +42,6 @@ impl VerifiedTransaction for Transaction {
 	fn hash(&self) -> &H256 { &self.hash }
 	fn mem_usage(&self) -> usize { self.mem_usage }
 	fn sender(&self) -> &Address { &self.sender }
-	fn insertion_id(&self) -> u64 { self.insertion_id }
 }
 
 pub type SharedTransaction = Arc<Transaction>;

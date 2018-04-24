@@ -27,6 +27,36 @@ use transactions::{AddResult, Transactions};
 
 use {VerifiedTransaction};
 
+/// Internal representation of transaction.
+///
+/// Includes unique insertion id that can be used for scoring explictly,
+/// but internally is used to resolve conflicts in case of equal scoring
+/// (newer transactionsa are preferred).
+#[derive(Debug)]
+pub struct Transaction<T> {
+	/// Sequential id of the transaction
+	pub insertion_id: u64,
+	/// Shared transaction
+	pub transaction: Arc<T>,
+}
+
+impl<T> Clone for Transaction<T> {
+	fn clone(&self) -> Self {
+		Transaction {
+			insertion_id: self.insertion_id,
+			transaction: self.transaction.clone(),
+		}
+	}
+}
+
+impl<T> ::std::ops::Deref for Transaction<T> {
+	type Target = Arc<T>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.transaction
+	}
+}
+
 /// A transaction pool.
 #[derive(Debug)]
 pub struct Pool<T: VerifiedTransaction, S: Scoring<T>, L = NoopListener> {
@@ -36,10 +66,12 @@ pub struct Pool<T: VerifiedTransaction, S: Scoring<T>, L = NoopListener> {
 	mem_usage: usize,
 
 	transactions: HashMap<T::Sender, Transactions<T, S>>,
-	by_hash: HashMap<T::Hash, Arc<T>>,
+	by_hash: HashMap<T::Hash, Transaction<T>>,
 
 	best_transactions: BTreeSet<ScoreWithRef<T, S::Score>>,
 	worst_transactions: BTreeSet<ScoreWithRef<T, S::Score>>,
+
+	insertion_id: u64,
 }
 
 impl<T: VerifiedTransaction, S: Scoring<T> + Default> Default for Pool<T, S> {
@@ -85,6 +117,7 @@ impl<T, S, L> Pool<T, S, L> where
 			by_hash,
 			best_transactions: Default::default(),
 			worst_transactions: Default::default(),
+			insertion_id: 0,
 		}
 
 	}
@@ -100,10 +133,16 @@ impl<T, S, L> Pool<T, S, L> where
 	/// If any limit is reached the transaction with the lowest `Score` is evicted to make room.
 	///
 	/// The `Listener` will be informed on any drops or rejections.
-	pub fn import(&mut self, mut transaction: T) -> error::Result<Arc<T>> {
+	pub fn import(&mut self, transaction: T) -> error::Result<Arc<T>> {
 		let mem_usage = transaction.mem_usage();
 
 		ensure!(!self.by_hash.contains_key(transaction.hash()), error::ErrorKind::AlreadyImported(format!("{:?}", transaction.hash())));
+
+		self.insertion_id += 1;
+		let mut transaction = Transaction {
+			insertion_id: self.insertion_id,
+			transaction: Arc::new(transaction),
+		};
 
 		// TODO [ToDr] Most likely move this after the transaction is inserted.
 		// Avoid using should_replace, but rather use scoring for that.
@@ -111,7 +150,7 @@ impl<T, S, L> Pool<T, S, L> where
 			let remove_worst = |s: &mut Self, transaction| {
 				match s.remove_worst(&transaction) {
 					Err(err) => {
-						s.listener.rejected(&Arc::new(transaction), err.kind());
+						s.listener.rejected(&transaction, err.kind());
 						Err(err)
 					},
 					Ok(removed) => {
@@ -149,29 +188,29 @@ impl<T, S, L> Pool<T, S, L> where
 			AddResult::Ok(tx) => {
 				self.listener.added(&tx, None);
 				self.finalize_insert(&tx, None);
-				Ok(tx)
+				Ok(tx.transaction)
 			},
 			AddResult::PushedOut { new, old } |
 			AddResult::Replaced { new, old } => {
 				self.listener.added(&new, Some(&old));
 				self.finalize_insert(&new, Some(&old));
-				Ok(new)
+				Ok(new.transaction)
 			},
 			AddResult::TooCheap { new, old } => {
 				let error = error::ErrorKind::TooCheapToReplace(format!("{:?}", old.hash()), format!("{:?}", new.hash()));
-				self.listener.rejected(&Arc::new(new), &error);
+				self.listener.rejected(&new, &error);
 				bail!(error)
 			},
 			AddResult::TooCheapToEnter(new, score) => {
 				let error = error::ErrorKind::TooCheapToEnter(format!("{:?}", new.hash()), format!("{:?}", score));
-				self.listener.rejected(&Arc::new(new), &error);
+				self.listener.rejected(&new, &error);
 				bail!(error)
 			}
 		}
 	}
 
 	/// Updates state of the pool statistics if the transaction was added to a set.
-	fn finalize_insert(&mut self, new: &Arc<T>, old: Option<&Arc<T>>) {
+	fn finalize_insert(&mut self, new: &Transaction<T>, old: Option<&Transaction<T>>) {
 		self.mem_usage += new.mem_usage();
 		self.by_hash.insert(new.hash().clone(), new.clone());
 
@@ -183,21 +222,21 @@ impl<T, S, L> Pool<T, S, L> where
 	/// Updates the pool statistics if transaction was removed.
 	fn finalize_remove(&mut self, hash: &T::Hash) -> Option<Arc<T>> {
 		self.by_hash.remove(hash).map(|old| {
-			self.mem_usage -= old.mem_usage();
-			old
+			self.mem_usage -= old.transaction.mem_usage();
+			old.transaction
 		})
 	}
 
 	/// Updates best and worst transactions from a sender.
 	fn update_senders_worst_and_best(
 		&mut self,
-		previous: Option<((S::Score, Arc<T>), (S::Score, Arc<T>))>,
-		current: Option<((S::Score, Arc<T>), (S::Score, Arc<T>))>,
+		previous: Option<((S::Score, Transaction<T>), (S::Score, Transaction<T>))>,
+		current: Option<((S::Score, Transaction<T>), (S::Score, Transaction<T>))>,
 	) {
 		let worst_collection = &mut self.worst_transactions;
 		let best_collection = &mut self.best_transactions;
 
-		let is_same = |a: &(S::Score, Arc<T>), b: &(S::Score, Arc<T>)| {
+		let is_same = |a: &(S::Score, Transaction<T>), b: &(S::Score, Transaction<T>)| {
 			a.0 == b.0 && a.1.hash() == b.1.hash()
 		};
 
@@ -234,7 +273,7 @@ impl<T, S, L> Pool<T, S, L> where
 	}
 
 	/// Attempts to remove the worst transaction from the pool if it's worse than the given one.
-	fn remove_worst(&mut self, transaction: &T) -> error::Result<Arc<T>> {
+	fn remove_worst(&mut self, transaction: &Transaction<T>) -> error::Result<Transaction<T>> {
 		let to_remove = match self.worst_transactions.iter().next_back() {
 			// No elements to remove? and the pool is still full?
 			None => {
@@ -282,7 +321,7 @@ impl<T, S, L> Pool<T, S, L> where
 		self.worst_transactions.clear();
 
 		for (_hash, tx) in self.by_hash.drain() {
-			self.listener.dropped(&tx, None)
+			self.listener.dropped(&tx.transaction, None)
 		}
 	}
 
@@ -346,12 +385,12 @@ impl<T, S, L> Pool<T, S, L> where
 
 	/// Returns a transaction if it's part of the pool or `None` otherwise.
 	pub fn find(&self, hash: &T::Hash) -> Option<Arc<T>> {
-		self.by_hash.get(hash).cloned()
+		self.by_hash.get(hash).map(|t| t.transaction.clone())
 	}
 
 	/// Returns worst transaction in the queue (if any).
 	pub fn worst_transaction(&self) -> Option<Arc<T>> {
-		self.worst_transactions.iter().next().map(|x| x.transaction.clone())
+		self.worst_transactions.iter().next().map(|x| x.transaction.transaction.clone())
 	}
 
 	/// Returns an iterator of pending (ready) transactions.
@@ -481,7 +520,7 @@ impl<'a, T, R, S, L> Iterator for PendingIterator<'a, T, R, S, L> where
 						self.best_transactions.insert(ScoreWithRef::new(score, tx));
 					}
 
-					return Some(best.transaction)
+					return Some(best.transaction.transaction)
 				},
 				state => trace!("[{:?}] Ignoring {:?} transaction.", best.transaction.hash(), state),
 			}

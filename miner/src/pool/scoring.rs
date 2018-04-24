@@ -28,7 +28,6 @@
 //! from our local node (own transactions).
 
 use std::cmp;
-use std::sync::Arc;
 
 use ethereum_types::U256;
 use txpool;
@@ -69,7 +68,7 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 		}
 	}
 
-	fn update_scores(&self, txs: &[Arc<VerifiedTransaction>], scores: &mut [U256], change: txpool::scoring::Change) {
+	fn update_scores(&self, txs: &[txpool::Transaction<VerifiedTransaction>], scores: &mut [U256], change: txpool::scoring::Change) {
 		use self::txpool::scoring::Change;
 
 		match change {
@@ -79,7 +78,7 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 				assert!(i < txs.len());
 				assert!(i < scores.len());
 
-				scores[i] = txs[i].transaction.gas_price;
+				scores[i] = txs[i].transaction.transaction.gas_price;
 				let boost = match txs[i].priority() {
 					super::Priority::Local => 15,
 					super::Priority::Retracted => 10,

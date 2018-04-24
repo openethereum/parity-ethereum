@@ -54,14 +54,14 @@ pub struct State<C> {
 	nonces: HashMap<Address, U256>,
 	state: C,
 	max_nonce: Option<U256>,
-	stale_id: Option<u64>,
+	stale_id: Option<usize>,
 }
 
 impl<C> State<C> {
 	/// Create new State checker, given client interface.
 	pub fn new(
 		state: C,
-		stale_id: Option<u64>,
+		stale_id: Option<usize>,
 		max_nonce: Option<U256>,
 	) -> Self {
 		State {
