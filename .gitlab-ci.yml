@@ -188,7 +188,7 @@ docker-build:
   before_script:
     - docker info
   script:
-    - if [ "$CI_BUILD_REF_NAME" == "beta-release" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
+    - if [ "$CI_BUILD_REF_NAME" == "master" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
     - echo "Tag:" $DOCKER_TAG
     - docker login -u $Docker_Hub_User_Parity -p $Docker_Hub_Pass_Parity
     - scripts/docker-build.sh $DOCKER_TAG
