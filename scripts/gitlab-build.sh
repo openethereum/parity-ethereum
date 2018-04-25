@@ -309,6 +309,7 @@ case $BUILD_PLATFORM in
   x86_64-unknown-snap-gnu)
     ARC="amd64"
     EXT="snap"
+    apt update
     apt install -y expect zip rhash
     snapcraft clean
     echo "Prepare snapcraft.yaml for build on Gitlab CI in Docker image"
