@@ -3,7 +3,7 @@ description = "DevP2P implementation of the ethcore network library"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-network-devp2p"
-version = "1.11.0"
+version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
