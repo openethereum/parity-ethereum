@@ -21,7 +21,7 @@
 
 use std::cell::{RefCell, RefMut};
 use std::collections::hash_map::Entry;
-use std::collections::{HashMap, BTreeMap, HashSet};
+use std::collections::{HashMap, BTreeMap, BTreeSet, HashSet};
 use std::fmt;
 use std::sync::Arc;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY};
@@ -862,40 +862,69 @@ impl<B: Backend> State<B> {
 		}))
 	}
 
-	// Return a list of all touched addresses in cache.
-	fn touched_addresses(&self) -> Vec<Address> {
+	/// Populate a PodAccount map from this state, with another state as the storage query.
+	pub fn to_pod_diff(&mut self, query: &PodState) -> trie::Result<PodState> {
 		assert!(self.checkpoints.borrow().is_empty());
-		self.cache.borrow().iter().map(|(add, _)| *add).collect()
-	}
 
-	fn query_pod(&mut self, query: &PodState, touched_addresses: &[Address]) -> trie::Result<()> {
-		let pod = query.get();
+		// Merge PodAccount::to_pod for cache of self and `query`.
+		let all_addresses = self.cache.borrow().keys().cloned()
+			.chain(query.get().keys().cloned())
+			.collect::<BTreeSet<_>>();
 
-		for address in touched_addresses {
-			if !self.ensure_cached(address, RequireCache::Code, true, |a| a.is_some())? {
-				continue
-			}
+		Ok(PodState::from(all_addresses.into_iter().fold(Ok(BTreeMap::new()), |m: trie::Result<_>, address| {
+			match m {
+				Err(e) => Err(e),
+				Ok(mut m) => {
+					let r: trie::Result<trie::Result<_>> = self.ensure_cached(&address, RequireCache::Code, true, |acc| {
+						if let Some(ref acc) = acc {
+							// Merge all modified storage keys.
+							let all_keys = {
+								let self_keys = acc.storage_changes().keys().cloned()
+									.collect::<BTreeSet<_>>();
 
-			if let Some(pod_account) = pod.get(address) {
-				// needs to be split into two parts for the refcell code here
-				// to work.
-				for key in pod_account.storage.keys() {
-					self.storage_at(address, key)?;
+								if let Some(ref query_acc) = query.get().get(&address) {
+									let query_keys = query_acc.storage.keys().cloned()
+										.collect::<BTreeSet<_>>();
+
+									self_keys.union(&query_keys).cloned().collect::<Vec<_>>()
+								} else {
+									self_keys.into_iter().collect::<Vec<_>>()
+								}
+							};
+
+							let storage = all_keys.into_iter().fold(Ok(BTreeMap::new()), |s: trie::Result<_>, key| {
+								match s {
+									Err(e) => Err(e),
+									Ok(mut s) => {
+										s.insert(key, self.storage_at(&address, &key)?);
+										Ok(s)
+									}
+								}
+							})?;
+
+							m.insert(address, PodAccount {
+								balance: *acc.balance(),
+								nonce: *acc.nonce(),
+								storage: storage,
+								code: acc.code().map(|x| x.to_vec()),
+							});
+						}
+						Ok(())
+					});
+
+					r??;
+					Ok(m)
 				}
 			}
-		}
-
-		Ok(())
+		})?))
 	}
 
 	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
 	/// Consumes self.
-	pub fn diff_from<X: Backend>(&self, orig: State<X>) -> trie::Result<StateDiff> {
-		let addresses_post = self.touched_addresses();
+	pub fn diff_from<X: Backend>(&self, mut orig: State<X>) -> trie::Result<StateDiff> {
 		let pod_state_post = self.to_pod();
-		let mut state_pre = orig;
-		state_pre.query_pod(&pod_state_post, &addresses_post)?;
-		Ok(pod_state::diff_pod(&state_pre.to_pod(), &pod_state_post))
+		let pod_state_pre = orig.to_pod_diff(&pod_state_post)?;
+		Ok(pod_state::diff_pod(&pod_state_pre, &pod_state_post))
 	}
 
 	// load required account data from the databases.
@@ -931,8 +960,8 @@ impl<B: Backend> State<B> {
 	/// Check caches for required data
 	/// First searches for account in the local, then the shared cache.
 	/// Populates local cache if nothing found.
-	fn ensure_cached<F, U>(&self, a: &Address, require: RequireCache, check_null: bool, f: F) -> trie::Result<U>
-		where F: Fn(Option<&Account>) -> U {
+	fn ensure_cached<F, U>(&self, a: &Address, require: RequireCache, check_null: bool, mut f: F) -> trie::Result<U>
+		where F: FnMut(Option<&Account>) -> U {
 		// check local cache first
 		if let Some(ref mut maybe_acc) = self.cache.borrow_mut().get_mut(a) {
 			if let Some(ref mut account) = maybe_acc.account {
