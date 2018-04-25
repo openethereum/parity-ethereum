@@ -863,12 +863,12 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Populate a PodAccount map from this state, with another state as the account and storage query.
-	pub fn to_pod_diff(&mut self, query: &PodState) -> trie::Result<PodState> {
+	pub fn to_pod_diff<X: Backend>(&mut self, query: &State<X>) -> trie::Result<PodState> {
 		assert!(self.checkpoints.borrow().is_empty());
 
 		// Merge PodAccount::to_pod for cache of self and `query`.
 		let all_addresses = self.cache.borrow().keys().cloned()
-			.chain(query.get().keys().cloned())
+			.chain(query.cache.borrow().keys().cloned())
 			.collect::<BTreeSet<_>>();
 
 		Ok(PodState::from(all_addresses.into_iter().fold(Ok(BTreeMap::new()), |m: trie::Result<_>, address| {
@@ -882,11 +882,17 @@ impl<B: Backend> State<B> {
 								let self_keys = acc.storage_changes().keys().cloned()
 									.collect::<BTreeSet<_>>();
 
-								if let Some(ref query_acc) = query.get().get(&address) {
-									let query_keys = query_acc.storage.keys().cloned()
-										.collect::<BTreeSet<_>>();
-
-									self_keys.union(&query_keys).cloned().collect::<Vec<_>>()
+								if let Some(ref query_storage) = query.cache.borrow().get(&address)
+									.and_then(|opt| {
+										if let Some(ref query_acc) = opt.account {
+											Some(query_acc.storage_changes().keys().cloned()
+												 .collect::<BTreeSet<_>>())
+										} else {
+											None
+										}
+									})
+								{
+									self_keys.union(&query_storage).cloned().collect::<Vec<_>>()
 								} else {
 									self_keys.into_iter().collect::<Vec<_>>()
 								}
@@ -923,7 +929,7 @@ impl<B: Backend> State<B> {
 	/// Consumes self.
 	pub fn diff_from<X: Backend>(&self, mut orig: State<X>) -> trie::Result<StateDiff> {
 		let pod_state_post = self.to_pod();
-		let pod_state_pre = orig.to_pod_diff(&pod_state_post)?;
+		let pod_state_pre = orig.to_pod_diff(self)?;
 		Ok(pod_state::diff_pod(&pod_state_pre, &pod_state_post))
 	}
 
