@@ -428,8 +428,12 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					self.state.discard_checkpoint();
 					output.write(0, &builtin_out_buffer);
 
-					// trace only top level calls to builtins to avoid DDoS attacks
-					if self.depth == 0 {
+					// trace only top level calls and calls with balance transfer to builtins to avoid DDoS attacks
+					let transferred = match params.value {
+						ActionValue::Transfer(value) => value,
+						ActionValue::Apparent(_) => U256::zero(),
+					};
+					if self.depth == 0 || transferred != U256::zero() {
 						let mut trace_output = tracer.prepare_trace_output();
 						if let Some(out) = trace_output.as_mut() {
 							*out = output.to_owned();
