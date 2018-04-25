@@ -428,7 +428,7 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	}
 
 	/// Performs pre-validation of RLP decoded transaction before other processing
-	fn decode_transaction(&self, transaction: Bytes) -> Result<UnverifiedTransaction, transaction::Error> {
+	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
 		self.machine().decode_transaction(transaction)
 	}
 }

@@ -994,7 +994,7 @@ impl Client {
 
 		let txs: Vec<UnverifiedTransaction> = transactions
 			.iter()
-			.filter_map(|bytes| self.engine().decode_transaction(bytes.to_vec()).ok())
+			.filter_map(|bytes| self.engine().decode_transaction(bytes).ok())
 			.collect();
 
 		self.notify(|notify| {
