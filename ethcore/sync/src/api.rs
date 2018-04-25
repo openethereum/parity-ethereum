@@ -318,7 +318,7 @@ impl EthSync {
 impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> EthSyncStatus {
-		self.eth_handler.sync.write().status()
+		self.eth_handler.sync.read().status()
 	}
 
 	/// Get sync peers
