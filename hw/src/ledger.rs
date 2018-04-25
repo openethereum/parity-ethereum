@@ -449,9 +449,17 @@ fn smoke() {
 	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().expect("HidApi")));
 	let manager = Manager::new(hidapi.clone(), Arc::new(AtomicBool::new(false))).expect("Ledger Manager");
 
+    // Update device list
 	assert_eq!(try_connect_polling(manager.clone(), Duration::from_millis(500)), true);
 
-	let address = manager.clone().list_devices().first().map(|d| d.address.clone()).expect("No ledger device detected");
+    // Fetch the ethereum address of a connected ledger device
+	let address = manager.list_devices()
+		.iter()
+		.filter(|d| d.manufacturer == "Ledger".to_string())
+		.nth(0)
+		.map(|d| d.address.clone())
+		.expect("No ledger device detected");
+
 	let tx = FromHex::from_hex("eb018504a817c80082520894a6ca2e6707f2cc189794a9dd459d5b05ed1bcd1c8703f26fcfb7a22480018080").unwrap();
 	let signature = manager.sign_transaction(&address, &tx);
 	println!("Got {:?}", signature);
