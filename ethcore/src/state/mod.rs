@@ -875,8 +875,8 @@ impl<B: Backend> State<B> {
 			match m {
 				Err(e) => Err(e),
 				Ok(mut m) => {
-					let r: trie::Result<trie::Result<_>> = self.ensure_cached(&address, RequireCache::Code, true, |acc| {
-						if let Some(ref acc) = acc {
+					let account = self.ensure_cached(&address, RequireCache::Code, true, |acc| {
+						acc.map(|acc| {
 							// Merge all modified storage keys.
 							let all_keys = {
 								let self_keys = acc.storage_changes().keys().cloned()
@@ -898,27 +898,27 @@ impl<B: Backend> State<B> {
 								}
 							};
 
-							let storage = all_keys.into_iter().fold(Ok(BTreeMap::new()), |s: trie::Result<_>, key| {
-								match s {
-									Err(e) => Err(e),
-									Ok(mut s) => {
-										s.insert(key, self.storage_at(&address, &key)?);
-										Ok(s)
-									}
+							// Storage must be fetched after ensure_cached to avoid borrow problem.
+							(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()))
+						})
+					})?;
+
+					if let Some((balance, nonce, storage_keys, code)) = account {
+						let storage = storage_keys.into_iter().fold(Ok(BTreeMap::new()), |s: trie::Result<_>, key| {
+							match s {
+								Err(e) => Err(e),
+								Ok(mut s) => {
+									s.insert(key, self.storage_at(&address, &key)?);
+									Ok(s)
 								}
-							})?;
+							}
+						})?;
 
-							m.insert(address, PodAccount {
-								balance: *acc.balance(),
-								nonce: *acc.nonce(),
-								storage: storage,
-								code: acc.code().map(|x| x.to_vec()),
-							});
-						}
-						Ok(())
-					});
+						m.insert(address, PodAccount {
+							balance, nonce, storage, code
+						});
+					}
 
-					r??;
 					Ok(m)
 				}
 			}
