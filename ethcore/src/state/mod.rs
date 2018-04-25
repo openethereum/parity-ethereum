@@ -862,7 +862,7 @@ impl<B: Backend> State<B> {
 		}))
 	}
 
-	/// Populate a PodAccount map from this state, with another state as the storage query.
+	/// Populate a PodAccount map from this state, with another state as the account and storage query.
 	pub fn to_pod_diff(&mut self, query: &PodState) -> trie::Result<PodState> {
 		assert!(self.checkpoints.borrow().is_empty());
 
