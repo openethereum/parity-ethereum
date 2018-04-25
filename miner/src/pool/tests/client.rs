@@ -15,10 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethereum_types::{U256, H256, Address};
+use rlp::Rlp;
 use transaction::{self, Transaction, SignedTransaction, UnverifiedTransaction};
 
 use pool;
 use pool::client::AccountDetails;
+
+const MAX_TRANSACTION_SIZE: usize = 15 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct TestClient {
@@ -26,6 +29,7 @@ pub struct TestClient {
 	gas_required: U256,
 	is_service_transaction: bool,
 	local_address: Address,
+	max_transaction_size: usize,
 }
 
 impl Default for TestClient {
@@ -39,6 +43,7 @@ impl Default for TestClient {
 			gas_required: 21_000.into(),
 			is_service_transaction: false,
 			local_address: Default::default(),
+			max_transaction_size: MAX_TRANSACTION_SIZE,
 		}
 	}
 }
@@ -116,6 +121,15 @@ impl pool::client::Client for TestClient {
 			pool::client::TransactionType::Regular
 		}
 	}
+
+	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
+		let rlp = Rlp::new(&transaction);
+		if rlp.as_raw().len() > self.max_transaction_size {
+			return Err(transaction::Error::TooBig)
+		}
+		rlp.as_val().map_err(|e| transaction::Error::InvalidRlp(e.to_string()))
+	}
+
 }
 
 impl pool::client::NonceClient for TestClient {

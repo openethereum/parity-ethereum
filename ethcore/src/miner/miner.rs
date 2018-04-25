@@ -48,7 +48,6 @@ use header::{Header, BlockNumber};
 use miner;
 use miner::pool_client::{PoolClient, CachedNonceClient};
 use receipt::{Receipt, RichReceipt};
-use rlp::Encodable;
 use spec::Spec;
 use state::State;
 
@@ -768,11 +767,6 @@ impl miner::MinerService for Miner {
 	) -> Result<(), transaction::Error> {
 
 		trace!(target: "own_tx", "Importing transaction: {:?}", pending);
-
-		// Verify RLP payload first
-		if let Err(err) = self.engine.decode_transaction(&pending.transaction.rlp_bytes()) {
-			return Err(err);
-		}
 
 		let client = self.pool_client(chain);
 		let imported = self.transaction_queue.import(
