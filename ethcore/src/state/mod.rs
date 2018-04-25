@@ -2272,9 +2272,6 @@ mod tests {
 		let original = state.clone();
 		state.kill_account(&a);
 
-		assert_eq!(original.touched_addresses(), vec![]);
-		assert_eq!(state.touched_addresses(), vec![a]);
-
 		let diff = state.diff_from(original).unwrap();
 		let diff_map = diff.get();
 		assert_eq!(diff_map.len(), 1);
