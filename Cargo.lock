@@ -2591,7 +2591,7 @@ dependencies = [
 
 [[package]]
 name = "pwasm-utils"
-version = "0.1.3"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3630,7 +3630,7 @@ dependencies = [
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-wasm 0.27.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "pwasm-utils 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pwasm-utils 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",
  "wasmi 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -3935,7 +3935,7 @@ dependencies = [
 "checksum proc-macro2 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "388d7ea47318c5ccdeb9ba6312cee7d3f65dd2804be8580a170fce410d50b786"
 "checksum protobuf 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "40e2484e639dcae0985fc483ad76ce7ad78ee5aa092751d7d538f0b20d76486b"
 "checksum pulldown-cmark 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "8361e81576d2e02643b04950e487ec172b687180da65c731c03cf336784e6c07"
-"checksum pwasm-utils 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "54d440c3b56eee028aa5d4f18cbed8c6e0c9ae23563b93f344beb7e73854ea02"
+"checksum pwasm-utils 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "d51e9954a77aab7b4b606dc315a49cbed187924f163b6750cdf6d5677dbf0839"
 "checksum quasi 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)" = "18c45c4854d6d1cf5d531db97c75880feb91c958b0720f4ec1057135fec358b3"
 "checksum quasi_codegen 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)" = "51b9e25fa23c044c1803f43ca59c98dac608976dd04ce799411edd58ece776d4"
 "checksum quasi_macros 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)" = "29cec87bc2816766d7e4168302d505dd06b0a825aed41b00633d296e922e02dd"
