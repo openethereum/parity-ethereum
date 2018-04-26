@@ -2290,4 +2290,42 @@ mod tests {
 					   storage: Default::default()
 				   }), None).as_ref());
 	}
+
+	#[test]
+	fn should_trace_diff_unmodified_storage() {
+		use pod_account;
+
+		let a = 10.into();
+		let db = get_temp_state_db();
+
+		let (root, db) = {
+			let mut state = State::new(db, U256::from(0), Default::default());
+			state.set_storage(&a, H256::from(&U256::from(1u64)), H256::from(&U256::from(20u64))).unwrap();
+			state.commit().unwrap();
+			state.drop()
+		};
+
+		let mut state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
+		let original = state.clone();
+		state.set_storage(&a, H256::from(&U256::from(1u64)), H256::from(&U256::from(100u64))).unwrap();
+
+		let diff = state.diff_from(original).unwrap();
+		let diff_map = diff.get();
+		assert_eq!(diff_map.len(), 1);
+		assert!(diff_map.get(&a).is_some());
+		assert_eq!(diff_map.get(&a),
+				   pod_account::diff_pod(Some(&PodAccount {
+					   balance: U256::zero(),
+					   nonce: U256::zero(),
+					   code: Some(Default::default()),
+					   storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(20u64)))]
+						   .into_iter().collect(),
+				   }), Some(&PodAccount {
+					   balance: U256::zero(),
+					   nonce: U256::zero(),
+					   code: Some(Default::default()),
+					   storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(100u64)))]
+						   .into_iter().collect(),
+				   })).as_ref());
+	}
 }
