@@ -373,8 +373,7 @@ impl ChainNotify for Informant<FullNodeInformantData> {
 					Colour::White.bold().paint(format!("{}", header_view.hash())),
 					Colour::Yellow.bold().paint(format!("{}", block.transactions_count())),
 					Colour::Yellow.bold().paint(format!("{:.2}", header_view.gas_used().low_u64() as f32 / 1000000f32)),
-					// this will not provide floating point precision because `as_milliseconds` returns u64
-					Colour::Purple.bold().paint(format!("{:.2}", duration.as_milliseconds())),
+					Colour::Purple.bold().paint(format!("{}", duration.as_milliseconds())),
 					Colour::Blue.bold().paint(format!("{:.2}", size as f32 / 1024f32)),
 					if skipped > 0 {
 						format!(" + another {} block(s) containing {} tx(s)",
