@@ -11,5 +11,5 @@ parity-wasm = "0.27"
 libc = "0.2"
 pwasm-utils = "0.1"
 vm = { path = "../vm" }
-wasmi = { version = "0.1.3", features = ["opt-in-32bit"] }
 ethcore-logger = { path = "../../logger" }
+wasmi = { version = "0.2" }
