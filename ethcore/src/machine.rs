@@ -26,7 +26,7 @@ use client::{BlockInfo, CallContract};
 use error::Error;
 use executive::Executive;
 use header::{BlockNumber, Header};
-use spec::CommonParams;
+use spec::{CommonParams, IrregularStateChangeAccount};
 use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
 use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
@@ -191,6 +191,26 @@ impl EthereumMachine {
 					let beneficiary = &ethash_params.dao_hardfork_beneficiary;
 					state.balance(child)
 						.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty))?;
+				}
+			}
+		}
+
+		if let Some(irregular_changes) = self.params.irregular_state_changes.get(&block.header().number()) {
+			let state = block.state_mut();
+			for &(address, ref irregular_account) in irregular_changes {
+				let &IrregularStateChangeAccount::Set { nonce, balance, ref code, ref storage } = irregular_account;
+
+				if let Some(nonce) = nonce {
+					state.set_nonce(&address, &nonce)?;
+				}
+				if let Some(balance) = balance {
+					state.set_balance(&address, &balance)?;
+				}
+				if let &Some(ref code) = code {
+					state.reset_code(&address, code.clone())?;
+				}
+				for &(key, value) in storage {
+					state.set_storage(&address, key, value)?;
 				}
 			}
 		}

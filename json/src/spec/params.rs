@@ -16,9 +16,27 @@
 
 //! Spec params deserialization.
 
+use std::collections::HashMap;
 use uint::{self, Uint};
 use hash::{H256, Address};
 use bytes::Bytes;
+
+/// See main CommonParams docs.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub enum IrregularStateChangeAccount {
+	/// See main CommonParams docs.
+	#[serde(rename="set")]
+	Set {
+		/// See main CommonParams docs.
+		nonce: Option<Uint>,
+		/// See main CommonParams docs.
+		code: Option<Bytes>,
+		/// See main CommonParams docs.
+		balance: Option<Uint>,
+		/// See main CommonParams docs. Only values in the map will be set.
+		storage: Option<HashMap<H256, H256>>,
+	}
+}
 
 /// Spec params.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -122,6 +140,9 @@ pub struct Params {
 	/// Wasm activation block height, if not activated from start
 	#[serde(rename="wasmActivationTransition")]
 	pub wasm_activation_transition: Option<Uint>,
+	/// See main CommonParams docs.
+	#[serde(rename="irregularStateChanges")]
+	pub irregular_state_changes: Option<HashMap<Uint, HashMap<Address, IrregularStateChangeAccount>>>,
 }
 
 #[cfg(test)]

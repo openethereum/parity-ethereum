@@ -16,7 +16,7 @@
 
 //! Parameters for a block chain.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
@@ -51,6 +51,39 @@ pub use ethash::OptimizeFor;
 // helper for formatting errors.
 fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
 	format!("Spec json is invalid: {}", f)
+}
+
+/// Ireegular state change accounts applied at specific blocks.
+#[derive(Debug, Clone, PartialEq)]
+pub enum IrregularStateChangeAccount {
+	/// Force setting values on an account.
+	Set {
+		/// New nonce forced setting. None means not touching the nonce.
+		nonce: Option<U256>,
+		/// New code forced setting. None means not touching the code.
+		code: Option<Bytes>,
+		/// New balance forced setting. None means not touching the balance.
+		balance: Option<U256>,
+		/// Storage values forced setting. Only values in the list will be set.
+		storage: Vec<(H256, H256)>,
+	}
+}
+
+impl From<::ethjson::spec::IrregularStateChangeAccount> for IrregularStateChangeAccount {
+	fn from(p: ::ethjson::spec::IrregularStateChangeAccount) -> Self {
+		match p {
+			::ethjson::spec::IrregularStateChangeAccount::Set {
+				nonce, code, balance, storage
+			} => {
+				IrregularStateChangeAccount::Set {
+					nonce: nonce.map(Into::into),
+					code: code.map(Into::into),
+					balance: balance.map(Into::into),
+					storage: storage.unwrap_or_default().into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+				}
+			},
+		}
+	}
 }
 
 /// Parameters common to ethereum-like blockchains.
@@ -123,6 +156,8 @@ pub struct CommonParams {
 	pub max_code_size_transition: BlockNumber,
 	/// Transaction permission managing contract address.
 	pub transaction_permission_contract: Option<Address>,
+	/// Irregular state change list, applied at the very beginning of the block.
+	pub irregular_state_changes: HashMap<BlockNumber, Vec<(Address, IrregularStateChangeAccount)>>,
 }
 
 impl CommonParams {
@@ -244,6 +279,13 @@ impl From<ethjson::spec::Params> for CommonParams {
 				BlockNumber::max_value(),
 				Into::into
 			),
+			irregular_state_changes: p.irregular_state_changes
+				.unwrap_or_else(HashMap::new)
+				.into_iter()
+				.map(|(k, v)| (
+					k.into(),
+					v.into_iter().map(|(k, v)| (k.into(), v.into())).collect()
+				)).collect(),
 		}
 	}
 }

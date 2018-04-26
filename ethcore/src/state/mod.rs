@@ -659,6 +659,12 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
+	/// Directly set the balance of account `a`.
+	pub fn set_balance(&mut self, a: &Address, balance: &U256) -> trie::Result<()> {
+		self.require(a, false)?.set_balance(balance);
+		Ok(())
+	}
+
 	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
 	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256, mut cleanup_mode: CleanupMode) -> trie::Result<()> {
 		self.sub_balance(from, by, &mut cleanup_mode)?;
@@ -669,6 +675,11 @@ impl<B: Backend> State<B> {
 	/// Increment the nonce of account `a` by 1.
 	pub fn inc_nonce(&mut self, a: &Address) -> trie::Result<()> {
 		self.require(a, false).map(|mut x| x.inc_nonce())
+	}
+
+	/// Set the nonce of an account.
+	pub fn set_nonce(&mut self, a: &Address, nonce: &U256) -> trie::Result<()> {
+		self.require(a, false).map(|mut x| x.set_nonce(nonce))
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
