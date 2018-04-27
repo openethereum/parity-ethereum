@@ -351,7 +351,7 @@ impl<T: InformantData> Informant<T> {
 }
 
 impl ChainNotify for Informant<FullNodeInformantData> {
-	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, duration: u64) {
+	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, duration: Duration) {
 		let mut last_import = self.last_import.lock();
 		let client = &self.target.client;
 
@@ -373,7 +373,7 @@ impl ChainNotify for Informant<FullNodeInformantData> {
 					Colour::White.bold().paint(format!("{}", header_view.hash())),
 					Colour::Yellow.bold().paint(format!("{}", block.transactions_count())),
 					Colour::Yellow.bold().paint(format!("{:.2}", header_view.gas_used().low_u64() as f32 / 1000000f32)),
-					Colour::Purple.bold().paint(format!("{:.2}", duration as f32 / 1000000f32)),
+					Colour::Purple.bold().paint(format!("{}", duration.as_milliseconds())),
 					Colour::Blue.bold().paint(format!("{:.2}", size as f32 / 1024f32)),
 					if skipped > 0 {
 						format!(" + another {} block(s) containing {} tx(s)",

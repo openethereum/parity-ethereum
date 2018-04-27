@@ -16,33 +16,67 @@
 
 //! Cross-platform open url in default browser
 
+use std;
+use std::os::raw::c_int;
+
+#[allow(unused)]
+pub enum Error {
+	ProcessError(std::io::Error),
+	WindowsShellExecute(c_int),
+}
+
+impl From<std::io::Error> for Error {
+	fn from(err: std::io::Error) -> Self {
+		Error::ProcessError(err)
+	}
+}
+
+impl std::fmt::Display for Error {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+		match *self {
+			Error::ProcessError(ref e) => write!(f, "{}", e),
+			Error::WindowsShellExecute(e) => write!(f, "WindowsShellExecute error: {}", e),
+		}
+	}
+}
+
 #[cfg(windows)]
-pub fn open(url: &str) {
+pub fn open(url: &str) -> Result<(), Error> {
 	use std::ffi::CString;
 	use std::ptr;
 	use winapi::um::shellapi::ShellExecuteA;
 	use winapi::um::winuser::SW_SHOWNORMAL as Normal;
 
-	unsafe {
+	const WINDOWS_SHELL_EXECUTE_SUCCESS: c_int = 32;
+
+	let h_instance = unsafe {
 		ShellExecuteA(ptr::null_mut(),
 			CString::new("open").unwrap().as_ptr(),
 			CString::new(url.to_owned().replace("\n", "%0A")).unwrap().as_ptr(),
 			ptr::null(),
 			ptr::null(),
-			Normal);
+			Normal) as c_int
+	};
+
+	// https://msdn.microsoft.com/en-us/library/windows/desktop/bb762153(v=vs.85).aspx
+	// `ShellExecute` returns a value greater than 32 on success
+	if h_instance > WINDOWS_SHELL_EXECUTE_SUCCESS {
+		Ok(())
+	} else {
+		Err(Error::WindowsShellExecute(h_instance))
 	}
 }
 
 #[cfg(any(target_os="macos", target_os="freebsd"))]
-pub fn open(url: &str) {
-	use std;
-	let _ = std::process::Command::new("open").arg(url).spawn();
+pub fn open(url: &str) -> Result<(), Error> {
+	let _ = std::process::Command::new("open").arg(url).spawn()?;
+	Ok(())
 }
 
 #[cfg(target_os="linux")]
-pub fn open(url: &str) {
-	use std;
-	let _ = std::process::Command::new("xdg-open").arg(url).spawn();
+pub fn open(url: &str) -> Result<(), Error> {
+	let _ = std::process::Command::new("xdg-open").arg(url).spawn()?;
+	Ok(())
 }
 
 #[cfg(target_os="android")]

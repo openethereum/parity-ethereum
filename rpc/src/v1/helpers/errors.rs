@@ -24,6 +24,7 @@ use jsonrpc_core::{futures, Error, ErrorCode, Value};
 use rlp::DecoderError;
 use transaction::Error as TransactionError;
 use ethcore_private_tx::Error as PrivateTransactionError;
+use vm::Error as VMError;
 
 mod codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
@@ -337,6 +338,8 @@ pub fn transaction_message(error: &TransactionError) -> String {
 		RecipientBanned => "Recipient is banned in local queue.".into(),
 		CodeBanned => "Code is banned in local queue.".into(),
 		NotAllowed => "Transaction is not permitted.".into(),
+		TooBig => "Transaction is too big, see chain specification for the limit.".into(),
+		InvalidRlp(ref descr) => format!("Invalid RLP data: {}", descr),
 	}
 }
 
@@ -372,6 +375,21 @@ pub fn call(error: CallError) -> Error {
 		CallError::Exceptional => exceptional(),
 		CallError::Execution(e) => execution(e),
 		CallError::TransactionNotFound => internal("{}, this should not be the case with eth_call, most likely a bug.", CallError::TransactionNotFound),
+	}
+}
+
+pub fn vm(error: &VMError, output: &[u8]) -> Error {
+	use rustc_hex::ToHex;
+
+	let data = match error {
+		&VMError::Reverted => format!("{} 0x{}", VMError::Reverted, output.to_hex()),
+		error => format!("{}", error),
+	};
+
+	Error {
+		code: ErrorCode::ServerError(codes::EXECUTION_ERROR),
+		message: "VM execution error.".into(),
+		data: Some(Value::String(data)),
 	}
 }
 
