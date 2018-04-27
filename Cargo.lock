@@ -1634,7 +1634,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "memorydb"
 version = "0.1.1"
 dependencies = [
- "bigint 4.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hashdb 0.1.1",
