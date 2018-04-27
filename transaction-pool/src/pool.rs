@@ -197,12 +197,12 @@ impl<T, S, L> Pool<T, S, L> where
 				Ok(new.transaction)
 			},
 			AddResult::TooCheap { new, old } => {
-				let error = error::ErrorKind::TooCheapToReplace(format!("{:?}", old.hash()), format!("{:?}", new.hash()));
+				let error = error::ErrorKind::TooCheapToReplace(format!("{:x}", old.hash()), format!("{:x}", new.hash()));
 				self.listener.rejected(&new, &error);
 				bail!(error)
 			},
 			AddResult::TooCheapToEnter(new, score) => {
-				let error = error::ErrorKind::TooCheapToEnter(format!("{:?}", new.hash()), format!("{:?}", score));
+				let error = error::ErrorKind::TooCheapToEnter(format!("{:x}", new.hash()), format!("{:?}", score));
 				self.listener.rejected(&new, &error);
 				bail!(error)
 			}

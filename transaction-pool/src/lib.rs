@@ -108,7 +108,7 @@ use std::hash::Hash;
 /// Already verified transaction that can be safely queued.
 pub trait VerifiedTransaction: fmt::Debug {
 	/// Transaction hash type.
-	type Hash: fmt::Debug + Eq + Clone + Hash;
+	type Hash: fmt::Debug + fmt::LowerHex + Eq + Clone + Hash;
 
 	/// Transaction sender type.
 	type Sender: fmt::Debug + Eq + Clone + Hash;
