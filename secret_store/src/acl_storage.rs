@@ -16,6 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 use parking_lot::{Mutex, RwLock};
 use ethcore::client::{BlockId, ChainNotify, CallContract, RegistryInfo};
 use ethereum_types::{H256, Address};
@@ -75,7 +76,7 @@ impl AclStorage for OnChainAclStorage {
 }
 
 impl ChainNotify for OnChainAclStorage {
-	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, enacted: Vec<H256>, retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
+	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, enacted: Vec<H256>, retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
 		if !enacted.is_empty() || !retracted.is_empty() {
 			self.contract.lock().update()
 		}
