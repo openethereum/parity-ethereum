@@ -413,7 +413,7 @@ impl ChainNotify for EthSync {
 		retracted: Vec<H256>,
 		sealed: Vec<H256>,
 		proposed: Vec<Bytes>,
-		_duration: u64)
+		_duration: Duration)
 	{
 		use light::net::Announcement;
 
@@ -452,7 +452,7 @@ impl ChainNotify for EthSync {
 
 	fn start(&self) {
 		match self.network.start().map_err(Into::into) {
-			Err(ErrorKind::Io(ref e)) if  e.kind() == io::ErrorKind::AddrInUse => warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set.")),
+			Err(ErrorKind::Io(ref e)) if e.kind() == io::ErrorKind::AddrInUse => warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set.")),
 			Err(err) => warn!("Error starting network: {}", err),
 			_ => {},
 		}
@@ -625,7 +625,7 @@ impl NetworkConfiguration {
 			config_path: self.config_path,
 			net_config_path: self.net_config_path,
 			listen_address: match self.listen_address { None => None, Some(addr) => Some(SocketAddr::from_str(&addr)?) },
-			public_address:  match self.public_address { None => None, Some(addr) => Some(SocketAddr::from_str(&addr)?) },
+			public_address: match self.public_address { None => None, Some(addr) => Some(SocketAddr::from_str(&addr)?) },
 			udp_port: self.udp_port,
 			nat_enabled: self.nat_enabled,
 			discovery_enabled: self.discovery_enabled,
