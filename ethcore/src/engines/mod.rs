@@ -426,6 +426,11 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	fn additional_params(&self) -> HashMap<String, String> {
 		self.machine().additional_params()
 	}
+
+	/// Performs pre-validation of RLP decoded transaction before other processing
+	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
+		self.machine().decode_transaction(transaction)
+	}
 }
 
 // convenience wrappers for existing functions.
