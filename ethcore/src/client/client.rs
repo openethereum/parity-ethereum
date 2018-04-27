@@ -62,7 +62,6 @@ use ethcore_miner::pool::VerifiedTransaction;
 use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
-use rlp::Rlp;
 use snapshot::{self, io as snapshot_io};
 use spec::Spec;
 use state_db::StateDB;
@@ -995,7 +994,7 @@ impl Client {
 
 		let txs: Vec<UnverifiedTransaction> = transactions
 			.iter()
-			.filter_map(|bytes| Rlp::new(bytes).as_val().ok())
+			.filter_map(|bytes| self.engine().decode_transaction(bytes).ok())
 			.collect();
 
 		self.notify(|notify| {

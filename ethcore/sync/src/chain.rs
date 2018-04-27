@@ -140,7 +140,6 @@ const MAX_PEERS_PROPAGATION: usize = 128;
 const MAX_PEER_LAG_PROPAGATION: BlockNumber = 20;
 const MAX_NEW_HASHES: usize = 64;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
-const MAX_TRANSACTION_SIZE: usize = 300*1024;
 // maximal packet size with transactions (cannot be greater than 16MB - protocol limitation).
 const MAX_TRANSACTION_PACKET_SIZE: usize = 8 * 1024 * 1024;
 // Maximal number of transactions in sent in single packet.
@@ -1517,10 +1516,6 @@ impl ChainSync {
 		let mut transactions = Vec::with_capacity(item_count);
 		for i in 0 .. item_count {
 			let rlp = r.at(i)?;
-			if rlp.as_raw().len() > MAX_TRANSACTION_SIZE {
-				debug!("Skipped oversized transaction of {} bytes", rlp.as_raw().len());
-				continue;
-			}
 			let tx = rlp.as_raw().to_vec();
 			transactions.push(tx);
 		}
