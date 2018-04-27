@@ -66,6 +66,7 @@ pub use error::{Error, ErrorKind};
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
 use rlp::*;
@@ -667,7 +668,7 @@ fn find_account_password(passwords: &Vec<String>, account_provider: &AccountProv
 }
 
 impl ChainNotify for Provider {
-	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
+	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
 		if !imported.is_empty() {
 			trace!("New blocks imported, try to prune the queue");
 			if let Err(err) = self.process_queue() {
