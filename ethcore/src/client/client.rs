@@ -1873,9 +1873,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
-		let tracedb = self.tracedb.read();
-
-		if !tracedb.tracing_enabled() {
+		if !self.tracedb.read().tracing_enabled() {
 			return None;
 		}
 
@@ -1888,7 +1886,7 @@ impl BlockChainClient for Client {
 			to_address: filter.to_address.into(),
 		};
 
-		let traces = tracedb
+		let traces = self.tracedb.read()
 			.filter(&db_filter)
 			.into_iter()
 			.skip(filter.after.unwrap_or(0))
@@ -1898,9 +1896,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace> {
-		let tracedb = self.tracedb.read();
-
-		if !tracedb.tracing_enabled() {
+		if !self.tracedb.read().tracing_enabled() {
 			return None;
 		}
 
@@ -1908,33 +1904,29 @@ impl BlockChainClient for Client {
 		self.transaction_address(trace.transaction)
 			.and_then(|tx_address| {
 				self.block_number(BlockId::Hash(tx_address.block_hash))
-					.and_then(|number| tracedb.trace(number, tx_address.index, trace_address))
+					.and_then(|number| self.tracedb.read().trace(number, tx_address.index, trace_address))
 			})
 	}
 
 	fn transaction_traces(&self, transaction: TransactionId) -> Option<Vec<LocalizedTrace>> {
-		let tracedb = self.tracedb.read();
-
-		if !tracedb.tracing_enabled() {
+		if !self.tracedb.read().tracing_enabled() {
 			return None;
 		}
 
 		self.transaction_address(transaction)
 			.and_then(|tx_address| {
 				self.block_number(BlockId::Hash(tx_address.block_hash))
-					.and_then(|number| tracedb.transaction_traces(number, tx_address.index))
+					.and_then(|number| self.tracedb.read().transaction_traces(number, tx_address.index))
 			})
 	}
 
 	fn block_traces(&self, block: BlockId) -> Option<Vec<LocalizedTrace>> {
-		let tracedb = self.tracedb.read();
-
-		if !tracedb.tracing_enabled() {
+		if !self.tracedb.read().tracing_enabled() {
 			return None;
 		}
 
 		self.block_number(block)
-			.and_then(|number| tracedb.block_traces(number))
+			.and_then(|number| self.tracedb.read().block_traces(number))
 	}
 
 	fn last_hashes(&self) -> LastHashes {
