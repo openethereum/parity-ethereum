@@ -726,6 +726,12 @@ mod tests {
 		machine
 	}
 
+	fn make_byzantium_machine(max_depth: usize) -> EthereumMachine {
+		let mut machine = ::ethereum::new_byzantium_test_machine();
+		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
+		machine
+	}
+
 	#[test]
 	fn test_contract_address() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
@@ -846,7 +852,7 @@ mod tests {
 		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
-		let machine = make_frontier_machine(5);
+		let machine = make_byzantium_machine(5);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
@@ -865,7 +871,7 @@ mod tests {
 				call_type: CallType::Call
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: 32361.into(),
+				gas_used: 33021.into(),
 				output: vec![]
 			}),
 			subtraces: 1,
@@ -875,7 +881,7 @@ mod tests {
 				from: "5555555555555555555555555555555555555555".into(),
 				to: "0000000000000000000000000000000000000003".into(),
 				value: 1.into(),
-				gas: 67835.into(),
+				gas: 66560.into(),
 				input: vec![],
 				call_type: CallType::Call
 			}), result: trace::Res::Call(trace::CallResult {
