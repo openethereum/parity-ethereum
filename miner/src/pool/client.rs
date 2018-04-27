@@ -62,6 +62,10 @@ pub trait Client: fmt::Debug + Sync {
 
 	/// Classify transaction (check if transaction is filtered by some contracts).
 	fn transaction_type(&self, tx: &transaction::SignedTransaction) -> TransactionType;
+
+	/// Performs pre-validation of RLP decoded transaction
+	fn decode_transaction(&self, transaction: &[u8])
+		-> Result<transaction::UnverifiedTransaction, transaction::Error>;
 }
 
 /// State nonce client

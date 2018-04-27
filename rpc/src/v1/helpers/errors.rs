@@ -338,6 +338,8 @@ pub fn transaction_message(error: &TransactionError) -> String {
 		RecipientBanned => "Recipient is banned in local queue.".into(),
 		CodeBanned => "Code is banned in local queue.".into(),
 		NotAllowed => "Transaction is not permitted.".into(),
+		TooBig => "Transaction is too big, see chain specification for the limit.".into(),
+		InvalidRlp(ref descr) => format!("Invalid RLP data: {}", descr),
 	}
 }
 
