@@ -818,6 +818,76 @@ mod tests {
 	}
 
 	#[test]
+	fn test_call_to_precompiled_tracing() {
+		// code:
+		//
+		// 60 00 - push 00 out size
+		// 60 00 - push 00 out offset
+		// 60 00 - push 00 in size
+		// 60 00 - push 00 in offset
+		// 60 01 - push 01 value
+		// 60 03 - push 03 to
+		// 61 ffff - push fff gas
+		// f1 - CALL
+
+		let code = "60006000600060006001600361fffff1".from_hex().unwrap();
+		let sender = Address::from_str("4444444444444444444444444444444444444444").unwrap();
+		let address = Address::from_str("5555555555555555555555555555555555555555").unwrap();
+
+		let mut params = ActionParams::default();
+		params.address = address.clone();
+		params.code_address = address.clone();
+		params.sender = sender.clone();
+		params.origin = sender.clone();
+		params.gas = U256::from(100_000);
+		params.code = Some(Arc::new(code));
+		params.value = ActionValue::Transfer(U256::from(100));
+		params.call_type = CallType::Call;
+		let mut state = get_temp_state();
+		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
+		let info = EnvInfo::default();
+		let machine = make_frontier_machine(5);
+		let mut substate = Substate::new();
+		let mut tracer = ExecutiveTracer::default();
+		let mut vm_tracer = ExecutiveVMTracer::toplevel();
+
+		let mut ex = Executive::new(&mut state, &info, &machine);
+		let output = BytesRef::Fixed(&mut[0u8;0]);
+		ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap();
+
+		assert_eq!(tracer.drain(), vec![FlatTrace {
+			action: trace::Action::Call(trace::Call {
+				from: "4444444444444444444444444444444444444444".into(),
+				to: "5555555555555555555555555555555555555555".into(),
+				value: 100.into(),
+				gas: 100_000.into(),
+				input: vec![],
+				call_type: CallType::Call
+			}),
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: 32361.into(),
+				output: vec![]
+			}),
+			subtraces: 1,
+			trace_address: Default::default()
+		}, FlatTrace {
+			action: trace::Action::Call(trace::Call {
+				from: "5555555555555555555555555555555555555555".into(),
+				to: "0000000000000000000000000000000000000003".into(),
+				value: 1.into(),
+				gas: 67835.into(),
+				input: vec![],
+				call_type: CallType::Call
+			}), result: trace::Res::Call(trace::CallResult {
+				gas_used: 600.into(),
+				output: vec![]
+			}),
+			subtraces: 0,
+			trace_address: vec![0].into_iter().collect(),
+		}]);
+	}
+
+	#[test]
 	// Tracing is not suported in JIT
 	fn test_call_to_create() {
 		// code:
