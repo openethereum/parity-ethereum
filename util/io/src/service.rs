@@ -334,10 +334,9 @@ enum Handlers<Message> where Message: Send + Clone {
 
 /// Allows sending messages into the event loop. All the IO handlers will get the message
 /// in the `message` callback.
-pub struct IoChannel<Message> where Message: Send + Clone{
+pub struct IoChannel<Message> where Message: Send + Clone {
 	channel: Option<Sender<IoMessage<Message>>>,
 	handlers: Handlers<Message>,
-
 }
 
 impl<Message> Clone for IoChannel<Message> where Message: Send + Clone + Sync + 'static {

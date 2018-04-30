@@ -15,9 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
+use std::fmt;
 use std::str::FromStr;
-use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
+use std::sync::{Arc, Weak};
 use std::time::{Instant};
 use itertools::Itertools;
 
@@ -42,10 +43,12 @@ use client::{
 	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
 	ClientIoMessage
 };
+use client::io_message::Callback;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType
+	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
+	IoClient,
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
@@ -55,7 +58,7 @@ use evm::Schedule;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::{Factories, VmFactory};
 use header::{BlockNumber, Header};
-use io::IoChannel;
+use io::{IoChannel, IoError};
 use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
 use ethcore_miner::pool::VerifiedTransaction;
@@ -155,10 +158,7 @@ struct Importer {
 	pub miner: Arc<Miner>,
 
 	/// Ancient block verifier: import an ancient sequence of blocks in order from a starting epoch
-	pub ancient_verifier: Mutex<Option<AncientVerifier>>,
-
-	/// Random number generator used by `AncientVerifier`
-	pub rng: Mutex<OsRng>,
+	pub ancient_verifier: AncientVerifier,
 
 	/// Ethereum engine to be used during import
 	pub engine: Arc<EthEngine>,
@@ -205,8 +205,9 @@ pub struct Client {
 	/// List of actors to be notified on certain chain events
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 
-	/// Count of pending transactions in the queue
-	queue_transactions: AtomicUsize,
+	/// Queued transactions from IO
+	queue_transactions: IoChannelQueue,
+
 	last_hashes: RwLock<VecDeque<H256>>,
 	factories: Factories,
 
@@ -240,8 +241,7 @@ impl Importer {
 			verifier: verification::new(config.verifier_type.clone()),
 			block_queue,
 			miner,
-			ancient_verifier: Mutex::new(None),
-			rng: Mutex::new(OsRng::new()?),
+			ancient_verifier: AncientVerifier::new(engine.clone()),
 			engine,
 		})
 	}
@@ -461,40 +461,9 @@ impl Importer {
 
 		{
 			trace_time!("import_old_block");
-			let mut ancient_verifier = self.ancient_verifier.lock();
-
-			{
-				// closure for verifying a block.
-				let verify_with = |verifier: &AncientVerifier| -> Result<(), ::error::Error> {
-					// verify the block, passing the chain for updating the epoch
-					// verifier.
-					let mut rng = OsRng::new().map_err(UtilError::from)?;
-					verifier.verify(&mut rng, &header, &chain)
-				};
-
-				// initialize the ancient block verifier if we don't have one already.
-				match &mut *ancient_verifier {
-					&mut Some(ref verifier) => {
-						verify_with(verifier)?
-					}
-					x @ &mut None => {
-						// load most recent epoch.
-						trace!(target: "client", "Initializing ancient block restoration.");
-						let current_epoch_data = chain.epoch_transitions()
-							.take_while(|&(_, ref t)| t.block_number < header.number())
-							.last()
-							.map(|(_, t)| t.proof)
-							.expect("At least one epoch entry (genesis) always stored; qed");
-
-						let current_verifier = self.engine.epoch_verifier(&header, &current_epoch_data)
-							.known_confirmed()?;
-						let current_verifier = AncientVerifier::new(self.engine.clone(), current_verifier);
-
-						verify_with(&current_verifier)?;
-						*x = Some(current_verifier);
-					}
-				}
-			}
+			// verify the block, passing the chain for updating the epoch verifier.
+			let mut rng = OsRng::new().map_err(UtilError::from)?;
+			self.ancient_verifier.verify(&mut rng, &header, &chain)?;
 
 			// Commit results
 			let mut batch = DBTransaction::new();
@@ -768,7 +737,7 @@ impl Client {
 			report: RwLock::new(Default::default()),
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
-			queue_transactions: AtomicUsize::new(0),
+			queue_transactions: IoChannelQueue::new(MAX_TX_QUEUE_SIZE),
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
 			history: history,
@@ -854,7 +823,11 @@ impl Client {
 	}
 
 	fn notify<F>(&self, f: F) where F: Fn(&ChainNotify) {
-		for np in self.notify.read().iter() {
+		Self::notify_listeners(&*self.notify.read(), f)
+	}
+
+	fn notify_listeners<F>(listeners: &[Weak<ChainNotify>], f: F) where F: Fn(&ChainNotify) {
+		for np in listeners {
 			if let Some(n) = np.upgrade() {
 				f(&*n);
 			}
@@ -988,22 +961,9 @@ impl Client {
 		}
 	}
 
-	/// Import transactions from the IO queue
-	pub fn import_queued_transactions(&self, transactions: &[Bytes], peer_id: usize) -> usize {
-		trace_time!("import_queued_transactions");
-		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
-
-		let txs: Vec<UnverifiedTransaction> = transactions
-			.iter()
-			.filter_map(|bytes| Rlp::new(bytes).as_val().ok())
-			.collect();
-
-		self.notify(|notify| {
-			notify.transactions_received(&txs, peer_id);
-		});
-
-		let results = self.importer.miner.import_external_transactions(self, txs);
-		results.len()
+	/// Import queued ancient blocks from the IO queue
+	pub fn import_queued_ancient_blocks(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
+		self.importer.import_old_block(block_bytes, receipts_bytes, &**self.db.read(), &*self.chain.read()).map_err(Into::into)
 	}
 
 	/// Get shared miner reference.
@@ -1412,9 +1372,9 @@ impl ImportBlock for Client {
 		use verification::queue::kind::BlockLike;
 		use verification::queue::kind::blocks::Unverified;
 
+		// TODO [ToDr] This may panic?!
 		// create unverified block here so the `keccak` calculation can be cached.
 		let unverified = Unverified::new(bytes);
-
 		{
 			if self.chain.read().is_known(&unverified.hash()) {
 				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
@@ -1425,22 +1385,6 @@ impl ImportBlock for Client {
 			}
 		}
 		Ok(self.importer.block_queue.import(unverified)?)
-	}
-
-	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
-		{
-			// check block order
-			let header = view!(BlockView, &block_bytes).header_view();
-			if self.chain.read().is_known(&header.hash()) {
-				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
-			}
-			let status = self.block_status(BlockId::Hash(header.parent_hash()));
-			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(header.parent_hash())));
-			}
-		}
-
-		self.importer.import_old_block(block_bytes, receipts_bytes, &**self.db.read(), &*self.chain.read()).map_err(Into::into)
 	}
 }
 
@@ -1917,26 +1861,22 @@ impl BlockChainClient for Client {
 		(*self.build_last_hashes(&self.chain.read().best_block_hash())).clone()
 	}
 
-	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
-		let queue_size = self.queue_transactions.load(AtomicOrdering::Relaxed);
-		trace!(target: "external_tx", "Queue size: {}", queue_size);
-		if queue_size > MAX_TX_QUEUE_SIZE {
-			debug!("Ignoring {} transactions: queue is full", transactions.len());
-		} else {
-			let len = transactions.len();
-			match self.io_channel.lock().send(ClientIoMessage::NewTransactions(transactions, peer_id)) {
-				Ok(_) => {
-					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
-				}
-				Err(e) => {
-					debug!("Ignoring {} transactions: error queueing: {}", len, e);
-				}
+	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
+		let hash = {
+			// TODO [ToDr] This may panic?!
+			let header = view!(BlockView, &block_bytes).header_view();
+			// check block order
+			if self.chain.read().is_known(&header.hash()) {
+				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
-		}
-	}
-
-	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
-		self.importer.miner.ready_transactions(self)
+			let status = self.block_status(BlockId::Hash(header.parent_hash()));
+			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
+				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(header.parent_hash())));
+			}
+			header.hash()
+		};
+		// TODO actually queue
+		Ok(hash)
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
@@ -1944,6 +1884,10 @@ impl BlockChainClient for Client {
 		if let Err(e) = channel.send(ClientIoMessage::NewMessage(message)) {
 			debug!("Ignoring the message, error queueing: {}", e);
 		}
+	}
+
+	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
+		self.importer.miner.ready_transactions(self)
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> {
@@ -1990,6 +1934,28 @@ impl BlockChainClient for Client {
 
 	fn eip86_transition(&self) -> u64 {
 		self.engine().params().eip86_transition
+	}
+}
+
+impl IoClient for Client {
+	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
+		let len = transactions.len();
+		self.queue_transactions.queue(&mut self.io_channel.lock(), len, move |chain| {
+			trace_time!("import_queued_transactions");
+
+			let txs: Vec<UnverifiedTransaction> = transactions
+				.iter()
+				.filter_map(|bytes| Rlp::new(bytes).as_val().ok())
+				.collect();
+
+			chain.notify(|notify| {
+				notify.transactions_received(&txs, peer_id);
+			});
+
+			chain.importer.miner.import_external_transactions(chain, txs);
+		}).unwrap_or_else(|e| {
+			debug!(target: "client", "Ignoring {} transactions: {}", len, e);
+		});
 	}
 }
 
@@ -2370,5 +2336,56 @@ mod tests {
 			log_bloom: Default::default(),
 			outcome: TransactionOutcome::StateRoot(state_root),
 		});
+	}
+}
+
+#[derive(Debug)]
+enum QueueError {
+	Channel(IoError),
+	Full(usize),
+}
+
+impl fmt::Display for QueueError {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			QueueError::Channel(ref c) => fmt::Display::fmt(c, fmt),
+			QueueError::Full(limit) => write!(fmt, "The queue is full ({})", limit),
+		}
+	}
+}
+
+/// Queue some items to be processed by IO client.
+struct IoChannelQueue {
+	currently_queued: Arc<AtomicUsize>,
+	limit: usize,
+}
+
+impl IoChannelQueue {
+	pub fn new(limit: usize) -> Self {
+		IoChannelQueue {
+			currently_queued: Default::default(),
+			limit,
+		}
+	}
+
+	pub fn queue<F>(&self, channel: &mut IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
+		F: Fn(&Client) + Send + Sync + 'static,
+	{
+		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
+		ensure!(queue_size < self.limit, QueueError::Full(self.limit));
+
+		let currently_queued = self.currently_queued.clone();
+		let result = channel.send(Callback::new(move |chain| {
+			currently_queued.fetch_sub(count, AtomicOrdering::SeqCst);
+			fun(chain);
+		}).into());
+
+		match result {
+			Ok(_) => {
+				self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
+				Ok(())
+			},
+			Err(e) => Err(QueueError::Channel(e)),
+		}
 	}
 }

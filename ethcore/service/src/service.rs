@@ -191,6 +191,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	}
 
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+		trace_time!("service::read");
 		match timer {
 			CLIENT_TICK_TIMER => {
 				use ethcore::snapshot::SnapshotService;
@@ -203,13 +204,11 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	}
 
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
+		trace_time!("service::message");
 		use std::thread;
 
 		match *net_message {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
-			ClientIoMessage::NewTransactions(ref transactions, peer_id) => {
-				self.client.import_queued_transactions(transactions, peer_id);
-			}
 			ClientIoMessage::BeginRestoration(ref manifest) => {
 				if let Err(e) = self.snapshot.init_restore(manifest.clone(), true) {
 					warn!("Failed to initialize snapshot restoration: {}", e);
@@ -236,6 +235,9 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 			},
 			ClientIoMessage::NewPrivateTransaction => if let Err(e) = self.private_tx.provider.on_private_transaction_queued() {
 				warn!("Failed to handle private transaction {:?}", e);
+			},
+			ClientIoMessage::Execute(ref exec) => {
+				(*exec.0)(&self.client);
 			},
 			_ => {} // ignore other messages
 		}
