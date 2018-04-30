@@ -88,6 +88,7 @@ pub use verification::queue::QueueInfo as BlockQueueInfo;
 use_contract!(registry, "Registry", "res/contracts/registrar.json");
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
+const MAX_ANCIENT_BLOCKS_QUEUE_SIZE: usize = 4096;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
 const MIN_HISTORY_SIZE: u64 = 8;
 
@@ -206,6 +207,8 @@ pub struct Client {
 
 	/// Queued transactions from IO
 	queue_transactions: IoChannelQueue,
+	/// Ancient blocks import queue
+	queue_ancient_blocks: IoChannelQueue,
 
 	last_hashes: RwLock<VecDeque<H256>>,
 	factories: Factories,
@@ -733,6 +736,7 @@ impl Client {
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: IoChannelQueue::new(MAX_TX_QUEUE_SIZE),
+			queue_ancient_blocks: IoChannelQueue::new(MAX_ANCIENT_BLOCKS_QUEUE_SIZE),
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
 			history: history,
@@ -950,11 +954,6 @@ impl Client {
 			}
 			hashes.push_front(hash.clone());
 		}
-	}
-
-	/// Import queued ancient blocks from the IO queue
-	pub fn import_queued_ancient_blocks(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
-		self.importer.import_old_block(block_bytes, receipts_bytes, &**self.db.read(), &*self.chain.read()).map_err(Into::into)
 	}
 
 	/// Get shared miner reference.
@@ -1852,24 +1851,6 @@ impl BlockChainClient for Client {
 		(*self.build_last_hashes(&self.chain.read().best_block_hash())).clone()
 	}
 
-	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
-		let hash = {
-			// TODO [ToDr] This may panic?!
-			let header = view!(BlockView, &block_bytes).header_view();
-			// check block order
-			if self.chain.read().is_known(&header.hash()) {
-				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
-			}
-			let status = self.block_status(BlockId::Hash(header.parent_hash()));
-			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(header.parent_hash())));
-			}
-			header.hash()
-		};
-		// TODO actually queue
-		Ok(hash)
-	}
-
 	fn queue_consensus_message(&self, message: Bytes) {
 		let channel = self.io_channel.lock().clone();
 		if let Err(e) = channel.send(ClientIoMessage::NewMessage(message)) {
@@ -1931,24 +1912,55 @@ impl BlockChainClient for Client {
 impl IoClient for Client {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
 		let len = transactions.len();
-		let engine = self.engine.clone();
-		self.queue_transactions.queue(&mut self.io_channel.lock(), len, move |chain| {
+		self.queue_transactions.queue(&mut self.io_channel.lock(), len, move |client| {
 			trace_time!("import_queued_transactions");
 
 			let txs: Vec<UnverifiedTransaction> = transactions
 				.iter()
-				.filter_map(|bytes| engine.decode_transaction(bytes).ok())
+				.filter_map(|bytes| client.engine.decode_transaction(bytes).ok())
 				.collect();
 
-			chain.notify(|notify| {
+			client.notify(|notify| {
 				notify.transactions_received(&txs, peer_id);
 			});
 
-			chain.importer.miner.import_external_transactions(chain, txs);
+			client.importer.miner.import_external_transactions(client, txs);
 		}).unwrap_or_else(|e| {
 			debug!(target: "client", "Ignoring {} transactions: {}", len, e);
 		});
 	}
+
+	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
+		let hash = {
+			// TODO [ToDr] This may panic?!
+			let header = view!(BlockView, &block_bytes).header_view();
+			// check block order
+			if self.chain.read().is_known(&header.hash()) {
+				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
+			}
+			let status = self.block_status(BlockId::Hash(header.parent_hash()));
+			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
+				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(header.parent_hash())));
+			}
+			header.hash()
+		};
+
+		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), 1, move |client| {
+			client.importer.import_old_block(
+				block_bytes,
+				receipts_bytes,
+				&**client.db.read(),
+				&*client.chain.read()
+			).map(|_| ()).unwrap_or_else(|e| {
+				error!(target: "client", "Error importing ancient block: {}", e);
+			});
+		}) {
+			Ok(_) => Ok(hash),
+			Err(e) => bail!(BlockImportErrorKind::Other(format!("{}", e))),
+		}
+	}
+
+	TODO Move consensus message and possibly other ClientIoMessages
 }
 
 impl ReopenBlock for Client {
@@ -2365,9 +2377,9 @@ impl IoChannelQueue {
 		ensure!(queue_size < self.limit, QueueError::Full(self.limit));
 
 		let currently_queued = self.currently_queued.clone();
-		let result = channel.send(Callback::new(move |chain| {
+		let result = channel.send(Callback::new(move |client| {
 			currently_queued.fetch_sub(count, AtomicOrdering::SeqCst);
-			fun(chain);
+			fun(client);
 		}).into());
 
 		match result {

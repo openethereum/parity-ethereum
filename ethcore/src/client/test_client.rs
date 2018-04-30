@@ -809,10 +809,6 @@ impl BlockChainClient for TestBlockChainClient {
 		self.spec.engine.handle_message(&message).unwrap();
 	}
 
-	fn queue_ancient_block(&self, b: Bytes, _r: Bytes) -> Result<H256, BlockImportError> {
-		self.import_block(b)
-	}
-
 	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
 		self.miner.ready_transactions(self)
 	}
@@ -862,6 +858,10 @@ impl IoClient for TestBlockChainClient {
 		// import right here
 		let txs = transactions.into_iter().filter_map(|bytes| Rlp::new(&bytes).as_val().ok()).collect();
 		self.miner.import_external_transactions(self, txs);
+	}
+
+	fn queue_ancient_block(&self, b: Bytes, _r: Bytes) -> Result<H256, BlockImportError> {
+		self.import_block(b)
 	}
 }
 

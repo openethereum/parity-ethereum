@@ -201,6 +201,9 @@ pub trait EngineInfo {
 pub trait IoClient: Sync + Send {
 	/// Queue transactions for importing.
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
+
+	/// Queue block import with transaction receipts. Does no sealing and transaction validation.
+	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
 }
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
@@ -315,9 +318,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Queue conensus engine message.
 	fn queue_consensus_message(&self, message: Bytes);
-
-	/// Queue block import with transaction receipts. Does no sealing and transaction validation.
-	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
 
 	/// List all transactions that are allowed into the next block.
 	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
