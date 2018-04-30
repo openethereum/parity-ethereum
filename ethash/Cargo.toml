@@ -1,6 +1,6 @@
 [package]
 name = "ethash"
-version = "1.11.0"
+version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [lib]

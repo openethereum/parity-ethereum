@@ -6,7 +6,6 @@ description = "in-memory implementation of hashdb"
 license = "GPL-3.0"
 
 [dependencies]
-bigint = "4.0"
 elastic-array = "0.10"
 heapsize = "0.4"
 ethereum-types = "0.3"

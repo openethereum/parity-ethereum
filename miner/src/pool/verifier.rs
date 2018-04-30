@@ -27,6 +27,7 @@ use std::sync::Arc;
 use std::sync::atomic::{self, AtomicUsize};
 
 use ethereum_types::{U256, H256};
+use rlp::Encodable;
 use transaction;
 use txpool;
 
@@ -221,6 +222,12 @@ impl<C: Client> txpool::Verifier<Transaction> for Verifier<C> {
 			},
 			Transaction::Local(tx) => tx,
 		};
+
+		// Verify RLP payload
+		if let Err(err) = self.client.decode_transaction(&transaction.rlp_bytes()) {
+			debug!(target: "txqueue", "[{:?}] Rejected transaction's rlp payload", err);
+			bail!(err)
+		}
 
 		let sender = transaction.sender();
 		let account_details = self.client.account_details(&sender);

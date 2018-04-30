@@ -16,6 +16,7 @@
 
 use std::collections::{VecDeque, HashSet, HashMap};
 use std::sync::Arc;
+use std::time::Duration;
 use ethereum_types::H256;
 use parking_lot::{RwLock, Mutex};
 use bytes::Bytes;
@@ -538,7 +539,7 @@ impl ChainNotify for EthPeer<EthcoreClient> {
 		retracted: Vec<H256>,
 		sealed: Vec<H256>,
 		proposed: Vec<Bytes>,
-		_duration: u64)
+		_duration: Duration)
 	{
 		self.new_blocks_queue.write().push_back(NewBlockMessage {
 			imported,

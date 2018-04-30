@@ -87,6 +87,19 @@ impl Tx {
 			nonce: self.nonce.into()
 		}
 	}
+
+	pub fn big_one(self) -> SignedTransaction {
+		let keypair = Random.generate().unwrap();
+		let tx = Transaction {
+			action: transaction::Action::Create,
+			value: U256::from(100),
+			data: include_str!("../res/big_transaction.data").from_hex().unwrap(),
+			gas: self.gas.into(),
+			gas_price: self.gas_price.into(),
+			nonce: self.nonce.into()
+		};
+		tx.sign(keypair.secret(), None)
+	}
 }
 pub trait TxExt: Sized {
 	type Out;
