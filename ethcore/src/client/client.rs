@@ -2359,7 +2359,7 @@ impl IoChannelQueue {
 	}
 
 	pub fn queue<F>(&self, channel: &mut IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
-		F: Fn(&Client) + Send + Sync + 'static,
+		F: FnOnce(&Client) + Send + Sync + 'static,
 	{
 		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
 		ensure!(queue_size < self.limit, QueueError::Full(self.limit));

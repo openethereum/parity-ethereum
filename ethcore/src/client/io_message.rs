@@ -15,14 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
-use std::sync::Arc;
 use bytes::Bytes;
 use client::Client;
 use ethereum_types::H256;
 use snapshot::ManifestData;
 
 /// Message type for external and internal events
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum ClientIoMessage {
 	/// Best Block Hash in chain has been changed
 	NewChainHead,
@@ -45,12 +44,11 @@ pub enum ClientIoMessage {
 }
 
 /// A function to invoke in the client thread.
-#[derive(Clone)]
-pub struct Callback(pub Arc<Fn(&Client) + Send + Sync>);
+pub struct Callback(pub Box<FnOnce(&Client) + Send + Sync>);
 
 impl Callback {
-	pub fn new<T: Fn(&Client) + Send + Sync + 'static>(fun: T) -> Self {
-		Callback(Arc::new(fun))
+	pub fn new<T: FnOnce(&Client) + Send + Sync + 'static>(fun: T) -> Self {
+		Callback(Box::new(fun))
 	}
 }
 
@@ -62,7 +60,7 @@ impl From<Callback> for ClientIoMessage {
 
 impl fmt::Debug for Callback {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		fmt.debug_struct("Callback").finish()
+		write!(fmt, "<callback>")
 	}
 }
 
