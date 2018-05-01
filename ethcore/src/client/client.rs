@@ -1408,7 +1408,7 @@ impl ImportBlock for Client {
 		use verification::queue::kind::blocks::Unverified;
 
 		// create unverified block here so the `keccak` calculation can be cached.
-		let unverified = Unverified::new(bytes);
+		let unverified = Unverified::from_rlp(bytes)?;
 
 		{
 			if self.chain.read().is_known(&unverified.hash()) {
