@@ -13,10 +13,8 @@
         "eip150Transition": "0x0",
         "eip160Transition": "0x0",
         "ecip1017EraRounds": 10000000,
-
         "eip161abcTransition": "0x7fffffffffffffff",
         "eip161dTransition": "0x7fffffffffffffff",
-				
         "eip100bTransition": 2000000
       }
     }
