@@ -115,7 +115,7 @@ impl SessionCreatorCore {
 
 	/// Read key share && remove disconnected nodes.
 	fn read_key_share(&self, key_id: &SessionId) -> Result<Option<DocumentKeyShare>, Error> {
-		self.key_storage.get(key_id).map_err(|e| Error::KeyStorage(e.into()))
+		self.key_storage.get(key_id)
 	}
 }
 
@@ -146,7 +146,7 @@ impl ClusterSessionCreator<GenerationSessionImpl, ()> for GenerationSessionCreat
 	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionId, _creation_data: Option<()>) -> Result<Arc<GenerationSessionImpl>, Error> {
 		// check that there's no finished encryption session with the same id
 		if self.core.key_storage.contains(&id) {
-			return Err(Error::DuplicateSessionId);
+			return Err(Error::ServerKeyAlreadyGenerated);
 		}
 
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
@@ -232,6 +232,8 @@ impl ClusterSessionCreator<DecryptionSessionImpl, Requester> for DecryptionSessi
 				self_node_id: self.core.self_node_id.clone(),
 				master_node_id: master,
 				threshold: encrypted_data.as_ref().map(|ks| ks.threshold).unwrap_or_default(),
+				configured_nodes_count: cluster.configured_nodes_count(),
+				connected_nodes_count: cluster.connected_nodes_count(),
 			},
 			access_key: id.access_key,
 			key_share: encrypted_data,
@@ -278,6 +280,8 @@ impl ClusterSessionCreator<SchnorrSigningSessionImpl, Requester> for SchnorrSign
 				self_node_id: self.core.self_node_id.clone(),
 				master_node_id: master,
 				threshold: encrypted_data.as_ref().map(|ks| ks.threshold).unwrap_or_default(),
+				configured_nodes_count: cluster.configured_nodes_count(),
+				connected_nodes_count: cluster.connected_nodes_count(),
 			},
 			access_key: id.access_key,
 			key_share: encrypted_data,
@@ -324,6 +328,8 @@ impl ClusterSessionCreator<EcdsaSigningSessionImpl, Requester> for EcdsaSigningS
 				self_node_id: self.core.self_node_id.clone(),
 				master_node_id: master,
 				threshold: encrypted_data.as_ref().map(|ks| ks.threshold).unwrap_or_default(),
+				configured_nodes_count: cluster.configured_nodes_count(),
+				connected_nodes_count: cluster.connected_nodes_count(),
 			},
 			access_key: id.access_key,
 			key_share: encrypted_data,
@@ -351,14 +357,19 @@ impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTr
 	}
 
 	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, _creation_data: Option<()>) -> Result<Arc<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>>, Error> {
+		let configured_nodes_count = cluster.configured_nodes_count();
+		let connected_nodes_count = cluster.connected_nodes_count();
 		let encrypted_data = self.core.read_key_share(&id.id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
-		let computer = Arc::new(FastestResultKeyVersionsResultComputer::new(self.core.self_node_id.clone(), encrypted_data.as_ref()));
+		let computer = Arc::new(FastestResultKeyVersionsResultComputer::new(self.core.self_node_id.clone(), encrypted_data.as_ref(),
+			configured_nodes_count, configured_nodes_count));
 		Ok(Arc::new(KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
 			meta: ShareChangeSessionMeta {
 				id: id.id.clone(),
 				self_node_id: self.core.self_node_id.clone(),
 				master_node_id: master,
+				configured_nodes_count: configured_nodes_count,
+				connected_nodes_count: connected_nodes_count,
 			},
 			sub_session: id.access_key.clone(),
 			key_share: encrypted_data,
@@ -419,6 +430,8 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 						id: id.clone(),
 						self_node_id: self.core.self_node_id.clone(),
 						master_node_id: master,
+						configured_nodes_count: cluster.configured_nodes_count(),
+						connected_nodes_count: cluster.connected_nodes_count(),
 					},
 					transport: ShareAddTransport::new(id.clone(), Some(version), nonce, cluster),
 					key_storage: self.core.key_storage.clone(),
@@ -435,6 +448,8 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 						id: id.clone(),
 						self_node_id: self.core.self_node_id.clone(),
 						master_node_id: master,
+						configured_nodes_count: cluster.configured_nodes_count(),
+						connected_nodes_count: cluster.connected_nodes_count(),
 					},
 					cluster: cluster.clone(),
 					key_storage: self.core.key_storage.clone(),
