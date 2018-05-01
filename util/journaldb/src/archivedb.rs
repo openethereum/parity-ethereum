@@ -45,14 +45,14 @@ pub struct ArchiveDB {
 
 impl ArchiveDB {
 	/// Create a new instance from a key-value db.
-	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> ArchiveDB {
-		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.")
-			.map(|val| decode::<u64>(&val));
+	pub fn new(backing: Arc<KeyValueDB>, column: Option<u32>) -> ArchiveDB {
+		let latest_era = backing.get(column, &LATEST_ERA_KEY).expect("Low-level database error.")
+			.map(|val| decode::<u64>(&val).unwrap_or(0)); // REVIEW: is `0` an ok value for `latest_era` if the Rlp decoding fails? The alternative is to either panic or change the return value of the function to return `Result<ArchiveDB, SomeError>`.
 		ArchiveDB {
 			overlay: MemoryDB::new(),
-			backing: backing,
-			latest_era: latest_era,
-			column: col,
+			backing,
+			latest_era,
+			column,
 		}
 	}
 

@@ -186,7 +186,7 @@ impl OverlayRecentDB {
 		let mut earliest_era = None;
 		let mut cumulative_size = 0;
 		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
-			let mut era = decode::<u64>(&val);
+			let mut era = decode::<u64>(&val).unwrap_or(0); // REVIEW: The error is lost here. Log and return? Panic? Or is `0` an ok fallback value?
 			latest_era = Some(era);
 			loop {
 				let mut db_key = DatabaseKey {
@@ -195,7 +195,13 @@ impl OverlayRecentDB {
 				};
 				while let Some(rlp_data) = db.get(col, &encode(&db_key)).expect("Low-level database error.") {
 					trace!("read_overlay: era={}, index={}", era, db_key.index);
-					let value = decode::<DatabaseValue>(&rlp_data);
+					let value = match decode::<DatabaseValue>(&rlp_data) {
+						Ok(v) => v,
+						Err(e) => {
+							trace!("read_overlay: Error decoding DatabaseValue err={}, era={}, index{}", e, era, db_key.index);
+							continue;
+						}
+					};
 					count += value.inserts.len();
 					let mut inserted_keys = Vec::new();
 					for (k, v) in value.inserts {
