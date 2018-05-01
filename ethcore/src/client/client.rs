@@ -257,7 +257,7 @@ impl Importer {
 		// will be in the hashmap
 		let map = import_results.iter().flat_map(|route| {
 			route.enacted.iter().map(|h| (*h, true))
-				.chain(route.retracted.iter().map(|h| (*h, false))).collect::<Vec<_>>()
+				.chain(route.retracted.iter().map(|h| (*h, false)))
 		});
 
 		// Split to enacted retracted (using hashmap value)
