@@ -25,7 +25,7 @@ use ethkey::public_to_address;
 use hash::keccak;
 use ethereum_types::{H256, Address};
 use bytes::Bytes;
-use types::all::{Error, Public, NodeAddress, NodeId};
+use types::{Error, Public, NodeAddress, NodeId};
 use trusted_client::TrustedClient;
 use helpers::{get_confirmed_block_hash, REQUEST_CONFIRMATIONS_REQUIRED};
 use {NodeKeyPair};

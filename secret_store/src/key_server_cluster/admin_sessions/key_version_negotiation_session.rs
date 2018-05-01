@@ -143,6 +143,10 @@ pub struct FastestResultComputer {
 	self_node_id: NodeId,
 	/// Threshold (if known).
 	threshold: Option<usize>,
+	/// Count of all configured key server nodes.
+	configured_nodes_count: usize,
+	/// Count of all connected key server nodes.
+	connected_nodes_count: usize,
 }
 
 /// Selects version with most support, waiting for responses from all nodes.
@@ -185,7 +189,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Return result computer reference.
 	pub fn version_holders(&self, version: &H256) -> Result<BTreeSet<NodeId>, Error> {
 		Ok(self.data.lock().versions.as_ref().ok_or(Error::InvalidStateForRequest)?
-			.get(version).ok_or(Error::KeyStorage("key version not found".into()))?
+			.get(version).ok_or(Error::ServerKeyIsNotFound)?
 			.clone())
 	}
 
@@ -236,7 +240,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// try to complete session
 		Self::try_complete(&self.core, &mut *data);
 		if no_confirmations_required && data.state != SessionState::Finished {
-			return Err(Error::MissingKeyShare);
+			return Err(Error::ServerKeyIsNotFound);
 		} else if data.state == SessionState::Finished {
 			return Ok(());
 		}
@@ -266,7 +270,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			&KeyVersionNegotiationMessage::KeyVersions(ref message) =>
 				self.on_key_versions(sender, message),
 			&KeyVersionNegotiationMessage::KeyVersionsError(ref message) => {
-				self.on_session_error(sender, Error::Io(message.error.clone()));
+				self.on_session_error(sender, message.error.clone());
 				Ok(())
 			},
 		}
@@ -388,7 +392,7 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 			if data.state != SessionState::Finished {
 				warn!("{}: key version negotiation session failed with timeout", self.core.meta.self_node_id);
 
-				data.result = Some(Err(Error::ConsensusUnreachable));
+				data.result = Some(Err(Error::ConsensusTemporaryUnreachable));
 				self.core.completed.notify_all();
 			}
 		}
@@ -431,11 +435,13 @@ impl SessionTransport for IsolatedSessionTransport {
 }
 
 impl FastestResultComputer {
-	pub fn new(self_node_id: NodeId, key_share: Option<&DocumentKeyShare>) -> Self {
+	pub fn new(self_node_id: NodeId, key_share: Option<&DocumentKeyShare>, configured_nodes_count: usize, connected_nodes_count: usize) -> Self {
 		let threshold = key_share.map(|ks| ks.threshold);
 		FastestResultComputer {
-			self_node_id: self_node_id,
-			threshold: threshold,
+			self_node_id,
+			threshold,
+			configured_nodes_count,
+			connected_nodes_count,
 		}
 	}}
 
@@ -443,7 +449,7 @@ impl SessionResultComputer for FastestResultComputer {
 	fn compute_result(&self, threshold: Option<usize>, confirmations: &BTreeSet<NodeId>, versions: &BTreeMap<H256, BTreeSet<NodeId>>) -> Option<Result<(H256, NodeId), Error>> {
 		match self.threshold.or(threshold) {
 			// if there's no versions at all && we're not waiting for confirmations anymore
-			_ if confirmations.is_empty() && versions.is_empty() => Some(Err(Error::MissingKeyShare)),
+			_ if confirmations.is_empty() && versions.is_empty() => Some(Err(Error::ServerKeyIsNotFound)),
 			// if we have key share on this node
 			Some(threshold) => {
 				// select version this node have, with enough participants
@@ -459,7 +465,17 @@ impl SessionResultComputer for FastestResultComputer {
 						.find(|&(_, ref n)| n.len() >= threshold + 1)
 						.map(|(version, nodes)| Ok((version.clone(), nodes.iter().cloned().nth(0)
 							.expect("version is only inserted when there's at least one owner; qed"))))
-						.unwrap_or(Err(Error::ConsensusUnreachable))),
+						// if there's no version consensus among all connected nodes
+						//   AND we're connected to ALL configured nodes
+						//   OR there are less than required nodes for key restore
+						//     => this means that we can't restore key with CURRENT configuration => respond with fatal error
+						// otherwise we could try later, after all nodes are connected
+						.unwrap_or_else(|| Err(if self.configured_nodes_count == self.connected_nodes_count
+							|| self.configured_nodes_count < threshold + 1 {
+							Error::ConsensusUnreachable
+						} else {
+							Error::ConsensusTemporaryUnreachable
+						}))),
 				}
 			},
 			// if we do not have share, then wait for all confirmations
@@ -469,7 +485,11 @@ impl SessionResultComputer for FastestResultComputer {
 				.max_by_key(|&(_, ref n)| n.len())
 				.map(|(version, nodes)| Ok((version.clone(), nodes.iter().cloned().nth(0)
 					.expect("version is only inserted when there's at least one owner; qed"))))
-				.unwrap_or(Err(Error::ConsensusUnreachable))),
+				.unwrap_or_else(|| Err(if self.configured_nodes_count == self.connected_nodes_count {
+					Error::ConsensusUnreachable
+				} else {
+					Error::ConsensusTemporaryUnreachable
+				}))),
 		}
 	}
 }
@@ -480,7 +500,7 @@ impl SessionResultComputer for LargestSupportResultComputer {
 			return None;
 		}
 		if versions.is_empty() {
-			return Some(Err(Error::MissingKeyShare));
+			return Some(Err(Error::ServerKeyIsNotFound));
 		}
 
 		versions.iter()
@@ -552,12 +572,15 @@ mod tests {
 								id: Default::default(),
 								self_node_id: node_id.clone(),
 								master_node_id: master_node_id.clone(),
+								configured_nodes_count: nodes.len(),
+								connected_nodes_count: nodes.len(),
 							},
 							sub_session: sub_sesion.clone(),
 							key_share: key_storage.get(&Default::default()).unwrap(),
 							result_computer: Arc::new(FastestResultComputer::new(
 								node_id.clone(),
 								key_storage.get(&Default::default()).unwrap().as_ref(),
+								nodes.len(), nodes.len()
 							)),
 							transport: DummyTransport {
 								cluster: cluster,
@@ -723,13 +746,15 @@ mod tests {
 		let computer = FastestResultComputer {
 			self_node_id: Default::default(),
 			threshold: None,
+			configured_nodes_count: 1,
+			connected_nodes_count: 1,
 		};
-		assert_eq!(computer.compute_result(Some(10), &Default::default(), &Default::default()), Some(Err(Error::MissingKeyShare)));
+		assert_eq!(computer.compute_result(Some(10), &Default::default(), &Default::default()), Some(Err(Error::ServerKeyIsNotFound)));
 	}
 
 	#[test]
 	fn largest_computer_returns_missing_share_if_no_versions_returned() {
 		let computer = LargestSupportResultComputer;
-		assert_eq!(computer.compute_result(Some(10), &Default::default(), &Default::default()), Some(Err(Error::MissingKeyShare)));
+		assert_eq!(computer.compute_result(Some(10), &Default::default(), &Default::default()), Some(Err(Error::ServerKeyIsNotFound)));
 	}
 }

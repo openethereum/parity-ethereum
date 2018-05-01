@@ -155,9 +155,7 @@ pub struct IsolatedSessionTransport {
 impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Create new share addition session.
 	pub fn new(params: SessionParams<T>) -> Result<Self, Error> {
-		let key_share = params.key_storage
-			.get(&params.meta.id)
-			.map_err(|e| Error::KeyStorage(e.into()))?;
+		let key_share = params.key_storage.get(&params.meta.id)?;
 
 		Ok(SessionImpl {
 			core: SessionCore {
@@ -257,8 +255,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let admin_public = self.core.admin_public.as_ref().cloned().ok_or(Error::ConsensusUnreachable)?;
 
 		// key share version is required on ShareAdd master node
-		let key_share = self.core.key_share.as_ref().ok_or_else(|| Error::KeyStorage("key share is not found on master node".into()))?;
-		let key_version = key_share.version(&version).map_err(|e| Error::KeyStorage(e.into()))?;
+		let key_share = self.core.key_share.as_ref().ok_or_else(|| Error::ServerKeyIsNotFound)?;
+		let key_version = key_share.version(&version)?;
 
 		// old nodes set is all non-isolated owners of version holders
 		let non_isolated_nodes = self.core.transport.nodes();
@@ -326,7 +324,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			&ShareAddMessage::NewKeysDissemination(ref message) =>
 				self.on_new_keys_dissemination(sender, message),
 			&ShareAddMessage::ShareAddError(ref message) => {
-				self.on_session_error(sender, Error::Io(message.error.clone().into()));
+				self.on_session_error(sender, message.error.clone());
 				Ok(())
 			},
 		}
@@ -714,10 +712,10 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// save encrypted data to the key storage
 		data.state = SessionState::Finished;
 		if core.key_share.is_some() {
-			core.key_storage.update(core.meta.id.clone(), refreshed_key_share.clone())
+			core.key_storage.update(core.meta.id.clone(), refreshed_key_share.clone())?;
 		} else {
-			core.key_storage.insert(core.meta.id.clone(), refreshed_key_share.clone())
-		}.map_err(|e| Error::KeyStorage(e.into()))?;
+			core.key_storage.insert(core.meta.id.clone(), refreshed_key_share.clone())?;
+		}
 
 		// signal session completion
 		data.state = SessionState::Finished;
@@ -851,7 +849,7 @@ impl SessionTransport for IsolatedSessionTransport {
 #[cfg(test)]
 pub mod tests {
 	use std::sync::Arc;
-	use std::collections::{VecDeque, BTreeMap, BTreeSet};
+	use std::collections::{VecDeque, BTreeMap, BTreeSet, HashSet};
 	use ethkey::{Random, Generator, Public, KeyPair, Signature, sign};
 	use ethereum_types::H256;
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage};
@@ -952,6 +950,8 @@ pub mod tests {
 				id: SessionId::default(),
 				self_node_id: NodeId::default(),
 				master_node_id: master_node_id,
+				configured_nodes_count: new_nodes_set.iter().chain(old_nodes_set.iter()).collect::<HashSet<_>>().len(),
+				connected_nodes_count: new_nodes_set.iter().chain(old_nodes_set.iter()).collect::<HashSet<_>>().len(),
 			};
 			let new_nodes = new_nodes_set.iter()
 				.filter(|n| !old_nodes_set.contains(&n))
@@ -992,6 +992,8 @@ pub mod tests {
 				id: SessionId::default(),
 				self_node_id: NodeId::default(),
 				master_node_id: master_node_id,
+				configured_nodes_count: new_nodes_set.iter().chain(ml.nodes.keys()).collect::<BTreeSet<_>>().len(),
+				connected_nodes_count: new_nodes_set.iter().chain(ml.nodes.keys()).collect::<BTreeSet<_>>().len(),
 			};
 			let old_nodes_set = ml.nodes.keys().cloned().collect();
 			let nodes = ml.nodes.iter()
@@ -1102,7 +1104,7 @@ pub mod tests {
 		assert_eq!(ml.nodes[&master_node_id].session.initialize(Some(ml.version), Some(new_nodes_set),
 			Some(ml.old_set_signature.clone()),
 			Some(ml.new_set_signature.clone())
-		).unwrap_err(), Error::KeyStorage("key share is not found on master node".into()));
+		).unwrap_err(), Error::ServerKeyIsNotFound);
 	}
 
 	#[test]
