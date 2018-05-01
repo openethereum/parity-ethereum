@@ -430,7 +430,10 @@ impl<'a> Iterator for EpochTransitionIter<'a> {
 				return None
 			}
 
-			let transitions: EpochTransitions = ::rlp::decode(&val[..]);
+			let transitions: EpochTransitions = match ::rlp::decode(&val[..]) {
+				Ok(decoded) => decoded,
+				Err(_) => return None
+			};
 
 			// if there are multiple candidates, at most one will be on the
 			// canon chain.

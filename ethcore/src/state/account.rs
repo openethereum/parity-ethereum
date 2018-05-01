@@ -145,8 +145,13 @@ impl Account {
 
 	/// Create a new account from RLP.
 	pub fn from_rlp(rlp: &[u8]) -> Account {
-		let basic: BasicAccount = ::rlp::decode(rlp);
-		basic.into()
+		match ::rlp::decode::<BasicAccount>(rlp) {
+			Ok(basic_account) => basic_account.into(),
+			Err(e) => {
+				error!("from_rlp, Rlp decoding error={}",e);
+				panic!("from_rlp, Rlp decoding error={}",e)
+			}
+		}
 	}
 
 	/// Create a new contract account.
@@ -203,7 +208,14 @@ impl Account {
 		}
 		let db = SecTrieDB::new(db, &self.storage_root)?;
 
-		let item: U256 = db.get_with(key, ::rlp::decode)?.unwrap_or_else(U256::zero);
+		let unwrapping_decoder: fn(&[u8]) -> U256 = |bytes: &[u8]| {
+			match ::rlp::decode(bytes) {
+				Ok(u256) => u256,
+				Err(_) => U256::zero()
+			}
+		};
+
+		let item: U256 = db.get_with(key, unwrapping_decoder)?.unwrap_or_else(U256::zero);
 		let value: H256 = item.into();
 		self.storage_cache.borrow_mut().insert(key.clone(), value.clone());
 		Ok(value)
@@ -478,7 +490,13 @@ impl Account {
 
 		let trie = TrieDB::new(db, &self.storage_root)?;
 		let item: U256 = {
-			let query = (&mut recorder, ::rlp::decode);
+			let unwrapping_decoder: fn(&[u8]) -> U256 = |bytes: &[u8]| {
+				match ::rlp::decode(bytes) {
+					Ok(u256) => u256,
+					Err(_) => U256::zero()
+				}
+			};
+			let query = (&mut recorder, unwrapping_decoder);
 			trie.get_with(&storage_key, query)?.unwrap_or_else(U256::zero)
 		};
 

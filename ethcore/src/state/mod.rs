@@ -1039,7 +1039,10 @@ impl<B: Backend> State<B> {
 		let mut recorder = Recorder::new();
 		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
 		let maybe_account: Option<BasicAccount> = {
-			let query = (&mut recorder, ::rlp::decode);
+			let panicky_decoder = |bytes: &[u8]| {
+				::rlp::decode(bytes).expect(&format!("prove_account, could not query trie for account key={}", &account_key))
+			};
+			let query = (&mut recorder, panicky_decoder);
 			trie.get_with(&account_key, query)?
 		};
 		let account = maybe_account.unwrap_or_else(|| BasicAccount {

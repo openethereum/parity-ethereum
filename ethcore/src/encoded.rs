@@ -48,7 +48,7 @@ impl Header {
 	pub fn new(encoded: Vec<u8>) -> Self { Header(encoded) }
 
 	/// Upgrade this encoded view to a fully owned `Header` object.
-	pub fn decode(&self) -> FullHeader { ::rlp::decode(&self.0) }
+	pub fn decode(&self) -> FullHeader { ::rlp::decode(&self.0).unwrap_or(FullHeader::default()) } // REVIEW: is the default ok here? Useful? The real fix would be to make `decode` return a `Result` as well.
 
 	/// Get a borrowed header view onto the data.
 	#[inline]
@@ -205,7 +205,7 @@ impl Block {
 	pub fn header_view(&self) -> HeaderView { self.view().header_view() }
 
 	/// Decode to a full block.
-	pub fn decode(&self) -> FullBlock { ::rlp::decode(&self.0) }
+	pub fn decode(&self) -> FullBlock { ::rlp::decode(&self.0).unwrap_or(FullBlock::default()) }
 
 	/// Decode the header.
 	pub fn decode_header(&self) -> FullHeader { self.view().rlp().val_at(0) }
