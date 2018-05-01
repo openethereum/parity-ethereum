@@ -19,7 +19,6 @@
 #![warn(missing_docs)]
 
 extern crate ansi_term;
-extern crate app_dirs;
 extern crate docopt;
 #[macro_use]
 extern crate clap;
@@ -233,7 +232,7 @@ fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logge
 
 	let token = signer::generate_token_and_url(ws_conf, ui_conf, logger_config)?;
 	// Open a browser
-	url::open(&token.url);
+	url::open(&token.url).map_err(|e| format!("{}", e))?;
 	// Print a message
 	println!("{}", token.message);
 	Ok(())
@@ -245,6 +244,6 @@ fn open_dapp(dapps_conf: &dapps::Configuration, rpc_conf: &rpc::HttpConfiguratio
 	}
 
 	let url = format!("http://{}:{}/{}/", rpc_conf.interface, rpc_conf.port, dapp);
-	url::open(&url);
+	url::open(&url).map_err(|e| format!("{}", e))?;
 	Ok(())
 }

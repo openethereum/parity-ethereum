@@ -27,7 +27,7 @@ use super::key_storage::KeyStorage;
 use super::key_server_set::KeyServerSet;
 use key_server_cluster::{math, ClusterCore};
 use traits::{AdminSessionsServer, ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer, NodeKeyPair};
-use types::all::{Error, Public, RequestSignature, Requester, ServerKeyId, EncryptedDocumentKey, EncryptedDocumentKeyShadow,
+use types::{Error, Public, RequestSignature, Requester, ServerKeyId, EncryptedDocumentKey, EncryptedDocumentKeyShadow,
 	ClusterConfiguration, MessageHash, EncryptedMessageSignature, NodeId};
 use key_server_cluster::{ClusterClient, ClusterConfiguration as NetClusterConfiguration};
 
@@ -238,7 +238,7 @@ pub mod tests {
 	use key_server_set::tests::MapKeyServerSet;
 	use key_server_cluster::math;
 	use ethereum_types::{H256, H520};
-	use types::all::{Error, Public, ClusterConfiguration, NodeAddress, RequestSignature, ServerKeyId,
+	use types::{Error, Public, ClusterConfiguration, NodeAddress, RequestSignature, ServerKeyId,
 		EncryptedDocumentKey, EncryptedDocumentKeyShadow, MessageHash, EncryptedMessageSignature,
 		Requester, NodeId};
 	use traits::{AdminSessionsServer, ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};

@@ -54,6 +54,10 @@
 //!   cargo build --release
 //!   ```
 
+// Recursion limit required because of
+// error_chain foreign_links.
+#![recursion_limit="128"]
+
 extern crate bloomchain;
 extern crate bn;
 extern crate byteorder;
@@ -112,6 +116,8 @@ extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
 #[macro_use]
+extern crate error_chain;
+#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate lazy_static;
@@ -126,6 +132,9 @@ extern crate trace_time;
 extern crate evm;
 
 pub extern crate ethstore;
+
+#[macro_use]
+pub mod views;
 
 #[cfg(test)]
 extern crate kvdb_rocksdb;
@@ -152,7 +161,6 @@ pub mod state_db;
 pub mod test_helpers;
 pub mod trace;
 pub mod verification;
-pub mod views;
 
 mod cache_manager;
 mod blooms;

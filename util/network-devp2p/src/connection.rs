@@ -24,7 +24,7 @@ use mio::deprecated::{Handler, EventLoop, TryRead, TryWrite};
 use mio::tcp::*;
 use ethereum_types::{H128, H256, H512};
 use ethcore_bytes::*;
-use rlp::{UntrustedRlp, RlpStream};
+use rlp::{Rlp, RlpStream};
 use std::io::{self, Cursor, Read, Write};
 use io::{IoContext, StreamToken};
 use handshake::Handshake;
@@ -391,7 +391,7 @@ impl EncryptedConnection {
 		self.decoder.decrypt(&mut RefReadBuffer::new(&header[0..16]), &mut RefWriteBuffer::new(&mut hdec), false).expect("Invalid length or padding");
 
 		let length = ((((hdec[0] as u32) << 8) + (hdec[1] as u32)) << 8) + (hdec[2] as u32);
-		let header_rlp = UntrustedRlp::new(&hdec[3..6]);
+		let header_rlp = Rlp::new(&hdec[3..6]);
 		let protocol_id = header_rlp.val_at::<u16>(0)?;
 
 		self.payload_len = length as usize;

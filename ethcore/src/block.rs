@@ -22,7 +22,7 @@ use std::collections::HashSet;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use triehash::ordered_trie_root;
 
-use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
+use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError, encode_list};
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use unexpected::{Mismatch, OutOfBounds};
@@ -54,7 +54,7 @@ pub struct Block {
 impl Block {
 	/// Returns true if the given bytes form a valid encoding of a block in RLP.
 	pub fn is_good(b: &[u8]) -> bool {
-		UntrustedRlp::new(b).as_val::<Block>().is_ok()
+		Rlp::new(b).as_val::<Block>().is_ok()
 	}
 
 	/// Get the RLP-encoding of the block with the seal.
@@ -68,7 +68,7 @@ impl Block {
 }
 
 impl Decodable for Block {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		if rlp.as_raw().len() != rlp.payload_info()?.total() {
 			return Err(DecoderError::RlpIsTooBig);
 		}
@@ -491,6 +491,24 @@ impl ClosedBlock {
 }
 
 impl LockedBlock {
+
+	/// Removes outcomes from receipts and updates the receipt root.
+	///
+	/// This is done after the block is enacted for historical reasons.
+	/// We allow inconsistency in receipts for some chains if `validate_receipts_transition`
+	/// is set to non-zero value, so the check only happens if we detect
+	/// unmatching root first and then fall back to striped receipts.
+	pub fn strip_receipts_outcomes(&mut self) {
+		for receipt in &mut self.block.receipts {
+			receipt.outcome = TransactionOutcome::Unknown;
+		}
+		self.block.header.set_receipts_root(
+			ordered_trie_root(self.block.receipts.iter().map(|r| r.rlp_bytes()))
+		);
+		// compute hash and cache it.
+		self.block.header.compute_hash();
+	}
+
 	/// Get the hash of the header without seal arguments.
 	pub fn hash(&self) -> H256 { self.header().bare_hash() }
 
@@ -570,7 +588,6 @@ fn enact(
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 	is_epoch_begin: bool,
-	strip_receipts: bool,
 ) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
@@ -600,12 +617,6 @@ fn enact(
 		b.push_uncle(u)?;
 	}
 
-	if strip_receipts {
-		for receipt in &mut b.block.receipts {
-			receipt.outcome = TransactionOutcome::Unknown;
-		}
-	}
-
 	Ok(b.close_and_lock())
 }
 
@@ -619,10 +630,8 @@ pub fn enact_verified(
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 	is_epoch_begin: bool,
-	// Remove state root from transaction receipts to make them EIP-98 compatible.
-	strip_receipts: bool,
 ) -> Result<LockedBlock, Error> {
-	let view = BlockView::new(&block.bytes);
+	let view = view!(BlockView, &block.bytes);
 
 	enact(
 		block.header,
@@ -635,7 +644,6 @@ pub fn enact_verified(
 		last_hashes,
 		factories,
 		is_epoch_begin,
-		strip_receipts,
 	)
 }
 
@@ -664,7 +672,7 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<LockedBlock, Error> {
-		let block = BlockView::new(block_bytes);
+		let block = view!(BlockView, block_bytes);
 		let header = block.header();
 		let transactions: Result<Vec<_>, Error> = block
 			.transactions()
@@ -715,7 +723,7 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<SealedBlock, Error> {
-		let header = BlockView::new(block_bytes).header_view();
+		let header = view!(BlockView, block_bytes).header_view();
 		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?.seal(engine, header.seal())?)
 	}
 
@@ -781,7 +789,7 @@ mod tests {
 
 		let bytes = e.rlp_bytes();
 		assert_eq!(bytes, orig_bytes);
-		let uncles = BlockView::new(&bytes).uncles();
+		let uncles = view!(BlockView, &bytes).uncles();
 		assert_eq!(uncles[1].extra_data(), b"uncle2");
 
 		let db = e.drain();

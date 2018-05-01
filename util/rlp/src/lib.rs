@@ -27,12 +27,6 @@
 //! * You encode a big set of data.
 //!
 //!### Use `Rlp` when:
-//! * You are working on trusted data (not corrupted).
-//! * You want to get view onto rlp-slice.
-//! * You don't want to decode whole rlp at once.
-//!
-//!### Use `UntrustedRlp` when:
-//! * You are working on untrusted data (~corrupted).
 //! * You need to handle data corruption errors.
 //! * You are working on input data.
 //! * You want to get view onto rlp-slice.
@@ -46,7 +40,6 @@ extern crate rustc_hex;
 mod traits;
 mod error;
 mod rlpin;
-mod untrusted_rlp;
 mod stream;
 mod impls;
 
@@ -55,8 +48,7 @@ use elastic_array::ElasticArray1024;
 
 pub use error::DecoderError;
 pub use traits::{Decodable, Encodable};
-pub use untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
-pub use rlpin::{Rlp, RlpIterator};
+pub use rlpin::{Rlp, RlpIterator, PayloadInfo, Prototype};
 pub use stream::RlpStream;
 
 /// The RLP encoded empty data (used to mean "null value").
@@ -77,12 +69,12 @@ pub const EMPTY_LIST_RLP: [u8; 1] = [0xC0; 1];
 /// ```
 pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
 	let rlp = Rlp::new(bytes);
-	rlp.as_val()
+	rlp.as_val().expect("trusted rlp should be valid")
 }
 
 pub fn decode_list<T>(bytes: &[u8]) -> Vec<T> where T: Decodable {
 	let rlp = Rlp::new(bytes);
-	rlp.as_list()
+	rlp.as_list().expect("trusted rlp should be valid")
 }
 
 /// Shortcut function to encode structure into rlp.

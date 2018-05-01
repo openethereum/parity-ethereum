@@ -21,7 +21,7 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use heapsize::HeapSizeOf;
-use rlp::{UntrustedRlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
+use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
 use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
@@ -78,7 +78,7 @@ struct DatabaseValue {
 }
 
 impl Decodable for DatabaseValue {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let id = rlp.val_at(0)?;
 		let inserts = rlp.at(1)?.iter().map(|r| {
 			let k = r.val_at(0)?;

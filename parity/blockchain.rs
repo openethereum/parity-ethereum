@@ -27,7 +27,7 @@ use bytes::ToPretty;
 use rlp::PayloadInfo;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, Nonce, Balance, BlockChainClient, BlockId, BlockInfo, ImportBlock};
-use ethcore::error::ImportError;
+use ethcore::error::{ImportErrorKind, BlockImportErrorKind};
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
 use ethcore_service::ClientService;
@@ -244,7 +244,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	let do_import = |bytes: Vec<u8>| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
 
-		let header: ::ethcore::header::Header = ::rlp::UntrustedRlp::new(&bytes).val_at(0)
+		let header: ::ethcore::header::Header = ::rlp::Rlp::new(&bytes).val_at(0)
 			.map_err(|e| format!("Bad block: {}", e))?;
 
 		if client.best_block_header().number() >= header.number() { return Ok(()) }
@@ -254,7 +254,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 		}
 
 		match client.import_header(header) {
-			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => {
+			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
 				trace!("Skipping block already in chain.");
 			}
 			Err(e) => {
@@ -423,7 +423,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	let do_import = |bytes| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
 		match client.import_block(bytes) {
-			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => {
+			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
 				trace!("Skipping block already in chain.");
 			}
 			Err(e) => {

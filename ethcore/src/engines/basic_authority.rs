@@ -57,10 +57,10 @@ impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 }
 
 fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Error> {
-	use rlp::UntrustedRlp;
+	use rlp::Rlp;
 
 	// Check if the signature belongs to a validator, can depend on parent state.
-	let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
+	let sig = Rlp::new(&header.seal()[0]).as_val::<H520>()?;
 	let signer = ethkey::public_to_address(&ethkey::recover(&sig.into(), &header.bare_hash())?);
 
 	if *header.author() != signer {

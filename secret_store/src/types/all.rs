@@ -14,13 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
-use std::io;
-use std::net;
 use std::collections::BTreeMap;
-use serde_json;
 
-use {ethkey, kvdb, bytes, ethereum_types, key_server_cluster};
+use {ethkey, bytes, ethereum_types};
 
 /// Node id.
 pub type NodeId = ethkey::Public;
@@ -36,25 +32,6 @@ pub type EncryptedMessageSignature = bytes::Bytes;
 pub type RequestSignature = ethkey::Signature;
 /// Public key type.
 pub use ethkey::Public;
-
-/// Secret store error
-#[derive(Debug, PartialEq)]
-pub enum Error {
-	/// Insufficient requester data
-	InsufficientRequesterData(String),
-	/// Access to resource is denied
-	AccessDenied,
-	/// Requested document not found
-	DocumentNotFound,
-	/// Hyper error
-	Hyper(String),
-	/// Serialization/deserialization error
-	Serde(String),
-	/// Database-related error
-	Database(String),
-	/// Internal error
-	Internal(String),
-}
 
 /// Secret store configuration
 #[derive(Debug, Clone)]
@@ -134,69 +111,6 @@ pub enum Requester {
 	Public(ethkey::Public),
 	/// Requested with verified address.
 	Address(ethereum_types::Address),
-}
-
-impl fmt::Display for Error {
-	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		match *self {
-			Error::InsufficientRequesterData(ref e) => write!(f, "Insufficient requester data: {}", e),
-			Error::AccessDenied => write!(f, "Access dened"),
-			Error::DocumentNotFound => write!(f, "Document not found"),
-			Error::Hyper(ref msg) => write!(f, "Hyper error: {}", msg),
-			Error::Serde(ref msg) => write!(f, "Serialization error: {}", msg),
-			Error::Database(ref msg) => write!(f, "Database error: {}", msg),
-			Error::Internal(ref msg) => write!(f, "Internal error: {}", msg),
-		}
-	}
-}
-
-impl From<serde_json::Error> for Error {
-	fn from(err: serde_json::Error) -> Self {
-		Error::Serde(err.to_string())
-	}
-}
-
-impl From<ethkey::Error> for Error {
-	fn from(err: ethkey::Error) -> Self {
-		Error::Internal(err.into())
-	}
-}
-
-impl From<io::Error> for Error {
-	fn from(err: io::Error) -> Error {
-		Error::Internal(err.to_string())
-	}
-}
-
-impl From<net::AddrParseError> for Error {
-	fn from(err: net::AddrParseError) -> Error {
-		Error::Internal(err.to_string())
-	}
-}
-
-impl From<kvdb::Error> for Error {
-	fn from(err: kvdb::Error) -> Self {
-		Error::Database(err.to_string())
-	}
-}
-
-impl From<key_server_cluster::Error> for Error {
-	fn from(err: key_server_cluster::Error) -> Self {
-		match err {
-			key_server_cluster::Error::InsufficientRequesterData(err)
-				=> Error::InsufficientRequesterData(err),
-			key_server_cluster::Error::ConsensusUnreachable
-				| key_server_cluster::Error::AccessDenied => Error::AccessDenied,
-			key_server_cluster::Error::MissingKeyShare => Error::DocumentNotFound,
-			_ => Error::Internal(err.into()),
-		}
-	}
-}
-
-impl Into<String> for Error {
-	fn into(self) -> String {
-		format!("{}", self)
-	}
 }
 
 impl Default for Requester {
