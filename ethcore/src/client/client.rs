@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
+use std::collections::{HashSet, BTreeMap, VecDeque};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
@@ -255,14 +255,9 @@ impl Importer {
 		// could be retracted in import `k+1`. This is why to understand if after all inserts
 		// the block is enacted or retracted we iterate over all routes and at the end final state
 		// will be in the hashmap
-		let map = import_results.iter().fold(HashMap::new(), |mut map, route| {
-			for hash in &route.enacted {
-				map.insert(hash.clone(), true);
-			}
-			for hash in &route.retracted {
-				map.insert(hash.clone(), false);
-			}
-			map
+		let map = import_results.iter().flat_map(|route| {
+			route.enacted.iter().map(|h| (*h, true))
+				.chain(route.retracted.iter().map(|h| (*h, false))).collect::<Vec<_>>()
 		});
 
 		// Split to enacted retracted (using hashmap value)
