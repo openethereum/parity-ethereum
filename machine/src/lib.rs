@@ -20,7 +20,6 @@
 extern crate ethereum_types;
 
 use ethereum_types::{H256, U256, Address};
-use std::ops::Add;
 
 /// A header. This contains important metadata about the block, as well as a
 /// "seal" that indicates validity to a consensus engine.
@@ -157,11 +156,4 @@ pub trait WithBalances: Machine {
 		_direct: &[(Address, U256)],
 		_indirect: &[(Address, U256)],
 	) -> Result<(), Self::Error> { Ok(()) }
-}
-
-/// Metadata with total difficulty information.
-pub trait TotalDifficulty {
-	type Value: Ord + Add;
-
-	fn total_difficulty(&self) -> &Self::Value;
 }
