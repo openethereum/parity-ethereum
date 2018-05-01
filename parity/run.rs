@@ -145,7 +145,7 @@ pub fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, l
 
 	let token = signer::generate_token_and_url(ws_conf, ui_conf, logger_config)?;
 	// Open a browser
-	url::open(&token.url);
+	url::open(&token.url).map_err(|e| format!("{}", e))?;
 	// Print a message
 	println!("{}", token.message);
 	Ok(())
@@ -157,10 +157,9 @@ pub fn open_dapp(dapps_conf: &dapps::Configuration, rpc_conf: &rpc::HttpConfigur
 	}
 
 	let url = format!("http://{}:{}/{}/", rpc_conf.interface, rpc_conf.port, dapp);
-	url::open(&url);
+	url::open(&url).map_err(|e| format!("{}", e))?;
 	Ok(())
 }
-
 // node info fetcher for the local store.
 struct FullNodeInfo {
 	miner: Option<Arc<Miner>>, // TODO: only TXQ needed, just use that after decoupling.
@@ -413,7 +412,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 		Some(rpc_stats),
 		cmd.logger_config.color,
 	));
-
+	service.add_notify(informant.clone());
 	service.register_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	Ok(RunningClient::Light {

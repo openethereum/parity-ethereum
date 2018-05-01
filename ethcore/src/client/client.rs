@@ -18,7 +18,7 @@ use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
-use std::time::{Instant};
+use std::time::{Instant, Duration};
 use itertools::Itertools;
 
 // util
@@ -32,7 +32,7 @@ use util_error::UtilError;
 // other
 use ethereum_types::{H256, Address, U256};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
-use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute, TransactionAddress};
+use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute, TransactionAddress};
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
@@ -49,7 +49,7 @@ use client::{
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
-use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
+use error::{ImportErrorKind, BlockImportErrorKind, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use vm::{EnvInfo, LastHashes};
 use evm::Schedule;
 use executive::{Executive, Executed, TransactOptions, contract_address};
@@ -62,7 +62,6 @@ use ethcore_miner::pool::VerifiedTransaction;
 use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
-use rlp::Rlp;
 use snapshot::{self, io as snapshot_io};
 use spec::Spec;
 use state_db::StateDB;
@@ -121,7 +120,7 @@ impl<'a> ::std::ops::Sub<&'a ClientReport> for ClientReport {
 		self.blocks_imported -= other.blocks_imported;
 		self.transactions_applied -= other.transactions_applied;
 		self.gas_processed = self.gas_processed - other.gas_processed;
-		self.state_db_mem  = higher_mem - lower_mem;
+		self.state_db_mem = higher_mem - lower_mem;
 
 		self
 	}
@@ -332,11 +331,7 @@ impl Importer {
 				self.block_queue.mark_as_bad(&invalid_blocks);
 			}
 			let is_empty = self.block_queue.mark_as_good(&imported_blocks);
-			let duration_ns = {
-				let elapsed = start.elapsed();
-				elapsed.as_secs() * 1_000_000_000 + elapsed.subsec_nanos() as u64
-			};
-			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration_ns, is_empty)
+			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, start.elapsed(), is_empty)
 		};
 
 		{
@@ -415,7 +410,6 @@ impl Importer {
 		let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
-		let strip_receipts = header.number() < engine.params().validate_receipts_transition;
 		let enact_result = enact_verified(
 			block,
 			engine,
@@ -425,12 +419,20 @@ impl Importer {
 			last_hashes,
 			client.factories.clone(),
 			is_epoch_begin,
-			strip_receipts,
 		);
 
-		let locked_block = enact_result.map_err(|e| {
+		let mut locked_block = enact_result.map_err(|e| {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 		})?;
+
+		// Strip receipts for blocks before validate_receipts_transition,
+		// if the expected receipts root header does not match.
+		// (i.e. allow inconsistency in receipts outcome before the transition block)
+		if header.number() < engine.params().validate_receipts_transition
+			&& header.receipts_root() != locked_block.block().header().receipts_root()
+		{
+			locked_block.strip_receipts_outcomes();
+		}
 
 		// Final Verification
 		if let Err(e) = self.verifier.verify_block_final(&header, locked_block.block().header()) {
@@ -988,7 +990,7 @@ impl Client {
 
 		let txs: Vec<UnverifiedTransaction> = transactions
 			.iter()
-			.filter_map(|bytes| Rlp::new(bytes).as_val().ok())
+			.filter_map(|bytes| self.engine().decode_transaction(bytes).ok())
 			.collect();
 
 		self.notify(|notify| {
@@ -1410,11 +1412,11 @@ impl ImportBlock for Client {
 
 		{
 			if self.chain.read().is_known(&unverified.hash()) {
-				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
+				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
 			let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
 			if status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				return Err(BlockImportError::Block(BlockError::UnknownParent(unverified.parent_hash())));
+				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(unverified.parent_hash())));
 			}
 		}
 		Ok(self.importer.block_queue.import(unverified)?)
@@ -1425,11 +1427,11 @@ impl ImportBlock for Client {
 			// check block order
 			let header = view!(BlockView, &block_bytes).header_view();
 			if self.chain.read().is_known(&header.hash()) {
-				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
+				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
 			let status = self.block_status(BlockId::Hash(header.parent_hash()));
-			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
+			if status == BlockStatus::Unknown || status == BlockStatus::Pending {
+				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(header.parent_hash())));
 			}
 		}
 
@@ -1491,7 +1493,7 @@ impl Call for Client {
 	}
 
 	fn estimate_gas(&self, t: &SignedTransaction, state: &Self::State, header: &Header) -> Result<U256, CallError> {
-		let (mut upper, max_upper, env_info)  = {
+		let (mut upper, max_upper, env_info) = {
 			let init = *header.gas_limit();
 			let max = init * U256::from(10);
 
@@ -1866,6 +1868,10 @@ impl BlockChainClient for Client {
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
+		if !self.tracedb.read().tracing_enabled() {
+			return None;
+		}
+
 		let start = self.block_number(filter.range.start)?;
 		let end = self.block_number(filter.range.end)?;
 
@@ -1885,6 +1891,10 @@ impl BlockChainClient for Client {
 	}
 
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace> {
+		if !self.tracedb.read().tracing_enabled() {
+			return None;
+		}
+
 		let trace_address = trace.address;
 		self.transaction_address(trace.transaction)
 			.and_then(|tx_address| {
@@ -1894,6 +1904,10 @@ impl BlockChainClient for Client {
 	}
 
 	fn transaction_traces(&self, transaction: TransactionId) -> Option<Vec<LocalizedTrace>> {
+		if !self.tracedb.read().tracing_enabled() {
+			return None;
+		}
+
 		self.transaction_address(transaction)
 			.and_then(|tx_address| {
 				self.block_number(BlockId::Hash(tx_address.block_hash))
@@ -1902,6 +1916,10 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_traces(&self, block: BlockId) -> Option<Vec<LocalizedTrace>> {
+		if !self.tracedb.read().tracing_enabled() {
+			return None;
+		}
+
 		self.block_number(block)
 			.and_then(|number| self.tracedb.read().block_traces(number))
 	}
@@ -2090,10 +2108,7 @@ impl ImportSealedBlock for Client {
 				retracted.clone(),
 				vec![h.clone()],
 				vec![],
-				{
-					let elapsed = start.elapsed();
-					elapsed.as_secs() * 1_000_000_000 + elapsed.subsec_nanos() as u64
-				},
+				start.elapsed(),
 			);
 		});
 		self.db.read().flush().expect("DB flush failed.");
@@ -2103,6 +2118,7 @@ impl ImportSealedBlock for Client {
 
 impl BroadcastProposalBlock for Client {
 	fn broadcast_proposal_block(&self, block: SealedBlock) {
+		const DURATION_ZERO: Duration = Duration::from_millis(0);
 		self.notify(|notify| {
 			notify.new_blocks(
 				vec![],
@@ -2111,7 +2127,7 @@ impl BroadcastProposalBlock for Client {
 				vec![],
 				vec![],
 				vec![block.rlp_bytes()],
-				0,
+				DURATION_ZERO,
 			);
 		});
 	}

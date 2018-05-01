@@ -16,4 +16,8 @@
 
 //! Types used in the public api
 
-pub mod all;
+mod all;
+mod error;
+
+pub use self::all::*;
+pub use self::error::*;

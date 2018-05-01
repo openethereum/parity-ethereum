@@ -187,6 +187,8 @@ impl SessionImpl {
 				master_node_id: params.meta.master_node_id,
 				self_node_id: params.meta.self_node_id,
 				threshold: params.meta.threshold * 2,
+				configured_nodes_count: params.meta.configured_nodes_count,
+				connected_nodes_count: params.meta.connected_nodes_count,
 			},
 			consensus_executor: match requester {
 				Some(requester) => KeyAccessJob::new_on_master(params.meta.id.clone(), params.acl_storage.clone(), requester),
@@ -259,7 +261,7 @@ impl SessionImpl {
 		// check if version exists
 		let key_version = match self.core.key_share.as_ref() {
 			None => return Err(Error::InvalidMessage),
-			Some(key_share) => key_share.version(&version).map_err(|e| Error::KeyStorage(e.into()))?,
+			Some(key_share) => key_share.version(&version)?,
 		};
 
 		// select nodes to participate in consensus etablish session
@@ -311,7 +313,7 @@ impl SessionImpl {
 			&EcdsaSigningMessage::EcdsaPartialSignature(ref message) =>
 				self.on_partial_signature(sender, message),
 			&EcdsaSigningMessage::EcdsaSigningSessionError(ref message) =>
-				self.process_node_error(Some(&sender), Error::Io(message.error.clone())),
+				self.process_node_error(Some(&sender), message.error.clone()),
 			&EcdsaSigningMessage::EcdsaSigningSessionCompleted(ref message) =>
 				self.on_session_completed(sender, message),
 			&EcdsaSigningMessage::EcdsaSigningSessionDelegation(ref message) =>
@@ -386,8 +388,7 @@ impl SessionImpl {
 		let key_share = self.core.key_share.as_ref()
 			.expect("this is master node; master node is selected so that it has key version; qed");
 		let key_version = key_share.version(data.version.as_ref()
-			.expect("this is master node; master node is selected so that it has key version; qed")
-		).map_err(|e| Error::KeyStorage(e.into()))?;
+			.expect("this is master node; master node is selected so that it has key version; qed"))?;
 
 		let consensus_group = data.consensus_session.select_consensus_group()?.clone();
 		let mut other_consensus_group_nodes = consensus_group.clone();
@@ -680,7 +681,7 @@ impl SessionImpl {
 		let inv_nonce_share = data.inv_nonce_generation_session.as_ref().expect(nonce_exists_proof).joint_public_and_secret().expect(nonce_exists_proof)?.2;
 
 		let version = data.version.as_ref().ok_or(Error::InvalidMessage)?.clone();
-		let key_version = key_share.version(&version).map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
+		let key_version = key_share.version(&version)?.hash.clone();
 
 		let signing_job = EcdsaSigningJob::new_on_slave(key_share.clone(), key_version, sig_nonce_public, inv_nonce_share)?;
 		let signing_transport = self.core.signing_transport();
@@ -744,7 +745,7 @@ impl SessionImpl {
 
 		match {
 			match node {
-				Some(node) => data.consensus_session.on_node_error(node),
+				Some(node) => data.consensus_session.on_node_error(node, error.clone()),
 				None => data.consensus_session.on_session_timeout(),
 			}
 		} {
@@ -970,6 +971,14 @@ impl<F> Cluster for NonceGenerationTransport<F> where F: Fn(SessionId, Secret, u
 	fn nodes(&self) -> BTreeSet<NodeId> {
 		self.cluster.nodes()
 	}
+
+	fn configured_nodes_count(&self) -> usize {
+		self.cluster.configured_nodes_count()
+	}
+
+	fn connected_nodes_count(&self) -> usize {
+		self.cluster.connected_nodes_count()
+	}
 }
 
 impl SessionCore {
@@ -988,7 +997,7 @@ impl SessionCore {
 			Some(key_share) => key_share,
 		};
 
-		let key_version = key_share.version(version).map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
+		let key_version = key_share.version(version)?.hash.clone();
 		let signing_job = EcdsaSigningJob::new_on_master(key_share.clone(), key_version, nonce_public, inv_nonce_share, inversed_nonce_coeff, message_hash)?;
 		consensus_session.disseminate_jobs(signing_job, self.signing_transport(), false).map(|_| ())
 	}
@@ -1099,6 +1108,8 @@ mod tests {
 						self_node_id: gl_node_id.clone(),
 						master_node_id: master_node_id.clone(),
 						threshold: gl_node.key_storage.get(&session_id).unwrap().unwrap().threshold,
+						configured_nodes_count: gl.nodes.len(),
+						connected_nodes_count: gl.nodes.len(),
 					},
 					access_key: "834cb736f02d9c968dfaf0c37658a1d86ff140554fc8b59c9fdad5a8cf810eec".parse().unwrap(),
 					key_share: Some(gl_node.key_storage.get(&session_id).unwrap().unwrap()),
