@@ -75,3 +75,5 @@ ENV CFLAGS_arm_linux_androideabi -std=gnu11 -fPIC -D OS_ANDROID
 ENV CFLAGS_armv7_linux_androideabi -std=gnu11 -fPIC -D OS_ANDROID
 ENV CXXFLAGS_arm_linux_androideabi -std=gnu++11 -fPIC -fexceptions -frtti -static-libstdc++ -D OS_ANDROID
 ENV CXXFLAGS_armv7_linux_androideabi -std=gnu++11 -fPIC -fexceptions -frtti -static-libstdc++ -D OS_ANDROID
+ENV CXXSTDLIB_arm_linux_androideabi ""
+ENV CXXSTDLIB_armv7_linux_androideabi ""
