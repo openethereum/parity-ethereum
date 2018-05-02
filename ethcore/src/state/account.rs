@@ -484,12 +484,7 @@ impl Account {
 
 		let trie = TrieDB::new(db, &self.storage_root)?;
 		let item: U256 = {
-			let unwrapping_decoder: fn(&[u8]) -> U256 = |bytes: &[u8]| {
-				match ::rlp::decode(bytes) {
-					Ok(u256) => u256,
-					Err(_) => U256::zero()
-				}
-			};
+			let unwrapping_decoder = |bytes:&[u8]| ::rlp::decode(bytes).unwrap_or_else(|_| U256::zero() );
 			let query = (&mut recorder, unwrapping_decoder);
 			trie.get_with(&storage_key, query)?.unwrap_or_else(U256::zero)
 		};
