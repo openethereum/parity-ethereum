@@ -1,3 +1,69 @@
+## Parity [v1.10.2](https://github.com/paritytech/parity/releases/tag/v1.10.2) (2018-04-24)
+
+Parity 1.10.2 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Update Parity beta to 1.10.2 + Backports ([#8455](https://github.com/paritytech/parity/pull/8455))
+  - Update Parity beta to 1.10.2
+  - Allow 32-bit pipelines to fail ([#8454](https://github.com/paritytech/parity/pull/8454))
+    - Disable 32-bit targets for Gitlab
+    - Rename Linux pipelines
+  - Update wasmi ([#8452](https://github.com/paritytech/parity/pull/8452))
+  - Fix Cargo.lock
+- Backports ([#8450](https://github.com/paritytech/parity/pull/8450))
+  - Use forked app_dirs crate for reverted Windows dir behavior  ([#8438](https://github.com/paritytech/parity/pull/8438))
+    - Remove unused app_dirs dependency in CLI
+    - Use forked app_dirs crate for reverted Windows dir behavior
+  - Remove Tendermint extra_info due to seal inconsistencies ([#8367](https://github.com/paritytech/parity/pull/8367))
+  - Handle queue import errors a bit more gracefully ([#8385](https://github.com/paritytech/parity/pull/8385))
+  - Improve VM executor stack size estimation rules ([#8439](https://github.com/paritytech/parity/pull/8439))
+    - Improve VM executor stack size estimation rules
+    - Typo: docs add "(Debug build)" comment
+    - Fix an off by one typo and set minimal stack size
+    - Use saturating_sub to avoid potential overflow
+
+## Parity [v1.10.1](https://github.com/paritytech/parity/releases/tag/v1.10.1) (2018-04-17)
+
+Parity 1.10.1 is a bug-fix release to improve performance and stability. Among other changes, you can now use `--warp-barrier [BLOCK]` to specify a minimum block number to `--warp` to. This is useful in cases where clients restore to outdated snapshots far behind the latest chain head.
+
+The full list of included changes:
+
+- Bump beta to 1.10.1 ([#8350](https://github.com/paritytech/parity/pull/8350))
+  - Bump beta to 1.10.1
+  - Unflag critical release
+- Backports ([#8346](https://github.com/paritytech/parity/pull/8346))
+  - Warp-only sync with warp-barrier [blocknumber] flag. ([#8228](https://github.com/paritytech/parity/pull/8228))
+    - Warp-only sync with warp-after [blocknumber] flag.
+    - Fix tests.
+    - Fix configuration tests.
+    - Rename to warp barrier.
+  - Allow unsafe js eval on Parity Wallet. ([#8204](https://github.com/paritytech/parity/pull/8204))
+  - Update musicoin spec in line with gmc v2.6.2 ([#8242](https://github.com/paritytech/parity/pull/8242))
+  - Supress TemporaryInvalid verification failures. ([#8256](https://github.com/paritytech/parity/pull/8256))
+  - Include suicided accounts in state diff ([#8297](https://github.com/paritytech/parity/pull/8297))
+    - Include suicided accounts in state diff
+    - Shorten form match -> if let
+    - Test suicide trace diff in State
+  - Replace_home for password_files, reserved_peers and log_file ([#8324](https://github.com/paritytech/parity/pull/8324))
+    - Replace_home for password_files, reserved_peers and log_file
+    - Typo: arg_log_file is Option
+    - Enable UI by default, but only display info page.
+    - Fix test.
+    - Fix naming and remove old todo.
+    - Change "wallet" with "browser UI"
+- Change name Wallet -> UI ([#8164](https://github.com/paritytech/parity/pull/8164)) ([#8205](https://github.com/paritytech/parity/pull/8205))
+  - Change name Wallet -> UI
+  - Make warning bold
+- Backport [#8099](https://github.com/paritytech/parity/pull/8099) ([#8132](https://github.com/paritytech/parity/pull/8132))
+- WASM libs ([#8220](https://github.com/paritytech/parity/pull/8220))
+  - Bump wasm libs ([#8171](https://github.com/paritytech/parity/pull/8171))
+  - Bump wasmi version ([#8209](https://github.com/paritytech/parity/pull/8209))
+- Update hyper to 0.11.24 ([#8203](https://github.com/paritytech/parity/pull/8203))
+- Updated jsonrpc to include latest backports (beta) ([#8181](https://github.com/paritytech/parity/pull/8181))
+  - Updated jsonrpc to include latest backports
+  - Update dependencies.
+
 ## Parity [v1.10.0](https://github.com/paritytech/parity/releases/tag/v1.10.0) (2018-03-22)
 
 This is the Parity 1.10.0-beta release! Cool!

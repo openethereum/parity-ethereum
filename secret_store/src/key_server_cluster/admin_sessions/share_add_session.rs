@@ -882,7 +882,7 @@ impl SessionTransport for IsolatedSessionTransport {
 #[cfg(test)]
 pub mod tests {
 	use std::sync::Arc;
-	use std::collections::{VecDeque, BTreeMap, BTreeSet};
+	use std::collections::{VecDeque, BTreeMap, BTreeSet, HashSet};
 	use ethkey::{Random, Generator, Public, KeyPair, Signature, sign};
 	use ethereum_types::H256;
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage};
@@ -983,8 +983,8 @@ pub mod tests {
 				id: SessionId::default(),
 				self_node_id: NodeId::default(),
 				master_node_id: master_node_id,
-				configured_nodes_count: new_nodes_set.iter().chain(old_nodes_set.iter()).collect::<BTreeSet<_>>().len(),
-				connected_nodes_count: new_nodes_set.iter().chain(old_nodes_set.iter()).collect::<BTreeSet<_>>().len(),
+				configured_nodes_count: new_nodes_set.iter().chain(old_nodes_set.iter()).collect::<HashSet<_>>().len(),
+				connected_nodes_count: new_nodes_set.iter().chain(old_nodes_set.iter()).collect::<HashSet<_>>().len(),
 			};
 			let new_nodes = new_nodes_set.iter()
 				.filter(|n| !old_nodes_set.contains(&n))

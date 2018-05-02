@@ -755,3 +755,13 @@ fn should_clear_cache_after_timeout_for_local() {
 	// then
 	assert_eq!(txq.pending(TestClient::new(), 0, 1002, None).len(), 2);
 }
+
+#[test]
+fn should_reject_big_transaction() {
+	let txq = new_queue();
+	let big_tx = Tx::default().big_one();
+	let res = txq.import(TestClient::new(), vec![
+		verifier::Transaction::Local(PendingTransaction::new(big_tx, transaction::Condition::Timestamp(1000).into()))
+	]);
+	assert_eq!(res, vec![Err(transaction::Error::TooBig)]);
+}

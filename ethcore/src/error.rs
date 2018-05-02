@@ -20,7 +20,7 @@ use std::{fmt, error};
 use std::time::SystemTime;
 use kvdb;
 use ethereum_types::{H256, U256, Address, Bloom};
-use util_error::UtilError;
+use util_error::{self, UtilError};
 use snappy::InvalidInput;
 use unexpected::{Mismatch, OutOfBounds};
 use trie::TrieError;
@@ -147,45 +147,66 @@ impl fmt::Display for BlockError {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-/// Import to the block queue result
-pub enum ImportError {
-	/// Already in the block chain.
-	AlreadyInChain,
-	/// Already in the block queue.
-	AlreadyQueued,
-	/// Already marked as bad from a previous import (could mean parent is bad).
-	KnownBad,
-}
-
-impl fmt::Display for ImportError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		let msg = match *self {
-			ImportError::AlreadyInChain => "block already in chain",
-			ImportError::AlreadyQueued => "block already in the block queue",
-			ImportError::KnownBad => "block known to be bad",
-		};
-
-		f.write_fmt(format_args!("Block import error ({})", msg))
+impl error::Error for BlockError {
+	fn description(&self) -> &str {
+		"Block error"
 	}
 }
-/// Error dedicated to import block function
-#[derive(Debug)]
-pub enum BlockImportError {
-	/// Import error
-	Import(ImportError),
-	/// Block error
-	Block(BlockError),
-	/// Other error
-	Other(String),
+
+error_chain! {
+	types {
+		ImportError, ImportErrorKind, ImportErrorResultExt, ImportErrorResult;
+	}
+
+	errors {
+		#[doc = "Already in the block chain."]
+		AlreadyInChain {
+			description("Block already in chain")
+			display("Block already in chain")
+		}
+
+		#[doc = "Already in the block queue"]
+		AlreadyQueued {
+			description("block already in the block queue")
+			display("block already in the block queue")
+		}
+
+		#[doc = "Already marked as bad from a previous import (could mean parent is bad)."]
+		KnownBad {
+			description("block known to be bad")
+			display("block known to be bad")
+		}
+	}
+}
+
+error_chain! {
+	types {
+		BlockImportError, BlockImportErrorKind, BlockImportErrorResultExt;
+	}
+
+	links {
+		Import(ImportError, ImportErrorKind) #[doc = "Import error"];
+	}
+
+	foreign_links {
+		Block(BlockError) #[doc = "Block error"];
+	}
+
+	errors {
+		#[doc = "Other error"]
+		Other(err: String) {
+			description("Other error")
+			display("Other error {}", err)
+		}
+	}
 }
 
 impl From<Error> for BlockImportError {
 	fn from(e: Error) -> Self {
 		match e {
-			Error::Block(block_error) => BlockImportError::Block(block_error),
-			Error::Import(import_error) => BlockImportError::Import(import_error),
-			_ => BlockImportError::Other(format!("other block import error: {:?}", e)),
+			Error(ErrorKind::Block(block_error), _) => BlockImportErrorKind::Block(block_error).into(),
+			Error(ErrorKind::Import(import_error), _) => BlockImportErrorKind::Import(import_error.into()).into(),
+			_ => BlockImportErrorKind::Other(format!("other block import error: {:?}", e)).into(),
 		}
 	}
 }
@@ -202,200 +223,118 @@ pub enum TransactionImportError {
 impl From<Error> for TransactionImportError {
 	fn from(e: Error) -> Self {
 		match e {
-			Error::Transaction(transaction_error) => TransactionImportError::Transaction(transaction_error),
+			Error(ErrorKind::Transaction(transaction_error), _) => TransactionImportError::Transaction(transaction_error),
 			_ => TransactionImportError::Other(format!("other block import error: {:?}", e)),
 		}
 	}
 }
 
-#[derive(Debug)]
-/// General error type which should be capable of representing all errors in ethcore.
-pub enum Error {
-	/// Client configuration error.
-	Client(ClientError),
-	/// Database error.
-	Database(kvdb::Error),
-	/// Error concerning a utility.
-	Util(UtilError),
-	/// Error concerning block processing.
-	Block(BlockError),
-	/// Unknown engine given.
-	UnknownEngineName(String),
-	/// Error concerning EVM code execution.
-	Execution(ExecutionError),
-	/// Error concerning transaction processing.
-	Transaction(TransactionError),
-	/// Error concerning block import.
-	Import(ImportError),
-	/// PoW hash is invalid or out of date.
-	PowHashInvalid,
-	/// The value of the nonce or mishash is invalid.
-	PowInvalid,
-	/// Error concerning TrieDBs
-	Trie(TrieError),
-	/// Io crate error.
-	Io(IoError),
-	/// Standard io error.
-	StdIo(::std::io::Error),
-	/// Snappy error.
-	Snappy(InvalidInput),
-	/// Snapshot error.
-	Snapshot(SnapshotError),
-	/// Consensus vote error.
-	Engine(EngineError),
-	/// Ethkey error.
-	Ethkey(EthkeyError),
-	/// Account Provider error.
-	AccountProvider(AccountsError),
-}
+error_chain! {
+	types {
+		Error, ErrorKind, ErrorResultExt, EthcoreResult;
+	}
 
-impl fmt::Display for Error {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			Error::Client(ref err) => err.fmt(f),
-			Error::Database(ref err) => err.fmt(f),
-			Error::Util(ref err) => err.fmt(f),
-			Error::Io(ref err) => err.fmt(f),
-			Error::Block(ref err) => err.fmt(f),
-			Error::Execution(ref err) => err.fmt(f),
-			Error::Transaction(ref err) => err.fmt(f),
-			Error::Import(ref err) => err.fmt(f),
-			Error::UnknownEngineName(ref name) =>
-				f.write_fmt(format_args!("Unknown engine name ({})", name)),
-			Error::PowHashInvalid => f.write_str("Invalid or out of date PoW hash."),
-			Error::PowInvalid => f.write_str("Invalid nonce or mishash"),
-			Error::Trie(ref err) => err.fmt(f),
-			Error::StdIo(ref err) => err.fmt(f),
-			Error::Snappy(ref err) => err.fmt(f),
-			Error::Snapshot(ref err) => err.fmt(f),
-			Error::Engine(ref err) => err.fmt(f),
-			Error::Ethkey(ref err) => err.fmt(f),
-			Error::AccountProvider(ref err) => err.fmt(f),
+	links {
+		Database(kvdb::Error, kvdb::ErrorKind) #[doc = "Database error."];
+		Util(UtilError, util_error::ErrorKind) #[doc = "Error concerning a utility"];
+		Import(ImportError, ImportErrorKind) #[doc = "Error concerning block import." ];
+	}
+		
+	foreign_links {
+		Io(IoError) #[doc = "Io create error"];
+		StdIo(::std::io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
+		Trie(TrieError) #[doc = "Error concerning TrieDBs."];
+		Execution(ExecutionError) #[doc = "Error concerning EVM code execution."];
+		Block(BlockError) #[doc = "Error concerning block processing."];
+		Transaction(TransactionError) #[doc = "Error concerning transaction processing."];
+		Snappy(InvalidInput) #[doc = "Snappy error."];
+		Engine(EngineError) #[doc = "Consensus vote error."];
+		Ethkey(EthkeyError) #[doc = "Ethkey error."];
+	}
+
+	errors {
+		#[doc = "Client configuration error."]
+		Client(err: ClientError) {
+			description("Client configuration error.")
+			display("Client configuration error {}", err)
+		}
+
+		#[doc = "Snapshot error."]
+		Snapshot(err: SnapshotError) {
+			description("Snapshot error.")
+			display("Snapshot error {}", err)
+		}
+
+		#[doc = "Account Provider error"]
+		AccountProvider(err: AccountsError) {
+			description("Accounts Provider error")
+			display("Accounts Provider error {}", err)
+		} 
+
+		#[doc = "PoW hash is invalid or out of date."]
+		PowHashInvalid {
+			description("PoW hash is invalid or out of date.")
+			display("PoW hash is invalid or out of date.")
+		}
+	
+		#[doc = "The value of the nonce or mishash is invalid."]
+		PowInvalid {
+			description("The value of the nonce or mishash is invalid.")
+			display("The value of the nonce or mishash is invalid.")
+		}
+
+		#[doc = "Unknown engine given"]
+		UnknownEngineName(name: String) {
+			description("Unknown engine name")
+			display("Unknown engine name ({})", name)
 		}
 	}
 }
 
-impl error::Error for Error {
-	fn description(&self) -> &str {
-		// improve description
-		"ethcore error"
-	}
-}
 
 /// Result of import block operation.
-pub type ImportResult = Result<H256, Error>;
+pub type ImportResult = EthcoreResult<H256>;
 
 impl From<ClientError> for Error {
 	fn from(err: ClientError) -> Error {
 		match err {
-			ClientError::Trie(err) => Error::Trie(err),
-			_ => Error::Client(err)
+			ClientError::Trie(err) => ErrorKind::Trie(err).into(),
+			_ => ErrorKind::Client(err).into()
 		}
 	}
 }
 
-impl From<kvdb::Error> for Error {
-	fn from(err: kvdb::Error) -> Error {
-		Error::Database(err)
-	}
-}
-
-impl From<TransactionError> for Error {
-	fn from(err: TransactionError) -> Error {
-		Error::Transaction(err)
-	}
-}
-
-impl From<ImportError> for Error {
-	fn from(err: ImportError) -> Error {
-		Error::Import(err)
-	}
-}
-
-impl From<BlockError> for Error {
-	fn from(err: BlockError) -> Error {
-		Error::Block(err)
-	}
-}
-
-impl From<ExecutionError> for Error {
-	fn from(err: ExecutionError) -> Error {
-		Error::Execution(err)
-	}
-}
+impl From<AccountsError> for Error { 
+	fn from(err: AccountsError) -> Error { 
+		ErrorKind::AccountProvider(err).into()
+	} 
+} 
 
 impl From<::rlp::DecoderError> for Error {
 	fn from(err: ::rlp::DecoderError) -> Error {
-		Error::Util(UtilError::from(err))
-	}
-}
-
-impl From<UtilError> for Error {
-	fn from(err: UtilError) -> Error {
-		Error::Util(err)
-	}
-}
-
-impl From<IoError> for Error {
-	fn from(err: IoError) -> Error {
-		Error::Io(err)
-	}
-}
-
-impl From<TrieError> for Error {
-	fn from(err: TrieError) -> Error {
-		Error::Trie(err)
-	}
-}
-
-impl From<::std::io::Error> for Error {
-	fn from(err: ::std::io::Error) -> Error {
-		Error::StdIo(err)
+		UtilError::from(err).into()
 	}
 }
 
 impl From<BlockImportError> for Error {
 	fn from(err: BlockImportError) -> Error {
 		match err {
-			BlockImportError::Block(e) => Error::Block(e),
-			BlockImportError::Import(e) => Error::Import(e),
-			BlockImportError::Other(s) => Error::Util(UtilError::from(s)),
+			BlockImportError(BlockImportErrorKind::Block(e), _) => ErrorKind::Block(e).into(),
+			BlockImportError(BlockImportErrorKind::Import(e), _) => ErrorKind::Import(e).into(),
+			BlockImportError(BlockImportErrorKind::Other(s), _) => UtilError::from(s).into(),
+			_ => ErrorKind::Msg(format!("other block import error: {:?}", err)).into(),
 		}
-	}
-}
-
-impl From<::snappy::InvalidInput> for Error {
-	fn from(err: ::snappy::InvalidInput) -> Error {
-		Error::Snappy(err)
 	}
 }
 
 impl From<SnapshotError> for Error {
 	fn from(err: SnapshotError) -> Error {
 		match err {
-			SnapshotError::Io(err) => Error::StdIo(err),
-			SnapshotError::Trie(err) => Error::Trie(err),
+			SnapshotError::Io(err) => ErrorKind::StdIo(err).into(),
+			SnapshotError::Trie(err) => ErrorKind::Trie(err).into(),
 			SnapshotError::Decoder(err) => err.into(),
-			other => Error::Snapshot(other),
+			other => ErrorKind::Snapshot(other).into(),
 		}
-	}
-}
-
-impl From<EngineError> for Error {
-	fn from(err: EngineError) -> Error {
-		Error::Engine(err)
-	}
-}
-
-impl From<EthkeyError> for Error {
-	fn from(err: EthkeyError) -> Error {
-		Error::Ethkey(err)
-	}
-}
-
-impl From<AccountsError> for Error {
-	fn from(err: AccountsError) -> Error {
-		Error::AccountProvider(err)
 	}
 }
 

@@ -516,10 +516,10 @@ impl FastestResultComputer {
 	pub fn new(self_node_id: NodeId, key_share: Option<&DocumentKeyShare>, configured_nodes_count: usize, connected_nodes_count: usize) -> Self {
 		let threshold = key_share.map(|ks| ks.threshold);
 		FastestResultComputer {
-			self_node_id: self_node_id,
-			threshold: threshold,
-			configured_nodes_count: configured_nodes_count,
-			connected_nodes_count: connected_nodes_count,
+			self_node_id,
+			threshold,
+			configured_nodes_count,
+			connected_nodes_count,
 		}
 	}}
 
@@ -543,6 +543,11 @@ impl SessionResultComputer for FastestResultComputer {
 						.find(|&(_, ref n)| n.len() >= threshold + 1)
 						.map(|(version, nodes)| Ok((version.clone(), nodes.iter().cloned().nth(0)
 							.expect("version is only inserted when there's at least one owner; qed"))))
+						// if there's no version consensus among all connected nodes
+						//   AND we're connected to ALL configured nodes
+						//   OR there are less than required nodes for key restore
+						//     => this means that we can't restore key with CURRENT configuration => respond with fatal error
+						// otherwise we could try later, after all nodes are connected
 						.unwrap_or_else(|| Err(if self.configured_nodes_count == self.connected_nodes_count
 							|| self.configured_nodes_count < threshold + 1 {
 							Error::ConsensusUnreachable

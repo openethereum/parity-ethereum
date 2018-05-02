@@ -18,6 +18,7 @@
 
 use std::sync::{Arc, Weak};
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{self, Future, IntoFuture};
@@ -227,7 +228,7 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 		_sealed: Vec<H256>,
 		// Block bytes.
 		_proposed: Vec<Bytes>,
-		_duration: u64,
+		_duration: Duration,
 	) {
 		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
 		let headers = enacted

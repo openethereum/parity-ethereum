@@ -101,7 +101,7 @@ use bytes::Bytes;
 use rlp::{Rlp, RlpStream, DecoderError, Encodable};
 use network::{self, PeerId, PacketId};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};
+use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockImportErrorKind, BlockQueueInfo};
 use ethcore::error::*;
 use ethcore::snapshot::{ManifestData, RestorationStatus};
 use transaction::SignedTransaction;
@@ -140,7 +140,6 @@ const MAX_PEERS_PROPAGATION: usize = 128;
 const MAX_PEER_LAG_PROPAGATION: BlockNumber = 20;
 const MAX_NEW_HASHES: usize = 64;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
-const MAX_TRANSACTION_SIZE: usize = 300*1024;
 // maximal packet size with transactions (cannot be greater than 16MB - protocol limitation).
 const MAX_TRANSACTION_PACKET_SIZE: usize = 8 * 1024 * 1024;
 // Maximal number of transactions in sent in single packet.
@@ -943,10 +942,10 @@ impl ChainSync {
 			return Ok(());
 		}
 		match io.chain().import_block(block_rlp.as_raw().to_vec()) {
-			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => {
+			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
 				trace!(target: "sync", "New block already in chain {:?}", h);
 			},
-			Err(BlockImportError::Import(ImportError::AlreadyQueued)) => {
+			Err(BlockImportError(BlockImportErrorKind::Import(ImportErrorKind::AlreadyQueued), _)) => {
 				trace!(target: "sync", "New block already queued {:?}", h);
 			},
 			Ok(_) => {
@@ -955,7 +954,7 @@ impl ChainSync {
 				self.new_blocks.mark_as_known(&header.hash(), header.number());
 				trace!(target: "sync", "New block queued {:?} ({})", h, header.number());
 			},
-			Err(BlockImportError::Block(BlockError::UnknownParent(p))) => {
+			Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(p)), _)) => {
 				unknown = true;
 				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
 			},
@@ -1517,10 +1516,6 @@ impl ChainSync {
 		let mut transactions = Vec::with_capacity(item_count);
 		for i in 0 .. item_count {
 			let rlp = r.at(i)?;
-			if rlp.as_raw().len() > MAX_TRANSACTION_SIZE {
-				debug!("Skipped oversized transaction of {} bytes", rlp.as_raw().len());
-				continue;
-			}
 			let tx = rlp.as_raw().to_vec();
 			transactions.push(tx);
 		}

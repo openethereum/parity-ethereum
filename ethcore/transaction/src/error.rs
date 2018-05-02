@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
+use std::{fmt, error};
 
 use ethereum_types::U256;
 use ethkey;
+use rlp;
 use unexpected::OutOfBounds;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -74,11 +75,21 @@ pub enum Error {
 	NotAllowed,
 	/// Signature error
 	InvalidSignature(String),
+	/// Transaction too big
+	TooBig,
+	/// Invalid RLP encoding
+	InvalidRlp(String),
 }
 
 impl From<ethkey::Error> for Error {
 	fn from(err: ethkey::Error) -> Self {
 		Error::InvalidSignature(format!("{}", err))
+	}
+}
+
+impl From<rlp::DecoderError> for Error {
+	fn from(err: rlp::DecoderError) -> Self {
+		Error::InvalidRlp(format!("{}", err))
 	}
 }
 
@@ -106,9 +117,17 @@ impl fmt::Display for Error {
 			InvalidChainId => "Transaction of this chain ID is not allowed on this chain.".into(),
 			InvalidSignature(ref err) => format!("Transaction has invalid signature: {}.", err),
 			NotAllowed => "Sender does not have permissions to execute this type of transction".into(),
+			TooBig => "Transaction too big".into(),
+			InvalidRlp(ref err) => format!("Transaction has invalid RLP structure: {}.", err),
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))
+	}
+}
+
+impl error::Error for Error {
+	fn description(&self) -> &str {
+		"Transaction error"
 	}
 }
 

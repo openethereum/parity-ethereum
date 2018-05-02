@@ -38,9 +38,7 @@ pub use self::simple_list::SimpleList;
 use self::contract::ValidatorContract;
 use self::safe_contract::ValidatorSafeContract;
 use self::multi::Multi;
-
-/// A system-calling closure. Enacts calls on a block's state from the system address.
-pub type SystemCall<'a> = FnMut(Address, Bytes) -> Result<Bytes, String> + 'a;
+use super::SystemCall;
 
 /// Creates a validator set from spec.
 pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {

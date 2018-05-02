@@ -48,6 +48,8 @@ use trace::{NoopTracer, NoopVMTracer};
 
 pub use ethash::OptimizeFor;
 
+const MAX_TRANSACTION_SIZE: usize = 300 * 1024;
+
 // helper for formatting errors.
 fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
 	format!("Spec json is invalid: {}", f)
@@ -123,6 +125,8 @@ pub struct CommonParams {
 	pub max_code_size_transition: BlockNumber,
 	/// Transaction permission managing contract address.
 	pub transaction_permission_contract: Option<Address>,
+	/// Maximum size of transaction's RLP payload
+	pub max_transaction_size: usize,
 }
 
 impl CommonParams {
@@ -238,6 +242,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
+			max_transaction_size: p.max_transaction_size.map_or(MAX_TRANSACTION_SIZE, Into::into),
 			max_code_size_transition: p.max_code_size_transition.map_or(0, Into::into),
 			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
 			wasm_activation_transition: p.wasm_activation_transition.map_or(
@@ -846,6 +851,13 @@ impl Spec {
 	/// Accounts with secrets keccak("0") and keccak("1") are the validators.
 	pub fn new_test_round_empty_steps() -> Self {
 		load_bundled!("authority_round_empty_steps")
+	}
+
+	/// Create a new Spec with AuthorityRound consensus (with empty steps) using a block reward
+	/// contract. The contract source code can be found at:
+	/// https://github.com/parity-contracts/block-reward/blob/daf7d44383b6cdb11cb6b953b018648e2b027cfb/contracts/ExampleBlockReward.sol
+	pub fn new_test_round_block_reward_contract() -> Self {
+		load_bundled!("authority_round_block_reward_contract")
 	}
 
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring

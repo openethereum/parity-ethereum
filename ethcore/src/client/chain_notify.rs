@@ -17,6 +17,7 @@
 use bytes::Bytes;
 use ethereum_types::H256;
 use transaction::UnverifiedTransaction;
+use std::time::Duration;
 
 /// Messages to broadcast via chain
 pub enum ChainMessageType {
@@ -40,7 +41,7 @@ pub trait ChainNotify : Send + Sync {
 		_sealed: Vec<H256>,
 		// Block bytes.
 		_proposed: Vec<Bytes>,
-		_duration: u64,
+		_duration: Duration,
 	) {
 		// does nothing by default
 	}
