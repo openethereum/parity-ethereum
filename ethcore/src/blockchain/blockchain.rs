@@ -430,10 +430,7 @@ impl<'a> Iterator for EpochTransitionIter<'a> {
 				return None
 			}
 
-			let transitions: EpochTransitions = match ::rlp::decode(&val[..]) {
-				Ok(decoded) => decoded,
-				Err(_) => return None
-			};
+			let transitions: EpochTransitions = ::rlp::decode(&val[..]).expect("decode error: the db is corrupted or the data structure has changed");
 
 			// if there are multiple candidates, at most one will be on the
 			// canon chain.
@@ -457,7 +454,7 @@ impl<'a> Iterator for EpochTransitionIter<'a> {
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis.
 	pub fn new(config: Config, genesis: &[u8], db: Arc<KeyValueDB>) -> BlockChain {
-		// 400 is the avarage size of the key
+		// 400 is the average size of the key
 		let cache_man = CacheManager::new(config.pref_cache_size, config.max_cache_size, 400);
 
 		let mut bc = BlockChain {
