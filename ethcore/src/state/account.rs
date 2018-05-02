@@ -148,6 +148,7 @@ impl Account {
 		match ::rlp::decode::<BasicAccount>(rlp) {
 			Ok(basic_account) => basic_account.into(),
 			Err(e) => {
+				// REVIEW: Is panicking ok here? I'd like to change the return value here to `Result<Account, SomeError>` but not sure if that's desirable or the right time.
 				error!("from_rlp, Rlp decoding error={}",e);
 				panic!("from_rlp, Rlp decoding error={}",e)
 			}
@@ -207,14 +208,7 @@ impl Account {
 			return Ok(value);
 		}
 		let db = SecTrieDB::new(db, &self.storage_root)?;
-
-		let unwrapping_decoder: fn(&[u8]) -> U256 = |bytes: &[u8]| {
-			match ::rlp::decode(bytes) {
-				Ok(u256) => u256,
-				Err(_) => U256::zero()
-			}
-		};
-
+		let unwrapping_decoder = |bytes:&[u8]| ::rlp::decode(&bytes).unwrap_or_else(|_| U256::zero());
 		let item: U256 = db.get_with(key, unwrapping_decoder)?.unwrap_or_else(U256::zero);
 		let value: H256 = item.into();
 		self.storage_cache.borrow_mut().insert(key.clone(), value.clone());
