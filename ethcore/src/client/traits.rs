@@ -198,6 +198,7 @@ pub trait EngineInfo {
 	fn engine(&self) -> &EthEngine;
 }
 
+/// IO operations that should off-load heavy work to another thread.
 pub trait IoClient: Sync + Send {
 	/// Queue transactions for importing.
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);

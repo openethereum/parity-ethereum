@@ -33,7 +33,7 @@ use ethcore::snapshot::service::Service as SnapshotService;
 use sync::{LightSyncProvider, LightSync, SyncProvider, ManageNetwork};
 use io::{TimerToken, IoContext, IoHandler};
 use light::Cache as LightDataCache;
-use light::client::LightChainClient;
+use light::client::{LightChainClient, LightChainNotify};
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 use parity_rpc::{is_major_importing};
 use parity_rpc::informant::RpcStats;
@@ -391,6 +391,33 @@ impl ChainNotify for Informant<FullNodeInformantData> {
 		} else {
 			self.skipped.fetch_add(imported.len(), AtomicOrdering::Relaxed);
 			self.skipped_txs.fetch_add(txs_imported, AtomicOrdering::Relaxed);
+		}
+	}
+}
+
+impl LightChainNotify for Informant<LightNodeInformantData> {
+	fn new_headers(&self, good: &[H256]) {
+		let mut last_import = self.last_import.lock();
+		let client = &self.target.client;
+
+		let importing = self.target.is_major_importing();
+		let ripe = Instant::now() > *last_import + Duration::from_secs(1) && !importing;
+
+		if ripe {
+			if let Some(header) = good.last().and_then(|h| client.block_header(BlockId::Hash(*h))) {
+				info!(target: "import", "Imported {} {} ({} Mgas){}",
+					  Colour::White.bold().paint(format!("#{}", header.number())),
+					  Colour::White.bold().paint(format!("{}", header.hash())),
+					  Colour::Yellow.bold().paint(format!("{:.2}", header.gas_used().low_u64() as f32  / 1000000f32)),
+					  if good.len() > 1 {
+						  format!(" + another {} header(s)",
+								  Colour::Red.bold().paint(format!("{}", good.len() - 1)))
+					  } else {
+						  String::new()
+					  }
+				);
+				*last_import = Instant::now();
+			}
 		}
 	}
 }

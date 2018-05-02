@@ -69,14 +69,15 @@
 #![warn(missing_docs)]
 
 extern crate smallvec;
-extern crate ethereum_types;
+extern crate trace_time;
 
 #[macro_use]
 extern crate error_chain;
 #[macro_use]
 extern crate log;
 
-extern crate trace_time;
+#[cfg(test)]
+extern crate ethereum_types;
 
 #[cfg(test)]
 mod tests;
@@ -95,27 +96,29 @@ pub mod scoring;
 pub use self::error::{Error, ErrorKind};
 pub use self::listener::{Listener, NoopListener};
 pub use self::options::Options;
-pub use self::pool::{Pool, PendingIterator};
+pub use self::pool::{Pool, PendingIterator, Transaction};
 pub use self::ready::{Ready, Readiness};
 pub use self::scoring::Scoring;
 pub use self::status::{LightStatus, Status};
 pub use self::verifier::Verifier;
 
 use std::fmt;
-
-use ethereum_types::{H256, Address};
+use std::hash::Hash;
 
 /// Already verified transaction that can be safely queued.
 pub trait VerifiedTransaction: fmt::Debug {
+	/// Transaction hash type.
+	type Hash: fmt::Debug + fmt::LowerHex + Eq + Clone + Hash;
+
+	/// Transaction sender type.
+	type Sender: fmt::Debug + Eq + Clone + Hash;
+
 	/// Transaction hash
-	fn hash(&self) -> &H256;
+	fn hash(&self) -> &Self::Hash;
 
 	/// Memory usage
 	fn mem_usage(&self) -> usize;
 
 	/// Transaction sender
-	fn sender(&self) -> &Address;
-
-	/// Unique index of insertion (lower = older).
-	fn insertion_id(&self) -> u64;
+	fn sender(&self) -> &Self::Sender;
 }
