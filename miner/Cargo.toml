@@ -3,7 +3,7 @@ description = "Parity Miner interface."
 name = "ethcore-miner"
 homepage = "http://parity.io"
 license = "GPL-3.0"
-version = "1.11.0"
+version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
@@ -28,6 +28,7 @@ log = "0.3"
 parking_lot = "0.5"
 price-info = { path = "../price-info" }
 rayon = "1.0"
+rlp = { path = "../util/rlp" }
 trace-time = { path = "../util/trace-time" }
 transaction-pool = { path = "../transaction-pool" }
 

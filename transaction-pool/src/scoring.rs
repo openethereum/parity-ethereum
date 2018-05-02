@@ -17,9 +17,7 @@
 //! A transactions ordering abstraction.
 
 use std::{cmp, fmt};
-use std::sync::Arc;
-
-use {VerifiedTransaction};
+use pool::Transaction;
 
 /// Represents a decision what to do with
 /// a new transaction that tries to enter the pool.
@@ -98,7 +96,7 @@ pub trait Scoring<T>: fmt::Debug {
 	/// Updates the transaction scores given a list of transactions and a change to previous scoring.
 	/// NOTE: you can safely assume that both slices have the same length.
 	/// (i.e. score at index `i` represents transaction at the same index)
-	fn update_scores(&self, txs: &[Arc<T>], scores: &mut [Self::Score], change: Change<Self::Event>);
+	fn update_scores(&self, txs: &[Transaction<T>], scores: &mut [Self::Score], change: Change<Self::Event>);
 
 	/// Decides if `new` should push out `old` transaction from the pool.
 	fn should_replace(&self, old: &T, new: &T) -> bool;
@@ -110,7 +108,14 @@ pub struct ScoreWithRef<T, S> {
 	/// Score
 	pub score: S,
 	/// Shared transaction
-	pub transaction: Arc<T>,
+	pub transaction: Transaction<T>,
+}
+
+impl<T, S> ScoreWithRef<T, S> {
+	/// Creates a new `ScoreWithRef`
+	pub fn new(score: S, transaction: Transaction<T>) -> Self {
+		ScoreWithRef { score, transaction }
+	}
 }
 
 impl<T, S: Clone> Clone for ScoreWithRef<T, S> {
@@ -122,30 +127,23 @@ impl<T, S: Clone> Clone for ScoreWithRef<T, S> {
 	}
 }
 
-impl<T, S> ScoreWithRef<T, S> {
-	/// Creates a new `ScoreWithRef`
-	pub fn new(score: S, transaction: Arc<T>) -> Self {
-		ScoreWithRef { score, transaction }
-	}
-}
-
-impl<S: cmp::Ord, T: VerifiedTransaction> Ord for ScoreWithRef<T, S> {
+impl<S: cmp::Ord, T> Ord for ScoreWithRef<T, S> {
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		other.score.cmp(&self.score)
-			.then(other.transaction.insertion_id().cmp(&self.transaction.insertion_id()))
+			.then(other.transaction.insertion_id.cmp(&self.transaction.insertion_id))
 	}
 }
 
-impl<S: cmp::Ord, T: VerifiedTransaction> PartialOrd for ScoreWithRef<T, S> {
+impl<S: cmp::Ord, T> PartialOrd for ScoreWithRef<T, S> {
 	fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
 		Some(self.cmp(other))
 	}
 }
 
-impl<S: cmp::Ord, T: VerifiedTransaction>  PartialEq for ScoreWithRef<T, S> {
+impl<S: cmp::Ord, T>  PartialEq for ScoreWithRef<T, S> {
 	fn eq(&self, other: &Self) -> bool {
-		self.score == other.score && self.transaction.insertion_id() == other.transaction.insertion_id()
+		self.score == other.score && self.transaction.insertion_id == other.transaction.insertion_id
 	}
 }
 
-impl<S: cmp::Ord, T: VerifiedTransaction> Eq for ScoreWithRef<T, S> {}
+impl<S: cmp::Ord, T> Eq for ScoreWithRef<T, S> {}

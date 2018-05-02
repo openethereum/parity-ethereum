@@ -46,7 +46,6 @@ use super::{
 
 	MAX_NEW_BLOCK_AGE,
 	MAX_NEW_HASHES,
-	MAX_TRANSACTION_SIZE,
 
 	PAR_PROTOCOL_VERSION_1,
 	PAR_PROTOCOL_VERSION_2,
@@ -685,10 +684,6 @@ impl SyncHandler {
 		let mut transactions = Vec::with_capacity(item_count);
 		for i in 0 .. item_count {
 			let rlp = r.at(i)?;
-			if rlp.as_raw().len() > MAX_TRANSACTION_SIZE {
-				debug!("Skipped oversized transaction of {} bytes", rlp.as_raw().len());
-				continue;
-			}
 			let tx = rlp.as_raw().to_vec();
 			transactions.push(tx);
 		}

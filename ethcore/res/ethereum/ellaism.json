@@ -13,9 +13,9 @@
         "eip150Transition": "0x0",
         "eip160Transition": "0x0",
         "ecip1017EraRounds": 10000000,
-
         "eip161abcTransition": "0x7fffffffffffffff",
-        "eip161dTransition": "0x7fffffffffffffff"
+        "eip161dTransition": "0x7fffffffffffffff",
+        "eip100bTransition": 2000000
       }
     }
   },
@@ -29,7 +29,12 @@
     "chainID": "0x40",
     "eip155Transition": "0x0",
     "eip98Transition": "0x7fffffffffffff",
-    "eip86Transition": "0x7fffffffffffff"
+    "eip86Transition": "0x7fffffffffffff",
+    "wasmActivationTransition": 2000000,
+    "eip140Transition": 2000000,
+    "eip211Transition": 2000000,
+    "eip214Transition": 2000000,
+    "eip658Transition": 2000000
   },
   "genesis": {
     "seal": {
@@ -60,6 +65,10 @@
     "0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
     "0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
     "0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
-    "0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } }
+    "0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+    "0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": 2000000, "pricing": { "modexp": { "divisor": 20 } } } },
+    "0000000000000000000000000000000000000006": { "builtin": { "name": "alt_bn128_add", "activate_at": 2000000, "pricing": { "linear": { "base": 500, "word": 0 } } } },
+    "0000000000000000000000000000000000000007": { "builtin": { "name": "alt_bn128_mul", "activate_at": 2000000, "pricing": { "linear": { "base": 40000, "word": 0 } } } },
+    "0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "activate_at": 2000000, "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } }
   }
 }
