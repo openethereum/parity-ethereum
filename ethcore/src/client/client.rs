@@ -43,7 +43,6 @@ use client::{
 	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
 	ClientIoMessage
 };
-use client::io_message::Callback;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, BlockImportError, Mode,
@@ -209,6 +208,8 @@ pub struct Client {
 	queue_transactions: IoChannelQueue,
 	/// Ancient blocks import queue
 	queue_ancient_blocks: IoChannelQueue,
+	/// Consensus messages import queue
+	queue_consensus_message: IoChannelQueue,
 
 	last_hashes: RwLock<VecDeque<H256>>,
 	factories: Factories,
@@ -450,10 +451,10 @@ impl Importer {
 	///
 	/// The block is guaranteed to be the next best blocks in the
 	/// first block sequence. Does no sealing or transaction validation.
-	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes, db: &KeyValueDB, chain: &BlockChain) -> Result<H256, ::error::Error> {
-		let block = view!(BlockView, &block_bytes);
+	fn import_old_block(&self, block_bytes: &[u8], receipts_bytes: &[u8], db: &KeyValueDB, chain: &BlockChain) -> Result<H256, ::error::Error> {
+		let block = view!(BlockView, block_bytes);
 		let header = block.header();
-		let receipts = ::rlp::decode_list(&receipts_bytes);
+		let receipts = ::rlp::decode_list(receipts_bytes);
 		let hash = header.hash();
 		let _import_lock = self.import_lock.lock();
 
@@ -465,7 +466,7 @@ impl Importer {
 
 			// Commit results
 			let mut batch = DBTransaction::new();
-			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
+			chain.insert_unordered_block(&mut batch, block_bytes, receipts, None, false, true);
 			// Final commit to the DB
 			db.write_buffered(batch);
 			chain.commit();
@@ -737,6 +738,7 @@ impl Client {
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: IoChannelQueue::new(MAX_TX_QUEUE_SIZE),
 			queue_ancient_blocks: IoChannelQueue::new(MAX_ANCIENT_BLOCKS_QUEUE_SIZE),
+			queue_consensus_message: IoChannelQueue::new(usize::max_value()),
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
 			history: history,
@@ -1851,13 +1853,6 @@ impl BlockChainClient for Client {
 		(*self.build_last_hashes(&self.chain.read().best_block_hash())).clone()
 	}
 
-	fn queue_consensus_message(&self, message: Bytes) {
-		let channel = self.io_channel.lock().clone();
-		if let Err(e) = channel.send(ClientIoMessage::NewMessage(message)) {
-			debug!("Ignoring the message, error queueing: {}", e);
-		}
-	}
-
 	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
 		self.importer.miner.ready_transactions(self)
 	}
@@ -1947,8 +1942,8 @@ impl IoClient for Client {
 
 		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), 1, move |client| {
 			client.importer.import_old_block(
-				block_bytes,
-				receipts_bytes,
+				&block_bytes,
+				&receipts_bytes,
 				&**client.db.read(),
 				&*client.chain.read()
 			).map(|_| ()).unwrap_or_else(|e| {
@@ -1960,7 +1955,19 @@ impl IoClient for Client {
 		}
 	}
 
-	TODO Move consensus message and possibly other ClientIoMessages
+	fn queue_consensus_message(&self, message: Bytes) {
+		match self.queue_consensus_message.queue(&mut self.io_channel.lock(), 1, move |client| {
+			if let Err(e) = client.engine().handle_message(&message) {
+				debug!(target: "poa", "Invalid message received: {}", e);
+			}
+		}) {
+			Ok(_) => (),
+			Err(e) => {
+				debug!(target: "poa", "Ignoring the message, error queueing: {}", e);
+			}
+		}
+	}
+	// TODO Move consensus message and possibly other ClientIoMessages
 }
 
 impl ReopenBlock for Client {
@@ -2371,16 +2378,16 @@ impl IoChannelQueue {
 	}
 
 	pub fn queue<F>(&self, channel: &mut IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
-		F: FnOnce(&Client) + Send + Sync + 'static,
+		F: Fn(&Client) + Send + Sync + 'static,
 	{
 		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
 		ensure!(queue_size < self.limit, QueueError::Full(self.limit));
 
 		let currently_queued = self.currently_queued.clone();
-		let result = channel.send(Callback::new(move |client| {
+		let result = channel.send(ClientIoMessage::execute(move |client| {
 			currently_queued.fetch_sub(count, AtomicOrdering::SeqCst);
 			fun(client);
-		}).into());
+		}));
 
 		match result {
 			Ok(_) => {

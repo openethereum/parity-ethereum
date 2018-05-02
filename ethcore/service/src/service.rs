@@ -33,7 +33,7 @@ use ethcore::snapshot::{RestorationStatus};
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
 
-use ethcore_private_tx;
+use ethcore_private_tx::{self, Importer};
 use Error;
 
 pub struct PrivateTxService {
@@ -112,14 +112,13 @@ impl ClientService {
 				account_provider,
 				encryptor,
 				private_tx_conf,
-				io_service.channel())?,
-		);
+				io_service.channel(),
+		));
 		let private_tx = Arc::new(PrivateTxService::new(provider));
 
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone(),
 			snapshot: snapshot.clone(),
-			private_tx: private_tx.clone(),
 		});
 		io_service.register_handler(client_io)?;
 
@@ -175,7 +174,6 @@ impl ClientService {
 struct ClientIoHandler {
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
-	private_tx: Arc<PrivateTxService>,
 }
 
 const CLIENT_TICK_TIMER: TimerToken = 0;
@@ -208,14 +206,20 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 		use std::thread;
 
 		match *net_message {
-			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
+			ClientIoMessage::BlockVerified => {
+				self.client.import_verified_blocks();
+			}
 			ClientIoMessage::BeginRestoration(ref manifest) => {
 				if let Err(e) = self.snapshot.init_restore(manifest.clone(), true) {
 					warn!("Failed to initialize snapshot restoration: {}", e);
 				}
 			}
-			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => self.snapshot.feed_state_chunk(*hash, chunk),
-			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => self.snapshot.feed_block_chunk(*hash, chunk),
+			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => {
+				self.snapshot.feed_state_chunk(*hash, chunk)
+			}
+			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => {
+				self.snapshot.feed_block_chunk(*hash, chunk)
+			}
 			ClientIoMessage::TakeSnapshot(num) => {
 				let client = self.client.clone();
 				let snapshot = self.snapshot.clone();
@@ -230,15 +234,9 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 					debug!(target: "snapshot", "Failed to initialize periodic snapshot thread: {:?}", e);
 				}
 			},
-			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
-				trace!(target: "poa", "Invalid message received: {}", e);
-			},
-			ClientIoMessage::NewPrivateTransaction => if let Err(e) = self.private_tx.provider.on_private_transaction_queued() {
-				warn!("Failed to handle private transaction {:?}", e);
-			},
 			ClientIoMessage::Execute(ref exec) => {
 				(*exec.0)(&self.client);
-			},
+			}
 			_ => {} // ignore other messages
 		}
 	}

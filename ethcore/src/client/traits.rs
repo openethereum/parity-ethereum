@@ -204,6 +204,9 @@ pub trait IoClient: Sync + Send {
 
 	/// Queue block import with transaction receipts. Does no sealing and transaction validation.
 	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
+
+	/// Queue conensus engine message.
+	fn queue_consensus_message(&self, message: Bytes);
 }
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
@@ -315,9 +318,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get last hashes starting from best block.
 	fn last_hashes(&self) -> LastHashes;
-
-	/// Queue conensus engine message.
-	fn queue_consensus_message(&self, message: Bytes);
 
 	/// List all transactions that are allowed into the next block.
 	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;

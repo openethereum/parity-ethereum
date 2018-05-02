@@ -35,28 +35,19 @@ pub enum ClientIoMessage {
 	FeedBlockChunk(H256, Bytes),
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
-	/// New consensus message received.
-	NewMessage(Bytes),
-	/// New private transaction arrived
-	NewPrivateTransaction,
 	/// Execute wrapped closure
 	Execute(Callback),
 }
 
+impl ClientIoMessage {
+	/// Create new `ClientIoMessage` that executes given procedure.
+	pub fn execute<F: Fn(&Client) + Send + Sync + 'static>(fun: F) -> Self {
+		ClientIoMessage::Execute(Callback(Box::new(fun)))
+	}
+}
+
 /// A function to invoke in the client thread.
-pub struct Callback(pub Box<FnOnce(&Client) + Send + Sync>);
-
-impl Callback {
-	pub fn new<T: FnOnce(&Client) + Send + Sync + 'static>(fun: T) -> Self {
-		Callback(Box::new(fun))
-	}
-}
-
-impl From<Callback> for ClientIoMessage {
-	fn from(callback: Callback) -> Self {
-		ClientIoMessage::Execute(callback)
-	}
-}
+pub struct Callback(pub Box<Fn(&Client) + Send + Sync>);
 
 impl fmt::Debug for Callback {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {

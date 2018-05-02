@@ -805,10 +805,6 @@ impl BlockChainClient for TestBlockChainClient {
 		self.traces.read().clone()
 	}
 
-	fn queue_consensus_message(&self, message: Bytes) {
-		self.spec.engine.handle_message(&message).unwrap();
-	}
-
 	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
 		self.miner.ready_transactions(self)
 	}
@@ -862,6 +858,10 @@ impl IoClient for TestBlockChainClient {
 
 	fn queue_ancient_block(&self, b: Bytes, _r: Bytes) -> Result<H256, BlockImportError> {
 		self.import_block(b)
+	}
+
+	fn queue_consensus_message(&self, message: Bytes) {
+		self.spec.engine.handle_message(&message).unwrap();
 	}
 }
 
