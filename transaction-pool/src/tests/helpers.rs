@@ -17,9 +17,9 @@
 use std::cmp;
 use std::collections::HashMap;
 
-use ethereum_types::U256;
-use {scoring, Scoring, Ready, Readiness, Address as Sender};
-use super::{Transaction, SharedTransaction};
+use ethereum_types::{H160 as Sender, U256};
+use {pool, scoring, Scoring, Ready, Readiness};
+use super::Transaction;
 
 #[derive(Debug, Default)]
 pub struct DummyScoring;
@@ -44,7 +44,7 @@ impl Scoring<Transaction> for DummyScoring {
 		}
 	}
 
-	fn update_scores(&self, txs: &[SharedTransaction], scores: &mut [Self::Score], change: scoring::Change) {
+	fn update_scores(&self, txs: &[pool::Transaction<Transaction>], scores: &mut [Self::Score], change: scoring::Change) {
 		if let scoring::Change::Event(_) = change {
 			// In case of event reset all scores to 0
 			for i in 0..txs.len() {
@@ -84,7 +84,7 @@ impl Ready<Transaction> for NonceReady {
 				*nonce = *nonce + 1.into();
 				Readiness::Ready
 			},
-			cmp::Ordering::Less => Readiness::Stalled,
+			cmp::Ordering::Less => Readiness::Stale,
 		}
 	}
 }
