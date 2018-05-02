@@ -32,15 +32,16 @@ pub struct Transaction {
 	pub gas_price: U256,
 	pub gas: U256,
 	pub sender: Address,
-	pub insertion_id: u64,
 	pub mem_usage: usize,
 }
 
 impl VerifiedTransaction for Transaction {
+	type Hash = H256;
+	type Sender = Address;
+
 	fn hash(&self) -> &H256 { &self.hash }
 	fn mem_usage(&self) -> usize { self.mem_usage }
 	fn sender(&self) -> &Address { &self.sender }
-	fn insertion_id(&self) -> u64 { self.insertion_id }
 }
 
 pub type SharedTransaction = Arc<Transaction>;
@@ -123,7 +124,7 @@ fn should_reject_if_above_count() {
 	// Reject second
 	let tx1 = b.tx().nonce(0).new();
 	let tx2 = b.tx().nonce(1).new();
-	let hash = *tx2.hash();
+	let hash = format!("{:?}", tx2.hash());
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0x0".into()));
 	assert_eq!(txq.light_status().transaction_count, 1);
@@ -149,7 +150,7 @@ fn should_reject_if_above_mem_usage() {
 	// Reject second
 	let tx1 = b.tx().nonce(1).mem_usage(1).new();
 	let tx2 = b.tx().nonce(2).mem_usage(2).new();
-	let hash = *tx2.hash();
+	let hash = format!("{:?}", tx2.hash());
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0x0".into()));
 	assert_eq!(txq.light_status().transaction_count, 1);
@@ -175,7 +176,7 @@ fn should_reject_if_above_sender_count() {
 	// Reject second
 	let tx1 = b.tx().nonce(1).new();
 	let tx2 = b.tx().nonce(2).new();
-	let hash = *tx2.hash();
+	let hash = format!("{:x}", tx2.hash());
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0x0".into()));
 	assert_eq!(txq.light_status().transaction_count, 1);
@@ -185,7 +186,7 @@ fn should_reject_if_above_sender_count() {
 	// Replace first
 	let tx1 = b.tx().nonce(1).new();
 	let tx2 = b.tx().nonce(2).gas_price(2).new();
-	let hash = *tx2.hash();
+	let hash = format!("{:x}", tx2.hash());
 	txq.import(tx1).unwrap();
 	// This results in error because we also compare nonces
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash, "0x0".into()));
