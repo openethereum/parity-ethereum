@@ -591,10 +591,12 @@ impl Importer for Arc<Provider> {
 					hash,
 					self.pool_client(&nonce_cache),
 				)?;
-				let provider = self.clone();
+				let provider = Arc::downgrade(self);
 				self.channel.send(ClientIoMessage::execute(move |_| {
-					if let Err(e) = provider.process_queue() {
-						debug!("Unable to process the queue: {}", e);
+					if let Some(provider) = provider.upgrade() {
+						if let Err(e) = provider.process_queue() {
+							debug!("Unable to process the queue: {}", e);
+						}
 					}
 				})).map_err(|_| ErrorKind::ClientIsMalformed.into())
 			}

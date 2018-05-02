@@ -1967,7 +1967,6 @@ impl IoClient for Client {
 			}
 		}
 	}
-	// TODO Move consensus message and possibly other ClientIoMessages
 }
 
 impl ReopenBlock for Client {

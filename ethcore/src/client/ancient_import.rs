@@ -53,15 +53,24 @@ impl AncientVerifier {
 		header: &Header,
 		chain: &BlockChain,
 	) -> Result<(), ::error::Error> {
-
 		// perform verification
-		if let Some(ref cur_verifier) = *self.cur_verifier.read() {
+		let verified = if let Some(ref cur_verifier) = *self.cur_verifier.read() {
 			match rng.gen::<f32>() <= HEAVY_VERIFY_RATE {
 				true => cur_verifier.verify_heavy(header)?,
 				false => cur_verifier.verify_light(header)?,
 			}
+			true
 		} else {
-			*self.cur_verifier.write() = Some(self.initial_verifier(header, chain)?);
+			false
+		};
+
+		// when there is no verifier initialize it.
+		// We use a bool flag to avoid double locking in the happy case
+		if !verified {
+			let mut cur_verifier = self.cur_verifier.write();
+			if cur_verifier.is_none() {
+				*cur_verifier = Some(self.initial_verifier(header, chain)?);
+			}
 			// Call again to verify.
 			return self.verify(rng, header, chain);
 		}

@@ -395,7 +395,10 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 
 	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
 		trace_time!("sync::disconnected");
-		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
+		// If warp protocol is supported only allow warp handshake
+		let warp_protocol = io.protocol_version(WARP_SYNC_PROTOCOL_ID, *peer).unwrap_or(0) != 0;
+		let warp_context = io.subprotocol_name() == WARP_SYNC_PROTOCOL_ID;
+		if warp_protocol == warp_context {
 			self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
 		}
 	}
