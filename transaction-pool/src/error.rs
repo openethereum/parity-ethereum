@@ -14,24 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethereum_types::H256;
+/// Error chain doesn't let us have generic types.
+/// So the hashes are converted to debug strings for easy display.
+type Hash = String;
 
 error_chain! {
 	errors {
 		/// Transaction is already imported
-		AlreadyImported(hash: H256) {
+		AlreadyImported(hash: Hash) {
 			description("transaction is already in the pool"),
-			display("[{:?}] already imported", hash)
+			display("[{}] already imported", hash)
 		}
 		/// Transaction is too cheap to enter the queue
-		TooCheapToEnter(hash: H256, min_score: String) {
+		TooCheapToEnter(hash: Hash, min_score: String) {
 			description("the pool is full and transaction is too cheap to replace any transaction"),
-			display("[{:?}] too cheap to enter the pool. Min score: {}", hash, min_score)
+			display("[{}] too cheap to enter the pool. Min score: {}", hash, min_score)
 		}
 		/// Transaction is too cheap to replace existing transaction that occupies the same slot.
-		TooCheapToReplace(old_hash: H256, hash: H256) {
+		TooCheapToReplace(old_hash: Hash, hash: Hash) {
 			description("transaction is too cheap to replace existing transaction in the pool"),
-			display("[{:?}] too cheap to replace: {:?}", hash, old_hash)
+			display("[{}] too cheap to replace: {}", hash, old_hash)
 		}
 	}
 }

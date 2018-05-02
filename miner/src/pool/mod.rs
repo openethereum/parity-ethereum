@@ -105,6 +105,11 @@ impl VerifiedTransaction {
 		self.priority
 	}
 
+	/// Gets transaction insertion id.
+	pub(crate) fn insertion_id(&self) -> usize {
+		self.insertion_id
+	}
+
 	/// Gets wrapped `SignedTransaction`
 	pub fn signed(&self) -> &transaction::SignedTransaction {
 		&self.transaction
@@ -114,9 +119,13 @@ impl VerifiedTransaction {
 	pub fn pending(&self) -> &transaction::PendingTransaction {
 		&self.transaction
 	}
+
 }
 
 impl txpool::VerifiedTransaction for VerifiedTransaction {
+	type Hash = H256;
+	type Sender = Address;
+
 	fn hash(&self) -> &H256 {
 		&self.hash
 	}
@@ -127,9 +136,5 @@ impl txpool::VerifiedTransaction for VerifiedTransaction {
 
 	fn sender(&self) -> &Address {
 		&self.sender
-	}
-
-	fn insertion_id(&self) -> u64 {
-		self.insertion_id as u64
 	}
 }
