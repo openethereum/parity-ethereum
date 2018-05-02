@@ -121,7 +121,7 @@ pub mod blocks {
 		/// Create an `Unverified` from raw bytes.
 		pub fn from_rlp(bytes: Bytes) -> Result<Self, ::rlp::DecoderError> {
 
-			let header : Header = ::rlp::Rlp::new(&bytes).val_at(0)?; 
+			let header = ::rlp::Rlp::new(&bytes).val_at(0)?; 
 			Ok(Unverified {
 				header: header,
 				bytes: bytes,
