@@ -900,7 +900,6 @@ impl<B: Backend> State<B> {
 
 			if let Some((balance, nonce, storage_keys, code)) = account {
 				let storage = storage_keys.into_iter().fold(Ok(BTreeMap::new()), |s: trie::Result<_>, key| {
-
 					let mut s = s?;
 
 					s.insert(key, self.storage_at(&address, &key)?);
