@@ -872,56 +872,47 @@ impl<B: Backend> State<B> {
 			.collect::<BTreeSet<_>>();
 
 		Ok(PodState::from(all_addresses.into_iter().fold(Ok(BTreeMap::new()), |m: trie::Result<_>, address| {
-			match m {
-				Err(e) => Err(e),
-				Ok(mut m) => {
-					let account = self.ensure_cached(&address, RequireCache::Code, true, |acc| {
-						acc.map(|acc| {
-							// Merge all modified storage keys.
-							let all_keys = {
-								let self_keys = acc.storage_changes().keys().cloned()
-									.collect::<BTreeSet<_>>();
+			let mut m = m?;
 
-								if let Some(ref query_storage) = query.cache.borrow().get(&address)
-									.and_then(|opt| {
-										if let Some(ref query_acc) = opt.account {
-											Some(query_acc.storage_changes().keys().cloned()
-												 .collect::<BTreeSet<_>>())
-										} else {
-											None
-										}
-									})
-								{
-									self_keys.union(&query_storage).cloned().collect::<Vec<_>>()
-								} else {
-									self_keys.into_iter().collect::<Vec<_>>()
-								}
-							};
+			let account = self.ensure_cached(&address, RequireCache::Code, true, |acc| {
+				acc.map(|acc| {
+					// Merge all modified storage keys.
+					let all_keys = {
+						let self_keys = acc.storage_changes().keys().cloned()
+							.collect::<BTreeSet<_>>();
 
-							// Storage must be fetched after ensure_cached to avoid borrow problem.
-							(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()))
-						})
-					})?;
+						if let Some(ref query_storage) = query.cache.borrow().get(&address)
+							.and_then(|opt| {
+								Some(opt.account.as_ref()?.storage_changes().keys().cloned()
+									 .collect::<BTreeSet<_>>())
+							})
+						{
+							self_keys.union(&query_storage).cloned().collect::<Vec<_>>()
+						} else {
+							self_keys.into_iter().collect::<Vec<_>>()
+						}
+					};
 
-					if let Some((balance, nonce, storage_keys, code)) = account {
-						let storage = storage_keys.into_iter().fold(Ok(BTreeMap::new()), |s: trie::Result<_>, key| {
-							match s {
-								Err(e) => Err(e),
-								Ok(mut s) => {
-									s.insert(key, self.storage_at(&address, &key)?);
-									Ok(s)
-								}
-							}
-						})?;
+					// Storage must be fetched after ensure_cached to avoid borrow problem.
+					(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()))
+				})
+			})?;
 
-						m.insert(address, PodAccount {
-							balance, nonce, storage, code
-						});
-					}
+			if let Some((balance, nonce, storage_keys, code)) = account {
+				let storage = storage_keys.into_iter().fold(Ok(BTreeMap::new()), |s: trie::Result<_>, key| {
 
-					Ok(m)
-				}
+					let mut s = s?;
+
+					s.insert(key, self.storage_at(&address, &key)?);
+					Ok(s)
+				})?;
+
+				m.insert(address, PodAccount {
+					balance, nonce, storage, code
+				});
 			}
+
+			Ok(m)
 		})?))
 	}
 
