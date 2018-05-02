@@ -407,7 +407,7 @@ mod tests {
 		let costs = CostTable::default();
 		let serialized = ::rlp::encode(&costs);
 
-		let new_costs: CostTable = ::rlp::decode(&*serialized);
+		let new_costs: CostTable = ::rlp::decode(&*serialized).unwrap();
 
 		assert_eq!(costs, new_costs);
 	}
