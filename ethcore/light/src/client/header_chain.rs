@@ -524,15 +524,7 @@ impl HeaderChain {
 											None
 										}
 										Ok(None) => panic!("stored candidates always have corresponding headers; qed"),
-										Ok(Some(header)) => {
-											match ::rlp::decode(&header) {
-												Ok(decoded_header) => Some((epoch_transition, decoded_header)),
-												Err(e) => {
-													warn!(target: "chain", "Error decoding header: {}\n", e);
-													None
-												}
-											}
-
+										Ok(Some(header)) => ::rlp::decode(&header).expect("decoding value from db failed"),
 										},
 									};
 								}
@@ -751,17 +743,7 @@ impl HeaderChain {
 	/// so including it within a CHT would be redundant.
 	pub fn cht_root(&self, n: usize) -> Option<H256> {
 		match self.db.get(self.col, cht_key(n as u64).as_bytes()) {
-			Ok(db_fetch) => {
-				db_fetch.map_or(None, |bytes| {
-					match ::rlp::decode(&bytes) {
-						Ok(h256) => Some(h256),
-						Err(e) => {
-							warn!(target: "chain", "Error decoding data from database: {}", e);
-							None
-						}
-					}
-				})
-			},
+			Ok(db_fetch) => db_fetch.map(|bytes| ::rlp::decode(bytes).expect("decoding value from db failed")),
 			Err(e) => {
 				warn!(target: "chain", "Error reading from database: {}", e);
 				None
@@ -812,17 +794,7 @@ impl HeaderChain {
 	pub fn pending_transition(&self, hash: H256) -> Option<PendingEpochTransition> {
 		let key = pending_transition_key(hash);
 		match self.db.get(self.col, &*key) {
-			Ok(db_fetch) => {
-				db_fetch.map_or(None, |bytes| {
-					match ::rlp::decode(&bytes) {
-						Ok(pending_transition) => Some(pending_transition),
-						Err(e) => {
-							warn!(target: "chain", "Error decoding data from database: {}", e);
-							None
-						}
-					}
-				})
-			},
+			Ok(db_fetch) => db_fetch.map(|bytes| ::rlp::decode(bytes).expect("decoding value from db failed")),
 			Err(e) => {
 				warn!(target: "chain", "Error reading from database: {}", e);
 				None
