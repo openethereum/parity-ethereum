@@ -687,7 +687,7 @@ impl Host {
 						Err(e) => {
 							let s = session.lock();
 							trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
-							if let ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) = *e.kind() {
+							if let ErrorKind::Disconnect(DisconnectReason::UselessPeer) = *e.kind() {
 								if let Some(id) = s.id() {
 									if !self.reserved_nodes.read().contains(id) {
 										self.nodes.write().mark_as_useless(id);
