@@ -29,6 +29,14 @@ pub enum ChainMessageType {
 	SignedPrivateTransaction(Vec<u8>),
 }
 
+/// Route type to indicate whether it is enacted or retracted.
+pub enum ChainRouteType {
+	/// Enacted block
+	Enacted,
+	/// Retracted block
+	Retracted
+}
+
 /// Represents what has to be handled by actor listening to chain events
 pub trait ChainNotify : Send + Sync {
 	/// fires when chain has new blocks.
@@ -36,8 +44,7 @@ pub trait ChainNotify : Send + Sync {
 		&self,
 		_imported: Vec<H256>,
 		_invalid: Vec<H256>,
-		_enacted: Vec<H256>,
-		_retracted: Vec<H256>,
+		_route: Vec<(H256, ChainRouteType)>,
 		_sealed: Vec<H256>,
 		// Block bytes.
 		_proposed: Vec<Bytes>,
