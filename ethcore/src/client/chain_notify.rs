@@ -17,7 +17,9 @@
 use bytes::Bytes;
 use ethereum_types::H256;
 use transaction::UnverifiedTransaction;
+use blockchain::ImportRoute;
 use std::time::Duration;
+use std::collections::HashMap;
 
 /// Messages to broadcast via chain
 pub enum ChainMessageType {
@@ -38,6 +40,59 @@ pub enum ChainRouteType {
 	Retracted
 }
 
+/// A complete chain enacted retracted route.
+#[derive(Default, Clone)]
+pub struct ChainRoute(pub Vec<(H256, ChainRouteType)>);
+
+impl<'a> From<&'a [ImportRoute]> for ChainRoute {
+	fn from(import_results: &'a [ImportRoute]) -> ChainRoute {
+		ChainRoute(import_results.iter().flat_map(|route| {
+			route.retracted.iter().map(|h| (*h, ChainRouteType::Retracted))
+				.chain(route.enacted.iter().map(|h| (*h, ChainRouteType::Enacted)))
+		}).collect())
+	}
+}
+
+impl ChainRoute {
+	/// Gather all non-duplicate enacted and retracted blocks.
+	pub fn to_enacted_retracted(&self) -> (Vec<H256>, Vec<H256>) {
+		fn map_to_vec(map: Vec<(H256, bool)>) -> Vec<H256> {
+			map.into_iter().map(|(k, _v)| k).collect()
+		}
+
+		// Because we are doing multiple inserts some of the blocks that were enacted in import `k`
+		// could be retracted in import `k+1`. This is why to understand if after all inserts
+		// the block is enacted or retracted we iterate over all routes and at the end final state
+		// will be in the hashmap
+		let map = self.0.iter().fold(HashMap::new(), |mut map, route| {
+			match &route.1 {
+				&ChainRouteType::Enacted => {
+					map.insert(route.0, true);
+				},
+				&ChainRouteType::Retracted => {
+					map.insert(route.0, false);
+				},
+			}
+			map
+		});
+
+		// Split to enacted retracted (using hashmap value)
+		let (enacted, retracted) = map.into_iter().partition(|&(_k, v)| v);
+		// And convert tuples to keys
+		(map_to_vec(enacted), map_to_vec(retracted))
+	}
+
+	/// Whether this particular route contains non-duplicate enacted blocks.
+	pub fn contains_enacted(&self) -> bool {
+		!self.to_enacted_retracted().0.is_empty()
+	}
+
+	/// Whether this particular route contains non-duplicate retracted blocks.
+	pub fn contains_retracted(&self) -> bool {
+		!self.to_enacted_retracted().0.is_empty()
+	}
+}
+
 /// Represents what has to be handled by actor listening to chain events
 pub trait ChainNotify : Send + Sync {
 	/// fires when chain has new blocks.
@@ -45,7 +100,7 @@ pub trait ChainNotify : Send + Sync {
 		&self,
 		_imported: Vec<H256>,
 		_invalid: Vec<H256>,
-		_route: Vec<(H256, ChainRouteType)>,
+		_route: ChainRoute,
 		_sealed: Vec<H256>,
 		// Block bytes.
 		_proposed: Vec<Bytes>,
