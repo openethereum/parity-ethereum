@@ -690,7 +690,9 @@ impl Host {
 							if let ErrorKind::Disconnect(DisconnectReason::UselessPeer) = *e.kind() {
 								if let Some(id) = s.id() {
 									if !self.reserved_nodes.read().contains(id) {
-										self.nodes.write().mark_as_useless(id);
+										let mut nodes = self.nodes.write();
+										nodes.note_failure(&id);
+										nodes.mark_as_useless(id);
 									}
 								}
 							}
@@ -1030,7 +1032,9 @@ impl IoHandler<NetworkIoMessage> for Host {
 				if let Some(session) = session {
 					session.lock().disconnect(io, DisconnectReason::DisconnectRequested);
 					if let Some(id) = session.lock().id() {
-						self.nodes.write().mark_as_useless(id)
+						let mut nodes = self.nodes.write();
+						nodes.note_failure(&id);
+						nodes.mark_as_useless(id);
 					}
 				}
 				trace!(target: "network", "Disabling peer {}", peer);
