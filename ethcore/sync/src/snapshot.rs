@@ -14,10 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use hash::keccak;
+use ethcore::snapshot::{ManifestData};
 use ethereum_types::H256;
+use hash::keccak;
+use sync_io::SyncIo;
+
 use std::collections::HashSet;
-use ethcore::snapshot::ManifestData;
+use std::iter::FromIterator;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum ChunkType {
@@ -45,6 +48,18 @@ impl Snapshot {
 			snapshot_hash: None,
 			bad_hashes: HashSet::new(),
 		}
+	}
+
+	pub fn sync (&mut self, io: &SyncIo) {
+		if let Some(completed_chunks) = io.snapshot_service().completed_chunks() {
+			self.completed_chunks = HashSet::from_iter(completed_chunks);
+		}
+
+		trace!(
+			target: "snapshot",
+			"Synced ChainSync snapshot with {} completed chunks",
+			self.completed_chunks.len(),
+		);
 	}
 
 	/// Clear everything.

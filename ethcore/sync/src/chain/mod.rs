@@ -200,6 +200,8 @@ pub enum SyncState {
 	WaitingPeers,
 	/// Waiting for snapshot manifest download
 	SnapshotManifest,
+	/// Snapshot service is initializing
+	SnapshotInit,
 	/// Downloading snapshot data
 	SnapshotData,
 	/// Waiting for snapshot restoration progress.
@@ -250,9 +252,13 @@ pub struct SyncStatus {
 impl SyncStatus {
 	/// Indicates if snapshot download is in progress
 	pub fn is_snapshot_syncing(&self) -> bool {
-		self.state == SyncState::SnapshotManifest
-			|| self.state == SyncState::SnapshotData
-			|| self.state == SyncState::SnapshotWaiting
+		match self.state {
+			SyncState::SnapshotManifest |
+				SyncState::SnapshotData |
+				SyncState::SnapshotInit |
+				SyncState::SnapshotWaiting => true,
+			_ => false,
+		}
 	}
 
 	/// Returns max no of peers to display in informants
@@ -616,6 +622,8 @@ impl ChainSync {
 			}
 			self.state = SyncState::SnapshotManifest;
 			trace!(target: "sync", "New snapshot sync with {:?}", peers);
+		} else if self.state == SyncState::SnapshotInit && !self.is_snapshot_ready(io) {
+			trace!(target: "snapshot", "Snapshot Service is still initializing");
 		} else {
 			self.state = SyncState::SnapshotData;
 			trace!(target: "sync", "Resumed snapshot sync with {:?}", peers);
@@ -648,8 +656,26 @@ impl ChainSync {
 		}
 	}
 
+	/// Check if the snapshot service is ready
+	fn is_snapshot_ready(&mut self, io: &SyncIo) -> bool {
+		if !io.snapshot_service().initializing() {
+			trace!(target: "snapshot", "Snapshot Service is done initializing!");
+			self.snapshot.sync(io);
+			self.state = SyncState::SnapshotData;
+			true
+		} else {
+			false
+		}
+	}
+
 	/// Resume downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
+		// If waiting for snapshot service,
+		// check its status and return
+		if self.state == SyncState::SnapshotInit && !self.is_snapshot_ready(io) {
+			return;
+		}
+
 		// Collect active peers that can sync
 		let mut peers: Vec<(PeerId, u8)> = self.peers.iter().filter_map(|(peer_id, peer)|
 			if peer.can_sync() && self.active_peers.contains(peer_id) {
@@ -700,6 +726,10 @@ impl ChainSync {
 				}
 				if self.state == SyncState::Waiting {
 					trace!(target: "sync", "Waiting for the block queue");
+					return;
+				}
+				if self.state == SyncState::SnapshotInit {
+					trace!(target: "sync", "Waiting for the snapshot service to initialize");
 					return;
 				}
 				if self.state == SyncState::SnapshotWaiting {
@@ -767,7 +797,9 @@ impl ChainSync {
 					}
 				},
 				SyncState::SnapshotManifest | //already downloading from other peer
-					SyncState::Waiting | SyncState::SnapshotWaiting => ()
+					SyncState::Waiting |
+					SyncState::SnapshotWaiting |
+					SyncState::SnapshotInit => ()
 			}
 		} else {
 			trace!(target: "sync", "Skipping peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);

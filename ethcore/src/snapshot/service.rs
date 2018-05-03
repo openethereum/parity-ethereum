@@ -17,8 +17,8 @@
 //! Snapshot network service implementation.
 
 use std::collections::HashSet;
-use std::io::ErrorKind;
-use std::fs;
+use std::io::{Read, ErrorKind};
+use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -30,6 +30,7 @@ use blockchain::BlockChain;
 use client::{Client, ChainInfo, ClientIoMessage};
 use engines::EthEngine;
 use error::Error;
+use hash::keccak;
 use ids::BlockId;
 
 use io::IoChannel;
@@ -240,6 +241,7 @@ pub struct Service {
 	progress: super::Progress,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,
+	ready: AtomicBool,
 }
 
 impl Service {
@@ -261,6 +263,7 @@ impl Service {
 			progress: Default::default(),
 			taking_snapshot: AtomicBool::new(false),
 			restoring_snapshot: AtomicBool::new(false),
+			ready: AtomicBool::new(false),
 		};
 
 		// create the root snapshot dir if it doesn't exist.
@@ -271,7 +274,14 @@ impl Service {
 		}
 
 		// delete the temporary restoration dir if it does exist.
-		if let Err(e) = fs::remove_dir_all(service.restoration_dir()) {
+		// if let Err(e) = fs::remove_dir_all(service.restoration_dir()) {
+		// 	if e.kind() != ErrorKind::NotFound {
+		// 		return Err(e.into())
+		// 	}
+		// }
+
+		// delete the temporary restoration DB dir if it does exist.
+		if let Err(e) = fs::remove_dir_all(service.restoration_db()) {
 			if e.kind() != ErrorKind::NotFound {
 				return Err(e.into())
 			}
@@ -322,6 +332,13 @@ impl Service {
 	fn temp_recovery_dir(&self) -> PathBuf {
 		let mut dir = self.restoration_dir();
 		dir.push("temp");
+		dir
+	}
+
+	// previous temporary snapshot recovery path.
+	fn prev_chunks_dir(&self) -> PathBuf {
+		let mut dir = self.snapshot_root.clone();
+		dir.push("prev_chunks");
 		dir
 	}
 
@@ -406,55 +423,133 @@ impl Service {
 	/// Initialize the restoration synchronously.
 	/// The recover flag indicates whether to recover the restored snapshot.
 	pub fn init_restore(&self, manifest: ManifestData, recover: bool) -> Result<(), Error> {
+		self.ready.store(false, Ordering::SeqCst);
+
 		let rest_dir = self.restoration_dir();
-
-		let mut res = self.restoration.lock();
-
-		self.state_chunks.store(0, Ordering::SeqCst);
-		self.block_chunks.store(0, Ordering::SeqCst);
-
-		// tear down existing restoration.
-		*res = None;
+		let rest_db = self.restoration_db();
+		let recovery_temp = self.temp_recovery_dir();
+		let prev_chunks = self.prev_chunks_dir();
 
 		// delete and restore the restoration dir.
-		if let Err(e) = fs::remove_dir_all(&rest_dir) {
+		if let Err(e) = fs::remove_dir_all(&prev_chunks) {
 			match e.kind() {
 				ErrorKind::NotFound => {},
 				_ => return Err(e.into()),
 			}
 		}
 
-		fs::create_dir_all(&rest_dir)?;
+		// Move the previous recovery temp directory
+		// to `prev_chunks` to be able to restart restoring
+		// with previously downloaded blocks
+		fs::rename(&recovery_temp, &prev_chunks)?;
 
-		// make new restoration.
-		let writer = match recover {
-			true => Some(LooseWriter::new(self.temp_recovery_dir())?),
-			false => None
-		};
+		let block_hashes = manifest.block_hashes.clone();
+		let state_hashes = manifest.state_hashes.clone();
 
-		let params = RestorationParams {
-			manifest: manifest,
-			pruning: self.pruning,
-			db: self.restoration_db_handler.open(&self.restoration_db())?,
-			writer: writer,
-			genesis: &self.genesis_block,
-			guard: Guard::new(rest_dir),
-			engine: &*self.engine,
-		};
+		{
+			let mut res = self.restoration.lock();
 
-		let state_chunks = params.manifest.state_hashes.len();
-		let block_chunks = params.manifest.block_hashes.len();
+			self.state_chunks.store(0, Ordering::SeqCst);
+			self.block_chunks.store(0, Ordering::SeqCst);
 
-		*res = Some(Restoration::new(params)?);
+			// tear down existing restoration.
+			*res = None;
 
-		*self.status.lock() = RestorationStatus::Ongoing {
-			state_chunks: state_chunks as u32,
-			block_chunks: block_chunks as u32,
-			state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
-			block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
-		};
+			// delete and restore the restoration dir.
+			if let Err(e) = fs::remove_dir_all(&rest_dir) {
+				match e.kind() {
+					ErrorKind::NotFound => {},
+					_ => return Err(e.into()),
+				}
+			}
+
+			fs::create_dir_all(&rest_dir)?;
+
+			// make new restoration.
+			let writer = match recover {
+				true => Some(LooseWriter::new(self.temp_recovery_dir())?),
+				false => None
+			};
+
+			let params = RestorationParams {
+				manifest: manifest,
+				pruning: self.pruning,
+				db: self.restoration_db_handler.open(&self.restoration_db())?,
+				writer: writer,
+				genesis: &self.genesis_block,
+				guard: Guard::new(rest_db),
+				engine: &*self.engine,
+			};
+
+			let state_chunks = state_hashes.len();
+			let block_chunks = block_hashes.len();
+
+			*res = Some(Restoration::new(params)?);
+
+			*self.status.lock() = RestorationStatus::Ongoing {
+				state_chunks: state_chunks as u32,
+				block_chunks: block_chunks as u32,
+				state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
+				block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
+			};
+		}
 
 		self.restoring_snapshot.store(true, Ordering::SeqCst);
+
+		// Restore previous snapshot chunks
+		if let Some(files) = fs::read_dir(prev_chunks.as_path()).ok() {
+			let mut num_temp_chunks = 0;
+
+			for prev_chunk_file in files {
+				if let Some(file) = prev_chunk_file.ok() {
+					let path = file.path();
+
+					match File::open(path.clone()) {
+						Ok(mut file) => {
+							let mut buffer = Vec::new();
+							if let Err(_) = file.read_to_end(&mut buffer) {
+								continue;
+							}
+
+							let hash = keccak(&buffer);
+
+							let (is_valid, is_state) = if block_hashes.contains(&hash) {
+								(true, false)
+							} else if state_hashes.contains(&hash) {
+								(true, true)
+							} else {
+								(false, false)
+							};
+
+							trace!(target: "snapshot",
+								"Found chunk hash={:?} ; path={:?} ; is_valid={} ; is_state={}",
+								hash, path, is_valid, is_state
+							);
+
+							if !is_valid {
+								continue;
+							}
+
+							if let Err(e) = self.feed_chunk(hash, &buffer, is_state) {
+								trace!(target: "snapshot", "Error feeding chunk: {:?}", e);
+								continue;
+							}
+
+							trace!(target: "snapshot", "Fed chunk {:?}", hash);
+							num_temp_chunks += 1;
+						},
+						_ => {}
+					};
+				}
+			}
+
+			trace!(target:"snapshot", "Finishing restoring {} previous chunks", num_temp_chunks);
+		}
+
+		// Remove the prev temp directory
+		fs::remove_dir_all(&prev_chunks).ok();
+		self.ready.store(true, Ordering::SeqCst);
+
 		Ok(())
 	}
 
@@ -492,6 +587,7 @@ impl Service {
 
 		let _ = fs::remove_dir_all(self.restoration_dir());
 		*self.status.lock() = RestorationStatus::Inactive;
+		self.ready.store(false, Ordering::SeqCst);
 
 		Ok(())
 	}
@@ -503,7 +599,10 @@ impl Service {
 			let mut restoration = self.restoration.lock();
 
 			match self.status() {
-				RestorationStatus::Inactive | RestorationStatus::Failed => return Ok(()),
+				RestorationStatus::Inactive | RestorationStatus::Failed => {
+					trace!(target: "snapshot", "Tried to restore chunk {:x} while inactive or failed", hash);
+					return Ok(());
+				},
 				RestorationStatus::Ongoing { .. } => {
 					let (res, db) = {
 						let rest = match *restoration {
@@ -583,6 +682,32 @@ impl SnapshotService for Service {
 		self.reader.read().as_ref().and_then(|r| r.chunk(hash).ok())
 	}
 
+	fn initializing(&self) -> bool {
+		!self.ready.load(Ordering::SeqCst)
+	}
+
+	fn completed_chunks(&self) -> Option<Vec<H256>> {
+		let restoration = self.restoration.lock();
+
+		match *restoration {
+			Some(ref restoration) => {
+				let completed_chunks = restoration.manifest.block_hashes
+					.iter()
+					.filter(|h| !restoration.block_chunks_left.contains(h))
+					.chain(
+						restoration.manifest.state_hashes
+							.iter()
+							.filter(|h| !restoration.state_chunks_left.contains(h))
+					)
+					.map(|h| *h)
+					.collect();
+
+				Some(completed_chunks)
+			},
+			None => None,
+		}
+	}
+
 	fn status(&self) -> RestorationStatus {
 		let mut cur_status = self.status.lock();
 		if let RestorationStatus::Ongoing { ref mut state_chunks_done, ref mut block_chunks_done, .. } = *cur_status {
@@ -600,7 +725,9 @@ impl SnapshotService for Service {
 	}
 
 	fn abort_restore(&self) {
+		trace!(target: "snapshot", "Aborting restore");
 		self.restoring_snapshot.store(false, Ordering::SeqCst);
+		self.ready.store(false, Ordering::SeqCst);
 		*self.restoration.lock() = None;
 		*self.status.lock() = RestorationStatus::Inactive;
 	}
