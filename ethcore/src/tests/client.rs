@@ -36,6 +36,7 @@ use views::BlockView;
 use ethkey::KeyPair;
 use transaction::{PendingTransaction, Transaction, Action, Condition};
 use miner::MinerService;
+use rlp::{RlpStream, EMPTY_LIST_RLP};
 use tempdir::TempDir;
 
 #[test]
@@ -110,6 +111,25 @@ fn imports_good_block() {
 	let block = client.block_header(BlockId::Number(1)).unwrap();
 	assert!(!block.into_inner().is_empty());
 }
+
+#[test]
+fn fails_to_import_block_with_invalid_rlp() {
+	use error::{BlockImportError, BlockImportErrorKind};
+
+	let client = generate_dummy_client(6);
+	let mut rlp = RlpStream::new_list(3);
+	rlp.append_raw(&EMPTY_LIST_RLP, 1); // empty header
+	rlp.append_raw(&EMPTY_LIST_RLP, 1);
+	rlp.append_raw(&EMPTY_LIST_RLP, 1);
+	let invalid_header_block = rlp.out();
+
+	match client.import_block(invalid_header_block) {
+		Err(BlockImportError(BlockImportErrorKind::Decoder(_), _)) => (), // all good
+		Err(_) => panic!("Should fail with a decoder error"),
+		Ok(_) => panic!("Should not import block with invalid header"),
+	}
+}
+
 
 #[test]
 fn query_none_block() {

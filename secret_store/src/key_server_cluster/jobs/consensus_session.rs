@@ -232,38 +232,42 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 	}
 
 	/// When error is received from node.
-	pub fn on_node_error(&mut self, node: &NodeId) -> Result<bool, Error> {
+	pub fn on_node_error(&mut self, node: &NodeId, error: Error) -> Result<bool, Error> {
 		let is_self_master = self.meta.master_node_id == self.meta.self_node_id;
 		let is_node_master = self.meta.master_node_id == *node;
 		let (is_restart_needed, timeout_result) = match self.state {
 			ConsensusSessionState::WaitingForInitialization if is_self_master => {
 				// it is strange to receive error before session is initialized && slave doesn't know access_key
-				// => fatal error
+				// => unreachable
 				self.state = ConsensusSessionState::Failed;
 				(false, Err(Error::ConsensusUnreachable))
 			}
 			ConsensusSessionState::WaitingForInitialization if is_node_master => {
-				// can not establish consensus
-				// => fatal error
+				// error from master node before establishing consensus
+				// => unreachable
 				self.state = ConsensusSessionState::Failed;
-				(false, Err(Error::ConsensusUnreachable))
+				(false, Err(if !error.is_non_fatal() {
+					Error::ConsensusUnreachable
+				} else {
+					Error::ConsensusTemporaryUnreachable
+				}))
 			},
 			ConsensusSessionState::EstablishingConsensus => {
 				debug_assert!(is_self_master);
 
 				// consensus still can be established
 				// => try to live without this node
-				(false, self.consensus_job.on_node_error(node))
+				(false, self.consensus_job.on_node_error(node, error))
 			},
 			ConsensusSessionState::ConsensusEstablished => {
 				// we could try to continue without this node, if enough nodes left
-				(false, self.consensus_job.on_node_error(node))
+				(false, self.consensus_job.on_node_error(node, error))
 			},
 			ConsensusSessionState::WaitingForPartialResults => {
 				// check if *current* computation job can continue without this node
 				let is_computation_node = self.computation_job.as_mut()
 					.expect("WaitingForPartialResults state is only set when computation_job is created; qed")
-					.on_node_error(node)
+					.on_node_error(node, error.clone())
 					.is_err();
 				if !is_computation_node {
 					// it is not used by current computation job
@@ -275,7 +279,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 					self.consensus_group.clear();
 					self.state = ConsensusSessionState::EstablishingConsensus;
 
-					let consensus_result = self.consensus_job.on_node_error(node);
+					let consensus_result = self.consensus_job.on_node_error(node, error);
 					let is_consensus_established = self.consensus_job.state() == JobSessionState::Finished;
 					(is_consensus_established, consensus_result)
 				}
@@ -298,7 +302,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 
 				self.consensus_group.clear();
 				self.state = ConsensusSessionState::EstablishingConsensus;
-				return self.process_result(Err(Error::ConsensusUnreachable)).map(|_| unreachable!());
+				return self.process_result(Err(Error::ConsensusTemporaryUnreachable)).map(|_| unreachable!());
 			},
 			// in all other cases - just ignore error
 			ConsensusSessionState::Finished | ConsensusSessionState::Failed => return Ok(false),
@@ -312,7 +316,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 
 		self.consensus_group.clear();
 		for timeouted_node in timeouted_nodes {
-			let timeout_result = self.consensus_job.on_node_error(&timeouted_node);
+			let timeout_result = self.consensus_job.on_node_error(&timeouted_node, Error::NodeDisconnected);
 			self.state = ConsensusSessionState::EstablishingConsensus;
 			self.process_result(timeout_result)?;
 		}
@@ -557,29 +561,35 @@ mod tests {
 	#[test]
 	fn consensus_session_fails_if_node_error_received_by_uninitialized_master() {
 		let mut session = make_master_consensus_session(0, None, None);
-		assert_eq!(session.on_node_error(&NodeId::from(2)), Err(Error::ConsensusUnreachable));
+		assert_eq!(session.on_node_error(&NodeId::from(2), Error::AccessDenied), Err(Error::ConsensusUnreachable));
 		assert_eq!(session.state(), ConsensusSessionState::Failed);
 	}
 
 	#[test]
 	fn consensus_session_fails_if_node_error_received_by_uninitialized_slave_from_master() {
 		let mut session = make_slave_consensus_session(0, None);
-		assert_eq!(session.on_node_error(&NodeId::from(1)), Err(Error::ConsensusUnreachable));
+		assert_eq!(session.on_node_error(&NodeId::from(1), Error::AccessDenied), Err(Error::ConsensusUnreachable));
 		assert_eq!(session.state(), ConsensusSessionState::Failed);
+	}
+
+	#[test]
+	fn consensus_sessions_fails_with_temp_error_if_node_error_received_by_uninitialized_slave_from_master() {
+		let mut session = make_slave_consensus_session(0, None);
+		assert_eq!(session.on_node_error(&NodeId::from(1), Error::NodeDisconnected).unwrap_err(), Error::ConsensusTemporaryUnreachable);
 	}
 
 	#[test]
 	fn consensus_session_continues_if_node_error_received_by_master_during_establish_and_enough_nodes_left() {
 		let mut session = make_master_consensus_session(1, None, None);
 		session.initialize(vec![NodeId::from(1), NodeId::from(2), NodeId::from(3)].into_iter().collect()).unwrap();
-		assert_eq!(session.on_node_error(&NodeId::from(2)), Ok(false));
+		assert_eq!(session.on_node_error(&NodeId::from(2), Error::AccessDenied), Ok(false));
 	}
 
 	#[test]
 	fn consensus_session_fails_if_node_error_received_by_master_during_establish_and_not_enough_nodes_left() {
 		let mut session = make_master_consensus_session(1, None, None);
 		session.initialize(vec![NodeId::from(1), NodeId::from(2)].into_iter().collect()).unwrap();
-		assert_eq!(session.on_node_error(&NodeId::from(2)), Err(Error::ConsensusUnreachable));
+		assert_eq!(session.on_node_error(&NodeId::from(2), Error::AccessDenied), Err(Error::ConsensusUnreachable));
 		assert_eq!(session.state(), ConsensusSessionState::Failed);
 	}
 
@@ -590,7 +600,7 @@ mod tests {
 		session.on_consensus_message(&NodeId::from(2), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 			is_confirmed: true,
 		})).unwrap();
-		assert_eq!(session.on_node_error(&NodeId::from(2)), Ok(false));
+		assert_eq!(session.on_node_error(&NodeId::from(2), Error::AccessDenied), Ok(false));
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
 	}
 
@@ -601,7 +611,7 @@ mod tests {
 		session.on_consensus_message(&NodeId::from(2), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 			is_confirmed: true,
 		})).unwrap();
-		assert_eq!(session.on_node_error(&NodeId::from(3)), Ok(false));
+		assert_eq!(session.on_node_error(&NodeId::from(3), Error::AccessDenied), Ok(false));
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
 	}
 
@@ -612,7 +622,7 @@ mod tests {
 		session.on_consensus_message(&NodeId::from(2), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 			is_confirmed: true,
 		})).unwrap();
-		assert_eq!(session.on_node_error(&NodeId::from(2)), Err(Error::ConsensusUnreachable));
+		assert_eq!(session.on_node_error(&NodeId::from(2), Error::AccessDenied), Err(Error::ConsensusUnreachable));
 		assert_eq!(session.state(), ConsensusSessionState::Failed);
 	}
 
@@ -627,8 +637,8 @@ mod tests {
 			is_confirmed: true,
 		})).unwrap();
 		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
-		assert_eq!(session.on_node_error(&NodeId::from(3)), Ok(false));
-		assert_eq!(session.on_node_error(&NodeId::from(4)), Ok(false));
+		assert_eq!(session.on_node_error(&NodeId::from(3), Error::AccessDenied), Ok(false));
+		assert_eq!(session.on_node_error(&NodeId::from(4), Error::AccessDenied), Ok(false));
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
 	}
 
@@ -645,12 +655,12 @@ mod tests {
 		session.on_consensus_message(&NodeId::from(3), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 			is_confirmed: true,
 		})).unwrap();
-		assert_eq!(session.on_node_error(&NodeId::from(2)), Ok(true));
+		assert_eq!(session.on_node_error(&NodeId::from(2), Error::AccessDenied), Ok(true));
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
 		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
 
-		assert_eq!(session.on_node_error(&NodeId::from(3)), Ok(false));
+		assert_eq!(session.on_node_error(&NodeId::from(3), Error::AccessDenied), Ok(false));
 		assert_eq!(session.state(), ConsensusSessionState::EstablishingConsensus);
 	}
 
@@ -662,14 +672,14 @@ mod tests {
 			is_confirmed: true,
 		})).unwrap();
 		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
-		assert_eq!(session.on_node_error(&NodeId::from(2)), Err(Error::ConsensusUnreachable));
+		assert_eq!(session.on_node_error(&NodeId::from(2), Error::AccessDenied), Err(Error::ConsensusUnreachable));
 		assert_eq!(session.state(), ConsensusSessionState::Failed);
 	}
 
 	#[test]
 	fn consensus_session_fails_if_uninitialized_session_timeouts() {
 		let mut session = make_master_consensus_session(1, None, None);
-		assert_eq!(session.on_session_timeout(), Err(Error::ConsensusUnreachable));
+		assert_eq!(session.on_session_timeout(), Err(Error::ConsensusTemporaryUnreachable));
 	}
 
 	#[test]
@@ -759,13 +769,13 @@ mod tests {
 			is_confirmed: true,
 		})).unwrap();
 
-		assert_eq!(session.on_node_error(&NodeId::from(2)).unwrap(), true);
+		assert_eq!(session.on_node_error(&NodeId::from(2), Error::AccessDenied).unwrap(), true);
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
 
 		session.disseminate_jobs(SquaredSumJobExecutor, DummyJobTransport::default(), false).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForPartialResults);
 
-		assert_eq!(session.on_node_error(&NodeId::from(3)).unwrap(), false);
+		assert_eq!(session.on_node_error(&NodeId::from(3), Error::AccessDenied).unwrap(), false);
 		assert_eq!(session.state(), ConsensusSessionState::EstablishingConsensus);
 
 		session.on_consensus_message(&NodeId::from(4), &ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {

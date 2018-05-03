@@ -547,8 +547,9 @@ impl ClusterSession for AdminSession {
 	}
 }
 pub fn create_cluster_view(data: &Arc<ClusterData>, requires_all_connections: bool) -> Result<Arc<Cluster>, Error> {
+	let disconnected_nodes_count = data.connections.disconnected_nodes().len();
 	if requires_all_connections {
-		if !data.connections.disconnected_nodes().is_empty() {
+		if disconnected_nodes_count != 0 {
 			return Err(Error::NodeDisconnected);
 		}
 	}
@@ -556,7 +557,8 @@ pub fn create_cluster_view(data: &Arc<ClusterData>, requires_all_connections: bo
 	let mut connected_nodes = data.connections.connected_nodes();
 	connected_nodes.insert(data.self_key_pair.public().clone());
 
-	Ok(Arc::new(ClusterView::new(data.clone(), connected_nodes)))
+	let connected_nodes_count = connected_nodes.len();
+	Ok(Arc::new(ClusterView::new(data.clone(), connected_nodes, connected_nodes_count + disconnected_nodes_count)))
 }
 
 #[cfg(test)]

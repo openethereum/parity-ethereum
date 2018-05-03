@@ -108,7 +108,7 @@ impl JobExecutor for EcdsaSigningJob {
 
 	fn process_partial_request(&mut self, partial_request: EcdsaPartialSigningRequest) -> Result<JobPartialRequestAction<EcdsaPartialSigningResponse>, Error> {
 		let inversed_nonce_coeff_mul_nonce = math::compute_secret_mul(&partial_request.inversed_nonce_coeff, &self.inv_nonce_share)?;
-		let key_version = self.key_share.version(&self.key_version).map_err(|e| Error::KeyStorage(e.into()))?;
+		let key_version = self.key_share.version(&self.key_version)?;
 		let signature_r = math::compute_ecdsa_r(&self.nonce_public)?;
 		let inv_nonce_mul_secret = math::compute_secret_mul(&inversed_nonce_coeff_mul_nonce, &key_version.secret_share)?;
 		let partial_signature_s = math::compute_ecdsa_s_share(
@@ -134,7 +134,7 @@ impl JobExecutor for EcdsaSigningJob {
 	}
 
 	fn compute_response(&self, partial_responses: &BTreeMap<NodeId, EcdsaPartialSigningResponse>) -> Result<Signature, Error> {
-		let key_version = self.key_share.version(&self.key_version).map_err(|e| Error::KeyStorage(e.into()))?;
+		let key_version = self.key_share.version(&self.key_version)?;
 		if partial_responses.keys().any(|n| !key_version.id_numbers.contains_key(n)) {
 			return Err(Error::InvalidMessage);
 		}
