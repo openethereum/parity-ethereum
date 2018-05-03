@@ -197,16 +197,16 @@ impl From<ethjson::spec::Params> for CommonParams {
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
 			validate_chain_id_transition: p.validate_chain_id_transition.map_or(0, Into::into),
-			eip86_transition: p.eip86_transition.map_or(
-				BlockNumber::max_value(),
+			eip86_transition: p.eip86_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			eip140_transition: p.eip140_transition.map_or(
-				BlockNumber::max_value(),
+			eip140_transition: p.eip140_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			eip210_transition: p.eip210_transition.map_or(
-				BlockNumber::max_value(),
+			eip210_transition: p.eip210_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
 			eip210_contract_address: p.eip210_contract_address.map_or(0xf0.into(), Into::into),
@@ -219,24 +219,24 @@ impl From<ethjson::spec::Params> for CommonParams {
 				Into::into,
 			),
 			eip210_contract_gas: p.eip210_contract_gas.map_or(1000000.into(), Into::into),
-			eip211_transition: p.eip211_transition.map_or(
-				BlockNumber::max_value(),
+			eip211_transition: p.eip211_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			eip145_transition: p.eip145_transition.map_or(
-				BlockNumber::max_value(),
+			eip145_transition: p.eip145_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			eip214_transition: p.eip214_transition.map_or(
-				BlockNumber::max_value(),
+			eip214_transition: p.eip214_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			eip658_transition: p.eip658_transition.map_or(
-				BlockNumber::max_value(),
+			eip658_transition: p.eip658_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			dust_protection_transition: p.dust_protection_transition.map_or(
-				BlockNumber::max_value(),
+			dust_protection_transition: p.dust_protection_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
@@ -247,8 +247,8 @@ impl From<ethjson::spec::Params> for CommonParams {
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			max_code_size_transition: p.max_code_size_transition.map_or(0, Into::into),
 			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
-			wasm_activation_transition: p.wasm_activation_transition.map_or(
-				BlockNumber::max_value(),
+			wasm_activation_transition: p.wasm_activation_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into
 			),
 		}
