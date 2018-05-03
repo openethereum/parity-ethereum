@@ -25,7 +25,7 @@ use network::{NetworkProtocolHandler, NetworkContext, HostInfo, PeerId, Protocol
 use ethereum_types::{H256, H512, U256};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
-use ethcore::client::{BlockChainClient, ChainNotify, ChainMessageType};
+use ethcore::client::{BlockChainClient, ChainNotify, ChainRoute, ChainMessageType};
 use ethcore::snapshot::SnapshotService;
 use ethcore::header::BlockNumber;
 use sync_io::NetSyncIo;
@@ -409,8 +409,7 @@ impl ChainNotify for EthSync {
 	fn new_blocks(&self,
 		imported: Vec<H256>,
 		invalid: Vec<H256>,
-		enacted: Vec<H256>,
-		retracted: Vec<H256>,
+		route: ChainRoute,
 		sealed: Vec<H256>,
 		proposed: Vec<Bytes>,
 		_duration: Duration)
@@ -420,6 +419,7 @@ impl ChainNotify for EthSync {
 		self.network.with_context(self.subprotocol_name, |context| {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service,
 				&self.eth_handler.overlay);
+			let (enacted, retracted) = route.to_enacted_retracted();
 			self.eth_handler.sync.write().chain_new_blocks(
 				&mut sync_io,
 				&imported,
