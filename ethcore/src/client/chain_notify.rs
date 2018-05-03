@@ -30,6 +30,7 @@ pub enum ChainMessageType {
 }
 
 /// Route type to indicate whether it is enacted or retracted.
+#[derive(Clone)]
 pub enum ChainRouteType {
 	/// Enacted block
 	Enacted,

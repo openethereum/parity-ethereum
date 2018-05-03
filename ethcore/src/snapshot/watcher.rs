@@ -17,7 +17,7 @@
 //! Watcher for snapshot-related chain events.
 
 use parking_lot::Mutex;
-use client::{BlockInfo, Client, ChainNotify, ClientIoMessage};
+use client::{BlockInfo, Client, ChainNotify, ChainRouteType, ClientIoMessage};
 use ids::BlockId;
 
 use io::IoChannel;
@@ -103,8 +103,7 @@ impl ChainNotify for Watcher {
 		&self,
 		imported: Vec<H256>,
 		_: Vec<H256>,
-		_: Vec<H256>,
-		_: Vec<H256>,
+		_: Vec<(H256, ChainRouteType)>,
 		_: Vec<H256>,
 		_: Vec<Bytes>,
 		_duration: Duration)
@@ -173,7 +172,6 @@ mod tests {
 
 		watcher.new_blocks(
 			hashes,
-			vec![],
 			vec![],
 			vec![],
 			vec![],
