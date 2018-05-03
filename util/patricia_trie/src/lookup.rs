@@ -55,29 +55,32 @@ impl<'a, Q: Query> Lookup<'a, Q> {
 			// without incrementing the depth.
 			let mut node_data = &node_data[..];
 			loop {
-				match Node::decoded(node_data).expect("rlp read from db; qed") {
-					Node::Leaf(slice, value) => {
-						return Ok(match slice == key {
-							true => Some(self.query.decode(value)),
-							false => None,
-						})
-					}
-					Node::Extension(slice, item) => {
-						if key.starts_with(&slice) {
-							node_data = item;
-							key = key.mid(slice.len());
-						} else {
-							return Ok(None)
+				match Node::decoded(node_data) {
+					Ok(decoded_node) => match decoded_node {
+						Node::Leaf(slice, value) => {
+							return Ok(match slice == key {
+								true => Some(self.query.decode(value)),
+								false => None,
+							})
 						}
-					}
-					Node::Branch(children, value) => match key.is_empty() {
-						true => return Ok(value.map(move |val| self.query.decode(val))),
-						false => {
-							node_data = children[key.at(0) as usize];
-							key = key.mid(1);
+						Node::Extension(slice, item) => {
+							if key.starts_with(&slice) {
+								node_data = item;
+								key = key.mid(slice.len());
+							} else {
+								return Ok(None)
+							}
 						}
+						Node::Branch(children, value) => match key.is_empty() {
+							true => return Ok(value.map(move |val| self.query.decode(val))),
+							false => {
+								node_data = children[key.at(0) as usize];
+								key = key.mid(1);
+							}
+						},
+						_ => return Ok(None),
 					},
-					_ => return Ok(None),
+					_ => return Ok(None)
 				}
 
 				// check if new node data is inline or hash.
