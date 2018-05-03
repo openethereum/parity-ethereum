@@ -556,42 +556,54 @@ mod tests {
 	}
 
 	#[test]
-	fn table_failure_percentage_order() {
+	fn table_last_contact_order() {
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let node3 = Node::from_str("enode://c979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let node4 = Node::from_str("enode://d979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
+		let node5 = Node::from_str("enode://e979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
+		let node6 = Node::from_str("enode://f979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let id1 = H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let id2 = H512::from_str("b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let id3 = H512::from_str("c979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let id4 = H512::from_str("d979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
+		let id5 = H512::from_str("e979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
+		let id6 = H512::from_str("f979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let mut table = NodeTable::new(None);
 
 		table.add_node(node1);
 		table.add_node(node2);
 		table.add_node(node3);
 		table.add_node(node4);
+		table.add_node(node5);
+		table.add_node(node6);
 
-		// node 1 - failure percentage 100%
-		table.get_mut(&id1).unwrap().attempts = 2;
+		// failures - nodes 1 & 2
 		table.note_failure(&id1);
-		table.note_failure(&id1);
-
-		// node2 - failure percentage 33%
-		table.get_mut(&id2).unwrap().attempts = 3;
 		table.note_failure(&id2);
 
-		// node3 - failure percentage 0%
-		table.get_mut(&id3).unwrap().attempts = 1;
+		// success - nodes 3 & 4
+		table.note_success(&id3);
+		table.note_success(&id4);
 
-		// node4 - failure percentage 50% (default when no attempts)
+		// success - node 5 (old contact)
+		table.get_mut(&id5).unwrap().last_contact = Some(NodeContact::Success(time::UNIX_EPOCH));
+
+		// unknown - node 6
 
 		let r = table.nodes(IpFilter::default());
 
-		assert_eq!(r[0][..], id3[..]);
-		assert_eq!(r[1][..], id2[..]);
-		assert_eq!(r[2][..], id4[..]);
-		assert_eq!(r[3][..], id1[..]);
+		assert_eq!(r[0][..], id4[..]); // most recent success
+		assert_eq!(r[1][..], id3[..]);
+
+		// unknown (old contacts and new nodes), randomly shuffled
+		assert!(
+			r[2][..] == id5[..] && r[3][..] == id6[..] ||
+			r[2][..] == id6[..] && r[3][..] == id5[..]
+		);
+
+		assert_eq!(r[4][..], id1[..]); // oldest failure
+		assert_eq!(r[5][..], id2[..]);
 	}
 
 	#[test]
@@ -599,23 +611,27 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
+		let node3 = Node::from_str("enode://c979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let id1 = H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let id2 = H512::from_str("b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
+		let id3 = H512::from_str("c979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
+
 		{
 			let mut table = NodeTable::new(Some(tempdir.path().to_str().unwrap().to_owned()));
 			table.add_node(node1);
 			table.add_node(node2);
+			table.add_node(node3);
 
-			table.get_mut(&id1).unwrap().attempts = 1;
-			table.get_mut(&id2).unwrap().attempts = 1;
-			table.note_failure(&id2);
+			table.note_success(&id2);
+			table.note_failure(&id3);
 		}
 
 		{
 			let table = NodeTable::new(Some(tempdir.path().to_str().unwrap().to_owned()));
 			let r = table.nodes(IpFilter::default());
-			assert_eq!(r[0][..], id1[..]);
-			assert_eq!(r[1][..], id2[..]);
+			assert_eq!(r[0][..], id2[..]); // latest success
+			assert_eq!(r[1][..], id1[..]); // unknown
+			assert_eq!(r[2][..], id3[..]); // oldest failure
 		}
 	}
 
