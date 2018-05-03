@@ -463,7 +463,9 @@ mod json {
 
 	#[derive(Serialize, Deserialize)]
 	pub enum NodeContact {
+		#[serde(rename = "success")]
 		Success(u64),
+		#[serde(rename = "failure")]
 		Failure(u64),
 	}
 
