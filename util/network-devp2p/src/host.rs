@@ -105,10 +105,13 @@ pub struct NetworkContext<'s> {
 
 impl<'s> NetworkContext<'s> {
 	/// Create a new network IO access point. Takes references to all the data that can be updated within the IO handler.
-	fn new(io: &'s IoContext<NetworkIoMessage>,
+	fn new(
+		io: &'s IoContext<NetworkIoMessage>,
 		protocol: ProtocolId,
-		session: Option<SharedSession>, sessions: Arc<RwLock<Slab<SharedSession>>>,
-		reserved_peers: &'s HashSet<NodeId>) -> NetworkContext<'s> {
+		session: Option<SharedSession>,
+		sessions: Arc<RwLock<Slab<SharedSession>>>,
+		reserved_peers: &'s HashSet<NodeId>,
+	) -> NetworkContext<'s> {
 		let id = session.as_ref().map(|s| s.lock().token());
 		NetworkContext {
 			io: io,
@@ -585,10 +588,8 @@ impl Host {
 			let address = {
 				let mut nodes = self.nodes.write();
 				if let Some(node) = nodes.get_mut(id) {
-					node.attempts += 1;
 					node.endpoint.address
-				}
-				else {
+				} else {
 					debug!(target: "network", "Connection to expired node aborted");
 					return;
 				}
@@ -754,6 +755,10 @@ impl Host {
 									}
 								}
 							}
+
+							// Note connection success
+							self.nodes.write().note_success(&id);
+
 							for (p, _) in self.handlers.read().iter() {
 								if s.have_capability(*p) {
 									ready_data.push(*p);

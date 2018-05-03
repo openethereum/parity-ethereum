@@ -21,6 +21,8 @@ use std::net::{SocketAddr, ToSocketAddrs, SocketAddrV4, SocketAddrV6, Ipv4Addr, 
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::{fs, mem, slice};
+use std::time::{self, Duration, SystemTime};
+use rand::{self, Rng};
 use ethereum_types::H512;
 use rlp::{Rlp, RlpStream, DecoderError};
 use network::{Error, ErrorKind, AllowIP, IpFilter};
@@ -128,21 +130,56 @@ impl FromStr for NodeEndpoint {
 	}
 }
 
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum PeerType {
 	_Required,
 	Optional
 }
 
+/// A type for representing an interaction (contact) with a node at a given time
+/// that was either a success or a failure.
+#[derive(Clone, Copy, Debug)]
+pub enum NodeContact {
+	Success(SystemTime),
+	Failure(SystemTime),
+}
+
+impl NodeContact {
+	fn success() -> NodeContact {
+		NodeContact::Success(SystemTime::now())
+	}
+
+	fn failure() -> NodeContact {
+		NodeContact::Failure(SystemTime::now())
+	}
+
+	fn time(&self) -> SystemTime {
+		match *self {
+			NodeContact::Success(t) | NodeContact::Failure(t) => t
+		}
+	}
+
+	/// Filters and old contact, returning `None` if it happened longer than a
+	/// week ago.
+	fn recent(&self) -> Option<&NodeContact> {
+		let t = self.time();
+		if let Ok(d) = t.elapsed() {
+			if d < Duration::from_secs(60 * 60 * 24 * 7) {
+				return Some(self);
+			}
+		}
+
+		None
+	}
+}
+
+#[derive(Debug)]
 pub struct Node {
 	pub id: NodeId,
 	pub endpoint: NodeEndpoint,
 	pub peer_type: PeerType,
-	pub attempts: u32,
-	pub failures: u32,
+	pub last_contact: Option<NodeContact>,
 }
-
-const DEFAULT_FAILURE_PERCENTAGE: usize = 50;
 
 impl Node {
 	pub fn new(id: NodeId, endpoint: NodeEndpoint) -> Node {
@@ -150,18 +187,7 @@ impl Node {
 			id: id,
 			endpoint: endpoint,
 			peer_type: PeerType::Optional,
-			attempts: 0,
-			failures: 0,
-		}
-	}
-
-	/// Returns the node's failure percentage (0..100) in buckets of 5%. If there are 0 connection attempts for this
-	/// node the default failure percentage is returned (50%).
-	pub fn failure_percentage(&self) -> usize {
-		if self.attempts == 0 {
-			DEFAULT_FAILURE_PERCENTAGE
-		} else {
-			(self.failures * 100 / self.attempts / 5 * 5) as usize
+			last_contact: None,
 		}
 	}
 }
@@ -191,8 +217,7 @@ impl FromStr for Node {
 			id: id,
 			endpoint: endpoint,
 			peer_type: PeerType::Optional,
-			attempts: 0,
-			failures: 0,
+			last_contact: None,
 		})
 	}
 }
@@ -231,28 +256,61 @@ impl NodeTable {
 
 	/// Add a node to table
 	pub fn add_node(&mut self, mut node: Node) {
-		// preserve attempts and failure counter
-		let (attempts, failures) =
-			self.nodes.get(&node.id).map_or((0, 0), |n| (n.attempts, n.failures));
-
-		node.attempts = attempts;
-		node.failures = failures;
-
+		// preserve node last_contact
+		node.last_contact = self.nodes.get(&node.id).and_then(|n| n.last_contact);
 		self.nodes.insert(node.id.clone(), node);
 	}
 
+	/// Returns a list of ordered nodes according to their most recent contact
+	/// and filtering useless nodes. The algorithm for creating the sorted nodes
+	/// is:
+	/// - Contacts that aren't recent (older than 1 week) are discarded
+	/// - (1) Nodes with a successful contact are ordered (most recent success first)
+	/// - (2) Nodes with unknown contact (older than 1 week or new nodes) are randomly shuffled
+	/// - (3) Nodes with a failed contact are ordered (oldest failure first)
+	/// - The final result is the concatenation of (1), (2) and (3)
 	fn ordered_entries(&self) -> Vec<&Node> {
-		let mut refs: Vec<&Node> = self.nodes.values()
-			.filter(|n| !self.useless_nodes.contains(&n.id))
-			.collect();
+		let mut success = Vec::new();
+		let mut failures = Vec::new();
+		let mut unknown = Vec::new();
 
-		refs.sort_by(|a, b| {
-			a.failure_percentage().cmp(&b.failure_percentage())
-				.then_with(|| a.failures.cmp(&b.failures))
-				.then_with(|| b.attempts.cmp(&a.attempts)) // we use reverse ordering for number of attempts
+		let nodes = self.nodes.values()
+			.filter(|n| !self.useless_nodes.contains(&n.id));
+
+		for node in nodes {
+			// discard contact points older that aren't recent
+			match node.last_contact.as_ref().and_then(|c| c.recent()) {
+				Some(&NodeContact::Success(_)) => {
+					success.push(node);
+				},
+				Some(&NodeContact::Failure(_)) => {
+					failures.push(node);
+				},
+				None => {
+					unknown.push(node);
+				},
+			}
+		}
+
+		success.sort_by(|a, b| {
+			let a = a.last_contact.expect("vector only contains values with defined last_contact; qed");
+			let b = b.last_contact.expect("vector only contains values with defined last_contact; qed");
+			// inverse ordering, most recent successes come first
+			b.time().cmp(&a.time())
 		});
 
-		refs
+		failures.sort_by(|a, b| {
+			let a = a.last_contact.expect("vector only contains values with defined last_contact; qed");
+			let b = b.last_contact.expect("vector only contains values with defined last_contact; qed");
+			// normal ordering, most distant failures come first
+			a.time().cmp(&b.time())
+		});
+
+		rand::thread_rng().shuffle(&mut unknown);
+
+		success.append(&mut unknown);
+		success.append(&mut failures);
+		success
 	}
 
 	/// Returns node ids sorted by failure percentage, for nodes with the same failure percentage the absolute number of
@@ -296,10 +354,17 @@ impl NodeTable {
 		}
 	}
 
-	/// Increase failure counte for a node
+	/// Set last contact as failure for a node
 	pub fn note_failure(&mut self, id: &NodeId) {
 		if let Some(node) = self.nodes.get_mut(id) {
-			node.failures += 1;
+			node.last_contact = Some(NodeContact::failure());
+		}
+	}
+
+	/// Set last contact as success for a node
+	pub fn note_success(&mut self, id: &NodeId) {
+		if let Some(node) = self.nodes.get_mut(id) {
+			node.last_contact = Some(NodeContact::success());
 		}
 	}
 
@@ -397,18 +462,35 @@ mod json {
 	}
 
 	#[derive(Serialize, Deserialize)]
+	pub enum NodeContact {
+		Success(u64),
+		Failure(u64),
+	}
+
+	impl NodeContact {
+		pub fn into_node_contact(self) -> super::NodeContact {
+			match self {
+				NodeContact::Success(s) => super::NodeContact::Success(
+					time::UNIX_EPOCH + Duration::from_secs(s)
+				),
+				NodeContact::Failure(s) => super::NodeContact::Failure(
+					time::UNIX_EPOCH + Duration::from_secs(s)
+				),
+			}
+		}
+	}
+
+	#[derive(Serialize, Deserialize)]
 	pub struct Node {
 		pub url: String,
-		pub attempts: u32,
-		pub failures: u32,
+		pub last_contact: Option<NodeContact>,
 	}
 
 	impl Node {
 		pub fn into_node(self) -> Option<super::Node> {
 			match super::Node::from_str(&self.url) {
 				Ok(mut node) => {
-					node.attempts = self.attempts;
-					node.failures = self.failures;
+					node.last_contact = self.last_contact.map(|c| c.into_node_contact());
 					Some(node)
 				},
 				_ => None,
@@ -418,10 +500,18 @@ mod json {
 
 	impl<'a> From<&'a super::Node> for Node {
 		fn from(node: &'a super::Node) -> Self {
+			let last_contact = node.last_contact.and_then(|c| {
+				match c {
+					super::NodeContact::Success(t) =>
+						t.duration_since(time::UNIX_EPOCH).ok().map(|d| NodeContact::Success(d.as_secs())),
+					super::NodeContact::Failure(t) =>
+						t.duration_since(time::UNIX_EPOCH).ok().map(|d| NodeContact::Failure(d.as_secs())),
+				}
+			});
+
 			Node {
 				url: format!("{}", node),
-				attempts: node.attempts,
-				failures: node.failures,
+				last_contact
 			}
 		}
 	}
