@@ -9,7 +9,7 @@
 use std::fmt;
 use std::error::Error as StdError;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// Error concerning the RLP decoder.
 pub enum DecoderError {
 	/// Data has additional bytes at the end of the valid RLP fragment.

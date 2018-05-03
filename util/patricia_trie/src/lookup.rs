@@ -80,7 +80,7 @@ impl<'a, Q: Query> Lookup<'a, Q> {
 						},
 						_ => return Ok(None),
 					},
-					_ => return Ok(None)
+					Err(e) => return Err(Box::new(e.into()))
 				}
 
 				// check if new node data is inline or hash.
