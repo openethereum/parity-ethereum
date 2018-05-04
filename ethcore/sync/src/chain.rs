@@ -120,15 +120,15 @@ known_heap_size!(0, PeerInfo);
 type PacketDecodeError = DecoderError;
 
 /// 63 version of Ethereum protocol.
-pub const ETH_PROTOCOL_VERSION_63: u8 = 63;
+pub const ETH_PROTOCOL_VERSION_63: (u8, u8) = (63, 0x11);
 /// 62 version of Ethereum protocol.
-pub const ETH_PROTOCOL_VERSION_62: u8 = 62;
-/// 1 version of Parity protocol.
-pub const PAR_PROTOCOL_VERSION_1: u8 = 1;
+pub const ETH_PROTOCOL_VERSION_62: (u8, u8) = (62, 0x11);
+/// 1 version of Parity protocol and the packet count.
+pub const PAR_PROTOCOL_VERSION_1: (u8, u8) = (1, 0x15);
 /// 2 version of Parity protocol (consensus messages added).
-pub const PAR_PROTOCOL_VERSION_2: u8 = 2;
+pub const PAR_PROTOCOL_VERSION_2: (u8, u8) = (2, 0x16);
 /// 3 version of Parity protocol (private transactions messages added).
-pub const PAR_PROTOCOL_VERSION_3: u8 = 3;
+pub const PAR_PROTOCOL_VERSION_3: (u8, u8) = (3, 0x18);
 
 const MAX_BODIES_TO_SEND: usize = 256;
 const MAX_HEADERS_TO_SEND: usize = 512;
@@ -162,8 +162,6 @@ const NODE_DATA_PACKET: u8 = 0x0e;
 const GET_RECEIPTS_PACKET: u8 = 0x0f;
 const RECEIPTS_PACKET: u8 = 0x10;
 
-pub const ETH_PACKET_COUNT: u8 = 0x11;
-
 const GET_SNAPSHOT_MANIFEST_PACKET: u8 = 0x11;
 const SNAPSHOT_MANIFEST_PACKET: u8 = 0x12;
 const GET_SNAPSHOT_DATA_PACKET: u8 = 0x13;
@@ -171,8 +169,6 @@ const SNAPSHOT_DATA_PACKET: u8 = 0x14;
 const CONSENSUS_DATA_PACKET: u8 = 0x15;
 const PRIVATE_TRANSACTION_PACKET: u8 = 0x16;
 const SIGNED_PRIVATE_TRANSACTION_PACKET: u8 = 0x17;
-
-pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x18;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
@@ -442,7 +438,7 @@ impl ChainSync {
 		let last_imported_number = self.new_blocks.last_imported_block_number();
 		SyncStatus {
 			state: self.state.clone(),
-			protocol_version: ETH_PROTOCOL_VERSION_63,
+			protocol_version: ETH_PROTOCOL_VERSION_63.0,
 			network_id: self.network_id,
 			start_block_number: self.starting_block,
 			last_imported_block_number: Some(last_imported_number),
@@ -676,8 +672,10 @@ impl ChainSync {
 			trace!(target: "sync", "Peer {} network id mismatch (ours: {}, theirs: {})", peer_id, self.network_id, peer.network_id);
 			return Ok(());
 		}
-		if (warp_protocol && peer.protocol_version != PAR_PROTOCOL_VERSION_1 && peer.protocol_version != PAR_PROTOCOL_VERSION_2 && peer.protocol_version != PAR_PROTOCOL_VERSION_3)
-			|| (!warp_protocol && peer.protocol_version != ETH_PROTOCOL_VERSION_63 && peer.protocol_version != ETH_PROTOCOL_VERSION_62) {
+		if false
+			|| (warp_protocol && (peer.protocol_version < PAR_PROTOCOL_VERSION_1.0 || peer.protocol_version > PAR_PROTOCOL_VERSION_3.0))
+			|| (!warp_protocol && (peer.protocol_version < ETH_PROTOCOL_VERSION_62.0 || peer.protocol_version > ETH_PROTOCOL_VERSION_63.0))
+		{
 			io.disable_peer(peer_id);
 			trace!(target: "sync", "Peer {} unsupported eth protocol ({})", peer_id, peer.protocol_version);
 			return Ok(());
@@ -1479,7 +1477,7 @@ impl ChainSync {
 			}
 			peer.asking = asking;
 			peer.ask_time = Instant::now();
-			let result = if packet_id >= ETH_PACKET_COUNT {
+			let result = if packet_id >= ETH_PROTOCOL_VERSION_63.0 {
 				sync.send_protocol(WARP_SYNC_PROTOCOL_ID, peer_id, packet_id, packet)
 			} else {
 				sync.send(peer_id, packet_id, packet)
@@ -1527,7 +1525,7 @@ impl ChainSync {
 	fn send_status(&mut self, io: &mut SyncIo, peer: PeerId) -> Result<(), network::Error> {
 		let warp_protocol_version = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer);
 		let warp_protocol = warp_protocol_version != 0;
-		let protocol = if warp_protocol { warp_protocol_version } else { ETH_PROTOCOL_VERSION_63 };
+		let protocol = if warp_protocol { warp_protocol_version } else { ETH_PROTOCOL_VERSION_63.0 };
 		trace!(target: "sync", "Sending status to {}, protocol version {}", peer, protocol);
 		let mut packet = RlpStream::new_list(if warp_protocol { 7 } else { 5 });
 		let chain = io.chain().chain_info();
@@ -1959,11 +1957,11 @@ impl ChainSync {
 	}
 
 	fn get_consensus_peers(&self) -> Vec<PeerId> {
-		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_2 { Some(*id) } else { None }).collect()
+		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_2.0 { Some(*id) } else { None }).collect()
 	}
 
 	fn get_private_transaction_peers(&self) -> Vec<PeerId> {
-		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3 { Some(*id) } else { None }).collect()
+		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3.0 { Some(*id) } else { None }).collect()
 	}
 
 	/// propagates latest block to a set of peers
