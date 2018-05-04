@@ -50,6 +50,7 @@ impl Snapshot {
 		}
 	}
 
+	/// Sync the Snapshot completed chunks with the Snapshot Service
 	pub fn sync (&mut self, io: &SyncIo) {
 		if let Some(completed_chunks) = io.snapshot_service().completed_chunks() {
 			self.completed_chunks = HashSet::from_iter(completed_chunks);

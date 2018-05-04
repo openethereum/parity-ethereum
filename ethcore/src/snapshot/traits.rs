@@ -30,8 +30,8 @@ pub trait SnapshotService : Sync + Send {
 	/// `None` indicates warp sync isn't supported by the consensus engine.
 	fn supported_versions(&self) -> Option<(u64, u64)>;
 
-	/// Returns whether the Snapshot Service is still initializing
-	fn initializing(&self) -> bool;
+	/// Returns whether the Snapshot Service restoration is ready
+	fn ready(&self) -> bool;
 
 	/// Returns a list of the completed chunks
 	fn completed_chunks(&self) -> Option<Vec<H256>>;

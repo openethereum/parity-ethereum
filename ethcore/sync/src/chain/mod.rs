@@ -658,9 +658,11 @@ impl ChainSync {
 
 	/// Check if the snapshot service is ready
 	fn is_snapshot_ready(&mut self, io: &SyncIo) -> bool {
-		if !io.snapshot_service().initializing() {
-			trace!(target: "snapshot", "Snapshot Service is done initializing!");
+		if io.snapshot_service().ready() {
+			trace!(target: "snapshot", "Snapshot Service is ready!");
+			// Sync the previously resumed chunks
 			self.snapshot.sync(io);
+			// Move to fetching snapshot data
 			self.state = SyncState::SnapshotData;
 			true
 		} else {

@@ -273,13 +273,6 @@ impl Service {
 			}
 		}
 
-		// delete the temporary restoration dir if it does exist.
-		// if let Err(e) = fs::remove_dir_all(service.restoration_dir()) {
-		// 	if e.kind() != ErrorKind::NotFound {
-		// 		return Err(e.into())
-		// 	}
-		// }
-
 		// delete the temporary restoration DB dir if it does exist.
 		if let Err(e) = fs::remove_dir_all(service.restoration_db()) {
 			if e.kind() != ErrorKind::NotFound {
@@ -335,7 +328,7 @@ impl Service {
 		dir
 	}
 
-	// previous temporary snapshot recovery path.
+	// previous snapshot chunks path.
 	fn prev_chunks_dir(&self) -> PathBuf {
 		let mut dir = self.snapshot_root.clone();
 		dir.push("prev_chunks");
@@ -682,8 +675,8 @@ impl SnapshotService for Service {
 		self.reader.read().as_ref().and_then(|r| r.chunk(hash).ok())
 	}
 
-	fn initializing(&self) -> bool {
-		!self.ready.load(Ordering::SeqCst)
+	fn ready(&self) -> bool {
+		self.ready.load(Ordering::SeqCst)
 	}
 
 	fn completed_chunks(&self) -> Option<Vec<H256>> {
