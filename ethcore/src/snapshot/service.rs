@@ -17,7 +17,7 @@
 //! Snapshot network service implementation.
 
 use std::collections::HashSet;
-use std::io::{Read, ErrorKind};
+use std::io::{self, Read, ErrorKind};
 use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -436,9 +436,6 @@ impl Service {
 		// with previously downloaded blocks
 		fs::rename(&recovery_temp, &prev_chunks)?;
 
-		let block_hashes = manifest.block_hashes.clone();
-		let state_hashes = manifest.state_hashes.clone();
-
 		{
 			let mut res = self.restoration.lock();
 
@@ -465,7 +462,7 @@ impl Service {
 			};
 
 			let params = RestorationParams {
-				manifest: manifest,
+				manifest: manifest.clone(),
 				pruning: self.pruning,
 				db: self.restoration_db_handler.open(&self.restoration_db())?,
 				writer: writer,
@@ -474,8 +471,8 @@ impl Service {
 				engine: &*self.engine,
 			};
 
-			let state_chunks = state_hashes.len();
-			let block_chunks = block_hashes.len();
+			let state_chunks = manifest.state_hashes.len();
+			let block_chunks = manifest.block_hashes.len();
 
 			*res = Some(Restoration::new(params)?);
 
@@ -489,59 +486,61 @@ impl Service {
 
 		self.restoring_snapshot.store(true, Ordering::SeqCst);
 
+		// Import previous chunks, continue if it fails
+		self.import_prev_chunks(manifest).ok();
+		self.ready.store(true, Ordering::SeqCst);
+
+		Ok(())
+	}
+
+	/// Import the previous chunks into the current restoration
+	fn import_prev_chunks(&self, manifest: ManifestData) -> Result<(), Error> {
+		let prev_chunks = self.prev_chunks_dir();
+
 		// Restore previous snapshot chunks
-		if let Some(files) = fs::read_dir(prev_chunks.as_path()).ok() {
-			let mut num_temp_chunks = 0;
+		let files = fs::read_dir(prev_chunks.as_path())?;
+		let mut num_temp_chunks = 0;
 
-			for prev_chunk_file in files {
-				if let Some(file) = prev_chunk_file.ok() {
-					let path = file.path();
-
-					match File::open(path.clone()) {
-						Ok(mut file) => {
-							let mut buffer = Vec::new();
-							if let Err(_) = file.read_to_end(&mut buffer) {
-								continue;
-							}
-
-							let hash = keccak(&buffer);
-
-							let (is_valid, is_state) = if block_hashes.contains(&hash) {
-								(true, false)
-							} else if state_hashes.contains(&hash) {
-								(true, true)
-							} else {
-								(false, false)
-							};
-
-							trace!(target: "snapshot",
-								"Found chunk hash={:?} ; path={:?} ; is_valid={} ; is_state={}",
-								hash, path, is_valid, is_state
-							);
-
-							if !is_valid {
-								continue;
-							}
-
-							if let Err(e) = self.feed_chunk(hash, &buffer, is_state) {
-								trace!(target: "snapshot", "Error feeding chunk: {:?}", e);
-								continue;
-							}
-
-							trace!(target: "snapshot", "Fed chunk {:?}", hash);
-							num_temp_chunks += 1;
-						},
-						_ => {}
-					};
-				}
-			}
-
-			trace!(target:"snapshot", "Finishing restoring {} previous chunks", num_temp_chunks);
+		for prev_chunk_file in files {
+			// Import the chunk, don't fail and continue if one fails
+			self.import_prev_chunk(&manifest, prev_chunk_file).ok();
+			num_temp_chunks += 1;
 		}
 
+		trace!(target:"snapshot", "Imported {} previous chunks", num_temp_chunks);
+
 		// Remove the prev temp directory
-		fs::remove_dir_all(&prev_chunks).ok();
-		self.ready.store(true, Ordering::SeqCst);
+		fs::remove_dir_all(&prev_chunks)?;
+
+		Ok(())
+	}
+
+	/// Import a previous chunk at the given path
+	fn import_prev_chunk(&self, manifest: &ManifestData, file: io::Result<fs::DirEntry>) -> Result<(), Error> {
+		let file = file?;
+		let path = file.path();
+
+		let mut file = File::open(path.clone())?;
+		let mut buffer = Vec::new();
+		file.read_to_end(&mut buffer)?;
+
+		let hash = keccak(&buffer);
+
+		let (is_valid, is_state) = if manifest.block_hashes.contains(&hash) {
+			(true, false)
+		} else if manifest.state_hashes.contains(&hash) {
+			(true, true)
+		} else {
+			(false, false)
+		};
+
+		if !is_valid {
+			return Ok(());
+		}
+
+		self.feed_chunk(hash, &buffer, is_state)?;
+
+		trace!(target: "snapshot", "Fed chunk {:?}", hash);
 
 		Ok(())
 	}
