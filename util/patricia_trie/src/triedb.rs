@@ -493,3 +493,30 @@ fn get_len() {
 	assert_eq!(t.get_with(b"B", |x: &[u8]| x.len()), Ok(Some(5)));
 	assert_eq!(t.get_with(b"C", |x: &[u8]| x.len()), Ok(None));
 }
+
+// Test will work once https://github.com/paritytech/parity/pull/8527 is merged and rlp::decode returns Result instead of panicking
+//#[test]
+//fn test_lookup_with_corrupt_data_returns_decoder_error() {
+//	use memorydb::*;
+//	use super::TrieMut;
+//	use super::triedbmut::*;
+//	use rlp;
+//	use ethereum_types::H512;
+//
+//	let mut memdb = MemoryDB::new();
+//	let mut root = H256::new();
+//	{
+//		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+//		t.insert(b"A", b"ABC").unwrap();
+//		t.insert(b"B", b"ABCBA").unwrap();
+//	}
+//
+//	let t = TrieDB::new(&memdb, &root).unwrap();
+//
+//	// query for an invalid data type to trigger an error
+//	let q = rlp::decode::<H512>;
+//	let lookup = Lookup{ db: t.db, query: q, hash: root };
+//	let query_result = lookup.look_up(NibbleSlice::new(b"A"));
+//	let expected = Box::new(TrieError::DecoderError(::rlp::DecoderError::RlpIsTooShort));
+//	assert_eq!(query_result.unwrap_err(), expected);
+//}

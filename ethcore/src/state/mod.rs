@@ -21,7 +21,7 @@
 
 use std::cell::{RefCell, RefMut};
 use std::collections::hash_map::Entry;
-use std::collections::{HashMap, BTreeMap, HashSet};
+use std::collections::{HashMap, BTreeMap, BTreeSet, HashSet};
 use std::fmt;
 use std::sync::Arc;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY};
@@ -862,40 +862,65 @@ impl<B: Backend> State<B> {
 		}))
 	}
 
-	// Return a list of all touched addresses in cache.
-	fn touched_addresses(&self) -> Vec<Address> {
+	/// Populate a PodAccount map from this state, with another state as the account and storage query.
+	pub fn to_pod_diff<X: Backend>(&mut self, query: &State<X>) -> trie::Result<PodState> {
 		assert!(self.checkpoints.borrow().is_empty());
-		self.cache.borrow().iter().map(|(add, _)| *add).collect()
-	}
 
-	fn query_pod(&mut self, query: &PodState, touched_addresses: &[Address]) -> trie::Result<()> {
-		let pod = query.get();
+		// Merge PodAccount::to_pod for cache of self and `query`.
+		let all_addresses = self.cache.borrow().keys().cloned()
+			.chain(query.cache.borrow().keys().cloned())
+			.collect::<BTreeSet<_>>();
 
-		for address in touched_addresses {
-			if !self.ensure_cached(address, RequireCache::Code, true, |a| a.is_some())? {
-				continue
+		Ok(PodState::from(all_addresses.into_iter().fold(Ok(BTreeMap::new()), |m: trie::Result<_>, address| {
+			let mut m = m?;
+
+			let account = self.ensure_cached(&address, RequireCache::Code, true, |acc| {
+				acc.map(|acc| {
+					// Merge all modified storage keys.
+					let all_keys = {
+						let self_keys = acc.storage_changes().keys().cloned()
+							.collect::<BTreeSet<_>>();
+
+						if let Some(ref query_storage) = query.cache.borrow().get(&address)
+							.and_then(|opt| {
+								Some(opt.account.as_ref()?.storage_changes().keys().cloned()
+									 .collect::<BTreeSet<_>>())
+							})
+						{
+							self_keys.union(&query_storage).cloned().collect::<Vec<_>>()
+						} else {
+							self_keys.into_iter().collect::<Vec<_>>()
+						}
+					};
+
+					// Storage must be fetched after ensure_cached to avoid borrow problem.
+					(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()))
+				})
+			})?;
+
+			if let Some((balance, nonce, storage_keys, code)) = account {
+				let storage = storage_keys.into_iter().fold(Ok(BTreeMap::new()), |s: trie::Result<_>, key| {
+					let mut s = s?;
+
+					s.insert(key, self.storage_at(&address, &key)?);
+					Ok(s)
+				})?;
+
+				m.insert(address, PodAccount {
+					balance, nonce, storage, code
+				});
 			}
 
-			if let Some(pod_account) = pod.get(address) {
-				// needs to be split into two parts for the refcell code here
-				// to work.
-				for key in pod_account.storage.keys() {
-					self.storage_at(address, key)?;
-				}
-			}
-		}
-
-		Ok(())
+			Ok(m)
+		})?))
 	}
 
 	/// Returns a `StateDiff` describing the difference from `orig` to `self`.
 	/// Consumes self.
-	pub fn diff_from<X: Backend>(&self, orig: State<X>) -> trie::Result<StateDiff> {
-		let addresses_post = self.touched_addresses();
+	pub fn diff_from<X: Backend>(&self, mut orig: State<X>) -> trie::Result<StateDiff> {
 		let pod_state_post = self.to_pod();
-		let mut state_pre = orig;
-		state_pre.query_pod(&pod_state_post, &addresses_post)?;
-		Ok(pod_state::diff_pod(&state_pre.to_pod(), &pod_state_post))
+		let pod_state_pre = orig.to_pod_diff(self)?;
+		Ok(pod_state::diff_pod(&pod_state_pre, &pod_state_post))
 	}
 
 	// load required account data from the databases.
@@ -2243,9 +2268,6 @@ mod tests {
 		let original = state.clone();
 		state.kill_account(&a);
 
-		assert_eq!(original.touched_addresses(), vec![]);
-		assert_eq!(state.touched_addresses(), vec![a]);
-
 		let diff = state.diff_from(original).unwrap();
 		let diff_map = diff.get();
 		assert_eq!(diff_map.len(), 1);
@@ -2257,5 +2279,43 @@ mod tests {
 					   code: Some(Default::default()),
 					   storage: Default::default()
 				   }), None).as_ref());
+	}
+
+	#[test]
+	fn should_trace_diff_unmodified_storage() {
+		use pod_account;
+
+		let a = 10.into();
+		let db = get_temp_state_db();
+
+		let (root, db) = {
+			let mut state = State::new(db, U256::from(0), Default::default());
+			state.set_storage(&a, H256::from(&U256::from(1u64)), H256::from(&U256::from(20u64))).unwrap();
+			state.commit().unwrap();
+			state.drop()
+		};
+
+		let mut state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
+		let original = state.clone();
+		state.set_storage(&a, H256::from(&U256::from(1u64)), H256::from(&U256::from(100u64))).unwrap();
+
+		let diff = state.diff_from(original).unwrap();
+		let diff_map = diff.get();
+		assert_eq!(diff_map.len(), 1);
+		assert!(diff_map.get(&a).is_some());
+		assert_eq!(diff_map.get(&a),
+				   pod_account::diff_pod(Some(&PodAccount {
+					   balance: U256::zero(),
+					   nonce: U256::zero(),
+					   code: Some(Default::default()),
+					   storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(20u64)))]
+						   .into_iter().collect(),
+				   }), Some(&PodAccount {
+					   balance: U256::zero(),
+					   nonce: U256::zero(),
+					   code: Some(Default::default()),
+					   storage: vec![(H256::from(&U256::from(1u64)), H256::from(&U256::from(100u64)))]
+						   .into_iter().collect(),
+				   })).as_ref());
 	}
 }
