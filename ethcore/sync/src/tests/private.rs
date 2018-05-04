@@ -24,7 +24,7 @@ use ethcore::CreateContractAddress;
 use transaction::{Transaction, Action};
 use ethcore::executive::{contract_address};
 use ethcore::test_helpers::{push_block_with_transactions};
-use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor};
+use ethcore_private_tx::{Provider, ProviderConfig, NoopEncryptor, Importer};
 use ethcore::account_provider::AccountProvider;
 use ethkey::{KeyPair};
 use tests::helpers::{TestNet, TestIoHandler};
@@ -84,7 +84,7 @@ fn send_private_transaction() {
 			Box::new(NoopEncryptor::default()),
 			signer_config,
 			IoChannel::to_handler(Arc::downgrade(&io_handler0)),
-	).unwrap());
+	));
 	pm0.add_notify(net.peers[0].clone());
 
 	let pm1 = Arc::new(Provider::new(
@@ -94,7 +94,7 @@ fn send_private_transaction() {
 			Box::new(NoopEncryptor::default()),
 			validator_config,
 			IoChannel::to_handler(Arc::downgrade(&io_handler1)),
-	).unwrap());
+	));
 	pm1.add_notify(net.peers[1].clone());
 
 	// Create and deploy contract
@@ -133,7 +133,6 @@ fn send_private_transaction() {
 	//process received private transaction message
 	let private_transaction = received_private_transactions[0].clone();
 	assert!(pm1.import_private_transaction(&private_transaction).is_ok());
-	assert!(pm1.on_private_transaction_queued().is_ok());
 
 	//send signed response
 	net.sync();

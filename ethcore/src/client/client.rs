@@ -2005,9 +2005,9 @@ impl IoClient for Client {
 			if self.chain.read().is_known(&header.hash()) {
 				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
-			let status = self.block_status(BlockId::Hash(header.parent_hash()));
+			let status = self.block_status(BlockId::Hash(*header.parent_hash()));
 			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(header.parent_hash())));
+				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(*header.parent_hash())));
 			}
 			header.hash()
 		};
