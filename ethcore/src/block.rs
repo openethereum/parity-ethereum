@@ -491,6 +491,24 @@ impl ClosedBlock {
 }
 
 impl LockedBlock {
+
+	/// Removes outcomes from receipts and updates the receipt root.
+	///
+	/// This is done after the block is enacted for historical reasons.
+	/// We allow inconsistency in receipts for some chains if `validate_receipts_transition`
+	/// is set to non-zero value, so the check only happens if we detect
+	/// unmatching root first and then fall back to striped receipts.
+	pub fn strip_receipts_outcomes(&mut self) {
+		for receipt in &mut self.block.receipts {
+			receipt.outcome = TransactionOutcome::Unknown;
+		}
+		self.block.header.set_receipts_root(
+			ordered_trie_root(self.block.receipts.iter().map(|r| r.rlp_bytes()))
+		);
+		// compute hash and cache it.
+		self.block.header.compute_hash();
+	}
+
 	/// Get the hash of the header without seal arguments.
 	pub fn hash(&self) -> H256 { self.header().bare_hash() }
 
@@ -570,7 +588,6 @@ fn enact(
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 	is_epoch_begin: bool,
-	strip_receipts: bool,
 ) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
@@ -600,12 +617,6 @@ fn enact(
 		b.push_uncle(u)?;
 	}
 
-	if strip_receipts {
-		for receipt in &mut b.block.receipts {
-			receipt.outcome = TransactionOutcome::Unknown;
-		}
-	}
-
 	Ok(b.close_and_lock())
 }
 
@@ -619,8 +630,6 @@ pub fn enact_verified(
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 	is_epoch_begin: bool,
-	// Remove state root from transaction receipts to make them EIP-98 compatible.
-	strip_receipts: bool,
 ) -> Result<LockedBlock, Error> {
 	let view = view!(BlockView, &block.bytes);
 
@@ -635,7 +644,6 @@ pub fn enact_verified(
 		last_hashes,
 		factories,
 		is_epoch_begin,
-		strip_receipts,
 	)
 }
 

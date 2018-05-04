@@ -859,8 +859,14 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let result = self.client.call(&signed, Default::default(), &mut state, &header);
 
 		Box::new(future::done(result
-			.map(|b| b.output.into())
 			.map_err(errors::call)
+			.and_then(|executed| {
+				match executed.exception {
+					Some(ref exception) => Err(errors::vm(exception, &executed.output)),
+					None => Ok(executed)
+				}
+			})
+			.map(|b| b.output.into())
 		))
 	}
 

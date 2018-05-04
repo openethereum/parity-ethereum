@@ -246,7 +246,7 @@ impl SessionImpl {
 		// check if version exists
 		let key_version = match self.core.key_share.as_ref() {
 			None => return Err(Error::InvalidMessage),
-			Some(key_share) => key_share.version(&version).map_err(|e| Error::KeyStorage(e.into()))?,
+			Some(key_share) => key_share.version(&version)?,
 		};
 
 		let mut data = self.data.lock();
@@ -313,7 +313,7 @@ impl SessionImpl {
 			&SchnorrSigningMessage::SchnorrPartialSignature(ref message) =>
 				self.on_partial_signature(sender, message),
 			&SchnorrSigningMessage::SchnorrSigningSessionError(ref message) =>
-				self.process_node_error(Some(&sender), Error::Io(message.error.clone())),
+				self.process_node_error(Some(&sender), message.error.clone()),
 			&SchnorrSigningMessage::SchnorrSigningSessionCompleted(ref message) =>
 				self.on_session_completed(sender, message),
 			&SchnorrSigningMessage::SchnorrSigningSessionDelegation(ref message) =>
@@ -500,8 +500,7 @@ impl SessionImpl {
 			.expect("session key is generated before signature is computed; we are in SignatureComputing state; qed")
 			.joint_public_and_secret()
 			.expect("session key is generated before signature is computed; we are in SignatureComputing state; qed")?;
-		let key_version = key_share.version(data.version.as_ref().ok_or(Error::InvalidMessage)?)
-			.map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
+		let key_version = key_share.version(data.version.as_ref().ok_or(Error::InvalidMessage)?)?.hash.clone();
 		let signing_job = SchnorrSigningJob::new_on_slave(self.core.meta.self_node_id.clone(), key_share.clone(), key_version, joint_public_and_secret.0, joint_public_and_secret.1)?;
 		let signing_transport = self.core.signing_transport();
 
@@ -564,7 +563,7 @@ impl SessionImpl {
 
 		match {
 			match node {
-				Some(node) => data.consensus_session.on_node_error(node),
+				Some(node) => data.consensus_session.on_node_error(node, error.clone()),
 				None => data.consensus_session.on_session_timeout(),
 			}
 		} {
@@ -717,6 +716,14 @@ impl Cluster for SessionKeyGenerationTransport {
 	fn nodes(&self) -> BTreeSet<NodeId> {
 		self.cluster.nodes()
 	}
+
+	fn configured_nodes_count(&self) -> usize {
+		self.cluster.configured_nodes_count()
+	}
+
+	fn connected_nodes_count(&self) -> usize {
+		self.cluster.connected_nodes_count()
+	}
 }
 
 impl SessionCore {
@@ -735,7 +742,7 @@ impl SessionCore {
 			Some(key_share) => key_share,
 		};
 
-		let key_version = key_share.version(version).map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
+		let key_version = key_share.version(version)?.hash.clone();
 		let signing_job = SchnorrSigningJob::new_on_master(self.meta.self_node_id.clone(), key_share.clone(), key_version,
 			session_public, session_secret_share, message_hash)?;
 		consensus_session.disseminate_jobs(signing_job, self.signing_transport(), false).map(|_| ())
@@ -851,6 +858,8 @@ mod tests {
 						self_node_id: gl_node_id.clone(),
 						master_node_id: master_node_id.clone(),
 						threshold: gl_node.key_storage.get(&session_id).unwrap().unwrap().threshold,
+						configured_nodes_count: gl.nodes.len(),
+						connected_nodes_count: gl.nodes.len(),
 					},
 					access_key: "834cb736f02d9c968dfaf0c37658a1d86ff140554fc8b59c9fdad5a8cf810eec".parse().unwrap(),
 					key_share: Some(gl_node.key_storage.get(&session_id).unwrap().unwrap()),
@@ -971,6 +980,8 @@ mod tests {
 				self_node_id: self_node_id.clone(),
 				master_node_id: self_node_id.clone(),
 				threshold: 0,
+				configured_nodes_count: 1,
+				connected_nodes_count: 1,
 			},
 			access_key: Random.generate().unwrap().secret().clone(),
 			key_share: Some(DocumentKeyShare {
@@ -1003,6 +1014,8 @@ mod tests {
 				self_node_id: self_node_id.clone(),
 				master_node_id: self_node_id.clone(),
 				threshold: 0,
+				configured_nodes_count: 1,
+				connected_nodes_count: 1,
 			},
 			access_key: Random.generate().unwrap().secret().clone(),
 			key_share: None,
@@ -1025,6 +1038,8 @@ mod tests {
 				self_node_id: self_node_id.clone(),
 				master_node_id: self_node_id.clone(),
 				threshold: 2,
+				configured_nodes_count: 1,
+				connected_nodes_count: 1,
 			},
 			access_key: Random.generate().unwrap().secret().clone(),
 			key_share: Some(DocumentKeyShare {

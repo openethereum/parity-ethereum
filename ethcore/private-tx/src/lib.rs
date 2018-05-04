@@ -66,6 +66,7 @@ pub use error::{Error, ErrorKind};
 
 use std::sync::{Arc, Weak};
 use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 use ethereum_types::{H128, H256, U256, Address};
 use hash::keccak;
 use rlp::*;
@@ -306,11 +307,6 @@ impl Provider where {
 	/// Retrieve and verify the first available private transaction for every sender
 	///
 	/// TODO [ToDr] It seems that:
-	/// 1. This method will fail on any error without removing invalid transaction.
-	/// 2. It means that the transaction will be stuck there forever and we will never be able to make any progress.
-	///
-	/// It might be more sensible to `drain()` transactions from the queue instead and process all of them,
-	/// possibly printing some errors in case of failures.
 	/// The 3 methods `ready_transaction,get_descriptor,remove` are always used in conjuction so most likely
 	/// can be replaced with a single `drain()` method instead.
 	/// Thanks to this we also don't really need to lock the entire verification for the time of execution.
@@ -339,13 +335,11 @@ impl Provider where {
 						trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
 						self.broadcast_signed_private_transaction(signed_private_transaction.rlp_bytes().into_vec());
 					} else {
-						trace!("Incorrect type of action for the transaction");
-						bail!(ErrorKind::BadTransactonType);
+						warn!("Incorrect type of action for the transaction");
 					}
 				},
 				Err(e) => {
-					trace!("Cannot retrieve descriptor for transaction with error {:?}", e);
-					bail!(e);
+					warn!("Cannot retrieve descriptor for transaction with error {:?}", e);
 				}
 			}
 			verification_queue.remove_private_transaction(&transaction_hash);
@@ -674,7 +668,7 @@ fn find_account_password(passwords: &Vec<String>, account_provider: &AccountProv
 }
 
 impl ChainNotify for Provider {
-	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
+	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
 		if !imported.is_empty() {
 			trace!("New blocks imported, try to prune the queue");
 			if let Err(err) = self.process_queue() {

@@ -154,7 +154,7 @@ impl SessionImpl {
 		if let Some(key_share) = params.key_share.as_ref() {
 			// encrypted data must be set
 			if key_share.common_point.is_none() || key_share.encrypted_point.is_none() {
-				return Err(Error::NotStartedSessionId);
+				return Err(Error::DocumentKeyIsNotFound);
 			}
 		}
 
@@ -290,7 +290,7 @@ impl SessionImpl {
 		// check if version exists
 		let key_version = match self.core.key_share.as_ref() {
 			None => return Err(Error::InvalidMessage),
-			Some(key_share) => key_share.version(&version).map_err(|e| Error::KeyStorage(e.into()))?,
+			Some(key_share) => key_share.version(&version)?,
 		};
 
 		let mut data = self.data.lock();
@@ -337,7 +337,7 @@ impl SessionImpl {
 			&DecryptionMessage::PartialDecryption(ref message) =>
 				self.on_partial_decryption(sender, message),
 			&DecryptionMessage::DecryptionSessionError(ref message) =>
-				self.process_node_error(Some(&sender), Error::Io(message.error.clone())),
+				self.process_node_error(Some(&sender), message.error.clone()),
 			&DecryptionMessage::DecryptionSessionCompleted(ref message) =>
 				self.on_session_completed(sender, message),
 			&DecryptionMessage::DecryptionSessionDelegation(ref message) =>
@@ -432,8 +432,7 @@ impl SessionImpl {
 		};
 
 		let mut data = self.data.lock();
-		let key_version = key_share.version(data.version.as_ref().ok_or(Error::InvalidMessage)?)
-			.map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
+		let key_version = key_share.version(data.version.as_ref().ok_or(Error::InvalidMessage)?)?.hash.clone();
 		let requester_public = data.consensus_session.consensus_job().executor().requester()
 			.ok_or(Error::InvalidStateForRequest)?
 			.public(&self.core.meta.id)
@@ -564,7 +563,7 @@ impl SessionImpl {
 
 		match {
 			match node {
-				Some(node) => data.consensus_session.on_node_error(node),
+				Some(node) => data.consensus_session.on_node_error(node, error.clone()),
 				None => data.consensus_session.on_session_timeout(),
 			}
 		} {
@@ -601,7 +600,7 @@ impl SessionImpl {
 			Some(key_share) => key_share,
 		};
 
-		let key_version = key_share.version(version).map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
+		let key_version = key_share.version(version)?.hash.clone();
 		let requester = data.consensus_session.consensus_job().executor().requester().ok_or(Error::InvalidStateForRequest)?.clone();
 		let requester_public = requester.public(&core.meta.id).map_err(Error::InsufficientRequesterData)?;
 		let consensus_group = data.consensus_session.select_consensus_group()?.clone();
@@ -637,6 +636,8 @@ impl SessionImpl {
 			master_node_id: core.meta.self_node_id.clone(),
 			self_node_id: core.meta.self_node_id.clone(),
 			threshold: core.meta.threshold,
+			configured_nodes_count: core.meta.configured_nodes_count,
+			connected_nodes_count: core.meta.connected_nodes_count,
 		}, job, transport);
 		job_session.initialize(consensus_group, self_response, core.meta.self_node_id != core.meta.master_node_id)?;
 		data.broadcast_job_session = Some(job_session);
@@ -881,6 +882,8 @@ mod tests {
 				self_node_id: id_numbers.iter().nth(i).clone().unwrap().0,
 				master_node_id: id_numbers.iter().nth(0).clone().unwrap().0,
 				threshold: encrypted_datas[i].threshold,
+				configured_nodes_count: 5,
+				connected_nodes_count: 5,
 			},
 			access_key: access_key.clone(),
 			key_share: Some(encrypted_datas[i].clone()),
@@ -944,6 +947,8 @@ mod tests {
 				self_node_id: self_node_id.clone(),
 				master_node_id: self_node_id.clone(),
 				threshold: 0,
+				configured_nodes_count: 1,
+				connected_nodes_count: 1,
 			},
 			access_key: Random.generate().unwrap().secret().clone(),
 			key_share: Some(DocumentKeyShare {
@@ -976,6 +981,8 @@ mod tests {
 				self_node_id: self_node_id.clone(),
 				master_node_id: self_node_id.clone(),
 				threshold: 0,
+				configured_nodes_count: 1,
+				connected_nodes_count: 1,
 			},
 			access_key: Random.generate().unwrap().secret().clone(),
 			key_share: None,
@@ -998,6 +1005,8 @@ mod tests {
 				self_node_id: self_node_id.clone(),
 				master_node_id: self_node_id.clone(),
 				threshold: 2,
+				configured_nodes_count: 1,
+				connected_nodes_count: 1,
 			},
 			access_key: Random.generate().unwrap().secret().clone(),
 			key_share: Some(DocumentKeyShare {
@@ -1131,7 +1140,7 @@ mod tests {
 		let (_, _, _, sessions) = prepare_decryption_sessions();
 		assert!(sessions[0].decrypted_secret().is_none());
 		sessions[0].on_session_timeout();
-		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap_err(), Error::ConsensusUnreachable);
+		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap_err(), Error::ConsensusTemporaryUnreachable);
 	}
 
 	#[test]
@@ -1141,7 +1150,7 @@ mod tests {
 
 		// 1 node disconnects => we still can recover secret
 		sessions[0].on_node_timeout(sessions[1].node());
-		assert!(sessions[0].data.lock().consensus_session.consensus_job().rejects().contains(sessions[1].node()));
+		assert!(sessions[0].data.lock().consensus_session.consensus_job().rejects().contains_key(sessions[1].node()));
 		assert!(sessions[0].state() == ConsensusSessionState::EstablishingConsensus);
 
 		// 2 node are disconnected => we can not recover secret
@@ -1208,7 +1217,7 @@ mod tests {
 		let disconnected = sessions[0].data.lock().consensus_session.computation_job().requests().iter().cloned().nth(0).unwrap();
 		sessions[0].on_node_timeout(&disconnected);
 		assert_eq!(sessions[0].state(), ConsensusSessionState::EstablishingConsensus);
-		assert!(sessions[0].data.lock().consensus_session.computation_job().rejects().contains(&disconnected));
+		assert!(sessions[0].data.lock().consensus_session.computation_job().rejects().contains_key(&disconnected));
 		assert!(!sessions[0].data.lock().consensus_session.computation_job().requests().contains(&disconnected));
 	}
 

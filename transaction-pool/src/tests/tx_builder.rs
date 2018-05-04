@@ -14,9 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::rc::Rc;
-use std::cell::Cell;
-
 use super::{Transaction, U256, Address};
 
 #[derive(Debug, Default, Clone)]
@@ -26,7 +23,6 @@ pub struct TransactionBuilder {
 	gas: U256,
 	sender: Address,
 	mem_usage: usize,
-	insertion_id: Rc<Cell<u64>>,
 }
 
 impl TransactionBuilder {
@@ -55,11 +51,6 @@ impl TransactionBuilder {
 	}
 
 	pub fn new(self) -> Transaction {
-		let insertion_id = {
-			let id = self.insertion_id.get() + 1;
-			self.insertion_id.set(id);
-			id
-		};
 		let hash = self.nonce ^ (U256::from(100) * self.gas_price) ^ (U256::from(100_000) * U256::from(self.sender.low_u64()));
 		Transaction {
 			hash: hash.into(),
@@ -67,7 +58,6 @@ impl TransactionBuilder {
 			gas_price: self.gas_price,
 			gas: 21_000.into(),
 			sender: self.sender,
-			insertion_id,
 			mem_usage: self.mem_usage,
 		}
 	}

@@ -145,6 +145,10 @@ impl<'a, C: 'a> pool::client::Client for PoolClient<'a, C> where
 			}
 		}
 	}
+
+	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
+		self.engine.decode_transaction(transaction)
+	}
 }
 
 impl<'a, C: 'a> NonceClient for PoolClient<'a, C> where
