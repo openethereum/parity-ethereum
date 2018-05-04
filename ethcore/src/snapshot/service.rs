@@ -434,7 +434,8 @@ impl Service {
 		// Move the previous recovery temp directory
 		// to `prev_chunks` to be able to restart restoring
 		// with previously downloaded blocks
-		fs::rename(&recovery_temp, &prev_chunks)?;
+		// This step is optional, so don't fail on error
+		fs::rename(&recovery_temp, &prev_chunks).ok();
 
 		{
 			let mut res = self.restoration.lock();
