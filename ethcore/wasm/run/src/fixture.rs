@@ -41,8 +41,8 @@ pub struct Fixture {
 
 #[derive(Deserialize, Debug)]
 pub struct StorageEntry {
-	pub key: Uint,
-	pub value: Uint,
+	pub key: H256,
+	pub value: H256,
 }
 
 #[derive(Deserialize, Debug, Clone)]

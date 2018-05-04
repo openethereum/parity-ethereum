@@ -1,4 +1,4 @@
-use fixture::{Fixture, Assert, CallLocator, Source};
+use fixture::{Fixture, Assert, CallLocator, Source, StorageEntry};
 use wasm::WasmInterpreter;
 use vm::{self, Vm, GasLeft, ActionParams, ActionValue, ParamsType};
 use vm::tests::FakeExt;
@@ -169,10 +169,8 @@ pub fn run_fixture(fixture: &Fixture) -> Vec<Fail> {
 	}
 
 	if let Some(ref storage) = fixture.storage {
-		for storage_entry in storage.iter() {
-			let key: U256 = storage_entry.key.into();
-			let val: U256 = storage_entry.value.into();
-			ext.store.insert(key.into(), val.into());
+		for &StorageEntry { ref key, ref value } in storage {
+			ext.store.insert(key.clone().into(), value.clone().into());
 		}
 	}
 
