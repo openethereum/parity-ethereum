@@ -16,7 +16,7 @@
 
 //! Transaction execution format module.
 
-use ethereum_types::{U256, U512, Address};
+use ethereum_types::{U256, U512, Address, H256};
 use bytes::Bytes;
 use trie;
 use vm;
@@ -34,6 +34,9 @@ pub struct Executed<T = FlatTrace, V = VMTrace> {
 
 	/// Gas paid up front for execution of transaction.
 	pub gas: U256,
+
+	/// Hash of the executed transaction.
+	pub hash: H256,
 
 	/// Gas used during execution of transaction.
 	pub gas_used: U256,

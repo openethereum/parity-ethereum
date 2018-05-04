@@ -601,6 +601,7 @@ impl From<FlatTrace> for Trace {
 #[derive(Debug, Serialize)]
 /// A diff of some chunk of memory.
 pub struct TraceResults {
+	pub hash: H256,
 	/// The output of the call/create
 	pub output: Bytes,
 	/// The transaction trace.
@@ -616,6 +617,7 @@ pub struct TraceResults {
 impl From<Executed> for TraceResults {
 	fn from(t: Executed) -> Self {
 		TraceResults {
+			hash: t.hash.into(),
 			output: t.output.into(),
 			trace: t.trace.into_iter().map(Into::into).collect(),
 			vm_trace: t.vm_trace.map(Into::into),
