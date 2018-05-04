@@ -451,9 +451,7 @@ impl Importer {
 	///
 	/// The block is guaranteed to be the next best blocks in the
 	/// first block sequence. Does no sealing or transaction validation.
-	fn import_old_block(&self, block_bytes: &[u8], receipts_bytes: &[u8], db: &KeyValueDB, chain: &BlockChain) -> Result<H256, ::error::Error> {
-		let block = view!(BlockView, block_bytes);
-		let header = block.header();
+	fn import_old_block(&self, header: &Header, block_bytes: &[u8], receipts_bytes: &[u8], db: &KeyValueDB, chain: &BlockChain) -> Result<H256, ::error::Error> {
 		let receipts = ::rlp::decode_list(receipts_bytes);
 		let hash = header.hash();
 		let _import_lock = self.import_lock.lock();
@@ -1364,9 +1362,9 @@ impl ImportBlock for Client {
 		use verification::queue::kind::BlockLike;
 		use verification::queue::kind::blocks::Unverified;
 
-		// TODO [ToDr] This may panic?!
 		// create unverified block here so the `keccak` calculation can be cached.
-		let unverified = Unverified::new(bytes);
+		let unverified = Unverified::from_rlp(bytes)?;
+
 		{
 			if self.chain.read().is_known(&unverified.hash()) {
 				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
@@ -2001,9 +1999,8 @@ impl IoClient for Client {
 	}
 
 	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
+		let header: Header = ::rlp::Rlp::new(&block_bytes).val_at(0)?;
 		let hash = {
-			// TODO [ToDr] This may panic?!
-			let header = view!(BlockView, &block_bytes).header_view();
 			// check block order
 			if self.chain.read().is_known(&header.hash()) {
 				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
@@ -2017,6 +2014,7 @@ impl IoClient for Client {
 
 		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), 1, move |client| {
 			client.importer.import_old_block(
+				&header,
 				&block_bytes,
 				&receipts_bytes,
 				&**client.db.read(),
