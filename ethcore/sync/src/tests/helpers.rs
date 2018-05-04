@@ -32,7 +32,7 @@ use ethcore::miner::Miner;
 use sync_io::SyncIo;
 use io::{IoChannel, IoContext, IoHandler};
 use api::WARP_SYNC_PROTOCOL_ID;
-use chain::{ChainSync, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3};
+use chain::{ChainSync, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_4};
 use SyncConfig;
 use private_tx::SimplePrivateTxHandler;
 
@@ -138,7 +138,7 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	}
 
 	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
-		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_3.0 } else { self.eth_protocol_version(peer_id) }
+		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_4.0 } else { self.eth_protocol_version(peer_id) }
 	}
 
 	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {

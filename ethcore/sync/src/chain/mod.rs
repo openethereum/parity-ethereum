@@ -136,6 +136,8 @@ pub const PAR_PROTOCOL_VERSION_1: (u8, u8) = (1, 0x15);
 pub const PAR_PROTOCOL_VERSION_2: (u8, u8) = (2, 0x16);
 /// 3 version of Parity protocol (private transactions messages added).
 pub const PAR_PROTOCOL_VERSION_3: (u8, u8) = (3, 0x18);
+/// 4 version of Parity protocol (seeding partially downloaded snapshot added).
+pub const PAR_PROTOCOL_VERSION_4: (u8, u8) = (4, 0x18);
 
 pub const MAX_BODIES_TO_SEND: usize = 256;
 pub const MAX_HEADERS_TO_SEND: usize = 512;
@@ -1046,6 +1048,10 @@ impl ChainSync {
 
 	fn get_private_transaction_peers(&self) -> Vec<PeerId> {
 		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3.0 { Some(*id) } else { None }).collect()
+	}
+
+	fn get_seeding_partial_snapshot_peers(&self) -> Vec<PeerId> {
+		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_4.0 { Some(*id) } else { None }).collect()
 	}
 
 	/// Maintain other peers. Send out any new blocks and transactions
