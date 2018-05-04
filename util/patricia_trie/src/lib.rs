@@ -92,8 +92,8 @@ impl error::Error for TrieError {
 	}
 }
 
-impl From<rlp::DecoderError> for TrieError {
-	fn from(e: rlp::DecoderError) -> Self { TrieError::DecoderError(e) }
+impl From<rlp::DecoderError> for Box<TrieError> {
+	fn from(e: rlp::DecoderError) -> Self { Box::new(TrieError::DecoderError(e)) }
 }
 
 /// Trie result type. Boxed to avoid copying around extra space for `H256`s on successful queries.
