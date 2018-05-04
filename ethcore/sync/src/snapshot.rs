@@ -17,6 +17,7 @@
 use ethcore::snapshot::{ManifestData};
 use ethereum_types::H256;
 use hash::keccak;
+use rand::{thread_rng, Rng};
 use sync_io::SyncIo;
 
 use std::collections::HashSet;
@@ -105,18 +106,22 @@ impl Snapshot {
 		Err(())
 	}
 
-	/// Find a chunk to download
+	/// Find a random chunk to download
 	pub fn needed_chunk(&mut self) -> Option<H256> {
-		// check state chunks first
-		let chunk = self.pending_state_chunks.iter()
+		// Find all random chunks
+		let needed_chunks: Vec<H256> = self.pending_state_chunks.iter()
 			.chain(self.pending_block_chunks.iter())
-			.find(|&h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h))
-			.cloned();
+			.filter(|&h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h))
+			.map(|h| *h)
+			.collect();
+
+		// Get a random chunk
+		let chunk = thread_rng().choose(&needed_chunks);
 
 		if let Some(hash) = chunk {
 			self.downloading_chunks.insert(hash.clone());
 		}
-		chunk
+		chunk.map(|h| *h)
 	}
 
 	pub fn clear_chunk_download(&mut self, hash: &H256) {

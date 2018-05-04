@@ -788,9 +788,15 @@ impl ChainSync {
 						}
 					}
 
-					if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
-						SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
-						return;
+					// Only ask for old blocks if the peer has a higher difficulty
+					if force || higher_difficulty {
+						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
+							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
+							return;
+						}
+					} else {
+						trace!(target: "sync", "peer {} is not suitable for asking old blocks", peer_id);
+						self.deactivate_peer(io, peer_id);
 					}
 				},
 				SyncState::SnapshotData => {
@@ -900,10 +906,7 @@ impl ChainSync {
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
 		if warp_protocol {
-			let manifest = match self.old_blocks.is_some() {
-				true => None,
-				false => io.snapshot_service().manifest(),
-			};
+			let manifest = io.snapshot_service().manifest();
 			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
 			let manifest_hash = manifest.map_or(H256::new(), |m| keccak(m.into_rlp()));
 			packet.append(&manifest_hash);

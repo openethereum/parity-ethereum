@@ -320,6 +320,10 @@ impl SyncHandler {
 	}
 
 	fn on_peer_confirmed(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
+		{
+			let peer = sync.peers.get_mut(&peer_id).expect("Is only called when peer is present in peers");
+			peer.confirmation = ForkConfirmation::Confirmed;
+		}
 		sync.sync_peer(io, peer_id, false);
 	}
 
@@ -344,8 +348,8 @@ impl SyncHandler {
 			}
 
 			trace!(target: "sync", "{}: Confirmed peer", peer_id);
-			peer.confirmation = ForkConfirmation::Confirmed;
 			if !io.chain_overlay().read().contains_key(&fork_number) {
+				trace!(target: "sync", "Inserting (fork) block {} header", fork_number);
 				io.chain_overlay().write().insert(fork_number, header.to_vec());
 			}
 		}
@@ -656,11 +660,16 @@ impl SyncHandler {
 		// Let the current sync round complete first.
 		sync.active_peers.insert(peer_id.clone());
 		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
-		if let Some((fork_block, _)) = sync.fork_block {
-			SyncRequester::request_fork_header(sync, io, peer_id, fork_block);
-		} else {
-			SyncHandler::on_peer_confirmed(sync, io, peer_id);
+
+		match sync.fork_block {
+			Some((fork_block, _)) => {
+				SyncRequester::request_fork_header(sync, io, peer_id, fork_block);
+			},
+			_ => {
+				SyncHandler::on_peer_confirmed(sync, io, peer_id);
+			}
 		}
+
 		Ok(())
 	}
 
