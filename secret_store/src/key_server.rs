@@ -21,7 +21,8 @@ use std::sync::mpsc;
 use futures::{self, Future};
 use parking_lot::Mutex;
 use tokio_core::reactor::Core;
-use crypto;
+use crypto::DEFAULT_MAC;
+use ethkey::crypto;
 use super::acl_storage::AclStorage;
 use super::key_storage::KeyStorage;
 use super::key_server_set::KeyServerSet;
@@ -105,7 +106,7 @@ impl DocumentKeyServer for KeyServerImpl {
 		self.store_document_key(key_id, author, encrypted_document_key.common_point, encrypted_document_key.encrypted_point)?;
 
 		// encrypt document key with requestor public key
-		let document_key = crypto::ecies::encrypt(&public, &crypto::DEFAULT_MAC, &document_key)
+		let document_key = crypto::ecies::encrypt(&public, &DEFAULT_MAC, &document_key)
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
 		Ok(document_key)
 	}
@@ -122,7 +123,7 @@ impl DocumentKeyServer for KeyServerImpl {
 			.decrypted_secret;
 
 		// encrypt document key with requestor public key
-		let document_key = crypto::ecies::encrypt(&public, &crypto::DEFAULT_MAC, &document_key)
+		let document_key = crypto::ecies::encrypt(&public, &DEFAULT_MAC, &document_key)
 			.map_err(|err| Error::Internal(format!("Error encrypting document key: {}", err)))?;
 		Ok(document_key)
 	}
@@ -152,7 +153,7 @@ impl MessageSigner for KeyServerImpl {
 		combined_signature[32..].clone_from_slice(&**message_signature.1);
 
 		// encrypt combined signature with requestor public key
-		let message_signature = crypto::ecies::encrypt(&public, &crypto::DEFAULT_MAC, &combined_signature)
+		let message_signature = crypto::ecies::encrypt(&public, &DEFAULT_MAC, &combined_signature)
 			.map_err(|err| Error::Internal(format!("Error encrypting message signature: {}", err)))?;
 		Ok(message_signature)
 	}
@@ -167,7 +168,7 @@ impl MessageSigner for KeyServerImpl {
 		let message_signature = signing_session.wait()?;
 
 		// encrypt combined signature with requestor public key
-		let message_signature = crypto::ecies::encrypt(&public, &crypto::DEFAULT_MAC, &*message_signature)
+		let message_signature = crypto::ecies::encrypt(&public, &DEFAULT_MAC, &*message_signature)
 			.map_err(|err| Error::Internal(format!("Error encrypting message signature: {}", err)))?;
 		Ok(message_signature)
 	}
@@ -229,8 +230,8 @@ pub mod tests {
 	use std::sync::Arc;
 	use std::net::SocketAddr;
 	use std::collections::BTreeMap;
-	use crypto;
-	use ethkey::{self, Secret, Random, Generator, verify_public};
+	use crypto::DEFAULT_MAC;
+	use ethkey::{self, crypto, Secret, Random, Generator, verify_public};
 	use acl_storage::DummyAclStorage;
 	use key_storage::KeyStorage;
 	use key_storage::tests::DummyKeyStorage;
@@ -358,12 +359,12 @@ pub mod tests {
 		let secret = Random.generate().unwrap().secret().clone();
 		let signature = ethkey::sign(&secret, &document).unwrap();
 		let generated_key = key_servers[0].generate_document_key(&document, &signature.clone().into(), threshold).unwrap();
-		let generated_key = crypto::ecies::decrypt(&secret, &crypto::DEFAULT_MAC, &generated_key).unwrap();
+		let generated_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &generated_key).unwrap();
 
 		// now let's try to retrieve key back
 		for key_server in key_servers.iter() {
 			let retrieved_key = key_server.restore_document_key(&document, &signature.clone().into()).unwrap();
-			let retrieved_key = crypto::ecies::decrypt(&secret, &crypto::DEFAULT_MAC, &retrieved_key).unwrap();
+			let retrieved_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &retrieved_key).unwrap();
 			assert_eq!(retrieved_key, generated_key);
 		}
 	}
@@ -380,12 +381,12 @@ pub mod tests {
 			let secret = Random.generate().unwrap().secret().clone();
 			let signature = ethkey::sign(&secret, &document).unwrap();
 			let generated_key = key_servers[0].generate_document_key(&document, &signature.clone().into(), *threshold).unwrap();
-			let generated_key = crypto::ecies::decrypt(&secret, &crypto::DEFAULT_MAC, &generated_key).unwrap();
+			let generated_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &generated_key).unwrap();
 
 			// now let's try to retrieve key back
 			for (i, key_server) in key_servers.iter().enumerate() {
 				let retrieved_key = key_server.restore_document_key(&document, &signature.clone().into()).unwrap();
-				let retrieved_key = crypto::ecies::decrypt(&secret, &crypto::DEFAULT_MAC, &retrieved_key).unwrap();
+				let retrieved_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &retrieved_key).unwrap();
 				assert_eq!(retrieved_key, generated_key);
 
 				let key_share = key_storages[i].get(&document).unwrap().unwrap();
@@ -419,7 +420,7 @@ pub mod tests {
 			// now let's try to retrieve key back
 			for key_server in key_servers.iter() {
 				let retrieved_key = key_server.restore_document_key(&server_key_id, &signature.clone().into()).unwrap();
-				let retrieved_key = crypto::ecies::decrypt(&requestor_secret, &crypto::DEFAULT_MAC, &retrieved_key).unwrap();
+				let retrieved_key = crypto::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &retrieved_key).unwrap();
 				let retrieved_key = Public::from_slice(&retrieved_key);
 				assert_eq!(retrieved_key, generated_key);
 			}
@@ -442,7 +443,7 @@ pub mod tests {
 			// sign message
 			let message_hash = H256::from(42);
 			let combined_signature = key_servers[0].sign_message_schnorr(&server_key_id, &signature.into(), message_hash.clone()).unwrap();
-			let combined_signature = crypto::ecies::decrypt(&requestor_secret, &crypto::DEFAULT_MAC, &combined_signature).unwrap();
+			let combined_signature = crypto::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &combined_signature).unwrap();
 			let signature_c = Secret::from_slice(&combined_signature[..32]).unwrap();
 			let signature_s = Secret::from_slice(&combined_signature[32..]).unwrap();
 
@@ -462,14 +463,14 @@ pub mod tests {
 		let secret = Random.generate().unwrap().secret().clone();
 		let signature = ethkey::sign(&secret, &document).unwrap();
 		let generated_key = key_servers[0].generate_document_key(&document, &signature.clone().into(), threshold).unwrap();
-		let generated_key = crypto::ecies::decrypt(&secret, &crypto::DEFAULT_MAC, &generated_key).unwrap();
+		let generated_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &generated_key).unwrap();
 
 		// remove key from node0
 		key_servers[0].cluster().key_storage().remove(&document).unwrap();
 
 		// now let's try to retrieve key back by requesting it from node0, so that session must be delegated
 		let retrieved_key = key_servers[0].restore_document_key(&document, &signature.into()).unwrap();
-		let retrieved_key = crypto::ecies::decrypt(&secret, &crypto::DEFAULT_MAC, &retrieved_key).unwrap();
+		let retrieved_key = crypto::ecies::decrypt(&secret, &DEFAULT_MAC, &retrieved_key).unwrap();
 		assert_eq!(retrieved_key, generated_key);
 	}
 
@@ -491,7 +492,7 @@ pub mod tests {
 		// sign message
 		let message_hash = H256::from(42);
 		let combined_signature = key_servers[0].sign_message_schnorr(&server_key_id, &signature.into(), message_hash.clone()).unwrap();
-		let combined_signature = crypto::ecies::decrypt(&requestor_secret, &crypto::DEFAULT_MAC, &combined_signature).unwrap();
+		let combined_signature = crypto::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &combined_signature).unwrap();
 		let signature_c = Secret::from_slice(&combined_signature[..32]).unwrap();
 		let signature_s = Secret::from_slice(&combined_signature[32..]).unwrap();
 
@@ -517,7 +518,7 @@ pub mod tests {
 		// sign message
 		let message_hash = H256::random();
 		let signature = key_servers[0].sign_message_ecdsa(&server_key_id, &signature.into(), message_hash.clone()).unwrap();
-		let signature = crypto::ecies::decrypt(&requestor_secret, &crypto::DEFAULT_MAC, &signature).unwrap();
+		let signature = crypto::ecies::decrypt(&requestor_secret, &DEFAULT_MAC, &signature).unwrap();
 		let signature: H520 = signature[0..65].into();
 
 		// check signature
