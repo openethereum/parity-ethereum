@@ -54,10 +54,13 @@ use super::{
 	PRIVATE_TRANSACTION_PACKET,
 	RECEIPTS_PACKET,
 	SIGNED_PRIVATE_TRANSACTION_PACKET,
+	SNAPSHOT_BITFIELD_PACKET,
 	SNAPSHOT_DATA_PACKET,
 	SNAPSHOT_MANIFEST_PACKET,
 	STATUS_PACKET,
 	TRANSACTIONS_PACKET,
+
+	BITFIELD_REFRESH_DURATION,
 };
 
 /// The Chain Sync Handler: handles responses from peers
@@ -79,6 +82,7 @@ impl SyncHandler {
 			RECEIPTS_PACKET => SyncHandler::on_peer_block_receipts(sync, io, peer, &rlp),
 			NEW_BLOCK_PACKET => SyncHandler::on_peer_new_block(sync, io, peer, &rlp),
 			NEW_BLOCK_HASHES_PACKET => SyncHandler::on_peer_new_hashes(sync, io, peer, &rlp),
+			SNAPSHOT_BITFIELD_PACKET => SyncHandler::on_snapshot_bitfield(sync, io, peer, &rlp),
 			SNAPSHOT_MANIFEST_PACKET => SyncHandler::on_snapshot_manifest(sync, io, peer, &rlp),
 			SNAPSHOT_DATA_PACKET => SyncHandler::on_snapshot_data(sync, io, peer, &rlp),
 			PRIVATE_TRANSACTION_PACKET => SyncHandler::on_private_transaction(sync, io, peer, &rlp),
@@ -504,6 +508,40 @@ impl SyncHandler {
 		Ok(())
 	}
 
+	/// Called when snapshot bitfield is downloaded from a peer.
+	fn on_snapshot_bitfield(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
+		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
+			trace!(target: "sync", "Ignoring snapshot bitifield from unconfirmed peer {}", peer_id);
+			return Ok(());
+		}
+		if !sync.reset_peer_asking(peer_id, PeerAsking::SnapshotBitfield) || sync.state != SyncState::SnapshotData {
+			trace!(target: "sync", "{}: Ignored unexpected/expired snapshot bitfield", peer_id);
+			sync.continue_sync(io);
+			return Ok(());
+		}
+
+		let expected_length = sync.snapshot.bitfield_size();
+
+		if r.item_count().unwrap_or(0) != expected_length {
+			trace!(target: "sync", "Wrong snapshot bitifield from {}", peer_id);
+			io.disable_peer(peer_id);
+			return Ok(());
+		}
+
+		let bitfield: Vec<u8> = r.as_list()?;
+
+		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
+			peer.snapshot_bitfield = Some(bitfield);
+			peer.ask_bitfield_time = Instant::now();
+		}
+
+		// give a task to the same peer first.
+		sync.sync_peer(io, peer_id, false);
+		// give tasks to other peers
+		sync.continue_sync(io);
+		Ok(())
+	}
+
 	/// Called when snapshot manifest is downloaded from a peer.
 	fn on_snapshot_manifest(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		if !sync.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
@@ -631,10 +669,12 @@ impl SyncHandler {
 			asking_blocks: Vec::new(),
 			asking_hash: None,
 			ask_time: Instant::now(),
+			ask_bitfield_time: Instant::now() - BITFIELD_REFRESH_DURATION,
 			last_sent_transactions: HashSet::new(),
 			expired: false,
 			confirmation: if sync.fork_block.is_none() { ForkConfirmation::Confirmed } else { ForkConfirmation::Unconfirmed },
 			asking_snapshot_data: None,
+			snapshot_bitfield: None,
 			snapshot_hash: if warp_protocol { Some(r.val_at(5)?) } else { None },
 			snapshot_number: if warp_protocol { Some(r.val_at(6)?) } else { None },
 			block_set: None,

@@ -17,6 +17,7 @@
 use bytes::Bytes;
 use ethcore::client::BlockId;
 use ethcore::header::BlockNumber;
+use ethcore::snapshot::ManifestData;
 use ethereum_types::H256;
 use network::{self, PeerId};
 use parking_lot::RwLock;
@@ -26,6 +27,7 @@ use sync_io::SyncIo;
 
 use super::{
 	ChainSync,
+	PeerInfo,
 	RlpResponseResult,
 	PacketDecodeError,
 	BLOCK_BODIES_PACKET,
@@ -37,6 +39,7 @@ use super::{
 	GET_RECEIPTS_PACKET,
 	GET_SNAPSHOT_DATA_PACKET,
 	GET_SNAPSHOT_MANIFEST_PACKET,
+	GET_SNAPSHOT_BITFIELD_PACKET,
 	MAX_BODIES_TO_SEND,
 	MAX_HEADERS_TO_SEND,
 	MAX_NODE_DATA_TO_SEND,
@@ -44,9 +47,12 @@ use super::{
 	MAX_RECEIPTS_TO_SEND,
 	NODE_DATA_PACKET,
 	RECEIPTS_PACKET,
+	SNAPSHOT_BITFIELD_PACKET,
 	SNAPSHOT_DATA_PACKET,
 	SNAPSHOT_MANIFEST_PACKET,
 };
+
+type FRlp = Fn(&ChainSync, &SyncIo, &Rlp, PeerId) -> RlpResponseResult;
 
 /// The Chain Sync Supplier: answers requests from peers with available data
 pub struct SyncSupplier;
@@ -55,43 +61,40 @@ impl SyncSupplier {
 	/// Dispatch incoming requests and responses
 	pub fn dispatch_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = Rlp::new(data);
-		let result = match packet_id {
-			GET_BLOCK_BODIES_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
-				SyncSupplier::return_block_bodies,
-				|e| format!("Error sending block bodies: {:?}", e)),
+		let rlp_func: Option<&FRlp> = match packet_id {
+			GET_BLOCK_BODIES_PACKET => Some(&SyncSupplier::return_block_bodies),
+			GET_BLOCK_HEADERS_PACKET => Some(&SyncSupplier::return_block_headers),
+			GET_RECEIPTS_PACKET => Some(&SyncSupplier::return_receipts),
+			GET_NODE_DATA_PACKET => Some(&SyncSupplier::return_node_data),
+			GET_SNAPSHOT_BITFIELD_PACKET => Some(&SyncSupplier::return_snapshot_bitfield),
+			GET_SNAPSHOT_MANIFEST_PACKET => Some(&SyncSupplier::return_snapshot_manifest),
+			GET_SNAPSHOT_DATA_PACKET => Some(&SyncSupplier::return_snapshot_data),
+			_ => None,
+		};
 
-			GET_BLOCK_HEADERS_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
-				SyncSupplier::return_block_headers,
-				|e| format!("Error sending block headers: {:?}", e)),
-
-			GET_RECEIPTS_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
-				SyncSupplier::return_receipts,
-				|e| format!("Error sending receipts: {:?}", e)),
-
-			GET_NODE_DATA_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
-				SyncSupplier::return_node_data,
-				|e| format!("Error sending nodes: {:?}", e)),
-
-			GET_SNAPSHOT_MANIFEST_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
-				SyncSupplier::return_snapshot_manifest,
-				|e| format!("Error sending snapshot manifest: {:?}", e)),
-
-			GET_SNAPSHOT_DATA_PACKET => SyncSupplier::return_rlp(io, &rlp, peer,
-				SyncSupplier::return_snapshot_data,
-				|e| format!("Error sending snapshot data: {:?}", e)),
-			CONSENSUS_DATA_PACKET => ChainSync::on_consensus_packet(io, peer, &rlp),
-			_ => {
-				sync.write().on_packet(io, peer, packet_id, data);
-				Ok(())
+		let result = match rlp_func {
+			Some(rlp_func) => SyncSupplier::return_rlp(
+				&sync.read(), io, &rlp, peer, rlp_func,
+				|e| format!("Error sending packet {:?}: {:?}", packet_id, e)
+			),
+			None => {
+				match packet_id {
+					CONSENSUS_DATA_PACKET => ChainSync::on_consensus_packet(io, peer, &rlp),
+					_ => {
+						sync.write().on_packet(io, peer, packet_id, data);
+						Ok(())
+					}
+				}
 			}
 		};
+
 		result.unwrap_or_else(|e| {
 			debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e);
 		})
 	}
 
 	/// Respond to GetBlockHeaders request
-	fn return_block_headers(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_block_headers(_sync: &ChainSync, io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		// Packet layout:
 		// [ block: { P , B_32 }, maxHeaders: P, skip: P, reverse: P in { 0 , 1 } ]
 		let max_headers: usize = r.val_at(1)?;
@@ -167,7 +170,7 @@ impl SyncSupplier {
 	}
 
 	/// Respond to GetBlockBodies request
-	fn return_block_bodies(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_block_bodies(_sync: &ChainSync, io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let mut count = r.item_count().unwrap_or(0);
 		if count == 0 {
 			debug!(target: "sync", "Empty GetBlockBodies request, ignoring.");
@@ -189,7 +192,7 @@ impl SyncSupplier {
 	}
 
 	/// Respond to GetNodeData request
-	fn return_node_data(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_node_data(_sync: &ChainSync, io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let mut count = r.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetNodeData: {} entries", peer_id, count);
 		if count == 0 {
@@ -213,7 +216,7 @@ impl SyncSupplier {
 		Ok(Some((NODE_DATA_PACKET, rlp)))
 	}
 
-	fn return_receipts(io: &SyncIo, rlp: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_receipts(_sync: &ChainSync, io: &SyncIo, rlp: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let mut count = rlp.item_count().unwrap_or(0);
 		trace!(target: "sync", "{} -> GetReceipts: {} entries", peer_id, count);
 		if count == 0 {
@@ -237,15 +240,50 @@ impl SyncSupplier {
 		Ok(Some((RECEIPTS_PACKET, rlp_result)))
 	}
 
+	/// Respond to GetSnapshotBitfield request
+	fn return_snapshot_bitfield(sync: &ChainSync, _io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		trace!(target: "warp-sync", "{} -> GetSnapshotBitfield", peer_id);
+		if r.item_count().unwrap_or(0) != 0 {
+			debug!(target: "warp-sync", "Invalid GetSnapshotBitfield request, ignoring.");
+			return Ok(None);
+		}
+		let rlp = match sync.snapshot.snapshot_hash() {
+			Some(_) => {
+				trace!(target: "warp-sync", "{} <- SnapshotBitfield", peer_id);
+				let bitfield = sync.snapshot.bitfield();
+				let mut rlp = RlpStream::new();
+				rlp.append_list(&bitfield);
+				rlp
+			},
+			None => {
+				trace!(target: "warp-sync", "{}: No partial snapshot manifest to return", peer_id);
+				RlpStream::new_list(0)
+			},
+		};
+		Ok(Some((SNAPSHOT_BITFIELD_PACKET, rlp)))
+	}
+
+	pub fn get_snapshot_manifest(io: &SyncIo, peer_protocol: u8) -> Option<ManifestData> {
+		let supports_partial = PeerInfo::supports_partial_snapshots(peer_protocol);
+		let manifest = io.snapshot_service().manifest();
+
+		trace!(target: "warp-sync", "Peer; support_partials={} ; manifest={:?}", supports_partial, manifest);
+
+		manifest
+			.or(if supports_partial { io.snapshot_service().partial_manifest() } else { None })
+	}
+
 	/// Respond to GetSnapshotManifest request
-	fn return_snapshot_manifest(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_snapshot_manifest(sync: &ChainSync, io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let count = r.item_count().unwrap_or(0);
 		trace!(target: "warp", "{} -> GetSnapshotManifest", peer_id);
 		if count != 0 {
 			debug!(target: "warp", "Invalid GetSnapshotManifest request, ignoring.");
 			return Ok(None);
 		}
-		let rlp = match io.snapshot_service().manifest() {
+
+		let peer_protocol = sync.peers.get(&peer_id).map_or(0, |ref peer| peer.protocol_version);
+		let rlp = match SyncSupplier::get_snapshot_manifest(io, peer_protocol) {
 			Some(manifest) => {
 				trace!(target: "warp", "{} <- SnapshotManifest", peer_id);
 				let mut rlp = RlpStream::new_list(1);
@@ -261,7 +299,7 @@ impl SyncSupplier {
 	}
 
 	/// Respond to GetSnapshotData request
-	fn return_snapshot_data(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_snapshot_data(_sync: &ChainSync, io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let hash: H256 = r.val_at(0)?;
 		trace!(target: "warp", "{} -> GetSnapshotData {:?}", peer_id, hash);
 		let rlp = match io.snapshot_service().chunk(hash) {
@@ -279,11 +317,10 @@ impl SyncSupplier {
 		Ok(Some((SNAPSHOT_DATA_PACKET, rlp)))
 	}
 
-	fn return_rlp<FRlp, FError>(io: &mut SyncIo, rlp: &Rlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketDecodeError>
-		where FRlp : Fn(&SyncIo, &Rlp, PeerId) -> RlpResponseResult,
-			FError : FnOnce(network::Error) -> String
+	fn return_rlp<FError>(sync: &ChainSync, io: &mut SyncIo, rlp: &Rlp, peer: PeerId, rlp_func: &FRlp, error_func: FError) -> Result<(), PacketDecodeError>
+		where FError : FnOnce(network::Error) -> String
 	{
-		let response = rlp_func(io, rlp, peer);
+		let response = (*rlp_func)(sync, io, rlp, peer);
 		match response {
 			Err(e) => Err(e),
 			Ok(Some((packet_id, rlp_stream))) => {

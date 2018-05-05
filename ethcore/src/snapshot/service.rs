@@ -199,6 +199,14 @@ impl Restoration {
 	fn is_done(&self) -> bool {
 		self.block_chunks_left.is_empty() && self.state_chunks_left.is_empty()
 	}
+
+	fn read_chunk(&self, hash: H256) -> Option<Bytes> {
+		if let Some(ref writer) = self.writer {
+			writer.read_chunk(hash).ok()
+		} else {
+			None
+		}
+	}
 }
 
 /// Type alias for client io channel.
@@ -670,13 +678,35 @@ impl SnapshotService for Service {
 		self.reader.read().as_ref().map(|r| r.manifest().clone())
 	}
 
+	fn partial_manifest(&self) -> Option<ManifestData> {
+		let restoration = self.restoration.lock();
+
+		match *restoration {
+			Some(ref restoration) => Some(restoration.manifest.clone()),
+			None => None,
+		}
+	}
+
 	fn supported_versions(&self) -> Option<(u64, u64)> {
 		self.engine.snapshot_components()
 			.map(|c| (c.min_supported_version(), c.current_version()))
 	}
 
 	fn chunk(&self, hash: H256) -> Option<Bytes> {
-		self.reader.read().as_ref().and_then(|r| r.chunk(hash).ok())
+		let complete_chunk = self.reader.read().as_ref().and_then(|r| r.chunk(hash).ok());
+
+		if complete_chunk.is_some() {
+			return complete_chunk;
+		}
+
+		let restoration = self.restoration.lock();
+
+		match *restoration {
+			Some(ref restoration) => {
+				restoration.read_chunk(hash)
+			},
+			None => None
+		}
 	}
 
 	fn completed_chunks(&self) -> Option<Vec<H256>> {

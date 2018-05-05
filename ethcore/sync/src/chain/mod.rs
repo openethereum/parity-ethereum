@@ -178,6 +178,8 @@ pub const SNAPSHOT_DATA_PACKET: u8 = 0x14;
 pub const CONSENSUS_DATA_PACKET: u8 = 0x15;
 const PRIVATE_TRANSACTION_PACKET: u8 = 0x16;
 const SIGNED_PRIVATE_TRANSACTION_PACKET: u8 = 0x17;
+pub const GET_SNAPSHOT_BITFIELD_PACKET: u8 = 0x18;
+pub const SNAPSHOT_BITFIELD_PACKET: u8 = 0x19;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
@@ -187,8 +189,10 @@ const HEADERS_TIMEOUT: Duration = Duration::from_secs(15);
 const BODIES_TIMEOUT: Duration = Duration::from_secs(20);
 const RECEIPTS_TIMEOUT: Duration = Duration::from_secs(10);
 const FORK_HEADER_TIMEOUT: Duration = Duration::from_secs(3);
+const SNAPSHOT_BITFIELD_TIMEOUT: Duration = Duration::from_secs(10);
 const SNAPSHOT_MANIFEST_TIMEOUT: Duration = Duration::from_secs(5);
 const SNAPSHOT_DATA_TIMEOUT: Duration = Duration::from_secs(120);
+const BITFIELD_REFRESH_DURATION: Duration = Duration::from_secs(10);
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Sync state
@@ -280,6 +284,7 @@ pub enum PeerAsking {
 	BlockHeaders,
 	BlockBodies,
 	BlockReceipts,
+	SnapshotBitfield,
 	SnapshotManifest,
 	SnapshotData,
 }
@@ -304,7 +309,7 @@ pub enum ForkConfirmation {
 /// Syncing peer information
 pub struct PeerInfo {
 	/// eth protocol version
-	protocol_version: u8,
+	pub protocol_version: u8,
 	/// Peer chain genesis hash
 	genesis: H256,
 	/// Peer network id
@@ -321,6 +326,8 @@ pub struct PeerInfo {
 	asking_hash: Option<H256>,
 	/// Holds requested snapshot chunk hash if any.
 	asking_snapshot_data: Option<H256>,
+	/// Last bitfield request
+	ask_bitfield_time: Instant,
 	/// Request timestamp
 	ask_time: Instant,
 	/// Holds a set of transactions recently sent to this peer to avoid spamming.
@@ -329,6 +336,8 @@ pub struct PeerInfo {
 	expired: bool,
 	/// Peer fork confirmation status
 	confirmation: ForkConfirmation,
+	/// Peer's current snapshot bitfield
+	snapshot_bitfield: Option<Vec<u8>>,
 	/// Best snapshot hash
 	snapshot_hash: Option<H256>,
 	/// Best snapshot block number
@@ -353,6 +362,28 @@ impl PeerInfo {
 		if self.asking != PeerAsking::Nothing && self.is_allowed() {
 			self.expired = true;
 		}
+	}
+
+	pub fn chunk_index_available(&self, index: usize) -> bool {
+		// If no bitfield, assume every chunk is available
+		match self.snapshot_bitfield {
+			None => true,
+			Some(ref bitfield) => {
+				let byte_index = index / 8;
+
+				if byte_index >= bitfield.len() {
+					return false;
+				}
+
+				let bit_index = index % 8;
+
+				(bitfield[byte_index] >> (7 - bit_index)) & 1 != 0
+			}
+		}
+	}
+
+	pub fn supports_partial_snapshots(protocol_version: u8) -> bool {
+		protocol_version >= PAR_PROTOCOL_VERSION_4.0
 	}
 }
 
@@ -545,9 +576,18 @@ impl ChainSync {
 			trace!(target: "sync", "Skipping warp sync. Disabled or not supported.");
 			return;
 		}
-		if self.state != SyncState::WaitingPeers && self.state != SyncState::Blocks && self.state != SyncState::Waiting {
-			trace!(target: "sync", "Skipping warp sync. State: {:?}", self.state);
-			return;
+		match self.state {
+			SyncState::Idle |
+			SyncState::NewBlocks |
+			SyncState::SnapshotData |
+			SyncState::SnapshotManifest |
+			SyncState::SnapshotWaiting => {
+				trace!(target: "sync", "Skipping warp sync. State: {:?}", self.state);
+				return;
+			},
+			SyncState::WaitingPeers |
+			SyncState::Blocks |
+			SyncState::Waiting => (),
 		}
 		// Make sure the snapshot block is not too far away from best block and network best block and
 		// that it is higher than fork detection block
@@ -724,80 +764,93 @@ impl ChainSync {
 		let num_active_peers = self.peers.values().filter(|p| p.asking != PeerAsking::Nothing).count();
 
 		let higher_difficulty = peer_difficulty.map_or(true, |pd| pd > syncing_difficulty);
-		if force || higher_difficulty || self.old_blocks.is_some() {
-			match self.state {
-				SyncState::WaitingPeers => {
-					trace!(
-						target: "sync",
-						"Checking snapshot sync: {} vs {} (peer: {})",
-						peer_snapshot_number,
-						chain_info.best_block_number,
-						peer_id
-					);
-					self.maybe_start_snapshot_sync(io);
-				},
-				SyncState::Idle | SyncState::Blocks | SyncState::NewBlocks => {
-					if io.chain().queue_info().is_full() {
-						self.pause_sync();
+		match self.state {
+			SyncState::WaitingPeers => {
+				trace!(
+					target: "sync",
+					"Checking snapshot sync: {} vs {} (peer: {})",
+					peer_snapshot_number,
+					chain_info.best_block_number,
+					peer_id
+				);
+				self.maybe_start_snapshot_sync(io);
+			},
+			SyncState::Idle | SyncState::Blocks | SyncState::NewBlocks => {
+				if io.chain().queue_info().is_full() {
+					self.pause_sync();
+					return;
+				}
+
+				let have_latest = io.chain().block_status(BlockId::Hash(peer_latest)) != BlockStatus::Unknown;
+				trace!(target: "sync", "Considering peer {}, force={}, td={:?}, our td={}, latest={}, have_latest={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, peer_latest, have_latest, self.state);
+				if !have_latest && (higher_difficulty || force || self.state == SyncState::NewBlocks) {
+					// check if got new blocks to download
+					trace!(target: "sync", "Syncing with peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
+					if let Some(request) = self.new_blocks.request_blocks(io, num_active_peers) {
+						SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::NewBlocks);
+						if self.state == SyncState::Idle {
+							self.state = SyncState::Blocks;
+						}
 						return;
 					}
+				}
 
-					let have_latest = io.chain().block_status(BlockId::Hash(peer_latest)) != BlockStatus::Unknown;
-					trace!(target: "sync", "Considering peer {}, force={}, td={:?}, our td={}, latest={}, have_latest={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, peer_latest, have_latest, self.state);
-					if !have_latest && (higher_difficulty || force || self.state == SyncState::NewBlocks) {
-						// check if got new blocks to download
-						trace!(target: "sync", "Syncing with peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
-						if let Some(request) = self.new_blocks.request_blocks(io, num_active_peers) {
-							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::NewBlocks);
-							if self.state == SyncState::Idle {
-								self.state = SyncState::Blocks;
-							}
+				// Only ask for old blocks if the peer has a higher difficulty
+				if force || higher_difficulty {
+					if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
+						SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
+						return;
+					}
+				} else {
+					trace!(target: "sync", "peer {} is not suitable for asking old blocks", peer_id);
+					self.deactivate_peer(io, peer_id);
+				}
+			},
+			SyncState::SnapshotData => {
+				let peer_has_snapshot = peer_snapshot_hash.is_some() && peer_snapshot_hash == self.snapshot.snapshot_hash();
+
+				if !peer_has_snapshot {
+					trace!(target: "warp-sync", "Peer {} does not have the snapshot. Deactivating.", peer_id);
+					self.deactivate_peer(io, peer_id);
+					return;
+				}
+
+				// Asks peer bitfield if it is supported and they are not set yet
+				let request_bitfield = self.peers.get(&peer_id).map_or(false, |ref peer| {
+					PeerInfo::supports_partial_snapshots(peer.protocol_version) && peer.snapshot_bitfield.is_none()
+				});
+				if request_bitfield {
+					SyncRequester::request_snapshot_bitfield(self, io, peer_id);
+					return;
+				}
+
+				match io.snapshot_service().status() {
+					RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
+						// Initialize the snapshot if not already done
+						self.snapshot.initialize(io.snapshot_service());
+						if self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize > MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
+							trace!(target: "sync", "Snapshot queue full, pausing sync");
+							self.state = SyncState::SnapshotWaiting;
 							return;
 						}
-					}
+					},
+					RestorationStatus::Initializing { .. } => {
+						trace!(target: "warp", "Snapshot is stil initializing.");
+						return;
+					},
+					_ => {
+						return;
+					},
+				}
 
-					// Only ask for old blocks if the peer has a higher difficulty
-					if force || higher_difficulty {
-						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
-							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
-							return;
-						}
-					} else {
-						trace!(target: "sync", "peer {} is not suitable for asking old blocks", peer_id);
-						self.deactivate_peer(io, peer_id);
-					}
-				},
-				SyncState::SnapshotData => {
-					match io.snapshot_service().status() {
-						RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
-							// Initialize the snapshot if not already done
-							self.snapshot.initialize(io.snapshot_service());
-							if self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize > MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
-								trace!(target: "sync", "Snapshot queue full, pausing sync");
-								self.state = SyncState::SnapshotWaiting;
-								return;
-							}
-						},
-						RestorationStatus::Initializing { .. } => {
-							trace!(target: "warp", "Snapshot is stil initializing.");
-							return;
-						},
-						_ => {
-							return;
-						},
-					}
-
-					if peer_snapshot_hash.is_some() && peer_snapshot_hash == self.snapshot.snapshot_hash() {
-						self.clear_peer_download(peer_id);
-						SyncRequester::request_snapshot_data(self, io, peer_id);
-					}
-				},
-				SyncState::SnapshotManifest | //already downloading from other peer
-					SyncState::Waiting |
-					SyncState::SnapshotWaiting => ()
-			}
-		} else {
-			trace!(target: "sync", "Skipping peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
+				if peer_snapshot_hash.is_some() && peer_snapshot_hash == self.snapshot.snapshot_hash() {
+					self.clear_peer_download(peer_id);
+					SyncRequester::request_snapshot_data(self, io, peer_id);
+				}
+			},
+			SyncState::SnapshotManifest | //already downloading from other peer
+				SyncState::Waiting |
+				SyncState::SnapshotWaiting => (),
 		}
 	}
 
@@ -885,7 +938,7 @@ impl ChainSync {
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
 		if warp_protocol {
-			let manifest = io.snapshot_service().manifest();
+			let manifest = SyncSupplier::get_snapshot_manifest(io, protocol);
 			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
 			let manifest_hash = manifest.map_or(H256::new(), |m| keccak(m.into_rlp()));
 			packet.append(&manifest_hash);
@@ -905,6 +958,7 @@ impl ChainSync {
 				PeerAsking::BlockReceipts => elapsed > RECEIPTS_TIMEOUT,
 				PeerAsking::Nothing => false,
 				PeerAsking::ForkHeader => elapsed > FORK_HEADER_TIMEOUT,
+				PeerAsking::SnapshotBitfield => elapsed > SNAPSHOT_BITFIELD_TIMEOUT,
 				PeerAsking::SnapshotManifest => elapsed > SNAPSHOT_MANIFEST_TIMEOUT,
 				PeerAsking::SnapshotData => elapsed > SNAPSHOT_DATA_TIMEOUT,
 			};
@@ -1048,10 +1102,6 @@ impl ChainSync {
 
 	fn get_private_transaction_peers(&self) -> Vec<PeerId> {
 		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3.0 { Some(*id) } else { None }).collect()
-	}
-
-	fn get_seeding_partial_snapshot_peers(&self) -> Vec<PeerId> {
-		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_4.0 { Some(*id) } else { None }).collect()
 	}
 
 	/// Maintain other peers. Send out any new blocks and transactions

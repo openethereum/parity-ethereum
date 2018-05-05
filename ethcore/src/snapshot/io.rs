@@ -37,6 +37,9 @@ const SNAPSHOT_VERSION: u64 = 2;
 /// Writing the same chunk multiple times will lead to implementation-defined
 /// behavior, and is not advised.
 pub trait SnapshotWriter {
+	/// Get a raw chunk by hash
+	fn read_chunk(&self, hash: H256) -> io::Result<Bytes>;
+
 	/// Write a compressed state chunk.
 	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()>;
 
@@ -82,6 +85,22 @@ impl PackedWriter {
 }
 
 impl SnapshotWriter for PackedWriter {
+	fn read_chunk(&self, hash: H256) -> io::Result<Bytes> {
+		let &ChunkInfo(_, len, off) = self.state_hashes.iter()
+			.chain(self.block_hashes.iter())
+			.find(|&chunk_info| chunk_info.0 == hash)
+			.expect("only chunks in the manifest can be requested; qed");
+
+		let mut file = &self.file;
+
+		file.seek(SeekFrom::Start(off))?;
+		let mut buf = vec![0; len as usize];
+
+		file.read_exact(&mut buf[..])?;
+
+		Ok(buf)
+	}
+
 	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
 		self.file.write_all(chunk)?;
 
@@ -164,6 +183,14 @@ impl LooseWriter {
 }
 
 impl SnapshotWriter for LooseWriter {
+	fn read_chunk(&self, hash: H256) -> io::Result<Bytes> {
+		let path = self.dir.join(format!("{:x}", hash));
+		let mut buf = Vec::new();
+		let mut file = File::open(&path)?;
+		file.read_to_end(&mut buf)?;
+		Ok(buf)
+	}
+
 	fn write_state_chunk(&mut self, hash: H256, chunk: &[u8]) -> io::Result<()> {
 		self.write_chunk(hash, chunk)
 	}
