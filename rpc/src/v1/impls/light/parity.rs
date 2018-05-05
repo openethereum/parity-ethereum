@@ -20,8 +20,8 @@ use std::collections::{BTreeMap, HashSet};
 
 use version::version_data;
 
-use crypto::{ecies, DEFAULT_MAC};
-use ethkey::{Brain, Generator};
+use crypto::DEFAULT_MAC;
+use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use sync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
