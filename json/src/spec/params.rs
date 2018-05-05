@@ -85,6 +85,9 @@ pub struct Params {
 	#[serde(rename="eip211Transition")]
 	pub eip211_transition: Option<Uint>,
 	/// See `CommonParams` docs.
+	#[serde(rename="eip145Transition")]
+	pub eip145_transition: Option<Uint>,
+	/// See `CommonParams` docs.
 	#[serde(rename="eip214Transition")]
 	pub eip214_transition: Option<Uint>,
 	/// See `CommonParams` docs.
