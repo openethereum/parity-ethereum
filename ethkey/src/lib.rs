@@ -17,11 +17,13 @@
 // #![warn(missing_docs)]
 
 extern crate byteorder;
-extern crate crypto as rcrypto;
 extern crate edit_distance;
+extern crate ethcore_crypto;
 extern crate ethereum_types;
 extern crate mem;
 extern crate parity_wordlist;
+#[macro_use]
+extern crate quick_error;
 extern crate rand;
 extern crate rustc_hex;
 extern crate secp256k1;
@@ -44,6 +46,7 @@ mod secret;
 mod extended;
 
 pub mod brain_recover;
+pub mod crypto;
 pub mod math;
 
 pub use self::parity_wordlist::Error as WordlistError;

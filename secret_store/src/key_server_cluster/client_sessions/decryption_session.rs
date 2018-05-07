@@ -1279,7 +1279,7 @@ mod tests {
 		assert!(decrypted_secret.decrypt_shadows.is_some());
 		// check that KS client is able to restore original secret
 		use crypto::DEFAULT_MAC;
-		use crypto::ecies::decrypt;
+		use ethkey::crypto::ecies::decrypt;
 		let decrypt_shadows: Vec<_> = decrypted_secret.decrypt_shadows.unwrap().into_iter()
 			.map(|c| Secret::from_slice(&decrypt(key_pair.secret(), &DEFAULT_MAC, &c).unwrap()).unwrap())
 			.collect();
@@ -1423,7 +1423,7 @@ mod tests {
 
 		// 4 nodes must be able to recover original secret
 		use crypto::DEFAULT_MAC;
-		use crypto::ecies::decrypt;
+		use ethkey::crypto::ecies::decrypt;
 		let result = sessions[0].decrypted_secret().unwrap().unwrap();
 		assert_eq!(3, sessions.iter().skip(1).filter(|s| s.decrypted_secret() == Some(Ok(result.clone()))).count());
 		let decrypt_shadows: Vec<_> = result.decrypt_shadows.unwrap().into_iter()

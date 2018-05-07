@@ -21,7 +21,6 @@ use crypto::Keccak256;
 use random::Random;
 use smallvec::SmallVec;
 use account::{Cipher, Kdf, Aes128Ctr, Pbkdf2, Prf};
-use subtle;
 
 /// Encrypted data
 #[derive(Debug, PartialEq, Clone)]
@@ -74,12 +73,12 @@ impl From<Crypto> for String {
 
 impl Crypto {
 	/// Encrypt account secret
-	pub fn with_secret(secret: &Secret, password: &str, iterations: u32) -> Self {
+	pub fn with_secret(secret: &Secret, password: &str, iterations: u32) -> Result<Self, crypto::Error> {
 		Crypto::with_plain(&*secret, password, iterations)
 	}
 
 	/// Encrypt custom plain data
-	pub fn with_plain(plain: &[u8], password: &str, iterations: u32) -> Self {
+	pub fn with_plain(plain: &[u8], password: &str, iterations: u32) -> Result<Self, crypto::Error> {
 		let salt: [u8; 32] = Random::random();
 		let iv: [u8; 16] = Random::random();
 
@@ -93,12 +92,12 @@ impl Crypto {
 		let mut ciphertext: SmallVec<[u8; 32]> = SmallVec::from_vec(vec![0; plain_len]);
 
 		// aes-128-ctr with initial vector of iv
-		crypto::aes::encrypt(&derived_left_bits, &iv, plain, &mut *ciphertext);
+		crypto::aes::encrypt_128_ctr(&derived_left_bits, &iv, plain, &mut *ciphertext)?;
 
 		// KECCAK(DK[16..31] ++ <ciphertext>), where DK[16..31] - derived_right_bits
 		let mac = crypto::derive_mac(&derived_right_bits, &*ciphertext).keccak256();
 
-		Crypto {
+		Ok(Crypto {
 			cipher: Cipher::Aes128Ctr(Aes128Ctr {
 				iv: iv,
 			}),
@@ -110,7 +109,7 @@ impl Crypto {
 				prf: Prf::HmacSha256,
 			}),
 			mac: mac,
-		}
+		})
 	}
 
 	/// Try to decrypt and convert result to account secret
@@ -132,13 +131,13 @@ impl Crypto {
 	fn do_decrypt(&self, password: &str, expected_len: usize) -> Result<Vec<u8>, Error> {
 		let (derived_left_bits, derived_right_bits) = match self.kdf {
 			Kdf::Pbkdf2(ref params) => crypto::derive_key_iterations(password, &params.salt, params.c),
-			Kdf::Scrypt(ref params) => crypto::derive_key_scrypt(password, &params.salt, params.n, params.p, params.r)?,
+			Kdf::Scrypt(ref params) => crypto::scrypt::derive_key(password, &params.salt, params.n, params.p, params.r)?,
 		};
 
 		let mac = crypto::derive_mac(&derived_right_bits, &self.ciphertext).keccak256();
 
-		if subtle::slices_equal(&mac, &self.mac) == 0 {
-			return Err(Error::InvalidPassword);
+		if !crypto::is_equal(&mac, &self.mac) {
+			return Err(Error::InvalidPassword)
 		}
 
 		let mut plain: SmallVec<[u8; 32]> = SmallVec::from_vec(vec![0; expected_len]);
@@ -149,7 +148,7 @@ impl Crypto {
 				debug_assert!(expected_len >= self.ciphertext.len());
 
 				let from = expected_len - self.ciphertext.len();
-				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, &mut plain[from..]);
+				crypto::aes::decrypt_128_ctr(&derived_left_bits, &params.iv, &self.ciphertext, &mut plain[from..])?;
 				Ok(plain.into_iter().collect())
 			},
 		}
@@ -164,7 +163,7 @@ mod tests {
 	#[test]
 	fn crypto_with_secret_create() {
 		let keypair = Random.generate().unwrap();
-		let crypto = Crypto::with_secret(keypair.secret(), "this is sparta", 10240);
+		let crypto = Crypto::with_secret(keypair.secret(), "this is sparta", 10240).unwrap();
 		let secret = crypto.secret("this is sparta").unwrap();
 		assert_eq!(keypair.secret(), &secret);
 	}
@@ -172,14 +171,14 @@ mod tests {
 	#[test]
 	fn crypto_with_secret_invalid_password() {
 		let keypair = Random.generate().unwrap();
-		let crypto = Crypto::with_secret(keypair.secret(), "this is sparta", 10240);
+		let crypto = Crypto::with_secret(keypair.secret(), "this is sparta", 10240).unwrap();
 		assert_matches!(crypto.secret("this is sparta!"), Err(Error::InvalidPassword))
 	}
 
 	#[test]
 	fn crypto_with_null_plain_data() {
 		let original_data = b"";
-		let crypto = Crypto::with_plain(&original_data[..], "this is sparta", 10240);
+		let crypto = Crypto::with_plain(&original_data[..], "this is sparta", 10240).unwrap();
 		let decrypted_data = crypto.decrypt("this is sparta").unwrap();
 		assert_eq!(original_data[..], *decrypted_data);
 	}
@@ -187,7 +186,7 @@ mod tests {
 	#[test]
 	fn crypto_with_tiny_plain_data() {
 		let original_data = b"{}";
-		let crypto = Crypto::with_plain(&original_data[..], "this is sparta", 10240);
+		let crypto = Crypto::with_plain(&original_data[..], "this is sparta", 10240).unwrap();
 		let decrypted_data = crypto.decrypt("this is sparta").unwrap();
 		assert_eq!(original_data[..], *decrypted_data);
 	}
@@ -195,7 +194,7 @@ mod tests {
 	#[test]
 	fn crypto_with_huge_plain_data() {
 		let original_data: Vec<_> = (1..65536).map(|i| (i % 256) as u8).collect();
-		let crypto = Crypto::with_plain(&original_data, "this is sparta", 10240);
+		let crypto = Crypto::with_plain(&original_data, "this is sparta", 10240).unwrap();
 		let decrypted_data = crypto.decrypt("this is sparta").unwrap();
 		assert_eq!(&original_data, &decrypted_data);
 	}

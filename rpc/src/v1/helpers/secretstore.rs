@@ -16,7 +16,7 @@
 
 use std::collections::BTreeSet;
 use rand::{Rng, OsRng};
-use ethkey::{Public, Secret, Random, Generator, math};
+use ethkey::{self, Public, Secret, Random, Generator, math};
 use crypto;
 use bytes::Bytes;
 use jsonrpc_core::Error;
@@ -36,7 +36,7 @@ pub fn generate_document_key(account_public: Public, server_key_public: Public) 
 	let (common_point, encrypted_point) = encrypt_secret(document_key.public(), &server_key_public)?;
 
 	// ..and now encrypt document key with account public
-	let encrypted_key = crypto::ecies::encrypt(&account_public, &crypto::DEFAULT_MAC, document_key.public())
+	let encrypted_key = ethkey::crypto::ecies::encrypt(&account_public, &crypto::DEFAULT_MAC, document_key.public())
 		.map_err(errors::encryption)?;
 
 	Ok(EncryptedDocumentKey {
@@ -57,7 +57,7 @@ pub fn encrypt_document(key: Bytes, document: Bytes) -> Result<Bytes, Error> {
 	{
 		let (mut encryption_buffer, iv_buffer) = encrypted_document.split_at_mut(document.len());
 
-		crypto::aes::encrypt(&key, &iv, &document, &mut encryption_buffer);
+		crypto::aes::encrypt_128_ctr(&key, &iv, &document, &mut encryption_buffer).map_err(errors::encryption)?;
 		iv_buffer.copy_from_slice(&iv);
 	}
 
@@ -78,7 +78,7 @@ pub fn decrypt_document(key: Bytes, mut encrypted_document: Bytes) -> Result<Byt
 	// use symmetric decryption to decrypt document
 	let iv = encrypted_document.split_off(encrypted_document_len - INIT_VEC_LEN);
 	let mut document = vec![0; encrypted_document_len - INIT_VEC_LEN];
-	crypto::aes::decrypt(&key, &iv, &encrypted_document, &mut document);
+	crypto::aes::decrypt_128_ctr(&key, &iv, &encrypted_document, &mut document).map_err(errors::encryption)?;
 
 	Ok(document)
 }
