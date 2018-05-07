@@ -469,6 +469,7 @@ mod tests {
 			endpoint.unwrap_err().kind(),
 			// TODO: after 1.27 is stable, remove the `&`s and `ref`s, see https://github.com/rust-lang/rust/pull/49394
 			&ErrorKind::AddressParse(ref io_err) => {
+				assert!(io_err.is_some());
 				if let &Some(ref e) = io_err {
 					assert_eq!(e.to_string(), "invalid socket address");
 				}
@@ -483,6 +484,7 @@ mod tests {
 		assert_matches!(
 			endpoint.unwrap_err().kind(),
 			&ErrorKind::AddressParse(ref io_err) => {
+				assert!(io_err.is_some());
 				if let &Some(ref e) = io_err {
 					assert_eq!(e.to_string(), "invalid socket address");
 				}
@@ -497,6 +499,7 @@ mod tests {
 		assert_matches!(
 			endpoint.unwrap_err().kind(),
 			&ErrorKind::AddressParse(ref io_err) => {
+				assert!(io_err.is_some());
 				if let &Some(ref e) = io_err {
 					assert_eq!(e.to_string(), "invalid socket address");
 				}
