@@ -23,7 +23,7 @@ use bytes::Bytes;
 use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
 use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient,
-	ClientConfig, ChainNotify, ChainMessageType, ClientIoMessage};
+	ClientConfig, ChainNotify, ChainRoute, ChainMessageType, ClientIoMessage};
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
@@ -535,12 +535,13 @@ impl ChainNotify for EthPeer<EthcoreClient> {
 	fn new_blocks(&self,
 		imported: Vec<H256>,
 		invalid: Vec<H256>,
-		enacted: Vec<H256>,
-		retracted: Vec<H256>,
+		route: ChainRoute,
 		sealed: Vec<H256>,
 		proposed: Vec<Bytes>,
 		_duration: Duration)
 	{
+		let (enacted, retracted) = route.into_enacted_retracted();
+
 		self.new_blocks_queue.write().push_back(NewBlockMessage {
 			imported,
 			invalid,

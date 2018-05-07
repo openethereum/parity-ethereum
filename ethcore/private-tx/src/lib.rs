@@ -79,7 +79,7 @@ use ethcore::executed::{Executed};
 use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
 use ethcore::{contract_address as ethcore_contract_address};
 use ethcore::client::{
-	Client, ChainNotify, ChainMessageType, ClientIoMessage, BlockId, CallContract
+	Client, ChainNotify, ChainRoute, ChainMessageType, ClientIoMessage, BlockId, CallContract
 };
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{self, Miner, MinerService};
@@ -668,7 +668,7 @@ fn find_account_password(passwords: &Vec<String>, account_provider: &AccountProv
 }
 
 impl ChainNotify for Provider {
-	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
+	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
 		if !imported.is_empty() {
 			trace!("New blocks imported, try to prune the queue");
 			if let Err(err) = self.process_queue() {

@@ -34,7 +34,7 @@ use v1::types::{pubsub, RichHeader, Log};
 
 use ethcore::encoded;
 use ethcore::filter::Filter as EthFilter;
-use ethcore::client::{BlockChainClient, ChainNotify, BlockId};
+use ethcore::client::{BlockChainClient, ChainNotify, ChainRoute, ChainRouteType, BlockId};
 use sync::LightSync;
 use light::cache::Cache;
 use light::on_demand::OnDemand;
@@ -141,19 +141,20 @@ impl<C> ChainNotificationHandler<C> {
 		}
 	}
 
-	fn notify_logs<F, T>(&self, enacted: &[H256], logs: F) where
-		F: Fn(EthFilter) -> T,
+	fn notify_logs<F, T, Ex>(&self, enacted: &[(H256, Ex)], logs: F) where
+		F: Fn(EthFilter, &Ex) -> T,
+		Ex: Send,
 		T: IntoFuture<Item = Vec<Log>, Error = Error>,
 		T::Future: Send + 'static,
 	{
 		for &(ref subscriber, ref filter) in self.logs_subscribers.read().values() {
 			let logs = futures::future::join_all(enacted
 				.iter()
-				.map(|hash| {
+				.map(|&(hash, ref ex)| {
 					let mut filter = filter.clone();
-					filter.from_block = BlockId::Hash(*hash);
+					filter.from_block = BlockId::Hash(hash);
 					filter.to_block = filter.from_block.clone();
-					logs(filter).into_future()
+					logs(filter, ex).into_future()
 				})
 				.collect::<Vec<_>>()
 			);
@@ -214,7 +215,7 @@ impl<C: LightClient> LightChainNotify for ChainNotificationHandler<C> {
 			.collect::<Vec<_>>();
 
 		self.notify_heads(&headers);
-		self.notify_logs(&enacted, |filter| self.client.logs(filter))
+		self.notify_logs(&enacted.iter().map(|h| (*h, ())).collect::<Vec<_>>(), |filter, _| self.client.logs(filter))
 	}
 }
 
@@ -223,17 +224,21 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 		&self,
 		_imported: Vec<H256>,
 		_invalid: Vec<H256>,
-		enacted: Vec<H256>,
-		retracted: Vec<H256>,
+		route: ChainRoute,
 		_sealed: Vec<H256>,
 		// Block bytes.
 		_proposed: Vec<Bytes>,
 		_duration: Duration,
 	) {
 		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
-		let headers = enacted
+		let headers = route.route()
 			.iter()
-			.filter_map(|hash| self.client.block_header(BlockId::Hash(*hash)))
+			.filter_map(|&(hash, ref typ)| {
+				match typ {
+					&ChainRouteType::Retracted => None,
+					&ChainRouteType::Enacted => self.client.block_header(BlockId::Hash(hash))
+				}
+			})
 			.map(|header| {
 				let hash = header.hash();
 				(header, self.client.block_extra_info(BlockId::Hash(hash)).expect(EXTRA_INFO_PROOF))
@@ -243,17 +248,17 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 		// Headers
 		self.notify_heads(&headers);
 
-		// Enacted logs
-		self.notify_logs(&enacted, |filter| {
-			Ok(self.client.logs(filter).into_iter().map(Into::into).collect())
-		});
-
-		// Retracted logs
-		self.notify_logs(&retracted, |filter| {
-			Ok(self.client.logs(filter).into_iter().map(Into::into).map(|mut log: Log| {
-				log.log_type = "removed".into();
-				log
-			}).collect())
+		// We notify logs enacting and retracting as the order in route.
+		self.notify_logs(route.route(), |filter, ex| {
+			match ex {
+				&ChainRouteType::Enacted =>
+					Ok(self.client.logs(filter).into_iter().map(Into::into).collect()),
+				&ChainRouteType::Retracted =>
+					Ok(self.client.logs(filter).into_iter().map(Into::into).map(|mut log: Log| {
+						log.log_type = "removed".into();
+						log
+					}).collect()),
+			}
 		});
 	}
 }

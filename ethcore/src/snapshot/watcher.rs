@@ -17,7 +17,7 @@
 //! Watcher for snapshot-related chain events.
 
 use parking_lot::Mutex;
-use client::{BlockInfo, Client, ChainNotify, ClientIoMessage};
+use client::{BlockInfo, Client, ChainNotify, ChainRoute, ClientIoMessage};
 use ids::BlockId;
 
 use io::IoChannel;
@@ -103,8 +103,7 @@ impl ChainNotify for Watcher {
 		&self,
 		imported: Vec<H256>,
 		_: Vec<H256>,
-		_: Vec<H256>,
-		_: Vec<H256>,
+		_: ChainRoute,
 		_: Vec<H256>,
 		_: Vec<Bytes>,
 		_duration: Duration)
@@ -131,7 +130,7 @@ impl ChainNotify for Watcher {
 mod tests {
 	use super::{Broadcast, Oracle, Watcher};
 
-	use client::ChainNotify;
+	use client::{ChainNotify, ChainRoute};
 
 	use ethereum_types::{H256, U256};
 
@@ -174,8 +173,7 @@ mod tests {
 		watcher.new_blocks(
 			hashes,
 			vec![],
-			vec![],
-			vec![],
+			ChainRoute::default(),
 			vec![],
 			vec![],
 			DURATION_ZERO,
