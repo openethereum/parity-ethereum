@@ -222,9 +222,8 @@ impl<KVDB: KeyValueDB + ?Sized> Readable for KVDB {
 		where T: rlp::Decodable, R: Deref<Target = [u8]> {
 		self.get(col, &key.key())
 			.expect(&format!("db get failed, key: {:?}", &key.key() as &[u8]))
-			.and_then(|v|
-				rlp::decode(&v).expect("decoding db value failed")
-			)
+			.map(|v| rlp::decode(&v).expect("decode db value failed") )
+
 	}
 
 	fn exists<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> bool where R: Deref<Target = [u8]> {
