@@ -543,10 +543,11 @@ impl ChainNotify for EthPeer<EthcoreClient> {
 		self.new_blocks_queue.write().push_back(NewBlockMessage {
 			imported,
 			invalid,
-			route.enacted().iter().cloned().collect(),
-			route.retracted().iter().cloned().collect(),
 			sealed,
 			proposed,
+
+			enacted: route.enacted().iter().cloned().collect(),
+			retracted: route.retracted().iter().cloned().collect(),
 		});
 	}
 
