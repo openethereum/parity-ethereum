@@ -63,8 +63,9 @@ pub struct RefCountedDB {
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
 	pub fn new(backing: Arc<KeyValueDB>, column: Option<u32>) -> RefCountedDB {
-		let latest_era = backing.get(column, &LATEST_ERA_KEY).expect("Low-level database error.")
-			.map(|val| decode::<u64>(&val).unwrap_or(0)); // REVIEW: is `0` an ok value for `latest_era` if the Rlp decoding fails? The alternative is to either panic or change the return value of the function to return `Result<ArchiveDB, SomeError>`.
+		let latest_era = backing.get(column, &LATEST_ERA_KEY)
+			.expect("Low-level database error.")
+			.map(|v| decode::<u64>(&v).expect("decoding db value failed"));
 
 		RefCountedDB {
 			forward: OverlayDB::new(backing.clone(), column),

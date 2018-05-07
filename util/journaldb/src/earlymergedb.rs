@@ -263,7 +263,7 @@ impl EarlyMergeDB {
 		let mut refs = HashMap::new();
 		let mut latest_era = None;
 		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
-			let mut era = decode::<u64>(&val).unwrap_or(0); // REVIEW: The error is lost here. Log and return? Panic? Or is `0` an ok fallback value?
+			let mut era = decode::<u64>(&val).expect("decoding db value failed");
 			latest_era = Some(era);
 			loop {
 				let mut db_key = DatabaseKey {

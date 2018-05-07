@@ -228,7 +228,7 @@ impl HeaderChain {
 		let decoded_header = spec.genesis_header();
 
 		let chain = if let Some(current) = db.get(col, CURRENT_KEY)? {
-			let curr : BestAndLatest = ::rlp::decode(&current)?;
+			let curr : BestAndLatest = ::rlp::decode(&current).expect("decoding db value failed");
 
 			let mut cur_number = curr.latest_num;
 			let mut candidates = BTreeMap::new();
@@ -236,7 +236,7 @@ impl HeaderChain {
 			// load all era entries, referenced headers within them,
 			// and live epoch proofs.
 			while let Some(entry) = db.get(col, era_key(cur_number).as_bytes())? {
-				let entry: Entry = ::rlp::decode(&entry)?;
+				let entry: Entry = ::rlp::decode(&entry).expect("decoding db value failed");
 				trace!(target: "chain", "loaded header chain entry for era {} with {} candidates",
 					cur_number, entry.candidates.len());
 
@@ -594,7 +594,7 @@ impl HeaderChain {
 													in an inconsistent state", h_num);
 								ErrorKind::Database(msg.into())
 							})?;
-						::rlp::decode(&bytes)?
+						::rlp::decode(&bytes).expect("decoding db value failed")
 					};
 
 					let total_difficulty = entry.candidates.iter()

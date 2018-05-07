@@ -208,8 +208,8 @@ impl Account {
 			return Ok(value);
 		}
 		let db = SecTrieDB::new(db, &self.storage_root)?;
-		let unwrapping_decoder = |bytes:&[u8]| ::rlp::decode(&bytes).unwrap_or_else(|_| U256::zero());
-		let item: U256 = db.get_with(key, unwrapping_decoder)?.unwrap_or_else(U256::zero);
+		let panicky_decoder = |bytes:&[u8]| ::rlp::decode(&bytes).expect("decoding db value failed");
+		let item: U256 = db.get_with(key, panicky_decoder)?.unwrap_or_else(U256::zero);
 		let value: H256 = item.into();
 		self.storage_cache.borrow_mut().insert(key.clone(), value.clone());
 		Ok(value)
@@ -484,8 +484,8 @@ impl Account {
 
 		let trie = TrieDB::new(db, &self.storage_root)?;
 		let item: U256 = {
-			let unwrapping_decoder = |bytes:&[u8]| ::rlp::decode(bytes).unwrap_or_else(|_| U256::zero() );
-			let query = (&mut recorder, unwrapping_decoder);
+			let panicky_decoder = |bytes:&[u8]| ::rlp::decode(bytes).expect("decoding db value failed");
+			let query = (&mut recorder, panicky_decoder);
 			trie.get_with(&storage_key, query)?.unwrap_or_else(U256::zero)
 		};
 

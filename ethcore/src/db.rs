@@ -220,20 +220,11 @@ impl Writable for DBTransaction {
 impl<KVDB: KeyValueDB + ?Sized> Readable for KVDB {
 	fn read<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> Option<T>
 		where T: rlp::Decodable, R: Deref<Target = [u8]> {
-		let result = self.get(col, &key.key());
-
-		match result {
-			Ok(option) => option.map(|v| match rlp::decode(&v){
-				Ok(decoded_rlp) => decoded_rlp,
-				//REVIEW: Should we panic here?
-				Err(decode_err) => {
-					panic!("decoding db value failed, key={:?}, err={}", &key.key() as &[u8], decode_err)
-				}
-			}),
-			Err(err) => {
-				panic!("db get failed, key: {:?}, err: {:?}", &key.key() as &[u8], err);
-			}
-		}
+		self.get(col, &key.key())
+			.expect(&format!("db get failed, key: {:?}", &key.key() as &[u8]))
+			.and_then(|v|
+				rlp::decode(&v).expect("decoding db value failed")
+			)
 	}
 
 	fn exists<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> bool where R: Deref<Target = [u8]> {
