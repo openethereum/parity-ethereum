@@ -14,13 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! A module with types for declaring block rewards and a client interface for interacting with a
+//! block reward contract.
+
 use ethabi;
 use ethabi::ParamType;
 use ethereum_types::{H160, Address, U256};
 
-use block::ExecutedBlock;
 use error::Error;
-use machine::EthereumMachine;
+use machine::WithRewards;
+use parity_machine::{Machine, WithBalances};
+use trace;
 use super::SystemCall;
 
 use_contract!(block_reward_contract, "BlockReward", "res/contracts/block_reward.json");
@@ -37,11 +41,24 @@ pub enum RewardKind {
 	Uncle = 1,
 	/// Reward attributed to the author(s) of empty step(s) included in the block (AuthorityRound engine).
 	EmptyStep = 2,
+	/// Reward attributed by an external protocol (e.g. block reward contract).
+	External = 3,
 }
 
 impl From<RewardKind> for u16 {
 	fn from(reward_kind: RewardKind) -> Self {
 		reward_kind as u16
+	}
+}
+
+impl Into<trace::RewardType> for RewardKind {
+	fn into(self) -> trace::RewardType {
+		match self {
+			RewardKind::Author => trace::RewardType::Block,
+			RewardKind::Uncle => trace::RewardType::Uncle,
+			RewardKind::EmptyStep => trace::RewardType::EmptyStep,
+			RewardKind::External => trace::RewardType::External,
+		}
 	}
 }
 
@@ -112,14 +129,17 @@ impl BlockRewardContract {
 
 /// Applies the given block rewards, i.e. adds the given balance to each benefactors' address.
 /// If tracing is enabled the operations are recorded.
-pub fn apply_block_rewards(rewards: &[(Address, U256)], block: &mut ExecutedBlock, machine: &EthereumMachine) -> Result<(), Error> {
-	use parity_machine::WithBalances;
-
-	for &(ref author, ref block_reward) in rewards {
+pub fn apply_block_rewards<M: Machine + WithBalances + WithRewards>(
+	rewards: &[(Address, RewardKind, U256)],
+	block: &mut M::LiveBlock,
+	machine: &M,
+) -> Result<(), M::Error> {
+	for &(ref author, _, ref block_reward) in rewards {
 		machine.add_balance(block, author, block_reward)?;
 	}
 
-	machine.note_rewards(block, &rewards, &[])
+	let rewards: Vec<_> = rewards.into_iter().map(|&(a, k, r)| (a, k.into(), r)).collect();
+	machine.note_rewards(block,  &rewards)
 }
 
 #[cfg(test)]
