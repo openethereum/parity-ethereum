@@ -143,7 +143,7 @@ impl<C> ChainNotificationHandler<C> {
 
 	fn notify_logs<F, T, Ex>(&self, enacted: &[(H256, Ex)], logs: F) where
 		F: Fn(EthFilter, &Ex) -> T,
-	    Ex: Send,
+		Ex: Send,
 		T: IntoFuture<Item = Vec<Log>, Error = Error>,
 		T::Future: Send + 'static,
 	{
