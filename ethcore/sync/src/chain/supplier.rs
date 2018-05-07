@@ -15,9 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bytes::Bytes;
-use ethcore::client::{BlockId};
-use ethcore::header::{BlockNumber};
-use ethereum_types::{H256};
+use ethcore::client::BlockId;
+use ethcore::header::BlockNumber;
+use ethereum_types::H256;
 use network::{self, PeerId};
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
@@ -26,13 +26,10 @@ use sync_io::SyncIo;
 
 use super::{
 	ChainSync,
-
 	RlpResponseResult,
 	PacketDecodeError,
-
 	BLOCK_BODIES_PACKET,
 	BLOCK_HEADERS_PACKET,
-
 	CONSENSUS_DATA_PACKET,
 	GET_BLOCK_BODIES_PACKET,
 	GET_BLOCK_HEADERS_PACKET,
@@ -40,7 +37,6 @@ use super::{
 	GET_RECEIPTS_PACKET,
 	GET_SNAPSHOT_DATA_PACKET,
 	GET_SNAPSHOT_MANIFEST_PACKET,
-
 	MAX_BODIES_TO_SEND,
 	MAX_HEADERS_TO_SEND,
 	MAX_NODE_DATA_TO_SEND,
@@ -52,7 +48,8 @@ use super::{
 	SNAPSHOT_MANIFEST_PACKET,
 };
 
-pub struct SyncSupplier {}
+/// The Chain Sync Supplier: answers requests from peers with available data
+pub struct SyncSupplier;
 
 impl SyncSupplier {
 	/// Dispatch incoming requests and responses

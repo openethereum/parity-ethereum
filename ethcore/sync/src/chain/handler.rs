@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use api::{WARP_SYNC_PROTOCOL_ID};
+use api::WARP_SYNC_PROTOCOL_ID;
 use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAction};
 use bytes::Bytes;
 use ethcore::client::{BlockStatus, BlockId, BlockImportError, BlockImportErrorKind};
@@ -23,12 +23,12 @@ use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::snapshot::{ManifestData, RestorationStatus};
 use ethereum_types::{H256, U256};
 use hash::keccak;
-use network::{PeerId};
-use rlp::{Rlp};
-use snapshot::{ChunkType};
+use network::PeerId;
+use rlp::Rlp;
+use snapshot::ChunkType;
 use std::cmp;
-use std::collections::{HashSet};
-use std::time::{Instant};
+use std::collections::HashSet;
+use std::time::Instant;
 use sync_io::SyncIo;
 
 use super::{
@@ -40,17 +40,13 @@ use super::{
 	PeerInfo,
 	SyncRequester,
 	SyncState,
-
 	ETH_PROTOCOL_VERSION_62,
 	ETH_PROTOCOL_VERSION_63,
-
 	MAX_NEW_BLOCK_AGE,
 	MAX_NEW_HASHES,
-
 	PAR_PROTOCOL_VERSION_1,
 	PAR_PROTOCOL_VERSION_2,
 	PAR_PROTOCOL_VERSION_3,
-
 	BLOCK_BODIES_PACKET,
 	BLOCK_HEADERS_PACKET,
 	NEW_BLOCK_HASHES_PACKET,
@@ -64,7 +60,8 @@ use super::{
 	TRANSACTIONS_PACKET,
 };
 
-pub struct SyncHandler {}
+/// The Chain Sync Handler: handles responses from peers
+pub struct SyncHandler;
 
 impl SyncHandler {
 	pub fn on_packet(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {

@@ -14,21 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use api::{WARP_SYNC_PROTOCOL_ID};
-use block_sync::{BlockRequest};
+use api::WARP_SYNC_PROTOCOL_ID;
+use block_sync::BlockRequest;
 use bytes::Bytes;
-use ethcore::header::{BlockNumber};
-use ethereum_types::{H256};
+use ethcore::header::BlockNumber;
+use ethereum_types::H256;
 use network::{PeerId, PacketId};
-use rlp::{RlpStream};
-use std::time::{Instant};
+use rlp::RlpStream;
+use std::time::Instant;
 use sync_io::SyncIo;
 
 use super::{
 	BlockSet,
 	ChainSync,
 	PeerAsking,
-
 	ETH_PACKET_COUNT,
 	GET_BLOCK_BODIES_PACKET,
 	GET_BLOCK_HEADERS_PACKET,
@@ -37,10 +36,11 @@ use super::{
 	GET_SNAPSHOT_MANIFEST_PACKET,
 };
 
-pub struct SyncRequester {}
+/// The Chain Sync Requester: requesting data to other peers
+pub struct SyncRequester;
 
 impl SyncRequester {
-	/// Perofrm block download request`
+	/// Perform block download request`
 	pub fn request_blocks(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, request: BlockRequest, block_set: BlockSet) {
 		match request {
 			BlockRequest::Headers { start, count, skip } => {

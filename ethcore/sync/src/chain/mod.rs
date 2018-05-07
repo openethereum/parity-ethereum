@@ -651,17 +651,25 @@ impl ChainSync {
 	/// Resume downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
 		// Collect active peers that can sync
-		let mut peers: Vec<(PeerId, u8)> = self.peers.iter().filter_map(|(peer_id, peer)|
-			if peer.can_sync() && self.active_peers.contains(peer_id) {
+		let confirmed_peers: Vec<(PeerId, u8)> = self.peers.iter().filter_map(|(peer_id, peer)|
+			if peer.can_sync() {
 				Some((*peer_id, peer.protocol_version))
 			} else {
 				None
 			}
 		).collect();
+		let mut peers: Vec<(PeerId, u8)> = confirmed_peers.iter().filter(|&&(peer_id, _)|
+			self.active_peers.contains(&peer_id)
+		).map(|v| *v).collect();
+
 		random::new().shuffle(&mut peers); //TODO: sort by rating
 		// prefer peers with higher protocol version
 		peers.sort_by(|&(_, ref v1), &(_, ref v2)| v1.cmp(v2));
-		trace!(target: "sync", "Syncing with peers: {} active, {} confirmed, {} total", self.active_peers.len(), peers.len(), self.peers.len());
+		trace!(
+			target: "sync",
+			"Syncing with peers: {} active, {} confirmed, {} total",
+			self.active_peers.len(), confirmed_peers.len(), self.peers.len()
+		);
 		for (peer_id, _) in peers {
 			self.sync_peer(io, peer_id, false);
 		}
