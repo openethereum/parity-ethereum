@@ -1,6 +1,17 @@
 ## Parity [v1.10.3](https://github.com/paritytech/parity/releases/tag/v1.10.3) (2018-05-08)
 
+Parity 1.10.3 marks the first stable release on the 1.10 branch. It improves performance and stability.
+
 The full list of included changes:
+
+- Backports TBD
+- Stabilize 1.10.3 (#8474)
+  - Stabelize 1.10
+  - Bump stable to 1.10.3
+  - Update Gitlab scripts
+  - Fix snap builds (#8483)
+  - Fix docker build (#8462)
+  - Use `master` as Docker's `latest` (`beta-release` is not used anymore)
 
 ## Parity [v1.10.2](https://github.com/paritytech/parity/releases/tag/v1.10.2) (2018-04-24)
 

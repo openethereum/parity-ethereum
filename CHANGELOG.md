@@ -4,6 +4,7 @@ This is the Parity 1.11.0-beta release!
 
 The full list of included changes:
 
+- Backports TBD
 - Betalize 1.11 :) ([#8475](https://github.com/paritytech/parity/pull/8475))
   - Betalize 1.11 :)
   - Update Gitlab scripts
