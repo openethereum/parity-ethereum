@@ -206,8 +206,15 @@ mod test {
 
 		let requested: Vec<H256> = (0..40).map(|_| snapshot.needed_chunk().unwrap()).collect();
 		assert!(snapshot.needed_chunk().is_none());
-		assert_eq!(&requested[0..20], &manifest.state_hashes[..]);
-		assert_eq!(&requested[20..40], &manifest.block_hashes[..]);
+
+		let requested_all_block_chunks = manifest.block_hashes.iter()
+			.all(|h| requested.iter().any(|rh| rh == h));
+		assert!(requested_all_block_chunks);
+
+		let requested_all_state_chunks = manifest.state_hashes.iter()
+			.all(|h| requested.iter().any(|rh| rh == h));
+		assert!(requested_all_state_chunks);
+
 		assert_eq!(snapshot.downloading_chunks.len(), 40);
 
 		assert_eq!(snapshot.validate_chunk(&state_chunks[4]), Ok(ChunkType::State(manifest.state_hashes[4].clone())));
