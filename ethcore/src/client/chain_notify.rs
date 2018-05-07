@@ -42,11 +42,15 @@ pub enum ChainRouteType {
 
 /// A complete chain enacted retracted route.
 #[derive(Default, Clone)]
-pub struct ChainRoute(pub Vec<(H256, ChainRouteType)>);
+pub struct ChainRoute {
+	route: Vec<(H256, ChainRouteType)>,
+	enacted: Vec<H256>,
+	retracted: Vec<H256>,
+}
 
 impl<'a> From<&'a [ImportRoute]> for ChainRoute {
 	fn from(import_results: &'a [ImportRoute]) -> ChainRoute {
-		ChainRoute(import_results.iter().flat_map(|route| {
+		ChainRoute::new(import_results.iter().flat_map(|route| {
 			route.retracted.iter().map(|h| (*h, ChainRouteType::Retracted))
 				.chain(route.enacted.iter().map(|h| (*h, ChainRouteType::Enacted)))
 		}).collect())
@@ -54,8 +58,15 @@ impl<'a> From<&'a [ImportRoute]> for ChainRoute {
 }
 
 impl ChainRoute {
+	/// Create a new ChainRoute based on block hash and route type pairs.
+	pub fn new(route: Vec<(H256, ChainRouteType)>) -> Self {
+		let (enacted, retracted) = Self::to_enacted_retracted(&route);
+
+		Self { route, enacted, retracted }
+	}
+
 	/// Gather all non-duplicate enacted and retracted blocks.
-	pub fn to_enacted_retracted(&self) -> (Vec<H256>, Vec<H256>) {
+	fn to_enacted_retracted(route: &[(H256, ChainRouteType)]) -> (Vec<H256>, Vec<H256>) {
 		fn map_to_vec(map: Vec<(H256, bool)>) -> Vec<H256> {
 			map.into_iter().map(|(k, _v)| k).collect()
 		}
@@ -64,7 +75,7 @@ impl ChainRoute {
 		// could be retracted in import `k+1`. This is why to understand if after all inserts
 		// the block is enacted or retracted we iterate over all routes and at the end final state
 		// will be in the hashmap
-		let map = self.0.iter().fold(HashMap::new(), |mut map, route| {
+		let map = route.iter().fold(HashMap::new(), |mut map, route| {
 			match &route.1 {
 				&ChainRouteType::Enacted => {
 					map.insert(route.0, true);
@@ -82,14 +93,19 @@ impl ChainRoute {
 		(map_to_vec(enacted), map_to_vec(retracted))
 	}
 
-	/// Whether this particular route contains non-duplicate enacted blocks.
-	pub fn contains_enacted(&self) -> bool {
-		!self.to_enacted_retracted().0.is_empty()
+	/// All non-duplicate enacted blocks.
+	pub fn enacted(&self) -> &[H256] {
+		&self.enacted
 	}
 
-	/// Whether this particular route contains non-duplicate retracted blocks.
-	pub fn contains_retracted(&self) -> bool {
-		!self.to_enacted_retracted().0.is_empty()
+	/// All non-duplicate retracted blocks.
+	pub fn retracted(&self) -> &[H256] {
+		&self.retracted
+	}
+
+	/// All blocks in the route.
+	pub fn route(&self) -> &[(H256, ChainRouteType)] {
+		&self.route
 	}
 }
 

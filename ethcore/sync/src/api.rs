@@ -419,13 +419,12 @@ impl ChainNotify for EthSync {
 		self.network.with_context(self.subprotocol_name, |context| {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service,
 				&self.eth_handler.overlay);
-			let (enacted, retracted) = route.to_enacted_retracted();
 			self.eth_handler.sync.write().chain_new_blocks(
 				&mut sync_io,
 				&imported,
 				&invalid,
-				&enacted,
-				&retracted,
+				route.enacted(),
+				route.retracted(),
 				&sealed,
 				&proposed);
 		});

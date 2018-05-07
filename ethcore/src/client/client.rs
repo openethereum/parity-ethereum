@@ -313,8 +313,7 @@ impl Importer {
 				let route = ChainRoute::from(import_results.as_ref());
 
 				if is_empty {
-					let (enacted, retracted) = route.to_enacted_retracted();
-					self.miner.chain_new_blocks(client, &imported_blocks, &invalid_blocks, &enacted, &retracted, false);
+					self.miner.chain_new_blocks(client, &imported_blocks, &invalid_blocks, route.enacted(), route.retracted(), false);
 				}
 
 				client.notify(|notify| {
@@ -2130,8 +2129,7 @@ impl ImportSealedBlock for Client {
 			route
 		};
 		let route = ChainRoute::from([route].as_ref());
-		let (enacted, retracted) = route.to_enacted_retracted();
-		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted, true);
+		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], route.enacted(), route.retracted(), true);
 		self.notify(|notify| {
 			notify.new_blocks(
 				vec![h.clone()],

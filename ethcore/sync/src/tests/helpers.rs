@@ -540,13 +540,11 @@ impl ChainNotify for EthPeer<EthcoreClient> {
 		proposed: Vec<Bytes>,
 		_duration: Duration)
 	{
-		let (enacted, retracted) = route.to_enacted_retracted();
-
 		self.new_blocks_queue.write().push_back(NewBlockMessage {
 			imported,
 			invalid,
-			enacted,
-			retracted,
+			route.enacted().iter().cloned().collect(),
+			route.retracted().iter().cloned().collect(),
 			sealed,
 			proposed,
 		});

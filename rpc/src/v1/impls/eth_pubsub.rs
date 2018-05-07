@@ -231,7 +231,7 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 		_duration: Duration,
 	) {
 		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
-		let headers = route.0
+		let headers = route.route()
 			.iter()
 			.filter_map(|&(hash, ref typ)| {
 				match typ {
@@ -249,7 +249,7 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 		self.notify_heads(&headers);
 
 		// We notify logs enacting and retracting as the order in route.
-		self.notify_logs(&route.0, |filter, ex| {
+		self.notify_logs(route.route(), |filter, ex| {
 			match ex {
 				&ChainRouteType::Enacted =>
 					Ok(self.client.logs(filter).into_iter().map(Into::into).collect()),

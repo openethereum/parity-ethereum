@@ -429,8 +429,7 @@ impl Drop for ServiceContractListener {
 
 impl ChainNotify for ServiceContractListener {
 	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
-		let (enacted, _) = route.to_enacted_retracted();
-		let enacted_len = enacted.len();
+		let enacted_len = route.enacted().len();
 		if enacted_len == 0 {
 			return;
 		}
