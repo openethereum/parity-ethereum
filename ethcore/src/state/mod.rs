@@ -605,7 +605,8 @@ impl<B: Backend> State<B> {
 
 		// account is not found in the global cache, get from the DB and insert into local
 		let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-		let maybe_acc = db.get_with(address, Account::from_rlp)?;
+		let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+		let maybe_acc = db.get_with(address, from_rlp)?;
 		let r = maybe_acc.as_ref().map_or(Ok(H256::new()), |a| {
 			let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), a.address_hash(address));
 			a.storage_at(account_db.as_hashdb(), key)
@@ -958,7 +959,8 @@ impl<B: Backend> State<B> {
 
 				// not found in the global cache, get from the DB and insert into local
 				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root)?;
-				let mut maybe_acc = db.get_with(a, Account::from_rlp)?;
+				let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+				let mut maybe_acc = db.get_with(a, from_rlp)?;
 				if let Some(ref mut account) = maybe_acc.as_mut() {
 					let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
 					Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb());
@@ -987,7 +989,8 @@ impl<B: Backend> State<B> {
 				None => {
 					let maybe_acc = if !self.db.is_known_null(a) {
 						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root)?;
-						AccountEntry::new_clean(db.get_with(a, Account::from_rlp)?)
+						let from_rlp = |b:&[u8]| { Account::from_rlp(b).expect("decoding db value failed") };
+						AccountEntry::new_clean(db.get_with(a, from_rlp)?)
 					} else {
 						AccountEntry::new_clean(None)
 					};
@@ -1064,7 +1067,8 @@ impl<B: Backend> State<B> {
 		// TODO: probably could look into cache somehow but it's keyed by
 		// address, not keccak(address).
 		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
-		let acc = match trie.get_with(&account_key, Account::from_rlp)? {
+		let from_rlp = |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+		let acc = match trie.get_with(&account_key, from_rlp)? {
 			Some(acc) => acc,
 			None => return Ok((Vec::new(), H256::new())),
 		};
