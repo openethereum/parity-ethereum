@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{HashSet, HashMap, BTreeMap, BTreeSet, VecDeque};
+use std::collections::{HashSet, BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
@@ -46,8 +46,8 @@ use client::{
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
-	IoClient,
+	ChainMessageType, ChainNotify, ChainRoute, PruningInfo, ProvingBlockChainClient,
+	EngineInfo, IoClient,
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
@@ -257,32 +257,6 @@ impl Importer {
 		})
 	}
 
-	fn calculate_enacted_retracted(&self, import_results: &[ImportRoute]) -> (Vec<H256>, Vec<H256>) {
-		fn map_to_vec(map: Vec<(H256, bool)>) -> Vec<H256> {
-			map.into_iter().map(|(k, _v)| k).collect()
-		}
-
-		// In ImportRoute we get all the blocks that have been enacted and retracted by single insert.
-		// Because we are doing multiple inserts some of the blocks that were enacted in import `k`
-		// could be retracted in import `k+1`. This is why to understand if after all inserts
-		// the block is enacted or retracted we iterate over all routes and at the end final state
-		// will be in the hashmap
-		let map = import_results.iter().fold(HashMap::new(), |mut map, route| {
-			for hash in &route.enacted {
-				map.insert(hash.clone(), true);
-			}
-			for hash in &route.retracted {
-				map.insert(hash.clone(), false);
-			}
-			map
-		});
-
-		// Split to enacted retracted (using hashmap value)
-		let (enacted, retracted) = map.into_iter().partition(|&(_k, v)| v);
-		// And convert tuples to keys
-		(map_to_vec(enacted), map_to_vec(retracted))
-	}
-
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, client: &Client) -> usize {
 
@@ -348,18 +322,17 @@ impl Importer {
 
 		{
 			if !imported_blocks.is_empty() && is_empty {
-				let (enacted, retracted) = self.calculate_enacted_retracted(&import_results);
+				let route = ChainRoute::from(import_results.as_ref());
 
 				if is_empty {
-					self.miner.chain_new_blocks(client, &imported_blocks, &invalid_blocks, &enacted, &retracted, false);
+					self.miner.chain_new_blocks(client, &imported_blocks, &invalid_blocks, route.enacted(), route.retracted(), false);
 				}
 
 				client.notify(|notify| {
 					notify.new_blocks(
 						imported_blocks.clone(),
 						invalid_blocks.clone(),
-						enacted.clone(),
-						retracted.clone(),
+						route.clone(),
 						Vec::new(),
 						proposed_blocks.clone(),
 						duration,
@@ -2167,14 +2140,13 @@ impl ImportSealedBlock for Client {
 			self.state_db.write().sync_cache(&route.enacted, &route.retracted, false);
 			route
 		};
-		let (enacted, retracted) = self.importer.calculate_enacted_retracted(&[route]);
-		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted, self.engine.seals_internally().is_some());
+		let route = ChainRoute::from([route].as_ref());
+		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], route.enacted(), route.retracted(), true);
 		self.notify(|notify| {
 			notify.new_blocks(
 				vec![h.clone()],
 				vec![],
-				enacted.clone(),
-				retracted.clone(),
+				route.clone(),
 				vec![h.clone()],
 				vec![],
 				start.elapsed(),
@@ -2192,8 +2164,7 @@ impl BroadcastProposalBlock for Client {
 			notify.new_blocks(
 				vec![],
 				vec![],
-				vec![],
-				vec![],
+				ChainRoute::default(),
 				vec![],
 				vec![block.rlp_bytes()],
 				DURATION_ZERO,
