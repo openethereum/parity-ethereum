@@ -1,3 +1,7 @@
+## Parity [v1.10.3](https://github.com/paritytech/parity/releases/tag/v1.10.3) (2018-05-08)
+
+The full list of included changes:
+
 ## Parity [v1.10.2](https://github.com/paritytech/parity/releases/tag/v1.10.2) (2018-04-24)
 
 Parity 1.10.2 is a bug-fix release to improve performance and stability.
