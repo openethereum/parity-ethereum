@@ -41,6 +41,7 @@ fi
 
 
 # Running the C example
+echo "________Running the C example________"
 cd parity-clib-example && \
   mkdir -p build && \
   cd build && \
