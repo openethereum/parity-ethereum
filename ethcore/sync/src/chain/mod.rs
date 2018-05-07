@@ -648,7 +648,7 @@ impl ChainSync {
 		}
 	}
 
-	/// Resume downloading
+	/// Resume  downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
 		// Collect active peers that can sync
 		let confirmed_peers: Vec<(PeerId, u8)> = self.peers.iter().filter_map(|(peer_id, peer)|
