@@ -93,6 +93,11 @@ impl ChainRoute {
 		(map_to_vec(enacted), map_to_vec(retracted))
 	}
 
+	/// Consume route and return the enacted retracted form.
+	pub fn into_enacted_retracted(self) -> (Vec<H256>, Vec<H256>) {
+		(self.enacted, self.retracted)
+	}
+
 	/// All non-duplicate enacted blocks.
 	pub fn enacted(&self) -> &[H256] {
 		&self.enacted
