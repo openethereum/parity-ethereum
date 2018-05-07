@@ -147,8 +147,9 @@ impl Account {
 	/// Create a new account from RLP.
 	pub fn from_rlp(rlp: &[u8]) -> Result<Account, Error> {
 		::rlp::decode::<BasicAccount>(rlp)
-			.map(|ba| ba.into() )
-			.map_err(|e| e.into() )
+			.map(|ba| ba.into())
+			.map_err(|e| e.into())
+	}
 
 	/// Create a new contract account.
 	/// NOTE: make sure you use `init_code` on this before `commit`ing.
