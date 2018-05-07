@@ -31,7 +31,7 @@ pub trait SnapshotService : Sync + Send {
 	fn supported_versions(&self) -> Option<(u64, u64)>;
 
 	/// Returns whether the Snapshot Service restoration is ready
-	fn ready(&self) -> bool;
+	fn restoration_ready(&self) -> bool;
 
 	/// Returns a list of the completed chunks
 	fn completed_chunks(&self) -> Option<Vec<H256>>;

@@ -241,7 +241,7 @@ pub struct Service {
 	progress: super::Progress,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,
-	ready: AtomicBool,
+	restoration_ready: AtomicBool,
 }
 
 impl Service {
@@ -263,7 +263,7 @@ impl Service {
 			progress: Default::default(),
 			taking_snapshot: AtomicBool::new(false),
 			restoring_snapshot: AtomicBool::new(false),
-			ready: AtomicBool::new(false),
+			restoration_ready: AtomicBool::new(false),
 		};
 
 		// create the root snapshot dir if it doesn't exist.
@@ -430,7 +430,7 @@ impl Service {
 		}
 
 		{
-			self.ready.store(false, Ordering::SeqCst);
+			self.restoration_ready.store(false, Ordering::SeqCst);
 			let mut res = self.restoration.lock();
 
 			// Move the previous recovery temp directory
@@ -488,7 +488,7 @@ impl Service {
 
 		// Import previous chunks, continue if it fails
 		self.import_prev_chunks(manifest).ok();
-		self.ready.store(true, Ordering::SeqCst);
+		self.restoration_ready.store(true, Ordering::SeqCst);
 
 		Ok(())
 	}
@@ -577,7 +577,7 @@ impl Service {
 
 		let _ = fs::remove_dir_all(self.restoration_dir());
 		*self.status.lock() = RestorationStatus::Inactive;
-		self.ready.store(false, Ordering::SeqCst);
+		self.restoration_ready.store(false, Ordering::SeqCst);
 
 		Ok(())
 	}
@@ -672,8 +672,8 @@ impl SnapshotService for Service {
 		self.reader.read().as_ref().and_then(|r| r.chunk(hash).ok())
 	}
 
-	fn ready(&self) -> bool {
-		self.ready.load(Ordering::SeqCst)
+	fn restoration_ready(&self) -> bool {
+		self.restoration_ready.load(Ordering::SeqCst)
 	}
 
 	fn completed_chunks(&self) -> Option<Vec<H256>> {
@@ -717,7 +717,7 @@ impl SnapshotService for Service {
 	fn abort_restore(&self) {
 		trace!(target: "snapshot", "Aborting restore");
 		self.restoring_snapshot.store(false, Ordering::SeqCst);
-		self.ready.store(false, Ordering::SeqCst);
+		self.restoration_ready.store(false, Ordering::SeqCst);
 		*self.restoration.lock() = None;
 		*self.status.lock() = RestorationStatus::Inactive;
 	}
