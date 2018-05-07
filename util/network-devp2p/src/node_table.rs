@@ -123,10 +123,7 @@ impl FromStr for NodeEndpoint {
 				address: a,
 				udp_port: a.port()
 			}),
-			Ok(None) => {
-				// REVIEW: how is this case possible? I think we can remove this case.
-				Err(ErrorKind::AddressResolve(None).into())
-			},
+			Ok(None) => bail!(ErrorKind::AddressResolve(None)),
 			Err(e) => {
 				match e.kind() {
 					io::ErrorKind::InvalidInput => {
