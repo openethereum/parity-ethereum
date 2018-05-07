@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,19 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! IPFS utility functions
+use ring;
 
-use multihash;
-use cid::{Cid, Codec, Version};
-use crypto::digest;
-use jsonrpc_core::Error;
-use v1::types::Bytes;
-use super::errors;
+pub struct Salt<'a>(pub &'a [u8]);
+pub struct Secret<'a>(pub &'a [u8]);
 
-/// Compute CIDv0 from protobuf encoded bytes.
-pub fn cid(content: Bytes) -> Result<String, Error> {
-	let hash = digest::sha256(&content.0);
-	let mh = multihash::encode(multihash::Hash::SHA2256, &*hash).map_err(errors::encoding)?;
-	let cid = Cid::new(Codec::DagProtobuf, Version::V0, &mh);
-	Ok(cid.to_string().into())
+pub fn sha256(iter: u32, salt: Salt, sec: Secret, out: &mut [u8; 32]) {
+	ring::pbkdf2::derive(&ring::digest::SHA256, iter, salt.0, sec.0, &mut out[..])
 }
+
+pub fn sha512(iter: u32, salt: Salt, sec: Secret, out: &mut [u8; 64]) {
+	ring::pbkdf2::derive(&ring::digest::SHA512, iter, salt.0, sec.0, &mut out[..])
+}
+

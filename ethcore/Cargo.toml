@@ -20,6 +20,7 @@ fetch = { path = "../util/fetch" }
 hashdb = { path = "../util/hashdb" }
 memorydb = { path = "../util/memorydb" }
 patricia-trie = { path = "../util/patricia_trie" }
+ethcore-crypto = { path = "crypto" }
 error-chain = { version = "0.11", default-features = false }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
@@ -56,7 +57,6 @@ util-error = { path = "../util/error" }
 snappy = { git = "https://github.com/paritytech/rust-snappy" }
 stop-guard = { path = "../util/stop-guard" }
 macros = { path = "../util/macros" }
-rust-crypto = "0.2.34"
 rustc-hex = "1.0"
 stats = { path = "../util/stats" }
 trace-time = { path = "../util/trace-time" }

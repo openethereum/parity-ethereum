@@ -15,27 +15,25 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bytes::Bytes;
-use ethereum_types::{H256};
-use ethcore::client::{BlockChainInfo};
-use ethcore::header::{BlockNumber};
+use ethereum_types::H256;
+use ethcore::client::BlockChainInfo;
+use ethcore::header::BlockNumber;
 use network::{PeerId, PacketId};
 use rand::Rng;
 use rlp::{Encodable, RlpStream};
 use sync_io::SyncIo;
 use std::cmp;
-use std::collections::{HashSet};
+use std::collections::HashSet;
 use transaction::SignedTransaction;
 
 use super::{
 	random,
 	ChainSync,
-
 	MAX_PEER_LAG_PROPAGATION,
 	MAX_PEERS_PROPAGATION,
 	MAX_TRANSACTION_PACKET_SIZE,
 	MAX_TRANSACTIONS_TO_PROPAGATE,
 	MIN_PEERS_PROPAGATION,
-
 	CONSENSUS_DATA_PACKET,
 	NEW_BLOCK_HASHES_PACKET,
 	NEW_BLOCK_PACKET,
@@ -61,7 +59,8 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 	ver.len() == 2 && (ver[0] > SERVICE_TRANSACTIONS_VERSION.0 || (ver[0] == SERVICE_TRANSACTIONS_VERSION.0 && ver[1] >= SERVICE_TRANSACTIONS_VERSION.1))
 }
 
-pub struct SyncPropagator {}
+/// The Chain Sync Propagator: propagates data to peers
+pub struct SyncPropagator;
 
 impl SyncPropagator {
 	/// propagates latest block to a set of peers

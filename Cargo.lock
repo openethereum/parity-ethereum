@@ -509,6 +509,7 @@ dependencies = [
  "ethash 1.12.0",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-bytes 0.1.0",
+ "ethcore-crypto 0.1.0",
  "ethcore-io 1.12.0",
  "ethcore-logger 1.12.0",
  "ethcore-miner 1.12.0",
@@ -545,7 +546,6 @@ dependencies = [
  "rlp 0.2.1",
  "rlp_compress 0.1.0",
  "rlp_derive 0.1.0",
- "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "snappy 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
  "stats 0.1.0",
@@ -576,11 +576,10 @@ version = "0.1.0"
 name = "ethcore-crypto"
 version = "0.1.0"
 dependencies = [
- "eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1)",
  "ethereum-types 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethkey 0.3.0",
+ "quick-error 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ring 0.12.1 (git+https://github.com/paritytech/ring)",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
- "subtle 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -925,13 +924,14 @@ dependencies = [
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "edit-distance 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.7 (git+https://github.com/paritytech/rust-secp256k1)",
+ "ethcore-crypto 0.1.0",
  "ethereum-types 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "mem 0.1.0",
  "parity-wordlist 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quick-error 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -966,13 +966,11 @@ dependencies = [
  "parity-wordlist 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "subtle 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2197,7 +2195,6 @@ dependencies = [
  "pretty_assertions 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
- "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2362,7 +2359,6 @@ dependencies = [
  "ordered-float 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ring 0.12.1 (git+https://github.com/paritytech/ring)",
  "rlp 0.2.1",
  "serde 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2620,6 +2616,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "quasi_codegen 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "quick-error"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "quote"
@@ -3033,11 +3034,6 @@ version = "0.1.0"
 [[package]]
 name = "strsim"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "subtle"
-version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -3927,6 +3923,7 @@ dependencies = [
 "checksum quasi 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)" = "18c45c4854d6d1cf5d531db97c75880feb91c958b0720f4ec1057135fec358b3"
 "checksum quasi_codegen 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)" = "51b9e25fa23c044c1803f43ca59c98dac608976dd04ce799411edd58ece776d4"
 "checksum quasi_macros 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)" = "29cec87bc2816766d7e4168302d505dd06b0a825aed41b00633d296e922e02dd"
+"checksum quick-error 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "eda5fe9b71976e62bc81b781206aaa076401769b2143379d3eb2118388babac4"
 "checksum quote 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7b0ff51282f28dc1b53fd154298feaa2e77c5ea0dba68e1fd8b03b72fbe13d2a"
 "checksum rand 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)" = "512870020642bb8c221bf68baa1b2573da814f6ccfe5c9699b1c303047abe9b1"
 "checksum rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "eba5f8cb59cc50ed56be8880a5c7b496bfd9bd26394e176bc67884094145c2c5"
@@ -3973,7 +3970,6 @@ dependencies = [
 "checksum snappy-sys 0.1.0 (git+https://github.com/paritytech/rust-snappy)" = "<none>"
 "checksum stable_deref_trait 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "15132e0e364248108c5e2c02e3ab539be8d6f5d52a01ca9bbf27ed657316f02b"
 "checksum strsim 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b4d15c810519a91cf877e7e36e63fe068815c678181439f2f29e2562147c3694"
-"checksum subtle 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "dc7f6353c2ee5407358d063a14cccc1630804527090a6fb5a9489ce4924280fb"
 "checksum syn 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)" = "91b52877572087400e83d24b9178488541e3d535259e04ff17a63df1e5ceff59"
 "checksum syntex 0.58.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a8f5e3aaa79319573d19938ea38d068056b826db9883a5d47f86c1cecc688f0e"
 "checksum syntex_errors 0.58.1 (registry+https://github.com/rust-lang/crates.io-index)" = "867cc5c2d7140ae7eaad2ae9e8bf39cb18a67ca651b7834f88d46ca98faadb9c"
