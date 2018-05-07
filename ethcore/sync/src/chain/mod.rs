@@ -622,7 +622,7 @@ impl ChainSync {
 			}
 			self.state = SyncState::SnapshotManifest;
 			trace!(target: "sync", "New snapshot sync with {:?}", peers);
-		} else if self.state == SyncState::SnapshotInit && !self.is_snapshot_ready(io) {
+		} else if self.state == SyncState::SnapshotInit && !self.check_snapshot_service(io) {
 			trace!(target: "snapshot", "Snapshot Service is still initializing");
 		} else {
 			self.state = SyncState::SnapshotData;
@@ -657,7 +657,7 @@ impl ChainSync {
 	}
 
 	/// Check if the snapshot service is ready
-	fn is_snapshot_ready(&mut self, io: &SyncIo) -> bool {
+	fn check_snapshot_service(&mut self, io: &SyncIo) -> bool {
 		if io.snapshot_service().ready() {
 			trace!(target: "snapshot", "Snapshot Service is ready!");
 			// Sync the previously resumed chunks
@@ -674,7 +674,7 @@ impl ChainSync {
 	fn continue_sync(&mut self, io: &mut SyncIo) {
 		// If waiting for snapshot service,
 		// check its status and return
-		if self.state == SyncState::SnapshotInit && !self.is_snapshot_ready(io) {
+		if self.state == SyncState::SnapshotInit && !self.check_snapshot_service(io) {
 			return;
 		}
 

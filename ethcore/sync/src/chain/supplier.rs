@@ -237,20 +237,20 @@ impl SyncSupplier {
 	/// Respond to GetSnapshotManifest request
 	fn return_snapshot_manifest(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let count = r.item_count().unwrap_or(0);
-		trace!(target: "warp-sync", "{} -> GetSnapshotManifest", peer_id);
+		trace!(target: "warp", "{} -> GetSnapshotManifest", peer_id);
 		if count != 0 {
-			debug!(target: "warp-sync", "Invalid GetSnapshotManifest request, ignoring.");
+			debug!(target: "warp", "Invalid GetSnapshotManifest request, ignoring.");
 			return Ok(None);
 		}
 		let rlp = match io.snapshot_service().manifest() {
 			Some(manifest) => {
-				trace!(target: "warp-sync", "{} <- SnapshotManifest", peer_id);
+				trace!(target: "warp", "{} <- SnapshotManifest", peer_id);
 				let mut rlp = RlpStream::new_list(1);
 				rlp.append_raw(&manifest.into_rlp(), 1);
 				rlp
 			},
 			None => {
-				trace!(target: "warp-sync", "{}: No snapshot manifest to return", peer_id);
+				trace!(target: "warp", "{}: No snapshot manifest to return", peer_id);
 				RlpStream::new_list(0)
 			}
 		};
@@ -260,16 +260,16 @@ impl SyncSupplier {
 	/// Respond to GetSnapshotData request
 	fn return_snapshot_data(io: &SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let hash: H256 = r.val_at(0)?;
-		trace!(target: "warp-sync", "{} -> GetSnapshotData {:?}", peer_id, hash);
+		trace!(target: "warp", "{} -> GetSnapshotData {:?}", peer_id, hash);
 		let rlp = match io.snapshot_service().chunk(hash) {
 			Some(data) => {
 				let mut rlp = RlpStream::new_list(1);
-				trace!(target: "warp-sync", "{} <- SnapshotData", peer_id);
+				trace!(target: "warp", "{} <- SnapshotData", peer_id);
 				rlp.append(&data);
 				rlp
 			},
 			None => {
-				trace!(target: "warp-sync", "{}: No snapshot data to return", peer_id);
+				trace!(target: "warp", "{}: No snapshot data to return", peer_id);
 				RlpStream::new_list(0)
 			}
 		};

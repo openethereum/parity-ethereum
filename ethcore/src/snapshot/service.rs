@@ -416,8 +416,6 @@ impl Service {
 	/// Initialize the restoration synchronously.
 	/// The recover flag indicates whether to recover the restored snapshot.
 	pub fn init_restore(&self, manifest: ManifestData, recover: bool) -> Result<(), Error> {
-		self.ready.store(false, Ordering::SeqCst);
-
 		let rest_dir = self.restoration_dir();
 		let rest_db = self.restoration_db();
 		let recovery_temp = self.temp_recovery_dir();
@@ -431,14 +429,15 @@ impl Service {
 			}
 		}
 
-		// Move the previous recovery temp directory
-		// to `prev_chunks` to be able to restart restoring
-		// with previously downloaded blocks
-		// This step is optional, so don't fail on error
-		fs::rename(&recovery_temp, &prev_chunks).ok();
-
 		{
+			self.ready.store(false, Ordering::SeqCst);
 			let mut res = self.restoration.lock();
+
+			// Move the previous recovery temp directory
+			// to `prev_chunks` to be able to restart restoring
+			// with previously downloaded blocks
+			// This step is optional, so don't fail on error
+			fs::rename(&recovery_temp, &prev_chunks).ok();
 
 			self.state_chunks.store(0, Ordering::SeqCst);
 			self.block_chunks.store(0, Ordering::SeqCst);
@@ -504,8 +503,10 @@ impl Service {
 
 		for prev_chunk_file in files {
 			// Import the chunk, don't fail and continue if one fails
-			self.import_prev_chunk(&manifest, prev_chunk_file).ok();
-			num_temp_chunks += 1;
+			match self.import_prev_chunk(&manifest, prev_chunk_file) {
+				Ok(_) => num_temp_chunks += 1,
+				Err(e) => trace!(target: "snapshot", "Error importing chunk: {:?}", e),
+			}
 		}
 
 		trace!(target:"snapshot", "Imported {} previous chunks", num_temp_chunks);
@@ -527,17 +528,13 @@ impl Service {
 
 		let hash = keccak(&buffer);
 
-		let (is_valid, is_state) = if manifest.block_hashes.contains(&hash) {
-			(true, false)
+		let is_state = if manifest.block_hashes.contains(&hash) {
+			false
 		} else if manifest.state_hashes.contains(&hash) {
-			(true, true)
+			true
 		} else {
-			(false, false)
-		};
-
-		if !is_valid {
 			return Ok(());
-		}
+		};
 
 		self.feed_chunk(hash, &buffer, is_state)?;
 
