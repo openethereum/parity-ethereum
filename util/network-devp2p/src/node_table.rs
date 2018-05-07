@@ -14,20 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use discovery::{TableUpdates, NodeEntry};
+use ethereum_types::H512;
+use ip_utils::*;
+use network::{Error, ErrorKind, AllowIP, IpFilter};
+use rlp::{Rlp, RlpStream, DecoderError};
+use serde_json;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, SocketAddrV4, SocketAddrV6, Ipv4Addr, Ipv6Addr};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::{fs, mem, slice};
-use ethereum_types::H512;
-use rlp::{Rlp, RlpStream, DecoderError};
-use network::{Error, ErrorKind, AllowIP, IpFilter};
-use discovery::{TableUpdates, NodeEntry};
-use ip_utils::*;
-use serde_json;
-use std::io;
 
 /// Node public key
 pub type NodeId = H512;
