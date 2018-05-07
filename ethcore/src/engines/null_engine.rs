@@ -16,7 +16,9 @@
 
 use ethereum_types::U256;
 use engines::Engine;
+use engines::block_reward::{self, RewardKind};
 use header::BlockNumber;
+use machine::WithRewards;
 use parity_machine::{Header, LiveBlock, WithBalances};
 
 /// Params for a null engine.
@@ -56,7 +58,7 @@ impl<M: Default> Default for NullEngine<M> {
 	}
 }
 
-impl<M: WithBalances> Engine<M> for NullEngine<M> {
+impl<M: WithBalances + WithRewards> Engine<M> for NullEngine<M> {
 	fn name(&self) -> &str {
 		"NullEngine"
 	}
@@ -74,26 +76,20 @@ impl<M: WithBalances> Engine<M> for NullEngine<M> {
 
 		let n_uncles = LiveBlock::uncles(&*block).len();
 
+		let mut rewards = Vec::new();
+
 		// Bestow block reward
 		let result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
-		let mut uncle_rewards = Vec::with_capacity(n_uncles);
-
-		self.machine.add_balance(block, &author, &result_block_reward)?;
+		rewards.push((author, RewardKind::Author, result_block_reward));
 
 		// bestow uncle rewards.
 		for u in LiveBlock::uncles(&*block) {
 			let uncle_author = u.author();
 			let result_uncle_reward = (reward * U256::from(8 + u.number() - number)).shr(3);
-
-			uncle_rewards.push((*uncle_author, result_uncle_reward));
+			rewards.push((*uncle_author, RewardKind::Uncle, result_uncle_reward));
 		}
 
-		for &(ref a, ref reward) in &uncle_rewards {
-			self.machine.add_balance(block, a, reward)?;
-		}
-
-		// note and trace.
-		self.machine.note_rewards(block, &[(author, result_block_reward)], &uncle_rewards)
+		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
 
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
