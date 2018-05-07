@@ -40,10 +40,6 @@ echo "________Validate chainspecs________"
 fi
 
 
-# Running tests
-echo "________Running Parity Full Test Suite________"
-cargo test -j 8 $OPTIONS --features "$FEATURES" --all $1
-
 # Running the C example
 cd parity-clib-example && \
   mkdir -p build && \
@@ -54,3 +50,7 @@ cd parity-clib-example && \
   cd .. && \
   rm -rf build && \
   cd ..
+
+# Running tests
+echo "________Running Parity Full Test Suite________"
+cargo test -j 8 $OPTIONS --features "$FEATURES" --all $1
