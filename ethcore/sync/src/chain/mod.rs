@@ -622,8 +622,6 @@ impl ChainSync {
 			}
 			self.state = SyncState::SnapshotManifest;
 			trace!(target: "sync", "New snapshot sync with {:?}", peers);
-		} else if self.state == SyncState::SnapshotInit && !self.check_snapshot_service(io) {
-			trace!(target: "snapshot", "Snapshot Service is still initializing");
 		} else {
 			self.state = SyncState::SnapshotData;
 			trace!(target: "sync", "Resumed snapshot sync with {:?}", peers);
@@ -657,27 +655,18 @@ impl ChainSync {
 	}
 
 	/// Check if the snapshot service is ready
-	fn check_snapshot_service(&mut self, io: &SyncIo) -> bool {
+	fn check_snapshot_service(&mut self, io: &SyncIo) {
 		if io.snapshot_service().restoration_ready() {
 			trace!(target: "snapshot", "Snapshot Service is ready!");
 			// Sync the previously resumed chunks
 			self.snapshot.sync(io);
 			// Move to fetching snapshot data
 			self.state = SyncState::SnapshotData;
-			true
-		} else {
-			false
 		}
 	}
 
 	/// Resume downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
-		// If waiting for snapshot service,
-		// check its status and return
-		if self.state == SyncState::SnapshotInit && !self.check_snapshot_service(io) {
-			return;
-		}
-
 		// Collect active peers that can sync
 		let confirmed_peers: Vec<(PeerId, u8)> = self.peers.iter().filter_map(|(peer_id, peer)|
 			if peer.can_sync() {
@@ -950,29 +939,36 @@ impl ChainSync {
 	}
 
 	fn check_resume(&mut self, io: &mut SyncIo) {
-		if self.state == SyncState::Waiting && !io.chain().queue_info().is_full() {
-			self.state = SyncState::Blocks;
-			self.continue_sync(io);
-		} else if self.state == SyncState::SnapshotWaiting {
-			match io.snapshot_service().status() {
-				RestorationStatus::Inactive => {
-					trace!(target:"sync", "Snapshot restoration is complete");
-					self.restart(io);
-				},
-				RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
-					if !self.snapshot.is_complete() && self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize <= MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
-						trace!(target:"sync", "Resuming snapshot sync");
-						self.state = SyncState::SnapshotData;
+		match self.state {
+			SyncState::Waiting if !io.chain().queue_info().is_full() => {
+				self.state = SyncState::Blocks;
+				self.continue_sync(io);
+			},
+			SyncState::SnapshotWaiting => {
+				match io.snapshot_service().status() {
+					RestorationStatus::Inactive => {
+						trace!(target:"sync", "Snapshot restoration is complete");
+						self.restart(io);
+					},
+					RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
+						if !self.snapshot.is_complete() && self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize <= MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
+							trace!(target:"sync", "Resuming snapshot sync");
+							self.state = SyncState::SnapshotData;
+							self.continue_sync(io);
+						}
+					},
+					RestorationStatus::Failed => {
+						trace!(target: "sync", "Snapshot restoration aborted");
+						self.state = SyncState::WaitingPeers;
+						self.snapshot.clear();
 						self.continue_sync(io);
-					}
-				},
-				RestorationStatus::Failed => {
-					trace!(target: "sync", "Snapshot restoration aborted");
-					self.state = SyncState::WaitingPeers;
-					self.snapshot.clear();
-					self.continue_sync(io);
-				},
+					},
+				}
+			},
+			SyncState::SnapshotInit => {
+				self.check_snapshot_service(io);
 			}
+			_ => (),
 		}
 	}
 

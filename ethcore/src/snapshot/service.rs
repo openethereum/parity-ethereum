@@ -416,22 +416,23 @@ impl Service {
 	/// Initialize the restoration synchronously.
 	/// The recover flag indicates whether to recover the restored snapshot.
 	pub fn init_restore(&self, manifest: ManifestData, recover: bool) -> Result<(), Error> {
-		let rest_dir = self.restoration_dir();
-		let rest_db = self.restoration_db();
-		let recovery_temp = self.temp_recovery_dir();
-		let prev_chunks = self.prev_chunks_dir();
-
-		// delete and restore the restoration dir.
-		if let Err(e) = fs::remove_dir_all(&prev_chunks) {
-			match e.kind() {
-				ErrorKind::NotFound => {},
-				_ => return Err(e.into()),
-			}
-		}
-
 		{
-			self.restoration_ready.store(false, Ordering::SeqCst);
 			let mut res = self.restoration.lock();
+
+			let rest_dir = self.restoration_dir();
+			let rest_db = self.restoration_db();
+			let recovery_temp = self.temp_recovery_dir();
+			let prev_chunks = self.prev_chunks_dir();
+
+			// delete and restore the restoration dir.
+			if let Err(e) = fs::remove_dir_all(&prev_chunks) {
+				match e.kind() {
+					ErrorKind::NotFound => {},
+					_ => return Err(e.into()),
+				}
+			}
+
+			self.restoration_ready.store(false, Ordering::SeqCst);
 
 			// Move the previous recovery temp directory
 			// to `prev_chunks` to be able to restart restoring
@@ -482,19 +483,19 @@ impl Service {
 				state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
 				block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
 			};
+
+			self.restoring_snapshot.store(true, Ordering::SeqCst);
+
+			// Import previous chunks, continue if it fails
+			self.import_prev_chunks(&mut res, manifest).ok();
+			self.restoration_ready.store(true, Ordering::SeqCst);
 		}
-
-		self.restoring_snapshot.store(true, Ordering::SeqCst);
-
-		// Import previous chunks, continue if it fails
-		self.import_prev_chunks(manifest).ok();
-		self.restoration_ready.store(true, Ordering::SeqCst);
 
 		Ok(())
 	}
 
 	/// Import the previous chunks into the current restoration
-	fn import_prev_chunks(&self, manifest: ManifestData) -> Result<(), Error> {
+	fn import_prev_chunks(&self, restoration: &mut Option<Restoration>, manifest: ManifestData) -> Result<(), Error> {
 		let prev_chunks = self.prev_chunks_dir();
 
 		// Restore previous snapshot chunks
@@ -503,7 +504,7 @@ impl Service {
 
 		for prev_chunk_file in files {
 			// Import the chunk, don't fail and continue if one fails
-			match self.import_prev_chunk(&manifest, prev_chunk_file) {
+			match self.import_prev_chunk(restoration, &manifest, prev_chunk_file) {
 				Ok(_) => num_temp_chunks += 1,
 				Err(e) => trace!(target: "snapshot", "Error importing chunk: {:?}", e),
 			}
@@ -518,7 +519,7 @@ impl Service {
 	}
 
 	/// Import a previous chunk at the given path
-	fn import_prev_chunk(&self, manifest: &ManifestData, file: io::Result<fs::DirEntry>) -> Result<(), Error> {
+	fn import_prev_chunk(&self, restoration: &mut Option<Restoration>, manifest: &ManifestData, file: io::Result<fs::DirEntry>) -> Result<(), Error> {
 		let file = file?;
 		let path = file.path();
 
@@ -536,7 +537,7 @@ impl Service {
 			return Ok(());
 		};
 
-		self.feed_chunk(hash, &buffer, is_state)?;
+		self.feed_chunk_with_restoration(restoration, hash, &buffer, is_state)?;
 
 		trace!(target: "snapshot", "Fed chunk {:?}", hash);
 
@@ -585,9 +586,13 @@ impl Service {
 	/// Feed a chunk of either kind. no-op if no restoration or status is wrong.
 	fn feed_chunk(&self, hash: H256, chunk: &[u8], is_state: bool) -> Result<(), Error> {
 		// TODO: be able to process block chunks and state chunks at same time?
-		let (result, db) = {
-			let mut restoration = self.restoration.lock();
+		let mut restoration = self.restoration.lock();
+		self.feed_chunk_with_restoration(&mut restoration, hash, chunk, is_state)
+	}
 
+	/// Feed a chunk with the Restoration
+	fn feed_chunk_with_restoration(&self, restoration: &mut Option<Restoration>, hash: H256, chunk: &[u8], is_state: bool) -> Result<(), Error> {
+		let (result, db) = {
 			match self.status() {
 				RestorationStatus::Inactive | RestorationStatus::Failed => {
 					trace!(target: "snapshot", "Tried to restore chunk {:x} while inactive or failed", hash);
