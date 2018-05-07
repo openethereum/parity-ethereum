@@ -166,7 +166,7 @@ impl ChainNotify for OnChainKeyServerSet {
 	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
 		let (enacted, retracted) = route.into_enacted_retracted();
 
-		if !enacted().is_empty() || !retracted().is_empty() {
+		if !enacted.is_empty() || !retracted.is_empty() {
 			self.contract.lock().update(enacted, retracted)
 		}
 	}
