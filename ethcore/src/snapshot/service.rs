@@ -503,6 +503,11 @@ impl Service {
 		let mut num_temp_chunks = 0;
 
 		for prev_chunk_file in files {
+			// Don't go over all the files if the restoration has been aborted
+			if !self.restoring_snapshot.load(Ordering::SeqCst) {
+				trace!(target:"snapshot", "Aborting importing previous chunks");
+				return Ok(());
+			}
 			// Import the chunk, don't fail and continue if one fails
 			match self.import_prev_chunk(restoration, &manifest, prev_chunk_file) {
 				Ok(_) => num_temp_chunks += 1,
