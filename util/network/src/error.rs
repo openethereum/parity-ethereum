@@ -156,8 +156,14 @@ impl From<ethkey::Error> for Error {
 	}
 }
 
-impl From<crypto::Error> for Error {
-	fn from(_err: crypto::Error) -> Self {
+impl From<ethkey::crypto::Error> for Error {
+	fn from(_err: ethkey::crypto::Error) -> Self {
+		ErrorKind::Auth.into()
+	}
+}
+
+impl From<crypto::error::SymmError> for Error {
+	fn from(_err: crypto::error::SymmError) -> Self {
 		ErrorKind::Auth.into()
 	}
 }
@@ -179,11 +185,11 @@ fn test_errors() {
 
 	match *<Error as From<rlp::DecoderError>>::from(rlp::DecoderError::RlpIsTooBig).kind() {
 		ErrorKind::Auth => {},
-		_ => panic!("Unexpeceted error"),
+		_ => panic!("Unexpected error"),
 	}
 
-	match *<Error as From<crypto::Error>>::from(crypto::Error::InvalidMessage).kind() {
+	match *<Error as From<ethkey::crypto::Error>>::from(ethkey::crypto::Error::InvalidMessage).kind() {
 		ErrorKind::Auth => {},
-		_ => panic!("Unexpeceted error"),
+		_ => panic!("Unexpected error"),
 	}
 }
