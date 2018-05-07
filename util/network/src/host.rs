@@ -227,10 +227,13 @@ pub struct NetworkContext<'s> {
 
 impl<'s> NetworkContext<'s> {
 	/// Create a new network IO access point. Takes references to all the data that can be updated within the IO handler.
-	fn new(io: &'s IoContext<NetworkIoMessage>,
+	fn new(
+		io: &'s IoContext<NetworkIoMessage>,
 		protocol: ProtocolId,
-		session: Option<SharedSession>, sessions: Arc<RwLock<Slab<SharedSession>>>,
-		reserved_peers: &'s HashSet<NodeId>) -> NetworkContext<'s> {
+		session: Option<SharedSession>,
+		sessions: Arc<RwLock<Slab<SharedSession>>>,
+		reserved_peers: &'s HashSet<NodeId>,
+	) -> NetworkContext<'s> {
 		let id = session.as_ref().map(|s| s.lock().token());
 		NetworkContext {
 			io: io,
@@ -722,10 +725,8 @@ impl Host {
 			let address = {
 				let mut nodes = self.nodes.write();
 				if let Some(node) = nodes.get_mut(id) {
-					node.attempts += 1;
 					node.endpoint.address
-				}
-				else {
+				} else {
 					debug!(target: "network", "Connection to expired node aborted");
 					return;
 				}
@@ -737,6 +738,7 @@ impl Host {
 				},
 				Err(e) => {
 					debug!(target: "network", "{}: Can't connect to address {:?}: {:?}", id, address, e);
+					self.nodes.write().note_failure(&id);
 					return;
 				}
 			}
@@ -822,10 +824,12 @@ impl Host {
 						Err(e) => {
 							let s = session.lock();
 							trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
-							if let ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) = *e.kind() {
+							if let ErrorKind::Disconnect(DisconnectReason::UselessPeer) = *e.kind() {
 								if let Some(id) = s.id() {
 									if !self.reserved_nodes.read().contains(id) {
-										self.nodes.write().mark_as_useless(id);
+										let mut nodes = self.nodes.write();
+										nodes.note_failure(&id);
+										nodes.mark_as_useless(id);
 									}
 								}
 							}
@@ -891,6 +895,10 @@ impl Host {
 									}
 								}
 							}
+
+							// Note connection success
+							self.nodes.write().note_success(&id);
+
 							for (p, _) in self.handlers.read().iter() {
 								if s.have_capability(*p) {
 									ready_data.push(*p);
@@ -1162,7 +1170,9 @@ impl IoHandler<NetworkIoMessage> for Host {
 				if let Some(session) = session {
 					session.lock().disconnect(io, DisconnectReason::DisconnectRequested);
 					if let Some(id) = session.lock().id() {
-						self.nodes.write().mark_as_useless(id)
+						let mut nodes = self.nodes.write();
+						nodes.note_failure(&id);
+						nodes.mark_as_useless(id);
 					}
 				}
 				trace!(target: "network", "Disabling peer {}", peer);
