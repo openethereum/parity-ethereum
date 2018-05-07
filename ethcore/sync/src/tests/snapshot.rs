@@ -80,7 +80,7 @@ impl SnapshotService for TestSnapshotService {
 		Some((1, 2))
 	}
 
-	fn ready(&self) -> bool {
+	fn restoration_ready(&self) -> bool {
 		true
 	}
 
