@@ -106,6 +106,7 @@ thread_local! {
 /// IO Error
 pub enum IoError {
 	/// Low level error from mio crate
+	#[cfg(feature = "mio")]
 	Mio(::std::io::Error),
 	/// Error concerning the Rust standard library's IO subsystem.
 	StdIo(::std::io::Error),
@@ -116,6 +117,7 @@ impl fmt::Display for IoError {
 		// just defer to the std implementation for now.
 		// we can refine the formatting when more variants are added.
 		match *self {
+			#[cfg(feature = "mio")]
 			IoError::Mio(ref std_err) => std_err.fmt(f),
 			IoError::StdIo(ref std_err) => std_err.fmt(f),
 		}
