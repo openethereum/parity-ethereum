@@ -209,8 +209,10 @@ struct VDTestPair<T>(Vec<T>, Vec<u8>) where T: Decodable + fmt::Debug + cmp::Eq;
 
 fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: Decodable + fmt::Debug + cmp::Eq {
 	for t in &tests {
-		let res: T = rlp::decode(&t.1);
-		assert_eq!(res, t.0);
+		let res : Result<T, DecoderError> = rlp::decode(&t.1);
+		assert!(res.is_ok());
+		let res = res.unwrap();
+		assert_eq!(&res, &t.0);
 	}
 }
 
