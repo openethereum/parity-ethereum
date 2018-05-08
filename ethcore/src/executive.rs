@@ -431,11 +431,11 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					// Trace only top level calls and calls with balance transfer to builtins. The reason why we don't
 					// trace all internal calls to builtin contracts is that memcpy (IDENTITY) is a heavily used
 					// function.
-					let transferred = match params.value {
-						ActionValue::Transfer(value) => value,
-						ActionValue::Apparent(_) => U256::zero(),
+					let is_transferred = match params.value {
+						ActionValue::Transfer(value) => value != U256::zero(),
+						ActionValue::Apparent(_) => false,
 					};
-					if self.depth == 0 || transferred != U256::zero() {
+					if self.depth == 0 || is_transferred {
 						let mut trace_output = tracer.prepare_trace_output();
 						if let Some(out) = trace_output.as_mut() {
 							*out = output.to_owned();
