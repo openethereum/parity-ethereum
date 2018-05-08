@@ -428,7 +428,9 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					self.state.discard_checkpoint();
 					output.write(0, &builtin_out_buffer);
 
-					// trace only top level calls and calls with balance transfer to builtins to avoid DDoS attacks
+					// Trace only top level calls and calls with balance transfer to builtins. The reason why we don't
+					// trace all internal calls to builtin contracts is that memcpy (IDENTITY) is a heavily used
+					// function.
 					let transferred = match params.value {
 						ActionValue::Transfer(value) => value,
 						ActionValue::Apparent(_) => U256::zero(),
