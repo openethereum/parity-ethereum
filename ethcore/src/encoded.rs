@@ -24,11 +24,12 @@
 //! decoded object where parts like the hash can be saved.
 
 use block::Block as FullBlock;
+use error::Error;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
 use header::{BlockNumber, Header as FullHeader};
 use heapsize::HeapSizeOf;
-use rlp::{Rlp, RlpStream};
+use rlp::{self, Rlp, RlpStream};
 use transaction::UnverifiedTransaction;
 use views::{self, BlockView, HeaderView, BodyView};
 
@@ -47,7 +48,9 @@ impl Header {
 	pub fn new(encoded: Vec<u8>) -> Self { Header(encoded) }
 
 	/// Upgrade this encoded view to a fully owned `Header` object.
-	pub fn decode(&self) -> FullHeader { ::rlp::decode(&self.0).expect("decoding failure") }
+	pub fn decode(&self) -> Result<FullHeader, Error> {
+		rlp::decode(&self.0).map_err(|e|e.into() ) // REVIEW: I can't make the automatic conversion from ::rlp::DecoderError to error::Error work
+	}
 
 	/// Get a borrowed header view onto the data.
 	#[inline]

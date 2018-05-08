@@ -487,7 +487,7 @@ pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &EthEngine, ch
 	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {
 		engine.verify_block_unordered(header)?;
 		match chain.block_header_data(header.parent_hash()) {
-			Some(parent) => engine.verify_block_family(header, &parent.decode()),
+			Some(parent) => engine.verify_block_family(header, &parent.decode()?),
 			None => Ok(()),
 		}
 	} else {
