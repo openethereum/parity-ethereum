@@ -1058,7 +1058,7 @@ impl ChainSync {
 
 	/// Maintain other peers. Send out any new blocks and transactions
 	pub fn maintain_sync(&mut self, io: &mut SyncIo) {
-		self.maybe_start_snapshot_sync(io);
+		self.continue_sync(io);
 		self.check_resume(io);
 	}
 
