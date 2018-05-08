@@ -224,7 +224,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 			(instruction == instructions::CREATE2 && !schedule.have_create2) ||
 			(instruction == instructions::STATICCALL && !schedule.have_static_call) ||
 			((instruction == instructions::RETURNDATACOPY || instruction == instructions::RETURNDATASIZE) && !schedule.have_return_data) ||
-			(instruction == instructions::REVERT && !schedule.have_revert) {
+			(instruction == instructions::REVERT && !schedule.have_revert) ||
+			((instruction == instructions::SHL || instruction == instructions::SHR || instruction == instructions::SAR) && !schedule.have_bitwise_shifting) {
 
 			return Err(vm::Error::BadInstruction {
 				instruction: instruction
@@ -870,6 +871,58 @@ impl<Cost: CostType> Interpreter<Cost> {
 						number & mask
 					});
 				}
+			},
+			instructions::SHL => {
+				const CONST_256: U256 = U256([256, 0, 0, 0]);
+
+				let shift = stack.pop_back();
+				let value = stack.pop_back();
+
+				let result = if shift >= CONST_256 {
+					U256::zero()
+				} else {
+					value << (shift.as_u32() as usize)
+				};
+				stack.push(result);
+			},
+			instructions::SHR => {
+				const CONST_256: U256 = U256([256, 0, 0, 0]);
+
+				let shift = stack.pop_back();
+				let value = stack.pop_back();
+
+				let result = if shift >= CONST_256 {
+					U256::zero()
+				} else {
+					value >> (shift.as_u32() as usize)
+				};
+				stack.push(result);
+			},
+			instructions::SAR => {
+				// We cannot use get_and_reset_sign/set_sign here, because the rounding looks different.
+
+				const CONST_256: U256 = U256([256, 0, 0, 0]);
+				const CONST_HIBIT: U256 = U256([0, 0, 0, 0x8000000000000000]);
+
+				let shift = stack.pop_back();
+				let value = stack.pop_back();
+				let sign = value & CONST_HIBIT != U256::zero();
+
+				let result = if shift >= CONST_256 {
+					if sign {
+						U256::max_value()
+					} else {
+						U256::zero()
+					}
+				} else {
+					let shift = shift.as_u32() as usize;
+					let mut shifted = value >> shift;
+					if sign {
+						shifted = shifted | (U256::max_value() << (256 - shift));
+					}
+					shifted
+				};
+				stack.push(result);
 			},
 			_ => {
 				return Err(vm::Error::BadInstruction {

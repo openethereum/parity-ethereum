@@ -458,7 +458,7 @@ impl SimpleSecretStore for EthMultiStore {
 	fn insert_account(&self, vault: SecretVaultRef, secret: Secret, password: &str) -> Result<StoreAccountRef, Error> {
 		let keypair = KeyPair::from_secret(secret).map_err(|_| Error::CreationFailed)?;
 		let id: [u8; 16] = Random::random();
-		let account = SafeAccount::create(&keypair, id, password, self.iterations, "".to_owned(), "{}".to_owned());
+		let account = SafeAccount::create(&keypair, id, password, self.iterations, "".to_owned(), "{}".to_owned())?;
 		self.import(vault, account)
 	}
 

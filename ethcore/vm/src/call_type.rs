@@ -64,7 +64,7 @@ mod tests {
 	fn should_encode_and_decode_call_type() {
 		let original = CallType::Call;
 		let encoded = encode(&original);
-		let decoded = decode(&encoded);
+		let decoded = decode(&encoded).expect("failure decoding CallType");
 		assert_eq!(original, decoded);
 	}
 }

@@ -281,7 +281,7 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 	// account_key here is the address' hash.
 	for item in account_trie.iter()? {
 		let (account_key, account_data) = item?;
-		let account = ::rlp::decode(&*account_data);
+		let account = ::rlp::decode(&*account_data)?;
 		let account_key_hash = H256::from_slice(&account_key);
 
 		let account_db = AccountDB::from_hash(db, account_key_hash);
@@ -467,10 +467,10 @@ fn rebuild_accounts(
 		*out = (hash, thin_rlp);
 	}
 	if let Some(&(ref hash, ref rlp)) = out_chunk.iter().last() {
-		known_storage_roots.insert(*hash, ::rlp::decode::<BasicAccount>(rlp).storage_root);
+		known_storage_roots.insert(*hash, ::rlp::decode::<BasicAccount>(rlp)?.storage_root);
 	}
 	if let Some(&(ref hash, ref rlp)) = out_chunk.iter().next() {
-		known_storage_roots.insert(*hash, ::rlp::decode::<BasicAccount>(rlp).storage_root);
+		known_storage_roots.insert(*hash, ::rlp::decode::<BasicAccount>(rlp)?.storage_root);
 	}
 	Ok(status)
 }
