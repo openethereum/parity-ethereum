@@ -20,7 +20,7 @@ extern crate test;
 extern crate ethcore_util as util;
 extern crate rand;
 extern crate bn;
-extern crate crypto;
+extern crate ethcore_crypto;
 extern crate ethkey;
 extern crate rustc_hex;
 extern crate ethcore_bigint;
@@ -61,16 +61,13 @@ fn bn_128_mul(b: &mut Bencher) {
 
 #[bench]
 fn sha256(b: &mut Bencher) {
-	use crypto::sha2::Sha256;
-	use crypto::digest::Digest;
+	use ethcore_crypto::digest::sha256;
 
 	let mut input: [u8; 256] = [0; 256];
 	let mut out = [0; 32];
 
 	b.iter(|| {
-		let mut sha = Sha256::new();
-		sha.input(&input);
-		sha.result(&mut input[0..32]);
+		sha256(&input);
 	});
 }
 

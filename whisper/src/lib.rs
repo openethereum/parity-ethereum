@@ -28,7 +28,6 @@ extern crate ordered_float;
 extern crate parking_lot;
 extern crate rand;
 extern crate rlp;
-extern crate ring;
 extern crate serde;
 extern crate slab;
 extern crate smallvec;

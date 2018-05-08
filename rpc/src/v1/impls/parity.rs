@@ -22,8 +22,8 @@ use std::collections::{BTreeMap, HashSet};
 use ethereum_types::Address;
 use version::version_data;
 
-use crypto::{DEFAULT_MAC, ecies};
-use ethkey::{Brain, Generator};
+use crypto::DEFAULT_MAC;
+use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use sync::{SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;

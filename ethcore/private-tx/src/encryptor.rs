@@ -217,7 +217,8 @@ impl Encryptor for SecretStoreEncryptor {
 		// encrypt data
 		let mut cypher = Vec::with_capacity(plain_data.len() + initialisation_vector.len());
 		cypher.extend(repeat(0).take(plain_data.len()));
-		crypto::aes::encrypt(&key, initialisation_vector, plain_data, &mut cypher);
+		crypto::aes::encrypt_128_ctr(&key, initialisation_vector, plain_data, &mut cypher)
+			.map_err(|e| ErrorKind::Encrypt(e.to_string()))?;
 		cypher.extend_from_slice(&initialisation_vector);
 
 		Ok(cypher)
@@ -243,8 +244,8 @@ impl Encryptor for SecretStoreEncryptor {
 		let (cypher, iv) = cypher.split_at(cypher_len - INIT_VEC_LEN);
 		let mut plain_data = Vec::with_capacity(cypher_len - INIT_VEC_LEN);
 		plain_data.extend(repeat(0).take(cypher_len - INIT_VEC_LEN));
-		crypto::aes::decrypt(&key, &iv, cypher, &mut plain_data);
-
+		crypto::aes::decrypt_128_ctr(&key, &iv, cypher, &mut plain_data)
+			.map_err(|e| ErrorKind::Decrypt(e.to_string()))?;
 		Ok(plain_data)
 	}
 }
