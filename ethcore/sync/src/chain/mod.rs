@@ -102,7 +102,7 @@ use ethereum_types::{H256, U256};
 use plain_hasher::H256FastMap;
 use parking_lot::RwLock;
 use bytes::Bytes;
-use rlp::{Rlp, RlpStream, DecoderError};
+use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
 use ethcore::header::{BlockNumber};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
@@ -1143,11 +1143,6 @@ impl ChainSync {
 	pub fn on_packet(&mut self, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		debug!(target: "sync", "{} -> Dispatching packet: {}", peer, packet_id);
 		SyncHandler::on_packet(self, io, peer, packet_id, data);
-	}
-
-	/// Called when peer sends us new consensus packet
-	pub fn on_consensus_packet(io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
-		SyncHandler::on_consensus_packet(io, peer_id, r)
 	}
 
 	/// Called by peer when it is disconnecting

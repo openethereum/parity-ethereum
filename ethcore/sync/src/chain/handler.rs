@@ -49,6 +49,7 @@ use super::{
 
 	BLOCK_BODIES_PACKET,
 	BLOCK_HEADERS_PACKET,
+	CONSENSUS_DATA_PACKET,
 	NEW_BLOCK_HASHES_PACKET,
 	NEW_BLOCK_PACKET,
 	PRIVATE_TRANSACTION_PACKET,
@@ -75,6 +76,7 @@ impl SyncHandler {
 		}
 		let rlp = Rlp::new(data);
 		let result = match packet_id {
+			CONSENSUS_DATA_PACKET => SyncHandler::on_consensus_packet(io, peer, &rlp),
 			STATUS_PACKET => SyncHandler::on_peer_status(sync, io, peer, &rlp),
 			TRANSACTIONS_PACKET => SyncHandler::on_peer_transactions(sync, io, peer, &rlp),
 			BLOCK_HEADERS_PACKET => SyncHandler::on_peer_block_headers(sync, io, peer, &rlp),
