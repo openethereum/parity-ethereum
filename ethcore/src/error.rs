@@ -190,6 +190,7 @@ error_chain! {
 
 	foreign_links {
 		Block(BlockError) #[doc = "Block error"];
+		Decoder(::rlp::DecoderError) #[doc = "Rlp decoding error"];
 	}
 
 	errors {
@@ -206,6 +207,7 @@ impl From<Error> for BlockImportError {
 		match e {
 			Error(ErrorKind::Block(block_error), _) => BlockImportErrorKind::Block(block_error).into(),
 			Error(ErrorKind::Import(import_error), _) => BlockImportErrorKind::Import(import_error.into()).into(),
+			Error(ErrorKind::Util(util_error::ErrorKind::Decoder(decoder_err)), _) => BlockImportErrorKind::Decoder(decoder_err).into(),
 			_ => BlockImportErrorKind::Other(format!("other block import error: {:?}", e)).into(),
 		}
 	}

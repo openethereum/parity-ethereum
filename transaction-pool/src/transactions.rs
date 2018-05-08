@@ -15,28 +15,28 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{fmt, mem};
-use std::sync::Arc;
 
 use smallvec::SmallVec;
 
 use ready::{Ready, Readiness};
 use scoring::{self, Scoring};
+use pool::Transaction;
 
 #[derive(Debug)]
 pub enum AddResult<T, S> {
-	Ok(Arc<T>),
+	Ok(T),
 	TooCheapToEnter(T, S),
 	TooCheap {
-		old: Arc<T>,
+		old: T,
 		new: T,
 	},
 	Replaced {
-		old: Arc<T>,
-		new: Arc<T>,
+		old: T,
+		new: T,
 	},
 	PushedOut {
-		old: Arc<T>,
-		new: Arc<T>,
+		old: T,
+		new: T,
 	},
 }
 
@@ -45,7 +45,7 @@ const PER_SENDER: usize = 8;
 #[derive(Debug)]
 pub struct Transactions<T, S: Scoring<T>> {
 	// TODO [ToDr] Consider using something that doesn't require shifting all records.
-	transactions: SmallVec<[Arc<T>; PER_SENDER]>,
+	transactions: SmallVec<[Transaction<T>; PER_SENDER]>,
 	scores: SmallVec<[S::Score; PER_SENDER]>,
 }
 
@@ -67,11 +67,11 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 		self.transactions.len()
 	}
 
-	pub fn iter(&self) -> ::std::slice::Iter<Arc<T>> {
+	pub fn iter(&self) -> ::std::slice::Iter<Transaction<T>> {
 		self.transactions.iter()
 	}
 
-	pub fn worst_and_best(&self) -> Option<((S::Score, Arc<T>), (S::Score, Arc<T>))> {
+	pub fn worst_and_best(&self) -> Option<((S::Score, Transaction<T>), (S::Score, Transaction<T>))> {
 		let len = self.scores.len();
 		self.scores.get(0).cloned().map(|best| {
 			let worst = self.scores[len - 1].clone();
@@ -82,7 +82,7 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 		})
 	}
 
-	pub fn find_next(&self, tx: &T, scoring: &S) -> Option<(S::Score, Arc<T>)> {
+	pub fn find_next(&self, tx: &T, scoring: &S) -> Option<(S::Score, Transaction<T>)> {
 		self.transactions.binary_search_by(|old| scoring.compare(old, &tx)).ok().and_then(|index| {
 			let index = index + 1;
 			if index < self.scores.len() {
@@ -93,18 +93,17 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 		})
 	}
 
-	fn push_cheapest_transaction(&mut self, tx: T, scoring: &S, max_count: usize) -> AddResult<T, S::Score> {
+	fn push_cheapest_transaction(&mut self, tx: Transaction<T>, scoring: &S, max_count: usize) -> AddResult<Transaction<T>, S::Score> {
 		let index = self.transactions.len();
 		if index == max_count {
 			let min_score = self.scores[index - 1].clone();
 			AddResult::TooCheapToEnter(tx, min_score)
 		} else {
-			let shared = Arc::new(tx);
-			self.transactions.push(shared.clone());
+			self.transactions.push(tx.clone());
 			self.scores.push(Default::default());
 			scoring.update_scores(&self.transactions, &mut self.scores, scoring::Change::InsertedAt(index));
 
-			AddResult::Ok(shared)
+			AddResult::Ok(tx)
 		}
 	}
 
@@ -112,28 +111,26 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 		scoring.update_scores(&self.transactions, &mut self.scores, scoring::Change::Event(event));
 	}
 
-	pub fn add(&mut self, tx: T, scoring: &S, max_count: usize) -> AddResult<T, S::Score> {
-		let index = match self.transactions.binary_search_by(|old| scoring.compare(old, &tx)) {
+	pub fn add(&mut self, new: Transaction<T>, scoring: &S, max_count: usize) -> AddResult<Transaction<T>, S::Score> {
+		let index = match self.transactions.binary_search_by(|old| scoring.compare(old, &new)) {
 			Ok(index) => index,
 			Err(index) => index,
 		};
 
 		// Insert at the end.
 		if index == self.transactions.len() {
-			return self.push_cheapest_transaction(tx, scoring, max_count)
+			return self.push_cheapest_transaction(new, scoring, max_count)
 		}
 
 		// Decide if the transaction should replace some other.
-		match scoring.choose(&self.transactions[index], &tx) {
+		match scoring.choose(&self.transactions[index], &new) {
 			// New transaction should be rejected
 			scoring::Choice::RejectNew => AddResult::TooCheap {
 				old: self.transactions[index].clone(),
-				new: tx,
+				new,
 			},
 			// New transaction should be kept along with old ones.
 			scoring::Choice::InsertNew => {
-				let new = Arc::new(tx);
-
 				self.transactions.insert(index, new.clone());
 				self.scores.insert(index, Default::default());
 				scoring.update_scores(&self.transactions, &mut self.scores, scoring::Change::InsertedAt(index));
@@ -153,7 +150,6 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 			},
 			// New transaction is replacing some other transaction already in the queue.
 			scoring::Choice::ReplaceOld => {
-				let new = Arc::new(tx);
 				let old = mem::replace(&mut self.transactions[index], new.clone());
 				scoring.update_scores(&self.transactions, &mut self.scores, scoring::Change::ReplacedAt(index));
 
@@ -181,7 +177,7 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 		return true;
 	}
 
-	pub fn cull<R: Ready<T>>(&mut self, ready: &mut R, scoring: &S) -> SmallVec<[Arc<T>; PER_SENDER]> {
+	pub fn cull<R: Ready<T>>(&mut self, ready: &mut R, scoring: &S) -> SmallVec<[Transaction<T>; PER_SENDER]> {
 		let mut result = SmallVec::new();
 		if self.is_empty() {
 			return result;
@@ -190,7 +186,7 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 		let mut first_non_stalled = 0;
 		for tx in &self.transactions {
 			match ready.is_ready(tx) {
-				Readiness::Stalled => {
+				Readiness::Stale => {
 					first_non_stalled += 1;
 				},
 				Readiness::Ready | Readiness::Future => break,

@@ -476,7 +476,7 @@ mod tests {
 			unimplemented!()
 		}
 
-		fn logs<F>(&self, _blocks: Vec<BlockNumber>, _matches: F, _limit: Option<usize>) -> Vec<LocalizedLogEntry>
+		fn logs<F>(&self, _blocks: Vec<H256>, _matches: F, _limit: Option<usize>) -> Vec<LocalizedLogEntry>
 			where F: Fn(&LogEntry) -> bool, Self: Sized {
 			unimplemented!()
 		}

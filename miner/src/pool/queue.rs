@@ -282,11 +282,11 @@ impl TransactionQueue {
 		// We want to clear stale transactions from the queue as well.
 		// (Transactions that are occuping the queue for a long time without being included)
 		let stale_id = {
-			let current_id = self.insertion_id.load(atomic::Ordering::Relaxed) as u64;
+			let current_id = self.insertion_id.load(atomic::Ordering::Relaxed);
 			// wait at least for half of the queue to be replaced
 			let gap = self.pool.read().options().max_count / 2;
 			// but never less than 100 transactions
-			let gap = cmp::max(100, gap) as u64;
+			let gap = cmp::max(100, gap);
 
 			current_id.checked_sub(gap)
 		};

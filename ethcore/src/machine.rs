@@ -437,22 +437,30 @@ impl ::parity_machine::WithBalances for EthereumMachine {
 	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
 		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
 	}
+}
 
+/// A state machine that uses block rewards.
+pub trait WithRewards: ::parity_machine::Machine {
+	/// Note block rewards, traces each reward storing information about benefactor, amount and type
+	/// of reward.
 	fn note_rewards(
 		&self,
 		live: &mut Self::LiveBlock,
-		direct: &[(Address, U256)],
-		indirect: &[(Address, U256)],
+		rewards: &[(Address, RewardType, U256)],
+	) -> Result<(), Self::Error>;
+}
+
+impl WithRewards for EthereumMachine {
+	fn note_rewards(
+		&self,
+		live: &mut Self::LiveBlock,
+		rewards: &[(Address, RewardType, U256)],
 	) -> Result<(), Self::Error> {
 		if let Tracing::Enabled(ref mut traces) = *live.traces_mut() {
 			let mut tracer = ExecutiveTracer::default();
 
-			for &(address, amount) in direct {
-				tracer.trace_reward(address, amount, RewardType::Block);
-			}
-
-			for &(address, amount) in indirect {
-				tracer.trace_reward(address, amount, RewardType::Uncle);
+			for &(address, ref reward_type, amount) in rewards {
+				tracer.trace_reward(address, amount, reward_type.clone());
 			}
 
 			traces.push(tracer.drain().into());

@@ -10,4 +10,6 @@ error-chain = "0.11"
 log = "0.3"
 smallvec = "0.4"
 trace-time = { path = "../util/trace-time" }
+
+[dev-dependencies]
 ethereum-types = "0.3"

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
+use std::collections::{HashSet, BTreeMap, BTreeSet, VecDeque};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
@@ -45,7 +45,7 @@ use client::{
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType
+	ChainNotify, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType
 };
 use encoded;
 use engines::{EthEngine, EpochTransition};
@@ -245,32 +245,6 @@ impl Importer {
 		})
 	}
 
-	fn calculate_enacted_retracted(&self, import_results: &[ImportRoute]) -> (Vec<H256>, Vec<H256>) {
-		fn map_to_vec(map: Vec<(H256, bool)>) -> Vec<H256> {
-			map.into_iter().map(|(k, _v)| k).collect()
-		}
-
-		// In ImportRoute we get all the blocks that have been enacted and retracted by single insert.
-		// Because we are doing multiple inserts some of the blocks that were enacted in import `k`
-		// could be retracted in import `k+1`. This is why to understand if after all inserts
-		// the block is enacted or retracted we iterate over all routes and at the end final state
-		// will be in the hashmap
-		let map = import_results.iter().fold(HashMap::new(), |mut map, route| {
-			for hash in &route.enacted {
-				map.insert(hash.clone(), true);
-			}
-			for hash in &route.retracted {
-				map.insert(hash.clone(), false);
-			}
-			map
-		});
-
-		// Split to enacted retracted (using hashmap value)
-		let (enacted, retracted) = map.into_iter().partition(|&(_k, v)| v);
-		// And convert tuples to keys
-		(map_to_vec(enacted), map_to_vec(retracted))
-	}
-
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, client: &Client) -> usize {
 
@@ -336,18 +310,17 @@ impl Importer {
 
 		{
 			if !imported_blocks.is_empty() && is_empty {
-				let (enacted, retracted) = self.calculate_enacted_retracted(&import_results);
+				let route = ChainRoute::from(import_results.as_ref());
 
 				if is_empty {
-					self.miner.chain_new_blocks(client, &imported_blocks, &invalid_blocks, &enacted, &retracted, false);
+					self.miner.chain_new_blocks(client, &imported_blocks, &invalid_blocks, route.enacted(), route.retracted(), false);
 				}
 
 				client.notify(|notify| {
 					notify.new_blocks(
 						imported_blocks.clone(),
 						invalid_blocks.clone(),
-						enacted.clone(),
-						retracted.clone(),
+						route.clone(),
 						Vec::new(),
 						proposed_blocks.clone(),
 						duration,
@@ -447,9 +420,7 @@ impl Importer {
 	///
 	/// The block is guaranteed to be the next best blocks in the
 	/// first block sequence. Does no sealing or transaction validation.
-	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes, db: &KeyValueDB, chain: &BlockChain) -> Result<H256, ::error::Error> {
-		let block = view!(BlockView, &block_bytes);
-		let header = block.header();
+	fn import_old_block(&self, header: &Header, block_bytes: Bytes, receipts_bytes: Bytes, db: &KeyValueDB, chain: &BlockChain) -> Result<H256, ::error::Error> {
 		let receipts = ::rlp::decode_list(&receipts_bytes);
 		let hash = header.hash();
 		let _import_lock = self.import_lock.lock();
@@ -1407,7 +1378,7 @@ impl ImportBlock for Client {
 		use verification::queue::kind::blocks::Unverified;
 
 		// create unverified block here so the `keccak` calculation can be cached.
-		let unverified = Unverified::new(bytes);
+		let unverified = Unverified::from_rlp(bytes)?;
 
 		{
 			if self.chain.read().is_known(&unverified.hash()) {
@@ -1422,19 +1393,19 @@ impl ImportBlock for Client {
 	}
 
 	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
+		let header: Header = ::rlp::Rlp::new(&block_bytes).val_at(0)?;
 		{
 			// check block order
-			let header = view!(BlockView, &block_bytes).header_view();
 			if self.chain.read().is_known(&header.hash()) {
 				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
-			let status = self.block_status(BlockId::Hash(header.parent_hash()));
+			let status = self.block_status(BlockId::Hash(*header.parent_hash()));
 			if status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(header.parent_hash())));
+				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(*header.parent_hash())));
 			}
 		}
 
-		self.importer.import_old_block(block_bytes, receipts_bytes, &**self.db.read(), &*self.chain.read()).map_err(Into::into)
+		self.importer.import_old_block(&header, block_bytes, receipts_bytes, &**self.db.read(), &*self.chain.read()).map_err(Into::into)
 	}
 }
 
@@ -1847,26 +1818,89 @@ impl BlockChainClient for Client {
 	}
 
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
-		let (from, to) = match (self.block_number_ref(&filter.from_block), self.block_number_ref(&filter.to_block)) {
-			(Some(from), Some(to)) => (from, to),
-			_ => return Vec::new(),
+		// Wrap the logic inside a closure so that we can take advantage of question mark syntax.
+		let fetch_logs = || {
+			let chain = self.chain.read();
+
+			// First, check whether `filter.from_block` and `filter.to_block` is on the canon chain. If so, we can use the
+			// optimized version.
+			let is_canon = |id| {
+				match id {
+					// If it is referred by number, then it is always on the canon chain.
+					&BlockId::Earliest | &BlockId::Latest | &BlockId::Number(_) => true,
+					// If it is referred by hash, we see whether a hash -> number -> hash conversion gives us the same
+					// result.
+					&BlockId::Hash(ref hash) => chain.is_canon(hash),
+				}
+			};
+
+			let blocks = if is_canon(&filter.from_block) && is_canon(&filter.to_block) {
+				// If we are on the canon chain, use bloom filter to fetch required hashes.
+				let from = self.block_number_ref(&filter.from_block)?;
+				let to = self.block_number_ref(&filter.to_block)?;
+
+				filter.bloom_possibilities().iter()
+					.map(|bloom| {
+						chain.blocks_with_bloom(bloom, from, to)
+					})
+					.flat_map(|m| m)
+					// remove duplicate elements
+					.collect::<BTreeSet<u64>>()
+					.into_iter()
+					.filter_map(|n| chain.block_hash(n))
+					.collect::<Vec<H256>>()
+
+			} else {
+				// Otherwise, we use a slower version that finds a link between from_block and to_block.
+				let from_hash = Self::block_hash(&chain, filter.from_block)?;
+				let from_number = chain.block_number(&from_hash)?;
+				let to_hash = Self::block_hash(&chain, filter.from_block)?;
+
+				let blooms = filter.bloom_possibilities();
+				let bloom_match = |header: &encoded::Header| {
+					blooms.iter().any(|bloom| header.log_bloom().contains_bloom(bloom))
+				};
+
+				let (blocks, last_hash) = {
+					let mut blocks = Vec::new();
+					let mut current_hash = to_hash;
+
+					loop {
+						let header = chain.block_header_data(&current_hash)?;
+						if bloom_match(&header) {
+							blocks.push(current_hash);
+						}
+
+						// Stop if `from` block is reached.
+						if header.number() <= from_number {
+							break;
+						}
+						current_hash = header.parent_hash();
+					}
+
+					blocks.reverse();
+					(blocks, current_hash)
+				};
+
+				// Check if we've actually reached the expected `from` block.
+				if last_hash != from_hash || blocks.is_empty() {
+					return None;
+				}
+
+				blocks
+			};
+
+			Some(self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit))
 		};
 
-		let chain = self.chain.read();
-		let blocks = filter.bloom_possibilities().iter()
-			.map(move |bloom| {
-				chain.blocks_with_bloom(bloom, from, to)
-			})
-			.flat_map(|m| m)
-			// remove duplicate elements
-			.collect::<HashSet<u64>>()
-			.into_iter()
-			.collect::<Vec<u64>>();
-
-		self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit)
+		fetch_logs().unwrap_or_default()
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
+		if !self.tracedb.read().tracing_enabled() {
+			return None;
+		}
+
 		let start = self.block_number(filter.range.start)?;
 		let end = self.block_number(filter.range.end)?;
 
@@ -1886,6 +1920,10 @@ impl BlockChainClient for Client {
 	}
 
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace> {
+		if !self.tracedb.read().tracing_enabled() {
+			return None;
+		}
+
 		let trace_address = trace.address;
 		self.transaction_address(trace.transaction)
 			.and_then(|tx_address| {
@@ -1895,6 +1933,10 @@ impl BlockChainClient for Client {
 	}
 
 	fn transaction_traces(&self, transaction: TransactionId) -> Option<Vec<LocalizedTrace>> {
+		if !self.tracedb.read().tracing_enabled() {
+			return None;
+		}
+
 		self.transaction_address(transaction)
 			.and_then(|tx_address| {
 				self.block_number(BlockId::Hash(tx_address.block_hash))
@@ -1903,6 +1945,10 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_traces(&self, block: BlockId) -> Option<Vec<LocalizedTrace>> {
+		if !self.tracedb.read().tracing_enabled() {
+			return None;
+		}
+
 		self.block_number(block)
 			.and_then(|number| self.tracedb.read().block_traces(number))
 	}
@@ -2086,14 +2132,13 @@ impl ImportSealedBlock for Client {
 			self.state_db.write().sync_cache(&route.enacted, &route.retracted, false);
 			route
 		};
-		let (enacted, retracted) = self.importer.calculate_enacted_retracted(&[route]);
-		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted, true);
+		let route = ChainRoute::from([route].as_ref());
+		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], route.enacted(), route.retracted(), true);
 		self.notify(|notify| {
 			notify.new_blocks(
 				vec![h.clone()],
 				vec![],
-				enacted.clone(),
-				retracted.clone(),
+				route.clone(),
 				vec![h.clone()],
 				vec![],
 				start.elapsed(),
@@ -2111,8 +2156,7 @@ impl BroadcastProposalBlock for Client {
 			notify.new_blocks(
 				vec![],
 				vec![],
-				vec![],
-				vec![],
+				ChainRoute::default(),
 				vec![],
 				vec![block.rlp_bytes()],
 				DURATION_ZERO,

@@ -412,7 +412,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 		Some(rpc_stats),
 		cmd.logger_config.color,
 	));
-
+	service.add_notify(informant.clone());
 	service.register_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	Ok(RunningClient::Light {

@@ -23,7 +23,7 @@ use ethkey::Public;
 use key_server_cluster::{KeyServerSet, KeyServerSetSnapshot};
 use key_server_cluster::cluster::{ClusterClient, ClusterConnectionsData};
 use key_server_cluster::cluster_sessions::AdminSession;
-use types::all::{Error, NodeId};
+use types::{Error, NodeId};
 use {NodeKeyPair};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
