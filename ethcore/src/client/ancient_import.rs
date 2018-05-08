@@ -67,9 +67,11 @@ impl AncientVerifier {
 		// when there is no verifier initialize it.
 		// We use a bool flag to avoid double locking in the happy case
 		if !verified {
-			let mut cur_verifier = self.cur_verifier.write();
-			if cur_verifier.is_none() {
-				*cur_verifier = Some(self.initial_verifier(header, chain)?);
+			{
+				let mut cur_verifier = self.cur_verifier.write();
+				if cur_verifier.is_none() {
+					*cur_verifier = Some(self.initial_verifier(header, chain)?);
+				}
 			}
 			// Call again to verify.
 			return self.verify(rng, header, chain);
