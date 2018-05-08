@@ -166,7 +166,6 @@ impl SyncHandler {
 		if header.number() > sync.highest_block.unwrap_or(0) {
 			sync.highest_block = Some(header.number());
 		}
-		let mut unknown = false;
 		{
 			if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
 				peer.latest_hash = header.hash();
@@ -192,23 +191,20 @@ impl SyncHandler {
 				trace!(target: "sync", "New block queued {:?} ({})", h, header.number());
 			},
 			Err(BlockImportError(BlockImportErrorKind::Block(BlockError::UnknownParent(p)), _)) => {
-				unknown = true;
 				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
+				if sync.state != SyncState::Idle {
+					trace!(target: "sync", "NewBlock ignored while seeking");
+				} else {
+					trace!(target: "sync", "New unknown block {:?}", h);
+					//TODO: handle too many unknown blocks
+					sync.sync_peer(io, peer_id, true);
+				}
 			},
 			Err(e) => {
 				debug!(target: "sync", "Bad new block {:?} : {:?}", h, e);
 				io.disable_peer(peer_id);
 			}
 		};
-		if unknown {
-			if sync.state != SyncState::Idle {
-				trace!(target: "sync", "NewBlock ignored while seeking");
-			} else {
-				trace!(target: "sync", "New unknown block {:?}", h);
-				//TODO: handle too many unknown blocks
-				sync.sync_peer(io, peer_id, true);
-			}
-		}
 		sync.continue_sync(io);
 		Ok(())
 	}
@@ -586,8 +582,6 @@ impl SyncHandler {
 
 		// give a task to the same peer first.
 		sync.sync_peer(io, peer_id, false);
-		// give tasks to other peers
-		sync.continue_sync(io);
 		Ok(())
 	}
 
@@ -651,9 +645,10 @@ impl SyncHandler {
 		if sync.snapshot.is_complete() {
 			// wait for snapshot restoration process to complete
 			sync.state = SyncState::SnapshotWaiting;
+		} else {
+			// give a task to the same peer first.
+			sync.sync_peer(io, peer_id, false);
 		}
-		// give a task to the same peer first.
-		sync.sync_peer(io, peer_id, false);
 		// give tasks to other peers
 		sync.continue_sync(io);
 		Ok(())
