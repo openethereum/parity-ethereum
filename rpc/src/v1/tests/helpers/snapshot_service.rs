@@ -42,6 +42,7 @@ impl TestSnapshotService {
 
 impl SnapshotService for TestSnapshotService {
 	fn manifest(&self) -> Option<ManifestData> { None }
+	fn partial_manifest(&self) -> Option<ManifestData> { None }
 	fn supported_versions(&self) -> Option<(u64, u64)> { None }
 	fn completed_chunks(&self) -> Option<Vec<H256>> { Some(vec![]) }
 	fn chunk(&self, _hash: H256) -> Option<Bytes> { None }

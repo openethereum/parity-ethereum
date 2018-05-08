@@ -91,6 +91,7 @@ mod handler;
 mod propagator;
 mod requester;
 mod supplier;
+// mod snapshot;
 
 use std::sync::Arc;
 use std::collections::{HashSet, HashMap};
@@ -104,12 +105,12 @@ use parking_lot::RwLock;
 use bytes::Bytes;
 use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
-use ethcore::header::{BlockNumber};
+use ethcore::header::BlockNumber;
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
 use ethcore::snapshot::{RestorationStatus};
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
-use block_sync::{BlockDownloader, BlockDownloaderImportError as DownloaderImportError};
+use block_sync::BlockDownloader;
 use rand::Rng;
 use snapshot::{Snapshot};
 use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
@@ -347,6 +348,30 @@ pub struct PeerInfo {
 }
 
 impl PeerInfo {
+	#[cfg(test)]
+	pub fn default() -> PeerInfo {
+		PeerInfo {
+			protocol_version: 0,
+			genesis: H256::zero(),
+			network_id: 0,
+			latest_hash: H256::zero(),
+			difficulty: None,
+			asking: PeerAsking::Nothing,
+			asking_blocks: Vec::new(),
+			asking_hash: None,
+			ask_bitfield_time: Instant::now(),
+			ask_time: Instant::now(),
+			last_sent_transactions: HashSet::new(),
+			expired: false,
+			confirmation: ForkConfirmation::Unconfirmed,
+			snapshot_bitfield: None,
+			snapshot_number: None,
+			snapshot_hash: None,
+			asking_snapshot_data: None,
+			block_set: None,
+		}
+	}
+
 	fn can_sync(&self) -> bool {
 		self.confirmation == ForkConfirmation::Confirmed && !self.expired
 	}
@@ -888,25 +913,6 @@ impl ChainSync {
 		}
 	}
 
-	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
-	fn collect_blocks(&mut self, io: &mut SyncIo, block_set: BlockSet) {
-		match block_set {
-			BlockSet::NewBlocks => {
-				if self.new_blocks.collect_blocks(io, self.state == SyncState::NewBlocks) == Err(DownloaderImportError::Invalid) {
-					self.restart(io);
-				}
-			},
-			BlockSet::OldBlocks => {
-				if self.old_blocks.as_mut().map_or(false, |downloader| { downloader.collect_blocks(io, false) == Err(DownloaderImportError::Invalid) }) {
-					self.restart(io);
-				} else if self.old_blocks.as_ref().map_or(false, |downloader| { downloader.is_complete() }) {
-					trace!(target: "sync", "Background block download is complete");
-					self.old_blocks = None;
-				}
-			}
-		}
-	}
-
 	/// Reset peer status after request is complete.
 	fn reset_peer_asking(&mut self, peer_id: PeerId, asking: PeerAsking) -> bool {
 		if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
@@ -1016,65 +1022,13 @@ impl ChainSync {
 		}
 	}
 
-	/// creates rlp to send for the tree defined by 'from' and 'to' hashes
-	fn create_new_hashes_rlp(chain: &BlockChainClient, from: &H256, to: &H256) -> Option<Bytes> {
-		match chain.tree_route(from, to) {
-			Some(route) => {
-				let uncles = chain.find_uncles(from).unwrap_or_else(Vec::new);
-				match route.blocks.len() {
-					0 => None,
-					_ => {
-						let mut blocks = route.blocks;
-						blocks.extend(uncles);
-						let mut rlp_stream = RlpStream::new_list(blocks.len());
-						for block_hash in  blocks {
-							let mut hash_rlp = RlpStream::new_list(2);
-							let number = chain.block_header(BlockId::Hash(block_hash.clone()))
-								.expect("chain.tree_route and chain.find_uncles only return hahses of blocks that are in the blockchain. qed.").number();
-							hash_rlp.append(&block_hash);
-							hash_rlp.append(&number);
-							rlp_stream.append_raw(hash_rlp.as_raw(), 1);
-						}
-						Some(rlp_stream.out())
-					}
-				}
-			},
-			None => None
-		}
-	}
-
-	/// creates rlp from block bytes and total difficulty
-	fn create_block_rlp(bytes: &Bytes, total_difficulty: U256) -> Bytes {
-		let mut rlp_stream = RlpStream::new_list(2);
-		rlp_stream.append_raw(bytes, 1);
-		rlp_stream.append(&total_difficulty);
-		rlp_stream.out()
-	}
-
-	/// creates latest block rlp for the given client
-	fn create_latest_block_rlp(chain: &BlockChainClient) -> Bytes {
-		ChainSync::create_block_rlp(
-			&chain.block(BlockId::Hash(chain.chain_info().best_block_hash))
-				.expect("Best block always exists").into_inner(),
-			chain.chain_info().total_difficulty
-		)
-	}
-
-	/// creates given hash block rlp for the given client
-	fn create_new_block_rlp(chain: &BlockChainClient, hash: &H256) -> Bytes {
-		ChainSync::create_block_rlp(
-			&chain.block(BlockId::Hash(hash.clone())).expect("Block has just been sealed; qed").into_inner(),
-			chain.block_total_difficulty(BlockId::Hash(hash.clone())).expect("Block has just been sealed; qed.")
-		)
-	}
-
 	/// returns peer ids that have different blocks than our chain
 	fn get_lagging_peers(&mut self, chain_info: &BlockChainInfo) -> Vec<PeerId> {
 		let latest_hash = chain_info.best_block_hash;
 		self
 			.peers
-			.iter_mut()
-			.filter_map(|(&id, ref mut peer_info)| {
+			.iter()
+			.filter_map(|(&id, ref peer_info)| {
 				trace!(target: "sync", "Checking peer our best {} their best {}", latest_hash, peer_info.latest_hash);
 				if peer_info.latest_hash != latest_hash {
 					Some(id)
@@ -1083,17 +1037,6 @@ impl ChainSync {
 				}
 			})
 			.collect::<Vec<_>>()
-	}
-
-	fn select_random_peers(peers: &[PeerId]) -> Vec<PeerId> {
-		// take sqrt(x) peers
-		let mut peers = peers.to_vec();
-		let mut count = (peers.len() as f64).powf(0.5).round() as usize;
-		count = cmp::min(count, MAX_PEERS_PROPAGATION);
-		count = cmp::max(count, MIN_PEERS_PROPAGATION);
-		random::new().shuffle(&mut peers);
-		peers.truncate(count);
-		peers
 	}
 
 	fn get_consensus_peers(&self) -> Vec<PeerId> {
@@ -1178,7 +1121,7 @@ impl ChainSync {
 
 #[cfg(test)]
 pub mod tests {
-	use std::collections::{HashSet, VecDeque};
+	use std::collections::VecDeque;
 	use ethkey;
 	use network::PeerId;
 	use tests::helpers::{TestIo};
@@ -1189,7 +1132,7 @@ pub mod tests {
 	use rlp::{Rlp, RlpStream};
 	use super::*;
 	use ::SyncConfig;
-	use super::{PeerInfo, PeerAsking};
+	use super::PeerInfo;
 	use ethcore::header::*;
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient, ChainInfo, BlockInfo};
 	use ethcore::miner::MinerService;
@@ -1283,25 +1226,11 @@ pub mod tests {
 	}
 
 	pub fn insert_dummy_peer(sync: &mut ChainSync, peer_id: PeerId, peer_latest_hash: H256) {
-		sync.peers.insert(peer_id,
-			PeerInfo {
-				protocol_version: 0,
-				genesis: H256::zero(),
-				network_id: 0,
-				latest_hash: peer_latest_hash,
-				difficulty: None,
-				asking: PeerAsking::Nothing,
-				asking_blocks: Vec::new(),
-				asking_hash: None,
-				ask_time: Instant::now(),
-				last_sent_transactions: HashSet::new(),
-				expired: false,
-				confirmation: super::ForkConfirmation::Confirmed,
-				snapshot_number: None,
-				snapshot_hash: None,
-				asking_snapshot_data: None,
-				block_set: None,
-			});
+		let mut peer = PeerInfo::default();
+
+		peer.confirmation = super::ForkConfirmation::Confirmed;
+		peer.latest_hash = peer_latest_hash;
+		sync.peers.insert(peer_id, peer);
 
 	}
 
@@ -1326,13 +1255,14 @@ pub mod tests {
 		let end = client.block_hash_delta_minus(2);
 
 		// wrong way end -> start, should be None
-		let rlp = ChainSync::create_new_hashes_rlp(&client, &end, &start);
+		let rlp = SyncPropagator::create_new_hashes_rlp(&client, &end, &start);
 		assert!(rlp.is_none());
 
-		let rlp = ChainSync::create_new_hashes_rlp(&client, &start, &end).unwrap();
+		let rlp = SyncPropagator::create_new_hashes_rlp(&client, &start, &end).unwrap();
 		// size of three rlp encoded hash-difficulty
 		assert_eq!(107, rlp.len());
 	}
+
 	// idea is that what we produce when propagading latest hashes should be accepted in
 	// on_peer_new_hashes in our code as well
 	#[test]

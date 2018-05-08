@@ -251,8 +251,9 @@ mod test {
 		assert_eq!(snapshot.done_chunks(), 0);
 		assert!(snapshot.validate_chunk(&H256::random().to_vec()).is_err());
 
-		let requested: Vec<H256> = (0..40).map(|_| snapshot.needed_chunk().unwrap()).collect();
-		assert!(snapshot.needed_chunk().is_none());
+		let peer_info = PeerInfo::default();
+		let requested: Vec<H256> = (0..40).map(|_| snapshot.needed_chunk(&peer_info).unwrap()).collect();
+		assert!(snapshot.needed_chunk(&peer_info).is_none());
 
 		let requested_all_block_chunks = manifest.block_hashes.iter()
 			.all(|h| requested.iter().any(|rh| rh == h));

@@ -335,7 +335,7 @@ impl SyncHandler {
 				Ok(()) => (),
 			}
 
-			sync.collect_blocks(io, block_set);
+			SyncHandler::collect_blocks(sync, io, block_set);
 			sync.sync_peer(io, peer_id, false);
 		}
 		sync.continue_sync(io);
@@ -451,7 +451,7 @@ impl SyncHandler {
 			Ok(DownloadAction::None) => {},
 		}
 
-		sync.collect_blocks(io, block_set);
+		SyncHandler::collect_blocks(sync, io, block_set);
 		// give a task to the same peer first if received valuable headers.
 		sync.sync_peer(io, peer_id, false);
 		// give tasks to other peers
@@ -506,7 +506,7 @@ impl SyncHandler {
 				Ok(()) => (),
 			}
 
-			sync.collect_blocks(io, block_set);
+			SyncHandler::collect_blocks(sync, io, block_set);
 			sync.sync_peer(io, peer_id, false);
 		}
 		sync.continue_sync(io);
@@ -790,6 +790,25 @@ impl SyncHandler {
 			trace!(target: "sync", "Ignoring the message, error queueing: {}", e);
 		}
 		Ok(())
+	}
+
+	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
+	fn collect_blocks(sync: &mut ChainSync, io: &mut SyncIo, block_set: BlockSet) {
+		match block_set {
+			BlockSet::NewBlocks => {
+				if sync.new_blocks.collect_blocks(io, sync.state == SyncState::NewBlocks) == Err(DownloaderImportError::Invalid) {
+					sync.restart(io);
+				}
+			},
+			BlockSet::OldBlocks => {
+				if sync.old_blocks.as_mut().map_or(false, |downloader| { downloader.collect_blocks(io, false) == Err(DownloaderImportError::Invalid) }) {
+					sync.restart(io);
+				} else if sync.old_blocks.as_ref().map_or(false, |downloader| { downloader.is_complete() }) {
+					trace!(target: "sync", "Background block download is complete");
+					sync.old_blocks = None;
+				}
+			}
+		}
 	}
 }
 
