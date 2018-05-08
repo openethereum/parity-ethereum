@@ -1350,7 +1350,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		}
 	}
 
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader, _finalization: super::FinalizationInfo) -> super::ForkChoice {
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
 		super::total_difficulty_fork_choice(new, current)
 	}
 }

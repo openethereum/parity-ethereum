@@ -71,15 +71,6 @@ pub enum ForkChoice {
 	Old,
 }
 
-/// Finalization related information.
-#[derive(Debug, PartialEq, Eq)]
-pub struct FinalizationInfo {
-	/// Whether the route from current best block to common ancestor is finalized.
-	pub is_old_route_finalized: bool,
-	/// Whether the route from new block's parent to common ancestor is finalized.
-	pub is_new_parent_route_finalized: bool,
-}
-
 /// Voting errors.
 #[derive(Debug)]
 pub enum EngineError {
@@ -375,8 +366,8 @@ pub trait Engine<M: Machine>: Sync + Send {
 		Vec::new()
 	}
 
-	/// Check whether the given new block is the best block.
-	fn fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader, finalization: FinalizationInfo) -> ForkChoice;
+	/// Check whether the given new block is the best block, after finalization check.
+	fn fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> ForkChoice;
 }
 
 /// Check whether a given block is the best block based on the default total difficulty rule.

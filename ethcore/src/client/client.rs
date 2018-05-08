@@ -48,7 +48,7 @@ use client::{
 	ChainNotify, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType
 };
 use encoded;
-use engines::{EthEngine, EpochTransition, FinalizationInfo};
+use engines::{EthEngine, EpochTransition, ForkChoice};
 use error::{ImportErrorKind, BlockImportErrorKind, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use vm::{EnvInfo, LastHashes};
 use evm::Schedule;
@@ -526,10 +526,11 @@ impl Importer {
 		};
 
 		let route = chain.tree_route(best_hash, *parent).expect("blocks being imported always within recent history; qed");
-		let fork_choice = self.engine.fork_choice(&new, &best, FinalizationInfo {
-			is_old_route_finalized: route.is_from_route_finalized,
-			is_new_parent_route_finalized: route.is_to_route_finalized,
-		});
+		let fork_choice = if route.is_from_route_finalized {
+			ForkChoice::Old
+		} else {
+			self.engine.fork_choice(&new, &best)
+		};
 
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.

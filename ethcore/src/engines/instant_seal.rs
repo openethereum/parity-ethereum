@@ -64,7 +64,7 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 		header_timestamp >= parent_timestamp
 	}
 
-	fn fork_choice(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader, _finalization: super::FinalizationInfo) -> super::ForkChoice {
+	fn fork_choice(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader) -> super::ForkChoice {
 		super::total_difficulty_fork_choice(new, current)
 	}
 }
