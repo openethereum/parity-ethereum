@@ -329,6 +329,10 @@ pub struct PeerInfo {
 	ask_time: Instant,
 	/// Holds a set of transactions recently sent to this peer to avoid spamming.
 	last_sent_transactions: HashSet<H256>,
+	/// Holds a set of private transactions recently sent to this peer to avoid spamming.
+	last_sent_private_transactions: HashSet<H256>,
+	/// Holds a set of signed private transactions recently sent to this peer to avoid spamming.
+	last_sent_signed_private_transactions: HashSet<H256>,
 	/// Pending request is expired and result should be ignored
 	expired: bool,
 	/// Peer fork confirmation status
@@ -357,6 +361,11 @@ impl PeerInfo {
 		if self.asking != PeerAsking::Nothing && self.is_allowed() {
 			self.expired = true;
 		}
+	}
+
+	fn reset_private_stats(&mut self) {
+		self.last_sent_private_transactions.clear();
+		self.last_sent_signed_private_transactions.clear();
 	}
 }
 
@@ -1050,8 +1059,33 @@ impl ChainSync {
 		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_2.0 { Some(*id) } else { None }).collect()
 	}
 
-	fn get_private_transaction_peers(&self) -> Vec<PeerId> {
-		self.peers.iter().filter_map(|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3.0 { Some(*id) } else { None }).collect()
+	fn get_private_transaction_peers(&self, transaction_hash: &H256) -> Vec<PeerId> {
+		self.peers.iter().filter_map(
+			|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3
+				&& !p.last_sent_private_transactions.contains(transaction_hash) {
+					Some(*id)
+				} else {
+					None
+				}
+		).collect()
+	}
+
+	fn get_signed_private_transaction_peers(&self, transaction_hash: &H256) -> Vec<PeerId> {
+		self.peers.iter().filter_map(
+			|(id, p)| if p.protocol_version >= PAR_PROTOCOL_VERSION_3
+				&& !p.last_sent_signed_private_transactions.contains(transaction_hash) {
+					Some(*id)
+				} else {
+					None
+				}
+		).collect()
+ 	}
+
+	 /// Clear private packets stats from peer infos
+	fn clear_private_stats(&mut self) {
+		for (_, ref mut peer) in &mut self.peers {
+			peer.reset_private_stats();
+		}
 	}
 
 	/// Maintain other peers. Send out any new blocks and transactions
@@ -1083,6 +1117,9 @@ impl ChainSync {
 				peer_info.last_sent_transactions.clear()
 			);
 		}
+
+		// reset stats for private transaction packets
+		self.clear_private_stats();
 	}
 
 	/// Dispatch incoming requests and responses
@@ -1121,13 +1158,13 @@ impl ChainSync {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, packet: Bytes) {
-		SyncPropagator::propagate_private_transaction(self, io, packet);
+	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet: Bytes) {
+		SyncPropagator::propagate_private_transaction(self, io, transaction_hash, packet);
 	}
 
 	/// Broadcast signed private transaction message to peers.
-	pub fn propagate_signed_private_transaction(&mut self, io: &mut SyncIo, packet: Bytes) {
-		SyncPropagator::propagate_signed_private_transaction(self, io, packet);
+	pub fn propagate_signed_private_transaction(&mut self, io: &mut SyncIo, transaction_hash: H256, packet: Bytes) {
+		SyncPropagator::propagate_signed_private_transaction(self, io, transaction_hash, packet);
 	}
 }
 
@@ -1250,6 +1287,8 @@ pub mod tests {
 				asking_hash: None,
 				ask_time: Instant::now(),
 				last_sent_transactions: HashSet::new(),
+				last_sent_private_transactions: HashSet::new(),
+				last_sent_signed_private_transactions: HashSet::new(),
 				expired: false,
 				confirmation: super::ForkConfirmation::Confirmed,
 				snapshot_number: None,

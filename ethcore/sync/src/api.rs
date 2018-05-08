@@ -502,8 +502,10 @@ impl ChainNotify for EthSync {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
 			match message_type {
 				ChainMessageType::Consensus(message) => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message),
-				ChainMessageType::PrivateTransaction(message) => self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, message),
-				ChainMessageType::SignedPrivateTransaction(message) => self.eth_handler.sync.write().propagate_signed_private_transaction(&mut sync_io, message),
+				ChainMessageType::PrivateTransaction(transaction_hash, message) =>
+					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, message),
+				ChainMessageType::SignedPrivateTransaction(transaction_hash, message) =>
+					self.eth_handler.sync.write().propagate_signed_private_transaction(&mut sync_io, transaction_hash, message),
 			}
 		});
 	}

@@ -73,4 +73,9 @@ impl SignedPrivateTransaction {
 	pub fn private_transaction_hash(&self) -> H256 {
 		self.private_transaction_hash
 	}
+
+	/// Own hash
+	pub fn hash(&self) -> H256 {
+		keccak(&*self.rlp_bytes())
+	}
 }

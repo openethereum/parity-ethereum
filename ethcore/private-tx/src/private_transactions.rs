@@ -21,6 +21,7 @@ use bytes::Bytes;
 use ethcore_miner::pool;
 use ethereum_types::{H256, U256, Address};
 use ethkey::Signature;
+use messages::PrivateTransaction;
 use transaction::{UnverifiedTransaction, SignedTransaction};
 
 use error::{Error, ErrorKind};
@@ -31,12 +32,10 @@ const MAX_QUEUE_LEN: usize = 8312;
 /// Desriptor for private transaction stored in queue for verification
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct PrivateTransactionDesc {
-	/// Hash of the private transaction
-	pub private_hash: H256,
-	/// Contract's address used in private transaction
-	pub contract: Address,
+	/// Original private transaction
+	pub private_transaction: PrivateTransaction,
 	/// Address that should be used for verification
-	pub validator_account: Address,
+	pub validator_account: Option<Address>,
 }
 
 /// Storage for private transactions for verification
@@ -79,9 +78,8 @@ impl VerificationStore {
 	pub fn add_transaction<C: pool::client::Client>(
 		&mut self,
 		transaction: UnverifiedTransaction,
-		contract: Address,
-		validator_account: Address,
-		private_hash: H256,
+		validator_account: Option<Address>,
+		private_transaction: PrivateTransaction,
 		client: C,
 	) -> Result<(), Error> {
 		if self.descriptors.len() > MAX_QUEUE_LEN {
@@ -104,8 +102,7 @@ impl VerificationStore {
 			.expect("One transaction inserted; one result returned; qed")?;
 
 		self.descriptors.insert(transaction_hash, PrivateTransactionDesc {
-			private_hash,
-			contract,
+			private_transaction,
 			validator_account,
 		});
 

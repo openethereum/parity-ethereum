@@ -626,6 +626,8 @@ impl SyncHandler {
 			asking_hash: None,
 			ask_time: Instant::now(),
 			last_sent_transactions: HashSet::new(),
+			last_sent_private_transactions: HashSet::new(),
+			last_sent_signed_private_transactions: HashSet::new(),
 			expired: false,
 			confirmation: if sync.fork_block.is_none() { ForkConfirmation::Confirmed } else { ForkConfirmation::Unconfirmed },
 			asking_snapshot_data: None,

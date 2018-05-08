@@ -289,19 +289,25 @@ impl SyncPropagator {
 	}
 
 	/// Broadcast private transaction message to peers.
-	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, packet: Bytes) {
-		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers());
+	pub fn propagate_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet: Bytes) {
+		let lucky_peers = ChainSync::select_random_peers(&self.get_private_transaction_peers(&transaction_hash));
 		trace!(target: "sync", "Sending private transaction packet to {:?}", lucky_peers);
 		for peer_id in lucky_peers {
+			if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+				peer.last_sent_private_transactions.insert(transaction_hash);
+			}
 			SyncPropagator::send_packet(io, peer_id, PRIVATE_TRANSACTION_PACKET, packet.clone());
 		}
 	}
 
 	/// Broadcast signed private transaction message to peers.
-	pub fn propagate_signed_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, packet: Bytes) {
-		let lucky_peers = ChainSync::select_random_peers(&sync.get_private_transaction_peers());
+	pub fn propagate_signed_private_transaction(sync: &mut ChainSync, io: &mut SyncIo, transaction_hash: H256, packet: Bytes) {
+		let lucky_peers = ChainSync::select_random_peers(&self.get_signed_private_transaction_peers(&transaction_hash));
 		trace!(target: "sync", "Sending signed private transaction packet to {:?}", lucky_peers);
 		for peer_id in lucky_peers {
+			if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+				peer.last_sent_signed_private_transactions.insert(transaction_hash);
+			}
 			SyncPropagator::send_packet(io, peer_id, SIGNED_PRIVATE_TRANSACTION_PACKET, packet.clone());
 		}
 	}
@@ -424,6 +430,8 @@ mod tests {
 				asking_hash: None,
 				ask_time: Instant::now(),
 				last_sent_transactions: HashSet::new(),
+				last_sent_private_transactions: HashSet::new(),
+				last_sent_signed_private_transactions: HashSet::new(),
 				expired: false,
 				confirmation: ForkConfirmation::Confirmed,
 				snapshot_number: None,

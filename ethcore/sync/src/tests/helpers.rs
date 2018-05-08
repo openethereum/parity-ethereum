@@ -229,8 +229,10 @@ impl<C> EthPeer<C> where C: FlushingBlockChainClient {
 		let mut io = TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None);
 		match message {
 			ChainMessageType::Consensus(data) => self.sync.write().propagate_consensus_packet(&mut io, data),
-			ChainMessageType::PrivateTransaction(data) => self.sync.write().propagate_private_transaction(&mut io, data),
-			ChainMessageType::SignedPrivateTransaction(data) => self.sync.write().propagate_signed_private_transaction(&mut io, data),
+			ChainMessageType::PrivateTransaction(transaction_hash, data) =>
+				self.sync.write().propagate_private_transaction(&mut io, transaction_hash, data),
+			ChainMessageType::SignedPrivateTransaction(transaction_hash, data) =>
+				self.sync.write().propagate_signed_private_transaction(&mut io, transaction_hash, data),
 		}
 	}
 
