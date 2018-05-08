@@ -195,13 +195,7 @@ impl OverlayRecentDB {
 				};
 				while let Some(rlp_data) = db.get(col, &encode(&db_key)).expect("Low-level database error.") {
 					trace!("read_overlay: era={}, index={}", era, db_key.index);
-					let value = match decode::<DatabaseValue>(&rlp_data) {
-						Ok(v) => v,
-						Err(e) => {
-							trace!("read_overlay: Error decoding DatabaseValue err={}, era={}, index{}", e, era, db_key.index);
-							continue;
-						}
-					};
+					let value = decode::<DatabaseValue>(&rlp_data).expect(&format!("read_overlay: Error decoding DatabaseValue era={}, index{}", era, db_key.index));
 					count += value.inserts.len();
 					let mut inserted_keys = Vec::new();
 					for (k, v) in value.inserts {
