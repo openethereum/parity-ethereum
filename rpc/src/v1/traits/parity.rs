@@ -214,7 +214,7 @@ build_rpc_trait! {
 		/// Get block header.
 		/// Same as `eth_getBlockByNumber` but without uncles and transactions.
 		#[rpc(name = "parity_getBlockHeaderByNumber")]
-		fn block_header(&self, Trailing<BlockNumber>) -> BoxFuture<RichHeader>;
+		fn block_header(&self, Trailing<BlockNumber>) -> BoxFuture<Result<RichHeader>>;
 
 		/// Get IPFS CIDv0 given protobuf encoded bytes.
 		#[rpc(name = "parity_cidV0")]

@@ -428,7 +428,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		})
 	}
 
-	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader> {
+	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<Result<RichHeader>> {
 		const EXTRA_INFO_PROOF: &str = "Object exists in blockchain (fetched earlier), extra_info is always available if object exists; qed";
 		let number = number.unwrap_or_default();
 
@@ -451,10 +451,10 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			(header, Some(info))
 		};
 
-		Box::new(future::ok(RichHeader {
+		Box::new(future::ok(Ok(RichHeader {
 			inner: header.into(),
 			extra_info: extra.unwrap_or_default(),
-		}))
+		})))
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String> {
