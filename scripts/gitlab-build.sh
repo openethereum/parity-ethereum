@@ -62,13 +62,16 @@ build () {
   cargo build --target $PLATFORM --release -p ethstore-cli
   echo "Build ethkey-cli:"
   cargo build --target $PLATFORM --release -p ethkey-cli
+  echo "Build whisper-cli:"
+  cargo build --target $PLATFORM --release -p whisper-cli
 }
 strip_binaries () {
   echo "Strip binaries:"
   $STRIP_BIN -v target/$PLATFORM/release/parity
   $STRIP_BIN -v target/$PLATFORM/release/parity-evm
   $STRIP_BIN -v target/$PLATFORM/release/ethstore
-  $STRIP_BIN -v target/$PLATFORM/release/ethkey;
+  $STRIP_BIN -v target/$PLATFORM/release/ethkey
+  $STRIP_BIN -v target/$PLATFORM/release/whisper;
 }
 calculate_checksums () {
   echo "Checksum calculation:"
@@ -89,6 +92,8 @@ calculate_checksums () {
   $SHA256_BIN target/$PLATFORM/release/ethstore$S3WIN > ethstore$S3WIN.sha256
   $MD5_BIN target/$PLATFORM/release/ethkey$S3WIN > ethkey$S3WIN.md5
   $SHA256_BIN target/$PLATFORM/release/ethkey$S3WIN > ethkey$S3WIN.sha256
+  $MD5_BIN target/$PLATFORM/release/whisper$S3WIN > whisper$S3WIN.md5
+  $SHA256_BIN target/$PLATFORM/release/whisper$S3WIN > whisper$S3WIN.sha256
 }
 make_deb () {
   rm -rf deb
@@ -122,6 +127,7 @@ make_deb () {
   cp target/$PLATFORM/release/parity-evm deb/usr/bin/parity-evm
   cp target/$PLATFORM/release/ethstore deb/usr/bin/ethstore
   cp target/$PLATFORM/release/ethkey deb/usr/bin/ethkey
+  cp target/$PLATFORM/release/whisper deb/usr/bin/whisper
   dpkg-deb -b deb "parity_"$VER"_"$IDENT"_"$ARC".deb"
   $MD5_BIN "parity_"$VER"_"$IDENT"_"$ARC".deb" > "parity_"$VER"_"$IDENT"_"$ARC".deb.md5"
   $SHA256_BIN "parity_"$VER"_"$IDENT"_"$ARC".deb" > "parity_"$VER"_"$IDENT"_"$ARC".deb.sha256"
@@ -133,6 +139,7 @@ make_rpm () {
   cp target/$PLATFORM/release/parity-evm /install/usr/bin/parity-evm
   cp target/$PLATFORM/release/ethstore /install/usr/bin/ethstore
   cp target/$PLATFORM/release/ethkey /install/usr/bin/ethkey
+  cp target/$PLATFORM/release/whisper /install/usr/bin/whisper
 
   rm -rf "parity-"$VER"-1."$ARC".rpm" || true
   fpm -s dir -t rpm -n parity -v $VER --epoch 1 --license GPLv3 -d openssl --provides parity --url https://parity.io --vendor "Parity Technologies" -a x86_64 -m "<devops@parity.io>" --description "Ethereum network client by Parity Technologies" -C /install/
@@ -146,6 +153,7 @@ make_pkg () {
   cp target/$PLATFORM/release/parity-evm target/release/parity-evm
   cp target/$PLATFORM/release/ethstore target/release/ethstore
   cp target/$PLATFORM/release/ethkey target/release/ethkey
+  cp target/$PLATFORM/release/whisper target/release/whisper
   cd mac
   xcodebuild -configuration Release
   cd ..
@@ -194,6 +202,9 @@ push_binaries () {
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethkey$S3WIN --body target/$PLATFORM/release/ethkey$S3WIN
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethkey$S3WIN.md5 --body ethkey$S3WIN.md5
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/ethkey$S3WIN.sha256 --body ethkey$S3WIN.sha256
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN --body target/$PLATFORM/release/whisper$S3WIN
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN.md5 --body whisper$S3WIN.md5
+  aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/whisper$S3WIN.sha256 --body whisper$S3WIN.sha256
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$IDENT"_"$ARC"."$EXT --body "parity_"$VER"_"$IDENT"_"$ARC"."$EXT
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5" --body "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".md5"
   aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$BUILD_PLATFORM/"parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256" --body "parity_"$VER"_"$IDENT"_"$ARC"."$EXT".sha256"
@@ -201,7 +212,7 @@ push_binaries () {
 make_archive () {
   echo "add artifacts to archive"
   rm -rf parity.zip
-  zip -r parity.zip target/$PLATFORM/release/parity$S3WIN target/$PLATFORM/release/parity-evm$S3WIN target/$PLATFORM/release/ethstore$S3WIN target/$PLATFORM/release/ethkey$S3WIN parity$S3WIN.md5 parity-evm$S3WIN.md5 ethstore$S3WIN.md5 ethkey$S3WIN.md5 parity$S3WIN.sha256 parity-evm$S3WIN.sha256 ethstore$S3WIN.sha256 ethkey$S3WIN.sha256
+  zip -r parity.zip target/$PLATFORM/release/parity$S3WIN target/$PLATFORM/release/parity-evm$S3WIN target/$PLATFORM/release/ethstore$S3WIN target/$PLATFORM/release/ethkey$S3WIN target/$PLATFORM/release/whisper$S3WIN parity$S3WIN.md5 parity-evm$S3WIN.md5 ethstore$S3WIN.md5 ethkey$S3WIN.md5 whisper$S3WIN.md5 parity$S3WIN.sha256 parity-evm$S3WIN.sha256 ethstore$S3WIN.sha256 ethkey$S3WIN.sha256 whisper$S3WIN.sha256
 }
 
 updater_push_release () {
