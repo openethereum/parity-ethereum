@@ -290,6 +290,12 @@ error_chain! {
 			description("Unknown engine name")
 			display("Unknown engine name ({})", name)
 		}
+
+		#[doc = "RLP decoding errors"]
+		Decoder(err: ::rlp::DecoderError) {
+			description("decoding value failed")
+			display("decoding value failed with error: {}", err)
+		}
 	}
 }
 
@@ -310,11 +316,11 @@ impl From<AccountsError> for Error {
 	fn from(err: AccountsError) -> Error { 
 		ErrorKind::AccountProvider(err).into()
 	} 
-} 
+}
 
 impl From<::rlp::DecoderError> for Error {
 	fn from(err: ::rlp::DecoderError) -> Error {
-		UtilError::from(err).into()
+		ErrorKind::Decoder(err).into()
 	}
 }
 
