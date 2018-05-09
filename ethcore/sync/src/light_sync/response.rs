@@ -43,18 +43,6 @@ impl From<DecoderError> for BasicError {
 	}
 }
 
-impl From<ethcore::error::Error> for BasicError {
-	fn from(err: ethcore::error::Error) -> BasicError {
-		match err {
-			ethcore::error::Error(ethcore::error::ErrorKind::Decoder(dec_err), _) => {
-				BasicError::Decoder(dec_err)
-			},
-			_ => panic!("unhandled ethcore error in light_sync")
-		}
-
-	}
-}
-
 impl fmt::Display for BasicError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "Header response verification error: ")?;
