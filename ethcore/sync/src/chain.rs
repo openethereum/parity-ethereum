@@ -1789,10 +1789,13 @@ impl ChainSync {
 	}
 
 	pub fn on_packet(&mut self, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
+		debug!(target: "sync", "{} -> Dispatching packet: {}", peer, packet_id);
+
 		if packet_id != STATUS_PACKET && !self.peers.contains_key(&peer) {
 			debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_info(peer));
 			return;
 		}
+
 		let rlp = Rlp::new(data);
 		let result = match packet_id {
 			STATUS_PACKET => self.on_peer_status(io, peer, &rlp),
@@ -1831,7 +1834,7 @@ impl ChainSync {
 				PeerAsking::SnapshotData => elapsed > SNAPSHOT_DATA_TIMEOUT,
 			};
 			if timeout {
-				trace!(target:"sync", "Timeout {}", peer_id);
+				debug!(target:"sync", "Timeout {}", peer_id);
 				io.disconnect_peer(*peer_id);
 				aborting.push(*peer_id);
 			}

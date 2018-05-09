@@ -1015,8 +1015,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let author = *block.header().author();
 		benefactors.push((author, RewardKind::Author));
 
-		let rewards = match self.block_reward_contract {
+		let rewards: Vec<_> = match self.block_reward_contract {
 			Some(ref c) if block.header().number() >= self.block_reward_contract_transition => {
+				// NOTE: this logic should be moved to a function when another
+				//       engine needs support for block reward contract.
 				let mut call = |to, data| {
 					let result = self.machine.execute_as_system(
 						block,
@@ -1027,10 +1029,11 @@ impl Engine<EthereumMachine> for AuthorityRound {
 					result.map_err(|e| format!("{}", e))
 				};
 
-				c.reward(&benefactors, &mut call)?
+				let rewards = c.reward(&benefactors, &mut call)?;
+				rewards.into_iter().map(|(author, amount)| (author, RewardKind::External, amount)).collect()
 			},
 			_ => {
-				benefactors.into_iter().map(|(author, _)| (author, self.block_reward)).collect()
+				benefactors.into_iter().map(|(author, reward_kind)| (author, reward_kind, self.block_reward)).collect()
 			},
 		};
 

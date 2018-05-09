@@ -36,12 +36,12 @@ pub const TOKENS_PER_HANDLER: usize = 16384;
 const MAX_HANDLERS: usize = 8;
 
 /// IO access point. This is passed to all IO handlers and provides an interface to the IO subsystem.
-pub struct IoContext<Message> where Message: Send + Clone + Sync + 'static {
+pub struct IoContext<Message> where Message: Send + Sync + 'static {
 	handler: HandlerId,
 	shared: Arc<Shared<Message>>,
 }
 
-impl<Message> IoContext<Message> where Message: Send + Clone + Sync + 'static {
+impl<Message> IoContext<Message> where Message: Send + Sync + 'static {
 	/// Register a new recurring IO timer. 'IoHandler::timeout' will be called with the token.
 	pub fn register_timer(&self, token: TimerToken, delay: Duration) -> Result<(), IoError> {
 		let channel = self.channel();
@@ -91,7 +91,7 @@ impl<Message> IoContext<Message> where Message: Send + Clone + Sync + 'static {
 	/// Broadcast a message to other IO clients
 	pub fn message(&self, message: Message) -> Result<(), IoError> {
 		if let Some(ref channel) = *self.shared.channel.lock() {
-			channel.push(WorkTask::UserMessage(message));
+			channel.push(WorkTask::UserMessage(Arc::new(message)));
 		}
 		for thread in self.shared.threads.read().iter() {
 			thread.unpark();
@@ -114,11 +114,11 @@ impl<Message> IoContext<Message> where Message: Send + Clone + Sync + 'static {
 
 /// Allows sending messages into the event loop. All the IO handlers will get the message
 /// in the `message` callback.
-pub struct IoChannel<Message> where Message: Send + Clone + Sync + 'static {
+pub struct IoChannel<Message> where Message: Send + Sync + 'static {
 	shared: Weak<Shared<Message>>,
 }
 
-impl<Message> Clone for IoChannel<Message> where Message: Send + Clone + Sync + 'static {
+impl<Message> Clone for IoChannel<Message> where Message: Send + Sync + 'static {
 	fn clone(&self) -> IoChannel<Message> {
 		IoChannel {
 			shared: self.shared.clone(),
@@ -126,12 +126,12 @@ impl<Message> Clone for IoChannel<Message> where Message: Send + Clone + Sync + 
 	}
 }
 
-impl<Message> IoChannel<Message> where Message: Send + Clone + Sync + 'static {
+impl<Message> IoChannel<Message> where Message: Send + Sync + 'static {
 	/// Send a message through the channel
 	pub fn send(&self, message: Message) -> Result<(), IoError> {
 		if let Some(shared) = self.shared.upgrade() {
 			match *shared.channel.lock() {
-				Some(ref channel) => channel.push(WorkTask::UserMessage(message)),
+				Some(ref channel) => channel.push(WorkTask::UserMessage(Arc::new(message))),
 				None => self.send_sync(message)?
 			};
 
@@ -181,13 +181,13 @@ impl<Message> IoChannel<Message> where Message: Send + Clone + Sync + 'static {
 
 /// General IO Service. Starts an event loop and dispatches IO requests.
 /// 'Message' is a notification message type
-pub struct IoService<Message> where Message: Send + Sync + Clone + 'static {
+pub struct IoService<Message> where Message: Send + Sync + 'static {
 	thread_joins: Mutex<Vec<thread::JoinHandle<()>>>,
 	shared: Arc<Shared<Message>>,
 }
 
 // Struct shared throughout the whole implementation.
-struct Shared<Message> where Message: Send + Sync + Clone + 'static {
+struct Shared<Message> where Message: Send + Sync + 'static {
 	// All the I/O handlers that have been registered.
 	handlers: RwLock<Slab<Arc<IoHandler<Message>>>>,
 	// All the background threads, so that we can unpark them.
@@ -202,17 +202,26 @@ struct Shared<Message> where Message: Send + Sync + Clone + 'static {
 }
 
 // Messages used to communicate with the event loop from other threads.
-#[derive(Clone)]
-enum WorkTask<Message> where Message: Send + Clone + Sized {
+enum WorkTask<Message> where Message: Send + Sized {
 	Shutdown,
 	TimerTrigger {
 		handler_id: HandlerId,
 		token: TimerToken,
 	},
-	UserMessage(Message)
+	UserMessage(Arc<Message>)
 }
 
-impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
+impl<Message> Clone for WorkTask<Message> where Message: Send + Sized {
+	fn clone(&self) -> WorkTask<Message> {
+		match *self {
+			WorkTask::Shutdown => WorkTask::Shutdown,
+			WorkTask::TimerTrigger { handler_id, token } => WorkTask::TimerTrigger { handler_id, token },
+			WorkTask::UserMessage(ref msg) => WorkTask::UserMessage(msg.clone()),
+		}
+	}
+}
+
+impl<Message> IoService<Message> where Message: Send + Sync + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<IoService<Message>, IoError> {
 		let (tx, rx) = chase_lev::deque();
@@ -275,7 +284,7 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Send a message over the network. Normaly `HostIo::send` should be used. This can be used from non-io threads.
 	pub fn send_message(&self, message: Message) -> Result<(), IoError> {
 		if let Some(ref channel) = *self.shared.channel.lock() {
-			channel.push(WorkTask::UserMessage(message));
+			channel.push(WorkTask::UserMessage(Arc::new(message)));
 		}
 		for thread in self.shared.threads.read().iter() {
 			thread.unpark();
@@ -292,14 +301,14 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	}
 }
 
-impl<Message> Drop for IoService<Message> where Message: Send + Sync + Clone {
+impl<Message> Drop for IoService<Message> where Message: Send + Sync {
 	fn drop(&mut self) {
 		self.stop()
 	}
 }
 
 fn do_work<Message>(shared: &Arc<Shared<Message>>, rx: chase_lev::Stealer<WorkTask<Message>>)
-	where Message: Send + Sync + Clone + 'static 
+	where Message: Send + Sync + 'static 
 {
 	loop {
 		match rx.steal() {

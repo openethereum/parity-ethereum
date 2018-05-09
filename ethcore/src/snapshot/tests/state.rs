@@ -114,7 +114,7 @@ fn get_code_from_prev_chunk() {
 	// first one will have code inlined,
 	// second will just have its hash.
 	let thin_rlp = acc_stream.out();
-	let acc: BasicAccount = ::rlp::decode(&thin_rlp);
+	let acc: BasicAccount = ::rlp::decode(&thin_rlp).expect("error decoding basic account");
 
 	let mut make_chunk = |acc, hash| {
 		let mut db = MemoryDB::new();

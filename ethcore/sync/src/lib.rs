@@ -54,6 +54,8 @@ extern crate macros;
 extern crate log;
 #[macro_use]
 extern crate heapsize;
+#[macro_use]
+extern crate trace_time;
 
 mod chain;
 mod blocks;

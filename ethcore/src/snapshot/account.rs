@@ -236,7 +236,7 @@ mod tests {
 		};
 
 		let thin_rlp = ::rlp::encode(&account);
-		assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp), account);
+		assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp).unwrap(), account);
 
 		let fat_rlps = to_fat_rlps(&keccak(&addr), &account, &AccountDB::new(db.as_hashdb(), &addr), &mut Default::default(), usize::max_value(), usize::max_value()).unwrap();
 		let fat_rlp = Rlp::new(&fat_rlps[0]).at(1).unwrap();
@@ -261,7 +261,7 @@ mod tests {
 		};
 
 		let thin_rlp = ::rlp::encode(&account);
-		assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp), account);
+		assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp).unwrap(), account);
 
 		let fat_rlp = to_fat_rlps(&keccak(&addr), &account, &AccountDB::new(db.as_hashdb(), &addr), &mut Default::default(), usize::max_value(), usize::max_value()).unwrap();
 		let fat_rlp = Rlp::new(&fat_rlp[0]).at(1).unwrap();
@@ -286,7 +286,7 @@ mod tests {
 		};
 
 		let thin_rlp = ::rlp::encode(&account);
-		assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp), account);
+		assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp).unwrap(), account);
 
 		let fat_rlps = to_fat_rlps(&keccak(addr), &account, &AccountDB::new(db.as_hashdb(), &addr), &mut Default::default(), 500, 1000).unwrap();
 		let mut root = KECCAK_NULL_RLP;
