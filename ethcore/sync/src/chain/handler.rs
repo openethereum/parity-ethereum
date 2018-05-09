@@ -111,14 +111,14 @@ impl SyncHandler {
 			sync.active_peers.remove(&peer_id);
 
 			if sync.state == SyncState::SnapshotManifest {
-				// Check if the aborting peer was the one a snapshot manifest
-				// was downloaded from. If he was the only one, reset the sync
-				let peers_asking_manifest_ids = sync.peers.iter()
-					.filter(|&(_, p)| p.asking == PeerAsking::SnapshotManifest)
-					.map(|(id, _)| *id)
-					.collect::<Vec<_>>();
+				// Check if other we are asking other peers for
+				// the snapshot manifest as well.
+				// If not, return to initial state
+				let still_asking_manifest = sync.peers.iter()
+					.filter(|&(id, p)| sync.active_peers.contains(id) && p.asking == PeerAsking::SnapshotManifest)
+					.next().is_none();
 
-				if peers_asking_manifest_ids == vec![peer_id] {
+				if still_asking_manifest {
 					sync.state = ChainSync::get_init_state(sync.warp_sync, io.chain());
 				}
 			}
