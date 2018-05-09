@@ -38,7 +38,7 @@ pub enum WorkType<Message> {
 	Writable,
 	Hup,
 	Timeout,
-	Message(Message)
+	Message(Arc<Message>)
 }
 
 pub struct Work<Message> {
@@ -65,7 +65,7 @@ impl Worker {
 						wait: Arc<SCondvar>,
 						wait_mutex: Arc<SMutex<()>>,
 					   ) -> Worker
-					where Message: Send + Sync + Clone + 'static {
+					where Message: Send + Sync + 'static {
 		let deleting = Arc::new(AtomicBool::new(false));
 		let mut worker = Worker {
 			thread: None,
@@ -86,7 +86,7 @@ impl Worker {
 						channel: IoChannel<Message>, wait: Arc<SCondvar>,
 						wait_mutex: Arc<SMutex<()>>,
 						deleting: Arc<AtomicBool>)
-						where Message: Send + Sync + Clone + 'static {
+						where Message: Send + Sync + 'static {
 		loop {
 			{
 				let lock = wait_mutex.lock().expect("Poisoned work_loop mutex");
@@ -105,7 +105,7 @@ impl Worker {
 		}
 	}
 
-	fn do_work<Message>(work: Work<Message>, channel: IoChannel<Message>) where Message: Send + Sync + Clone + 'static {
+	fn do_work<Message>(work: Work<Message>, channel: IoChannel<Message>) where Message: Send + Sync + 'static {
 		match work.work_type {
 			WorkType::Readable => {
 				work.handler.stream_readable(&IoContext::new(channel, work.handler_id), work.token);
@@ -120,7 +120,7 @@ impl Worker {
 				work.handler.timeout(&IoContext::new(channel, work.handler_id), work.token);
 			}
 			WorkType::Message(message) => {
-				work.handler.message(&IoContext::new(channel, work.handler_id), &message);
+				work.handler.message(&IoContext::new(channel, work.handler_id), &*message);
 			}
 		}
 	}

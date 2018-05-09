@@ -487,9 +487,9 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			};
 
 			let state = self.client.state_at(id).ok_or(errors::state_pruned())?;
-			let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
+			let header = self.client.block_header(id).ok_or(errors::state_pruned())?.decode().map_err(errors::decode)?;
 
-			(state, header.decode())
+			(state, header)
 		};
 
 		self.client.call_many(&requests, &mut state, &header)

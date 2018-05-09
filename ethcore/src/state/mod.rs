@@ -402,19 +402,6 @@ impl<B: Backend> State<B> {
 		self.factories.vm.clone()
 	}
 
-	/// Swap the current backend for another.
-	// TODO: [rob] find a less hacky way to avoid duplication of `Client::state_at`.
-	pub fn replace_backend<T: Backend>(self, backend: T) -> State<T> {
-		State {
-			db: backend,
-			root: self.root,
-			cache: self.cache,
-			checkpoints: self.checkpoints,
-			account_start_nonce: self.account_start_nonce,
-			factories: self.factories,
-		}
-	}
-
 	/// Create a recoverable checkpoint of this state.
 	pub fn checkpoint(&mut self) {
 		self.checkpoints.get_mut().push(HashMap::new());
