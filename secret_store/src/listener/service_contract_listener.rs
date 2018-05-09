@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use std::thread;
 use parking_lot::Mutex;
-use ethcore::client::ChainNotify;
+use ethcore::client::{ChainNotify, ChainRoute};
 use ethkey::{Public, public_to_address};
 use bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
@@ -428,8 +428,8 @@ impl Drop for ServiceContractListener {
 }
 
 impl ChainNotify for ServiceContractListener {
-	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
-		let enacted_len = enacted.len();
+	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
+		let enacted_len = route.enacted().len();
 		if enacted_len == 0 {
 			return;
 		}

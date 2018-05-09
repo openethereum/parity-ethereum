@@ -446,7 +446,7 @@ mod tests {
 		};
 
 		let encoded = ::rlp::encode(&envelope);
-		let decoded = ::rlp::decode(&encoded);
+		let decoded = ::rlp::decode(&encoded).expect("failure decoding Envelope");
 
 		assert_eq!(envelope, decoded)
 	}
@@ -462,7 +462,7 @@ mod tests {
 		};
 
 		let encoded = ::rlp::encode(&envelope);
-		let decoded = ::rlp::decode(&encoded);
+		let decoded = ::rlp::decode(&encoded).expect("failure decoding Envelope");
 
 		assert_eq!(envelope, decoded)
 	}

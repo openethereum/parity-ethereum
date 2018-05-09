@@ -1642,7 +1642,7 @@ mod tests {
 	{
 		// check as single value.
 		let bytes = ::rlp::encode(&val);
-		let new_val: T = ::rlp::decode(&bytes);
+		let new_val: T = ::rlp::decode(&bytes).unwrap();
 		assert_eq!(val, new_val);
 
 		// check as list containing single value.

@@ -64,6 +64,7 @@ use super::{
 pub struct SyncHandler;
 
 impl SyncHandler {
+	/// Handle incoming packet from peer
 	pub fn on_packet(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		if packet_id != STATUS_PACKET && !sync.peers.contains_key(&peer) {
 			debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_info(peer));
