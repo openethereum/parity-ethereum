@@ -199,8 +199,6 @@ pub enum SyncState {
 	WaitingPeers,
 	/// Waiting for snapshot manifest download
 	SnapshotManifest,
-	/// Snapshot service is initializing
-	SnapshotInit,
 	/// Downloading snapshot data
 	SnapshotData,
 	/// Waiting for snapshot restoration progress.
@@ -254,7 +252,6 @@ impl SyncStatus {
 		match self.state {
 			SyncState::SnapshotManifest |
 				SyncState::SnapshotData |
-				SyncState::SnapshotInit |
 				SyncState::SnapshotWaiting => true,
 			_ => false,
 		}
@@ -653,17 +650,6 @@ impl ChainSync {
 		}
 	}
 
-	/// Check if the snapshot service is ready
-	fn check_snapshot_service(&mut self, io: &SyncIo) {
-		if io.snapshot_service().restoration_ready() {
-			trace!(target: "snapshot", "Snapshot Service is ready!");
-			// Sync the previously resumed chunks
-			self.snapshot.sync(io);
-			// Move to fetching snapshot data
-			self.state = SyncState::SnapshotData;
-		}
-	}
-
 	/// Resume downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
 		// Collect active peers that can sync
@@ -726,10 +712,6 @@ impl ChainSync {
 					trace!(target: "sync", "Waiting for the block queue");
 					return;
 				}
-				if self.state == SyncState::SnapshotInit {
-					trace!(target: "sync", "Waiting for the snapshot service to initialize");
-					return;
-				}
 				if self.state == SyncState::SnapshotWaiting {
 					trace!(target: "sync", "Waiting for the snapshot restoration");
 					return;
@@ -788,13 +770,28 @@ impl ChainSync {
 					}
 				},
 				SyncState::SnapshotData => {
-					if let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } = io.snapshot_service().status() {
-						if self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize > MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
-							trace!(target: "sync", "Snapshot queue full, pausing sync");
-							self.state = SyncState::SnapshotWaiting;
+					match io.snapshot_service().status() {
+						RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
+							// Initialize the snapshot if not already done
+							if !self.snapshot.is_initialized() {
+								self.snapshot.initialize(io);
+							}
+
+							if self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize > MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
+								trace!(target: "sync", "Snapshot queue full, pausing sync");
+								self.state = SyncState::SnapshotWaiting;
+								return;
+							}
+						},
+						RestorationStatus::Initializing => {
+							trace!(target: "warp", "Snapshot is stil initializing.");
 							return;
-						}
+						},
+						_ => {
+							return;
+						},
 					}
+
 					if peer_snapshot_hash.is_some() && peer_snapshot_hash == self.snapshot.snapshot_hash() {
 						self.clear_peer_download(peer_id);
 						SyncRequester::request_snapshot_data(self, io, peer_id);
@@ -802,8 +799,7 @@ impl ChainSync {
 				},
 				SyncState::SnapshotManifest | //already downloading from other peer
 					SyncState::Waiting |
-					SyncState::SnapshotWaiting |
-					SyncState::SnapshotInit => ()
+					SyncState::SnapshotWaiting => ()
 			}
 		} else {
 			trace!(target: "sync", "Skipping peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
@@ -949,6 +945,9 @@ impl ChainSync {
 						trace!(target:"sync", "Snapshot restoration is complete");
 						self.restart(io);
 					},
+					RestorationStatus::Initializing => {
+						trace!(target:"sync", "Snapshot restoration is initializing");
+					},
 					RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
 						if !self.snapshot.is_complete() && self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize <= MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
 							trace!(target:"sync", "Resuming snapshot sync");
@@ -964,9 +963,6 @@ impl ChainSync {
 					},
 				}
 			},
-			SyncState::SnapshotInit => {
-				self.check_snapshot_service(io);
-			}
 			_ => (),
 		}
 	}

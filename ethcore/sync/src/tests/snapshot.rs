@@ -80,10 +80,6 @@ impl SnapshotService for TestSnapshotService {
 		Some((1, 2))
 	}
 
-	fn restoration_ready(&self) -> bool {
-		true
-	}
-
 	fn completed_chunks(&self) -> Option<Vec<H256>> {
 		Some(vec![])
 	}

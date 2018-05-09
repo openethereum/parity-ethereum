@@ -43,7 +43,6 @@ impl TestSnapshotService {
 impl SnapshotService for TestSnapshotService {
 	fn manifest(&self) -> Option<ManifestData> { None }
 	fn supported_versions(&self) -> Option<(u64, u64)> { None }
-	fn restoration_ready(&self) -> bool { true }
 	fn completed_chunks(&self) -> Option<Vec<H256>> { Some(vec![]) }
 	fn chunk(&self, _hash: H256) -> Option<Bytes> { None }
 	fn status(&self) -> RestorationStatus { self.status.lock().clone() }

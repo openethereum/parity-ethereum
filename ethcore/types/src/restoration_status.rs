@@ -21,6 +21,8 @@
 pub enum RestorationStatus {
 	///	No restoration.
 	Inactive,
+	/// Restoration is initalizing
+	Initializing,
 	/// Ongoing restoration.
 	Ongoing {
 		/// Total number of state chunks.
