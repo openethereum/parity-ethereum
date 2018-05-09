@@ -241,6 +241,7 @@ pub struct Service {
 	progress: super::Progress,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,
+	restoration_ready: AtomicBool,
 }
 
 impl Service {
@@ -262,6 +263,7 @@ impl Service {
 			progress: Default::default(),
 			taking_snapshot: AtomicBool::new(false),
 			restoring_snapshot: AtomicBool::new(false),
+			restoration_ready: AtomicBool::new(false),
 		};
 
 		// create the root snapshot dir if it doesn't exist.
@@ -414,77 +416,80 @@ impl Service {
 	/// Initialize the restoration synchronously.
 	/// The recover flag indicates whether to recover the restored snapshot.
 	pub fn init_restore(&self, manifest: ManifestData, recover: bool) -> Result<(), Error> {
-		let mut res = self.restoration.lock();
+		{
+			let mut res = self.restoration.lock();
 
-		let rest_dir = self.restoration_dir();
-		let rest_db = self.restoration_db();
-		let recovery_temp = self.temp_recovery_dir();
-		let prev_chunks = self.prev_chunks_dir();
+			let rest_dir = self.restoration_dir();
+			let rest_db = self.restoration_db();
+			let recovery_temp = self.temp_recovery_dir();
+			let prev_chunks = self.prev_chunks_dir();
 
-		// delete and restore the restoration dir.
-		if let Err(e) = fs::remove_dir_all(&prev_chunks) {
-			match e.kind() {
-				ErrorKind::NotFound => {},
-				_ => return Err(e.into()),
+			// delete and restore the restoration dir.
+			if let Err(e) = fs::remove_dir_all(&prev_chunks) {
+				match e.kind() {
+					ErrorKind::NotFound => {},
+					_ => return Err(e.into()),
+				}
 			}
-		}
 
-		// Move the previous recovery temp directory
-		// to `prev_chunks` to be able to restart restoring
-		// with previously downloaded blocks
-		// This step is optional, so don't fail on error
-		fs::rename(&recovery_temp, &prev_chunks).ok();
+			self.restoration_ready.store(false, Ordering::SeqCst);
 
-		self.state_chunks.store(0, Ordering::SeqCst);
-		self.block_chunks.store(0, Ordering::SeqCst);
+			// Move the previous recovery temp directory
+			// to `prev_chunks` to be able to restart restoring
+			// with previously downloaded blocks
+			// This step is optional, so don't fail on error
+			fs::rename(&recovery_temp, &prev_chunks).ok();
 
-		// tear down existing restoration.
-		*res = None;
+			self.state_chunks.store(0, Ordering::SeqCst);
+			self.block_chunks.store(0, Ordering::SeqCst);
 
-		// delete and restore the restoration dir.
-		if let Err(e) = fs::remove_dir_all(&rest_dir) {
-			match e.kind() {
-				ErrorKind::NotFound => {},
-				_ => return Err(e.into()),
+			// tear down existing restoration.
+			*res = None;
+
+			// delete and restore the restoration dir.
+			if let Err(e) = fs::remove_dir_all(&rest_dir) {
+				match e.kind() {
+					ErrorKind::NotFound => {},
+					_ => return Err(e.into()),
+				}
 			}
+
+			fs::create_dir_all(&rest_dir)?;
+
+			// make new restoration.
+			let writer = match recover {
+				true => Some(LooseWriter::new(self.temp_recovery_dir())?),
+				false => None
+			};
+
+			let params = RestorationParams {
+				manifest: manifest.clone(),
+				pruning: self.pruning,
+				db: self.restoration_db_handler.open(&self.restoration_db())?,
+				writer: writer,
+				genesis: &self.genesis_block,
+				guard: Guard::new(rest_db),
+				engine: &*self.engine,
+			};
+
+			let state_chunks = manifest.state_hashes.len();
+			let block_chunks = manifest.block_hashes.len();
+
+			*res = Some(Restoration::new(params)?);
+
+			*self.status.lock() = RestorationStatus::Ongoing {
+				state_chunks: state_chunks as u32,
+				block_chunks: block_chunks as u32,
+				state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
+				block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
+			};
+
+			self.restoring_snapshot.store(true, Ordering::SeqCst);
+
+			// Import previous chunks, continue if it fails
+			self.import_prev_chunks(&mut res, manifest).ok();
+			self.restoration_ready.store(true, Ordering::SeqCst);
 		}
-
-		{ *self.status.lock() = RestorationStatus::Initializing; }
-
-		fs::create_dir_all(&rest_dir)?;
-
-		// make new restoration.
-		let writer = match recover {
-			true => Some(LooseWriter::new(self.temp_recovery_dir())?),
-			false => None
-		};
-
-		let params = RestorationParams {
-			manifest: manifest.clone(),
-			pruning: self.pruning,
-			db: self.restoration_db_handler.open(&self.restoration_db())?,
-			writer: writer,
-			genesis: &self.genesis_block,
-			guard: Guard::new(rest_db),
-			engine: &*self.engine,
-		};
-
-		let state_chunks = manifest.state_hashes.len();
-		let block_chunks = manifest.block_hashes.len();
-
-		*res = Some(Restoration::new(params)?);
-
-		self.restoring_snapshot.store(true, Ordering::SeqCst);
-
-		// Import previous chunks, continue if it fails
-		self.import_prev_chunks(&mut res, manifest).ok();
-
-		*self.status.lock() = RestorationStatus::Ongoing {
-			state_chunks: state_chunks as u32,
-			block_chunks: block_chunks as u32,
-			state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
-			block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
-		};
 
 		Ok(())
 	}
@@ -578,6 +583,7 @@ impl Service {
 
 		let _ = fs::remove_dir_all(self.restoration_dir());
 		*self.status.lock() = RestorationStatus::Inactive;
+		self.restoration_ready.store(false, Ordering::SeqCst);
 
 		Ok(())
 	}
@@ -597,7 +603,7 @@ impl Service {
 					trace!(target: "snapshot", "Tried to restore chunk {:x} while inactive or failed", hash);
 					return Ok(());
 				},
-				RestorationStatus::Ongoing { .. } | RestorationStatus::Initializing => {
+				RestorationStatus::Ongoing { .. } => {
 					let (res, db) = {
 						let rest = match *restoration {
 							Some(ref mut r) => r,
@@ -676,6 +682,10 @@ impl SnapshotService for Service {
 		self.reader.read().as_ref().and_then(|r| r.chunk(hash).ok())
 	}
 
+	fn restoration_ready(&self) -> bool {
+		self.restoration_ready.load(Ordering::SeqCst)
+	}
+
 	fn completed_chunks(&self) -> Option<Vec<H256>> {
 		let restoration = self.restoration.lock();
 
@@ -717,6 +727,7 @@ impl SnapshotService for Service {
 	fn abort_restore(&self) {
 		trace!(target: "snapshot", "Aborting restore");
 		self.restoring_snapshot.store(false, Ordering::SeqCst);
+		self.restoration_ready.store(false, Ordering::SeqCst);
 		*self.restoration.lock() = None;
 		*self.status.lock() = RestorationStatus::Inactive;
 	}

@@ -539,7 +539,7 @@ impl SyncHandler {
 		}
 		sync.snapshot.reset_to(&manifest, &keccak(manifest_rlp.as_raw()));
 		io.snapshot_service().begin_restore(manifest);
-		sync.state = SyncState::SnapshotData;
+		sync.state = SyncState::SnapshotInit;
 
 		// give a task to the same peer first.
 		sync.sync_peer(io, peer_id, false);
@@ -578,10 +578,6 @@ impl SyncHandler {
 				sync.continue_sync(io);
 				return Ok(());
 			},
-			RestorationStatus::Initializing => {
-				trace!(target: "warp", "{}: Snapshot restoration is initializing", peer_id);
-				return Ok(());
-			}
 			RestorationStatus::Ongoing { .. } => {
 				trace!(target: "sync", "{}: Snapshot restoration is ongoing", peer_id);
 			},
