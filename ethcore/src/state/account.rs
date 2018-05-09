@@ -459,8 +459,8 @@ impl Account {
 		self.code_size = other.code_size;
 		self.address_hash = other.address_hash;
 		let mut cache = self.storage_cache.borrow_mut();
-		for (k, v) in other.storage_cache.into_inner() {
-			cache.insert(k.clone() , v.clone()); //TODO: cloning should not be required here
+		for (k, v) in other.storage_cache.into_inner().into_iter() {
+			cache.insert(k, v);
 		}
 		self.storage_changes = other.storage_changes;
 	}
