@@ -106,7 +106,7 @@ impl From<::std::io::Error> for IoError {
 	}
 }
 
-impl<Message> From<NotifyError<service::IoMessage<Message>>> for IoError where Message: Send + Clone {
+impl<Message> From<NotifyError<service::IoMessage<Message>>> for IoError where Message: Send {
 	fn from(_err: NotifyError<service::IoMessage<Message>>) -> IoError {
 		IoError::Mio(::std::io::Error::new(::std::io::ErrorKind::ConnectionAborted, "Network IO notification error"))
 	}
@@ -115,7 +115,7 @@ impl<Message> From<NotifyError<service::IoMessage<Message>>> for IoError where M
 /// Generic IO handler.
 /// All the handler function are called from within IO event loop.
 /// `Message` type is used as notification data
-pub trait IoHandler<Message>: Send + Sync where Message: Send + Sync + Clone + 'static {
+pub trait IoHandler<Message>: Send + Sync where Message: Send + Sync + 'static {
 	/// Initialize the handler
 	fn initialize(&self, _io: &IoContext<Message>) {}
 	/// Timer function called after a timeout created with `HandlerIo::timeout`.
