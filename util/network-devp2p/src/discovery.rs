@@ -227,7 +227,7 @@ impl Discovery {
 		trace!(target: "discovery", "Starting round {:?}", self.discovery_round);
 		let mut tried_count = 0;
 		{
-			let nearest = Discovery::nearest_node_entries(&self.discovery_id, &self.node_buckets).into_iter();
+			let nearest = self.nearest_node_entries(&self.discovery_id).into_iter();
 			let nearest = nearest.filter(|x| !self.discovery_nodes.contains(&x.id)).take(ALPHA).collect::<Vec<_>>();
 			for r in nearest {
 				let rlp = encode_list(&(&[self.discovery_id.clone()][..]));
@@ -301,13 +301,13 @@ impl Discovery {
 		Ok(())
 	}
 
-	fn nearest_node_entries(target: &NodeId, buckets: &[NodeBucket]) -> Vec<NodeEntry> {
+	fn nearest_node_entries(&self, target: &NodeId) -> Vec<NodeEntry> {
 		let mut found: BTreeMap<usize, Vec<&NodeEntry>> = BTreeMap::new();
 		let mut count = 0;
 		let target_hash = keccak(target);
 
 		// Sort nodes by distance to target.
-		for bucket in buckets {
+		for bucket in &self.node_buckets {
 			for node in &bucket.nodes {
 				// This distance function only computes the log of the distance, so precision in the
 				// distances is lost before sorting. Since the target itself may be in one of our
@@ -477,7 +477,7 @@ impl Discovery {
 		let target: NodeId = rlp.val_at(0)?;
 		let timestamp: u64 = rlp.val_at(1)?;
 		self.check_timestamp(timestamp)?;
-		let nearest = Discovery::nearest_node_entries(&target, &self.node_buckets);
+		let nearest = self.nearest_node_entries(&target);
 		if nearest.is_empty() {
 			return Ok(None);
 		}
@@ -638,7 +638,7 @@ mod tests {
 			}
 			discovery2.round();
 		}
-		assert_eq!(Discovery::nearest_node_entries(&NodeId::new(), &discovery2.node_buckets).len(), 3)
+		assert_eq!(discovery2.nearest_node_entries(&NodeId::new()).len(), 3)
 	}
 
 	#[test]
@@ -649,7 +649,7 @@ mod tests {
 		for _ in 0..1200 {
 			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
 		}
-		assert!(Discovery::nearest_node_entries(&NodeId::new(), &discovery.node_buckets).len() <= 16);
+		assert!(discovery.nearest_node_entries(&NodeId::new()).len() <= 16);
 		let removed = discovery.check_expired(true).len();
 		assert!(removed > 0);
 	}
@@ -657,16 +657,19 @@ mod tests {
 	#[test]
 	fn find_nearest_saturated() {
 		use super::*;
-		let mut buckets: Vec<_> = (0..256).map(|_| NodeBucket::new()).collect();
+
+		let key = Random.generate().unwrap();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40447").unwrap(), udp_port: 40447 };
+		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0, IpFilter::default());
+
 		for _ in 0..(16 + 10) {
-			buckets[0].nodes.push_back(BucketEntry {
+			discovery.node_buckets[0].nodes.push_back(BucketEntry {
 				address: NodeEntry { id: NodeId::new(), endpoint: ep.clone() },
 				timeout: None,
 				id_hash: keccak(NodeId::new()),
 			});
 		}
-		let nearest = Discovery::nearest_node_entries(&NodeId::new(), &buckets);
+		let nearest = discovery.nearest_node_entries(&NodeId::new());
 		assert_eq!(nearest.len(), 16)
 	}
 
@@ -748,7 +751,7 @@ mod tests {
 	#[test]
 	fn packets() {
 		let key = Random.generate().unwrap();
-		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40447").unwrap(), udp_port: 40447 };
+		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40449").unwrap(), udp_port: 40449 };
 		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0, IpFilter::default());
 		discovery.check_timestamps = false;
 		let from = SocketAddr::from_str("99.99.99.99:40445").unwrap();
