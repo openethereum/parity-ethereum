@@ -25,7 +25,7 @@ use std::time::{Instant, Duration};
 use atty;
 use ethcore::client::{
 	BlockId, BlockChainClient, ChainInfo, BlockInfo, BlockChainInfo,
-	BlockQueueInfo, ChainNotify, ClientReport, Client, ClientIoMessage
+	BlockQueueInfo, ChainNotify, ChainRoute, ClientReport, Client, ClientIoMessage
 };
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
@@ -351,7 +351,7 @@ impl<T: InformantData> Informant<T> {
 }
 
 impl ChainNotify for Informant<FullNodeInformantData> {
-	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, duration: Duration) {
+	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, duration: Duration) {
 		let mut last_import = self.last_import.lock();
 		let client = &self.target.client;
 

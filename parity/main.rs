@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -18,187 +18,28 @@
 
 #![warn(missing_docs)]
 
-extern crate ansi_term;
+extern crate parity;
+
 extern crate ctrlc;
-extern crate docopt;
-#[macro_use]
-extern crate clap;
 extern crate dir;
-extern crate env_logger;
 extern crate fdlimit;
-extern crate futures;
-extern crate futures_cpupool;
-extern crate atty;
-extern crate jsonrpc_core;
-extern crate num_cpus;
-extern crate number_prefix;
-extern crate parking_lot;
-extern crate regex;
-extern crate rlp;
-extern crate rpassword;
-extern crate rustc_hex;
-extern crate semver;
-extern crate serde;
-extern crate serde_json;
 #[macro_use]
-extern crate serde_derive;
-extern crate toml;
-
-extern crate ethcore;
-extern crate ethcore_bytes as bytes;
-extern crate ethcore_io as io;
-extern crate ethcore_light as light;
-extern crate ethcore_logger;
-extern crate ethcore_miner as miner;
-extern crate ethcore_network as network;
-extern crate ethcore_private_tx;
-extern crate ethcore_service;
-extern crate ethcore_sync as sync;
-extern crate ethcore_transaction as transaction;
-extern crate ethereum_types;
-extern crate ethkey;
-extern crate kvdb;
-extern crate node_health;
+extern crate log;
 extern crate panic_hook;
-extern crate parity_hash_fetch as hash_fetch;
-extern crate parity_ipfs_api;
-extern crate parity_local_store as local_store;
-extern crate parity_reactor;
-extern crate parity_rpc;
-extern crate parity_updater as updater;
-extern crate parity_version;
-extern crate parity_whisper;
-extern crate path;
-extern crate rpc_cli;
-extern crate node_filter;
-extern crate keccak_hash as hash;
-extern crate journaldb;
-extern crate registrar;
-
-#[macro_use]
-extern crate log as rlog;
-
-#[cfg(feature="stratum")]
-extern crate ethcore_stratum;
-
-#[cfg(feature="secretstore")]
-extern crate ethcore_secretstore;
-
-#[cfg(feature = "dapps")]
-extern crate parity_dapps;
-
-#[cfg(test)]
-#[macro_use]
-extern crate pretty_assertions;
+extern crate parking_lot;
 
 #[cfg(windows)] extern crate winapi;
 
-#[cfg(test)]
-extern crate tempdir;
-
-mod account;
-mod blockchain;
-mod cache;
-mod cli;
-mod configuration;
-mod dapps;
-mod export_hardcoded_sync;
-mod ipfs;
-mod deprecated;
-mod helpers;
-mod informant;
-mod light_helpers;
-mod modules;
-mod params;
-mod presale;
-mod rpc;
-mod rpc_apis;
-mod run;
-mod secretstore;
-mod signer;
-mod snapshot;
-mod upgrade;
-mod url;
-mod user_defaults;
-mod whisper;
-mod db;
-
-#[cfg(feature="stratum")]
-mod stratum;
-
 use std::{process, env};
-use std::collections::HashMap;
-use std::io::{self as stdio, BufReader, Read, Write};
+use std::io::{self as stdio, Read, Write};
 use std::fs::{remove_file, metadata, File, create_dir_all};
 use std::path::PathBuf;
-use hash::keccak_buffer;
-use cli::Args;
-use configuration::{Cmd, Execute, Configuration};
-use deprecated::find_deprecated;
-use ethcore_logger::setup_log;
+use std::sync::Arc;
+use ctrlc::CtrlC;
 use dir::default_hypervisor_path;
-
-fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
-	if let Some(file) = maybe_file {
-		let mut f = BufReader::new(File::open(&file).map_err(|_| "Unable to open file".to_owned())?);
-		let hash = keccak_buffer(&mut f).map_err(|_| "Unable to read from file".to_owned())?;
-		Ok(format!("{:x}", hash))
-	} else {
-		Err("Streaming from standard input not yet supported. Specify a file.".to_owned())
-	}
-}
-
-enum PostExecutionAction {
-	Print(String),
-	Restart(Option<String>),
-	Quit,
-}
-
-fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, String> {
-	let logger = setup_log(&command.logger).expect("Logger is initialized only once; qed");
-
-	match command.cmd {
-		Cmd::Run(run_cmd) => {
-			let (restart, spec_name) = run::execute(run_cmd, can_restart, logger)?;
-			Ok(if restart { PostExecutionAction::Restart(spec_name) } else { PostExecutionAction::Quit })
-		},
-		Cmd::Version => Ok(PostExecutionAction::Print(Args::print_version())),
-		Cmd::Hash(maybe_file) => print_hash_of(maybe_file).map(|s| PostExecutionAction::Print(s)),
-		Cmd::Account(account_cmd) => account::execute(account_cmd).map(|s| PostExecutionAction::Print(s)),
-		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd).map(|s| PostExecutionAction::Print(s)),
-		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd).map(|_| PostExecutionAction::Quit),
-		Cmd::SignerToken(ws_conf, ui_conf, logger_config) => signer::execute(ws_conf, ui_conf, logger_config).map(|s| PostExecutionAction::Print(s)),
-		Cmd::SignerSign { id, pwfile, port, authfile } => rpc_cli::signer_sign(id, pwfile, port, authfile).map(|s| PostExecutionAction::Print(s)),
-		Cmd::SignerList { port, authfile } => rpc_cli::signer_list(port, authfile).map(|s| PostExecutionAction::Print(s)),
-		Cmd::SignerReject { id, port, authfile } => rpc_cli::signer_reject(id, port, authfile).map(|s| PostExecutionAction::Print(s)),
-		Cmd::Snapshot(snapshot_cmd) => snapshot::execute(snapshot_cmd).map(|s| PostExecutionAction::Print(s)),
-		Cmd::ExportHardcodedSync(export_hs_cmd) => export_hardcoded_sync::execute(export_hs_cmd).map(|s| PostExecutionAction::Print(s)),
-	}
-}
-
-fn start(mut args: Vec<String>) -> Result<PostExecutionAction, String> {
-	args.insert(0, "parity".to_owned());
-	let conf = Configuration::parse(&args).unwrap_or_else(|e| e.exit());
-	let can_restart = conf.args.flag_can_restart;
-
-	let deprecated = find_deprecated(&conf.args);
-	for d in deprecated {
-		println!("{}", d);
-	}
-
-	let cmd = conf.into_command()?;
-	execute(cmd, can_restart)
-}
-
-#[cfg(not(feature="stratum"))]
-fn stratum_main(_: &mut HashMap<String, fn()>) {}
-
-#[cfg(feature="stratum")]
-fn stratum_main(alt_mains: &mut HashMap<String, fn()>) {
-	alt_mains.insert("stratum".to_owned(), stratum::main);
-}
-
-fn sync_main(_: &mut HashMap<String, fn()>) {}
+use fdlimit::raise_fd_limit;
+use parity::{start, ExecutionAction};
+use parking_lot::{Condvar, Mutex};
 
 fn updates_path(name: &str) -> PathBuf {
 	let mut dest = PathBuf::from(default_hypervisor_path());
@@ -275,48 +116,68 @@ const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 // Returns the exit error code.
 fn main_direct(force_can_restart: bool) -> i32 {
 	global_init();
-	let mut alt_mains = HashMap::new();
-	sync_main(&mut alt_mains);
-	stratum_main(&mut alt_mains);
-	let res = if let Some(f) = std::env::args().nth(1).and_then(|arg| alt_mains.get(&arg.to_string())) {
-		f();
-		0
-	} else {
-		let mut args = std::env::args().skip(1).collect::<Vec<_>>();
-		if force_can_restart && !args.iter().any(|arg| arg == "--can-restart") {
-			args.push("--can-restart".to_owned());
-		}
 
-		if let Some(spec_override) = take_spec_name_override() {
-			args.retain(|f| f != "--testnet");
-			args.retain(|f| !f.starts_with("--chain="));
-			while let Some(pos) = args.iter().position(|a| a == "--chain") {
-				if args.len() > pos + 1 {
-					args.remove(pos + 1);
-				}
-				args.remove(pos);
-			}
-			args.push("--chain".to_owned());
-			args.push(spec_override);
-		}
-
-		match start(args) {
-			Ok(result) => match result {
-				PostExecutionAction::Print(s) => { println!("{}", s); 0 },
-				PostExecutionAction::Restart(spec_name_override) => {
-					if let Some(spec_name) = spec_name_override {
-						set_spec_name_override(spec_name);
-					}
-					PLEASE_RESTART_EXIT_CODE
-				},
-				PostExecutionAction::Quit => 0,
-			},
-			Err(err) => {
-				writeln!(&mut stdio::stderr(), "{}", err).expect("StdErr available; qed");
-				1
-			},
-		}
+	let mut conf = {
+		let args = std::env::args().collect::<Vec<_>>();
+		parity::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
 	};
+
+	if let Some(spec_override) = take_spec_name_override() {
+		conf.args.flag_testnet = false;
+		conf.args.arg_chain = spec_override;
+	}
+
+	let can_restart = force_can_restart || conf.args.flag_can_restart;
+
+	// increase max number of open files
+	raise_fd_limit();
+
+	let exit = Arc::new((Mutex::new((false, None)), Condvar::new()));
+
+	let exec = if can_restart {
+		let e1 = exit.clone();
+		let e2 = exit.clone();
+		start(conf,
+			move |new_chain: String| { *e1.0.lock() = (true, Some(new_chain)); e1.1.notify_all(); },
+			move || { *e2.0.lock() = (true, None); e2.1.notify_all(); })
+	} else {
+		trace!(target: "mode", "Not hypervised: not setting exit handlers.");
+		start(conf, move |_| {}, move || {})
+	};
+
+	let res = match exec {
+		Ok(result) => match result {
+			ExecutionAction::Instant(Some(s)) => { println!("{}", s); 0 },
+			ExecutionAction::Instant(None) => 0,
+			ExecutionAction::Running(client) => {
+				CtrlC::set_handler({
+					let e = exit.clone();
+					move || { e.1.notify_all(); }
+				});
+
+				// Wait for signal
+				let mut lock = exit.0.lock();
+				let _ = exit.1.wait(&mut lock);
+
+				client.shutdown();
+
+				match &*lock {
+					&(true, ref spec_name_override) => {
+						if let &Some(ref spec_name) = spec_name_override {
+							set_spec_name_override(spec_name.clone());
+						}
+						PLEASE_RESTART_EXIT_CODE
+					},
+					_ => 0,
+				}
+			},
+		},
+		Err(err) => {
+			writeln!(&mut stdio::stderr(), "{}", err).expect("StdErr available; qed");
+			1
+		},
+	};
+
 	global_cleanup();
 	res
 }

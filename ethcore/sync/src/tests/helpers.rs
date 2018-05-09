@@ -23,7 +23,7 @@ use bytes::Bytes;
 use network::{self, PeerId, ProtocolId, PacketId, SessionInfo};
 use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient,
-	ClientConfig, ChainNotify, ChainMessageType, ClientIoMessage};
+	ClientConfig, ChainNotify, ChainRoute, ChainMessageType, ClientIoMessage};
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
@@ -520,11 +520,9 @@ impl TestIoHandler {
 impl IoHandler<ClientIoMessage> for TestIoHandler {
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
 		match *net_message {
-			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
-				panic!("Invalid message received: {}", e);
-			},
-			ClientIoMessage::NewPrivateTransaction => {
+			ClientIoMessage::Execute(ref exec) => {
 				*self.private_tx_queued.lock() += 1;
+				(*exec.0)(&self.client);
 			},
 			_ => {} // ignore other messages
 		}
@@ -535,12 +533,13 @@ impl ChainNotify for EthPeer<EthcoreClient> {
 	fn new_blocks(&self,
 		imported: Vec<H256>,
 		invalid: Vec<H256>,
-		enacted: Vec<H256>,
-		retracted: Vec<H256>,
+		route: ChainRoute,
 		sealed: Vec<H256>,
 		proposed: Vec<Bytes>,
 		_duration: Duration)
 	{
+		let (enacted, retracted) = route.into_enacted_retracted();
+
 		self.new_blocks_queue.write().push_back(NewBlockMessage {
 			imported,
 			invalid,

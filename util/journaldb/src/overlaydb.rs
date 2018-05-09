@@ -137,7 +137,7 @@ impl OverlayDB {
 	fn payload(&self, key: &H256) -> Option<Payload> {
 		self.backing.get(self.column, key)
 			.expect("Low-level database error. Some issue with your hard disk?")
-			.map(|d| decode(&d))
+			.map(|d| decode(&d).expect("decoding db value failed"))
 	}
 
 	/// Put the refs and value of the given key, possibly deleting it from the db.

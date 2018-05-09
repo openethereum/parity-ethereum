@@ -19,10 +19,8 @@ use std::fmt;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 use std::thread;
-use std::net::{TcpListener};
 
-use ansi_term::{Colour, Style};
-use ctrlc::CtrlC;
+use ansi_term::Colour;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient, BlockInfo};
 use ethcore::ethstore::ethkey;
@@ -34,7 +32,6 @@ use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use sync::{self, SyncConfig};
 use miner::work_notify::WorkPoster;
-use fdlimit::raise_fd_limit;
 use futures_cpupool::CpuPool;
 use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
@@ -45,7 +42,6 @@ use node_filter::NodeFilter;
 use node_health;
 use parity_reactor::EventLoop;
 use parity_rpc::{NetworkSettings, informant, is_major_importing};
-use parking_lot::{Condvar, Mutex};
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
@@ -65,7 +61,6 @@ use rpc;
 use rpc_apis;
 use secretstore;
 use signer;
-use url;
 use db;
 
 // how often to take periodic snapshots.
@@ -138,28 +133,6 @@ pub struct RunCmd {
 	pub no_hardcoded_sync: bool,
 }
 
-pub fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> Result<(), String> {
-	if !ui_conf.enabled {
-		return Err("Cannot use UI command with UI turned off.".into())
-	}
-
-	let token = signer::generate_token_and_url(ws_conf, ui_conf, logger_config)?;
-	// Open a browser
-	url::open(&token.url).map_err(|e| format!("{}", e))?;
-	// Print a message
-	println!("{}", token.message);
-	Ok(())
-}
-
-pub fn open_dapp(dapps_conf: &dapps::Configuration, rpc_conf: &rpc::HttpConfiguration, dapp: &str) -> Result<(), String> {
-	if !dapps_conf.enabled {
-		return Err("Cannot use DAPP command with Dapps turned off.".into())
-	}
-
-	let url = format!("http://{}:{}/{}/", rpc_conf.interface, rpc_conf.port, dapp);
-	url::open(&url).map_err(|e| format!("{}", e))?;
-	Ok(())
-}
 // node info fetcher for the local store.
 struct FullNodeInfo {
 	miner: Option<Arc<Miner>>, // TODO: only TXQ needed, just use that after decoupling.
@@ -415,10 +388,12 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	service.add_notify(informant.clone());
 	service.register_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
 
-	Ok(RunningClient::Light {
-		informant,
-		client,
-		keep_alive: Box::new((event_loop, service, ws_server, http_server, ipc_server, ui_server)),
+	Ok(RunningClient {
+		inner: RunningClientInner::Light {
+			informant,
+			client,
+			keep_alive: Box::new((event_loop, service, ws_server, http_server, ipc_server, ui_server)),
+		}
 	})
 }
 
@@ -898,26 +873,27 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		},
 	};
 
-	// start ui
-	if cmd.ui {
-		open_ui(&cmd.ws_conf, &cmd.ui_conf, &cmd.logger_config)?;
-	}
-
-	if let Some(dapp) = cmd.dapp {
-		open_dapp(&cmd.dapps_conf, &cmd.http_conf, &dapp)?;
-	}
-
 	client.set_exit_handler(on_client_rq);
 	updater.set_exit_handler(on_updater_rq);
 
-	Ok(RunningClient::Full {
-		informant,
-		client,
-		keep_alive: Box::new((watcher, service, updater, ws_server, http_server, ipc_server, ui_server, secretstore_key_server, ipfs_server, event_loop)),
+	Ok(RunningClient {
+		inner: RunningClientInner::Full {
+			informant,
+			client,
+			keep_alive: Box::new((watcher, service, updater, ws_server, http_server, ipc_server, ui_server, secretstore_key_server, ipfs_server, event_loop)),
+		}
 	})
 }
 
-enum RunningClient {
+/// Parity client currently executing in background threads.
+///
+/// Should be destroyed by calling `shutdown()`, otherwise execution will continue in the
+/// background.
+pub struct RunningClient {
+	inner: RunningClientInner
+}
+
+enum RunningClientInner {
 	Light {
 		informant: Arc<Informant<LightNodeInformantData>>,
 		client: Arc<LightClient>,
@@ -931,9 +907,10 @@ enum RunningClient {
 }
 
 impl RunningClient {
-	fn shutdown(self) {
-		match self {
-			RunningClient::Light { informant, client, keep_alive } => {
+	/// Shuts down the client.
+	pub fn shutdown(self) {
+		match self.inner {
+			RunningClientInner::Light { informant, client, keep_alive } => {
 				// Create a weak reference to the client so that we can wait on shutdown
 				// until it is dropped
 				let weak_client = Arc::downgrade(&client);
@@ -943,7 +920,7 @@ impl RunningClient {
 				drop(client);
 				wait_for_drop(weak_client);
 			},
-			RunningClient::Full { informant, client, keep_alive } => {
+			RunningClientInner::Full { informant, client, keep_alive } => {
 				info!("Finishing work, please wait...");
 				// Create a weak reference to the client so that we can wait on shutdown
 				// until it is dropped
@@ -961,51 +938,24 @@ impl RunningClient {
 	}
 }
 
-pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
-	if cmd.ui_conf.enabled && !cmd.ui_conf.info_page_only {
-		warn!("{}", Style::new().bold().paint("Parity browser interface is deprecated. It's going to be removed in the next version, use standalone Parity UI instead."));
-		warn!("{}", Style::new().bold().paint("Standalone Parity UI: https://github.com/Parity-JS/shell/releases"));
-	}
-
-	if cmd.ui && cmd.dapps_conf.enabled {
-		// Check if Parity is already running
-		let addr = format!("{}:{}", cmd.ui_conf.interface, cmd.ui_conf.port);
-		if !TcpListener::bind(&addr as &str).is_ok() {
-			return open_ui(&cmd.ws_conf, &cmd.ui_conf, &cmd.logger_config).map(|_| (false, None));
-		}
-	}
-
-	// increase max number of open files
-	raise_fd_limit();
-
-	let exit = Arc::new((Mutex::new((false, None)), Condvar::new()));
-
-	let running_client = if cmd.light {
-		execute_light_impl(cmd, logger)?
-	} else if can_restart {
-		let e1 = exit.clone();
-		let e2 = exit.clone();
-		execute_impl(cmd, logger,
-					 move |new_chain: String| { *e1.0.lock() = (true, Some(new_chain)); e1.1.notify_all(); },
-					 move || { *e2.0.lock() = (true, None); e2.1.notify_all(); })?
+/// Executes the given run command.
+///
+/// `on_client_rq` is the action to perform when the client receives an RPC request to be restarted
+/// with a different chain.
+///
+/// `on_updater_rq` is the action to perform when the updater has a new binary to execute.
+///
+/// On error, returns what to print on stderr.
+pub fn execute<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>,
+						on_client_rq: Cr, on_updater_rq: Rr) -> Result<RunningClient, String>
+	where Cr: Fn(String) + 'static + Send,
+		  Rr: Fn() + 'static + Send
+{
+	if cmd.light {
+		execute_light_impl(cmd, logger)
 	} else {
-		trace!(target: "mode", "Not hypervised: not setting exit handlers.");
-		execute_impl(cmd, logger, move |_| {}, move || {})?
-	};
-
-	// Handle possible exits
-	CtrlC::set_handler({
-		let e = exit.clone();
-		move || { e.1.notify_all(); }
-	});
-
-	// Wait for signal
-	let mut l = exit.0.lock();
-	let _ = exit.1.wait(&mut l);
-
-	running_client.shutdown();
-
-	Ok(l.clone())
+		execute_impl(cmd, logger, on_client_rq, on_updater_rq)
+	}
 }
 
 #[cfg(not(windows))]
