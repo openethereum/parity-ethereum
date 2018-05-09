@@ -89,9 +89,9 @@ error_chain! {
 
 	errors {
 		#[doc = "Error concerning the network address parsing subsystem."]
-		AddressParse(err: Option<io::Error>) {
+		AddressParse {
 			description("Failed to parse network address"),
-			display("Failed to parse network address {}", err.as_ref().map_or("".to_string(), |e| e.to_string())),
+			display("Failed to parse network address"),
 		}
 
 		#[doc = "Error concerning the network address resolution subsystem."]
@@ -169,9 +169,7 @@ impl From<crypto::error::SymmError> for Error {
 }
 
 impl From<net::AddrParseError> for Error {
-	fn from(_err: net::AddrParseError) -> Self {
-		ErrorKind::AddressParse(None).into()
-	}
+	fn from(_err: net::AddrParseError) -> Self { ErrorKind::AddressParse.into() }
 }
 
 #[test]

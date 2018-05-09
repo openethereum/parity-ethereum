@@ -23,7 +23,6 @@ use serde_json;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::io;
 use std::net::{SocketAddr, ToSocketAddrs, SocketAddrV4, SocketAddrV6, Ipv4Addr, Ipv6Addr};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -124,16 +123,7 @@ impl FromStr for NodeEndpoint {
 				udp_port: a.port()
 			}),
 			Ok(None) => bail!(ErrorKind::AddressResolve(None)),
-			Err(e) => {
-				match e.kind() {
-					io::ErrorKind::InvalidInput => {
-						Err(ErrorKind::AddressParse(Some(e)).into())
-					},
-					_ => {
-						Err(e.into())
-					}
-				}
-			}
+			Err(_) => Err(ErrorKind::AddressParse.into()) // always an io::Error of InvalidInput kind
 		}
 	}
 }
@@ -462,46 +452,21 @@ mod tests {
 	fn endpoint_parse_empty_ip_string_returns_error() {
 		let endpoint = NodeEndpoint::from_str("");
 		assert!(endpoint.is_err());
-		assert_matches!(
-			endpoint.unwrap_err().kind(),
-			// TODO: after 1.27 is stable, remove the `&`s and `ref`s, see https://github.com/rust-lang/rust/pull/49394
-			&ErrorKind::AddressParse(ref io_err) => {
-				assert!(io_err.is_some());
-				if let &Some(ref e) = io_err {
-					assert_eq!(e.to_string(), "invalid socket address");
-				}
-			}
-		);
+		assert_matches!(endpoint.unwrap_err().kind(), &ErrorKind::AddressParse);
 	}
 
 	#[test]
 	fn endpoint_parse_invalid_ip_string_returns_error() {
 		let endpoint = NodeEndpoint::from_str("beef");
 		assert!(endpoint.is_err());
-		assert_matches!(
-			endpoint.unwrap_err().kind(),
-			&ErrorKind::AddressParse(ref io_err) => {
-				assert!(io_err.is_some());
-				if let &Some(ref e) = io_err {
-					assert_eq!(e.to_string(), "invalid socket address");
-				}
-			}
-		);
+		assert_matches!(endpoint.unwrap_err().kind(), &ErrorKind::AddressParse);
 	}
 
 	#[test]
 	fn endpoint_parse_valid_ip_without_port_returns_error() {
 		let endpoint = NodeEndpoint::from_str("123.123.123.123");
 		assert!(endpoint.is_err());
-		assert_matches!(
-			endpoint.unwrap_err().kind(),
-			&ErrorKind::AddressParse(ref io_err) => {
-				assert!(io_err.is_some());
-				if let &Some(ref e) = io_err {
-					assert_eq!(e.to_string(), "invalid socket address");
-				}
-			}
-		);
+		assert_matches!(endpoint.unwrap_err().kind(), &ErrorKind::AddressParse);
 		let endpoint = NodeEndpoint::from_str("123.123.123.123:123");
 		assert!(endpoint.is_ok())
 	}
@@ -526,25 +491,11 @@ mod tests {
 	fn node_parse_fails_for_invalid_urls() {
 		let node = Node::from_str("foo");
 		assert!(node.is_err());
-		assert_matches!(
-			node.unwrap_err().kind(),
-			&ErrorKind::AddressParse(ref io_err) => {
-				if let &Some(ref e) = io_err {
-					assert_eq!(e.to_string(), "invalid socket address");
-				}
-			}
-		);
+		assert_matches!(node.unwrap_err().kind(), &ErrorKind::AddressParse);
 
 		let node = Node::from_str("enode://foo@bar");
 		assert!(node.is_err());
-		assert_matches!(
-			node.unwrap_err().kind(),
-			&ErrorKind::AddressParse(ref io_err) => {
-				if let &Some(ref e) = io_err {
-					assert_eq!(e.to_string(), "invalid port value");
-				}
-			}
-		);
+		assert_matches!(node.unwrap_err().kind(), &ErrorKind::AddressParse);
 	}
 
 	#[test]
