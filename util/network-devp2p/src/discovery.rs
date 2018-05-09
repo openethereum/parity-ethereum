@@ -16,7 +16,7 @@
 
 use ethcore_bytes::Bytes;
 use std::net::SocketAddr;
-use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
+use std::collections::{HashSet, HashMap, VecDeque};
 use std::mem;
 use std::default::Default;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -302,35 +302,52 @@ impl Discovery {
 	}
 
 	fn nearest_node_entries(&self, target: &NodeId) -> Vec<NodeEntry> {
-		let mut found: BTreeMap<H256, Vec<&NodeEntry>> = BTreeMap::new();
-		let mut count = 0;
 		let target_hash = keccak(target);
+		let target_distance = self.id_hash ^ target_hash;
 
-		// Sort nodes by distance to target.
-		for bucket in &self.node_buckets {
-			for node in &bucket.nodes {
-				let dist = target_hash ^ node.id_hash;
-				found.entry(dist).or_insert_with(Vec::new).push(&node.address);
-				if count == BUCKET_SIZE {
-					// delete the most distant element
-					let remove = {
-						let (key, last) = found.iter_mut().next_back().expect("Last element is always Some when count > 0");
-						last.pop();
-						if last.is_empty() { Some(key.clone()) } else { None }
-					};
-					if let Some(remove) = remove {
-						found.remove(&remove);
-					}
-				}
-				else {
-					count += 1;
+		let mut ret = Vec::<NodeEntry>::with_capacity(BUCKET_SIZE);
+
+		// Sort bucket entries by distance to target and append to end of result vector.
+		let append_bucket = |results: &mut Vec<NodeEntry>, bucket: &NodeBucket| -> bool {
+			let mut sorted_entries: Vec<&BucketEntry> = bucket.nodes.iter().collect();
+			sorted_entries.sort_unstable_by_key(|entry| entry.id_hash ^ target_hash);
+
+			let remaining_capacity = results.capacity() - results.len();
+			let to_append = if remaining_capacity < sorted_entries.len() {
+				&sorted_entries[0..remaining_capacity]
+			} else {
+				&sorted_entries
+			};
+			for entry in to_append.iter() {
+				results.push(entry.address.clone());
+			}
+			results.len() == results.capacity()
+		};
+
+		// This algorithm leverages the structure of the routing table to efficiently find the
+		// nearest entries to a target hash. First, we compute the XOR distance from this node to
+		// the target. On a first pass, we iterate from the MSB of the distance, stopping at any
+		// buckets where the distance bit is set, and skipping the buckets where it is unset. These
+		// must be in order the nearest to the target. On a second pass, we traverse from LSB to
+		// MSB, appending the buckets skipped on the first pass. The reason this works is that all
+		// entries in bucket i have a common prefix of length exactly 32 - i - 1 with the ID of this
+		// node.
+
+		for i in 0..ADDRESS_BITS {
+			if ((target_distance[i / 8] << (i % 8)) & 0x80) != 0 {
+				let bucket = &self.node_buckets[ADDRESS_BITS - i - 1];
+				if !bucket.nodes.is_empty() && append_bucket(&mut ret, bucket) {
+					return ret;
 				}
 			}
 		}
-
-		let mut ret:Vec<NodeEntry> = Vec::new();
-		for nodes in found.values() {
-			ret.extend(nodes.iter().map(|&n| n.clone()));
+		for i in (0..ADDRESS_BITS).rev() {
+			if ((target_distance[i / 8] << (i % 8)) & 0x80) == 0 {
+				let bucket = &self.node_buckets[ADDRESS_BITS - i - 1];
+				if !bucket.nodes.is_empty() && append_bucket(&mut ret, bucket) {
+					return ret;
+				}
+			}
 		}
 		ret
 	}
