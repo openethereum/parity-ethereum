@@ -279,11 +279,12 @@ impl<T: InformantData> Informant<T> {
 
 		let rpc_stats = self.rpc_stats.as_ref();
 
-		let (snapshot_sync, snapshot_current, snapshot_total) = self.snapshot.as_ref().map_or((false, 0, 0), |s|
+		let (snapshot_sync, snapshot_starting, snapshot_current, snapshot_total) = self.snapshot.as_ref().map_or((false, false, 0, 0), |s|
 			match s.status() {
 				RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
-					(true, state_chunks_done + block_chunks_done, state_chunks + block_chunks),
-				_ => (false, 0, 0),
+					(true, false, state_chunks_done + block_chunks_done, state_chunks + block_chunks),
+				RestorationStatus::Initializing => (true, true, 0, 0),
+				_ => (false, false, 0, 0),
 			}
 		);
 		let snapshot_sync = snapshot_sync && sync_info.as_ref().map_or(false, |s| s.snapshot_sync);
@@ -320,7 +321,7 @@ impl<T: InformantData> Informant<T> {
 					),
 					true => {
 						if snapshot_starting {
-							String::from("Snapshot initializing")
+							String::new("Snapshot initializing")
 						} else {
 							format!("Syncing snapshot {}/{}", snapshot_current, snapshot_total)
 						}

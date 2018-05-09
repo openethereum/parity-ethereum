@@ -36,6 +36,7 @@ pub struct Snapshot {
 	completed_chunks: HashSet<H256>,
 	snapshot_hash: Option<H256>,
 	bad_hashes: HashSet<H256>,
+	initialized: bool,
 }
 
 impl Snapshot {
@@ -48,20 +49,27 @@ impl Snapshot {
 			completed_chunks: HashSet::new(),
 			snapshot_hash: None,
 			bad_hashes: HashSet::new(),
+			initialized: false,
 		}
 	}
 
 	/// Sync the Snapshot completed chunks with the Snapshot Service
-	pub fn sync (&mut self, io: &SyncIo) {
+	pub fn initialize (&mut self, io: &SyncIo) {
+		if self.initialized {
+			return;
+		}
+
 		if let Some(completed_chunks) = io.snapshot_service().completed_chunks() {
 			self.completed_chunks = HashSet::from_iter(completed_chunks);
 		}
 
 		trace!(
 			target: "snapshot",
-			"Synced ChainSync snapshot with {} completed chunks",
+			"Snapshot is now initialized with {} completed chunks.",
 			self.completed_chunks.len(),
 		);
+
+		self.initialized = true;
 	}
 
 	/// Clear everything.
@@ -71,6 +79,7 @@ impl Snapshot {
 		self.downloading_chunks.clear();
 		self.completed_chunks.clear();
 		self.snapshot_hash = None;
+		self.initialized = false;
 	}
 
 	/// Check if currently downloading a snapshot.
@@ -152,6 +161,10 @@ impl Snapshot {
 
 	pub fn is_complete(&self) -> bool {
 		self.total_chunks() == self.completed_chunks.len()
+	}
+
+	pub fn is_initialized(&self) -> bool {
+		self.initialized
 	}
 }
 
