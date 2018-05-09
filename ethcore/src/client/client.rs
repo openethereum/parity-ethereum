@@ -1219,8 +1219,7 @@ impl Client {
 				=> Some(self.chain.read().best_block_header()),
 			BlockId::Number(number) if number == self.chain.read().best_block_number()
 				=> Some(self.chain.read().best_block_header()),
-			_
-				=> self.block_header(id).map(|h| h.decode()),
+			_   => self.block_header(id).and_then(|h| h.decode().ok())
 		}
 	}
 }
@@ -1915,7 +1914,11 @@ impl BlockChainClient for Client {
 
 	fn uncle_extra_info(&self, id: UncleId) -> Option<BTreeMap<String, String>> {
 		self.uncle(id)
-			.map(|header| self.engine.extra_info(&header.decode()))
+			.and_then(|h| {
+				h.decode().map(|dh| {
+					self.engine.extra_info(&dh)
+				}).ok()
+			})
 	}
 
 	fn pruning_info(&self) -> PruningInfo {
@@ -2033,7 +2036,8 @@ impl ReopenBlock for Client {
 			for h in uncles {
 				if !block.uncles().iter().any(|header| header.hash() == h) {
 					let uncle = chain.block_header_data(&h).expect("find_uncle_hashes only returns hashes for existing headers; qed");
-					block.push_uncle(uncle.decode()).expect("pushing up to maximum_uncle_count;
+					let uncle = uncle.decode().expect("decoding failure");
+					block.push_uncle(uncle).expect("pushing up to maximum_uncle_count;
 												push_uncle is not ok only if more than maximum_uncle_count is pushed;
 												so all push_uncle are Ok;
 												qed");
@@ -2074,7 +2078,7 @@ impl PrepareOpenBlock for Client {
 			.into_iter()
 			.take(engine.maximum_uncle_count(open_block.header().number()))
 			.foreach(|h| {
-				open_block.push_uncle(h.decode()).expect("pushing maximum_uncle_count;
+				open_block.push_uncle(h.decode().expect("decoding failure")).expect("pushing maximum_uncle_count;
 												open_block was just created;
 												push_uncle is not ok only if more than maximum_uncle_count is pushed;
 												so all push_uncle are Ok;
