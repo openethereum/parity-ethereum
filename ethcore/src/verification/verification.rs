@@ -224,7 +224,7 @@ fn verify_uncles(header: &Header, bytes: &[u8], bc: &BlockProvider, engine: &Eth
 				return Err(From::from(BlockError::UncleParentNotInChain(uncle_parent.hash())));
 			}
 
-			let uncle_parent = uncle_parent.decode();
+			let uncle_parent = uncle_parent.decode()?;
 			verify_parent(&uncle, &uncle_parent, engine)?;
 			engine.verify_block_family(&uncle, &uncle_parent)?;
 			verified.insert(uncle.hash());
@@ -500,10 +500,9 @@ mod tests {
 		// no existing tests need access to test, so having this not function
 		// is fine.
 		let client = ::client::TestBlockChainClient::default();
-
 		let parent = bc.block_header_data(header.parent_hash())
 			.ok_or(BlockError::UnknownParent(header.parent_hash().clone()))?
-			.decode();
+			.decode()?;
 
 		let full_params = FullFamilyParams {
 			block_bytes: bytes,

@@ -1,0 +1,17 @@
+[package]
+description = "C bindings for the Parity Ethereum client"
+name = "parity-clib"
+version = "1.12.0"
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[lib]
+name = "parity"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+parity = { path = "../", default-features = false }
+
+[features]
+default = []
+final = ["parity/final"]

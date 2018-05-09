@@ -360,6 +360,19 @@ pub fn transaction<T: Into<EthcoreError>>(error: T) -> Error {
 	}
 }
 
+pub fn decode<T: Into<EthcoreError>>(error: T) -> Error {
+	let error = error.into();
+	match *error.kind() {
+		ErrorKind::Decoder(ref dec_err) => rlp(dec_err.clone()),
+		_ => Error {
+			code: ErrorCode::InternalError,
+			message: "decoding error".into(),
+			data: None,
+		}
+
+	}
+}
+
 pub fn rlp(error: DecoderError) -> Error {
 	Error {
 		code: ErrorCode::InvalidParams,

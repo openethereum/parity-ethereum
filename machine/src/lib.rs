@@ -106,12 +106,4 @@ pub trait WithBalances: Machine {
 
 	/// Increment the balance of an account in the state of the live block.
 	fn add_balance(&self, live: &mut Self::LiveBlock, address: &Address, amount: &U256) -> Result<(), Self::Error>;
-
-	/// Note block rewards. "direct" rewards are for authors, "indirect" are for e.g. uncles.
-	fn note_rewards(
-		&self,
-		_live: &mut Self::LiveBlock,
-		_direct: &[(Address, U256)],
-		_indirect: &[(Address, U256)],
-	) -> Result<(), Self::Error> { Ok(()) }
 }

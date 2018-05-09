@@ -21,6 +21,7 @@ use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
 use ethereum_types::{H256, U256, Address};
+use error::Error;
 use hashdb::HashDB;
 use kvdb::DBValue;
 use bytes::{Bytes, ToPretty};
@@ -144,9 +145,10 @@ impl Account {
 	}
 
 	/// Create a new account from RLP.
-	pub fn from_rlp(rlp: &[u8]) -> Account {
-		let basic: BasicAccount = ::rlp::decode(rlp);
-		basic.into()
+	pub fn from_rlp(rlp: &[u8]) -> Result<Account, Error> {
+		::rlp::decode::<BasicAccount>(rlp)
+			.map(|ba| ba.into())
+			.map_err(|e| e.into())
 	}
 
 	/// Create a new contract account.
@@ -202,8 +204,8 @@ impl Account {
 			return Ok(value);
 		}
 		let db = SecTrieDB::new(db, &self.storage_root)?;
-
-		let item: U256 = db.get_with(key, ::rlp::decode)?.unwrap_or_else(U256::zero);
+		let panicky_decoder = |bytes:&[u8]| ::rlp::decode(&bytes).expect("decoding db value failed");
+		let item: U256 = db.get_with(key, panicky_decoder)?.unwrap_or_else(U256::zero);
 		let value: H256 = item.into();
 		self.storage_cache.borrow_mut().insert(key.clone(), value.clone());
 		Ok(value)
@@ -478,7 +480,8 @@ impl Account {
 
 		let trie = TrieDB::new(db, &self.storage_root)?;
 		let item: U256 = {
-			let query = (&mut recorder, ::rlp::decode);
+			let panicky_decoder = |bytes:&[u8]| ::rlp::decode(bytes).expect("decoding db value failed");
+			let query = (&mut recorder, panicky_decoder);
 			trie.get_with(&storage_key, query)?.unwrap_or_else(U256::zero)
 		};
 
@@ -528,7 +531,7 @@ mod tests {
 			a.rlp()
 		};
 
-		let a = Account::from_rlp(&rlp);
+		let a = Account::from_rlp(&rlp).expect("decoding db value failed");
 		assert_eq!(*a.storage_root().unwrap(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2".into());
 		assert_eq!(a.storage_at(&db.immutable(), &0x00u64.into()).unwrap(), 0x1234u64.into());
 		assert_eq!(a.storage_at(&db.immutable(), &0x01u64.into()).unwrap(), H256::default());
@@ -546,10 +549,10 @@ mod tests {
 			a.rlp()
 		};
 
-		let mut a = Account::from_rlp(&rlp);
+		let mut a = Account::from_rlp(&rlp).expect("decoding db value failed");
 		assert!(a.cache_code(&db.immutable()).is_some());
 
-		let mut a = Account::from_rlp(&rlp);
+		let mut a = Account::from_rlp(&rlp).expect("decoding db value failed");
 		assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));
 	}
 
@@ -609,7 +612,7 @@ mod tests {
 	#[test]
 	fn rlpio() {
 		let a = Account::new(69u8.into(), 0u8.into(), HashMap::new(), Bytes::new());
-		let b = Account::from_rlp(&a.rlp());
+		let b = Account::from_rlp(&a.rlp()).unwrap();
 		assert_eq!(a.balance(), b.balance());
 		assert_eq!(a.nonce(), b.nonce());
 		assert_eq!(a.code_hash(), b.code_hash());
