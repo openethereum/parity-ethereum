@@ -783,7 +783,7 @@ impl ChainSync {
 
 	/// Clear all blocks/headers marked as being downloaded by a peer.
 	fn clear_peer_download(&mut self, peer_id: PeerId) {
-		if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+		if let Some(ref peer) = self.peers.get(&peer_id) {
 			match peer.asking {
 				PeerAsking::BlockHeaders => {
 					if let Some(ref hash) = peer.asking_hash {
@@ -892,7 +892,7 @@ impl ChainSync {
 				PeerAsking::SnapshotData => elapsed > SNAPSHOT_DATA_TIMEOUT,
 			};
 			if timeout {
-				trace!(target:"sync", "Timeout {}", peer_id);
+				debug!(target:"sync", "Timeout {}", peer_id);
 				io.disconnect_peer(*peer_id);
 				aborting.push(*peer_id);
 			}
@@ -1063,6 +1063,7 @@ impl ChainSync {
 	}
 
 	pub fn on_packet(&mut self, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
+		debug!(target: "sync", "{} -> Dispatching packet: {}", peer, packet_id);
 		SyncHandler::on_packet(self, io, peer, packet_id, data);
 	}
 

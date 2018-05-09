@@ -19,6 +19,7 @@ use std::cmp;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
+use engines::block_reward::{self, RewardKind};
 use ethash::{quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use ethereum_types::{H256, H64, U256, Address};
 use unexpected::{OutOfBounds, Mismatch};
@@ -233,10 +234,12 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		use std::ops::Shr;
-		use parity_machine::{LiveBlock, WithBalances};
+		use parity_machine::LiveBlock;
 
 		let author = *LiveBlock::header(&*block).author();
 		let number = LiveBlock::header(&*block).number();
+
+		let mut rewards = Vec::new();
 
 		// Applies EIP-649 reward.
 		let reward = if number >= self.ethash_params.eip649_transition {
@@ -253,20 +256,21 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 		// Bestow block rewards.
 		let mut result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
-		let mut uncle_rewards = Vec::with_capacity(n_uncles);
 
 		if number >= self.ethash_params.mcip3_transition {
 			result_block_reward = self.ethash_params.mcip3_miner_reward;
+
 			let ubi_contract = self.ethash_params.mcip3_ubi_contract;
 			let ubi_reward = self.ethash_params.mcip3_ubi_reward;
 			let dev_contract = self.ethash_params.mcip3_dev_contract;
 			let dev_reward = self.ethash_params.mcip3_dev_reward;
 
-			self.machine.add_balance(block, &author, &result_block_reward)?;
-			self.machine.add_balance(block, &ubi_contract, &ubi_reward)?;
-			self.machine.add_balance(block, &dev_contract, &dev_reward)?;
+			rewards.push((author, RewardKind::Author, result_block_reward));
+			rewards.push((ubi_contract, RewardKind::External, ubi_reward));
+			rewards.push((dev_contract, RewardKind::External, dev_reward));
+
 		} else {
-			self.machine.add_balance(block, &author, &result_block_reward)?;
+			rewards.push((author, RewardKind::Author, result_block_reward));
 		}
 
 		// Bestow uncle rewards.
@@ -278,15 +282,10 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 				reward.shr(5)
 			};
 
-			uncle_rewards.push((*uncle_author, result_uncle_reward));
+			rewards.push((*uncle_author, RewardKind::Uncle, result_uncle_reward));
 		}
 
-		for &(ref a, ref reward) in &uncle_rewards {
-			self.machine.add_balance(block, a, reward)?;
-		}
-
-		// Note and trace.
-		self.machine.note_rewards(block, &[(author, result_block_reward)], &uncle_rewards)
+		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
 
 	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> {
