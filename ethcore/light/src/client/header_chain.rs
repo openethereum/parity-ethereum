@@ -305,7 +305,7 @@ impl HeaderChain {
 					batch.put(col, cht_key(cht_num as u64).as_bytes(), &::rlp::encode(cht_root));
 				}
 
-				let decoded_header = hardcoded_sync.header.decode();
+				let decoded_header = hardcoded_sync.header.decode()?;
 				let decoded_header_num = decoded_header.number();
 
 				// write the block in the DB.
@@ -585,7 +585,7 @@ impl HeaderChain {
 						bail!(ErrorKind::Database(msg.into()));
 					};
 
-					let decoded = header.decode();
+					let decoded = header.decode().expect("decoding db value failed");
 
 					let entry: Entry = {
 						let bytes = self.db.get(self.col, era_key(h_num).as_bytes())?
@@ -815,7 +815,9 @@ impl HeaderChain {
 
 		for hdr in self.ancestry_iter(BlockId::Hash(parent_hash)) {
 			if let Some(transition) = live_proofs.get(&hdr.hash()).cloned() {
-				return Some((hdr.decode(), transition.proof))
+				return hdr.decode().map(|decoded_hdr| {
+					(decoded_hdr, transition.proof)
+				}).ok();
 			}
 		}
 
@@ -1224,7 +1226,7 @@ mod tests {
 		let hardcoded_sync = chain.read_hardcoded_sync().expect("failed reading hardcoded sync").expect("failed unwrapping hardcoded sync");
 		assert_eq!(hardcoded_sync.chts.len(), 3);
 		assert_eq!(hardcoded_sync.total_difficulty, total_difficulty);
-		let decoded: Header = hardcoded_sync.header.decode();
+		let decoded: Header = hardcoded_sync.header.decode().expect("decoding failed");
 		assert_eq!(decoded.number(), h_num);
 	}
 }

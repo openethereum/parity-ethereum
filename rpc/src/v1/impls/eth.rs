@@ -343,7 +343,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 				let uncle_id = UncleId { block: block_id, position };
 
 				let uncle = match client.uncle(uncle_id) {
-					Some(hdr) => hdr.decode(),
+					Some(hdr) => match hdr.decode() {
+						Ok(h) => h,
+						Err(e) => return Err(errors::decode(e))
+					},
 					None => { return Ok(None); }
 				};
 
@@ -851,9 +854,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			};
 
 			let state = try_bf!(self.client.state_at(id).ok_or(errors::state_pruned()));
-			let header = try_bf!(self.client.block_header(id).ok_or(errors::state_pruned()));
+			let header = try_bf!(self.client.block_header(id).ok_or(errors::state_pruned()).and_then(|h| h.decode().map_err(errors::decode)));
 
-			(state, header.decode())
+			(state, header)
 		};
 
 		let result = self.client.call(&signed, Default::default(), &mut state, &header);
@@ -890,9 +893,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			};
 
 			let state = try_bf!(self.client.state_at(id).ok_or(errors::state_pruned()));
-			let header = try_bf!(self.client.block_header(id).ok_or(errors::state_pruned()));
+			let header = try_bf!(self.client.block_header(id).ok_or(errors::state_pruned()).and_then(|h| h.decode().map_err(errors::decode)));
 
-			(state, header.decode())
+			(state, header)
 		};
 
 		Box::new(future::done(self.client.estimate_gas(&signed, &state, &header)
