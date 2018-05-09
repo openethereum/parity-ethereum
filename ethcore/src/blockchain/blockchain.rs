@@ -431,7 +431,8 @@ impl<'a> Iterator for AncestryWithMetadataIter<'a> {
 			None
 		} else {
 			let details = self.chain.block_details(&self.current);
-			let header = self.chain.block_header_data(&self.current).map(|h| h.decode());
+			let header = self.chain.block_header_data(&self.current)
+				.map(|h| h.decode().expect("Stored block header data is valid RLP; qed"));
 
 			match (details, header) {
 				(Some(details), Some(header)) => {

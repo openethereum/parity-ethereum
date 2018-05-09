@@ -486,7 +486,9 @@ impl Importer {
 		let best = {
 			let hash = best_hash;
 			let header = chain.block_header_data(&hash)
-				.expect("Best block is in the database; qed").decode();
+				.expect("Best block is in the database; qed")
+				.decode()
+				.expect("Stored block header is valid RLP; qed");
 			let details = chain.block_details(&hash)
 				.expect("Best block is in the database; qed");
 
