@@ -318,7 +318,6 @@ impl From<AccountsError> for Error {
 	} 
 }
 
-// REVIEW: I changed this from `UtilError::from(err).into()` to this because I could not get it to work and I couldn't find anything using it. Ok?
 impl From<::rlp::DecoderError> for Error {
 	fn from(err: ::rlp::DecoderError) -> Error {
 		ErrorKind::Decoder(err).into()

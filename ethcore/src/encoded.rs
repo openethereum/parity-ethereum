@@ -24,7 +24,6 @@
 //! decoded object where parts like the hash can be saved.
 
 use block::Block as FullBlock;
-use error::Error;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
 use header::{BlockNumber, Header as FullHeader};
@@ -48,8 +47,8 @@ impl Header {
 	pub fn new(encoded: Vec<u8>) -> Self { Header(encoded) }
 
 	/// Upgrade this encoded view to a fully owned `Header` object.
-	pub fn decode(&self) -> Result<FullHeader, Error> {
-		rlp::decode(&self.0).map_err(|e|e.into() ) // REVIEW: I can't make the automatic conversion from ::rlp::DecoderError to error::Error work
+	pub fn decode(&self) -> Result<FullHeader, rlp::DecoderError> {
+		rlp::decode(&self.0)
 	}
 
 	/// Get a borrowed header view onto the data.

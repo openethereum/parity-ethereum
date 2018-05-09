@@ -426,10 +426,14 @@ impl<T: ChainDataFetcher> Client<T> {
 		};
 
 		// Verify Block Family
+
 		let verify_family_result = {
-			parent_header.decode().and_then(|dec| {
-				self.engine.verify_block_family(&verified_header, &dec)
-			})
+			parent_header.decode()
+				.map_err(|dec_err| dec_err.into())
+				.and_then(|decoded| {
+					self.engine.verify_block_family(&verified_header, &decoded)
+				})
+
 		};
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}",
