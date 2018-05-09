@@ -64,8 +64,6 @@ build () {
   cargo build --target $PLATFORM --release -p ethkey-cli
   echo "Build whisper-cli:"
   cargo build --target $PLATFORM --release -p whisper-cli
-  # @TODO rename binary properly
-  mv target/$PLATFORM/release/whisper-cli target/$PLATFORM/release/whisper;
 }
 strip_binaries () {
   echo "Strip binaries:"
