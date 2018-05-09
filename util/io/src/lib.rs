@@ -209,7 +209,7 @@ mod tests {
 
 		service.send_message(MyMessage { data: 5 }).unwrap();
 
-		thread::sleep(Duration::from_secs(1));
+		thread::sleep(Duration::from_secs(5));
 		assert!(handler.0.load(atomic::Ordering::SeqCst));
 	}
 
