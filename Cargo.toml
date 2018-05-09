@@ -40,7 +40,6 @@ ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
-ethcore-stratum = { path = "ethcore/stratum" }
 ethcore-sync = { path = "ethcore/sync" }
 ethcore-transaction = { path = "ethcore/transaction" }
 ethereum-types = "0.3"
@@ -108,6 +107,9 @@ slow-blocks = ["ethcore/slow-blocks"]
 secretstore = ["ethcore-secretstore"]
 final = ["parity-version/final"]
 
+[lib]
+path = "parity/lib.rs"
+
 [[bin]]
 path = "parity/main.rs"
 name = "parity"
@@ -130,6 +132,7 @@ members = [
 	"ethstore/cli",
 	"evmbin",
 	"miner",
+	"parity-clib",
 	"transaction-pool",
 	"whisper",
 	"whisper/cli",
