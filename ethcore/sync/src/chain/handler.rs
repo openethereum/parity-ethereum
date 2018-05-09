@@ -101,14 +101,27 @@ impl SyncHandler {
 	}
 
 	/// Called by peer when it is disconnecting
-	pub fn on_peer_aborting(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId) {
-		trace!(target: "sync", "== Disconnecting {}: {}", peer, io.peer_info(peer));
-		sync.handshaking_peers.remove(&peer);
-		if sync.peers.contains_key(&peer) {
-			debug!(target: "sync", "Disconnected {}", peer);
-			sync.clear_peer_download(peer);
-			sync.peers.remove(&peer);
-			sync.active_peers.remove(&peer);
+	pub fn on_peer_aborting(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
+		trace!(target: "sync", "== Disconnecting {}: {}", peer_id, io.peer_info(peer_id));
+		sync.handshaking_peers.remove(&peer_id);
+		if sync.peers.contains_key(&peer_id) {
+			debug!(target: "sync", "Disconnected {}", peer_id);
+			sync.clear_peer_download(peer_id);
+			sync.peers.remove(&peer_id);
+			sync.active_peers.remove(&peer_id);
+
+			if sync.state == SyncState::SnapshotManifest {
+				// Check if the aborting peer was the one a snapshot manifest
+				// was downloaded from. If he was the only one, reset the sync
+				let peers_asking_manifest_ids = sync.peers.iter()
+					.filter(|&(_, p)| p.asking == PeerAsking::SnapshotManifest)
+					.map(|(id, _)| *id)
+					.collect::<Vec<_>>();
+
+				if peers_asking_manifest_ids == vec![peer_id] {
+					sync.state = ChainSync::get_init_state(sync.warp_sync, io.chain());
+				}
+			}
 			sync.continue_sync(io);
 		}
 	}

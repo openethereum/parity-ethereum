@@ -839,16 +839,6 @@ impl ChainSync {
 						self.snapshot.clear_chunk_download(&hash);
 					}
 				},
-				PeerAsking::SnapshotManifest => {
-					let peers_asking_manifest_ids = self.peers.iter()
-						.filter(|&(_, p)| p.asking == PeerAsking::SnapshotManifest)
-						.map(|(id, _)| *id)
-						.collect::<Vec<_>>();
-
-					if peers_asking_manifest_ids == vec![peer_id] {
-						self.state = SyncState::WaitingPeers;
-					}
-				},
 				_ => (),
 			}
 		}
