@@ -95,6 +95,8 @@ extern crate serde_derive;
 
 #[cfg(test)]
 extern crate tempdir;
+#[cfg(test)] #[macro_use]
+extern crate assert_matches;
 
 mod host;
 mod connection;
