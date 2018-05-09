@@ -113,7 +113,7 @@ Note: if cargo fails to parse manifest try:
 $ ~/.cargo/bin/cargo build --release
 ```
 
-Note, when compiling a crate and you receive errors, it's in most cases your outdated version of Rust, or some of your crates have to be recompiled. Cleaning the repository will most likely solve the issue if you are on the latest stable versio of Rust, try:
+Note, when compiling a crate and you receive errors, it's in most cases your outdated version of Rust, or some of your crates have to be recompiled. Cleaning the repository will most likely solve the issue if you are on the latest stable version of Rust, try:
 
 ```bash
 $ cargo clean
