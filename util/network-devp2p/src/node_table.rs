@@ -14,6 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use discovery::{TableUpdates, NodeEntry};
+use ethereum_types::H512;
+use ip_utils::*;
+use network::{Error, ErrorKind, AllowIP, IpFilter};
+use rlp::{Rlp, RlpStream, DecoderError};
+use serde_json;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -23,12 +29,6 @@ use std::str::FromStr;
 use std::{fs, mem, slice};
 use std::time::{self, Duration, SystemTime};
 use rand::{self, Rng};
-use ethereum_types::H512;
-use rlp::{Rlp, RlpStream, DecoderError};
-use network::{Error, ErrorKind, AllowIP, IpFilter};
-use discovery::{TableUpdates, NodeEntry};
-use ip_utils::*;
-use serde_json;
 
 /// Node public key
 pub type NodeId = H512;
@@ -124,8 +124,8 @@ impl FromStr for NodeEndpoint {
 				address: a,
 				udp_port: a.port()
 			}),
-			Ok(_) => Err(ErrorKind::AddressResolve(None).into()),
-			Err(e) => Err(ErrorKind::AddressResolve(Some(e)).into())
+			Ok(None) => bail!(ErrorKind::AddressResolve(None)),
+			Err(_) => Err(ErrorKind::AddressParse.into()) // always an io::Error of InvalidInput kind
 		}
 	}
 }
@@ -534,9 +534,32 @@ mod tests {
 		assert!(endpoint.is_ok());
 		let v4 = match endpoint.unwrap().address {
 			SocketAddr::V4(v4address) => v4address,
-			_ => panic!("should ve v4 address")
+			_ => panic!("should be v4 address")
 		};
 		assert_eq!(SocketAddrV4::new(Ipv4Addr::new(123, 99, 55, 44), 7770), v4);
+	}
+
+	#[test]
+	fn endpoint_parse_empty_ip_string_returns_error() {
+		let endpoint = NodeEndpoint::from_str("");
+		assert!(endpoint.is_err());
+		assert_matches!(endpoint.unwrap_err().kind(), &ErrorKind::AddressParse);
+	}
+
+	#[test]
+	fn endpoint_parse_invalid_ip_string_returns_error() {
+		let endpoint = NodeEndpoint::from_str("beef");
+		assert!(endpoint.is_err());
+		assert_matches!(endpoint.unwrap_err().kind(), &ErrorKind::AddressParse);
+	}
+
+	#[test]
+	fn endpoint_parse_valid_ip_without_port_returns_error() {
+		let endpoint = NodeEndpoint::from_str("123.123.123.123");
+		assert!(endpoint.is_err());
+		assert_matches!(endpoint.unwrap_err().kind(), &ErrorKind::AddressParse);
+		let endpoint = NodeEndpoint::from_str("123.123.123.123:123");
+		assert!(endpoint.is_ok())
 	}
 
 	#[test]
@@ -553,6 +576,17 @@ mod tests {
 		assert_eq!(
 			H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap(),
 			node.id);
+	}
+
+	#[test]
+	fn node_parse_fails_for_invalid_urls() {
+		let node = Node::from_str("foo");
+		assert!(node.is_err());
+		assert_matches!(node.unwrap_err().kind(), &ErrorKind::AddressParse);
+
+		let node = Node::from_str("enode://foo@bar");
+		assert!(node.is_err());
+		assert_matches!(node.unwrap_err().kind(), &ErrorKind::AddressParse);
 	}
 
 	#[test]
