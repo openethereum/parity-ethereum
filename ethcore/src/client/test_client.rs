@@ -39,7 +39,7 @@ use client::{
 	PrepareOpenBlock, BlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock, StateOrBlock,
-	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter
+	Call, StateClient, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, IoClient
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -556,10 +556,6 @@ impl ImportBlock for TestBlockChainClient {
 		}
 		Ok(h)
 	}
-
-	fn import_block_with_receipts(&self, b: Bytes, _r: Bytes) -> Result<H256, BlockImportError> {
-		self.import_block(b)
-	}
 }
 
 impl Call for TestBlockChainClient {
@@ -809,16 +805,6 @@ impl BlockChainClient for TestBlockChainClient {
 		self.traces.read().clone()
 	}
 
-	fn queue_transactions(&self, transactions: Vec<Bytes>, _peer_id: usize) {
-		// import right here
-		let txs = transactions.into_iter().filter_map(|bytes| Rlp::new(&bytes).as_val().ok()).collect();
-		self.miner.import_external_transactions(self, txs);
-	}
-
-	fn queue_consensus_message(&self, message: Bytes) {
-		self.spec.engine.handle_message(&message).unwrap();
-	}
-
 	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
 		self.miner.ready_transactions(self)
 	}
@@ -861,6 +847,22 @@ impl BlockChainClient for TestBlockChainClient {
 	fn registrar_address(&self) -> Option<Address> { None }
 
 	fn eip86_transition(&self) -> u64 { u64::max_value() }
+}
+
+impl IoClient for TestBlockChainClient {
+	fn queue_transactions(&self, transactions: Vec<Bytes>, _peer_id: usize) {
+		// import right here
+		let txs = transactions.into_iter().filter_map(|bytes| Rlp::new(&bytes).as_val().ok()).collect();
+		self.miner.import_external_transactions(self, txs);
+	}
+
+	fn queue_ancient_block(&self, b: Bytes, _r: Bytes) -> Result<H256, BlockImportError> {
+		self.import_block(b)
+	}
+
+	fn queue_consensus_message(&self, message: Bytes) {
+		self.spec.engine.handle_message(&message).unwrap();
+	}
 }
 
 impl ProvingBlockChainClient for TestBlockChainClient {
