@@ -74,7 +74,7 @@ fn private_contract() {
 			Box::new(NoopEncryptor::default()),
 			config,
 			io,
-	).unwrap());
+	));
 
 	let (address, _) = contract_address(CreateContractAddress::FromSenderAndNonce, &key1.address(), &0.into(), &[]);
 

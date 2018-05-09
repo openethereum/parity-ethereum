@@ -45,7 +45,7 @@ fn fork_post_cht() {
 	for id in (0..CHAIN_LENGTH).map(|x| x + 1).map(BlockId::Number) {
 		let (light_peer, full_peer) = (net.peer(0), net.peer(1));
 		let light_chain = light_peer.light_chain();
-		let header = full_peer.chain().block_header(id).unwrap().decode();
+		let header = full_peer.chain().block_header(id).unwrap().decode().expect("decoding failure");
 		let _  = light_chain.import_header(header);
 		light_chain.flush_queue();
 		light_chain.import_verified();

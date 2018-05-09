@@ -379,10 +379,12 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
+		trace_time!("sync::read");
 		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
+		trace_time!("sync::connected");
 		// If warp protocol is supported only allow warp handshake
 		let warp_protocol = io.protocol_version(WARP_SYNC_PROTOCOL_ID, *peer).unwrap_or(0) != 0;
 		let warp_context = io.subprotocol_name() == WARP_SYNC_PROTOCOL_ID;
@@ -392,12 +394,14 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	}
 
 	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
+		trace_time!("sync::disconnected");
 		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
 			self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
 		}
 	}
 
 	fn timeout(&self, io: &NetworkContext, _timer: TimerToken) {
+		trace_time!("sync::timeout");
 		let mut io = NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay);
 		self.sync.write().maintain_peers(&mut io);
 		self.sync.write().maintain_sync(&mut io);

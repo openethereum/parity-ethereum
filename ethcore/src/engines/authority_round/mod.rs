@@ -996,7 +996,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 
 				let parent = client.block_header(::client::BlockId::Hash(*block.header().parent_hash()))
 					.expect("hash is from parent; parent header must exist; qed")
-					.decode();
+					.decode()?;
 
 				let parent_step = header_step(&parent, self.empty_steps_transition)?;
 				let current_step = self.step.load();

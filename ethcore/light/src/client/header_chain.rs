@@ -228,7 +228,7 @@ impl HeaderChain {
 		let decoded_header = spec.genesis_header();
 
 		let chain = if let Some(current) = db.get(col, CURRENT_KEY)? {
-			let curr : BestAndLatest = ::rlp::decode(&current);
+			let curr : BestAndLatest = ::rlp::decode(&current).expect("decoding db value failed");
 
 			let mut cur_number = curr.latest_num;
 			let mut candidates = BTreeMap::new();
@@ -236,7 +236,7 @@ impl HeaderChain {
 			// load all era entries, referenced headers within them,
 			// and live epoch proofs.
 			while let Some(entry) = db.get(col, era_key(cur_number).as_bytes())? {
-				let entry: Entry = ::rlp::decode(&entry);
+				let entry: Entry = ::rlp::decode(&entry).expect("decoding db value failed");
 				trace!(target: "chain", "loaded header chain entry for era {} with {} candidates",
 					cur_number, entry.candidates.len());
 
@@ -305,7 +305,7 @@ impl HeaderChain {
 					batch.put(col, cht_key(cht_num as u64).as_bytes(), &::rlp::encode(cht_root));
 				}
 
-				let decoded_header = hardcoded_sync.header.decode();
+				let decoded_header = hardcoded_sync.header.decode()?;
 				let decoded_header_num = decoded_header.number();
 
 				// write the block in the DB.
@@ -524,7 +524,10 @@ impl HeaderChain {
 											None
 										}
 										Ok(None) => panic!("stored candidates always have corresponding headers; qed"),
-										Ok(Some(header)) => Some((epoch_transition, ::rlp::decode(&header))),
+										Ok(Some(header)) => Some((
+											epoch_transition,
+											::rlp::decode(&header).expect("decoding value from db failed")
+										)),
 									};
 								}
 							}
@@ -582,7 +585,7 @@ impl HeaderChain {
 						bail!(ErrorKind::Database(msg.into()));
 					};
 
-					let decoded = header.decode();
+					let decoded = header.decode().expect("decoding db value failed");
 
 					let entry: Entry = {
 						let bytes = self.db.get(self.col, era_key(h_num).as_bytes())?
@@ -591,7 +594,7 @@ impl HeaderChain {
 													in an inconsistent state", h_num);
 								ErrorKind::Database(msg.into())
 							})?;
-						::rlp::decode(&bytes)
+						::rlp::decode(&bytes).expect("decoding db value failed")
 					};
 
 					let total_difficulty = entry.candidates.iter()
@@ -604,9 +607,9 @@ impl HeaderChain {
 						.total_difficulty;
 
 					break Ok(Some(SpecHardcodedSync {
-						header: header,
-						total_difficulty: total_difficulty,
-						chts: chts,
+						header,
+						total_difficulty,
+						chts,
 					}));
 				},
 				None => {
@@ -742,7 +745,7 @@ impl HeaderChain {
 	/// so including it within a CHT would be redundant.
 	pub fn cht_root(&self, n: usize) -> Option<H256> {
 		match self.db.get(self.col, cht_key(n as u64).as_bytes()) {
-			Ok(val) => val.map(|x| ::rlp::decode(&x)),
+			Ok(db_fetch) => db_fetch.map(|bytes| ::rlp::decode(&bytes).expect("decoding value from db failed")),
 			Err(e) => {
 				warn!(target: "chain", "Error reading from database: {}", e);
 				None
@@ -793,7 +796,7 @@ impl HeaderChain {
 	pub fn pending_transition(&self, hash: H256) -> Option<PendingEpochTransition> {
 		let key = pending_transition_key(hash);
 		match self.db.get(self.col, &*key) {
-			Ok(val) => val.map(|x| ::rlp::decode(&x)),
+			Ok(db_fetch) => db_fetch.map(|bytes| ::rlp::decode(&bytes).expect("decoding value from db failed")),
 			Err(e) => {
 				warn!(target: "chain", "Error reading from database: {}", e);
 				None
@@ -812,7 +815,9 @@ impl HeaderChain {
 
 		for hdr in self.ancestry_iter(BlockId::Hash(parent_hash)) {
 			if let Some(transition) = live_proofs.get(&hdr.hash()).cloned() {
-				return Some((hdr.decode(), transition.proof))
+				return hdr.decode().map(|decoded_hdr| {
+					(decoded_hdr, transition.proof)
+				}).ok();
 			}
 		}
 
@@ -1192,7 +1197,7 @@ mod tests {
 
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 
-		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache, HardcodedSync::Allow).expect("failed to instantiate a new HeaderChain");
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -1211,17 +1216,17 @@ mod tests {
 			parent_hash = header.hash();
 
 			let mut tx = db.transaction();
-			let pending = chain.insert(&mut tx, header, None).unwrap();
+			let pending = chain.insert(&mut tx, header, None).expect("failed inserting a transaction");
 			db.write(tx).unwrap();
 			chain.apply_pending(pending);
 
 			rolling_timestamp += 10;
 		}
 
-		let hardcoded_sync = chain.read_hardcoded_sync().unwrap().unwrap();
+		let hardcoded_sync = chain.read_hardcoded_sync().expect("failed reading hardcoded sync").expect("failed unwrapping hardcoded sync");
 		assert_eq!(hardcoded_sync.chts.len(), 3);
 		assert_eq!(hardcoded_sync.total_difficulty, total_difficulty);
-		let decoded: Header = hardcoded_sync.header.decode();
+		let decoded: Header = hardcoded_sync.header.decode().expect("decoding failed");
 		assert_eq!(decoded.number(), h_num);
 	}
 }

@@ -168,9 +168,6 @@ pub trait RegistryInfo {
 pub trait ImportBlock {
 	/// Import a block into the blockchain.
 	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError>;
-
-	/// Import a block with transaction receipts. Does no sealing and transaction validation.
-	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
 }
 
 /// Provides `call_contract` method
@@ -201,8 +198,21 @@ pub trait EngineInfo {
 	fn engine(&self) -> &EthEngine;
 }
 
+/// IO operations that should off-load heavy work to another thread.
+pub trait IoClient: Sync + Send {
+	/// Queue transactions for importing.
+	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
+
+	/// Queue block import with transaction receipts. Does no sealing and transaction validation.
+	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
+
+	/// Queue conensus engine message.
+	fn queue_consensus_message(&self, message: Bytes);
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContract + RegistryInfo + ImportBlock {
+pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContract + RegistryInfo + ImportBlock
++ IoClient {
 	/// Look up the block number for the given block ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 
@@ -309,12 +319,6 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get last hashes starting from best block.
 	fn last_hashes(&self) -> LastHashes;
-
-	/// Queue transactions for importing.
-	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
-
-	/// Queue conensus engine message.
-	fn queue_consensus_message(&self, message: Bytes);
 
 	/// List all transactions that are allowed into the next block.
 	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
