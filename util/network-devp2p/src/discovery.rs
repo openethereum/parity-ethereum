@@ -34,9 +34,8 @@ use network::IpFilter;
 
 use PROTOCOL_VERSION;
 
-const ADDRESS_BYTES_SIZE: u32 = 32;							// Size of address type in bytes.
-const ADDRESS_BITS: u32 = 8 * ADDRESS_BYTES_SIZE;			// Denoted by n in [Kademlia].
-const NODE_BINS: u32 = ADDRESS_BITS - 1;					// Size of m_state (excludes root, which is us).
+const ADDRESS_BYTES_SIZE: usize = 32;						// Size of address type in bytes.
+const ADDRESS_BITS: usize = 8 * ADDRESS_BYTES_SIZE;			// Denoted by n in [Kademlia].
 const DISCOVERY_MAX_STEPS: u16 = 8;							// Max iterations of discovery. (discover)
 const BUCKET_SIZE: usize = 16;		// Denoted by k in [Kademlia]. Number of nodes stored in each bucket.
 const ALPHA: usize = 3;				// Denoted by \alpha in [Kademlia]. Number of concurrent FindNode requests.
@@ -119,7 +118,7 @@ impl Discovery {
 			discovery_round: 0,
 			discovery_id: NodeId::new(),
 			discovery_nodes: HashSet::new(),
-			node_buckets: (0..NODE_BINS).map(|_| NodeBucket::new()).collect(),
+			node_buckets: (0..ADDRESS_BITS).map(|_| NodeBucket::new()).collect(),
 			udp_socket: socket,
 			send_queue: VecDeque::new(),
 			check_timestamps: true,
@@ -155,8 +154,16 @@ impl Discovery {
 	fn update_node(&mut self, e: NodeEntry) {
 		trace!(target: "discovery", "Inserting {:?}", &e);
 		let id_hash = keccak(e.id);
+		let dist = match Discovery::distance(&self.id_hash, &id_hash) {
+			Some(dist) => dist,
+			None => {
+				warn!(target: "discovery", "Attempted to update own entry: {:?}", e);
+				return;
+			}
+		};
+
 		let ping = {
-			let bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &id_hash) as usize];
+			let bucket = &mut self.node_buckets[dist];
 			let updated = if let Some(node) = bucket.nodes.iter_mut().find(|n| n.address.id == e.id) {
 				node.address = e.clone();
 				node.timeout = None;
@@ -181,7 +188,15 @@ impl Discovery {
 
 	/// Removes the timeout of a given NodeId if it can be found in one of the discovery buckets
 	fn clear_ping(&mut self, id: &NodeId) {
-		let bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &keccak(id)) as usize];
+		let dist = match Discovery::distance(&self.id_hash, &keccak(id)) {
+			Some(dist) => dist,
+			None => {
+				warn!(target: "discovery", "Received ping from self");
+				return
+			}
+		};
+
+		let bucket = &mut self.node_buckets[dist];
 		if let Some(node) = bucket.nodes.iter_mut().find(|n| &n.address.id == id) {
 			node.timeout = None;
 		}
@@ -233,17 +248,17 @@ impl Discovery {
 		self.discovery_round += 1;
 	}
 
-	fn distance(a: &H256, b: &H256) -> u32 {
-		let d = *a ^ *b;
-		let mut ret:u32 = 0;
-		for i in 0..32 {
-			let mut v: u8 = d[i];
-			while v != 0 {
-				v >>= 1;
-				ret += 1;
+	/// The base 2 log of the distance between a and b using the XOR metric.
+	fn distance(a: &H256, b: &H256) -> Option<usize> {
+		for i in (0..ADDRESS_BYTES_SIZE).rev() {
+			let byte_index = ADDRESS_BYTES_SIZE - i - 1;
+			let d: u8 = a[byte_index] ^ b[byte_index];
+			if d != 0 {
+				let high_bit_index = 7 - d.leading_zeros() as usize;
+				return Some(i * 8 + high_bit_index);
 			}
 		}
-		ret
+		None // a and b are equal, so log distance is -inf
 	}
 
 	fn ping(&mut self, node: &NodeEndpoint) {
@@ -287,15 +302,24 @@ impl Discovery {
 	}
 
 	fn nearest_node_entries(target: &NodeId, buckets: &[NodeBucket]) -> Vec<NodeEntry> {
-		let mut found: BTreeMap<u32, Vec<&NodeEntry>> = BTreeMap::new();
+		let mut found: BTreeMap<usize, Vec<&NodeEntry>> = BTreeMap::new();
 		let mut count = 0;
 		let target_hash = keccak(target);
 
-		// Sort nodes by distance to target
+		// Sort nodes by distance to target.
 		for bucket in buckets {
 			for node in &bucket.nodes {
-				let distance = Discovery::distance(&target_hash, &node.id_hash);
-				found.entry(distance).or_insert_with(Vec::new).push(&node.address);
+				// This distance function only computes the log of the distance, so precision in the
+				// distances is lost before sorting. Since the target itself may be in one of our
+				// buckets, the None case is treated as distance 0 (which it is) and all other
+				// distances are incremented.
+				//
+				// TODO: Implement a complete sort based on the total distance.
+				let dist = match Discovery::distance(&target_hash, &node.id_hash) {
+					Some(dist) => dist + 1,
+					None => 0
+				};
+				found.entry(dist).or_insert_with(Vec::new).push(&node.address);
 				if count == BUCKET_SIZE {
 					// delete the most distant element
 					let remove = {
