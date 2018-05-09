@@ -302,23 +302,14 @@ impl Discovery {
 	}
 
 	fn nearest_node_entries(&self, target: &NodeId) -> Vec<NodeEntry> {
-		let mut found: BTreeMap<usize, Vec<&NodeEntry>> = BTreeMap::new();
+		let mut found: BTreeMap<H256, Vec<&NodeEntry>> = BTreeMap::new();
 		let mut count = 0;
 		let target_hash = keccak(target);
 
 		// Sort nodes by distance to target.
 		for bucket in &self.node_buckets {
 			for node in &bucket.nodes {
-				// This distance function only computes the log of the distance, so precision in the
-				// distances is lost before sorting. Since the target itself may be in one of our
-				// buckets, the None case is treated as distance 0 (which it is) and all other
-				// distances are incremented.
-				//
-				// TODO: Implement a complete sort based on the total distance.
-				let dist = match Discovery::distance(&target_hash, &node.id_hash) {
-					Some(dist) => dist + 1,
-					None => 0
-				};
+				let dist = target_hash ^ node.id_hash;
 				found.entry(dist).or_insert_with(Vec::new).push(&node.address);
 				if count == BUCKET_SIZE {
 					// delete the most distant element
@@ -711,7 +702,7 @@ mod tests {
 			"e1268f5dd9552a11989df9d4953bb388e7466711b2bd9882a3ed4d0767a21f046c53c20f9a18d66bae1d6a5544492857ddecb0b5b4818bd4557be252ddd66c71",
 			"e626019dc0b50b9e254461f19d29e69a4669c5256134a6352c6c30d3bc55d201a5b43fc2e006556cfaf29765b683e807e03093798942826244e4ee9e47c75d3f",
 		];
-		let node_entries = node_ids_hex.into_iter()
+		let node_entries = node_ids_hex.iter()
 			.map(|node_id_hex| NodeId::from_str(node_id_hex).unwrap())
 			.map(|node_id| NodeEntry { id: node_id, endpoint: ep.clone() })
 			.collect::<Vec<_>>();
@@ -746,6 +737,19 @@ mod tests {
 			.map(|ref bucket| bucket.nodes.len())
 			.collect::<Vec<_>>();
 		assert_eq!(actual_bucket_sizes, expected_bucket_sizes);
+
+		for entry in &node_entries {
+			let nearest = discovery.nearest_node_entries(&entry.id);
+			assert_eq!(nearest.len(), 16);
+			assert_eq!(nearest[0].id, entry.id);
+
+			let mut expected_ids: Vec<NodeId> = node_entries.iter().map(|entry| entry.id).collect();
+			expected_ids.sort_unstable_by_key(|id| keccak(id) ^ keccak(entry.id));
+			expected_ids.resize(BUCKET_SIZE, NodeId::default());
+
+			let actual_ids: Vec<NodeId> = nearest.iter().map(|entry| entry.id).collect();
+			assert_eq!(actual_ids, expected_ids);
+		}
 	}
 
 	#[test]
