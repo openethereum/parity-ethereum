@@ -8,13 +8,11 @@ variables:
   CARGOFLAGS: ""
   CI_SERVER_NAME: "GitLab CI"
   LIBSSL: "libssl1.0.0 (>=1.0.0)"
-  CARGO_HOME: $CI_PROJECT_DIR/cargo
 cache:
   key: "$CI_BUILD_STAGE-$CI_BUILD_REF_NAME"
   paths:
     - target/
-    - cargo/
-  # untracked: true
+  untracked: true
 linux-ubuntu:
   stage: build
   image: parity/rust:gitlab-ci
