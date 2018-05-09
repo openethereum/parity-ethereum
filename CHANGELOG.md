@@ -5,10 +5,16 @@ This is the Parity 1.11.0-beta release! Hurray!
 Notable changes in reversed alphabetical order:
 
 - TOOLING: **Whisper CLI** [#8201](https://github.com/paritytech/parity/pull/8201)
-  - Sorry, we decided not to document this feature :rofl:
+  - `whisper-cli` is a standalone tool to communicate with the Whisper protocol.
+  - It provides functionality to specify `whisper-pool-size`, `port` and `address` to use.
+  - All whisper RPC APIs are enabled and can be directly acessed.
+I'm not used to writing these changelogs but I guess that would explain it
 - JSON-RPC API: **Return error in case eth_call returns VM errors** [#8448](https://github.com/paritytech/parity/pull/8448)
   - This changes the behaviors of `eth_call` to respect VM errors if any.
   - In case of `REVERT`, it will also return the reverted return data in hex format.
+- ENGINES: Block reward contract [#8419](https://github.com/paritytech/parity/pull/8419)
+  - The _AuRa_ PoA engine has now support for having a contract to calculate the block rewards.
+  - The engine passes a list of benefactors and reward types to the contract which then returns a list of addresses and respective rewards.
 - CORE: **Private transactions integration pr** [#6422](https://github.com/paritytech/parity/pull/6422)
   - Parity now provides a private transactions system.
   - Please, check out our wiki to get and [overview and setup instructions](https://wiki.parity.io/Private-Transactions.html).
