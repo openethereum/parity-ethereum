@@ -86,6 +86,22 @@ int parity_start(const ParityParams* params, void** out);
 ///					must not call this function.
 void parity_destroy(void* parity);
 
+/// Performs an RPC request.
+///
+/// Blocks the current thread until the request is finished. You are therefore encouraged to spawn
+/// a new thread for each RPC request that requires accessing the blockchain.
+///
+/// - `rpc` and `len` must contain the JSON string representing the RPC request.
+/// - `out_str` and `out_len` point to a buffer where the output JSON result will be stored. If the
+///	  buffer is not large enough, the function fails.
+/// - `out_len` will receive the final length of the string.
+/// - On success, the function returns 0. On failure, it returns 1.
+///
+/// **Important**: Keep in mind that this function doesn't write any null terminator on the output
+///                string.
+///
+int parity_rpc(void* parity, const char* rpc, size_t len, char* out_str, size_t* out_len);
+
 #ifdef __cplusplus
 }
 #endif
