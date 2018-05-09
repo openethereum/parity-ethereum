@@ -4,7 +4,49 @@ This is the Parity 1.11.0-beta release!
 
 The full list of included changes:
 
-- Backports TBD
+- Backports ([#8558](https://github.com/paritytech/parity/pull/8558))
+  - Fetching logs by hash in blockchain database ([#8463](https://github.com/paritytech/parity/pull/8463))
+	  - Fetch logs by hash in blockchain database
+	  - Fix tests
+	  - Add unit test for branch block logs fetching
+	  - Add docs that blocks must already be sorted
+	  - Handle branch block cases properly
+	  - typo: empty -> is_empty
+	  - Remove return_empty_if_none by using a closure
+	  - Use BTreeSet to avoid sorting again
+	  - Move is_canon to BlockChain
+	  - typo: pass value by reference
+	  - Use loop and wrap inside blocks to simplify the code
+	  - typo: missed a comment
+  - Pass on storage keys tracing to handle the case when it is not modified ([#8491](https://github.com/paritytech/parity/pull/8491))
+	  - Pass on storage keys even if it is not modified
+	  - typo: account and storage query
+	  - Fix tests
+	  - Use state query directly because of suicided accounts
+	  - Fix a RefCell borrow issue
+	  - Add tests for unmodified storage trace
+	  - Address grumbles
+	  - typo: remove unwanted empty line
+	  - ensure_cached compiles with the original signature
+  - Update wasmi and pwasm-utils ([#8493](https://github.com/paritytech/parity/pull/8493))
+	  - Update wasmi to 0.2
+	  - Update pwasm-utils to 0.1.5
+  - Show imported messages for light client ([#8517](https://github.com/paritytech/parity/pull/8517))
+  - Enable WebAssembly and Byzantium for Ellaism ([#8520](https://github.com/paritytech/parity/pull/8520))
+	  - Enable WebAssembly and Byzantium for Ellaism
+	  - Fix indentation
+	  - Remove empty lines
+  - Don't panic in import_block if invalid rlp ([#8522](https://github.com/paritytech/parity/pull/8522))
+	  - Don't panic in import_block if invalid rlp
+	  - Remove redundant type annotation
+	  - Replace RLP header view usage with safe decoding
+  - Node table sorting according to last contact data ([#8541](https://github.com/paritytech/parity/pull/8541))
+	  - network-devp2p: sort nodes in node table using last contact data
+	  - network-devp2p: rename node contact types in node table json output
+	  - network-devp2p: fix node table tests
+	  - network-devp2p: note node failure when failed to establish connection
+	  - network-devp2p: handle UselessPeer error
+	  - network-devp2p: note failure when marking node as useless
 - Betalize 1.11 :) ([#8475](https://github.com/paritytech/parity/pull/8475))
   - Betalize 1.11 :)
   - Update Gitlab scripts
