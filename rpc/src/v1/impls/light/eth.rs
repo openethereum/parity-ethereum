@@ -371,7 +371,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256> {
-		let best_header = self.client.best_block_header().decode();
+		let best_header = self.client.best_block_header().decode().map_err(errors::decode)?;
 
 		Rlp::new(&raw.into_vec()).as_val()
 			.map_err(errors::rlp)

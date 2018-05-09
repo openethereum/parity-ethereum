@@ -289,7 +289,7 @@ impl TestBlockChainClient {
 	/// Make a bad block by setting invalid extra data.
 	pub fn corrupt_block(&self, n: BlockNumber) {
 		let hash = self.block_hash(BlockId::Number(n)).unwrap();
-		let mut header: BlockHeader = self.block_header(BlockId::Number(n)).unwrap().decode();
+		let mut header: BlockHeader = self.block_header(BlockId::Number(n)).unwrap().decode().expect("decoding failed");
 		header.set_extra_data(b"This extra data is way too long to be considered valid".to_vec());
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
@@ -301,7 +301,7 @@ impl TestBlockChainClient {
 	/// Make a bad block by setting invalid parent hash.
 	pub fn corrupt_block_parent(&self, n: BlockNumber) {
 		let hash = self.block_hash(BlockId::Number(n)).unwrap();
-		let mut header: BlockHeader = self.block_header(BlockId::Number(n)).unwrap().decode();
+		let mut header: BlockHeader = self.block_header(BlockId::Number(n)).unwrap().decode().expect("decoding failed");
 		header.set_parent_hash(H256::from(42));
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
@@ -479,6 +479,7 @@ impl BlockInfo for TestBlockChainClient {
 		self.block_header(BlockId::Hash(self.chain_info().best_block_hash))
 			.expect("Best block always has header.")
 			.decode()
+			.expect("decoding failed")
 	}
 
 	fn block(&self, id: BlockId) -> Option<encoded::Block> {
