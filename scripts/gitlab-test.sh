@@ -10,7 +10,6 @@ fi
 git fetch -a
 export RUST_FILES_MODIFIED="$(git --no-pager diff --name-only $GIT_COMPARE...$CI_COMMIT_SHA | grep -v -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e ^mac/ -e ^nsis/ -e ^docs/ | wc -l)"
 echo "RUST_FILES_MODIFIED: $RUST_FILES_MODIFIED"
-echo "RUST_FILES_MODIFIED: $RUST_FILES_MODIFIED"
 TEST_SWITCH=$1
 rust_test () {
   git submodule update --init --recursive
