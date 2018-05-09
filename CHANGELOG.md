@@ -8,7 +8,6 @@ Notable changes in reversed alphabetical order:
   - `whisper-cli` is a standalone tool to communicate with the Whisper protocol.
   - It provides functionality to specify `whisper-pool-size`, `port` and `address` to use.
   - All whisper RPC APIs are enabled and can be directly acessed.
-I'm not used to writing these changelogs but I guess that would explain it
 - JSON-RPC API: **Return error in case eth_call returns VM errors** [#8448](https://github.com/paritytech/parity/pull/8448)
   - This changes the behaviors of `eth_call` to respect VM errors if any.
   - In case of `REVERT`, it will also return the reverted return data in hex format.
