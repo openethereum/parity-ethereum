@@ -46,7 +46,7 @@ use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation};
 const POOL_UNIT: usize = 1024 * 1024;
 const USAGE: &'static str = r#"
 Whisper CLI.
-	Copyright 2017 Parity Technologies (UK) Ltd
+	Copyright 2018 Parity Technologies (UK) Ltd
 
 Usage:
 	whisper [options]
@@ -56,7 +56,7 @@ Options:
 	--whisper-pool-size SIZE       Specify Whisper pool size [default: 10].
 	-p, --port PORT                Specify which RPC port to use [default: 8545].
 	-a, --address ADDRESS          Specify which address to use [default: 127.0.0.1].
-	-l, --log LEVEL				   Specify the logging level. Must conform to the same format as RUST_LOG [default: Error].
+	-l, --log LEVEL                Specify the logging level. Must conform to the same format as RUST_LOG [default: Error].
 	-h, --help                     Display this message and exit.
 "#;
 
@@ -259,7 +259,7 @@ mod tests {
 
 	#[test]
 	fn invalid_argument() {
-		let command = vec!["whisper-cli", "--foo=12"]
+		let command = vec!["whisper", "--foo=12"]
 			.into_iter()
 			.map(Into::into)
 			.collect::<Vec<String>>();
@@ -270,7 +270,7 @@ mod tests {
 	#[test]
 	#[ignore]
 	fn privileged_port() {
-		let command = vec!["whisper-cli", "--port=3"]
+		let command = vec!["whisper", "--port=3"]
 			.into_iter()
 			.map(Into::into)
 			.collect::<Vec<String>>();
@@ -280,7 +280,7 @@ mod tests {
 
 	#[test]
 	fn invalid_ip_address() {
-		let command = vec!["whisper-cli", "--address=x.x.x.x"]
+		let command = vec!["whisper", "--address=x.x.x.x"]
 			.into_iter()
 			.map(Into::into)
 			.collect::<Vec<String>>();
@@ -290,7 +290,7 @@ mod tests {
 
 	#[test]
 	fn invalid_whisper_pool_size() {
-		let command = vec!["whisper-cli", "--whisper-pool-size=-100000000000000000000000000000000000000"]
+		let command = vec!["whisper", "--whisper-pool-size=-100000000000000000000000000000000000000"]
 			.into_iter()
 			.map(Into::into)
 			.collect::<Vec<String>>();
