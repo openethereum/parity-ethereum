@@ -1,16 +1,47 @@
 ## Parity [v1.10.3](https://github.com/paritytech/parity/releases/tag/v1.10.3) (2018-05-08)
 
-Parity 1.10.3 marks the first stable release on the 1.10 branch. It improves performance and stability.
+Parity 1.10.3 marks the first stable release on the 1.10 track. Among others, it improves performance and stability.
 
 The full list of included changes:
 
-- Backports TBD
-- Stabilize 1.10.3 (#8474)
+- Backports ([#8557](https://github.com/paritytech/parity/pull/8557))
+  - Update wasmi and pwasm-utils ([#8493](https://github.com/paritytech/parity/pull/8493))
+    - Update wasmi to 0.2
+    - Update pwasm-utils to 0.1.5
+  - Fetching logs by hash in blockchain database ([#8463](https://github.com/paritytech/parity/pull/8463))
+    - Fetch logs by hash in blockchain database
+    - Fix tests
+    - Add unit test for branch block logs fetching
+    - Add docs that blocks must already be sorted
+    - Handle branch block cases properly
+    - typo: empty -> is_empty
+    - Remove return_empty_if_none by using a closure
+    - Use BTreeSet to avoid sorting again
+    - Move is_canon to BlockChain
+    - typo: pass value by reference
+    - Use loop and wrap inside blocks to simplify the code
+    - typo: missed a comment
+  - Pass on storage keys tracing to handle the case when it is not modified ([#8491](https://github.com/paritytech/parity/pull/8491))
+    - Pass on storage keys even if it is not modified
+    - typo: account and storage query `to_pod_diff` builds both `touched_addresses` merge and storage keys merge.
+    - Fix tests
+    - Use state query directly because of suicided accounts
+    - Fix a RefCell borrow issue
+    - Add tests for unmodified storage trace
+    - Address grumbles
+    - typo: remove unwanted empty line
+    - ensure_cached compiles with the original signature
+  - Enable WebAssembly and Byzantium for Ellaism ([#8520](https://github.com/paritytech/parity/pull/8520))
+    - Enable WebAssembly and Byzantium for Ellaism
+    - Fix indentation
+    - Remove empty lines
+  - Fix compilation.
+- Stabilize 1.10.3 ([#8474](https://github.com/paritytech/parity/pull/8474))
   - Stabelize 1.10
   - Bump stable to 1.10.3
   - Update Gitlab scripts
-  - Fix snap builds (#8483)
-  - Fix docker build (#8462)
+  - Fix snap builds ([#8483](https://github.com/paritytech/parity/pull/8483))
+  - Fix docker build ([#8462](https://github.com/paritytech/parity/pull/8462))
   - Use `master` as Docker's `latest` (`beta-release` is not used anymore)
 
 ## Parity [v1.10.2](https://github.com/paritytech/parity/releases/tag/v1.10.2) (2018-04-24)
