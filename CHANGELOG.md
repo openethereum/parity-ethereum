@@ -1,6 +1,44 @@
 ## Parity [v1.11.0](https://github.com/paritytech/parity/releases/tag/v1.10.0) (2018-05-09)
 
-This is the Parity 1.11.0-beta release!
+This is the Parity 1.11.0-beta release! Hurray!
+
+Notable changes in reversed alphabetical order:
+
+- TOOLING: **Whisper CLI** [#8201](https://github.com/paritytech/parity/pull/8201)
+  - Sorry, we decided not to document this feature :rofl:
+- JSON-RPC API: **Return error in case eth_call returns VM errors** [#8448](https://github.com/paritytech/parity/pull/8448)
+  - This changes the behaviors of `eth_call` to respect VM errors if any.
+  - In case of `REVERT`, it will also return the reverted return data in hex format.
+- CORE: **Private transactions integration pr** [#6422](https://github.com/paritytech/parity/pull/6422)
+  - Parity now provides a private transactions system.
+  - Please, check out our wiki to get and [overview and setup instructions](https://wiki.parity.io/Private-Transactions.html).
+- CORE: **New Transaction Queue implementation** [#8074](https://github.com/paritytech/parity/pull/8074)
+  - Verification is now done in parallel.
+  - Previous queue had `O(1)` time to get pending set, but `O(n^2)` insertion time. And obviously insertion/removal happens much more often than retrieving the pending set (only for propagation and pending block building) Currently we have `O(n * log(senders))` pending set time (with cache) and `O(tx_per_sender)` (usually within `log(tx_per_sender)`) insertion time.
+  - `Scoring` and `Readiness` are separated from the pool, so it's easier to customize them or introduce different definitions (for instance for [EIP-859](https://github.com/ethereum/EIPs/issues/859) or private transactions, etc).
+  - Banning removed, soft-penalization introduced instead: if transaction exceeds the limit other transactions from that sender get lower priority.
+  - There is no explicit distinction between current and future transactions in the pool - `Readiness` determines that. Because of this we additionally remove `future` transactions that occupy the pool for long time.
+- CONFIGURATION: **Warp-only sync with --warp-barrier [block-number] flag.** [#8228](https://github.com/paritytech/parity/pull/8228)
+  - Enables warp-only sync in case `--warp-barrier [block-number]` is provided.
+  - This avoids clients to warp to outdated snapshots that are too far away from the best block.
+  - This avoids clients to fall back to normal sync if there are no recent snapshots available currently.
+- CONFIGURATION: **Disable UI by default.** [#8105](https://github.com/paritytech/parity/pull/8105)
+  - The user interface is now disabled by default. It still can be activated with the `--force-ui` flag.
+  - To get the stand-alone Parity UI, please check the dedicated [releases page](https://github.com/parity-js/shell/releases).
+- CONFIGURATION: **Auto-updater improvements** [#8078](https://github.com/paritytech/parity/pull/8078)
+  - Added `--auto-update-delay` to randomly delay updates by `n` blocks. This takes into account the number of the block of the update release (old updates aren't delayed).
+  - Added `--auto-update-check-frequency` to define the periodicity of auto-update checks in number of blocks.
+  - This is an important improvement to ensure the network does not update all clients at the same time.
+- CHAIN SPECS: **Enable WebAssembly and Byzantium for Ellaism** [#8520](https://github.com/paritytech/parity/pull/8520)
+  - This activates the Ellaism Byzantium hardfork ([2018-0004-byzantium](https://github.com/ellaism/specs/blob/master/specs/2018-0004-byzantium.md)) at block `2_000_000`.
+  - This enables the Wasm VM on Ellaism ([2018-0003-wasm-hardfork](https://github.com/ellaism/specs/blob/master/specs/2018-0003-wasm-hardfork.md)) at block `2_000_000`.
+  - Please, upgrade your clients if you run an Ellaism configuration.
+- CHAIN SPECS: **Dev chain - increase gasLimit to 8_000_000** [#8362](https://github.com/paritytech/parity/pull/8362)
+  - This increases the default block gas limit on development chains to `8_000_000`.
+  - Please note, this makes previous dev chain configurations incompatible.
+- CHAIN SPECS: **Add MCIP-6 Byzyantium transition to Musicoin spec** [#7841](https://github.com/paritytech/parity/pull/7841)
+  - This activates the Musicoin Byzantium hardfork ([MCIP-6](https://github.com/Musicoin/MCIPs/blob/master/MCIPS/mcip-6.md)) at block `2_222_222`.
+  - Please, upgrade your clients if you run a Musicoin configuration.
 
 The full list of included changes:
 
