@@ -18,20 +18,13 @@ use std::sync::Arc;
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use crossbeam::sync::chase_lev;
-use service::{HandlerId, IoChannel, IoContext};
+use service_mio::{HandlerId, IoChannel, IoContext};
 use IoHandler;
-use std::cell::Cell;
+use LOCAL_STACK_SIZE;
 
 use std::sync::{Condvar as SCondvar, Mutex as SMutex};
 
 const STACK_SIZE: usize = 16*1024*1024;
-
-thread_local! {
-	/// Stack size
-	/// Should be modified if it is changed in Rust since it is no way
-	/// to know or get it
-	pub static LOCAL_STACK_SIZE: Cell<usize> = Cell::new(::std::env::var("RUST_MIN_STACK").ok().and_then(|s| s.parse().ok()).unwrap_or(2 * 1024 * 1024));
-}
 
 pub enum WorkType<Message> {
 	Readable,

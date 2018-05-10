@@ -7,9 +7,12 @@ version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-mio = "0.6.8"
+fnv = "1.0"
+mio = { version = "0.6.8", optional = true }
 crossbeam = "0.3"
 parking_lot = "0.5"
 log = "0.3"
-slab = "0.2"
-
+slab = "0.4"
+num_cpus = "1.8"
+timer = "0.2"
+time = "0.1"
