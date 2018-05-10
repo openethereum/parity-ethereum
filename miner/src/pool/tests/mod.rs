@@ -63,8 +63,10 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 	let nonce = tx1.nonce;
 
 	// when
-	let result = txq.import(TestClient::new(), vec![tx1, tx2].local());
-	assert_eq!(result, vec![Ok(()), Err(transaction::Error::LimitReached)]);
+	let r1= txq.import(TestClient::new(), vec![tx1].local());
+	let r2= txq.import(TestClient::new(), vec![tx2].local());
+	assert_eq!(r1, vec![Ok(())]);
+	assert_eq!(r2, vec![Err(transaction::Error::LimitReached)]);
 	assert_eq!(txq.status().status.transaction_count, 1);
 
 	// then
