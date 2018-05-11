@@ -111,7 +111,7 @@ impl SyncHandler {
 			sync.active_peers.remove(&peer_id);
 
 			if sync.state == SyncState::SnapshotManifest {
-				// Check if other we are asking other peers for
+				// Check if we are asking other peers for
 				// the snapshot manifest as well.
 				// If not, return to initial state
 				let still_asking_manifest = sync.peers.iter()

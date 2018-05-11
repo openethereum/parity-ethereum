@@ -449,11 +449,9 @@ impl Service {
 			}
 		}
 
-		{
-			*self.status.lock() = RestorationStatus::Initializing {
-				chunks_done: 0,
-			};
-		}
+		*self.status.lock() = RestorationStatus::Initializing {
+			chunks_done: 0,
+		};
 
 		fs::create_dir_all(&rest_dir)?;
 
@@ -509,7 +507,8 @@ impl Service {
 			}
 			// Import the chunk, don't fail and continue if one fails
 			match self.import_prev_chunk(restoration, &manifest, prev_chunk_file) {
-				Ok(_) => num_temp_chunks += 1,
+				Ok(true) => num_temp_chunks += 1,
+				Ok(false) => trace!(target: "snapshot", "Invalid chunk: {:?}", prev_chunk_file),
 				Err(e) => trace!(target: "snapshot", "Error importing chunk: {:?}", e),
 			}
 		}
@@ -522,8 +521,8 @@ impl Service {
 		Ok(())
 	}
 
-	/// Import a previous chunk at the given path
-	fn import_prev_chunk(&self, restoration: &mut Option<Restoration>, manifest: &ManifestData, file: io::Result<fs::DirEntry>) -> Result<(), Error> {
+	/// Import a previous chunk at the given path. Returns whether the block was imported or not
+	fn import_prev_chunk(&self, restoration: &mut Option<Restoration>, manifest: &ManifestData, file: io::Result<fs::DirEntry>) -> Result<bool, Error> {
 		let file = file?;
 		let path = file.path();
 
@@ -538,14 +537,14 @@ impl Service {
 		} else if manifest.state_hashes.contains(&hash) {
 			true
 		} else {
-			return Ok(());
+			return Ok(false);
 		};
 
 		self.feed_chunk_with_restoration(restoration, hash, &buffer, is_state)?;
 
 		trace!(target: "snapshot", "Fed chunk {:?}", hash);
 
-		Ok(())
+		Ok(true)
 	}
 
 	// finalize the restoration. this accepts an already-locked
