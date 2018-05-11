@@ -812,7 +812,7 @@ impl BlockChain {
 				location: BlockLocation::CanonChain,
 			};
 
-			// TODO [sorpaas] support wrap sync insertion of finalization and metadata.
+			// TODO [sorpaas] support warp sync insertion of finalization and metadata.
 			let block_details = BlockDetails {
 				number: header.number(),
 				total_difficulty: info.total_difficulty,
@@ -944,7 +944,7 @@ impl BlockChain {
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
-	pub fn insert_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, extras:ExtrasInsert) -> ImportRoute {
+	pub fn insert_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, extras: ExtrasInsert) -> ImportRoute {
 		let block = view!(BlockView, bytes);
 		let header = block.header_view();
 
