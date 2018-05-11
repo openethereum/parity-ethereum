@@ -181,7 +181,7 @@ struct UserTimer {
 /// Root IO handler. Manages user handlers, messages and IO timers.
 pub struct IoManager<Message> where Message: Send + Sync {
 	timers: Arc<RwLock<HashMap<HandlerId, UserTimer>>>,
-	handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>,
+	handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>>>>,
 	workers: Vec<Worker>,
 	worker_channel: chase_lev::Worker<Work<Message>>,
 	work_ready: Arc<SCondvar>,
@@ -191,7 +191,7 @@ impl<Message> IoManager<Message> where Message: Send + Sync + 'static {
 	/// Creates a new instance and registers it with the event loop.
 	pub fn start(
 		event_loop: &mut EventLoop<IoManager<Message>>,
-		handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>
+		handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>>>>
 	) -> Result<(), IoError> {
 		let (worker, stealer) = chase_lev::deque();
 		let num_workers = 4;
@@ -267,7 +267,8 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Sync + 'stati
 				event_loop.shutdown();
 			},
 			IoMessage::AddHandler { handler } => {
-				let handler_id = self.handlers.write().insert(handler.clone()).unwrap_or_else(|_| panic!("Too many handlers registered"));
+				let handler_id = self.handlers.write().insert(handler.clone());
+				assert!(handler_id <= MAX_HANDLERS, "Too many handlers registered");
 				handler.initialize(&IoContext::new(IoChannel::new(event_loop.channel(), Arc::downgrade(&self.handlers)), handler_id));
 			},
 			IoMessage::RemoveHandler { handler_id } => {
@@ -332,7 +333,7 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Sync + 'stati
 }
 
 enum Handlers<Message> where Message: Send {
-	SharedCollection(Weak<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>),
+	SharedCollection(Weak<RwLock<Slab<Arc<IoHandler<Message>>>>>),
 	Single(Weak<IoHandler<Message>>),
 }
 
@@ -417,7 +418,7 @@ impl<Message> IoChannel<Message> where Message: Send + Sync + 'static {
 			handlers: Handlers::Single(handler),
 		}
 	}
-	fn new(channel: Sender<IoMessage<Message>>, handlers: Weak<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>) -> IoChannel<Message> {
+	fn new(channel: Sender<IoMessage<Message>>, handlers: Weak<RwLock<Slab<Arc<IoHandler<Message>>>>>) -> IoChannel<Message> {
 		IoChannel {
 			channel: Some(channel),
 			handlers: Handlers::SharedCollection(handlers),
@@ -430,7 +431,7 @@ impl<Message> IoChannel<Message> where Message: Send + Sync + 'static {
 pub struct IoService<Message> where Message: Send + Sync + 'static {
 	thread: Mutex<Option<JoinHandle<()>>>,
 	host_channel: Mutex<Sender<IoMessage<Message>>>,
-	handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>,
+	handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>>>>,
 }
 
 impl<Message> IoService<Message> where Message: Send + Sync + 'static {
@@ -440,7 +441,7 @@ impl<Message> IoService<Message> where Message: Send + Sync + 'static {
 		config.messages_per_tick(1024);
 		let mut event_loop = config.build().expect("Error creating event loop");
 		let channel = event_loop.channel();
-		let handlers = Arc::new(RwLock::new(Slab::new(MAX_HANDLERS)));
+		let handlers = Arc::new(RwLock::new(Slab::with_capacity(MAX_HANDLERS)));
 		let h = handlers.clone();
 		let thread = thread::spawn(move || {
 			IoManager::<Message>::start(&mut event_loop, h).expect("Error starting IO service");
@@ -491,4 +492,3 @@ impl<Message> Drop for IoService<Message> where Message: Send + Sync {
 		self.stop()
 	}
 }
-

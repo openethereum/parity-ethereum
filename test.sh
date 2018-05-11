@@ -33,6 +33,8 @@ if [ "$VALIDATE" -eq "1" ]; then
 # Validate --no-default-features build
 echo "________Validate build________"
 cargo check --no-default-features
+cargo check --manifest-path util/io/Cargo.toml --no-default-features
+cargo check --manifest-path util/io/Cargo.toml --features "mio"
 
 # Validate chainspecs
 echo "________Validate chainspecs________"
