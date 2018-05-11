@@ -449,7 +449,11 @@ impl Service {
 			}
 		}
 
-		{ *self.status.lock() = RestorationStatus::Initializing; }
+		{
+			*self.status.lock() = RestorationStatus::Initializing {
+				chunks_done: 0,
+			};
+		}
 
 		fs::create_dir_all(&rest_dir)?;
 
@@ -597,7 +601,7 @@ impl Service {
 					trace!(target: "snapshot", "Tried to restore chunk {:x} while inactive or failed", hash);
 					return Ok(());
 				},
-				RestorationStatus::Ongoing { .. } | RestorationStatus::Initializing => {
+				RestorationStatus::Ongoing { .. } | RestorationStatus::Initializing { .. } => {
 					let (res, db) = {
 						let rest = match *restoration {
 							Some(ref mut r) => r,
@@ -700,9 +704,17 @@ impl SnapshotService for Service {
 
 	fn status(&self) -> RestorationStatus {
 		let mut cur_status = self.status.lock();
-		if let RestorationStatus::Ongoing { ref mut state_chunks_done, ref mut block_chunks_done, .. } = *cur_status {
-			*state_chunks_done = self.state_chunks.load(Ordering::SeqCst) as u32;
-			*block_chunks_done = self.block_chunks.load(Ordering::SeqCst) as u32;
+
+		match *cur_status {
+			RestorationStatus::Initializing { ref mut chunks_done } => {
+				*chunks_done = self.state_chunks.load(Ordering::SeqCst) as u32 +
+					self.block_chunks.load(Ordering::SeqCst) as u32;
+			}
+			RestorationStatus::Ongoing { ref mut state_chunks_done, ref mut block_chunks_done, .. } => {
+				*state_chunks_done = self.state_chunks.load(Ordering::SeqCst) as u32;
+				*block_chunks_done = self.block_chunks.load(Ordering::SeqCst) as u32;
+			},
+			_ => (),
 		}
 
 		cur_status.clone()

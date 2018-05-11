@@ -783,7 +783,7 @@ impl ChainSync {
 								return;
 							}
 						},
-						RestorationStatus::Initializing => {
+						RestorationStatus::Initializing { .. } => {
 							trace!(target: "warp", "Snapshot is stil initializing.");
 							return;
 						},
@@ -945,7 +945,7 @@ impl ChainSync {
 						trace!(target:"sync", "Snapshot restoration is complete");
 						self.restart(io);
 					},
-					RestorationStatus::Initializing => {
+					RestorationStatus::Initializing { .. } => {
 						trace!(target:"sync", "Snapshot restoration is initializing");
 					},
 					RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {

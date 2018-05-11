@@ -278,16 +278,12 @@ impl<T: InformantData> Informant<T> {
 		} = full_report;
 
 		let rpc_stats = self.rpc_stats.as_ref();
-
-		let (snapshot_sync, snapshot_starting, snapshot_current, snapshot_total) = self.snapshot.as_ref().map_or((false, false, 0, 0), |s|
+		let snapshot_sync = sync_info.as_ref().map_or(false, |s| s.snapshot_sync) && self.snapshot.as_ref().map_or(false, |s|
 			match s.status() {
-				RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
-					(true, false, state_chunks_done + block_chunks_done, state_chunks + block_chunks),
-				RestorationStatus::Initializing => (true, true, 0, 0),
-				_ => (false, false, 0, 0),
+				RestorationStatus::Ongoing { .. } | RestorationStatus::Initializing { .. } => true,
+				_ => false,
 			}
 		);
-		let snapshot_sync = snapshot_sync && sync_info.as_ref().map_or(false, |s| s.snapshot_sync);
 		if !importing && !snapshot_sync && elapsed < Duration::from_secs(30) {
 			return;
 		}
@@ -320,11 +316,17 @@ impl<T: InformantData> Informant<T> {
 						paint(Green.bold(), format!("{:5}", queue_info.verified_queue_size))
 					),
 					true => {
-						if snapshot_starting {
-							String::from("Snapshot initializing")
-						} else {
-							format!("Syncing snapshot {}/{}", snapshot_current, snapshot_total)
-						}
+						self.snapshot.as_ref().map_or(String::new(), |s|
+							match s.status() {
+								RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } => {
+									format!("Syncing snapshot {}/{}", state_chunks_done + block_chunks_done, state_chunks + block_chunks)
+								},
+								RestorationStatus::Initializing { chunks_done } => {
+									format!("Snapshot initializing ({} chunks restored)", chunks_done)
+								},
+								_ => String::new(),
+							}
+						)
 					},
 				},
 				false => String::new(),

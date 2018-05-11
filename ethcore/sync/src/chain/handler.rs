@@ -578,7 +578,7 @@ impl SyncHandler {
 				sync.continue_sync(io);
 				return Ok(());
 			},
-			RestorationStatus::Initializing => {
+			RestorationStatus::Initializing  { .. } => {
 				trace!(target: "warp", "{}: Snapshot restoration is initializing", peer_id);
 				return Ok(());
 			}
