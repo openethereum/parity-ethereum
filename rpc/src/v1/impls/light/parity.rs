@@ -390,7 +390,7 @@ impl Parity for ParityClient {
 		})
 	}
 
-	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<Result<RichHeader>> {
+	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader> {
 		use ethcore::encoded;
 
 		let engine = self.light_dispatch.client.engine().clone();
@@ -429,7 +429,7 @@ impl Parity for ParityClient {
 			BlockNumber::Latest | BlockNumber::Pending => BlockId::Latest,
 		};
 
-		Box::new(self.fetcher().header(id).map(from_encoded))
+		Box::new(self.fetcher().header(id).and_then(from_encoded))
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String> {
