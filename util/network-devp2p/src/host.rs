@@ -163,7 +163,6 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 	}
 
 	fn disconnect_peer(&self, peer: PeerId) {
-		trace!(target: "network", "Peer disconnect requested: {}", peer);
 		self.io.message(NetworkIoMessage::Disconnect(peer))
 			.unwrap_or_else(|e| warn!("Error sending network IO message: {:?}", e));
 	}
@@ -690,7 +689,7 @@ impl Host {
 						Err(e) => {
 							let s = session.lock();
 							trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
-							if let ErrorKind::Disconnect(DisconnectReason::UselessPeer) = *e.kind() {
+							if let ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) = *e.kind() {
 								if let Some(id) = s.id() {
 									if !self.reserved_nodes.read().contains(id) {
 										let mut nodes = self.nodes.write();
@@ -725,24 +724,11 @@ impl Host {
 							// Outgoing connections are allowed as long as their count is <= min_peers
 							// Incoming connections are allowed to take all of the max_peers reserve, or at most half of the slots.
 							let max_ingress = max(max_peers - min_peers, min_peers / 2);
-							if reserved_only
-								|| (s.info.originated && egress_count > min_peers)
-								|| (!s.info.originated && ingress_count > max_ingress)
-							{
-								// We didn't start the connection, but the node is known to us
-								// So eventually we will attempt to connect to it as well.
-								let is_incoming_but_known = !s.info.originated && self.nodes.read().contains(&id);
-
-								if is_incoming_but_known {
-									warn!(target: "network", "Allowing incoming connection from a known node.");
-								}
-								// only proceed if the connecting peer is reserved or is known
-								if !is_incoming_but_known && !self.reserved_nodes.read().contains(&id) {
-									trace!(
-										target: "network",
-										"Rejected {} session: TooManyPeers",
-										if s.info.originated { "outbound" } else { "inbound" }
-									);
+							if reserved_only ||
+								(s.info.originated && egress_count > min_peers) ||
+								(!s.info.originated && ingress_count > max_ingress) {
+								// only proceed if the connecting peer is reserved.
+								if !self.reserved_nodes.read().contains(&id) {
 									s.disconnect(io, DisconnectReason::TooManyPeers);
 									kill = true;
 									break;
