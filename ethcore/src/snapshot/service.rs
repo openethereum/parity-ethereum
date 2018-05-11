@@ -219,7 +219,7 @@ pub struct ServiceParams {
 	/// Usually "<chain hash>/snapshot"
 	pub snapshot_root: PathBuf,
 	/// A handle for database restoration.
-	pub db_restore: Arc<DatabaseRestore>,
+	pub client: Arc<Client>,
 }
 
 /// `SnapshotService` implementation.
@@ -236,7 +236,7 @@ pub struct Service {
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
-	db_restore: Arc<DatabaseRestore>,
+	client: Arc<Client>,
 	progress: super::Progress,
 	taking_snapshot: AtomicBool,
 	restoring_snapshot: AtomicBool,
@@ -257,7 +257,7 @@ impl Service {
 			genesis_block: params.genesis_block,
 			state_chunks: AtomicUsize::new(0),
 			block_chunks: AtomicUsize::new(0),
-			db_restore: params.db_restore,
+			client: params.client,
 			progress: Default::default(),
 			taking_snapshot: AtomicBool::new(false),
 			restoring_snapshot: AtomicBool::new(false),
@@ -329,7 +329,7 @@ impl Service {
 	fn replace_client_db(&self) -> Result<(), Error> {
 		let our_db = self.restoration_db();
 
-		self.db_restore.restore_db(&*our_db.to_string_lossy())?;
+		self.client.restore_db(&*our_db.to_string_lossy())?;
 		Ok(())
 	}
 
@@ -659,7 +659,7 @@ mod tests {
 			pruning: Algorithm::Archive,
 			channel: service.channel(),
 			snapshot_root: dir,
-			db_restore: Arc::new(NoopDBRestore),
+			client: Arc::new(NoopDBRestore),
 		};
 
 		let service = Service::new(snapshot_params).unwrap();

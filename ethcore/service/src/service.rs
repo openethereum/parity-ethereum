@@ -102,7 +102,7 @@ impl ClientService {
 			pruning: pruning,
 			channel: io_service.channel(),
 			snapshot_root: snapshot_path.into(),
-			db_restore: client.clone(),
+			client: client.clone(),
 		};
 		let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
