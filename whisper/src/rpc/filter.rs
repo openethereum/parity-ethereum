@@ -402,7 +402,7 @@ mod tests {
 			sign_with: Some(signing_pair.secret().unwrap())
 		}).unwrap();
 
-		let encrypted = encryption_instance.encrypt(&payload);
+		let encrypted = encryption_instance.encrypt(&payload).unwrap();
 
 		let message = Message::create(CreateParams {
 			ttl: 100,

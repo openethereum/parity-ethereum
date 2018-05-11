@@ -34,7 +34,7 @@ use rcrypto::symmetriccipher::*;
 use rcrypto::buffer::*;
 use tiny_keccak::Keccak;
 use bytes::{Buf, BufMut};
-use crypto;
+use ethkey::crypto;
 use network::{Error, ErrorKind};
 
 const ENCRYPTED_HEADER_LEN: usize = 32;

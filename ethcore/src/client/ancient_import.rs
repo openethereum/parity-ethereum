@@ -32,16 +32,16 @@ const HEAVY_VERIFY_RATE: f32 = 0.02;
 /// Ancient block verifier: import an ancient sequence of blocks in order from a starting
 /// epoch.
 pub struct AncientVerifier {
-	cur_verifier: RwLock<Box<EpochVerifier<EthereumMachine>>>,
+	cur_verifier: RwLock<Option<Box<EpochVerifier<EthereumMachine>>>>,
 	engine: Arc<EthEngine>,
 }
 
 impl AncientVerifier {
-	/// Create a new ancient block verifier with the given engine and initial verifier.
-	pub fn new(engine: Arc<EthEngine>, start_verifier: Box<EpochVerifier<EthereumMachine>>) -> Self {
+	/// Create a new ancient block verifier with the given engine.
+	pub fn new(engine: Arc<EthEngine>) -> Self {
 		AncientVerifier {
-			cur_verifier: RwLock::new(start_verifier),
-			engine: engine,
+			cur_verifier: RwLock::new(None),
+			engine,
 		}
 	}
 
@@ -53,17 +53,49 @@ impl AncientVerifier {
 		header: &Header,
 		chain: &BlockChain,
 	) -> Result<(), ::error::Error> {
-		match rng.gen::<f32>() <= HEAVY_VERIFY_RATE {
-			true => self.cur_verifier.read().verify_heavy(header)?,
-			false => self.cur_verifier.read().verify_light(header)?,
+		// perform verification
+		let verified = if let Some(ref cur_verifier) = *self.cur_verifier.read() {
+			match rng.gen::<f32>() <= HEAVY_VERIFY_RATE {
+				true => cur_verifier.verify_heavy(header)?,
+				false => cur_verifier.verify_light(header)?,
+			}
+			true
+		} else {
+			false
+		};
+
+		// when there is no verifier initialize it.
+		// We use a bool flag to avoid double locking in the happy case
+		if !verified {
+			{
+				let mut cur_verifier = self.cur_verifier.write();
+				if cur_verifier.is_none() {
+					*cur_verifier = Some(self.initial_verifier(header, chain)?);
+				}
+			}
+			// Call again to verify.
+			return self.verify(rng, header, chain);
 		}
 
 		// ancient import will only use transitions obtained from the snapshot.
 		if let Some(transition) = chain.epoch_transition(header.number(), header.hash()) {
 			let v = self.engine.epoch_verifier(&header, &transition.proof).known_confirmed()?;
-			*self.cur_verifier.write() = v;
+			*self.cur_verifier.write() = Some(v);
 		}
 
 		Ok(())
+	}
+
+	fn initial_verifier(&self, header: &Header, chain: &BlockChain)
+		-> Result<Box<EpochVerifier<EthereumMachine>>, ::error::Error>
+	{
+		trace!(target: "client", "Initializing ancient block restoration.");
+		let current_epoch_data = chain.epoch_transitions()
+			.take_while(|&(_, ref t)| t.block_number < header.number())
+			.last()
+			.map(|(_, t)| t.proof)
+			.expect("At least one epoch entry (genesis) always stored; qed");
+
+		self.engine.epoch_verifier(&header, &current_epoch_data).known_confirmed()
 	}
 }

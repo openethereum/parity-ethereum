@@ -25,7 +25,6 @@ use ethereum_types::H256;
 use ethkey::{KeyPair, Public, Secret};
 use mem::Memzero;
 use rand::{Rng, OsRng};
-use ring::error::Unspecified;
 
 use rpc::crypto::{AES_KEY_LEN, EncryptionInstance, DecryptionInstance};
 
@@ -54,10 +53,8 @@ impl Key {
 	}
 
 	/// From secret asymmetric key. Fails if secret is invalid.
-	pub fn from_secret(secret: Secret) -> Result<Self, Unspecified> {
-		KeyPair::from_secret(secret)
-			.map(Key::Asymmetric)
-			.map_err(|_| Unspecified)
+	pub fn from_secret(secret: Secret) -> Option<Self> {
+		KeyPair::from_secret(secret).map(Key::Asymmetric).ok()
 	}
 
 	/// From raw symmetric key.
@@ -179,7 +176,7 @@ mod tests {
 	#[test]
 	fn rejects_invalid_secret() {
 		let bad_secret = ::ethkey::Secret::from([0xff; 32]);
-		assert!(Key::from_secret(bad_secret).is_err());
+		assert!(Key::from_secret(bad_secret).is_none());
 	}
 
 	#[test]

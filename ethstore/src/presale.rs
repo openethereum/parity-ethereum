@@ -1,11 +1,8 @@
 use std::fs;
 use std::path::Path;
-use rcrypto::pbkdf2::pbkdf2;
-use rcrypto::sha2::Sha256;
-use rcrypto::hmac::Hmac;
 use json;
 use ethkey::{Address, Secret, KeyPair};
-use crypto::Keccak256;
+use crypto::{Keccak256, pbkdf2};
 use {crypto, Error};
 
 /// Pre-sale wallet.
@@ -42,12 +39,14 @@ impl PresaleWallet {
 
 	/// Decrypt the wallet.
 	pub fn decrypt(&self, password: &str) -> Result<KeyPair, Error> {
-		let mut h_mac = Hmac::new(Sha256::new(), password.as_bytes());
-		let mut derived_key = vec![0u8; 16];
-		pbkdf2(&mut h_mac, password.as_bytes(), 2000, &mut derived_key);
+		let mut derived_key = [0u8; 32];
+		let salt = pbkdf2::Salt(password.as_bytes());
+		let sec = pbkdf2::Secret(password.as_bytes());
+		pbkdf2::sha256(2000, salt, sec, &mut derived_key);
 
 		let mut key = vec![0; self.ciphertext.len()];
-		let len = crypto::aes::decrypt_cbc(&derived_key, &self.iv, &self.ciphertext, &mut key).map_err(|_| Error::InvalidPassword)?;
+		let len = crypto::aes::decrypt_128_cbc(&derived_key[0..16], &self.iv, &self.ciphertext, &mut key)
+			.map_err(|_| Error::InvalidPassword)?;
 		let unpadded = &key[..len];
 
 		let secret = Secret::from_unsafe_slice(&unpadded.keccak256())?;

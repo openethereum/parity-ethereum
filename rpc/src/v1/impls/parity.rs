@@ -22,8 +22,8 @@ use std::collections::{BTreeMap, HashSet};
 use ethereum_types::Address;
 use version::version_data;
 
-use crypto::{DEFAULT_MAC, ecies};
-use ethkey::{Brain, Generator};
+use crypto::DEFAULT_MAC;
+use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use sync::{SyncProvider, ManageNetwork};
 use ethcore::account_provider::AccountProvider;
@@ -487,9 +487,9 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 			};
 
 			let state = self.client.state_at(id).ok_or(errors::state_pruned())?;
-			let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
+			let header = self.client.block_header(id).ok_or(errors::state_pruned())?.decode().map_err(errors::decode)?;
 
-			(state, header.decode())
+			(state, header)
 		};
 
 		self.client.call_many(&requests, &mut state, &header)

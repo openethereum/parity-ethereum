@@ -24,7 +24,7 @@ fn test_encode_foo() {
 	let out = encode(&foo).into_vec();
 	assert_eq!(out, expected);
 
-	let decoded = decode(&expected);
+	let decoded = decode(&expected).expect("decode failure");
 	assert_eq!(foo, decoded);
 }
 
@@ -38,7 +38,7 @@ fn test_encode_foo_wrapper() {
 	let out = encode(&foo).into_vec();
 	assert_eq!(out, expected);
 
-	let decoded = decode(&expected);
+	let decoded = decode(&expected).expect("decode failure");
 	assert_eq!(foo, decoded);
 }
 

@@ -207,9 +207,7 @@ impl ExtendedKeyPair {
 // Work is based on BIP0032
 // https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 mod derivation {
-	use rcrypto::hmac::Hmac;
-	use rcrypto::mac::Mac;
-	use rcrypto::sha2::Sha512;
+	use ethcore_crypto::hmac;
 	use ethereum_types::{U256, U512, H512, H256};
 	use secp256k1::key::{SecretKey, PublicKey};
 	use SECP256K1;
@@ -242,10 +240,8 @@ mod derivation {
 		let private: U256 = private_key.into();
 
 		// produces 512-bit derived hmac (I)
-		let mut hmac = Hmac::new(Sha512::new(), &*chain_code);
-		let mut i_512 = [0u8; 64];
-		hmac.input(&data[..]);
-		hmac.raw_result(&mut i_512);
+		let skey = hmac::SigKey::sha512(&*chain_code);
+		let i_512 = hmac::sign(&skey, &data[..]);
 
 		// left most 256 bits are later added to original private key
 		let hmac_key: U256 = H256::from_slice(&i_512[0..32]).into();
@@ -321,10 +317,8 @@ mod derivation {
 		index.store(&mut data[33..(33 + T::len())]);
 
 		// HMAC512SHA produces [derived private(256); new chain code(256)]
-		let mut hmac = Hmac::new(Sha512::new(), &*chain_code);
-		let mut i_512 = [0u8; 64];
-		hmac.input(&data[..]);
-		hmac.raw_result(&mut i_512);
+		let skey = hmac::SigKey::sha512(&*chain_code);
+		let i_512 = hmac::sign(&skey, &data[..]);
 
 		let new_private = H256::from(&i_512[0..32]);
 		let new_chain_code = H256::from(&i_512[32..64]);
@@ -369,10 +363,8 @@ mod derivation {
 	}
 
 	pub fn seed_pair(seed: &[u8]) -> (H256, H256) {
-		let mut hmac = Hmac::new(Sha512::new(), b"Bitcoin seed");
-		let mut i_512 = [0u8; 64];
-		hmac.input(seed);
-		hmac.raw_result(&mut i_512);
+		let skey = hmac::SigKey::sha512(b"Bitcoin seed");
+		let i_512 = hmac::sign(&skey, seed);
 
 		let master_key = H256::from_slice(&i_512[0..32]);
 		let chain_code = H256::from_slice(&i_512[32..64]);

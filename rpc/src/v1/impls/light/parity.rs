@@ -20,8 +20,8 @@ use std::collections::{BTreeMap, HashSet};
 
 use version::version_data;
 
-use crypto::{ecies, DEFAULT_MAC};
-use ethkey::{Brain, Generator};
+use crypto::DEFAULT_MAC;
+use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use sync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
@@ -395,7 +395,7 @@ impl Parity for ParityClient {
 
 		let engine = self.light_dispatch.client.engine().clone();
 		let from_encoded = move |encoded: encoded::Header| {
-			let header = encoded.decode();
+			let header = encoded.decode().expect("decoding error"); // REVIEW: not sure what to do here; what is a decent return value for the error case here?
 			let extra_info = engine.extra_info(&header);
 			RichHeader {
 				inner: Header {
