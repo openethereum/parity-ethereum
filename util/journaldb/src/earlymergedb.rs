@@ -56,7 +56,7 @@ enum RemoveFrom {
 /// the removals actually take effect.
 ///
 /// journal format:
-/// ```
+/// ```text
 /// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, n] => [ ... ]
@@ -75,7 +75,7 @@ enum RemoveFrom {
 /// which includes an original key, if any.
 ///
 /// The semantics of the `counter` are:
-/// ```
+/// ```text
 /// insert key k:
 ///   counter already contains k: count += 1
 ///   counter doesn't contain k:
@@ -91,7 +91,7 @@ enum RemoveFrom {
 ///
 /// Practically, this means that for each commit block turning from recent to ancient we do the
 /// following:
-/// ```
+/// ```text
 /// is_canonical:
 ///   inserts: Ignored (left alone in the backing database).
 ///   deletes: Enacted; however, recent history queue is checked for ongoing references. This is
