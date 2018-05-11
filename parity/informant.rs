@@ -321,7 +321,7 @@ impl<T: InformantData> Informant<T> {
 					),
 					true => {
 						if snapshot_starting {
-							String::from("Snapshot initializing")
+							String::from("Initializing snapshot")
 						} else {
 							format!("Syncing snapshot {}/{}", snapshot_current, snapshot_total)
 						}
