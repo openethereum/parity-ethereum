@@ -1036,7 +1036,8 @@ impl BlockChain {
 		}
 	}
 
-	/// Mark a block to be considered finalized. Panic if the block hash is not found.
+	/// Mark a block to be considered finalized. Returns `Some(())` if the operation succeeds, and `None` if the block
+	/// hash is not found.
 	pub fn mark_finalized(&self, batch: &mut DBTransaction, block_hash: H256) -> Option<()> {
 		let mut block_details = self.block_details(&block_hash)?;
 		block_details.is_finalized = true;
