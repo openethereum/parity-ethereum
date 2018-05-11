@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethkey::{KeyPair, sign, Address, Signature, Message, Public, Secret};
-use crypto::ecdh::agree;
-use {json, Error, crypto};
+use ethkey::{self, KeyPair, sign, Address, Signature, Message, Public, Secret};
+use ethkey::crypto::ecdh::agree;
+use {json, Error};
 use account::Version;
+use crypto;
 use super::crypto::Crypto;
 
 /// Account representation.
@@ -61,16 +62,16 @@ impl SafeAccount {
 		iterations: u32,
 		name: String,
 		meta: String
-	) -> Self {
-		SafeAccount {
+	) -> Result<Self, crypto::Error> {
+		Ok(SafeAccount {
 			id: id,
 			version: Version::V3,
-			crypto: Crypto::with_secret(keypair.secret(), password, iterations),
+			crypto: Crypto::with_secret(keypair.secret(), password, iterations)?,
 			address: keypair.address(),
 			filename: None,
 			name: name,
 			meta: meta,
-		}
+		})
 	}
 
 	/// Create a new `SafeAccount` from the given `json`; if it was read from a
@@ -114,7 +115,7 @@ impl SafeAccount {
 			meta: Some(self.meta),
 		};
 		let meta_plain = meta_plain.write().map_err(|e| Error::Custom(format!("{:?}", e)))?;
-		let meta_crypto = Crypto::with_plain(&meta_plain, password, iterations);
+		let meta_crypto = Crypto::with_plain(&meta_plain, password, iterations)?;
 
 		Ok(json::VaultKeyFile {
 			id: self.id.into(),
@@ -133,7 +134,7 @@ impl SafeAccount {
 	/// Decrypt a message.
 	pub fn decrypt(&self, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
 		let secret = self.crypto.secret(password)?;
-		crypto::ecies::decrypt(&secret, shared_mac, message).map_err(From::from)
+		ethkey::crypto::ecies::decrypt(&secret, shared_mac, message).map_err(From::from)
 	}
 
 	/// Agree on shared key.
@@ -154,7 +155,7 @@ impl SafeAccount {
 		let result = SafeAccount {
 			id: self.id.clone(),
 			version: self.version.clone(),
-			crypto: Crypto::with_secret(&secret, new_password, iterations),
+			crypto: Crypto::with_secret(&secret, new_password, iterations)?,
 			address: self.address.clone(),
 			filename: self.filename.clone(),
 			name: self.name.clone(),
@@ -180,7 +181,7 @@ mod tests {
 		let password = "hello world";
 		let message = Message::default();
 		let account = SafeAccount::create(&keypair, [0u8; 16], password, 10240, "Test".to_owned(), "{}".to_owned());
-		let signature = account.sign(password, &message).unwrap();
+		let signature = account.unwrap().sign(password, &message).unwrap();
 		assert!(verify_public(keypair.public(), &signature, &message).unwrap());
 	}
 
@@ -191,7 +192,7 @@ mod tests {
 		let sec_password = "this is sparta";
 		let i = 10240;
 		let message = Message::default();
-		let account = SafeAccount::create(&keypair, [0u8; 16], first_password, i, "Test".to_owned(), "{}".to_owned());
+		let account = SafeAccount::create(&keypair, [0u8; 16], first_password, i, "Test".to_owned(), "{}".to_owned()).unwrap();
 		let new_account = account.change_password(first_password, sec_password, i).unwrap();
 		assert!(account.sign(first_password, &message).is_ok());
 		assert!(account.sign(sec_password, &message).is_err());

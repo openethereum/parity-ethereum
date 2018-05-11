@@ -41,6 +41,7 @@ use ethkey::{self, Message, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
+use engines::block_reward::{self, RewardKind};
 use io::IoService;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList};
@@ -142,8 +143,10 @@ impl <F> super::EpochVerifier<EthereumMachine> for EpochVerifier<F>
 	}
 
 	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
-		let header: Header = ::rlp::decode(proof);
-		self.verify_light(&header).ok().map(|_| vec![header.hash()])
+		match ::rlp::decode(proof) {
+			Ok(header) => self.verify_light(&header).ok().map(|_| vec![header.hash()]),
+			Err(_) => None // REVIEW: log perhaps? Not sure what the policy is.
+		}
 	}
 }
 
@@ -550,10 +553,13 @@ impl Engine<EthereumMachine> for Tendermint {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error>{
-		use parity_machine::WithBalances;
 		let author = *block.header().author();
-		self.machine.add_balance(block, &author, &self.block_reward)?;
-		self.machine.note_rewards(block, &[(author, self.block_reward)], &[])
+
+		block_reward::apply_block_rewards(
+			&[(author, RewardKind::Author, self.block_reward)],
+			block,
+			&self.machine,
+		)
 	}
 
 	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {

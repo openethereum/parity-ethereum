@@ -55,7 +55,7 @@ impl<'a, Q: Query> Lookup<'a, Q> {
 			// without incrementing the depth.
 			let mut node_data = &node_data[..];
 			loop {
-				match Node::decoded(node_data).expect("rlp read from db; qed") {
+				match Node::decoded(node_data)? {
 					Node::Leaf(slice, value) => {
 						return Ok(match slice == key {
 							true => Some(self.query.decode(value)),

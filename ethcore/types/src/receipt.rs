@@ -193,7 +193,7 @@ mod tests {
 		);
 		let encoded = ::rlp::encode(&r);
 		assert_eq!(&encoded[..], &expected[..]);
-		let decoded: Receipt = ::rlp::decode(&encoded);
+		let decoded: Receipt = ::rlp::decode(&encoded).expect("decoding receipt failed");
 		assert_eq!(decoded, r);
 	}
 
@@ -211,7 +211,7 @@ mod tests {
 		);
 		let encoded = ::rlp::encode(&r);
 		assert_eq!(&encoded[..], &expected[..]);
-		let decoded: Receipt = ::rlp::decode(&encoded);
+		let decoded: Receipt = ::rlp::decode(&encoded).expect("decoding receipt failed");
 		assert_eq!(decoded, r);
 	}
 }

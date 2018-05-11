@@ -34,6 +34,7 @@ use tx_filter::TransactionFilter;
 
 use ethereum_types::{U256, Address};
 use bytes::BytesRef;
+use rlp::Rlp;
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 
@@ -376,6 +377,16 @@ impl EthereumMachine {
 			"registrar".to_owned() => format!("{:x}", self.params.registrar)
 		]
 	}
+
+	/// Performs pre-validation of RLP decoded transaction before other processing
+	pub fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
+		let rlp = Rlp::new(&transaction);
+		if rlp.as_raw().len() > self.params().max_transaction_size {
+			debug!("Rejected oversized transaction of {} bytes", rlp.as_raw().len());
+			return Err(transaction::Error::TooBig)
+		}
+		rlp.as_val().map_err(|e| transaction::Error::InvalidRlp(e.to_string()))
+	}
 }
 
 /// Auxiliary data fetcher for an Ethereum machine. In Ethereum-like machines
@@ -426,22 +437,30 @@ impl ::parity_machine::WithBalances for EthereumMachine {
 	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
 		live.state_mut().add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
 	}
+}
 
+/// A state machine that uses block rewards.
+pub trait WithRewards: ::parity_machine::Machine {
+	/// Note block rewards, traces each reward storing information about benefactor, amount and type
+	/// of reward.
 	fn note_rewards(
 		&self,
 		live: &mut Self::LiveBlock,
-		direct: &[(Address, U256)],
-		indirect: &[(Address, U256)],
+		rewards: &[(Address, RewardType, U256)],
+	) -> Result<(), Self::Error>;
+}
+
+impl WithRewards for EthereumMachine {
+	fn note_rewards(
+		&self,
+		live: &mut Self::LiveBlock,
+		rewards: &[(Address, RewardType, U256)],
 	) -> Result<(), Self::Error> {
 		if let Tracing::Enabled(ref mut traces) = *live.traces_mut() {
 			let mut tracer = ExecutiveTracer::default();
 
-			for &(address, amount) in direct {
-				tracer.trace_reward(address, amount, RewardType::Block);
-			}
-
-			for &(address, amount) in indirect {
-				tracer.trace_reward(address, amount, RewardType::Uncle);
+			for &(address, ref reward_type, amount) in rewards {
+				tracer.trace_reward(address, amount, reward_type.clone());
 			}
 
 			traces.push(tracer.drain().into());

@@ -16,12 +16,13 @@
 
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 use parking_lot::{Mutex, RwLock};
-use ethcore::client::{BlockId, ChainNotify, CallContract, RegistryInfo};
+use ethcore::client::{BlockId, ChainNotify, ChainRoute, CallContract, RegistryInfo};
 use ethereum_types::{H256, Address};
 use bytes::Bytes;
 use trusted_client::TrustedClient;
-use types::all::{Error, ServerKeyId};
+use types::{Error, ServerKeyId};
 
 use_contract!(acl_storage, "AclStorage", "res/acl_storage.json");
 
@@ -75,8 +76,8 @@ impl AclStorage for OnChainAclStorage {
 }
 
 impl ChainNotify for OnChainAclStorage {
-	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, enacted: Vec<H256>, retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
-		if !enacted.is_empty() || !retracted.is_empty() {
+	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, route: ChainRoute, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: Duration) {
+		if !route.enacted().is_empty() || !route.retracted().is_empty() {
 			self.contract.lock().update()
 		}
 	}
@@ -112,7 +113,7 @@ impl CachedContract {
 					self.contract.functions()
 						.check_permissions()
 						.call(requester, document.clone(), &do_call)
-						.map_err(|e| Error::Internal(e.to_string()))
+						.map_err(|e| Error::Internal(format!("ACL checker call error: {}", e.to_string())))
 				},
 				None => Err(Error::Internal("ACL checker contract is not configured".to_owned())),
 			}

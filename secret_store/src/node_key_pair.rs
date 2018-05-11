@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use crypto::ecdh::agree;
+use ethkey::crypto::ecdh::agree;
 use ethkey::{KeyPair, Public, Signature, Error as EthKeyError, sign, public_to_address};
 use ethcore::account_provider::AccountProvider;
 use ethereum_types::{H256, Address};
@@ -54,7 +54,8 @@ impl NodeKeyPair for PlainNodeKeyPair {
 	}
 
 	fn compute_shared_key(&self, peer_public: &Public) -> Result<KeyPair, EthKeyError> {
-		agree(self.key_pair.secret(), peer_public).map_err(|e| EthKeyError::Custom(e.into()))
+		agree(self.key_pair.secret(), peer_public)
+			.map_err(|e| EthKeyError::Custom(e.to_string()))
 			.and_then(KeyPair::from_secret)
 	}
 }

@@ -16,13 +16,11 @@
 
 //! Helpers for decoding and verifying responses for headers.
 
-use std::fmt;
-
-use ethcore::encoded;
-use ethcore::header::Header;
+use ethcore::{self, encoded, header::Header};
+use ethereum_types::H256;
 use light::request::{HashOrNumber, CompleteHeadersRequest as HeadersRequest};
 use rlp::DecoderError;
-use ethereum_types::H256;
+use std::fmt;
 
 /// Errors found when decoding headers and verifying with basic constraints.
 #[derive(Debug, PartialEq)]
@@ -74,19 +72,23 @@ pub trait Constraint {
 
 /// Do basic verification of provided headers against a request.
 pub fn verify(headers: &[encoded::Header], request: &HeadersRequest) -> Result<Vec<Header>, BasicError> {
-	let headers: Vec<_> = headers.iter().map(|h| h.decode()).collect();
+	let headers: Result<Vec<_>, _> = headers.iter().map(|h| h.decode() ).collect();
+	match headers {
+		Ok(headers) => {
+			let reverse = request.reverse;
 
-	let reverse = request.reverse;
+			Max(request.max as usize).verify(&headers, reverse)?;
+			match request.start {
+				HashOrNumber::Number(ref num) => StartsAtNumber(*num).verify(&headers, reverse)?,
+				HashOrNumber::Hash(ref hash) => StartsAtHash(*hash).verify(&headers, reverse)?,
+			}
 
-	Max(request.max as usize).verify(&headers, reverse)?;
-	match request.start {
-		HashOrNumber::Number(ref num) => StartsAtNumber(*num).verify(&headers, reverse)?,
-		HashOrNumber::Hash(ref hash) => StartsAtHash(*hash).verify(&headers, reverse)?,
+			SkipsBetween(request.skip).verify(&headers, reverse)?;
+
+			Ok(headers)
+		},
+		Err(e) => Err(e.into())
 	}
-
-	SkipsBetween(request.skip).verify(&headers, reverse)?;
-
-	Ok(headers)
 }
 
 struct StartsAtNumber(u64);

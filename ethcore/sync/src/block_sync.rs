@@ -496,7 +496,7 @@ impl BlockDownloader {
 			}
 
 			let result = if let Some(receipts) = receipts {
-				io.chain().import_block_with_receipts(block, receipts)
+				io.chain().queue_ancient_block(block, receipts)
 			} else {
 				io.chain().import_block(block)
 			};

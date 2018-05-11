@@ -35,7 +35,6 @@ use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
-use fdlimit;
 use ethcore_private_tx;
 use db;
 
@@ -148,8 +147,6 @@ impl SnapshotCommand {
 
 		// load user defaults
 		let user_defaults = UserDefaults::load(&user_defaults_path)?;
-
-		fdlimit::raise_fd_limit();
 
 		// select pruning algorithm
 		let algorithm = self.pruning.to_algorithm(&user_defaults);
