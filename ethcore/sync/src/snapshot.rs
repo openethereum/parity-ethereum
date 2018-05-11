@@ -54,7 +54,7 @@ impl Snapshot {
 	}
 
 	/// Sync the Snapshot completed chunks with the Snapshot Service
-	pub fn initialize (&mut self, io: &SyncIo) {
+	pub fn initialize(&mut self, io: &SyncIo) {
 		if self.initialized {
 			return;
 		}

@@ -455,14 +455,14 @@ impl Service {
 
 		// make new restoration.
 		let writer = match recover {
-			true => Some(LooseWriter::new(self.temp_recovery_dir())?),
+			true => Some(LooseWriter::new(recovery_temp)?),
 			false => None
 		};
 
 		let params = RestorationParams {
 			manifest: manifest.clone(),
 			pruning: self.pruning,
-			db: self.restoration_db_handler.open(&self.restoration_db())?,
+			db: self.restoration_db_handler.open(&rest_db)?,
 			writer: writer,
 			genesis: &self.genesis_block,
 			guard: Guard::new(rest_db),
