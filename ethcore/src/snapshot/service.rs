@@ -508,8 +508,8 @@ impl Service {
 			// Import the chunk, don't fail and continue if one fails
 			match self.import_prev_chunk(restoration, &manifest, prev_chunk_file) {
 				Ok(true) => num_temp_chunks += 1,
-				Ok(false) => trace!(target: "snapshot", "Invalid chunk: {:?}", prev_chunk_file),
 				Err(e) => trace!(target: "snapshot", "Error importing chunk: {:?}", e),
+				_ => (),
 			}
 		}
 
