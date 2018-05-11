@@ -318,7 +318,13 @@ impl<T: InformantData> Informant<T> {
 						paint(Green.bold(), format!("{:5}", queue_info.unverified_queue_size)),
 						paint(Green.bold(), format!("{:5}", queue_info.verified_queue_size))
 					),
-					true => format!("Syncing snapshot {}/{}", snapshot_current, snapshot_total),
+					true => {
+						if snapshot_starting {
+							String::from("Initializing snapshot")
+						} else {
+							format!("Syncing snapshot {}/{}", snapshot_current, snapshot_total)
+						}
+					},
 				},
 				false => String::new(),
 			},
