@@ -100,7 +100,7 @@ impl SnapshotComponents for PoaSnapshot {
 		let (block, receipts) = chain.block(&block_at)
 			.and_then(|b| chain.block_receipts(&block_at).map(|r| (b, r)))
 			.ok_or(Error::BlockNotFound(block_at))?;
-		let block = block.decode();
+		let block = block.decode()?;
 
 		let parent_td = chain.block_details(block.header.parent_hash())
 			.map(|d| d.total_difficulty)
