@@ -40,7 +40,7 @@ use util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
 /// the removals actually take effect.
 ///
 /// journal format:
-/// ```
+/// ```text
 /// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, n] => [ ... ]
