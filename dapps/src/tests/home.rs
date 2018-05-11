@@ -60,32 +60,3 @@ fn should_serve_home() {
 	response.assert_header("Content-Type", "text/html");
 	assert_security_headers(&response.headers);
 }
-
-
-#[test]
-fn should_inject_js() {
-	// given
-	let server = serve_ui();
-
-	// when
-	let response = request(server,
-		"\
-			GET / HTTP/1.1\r\n\
-			Host: 127.0.0.1:8080\r\n\
-			Connection: close\r\n\
-			\r\n\
-			{}
-		"
-	);
-
-	// then
-	response.assert_status("HTTP/1.1 200 OK");
-	response.assert_header("Content-Type", "text/html");
-	assert_eq!(
-		response.body.contains(r#"/inject.js"></script>"#),
-		true,
-		"Expected inject script tag in: {}",
-		response.body
-	);
-	assert_security_headers(&response.headers);
-}
