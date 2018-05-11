@@ -29,6 +29,4 @@ pub struct TreeRoute {
 	pub index: usize,
 	/// Whether it has finalized blocks from `from` (inclusive) to `ancestor` (exclusive).
 	pub is_from_route_finalized: bool,
-	/// Whether it has finalized blocks from `ancestor` (exclusive) to `to` (inclusive).
-	pub is_to_route_finalized: bool,
 }

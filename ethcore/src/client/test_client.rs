@@ -742,7 +742,6 @@ impl BlockChainClient for TestBlockChainClient {
 				if adding { Vec::new() } else { blocks }
 			},
 			is_from_route_finalized: false,
-			is_to_route_finalized: false,
 		})
 	}
 

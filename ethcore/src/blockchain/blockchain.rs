@@ -690,7 +690,6 @@ impl BlockChain {
 		let mut from_branch = vec![];
 		let mut is_from_route_finalized = false;
 		let mut to_branch = vec![];
-		let mut is_to_route_finalized = false;
 
 		let mut from_details = self.block_details(&from)?;
 		let mut to_details = self.block_details(&to)?;
@@ -709,7 +708,6 @@ impl BlockChain {
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
 			to_details = self.block_details(&to_details.parent)?;
-			is_to_route_finalized = is_to_route_finalized || to_details.is_finalized;
 		}
 
 		assert_eq!(from_details.number, to_details.number);
@@ -724,7 +722,6 @@ impl BlockChain {
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
 			to_details = self.block_details(&to_details.parent)?;
-			is_to_route_finalized = is_to_route_finalized || to_details.is_finalized;
 		}
 
 		let index = from_branch.len();
@@ -736,7 +733,6 @@ impl BlockChain {
 			ancestor: current_from,
 			index: index,
 			is_from_route_finalized: is_from_route_finalized,
-			is_to_route_finalized: is_to_route_finalized,
 		})
 	}
 
