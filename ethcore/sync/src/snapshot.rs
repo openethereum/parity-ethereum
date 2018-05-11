@@ -162,10 +162,6 @@ impl Snapshot {
 	pub fn is_complete(&self) -> bool {
 		self.total_chunks() == self.completed_chunks.len()
 	}
-
-	pub fn is_initialized(&self) -> bool {
-		self.initialized
-	}
 }
 
 #[cfg(test)]
