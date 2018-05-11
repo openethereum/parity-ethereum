@@ -395,9 +395,9 @@ impl Parity for ParityClient {
 
 		let engine = self.light_dispatch.client.engine().clone();
 		let from_encoded = move |encoded: encoded::Header| {
-			let header = encoded.decode().expect("decoding error"); // REVIEW: not sure what to do here; what is a decent return value for the error case here?
+			let header = encoded.decode().map_err(errors::decode)?;
 			let extra_info = engine.extra_info(&header);
-			RichHeader {
+			Ok(RichHeader {
 				inner: Header {
 					hash: Some(header.hash().into()),
 					size: Some(encoded.rlp().as_raw().len().into()),
@@ -418,9 +418,8 @@ impl Parity for ParityClient {
 					extra_data: Bytes::new(header.extra_data().clone()),
 				},
 				extra_info: extra_info,
-			}
+			})
 		};
-
 		// Note: Here we treat `Pending` as `Latest`.
 		//       Since light clients don't produce pending blocks
 		//       (they don't have state) we can safely fallback to `Latest`.
@@ -430,7 +429,7 @@ impl Parity for ParityClient {
 			BlockNumber::Latest | BlockNumber::Pending => BlockId::Latest,
 		};
 
-		Box::new(self.fetcher().header(id).map(from_encoded))
+		Box::new(self.fetcher().header(id).and_then(from_encoded))
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String> {
