@@ -501,7 +501,7 @@ impl Importer {
 			}
 		};
 
-		let route = chain.tree_route(best_hash, *parent).expect("blocks being imported always within recent history; qed");
+		let route = chain.tree_route(best_hash, *parent).expect("forks are only kept when it has common ancestors; tree route from best to prospective's parent always exists; qed");
 		let fork_choice = if route.is_from_route_finalized {
 			ForkChoice::Old
 		} else {

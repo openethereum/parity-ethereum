@@ -951,7 +951,7 @@ impl BlockChain {
 		let parent_hash = header.parent_hash();
 		let best_hash = self.best_block_hash();
 
-		let route = self.tree_route(best_hash, parent_hash).expect("blocks being imported always within recent history; qed");
+		let route = self.tree_route(best_hash, parent_hash).expect("forks are only kept when it has common ancestors; tree route from best to prospective's parent always exists; qed");
 
 		self.insert_block_with_route(batch, bytes, receipts, route, extras)
 	}
