@@ -132,7 +132,7 @@ impl EthereumMachine {
 	) -> Result<Vec<u8>, Error> {
 		let env_info = {
 			let mut env_info = block.env_info();
-			env_info.gas_limit = env_info.gas_used + gas;
+			env_info.gas_limit = env_info.gas_used.saturating_add(gas);
 			env_info
 		};
 
