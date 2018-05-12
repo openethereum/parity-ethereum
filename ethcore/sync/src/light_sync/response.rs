@@ -16,7 +16,7 @@
 
 //! Helpers for decoding and verifying responses for headers.
 
-use ethcore::{self, encoded, header::Header};
+use ethcore::{encoded, header::Header};
 use ethereum_types::H256;
 use light::request::{HashOrNumber, CompleteHeadersRequest as HeadersRequest};
 use rlp::DecoderError;
