@@ -74,21 +74,6 @@ pub struct EthashParams {
 	pub eip100b_transition: Option<Uint>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="eip150Transition")]
-	pub eip150_transition: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="eip160Transition")]
-	pub eip160_transition: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="eip161abcTransition")]
-	pub eip161abc_transition: Option<Uint>,
-	/// See main EthashParams docs.
-	#[serde(rename="eip161dTransition")]
-	pub eip161d_transition: Option<Uint>,
-
-	/// See main EthashParams docs.
 	#[serde(rename="ecip1010PauseTransition")]
 	pub ecip1010_pause_transition: Option<Uint>,
 	/// See main EthashParams docs.

@@ -78,6 +78,14 @@ pub struct CommonParams {
 	pub min_gas_limit: U256,
 	/// Fork block to check.
 	pub fork_block: Option<(BlockNumber, H256)>,
+	/// EIP150 transition block number.
+	pub eip150_transition: BlockNumber,
+	/// Number of first block where EIP-160 rules begin.
+	pub eip160_transition: u64,
+	/// Number of first block where EIP-161.abc begin.
+	pub eip161abc_transition: u64,
+	/// Number of first block where EIP-161.d begins.
+	pub eip161d_transition: u64,
 	/// Number of first block where EIP-98 rules begin.
 	pub eip98_transition: BlockNumber,
 	/// Number of first block where EIP-658 rules begin.
@@ -134,9 +142,20 @@ pub struct CommonParams {
 impl CommonParams {
 	/// Schedule for an EVM in the post-EIP-150-era of the Ethereum main net.
 	pub fn schedule(&self, block_number: u64) -> ::vm::Schedule {
-		let mut schedule = ::vm::Schedule::new_post_eip150(self.max_code_size(block_number) as _, true, true, true);
-		self.update_schedule(block_number, &mut schedule);
-		schedule
+		if block_number < self.eip150_transition {
+			::vm::Schedule::new_homestead()
+		} else {
+			let max_code_size = self.max_code_size(block_number);
+			let mut schedule = ::vm::Schedule::new_post_eip150(
+				max_code_size as _,
+				block_number >= self.eip160_transition,
+				block_number >= self.eip161abc_transition,
+				block_number >= self.eip161d_transition
+			);
+
+			self.update_schedule(block_number, &mut schedule);
+			schedule
+		}
 	}
 
 	/// Returns max code size at given block.
@@ -197,6 +216,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 			} else {
 				None
 			},
+			eip150_transition: p.eip150_transition.map_or(0, Into::into),
+			eip160_transition: p.eip160_transition.map_or(0, Into::into),
+			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
+			eip161d_transition: p.eip161d_transition.map_or(0, Into::into),
 			eip98_transition: p.eip98_transition.map_or(0, Into::into),
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
