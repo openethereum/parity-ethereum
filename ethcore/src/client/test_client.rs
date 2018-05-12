@@ -864,6 +864,10 @@ impl BlockChainClient for TestBlockChainClient {
 	fn registrar_address(&self) -> Option<Address> { None }
 
 	fn eip86_transition(&self) -> u64 { u64::max_value() }
+
+	fn local_transactions(&self) -> Vec<H256> {
+		self.miner.local_transactions().keys().map(|k| *k).collect::<Vec<_>>()
+	}
 }
 
 impl ProvingBlockChainClient for TestBlockChainClient {

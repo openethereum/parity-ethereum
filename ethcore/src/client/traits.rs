@@ -319,6 +319,9 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 	/// List all transactions that are allowed into the next block.
 	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>>;
 
+	/// Get all local transactions
+	fn local_transactions(&self) -> Vec<H256>;
+
 	/// Sorted list of transaction gas prices from at least last sample_size blocks.
 	fn gas_price_corpus(&self, sample_size: usize) -> ::stats::Corpus<U256> {
 		let mut h = self.chain_info().best_block_hash;

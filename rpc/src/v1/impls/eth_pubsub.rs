@@ -18,6 +18,7 @@
 
 use std::sync::{Arc, Weak};
 use std::collections::BTreeMap;
+use rustc_hex::ToHex;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{self, Future, IntoFuture};
@@ -313,6 +314,7 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		kind: pubsub::Kind,
 		params: Trailing<pubsub::Params>,
 	) {
+		info!("New subscription request: {:?}", kind);
 		let error = match (kind, params.into()) {
 			(pubsub::Kind::NewHeads, None) => {
 				self.heads_subscribers.write().push(subscriber);
