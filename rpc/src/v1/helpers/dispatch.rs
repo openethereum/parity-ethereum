@@ -818,8 +818,8 @@ fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transacti
 
 	SignedTransaction::new(t.with_signature(signature, chain_id))
 		.map_err(|e| {
-		  debug!(target: "miner", "Hardware wallet has produced invalid signature: {}", e);
-		  errors::account("Invalid signature generated", e)
+			debug!(target: "miner", "Hardware wallet has produced invalid signature: {}", e);
+			errors::account("Invalid signature generated", e)
 		})
 }
 

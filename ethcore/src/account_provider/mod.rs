@@ -31,14 +31,32 @@ use ethstore::{
 use ethstore::accounts_dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Password, Random, Generator};
 use ethjson::misc::AccountMeta;
+use self::hw::*;
 
 pub use ethstore::ethkey::Signature;
 pub use ethstore::{Derivation, IndexDerivation, KeyFile};
 
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))] 
-use super::transaction::{Action, Transaction};
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))] 
-use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
+mod hw {
+	pub use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
+	pub use ::transaction::{Action, Transaction};
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))] 
+mod hw {
+	use super::fmt;
+
+	#[derive(Debug)]
+	pub enum HardwareError {}
+	pub struct HardwareWalletManager;
+
+	impl fmt::Display for HardwareError {
+		fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { 
+			write!(f, "") 
+		}
+	}
+}
+
 
 /// Type of unlock.
 #[derive(Clone, PartialEq)]
@@ -67,7 +85,6 @@ pub enum SignError {
 	/// Account does not exist.
 	NotFound,
 	/// Low-level hardware device error.
-	#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 	Hardware(HardwareError),
 	/// Low-level error from store
 	SStore(SSError),
@@ -78,14 +95,12 @@ impl fmt::Display for SignError {
 		match *self {
 			SignError::NotUnlocked => write!(f, "Account is locked"),
 			SignError::NotFound => write!(f, "Account does not exist"),
-			#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 			SignError::Hardware(ref e) => write!(f, "{}", e),
 			SignError::SStore(ref e) => write!(f, "{}", e),
 		}
 	}
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 impl From<HardwareError> for SignError {
 	fn from(e: HardwareError) -> Self {
 		SignError::Hardware(e)
@@ -137,7 +152,6 @@ pub struct AccountProvider {
 	/// Accounts unlocked with rolling tokens
 	transient_sstore: EthMultiStore,
 	/// Accounts in hardware wallets.
-	#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 	hardware_store: Option<HardwareWalletManager>,
 	/// When unlocking account permanently we additionally keep a raw secret in memory
 	/// to increase the performance of transaction signing.
@@ -216,8 +230,7 @@ impl AccountProvider {
 	pub fn new(sstore: Box<SecretStore>, settings: AccountProviderSettings) -> Self {
 		if let Ok(accounts) = sstore.accounts() {
 			for account in accounts.into_iter().filter(|a| settings.blacklisted_accounts.contains(&a.address)) {
-				warn!("Local Account {} has a blacklisted (known to be weak) address and will be ignored",
-					account.address);
+				warn!("Local Account {} has a blacklisted (known to be weak) address and will be ignored", account.address);
 			}
 		}
 
@@ -234,6 +247,7 @@ impl AccountProvider {
 			dapps_settings: RwLock::new(DappsSettingsStore::new(&sstore.local_path())),
 			sstore: sstore,
 			transient_sstore: transient_sstore(),
+			hardware_store: None,
 			unlock_keep_secret: settings.unlock_keep_secret,
 			blacklisted_accounts: settings.blacklisted_accounts,
 		}
@@ -248,7 +262,6 @@ impl AccountProvider {
 			dapps_settings: RwLock::new(DappsSettingsStore::transient()),
 			sstore: Box::new(EthStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")),
 			transient_sstore: transient_sstore(),
-			#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 			hardware_store: None,
 			unlock_keep_secret: false,
 			blacklisted_accounts: vec![],
