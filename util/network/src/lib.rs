@@ -39,7 +39,6 @@ use std::str::{self, FromStr};
 use std::sync::Arc;
 use std::time::Duration;
 use ipnetwork::{IpNetwork, IpNetworkError};
-use io::IoChannel;
 use ethkey::Secret;
 use ethereum_types::{H256, H512};
 use rlp::{Decodable, DecoderError, Rlp};
