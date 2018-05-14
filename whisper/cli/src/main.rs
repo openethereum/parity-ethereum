@@ -170,12 +170,12 @@ impl From<String> for Error {
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
-			Error::SockAddr(ref e) => write!(f, "SockAddrError: {}", e),
-			Error::Docopt(ref e) => write!(f, "DocoptError: {}", e),
-			Error::Io(ref e) => write!(f, "IoError: {}", e),
-			Error::JsonRpc(ref e) => write!(f, "JsonRpcError: {:?}", e),
-			Error::Network(ref e) => write!(f, "NetworkError: {}", e),
-			Error::Logger(ref e) => write!(f, "LoggerError: {}", e),
+			Error::SockAddr(ref e) => write!(f, "{}", e),
+			Error::Docopt(ref e) => write!(f, "{}", e),
+			Error::Io(ref e) => write!(f, "{}", e),
+			Error::JsonRpc(ref e) => write!(f, "{:?}", e),
+			Error::Network(ref e) => write!(f, "{}", e),
+			Error::Logger(ref e) => write!(f, "{}", e),
 		}
 	}
 }
@@ -251,7 +251,6 @@ fn initialize_logger(log_level: String) -> Result<(), String> {
 	log::setup_log(&l)?;
 	Ok(())
 }
-
 
 #[cfg(test)]
 mod tests {
