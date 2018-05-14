@@ -472,10 +472,6 @@ mod tests {
 	fn get_default_ethash_extensions() -> EthashExtensions {
 		EthashExtensions {
 			homestead_transition: 1150000,
-			eip150_transition: u64::max_value(),
-			eip160_transition: u64::max_value(),
-			eip161abc_transition: u64::max_value(),
-			eip161d_transition: u64::max_value(),
 			dao_hardfork_transition: u64::max_value(),
 			dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
 			dao_hardfork_accounts: Vec::new(),
