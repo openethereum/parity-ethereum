@@ -10,11 +10,7 @@
         "blockReward": "0x2B5E3AF16B1880000",
         "homesteadTransition": "0x0",
         "bombDefuseTransition": "0x0",
-        "eip150Transition": "0x0",
-        "eip160Transition": "0x0",
-        "ecip1017EraRounds": 5000000,
-        "eip161abcTransition": "0x7fffffffffffffff",
-        "eip161dTransition": "0x7fffffffffffffff"
+        "ecip1017EraRounds": 5000000
       }
     }
   },
@@ -26,7 +22,11 @@
     "minGasLimit": "0x1388",
     "networkID": "0x7",
     "chainID": "0x7",
+	"eip150Transition": "0x0",
+    "eip160Transition": "0x0",
     "eip155Transition": "0x0",
+	"eip161abcTransition": "0x7fffffffffffffff",
+    "eip161dTransition": "0x7fffffffffffffff",
     "eip98Transition": "0x7fffffffffffff",
     "eip86Transition": "0x7fffffffffffff"
   },
