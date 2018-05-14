@@ -41,14 +41,16 @@ const RALLY_TIMEOUT: Duration = Duration::from_millis(2500);
 /// Current protocol version.
 pub const PROTOCOL_VERSION: usize = 6;
 
+/// Number of packets. A bunch are reserved.
+const PACKET_COUNT: u8 = 128;
+
 /// Supported protocol versions.
-pub const SUPPORTED_VERSIONS: &'static [u8] = &[PROTOCOL_VERSION as u8];
+pub const SUPPORTED_VERSIONS: &'static [(u8, u8)] = &[
+	(PROTOCOL_VERSION as u8, PACKET_COUNT)
+];
 
 // maximum tolerated delay between messages packets.
 const MAX_TOLERATED_DELAY: Duration = Duration::from_millis(5000);
-
-/// Number of packets. A bunch are reserved.
-pub const PACKET_COUNT: u8 = 128;
 
 /// Whisper protocol ID
 pub const PROTOCOL_ID: ::network::ProtocolId = *b"shh";
