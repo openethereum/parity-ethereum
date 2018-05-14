@@ -153,10 +153,6 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 		self.session_id.map_or_else(|| Err(ErrorKind::Expired.into()), |id| self.send(id, packet_id, data))
 	}
 
-	fn io_channel(&self) -> IoChannel<NetworkIoMessage> {
-		self.io.channel()
-	}
-
 	fn disable_peer(&self, peer: PeerId) {
 		self.io.message(NetworkIoMessage::DisablePeer(peer))
 			.unwrap_or_else(|e| warn!("Error sending network IO message: {:?}", e));
