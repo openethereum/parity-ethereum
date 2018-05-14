@@ -64,10 +64,8 @@ pub enum NetworkIoMessage {
 		handler: Arc<NetworkProtocolHandler + Sync>,
 		/// Protocol Id.
 		protocol: ProtocolId,
-		/// Supported protocol versions.
-		versions: Vec<u8>,
-		/// Number of packet IDs reserved by the protocol.
-		packet_count: u8,
+		/// Supported protocol versions and number of packet IDs reserved by the protocol (packet count).
+		versions: Vec<(u8, u8)>,
 	},
 	/// Register a new protocol timer
 	AddTimer {

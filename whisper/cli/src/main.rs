@@ -218,10 +218,10 @@ fn execute<S, I>(command: I) -> Result<(), Error> where I: IntoIterator<Item=S>,
 	network.start()?;
 
 	// Attach whisper protocol to the network service
-	network.register_protocol(whisper_network_handler.clone(), whisper::net::PROTOCOL_ID, whisper::net::PACKET_COUNT,
+	network.register_protocol(whisper_network_handler.clone(), whisper::net::PROTOCOL_ID,
 							  whisper::net::SUPPORTED_VERSIONS)?;
 	network.register_protocol(Arc::new(whisper::net::ParityExtensions), whisper::net::PARITY_PROTOCOL_ID,
-							  whisper::net::PACKET_COUNT, whisper::net::SUPPORTED_VERSIONS)?;
+							  whisper::net::SUPPORTED_VERSIONS)?;
 
 	// Request handler
 	let mut io = MetaIoHandler::default();
