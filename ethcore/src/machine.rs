@@ -126,7 +126,7 @@ impl EthereumMachine {
 	/// VM is modified to have its gas limit bounded at the upper limit of possible used
 	/// gases including this system call, capped at the maximum value able to be
 	/// represented by U256. This system call modifies the block state, but discards other
-	/// informations. If suicides, logs or refunds happened within the system call, they
+	/// information. If suicides, logs or refunds happen within the system call, they
 	/// will not be executed or recorded. Gas used by this system call will not be counted
 	/// on the block.
 	pub fn execute_as_system(
