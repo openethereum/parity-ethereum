@@ -84,11 +84,16 @@ error_chain! {
 	foreign_links {
 		SocketIo(IoError) #[doc = "Socket IO error."];
 		Io(io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
-		AddressParse(net::AddrParseError) #[doc = "Error concerning the network address parsing subsystem."];
 		Decompression(snappy::InvalidInput) #[doc = "Decompression error."];
 	}
 
 	errors {
+		#[doc = "Error concerning the network address parsing subsystem."]
+		AddressParse {
+			description("Failed to parse network address"),
+			display("Failed to parse network address"),
+		}
+
 		#[doc = "Error concerning the network address resolution subsystem."]
 		AddressResolve(err: Option<io::Error>) {
 			description("Failed to resolve network address"),
@@ -161,6 +166,10 @@ impl From<crypto::error::SymmError> for Error {
 	fn from(_err: crypto::error::SymmError) -> Self {
 		ErrorKind::Auth.into()
 	}
+}
+
+impl From<net::AddrParseError> for Error {
+	fn from(_err: net::AddrParseError) -> Self { ErrorKind::AddressParse.into() }
 }
 
 #[test]

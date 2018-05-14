@@ -34,6 +34,7 @@ trace-time = { path = "../../util/trace-time" }
 ipnetwork = "0.12.6"
 
 [dev-dependencies]
+ethcore-io = { path = "../../util/io", features = ["mio"] }
 ethkey = { path = "../../ethkey" }
 kvdb-memorydb = { path = "../../util/kvdb-memorydb" }
 ethcore-private-tx = { path = "../private-tx" }
