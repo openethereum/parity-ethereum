@@ -1,6 +1,6 @@
 {
 	"name": "Morden",
-	"dataDir": "test",
+	"dataDir": "Morden",
 	"engine": {
 		"Ethash": {
 			"params": {
