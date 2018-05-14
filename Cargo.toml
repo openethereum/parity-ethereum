@@ -32,7 +32,7 @@ fdlimit = "0.1"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 ethcore = { path = "ethcore" }
-ethcore-bytes = { path = "util/bytes" }
+ethcore-bytes = "0.1.1"
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }

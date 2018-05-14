@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
-ethcore-bytes = { path = "../../util/bytes" }
+ethcore-bytes = "0.1.1"
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethcore-io = { path = "../../util/io" }

@@ -28,7 +28,7 @@ itertools = "0.5"
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 
-ethcore-bytes = { path = "../util/bytes" }
+ethcore-bytes = "0.1.1"
 ethereum-types = "0.3"
 fetch = { path = "../util/fetch" }
 node-health = { path = "./node-health" }

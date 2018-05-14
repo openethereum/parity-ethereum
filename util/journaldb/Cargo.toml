@@ -6,7 +6,7 @@ description = "A `HashDB` which can manage a short-term journal potentially cont
 license = "GPL3"
 
 [dependencies]
-ethcore-bytes = { path = "../bytes" }
+ethcore-bytes = "0.1.1"
 ethereum-types = "0.3"
 hashdb = { path = "../hashdb" }
 heapsize = "0.4"
