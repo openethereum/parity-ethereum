@@ -45,7 +45,6 @@ use super::{
 	MAX_NEW_BLOCK_AGE,
 	MAX_NEW_HASHES,
 	PAR_PROTOCOL_VERSION_1,
-	PAR_PROTOCOL_VERSION_2,
 	PAR_PROTOCOL_VERSION_3,
 	BLOCK_BODIES_PACKET,
 	BLOCK_HEADERS_PACKET,
@@ -641,8 +640,11 @@ impl SyncHandler {
 			trace!(target: "sync", "Peer {} network id mismatch (ours: {}, theirs: {})", peer_id, sync.network_id, peer.network_id);
 			return Ok(());
 		}
-		if (warp_protocol && peer.protocol_version != PAR_PROTOCOL_VERSION_1 && peer.protocol_version != PAR_PROTOCOL_VERSION_2 && peer.protocol_version != PAR_PROTOCOL_VERSION_3)
-			|| (!warp_protocol && peer.protocol_version != ETH_PROTOCOL_VERSION_63 && peer.protocol_version != ETH_PROTOCOL_VERSION_62) {
+
+		if false
+			|| (warp_protocol && (peer.protocol_version < PAR_PROTOCOL_VERSION_1.0 || peer.protocol_version > PAR_PROTOCOL_VERSION_3.0))
+			|| (!warp_protocol && (peer.protocol_version < ETH_PROTOCOL_VERSION_62.0 || peer.protocol_version > ETH_PROTOCOL_VERSION_63.0))
+		{
 			io.disable_peer(peer_id);
 			trace!(target: "sync", "Peer {} unsupported eth protocol ({})", peer_id, peer.protocol_version);
 			return Ok(());
