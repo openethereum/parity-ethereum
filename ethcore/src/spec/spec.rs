@@ -48,6 +48,8 @@ use trace::{NoopTracer, NoopVMTracer};
 
 pub use ethash::OptimizeFor;
 
+const MAX_TRANSACTION_SIZE: usize = 300 * 1024;
+
 // helper for formatting errors.
 fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
 	format!("Spec json is invalid: {}", f)
@@ -103,6 +105,8 @@ pub struct CommonParams {
 	pub eip211_transition: BlockNumber,
 	/// Number of first block where EIP-214 rules begin.
 	pub eip214_transition: BlockNumber,
+	/// Number of first block where EIP-145 rules begin.
+	pub eip145_transition: BlockNumber,
 	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
 	pub dust_protection_transition: BlockNumber,
 	/// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
@@ -123,6 +127,8 @@ pub struct CommonParams {
 	pub max_code_size_transition: BlockNumber,
 	/// Transaction permission managing contract address.
 	pub transaction_permission_contract: Option<Address>,
+	/// Maximum size of transaction's RLP payload
+	pub max_transaction_size: usize,
 }
 
 impl CommonParams {
@@ -148,6 +154,7 @@ impl CommonParams {
 		schedule.have_revert = block_number >= self.eip140_transition;
 		schedule.have_static_call = block_number >= self.eip214_transition;
 		schedule.have_return_data = block_number >= self.eip211_transition;
+		schedule.have_bitwise_shifting = block_number >= self.eip145_transition;
 		if block_number >= self.eip210_transition {
 			schedule.blockhash_gas = 800;
 		}
@@ -194,16 +201,16 @@ impl From<ethjson::spec::Params> for CommonParams {
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
 			validate_chain_id_transition: p.validate_chain_id_transition.map_or(0, Into::into),
-			eip86_transition: p.eip86_transition.map_or(
-				BlockNumber::max_value(),
+			eip86_transition: p.eip86_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			eip140_transition: p.eip140_transition.map_or(
-				BlockNumber::max_value(),
+			eip140_transition: p.eip140_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			eip210_transition: p.eip210_transition.map_or(
-				BlockNumber::max_value(),
+			eip210_transition: p.eip210_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
 			eip210_contract_address: p.eip210_contract_address.map_or(0xf0.into(), Into::into),
@@ -216,20 +223,24 @@ impl From<ethjson::spec::Params> for CommonParams {
 				Into::into,
 			),
 			eip210_contract_gas: p.eip210_contract_gas.map_or(1000000.into(), Into::into),
-			eip211_transition: p.eip211_transition.map_or(
-				BlockNumber::max_value(),
+			eip211_transition: p.eip211_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			eip214_transition: p.eip214_transition.map_or(
-				BlockNumber::max_value(),
+			eip145_transition: p.eip145_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			eip658_transition: p.eip658_transition.map_or(
-				BlockNumber::max_value(),
+			eip214_transition: p.eip214_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
-			dust_protection_transition: p.dust_protection_transition.map_or(
-				BlockNumber::max_value(),
+			eip658_transition: p.eip658_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			dust_protection_transition: p.dust_protection_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into,
 			),
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
@@ -238,10 +249,11 @@ impl From<ethjson::spec::Params> for CommonParams {
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
+			max_transaction_size: p.max_transaction_size.map_or(MAX_TRANSACTION_SIZE, Into::into),
 			max_code_size_transition: p.max_code_size_transition.map_or(0, Into::into),
 			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
-			wasm_activation_transition: p.wasm_activation_transition.map_or(
-				BlockNumber::max_value(),
+			wasm_activation_transition: p.wasm_activation_transition.map_or_else(
+				BlockNumber::max_value,
 				Into::into
 			),
 		}

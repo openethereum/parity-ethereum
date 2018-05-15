@@ -20,8 +20,8 @@ use std::collections::{BTreeMap, HashSet};
 
 use version::version_data;
 
-use crypto::{ecies, DEFAULT_MAC};
-use ethkey::{Brain, Generator};
+use crypto::DEFAULT_MAC;
+use ethkey::{crypto::ecies, Brain, Generator};
 use ethstore::random_phrase;
 use sync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
@@ -395,9 +395,9 @@ impl Parity for ParityClient {
 
 		let engine = self.light_dispatch.client.engine().clone();
 		let from_encoded = move |encoded: encoded::Header| {
-			let header = encoded.decode();
+			let header = encoded.decode().map_err(errors::decode)?;
 			let extra_info = engine.extra_info(&header);
-			RichHeader {
+			Ok(RichHeader {
 				inner: Header {
 					hash: Some(header.hash().into()),
 					size: Some(encoded.rlp().as_raw().len().into()),
@@ -418,9 +418,8 @@ impl Parity for ParityClient {
 					extra_data: Bytes::new(header.extra_data().clone()),
 				},
 				extra_info: extra_info,
-			}
+			})
 		};
-
 		// Note: Here we treat `Pending` as `Latest`.
 		//       Since light clients don't produce pending blocks
 		//       (they don't have state) we can safely fallback to `Latest`.
@@ -430,7 +429,7 @@ impl Parity for ParityClient {
 			BlockNumber::Latest | BlockNumber::Pending => BlockId::Latest,
 		};
 
-		Box::new(self.fetcher().header(id).map(from_encoded))
+		Box::new(self.fetcher().header(id).and_then(from_encoded))
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String> {

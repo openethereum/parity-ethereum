@@ -41,7 +41,7 @@ const MAX_HANDLERS: usize = 8;
 
 /// Messages used to communicate with the event loop from other threads.
 #[derive(Clone)]
-pub enum IoMessage<Message> where Message: Send + Clone + Sized {
+pub enum IoMessage<Message> where Message: Send + Sized {
 	/// Shutdown the event loop
 	Shutdown,
 	/// Register a new protocol handler.
@@ -74,16 +74,16 @@ pub enum IoMessage<Message> where Message: Send + Clone + Sized {
 		token: StreamToken,
 	},
 	/// Broadcast a message across all protocol handlers.
-	UserMessage(Message)
+	UserMessage(Arc<Message>)
 }
 
 /// IO access point. This is passed to all IO handlers and provides an interface to the IO subsystem.
-pub struct IoContext<Message> where Message: Send + Clone + Sync + 'static {
+pub struct IoContext<Message> where Message: Send + Sync + 'static {
 	channel: IoChannel<Message>,
 	handler: HandlerId,
 }
 
-impl<Message> IoContext<Message> where Message: Send + Clone + Sync + 'static {
+impl<Message> IoContext<Message> where Message: Send + Sync + 'static {
 	/// Create a new IO access point. Takes references to all the data that can be updated within the IO handler.
 	pub fn new(channel: IoChannel<Message>, handler: HandlerId) -> IoContext<Message> {
 		IoContext {
@@ -181,17 +181,17 @@ struct UserTimer {
 /// Root IO handler. Manages user handlers, messages and IO timers.
 pub struct IoManager<Message> where Message: Send + Sync {
 	timers: Arc<RwLock<HashMap<HandlerId, UserTimer>>>,
-	handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>,
+	handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>>>>,
 	workers: Vec<Worker>,
 	worker_channel: chase_lev::Worker<Work<Message>>,
 	work_ready: Arc<SCondvar>,
 }
 
-impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
+impl<Message> IoManager<Message> where Message: Send + Sync + 'static {
 	/// Creates a new instance and registers it with the event loop.
 	pub fn start(
 		event_loop: &mut EventLoop<IoManager<Message>>,
-		handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>
+		handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>>>>
 	) -> Result<(), IoError> {
 		let (worker, stealer) = chase_lev::deque();
 		let num_workers = 4;
@@ -219,7 +219,7 @@ impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 	}
 }
 
-impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync + 'static {
+impl<Message> Handler for IoManager<Message> where Message: Send + Sync + 'static {
 	type Timeout = Token;
 	type Message = IoMessage<Message>;
 
@@ -267,7 +267,8 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 				event_loop.shutdown();
 			},
 			IoMessage::AddHandler { handler } => {
-				let handler_id = self.handlers.write().insert(handler.clone()).unwrap_or_else(|_| panic!("Too many handlers registered"));
+				let handler_id = self.handlers.write().insert(handler.clone());
+				assert!(handler_id <= MAX_HANDLERS, "Too many handlers registered");
 				handler.initialize(&IoContext::new(IoChannel::new(event_loop.channel(), Arc::downgrade(&self.handlers)), handler_id));
 			},
 			IoMessage::RemoveHandler { handler_id } => {
@@ -317,7 +318,12 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 				for id in 0 .. MAX_HANDLERS {
 					if let Some(h) = self.handlers.read().get(id) {
 						let handler = h.clone();
-						self.worker_channel.push(Work { work_type: WorkType::Message(data.clone()), token: 0, handler: handler, handler_id: id });
+						self.worker_channel.push(Work {
+							work_type: WorkType::Message(data.clone()),
+							token: 0,
+							handler: handler,
+							handler_id: id
+						});
 					}
 				}
 				self.work_ready.notify_all();
@@ -326,21 +332,30 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 	}
 }
 
-#[derive(Clone)]
-enum Handlers<Message> where Message: Send + Clone {
-	SharedCollection(Weak<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>),
+enum Handlers<Message> where Message: Send {
+	SharedCollection(Weak<RwLock<Slab<Arc<IoHandler<Message>>>>>),
 	Single(Weak<IoHandler<Message>>),
+}
+
+impl<Message: Send> Clone for Handlers<Message> {
+	fn clone(&self) -> Self {
+		use self::Handlers::*;
+
+		match *self {
+			SharedCollection(ref w) => SharedCollection(w.clone()),
+			Single(ref w) => Single(w.clone()),
+		}
+	}
 }
 
 /// Allows sending messages into the event loop. All the IO handlers will get the message
 /// in the `message` callback.
-pub struct IoChannel<Message> where Message: Send + Clone{
+pub struct IoChannel<Message> where Message: Send {
 	channel: Option<Sender<IoMessage<Message>>>,
 	handlers: Handlers<Message>,
-
 }
 
-impl<Message> Clone for IoChannel<Message> where Message: Send + Clone + Sync + 'static {
+impl<Message> Clone for IoChannel<Message> where Message: Send + Sync + 'static {
 	fn clone(&self) -> IoChannel<Message> {
 		IoChannel {
 			channel: self.channel.clone(),
@@ -349,11 +364,11 @@ impl<Message> Clone for IoChannel<Message> where Message: Send + Clone + Sync + 
 	}
 }
 
-impl<Message> IoChannel<Message> where Message: Send + Clone + Sync + 'static {
+impl<Message> IoChannel<Message> where Message: Send + Sync + 'static {
 	/// Send a message through the channel
 	pub fn send(&self, message: Message) -> Result<(), IoError> {
 		match self.channel {
-			Some(ref channel) => channel.send(IoMessage::UserMessage(message))?,
+			Some(ref channel) => channel.send(IoMessage::UserMessage(Arc::new(message)))?,
 			None => self.send_sync(message)?
 		}
 		Ok(())
@@ -403,7 +418,7 @@ impl<Message> IoChannel<Message> where Message: Send + Clone + Sync + 'static {
 			handlers: Handlers::Single(handler),
 		}
 	}
-	fn new(channel: Sender<IoMessage<Message>>, handlers: Weak<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>) -> IoChannel<Message> {
+	fn new(channel: Sender<IoMessage<Message>>, handlers: Weak<RwLock<Slab<Arc<IoHandler<Message>>>>>) -> IoChannel<Message> {
 		IoChannel {
 			channel: Some(channel),
 			handlers: Handlers::SharedCollection(handlers),
@@ -413,20 +428,20 @@ impl<Message> IoChannel<Message> where Message: Send + Clone + Sync + 'static {
 
 /// General IO Service. Starts an event loop and dispatches IO requests.
 /// 'Message' is a notification message type
-pub struct IoService<Message> where Message: Send + Sync + Clone + 'static {
+pub struct IoService<Message> where Message: Send + Sync + 'static {
 	thread: Mutex<Option<JoinHandle<()>>>,
 	host_channel: Mutex<Sender<IoMessage<Message>>>,
-	handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>,
+	handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>>>>,
 }
 
-impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
+impl<Message> IoService<Message> where Message: Send + Sync + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<IoService<Message>, IoError> {
 		let mut config = EventLoopBuilder::new();
 		config.messages_per_tick(1024);
 		let mut event_loop = config.build().expect("Error creating event loop");
 		let channel = event_loop.channel();
-		let handlers = Arc::new(RwLock::new(Slab::new(MAX_HANDLERS)));
+		let handlers = Arc::new(RwLock::new(Slab::with_capacity(MAX_HANDLERS)));
 		let h = handlers.clone();
 		let thread = thread::spawn(move || {
 			IoManager::<Message>::start(&mut event_loop, h).expect("Error starting IO service");
@@ -462,7 +477,7 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 
 	/// Send a message over the network. Normaly `HostIo::send` should be used. This can be used from non-io threads.
 	pub fn send_message(&self, message: Message) -> Result<(), IoError> {
-		self.host_channel.lock().send(IoMessage::UserMessage(message))?;
+		self.host_channel.lock().send(IoMessage::UserMessage(Arc::new(message)))?;
 		Ok(())
 	}
 
@@ -472,9 +487,8 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	}
 }
 
-impl<Message> Drop for IoService<Message> where Message: Send + Sync + Clone {
+impl<Message> Drop for IoService<Message> where Message: Send + Sync {
 	fn drop(&mut self) {
 		self.stop()
 	}
 }
-

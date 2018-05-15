@@ -75,14 +75,17 @@ const RECALCULATE_COSTS_INTERVAL: Duration = Duration::from_secs(60 * 60);
 // minimum interval between updates.
 const UPDATE_INTERVAL: Duration = Duration::from_millis(5000);
 
+/// Packet count for PIP.
+const PACKET_COUNT_V1: u8 = 9;
+
 /// Supported protocol versions.
-pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
+pub const PROTOCOL_VERSIONS: &'static [(u8, u8)] = &[
+	(1, PACKET_COUNT_V1),
+];
 
 /// Max protocol version.
 pub const MAX_PROTOCOL_VERSION: u8 = 1;
 
-/// Packet count for PIP.
-pub const PACKET_COUNT: u8 = 9;
 
 // packet ID definitions.
 mod packet {
@@ -111,9 +114,9 @@ mod packet {
 mod timeout {
 	use std::time::Duration;
 
-	pub const HANDSHAKE: Duration =  Duration::from_millis(2500);
-	pub const ACKNOWLEDGE_UPDATE: Duration = Duration::from_millis(5000);
-	pub const BASE: u64 = 1500; // base timeout for packet.
+	pub const HANDSHAKE: Duration = Duration::from_millis(4_000);
+	pub const ACKNOWLEDGE_UPDATE: Duration = Duration::from_millis(5_000);
+	pub const BASE: u64 = 2_500; // base timeout for packet.
 
 	// timeouts per request within packet.
 	pub const HEADERS: u64 = 250; // per header?
@@ -688,7 +691,7 @@ impl LightProtocol {
 			Err(e) => { punish(*peer, io, e); return }
 		};
 
-		if PROTOCOL_VERSIONS.iter().find(|x| **x == proto_version).is_none() {
+		if PROTOCOL_VERSIONS.iter().find(|x| x.0 == proto_version).is_none() {
 			punish(*peer, io, Error::UnsupportedProtocolVersion(proto_version));
 			return;
 		}

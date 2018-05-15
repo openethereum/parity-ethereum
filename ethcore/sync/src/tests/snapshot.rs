@@ -22,7 +22,7 @@ use parking_lot::Mutex;
 use bytes::Bytes;
 use ethcore::snapshot::{SnapshotService, ManifestData, RestorationStatus};
 use ethcore::header::BlockNumber;
-use ethcore::client::{EachBlockWith};
+use ethcore::client::EachBlockWith;
 use super::helpers::*;
 use {SyncConfig, WarpSync};
 
@@ -99,7 +99,15 @@ impl SnapshotService for TestSnapshotService {
 	}
 
 	fn begin_restore(&self, manifest: ManifestData) {
-		*self.restoration_manifest.lock() = Some(manifest);
+		let mut restoration_manifest = self.restoration_manifest.lock();
+
+		if let Some(ref c_manifest) = *restoration_manifest {
+			if c_manifest.state_root == manifest.state_root {
+				return;
+			}
+		}
+
+		*restoration_manifest = Some(manifest);
 		self.state_restoration_chunks.lock().clear();
 		self.block_restoration_chunks.lock().clear();
 	}

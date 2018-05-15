@@ -244,7 +244,7 @@ mod tests {
 		]);
 
 		let encoded = ::rlp::encode(&block_traces);
-		let decoded = ::rlp::decode(&encoded);
+		let decoded = ::rlp::decode(&encoded).expect("error decoding block traces");
 		assert_eq!(block_traces, decoded);
 	}
 }

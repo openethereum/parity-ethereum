@@ -338,6 +338,8 @@ pub fn transaction_message(error: &TransactionError) -> String {
 		RecipientBanned => "Recipient is banned in local queue.".into(),
 		CodeBanned => "Code is banned in local queue.".into(),
 		NotAllowed => "Transaction is not permitted.".into(),
+		TooBig => "Transaction is too big, see chain specification for the limit.".into(),
+		InvalidRlp(ref descr) => format!("Invalid RLP data: {}", descr),
 	}
 }
 
@@ -355,6 +357,19 @@ pub fn transaction<T: Into<EthcoreError>>(error: T) -> Error {
 			message: "Unknown error when sending transaction.".into(),
 			data: Some(Value::String(format!("{:?}", error))),
 		}
+	}
+}
+
+pub fn decode<T: Into<EthcoreError>>(error: T) -> Error {
+	let error = error.into();
+	match *error.kind() {
+		ErrorKind::Decoder(ref dec_err) => rlp(dec_err.clone()),
+		_ => Error {
+			code: ErrorCode::InternalError,
+			message: "decoding error".into(),
+			data: None,
+		}
+
 	}
 }
 

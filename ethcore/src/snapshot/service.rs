@@ -176,7 +176,7 @@ impl Restoration {
 		// verify final state root.
 		let root = self.state.state_root();
 		if root != self.final_state_root {
-			warn!("Final restored state has wrong state root: expected {:?}, got {:?}", root, self.final_state_root);
+			warn!("Final restored state has wrong state root: expected {:?}, got {:?}", self.final_state_root, root);
 			return Err(TrieError::InvalidStateRoot(root).into());
 		}
 

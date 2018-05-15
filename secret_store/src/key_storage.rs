@@ -21,7 +21,7 @@ use tiny_keccak::Keccak;
 use ethereum_types::{H256, Address};
 use ethkey::{Secret, Public, public_to_address};
 use kvdb::KeyValueDB;
-use types::all::{Error, ServerKeyId, NodeId};
+use types::{Error, ServerKeyId, NodeId};
 use serialization::{SerializablePublic, SerializableSecret, SerializableH256, SerializableAddress};
 
 /// Key of version value.
@@ -419,7 +419,7 @@ pub mod tests {
 	use ethereum_types::{Address, H256};
 	use ethkey::{Random, Generator, Public, Secret, public_to_address};
 	use kvdb_rocksdb::Database;
-	use types::all::{Error, ServerKeyId};
+	use types::{Error, ServerKeyId};
 	use super::{DB_META_KEY_VERSION, CURRENT_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
 		DocumentKeyShareVersion, CurrentSerializableDocumentKeyShare, upgrade_db, SerializableDocumentKeyShareV0,
 		SerializableDocumentKeyShareV1, SerializableDocumentKeyShareV2, SerializableDocumentKeyShareVersionV2};

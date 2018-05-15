@@ -85,6 +85,9 @@ pub struct Params {
 	#[serde(rename="eip211Transition")]
 	pub eip211_transition: Option<Uint>,
 	/// See `CommonParams` docs.
+	#[serde(rename="eip145Transition")]
+	pub eip145_transition: Option<Uint>,
+	/// See `CommonParams` docs.
 	#[serde(rename="eip214Transition")]
 	pub eip214_transition: Option<Uint>,
 	/// See `CommonParams` docs.
@@ -113,6 +116,9 @@ pub struct Params {
 	/// See main EthashParams docs.
 	#[serde(rename="maxCodeSize")]
 	pub max_code_size: Option<Uint>,
+	/// Maximum size of transaction RLP payload.
+	#[serde(rename="maxTransactionSize")]
+	pub max_transaction_size: Option<Uint>,
 	/// See main EthashParams docs.
 	#[serde(rename="maxCodeSizeTransition")]
 	pub max_code_size_transition: Option<Uint>,

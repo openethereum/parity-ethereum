@@ -19,12 +19,15 @@
 //! and https://github.com/trezor/trezor-common/blob/master/protob/protocol.md
 //! for protocol details.
 
-use super::{WalletInfo, TransactionInfo, KeyPath};
+use super::{WalletInfo, TransactionInfo, KeyPath, Wallet, Device, USB_DEVICE_CLASS_DEVICE};
 
 use std::cmp::{min, max};
 use std::fmt;
 use std::sync::{Arc, Weak};
+use std::sync::atomic;
+use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
+use std::thread;
 
 use ethereum_types::{U256, H256, Address};
 use ethkey::Signature;
@@ -37,9 +40,9 @@ use protobuf::{Message, ProtobufEnum};
 use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 
 /// Trezor v1 vendor ID
-pub const TREZOR_VID: u16 = 0x534c;
+const TREZOR_VID: u16 = 0x534c;
 /// Trezor product IDs
-pub const TREZOR_PIDS: [u16; 1] = [0x0001];
+const TREZOR_PIDS: [u16; 1] = [0x0001];
 
 const ETH_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003C, 0x80000000, 0, 0]; // m/44'/60'/0'/0/0
 const ETC_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003D, 0x80000000, 0, 0]; // m/44'/61'/0'/0/0
@@ -94,12 +97,6 @@ pub struct Manager {
 	key_path: RwLock<KeyPath>,
 }
 
-#[derive(Debug)]
-struct Device {
-	path: String,
-	info: WalletInfo,
-}
-
 /// HID Version used for the Trezor device
 enum HidVersion {
 	V1,
@@ -108,102 +105,42 @@ enum HidVersion {
 
 impl Manager {
 	/// Create a new instance.
-	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>) -> Manager {
-		Manager {
+	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>, exiting: Arc<AtomicBool>) -> Result<Arc<Manager>, libusb::Error> {
+		let manager = Arc::new(Manager {
 			usb: hidapi,
 			devices: RwLock::new(Vec::new()),
 			locked_devices: RwLock::new(Vec::new()),
 			key_path: RwLock::new(KeyPath::Ethereum),
-		}
-	}
+		});
 
-	/// Re-populate device list
-	pub fn update_devices(&self) -> Result<usize, Error> {
-		let mut usb = self.usb.lock();
-		usb.refresh_devices();
-		let devices = usb.devices();
-		let mut new_devices = Vec::new();
-		let mut locked_devices = Vec::new();
-		let mut error = None;
-		for usb_device in devices {
-			let is_trezor = usb_device.vendor_id == TREZOR_VID;
-			let is_supported_product = TREZOR_PIDS.contains(&usb_device.product_id);
-			let is_valid = usb_device.usage_page == 0xFF00 || usb_device.interface_number == 0;
+		let usb_context = Arc::new(libusb::Context::new()?);
+		let m = manager.clone();
 
-			trace!(
-				"Checking device: {:?}, trezor: {:?}, prod: {:?}, valid: {:?}",
-				usb_device,
-				is_trezor,
-				is_supported_product,
-				is_valid,
-			);
-			if !is_trezor || !is_supported_product || !is_valid {
-				continue;
-			}
-			match self.read_device_info(&usb, &usb_device) {
-				Ok(device) => new_devices.push(device),
-				Err(Error::LockedDevice(path)) => locked_devices.push(path.to_string()),
-				Err(e) => {
-					warn!("Error reading device: {:?}", e);
-					error = Some(e);
+		// Subscribe to TREZOR V1
+		// Note, this support only TREZOR V1 because TREZOR V2 has a different vendorID for some reason
+		// Also, we now only support one product as the second argument specifies
+		usb_context.register_callback(
+			Some(TREZOR_VID), Some(TREZOR_PIDS[0]), Some(USB_DEVICE_CLASS_DEVICE),
+			Box::new(EventHandler::new(Arc::downgrade(&manager))))?;
+
+		// Trezor event thread
+		thread::Builder::new()
+			.name("hw_wallet_trezor".to_string())
+			.spawn(move || {
+				if let Err(e) = m.update_devices() {
+					debug!(target: "hw", "Trezor couldn't connect at startup, error: {}", e);
 				}
-			}
-		}
-		let count = new_devices.len();
-		trace!("Got devices: {:?}, closed: {:?}", new_devices, locked_devices);
-		*self.devices.write() = new_devices;
-		*self.locked_devices.write() = locked_devices;
-		match error {
-			Some(e) => Err(e),
-			None => Ok(count),
-		}
-	}
+				loop {
+					usb_context.handle_events(Some(Duration::from_millis(500)))
+							   .unwrap_or_else(|e| debug!(target: "hw", "Trezor event handler error: {}", e));
+					if exiting.load(atomic::Ordering::Acquire) {
+						break;
+					}
+				}
+			})
+			.ok();
 
-	fn read_device_info(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Error> {
-		let handle = self.open_path(|| usb.open_path(&dev_info.path))?;
-		let manufacturer = dev_info.manufacturer_string.clone().unwrap_or("Unknown".to_owned());
-		let name = dev_info.product_string.clone().unwrap_or("Unknown".to_owned());
-		let serial = dev_info.serial_number.clone().unwrap_or("Unknown".to_owned());
-		match self.get_address(&handle) {
-			Ok(Some(addr)) => {
-				Ok(Device {
-					path: dev_info.path.clone(),
-					info: WalletInfo {
-						name: name,
-						manufacturer: manufacturer,
-						serial: serial,
-						address: addr,
-					},
-				})
-			}
-			Ok(None) => Err(Error::LockedDevice(dev_info.path.clone())),
-			Err(e) => Err(e),
-		}
-	}
-
-	/// Select key derivation path for a known chain.
-	pub fn set_key_path(&self, key_path: KeyPath) {
-		*self.key_path.write() = key_path;
-	}
-
-	/// List connected wallets. This only returns wallets that are ready to be used.
-	pub fn list_devices(&self) -> Vec<WalletInfo> {
-		self.devices.read().iter().map(|d| d.info.clone()).collect()
-	}
-
-	pub fn list_locked_devices(&self) -> Vec<String> {
-		(*self.locked_devices.read()).clone()
-	}
-
-	/// Get wallet info.
-	pub fn device_info(&self, address: &Address) -> Option<WalletInfo> {
-		self.devices.read().iter().find(|d| &d.info.address == address).map(|d| d.info.clone())
-	}
-
-	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
-		where F: Fn() -> Result<R, &'static str>
-	{
-		f().map_err(Into::into)
+		Ok(manager)
 	}
 
 	pub fn pin_matrix_ack(&self, device_path: &str, pin: &str) -> Result<bool, Error> {
@@ -227,61 +164,6 @@ impl Manager {
 		unlocked
 	}
 
-	fn get_address(&self, device: &hidapi::HidDevice) -> Result<Option<Address>, Error> {
-		let typ = MessageType::MessageType_EthereumGetAddress;
-		let mut message = EthereumGetAddress::new();
-		match *self.key_path.read() {
-			KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
-			KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
-		}
-		message.set_show_display(false);
-		self.send_device_message(&device, &typ, &message)?;
-
-		let (resp_type, bytes) = self.read_device_response(&device)?;
-		match resp_type {
-			MessageType::MessageType_EthereumAddress => {
-				let response: EthereumAddress = protobuf::core::parse_from_bytes(&bytes)?;
-				Ok(Some(From::from(response.get_address())))
-			}
-			_ => Ok(None),
-		}
-	}
-
-	/// Sign transaction data with wallet managing `address`.
-	pub fn sign_transaction(&self, address: &Address, t_info: &TransactionInfo) -> Result<Signature, Error> {
-		let usb = self.usb.lock();
-		let devices = self.devices.read();
-		let device = devices.iter().find(|d| &d.info.address == address).ok_or(Error::KeyNotFound)?;
-		let handle = self.open_path(|| usb.open_path(&device.path))?;
-		let msg_type = MessageType::MessageType_EthereumSignTx;
-		let mut message = EthereumSignTx::new();
-		match *self.key_path.read() {
-			KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
-			KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
-		}
-		message.set_nonce(self.u256_to_be_vec(&t_info.nonce));
-		message.set_gas_limit(self.u256_to_be_vec(&t_info.gas_limit));
-		message.set_gas_price(self.u256_to_be_vec(&t_info.gas_price));
-		message.set_value(self.u256_to_be_vec(&t_info.value));
-
-		match t_info.to {
-			Some(addr) => {
-				message.set_to(addr.to_vec())
-			}
-			None => (),
-		}
-		let first_chunk_length = min(t_info.data.len(), 1024);
-		let chunk = &t_info.data[0..first_chunk_length];
-		message.set_data_initial_chunk(chunk.to_vec());
-		message.set_data_length(t_info.data.len() as u32);
-		if let Some(c_id) = t_info.chain_id {
-			message.set_chain_id(c_id as u32);
-		}
-
-		self.send_device_message(&handle, &msg_type, &message)?;
-
-		self.signing_loop(&handle, &t_info.chain_id, &t_info.data[first_chunk_length..])
-	}
 
 	fn u256_to_be_vec(&self, val: &U256) -> Vec<u8> {
 		let mut buf = [0u8; 32];
@@ -400,6 +282,152 @@ impl Manager {
 	}
 }
 
+impl <'a>Wallet<'a> for Manager {
+	type Error = Error;
+	type Transaction = &'a TransactionInfo;
+
+	fn sign_transaction(&self, address: &Address, t_info: Self::Transaction) ->
+		Result<Signature, Error> {
+		let usb = self.usb.lock();
+		let devices = self.devices.read();
+		let device = devices.iter().find(|d| &d.info.address == address).ok_or(Error::KeyNotFound)?;
+		let handle = self.open_path(|| usb.open_path(&device.path))?;
+		let msg_type = MessageType::MessageType_EthereumSignTx;
+		let mut message = EthereumSignTx::new();
+		match *self.key_path.read() {
+			KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
+			KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
+		}
+		message.set_nonce(self.u256_to_be_vec(&t_info.nonce));
+		message.set_gas_limit(self.u256_to_be_vec(&t_info.gas_limit));
+		message.set_gas_price(self.u256_to_be_vec(&t_info.gas_price));
+		message.set_value(self.u256_to_be_vec(&t_info.value));
+
+		match t_info.to {
+			Some(addr) => {
+				message.set_to(addr.to_vec())
+			}
+			None => (),
+		}
+		let first_chunk_length = min(t_info.data.len(), 1024);
+		let chunk = &t_info.data[0..first_chunk_length];
+		message.set_data_initial_chunk(chunk.to_vec());
+		message.set_data_length(t_info.data.len() as u32);
+		if let Some(c_id) = t_info.chain_id {
+			message.set_chain_id(c_id as u32);
+		}
+
+		self.send_device_message(&handle, &msg_type, &message)?;
+
+		self.signing_loop(&handle, &t_info.chain_id, &t_info.data[first_chunk_length..])
+	}
+
+	fn set_key_path(&self, key_path: KeyPath) {
+		*self.key_path.write() = key_path;
+	}
+
+	fn update_devices(&self) -> Result<usize, Error> {
+		let mut usb = self.usb.lock();
+		usb.refresh_devices();
+		let devices = usb.devices();
+		let mut new_devices = Vec::new();
+		let mut locked_devices = Vec::new();
+		let mut error = None;
+		for usb_device in devices {
+			let is_trezor = usb_device.vendor_id == TREZOR_VID;
+			let is_supported_product = TREZOR_PIDS.contains(&usb_device.product_id);
+			let is_valid = usb_device.usage_page == 0xFF00 || usb_device.interface_number == 0;
+
+			trace!(
+				"Checking device: {:?}, trezor: {:?}, prod: {:?}, valid: {:?}",
+				usb_device,
+				is_trezor,
+				is_supported_product,
+				is_valid,
+			);
+			if !is_trezor || !is_supported_product || !is_valid {
+				continue;
+			}
+			match self.read_device(&usb, &usb_device) {
+				Ok(device) => new_devices.push(device),
+				Err(Error::LockedDevice(path)) => locked_devices.push(path.to_string()),
+				Err(e) => {
+					warn!("Error reading device: {:?}", e);
+					error = Some(e);
+				}
+			}
+		}
+		let count = new_devices.len();
+		trace!("Got devices: {:?}, closed: {:?}", new_devices, locked_devices);
+		*self.devices.write() = new_devices;
+		*self.locked_devices.write() = locked_devices;
+		match error {
+			Some(e) => Err(e),
+			None => Ok(count),
+		}
+	}
+
+	fn read_device(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Error> {
+		let handle = self.open_path(|| usb.open_path(&dev_info.path))?;
+		let manufacturer = dev_info.manufacturer_string.clone().unwrap_or("Unknown".to_owned());
+		let name = dev_info.product_string.clone().unwrap_or("Unknown".to_owned());
+		let serial = dev_info.serial_number.clone().unwrap_or("Unknown".to_owned());
+		match self.get_address(&handle) {
+			Ok(Some(addr)) => {
+				Ok(Device {
+					path: dev_info.path.clone(),
+					info: WalletInfo {
+						name: name,
+						manufacturer: manufacturer,
+						serial: serial,
+						address: addr,
+					},
+				})
+			}
+			Ok(None) => Err(Error::LockedDevice(dev_info.path.clone())),
+			Err(e) => Err(e),
+		}
+	}
+
+	fn list_devices(&self) -> Vec<WalletInfo> {
+		self.devices.read().iter().map(|d| d.info.clone()).collect()
+	}
+
+	fn list_locked_devices(&self) -> Vec<String> {
+		(*self.locked_devices.read()).clone()
+	}
+
+	fn get_wallet(&self, address: &Address) -> Option<WalletInfo> {
+		self.devices.read().iter().find(|d| &d.info.address == address).map(|d| d.info.clone())
+	}
+
+	fn get_address(&self, device: &hidapi::HidDevice) -> Result<Option<Address>, Error> {
+		let typ = MessageType::MessageType_EthereumGetAddress;
+		let mut message = EthereumGetAddress::new();
+		match *self.key_path.read() {
+			KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
+			KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
+		}
+		message.set_show_display(false);
+		self.send_device_message(&device, &typ, &message)?;
+
+		let (resp_type, bytes) = self.read_device_response(&device)?;
+		match resp_type {
+			MessageType::MessageType_EthereumAddress => {
+				let response: EthereumAddress = protobuf::core::parse_from_bytes(&bytes)?;
+				Ok(Some(From::from(response.get_address())))
+			}
+			_ => Ok(None),
+		}
+	}
+
+	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
+		where F: Fn() -> Result<R, &'static str>
+	{
+		f().map_err(Into::into)
+	}
+}
+
 // Try to connect to the device using polling in at most the time specified by the `timeout`
 fn try_connect_polling(trezor: Arc<Manager>, duration: Duration) -> bool {
 	let start_time = Instant::now();
@@ -412,11 +440,11 @@ fn try_connect_polling(trezor: Arc<Manager>, duration: Duration) -> bool {
 }
 
 /// Trezor event handler
-/// A separate thread is handeling incoming events
+/// A separate thread is handling incoming events
 ///
 /// Note, that this run to completion and race-conditions can't occur but this can
 /// therefore starve other events for being process with a spinlock or similar
-pub struct EventHandler {
+struct EventHandler {
 	trezor: Weak<Manager>,
 }
 
@@ -455,10 +483,10 @@ fn test_signature() {
 	use ethereum_types::{H160, H256, U256};
 
 	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
-	let manager = Manager::new(hidapi.clone());
+	let manager = Manager::new(hidapi.clone(), Arc::new(AtomicBool::new(false))).unwrap();
 	let addr: Address = H160::from("some_addr");
 
-	manager.update_devices().unwrap();
+	assert_eq!(try_connect_polling(manager.clone(), Duration::from_millis(500)), true);
 
 	let t_info = TransactionInfo {
 		nonce: U256::from(1),

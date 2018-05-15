@@ -18,7 +18,6 @@
 
 mod authority_round;
 mod basic_authority;
-mod block_reward;
 mod instant_seal;
 mod null_engine;
 mod signer;
@@ -27,6 +26,7 @@ mod transition;
 mod validator_set;
 mod vote_collector;
 
+pub mod block_reward;
 pub mod epoch;
 
 pub use self::authority_round::AuthorityRound;
@@ -425,6 +425,11 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	/// Additional information.
 	fn additional_params(&self) -> HashMap<String, String> {
 		self.machine().additional_params()
+	}
+
+	/// Performs pre-validation of RLP decoded transaction before other processing
+	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
+		self.machine().decode_transaction(transaction)
 	}
 }
 

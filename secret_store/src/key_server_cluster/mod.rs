@@ -14,14 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
-use std::io::Error as IoError;
-use ethkey;
-use crypto;
-use super::types::all::ServerKeyId;
+use super::types::ServerKeyId;
 
 pub use super::traits::NodeKeyPair;
-pub use super::types::all::{NodeId, Requester, EncryptedDocumentKeyShadow};
+pub use super::types::{Error, NodeId, Requester, EncryptedDocumentKeyShadow};
 pub use super::acl_storage::AclStorage;
 pub use super::key_storage::{KeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
 pub use super::key_server_set::{is_migration_required, KeyServerSet, KeyServerSetSnapshot, KeyServerSetMigration};
@@ -53,126 +49,10 @@ pub struct SessionMeta {
 	pub self_node_id: NodeId,
 	/// Session threshold.
 	pub threshold: usize,
-}
-
-/// Errors which can occur during encryption/decryption session
-#[derive(Clone, Debug, PartialEq)]
-pub enum Error {
-	/// Invalid node address has been passed.
-	InvalidNodeAddress,
-	/// Invalid node id has been passed.
-	InvalidNodeId,
-	/// Session with the given id already exists.
-	DuplicateSessionId,
-	/// Session with the same id already completed.
-	CompletedSessionId,
-	/// Session is not ready to start yet (required data is not ready).
-	NotStartedSessionId,
-	/// Session with the given id is unknown.
-	InvalidSessionId,
-	/// Invalid number of nodes.
-	/// There must be at least two nodes participating in encryption.
-	/// There must be at least one node participating in decryption.
-	InvalidNodesCount,
-	/// Node which is required to start encryption/decryption session is not a part of cluster.
-	InvalidNodesConfiguration,
-	/// Invalid threshold value has been passed.
-	/// Threshold value must be in [0; n - 1], where n is a number of nodes participating in the encryption.
-	InvalidThreshold,
-	/// Current state of encryption/decryption session does not allow to proceed request.
-	/// Reschedule this request for later processing.
-	TooEarlyForRequest,
-	/// Current state of encryption/decryption session does not allow to proceed request.
-	/// This means that either there is some comm-failure or node is misbehaving/cheating.
-	InvalidStateForRequest,
-	/// Request cannot be sent/received from this node.
-	InvalidNodeForRequest,
-	/// Message or some data in the message was recognized as invalid.
-	/// This means that node is misbehaving/cheating.
-	InvalidMessage,
-	/// Message version is not supported.
-	InvalidMessageVersion,
-	/// Message is invalid because of replay-attack protection.
-	ReplayProtection,
-	/// Connection to node, required for this session is not established.
-	NodeDisconnected,
-	/// Node is missing requested key share.
-	MissingKeyShare,
-	/// Cryptographic error.
-	EthKey(String),
-	/// I/O error has occured.
-	Io(String),
-	/// Deserialization error has occured.
-	Serde(String),
-	/// Key storage error.
-	KeyStorage(String),
-	/// Consensus is unreachable.
-	ConsensusUnreachable,
-	/// Acl storage error.
-	AccessDenied,
-	/// Can't start session, because exclusive session is active.
-	ExclusiveSessionActive,
-	/// Can't start exclusive session, because there are other active sessions.
-	HasActiveSessions,
-	/// Insufficient requester data.
-	InsufficientRequesterData(String),
-}
-
-impl From<ethkey::Error> for Error {
-	fn from(err: ethkey::Error) -> Self {
-		Error::EthKey(err.into())
-	}
-}
-
-impl From<crypto::Error> for Error {
-	fn from(err: crypto::Error) -> Self {
-		Error::EthKey(err.into())
-	}
-}
-
-impl From<IoError> for Error {
-	fn from(err: IoError) -> Self {
-		Error::Io(err.to_string())
-	}
-}
-
-impl fmt::Display for Error {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			Error::InvalidNodeAddress => write!(f, "invalid node address has been passed"),
-			Error::InvalidNodeId => write!(f, "invalid node id has been passed"),
-			Error::DuplicateSessionId => write!(f, "session with the same id is already registered"),
-			Error::CompletedSessionId => write!(f, "session with the same id is already completed"),
-			Error::NotStartedSessionId => write!(f, "not enough data to start session with the given id"),
-			Error::InvalidSessionId => write!(f, "invalid session id has been passed"),
-			Error::InvalidNodesCount => write!(f, "invalid nodes count"),
-			Error::InvalidNodesConfiguration => write!(f, "invalid nodes configuration"),
-			Error::InvalidThreshold => write!(f, "invalid threshold value has been passed"),
-			Error::TooEarlyForRequest => write!(f, "session is not yet ready to process this request"),
-			Error::InvalidStateForRequest => write!(f, "session is in invalid state for processing this request"),
-			Error::InvalidNodeForRequest => write!(f, "invalid node for this request"),
-			Error::InvalidMessage => write!(f, "invalid message is received"),
-			Error::InvalidMessageVersion => write!(f, "unsupported message is received"),
-			Error::ReplayProtection => write!(f, "replay message is received"),
-			Error::NodeDisconnected => write!(f, "node required for this operation is currently disconnected"),
-			Error::MissingKeyShare => write!(f, "requested key share version is not found"),
-			Error::EthKey(ref e) => write!(f, "cryptographic error {}", e),
-			Error::Io(ref e) => write!(f, "i/o error {}", e),
-			Error::Serde(ref e) => write!(f, "serde error {}", e),
-			Error::KeyStorage(ref e) => write!(f, "key storage error {}", e),
-			Error::ConsensusUnreachable => write!(f, "Consensus unreachable"),
-			Error::AccessDenied => write!(f, "Access denied"),
-			Error::ExclusiveSessionActive => write!(f, "Exclusive session active"),
-			Error::HasActiveSessions => write!(f, "Unable to start exclusive session"),
-			Error::InsufficientRequesterData(ref e) => write!(f, "Insufficient requester data: {}", e),
-		}
-	}
-}
-
-impl Into<String> for Error {
-	fn into(self) -> String {
-		format!("{}", self)
-	}
+	/// Count of all configured key server nodes (valid at session start time).
+	pub configured_nodes_count: usize,
+	/// Count of all connected key server nodes (valid at session start time).
+	pub connected_nodes_count: usize,
 }
 
 mod admin_sessions;

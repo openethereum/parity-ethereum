@@ -29,7 +29,7 @@ use url::percent_encoding::percent_decode;
 
 use traits::KeyServer;
 use serialization::{SerializableEncryptedDocumentKeyShadow, SerializableBytes, SerializablePublic};
-use types::all::{Error, Public, MessageHash, NodeAddress, RequestSignature, ServerKeyId,
+use types::{Error, Public, MessageHash, NodeAddress, RequestSignature, ServerKeyId,
 	EncryptedDocumentKey, EncryptedDocumentKeyShadow, NodeId};
 
 /// Key server http-requests listener. Available requests:
@@ -271,15 +271,16 @@ fn return_bytes<T: Serialize>(req_uri: &Uri, result: Result<Option<T>, Error>) -
 }
 
 fn return_error(err: Error) -> HttpResponse {
-	let mut res = match err {
-		Error::InsufficientRequesterData(_) => HttpResponse::new().with_status(HttpStatusCode::BadRequest),
-		Error::AccessDenied => HttpResponse::new().with_status(HttpStatusCode::Forbidden),
-		Error::DocumentNotFound => HttpResponse::new().with_status(HttpStatusCode::NotFound),
-		Error::Hyper(_) => HttpResponse::new().with_status(HttpStatusCode::BadRequest),
-		Error::Serde(_) => HttpResponse::new().with_status(HttpStatusCode::BadRequest),
-		Error::Database(_) => HttpResponse::new().with_status(HttpStatusCode::InternalServerError),
-		Error::Internal(_) => HttpResponse::new().with_status(HttpStatusCode::InternalServerError),
-	};
+	let mut res = HttpResponse::new().with_status(match err {
+		Error::AccessDenied | Error::ConsensusUnreachable | Error::ConsensusTemporaryUnreachable =>
+			HttpStatusCode::Forbidden,
+		Error::ServerKeyIsNotFound | Error::DocumentKeyIsNotFound =>
+			HttpStatusCode::NotFound,
+		Error::InsufficientRequesterData(_) | Error::Hyper(_) | Error::Serde(_)
+			| Error::DocumentKeyAlreadyStored | Error::ServerKeyAlreadyGenerated =>
+			HttpStatusCode::BadRequest,
+		_ => HttpStatusCode::InternalServerError,
+	});
 
 	// return error text. ignore errors when returning error
 	let error_text = format!("\"{}\"", err);
@@ -377,7 +378,7 @@ mod tests {
 	use ethkey::Public;
 	use traits::KeyServer;
 	use key_server::tests::DummyKeyServer;
-	use types::all::NodeAddress;
+	use types::NodeAddress;
 	use super::{parse_request, Request, KeyServerHttpListener};
 
 	#[test]

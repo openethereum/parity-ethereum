@@ -198,6 +198,7 @@ macro_rules! usage {
 			}
 		}
 
+		/// Parsed command line arguments.
 		#[derive(Debug, PartialEq)]
 		pub struct Args {
 			$(

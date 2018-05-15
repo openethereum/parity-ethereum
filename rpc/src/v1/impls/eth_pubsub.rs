@@ -18,6 +18,7 @@
 
 use std::sync::{Arc, Weak};
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{self, Future, IntoFuture};
@@ -33,7 +34,7 @@ use v1::types::{pubsub, RichHeader, Log, ReturnData, Bytes as RpcBytes};
 
 use ethcore::encoded;
 use ethcore::filter::Filter as EthFilter;
-use ethcore::client::{BlockChainClient, ChainNotify, BlockId, CallAnalytics};
+use ethcore::client::{BlockChainClient, ChainNotify, ChainRoute, ChainRouteType, BlockId, CallAnalytics};
 use sync::LightSync;
 use light::cache::Cache;
 use light::on_demand::OnDemand;
@@ -127,77 +128,88 @@ pub struct ChainNotificationHandler<C> {
 }
 
 impl<C> ChainNotificationHandler<C> {
-    fn notify(remote: &Remote, subscriber: &Client, result: pubsub::Result) {
-        remote.spawn(subscriber
-                     .notify(Ok(result))
-                     .map(|_| ())
-                     .map_err(|e| warn!(target: "rpc", "Unable to send notification: {}", e))
-                    );
-    }
+	fn notify(remote: &Remote, subscriber: &Client, result: pubsub::Result) {
+		remote.spawn(subscriber
+			.notify(Ok(result))
+			.map(|_| ())
+			.map_err(|e| warn!(target: "rpc", "Unable to send notification: {}", e))
+		);
+	}
 
-    fn notify_heads(&self, headers: &[(encoded::Header, BTreeMap<String, String>)]) {
-        for subscriber in self.heads_subscribers.read().values() {
-            for &(ref header, ref extra_info) in headers {
-                Self::notify(&self.remote, subscriber, pubsub::Result::Header(RichHeader {
-                    inner: header.into(),
-                    extra_info: extra_info.clone(),
-                }));
-            }
-        }
-    }
+	fn notify_heads(&self, headers: &[(encoded::Header, BTreeMap<String, String>)]) {
+		for subscriber in self.heads_subscribers.read().values() {
+			for &(ref header, ref extra_info) in headers {
+				Self::notify(&self.remote, subscriber, pubsub::Result::Header(RichHeader {
+					inner: header.into(),
+					extra_info: extra_info.clone(),
+				}));
+			}
+		}
+	}
 
-    fn notify_logs<F, T>(&self, enacted: &[H256], logs: F) where
-        F: Fn(EthFilter) -> T,
-        T: IntoFuture<Item = Vec<Log>, Error = Error>,
-        T::Future: Send + 'static,
-        {
-            for &(ref subscriber, ref filter) in self.logs_subscribers.read().values() {
-                let logs = futures::future::join_all(enacted
-                                                     .iter()
-                                                     .map(|hash| {
-                                                         let mut filter = filter.clone();
-                                                         filter.from_block = BlockId::Hash(*hash);
-                                                         filter.to_block = filter.from_block.clone();
-                                                         logs(filter).into_future()
-                                                     })
-                                                     .collect::<Vec<_>>()
-                                                    );
-                let limit = filter.limit;
-                let remote = self.remote.clone();
-                let subscriber = subscriber.clone();
-                self.remote.spawn(logs
-                                  .map(move |logs| {
-                                      let logs = logs.into_iter().flat_map(|log| log).collect();
+	fn notify_logs<F, T, Ex>(&self, enacted: &[(H256, Ex)], logs: F) where
+		F: Fn(EthFilter, &Ex) -> T,
+		Ex: Send,
+		T: IntoFuture<Item = Vec<Log>, Error = Error>,
+		T::Future: Send + 'static,
+	{
+		for &(ref subscriber, ref filter) in self.logs_subscribers.read().values() {
+			let logs = futures::future::join_all(enacted
+				.iter()
+				.map(|&(hash, ref ex)| {
+					let mut filter = filter.clone();
+					filter.from_block = BlockId::Hash(hash);
+					filter.to_block = filter.from_block.clone();
+					logs(filter, ex).into_future()
+				})
+				.collect::<Vec<_>>()
+			);
+			let limit = filter.limit;
+			let remote = self.remote.clone();
+			let subscriber = subscriber.clone();
+			self.remote.spawn(logs
+				.map(move |logs| {
+					let logs = logs.into_iter().flat_map(|log| log).collect();
 
-                                      for log in limit_logs(logs, limit) {
-                                          Self::notify(&remote, &subscriber, pubsub::Result::Log(log))
-                                      }
-                                  })
-                                  .map_err(|e| warn!("Unable to fetch latest logs: {:?}", e))
-                                 );
-            }
-        }
+					for log in limit_logs(logs, limit) {
+						Self::notify(&remote, &subscriber, pubsub::Result::Log(log))
+					}
+				})
+				.map_err(|e| warn!("Unable to fetch latest logs: {:?}", e))
+			);
+		}
+	}
 
-    fn notify_return_data<F>(&self, enacted: &[H256], calculate_return_data: F) where
-        F: Fn(&[H256]) -> Vec<ReturnData>
-        {
-            let return_data = calculate_return_data(enacted);
-
-            for subscriber in self.return_data_subscribers.read().values() {
-                for return_datum in &return_data {
-                    Self::notify(&self.remote, &subscriber, pubsub::Result::ReturnData(return_datum.clone()))
+    fn notify_return_data<F, Ex>(&self, enacted: &[(H256, Ex)], calculate_return_data: F) where
+        F: Fn(H256, &Ex) -> Option<Vec<ReturnData>>,
+        Ex: Send,
+    {
+        let return_data = enacted
+            .iter()
+            .filter_map(|&(hash, ref ex)| {
+                match calculate_return_data(hash, ex) {
+                    Some(return_data) => Some(return_data),
+                    None => None,
                 }
-            }
-        }
+            })
+            .flat_map(|return_data| return_data)
+            .collect::<Vec<ReturnData>>();
 
-    /// Notify all subscribers about new transaction hashes.
-    pub fn new_transactions(&self, hashes: &[H256]) {
-        for subscriber in self.transactions_subscribers.read().values() {
-            for hash in hashes {
-                Self::notify(&self.remote, subscriber, pubsub::Result::TransactionHash((*hash).into()));
+        for subscriber in self.return_data_subscribers.read().values() {
+            for return_datum in &return_data {
+                Self::notify(&self.remote, &subscriber, pubsub::Result::ReturnData(return_datum.clone()))
             }
         }
     }
+
+	/// Notify all subscribers about new transaction hashes.
+	pub fn new_transactions(&self, hashes: &[H256]) {
+		for subscriber in self.transactions_subscribers.read().values() {
+			for hash in hashes {
+				Self::notify(&self.remote, subscriber, pubsub::Result::TransactionHash((*hash).into()));
+			}
+		}
+	}
 }
 
 /// A light client wrapper struct.
@@ -220,87 +232,93 @@ impl LightClient for LightFetch {
 }
 
 impl<C: LightClient> LightChainNotify for ChainNotificationHandler<C> {
-    fn new_headers(
-        &self,
-        enacted: &[H256],
-        ) {
-        let headers = enacted
-            .iter()
-            .filter_map(|hash| self.client.block_header(BlockId::Hash(*hash)))
-            .map(|header| (header, Default::default()))
-            .collect::<Vec<_>>();
+	fn new_headers(
+		&self,
+		enacted: &[H256],
+	) {
+		let headers = enacted
+			.iter()
+			.filter_map(|hash| self.client.block_header(BlockId::Hash(*hash)))
+			.map(|header| (header, Default::default()))
+			.collect::<Vec<_>>();
 
-        self.notify_heads(&headers);
-        self.notify_logs(&enacted, |filter| self.client.logs(filter))
-    }
+		self.notify_heads(&headers);
+		self.notify_logs(&enacted.iter().map(|h| (*h, ())).collect::<Vec<_>>(), |filter, _| self.client.logs(filter))
+	}
 }
 
 impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
-    fn new_blocks(
-        &self,
-        _imported: Vec<H256>,
-        _invalid: Vec<H256>,
-        enacted: Vec<H256>,
-        retracted: Vec<H256>,
-        _sealed: Vec<H256>,
-        // Block bytes.
-        _proposed: Vec<Bytes>,
-        _duration: u64,
-        ) {
-        const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
-        let headers = enacted
-            .iter()
-            .filter_map(|hash| self.client.block_header(BlockId::Hash(*hash)))
-            .map(|header| {
-                let hash = header.hash();
-                (header, self.client.block_extra_info(BlockId::Hash(hash)).expect(EXTRA_INFO_PROOF))
-            })
-        .collect::<Vec<_>>();
+	fn new_blocks(
+		&self,
+		_imported: Vec<H256>,
+		_invalid: Vec<H256>,
+		route: ChainRoute,
+		_sealed: Vec<H256>,
+		// Block bytes.
+		_proposed: Vec<Bytes>,
+		_duration: Duration,
+	) {
+		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
+		let headers = route.route()
+			.iter()
+			.filter_map(|&(hash, ref typ)| {
+				match typ {
+					&ChainRouteType::Retracted => None,
+					&ChainRouteType::Enacted => self.client.block_header(BlockId::Hash(hash))
+				}
+			})
+			.map(|header| {
+				let hash = header.hash();
+				(header, self.client.block_extra_info(BlockId::Hash(hash)).expect(EXTRA_INFO_PROOF))
+			})
+			.collect::<Vec<_>>();
 
-        // Headers
-        self.notify_heads(&headers);
+		// Headers
+		self.notify_heads(&headers);
 
-        // Enacted logs
-        self.notify_logs(&enacted, |filter| {
-            Ok(self.client.logs(filter).into_iter().map(Into::into).collect())
-        });
+		// We notify logs enacting and retracting as the order in route.
+		self.notify_logs(route.route(), |filter, ex| {
+			match ex {
+				&ChainRouteType::Enacted =>
+					Ok(self.client.logs(filter).into_iter().map(Into::into).collect()),
+				&ChainRouteType::Retracted =>
+					Ok(self.client.logs(filter).into_iter().map(Into::into).map(|mut log: Log| {
+						log.log_type = "removed".into();
+						log
+					}).collect()),
+			}
+		});
 
-        // Retracted logs
-        self.notify_logs(&retracted, |filter| {
-            Ok(self.client.logs(filter).into_iter().map(Into::into).map(|mut log: Log| {
-                log.log_type = "removed".into();
-                log
-            }).collect())
-        });
-
-        fn replay_transactions<C: BlockChainClient>(client: &C, block_hashes: &[H256], removed: bool) -> Vec<ReturnData> {
+        fn replay_transactions<C: BlockChainClient>(client: &C, block_hash: H256, ex: &ChainRouteType) -> Option<Vec<ReturnData>> {
             let analytics = CallAnalytics { transaction_tracing: false, vm_tracing: false, state_diffing: false, };
-            block_hashes
-                .iter()
-                .filter_map(|hash| {
-                    let id = BlockId::Hash(*hash);
-                    let body = client.block_body(id)?;
+            let id = BlockId::Hash(block_hash.clone());
+            let replayed = client.block_body(id)
+                .and_then(|body| {
                     match client.replay_block_transactions(id, analytics) {
                         Ok(executed) => Some(body.transaction_hashes().into_iter().zip(executed)),
                         Err(e) => {
-                            warn!("Could not execute transactions on block {}; {:?}", hash, e);
+                            warn!("Could not execute transactions on block {}; {:?}", block_hash, e);
                             None
                         }
                     }
-                })
-            .flat_map(|executeds| executeds)
-                .map(|(transaction_hash, executed)| {
-                    ReturnData {
-                        transaction_hash,
-                        return_data: RpcBytes::from(executed.output),
-                        removed
-                    }
-                })
-            .collect::<Vec<ReturnData>>()
+                });
+            match replayed {
+                Some(replayed) => {
+                    Some(replayed
+                        .map(|(transaction_hash, executed)| {
+                            ReturnData {
+                                transaction_hash,
+                                return_data: RpcBytes::from(executed.output),
+                                removed: *ex == ChainRouteType::Retracted
+                            }
+                        })
+                        .collect::<Vec<ReturnData>>())
+                },
+                None => None
+            }
         }
-        self.notify_return_data(&enacted, |block_hashes: &[H256]| replay_transactions::<C>(&self.client, block_hashes, false));
-        self.notify_return_data(&retracted, |block_hashes: &[H256]| replay_transactions::<C>(&self.client, block_hashes, true));
-    }
+        self.notify_return_data(route.route(), |block_hash, ex| replay_transactions::<C>(&self.client, block_hash, ex));
+	}
 }
 
 impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {

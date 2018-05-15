@@ -1,3 +1,5 @@
+Note: Parity 1.9 reached End-of-Life on 2018-05-09 (EOL).
+
 ## Parity [v1.9.7](https://github.com/paritytech/parity/releases/tag/v1.9.7) (2018-04-23)
 
 Parity 1.9.7 is a bug-fix release to improve performance and stability.

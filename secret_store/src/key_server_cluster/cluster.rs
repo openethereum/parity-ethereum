@@ -109,6 +109,10 @@ pub trait Cluster: Send + Sync {
 	fn is_connected(&self, node: &NodeId) -> bool;
 	/// Get a set of connected nodes.
 	fn nodes(&self) -> BTreeSet<NodeId>;
+	/// Get total count of configured key server nodes (valid at the time of ClusterView creation).
+	fn configured_nodes_count(&self) -> usize;
+	/// Get total count of connected key server nodes (valid at the time of ClusterView creation).
+	fn connected_nodes_count(&self) -> usize;
 }
 
 /// Cluster initialization parameters.
@@ -160,6 +164,8 @@ pub struct ClusterClientImpl {
 /// Network cluster view. It is a communication channel, required in single session.
 pub struct ClusterView {
 	core: Arc<Mutex<ClusterViewCore>>,
+	configured_nodes_count: usize,
+	connected_nodes_count: usize,
 }
 
 /// Cross-thread shareable cluster data.
@@ -554,7 +560,7 @@ impl ClusterCore {
 		let is_initialization_message = message.is_initialization_message();
 		let is_delegation_message = message.is_delegation_message();
 		match is_initialization_message || is_delegation_message {
-			false => sessions.get(&session_id, true).ok_or(Error::InvalidSessionId),
+			false => sessions.get(&session_id, true).ok_or(Error::NoActiveSessionWithId),
 			true => {
 				let creation_data = SC::creation_data_from_message(&message)?;
 				let master = if is_initialization_message { sender.clone() } else { data.self_key_pair.public().clone() };
@@ -652,7 +658,7 @@ impl ClusterConnections {
 		let trigger: Box<ConnectionTrigger> = match config.auto_migrate_enabled {
 			false => Box::new(SimpleConnectionTrigger::new(config.key_server_set.clone(), config.self_key_pair.clone(), config.admin_public.clone())),
 			true if config.admin_public.is_none() => Box::new(ConnectionTriggerWithMigration::new(config.key_server_set.clone(), config.self_key_pair.clone())),
-			true => return Err(Error::Io("secret store admininstrator public key is specified with auto-migration enabled".into())), // TODO [Refac]: Io -> Internal
+			true => return Err(Error::Internal("secret store admininstrator public key is specified with auto-migration enabled".into())),
 		};
 		let connector = trigger.servers_set_change_creator_connector();
 
@@ -835,8 +841,10 @@ impl Connection {
 }
 
 impl ClusterView {
-	pub fn new(cluster: Arc<ClusterData>, nodes: BTreeSet<NodeId>) -> Self {
+	pub fn new(cluster: Arc<ClusterData>, nodes: BTreeSet<NodeId>, configured_nodes_count: usize) -> Self {
 		ClusterView {
+			configured_nodes_count: configured_nodes_count,
+			connected_nodes_count: nodes.len(),
 			core: Arc::new(Mutex::new(ClusterViewCore {
 				cluster: cluster,
 				nodes: nodes,
@@ -870,6 +878,14 @@ impl Cluster for ClusterView {
 
 	fn nodes(&self) -> BTreeSet<NodeId> {
 		self.core.lock().nodes.clone()
+	}
+
+	fn configured_nodes_count(&self) -> usize {
+		self.configured_nodes_count
+	}
+
+	fn connected_nodes_count(&self) -> usize {
+		self.connected_nodes_count
 	}
 }
 
@@ -1125,7 +1141,7 @@ pub mod tests {
 		fn cluster_state(&self) -> ClusterState { unimplemented!("test-only") }
 		fn new_generation_session(&self, _session_id: SessionId, _origin: Option<Address>, _author: Address, _threshold: usize) -> Result<Arc<GenerationSession>, Error> {
 			self.generation_requests_count.fetch_add(1, Ordering::Relaxed);
-			Err(Error::Io("test-errror".into()))
+			Err(Error::Internal("test-error".into()))
 		}
 		fn new_encryption_session(&self, _session_id: SessionId, _requester: Requester, _common_point: Public, _encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error> { unimplemented!("test-only") }
 		fn new_decryption_session(&self, _session_id: SessionId, _origin: Option<Address>, _requester: Requester, _version: Option<H256>, _is_shadow_decryption: bool, _is_broadcast_session: bool) -> Result<Arc<DecryptionSession>, Error> { unimplemented!("test-only") }
@@ -1196,6 +1212,14 @@ pub mod tests {
 
 		fn nodes(&self) -> BTreeSet<NodeId> {
 			self.data.lock().nodes.iter().cloned().collect()
+		}
+
+		fn configured_nodes_count(&self) -> usize {
+			self.data.lock().nodes.len()
+		}
+
+		fn connected_nodes_count(&self) -> usize {
+			self.data.lock().nodes.len()
 		}
 	}
 
@@ -1365,11 +1389,11 @@ pub mod tests {
 		{
 			// try to start generation session => fail in initialization
 			assert_eq!(clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 100).map(|_| ()),
-				Err(Error::InvalidThreshold));
+				Err(Error::NotEnoughNodesForThreshold));
 
 			// try to start generation session => fails in initialization
 			assert_eq!(clusters[0].client().new_generation_session(SessionId::default(), Default::default(), Default::default(), 100).map(|_| ()),
-				Err(Error::InvalidThreshold));
+				Err(Error::NotEnoughNodesForThreshold));
 
 			assert!(clusters[0].data.sessions.generation_sessions.is_empty());
 		}

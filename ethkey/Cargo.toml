@@ -6,13 +6,14 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 byteorder = "1.0"
 edit-distance = "2.0"
+ethcore-crypto = { path = "../ethcore/crypto" }
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
 ethereum-types = "0.3"
 lazy_static = "1.0"
 log = "0.3"
 mem = { path = "../util/mem" }
 parity-wordlist = "1.2"
+quick-error = "1.2"
 rand = "0.4"
-rust-crypto = "0.2"
 rustc-hex = "1.0"
 tiny-keccak = "1.3"

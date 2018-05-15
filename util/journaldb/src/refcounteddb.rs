@@ -40,7 +40,7 @@ use util::{DatabaseKey, DatabaseValueView, DatabaseValueRef};
 /// the removals actually take effect.
 ///
 /// journal format:
-/// ```
+/// ```text
 /// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, n] => [ ... ]
@@ -62,17 +62,18 @@ pub struct RefCountedDB {
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
-	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> RefCountedDB {
-		let latest_era = backing.get(col, &LATEST_ERA_KEY).expect("Low-level database error.")
-			.map(|val| decode::<u64>(&val));
+	pub fn new(backing: Arc<KeyValueDB>, column: Option<u32>) -> RefCountedDB {
+		let latest_era = backing.get(column, &LATEST_ERA_KEY)
+			.expect("Low-level database error.")
+			.map(|v| decode::<u64>(&v).expect("decoding db value failed"));
 
 		RefCountedDB {
-			forward: OverlayDB::new(backing.clone(), col),
-			backing: backing,
+			forward: OverlayDB::new(backing.clone(), column),
+			backing,
 			inserts: vec![],
 			removes: vec![],
-			latest_era: latest_era,
-			column: col,
+			latest_era,
+			column,
 		}
 	}
 }

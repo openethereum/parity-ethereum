@@ -63,8 +63,10 @@ fn should_return_correct_nonces_when_dropped_because_of_limit() {
 	let nonce = tx1.nonce;
 
 	// when
-	let result = txq.import(TestClient::new(), vec![tx1, tx2].local());
-	assert_eq!(result, vec![Ok(()), Err(transaction::Error::LimitReached)]);
+	let r1= txq.import(TestClient::new(), vec![tx1].local());
+	let r2= txq.import(TestClient::new(), vec![tx2].local());
+	assert_eq!(r1, vec![Ok(())]);
+	assert_eq!(r2, vec![Err(transaction::Error::LimitReached)]);
 	assert_eq!(txq.status().status.transaction_count, 1);
 
 	// then
@@ -754,4 +756,14 @@ fn should_clear_cache_after_timeout_for_local() {
 	// This should invalidate the cache and trigger transaction ready.
 	// then
 	assert_eq!(txq.pending(TestClient::new(), 0, 1002, None).len(), 2);
+}
+
+#[test]
+fn should_reject_big_transaction() {
+	let txq = new_queue();
+	let big_tx = Tx::default().big_one();
+	let res = txq.import(TestClient::new(), vec![
+		verifier::Transaction::Local(PendingTransaction::new(big_tx, transaction::Condition::Timestamp(1000).into()))
+	]);
+	assert_eq!(res, vec![Err(transaction::Error::TooBig)]);
 }

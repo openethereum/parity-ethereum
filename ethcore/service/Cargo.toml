@@ -13,6 +13,7 @@ ethcore-sync = { path = "../sync" }
 kvdb = { path = "../../util/kvdb" }
 log = "0.3"
 stop-guard = { path = "../../util/stop-guard" }
+trace-time = { path = "../../util/trace-time" }
 
 [dev-dependencies]
 tempdir = "0.3"

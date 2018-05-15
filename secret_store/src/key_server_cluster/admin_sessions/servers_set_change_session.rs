@@ -282,7 +282,7 @@ impl SessionImpl {
 			&ServersSetChangeMessage::ServersSetChangeShareAddMessage(ref message) =>
 				self.on_share_add_message(sender, message),
 			&ServersSetChangeMessage::ServersSetChangeError(ref message) => {
-				self.on_session_error(sender, Error::Io(message.error.clone()));
+				self.on_session_error(sender, message.error.clone());
 				Ok(())
 			},
 			&ServersSetChangeMessage::ServersSetChangeCompleted(ref message) => 
@@ -416,12 +416,14 @@ impl SessionImpl {
 		match &message.message {
 			&KeyVersionNegotiationMessage::RequestKeyVersions(ref message) if sender == &self.core.meta.master_node_id => {
 				let key_id = message.session.clone().into();
-				let key_share = self.core.key_storage.get(&key_id).map_err(|e| Error::KeyStorage(e.into()))?;
+				let key_share = self.core.key_storage.get(&key_id)?;
 				let negotiation_session = KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
 					meta: ShareChangeSessionMeta {
 						id: key_id.clone(),
 						self_node_id: self.core.meta.self_node_id.clone(),
 						master_node_id: sender.clone(),
+						configured_nodes_count: self.core.meta.configured_nodes_count,
+						connected_nodes_count: self.core.meta.connected_nodes_count,
 					},
 					sub_session: message.sub_session.clone().into(),
 					key_share: key_share,
@@ -492,7 +494,7 @@ impl SessionImpl {
 
 				// on nodes, holding selected key share version, we could check if master node plan is correct
 				let master_node_id = message.master_node_id.clone().into();
-				if let Some(key_share) = self.core.key_storage.get(&key_id).map_err(|e| Error::KeyStorage(e.into()))? {
+				if let Some(key_share) = self.core.key_storage.get(&key_id)? {
 					let version = message.version.clone().into();
 					if let Ok(key_version) = key_share.version(&version) {
 						let key_share_owners = key_version.id_numbers.keys().cloned().collect();
@@ -660,7 +662,7 @@ impl SessionImpl {
 		if !data.new_nodes_set.as_ref()
 			.expect("new_nodes_set is filled during initialization; session is completed after initialization; qed")
 			.contains(&self.core.meta.self_node_id) {
-			self.core.key_storage.clear().map_err(|e| Error::KeyStorage(e.into()))?;
+			self.core.key_storage.clear()?;
 		}
 
 		data.state = SessionState::Finished;
@@ -709,6 +711,8 @@ impl SessionImpl {
 				id: key_id,
 				self_node_id: core.meta.self_node_id.clone(),
 				master_node_id: master_node_id,
+				configured_nodes_count: core.meta.configured_nodes_count,
+				connected_nodes_count: core.meta.connected_nodes_count,
 			},
 			cluster: core.cluster.clone(),
 			key_storage: core.key_storage.clone(),
@@ -731,12 +735,14 @@ impl SessionImpl {
 					Some(Ok(key_id)) => key_id,
 				};
 
-				let key_share = core.key_storage.get(&key_id).map_err(|e| Error::KeyStorage(e.into()))?;
+				let key_share = core.key_storage.get(&key_id)?;
 				let negotiation_session = KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
 					meta: ShareChangeSessionMeta {
 						id: key_id,
 						self_node_id: core.meta.self_node_id.clone(),
 						master_node_id: core.meta.self_node_id.clone(),
+						configured_nodes_count: core.meta.configured_nodes_count,
+						connected_nodes_count: core.meta.connected_nodes_count,
 					},
 					sub_session: math::generate_random_scalar()?,
 					key_share: key_share,
@@ -888,7 +894,7 @@ impl SessionImpl {
 		if !data.new_nodes_set.as_ref()
 			.expect("new_nodes_set is filled during initialization; session is completed after initialization; qed")
 			.contains(&core.meta.self_node_id) {
-			core.key_storage.clear().map_err(|e| Error::KeyStorage(e.into()))?;
+			core.key_storage.clear()?;
 		}
 
 		data.state = SessionState::Finished;
@@ -1011,9 +1017,9 @@ impl KeyVersionNegotiationTransport for ServersSetChangeKeyVersionNegotiationTra
 }
 
 fn check_nodes_set(all_nodes_set: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>) -> Result<(), Error> {
-	// all new nodes must be a part of all nodes set
+	// all_nodes_set is the set of nodes we're currently connected to (and configured for)
 	match new_nodes_set.iter().any(|n| !all_nodes_set.contains(n)) {
-		true => Err(Error::InvalidNodesConfiguration),
+		true => Err(Error::NodeDisconnected),
 		false => Ok(())
 	}
 }
@@ -1104,6 +1110,8 @@ pub mod tests {
 				self_node_id: master_node_id.clone(),
 				master_node_id: master_node_id.clone(),
 				id: SessionId::default(),
+				configured_nodes_count: all_nodes_set.len(),
+				connected_nodes_count: all_nodes_set.len(),
 			};
 
 			let old_nodes = gml.nodes.iter().map(|n| create_node(meta.clone(), admin_public.clone(), all_nodes_set.clone(), n.1));
