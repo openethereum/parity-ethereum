@@ -7,8 +7,7 @@ Notable changes in reversed alphabetical order:
 - TOOLING: **Whisper CLI** [#8201](https://github.com/paritytech/parity/pull/8201)
   - `whisper-cli` is a standalone tool to communicate with the Whisper protocol.
   - It provides functionality to specify `whisper-pool-size`, `port` and `address` to use.
-  - All whisper RPC APIs are enabled and can be directly acessed.
-I'm not used to writing these changelogs but I guess that would explain it
+  - All whisper RPC APIs are enabled and can be directly accessed.
 - JSON-RPC API: **Return error in case eth_call returns VM errors** [#8448](https://github.com/paritytech/parity/pull/8448)
   - This changes the behaviors of `eth_call` to respect VM errors if any.
   - In case of `REVERT`, it will also return the reverted return data in hex format.
@@ -17,7 +16,7 @@ I'm not used to writing these changelogs but I guess that would explain it
   - The engine passes a list of benefactors and reward types to the contract which then returns a list of addresses and respective rewards.
 - CORE: **Private Transactions** [#6422](https://github.com/paritytech/parity/pull/6422)
   - Parity now provides a private transactions system.
-  - Please, check out our wiki to get and [overview and setup instructions](https://wiki.parity.io/Private-Transactions.html).
+  - Please, check out our wiki to get an [overview and setup instructions](https://wiki.parity.io/Private-Transactions.html).
 - CORE: **New Transaction Queue implementation** [#8074](https://github.com/paritytech/parity/pull/8074)
   - Verification is now done in parallel.
   - Previous queue had `O(1)` time to get pending set, but `O(n^2)` insertion time. And obviously insertion/removal happens much more often than retrieving the pending set (only for propagation and pending block building) Currently we have `O(n * log(senders))` pending set time (with cache) and `O(tx_per_sender)` (usually within `log(tx_per_sender)`) insertion time.
@@ -53,7 +52,7 @@ The full list of included changes:
     - Trace precompiled contracts when the transfer value is not zero
     - Add tests for precompiled CALL tracing
     - Use byzantium test machine for the new test
-    - Add notes in comments on why we don't trace all precompileds
+    - Add notes in comments on why we don't trace all precompiles
     - Use is_transferred instead of transferred
   - Return error if RLP size of transaction exceeds the limit ([#8473](https://github.com/paritytech/parity/pull/8473))
     - Return error if RLP size of transaction exceeds the limit
