@@ -10,7 +10,7 @@ rlp_derive = { path = "../../util/rlp_derive" }
 ethcore-bytes = { path = "../../util/bytes" }
 ethereum-types = "0.3"
 ethjson = { path = "../../json" }
-keccak-hash = { path = "../../util/hash" }
+keccak-hash = "0.1.1"
 heapsize = "0.4"
 
 [dev-dependencies]

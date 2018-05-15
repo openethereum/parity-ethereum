@@ -19,7 +19,7 @@ ethereum-types = "0.3"
 plain_hasher = { path = "../../util/plain_hasher" }
 rlp = { path = "../../util/rlp" }
 rustc-hex = "1.0"
-keccak-hash = { path = "../../util/hash" }
+keccak-hash = "0.1.1"
 triehash = { path = "../../util/triehash" }
 kvdb = { path = "../../util/kvdb" }
 macros = { path = "../../util/macros" }

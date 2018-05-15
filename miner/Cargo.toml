@@ -22,7 +22,7 @@ ethereum-types = "0.3"
 futures = "0.1"
 futures-cpupool = "0.1"
 heapsize = "0.4"
-keccak-hash = { path = "../util/hash" }
+keccak-hash = "0.1.1"
 linked-hash-map = "0.5"
 log = "0.3"
 parking_lot = "0.5"

@@ -9,7 +9,7 @@ ethjson = { path = "../../json" }
 ethkey = { path = "../../ethkey" }
 evm = { path = "../evm" }
 heapsize = "0.4"
-keccak-hash = { path = "../../util/hash" }
+keccak-hash = "0.1.1"
 rlp = { path = "../../util/rlp" }
 unexpected = { path = "../../util/unexpected" }
 ethereum-types = "0.3"
