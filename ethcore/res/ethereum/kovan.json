@@ -4,8 +4,8 @@
 	"engine": {
 		"authorityRound": {
 			"params": {
-			"stepDuration": "4",
-			"blockReward": "0x4563918244F40000",
+				"stepDuration": "4",
+				"blockReward": "0x4563918244F40000",
 				"validators" : {
 					"list": [
 						"0x00D6Cc1BA9cf89BD2e58009741f4F7325BAdc0ED",

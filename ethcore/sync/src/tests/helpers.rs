@@ -134,11 +134,11 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	}
 
 	fn eth_protocol_version(&self, _peer: PeerId) -> u8 {
-		ETH_PROTOCOL_VERSION_63
+		ETH_PROTOCOL_VERSION_63.0
 	}
 
 	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
-		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_3 } else { self.eth_protocol_version(peer_id) }
+		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_3.0 } else { self.eth_protocol_version(peer_id) }
 	}
 
 	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {
