@@ -88,6 +88,7 @@ mod tests {
 	fn keccak_empty() {
 		assert_eq!(keccak([0u8; 0]), KECCAK_EMPTY);
 	}
+
 	#[test]
 	fn keccak_as() {
 		assert_eq!(keccak([0x41u8; 32]), From::from("59cad5948673622c1d64e2322488bf01619f7ff45789741b15a9f782ce9290a8"));
