@@ -19,6 +19,6 @@ rlp = { path = "../rlp" }
 util-error = { path = "../error" }
 
 [dev-dependencies]
-ethcore-logger = { path = "../../logger" }
+ethcore-logger = "1.12.0"
 keccak-hash = { path = "../hash" }
 kvdb-memorydb = { path = "../kvdb-memorydb" }

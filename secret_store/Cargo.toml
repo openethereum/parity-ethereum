@@ -26,7 +26,7 @@ url = "1.0"
 ethcore = { path = "../ethcore" }
 ethcore-bytes = { path = "../util/bytes" }
 ethcore-crypto = { path = "../ethcore/crypto" }
-ethcore-logger = { path = "../logger" }
+ethcore-logger = "1.12.0"
 ethcore-sync = { path = "../ethcore/sync" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.3"

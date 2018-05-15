@@ -11,5 +11,5 @@ parity-wasm = "0.27"
 libc = "0.2"
 pwasm-utils = "0.1"
 vm = { path = "../vm" }
-ethcore-logger = { path = "../../logger" }
+ethcore-logger = "1.12.0"
 wasmi = { version = "0.2" }
