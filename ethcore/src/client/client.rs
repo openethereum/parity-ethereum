@@ -179,7 +179,7 @@ pub struct Client {
 	/// Operating mode for the client
 	mode: Mutex<Mode>,
 
-	pub chain: RwLock<Arc<BlockChain>>,
+	chain: RwLock<Arc<BlockChain>>,
 	tracedb: RwLock<TraceDB<BlockChain>>,
 	engine: Arc<EthEngine>,
 
@@ -839,6 +839,11 @@ impl Client {
 	/// the restart.
 	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(String) + 'static + Send {
 		*self.exit_handler.lock() = Some(Box::new(f));
+	}
+
+	/// Returns the chain reference
+	pub fn chain(&self) -> &RwLock<Arc<BlockChain>> {
+		&self.chain
 	}
 
 	/// Returns engine reference.

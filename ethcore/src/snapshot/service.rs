@@ -328,25 +328,18 @@ impl Service {
 
 	// replace one the client's database with our own.
 	fn replace_client_db(&self) -> Result<(), Error> {
-		let cur_chain = &self.client.chain;
-
 		let rest_db = self.restoration_db();
-		let next_db = self.restoration_db_handler.open(&rest_db)?;
-		let next_chain = BlockChain::new(Default::default(), &self.genesis_block, Arc::clone(&next_db));
 
+		let cur_chain = &self.client.chain();
+		let next_db = self.restoration_db_handler.open(&rest_db)?;
+		let next_chain = BlockChain::new(Default::default(), &[], next_db.clone());
 		let next_chain_info = next_chain.chain_info();
-		trace!(
-			target: "snapshot", "Next chain ancient={:?};first={:?};best={:?}",
-			next_chain_info.ancient_block_number,
-			next_chain_info.first_block_number,
-			next_chain_info.best_block_number,
-		);
 
 		// Try to include every block that will need to be downloaded from the current chain
 		// Break when no more blocks are available from it.
 		match (next_chain_info.ancient_block_number, next_chain_info.first_block_number) {
 			(Some(next_ancient_block), Some(next_first_block)) if next_ancient_block + 1 < next_first_block => {
-				trace!(target: "snapshot", "We should sync from {} to {}",
+				trace!(target: "snapshot", "Trying to import ancient blocks from {} to {}",
 					next_ancient_block, next_first_block,
 				);
 
@@ -399,6 +392,8 @@ impl Service {
 			},
 			_ => (),
 		}
+
+		trace!(target: "snapshot", "Done importing ancient blocks");
 
 		self.client.restore_db(&*rest_db.to_string_lossy())?;
 		Ok(())
