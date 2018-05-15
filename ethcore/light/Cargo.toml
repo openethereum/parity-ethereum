@@ -12,14 +12,14 @@ ethcore = { path = ".."}
 ethcore-bytes = { path = "../../util/bytes" }
 ethcore-transaction = { path = "../transaction" }
 ethereum-types = "0.3"
-memorydb = { path = "../../util/memorydb" }
+memorydb= "0.1.1"
 patricia-trie = { path = "../../util/patricia_trie" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
 hashdb = { path = "../../util/hashdb" }
 heapsize = "0.4"
 vm = { path = "../vm" }
-plain_hasher = { path = "../../util/plain_hasher" }
+plain_hasher = "0.1.1"
 rlp = { path = "../../util/rlp" }
 rlp_derive = { path = "../../util/rlp_derive" }
 smallvec = "0.4"

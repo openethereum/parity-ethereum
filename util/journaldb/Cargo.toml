@@ -12,9 +12,9 @@ hashdb = { path = "../hashdb" }
 heapsize = "0.4"
 kvdb = { path = "../kvdb" }
 log = "0.3"
-memorydb = { path = "../memorydb" }
+memorydb= "0.1.1"
 parking_lot = "0.5"
-plain_hasher = { path = "../plain_hasher" }
+plain_hasher = "0.1.1"
 rlp = { path = "../rlp" }
 util-error = { path = "../error" }
 
