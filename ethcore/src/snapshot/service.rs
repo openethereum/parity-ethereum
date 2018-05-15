@@ -16,7 +16,7 @@
 
 //! Snapshot network service implementation.
 
-use std::cmp;
+// use std::cmp;
 use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::fs;
@@ -329,13 +329,6 @@ impl Service {
 	// replace one the client's database with our own.
 	fn replace_client_db(&self) -> Result<(), Error> {
 		let cur_chain = &self.client.chain;
-		let cur_chain_info = self.client.chain_info();
-		trace!(
-			target: "snapshot", "Current chain ancient={:?};first={:?};best={:?}",
-			cur_chain_info.ancient_block_number,
-			cur_chain_info.first_block_number,
-			cur_chain_info.best_block_number,
-		);
 
 		let rest_db = self.restoration_db();
 		let next_db = self.restoration_db_handler.open(&rest_db)?;
@@ -349,96 +342,60 @@ impl Service {
 			next_chain_info.best_block_number,
 		);
 
+		// Try to include every block that will need to be downloaded from the current chain
+		// Break when no more blocks are available from it.
 		match (next_chain_info.ancient_block_number, next_chain_info.first_block_number) {
-			(Some(next_ancient_block), Some(next_first_block)) => {
+			(Some(next_ancient_block), Some(next_first_block)) if next_ancient_block + 1 < next_first_block => {
 				trace!(target: "snapshot", "We should sync from {} to {}",
 					next_ancient_block, next_first_block,
 				);
 
-				// If the ancient block already had ancient blocks
-				if let Some(cur_ancient_block) = cur_chain_info.ancient_block_number {
-					if cur_ancient_block > next_ancient_block {
-						let from_block = next_ancient_block;
-						let to_block = cmp::min(cur_ancient_block, next_first_block);
+				let mut block_number = next_ancient_block + 1;
+				let mut batch = DBTransaction::new();
+				let mut parent_diff = None;
 
-						trace!(target: "snapshot", "Could sync ancient blocks from {} to {}",
-							from_block, to_block,
-						);
+				while block_number < next_first_block {
+					let chain = cur_chain.read();
 
-						let mut block_number = from_block;
-						let mut batch = DBTransaction::new();
+					if let Some(block_hash) = chain.block_hash(block_number) {
+						let block = chain.block(&block_hash);
+						let block_receipts = chain.block_receipts(&block_hash);
 
-						while block_number <= to_block {
-							let chain = cur_chain.read();
+						match (block, block_receipts) {
+							(Some(block), Some(block_receipts)) => {
+								let diff = block.difficulty();
+								let raw_block = block.into_inner();
+								let block_receipts = block_receipts.receipts;
 
-							if let Some(block_hash) = chain.block_hash(block_number) {
-								let block_header = chain.block_header_data(&block_hash);
-								let block_receipts = chain.block_receipts(&block_hash);
-
-								match (block_header, block_receipts) {
-									(Some(block_header), Some(block_receipts)) => {
-										let block_header = block_header.into_inner();
-										let block_receipts = block_receipts.receipts;
-
-										trace!(target: "snapshot", "Found block header data #{}", block_number);
-
-										next_chain.insert_unordered_block(&mut batch, &block_header, block_receipts, None, false, true);
-									},
-									_ => (),
-								}
-							}
-
-							block_number = block_number + 1;
+								next_chain.insert_unordered_block(&mut batch, &raw_block, block_receipts, parent_diff, false, true);
+								parent_diff = Some(diff);
+							},
+							_ => (),
 						}
+					// Break if we already imported some blocks in the current batch and there
+					// are no more left
+					} else if parent_diff.is_some() {
+						break;
+					}
 
-						// Final commit to the DB
+					// Writting changes to DB and logging every now and then
+					if block_number % 1_000 == 0 {
 						next_db.write_buffered(batch);
 						next_chain.commit();
-						next_db.flush().expect("DB flush failed.");
-					}
-				}
-
-				let cur_first_block = cur_chain_info.first_block_number.unwrap_or(0);
-				let cur_best_block = cur_chain_info.best_block_number;
-				if cur_first_block < next_first_block {
-					let from_block = cmp::max(cur_first_block, next_ancient_block);
-					let to_block = cmp::min(cur_best_block, next_first_block);
-
-					trace!(target: "snapshot", "Could sync ancient blocks from {} to {}",
-						from_block, to_block,
-					);
-
-					let mut block_number = from_block;
-					let mut batch = DBTransaction::new();
-
-					while block_number <= to_block {
-						let chain = cur_chain.read();
-
-						if let Some(block_hash) = chain.block_hash(block_number) {
-							let block_header = chain.block_header_data(&block_hash);
-							let block_receipts = chain.block_receipts(&block_hash);
-
-							match (block_header, block_receipts) {
-								(Some(block_header), Some(block_receipts)) => {
-									let block_header = block_header.into_inner();
-									let block_receipts = block_receipts.receipts;
-
-									trace!(target: "snapshot", "Found block header data #{}", block_number);
-
-									next_chain.insert_unordered_block(&mut batch, &block_header, block_receipts, None, false, true);
-								},
-								_ => (),
-							}
-						}
-
-						block_number = block_number + 1;
+						batch = DBTransaction::new();
 					}
 
-					// Final commit to the DB
-					next_db.write_buffered(batch);
-					next_chain.commit();
-					next_db.flush().expect("DB flush failed.");
+					if block_number % 10_000 == 0 {
+						trace!(target: "snapshot", "Block restoration at #{}", block_number);
+					}
+
+					block_number = block_number + 1;
 				}
+
+				// Final commit to the DB
+				next_db.write_buffered(batch);
+				next_chain.commit();
+				next_db.flush().expect("DB flush failed.");
 			},
 			_ => (),
 		}
