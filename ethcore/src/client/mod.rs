@@ -36,9 +36,8 @@ pub use self::traits::{
     Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, CallContract, TransactionInfo, RegistryInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
     StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter
 };
-//pub use self::private_notify::PrivateNotify;
 pub use state::StateInfo;
-pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient};
+pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient, IoClient};
 
 pub use types::ids::*;
 pub use types::trace_filter::Filter as TraceFilter;

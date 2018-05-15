@@ -104,7 +104,7 @@ impl<C, S> Traces for TracesClient<C> where
 		let mut state = self.client.state_at(id).ok_or(errors::state_pruned())?;
 		let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
 
-		self.client.call(&signed, to_call_analytics(flags), &mut state, &header.decode())
+		self.client.call(&signed, to_call_analytics(flags), &mut state, &header.decode().map_err(errors::decode)?)
 			.map(TraceResults::from)
 			.map_err(errors::call)
 	}
@@ -131,7 +131,7 @@ impl<C, S> Traces for TracesClient<C> where
 		let mut state = self.client.state_at(id).ok_or(errors::state_pruned())?;
 		let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
 
-		self.client.call_many(&requests, &mut state, &header.decode())
+		self.client.call_many(&requests, &mut state, &header.decode().map_err(errors::decode)?)
 			.map(|results| results.into_iter().map(TraceResults::from).collect())
 			.map_err(errors::call)
 	}
@@ -153,7 +153,7 @@ impl<C, S> Traces for TracesClient<C> where
 		let mut state = self.client.state_at(id).ok_or(errors::state_pruned())?;
 		let header = self.client.block_header(id).ok_or(errors::state_pruned())?;
 
-		self.client.call(&signed, to_call_analytics(flags), &mut state, &header.decode())
+		self.client.call(&signed, to_call_analytics(flags), &mut state, &header.decode().map_err(errors::decode)?)
 			.map(TraceResults::from)
 			.map_err(errors::call)
 	}

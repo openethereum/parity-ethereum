@@ -38,6 +38,7 @@ error-chain = { version = "0.11", default-features = false }
 
 [dev-dependencies]
 tempdir = "0.3"
+assert_matches = "1.2"
 
 [features]
 default = []

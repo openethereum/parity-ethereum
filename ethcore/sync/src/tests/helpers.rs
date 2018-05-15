@@ -133,11 +133,11 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	}
 
 	fn eth_protocol_version(&self, _peer: PeerId) -> u8 {
-		ETH_PROTOCOL_VERSION_63
+		ETH_PROTOCOL_VERSION_63.0
 	}
 
 	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
-		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_3 } else { self.eth_protocol_version(peer_id) }
+		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_3.0 } else { self.eth_protocol_version(peer_id) }
 	}
 
 	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {
@@ -519,11 +519,9 @@ impl TestIoHandler {
 impl IoHandler<ClientIoMessage> for TestIoHandler {
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
 		match *net_message {
-			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
-				panic!("Invalid message received: {}", e);
-			},
-			ClientIoMessage::NewPrivateTransaction => {
+			ClientIoMessage::Execute(ref exec) => {
 				*self.private_tx_queued.lock() += 1;
+				(*exec.0)(&self.client);
 			},
 			_ => {} // ignore other messages
 		}

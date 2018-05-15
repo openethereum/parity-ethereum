@@ -528,8 +528,8 @@ impl Miner {
 	}
 
 	/// Attempts to perform internal sealing (one that does not require work) and handles the result depending on the type of Seal.
-	fn seal_and_import_block_internally<C>(&self, chain: &C, block: ClosedBlock) -> bool where
-		C: BlockChain + SealedBlockImporter,
+	fn seal_and_import_block_internally<C>(&self, chain: &C, block: ClosedBlock) -> bool
+		where C: BlockChain + SealedBlockImporter,
 	{
 		{
 			let sealing = self.sealing.lock();
@@ -544,7 +544,12 @@ impl Miner {
 		trace!(target: "miner", "seal_block_internally: attempting internal seal.");
 
 		let parent_header = match chain.block_header(BlockId::Hash(*block.header().parent_hash())) {
-			Some(hdr) => hdr.decode(),
+			Some(h) => {
+				match h.decode() {
+					Ok(decoded_hdr) => decoded_hdr,
+					Err(_) => return false
+				}
+			}
 			None => return false,
 		};
 
