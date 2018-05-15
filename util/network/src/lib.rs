@@ -39,7 +39,6 @@ use std::str::{self, FromStr};
 use std::sync::Arc;
 use std::time::Duration;
 use ipnetwork::{IpNetwork, IpNetworkError};
-use io::IoChannel;
 use ethkey::Secret;
 use ethereum_types::{H256, H512};
 use rlp::{Decodable, DecoderError, Rlp};
@@ -257,9 +256,6 @@ pub trait NetworkContext {
 	/// Respond to a current network message. Panics if no there is no packet in the context. If the session is expired returns nothing.
 	fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
 
-	/// Get an IoChannel.
-	fn io_channel(&self) -> IoChannel<NetworkIoMessage>;
-
 	/// Disconnect a peer and prevent it from connecting again.
 	fn disable_peer(&self, peer: PeerId);
 
@@ -296,10 +292,6 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 
 	fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
 		(**self).respond(packet_id, data)
-	}
-
-	fn io_channel(&self) -> IoChannel<NetworkIoMessage> {
-		(**self).io_channel()
 	}
 
 	fn disable_peer(&self, peer: PeerId) {
