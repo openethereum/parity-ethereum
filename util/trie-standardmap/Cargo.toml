@@ -8,4 +8,4 @@ description = "Standard test map for profiling tries"
 ethcore-bytes = { path = "../bytes" }
 ethereum-types = "0.3"
 keccak-hash = { path = "../hash" }
-rlp = { path = "../rlp" }
+rlp= "0.2.2"

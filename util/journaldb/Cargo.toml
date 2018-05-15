@@ -15,7 +15,7 @@ log = "0.3"
 memorydb = { path = "../memorydb" }
 parking_lot = "0.5"
 plain_hasher = { path = "../plain_hasher" }
-rlp = { path = "../rlp" }
+rlp= "0.2.2"
 util-error = { path = "../error" }
 
 [dev-dependencies]

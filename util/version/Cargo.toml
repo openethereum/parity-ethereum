@@ -23,7 +23,7 @@ kovan = 6600000
 
 [dependencies]
 ethcore-bytes = { path = "../bytes" }
-rlp = { path = "../rlp" }
+rlp= "0.2.2"
 target_info = "0.1"
 
 [build-dependencies]

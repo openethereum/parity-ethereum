@@ -46,7 +46,7 @@ ethereum-types = "0.3"
 node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
 node-health = { path = "dapps/node-health" }
-rlp = { path = "util/rlp" }
+rlp= "0.2.2"
 rpc-cli = { path = "rpc_cli" }
 parity-hash-fetch = { path = "hash-fetch" }
 parity-ipfs-api = { path = "ipfs" }
