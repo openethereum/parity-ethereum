@@ -17,7 +17,7 @@ ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-bytes = { path = "../util/bytes" }
 fetch = { path = "../util/fetch" }
-hashdb = { path = "../util/hashdb" }
+hashdb = "0.1.2"
 memorydb = { path = "../util/memorydb" }
 patricia-trie = { path = "../util/patricia_trie" }
 ethcore-crypto = { path = "crypto" }
