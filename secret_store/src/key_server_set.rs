@@ -271,7 +271,7 @@ impl CachedContract {
 
 	pub fn update(&mut self, enacted: Vec<H256>, retracted: Vec<H256>) {
 		if let Some(client) = self.client.get() {
-			// read new snapshot from reqistry (if something has chnaged)
+			// read new snapshot from registry (if something has changed)
 			self.read_from_registry_if_required(&*client, enacted, retracted);
 
 			// update number of confirmations (if there's future new set)
@@ -371,7 +371,7 @@ impl CachedContract {
 			None => {
 				// no contract installed => empty snapshot
 				// WARNING: after restart current_set will be reset to the set from configuration file
-				// even though we have reset to empty set here. We are not considerning this as an issue
+				// even though we have reset to empty set here. We are not considering this as an issue
 				// because it is actually the issue of administrator.
 				self.snapshot = Default::default();
 				self.future_new_set = None;
@@ -540,7 +540,7 @@ fn update_number_of_confirmations<F1: Fn() -> H256, F2: Fn(H256) -> Option<u64>>
 			// not enough confirmations => do nothing
 			Some(_) => return,
 			// if number of confirmations is None, then reorg has happened && we need to reset block
-			// (some more intelligent startegy is possible, but let's stick to simplest one)
+			// (some more intelligent strategy is possible, but let's stick to simplest one)
 			None => {
 				future_new_set.block = latest_block();
 				return;
@@ -556,9 +556,9 @@ fn update_number_of_confirmations<F1: Fn() -> H256, F2: Fn(H256) -> Option<u64>>
 fn update_last_transaction_block(client: &Client, migration_id: &H256, previous_transaction: &mut Option<PreviousMigrationTransaction>) -> bool {
 	let last_block = client.block_number(BlockId::Latest).unwrap_or_default();
 	match previous_transaction.as_ref() {
-		// no previous transaction => send immideately
+		// no previous transaction => send immediately
 		None => (),
-		// previous transaction has been sent for other migration process => send immideately
+		// previous transaction has been sent for other migration process => send immediately
 		Some(tx) if tx.migration_id != *migration_id => (),
 		// if we have sent the same type of transaction recently => do nothing (hope it will be mined eventually)
 		// if we have sent the same transaction some time ago =>
