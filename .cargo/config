@@ -1,3 +1,14 @@
 [target.x86_64-pc-windows-msvc]
 # Link the C runtime statically ; https://github.com/paritytech/parity/issues/6643
 rustflags = ["-Ctarget-feature=+crt-static"]
+
+[target.armv7-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"
+
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
+[target.armv7-linux-androideabi]
+linker = "arm-linux-androideabi-clang"
+ar = "arm-linux-androideabi-ar"
+rustflags = ["-C", "link-arg=-lc++_static", "-C", "link-arg=-lc++abi", "-C", "link-arg=-landroid_support"]
