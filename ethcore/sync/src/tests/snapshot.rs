@@ -80,6 +80,10 @@ impl SnapshotService for TestSnapshotService {
 		Some((1, 2))
 	}
 
+	fn completed_chunks(&self) -> Option<Vec<H256>> {
+		Some(vec![])
+	}
+
 	fn chunk(&self, hash: H256) -> Option<Bytes> {
 		self.chunks.get(&hash).cloned()
 	}
