@@ -117,7 +117,7 @@ impl_bytes!(SerializableSignature, Signature, false, ());
 /// Serializable shadow decryption result.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SerializableEncryptedDocumentKeyShadow {
-	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
+	/// Decrypted secret point. It is partially decrypted if shadow decryption was requested.
 	pub decrypted_secret: SerializablePublic,
 	/// Shared common point.
 	pub common_point: SerializablePublic,

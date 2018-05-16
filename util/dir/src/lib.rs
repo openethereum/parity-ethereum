@@ -104,9 +104,9 @@ impl Directories {
 		DatabaseDirectories {
 			path: self.db.clone(),
 			legacy_path: self.base.clone(),
-			genesis_hash: genesis_hash,
-			fork_name: fork_name,
-			spec_name: spec_name,
+			genesis_hash,
+			fork_name,
+			spec_name,
 		}
 	}
 

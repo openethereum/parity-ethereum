@@ -40,5 +40,5 @@ node_modules
 out/
 
 .vscode
-
+rls/
 /parity.*

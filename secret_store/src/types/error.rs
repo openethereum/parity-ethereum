@@ -60,7 +60,7 @@ pub enum Error {
 	/// Document key with this ID is not yet stored.
 	DocumentKeyIsNotFound,
 	/// Consensus is temporary unreachable. Means that something is currently blocking us from either forming
-	/// consensus group (like disconnecting from too many nodes, which are AGREE to partticipate in consensus)
+	/// consensus group (like disconnecting from too many nodes, which are AGREE to participate in consensus)
 	/// or from rejecting request (disconnecting from AccessDenied-nodes).
 	ConsensusTemporaryUnreachable,
 	/// Consensus is unreachable. It doesn't mean that it will ALWAYS remain unreachable, but right NOW we have
@@ -78,9 +78,9 @@ pub enum Error {
 	InsufficientRequesterData(String),
 	/// Cryptographic error.
 	EthKey(String),
-	/// I/O error has occured.
+	/// I/O error has occurred.
 	Io(String),
-	/// Deserialization error has occured.
+	/// Deserialization error has occurred.
 	Serde(String),
 	/// Hyper error.
 	Hyper(String),
@@ -148,7 +148,7 @@ impl fmt::Display for Error {
 			Error::DocumentKeyIsNotFound => write!(f, "Document key with this ID is not found"),
 			Error::ConsensusUnreachable => write!(f, "Consensus unreachable"),
 			Error::ConsensusTemporaryUnreachable => write!(f, "Consensus temporary unreachable"),
-			Error::AccessDenied => write!(f, "Access dened"),
+			Error::AccessDenied => write!(f, "Access denied"),
 			Error::ExclusiveSessionActive => write!(f, "Exclusive session active"),
 			Error::HasActiveSessions => write!(f, "Unable to start exclusive session"),
 			Error::InsufficientRequesterData(ref e) => write!(f, "Insufficient requester data: {}", e),

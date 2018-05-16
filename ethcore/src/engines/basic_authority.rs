@@ -25,7 +25,7 @@ use block::*;
 use engines::{Engine, Seal, ConstructedVerifier, EngineError};
 use error::{BlockError, Error};
 use ethjson;
-use header::Header;
+use header::{Header, ExtendedHeader};
 use client::EngineClient;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use super::signer::EngineSigner;
@@ -191,6 +191,10 @@ impl Engine<EthereumMachine> for BasicAuthority {
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		None
 	}
+
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
+		super::total_difficulty_fork_choice(new, current)
+	}
 }
 
 #[cfg(test)]
@@ -247,7 +251,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b = b.close_and_lock();
 		if let Seal::Regular(seal) = engine.generate_seal(b.block(), &genesis_header) {
 			assert!(b.try_seal(engine, seal).is_ok());

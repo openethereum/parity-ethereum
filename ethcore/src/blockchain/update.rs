@@ -22,3 +22,13 @@ pub struct ExtrasUpdate<'a> {
 	/// Modified transaction addresses (None signifies removed transactions).
 	pub transactions_addresses: HashMap<H256, Option<TransactionAddress>>,
 }
+
+/// Extra information in block insertion.
+pub struct ExtrasInsert {
+	/// The primitive fork choice before applying finalization rules.
+	pub fork_choice: ::engines::ForkChoice,
+	/// Is the inserted block considered finalized.
+	pub is_finalized: bool,
+	/// New block local metadata.
+	pub metadata: Option<Vec<u8>>,
+}

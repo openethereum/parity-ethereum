@@ -392,6 +392,7 @@ impl PrepareOpenBlock for TestBlockChainClient {
 			gas_range_target,
 			extra_data,
 			false,
+			&mut Vec::new().into_iter(),
 		).expect("Opening block for tests will not fail.");
 		// TODO [todr] Override timestamp for predictability
 		open_block.set_timestamp(*self.latest_block_timestamp.read());
@@ -742,7 +743,8 @@ impl BlockChainClient for TestBlockChainClient {
 					}
 				}
 				if adding { Vec::new() } else { blocks }
-			}
+			},
+			is_from_route_finalized: false,
 		})
 	}
 

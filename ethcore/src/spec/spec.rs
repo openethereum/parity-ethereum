@@ -783,7 +783,7 @@ impl Spec {
 				author: *genesis.author(),
 				timestamp: genesis.timestamp(),
 				difficulty: *genesis.difficulty(),
-				gas_limit: *genesis.gas_limit(),
+				gas_limit: U256::max_value(),
 				last_hashes: Arc::new(Vec::new()),
 				gas_used: 0.into(),
 			};
@@ -792,7 +792,7 @@ impl Spec {
 			let tx = Transaction {
 				nonce: self.engine.account_start_nonce(0),
 				action: Action::Call(a),
-				gas: U256::from(50_000_000), // TODO: share with client.
+				gas: U256::max_value(),
 				gas_price: U256::default(),
 				value: U256::default(),
 				data: d,

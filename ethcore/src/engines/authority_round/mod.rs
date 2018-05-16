@@ -33,7 +33,7 @@ use error::{Error, BlockError};
 use ethjson;
 use machine::{AuxiliaryData, Call, EthereumMachine};
 use hash::keccak;
-use header::{Header, BlockNumber};
+use header::{Header, BlockNumber, ExtendedHeader};
 
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -957,6 +957,7 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		&self,
 		block: &mut ExecutedBlock,
 		epoch_begin: bool,
+		_ancestry: &mut Iterator<Item=ExtendedHeader>,
 	) -> Result<(), Error> {
 		// with immediate transitions, we don't use the epoch mechanism anyway.
 		// the genesis is always considered an epoch, but we ignore it intentionally.
@@ -1348,6 +1349,10 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			Some(Box::new(::snapshot::PoaSnapshot))
 		}
 	}
+
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
+		super::total_difficulty_fork_choice(new, current)
+	}
 }
 
 #[cfg(test)]
@@ -1407,9 +1412,9 @@ mod tests {
 		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b1 = b1.close_and_lock();
-		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b2 = b2.close_and_lock();
 
 		engine.set_signer(tap.clone(), addr1, "1".into());
@@ -1441,9 +1446,9 @@ mod tests {
 		let db2 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b1 = b1.close_and_lock();
-		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b2 = b2.close_and_lock();
 
 		engine.set_signer(tap.clone(), addr1, "1".into());
@@ -1696,7 +1701,7 @@ mod tests {
 		let db1 = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b1 = b1.close_and_lock();
 
 		let client = generate_dummy_client(0);
@@ -1731,7 +1736,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
 		// step 2
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b1 = b1.close_and_lock();
 
 		// since the block is empty it isn't sealed and we generate empty steps
@@ -1740,7 +1745,7 @@ mod tests {
 		engine.step();
 
 		// step 3
-		let mut b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let mut b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		b2.push_transaction(Transaction {
 			action: Action::Create,
 			nonce: U256::from(0),
@@ -1779,7 +1784,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 
 		// step 2
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b1 = b1.close_and_lock();
 
 		// since the block is empty it isn't sealed and we generate empty steps
@@ -1788,7 +1793,7 @@ mod tests {
 		engine.step();
 
 		// step 3
-		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b2 = b2.close_and_lock();
 		engine.set_signer(tap.clone(), addr2, "0".into());
 		assert_eq!(engine.generate_seal(b2.block(), &genesis_header), Seal::None);
@@ -1796,7 +1801,7 @@ mod tests {
 
 		// step 4
 		// the spec sets the maximum_empty_steps to 2 so we will now seal an empty block and include the empty step messages
-		let b3 = OpenBlock::new(engine, Default::default(), false, db3, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b3 = OpenBlock::new(engine, Default::default(), false, db3, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b3 = b3.close_and_lock();
 
 		engine.set_signer(tap.clone(), addr1, "1".into());
@@ -1829,7 +1834,7 @@ mod tests {
 		engine.register_client(Arc::downgrade(&client) as _);
 
 		// step 2
-		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b1 = b1.close_and_lock();
 
 		// since the block is empty it isn't sealed and we generate empty steps
@@ -1839,7 +1844,7 @@ mod tests {
 
 		// step 3
 		// the signer of the accumulated empty step message should be rewarded
-		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let addr1_balance = b2.block().state().balance(&addr1).unwrap();
 
 		// after closing the block `addr1` should be reward twice, one for the included empty step message and another for block creation
@@ -1962,6 +1967,7 @@ mod tests {
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
+			&mut Vec::new().into_iter(),
 		).unwrap();
 		let b1 = b1.close_and_lock();
 
@@ -1983,6 +1989,7 @@ mod tests {
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
+			&mut Vec::new().into_iter(),
 		).unwrap();
 		let addr1_balance = b2.block().state().balance(&addr1).unwrap();
 
