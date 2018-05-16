@@ -35,7 +35,7 @@ use unexpected::{OutOfBounds, Mismatch};
 use client::EngineClient;
 use bytes::Bytes;
 use error::{Error, BlockError};
-use header::{Header, BlockNumber};
+use header::{Header, BlockNumber, ExtendedHeader};
 use rlp::Rlp;
 use ethkey::{self, Message, Signature};
 use account_provider::AccountProvider;
@@ -530,7 +530,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		Ok(())
 	}
 
-	fn on_new_block(&self, block: &mut ExecutedBlock, epoch_begin: bool) -> Result<(), Error> {
+	fn on_new_block(&self, block: &mut ExecutedBlock, epoch_begin: bool, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Result<(), Error> {
 		if !epoch_begin { return Ok(()) }
 
 		// genesis is never a new block, but might as well check.
@@ -765,6 +765,10 @@ impl Engine<EthereumMachine> for Tendermint {
 		*self.client.write() = Some(client.clone());
 		self.validators.register_client(client);
 	}
+
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
+		super::total_difficulty_fork_choice(new, current)
+	}
 }
 
 #[cfg(test)]
@@ -800,7 +804,7 @@ mod tests {
 		let db = spec.ensure_db_good(db, &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b = b.close();
 		if let Seal::Proposal(seal) = spec.engine.generate_seal(b.block(), &genesis_header) {
 			(b, seal)

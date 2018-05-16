@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,19 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Tree route info type definition
+//! Actions on ancestry blocks when working on a new block.
 
 use ethereum_types::H256;
 
-/// Represents a tree route between `from` block and `to` block:
-#[derive(Debug)]
-pub struct TreeRoute {
-	/// A vector of hashes of all blocks, ordered from `from` to `to`.
-	pub blocks: Vec<H256>,
-	/// Best common ancestor of these blocks.
-	pub ancestor: H256,
-	/// An index where best common ancestor would be.
-	pub index: usize,
-	/// Whether it has finalized blocks from `from` (inclusive) to `ancestor` (exclusive).
-	pub is_from_route_finalized: bool,
+#[derive(Debug, PartialEq, Eq, Clone)]
+/// Actions on a live block's parent block. Only committed when the live block is committed. Those actions here must
+/// respect the normal blockchain reorganization rules.
+pub enum AncestryAction {
+	/// Mark an ancestry block as finalized.
+	MarkFinalized(H256),
 }
