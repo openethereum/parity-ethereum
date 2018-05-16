@@ -18,7 +18,7 @@ ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-bytes = { path = "../util/bytes" }
 fetch = { path = "../util/fetch" }
 hashdb = { path = "../util/hashdb" }
-memorydb= "0.1.1"
+memorydb = "0.1.1"
 patricia-trie = { path = "../util/patricia_trie" }
 ethcore-crypto = { path = "crypto" }
 error-chain = { version = "0.11", default-features = false }
