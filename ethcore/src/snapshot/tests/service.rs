@@ -44,7 +44,6 @@ fn restored_is_equivalent() {
 	const TX_PER: usize = 5;
 
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
-
 	let client = generate_dummy_client_with_spec_and_data(Spec::new_null, NUM_BLOCKS, TX_PER, &gas_prices);
 
 	let tempdir = TempDir::new("").unwrap();
@@ -70,7 +69,7 @@ fn restored_is_equivalent() {
 		pruning: ::journaldb::Algorithm::Archive,
 		channel: IoChannel::disconnected(),
 		snapshot_root: path,
-		db_restore: client2.clone(),
+		client: client2.clone(),
 	};
 
 	let service = Service::new(service_params).unwrap();
@@ -103,6 +102,9 @@ fn restored_is_equivalent() {
 
 #[test]
 fn guards_delete_folders() {
+	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
+	let client = generate_dummy_client_with_spec_and_data(Spec::new_null, 400, 5, &gas_prices);
+
 	let spec = Spec::new_null();
 	let tempdir = TempDir::new("").unwrap();
 	let service_params = ServiceParams {
@@ -112,7 +114,7 @@ fn guards_delete_folders() {
 		pruning: ::journaldb::Algorithm::Archive,
 		channel: IoChannel::disconnected(),
 		snapshot_root: tempdir.path().to_owned(),
-		db_restore: Arc::new(NoopDBRestore),
+		client: client,
 	};
 
 	let service = Service::new(service_params).unwrap();

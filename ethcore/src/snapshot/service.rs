@@ -692,7 +692,6 @@ impl Drop for Service {
 
 #[cfg(test)]
 mod tests {
-	use std::sync::Arc;
 	use client::ClientIoMessage;
 	use io::{IoService};
 	use spec::Spec;
@@ -701,7 +700,9 @@ mod tests {
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
 	use tempdir::TempDir;
+	use test_helpers::generate_dummy_client_with_spec_and_data;
 	use test_helpers_internal::restoration_db_handler;
+
 
 	struct NoopDBRestore;
 	impl DatabaseRestore for NoopDBRestore {
@@ -712,6 +713,8 @@ mod tests {
 
 	#[test]
 	fn sends_async_messages() {
+		let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
+		let client = generate_dummy_client_with_spec_and_data(Spec::new_null, 400, 5, &gas_prices);
 		let service = IoService::<ClientIoMessage>::start().unwrap();
 		let spec = Spec::new_test();
 
@@ -725,7 +728,7 @@ mod tests {
 			pruning: Algorithm::Archive,
 			channel: service.channel(),
 			snapshot_root: dir,
-			client: Arc::new(NoopDBRestore),
+			client: client,
 		};
 
 		let service = Service::new(snapshot_params).unwrap();
