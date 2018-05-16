@@ -328,6 +328,18 @@ impl Service {
 
 	// replace one the client's database with our own.
 	fn replace_client_db(&self) -> Result<(), Error> {
+		let migrated_blocks = self.migrate_blocks()?;
+		trace!(target: "snapshot", "Migrated {} ancient blocks", migrated_blocks);
+
+		let rest_db = self.restoration_db();
+		self.client.restore_db(&*rest_db.to_string_lossy())?;
+		Ok(())
+	}
+
+	// Migrate the blocks in the current DB into the new chain
+	fn migrate_blocks(&self) -> Result<usize, Error> {
+		// Count the number of migrated blocks
+		let mut count = 0;
 		let rest_db = self.restoration_db();
 
 		let cur_chain = &self.client.chain();
@@ -339,15 +351,25 @@ impl Service {
 		// Break when no more blocks are available from it.
 		match (next_chain_info.ancient_block_number, next_chain_info.first_block_number) {
 			(Some(next_ancient_block), Some(next_first_block)) if next_ancient_block + 1 < next_first_block => {
+				let start_block_number = next_ancient_block + 1;
+				let end_block_number = next_first_block - 1;
+
 				trace!(target: "snapshot", "Trying to import ancient blocks from {} to {}",
-					next_ancient_block, next_first_block,
+					start_block_number, end_block_number,
 				);
 
-				let mut block_number = next_ancient_block + 1;
-				let mut batch = DBTransaction::new();
-				let mut parent_diff = None;
+				let first_block_hash = cur_chain.read().block_hash(next_ancient_block);
+				let first_block_details = first_block_hash.and_then(|bh| cur_chain.read().block_details(&bh));
 
-				while block_number < next_first_block {
+				let mut block_number = start_block_number;
+				let mut batch = DBTransaction::new();
+				let mut parent_td = if let Some(block_details) = first_block_details {
+					block_details.total_difficulty
+				} else {
+					return Ok(count);
+				};
+
+				while block_number <= end_block_number {
 					let chain = cur_chain.read();
 
 					if let Some(block_hash) = chain.block_hash(block_number) {
@@ -356,18 +378,25 @@ impl Service {
 
 						match (block, block_receipts) {
 							(Some(block), Some(block_receipts)) => {
+								// Check the parent's hash for the first block
+								if block_number == start_block_number && Some(block.parent_hash()) != first_block_hash {
+									trace!(target: "snapshot", "Mismatch in snapshot's ancient blocks restoration parent hashes");
+									return Ok(count);
+								}
+
 								let diff = block.difficulty();
 								let raw_block = block.into_inner();
 								let block_receipts = block_receipts.receipts;
 
-								next_chain.insert_unordered_block(&mut batch, &raw_block, block_receipts, parent_diff, false, true);
-								parent_diff = Some(diff);
+								next_chain.insert_unordered_block(&mut batch, &raw_block, block_receipts, Some(parent_td), false, true);
+								parent_td = parent_td + diff;
+								count+=1;
 							},
 							_ => (),
 						}
 					// Break if we already imported some blocks in the current batch and there
 					// are no more left
-					} else if parent_diff.is_some() {
+					} else {
 						break;
 					}
 
@@ -375,6 +404,7 @@ impl Service {
 					if block_number % 1_000 == 0 {
 						next_db.write_buffered(batch);
 						next_chain.commit();
+						next_db.flush().expect("DB flush failed.");
 						batch = DBTransaction::new();
 					}
 
@@ -393,10 +423,7 @@ impl Service {
 			_ => (),
 		}
 
-		trace!(target: "snapshot", "Done importing ancient blocks");
-
-		self.client.restore_db(&*rest_db.to_string_lossy())?;
-		Ok(())
+		Ok(count)
 	}
 
 	/// Get a reference to the snapshot reader.
