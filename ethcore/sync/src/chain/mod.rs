@@ -769,7 +769,7 @@ impl ChainSync {
 					match io.snapshot_service().status() {
 						RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
 							// Initialize the snapshot if not already done
-							self.snapshot.initialize(io);
+							self.snapshot.initialize(io.snapshot_service());
 							if self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize > MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
 								trace!(target: "sync", "Snapshot queue full, pausing sync");
 								self.state = SyncState::SnapshotWaiting;

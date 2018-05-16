@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::snapshot::{ManifestData};
+use ethcore::snapshot::{ManifestData, SnapshotService};
 use ethereum_types::H256;
 use hash::keccak;
 use rand::{thread_rng, Rng};
-use sync_io::SyncIo;
 
 use std::collections::HashSet;
 use std::iter::FromIterator;
@@ -54,12 +53,12 @@ impl Snapshot {
 	}
 
 	/// Sync the Snapshot completed chunks with the Snapshot Service
-	pub fn initialize(&mut self, io: &SyncIo) {
+	pub fn initialize(&mut self, snapshot_service: &SnapshotService) {
 		if self.initialized {
 			return;
 		}
 
-		if let Some(completed_chunks) = io.snapshot_service().completed_chunks() {
+		if let Some(completed_chunks) = snapshot_service.completed_chunks() {
 			self.completed_chunks = HashSet::from_iter(completed_chunks);
 		}
 
@@ -117,12 +116,25 @@ impl Snapshot {
 
 	/// Find a random chunk to download
 	pub fn needed_chunk(&mut self) -> Option<H256> {
-		// Find all random chunks
-		let needed_chunks: Vec<H256> = self.pending_state_chunks.iter()
-			.chain(self.pending_block_chunks.iter())
-			.filter(|&h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h))
-			.map(|h| *h)
-			.collect();
+		// Find all random chunks: first blocks, then state
+		let needed_chunks = {
+			let chunk_filter = |h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h);
+
+			let needed_block_chunks = self.pending_block_chunks.iter()
+				.filter(|&h| chunk_filter(h))
+				.map(|h| *h)
+				.collect::<Vec<H256>>();
+
+			// If no block chunks to download, get the state chunks
+			if needed_block_chunks.len() == 0 {
+				self.pending_state_chunks.iter()
+					.filter(|&h| chunk_filter(h))
+					.map(|h| *h)
+					.collect::<Vec<H256>>()
+			} else {
+				needed_block_chunks
+			}
+		};
 
 		// Get a random chunk
 		let chunk = thread_rng().choose(&needed_chunks);
