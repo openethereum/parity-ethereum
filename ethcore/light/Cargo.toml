@@ -20,7 +20,7 @@ hashdb = { path = "../../util/hashdb" }
 heapsize = "0.4"
 vm = { path = "../vm" }
 plain_hasher = { path = "../../util/plain_hasher" }
-rlp= "0.2.2"
+rlp = "0.2.2"
 rlp_derive = { path = "../../util/rlp_derive" }
 smallvec = "0.4"
 futures = "0.1"

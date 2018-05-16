@@ -10,7 +10,7 @@ ethkey = { path = "../../ethkey" }
 evm = { path = "../evm" }
 heapsize = "0.4"
 keccak-hash = { path = "../../util/hash" }
-rlp= "0.2.2"
+rlp = "0.2.2"
 unexpected = { path = "../../util/unexpected" }
 ethereum-types = "0.3"
 

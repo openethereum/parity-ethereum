@@ -26,7 +26,7 @@ ethcore-logger = { path ="../../logger" }
 ethcore-network = { path = "../network" }
 ethereum-types = "0.3"
 ethkey = { path = "../../ethkey" }
-rlp= "0.2.2"
+rlp = "0.2.2"
 path = { path = "../path" }
 ipnetwork = "0.12.6"
 keccak-hash = { path = "../hash" }

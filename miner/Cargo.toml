@@ -28,7 +28,7 @@ log = "0.3"
 parking_lot = "0.5"
 price-info = { path = "../price-info" }
 rayon = "1.0"
-rlp= "0.2.2"
+rlp = "0.2.2"
 trace-time = { path = "../util/trace-time" }
 transaction-pool = { path = "../transaction-pool" }
 

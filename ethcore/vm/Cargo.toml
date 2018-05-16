@@ -11,5 +11,5 @@ patricia-trie = { path = "../../util/patricia_trie" }
 log = "0.3"
 common-types = { path = "../types" }
 ethjson = { path = "../../json" }
-rlp= "0.2.2"
+rlp = "0.2.2"
 keccak-hash = { path = "../../util/hash" }

@@ -11,7 +11,7 @@ ethcore-bytes = { path = "../util/bytes" }
 ethereum-types = "0.3"
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
-rlp= "0.2.2"
+rlp = "0.2.2"
 cid = "0.2"
 multihash = "0.7"
 unicase = "2.0"
