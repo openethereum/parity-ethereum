@@ -245,9 +245,12 @@ pub struct SyncStatus {
 impl SyncStatus {
 	/// Indicates if snapshot download is in progress
 	pub fn is_snapshot_syncing(&self) -> bool {
-		self.state == SyncState::SnapshotManifest
-			|| self.state == SyncState::SnapshotData
-			|| self.state == SyncState::SnapshotWaiting
+		match self.state {
+			SyncState::SnapshotManifest |
+				SyncState::SnapshotData |
+				SyncState::SnapshotWaiting => true,
+			_ => false,
+		}
 	}
 
 	/// Returns max no of peers to display in informants
@@ -643,7 +646,7 @@ impl ChainSync {
 		}
 	}
 
-	/// Resume  downloading
+	/// Resume downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
 		// Collect active peers that can sync
 		let confirmed_peers: Vec<(PeerId, u8)> = self.peers.iter().filter_map(|(peer_id, peer)|
@@ -751,26 +754,45 @@ impl ChainSync {
 						}
 					}
 
-					if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
-						SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
-						return;
+					// Only ask for old blocks if the peer has a higher difficulty
+					if force || higher_difficulty {
+						if let Some(request) = self.old_blocks.as_mut().and_then(|d| d.request_blocks(io, num_active_peers)) {
+							SyncRequester::request_blocks(self, io, peer_id, request, BlockSet::OldBlocks);
+							return;
+						}
+					} else {
+						trace!(target: "sync", "peer {} is not suitable for asking old blocks", peer_id);
+						self.deactivate_peer(io, peer_id);
 					}
 				},
 				SyncState::SnapshotData => {
-					if let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } = io.snapshot_service().status() {
-						if self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize > MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
-							trace!(target: "sync", "Snapshot queue full, pausing sync");
-							self.state = SyncState::SnapshotWaiting;
+					match io.snapshot_service().status() {
+						RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
+							// Initialize the snapshot if not already done
+							self.snapshot.initialize(io.snapshot_service());
+							if self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize > MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
+								trace!(target: "sync", "Snapshot queue full, pausing sync");
+								self.state = SyncState::SnapshotWaiting;
+								return;
+							}
+						},
+						RestorationStatus::Initializing { .. } => {
+							trace!(target: "warp", "Snapshot is stil initializing.");
 							return;
-						}
+						},
+						_ => {
+							return;
+						},
 					}
+
 					if peer_snapshot_hash.is_some() && peer_snapshot_hash == self.snapshot.snapshot_hash() {
 						self.clear_peer_download(peer_id);
 						SyncRequester::request_snapshot_data(self, io, peer_id);
 					}
 				},
 				SyncState::SnapshotManifest | //already downloading from other peer
-					SyncState::Waiting | SyncState::SnapshotWaiting => ()
+					SyncState::Waiting |
+					SyncState::SnapshotWaiting => ()
 			}
 		} else {
 			trace!(target: "sync", "Skipping peer {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
@@ -861,10 +883,7 @@ impl ChainSync {
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
 		if warp_protocol {
-			let manifest = match self.old_blocks.is_some() {
-				true => None,
-				false => io.snapshot_service().manifest(),
-			};
+			let manifest = io.snapshot_service().manifest();
 			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
 			let manifest_hash = manifest.map_or(H256::new(), |m| keccak(m.into_rlp()));
 			packet.append(&manifest_hash);
@@ -908,29 +927,36 @@ impl ChainSync {
 	}
 
 	fn check_resume(&mut self, io: &mut SyncIo) {
-		if self.state == SyncState::Waiting && !io.chain().queue_info().is_full() {
-			self.state = SyncState::Blocks;
-			self.continue_sync(io);
-		} else if self.state == SyncState::SnapshotWaiting {
-			match io.snapshot_service().status() {
-				RestorationStatus::Inactive => {
-					trace!(target:"sync", "Snapshot restoration is complete");
-					self.restart(io);
-				},
-				RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
-					if !self.snapshot.is_complete() && self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize <= MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
-						trace!(target:"sync", "Resuming snapshot sync");
-						self.state = SyncState::SnapshotData;
+		match self.state {
+			SyncState::Waiting if !io.chain().queue_info().is_full() => {
+				self.state = SyncState::Blocks;
+				self.continue_sync(io);
+			},
+			SyncState::SnapshotWaiting => {
+				match io.snapshot_service().status() {
+					RestorationStatus::Inactive => {
+						trace!(target:"sync", "Snapshot restoration is complete");
+						self.restart(io);
+					},
+					RestorationStatus::Initializing { .. } => {
+						trace!(target:"sync", "Snapshot restoration is initializing");
+					},
+					RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
+						if !self.snapshot.is_complete() && self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize <= MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
+							trace!(target:"sync", "Resuming snapshot sync");
+							self.state = SyncState::SnapshotData;
+							self.continue_sync(io);
+						}
+					},
+					RestorationStatus::Failed => {
+						trace!(target: "sync", "Snapshot restoration aborted");
+						self.state = SyncState::WaitingPeers;
+						self.snapshot.clear();
 						self.continue_sync(io);
-					}
-				},
-				RestorationStatus::Failed => {
-					trace!(target: "sync", "Snapshot restoration aborted");
-					self.state = SyncState::WaitingPeers;
-					self.snapshot.clear();
-					self.continue_sync(io);
-				},
-			}
+					},
+				}
+			},
+			_ => (),
 		}
 	}
 
