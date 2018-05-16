@@ -210,6 +210,13 @@ pub struct HostInfo {
 	pub public_endpoint: Option<NodeEndpoint>,
 }
 
+impl HostInfo {
+	fn next_nonce(&mut self) -> H256 {
+		self.nonce = keccak(&self.nonce);
+		self.nonce
+	}
+}
+
 impl HostInfoTrait for HostInfo {
 	fn id(&self) -> &NodeId {
 		self.keys.public()
@@ -217,11 +224,6 @@ impl HostInfoTrait for HostInfo {
 
 	fn secret(&self) -> &Secret {
 		self.keys.secret()
-	}
-
-	fn next_nonce(&mut self) -> H256 {
-		self.nonce = keccak(&self.nonce);
-		self.nonce
 	}
 
 	fn client_version(&self) -> &str {
