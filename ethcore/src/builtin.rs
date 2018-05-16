@@ -27,6 +27,8 @@ use bytes::BytesRef;
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
+use crypto::ed25519;
+
 #[derive(Debug)]
 pub struct Error(pub &'static str);
 
@@ -218,6 +220,7 @@ fn ethereum_builtin(name: &str) -> Box<Impl> {
 		"alt_bn128_add" => Box::new(Bn128AddImpl) as Box<Impl>,
 		"alt_bn128_mul" => Box::new(Bn128MulImpl) as Box<Impl>,
 		"alt_bn128_pairing" => Box::new(Bn128PairingImpl) as Box<Impl>,
+		"ed25519_verify" => Box::new(Ed25519VerifyImpl) as Box<Impl>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -253,6 +256,9 @@ struct Bn128MulImpl;
 
 #[derive(Debug)]
 struct Bn128PairingImpl;
+
+#[derive(Debug)]
+struct Ed25519VerifyImpl;
 
 impl Impl for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
@@ -527,6 +533,28 @@ impl Bn128PairingImpl {
 
 		let mut buf = [0u8; 32];
 		ret_val.to_big_endian(&mut buf);
+		output.write(0, &buf);
+
+		Ok(())
+	}
+}
+
+impl Impl for Ed25519VerifyImpl {
+	fn execute(&self, i: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+		let len = min(i.len(), 128);
+
+		let mut input = [0u8; 128];
+		input[..len].copy_from_slice(&i[..len]);
+
+		let mut buf = [0u8; 4];
+
+		// https://docs.rs/rust-crypto/0.2.36/crypto/ed25519/fn.verify.html
+		if ed25519::verify(&input[0..32], &input[32..64], &input[64..128]) {
+			buf[3] = 0u8;
+		} else {
+			buf[3] = 1u8;
+		};
+
 		output.write(0, &buf);
 
 		Ok(())
@@ -976,6 +1004,15 @@ mod tests {
 			),
 			Some("Invalid input length"),
 		);
+	}
+
+	#[test]
+	fn ed25519_verify() {
+		let f = ethereum_builtin("ed25519_verify");
+		let i = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
+		let mut o = [255u8; 4];
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..])).expect("Builtin should not fail");
+		assert_eq!(&o[..], &(FromHex::from_hex("00000001").unwrap())[..]);
 	}
 
 	#[test]
