@@ -4,7 +4,7 @@ homepage = "https://github.com/paritytech/keccak-hash"
 readme = "README.md"
 license = "GPL-3.0"
 name = "keccak-hash"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
