@@ -25,7 +25,7 @@ use builtin::Builtin;
 use client::{BlockInfo, CallContract};
 use error::Error;
 use executive::Executive;
-use header::{BlockNumber, Header};
+use header::{BlockNumber, Header, ExtendedHeader};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
@@ -422,10 +422,12 @@ pub enum AuxiliaryRequest {
 
 impl ::parity_machine::Machine for EthereumMachine {
 	type Header = Header;
+	type ExtendedHeader = ExtendedHeader;
 
 	type LiveBlock = ExecutedBlock;
 	type EngineClient = ::client::EngineClient;
 	type AuxiliaryRequest = AuxiliaryRequest;
+	type AncestryAction = ::types::ancestry_action::AncestryAction;
 
 	type Error = Error;
 }
