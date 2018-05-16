@@ -33,7 +33,7 @@ use chain::{ChainSync, SyncStatus as EthSyncStatus};
 use std::net::{SocketAddr, AddrParseError};
 use std::str::FromStr;
 use parking_lot::RwLock;
-use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT, ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_62,
+use chain::{ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_62,
 	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3};
 use light::client::AsLightClient;
 use light::Provider;
@@ -202,10 +202,8 @@ pub struct AttachedProtocol {
 	pub handler: Arc<NetworkProtocolHandler + Send + Sync>,
 	/// 3-character ID for the protocol.
 	pub protocol_id: ProtocolId,
-	/// Packet count.
-	pub packet_count: u8,
-	/// Supported versions.
-	pub versions: &'static [u8],
+	/// Supported versions and their packet counts.
+	pub versions: &'static [(u8, u8)],
 }
 
 impl AttachedProtocol {
@@ -213,7 +211,6 @@ impl AttachedProtocol {
 		let res = network.register_protocol(
 			self.handler.clone(),
 			self.protocol_id,
-			self.packet_count,
 			self.versions
 		);
 
@@ -459,15 +456,15 @@ impl ChainNotify for EthSync {
 			Err(err) => warn!("Error starting network: {}", err),
 			_ => {},
 		}
-		self.network.register_protocol(self.eth_handler.clone(), self.subprotocol_name, ETH_PACKET_COUNT, &[ETH_PROTOCOL_VERSION_62, ETH_PROTOCOL_VERSION_63])
+		self.network.register_protocol(self.eth_handler.clone(), self.subprotocol_name, &[ETH_PROTOCOL_VERSION_62, ETH_PROTOCOL_VERSION_63])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 		// register the warp sync subprotocol
-		self.network.register_protocol(self.eth_handler.clone(), WARP_SYNC_PROTOCOL_ID, SNAPSHOT_SYNC_PACKET_COUNT, &[PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3])
+		self.network.register_protocol(self.eth_handler.clone(), WARP_SYNC_PROTOCOL_ID, &[PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3])
 			.unwrap_or_else(|e| warn!("Error registering snapshot sync protocol: {:?}", e));
 
 		// register the light protocol.
 		if let Some(light_proto) = self.light_proto.as_ref().map(|x| x.clone()) {
-			self.network.register_protocol(light_proto, self.light_subprotocol_name, ::light::net::PACKET_COUNT, ::light::net::PROTOCOL_VERSIONS)
+			self.network.register_protocol(light_proto, self.light_subprotocol_name, ::light::net::PROTOCOL_VERSIONS)
 				.unwrap_or_else(|e| warn!("Error registering light client protocol: {:?}", e));
 		}
 
@@ -827,7 +824,7 @@ impl ManageNetwork for LightSync {
 
 		let light_proto = self.proto.clone();
 
-		self.network.register_protocol(light_proto, self.subprotocol_name, ::light::net::PACKET_COUNT, ::light::net::PROTOCOL_VERSIONS)
+		self.network.register_protocol(light_proto, self.subprotocol_name, ::light::net::PROTOCOL_VERSIONS)
 			.unwrap_or_else(|e| warn!("Error registering light client protocol: {:?}", e));
 
 		for proto in &self.attached_protos { proto.register(&self.network) }

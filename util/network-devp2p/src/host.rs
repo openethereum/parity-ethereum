@@ -79,7 +79,9 @@ const NODE_TABLE_TIMEOUT: Duration = Duration::from_secs(300);
 #[derive(Debug, PartialEq, Eq)]
 /// Protocol info
 pub struct CapabilityInfo {
+	/// Protocol ID
 	pub protocol: ProtocolId,
+	/// Protocol version
 	pub version: u8,
 	/// Total number of packet IDs this protocol support.
 	pub packet_count: u8,
@@ -149,10 +151,6 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 	fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
 		assert!(self.session.is_some(), "Respond called without network context");
 		self.session_id.map_or_else(|| Err(ErrorKind::Expired.into()), |id| self.send(id, packet_id, data))
-	}
-
-	fn io_channel(&self) -> IoChannel<NetworkIoMessage> {
-		self.io.channel()
 	}
 
 	fn disable_peer(&self, peer: PeerId) {
@@ -687,7 +685,7 @@ impl Host {
 						Err(e) => {
 							let s = session.lock();
 							trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
-							if let ErrorKind::Disconnect(DisconnectReason::UselessPeer) = *e.kind() {
+							if let ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) = *e.kind() {
 								if let Some(id) = s.id() {
 									if !self.reserved_nodes.read().contains(id) {
 										let mut nodes = self.nodes.write();
@@ -990,7 +988,6 @@ impl IoHandler<NetworkIoMessage> for Host {
 				ref handler,
 				ref protocol,
 				ref versions,
-				ref packet_count,
 			} => {
 				let h = handler.clone();
 				let reserved = self.reserved_nodes.read();
@@ -1000,8 +997,12 @@ impl IoHandler<NetworkIoMessage> for Host {
 				);
 				self.handlers.write().insert(*protocol, h);
 				let mut info = self.info.write();
-				for v in versions {
-					info.capabilities.push(CapabilityInfo { protocol: *protocol, version: *v, packet_count: *packet_count });
+				for &(version, packet_count) in versions {
+					info.capabilities.push(CapabilityInfo {
+						protocol: *protocol,
+						version,
+						packet_count,
+					});
 				}
 			},
 			NetworkIoMessage::AddTimer {

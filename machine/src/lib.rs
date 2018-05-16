@@ -40,13 +40,35 @@ pub trait Header {
 	fn number(&self) -> u64;
 }
 
-/// a header with an associated score (difficulty in PoW terms)
+/// A header with an associated score (difficulty in PoW terms)
 pub trait ScoredHeader: Header {
+	type Value;
+
 	/// Get the score of this header.
-	fn score(&self) -> &U256;
+	fn score(&self) -> &Self::Value;
 
 	/// Set the score of this header.
-	fn set_score(&mut self, score: U256);
+	fn set_score(&mut self, score: Self::Value);
+}
+
+/// A header with associated total score.
+pub trait TotalScoredHeader: Header {
+	type Value;
+
+	/// Get the total score of this header.
+	fn total_score(&self) -> Self::Value;
+}
+
+/// A header with finalized information.
+pub trait FinalizableHeader: Header {
+	/// Get whether this header is considered finalized, so that it will never be replaced in reorganization.
+	fn is_finalized(&self) -> bool;
+}
+
+/// A header with metadata information.
+pub trait WithMetadataHeader: Header {
+	/// Get the current header metadata.
+	fn metadata(&self) -> Option<&[u8]>;
 }
 
 /// A "live" block is one which is in the process of the transition.
@@ -73,16 +95,36 @@ pub trait Transactions: LiveBlock {
 	fn transactions(&self) -> &[Self::Transaction];
 }
 
+/// Trait for blocks which have finalized information.
+pub trait Finalizable: LiveBlock {
+	/// Get whether the block is finalized.
+	fn is_finalized(&self) -> bool;
+	/// Mark the block as finalized.
+	fn mark_finalized(&mut self);
+}
+
+/// A state machine with block metadata.
+pub trait WithMetadata: LiveBlock {
+	/// Get the current live block metadata.
+	fn metadata(&self) -> Option<&[u8]>;
+	/// Set the current live block metadata.
+	fn set_metadata(&mut self, value: Option<Vec<u8>>);
+}
+
 /// Generalization of types surrounding blockchain-suitable state machines.
 pub trait Machine: for<'a> LocalizedMachine<'a> {
 	/// The block header type.
 	type Header: Header;
 	/// The live block type.
 	type LiveBlock: LiveBlock<Header=Self::Header>;
+	/// Block header with metadata information.
+	type ExtendedHeader: Header;
 	/// A handle to a blockchain client for this machine.
 	type EngineClient: ?Sized;
 	/// A description of needed auxiliary data.
 	type AuxiliaryRequest;
+	/// Actions taken on ancestry blocks when commiting a new block.
+	type AncestryAction;
 
 	/// Errors which can occur when querying or interacting with the machine.
 	type Error;

@@ -28,7 +28,7 @@ use super::{
 	BlockSet,
 	ChainSync,
 	PeerAsking,
-	ETH_PACKET_COUNT,
+	ETH_PROTOCOL_VERSION_63,
 	GET_BLOCK_BODIES_PACKET,
 	GET_BLOCK_HEADERS_PACKET,
 	GET_RECEIPTS_PACKET,
@@ -140,7 +140,8 @@ impl SyncRequester {
 			}
 			peer.asking = asking;
 			peer.ask_time = Instant::now();
-			let result = if packet_id >= ETH_PACKET_COUNT {
+			// TODO [ToDr] This seems quite fragile. Be careful when protocol is updated.
+			let result = if packet_id >= ETH_PROTOCOL_VERSION_63.1 {
 				io.send_protocol(WARP_SYNC_PROTOCOL_ID, peer_id, packet_id, packet)
 			} else {
 				io.send(peer_id, packet_id, packet)

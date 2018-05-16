@@ -33,4 +33,5 @@ pub use self::cache::CacheSize;
 pub use self::config::Config;
 pub use self::extras::{BlockReceipts, BlockDetails, TransactionAddress};
 pub use self::import_route::ImportRoute;
+pub use self::update::ExtrasInsert;
 pub use types::tree_route::TreeRoute;

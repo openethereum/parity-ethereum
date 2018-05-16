@@ -25,7 +25,7 @@ use builtin::Builtin;
 use client::{BlockInfo, CallContract};
 use error::Error;
 use executive::Executive;
-use header::{BlockNumber, Header};
+use header::{BlockNumber, Header, ExtendedHeader};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
@@ -122,7 +122,13 @@ impl EthereumMachine {
 }
 
 impl EthereumMachine {
-	/// Execute a call as the system address.
+	/// Execute a call as the system address. Block environment information passed to the
+	/// VM is modified to have its gas limit bounded at the upper limit of possible used
+	/// gases including this system call, capped at the maximum value able to be
+	/// represented by U256. This system call modifies the block state, but discards other
+	/// information. If suicides, logs or refunds happen within the system call, they
+	/// will not be executed or recorded. Gas used by this system call will not be counted
+	/// on the block.
 	pub fn execute_as_system(
 		&self,
 		block: &mut ExecutedBlock,
@@ -132,7 +138,7 @@ impl EthereumMachine {
 	) -> Result<Vec<u8>, Error> {
 		let env_info = {
 			let mut env_info = block.env_info();
-			env_info.gas_limit = env_info.gas_used + gas;
+			env_info.gas_limit = env_info.gas_used.saturating_add(gas);
 			env_info
 		};
 
@@ -416,10 +422,12 @@ pub enum AuxiliaryRequest {
 
 impl ::parity_machine::Machine for EthereumMachine {
 	type Header = Header;
+	type ExtendedHeader = ExtendedHeader;
 
 	type LiveBlock = ExecutedBlock;
 	type EngineClient = ::client::EngineClient;
 	type AuxiliaryRequest = AuxiliaryRequest;
+	type AncestryAction = ::types::ancestry_action::AncestryAction;
 
 	type Error = Error;
 }
