@@ -123,11 +123,11 @@ impl SyncHandler {
 				// Check if we are asking other peers for
 				// the snapshot manifest as well.
 				// If not, return to initial state
-				let still_asking_manifest = sync.peers.iter()
+				let none_asking_manifest = sync.peers.iter()
 					.filter(|&(id, p)| sync.active_peers.contains(id) && p.asking == PeerAsking::SnapshotManifest)
 					.next().is_none();
 
-				if still_asking_manifest {
+				if none_asking_manifest {
 					sync.state = ChainSync::init_state(sync.warp_sync, io.chain());
 				}
 			}
