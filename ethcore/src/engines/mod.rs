@@ -57,6 +57,7 @@ use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
 use types::ancestry_action::AncestryAction;
+use types::receipt::Receipt;
 
 /// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
@@ -459,6 +460,14 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
 		self.machine().verify_transaction_basic(t, header)
 	}
+
+	/// Verify the transaction outcome is acceptable.
+	fn verify_transaction_outcome(&self, _t: &SignedTransaction, _receipt: &mut Receipt) -> bool {
+		true
+	}
+
+	/// Before applying transaction states, order transactions to desired. The engine should only apply absolutely minimal ordering.
+	fn reorder_transactions(&self, _ts: &mut [SignedTransaction]) { }
 
 	/// Additional information.
 	fn additional_params(&self) -> HashMap<String, String> {
