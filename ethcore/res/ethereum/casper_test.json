@@ -4,7 +4,7 @@
 	"engine": {
 		"Ethash": {
 			"params": {
-				"minimumDifficulty": "0x20000",
+				"minimumDifficulty": "0x1ee73",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
@@ -16,17 +16,16 @@
 				"eip649Reward": "0x29A2241AF62C0000",
 				"eip100bTransition": "0x0",
 				"eip649Transition": "0x0",
-				"hybridCasperTransition": "0x1"
+				"hybridCasperTransition": "0x5"
 			}
 		}
 	},
 	"params": {
 		"gasLimitBoundDivisor": "0x0400",
-		"registrar" : "0xe3389675d0338462dC76C6f9A3e432550c36A142",
 		"accountStartNonce": "0x00",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
-		"networkID" : "0x4827",
+		"networkID" : "0x1ee7",
 		"eip155Transition": "0x0",
 		"eip98Transition": "0x7fffffffffffff",
 		"eip86Transition": "0x7fffffffffffff",
