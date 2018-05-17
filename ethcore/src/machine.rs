@@ -67,10 +67,16 @@ pub struct EthashExtensions {
 	pub hybrid_casper_transition: u64,
 	/// EIP1011 Casper contract code.
 	pub hybrid_casper_contract_code: Bytes,
+	/// EIP1011 Casper contract address.
+	pub hybrid_casper_contract_address: Address,
 	/// EIP1011 purity checker code.
 	pub hybrid_casper_purity_checker_contract_code: Bytes,
+	/// EIP1011 purity checker address.
+	pub hybrid_casper_purity_checker_contract_address: Address,
 	/// EIP1011 msg hasher code.
 	pub hybrid_casper_msg_hasher_contract_code: Bytes,
+	/// EIP1011 msg hasher address.
+	pub hybrid_casper_msg_hasher_contract_address: Address,
 }
 
 impl From<::ethjson::spec::EthashParams> for EthashExtensions {
@@ -88,12 +94,15 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 			hybrid_casper_contract_code: DEFAULT_CASPER_CONTRACT.from_hex().expect(
 				"Default CASPER_CODE is valid",
 			),
+			hybrid_casper_contract_address: Address::from(0x40u64),
 			hybrid_casper_purity_checker_contract_code: DEFAULT_PURITY_CHECKER_CONTRACT.from_hex().expect(
 				"Default PURITY_CHECKER_CODE is valid",
 			),
+			hybrid_casper_purity_checker_contract_address: Address::from(0x41u64),
 			hybrid_casper_msg_hasher_contract_code: DEFAULT_MSG_HASHER_CONTRACT.from_hex().expect(
 				"Default MSG_HASHER_CODE is valid",
 			),
+			hybrid_casper_msg_hasher_contract_address: Address::from(0x42u64),
 		}
 	}
 }
@@ -223,7 +232,13 @@ impl EthereumMachine {
 			}
 
 			if block.header().number() == ethash_params.hybrid_casper_transition {
-
+				let state = block.state_mut();
+				state.init_code(&ethash_params.hybrid_casper_contract_address,
+								ethash_params.hybrid_casper_contract_code.clone())?;
+				state.init_code(&ethash_params.hybrid_casper_purity_checker_contract_address,
+								ethash_params.hybrid_casper_purity_checker_contract_code.clone())?;
+				state.init_code(&ethash_params.hybrid_casper_msg_hasher_contract_address,
+								ethash_params.hybrid_casper_msg_hasher_contract_code.clone())?;
 			}
 		}
 
