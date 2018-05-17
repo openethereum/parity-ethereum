@@ -137,6 +137,10 @@ pub struct EthashParams {
 	/// EXPIP-2 duration limit
 	#[serde(rename="expip2DurationLimit")]
 	pub expip2_duration_limit: Option<Uint>,
+
+	/// EIP1011 transition block
+	#[serde(rename="hybridCasperTransition")]
+	pub hybrid_casper_transition: Option<Uint>,
 }
 
 /// Ethash engine deserialization.

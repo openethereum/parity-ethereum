@@ -15,7 +15,8 @@
 				"eip161dTransition": "0x0",
 				"eip649Reward": "0x29A2241AF62C0000",
 				"eip100bTransition": "0x0",
-				"eip649Transition": "0x0"
+				"eip649Transition": "0x0",
+				"hybridCasperTransition": "0x1"
 			}
 		}
 	},

@@ -124,6 +124,8 @@ pub struct EthashParams {
 	pub expip2_transition: u64,
 	/// EXPIP-2 duration limit
 	pub expip2_duration_limit: u64,
+	/// Number of first block wehre Casper rules begin.
+	pub hybrid_casper_transition: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -154,6 +156,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			eip649_reward: p.eip649_reward.map(Into::into),
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
 			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
+			hybrid_casper_transition: p.hybrid_casper_transition.map_or(u64::max_value(), Into::into),
 		}
 	}
 }
