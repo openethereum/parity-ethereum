@@ -108,7 +108,7 @@ pub struct SerializableDocumentKeyShareV0 {
 /// V1 of encrypted key share, as it is stored by key storage on the single key server.
 #[derive(Serialize, Deserialize)]
 struct SerializableDocumentKeyShareV1 {
-	/// Authore of the entry.
+	/// Author of the entry.
 	pub author: SerializablePublic,
 	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
 	pub threshold: usize,

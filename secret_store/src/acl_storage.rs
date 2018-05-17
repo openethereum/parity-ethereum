@@ -106,7 +106,7 @@ impl CachedContract {
 
 	pub fn check(&mut self, requester: Address, document: &ServerKeyId) -> Result<bool, Error> {
 		if let Some(client) = self.client.get() {
-			// call contract to check accesss
+			// call contract to check access
 			match self.contract_addr {
 				Some(contract_address) => {
 					let do_call = |data| client.call_contract(BlockId::Latest, contract_address, data);
