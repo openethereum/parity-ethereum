@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -39,6 +39,10 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 
 	if args.flag_warp {
 		result.push(Deprecated::DoesNothing("--warp"));
+	}
+
+	if args.flag_no_ancient_blocks {
+		result.push(Deprecated::DoesNothing("--no-ancient-blocks"));
 	}
 
 	if args.flag_jsonrpc {
@@ -122,6 +126,7 @@ mod tests {
 		assert_eq!(find_deprecated(&{
 			let mut args = Args::default();
 			args.flag_warp = true;
+			args.flag_no_ancient_blocks = true;
 			args.flag_jsonrpc = true;
 			args.flag_rpc = true;
 			args.flag_jsonrpc_off = true;
@@ -141,6 +146,7 @@ mod tests {
 			args
 		}), vec![
 			Deprecated::DoesNothing("--warp"),
+			Deprecated::DoesNothing("--no-ancient-blocks"),
 			Deprecated::DoesNothing("--jsonrpc"),
 			Deprecated::DoesNothing("--rpc"),
 			Deprecated::Replaced("--jsonrpc-off", "--no-jsonrpc"),

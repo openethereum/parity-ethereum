@@ -163,13 +163,13 @@ impl Configuration {
 					port: ws_conf.port,
 					authfile: authfile,
 				}
-			} else if self.args.cmd_signer_reject  {
+			} else if self.args.cmd_signer_reject {
 				Cmd::SignerReject {
 					id: self.args.arg_signer_reject_id,
 					port: ws_conf.port,
 					authfile: authfile,
 				}
-			} else if self.args.cmd_signer_list  {
+			} else if self.args.cmd_signer_list {
 				Cmd::SignerList {
 					port: ws_conf.port,
 					authfile: authfile,
@@ -212,7 +212,7 @@ impl Configuration {
 			};
 			Cmd::Account(account_cmd)
 		} else if self.args.flag_import_geth_keys {
-        	let account_cmd = AccountCmd::ImportFromGeth(
+			let account_cmd = AccountCmd::ImportFromGeth(
 				ImportFromGethAccounts {
 					spec: spec,
 					to: dirs.keys,
@@ -395,7 +395,7 @@ impl Configuration {
 				custom_bootnodes: self.args.arg_bootnodes.is_some(),
 				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
 				check_seal: !self.args.flag_no_seal_check,
-				download_old_blocks: !self.args.flag_no_ancient_blocks,
+				download_old_blocks: self.args.flag_ancient_blocks,
 				verifier_settings: verifier_settings,
 				serve_light: !self.args.flag_no_serve_light,
 				light: self.args.flag_light,
@@ -1456,10 +1456,10 @@ mod tests {
 			hosts: Some(vec![]),
 			info_page_only: true,
 		}, LogConfig {
-            color: true,
-            mode: None,
-            file: None,
-        } ));
+			color: true,
+			mode: None,
+			file: None,
+		} ));
 	}
 
 	#[test]
@@ -1646,17 +1646,17 @@ mod tests {
 
 		// when
 		let conf1 = parse(&["parity", "-j",
-						 "--jsonrpc-port", "8000",
-						 "--jsonrpc-interface", "all",
-						 "--jsonrpc-cors", "*",
-						 "--jsonrpc-apis", "web3,eth"
-						 ]);
+							"--jsonrpc-port", "8000",
+							"--jsonrpc-interface", "all",
+							"--jsonrpc-cors", "*",
+							"--jsonrpc-apis", "web3,eth"
+						]);
 		let conf2 = parse(&["parity", "--rpc",
-						  "--rpcport", "8000",
-						  "--rpcaddr", "all",
-						  "--rpccorsdomain", "*",
-						  "--rpcapi", "web3,eth"
-						  ]);
+							"--rpcport", "8000",
+							"--rpcaddr", "all",
+							"--rpccorsdomain", "*",
+							"--rpcapi", "web3,eth"
+						]);
 
 		// then
 		assert(conf1);
