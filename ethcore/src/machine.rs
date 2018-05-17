@@ -41,6 +41,8 @@ use rlp::Rlp;
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 
+use_contract!(simple_casper_contract, "SimpleCasper", "res/contracts/simple_casper.json");
+
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
 
@@ -77,6 +79,19 @@ pub struct EthashExtensions {
 	pub hybrid_casper_msg_hasher_contract_code: Bytes,
 	/// EIP1011 msg hasher address.
 	pub hybrid_casper_msg_hasher_contract_address: Address,
+
+	/// EIP1011 epoch length.
+	pub hybrid_casper_epoch_length: u64,
+	/// EIP1011 warm up period.
+	pub hybrid_casper_withdrawal_delay: u64,
+	/// EIP1011 dynasty logout delay.
+	pub hybrid_casper_dynasty_logout_delay: u64,
+	/// EIP1011 base interest factor, with 10 decimals.
+	pub hybrid_casper_base_interest_factor: U256,
+	/// EIP1011 base panelty factor, with 10 decimals.
+	pub hybrid_casper_base_penalty_factor: U256,
+	/// EIP1011 minimal deposit size.
+	pub hybrid_casper_min_deposit_size: U256,
 }
 
 impl From<::ethjson::spec::EthashParams> for EthashExtensions {
@@ -103,6 +118,12 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 				"Default MSG_HASHER_CODE is valid",
 			),
 			hybrid_casper_msg_hasher_contract_address: Address::from(0x42u64),
+			hybrid_casper_epoch_length: 50,
+			hybrid_casper_withdrawal_delay: 15000,
+			hybrid_casper_dynasty_logout_delay: 700,
+			hybrid_casper_base_interest_factor: U256::from(70000000),
+			hybrid_casper_base_penalty_factor: U256::from(2000),
+			hybrid_casper_min_deposit_size: U256::from(1500) * ::ethereum::ether(),
 		}
 	}
 }
@@ -232,13 +253,36 @@ impl EthereumMachine {
 			}
 
 			if block.header().number() == ethash_params.hybrid_casper_transition {
-				let state = block.state_mut();
-				state.init_code(&ethash_params.hybrid_casper_contract_address,
-								ethash_params.hybrid_casper_contract_code.clone())?;
-				state.init_code(&ethash_params.hybrid_casper_purity_checker_contract_address,
-								ethash_params.hybrid_casper_purity_checker_contract_code.clone())?;
-				state.init_code(&ethash_params.hybrid_casper_msg_hasher_contract_address,
-								ethash_params.hybrid_casper_msg_hasher_contract_code.clone())?;
+				// Force set Casper contract code.
+				{
+					let state = block.state_mut();
+					state.init_code(&ethash_params.hybrid_casper_contract_address,
+									ethash_params.hybrid_casper_contract_code.clone())?;
+					state.init_code(&ethash_params.hybrid_casper_purity_checker_contract_address,
+									ethash_params.hybrid_casper_purity_checker_contract_code.clone())?;
+					state.init_code(&ethash_params.hybrid_casper_msg_hasher_contract_address,
+									ethash_params.hybrid_casper_msg_hasher_contract_code.clone())?;
+				}
+
+				// Call Casper contract's init function.
+				let casper_contract = simple_casper_contract::SimpleCasper::default();
+				let input = casper_contract.functions().init().input(
+					ethash_params.hybrid_casper_epoch_length,
+					ethash_params.hybrid_casper_withdrawal_delay,
+					ethash_params.hybrid_casper_dynasty_logout_delay,
+					ethash_params.hybrid_casper_msg_hasher_contract_address,
+					ethash_params.hybrid_casper_purity_checker_contract_address,
+					ethash_params.hybrid_casper_base_interest_factor,
+					ethash_params.hybrid_casper_base_penalty_factor,
+					ethash_params.hybrid_casper_min_deposit_size,
+				);
+
+				let _ = self.execute_as_system(
+					block,
+					ethash_params.hybrid_casper_contract_address,
+					U256::max_value(),
+					Some(input)
+				)?;
 			}
 		}
 
