@@ -138,7 +138,7 @@ pub const PAR_PROTOCOL_VERSION_2: (u8, u8) = (2, 0x16);
 /// 3 version of Parity protocol (private transactions messages added).
 pub const PAR_PROTOCOL_VERSION_3: (u8, u8) = (3, 0x18);
 /// 4 version of Parity protocol (seeding partially downloaded snapshot added).
-pub const PAR_PROTOCOL_VERSION_4: (u8, u8) = (4, 0x18);
+pub const PAR_PROTOCOL_VERSION_4: (u8, u8) = (4, 0x20);
 
 pub const MAX_BODIES_TO_SEND: usize = 256;
 pub const MAX_HEADERS_TO_SEND: usize = 512;
@@ -845,8 +845,8 @@ impl ChainSync {
 				let peer_has_snapshot = peer_snapshot_hash.is_some() && peer_snapshot_hash == self.snapshot.snapshot_hash();
 
 				if !peer_has_snapshot {
-					trace!(target: "warp-sync", "Peer {} does not have the snapshot. Deactivating.", peer_id);
-					self.deactivate_peer(io, peer_id);
+					trace!(target: "warp", "Peer {} does not have the snapshot. Deactivating.", peer_id);
+					// self.deactivate_peer(io, peer_id);
 					return;
 				}
 

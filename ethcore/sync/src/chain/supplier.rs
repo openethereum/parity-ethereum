@@ -235,22 +235,22 @@ impl SyncSupplier {
 
 	/// Respond to GetSnapshotBitfield request
 	fn return_snapshot_bitfield(sync: &RwLock<ChainSync>, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
-		trace!(target: "warp-sync", "{} -> GetSnapshotBitfield", peer_id);
+		trace!(target: "warp", "{} -> GetSnapshotBitfield", peer_id);
 		if r.item_count().unwrap_or(0) != 0 {
-			debug!(target: "warp-sync", "Invalid GetSnapshotBitfield request, ignoring.");
+			debug!(target: "warp", "Invalid GetSnapshotBitfield request, ignoring.");
 			return Ok(None);
 		}
 		let sync = sync.read();
 		let rlp = match sync.snapshot.snapshot_hash() {
 			Some(_) => {
-				trace!(target: "warp-sync", "{} <- SnapshotBitfield", peer_id);
+				trace!(target: "warp", "{} <- SnapshotBitfield", peer_id);
 				let bitfield = sync.snapshot.bitfield();
 				let mut rlp = RlpStream::new();
 				rlp.append_list(&bitfield);
 				rlp
 			},
 			None => {
-				trace!(target: "warp-sync", "{}: No partial snapshot manifest to return", peer_id);
+				trace!(target: "warp", "{}: No partial snapshot manifest to return", peer_id);
 				RlpStream::new_list(0)
 			},
 		};
@@ -261,10 +261,10 @@ impl SyncSupplier {
 		let supports_partial = PeerInfo::supports_partial_snapshots(peer_protocol);
 		let manifest = io.snapshot_service().manifest();
 
-		trace!(target: "warp-sync", "Peer; support_partials={} ; manifest={:?}", supports_partial, manifest);
+		trace!(target: "warp", "Peer; support_partials={} ; manifest={:?}", supports_partial, manifest);
 
 		manifest
-			.or(if supports_partial { io.snapshot_service().partial_manifest() } else { None })
+			.or_else(|| if supports_partial { io.snapshot_service().partial_manifest() } else { None })
 	}
 
 	/// Respond to GetSnapshotManifest request

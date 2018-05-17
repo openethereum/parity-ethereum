@@ -123,7 +123,7 @@ impl Snapshot {
 			.filter(|&(index, _)| peer.chunk_index_available(index))
 			.map(|(_, h)| *h)
 			.collect();
-		trace!(target: "warp-sync", "Found {} available chunks from peer", avail_chunks.len());
+		trace!(target: "warp", "Found {} available chunks from peer", avail_chunks.len());
 		// Find all random chunks
 		let needed_chunks: Vec<H256> = avail_chunks.iter()
 			.filter(|&h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h))
