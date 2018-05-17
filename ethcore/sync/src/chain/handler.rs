@@ -128,7 +128,7 @@ impl SyncHandler {
 					.next().is_none();
 
 				if still_asking_manifest {
-					sync.state = ChainSync::get_init_state(sync.warp_sync, io.chain());
+					sync.state = ChainSync::init_state(sync.warp_sync, io.chain());
 				}
 			}
 			sync.continue_sync(io);
