@@ -345,12 +345,14 @@ impl Service {
 	}
 
 	// Migrate the blocks in the current DB into the new chain
-	fn migrate_blocks(&self) -> Result<usize, Error> {
+	fn migrate_blocks(&self) -> Result<usize, ::snapshot::error::Error> {
 		// Count the number of migrated blocks
 		let mut count = 0;
 		let rest_db = self.restoration_db();
 
 		let cur_chain = &self.client.chain();
+		let cur_chain_info = cur_chain.read().chain_info();
+
 		let next_db = self.restoration_db_handler.open(&rest_db)?;
 		let next_chain = BlockChain::new(Default::default(), &[], next_db.clone());
 		let next_chain_info = next_chain.chain_info();
@@ -360,7 +362,7 @@ impl Service {
 			Some(bn) => bn + 1,
 			None => return Ok(count),
 		};
-		let end_block_number = match next_chain_info.first_block_number {
+		let mut end_block_number = match next_chain_info.first_block_number {
 			Some(bn) => bn - 1,
 			None => return Ok(count),
 		};
@@ -370,52 +372,64 @@ impl Service {
 			return Ok(count);
 		}
 
+		// Find the best block we can sync to
+		match (cur_chain_info.ancient_block_number, cur_chain_info.best_block_number) {
+			// The current chain already has some available and useful ancient blocks
+			(Some(ancient_bn), _) if ancient_bn > start_block_number => {
+				end_block_number = ancient_bn;
+			},
+			// The current chain was synced until best_bn
+			(None, best_bn) => {
+				// Take the minimum block between `best_bn` and `end_block_number`
+				if best_bn < end_block_number {
+					end_block_number = best_bn;
+				}
+			},
+			// If the ancient block number is bellow the new one, which should not happen
+			_ => return Ok(count),
+		};
+
 		// Try to include every block that will need to be downloaded from the current chain
 		// Break when no more blocks are available from it.
 		trace!(target: "snapshot", "Trying to import ancient blocks from {} to {}",
 			start_block_number, end_block_number,
 		);
 
-		let first_block_hash = cur_chain.read().block_hash(start_block_number - 1);
-		let first_block_details = first_block_hash.and_then(|bh| cur_chain.read().block_details(&bh));
-
-		let mut block_number = start_block_number;
-		let mut batch = DBTransaction::new();
-		let mut parent_td = if let Some(block_details) = first_block_details {
-			block_details.total_difficulty
-		} else {
-			return Ok(count);
+		// As we are going backwards, the target hash is the one of the first block's parent
+		let target_block_hash = match cur_chain.read().block_hash(start_block_number - 1) {
+			Some(hash) => hash,
+			None => return Ok(count),
 		};
 
-		while block_number <= end_block_number {
+		let last_block_hash = match cur_chain.read().block_hash(end_block_number) {
+			Some(h) => h,
+			None => return Ok(count),
+		};
+
+		let mut success = false;
+		let mut batch = DBTransaction::new();
+		let mut block = cur_chain.read().block(&last_block_hash);
+
+		while let Some(block_view) = block {
 			let chain = cur_chain.read();
 
-			if let Some(block_hash) = chain.block_hash(block_number) {
-				let block = chain.block(&block_hash);
-				let block_receipts = chain.block_receipts(&block_hash);
+			let block_hash = block_view.hash();
+			let block_receipts = chain.block_receipts(&block_hash);
+			let block_number = block_view.number();
 
-				match (block, block_receipts) {
-					(Some(block), Some(block_receipts)) => {
-						// Check the parent's hash for the first block
-						if block_number == start_block_number && Some(block.parent_hash()) != first_block_hash {
-							trace!(target: "snapshot", "Mismatch in snapshot's ancient blocks restoration parent hashes");
-							return Ok(count);
-						}
+			let parent_hash = block_view.parent_hash();
+			let parent_block_details = chain.block_details(&parent_hash);
 
-						let diff = block.difficulty();
-						let raw_block = block.into_inner();
-						let block_receipts = block_receipts.receipts;
+			match (block_receipts, parent_block_details) {
+				(Some(block_receipts), Some(parent_details)) => {
+					let parent_td = parent_details.total_difficulty;
+					let raw_block = block_view.into_inner();
+					let block_receipts = block_receipts.receipts;
 
-						next_chain.insert_unordered_block(&mut batch, &raw_block, block_receipts, Some(parent_td), false, true);
-						parent_td = parent_td + diff;
-						count+=1;
-					},
-					_ => (),
-				}
-			// Break if we already imported some blocks in the current batch and there
-			// are no more left
-			} else {
-				break;
+					next_chain.insert_unordered_block(&mut batch, &raw_block, block_receipts, Some(parent_td), false, true);
+					count+=1;
+				},
+				_ => break,
 			}
 
 			// Writting changes to DB and logging every now and then
@@ -430,13 +444,26 @@ impl Service {
 				trace!(target: "snapshot", "Block restoration at #{}", block_number);
 			}
 
-			block_number = block_number + 1;
+			// Break when we hit target
+			if parent_hash == target_block_hash {
+				success = true;
+				break;
+			}
+
+			block = chain.block(&parent_hash);
 		}
 
 		// Final commit to the DB
 		next_db.write_buffered(batch);
 		next_chain.commit();
 		next_db.flush().expect("DB flush failed.");
+
+		// Update best ancient block in the Next Chain
+		next_chain.update_best_ancient_block(&last_block_hash);
+
+		if !success {
+			return Err(::snapshot::error::Error::UnlinkedAncientBlockChain);
+		}
 
 		Ok(count)
 	}
@@ -581,12 +608,21 @@ impl Service {
 		// Import previous chunks, continue if it fails
 		self.import_prev_chunks(&mut res, manifest).ok();
 
-		*self.status.lock() = RestorationStatus::Ongoing {
-			state_chunks: state_chunks as u32,
-			block_chunks: block_chunks as u32,
-			state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
-			block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
+		// It could be that the restoration failed or completed in the meanwhile
+		let mut restoration_status = self.status.lock();
+		let update_status = match *restoration_status {
+			RestorationStatus::Initializing { .. } => true,
+			_ => false,
 		};
+
+		if update_status {
+			*restoration_status = RestorationStatus::Ongoing {
+				state_chunks: state_chunks as u32,
+				block_chunks: block_chunks as u32,
+				state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
+				block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
+			};
+		}
 
 		Ok(())
 	}
