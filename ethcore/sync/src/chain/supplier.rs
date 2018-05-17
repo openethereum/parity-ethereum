@@ -54,8 +54,8 @@ use super::{
 pub struct SyncSupplier;
 
 impl SyncSupplier {
-	/// Dispatch incoming requests and responses
-	pub fn dispatch_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer_id: PeerId, packet_id: u8, data: &[u8]) {
+	/// Dispatch incoming requests and responses, returns whether the packet has been handled or not
+	pub fn on_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer_id: PeerId, packet_id: u8, data: &[u8]) -> bool {
 		let rlp = Rlp::new(data);
 		let response = match packet_id {
 			GET_BLOCK_BODIES_PACKET => SyncSupplier::return_block_bodies(io, &rlp, peer_id),
@@ -65,17 +65,16 @@ impl SyncSupplier {
 			GET_SNAPSHOT_BITFIELD_PACKET => SyncSupplier::return_snapshot_bitfield(sync, &rlp, peer_id),
 			GET_SNAPSHOT_MANIFEST_PACKET => SyncSupplier::return_snapshot_manifest(sync, io, &rlp, peer_id),
 			GET_SNAPSHOT_DATA_PACKET => SyncSupplier::return_snapshot_data(io, &rlp, peer_id),
-			_ => Ok(None),
+			_ => {
+				return false;
+			},
 		};
 
 		let result = match response {
+			Ok(None) => Ok(()),
 			Ok(Some((packet_id, rlp_stream))) => io.respond(packet_id, rlp_stream.out()),
 			Err(e) => {
 				debug!(target:"sync", "{} -> Malformed packet {} : {}", peer_id, packet_id, e);
-				Ok(())
-			},
-			Ok(None) => {
-				sync.write().on_packet(io, peer_id, packet_id, data);
 				Ok(())
 			},
 		};
@@ -83,6 +82,8 @@ impl SyncSupplier {
 		result.unwrap_or_else(
 			|e| debug!(target: "sync", "Error sending packet {:?}: {:?}", packet_id, e)
 		);
+
+		return true;
 	}
 
 	/// Respond to GetBlockHeaders request

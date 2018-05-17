@@ -1136,13 +1136,13 @@ impl ChainSync {
 	}
 
 	/// Dispatch incoming requests and responses
-	pub fn dispatch_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
-		SyncSupplier::dispatch_packet(sync, io, peer, packet_id, data)
-	}
+	pub fn dispatch_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer_id: PeerId, packet_id: u8, data: &[u8]) {
+		let handled = SyncSupplier::on_packet(sync, io, peer_id, packet_id, data)
+			|| SyncHandler::on_packet(sync, io, peer_id, packet_id, data);
 
-	pub fn on_packet(&mut self, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
-		debug!(target: "sync", "{} -> Dispatching packet: {}", peer, packet_id);
-		SyncHandler::on_packet(self, io, peer, packet_id, data);
+		if !handled {
+			debug!(target: "sync", "{}: Unknown packet {}", peer_id, packet_id);
+		}
 	}
 
 	/// Called by peer when it is disconnecting

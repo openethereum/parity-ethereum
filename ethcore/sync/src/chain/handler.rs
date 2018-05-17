@@ -24,6 +24,7 @@ use ethcore::snapshot::{ManifestData, RestorationStatus};
 use ethereum_types::{H256, U256};
 use hash::keccak;
 use network::PeerId;
+use parking_lot::RwLock;
 use rlp::Rlp;
 use snapshot::ChunkType;
 use std::cmp;
@@ -68,11 +69,12 @@ use super::{
 pub struct SyncHandler;
 
 impl SyncHandler {
-	/// Handle incoming packet from peer
-	pub fn on_packet(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
+	/// Handles incoming packet, returns whether the packet has been handled or not
+	pub fn on_packet(sync: &RwLock<ChainSync>, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) -> bool {
+		let sync = &mut *sync.write();
 		if packet_id != STATUS_PACKET && !sync.peers.contains_key(&peer) {
 			debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_info(peer));
-			return;
+			return true;
 		}
 		let rlp = Rlp::new(data);
 		let result = match packet_id {
@@ -91,12 +93,13 @@ impl SyncHandler {
 			SIGNED_PRIVATE_TRANSACTION_PACKET => SyncHandler::on_signed_private_transaction(sync, io, peer, &rlp),
 			_ => {
 				debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id);
-				Ok(())
+				return false;
 			}
 		};
 		result.unwrap_or_else(|e| {
 			debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e);
-		})
+		});
+		return true;
 	}
 
 	/// Called when peer sends us new consensus packet
