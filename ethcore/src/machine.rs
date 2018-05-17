@@ -62,6 +62,12 @@ pub struct EthashExtensions {
 	pub dao_hardfork_accounts: Vec<Address>,
 	/// Number of first block wehre Casper rules begin.
 	pub hybrid_casper_transition: u64,
+	/// EIP1011 Casper contract code.
+	pub hybrid_casper_contract_code: Bytes,
+	/// EIP1011 purity checker code.
+	pub hybrid_casper_purity_checker_contract_code: Bytes,
+	/// EIP1011 msg hasher code.
+	pub hybrid_casper_msg_hasher_contract_code: Bytes,
 }
 
 impl From<::ethjson::spec::EthashParams> for EthashExtensions {
@@ -76,6 +82,15 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
 			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
 			hybrid_casper_transition: p.hybrid_casper_transition.map_or_else(u64::max_value, Into::into),
+			hybrid_casper_contract_code: DEFAULT_CASPER_CONTRACT.from_hex().expect(
+				"Default CASPER_CODE is valid",
+			),
+			hybrid_casper_purity_checker_contract_code: DEFAULT_PURITY_CHECKER_CONTRACT.from_hex().expect(
+				"Default PURITY_CHECKER_CODE is valid",
+			),
+			hybrid_casper_msg_hasher_contract_code: DEFAULT_MSG_HASHER_CONTRACT.from_hex().expect(
+				"Default MSG_HASHER_CODE is valid",
+			),
 		}
 	}
 }
@@ -202,6 +217,10 @@ impl EthereumMachine {
 					state.balance(child)
 						.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty))?;
 				}
+			}
+
+			if block.header().number() == ethash_params.hybrid_casper_transition {
+
 			}
 		}
 
