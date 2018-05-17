@@ -351,7 +351,8 @@ impl<'x> OpenBlock<'x> {
 			return Err(TransactionError::AlreadyImported.into());
 		}
 
-		let env_info = self.env_info();
+		let mut env_info = self.env_info();
+		self.engine.prepare_env_info(&t, &mut env_info);
 		self.block.state.checkpoint();
 		let mut outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
 

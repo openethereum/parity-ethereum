@@ -331,8 +331,18 @@ impl Miner {
 			let mut open_block = match sealing.queue.pop_if(|b| b.block().header().parent_hash() == &best_hash) {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
-					// add transactions to old_block
-					chain.reopen_block(old_block)
+					if !self.engine.has_transaction_ordering() {
+						// add transactions to old_block
+						chain.reopen_block(old_block)
+					} else {
+						trace!(target: "miner", "prepare_block: Transaction ordering prevents reopening of old block");
+						let params = self.params.read().clone();
+						chain.prepare_open_block(
+							params.author,
+							params.gas_range_target,
+							params.extra_data,
+						)
+					}
 				}
 				None => {
 					// block not found - create it.
@@ -370,12 +380,16 @@ impl Miner {
 			None
 		};
 
-		let pending: Vec<Arc<_>> = self.transaction_queue.pending(
+		let mut pending: Vec<Arc<_>> = self.transaction_queue.pending(
 			client.clone(),
 			chain_info.best_block_number,
 			chain_info.best_block_timestamp,
 			nonce_cap,
 		);
+
+		if self.engine.has_transaction_ordering() {
+			self.engine.reorder_transactions(&mut pending);
+		}
 
 		let took_ms = |elapsed: &Duration| {
 			elapsed.as_secs() * 1000 + elapsed.subsec_nanos() as u64 / 1_000_000
