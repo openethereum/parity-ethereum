@@ -355,81 +355,88 @@ impl Service {
 		let next_chain = BlockChain::new(Default::default(), &[], next_db.clone());
 		let next_chain_info = next_chain.chain_info();
 
+		// Get the *inclusive* first and last blocks to iterate through
+		let start_block_number = match next_chain_info.ancient_block_number {
+			Some(bn) => bn + 1,
+			None => return Ok(count),
+		};
+		let end_block_number = match next_chain_info.first_block_number {
+			Some(bn) => bn - 1,
+			None => return Ok(count),
+		};
+
+		// Check that the intersection is non-null
+		if start_block_number >= end_block_number {
+			return Ok(count);
+		}
+
 		// Try to include every block that will need to be downloaded from the current chain
 		// Break when no more blocks are available from it.
-		match (next_chain_info.ancient_block_number, next_chain_info.first_block_number) {
-			(Some(next_ancient_block), Some(next_first_block)) if next_ancient_block + 1 < next_first_block => {
-				let start_block_number = next_ancient_block + 1;
-				let end_block_number = next_first_block - 1;
+		trace!(target: "snapshot", "Trying to import ancient blocks from {} to {}",
+			start_block_number, end_block_number,
+		);
 
-				trace!(target: "snapshot", "Trying to import ancient blocks from {} to {}",
-					start_block_number, end_block_number,
-				);
+		let first_block_hash = cur_chain.read().block_hash(start_block_number - 1);
+		let first_block_details = first_block_hash.and_then(|bh| cur_chain.read().block_details(&bh));
 
-				let first_block_hash = cur_chain.read().block_hash(next_ancient_block);
-				let first_block_details = first_block_hash.and_then(|bh| cur_chain.read().block_details(&bh));
+		let mut block_number = start_block_number;
+		let mut batch = DBTransaction::new();
+		let mut parent_td = if let Some(block_details) = first_block_details {
+			block_details.total_difficulty
+		} else {
+			return Ok(count);
+		};
 
-				let mut block_number = start_block_number;
-				let mut batch = DBTransaction::new();
-				let mut parent_td = if let Some(block_details) = first_block_details {
-					block_details.total_difficulty
-				} else {
-					return Ok(count);
-				};
+		while block_number <= end_block_number {
+			let chain = cur_chain.read();
 
-				while block_number <= end_block_number {
-					let chain = cur_chain.read();
+			if let Some(block_hash) = chain.block_hash(block_number) {
+				let block = chain.block(&block_hash);
+				let block_receipts = chain.block_receipts(&block_hash);
 
-					if let Some(block_hash) = chain.block_hash(block_number) {
-						let block = chain.block(&block_hash);
-						let block_receipts = chain.block_receipts(&block_hash);
-
-						match (block, block_receipts) {
-							(Some(block), Some(block_receipts)) => {
-								// Check the parent's hash for the first block
-								if block_number == start_block_number && Some(block.parent_hash()) != first_block_hash {
-									trace!(target: "snapshot", "Mismatch in snapshot's ancient blocks restoration parent hashes");
-									return Ok(count);
-								}
-
-								let diff = block.difficulty();
-								let raw_block = block.into_inner();
-								let block_receipts = block_receipts.receipts;
-
-								next_chain.insert_unordered_block(&mut batch, &raw_block, block_receipts, Some(parent_td), false, true);
-								parent_td = parent_td + diff;
-								count+=1;
-							},
-							_ => (),
+				match (block, block_receipts) {
+					(Some(block), Some(block_receipts)) => {
+						// Check the parent's hash for the first block
+						if block_number == start_block_number && Some(block.parent_hash()) != first_block_hash {
+							trace!(target: "snapshot", "Mismatch in snapshot's ancient blocks restoration parent hashes");
+							return Ok(count);
 						}
-					// Break if we already imported some blocks in the current batch and there
-					// are no more left
-					} else {
-						break;
-					}
 
-					// Writting changes to DB and logging every now and then
-					if block_number % 1_000 == 0 {
-						next_db.write_buffered(batch);
-						next_chain.commit();
-						next_db.flush().expect("DB flush failed.");
-						batch = DBTransaction::new();
-					}
+						let diff = block.difficulty();
+						let raw_block = block.into_inner();
+						let block_receipts = block_receipts.receipts;
 
-					if block_number % 10_000 == 0 {
-						trace!(target: "snapshot", "Block restoration at #{}", block_number);
-					}
-
-					block_number = block_number + 1;
+						next_chain.insert_unordered_block(&mut batch, &raw_block, block_receipts, Some(parent_td), false, true);
+						parent_td = parent_td + diff;
+						count+=1;
+					},
+					_ => (),
 				}
+			// Break if we already imported some blocks in the current batch and there
+			// are no more left
+			} else {
+				break;
+			}
 
-				// Final commit to the DB
+			// Writting changes to DB and logging every now and then
+			if block_number % 1_000 == 0 {
 				next_db.write_buffered(batch);
 				next_chain.commit();
 				next_db.flush().expect("DB flush failed.");
-			},
-			_ => (),
+				batch = DBTransaction::new();
+			}
+
+			if block_number % 10_000 == 0 {
+				trace!(target: "snapshot", "Block restoration at #{}", block_number);
+			}
+
+			block_number = block_number + 1;
 		}
+
+		// Final commit to the DB
+		next_db.write_buffered(batch);
+		next_chain.commit();
+		next_db.flush().expect("DB flush failed.");
 
 		Ok(count)
 	}
