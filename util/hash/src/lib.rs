@@ -18,7 +18,9 @@ extern crate ethereum_types;
 extern crate tiny_keccak;
 
 use std::io;
+use std::slice;
 use tiny_keccak::Keccak;
+
 pub use ethereum_types::H256;
 
 /// Get the KECCAK (i.e. Keccak) hash of the empty bytes string.
@@ -33,13 +35,33 @@ pub const KECCAK_EMPTY_LIST_RLP: H256 = H256( [0x1d, 0xcc, 0x4d, 0xe8, 0xde, 0xc
 
 pub fn keccak<T: AsRef<[u8]>>(s: T) -> H256 {
 	let mut result = [0u8; 32];
-	Keccak::keccak256(s.as_ref(), &mut result);
+	write_keccak(s, &mut result);
 	H256(result)
 }
 
-pub fn write_keccak<T: AsRef<[u8]>>(s: T, dest: &mut [u8]) {
-	Keccak::keccak256(s.as_ref(), dest);
+pub fn keccak_256_unchecked(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) {
+	unsafe {
+		Keccak::keccak256(
+			slice::from_raw_parts(input, inputlen),
+			slice::from_raw_parts_mut(out, outlen)
+		);
+	}
 }
+
+pub fn keccak_512_unchecked(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) {
+	unsafe {
+		Keccak::keccak512(
+			slice::from_raw_parts(input, inputlen),
+			slice::from_raw_parts_mut(out, outlen)
+		);
+	}
+}
+
+pub fn keccak_256(input: &[u8], mut output: &mut [u8]) { Keccak::keccak256(input, &mut output); }
+
+pub fn keccak_512(input: &[u8], mut output: &mut [u8]) { Keccak::keccak512(input, &mut output); }
+
+pub fn write_keccak<T: AsRef<[u8]>>(s: T, dest: &mut [u8]) { Keccak::keccak256(s.as_ref(), dest); }
 
 pub fn keccak_pipe(r: &mut io::BufRead, w: &mut io::Write) -> Result<H256, io::Error> {
 	let mut output = [0u8; 32];
