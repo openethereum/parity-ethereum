@@ -74,6 +74,8 @@ pub struct EthashExtensions {
 	pub hybrid_casper_contract_code: Bytes,
 	/// EIP1011 Casper contract address.
 	pub hybrid_casper_contract_address: Address,
+	/// EIP1011 Casper contract balance.
+	pub hybrid_casper_contract_balance: U256,
 	/// EIP1011 purity checker code.
 	pub hybrid_casper_purity_checker_contract_code: Bytes,
 	/// EIP1011 purity checker address.
@@ -113,6 +115,7 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 				"Default CASPER_CODE is valid",
 			),
 			hybrid_casper_contract_address: Address::from(0x40u64),
+			hybrid_casper_contract_balance: U256::from(1250000) * ::ethereum::ether(),
 			hybrid_casper_purity_checker_contract_code: DEFAULT_PURITY_CHECKER_CONTRACT.from_hex().expect(
 				"Default PURITY_CHECKER_CODE is valid",
 			),
@@ -274,6 +277,9 @@ impl EthereumMachine {
 				// Force set Casper contract code.
 				{
 					let state = block.state_mut();
+					state.new_contract(&ethash_params.hybrid_casper_contract_address,
+									   ethash_params.hybrid_casper_contract_balance,
+									   U256::zero());
 					state.init_code(&ethash_params.hybrid_casper_contract_address,
 									ethash_params.hybrid_casper_contract_code.clone())?;
 					state.init_code(&ethash_params.hybrid_casper_purity_checker_contract_address,
