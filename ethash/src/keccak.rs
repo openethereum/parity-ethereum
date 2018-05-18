@@ -30,7 +30,9 @@ pub mod keccak_512 {
 	pub fn inplace(input: &mut [u8]) {
 		// This is safe since `sha3_*` uses an internal buffer and copies the result to the output. This
 		// means that we can reuse the input buffer for both input and output.
-		hash::keccak_512_unchecked(input.as_mut_ptr(), input.len(), input.as_ptr(), input.len());
+		unsafe {
+			hash::keccak_512_unchecked(input.as_mut_ptr(), input.len(), input.as_ptr(), input.len());
+		}
 	}
 }
 
@@ -47,6 +49,8 @@ pub mod keccak_256 {
 	pub fn inplace(input: &mut [u8]) {
 		// This is safe since `sha3_*` uses an internal buffer and copies the result to the output. This
 		// means that we can reuse the input buffer for both input and output.
-		hash::keccak_256_unchecked(input.as_mut_ptr(), input.len(), input.as_ptr(), input.len());
+		unsafe {
+			hash::keccak_256_unchecked(input.as_mut_ptr(), input.len(), input.as_ptr(), input.len());
+		}
 	}
 }
