@@ -331,7 +331,7 @@ impl Miner {
 			let mut open_block = match sealing.queue.pop_if(|b| b.block().header().parent_hash() == &best_hash) {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
-					if !self.engine.has_transaction_ordering() {
+					if !self.engine.has_transaction_ordering(old_block.header()) {
 						// add transactions to old_block
 						chain.reopen_block(old_block)
 					} else {
@@ -387,8 +387,8 @@ impl Miner {
 			nonce_cap,
 		);
 
-		if self.engine.has_transaction_ordering() {
-			self.engine.reorder_transactions(&mut pending);
+		if self.engine.has_transaction_ordering(open_block.header()) {
+			self.engine.reorder_transactions(&mut pending, open_block.header());
 		}
 
 		let took_ms = |elapsed: &Duration| {

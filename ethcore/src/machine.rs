@@ -17,7 +17,7 @@
 //! Ethereum-like state machine definition.
 
 use std::collections::{BTreeMap, HashMap};
-use std::cmp;
+use std::cmp::{self, Ordering};
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -576,17 +576,48 @@ impl EthereumMachine {
 	}
 
 	/// Whether the engine has transaction ordering.
-	pub fn has_transaction_ordering(&self) -> bool {
+	pub fn has_transaction_ordering(&self, header: &Header) -> bool {
+		if let Some(ref ethash_params) = self.ethash_extensions {
+			if header.number() >= ethash_params.hybrid_casper_transition {
+				return true;
+			}
+		}
+
 		false
 	}
 
 	/// Before applying transaction states, order transactions to desired. The engine should only apply absolutely minimal ordering.
-	pub fn reorder_transactions(&self, _ts: &mut [Arc<VerifiedTransaction>]) {
-
+	pub fn reorder_transactions(&self, ts: &mut [Arc<VerifiedTransaction>], header: &Header) {
+		if let Some(ref ethash_params) = self.ethash_extensions {
+			if header.number() >= ethash_params.hybrid_casper_transition {
+				ts.sort_by(|a, b| {
+					match (a.signed().is_unsigned(), b.signed().is_unsigned()) {
+						(true, true) => Ordering::Equal,
+						(false, false) => Ordering::Equal,
+						(true, false) => Ordering::Greater,
+						(false, true) => Ordering::Less,
+					}
+				});
+			}
+		}
 	}
 
 	/// Verify the current transaction ordering is acceptable.
-	pub fn verify_transaction_ordering(&self, _ts: &[SignedTransaction], _header: &Header) -> Result<(), Error> {
+	pub fn verify_transaction_ordering(&self, ts: &[SignedTransaction], header: &Header) -> Result<(), Error> {
+		if let Some(ref ethash_params) = self.ethash_extensions {
+			if header.number() >= ethash_params.hybrid_casper_transition {
+				let mut met_vote_transactions = false;
+				for t in ts {
+					if t.is_unsigned() {
+						met_vote_transactions = true;
+					}
+
+					if !t.is_unsigned() && met_vote_transactions {
+						return Err("Found vote transaction before normal transactions.".into());
+					}
+				}
+			}
+		}
 		Ok(())
 	}
 }

@@ -474,13 +474,13 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	}
 
 	/// Whether the engine has transaction ordering.
-	fn has_transaction_ordering(&self) -> bool {
-		self.machine().has_transaction_ordering()
+	fn has_transaction_ordering(&self, header: &Header) -> bool {
+		self.machine().has_transaction_ordering(header)
 	}
 
 	/// Before applying transaction states, order transactions to desired. The engine should only apply absolutely minimal ordering.
-	fn reorder_transactions(&self, ts: &mut [Arc<VerifiedTransaction>]) {
-		self.machine().reorder_transactions(ts)
+	fn reorder_transactions(&self, ts: &mut [Arc<VerifiedTransaction>], header: &Header) {
+		self.machine().reorder_transactions(ts, header)
 	}
 
 	/// Verify the current transaction ordering is acceptable.
