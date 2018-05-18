@@ -27,7 +27,7 @@ log = "0.3"
 parking_lot = "0.5"
 patricia-trie = { path = "../../util/patricia_trie" }
 rand = "0.3"
-rlp = { path = "../../util/rlp" }
+rlp = "0.2.2"
 rlp_derive = { path = "../../util/rlp_derive" }
 rustc-hex = "1.0"
 serde = "1.0"
