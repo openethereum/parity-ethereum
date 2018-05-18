@@ -55,6 +55,7 @@ use ethkey::Signature;
 use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
+use block::ExecutedBlock;
 use bytes::Bytes;
 use types::ancestry_action::AncestryAction;
 use types::receipt::Receipt;
@@ -463,13 +464,13 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	}
 
 	/// Prepare the environment information passed for transaction execution.
-	fn prepare_env_info(&self, t: &SignedTransaction, env_info: &mut EnvInfo) {
-		self.machine().prepare_env_info(t, env_info)
+	fn prepare_env_info(&self, t: &SignedTransaction, block: &ExecutedBlock, env_info: &mut EnvInfo) {
+		self.machine().prepare_env_info(t, block, env_info)
 	}
 
 	/// Verify the transaction outcome is acceptable.
-	fn verify_transaction_outcome(&self, t: &SignedTransaction, receipt: &mut Receipt) -> Result<(), Error> {
-		self.machine().verify_transaction_outcome(t, receipt)
+	fn verify_transaction_outcome(&self, t: &SignedTransaction, block: &mut ExecutedBlock, receipt: &mut Receipt) -> Result<(), Error> {
+		self.machine().verify_transaction_outcome(t, block, receipt)
 	}
 
 	/// Whether the engine has transaction ordering.

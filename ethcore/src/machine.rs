@@ -36,10 +36,11 @@ use tx_filter::TransactionFilter;
 use rustc_hex::FromHex;
 use types::receipt::Receipt;
 use ethcore_miner::pool::VerifiedTransaction;
+use parity_machine::WithMetadata;
 
 use ethereum_types::{U256, Address};
 use bytes::BytesRef;
-use rlp::Rlp;
+use rlp::{self, Rlp};
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 
@@ -126,6 +127,21 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 			hybrid_casper_base_interest_factor: U256::from(70000000),
 			hybrid_casper_base_penalty_factor: U256::from(2000),
 			hybrid_casper_min_deposit_size: U256::from(1500) * ::ethereum::ether(),
+		}
+	}
+}
+
+/// Casper related metadata.
+#[derive(Debug, PartialEq, Clone, RlpEncodable, RlpDecodable)]
+pub struct CasperMetadata {
+	/// Gas used in vote transactions.
+	pub vote_gas_used: U256,
+}
+
+impl Default for CasperMetadata {
+	fn default() -> Self {
+		Self {
+			vote_gas_used: U256::zero(),
 		}
 	}
 }
@@ -481,12 +497,15 @@ impl EthereumMachine {
 	}
 
 	/// Prepare the environment information passed for transaction execution.
-	pub fn prepare_env_info(&self, _t: &SignedTransaction, _env_info: &mut EnvInfo) {
-
+	pub fn prepare_env_info(&self, t: &SignedTransaction, block: &ExecutedBlock, env_info: &mut EnvInfo) {
+		if t.is_unsigned() {
+			let metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
+			env_info.gas_used = metadata.vote_gas_used;
+		}
 	}
 
 	/// Verify the transaction outcome is acceptable.
-	pub fn verify_transaction_outcome(&self, _t: &SignedTransaction, _receipt: &mut Receipt) -> Result<(), Error> {
+	pub fn verify_transaction_outcome(&self, t: &SignedTransaction, block: &mut ExecutedBlock, receipt: &mut Receipt) -> Result<(), Error> {
 		Ok(())
 	}
 
