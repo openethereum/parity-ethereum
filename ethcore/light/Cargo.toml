@@ -9,7 +9,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 log = "0.3"
 ethcore = { path = ".."}
-ethcore-bytes = { path = "../../util/bytes" }
+ethcore-bytes = "0.1.1"
 ethcore-transaction = { path = "../transaction" }
 ethereum-types = "0.3"
 memorydb = { path = "../../util/memorydb" }

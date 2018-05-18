@@ -11,7 +11,7 @@ ethabi = "5.1"
 ethabi-contract = "5.0"
 ethabi-derive = "5.0"
 ethcore = { path = ".." }
-ethcore-bytes = { path = "../../util/bytes" }
+ethcore-bytes = "0.1.1"
 ethcore-crypto = { path = "../crypto" }
 ethcore-io = { path = "../../util/io" }
 ethcore-logger = { path = "../../logger" }

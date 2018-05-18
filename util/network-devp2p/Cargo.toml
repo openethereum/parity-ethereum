@@ -20,7 +20,7 @@ parking_lot = "0.5"
 ansi_term = "0.10"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io", features = ["mio"] }
-ethcore-bytes = { path = "../bytes" }
+ethcore-bytes = "0.1.1"
 ethcore-crypto = { path = "../../ethcore/crypto" }
 ethcore-logger = { path ="../../logger" }
 ethcore-network = { path = "../network" }

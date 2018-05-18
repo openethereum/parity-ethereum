@@ -15,7 +15,7 @@ common-types = { path = "types" }
 crossbeam = "0.3"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
-ethcore-bytes = { path = "../util/bytes" }
+ethcore-bytes = "0.1.1"
 fetch = { path = "../util/fetch" }
 hashdb = { path = "../util/hashdb" }
 memorydb = { path = "../util/memorydb" }

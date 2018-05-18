@@ -9,7 +9,7 @@ license = "GPL-3.0"
 elastic-array = "0.10"
 log = "0.3"
 rand = "0.4"
-ethcore-bytes = { version = "0.1.0", path = "../bytes" }
+ethcore-bytes = "0.1.1"
 ethereum-types = "0.3"
 keccak-hash = { version = "0.1.0", path = "../hash" }
 hashdb = { version = "0.1.1", path = "../hashdb" }

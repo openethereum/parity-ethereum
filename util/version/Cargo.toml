@@ -22,7 +22,7 @@ ropsten = 10
 kovan = 6600000
 
 [dependencies]
-ethcore-bytes = { path = "../bytes" }
+ethcore-bytes = "0.1.1"
 rlp = { path = "../rlp" }
 target_info = "0.1"
 

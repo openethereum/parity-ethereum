@@ -15,7 +15,7 @@ mime_guess = "2.0.0-alpha.2"
 rand = "0.4"
 rustc-hex = "1.0"
 fetch = { path = "../util/fetch" }
-ethcore-bytes = { path = "../util/bytes" }
+ethcore-bytes = "0.1.1"
 ethereum-types = "0.3"
 parity-reactor = { path = "../util/reactor" }
 keccak-hash = { path = "../util/hash" }
