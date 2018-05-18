@@ -26,10 +26,11 @@ use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};
 use header::{Header, BlockNumber, ExtendedHeader};
-use engines::{self, Engine};
+use engines::{self, Engine, ForkChoice};
 use ethjson;
-use rlp::Rlp;
-use machine::EthereumMachine;
+use rlp::{self, Rlp};
+use machine::{EthereumMachine, CasperMetadata};
+use parity_machine::{WithMetadataHeader, TotalScoredHeader};
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty incrment divisor?
@@ -280,6 +281,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			rewards.push((*uncle_author, RewardKind::Uncle, result_uncle_reward));
 		}
 
+		self.machine().write_closing_metadata(block)?;
+
 		block_reward::apply_block_rewards(&rewards, block, &self.machine)
 	}
 
@@ -361,7 +364,19 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	}
 
 	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> engines::ForkChoice {
-		engines::total_difficulty_fork_choice(new, current)
+		let new_metadata: CasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
+		let current_metadata: CasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
+
+		// Casper fails back to total difficulty fork choice if highest_justified_epoch is zero. So we don't need to
+		// check transition block here.
+		let new_score = new_metadata.highest_justified_epoch * U256::from(10).pow(U256::from(40)) + new.total_score();
+		let current_score = current_metadata.highest_justified_epoch * U256::from(10).pow(U256::from(40)) + current.total_score();
+
+		if new_score > current_score {
+			ForkChoice::New
+		} else {
+			ForkChoice::Old
+		}
 	}
 }
 

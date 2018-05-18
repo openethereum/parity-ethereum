@@ -99,6 +99,8 @@ pub struct EthashExtensions {
 	pub hybrid_casper_min_deposit_size: U256,
 	/// EIP1011 warm up period.
 	pub hybrid_casper_warm_up_period: u64,
+	/// EIP1011 non revert min deposit.
+	pub hybrid_casper_non_revert_min_deposits: U256,
 }
 
 impl From<::ethjson::spec::EthashParams> for EthashExtensions {
@@ -133,6 +135,7 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 			hybrid_casper_base_penalty_factor: U256::from(2000),
 			hybrid_casper_min_deposit_size: U256::from(1500) * ::ethereum::ether(),
 			hybrid_casper_warm_up_period: 180000,
+			hybrid_casper_non_revert_min_deposits: U256::from(150000) * ::ethereum::ether(),
 		}
 	}
 }
@@ -142,12 +145,18 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 pub struct CasperMetadata {
 	/// Gas used in vote transactions.
 	pub vote_gas_used: U256,
+	/// Highest justified epoch returned by Casper contract.
+	pub highest_justified_epoch: U256,
+	/// Highest finalized epoch returned by Casper contract.
+	pub highest_finalized_epoch: U256,
 }
 
 impl Default for CasperMetadata {
 	fn default() -> Self {
 		Self {
 			vote_gas_used: U256::zero(),
+			highest_justified_epoch: U256::zero(),
+			highest_finalized_epoch: U256::zero(),
 		}
 	}
 }
@@ -326,6 +335,48 @@ impl EthereumMachine {
 						Some(input)
 					)?;
 				}
+			}
+		}
+
+		Ok(())
+	}
+
+	/// Write additional metadata when closing block.
+	pub fn write_closing_metadata(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+		if let Some(ref ethash_params) = self.ethash_extensions {
+			if block.header().number() >= ethash_params.hybrid_casper_transition {
+				let casper_contract = simple_casper_contract::SimpleCasper::default();
+				let highest_justified_epoch: U256 = {
+					let input = casper_contract.functions().highest_justified_epoch().input(
+						ethash_params.hybrid_casper_non_revert_min_deposits,
+					);
+					let result = self.execute_as_system(
+						block,
+						ethash_params.hybrid_casper_contract_address,
+						U256::max_value(),
+						Some(input)
+					)?;
+					casper_contract.functions().highest_justified_epoch().output(&result)
+						.expect("Casper contract ABI definition is valid; qed")
+				};
+				let highest_finalized_epoch: U256 = {
+					let input = casper_contract.functions().highest_finalized_epoch().input(
+						ethash_params.hybrid_casper_non_revert_min_deposits,
+					);
+					let result = self.execute_as_system(
+						block,
+						ethash_params.hybrid_casper_contract_address,
+						U256::max_value(),
+						Some(input)
+					)?;
+					casper_contract.functions().highest_finalized_epoch().output(&result)
+						.expect("Casper contract ABI definition is valid; qed")
+				};
+
+				let mut metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
+				metadata.highest_justified_epoch = highest_justified_epoch;
+				metadata.highest_finalized_epoch = highest_finalized_epoch;
+				block.set_metadata(Some(rlp::encode(&metadata).to_vec()));
 			}
 		}
 
