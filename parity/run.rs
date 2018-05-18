@@ -880,7 +880,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 		inner: RunningClientInner::Full {
 			informant,
 			client,
-			keep_alive: Box::new((watcher, service, updater, ws_server, http_server, ipc_server, ui_server, secretstore_key_server, ipfs_server, event_loop)),
+			service: Arc::new(service),
+			keep_alive: Box::new((watcher, updater, ws_server, http_server, ipc_server, ui_server, secretstore_key_server, ipfs_server, event_loop)),
 		}
 	})
 }
@@ -902,6 +903,7 @@ enum RunningClientInner {
 	Full {
 		informant: Arc<Informant<FullNodeInformantData>>,
 		client: Arc<Client>,
+		service: Arc<ClientService>,
 		keep_alive: Box<Any>,
 	},
 }
@@ -920,11 +922,14 @@ impl RunningClient {
 				drop(client);
 				wait_for_drop(weak_client);
 			},
-			RunningClientInner::Full { informant, client, keep_alive } => {
+			RunningClientInner::Full { informant, client, service, keep_alive } => {
 				info!("Finishing work, please wait...");
 				// Create a weak reference to the client so that we can wait on shutdown
 				// until it is dropped
 				let weak_client = Arc::downgrade(&client);
+				// Shutdown and drop the ServiceClient
+				service.shutdown();
+				drop(service);
 				// drop this stuff as soon as exit detected.
 				drop(keep_alive);
 				// to make sure timer does not spawn requests while shutdown is in progress
