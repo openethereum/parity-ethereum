@@ -463,22 +463,28 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	}
 
 	/// Prepare the environment information passed for transaction execution.
-	fn prepare_env_info(&self, _t: &SignedTransaction, _env_info: &mut EnvInfo) { }
+	fn prepare_env_info(&self, t: &SignedTransaction, env_info: &mut EnvInfo) {
+		self.machine().prepare_env_info(t, env_info)
+	}
 
 	/// Verify the transaction outcome is acceptable.
-	fn verify_transaction_outcome(&self, _t: &SignedTransaction, _receipt: &mut Receipt) -> bool {
-		true
+	fn verify_transaction_outcome(&self, t: &SignedTransaction, receipt: &mut Receipt) -> Result<(), Error> {
+		self.machine().verify_transaction_outcome(t, receipt)
 	}
 
 	/// Whether the engine has transaction ordering.
-	fn has_transaction_ordering(&self) -> bool { false }
+	fn has_transaction_ordering(&self) -> bool {
+		self.machine().has_transaction_ordering()
+	}
 
 	/// Before applying transaction states, order transactions to desired. The engine should only apply absolutely minimal ordering.
-	fn reorder_transactions(&self, _ts: &mut [Arc<VerifiedTransaction>]) { }
+	fn reorder_transactions(&self, ts: &mut [Arc<VerifiedTransaction>]) {
+		self.machine().reorder_transactions(ts)
+	}
 
 	/// Verify the current transaction ordering is acceptable.
-	fn verify_transaction_ordering(&self, _ts: &[SignedTransaction], _header: &Header) -> Result<(), transaction::Error> {
-		Ok(())
+	fn verify_transaction_ordering(&self, ts: &[SignedTransaction], header: &Header) -> Result<(), Error> {
+		self.machine().verify_transaction_ordering(ts, header)
 	}
 
 	/// Additional information.

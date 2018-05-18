@@ -34,6 +34,8 @@ use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Traci
 use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
 use rustc_hex::FromHex;
+use types::receipt::Receipt;
+use ethcore_miner::pool::VerifiedTransaction;
 
 use ethereum_types::{U256, Address};
 use bytes::BytesRef;
@@ -476,6 +478,31 @@ impl EthereumMachine {
 			return Err(transaction::Error::TooBig)
 		}
 		rlp.as_val().map_err(|e| transaction::Error::InvalidRlp(e.to_string()))
+	}
+
+	/// Prepare the environment information passed for transaction execution.
+	pub fn prepare_env_info(&self, _t: &SignedTransaction, _env_info: &mut EnvInfo) {
+
+	}
+
+	/// Verify the transaction outcome is acceptable.
+	pub fn verify_transaction_outcome(&self, _t: &SignedTransaction, _receipt: &mut Receipt) -> Result<(), Error> {
+		Ok(())
+	}
+
+	/// Whether the engine has transaction ordering.
+	pub fn has_transaction_ordering(&self) -> bool {
+		false
+	}
+
+	/// Before applying transaction states, order transactions to desired. The engine should only apply absolutely minimal ordering.
+	pub fn reorder_transactions(&self, _ts: &mut [Arc<VerifiedTransaction>]) {
+
+	}
+
+	/// Verify the current transaction ordering is acceptable.
+	pub fn verify_transaction_ordering(&self, _ts: &[SignedTransaction], _header: &Header) -> Result<(), Error> {
+		Ok(())
 	}
 }
 

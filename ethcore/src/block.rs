@@ -356,9 +356,9 @@ impl<'x> OpenBlock<'x> {
 		self.block.state.checkpoint();
 		let mut outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
 
-		if !self.engine.verify_transaction_outcome(&t, &mut outcome.receipt) {
+		if let Err(e) = self.engine.verify_transaction_outcome(&t, &mut outcome.receipt) {
 			self.block.state.revert_to_checkpoint();
-			return Err("Transaction outcome verification failed.".into());
+			return Err(e).into();
 		}
 
 		self.block.state.discard_checkpoint();
