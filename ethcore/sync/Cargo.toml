@@ -20,7 +20,7 @@ plain_hasher = { path = "../../util/plain_hasher" }
 rlp = { path = "../../util/rlp" }
 rustc-hex = "1.0"
 keccak-hash = { path = "../../util/hash" }
-triehash = { path = "../../util/triehash" }
+triehash = "0.1.2"
 kvdb = { path = "../../util/kvdb" }
 macros = { path = "../../util/macros" }
 log = "0.3"

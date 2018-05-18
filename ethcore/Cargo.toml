@@ -64,13 +64,13 @@ using_queue = { path = "../util/using_queue" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
 keccak-hash = { path = "../util/hash" }
-triehash = { path = "../util/triehash" }
+triehash = "0.1.2"
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 
 [dev-dependencies]
 tempdir = "0.3"
-trie-standardmap = { path = "../util/trie-standardmap" }
+trie-standardmap = "0.1.0"
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 
 [features]
