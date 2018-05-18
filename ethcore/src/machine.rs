@@ -31,10 +31,10 @@ use header::{BlockNumber, Header, ExtendedHeader};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
-use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
+use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction, Action};
 use tx_filter::TransactionFilter;
 use rustc_hex::FromHex;
-use types::receipt::Receipt;
+use types::receipt::{Receipt, TransactionOutcome};
 use ethcore_miner::pool::VerifiedTransaction;
 use parity_machine::WithMetadata;
 
@@ -443,8 +443,40 @@ impl EthereumMachine {
 	}
 
 	/// Verify a particular transaction is valid, regardless of order.
-	pub fn verify_transaction_unordered(&self, t: UnverifiedTransaction, _header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		Ok(SignedTransaction::new(t)?)
+	pub fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		let signed = SignedTransaction::new(t)?;
+
+		if let Some(ref ethash_params) = self.ethash_extensions {
+			if header.number() >= ethash_params.hybrid_casper_transition {
+				if signed.is_unsigned() {
+					let (transaction, _, _) = signed.clone().deconstruct();
+					let unsigned = transaction.as_unsigned();
+
+					match unsigned.action {
+						Action::Call(address) => {
+							if address != ethash_params.hybrid_casper_contract_address {
+								return Err(transaction::Error::NotAllowed)
+							}
+						},
+						_ => {
+							return Err(transaction::Error::NotAllowed)
+						},
+					}
+
+					if unsigned.data.len() < 4 {
+						return Err(transaction::Error::NotAllowed);
+					}
+
+					if &unsigned.data[0..4] != &[0xe9, 0xdc, 0x06, 0x14] {
+						return Err(transaction::Error::NotAllowed);
+					}
+				} else {
+					return Err(transaction::Error::NotAllowed);
+				}
+			}
+		}
+
+		Ok(signed)
 	}
 
 	/// Does basic verification of the transaction.
@@ -461,7 +493,18 @@ impl EthereumMachine {
 		} else {
 			None
 		};
-		t.verify_basic(check_low_s, chain_id, false)?;
+
+		let allow_null_signer = if let Some(ref ethash_params) = self.ethash_extensions {
+			if header.number() >= ethash_params.hybrid_casper_transition {
+				true
+			} else {
+				false
+			}
+		} else {
+			false
+		};
+
+		t.verify_basic(check_low_s, chain_id, allow_null_signer)?;
 
 		Ok(())
 	}
@@ -498,14 +541,37 @@ impl EthereumMachine {
 
 	/// Prepare the environment information passed for transaction execution.
 	pub fn prepare_env_info(&self, t: &SignedTransaction, block: &ExecutedBlock, env_info: &mut EnvInfo) {
-		if t.is_unsigned() {
-			let metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
-			env_info.gas_used = metadata.vote_gas_used;
+		if let Some(ref ethash_params) = self.ethash_extensions {
+			if block.header().number() >= ethash_params.hybrid_casper_transition {
+				if t.is_unsigned() {
+					let metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
+					env_info.gas_used = metadata.vote_gas_used;
+				}
+			}
 		}
 	}
 
 	/// Verify the transaction outcome is acceptable.
 	pub fn verify_transaction_outcome(&self, t: &SignedTransaction, block: &mut ExecutedBlock, receipt: &mut Receipt) -> Result<(), Error> {
+		if let Some(ref ethash_params) = self.ethash_extensions {
+			if block.header().number() >= ethash_params.hybrid_casper_transition {
+				if t.is_unsigned() {
+					match receipt.outcome {
+						TransactionOutcome::StatusCode(c) => {
+							if c == 0 {
+								return Err("Vote transaction failed.".into());
+							}
+						},
+						_ => panic!("Casper requires EIP658 to be enabled."),
+					}
+
+					let mut metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
+					metadata.vote_gas_used = receipt.gas_used;
+					receipt.gas_used = block.receipts().last().map(|r| r.gas_used).unwrap_or(U256::zero());
+					block.set_metadata(Some(rlp::encode(&metadata).to_vec()));
+				}
+			}
+		}
 		Ok(())
 	}
 
