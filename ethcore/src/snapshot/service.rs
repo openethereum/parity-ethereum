@@ -411,6 +411,11 @@ impl Service {
 		let mut block = cur_chain.read().block(&last_block_hash);
 
 		while let Some(block_view) = block {
+			// Early return if restoration is aborted
+			if !self.restoring_snapshot.load(Ordering::SeqCst) {
+				return Ok(count);
+			}
+
 			let chain = cur_chain.read();
 
 			let block_hash = block_view.hash();
