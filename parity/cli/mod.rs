@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -422,9 +422,9 @@ usage! {
 			"--reserved-only",
 			"Connect only to reserved nodes.",
 
-			FLAG flag_no_ancient_blocks: (bool) = false, or |_| None,
-			"--no-ancient-blocks",
-			"Disable downloading old blocks after snapshot restoration or warp sync.",
+			FLAG flag_ancient_blocks: (bool) = false, or |_| None,
+			"--ancient-blocks",
+			"Enable downloading old blocks after snapshot restoration or warp sync. Turns client into a full node.",
 
 			FLAG flag_no_serve_light: (bool) = false, or |c: &Config| c.network.as_ref()?.no_serve_light.clone(),
 			"--no-serve-light",
@@ -487,7 +487,7 @@ usage! {
 			"--jsonrpc-port=[PORT]",
 			"Specify the port portion of the JSONRPC API server.",
 
-			ARG arg_jsonrpc_interface: (String)  = "local", or |c: &Config| c.rpc.as_ref()?.interface.clone(),
+			ARG arg_jsonrpc_interface: (String) = "local", or |c: &Config| c.rpc.as_ref()?.interface.clone(),
 			"--jsonrpc-interface=[IP]",
 			"Specify the hostname portion of the JSONRPC API server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
@@ -520,7 +520,7 @@ usage! {
 			"--ws-port=[PORT]",
 			"Specify the port portion of the WebSockets server.",
 
-			ARG arg_ws_interface: (String)  = "local", or |c: &Config| c.websockets.as_ref()?.interface.clone(),
+			ARG arg_ws_interface: (String) = "local", or |c: &Config| c.websockets.as_ref()?.interface.clone(),
 			"--ws-interface=[IP]",
 			"Specify the hostname portion of the WebSockets server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
@@ -894,7 +894,11 @@ usage! {
 		["Legacy options"]
 			FLAG flag_warp: (bool) = false, or |_| None,
 			"--warp",
-			"Does nothing; warp sync is enabled by default.",
+			"Does nothing; warp sync is enabled by default. Disable warp sync with --no-warp.",
+
+			FLAG flag_no_ancient_blocks: (bool) = false, or |_| None,
+			"--no-ancient-blocks",
+			"Does nothing; ancient block download is disabled by default. Enable download with --ancient-blocks.",
 
 			FLAG flag_dapps_apis_all: (bool) = false, or |_| None,
 			"--dapps-apis-all",
@@ -1579,7 +1583,7 @@ mod tests {
 			arg_node_key: None,
 			arg_reserved_peers: Some("./path_to_file".into()),
 			flag_reserved_only: false,
-			flag_no_ancient_blocks: false,
+			flag_ancient_blocks: false,
 			flag_no_serve_light: false,
 
 			// -- API and Console Options
@@ -1710,6 +1714,7 @@ mod tests {
 
 			// -- Legacy Options
 			flag_warp: false,
+			flag_no_ancient_blocks: false,
 			flag_geth: false,
 			flag_testnet: false,
 			flag_import_geth_keys: false,
