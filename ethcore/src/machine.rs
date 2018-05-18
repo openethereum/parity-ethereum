@@ -97,6 +97,8 @@ pub struct EthashExtensions {
 	pub hybrid_casper_base_penalty_factor: U256,
 	/// EIP1011 minimal deposit size.
 	pub hybrid_casper_min_deposit_size: U256,
+	/// EIP1011 warm up period.
+	pub hybrid_casper_warm_up_period: u64,
 }
 
 impl From<::ethjson::spec::EthashParams> for EthashExtensions {
@@ -130,6 +132,7 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 			hybrid_casper_base_interest_factor: U256::from(70000000),
 			hybrid_casper_base_penalty_factor: U256::from(2000),
 			hybrid_casper_min_deposit_size: U256::from(1500) * ::ethereum::ether(),
+			hybrid_casper_warm_up_period: 180000,
 		}
 	}
 }
@@ -307,6 +310,22 @@ impl EthereumMachine {
 					U256::max_value(),
 					Some(input)
 				)?;
+			}
+
+			if block.header().number() >= ethash_params.hybrid_casper_transition + ethash_params.hybrid_casper_warm_up_period {
+				if block.header().number() % ethash_params.hybrid_casper_epoch_length == 0 {
+					let casper_contract = simple_casper_contract::SimpleCasper::default();
+					let input = casper_contract.functions().initialize_epoch().input(
+						block.header().number() / ethash_params.hybrid_casper_epoch_length
+					);
+
+					let _ = self.execute_as_system(
+						block,
+						ethash_params.hybrid_casper_contract_address,
+						U256::max_value(),
+						Some(input)
+					)?;
+				}
 			}
 		}
 
