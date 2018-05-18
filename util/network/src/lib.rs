@@ -332,8 +332,6 @@ pub trait HostInfo {
 	fn id(&self) -> &NodeId;
 	/// Returns secret key
 	fn secret(&self) -> &Secret;
-	/// Increments and returns connection nonce.
-	fn next_nonce(&mut self) -> H256;
     /// Returns the client version.
 	fn client_version(&self) -> &str;
 }
