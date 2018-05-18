@@ -8,7 +8,7 @@ license = "GPL-3.0"
 [dependencies]
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethcore-network = { path = "../../util/network" }
-ethcore-logger = { path = "../../logger" }
+ethcore-logger = "1.12.0"
 parity-whisper = { path = "../" }
 docopt = "0.8"
 serde = "1.0"

@@ -42,7 +42,7 @@ ethcore-crypto = { path = "../ethcore/crypto" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light" }
-ethcore-logger = { path = "../logger" }
+ethcore-logger = "1.12.0"
 ethcore-miner = { path = "../miner" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }

@@ -23,7 +23,7 @@ patricia-trie = { path = "../util/patricia_trie" }
 ethcore-crypto = { path = "crypto" }
 error-chain = { version = "0.11", default-features = false }
 ethcore-io = { path = "../util/io" }
-ethcore-logger = { path = "../logger" }
+ethcore-logger = "1.12.0"
 ethcore-miner = { path = "../miner" }
 ethcore-stratum = { path = "./stratum" }
 ethcore-transaction = { path = "./transaction" }

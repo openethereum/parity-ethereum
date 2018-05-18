@@ -12,7 +12,7 @@ ethjson = { path = "../../../json" }
 vm = { path = "../../vm" }
 wasm = { path = "../" }
 clap = "2.24"
-ethcore-logger = { path = "../../../logger" }
+ethcore-logger = "1.12.0"
 rustc-hex = "1"
 
 [features]
