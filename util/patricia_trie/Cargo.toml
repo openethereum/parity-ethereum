@@ -11,7 +11,7 @@ log = "0.3"
 rand = "0.4"
 ethcore-bytes = { version = "0.1.0", path = "../bytes" }
 ethereum-types = "0.3"
-keccak-hash = { version = "0.1.0", path = "../hash" }
+keccak-hash = "0.1.1"
 hashdb = { version = "0.1.1", path = "../hashdb" }
 rlp = { version = "0.2.1", path = "../rlp" }
 triehash = { version = "0.1.0", path = "../triehash" }

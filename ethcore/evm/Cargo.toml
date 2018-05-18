@@ -10,7 +10,7 @@ heapsize = "0.4"
 lazy_static = "1.0"
 log = "0.3"
 vm = { path = "../vm" }
-keccak-hash = { path = "../../util/hash" }
+keccak-hash = "0.1.1"
 parking_lot = "0.5"
 memory-cache = { path = "../../util/memory_cache" }
 

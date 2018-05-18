@@ -29,7 +29,7 @@ ethkey = { path = "../../ethkey" }
 rlp = { path = "../rlp" }
 path = { path = "../path" }
 ipnetwork = "0.12.6"
-keccak-hash = { path = "../hash" }
+keccak-hash = "0.1.1"
 snappy = { git = "https://github.com/paritytech/rust-snappy" }
 serde = "1.0"
 serde_json = "1.0"

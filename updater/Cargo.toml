@@ -6,7 +6,7 @@ license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-keccak-hash = { path = "../util/hash" }
+keccak-hash = "0.1.1"
 lazy_static = "1.0"
 log = "0.3"
 ethabi = "5.1"

@@ -18,7 +18,7 @@ fetch = { path = "../util/fetch" }
 ethcore-bytes = { path = "../util/bytes" }
 ethereum-types = "0.3"
 parity-reactor = { path = "../util/reactor" }
-keccak-hash = { path = "../util/hash" }
+keccak-hash = "0.1.1"
 registrar = { path = "../registrar" }
 
 ethabi = "5.1"

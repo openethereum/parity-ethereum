@@ -63,7 +63,7 @@ trace-time = { path = "../util/trace-time" }
 using_queue = { path = "../util/using_queue" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
-keccak-hash = { path = "../util/hash" }
+keccak-hash = "0.1.1"
 triehash = { path = "../util/triehash" }
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }

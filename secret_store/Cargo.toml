@@ -31,7 +31,7 @@ ethcore-sync = { path = "../ethcore/sync" }
 ethcore-transaction = { path = "../ethcore/transaction" }
 ethereum-types = "0.3"
 kvdb = { path = "../util/kvdb" }
-keccak-hash = { path = "../util/hash" }
+keccak-hash = "0.1.1"
 ethkey = { path = "../ethkey" }
 lazy_static = "1.0"
 ethabi = "5.1"
