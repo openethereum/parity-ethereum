@@ -30,7 +30,8 @@ use engines::{self, Engine, ForkChoice};
 use ethjson;
 use rlp::{self, Rlp};
 use machine::{EthereumMachine, CasperMetadata};
-use parity_machine::{WithMetadataHeader, TotalScoredHeader};
+use parity_machine::{WithMetadata, WithMetadataHeader, TotalScoredHeader};
+use types::ancestry_action::AncestryAction;
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty incrment divisor?
@@ -376,6 +377,19 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			ForkChoice::New
 		} else {
 			ForkChoice::Old
+		}
+	}
+
+	fn ancestry_actions(&self, block: &ExecutedBlock, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
+		let metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
+
+		if metadata.highest_finalized_hash != Default::default() {
+			// Call finalize on an already finalized block won't do anything. So we just do that for now to avoid a
+			// conditional.
+			vec![AncestryAction::MarkFinalized(metadata.highest_finalized_hash)]
+		} else {
+			// Default metadata would match this. So we don't need to check Casper transition block here.
+			vec![]
 		}
 	}
 }

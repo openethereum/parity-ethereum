@@ -43,6 +43,7 @@ use bytes::BytesRef;
 use rlp::{self, Rlp};
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
+use hash::H256;
 
 use_contract!(simple_casper_contract, "SimpleCasper", "res/contracts/simple_casper.json");
 
@@ -149,6 +150,8 @@ pub struct CasperMetadata {
 	pub highest_justified_epoch: U256,
 	/// Highest finalized epoch returned by Casper contract.
 	pub highest_finalized_epoch: U256,
+	/// Highest finalized block hash returned by Casper contract.
+	pub highest_finalized_hash: H256,
 }
 
 impl Default for CasperMetadata {
@@ -157,6 +160,7 @@ impl Default for CasperMetadata {
 			vote_gas_used: U256::zero(),
 			highest_justified_epoch: U256::zero(),
 			highest_finalized_epoch: U256::zero(),
+			highest_finalized_hash: Default::default(),
 		}
 	}
 }
@@ -372,10 +376,24 @@ impl EthereumMachine {
 					casper_contract.functions().highest_finalized_epoch().output(&result)
 						.expect("Casper contract ABI definition is valid; qed")
 				};
+				let highest_finalized_hash: H256 = {
+					let input = casper_contract.functions().checkpoint_hashes().input(
+						highest_finalized_epoch,
+					);
+					let result = self.execute_as_system(
+						block,
+						ethash_params.hybrid_casper_contract_address,
+						U256::max_value(),
+						Some(input)
+					)?;
+					casper_contract.functions().checkpoint_hashes().output(&result)
+						.expect("Casper contract ABI definition is valid; qed")
+				};
 
 				let mut metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
 				metadata.highest_justified_epoch = highest_justified_epoch;
 				metadata.highest_finalized_epoch = highest_finalized_epoch;
+				metadata.highest_finalized_hash = highest_finalized_hash;
 				block.set_metadata(Some(rlp::encode(&metadata).to_vec()));
 			}
 		}
