@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -8,11 +8,11 @@
 
 // Parity is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
 use error::ScryptError;
 use rcrypto::scrypt::{scrypt, ScryptParams};
@@ -36,4 +36,3 @@ pub fn derive_key(pass: &str, salt: &[u8; 32], n: u32, p: u32, r: u32) -> Result
 	let derived_left_bits = &derived_key[KEY_LENGTH_AES..KEY_LENGTH];
 	Ok((derived_right_bits.to_vec(), derived_left_bits.to_vec()))
 }
-
