@@ -70,7 +70,6 @@ impl From<u8> for ReleaseTrack {
 	}
 }
 
-
 impl From<ReleaseTrack> for u8 {
 	fn from(rt: ReleaseTrack) -> Self {
 		rt as u8

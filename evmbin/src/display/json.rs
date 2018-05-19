@@ -156,7 +156,6 @@ impl trace::VMTracer for Informant {
 			self.storage.insert(pos.into(), val.into());
 		}
 
-
 		if !self.subtraces.is_empty() {
 			self.traces.extend(mem::replace(&mut self.subtraces, vec![]));
 		}

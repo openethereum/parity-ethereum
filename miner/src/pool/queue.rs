@@ -412,7 +412,6 @@ impl TransactionQueue {
 	}
 }
 
-
 fn convert_error(err: txpool::Error) -> transaction::Error {
 	use self::txpool::ErrorKind;
 

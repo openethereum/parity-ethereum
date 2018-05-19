@@ -121,7 +121,6 @@ pub struct MinerOptions {
 	/// will be invalid if mined.
 	pub infinite_pending_block: bool,
 
-
 	/// Strategy to use for prioritizing transactions in the queue.
 	pub tx_queue_strategy: PrioritizationStrategy,
 	/// Simple senders penalization.
@@ -505,7 +504,6 @@ impl Miner {
 			|| self.transaction_queue.has_local_pending_transactions()
 			|| self.engine.seals_internally() == Some(true)
 			|| had_requests;
-
 
 		let should_disable_sealing = !sealing_enabled;
 

@@ -56,7 +56,6 @@ mod difficulty_test_byzantium {
 	declare_test!{DifficultyTests_difficultyByzantium, "BasicTests/difficultyByzantium.json"}
 }
 
-
 mod difficulty_test_foundation {
 	use super::json_difficulty_test;
 	use tempdir::TempDir;

@@ -338,7 +338,6 @@ fn change_field<T>(hash: &mut Option<H256>, field: &mut T, value: T) where T: Pa
 	}
 }
 
-
 impl Decodable for Header {
 	fn decode(r: &Rlp) -> Result<Self, DecoderError> {
 		let mut blockheader = Header {

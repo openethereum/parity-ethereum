@@ -91,7 +91,6 @@ impl Transaction {
 		}
 	}
 
-
 	fn gas_price(&self) -> &U256 {
 		match *self {
 			Transaction::Unverified(ref tx) => &tx.gas_price,

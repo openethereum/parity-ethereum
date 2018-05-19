@@ -1158,7 +1158,6 @@ fn key_save_load() {
 	assert_eq!(key, r.unwrap());
 }
 
-
 #[test]
 fn host_client_url() {
 	let mut config = NetworkConfiguration::new_local();

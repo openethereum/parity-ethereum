@@ -214,7 +214,6 @@ impl PackedReader {
 			return Ok(None);
 		}
 
-
 		file.seek(SeekFrom::End(-8))?;
 		let mut off_bytes = [0u8; 8];
 

@@ -283,7 +283,6 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	let db = new_db();
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
-
 	let mut batch = db.transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.

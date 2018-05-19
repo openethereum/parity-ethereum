@@ -92,7 +92,6 @@ impl Dapp {
 		LocalFile::from_path(&file_path, mime)
 	}
 
-
 	pub fn to_response(&self, path: &EndpointPath) -> Response {
 		let (reader, response) = handler::PageHandler {
 			file: self.get_file(path),

@@ -1346,7 +1346,6 @@ pub mod tests {
 			client.set_nonce(sender, U256::from(0));
 		}
 
-
 		// when
 		{
 			let queue = RwLock::new(VecDeque::new());

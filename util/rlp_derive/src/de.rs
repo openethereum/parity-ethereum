@@ -44,7 +44,6 @@ pub fn impl_decodable(ast: &syn::DeriveInput) -> quote::Tokens {
 		_ => panic!("#[derive(RlpDecodable)] is only defined for structs."),
 	};
 
-
 	let stmts: Vec<_> = body.fields.iter().enumerate().map(decodable_field_map).collect();
 	let name = &ast.ident;
 

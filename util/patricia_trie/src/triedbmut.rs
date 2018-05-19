@@ -893,7 +893,6 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 		self.lookup(NibbleSlice::new(key), &self.root_handle)
 	}
 
-
 	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>> {
 		if value.is_empty() { return self.remove(key) }
 

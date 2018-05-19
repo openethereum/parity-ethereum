@@ -520,7 +520,6 @@ impl IncompleteRequest for CheckedRequest {
 		}
 	}
 
-
 	fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
 		match_me!(*self, (_, ref mut req) => req.adjust_refs(mapping))
 	}

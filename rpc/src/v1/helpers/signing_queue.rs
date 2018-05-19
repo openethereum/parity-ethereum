@@ -227,7 +227,6 @@ impl SigningQueue for ConfirmationsQueue {
 	}
 }
 
-
 #[cfg(test)]
 mod test {
 	use std::sync::Arc;

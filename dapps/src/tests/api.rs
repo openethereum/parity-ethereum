@@ -63,7 +63,6 @@ fn should_handle_ping() {
 	assert_security_headers(&response.headers);
 }
 
-
 #[test]
 fn should_try_to_resolve_dapp() {
 	// given

@@ -86,7 +86,6 @@ impl<'a> Visitor<'a> for BytesVisitor {
 	}
 }
 
-
 #[cfg(test)]
 mod tests {
 	use super::*;

@@ -69,7 +69,6 @@ fn partly_matching_bloom_searach() {
 
 	db.insert_blooms(modified_blooms_1);
 
-
 	let chain = BloomChain::new(config, &db);
 	assert_eq!(chain.with_bloom(&(0..100), &bloom2), vec![14, 15]);
 }
@@ -116,7 +115,6 @@ fn bloom_replace() {
 	};
 
 	db.insert_blooms(modified_blooms_3);
-
 
 	let reset_modified_blooms = {
 		let chain = BloomChain::new(config, &db);

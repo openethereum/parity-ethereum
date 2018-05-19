@@ -149,7 +149,6 @@ impl RlpStream {
 		self
 	}
 
-
 	/// Declare appending the list of unknown size, chainable.
 	pub fn begin_unbounded_list(&mut self) -> &mut RlpStream {
 		self.finished_list = false;
@@ -221,7 +220,6 @@ impl RlpStream {
 		}
 		base_size
 	}
-
 
 	/// Returns current RLP size in bytes for the data pushed into the list.
 	pub fn len<'a>(&'a self) -> usize {

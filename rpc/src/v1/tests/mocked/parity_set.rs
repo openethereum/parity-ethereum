@@ -181,7 +181,6 @@ fn rpc_parity_set_engine_signer() {
 	assert_eq!(*miner.password.read(), "password".to_string());
 }
 
-
 #[test]
 fn rpc_parity_set_transactions_limit() {
 	let miner = miner_service();

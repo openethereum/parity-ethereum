@@ -102,7 +102,6 @@ impl<'a> Deserialize<'a> for KeyFile {
 	}
 }
 
-
 fn none_if_empty<'a, T>(v: Option<serde_json::Value>) -> Option<T> where
 	T: DeserializeOwned
 {

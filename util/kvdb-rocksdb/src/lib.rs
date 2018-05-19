@@ -388,7 +388,6 @@ impl Database {
 		DBTransaction::new()
 	}
 
-
 	fn to_overlay_column(col: Option<u32>) -> usize {
 		col.map_or(0, |c| (c + 1) as usize)
 	}

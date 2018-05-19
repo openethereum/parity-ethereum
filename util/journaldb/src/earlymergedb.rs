@@ -394,7 +394,6 @@ impl JournalDB for EarlyMergeDB {
 				.filter_map(|(k, (v, r))| if r > 0 { assert!(r == 1); Some((k, v)) } else { assert!(r >= -1); None })
 				.collect();
 
-
 			// TODO: check all removes are in the db.
 
 			// Process the new inserts.

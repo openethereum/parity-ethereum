@@ -92,7 +92,6 @@ pub trait Wallet<'a> {
 		where F: Fn() -> Result<R, &'static str>;
 }
 
-
 /// Hardware wallet error.
 #[derive(Debug)]
 pub enum Error {

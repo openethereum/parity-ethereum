@@ -153,7 +153,6 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 		)
 	}
 
-
 	/// insert account with given filename. if the filename is a duplicate of any stored account and dedup is set to
 	/// true, a random suffix is appended to the filename.
 	pub fn insert_with_filename(&self, account: SafeAccount, mut filename: String, dedup: bool) -> Result<SafeAccount, Error> {

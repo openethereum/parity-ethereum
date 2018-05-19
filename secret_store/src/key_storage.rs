@@ -348,7 +348,6 @@ impl DocumentKeyShareVersion {
 		}
 	}
 
-
 	/// Calculate hash of given version data.
 	pub fn data_hash<'a, I>(id_numbers: I) -> H256 where I: Iterator<Item=(&'a [u8], &'a [u8])> {
 		let mut nodes_keccak = Keccak::new_keccak256();

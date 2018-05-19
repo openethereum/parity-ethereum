@@ -190,7 +190,6 @@ impl txpool::Listener<Transaction> for LocalTransactionsList {
 		self.clear_old();
 	}
 
-
 	/// The transaction has been mined.
 	fn mined(&mut self, tx: &Arc<Transaction>) {
 		if !tx.priority().is_local() {

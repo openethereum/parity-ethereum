@@ -99,7 +99,6 @@ impl NetworkProtocolHandler for TestProtocol {
 	}
 }
 
-
 #[test]
 fn net_service() {
 	let service = NetworkService::new(NetworkConfiguration::new_local(), None).expect("Error creating network service");

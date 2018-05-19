@@ -90,7 +90,6 @@ impl ConnectionFilter for NodeFilter {
 			return *res;
 		}
 
-
 		let address = self.contract_address;
 		let own_low = H256::from_slice(&own_id[0..32]);
 		let own_high = H256::from_slice(&own_id[32..64]);

@@ -18,7 +18,6 @@ use std::collections::BTreeMap;
 use jsonrpc_core::IoHandler;
 use v1::{Rpc, RpcClient};
 
-
 fn rpc_client() -> RpcClient {
 	let mut modules = BTreeMap::new();
 	modules.insert("rpc".to_owned(), "1.0".to_owned());

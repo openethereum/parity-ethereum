@@ -46,7 +46,6 @@ pub trait IoContext {
 	fn persistent_peer_id(&self, peer: PeerId) -> Option<NodeId>;
 }
 
-
 impl<T> IoContext for T where T: ?Sized + NetworkContext {
 	fn send(&self, peer: PeerId, packet_id: u8, packet_body: Vec<u8>) {
 		if let Err(e) = self.send(peer, packet_id, packet_body) {

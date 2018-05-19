@@ -110,7 +110,6 @@ impl From<IpcMode> for Mode {
 	}
 }
 
-
 /// Client configuration. Includes configs for all sub-systems.
 #[derive(Debug, PartialEq, Default)]
 pub struct ClientConfig {

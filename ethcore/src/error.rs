@@ -299,7 +299,6 @@ error_chain! {
 	}
 }
 
-
 /// Result of import block operation.
 pub type ImportResult = EthcoreResult<H256>;
 

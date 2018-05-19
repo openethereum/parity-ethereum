@@ -102,8 +102,6 @@ impl<C, M> Filterable for EthFilterClient<C, M> where
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> { &self.polls }
 }
 
-
-
 impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 	fn new_filter(&self, filter: Filter) -> Result<RpcU256> {
 		let mut polls = self.polls().lock();

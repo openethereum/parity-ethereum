@@ -127,7 +127,6 @@ impl Into<helpers::TransactionRequest> for TransactionRequest {
 	}
 }
 
-
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;

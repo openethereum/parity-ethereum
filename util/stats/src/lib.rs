@@ -130,7 +130,6 @@ impl<T: Ord + Copy + ::std::fmt::Display> Histogram<T>
 	}
 }
 
-
 #[cfg(test)]
 mod tests {
 	use super::*;

@@ -164,7 +164,6 @@ impl Manager {
 		unlocked
 	}
 
-
 	fn u256_to_be_vec(&self, val: &U256) -> Vec<u8> {
 		let mut buf = [0u8; 32];
 		val.to_big_endian(&mut buf);

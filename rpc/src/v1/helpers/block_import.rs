@@ -35,7 +35,6 @@ mod tests {
 	use sync::SyncState;
 	use super::is_major_importing;
 
-
 	fn queue_info(unverified: usize, verified: usize) -> BlockQueueInfo {
 		BlockQueueInfo {
 			unverified_queue_size: unverified,

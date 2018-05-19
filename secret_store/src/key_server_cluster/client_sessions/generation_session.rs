@@ -1299,7 +1299,6 @@ pub mod tests {
 		}).unwrap_err(), Error::InvalidMessage);
 	}
 
-
 	#[test]
 	fn encryption_fails_on_session_timeout() {
 		let (_, _, _, l) = make_simple_cluster(0, 2).unwrap();

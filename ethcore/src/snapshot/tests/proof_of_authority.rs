@@ -52,7 +52,6 @@ lazy_static! {
 	static ref RICH_SECRET: Secret = secret!("1");
 }
 
-
 /// Contract code used here: https://gist.github.com/anonymous/2a43783647e0f0dfcc359bd6fd81d6d9
 /// Account with secrets keccak("1") is initially the validator.
 /// Transitions to the contract at block 2, initially same validator set.

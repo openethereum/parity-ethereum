@@ -85,7 +85,6 @@ use node_health::NodeHealth;
 pub use registrar::{RegistrarClient, Asynchronous};
 pub use node_health::SyncStatus;
 
-
 /// Validates Web Proxy tokens
 pub trait WebProxyTokens: Send + Sync {
 	/// Should return a domain allowed to be accessed by this token or `None` if the token is not valid

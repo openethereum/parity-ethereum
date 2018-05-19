@@ -704,7 +704,6 @@ impl BlockChainClient for TestBlockChainClient {
 			.map(|header| self.spec.engine.extra_info(&header))
 	}
 
-
 	fn block_status(&self, id: BlockId) -> BlockStatus {
 		match id {
 			BlockId::Number(number) if (number as usize) < self.blocks.read().len() => BlockStatus::InChain,

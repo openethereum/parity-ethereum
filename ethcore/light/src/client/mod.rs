@@ -463,7 +463,6 @@ impl<T: ChainDataFetcher> Client<T> {
 
 		loop {
 
-
 			let is_signal = {
 				let auxiliary = AuxiliaryData {
 					bytes: block.as_ref().map(|x| &x[..]),

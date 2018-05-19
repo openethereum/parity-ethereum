@@ -21,7 +21,6 @@ use parity_wordlist;
 
 use super::{Address, Brain, Generator};
 
-
 /// Tries to find a phrase for address, given the number
 /// of expected words and a partial phrase.
 ///
@@ -149,7 +148,6 @@ impl Iterator for PhrasesIterator {
 #[cfg(test)]
 mod tests {
 	use super::PhrasesIterator;
-
 
 	#[test]
 	fn should_generate_possible_combinations() {

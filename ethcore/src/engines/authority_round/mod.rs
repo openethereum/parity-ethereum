@@ -655,7 +655,6 @@ impl AuthorityRound {
 		}).cloned().collect()
 	}
 
-
 	fn clear_empty_steps(&self, step: U256) {
 		// clear old `empty_steps` messages
 		self.empty_steps.lock().retain(|e| U256::from(e.step) > step);

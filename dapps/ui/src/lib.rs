@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
-
 #[cfg(feature = "parity-ui-dev")]
 mod inner {
 	extern crate parity_ui_dev;

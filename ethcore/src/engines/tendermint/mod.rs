@@ -359,7 +359,6 @@ impl Tendermint {
 			&& lock_change_view < self.view.load(AtomicOrdering::SeqCst)
 	}
 
-
 	fn has_enough_any_votes(&self) -> bool {
 		let step_votes = self.votes.count_round_votes(&VoteStep::new(self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst), *self.step.read()));
 		self.check_above_threshold(step_votes).is_ok()

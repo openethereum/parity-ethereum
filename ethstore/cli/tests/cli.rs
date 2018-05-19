@@ -74,7 +74,6 @@ fn cli_cmd() {
 			   "--vault-pwd", test_password]);
 	assert_eq!(output, "0x54ab6e5cf0c5cb40043fdca5d15d611a3a94285414a076dafecc8dc9c04183f413296a3defff61092c0bb478dc9887ec01070e1275234211208fb8f4be4a9b0101\n");
 
-
 	let output = run(&["public", &address[2..], test_vault_addr,
 			   "--dir", dir_str,
 			   "--vault", "test-vault",

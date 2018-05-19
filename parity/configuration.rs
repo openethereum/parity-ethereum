@@ -1982,7 +1982,6 @@ mod tests {
 		assert_eq!(conf0.ipfs_config().port, 5002);
 		assert_eq!(conf0.stratum_options().unwrap().unwrap().port, 8009);
 
-
 		assert_eq!(conf1.net_addresses().unwrap().0.port(), 30304);
 		assert_eq!(conf1.network_settings().unwrap().network_port, 30304);
 		assert_eq!(conf1.network_settings().unwrap().rpc_port, 8545);

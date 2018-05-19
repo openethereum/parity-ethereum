@@ -425,7 +425,6 @@ impl Importer {
 		Ok(locked_block)
 	}
 
-
 	/// Import a block with transaction receipts.
 	///
 	/// The block is guaranteed to be the next best blocks in the
@@ -917,7 +916,6 @@ impl Client {
 		*cached_hashes = VecDeque::from(last_hashes.clone());
 		Arc::new(last_hashes)
 	}
-
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self) -> usize {
@@ -1565,7 +1563,6 @@ impl BlockChainClient for Client {
 				x
 			})))
 	}
-
 
 	fn mode(&self) -> IpcMode {
 		let r = self.mode.lock().clone().into();
@@ -2279,7 +2276,6 @@ impl ProvingBlockChainClient for Client {
 			false,
 		)
 	}
-
 
 	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>> {
 		// pending transitions are never deleted, and do not contain

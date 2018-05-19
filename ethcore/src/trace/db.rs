@@ -590,7 +590,6 @@ mod tests {
 		assert!(tracedb.traces(&block_0).is_some(), "Traces should be available even if block is non-canon.");
 	}
 
-
 	#[test]
 	fn test_import() {
 		let db = new_db();

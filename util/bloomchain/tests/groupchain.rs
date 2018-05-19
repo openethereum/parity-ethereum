@@ -39,7 +39,6 @@ fn simple_bloom_group_search() {
 	assert_eq!(modified_blooms.len(), config.levels);
 	db.insert_blooms(modified_blooms);
 
-
 	let chain = BloomGroupChain::new(config, &db);
 	assert_eq!(chain.with_bloom(&(0..100), &bloom), vec![23]);
 	assert_eq!(chain.with_bloom(&(0..22), &bloom), vec![]);
@@ -70,7 +69,6 @@ fn partly_matching_bloom_group_searach() {
 	};
 
 	db.insert_blooms(modified_blooms_1);
-
 
 	let chain = BloomGroupChain::new(config, &db);
 	assert_eq!(chain.with_bloom(&(0..100), &bloom2), vec![14, 15]);
@@ -118,7 +116,6 @@ fn bloom_group_replace() {
 	};
 
 	db.insert_blooms(modified_blooms_3);
-
 
 	let reset_modified_blooms = {
 		let chain = BloomGroupChain::new(config, &db);

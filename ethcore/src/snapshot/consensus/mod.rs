@@ -74,7 +74,6 @@ pub trait SnapshotComponents: Send {
 	fn current_version(&self) -> u64;
 }
 
-
 /// Restore from secondary snapshot chunks.
 pub trait Rebuilder: Send {
 	/// Feed a chunk, potentially out of order.

@@ -146,7 +146,6 @@ impl From<Info> for EndpointInfo {
 	}
 }
 
-
 struct BuiltinFile {
 	content_type: Mime,
 	content: io::Cursor<&'static [u8]>,

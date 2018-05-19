@@ -86,7 +86,6 @@ pub const PROTOCOL_VERSIONS: &'static [(u8, u8)] = &[
 /// Max protocol version.
 pub const MAX_PROTOCOL_VERSION: u8 = 1;
 
-
 // packet ID definitions.
 mod packet {
 	// the status packet.

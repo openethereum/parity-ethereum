@@ -64,7 +64,6 @@ impl txpool::Listener<Transaction> for Notifier {
 	}
 }
 
-
 /// Transaction pool logger.
 #[derive(Default, Debug)]
 pub struct Logger;
@@ -112,7 +111,6 @@ impl txpool::Listener<Transaction> for Logger {
 		debug!(target: "txqueue", "[{:?}] Mined.", tx.hash());
 	}
 }
-
 
 #[cfg(test)]
 mod tests {

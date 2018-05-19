@@ -194,7 +194,6 @@ impl BlockCollection {
 		needed_bodies
 	}
 
-
 	/// Returns a set of block hashes that require a receipt download. The returned set is marked as being downloaded.
 	pub fn needed_receipts(&mut self, count: usize, _ignore_downloading: bool) -> Vec<H256> {
 		if self.head.is_none() || !self.need_receipts {

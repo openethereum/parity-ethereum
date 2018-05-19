@@ -165,7 +165,6 @@ pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<A
 	}
 }
 
-
 #[cfg(test)]
 mod test {
 	use std::collections::BTreeMap;

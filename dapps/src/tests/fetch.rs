@@ -383,7 +383,6 @@ fn should_correctly_handle_long_label_when_splitted() {
 	fetch.assert_no_more_requests();
 }
 
-
 #[test]
 fn should_support_base32_encoded_web_urls_as_path() {
 	// given

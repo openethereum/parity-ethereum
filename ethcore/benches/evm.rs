@@ -28,7 +28,6 @@ extern crate ethcore_bigint;
 use self::test::{Bencher};
 use rand::{StdRng};
 
-
 #[bench]
 fn bn_128_pairing(b: &mut Bencher) {
 	use bn::{pairing, G1, G2, Fr, Group};

@@ -51,7 +51,6 @@ use trie;
 use trie::{Trie, TrieError, TrieDB};
 use trie::recorder::Recorder;
 
-
 mod account;
 mod substate;
 

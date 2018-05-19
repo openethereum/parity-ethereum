@@ -644,7 +644,6 @@ impl SessionImpl {
 			Self::compute_inversed_nonce_coeff(&self.core, &*data)?
 		};
 
-
 		let version = data.version.as_ref().ok_or(Error::InvalidMessage)?.clone();
 		let message_hash = data.message_hash
 			.expect("we are on master node; on master node message_hash is filled in initialize(); on_generation_message follows initialize; qed");

@@ -206,7 +206,6 @@ fn rpc_parity_set_and_get_new_dapps_default_address() {
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 
-
 #[test]
 fn rpc_parity_recent_dapps() {
 	// given
@@ -473,7 +472,6 @@ fn derive_key_index() {
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
 }
-
 
 #[test]
 fn should_export_account() {

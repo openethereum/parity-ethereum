@@ -83,7 +83,6 @@ impl<C: NonceClient> txpool::Ready<VerifiedTransaction> for State<C> {
 			_ => {},
 		}
 
-
 		let sender = tx.sender();
 		let state = &self.state;
 		let state_nonce = || state.account_nonce(sender);

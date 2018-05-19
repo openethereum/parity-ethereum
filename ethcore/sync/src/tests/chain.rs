@@ -253,7 +253,6 @@ fn high_td_attach() {
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 5);
 }
 
-
 #[test]
 fn disconnect_on_unrelated_chain() {
 	::env_logger::init().ok();

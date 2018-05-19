@@ -111,7 +111,6 @@ pub struct StratumJobDispatcher {
 	miner: Weak<Miner>,
 }
 
-
 impl JobDispatcher for StratumJobDispatcher {
 	fn initial(&self) -> Option<String> {
 		// initial payload may contain additional data, not in this case

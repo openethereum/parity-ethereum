@@ -86,7 +86,6 @@ pub fn extract_transaction_at_index(block: encoded::Block, index: usize, eip86_t
 		.map(|tx| Transaction::from_localized(tx, eip86_transition))
 }
 
-
 /// Type alias for convenience.
 pub type ExecutionResult = ::std::result::Result<Executed, ExecutionError>;
 
@@ -146,6 +145,7 @@ impl LightFetch {
 		};
 
 		Either::B(self.send_requests(reqs, |res|
+		self.send_requests(reqs, |res|
 			extract_header(&res, header_ref)
 				.expect("these responses correspond to requests that header_ref belongs to \
 						therefore it will not fail; qed")

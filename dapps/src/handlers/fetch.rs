@@ -102,7 +102,6 @@ impl FetchControl {
 	}
 }
 
-
 enum WaitState {
 	Waiting(oneshot::Receiver<WaitResult>),
 	Done(endpoint::Response),

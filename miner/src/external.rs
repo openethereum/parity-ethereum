@@ -106,7 +106,6 @@ mod tests {
 		m.submit_hashrate(U256::from(15), H256::from(1));
 		m.submit_hashrate(U256::from(20), H256::from(2));
 
-
 		// then
 		assert_eq!(m.hashrate(), U256::from(35));
 	}

@@ -177,7 +177,6 @@ mod testing {
 			)
 		);
 
-
 		// then
 		assert_eq!(response1.status, "HTTP/1.1 101 Switching Protocols".to_owned());
 		assert_eq!(response2.status, "HTTP/1.1 403 Forbidden".to_owned());

@@ -327,7 +327,6 @@ impl From<trace::RewardType> for RewardType {
 	}
 }
 
-
 /// Reward action
 #[derive(Debug, Serialize)]
 pub struct Reward {

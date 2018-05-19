@@ -150,7 +150,6 @@ fn rpc_parity_default_account() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-
 	// Check empty
 	let address = Address::default();
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultAccount", "params": [], "id": 1}"#;

@@ -495,7 +495,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			_ => (false, None, None),
 		};
 
-
 		if warping || is_major_importing(Some(status.state), client.queue_info()) {
 			let chain_info = client.chain_info();
 			let current_block = U256::from(chain_info.best_block_number);

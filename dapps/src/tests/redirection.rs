@@ -160,7 +160,6 @@ fn should_serve_rpc_at_slash_rpc() {
 	assert_eq!(response.body, format!("4C\n{}\n\n0\n\n", r#"{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error"},"id":null}"#));
 }
 
-
 #[test]
 fn should_serve_proxy_pac() {
 	// given

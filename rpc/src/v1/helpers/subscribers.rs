@@ -22,7 +22,6 @@ use jsonrpc_macros::pubsub::{Subscriber, Sink, SubscriptionId};
 use rand::{Rng, StdRng};
 use v1::types::H64;
 
-
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Id(H64);
 impl str::FromStr for Id {

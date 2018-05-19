@@ -184,7 +184,6 @@ pub fn decode(payload: &[u8]) -> Result<Decoded, &'static str> {
 			}
 		};
 
-
 		if next_slice(1)?[0] != STANDARD_PAYLOAD_VERSION {
 			return Err("unknown payload version.");
 		}

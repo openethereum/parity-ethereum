@@ -64,7 +64,6 @@ impl Tx {
 		self.nonce += 1;
 		let tx3 = self.unsigned().sign(keypair.secret(), None);
 
-
 		(tx1, tx2, tx3)
 	}
 

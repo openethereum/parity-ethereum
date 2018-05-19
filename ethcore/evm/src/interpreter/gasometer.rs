@@ -316,7 +316,6 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 	}
 }
 
-
 #[inline]
 fn mem_needed_const<Gas: evm::CostType>(mem: &U256, add: usize) -> vm::Result<Gas> {
 	Gas::from_u256(overflowing!(mem.overflowing_add(U256::from(add))))

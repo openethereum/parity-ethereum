@@ -91,7 +91,6 @@ impl Default for SharedCache {
 	}
 }
 
-
 #[test]
 fn test_find_jump_destinations() {
 	use rustc_hex::FromHex;

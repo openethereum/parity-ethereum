@@ -124,8 +124,6 @@ impl<T> Field<T> {
 		}
 	}
 
-
-
 	// attempt conversion into scalar value.
 	fn into_scalar(self) -> Result<T, NoSuchOutput> {
 		match self {

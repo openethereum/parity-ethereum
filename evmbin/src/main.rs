@@ -83,7 +83,6 @@ General options:
     -h, --help         Display this message and exit.
 "#;
 
-
 fn main() {
 	panic_hook::set();
 

@@ -43,7 +43,6 @@ pub struct VoteStep {
 	pub step: Step,
 }
 
-
 impl VoteStep {
 	pub fn new(height: Height, view: View, step: Step) -> Self {
 		VoteStep { height: height, view: view, step: step }

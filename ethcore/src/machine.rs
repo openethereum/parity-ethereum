@@ -472,7 +472,6 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 	}
 }
 
-
 #[cfg(test)]
 mod tests {
 	use super::*;

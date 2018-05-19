@@ -536,7 +536,6 @@ pub trait ManageNetwork : Send + Sync {
 	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext));
 }
 
-
 impl ManageNetwork for EthSync {
 	fn accept_unreserved_peers(&self) {
 		self.network.set_non_reserved_mode(NonReservedPeerMode::Accept);

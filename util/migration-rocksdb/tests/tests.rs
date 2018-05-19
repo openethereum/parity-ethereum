@@ -119,7 +119,6 @@ impl Migration for AddsColumn {
 			batch.insert(key.into_vec(), value.into_vec(), dest)?;
 		}
 
-
 		if col == Some(1) {
 			batch.insert(vec![1, 2, 3], vec![4, 5, 6], dest)?;
 		}

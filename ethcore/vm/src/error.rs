@@ -71,7 +71,6 @@ pub enum Error {
 	Reverted,
 }
 
-
 impl From<Box<trie::TrieError>> for Error {
 	fn from(err: Box<trie::TrieError>) -> Self {
 		Error::Internal(format!("Internal error: {}", err))

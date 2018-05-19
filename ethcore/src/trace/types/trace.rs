@@ -210,7 +210,6 @@ impl Decodable for Reward {
 	}
 }
 
-
 /// Suicide action.
 #[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 pub struct Suicide {

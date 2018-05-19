@@ -95,7 +95,6 @@ impl<T: VerifiedTransaction, S: Scoring<T>> Pool<T, S> {
 	}
 }
 
-
 const INITIAL_NUMBER_OF_SENDERS: usize = 16;
 
 impl<T, S, L> Pool<T, S, L> where
