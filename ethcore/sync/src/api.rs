@@ -474,7 +474,7 @@ impl ChainNotify for EthSync {
 
 	fn stop(&self) {
 		self.eth_handler.snapshot_service.abort_restore();
-		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
+		self.network.stop();
 	}
 
 	fn broadcast(&self, message_type: ChainMessageType) {
@@ -832,9 +832,7 @@ impl ManageNetwork for LightSync {
 
 	fn stop_network(&self) {
 		self.proto.abort();
-		if let Err(e) = self.network.stop() {
-			warn!("Error stopping network: {}", e);
-		}
+		self.network.stop();
 	}
 
 	fn network_config(&self) -> NetworkConfiguration {

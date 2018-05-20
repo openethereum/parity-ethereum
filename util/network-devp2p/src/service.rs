@@ -125,15 +125,14 @@ impl NetworkService {
 		Ok(())
 	}
 
-	/// Stop network IO
-	pub fn stop(&self) -> Result<(), Error> {
+	/// Stop network IO.
+	pub fn stop(&self) {
 		let mut host = self.host.write();
 		if let Some(ref host) = *host {
 			let io = IoContext::new(self.io_service.channel(), 0); //TODO: take token id from host
-			host.stop(&io)?;
+			host.stop(&io);
 		}
 		*host = None;
-		Ok(())
 	}
 
 	/// Get a list of all connected peers by id.
