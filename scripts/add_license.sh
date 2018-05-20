@@ -1,7 +1,7 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 PAT_GPL="^// Copyright.*If not, see <http://www.gnu.org/licenses/>\.$"
-PAT_OTHER"^// Copyright"
+PAT_OTHER="^// Copyright"
 
 for f in $(find . -name '*.rs'); do
 	HEADER=$(head -16 $f)
