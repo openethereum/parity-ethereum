@@ -19,9 +19,10 @@ use std::collections::{HashMap, BTreeMap};
 use std::io;
 use std::time::Duration;
 use bytes::Bytes;
-use devp2p::{NetworkService, ConnectionFilter};
+use devp2p::NetworkService;
 use network::{NetworkProtocolHandler, NetworkContext, HostInfo, PeerId, ProtocolId,
-	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind};
+	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind,
+	ConnectionFilter};
 use ethereum_types::{H256, H512, U256};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;

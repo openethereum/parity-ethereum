@@ -18,7 +18,8 @@
 
 extern crate ethabi;
 extern crate ethcore;
-extern crate ethcore_network_devp2p as network;
+extern crate ethcore_network as network;
+extern crate ethcore_network_devp2p as devp2p;
 extern crate ethereum_types;
 extern crate lru_cache;
 extern crate parking_lot;
@@ -43,7 +44,8 @@ use parking_lot::Mutex;
 
 use ethcore::client::{BlockChainClient, BlockId};
 use ethereum_types::{H256, Address};
-use network::{NodeId, ConnectionFilter, ConnectionDirection};
+use network::{ConnectionFilter, ConnectionDirection};
+use devp2p::NodeId;
 
 use_contract!(peer_set, "PeerSet", "res/peer_set.json");
 
