@@ -16,7 +16,7 @@
 
 //! Smart contract based transaction filter.
 
-use ethereum_types::{H256, Address};
+use ethereum_types::{H256, U256, Address};
 use lru_cache::LruCache;
 
 use client::{BlockInfo, CallContract, BlockId};
@@ -45,6 +45,7 @@ pub struct TransactionFilter {
 	contract: transact_acl::TransactAcl,
 	contract_address: Address,
 	permission_cache: Mutex<LruCache<(H256, Address), u32>>,
+	contract_version_cache: Mutex<LruCache<(H256), Option<U256>>>
 }
 
 impl TransactionFilter {
@@ -56,13 +57,16 @@ impl TransactionFilter {
 				contract: transact_acl::TransactAcl::default(),
 				contract_address: address,
 				permission_cache: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
+				contract_version_cache: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
 			}
 		)
 	}
 
 	/// Check if transaction is allowed at given block.
 	pub fn transaction_allowed<C: BlockInfo + CallContract>(&self, parent_hash: &H256, transaction: &SignedTransaction, client: &C) -> bool {
-		let mut cache = self.permission_cache.lock();
+		let mut permission_cache = self.permission_cache.lock();
+		let mut contract_version_cache = self.contract_version_cache.lock();
+
 		let (tx_type, to) = match transaction.action {
 			Action::Create => (tx_permissions::CREATE, Address::new()),
 			Action::Call(address) => if client.code_hash(&address, BlockId::Hash(*parent_hash)).map_or(false, |c| c != KECCAK_EMPTY) {
@@ -76,32 +80,54 @@ impl TransactionFilter {
 		let value = transaction.value;
 		let key = (*parent_hash, sender);
 
-		if let Some(permissions) = cache.get_mut(&key) {
+		if let Some(permissions) = permission_cache.get_mut(&key) {
 			return *permissions & tx_type != 0;
 		}
 
 		let contract_address = self.contract_address;
+		let contract_version = contract_version_cache.get_mut(parent_hash).and_then(|v| *v).or_else(||  {
+			self.contract.functions()
+				.contract_version()
+				.call(&|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
+				.ok()
+		});
+		contract_version_cache.insert(*parent_hash, contract_version);
 
-		// Check permissions in smart contracts
-		let (permissions, filter_only_sender) = self.contract.functions()
-			.allowed_tx_types()
-			.call(sender, to, value, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
-			.map(|(p, f)| (p.low_u32(), f))
-			.unwrap_or_else(|_e| {
-				// If failed, first check deprecated contract
+		// Check permissions in smart contract based on its version
+		let (permissions, filter_only_sender) = match contract_version {
+			Some(version) => {
+				let version_u64 = version.low_u64();
+				trace!(target: "tx_filter", "Version of tx permission contract: {}", version);
+				match version_u64 {
+					2 => self.contract.functions()
+						.allowed_tx_types()
+						.call(sender, to, value, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
+						.map(|(p, f)| (p.low_u32(), f))
+						.unwrap_or_else(|e| {
+							error!(target: "tx_filter", "Error calling tx permissions contract: {:?}", e);
+							(tx_permissions::NONE, true)
+						}),
+					_ => {
+						error!(target: "tx_filter", "Unknown version of tx permissions contract is used");
+						(tx_permissions::NONE, true)
+					}
+				}
+			},
+			None => {
 				trace!(target: "tx_filter", "Fallback to the deprecated version of tx permission contract");
 				(self.contract_deprecated.functions()
-					.allowed_tx_types()
-					.call(sender, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
-					.map(|p| p.low_u32())
-					.unwrap_or_else(|e| {
-						error!(target: "tx_filter", "Error calling tx permissions contract: {:?}", e);
-						tx_permissions::NONE
-					}), true)
-			});
-		println!("{:?}, {:?}", permissions, filter_only_sender);
+					 .allowed_tx_types()
+					 .call(sender, &|data| client.call_contract(BlockId::Hash(*parent_hash), contract_address, data))
+					 .map(|p| p.low_u32())
+					 .unwrap_or_else(|e| {
+						 error!(target: "tx_filter", "Error calling tx permissions contract: {:?}", e);
+						 tx_permissions::NONE
+					 }), true)
+			}
+		};
+
 		if filter_only_sender {
-			cache.insert((*parent_hash, sender), permissions);
+			permission_cache.insert((*parent_hash, sender), permissions);
 		}
 		trace!(target: "tx_filter",
 			"Given transaction data: sender: {:?} to: {:?} value: {}. Permissions required: {:X}, got: {:X}",
@@ -205,7 +231,6 @@ mod test {
 		let mut call_tx_with_ether = Transaction::default();
 		call_tx_with_ether.action = Action::Call(Address::from("0000000000000000000000000000000000000005"));
 		call_tx_with_ether.value = U256::from(123123);
-
 
 		let mut basic_tx_to_key6 = Transaction::default();
 		basic_tx_to_key6.action = Action::Call(Address::from("e57bfe9f44b819898f47bf37e5af72a0783e1141"));
