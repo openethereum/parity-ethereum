@@ -55,13 +55,7 @@ macro_rules! impl_uint {
 
 		impl fmt::LowerHex for $name {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				// TODO: remove this once updated to new version of primitives
-				// including https://github.com/paritytech/primitives/pull/33
-				// replace with `::core::fmt::LowerHex::fmt(self.0, f)`
-				if f.alternate() {
-					write!(f, "0x");
-				}
-				write!(f, "{:x}", self.0)
+				fmt::LowerHex::fmt(&self.0, f)
 			}
 		}
 
