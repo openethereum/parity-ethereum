@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use engines::{Engine, Seal};
-use parity_machine::{Machine, Transactions};
+use parity_machine::{Machine, Transactions, TotalScoredHeader};
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 /// Only seals blocks which have transactions.
@@ -33,7 +33,9 @@ impl<M> InstantSeal<M> {
 }
 
 impl<M: Machine> Engine<M> for InstantSeal<M>
-	where M::LiveBlock: Transactions
+  where M::LiveBlock: Transactions,
+        M::ExtendedHeader: TotalScoredHeader,
+        <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
 {
 	fn name(&self) -> &str {
 		"InstantSeal"
@@ -61,6 +63,10 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp >= parent_timestamp
 	}
+
+	fn fork_choice(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader) -> super::ForkChoice {
+		super::total_difficulty_fork_choice(new, current)
+	}
 }
 
 #[cfg(test)]
@@ -80,7 +86,7 @@ mod tests {
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b = b.close_and_lock();
 		if let Seal::Regular(seal) = engine.generate_seal(b.block(), &genesis_header) {
 			assert!(b.try_seal(engine, seal).is_ok());

@@ -31,7 +31,7 @@ use vm::{EnvInfo, LastHashes};
 use engines::EthEngine;
 use error::{Error, BlockError};
 use factory::Factories;
-use header::Header;
+use header::{Header, ExtendedHeader};
 use receipt::{Receipt, TransactionOutcome};
 use state::State;
 use state_db::StateDB;
@@ -94,6 +94,8 @@ pub struct ExecutedBlock {
 	state: State<StateDB>,
 	traces: Tracing,
 	last_hashes: Arc<LastHashes>,
+	is_finalized: bool,
+	metadata: Option<Vec<u8>>,
 }
 
 impl ExecutedBlock {
@@ -112,6 +114,8 @@ impl ExecutedBlock {
 				Tracing::Disabled
 			},
 			last_hashes: last_hashes,
+			is_finalized: false,
+			metadata: None,
 		}
 	}
 
@@ -206,6 +210,26 @@ impl ::parity_machine::Transactions for ExecutedBlock {
 	}
 }
 
+impl ::parity_machine::Finalizable for ExecutedBlock {
+	fn is_finalized(&self) -> bool {
+		self.is_finalized
+	}
+
+	fn mark_finalized(&mut self) {
+		self.is_finalized = true;
+	}
+}
+
+impl ::parity_machine::WithMetadata for ExecutedBlock {
+	fn metadata(&self) -> Option<&[u8]> {
+		self.metadata.as_ref().map(|v| v.as_ref())
+	}
+
+	fn set_metadata(&mut self, value: Option<Vec<u8>>) {
+		self.metadata = value;
+	}
+}
+
 /// Block that is ready for transactions to be added.
 ///
 /// It's a bit like a Vec<Transaction>, except that whenever a transaction is pushed, we execute it and
@@ -224,6 +248,8 @@ pub struct ClosedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
 	unclosed_state: State<StateDB>,
+	unclosed_finalization_state: bool,
+	unclosed_metadata: Option<Vec<u8>>,
 }
 
 /// Just like `ClosedBlock` except that we can't reopen it and it's faster.
@@ -245,7 +271,7 @@ pub struct SealedBlock {
 
 impl<'x> OpenBlock<'x> {
 	/// Create a new `OpenBlock` ready for transaction pushing.
-	pub fn new(
+	pub fn new<'a>(
 		engine: &'x EthEngine,
 		factories: Factories,
 		tracing: bool,
@@ -256,6 +282,7 @@ impl<'x> OpenBlock<'x> {
 		gas_range_target: (U256, U256),
 		extra_data: Bytes,
 		is_epoch_begin: bool,
+		ancestry: &mut Iterator<Item=ExtendedHeader>,
 	) -> Result<Self, Error> {
 		let number = parent.number() + 1;
 		let state = State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(number), factories)?;
@@ -277,7 +304,7 @@ impl<'x> OpenBlock<'x> {
 		engine.populate_from_parent(&mut r.block.header, parent);
 
 		engine.machine().on_new_block(&mut r.block)?;
-		engine.on_new_block(&mut r.block, is_epoch_begin)?;
+		engine.on_new_block(&mut r.block, is_epoch_begin, ancestry)?;
 
 		Ok(r)
 	}
@@ -387,6 +414,8 @@ impl<'x> OpenBlock<'x> {
 		let mut s = self;
 
 		let unclosed_state = s.block.state.clone();
+		let unclosed_metadata = s.block.metadata.clone();
+		let unclosed_finalization_state = s.block.is_finalized;
 
 		if let Err(e) = s.engine.on_close_block(&mut s.block) {
 			warn!("Encountered error on closing the block: {}", e);
@@ -410,6 +439,8 @@ impl<'x> OpenBlock<'x> {
 			block: s.block,
 			uncle_bytes,
 			unclosed_state,
+			unclosed_metadata,
+			unclosed_finalization_state,
 		}
 	}
 
@@ -483,6 +514,8 @@ impl ClosedBlock {
 		// revert rewards (i.e. set state back at last transaction's state).
 		let mut block = self.block;
 		block.state = self.unclosed_state;
+		block.metadata = self.unclosed_metadata;
+		block.is_finalized = self.unclosed_finalization_state;
 		OpenBlock {
 			block: block,
 			engine: engine,
@@ -588,6 +621,7 @@ fn enact(
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 	is_epoch_begin: bool,
+	ancestry: &mut Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
@@ -608,6 +642,7 @@ fn enact(
 		(3141562.into(), 31415620.into()),
 		vec![],
 		is_epoch_begin,
+		ancestry,
 	)?;
 
 	b.populate_from(&header);
@@ -630,6 +665,7 @@ pub fn enact_verified(
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 	is_epoch_begin: bool,
+	ancestry: &mut Iterator<Item=ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
 	let view = view!(BlockView, &block.bytes);
 
@@ -644,6 +680,7 @@ pub fn enact_verified(
 		last_hashes,
 		factories,
 		is_epoch_begin,
+		ancestry,
 	)
 }
 
@@ -701,6 +738,7 @@ mod tests {
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
+			&mut Vec::new().into_iter(),
 		)?;
 
 		b.populate_from(&header);
@@ -734,7 +772,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let b = b.close_and_lock();
 		let _ = b.seal(&*spec.engine, vec![]);
 	}
@@ -748,7 +786,7 @@ mod tests {
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap()
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap()
 			.close_and_lock().seal(engine, vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
@@ -772,7 +810,7 @@ mod tests {
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false, &mut Vec::new().into_iter()).unwrap();
 		let mut uncle1_header = Header::new();
 		uncle1_header.set_extra_data(b"uncle1".to_vec());
 		let mut uncle2_header = Header::new();
@@ -797,4 +835,3 @@ mod tests {
 		assert!(orig_db.journal_db().keys().iter().filter(|k| orig_db.journal_db().get(k.0) != db.journal_db().get(k.0)).next() == None);
 	}
 }
-

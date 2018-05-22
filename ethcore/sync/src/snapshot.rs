@@ -14,10 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use hash::keccak;
+use ethcore::snapshot::{ManifestData, SnapshotService};
 use ethereum_types::H256;
+use hash::keccak;
+use rand::{thread_rng, Rng};
+
 use std::collections::HashSet;
-use ethcore::snapshot::ManifestData;
+use std::iter::FromIterator;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum ChunkType {
@@ -32,6 +35,7 @@ pub struct Snapshot {
 	completed_chunks: HashSet<H256>,
 	snapshot_hash: Option<H256>,
 	bad_hashes: HashSet<H256>,
+	initialized: bool,
 }
 
 impl Snapshot {
@@ -44,7 +48,27 @@ impl Snapshot {
 			completed_chunks: HashSet::new(),
 			snapshot_hash: None,
 			bad_hashes: HashSet::new(),
+			initialized: false,
 		}
+	}
+
+	/// Sync the Snapshot completed chunks with the Snapshot Service
+	pub fn initialize(&mut self, snapshot_service: &SnapshotService) {
+		if self.initialized {
+			return;
+		}
+
+		if let Some(completed_chunks) = snapshot_service.completed_chunks() {
+			self.completed_chunks = HashSet::from_iter(completed_chunks);
+		}
+
+		trace!(
+			target: "snapshot",
+			"Snapshot is now initialized with {} completed chunks.",
+			self.completed_chunks.len(),
+		);
+
+		self.initialized = true;
 	}
 
 	/// Clear everything.
@@ -54,6 +78,7 @@ impl Snapshot {
 		self.downloading_chunks.clear();
 		self.completed_chunks.clear();
 		self.snapshot_hash = None;
+		self.initialized = false;
 	}
 
 	/// Check if currently downloading a snapshot.
@@ -89,18 +114,35 @@ impl Snapshot {
 		Err(())
 	}
 
-	/// Find a chunk to download
+	/// Find a random chunk to download
 	pub fn needed_chunk(&mut self) -> Option<H256> {
-		// check state chunks first
-		let chunk = self.pending_state_chunks.iter()
-			.chain(self.pending_block_chunks.iter())
-			.find(|&h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h))
-			.cloned();
+		// Find all random chunks: first blocks, then state
+		let needed_chunks = {
+			let chunk_filter = |h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h);
+
+			let needed_block_chunks = self.pending_block_chunks.iter()
+				.filter(|&h| chunk_filter(h))
+				.map(|h| *h)
+				.collect::<Vec<H256>>();
+
+			// If no block chunks to download, get the state chunks
+			if needed_block_chunks.len() == 0 {
+				self.pending_state_chunks.iter()
+					.filter(|&h| chunk_filter(h))
+					.map(|h| *h)
+					.collect::<Vec<H256>>()
+			} else {
+				needed_block_chunks
+			}
+		};
+
+		// Get a random chunk
+		let chunk = thread_rng().choose(&needed_chunks);
 
 		if let Some(hash) = chunk {
 			self.downloading_chunks.insert(hash.clone());
 		}
-		chunk
+		chunk.map(|h| *h)
 	}
 
 	pub fn clear_chunk_download(&mut self, hash: &H256) {
@@ -185,8 +227,15 @@ mod test {
 
 		let requested: Vec<H256> = (0..40).map(|_| snapshot.needed_chunk().unwrap()).collect();
 		assert!(snapshot.needed_chunk().is_none());
-		assert_eq!(&requested[0..20], &manifest.state_hashes[..]);
-		assert_eq!(&requested[20..40], &manifest.block_hashes[..]);
+
+		let requested_all_block_chunks = manifest.block_hashes.iter()
+			.all(|h| requested.iter().any(|rh| rh == h));
+		assert!(requested_all_block_chunks);
+
+		let requested_all_state_chunks = manifest.state_hashes.iter()
+			.all(|h| requested.iter().any(|rh| rh == h));
+		assert!(requested_all_state_chunks);
+
 		assert_eq!(snapshot.downloading_chunks.len(), 40);
 
 		assert_eq!(snapshot.validate_chunk(&state_chunks[4]), Ok(ChunkType::State(manifest.state_hashes[4].clone())));

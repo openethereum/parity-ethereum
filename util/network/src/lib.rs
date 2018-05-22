@@ -27,8 +27,10 @@ extern crate snappy;
 #[macro_use]
 extern crate error_chain;
 
+mod connection_filter;
 mod error;
 
+pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 pub use io::TimerToken;
 pub use error::{Error, ErrorKind, DisconnectReason};
 
@@ -39,7 +41,6 @@ use std::str::{self, FromStr};
 use std::sync::Arc;
 use std::time::Duration;
 use ipnetwork::{IpNetwork, IpNetworkError};
-use io::IoChannel;
 use ethkey::Secret;
 use ethereum_types::{H256, H512};
 use rlp::{Decodable, DecoderError, Rlp};
@@ -257,9 +258,6 @@ pub trait NetworkContext {
 	/// Respond to a current network message. Panics if no there is no packet in the context. If the session is expired returns nothing.
 	fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
 
-	/// Get an IoChannel.
-	fn io_channel(&self) -> IoChannel<NetworkIoMessage>;
-
 	/// Disconnect a peer and prevent it from connecting again.
 	fn disable_peer(&self, peer: PeerId);
 
@@ -298,10 +296,6 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 		(**self).respond(packet_id, data)
 	}
 
-	fn io_channel(&self) -> IoChannel<NetworkIoMessage> {
-		(**self).io_channel()
-	}
-
 	fn disable_peer(&self, peer: PeerId) {
 		(**self).disable_peer(peer)
 	}
@@ -338,12 +332,6 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 pub trait HostInfo {
 	/// Returns public key
 	fn id(&self) -> &NodeId;
-	/// Returns secret key
-	fn secret(&self) -> &Secret;
-	/// Increments and returns connection nonce.
-	fn next_nonce(&mut self) -> H256;
-    /// Returns the client version.
-	fn client_version(&self) -> &str;
 }
 
 /// Network IO protocol handler. This needs to be implemented for each new subprotocol.

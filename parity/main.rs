@@ -54,15 +54,15 @@ fn latest_exe_path() -> Option<PathBuf> {
 
 fn set_spec_name_override(spec_name: String) {
 	if let Err(e) = create_dir_all(default_hypervisor_path())
-		.and_then(|_| File::create(updates_path("spec_name_overide"))
+		.and_then(|_| File::create(updates_path("spec_name_override"))
 		.and_then(|mut f| f.write_all(spec_name.as_bytes())))
 	{
-		warn!("Couldn't override chain spec: {} at {:?}", e, updates_path("spec_name_overide"));
+		warn!("Couldn't override chain spec: {} at {:?}", e, updates_path("spec_name_override"));
 	}
 }
 
 fn take_spec_name_override() -> Option<String> {
-	let p = updates_path("spec_name_overide");
+	let p = updates_path("spec_name_override");
 	let r = File::open(p.clone()).ok()
 		.and_then(|mut f| { let mut spec_name = String::new(); f.read_to_string(&mut spec_name).ok().map(|_| spec_name) });
 	let _ = remove_file(p);

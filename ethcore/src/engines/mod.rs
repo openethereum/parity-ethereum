@@ -52,14 +52,24 @@ use spec::CommonParams;
 use transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::Signature;
-use parity_machine::{Machine, LocalizedMachine as Localized};
+use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
+use types::ancestry_action::AncestryAction;
 
 /// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
 pub const DEFAULT_BLOCKHASH_CONTRACT: &'static str = "73fffffffffffffffffffffffffffffffffffffffe33141561006a5760014303600035610100820755610100810715156100455760003561010061010083050761010001555b6201000081071515610064576000356101006201000083050761020001555b5061013e565b4360003512151561008457600060405260206040f361013d565b61010060003543031315156100a857610100600035075460605260206060f361013c565b6101006000350715156100c55762010000600035430313156100c8565b60005b156100ea576101006101006000350507610100015460805260206080f361013b565b620100006000350715156101095763010000006000354303131561010c565b60005b1561012f57610100620100006000350507610200015460a052602060a0f361013a565b600060c052602060c0f35b5b5b5b5b";
+
+/// Fork choice.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ForkChoice {
+	/// Choose the new block.
+	New,
+	/// Choose the current best block.
+	Old,
+}
 
 /// Voting errors.
 #[derive(Debug)]
@@ -208,6 +218,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 		&self,
 		_block: &mut M::LiveBlock,
 		_epoch_begin: bool,
+		_ancestry: &mut Iterator<Item=M::ExtendedHeader>,
 	) -> Result<(), M::Error> {
 		Ok(())
 	}
@@ -347,6 +358,24 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Check whether the parent timestamp is valid.
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp > parent_timestamp
+	}
+
+	/// Gather all ancestry actions. Called at the last stage when a block is committed. The Engine must guarantee that
+	/// the ancestry exists.
+	fn ancestry_actions(&self, _block: &M::LiveBlock, _ancestry: &mut Iterator<Item=M::ExtendedHeader>) -> Vec<AncestryAction> {
+		Vec::new()
+	}
+
+	/// Check whether the given new block is the best block, after finalization check.
+	fn fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> ForkChoice;
+}
+
+/// Check whether a given block is the best block based on the default total difficulty rule.
+pub fn total_difficulty_fork_choice<T: TotalScoredHeader>(new: &T, best: &T) -> ForkChoice where <T as TotalScoredHeader>::Value: Ord {
+	if new.total_score() > best.total_score() {
+		ForkChoice::New
+	} else {
+		ForkChoice::Old
 	}
 }
 

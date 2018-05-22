@@ -7,11 +7,7 @@
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x08",
 				"blockReward": "0x14D1120D7B160000",
-				"homesteadTransition": "0x7fffffffffffffff",
-				"eip150Transition": "0x7fffffffffffffff",
-				"eip160Transition": "0x7fffffffffffffff",
-				"eip161abcTransition": "0x7fffffffffffffff",
-				"eip161dTransition": "0x7fffffffffffffff"
+				"homesteadTransition": "0x7fffffffffffffff"
 			}
 		}
 	},
@@ -22,6 +18,10 @@
 		"maximumExtraDataSize": "0x0400",
 		"minGasLimit": "125000",
 		"networkID" : "0x0",
+		"eip150Transition": "0x7fffffffffffffff",
+		"eip160Transition": "0x7fffffffffffffff",
+		"eip161abcTransition": "0x7fffffffffffffff",
+		"eip161dTransition": "0x7fffffffffffffff",
 		"eip98Transition": "0x7fffffffffffff",
 		"eip86Transition": "0x7fffffffffffff",
 		"eip155Transition": "0x7fffffffffffffff"

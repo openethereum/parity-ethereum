@@ -1,3 +1,26 @@
+## Parity [v1.10.4](https://github.com/paritytech/parity/releases/tag/v1.10.4) (2018-05-15)
+
+Parity 1.10.4 is a bug-fix release to improve performance and stability.
+
+The full list of included changes:
+
+- Backports ([#8623](https://github.com/paritytech/parity/pull/8623))
+  - Fix account list double 0x display ([#8596](https://github.com/paritytech/parity/pull/8596))
+    - Remove unused self import
+    - Fix account list double 0x display
+  - Trace precompiled contracts when the transfer value is not zero ([#8486](https://github.com/paritytech/parity/pull/8486))
+    - Trace precompiled contracts when the transfer value is not zero
+    - Add tests for precompiled CALL tracing
+    - Use byzantium test machine for the new test
+    - Add notes in comments on why we don't trace all precompileds
+    - Use is_transferred instead of transferred
+  - Gitlab test script fixes ([#8573](https://github.com/paritytech/parity/pull/8573))
+    - Exclude /docs from modified files.
+    - Ensure all references in the working tree are available
+    - Remove duplicated line from test script
+- Bump stable to 1.10.4 ([#8626](https://github.com/paritytech/parity/pull/8626))
+- Allow stable snaps to be stable. ([#8582](https://github.com/paritytech/parity/pull/8582))
+
 ## Parity [v1.10.3](https://github.com/paritytech/parity/releases/tag/v1.10.3) (2018-05-08)
 
 Parity 1.10.3 marks the first stable release on the 1.10 track. Among others, it improves performance and stability.
