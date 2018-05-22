@@ -127,11 +127,7 @@
 					"0x7602b46df5390e432ef1c307d4f2c9ff6d65cc97",
 					"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
-				],
-				"eip150Transition": "0x7fffffffffffffff",
-				"eip160Transition": "0x7fffffffffffffff",
-				"eip161abcTransition": "0x7fffffffffffffff",
-				"eip161dTransition": "0x7fffffffffffffff"
+				]
 			}
 		}
 	},
@@ -142,6 +138,10 @@
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
 		"networkID" : "0x1",
+		"eip150Transition": "0x7fffffffffffffff",
+		"eip160Transition": "0x7fffffffffffffff",
+		"eip161abcTransition": "0x7fffffffffffffff",
+		"eip161dTransition": "0x7fffffffffffffff",
 		"eip98Transition": "0x7fffffffffffff",
 		"eip86Transition": "0x7fffffffffffff",
 		"eip155Transition": "0x7fffffffffffffff"

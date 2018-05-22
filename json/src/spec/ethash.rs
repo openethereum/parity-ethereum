@@ -74,21 +74,6 @@ pub struct EthashParams {
 	pub eip100b_transition: Option<Uint>,
 
 	/// See main EthashParams docs.
-	#[serde(rename="eip150Transition")]
-	pub eip150_transition: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="eip160Transition")]
-	pub eip160_transition: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="eip161abcTransition")]
-	pub eip161abc_transition: Option<Uint>,
-	/// See main EthashParams docs.
-	#[serde(rename="eip161dTransition")]
-	pub eip161d_transition: Option<Uint>,
-
-	/// See main EthashParams docs.
 	#[serde(rename="ecip1010PauseTransition")]
 	pub ecip1010_pause_transition: Option<Uint>,
 	/// See main EthashParams docs.
@@ -190,11 +175,7 @@ mod tests {
 				"difficultyHardforkTransition": "0x59d9",
 				"difficultyHardforkBoundDivisor": "0x0200",
 				"bombDefuseTransition": "0x41",
-				"eip100bTransition": "0x42",
-				"eip150Transition": "0x43",
-				"eip160Transition": "0x45",
-				"eip161abcTransition": "0x46",
-				"eip161dTransition": "0x47"
+				"eip100bTransition": "0x42"
 			}
 		}"#;
 
@@ -237,10 +218,6 @@ mod tests {
 				difficulty_hardfork_bound_divisor: Some(Uint(U256::from(0x0200))),
 				bomb_defuse_transition: Some(Uint(U256::from(0x41))),
 				eip100b_transition: Some(Uint(U256::from(0x42))),
-				eip150_transition: Some(Uint(U256::from(0x43))),
-				eip160_transition: Some(Uint(U256::from(0x45))),
-				eip161abc_transition: Some(Uint(U256::from(0x46))),
-				eip161d_transition: Some(Uint(U256::from(0x47))),
 				ecip1010_pause_transition: None,
 				ecip1010_continue_transition: None,
 				ecip1017_era_rounds: None,
@@ -285,10 +262,6 @@ mod tests {
 				difficulty_hardfork_bound_divisor: None,
 				bomb_defuse_transition: None,
 				eip100b_transition: None,
-				eip150_transition: None,
-				eip160_transition: None,
-				eip161abc_transition: None,
-				eip161d_transition: None,
 				ecip1010_pause_transition: None,
 				ecip1010_continue_transition: None,
 				ecip1017_era_rounds: None,
