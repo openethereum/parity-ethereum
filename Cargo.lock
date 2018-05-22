@@ -1805,6 +1805,7 @@ dependencies = [
  "ethabi-derive 5.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.12.0",
  "ethcore-io 1.12.0",
+ "ethcore-network 1.12.0",
  "ethcore-network-devp2p 1.12.0",
  "ethereum-types 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb-memorydb 0.1.0",

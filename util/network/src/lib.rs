@@ -27,8 +27,10 @@ extern crate snappy;
 #[macro_use]
 extern crate error_chain;
 
+mod connection_filter;
 mod error;
 
+pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 pub use io::TimerToken;
 pub use error::{Error, ErrorKind, DisconnectReason};
 
