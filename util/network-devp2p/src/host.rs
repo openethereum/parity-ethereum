@@ -396,7 +396,7 @@ impl Host {
 		format!("{}", Node::new(info.id().clone(), info.local_endpoint.clone()))
 	}
 
-	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), Error> {
+	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) {
 		self.stopping.store(true, AtomicOrdering::Release);
 		let mut to_kill = Vec::new();
 		for e in self.sessions.read().iter() {
@@ -408,8 +408,7 @@ impl Host {
 			trace!(target: "network", "Disconnecting on shutdown: {}", p);
 			self.kill_connection(p, io, true);
 		}
-		io.unregister_handler()?;
-		Ok(())
+		io.unregister_handler();
 	}
 
 	/// Get all connected peers.
