@@ -21,7 +21,7 @@ use io::*;
 use parking_lot::RwLock;
 use std::sync::Arc;
 use ansi_term::Colour;
-use connection_filter::ConnectionFilter;
+use network::ConnectionFilter;
 
 struct HostHandler {
 	public_url: RwLock<Option<String>>
