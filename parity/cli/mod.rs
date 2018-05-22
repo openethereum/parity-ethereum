@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -424,7 +424,7 @@ usage! {
 
 			FLAG flag_no_ancient_blocks: (bool) = false, or |_| None,
 			"--no-ancient-blocks",
-			"Disable downloading old blocks after snapshot restoration or warp sync.",
+			"Disable downloading old blocks after snapshot restoration or warp sync. Not recommended.",
 
 			FLAG flag_no_serve_light: (bool) = false, or |c: &Config| c.network.as_ref()?.no_serve_light.clone(),
 			"--no-serve-light",
@@ -894,7 +894,7 @@ usage! {
 		["Legacy options"]
 			FLAG flag_warp: (bool) = false, or |_| None,
 			"--warp",
-			"Does nothing; warp sync is enabled by default.",
+			"Does nothing; warp sync is enabled by default. Use --no-warp to disable.",
 
 			FLAG flag_dapps_apis_all: (bool) = false, or |_| None,
 			"--dapps-apis-all",
