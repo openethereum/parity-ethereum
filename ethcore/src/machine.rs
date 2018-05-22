@@ -390,7 +390,7 @@ impl EthereumMachine {
 						.expect("Casper contract ABI definition is valid; qed")
 				};
 
-				let mut metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
+				let mut metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 				metadata.highest_justified_epoch = highest_justified_epoch;
 				metadata.highest_finalized_epoch = highest_finalized_epoch;
 				metadata.highest_finalized_hash = highest_finalized_hash;
@@ -638,7 +638,7 @@ impl EthereumMachine {
 		if let Some(ref ethash_params) = self.ethash_extensions {
 			if block.header().number() >= ethash_params.hybrid_casper_transition {
 				if t.is_unsigned() {
-					let metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
+					let metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 					env_info.gas_used = metadata.vote_gas_used;
 				}
 			}
@@ -659,7 +659,7 @@ impl EthereumMachine {
 						_ => panic!("Casper requires EIP658 to be enabled."),
 					}
 
-					let mut metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
+					let mut metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 					metadata.vote_gas_used = receipt.gas_used;
 					receipt.gas_used = block.receipts().last().map(|r| r.gas_used).unwrap_or(U256::zero());
 					block.set_metadata(Some(rlp::encode(&metadata).to_vec()));

@@ -365,8 +365,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	}
 
 	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> engines::ForkChoice {
-		let new_metadata: CasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
-		let current_metadata: CasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
+		let new_metadata: CasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+		let current_metadata: CasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 
 		// Casper fails back to total difficulty fork choice if highest_justified_epoch is zero. So we don't need to
 		// check transition block here.
@@ -381,7 +381,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	}
 
 	fn ancestry_actions(&self, block: &ExecutedBlock, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
-		let metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Block metadata is valid; qed")).unwrap_or(Default::default());
+		let metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 
 		if metadata.highest_finalized_hash != Default::default() {
 			// Call finalize on an already finalized block won't do anything. So we just do that for now to avoid a
