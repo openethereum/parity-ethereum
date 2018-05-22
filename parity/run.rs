@@ -41,7 +41,7 @@ use miner::external::ExternalMiner;
 use node_filter::NodeFilter;
 use node_health;
 use parity_reactor::EventLoop;
-use parity_rpc::{NetworkSettings, informant, is_major_importing};
+use parity_rpc::{Origin, Metadata, NetworkSettings, informant, is_major_importing};
 use updater::{UpdatePolicy, Updater};
 use parity_version::version;
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
@@ -56,6 +56,7 @@ use cache::CacheConfig;
 use user_defaults::UserDefaults;
 use dapps;
 use ipfs;
+use jsonrpc_core;
 use modules;
 use rpc;
 use rpc_apis;
@@ -369,6 +370,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 	};
 
 	// start rpc servers
+	let rpc_direct = rpc::setup_apis(rpc_apis::ApiSet::All, &dependencies);
 	let ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
 	let http_server = rpc::new_http("HTTP JSON-RPC", "jsonrpc", cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
 	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
@@ -390,6 +392,7 @@ fn execute_light_impl(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<Runnin
 
 	Ok(RunningClient {
 		inner: RunningClientInner::Light {
+			rpc: rpc_direct,
 			informant,
 			client,
 			keep_alive: Box::new((event_loop, service, ws_server, http_server, ipc_server, ui_server)),
@@ -805,6 +808,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	};
 
 	// start rpc servers
+	let rpc_direct = rpc::setup_apis(rpc_apis::ApiSet::All, &dependencies);
 	let ws_server = rpc::new_ws(cmd.ws_conf.clone(), &dependencies)?;
 	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 	let http_server = rpc::new_http("HTTP JSON-RPC", "jsonrpc", cmd.http_conf.clone(), &dependencies, dapps_middleware)?;
@@ -878,6 +882,7 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 
 	Ok(RunningClient {
 		inner: RunningClientInner::Full {
+			rpc: rpc_direct,
 			informant,
 			client,
 			keep_alive: Box::new((watcher, service, updater, ws_server, http_server, ipc_server, ui_server, secretstore_key_server, ipfs_server, event_loop)),
@@ -890,16 +895,18 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 /// Should be destroyed by calling `shutdown()`, otherwise execution will continue in the
 /// background.
 pub struct RunningClient {
-	inner: RunningClientInner
+	inner: RunningClientInner,
 }
 
 enum RunningClientInner {
 	Light {
+		rpc: jsonrpc_core::MetaIoHandler<Metadata, informant::Middleware<rpc_apis::LightClientNotifier>>,
 		informant: Arc<Informant<LightNodeInformantData>>,
 		client: Arc<LightClient>,
 		keep_alive: Box<Any>,
 	},
 	Full {
+		rpc: jsonrpc_core::MetaIoHandler<Metadata, informant::Middleware<informant::ClientNotifier>>,
 		informant: Arc<Informant<FullNodeInformantData>>,
 		client: Arc<Client>,
 		keep_alive: Box<Any>,
@@ -907,25 +914,45 @@ enum RunningClientInner {
 }
 
 impl RunningClient {
+	/// Performs a synchronous RPC query.
+	/// Blocks execution until the result is ready.
+	pub fn rpc_query_sync(&self, request: &str) -> Option<String> {
+		let metadata = Metadata {
+			origin: Origin::CApi,
+			session: None,
+		};
+
+		match self.inner {
+			RunningClientInner::Light { ref rpc, .. } => {
+				rpc.handle_request_sync(request, metadata)
+			},
+			RunningClientInner::Full { ref rpc, .. } => {
+				rpc.handle_request_sync(request, metadata)
+			},
+		}
+	}
+
 	/// Shuts down the client.
 	pub fn shutdown(self) {
 		match self.inner {
-			RunningClientInner::Light { informant, client, keep_alive } => {
+			RunningClientInner::Light { rpc, informant, client, keep_alive } => {
 				// Create a weak reference to the client so that we can wait on shutdown
 				// until it is dropped
 				let weak_client = Arc::downgrade(&client);
+				drop(rpc);
 				drop(keep_alive);
 				informant.shutdown();
 				drop(informant);
 				drop(client);
 				wait_for_drop(weak_client);
 			},
-			RunningClientInner::Full { informant, client, keep_alive } => {
+			RunningClientInner::Full { rpc, informant, client, keep_alive } => {
 				info!("Finishing work, please wait...");
 				// Create a weak reference to the client so that we can wait on shutdown
 				// until it is dropped
 				let weak_client = Arc::downgrade(&client);
 				// drop this stuff as soon as exit detected.
+				drop(rpc);
 				drop(keep_alive);
 				// to make sure timer does not spawn requests while shutdown is in progress
 				informant.shutdown();
