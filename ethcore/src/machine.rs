@@ -69,7 +69,7 @@ pub struct EthashExtensions {
 	pub dao_hardfork_beneficiary: Address,
 	/// DAO hard-fork DAO accounts list (L)
 	pub dao_hardfork_accounts: Vec<Address>,
-	/// Number of first block wehre Casper rules begin.
+	/// Number of first block where Casper rules begin.
 	pub hybrid_casper_transition: u64,
 	/// EIP1011 Casper contract code.
 	pub hybrid_casper_contract_code: Bytes,
