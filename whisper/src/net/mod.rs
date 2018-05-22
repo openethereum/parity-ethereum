@@ -23,7 +23,7 @@ use std::time::{Duration, SystemTime};
 use std::sync::Arc;
 
 use ethereum_types::{H256, H512};
-use network::{self, HostInfo, NetworkContext, NodeId, PeerId, ProtocolId, TimerToken};
+use network::{self, NetworkContext, NodeId, PeerId, ProtocolId, TimerToken};
 use ordered_float::OrderedFloat;
 use parking_lot::{Mutex, RwLock};
 use rlp::{DecoderError, RlpStream, Rlp};
@@ -423,7 +423,6 @@ pub struct Network<T> {
 	messages: Arc<RwLock<Messages>>,
 	handler: T,
 	peers: RwLock<HashMap<PeerId, Mutex<Peer>>>,
-	node_key: RwLock<NodeId>,
 }
 
 // public API.
@@ -434,7 +433,6 @@ impl<T> Network<T> {
 			messages: Arc::new(RwLock::new(Messages::new(messages_size_bytes))),
 			handler: handler,
 			peers: RwLock::new(HashMap::new()),
-			node_key: RwLock::new(Default::default()),
 		}
 	}
 
@@ -685,12 +683,10 @@ impl<T: MessageHandler> Network<T> {
 }
 
 impl<T: MessageHandler> ::network::NetworkProtocolHandler for Network<T> {
-	fn initialize(&self, io: &NetworkContext, host_info: &HostInfo) {
+	fn initialize(&self, io: &NetworkContext) {
 		// set up broadcast timer (< 1s)
 		io.register_timer(RALLY_TOKEN, RALLY_TIMEOUT)
 			.expect("Failed to initialize message rally timer");
-
-		*self.node_key.write() = host_info.id().clone();
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
@@ -720,7 +716,7 @@ impl<T: MessageHandler> ::network::NetworkProtocolHandler for Network<T> {
 pub struct ParityExtensions;
 
 impl ::network::NetworkProtocolHandler for ParityExtensions {
-	fn initialize(&self, _io: &NetworkContext, _host_info: &HostInfo) { }
+	fn initialize(&self, _io: &NetworkContext) { }
 
 	fn read(&self, _io: &NetworkContext, _peer: &PeerId, _id: u8, _msg: &[u8]) { }
 
