@@ -215,19 +215,19 @@ impl HostInfo {
 		self.nonce = keccak(&self.nonce);
 		self.nonce
 	}
+
+	pub(crate) fn client_version(&self) -> &str {
+		&self.config.client_version
+	}
+
+	pub(crate) fn secret(&self) -> &Secret {
+		self.keys.secret()
+	}
 }
 
 impl HostInfoTrait for HostInfo {
 	fn id(&self) -> &NodeId {
 		self.keys.public()
-	}
-
-	fn secret(&self) -> &Secret {
-		self.keys.secret()
-	}
-
-	fn client_version(&self) -> &str {
-		&self.config.client_version
 	}
 }
 
