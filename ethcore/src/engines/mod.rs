@@ -59,7 +59,6 @@ use block::ExecutedBlock;
 use bytes::Bytes;
 use types::ancestry_action::AncestryAction;
 use types::receipt::Receipt;
-use ethcore_miner::pool::VerifiedTransaction;
 
 /// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
@@ -471,21 +470,6 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	/// Verify the transaction outcome is acceptable.
 	fn verify_transaction_outcome(&self, t: &SignedTransaction, block: &mut ExecutedBlock, receipt: &mut Receipt) -> Result<(), Error> {
 		self.machine().verify_transaction_outcome(t, block, receipt)
-	}
-
-	/// Whether the engine has transaction ordering.
-	fn has_transaction_ordering(&self, header: &Header) -> bool {
-		self.machine().has_transaction_ordering(header)
-	}
-
-	/// Before applying transaction states, order transactions to desired. The engine should only apply absolutely minimal ordering.
-	fn reorder_transactions(&self, ts: &mut [Arc<VerifiedTransaction>], header: &Header) {
-		self.machine().reorder_transactions(ts, header)
-	}
-
-	/// Verify the current transaction ordering is acceptable.
-	fn verify_transaction_ordering(&self, ts: &[SignedTransaction], header: &Header) -> Result<(), Error> {
-		self.machine().verify_transaction_ordering(ts, header)
 	}
 
 	/// Additional information.

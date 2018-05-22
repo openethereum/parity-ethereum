@@ -656,7 +656,6 @@ fn enact(
 
 	b.populate_from(&header);
 
-	engine.verify_transaction_ordering(&transactions, &header)?;
 	b.push_transactions(transactions)?;
 
 	for u in uncles {
