@@ -129,9 +129,8 @@ impl LightFetch {
 				}
 			}
 			BlockId::Hash(h) => {
-				reqs.push(request::HeaderByHash(h.into()).into());
-
 				let idx = reqs.len();
+				reqs.push(request::HeaderByHash(h.into()).into());
 				Ok(HeaderRef::Unresolved(idx, h.into()))
 			}
 			_ => Err(errors::unknown_block()) // latest, earliest, and pending will have all already returned.
