@@ -47,7 +47,7 @@ ethcore-miner = { path = "../miner" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethcore-transaction = { path = "../ethcore/transaction" }
-ethereum-types = "0.3"
+ethereum-types = "0.3.2"
 
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
