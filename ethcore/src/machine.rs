@@ -129,14 +129,14 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 				"Default MSG_HASHER_CODE is valid",
 			),
 			hybrid_casper_msg_hasher_contract_address: Address::from(0x42u64),
-			hybrid_casper_epoch_length: 50,
-			hybrid_casper_withdrawal_delay: 15000,
-			hybrid_casper_dynasty_logout_delay: 700,
+			hybrid_casper_epoch_length: 5,
+			hybrid_casper_withdrawal_delay: 150,
+			hybrid_casper_dynasty_logout_delay: 70,
 			hybrid_casper_base_interest_factor: U256::from(70000000),
 			hybrid_casper_base_penalty_factor: U256::from(2000),
-			hybrid_casper_min_deposit_size: U256::from(1500) * ::ethereum::ether(),
-			hybrid_casper_warm_up_period: 180000,
-			hybrid_casper_non_revert_min_deposits: U256::from(150000) * ::ethereum::ether(),
+			hybrid_casper_min_deposit_size: U256::from(5) * ::ethereum::ether(),
+			hybrid_casper_warm_up_period: 5,
+			hybrid_casper_non_revert_min_deposits: U256::from(1) * ::ethereum::ether(),
 		}
 	}
 }
