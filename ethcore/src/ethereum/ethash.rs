@@ -366,7 +366,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> engines::ForkChoice {
 		let new_metadata: CasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
-		let current_metadata: CasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+		let current_metadata: CasperMetadata = current.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 
 		// Casper fails back to total difficulty fork choice if highest_justified_epoch is zero. So we don't need to
 		// check transition block here.
