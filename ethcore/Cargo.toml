@@ -29,9 +29,9 @@ ethcore-stratum = { path = "./stratum" }
 ethcore-transaction = { path = "./transaction" }
 ethereum-types = "0.3"
 memory-cache = { path = "../util/memory_cache" }
-ethabi = "5.1"
-ethabi-derive = "5.0"
-ethabi-contract = "5.0"
+ethabi = { git = "https://github.com/paritytech/ethabi", branch = "casper" }
+ethabi-derive = { git = "https://github.com/paritytech/ethabi", branch = "casper" }
+ethabi-contract = { git = "https://github.com/paritytech/ethabi", branch = "casper" }
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
