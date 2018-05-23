@@ -438,6 +438,10 @@ usage! {
 			"--port=[PORT]",
 			"Override the port on which the node should listen.",
 
+			ARG arg_interface: (String)  = "all", or |c: &Config| c.network.as_ref()?.interface.clone(),
+			"--interface=[IP]",
+			"Network interfaces. Valid values are 'all', 'local' or the ip of the interface you want parity to listen to.",
+
 			ARG arg_min_peers: (Option<u16>) = None, or |c: &Config| c.network.as_ref()?.min_peers.clone(),
 			"--min-peers=[NUM]",
 			"Try to maintain at least NUM peers.",
@@ -1119,6 +1123,7 @@ struct Network {
 	warp: Option<bool>,
 	warp_barrier: Option<u64>,
 	port: Option<u16>,
+	interface: Option<String>,
 	min_peers: Option<u16>,
 	max_peers: Option<u16>,
 	snapshot_peers: Option<u16>,
@@ -1567,6 +1572,7 @@ mod tests {
 			// -- Networking Options
 			flag_no_warp: false,
 			arg_port: 30303u16,
+			arg_interface: "all".into(),
 			arg_min_peers: Some(25u16),
 			arg_max_peers: Some(50u16),
 			arg_max_pending_peers: 64u16,
@@ -1823,6 +1829,7 @@ mod tests {
 				warp: Some(false),
 				warp_barrier: None,
 				port: None,
+				interface: None,
 				min_peers: Some(10),
 				max_peers: Some(20),
 				max_pending_peers: Some(30),
