@@ -45,7 +45,7 @@ use discovery::{Discovery, TableUpdates, NodeEntry};
 use ip_utils::{map_external_address, select_public_address};
 use path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
-use connection_filter::{ConnectionFilter, ConnectionDirection};
+use network::{ConnectionFilter, ConnectionDirection};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -210,22 +210,24 @@ pub struct HostInfo {
 	pub public_endpoint: Option<NodeEndpoint>,
 }
 
-impl HostInfoTrait for HostInfo {
-	fn id(&self) -> &NodeId {
-		self.keys.public()
-	}
-
-	fn secret(&self) -> &Secret {
-		self.keys.secret()
-	}
-
+impl HostInfo {
 	fn next_nonce(&mut self) -> H256 {
 		self.nonce = keccak(&self.nonce);
 		self.nonce
 	}
 
-	fn client_version(&self) -> &str {
+	pub(crate) fn client_version(&self) -> &str {
 		&self.config.client_version
+	}
+
+	pub(crate) fn secret(&self) -> &Secret {
+		self.keys.secret()
+	}
+}
+
+impl HostInfoTrait for HostInfo {
+	fn id(&self) -> &NodeId {
+		self.keys.public()
 	}
 }
 
@@ -394,7 +396,7 @@ impl Host {
 		format!("{}", Node::new(info.id().clone(), info.local_endpoint.clone()))
 	}
 
-	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), Error> {
+	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) {
 		self.stopping.store(true, AtomicOrdering::Release);
 		let mut to_kill = Vec::new();
 		for e in self.sessions.read().iter() {
@@ -406,8 +408,7 @@ impl Host {
 			trace!(target: "network", "Disconnecting on shutdown: {}", p);
 			self.kill_connection(p, io, true);
 		}
-		io.unregister_handler()?;
-		Ok(())
+		io.unregister_handler();
 	}
 
 	/// Get all connected peers.

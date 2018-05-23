@@ -106,10 +106,8 @@ mod discovery;
 mod service;
 mod node_table;
 mod ip_utils;
-mod connection_filter;
 
 pub use service::NetworkService;
-pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 pub use host::NetworkContext;
 
 pub use io::TimerToken;
