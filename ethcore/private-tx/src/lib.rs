@@ -37,9 +37,11 @@ extern crate ethkey;
 extern crate ethjson;
 extern crate fetch;
 extern crate futures;
+extern crate heapsize;
 extern crate keccak_hash as hash;
 extern crate parking_lot;
 extern crate patricia_trie as trie;
+extern crate transaction_pool as txpool;
 extern crate rlp;
 extern crate url;
 extern crate rustc_hex;
@@ -60,7 +62,7 @@ extern crate rand;
 extern crate ethcore_logger;
 
 pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, NoopEncryptor};
-pub use private_transactions::{PrivateTransactionDesc, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
+pub use private_transactions::{VerifiedPrivateTransaction, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
 pub use messages::{PrivateTransaction, SignedPrivateTransaction};
 pub use error::{Error, ErrorKind};
 
@@ -124,8 +126,7 @@ pub struct Provider {
 	passwords: Vec<String>,
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	transactions_for_signing: Mutex<SigningStore>,
-	// TODO [ToDr] Move the Mutex/RwLock inside `VerificationStore` after refactored to `drain`.
-	transactions_for_verification: Mutex<VerificationStore>,
+	transactions_for_verification: VerificationStore,
 	client: Arc<Client>,
 	miner: Arc<Miner>,
 	accounts: Arc<AccountProvider>,
@@ -157,7 +158,7 @@ impl Provider where {
 			passwords: config.passwords,
 			notify: RwLock::default(),
 			transactions_for_signing: Mutex::default(),
-			transactions_for_verification: Mutex::default(),
+			transactions_for_verification: VerificationStore::default(),
 			client,
 			miner,
 			accounts,
@@ -256,54 +257,40 @@ impl Provider where {
 	}
 
 	/// Retrieve and verify the first available private transaction for every sender
-	///
-	/// TODO [ToDr] It seems that:
-	/// The 3 methods `ready_transaction,get_descriptor,remove` are always used in conjuction so most likely
-	/// can be replaced with a single `drain()` method instead.
-	/// Thanks to this we also don't really need to lock the entire verification for the time of execution.
 	fn process_queue(&self) -> Result<(), Error> {
 		let nonce_cache = Default::default();
-		let mut verification_queue = self.transactions_for_verification.lock();
-		let ready_transactions = verification_queue.ready_transactions(self.pool_client(&nonce_cache));
+		let ready_transactions = self.transactions_for_verification.drain(self.pool_client(&nonce_cache));
 		for transaction in ready_transactions {
-			let transaction_hash = transaction.signed().hash();
-			match verification_queue.private_transaction_descriptor(&transaction_hash) {
-				Ok(desc) => {
-					let private_hash = desc.private_transaction.hash();
-					match desc.validator_account {
-						None => {
-							trace!("Propagating transaction further");
-							self.broadcast_private_transaction(private_hash, desc.private_transaction.rlp_bytes().into_vec());
-							return Ok(())
-						}
-						Some(validator_account) => {
-							if !self.validator_accounts.contains(&validator_account) {
-								trace!("Propagating transaction further");
-								self.broadcast_private_transaction(private_hash, desc.private_transaction.rlp_bytes().into_vec());
-								return Ok(())
-							}
-							if let Action::Call(contract) = transaction.signed().action {
-								// TODO [ToDr] Usage of BlockId::Latest
-								let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
-								let private_state = self.execute_private_transaction(BlockId::Latest, transaction.signed())?;
-								let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
-								trace!("Hashed effective private state for validator: {:?}", private_state_hash);
-								let password = find_account_password(&self.passwords, &*self.accounts, &validator_account);
-								let signed_state = self.accounts.sign(validator_account, password, private_state_hash)?;
-								let signed_private_transaction = SignedPrivateTransaction::new(private_hash, signed_state, None);
-								trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
-								self.broadcast_signed_private_transaction(signed_private_transaction.hash(), signed_private_transaction.rlp_bytes().into_vec());
-							} else {
-								warn!("Incorrect type of action for the transaction");
-							}
-						}
+			let private_hash = transaction.private_transaction.hash();
+			match transaction.validator_account {
+				None => {
+					trace!("Propagating transaction further");
+					self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes().into_vec());
+					return Ok(())
+				}
+				Some(validator_account) => {
+					if !self.validator_accounts.contains(&validator_account) {
+						trace!("Propagating transaction further");
+						self.broadcast_private_transaction(private_hash, transaction.private_transaction.rlp_bytes().into_vec());
+						return Ok(())
 					}
-				},
-				Err(e) => {
-					warn!("Cannot retrieve descriptor for transaction with error {:?}", e);
+					let signed_tx = transaction.transaction.clone();
+					if let Action::Call(contract) = signed_tx.action {
+						// TODO [ToDr] Usage of BlockId::Latest
+						let contract_nonce = self.get_contract_nonce(&contract, BlockId::Latest)?;
+						let private_state = self.execute_private_transaction(BlockId::Latest, &signed_tx)?;
+						let private_state_hash = self.calculate_state_hash(&private_state, contract_nonce);
+						trace!("Hashed effective private state for validator: {:?}", private_state_hash);
+						let password = find_account_password(&self.passwords, &*self.accounts, &validator_account);
+						let signed_state = self.accounts.sign(validator_account, password, private_state_hash)?;
+						let signed_private_transaction = SignedPrivateTransaction::new(private_hash, signed_state, None);
+						trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
+						self.broadcast_signed_private_transaction(signed_private_transaction.hash(), signed_private_transaction.rlp_bytes().into_vec());
+					} else {
+						warn!("Incorrect type of action for the transaction");
+					}
 				}
 			}
-			verification_queue.remove_private_transaction(&transaction_hash);
 		}
 		Ok(())
 	}

@@ -15,60 +15,187 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use std::collections::{HashMap, HashSet};
+use std::cmp;
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 use bytes::Bytes;
 use ethcore_miner::pool;
 use ethereum_types::{H256, U256, Address};
+use heapsize::HeapSizeOf;
 use ethkey::Signature;
 use messages::PrivateTransaction;
+use parking_lot::RwLock;
 use transaction::{UnverifiedTransaction, SignedTransaction};
-
+use txpool;
+use txpool::{VerifiedTransaction, Verifier};
 use error::{Error, ErrorKind};
+
+type Pool = txpool::Pool<VerifiedPrivateTransaction, PrivateScorying>;
 
 /// Maximum length for private transactions queues.
 const MAX_QUEUE_LEN: usize = 8312;
+/// Transaction with the same (sender, nonce) can be replaced only if
+/// `new_gas_price > old_gas_price + old_gas_price >> SHIFT`
+const GAS_PRICE_BUMP_SHIFT: usize = 3; // 2 = 25%, 3 = 12.5%, 4 = 6.25%
 
 /// Desriptor for private transaction stored in queue for verification
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub struct PrivateTransactionDesc {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifiedPrivateTransaction {
 	/// Original private transaction
 	pub private_transaction: PrivateTransaction,
 	/// Address that should be used for verification
 	pub validator_account: Option<Address>,
+	/// Resulted verified
+	pub transaction: SignedTransaction,
+	/// Original transaction's hash
+	pub transaction_hash: H256,
+	/// Original transaction's sender
+	pub transaction_sender: Address,
+}
+
+impl txpool::VerifiedTransaction for VerifiedPrivateTransaction {
+	type Hash = H256;
+	type Sender = Address;
+
+	fn hash(&self) -> &H256 {
+		&self.transaction_hash
+	}
+
+	fn mem_usage(&self) -> usize {
+		self.transaction.heap_size_of_children()
+	}
+
+	fn sender(&self) -> &Address {
+		&self.transaction_sender
+	}
+}
+
+#[derive(Debug)]
+pub struct PrivateScorying;
+
+impl txpool::Scoring<VerifiedPrivateTransaction> for PrivateScorying {
+	type Score = U256;
+	type Event = ();
+
+	fn compare(&self, old: &VerifiedPrivateTransaction, other: &VerifiedPrivateTransaction) -> cmp::Ordering {
+		old.transaction.nonce.cmp(&other.transaction.nonce)
+	}
+
+	fn choose(&self, old: &VerifiedPrivateTransaction, new: &VerifiedPrivateTransaction) -> txpool::scoring::Choice {
+		if old.transaction.nonce != new.transaction.nonce {
+			return txpool::scoring::Choice::InsertNew
+		}
+
+		let old_gp = old.transaction.gas_price;
+		let new_gp = new.transaction.gas_price;
+
+		let min_required_gp = old_gp + (old_gp >> GAS_PRICE_BUMP_SHIFT);
+
+		match min_required_gp.cmp(&new_gp) {
+			cmp::Ordering::Greater => txpool::scoring::Choice::RejectNew,
+			_ => txpool::scoring::Choice::ReplaceOld,
+		}
+	}
+
+	fn update_scores(&self, txs: &[txpool::Transaction<VerifiedPrivateTransaction>], scores: &mut [U256], change: txpool::scoring::Change) {
+		use self::txpool::scoring::Change;
+
+		match change {
+			Change::Culled(_) => {},
+			Change::RemovedAt(_) => {}
+			Change::InsertedAt(i) | Change::ReplacedAt(i) => {
+				assert!(i < txs.len());
+				assert!(i < scores.len());
+
+				scores[i] = txs[i].transaction.transaction.gas_price;
+			},
+			Change::Event(_) => {}
+		}
+	}
+
+	fn should_replace(&self, old: &VerifiedPrivateTransaction, new: &VerifiedPrivateTransaction) -> bool {
+		if old.sender() == new.sender() {
+			// prefer earliest transaction
+			if new.transaction.nonce < old.transaction.nonce {
+				return true
+			}
+		}
+
+		self.choose(old, new) == txpool::scoring::Choice::ReplaceOld
+	}
+}
+
+/// Checks readiness of transactions by comparing the nonce to state nonce.
+/// Guarantees only one transaction per sender
+#[derive(Debug)]
+pub struct PrivateReadyState<C> {
+	nonces: HashMap<Address, U256>,
+	state: C,
+}
+
+impl<C> PrivateReadyState<C> {
+	/// Create new State checker, given client interface.
+	pub fn new(
+		state: C,
+	) -> Self {
+		PrivateReadyState {
+			nonces: Default::default(),
+			state,
+		}
+	}
+}
+
+impl<C: pool::client::NonceClient> txpool::Ready<VerifiedPrivateTransaction> for PrivateReadyState<C> {
+	fn is_ready(&mut self, tx: &VerifiedPrivateTransaction) -> txpool::Readiness {
+		let sender = tx.sender();
+		let state = &self.state;
+		let state_nonce = state.account_nonce(sender);
+		match self.nonces.entry(*sender) {
+			Entry::Vacant(entry) => {
+				let nonce = entry.insert(state_nonce);
+				match tx.transaction.nonce.cmp(nonce) {
+					cmp::Ordering::Greater => txpool::Readiness::Future,
+					cmp::Ordering::Less => txpool::Readiness::Stale,
+					cmp::Ordering::Equal => {
+						*nonce = *nonce + 1.into();
+						txpool::Readiness::Ready
+					},
+				}
+			}
+			Entry::Occupied(_) => {
+				txpool::Readiness::Future
+			}
+		}
+	}
 }
 
 /// Storage for private transactions for verification
 pub struct VerificationStore {
-	/// Descriptors for private transactions in queue for verification with key - hash of the original transaction
-	descriptors: HashMap<H256, PrivateTransactionDesc>,
-	/// Queue with transactions for verification
-	///
-	/// TODO [ToDr] Might actually be better to use `txpool` directly and:
-	/// 1. Store descriptors inside `VerifiedTransaction`
-	/// 2. Use custom `ready` implementation to only fetch one transaction per sender.
-	/// 3. Get rid of passing dummy `block_number` and `timestamp`
-	transactions: pool::TransactionQueue,
+	verification_pool: RwLock<Pool>,
+	verification_options: pool::verifier::Options,
 }
 
 impl Default for VerificationStore {
 	fn default() -> Self {
 		VerificationStore {
-			descriptors: Default::default(),
-			transactions: pool::TransactionQueue::new(
-				pool::Options {
-					max_count: MAX_QUEUE_LEN,
-					max_per_sender: MAX_QUEUE_LEN / 10,
-					max_mem_usage: 8 * 1024 * 1024,
-				},
-				pool::verifier::Options {
-					// TODO [ToDr] This should probably be based on some real values?
-					minimal_gas_price: 0.into(),
-					block_gas_limit: 8_000_000.into(),
-					tx_gas_limit: U256::max_value(),
-				},
-				pool::PrioritizationStrategy::GasPriceOnly,
-			)
+			verification_pool: RwLock::new(
+				txpool::Pool::new(
+					txpool::NoopListener,
+					PrivateScorying,
+					pool::Options {
+						max_count: MAX_QUEUE_LEN,
+						max_per_sender: MAX_QUEUE_LEN / 10,
+						max_mem_usage: 8 * 1024 * 1024,
+					},
+				)
+			),
+			verification_options: pool::verifier::Options {
+				// TODO [ToDr] This should probably be based on some real values?
+				minimal_gas_price: 0.into(),
+				block_gas_limit: 8_000_000.into(),
+				tx_gas_limit: U256::max_value(),
+			},
 		}
 	}
 }
@@ -76,64 +203,48 @@ impl Default for VerificationStore {
 impl VerificationStore {
 	/// Adds private transaction for verification into the store
 	pub fn add_transaction<C: pool::client::Client>(
-		&mut self,
+		&self,
 		transaction: UnverifiedTransaction,
 		validator_account: Option<Address>,
 		private_transaction: PrivateTransaction,
 		client: C,
 	) -> Result<(), Error> {
-		if self.descriptors.len() > MAX_QUEUE_LEN {
-			bail!(ErrorKind::QueueIsFull);
-		}
 
-		let transaction_hash = transaction.hash();
-		if self.descriptors.get(&transaction_hash).is_some() {
-			bail!(ErrorKind::PrivateTransactionAlreadyImported);
-		}
-
-		let results = self.transactions.import(
-			client,
-			vec![pool::verifier::Transaction::Unverified(transaction)],
-		);
-
-		// Verify that transaction was imported
-		results.into_iter()
-			.next()
-			.expect("One transaction inserted; one result returned; qed")?;
-
-		self.descriptors.insert(transaction_hash, PrivateTransactionDesc {
+		let options = self.verification_options.clone();
+		// Use pool's verifying pipeline for original transaction's verification
+		let verifier = pool::verifier::Verifier::new(client, options, Default::default());
+		let _verified_tx = verifier.verify_transaction(pool::verifier::Transaction::Unverified(transaction.clone()))?;
+		let signed_tx = SignedTransaction::new(transaction)?;
+		let verified = VerifiedPrivateTransaction {
 			private_transaction,
 			validator_account,
-		});
-
+			transaction: signed_tx.clone(),
+			transaction_hash: signed_tx.hash(),
+			transaction_sender: signed_tx.sender(),
+		};
+		let mut pool = self.verification_pool.write();
+		pool.import(verified)?;
 		Ok(())
 	}
 
-	/// Returns transactions ready for verification
+	/// Drains transactions ready for verification from the pool
 	/// Returns only one transaction per sender because several cannot be verified in a row without verification from other peers
-	pub fn ready_transactions<C: pool::client::NonceClient>(&self, client: C) -> Vec<Arc<pool::VerifiedTransaction>> {
-		// We never store PendingTransactions and we don't use internal cache,
-		// so we don't need to provide real block number of timestamp here
-		let block_number = 0;
-		let timestamp = 0;
-		let nonce_cap = None;
-
-		self.transactions.collect_pending(client, block_number, timestamp, nonce_cap, |transactions| {
-			// take only one transaction per sender
-			let mut senders = HashSet::with_capacity(self.descriptors.len());
-			transactions.filter(move |tx| senders.insert(tx.signed().sender())).collect()
-		})
-	}
-
-	/// Returns descriptor of the corresponding private transaction
-	pub fn private_transaction_descriptor(&self, transaction_hash: &H256) -> Result<&PrivateTransactionDesc, Error> {
-		self.descriptors.get(transaction_hash).ok_or(ErrorKind::PrivateTransactionNotFound.into())
-	}
-
-	/// Remove transaction from the queue for verification
-	pub fn remove_private_transaction(&mut self, transaction_hash: &H256) {
-		self.descriptors.remove(transaction_hash);
-		self.transactions.remove(&[*transaction_hash], true);
+	pub fn drain<C: pool::client::NonceClient>(&self, client: C) -> Vec<Arc<VerifiedPrivateTransaction>> {
+		let ready = PrivateReadyState::new(client);
+		let mut hashes: Vec<H256> = Vec::new();
+		let res: Vec<Arc<VerifiedPrivateTransaction>> = self.verification_pool.read().pending(ready).collect();
+		res
+			.iter()
+			.for_each(|tx| {
+				hashes.push(tx.hash().clone());
+			});
+		let mut pool = self.verification_pool.write();
+		hashes
+			.iter()
+			.for_each(|hash| {
+				pool.remove(&hash, true);
+			});
+		res
 	}
 }
 

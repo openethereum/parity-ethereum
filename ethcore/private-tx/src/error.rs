@@ -21,6 +21,7 @@ use ethcore::account_provider::SignError;
 use ethcore::error::{Error as EthcoreError, ExecutionError};
 use transaction::Error as TransactionError;
 use ethkey::Error as KeyError;
+use txpool::Error as TxPoolError;
 
 error_chain! {
 	foreign_links {
@@ -167,6 +168,12 @@ error_chain! {
 			description("General ethcore error."),
 			display("General ethcore error {}", err),
 		}
+
+		#[doc = "Tx pool error."]
+		Txpool(err: TxPoolError) {
+			description("Tx pool error."),
+			display("Tx pool error {}", err),
+		}
 	}
 }
 
@@ -197,6 +204,12 @@ impl From<TransactionError> for Error {
 impl From<EthcoreError> for Error {
 	fn from(err: EthcoreError) -> Self {
 		ErrorKind::Ethcore(err).into()
+	}
+}
+
+impl From<TxPoolError> for Error {
+	fn from(err: TxPoolError) -> Self {
+		ErrorKind::Txpool(err).into()
 	}
 }
 
