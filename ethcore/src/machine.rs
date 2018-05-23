@@ -308,6 +308,7 @@ impl EthereumMachine {
 				let casper_contract = simple_casper_contract::SimpleCasper::default();
 				let input = casper_contract.functions().init().input(
 					ethash_params.hybrid_casper_epoch_length,
+					ethash_params.hybrid_casper_warm_up_period,
 					ethash_params.hybrid_casper_withdrawal_delay,
 					ethash_params.hybrid_casper_dynasty_logout_delay,
 					ethash_params.hybrid_casper_msg_hasher_contract_address,
