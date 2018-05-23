@@ -454,7 +454,7 @@ dependencies = [
 [[package]]
 name = "ethabi"
 version = "5.1.1"
-source = "git+https://github.com/paritytech/ethabi?branch=casper#141aef6e747b5c7887a944d19af96d75d4b6cfc9"
+source = "git+https://github.com/paritytech/ethabi?branch=casper#6ec7a3eb5e0c12dd24bbba037e1c885e47d7fd33"
 dependencies = [
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -482,7 +482,7 @@ dependencies = [
 [[package]]
 name = "ethabi-contract"
 version = "5.1.0"
-source = "git+https://github.com/paritytech/ethabi?branch=casper#141aef6e747b5c7887a944d19af96d75d4b6cfc9"
+source = "git+https://github.com/paritytech/ethabi?branch=casper#6ec7a3eb5e0c12dd24bbba037e1c885e47d7fd33"
 
 [[package]]
 name = "ethabi-contract"
@@ -492,7 +492,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "ethabi-derive"
 version = "5.1.2"
-source = "git+https://github.com/paritytech/ethabi?branch=casper#141aef6e747b5c7887a944d19af96d75d4b6cfc9"
+source = "git+https://github.com/paritytech/ethabi?branch=casper#6ec7a3eb5e0c12dd24bbba037e1c885e47d7fd33"
 dependencies = [
  "ethabi 5.1.1 (git+https://github.com/paritytech/ethabi?branch=casper)",
  "heck 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
