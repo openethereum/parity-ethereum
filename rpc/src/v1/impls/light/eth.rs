@@ -538,7 +538,7 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 	}
 
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>> {
-		self.fetcher().logs(filter)
+		Box::new(self.fetcher().logs(filter)) as BoxFuture<_>
 	}
 
 	fn pending_logs(&self, _block_number: u64, _filter: &EthcoreFilter) -> Vec<Log> {
