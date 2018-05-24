@@ -226,9 +226,9 @@ impl LightClient for LightFetch {
         self.client.block_header(id)
     }
 
-    fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>> {
-        LightFetch::logs(self, filter)
-    }
+	fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>> {
+		Box::new(LightFetch::logs(self, filter)) as BoxFuture<_>
+	}
 }
 
 impl<C: LightClient> LightChainNotify for ChainNotificationHandler<C> {
