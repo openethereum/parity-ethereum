@@ -288,13 +288,33 @@ impl Miner {
 	fn map_existing_pending_block<F, T>(&self, f: F, latest_block_number: BlockNumber) -> Option<T> where
 		F: FnOnce(&ClosedBlock) -> T,
 	{
+		println!("[miner.rs, map_existing_pending_block] latest_block_number: {:?}", latest_block_number);
+		{
+			let q = &self.sealing.lock().queue;
+			println!("[miner.rs, map_existing_pending_block] have queue");
+			let last_ref: Option<&ClosedBlock> = q.peek_last_ref();
+			if last_ref.is_some() {
+				println!("[miner.rs, map_existing_pending_block] last_ref is some");
+			} else {
+				println!("[miner.rs, map_existing_pending_block] last_ref is None");
+			}
+		}
 		self.sealing.lock().queue
 			.peek_last_ref()
-			.and_then(|b| if b.block().header().number() > latest_block_number {
-				Some(f(b))
-			} else {
-				None
-			})
+//			.or_else(|| {
+//				println!("[miner.rs, map_existing_pending_block] peek_last_ref returned None");
+//			})
+			.and_then(|b| {
+				println!("[miner.rs, map_existing_pending_block] my block: {:?}; is my number greater than {:?} > {:?}?", b.block().header(), b.block().header().number(), latest_block_number);
+				if b.block().header().number() > latest_block_number {
+					println!("[miner.rs, map_existing_pending_block] -> NO, returning block");
+					Some(f(b))
+				} else {
+					println!("[miner.rs, map_existing_pending_block] -> YES, returning None");
+					None
+				}
+			}
+			)
 	}
 
 	fn pool_client<'a, C: 'a>(&'a self, chain: &'a C) -> PoolClient<'a, C> where
@@ -1064,6 +1084,7 @@ impl miner::MinerService for Miner {
 	}
 
 	fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block> {
+		println!("[miner.rs, pending_block()] looking up pending block using latest_block_number {:?}", latest_block_number);
 		self.map_existing_pending_block(|b| b.to_base(), latest_block_number)
 	}
 

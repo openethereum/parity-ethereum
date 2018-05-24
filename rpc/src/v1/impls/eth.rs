@@ -108,6 +108,7 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	eip86_transition: u64,
 }
 
+#[derive(Debug)]
 enum BlockNumberOrId {
 	Number(BlockNumber),
 	Id(BlockId),
@@ -121,6 +122,7 @@ impl From<BlockId> for BlockNumberOrId {
 
 impl From<BlockNumber> for BlockNumberOrId {
 	fn from(value: BlockNumber) -> BlockNumberOrId {
+		println!("[eth.rs] converting {:?} to a BlockNumberOrId", value);
 		BlockNumberOrId::Number(value)
 	}
 }
@@ -181,10 +183,15 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 		let client_query = |id| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id), false);
 
+		println!("[rich_block] id: {:?}", id);
+
 		let (block, difficulty, extra, is_pending) = match id {
 			BlockNumberOrId::Number(BlockNumber::Pending) => {
+				println!("[rich_block] is pending");
+
 				let info = self.client.chain_info();
 				let pending_block = self.miner.pending_block(info.best_block_number);
+				println!("[rich_block] pending_block: {:?}, best_block_number: {:?}", pending_block, info.best_block_number);
 				let difficulty = {
 					let latest_difficulty = self.client.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
 					let pending_difficulty = self.miner.pending_block_header(info.best_block_number).map(|header| *header.difficulty());
@@ -199,14 +206,32 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 				let extra = pending_block.as_ref().map(|b| self.client.engine().extra_info(&b.header));
 
 				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes())), Some(difficulty), extra, true)
+//				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes())), Some(difficulty), extra, true)
 			},
 
 			BlockNumberOrId::Number(num) => {
+				println!("[rich_block] is *not* pending");
+
 				let id = match num {
-					BlockNumber::Latest => BlockId::Latest,
-					BlockNumber::Earliest => BlockId::Earliest,
-					BlockNumber::Num(n) => BlockId::Number(n),
-					BlockNumber::Pending => unreachable!(), // Already covered
+					BlockNumber::Latest => {
+						println!("[rich_block] ==> Latest");
+						BlockId::Latest
+					},
+					BlockNumber::Earliest => {
+						println!("[rich_block] ==> Earliest");
+
+						BlockId::Earliest
+					},
+					BlockNumber::Num(n) => {
+						println!("[rich_block] ==> Num");
+
+						BlockId::Number(n)
+					},
+					BlockNumber::Pending => {
+						println!("[rich_block] ==> Pending, should be unreachable");
+
+						unreachable!()
+					}, // Already covered
 				};
 
 				client_query(id)
@@ -214,7 +239,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 			BlockNumberOrId::Id(id) => client_query(id),
 		};
-
+		println!("[rich_block] matching on block: {:?},difficulty: {:?}", block,difficulty);
 		match (block, difficulty) {
 			(Some(block), Some(total_difficulty)) => {
 				let view = block.header_view();
@@ -256,7 +281,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 					extra_info: extra.expect(EXTRA_INFO_PROOF),
 				}))
 			},
-			_ => Ok(None)
+			_ => {
+				println!("[rich_block] no match, returning Ok(None)");
+				Ok(None)
+			}
 		}
 	}
 
@@ -651,6 +679,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
+		println!("[block_by_number] num: {:?}", &num);
+
 		Box::new(future::done(self.rich_block(num.into(), include_txs)))
 	}
 
