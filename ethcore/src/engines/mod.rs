@@ -73,6 +73,9 @@ pub const DEFAULT_PURITY_CHECKER_CONTRACT: &'static str = include!("../../res/co
 /// Hybrid Casper MSG_HASHER_CODE
 pub const DEFAULT_MSG_HASHER_CONTRACT: &'static str = include!("../../res/code/msg_hasher.hex");
 
+/// Hybrid Casper RLP_DECODER_CODE
+pub const DEFAULT_RLP_DECODER_CONTRACT: &'static str = include!("../../res/code/rlp_decoder.hex");
+
 /// Fork choice.
 #[derive(Debug, PartialEq, Eq)]
 pub enum ForkChoice {

@@ -26,7 +26,7 @@ use builtin::Builtin;
 use client::{BlockInfo, CallContract};
 use error::Error;
 use executive::Executive;
-use engines::{DEFAULT_CASPER_CONTRACT, DEFAULT_PURITY_CHECKER_CONTRACT, DEFAULT_MSG_HASHER_CONTRACT};
+use engines::{DEFAULT_CASPER_CONTRACT, DEFAULT_PURITY_CHECKER_CONTRACT, DEFAULT_MSG_HASHER_CONTRACT, DEFAULT_RLP_DECODER_CONTRACT};
 use header::{BlockNumber, Header, ExtendedHeader};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
@@ -85,6 +85,12 @@ pub struct EthashExtensions {
 	pub hybrid_casper_msg_hasher_contract_code: Bytes,
 	/// EIP1011 msg hasher address.
 	pub hybrid_casper_msg_hasher_contract_address: Address,
+	/// EIP1011 RLP decoder code.
+	pub hybrid_casper_rlp_decoder_contract_code: Bytes,
+	/// EIP1011 RLP decoder address.
+	pub hybrid_casper_rlp_decoder_contract_address: Address,
+	/// Whether to deploy EIP1011 RLP decoder or not.
+	pub hybrid_casper_deploy_rlp_decoder: bool,
 
 	/// EIP1011 epoch length.
 	pub hybrid_casper_epoch_length: u64,
@@ -106,6 +112,8 @@ pub struct EthashExtensions {
 
 impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 	fn from(p: ::ethjson::spec::EthashParams) -> Self {
+		let hybrid_casper_rlp_decoder_contract_address = Address::from(0x43u64);
+
 		EthashExtensions {
 			homestead_transition: p.homestead_transition.map_or(0, Into::into),
 			eip150_transition: p.eip150_transition.map_or(0, Into::into),
@@ -116,7 +124,7 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
 			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
 			hybrid_casper_transition: p.hybrid_casper_transition.map_or_else(u64::max_value, Into::into),
-			hybrid_casper_contract_code: DEFAULT_CASPER_CONTRACT.from_hex().expect(
+			hybrid_casper_contract_code: DEFAULT_CASPER_CONTRACT.replace("<rlp_decoder>", &format!("{:x}", hybrid_casper_rlp_decoder_contract_address)).from_hex().expect(
 				"Default CASPER_CODE is valid",
 			),
 			hybrid_casper_contract_address: Address::from(0x40u64),
@@ -129,6 +137,11 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 				"Default MSG_HASHER_CODE is valid",
 			),
 			hybrid_casper_msg_hasher_contract_address: Address::from(0x42u64),
+			hybrid_casper_rlp_decoder_contract_code: DEFAULT_RLP_DECODER_CONTRACT.from_hex().expect(
+				"Default RLP_DECODER_CODE is valid",
+			),
+			hybrid_casper_rlp_decoder_contract_address: hybrid_casper_rlp_decoder_contract_address,
+			hybrid_casper_deploy_rlp_decoder: true,
 			hybrid_casper_epoch_length: 5,
 			hybrid_casper_withdrawal_delay: 150,
 			hybrid_casper_dynasty_logout_delay: 70,
@@ -302,6 +315,10 @@ impl EthereumMachine {
 									ethash_params.hybrid_casper_purity_checker_contract_code.clone())?;
 					state.init_code(&ethash_params.hybrid_casper_msg_hasher_contract_address,
 									ethash_params.hybrid_casper_msg_hasher_contract_code.clone())?;
+					if ethash_params.hybrid_casper_deploy_rlp_decoder {
+						state.init_code(&ethash_params.hybrid_casper_rlp_decoder_contract_address,
+										ethash_params.hybrid_casper_rlp_decoder_contract_code.clone())?;
+					}
 				}
 
 				// Call Casper contract's init function.
