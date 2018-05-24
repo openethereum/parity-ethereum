@@ -122,7 +122,6 @@ impl From<BlockId> for BlockNumberOrId {
 
 impl From<BlockNumber> for BlockNumberOrId {
 	fn from(value: BlockNumber) -> BlockNumberOrId {
-		println!("[eth.rs] converting {:?} to a BlockNumberOrId", value);
 		BlockNumberOrId::Number(value)
 	}
 }
@@ -183,55 +182,41 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 		let client_query = |id| (client.block(id), client.block_total_difficulty(id), client.block_extra_info(id), false);
 
-		println!("[rich_block] id: {:?}", id);
-
 		let (block, difficulty, extra, is_pending) = match id {
 			BlockNumberOrId::Number(BlockNumber::Pending) => {
-				println!("[rich_block] is pending");
-
 				let info = self.client.chain_info();
-				let pending_block = self.miner.pending_block(info.best_block_number);
-				println!("[rich_block] pending_block: {:?}, best_block_number: {:?}", pending_block, info.best_block_number);
-				let difficulty = {
-					let latest_difficulty = self.client.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
-					let pending_difficulty = self.miner.pending_block_header(info.best_block_number).map(|header| *header.difficulty());
+				match self.miner.pending_block(info.best_block_number) {
+					Some(pending_block) => {
+						warn!("`Pending` is deprecated and may be removed in future versions.");
 
-				 	if let Some(difficulty) = pending_difficulty {
-						difficulty + latest_difficulty
-					} else {
-						latest_difficulty
+						let difficulty = {
+							let latest_difficulty = self.client.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
+							let pending_difficulty = self.miner.pending_block_header(info.best_block_number).map(|header| *header.difficulty());
+
+							if let Some(difficulty) = pending_difficulty {
+								difficulty + latest_difficulty
+							} else {
+								latest_difficulty
+							}
+						};
+
+						let extra = self.client.engine().extra_info(&pending_block.header);
+
+						(Some(encoded::Block::new(pending_block.rlp_bytes())), Some(difficulty), Some(extra), true)
+					},
+					None => {
+						warn!("`Pending` is deprecated and may be removed in future versions. Falling back to `Latest`");
+						client_query(BlockId::Latest)
 					}
-				};
-
-				let extra = pending_block.as_ref().map(|b| self.client.engine().extra_info(&b.header));
-
-				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes())), Some(difficulty), extra, true)
-//				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes())), Some(difficulty), extra, true)
+				}
 			},
 
 			BlockNumberOrId::Number(num) => {
-				println!("[rich_block] is *not* pending");
-
 				let id = match num {
-					BlockNumber::Latest => {
-						println!("[rich_block] ==> Latest");
-						BlockId::Latest
-					},
-					BlockNumber::Earliest => {
-						println!("[rich_block] ==> Earliest");
-
-						BlockId::Earliest
-					},
-					BlockNumber::Num(n) => {
-						println!("[rich_block] ==> Num");
-
-						BlockId::Number(n)
-					},
-					BlockNumber::Pending => {
-						println!("[rich_block] ==> Pending, should be unreachable");
-
-						unreachable!()
-					}, // Already covered
+					BlockNumber::Latest => BlockId::Latest,
+					BlockNumber::Earliest => BlockId::Earliest,
+					BlockNumber::Num(n) => BlockId::Number(n),
+					BlockNumber::Pending => unreachable!() // Already covered
 				};
 
 				client_query(id)
@@ -239,7 +224,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 
 			BlockNumberOrId::Id(id) => client_query(id),
 		};
-		println!("[rich_block] matching on block: {:?},difficulty: {:?}", block,difficulty);
+
 		match (block, difficulty) {
 			(Some(block), Some(total_difficulty)) => {
 				let view = block.header_view();
@@ -281,10 +266,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 					extra_info: extra.expect(EXTRA_INFO_PROOF),
 				}))
 			},
-			_ => {
-				println!("[rich_block] no match, returning Ok(None)");
-				Ok(None)
-			}
+			_ => Ok(None)
 		}
 	}
 
@@ -679,8 +661,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	}
 
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>> {
-		println!("[block_by_number] num: {:?}", &num);
-
 		Box::new(future::done(self.rich_block(num.into(), include_txs)))
 	}
 
