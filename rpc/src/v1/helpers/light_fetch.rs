@@ -25,7 +25,7 @@ use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::receipt::Receipt;
 
-use jsonrpc_core::{BoxFuture, Result};
+use jsonrpc_core::{Result, Error};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_core::futures::future::Either;
 use jsonrpc_macros::Trailing;
@@ -139,58 +139,57 @@ impl LightFetch {
 	}
 
 	/// Get a block header from the on demand service or client, or error.
-	pub fn header(&self, id: BlockId) -> BoxFuture<encoded::Header> {
+	pub fn header(&self, id: BlockId) -> impl Future<Item = encoded::Header, Error = Error> + Send {
 		let mut reqs = Vec::new();
 		let header_ref = match self.make_header_requests(id, &mut reqs) {
 			Ok(r) => r,
-			Err(e) => return Box::new(future::err(e)),
+			Err(e) => return Either::A(future::err(e)),
 		};
 
-
-		self.send_requests(reqs, |res|
+		Either::B(self.send_requests(reqs, |res|
 			extract_header(&res, header_ref)
 				.expect("these responses correspond to requests that header_ref belongs to \
 						therefore it will not fail; qed")
-		)
+		))
 	}
 
 	/// Helper for getting contract code at a given block.
-	pub fn code(&self, address: Address, id: BlockId) -> BoxFuture<Vec<u8>> {
+	pub fn code(&self, address: Address, id: BlockId) -> impl Future<Item = Vec<u8>, Error = Error> + Send {
 		let mut reqs = Vec::new();
 		let header_ref = match self.make_header_requests(id, &mut reqs) {
 			Ok(r) => r,
-			Err(e) => return Box::new(future::err(e)),
+			Err(e) => return Either::A(future::err(e)),
 		};
 
 		reqs.push(request::Account { header: header_ref.clone(), address: address }.into());
 		let account_idx = reqs.len() - 1;
 		reqs.push(request::Code { header: header_ref, code_hash: Field::back_ref(account_idx, 0) }.into());
 
-		self.send_requests(reqs, |mut res| match res.pop() {
+		Either::B(self.send_requests(reqs, |mut res| match res.pop() {
 			Some(OnDemandResponse::Code(code)) => code,
 			_ => panic!("responses correspond directly with requests in amount and type; qed"),
-		})
+		}))
 	}
 
 	/// Helper for getting account info at a given block.
 	/// `None` indicates the account doesn't exist at the given block.
-	pub fn account(&self, address: Address, id: BlockId) -> BoxFuture<Option<BasicAccount>> {
+	pub fn account(&self, address: Address, id: BlockId) -> impl Future<Item = Option<BasicAccount>, Error = Error> + Send {
 		let mut reqs = Vec::new();
 		let header_ref = match self.make_header_requests(id, &mut reqs) {
 			Ok(r) => r,
-			Err(e) => return Box::new(future::err(e)),
+			Err(e) => return Either::A(future::err(e)),
 		};
 
 		reqs.push(request::Account { header: header_ref, address: address }.into());
 
-		self.send_requests(reqs, |mut res|match res.pop() {
+		Either::B(self.send_requests(reqs, |mut res|match res.pop() {
 			Some(OnDemandResponse::Account(acc)) => acc,
 			_ => panic!("responses correspond directly with requests in amount and type; qed"),
-		})
+		}))
 	}
 
 	/// Helper for getting proved execution.
-	pub fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<ExecutionResult> {
+	pub fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
 		const DEFAULT_GAS_PRICE: u64 = 21_000;
 		// starting gas when gas not provided.
 		const START_GAS: u64 = 50_000;
@@ -280,39 +279,39 @@ impl LightFetch {
 	}
 
 	/// Get a block itself. Fails on unknown block ID.
-	pub fn block(&self, id: BlockId) -> BoxFuture<encoded::Block> {
+	pub fn block(&self, id: BlockId) -> impl Future<Item = encoded::Block, Error = Error> + Send {
 		let mut reqs = Vec::new();
 		let header_ref = match self.make_header_requests(id, &mut reqs) {
 			Ok(r) => r,
-			Err(e) => return Box::new(future::err(e)),
+			Err(e) => return Either::A(future::err(e)),
 		};
 
 		reqs.push(request::Body(header_ref).into());
 
-		self.send_requests(reqs, |mut res| match res.pop() {
+		Either::B(self.send_requests(reqs, |mut res| match res.pop() {
 			Some(OnDemandResponse::Body(b)) => b,
 			_ => panic!("responses correspond directly with requests in amount and type; qed"),
-		})
+		}))
 	}
 
 	/// Get the block receipts. Fails on unknown block ID.
-	pub fn receipts(&self, id: BlockId) -> BoxFuture<Vec<Receipt>> {
+	pub fn receipts(&self, id: BlockId) -> impl Future<Item = Vec<Receipt>, Error = Error> + Send {
 		let mut reqs = Vec::new();
 		let header_ref = match self.make_header_requests(id, &mut reqs) {
 			Ok(r) => r,
-			Err(e) => return Box::new(future::err(e)),
+			Err(e) => return Either::A(future::err(e)),
 		};
 
 		reqs.push(request::BlockReceipts(header_ref).into());
 
-		self.send_requests(reqs, |mut res| match res.pop() {
+		Either::B(self.send_requests(reqs, |mut res| match res.pop() {
 			Some(OnDemandResponse::Receipts(b)) => b,
 			_ => panic!("responses correspond directly with requests in amount and type; qed"),
-		})
+		}))
 	}
 
 	/// Get transaction logs
-	pub fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>> {
+	pub fn logs(&self, filter: EthcoreFilter) -> impl Future<Item = Vec<Log>, Error = Error> + Send {
 		use std::collections::BTreeMap;
 		use jsonrpc_core::futures::stream::{self, Stream};
 
@@ -326,9 +325,9 @@ impl LightFetch {
 		};
 
 		match (block_number(filter.to_block), block_number(filter.from_block)) {
-			(Some(to), Some(from)) if to < from => return Box::new(future::ok(Vec::new())),
+			(Some(to), Some(from)) if to < from => return Either::A(future::ok(Vec::new())),
 			(Some(_), Some(_)) => {},
-			_ => return Box::new(future::err(errors::unknown_block())),
+			_ => return Either::A(future::err(errors::unknown_block())),
 		}
 
 		let maybe_future = self.sync.with_context(move |ctx| {
@@ -362,15 +361,15 @@ impl LightFetch {
 		});
 
 		match maybe_future {
-			Some(fut) => Box::new(fut),
-			None => Box::new(future::err(errors::network_disabled())),
+			Some(fut) => Either::B(Either::A(fut)),
+			None => Either::B(Either::B(future::err(errors::network_disabled()))),
 		}
 	}
 
 	// Get a transaction by hash. also returns the index in the block.
 	// Only returns transactions in the canonical chain.
 	pub fn transaction_by_hash(&self, tx_hash: H256, eip86_transition: u64)
-		-> BoxFuture<Option<(Transaction, usize)>>
+		-> impl Future<Item = Option<(Transaction, usize)>, Error = Error> + Send
 	{
 		let params = (self.sync.clone(), self.on_demand.clone());
 		let fetcher: Self = self.clone();
@@ -426,7 +425,7 @@ impl LightFetch {
 		}))
 	}
 
-	fn send_requests<T, F>(&self, reqs: Vec<OnDemandRequest>, parse_response: F) -> BoxFuture<T> where
+	fn send_requests<T, F>(&self, reqs: Vec<OnDemandRequest>, parse_response: F) -> impl Future<Item = T, Error = Error> + Send where
 		F: FnOnce(Vec<OnDemandResponse>) -> T + Send + 'static,
 		T: Send + 'static,
 	{
@@ -439,7 +438,7 @@ impl LightFetch {
 
 		match maybe_future {
 			Some(recv) => recv,
-			None => Box::new(future::err(errors::network_disabled()))
+			None => Box::new(future::err(errors::network_disabled())) as Box<Future<Item = _, Error = _> + Send>
 		}
 	}
 }
@@ -457,7 +456,7 @@ struct ExecuteParams {
 
 // has a peer execute the transaction with given params. If `gas_known` is false,
 // this will double the gas on each `OutOfGas` error.
-fn execute_tx(gas_known: bool, params: ExecuteParams) -> BoxFuture<ExecutionResult> {
+fn execute_tx(gas_known: bool, params: ExecuteParams) -> impl Future<Item = ExecutionResult, Error = Error> + Send {
 	if !gas_known {
 		Box::new(future::loop_fn(params, |mut params| {
 			execute_tx(true, params.clone()).and_then(move |res| {
@@ -480,7 +479,7 @@ fn execute_tx(gas_known: bool, params: ExecuteParams) -> BoxFuture<ExecutionResu
 					failed => Ok(future::Loop::Break(failed)),
 				}
 			})
-		}))
+		})) as Box<Future<Item = _, Error = _> + Send>
 	} else {
 		trace!(target: "light_fetch", "Placing execution request for {} gas in on_demand",
 			params.tx.gas);
@@ -501,8 +500,8 @@ fn execute_tx(gas_known: bool, params: ExecuteParams) -> BoxFuture<ExecutionResu
 		});
 
 		match proved_future {
-			Some(fut) => Box::new(fut),
-			None => Box::new(future::err(errors::network_disabled())),
+			Some(fut) => Box::new(fut) as Box<Future<Item = _, Error = _> + Send>,
+			None => Box::new(future::err(errors::network_disabled())) as Box<Future<Item = _, Error = _> + Send>,
 		}
 	}
 }
