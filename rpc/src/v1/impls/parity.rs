@@ -33,6 +33,7 @@ use ethcore::miner::{self, MinerService};
 use ethcore::mode::Mode;
 use ethcore::state::StateInfo;
 use ethcore_logger::RotatingLogger;
+use transaction::{Transaction as CoreTransaction, Action as TransactionAction};
 use node_health::{NodeHealth, Health};
 use updater::{Service as UpdateService};
 
@@ -41,6 +42,7 @@ use jsonrpc_core::futures::{future, Future};
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::accounts::unwrap_provider;
+use v1::helpers::dispatch::FullDispatcher;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
@@ -208,6 +210,27 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn chain(&self) -> Result<String> {
 		Ok(self.client.spec_name())
+	}
+
+	fn send_unsigned_transaction(&self, to: H160, data: Bytes) -> Result<H256> {
+		use ethereum_types::{U256 as CoreU256};
+
+		let transaction = CoreTransaction {
+			nonce: CoreU256::zero(),
+			value: CoreU256::zero(),
+			gas_price: CoreU256::zero(),
+			gas: CoreU256::from(940000),
+			action: TransactionAction::Call(to.into()),
+			data: data.into()
+		};
+
+		let signed = transaction.null_sign(self.client.signing_chain_id().unwrap_or(0));
+
+		FullDispatcher::dispatch_transaction(
+			&*self.client,
+			&*self.miner,
+			signed.into(),
+		).map(Into::into)
 	}
 
 	fn net_peers(&self) -> Result<Peers> {
