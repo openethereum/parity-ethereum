@@ -1,0 +1,12 @@
+[package]
+name = "blooms-db"
+version = "0.1.0"
+authors = ["debris <marek.kotewicz@gmail.com>"]
+
+[dependencies]
+byteorder = "1.2"
+ethbloom = "0.5"
+tiny-keccak = "1.4"
+
+[dev-dependencies]
+tempdir = "0.3"

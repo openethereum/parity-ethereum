@@ -160,6 +160,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "blooms-db"
+version = "0.1.0"
+dependencies = [
+ "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethbloom 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "bn"
 version = "0.4.4"
 source = "git+https://github.com/paritytech/bn#964b48fad5dffbaa124c2f10699e76faf5846c4e"
@@ -513,6 +523,7 @@ version = "1.12.0"
 dependencies = [
  "ansi_term 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "bloomchain 0.2.0",
+ "blooms-db 0.1.0",
  "bn 0.4.4 (git+https://github.com/paritytech/bn)",
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "common-types 0.1.0",
@@ -1959,6 +1970,7 @@ version = "1.12.0"
 dependencies = [
  "ansi_term 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "atty 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "blooms-db 0.1.0",
  "clap 2.29.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)",
  "daemonize 0.2.3 (git+https://github.com/paritytech/daemonize)",

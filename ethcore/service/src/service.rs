@@ -26,6 +26,7 @@ use kvdb::{KeyValueDB, KeyValueDBHandler};
 use stop_guard::StopGuard;
 
 use sync::PrivateTxHandler;
+use ethcore::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
@@ -69,7 +70,7 @@ pub struct ClientService {
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
 	private_tx: Arc<PrivateTxService>,
-	database: Arc<KeyValueDB>,
+	database: Arc<BlockChainDB>,
 	_stop_guard: StopGuard,
 }
 
@@ -78,9 +79,9 @@ impl ClientService {
 	pub fn start(
 		config: ClientConfig,
 		spec: &Spec,
-		client_db: Arc<KeyValueDB>,
+		blockchain_db: Arc<BlockChainDB>,
 		snapshot_path: &Path,
-		restoration_db_handler: Box<KeyValueDBHandler>,
+		restoration_db_handler: Box<BlockChainDBHandler>,
 		_ipc_path: &Path,
 		miner: Arc<Miner>,
 		account_provider: Arc<AccountProvider>,
@@ -93,7 +94,7 @@ impl ClientService {
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 
 		let pruning = config.pruning;
-		let client = Client::new(config, &spec, client_db.clone(), miner.clone(), io_service.channel())?;
+		let client = Client::new(config, &spec, blockchain_db.clone(), miner.clone(), io_service.channel())?;
 
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
@@ -131,7 +132,7 @@ impl ClientService {
 			client: client,
 			snapshot: snapshot,
 			private_tx,
-			database: client_db,
+			database: blockchain_db,
 			_stop_guard: stop_guard,
 		})
 	}
@@ -167,7 +168,7 @@ impl ClientService {
 	}
 
 	/// Get a handle to the database.
-	pub fn db(&self) -> Arc<KeyValueDB> { self.database.clone() }
+	pub fn db(&self) -> Arc<BlockChainDB> { self.database.clone() }
 }
 
 /// IO interface for the Client handler

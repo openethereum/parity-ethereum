@@ -18,20 +18,43 @@
 
 use std::path::Path;
 use std::sync::Arc;
+use parking_lot::RwLock;
 use kvdb::{KeyValueDB, KeyValueDBHandler};
 use kvdb_rocksdb::{Database, DatabaseConfig};
+use blockchain::{BlockChainDBHandler, BlockChainDB};
+use blooms_db;
+use error::Error;
 
 /// Creates new instance of KeyValueDBHandler
-pub fn restoration_db_handler(config: DatabaseConfig) -> Box<KeyValueDBHandler> {
-	use kvdb::Error;
-
+pub fn restoration_db_handler(config: DatabaseConfig) -> Box<BlockChainDBHandler> {
 	struct RestorationDBHandler {
 		config: DatabaseConfig,
 	}
 
-	impl KeyValueDBHandler for RestorationDBHandler {
-		fn open(&self, db_path: &Path) -> Result<Arc<KeyValueDB>, Error> {
-			Ok(Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?))
+	struct RestorationDB {
+		blooms: RwLock<blooms_db::Database>,
+		key_value: Arc<KeyValueDB>,
+	}
+
+	impl BlockChainDB for RestorationDB {
+		fn key_value(&self) -> &Arc<KeyValueDB> {
+			&self.key_value
+		}
+
+		fn blooms(&self) -> &RwLock<blooms_db::Database> {
+			&self.blooms
+		}
+	}
+
+	impl BlockChainDBHandler for RestorationDBHandler {
+		fn open(&self, db_path: &Path) -> Result<Arc<BlockChainDB>, Error> {
+			let key_value = Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?);
+			let blooms = RwLock::new(blooms_db::Database::open(db_path).unwrap());
+			let db = RestorationDB {
+				blooms,
+				key_value,
+			};
+			Ok(Arc::new(db))
 		}
 	}
 

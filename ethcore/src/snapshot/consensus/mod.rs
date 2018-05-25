@@ -20,7 +20,7 @@
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use blockchain::BlockChain;
+use blockchain::{BlockChain, BlockChainDB};
 use engines::EthEngine;
 use snapshot::{Error, ManifestData};
 
@@ -63,7 +63,7 @@ pub trait SnapshotComponents: Send {
 	fn rebuilder(
 		&self,
 		chain: BlockChain,
-		db: Arc<KeyValueDB>,
+		db: Arc<BlockChainDB>,
 		manifest: &ManifestData,
 	) -> Result<Box<Rebuilder>, ::error::Error>;
 

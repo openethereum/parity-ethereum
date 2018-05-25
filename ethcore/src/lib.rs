@@ -59,6 +59,7 @@
 #![recursion_limit="128"]
 
 extern crate bloomchain;
+extern crate blooms_db;
 extern crate bn;
 extern crate byteorder;
 extern crate crossbeam;
@@ -108,7 +109,6 @@ extern crate vm;
 extern crate wasm;
 extern crate memory_cache;
 extern crate journaldb;
-#[cfg(test)]
 extern crate tempdir;
 
 #[macro_use]
@@ -183,3 +183,4 @@ mod test_helpers_internal;
 pub use types::*;
 pub use executive::contract_address;
 pub use evm::CreateContractAddress;
+pub use blockchain::{BlockChainDB, BlockChainDBHandler};

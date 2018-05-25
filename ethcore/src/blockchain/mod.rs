@@ -28,7 +28,7 @@ mod update;
 #[cfg(test)]
 pub mod generator;
 
-pub use self::blockchain::{BlockProvider, BlockChain};
+pub use self::blockchain::{BlockProvider, BlockChain, BlockChainDB, BlockChainDBHandler};
 pub use self::cache::CacheSize;
 pub use self::config::Config;
 pub use self::extras::{BlockReceipts, BlockDetails, TransactionAddress};

@@ -19,7 +19,7 @@
 use account_provider::AccountProvider;
 use ethereum_types::{H256, U256, Address};
 use block::{OpenBlock, Drain};
-use blockchain::{BlockChain, Config as BlockChainConfig, ExtrasInsert};
+use blockchain::{BlockChain, BlockChainDB, Config as BlockChainConfig, ExtrasInsert};
 use bytes::Bytes;
 use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
 use ethkey::KeyPair;
@@ -37,6 +37,9 @@ use state::*;
 use std::sync::Arc;
 use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
+use blooms_db;
+use kvdb::KeyValueDB;
+use tempdir::TempDir;
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
@@ -255,8 +258,32 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	client
 }
 
-fn new_db() -> Arc<::kvdb::KeyValueDB> {
-	Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)))
+pub fn new_db() -> Arc<BlockChainDB> {
+	struct TestBlockChainDB {
+		blooms_dir: TempDir,
+		blooms: RwLock<blooms_db::Database>,
+		key_value: Arc<KeyValueDB>,
+	}
+
+	impl BlockChainDB for TestBlockChainDB {
+		fn key_value(&self) -> &Arc<KeyValueDB> {
+			&self.key_value
+		}
+
+		fn blooms(&self) -> &RwLock<blooms_db::Database> {
+			&self.blooms
+		}
+	}
+
+	let tempdir = TempDir::new("").unwrap();
+
+	let db = TestBlockChainDB {
+		blooms: RwLock::new(blooms_db::Database::open(tempdir.path()).unwrap()),
+		blooms_dir: tempdir,
+		key_value: Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap()))
+	};
+
+	Arc::new(db)
 }
 
 /// Generates dummy blockchain with corresponding amount of blocks
@@ -264,7 +291,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 	let db = new_db();
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
-	let mut batch = db.transaction();
+	let mut batch = db.key_value().transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
 		bc.insert_block(&mut batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![], ExtrasInsert {
@@ -274,7 +301,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 		});
 		bc.commit();
 	}
-	db.write(batch).unwrap();
+	db.key_value().write(batch).unwrap();
 	bc
 }
 
@@ -284,7 +311,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), db.clone());
 
 
-	let mut batch = db.transaction();
+	let mut batch = db.key_value().transaction();
 	for block_order in 1..block_number {
 		// Total difficulty is always 0 here.
 		bc.insert_block(&mut batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![], ExtrasInsert {
@@ -294,7 +321,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 		});
 		bc.commit();
 	}
-	db.write(batch).unwrap();
+	db.key_value().write(batch).unwrap();
 	bc
 }
 
@@ -322,7 +349,7 @@ pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::Sta
 /// Returns temp state db
 pub fn get_temp_state_db() -> StateDB {
 	let db = new_db();
-	let journal_db = ::journaldb::new(db, ::journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
+	let journal_db = ::journaldb::new(db.key_value().clone(), ::journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
 	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 

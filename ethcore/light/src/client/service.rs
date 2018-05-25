@@ -21,7 +21,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use ethcore::client::ClientIoMessage;
-use ethcore::db;
+use ethcore::{db, BlockChainDB};
 use ethcore::error::Error as CoreError;
 use ethcore::spec::Spec;
 use io::{IoContext, IoError, IoHandler, IoService};
@@ -65,11 +65,10 @@ pub struct Service<T> {
 
 impl<T: ChainDataFetcher> Service<T> {
 	/// Start the service: initialize I/O workers and client itself.
-	pub fn start(config: ClientConfig, spec: &Spec, fetcher: T, db: Arc<KeyValueDB>, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
-
+	pub fn start(config: ClientConfig, spec: &Spec, fetcher: T, db: Arc<BlockChainDB>, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
 		let io_service = IoService::<ClientIoMessage>::start().map_err(Error::Io)?;
 		let client = Arc::new(Client::new(config,
-			db,
+			db.key_value().clone(),
 			db::COL_LIGHT_CHAIN,
 			spec,
 			fetcher,

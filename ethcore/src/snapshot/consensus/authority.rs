@@ -24,7 +24,7 @@ use super::{SnapshotComponents, Rebuilder, ChunkSink};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use blockchain::{BlockChain, BlockProvider};
+use blockchain::{BlockChain, BlockChainDB, BlockProvider};
 use engines::{EthEngine, EpochVerifier, EpochTransition};
 use machine::EthereumMachine;
 use ids::BlockId;
@@ -125,14 +125,14 @@ impl SnapshotComponents for PoaSnapshot {
 	fn rebuilder(
 		&self,
 		chain: BlockChain,
-		db: Arc<KeyValueDB>,
+		db: Arc<BlockChainDB>,
 		manifest: &ManifestData,
 	) -> Result<Box<Rebuilder>, ::error::Error> {
 		Ok(Box::new(ChunkRebuilder {
 			manifest: manifest.clone(),
 			warp_target: None,
 			chain: chain,
-			db: db,
+			db: db.key_value().clone(),
 			had_genesis: false,
 			unverified_firsts: Vec::new(),
 			last_epochs: Vec::new(),

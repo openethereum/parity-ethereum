@@ -38,18 +38,20 @@ use transaction::{PendingTransaction, Transaction, Action, Condition};
 use miner::MinerService;
 use rlp::{RlpStream, EMPTY_LIST_RLP};
 use tempdir::TempDir;
+use test_helpers;
 
 #[test]
 fn imports_from_empty() {
-	let tempdir = TempDir::new("").unwrap();
+	let db = test_helpers::new_db();
+	//let tempdir = TempDir::new("").unwrap();
 	let spec = Spec::new_test();
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
+	//let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	//let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&spec,
-		client_db,
+		db,
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
@@ -59,15 +61,16 @@ fn imports_from_empty() {
 
 #[test]
 fn should_return_registrar() {
+	let db = test_helpers::new_db();
 	let tempdir = TempDir::new("").unwrap();
 	let spec = ethereum::new_morden(&tempdir.path().to_owned());
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
+	//let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	//let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&spec,
-		client_db,
+		db,
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
@@ -89,15 +92,16 @@ fn returns_state_root_basic() {
 
 #[test]
 fn imports_good_block() {
-	let tempdir = TempDir::new("").unwrap();
+	let db = test_helpers::new_db();
+	//let tempdir = TempDir::new("").unwrap();
 	let spec = Spec::new_test();
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
+	//let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	//let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&spec,
-		client_db,
+		db,
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
@@ -133,15 +137,16 @@ fn fails_to_import_block_with_invalid_rlp() {
 
 #[test]
 fn query_none_block() {
-	let tempdir = TempDir::new("").unwrap();
+	let db = test_helpers::new_db();
+	//let tempdir = TempDir::new("").unwrap();
 	let spec = Spec::new_test();
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
+	//let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	//let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
 		&spec,
-		client_db,
+		db,
 		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
@@ -284,11 +289,12 @@ fn can_mine() {
 
 #[test]
 fn change_history_size() {
-	let tempdir = TempDir::new("").unwrap();
+	let db = test_helpers::new_db();
+	//let tempdir = TempDir::new("").unwrap();
 	let test_spec = Spec::new_null();
 	let mut config = ClientConfig::default();
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
+	//let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	//let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	config.history = 2;
 	let address = Address::random();
@@ -296,7 +302,7 @@ fn change_history_size() {
 		let client = Client::new(
 			ClientConfig::default(),
 			&test_spec,
-			client_db.clone(),
+			db.clone(),
 			Arc::new(Miner::new_for_tests(&test_spec, None)),
 			IoChannel::disconnected()
 		).unwrap();
@@ -314,7 +320,7 @@ fn change_history_size() {
 	let client = Client::new(
 		config,
 		&test_spec,
-		client_db,
+		db,
 		Arc::new(Miner::new_for_tests(&test_spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
