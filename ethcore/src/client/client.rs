@@ -37,17 +37,17 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute, TransactionA
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-    Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo,
-    RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
-    BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
-    AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
-    ClientIoMessage
+	Nonce, Balance, ChainInfo, BlockInfo, CallContract, TransactionInfo,
+	RegistryInfo, ReopenBlock, PrepareOpenBlock, ScheduleInfo, ImportSealedBlock,
+	BroadcastProposalBlock, ImportBlock, StateOrBlock, StateInfo, StateClient, Call,
+	AccountData, BlockChain as BlockChainTrait, BlockProducer, SealedBlockImporter,
+	ClientIoMessage
 };
 use client::{
-    BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
-    TraceFilter, CallAnalytics, BlockImportError, Mode,
-    ChainNotify, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
-    IoClient
+	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
+	TraceFilter, CallAnalytics, BlockImportError, Mode,
+	ChainNotify, ChainRoute, PruningInfo, ProvingBlockChainClient, EngineInfo, ChainMessageType,
+	IoClient
 };
 use encoded;
 use engines::{EthEngine, EpochTransition, ForkChoice};
@@ -97,115 +97,115 @@ const MIN_HISTORY_SIZE: u64 = 8;
 /// Report on the status of a client.
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
 pub struct ClientReport {
-    /// How many blocks have been imported so far.
-    pub blocks_imported: usize,
-    /// How many transactions have been applied so far.
-    pub transactions_applied: usize,
-    /// How much gas has been processed so far.
-    pub gas_processed: U256,
-    /// Memory used by state DB
-    pub state_db_mem: usize,
+	/// How many blocks have been imported so far.
+	pub blocks_imported: usize,
+	/// How many transactions have been applied so far.
+	pub transactions_applied: usize,
+	/// How much gas has been processed so far.
+	pub gas_processed: U256,
+	/// Memory used by state DB
+	pub state_db_mem: usize,
 }
 
 impl ClientReport {
-    /// Alter internal reporting to reflect the additional `block` has been processed.
-    pub fn accrue_block(&mut self, header: &Header, transactions: usize) {
-        self.blocks_imported += 1;
-        self.transactions_applied += transactions;
-        self.gas_processed = self.gas_processed + *header.gas_used();
-    }
+	/// Alter internal reporting to reflect the additional `block` has been processed.
+	pub fn accrue_block(&mut self, header: &Header, transactions: usize) {
+		self.blocks_imported += 1;
+		self.transactions_applied += transactions;
+		self.gas_processed = self.gas_processed + *header.gas_used();
+	}
 }
 
 impl<'a> ::std::ops::Sub<&'a ClientReport> for ClientReport {
-    type Output = Self;
+	type Output = Self;
 
-    fn sub(mut self, other: &'a ClientReport) -> Self {
-        let higher_mem = ::std::cmp::max(self.state_db_mem, other.state_db_mem);
-        let lower_mem = ::std::cmp::min(self.state_db_mem, other.state_db_mem);
+	fn sub(mut self, other: &'a ClientReport) -> Self {
+		let higher_mem = ::std::cmp::max(self.state_db_mem, other.state_db_mem);
+		let lower_mem = ::std::cmp::min(self.state_db_mem, other.state_db_mem);
 
 		self.blocks_imported -= other.blocks_imported;
 		self.transactions_applied -= other.transactions_applied;
 		self.gas_processed = self.gas_processed - other.gas_processed;
 		self.state_db_mem = higher_mem - lower_mem;
 
-        self
-    }
+		self
+	}
 }
 
 struct SleepState {
-    last_activity: Option<Instant>,
-    last_autosleep: Option<Instant>,
+	last_activity: Option<Instant>,
+	last_autosleep: Option<Instant>,
 }
 
 impl SleepState {
-    fn new(awake: bool) -> Self {
-        SleepState {
-            last_activity: match awake { false => None, true => Some(Instant::now()) },
-            last_autosleep: match awake { false => Some(Instant::now()), true => None },
-        }
-    }
+	fn new(awake: bool) -> Self {
+		SleepState {
+			last_activity: match awake { false => None, true => Some(Instant::now()) },
+			last_autosleep: match awake { false => Some(Instant::now()), true => None },
+		}
+	}
 }
 
 struct Importer {
-    /// Lock used during block import
-    pub import_lock: Mutex<()>, // FIXME Maybe wrap the whole `Importer` instead?
+	/// Lock used during block import
+	pub import_lock: Mutex<()>, // FIXME Maybe wrap the whole `Importer` instead?
 
-    /// Used to verify blocks
-    pub verifier: Box<Verifier<Client>>,
+	/// Used to verify blocks
+	pub verifier: Box<Verifier<Client>>,
 
-    /// Queue containing pending blocks
-    pub block_queue: BlockQueue,
+	/// Queue containing pending blocks
+	pub block_queue: BlockQueue,
 
-    /// Handles block sealing
-    pub miner: Arc<Miner>,
+	/// Handles block sealing
+	pub miner: Arc<Miner>,
 
 	/// Ancient block verifier: import an ancient sequence of blocks in order from a starting epoch
 	pub ancient_verifier: AncientVerifier,
 
-    /// Ethereum engine to be used during import
-    pub engine: Arc<EthEngine>,
+	/// Ethereum engine to be used during import
+	pub engine: Arc<EthEngine>,
 }
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
-    /// Flag used to disable the client forever. Not to be confused with `liveness`.
-    ///
-    /// For example, auto-updater will disable client forever if there is a
-    /// hard fork registered on-chain that we don't have capability for.
-    /// When hard fork block rolls around, the client (if `update` is false)
-    /// knows it can't proceed further.
-    enabled: AtomicBool,
+	/// Flag used to disable the client forever. Not to be confused with `liveness`.
+	///
+	/// For example, auto-updater will disable client forever if there is a
+	/// hard fork registered on-chain that we don't have capability for.
+	/// When hard fork block rolls around, the client (if `update` is false)
+	/// knows it can't proceed further.
+	enabled: AtomicBool,
 
-    /// Operating mode for the client
-    mode: Mutex<Mode>,
+	/// Operating mode for the client
+	mode: Mutex<Mode>,
 
-    chain: RwLock<Arc<BlockChain>>,
-    tracedb: RwLock<TraceDB<BlockChain>>,
-    engine: Arc<EthEngine>,
+	chain: RwLock<Arc<BlockChain>>,
+	tracedb: RwLock<TraceDB<BlockChain>>,
+	engine: Arc<EthEngine>,
 
-    /// Client configuration
-    config: ClientConfig,
+	/// Client configuration
+	config: ClientConfig,
 
-    /// Database pruning strategy to use for StateDB
-    pruning: journaldb::Algorithm,
+	/// Database pruning strategy to use for StateDB
+	pruning: journaldb::Algorithm,
 
-    /// Client uses this to store blocks, traces, etc.
-    db: RwLock<Arc<KeyValueDB>>,
+	/// Client uses this to store blocks, traces, etc.
+	db: RwLock<Arc<KeyValueDB>>,
 
-    state_db: RwLock<StateDB>,
+	state_db: RwLock<StateDB>,
 
-    /// Report on the status of client
-    report: RwLock<ClientReport>,
+	/// Report on the status of client
+	report: RwLock<ClientReport>,
 
-    sleep_state: Mutex<SleepState>,
+	sleep_state: Mutex<SleepState>,
 
-    /// Flag changed by `sleep` and `wake_up` methods. Not to be confused with `enabled`.
-    liveness: AtomicBool,
-    io_channel: Mutex<IoChannel<ClientIoMessage>>,
+	/// Flag changed by `sleep` and `wake_up` methods. Not to be confused with `enabled`.
+	liveness: AtomicBool,
+	io_channel: Mutex<IoChannel<ClientIoMessage>>,
 
-    /// List of actors to be notified on certain chain events
-    notify: RwLock<Vec<Weak<ChainNotify>>>,
+	/// List of actors to be notified on certain chain events
+	notify: RwLock<Vec<Weak<ChainNotify>>>,
 
 	/// Queued transactions from IO
 	queue_transactions: IoChannelQueue,
@@ -219,23 +219,23 @@ pub struct Client {
 	last_hashes: RwLock<VecDeque<H256>>,
 	factories: Factories,
 
-    /// Number of eras kept in a journal before they are pruned
-    history: u64,
+	/// Number of eras kept in a journal before they are pruned
+	history: u64,
 
-    /// An action to be done if a mode/spec_name change happens
-    on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
+	/// An action to be done if a mode/spec_name change happens
+	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
 
-    /// Link to a registry object useful for looking up names
-    registrar: registry::Registry,
-    registrar_address: Option<Address>,
+	/// Link to a registry object useful for looking up names
+	registrar: registry::Registry,
+	registrar_address: Option<Address>,
 
-    /// A closure to call when we want to restart the client
-    exit_handler: Mutex<Option<Box<Fn(String) + 'static + Send>>>,
+	/// A closure to call when we want to restart the client
+	exit_handler: Mutex<Option<Box<Fn(String) + 'static + Send>>>,
 
-    importer: Importer,
+	importer: Importer,
 
-    /// LRU cache to hold replayed block results that also limits cache memory consumption
-    replay_cache: Mutex<MemoryLruCache<H256, Vec<Executed>>>
+	/// LRU cache to hold replayed block results that also limits cache memory consumption
+	replay_cache: Mutex<MemoryLruCache<H256, Vec<Executed>>>
 }
 
 impl Importer {
@@ -778,7 +778,7 @@ impl Client {
 			registrar_address,
 			exit_handler: Mutex::new(None),
 			importer,
-            replay_cache: Mutex::new(MemoryLruCache::new(100000))
+			replay_cache: Mutex::new(MemoryLruCache::new(100000))
 		});
 
 		// prune old states.
@@ -1279,115 +1279,115 @@ impl Client {
 				=> Some(self.chain.read().best_block_header()),
 			BlockId::Number(number) if number == self.chain.read().best_block_number()
 				=> Some(self.chain.read().best_block_header()),
-			_   => self.block_header(id).and_then(|h| h.decode().ok())
+			_	=> self.block_header(id).and_then(|h| h.decode().ok())
 		}
 	}
 }
 
 impl snapshot::DatabaseRestore for Client {
-    /// Restart the client with a new backend
-    fn restore_db(&self, new_db: &str) -> Result<(), EthcoreError> {
-        trace!(target: "snapshot", "Replacing client database with {:?}", new_db);
+	/// Restart the client with a new backend
+	fn restore_db(&self, new_db: &str) -> Result<(), EthcoreError> {
+		trace!(target: "snapshot", "Replacing client database with {:?}", new_db);
 
-        let _import_lock = self.importer.import_lock.lock();
-        let mut state_db = self.state_db.write();
-        let mut chain = self.chain.write();
-        let mut tracedb = self.tracedb.write();
-        self.importer.miner.clear();
-        let db = self.db.write();
-        db.restore(new_db)?;
+		let _import_lock = self.importer.import_lock.lock();
+		let mut state_db = self.state_db.write();
+		let mut chain = self.chain.write();
+		let mut tracedb = self.tracedb.write();
+		self.importer.miner.clear();
+		let db = self.db.write();
+		db.restore(new_db)?;
 
-        let cache_size = state_db.cache_size();
-        *state_db = StateDB::new(journaldb::new(db.clone(), self.pruning, ::db::COL_STATE), cache_size);
-        *chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
-        *tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
-        Ok(())
-    }
+		let cache_size = state_db.cache_size();
+		*state_db = StateDB::new(journaldb::new(db.clone(), self.pruning, ::db::COL_STATE), cache_size);
+		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
+		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
+		Ok(())
+	}
 }
 
 impl Nonce for Client {
-    fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
-        self.state_at(id).and_then(|s| s.nonce(address).ok())
-    }
+	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
+		self.state_at(id).and_then(|s| s.nonce(address).ok())
+	}
 }
 
 impl Balance for Client {
-    fn balance(&self, address: &Address, state: StateOrBlock) -> Option<U256> {
-        match state {
-            StateOrBlock::State(s) => s.balance(address).ok(),
-            StateOrBlock::Block(id) => self.state_at(id).and_then(|s| s.balance(address).ok())
-        }
-    }
+	fn balance(&self, address: &Address, state: StateOrBlock) -> Option<U256> {
+		match state {
+			StateOrBlock::State(s) => s.balance(address).ok(),
+			StateOrBlock::Block(id) => self.state_at(id).and_then(|s| s.balance(address).ok())
+		}
+	}
 }
 
 impl AccountData for Client {}
 
 impl ChainInfo for Client {
-    fn chain_info(&self) -> BlockChainInfo {
-        let mut chain_info = self.chain.read().chain_info();
-        chain_info.pending_total_difficulty = chain_info.total_difficulty + self.importer.block_queue.total_difficulty();
-        chain_info
-    }
+	fn chain_info(&self) -> BlockChainInfo {
+		let mut chain_info = self.chain.read().chain_info();
+		chain_info.pending_total_difficulty = chain_info.total_difficulty + self.importer.block_queue.total_difficulty();
+		chain_info
+	}
 }
 
 impl BlockInfo for Client {
-    fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
-        let chain = self.chain.read();
+	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
+		let chain = self.chain.read();
 
-        Self::block_hash(&chain, id).and_then(|hash| chain.block_header_data(&hash))
-    }
+		Self::block_hash(&chain, id).and_then(|hash| chain.block_header_data(&hash))
+	}
 
-    fn best_block_header(&self) -> Header {
-        self.chain.read().best_block_header()
-    }
+	fn best_block_header(&self) -> Header {
+		self.chain.read().best_block_header()
+	}
 
-    fn block(&self, id: BlockId) -> Option<encoded::Block> {
-        let chain = self.chain.read();
+	fn block(&self, id: BlockId) -> Option<encoded::Block> {
+		let chain = self.chain.read();
 
-        Self::block_hash(&chain, id).and_then(|hash| chain.block(&hash))
-    }
+		Self::block_hash(&chain, id).and_then(|hash| chain.block(&hash))
+	}
 
-    fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
-        self.state_at(id).and_then(|s| s.code_hash(address).ok())
-    }
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
+		self.state_at(id).and_then(|s| s.code_hash(address).ok())
+	}
 }
 
 impl TransactionInfo for Client {
-    fn transaction_block(&self, id: TransactionId) -> Option<H256> {
-        self.transaction_address(id).map(|addr| addr.block_hash)
-    }
+	fn transaction_block(&self, id: TransactionId) -> Option<H256> {
+		self.transaction_address(id).map(|addr| addr.block_hash)
+	}
 }
 
 impl BlockChainTrait for Client {}
 
 impl RegistryInfo for Client {
-    fn registry_address(&self, name: String, block: BlockId) -> Option<Address> {
-        let address = self.registrar_address?;
+	fn registry_address(&self, name: String, block: BlockId) -> Option<Address> {
+		let address = self.registrar_address?;
 
-        self.registrar.functions()
-            .get_address()
-            .call(keccak(name.as_bytes()), "A", &|data| self.call_contract(block, address, data))
-            .ok()
-            .and_then(|a| if a.is_zero() {
-                None
-            } else {
-                Some(a)
-            })
-    }
+		self.registrar.functions()
+			.get_address()
+			.call(keccak(name.as_bytes()), "A", &|data| self.call_contract(block, address, data))
+			.ok()
+			.and_then(|a| if a.is_zero() {
+				None
+			} else {
+				Some(a)
+			})
+	}
 }
 
 impl CallContract for Client {
-    fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
-        let state_pruned = || CallError::StatePruned.to_string();
-        let state = &mut self.state_at(block_id).ok_or_else(&state_pruned)?;
-        let header = self.block_header_decoded(block_id).ok_or_else(&state_pruned)?;
+	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
+		let state_pruned = || CallError::StatePruned.to_string();
+		let state = &mut self.state_at(block_id).ok_or_else(&state_pruned)?;
+		let header = self.block_header_decoded(block_id).ok_or_else(&state_pruned)?;
 
-        let transaction = self.contract_call_tx(block_id, address, data);
+		let transaction = self.contract_call_tx(block_id, address, data);
 
-        self.call(&transaction, Default::default(), state, &header)
-            .map_err(|e| format!("{:?}", e))
-            .map(|executed| executed.output)
-    }
+		self.call(&transaction, Default::default(), state, &header)
+			.map_err(|e| format!("{:?}", e))
+			.map(|executed| executed.output)
+	}
 }
 
 impl ImportBlock for Client {
@@ -1412,15 +1412,15 @@ impl ImportBlock for Client {
 }
 
 impl StateClient for Client {
-    type State = State<::state_db::StateDB>;
+	type State = State<::state_db::StateDB>;
 
-    fn latest_state(&self) -> Self::State {
-        Client::latest_state(self)
-    }
+	fn latest_state(&self) -> Self::State {
+		Client::latest_state(self)
+	}
 
-    fn state_at(&self, id: BlockId) -> Option<Self::State> {
-        Client::state_at(self, id)
-    }
+	fn state_at(&self, id: BlockId) -> Option<Self::State> {
+		Client::state_at(self, id)
+	}
 }
 
 impl Call for Client {
@@ -1537,9 +1537,9 @@ impl Call for Client {
 }
 
 impl EngineInfo for Client {
-    fn engine(&self) -> &EthEngine {
-        Client::engine(self)
-    }
+	fn engine(&self) -> &EthEngine {
+		Client::engine(self)
+	}
 }
 
 impl BlockChainClient for Client {
@@ -1551,37 +1551,37 @@ impl BlockChainClient for Client {
 		Ok(self.replay_block_transactions(block, analytics)?.nth(address.index).expect(PROOF))
 	}
 
-    fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
-        let block_hash = self.block_hash(block).ok_or(CallError::StatePruned)?;
-        let data_cached = {
-            self.replay_cache.lock().get_mut(&block_hash).is_some()
-        };
-        if data_cached {
-            let mut guard = self.replay_cache.lock();
-            let cached = guard.get_mut(&block_hash).unwrap();
-            Ok(Box::new(cached.clone().into_iter()))
-        } else {
-            let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
-            let body = self.block_body(block).ok_or(CallError::StatePruned)?;
-            let mut state = self.state_at_beginning(block).ok_or(CallError::StatePruned)?;
-            let txs = body.transactions();
-            let engine = self.engine.clone();
+	fn replay_block_transactions(&self, block: BlockId, analytics: CallAnalytics) -> Result<Box<Iterator<Item = Executed>>, CallError> {
+		let block_hash = self.block_hash(block).ok_or(CallError::StatePruned)?;
+		let data_cached = {
+			self.replay_cache.lock().get_mut(&block_hash).is_some()
+		};
+		if data_cached {
+			let mut guard = self.replay_cache.lock();
+			let cached = guard.get_mut(&block_hash).unwrap();
+			Ok(Box::new(cached.clone().into_iter()))
+		} else {
+			let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+			let body = self.block_body(block).ok_or(CallError::StatePruned)?;
+			let mut state = self.state_at_beginning(block).ok_or(CallError::StatePruned)?;
+			let txs = body.transactions();
+			let engine = self.engine.clone();
 
-            const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
-            const EXECUTE_PROOF: &'static str = "Transaction replayed; qed";
+			const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
+			const EXECUTE_PROOF: &'static str = "Transaction replayed; qed";
 
-            let result: Vec<Executed> = txs.into_iter()
-                .map(move |t| {
-                    let t = SignedTransaction::new(t).expect(PROOF);
-                    let machine = engine.machine();
-                    let x = Self::do_virtual_call(machine, &env_info, &mut state, &t, analytics).expect(EXECUTE_PROOF);
-                    env_info.gas_used = env_info.gas_used + x.gas_used;
-                    x
-                }).collect();
-            self.replay_cache.lock().insert(block_hash, result.clone());
-            Ok(Box::new(result.into_iter()))
-        }
-    }
+			let result: Vec<Executed> = txs.into_iter()
+				.map(move |t| {
+					let t = SignedTransaction::new(t).expect(PROOF);
+					let machine = engine.machine();
+					let x = Self::do_virtual_call(machine, &env_info, &mut state, &t, analytics).expect(EXECUTE_PROOF);
+					env_info.gas_used = env_info.gas_used + x.gas_used;
+					x
+				}).collect();
+			self.replay_cache.lock().insert(block_hash, result.clone());
+			Ok(Box::new(result.into_iter()))
+		}
+	}
 
 
 	fn mode(&self) -> IpcMode {
@@ -2174,9 +2174,9 @@ impl PrepareOpenBlock for Client {
 impl BlockProducer for Client {}
 
 impl ScheduleInfo for Client {
-    fn latest_schedule(&self) -> Schedule {
-        self.engine.schedule(self.latest_env_info().number)
-    }
+	fn latest_schedule(&self) -> Schedule {
+		self.engine.schedule(self.latest_env_info().number)
+	}
 }
 
 impl ImportSealedBlock for Client {
@@ -2236,121 +2236,121 @@ impl ::miner::TransactionVerifierClient for Client {}
 impl ::miner::BlockChainClient for Client {}
 
 impl super::traits::EngineClient for Client {
-    fn update_sealing(&self) {
-        self.importer.miner.update_sealing(self)
-    }
+	fn update_sealing(&self) {
+		self.importer.miner.update_sealing(self)
+	}
 
-    fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-        let import = self.importer.miner.submit_seal(block_hash, seal).and_then(|block| self.import_sealed_block(block));
-        if let Err(err) = import {
-            warn!(target: "poa", "Wrong internal seal submission! {:?}", err);
-        }
-    }
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
+		let import = self.importer.miner.submit_seal(block_hash, seal).and_then(|block| self.import_sealed_block(block));
+		if let Err(err) = import {
+			warn!(target: "poa", "Wrong internal seal submission! {:?}", err);
+		}
+	}
 
-    fn broadcast_consensus_message(&self, message: Bytes) {
-        self.notify(|notify| notify.broadcast(ChainMessageType::Consensus(message.clone())));
-    }
+	fn broadcast_consensus_message(&self, message: Bytes) {
+		self.notify(|notify| notify.broadcast(ChainMessageType::Consensus(message.clone())));
+	}
 
-    fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {
-        self.chain.read().epoch_transition_for(parent_hash)
-    }
+	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {
+		self.chain.read().epoch_transition_for(parent_hash)
+	}
 
-    fn as_full_client(&self) -> Option<&BlockChainClient> { Some(self) }
+	fn as_full_client(&self) -> Option<&BlockChainClient> { Some(self) }
 
-    fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
-        BlockChainClient::block_number(self, id)
-    }
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		BlockChainClient::block_number(self, id)
+	}
 
-    fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
-        BlockChainClient::block_header(self, id)
-    }
+	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
+		BlockChainClient::block_header(self, id)
+	}
 }
 
 impl ProvingBlockChainClient for Client {
-    fn prove_storage(&self, key1: H256, key2: H256, id: BlockId) -> Option<(Vec<Bytes>, H256)> {
-        self.state_at(id)
-            .and_then(move |state| state.prove_storage(key1, key2).ok())
-    }
+	fn prove_storage(&self, key1: H256, key2: H256, id: BlockId) -> Option<(Vec<Bytes>, H256)> {
+		self.state_at(id)
+			.and_then(move |state| state.prove_storage(key1, key2).ok())
+	}
 
-    fn prove_account(&self, key1: H256, id: BlockId) -> Option<(Vec<Bytes>, ::types::basic_account::BasicAccount)> {
-        self.state_at(id)
-            .and_then(move |state| state.prove_account(key1).ok())
-    }
+	fn prove_account(&self, key1: H256, id: BlockId) -> Option<(Vec<Bytes>, ::types::basic_account::BasicAccount)> {
+		self.state_at(id)
+			.and_then(move |state| state.prove_account(key1).ok())
+	}
 
-    fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)> {
-        let (header, mut env_info) = match (self.block_header(id), self.env_info(id)) {
-            (Some(s), Some(e)) => (s, e),
-            _ => return None,
-        };
+	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)> {
+		let (header, mut env_info) = match (self.block_header(id), self.env_info(id)) {
+			(Some(s), Some(e)) => (s, e),
+			_ => return None,
+		};
 
-        env_info.gas_limit = transaction.gas.clone();
-        let mut jdb = self.state_db.read().journal_db().boxed_clone();
+		env_info.gas_limit = transaction.gas.clone();
+		let mut jdb = self.state_db.read().journal_db().boxed_clone();
 
-        state::prove_transaction(
-            jdb.as_hashdb_mut(),
-            header.state_root().clone(),
-            &transaction,
-            self.engine.machine(),
-            &env_info,
-            self.factories.clone(),
-            false,
-            )
-    }
+		state::prove_transaction(
+			jdb.as_hashdb_mut(),
+			header.state_root().clone(),
+			&transaction,
+			self.engine.machine(),
+			&env_info,
+			self.factories.clone(),
+			false,
+			)
+	}
 
 
-    fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>> {
-        // pending transitions are never deleted, and do not contain
-        // finality proofs by definition.
-        self.chain.read().get_pending_transition(hash).map(|pending| pending.proof)
-    }
+	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>> {
+		// pending transitions are never deleted, and do not contain
+		// finality proofs by definition.
+		self.chain.read().get_pending_transition(hash).map(|pending| pending.proof)
+	}
 }
 
 impl Drop for Client {
-    fn drop(&mut self) {
-        self.engine.stop();
-    }
+	fn drop(&mut self) {
+		self.engine.stop();
+	}
 }
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
 fn transaction_receipt(machine: &::machine::EthereumMachine, mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
-    assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
+	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
 
-    let sender = tx.sender();
-    let receipt = receipts.pop().expect("Current receipt is provided; qed");
-    let prior_gas_used = match tx.transaction_index {
-        0 => 0.into(),
-        i => receipts.get(i - 1).expect("All previous receipts are provided; qed").gas_used,
-    };
-    let no_of_logs = receipts.into_iter().map(|receipt| receipt.logs.len()).sum::<usize>();
-    let transaction_hash = tx.hash();
-    let block_hash = tx.block_hash;
-    let block_number = tx.block_number;
-    let transaction_index = tx.transaction_index;
+	let sender = tx.sender();
+	let receipt = receipts.pop().expect("Current receipt is provided; qed");
+	let prior_gas_used = match tx.transaction_index {
+		0 => 0.into(),
+		i => receipts.get(i - 1).expect("All previous receipts are provided; qed").gas_used,
+	};
+	let no_of_logs = receipts.into_iter().map(|receipt| receipt.logs.len()).sum::<usize>();
+	let transaction_hash = tx.hash();
+	let block_hash = tx.block_hash;
+	let block_number = tx.block_number;
+	let transaction_index = tx.transaction_index;
 
-    LocalizedReceipt {
-        transaction_hash: transaction_hash,
-        transaction_index: transaction_index,
-        block_hash: block_hash,
-        block_number: block_number,
-        cumulative_gas_used: receipt.gas_used,
-        gas_used: receipt.gas_used - prior_gas_used,
-        contract_address: match tx.action {
-            Action::Call(_) => None,
-            Action::Create => Some(contract_address(machine.create_address_scheme(block_number), &sender, &tx.nonce, &tx.data).0)
-        },
-        logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
-            entry: log,
-            block_hash: block_hash,
-            block_number: block_number,
-            transaction_hash: transaction_hash,
-            transaction_index: transaction_index,
-            transaction_log_index: i,
-            log_index: no_of_logs + i,
-        }).collect(),
-        log_bloom: receipt.log_bloom,
-        outcome: receipt.outcome,
-    }
+	LocalizedReceipt {
+		transaction_hash: transaction_hash,
+		transaction_index: transaction_index,
+		block_hash: block_hash,
+		block_number: block_number,
+		cumulative_gas_used: receipt.gas_used,
+		gas_used: receipt.gas_used - prior_gas_used,
+		contract_address: match tx.action {
+			Action::Call(_) => None,
+			Action::Create => Some(contract_address(machine.create_address_scheme(block_number), &sender, &tx.nonce, &tx.data).0)
+		},
+		logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
+			entry: log,
+			block_hash: block_hash,
+			block_number: block_number,
+			transaction_hash: transaction_hash,
+			transaction_index: transaction_index,
+			transaction_log_index: i,
+			log_index: no_of_logs + i,
+		}).collect(),
+		log_bloom: receipt.log_bloom,
+		outcome: receipt.outcome,
+	}
 }
 
 #[cfg(test)]

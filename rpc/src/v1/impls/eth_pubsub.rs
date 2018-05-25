@@ -48,83 +48,83 @@ type Client = Sink<pubsub::Result>;
 
 /// Eth PubSub implementation.
 pub struct EthPubSubClient<C> {
-    handler: Arc<ChainNotificationHandler<C>>,
-    heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
-    logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
-    transactions_subscribers: Arc<RwLock<Subscribers<Client>>>,
-    return_data_subscribers: Arc<RwLock<Subscribers<Client>>>,
+	handler: Arc<ChainNotificationHandler<C>>,
+	heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
+	logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
+	transactions_subscribers: Arc<RwLock<Subscribers<Client>>>,
+	return_data_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
 impl<C> EthPubSubClient<C> {
-    /// Creates new `EthPubSubClient`.
-    pub fn new(client: Arc<C>, remote: Remote) -> Self {
-        let heads_subscribers = Arc::new(RwLock::new(Subscribers::default()));
-        let logs_subscribers = Arc::new(RwLock::new(Subscribers::default()));
-        let transactions_subscribers = Arc::new(RwLock::new(Subscribers::default()));
-        let return_data_subscribers = Arc::new(RwLock::new(Subscribers::default()));
+	/// Creates new `EthPubSubClient`.
+	pub fn new(client: Arc<C>, remote: Remote) -> Self {
+		let heads_subscribers = Arc::new(RwLock::new(Subscribers::default()));
+		let logs_subscribers = Arc::new(RwLock::new(Subscribers::default()));
+		let transactions_subscribers = Arc::new(RwLock::new(Subscribers::default()));
+		let return_data_subscribers = Arc::new(RwLock::new(Subscribers::default()));
 
-        EthPubSubClient {
-            handler: Arc::new(ChainNotificationHandler {
-                client,
-                remote,
-                heads_subscribers: heads_subscribers.clone(),
-                logs_subscribers: logs_subscribers.clone(),
-                transactions_subscribers: transactions_subscribers.clone(),
-                return_data_subscribers: return_data_subscribers.clone(),
-            }),
-            heads_subscribers,
-            logs_subscribers,
-            transactions_subscribers,
-            return_data_subscribers,
-        }
-    }
+		EthPubSubClient {
+			handler: Arc::new(ChainNotificationHandler {
+				client,
+				remote,
+				heads_subscribers: heads_subscribers.clone(),
+				logs_subscribers: logs_subscribers.clone(),
+				transactions_subscribers: transactions_subscribers.clone(),
+				return_data_subscribers: return_data_subscribers.clone(),
+			}),
+			heads_subscribers,
+			logs_subscribers,
+			transactions_subscribers,
+			return_data_subscribers,
+		}
+	}
 
-    /// Creates new `EthPubSubClient` with deterministic subscription ids.
-    #[cfg(test)]
-    pub fn new_test(client: Arc<C>, remote: Remote) -> Self {
-        let client = Self::new(client, remote);
-        *client.heads_subscribers.write() = Subscribers::new_test();
-        *client.logs_subscribers.write() = Subscribers::new_test();
-        *client.transactions_subscribers.write() = Subscribers::new_test();
-        *client.return_data_subscribers.write() = Subscribers::new_test();
-        client
-    }
+	/// Creates new `EthPubSubClient` with deterministic subscription ids.
+	#[cfg(test)]
+	pub fn new_test(client: Arc<C>, remote: Remote) -> Self {
+		let client = Self::new(client, remote);
+		*client.heads_subscribers.write() = Subscribers::new_test();
+		*client.logs_subscribers.write() = Subscribers::new_test();
+		*client.transactions_subscribers.write() = Subscribers::new_test();
+		*client.return_data_subscribers.write() = Subscribers::new_test();
+		client
+	}
 
-    /// Returns a chain notification handler.
-    pub fn handler(&self) -> Weak<ChainNotificationHandler<C>> {
-        Arc::downgrade(&self.handler)
-    }
+	/// Returns a chain notification handler.
+	pub fn handler(&self) -> Weak<ChainNotificationHandler<C>> {
+		Arc::downgrade(&self.handler)
+	}
 }
 
 impl EthPubSubClient<LightFetch> {
-    /// Creates a new `EthPubSubClient` for `LightClient`.
-    pub fn light(
-        client: Arc<LightChainClient>,
-        on_demand: Arc<OnDemand>,
-        sync: Arc<LightSync>,
-        cache: Arc<Mutex<Cache>>,
-        remote: Remote,
-        gas_price_percentile: usize,
-        ) -> Self {
-        let fetch = LightFetch {
-            client,
-            on_demand,
-            sync,
-            cache,
-            gas_price_percentile,
-        };
-        EthPubSubClient::new(Arc::new(fetch), remote)
-    }
+	/// Creates a new `EthPubSubClient` for `LightClient`.
+	pub fn light(
+		client: Arc<LightChainClient>,
+		on_demand: Arc<OnDemand>,
+		sync: Arc<LightSync>,
+		cache: Arc<Mutex<Cache>>,
+		remote: Remote,
+		gas_price_percentile: usize,
+		) -> Self {
+		let fetch = LightFetch {
+			client,
+			on_demand,
+			sync,
+			cache,
+			gas_price_percentile,
+		};
+		EthPubSubClient::new(Arc::new(fetch), remote)
+	}
 }
 
 /// PubSub Notification handler.
 pub struct ChainNotificationHandler<C> {
-    client: Arc<C>,
-    remote: Remote,
-    heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
-    logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
-    transactions_subscribers: Arc<RwLock<Subscribers<Client>>>,
-    return_data_subscribers: Arc<RwLock<Subscribers<Client>>>,
+	client: Arc<C>,
+	remote: Remote,
+	heads_subscribers: Arc<RwLock<Subscribers<Client>>>,
+	logs_subscribers: Arc<RwLock<Subscribers<(Client, EthFilter)>>>,
+	transactions_subscribers: Arc<RwLock<Subscribers<Client>>>,
+	return_data_subscribers: Arc<RwLock<Subscribers<Client>>>,
 }
 
 impl<C> ChainNotificationHandler<C> {
@@ -180,27 +180,27 @@ impl<C> ChainNotificationHandler<C> {
 		}
 	}
 
-    fn notify_return_data<F, Ex>(&self, enacted: &[(H256, Ex)], calculate_return_data: F) where
-        F: Fn(H256, &Ex) -> Option<Vec<ReturnData>>,
-        Ex: Send,
-    {
-        let return_data = enacted
-            .iter()
-            .filter_map(|&(hash, ref ex)| {
-                match calculate_return_data(hash, ex) {
-                    Some(return_data) => Some(return_data),
-                    None => None,
-                }
-            })
-            .flat_map(|return_data| return_data)
-            .collect::<Vec<ReturnData>>();
+	fn notify_return_data<F, Ex>(&self, enacted: &[(H256, Ex)], calculate_return_data: F) where
+		F: Fn(H256, &Ex) -> Option<Vec<ReturnData>>,
+		Ex: Send,
+	{
+		let return_data = enacted
+			.iter()
+			.filter_map(|&(hash, ref ex)| {
+				match calculate_return_data(hash, ex) {
+					Some(return_data) => Some(return_data),
+					None => None,
+				}
+			})
+			.flat_map(|return_data| return_data)
+			.collect::<Vec<ReturnData>>();
 
-        for subscriber in self.return_data_subscribers.read().values() {
-            for return_datum in &return_data {
-                Self::notify(&self.remote, &subscriber, pubsub::Result::ReturnData(return_datum.clone()))
-            }
-        }
-    }
+		for subscriber in self.return_data_subscribers.read().values() {
+			for return_datum in &return_data {
+				Self::notify(&self.remote, &subscriber, pubsub::Result::ReturnData(return_datum.clone()))
+			}
+		}
+	}
 
 	/// Notify all subscribers about new transaction hashes.
 	pub fn new_transactions(&self, hashes: &[H256]) {
@@ -214,17 +214,17 @@ impl<C> ChainNotificationHandler<C> {
 
 /// A light client wrapper struct.
 pub trait LightClient: Send + Sync {
-    /// Get a recent block header.
-    fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
+	/// Get a recent block header.
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
-    /// Fetch logs.
-    fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>>;
+	/// Fetch logs.
+	fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>>;
 }
 
 impl LightClient for LightFetch {
-    fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
-        self.client.block_header(id)
-    }
+	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
+		self.client.block_header(id)
+	}
 
 	fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>> {
 		Box::new(LightFetch::logs(self, filter)) as BoxFuture<_>
@@ -289,91 +289,91 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 			}
 		});
 
-        fn replay_transactions<C: BlockChainClient>(client: &C, block_hash: H256, ex: &ChainRouteType) -> Option<Vec<ReturnData>> {
-            let analytics = CallAnalytics { transaction_tracing: false, vm_tracing: false, state_diffing: false, };
-            let id = BlockId::Hash(block_hash.clone());
-            let replayed = client.block_body(id)
-                .and_then(|body| {
-                    match client.replay_block_transactions(id, analytics) {
-                        Ok(executed) => Some(body.transaction_hashes().into_iter().zip(executed)),
-                        Err(e) => {
-                            warn!("Could not execute transactions on block {}; {:?}", block_hash, e);
-                            None
-                        }
-                    }
-                });
-            match replayed {
-                Some(replayed) => {
-                    Some(replayed
-                        .map(|(transaction_hash, executed)| {
-                            ReturnData {
-                                transaction_hash,
-                                return_data: RpcBytes::from(executed.output),
-                                removed: *ex == ChainRouteType::Retracted
-                            }
-                        })
-                        .collect::<Vec<ReturnData>>())
-                },
-                None => None
-            }
-        }
-        self.notify_return_data(route.route(), |block_hash, ex| replay_transactions::<C>(&self.client, block_hash, ex));
+		fn replay_transactions<C: BlockChainClient>(client: &C, block_hash: H256, ex: &ChainRouteType) -> Option<Vec<ReturnData>> {
+			let analytics = CallAnalytics { transaction_tracing: false, vm_tracing: false, state_diffing: false, };
+			let id = BlockId::Hash(block_hash.clone());
+			let replayed = client.block_body(id)
+				.and_then(|body| {
+					match client.replay_block_transactions(id, analytics) {
+						Ok(executed) => Some(body.transaction_hashes().into_iter().zip(executed)),
+						Err(e) => {
+							warn!("Could not execute transactions on block {}; {:?}", block_hash, e);
+							None
+						}
+					}
+				});
+			match replayed {
+				Some(replayed) => {
+					Some(replayed
+						.map(|(transaction_hash, executed)| {
+							ReturnData {
+								transaction_hash,
+								return_data: RpcBytes::from(executed.output),
+								removed: *ex == ChainRouteType::Retracted
+							}
+						})
+						.collect::<Vec<ReturnData>>())
+				},
+				None => None
+			}
+		}
+		self.notify_return_data(route.route(), |block_hash, ex| replay_transactions::<C>(&self.client, block_hash, ex));
 	}
 }
 
 impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
-    type Metadata = Metadata;
+	type Metadata = Metadata;
 
-    fn subscribe(
-        &self,
-        _meta: Metadata,
-        subscriber: Subscriber<pubsub::Result>,
-        kind: pubsub::Kind,
-        params: Trailing<pubsub::Params>,
-        ) {
-        let error = match (kind, params.into()) {
-            (pubsub::Kind::NewHeads, None) => {
-                self.heads_subscribers.write().push(subscriber);
-                return;
-            },
-            (pubsub::Kind::NewHeads, _) => {
-                errors::invalid_params("newHeads", "Expected no parameters.")
-            },
-            (pubsub::Kind::Logs, Some(pubsub::Params::Logs(filter))) => {
-                self.logs_subscribers.write().push(subscriber, filter.into());
-                return;
-            },
-            (pubsub::Kind::Logs, _) => {
-                errors::invalid_params("logs", "Expected a filter object.")
-            },
-            (pubsub::Kind::NewPendingTransactions, None) => {
-                self.transactions_subscribers.write().push(subscriber);
-                return;
-            },
-            (pubsub::Kind::NewPendingTransactions, _) => {
-                errors::invalid_params("newPendingTransactions", "Expected no parameters.")
-            },
-            (pubsub::Kind::ReturnData, None) => {
-                self.return_data_subscribers.write().push(subscriber);
-                return;
-            },
-            (pubsub::Kind::ReturnData, _) => {
-                errors::invalid_params("returnData", "Expected no parameters.")
-            },
-            _ => {
-                errors::unimplemented(None)
-            },
-        };
+	fn subscribe(
+		&self,
+		_meta: Metadata,
+		subscriber: Subscriber<pubsub::Result>,
+		kind: pubsub::Kind,
+		params: Trailing<pubsub::Params>,
+		) {
+		let error = match (kind, params.into()) {
+			(pubsub::Kind::NewHeads, None) => {
+				self.heads_subscribers.write().push(subscriber);
+				return;
+			},
+			(pubsub::Kind::NewHeads, _) => {
+				errors::invalid_params("newHeads", "Expected no parameters.")
+			},
+			(pubsub::Kind::Logs, Some(pubsub::Params::Logs(filter))) => {
+				self.logs_subscribers.write().push(subscriber, filter.into());
+				return;
+			},
+			(pubsub::Kind::Logs, _) => {
+				errors::invalid_params("logs", "Expected a filter object.")
+			},
+			(pubsub::Kind::NewPendingTransactions, None) => {
+				self.transactions_subscribers.write().push(subscriber);
+				return;
+			},
+			(pubsub::Kind::NewPendingTransactions, _) => {
+				errors::invalid_params("newPendingTransactions", "Expected no parameters.")
+			},
+			(pubsub::Kind::ReturnData, None) => {
+				self.return_data_subscribers.write().push(subscriber);
+				return;
+			},
+			(pubsub::Kind::ReturnData, _) => {
+				errors::invalid_params("returnData", "Expected no parameters.")
+			},
+			_ => {
+				errors::unimplemented(None)
+			},
+		};
 
-        let _ = subscriber.reject(error);
-    }
+		let _ = subscriber.reject(error);
+	}
 
-    fn unsubscribe(&self, id: SubscriptionId) -> Result<bool> {
-        let res = self.heads_subscribers.write().remove(&id).is_some();
-        let res2 = self.logs_subscribers.write().remove(&id).is_some();
-        let res3 = self.transactions_subscribers.write().remove(&id).is_some();
-        let res4 = self.return_data_subscribers.write().remove(&id).is_some();
+	fn unsubscribe(&self, id: SubscriptionId) -> Result<bool> {
+		let res = self.heads_subscribers.write().remove(&id).is_some();
+		let res2 = self.logs_subscribers.write().remove(&id).is_some();
+		let res3 = self.transactions_subscribers.write().remove(&id).is_some();
+		let res4 = self.return_data_subscribers.write().remove(&id).is_some();
 
-        Ok(res || res2 || res3 || res4)
-    }
+		Ok(res || res2 || res3 || res4)
+	}
 }
