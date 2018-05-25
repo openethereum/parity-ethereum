@@ -27,8 +27,10 @@ extern crate snappy;
 #[macro_use]
 extern crate error_chain;
 
+mod connection_filter;
 mod error;
 
+pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 pub use io::TimerToken;
 pub use error::{Error, ErrorKind, DisconnectReason};
 
@@ -330,10 +332,6 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 pub trait HostInfo {
 	/// Returns public key
 	fn id(&self) -> &NodeId;
-	/// Returns secret key
-	fn secret(&self) -> &Secret;
-    /// Returns the client version.
-	fn client_version(&self) -> &str;
 }
 
 /// Network IO protocol handler. This needs to be implemented for each new subprotocol.

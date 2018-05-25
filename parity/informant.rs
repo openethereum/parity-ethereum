@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -303,13 +303,13 @@ impl<T: InformantData> Informant<T> {
 						paint(White.bold(), format!("{}", chain_info.best_block_hash)),
 						if self.target.executes_transactions() {
 							format!("{} blk/s {} tx/s {} Mgas/s",
-								paint(Yellow.bold(), format!("{:4}", (client_report.blocks_imported * 1000) as u64 / elapsed.as_milliseconds())),
-								paint(Yellow.bold(), format!("{:4}", (client_report.transactions_applied * 1000) as u64 / elapsed.as_milliseconds())),
-								paint(Yellow.bold(), format!("{:3}", (client_report.gas_processed / From::from(elapsed.as_milliseconds() * 1000)).low_u64()))
+								paint(Yellow.bold(), format!("{:5.2}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_milliseconds() as f64)),
+								paint(Yellow.bold(), format!("{:6.1}", (client_report.transactions_applied * 1000) as f64 / elapsed.as_milliseconds() as f64)),
+								paint(Yellow.bold(), format!("{:4}", (client_report.gas_processed / From::from(elapsed.as_milliseconds() * 1000)).low_u64()))
 							)
 						} else {
 							format!("{} hdr/s",
-								paint(Yellow.bold(), format!("{:4}", (client_report.blocks_imported * 1000) as u64 / elapsed.as_milliseconds()))
+								paint(Yellow.bold(), format!("{:6.1}", (client_report.blocks_imported * 1000) as f64 / elapsed.as_milliseconds() as f64))
 							)
 						},
 						paint(Green.bold(), format!("{:5}", queue_info.unverified_queue_size)),
@@ -350,8 +350,8 @@ impl<T: InformantData> Informant<T> {
 				Some(ref rpc_stats) => format!(
 					"RPC: {} conn, {} req/s, {} µs",
 					paint(Blue.bold(), format!("{:2}", rpc_stats.sessions())),
-					paint(Blue.bold(), format!("{:2}", rpc_stats.requests_rate())),
-					paint(Blue.bold(), format!("{:3}", rpc_stats.approximated_roundtrip())),
+					paint(Blue.bold(), format!("{:4}", rpc_stats.requests_rate())),
+					paint(Blue.bold(), format!("{:4}", rpc_stats.approximated_roundtrip())),
 				),
 				_ => String::new(),
 			},
