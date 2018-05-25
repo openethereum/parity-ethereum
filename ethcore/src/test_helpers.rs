@@ -260,7 +260,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 
 pub fn new_db() -> Arc<BlockChainDB> {
 	struct TestBlockChainDB {
-		blooms_dir: TempDir,
+		_blooms_dir: TempDir,
 		blooms: RwLock<blooms_db::Database>,
 		key_value: Arc<KeyValueDB>,
 	}
@@ -279,7 +279,7 @@ pub fn new_db() -> Arc<BlockChainDB> {
 
 	let db = TestBlockChainDB {
 		blooms: RwLock::new(blooms_db::Database::open(tempdir.path()).unwrap()),
-		blooms_dir: tempdir,
+		_blooms_dir: tempdir,
 		key_value: Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap()))
 	};
 

@@ -15,13 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Trace database.
-use std::ops::Deref;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use blockchain::{BlockChainDB};
 use heapsize::HeapSizeOf;
 use ethereum_types::{H256, H264};
-use kvdb::{KeyValueDB, DBTransaction};
+use kvdb::{DBTransaction};
 use parking_lot::RwLock;
 use header::BlockNumber;
 use trace::{LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras};
@@ -83,7 +82,6 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 
 		TraceDB {
 			traces: RwLock::new(HashMap::new()),
-			//blooms: RwLock::new(HashMap::new()),
 			cache_manager: RwLock::new(CacheManager::new(config.pref_cache_size, config.max_cache_size, 10 * 1024)),
 			tracesdb: tracesdb,
 			enabled: config.enabled,
@@ -93,8 +91,6 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 
 	fn cache_size(&self) -> usize {
 		self.traces.read().heap_size_of_children()
-		//let blooms = self.blooms.read().heap_size_of_children();
-		//traces + blooms
 	}
 
 	/// Let the cache system know that a cacheable item has been used.
@@ -108,18 +104,15 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 		let current_size = self.cache_size();
 
 		let mut traces = self.traces.write();
-		//let mut blooms = self.blooms.write();
 		let mut cache_manager = self.cache_manager.write();
 
 		cache_manager.collect_garbage(current_size, | ids | {
 			for id in &ids {
 				match *id {
 					CacheId::Trace(ref h) => { traces.remove(h); },
-					//CacheId::Bloom(ref h) => { blooms.remove(h); },
 				}
 			}
 			traces.shrink_to_fit();
-			//blooms.shrink_to_fit();
 
 			traces.heap_size_of_children()
 		});
@@ -211,8 +204,6 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 		// now let's rebuild the blooms
 		if !request.enacted.is_empty() {
 			let range_start = request.block_number + 1 - request.enacted.len() as u64;
-			//let range_end = range_start + request.retracted;
-			//let replaced_range = range_start..range_end;
 			let enacted_blooms: Vec<_> = request.enacted
 				.iter()
 				// all traces are expected to be found here. That's why `expect` has been used
@@ -346,7 +337,6 @@ mod tests {
 	use std::sync::Arc;
 	use ethereum_types::{H256, U256, Address};
 	use kvdb::{DBTransaction, KeyValueDB};
-	use kvdb_memorydb;
 	use header::BlockNumber;
 	use trace::{Config, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest};
 	use trace::{Filter, LocalizedTrace, AddressesFilter, TraceError};

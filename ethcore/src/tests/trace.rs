@@ -16,7 +16,6 @@
 
 //! Client tests of tracing
 
-use tempdir::TempDir;
 use ethkey::KeyPair;
 use hash::keccak;
 use block::*;
@@ -26,7 +25,6 @@ use spec::*;
 use client::*;
 use test_helpers::get_temp_state_db;
 use client::{BlockChainClient, Client, ClientConfig};
-use kvdb_rocksdb::{Database, DatabaseConfig};
 use std::sync::Arc;
 use header::Header;
 use miner::Miner;

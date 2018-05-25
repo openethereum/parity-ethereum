@@ -30,7 +30,6 @@ use transaction::{Transaction, Action, SignedTransaction};
 use tempdir::TempDir;
 
 use ethereum_types::Address;
-use kvdb_memorydb;
 use test_helpers;
 
 use_contract!(test_validator_set, "ValidatorSet", "res/contracts/test_validator_set.json");

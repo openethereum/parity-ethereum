@@ -25,7 +25,6 @@ use engines::EthEngine;
 use snapshot::{Error, ManifestData};
 
 use ethereum_types::H256;
-use kvdb::KeyValueDB;
 
 mod authority;
 mod work;

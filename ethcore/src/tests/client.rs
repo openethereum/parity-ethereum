@@ -29,7 +29,6 @@ use test_helpers::{
 };
 use types::filter::Filter;
 use ethereum_types::{U256, Address};
-use kvdb_rocksdb::{Database, DatabaseConfig};
 use miner::Miner;
 use spec::Spec;
 use views::BlockView;
@@ -43,10 +42,7 @@ use test_helpers;
 #[test]
 fn imports_from_empty() {
 	let db = test_helpers::new_db();
-	//let tempdir = TempDir::new("").unwrap();
 	let spec = Spec::new_test();
-	//let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	//let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
@@ -64,8 +60,6 @@ fn should_return_registrar() {
 	let db = test_helpers::new_db();
 	let tempdir = TempDir::new("").unwrap();
 	let spec = ethereum::new_morden(&tempdir.path().to_owned());
-	//let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	//let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),

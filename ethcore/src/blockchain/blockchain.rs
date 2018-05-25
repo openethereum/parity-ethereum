@@ -1460,7 +1460,6 @@ mod tests {
 	use rustc_hex::FromHex;
 	use hash::keccak;
 	use kvdb::{KeyValueDB, DBTransaction};
-	use kvdb_memorydb;
 	use ethereum_types::*;
 	use receipt::{Receipt, TransactionOutcome};
 	use blockchain::{BlockProvider, BlockChain, BlockChainDB, Config, ImportRoute};

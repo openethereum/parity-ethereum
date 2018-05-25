@@ -16,7 +16,6 @@
 
 //! PoW block chunker and rebuilder tests.
 
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
 use error::{Error, ErrorKind};
@@ -29,7 +28,6 @@ use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use parking_lot::Mutex;
 use snappy;
 use kvdb::{KeyValueDB, DBTransaction};
-use kvdb_memorydb;
 use test_helpers;
 
 const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot { blocks: 30000, max_restore_blocks: 30000 };

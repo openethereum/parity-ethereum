@@ -24,11 +24,11 @@ use ids::BlockId;
 use snapshot::service::{Service, ServiceParams};
 use snapshot::{self, ManifestData, SnapshotService};
 use spec::Spec;
-use test_helpers::{self, generate_dummy_client_with_spec_and_data};
+use test_helpers::{generate_dummy_client_with_spec_and_data};
 use test_helpers_internal::restoration_db_handler;
 
 use io::IoChannel;
-use kvdb_rocksdb::{Database, DatabaseConfig};
+use kvdb_rocksdb::{DatabaseConfig};
 
 struct NoopDBRestore;
 

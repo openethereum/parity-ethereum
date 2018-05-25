@@ -40,7 +40,6 @@ use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use util_error::UtilError;
 use bytes::Bytes;
 use journaldb::Algorithm;
-use kvdb::{KeyValueDB, KeyValueDBHandler};
 use snappy;
 
 /// Helper for removing directories in case of error.
