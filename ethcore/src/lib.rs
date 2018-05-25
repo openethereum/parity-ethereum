@@ -58,7 +58,6 @@
 // error_chain foreign_links.
 #![recursion_limit="128"]
 
-extern crate bloomchain;
 extern crate blooms_db;
 extern crate bn;
 extern crate byteorder;
@@ -163,7 +162,6 @@ pub mod trace;
 pub mod verification;
 
 mod cache_manager;
-mod blooms;
 mod pod_account;
 mod account_db;
 mod builtin;

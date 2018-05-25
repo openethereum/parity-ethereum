@@ -719,7 +719,7 @@ impl Client {
 
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
-		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.key_value().clone(), chain.clone()));
+		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
 		trace!("Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
 
@@ -1292,10 +1292,11 @@ impl snapshot::DatabaseRestore for Client {
 		let db = self.db.write();
 		db.key_value().restore(new_db)?;
 
+		// TODO: restore blooms properly
 		let cache_size = state_db.cache_size();
 		*state_db = StateDB::new(journaldb::new(db.key_value().clone(), self.pruning, ::db::COL_STATE), cache_size);
 		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
-		*tracedb = TraceDB::new(self.config.tracing.clone(), db.key_value().clone(), chain.clone());
+		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
 		Ok(())
 	}
 }
