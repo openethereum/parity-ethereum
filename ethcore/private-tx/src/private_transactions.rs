@@ -237,13 +237,15 @@ impl VerificationStore {
 			.iter()
 			.for_each(|tx| {
 				hashes.push(tx.hash().clone());
-			});
+			}
+		);
 		let mut pool = self.verification_pool.write();
 		hashes
 			.iter()
 			.for_each(|hash| {
 				pool.remove(&hash, true);
-			});
+			}
+		);
 		res
 	}
 }
