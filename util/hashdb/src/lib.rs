@@ -16,63 +16,71 @@
 
 //! Database of byte-slices keyed to their Keccak hash.
 extern crate elastic_array;
-extern crate ethereum_types;
+//extern crate ethereum_types;
 
 use std::collections::HashMap;
 use elastic_array::ElasticArray128;
-use ethereum_types::H256;
+//use ethereum_types::H256;
 
+use std::{fmt::Debug, hash::Hash};
+
+pub trait Hasher: Sync + Send {
+	type Out: Debug + PartialEq + Eq + Clone + Copy + Hash + Send + Sync;
+	fn hash(x: &[u8]) -> Self::Out;
+}
 /// `HashDB` value type.
 pub type DBValue = ElasticArray128<u8>;
 
 /// Trait modelling datastore keyed by a 32-byte Keccak hash.
-pub trait HashDB: AsHashDB + Send + Sync {
+pub trait HashDB: Send + Sync {
+	type H: Hasher;
 	/// Get the keys in the database together with number of underlying references.
-	fn keys(&self) -> HashMap<H256, i32>;
+//	fn keys(&self) -> HashMap<H256, i32>;
+	fn keys(&self) -> HashMap<<Self::H as Hasher>::Out, i32>;
 
 	/// Look up a given hash into the bytes that hash to it, returning None if the
 	/// hash is not known.
-	fn get(&self, key: &H256) -> Option<DBValue>;
+	fn get(&self, key: &<Self::H as Hasher>::Out) -> Option<DBValue>;
 
 	/// Check for the existance of a hash-key.
-	fn contains(&self, key: &H256) -> bool;
+	fn contains(&self, key: &<Self::H as Hasher>::Out) -> bool;
 
 	/// Insert a datum item into the DB and return the datum's hash for a later lookup. Insertions
 	/// are counted and the equivalent number of `remove()`s must be performed before the data
 	/// is considered dead.
-	fn insert(&mut self, value: &[u8]) -> H256;
+	fn insert(&mut self, value: &[u8]) -> <Self::H as Hasher>::Out;
 
 	/// Like `insert()` , except you provide the key and the data is all moved.
-	fn emplace(&mut self, key: H256, value: DBValue);
+	fn emplace(&mut self, key: <Self::H as Hasher>::Out, value: DBValue);
 
 	/// Remove a datum previously inserted. Insertions can be "owed" such that the same number of `insert()`s may
 	/// happen without the data being eventually being inserted into the DB. It can be "owed" more than once.
-	fn remove(&mut self, key: &H256);
+	fn remove(&mut self, key: &<Self::H as Hasher>::Out);
 }
 
-/// Upcast trait.
-pub trait AsHashDB {
-	/// Perform upcast to HashDB for anything that derives from HashDB.
-	fn as_hashdb(&self) -> &HashDB;
-	/// Perform mutable upcast to HashDB for anything that derives from HashDB.
-	fn as_hashdb_mut(&mut self) -> &mut HashDB;
-}
-
-impl<T: HashDB> AsHashDB for T {
-	fn as_hashdb(&self) -> &HashDB {
-		self
-	}
-	fn as_hashdb_mut(&mut self) -> &mut HashDB {
-		self
-	}
-}
-
-impl<'a> AsHashDB for &'a mut HashDB {
-	fn as_hashdb(&self) -> &HashDB {
-		&**self
-	}
-
-	fn as_hashdb_mut(&mut self) -> &mut HashDB {
-		&mut **self
-	}
-}
+///// Upcast trait.
+//pub trait AsHashDB<HF:Hasher> {
+//	/// Perform upcast to HashDB for anything that derives from HashDB.
+//	fn as_hashdb(&self) -> &HashDB<H=HF>;
+//	/// Perform mutable upcast to HashDB for anything that derives from HashDB.
+//	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=HF>;
+//}
+//
+//impl<HF: Hasher, T: HashDB<H=HF>> AsHashDB<HF> for T {
+//	fn as_hashdb(&self) -> &HashDB<H=HF> {
+//		self
+//	}
+//	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=HF> {
+//		self
+//	}
+//}
+//
+//impl<'a> AsHashDB for &'a mut HashDB {
+//	fn as_hashdb(&self) -> &HashDB {
+//		&**self
+//	}
+//
+//	fn as_hashdb_mut(&mut self) -> &mut HashDB {
+//		&mut **self
+//	}
+//}
