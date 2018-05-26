@@ -19,7 +19,7 @@
 use std::path::Path;
 use std::sync::Arc;
 use parking_lot::RwLock;
-use kvdb::{KeyValueDB, KeyValueDBHandler};
+use kvdb::{KeyValueDB};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use blockchain::{BlockChainDBHandler, BlockChainDB};
 use blooms_db;

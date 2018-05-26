@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Trace database.
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, BTreeSet, VecDeque};
 use std::sync::Arc;
 use blockchain::{BlockChainDB};
 use heapsize::HeapSizeOf;
@@ -315,19 +315,25 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 	}
 
 	fn filter(&self, filter: &Filter) -> Vec<LocalizedTrace> {
-		unimplemented!();
-		//let chain = BloomGroupChain::new(self.bloom_config, self);
-		//let numbers = chain.filter(filter);
-		//numbers.into_iter()
-			//.flat_map(|n| {
-				//let number = n as BlockNumber;
-				//let hash = self.extras.block_hash(number)
-					//.expect("Expected to find block hash. Extras db is probably corrupted");
-				//let traces = self.traces(&hash)
-					//.expect("Expected to find a trace. Db is probably corrupted.");
-				//self.matching_block_traces(filter, traces, hash, number)
-			//})
-			//.collect()
+		let possibilities = filter.bloom_possibilities();
+		let blooms_db = self.tracesdb.blooms().read();
+		let numbers = possibilities.iter()
+			.map(|bloom| blooms_db.iterate_matching(filter.range.start as u64, filter.range.end as u64, bloom)?.collect::<Result<Vec<_>, _>>())
+			.collect::<Result<Vec<_>, _>>().expect("TODO: blooms pr")
+			.into_iter()
+			.flat_map(|n| n)
+			.collect::<BTreeSet<_>>();
+
+		numbers.into_iter()
+			.flat_map(|n| {
+				let number = n as BlockNumber;
+				let hash = self.extras.block_hash(number)
+					.expect("Expected to find block hash. Extras db is probably corrupted");
+				let traces = self.traces(&hash)
+					.expect("Expected to find a trace. Db is probably corrupted.");
+				self.matching_block_traces(filter, traces, hash, number)
+			})
+			.collect()
 	}
 }
 
@@ -336,7 +342,7 @@ mod tests {
 	use std::collections::HashMap;
 	use std::sync::Arc;
 	use ethereum_types::{H256, U256, Address};
-	use kvdb::{DBTransaction, KeyValueDB};
+	use kvdb::{DBTransaction};
 	use header::BlockNumber;
 	use trace::{Config, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest};
 	use trace::{Filter, LocalizedTrace, AddressesFilter, TraceError};
@@ -532,6 +538,7 @@ mod tests {
 		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.key_value().write(batch).unwrap();
+		db.blooms().write().flush().unwrap();
 
 		let filter = Filter {
 			range: (1..1),
@@ -548,6 +555,7 @@ mod tests {
 		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.key_value().write(batch).unwrap();
+		db.blooms().write().flush().unwrap();
 
 		let filter = Filter {
 			range: (1..2),

@@ -1459,7 +1459,7 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
-	use kvdb::{KeyValueDB, DBTransaction};
+	use kvdb::{DBTransaction};
 	use ethereum_types::*;
 	use receipt::{Receipt, TransactionOutcome};
 	use blockchain::{BlockProvider, BlockChain, BlockChainDB, Config, ImportRoute};

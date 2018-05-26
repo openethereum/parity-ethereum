@@ -89,7 +89,7 @@ pub struct Filter {
 
 impl Filter {
 	/// Returns combinations of each address.
-	fn bloom_possibilities(&self) -> Vec<Bloom> {
+	pub fn bloom_possibilities(&self) -> Vec<Bloom> {
 		self.to_address.with_blooms(self.from_address.blooms())
 	}
 

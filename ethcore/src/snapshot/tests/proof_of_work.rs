@@ -27,7 +27,7 @@ use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
 use parking_lot::Mutex;
 use snappy;
-use kvdb::{KeyValueDB, DBTransaction};
+use kvdb::{DBTransaction};
 use test_helpers;
 
 const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot { blocks: 30000, max_restore_blocks: 30000 };
