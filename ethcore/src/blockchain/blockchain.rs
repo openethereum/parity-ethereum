@@ -52,11 +52,18 @@ use std::path::Path;
 
 /// Database backing `BlockChain`.
 pub trait BlockChainDB: Send + Sync {
+	/// Generic key value store.
 	fn key_value(&self) -> &Arc<KeyValueDB>;
 
+	/// Header blooms database.
 	fn blooms(&self) -> &RwLock<blooms_db::Database>;
+
+	/// Trace blooms database.
+	fn trace_blooms(&self) -> &RwLock<blooms_db::Database>;
 }
 
+/// Generic database handler. This trait contains one function `open`. When called, it opens database with a
+/// predefined config.
 pub trait BlockChainDBHandler: Send + Sync {
 	/// Open the predefined key-value database.
 	fn open(&self, path: &Path) -> Result<Arc<BlockChainDB>, Error>;

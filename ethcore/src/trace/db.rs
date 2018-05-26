@@ -59,31 +59,31 @@ enum CacheId {
 /// touched, which have been created during the execution of transaction, and
 /// which calls failed.
 pub struct TraceDB<T> where T: DatabaseExtras {
-	// cache
+	/// cache
 	traces: RwLock<HashMap<H256, FlatBlockTraces>>,
 	cache_manager: RwLock<CacheManager<CacheId>>,
-	// db
-	tracesdb: Arc<BlockChainDB>,
-	// tracing enabled
+	/// db
+	db: Arc<BlockChainDB>,
+	/// tracing enabled
 	enabled: bool,
-	// extras
+	/// extras
 	extras: Arc<T>,
 }
 
 impl<T> TraceDB<T> where T: DatabaseExtras {
 	/// Creates new instance of `TraceDB`.
-	pub fn new(config: Config, tracesdb: Arc<BlockChainDB>, extras: Arc<T>) -> Self {
+	pub fn new(config: Config, db: Arc<BlockChainDB>, extras: Arc<T>) -> Self {
 		let mut batch = DBTransaction::new();
 		let genesis = extras.block_hash(0)
 			.expect("Genesis block is always inserted upon extras db creation qed");
 		batch.write(db::COL_TRACE, &genesis, &FlatBlockTraces::default());
 		batch.put(db::COL_TRACE, b"version", TRACE_DB_VER);
-		tracesdb.key_value().write(batch).expect("failed to update version");
+		db.key_value().write(batch).expect("failed to update version");
 
 		TraceDB {
 			traces: RwLock::new(HashMap::new()),
 			cache_manager: RwLock::new(CacheManager::new(config.pref_cache_size, config.max_cache_size, 10 * 1024)),
-			tracesdb: tracesdb,
+			db,
 			enabled: config.enabled,
 			extras: extras,
 		}
@@ -120,7 +120,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 
 	/// Returns traces for block with hash.
 	fn traces(&self, block_hash: &H256) -> Option<FlatBlockTraces> {
-		let result = self.tracesdb.key_value().read_with_cache(db::COL_TRACE, &self.traces, block_hash);
+		let result = self.db.key_value().read_with_cache(db::COL_TRACE, &self.traces, block_hash);
 		self.note_used(CacheId::Trace(block_hash.clone()));
 		result
 	}
@@ -217,7 +217,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				.collect();
 
 			// TODO: replace it with database for trace blooms
-			self.tracesdb.blooms().write().insert_blooms(range_start, enacted_blooms.iter()).expect("TODO: blooms pr");
+			self.db.trace_blooms().write().insert_blooms(range_start, enacted_blooms.iter()).expect("TODO: blooms pr");
 		}
 
 		// insert new block traces into the cache and the database
@@ -316,7 +316,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 	fn filter(&self, filter: &Filter) -> Vec<LocalizedTrace> {
 		let possibilities = filter.bloom_possibilities();
-		let blooms_db = self.tracesdb.blooms().read();
+		let blooms_db = self.db.trace_blooms().read();
 		let numbers = possibilities.iter()
 			.map(|bloom| blooms_db.iterate_matching(filter.range.start as u64, filter.range.end as u64, bloom)?.collect::<Result<Vec<_>, _>>())
 			.collect::<Result<Vec<_>, _>>().expect("TODO: blooms pr")
@@ -538,7 +538,7 @@ mod tests {
 		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.key_value().write(batch).unwrap();
-		db.blooms().write().flush().unwrap();
+		db.trace_blooms().write().flush().unwrap();
 
 		let filter = Filter {
 			range: (1..1),
@@ -555,7 +555,7 @@ mod tests {
 		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.key_value().write(batch).unwrap();
-		db.blooms().write().flush().unwrap();
+		db.trace_blooms().write().flush().unwrap();
 
 		let filter = Filter {
 			range: (1..2),

@@ -337,7 +337,10 @@ impl Importer {
 			}
 		}
 
-		client.db.read().key_value().flush().expect("DB flush failed.");
+		let db = client.db.read();
+		db.key_value().flush().expect("DB flush failed.");
+		db.blooms().write().flush().expect("DB flush failed.");
+		db.trace_blooms().write().flush().expect("DB flush failed.");
 		imported
 	}
 
