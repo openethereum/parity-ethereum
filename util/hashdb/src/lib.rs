@@ -21,7 +21,6 @@ extern crate heapsize;
 
 use std::collections::HashMap;
 use elastic_array::ElasticArray128;
-//use ethereum_types::H256;
 
 use std::{fmt::Debug, hash::Hash};
 use heapsize::HeapSizeOf;
@@ -60,6 +59,7 @@ pub trait HashDB: Send + Sync {
 	fn remove(&mut self, key: &<Self::H as Hasher>::Out);
 }
 
+// TODO: Figure out what these do and if they're needed
 ///// Upcast trait.
 //pub trait AsHashDB<HF:Hasher> {
 //	/// Perform upcast to HashDB for anything that derives from HashDB.
