@@ -17,15 +17,18 @@
 //! Database of byte-slices keyed to their Keccak hash.
 extern crate elastic_array;
 //extern crate ethereum_types;
+extern crate heapsize;
 
 use std::collections::HashMap;
 use elastic_array::ElasticArray128;
 //use ethereum_types::H256;
 
 use std::{fmt::Debug, hash::Hash};
+use heapsize::HeapSizeOf;
 
 pub trait Hasher: Sync + Send {
-	type Out: Debug + PartialEq + Eq + Clone + Copy + Hash + Send + Sync;
+	type Out: Debug + PartialEq + Eq + Clone + Copy + Hash + Send + Sync + HeapSizeOf;
+	const HASHED_NULL_RLP: Self::Out;
 	fn hash(x: &[u8]) -> Self::Out;
 }
 /// `HashDB` value type.
