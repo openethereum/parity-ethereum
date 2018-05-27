@@ -342,18 +342,26 @@ mod tests {
 		assert_eq!(overlay.get(&negative_remove_key).unwrap(), &(DBValue::from_slice(b"negative"), -2));
 	}
 
-//	#[test]
-//	fn other_hashers() {
-//		struct DummyHasher;
-//		impl Hasher for DummyHasher {
-//			type Out = u8;
-//			fn hash(x:&[u8]) -> Self::Out {
-//				x[0]
-//			}
-//		}
-//		let db = MemoryDB::<DummyHasher>::new();
-//		let key = db.insert(b"321");
-//
-//		assert_eq!(key, 3u8);
-//	}
+	#[test]
+	fn other_hashers() {
+		struct DummyHasher;
+		impl Hasher for DummyHasher {
+			// TODO: Trying to use a type that isn't H256 fails because of the tight coupling between memorydb and plain_hasher (specifically the assert on key length == 32)
+			// It looks like this work must touch H256FastMap as well.
+			type Out = ethereum_types::H264;
+			const HASHED_NULL_RLP: ethereum_types::H264= ethereum_types::H264([0; 33]);
+			fn hash(_x: &[u8]) -> Self::Out {
+				ethereum_types::H264(*b"010102020101020201010202010102025")
+
+			}
+		}
+
+		impl HeapSizeOf for DummyHasher {
+			fn heap_size_of_children(&self) -> usize { 0 }
+		}
+		let mut db = MemoryDB::<DummyHasher>::new();
+//		let key = db.insert(b"32103210321032103210321032103210");
+		// Fails
+//		assert_eq!(key, ethereum_types::H264(*b"010102020101020201010202010102025"));
+	}
 }

@@ -27,7 +27,7 @@ use std::{fmt::Debug, hash::Hash};
 use heapsize::HeapSizeOf;
 
 pub trait Hasher: Sync + Send {
-	type Out: Debug + PartialEq + Eq + Clone + Copy + Hash + Send + Sync + HeapSizeOf;
+	type Out: Debug + PartialEq + Eq + Clone + Copy + Hash + Send + Sync /* REVIEW: how do I get around this? */ + HeapSizeOf;
 	const HASHED_NULL_RLP: Self::Out;
 	fn hash(x: &[u8]) -> Self::Out;
 }
@@ -38,7 +38,6 @@ pub type DBValue = ElasticArray128<u8>;
 pub trait HashDB: Send + Sync {
 	type H: Hasher;
 	/// Get the keys in the database together with number of underlying references.
-//	fn keys(&self) -> HashMap<H256, i32>;
 	fn keys(&self) -> HashMap<<Self::H as Hasher>::Out, i32>;
 
 	/// Look up a given hash into the bytes that hash to it, returning None if the
