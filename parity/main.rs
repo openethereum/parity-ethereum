@@ -36,34 +36,40 @@ use std::io::{self as stdio, Read, Write};
 use std::fs::{remove_file, metadata, File, create_dir_all};
 use std::path::PathBuf;
 use std::sync::Arc;
+
 use ctrlc::CtrlC;
 use dir::default_hypervisor_path;
 use fdlimit::raise_fd_limit;
 use parity::{start, ExecutionAction};
 use parking_lot::{Condvar, Mutex};
+use std::fs::{remove_file, metadata, File, create_dir_all};
+use std::io::{self as stdio, Read, Write};
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::{process, env};
 
-fn updates_path(name: &str) -> PathBuf {
+fn update_path(name: &str) -> PathBuf {
 	let mut dest = PathBuf::from(default_hypervisor_path());
 	dest.push(name);
 	dest
 }
 
 fn latest_exe_path() -> Option<PathBuf> {
-	File::open(updates_path("latest")).ok()
-		.and_then(|mut f| { let mut exe = String::new(); f.read_to_string(&mut exe).ok().map(|_| updates_path(&exe)) })
+	File::open(update_path("latest")).ok()
+		.and_then(|mut f| { let mut exe = String::new(); f.read_to_string(&mut exe).ok().map(|_| update_path(&exe)) })
 }
 
 fn set_spec_name_override(spec_name: String) {
 	if let Err(e) = create_dir_all(default_hypervisor_path())
-		.and_then(|_| File::create(updates_path("spec_name_override"))
+		.and_then(|_| File::create(update_path("spec_name_override"))
 		.and_then(|mut f| f.write_all(spec_name.as_bytes())))
 	{
-		warn!("Couldn't override chain spec: {} at {:?}", e, updates_path("spec_name_override"));
+		warn!("Couldn't override chain spec: {} at {:?}", e, update_path("spec_name_override"));
 	}
 }
 
 fn take_spec_name_override() -> Option<String> {
-	let p = updates_path("spec_name_override");
+	let p = update_path("spec_name_override");
 	let r = File::open(p.clone()).ok()
 		.and_then(|mut f| { let mut spec_name = String::new(); f.read_to_string(&mut spec_name).ok().map(|_| spec_name) });
 	let _ = remove_file(p);
@@ -106,9 +112,13 @@ fn run_parity() -> Option<i32> {
 		.status()
 		.map(|es| es.code().unwrap_or(128))
 		.ok()
+        .map(|c| {
+            if c == 0 { None } else { Some(c) }
+        })
 	);
 	global_cleanup();
-	res
+
+    res?
 }
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
@@ -310,7 +320,10 @@ fn main() {
 			trace_main!("Starting... (have-update: {}, non-updated-current: {}, update-is-newer: {})", have_update, is_non_updated_current, update_is_newer);
 			let exit_code = if have_update && is_non_updated_current && update_is_newer {
 				trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
-				run_parity().unwrap_or_else(|| { trace_main!("Falling back to local..."); main_direct(true) })
+				run_parity().unwrap_or_else(|| { 
+                    trace_main!("Falling back to local..."); 
+                    main_direct(true) 
+                })
 			} else {
 				trace_main!("No latest update. Attempting to direct...");
 				main_direct(true)
