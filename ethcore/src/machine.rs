@@ -498,12 +498,6 @@ impl EthereumMachine {
 			}
 		};
 
-		if let Some(ref ethash_params) = self.ethash_extensions {
-			if block_number >= ethash_params.hybrid_casper_transition {
-				schedule.eip86 = true;
-			}
-		}
-
 		if let Some(ref rules) = self.schedule_rules {
 			(rules)(&mut schedule, block_number)
 		}

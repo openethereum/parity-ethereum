@@ -182,9 +182,16 @@ impl Ethash {
 	pub fn new<T: Into<Option<OptimizeFor>>>(
 		cache_dir: &Path,
 		ethash_params: EthashParams,
-		machine: EthereumMachine,
+		mut machine: EthereumMachine,
 		optimize_for: T,
 	) -> Arc<Self> {
+		let hybrid_casper_transition = ethash_params.hybrid_casper_transition;
+		machine.set_schedule_creation_rules(Box::new(move |schedule, block_number| {
+			if block_number >= hybrid_casper_transition {
+				schedule.eip86 = true;
+			}
+		}));
+
 		Arc::new(Ethash {
 			casper: HybridCasper::new(ethash_params.hybrid_casper_params.clone()),
 			ethash_params,
