@@ -48,15 +48,55 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::{process, env};
 
+const PLEASE_RESTART_EXIT_CODE: i32 = 69;
+
+#[derive(Debug)]
+enum Error {
+	BinaryNotFound,
+	StatusCode(i32),
+	UnknownStatusCode,
+}
+
+// impl From<Error> for i32 {
+//     fn from(err: Error) -> Self {
+//         match err {
+//             // Updated `parity` binary not found
+//             Error::BinaryNotFound => -1,
+//             // Error status code
+//             Error::StatusCode(c) => c,
+//             // Failed to parse error status code
+//             Error::UnknownStatusCode => -2,
+//         }
+//     }
+// }
+
 fn update_path(name: &str) -> PathBuf {
 	let mut dest = PathBuf::from(default_hypervisor_path());
 	dest.push(name);
 	dest
 }
 
-fn latest_exe_path() -> Option<PathBuf> {
-	File::open(update_path("latest")).ok()
-		.and_then(|mut f| { let mut exe = String::new(); f.read_to_string(&mut exe).ok().map(|_| update_path(&exe)) })
+fn latest_exe_path() -> Result<PathBuf, Error> {
+	File::open(update_path("latest")).and_then(|mut f| { 
+			let mut exe = String::new(); 
+			println!("latest_exe: {:?}", f); 
+			f.read_to_string(&mut exe).map(|_| update_path(&exe))
+	}).or(Err(Error::BinaryNotFound))
+
+}
+
+fn latest_binary_is_newer(current_binary: &Option<PathBuf>, latest_binary: &Option<PathBuf>) -> bool {
+	match (
+		current_binary.as_ref()
+			.and_then(|p| metadata(p.as_path()).ok())
+			.and_then(|m| m.modified().ok()),
+		latest_binary.as_ref()
+			.and_then(|p| metadata(p.as_path()).ok())
+			.and_then(|m| m.modified().ok())
+    ) {
+			(Some(latest_exe_time), Some(this_exe_time)) if latest_exe_time > this_exe_time => true,
+			_ => false,
+	}
 }
 
 fn set_spec_name_override(spec_name: String) {
@@ -71,7 +111,10 @@ fn set_spec_name_override(spec_name: String) {
 fn take_spec_name_override() -> Option<String> {
 	let p = update_path("spec_name_override");
 	let r = File::open(p.clone()).ok()
-		.and_then(|mut f| { let mut spec_name = String::new(); f.read_to_string(&mut spec_name).ok().map(|_| spec_name) });
+		.and_then(|mut f| { 
+			let mut spec_name = String::new(); 
+			f.read_to_string(&mut spec_name).ok().map(|_| spec_name) 
+		});
 	let _ = remove_file(p);
 	r
 }
@@ -103,25 +146,34 @@ fn global_init() {
 fn global_cleanup() {}
 
 // Starts ~/.parity-updates/parity and returns the code it exits with.
-fn run_parity() -> Option<i32> {
+fn run_parity() -> Result<(), Error> {
 	global_init();
 	use ::std::ffi::OsString;
-	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct")];
-	let res = latest_exe_path().and_then(|exe| process::Command::new(exe)
+	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct"), OsString::from("--foo")];
+	
+	let res: Result<(), Error> = latest_exe_path().and_then(|exe| process::Command::new(exe)
 		.args(&(env::args_os().skip(1).chain(prefix.into_iter()).collect::<Vec<_>>()))
 		.status()
-		.map(|es| es.code().unwrap_or(128))
 		.ok()
-        .map(|c| {
-            if c == 0 { None } else { Some(c) }
-        })
-	);
+		.map_or(Err(Error::UnknownStatusCode), |es| {
+			match es.code() {
+
+				// Process success
+				Some(0) => Ok(()),
+
+				// Process error code `c`
+				Some(c) => Err(Error::StatusCode(c)),
+				
+				// Unknown error, couldn't determine error code
+				_ => Err(Error::UnknownStatusCode),
+			}
+		})
+	);	
+
 	global_cleanup();
 
-    res?
+	res
 }
-
-const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 
 #[derive(Debug)]
 /// Status used to exit or restart the program.
@@ -136,7 +188,7 @@ struct ExitStatus {
 	spec_name_override: Option<String>,
 }
 
-// Run our version of parity.
+// Run `locally installed version` of parity (i.e, not if any is installed via `parity-updater`)
 // Returns the exit error code.
 fn main_direct(force_can_restart: bool) -> i32 {
 	global_init();
@@ -291,39 +343,62 @@ macro_rules! trace_main {
 fn main() {
 	panic_hook::set_abort();
 
-	// assuming the user is not running with `--force-direct`, then:
-	// if argv[0] == "parity" and this executable != ~/.parity-updates/parity, run that instead.
+	// the user has specified to run its originally installed binary (not via `parity-updater`)
 	let force_direct = std::env::args().any(|arg| arg == "--force-direct");
-	let exe = std::env::current_exe().ok();
-	let development = exe.as_ref().and_then(|p| p.parent().and_then(|p| p.parent()).and_then(|p| p.file_name()).map(|n| n == "target")).unwrap_or(false);
-	let same_name = exe.as_ref().map(|p| p.file_stem().map_or(false, |s| s == "parity") && p.extension().map_or(true, |x| x == "exe")).unwrap_or(false);
-	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name);
+	
+	// absolute path to the current `binary`
+	let exe_path = std::env::current_exe().ok();
+	
+    // the binary is named `target/xx/yy`
+	let development = exe_path.as_ref()
+		.and_then(|p| p.parent()
+		.and_then(|p| p.parent())
+		.and_then(|p| p.file_name())
+		.map(|n| n == "target"))
+		.unwrap_or(false);
+	
+    // the binary is named `parity`
+	let same_name = exe_path.as_ref()
+		.map(|p| p.file_stem()
+		.map_or(false, |s| s == "parity") && p.extension().map_or(true, |x| x == "exe"))
+		.unwrap_or(false);
+	
+    trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name);
+	println!("force_direct: {:?} \t development: {:?} \t same_name: {:?}", force_direct, development, same_name);
+	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", 
+                std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name);
+
 	if !force_direct && !development && same_name {
-		// looks like we're not running ~/.parity-updates/parity when the user is expecting otherwise.
+		// Try to run the latest installed verison of `parity`, if it fails fall back into the
+		// locally installed version of `parity`
 		// Everything run inside a loop, so we'll be able to restart from the child into a new version seamlessly.
 		loop {
-			// If we fail to run the updated parity then fallback to local version.
-			let latest_exe = latest_exe_path();
-			let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
-			let is_non_updated_current = exe.as_ref().map_or(false, |exe| latest_exe.as_ref().map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
-			let update_is_newer = match (
-				latest_exe.as_ref()
-					.and_then(|p| metadata(p.as_path()).ok())
-					.and_then(|m| m.modified().ok()),
-				exe.as_ref()
-					.and_then(|p| metadata(p.as_path()).ok())
-					.and_then(|m| m.modified().ok())
-			) {
-				(Some(latest_exe_time), Some(this_exe_time)) if latest_exe_time > this_exe_time => true,
-				_ => false,
-			};
-			trace_main!("Starting... (have-update: {}, non-updated-current: {}, update-is-newer: {})", have_update, is_non_updated_current, update_is_newer);
-			let exit_code = if have_update && is_non_updated_current && update_is_newer {
-				trace_main!("Attempting to run latest update ({})...", latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
-				run_parity().unwrap_or_else(|| { 
-                    trace_main!("Falling back to local..."); 
-                    main_direct(true) 
-                })
+            // `Path` to the latest downloaded binary
+			let latest_exe = latest_exe_path().ok();
+			
+            // `Latest´ binary exist
+            let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
+			
+            // Current binary is not same as the latest binary
+            let current_binary_not_latest = exe_path.as_ref()
+				.map_or(false, |exe| latest_exe.as_ref()
+				.map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
+
+			// Downloaded `binary` is newer
+			let update_is_newer = latest_binary_is_newer(&latest_exe, &exe_path);
+			trace_main!("Starting... (have-update: {}, non-updated-current: {}, update-is-newer: {})", 
+                        have_update, current_binary_not_latest, update_is_newer);
+
+			let exit_code = if have_update && current_binary_not_latest && update_is_newer {
+				trace_main!("Attempting to run latest update ({})...", 
+							latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
+                match run_parity() {
+                    Ok(_) => 0,
+                    Err(e)=> {
+                        trace_main!("Updated binary could not be executed: {:?}\n Failing back to local version", e); 
+                        main_direct(true)
+                    }
+                }
 			} else {
 				trace_main!("No latest update. Attempting to direct...");
 				main_direct(true)
