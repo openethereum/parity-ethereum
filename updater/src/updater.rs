@@ -27,13 +27,13 @@ use target_info::Target;
 
 use bytes::Bytes;
 use ethcore::BlockNumber;
-use ethcore::filter::Filter;
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify, ChainRoute};
+use ethcore::filter::Filter;
 use ethereum_types::H256;
-use sync::{SyncProvider};
 use hash_fetch::{self as fetch, HashFetch};
 use path::restrict_permissions_owner;
 use service::Service;
+use sync::{SyncProvider};
 use types::{ReleaseInfo, OperationsInfo, CapState, VersionInfo, ReleaseTrack};
 use version;
 
@@ -605,9 +605,9 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 
 		// Only check for updates every n blocks
 		let current_block_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
-		if current_block_number % cmp::max(self.update_policy.frequency, 1) != 0 {
-			return;
-		}
+		// if current_block_number % cmp::max(self.update_policy.frequency, 1) != 0 {
+		//     return;
+		// }
 
 		let mut state = self.state.lock();
 
@@ -642,10 +642,10 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 					   latest.track.version,
 					   if latest.track.is_critical {""} else {"non-"},
 					   *PLATFORM,
-					   latest.track.binary.map(|b| format!("{}", b)).unwrap_or("unreleased".into()));
+					   latest.track.binary.map(|b| format!("{}", b)).unwrap_or_else(|| "unreleased".into()));
 
 				trace!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}",
-					   latest.this_fork.map(|f| format!("#{}", f)).unwrap_or("unknown".into()),
+					   latest.this_fork.map(|f| format!("#{}", f)).unwrap_or_else(|| "unreleased".into()),
 					   current_block_number,
 					   latest.track.fork,
 					   latest.fork);
