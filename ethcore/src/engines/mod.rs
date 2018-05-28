@@ -26,6 +26,7 @@ mod transition;
 mod validator_set;
 mod vote_collector;
 
+pub mod hybrid_casper;
 pub mod block_reward;
 pub mod epoch;
 
