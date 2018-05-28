@@ -174,7 +174,7 @@ pub struct Ethash {
 	ethash_params: EthashParams,
 	pow: EthashManager,
 	machine: EthereumMachine,
-	casper: HybridCasper,
+	casper: Arc<HybridCasper>,
 }
 
 impl Ethash {
@@ -185,15 +185,18 @@ impl Ethash {
 		mut machine: EthereumMachine,
 		optimize_for: T,
 	) -> Arc<Self> {
+		let casper = Arc::new(HybridCasper::new(ethash_params.hybrid_casper_params.clone()));
+		let casper_c = casper.clone();
 		let hybrid_casper_transition = ethash_params.hybrid_casper_transition;
+
 		machine.set_schedule_creation_rules(Box::new(move |schedule, block_number| {
 			if block_number >= hybrid_casper_transition {
-				schedule.eip86 = true;
+				casper_c.enable_casper_schedule(schedule);
 			}
 		}));
 
 		Arc::new(Ethash {
-			casper: HybridCasper::new(ethash_params.hybrid_casper_params.clone()),
+			casper,
 			ethash_params,
 			machine,
 			pow: EthashManager::new(cache_dir.as_ref(), optimize_for.into()),

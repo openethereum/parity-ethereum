@@ -21,6 +21,7 @@ use ethereum_types::{Address, U256};
 use engines::{DEFAULT_CASPER_CONTRACT, DEFAULT_PURITY_CHECKER_CONTRACT, DEFAULT_MSG_HASHER_CONTRACT, DEFAULT_RLP_DECODER_CONTRACT};
 use rustc_hex::FromHex;
 use transaction::{SignedTransaction, Action};
+use vm::Schedule;
 
 /// Hybrid Casper parameters.
 #[derive(Debug, Clone, PartialEq)]
@@ -150,5 +151,9 @@ impl HybridCasper {
 		}
 
 		return true;
+	}
+
+	pub fn enable_casper_schedule(&self, schedule: &mut Schedule) {
+		schedule.eip86 = true;
 	}
 }
