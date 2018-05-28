@@ -78,64 +78,9 @@ impl<'db> TrieDB<'db> {
 
 	/// Get the data of the root node.
 	fn root_data(&self) -> super::Result<DBValue> {
-		self.db.get(self.root).ok_or_else(|| Box::new(TrieError::InvalidStateRoot(*self.root)))
-	}
-
-	/// Indentation helper for `format_all`.
-	fn fmt_indent(&self, f: &mut fmt::Formatter, size: usize) -> fmt::Result {
-		for _ in 0..size {
-			write!(f, "  ")?;
-		}
-		Ok(())
-	}
-
-	/// Recursion helper for implementation of formatting trait.
-	fn fmt_all(&self, node: Node, f: &mut fmt::Formatter, deepness: usize) -> fmt::Result {
-		match node {
-			Node::Leaf(slice, value) => writeln!(f, "'{:?}: {:?}.", slice, value.pretty())?,
-			Node::Extension(ref slice, ref item) => {
-				write!(f, "'{:?} ", slice)?;
-				if let Ok(node) = self.get_raw_or_lookup(&*item) {
-					match Node::decoded(&node) {
-						Ok(n) => self.fmt_all(n, f, deepness)?,
-						Err(err) => writeln!(f, "ERROR decoding node extension Rlp: {}", err)?,
-					}
-				}
-			},
-			Node::Branch(ref nodes, ref value) => {
-				writeln!(f, "")?;
-				if let Some(ref v) = *value {
-					self.fmt_indent(f, deepness + 1)?;
-					writeln!(f, "=: {:?}", v.pretty())?
-				}
-				for i in 0..16 {
-					let node = self.get_raw_or_lookup(&*nodes[i]);
-					match node.as_ref() { 
-						Ok(n) => {
-							match Node::decoded(&*n) {
-								Ok(Node::Empty) => {},
-								Ok(n) => {
-									self.fmt_indent(f, deepness + 1)?;
-									write!(f, "'{:x} ", i)?;
-									self.fmt_all(n, f, deepness + 1)?;
-								}
-								Err(e) => {
-									write!(f, "ERROR decoding node branch Rlp: {}", e)?
-								}
-							}
-						}
-						Err(e) => {
-							write!(f, "ERROR: {}", e)?;
-						}
-					}
-				}
-			},
-			// empty
-			Node::Empty => {
-				writeln!(f, "<empty>")?;
-			}
-		};
-		Ok(())
+		self.db
+			.get(self.root)
+			.ok_or_else(|| Box::new(TrieError::InvalidStateRoot(*self.root)))
 	}
 
 	/// Given some node-describing data `node`, return the actual node RLP.
@@ -174,15 +119,58 @@ impl<'db> Trie for TrieDB<'db> {
 	}
 }
 
+// This is for pretty debug output only
+struct TrieAwareDebugNode<'db, 'a> {
+	trie: &'db TrieDB<'db>,
+	key: &'a[u8]
+}
+
+impl<'db, 'a> fmt::Debug for TrieAwareDebugNode<'db, 'a> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		if let Ok(node) = self.trie.get_raw_or_lookup(self.key) {
+			match Node::decoded(&node) {
+				Ok(Node::Leaf(slice, value)) => f.debug_struct("Node::Leaf")
+						.field("slice", &slice)
+						.field("value", &value)
+					.finish(),
+				Ok(Node::Extension(ref slice, ref item)) => f.debug_struct("Node::Extension")
+						.field("slice", &slice)
+						.field("item", &TrieAwareDebugNode{trie: self.trie, key: item})
+					.finish(),
+				Ok(Node::Branch(ref nodes, ref value)) => {
+					let nodes: Vec<TrieAwareDebugNode> = nodes.into_iter().map(|n| TrieAwareDebugNode{trie: self.trie, key: n} ).collect();
+					f.debug_struct("Node::Branch")
+						.field("nodes", &nodes)
+						.field("value", &value)
+					.finish()
+				},
+				Ok(Node::Empty) => f.debug_struct("Node::Empty").finish(),
+
+				Err(e) => f.debug_struct("BROKEN_NODE")
+						.field("key", &self.key)
+						.field("error",  &format!("ERROR decoding node branch Rlp: {}", e))
+					.finish()
+			}
+		} else {
+		   f.debug_struct("BROKEN_NODE")
+			.field("key", &self.key)
+			.field("error", &"Not found")
+			.finish()
+		}
+	}
+}
+
+
 impl<'db> fmt::Debug for TrieDB<'db> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		writeln!(f, "c={:?} [", self.hash_count)?;
 		let root_rlp = self.db.get(self.root).expect("Trie root not found!");
-		match Node::decoded(&root_rlp) {
-			Ok(node) => self.fmt_all(node, f, 0)?,
-			Err(e) => writeln!(f, "ERROR decoding node rlp: {}", e)?,
-		}
-		writeln!(f, "]")
+		f.debug_struct("TrieDB")
+		.field("hash_count", &self.hash_count)
+		.field("root", &TrieAwareDebugNode {
+			trie: self,
+			key: &root_rlp
+		})
+		.finish()
 	}
 }
 
@@ -492,6 +480,118 @@ fn get_len() {
 	assert_eq!(t.get_with(b"A", |x: &[u8]| x.len()), Ok(Some(3)));
 	assert_eq!(t.get_with(b"B", |x: &[u8]| x.len()), Ok(Some(5)));
 	assert_eq!(t.get_with(b"C", |x: &[u8]| x.len()), Ok(None));
+}
+
+
+#[test]
+fn debug_output_supports_pretty_print() {
+	use memorydb::*;
+	use super::TrieMut;
+	use super::triedbmut::*;
+
+	let d = vec![ DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B") ];
+
+	let mut memdb = MemoryDB::new();
+	let mut root = H256::new();
+	let root = {
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		for x in &d {
+			t.insert(x, x).unwrap();
+		}
+		t.root().clone()
+	};
+	let t = TrieDB::new(&memdb, &root).unwrap();
+	 
+	assert_eq!(format!("{:?}", t), "TrieDB { hash_count: 0, root: Node::Extension { slice: 4, item: Node::Branch { nodes: [Node::Empty, Node::Branch { nodes: [Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Branch { nodes: [Node::Empty, Node::Leaf { slice: , value: [65, 65] }, Node::Leaf { slice: , value: [65, 66] }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: None }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: Some([65]) }, Node::Leaf { slice: , value: [66] }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: None } } }");
+	assert_eq!(format!("{:#?}", t),
+"TrieDB {
+    hash_count: 0,
+    root: Node::Extension {
+        slice: 4,
+        item: Node::Branch {
+            nodes: [
+                Node::Empty,
+                Node::Branch {
+                    nodes: [
+                        Node::Empty,
+                        Node::Empty,
+                        Node::Empty,
+                        Node::Empty,
+                        Node::Branch {
+                            nodes: [
+                                Node::Empty,
+                                Node::Leaf {
+                                    slice: ,
+                                    value: [
+                                        65,
+                                        65
+                                    ]
+                                },
+                                Node::Leaf {
+                                    slice: ,
+                                    value: [
+                                        65,
+                                        66
+                                    ]
+                                },
+                                Node::Empty,
+                                Node::Empty,
+                                Node::Empty,
+                                Node::Empty,
+                                Node::Empty,
+                                Node::Empty,
+                                Node::Empty,
+                                Node::Empty,
+                                Node::Empty,
+                                Node::Empty,
+                                Node::Empty,
+                                Node::Empty,
+                                Node::Empty
+                            ],
+                            value: None
+                        },
+                        Node::Empty,
+                        Node::Empty,
+                        Node::Empty,
+                        Node::Empty,
+                        Node::Empty,
+                        Node::Empty,
+                        Node::Empty,
+                        Node::Empty,
+                        Node::Empty,
+                        Node::Empty,
+                        Node::Empty
+                    ],
+                    value: Some(
+                        [
+                            65
+                        ]
+                    )
+                },
+                Node::Leaf {
+                    slice: ,
+                    value: [
+                        66
+                    ]
+                },
+                Node::Empty,
+                Node::Empty,
+                Node::Empty,
+                Node::Empty,
+                Node::Empty,
+                Node::Empty,
+                Node::Empty,
+                Node::Empty,
+                Node::Empty,
+                Node::Empty,
+                Node::Empty,
+                Node::Empty,
+                Node::Empty
+            ],
+            value: None
+        }
+    }
+}");
 }
 
 // Test will work once https://github.com/paritytech/parity/pull/8527 is merged and rlp::decode returns Result instead of panicking
