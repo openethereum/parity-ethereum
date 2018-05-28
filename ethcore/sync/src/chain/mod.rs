@@ -310,7 +310,7 @@ pub enum ForkConfirmation {
 /// Syncing peer information
 pub struct PeerInfo {
 	/// eth protocol version
-	pub protocol_version: u8,
+	protocol_version: u8,
 	/// Peer chain genesis hash
 	genesis: H256,
 	/// Peer network id
@@ -870,7 +870,7 @@ impl ChainSync {
 						}
 					},
 					RestorationStatus::Initializing { .. } => {
-						trace!(target: "warp", "Snapshot is stil initializing.");
+						trace!(target: "warp", "Snapshot is still initializing.");
 						return;
 					},
 					_ => {
