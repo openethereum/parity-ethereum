@@ -23,6 +23,7 @@ use rustc_hex::FromHex;
 use transaction::{SignedTransaction, Action};
 use vm::Schedule;
 use state::{State, Backend};
+use types::BlockNumber;
 use super::SystemCall;
 
 use_contract!(simple_casper, "SimpleCasper", "res/contracts/simple_casper.json");
@@ -199,5 +200,19 @@ impl HybridCasper {
 			.map(|_| ())
 			.map_err(::engines::EngineError::FailedSystemCall)
 			.map_err(Into::into)
+	}
+
+	pub fn on_new_epoch(&self, block_number: BlockNumber, caller: &mut SystemCall) -> Result<(), ::error::Error> {
+		if block_number % self.params.epoch_length == 0 {
+			let data = self.provider.functions().initialize_epoch().input(
+				block_number / self.params.epoch_length
+			);
+			caller(self.params.contract_address, data)
+				.map(|_| ())
+				.map_err(::engines::EngineError::FailedSystemCall)
+				.map_err(Into::into)
+		} else {
+			Ok(())
+		}
 	}
 }

@@ -301,22 +301,6 @@ impl EthereumMachine {
 						.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty))?;
 				}
 			}
-
-			if block.header().number() >= ethash_params.hybrid_casper_transition + ethash_params.hybrid_casper_warm_up_period {
-				if block.header().number() % ethash_params.hybrid_casper_epoch_length == 0 {
-					let casper_contract = simple_casper_contract::SimpleCasper::default();
-					let input = casper_contract.functions().initialize_epoch().input(
-						block.header().number() / ethash_params.hybrid_casper_epoch_length
-					);
-
-					let _ = self.execute_as_system(
-						block,
-						ethash_params.hybrid_casper_contract_address,
-						U256::max_value(),
-						Some(input)
-					)?;
-				}
-			}
 		}
 
 		Ok(())
