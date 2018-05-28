@@ -467,13 +467,11 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	}
 
 	/// Prepare the environment information passed for transaction execution.
-	fn prepare_env_info(&self, t: &SignedTransaction, block: &ExecutedBlock, env_info: &mut EnvInfo) {
-		self.machine().prepare_env_info(t, block, env_info)
-	}
+	fn prepare_env_info(&self, t: &SignedTransaction, block: &ExecutedBlock, env_info: &mut EnvInfo) { }
 
 	/// Verify the transaction outcome is acceptable.
 	fn verify_transaction_outcome(&self, t: &SignedTransaction, block: &mut ExecutedBlock, receipt: &mut Receipt) -> Result<(), Error> {
-		self.machine().verify_transaction_outcome(t, block, receipt)
+		Ok(())
 	}
 
 	/// Additional information.

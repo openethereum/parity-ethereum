@@ -31,9 +31,11 @@ use engines::{self, Engine, EthEngine, ForkChoice};
 use ethjson;
 use rlp::{self, Rlp};
 use transaction::{self, UnverifiedTransaction, SignedTransaction};
+use types::receipt::{Receipt, TransactionOutcome};
 use machine::{EthereumMachine, CasperMetadata};
 use parity_machine::{WithMetadata, WithMetadataHeader, TotalScoredHeader};
 use types::ancestry_action::AncestryAction;
+use vm::EnvInfo;
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty incrment divisor?
@@ -470,6 +472,36 @@ impl EthEngine for Arc<Ethash> {
 
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
 		self.machine().verify_transaction_basic(t, header, header.number() >= self.ethash_params.hybrid_casper_transition)
+	}
+
+	fn prepare_env_info(&self, t: &SignedTransaction, block: &ExecutedBlock, env_info: &mut EnvInfo) {
+		if block.header().number() >= self.ethash_params.hybrid_casper_transition {
+			if t.is_unsigned() {
+				let metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+				env_info.gas_used = metadata.vote_gas_used;
+			}
+		}
+	}
+
+	fn verify_transaction_outcome(&self, t: &SignedTransaction, block: &mut ExecutedBlock, receipt: &mut Receipt) -> Result<(), Error> {
+		if block.header().number() >= self.ethash_params.hybrid_casper_transition {
+			if t.is_unsigned() {
+				match receipt.outcome {
+					TransactionOutcome::StatusCode(c) => {
+						if c == 0 {
+							return Err("Vote transaction failed.".into());
+						}
+					},
+					_ => panic!("Casper requires EIP658 to be enabled."),
+				}
+
+				let mut metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+				metadata.vote_gas_used = receipt.gas_used;
+				receipt.gas_used = block.receipts().last().map(|r| r.gas_used).unwrap_or(U256::zero());
+				block.set_metadata(Some(rlp::encode(&metadata).to_vec()));
+			}
+		}
+		Ok(())
 	}
 }
 
