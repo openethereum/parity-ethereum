@@ -285,4 +285,12 @@ impl HybridCasper {
 			.map_err(::engines::EngineError::FailedSystemCall)
 			.map_err(Into::into)
 	}
+
+	pub fn update_metadata(&self, metadata: &mut HybridCasperMetadata, caller: &mut SystemCall) -> Result<(), ::error::Error> {
+		metadata.highest_justified_epoch = self.highest_justified_epoch(caller)?;
+		metadata.highest_finalized_epoch = self.highest_finalized_epoch(caller)?;
+		metadata.highest_finalized_hash = self.checkpoint_hashes(metadata.highest_finalized_epoch, caller)?;
+
+		Ok(())
+	}
 }

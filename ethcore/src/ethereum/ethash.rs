@@ -331,19 +331,14 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		// Write closing metadata for Casper.
 		if number >= self.ethash_params.hybrid_casper_transition {
 			let mut metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
-			{
-				let mut system_call = |address, data| {
-					self.machine().execute_as_system(
-						block,
-						address,
-						U256::max_value(),
-						Some(data)
-					).map_err(|e| format!("{}", e))
-				};
-				metadata.highest_justified_epoch = self.casper.highest_justified_epoch(&mut system_call)?;
-				metadata.highest_finalized_epoch = self.casper.highest_finalized_epoch(&mut system_call)?;
-				metadata.highest_finalized_hash = self.casper.checkpoint_hashes(metadata.highest_finalized_epoch, &mut system_call)?;
-			}
+			self.casper.update_metadata(&mut metadata, &mut |address, data| {
+				self.machine().execute_as_system(
+					block,
+					address,
+					U256::max_value(),
+					Some(data)
+				).map_err(|e| format!("{}", e))
+			})?;
 			block.set_metadata(Some(rlp::encode(&metadata).to_vec()));
 		}
 
