@@ -33,7 +33,7 @@ pub trait Hasher: Sync + Send {
 	fn hash(x: &[u8]) -> Self::Out;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 // REVIEW: Where do the concrete Hasher implementations go? Own crate?
 pub struct KeccakHasher;
 impl Hasher for KeccakHasher {
