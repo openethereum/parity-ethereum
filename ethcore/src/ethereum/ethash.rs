@@ -467,6 +467,10 @@ impl EthEngine for Arc<Ethash> {
 
 		Ok(signed)
 	}
+
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+		self.machine().verify_transaction_basic(t, header, header.number() >= self.ethash_params.hybrid_casper_transition)
+	}
 }
 
 impl Ethash {

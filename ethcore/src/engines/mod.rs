@@ -463,7 +463,7 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	/// TODO: Add flags for which bits of the transaction to check.
 	/// TODO: consider including State in the params.
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
-		self.machine().verify_transaction_basic(t, header)
+		self.machine().verify_transaction_basic(t, header, false)
 	}
 
 	/// Prepare the environment information passed for transaction execution.

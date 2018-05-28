@@ -447,7 +447,7 @@ impl EthereumMachine {
 	}
 
 	/// Does basic verification of the transaction.
-	pub fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
+	pub fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header, allow_null_signer: bool) -> Result<(), transaction::Error> {
 		let check_low_s = match self.ethash_extensions {
 			Some(ref ext) => header.number() >= ext.homestead_transition,
 			None => true,
@@ -460,17 +460,6 @@ impl EthereumMachine {
 		} else {
 			None
 		};
-
-		let allow_null_signer = if let Some(ref ethash_params) = self.ethash_extensions {
-			if header.number() >= ethash_params.hybrid_casper_transition {
-				true
-			} else {
-				false
-			}
-		} else {
-			false
-		};
-
 		t.verify_basic(check_low_s, chain_id, allow_null_signer)?;
 
 		Ok(())
