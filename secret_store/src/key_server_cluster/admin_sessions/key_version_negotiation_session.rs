@@ -291,11 +291,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				self.on_key_versions(sender, message),
 			&KeyVersionNegotiationMessage::KeyVersionsError(ref message) => {
 				// remember failed continue action
-				match message.continue_with {
-					Some(FailedKeyVersionContinueAction::Decrypt(Some(ref origin), ref requester)) =>
-						self.data.lock().failed_continue_with =
-							Some(FailedContinueAction::Decrypt(Some(origin.clone().into()), requester.clone().into())),
-					_ => (),
+				if let Some(FailedKeyVersionContinueAction::Decrypt(Some(ref origin), ref requester)) = message.continue_with {
+					self.data.lock().failed_continue_with =
+						Some(FailedContinueAction::Decrypt(Some(origin.clone().into()), requester.clone().into()));
 				}
 
 				self.on_session_error(sender, message.error.clone());
@@ -391,8 +389,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let confirmations = data.confirmations.as_ref().expect(reason);
 		let versions = data.versions.as_ref().expect(reason);
 		if let Some(result) = core.result_computer.compute_result(data.threshold.clone(), confirmations, versions) {
-			// when master node processing decryption service request, it starts with a key versions negotiation session
-			// if negotiation fails, only master node knows about it
+			// when the master node processing decryption service request, it starts with a key version negotiation session
+			// if the negotiation fails, only master node knows about it
 			// => if error is fatal, only master will know about it and report to the contract && request will never be rejected
 			// => let's broadcast fatal error so that every other node know about it, and, if it trusts to master node
 			// will report error to the contract

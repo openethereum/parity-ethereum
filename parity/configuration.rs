@@ -1240,7 +1240,7 @@ struct UiEnabled {
 }
 
 fn into_secretstore_service_contract_address(s: Option<&String>) -> Result<Option<SecretStoreContractAddress>, String> {
-	match s.map(|x| &**x) {
+	match s.map(String::as_str) {
 		None | Some("none") => Ok(None),
 		Some("registry") => Ok(Some(SecretStoreContractAddress::Registry)),
 		Some(a) => Ok(Some(SecretStoreContractAddress::Address(a.parse().map_err(|e| format!("{}", e))?))),
