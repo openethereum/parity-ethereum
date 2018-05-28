@@ -64,7 +64,7 @@ use ethcore_miner::pool::VerifiedTransaction;
 use parking_lot::{Mutex, RwLock};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
-use snapshot::{self, io as snapshot_io};
+use snapshot::{self, io as snapshot_io, CustomClient as SnapshotCustomClient};
 use spec::Spec;
 use state_db::StateDB;
 use state::{self, State};
@@ -2291,6 +2291,8 @@ impl ProvingBlockChainClient for Client {
 		self.chain.read().get_pending_transition(hash).map(|pending| pending.proof)
 	}
 }
+
+impl SnapshotCustomClient for Client {}
 
 impl Drop for Client {
 	fn drop(&mut self) {
