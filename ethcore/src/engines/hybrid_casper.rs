@@ -121,6 +121,30 @@ impl Default for HybridCasperParams {
 	}
 }
 
+/// Casper related metadata.
+#[derive(Debug, PartialEq, Clone, RlpEncodable, RlpDecodable)]
+pub struct HybridCasperMetadata {
+	/// Gas used in vote transactions.
+	pub vote_gas_used: U256,
+	/// Highest justified epoch returned by Casper contract.
+	pub highest_justified_epoch: U256,
+	/// Highest finalized epoch returned by Casper contract.
+	pub highest_finalized_epoch: U256,
+	/// Highest finalized block hash returned by Casper contract.
+	pub highest_finalized_hash: H256,
+}
+
+impl Default for HybridCasperMetadata {
+	fn default() -> Self {
+		Self {
+			vote_gas_used: U256::zero(),
+			highest_justified_epoch: U256::zero(),
+			highest_finalized_epoch: U256::zero(),
+			highest_finalized_hash: Default::default(),
+		}
+	}
+}
+
 pub struct HybridCasper {
 	params: HybridCasperParams,
 	provider: simple_casper::SimpleCasper,

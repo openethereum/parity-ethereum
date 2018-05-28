@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use engines::block_reward::{self, RewardKind};
-use engines::hybrid_casper::{HybridCasper, HybridCasperParams};
+use engines::hybrid_casper::{HybridCasper, HybridCasperParams, HybridCasperMetadata};
 use ethash::{quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use ethereum_types::{H256, H64, U256, Address};
 use unexpected::{OutOfBounds, Mismatch};
@@ -32,7 +32,7 @@ use ethjson;
 use rlp::{self, Rlp};
 use transaction::{self, UnverifiedTransaction, SignedTransaction};
 use types::receipt::{Receipt, TransactionOutcome};
-use machine::{EthereumMachine, CasperMetadata};
+use machine::EthereumMachine;
 use parity_machine::{WithMetadata, WithMetadataHeader, TotalScoredHeader};
 use types::ancestry_action::AncestryAction;
 use vm::EnvInfo;
@@ -330,7 +330,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 		// Write closing metadata for Casper.
 		if number >= self.ethash_params.hybrid_casper_transition {
-			let mut metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+			let mut metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 			{
 				let mut system_call = |address, data| {
 					self.machine().execute_as_system(
@@ -428,8 +428,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	}
 
 	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> engines::ForkChoice {
-		let new_metadata: CasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
-		let current_metadata: CasperMetadata = current.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+		let new_metadata: HybridCasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+		let current_metadata: HybridCasperMetadata = current.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 
 		// Casper fails back to total difficulty fork choice if highest_justified_epoch is zero. So we don't need to
 		// check transition block here.
@@ -444,7 +444,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	}
 
 	fn ancestry_actions(&self, block: &ExecutedBlock, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Vec<AncestryAction> {
-		let metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+		let metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 
 		if metadata.highest_finalized_hash != Default::default() {
 			// Call finalize on an already finalized block won't do anything. So we just do that for now to avoid a
@@ -477,7 +477,7 @@ impl EthEngine for Arc<Ethash> {
 	fn prepare_env_info(&self, t: &SignedTransaction, block: &ExecutedBlock, env_info: &mut EnvInfo) {
 		if block.header().number() >= self.ethash_params.hybrid_casper_transition {
 			if t.is_unsigned() {
-				let metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+				let metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 				env_info.gas_used = metadata.vote_gas_used;
 			}
 		}
@@ -495,7 +495,7 @@ impl EthEngine for Arc<Ethash> {
 					_ => panic!("Casper requires EIP658 to be enabled."),
 				}
 
-				let mut metadata: CasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+				let mut metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 				metadata.vote_gas_used = receipt.gas_used;
 				receipt.gas_used = block.receipts().last().map(|r| r.gas_used).unwrap_or(U256::zero());
 				block.set_metadata(Some(rlp::encode(&metadata).to_vec()));

@@ -85,30 +85,6 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 	}
 }
 
-/// Casper related metadata.
-#[derive(Debug, PartialEq, Clone, RlpEncodable, RlpDecodable)]
-pub struct CasperMetadata {
-	/// Gas used in vote transactions.
-	pub vote_gas_used: U256,
-	/// Highest justified epoch returned by Casper contract.
-	pub highest_justified_epoch: U256,
-	/// Highest finalized epoch returned by Casper contract.
-	pub highest_finalized_epoch: U256,
-	/// Highest finalized block hash returned by Casper contract.
-	pub highest_finalized_hash: H256,
-}
-
-impl Default for CasperMetadata {
-	fn default() -> Self {
-		Self {
-			vote_gas_used: U256::zero(),
-			highest_justified_epoch: U256::zero(),
-			highest_finalized_epoch: U256::zero(),
-			highest_finalized_hash: Default::default(),
-		}
-	}
-}
-
 /// Special rules to be applied to the schedule.
 pub type ScheduleCreationRules = Fn(&mut Schedule, BlockNumber) + Sync + Send;
 
