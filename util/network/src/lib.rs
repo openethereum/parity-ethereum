@@ -42,7 +42,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use ipnetwork::{IpNetwork, IpNetworkError};
 use ethkey::Secret;
-use ethereum_types::{H256, H512};
+use ethereum_types::H512;
 use rlp::{Decodable, DecoderError, Rlp};
 
 /// Protocol handler level packet id
