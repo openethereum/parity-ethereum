@@ -16,18 +16,15 @@
 
 //! Reference-counted memory-based `HashDB` implementation.
 extern crate elastic_array;
-extern crate ethereum_types;
 extern crate hashdb;
 extern crate heapsize;
-extern crate keccak_hash as keccak;
-extern crate tiny_keccak;
 extern crate plain_hasher;
 extern crate rlp;
+#[cfg(test)] extern crate tiny_keccak;
+#[cfg(test)] extern crate ethereum_types;
 
-use ethereum_types::H256;
 use hashdb::{HashDB, Hasher, DBValue};
 use heapsize::HeapSizeOf;
-use tiny_keccak::Keccak;
 use plain_hasher::H256FastMap;
 use rlp::NULL_RLP;
 use std::collections::hash_map::Entry;
@@ -178,20 +175,6 @@ impl<H: Hasher> MemoryDB<H> {
 	}
 }
 
-#[derive(Debug)]
-// REVIEW: Where do the concrete Hasher implementations go? Own crate?
-pub struct KeccakHasher;
-impl Hasher for KeccakHasher {
-	type Out = H256;
-	const HASHED_NULL_RLP: H256 = H256( [0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83, 0x45, 0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62, 0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21] );
-
-	fn hash(x: &[u8]) -> Self::Out {
-		let mut out = [0;32];
-		Keccak::keccak256(x, &mut out);
-		out.into()
-	}
-}
-
 impl<H: Hasher> HashDB for MemoryDB<H> {
 	type H = H; // REVIEW this is a bit confusing, but not sure what is better (e.g. using `impl<HH: Hasher> … … type H = HH;`)
 
@@ -289,13 +272,17 @@ impl<H: Hasher> HashDB for MemoryDB<H> {
 
 #[cfg(test)]
 mod tests {
-	use keccak::keccak;
 	use super::*;
+	use tiny_keccak::Keccak;
+	use ethereum_types::H256;
+	use hashdb::KeccakHasher;
 
 	#[test]
 	fn memorydb_remove_and_purge() {
 		let hello_bytes = b"Hello world!";
-		let hello_key = keccak(hello_bytes);
+		let mut hello_key = [0;32];
+		Keccak::keccak256(hello_bytes, &mut hello_key);
+		let hello_key = H256(hello_key);
 
 		let mut m = MemoryDB::<KeccakHasher>::new();
 		m.remove(&hello_key);
@@ -342,26 +329,26 @@ mod tests {
 		assert_eq!(overlay.get(&negative_remove_key).unwrap(), &(DBValue::from_slice(b"negative"), -2));
 	}
 
-	#[test]
-	fn other_hashers() {
-		struct DummyHasher;
-		impl Hasher for DummyHasher {
-			// TODO: Trying to use a type that isn't H256 fails because of the tight coupling between memorydb and plain_hasher (specifically the assert on key length == 32)
-			// It looks like this work must touch H256FastMap as well.
-			type Out = ethereum_types::H264;
-			const HASHED_NULL_RLP: ethereum_types::H264= ethereum_types::H264([0; 33]);
-			fn hash(_x: &[u8]) -> Self::Out {
-				ethereum_types::H264(*b"010102020101020201010202010102025")
-
-			}
-		}
-
-		impl HeapSizeOf for DummyHasher {
-			fn heap_size_of_children(&self) -> usize { 0 }
-		}
-		let mut db = MemoryDB::<DummyHasher>::new();
-//		let key = db.insert(b"32103210321032103210321032103210");
-		// Fails
-//		assert_eq!(key, ethereum_types::H264(*b"010102020101020201010202010102025"));
-	}
+//	#[test]
+//	fn other_hashers() {
+//		struct DummyHasher;
+//		impl Hasher for DummyHasher {
+//			// TODO: Trying to use a type that isn't H256 fails because of the tight coupling between memorydb and plain_hasher (specifically the assert on key length == 32)
+//			// It looks like this work must touch H256FastMap as well.
+//			type Out = ethereum_types::H264;
+//			const HASHED_NULL_RLP: ethereum_types::H264= ethereum_types::H264([0; 33]);
+//			fn hash(_x: &[u8]) -> Self::Out {
+//				ethereum_types::H264(*b"010102020101020201010202010102025")
+//
+//			}
+//		}
+//
+//		impl HeapSizeOf for DummyHasher {
+//			fn heap_size_of_children(&self) -> usize { 0 }
+//		}
+//		let mut db = MemoryDB::<DummyHasher>::new();
+////		let key = db.insert(b"32103210321032103210321032103210");
+//		// Fails
+////		assert_eq!(key, ethereum_types::H264(*b"010102020101020201010202010102025"));
+//	}
 }
