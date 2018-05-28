@@ -23,6 +23,7 @@ use std::os::raw::{c_char, c_void, c_int};
 use std::panic;
 use std::ptr;
 use std::slice;
+use std::str;
 
 #[repr(C)]
 pub struct ParityParams {
@@ -129,5 +130,35 @@ pub extern fn parity_destroy(client: *mut c_void) {
 			let client = Box::from_raw(client as *mut parity::RunningClient);
 			client.shutdown();
 		});
+	}
+}
+
+#[no_mangle]
+pub extern fn parity_rpc(client: *mut c_void, query: *const char, len: usize, out_str: *mut c_char, out_len: *mut usize) -> c_int {
+	unsafe {
+		panic::catch_unwind(|| {
+			let client: &mut parity::RunningClient = &mut *(client as *mut parity::RunningClient);
+
+			let query_str = {
+				let string = slice::from_raw_parts(query as *const u8, len);
+				match str::from_utf8(string) {
+					Ok(a) => a,
+					Err(_) => return 1,
+				}
+			};
+
+			if let Some(output) = client.rpc_query_sync(query_str) {
+				let q_out_len = output.as_bytes().len();
+				if *out_len < q_out_len {
+					return 1;
+				}
+
+				ptr::copy_nonoverlapping(output.as_bytes().as_ptr(), out_str as *mut u8, q_out_len);
+				*out_len = q_out_len;
+				0
+			} else {
+				1
+			}
+		}).unwrap_or(1)
 	}
 }

@@ -19,9 +19,10 @@ use std::collections::{HashMap, BTreeMap};
 use std::io;
 use std::time::Duration;
 use bytes::Bytes;
-use devp2p::{NetworkService, ConnectionFilter};
+use devp2p::NetworkService;
 use network::{NetworkProtocolHandler, NetworkContext, HostInfo, PeerId, ProtocolId,
-	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind};
+	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error, ErrorKind,
+	ConnectionFilter};
 use ethereum_types::{H256, H512, U256};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
@@ -474,7 +475,7 @@ impl ChainNotify for EthSync {
 
 	fn stop(&self) {
 		self.eth_handler.snapshot_service.abort_restore();
-		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
+		self.network.stop();
 	}
 
 	fn broadcast(&self, message_type: ChainMessageType) {
@@ -832,9 +833,7 @@ impl ManageNetwork for LightSync {
 
 	fn stop_network(&self) {
 		self.proto.abort();
-		if let Err(e) = self.network.stop() {
-			warn!("Error stopping network: {}", e);
-		}
+		self.network.stop();
 	}
 
 	fn network_config(&self) -> NetworkConfiguration {
