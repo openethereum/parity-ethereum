@@ -16,7 +16,6 @@
 
 //! Snapshot network service implementation.
 
-// use std::cmp;
 use std::collections::HashSet;
 use std::io::{self, Read, ErrorKind};
 use std::fs::{self, File};
@@ -27,8 +26,8 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService, MAX_CHUNK_SIZE};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
-use blockchain::{BlockChain, BlockProvider};
-use client::{Client, ChainInfo, ClientIoMessage};
+use blockchain::BlockChain;
+use client::{BlockInfo, BlockChainClient, Client, ChainInfo, ClientIoMessage};
 use engines::EthEngine;
 use error::Error;
 use hash::keccak;
@@ -350,8 +349,7 @@ impl Service {
 		let mut count = 0;
 		let rest_db = self.restoration_db();
 
-		let cur_chain = &self.client.chain();
-		let cur_chain_info = cur_chain.read().chain_info();
+		let cur_chain_info = self.client.chain_info();
 
 		let next_db = self.restoration_db_handler.open(&rest_db)?;
 		let next_chain = BlockChain::new(Default::default(), &[], next_db.clone());
@@ -396,19 +394,19 @@ impl Service {
 		);
 
 		// As we are going backwards, the target hash is the one of the first block's parent
-		let target_block_hash = match cur_chain.read().block_hash(start_block_number - 1) {
+		let target_block_hash = match self.client.block_hash(BlockId::Number(start_block_number - 1)) {
 			Some(hash) => hash,
 			None => return Ok(count),
 		};
 
-		let last_block_hash = match cur_chain.read().block_hash(end_block_number) {
+		let last_block_hash = match self.client.block_hash(BlockId::Number(end_block_number)) {
 			Some(h) => h,
 			None => return Ok(count),
 		};
 
 		let mut success = false;
 		let mut batch = DBTransaction::new();
-		let mut block = cur_chain.read().block(&last_block_hash);
+		let mut block = self.client.block(BlockId::Hash(last_block_hash));
 
 		while let Some(block_view) = block {
 			// Early return if restoration is aborted
@@ -416,22 +414,19 @@ impl Service {
 				return Ok(count);
 			}
 
-			let chain = cur_chain.read();
-
 			let block_hash = block_view.hash();
-			let block_receipts = chain.block_receipts(&block_hash);
+			let block_receipts = self.client.decoded_block_receipts(&block_hash);
 			let block_number = block_view.number();
 
 			let parent_hash = block_view.parent_hash();
-			let parent_block_details = chain.block_details(&parent_hash);
+			let parent_total_difficulty = self.client.block_total_difficulty(BlockId::Hash(parent_hash));
 
-			match (block_receipts, parent_block_details) {
-				(Some(block_receipts), Some(parent_details)) => {
-					let parent_td = parent_details.total_difficulty;
+			match (block_receipts, parent_total_difficulty) {
+				(Some(block_receipts), Some(parent_total_difficulty)) => {
 					let raw_block = block_view.into_inner();
 					let block_receipts = block_receipts.receipts;
 
-					next_chain.insert_unordered_block(&mut batch, &raw_block, block_receipts, Some(parent_td), false, true);
+					next_chain.insert_unordered_block(&mut batch, &raw_block, block_receipts, Some(parent_total_difficulty), false, true);
 					count+=1;
 				},
 				_ => break,
@@ -455,7 +450,7 @@ impl Service {
 				break;
 			}
 
-			block = chain.block(&parent_hash);
+			block = self.client.block(BlockId::Hash(parent_hash));
 		}
 
 		// Final commit to the DB

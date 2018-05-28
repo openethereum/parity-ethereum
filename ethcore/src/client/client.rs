@@ -33,7 +33,7 @@ use util_error::UtilError;
 // other
 use ethereum_types::{H256, Address, U256};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
-use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
+use blockchain::{BlockReceipts, BlockChain, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
@@ -843,11 +843,6 @@ impl Client {
 	/// the restart.
 	pub fn set_exit_handler<F>(&self, f: F) where F: Fn(String) + 'static + Send {
 		*self.exit_handler.lock() = Some(Box::new(f));
-	}
-
-	/// Returns the chain reference
-	pub fn chain(&self) -> &RwLock<Arc<BlockChain>> {
-		&self.chain
 	}
 
 	/// Returns engine reference.
@@ -1804,7 +1799,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
-		self.chain.read().block_receipts(hash).map(|receipts| ::rlp::encode(&receipts).into_vec())
+		self.decoded_block_receipts(hash).map(|receipts| ::rlp::encode(&receipts).into_vec())
+	}
+
+	fn decoded_block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
+		self.chain.read().block_receipts(hash)
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {

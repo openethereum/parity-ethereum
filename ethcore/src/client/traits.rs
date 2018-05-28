@@ -20,7 +20,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
-use blockchain::TreeRoute;
+use blockchain::{BlockReceipts, TreeRoute};
 use encoded;
 use vm::LastHashes;
 use error::{ImportResult, CallError, BlockImportError};
@@ -286,6 +286,9 @@ pub trait BlockChainClient : Sync + Send + AccountData + BlockChain + CallContra
 
 	/// Get raw block receipts data by block header hash.
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
+
+	/// Get decoded block receipts data by block header hash.
+	fn decoded_block_receipts(&self, hash: &H256) -> Option<BlockReceipts>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;
