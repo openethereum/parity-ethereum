@@ -36,6 +36,8 @@ use service::Service;
 use sync::{SyncProvider};
 use types::{ReleaseInfo, OperationsInfo, CapState, VersionInfo, ReleaseTrack};
 use version;
+use semver::Version;
+
 
 use_contract!(operations_contract, "Operations", "res/operations.json");
 
@@ -149,7 +151,7 @@ pub struct Updater<O = OperationsContractClient, F = fetch::Client, T = StdTimeP
 	rng: R,
 
 	// Our version info (static)
-	this: VersionInfo,
+    this: VersionInfo,
 
 	// All the other info - this changes so leave it behind a Mutex.
 	state: Mutex<UpdaterState>,
@@ -375,7 +377,13 @@ impl Updater {
 				operations_contract::Operations::default(),
 				client.clone()),
 			exit_handler: Mutex::new(None),
-			this: VersionInfo::this(),
+			// this: VersionInfo::this(),
+            // TODO: Remove hardcoded dummy version for this
+            this: VersionInfo {
+                track: ReleaseTrack::Stable,
+                version: Version::new(1, 3, 7),
+                hash: 0.into(),
+            },
 			time_provider: StdTimeProvider,
 			rng: ThreadRngGenRange,
 			state: Mutex::new(Default::default()),
