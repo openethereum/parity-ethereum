@@ -30,6 +30,7 @@ use header::{Header, BlockNumber, ExtendedHeader};
 use engines::{self, Engine, EthEngine, ForkChoice};
 use ethjson;
 use rlp::{self, Rlp};
+use transaction::{self, UnverifiedTransaction, SignedTransaction};
 use machine::{EthereumMachine, CasperMetadata};
 use parity_machine::{WithMetadata, WithMetadataHeader, TotalScoredHeader};
 use types::ancestry_action::AncestryAction;
@@ -400,7 +401,19 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	}
 }
 
-impl EthEngine for Arc<Ethash> { }
+impl EthEngine for Arc<Ethash> {
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		let signed = self.machine().verify_transaction_unordered(t, header)?;
+
+		if header.number() >= self.ethash_params.hybrid_casper_transition {
+			if signed.is_unsigned() && !self.casper.is_vote_transaction(&signed) {
+				return Err(transaction::Error::NotAllowed);
+			}
+		}
+
+		Ok(signed)
+	}
+}
 
 impl Ethash {
 	fn calculate_difficulty(&self, header: &Header, parent: &Header) -> U256 {

@@ -561,40 +561,8 @@ impl EthereumMachine {
 	}
 
 	/// Verify a particular transaction is valid, regardless of order.
-	pub fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
-		let signed = SignedTransaction::new(t)?;
-
-		if let Some(ref ethash_params) = self.ethash_extensions {
-			if header.number() >= ethash_params.hybrid_casper_transition {
-				if signed.is_unsigned() {
-					let (transaction, _, _) = signed.clone().deconstruct();
-					let unsigned = transaction.as_unsigned();
-
-					match unsigned.action {
-						Action::Call(address) => {
-							if address != ethash_params.hybrid_casper_contract_address {
-								return Err(transaction::Error::NotAllowed)
-							}
-						},
-						_ => {
-							return Err(transaction::Error::NotAllowed)
-						},
-					}
-
-					if unsigned.data.len() < 4 {
-						return Err(transaction::Error::NotAllowed);
-					}
-
-					if &unsigned.data[0..4] != &[0xe9, 0xdc, 0x06, 0x14] {
-						return Err(transaction::Error::NotAllowed);
-					}
-				} else {
-					return Err(transaction::Error::NotAllowed);
-				}
-			}
-		}
-
-		Ok(signed)
+	pub fn verify_transaction_unordered(&self, t: UnverifiedTransaction, _header: &Header) -> Result<SignedTransaction, transaction::Error> {
+		Ok(SignedTransaction::new(t)?)
 	}
 
 	/// Does basic verification of the transaction.
