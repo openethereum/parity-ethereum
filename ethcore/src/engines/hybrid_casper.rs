@@ -20,6 +20,7 @@ use bytes::Bytes;
 use ethereum_types::{Address, U256};
 use engines::{DEFAULT_CASPER_CONTRACT, DEFAULT_PURITY_CHECKER_CONTRACT, DEFAULT_MSG_HASHER_CONTRACT, DEFAULT_RLP_DECODER_CONTRACT};
 use rustc_hex::FromHex;
+use transaction::{SignedTransaction, Action};
 
 /// Hybrid Casper parameters.
 pub struct HybridCasperParams {
@@ -114,4 +115,35 @@ impl Default for HybridCasperParams {
 
 pub struct HybridCasper {
 	params: HybridCasperParams,
+}
+
+impl HybridCasper {
+	pub fn is_vote_transaction(&self, transaction: &SignedTransaction) -> bool {
+		if !transaction.is_unsigned() {
+			return false;
+		}
+
+		let unsigned = transaction.as_unsigned();
+
+		match unsigned.action {
+			Action::Create => {
+				return false;
+			},
+			Action::Call(address) => {
+				if address != self.params.contract_address {
+					return false;
+				}
+			},
+		}
+
+		if unsigned.data.len() < 4 {
+			return false;
+		}
+
+		if &unsigned.data[0..4] != &[0xe9, 0xdc, 0x06, 0x14] {
+			return false;
+		}
+
+		return true;
+	}
 }
