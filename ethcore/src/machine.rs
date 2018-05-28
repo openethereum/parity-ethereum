@@ -68,51 +68,10 @@ pub struct EthashExtensions {
 	pub dao_hardfork_beneficiary: Address,
 	/// DAO hard-fork DAO accounts list (L)
 	pub dao_hardfork_accounts: Vec<Address>,
-	/// Number of first block where Casper rules begin.
-	pub hybrid_casper_transition: u64,
-	/// EIP1011 Casper contract code.
-	pub hybrid_casper_contract_code: Bytes,
-	/// EIP1011 Casper contract address.
-	pub hybrid_casper_contract_address: Address,
-	/// EIP1011 Casper contract balance.
-	pub hybrid_casper_contract_balance: U256,
-	/// EIP1011 purity checker code.
-	pub hybrid_casper_purity_checker_contract_code: Bytes,
-	/// EIP1011 purity checker address.
-	pub hybrid_casper_purity_checker_contract_address: Address,
-	/// EIP1011 msg hasher code.
-	pub hybrid_casper_msg_hasher_contract_code: Bytes,
-	/// EIP1011 msg hasher address.
-	pub hybrid_casper_msg_hasher_contract_address: Address,
-	/// EIP1011 RLP decoder code.
-	pub hybrid_casper_rlp_decoder_contract_code: Bytes,
-	/// EIP1011 RLP decoder address.
-	pub hybrid_casper_rlp_decoder_contract_address: Address,
-	/// Whether to deploy EIP1011 RLP decoder or not.
-	pub hybrid_casper_deploy_rlp_decoder: bool,
-
-	/// EIP1011 epoch length.
-	pub hybrid_casper_epoch_length: u64,
-	/// EIP1011 warm up period.
-	pub hybrid_casper_withdrawal_delay: u64,
-	/// EIP1011 dynasty logout delay.
-	pub hybrid_casper_dynasty_logout_delay: u64,
-	/// EIP1011 base interest factor, with 10 decimals.
-	pub hybrid_casper_base_interest_factor: U256,
-	/// EIP1011 base panelty factor, with 10 decimals.
-	pub hybrid_casper_base_penalty_factor: U256,
-	/// EIP1011 minimal deposit size.
-	pub hybrid_casper_min_deposit_size: U256,
-	/// EIP1011 warm up period.
-	pub hybrid_casper_warm_up_period: u64,
-	/// EIP1011 non revert min deposit.
-	pub hybrid_casper_non_revert_min_deposits: U256,
 }
 
 impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 	fn from(p: ::ethjson::spec::EthashParams) -> Self {
-		let hybrid_casper_rlp_decoder_contract_address = Address::from(0x43u64);
-
 		EthashExtensions {
 			homestead_transition: p.homestead_transition.map_or(0, Into::into),
 			eip150_transition: p.eip150_transition.map_or(0, Into::into),
@@ -122,33 +81,6 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 			dao_hardfork_transition: p.dao_hardfork_transition.map_or(u64::max_value(), Into::into),
 			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
 			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
-			hybrid_casper_transition: p.hybrid_casper_transition.map_or_else(u64::max_value, Into::into),
-			hybrid_casper_contract_code: DEFAULT_CASPER_CONTRACT.replace("<rlp_decoder>", &format!("{:x}", hybrid_casper_rlp_decoder_contract_address)).from_hex().expect(
-				"Default CASPER_CODE is valid",
-			),
-			hybrid_casper_contract_address: Address::from(0x40u64),
-			hybrid_casper_contract_balance: U256::from(1250000) * ::ethereum::ether(),
-			hybrid_casper_purity_checker_contract_code: DEFAULT_PURITY_CHECKER_CONTRACT.from_hex().expect(
-				"Default PURITY_CHECKER_CODE is valid",
-			),
-			hybrid_casper_purity_checker_contract_address: Address::from(0x41u64),
-			hybrid_casper_msg_hasher_contract_code: DEFAULT_MSG_HASHER_CONTRACT.from_hex().expect(
-				"Default MSG_HASHER_CODE is valid",
-			),
-			hybrid_casper_msg_hasher_contract_address: Address::from(0x42u64),
-			hybrid_casper_rlp_decoder_contract_code: DEFAULT_RLP_DECODER_CONTRACT.from_hex().expect(
-				"Default RLP_DECODER_CODE is valid",
-			),
-			hybrid_casper_rlp_decoder_contract_address: hybrid_casper_rlp_decoder_contract_address,
-			hybrid_casper_deploy_rlp_decoder: true,
-			hybrid_casper_epoch_length: 5,
-			hybrid_casper_withdrawal_delay: 150,
-			hybrid_casper_dynasty_logout_delay: 70,
-			hybrid_casper_base_interest_factor: U256::from(70000000),
-			hybrid_casper_base_penalty_factor: U256::from(2000),
-			hybrid_casper_min_deposit_size: U256::from(5) * ::ethereum::ether(),
-			hybrid_casper_warm_up_period: 5,
-			hybrid_casper_non_revert_min_deposits: U256::from(1) * ::ethereum::ether(),
 		}
 	}
 }
