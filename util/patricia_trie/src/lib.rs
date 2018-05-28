@@ -34,7 +34,8 @@ extern crate log;
 use std::{fmt, error};
 use ethereum_types::H256;
 use keccak::KECCAK_NULL_RLP;
-use hashdb::{HashDB, DBValue};
+use hashdb::{HashDB, DBValue, Hasher, KeccakHasher};
+use std::marker::PhantomData;
 
 pub mod node;
 pub mod triedb;
@@ -108,6 +109,7 @@ pub type TrieItem<'a> = Result<(Vec<u8>, DBValue)>;
 /// a DBValue), any function taking raw bytes (where no recording will be made),
 /// or any tuple of (&mut Recorder, FnOnce(&[u8]))
 pub trait Query {
+	type H: Hasher;
 	/// Output item.
 	type Item;
 
@@ -115,37 +117,40 @@ pub trait Query {
 	fn decode(self, &[u8]) -> Self::Item;
 
 	/// Record that a node has been passed through.
-	fn record(&mut self, &H256, &[u8], u32) { }
+	fn record(&mut self, hash: &<Self::H as Hasher>::Out, &[u8], u32) { }
 }
 
-impl<'a> Query for &'a mut Recorder {
+impl<'a, H: Hasher> Query for &'a mut Recorder<H> {
+	type H = H;
 	type Item = DBValue;
-
 	fn decode(self, value: &[u8]) -> DBValue { DBValue::from_slice(value) }
-	fn record(&mut self, hash: &H256, data: &[u8], depth: u32) {
+	fn record(&mut self, hash: &<Self::H as Hasher>::Out, data: &[u8], depth: u32) {
 		(&mut **self).record(hash, data, depth);
 	}
 }
 
-impl<F, T> Query for F where F: for<'a> FnOnce(&'a [u8]) -> T {
+// TODO: fix "the type parameter `H` is not constrained by the impl trait, self type, or predicates"
+//impl<F, T, H: Hasher> Query for F where F: for<'a> FnOnce(&'a [u8]) -> T {
+//	type H = H;
+//	type Item = T;
+//
+//	fn decode(self, value: &[u8]) -> T { (self)(value) }
+//}
+
+impl<'a, F, T, H: Hasher> Query for (&'a mut Recorder<H>, F) where F: FnOnce(&[u8]) -> T {
+	type H = H;
 	type Item = T;
-
-	fn decode(self, value: &[u8]) -> T { (self)(value) }
-}
-
-impl<'a, F, T> Query for (&'a mut Recorder, F) where F: FnOnce(&[u8]) -> T {
-	type Item = T;
-
 	fn decode(self, value: &[u8]) -> T { (self.1)(value) }
-	fn record(&mut self, hash: &H256, data: &[u8], depth: u32) {
+	fn record(&mut self, hash: &<Self::H as Hasher>::Out, data: &[u8], depth: u32) {
 		self.0.record(hash, data, depth)
 	}
 }
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
 pub trait Trie {
+	type H: Hasher;
 	/// Return the root of the trie.
-	fn root(&self) -> &H256;
+	fn root(&self) -> &<Self::H as Hasher>::Out;
 
 	/// Is the trie empty?
 	fn is_empty(&self) -> bool { *self.root() == KECCAK_NULL_RLP }
@@ -171,8 +176,9 @@ pub trait Trie {
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
 pub trait TrieMut {
+	type H: Hasher;
 	/// Return the root of the trie.
-	fn root(&mut self) -> &H256;
+	fn root(&mut self) -> &<Self::H as Hasher>::Out;
 
 	/// Is the trie empty?
 	fn is_empty(&self) -> bool;
@@ -219,19 +225,20 @@ impl Default for TrieSpec {
 
 /// Trie factory.
 #[derive(Default, Clone)]
-pub struct TrieFactory {
+pub struct TrieFactory<H: Hasher> {
 	spec: TrieSpec,
+	marker: PhantomData<H>
 }
 
 /// All different kinds of tries.
 /// This is used to prevent a heap allocation for every created trie.
-pub enum TrieKinds<'db> {
+pub enum TrieKinds<'db, H: Hasher + 'db> {
 	/// A generic trie db.
-	Generic(TrieDB<'db>),
+	Generic(TrieDB<'db, H>),
 	/// A secure trie db.
-	Secure(SecTrieDB<'db>),
+	Secure(SecTrieDB<'db, H>),
 	/// A fat trie db.
-	Fat(FatDB<'db>),
+	Fat(FatDB<'db, H>),
 }
 
 // wrapper macro for making the match easier to deal with.
@@ -245,8 +252,9 @@ macro_rules! wrapper {
 	}
 }
 
-impl<'db> Trie for TrieKinds<'db> {
-	fn root(&self) -> &H256 {
+impl<'db, H: Hasher> Trie for TrieKinds<'db, H> {
+	type H = H;
+	fn root(&self) -> &<Self::H as Hasher>::Out {
 		wrapper!(self, root,)
 	}
 
@@ -269,16 +277,14 @@ impl<'db> Trie for TrieKinds<'db> {
 	}
 }
 
-impl TrieFactory {
+impl<H: Hasher> TrieFactory<H> {
 	/// Creates new factory.
 	pub fn new(spec: TrieSpec) -> Self {
-		TrieFactory {
-			spec: spec,
-		}
+		TrieFactory { spec }
 	}
 
 	/// Create new immutable instance of Trie.
-	pub fn readonly<'db>(&self, db: &'db HashDB, root: &'db H256) -> Result<TrieKinds<'db>> {
+	pub fn readonly<'db>(&self, db: &'db HashDB<H=H>, root: &'db H256) -> Result<TrieKinds<'db, H>> {
 		match self.spec {
 			TrieSpec::Generic => Ok(TrieKinds::Generic(TrieDB::new(db, root)?)),
 			TrieSpec::Secure => Ok(TrieKinds::Secure(SecTrieDB::new(db, root)?)),
@@ -287,7 +293,7 @@ impl TrieFactory {
 	}
 
 	/// Create new mutable instance of Trie.
-	pub fn create<'db>(&self, db: &'db mut HashDB, root: &'db mut H256) -> Box<TrieMut + 'db> {
+	pub fn create<'db>(&self, db: &'db mut HashDB<H=H>, root: &'db mut H256) -> Box<TrieMut<H=H> + 'db> {
 		match self.spec {
 			TrieSpec::Generic => Box::new(TrieDBMut::new(db, root)),
 			TrieSpec::Secure => Box::new(SecTrieDBMut::new(db, root)),
@@ -296,7 +302,7 @@ impl TrieFactory {
 	}
 
 	/// Create new mutable instance of trie and check for errors.
-	pub fn from_existing<'db>(&self, db: &'db mut HashDB, root: &'db mut H256) -> Result<Box<TrieMut + 'db>> {
+	pub fn from_existing<'db>(&self, db: &'db mut HashDB<H=H>, root: &'db mut H256) -> Result<Box<TrieMut<H=H> + 'db>> {
 		match self.spec {
 			TrieSpec::Generic => Ok(Box::new(TrieDBMut::from_existing(db, root)?)),
 			TrieSpec::Secure => Ok(Box::new(SecTrieDBMut::from_existing(db, root)?)),

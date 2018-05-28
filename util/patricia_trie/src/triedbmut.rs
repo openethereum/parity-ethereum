@@ -25,7 +25,7 @@ use hashdb::HashDB;
 use bytes::ToPretty;
 use nibbleslice::NibbleSlice;
 use rlp::{Rlp, RlpStream};
-use hashdb::DBValue;
+use hashdb::{Hasher, DBValue, KeccakHasher};
 
 use std::collections::{HashSet, VecDeque};
 use std::mem;
@@ -87,7 +87,7 @@ enum Node {
 
 impl Node {
 	// load an inline node into memory or get the hash to do the lookup later.
-	fn inline_or_hash(node: &[u8], db: &HashDB, storage: &mut NodeStorage) -> NodeHandle {
+	fn inline_or_hash(node: &[u8], db: &HashDB<H=KeccakHasher>, storage: &mut NodeStorage) -> NodeHandle {
 		RlpNode::try_decode_hash(&node)
 			.map(NodeHandle::Hash)
 			.unwrap_or_else(|| {
@@ -97,7 +97,7 @@ impl Node {
 	}
 
 	// decode a node from rlp without getting its children.
-	fn from_rlp(rlp: &[u8], db: &HashDB, storage: &mut NodeStorage) -> Self {
+	fn from_rlp(rlp: &[u8], db: &HashDB<H=KeccakHasher>, storage: &mut NodeStorage) -> Self {
 		match RlpNode::decoded(rlp).expect("rlp read from db; qed") {
 			RlpNode::Empty => Node::Empty,
 			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), DBValue::from_slice(&v)),
@@ -292,22 +292,22 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 ///   assert!(!t.contains(b"foo").unwrap());
 /// }
 /// ```
-pub struct TrieDBMut<'a> {
+pub struct TrieDBMut<'a, H: Hasher + 'a> {
 	storage: NodeStorage,
-	db: &'a mut HashDB,
-	root: &'a mut H256,
+	db: &'a mut HashDB<H=H>,
+	root: &'a mut H256, // TOOD
 	root_handle: NodeHandle,
-	death_row: HashSet<H256>,
+	death_row: HashSet<H256>, // TODO
 	/// The number of hash operations this trie has performed.
 	/// Note that none are performed until changes are committed.
 	hash_count: usize,
 }
 
-impl<'a> TrieDBMut<'a> {
+impl<'a, H: Hasher> TrieDBMut<'a, H> {
 	/// Create a new trie with backing database `db` and empty `root`.
-	pub fn new(db: &'a mut HashDB, root: &'a mut H256) -> Self {
+	pub fn new(db: &'a mut HashDB<H=H>, root: &'a mut H256) -> Self {
 		*root = KECCAK_NULL_RLP;
-		let root_handle = NodeHandle::Hash(KECCAK_NULL_RLP);
+		let root_handle = NodeHandle::Hash(KECCAK_NULL_RLP); // TODO
 
 		TrieDBMut {
 			storage: NodeStorage::empty(),
@@ -321,7 +321,7 @@ impl<'a> TrieDBMut<'a> {
 
 	/// Create a new trie with the backing database `db` and `root.
 	/// Returns an error if `root` does not exist.
-	pub fn from_existing(db: &'a mut HashDB, root: &'a mut H256) -> super::Result<Self> {
+	pub fn from_existing(db: &'a mut HashDB<H=H>, root: &'a mut H256) -> super::Result<Self> {
 		if !db.contains(root) {
 			return Err(Box::new(TrieError::InvalidStateRoot(*root)));
 		}
@@ -337,12 +337,12 @@ impl<'a> TrieDBMut<'a> {
 		})
 	}
 	/// Get the backing database.
-	pub fn db(&self) -> &HashDB {
+	pub fn db(&self) -> &HashDB<H=H> {
 		self.db
 	}
 
 	/// Get the backing database mutably.
-	pub fn db_mut(&mut self) -> &mut HashDB {
+	pub fn db_mut(&mut self) -> &mut HashDB<H=H> {
 		self.db
 	}
 
@@ -873,15 +873,17 @@ impl<'a> TrieDBMut<'a> {
 	}
 }
 
-impl<'a> TrieMut for TrieDBMut<'a> {
-	fn root(&mut self) -> &H256 {
+impl<'a, H: Hasher> TrieMut for TrieDBMut<'a, H> {
+	type H = H;
+
+	fn root(&mut self) -> &<Self::H as Hasher>::Out {
 		self.commit();
 		self.root
 	}
 
 	fn is_empty(&self) -> bool {
 		match self.root_handle {
-			NodeHandle::Hash(h) => h == KECCAK_NULL_RLP,
+			NodeHandle::Hash(h) => h == KECCAK_NULL_RLP, // TODO
 			NodeHandle::InMemory(ref h) => match self.storage[h] {
 				Node::Empty => true,
 				_ => false,
@@ -938,7 +940,7 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 	}
 }
 
-impl<'a> Drop for TrieDBMut<'a> {
+impl<'a, H: Hasher> Drop for TrieDBMut<'a, H> {
 	fn drop(&mut self) {
 		self.commit();
 	}

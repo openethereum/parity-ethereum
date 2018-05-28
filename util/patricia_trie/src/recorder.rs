@@ -19,10 +19,12 @@
 use keccak::keccak;
 use ethereum_types::H256;
 use bytes::Bytes;
+use hashdb::Hasher;
+use std::marker::PhantomData;
 
 /// A record of a visited node.
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub struct Record {
+pub struct Record<H: Hasher> {
 	/// The depth of this node.
 	pub depth: u32,
 
@@ -30,23 +32,25 @@ pub struct Record {
 	pub data: Bytes,
 
 	/// The hash of the data.
-	pub hash: H256,
+	pub hash: <Self::H as Hasher>::Out,
+	marker: PhantomData<H>,
 }
 
 /// Records trie nodes as they pass it.
 #[derive(Debug)]
-pub struct Recorder {
-	nodes: Vec<Record>,
+pub struct Recorder<H: Hasher> {
+	nodes: Vec<Record<H>>,
 	min_depth: u32,
+	marker: PhantomData<H>,
 }
 
-impl Default for Recorder {
+impl<H: Hasher> Default for Recorder<H> {
 	fn default() -> Self {
 		Recorder::new()
 	}
 }
 
-impl Recorder {
+impl<H: Hasher> Recorder<H> {
 	/// Create a new `Recorder` which records all given nodes.
 	#[inline]
 	pub fn new() -> Self {
@@ -58,11 +62,13 @@ impl Recorder {
 		Recorder {
 			nodes: Vec::new(),
 			min_depth: depth,
+			marker: PhantomData
 		}
 	}
 
 	/// Record a visited node, given its hash, data, and depth.
-	pub fn record(&mut self, hash: &H256, data: &[u8], depth: u32) {
+//	pub fn record(&mut self, hash: &H256, data: &[u8], depth: u32) {
+	pub fn record(&mut self, hash: &<H as Hasher>::Out, data: &[u8], depth: u32) {
 		debug_assert_eq!(keccak(data), *hash);
 
 		if depth >= self.min_depth {
@@ -70,12 +76,13 @@ impl Recorder {
 				depth: depth,
 				data: data.into(),
 				hash: *hash,
+				marker: PhantomData
 			})
 		}
 	}
 
 	/// Drain all visited records.
-	pub fn drain(&mut self) -> Vec<Record> {
+	pub fn drain(&mut self) -> Vec<Record<H>> {
 		::std::mem::replace(&mut self.nodes, Vec::new())
 	}
 }

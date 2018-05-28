@@ -16,7 +16,7 @@
 
 //! Trie lookup via HashDB.
 
-use hashdb::HashDB;
+use hashdb::{HashDB, Hasher};
 use nibbleslice::NibbleSlice;
 use ethereum_types::H256;
 
@@ -24,16 +24,16 @@ use super::{TrieError, Query};
 use super::node::Node;
 
 /// Trie lookup helper object.
-pub struct Lookup<'a, Q: Query> {
+pub struct Lookup<'a, H: Hasher + 'a, Q: Query> {
 	/// database to query from.
-	pub db: &'a HashDB,
+	pub db: &'a HashDB<H=H>,
 	/// Query object to record nodes and transform data.
 	pub query: Q,
 	/// Hash to start at
-	pub hash: H256,
+	pub hash: H::Out, // TODO
 }
 
-impl<'a, Q: Query> Lookup<'a, Q> {
+impl<'a, H: Hasher, Q: Query> Lookup<'a, H, Q> {
 	/// Look up the given key. If the value is found, it will be passed to the given
 	/// function to decode or copy.
 	pub fn look_up(mut self, mut key: NibbleSlice) -> super::Result<Option<Q::Item>> {
@@ -82,7 +82,7 @@ impl<'a, Q: Query> Lookup<'a, Q> {
 
 				// check if new node data is inline or hash.
 				if let Some(h) = Node::try_decode_hash(&node_data) {
-					hash = h;
+					hash = <Lookup<_, H> as Hasher>::H::Out(h); // REVIEW: this is pretty horrible. Better way?
 					break
 				}
 			}

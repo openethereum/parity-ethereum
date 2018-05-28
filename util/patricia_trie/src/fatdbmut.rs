@@ -16,49 +16,50 @@
 
 use ethereum_types::H256;
 use keccak::keccak;
-use hashdb::{HashDB, DBValue};
+use hashdb::{HashDB, DBValue, Hasher};
 use super::{TrieDBMut, TrieMut};
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 /// Additionaly it stores inserted hash-key mappings for later retrieval.
 ///
 /// Use it as a `Trie` or `TrieMut` trait object.
-pub struct FatDBMut<'db> {
-	raw: TrieDBMut<'db>,
+pub struct FatDBMut<'db, H: Hasher + 'db> {
+	raw: TrieDBMut<'db, H>,
 }
 
-impl<'db> FatDBMut<'db> {
+impl<'db, H: Hasher> FatDBMut<'db, H> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self {
+	pub fn new(db: &'db mut HashDB<H=H>, root: &'db mut H256) -> Self {
 		FatDBMut { raw: TrieDBMut::new(db, root) }
 	}
 
 	/// Create a new trie with the backing database `db` and `root`.
 	///
 	/// Returns an error if root does not exist.
-	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> super::Result<Self> {
+	pub fn from_existing(db: &'db mut HashDB<H=H>, root: &'db mut H256) -> super::Result<Self> {
 		Ok(FatDBMut { raw: TrieDBMut::from_existing(db, root)? })
 	}
 
 	/// Get the backing database.
-	pub fn db(&self) -> &HashDB {
+	pub fn db(&self) -> &HashDB<H=H> {
 		self.raw.db()
 	}
 
 	/// Get the backing database.
-	pub fn db_mut(&mut self) -> &mut HashDB {
+	pub fn db_mut(&mut self) -> &mut HashDB<H=H> {
 		self.raw.db_mut()
 	}
 
 	fn to_aux_key(key: &[u8]) -> H256 {
 		keccak(key)
-	}
+	} // TODO
 }
 
-impl<'db> TrieMut for FatDBMut<'db> {
-	fn root(&mut self) -> &H256 {
+impl<'db, H: Hasher> TrieMut for FatDBMut<'db, H> {
+	type H = H;
+	fn root(&mut self) -> &<Self::H as Hasher>::Out {
 		self.raw.root()
 	}
 
@@ -73,11 +74,11 @@ impl<'db> TrieMut for FatDBMut<'db> {
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<DBValue>>
 		where 'a: 'key
 	{
-		self.raw.get(&keccak(key))
+		self.raw.get(&keccak(key)) // TODO
 	}
 
 	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>> {
-		let hash = keccak(key);
+		let hash = keccak(key); // TODO
 		let out = self.raw.insert(&hash, value)?;
 		let db = self.raw.db_mut();
 

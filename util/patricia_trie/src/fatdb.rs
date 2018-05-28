@@ -16,22 +16,22 @@
 
 use ethereum_types::H256;
 use keccak::keccak;
-use hashdb::HashDB;
+use hashdb::{HashDB, Hasher};
 use super::{TrieDB, Trie, TrieDBIterator, TrieItem, TrieIterator, Query};
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 /// Additionaly it stores inserted hash-key mappings for later retrieval.
 ///
 /// Use it as a `Trie` or `TrieMut` trait object.
-pub struct FatDB<'db> {
-	raw: TrieDB<'db>,
+pub struct FatDB<'db, H: Hasher + 'db> {
+	raw: TrieDB<'db, H>,
 }
 
-impl<'db> FatDB<'db> {
+impl<'db, H: Hasher> FatDB<'db, H> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db HashDB, root: &'db H256) -> super::Result<Self> {
+	pub fn new(db: &'db HashDB<H=H>, root: &'db H256) -> super::Result<Self> {
 		let fatdb = FatDB {
 			raw: TrieDB::new(db, root)?
 		};
@@ -40,40 +40,42 @@ impl<'db> FatDB<'db> {
 	}
 
 	/// Get the backing database.
-	pub fn db(&self) -> &HashDB {
+	pub fn db(&self) -> &HashDB<H=H> {
 		self.raw.db()
 	}
 }
 
-impl<'db> Trie for FatDB<'db> {
-	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Item = TrieItem> + 'a>> {
-		FatDBIterator::new(&self.raw).map(|iter| Box::new(iter) as Box<_>)
-	}
+impl<'db, H: Hasher> Trie for FatDB<'db, H> {
+	type H = H;
 
-	fn root(&self) -> &H256 {
+	fn root(&self) -> &<Self::H as Hasher>::Out {
 		self.raw.root()
 	}
 
 	fn contains(&self, key: &[u8]) -> super::Result<bool> {
-		self.raw.contains(&keccak(key))
+		self.raw.contains(&keccak(key)) // TODO
 	}
 
 	fn get_with<'a, 'key, Q: Query>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>>
 		where 'a: 'key
 	{
-		self.raw.get_with(&keccak(key), query)
+		self.raw.get_with(&keccak(key), query) // TODO
+	}
+
+	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Item = TrieItem> + 'a>> {
+		FatDBIterator::new(&self.raw).map(|iter| Box::new(iter) as Box<_>)
 	}
 }
 
 /// Itarator over inserted pairs of key values.
-pub struct FatDBIterator<'db> {
-	trie_iterator: TrieDBIterator<'db>,
-	trie: &'db TrieDB<'db>,
+pub struct FatDBIterator<'db, H: Hasher + 'db> {
+	trie_iterator: TrieDBIterator<'db, H>,
+	trie: &'db TrieDB<'db, H>,
 }
 
-impl<'db> FatDBIterator<'db> {
+impl<'db, H: Hasher> FatDBIterator<'db, H> {
 	/// Creates new iterator.
-	pub fn new(trie: &'db TrieDB) -> super::Result<Self> {
+	pub fn new(trie: &'db TrieDB<H>) -> super::Result<Self> {
 		Ok(FatDBIterator {
 			trie_iterator: TrieDBIterator::new(trie)?,
 			trie: trie,
@@ -81,13 +83,13 @@ impl<'db> FatDBIterator<'db> {
 	}
 }
 
-impl<'db> TrieIterator for FatDBIterator<'db> {
+impl<'db, H: Hasher> TrieIterator for FatDBIterator<'db, H> {
 	fn seek(&mut self, key: &[u8]) -> super::Result<()> {
 		self.trie_iterator.seek(&keccak(key))
 	}
 }
 
-impl<'db> Iterator for FatDBIterator<'db> {
+impl<'db, H: Hasher> Iterator for FatDBIterator<'db, H> {
 	type Item = TrieItem<'db>;
 
 	fn next(&mut self) -> Option<Self::Item> {

@@ -49,30 +49,26 @@ use bytes::{ToPretty, Bytes};
 ///   assert_eq!(t.get(b"foo").unwrap().unwrap(), DBValue::from_slice(b"bar"));
 /// }
 /// ```
-pub struct TrieDB<'db> {
-	db: &'db HashDB,
-	root: &'db H256,
+pub struct TrieDB<'db, H: Hasher + 'db> {
+	db: &'db HashDB<H=H>,
+	root: &'db H::Out,
 	/// The number of hashes performed so far in operations on this trie.
 	hash_count: usize,
 }
 
-impl<'db> TrieDB<'db> {
+impl<'db, H: Hasher> TrieDB<'db, H> {
 	/// Create a new trie with the backing database `db` and `root`
 	/// Returns an error if `root` does not exist
-	pub fn new(db: &'db HashDB, root: &'db H256) -> super::Result<Self> {
+	pub fn new(db: &'db HashDB<H=H>, root: &'db H256) -> super::Result<Self> {
 		if !db.contains(root) {
 			Err(Box::new(TrieError::InvalidStateRoot(*root)))
 		} else {
-			Ok(TrieDB {
-				db: db,
-				root: root,
-				hash_count: 0
-			})
+			Ok(TrieDB {db, root, hash_count: 0})
 		}
 	}
 
 	/// Get the backing database.
-	pub fn db(&'db self) -> &'db HashDB {
+	pub fn db(&'db self) -> &'db HashDB<H=H> {
 		self.db
 	}
 
@@ -101,12 +97,9 @@ impl<'db> TrieDB<'db> {
 	}
 }
 
-impl<'db> Trie for TrieDB<'db> {
-	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Item = TrieItem> + 'a>> {
-		TrieDBIterator::new(self).map(|iter| Box::new(iter) as Box<_>)
-	}
-
-	fn root(&self) -> &H256 { self.root }
+impl<'db, H: Hasher> Trie for TrieDB<'db, H> {
+	type H = H;
+	fn root(&self) -> &<Self::H as Hasher>::Out { self.root }
 
 	fn get_with<'a, 'key, Q: Query>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>>
 		where 'a: 'key
@@ -117,15 +110,19 @@ impl<'db> Trie for TrieDB<'db> {
 			hash: self.root.clone(),
 		}.look_up(NibbleSlice::new(key))
 	}
+
+	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Item=TrieItem> + 'a>> {
+		TrieDBIterator::new(self).map(|iter| Box::new(iter) as Box<_>)
+	}
 }
 
 // This is for pretty debug output only
-struct TrieAwareDebugNode<'db, 'a> {
-	trie: &'db TrieDB<'db>,
+struct TrieAwareDebugNode<'db, 'a, H: Hasher + 'db> {
+	trie: &'db TrieDB<'db, H>,
 	key: &'a[u8]
 }
 
-impl<'db, 'a> fmt::Debug for TrieAwareDebugNode<'db, 'a> {
+impl<'db, 'a, H: Hasher> fmt::Debug for TrieAwareDebugNode<'db, 'a, H> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		if let Ok(node) = self.trie.get_raw_or_lookup(self.key) {
 			match Node::decoded(&node) {
@@ -161,7 +158,7 @@ impl<'db, 'a> fmt::Debug for TrieAwareDebugNode<'db, 'a> {
 }
 
 
-impl<'db> fmt::Debug for TrieDB<'db> {
+impl<'db, H: Hasher> fmt::Debug for TrieDB<'db, H> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let root_rlp = self.db.get(self.root).expect("Trie root not found!");
 		f.debug_struct("TrieDB")
@@ -202,15 +199,15 @@ impl Crumb {
 }
 
 /// Iterator for going through all values in the trie.
-pub struct TrieDBIterator<'a> {
-	db: &'a TrieDB<'a>,
+pub struct TrieDBIterator<'a, H: Hasher + 'a> {
+	db: &'a TrieDB<'a, H>,
 	trail: Vec<Crumb>,
 	key_nibbles: Bytes,
 }
 
-impl<'a> TrieDBIterator<'a> {
+impl<'a, H: Hasher> TrieDBIterator<'a, H> {
 	/// Create a new iterator.
-	pub fn new(db: &'a TrieDB) -> super::Result<TrieDBIterator<'a>> {
+	pub fn new(db: &'a TrieDB<H>) -> super::Result<TrieDBIterator<'a, H>> {
 		let mut r = TrieDBIterator {
 			db: db,
 			trail: vec![],
@@ -319,7 +316,7 @@ impl<'a> TrieDBIterator<'a> {
 	}
 }
 
-impl<'a> TrieIterator for TrieDBIterator<'a> {
+impl<'a, H: Hasher> TrieIterator for TrieDBIterator<'a, H> {
 	/// Position the iterator on the first element with key >= `key`
 	fn seek(&mut self, key: &[u8]) -> super::Result<()> {
 		self.trail.clear();
@@ -329,7 +326,7 @@ impl<'a> TrieIterator for TrieDBIterator<'a> {
 	}
 }
 
-impl<'a> Iterator for TrieDBIterator<'a> {
+impl<'a, H: Hasher> Iterator for TrieDBIterator<'a, H> {
 	type Item = TrieItem<'a>;
 
 	fn next(&mut self) -> Option<Self::Item> {

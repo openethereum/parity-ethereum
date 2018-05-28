@@ -16,53 +16,55 @@
 
 use ethereum_types::H256;
 use keccak::keccak;
-use hashdb::HashDB;
+use hashdb::{HashDB, Hasher};
 use super::triedb::TrieDB;
 use super::{Trie, TrieItem, TrieIterator, Query};
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
 /// Use it as a `Trie` trait object. You can use `raw()` to get the backing `TrieDB` object.
-pub struct SecTrieDB<'db> {
-	raw: TrieDB<'db>
+pub struct SecTrieDB<'db, H: Hasher + 'db> {
+	raw: TrieDB<'db, H>
 }
 
-impl<'db> SecTrieDB<'db> {
+impl<'db, H: Hasher> SecTrieDB<'db, H> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	///
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
 	/// Returns an error if root does not exist.
-	pub fn new(db: &'db HashDB, root: &'db H256) -> super::Result<Self> {
+	pub fn new(db: &'db HashDB<H=H>, root: &'db H256) -> super::Result<Self> {
 		Ok(SecTrieDB { raw: TrieDB::new(db, root)? })
 	}
 
 	/// Get a reference to the underlying raw `TrieDB` struct.
-	pub fn raw(&self) -> &TrieDB {
+	pub fn raw(&self) -> &TrieDB<H> {
 		&self.raw
 	}
 
 	/// Get a mutable reference to the underlying raw `TrieDB` struct.
-	pub fn raw_mut(&mut self) -> &mut TrieDB<'db> {
+	pub fn raw_mut(&mut self) -> &mut TrieDB<'db, H> {
 		&mut self.raw
 	}
 }
 
-impl<'db> Trie for SecTrieDB<'db> {
-	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Item = TrieItem> + 'a>> {
-		TrieDB::iter(&self.raw)
-	}
+impl<'db, H: Hasher> Trie for SecTrieDB<'db, H> {
+	type H = H;
 
-	fn root(&self) -> &H256 { self.raw.root() }
+	fn root(&self) -> &<Self::H as Hasher>::Out{ self.raw.root() }
 
 	fn contains(&self, key: &[u8]) -> super::Result<bool> {
-		self.raw.contains(&keccak(key))
+		self.raw.contains(&keccak(key)) // TODO
 	}
 
 	fn get_with<'a, 'key, Q: Query>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>>
 		where 'a: 'key
 	{
-		self.raw.get_with(&keccak(key), query)
+		self.raw.get_with(&keccak(key), query) // TODO
+	}
+
+	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Item = TrieItem> + 'a>> {
+		TrieDB::iter(&self.raw)
 	}
 }
 
