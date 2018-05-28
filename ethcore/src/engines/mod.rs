@@ -486,6 +486,3 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 		self.machine().decode_transaction(transaction)
 	}
 }
-
-// convenience wrappers for existing functions.
-impl<T> EthEngine for T where T: Engine<::machine::EthereumMachine> { }

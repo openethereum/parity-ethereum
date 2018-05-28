@@ -26,7 +26,7 @@ use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};
 use header::{Header, BlockNumber, ExtendedHeader};
-use engines::{self, Engine, ForkChoice};
+use engines::{self, Engine, EthEngine, ForkChoice};
 use ethjson;
 use rlp::{self, Rlp};
 use machine::{EthereumMachine, CasperMetadata};
@@ -393,6 +393,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		}
 	}
 }
+
+impl EthEngine for Arc<Ethash> { }
 
 impl Ethash {
 	fn calculate_difficulty(&self, header: &Header, parent: &Header) -> U256 {

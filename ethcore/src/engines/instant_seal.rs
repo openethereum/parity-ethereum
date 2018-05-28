@@ -69,6 +69,8 @@ impl<M: Machine> Engine<M> for InstantSeal<M>
 	}
 }
 
+impl ::engines::EthEngine for InstantSeal<::machine::EthereumMachine> { }
+
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;

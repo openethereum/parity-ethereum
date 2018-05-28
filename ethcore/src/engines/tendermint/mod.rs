@@ -771,6 +771,8 @@ impl Engine<EthereumMachine> for Tendermint {
 	}
 }
 
+impl ::engines::EthEngine for Tendermint { }
+
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
