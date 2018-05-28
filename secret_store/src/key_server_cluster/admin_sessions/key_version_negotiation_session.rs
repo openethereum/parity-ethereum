@@ -391,7 +391,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		if let Some(result) = core.result_computer.compute_result(data.threshold.clone(), confirmations, versions) {
 			// when the master node processing decryption service request, it starts with a key version negotiation session
 			// if the negotiation fails, only master node knows about it
-			// => if error is fatal, only master will know about it and report to the contract && request will never be rejected
+			// => if the error is fatal, only the master will know about it and report it to the contract && the request will never be rejected
 			// => let's broadcast fatal error so that every other node know about it, and, if it trusts to master node
 			// will report error to the contract
 			if let (Some(continue_with), Err(error)) = (data.continue_with.as_ref(), result.as_ref()) {

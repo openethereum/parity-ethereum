@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
- // build.rs
+//! Actions on ancestry blocks when working on a new block.
 
-// Bring in a dependency on an externally maintained `cc` package which manages
-// invoking the C compiler.
-extern crate cc;
+use ethereum_types::H256;
 
-fn main() {
-	cc::Build::new().file("src/tinykeccak.c").compile("libtinykeccak.a");
+#[derive(Debug, PartialEq, Eq, Clone)]
+/// Actions on a live block's parent block. Only committed when the live block is committed. Those actions here must
+/// respect the normal blockchain reorganization rules.
+pub enum AncestryAction {
+	/// Mark an ancestry block as finalized.
+	MarkFinalized(H256),
 }
-

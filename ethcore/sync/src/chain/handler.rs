@@ -100,14 +100,27 @@ impl SyncHandler {
 	}
 
 	/// Called by peer when it is disconnecting
-	pub fn on_peer_aborting(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId) {
-		trace!(target: "sync", "== Disconnecting {}: {}", peer, io.peer_info(peer));
-		sync.handshaking_peers.remove(&peer);
-		if sync.peers.contains_key(&peer) {
-			debug!(target: "sync", "Disconnected {}", peer);
-			sync.clear_peer_download(peer);
-			sync.peers.remove(&peer);
-			sync.active_peers.remove(&peer);
+	pub fn on_peer_aborting(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
+		trace!(target: "sync", "== Disconnecting {}: {}", peer_id, io.peer_info(peer_id));
+		sync.handshaking_peers.remove(&peer_id);
+		if sync.peers.contains_key(&peer_id) {
+			debug!(target: "sync", "Disconnected {}", peer_id);
+			sync.clear_peer_download(peer_id);
+			sync.peers.remove(&peer_id);
+			sync.active_peers.remove(&peer_id);
+
+			if sync.state == SyncState::SnapshotManifest {
+				// Check if we are asking other peers for
+				// the snapshot manifest as well.
+				// If not, return to initial state
+				let still_asking_manifest = sync.peers.iter()
+					.filter(|&(id, p)| sync.active_peers.contains(id) && p.asking == PeerAsking::SnapshotManifest)
+					.next().is_none();
+
+				if still_asking_manifest {
+					sync.state = ChainSync::get_init_state(sync.warp_sync, io.chain());
+				}
+			}
 			sync.continue_sync(io);
 		}
 	}
@@ -320,6 +333,10 @@ impl SyncHandler {
 	}
 
 	fn on_peer_confirmed(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
+		{
+			let peer = sync.peers.get_mut(&peer_id).expect("Is only called when peer is present in peers");
+			peer.confirmation = ForkConfirmation::Confirmed;
+		}
 		sync.sync_peer(io, peer_id, false);
 	}
 
@@ -344,8 +361,8 @@ impl SyncHandler {
 			}
 
 			trace!(target: "sync", "{}: Confirmed peer", peer_id);
-			peer.confirmation = ForkConfirmation::Confirmed;
 			if !io.chain_overlay().read().contains_key(&fork_number) {
+				trace!(target: "sync", "Inserting (fork) block {} header", fork_number);
 				io.chain_overlay().write().insert(fork_number, header.to_vec());
 			}
 		}
@@ -560,6 +577,10 @@ impl SyncHandler {
 				sync.continue_sync(io);
 				return Ok(());
 			},
+			RestorationStatus::Initializing  { .. } => {
+				trace!(target: "warp", "{}: Snapshot restoration is initializing", peer_id);
+				return Ok(());
+			}
 			RestorationStatus::Ongoing { .. } => {
 				trace!(target: "sync", "{}: Snapshot restoration is ongoing", peer_id);
 			},
@@ -659,11 +680,16 @@ impl SyncHandler {
 		// Let the current sync round complete first.
 		sync.active_peers.insert(peer_id.clone());
 		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
-		if let Some((fork_block, _)) = sync.fork_block {
-			SyncRequester::request_fork_header(sync, io, peer_id, fork_block);
-		} else {
-			SyncHandler::on_peer_confirmed(sync, io, peer_id);
+
+		match sync.fork_block {
+			Some((fork_block, _)) => {
+				SyncRequester::request_fork_header(sync, io, peer_id, fork_block);
+			},
+			_ => {
+				SyncHandler::on_peer_confirmed(sync, io, peer_id);
+			}
 		}
+
 		Ok(())
 	}
 

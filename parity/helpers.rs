@@ -47,11 +47,11 @@ fn to_seconds(s: &str) -> Result<u64, String> {
 		"1minute" | "1 minute" | "minute" => Ok(60),
 		"hourly" | "1hour" | "1 hour" | "hour" => Ok(60 * 60),
 		"daily" | "1day" | "1 day" | "day" => Ok(24 * 60 * 60),
-		x if x.ends_with("seconds") => x[0..x.len() - 7].parse().map_err(bad),
-		x if x.ends_with("minutes") => x[0..x.len() - 7].parse::<u64>().map_err(bad).map(|x| x * 60),
-		x if x.ends_with("hours") => x[0..x.len() - 5].parse::<u64>().map_err(bad).map(|x| x * 60 * 60),
-		x if x.ends_with("days") => x[0..x.len() - 4].parse::<u64>().map_err(bad).map(|x| x * 24 * 60 * 60),
-		x => x.parse().map_err(bad),
+		x if x.ends_with("seconds") => x[0..x.len() - 7].trim().parse().map_err(bad),
+		x if x.ends_with("minutes") => x[0..x.len() - 7].trim().parse::<u64>().map_err(bad).map(|x| x * 60),
+		x if x.ends_with("hours") => x[0..x.len() - 5].trim().parse::<u64>().map_err(bad).map(|x| x * 60 * 60),
+		x if x.ends_with("days") => x[0..x.len() - 4].trim().parse::<u64>().map_err(bad).map(|x| x * 24 * 60 * 60),
+		x => x.trim().parse().map_err(bad),
 	}
 }
 
@@ -350,6 +350,8 @@ mod tests {
 		assert_eq!(to_duration("1day").unwrap(), Duration::from_secs(1 * 24 * 60 * 60));
 		assert_eq!(to_duration("2days").unwrap(), Duration::from_secs(2 * 24 *60 * 60));
 		assert_eq!(to_duration("15days").unwrap(), Duration::from_secs(15 * 24 * 60 * 60));
+		assert_eq!(to_duration("15 days").unwrap(), Duration::from_secs(15 * 24 * 60 * 60));
+		assert_eq!(to_duration("2  seconds").unwrap(), Duration::from_secs(2));
 	}
 
 	#[test]

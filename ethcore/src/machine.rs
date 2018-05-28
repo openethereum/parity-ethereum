@@ -25,7 +25,7 @@ use builtin::Builtin;
 use client::{BlockInfo, CallContract};
 use error::Error;
 use executive::Executive;
-use header::{BlockNumber, Header};
+use header::{BlockNumber, Header, ExtendedHeader};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
@@ -46,14 +46,6 @@ pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
 pub struct EthashExtensions {
 	/// Homestead transition block number.
 	pub homestead_transition: BlockNumber,
-	/// EIP150 transition block number.
-	pub eip150_transition: BlockNumber,
-	/// Number of first block where EIP-160 rules begin.
-	pub eip160_transition: u64,
-	/// Number of first block where EIP-161.abc begin.
-	pub eip161abc_transition: u64,
-	/// Number of first block where EIP-161.d begins.
-	pub eip161d_transition: u64,
 	/// DAO hard-fork transition block (X).
 	pub dao_hardfork_transition: u64,
 	/// DAO hard-fork refund contract address (C).
@@ -66,10 +58,6 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 	fn from(p: ::ethjson::spec::EthashParams) -> Self {
 		EthashExtensions {
 			homestead_transition: p.homestead_transition.map_or(0, Into::into),
-			eip150_transition: p.eip150_transition.map_or(0, Into::into),
-			eip160_transition: p.eip160_transition.map_or(0, Into::into),
-			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
-			eip161d_transition: p.eip161d_transition.map_or(u64::max_value(), Into::into),
 			dao_hardfork_transition: p.dao_hardfork_transition.map_or(u64::max_value(), Into::into),
 			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
 			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
@@ -267,19 +255,8 @@ impl EthereumMachine {
 			Some(ref ext) => {
 				if block_number < ext.homestead_transition {
 					Schedule::new_frontier()
-				} else if block_number < ext.eip150_transition {
-					Schedule::new_homestead()
 				} else {
-					let max_code_size = self.params.max_code_size(block_number);
-					let mut schedule = Schedule::new_post_eip150(
-						max_code_size as _,
-						block_number >= ext.eip160_transition,
-						block_number >= ext.eip161abc_transition,
-						block_number >= ext.eip161d_transition
-					);
-
-					self.params.update_schedule(block_number, &mut schedule);
-					schedule
+					self.params.schedule(block_number)
 				}
 			}
 		};
@@ -422,10 +399,12 @@ pub enum AuxiliaryRequest {
 
 impl ::parity_machine::Machine for EthereumMachine {
 	type Header = Header;
+	type ExtendedHeader = ExtendedHeader;
 
 	type LiveBlock = ExecutedBlock;
 	type EngineClient = ::client::EngineClient;
 	type AuxiliaryRequest = AuxiliaryRequest;
+	type AncestryAction = ::types::ancestry_action::AncestryAction;
 
 	type Error = Error;
 }
@@ -501,10 +480,6 @@ mod tests {
 	fn get_default_ethash_extensions() -> EthashExtensions {
 		EthashExtensions {
 			homestead_transition: 1150000,
-			eip150_transition: u64::max_value(),
-			eip160_transition: u64::max_value(),
-			eip161abc_transition: u64::max_value(),
-			eip161d_transition: u64::max_value(),
 			dao_hardfork_transition: u64::max_value(),
 			dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
 			dao_hardfork_accounts: Vec::new(),

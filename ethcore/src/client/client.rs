@@ -17,7 +17,7 @@
 use std::collections::{HashSet, BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
 use std::time::{Instant, Duration};
 
@@ -33,7 +33,7 @@ use util_error::UtilError;
 // other
 use ethereum_types::{H256, Address, U256};
 use block::{IsBlock, LockedBlock, Drain, ClosedBlock, OpenBlock, enact_verified, SealedBlock};
-use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute, TransactionAddress};
+use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute, TransactionAddress, ExtrasInsert};
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
@@ -50,13 +50,13 @@ use client::{
 	IoClient,
 };
 use encoded;
-use engines::{EthEngine, EpochTransition};
+use engines::{EthEngine, EpochTransition, ForkChoice};
 use error::{ImportErrorKind, BlockImportErrorKind, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use vm::{EnvInfo, LastHashes};
 use evm::Schedule;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::{Factories, VmFactory};
-use header::{BlockNumber, Header};
+use header::{BlockNumber, Header, ExtendedHeader};
 use io::{IoChannel, IoError};
 use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService};
@@ -73,10 +73,12 @@ use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Databa
 use transaction::{self, LocalizedTransaction, UnverifiedTransaction, SignedTransaction, Transaction, Action};
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
+use types::ancestry_action::AncestryAction;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
 use verification::queue::BlockQueue;
 use views::BlockView;
+use parity_machine::{Finalizable, WithMetadata};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -208,6 +210,8 @@ pub struct Client {
 	queue_transactions: IoChannelQueue,
 	/// Ancient blocks import queue
 	queue_ancient_blocks: IoChannelQueue,
+	/// Hashes of pending ancient block wainting to be included
+	pending_ancient_blocks: RwLock<HashSet<H256>>,
 	/// Consensus messages import queue
 	queue_consensus_message: IoChannelQueue,
 
@@ -396,6 +400,7 @@ impl Importer {
 			last_hashes,
 			client.factories.clone(),
 			is_epoch_begin,
+			&mut chain.ancestry_with_metadata_iter(*header.parent_hash()),
 		);
 
 		let mut locked_block = enact_result.map_err(|e| {
@@ -430,6 +435,7 @@ impl Importer {
 		let hash = header.hash();
 		let _import_lock = self.import_lock.lock();
 
+		trace!(target: "client", "Trying to import old block #{}", header.number());
 		{
 			trace_time!("import_old_block");
 			// verify the block, passing the chain for updating the epoch verifier.
@@ -467,6 +473,44 @@ impl Importer {
 
 		let mut batch = DBTransaction::new();
 
+		let ancestry_actions = self.engine.ancestry_actions(block.block(), &mut chain.ancestry_with_metadata_iter(*parent));
+
+		let best_hash = chain.best_block_hash();
+		let metadata = block.block().metadata().map(Into::into);
+		let is_finalized = block.block().is_finalized();
+
+		let new = ExtendedHeader {
+			header: header.clone(),
+			is_finalized: is_finalized,
+			metadata: metadata,
+			parent_total_difficulty: chain.block_details(&parent).expect("Parent block is in the database; qed").total_difficulty
+		};
+
+		let best = {
+			let hash = best_hash;
+			let header = chain.block_header_data(&hash)
+				.expect("Best block is in the database; qed")
+				.decode()
+				.expect("Stored block header is valid RLP; qed");
+			let details = chain.block_details(&hash)
+				.expect("Best block is in the database; qed");
+
+			ExtendedHeader {
+				parent_total_difficulty: details.total_difficulty - *header.difficulty(),
+				is_finalized: details.is_finalized,
+				metadata: details.metadata,
+
+				header: header,
+			}
+		};
+
+		let route = chain.tree_route(best_hash, *parent).expect("forks are only kept when it has common ancestors; tree route from best to prospective's parent always exists; qed");
+		let fork_choice = if route.is_from_route_finalized {
+			ForkChoice::Old
+		} else {
+			self.engine.fork_choice(&new, &best)
+		};
+
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
@@ -485,7 +529,17 @@ impl Importer {
 		);
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
-		let route = chain.insert_block(&mut batch, block_data, receipts.clone());
+
+		for ancestry_action in ancestry_actions {
+			let AncestryAction::MarkFinalized(ancestry) = ancestry_action;
+			chain.mark_finalized(&mut batch, ancestry).expect("Engine's ancestry action must be known blocks; qed");
+		}
+
+		let route = chain.insert_block(&mut batch, block_data, receipts.clone(), ExtrasInsert {
+			fork_choice: fork_choice,
+			is_finalized: is_finalized,
+			metadata: new.metadata,
+		});
 
 		client.tracedb.read().import(&mut batch, TraceImportRequest {
 			traces: traces.into(),
@@ -710,6 +764,7 @@ impl Client {
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: IoChannelQueue::new(MAX_TX_QUEUE_SIZE),
 			queue_ancient_blocks: IoChannelQueue::new(MAX_ANCIENT_BLOCKS_QUEUE_SIZE),
+			pending_ancient_blocks: RwLock::new(HashSet::new()),
 			queue_consensus_message: IoChannelQueue::new(usize::max_value()),
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
@@ -1957,7 +2012,7 @@ impl BlockChainClient for Client {
 impl IoClient for Client {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
 		let len = transactions.len();
-		self.queue_transactions.queue(&mut self.io_channel.lock(), len, move |client| {
+		self.queue_transactions.queue(&mut self.io_channel.lock(), move |client| {
 			trace_time!("import_queued_transactions");
 
 			let txs: Vec<UnverifiedTransaction> = transactions
@@ -1981,23 +2036,32 @@ impl IoClient for Client {
 
 		{
 			// check block order
-			if self.chain.read().is_known(&header.hash()) {
+			if self.chain.read().is_known(&hash) {
 				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
-			let status = self.block_status(BlockId::Hash(*header.parent_hash()));
-			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(*header.parent_hash())));
+
+			let parent_hash = *header.parent_hash();
+			let parent_pending = self.pending_ancient_blocks.read().contains(&parent_hash);
+			let status = self.block_status(BlockId::Hash(parent_hash));
+			if !parent_pending && (status == BlockStatus::Unknown || status == BlockStatus::Pending) {
+				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(parent_hash)));
 			}
 		}
 
-		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), 1, move |client| {
-			client.importer.import_old_block(
+		self.pending_ancient_blocks.write().insert(hash);
+
+		trace!(target: "client", "Queuing old block #{}", header.number());
+		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), move |client| {
+			let result = client.importer.import_old_block(
 				&header,
 				&block_bytes,
 				&receipts_bytes,
 				&**client.db.read(),
 				&*client.chain.read()
-			).map(|_| ()).unwrap_or_else(|e| {
+			);
+
+			client.pending_ancient_blocks.write().remove(&hash);
+			result.map(|_| ()).unwrap_or_else(|e| {
 				error!(target: "client", "Error importing ancient block: {}", e);
 			});
 		}) {
@@ -2007,7 +2071,7 @@ impl IoClient for Client {
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
-		match self.queue_consensus_message.queue(&mut self.io_channel.lock(), 1, move |client| {
+		match self.queue_consensus_message.queue(&mut self.io_channel.lock(), move |client| {
 			if let Err(e) = client.engine().handle_message(&message) {
 				debug!(target: "poa", "Invalid message received: {}", e);
 			}
@@ -2069,6 +2133,7 @@ impl PrepareOpenBlock for Client {
 			gas_range_target,
 			extra_data,
 			is_epoch_begin,
+			&mut chain.ancestry_with_metadata_iter(best_header.hash()),
 		).expect("OpenBlock::new only fails if parent state root invalid; state root of best block's header is never invalid; qed");
 
 		// Add uncles
@@ -2284,6 +2349,7 @@ mod tests {
 		use std::sync::Arc;
 		use std::sync::atomic::{AtomicBool, Ordering};
 		use kvdb::DBTransaction;
+		use blockchain::ExtrasInsert;
 
 		let client = generate_dummy_client(0);
 		let genesis = client.chain_info().best_block_hash;
@@ -2296,7 +2362,11 @@ mod tests {
 			let another_client = client.clone();
 			thread::spawn(move || {
 				let mut batch = DBTransaction::new();
-				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new());
+				another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new(), ExtrasInsert {
+					fork_choice: ::engines::ForkChoice::New,
+					is_finalized: false,
+					metadata: None,
+				});
 				go_thread.store(true, Ordering::SeqCst);
 			});
 			go
@@ -2414,35 +2484,38 @@ impl fmt::Display for QueueError {
 
 /// Queue some items to be processed by IO client.
 struct IoChannelQueue {
-	currently_queued: Arc<AtomicUsize>,
+	queue: Arc<Mutex<VecDeque<Box<Fn(&Client) + Send>>>>,
 	limit: usize,
 }
 
 impl IoChannelQueue {
 	pub fn new(limit: usize) -> Self {
 		IoChannelQueue {
-			currently_queued: Default::default(),
+			queue: Default::default(),
 			limit,
 		}
 	}
 
-	pub fn queue<F>(&self, channel: &mut IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
-		F: Fn(&Client) + Send + Sync + 'static,
+	pub fn queue<F>(&self, channel: &mut IoChannel<ClientIoMessage>, fun: F) -> Result<(), QueueError>
+		where F: Fn(&Client) + Send + Sync + 'static
 	{
-		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
-		ensure!(queue_size < self.limit, QueueError::Full(self.limit));
+		{
+			let mut queue = self.queue.lock();
+			let queue_size = queue.len();
+			ensure!(queue_size < self.limit, QueueError::Full(self.limit));
 
-		let currently_queued = self.currently_queued.clone();
+			queue.push_back(Box::new(fun));
+		}
+
+		let queue = self.queue.clone();
 		let result = channel.send(ClientIoMessage::execute(move |client| {
-			currently_queued.fetch_sub(count, AtomicOrdering::SeqCst);
-			fun(client);
+			while let Some(fun) = queue.lock().pop_front() {
+				fun(client);
+			}
 		}));
 
 		match result {
-			Ok(_) => {
-				self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
-				Ok(())
-			},
+			Ok(_) => Ok(()),
 			Err(e) => Err(QueueError::Channel(e)),
 		}
 	}

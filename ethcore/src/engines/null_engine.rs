@@ -19,7 +19,7 @@ use engines::Engine;
 use engines::block_reward::{self, RewardKind};
 use header::BlockNumber;
 use machine::WithRewards;
-use parity_machine::{Header, LiveBlock, WithBalances};
+use parity_machine::{Header, LiveBlock, WithBalances, TotalScoredHeader};
 
 /// Params for a null engine.
 #[derive(Clone, Default)]
@@ -58,7 +58,10 @@ impl<M: Default> Default for NullEngine<M> {
 	}
 }
 
-impl<M: WithBalances + WithRewards> Engine<M> for NullEngine<M> {
+impl<M: WithBalances + WithRewards> Engine<M> for NullEngine<M>
+  where M::ExtendedHeader: TotalScoredHeader,
+        <M::ExtendedHeader as TotalScoredHeader>::Value: Ord
+{
 	fn name(&self) -> &str {
 		"NullEngine"
 	}
@@ -100,5 +103,9 @@ impl<M: WithBalances + WithRewards> Engine<M> for NullEngine<M> {
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
+	}
+
+	fn fork_choice(&self, new: &M::ExtendedHeader, current: &M::ExtendedHeader) -> super::ForkChoice {
+		super::total_difficulty_fork_choice(new, current)
 	}
 }

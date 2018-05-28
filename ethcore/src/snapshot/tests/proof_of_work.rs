@@ -22,7 +22,7 @@ use tempdir::TempDir;
 use error::{Error, ErrorKind};
 
 use blockchain::generator::{BlockGenerator, BlockBuilder};
-use blockchain::BlockChain;
+use blockchain::{BlockChain, ExtrasInsert};
 use snapshot::{chunk_secondary, Error as SnapshotError, Progress, SnapshotComponents};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
@@ -49,7 +49,11 @@ fn chunk_and_restore(amount: u64) {
 	// build the blockchain.
 	let mut batch = DBTransaction::new();
 	for block in generator {
-		bc.insert_block(&mut batch, &block.encoded(), vec![]);
+		bc.insert_block(&mut batch, &block.encoded(), vec![], ExtrasInsert {
+			fork_choice: ::engines::ForkChoice::New,
+			is_finalized: false,
+			metadata: None,
+		});
 		bc.commit();
 	}
 

@@ -27,4 +27,6 @@ pub struct TreeRoute {
 	pub ancestor: H256,
 	/// An index where best common ancestor would be.
 	pub index: usize,
+	/// Whether it has finalized blocks from `from` (inclusive) to `ancestor` (exclusive).
+	pub is_from_route_finalized: bool,
 }
