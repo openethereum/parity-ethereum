@@ -17,13 +17,14 @@
 //! Hybrid Casper related functionalities.
 
 use bytes::Bytes;
-use ethereum_types::{Address, U256};
+use ethereum_types::{Address, U256, H256};
 use engines::{DEFAULT_CASPER_CONTRACT, DEFAULT_PURITY_CHECKER_CONTRACT, DEFAULT_MSG_HASHER_CONTRACT, DEFAULT_RLP_DECODER_CONTRACT};
 use rustc_hex::FromHex;
 use transaction::{SignedTransaction, Action};
 use vm::Schedule;
 use state::{State, Backend};
 use types::BlockNumber;
+use ethabi::{self, ParamType};
 use super::SystemCall;
 
 use_contract!(simple_casper, "SimpleCasper", "res/contracts/simple_casper.json");
@@ -214,5 +215,50 @@ impl HybridCasper {
 		} else {
 			Ok(())
 		}
+	}
+
+	pub fn highest_justified_epoch(&self, caller: &mut SystemCall) -> Result<U256, ::error::Error> {
+		let data = self.provider.functions().highest_justified_epoch().input(
+			self.params.non_revert_min_deposits,
+		);
+		caller(self.params.contract_address, data)
+			.and_then(|output| {
+				Ok(ethabi::decode(&[ParamType::Int(128)], &output)
+				   .map_err(|e| format!("{}", e))?[0].clone()
+				   .to_int()
+				   .expect("type checked by ethabi::decode; qed"))
+			})
+			.map_err(::engines::EngineError::FailedSystemCall)
+			.map_err(Into::into)
+	}
+
+	pub fn highest_finalized_epoch(&self, caller: &mut SystemCall) -> Result<U256, ::error::Error> {
+		let data = self.provider.functions().highest_finalized_epoch().input(
+			self.params.non_revert_min_deposits,
+		);
+		caller(self.params.contract_address, data)
+			.and_then(|output| {
+				Ok(ethabi::decode(&[ParamType::Int(128)], &output)
+				   .map_err(|e| format!("{}", e))?[0].clone()
+				   .to_int()
+				   .expect("type checked by ethabi::decode; qed"))
+			})
+			.map_err(::engines::EngineError::FailedSystemCall)
+			.map_err(Into::into)
+	}
+
+	pub fn checkpoint_hashes(&self, epoch: U256, caller: &mut SystemCall) -> Result<H256, ::error::Error> {
+		let data = self.provider.functions().checkpoint_hashes().input(
+			epoch,
+		);
+		caller(self.params.contract_address, data)
+			.and_then(|output| {
+				Ok(H256::from_slice(&ethabi::decode(&[ParamType::FixedBytes(32)], &output)
+									.map_err(|e| format!("{}", e))?[0].clone()
+									.to_fixed_bytes()
+									.expect("type checked by ethabi::decode; qed")))
+			})
+			.map_err(::engines::EngineError::FailedSystemCall)
+			.map_err(Into::into)
 	}
 }
