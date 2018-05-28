@@ -129,10 +129,6 @@
 					"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
 				],
-				"eip150Transition": "0x259518",
-				"eip160Transition": 2675000,
-				"eip161abcTransition": 2675000,
-				"eip161dTransition": 2675000,
 				"eip649Reward": "0x29A2241AF62C0000",
 				"eip100bTransition": 4370000,
 				"eip649Transition": 4370000
@@ -148,6 +144,10 @@
 		"networkID" : "0x1",
 		"forkBlock": "0x1d4c00",
 		"forkCanonHash": "0x4985f5ca3d2afbec36529aa96f74de3cc10a2a4a6c44f2157a57d2c6059a11bb",
+		"eip150Transition": "0x259518",
+		"eip160Transition": 2675000,
+		"eip161abcTransition": 2675000,
+		"eip161dTransition": 2675000,
 		"eip155Transition": 2675000,
 		"eip98Transition": "0x7fffffffffffff",
 		"eip86Transition": "0x7fffffffffffff",

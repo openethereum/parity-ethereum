@@ -112,7 +112,7 @@ fn net_start_stop() {
 	let config = NetworkConfiguration::new_local();
 	let service = NetworkService::new(config, None).unwrap();
 	service.start().unwrap();
-	service.stop().unwrap();
+	service.stop();
 	service.start().unwrap();
 }
 
