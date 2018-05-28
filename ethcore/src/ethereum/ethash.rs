@@ -20,6 +20,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use engines::block_reward::{self, RewardKind};
+use engines::hybrid_casper::{HybridCasper, HybridCasperParams};
 use ethash::{quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use ethereum_types::{H256, H64, U256, Address};
 use unexpected::{OutOfBounds, Mismatch};
@@ -128,6 +129,8 @@ pub struct EthashParams {
 	pub expip2_duration_limit: u64,
 	/// Number of first block wehre Casper rules begin.
 	pub hybrid_casper_transition: u64,
+	/// Hybrid casper parameters.
+	pub hybrid_casper_params: HybridCasperParams,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -159,6 +162,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
 			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
 			hybrid_casper_transition: p.hybrid_casper_transition.map_or(u64::max_value(), Into::into),
+			hybrid_casper_params: p.hybrid_casper_params.map_or_else(Default::default, Into::into),
 		}
 	}
 }
@@ -169,6 +173,7 @@ pub struct Ethash {
 	ethash_params: EthashParams,
 	pow: EthashManager,
 	machine: EthereumMachine,
+	casper: HybridCasper,
 }
 
 impl Ethash {
@@ -180,6 +185,7 @@ impl Ethash {
 		optimize_for: T,
 	) -> Arc<Self> {
 		Arc::new(Ethash {
+			casper: HybridCasper::new(ethash_params.hybrid_casper_params.clone()),
 			ethash_params,
 			machine,
 			pow: EthashManager::new(cache_dir.as_ref(), optimize_for.into()),

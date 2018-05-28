@@ -18,6 +18,7 @@
 
 use uint::{self, Uint};
 use hash::Address;
+use super::HybridCasperParams;
 
 /// Deserializable doppelganger of EthashParams.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -141,6 +142,9 @@ pub struct EthashParams {
 	/// EIP1011 transition block
 	#[serde(rename="hybridCasperTransition")]
 	pub hybrid_casper_transition: Option<Uint>,
+	/// EIP1011 parameters
+	#[serde(rename="hybridCasperParams")]
+	pub hybrid_casper_params: Option<HybridCasperParams>,
 }
 
 /// Ethash engine deserialization.

@@ -21,7 +21,7 @@ use hash::Address;
 use bytes::Bytes;
 
 /// Hybrid Casper params deserialization.
-#[derive(Debug, Default, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HybridCasperParams {
 	/// Main contract code.

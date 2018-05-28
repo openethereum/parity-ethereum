@@ -23,6 +23,7 @@ use rustc_hex::FromHex;
 use transaction::{SignedTransaction, Action};
 
 /// Hybrid Casper parameters.
+#[derive(Debug, Clone, PartialEq)]
 pub struct HybridCasperParams {
 	/// Main contract code.
 	pub contract_code: Bytes,
@@ -118,6 +119,10 @@ pub struct HybridCasper {
 }
 
 impl HybridCasper {
+	pub fn new(params: HybridCasperParams) -> Self {
+		Self { params }
+	}
+
 	pub fn is_vote_transaction(&self, transaction: &SignedTransaction) -> bool {
 		if !transaction.is_unsigned() {
 			return false;
