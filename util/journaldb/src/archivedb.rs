@@ -37,7 +37,7 @@ use bytes::Bytes;
 /// immediately. As this is an "archive" database, nothing is ever removed. This means
 /// that the states of any block the node has ever processed will be accessible.
 pub struct ArchiveDB {
-	overlay: MemoryDB,
+	overlay: MemoryDB<KeccakHasher>,
 	backing: Arc<KeyValueDB>,
 	latest_era: Option<u64>,
 	column: Option<u32>,
@@ -63,6 +63,7 @@ impl ArchiveDB {
 }
 
 impl HashDB for ArchiveDB {
+	type H = KeccakHasher;
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| (H256::from_slice(&*key), 1))
@@ -108,7 +109,7 @@ impl HashDB for ArchiveDB {
 }
 
 impl JournalDB for ArchiveDB {
-	fn boxed_clone(&self) -> Box<JournalDB> {
+	fn boxed_clone(&self) -> Box<JournalDB<H=KeccakHasher>> {
 		Box::new(ArchiveDB {
 			overlay: self.overlay.clone(),
 			backing: self.backing.clone(),
@@ -191,7 +192,7 @@ impl JournalDB for ArchiveDB {
 		&self.backing
 	}
 
-	fn consolidate(&mut self, with: MemoryDB) {
+	fn consolidate(&mut self, with: MemoryDB<KeccakHasher>) {
 		self.overlay.consolidate(with);
 	}
 }

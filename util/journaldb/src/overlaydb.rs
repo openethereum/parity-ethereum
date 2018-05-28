@@ -36,7 +36,7 @@ use kvdb::{KeyValueDB, DBTransaction};
 /// queries have an immediate effect in terms of these functions.
 #[derive(Clone)]
 pub struct OverlayDB {
-	overlay: MemoryDB,
+	overlay: MemoryDB<KeccakHasher>,
 	backing: Arc<KeyValueDB>,
 	column: Option<u32>,
 }
@@ -153,6 +153,7 @@ impl OverlayDB {
 }
 
 impl HashDB for OverlayDB {
+	type H = KeccakHasher;
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| {

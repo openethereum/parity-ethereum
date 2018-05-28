@@ -65,7 +65,7 @@ use util::DatabaseKey;
 /// 7. Delete ancient record from memory and disk.
 
 pub struct OverlayRecentDB {
-	transaction_overlay: MemoryDB,
+	transaction_overlay: MemoryDB<KeccakHasher>,
 	backing: Arc<KeyValueDB>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
 	column: Option<u32>,
@@ -119,8 +119,8 @@ impl<'a> Encodable for DatabaseValueRef<'a> {
 
 #[derive(PartialEq)]
 struct JournalOverlay {
-	backing_overlay: MemoryDB, // Nodes added in the history period
-	pending_overlay: H256FastMap<DBValue>, // Nodes being transfered from backing_overlay to backing db
+	backing_overlay: MemoryDB<KeccakHasher>, // Nodes added in the history period
+	pending_overlay: H256FastMap<KeccakHasher, DBValue>, // Nodes being transfered from backing_overlay to backing db
 	journal: HashMap<u64, Vec<JournalEntry>>,
 	latest_era: Option<u64>,
 	earliest_era: Option<u64>,
@@ -242,7 +242,7 @@ fn to_short_key(key: &H256) -> H256 {
 }
 
 impl JournalDB for OverlayRecentDB {
-	fn boxed_clone(&self) -> Box<JournalDB> {
+	fn boxed_clone(&self) -> Box<JournalDB<H=KeccakHasher>> {
 		Box::new(self.clone())
 	}
 
@@ -433,12 +433,13 @@ impl JournalDB for OverlayRecentDB {
 		Ok(ops)
 	}
 
-	fn consolidate(&mut self, with: MemoryDB) {
+	fn consolidate(&mut self, with: MemoryDB<KeccakHasher>) {
 		self.transaction_overlay.consolidate(with);
 	}
 }
 
 impl HashDB for OverlayRecentDB {
+	type H = KeccakHasher;
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| (H256::from_slice(&*key), 1))

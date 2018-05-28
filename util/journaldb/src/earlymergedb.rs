@@ -105,7 +105,7 @@ enum RemoveFrom {
 ///
 /// TODO: `store_reclaim_period`
 pub struct EarlyMergeDB {
-	overlay: MemoryDB,
+	overlay: MemoryDB<KeccakHasher>,
 	backing: Arc<KeyValueDB>,
 	refs: Option<Arc<RwLock<HashMap<H256, RefInfo>>>>,
 	latest_era: Option<u64>,
@@ -286,6 +286,7 @@ impl EarlyMergeDB {
 }
 
 impl HashDB for EarlyMergeDB {
+	type H = KeccakHasher;
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
 			.map(|(key, _)| (H256::from_slice(&*key), 1))
@@ -329,7 +330,7 @@ impl HashDB for EarlyMergeDB {
 }
 
 impl JournalDB for EarlyMergeDB {
-	fn boxed_clone(&self) -> Box<JournalDB> {
+	fn boxed_clone(&self) -> Box<JournalDB<H=KeccakHasher>> {
 		Box::new(EarlyMergeDB {
 			overlay: self.overlay.clone(),
 			backing: self.backing.clone(),
@@ -513,7 +514,7 @@ impl JournalDB for EarlyMergeDB {
 		Ok(ops)
 	}
 
-	fn consolidate(&mut self, with: MemoryDB) {
+	fn consolidate(&mut self, with: MemoryDB<KeccakHasher>) {
 		self.overlay.consolidate(with);
 	}
 }

@@ -27,7 +27,7 @@ use bytes::Bytes;
 /// exclusive actions.
 pub trait JournalDB: HashDB {
 	/// Return a copy of ourself, in a box.
-	fn boxed_clone(&self) -> Box<JournalDB>;
+	fn boxed_clone(&self) -> Box<JournalDB<H=KeccakHasher>>;
 
 	/// Returns heap memory size used
 	fn mem_used(&self) -> usize;
@@ -76,7 +76,7 @@ pub trait JournalDB: HashDB {
 	fn flush(&self) {}
 
 	/// Consolidate all the insertions and deletions in the given memory overlay.
-	fn consolidate(&mut self, overlay: ::memorydb::MemoryDB);
+	fn consolidate(&mut self, overlay: ::memorydb::MemoryDB<KeccakHasher>);
 
 	/// Commit all changes in a single batch
 	#[cfg(test)]
