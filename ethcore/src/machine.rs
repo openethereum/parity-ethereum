@@ -302,47 +302,6 @@ impl EthereumMachine {
 				}
 			}
 
-			if block.header().number() == ethash_params.hybrid_casper_transition {
-				// Force set Casper contract code.
-				{
-					let state = block.state_mut();
-					state.new_contract(&ethash_params.hybrid_casper_contract_address,
-									   ethash_params.hybrid_casper_contract_balance,
-									   U256::zero());
-					state.init_code(&ethash_params.hybrid_casper_contract_address,
-									ethash_params.hybrid_casper_contract_code.clone())?;
-					state.init_code(&ethash_params.hybrid_casper_purity_checker_contract_address,
-									ethash_params.hybrid_casper_purity_checker_contract_code.clone())?;
-					state.init_code(&ethash_params.hybrid_casper_msg_hasher_contract_address,
-									ethash_params.hybrid_casper_msg_hasher_contract_code.clone())?;
-					if ethash_params.hybrid_casper_deploy_rlp_decoder {
-						state.init_code(&ethash_params.hybrid_casper_rlp_decoder_contract_address,
-										ethash_params.hybrid_casper_rlp_decoder_contract_code.clone())?;
-					}
-				}
-
-				// Call Casper contract's init function.
-				let casper_contract = simple_casper_contract::SimpleCasper::default();
-				let input = casper_contract.functions().init().input(
-					ethash_params.hybrid_casper_epoch_length,
-					ethash_params.hybrid_casper_warm_up_period,
-					ethash_params.hybrid_casper_withdrawal_delay,
-					ethash_params.hybrid_casper_dynasty_logout_delay,
-					ethash_params.hybrid_casper_msg_hasher_contract_address,
-					ethash_params.hybrid_casper_purity_checker_contract_address,
-					ethash_params.hybrid_casper_base_interest_factor,
-					ethash_params.hybrid_casper_base_penalty_factor,
-					ethash_params.hybrid_casper_min_deposit_size,
-				);
-
-				let _ = self.execute_as_system(
-					block,
-					ethash_params.hybrid_casper_contract_address,
-					U256::max_value(),
-					Some(input)
-				)?;
-			}
-
 			if block.header().number() >= ethash_params.hybrid_casper_transition + ethash_params.hybrid_casper_warm_up_period {
 				if block.header().number() % ethash_params.hybrid_casper_epoch_length == 0 {
 					let casper_contract = simple_casper_contract::SimpleCasper::default();

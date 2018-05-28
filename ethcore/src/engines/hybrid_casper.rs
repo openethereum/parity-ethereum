@@ -22,6 +22,10 @@ use engines::{DEFAULT_CASPER_CONTRACT, DEFAULT_PURITY_CHECKER_CONTRACT, DEFAULT_
 use rustc_hex::FromHex;
 use transaction::{SignedTransaction, Action};
 use vm::Schedule;
+use state::{State, Backend};
+use super::SystemCall;
+
+use_contract!(simple_casper, "SimpleCasper", "res/contracts/simple_casper.json");
 
 /// Hybrid Casper parameters.
 #[derive(Debug, Clone, PartialEq)]
@@ -117,11 +121,15 @@ impl Default for HybridCasperParams {
 
 pub struct HybridCasper {
 	params: HybridCasperParams,
+	provider: simple_casper::SimpleCasper,
 }
 
 impl HybridCasper {
 	pub fn new(params: HybridCasperParams) -> Self {
-		Self { params }
+		Self {
+			params,
+			provider: simple_casper::SimpleCasper::default(),
+		}
 	}
 
 	pub fn is_vote_transaction(&self, transaction: &SignedTransaction) -> bool {
@@ -155,5 +163,41 @@ impl HybridCasper {
 
 	pub fn enable_casper_schedule(&self, schedule: &mut Schedule) {
 		schedule.eip86 = true;
+	}
+
+	pub fn init_state<B: Backend>(&self, state: &mut State<B>) -> Result<(), ::error::Error> {
+		state.new_contract(&self.params.contract_address,
+						   self.params.contract_balance,
+						   U256::zero());
+		state.init_code(&self.params.contract_address,
+						self.params.contract_code.clone())?;
+		state.init_code(&self.params.purity_checker_contract_address,
+						self.params.purity_checker_contract_code.clone())?;
+		state.init_code(&self.params.msg_hasher_contract_address,
+						self.params.msg_hasher_contract_code.clone())?;
+		if self.params.deploy_rlp_decoder {
+			state.init_code(&self.params.rlp_decoder_contract_address,
+							self.params.rlp_decoder_contract_code.clone())?;
+		}
+
+		Ok(())
+	}
+
+	pub fn init_casper_contract(&self, caller: &mut SystemCall) -> Result<(), ::error::Error> {
+		let data = self.provider.functions().init().input(
+			self.params.epoch_length,
+			self.params.warm_up_period,
+			self.params.withdrawal_delay,
+			self.params.dynasty_logout_delay,
+			self.params.msg_hasher_contract_address,
+			self.params.purity_checker_contract_address,
+			self.params.base_interest_factor,
+			self.params.base_penalty_factor,
+			self.params.min_deposit_size,
+		);
+		caller(self.params.contract_address, data)
+			.map(|_| ())
+			.map_err(::engines::EngineError::FailedSystemCall)
+			.map_err(Into::into)
 	}
 }

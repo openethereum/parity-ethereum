@@ -244,6 +244,22 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		header.set_difficulty(difficulty);
 	}
 
+	fn on_new_block(&self, block: &mut ExecutedBlock, _epoch_begin: bool, _ancestry: &mut Iterator<Item=ExtendedHeader>) -> Result<(), Error> {
+		if block.header().number() == self.ethash_params.hybrid_casper_transition {
+			self.casper.init_state(block.state_mut())?;
+			self.casper.init_casper_contract(&mut |address, data| {
+				self.machine().execute_as_system(
+					block,
+					address,
+					U256::max_value(),
+					Some(data)
+				).map_err(|e| format!("{}", e))
+			})?;
+		}
+
+		Ok(())
+	}
+
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
