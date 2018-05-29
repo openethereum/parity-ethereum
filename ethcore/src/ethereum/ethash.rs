@@ -259,7 +259,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			})?;
 		}
 
-		if block.header().number() >= self.ethash_params.hybrid_casper_transition + self.ethash_params.hybrid_casper_params.warm_up_period {
+		if block.header().number() >= self.ethash_params.hybrid_casper_transition.saturating_add(self.ethash_params.hybrid_casper_params.warm_up_period) {
 			self.casper.on_new_epoch(block.header().number(), &mut |address, data| {
 				self.machine().execute_as_system(
 					block,
