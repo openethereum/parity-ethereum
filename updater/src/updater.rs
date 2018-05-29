@@ -269,7 +269,7 @@ impl OperationsClient for OperationsContractClient {
 		// get the release info for the latest version in track
 		let in_track = self.release_info(latest_in_track, &do_call)?;
 		let mut in_minor = Some(in_track.clone());
-		const PROOF: &'static str = "in_minor initialised and assigned with Some; loop breaks if None assigned; qed";
+		const PROOF: &'static str = "in_minor initialized and assigned with Some; loop breaks if None assigned; qed";
 
 		// if the minor version has changed, let's check the minor version on a different track
 		while in_minor.as_ref().expect(PROOF).version.version.minor != this.version.minor {
