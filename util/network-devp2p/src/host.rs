@@ -686,14 +686,17 @@ impl Host {
 						Err(e) => {
 							let s = session.lock();
 							trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
-							if let ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) = *e.kind() {
-								if let Some(id) = s.id() {
-									if !self.reserved_nodes.read().contains(id) {
-										let mut nodes = self.nodes.write();
-										nodes.note_failure(&id);
-										nodes.mark_as_useless(id);
+							match *e.kind() {
+								ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) | ErrorKind::Disconnect(DisconnectReason::UselessPeer) => {
+									if let Some(id) = s.id() {
+										if !self.reserved_nodes.read().contains(id) {
+											let mut nodes = self.nodes.write();
+											nodes.note_failure(&id);
+											nodes.mark_as_useless(id);
+										}
 									}
-								}
+								},
+								_ => {},
 							}
 							kill = true;
 							break;
