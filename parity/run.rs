@@ -885,7 +885,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 			rpc: rpc_direct,
 			informant,
 			client,
-			keep_alive: Box::new((watcher, service, updater, ws_server, http_server, ipc_server, ui_server, secretstore_key_server, ipfs_server, event_loop)),
+			client_service: Arc::new(service),
+			keep_alive: Box::new((watcher, updater, ws_server, http_server, ipc_server, ui_server, secretstore_key_server, ipfs_server, event_loop)),
 		}
 	})
 }
@@ -909,6 +910,7 @@ enum RunningClientInner {
 		rpc: jsonrpc_core::MetaIoHandler<Metadata, informant::Middleware<informant::ClientNotifier>>,
 		informant: Arc<Informant<FullNodeInformantData>>,
 		client: Arc<Client>,
+		client_service: Arc<ClientService>,
 		keep_alive: Box<Any>,
 	},
 }
@@ -946,11 +948,14 @@ impl RunningClient {
 				drop(client);
 				wait_for_drop(weak_client);
 			},
-			RunningClientInner::Full { rpc, informant, client, keep_alive } => {
+			RunningClientInner::Full { rpc, informant, client, client_service, keep_alive } => {
 				info!("Finishing work, please wait...");
 				// Create a weak reference to the client so that we can wait on shutdown
 				// until it is dropped
 				let weak_client = Arc::downgrade(&client);
+				// Shutdown and drop the ServiceClient
+				client_service.shutdown();
+				drop(client_service);
 				// drop this stuff as soon as exit detected.
 				drop(rpc);
 				drop(keep_alive);

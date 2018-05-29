@@ -133,6 +133,10 @@ impl SnapshotService for TestSnapshotService {
 			self.block_restoration_chunks.lock().insert(hash, chunk);
 		}
 	}
+
+	fn shutdown(&self) {
+		self.abort_restore();
+	}
 }
 
 #[test]

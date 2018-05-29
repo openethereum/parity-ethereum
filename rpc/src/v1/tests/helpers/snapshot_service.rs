@@ -50,4 +50,5 @@ impl SnapshotService for TestSnapshotService {
 	fn abort_restore(&self) { }
 	fn restore_state_chunk(&self, _hash: H256, _chunk: Bytes) { }
 	fn restore_block_chunk(&self, _hash: H256, _chunk: Bytes) { }
+	fn shutdown(&self) { }
 }
