@@ -151,12 +151,14 @@ impl Default for HybridCasperMetadata {
 	}
 }
 
+/// Hybrid Casper functionalities as defined by EIP1011.
 pub struct HybridCasper {
 	params: HybridCasperParams,
 	provider: simple_casper::SimpleCasper,
 }
 
 impl HybridCasper {
+	/// Create a new Hybrid Casper instance based on parameters.
 	pub fn new(params: HybridCasperParams) -> Self {
 		Self {
 			params,
@@ -164,6 +166,8 @@ impl HybridCasper {
 		}
 	}
 
+	/// Check whether a signed transaction is vote transaction. The vote transaction must be an unsigned transaction,
+	/// whose to address is the casper contract address, and data starts with bytes 0xe9dc0614.
 	pub fn is_vote_transaction(&self, transaction: &SignedTransaction) -> bool {
 		if !transaction.is_unsigned() {
 			return false;
@@ -193,10 +197,12 @@ impl HybridCasper {
 		return true;
 	}
 
+	/// Modify the schedule to enable Casper-related functionalities.
 	pub fn enable_casper_schedule(&self, schedule: &mut Schedule) {
 		schedule.eip86 = true;
 	}
 
+	/// Initialize Casper contract, purity checker contract, msg hasher contract and RLP decoder.
 	pub fn init_state<B: Backend>(&self, state: &mut State<B>) -> Result<(), ::error::Error> {
 		state.new_contract(&self.params.contract_address,
 						   self.params.contract_balance,
@@ -215,6 +221,7 @@ impl HybridCasper {
 		Ok(())
 	}
 
+	/// Called `init` function in Casper contract.
 	pub fn init_casper_contract(&self, caller: &mut SystemCall) -> Result<(), ::error::Error> {
 		let data = self.provider.functions().init().input(
 			self.params.epoch_length,
@@ -233,6 +240,8 @@ impl HybridCasper {
 			.map_err(Into::into)
 	}
 
+	/// Called at every block after Casper's warm up period. Initialize a new epoch if we are at the epoch starting
+	/// block.
 	pub fn on_new_epoch(&self, block_number: BlockNumber, caller: &mut SystemCall) -> Result<(), ::error::Error> {
 		if block_number % self.params.epoch_length == 0 {
 			let data = self.provider.functions().initialize_epoch().input(
@@ -247,6 +256,7 @@ impl HybridCasper {
 		}
 	}
 
+	/// Get the highest justified epoch.
 	pub fn highest_justified_epoch(&self, caller: &mut SystemCall) -> Result<U256, ::error::Error> {
 		let data = self.provider.functions().highest_justified_epoch().input(
 			self.params.non_revert_min_deposits,
@@ -262,6 +272,7 @@ impl HybridCasper {
 			.map_err(Into::into)
 	}
 
+	/// Get the highest finalized epoch.
 	pub fn highest_finalized_epoch(&self, caller: &mut SystemCall) -> Result<U256, ::error::Error> {
 		let data = self.provider.functions().highest_finalized_epoch().input(
 			self.params.non_revert_min_deposits,
@@ -277,6 +288,7 @@ impl HybridCasper {
 			.map_err(Into::into)
 	}
 
+	/// Get checkpoint hashes given an epoch.
 	pub fn checkpoint_hashes(&self, epoch: U256, caller: &mut SystemCall) -> Result<H256, ::error::Error> {
 		let data = self.provider.functions().checkpoint_hashes().input(
 			epoch,
@@ -292,6 +304,7 @@ impl HybridCasper {
 			.map_err(Into::into)
 	}
 
+	/// Update block metadata based on the current block state.
 	pub fn update_metadata(&self, metadata: &mut HybridCasperMetadata, caller: &mut SystemCall) -> Result<(), ::error::Error> {
 		metadata.highest_justified_epoch = self.highest_justified_epoch(caller)?;
 		metadata.highest_finalized_epoch = self.highest_finalized_epoch(caller)?;
@@ -300,6 +313,7 @@ impl HybridCasper {
 		Ok(())
 	}
 
+	/// Casper-specific fork choice.
 	pub fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> ForkChoice {
 		let new_metadata: HybridCasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 		let current_metadata: HybridCasperMetadata = current.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
@@ -316,6 +330,7 @@ impl HybridCasper {
 		}
 	}
 
+	/// Casper-specific ancestry actions.
 	pub fn ancestry_actions(&self, block: &ExecutedBlock) -> Vec<AncestryAction> {
 		let metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 
@@ -329,11 +344,13 @@ impl HybridCasper {
 		}
 	}
 
+	/// Prepare the env info required for vote transactions.
 	pub fn prepare_vote_transaction_env_info(&self, _t: &SignedTransaction, block: &ExecutedBlock, env_info: &mut EnvInfo) {
 		let metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 		env_info.gas_used = metadata.vote_gas_used;
 	}
 
+	/// Verify the outcome of a vote transaction is valid.
 	pub fn verify_vote_transaction_outcome(&self, _t: &SignedTransaction, block: &mut ExecutedBlock, receipt: &mut Receipt) -> Result<(), ::error::Error> {
 		match receipt.outcome {
 			TransactionOutcome::StatusCode(c) => {
