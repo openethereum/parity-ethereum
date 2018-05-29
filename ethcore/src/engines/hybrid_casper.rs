@@ -329,12 +329,12 @@ impl HybridCasper {
 		}
 	}
 
-	pub fn prepare_vote_transaction_env_info(&self, t: &SignedTransaction, block: &ExecutedBlock, env_info: &mut EnvInfo) {
+	pub fn prepare_vote_transaction_env_info(&self, _t: &SignedTransaction, block: &ExecutedBlock, env_info: &mut EnvInfo) {
 		let metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
 		env_info.gas_used = metadata.vote_gas_used;
 	}
 
-	pub fn verify_vote_transaction_outcome(&self, t: &SignedTransaction, block: &mut ExecutedBlock, receipt: &mut Receipt) -> Result<(), ::error::Error> {
+	pub fn verify_vote_transaction_outcome(&self, _t: &SignedTransaction, block: &mut ExecutedBlock, receipt: &mut Receipt) -> Result<(), ::error::Error> {
 		match receipt.outcome {
 			TransactionOutcome::StatusCode(c) => {
 				if c == 0 {

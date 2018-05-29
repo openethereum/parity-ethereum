@@ -31,9 +31,9 @@ use engines::{self, Engine, EthEngine, ForkChoice};
 use ethjson;
 use rlp::{self, Rlp};
 use transaction::{self, UnverifiedTransaction, SignedTransaction};
-use types::receipt::{Receipt, TransactionOutcome};
+use types::receipt::Receipt;
 use machine::EthereumMachine;
-use parity_machine::{WithMetadata, WithMetadataHeader, TotalScoredHeader};
+use parity_machine::WithMetadata;
 use types::ancestry_action::AncestryAction;
 use vm::EnvInfo;
 
@@ -422,7 +422,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
 
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> engines::ForkChoice {
+	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> ForkChoice {
 		self.casper.fork_choice(new, current)
 	}
 

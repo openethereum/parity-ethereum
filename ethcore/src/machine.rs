@@ -17,32 +17,26 @@
 //! Ethereum-like state machine definition.
 
 use std::collections::{BTreeMap, HashMap};
-use std::cmp::{self, Ordering};
+use std::cmp;
 use std::sync::Arc;
 
-use bytes::Bytes;
 use block::{ExecutedBlock, IsBlock};
 use builtin::Builtin;
 use client::{BlockInfo, CallContract};
 use error::Error;
 use executive::Executive;
-use engines::{DEFAULT_CASPER_CONTRACT, DEFAULT_PURITY_CHECKER_CONTRACT, DEFAULT_MSG_HASHER_CONTRACT, DEFAULT_RLP_DECODER_CONTRACT};
 use header::{BlockNumber, Header, ExtendedHeader};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType, Tracing};
-use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction, Action};
+use transaction::{self, SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
-use rustc_hex::FromHex;
-use ethcore_miner::pool::VerifiedTransaction;
-use parity_machine::WithMetadata;
 
 use ethereum_types::{U256, Address};
 use bytes::BytesRef;
-use rlp::{self, Rlp};
+use rlp::Rlp;
 use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
-use hash::H256;
 
 use_contract!(simple_casper_contract, "SimpleCasper", "res/contracts/simple_casper.json");
 
