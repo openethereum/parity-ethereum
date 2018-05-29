@@ -263,6 +263,8 @@ mod tests {
 				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				hybrid_casper_transition: None,
+				hybrid_casper_params: None,
 			}
 		});
 	}
@@ -311,6 +313,8 @@ mod tests {
 				eip649_reward: None,
 				expip2_transition: None,
 				expip2_duration_limit: None,
+				hybrid_casper_transition: None,
+				hybrid_casper_params: None,
 			}
 		});
 	}

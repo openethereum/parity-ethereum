@@ -628,6 +628,8 @@ mod tests {
 			eip649_reward: None,
 			expip2_transition: u64::max_value(),
 			expip2_duration_limit: 30,
+			hybrid_casper_transition: u64::max_value(),
+			hybrid_casper_params: Default::default(),
 		}
 	}
 
