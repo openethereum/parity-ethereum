@@ -243,8 +243,8 @@ impl SyncSupplier {
 		let sync = sync.read();
 		let rlp = match sync.snapshot.snapshot_hash() {
 			Some(_) => {
-				trace!(target: "warp", "{} <- SnapshotBitfield", peer_id);
 				let bitfield = sync.snapshot.bitfield();
+				trace!(target: "warp", "{} <- SnapshotBitfield [{:?}]", peer_id, bitfield);
 				let mut rlp = RlpStream::new();
 				rlp.append_list(&bitfield);
 				rlp

@@ -845,8 +845,7 @@ impl ChainSync {
 				let peer_has_snapshot = peer_snapshot_hash.is_some() && peer_snapshot_hash == self.snapshot.snapshot_hash();
 
 				if !peer_has_snapshot {
-					trace!(target: "warp", "Peer {} does not have the snapshot. Deactivating.", peer_id);
-					// self.deactivate_peer(io, peer_id);
+					trace!(target: "warp", "Peer {} does not have the snapshot.", peer_id);
 					return;
 				}
 

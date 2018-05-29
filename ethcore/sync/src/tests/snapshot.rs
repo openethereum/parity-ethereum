@@ -77,7 +77,7 @@ impl SnapshotService for TestSnapshotService {
 	}
 
 	fn partial_manifest(&self) -> Option<ManifestData> {
-		None
+		self.restoration_manifest.lock().as_ref().cloned()
 	}
 
 	fn supported_versions(&self) -> Option<(u64, u64)> {
@@ -85,7 +85,15 @@ impl SnapshotService for TestSnapshotService {
 	}
 
 	fn completed_chunks(&self) -> Option<Vec<H256>> {
-		Some(vec![])
+		if self.restoration_manifest.lock().is_none() {
+			return None;
+		}
+
+		let chunks = self.state_restoration_chunks.lock().keys()
+			.chain(self.block_restoration_chunks.lock().keys())
+			.map(|h| *h).collect();
+
+		Some(chunks)
 	}
 
 	fn chunk(&self, hash: H256) -> Option<Bytes> {
