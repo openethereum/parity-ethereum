@@ -479,8 +479,13 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 		self.machine().additional_params()
 	}
 
-	/// Performs pre-validation of RLP decoded transaction before other processing
+	/// Performs pre-validation of RLP decoded transaction before other processing.
 	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
 		self.machine().decode_transaction(transaction)
+	}
+
+	/// Whether the given transaction is considered a builtin service transaction.
+	fn is_builtin_service_transaction(&self, _t: &SignedTransaction, _header: &Header) -> bool {
+		false
 	}
 }
