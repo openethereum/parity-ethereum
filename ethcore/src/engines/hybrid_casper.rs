@@ -17,13 +17,18 @@
 //! Hybrid Casper related functionalities.
 
 use bytes::Bytes;
+use block::ExecutedBlock;
 use ethereum_types::{Address, U256, H256};
-use engines::{DEFAULT_CASPER_CONTRACT, DEFAULT_PURITY_CHECKER_CONTRACT, DEFAULT_MSG_HASHER_CONTRACT, DEFAULT_RLP_DECODER_CONTRACT};
+use engines::{DEFAULT_CASPER_CONTRACT, DEFAULT_PURITY_CHECKER_CONTRACT, DEFAULT_MSG_HASHER_CONTRACT, DEFAULT_RLP_DECODER_CONTRACT, ForkChoice};
+use header::ExtendedHeader;
 use rustc_hex::FromHex;
+use rlp;
 use transaction::{SignedTransaction, Action};
 use vm::Schedule;
+use parity_machine::{WithMetadata, WithMetadataHeader, TotalScoredHeader};
 use state::{State, Backend};
 use types::BlockNumber;
+use types::ancestry_action::AncestryAction;
 use ethabi::{self, ParamType};
 use super::SystemCall;
 
@@ -292,5 +297,34 @@ impl HybridCasper {
 		metadata.highest_finalized_hash = self.checkpoint_hashes(metadata.highest_finalized_epoch, caller)?;
 
 		Ok(())
+	}
+
+	pub fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> ForkChoice {
+		let new_metadata: HybridCasperMetadata = new.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+		let current_metadata: HybridCasperMetadata = current.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+
+		// Casper fails back to total difficulty fork choice if highest_justified_epoch is zero. So we don't need to
+		// check transition block here.
+		let new_score = new_metadata.highest_justified_epoch * U256::from(10).pow(U256::from(40)) + new.total_score();
+		let current_score = current_metadata.highest_justified_epoch * U256::from(10).pow(U256::from(40)) + current.total_score();
+
+		if new_score > current_score {
+			ForkChoice::New
+		} else {
+			ForkChoice::Old
+		}
+	}
+
+	pub fn ancestry_actions(&self, block: &ExecutedBlock) -> Vec<AncestryAction> {
+		let metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+
+		if metadata.highest_finalized_hash != Default::default() {
+			// Call finalize on an already finalized block won't do anything. So we just do that for now to avoid a
+			// conditional.
+			vec![AncestryAction::MarkFinalized(metadata.highest_finalized_hash)]
+		} else {
+			// Default metadata would match this. So we don't need to check Casper transition block here.
+			vec![]
+		}
 	}
 }
