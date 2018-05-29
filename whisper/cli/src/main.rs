@@ -19,6 +19,9 @@
 //! Spawns an Ethereum network instance and attaches the Whisper protocol RPCs to it.
 //!
 
+#![warn(missing_docs)]
+#![cfg_attr(feature = "cargo-clippy", deny(clippy, clippy_pedantic))]
+
 extern crate docopt;
 extern crate ethcore_network_devp2p as devp2p;
 extern crate ethcore_network as net;
