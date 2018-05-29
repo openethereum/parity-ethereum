@@ -17,8 +17,7 @@
 //! Ethcore client application.
 
 #![warn(missing_docs)]
-
-extern crate parity;
+#![cfg_attr(feature = "cargo-clippy", deny(clippy, clippy_pedantic))]
 
 extern crate ctrlc;
 extern crate dir;
@@ -26,6 +25,7 @@ extern crate fdlimit;
 #[macro_use]
 extern crate log;
 extern crate panic_hook;
+extern crate parity;
 extern crate parking_lot;
 
 #[cfg(windows)] extern crate winapi;
@@ -46,7 +46,7 @@ use std::fs::{remove_file, metadata, File, create_dir_all};
 use std::io::{self as stdio, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::{process, env};
+use std::{process, env, ffi::OsString};
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 
@@ -58,7 +58,7 @@ enum Error {
 }
 
 fn update_path(name: &str) -> PathBuf {
-	let mut dest = PathBuf::from(default_hypervisor_path());
+	let mut dest = default_hypervisor_path();
 	dest.push(name);
 	dest
 }
@@ -88,7 +88,7 @@ fn latest_binary_is_newer(current_binary: &Option<PathBuf>, latest_binary: &Opti
 	}
 }
 
-fn set_spec_name_override(spec_name: String) {
+fn set_spec_name_override(spec_name: & str) {
 	if let Err(e) = create_dir_all(default_hypervisor_path())
 		.and_then(|_| File::create(update_path("spec_name_override"))
 		.and_then(|mut f| f.write_all(spec_name.as_bytes())))
@@ -138,8 +138,7 @@ fn global_cleanup() {}
 // Starts ~/.parity-updates/parity and returns the code it exits with.
 fn run_parity() -> Result<(), Error> {
 	global_init();
-	use ::std::ffi::OsString;
-	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct"), OsString::from("--foo")];
+	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct")];
 	
 	let res: Result<(), Error> = latest_exe_path()
 		.and_then(|exe| process::Command::new(exe)
@@ -354,13 +353,21 @@ fn main() {
 	// the binary is named `parity`
 	let same_name = exe_path
 		.as_ref()
-		.map(|p| { 
+		.map_or(false, |p| { 
 			p.file_stem().map_or(false, |n| n == "parity") && p.extension().map_or(false, |ext| ext == "exe")
-		})
-		.unwrap_or(false);
+		});
 
-	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name);
-	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name);
+	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", 
+				std::env::current_exe().ok().map_or_else(|| "<unknown>".into(), |x| format!("{}", x.display())), 
+				force_direct, 
+				development, 
+				same_name);
+
+	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", 
+				std::env::current_exe().ok().map_or_else(|| "<unknown>".into(), |x| format!("{}", x.display())), 
+				force_direct, 
+				development, 
+				same_name);
 
 	if !force_direct && !development && same_name {
 		// Try to run the latest installed version of `parity`, 
