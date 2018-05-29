@@ -464,6 +464,14 @@ impl EthEngine for Arc<Ethash> {
 		}
 		Ok(())
 	}
+
+	fn is_builtin_service_transaction(&self, t: &SignedTransaction, header: &Header) -> bool {
+		if header.number() >= self.ethash_params.hybrid_casper_transition {
+			self.casper.is_vote_transaction(t)
+		} else {
+			false
+		}
+	}
 }
 
 impl Ethash {
