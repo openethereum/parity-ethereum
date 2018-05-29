@@ -17,18 +17,19 @@
 //! Hybrid Casper related functionalities.
 
 use bytes::Bytes;
-use block::ExecutedBlock;
+use block::{IsBlock, ExecutedBlock};
 use ethereum_types::{Address, U256, H256};
 use engines::{DEFAULT_CASPER_CONTRACT, DEFAULT_PURITY_CHECKER_CONTRACT, DEFAULT_MSG_HASHER_CONTRACT, DEFAULT_RLP_DECODER_CONTRACT, ForkChoice};
 use header::ExtendedHeader;
 use rustc_hex::FromHex;
 use rlp;
 use transaction::{SignedTransaction, Action};
-use vm::Schedule;
+use vm::{EnvInfo, Schedule};
 use parity_machine::{WithMetadata, WithMetadataHeader, TotalScoredHeader};
 use state::{State, Backend};
 use types::BlockNumber;
 use types::ancestry_action::AncestryAction;
+use types::receipt::{Receipt, TransactionOutcome};
 use ethabi::{self, ParamType};
 use super::SystemCall;
 
@@ -326,5 +327,28 @@ impl HybridCasper {
 			// Default metadata would match this. So we don't need to check Casper transition block here.
 			vec![]
 		}
+	}
+
+	pub fn prepare_vote_transaction_env_info(&self, t: &SignedTransaction, block: &ExecutedBlock, env_info: &mut EnvInfo) {
+		let metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+		env_info.gas_used = metadata.vote_gas_used;
+	}
+
+	pub fn verify_vote_transaction_outcome(&self, t: &SignedTransaction, block: &mut ExecutedBlock, receipt: &mut Receipt) -> Result<(), ::error::Error> {
+		match receipt.outcome {
+			TransactionOutcome::StatusCode(c) => {
+				if c == 0 {
+					return Err("Vote transaction failed.".into());
+				}
+			},
+			_ => panic!("Casper requires EIP658 to be enabled."),
+		}
+
+		let mut metadata: HybridCasperMetadata = block.metadata().map(|d| rlp::decode(d).expect("Metadata is only set by serializing CasperMetadata struct; deserailzling CasperMetadata RLP always succeeds; qed")).unwrap_or(Default::default());
+		metadata.vote_gas_used = receipt.gas_used;
+		receipt.gas_used = block.receipts().last().map(|r| r.gas_used).unwrap_or(U256::zero());
+		block.set_metadata(Some(rlp::encode(&metadata).to_vec()));
+
+		Ok(())
 	}
 }
