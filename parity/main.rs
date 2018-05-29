@@ -57,19 +57,6 @@ enum Error {
 	UnknownStatusCode,
 }
 
-// impl From<Error> for i32 {
-//     fn from(err: Error) -> Self {
-//         match err {
-//             // Updated `parity` binary not found
-//             Error::BinaryNotFound => -1,
-//             // Error status code
-//             Error::StatusCode(c) => c,
-//             // Failed to parse error status code
-//             Error::UnknownStatusCode => -2,
-//         }
-//     }
-// }
-
 fn update_path(name: &str) -> PathBuf {
 	let mut dest = PathBuf::from(default_hypervisor_path());
 	dest.push(name);
@@ -87,13 +74,15 @@ fn latest_exe_path() -> Result<PathBuf, Error> {
 
 fn latest_binary_is_newer(current_binary: &Option<PathBuf>, latest_binary: &Option<PathBuf>) -> bool {
 	match (
-		current_binary.as_ref()
+		current_binary
+			.as_ref()
 			.and_then(|p| metadata(p.as_path()).ok())
 			.and_then(|m| m.modified().ok()),
-		latest_binary.as_ref()
+		latest_binary
+			.as_ref()
 			.and_then(|p| metadata(p.as_path()).ok())
 			.and_then(|m| m.modified().ok())
-    ) {
+	) {
 			(Some(latest_exe_time), Some(this_exe_time)) if latest_exe_time > this_exe_time => true,
 			_ => false,
 	}
@@ -110,7 +99,8 @@ fn set_spec_name_override(spec_name: String) {
 
 fn take_spec_name_override() -> Option<String> {
 	let p = update_path("spec_name_override");
-	let r = File::open(p.clone()).ok()
+	let r = File::open(p.clone())
+		.ok()
 		.and_then(|mut f| { 
 			let mut spec_name = String::new(); 
 			f.read_to_string(&mut spec_name).ok().map(|_| spec_name) 
@@ -151,7 +141,8 @@ fn run_parity() -> Result<(), Error> {
 	use ::std::ffi::OsString;
 	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct"), OsString::from("--foo")];
 	
-	let res: Result<(), Error> = latest_exe_path().and_then(|exe| process::Command::new(exe)
+	let res: Result<(), Error> = latest_exe_path()
+		.and_then(|exe| process::Command::new(exe)
 		.args(&(env::args_os().skip(1).chain(prefix.into_iter()).collect::<Vec<_>>()))
 		.status()
 		.ok()
@@ -349,56 +340,59 @@ fn main() {
 	// absolute path to the current `binary`
 	let exe_path = std::env::current_exe().ok();
 	
-    // the binary is named `target/xx/yy`
-	let development = exe_path.as_ref()
-		.and_then(|p| p.parent()
-		.and_then(|p| p.parent())
-		.and_then(|p| p.file_name())
-		.map(|n| n == "target"))
+	// the binary is named `target/xx/yy`
+	let development = exe_path
+		.as_ref()
+		.and_then(|p| {
+			p.parent()
+				.and_then(|p| p.parent())
+				.and_then(|p| p.file_name())
+				.map(|n| n == "target")
+		})
 		.unwrap_or(false);
 	
-    // the binary is named `parity`
-	let same_name = exe_path.as_ref()
-		.map(|p| p.file_stem()
-		.map_or(false, |s| s == "parity") && p.extension().map_or(true, |x| x == "exe"))
+	// the binary is named `parity`
+	let same_name = exe_path
+		.as_ref()
+		.map(|p| { 
+			p.file_stem().map_or(false, |n| n == "parity") && p.extension().map_or(false, |ext| ext == "exe")
+		})
 		.unwrap_or(false);
-	
-    trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name);
-	println!("force_direct: {:?} \t development: {:?} \t same_name: {:?}", force_direct, development, same_name);
-	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", 
-                std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name);
+
+	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name);
+	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})", std::env::current_exe().map(|x| format!("{}", x.display())).unwrap_or("<unknown>".to_owned()), force_direct, development, same_name);
 
 	if !force_direct && !development && same_name {
-		// Try to run the latest installed verison of `parity`, if it fails fall back into the
-		// locally installed version of `parity`
+		// Try to run the latest installed version of `parity`, 
+		// upon failure it fails fall back into the locally installed version of `parity`
 		// Everything run inside a loop, so we'll be able to restart from the child into a new version seamlessly.
 		loop {
-            // `Path` to the latest downloaded binary
+			// `Path` to the latest downloaded binary
 			let latest_exe = latest_exe_path().ok();
 			
-            // `Latest´ binary exist
-            let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
+			// `Latest´ binary exist
+			let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
 			
-            // Current binary is not same as the latest binary
-            let current_binary_not_latest = exe_path.as_ref()
+			// Current binary is not same as the latest binary
+			let current_binary_not_latest = exe_path
+				.as_ref()
 				.map_or(false, |exe| latest_exe.as_ref()
 				.map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
 
 			// Downloaded `binary` is newer
 			let update_is_newer = latest_binary_is_newer(&latest_exe, &exe_path);
-			trace_main!("Starting... (have-update: {}, non-updated-current: {}, update-is-newer: {})", 
-                        have_update, current_binary_not_latest, update_is_newer);
+			trace_main!("Starting... (have-update: {}, non-updated-current: {}, update-is-newer: {})", have_update, current_binary_not_latest, update_is_newer);
 
 			let exit_code = if have_update && current_binary_not_latest && update_is_newer {
 				trace_main!("Attempting to run latest update ({})...", 
 							latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
-                match run_parity() {
-                    Ok(_) => 0,
-                    Err(e)=> {
-                        trace_main!("Updated binary could not be executed: {:?}\n Failing back to local version", e); 
-                        main_direct(true)
-                    }
-                }
+				match run_parity() {
+					Ok(_) => 0,
+					Err(e)=> {
+						trace_main!("Updated binary could not be executed: {:?}\n Failing back to local version", e); 
+						main_direct(true)
+					}
+				}
 			} else {
 				trace_main!("No latest update. Attempting to direct...");
 				main_direct(true)
