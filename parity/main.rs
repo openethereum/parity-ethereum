@@ -88,7 +88,7 @@ fn latest_binary_is_newer(current_binary: &Option<PathBuf>, latest_binary: &Opti
 	}
 }
 
-fn set_spec_name_override(spec_name: & str) {
+fn set_spec_name_override(spec_name: &str) {
 	if let Err(e) = create_dir_all(default_hypervisor_path())
 		.and_then(|_| File::create(update_path("spec_name_override"))
 		.and_then(|mut f| f.write_all(spec_name.as_bytes())))
@@ -135,7 +135,7 @@ fn global_init() {
 #[cfg(not(windows))]
 fn global_cleanup() {}
 
-// Starts ~/.parity-updates/parity and returns the code it exits with.
+// Starts parity binary installed via `parity-updater` and returns the code it exits with.
 fn run_parity() -> Result<(), Error> {
 	global_init();
 	let prefix = vec![OsString::from("--can-restart"), OsString::from("--force-direct")];
@@ -178,7 +178,7 @@ struct ExitStatus {
 	spec_name_override: Option<String>,
 }
 
-// Run `locally installed version` of parity (i.e, not if any is installed via `parity-updater`)
+// Run `locally installed version` of parity (i.e, not installed via `parity-updater`)
 // Returns the exit error code.
 fn main_direct(force_can_restart: bool) -> i32 {
 	global_init();
@@ -380,22 +380,22 @@ fn main() {
 			// `Latest´ binary exist
 			let have_update = latest_exe.as_ref().map_or(false, |p| p.exists());
 			
-			// Current binary is not same as the latest binary
-			let current_binary_not_latest = exe_path
+			// Canonicalized  path to the current binary is not the same as to latest binary
+			let canonicalized_path_not_same = exe_path
 				.as_ref()
 				.map_or(false, |exe| latest_exe.as_ref()
 				.map_or(false, |lexe| exe.canonicalize().ok() != lexe.canonicalize().ok()));
 
 			// Downloaded `binary` is newer
 			let update_is_newer = latest_binary_is_newer(&latest_exe, &exe_path);
-			trace_main!("Starting... (have-update: {}, non-updated-current: {}, update-is-newer: {})", have_update, current_binary_not_latest, update_is_newer);
+			trace_main!("Starting... (have-update: {}, non-updated-current: {}, update-is-newer: {})", have_update, canonicalized_path_not_same, update_is_newer);
 
-			let exit_code = if have_update && current_binary_not_latest && update_is_newer {
+			let exit_code = if have_update && canonicalized_path_not_same && update_is_newer {
 				trace_main!("Attempting to run latest update ({})...", 
 							latest_exe.as_ref().expect("guarded by have_update; latest_exe must exist for have_update; qed").display());
 				match run_parity() {
 					Ok(_) => 0,
-					Err(e)=> {
+					Err(e) => {
 						trace_main!("Updated binary could not be executed: {:?}\n Failing back to local version", e); 
 						main_direct(true)
 					}
