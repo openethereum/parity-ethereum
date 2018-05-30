@@ -241,7 +241,7 @@ usage! {
 		// Global flags and arguments
 		["Operating Options"]
 			FLAG flag_public_node: (bool) = false, or |c: &Config| c.parity.as_ref()?.public_node.clone(),
-			"--public-node",
+			"--public-node MAX HAS MADE AN EDIT HERE.",
 			"Start Parity as a public web server. Account storage and transaction signing will be delegated to the UI.",
 
 			FLAG flag_no_download: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_download.clone(),
