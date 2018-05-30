@@ -106,6 +106,7 @@ evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
 secretstore = ["ethcore-secretstore"]
 final = ["parity-version/final"]
+deadlock_detection = ["parking_lot/deadlock_detection"]
 
 [lib]
 path = "parity/lib.rs"
