@@ -717,8 +717,8 @@ fn execute_impl<Cr, Rr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: 
 	// the updater service
 	let updater_fetch = fetch.clone();
 	let updater = Updater::new(
-		Arc::downgrade(&(service.client() as Arc<BlockChainClient>)),
-		Arc::downgrade(&sync_provider),
+		&Arc::downgrade(&(service.client() as Arc<BlockChainClient>)),
+		&Arc::downgrade(&sync_provider),
 		update_policy,
 		hash_fetch::Client::with_fetch(contract_client.clone(), cpu_pool.clone(), updater_fetch, event_loop.remote())
 	);
