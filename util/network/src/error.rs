@@ -141,6 +141,12 @@ error_chain! {
 			description("Packet is too large"),
 			display("Packet is too large"),
 		}
+
+		#[doc = "IO Failed because we ran over resource limits"]
+		TooManyOpenFiles (comment: String) {
+			description("Too many open files."),
+			display("Too many open files; {}. Check your resource limits and restart parity!", comment),
+		}
 	}
 }
 
