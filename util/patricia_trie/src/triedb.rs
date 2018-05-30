@@ -41,7 +41,7 @@ use rlp::{Decodable, Encodable};
 /// use ethereum_types::H256;
 ///
 /// fn main() {
-///   let mut memdb = MemoryDB::new();
+///   let mut memdb = MemoryDB::<KeccakHasher>::new();
 ///   let mut root = H256::new();
 ///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar").unwrap();
 ///   let t = TrieDB::new(&memdb, &root).unwrap();
@@ -404,11 +404,12 @@ fn iterator() {
 	use memorydb::*;
 	use super::TrieMut;
 	use super::triedbmut::*;
+	use hashdb::KeccakHasher;
 
 	let d = vec![ DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B") ];
 
-	let mut memdb = MemoryDB::new();
-	let mut root = H256::new();
+	let mut memdb = MemoryDB::<KeccakHasher>::new();
+	let mut root = <KeccakHasher as Hasher>::Out::new();
 	{
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for x in &d {
@@ -429,8 +430,8 @@ fn iterator_seek() {
 
 	let d = vec![ DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B") ];
 
-	let mut memdb = MemoryDB::new();
-	let mut root = H256::new();
+	let mut memdb = MemoryDB::<KeccakHasher>::new();
+	let mut root = <KeccakHasher as Hasher>::Out::new();
 	{
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for x in &d {
@@ -472,8 +473,8 @@ fn get_len() {
 	use super::TrieMut;
 	use super::triedbmut::*;
 
-	let mut memdb = MemoryDB::new();
-	let mut root = H256::new();
+	let mut memdb = MemoryDB::<KeccakHasher>::new();
+	let mut root = <KeccakHasher as Hasher>::Out::new();
 	{
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(b"A", b"ABC").unwrap();
@@ -495,8 +496,8 @@ fn debug_output_supports_pretty_print() {
 
 	let d = vec![ DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B") ];
 
-	let mut memdb = MemoryDB::new();
-	let mut root = H256::new();
+	let mut memdb = MemoryDB::<KeccakHasher>::new();
+	let mut root = <KeccakHasher as Hasher>::Out::new();
 	let root = {
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for x in &d {
@@ -606,8 +607,8 @@ fn test_lookup_with_corrupt_data_returns_decoder_error() {
 	use rlp;
 	use ethereum_types::H512;
 
-	let mut memdb = MemoryDB::new();
-	let mut root = H256::new();
+	let mut memdb = MemoryDB::<KeccakHasher>::new();
+	let mut root = <KeccakHasher as Hasher>::Out::new();
 	{
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(b"A", b"ABC").unwrap();
