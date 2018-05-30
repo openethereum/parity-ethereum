@@ -317,7 +317,7 @@ impl<'a, H: Hasher> TrieIterator<H> for TrieDBIterator<'a, H> where H::Out: Deco
 		self.trail.clear();
 		self.key_nibbles.clear();
 		let root_rlp = self.db.root_data()?;
-		self.seek(root_rlp, NibbleSlice::new(key))
+		self.seek(root_rlp, NibbleSlice::new(key.as_ref()))
 	}
 }
 
@@ -404,7 +404,6 @@ fn iterator() {
 	use memorydb::*;
 	use super::TrieMut;
 	use super::triedbmut::*;
-	use hashdb::KeccakHasher;
 
 	let d = vec![ DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B") ];
 

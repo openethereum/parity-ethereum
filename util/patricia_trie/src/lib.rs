@@ -43,7 +43,7 @@ pub mod sectriedb;
 pub mod recorder;
 
 mod fatdb;
-//mod fatdbmut;
+mod fatdbmut;
 mod lookup;
 mod nibbleslice;
 mod nibblevec;
@@ -53,7 +53,7 @@ pub use self::triedbmut::TrieDBMut;
 //pub use self::sectriedbmut::SecTrieDBMut;
 pub use self::sectriedb::SecTrieDB;
 pub use self::fatdb::{FatDB, FatDBIterator};
-//pub use self::fatdbmut::FatDBMut;
+pub use self::fatdbmut::FatDBMut;
 pub use self::recorder::Recorder;
 
 /// Trie Errors.
@@ -195,6 +195,7 @@ pub trait TrieMut {
 pub trait TrieIterator<H: Hasher>: Iterator {
 	/// Position the iterator on the first element with key > `key`
 	fn seek(&mut self, key: &[u8]) -> Result<(), H::Out>;
+//	fn seek(&mut self, key: &H::Out) -> Result<(), H::Out>;
 }
 
 /// Trie types
@@ -306,9 +307,3 @@ where H::Out: rlp::Decodable + rlp::Encodable
 	/// Returns true iff the trie DB is a fat DB (allows enumeration of keys).
 	pub fn is_fat(&self) -> bool { self.spec == TrieSpec::Fat }
 }
-
-/*
-fn decode_node(node: &'db [u8]) -> Node {
-		Node::decoded(node).expect("rlp read from db; qed")
-	}
-*/
