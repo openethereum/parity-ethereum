@@ -19,6 +19,7 @@ extern crate elastic_array;
 extern crate ethereum_types;
 extern crate heapsize;
 extern crate tiny_keccak;
+extern crate rlp;
 
 use elastic_array::ElasticArray128;
 use ethereum_types::H256;
@@ -28,7 +29,7 @@ use std::{fmt::Debug, hash::Hash};
 use tiny_keccak::Keccak;
 
 pub trait Hasher: Sync + Send {
-	type Out: Debug + PartialEq + Eq + Clone + Copy + Hash + Send + Sync /* REVIEW: how do I get around this? */ + HeapSizeOf;
+	type Out: AsRef<[u8]> + Debug + PartialEq + Eq + Clone + Copy + Hash + Send + Sync /* REVIEW: how do I get around this? --> */ + HeapSizeOf /* …and this? -> */ + rlp::Decodable;
 	const HASHED_NULL_RLP: Self::Out;
 	fn hash(x: &[u8]) -> Self::Out;
 }
