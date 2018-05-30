@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethereum_types::H256;
 use keccak::keccak;
 use hashdb::{HashDB, DBValue, Hasher};
 use super::triedbmut::TrieDBMut;
@@ -31,14 +30,14 @@ impl<'db, H: Hasher> SecTrieDBMut<'db, H> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db mut HashDB<H=H>, root: &'db mut H256) -> Self {
+	pub fn new(db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> Self {
 		SecTrieDBMut { raw: TrieDBMut::new(db, root) }
 	}
 
 	/// Create a new trie with the backing database `db` and `root`.
 	///
 	/// Returns an error if root does not exist.
-	pub fn from_existing(db: &'db mut HashDB<H=H>, root: &'db mut H256) -> super::Result<Self> {
+	pub fn from_existing(db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> super::Result<Self> {
 		Ok(SecTrieDBMut { raw: TrieDBMut::from_existing(db, root)? })
 	}
 
@@ -60,21 +59,21 @@ impl<'db, H: Hasher> TrieMut for SecTrieDBMut<'db, H> {
 	}
 
 	fn contains(&self, key: &[u8]) -> super::Result<bool> {
-		self.raw.contains(&keccak(key))
+		self.raw.contains(&Self::H::hash(key))
 	}
 
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<DBValue>>
 		where 'a: 'key
 	{
-		self.raw.get(&keccak(key)) // TODO
+		self.raw.get(&Self::H::hash(key))
 	}
 
 	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>> {
-		self.raw.insert(&keccak(key), value) // TODO
+		self.raw.insert(&Self::H::hash(key), value)
 	}
 
 	fn remove(&mut self, key: &[u8]) -> super::Result<Option<DBValue>> {
-		self.raw.remove(&keccak(key)) // TODO
+		self.raw.remove(&Self::H::hash(key))
 	}
 }
 

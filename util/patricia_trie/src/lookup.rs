@@ -18,13 +18,14 @@
 
 use hashdb::{HashDB, Hasher};
 use nibbleslice::NibbleSlice;
-use ethereum_types::H256;
+//use ethereum_types::H256;
 
 use super::{TrieError, Query};
 use super::node::Node;
+use rlp::Decodable;
 
 /// Trie lookup helper object.
-pub struct Lookup<'a, H: Hasher + 'a, Q: Query> {
+pub struct Lookup<'a, H: Hasher + 'a, Q: Query<H>> {
 	/// database to query from.
 	pub db: &'a HashDB<H=H>,
 	/// Query object to record nodes and transform data.
@@ -33,10 +34,10 @@ pub struct Lookup<'a, H: Hasher + 'a, Q: Query> {
 	pub hash: H::Out, // TODO
 }
 
-impl<'a, H: Hasher, Q: Query> Lookup<'a, H, Q> {
+impl<'a, H: Hasher + 'a, Q: Query<H>> Lookup<'a, H, Q> where H::Out: Decodable {
 	/// Look up the given key. If the value is found, it will be passed to the given
 	/// function to decode or copy.
-	pub fn look_up(mut self, mut key: NibbleSlice) -> super::Result<Option<Q::Item>> {
+	pub fn look_up(mut self, mut key: NibbleSlice) -> super::Result<Option<Q::Item>, H::Out> {
 		let mut hash = self.hash;
 
 		// this loop iterates through non-inline nodes.
@@ -81,8 +82,8 @@ impl<'a, H: Hasher, Q: Query> Lookup<'a, H, Q> {
 				}
 
 				// check if new node data is inline or hash.
-				if let Some(h) = Node::try_decode_hash(&node_data) {
-					hash = <Lookup<_, H> as Hasher>::H::Out(h); // REVIEW: this is pretty horrible. Better way?
+				if let Some(h) = Node::try_decode_hash::<H::Out>(&node_data) {
+					hash = h;
 					break
 				}
 			}

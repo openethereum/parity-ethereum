@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethereum_types::H256;
-use keccak::keccak;
+//use ethereum_types::H256;
+//use keccak::keccak;
 use hashdb::{HashDB, Hasher};
 use super::triedb::TrieDB;
 use super::{Trie, TrieItem, TrieIterator, Query};
+use rlp::{Decodable, Encodable};
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
@@ -27,13 +28,13 @@ pub struct SecTrieDB<'db, H: Hasher + 'db> {
 	raw: TrieDB<'db, H>
 }
 
-impl<'db, H: Hasher> SecTrieDB<'db, H> {
+impl<'db, H: Hasher> SecTrieDB<'db, H> where H::Out: Decodable {
 	/// Create a new trie with the backing database `db` and empty `root`
 	///
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
 	/// Returns an error if root does not exist.
-	pub fn new(db: &'db HashDB<H=H>, root: &'db H256) -> super::Result<Self> {
+	pub fn new(db: &'db HashDB<H=H>, root: &'db H::Out) -> super::Result<Self, H::Out> {
 		Ok(SecTrieDB { raw: TrieDB::new(db, root)? })
 	}
 
@@ -48,22 +49,22 @@ impl<'db, H: Hasher> SecTrieDB<'db, H> {
 	}
 }
 
-impl<'db, H: Hasher> Trie for SecTrieDB<'db, H> {
+impl<'db, H: Hasher> Trie for SecTrieDB<'db, H> where H::Out: Decodable + Encodable {
 	type H = H;
 
-	fn root(&self) -> &<Self::H as Hasher>::Out{ self.raw.root() }
+	fn root(&self) -> &<Self::H as Hasher>::Out { self.raw.root() }
 
-	fn contains(&self, key: &[u8]) -> super::Result<bool> {
-		self.raw.contains(&keccak(key)) // TODO
+	fn contains(&self, key: &[u8]) -> super::Result<bool, <Self::H as Hasher>::Out> {
+		self.raw.contains(&Self::H::hash(key).as_ref())
 	}
 
-	fn get_with<'a, 'key, Q: Query>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>>
+	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>,  <Self::H as Hasher>::Out>
 		where 'a: 'key
 	{
-		self.raw.get_with(&keccak(key), query) // TODO
+		self.raw.get_with(&Self::H::hash(key).as_ref(), query)
 	}
 
-	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Item = TrieItem> + 'a>> {
+	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Self::H, Item = TrieItem<Self::H>> + 'a>, <Self::H as Hasher>::Out> {
 		TrieDB::iter(&self.raw)
 	}
 }

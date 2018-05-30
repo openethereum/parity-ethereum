@@ -20,8 +20,8 @@ use nibbleslice::NibbleSlice;
 use super::node::{Node, OwnedNode};
 use super::lookup::Lookup;
 use super::{Trie, TrieItem, TrieError, TrieIterator, Query};
-use ethereum_types::H256;
-use bytes::{ToPretty, Bytes};
+use bytes::Bytes;
+use rlp::{Decodable, Encodable};
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
 ///
@@ -56,10 +56,10 @@ pub struct TrieDB<'db, H: Hasher + 'db> {
 	hash_count: usize,
 }
 
-impl<'db, H: Hasher> TrieDB<'db, H> {
+impl<'db, H: Hasher> TrieDB<'db, H> where H::Out: Decodable {
 	/// Create a new trie with the backing database `db` and `root`
 	/// Returns an error if `root` does not exist
-	pub fn new(db: &'db HashDB<H=H>, root: &'db H256) -> super::Result<Self> {
+	pub fn new(db: &'db HashDB<H=H>, root: &'db H::Out) -> super::Result<Self, H::Out> {
 		if !db.contains(root) {
 			Err(Box::new(TrieError::InvalidStateRoot(*root)))
 		} else {
@@ -68,12 +68,10 @@ impl<'db, H: Hasher> TrieDB<'db, H> {
 	}
 
 	/// Get the backing database.
-	pub fn db(&'db self) -> &'db HashDB<H=H> {
-		self.db
-	}
+	pub fn db(&'db self) -> &'db HashDB<H=H> { self.db }
 
 	/// Get the data of the root node.
-	fn root_data(&self) -> super::Result<DBValue> {
+	fn root_data(&self) -> super::Result<DBValue, H::Out> {
 		self.db
 			.get(self.root)
 			.ok_or_else(|| Box::new(TrieError::InvalidStateRoot(*self.root)))
@@ -82,26 +80,22 @@ impl<'db, H: Hasher> TrieDB<'db, H> {
 	/// Given some node-describing data `node`, return the actual node RLP.
 	/// This could be a simple identity operation in the case that the node is sufficiently small, but
 	/// may require a database lookup.
-	fn get_raw_or_lookup(&'db self, node: &'db [u8]) -> super::Result<DBValue> {
-		match Node::try_decode_hash(node) {
+	fn get_raw_or_lookup(&'db self, node: &'db [u8]) -> super::Result<DBValue, H::Out> {
+		// REVIEW: is it better to parametrize on `H` or like this with `H::Out` (saves us from adding `use hashdb::Hasher`)
+		match Node::try_decode_hash::<H::Out>(node) {
 			Some(key) => {
 				self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
 			}
 			None => Ok(DBValue::from_slice(node))
 		}
 	}
-
-	/// Create a node from raw rlp bytes, assumes valid rlp because encoded locally
-	fn decode_node(node: &'db [u8]) -> Node {
-		Node::decoded(node).expect("rlp read from db; qed")
-	}
 }
 
-impl<'db, H: Hasher> Trie for TrieDB<'db, H> {
+impl<'db, H: Hasher> Trie for TrieDB<'db, H> where H::Out: Decodable + Encodable {
 	type H = H;
 	fn root(&self) -> &<Self::H as Hasher>::Out { self.root }
 
-	fn get_with<'a, 'key, Q: Query>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>>
+	fn get_with<'a, 'key, Q: Query<Self::H>>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>, H::Out>
 		where 'a: 'key
 	{
 		Lookup {
@@ -111,7 +105,7 @@ impl<'db, H: Hasher> Trie for TrieDB<'db, H> {
 		}.look_up(NibbleSlice::new(key))
 	}
 
-	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Item=TrieItem> + 'a>> {
+	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Self::H, Item=TrieItem<Self::H>> + 'a>, H::Out> {
 		TrieDBIterator::new(self).map(|iter| Box::new(iter) as Box<_>)
 	}
 }
@@ -122,7 +116,7 @@ struct TrieAwareDebugNode<'db, 'a, H: Hasher + 'db> {
 	key: &'a[u8]
 }
 
-impl<'db, 'a, H: Hasher> fmt::Debug for TrieAwareDebugNode<'db, 'a, H> {
+impl<'db, 'a, H: Hasher> fmt::Debug for TrieAwareDebugNode<'db, 'a, H> where H::Out: Decodable {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		if let Ok(node) = self.trie.get_raw_or_lookup(self.key) {
 			match Node::decoded(&node) {
@@ -135,7 +129,7 @@ impl<'db, 'a, H: Hasher> fmt::Debug for TrieAwareDebugNode<'db, 'a, H> {
 						.field("item", &TrieAwareDebugNode{trie: self.trie, key: item})
 					.finish(),
 				Ok(Node::Branch(ref nodes, ref value)) => {
-					let nodes: Vec<TrieAwareDebugNode> = nodes.into_iter().map(|n| TrieAwareDebugNode{trie: self.trie, key: n} ).collect();
+					let nodes: Vec<TrieAwareDebugNode<H>> = nodes.into_iter().map(|n| TrieAwareDebugNode{trie: self.trie, key: n} ).collect();
 					f.debug_struct("Node::Branch")
 						.field("nodes", &nodes)
 						.field("value", &value)
@@ -158,7 +152,7 @@ impl<'db, 'a, H: Hasher> fmt::Debug for TrieAwareDebugNode<'db, 'a, H> {
 }
 
 
-impl<'db, H: Hasher> fmt::Debug for TrieDB<'db, H> {
+impl<'db, H: Hasher> fmt::Debug for TrieDB<'db, H> where H::Out: Decodable {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let root_rlp = self.db.get(self.root).expect("Trie root not found!");
 		f.debug_struct("TrieDB")
@@ -205,9 +199,9 @@ pub struct TrieDBIterator<'a, H: Hasher + 'a> {
 	key_nibbles: Bytes,
 }
 
-impl<'a, H: Hasher> TrieDBIterator<'a, H> {
+impl<'a, H: Hasher> TrieDBIterator<'a, H> where H::Out: Decodable {
 	/// Create a new iterator.
-	pub fn new(db: &'a TrieDB<H>) -> super::Result<TrieDBIterator<'a, H>> {
+	pub fn new(db: &'a TrieDB<H>) -> super::Result<TrieDBIterator<'a, H>, H::Out> {
 		let mut r = TrieDBIterator {
 			db: db,
 			trail: vec![],
@@ -218,10 +212,10 @@ impl<'a, H: Hasher> TrieDBIterator<'a, H> {
 		Ok(r)
 	}
 
-	fn seek<'key>(&mut self, mut node_data: DBValue, mut key: NibbleSlice<'key>) -> super::Result<()> {
+	fn seek<'key>(&mut self, mut node_data: DBValue, mut key: NibbleSlice<'key>) -> super::Result<(), H::Out> {
 		loop {
 			let (data, mid) = {
-				let node = TrieDB::decode_node(&node_data);
+				let node = Node::decoded(&node_data).expect("rlp read from db; qed");
 				match node {
 					Node::Leaf(slice, _) => {
 						if slice == key {
@@ -282,9 +276,10 @@ impl<'a, H: Hasher> TrieDBIterator<'a, H> {
 	}
 
 	/// Descend into a payload.
-	fn descend(&mut self, d: &[u8]) -> super::Result<()> {
-		let node = TrieDB::decode_node(&self.db.get_raw_or_lookup(d)?).into();
-		Ok(self.descend_into_node(node))
+	fn descend(&mut self, d: &[u8]) -> super::Result<(), H::Out> {
+		let node_data = &self.db.get_raw_or_lookup(d)?;
+		let node = Node::decoded(&node_data).expect("rlp read from db; qed");
+		Ok(self.descend_into_node(node.into()))
 	}
 
 	/// Descend into a payload.
@@ -316,9 +311,9 @@ impl<'a, H: Hasher> TrieDBIterator<'a, H> {
 	}
 }
 
-impl<'a, H: Hasher> TrieIterator for TrieDBIterator<'a, H> {
+impl<'a, H: Hasher> TrieIterator<H> for TrieDBIterator<'a, H> where H::Out: Decodable {
 	/// Position the iterator on the first element with key >= `key`
-	fn seek(&mut self, key: &[u8]) -> super::Result<()> {
+	fn seek(&mut self, key: &[u8]) -> super::Result<(), H::Out> {
 		self.trail.clear();
 		self.key_nibbles.clear();
 		let root_rlp = self.db.root_data()?;
@@ -326,16 +321,16 @@ impl<'a, H: Hasher> TrieIterator for TrieDBIterator<'a, H> {
 	}
 }
 
-impl<'a, H: Hasher> Iterator for TrieDBIterator<'a, H> {
-	type Item = TrieItem<'a>;
+
+impl<'a, H: Hasher> Iterator for TrieDBIterator<'a, H> where H::Out: Decodable {
+	type Item = TrieItem<'a, H>;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		enum IterStep {
+		enum IterStep<O: Decodable> {
 			Continue,
 			PopTrail,
-			Descend(super::Result<DBValue>),
+			Descend(super::Result<DBValue, O>),
 		}
-
 		loop {
 			let iter_step = {
 				self.trail.last_mut()?.increment();
@@ -356,7 +351,7 @@ impl<'a, H: Hasher> Iterator for TrieDBIterator<'a, H> {
 					(Status::At, &OwnedNode::Leaf(_, ref v)) | (Status::At, &OwnedNode::Branch(_, Some(ref v))) => {
 						return Some(Ok((self.key(), v.clone())));
 					},
-					(Status::At, &OwnedNode::Extension(_, ref d)) => IterStep::Descend(self.db.get_raw_or_lookup(&*d)),
+					(Status::At, &OwnedNode::Extension(_, ref d)) => IterStep::Descend::<H::Out>(self.db.get_raw_or_lookup(&*d)),
 					(Status::At, &OwnedNode::Branch(_, _)) => IterStep::Continue,
 					(Status::AtChild(i), &OwnedNode::Branch(ref children, _)) if children[i].len() > 0 => {
 						match i {
@@ -364,7 +359,7 @@ impl<'a, H: Hasher> Iterator for TrieDBIterator<'a, H> {
 							i => *self.key_nibbles.last_mut()
 								.expect("pushed as 0; moves sequentially; removed afterwards; qed") = i as u8,
 						}
-						IterStep::Descend(self.db.get_raw_or_lookup(&*children[i]))
+						IterStep::Descend::<H::Out>(self.db.get_raw_or_lookup(&*children[i]))
 					},
 					(Status::AtChild(i), &OwnedNode::Branch(_, _)) => {
 						if i == 0 {
@@ -380,11 +375,23 @@ impl<'a, H: Hasher> Iterator for TrieDBIterator<'a, H> {
 				IterStep::PopTrail => {
 					self.trail.pop();
 				},
-				IterStep::Descend(Ok(d)) => {
-					self.descend_into_node(TrieDB::decode_node(&d).into())
+				IterStep::Descend::<H::Out>(Ok(d)) => {
+					let node = Node::decoded(&d).expect("rlp read from db; qed");
+					self.descend_into_node(node.into())
 				},
-				IterStep::Descend(Err(e)) => {
-					return Some(Err(e))
+				IterStep::Descend::<H::Out>(Err(e)) => {
+//					return Some(Err(e)) // <–– REVIEW: This causes a compiler error I can't figure out:
+ 					/*
+					error[E0308]: mismatched types
+					   --> util/patricia_trie/src/triedb.rs:404:22
+					    |
+					404 |                     return Some(Err(e))
+					    |                                     ^ expected type parameter, found associated type
+					    |
+					    = note: expected type `std::boxed::Box<TrieError<H>>`
+					               found type `std::boxed::Box<TrieError<<H as hashdb::Hasher>::Out>>`
+					*/
+					panic!("FIXME: this causes `expected type parameter, found associated type`")
 				}
 				IterStep::Continue => {},
 			}

@@ -16,8 +16,8 @@
 
 //! Trie query recorder.
 
-use keccak::keccak;
-use ethereum_types::H256;
+//use keccak::keccak;
+//use ethereum_types::H256;
 use bytes::Bytes;
 use hashdb::Hasher;
 use std::marker::PhantomData;
@@ -32,7 +32,7 @@ pub struct Record<H: Hasher> {
 	pub data: Bytes,
 
 	/// The hash of the data.
-	pub hash: <Self::H as Hasher>::Out,
+	pub hash: H::Out,
 	marker: PhantomData<H>,
 }
 
@@ -69,7 +69,7 @@ impl<H: Hasher> Recorder<H> {
 	/// Record a visited node, given its hash, data, and depth.
 //	pub fn record(&mut self, hash: &H256, data: &[u8], depth: u32) {
 	pub fn record(&mut self, hash: &<H as Hasher>::Out, data: &[u8], depth: u32) {
-		debug_assert_eq!(keccak(data), *hash);
+		debug_assert_eq!(H::hash(data), *hash);
 
 		if depth >= self.min_depth {
 			self.nodes.push(Record {

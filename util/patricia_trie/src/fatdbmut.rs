@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethereum_types::H256;
-use keccak::keccak;
+//use ethereum_types::H256;
+//use keccak::keccak;
 use hashdb::{HashDB, DBValue, Hasher};
 use super::{TrieDBMut, TrieMut};
 
@@ -31,14 +31,14 @@ impl<'db, H: Hasher> FatDBMut<'db, H> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db mut HashDB<H=H>, root: &'db mut H256) -> Self {
+	pub fn new(db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> Self {
 		FatDBMut { raw: TrieDBMut::new(db, root) }
 	}
 
 	/// Create a new trie with the backing database `db` and `root`.
 	///
 	/// Returns an error if root does not exist.
-	pub fn from_existing(db: &'db mut HashDB<H=H>, root: &'db mut H256) -> super::Result<Self> {
+	pub fn from_existing(db: &'db mut HashDB<H=H>, root: &'db mut H::Out) -> super::Result<Self> {
 		Ok(FatDBMut { raw: TrieDBMut::from_existing(db, root)? })
 	}
 
@@ -52,33 +52,27 @@ impl<'db, H: Hasher> FatDBMut<'db, H> {
 		self.raw.db_mut()
 	}
 
-	fn to_aux_key(key: &[u8]) -> H256 {
-		keccak(key)
-	} // TODO
+	fn to_aux_key(key: &[u8]) -> H::Out { H::hash(key) }
 }
 
 impl<'db, H: Hasher> TrieMut for FatDBMut<'db, H> {
 	type H = H;
-	fn root(&mut self) -> &<Self::H as Hasher>::Out {
-		self.raw.root()
-	}
+	fn root(&mut self) -> &<Self::H as Hasher>::Out { self.raw.root() }
 
-	fn is_empty(&self) -> bool {
-		self.raw.is_empty()
-	}
+	fn is_empty(&self) -> bool { self.raw.is_empty() }
 
 	fn contains(&self, key: &[u8]) -> super::Result<bool> {
-		self.raw.contains(&keccak(key))
+		self.raw.contains(Self::H::hash(key))
 	}
 
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<DBValue>>
 		where 'a: 'key
 	{
-		self.raw.get(&keccak(key)) // TODO
+		self.raw.get(Self::H::hash(key))
 	}
 
 	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>> {
-		let hash = keccak(key); // TODO
+		let hash = Self::H::hash(key);
 		let out = self.raw.insert(&hash, value)?;
 		let db = self.raw.db_mut();
 
@@ -90,7 +84,8 @@ impl<'db, H: Hasher> TrieMut for FatDBMut<'db, H> {
 	}
 
 	fn remove(&mut self, key: &[u8]) -> super::Result<Option<DBValue>> {
-		let hash = keccak(key);
+//		let hash = keccak(key); //TODO
+		let hash = Self::H::hash(key);
 		let out = self.raw.remove(&hash)?;
 
 		// don't remove if it already exists.

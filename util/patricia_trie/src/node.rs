@@ -14,12 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethereum_types::H256;
 use elastic_array::ElasticArray36;
 use nibbleslice::NibbleSlice;
 use nibblevec::NibbleVec;
 use bytes::*;
-use rlp::{Rlp, RlpStream, Prototype, DecoderError};
+use rlp::{Rlp, RlpStream, Prototype, DecoderError, self};
 use hashdb::DBValue;
 
 /// Partial node key type.
@@ -35,7 +34,7 @@ pub enum Node<'a> {
 	/// Extension node; has key slice and node data. Data may not be null.
 	Extension(NibbleSlice<'a>, &'a [u8]),
 	/// Branch node; has array of 16 child nodes (each possibly null) and an optional immediate node data.
-	Branch([&'a [u8]; 16], Option<&'a [u8]>)
+	Branch([&'a [u8]; 16], Option<&'a [u8]>),
 }
 
 impl<'a> Node<'a> {
@@ -104,7 +103,9 @@ impl<'a> Node<'a> {
 		}
 	}
 
-	pub fn try_decode_hash(node_data: &[u8]) -> Option<H256> {
+	pub fn try_decode_hash<O>(node_data: &[u8]) -> Option<O>
+	where O: rlp::Decodable // REVIEW: this is not necessary but is perhaps useful when reading the code? Keep or leave out?
+	{
 		let r = Rlp::new(node_data);
 		if r.is_data() && r.size() == 32 {
 			Some(r.as_val().expect("Hash is the correct size of 32 bytes; qed"))

@@ -24,15 +24,13 @@ use super::node::NodeKey;
 use hashdb::HashDB;
 use bytes::ToPretty;
 use nibbleslice::NibbleSlice;
-use rlp::{Rlp, RlpStream};
-use hashdb::{Hasher, DBValue, KeccakHasher};
+use rlp::{Rlp, RlpStream, Encodable, Decodable};
+use hashdb::{Hasher, DBValue};
 
 use std::collections::{HashSet, VecDeque};
 use std::mem;
 use std::ops::Index;
-use ethereum_types::H256;
 use elastic_array::ElasticArray1024;
-use keccak::{KECCAK_NULL_RLP};
 
 // For lookups into the Node storage buffer.
 // This is deliberately non-copyable.
@@ -41,26 +39,26 @@ struct StorageHandle(usize);
 
 // Handles to nodes in the trie.
 #[derive(Debug)]
-enum NodeHandle {
+enum NodeHandle<H: Hasher> {
 	/// Loaded into memory.
 	InMemory(StorageHandle),
 	/// Either a hash or an inline node
-	Hash(H256),
+	Hash(H::Out),
 }
 
-impl From<StorageHandle> for NodeHandle {
+impl<H: Hasher> From<StorageHandle> for NodeHandle<H> {
 	fn from(handle: StorageHandle) -> Self {
 		NodeHandle::InMemory(handle)
 	}
 }
 
-impl From<H256> for NodeHandle {
-	fn from(hash: H256) -> Self {
-		NodeHandle::Hash(hash)
-	}
-}
+//impl From<H256> for NodeHandle {
+//	fn from(hash: H256) -> Self {
+//		NodeHandle::Hash(hash)
+//	}
+//}
 
-fn empty_children() -> Box<[Option<NodeHandle>; 16]> {
+fn empty_children<H: Hasher>() -> Box<[Option<NodeHandle<H>>; 16]> {
 	Box::new([
 		None, None, None, None, None, None, None, None,
 		None, None, None, None, None, None, None, None,
@@ -69,7 +67,7 @@ fn empty_children() -> Box<[Option<NodeHandle>; 16]> {
 
 /// Node types in the Trie.
 #[derive(Debug)]
-enum Node {
+enum Node<H: Hasher> {
 	/// Empty node.
 	Empty,
 	/// A leaf node contains the end of a key and a value.
@@ -80,15 +78,15 @@ enum Node {
 	/// The shared portion is encoded from a `NibbleSlice` meaning it contains
 	/// a flag indicating it is an extension.
 	/// The child node is always a branch.
-	Extension(NodeKey, NodeHandle),
+	Extension(NodeKey, NodeHandle<H>),
 	/// A branch has up to 16 children and an optional value.
-	Branch(Box<[Option<NodeHandle>; 16]>, Option<DBValue>)
+	Branch(Box<[Option<NodeHandle<H>>; 16]>, Option<DBValue>)
 }
 
-impl Node {
+impl<H: Hasher> Node<H> where H::Out: Decodable {
 	// load an inline node into memory or get the hash to do the lookup later.
-	fn inline_or_hash(node: &[u8], db: &HashDB<H=KeccakHasher>, storage: &mut NodeStorage) -> NodeHandle {
-		RlpNode::try_decode_hash(&node)
+	fn inline_or_hash(node: &[u8], db: &HashDB<H=H>, storage: &mut NodeStorage<H>) -> NodeHandle<H> {
+		RlpNode::try_decode_hash::<H::Out>(&node)
 			.map(NodeHandle::Hash)
 			.unwrap_or_else(|| {
 				let child = Node::from_rlp(node, db, storage);
@@ -97,7 +95,7 @@ impl Node {
 	}
 
 	// decode a node from rlp without getting its children.
-	fn from_rlp(rlp: &[u8], db: &HashDB<H=KeccakHasher>, storage: &mut NodeStorage) -> Self {
+	fn from_rlp(rlp: &[u8], db: &HashDB<H=H>, storage: &mut NodeStorage<H>) -> Self {
 		match RlpNode::decoded(rlp).expect("rlp read from db; qed") {
 			RlpNode::Empty => Node::Empty,
 			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), DBValue::from_slice(&v)),
@@ -130,7 +128,7 @@ impl Node {
 	// encode a node to RLP
 	// TODO: parallelize
 	fn into_rlp<F>(self, mut child_cb: F) -> ElasticArray1024<u8>
-		where F: FnMut(NodeHandle, &mut RlpStream)
+		where F: FnMut(NodeHandle<H>, &mut RlpStream)
 	{
 		match self {
 			Node::Empty => {
@@ -172,25 +170,25 @@ impl Node {
 }
 
 // post-inspect action.
-enum Action {
+enum Action<H: Hasher> {
 	// Replace a node with a new one.
-	Replace(Node),
+	Replace(Node<H>),
 	// Restore the original node. This trusts that the node is actually the original.
-	Restore(Node),
+	Restore(Node<H>),
 	// if it is a new node, just clears the storage.
 	Delete,
 }
 
 // post-insert action. Same as action without delete
-enum InsertAction {
+enum InsertAction<H: Hasher> {
 	// Replace a node with a new one.
-	Replace(Node),
+	Replace(Node<H>),
 	// Restore the original node.
-	Restore(Node),
+	Restore(Node<H>),
 }
 
-impl InsertAction {
-	fn into_action(self) -> Action {
+impl<H: Hasher> InsertAction<H> {
+	fn into_action(self) -> Action<H> {
 		match self {
 			InsertAction::Replace(n) => Action::Replace(n),
 			InsertAction::Restore(n) => Action::Restore(n),
@@ -198,7 +196,7 @@ impl InsertAction {
 	}
 
 	// unwrap the node, disregarding replace or restore state.
-	fn unwrap_node(self) -> Node {
+	fn unwrap_node(self) -> Node<H> {
 		match self {
 			InsertAction::Replace(n) | InsertAction::Restore(n) => n,
 		}
@@ -206,20 +204,20 @@ impl InsertAction {
 }
 
 // What kind of node is stored here.
-enum Stored {
+enum Stored<H: Hasher> {
 	// A new node.
-	New(Node),
+	New(Node<H>),
 	// A cached node, loaded from the DB.
-	Cached(Node, H256),
+	Cached(Node<H>, H::Out),
 }
 
 /// Compact and cache-friendly storage for Trie nodes.
-struct NodeStorage {
-	nodes: Vec<Stored>,
+struct NodeStorage<H: Hasher> {
+	nodes: Vec<Stored<H>>,
 	free_indices: VecDeque<usize>,
 }
 
-impl NodeStorage {
+impl<H: Hasher> NodeStorage<H> {
 	/// Create a new storage.
 	fn empty() -> Self {
 		NodeStorage {
@@ -229,7 +227,7 @@ impl NodeStorage {
 	}
 
 	/// Allocate a new node in the storage.
-	fn alloc(&mut self, stored: Stored) -> StorageHandle {
+	fn alloc(&mut self, stored: Stored<H>) -> StorageHandle {
 		if let Some(idx) = self.free_indices.pop_front() {
 			self.nodes[idx] = stored;
 			StorageHandle(idx)
@@ -240,7 +238,7 @@ impl NodeStorage {
 	}
 
 	/// Remove a node from the storage, consuming the handle and returning the node.
-	fn destroy(&mut self, handle: StorageHandle) -> Stored {
+	fn destroy(&mut self, handle: StorageHandle) -> Stored<H> {
 		let idx = handle.0;
 
 		self.free_indices.push_back(idx);
@@ -248,10 +246,10 @@ impl NodeStorage {
 	}
 }
 
-impl<'a> Index<&'a StorageHandle> for NodeStorage {
-	type Output = Node;
+impl<'a, H: Hasher> Index<&'a StorageHandle> for NodeStorage<H> {
+	type Output = Node<H>;
 
-	fn index(&self, handle: &'a StorageHandle) -> &Node {
+	fn index(&self, handle: &'a StorageHandle) -> &Node<H> {
 		match self.nodes[handle.0] {
 			Stored::New(ref node) => node,
 			Stored::Cached(ref node, _) => node,
@@ -292,22 +290,22 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 ///   assert!(!t.contains(b"foo").unwrap());
 /// }
 /// ```
-pub struct TrieDBMut<'a, H: Hasher + 'a> {
-	storage: NodeStorage,
+pub struct TrieDBMut<'a, H: Hasher + 'a>  where H::Out: Decodable + Encodable {
+	storage: NodeStorage<H>,
 	db: &'a mut HashDB<H=H>,
-	root: &'a mut H256, // TOOD
-	root_handle: NodeHandle,
-	death_row: HashSet<H256>, // TODO
+	root: &'a mut H::Out,
+	root_handle: NodeHandle<H>,
+	death_row: HashSet<H::Out>,
 	/// The number of hash operations this trie has performed.
 	/// Note that none are performed until changes are committed.
 	hash_count: usize,
 }
 
-impl<'a, H: Hasher> TrieDBMut<'a, H> {
+impl<'a, H: Hasher> TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
 	/// Create a new trie with backing database `db` and empty `root`.
-	pub fn new(db: &'a mut HashDB<H=H>, root: &'a mut H256) -> Self {
-		*root = KECCAK_NULL_RLP;
-		let root_handle = NodeHandle::Hash(KECCAK_NULL_RLP); // TODO
+	pub fn new(db: &'a mut HashDB<H=H>, root: &'a mut H::Out) -> Self {
+		*root = H::HASHED_NULL_RLP;
+		let root_handle = NodeHandle::Hash(H::HASHED_NULL_RLP);
 
 		TrieDBMut {
 			storage: NodeStorage::empty(),
@@ -321,7 +319,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> {
 
 	/// Create a new trie with the backing database `db` and `root.
 	/// Returns an error if `root` does not exist.
-	pub fn from_existing(db: &'a mut HashDB<H=H>, root: &'a mut H256) -> super::Result<Self> {
+	pub fn from_existing(db: &'a mut HashDB<H=H>, root: &'a mut H::Out) -> super::Result<Self, H::Out> {
 		if !db.contains(root) {
 			return Err(Box::new(TrieError::InvalidStateRoot(*root)));
 		}
@@ -347,7 +345,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> {
 	}
 
 	// cache a node by hash
-	fn cache(&mut self, hash: H256) -> super::Result<StorageHandle> {
+	fn cache(&mut self, hash: H::Out) -> super::Result<StorageHandle, H::Out> {
 		let node_rlp = self.db.get(&hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(hash)))?;
 		let node = Node::from_rlp(&node_rlp, &*self.db, &mut self.storage);
 		Ok(self.storage.alloc(Stored::Cached(node, hash)))
@@ -355,8 +353,8 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> {
 
 	// inspect a node, choosing either to replace, restore, or delete it.
 	// if restored or replaced, returns the new node along with a flag of whether it was changed.
-	fn inspect<F>(&mut self, stored: Stored, inspector: F) -> super::Result<Option<(Stored, bool)>>
-	where F: FnOnce(&mut Self, Node) -> super::Result<Action> {
+	fn inspect<F>(&mut self, stored: Stored<H>, inspector: F) -> super::Result<Option<(Stored<H>, bool)>, H::Out>
+	where F: FnOnce(&mut Self, Node<H>) -> super::Result<Action<H>, H::Out> {
 		Ok(match stored {
 			Stored::New(node) => match inspector(self, node)? {
 				Action::Restore(node) => Some((Stored::New(node), false)),
@@ -378,7 +376,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> {
 	}
 
 	// walk the trie, attempting to find the key's node.
-	fn lookup<'x, 'key>(&'x self, mut partial: NibbleSlice<'key>, handle: &NodeHandle) -> super::Result<Option<DBValue>>
+	fn lookup<'x, 'key>(&'x self, mut partial: NibbleSlice<'key>, handle: &NodeHandle<H>) -> super::Result<Option<DBValue>, H::Out>
 		where 'x: 'key
 	{
 		let mut handle = handle;
@@ -426,9 +424,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> {
 	}
 
 	/// insert a key, value pair into the trie, creating new nodes if necessary.
-	fn insert_at(&mut self, handle: NodeHandle, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>)
-		-> super::Result<(StorageHandle, bool)>
-	{
+	fn insert_at(&mut self, handle: NodeHandle<H>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> super::Result<(StorageHandle, bool), H::Out> {
 		let h = match handle {
 			NodeHandle::InMemory(h) => h,
 			NodeHandle::Hash(h) => self.cache(h)?,
@@ -442,9 +438,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> {
 	}
 
 	/// the insertion inspector.
-	fn insert_inspector(&mut self, node: Node, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>)
-		-> super::Result<InsertAction>
-	{
+	fn insert_inspector(&mut self, node: Node<H>, partial: NibbleSlice, value: DBValue, old_val: &mut Option<DBValue>) -> super::Result<InsertAction<H>, H::Out> {
 		trace!(target: "trie", "augmented (partial: {:?}, value: {:?})", partial, value.pretty());
 
 		Ok(match node {
@@ -605,9 +599,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> {
 	}
 
 	/// Remove a node from the trie based on key.
-	fn remove_at(&mut self, handle: NodeHandle, partial: NibbleSlice, old_val: &mut Option<DBValue>)
-		-> super::Result<Option<(StorageHandle, bool)>>
-	{
+	fn remove_at(&mut self, handle: NodeHandle<H>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> super::Result<Option<(StorageHandle, bool)>, H::Out> {
 		let stored = match handle {
 			NodeHandle::InMemory(h) => self.storage.destroy(h),
 			NodeHandle::Hash(h) => {
@@ -622,7 +614,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> {
 	}
 
 	/// the removal inspector
-	fn remove_inspector(&mut self, node: Node, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> super::Result<Action> {
+	fn remove_inspector(&mut self, node: Node<H>, partial: NibbleSlice, old_val: &mut Option<DBValue>) -> super::Result<Action<H>, H::Out> {
 		Ok(match (node, partial.is_empty()) {
 			(Node::Empty, _) => Action::Delete,
 			(Node::Branch(c, None), true) => Action::Restore(Node::Branch(c, None)),
@@ -708,7 +700,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> {
 	/// _invalid state_ means:
 	/// - Branch node where there is only a single entry;
 	/// - Extension node followed by anything other than a Branch node.
-	fn fix(&mut self, node: Node) -> super::Result<Node> {
+	fn fix(&mut self, node: Node<H>) -> super::Result<Node<H>, H::Out> {
 		match node {
 			Node::Branch(mut children, value) => {
 				// if only a single value, transmute to leaf/extension and feed through fixed.
@@ -845,7 +837,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> {
 
 	/// commit a node, hashing it, committing it to the db,
 	/// and writing it to the rlp stream as necessary.
-	fn commit_node(&mut self, handle: NodeHandle, stream: &mut RlpStream) {
+	fn commit_node(&mut self, handle: NodeHandle<H>, stream: &mut RlpStream) {
 		match handle {
 			NodeHandle::Hash(h) => stream.append(&h),
 			NodeHandle::InMemory(h) => match self.storage.destroy(h) {
@@ -865,7 +857,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> {
 	}
 
 	// a hack to get the root node's handle
-	fn root_handle(&self) -> NodeHandle {
+	fn root_handle(&self) -> NodeHandle<H> {
 		match self.root_handle {
 			NodeHandle::Hash(h) => NodeHandle::Hash(h),
 			NodeHandle::InMemory(StorageHandle(x)) => NodeHandle::InMemory(StorageHandle(x)),
@@ -873,7 +865,7 @@ impl<'a, H: Hasher> TrieDBMut<'a, H> {
 	}
 }
 
-impl<'a, H: Hasher> TrieMut for TrieDBMut<'a, H> {
+impl<'a, H: Hasher> TrieMut for TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
 	type H = H;
 
 	fn root(&mut self) -> &<Self::H as Hasher>::Out {
@@ -883,7 +875,7 @@ impl<'a, H: Hasher> TrieMut for TrieDBMut<'a, H> {
 
 	fn is_empty(&self) -> bool {
 		match self.root_handle {
-			NodeHandle::Hash(h) => h == KECCAK_NULL_RLP, // TODO
+			NodeHandle::Hash(h) => h == Self::H::HASHED_NULL_RLP, // TODO
 			NodeHandle::InMemory(ref h) => match self.storage[h] {
 				Node::Empty => true,
 				_ => false,
@@ -891,12 +883,12 @@ impl<'a, H: Hasher> TrieMut for TrieDBMut<'a, H> {
 		}
 	}
 
-	fn get<'x, 'key>(&'x self, key: &'key [u8]) -> super::Result<Option<DBValue>> where 'x: 'key {
+	fn get<'x, 'key>(&'x self, key: &'key [u8]) -> super::Result<Option<DBValue>, <Self::H as Hasher>::Out> where 'x: 'key {
 		self.lookup(NibbleSlice::new(key), &self.root_handle)
 	}
 
 
-	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>> {
+	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>, <Self::H as Hasher>::Out> {
 		if value.is_empty() { return self.remove(key) }
 
 		let mut old_val = None;
@@ -917,7 +909,7 @@ impl<'a, H: Hasher> TrieMut for TrieDBMut<'a, H> {
 		Ok(old_val)
 	}
 
-	fn remove(&mut self, key: &[u8]) -> super::Result<Option<DBValue>> {
+	fn remove(&mut self, key: &[u8]) -> super::Result<Option<DBValue>, <Self::H as Hasher>::Out> {
 		trace!(target: "trie", "remove: key={:?}", key.pretty());
 
 		let root_handle = self.root_handle();
@@ -931,8 +923,8 @@ impl<'a, H: Hasher> TrieMut for TrieDBMut<'a, H> {
 			}
 			None => {
 				trace!(target: "trie", "remove: obliterated trie");
-				self.root_handle = NodeHandle::Hash(KECCAK_NULL_RLP);
-				*self.root = KECCAK_NULL_RLP;
+				self.root_handle = NodeHandle::Hash(Self::H::HASHED_NULL_RLP);
+				*self.root = Self::H::HASHED_NULL_RLP;
 			}
 		}
 
@@ -940,7 +932,7 @@ impl<'a, H: Hasher> TrieMut for TrieDBMut<'a, H> {
 	}
 }
 
-impl<'a, H: Hasher> Drop for TrieDBMut<'a, H> {
+impl<'a, H: Hasher> Drop for TrieDBMut<'a, H> where H::Out: Decodable + Encodable {
 	fn drop(&mut self) {
 		self.commit();
 	}
