@@ -62,7 +62,7 @@ impl SyncSupplier {
 			GET_BLOCK_HEADERS_PACKET => SyncSupplier::return_block_headers(io, &rlp, peer_id),
 			GET_RECEIPTS_PACKET => SyncSupplier::return_receipts(io, &rlp, peer_id),
 			GET_NODE_DATA_PACKET => SyncSupplier::return_node_data(io, &rlp, peer_id),
-			GET_SNAPSHOT_BITFIELD_PACKET => SyncSupplier::return_snapshot_bitfield(sync, &rlp, peer_id),
+			GET_SNAPSHOT_BITFIELD_PACKET => SyncSupplier::return_snapshot_bitfield(sync, io, &rlp, peer_id),
 			GET_SNAPSHOT_MANIFEST_PACKET => SyncSupplier::return_snapshot_manifest(sync, io, &rlp, peer_id),
 			GET_SNAPSHOT_DATA_PACKET => SyncSupplier::return_snapshot_data(io, &rlp, peer_id),
 			_ => {
@@ -234,7 +234,7 @@ impl SyncSupplier {
 	}
 
 	/// Respond to GetSnapshotBitfield request
-	fn return_snapshot_bitfield(sync: &RwLock<ChainSync>, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+	fn return_snapshot_bitfield(sync: &RwLock<ChainSync>, io: &mut SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		trace!(target: "warp", "{} -> GetSnapshotBitfield", peer_id);
 		if r.item_count().unwrap_or(0) != 0 {
 			debug!(target: "warp", "Invalid GetSnapshotBitfield request, ignoring.");

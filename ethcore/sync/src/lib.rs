@@ -57,6 +57,7 @@ extern crate heapsize;
 #[macro_use]
 extern crate trace_time;
 
+mod bitfield;
 mod chain;
 mod blocks;
 mod block_sync;

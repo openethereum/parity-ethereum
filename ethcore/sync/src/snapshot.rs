@@ -20,6 +20,7 @@ use ethereum_types::H256;
 use hash::keccak;
 use rand::{thread_rng, Rng};
 
+use bitfield::Bitfield;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
@@ -30,6 +31,7 @@ pub enum ChunkType {
 }
 
 pub struct Snapshot {
+	bitfield: Bitfield,
 	pending_state_chunks: Vec<H256>,
 	pending_block_chunks: Vec<H256>,
 	downloading_chunks: HashSet<H256>,
@@ -43,6 +45,7 @@ impl Snapshot {
 	/// Create a new instance.
 	pub fn new() -> Snapshot {
 		Snapshot {
+			bitfield: Bitfield::new(),
 			pending_state_chunks: Vec::new(),
 			pending_block_chunks: Vec::new(),
 			downloading_chunks: HashSet::new(),
@@ -60,13 +63,15 @@ impl Snapshot {
 		}
 
 		if let Some(completed_chunks) = snapshot_service.completed_chunks() {
+			self.bitfield.reset();
+			self.bitfield.mark_some(&completed_chunks);
 			self.completed_chunks = HashSet::from_iter(completed_chunks);
 		}
 
 		trace!(
 			target: "snapshot",
 			"Snapshot is now initialized with {} completed chunks.",
-			self.completed_chunks.len(),
+			self.bitfield.num_available(),
 		);
 
 		self.initialized = true;
@@ -74,6 +79,7 @@ impl Snapshot {
 
 	/// Clear everything.
 	pub fn clear(&mut self) {
+		self.bitfield = Bitfield::new();
 		self.pending_state_chunks.clear();
 		self.pending_block_chunks.clear();
 		self.downloading_chunks.clear();
@@ -90,6 +96,7 @@ impl Snapshot {
 	/// Reset collection for a manifest RLP
 	pub fn reset_to(&mut self, manifest: &ManifestData, hash: &H256) {
 		self.clear();
+		self.bitfield.reset_to(manifest);
 		self.pending_state_chunks = manifest.state_hashes.clone();
 		self.pending_block_chunks = manifest.block_hashes.clone();
 		self.snapshot_hash = Some(hash.clone());
@@ -105,10 +112,12 @@ impl Snapshot {
 		self.downloading_chunks.remove(&hash);
 		if self.pending_block_chunks.iter().any(|h| h == &hash) {
 			self.completed_chunks.insert(hash.clone());
+			self.bitfield.mark_one(&hash);
 			return Ok(ChunkType::Block(hash));
 		}
 		if self.pending_state_chunks.iter().any(|h| h == &hash) {
 			self.completed_chunks.insert(hash.clone());
+			self.bitfield.mark_one(&hash);
 			return Ok(ChunkType::State(hash));
 		}
 		trace!(target: "sync", "Ignored unknown chunk: {:x}", hash);
@@ -123,15 +132,21 @@ impl Snapshot {
 			.filter(|&(index, _)| peer.chunk_index_available(index))
 			.map(|(_, h)| *h)
 			.collect();
+		let avail_chunks: HashSet<H256> = HashSet::from_iter(avail_chunks);
+
 		trace!(target: "warp", "Found {} available chunks from peer", avail_chunks.len());
-		// Find all random chunks
-		let needed_chunks: Vec<H256> = avail_chunks.iter()
-			.filter(|&h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h))
+
+		// Find needed chunks, available from the peer,
+		// that we don't download yet
+		let chunks: Vec<H256> = self.bitfield.needed_chunks()
+			.iter()
+			.filter(|&h| !self.downloading_chunks.contains(h))
+			.filter(|&h| avail_chunks.contains(h))
 			.map(|h| *h)
 			.collect();
 
 		// Get a random chunk
-		let chunk = thread_rng().choose(&needed_chunks);
+		let chunk = thread_rng().choose(&chunks);
 
 		if let Some(hash) = chunk {
 			self.downloading_chunks.insert(hash.clone());
@@ -162,15 +177,11 @@ impl Snapshot {
 	}
 
 	pub fn done_chunks(&self) -> usize {
-		self.completed_chunks.len()
+		self.bitfield.num_available()
 	}
 
 	pub fn is_complete(&self) -> bool {
-		self.total_chunks() == self.completed_chunks.len()
-	}
-
-	pub fn bitfield_size(&self) -> usize {
-		(self.total_chunks() as f64 / 8 as f64).ceil() as usize
+		self.total_chunks() == self.done_chunks()
 	}
 
 	fn all_chunks(&self) -> Vec<H256> {
@@ -184,21 +195,11 @@ impl Snapshot {
 	// The bitfield is represented as an array of
 	// 8-bits uints
 	pub fn bitfield(&self) -> Vec<u8> {
-		let len = self.bitfield_size();
-		let mut bytes: Vec<u8> = vec![0; len];
-		let all_chunks = self.all_chunks();
+		self.bitfield.as_raw()
+	}
 
-		for (chunk_index, chunk_hash) in all_chunks.iter().enumerate() {
-			if self.completed_chunks.contains(&chunk_hash) {
-				let byte_index = chunk_index / 8;
-				let bit_index = chunk_index % 8;
-				let mask = 1 << (7 - bit_index);
-
-				bytes[byte_index] |= mask;
-			}
-		}
-
-		bytes
+	pub fn bitfield_size(&self) -> usize {
+		self.bitfield.len()
 	}
 }
 

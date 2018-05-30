@@ -152,10 +152,10 @@ fn snapshot_sync() {
 	::env_logger::init().ok();
 	let mut config = SyncConfig::default();
 	config.warp_sync = WarpSync::Enabled;
-	let mut net = TestNet::new_with_config(5, config);
 	let snapshot_service = Arc::new(TestSnapshotService::new_with_snapshot(16, H256::new(), 500000));
+	let mut net = TestNet::new_with_snapshot_service(5, config, snapshot_service);
 	for i in 0..4 {
-		net.peer_mut(i).snapshot_service = snapshot_service.clone();
+		// net.peer_mut(i).snapshot_service = snapshot_service.clone();
 		net.peer(i).chain.add_blocks(1, EachBlockWith::Nothing);
 	}
 	net.sync_steps(50);
