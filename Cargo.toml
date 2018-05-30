@@ -136,7 +136,6 @@ members = [
 	"transaction-pool",
 	"whisper",
 	"whisper/cli",
-  "util/learn-generics",
 ]
 
 [patch.crates-io]
