@@ -17,7 +17,7 @@
 use std::collections::{HashSet, BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, Weak};
 use std::time::{Instant, Duration};
 
@@ -210,8 +210,6 @@ pub struct Client {
 	queue_transactions: IoChannelQueue,
 	/// Ancient blocks import queue
 	queue_ancient_blocks: IoChannelQueue,
-	/// Hashes of pending ancient block wainting to be included
-	pending_ancient_blocks: RwLock<HashSet<H256>>,
 	/// Consensus messages import queue
 	queue_consensus_message: IoChannelQueue,
 
@@ -435,7 +433,6 @@ impl Importer {
 		let hash = header.hash();
 		let _import_lock = self.import_lock.lock();
 
-		trace!(target: "client", "Trying to import old block #{}", header.number());
 		{
 			trace_time!("import_old_block");
 			// verify the block, passing the chain for updating the epoch verifier.
@@ -764,7 +761,6 @@ impl Client {
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: IoChannelQueue::new(MAX_TX_QUEUE_SIZE),
 			queue_ancient_blocks: IoChannelQueue::new(MAX_ANCIENT_BLOCKS_QUEUE_SIZE),
-			pending_ancient_blocks: RwLock::new(HashSet::new()),
 			queue_consensus_message: IoChannelQueue::new(usize::max_value()),
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
@@ -2012,7 +2008,7 @@ impl BlockChainClient for Client {
 impl IoClient for Client {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
 		let len = transactions.len();
-		self.queue_transactions.queue(&mut self.io_channel.lock(), move |client| {
+		self.queue_transactions.queue(&mut self.io_channel.lock(), len, move |client| {
 			trace_time!("import_queued_transactions");
 
 			let txs: Vec<UnverifiedTransaction> = transactions
@@ -2036,32 +2032,23 @@ impl IoClient for Client {
 
 		{
 			// check block order
-			if self.chain.read().is_known(&hash) {
+			if self.chain.read().is_known(&header.hash()) {
 				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
-
-			let parent_hash = *header.parent_hash();
-			let parent_pending = self.pending_ancient_blocks.read().contains(&parent_hash);
-			let status = self.block_status(BlockId::Hash(parent_hash));
-			if !parent_pending && (status == BlockStatus::Unknown || status == BlockStatus::Pending) {
-				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(parent_hash)));
+			let status = self.block_status(BlockId::Hash(*header.parent_hash()));
+			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
+				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(*header.parent_hash())));
 			}
 		}
 
-		self.pending_ancient_blocks.write().insert(hash);
-
-		trace!(target: "client", "Queuing old block #{}", header.number());
-		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), move |client| {
-			let result = client.importer.import_old_block(
+		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), 1, move |client| {
+			client.importer.import_old_block(
 				&header,
 				&block_bytes,
 				&receipts_bytes,
 				&**client.db.read(),
 				&*client.chain.read()
-			);
-
-			client.pending_ancient_blocks.write().remove(&hash);
-			result.map(|_| ()).unwrap_or_else(|e| {
+			).map(|_| ()).unwrap_or_else(|e| {
 				error!(target: "client", "Error importing ancient block: {}", e);
 			});
 		}) {
@@ -2071,7 +2058,7 @@ impl IoClient for Client {
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
-		match self.queue_consensus_message.queue(&mut self.io_channel.lock(), move |client| {
+		match self.queue_consensus_message.queue(&mut self.io_channel.lock(), 1, move |client| {
 			if let Err(e) = client.engine().handle_message(&message) {
 				debug!(target: "poa", "Invalid message received: {}", e);
 			}
@@ -2484,38 +2471,35 @@ impl fmt::Display for QueueError {
 
 /// Queue some items to be processed by IO client.
 struct IoChannelQueue {
-	queue: Arc<Mutex<VecDeque<Box<Fn(&Client) + Send>>>>,
+	currently_queued: Arc<AtomicUsize>,
 	limit: usize,
 }
 
 impl IoChannelQueue {
 	pub fn new(limit: usize) -> Self {
 		IoChannelQueue {
-			queue: Default::default(),
+			currently_queued: Default::default(),
 			limit,
 		}
 	}
 
-	pub fn queue<F>(&self, channel: &mut IoChannel<ClientIoMessage>, fun: F) -> Result<(), QueueError>
-		where F: Fn(&Client) + Send + Sync + 'static
+	pub fn queue<F>(&self, channel: &mut IoChannel<ClientIoMessage>, count: usize, fun: F) -> Result<(), QueueError> where
+		F: Fn(&Client) + Send + Sync + 'static,
 	{
-		{
-			let mut queue = self.queue.lock();
-			let queue_size = queue.len();
-			ensure!(queue_size < self.limit, QueueError::Full(self.limit));
+		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
+		ensure!(queue_size < self.limit, QueueError::Full(self.limit));
 
-			queue.push_back(Box::new(fun));
-		}
-
-		let queue = self.queue.clone();
+		let currently_queued = self.currently_queued.clone();
 		let result = channel.send(ClientIoMessage::execute(move |client| {
-			while let Some(fun) = queue.lock().pop_front() {
-				fun(client);
-			}
+			currently_queued.fetch_sub(count, AtomicOrdering::SeqCst);
+			fun(client);
 		}));
 
 		match result {
-			Ok(_) => Ok(()),
+			Ok(_) => {
+				self.currently_queued.fetch_add(count, AtomicOrdering::SeqCst);
+				Ok(())
+			},
 			Err(e) => Err(QueueError::Channel(e)),
 		}
 	}
