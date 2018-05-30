@@ -69,19 +69,21 @@ impl<'db, H: Hasher> Trie for SecTrieDB<'db, H> where H::Out: Decodable + Encoda
 	}
 }
 
-//#[test]
-//fn trie_to_sectrie() {
-//	use memorydb::MemoryDB;
-//	use hashdb::DBValue;
-//	use super::triedbmut::TrieDBMut;
-//	use super::TrieMut;
-//
-//	let mut memdb = MemoryDB::new();
-//	let mut root = H256::default();
-//	{
-//		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-//		t.insert(&keccak(&[0x01u8, 0x23]), &[0x01u8, 0x23]).unwrap();
-//	}
-//	let t = SecTrieDB::new(&memdb, &root).unwrap();
-//	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
-//}
+#[test]
+fn trie_to_sectrie() {
+	use memorydb::MemoryDB;
+	use hashdb::DBValue;
+	use super::triedbmut::TrieDBMut;
+	use super::TrieMut;
+	use hashdb::KeccakHasher;
+	use keccak;
+
+	let mut memdb = MemoryDB::<KeccakHasher>::new();
+	let mut root = <KeccakHasher as Hasher>::Out::default();
+	{
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		t.insert(&keccak::keccak(&[0x01u8, 0x23]), &[0x01u8, 0x23]).unwrap();
+	}
+	let t = SecTrieDB::new(&memdb, &root).unwrap();
+	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
+}
