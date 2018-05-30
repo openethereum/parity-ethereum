@@ -16,8 +16,6 @@
 
 //! Trie query recorder.
 
-//use keccak::keccak;
-//use ethereum_types::H256;
 use bytes::Bytes;
 use hashdb::Hasher;
 use std::marker::PhantomData;
@@ -67,7 +65,6 @@ impl<H: Hasher> Recorder<H> {
 	}
 
 	/// Record a visited node, given its hash, data, and depth.
-//	pub fn record(&mut self, hash: &H256, data: &[u8], depth: u32) {
 	pub fn record(&mut self, hash: &<H as Hasher>::Out, data: &[u8], depth: u32) {
 		debug_assert_eq!(H::hash(data), *hash);
 
