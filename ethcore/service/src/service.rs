@@ -30,7 +30,7 @@ use ethcore::{BlockChainDB, BlockChainDBHandler};
 use ethcore::client::{Client, ClientConfig, ChainNotify, ClientIoMessage};
 use ethcore::miner::Miner;
 use ethcore::snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
-use ethcore::snapshot::{RestorationStatus};
+use ethcore::snapshot::{SnapshotService as _SnapshotService, RestorationStatus};
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
 
@@ -169,6 +169,11 @@ impl ClientService {
 
 	/// Get a handle to the database.
 	pub fn db(&self) -> Arc<BlockChainDB> { self.database.clone() }
+
+	/// Shutdown the Client Service
+	pub fn shutdown(&self) {
+		self.snapshot.shutdown();
+	}
 }
 
 /// IO interface for the Client handler

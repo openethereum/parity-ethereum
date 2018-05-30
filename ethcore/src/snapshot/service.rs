@@ -743,6 +743,10 @@ impl SnapshotService for Service {
 			trace!("Error sending snapshot service message: {:?}", e);
 		}
 	}
+
+	fn shutdown(&self) {
+		self.abort_restore();
+	}
 }
 
 impl Drop for Service {

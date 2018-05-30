@@ -17,6 +17,7 @@
 extern crate kvdb_rocksdb;
 extern crate migration_rocksdb;
 
+use std::fs;
 use std::sync::Arc;
 use std::path::Path;
 use parking_lot::RwLock;
@@ -25,7 +26,7 @@ use ethcore::{BlockChainDBHandler, BlockChainDB};
 use ethcore::error::Error;
 use ethcore::db::NUM_COLUMNS;
 use ethcore::client::{ClientConfig, DatabaseCompactionProfile};
-use kvdb::{KeyValueDB, KeyValueDBHandler};
+use kvdb::KeyValueDB;
 use self::kvdb_rocksdb::{Database, DatabaseConfig};
 
 use cache::CacheConfig;
@@ -38,6 +39,7 @@ pub use self::migration::migrate;
 struct AppDB {
 	key_value: Arc<KeyValueDB>,
 	blooms: RwLock<blooms_db::Database>,
+	trace_blooms: RwLock<blooms_db::Database>,
 }
 
 impl BlockChainDB for AppDB {
@@ -47,6 +49,10 @@ impl BlockChainDB for AppDB {
 
 	fn blooms(&self) -> &RwLock<blooms_db::Database> {
 		&self.blooms
+	}
+
+	fn trace_blooms(&self) -> &RwLock<blooms_db::Database> {
+		&self.trace_blooms
 	}
 }
 
@@ -64,6 +70,10 @@ pub fn open_secretstore_db(data_path: &str) -> Result<Arc<KeyValueDB>, String> {
 /// Open a new client DB.
 pub fn open_client_db(client_path: &Path, client_config: &ClientConfig) -> Result<Arc<BlockChainDB>, String> {
 	let client_db_config = helpers::client_db_config(client_path, client_config);
+	let blooms_path = client_path.join("blooms");
+	let trace_blooms_path = client_path.join("trace_blooms");
+	fs::create_dir(&blooms_path).map_err(|e| e.to_string())?;
+	fs::create_dir(&trace_blooms_path).map_err(|e| e.to_string())?;
 
 	let client_db = Arc::new(Database::open(
 		&client_db_config,
@@ -72,7 +82,8 @@ pub fn open_client_db(client_path: &Path, client_config: &ClientConfig) -> Resul
 
 	let db = AppDB {
 		key_value: client_db,
-		blooms: RwLock::new(blooms_db::Database::open(client_path).map_err(|e| e.to_string())?),
+		blooms: RwLock::new(blooms_db::Database::open(blooms_path).map_err(|e| e.to_string())?),
+		trace_blooms: RwLock::new(blooms_db::Database::open(trace_blooms_path).map_err(|e| e.to_string())?),
 	};
 
 	Ok(Arc::new(db))
@@ -88,9 +99,15 @@ pub fn restoration_db_handler(client_path: &Path, client_config: &ClientConfig) 
 
 	impl BlockChainDBHandler for RestorationDBHandler {
 		fn open(&self, db_path: &Path) -> Result<Arc<BlockChainDB>, Error> {
+			let blooms_path = db_path.join("blooms");
+			let trace_blooms_path = db_path.join("trace_blooms");
+			fs::create_dir(&blooms_path)?;
+			fs::create_dir(&trace_blooms_path)?;
+
 			let db = AppDB {
 				key_value: Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?),
-				blooms: RwLock::new(blooms_db::Database::open(db_path)?),
+				blooms: RwLock::new(blooms_db::Database::open(blooms_path)?),
+				trace_blooms: RwLock::new(blooms_db::Database::open(trace_blooms_path)?),
 			};
 
 			Ok(Arc::new(db))
@@ -104,16 +121,30 @@ pub fn restoration_db_handler(client_path: &Path, client_config: &ClientConfig) 
 
 /// Open a new main DB.
 pub fn open_db(client_path: &str, cache_config: &CacheConfig, compaction: &DatabaseCompactionProfile, wal: bool) -> Result<Arc<BlockChainDB>, String> {
-	//let db_config = DatabaseConfig {
-		//memory_budget: Some(cache_config.blockchain() as usize * 1024 * 1024),
-		//compaction: helpers::compaction_profile(&compaction, &Path::new(client_path)),
-		//wal: wal,
-		//.. DatabaseConfig::with_columns(NUM_COLUMNS)
-	//};
+	let path = Path::new(client_path);
 
-	//Ok(Arc::new(Database::open(
-		//&db_config,
-		//client_path
-	//).map_err(|e| format!("Failed to open database: {}", e))?))
-	unimplemented!();
+	let db_config = DatabaseConfig {
+		memory_budget: Some(cache_config.blockchain() as usize * 1024 * 1024),
+		compaction: helpers::compaction_profile(&compaction, path),
+		wal,
+		.. DatabaseConfig::with_columns(NUM_COLUMNS)
+	};
+
+	let key_value = Arc::new(Database::open(
+		&db_config,
+		client_path
+	).map_err(|e| format!("Failed to open database: {}", e))?);
+
+	let blooms_path = path.join("blooms");
+	let trace_blooms_path = path.join("trace_blooms");
+	fs::create_dir(&blooms_path).map_err(|e| e.to_string())?;
+	fs::create_dir(&trace_blooms_path).map_err(|e| e.to_string())?;
+
+	let db = AppDB {
+		key_value,
+		blooms: RwLock::new(blooms_db::Database::open(blooms_path).map_err(|e| e.to_string())?),
+		trace_blooms: RwLock::new(blooms_db::Database::open(trace_blooms_path).map_err(|e| e.to_string())?),
+	};
+
+	Ok(Arc::new(db))
 }
