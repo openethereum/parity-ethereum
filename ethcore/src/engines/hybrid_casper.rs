@@ -109,13 +109,13 @@ impl From<::ethjson::spec::HybridCasperParams> for HybridCasperParams {
 			rlp_decoder_contract_address: rlp_decoder_contract_address,
 			deploy_rlp_decoder: p.deploy_rlp_decoder.unwrap_or(true),
 
-			epoch_length: p.epoch_length.map_or(5, Into::into),
-			withdrawal_delay: p.withdrawal_delay.map_or(150, Into::into),
-			dynasty_logout_delay: p.dynasty_logout_delay.map_or(70, Into::into),
+			epoch_length: p.epoch_length.map_or(50, Into::into),
+			withdrawal_delay: p.withdrawal_delay.map_or(15000, Into::into),
+			dynasty_logout_delay: p.dynasty_logout_delay.map_or(700, Into::into),
 			base_interest_factor: p.base_interest_factor.map_or(U256::from(70000000), Into::into),
 			base_penalty_factor: p.base_penalty_factor.map_or(U256::from(2000), Into::into),
-			min_deposit_size: p.min_deposit_size.map_or(U256::from(5) * ::ethereum::ether(), Into::into),
-			warm_up_period: p.warm_up_period.map_or(5, Into::into),
+			min_deposit_size: p.min_deposit_size.map_or(U256::from(1500) * ::ethereum::ether(), Into::into),
+			warm_up_period: p.warm_up_period.map_or(180000, Into::into),
 			non_revert_min_deposits: p.non_revert_min_deposits.map_or(U256::from(1) * ::ethereum::ether(), Into::into),
 		}
 	}
