@@ -2,9 +2,9 @@
 extern crate crunchy;
 extern crate ethereum_types;
 
-use std::{hash, mem};
-use std::collections::{HashMap, HashSet};
 use ethereum_types::H256;
+use std::collections::{HashMap, HashSet};
+use std::hash;
 
 /// Specialized version of `HashMap` with H256 keys and fast hashing function.
 pub type H256FastMap<T> = HashMap<H256, T, hash::BuildHasherDefault<PlainHasher>>;
@@ -28,16 +28,13 @@ impl hash::Hasher for PlainHasher {
 	#[allow(unused_assignments)]
 	fn write(&mut self, bytes: &[u8]) {
 		debug_assert!(bytes.len() == 32);
+		let mut bytes_ptr = bytes.as_ptr();
+		let mut prefix_ptr = &mut self.prefix as *mut u64 as *mut u8;
 
-		unsafe {
-			let mut bytes_ptr = bytes.as_ptr();
-			let prefix_u8: &mut [u8; 8] = mem::transmute(&mut self.prefix);
-			let mut prefix_ptr = prefix_u8.as_mut_ptr();
-
-			unroll! {
-				for _i in 0..8 {
+		unroll! {
+			for _i in 0..8 {
+				unsafe { 
 					*prefix_ptr ^= (*bytes_ptr ^ *bytes_ptr.offset(8)) ^ (*bytes_ptr.offset(16) ^ *bytes_ptr.offset(24));
-
 					bytes_ptr = bytes_ptr.offset(1);
 					prefix_ptr = prefix_ptr.offset(1);
 				}
