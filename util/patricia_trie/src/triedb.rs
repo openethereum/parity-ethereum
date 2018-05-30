@@ -505,7 +505,7 @@ fn debug_output_supports_pretty_print() {
 		t.root().clone()
 	};
 	let t = TrieDB::new(&memdb, &root).unwrap();
-	 
+
 	assert_eq!(format!("{:?}", t), "TrieDB { hash_count: 0, root: Node::Extension { slice: 4, item: Node::Branch { nodes: [Node::Empty, Node::Branch { nodes: [Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Branch { nodes: [Node::Empty, Node::Leaf { slice: , value: [65, 65] }, Node::Leaf { slice: , value: [65, 66] }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: None }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: Some([65]) }, Node::Leaf { slice: , value: [66] }, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty, Node::Empty], value: None } } }");
 	assert_eq!(format!("{:#?}", t),
 "TrieDB {
@@ -598,29 +598,27 @@ fn debug_output_supports_pretty_print() {
 }");
 }
 
-// Test will work once https://github.com/paritytech/parity/pull/8527 is merged and rlp::decode returns Result instead of panicking
-//#[test]
-//fn test_lookup_with_corrupt_data_returns_decoder_error() {
-//	use memorydb::*;
-//	use super::TrieMut;
-//	use super::triedbmut::*;
-//	use rlp;
-//	use ethereum_types::H512;
-//
-//	let mut memdb = MemoryDB::new();
-//	let mut root = H256::new();
-//	{
-//		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-//		t.insert(b"A", b"ABC").unwrap();
-//		t.insert(b"B", b"ABCBA").unwrap();
-//	}
-//
-//	let t = TrieDB::new(&memdb, &root).unwrap();
-//
-//	// query for an invalid data type to trigger an error
-//	let q = rlp::decode::<H512>;
-//	let lookup = Lookup{ db: t.db, query: q, hash: root };
-//	let query_result = lookup.look_up(NibbleSlice::new(b"A"));
-//	let expected = Box::new(TrieError::DecoderError(::rlp::DecoderError::RlpIsTooShort));
-//	assert_eq!(query_result.unwrap_err(), expected);
-//}
+#[test]
+fn test_lookup_with_corrupt_data_returns_decoder_error() {
+	use memorydb::*;
+	use super::TrieMut;
+	use super::triedbmut::*;
+	use rlp;
+	use ethereum_types::H512;
+
+	let mut memdb = MemoryDB::new();
+	let mut root = H256::new();
+	{
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		t.insert(b"A", b"ABC").unwrap();
+		t.insert(b"B", b"ABCBA").unwrap();
+	}
+
+	let t = TrieDB::new(&memdb, &root).unwrap();
+
+	// query for an invalid data type to trigger an error
+	let q = rlp::decode::<H512>;
+	let lookup = Lookup{ db: t.db, query: q, hash: root };
+	let query_result = lookup.look_up(NibbleSlice::new(b"A"));
+	assert_eq!(query_result.unwrap().unwrap().unwrap_err(), rlp::DecoderError::RlpIsTooShort);
+}

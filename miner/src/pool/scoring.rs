@@ -107,6 +107,15 @@ impl txpool::Scoring<VerifiedTransaction> for NonceAndGasPrice {
 			}
 		}
 
+		// Always kick out non-local transactions in favour of local ones.
+		if new.priority().is_local() && !old.priority().is_local() {
+			return true;
+		}
+		// And never kick out local transactions in favour of external ones.
+		if !new.priority().is_local() && old.priority.is_local() {
+			return false;
+		}
+
 		self.choose(old, new) == txpool::scoring::Choice::ReplaceOld
 	}
 }
@@ -118,6 +127,30 @@ mod tests {
 	use std::sync::Arc;
 	use pool::tests::tx::{Tx, TxExt};
 	use txpool::Scoring;
+
+	#[test]
+	fn should_replace_non_local_transaction_with_local_one() {
+		// given
+		let scoring = NonceAndGasPrice(PrioritizationStrategy::GasPriceOnly);
+		let tx1 = {
+			let tx = Tx::default().signed().verified();
+			txpool::Transaction {
+				insertion_id: 0,
+				transaction: Arc::new(tx),
+			}
+		};
+		let tx2 = {
+			let mut tx = Tx::default().signed().verified();
+			tx.priority = ::pool::Priority::Local;
+			txpool::Transaction {
+				insertion_id: 0,
+				transaction: Arc::new(tx),
+			}
+		};
+
+		assert!(scoring.should_replace(&tx1, &tx2));
+		assert!(!scoring.should_replace(&tx2, &tx1));
+	}
 
 	#[test]
 	fn should_calculate_score_correctly() {

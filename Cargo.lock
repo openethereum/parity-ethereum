@@ -386,7 +386,7 @@ version = "0.1.0"
 dependencies = [
  "app_dirs 1.2.1 (git+https://github.com/paritytech/app-dirs-rs)",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "journaldb 0.1.0",
+ "journaldb 0.2.0",
 ]
 
 [[package]]
@@ -537,10 +537,10 @@ dependencies = [
  "evm 0.1.0",
  "fetch 0.1.0",
  "hardware-wallet 1.12.0",
- "hashdb 0.1.1",
+ "hashdb 0.2.0",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "journaldb 0.1.0",
+ "journaldb 0.2.0",
  "keccak-hash 0.1.2",
  "kvdb 0.1.0",
  "kvdb-memorydb 0.1.0",
@@ -550,7 +550,7 @@ dependencies = [
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
  "memory-cache 0.1.0",
- "memorydb 0.1.1",
+ "memorydb 0.2.0",
  "num 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-machine 0.1.0",
@@ -630,7 +630,7 @@ dependencies = [
  "ethcore-transaction 0.1.0",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "hashdb 0.1.1",
+ "hashdb 0.2.0",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2",
@@ -638,10 +638,10 @@ dependencies = [
  "kvdb-memorydb 0.1.0",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory-cache 0.1.0",
- "memorydb 0.1.1",
+ "memorydb 0.2.0",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.1.0",
- "plain_hasher 0.1.0",
+ "plain_hasher 0.2.0",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
  "rlp_derive 0.1.0",
@@ -881,7 +881,7 @@ dependencies = [
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "plain_hasher 0.1.0",
+ "plain_hasher 0.2.0",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1191,10 +1191,13 @@ dependencies = [
 
 [[package]]
 name = "hashdb"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1338,20 +1341,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "journaldb"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ethcore-bytes 0.1.0",
  "ethcore-logger 1.12.0",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "hashdb 0.1.1",
+ "hashdb 0.2.0",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "keccak-hash 0.1.2",
  "kvdb 0.1.0",
  "kvdb-memorydb 0.1.0",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "memorydb 0.1.1",
+ "memorydb 0.2.0",
  "parking_lot 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "plain_hasher 0.1.0",
+ "plain_hasher 0.2.0",
  "rlp 0.2.1",
  "util-error 0.1.0",
 ]
@@ -1524,6 +1527,13 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "learn-generics"
+version = "0.1.0"
+dependencies = [
+ "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1641,15 +1651,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "memorydb"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "hashdb 0.1.1",
+ "hashdb 0.2.0",
  "heapsize 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "keccak-hash 0.1.2",
- "plain_hasher 0.1.0",
+ "plain_hasher 0.2.0",
  "rlp 0.2.1",
+ "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1985,7 +1995,7 @@ dependencies = [
  "futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "ipnetwork 0.12.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "journaldb 0.1.0",
+ "journaldb 0.2.0",
  "jsonrpc-core 8.0.1 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.11)",
  "keccak-hash 0.1.2",
  "kvdb 0.1.0",
@@ -2439,10 +2449,10 @@ dependencies = [
  "ethcore-bytes 0.1.0",
  "ethcore-logger 1.12.0",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "hashdb 0.1.1",
+ "hashdb 0.2.0",
  "keccak-hash 0.1.2",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "memorydb 0.1.1",
+ "memorydb 0.2.0",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
  "trie-standardmap 0.1.0",
@@ -2491,10 +2501,11 @@ dependencies = [
 
 [[package]]
 name = "plain_hasher"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crunchy 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hashdb 0.2.0",
 ]
 
 [[package]]
@@ -2763,6 +2774,17 @@ dependencies = [
 [[package]]
 name = "rlp"
 version = "0.2.1"
+dependencies = [
+ "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "rlp"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3973,6 +3995,7 @@ dependencies = [
 "checksum regex-syntax 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ad890a5eef7953f55427c50575c680c42841653abd2b028b68cd223d157f62db"
 "checksum relay 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1576e382688d7e9deecea24417e350d3062d97e32e45d70b1cde65994ff1489a"
 "checksum ring 0.12.1 (git+https://github.com/paritytech/ring)" = "<none>"
+"checksum rlp 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "89db7f8dfdd5eb7ab3ac3ece7a07fd273a680b4b224cb231181280e8996f9f0b"
 "checksum rocksdb 0.4.5 (git+https://github.com/paritytech/rust-rocksdb)" = "<none>"
 "checksum rocksdb-sys 0.3.0 (git+https://github.com/paritytech/rust-rocksdb)" = "<none>"
 "checksum rpassword 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b273c91bd242ca03ad6d71c143b6f17a48790e61f21a6c78568fa2b6774a24a4"
