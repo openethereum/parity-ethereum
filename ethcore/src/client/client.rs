@@ -210,6 +210,8 @@ pub struct Client {
 	queue_transactions: IoChannelQueue,
 	/// Ancient blocks import queue
 	queue_ancient_blocks: IoChannelQueue,
+	/// Queued ancient blocks, make sure they are imported in order.
+	queued_ancient_blocks: Arc<Mutex<VecDeque<(Header, Bytes, Bytes)>>>,
 	/// Consensus messages import queue
 	queue_consensus_message: IoChannelQueue,
 
@@ -761,6 +763,7 @@ impl Client {
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: IoChannelQueue::new(MAX_TX_QUEUE_SIZE),
 			queue_ancient_blocks: IoChannelQueue::new(MAX_ANCIENT_BLOCKS_QUEUE_SIZE),
+			queued_ancient_blocks: Default::default(),
 			queue_consensus_message: IoChannelQueue::new(usize::max_value()),
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
@@ -2041,16 +2044,24 @@ impl IoClient for Client {
 			}
 		}
 
+		// we queue blocks here and trigger an IO message.
+		self.queued_ancient_blocks.lock().push_back((header, block_bytes, receipts_bytes));
+
+		let queue = self.queued_ancient_blocks.clone();
 		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), 1, move |client| {
-			client.importer.import_old_block(
-				&header,
-				&block_bytes,
-				&receipts_bytes,
-				&**client.db.read(),
-				&*client.chain.read()
-			).map(|_| ()).unwrap_or_else(|e| {
-				error!(target: "client", "Error importing ancient block: {}", e);
-			});
+			// Make sure to hold the lock here to prevent importing out of order.
+			let mut ancient = queue.lock();
+			if let Some((header, block_bytes, receipts_bytes)) = ancient.pop_front() {
+				client.importer.import_old_block(
+					&header,
+					&block_bytes,
+					&receipts_bytes,
+					&**client.db.read(),
+					&*client.chain.read()
+				).map(|_| ()).unwrap_or_else(|e| {
+					error!(target: "client", "Error importing ancient block: {}", e);
+				});
+			}
 		}) {
 			Ok(_) => Ok(hash),
 			Err(e) => bail!(BlockImportErrorKind::Other(format!("{}", e))),
