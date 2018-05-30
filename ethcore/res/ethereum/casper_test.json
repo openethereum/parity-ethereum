@@ -16,7 +16,11 @@
 				"eip649Reward": "0x29A2241AF62C0000",
 				"eip100bTransition": "0x0",
 				"eip649Transition": "0x0",
-				"hybridCasperTransition": "0x5"
+				"hybridCasperTransition": "0x32",
+				"hybridCasperParams": {
+					"epochLength": 50,
+					"warmUpPeriod": 50
+				}
 			}
 		}
 	},
@@ -59,6 +63,7 @@
 		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "pricing": { "modexp": { "divisor": 20 } } } },
 		"0000000000000000000000000000000000000006": { "builtin": { "name": "alt_bn128_add", "pricing": { "linear": { "base": 500, "word": 0 } } } },
 		"0000000000000000000000000000000000000007": { "builtin": { "name": "alt_bn128_mul", "pricing": { "linear": { "base": 40000, "word": 0 } } } },
-		"0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } }
+		"0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } },
+		"00402845b96a30cfb8d49449d4b0159bcecd1d89": { "balance": "0x52B7D2DCC80CD2E4000000" }
 	}
 }
