@@ -625,7 +625,7 @@ mod tests {
 
 		// unknown - node 6
 
-		let r = table.nodes(IpFilter::default());
+		let r = table.nodes(&IpFilter::default());
 
 		assert_eq!(r[0][..], id4[..]); // most recent success
 		assert_eq!(r[1][..], id3[..]);
@@ -662,7 +662,7 @@ mod tests {
 
 		{
 			let table = NodeTable::new(Some(tempdir.path().to_str().unwrap().to_owned()));
-			let r = table.nodes(IpFilter::default());
+			let r = table.nodes(&IpFilter::default());
 			assert_eq!(r[0][..], id2[..]); // latest success
 			assert_eq!(r[1][..], id1[..]); // unknown
 			assert_eq!(r[2][..], id3[..]); // oldest failure
