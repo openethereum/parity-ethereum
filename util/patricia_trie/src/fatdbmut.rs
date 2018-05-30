@@ -96,18 +96,20 @@ impl<'db, H: Hasher> TrieMut for FatDBMut<'db, H> where H::Out: Decodable + Enco
 	}
 }
 
-//#[test]
-//fn fatdb_to_trie() {
-//	use memorydb::MemoryDB;
-//	use super::TrieDB;
-//	use super::Trie;
-//
-//	let mut memdb = MemoryDB::new();
-//	let mut root = H256::default();
-//	{
-//		let mut t = FatDBMut::new(&mut memdb, &mut root);
-//		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
-//	}
-//	let t = TrieDB::new(&memdb, &root).unwrap();
-//	assert_eq!(t.get(&keccak(&[0x01u8, 0x23])).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
-//}
+#[test]
+fn fatdbmut_to_trie() {
+	use memorydb::MemoryDB;
+	use super::TrieDB;
+	use super::Trie;
+	use hashdb::KeccakHasher;
+	use keccak;
+
+	let mut memdb = MemoryDB::<KeccakHasher>::new();
+	let mut root = <KeccakHasher as Hasher>::Out::default();
+	{
+		let mut t = FatDBMut::new(&mut memdb, &mut root);
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
+	}
+	let t = TrieDB::new(&memdb, &root).unwrap();
+	assert_eq!(t.get(&keccak::keccak(&[0x01u8, 0x23])).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
+}
