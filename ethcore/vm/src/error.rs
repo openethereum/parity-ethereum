@@ -72,8 +72,8 @@ pub enum Error {
 }
 
 
-impl From<Box<trie::TrieError>> for Error {
-	fn from(err: Box<trie::TrieError>) -> Self {
+impl<T> From<Box<trie::TrieError<T>>> for Error where T: fmt::Debug {
+	fn from(err: Box<trie::TrieError<T>>) -> Self {
 		Error::Internal(format!("Internal error: {}", err))
 	}
 }
