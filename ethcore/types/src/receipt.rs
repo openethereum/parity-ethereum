@@ -16,7 +16,7 @@
 
 //! Receipt
 
-use ethereum_types::{H256, U256, Address, Bloom};
+use ethereum_types::{H160, H256, U256, Address, Bloom};
 use heapsize::HeapSizeOf;
 use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError};
 
@@ -157,6 +157,10 @@ pub struct LocalizedReceipt {
 	pub log_bloom: Bloom,
 	/// Transaction outcome.
 	pub outcome: TransactionOutcome,
+	/// Receiver address
+	pub to: Option<H160>,
+	/// Sender
+	pub from: H160
 }
 
 #[cfg(test)]
