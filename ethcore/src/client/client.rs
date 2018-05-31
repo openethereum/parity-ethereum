@@ -90,6 +90,8 @@ use_contract!(registry, "Registry", "res/contracts/registrar.json");
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_ANCIENT_BLOCKS_QUEUE_SIZE: usize = 4096;
+// Max number of blocks imported at once.
+const MAX_ANCIENT_BLOCKS_IMPORT: usize = 4;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
 const MIN_HISTORY_SIZE: u64 = 8;
 
@@ -211,7 +213,10 @@ pub struct Client {
 	/// Ancient blocks import queue
 	queue_ancient_blocks: IoChannelQueue,
 	/// Queued ancient blocks, make sure they are imported in order.
-	queued_ancient_blocks: Arc<Mutex<VecDeque<(Header, Bytes, Bytes)>>>,
+	queued_ancient_blocks: Arc<RwLock<(
+		HashSet<H256>,
+		VecDeque<(Header, Bytes, Bytes)>
+	)>>,
 	/// Consensus messages import queue
 	queue_consensus_message: IoChannelQueue,
 
@@ -2037,24 +2042,35 @@ impl IoClient for Client {
 
 		{
 			// check block order
-			if self.chain.read().is_known(&header.hash()) {
+			if self.chain.read().is_known(&hash) {
 				bail!(BlockImportErrorKind::Import(ImportErrorKind::AlreadyInChain));
 			}
-			let status = self.block_status(BlockId::Hash(*header.parent_hash()));
-			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
-				bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(*header.parent_hash())));
+			let parent_hash = header.parent_hash();
+			// NOTE To prevent race condition with import, make sure to check queued blocks first
+			// (and attempt to acquire lock)
+			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(parent_hash);
+			if !is_parent_pending {
+				let status = self.block_status(BlockId::Hash(*parent_hash));
+				if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
+					bail!(BlockImportErrorKind::Block(BlockError::UnknownParent(*parent_hash)));
+				}
 			}
 		}
 
 		// we queue blocks here and trigger an IO message.
-		self.queued_ancient_blocks.lock().push_back((header, block_bytes, receipts_bytes));
+		{
+			let mut queued = self.queued_ancient_blocks.write();
+			queued.0.insert(hash);
+			queued.1.push_back((header, block_bytes, receipts_bytes));
+		}
 
 		let queue = self.queued_ancient_blocks.clone();
 		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), 1, move |client| {
 			trace_time!("import_ancient_block");
 			// Make sure to hold the lock here to prevent importing out of order.
-			let mut ancient = queue.lock();
-			if let Some((header, block_bytes, receipts_bytes)) = ancient.pop_front() {
+			let mut ancient = queue.write();
+			while let Some((header, block_bytes, receipts_bytes)) = ancient.1.pop_front() {
+				ancient.0.remove(&header.hash());
 				client.importer.import_old_block(
 					&header,
 					&block_bytes,
