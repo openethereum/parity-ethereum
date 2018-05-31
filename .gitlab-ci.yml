@@ -190,7 +190,6 @@ android-armv7:
     - triggers
   script:
     - cargo build --target=armv7-linux-androideabi
-    - if [ $(arm-linux-androideabi-objdump -x ./target/armv7-linux-androideabi/debug/parity | grep -i 'c++_shared' | wc -l) -ne 0]; then echo "FAIL!!" fi
   tags:
     - rust-arm
   artifacts:
