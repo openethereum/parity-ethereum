@@ -85,21 +85,21 @@ pub trait AsHashDB<H: Hasher> {
 	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=H>;
 }
 
-impl<HF: Hasher, T: HashDB<H=HF>> AsHashDB<HF> for T {
-	fn as_hashdb(&self) -> &HashDB<H=HF> {
+impl<H: Hasher, T: HashDB<H=H>> AsHashDB<H> for T {
+	fn as_hashdb(&self) -> &HashDB<H=H> {
 		self
 	}
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=HF> {
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=H> {
 		self
 	}
 }
 
-impl<'a, HF: Hasher> AsHashDB<HF> for &'a mut HashDB<H=HF> {
-	fn as_hashdb(&self) -> &HashDB<H=HF> {
+impl<'a, H: Hasher> AsHashDB<H> for &'a mut HashDB<H=H> {
+	fn as_hashdb(&self) -> &HashDB<H=H> {
 		&**self
 	}
 
-	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=HF> {
+	fn as_hashdb_mut(&mut self) -> &mut HashDB<H=H> {
 		&mut **self
 	}
 }
