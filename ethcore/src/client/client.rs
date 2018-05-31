@@ -2010,6 +2010,7 @@ impl BlockChainClient for Client {
 
 impl IoClient for Client {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
+		trace_time!("queue_transactions");
 		let len = transactions.len();
 		self.queue_transactions.queue(&mut self.io_channel.lock(), len, move |client| {
 			trace_time!("import_queued_transactions");
@@ -2030,6 +2031,7 @@ impl IoClient for Client {
 	}
 
 	fn queue_ancient_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
+		trace_time!("queue_ancient_block");
 		let header: Header = ::rlp::Rlp::new(&block_bytes).val_at(0)?;
 		let hash = header.hash();
 
@@ -2049,6 +2051,7 @@ impl IoClient for Client {
 
 		let queue = self.queued_ancient_blocks.clone();
 		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), 1, move |client| {
+			trace_time!("import_ancient_block");
 			// Make sure to hold the lock here to prevent importing out of order.
 			let mut ancient = queue.lock();
 			if let Some((header, block_bytes, receipts_bytes)) = ancient.pop_front() {
