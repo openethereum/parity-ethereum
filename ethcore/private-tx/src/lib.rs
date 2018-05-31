@@ -58,8 +58,6 @@ extern crate rlp_derive;
 extern crate rand;
 #[cfg(test)]
 extern crate ethcore_logger;
-#[cfg(test)]
-extern crate ethcore_test_probe;
 
 pub use encryptor::{Encryptor, SecretStoreEncryptor, EncryptorConfig, NoopEncryptor};
 pub use private_transactions::{PrivateTransactionDesc, VerificationStore, PrivateTransactionSigningDesc, SigningStore};
