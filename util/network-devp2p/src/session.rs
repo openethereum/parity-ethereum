@@ -104,29 +104,45 @@ impl Session {
 		nonce: &H256, host: &HostInfo) -> Result<Session, Error>
 		where Message: Send + Clone + Sync + 'static {
 		let originated = id.is_some();
-		let mut handshake = Handshake::new(token, id, socket, nonce).expect("Can't create handshake");
-		let local_addr = handshake.connection.local_addr_str();
-		handshake.start(io, host, originated)?;
-		Ok(Session {
-			state: State::Handshake(handshake),
-			had_hello: false,
-			info: SessionInfo {
-				id: id.cloned(),
-				client_version: String::new(),
-				protocol_version: 0,
-				capabilities: Vec::new(),
-				peer_capabilities: Vec::new(),
-				ping: None,
-				originated: originated,
-				remote_address: "Handshake".to_owned(),
-				local_address: local_addr,
+		match Handshake::new(token, id, socket, nonce) {
+			Ok(mut handshake) => {
+				let local_addr = handshake.connection.local_addr_str();
+				handshake.start(io, host, originated)?;
+				Ok(Session {
+					state: State::Handshake(handshake),
+					had_hello: false,
+					info: SessionInfo {
+						id: id.cloned(),
+						client_version: String::new(),
+						protocol_version: 0,
+						capabilities: Vec::new(),
+						peer_capabilities: Vec::new(),
+						ping: None,
+						originated: originated,
+						remote_address: "Handshake".to_owned(),
+						local_address: local_addr,
+					},
+					ping_time: Instant::now(),
+					pong_time: None,
+					expired: false,
+					protocol_states: HashMap::new(),
+					compression: false,
+				})
 			},
-			ping_time: Instant::now(),
-			pong_time: None,
-			expired: false,
-			protocol_states: HashMap::new(),
-			compression: false,
-		})
+			Err(err) => {
+				if let Error(ErrorKind::Io(inner), state) = err {
+					Err(Error(
+						if inner.raw_os_error() == Some(24) {
+							// handle sys error CODE 24; "Too many open files" more gracefully
+							ErrorKind::TooManyOpenFiles("Can't create handshake.".to_string())
+						} else {
+							ErrorKind::Io(inner)
+						}, state))
+				} else {
+					Err(err)
+				}
+			}
+		}
 	}
 
 	fn complete_handshake<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), Error> where Message: Send + Sync + Clone {
