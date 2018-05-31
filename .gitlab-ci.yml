@@ -192,6 +192,7 @@ android-armv7:
     - cargo build --target=armv7-linux-androideabi
   tags:
     - rust-arm
+  allow_failure: true
   artifacts:
     paths:
     - parity.zip
