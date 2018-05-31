@@ -14,4 +14,5 @@ ethereum-types = "0.3"
 ethkey = { path = "../../ethkey" }
 ipnetwork = "0.12.6"
 rlp = { path = "../rlp" }
+libc = "0.2.7"
 snappy = { git = "https://github.com/paritytech/rust-snappy" }

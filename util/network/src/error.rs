@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{io, net, fmt};
+use libc::{ENFILE, EMFILE};
 use io::IoError;
 use {rlp, ethkey, crypto, snappy};
 
@@ -83,7 +84,6 @@ impl fmt::Display for DisconnectReason {
 error_chain! {
 	foreign_links {
 		SocketIo(IoError) #[doc = "Socket IO error."];
-		Io(io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
 		Decompression(snappy::InvalidInput) #[doc = "Decompression error."];
 	}
 
@@ -141,6 +141,34 @@ error_chain! {
 			description("Packet is too large"),
 			display("Packet is too large"),
 		}
+
+		#[doc = "We've reached system resource limits for this process"]
+		ProcessTooManyFiles {
+			description("Too many open files in process."),
+			display("Too many open files in this process. Check your resource limits and restart parity"),
+		}
+
+		#[doc = "We've reached system wide resource limits"]
+		SystemTooManyFiles {
+			description("Too many open files on system."),
+			display("Too many open files on system. Consider closing some processes/release some file handlers or increas the system-wide resource limits and restart parity."),
+		}
+
+		#[doc = "An unknown IO error occurred."]
+		Io(err: io::Error) {
+			description("IO Error"),
+			display("We've encoutered an IO Error: {:}", err),
+		}
+	}
+}
+
+impl From<::std::io::Error> for Error {
+	fn from(err: ::std::io::Error) -> Self {
+		match err.raw_os_error() {
+			Some(ENFILE) => ErrorKind::ProcessTooManyFiles.into(),
+			Some(EMFILE) => ErrorKind::SystemTooManyFiles.into(),
+			_ => Error::from_kind(ErrorKind::Io(err))
+		}
 	}
 }
 
@@ -190,4 +218,33 @@ fn test_errors() {
 		ErrorKind::Auth => {},
 		_ => panic!("Unexpected error"),
 	}
+}
+
+#[test]
+fn test_io_errors() {
+	use libc::{EMFILE, ENFILE};
+
+	let en_file_error = io::Error::from_raw_os_error(ENFILE);
+
+	match *<Error as From<io::Error>>::from(en_file_error).kind() {
+		ErrorKind::ProcessTooManyFiles => {},
+		_ => panic!("Unexpected error"),
+	}
+
+
+	let em_file_error = io::Error::from_raw_os_error(EMFILE);
+
+	match *<Error as From<io::Error>>::from(em_file_error).kind() {
+		ErrorKind::SystemTooManyFiles => {},
+		_ => panic!("Unexpected error"),
+	}
+
+
+	let usual_error = io::Error::from_raw_os_error(0);
+
+	match *<Error as From<io::Error>>::from(usual_error).kind() {
+		ErrorKind::Io(_) => {},
+		_ => panic!("Unexpected error"),
+	}
+
 }

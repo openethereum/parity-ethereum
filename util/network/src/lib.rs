@@ -23,6 +23,7 @@ extern crate ethkey;
 extern crate rlp;
 extern crate ipnetwork;
 extern crate snappy;
+extern crate libc;
 
 #[macro_use]
 extern crate error_chain;

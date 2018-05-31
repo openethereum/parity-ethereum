@@ -709,6 +709,7 @@ dependencies = [
  "ethereum-types 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethkey 0.3.0",
  "ipnetwork 0.12.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.1",
  "snappy 0.1.0 (git+https://github.com/paritytech/rust-snappy)",
 ]
