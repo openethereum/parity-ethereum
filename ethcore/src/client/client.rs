@@ -189,6 +189,9 @@ pub struct Client {
 	/// Database pruning strategy to use for StateDB
 	pruning: journaldb::Algorithm,
 
+	/// Whether `StateDB` pruning is paused.
+	pruning_paused: AtomicBool,
+
 	/// Client uses this to store blocks, traces, etc.
 	db: RwLock<Arc<KeyValueDB>>,
 
@@ -756,6 +759,7 @@ impl Client {
 			tracedb: tracedb,
 			engine: engine,
 			pruning: config.pruning.clone(),
+			pruning_paused: AtomicBool::new(false),
 			config: config,
 			db: RwLock::new(db),
 			state_db: RwLock::new(state_db),
@@ -950,7 +954,8 @@ impl Client {
 		// prune all ancient eras until we're below the memory target,
 		// but have at least the minimum number of states.
 		loop {
-			let needs_pruning = state_db.journal_db().is_pruned() &&
+			let needs_pruning = !self.pruning_paused.load(AtomicOrdering::SeqCst) &&
+				state_db.journal_db().is_pruned() &&
 				state_db.journal_db().journal_size() >= self.config.history_mem;
 
 			if !needs_pruning { break }
@@ -1118,6 +1123,7 @@ impl Client {
 	/// Take a snapshot at the given block.
 	/// If the ID given is "latest", this will default to 1000 blocks behind.
 	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockId, p: &snapshot::Progress) -> Result<(), EthcoreError> {
+		let _pruning_guard = PruningGuard::new(&self.pruning_paused);
 		let db = self.state_db.read().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at))?;
@@ -2518,5 +2524,24 @@ impl IoChannelQueue {
 			Ok(_) => Ok(()),
 			Err(e) => Err(QueueError::Channel(e)),
 		}
+	}
+}
+
+
+/// Pauses pruning during snapshotting.
+#[derive(Debug)]
+struct PruningGuard<'a>(&'a AtomicBool);
+
+impl<'a> PruningGuard<'a> {
+	/// Create a new pruning guard.
+	pub fn new(paused: &'a AtomicBool) -> PruningGuard<'a> {
+		paused.store(true, AtomicOrdering::SeqCst);
+		Self { 0: paused }
+	}
+}
+
+impl<'a> Drop for PruningGuard<'a> {
+	fn drop(&mut self) {
+		self.0.store(false, AtomicOrdering::SeqCst);
 	}
 }
