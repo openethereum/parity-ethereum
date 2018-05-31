@@ -195,7 +195,6 @@ pub trait TrieMut {
 pub trait TrieIterator<H: Hasher>: Iterator {
 	/// Position the iterator on the first element with key > `key`
 	fn seek(&mut self, key: &[u8]) -> Result<(), H::Out>;
-//	fn seek(&mut self, key: &H::Out) -> Result<(), H::Out>;
 }
 
 /// Trie types
