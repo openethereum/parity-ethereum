@@ -763,6 +763,7 @@ dependencies = [
  "ethcore-io 1.12.0",
  "ethcore-logger 1.12.0",
  "ethcore-miner 1.12.0",
+ "ethcore-test-helpers 1.12.0",
  "ethcore-transaction 0.1.0",
  "ethereum-types 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethjson 0.1.0",
@@ -889,6 +890,13 @@ dependencies = [
  "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "trace-time 0.1.0",
  "triehash 0.1.0",
+]
+
+[[package]]
+name = "ethcore-test-helpers"
+version = "1.12.0"
+dependencies = [
+ "ethcore 1.12.0",
 ]
 
 [[package]]
