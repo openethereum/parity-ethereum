@@ -25,9 +25,8 @@ use seed_compute::SeedHashCompute;
 use shared::*;
 use std::io;
 
-use std::mem;
+use std::{mem, ptr};
 use std::path::Path;
-use std::ptr;
 
 const MIX_WORDS: usize = ETHASH_MIX_BYTES / 4;
 const MIX_NODES: usize = MIX_WORDS / NODE_WORDS;
@@ -111,7 +110,7 @@ pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256) -> 
 		let mut buf: [u8; 64 + 32] = mem::uninitialized();
 
 		ptr::copy_nonoverlapping(header_hash.as_ptr(), buf.as_mut_ptr(), 32);
-		ptr::copy_nonoverlapping(mem::transmute(&nonce), buf[32..].as_mut_ptr(), 8);
+		ptr::copy_nonoverlapping(&nonce as *const u64 as *const u8, buf[32..].as_mut_ptr(), 8);
 
 		keccak_512::unchecked(buf.as_mut_ptr(), 64, buf.as_ptr(), 40);
 		ptr::copy_nonoverlapping(mix_hash.as_ptr(), buf[64..].as_mut_ptr(), 32);
