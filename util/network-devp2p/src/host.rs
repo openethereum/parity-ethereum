@@ -116,11 +116,11 @@ impl<'s> NetworkContext<'s> {
 	) -> NetworkContext<'s> {
 		let id = session.as_ref().map(|s| s.lock().token());
 		NetworkContext {
-			io: io,
-			protocol: protocol,
+			io,
+			protocol,
 			session_id: id,
-			session: session,
-			sessions: sessions,
+			session,
+			sessions,
 			_reserved_peers: reserved_peers,
 		}
 	}
@@ -280,7 +280,7 @@ impl Host {
 		let tcp_listener = TcpListener::bind(&listen_address)?;
 		listen_address = SocketAddr::new(listen_address.ip(), tcp_listener.local_addr()?.port());
 		debug!(target: "network", "Listening at {:?}", listen_address);
-		let udp_port = config.udp_port.unwrap_or(listen_address.port());
+		let udp_port = config.udp_port.unwrap_or_else(|| listen_address.port());
 		let local_endpoint = NodeEndpoint { address: listen_address, udp_port: udp_port };
 
 		let boot_nodes = config.boot_nodes.clone();
@@ -325,7 +325,7 @@ impl Host {
 		match Node::from_str(id) {
 			Err(e) => { debug!(target: "network", "Could not add node {}: {:?}", id, e); },
 			Ok(n) => {
-				let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
+				let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id };
 
 				self.nodes.write().add_node(n);
 				if let Some(ref mut discovery) = *self.discovery.lock() {
@@ -338,9 +338,9 @@ impl Host {
 	pub fn add_reserved_node(&self, id: &str) -> Result<(), Error> {
 		let n = Node::from_str(id)?;
 
-		let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
-		self.reserved_nodes.write().insert(n.id.clone());
-		self.nodes.write().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
+		let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id };
+		self.reserved_nodes.write().insert(n.id);
+		self.nodes.write().add_node(Node::new(entry.id, entry.endpoint.clone()));
 
 		if let Some(ref mut discovery) = *self.discovery.lock() {
 			discovery.add_node(entry);
@@ -349,10 +349,10 @@ impl Host {
 		Ok(())
 	}
 
-	pub fn set_non_reserved_mode(&self, mode: NonReservedPeerMode, io: &IoContext<NetworkIoMessage>) {
+	pub fn set_non_reserved_mode(&self, mode: &NonReservedPeerMode, io: &IoContext<NetworkIoMessage>) {
 		let mut info = self.info.write();
 
-		if info.config.non_reserved_mode != mode {
+		if &info.config.non_reserved_mode != mode {
 			info.config.non_reserved_mode = mode.clone();
 			drop(info);
 			if let NonReservedPeerMode::Deny = mode {
@@ -388,12 +388,12 @@ impl Host {
 
 	pub fn external_url(&self) -> Option<String> {
 		let info = self.info.read();
-		info.public_endpoint.as_ref().map(|e| format!("{}", Node::new(info.id().clone(), e.clone())))
+		info.public_endpoint.as_ref().map(|e| format!("{}", Node::new(*info.id(), e.clone())))
 	}
 
 	pub fn local_url(&self) -> String {
 		let info = self.info.read();
-		format!("{}", Node::new(info.id().clone(), info.local_endpoint.clone()))
+		format!("{}", Node::new(*info.id(), info.local_endpoint.clone()))
 	}
 
 	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) {
@@ -554,7 +554,7 @@ impl Host {
 		// iterate over all nodes, reserved ones coming first.
 		// if we are pinned to only reserved nodes, ignore all others.
 		let nodes = reserved_nodes.iter().cloned().chain(if !pin {
-			self.nodes.read().nodes(allow_ips)
+			self.nodes.read().nodes(&allow_ips)
 		} else {
 			Vec::new()
 		});
@@ -752,7 +752,7 @@ impl Host {
 									let entry = NodeEntry { id: id, endpoint: endpoint };
 									let mut nodes = self.nodes.write();
 									if !nodes.contains(&entry.id) {
-										nodes.add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
+										nodes.add_node(Node::new(entry.id, entry.endpoint.clone()));
 										let mut discovery = self.discovery.lock();
 										if let Some(ref mut discovery) = *discovery {
 											discovery.add_node(entry);

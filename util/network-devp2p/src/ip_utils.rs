@@ -109,7 +109,7 @@ impl SocketAddrExt for Ipv4Addr {
 
 	fn is_within(&self, ipnet: &IpNetwork) -> bool {
 		match ipnet {
-			&IpNetwork::V4(ipnet) => ipnet.contains(*self),
+			IpNetwork::V4(ipnet) => ipnet.contains(*self),
 			_ => false
 		}
 	}
@@ -167,7 +167,7 @@ impl SocketAddrExt for Ipv6Addr {
 
 	fn is_within(&self, ipnet: &IpNetwork) -> bool {
 		match ipnet {
-			&IpNetwork::V6(ipnet) => ipnet.contains(*self),
+			IpNetwork::V6(ipnet) => ipnet.contains(*self),
 			_ => false
 		}
 	}
@@ -212,28 +212,28 @@ impl SocketAddrExt for IpAddr {
 
 #[cfg(not(any(windows, target_os = "android")))]
 mod getinterfaces {
-	use std::{mem, io, ptr};
+	use std::{mem, io};
 	use libc::{AF_INET, AF_INET6};
 	use libc::{getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in, sockaddr_in6};
 	use std::net::{Ipv4Addr, Ipv6Addr, IpAddr};
 
 	fn convert_sockaddr(sa: *mut sockaddr) -> Option<IpAddr> {
-		if sa == ptr::null_mut() { return None; }
+		if sa.is_null() { return None; }
 
-		let (addr, _) = match unsafe { *sa }.sa_family as i32 {
+		let (addr, _) = match i32::from(unsafe { *sa }.sa_family) {
 			AF_INET => {
-				let sa: *const sockaddr_in = unsafe { mem::transmute(sa) };
-				let sa = & unsafe { *sa };
+				let sa: *const sockaddr_in = sa as *const sockaddr_in;
+				let sa = unsafe { &*sa };
 				let (addr, port) = (sa.sin_addr.s_addr, sa.sin_port);
 				(IpAddr::V4(Ipv4Addr::new(
-					(addr & 0x000000FF) as u8,
-					((addr & 0x0000FF00) >>  8) as u8,
-					((addr & 0x00FF0000) >> 16) as u8,
-					((addr & 0xFF000000) >> 24) as u8)),
+					(addr & 0x0000_00FF) as u8,
+					((addr & 0x0000_FF00) >>  8) as u8,
+					((addr & 0x00FF_0000) >> 16) as u8,
+					((addr & 0xFF00_0000) >> 24) as u8)),
 					port)
 			},
 			AF_INET6 => {
-				let sa: *const sockaddr_in6 = unsafe { mem::transmute(sa) };
+				let sa: *const sockaddr_in6 = sa as *const sockaddr_in6;
 				let sa = & unsafe { *sa };
 				let (addr, port) = (sa.sin6_addr.s6_addr, sa.sin6_port);
 				let addr: [u16; 8] = unsafe { mem::transmute(addr) };
@@ -266,7 +266,7 @@ mod getinterfaces {
 
 		let mut ret = Vec::new();
 		let mut cur: *mut ifaddrs = ifap;
-		while cur != ptr::null_mut() {
+		while !cur.is_null() {
 			if let Some(ip_addr) = convert_ifaddrs(cur) {
 				ret.push(ip_addr);
 			}
@@ -297,16 +297,16 @@ pub fn select_public_address(port: u16) -> SocketAddr {
 			//prefer IPV4 bindings
 			for addr in &list { //TODO: use better criteria than just the first in the list
 				match addr {
-					&IpAddr::V4(a) if !a.is_reserved() => {
-						return SocketAddr::V4(SocketAddrV4::new(a, port));
+					IpAddr::V4(a) if !a.is_reserved() => {
+						return SocketAddr::V4(SocketAddrV4::new(*a, port));
 					},
 					_ => {},
 				}
 			}
 			for addr in &list {
 				match addr {
-					&IpAddr::V6(a) if !a.is_reserved() => {
-						return SocketAddr::V6(SocketAddrV6::new(a, port, 0, 0));
+					IpAddr::V6(a) if !a.is_reserved() => {
+						return SocketAddr::V6(SocketAddrV6::new(*a, port, 0, 0));
 					},
 					_ => {},
 				}
@@ -319,7 +319,7 @@ pub fn select_public_address(port: u16) -> SocketAddr {
 
 pub fn map_external_address(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 	if let SocketAddr::V4(ref local_addr) = local.address {
-		match search_gateway_from_timeout(local_addr.ip().clone(), Duration::new(5, 0)) {
+		match search_gateway_from_timeout(*local_addr.ip(), Duration::new(5, 0)) {
 			Err(ref err) => debug!("Gateway search error: {}", err),
 			Ok(gateway) => {
 				match gateway.get_external_ip() {
@@ -327,17 +327,17 @@ pub fn map_external_address(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 						debug!("IP request error: {}", err);
 					},
 					Ok(external_addr) => {
-						match gateway.add_any_port(PortMappingProtocol::TCP, SocketAddrV4::new(local_addr.ip().clone(), local_addr.port()), 0, "Parity Node/TCP") {
+						match gateway.add_any_port(PortMappingProtocol::TCP, SocketAddrV4::new(*local_addr.ip(), local_addr.port()), 0, "Parity Node/TCP") {
 							Err(ref err) => {
 								debug!("Port mapping error: {}", err);
 							},
 							Ok(tcp_port) => {
-								match gateway.add_any_port(PortMappingProtocol::UDP, SocketAddrV4::new(local_addr.ip().clone(), local.udp_port), 0, "Parity Node/UDP") {
+								match gateway.add_any_port(PortMappingProtocol::UDP, SocketAddrV4::new(*local_addr.ip(), local.udp_port), 0, "Parity Node/UDP") {
 									Err(ref err) => {
 										debug!("Port mapping error: {}", err);
 									},
 									Ok(udp_port) => {
-										return Some(NodeEndpoint { address: SocketAddr::V4(SocketAddrV4::new(external_addr, tcp_port)), udp_port: udp_port });
+										return Some(NodeEndpoint { address: SocketAddr::V4(SocketAddrV4::new(external_addr, tcp_port)), udp_port });
 									},
 								}
 							},

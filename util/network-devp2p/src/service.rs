@@ -165,7 +165,7 @@ impl NetworkService {
 		let host = self.host.read();
 		if let Some(ref host) = *host {
 			let io_ctxt = IoContext::new(self.io_service.channel(), 0);
-			host.set_non_reserved_mode(mode, &io_ctxt);
+			host.set_non_reserved_mode(&mode, &io_ctxt);
 		}
 	}
 
