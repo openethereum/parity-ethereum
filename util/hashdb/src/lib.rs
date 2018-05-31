@@ -34,8 +34,8 @@ pub trait Hasher: Sync + Send {
 	fn hash(x: &[u8]) -> Self::Out;
 }
 
-#[derive(Debug, Clone, PartialEq)]
 // REVIEW: Where do the concrete Hasher implementations go? Own crate?
+#[derive(Debug, Clone, PartialEq)]
 pub struct KeccakHasher;
 impl Hasher for KeccakHasher {
 	type Out = H256;
@@ -69,7 +69,7 @@ pub trait HashDB: Send + Sync {
 	/// is considered dead.
 	fn insert(&mut self, value: &[u8]) -> <Self::H as Hasher>::Out;
 
-	/// Like `insert()` , except you provide the key and the data is all moved.
+	/// Like `insert()`, except you provide the key and the data is all moved.
 	fn emplace(&mut self, key: <Self::H as Hasher>::Out, value: DBValue);
 
 	/// Remove a datum previously inserted. Insertions can be "owed" such that the same number of `insert()`s may

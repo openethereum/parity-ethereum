@@ -18,11 +18,9 @@
 
 use hashdb::{HashDB, Hasher};
 use nibbleslice::NibbleSlice;
-//use ethereum_types::H256;
-
-use super::{TrieError, Query};
-use super::node::Node;
 use rlp::Decodable;
+use super::node::Node;
+use super::{TrieError, Query};
 
 /// Trie lookup helper object.
 pub struct Lookup<'a, H: Hasher + 'a, Q: Query<H>> {
@@ -31,7 +29,7 @@ pub struct Lookup<'a, H: Hasher + 'a, Q: Query<H>> {
 	/// Query object to record nodes and transform data.
 	pub query: Q,
 	/// Hash to start at
-	pub hash: H::Out, // TODO
+	pub hash: H::Out,
 }
 
 impl<'a, H: Hasher + 'a, Q: Query<H>> Lookup<'a, H, Q> where H::Out: Decodable {

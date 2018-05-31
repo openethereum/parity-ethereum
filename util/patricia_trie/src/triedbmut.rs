@@ -875,7 +875,7 @@ impl<'a, H: Hasher> TrieMut for TrieDBMut<'a, H> where H::Out: Decodable + Encod
 
 	fn is_empty(&self) -> bool {
 		match self.root_handle {
-			NodeHandle::Hash(h) => h == Self::H::HASHED_NULL_RLP, // TODO
+			NodeHandle::Hash(h) => h == Self::H::HASHED_NULL_RLP,
 			NodeHandle::InMemory(ref h) => match self.storage[h] {
 				Node::Empty => true,
 				_ => false,
