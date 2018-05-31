@@ -767,7 +767,7 @@ impl Configuration {
 
 	fn net_addresses(&self) -> Result<(SocketAddr, Option<SocketAddr>), String> {
 		let port = self.args.arg_ports_shift + self.args.arg_port;
-		let listen_address = SocketAddr::new("0.0.0.0".parse().unwrap(), port);
+		let listen_address = SocketAddr::new(self.interface(&self.args.arg_interface).parse().unwrap(), port);
 		let public_address = if self.args.arg_nat.starts_with("extip:") {
 			let host = &self.args.arg_nat[6..];
 			let host = host.parse().map_err(|_| format!("Invalid host given with `--nat extip:{}`", host))?;
