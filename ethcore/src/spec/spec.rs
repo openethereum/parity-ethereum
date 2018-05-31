@@ -923,11 +923,6 @@ impl Spec {
 	pub fn new_validator_multi() -> Self {
 		load_bundled!("validator_multi")
 	}
-
-	/// Create a new spec for a PoW chain
-	pub fn new_pow_test_spec() -> Self {
-		load_bundled!("ethereum/olympic")
-	}
 }
 
 #[cfg(test)]
