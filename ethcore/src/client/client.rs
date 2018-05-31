@@ -2144,7 +2144,7 @@ impl ImportSealedBlock for Client {
 			route
 		};
 		let (enacted, retracted) = self.importer.calculate_enacted_retracted(&[route]);
-		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted, true);
+		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted, self.engine.seals_internally().is_some());
 		self.notify(|notify| {
 			notify.new_blocks(
 				vec![h.clone()],
