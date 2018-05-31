@@ -176,7 +176,7 @@ impl<H: Hasher> MemoryDB<H> {
 }
 
 impl<H: Hasher> HashDB for MemoryDB<H> {
-	type H = H; // REVIEW this is a bit confusing, but not sure what is better (e.g. using `impl<HH: Hasher> … … type H = HH;`)
+	type H = H;
 
 	// REVIEW: this method is what made it necessary to add a type param to H256FastMap, which I'd rather have avoided.
 	//         The problem is that the keys returned are `H256` and type inference fails on the `collect()` call.
@@ -222,7 +222,7 @@ impl<H: Hasher> HashDB for MemoryDB<H> {
 		match self.data.entry(key) {
 			Entry::Occupied(mut entry) => {
 				let &mut (ref mut old_value, ref mut rc) = entry.get_mut();
-				if *rc >= -0x80000000i32 && *rc <= 0 {
+				if *rc <= 0 {
 					*old_value = DBValue::from_slice(value);
 				}
 				*rc += 1;
@@ -242,7 +242,7 @@ impl<H: Hasher> HashDB for MemoryDB<H> {
 		match self.data.entry(key) {
 			Entry::Occupied(mut entry) => {
 				let &mut (ref mut old_value, ref mut rc) = entry.get_mut();
-				if *rc >= -0x80000000i32 && *rc <= 0 {
+				if *rc <= 0 {
 					*old_value = value;
 				}
 				*rc += 1;
