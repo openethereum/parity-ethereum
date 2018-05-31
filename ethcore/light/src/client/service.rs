@@ -25,7 +25,6 @@ use ethcore::{db, BlockChainDB};
 use ethcore::error::Error as CoreError;
 use ethcore::spec::Spec;
 use io::{IoContext, IoError, IoHandler, IoService};
-use kvdb::KeyValueDB;
 
 use cache::Cache;
 use parking_lot::Mutex;

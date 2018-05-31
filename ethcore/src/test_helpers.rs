@@ -262,8 +262,8 @@ pub fn new_db() -> Arc<BlockChainDB> {
 	struct TestBlockChainDB {
 		_blooms_dir: TempDir,
 		_trace_blooms_dir: TempDir,
-		blooms: RwLock<blooms_db::Database>,
-		trace_blooms: RwLock<blooms_db::Database>,
+		blooms: blooms_db::Database,
+		trace_blooms: blooms_db::Database,
 		key_value: Arc<KeyValueDB>,
 	}
 
@@ -272,11 +272,11 @@ pub fn new_db() -> Arc<BlockChainDB> {
 			&self.key_value
 		}
 
-		fn blooms(&self) -> &RwLock<blooms_db::Database> {
+		fn blooms(&self) -> &blooms_db::Database {
 			&self.blooms
 		}
 
-		fn trace_blooms(&self) -> &RwLock<blooms_db::Database> {
+		fn trace_blooms(&self) -> &blooms_db::Database {
 			&self.trace_blooms
 		}
 	}
@@ -285,8 +285,8 @@ pub fn new_db() -> Arc<BlockChainDB> {
 	let trace_blooms_dir = TempDir::new("").unwrap();
 
 	let db = TestBlockChainDB {
-		blooms: RwLock::new(blooms_db::Database::open(blooms_dir.path()).unwrap()),
-		trace_blooms: RwLock::new(blooms_db::Database::open(trace_blooms_dir.path()).unwrap()),
+		blooms: blooms_db::Database::open(blooms_dir.path()).unwrap(),
+		trace_blooms: blooms_db::Database::open(trace_blooms_dir.path()).unwrap(),
 		_blooms_dir: blooms_dir,
 		_trace_blooms_dir: trace_blooms_dir,
 		key_value: Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap()))

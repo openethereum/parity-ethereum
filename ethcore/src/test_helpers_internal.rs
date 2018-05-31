@@ -19,7 +19,6 @@
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
-use parking_lot::RwLock;
 use kvdb::{KeyValueDB};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use blockchain::{BlockChainDBHandler, BlockChainDB};
@@ -33,8 +32,8 @@ pub fn restoration_db_handler(config: DatabaseConfig) -> Box<BlockChainDBHandler
 	}
 
 	struct RestorationDB {
-		blooms: RwLock<blooms_db::Database>,
-		trace_blooms: RwLock<blooms_db::Database>,
+		blooms: blooms_db::Database,
+		trace_blooms: blooms_db::Database,
 		key_value: Arc<KeyValueDB>,
 	}
 
@@ -43,11 +42,11 @@ pub fn restoration_db_handler(config: DatabaseConfig) -> Box<BlockChainDBHandler
 			&self.key_value
 		}
 
-		fn blooms(&self) -> &RwLock<blooms_db::Database> {
+		fn blooms(&self) -> &blooms_db::Database {
 			&self.blooms
 		}
 
-		fn trace_blooms(&self) -> &RwLock<blooms_db::Database> {
+		fn trace_blooms(&self) -> &blooms_db::Database {
 			&self.trace_blooms
 		}
 	}
@@ -59,8 +58,8 @@ pub fn restoration_db_handler(config: DatabaseConfig) -> Box<BlockChainDBHandler
 			let trace_blooms_path = db_path.join("trace_blooms");
 			fs::create_dir(&blooms_path)?;
 			fs::create_dir(&trace_blooms_path)?;
-			let blooms = RwLock::new(blooms_db::Database::open(blooms_path).unwrap());
-			let trace_blooms = RwLock::new(blooms_db::Database::open(trace_blooms_path).unwrap());
+			let blooms = blooms_db::Database::open(blooms_path).unwrap();
+			let trace_blooms = blooms_db::Database::open(trace_blooms_path).unwrap();
 			let db = RestorationDB {
 				blooms,
 				trace_blooms,

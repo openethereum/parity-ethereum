@@ -22,7 +22,6 @@ use std::time::Duration;
 
 use ansi_term::Colour;
 use io::{IoContext, TimerToken, IoHandler, IoService, IoError};
-use kvdb::{KeyValueDB, KeyValueDBHandler};
 use stop_guard::StopGuard;
 
 use sync::PrivateTxHandler;

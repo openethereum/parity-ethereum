@@ -20,7 +20,6 @@ extern crate migration_rocksdb;
 use std::fs;
 use std::sync::Arc;
 use std::path::Path;
-use parking_lot::RwLock;
 use blooms_db;
 use ethcore::{BlockChainDBHandler, BlockChainDB};
 use ethcore::error::Error;
@@ -38,8 +37,8 @@ pub use self::migration::migrate;
 
 struct AppDB {
 	key_value: Arc<KeyValueDB>,
-	blooms: RwLock<blooms_db::Database>,
-	trace_blooms: RwLock<blooms_db::Database>,
+	blooms: blooms_db::Database,
+	trace_blooms: blooms_db::Database,
 }
 
 impl BlockChainDB for AppDB {
@@ -47,11 +46,11 @@ impl BlockChainDB for AppDB {
 		&self.key_value
 	}
 
-	fn blooms(&self) -> &RwLock<blooms_db::Database> {
+	fn blooms(&self) -> &blooms_db::Database {
 		&self.blooms
 	}
 
-	fn trace_blooms(&self) -> &RwLock<blooms_db::Database> {
+	fn trace_blooms(&self) -> &blooms_db::Database {
 		&self.trace_blooms
 	}
 }
@@ -82,8 +81,8 @@ pub fn open_client_db(client_path: &Path, client_config: &ClientConfig) -> Resul
 
 	let db = AppDB {
 		key_value: client_db,
-		blooms: RwLock::new(blooms_db::Database::open(blooms_path).map_err(|e| e.to_string())?),
-		trace_blooms: RwLock::new(blooms_db::Database::open(trace_blooms_path).map_err(|e| e.to_string())?),
+		blooms: blooms_db::Database::open(blooms_path).map_err(|e| e.to_string())?,
+		trace_blooms: blooms_db::Database::open(trace_blooms_path).map_err(|e| e.to_string())?,
 	};
 
 	Ok(Arc::new(db))
@@ -106,8 +105,8 @@ pub fn restoration_db_handler(client_path: &Path, client_config: &ClientConfig) 
 
 			let db = AppDB {
 				key_value: Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?),
-				blooms: RwLock::new(blooms_db::Database::open(blooms_path)?),
-				trace_blooms: RwLock::new(blooms_db::Database::open(trace_blooms_path)?),
+				blooms: blooms_db::Database::open(blooms_path)?,
+				trace_blooms: blooms_db::Database::open(trace_blooms_path)?,
 			};
 
 			Ok(Arc::new(db))
@@ -142,8 +141,8 @@ pub fn open_db(client_path: &str, cache_config: &CacheConfig, compaction: &Datab
 
 	let db = AppDB {
 		key_value,
-		blooms: RwLock::new(blooms_db::Database::open(blooms_path).map_err(|e| e.to_string())?),
-		trace_blooms: RwLock::new(blooms_db::Database::open(trace_blooms_path).map_err(|e| e.to_string())?),
+		blooms: blooms_db::Database::open(blooms_path).map_err(|e| e.to_string())?,
+		trace_blooms: blooms_db::Database::open(trace_blooms_path).map_err(|e| e.to_string())?,
 	};
 
 	Ok(Arc::new(db))

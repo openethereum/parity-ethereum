@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, fmt};
 use std::path::{Path, PathBuf};
 
 use ethbloom;
@@ -75,7 +75,7 @@ impl Database {
 	}
 
 	/// Insert consecutive blooms into database starting with positon from.
-	pub fn insert_blooms<'a, B>(&'a mut self, from: u64, blooms: impl Iterator<Item = B>) -> io::Result<()>
+	pub fn insert_blooms<'a, B>(&mut self, from: u64, blooms: impl Iterator<Item = B>) -> io::Result<()>
 	where ethbloom::BloomRef<'a>: From<B> {
 		for (index, bloom) in (from..).into_iter().zip(blooms) {
 			self.pending.append(index, bloom)?;
@@ -105,8 +105,8 @@ impl Database {
 	}
 
 	/// Returns an iterator yielding all indexes containing given bloom.
-	pub fn iterate_matching<'a, B>(&'a self, from: u64, to: u64, bloom: B) -> io::Result<DatabaseIterator<'a>>
-	where ethbloom::BloomRef<'a>: From<B> {
+	pub fn iterate_matching<'a, 'b, B>(&'a self, from: u64, to: u64, bloom: B) -> io::Result<DatabaseIterator<'a>>
+	where ethbloom::BloomRef<'b>: From<B>, 'b: 'a {
 		let index = from / 256 * 256;
 		let pos = Positions::from_index(index);
 
@@ -144,6 +144,21 @@ pub struct DatabaseIterator<'a> {
 	to: u64,
 	index: u64,
 	bloom: ethbloom::BloomRef<'a>,
+}
+
+impl<'a> fmt::Debug for DatabaseIterator<'a> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.debug_struct("DatabaseIterator")
+			.field("state", &self.state)
+			.field("from", &self.from)
+			.field("to", &self.to)
+			.field("index", &self.index)
+			.field("bloom", &"...")
+			.field("top", &"...")
+			.field("mid", &"...")
+			.field("bot", &"...")
+			.finish()
+	}
 }
 
 /// Database iterator state.

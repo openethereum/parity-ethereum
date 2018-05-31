@@ -6,6 +6,7 @@ authors = ["debris <marek.kotewicz@gmail.com>"]
 [dependencies]
 byteorder = "1.2"
 ethbloom = "0.5"
+parking_lot = "0.5.4"
 tiny-keccak = "1.4"
 
 [dev-dependencies]

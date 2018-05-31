@@ -56,10 +56,10 @@ pub trait BlockChainDB: Send + Sync {
 	fn key_value(&self) -> &Arc<KeyValueDB>;
 
 	/// Header blooms database.
-	fn blooms(&self) -> &RwLock<blooms_db::Database>;
+	fn blooms(&self) -> &blooms_db::Database;
 
 	/// Trace blooms database.
-	fn trace_blooms(&self) -> &RwLock<blooms_db::Database>;
+	fn trace_blooms(&self) -> &blooms_db::Database;
 }
 
 /// Generic database handler. This trait contains one function `open`. When called, it opens database with a
@@ -335,10 +335,8 @@ impl BlockProvider for BlockChain {
 
 	/// Returns numbers of blocks containing given bloom.
 	fn blocks_with_bloom(&self, bloom: &Bloom, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber> {
-		self.db.blooms().read()
-			.iterate_matching(from_block, to_block, bloom)
-			.expect("TODO: blooms pr")
-			.collect::<Result<Vec<_>, _>>()
+		self.db.blooms()
+			.filter(from_block, to_block, bloom)
 			.expect("TODO: blooms pr")
 	}
 
@@ -1063,7 +1061,7 @@ impl BlockChain {
 		}
 
 		if let Some((block, blooms)) = update.blocks_blooms {
-			self.db.blooms().write().insert_blooms(block, blooms.iter()).expect("TODO: blooms pr");
+			self.db.blooms().insert_blooms(block, blooms.iter()).expect("TODO: blooms pr");
 		}
 
 		// These cached values must be updated last with all four locks taken to avoid
@@ -1092,7 +1090,7 @@ impl BlockChain {
 
 	/// Apply pending insertion updates
 	pub fn commit(&self) {
-		self.db.blooms().write().flush().expect("TODO: blooms pr");
+		self.db.blooms().flush().expect("TODO: blooms pr");
 		let mut pending_best_block = self.pending_best_block.write();
 		let mut pending_write_hashes = self.pending_block_hashes.write();
 		let mut pending_block_details = self.pending_block_details.write();

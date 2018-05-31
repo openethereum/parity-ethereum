@@ -217,7 +217,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				.collect();
 
 			// TODO: replace it with database for trace blooms
-			self.db.trace_blooms().write().insert_blooms(range_start, enacted_blooms.iter()).expect("TODO: blooms pr");
+			self.db.trace_blooms().insert_blooms(range_start, enacted_blooms.iter()).expect("TODO: blooms pr");
 		}
 
 		// insert new block traces into the cache and the database
@@ -316,10 +316,9 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 	fn filter(&self, filter: &Filter) -> Vec<LocalizedTrace> {
 		let possibilities = filter.bloom_possibilities();
-		let blooms_db = self.db.trace_blooms().read();
+		let blooms_db = self.db.trace_blooms();
 		let numbers = possibilities.iter()
-			.map(|bloom| blooms_db.iterate_matching(filter.range.start as u64, filter.range.end as u64, bloom)?.collect::<Result<Vec<_>, _>>())
-			.collect::<Result<Vec<_>, _>>().expect("TODO: blooms pr")
+			.map(|bloom| blooms_db.filter(filter.range.start as u64, filter.range.end as u64, bloom).expect("TODO: blooms pr"))
 			.into_iter()
 			.flat_map(|n| n)
 			.collect::<BTreeSet<_>>();
@@ -538,7 +537,7 @@ mod tests {
 		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.key_value().write(batch).unwrap();
-		db.trace_blooms().write().flush().unwrap();
+		db.trace_blooms().flush().unwrap();
 
 		let filter = Filter {
 			range: (1..1),
@@ -555,7 +554,7 @@ mod tests {
 		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.key_value().write(batch).unwrap();
-		db.trace_blooms().write().flush().unwrap();
+		db.trace_blooms().flush().unwrap();
 
 		let filter = Filter {
 			range: (1..2),
