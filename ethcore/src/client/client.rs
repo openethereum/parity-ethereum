@@ -91,7 +91,7 @@ use_contract!(registry, "Registry", "res/contracts/registrar.json");
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_ANCIENT_BLOCKS_QUEUE_SIZE: usize = 4096;
 // Max number of blocks imported at once.
-const MAX_ANCIENT_BLOCKS_IMPORT: usize = 4;
+const MAX_ANCIENT_BLOCKS_TO_IMPORT: usize = 4;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
 const MIN_HISTORY_SIZE: u64 = 8;
 
@@ -217,6 +217,7 @@ pub struct Client {
 		HashSet<H256>,
 		VecDeque<(Header, Bytes, Bytes)>
 	)>>,
+	ancient_blocks_import_lock: Arc<Mutex<()>>,
 	/// Consensus messages import queue
 	queue_consensus_message: IoChannelQueue,
 
@@ -769,6 +770,7 @@ impl Client {
 			queue_transactions: IoChannelQueue::new(MAX_TX_QUEUE_SIZE),
 			queue_ancient_blocks: IoChannelQueue::new(MAX_ANCIENT_BLOCKS_QUEUE_SIZE),
 			queued_ancient_blocks: Default::default(),
+			ancient_blocks_import_lock: Default::default(),
 			queue_consensus_message: IoChannelQueue::new(usize::max_value()),
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
@@ -2064,22 +2066,31 @@ impl IoClient for Client {
 			queued.1.push_back((header, block_bytes, receipts_bytes));
 		}
 
-		let queue = self.queued_ancient_blocks.clone();
+		let queued = self.queued_ancient_blocks.clone();
+		let lock = self.ancient_blocks_import_lock.clone();
 		match self.queue_ancient_blocks.queue(&mut self.io_channel.lock(), 1, move |client| {
 			trace_time!("import_ancient_block");
 			// Make sure to hold the lock here to prevent importing out of order.
-			let mut ancient = queue.write();
-			while let Some((header, block_bytes, receipts_bytes)) = ancient.1.pop_front() {
-				ancient.0.remove(&header.hash());
-				client.importer.import_old_block(
-					&header,
-					&block_bytes,
-					&receipts_bytes,
-					&**client.db.read(),
-					&*client.chain.read()
-				).map(|_| ()).unwrap_or_else(|e| {
-					error!(target: "client", "Error importing ancient block: {}", e);
-				});
+			// We use separate lock, cause we don't want to block queueing.
+			let _lock = lock.lock();
+			for _i in 0..MAX_ANCIENT_BLOCKS_TO_IMPORT {
+				let first = queued.write().1.pop_front();
+				if let Some((header, block_bytes, receipts_bytes)) = first {
+					let hash = header.hash();
+					client.importer.import_old_block(
+						&header,
+						&block_bytes,
+						&receipts_bytes,
+						&**client.db.read(),
+						&*client.chain.read()
+					).map(|_| ()).unwrap_or_else(|e| {
+						error!(target: "client", "Error importing ancient block: {}", e);
+					});
+					// remove from pending
+					queued.write().0.remove(&hash);
+				} else {
+					break;
+				}
 			}
 		}) {
 			Ok(_) => Ok(hash),

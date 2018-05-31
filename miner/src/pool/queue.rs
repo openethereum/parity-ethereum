@@ -174,7 +174,7 @@ impl TransactionQueue {
 		transactions: Vec<verifier::Transaction>,
 	) -> Vec<Result<(), transaction::Error>> {
 		// Run verification
-		let _timer = ::trace_time::PerfTimer::new("queue::verifyAndImport");
+		let _timer = ::trace_time::PerfTimer::new("pool::verify_and_import");
 		let options = self.options.read().clone();
 
 		let verifier = verifier::Verifier::new(client, options, self.insertion_id.clone());
