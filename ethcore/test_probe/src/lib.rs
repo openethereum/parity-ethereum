@@ -14,9 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore public test helpers.
+//! A probe that enables ethcore test features on demand.
 
-#[path="../../src/test_helpers.rs"]
-mod helpers;
-
-pub use helpers::*;
+extern crate ethcore;

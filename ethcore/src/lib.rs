@@ -175,8 +175,8 @@ mod tests;
 #[cfg(test)]
 #[cfg(feature="json-tests")]
 mod json_tests;
-#[cfg(test)]
-mod test_helpers;
+#[cfg(any(test, feature="test-helpers"))]
+pub mod test_helpers;
 #[cfg(test)]
 mod test_helpers_internal;
 

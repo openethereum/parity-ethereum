@@ -37,4 +37,5 @@ tiny-keccak = "1.3"
 url = "1"
 
 [dev-dependencies]
-ethcore-test-helpers = { path = "../test_helpers" }
+# A probe that enables ethcore public test helpers features.
+ethcore-test-probe = { path = "../test_probe" }

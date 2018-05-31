@@ -1,10 +1,10 @@
 [package]
-description = "Ethcore public test helpers"
+description = "A probe that enables test features on demand."
 homepage = "http://parity.io"
 license = "GPL-3.0"
-name = "ethcore-test-helpers"
+name = "ethcore-test-probe"
 version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethcore = { path = ".." }
+ethcore = { path = "..", features = ["test-helpers"] }
