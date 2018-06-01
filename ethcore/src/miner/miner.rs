@@ -365,11 +365,17 @@ impl Miner {
 
 		let client = self.pool_client(chain);
 		let engine_params = self.engine.params();
-		let min_tx_gas = self.engine.schedule(chain_info.best_block_number).tx_gas.into();
+		let min_tx_gas: U256 = self.engine.schedule(chain_info.best_block_number).tx_gas.into();
 		let nonce_cap: Option<U256> = if chain_info.best_block_number + 1 >= engine_params.dust_protection_transition {
 			Some((engine_params.nonce_cap_increment * (chain_info.best_block_number + 1)).into())
 		} else {
 			None
+		};
+		// we will never need more transactions than limit divided by min gas
+		let max_transactions = if min_tx_gas.is_zero() {
+			usize::max_value()
+		} else {
+			(*open_block.block().header().gas_limit() / min_tx_gas).as_u64() as usize
 		};
 
 		let pending: Vec<Arc<_>> = self.transaction_queue.pending(
@@ -377,7 +383,7 @@ impl Miner {
 			chain_info.best_block_number,
 			chain_info.best_block_timestamp,
 			nonce_cap,
-			usize::max_value(),
+			max_transactions,
 			miner::PendingOrdering::Priority,
 		);
 

@@ -283,6 +283,7 @@ impl TransactionQueue {
 		>) -> T,
 	{
 		debug!(target: "txqueue", "Re-computing pending set for block: {}", block_number);
+		let _timer = ::trace_time::PerfTimer::new("pool::collect_pending");
 		let ready = Self::ready(client, block_number, current_timestamp, nonce_cap);
 		collect(self.pool.read().pending(ready))
 	}

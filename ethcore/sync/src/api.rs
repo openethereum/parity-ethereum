@@ -411,7 +411,10 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 		match timer {
 			PEERS_TIMER => self.sync.write().maintain_peers(&mut io),
 			SYNC_TIMER => self.sync.write().maintain_sync(&mut io),
-			TX_TIMER => self.sync.write().propagate_new_transactions(&mut io),
+			TX_TIMER => {
+				self.sync.write().propagate_new_transactions(&mut io);
+			},
+			_ => warn!("Unknown timer {} triggered.", timer),
 		}
 	}
 }
