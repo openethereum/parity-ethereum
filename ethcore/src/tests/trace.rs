@@ -37,15 +37,12 @@ use test_helpers;
 #[test]
 fn can_trace_block_and_uncle_reward() {
 	let db = test_helpers::new_db();
-	//let tempdir = TempDir::new("").unwrap();
 	let spec = Spec::new_test_with_reward();
 	let engine = &*spec.engine;
 
 	// Create client
-	//let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let mut client_config = ClientConfig::default();
 	client_config.tracing.enabled = true;
-	//let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 	let client = Client::new(
 		client_config,
 		&spec,

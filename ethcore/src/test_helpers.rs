@@ -258,6 +258,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	client
 }
 
+/// Creates new test instance of `BlockChainDB`
 pub fn new_db() -> Arc<BlockChainDB> {
 	struct TestBlockChainDB {
 		_blooms_dir: TempDir,

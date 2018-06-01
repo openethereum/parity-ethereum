@@ -87,10 +87,7 @@ fn returns_state_root_basic() {
 #[test]
 fn imports_good_block() {
 	let db = test_helpers::new_db();
-	//let tempdir = TempDir::new("").unwrap();
 	let spec = Spec::new_test();
-	//let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	//let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
@@ -132,10 +129,7 @@ fn fails_to_import_block_with_invalid_rlp() {
 #[test]
 fn query_none_block() {
 	let db = test_helpers::new_db();
-	//let tempdir = TempDir::new("").unwrap();
 	let spec = Spec::new_test();
-	//let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	//let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	let client = Client::new(
 		ClientConfig::default(),
@@ -284,11 +278,8 @@ fn can_mine() {
 #[test]
 fn change_history_size() {
 	let db = test_helpers::new_db();
-	//let tempdir = TempDir::new("").unwrap();
 	let test_spec = Spec::new_null();
 	let mut config = ClientConfig::default();
-	//let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	//let client_db = Arc::new(Database::open(&db_config, tempdir.path().to_str().unwrap()).unwrap());
 
 	config.history = 2;
 	let address = Address::random();

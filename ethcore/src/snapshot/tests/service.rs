@@ -28,7 +28,7 @@ use test_helpers::{generate_dummy_client_with_spec_and_data};
 use test_helpers_internal::restoration_db_handler;
 
 use io::IoChannel;
-use kvdb_rocksdb::{DatabaseConfig};
+use kvdb_rocksdb::DatabaseConfig;
 
 struct NoopDBRestore;
 

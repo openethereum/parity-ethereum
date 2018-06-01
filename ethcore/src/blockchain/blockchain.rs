@@ -1465,7 +1465,7 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
-	use kvdb::{DBTransaction};
+	use kvdb::DBTransaction;
 	use ethereum_types::*;
 	use receipt::{Receipt, TransactionOutcome};
 	use blockchain::{BlockProvider, BlockChain, BlockChainDB, Config, ImportRoute};
@@ -1479,10 +1479,6 @@ mod tests {
 	use log_entry::{LogEntry, LocalizedLogEntry};
 	use ethkey::Secret;
 	use test_helpers::new_db;
-
-	//fn new_db() -> Arc<BlockChainDB>
-		//Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)))
-	//}
 
 	fn new_chain(genesis: &[u8], db: Arc<BlockChainDB>) -> BlockChain {
 		BlockChain::new(Config::default(), genesis, db)

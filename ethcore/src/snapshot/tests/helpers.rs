@@ -33,7 +33,7 @@ use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 use tempdir::TempDir;
 use rand::Rng;
 
-use kvdb::{DBValue};
+use kvdb::DBValue;
 use ethereum_types::H256;
 use hashdb::HashDB;
 use journaldb;
