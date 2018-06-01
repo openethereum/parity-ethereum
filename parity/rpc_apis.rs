@@ -116,8 +116,6 @@ pub enum ApiSet {
 	SafeContext,
 	// Unsafe context (like jsonrpc over http)
 	UnsafeContext,
-	// Public context (like public jsonrpc over http)
-	PublicContext,
 	// All possible APIs
 	All,
 	// Local "unsafe" context and accounts access
@@ -637,7 +635,7 @@ impl ApiSet {
 	}
 
 	pub fn list_apis(&self) -> HashSet<Api> {
-		let mut public_list = [
+		let mut public_list: HashSet<Api> = [
 			Api::Web3,
 			Api::Net,
 			Api::Eth,
@@ -651,7 +649,6 @@ impl ApiSet {
 
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
-			ApiSet::PublicContext => public_list,
 			ApiSet::UnsafeContext => {
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityPubSub);
