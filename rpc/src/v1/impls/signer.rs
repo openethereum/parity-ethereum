@@ -83,7 +83,6 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		T::Future: Send + 'static
 	{
 		let id = id.into();
-		let accounts = self.accounts.clone();
 		let dispatcher = self.dispatcher.clone();
 		let signer = self.signer.clone();
 
@@ -106,7 +105,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 					request.condition = condition.clone().map(Into::into);
 				}
 			}
-			let fut = f(dispatcher, accounts, payload);
+			let fut = f(dispatcher, self.accounts.clone(), payload);
 			Either::A(fut.into_future().then(move |result| {
 				// Execute
 				if let Ok(ref response) = result {

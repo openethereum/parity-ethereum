@@ -398,10 +398,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 	}
 
 	fn dapp_accounts(&self, dapp: DappId) -> Result<Vec<H160>> {
-		let store = self.accounts.clone();
-		store
+		self.accounts
 			.note_dapp_used(dapp.clone())
-			.and_then(|_| store.dapp_addresses(dapp))
+			.and_then(|_| self.accounts.dapp_addresses(dapp))
 			.map_err(|e| errors::account("Could not fetch accounts.", e))
 	}
 
