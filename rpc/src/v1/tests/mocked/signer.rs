@@ -58,7 +58,7 @@ fn miner_service() -> Arc<TestMinerService> {
 fn signer_tester() -> SignerTester {
 	let signer = Arc::new(SignerService::new_test(false));
 	let accounts = accounts_provider();
-	let opt_accounts = Some(accounts.clone());
+	let opt_accounts = accounts.clone();
 	let client = blockchain_client();
 	let miner = miner_service();
 	let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));

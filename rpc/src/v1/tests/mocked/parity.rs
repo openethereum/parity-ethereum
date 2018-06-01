@@ -81,7 +81,7 @@ impl Dependencies {
 	}
 
 	pub fn client(&self, signer: Option<Arc<SignerService>>) -> TestParityClient {
-		let opt_accounts = Some(self.accounts.clone());
+		let opt_accounts = self.accounts.clone();
 
 		ParityClient::new(
 			self.client.clone(),
