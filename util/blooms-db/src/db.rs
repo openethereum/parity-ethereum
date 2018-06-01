@@ -1,3 +1,19 @@
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use std::{io, fmt};
 use std::path::Path;
 
@@ -71,8 +87,8 @@ impl Database {
 	}
 
 	/// Returns an iterator yielding all indexes containing given bloom.
-	pub fn iterate_matching<'a, 'b, B>(&'a mut self, from: u64, to: u64, bloom: B) -> io::Result<DatabaseIterator<'a>>
-	where ethbloom::BloomRef<'b>: From<B>, 'b: 'a {
+	pub fn iterate_matching<'a, 'b, B, I, II>(&'a mut self, from: u64, to: u64, blooms: II) -> io::Result<DatabaseIterator<'a, II>>
+	where ethbloom::BloomRef<'b>: From<B>, 'b: 'a, II: IntoIterator<Item = B, IntoIter = I> + Copy, I: Iterator<Item = B> {
 		let index = from / 256 * 256;
 		let pos = Positions::from_index(index);
 
@@ -84,15 +100,20 @@ impl Database {
 			from,
 			to,
 			index,
-			bloom: bloom.into(),
+			blooms,
 		};
 
 		Ok(iter)
 	}
 }
 
+fn contains_any<'a, I, B>(bloom: ethbloom::Bloom, mut iterator: I) -> bool
+where ethbloom::BloomRef<'a>: From<B>, I: Iterator<Item = B> {
+	iterator.any(|item| bloom.contains_bloom(item))
+}
+
 /// Blooms database iterator
-pub struct DatabaseIterator<'a> {
+pub struct DatabaseIterator<'a, I> {
 	top: FileIterator<'a>,
 	mid: FileIterator<'a>,
 	bot: FileIterator<'a>,
@@ -100,17 +121,17 @@ pub struct DatabaseIterator<'a> {
 	from: u64,
 	to: u64,
 	index: u64,
-	bloom: ethbloom::BloomRef<'a>,
+	blooms: I,
 }
 
-impl<'a> fmt::Debug for DatabaseIterator<'a> {
+impl<'a, I> fmt::Debug for DatabaseIterator<'a, I> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("DatabaseIterator")
 			.field("state", &self.state)
 			.field("from", &self.from)
 			.field("to", &self.to)
 			.field("index", &self.index)
-			.field("bloom", &"...")
+			.field("blooms", &"...")
 			.field("top", &"...")
 			.field("mid", &"...")
 			.field("bot", &"...")
@@ -130,7 +151,8 @@ enum IteratorState {
 	Bot { mid: usize, bot: usize },
 }
 
-impl<'a> Iterator for DatabaseIterator<'a> {
+impl<'a, 'b, B, I, II> Iterator for DatabaseIterator<'a, II>
+where ethbloom::BloomRef<'b>: From<B>, 'b: 'a, II: IntoIterator<Item = B, IntoIter = I> + Copy, I: Iterator<Item = B> {
 	type Item = io::Result<u64>;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -143,6 +165,12 @@ impl<'a> Iterator for DatabaseIterator<'a> {
 			}
 		}
 
+		macro_rules! next_bloom {
+			($iter: expr) => {
+				try_o!($iter.next()?)
+			}
+		}
+
 		loop {
 			if self.index > self.to {
 				return None;
@@ -150,7 +178,7 @@ impl<'a> Iterator for DatabaseIterator<'a> {
 
 			self.state = match self.state {
 				IteratorState::Top => {
-					if try_o!(self.top.next()?).contains_bloom(self.bloom) {
+					if contains_any(next_bloom!(self.top), self.blooms.into_iter()) {
 						IteratorState::Mid(16)
 					} else {
 						self.index += 256;
@@ -162,7 +190,7 @@ impl<'a> Iterator for DatabaseIterator<'a> {
 				IteratorState::Mid(left) => {
 					if left == 0 {
 						IteratorState::Top
-					} else if try_o!(self.mid.next()?).contains_bloom(self.bloom) && self.index + 16 >= self.from {
+					} else if contains_any(next_bloom!(self.mid), self.blooms.into_iter()) && self.index + 16 >= self.from {
 						IteratorState::Bot { mid: left - 1, bot: 16 }
 					} else {
 						self.index += 16;
@@ -173,7 +201,7 @@ impl<'a> Iterator for DatabaseIterator<'a> {
 				IteratorState::Bot { mid, bot } => {
 					if bot == 0 {
 						IteratorState::Mid(mid)
-					} else if try_o!(self.bot.next()?).contains_bloom(self.bloom) && self.index >= self.from {
+					} else if contains_any(next_bloom!(self.bot), self.blooms.into_iter()) && self.index >= self.from {
 						let result = self.index;
 						self.index += 1;
 						self.state = IteratorState::Bot { mid, bot: bot - 1 };
@@ -200,25 +228,25 @@ mod tests {
 		let mut database = Database::open(tempdir.path()).unwrap();
 		database.insert_blooms(0, vec![Bloom::from(0), Bloom::from(0x01), Bloom::from(0x10), Bloom::from(0x11)].iter()).unwrap();
 
-		let matches = database.iterate_matching(0, 3, &Bloom::from(0)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+		let matches = database.iterate_matching(0, 3, Some(&Bloom::from(0))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![0, 1, 2, 3]);
 
-		let matches = database.iterate_matching(0, 4, &Bloom::from(0)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+		let matches = database.iterate_matching(0, 4, Some(&Bloom::from(0))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![0, 1, 2, 3]);
 
-		let matches = database.iterate_matching(1, 3, &Bloom::from(0)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+		let matches = database.iterate_matching(1, 3, Some(&Bloom::from(0))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![1, 2, 3]);
 
-		let matches = database.iterate_matching(1, 2, &Bloom::from(0)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+		let matches = database.iterate_matching(1, 2, Some(&Bloom::from(0))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![1, 2]);
 
-		let matches = database.iterate_matching(0, 3, &Bloom::from(0x01)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+		let matches = database.iterate_matching(0, 3, Some(&Bloom::from(0x01))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![1, 3]);
 
-		let matches = database.iterate_matching(0, 3, &Bloom::from(0x10)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+		let matches = database.iterate_matching(0, 3, Some(&Bloom::from(0x10))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![2, 3]);
 
-		let matches = database.iterate_matching(2, 2, &Bloom::from(0x10)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+		let matches = database.iterate_matching(2, 2, Some(&Bloom::from(0x10))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![2]);
 	}
 
@@ -228,22 +256,22 @@ mod tests {
 		let mut database = Database::open(tempdir.path()).unwrap();
 		database.insert_blooms(254, vec![Bloom::from(0x100), Bloom::from(0x01), Bloom::from(0x10), Bloom::from(0x11)].iter()).unwrap();
 
-		let matches = database.iterate_matching(0, 257, &Bloom::from(0x01)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+		let matches = database.iterate_matching(0, 257, Some(&Bloom::from(0x01))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![255, 257]);
 
-		let matches = database.iterate_matching(0, 258, &Bloom::from(0x100)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+		let matches = database.iterate_matching(0, 258, Some(&Bloom::from(0x100))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![254]);
 
-		let matches = database.iterate_matching(0, 256, &Bloom::from(0x01)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+		let matches = database.iterate_matching(0, 256, Some(&Bloom::from(0x01))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![255]);
 
-		let matches = database.iterate_matching(255, 255, &Bloom::from(0x01)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+		let matches = database.iterate_matching(255, 255, Some(&Bloom::from(0x01))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![255]);
 
-		let matches = database.iterate_matching(256, 256, &Bloom::from(0x10)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+		let matches = database.iterate_matching(256, 256, Some(&Bloom::from(0x10))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![256]);
 
-		let matches = database.iterate_matching(256, 257, &Bloom::from(0x10)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+		let matches = database.iterate_matching(256, 257, Some(&Bloom::from(0x10))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![256, 257]);
 	}
 }

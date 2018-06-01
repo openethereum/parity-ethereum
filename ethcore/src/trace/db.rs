@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Trace database.
-use std::collections::{HashMap, BTreeSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use blockchain::{BlockChainDB};
 use heapsize::HeapSizeOf;
@@ -316,12 +316,8 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 
 	fn filter(&self, filter: &Filter) -> Vec<LocalizedTrace> {
 		let possibilities = filter.bloom_possibilities();
-		let blooms_db = self.db.trace_blooms();
-		let numbers = possibilities.iter()
-			.map(|bloom| blooms_db.filter(filter.range.start as u64, filter.range.end as u64, bloom).expect("TODO: blooms pr"))
-			.into_iter()
-			.flat_map(|n| n)
-			.collect::<BTreeSet<_>>();
+		let numbers = self.db.trace_blooms()
+			.filter(filter.range.start as u64, filter.range.end as u64, &possibilities).expect("TODO: blooms pr");
 
 		numbers.into_iter()
 			.flat_map(|n| {

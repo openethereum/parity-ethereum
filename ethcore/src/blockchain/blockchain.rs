@@ -22,7 +22,7 @@ use std::mem;
 use itertools::Itertools;
 use blooms_db;
 use heapsize::HeapSizeOf;
-use ethereum_types::{H256, Bloom, U256};
+use ethereum_types::{H256, Bloom, BloomRef, U256};
 use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
 use rlp::RlpStream;
@@ -169,7 +169,8 @@ pub trait BlockProvider {
 	}
 
 	/// Returns numbers of blocks containing given bloom.
-	fn blocks_with_bloom(&self, bloom: &Bloom, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber>;
+	fn blocks_with_bloom<'a, B, I, II>(&self, blooms: II, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber>
+	where BloomRef<'a>: From<B>, II: IntoIterator<Item = B, IntoIter = I> + Copy, I: Iterator<Item = B>, Self: Sized;
 
 	/// Returns logs matching given filter.
 	fn logs<F>(&self, blocks: Vec<H256>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
@@ -334,9 +335,10 @@ impl BlockProvider for BlockChain {
 	}
 
 	/// Returns numbers of blocks containing given bloom.
-	fn blocks_with_bloom(&self, bloom: &Bloom, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber> {
+	fn blocks_with_bloom<'a, B, I, II>(&self, blooms: II, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber>
+	where BloomRef<'a>: From<B>, II: IntoIterator<Item = B, IntoIter = I> + Copy, I: Iterator<Item = B> {
 		self.db.blooms()
-			.filter(from_block, to_block, bloom)
+			.filter(from_block, to_block, blooms)
 			.expect("TODO: blooms pr")
 	}
 
@@ -2168,46 +2170,46 @@ mod tests {
 		let db = new_db();
 		let bc = new_chain(&genesis.last().encoded(), db.clone());
 
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+		let blocks_b1 = bc.blocks_with_bloom(Some(&bloom_b1), 0, 5);
+		let blocks_b2 = bc.blocks_with_bloom(Some(&bloom_b2), 0, 5);
 		assert!(blocks_b1.is_empty());
 		assert!(blocks_b2.is_empty());
 
 		insert_block(&db, &bc, &b1.last().encoded(), vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+		let blocks_b1 = bc.blocks_with_bloom(Some(&bloom_b1), 0, 5);
+		let blocks_b2 = bc.blocks_with_bloom(Some(&bloom_b2), 0, 5);
 		assert_eq!(blocks_b1, vec![1]);
 		assert!(blocks_b2.is_empty());
 
 		insert_block(&db, &bc, &b2.last().encoded(), vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+		let blocks_b1 = bc.blocks_with_bloom(Some(&bloom_b1), 0, 5);
+		let blocks_b2 = bc.blocks_with_bloom(Some(&bloom_b2), 0, 5);
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![2]);
 
 		// hasn't been forked yet
 		insert_block(&db, &bc, &b1a.last().encoded(), vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
-		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
+		let blocks_b1 = bc.blocks_with_bloom(Some(&bloom_b1), 0, 5);
+		let blocks_b2 = bc.blocks_with_bloom(Some(&bloom_b2), 0, 5);
+		let blocks_ba = bc.blocks_with_bloom(Some(&bloom_ba), 0, 5);
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![2]);
 		assert!(blocks_ba.is_empty());
 
 		// fork has happend
 		insert_block(&db, &bc, &b2a.last().encoded(), vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
-		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
+		let blocks_b1 = bc.blocks_with_bloom(Some(&bloom_b1), 0, 5);
+		let blocks_b2 = bc.blocks_with_bloom(Some(&bloom_b2), 0, 5);
+		let blocks_ba = bc.blocks_with_bloom(Some(&bloom_ba), 0, 5);
 		assert!(blocks_b1.is_empty());
 		assert!(blocks_b2.is_empty());
 		assert_eq!(blocks_ba, vec![1, 2]);
 
 		// fork back
 		insert_block(&db, &bc, &b3.last().encoded(), vec![]);
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
-		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
+		let blocks_b1 = bc.blocks_with_bloom(Some(&bloom_b1), 0, 5);
+		let blocks_b2 = bc.blocks_with_bloom(Some(&bloom_b2), 0, 5);
+		let blocks_ba = bc.blocks_with_bloom(Some(&bloom_ba), 0, 5);
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![2]);
 		assert_eq!(blocks_ba, vec![3]);
@@ -2243,9 +2245,9 @@ mod tests {
 		assert_eq!(bc.block_hash(2).unwrap(), b2.last().hash());
 		assert_eq!(bc.block_hash(3).unwrap(), b3.last().hash());
 
-		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 3);
-		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 3);
-		let blocks_b3 = bc.blocks_with_bloom(&bloom_b3, 0, 3);
+		let blocks_b1 = bc.blocks_with_bloom(Some(&bloom_b1), 0, 3);
+		let blocks_b2 = bc.blocks_with_bloom(Some(&bloom_b2), 0, 3);
+		let blocks_b3 = bc.blocks_with_bloom(Some(&bloom_b3), 0, 3);
 
 		assert_eq!(blocks_b1, vec![1]);
 		assert_eq!(blocks_b2, vec![2]);

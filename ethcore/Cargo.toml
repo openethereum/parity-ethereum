@@ -68,6 +68,8 @@ triehash = { path = "../util/triehash" }
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 tempdir = "0.3"
+
+[dev-dependencies]
 trie-standardmap = { path = "../util/trie-standardmap" }
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 
