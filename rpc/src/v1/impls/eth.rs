@@ -108,6 +108,7 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	eip86_transition: u64,
 }
 
+#[derive(Debug)]
 enum BlockNumberOrId {
 	Number(BlockNumber),
 	Id(BlockId),
@@ -184,21 +185,30 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 		let (block, difficulty, extra, is_pending) = match id {
 			BlockNumberOrId::Number(BlockNumber::Pending) => {
 				let info = self.client.chain_info();
-				let pending_block = self.miner.pending_block(info.best_block_number);
-				let difficulty = {
-					let latest_difficulty = self.client.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
-					let pending_difficulty = self.miner.pending_block_header(info.best_block_number).map(|header| *header.difficulty());
+				match self.miner.pending_block(info.best_block_number) {
+					Some(pending_block) => {
+						warn!("`Pending` is deprecated and may be removed in future versions.");
 
-				 	if let Some(difficulty) = pending_difficulty {
-						difficulty + latest_difficulty
-					} else {
-						latest_difficulty
+						let difficulty = {
+							let latest_difficulty = self.client.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
+							let pending_difficulty = self.miner.pending_block_header(info.best_block_number).map(|header| *header.difficulty());
+
+							if let Some(difficulty) = pending_difficulty {
+								difficulty + latest_difficulty
+							} else {
+								latest_difficulty
+							}
+						};
+
+						let extra = self.client.engine().extra_info(&pending_block.header);
+
+						(Some(encoded::Block::new(pending_block.rlp_bytes())), Some(difficulty), Some(extra), true)
+					},
+					None => {
+						warn!("`Pending` is deprecated and may be removed in future versions. Falling back to `Latest`");
+						client_query(BlockId::Latest)
 					}
-				};
-
-				let extra = pending_block.as_ref().map(|b| self.client.engine().extra_info(&b.header));
-
-				(pending_block.map(|b| encoded::Block::new(b.rlp_bytes())), Some(difficulty), extra, true)
+				}
 			},
 
 			BlockNumberOrId::Number(num) => {
@@ -206,7 +216,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 					BlockNumber::Latest => BlockId::Latest,
 					BlockNumber::Earliest => BlockId::Earliest,
 					BlockNumber::Num(n) => BlockId::Number(n),
-					BlockNumber::Pending => unreachable!(), // Already covered
+					BlockNumber::Pending => unreachable!() // Already covered
 				};
 
 				client_query(id)
