@@ -28,9 +28,6 @@ use v1::traits::ParityAccounts;
 use v1::types::{H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, DappId, Derive, DeriveHierarchical, DeriveHash, ExtAccountInfo};
 use ethkey::Password;
 
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
-use jsonrpc_core::Error;
-
 /// Account management (personal) rpc implementation.
 pub struct ParityAccountsClient {
 	accounts: Arc<AccountProvider>,
@@ -320,15 +317,8 @@ impl ParityAccounts for ParityAccountsClient {
 			.map_err(|e| errors::account("Could not sign message.", e))
 	}
 
-	#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 	fn hardware_pin_matrix_ack(&self, path: String, pin: String) -> Result<bool> {
 		self.accounts.hardware_pin_matrix_ack(&path, &pin).map_err(|e| errors::account("Error communicating with hardware wallet.", e))
-	}
-
-	#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
-	// Dummy implementation for builds that don't support `libusb` 
-	fn hardware_pin_matrix_ack(&self, _path: String, _pin: String) -> Result<bool> {
-		Err(Error::parse_error())
 	}
 }
 

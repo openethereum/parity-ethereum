@@ -49,9 +49,6 @@ use v1::types::{
 };
 use Host;
 
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
-use jsonrpc_core::Error;
-
 /// Parity implementation for light client.
 pub struct ParityClient {
 	client: Arc<LightChainClient>,
@@ -133,7 +130,6 @@ impl Parity for ParityClient {
 		)
 	}
 
-	#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
 		let store = &self.accounts;
 		let info = store.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
@@ -144,22 +140,9 @@ impl Parity for ParityClient {
 		)
 	}
 
-	#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
-	// `unimplemented`, workaround to get it to compile because the trait requires this method
-	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
-		Err(Error::parse_error())
-	}
-
-	#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
 		let store = &self.accounts;
 		Ok(store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
-	}
-
-	#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
-	// `unimplemented`, workaround to get it to compile because the trait requires this method
-	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
-		Err(Error::parse_error())
 	}
 
 	fn default_account(&self, meta: Self::Metadata) -> Result<H160> {

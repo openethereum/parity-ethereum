@@ -68,7 +68,7 @@ extern crate rlp;
 extern crate stats;
 extern crate keccak_hash as hash;
 
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
 extern crate hardware_wallet;
 
 extern crate patricia_trie as trie;
