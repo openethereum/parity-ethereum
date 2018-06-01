@@ -29,7 +29,6 @@ use super::{
 	ChainSync,
 	PeerAsking,
 	ETH_PROTOCOL_VERSION_63,
-	BITFIELD_REFRESH_DURATION,
 	GET_BLOCK_BODIES_PACKET,
 	GET_BLOCK_HEADERS_PACKET,
 	GET_RECEIPTS_PACKET,
@@ -84,23 +83,13 @@ impl SyncRequester {
 	/// Find some headers or blocks to download for a peer.
 	pub fn request_snapshot_data(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
 		// find chunk data to download
-		let (hash, request_bitfield) = if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-			if let Some(hash) = sync.snapshot.needed_chunk(&peer) {
-				peer.asking_snapshot_data = Some(hash.clone());
-				(Some(hash), false)
-			} else if peer.snapshot_bitfield.is_some() && (Instant::now() - peer.ask_bitfield_time) > BITFIELD_REFRESH_DURATION {
-				(None, true)
-			} else {
-				(None, false)
-			}
-		} else {
-			(None, false)
+		let hash = {
+			let peer = sync.peers.get(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
+			sync.snapshot.needed_chunk(&peer)
 		};
 
 		if let Some(hash) = hash {
 			SyncRequester::request_snapshot_chunk(sync, io, peer_id, &hash);
-		} else if request_bitfield {
-			SyncRequester::request_snapshot_bitfield(sync, io, peer_id);
 		}
 	}
 
@@ -151,6 +140,8 @@ impl SyncRequester {
 		let mut rlp = RlpStream::new_list(1);
 		rlp.append(chunk);
 		SyncRequester::send_request(sync, io, peer_id, PeerAsking::SnapshotData, GET_SNAPSHOT_DATA_PACKET, rlp.out());
+		let peer = sync.peers.get_mut(&peer_id).expect("peer_id may originate either from on_packet, where it is already validated or from enumerating self.peers. qed");
+		peer.asking_snapshot_data = Some(chunk.clone());
 	}
 
 	/// Generic request sender

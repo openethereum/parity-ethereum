@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use bitfield::Bitfield;
 use bytes::Bytes;
 use ethcore::client::BlockId;
 use ethcore::header::BlockNumber;
@@ -240,31 +241,54 @@ impl SyncSupplier {
 			debug!(target: "warp", "Invalid GetSnapshotBitfield request, ignoring.");
 			return Ok(None);
 		}
-		let sync = sync.read();
-		let rlp = match sync.snapshot.snapshot_hash() {
-			Some(_) => {
-				let bitfield = sync.snapshot.bitfield();
+		let peer_protocol = sync.read().peers.get(&peer_id).map_or(0, |ref peer| peer.protocol_version);
+		let rlp = match SyncSupplier::get_snapshot_bitfield(sync, io, peer_protocol) {
+			Some(bitfield) => {
 				trace!(target: "warp", "{} <- SnapshotBitfield [{:?}]", peer_id, bitfield);
 				let mut rlp = RlpStream::new();
 				rlp.append_list(&bitfield);
 				rlp
 			},
 			None => {
-				trace!(target: "warp", "{}: No partial snapshot manifest to return", peer_id);
+				trace!(target: "warp", "{}: No snapshot Bitfield to return", peer_id);
 				RlpStream::new_list(0)
 			},
 		};
 		Ok(Some((SNAPSHOT_BITFIELD_PACKET, rlp)))
 	}
 
+	/// Whether we should return partial snapshot data for the given peer protocol
+	pub fn should_return_partial(io: &SyncIo, peer_protocol: u8) -> bool {
+		// Check that the peer supports partial snapshots
+		if !PeerInfo::supports_partial_snapshots(peer_protocol) {
+			return false;
+		}
+
+		// Return partial manifest if available (otherwise should default to the
+		// complete one)
+		io.snapshot_service().partial_manifest().is_some()
+	}
+
+	pub fn get_snapshot_bitfield(sync: &RwLock<ChainSync>, io: &SyncIo, peer_protocol: u8) -> Option<Vec<u8>> {
+		if SyncSupplier::should_return_partial(io, peer_protocol) {
+			sync.read().snapshot.bitfield()
+		} else if let Some(manifest) = io.snapshot_service().manifest() {
+			let mut bitfield = Bitfield::new();
+			bitfield.reset_to(&manifest);
+			bitfield.mark_all();
+
+			Some(bitfield.as_raw())
+		} else {
+			None
+		}
+	}
+
 	pub fn get_snapshot_manifest(io: &SyncIo, peer_protocol: u8) -> Option<ManifestData> {
-		let supports_partial = PeerInfo::supports_partial_snapshots(peer_protocol);
-		let manifest = io.snapshot_service().manifest();
-
-		trace!(target: "warp", "Peer; support_partials={} ; manifest={:?}", supports_partial, manifest);
-
-		manifest
-			.or_else(|| if supports_partial { io.snapshot_service().partial_manifest() } else { None })
+		if SyncSupplier::should_return_partial(io, peer_protocol) {
+			io.snapshot_service().partial_manifest()
+		} else {
+			io.snapshot_service().manifest()
+		}
 	}
 
 	/// Respond to GetSnapshotManifest request

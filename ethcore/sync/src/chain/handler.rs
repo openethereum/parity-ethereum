@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use api::WARP_SYNC_PROTOCOL_ID;
+use bitfield::Bitfield;
 use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAction};
 use bytes::Bytes;
 use ethcore::client::{BlockStatus, BlockId, BlockImportError, BlockImportErrorKind};
@@ -521,7 +522,7 @@ impl SyncHandler {
 			return Ok(());
 		}
 
-		let expected_length = sync.snapshot.bitfield_size();
+		let expected_length = sync.snapshot.bitfield_size().unwrap_or(0);
 
 		if r.item_count().unwrap_or(0) != expected_length {
 			trace!(target: "sync", "Wrong snapshot bitifield from {}", peer_id);
@@ -529,11 +530,14 @@ impl SyncHandler {
 			return Ok(());
 		}
 
-		let bitfield: Vec<u8> = r.as_list()?;
+		let bitfield_bytes: Vec<u8> = r.as_list()?;
 
 		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-			peer.snapshot_bitfield = Some(bitfield);
-			peer.ask_bitfield_time = Instant::now();
+			if let Some(manifest) = io.snapshot_service().partial_manifest() {
+				let bitfield = Bitfield::new_from_bytes(&manifest, &bitfield_bytes);
+				peer.snapshot_bitfield = Some(bitfield);
+				peer.ask_bitfield_time = Instant::now();
+			}
 		}
 
 		// give a task to the same peer first.

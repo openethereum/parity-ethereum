@@ -107,7 +107,7 @@ use rlp::{RlpStream, DecoderError};
 use network::{self, PeerId, PacketId};
 use ethcore::header::BlockNumber;
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockQueueInfo};
-use ethcore::snapshot::{RestorationStatus};
+use ethcore::snapshot::{ManifestData, RestorationStatus};
 use sync_io::SyncIo;
 use super::{WarpSync, SyncConfig};
 use block_sync::BlockDownloader;
@@ -117,6 +117,7 @@ use api::{EthProtocolInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
 use private_tx::PrivateTxHandler;
 use transactions_stats::{TransactionsStats, Stats as TransactionStats};
 use transaction::UnverifiedTransaction;
+use bitfield::Bitfield;
 
 use self::handler::SyncHandler;
 use self::propagator::SyncPropagator;
@@ -338,7 +339,7 @@ pub struct PeerInfo {
 	/// Peer fork confirmation status
 	confirmation: ForkConfirmation,
 	/// Peer's current snapshot bitfield
-	snapshot_bitfield: Option<Vec<u8>>,
+	snapshot_bitfield: Option<Bitfield>,
 	/// Best snapshot hash
 	snapshot_hash: Option<H256>,
 	/// Best snapshot block number
@@ -389,26 +390,41 @@ impl PeerInfo {
 		}
 	}
 
-	pub fn chunk_index_available(&self, index: usize) -> bool {
-		// If no bitfield, assume every chunk is available
-		match self.snapshot_bitfield {
-			None => true,
-			Some(ref bitfield) => {
-				let byte_index = index / 8;
-
-				if byte_index >= bitfield.len() {
-					return false;
-				}
-
-				let bit_index = index % 8;
-
-				(bitfield[byte_index] >> (7 - bit_index)) & 1 != 0
-			}
-		}
+	pub fn bitfield(&self) -> Option<&Bitfield> {
+		self.snapshot_bitfield.as_ref()
 	}
 
 	pub fn supports_partial_snapshots(protocol_version: u8) -> bool {
 		protocol_version >= PAR_PROTOCOL_VERSION_4.0
+	}
+
+	/// Update the bitfield, which sets to all available for peers
+	/// that doesn't support partial seeding (thus must already have all pieces)
+	pub fn update_bitfield(&mut self, manifest: &ManifestData) {
+		// Don't update if it's already set
+		if self.snapshot_bitfield.is_some() {
+			return;
+		}
+
+		// If the peer doesn't support partial seeding, mark all chunks as available
+		if !PeerInfo::supports_partial_snapshots(self.protocol_version) {
+			let mut bitfield = Bitfield::new_from_manifest(manifest);
+			bitfield.mark_all();
+
+			self.snapshot_bitfield = Some(bitfield);
+		}
+	}
+
+	/// Whether the Bitfield should be requested: only for peers
+	/// supporting the request, which bitfield isn't know yet
+	pub fn should_request_bitfield(&self) -> bool {
+		if PeerInfo::supports_partial_snapshots(self.protocol_version) {
+			// Ask for bitfield if it's expired or if it's not set yet
+			self.snapshot_bitfield.is_none() ||
+			 	(Instant::now() - self.ask_bitfield_time) > BITFIELD_REFRESH_DURATION
+		} else {
+			false
+		}
 	}
 }
 
@@ -781,7 +797,7 @@ impl ChainSync {
 
 		let chain_info = io.chain().chain_info();
 		let (peer_latest, peer_difficulty, peer_snapshot_number, peer_snapshot_hash) = {
-			if let Some(peer) = self.peers.get_mut(&peer_id) {
+			if let Some(peer) = self.peers.get(&peer_id) {
 				if peer.asking != PeerAsking::Nothing || !peer.can_sync() {
 					trace!(target: "sync", "Skipping busy peer {}", peer_id);
 					return;
@@ -850,12 +866,17 @@ impl ChainSync {
 				}
 
 				// Asks peer bitfield if it is supported and they are not set yet
-				let request_bitfield = self.peers.get(&peer_id).map_or(false, |ref peer| {
-					PeerInfo::supports_partial_snapshots(peer.protocol_version) && peer.snapshot_bitfield.is_none()
-				});
-				if request_bitfield {
-					SyncRequester::request_snapshot_bitfield(self, io, peer_id);
-					return;
+				if let Some(manifest) = io.snapshot_service().partial_manifest() {
+					let request_bitfield = if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+						peer.update_bitfield(&manifest);
+						peer.should_request_bitfield()
+					} else {
+						false
+					};
+					if request_bitfield {
+						SyncRequester::request_snapshot_bitfield(self, io, peer_id);
+						return;
+					}
 				}
 
 				match io.snapshot_service().status() {
@@ -877,10 +898,8 @@ impl ChainSync {
 					},
 				}
 
-				if peer_snapshot_hash.is_some() && peer_snapshot_hash == self.snapshot.snapshot_hash() {
-					self.clear_peer_download(peer_id);
-					SyncRequester::request_snapshot_data(self, io, peer_id);
-				}
+				self.clear_peer_download(peer_id);
+				SyncRequester::request_snapshot_data(self, io, peer_id);
 			},
 			SyncState::SnapshotManifest | //already downloading from other peer
 				SyncState::Waiting |

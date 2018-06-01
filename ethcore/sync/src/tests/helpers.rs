@@ -352,30 +352,6 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 		net
 	}
 
-	pub fn new_with_snapshot_service(n: usize, config: SyncConfig, ss: Arc<TestSnapshotService>) -> Self {
-		let mut net = TestNet {
-			peers: Vec::new(),
-			started: false,
-			disconnect_events: Vec::new(),
-		};
-		for _ in 0..n {
-			let chain = TestBlockChainClient::new();
-			let private_tx_handler = Arc::new(SimplePrivateTxHandler::default());
-			let sync = ChainSync::new(config.clone(), &chain, private_tx_handler.clone());
-			net.peers.push(Arc::new(EthPeer {
-				sync: RwLock::new(sync),
-				snapshot_service: ss.clone(),
-				chain: Arc::new(chain),
-				miner: Arc::new(Miner::new_for_tests(&Spec::new_test(), None)),
-				queue: RwLock::new(VecDeque::new()),
-				private_tx_handler,
-				io_queue: RwLock::new(VecDeque::new()),
-				new_blocks_queue: RwLock::new(VecDeque::new()),
-			}));
-		}
-		net
-	}
-
 	// relies on Arc uniqueness, which is only true when we haven't registered a ChainNotify.
 	pub fn peer_mut(&mut self, i: usize) -> &mut EthPeer<TestBlockChainClient> {
 		Arc::get_mut(&mut self.peers[i]).expect("Arc never exposed externally")

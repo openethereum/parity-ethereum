@@ -20,6 +20,7 @@ use ethereum_types::H256;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
+#[derive(Clone)]
 struct BitfieldCompletion {
 	/// Raw bits of completion (indexed hash, 1 if completed, 0 otherwise)
 	bytes: Vec<u8>,
@@ -32,6 +33,25 @@ impl BitfieldCompletion {
 		BitfieldCompletion {
 			bytes: Vec::new(),
 			num_available: 0,
+		}
+	}
+
+	pub fn new_from_bytes(bytes: &Vec<u8>, length: usize) -> BitfieldCompletion {
+		let mut num_available = 0;
+
+		// Count the number of pieces available
+		for index in 0..length {
+			let byte_index = index / 8;
+			let bit_index = index % 8;
+
+			if bytes[byte_index] & (1 << (7 - bit_index)) != 0 {
+				num_available += 1;
+			}
+		}
+
+		BitfieldCompletion {
+			bytes: bytes.clone(),
+			num_available,
 		}
 	}
 
@@ -71,6 +91,7 @@ impl BitfieldCompletion {
 	}
 }
 
+#[derive(Clone)]
 pub struct Bitfield {
 	completion: BitfieldCompletion,
 	hashes: Vec<H256>,
@@ -82,6 +103,21 @@ impl Bitfield {
 			completion: BitfieldCompletion::new(),
 			hashes: Vec::new(),
 		}
+	}
+
+	pub fn new_from_manifest(manifest: &ManifestData) -> Bitfield {
+		let mut bitfield = Bitfield::new();
+		bitfield.reset_to(manifest);
+
+		bitfield
+	}
+
+	pub fn new_from_bytes(manifest: &ManifestData, bytes: &Vec<u8>) -> Bitfield {
+		let mut bitfield = Bitfield::new();
+		bitfield.reset_to(manifest);
+		bitfield.completion = BitfieldCompletion::new_from_bytes(bytes, bitfield.len());
+
+		bitfield
 	}
 
 	pub fn available_chunks(&self) -> Vec<H256> {

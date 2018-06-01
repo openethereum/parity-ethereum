@@ -31,7 +31,7 @@ pub enum ChunkType {
 }
 
 pub struct Snapshot {
-	bitfield: Bitfield,
+	bitfield: Option<Bitfield>,
 	pending_state_chunks: Vec<H256>,
 	pending_block_chunks: Vec<H256>,
 	downloading_chunks: HashSet<H256>,
@@ -45,7 +45,7 @@ impl Snapshot {
 	/// Create a new instance.
 	pub fn new() -> Snapshot {
 		Snapshot {
-			bitfield: Bitfield::new(),
+			bitfield: None,
 			pending_state_chunks: Vec::new(),
 			pending_block_chunks: Vec::new(),
 			downloading_chunks: HashSet::new(),
@@ -63,15 +63,17 @@ impl Snapshot {
 		}
 
 		if let Some(completed_chunks) = snapshot_service.completed_chunks() {
-			self.bitfield.reset();
-			self.bitfield.mark_some(&completed_chunks);
+			if let Some(ref mut bitfield) = self.bitfield {
+				bitfield.reset();
+				bitfield.mark_some(&completed_chunks);
+			}
 			self.completed_chunks = HashSet::from_iter(completed_chunks);
 		}
 
 		trace!(
 			target: "snapshot",
 			"Snapshot is now initialized with {} completed chunks.",
-			self.bitfield.num_available(),
+			self.done_chunks(),
 		);
 
 		self.initialized = true;
@@ -79,7 +81,7 @@ impl Snapshot {
 
 	/// Clear everything.
 	pub fn clear(&mut self) {
-		self.bitfield = Bitfield::new();
+		self.bitfield = None;
 		self.pending_state_chunks.clear();
 		self.pending_block_chunks.clear();
 		self.downloading_chunks.clear();
@@ -96,7 +98,7 @@ impl Snapshot {
 	/// Reset collection for a manifest RLP
 	pub fn reset_to(&mut self, manifest: &ManifestData, hash: &H256) {
 		self.clear();
-		self.bitfield.reset_to(manifest);
+		self.bitfield = Some(Bitfield::new_from_manifest(manifest));
 		self.pending_state_chunks = manifest.state_hashes.clone();
 		self.pending_block_chunks = manifest.block_hashes.clone();
 		self.snapshot_hash = Some(hash.clone());
@@ -112,12 +114,12 @@ impl Snapshot {
 		self.downloading_chunks.remove(&hash);
 		if self.pending_block_chunks.iter().any(|h| h == &hash) {
 			self.completed_chunks.insert(hash.clone());
-			self.bitfield.mark_one(&hash);
+			self.bitfield.as_mut().map(|bitfield| bitfield.mark_one(&hash));
 			return Ok(ChunkType::Block(hash));
 		}
 		if self.pending_state_chunks.iter().any(|h| h == &hash) {
 			self.completed_chunks.insert(hash.clone());
-			self.bitfield.mark_one(&hash);
+			self.bitfield.as_mut().map(|bitfield| bitfield.mark_one(&hash));
 			return Ok(ChunkType::State(hash));
 		}
 		trace!(target: "sync", "Ignored unknown chunk: {:x}", hash);
@@ -127,23 +129,31 @@ impl Snapshot {
 	/// Find a random chunk to download
 	/// TODO: request block chunks first, then state chunks
 	pub fn needed_chunk(&mut self, peer: &PeerInfo) -> Option<H256> {
-		let all_chunks = self.all_chunks();
-		let avail_chunks: Vec<H256> = all_chunks.iter().enumerate()
-			.filter(|&(index, _)| peer.chunk_index_available(index))
-			.map(|(_, h)| *h)
-			.collect();
-		let avail_chunks: HashSet<H256> = HashSet::from_iter(avail_chunks);
+		// Get the available chunks from the peer
+		let avail_chunks: Option<HashSet<H256>> = peer.bitfield()
+			.map(|b| b.available_chunks())
+			.map(|chunks| HashSet::from_iter(chunks));
 
-		trace!(target: "warp", "Found {} available chunks from peer", avail_chunks.len());
+		if let Some(ref avail_chunks) = avail_chunks {
+			trace!(target: "warp", "Found {} available chunks from peer", avail_chunks.len());
+		} else {
+			trace!(target: "warp", "Peer has no bitfield ; assuming all chunks available");
+		}
 
 		// Find needed chunks, available from the peer,
 		// that we don't download yet
-		let chunks: Vec<H256> = self.bitfield.needed_chunks()
-			.iter()
-			.filter(|&h| !self.downloading_chunks.contains(h))
-			.filter(|&h| avail_chunks.contains(h))
-			.map(|h| *h)
-			.collect();
+		let chunks: Vec<H256> = if let Some(ref bitfield) = self.bitfield {
+			let needed_chunks = bitfield.needed_chunks();
+			let iter = needed_chunks
+				.iter()
+				.filter(|&h| !self.downloading_chunks.contains(h));
+
+			if let Some(avail_chunks) = avail_chunks {
+				iter.filter(|&h| avail_chunks.contains(h)).map(|h| *h).collect()
+			} else  {
+				iter.map(|h| *h).collect()
+			}
+		} else { vec![] };
 
 		// Get a random chunk
 		let chunk = thread_rng().choose(&chunks);
@@ -177,29 +187,21 @@ impl Snapshot {
 	}
 
 	pub fn done_chunks(&self) -> usize {
-		self.bitfield.num_available()
+		self.bitfield.as_ref().map_or(0, |bitfield| bitfield.num_available())
 	}
 
 	pub fn is_complete(&self) -> bool {
 		self.total_chunks() == self.done_chunks()
 	}
 
-	fn all_chunks(&self) -> Vec<H256> {
-		self.pending_block_chunks
-			.iter()
-			.chain(self.pending_state_chunks.iter())
-			.map(|h| *h)
-			.collect()
-	}
-
 	// The bitfield is represented as an array of
 	// 8-bits uints
-	pub fn bitfield(&self) -> Vec<u8> {
-		self.bitfield.as_raw()
+	pub fn bitfield(&self) -> Option<Vec<u8>> {
+		self.bitfield.as_ref().map(|bitfield| bitfield.as_raw())
 	}
 
-	pub fn bitfield_size(&self) -> usize {
-		self.bitfield.len()
+	pub fn bitfield_size(&self) -> Option<usize> {
+		self.bitfield.as_ref().map(|bitfield| bitfield.len())
 	}
 }
 

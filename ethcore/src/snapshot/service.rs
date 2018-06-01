@@ -422,6 +422,7 @@ impl Service {
 	/// Initialize the restoration synchronously.
 	/// The recover flag indicates whether to recover the restored snapshot.
 	pub fn init_restore(&self, manifest: ManifestData, recover: bool) -> Result<(), Error> {
+		trace!(target: "snapshot", "Initializing snapshot restoration with Manifest at {}", manifest.block_number);
 		let mut res = self.restoration.lock();
 
 		let rest_dir = self.restoration_dir();
@@ -682,7 +683,10 @@ impl SnapshotService for Service {
 		let restoration = self.restoration.lock();
 
 		match *restoration {
-			Some(ref restoration) => Some(restoration.manifest.clone()),
+			Some(ref restoration) => {
+				trace!(target: "snapshot", "Returning partial Manifest ; {:?}", restoration.manifest.block_number);
+				Some(restoration.manifest.clone())
+			},
 			None => None,
 		}
 	}

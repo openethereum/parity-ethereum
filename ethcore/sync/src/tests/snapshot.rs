@@ -26,6 +26,35 @@ use ethcore::client::EachBlockWith;
 use super::helpers::*;
 use {SyncConfig, WarpSync};
 
+pub struct TestSnapshot {
+	manifest: ManifestData,
+	chunks: HashMap<H256, Bytes>,
+}
+
+impl TestSnapshot {
+	pub fn new(num_chunks: usize, block_hash: H256, block_number: BlockNumber) -> TestSnapshot {
+		let num_state_chunks = num_chunks / 2;
+		let num_block_chunks = num_chunks - num_state_chunks;
+		let state_chunks: Vec<Bytes> = (0..num_state_chunks).map(|_| H256::random().to_vec()).collect();
+		let block_chunks: Vec<Bytes> = (0..num_block_chunks).map(|_| H256::random().to_vec()).collect();
+		let manifest = ManifestData {
+			version: 2,
+			state_hashes: state_chunks.iter().map(|data| keccak(data)).collect(),
+			block_hashes: block_chunks.iter().map(|data| keccak(data)).collect(),
+			state_root: H256::new(),
+			block_number: block_number,
+			block_hash: block_hash,
+		};
+		let mut chunks: HashMap<H256, Bytes> = state_chunks.into_iter().map(|data| (keccak(&data), data)).collect();
+		chunks.extend(block_chunks.into_iter().map(|data| (keccak(&data), data)));
+
+		TestSnapshot {
+			manifest,
+			chunks,
+		}
+	}
+}
+
 pub struct TestSnapshotService {
 	manifest: Option<ManifestData>,
 	chunks: HashMap<H256, Bytes>,
@@ -46,24 +75,10 @@ impl TestSnapshotService {
 		}
 	}
 
-	pub fn new_with_snapshot(num_chunks: usize, block_hash: H256, block_number: BlockNumber) -> TestSnapshotService {
-		let num_state_chunks = num_chunks / 2;
-		let num_block_chunks = num_chunks - num_state_chunks;
-		let state_chunks: Vec<Bytes> = (0..num_state_chunks).map(|_| H256::random().to_vec()).collect();
-		let block_chunks: Vec<Bytes> = (0..num_block_chunks).map(|_| H256::random().to_vec()).collect();
-		let manifest = ManifestData {
-			version: 2,
-			state_hashes: state_chunks.iter().map(|data| keccak(data)).collect(),
-			block_hashes: block_chunks.iter().map(|data| keccak(data)).collect(),
-			state_root: H256::new(),
-			block_number: block_number,
-			block_hash: block_hash,
-		};
-		let mut chunks: HashMap<H256, Bytes> = state_chunks.into_iter().map(|data| (keccak(&data), data)).collect();
-		chunks.extend(block_chunks.into_iter().map(|data| (keccak(&data), data)));
+	pub fn new_with_snapshot(snapshot: &TestSnapshot) -> TestSnapshotService {
 		TestSnapshotService {
-			manifest: Some(manifest),
-			chunks: chunks,
+			manifest: Some(snapshot.manifest.clone()),
+			chunks: snapshot.chunks.clone(),
 			restoration_manifest: Mutex::new(None),
 			state_restoration_chunks: Mutex::new(HashMap::new()),
 			block_restoration_chunks: Mutex::new(HashMap::new()),
@@ -150,16 +165,19 @@ impl SnapshotService for TestSnapshotService {
 #[test]
 fn snapshot_sync() {
 	::env_logger::init().ok();
+	let num_peers = 5;
 	let mut config = SyncConfig::default();
 	config.warp_sync = WarpSync::Enabled;
-	let snapshot_service = Arc::new(TestSnapshotService::new_with_snapshot(16, H256::new(), 500000));
-	let mut net = TestNet::new_with_snapshot_service(5, config, snapshot_service);
-	for i in 0..4 {
-		// net.peer_mut(i).snapshot_service = snapshot_service.clone();
-		net.peer(i).chain.add_blocks(1, EachBlockWith::Nothing);
+	let mut net = TestNet::new_with_config(num_peers, config);
+	let snapshot = TestSnapshot::new(16, H256::new(), 30_050);
+	for i in 0..(num_peers-1) {
+		// The first peers needs to have at least `snapshot_block - 30_000` blocks
+		// so that they don't try to sync a snapshot with the other peers
+		net.peer_mut(i).snapshot_service = Arc::new(TestSnapshotService::new_with_snapshot(&snapshot));
+		net.peer(i).chain.add_blocks(60, EachBlockWith::Nothing);
 	}
 	net.sync_steps(50);
-	assert_eq!(net.peer(4).snapshot_service.state_restoration_chunks.lock().len(), net.peer(0).snapshot_service.manifest.as_ref().unwrap().state_hashes.len());
-	assert_eq!(net.peer(4).snapshot_service.block_restoration_chunks.lock().len(), net.peer(0).snapshot_service.manifest.as_ref().unwrap().block_hashes.len());
+	assert_eq!(net.peer(num_peers-1).snapshot_service.state_restoration_chunks.lock().len(), net.peer(0).snapshot_service.manifest.as_ref().unwrap().state_hashes.len());
+	assert_eq!(net.peer(num_peers-1).snapshot_service.block_restoration_chunks.lock().len(), net.peer(0).snapshot_service.manifest.as_ref().unwrap().block_hashes.len());
 }
 
