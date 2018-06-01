@@ -27,7 +27,7 @@ use rayon::prelude::*;
 use transaction;
 use txpool::{self, Verifier};
 
-use pool::{self, scoring, verifier, client, ready, listener, PrioritizationStrategy};
+use pool::{self, scoring, verifier, client, ready, listener, PrioritizationStrategy, PendingOrdering};
 use pool::local_transactions::LocalTransactionsList;
 
 type Listener = (LocalTransactionsList, (listener::Notifier, listener::Logger));
@@ -75,6 +75,7 @@ struct CachedPending {
 	nonce_cap: Option<U256>,
 	has_local_pending: bool,
 	pending: Option<Vec<Arc<pool::VerifiedTransaction>>>,
+	max_len: usize,
 }
 
 impl CachedPending {
@@ -86,6 +87,7 @@ impl CachedPending {
 			has_local_pending: false,
 			pending: None,
 			nonce_cap: None,
+			max_len: 0,
 		}
 	}
 
@@ -100,6 +102,7 @@ impl CachedPending {
 		block_number: u64,
 		current_timestamp: u64,
 		nonce_cap: Option<&U256>,
+		max_len: usize,
 	) -> Option<Vec<Arc<pool::VerifiedTransaction>>> {
 		// First check if we have anything in cache.
 		let pending = self.pending.as_ref()?;
@@ -124,7 +127,12 @@ impl CachedPending {
 			return None;
 		}
 
-		Some(pending.clone())
+		// It's fine to just take a smaller subset, but not other way around.
+		if max_len > self.max_len {
+			return None;
+		}
+
+		Some(pending.iter().take(max_len).cloned().collect())
 	}
 }
 
@@ -198,10 +206,10 @@ impl TransactionQueue {
 		results
 	}
 
-	/// Returns all transactions in the queue ordered by priority.
+	/// Returns all transactions in the queue without explicit ordering.
 	pub fn all_transactions(&self) -> Vec<Arc<pool::VerifiedTransaction>> {
 		let ready = |_tx: &pool::VerifiedTransaction| txpool::Readiness::Ready;
-		self.pool.read().unordered_transactions(ready).collect()
+		self.pool.read().unordered_pending(ready).collect()
 	}
 
 	/// Returns current pending transactions ordered by priority.
@@ -215,21 +223,32 @@ impl TransactionQueue {
 		block_number: u64,
 		current_timestamp: u64,
 		nonce_cap: Option<U256>,
+		max_len: usize,
+		ordering: PendingOrdering,
 	) -> Vec<Arc<pool::VerifiedTransaction>> where
 		C: client::NonceClient,
 	{
 
-		if let Some(pending) = self.cached_pending.read().pending(block_number, current_timestamp, nonce_cap.as_ref()) {
+		if let Some(pending) = self.cached_pending.read().pending(block_number, current_timestamp, nonce_cap.as_ref(), max_len) {
 			return pending;
 		}
 
 		// Double check after acquiring write lock
 		let mut cached_pending = self.cached_pending.write();
-		if let Some(pending) = cached_pending.pending(block_number, current_timestamp, nonce_cap.as_ref()) {
+		if let Some(pending) = cached_pending.pending(block_number, current_timestamp, nonce_cap.as_ref(), max_len) {
 			return pending;
 		}
 
-		let pending: Vec<_> = self.collect_pending(client, block_number, current_timestamp, nonce_cap, |i| i.collect());
+		// In case we don't have a cached set, but we don't care about order
+		// just return the unordered set.
+		if let PendingOrdering::Unordered = ordering {
+			let ready = Self::ready(client, block_number, current_timestamp, nonce_cap);
+			return self.pool.read().unordered_pending(ready).take(max_len).collect();
+		}
+
+		let pending: Vec<_> = self.collect_pending(client, block_number, current_timestamp, nonce_cap, |i| {
+			i.take(max_len).collect()
+		});
 
 		*cached_pending = CachedPending {
 			block_number,
@@ -237,6 +256,7 @@ impl TransactionQueue {
 			nonce_cap,
 			has_local_pending: self.has_local_pending_transactions(),
 			pending: Some(pending.clone()),
+			max_len,
 		};
 
 		pending
@@ -262,14 +282,25 @@ impl TransactionQueue {
 			Listener,
 		>) -> T,
 	{
+		debug!(target: "txqueue", "Re-computing pending set for block: {}", block_number);
+		let ready = Self::ready(client, block_number, current_timestamp, nonce_cap);
+		collect(self.pool.read().pending(ready))
+	}
+
+	fn ready<C>(
+		client: C,
+		block_number: u64,
+		current_timestamp: u64,
+		nonce_cap: Option<U256>,
+	) -> (ready::Condition, ready::State<C>) where
+		C: client::NonceClient,
+	{
 		let pending_readiness = ready::Condition::new(block_number, current_timestamp);
 		// don't mark any transactions as stale at this point.
 		let stale_id = None;
 		let state_readiness = ready::State::new(client, stale_id, nonce_cap);
 
-		let ready = (pending_readiness, state_readiness);
-
-		collect(self.pool.read().pending(ready))
+		(pending_readiness, state_readiness)
 	}
 
 	/// Culls all stalled transactions from the pool.

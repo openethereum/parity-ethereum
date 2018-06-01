@@ -175,7 +175,7 @@ impl<C> ChainNotificationHandler<C> {
 	}
 
 	/// Notify all subscribers about new transaction hashes.
-	pub fn new_transactions(&self, hashes: &[H256]) {
+	pub fn notify_new_transactions(&self, hashes: &[H256]) {
 		for subscriber in self.transactions_subscribers.read().values() {
 			for hash in hashes {
 				Self::notify(&self.remote, subscriber, pubsub::Result::TransactionHash((*hash).into()));

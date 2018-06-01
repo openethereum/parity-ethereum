@@ -377,6 +377,8 @@ impl Miner {
 			chain_info.best_block_number,
 			chain_info.best_block_timestamp,
 			nonce_cap,
+			usize::max_value(),
+			miner::PendingOrdering::Priority,
 		);
 
 		let took_ms = |elapsed: &Duration| {
@@ -807,20 +809,26 @@ impl miner::MinerService for Miner {
 		self.transaction_queue.all_transactions()
 	}
 
-	fn ready_transactions<C>(&self, chain: &C, max_len: usize) -> Vec<Arc<VerifiedTransaction>> where
+	fn ready_transactions<C>(&self, chain: &C, max_len: usize, ordering: miner::PendingOrdering)
+		-> Vec<Arc<VerifiedTransaction>>
+	where
 		C: ChainInfo + Nonce + Sync,
 	{
 		let chain_info = chain.chain_info();
 
 		let from_queue = || {
+			// We propagate transactions over the nonce cap.
+			// The mechanism is only to limit number of transactions in pending block
+			// those transactions are valid and will just be ready to be included in next block.
+			let nonce_cap = None;
+
 			self.transaction_queue.pending(
 				CachedNonceClient::new(chain, &self.nonce_cache),
 				chain_info.best_block_number,
 				chain_info.best_block_timestamp,
-				// We propagate transactions over the nonce cap.
-				// The mechanism is only to limit number of transactions in pending block
-				// those transactions are valid and will just be ready to be included in next block.
-				None,
+				nonce_cap,
+				max_len,
+				ordering
 			)
 		};
 
@@ -830,6 +838,7 @@ impl miner::MinerService for Miner {
 					.iter()
 					.map(|signed| pool::VerifiedTransaction::from_pending_block_transaction(signed.clone()))
 					.map(Arc::new)
+					.take(max_len)
 					.collect()
 			}, chain_info.best_block_number)
 		};

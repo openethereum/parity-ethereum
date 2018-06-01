@@ -45,6 +45,15 @@ pub enum PrioritizationStrategy {
 	GasPriceOnly,
 }
 
+/// Transaction ordering when requesting pending set.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum PendingOrdering {
+	/// Get pending transactions ordered by their priority (potentially expensive)
+	Priority,
+	/// Get pending transactions without any care of particular ordering (cheaper).
+	Unordered,
+}
+
 /// Transaction priority.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub(crate) enum Priority {

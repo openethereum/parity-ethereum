@@ -51,6 +51,7 @@ impl Notifier {
 	/// Notify listeners about all currently pending transactions.
 	pub fn notify(&mut self) {
 		for l in &self.listeners {
+			println!("Notifying about transactions: {:?}", self.pending);
 			(l)(&self.pending);
 		}
 

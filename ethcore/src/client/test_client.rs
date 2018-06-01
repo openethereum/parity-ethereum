@@ -48,7 +48,7 @@ use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
 use error::ImportResult;
 use vm::Schedule;
-use miner::{Miner, MinerService};
+use miner::{self, Miner, MinerService};
 use spec::Spec;
 use types::basic_account::BasicAccount;
 use types::mode::Mode;
@@ -809,7 +809,7 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>> {
-		self.miner.ready_transactions(self, max_len)
+		self.miner.ready_transactions(self, max_len, miner::PendingOrdering::Priority)
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> { None }
