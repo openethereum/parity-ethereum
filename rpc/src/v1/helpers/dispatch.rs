@@ -420,7 +420,6 @@ impl Dispatcher for LightDispatcher {
 	}
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 fn sign_transaction(
 	accounts: &AccountProvider,
 	filled: FilledTransactionRequest,
@@ -437,35 +436,12 @@ fn sign_transaction(
 		data: filled.data,
 	};
 
-	if accounts.is_hardware_address(&filled.from) {
-		return hardware_signature(accounts, filled.from, t, chain_id).map(WithToken::No)
+	#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
+	{
+		if accounts.is_hardware_address(&filled.from) {
+			return hardware_signature(accounts, filled.from, t, chain_id).map(WithToken::No)
+		}
 	}
-
-	let hash = t.hash(chain_id);
-	let signature = signature(accounts, filled.from, hash, password)?;
-
-	Ok(signature.map(|sig| {
-		SignedTransaction::new(t.with_signature(sig, chain_id))
-			.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
-	}))
-}
-
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
-fn sign_transaction(
-	accounts: &AccountProvider,
-	filled: FilledTransactionRequest,
-	chain_id: Option<u64>,
-	nonce: U256,
-	password: SignWith,
-) -> Result<WithToken<SignedTransaction>> {
-	let t = Transaction {
-		nonce: nonce,
-		action: filled.to.map_or(Action::Create, Action::Call),
-		gas: filled.gas,
-		gas_price: filled.gas_price,
-		value: filled.value,
-		data: filled.data,
-	};
 
 	let hash = t.hash(chain_id);
 	let signature = signature(accounts, filled.from, hash, password)?;
@@ -676,7 +652,6 @@ impl<T: Debug> From<(T, Option<AccountToken>)> for WithToken<T> {
 }
 
 /// Execute a confirmation payload.
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 pub fn execute<D: Dispatcher + 'static>(
 	dispatcher: D,
 	accounts: Arc<AccountProvider>,
@@ -726,60 +701,12 @@ pub fn execute<D: Dispatcher + 'static>(
 			Box::new(future::done(res))
 		},
 		ConfirmationPayload::Decrypt(address, data) => {
-			if accounts.is_hardware_address(&address) {
-				return Box::new(future::err(errors::unsupported("Decrypting via hardware wallets is not supported.", None)));
+			#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
+			{
+				if accounts.is_hardware_address(&address) {
+					return Box::new(future::err(errors::unsupported("Decrypting via hardware wallets is not supported.", None)));
+				}
 			}
-
-			let res = decrypt(&accounts, address, data, pass)
-				.map(|result| result
-					.map(RpcBytes)
-					.map(ConfirmationResponse::Decrypt)
-				);
-			Box::new(future::done(res))
-		},
-	}
-}
-
-/// Execute a confirmation payload without a hardware wallet
-#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
-pub fn execute<D: Dispatcher + 'static>(
-	dispatcher: D,
-	accounts: Arc<AccountProvider>,
-	payload: ConfirmationPayload,
-	pass: SignWith
-) -> BoxFuture<WithToken<ConfirmationResponse>> {
-	match payload {
-		ConfirmationPayload::SendTransaction(request) => {
-			let condition = request.condition.clone().map(Into::into);
-			Box::new(dispatcher.sign(accounts, request, pass)
-				.map(move |v| v.map(move |tx| PendingTransaction::new(tx, condition)))
-				.map(WithToken::into_tuple)
-				.map(|(tx, token)| (tx, token, dispatcher))
-				.and_then(|(tx, tok, dispatcher)| {
-					dispatcher.dispatch_transaction(tx)
-						.map(RpcH256::from)
-						.map(ConfirmationResponse::SendTransaction)
-						.map(move |h| WithToken::from((h, tok)))
-				}))
-		},
-		ConfirmationPayload::SignTransaction(request) => {
-			Box::new(dispatcher.sign(accounts, request, pass)
-				.map(move |result| result
-					.map(move |tx| dispatcher.enrich(tx))
-					.map(ConfirmationResponse::SignTransaction)
-				))
-		},
-		ConfirmationPayload::EthSignMessage(address, data) => {
-			let hash = eth_data_hash(data);
-			let res = signature(&accounts, address, hash, pass)
-				.map(|result| result
-					.map(|rsv| H520(rsv.into_electrum()))
-					.map(RpcH520::from)
-					.map(ConfirmationResponse::Signature)
-				);
-			Box::new(future::done(res))
-		},
-		ConfirmationPayload::Decrypt(address, data) => {
 			let res = decrypt(&accounts, address, data, pass)
 				.map(|result| result
 					.map(RpcBytes)

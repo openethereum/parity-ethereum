@@ -137,7 +137,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		)
 	}
 
-	#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
+    #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
 		let info = self.accounts.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		Ok(info
@@ -147,10 +147,10 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		)
 	}
 	 
-	#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
-	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
-		Err(Error::parse_error())
-	}
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
+    fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
+        Err(Error::parse_error())
+    }
 
 	#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {

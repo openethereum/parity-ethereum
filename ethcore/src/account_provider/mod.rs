@@ -18,20 +18,20 @@
 
 mod stores;
 
-use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
-
-use std::fmt;
-use std::collections::{HashMap, HashSet};
-use std::time::{Instant, Duration};
-use parking_lot::RwLock;
 use ethstore::{
 	SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
 };
+use ethjson::misc::AccountMeta;
 use ethstore::accounts_dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Password, Random, Generator};
 use ethjson::misc::AccountMeta;
+use parking_lot::RwLock;
 use self::hw::*;
+use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
+use std::collections::{HashMap, HashSet};
+use std::fmt;
+use std::time::{Instant, Duration};
 
 pub use ethstore::ethkey::Signature;
 pub use ethstore::{Derivation, IndexDerivation, KeyFile};
@@ -47,7 +47,11 @@ mod hw {
 	use super::fmt;
 
 	#[derive(Debug)]
-	pub enum HardwareError {}
+	/// `ErrorType` for devices with no `hardware wallet`
+	pub enum HardwareError {
+        NoWallet,
+    }
+	/// `HardwareWalletManager` for devices with no `hardware wallet`
 	pub struct HardwareWalletManager;
 
 	impl fmt::Display for HardwareError {
@@ -56,7 +60,6 @@ mod hw {
 		}
 	}
 }
-
 
 /// Type of unlock.
 #[derive(Clone, PartialEq)]
@@ -185,17 +188,19 @@ impl Default for AccountProviderSettings {
 
 impl AccountProvider {
 	/// Creates new account provider.
-	#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 	pub fn new(sstore: Box<SecretStore>, settings: AccountProviderSettings) -> Self {
 		let mut hardware_store = None;
 		
-		if settings.enable_hardware_wallets {
-			match HardwareWalletManager::new() {
-				Ok(manager) => {
-					manager.set_key_path(if settings.hardware_wallet_classic_key { KeyPath::EthereumClassic } else { KeyPath::Ethereum });
-					hardware_store = Some(manager)
-				},
-				Err(e) => debug!("Error initializing hardware wallets: {}", e),
+		#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
+		{
+			if settings.enable_hardware_wallets {
+				match HardwareWalletManager::new() {
+					Ok(manager) => {
+						manager.set_key_path(if settings.hardware_wallet_classic_key { KeyPath::EthereumClassic } else { KeyPath::Ethereum });
+						hardware_store = Some(manager)
+					},
+					Err(e) => debug!("Error initializing hardware wallets: {}", e),
+				}
 			}
 		}
 
@@ -220,34 +225,6 @@ impl AccountProvider {
 			sstore: sstore,
 			transient_sstore: transient_sstore(),
 			hardware_store: hardware_store,
-			unlock_keep_secret: settings.unlock_keep_secret,
-			blacklisted_accounts: settings.blacklisted_accounts,
-		}
-	}
-
-	/// Creates new account provider without a hardware-wallet
-	#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android")))]
-	pub fn new(sstore: Box<SecretStore>, settings: AccountProviderSettings) -> Self {
-		if let Ok(accounts) = sstore.accounts() {
-			for account in accounts.into_iter().filter(|a| settings.blacklisted_accounts.contains(&a.address)) {
-				warn!("Local Account {} has a blacklisted (known to be weak) address and will be ignored", account.address);
-			}
-		}
-
-		// Remove blacklisted accounts from address book.
-		let mut address_book = AddressBook::new(&sstore.local_path());
-		for addr in &settings.blacklisted_accounts {
-			address_book.remove(*addr);
-		}
-
-		AccountProvider {
-			unlocked_secrets: RwLock::new(HashMap::new()),
-			unlocked: RwLock::new(HashMap::new()),
-			address_book: RwLock::new(address_book),
-			dapps_settings: RwLock::new(DappsSettingsStore::new(&sstore.local_path())),
-			sstore: sstore,
-			transient_sstore: transient_sstore(),
-			hardware_store: None,
 			unlock_keep_secret: settings.unlock_keep_secret,
 			blacklisted_accounts: settings.blacklisted_accounts,
 		}
@@ -340,12 +317,12 @@ impl AccountProvider {
 	}
 
 	/// Returns addresses of hardware accounts.
-	#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
+    #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 	pub fn hardware_accounts(&self) -> Result<Vec<Address>, Error> {
-		let accounts = self.hardware_store.as_ref().map_or(Vec::new(), |h| h.list_wallets());
+		let accounts = self.hardware_store.as_ref().map_or_else(|| Vec::new(), |h| h.list_wallets());
 		Ok(accounts.into_iter().map(|a| a.address).collect())
 	}
-
+    
 	/// Get a list of paths to locked hardware wallets
 	#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 	pub fn locked_hardware_accounts(&self) -> Result<Vec<String>, SignError> {
@@ -355,7 +332,7 @@ impl AccountProvider {
 			Some(Ok(s)) => Ok(s),
 		}
 	}
-
+	
 	/// Provide a pin to a locked hardware wallet on USB path to unlock it
 	#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows", target_os = "android"))]
 	pub fn hardware_pin_matrix_ack(&self, path: &str, pin: &str) -> Result<bool, SignError> {
