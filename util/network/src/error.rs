@@ -142,13 +142,13 @@ error_chain! {
 			display("Packet is too large"),
 		}
 
-		#[doc = "We've reached system resource limits for this process"]
+		#[doc = "Reached system resource limits for this process"]
 		ProcessTooManyFiles {
 			description("Too many open files in process."),
 			display("Too many open files in this process. Check your resource limits and restart parity"),
 		}
 
-		#[doc = "We've reached system wide resource limits"]
+		#[doc = "Reached system wide resource limits"]
 		SystemTooManyFiles {
 			description("Too many open files on system."),
 			display("Too many open files on system. Consider closing some processes/release some file handlers or increas the system-wide resource limits and restart parity."),
@@ -157,13 +157,13 @@ error_chain! {
 		#[doc = "An unknown IO error occurred."]
 		Io(err: io::Error) {
 			description("IO Error"),
-			display("We've encoutered an IO Error: {:}", err),
+			display("Unexpected IO error: {}", err),
 		}
 	}
 }
 
-impl From<::std::io::Error> for Error {
-	fn from(err: ::std::io::Error) -> Self {
+impl From<io::Error> for Error {
+	fn from(err: io::Error) -> Self {
 		match err.raw_os_error() {
 			Some(ENFILE) => ErrorKind::ProcessTooManyFiles.into(),
 			Some(EMFILE) => ErrorKind::SystemTooManyFiles.into(),
