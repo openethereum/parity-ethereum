@@ -16,3 +16,7 @@ ipnetwork = "0.12.6"
 rlp = { path = "../rlp" }
 libc = "0.2.7"
 snappy = { git = "https://github.com/paritytech/rust-snappy" }
+
+
+[dev-dependencies]
+assert_matches = "1.2"

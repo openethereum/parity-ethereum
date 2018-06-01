@@ -224,27 +224,21 @@ fn test_errors() {
 fn test_io_errors() {
 	use libc::{EMFILE, ENFILE};
 
-	let en_file_error = io::Error::from_raw_os_error(ENFILE);
+	assert_matches!(
+		<Error as From<io::Error>>::from(
+			io::Error::from_raw_os_error(ENFILE)
+			).kind(),
+		ErrorKind::ProcessTooManyFiles);
 
-	match *<Error as From<io::Error>>::from(en_file_error).kind() {
-		ErrorKind::ProcessTooManyFiles => {},
-		_ => panic!("Unexpected error"),
-	}
+	assert_matches!(
+		<Error as From<io::Error>>::from(
+			io::Error::from_raw_os_error(EMFILE)
+			).kind(),
+		ErrorKind::SystemTooManyFiles);
 
-
-	let em_file_error = io::Error::from_raw_os_error(EMFILE);
-
-	match *<Error as From<io::Error>>::from(em_file_error).kind() {
-		ErrorKind::SystemTooManyFiles => {},
-		_ => panic!("Unexpected error"),
-	}
-
-
-	let usual_error = io::Error::from_raw_os_error(0);
-
-	match *<Error as From<io::Error>>::from(usual_error).kind() {
-		ErrorKind::Io(_) => {},
-		_ => panic!("Unexpected error"),
-	}
-
+	assert_matches!(
+		<Error as From<io::Error>>::from(
+			io::Error::from_raw_os_error(0)
+			).kind(),
+		ErrorKind::Io(_));
 }

@@ -703,6 +703,7 @@ dependencies = [
 name = "ethcore-network"
 version = "1.12.0"
 dependencies = [
+ "assert_matches 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-crypto 0.1.0",
  "ethcore-io 1.12.0",

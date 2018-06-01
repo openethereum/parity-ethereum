@@ -25,6 +25,9 @@ extern crate ipnetwork;
 extern crate snappy;
 extern crate libc;
 
+#[cfg(test)] #[macro_use]
+extern crate assert_matches;
+
 #[macro_use]
 extern crate error_chain;
 
