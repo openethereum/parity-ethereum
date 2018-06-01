@@ -21,6 +21,7 @@ use spec::Genesis;
 use ethjson;
 use miner::Miner;
 use io::IoChannel;
+use test_helpers;
 
 pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 	::ethcore_logger::init_log();
@@ -57,7 +58,7 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 			};
 
 			{
-				let db = Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
+				let db = test_helpers::new_db();
 				let mut config = ClientConfig::default();
 				config.history = 8;
 				let client = Client::new(
