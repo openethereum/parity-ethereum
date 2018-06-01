@@ -19,6 +19,8 @@ use network::{NetworkContext, PeerId, ProtocolId, NetworkIoMessage};
 use host::Host;
 use io::*;
 use parking_lot::RwLock;
+use std::net::SocketAddr;
+use std::ops::Range;
 use std::sync::Arc;
 use ansi_term::Colour;
 use network::ConnectionFilter;
@@ -92,9 +94,13 @@ impl NetworkService {
 		&self.io_service
 	}
 
-	/// Returns network configuration.
-	pub fn config(&self) -> &NetworkConfiguration {
-		&self.config
+	/// Returns the number of peers allowed.
+	///
+	/// Keep in mind that `range.end` is *exclusive*.
+	pub fn num_peers_range(&self) -> Range<u32> {
+		let start = self.config.min_peers;
+		let end = self.config.max_peers + 1;
+		start .. end
 	}
 
 	/// Returns external url if available.
@@ -109,17 +115,23 @@ impl NetworkService {
 		host.as_ref().map(|h| h.local_url())
 	}
 
-	/// Start network IO
-	pub fn start(&self) -> Result<(), Error> {
+	/// Start network IO.
+	///
+	/// In case of error, also returns the listening address for better error reporting.
+	pub fn start(&self) -> Result<(), (Error, Option<SocketAddr>)> {
 		let mut host = self.host.write();
+		let listen_addr = self.config.listen_address.clone();
 		if host.is_none() {
-			let h = Arc::new(Host::new(self.config.clone(), self.filter.clone())?);
-			self.io_service.register_handler(h.clone())?;
+			let h = Arc::new(Host::new(self.config.clone(), self.filter.clone())
+				.map_err(|err| (err.into(), listen_addr))?);
+			self.io_service.register_handler(h.clone())
+				.map_err(|err| (err.into(), listen_addr))?;
 			*host = Some(h);
 		}
 
 		if self.host_handler.public_url.read().is_none() {
-			self.io_service.register_handler(self.host_handler.clone())?;
+			self.io_service.register_handler(self.host_handler.clone())
+				.map_err(|err| (err.into(), listen_addr))?;
 		}
 
 		Ok(())

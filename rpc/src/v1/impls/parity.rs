@@ -212,13 +212,14 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn net_peers(&self) -> Result<Peers> {
 		let sync_status = self.sync.status();
-		let net_config = self.net.network_config();
+		let num_peers_range = self.net.num_peers_range();
+		debug_assert!(num_peers_range.end > num_peers_range.start);
 		let peers = self.sync.peers().into_iter().map(Into::into).collect();
 
 		Ok(Peers {
 			active: sync_status.num_active_peers,
 			connected: sync_status.num_peers,
-			max: sync_status.current_max_peers(net_config.min_peers, net_config.max_peers),
+			max: sync_status.current_max_peers(num_peers_range.start, num_peers_range.end - 1),
 			peers: peers
 		})
 	}

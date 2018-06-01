@@ -17,6 +17,7 @@
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::io;
+use std::ops::Range;
 use std::time::Duration;
 use bytes::Bytes;
 use devp2p::NetworkService;
@@ -452,11 +453,18 @@ impl ChainNotify for EthSync {
 	}
 
 	fn start(&self) {
-		match self.network.start().map_err(Into::into) {
-			Err(ErrorKind::Io(ref e)) if e.kind() == io::ErrorKind::AddrInUse => warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set.")),
-			Err(err) => warn!("Error starting network: {}", err),
+		match self.network.start() {
+			Err((err, listen_address)) => {
+				match err.into() {
+					ErrorKind::Io(ref e) if e.kind() == io::ErrorKind::AddrInUse => {
+						warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", listen_address.expect("Listen address is not set."))
+					},
+					err => warn!("Error starting network: {}", err),
+				}
+			},
 			_ => {},
 		}
+
 		self.network.register_protocol(self.eth_handler.clone(), self.subprotocol_name, &[ETH_PROTOCOL_VERSION_62, ETH_PROTOCOL_VERSION_63])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 		// register the warp sync subprotocol
@@ -520,8 +528,10 @@ pub trait ManageNetwork : Send + Sync {
 	fn start_network(&self);
 	/// Stop network
 	fn stop_network(&self);
-	/// Query the current configuration of the network
-	fn network_config(&self) -> NetworkConfiguration;
+	/// Returns the minimum and maximum peers.
+	/// Note that `range.end` is *exclusive*.
+	// TODO: Range should be changed to RangeInclusive once stable (https://github.com/rust-lang/rust/pull/50758)
+	fn num_peers_range(&self) -> Range<u32>;
 	/// Get network context for protocol.
 	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext));
 }
@@ -561,8 +571,8 @@ impl ManageNetwork for EthSync {
 		self.stop();
 	}
 
-	fn network_config(&self) -> NetworkConfiguration {
-		NetworkConfiguration::from(self.network.config().clone())
+	fn num_peers_range(&self) -> Range<u32> {
+		self.network.num_peers_range()
 	}
 
 	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext)) {
@@ -815,11 +825,15 @@ impl ManageNetwork for LightSync {
 	}
 
 	fn start_network(&self) {
-		match self.network.start().map_err(Into::into) {
-			Err(ErrorKind::Io(ref e)) if e.kind() == io::ErrorKind::AddrInUse => {
-				warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set."))
-			}
-			Err(err) => warn!("Error starting network: {}", err),
+		match self.network.start() {
+			Err((err, listen_address)) => {
+				match err.into() {
+					ErrorKind::Io(ref e) if e.kind() == io::ErrorKind::AddrInUse => {
+						warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", listen_address.expect("Listen address is not set."))
+					},
+					err => warn!("Error starting network: {}", err),
+				}
+			},
 			_ => {},
 		}
 
@@ -836,8 +850,8 @@ impl ManageNetwork for LightSync {
 		self.network.stop();
 	}
 
-	fn network_config(&self) -> NetworkConfiguration {
-		NetworkConfiguration::from(self.network.config().clone())
+	fn num_peers_range(&self) -> Range<u32> {
+		self.network.num_peers_range()
 	}
 
 	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext)) {
@@ -848,12 +862,13 @@ impl ManageNetwork for LightSync {
 impl LightSyncProvider for LightSync {
 	fn peer_numbers(&self) -> PeerNumbers {
 		let (connected, active) = self.proto.peer_count();
-		let config = self.network_config();
+		let peers_range = self.num_peers_range();
+		debug_assert!(peers_range.end > peers_range.start);
 		PeerNumbers {
 			connected: connected,
 			active: active,
-			max: config.max_peers as usize,
-			min: config.min_peers as usize,
+			max: peers_range.end as usize - 1,
+			min: peers_range.start as usize,
 		}
 	}
 
