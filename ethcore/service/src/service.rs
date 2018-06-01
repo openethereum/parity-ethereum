@@ -259,8 +259,8 @@ mod tests {
 	use ethcore::miner::Miner;
 	use ethcore::spec::Spec;
 	use ethcore::db::NUM_COLUMNS;
-	use kvdb::Error;
-	use kvdb_rocksdb::{Database, DatabaseConfig, CompactionProfile};
+	use ethcore::test_helpers;
+	use kvdb_rocksdb::{DatabaseConfig, CompactionProfile};
 	use super::*;
 
 	use ethcore_private_tx;
@@ -278,24 +278,9 @@ mod tests {
 		client_db_config.compaction = CompactionProfile::auto(&client_path);
 		client_db_config.wal = client_config.db_wal;
 
-		let client_db = Arc::new(Database::open(
-			&client_db_config,
-			&client_path.to_str().expect("DB path could not be converted to string.")
-		).unwrap());
-
-		struct RestorationDBHandler {
-			config: DatabaseConfig,
-		}
-
-		impl KeyValueDBHandler for RestorationDBHandler {
-			fn open(&self, db_path: &Path) -> Result<Arc<KeyValueDB>, Error> {
-				Ok(Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?))
-			}
-		}
-
-		let restoration_db_handler = Box::new(RestorationDBHandler {
-			config: client_db_config,
-		});
+		let client_db_handler = test_helpers::restoration_db_handler(client_db_config.clone());
+		let client_db = client_db_handler.open(&client_path).unwrap();
+		let restoration_db_handler = test_helpers::restoration_db_handler(client_db_config);
 
 		let spec = Spec::new_test();
 		let service = ClientService::start(

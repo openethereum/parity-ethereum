@@ -16,13 +16,16 @@
 
 //! Set of different helpers for client tests
 
+use std::path::Path;
+use std::fs;
 use account_provider::AccountProvider;
 use ethereum_types::{H256, U256, Address};
 use block::{OpenBlock, Drain};
-use blockchain::{BlockChain, BlockChainDB, Config as BlockChainConfig, ExtrasInsert};
+use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler, Config as BlockChainConfig, ExtrasInsert};
 use bytes::Bytes;
 use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
 use ethkey::KeyPair;
+use error::Error;
 use evm::Factory as EvmFactory;
 use factory::Factories;
 use hash::keccak;
@@ -39,6 +42,7 @@ use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
 use blooms_db;
 use kvdb::KeyValueDB;
+use kvdb_rocksdb;
 use tempdir::TempDir;
 
 /// Creates test block with corresponding header
@@ -294,6 +298,53 @@ pub fn new_db() -> Arc<BlockChainDB> {
 	};
 
 	Arc::new(db)
+}
+
+/// Creates new instance of KeyValueDBHandler
+pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<BlockChainDBHandler> {
+	struct RestorationDBHandler {
+		config: kvdb_rocksdb::DatabaseConfig,
+	}
+
+	struct RestorationDB {
+		blooms: blooms_db::Database,
+		trace_blooms: blooms_db::Database,
+		key_value: Arc<KeyValueDB>,
+	}
+
+	impl BlockChainDB for RestorationDB {
+		fn key_value(&self) -> &Arc<KeyValueDB> {
+			&self.key_value
+		}
+
+		fn blooms(&self) -> &blooms_db::Database {
+			&self.blooms
+		}
+
+		fn trace_blooms(&self) -> &blooms_db::Database {
+			&self.trace_blooms
+		}
+	}
+
+	impl BlockChainDBHandler for RestorationDBHandler {
+		fn open(&self, db_path: &Path) -> Result<Arc<BlockChainDB>, Error> {
+			let key_value = Arc::new(kvdb_rocksdb::Database::open(&self.config, &db_path.to_string_lossy())?);
+			let blooms_path = db_path.join("blooms");
+			let trace_blooms_path = db_path.join("trace_blooms");
+			fs::create_dir(&blooms_path)?;
+			fs::create_dir(&trace_blooms_path)?;
+			let blooms = blooms_db::Database::open(blooms_path).unwrap();
+			let trace_blooms = blooms_db::Database::open(trace_blooms_path).unwrap();
+			let db = RestorationDB {
+				blooms,
+				trace_blooms,
+				key_value,
+			};
+			Ok(Arc::new(db))
+		}
+	}
+
+	Box::new(RestorationDBHandler { config })
 }
 
 /// Generates dummy blockchain with corresponding amount of blocks

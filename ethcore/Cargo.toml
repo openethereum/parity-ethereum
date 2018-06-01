@@ -68,10 +68,10 @@ triehash = { path = "../util/triehash" }
 unexpected = { path = "../util/unexpected" }
 journaldb = { path = "../util/journaldb" }
 tempdir = "0.3"
+kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 
 [dev-dependencies]
 trie-standardmap = { path = "../util/trie-standardmap" }
-kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 
 [features]
 # Display EVM debug traces.

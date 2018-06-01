@@ -120,12 +120,11 @@ mod tests {
 	use client::fetch;
 	use std::time::Duration;
 	use parking_lot::Mutex;
-	use kvdb_memorydb;
-	use ethcore::db::NUM_COLUMNS;
+	use ethcore::test_helpers;
 
 	#[test]
 	fn it_works() {
-		let db = Arc::new(kvdb_memorydb::create(NUM_COLUMNS.unwrap_or(0)));
+		let db = test_helpers::new_db();
 		let spec = Spec::new_test();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
 

@@ -112,7 +112,7 @@ impl From<IpcMode> for Mode {
 
 
 /// Client configuration. Includes configs for all sub-systems.
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct ClientConfig {
 	/// Block queue configuration.
 	pub queue: QueueConfig,

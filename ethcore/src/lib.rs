@@ -78,6 +78,9 @@ extern crate ethkey;
 extern crate hardware_wallet;
 extern crate hashdb;
 extern crate itertools;
+extern crate kvdb;
+extern crate kvdb_memorydb;
+extern crate kvdb_rocksdb;
 extern crate lru_cache;
 extern crate num_cpus;
 extern crate num;
@@ -94,8 +97,6 @@ extern crate patricia_trie as trie;
 extern crate triehash;
 extern crate ansi_term;
 extern crate unexpected;
-extern crate kvdb;
-extern crate kvdb_memorydb;
 extern crate util_error;
 extern crate snappy;
 
@@ -135,9 +136,6 @@ pub extern crate ethstore;
 #[macro_use]
 pub mod views;
 
-#[cfg(test)]
-extern crate kvdb_rocksdb;
-
 pub mod account_provider;
 pub mod block;
 pub mod client;
@@ -175,8 +173,6 @@ mod tests;
 #[cfg(test)]
 #[cfg(feature="json-tests")]
 mod json_tests;
-#[cfg(test)]
-mod test_helpers_internal;
 
 pub use types::*;
 pub use executive::contract_address;
