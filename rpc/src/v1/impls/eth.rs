@@ -170,12 +170,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 		}
 	}
 
-	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
-	/// set.
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		Ok(self.accounts.clone())
-	}
-
 	fn rich_block(&self, id: BlockNumberOrId, include_txs: bool) -> Result<Option<RichBlock>> {
 		let client = &self.client;
 
@@ -404,7 +398,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> EthClient<C, SN, S
 	}
 
 	fn dapp_accounts(&self, dapp: DappId) -> Result<Vec<H160>> {
-		let store = self.account_provider()?;
+		let store = self.accounts.clone();
 		store
 			.note_dapp_used(dapp.clone())
 			.and_then(|_| store.dapp_addresses(dapp))

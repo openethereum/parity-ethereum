@@ -43,15 +43,9 @@ impl SecretStoreClient {
 		}
 	}
 
-	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
-	/// set.
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		Ok(self.accounts.clone())
-	}
-
 	/// Decrypt public key using account' private key
 	fn decrypt_key(&self, address: H160, password: String, key: Bytes) -> Result<Vec<u8>> {
-		let store = self.account_provider()?;
+		let store = self.accounts.clone();
 		store.decrypt(address.into(), Some(password), &DEFAULT_MAC, &key.0)
 			.map_err(|e| errors::account("Could not decrypt key.", e))
 	}
@@ -65,7 +59,7 @@ impl SecretStoreClient {
 
 impl SecretStore for SecretStoreClient {
 	fn generate_document_key(&self, address: H160, password: String, server_key_public: H512) -> Result<EncryptedDocumentKey> {
-		let store = self.account_provider()?;
+		let store = self.accounts.clone();
 		let account_public = store.account_public(address.into(), &password)
 			.map_err(|e| errors::account("Could not read account public.", e))?;
 		generate_document_key(account_public, server_key_public.into())
@@ -96,7 +90,7 @@ impl SecretStore for SecretStoreClient {
 	}
 
 	fn sign_raw_hash(&self, address: H160, password: String, raw_hash: H256) -> Result<Bytes> {
-		let store = self.account_provider()?;
+		let store = self.accounts.clone();
 		store
 			.sign(address.into(), Some(password), raw_hash.into())
 			.map(|s| Bytes::new((*s).to_vec()))

@@ -105,12 +105,6 @@ impl<C, M, U> ParityClient<C, M, U> where
 			eip86_transition,
 		}
 	}
-
-	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
-	/// set.
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		Ok(self.accounts.clone())
-	}
 }
 
 impl<C, M, U, S> Parity for ParityClient<C, M, U> where
@@ -124,7 +118,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>> {
 		let dapp = dapp.unwrap_or_default();
 
-		let store = self.account_provider()?;
+		let store = self.accounts.clone();
 		let dapp_accounts = store
 			.note_dapp_used(dapp.clone().into())
 			.and_then(|_| store.dapp_addresses(dapp.into()))
@@ -144,7 +138,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
-		let store = self.account_provider()?;
+		let store = self.accounts.clone();
 		let info = store.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		Ok(info
 			.into_iter()
@@ -154,14 +148,14 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
-		let store = self.account_provider()?;
-		Ok(store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
+		let store = self.accounts.clone();
+		store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))
 	}
 
 	fn default_account(&self, meta: Self::Metadata) -> Result<H160> {
 		let dapp_id = meta.dapp_id();
 
-		Ok(self.account_provider()?
+		Ok(self.accounts.clone()
 			.dapp_default_address(dapp_id.into())
 			.map(Into::into)
 			.ok()

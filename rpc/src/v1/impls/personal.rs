@@ -55,16 +55,12 @@ impl<D: Dispatcher> PersonalClient<D> {
 			allow_perm_unlock,
 		}
 	}
-
-	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
-		Ok(self.accounts.clone())
-	}
 }
 
 impl<D: Dispatcher + 'static> PersonalClient<D> {
 	fn do_sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<(PendingTransaction, D)> {
 		let dispatcher = self.dispatcher.clone();
-		let accounts = try_bf!(self.account_provider());
+		let accounts = self.accounts.clone();
 
 		let default = match request.from.as_ref() {
 			Some(account) => Ok(account.clone().into()),
@@ -94,22 +90,19 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 	type Metadata = Metadata;
 
 	fn accounts(&self) -> Result<Vec<RpcH160>> {
-		let store = self.account_provider()?;
-		let accounts = store.accounts().map_err(|e| errors::account("Could not fetch accounts.", e))?;
+		let accounts = self.accounts.accounts().map_err(|e| errors::account("Could not fetch accounts.", e))?;
 		Ok(accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
 	}
 
 	fn new_account(&self, pass: String) -> Result<RpcH160> {
-		let store = self.account_provider()?;
-
-		store.new_account(&pass)
+		self.accounts.new_account(&pass)
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not create account.", e))
 	}
 
 	fn unlock_account(&self, account: RpcH160, account_pass: String, duration: Option<RpcU128>) -> Result<bool> {
 		let account: Address = account.into();
-		let store = self.account_provider()?;
+		let store = self.accounts.clone();
 		let duration = match duration {
 			None => None,
 			Some(duration) => {
@@ -141,7 +134,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 
 	fn sign(&self, data: RpcBytes, account: RpcH160, password: String) -> BoxFuture<RpcH520> {
 		let dispatcher = self.dispatcher.clone();
-		let accounts = try_bf!(self.account_provider());
+		let accounts = self.accounts.clone();
 
 		let payload = RpcConfirmationPayload::EthSignMessage((account.clone(), data).into());
 
