@@ -356,6 +356,14 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 	pub fn peer_mut(&mut self, i: usize) -> &mut EthPeer<TestBlockChainClient> {
 		Arc::get_mut(&mut self.peers[i]).expect("Arc never exposed externally")
 	}
+
+	pub fn set_peer(&mut self, i: usize, peer: Arc<EthPeer<TestBlockChainClient>>) {
+		self.peers[i] = peer;
+	}
+
+	pub fn raw_peer(&self, i: usize) -> Arc<EthPeer<TestBlockChainClient>> {
+		self.peers[i].clone()
+	}
 }
 
 impl TestNet<EthPeer<EthcoreClient>> {
