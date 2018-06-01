@@ -1,12 +1,9 @@
 use std::{io, fmt};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use ethbloom;
 
-use VERSION;
 use file::{File, FileIterator};
-use meta::{Meta, read_meta, save_meta};
-use pending::Pending;
 
 /// Bloom positions in database files.
 #[derive(Debug)]
@@ -40,12 +37,6 @@ pub struct Database {
 	///
 	/// Every bloom is an ethereum header bloom
 	bot: File,
-	/// Pending changes
-	///
-	/// Inserted blooms are always appended to this file
-	pending: Pending,
-	/// Datbase directory
-	path: PathBuf,
 }
 
 impl Database {
@@ -56,52 +47,27 @@ impl Database {
 			top: File::open(path.join("top.bdb"))?,
 			mid: File::open(path.join("mid.bdb"))?,
 			bot: File::open(path.join("bot.bdb"))?,
-			pending: Pending::open(path.join("pending.bdb"))?,
-			path: path.to_path_buf(),
 		};
-
-		match read_meta(path.join("meta.bdb")) {
-			Ok(meta) => {
-				let pending_hash = database.pending.hash()?;
-				if pending_hash != meta.pending_hash {
-					return Err(io::Error::new(io::ErrorKind::InvalidData, "Malformed pending file"));
-				}
-			},
-			Err(ref err) if err.kind() == io::ErrorKind::NotFound => {},
-			Err(err) => return Err(err),
-		}
 
 		Ok(database)
 	}
 
 	/// Insert consecutive blooms into database starting with positon from.
-	pub fn insert_blooms<'a, B>(&mut self, from: u64, blooms: impl Iterator<Item = B>) -> io::Result<()>
-	where ethbloom::BloomRef<'a>: From<B> {
-		for (index, bloom) in (from..).into_iter().zip(blooms) {
-			self.pending.append(index, bloom)?;
-		}
-		self.pending.flush()?;
-		self.flush_meta()
-	}
-
-	/// Flush pending blooms.
-	pub fn flush(&mut self) -> io::Result<()> {
-		for tuple in self.pending.iterator()? {
-			let (index, bloom) = tuple?;
+	pub fn insert_blooms<'a, I, B>(&mut self, from: u64, blooms: I) -> io::Result<()>
+	where ethbloom::BloomRef<'a>: From<B>, I: Iterator<Item = B> {
+		for (index, bloom) in (from..).into_iter().zip(blooms.map(Into::into)) {
 			let pos = Positions::from_index(index);
 
 			// constant forks make lead to increased ration of false positives in bloom filters
 			// since we do not rebuild top or mid level, but we should not be worried about that
 			// most of the time events at block n(a) occur also on block n(b) or n+1(b)
-			self.top.accrue_bloom(pos.top, &bloom)?;
-			self.mid.accrue_bloom(pos.mid, &bloom)?;
-			self.bot.replace_bloom(pos.bot, &bloom)?;
+			self.top.accrue_bloom::<ethbloom::BloomRef>(pos.top, bloom)?;
+			self.mid.accrue_bloom::<ethbloom::BloomRef>(pos.mid, bloom)?;
+			self.bot.replace_bloom::<ethbloom::BloomRef>(pos.bot, bloom)?;
 		}
 		self.top.flush()?;
 		self.mid.flush()?;
-		self.bot.flush()?;
-		self.pending.clear()?;
-		self.flush_meta()
+		self.bot.flush()
 	}
 
 	/// Returns an iterator yielding all indexes containing given bloom.
@@ -122,15 +88,6 @@ impl Database {
 		};
 
 		Ok(iter)
-	}
-
-	fn flush_meta(&self) -> io::Result<()> {
-		let meta = Meta {
-			version: VERSION,
-			pending_hash: self.pending.hash()?
-		};
-
-		save_meta(self.path.join("meta.bdb"), &meta)
 	}
 }
 
@@ -242,7 +199,6 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let mut database = Database::open(tempdir.path()).unwrap();
 		database.insert_blooms(0, vec![Bloom::from(0), Bloom::from(0x01), Bloom::from(0x10), Bloom::from(0x11)].iter()).unwrap();
-		database.flush().unwrap();
 
 		let matches = database.iterate_matching(0, 3, &Bloom::from(0)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![0, 1, 2, 3]);
@@ -271,7 +227,6 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let mut database = Database::open(tempdir.path()).unwrap();
 		database.insert_blooms(254, vec![Bloom::from(0x100), Bloom::from(0x01), Bloom::from(0x10), Bloom::from(0x11)].iter()).unwrap();
-		database.flush().unwrap();
 
 		let matches = database.iterate_matching(0, 257, &Bloom::from(0x01)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
 		assert_eq!(matches, vec![255, 257]);

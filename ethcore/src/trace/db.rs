@@ -537,7 +537,6 @@ mod tests {
 		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.key_value().write(batch).unwrap();
-		db.trace_blooms().flush().unwrap();
 
 		let filter = Filter {
 			range: (1..1),
@@ -554,7 +553,6 @@ mod tests {
 		let mut batch = DBTransaction::new();
 		tracedb.import(&mut batch, request);
 		db.key_value().write(batch).unwrap();
-		db.trace_blooms().flush().unwrap();
 
 		let filter = Filter {
 			range: (1..2),

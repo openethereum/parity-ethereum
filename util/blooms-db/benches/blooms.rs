@@ -21,7 +21,6 @@ fn blooms_filter_1_million(b: &mut Bencher) {
 	database.insert_blooms(400_000, iter::once(&bloom)).unwrap();
 	database.insert_blooms(600_000, iter::once(&bloom)).unwrap();
 	database.insert_blooms(800_000, iter::once(&bloom)).unwrap();
-	database.flush().unwrap();
 
 	b.iter(|| {
 		let matches = database.filter(0, 999_999, &bloom).unwrap();

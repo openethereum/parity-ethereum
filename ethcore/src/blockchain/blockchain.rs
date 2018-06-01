@@ -1090,7 +1090,6 @@ impl BlockChain {
 
 	/// Apply pending insertion updates
 	pub fn commit(&self) {
-		self.db.blooms().flush().expect("TODO: blooms pr");
 		let mut pending_best_block = self.pending_best_block.write();
 		let mut pending_write_hashes = self.pending_block_hashes.write();
 		let mut pending_block_details = self.pending_block_details.write();

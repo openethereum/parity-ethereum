@@ -13,10 +13,6 @@ extern crate tempdir;
 
 mod db;
 mod file;
-mod meta;
-mod pending;
-
-pub const VERSION: u64 = 1;
 
 use std::io;
 use std::path::Path;
@@ -35,13 +31,9 @@ impl Database {
 		Ok(result)
 	}
 
-	pub fn insert_blooms<'a, B>(&self, from: u64, blooms: impl Iterator<Item = B>) -> io::Result<()>
-	where ethbloom::BloomRef<'a>: From<B> {
+	pub fn insert_blooms<'a, I, B>(&self, from: u64, blooms: I) -> io::Result<()>
+	where ethbloom::BloomRef<'a>: From<B>, I: Iterator<Item = B> {
 		self.database.write().insert_blooms(from, blooms)
-	}
-
-	pub fn flush(&self) -> io::Result<()> {
-		self.database.write().flush()
 	}
 
 	pub fn filter<'a, B>(&'a self, from: u64, to: u64, bloom: B) -> io::Result<Vec<u64>>
