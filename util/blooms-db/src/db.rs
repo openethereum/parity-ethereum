@@ -71,7 +71,7 @@ impl Database {
 	}
 
 	/// Returns an iterator yielding all indexes containing given bloom.
-	pub fn iterate_matching<'a, 'b, B>(&'a self, from: u64, to: u64, bloom: B) -> io::Result<DatabaseIterator<'a>>
+	pub fn iterate_matching<'a, 'b, B>(&'a mut self, from: u64, to: u64, bloom: B) -> io::Result<DatabaseIterator<'a>>
 	where ethbloom::BloomRef<'b>: From<B>, 'b: 'a {
 		let index = from / 256 * 256;
 		let pos = Positions::from_index(index);

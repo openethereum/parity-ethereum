@@ -72,12 +72,15 @@ impl File {
 	}
 
 	/// Returns an iterator over file.
-	pub fn iterator_from(&self, pos: u64) -> io::Result<FileIterator> {
-		let mut file_ref = &self.file;
-		file_ref.seek(SeekFrom::Start(pos * 256))?;
+	///
+	/// This function needs to be mutable `fs::File` is just a shared reference a system file handle.
+	/// https://users.rust-lang.org/t/how-to-handle-match-with-irrelevant-ok--/6291/15
+	pub fn iterator_from(&mut self, pos: u64) -> io::Result<FileIterator> {
+		let mut buf_reader = io::BufReader::new(&self.file);
+		buf_reader.seek(SeekFrom::Start(pos * 256))?;
 
 		let iter = FileIterator {
-			file: file_ref,
+			file: buf_reader,
 		};
 
 		Ok(iter)
@@ -92,7 +95,7 @@ impl File {
 /// Iterator over blooms of a single file.
 pub struct FileIterator<'a> {
 	/// Backing file.
-	file: &'a fs::File,
+	file: io::BufReader<&'a fs::File>,
 }
 
 impl<'a> FileIterator<'a> {
