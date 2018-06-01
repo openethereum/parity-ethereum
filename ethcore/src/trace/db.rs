@@ -47,11 +47,6 @@ impl Key<FlatBlockTraces> for H256 {
 	}
 }
 
-#[derive(Debug, Hash, Eq, PartialEq)]
-enum CacheId {
-	Trace(H256),
-}
-
 /// Database to store transaction execution trace.
 ///
 /// Whenever a transaction is executed by EVM it's execution trace is stored
@@ -61,7 +56,7 @@ enum CacheId {
 pub struct TraceDB<T> where T: DatabaseExtras {
 	/// cache
 	traces: RwLock<HashMap<H256, FlatBlockTraces>>,
-	cache_manager: RwLock<CacheManager<CacheId>>,
+	cache_manager: RwLock<CacheManager<H256>>,
 	/// db
 	db: Arc<BlockChainDB>,
 	/// tracing enabled
@@ -94,9 +89,9 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	}
 
 	/// Let the cache system know that a cacheable item has been used.
-	fn note_used(&self, id: CacheId) {
+	fn note_trace_used(&self, trace_id: H256) {
 		let mut cache_manager = self.cache_manager.write();
-		cache_manager.note_used(id);
+		cache_manager.note_used(trace_id);
 	}
 
 	/// Ticks our cache system and throws out any old data.
@@ -108,9 +103,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 
 		cache_manager.collect_garbage(current_size, | ids | {
 			for id in &ids {
-				match *id {
-					CacheId::Trace(ref h) => { traces.remove(h); },
-				}
+				traces.remove(id);
 			}
 			traces.shrink_to_fit();
 
@@ -121,7 +114,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	/// Returns traces for block with hash.
 	fn traces(&self, block_hash: &H256) -> Option<FlatBlockTraces> {
 		let result = self.db.key_value().read_with_cache(db::COL_TRACE, &self.traces, block_hash);
-		self.note_used(CacheId::Trace(block_hash.clone()));
+		self.note_trace_used(*block_hash);
 		result
 	}
 
@@ -227,7 +220,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			// cause this value might be queried by hash later
 			batch.write_with_cache(db::COL_TRACE, &mut *traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
 			// note_used must be called after locking traces to avoid cache/traces deadlock on garbage collection
-			self.note_used(CacheId::Trace(request.block_hash.clone()));
+			self.note_trace_used(request.block_hash);
 		}
 	}
 
