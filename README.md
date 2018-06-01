@@ -138,13 +138,13 @@ first.
 ## Simple one-line installer for Mac and Ubuntu
 
 ```bash
-bash <(curl https://get.parity.io -Lk)
+bash <(curl https://get.parity.io -L)
 ```
 
 The one-line installer always defaults to the latest beta release. To install a stable release, run:
 
 ```bash
-bash <(curl https://get.parity.io -Lk) -r stable
+bash <(curl https://get.parity.io -L) -r stable
 ```
 
 ## Start Parity

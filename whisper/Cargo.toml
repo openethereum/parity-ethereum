@@ -23,7 +23,7 @@ serde_derive = "1.0"
 serde_json = "1.0"
 slab = "0.3"
 smallvec = "0.4"
-tiny-keccak = "1.3"
+tiny-keccak = "1.4"
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.11" }

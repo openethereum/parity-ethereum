@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use sync::{ManageNetwork, NetworkConfiguration};
+use std::ops::Range;
+use sync::ManageNetwork;
 use self::ethcore_network::{ProtocolId, NetworkContext};
 
 extern crate ethcore_network;
@@ -29,6 +30,6 @@ impl ManageNetwork for TestManageNetwork {
 	fn add_reserved_peer(&self, _peer: String) -> Result<(), String> { Ok(()) }
 	fn start_network(&self) {}
 	fn stop_network(&self) {}
-	fn network_config(&self) -> NetworkConfiguration { NetworkConfiguration::new_local() }
+	fn num_peers_range(&self) -> Range<u32> { 25 .. 51 }
 	fn with_proto_context(&self, _: ProtocolId, _: &mut FnMut(&NetworkContext)) { }
 }

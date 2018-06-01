@@ -9,7 +9,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ethereum-types = "0.3"
-tiny-keccak = "1.4.1"
+tiny-keccak = "1.4"
 
 [dev-dependencies]
 tempdir = "0.3"
