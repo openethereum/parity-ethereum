@@ -24,6 +24,7 @@ use std::cmp::{min, max};
 use std::path::{Path, PathBuf};
 use std::io::{Read, Write, self};
 use std::fs;
+use std::time::Duration;
 use ethkey::{KeyPair, Secret, Random, Generator};
 use hash::keccak;
 use mio::*;
@@ -44,7 +45,7 @@ use discovery::{Discovery, TableUpdates, NodeEntry};
 use ip_utils::{map_external_address, select_public_address};
 use path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
-use connection_filter::{ConnectionFilter, ConnectionDirection};
+use network::{ConnectionFilter, ConnectionDirection};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -67,18 +68,20 @@ const SYS_TIMER: TimerToken = LAST_SESSION + 1;
 
 // Timeouts
 // for IDLE TimerToken
-const MAINTENANCE_TIMEOUT: u64 = 1000;
+const MAINTENANCE_TIMEOUT: Duration = Duration::from_secs(1);
 // for DISCOVERY_REFRESH TimerToken
-const DISCOVERY_REFRESH_TIMEOUT: u64 = 60_000;
+const DISCOVERY_REFRESH_TIMEOUT: Duration = Duration::from_secs(60);
 // for DISCOVERY_ROUND TimerToken
-const DISCOVERY_ROUND_TIMEOUT: u64 = 300;
+const DISCOVERY_ROUND_TIMEOUT: Duration = Duration::from_millis(300);
 // for NODE_TABLE TimerToken
-const NODE_TABLE_TIMEOUT: u64 = 300_000;
+const NODE_TABLE_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Debug, PartialEq, Eq)]
 /// Protocol info
 pub struct CapabilityInfo {
+	/// Protocol ID
 	pub protocol: ProtocolId,
+	/// Protocol version
 	pub version: u8,
 	/// Total number of packet IDs this protocol support.
 	pub packet_count: u8,
@@ -104,17 +107,20 @@ pub struct NetworkContext<'s> {
 
 impl<'s> NetworkContext<'s> {
 	/// Create a new network IO access point. Takes references to all the data that can be updated within the IO handler.
-	fn new(io: &'s IoContext<NetworkIoMessage>,
+	fn new(
+		io: &'s IoContext<NetworkIoMessage>,
 		protocol: ProtocolId,
-		session: Option<SharedSession>, sessions: Arc<RwLock<Slab<SharedSession>>>,
-		reserved_peers: &'s HashSet<NodeId>) -> NetworkContext<'s> {
+		session: Option<SharedSession>,
+		sessions: Arc<RwLock<Slab<SharedSession>>>,
+		reserved_peers: &'s HashSet<NodeId>,
+	) -> NetworkContext<'s> {
 		let id = session.as_ref().map(|s| s.lock().token());
 		NetworkContext {
-			io: io,
-			protocol: protocol,
+			io,
+			protocol,
 			session_id: id,
-			session: session,
-			sessions: sessions,
+			session,
+			sessions,
 			_reserved_peers: reserved_peers,
 		}
 	}
@@ -147,10 +153,6 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 		self.session_id.map_or_else(|| Err(ErrorKind::Expired.into()), |id| self.send(id, packet_id, data))
 	}
 
-	fn io_channel(&self) -> IoChannel<NetworkIoMessage> {
-		self.io.channel()
-	}
-
 	fn disable_peer(&self, peer: PeerId) {
 		self.io.message(NetworkIoMessage::DisablePeer(peer))
 			.unwrap_or_else(|e| warn!("Error sending network IO message: {:?}", e));
@@ -165,10 +167,10 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 		self.session.as_ref().map_or(false, |s| s.lock().expired())
 	}
 
-	fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), Error> {
+	fn register_timer(&self, token: TimerToken, delay: Duration) -> Result<(), Error> {
 		self.io.message(NetworkIoMessage::AddTimer {
-			token: token,
-			delay: ms,
+			token,
+			delay,
 			protocol: self.protocol,
 		}).unwrap_or_else(|e| warn!("Error sending network IO message: {:?}", e));
 		Ok(())
@@ -208,22 +210,24 @@ pub struct HostInfo {
 	pub public_endpoint: Option<NodeEndpoint>,
 }
 
-impl HostInfoTrait for HostInfo {
-	fn id(&self) -> &NodeId {
-		self.keys.public()
-	}
-
-	fn secret(&self) -> &Secret {
-		self.keys.secret()
-	}
-
+impl HostInfo {
 	fn next_nonce(&mut self) -> H256 {
 		self.nonce = keccak(&self.nonce);
 		self.nonce
 	}
 
-	fn client_version(&self) -> &str {
+	pub(crate) fn client_version(&self) -> &str {
 		&self.config.client_version
+	}
+
+	pub(crate) fn secret(&self) -> &Secret {
+		self.keys.secret()
+	}
+}
+
+impl HostInfoTrait for HostInfo {
+	fn id(&self) -> &NodeId {
+		self.keys.public()
 	}
 }
 
@@ -276,7 +280,7 @@ impl Host {
 		let tcp_listener = TcpListener::bind(&listen_address)?;
 		listen_address = SocketAddr::new(listen_address.ip(), tcp_listener.local_addr()?.port());
 		debug!(target: "network", "Listening at {:?}", listen_address);
-		let udp_port = config.udp_port.unwrap_or(listen_address.port());
+		let udp_port = config.udp_port.unwrap_or_else(|| listen_address.port());
 		let local_endpoint = NodeEndpoint { address: listen_address, udp_port: udp_port };
 
 		let boot_nodes = config.boot_nodes.clone();
@@ -321,7 +325,7 @@ impl Host {
 		match Node::from_str(id) {
 			Err(e) => { debug!(target: "network", "Could not add node {}: {:?}", id, e); },
 			Ok(n) => {
-				let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
+				let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id };
 
 				self.nodes.write().add_node(n);
 				if let Some(ref mut discovery) = *self.discovery.lock() {
@@ -334,9 +338,9 @@ impl Host {
 	pub fn add_reserved_node(&self, id: &str) -> Result<(), Error> {
 		let n = Node::from_str(id)?;
 
-		let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
-		self.reserved_nodes.write().insert(n.id.clone());
-		self.nodes.write().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
+		let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id };
+		self.reserved_nodes.write().insert(n.id);
+		self.nodes.write().add_node(Node::new(entry.id, entry.endpoint.clone()));
 
 		if let Some(ref mut discovery) = *self.discovery.lock() {
 			discovery.add_node(entry);
@@ -345,10 +349,10 @@ impl Host {
 		Ok(())
 	}
 
-	pub fn set_non_reserved_mode(&self, mode: NonReservedPeerMode, io: &IoContext<NetworkIoMessage>) {
+	pub fn set_non_reserved_mode(&self, mode: &NonReservedPeerMode, io: &IoContext<NetworkIoMessage>) {
 		let mut info = self.info.write();
 
-		if info.config.non_reserved_mode != mode {
+		if &info.config.non_reserved_mode != mode {
 			info.config.non_reserved_mode = mode.clone();
 			drop(info);
 			if let NonReservedPeerMode::Deny = mode {
@@ -384,15 +388,15 @@ impl Host {
 
 	pub fn external_url(&self) -> Option<String> {
 		let info = self.info.read();
-		info.public_endpoint.as_ref().map(|e| format!("{}", Node::new(info.id().clone(), e.clone())))
+		info.public_endpoint.as_ref().map(|e| format!("{}", Node::new(*info.id(), e.clone())))
 	}
 
 	pub fn local_url(&self) -> String {
 		let info = self.info.read();
-		format!("{}", Node::new(info.id().clone(), info.local_endpoint.clone()))
+		format!("{}", Node::new(*info.id(), info.local_endpoint.clone()))
 	}
 
-	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), Error> {
+	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) {
 		self.stopping.store(true, AtomicOrdering::Release);
 		let mut to_kill = Vec::new();
 		for e in self.sessions.read().iter() {
@@ -404,8 +408,7 @@ impl Host {
 			trace!(target: "network", "Disconnecting on shutdown: {}", p);
 			self.kill_connection(p, io, true);
 		}
-		io.unregister_handler()?;
-		Ok(())
+		io.unregister_handler();
 	}
 
 	/// Get all connected peers.
@@ -551,7 +554,7 @@ impl Host {
 		// iterate over all nodes, reserved ones coming first.
 		// if we are pinned to only reserved nodes, ignore all others.
 		let nodes = reserved_nodes.iter().cloned().chain(if !pin {
-			self.nodes.read().nodes(allow_ips)
+			self.nodes.read().nodes(&allow_ips)
 		} else {
 			Vec::new()
 		});
@@ -584,10 +587,8 @@ impl Host {
 			let address = {
 				let mut nodes = self.nodes.write();
 				if let Some(node) = nodes.get_mut(id) {
-					node.attempts += 1;
 					node.endpoint.address
-				}
-				else {
+				} else {
 					debug!(target: "network", "Connection to expired node aborted");
 					return;
 				}
@@ -599,6 +600,7 @@ impl Host {
 				},
 				Err(e) => {
 					debug!(target: "network", "{}: Can't connect to address {:?}: {:?}", id, address, e);
+					self.nodes.write().note_failure(&id);
 					return;
 				}
 			}
@@ -684,12 +686,17 @@ impl Host {
 						Err(e) => {
 							let s = session.lock();
 							trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
-							if let ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) = *e.kind() {
-								if let Some(id) = s.id() {
-									if !self.reserved_nodes.read().contains(id) {
-										self.nodes.write().mark_as_useless(id);
+							match *e.kind() {
+								ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) | ErrorKind::Disconnect(DisconnectReason::UselessPeer) => {
+									if let Some(id) = s.id() {
+										if !self.reserved_nodes.read().contains(id) {
+											let mut nodes = self.nodes.write();
+											nodes.note_failure(&id);
+											nodes.mark_as_useless(id);
+										}
 									}
-								}
+								},
+								_ => {},
 							}
 							kill = true;
 							break;
@@ -745,7 +752,7 @@ impl Host {
 									let entry = NodeEntry { id: id, endpoint: endpoint };
 									let mut nodes = self.nodes.write();
 									if !nodes.contains(&entry.id) {
-										nodes.add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
+										nodes.add_node(Node::new(entry.id, entry.endpoint.clone()));
 										let mut discovery = self.discovery.lock();
 										if let Some(ref mut discovery) = *discovery {
 											discovery.add_node(entry);
@@ -753,6 +760,10 @@ impl Host {
 									}
 								}
 							}
+
+							// Note connection success
+							self.nodes.write().note_success(&id);
+
 							for (p, _) in self.handlers.read().iter() {
 								if s.have_capability(*p) {
 									ready_data.push(*p);
@@ -981,7 +992,6 @@ impl IoHandler<NetworkIoMessage> for Host {
 				ref handler,
 				ref protocol,
 				ref versions,
-				ref packet_count,
 			} => {
 				let h = handler.clone();
 				let reserved = self.reserved_nodes.read();
@@ -991,8 +1001,12 @@ impl IoHandler<NetworkIoMessage> for Host {
 				);
 				self.handlers.write().insert(*protocol, h);
 				let mut info = self.info.write();
-				for v in versions {
-					info.capabilities.push(CapabilityInfo { protocol: *protocol, version: *v, packet_count: *packet_count });
+				for &(version, packet_count) in versions {
+					info.capabilities.push(CapabilityInfo {
+						protocol: *protocol,
+						version,
+						packet_count,
+					});
 				}
 			},
 			NetworkIoMessage::AddTimer {
@@ -1023,7 +1037,9 @@ impl IoHandler<NetworkIoMessage> for Host {
 				if let Some(session) = session {
 					session.lock().disconnect(io, DisconnectReason::DisconnectRequested);
 					if let Some(id) = session.lock().id() {
-						self.nodes.write().mark_as_useless(id)
+						let mut nodes = self.nodes.write();
+						nodes.note_failure(&id);
+						nodes.mark_as_useless(id);
 					}
 				}
 				trace!(target: "network", "Disabling peer {}", peer);

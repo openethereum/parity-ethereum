@@ -82,13 +82,13 @@ impl<T> UsingQueue<T> where T: Clone {
 
 	/// Returns `Some` item which is the first that `f` returns `true` with a reference to it
 	/// as a parameter or `None` if no such item exists in the queue.
-	pub fn take_used_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
+	fn take_used_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
 		self.in_use.iter().position(|r| predicate(r)).map(|i| self.in_use.remove(i))
 	}
 
 	/// Returns `Some` item which is the first that `f` returns `true` with a reference to it
 	/// as a parameter or `None` if no such item exists in the queue.
-	pub fn clone_used_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
+	fn clone_used_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
 		self.in_use.iter().find(|r| predicate(r)).cloned()
 	}
 

@@ -17,8 +17,8 @@
 use std::collections::{BTreeSet, BTreeMap};
 use ethereum_types::H256;
 use ethkey::{Public, Secret};
-use crypto::ecies::encrypt;
 use crypto::DEFAULT_MAC;
+use ethkey::crypto::ecies::encrypt;
 use key_server_cluster::{Error, NodeId, DocumentKeyShare, EncryptedDocumentKeyShadow};
 use key_server_cluster::math;
 use key_server_cluster::jobs::job_session::{JobPartialRequestAction, JobPartialResponseAction, JobExecutor};
@@ -131,7 +131,7 @@ impl JobExecutor for DecryptionJob {
 	}
 
 	fn process_partial_request(&mut self, partial_request: PartialDecryptionRequest) -> Result<JobPartialRequestAction<PartialDecryptionResponse>, Error> {
-		let key_version = self.key_share.version(&self.key_version).map_err(|e| Error::KeyStorage(e.into()))?;
+		let key_version = self.key_share.version(&self.key_version)?;
 		if partial_request.other_nodes_ids.len() != self.key_share.threshold
 			|| partial_request.other_nodes_ids.contains(&self.self_node_id)
 			|| partial_request.other_nodes_ids.iter().any(|n| !key_version.id_numbers.contains_key(n)) {

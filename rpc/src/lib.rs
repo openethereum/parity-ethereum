@@ -23,7 +23,6 @@ extern crate futures;
 
 extern crate ansi_term;
 extern crate cid;
-extern crate crypto as rust_crypto;
 extern crate futures_cpupool;
 extern crate itertools;
 extern crate multihash;
@@ -44,6 +43,7 @@ extern crate jsonrpc_ipc_server as ipc;
 extern crate jsonrpc_pubsub;
 
 extern crate ethash;
+#[cfg_attr(test, macro_use)]
 extern crate ethcore;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_crypto as crypto;
@@ -79,6 +79,8 @@ extern crate serde_derive;
 
 #[cfg(test)]
 extern crate ethjson;
+#[cfg(test)]
+extern crate transaction_pool as txpool;
 
 #[cfg(test)]
 #[macro_use]

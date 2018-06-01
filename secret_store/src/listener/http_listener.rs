@@ -20,7 +20,7 @@ use hyper::{self, header, Chunk, Uri, Request as HttpRequest, Response as HttpRe
 use hyper::server::Http;
 use serde::Serialize;
 use serde_json;
-use tokio::executor::current_thread;
+use tokio;
 use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
 use tokio_service::Service;
@@ -29,7 +29,7 @@ use url::percent_encoding::percent_decode;
 
 use traits::KeyServer;
 use serialization::{SerializableEncryptedDocumentKeyShadow, SerializableBytes, SerializablePublic};
-use types::all::{Error, Public, MessageHash, NodeAddress, RequestSignature, ServerKeyId,
+use types::{Error, Public, MessageHash, NodeAddress, RequestSignature, ServerKeyId,
 	EncryptedDocumentKey, EncryptedDocumentKeyShadow, NodeId};
 
 /// Key server http-requests listener. Available requests:
@@ -104,9 +104,7 @@ impl KeyServerHttpListener {
 					warn!("Key server handler error: {:?}", e);
 				});
 
-				// TODO: Change this to tokio::spawn once hyper is Send.
-				current_thread::spawn(serve);
-				future::ok(())
+				tokio::spawn(serve)
 			});
 
 		runtime.spawn(server);
@@ -207,7 +205,7 @@ impl Service for KeyServerHttpHandler {
 	type Request = HttpRequest;
 	type Response = HttpResponse;
 	type Error = hyper::Error;
-	type Future = Box<Future<Item=Self::Response, Error=Self::Error>>;
+	type Future = Box<Future<Item=Self::Response, Error=Self::Error> + Send>;
 
 	fn call(&self, req: HttpRequest) -> Self::Future {
 		if req.headers().has::<header::Origin>() {
@@ -222,7 +220,7 @@ impl Service for KeyServerHttpHandler {
 
 		Box::new(req.body().concat2().map(move |body| {
 			let path = req_uri.path().to_string();
-			if req_uri.is_absolute() {
+			if path.starts_with("/") {
 				this.process(req_method, req_uri, &path, &body)
 			} else {
 				warn!(target: "secretstore", "Ignoring invalid {}-request {}", req_method, req_uri);
@@ -273,15 +271,16 @@ fn return_bytes<T: Serialize>(req_uri: &Uri, result: Result<Option<T>, Error>) -
 }
 
 fn return_error(err: Error) -> HttpResponse {
-	let mut res = match err {
-		Error::InsufficientRequesterData(_) => HttpResponse::new().with_status(HttpStatusCode::BadRequest),
-		Error::AccessDenied => HttpResponse::new().with_status(HttpStatusCode::Forbidden),
-		Error::DocumentNotFound => HttpResponse::new().with_status(HttpStatusCode::NotFound),
-		Error::Hyper(_) => HttpResponse::new().with_status(HttpStatusCode::BadRequest),
-		Error::Serde(_) => HttpResponse::new().with_status(HttpStatusCode::BadRequest),
-		Error::Database(_) => HttpResponse::new().with_status(HttpStatusCode::InternalServerError),
-		Error::Internal(_) => HttpResponse::new().with_status(HttpStatusCode::InternalServerError),
-	};
+	let mut res = HttpResponse::new().with_status(match err {
+		Error::AccessDenied | Error::ConsensusUnreachable | Error::ConsensusTemporaryUnreachable =>
+			HttpStatusCode::Forbidden,
+		Error::ServerKeyIsNotFound | Error::DocumentKeyIsNotFound =>
+			HttpStatusCode::NotFound,
+		Error::InsufficientRequesterData(_) | Error::Hyper(_) | Error::Serde(_)
+			| Error::DocumentKeyAlreadyStored | Error::ServerKeyAlreadyGenerated =>
+			HttpStatusCode::BadRequest,
+		_ => HttpStatusCode::InternalServerError,
+	});
 
 	// return error text. ignore errors when returning error
 	let error_text = format!("\"{}\"", err);
@@ -379,7 +378,7 @@ mod tests {
 	use ethkey::Public;
 	use traits::KeyServer;
 	use key_server::tests::DummyKeyServer;
-	use types::all::NodeAddress;
+	use types::NodeAddress;
 	use super::{parse_request, Request, KeyServerHttpListener};
 
 	#[test]

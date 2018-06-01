@@ -19,7 +19,7 @@
 use account_provider::AccountProvider;
 use ethereum_types::{H256, U256, Address};
 use block::{OpenBlock, Drain};
-use blockchain::{BlockChain, Config as BlockChainConfig};
+use blockchain::{BlockChain, Config as BlockChainConfig, ExtrasInsert};
 use bytes::Bytes;
 use client::{Client, ClientConfig, ChainInfo, ImportBlock, ChainNotify, ChainMessageType, PrepareOpenBlock};
 use ethkey::KeyPair;
@@ -35,11 +35,8 @@ use spec::Spec;
 use state_db::StateDB;
 use state::*;
 use std::sync::Arc;
-use std::path::Path;
 use transaction::{Action, Transaction, SignedTransaction};
 use views::BlockView;
-use kvdb::{KeyValueDB, KeyValueDBHandler};
-use kvdb_rocksdb::{Database, DatabaseConfig};
 
 /// Creates test block with corresponding header
 pub fn create_test_block(header: &Header) -> Bytes {
@@ -120,7 +117,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 		ClientConfig::default(),
 		&test_spec,
 		client_db,
-		Arc::new(Miner::with_spec_and_accounts(&test_spec, accounts)),
+		Arc::new(Miner::new_for_tests(&test_spec, accounts)),
 		IoChannel::disconnected(),
 	).unwrap();
 	let test_engine = &*test_spec.engine;
@@ -151,6 +148,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 			(3141562.into(), 31415620.into()),
 			vec![],
 			false,
+			&mut Vec::new().into_iter(),
 		).unwrap();
 		rolling_timestamp += 10;
 		b.set_timestamp(rolling_timestamp);
@@ -174,7 +172,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(test_spec: F, accoun
 			panic!("error importing block which is valid by definition: {:?}", e);
 		}
 
-		last_header = BlockView::new(&b.rlp_bytes()).header();
+		last_header = view!(BlockView, &b.rlp_bytes()).header();
 		db = b.drain();
 	}
 	client.flush_queue();
@@ -243,7 +241,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 		ClientConfig::default(),
 		&test_spec,
 		client_db,
-		Arc::new(Miner::with_spec(&test_spec)),
+		Arc::new(Miner::new_for_tests(&test_spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 
@@ -268,7 +266,12 @@ pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
 
 	let mut batch = db.transaction();
 	for block_order in 1..block_number {
-		bc.insert_block(&mut batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![]);
+		// Total difficulty is always 0 here.
+		bc.insert_block(&mut batch, &create_unverifiable_block(block_order, bc.best_block_hash()), vec![], ExtrasInsert {
+			fork_choice: ::engines::ForkChoice::New,
+			is_finalized: false,
+			metadata: None,
+		});
 		bc.commit();
 	}
 	db.write(batch).unwrap();
@@ -283,7 +286,12 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> BlockChain {
 
 	let mut batch = db.transaction();
 	for block_order in 1..block_number {
-		bc.insert_block(&mut batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![]);
+		// Total difficulty is always 0 here.
+		bc.insert_block(&mut batch, &create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![], ExtrasInsert {
+			fork_choice: ::engines::ForkChoice::New,
+			is_finalized: false,
+			metadata: None,
+		});
 		bc.commit();
 	}
 	db.write(batch).unwrap();
@@ -401,21 +409,4 @@ impl ChainNotify for TestNotify {
 		};
 		self.messages.write().push(data);
 	}
-}
-
-/// Creates new instance of KeyValueDBHandler
-pub fn restoration_db_handler(config: DatabaseConfig) -> Box<KeyValueDBHandler> {
-	use kvdb::Error;
-
-	struct RestorationDBHandler {
-		config: DatabaseConfig,
-	}
-
-	impl KeyValueDBHandler for RestorationDBHandler {
-		fn open(&self, db_path: &Path) -> Result<Arc<KeyValueDB>, Error> {
-			Ok(Arc::new(Database::open(&self.config, &db_path.to_string_lossy())?))
-		}
-	}
-
-	Box::new(RestorationDBHandler { config })
 }

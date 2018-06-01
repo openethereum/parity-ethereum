@@ -66,8 +66,6 @@ pub enum SignError {
 	Hardware(HardwareError),
 	/// Low-level error from store
 	SStore(SSError),
-	/// Inappropriate chain
-	InappropriateChain,
 }
 
 impl fmt::Display for SignError {
@@ -77,7 +75,6 @@ impl fmt::Display for SignError {
 			SignError::NotFound => write!(f, "Account does not exist"),
 			SignError::Hardware(ref e) => write!(f, "{}", e),
 			SignError::SStore(ref e) => write!(f, "{}", e),
-			SignError::InappropriateChain => write!(f, "Inappropriate chain"),
 		}
 	}
 }
@@ -641,8 +638,8 @@ impl AccountProvider {
 	}
 
 	/// Unlocks account temporarily with a timeout.
-	pub fn unlock_account_timed(&self, account: Address, password: String, duration_ms: u32) -> Result<(), Error> {
-		self.unlock_account(account, password, Unlock::Timed(Instant::now() + Duration::from_millis(duration_ms as u64)))
+	pub fn unlock_account_timed(&self, account: Address, password: String, duration: Duration) -> Result<(), Error> {
+		self.unlock_account(account, password, Unlock::Timed(Instant::now() + duration))
 	}
 
 	/// Checks if given account is unlocked
@@ -837,7 +834,7 @@ impl AccountProvider {
 #[cfg(test)]
 mod tests {
 	use super::{AccountProvider, Unlock, DappId};
-	use std::time::Instant;
+	use std::time::{Duration, Instant};
 	use ethstore::ethkey::{Generator, Random, Address};
 	use ethstore::{StoreAccountRef, Derivation};
 	use ethereum_types::H256;
@@ -941,8 +938,8 @@ mod tests {
 		let kp = Random.generate().unwrap();
 		let ap = AccountProvider::transient_provider();
 		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
-		assert!(ap.unlock_account_timed(kp.address(), "test1".into(), 60000).is_err());
-		assert!(ap.unlock_account_timed(kp.address(), "test".into(), 60000).is_ok());
+		assert!(ap.unlock_account_timed(kp.address(), "test1".into(), Duration::from_secs(60)).is_err());
+		assert!(ap.unlock_account_timed(kp.address(), "test".into(), Duration::from_secs(60)).is_ok());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
 		ap.unlocked.write().get_mut(&StoreAccountRef::root(kp.address())).unwrap().unlock = Unlock::Timed(Instant::now());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_err());

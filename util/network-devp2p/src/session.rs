@@ -23,7 +23,7 @@ use mio::*;
 use mio::deprecated::{Handler, EventLoop};
 use mio::tcp::*;
 use ethereum_types::H256;
-use rlp::{UntrustedRlp, RlpStream, EMPTY_LIST_RLP};
+use rlp::{Rlp, RlpStream, EMPTY_LIST_RLP};
 use connection::{EncryptedConnection, Packet, Connection, MAX_PAYLOAD_SIZE};
 use handshake::Handshake;
 use io::{IoContext, StreamToken};
@@ -34,8 +34,8 @@ use node_table::NodeId;
 use snappy;
 
 // Timeout must be less than (interval - 1).
-const PING_TIMEOUT_SEC: Duration = Duration::from_secs(60);
-const PING_INTERVAL_SEC: Duration = Duration::from_secs(120);
+const PING_TIMEOUT: Duration = Duration::from_secs(60);
+const PING_INTERVAL: Duration = Duration::from_secs(120);
 const MIN_PROTOCOL_VERSION: u32 = 4;
 const MIN_COMPRESSION_PROTOCOL_VERSION: u32 = 5;
 
@@ -116,8 +116,8 @@ impl Session {
 				protocol_version: 0,
 				capabilities: Vec::new(),
 				peer_capabilities: Vec::new(),
-				ping_ms: None,
-				originated: originated,
+				ping: None,
+				originated,
 				remote_address: "Handshake".to_owned(),
 				local_address: local_addr,
 			},
@@ -131,7 +131,7 @@ impl Session {
 
 	fn complete_handshake<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), Error> where Message: Send + Sync + Clone {
 		let connection = if let State::Handshake(ref mut h) = self.state {
-			self.info.id = Some(h.id.clone());
+			self.info.id = Some(h.id);
 			self.info.remote_address = h.connection.remote_addr_str();
 			EncryptedConnection::new(h)?
 		} else {
@@ -204,7 +204,7 @@ impl Session {
 			}
 		}
 		if let Some(data) = packet_data {
-			return Ok(self.read_packet(io, data, host)?);
+			return Ok(self.read_packet(io, &data, host)?);
 		}
 		if create_session {
 			self.complete_handshake(io, host)?;
@@ -277,7 +277,7 @@ impl Session {
 			None => packet_id
 		};
 		let mut rlp = RlpStream::new();
-		rlp.append(&(pid as u32));
+		rlp.append(&(u32::from(pid)));
 		let mut compressed = Vec::new();
 		let mut payload = data; // create a reference with local lifetime
 		if self.compression {
@@ -298,12 +298,12 @@ impl Session {
 			return true;
 		}
 		let timed_out = if let Some(pong) = self.pong_time {
-			pong.duration_since(self.ping_time) > PING_TIMEOUT_SEC
+			pong.duration_since(self.ping_time) > PING_TIMEOUT
 		} else {
-			self.ping_time.elapsed() > PING_TIMEOUT_SEC
+			self.ping_time.elapsed() > PING_TIMEOUT
 		};
 
-		if !timed_out && self.ping_time.elapsed() > PING_INTERVAL_SEC {
+		if !timed_out && self.ping_time.elapsed() > PING_INTERVAL {
 			if let Err(e) = self.send_ping(io) {
 				debug!("Error sending ping message: {:?}", e);
 			}
@@ -329,7 +329,7 @@ impl Session {
 		}
 	}
 
-	fn read_packet<Message>(&mut self, io: &IoContext<Message>, packet: Packet, host: &HostInfo) -> Result<SessionData, Error>
+	fn read_packet<Message>(&mut self, io: &IoContext<Message>, packet: &Packet, host: &HostInfo) -> Result<SessionData, Error>
 	where Message: Send + Sync + Clone {
 		if packet.data.len() < 2 {
 			return Err(ErrorKind::BadProtocol.into());
@@ -349,12 +349,12 @@ impl Session {
 		};
 		match packet_id {
 			PACKET_HELLO => {
-				let rlp = UntrustedRlp::new(&data); //TODO: validate rlp expected size
+				let rlp = Rlp::new(&data); //TODO: validate rlp expected size
 				self.read_hello(io, &rlp, host)?;
 				Ok(SessionData::Ready)
 			},
 			PACKET_DISCONNECT => {
-				let rlp = UntrustedRlp::new(&data);
+				let rlp = Rlp::new(&data);
 				let reason: u8 = rlp.val_at(0)?;
 				if self.had_hello {
 					debug!(target:"network", "Disconnected: {}: {:?}", self.token(), DisconnectReason::from_u8(reason));
@@ -368,9 +368,7 @@ impl Session {
 			PACKET_PONG => {
 				let time = Instant::now();
 				self.pong_time = Some(time);
-				let ping_elapsed = time.duration_since(self.ping_time);
-				self.info.ping_ms = Some(ping_elapsed.as_secs() * 1_000 +
-										ping_elapsed.subsec_nanos() as u64 / 1_000_000);
+				self.info.ping = Some(time.duration_since(self.ping_time));
 				Ok(SessionData::Continue)
 			},
 			PACKET_GET_PEERS => Ok(SessionData::None), //TODO;
@@ -392,7 +390,7 @@ impl Session {
 				match *self.protocol_states.entry(protocol).or_insert_with(|| ProtocolState::Pending(Vec::new())) {
 					ProtocolState::Connected => {
 						trace!(target: "network", "Packet {} mapped to {:?}:{}, i={}, capabilities={:?}", packet_id, protocol, protocol_packet_id, i, self.info.capabilities);
-						Ok(SessionData::Packet { data: data, protocol: protocol, packet_id: protocol_packet_id } )
+						Ok(SessionData::Packet { data, protocol, packet_id: protocol_packet_id } )
 					}
 					ProtocolState::Pending(ref mut pending) => {
 						trace!(target: "network", "Packet {} deferred until protocol connection event completion", packet_id);
@@ -421,7 +419,7 @@ impl Session {
 		self.send(io, &rlp.drain())
 	}
 
-	fn read_hello<Message>(&mut self, io: &IoContext<Message>, rlp: &UntrustedRlp, host: &HostInfo) -> Result<(), Error>
+	fn read_hello<Message>(&mut self, io: &IoContext<Message>, rlp: &Rlp, host: &HostInfo) -> Result<(), Error>
 	where Message: Send + Sync + Clone {
 		let protocol = rlp.val_at::<u32>(0)?;
 		let client_version = rlp.val_at::<String>(1)?;
@@ -470,11 +468,11 @@ impl Session {
 		self.info.peer_capabilities = peer_caps;
 		if self.info.capabilities.is_empty() {
 			trace!(target: "network", "No common capabilities with peer.");
-			return Err(From::from(self.disconnect(io, DisconnectReason::UselessPeer)));
+			return Err(self.disconnect(io, DisconnectReason::UselessPeer));
 		}
 		if protocol < MIN_PROTOCOL_VERSION {
 			trace!(target: "network", "Peer protocol version mismatch: {}", protocol);
-			return Err(From::from(self.disconnect(io, DisconnectReason::UselessPeer)));
+			return Err(self.disconnect(io, DisconnectReason::UselessPeer));
 		}
 		self.compression = protocol >= MIN_COMPRESSION_PROTOCOL_VERSION;
 		self.send_ping(io)?;

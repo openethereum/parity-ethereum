@@ -21,7 +21,7 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use heapsize::HeapSizeOf;
-use rlp::{UntrustedRlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
+use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
 use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
@@ -78,7 +78,7 @@ struct DatabaseValue {
 }
 
 impl Decodable for DatabaseValue {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let id = rlp.val_at(0)?;
 		let inserts = rlp.at(1)?.iter().map(|r| {
 			let k = r.val_at(0)?;
@@ -186,7 +186,7 @@ impl OverlayRecentDB {
 		let mut earliest_era = None;
 		let mut cumulative_size = 0;
 		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
-			let mut era = decode::<u64>(&val);
+			let mut era = decode::<u64>(&val).expect("decoding db value failed");
 			latest_era = Some(era);
 			loop {
 				let mut db_key = DatabaseKey {
@@ -195,7 +195,7 @@ impl OverlayRecentDB {
 				};
 				while let Some(rlp_data) = db.get(col, &encode(&db_key)).expect("Low-level database error.") {
 					trace!("read_overlay: era={}, index={}", era, db_key.index);
-					let value = decode::<DatabaseValue>(&rlp_data);
+					let value = decode::<DatabaseValue>(&rlp_data).expect(&format!("read_overlay: Error decoding DatabaseValue era={}, index{}", era, db_key.index));
 					count += value.inserts.len();
 					let mut inserted_keys = Vec::new();
 					for (k, v) in value.inserts {

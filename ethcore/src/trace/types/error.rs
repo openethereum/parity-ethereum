@@ -17,7 +17,7 @@
 //! Trace errors.
 
 use std::fmt;
-use rlp::{Encodable, RlpStream, Decodable, DecoderError, UntrustedRlp};
+use rlp::{Encodable, RlpStream, Decodable, DecoderError, Rlp};
 use vm::Error as VmError;
 
 /// Trace evm errors.
@@ -115,7 +115,7 @@ impl Encodable for Error {
 }
 
 impl Decodable for Error {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		use self::Error::*;
 		let value: u8 = rlp.as_val()?;
 		match value {

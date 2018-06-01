@@ -17,15 +17,16 @@
 use std::cmp;
 use std::collections::HashMap;
 
-use ethereum_types::U256;
-use {scoring, Scoring, Ready, Readiness, Address as Sender};
-use super::{Transaction, SharedTransaction};
+use ethereum_types::{H160 as Sender, U256};
+use {pool, scoring, Scoring, Ready, Readiness};
+use super::Transaction;
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct DummyScoring;
 
 impl Scoring<Transaction> for DummyScoring {
 	type Score = U256;
+	type Event = ();
 
 	fn compare(&self, old: &Transaction, new: &Transaction) -> cmp::Ordering {
 		old.nonce.cmp(&new.nonce)
@@ -43,9 +44,17 @@ impl Scoring<Transaction> for DummyScoring {
 		}
 	}
 
-	fn update_scores(&self, txs: &[SharedTransaction], scores: &mut [Self::Score], _change: scoring::Change) {
-		for i in 0..txs.len() {
-			scores[i] = txs[i].gas_price;
+	fn update_scores(&self, txs: &[pool::Transaction<Transaction>], scores: &mut [Self::Score], change: scoring::Change) {
+		if let scoring::Change::Event(_) = change {
+			// In case of event reset all scores to 0
+			for i in 0..txs.len() {
+				scores[i] = 0.into();
+			}
+		} else {
+			// Set to a gas price otherwise
+			for i in 0..txs.len() {
+				scores[i] = txs[i].gas_price;
+			}
 		}
 	}
 
@@ -75,7 +84,7 @@ impl Ready<Transaction> for NonceReady {
 				*nonce = *nonce + 1.into();
 				Readiness::Ready
 			},
-			cmp::Ordering::Less => Readiness::Stalled,
+			cmp::Ordering::Less => Readiness::Stale,
 		}
 	}
 }

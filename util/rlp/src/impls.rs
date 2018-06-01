@@ -11,7 +11,7 @@ use byteorder::{ByteOrder, BigEndian};
 use bigint::{U128, U256, H64, H128, H160, H256, H512, H520, Bloom};
 use traits::{Encodable, Decodable};
 use stream::RlpStream;
-use {UntrustedRlp, DecoderError};
+use {Rlp, DecoderError};
 
 pub fn decode_usize(bytes: &[u8]) -> Result<usize, DecoderError> {
 	match bytes.len() {
@@ -41,7 +41,7 @@ impl Encodable for bool {
 }
 
 impl Decodable for bool {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		rlp.decoder().decode_value(|bytes| {
 			match bytes.len() {
 				0 => Ok(false),
@@ -65,7 +65,7 @@ impl Encodable for Vec<u8> {
 }
 
 impl Decodable for Vec<u8> {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		rlp.decoder().decode_value(|bytes| {
 			Ok(bytes.to_vec())
 		})
@@ -87,7 +87,7 @@ impl<T> Encodable for Option<T> where T: Encodable {
 }
 
 impl<T> Decodable for Option<T> where T: Decodable {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let items = rlp.item_count()?;
 		match items {
 			1 => rlp.val_at(0).map(Some),
@@ -108,7 +108,7 @@ impl Encodable for u8 {
 }
 
 impl Decodable for u8 {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		rlp.decoder().decode_value(|bytes| {
 			match bytes.len() {
 				1 if bytes[0] != 0 => Ok(bytes[0]),
@@ -136,7 +136,7 @@ macro_rules! impl_encodable_for_u {
 macro_rules! impl_decodable_for_u {
 	($name: ident) => {
 		impl Decodable for $name {
-			fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+			fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 				rlp.decoder().decode_value(|bytes| {
 					match bytes.len() {
 						0 | 1 => u8::decode(rlp).map(|v| v as $name),
@@ -174,7 +174,7 @@ impl Encodable for usize {
 }
 
 impl Decodable for usize {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		u64::decode(rlp).map(|value| value as usize)
 	}
 }
@@ -192,7 +192,7 @@ macro_rules! impl_encodable_for_hash {
 macro_rules! impl_decodable_for_hash {
 	($name: ident, $size: expr) => {
 		impl Decodable for $name {
-			fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+			fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 				rlp.decoder().decode_value(|bytes| match bytes.len().cmp(&$size) {
 					cmp::Ordering::Less => Err(DecoderError::RlpIsTooShort),
 					cmp::Ordering::Greater => Err(DecoderError::RlpIsTooBig),
@@ -239,7 +239,7 @@ macro_rules! impl_encodable_for_uint {
 macro_rules! impl_decodable_for_uint {
 	($name: ident, $size: expr) => {
 		impl Decodable for $name {
-			fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+			fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 				rlp.decoder().decode_value(|bytes| {
 					if !bytes.is_empty() && bytes[0] == 0 {
 						Err(DecoderError::RlpInvalidIndirection)
@@ -273,7 +273,7 @@ impl Encodable for String {
 }
 
 impl Decodable for String {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		rlp.decoder().decode_value(|bytes| {
 			match str::from_utf8(bytes) {
 				Ok(s) => Ok(s.to_owned()),

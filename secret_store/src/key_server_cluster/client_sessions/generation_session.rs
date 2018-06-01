@@ -354,7 +354,7 @@ impl SessionImpl {
 			&GenerationMessage::PublicKeyShare(ref message) =>
 				self.on_public_key_share(sender.clone(), message),
 			&GenerationMessage::SessionError(ref message) => {
-				self.on_session_error(sender, Error::Io(message.error.clone().into()));
+				self.on_session_error(sender, message.error.clone());
 				Ok(())
 			},
 			&GenerationMessage::SessionCompleted(ref message) =>
@@ -474,7 +474,7 @@ impl SessionImpl {
 
 		// simulate failure, if required
 		if data.simulate_faulty_behaviour {
-			return Err(Error::Io("simulated error".into()));
+			return Err(Error::Internal("simulated error".into()));
 		}
 
 		// check state
@@ -592,8 +592,7 @@ impl SessionImpl {
 			};
 
 			if let Some(ref key_storage) = self.key_storage {
-				key_storage.insert(self.id.clone(), encrypted_data.clone())
-					.map_err(|e| Error::KeyStorage(e.into()))?;
+				key_storage.insert(self.id.clone(), encrypted_data.clone())?;
 			}
 
 			// then respond with confirmation
@@ -790,8 +789,7 @@ impl SessionImpl {
 
 		// then save encrypted data to the key storage
 		if let Some(ref key_storage) = self.key_storage {
-			key_storage.insert(self.id.clone(), encrypted_data.clone())
-				.map_err(|e| Error::KeyStorage(e.into()))?;
+			key_storage.insert(self.id.clone(), encrypted_data.clone())?;
 		}
 
 		// then distribute encrypted data to every other node
@@ -925,23 +923,15 @@ impl Debug for SessionImpl {
 	}
 }
 
-pub fn check_cluster_nodes(self_node_id: &NodeId, nodes: &BTreeSet<NodeId>) -> Result<(), Error> {
-	// at least two nodes must be in cluster
-	if nodes.len() < 1 {
-		return Err(Error::InvalidNodesCount);
-	}
-	// this node must be a part of cluster
-	if !nodes.contains(self_node_id) {
-		return Err(Error::InvalidNodesConfiguration);
-	}
-
+fn check_cluster_nodes(self_node_id: &NodeId, nodes: &BTreeSet<NodeId>) -> Result<(), Error> {
+	assert!(nodes.contains(self_node_id));
 	Ok(())
 }
 
-pub fn check_threshold(threshold: usize, nodes: &BTreeSet<NodeId>) -> Result<(), Error> {
+fn check_threshold(threshold: usize, nodes: &BTreeSet<NodeId>) -> Result<(), Error> {
 	// at least threshold + 1 nodes are required to collectively decrypt message
 	if threshold >= nodes.len() {
-		return Err(Error::InvalidThreshold);
+		return Err(Error::NotEnoughNodesForThreshold);
 	}
 
 	Ok(())
@@ -1097,24 +1087,9 @@ pub mod tests {
 	}
 
 	#[test]
-	fn fails_to_initialize_if_not_a_part_of_cluster() {
-		let node_id = math::generate_random_point().unwrap();
-		let cluster = Arc::new(DummyCluster::new(node_id.clone()));
-		let session = SessionImpl::new(SessionParams {
-			id: SessionId::default(),
-			self_node_id: node_id.clone(),
-			key_storage: Some(Arc::new(DummyKeyStorage::default())),
-			cluster: cluster,
-			nonce: Some(0),
-		});
-		let cluster_nodes: BTreeSet<_> = (0..2).map(|_| math::generate_random_point().unwrap()).collect();
-		assert_eq!(session.initialize(Default::default(), Default::default(), false, 0, cluster_nodes.into()).unwrap_err(), Error::InvalidNodesConfiguration);
-	}
-
-	#[test]
 	fn fails_to_initialize_if_threshold_is_wrong() {
 		match make_simple_cluster(2, 2) {
-			Err(Error::InvalidThreshold) => (),
+			Err(Error::NotEnoughNodesForThreshold) => (),
 			_ => panic!("unexpected"),
 		}
 	}
@@ -1194,24 +1169,6 @@ pub mod tests {
 	}
 
 	#[test]
-	fn fails_to_complete_initialization_if_not_a_part_of_cluster() {
-		let (sid, m, _, l) = make_simple_cluster(0, 2).unwrap();
-		let mut nodes = BTreeMap::new();
-		nodes.insert(m, math::generate_random_scalar().unwrap());
-		nodes.insert(math::generate_random_point().unwrap(), math::generate_random_scalar().unwrap());
-		assert_eq!(l.first_slave().on_initialize_session(m, &message::InitializeSession {
-			session: sid.into(),
-			session_nonce: 0,
-			origin: None,
-			author: Address::default().into(),
-			nodes: nodes.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
-			is_zero: false,
-			threshold: 0,
-			derived_point: math::generate_random_point().unwrap().into(),
-		}).unwrap_err(), Error::InvalidNodesConfiguration);
-	}
-
-	#[test]
 	fn fails_to_complete_initialization_if_threshold_is_wrong() {
 		let (sid, m, s, l) = make_simple_cluster(0, 2).unwrap();
 		let mut nodes = BTreeMap::new();
@@ -1226,7 +1183,7 @@ pub mod tests {
 			is_zero: false,
 			threshold: 2,
 			derived_point: math::generate_random_point().unwrap().into(),
-		}).unwrap_err(), Error::InvalidThreshold);
+		}).unwrap_err(), Error::NotEnoughNodesForThreshold);
 	}
 
 	#[test]

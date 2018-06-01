@@ -472,17 +472,17 @@ impl<K: Kind> VerificationQueue<K> {
 		let h = input.hash();
 		{
 			if self.processing.read().contains_key(&h) {
-				return Err(ImportError::AlreadyQueued.into());
+				bail!(ErrorKind::Import(ImportErrorKind::AlreadyQueued));
 			}
 
 			let mut bad = self.verification.bad.lock();
 			if bad.contains(&h) {
-				return Err(ImportError::KnownBad.into());
+				bail!(ErrorKind::Import(ImportErrorKind::KnownBad));
 			}
 
 			if bad.contains(&input.parent_hash()) {
 				bad.insert(h.clone());
-				return Err(ImportError::KnownBad.into());
+				bail!(ErrorKind::Import(ImportErrorKind::KnownBad));
 			}
 		}
 
@@ -502,7 +502,7 @@ impl<K: Kind> VerificationQueue<K> {
 			Err(err) => {
 				match err {
 					// Don't mark future blocks as bad.
-					Error::Block(BlockError::TemporarilyInvalid(_)) => {},
+					Error(ErrorKind::Block(BlockError::TemporarilyInvalid(_)), _) => {},
 					_ => {
 						self.verification.bad.lock().insert(h.clone());
 					}
@@ -733,7 +733,8 @@ mod tests {
 	use super::kind::blocks::Unverified;
 	use test_helpers::{get_good_dummy_block_seq, get_good_dummy_block};
 	use error::*;
-	use views::*;
+	use views::BlockView;
+	use bytes::Bytes;
 
 	// create a test block queue.
 	// auto_scaling enables verifier adjustment.
@@ -744,6 +745,10 @@ mod tests {
 		let mut config = Config::default();
 		config.verifier_settings.scale_verifiers = auto_scale;
 		BlockQueue::new(config, engine, IoChannel::disconnected(), true)
+	}
+
+	fn new_unverified(bytes: Bytes) -> Unverified {
+		Unverified::from_rlp(bytes).expect("Should be valid rlp")
 	}
 
 	#[test]
@@ -757,7 +762,7 @@ mod tests {
 	#[test]
 	fn can_import_blocks() {
 		let queue = get_test_queue(false);
-		if let Err(e) = queue.import(Unverified::new(get_good_dummy_block())) {
+		if let Err(e) = queue.import(new_unverified(get_good_dummy_block())) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
 	}
@@ -765,15 +770,15 @@ mod tests {
 	#[test]
 	fn returns_error_for_duplicates() {
 		let queue = get_test_queue(false);
-		if let Err(e) = queue.import(Unverified::new(get_good_dummy_block())) {
+		if let Err(e) = queue.import(new_unverified(get_good_dummy_block())) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
 
-		let duplicate_import = queue.import(Unverified::new(get_good_dummy_block()));
+		let duplicate_import = queue.import(new_unverified(get_good_dummy_block()));
 		match duplicate_import {
 			Err(e) => {
 				match e {
-					Error::Import(ImportError::AlreadyQueued) => {},
+					Error(ErrorKind::Import(ImportErrorKind::AlreadyQueued), _) => {},
 					_ => { panic!("must return AlreadyQueued error"); }
 				}
 			}
@@ -785,8 +790,8 @@ mod tests {
 	fn returns_total_difficulty() {
 		let queue = get_test_queue(false);
 		let block = get_good_dummy_block();
-		let hash = BlockView::new(&block).header().hash().clone();
-		if let Err(e) = queue.import(Unverified::new(block)) {
+		let hash = view!(BlockView, &block).header().hash().clone();
+		if let Err(e) = queue.import(new_unverified(block)) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
 		queue.flush();
@@ -801,15 +806,15 @@ mod tests {
 	fn returns_ok_for_drained_duplicates() {
 		let queue = get_test_queue(false);
 		let block = get_good_dummy_block();
-		let hash = BlockView::new(&block).header().hash().clone();
-		if let Err(e) = queue.import(Unverified::new(block)) {
+		let hash = view!(BlockView, &block).header().hash().clone();
+		if let Err(e) = queue.import(new_unverified(block)) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
 		queue.flush();
 		queue.drain(10);
 		queue.mark_as_good(&[ hash ]);
 
-		if let Err(e) = queue.import(Unverified::new(get_good_dummy_block())) {
+		if let Err(e) = queue.import(new_unverified(get_good_dummy_block())) {
 			panic!("error importing block that has already been drained ({:?})", e);
 		}
 	}
@@ -817,7 +822,7 @@ mod tests {
 	#[test]
 	fn returns_empty_once_finished() {
 		let queue = get_test_queue(false);
-		queue.import(Unverified::new(get_good_dummy_block()))
+		queue.import(new_unverified(get_good_dummy_block()))
 			.expect("error importing block that is valid by definition");
 		queue.flush();
 		queue.drain(1);
@@ -835,7 +840,7 @@ mod tests {
 		assert!(!queue.queue_info().is_full());
 		let mut blocks = get_good_dummy_block_seq(50);
 		for b in blocks.drain(..) {
-			queue.import(Unverified::new(b)).unwrap();
+			queue.import(new_unverified(b)).unwrap();
 		}
 		assert!(queue.queue_info().is_full());
 	}
@@ -863,7 +868,7 @@ mod tests {
 		*queue.state.0.lock() = State::Work(0);
 
 		for block in get_good_dummy_block_seq(5000) {
-			queue.import(Unverified::new(block)).expect("Block good by definition; qed");
+			queue.import(new_unverified(block)).expect("Block good by definition; qed");
 		}
 
 		// almost all unverified == bump verifier count.

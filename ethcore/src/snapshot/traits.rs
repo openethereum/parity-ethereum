@@ -30,6 +30,9 @@ pub trait SnapshotService : Sync + Send {
 	/// `None` indicates warp sync isn't supported by the consensus engine.
 	fn supported_versions(&self) -> Option<(u64, u64)>;
 
+	/// Returns a list of the completed chunks
+	fn completed_chunks(&self) -> Option<Vec<H256>>;
+
 	/// Get raw chunk for a given hash.
 	fn chunk(&self, hash: H256) -> Option<Bytes>;
 
@@ -51,4 +54,7 @@ pub trait SnapshotService : Sync + Send {
 	/// Feed a raw block chunk to the service to be processed asynchronously.
 	/// no-op if currently restoring.
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
+
+	/// Shutdown the Snapshot Service by aborting any ongoing restore
+	fn shutdown(&self);
 }

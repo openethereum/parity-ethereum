@@ -19,10 +19,10 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use tempdir::TempDir;
-use error::Error;
+use error::{Error, ErrorKind};
 
 use blockchain::generator::{BlockGenerator, BlockBuilder};
-use blockchain::BlockChain;
+use blockchain::{BlockChain, ExtrasInsert};
 use snapshot::{chunk_secondary, Error as SnapshotError, Progress, SnapshotComponents};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
@@ -49,7 +49,11 @@ fn chunk_and_restore(amount: u64) {
 	// build the blockchain.
 	let mut batch = DBTransaction::new();
 	for block in generator {
-		bc.insert_block(&mut batch, &block.encoded(), vec![]);
+		bc.insert_block(&mut batch, &block.encoded(), vec![], ExtrasInsert {
+			fork_choice: ::engines::ForkChoice::New,
+			is_finalized: false,
+			metadata: None,
+		});
 		bc.commit();
 	}
 
@@ -141,7 +145,7 @@ fn checks_flag() {
 	let mut rebuilder = SNAPSHOT_MODE.rebuilder(chain, db.clone(), &manifest).unwrap();
 
 	match rebuilder.feed(&chunk, engine.as_ref(), &AtomicBool::new(false)) {
-		Err(Error::Snapshot(SnapshotError::RestorationAborted)) => {}
+		Err(Error(ErrorKind::Snapshot(SnapshotError::RestorationAborted), _)) => {}
 		_ => panic!("Wrong result on abort flag set")
 	}
 }

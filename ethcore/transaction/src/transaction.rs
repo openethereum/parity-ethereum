@@ -24,7 +24,7 @@ use ethkey::{self, Signature, Secret, Public, recover, public_to_address};
 use evm::Schedule;
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use rlp::{self, RlpStream, UntrustedRlp, DecoderError, Encodable};
+use rlp::{self, RlpStream, Rlp, DecoderError, Encodable};
 
 type Bytes = Vec<u8>;
 type BlockNumber = u64;
@@ -50,7 +50,7 @@ impl Default for Action {
 }
 
 impl rlp::Decodable for Action {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		if rlp.is_empty() {
 			Ok(Action::Create)
 		} else {
@@ -291,7 +291,7 @@ impl Deref for UnverifiedTransaction {
 }
 
 impl rlp::Decodable for UnverifiedTransaction {
-	fn decode(d: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(d: &Rlp) -> Result<Self, DecoderError> {
 		if d.item_count()? != 9 {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}
@@ -377,7 +377,7 @@ impl UnverifiedTransaction {
 		}
 	}
 
-	/// Get the hash of this header (keccak of the RLP).
+	/// Get the hash of this transaction (keccak of the RLP).
 	pub fn hash(&self) -> H256 {
 		self.hash
 	}
@@ -576,7 +576,8 @@ mod tests {
 
 	#[test]
 	fn sender_test() {
-		let t: UnverifiedTransaction = rlp::decode(&::rustc_hex::FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
+		let bytes = ::rustc_hex::FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap();
+		let t: UnverifiedTransaction = rlp::decode(&bytes).expect("decoding UnverifiedTransaction failed");
 		assert_eq!(t.data, b"");
 		assert_eq!(t.gas, U256::from(0x5208u64));
 		assert_eq!(t.gas_price, U256::from(0x01u64));
@@ -645,7 +646,7 @@ mod tests {
 		use rustc_hex::FromHex;
 
 		let test_vector = |tx_data: &str, address: &'static str| {
-			let signed = rlp::decode(&FromHex::from_hex(tx_data).unwrap());
+			let signed = rlp::decode(&FromHex::from_hex(tx_data).unwrap()).expect("decoding tx data failed");
 			let signed = SignedTransaction::new(signed).unwrap();
 			assert_eq!(signed.sender(), address.into());
 			println!("chainid: {:?}", signed.chain_id());

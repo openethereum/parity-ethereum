@@ -22,7 +22,7 @@ use transaction::UnverifiedTransaction;
 
 use io::TimerToken;
 use network::{HostInfo, NetworkProtocolHandler, NetworkContext, PeerId};
-use rlp::{RlpStream, UntrustedRlp};
+use rlp::{RlpStream, Rlp};
 use ethereum_types::{H256, U256};
 use kvdb::DBValue;
 use parking_lot::{Mutex, RwLock};
@@ -61,28 +61,31 @@ pub use self::load_timer::{SampleStore, FileStore};
 pub use self::status::{Status, Capabilities, Announcement};
 
 const TIMEOUT: TimerToken = 0;
-const TIMEOUT_INTERVAL_MS: u64 = 1000;
+const TIMEOUT_INTERVAL: Duration = Duration::from_secs(1);
 
 const TICK_TIMEOUT: TimerToken = 1;
-const TICK_TIMEOUT_INTERVAL_MS: u64 = 5000;
+const TICK_TIMEOUT_INTERVAL: Duration = Duration::from_secs(5);
 
 const PROPAGATE_TIMEOUT: TimerToken = 2;
-const PROPAGATE_TIMEOUT_INTERVAL_MS: u64 = 5000;
+const PROPAGATE_TIMEOUT_INTERVAL: Duration = Duration::from_secs(5);
 
 const RECALCULATE_COSTS_TIMEOUT: TimerToken = 3;
-const RECALCULATE_COSTS_INTERVAL_MS: u64 = 60 * 60 * 1000;
+const RECALCULATE_COSTS_INTERVAL: Duration = Duration::from_secs(60 * 60);
 
 // minimum interval between updates.
 const UPDATE_INTERVAL: Duration = Duration::from_millis(5000);
 
+/// Packet count for PIP.
+const PACKET_COUNT_V1: u8 = 9;
+
 /// Supported protocol versions.
-pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
+pub const PROTOCOL_VERSIONS: &'static [(u8, u8)] = &[
+	(1, PACKET_COUNT_V1),
+];
 
 /// Max protocol version.
 pub const MAX_PROTOCOL_VERSION: u8 = 1;
 
-/// Packet count for PIP.
-pub const PACKET_COUNT: u8 = 9;
 
 // packet ID definitions.
 mod packet {
@@ -111,9 +114,9 @@ mod packet {
 mod timeout {
 	use std::time::Duration;
 
-	pub const HANDSHAKE: Duration =  Duration::from_millis(2500);
-	pub const ACKNOWLEDGE_UPDATE: Duration = Duration::from_millis(5000);
-	pub const BASE: u64 = 1500; // base timeout for packet.
+	pub const HANDSHAKE: Duration = Duration::from_millis(4_000);
+	pub const ACKNOWLEDGE_UPDATE: Duration = Duration::from_millis(5_000);
+	pub const BASE: u64 = 2_500; // base timeout for packet.
 
 	// timeouts per request within packet.
 	pub const HEADERS: u64 = 250; // per header?
@@ -369,9 +372,9 @@ impl LightProtocol {
 		let sample_store = params.sample_store.unwrap_or_else(|| Box::new(NullStore));
 		let load_distribution = LoadDistribution::load(&*sample_store);
 		let flow_params = FlowParams::from_request_times(
-			|kind| load_distribution.expected_time_ns(kind),
+			|kind| load_distribution.expected_time(kind),
 			params.config.load_share,
-			params.config.max_stored_seconds,
+			Duration::from_secs(params.config.max_stored_seconds),
 		);
 
 		LightProtocol {
@@ -528,7 +531,7 @@ impl LightProtocol {
 	//   - check whether peer exists
 	//   - check whether request was made
 	//   - check whether request kinds match
-	fn pre_verify_response(&self, peer: &PeerId, raw: &UntrustedRlp) -> Result<IdGuard, Error> {
+	fn pre_verify_response(&self, peer: &PeerId, raw: &Rlp) -> Result<IdGuard, Error> {
 		let req_id = ReqId(raw.val_at(0)?);
 		let cur_credits: U256 = raw.val_at(1)?;
 
@@ -572,7 +575,7 @@ impl LightProtocol {
 	/// Packet data is _untrusted_, which means that invalid data won't lead to
 	/// issues.
 	pub fn handle_packet(&self, io: &IoContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		let rlp = UntrustedRlp::new(data);
+		let rlp = Rlp::new(data);
 
 		trace!(target: "pip", "Incoming packet {} from peer {}", packet_id, peer);
 
@@ -688,7 +691,7 @@ impl LightProtocol {
 			Err(e) => { punish(*peer, io, e); return }
 		};
 
-		if PROTOCOL_VERSIONS.iter().find(|x| **x == proto_version).is_none() {
+		if PROTOCOL_VERSIONS.iter().find(|x| x.0 == proto_version).is_none() {
 			punish(*peer, io, Error::UnsupportedProtocolVersion(proto_version));
 			return;
 		}
@@ -766,9 +769,9 @@ impl LightProtocol {
 		self.load_distribution.end_period(&*self.sample_store);
 
 		let new_params = Arc::new(FlowParams::from_request_times(
-			|kind| self.load_distribution.expected_time_ns(kind),
+			|kind| self.load_distribution.expected_time(kind),
 			self.config.load_share,
-			self.config.max_stored_seconds,
+			Duration::from_secs(self.config.max_stored_seconds),
 		));
 		*self.flow_params.write() = new_params.clone();
 
@@ -794,7 +797,7 @@ impl LightProtocol {
 
 impl LightProtocol {
 	// Handle status message from peer.
-	fn status(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
+	fn status(&self, peer: &PeerId, io: &IoContext, data: Rlp) -> Result<(), Error> {
 		let pending = match self.pending_peers.write().remove(peer) {
 			Some(pending) => pending,
 			None => {
@@ -855,7 +858,7 @@ impl LightProtocol {
 	}
 
 	// Handle an announcement.
-	fn announcement(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
+	fn announcement(&self, peer: &PeerId, io: &IoContext, data: Rlp) -> Result<(), Error> {
 		if !self.peers.read().contains_key(peer) {
 			debug!(target: "pip", "Ignoring announcement from unknown peer");
 			return Ok(())
@@ -900,7 +903,7 @@ impl LightProtocol {
 	}
 
 	// Receive requests from a peer.
-	fn request(&self, peer_id: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+	fn request(&self, peer_id: &PeerId, io: &IoContext, raw: Rlp) -> Result<(), Error> {
 		// the maximum amount of requests we'll fill in a single packet.
 		const MAX_REQUESTS: usize = 256;
 
@@ -968,7 +971,7 @@ impl LightProtocol {
 	}
 
 	// handle a packet with responses.
-	fn response(&self, peer: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+	fn response(&self, peer: &PeerId, io: &IoContext, raw: Rlp) -> Result<(), Error> {
 		let (req_id, responses) = {
 			let id_guard = self.pre_verify_response(peer, &raw)?;
 			let responses: Vec<Response> = raw.list_at(2)?;
@@ -987,7 +990,7 @@ impl LightProtocol {
 	}
 
 	// handle an update of request credits parameters.
-	fn update_credits(&self, peer_id: &PeerId, io: &IoContext, raw: UntrustedRlp) -> Result<(), Error> {
+	fn update_credits(&self, peer_id: &PeerId, io: &IoContext, raw: Rlp) -> Result<(), Error> {
 		let peers = self.peers.read();
 
 		let peer = peers.get(peer_id).ok_or(Error::UnknownPeer)?;
@@ -1022,7 +1025,7 @@ impl LightProtocol {
 	}
 
 	// handle an acknowledgement of request credits update.
-	fn acknowledge_update(&self, peer_id: &PeerId, _io: &IoContext, _raw: UntrustedRlp) -> Result<(), Error> {
+	fn acknowledge_update(&self, peer_id: &PeerId, _io: &IoContext, _raw: Rlp) -> Result<(), Error> {
 		let peers = self.peers.read();
 		let peer = peers.get(peer_id).ok_or(Error::UnknownPeer)?;
 		let mut peer = peer.lock();
@@ -1041,7 +1044,7 @@ impl LightProtocol {
 	}
 
 	// Receive a set of transactions to relay.
-	fn relay_transactions(&self, peer: &PeerId, io: &IoContext, data: UntrustedRlp) -> Result<(), Error> {
+	fn relay_transactions(&self, peer: &PeerId, io: &IoContext, data: Rlp) -> Result<(), Error> {
 		const MAX_TRANSACTIONS: usize = 256;
 
 		let txs: Vec<_> = data.iter()
@@ -1080,13 +1083,13 @@ fn punish(peer: PeerId, io: &IoContext, e: Error) {
 
 impl NetworkProtocolHandler for LightProtocol {
 	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
-		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL_MS)
+		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL)
 			.expect("Error registering sync timer.");
-		io.register_timer(TICK_TIMEOUT, TICK_TIMEOUT_INTERVAL_MS)
+		io.register_timer(TICK_TIMEOUT, TICK_TIMEOUT_INTERVAL)
 			.expect("Error registering sync timer.");
-		io.register_timer(PROPAGATE_TIMEOUT, PROPAGATE_TIMEOUT_INTERVAL_MS)
+		io.register_timer(PROPAGATE_TIMEOUT, PROPAGATE_TIMEOUT_INTERVAL)
 			.expect("Error registering sync timer.");
-		io.register_timer(RECALCULATE_COSTS_TIMEOUT, RECALCULATE_COSTS_INTERVAL_MS)
+		io.register_timer(RECALCULATE_COSTS_TIMEOUT, RECALCULATE_COSTS_INTERVAL)
 			.expect("Error registering request timer interval token.");
 	}
 

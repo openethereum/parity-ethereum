@@ -8,12 +8,12 @@
 
 //! Common RLP traits
 use elastic_array::ElasticArray1024;
-use {DecoderError, UntrustedRlp, RlpStream};
+use {DecoderError, Rlp, RlpStream};
 
 /// RLP decodable trait
 pub trait Decodable: Sized {
 	/// Decode a value from RLP bytes
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError>;
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError>;
 }
 
 /// Structure encodable to RLP

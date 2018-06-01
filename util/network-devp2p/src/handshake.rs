@@ -14,18 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::time::Duration;
 use rand::random;
 use hash::write_keccak;
 use mio::tcp::*;
 use ethereum_types::{H256, H520};
 use ethcore_bytes::Bytes;
-use rlp::{UntrustedRlp, RlpStream};
+use rlp::{Rlp, RlpStream};
 use connection::{Connection};
 use node_table::NodeId;
 use io::{IoContext, StreamToken};
 use ethkey::{KeyPair, Public, Secret, recover, sign, Generator, Random};
-use crypto::{ecdh, ecies};
-use network::{Error, ErrorKind, HostInfo};
+use ethkey::crypto::{ecdh, ecies};
+use network::{Error, ErrorKind, HostInfo as HostInfoTrait};
+use host::HostInfo;
 
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {
@@ -73,7 +75,7 @@ pub struct Handshake {
 
 const V4_AUTH_PACKET_SIZE: usize = 307;
 const V4_ACK_PACKET_SIZE: usize = 210;
-const HANDSHAKE_TIMEOUT: u64 = 5000;
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
 const PROTOCOL_VERSION: u64 = 4;
 // Amount of bytes added when encrypting with encryptECIES.
 const ECIES_OVERHEAD: usize = 113;
@@ -82,12 +84,12 @@ impl Handshake {
 	/// Create a new handshake object
 	pub fn new(token: StreamToken, id: Option<&NodeId>, socket: TcpStream, nonce: &H256) -> Result<Handshake, Error> {
 		Ok(Handshake {
-			id: if let Some(id) = id { id.clone()} else { NodeId::new() },
+			id: if let Some(id) = id { *id } else { NodeId::new() },
 			connection: Connection::new(token, socket),
 			originated: false,
 			state: HandshakeState::New,
 			ecdhe: Random.generate()?,
-			nonce: nonce.clone(),
+			nonce: *nonce,
 			remote_ephemeral: Public::new(),
 			remote_nonce: H256::new(),
 			remote_version: PROTOCOL_VERSION,
@@ -164,7 +166,7 @@ impl Handshake {
 		self.remote_version = remote_version;
 		let shared = *ecdh::agree(host_secret, &self.id)?;
 		let signature = H520::from_slice(sig);
-		self.remote_ephemeral = recover(&signature.into(), &(&shared ^ &self.remote_nonce))?;
+		self.remote_ephemeral = recover(&signature.into(), &(shared ^ self.remote_nonce))?;
 		Ok(())
 	}
 
@@ -187,7 +189,7 @@ impl Handshake {
 			}
 			Err(_) => {
 				// Try to interpret as EIP-8 packet
-				let total = (((data[0] as u16) << 8 | (data[1] as u16)) as usize) + 2;
+				let total = ((u16::from(data[0]) << 8 | (u16::from(data[1]))) as usize) + 2;
 				if total < V4_AUTH_PACKET_SIZE {
 					debug!(target: "network", "Wrong EIP8 auth packet size");
 					return Err(ErrorKind::BadProtocol.into());
@@ -204,7 +206,7 @@ impl Handshake {
 		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.auth_cipher.extend_from_slice(data);
 		let auth = ecies::decrypt(secret, &self.auth_cipher[0..2], &self.auth_cipher[2..])?;
-		let rlp = UntrustedRlp::new(&auth);
+		let rlp = Rlp::new(&auth);
 		let signature: H520 = rlp.val_at(0)?;
 		let remote_public: Public = rlp.val_at(1)?;
 		let remote_nonce: H256 = rlp.val_at(2)?;
@@ -230,7 +232,7 @@ impl Handshake {
 			}
 			Err(_) => {
 				// Try to interpret as EIP-8 packet
-				let total = (((data[0] as u16) << 8 | (data[1] as u16)) as usize) + 2;
+				let total = (((u16::from(data[0])) << 8 | (u16::from(data[1]))) as usize) + 2;
 				if total < V4_ACK_PACKET_SIZE {
 					debug!(target: "network", "Wrong EIP8 ack packet size");
 					return Err(ErrorKind::BadProtocol.into());
@@ -247,7 +249,7 @@ impl Handshake {
 		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
 		self.ack_cipher.extend_from_slice(data);
 		let ack = ecies::decrypt(secret, &self.ack_cipher[0..2], &self.ack_cipher[2..])?;
-		let rlp = UntrustedRlp::new(&ack);
+		let rlp = Rlp::new(&ack);
 		self.remote_ephemeral = rlp.val_at(0)?;
 		self.remote_nonce = rlp.val_at(1)?;
 		self.remote_version = rlp.val_at(2)?;

@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-use rlp::UntrustedRlp;
+use rlp::Rlp;
 
 use ethcore_private_tx::Provider as PrivateTransactionManager;
 use ethereum_types::Address;
@@ -56,7 +56,7 @@ impl Private for PrivateClient {
 	type Metadata = Metadata;
 
 	fn send_transaction(&self, request: Bytes) -> Result<PrivateTransactionReceipt, Error> {
-		let signed_transaction = UntrustedRlp::new(&request.into_vec()).as_val()
+		let signed_transaction = Rlp::new(&request.into_vec()).as_val()
 			.map_err(errors::rlp)
 			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))?;
 		let client = self.unwrap_manager()?;
@@ -65,7 +65,7 @@ impl Private for PrivateClient {
 	}
 
 	fn compose_deployment_transaction(&self, block_number: BlockNumber, request: Bytes, validators: Vec<H160>, gas_price: U256) -> Result<PrivateTransactionReceiptAndTransaction, Error> {
-		let signed_transaction = UntrustedRlp::new(&request.into_vec()).as_val()
+		let signed_transaction = Rlp::new(&request.into_vec()).as_val()
 			.map_err(errors::rlp)
 			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))?;
 		let client = self.unwrap_manager()?;

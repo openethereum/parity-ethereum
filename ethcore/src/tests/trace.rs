@@ -50,7 +50,7 @@ fn can_trace_block_and_uncle_reward() {
 		client_config,
 		&spec,
 		client_db,
-		Arc::new(Miner::with_spec(&spec)),
+		Arc::new(Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 
@@ -87,6 +87,7 @@ fn can_trace_block_and_uncle_reward() {
 		(3141562.into(), 31415620.into()),
 		vec![],
 		false,
+		&mut Vec::new().into_iter(),
 	).unwrap();
 	rolling_timestamp += 10;
 	root_block.set_timestamp(rolling_timestamp);
@@ -97,7 +98,7 @@ fn can_trace_block_and_uncle_reward() {
 		panic!("error importing block which is valid by definition: {:?}", e);
 	}
 
-	last_header = BlockView::new(&root_block.rlp_bytes()).header();
+	last_header = view!(BlockView, &root_block.rlp_bytes()).header();
 	let root_header = last_header.clone();
 	db = root_block.drain();
 
@@ -115,6 +116,7 @@ fn can_trace_block_and_uncle_reward() {
 		(3141562.into(), 31415620.into()),
 		vec![],
 		false,
+		&mut Vec::new().into_iter(),
 	).unwrap();
 	rolling_timestamp += 10;
 	parent_block.set_timestamp(rolling_timestamp);
@@ -125,7 +127,7 @@ fn can_trace_block_and_uncle_reward() {
 		panic!("error importing block which is valid by definition: {:?}", e);
 	}
 
-	last_header = BlockView::new(&parent_block.rlp_bytes()).header();
+	last_header = view!(BlockView,&parent_block.rlp_bytes()).header();
 	db = parent_block.drain();
 
 	last_hashes.push(last_header.hash());
@@ -141,7 +143,8 @@ fn can_trace_block_and_uncle_reward() {
 		author.clone(),
 		(3141562.into(), 31415620.into()),
 		vec![],
-		false
+		false,
+		&mut Vec::new().into_iter(),
 		).unwrap();
 	rolling_timestamp += 10;
 	block.set_timestamp(rolling_timestamp);

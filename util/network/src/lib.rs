@@ -23,12 +23,18 @@ extern crate ethkey;
 extern crate rlp;
 extern crate ipnetwork;
 extern crate snappy;
+extern crate libc;
+
+#[cfg(test)] #[macro_use]
+extern crate assert_matches;
 
 #[macro_use]
 extern crate error_chain;
 
+mod connection_filter;
 mod error;
 
+pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 pub use io::TimerToken;
 pub use error::{Error, ErrorKind, DisconnectReason};
 
@@ -37,11 +43,11 @@ use std::collections::HashMap;
 use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
 use std::str::{self, FromStr};
 use std::sync::Arc;
+use std::time::Duration;
 use ipnetwork::{IpNetwork, IpNetworkError};
-use io::IoChannel;
 use ethkey::Secret;
-use ethereum_types::{H256, H512};
-use rlp::{Decodable, DecoderError, UntrustedRlp};
+use ethereum_types::H512;
+use rlp::{Decodable, DecoderError, Rlp};
 
 /// Protocol handler level packet id
 pub type PacketId = u8;
@@ -63,10 +69,8 @@ pub enum NetworkIoMessage {
 		handler: Arc<NetworkProtocolHandler + Sync>,
 		/// Protocol Id.
 		protocol: ProtocolId,
-		/// Supported protocol versions.
-		versions: Vec<u8>,
-		/// Number of packet IDs reserved by the protocol.
-		packet_count: u8,
+		/// Supported protocol versions and number of packet IDs reserved by the protocol (packet count).
+		versions: Vec<(u8, u8)>,
 	},
 	/// Register a new protocol timer
 	AddTimer {
@@ -74,8 +78,8 @@ pub enum NetworkIoMessage {
 		protocol: ProtocolId,
 		/// Timer token.
 		token: TimerToken,
-		/// Timer delay in milliseconds.
-		delay: u64,
+		/// Timer delay.
+		delay: Duration,
 	},
 	/// Initliaze public interface.
 	InitPublicInterface,
@@ -100,8 +104,8 @@ pub struct SessionInfo {
 	pub capabilities: Vec<SessionCapabilityInfo>,
 	/// Peer protocol capabilities
 	pub peer_capabilities: Vec<PeerCapabilityInfo>,
-	/// Peer ping delay in milliseconds
-	pub ping_ms: Option<u64>,
+	/// Peer ping delay
+	pub ping: Option<Duration>,
 	/// True if this session was originated by us.
 	pub originated: bool,
 	/// Remote endpoint address of the session
@@ -117,7 +121,7 @@ pub struct PeerCapabilityInfo {
 }
 
 impl Decodable for PeerCapabilityInfo {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let p: Vec<u8> = rlp.val_at(0)?;
 		if p.len() != 3 {
 			return Err(DecoderError::Custom("Invalid subprotocol string length. Should be 3"));
@@ -258,9 +262,6 @@ pub trait NetworkContext {
 	/// Respond to a current network message. Panics if no there is no packet in the context. If the session is expired returns nothing.
 	fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error>;
 
-	/// Get an IoChannel.
-	fn io_channel(&self) -> IoChannel<NetworkIoMessage>;
-
 	/// Disconnect a peer and prevent it from connecting again.
 	fn disable_peer(&self, peer: PeerId);
 
@@ -271,7 +272,7 @@ pub trait NetworkContext {
 	fn is_expired(&self) -> bool;
 
 	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
-	fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), Error>;
+	fn register_timer(&self, token: TimerToken, delay: Duration) -> Result<(), Error>;
 
 	/// Returns peer identification string
 	fn peer_client_version(&self, peer: PeerId) -> String;
@@ -299,10 +300,6 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 		(**self).respond(packet_id, data)
 	}
 
-	fn io_channel(&self) -> IoChannel<NetworkIoMessage> {
-		(**self).io_channel()
-	}
-
 	fn disable_peer(&self, peer: PeerId) {
 		(**self).disable_peer(peer)
 	}
@@ -315,8 +312,8 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 		(**self).is_expired()
 	}
 
-	fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), Error> {
-		(**self).register_timer(token, ms)
+	fn register_timer(&self, token: TimerToken, delay: Duration) -> Result<(), Error> {
+		(**self).register_timer(token, delay)
 	}
 
 	fn peer_client_version(&self, peer: PeerId) -> String {
@@ -339,12 +336,6 @@ impl<'a, T> NetworkContext for &'a T where T: ?Sized + NetworkContext {
 pub trait HostInfo {
 	/// Returns public key
 	fn id(&self) -> &NodeId;
-	/// Returns secret key
-	fn secret(&self) -> &Secret;
-	/// Increments and returns connection nonce.
-	fn next_nonce(&mut self) -> H256;
-    /// Returns the client version.
-	fn client_version(&self) -> &str;
 }
 
 /// Network IO protocol handler. This needs to be implemented for each new subprotocol.

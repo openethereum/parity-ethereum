@@ -57,7 +57,7 @@ enum RemoveFrom {
 /// the removals actually take effect.
 ///
 /// journal format:
-/// ```
+/// ```text
 /// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, n] => [ ... ]
@@ -76,7 +76,7 @@ enum RemoveFrom {
 /// which includes an original key, if any.
 ///
 /// The semantics of the `counter` are:
-/// ```
+/// ```text
 /// insert key k:
 ///   counter already contains k: count += 1
 ///   counter doesn't contain k:
@@ -92,7 +92,7 @@ enum RemoveFrom {
 ///
 /// Practically, this means that for each commit block turning from recent to ancient we do the
 /// following:
-/// ```
+/// ```text
 /// is_canonical:
 ///   inserts: Ignored (left alone in the backing database).
 ///   deletes: Enacted; however, recent history queue is checked for ongoing references. This is
@@ -263,7 +263,7 @@ impl EarlyMergeDB {
 		let mut refs = HashMap::new();
 		let mut latest_era = None;
 		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
-			let mut era = decode::<u64>(&val);
+			let mut era = decode::<u64>(&val).expect("decoding db value failed");
 			latest_era = Some(era);
 			loop {
 				let mut db_key = DatabaseKey {

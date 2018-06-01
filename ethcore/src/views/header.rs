@@ -20,35 +20,44 @@ use bytes::Bytes;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
 use header::BlockNumber;
-use rlp::{self, Rlp};
+use rlp::{self};
+use super::ViewRlp;
 
 /// View onto block header rlp.
 pub struct HeaderView<'a> {
-	rlp: Rlp<'a>
+	rlp: ViewRlp<'a>
 }
 
 impl<'a> HeaderView<'a> {
-	/// Creates new view onto header from raw bytes.
-	pub fn new(bytes: &'a [u8]) -> HeaderView<'a> {
+	/// Creates a new Header view from valid ViewRlp
+	/// Use the `view!` macro to create this view in order to capture debugging info.
+	///
+	/// # Example
+	///
+	/// ```
+	/// #[macro_use]
+	/// extern crate ethcore;
+	/// 
+	/// use ethcore::views::{HeaderView};
+	/// 
+	/// fn main() {
+	/// let bytes : &[u8] = &[];
+	/// let tx_view = view!(HeaderView, bytes);
+	/// }
+	/// ```
+	pub fn new(rlp: ViewRlp<'a>) -> HeaderView<'a> {
 		HeaderView {
-			rlp: Rlp::new(bytes)
-		}
-	}
-
-	/// Creates new view onto header from rlp.
-	pub fn new_from_rlp(rlp: Rlp<'a>) -> HeaderView<'a> {
-		HeaderView {
-			rlp: rlp
+			rlp
 		}
 	}
 
 	/// Returns header hash.
 	pub fn hash(&self) -> H256 {
-		keccak(self.rlp.as_raw())
+		keccak(self.rlp.rlp.as_raw())
 	}
 
 	/// Returns raw rlp.
-	pub fn rlp(&self) -> &Rlp<'a> { &self.rlp }
+	pub fn rlp(&self) -> &ViewRlp<'a> { &self.rlp }
 
 	/// Returns parent hash.
 	pub fn parent_hash(&self) -> H256 { self.rlp.val_at(0) }
@@ -102,9 +111,10 @@ impl<'a> HeaderView<'a> {
 	pub fn decode_seal(&self) -> Result<Vec<Bytes>, rlp::DecoderError> {
 		let seal = self.seal();
 		seal.into_iter()
-			.map(|s| rlp::UntrustedRlp::new(&s).data().map(|x| x.to_vec()))
+			.map(|s| rlp::Rlp::new(&s).data().map(|x| x.to_vec()))
 			.collect()
 	}
+
 }
 
 #[cfg(test)]
@@ -120,7 +130,7 @@ mod tests {
 		let mix_hash = "a0a0349d8c3df71f1a48a9df7d03fd5f14aeee7d91332c009ecaff0a71ead405bd".from_hex().unwrap();
 		let nonce = "88ab4e252a7e8c2a23".from_hex().unwrap();
 
-		let view = HeaderView::new(&rlp);
+		let view = view!(HeaderView, &rlp);
 		assert_eq!(view.hash(), "2c9747e804293bd3f1a986484343f23bc88fd5be75dfe9d5c2860aff61e6f259".into());
 		assert_eq!(view.parent_hash(), "d405da4e66f1445d455195229624e133f5baafe72b5cf7b3c36c12c8146e98b7".into());
 		assert_eq!(view.uncles_hash(), "1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347".into());

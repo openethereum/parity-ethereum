@@ -355,7 +355,7 @@ fn with_domain(items: Option<Vec<String>>, domain: &str, ui_address: &Option<rpc
 	})
 }
 
-fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
+pub fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
 	where D: rpc_apis::Dependencies
 {
 	let mut handler = MetaIoHandler::with_middleware(

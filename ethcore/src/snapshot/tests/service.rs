@@ -24,7 +24,8 @@ use ids::BlockId;
 use snapshot::service::{Service, ServiceParams};
 use snapshot::{self, ManifestData, SnapshotService};
 use spec::Spec;
-use test_helpers::{generate_dummy_client_with_spec_and_data, restoration_db_handler};
+use test_helpers::generate_dummy_client_with_spec_and_data;
+use test_helpers_internal::restoration_db_handler;
 
 use io::IoChannel;
 use kvdb_rocksdb::{Database, DatabaseConfig};
@@ -58,7 +59,7 @@ fn restored_is_equivalent() {
 		Default::default(),
 		&spec,
 		Arc::new(client_db),
-		Arc::new(::miner::Miner::with_spec(&spec)),
+		Arc::new(::miner::Miner::new_for_tests(&spec, None)),
 		IoChannel::disconnected(),
 	).unwrap();
 
@@ -129,12 +130,16 @@ fn guards_delete_folders() {
 	service.init_restore(manifest.clone(), true).unwrap();
 	assert!(path.exists());
 
+	// The `db` folder should have been deleted,
+	// while the `temp` one kept
 	service.abort_restore();
-	assert!(!path.exists());
+	assert!(!path.join("db").exists());
+	assert!(path.join("temp").exists());
 
 	service.init_restore(manifest.clone(), true).unwrap();
 	assert!(path.exists());
 
 	drop(service);
-	assert!(!path.exists());
+	assert!(!path.join("db").exists());
+	assert!(path.join("temp").exists());
 }

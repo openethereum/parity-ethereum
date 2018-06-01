@@ -26,6 +26,7 @@ mod transition;
 mod validator_set;
 mod vote_collector;
 
+pub mod block_reward;
 pub mod epoch;
 
 pub use self::authority_round::AuthorityRound;
@@ -37,7 +38,7 @@ pub use self::tendermint::Tendermint;
 
 use std::sync::{Weak, Arc};
 use std::collections::{BTreeMap, HashMap};
-use std::fmt;
+use std::{fmt, error};
 
 use self::epoch::PendingTransition;
 
@@ -48,17 +49,27 @@ use error::Error;
 use header::{Header, BlockNumber};
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
-use transaction::{UnverifiedTransaction, SignedTransaction};
+use transaction::{self, UnverifiedTransaction, SignedTransaction};
 
 use ethkey::Signature;
-use parity_machine::{Machine, LocalizedMachine as Localized};
+use parity_machine::{Machine, LocalizedMachine as Localized, TotalScoredHeader};
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 use bytes::Bytes;
+use types::ancestry_action::AncestryAction;
 
-/// Default EIP-210 contrat code.
+/// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
 pub const DEFAULT_BLOCKHASH_CONTRACT: &'static str = "73fffffffffffffffffffffffffffffffffffffffe33141561006a5760014303600035610100820755610100810715156100455760003561010061010083050761010001555b6201000081071515610064576000356101006201000083050761020001555b5061013e565b4360003512151561008457600060405260206040f361013d565b61010060003543031315156100a857610100600035075460605260206060f361013c565b6101006000350715156100c55762010000600035430313156100c8565b60005b156100ea576101006101006000350507610100015460805260206080f361013b565b620100006000350715156101095763010000006000354303131561010c565b60005b1561012f57610100620100006000350507610200015460a052602060a0f361013a565b600060c052602060c0f35b5b5b5b5b";
+
+/// Fork choice.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ForkChoice {
+	/// Choose the new block.
+	New,
+	/// Choose the current best block.
+	Old,
+}
 
 /// Voting errors.
 #[derive(Debug)]
@@ -102,6 +113,12 @@ impl fmt::Display for EngineError {
 	}
 }
 
+impl error::Error for EngineError {
+	fn description(&self) -> &str {
+		"Engine error"
+	}
+}
+
 /// Seal type.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Seal {
@@ -112,6 +129,9 @@ pub enum Seal {
 	/// Engine does generate seal for this block right now.
 	None,
 }
+
+/// A system-calling closure. Enacts calls on a block's state from the system address.
+pub type SystemCall<'a> = FnMut(Address, Vec<u8>) -> Result<Vec<u8>, String> + 'a;
 
 /// Type alias for a function we can get headers by hash through.
 pub type Headers<'a, H> = Fn(H256) -> Option<H> + 'a;
@@ -198,6 +218,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 		&self,
 		_block: &mut M::LiveBlock,
 		_epoch_begin: bool,
+		_ancestry: &mut Iterator<Item=M::ExtendedHeader>,
 	) -> Result<(), M::Error> {
 		Ok(())
 	}
@@ -338,6 +359,24 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
 		header_timestamp > parent_timestamp
 	}
+
+	/// Gather all ancestry actions. Called at the last stage when a block is committed. The Engine must guarantee that
+	/// the ancestry exists.
+	fn ancestry_actions(&self, _block: &M::LiveBlock, _ancestry: &mut Iterator<Item=M::ExtendedHeader>) -> Vec<AncestryAction> {
+		Vec::new()
+	}
+
+	/// Check whether the given new block is the best block, after finalization check.
+	fn fork_choice(&self, new: &M::ExtendedHeader, best: &M::ExtendedHeader) -> ForkChoice;
+}
+
+/// Check whether a given block is the best block based on the default total difficulty rule.
+pub fn total_difficulty_fork_choice<T: TotalScoredHeader>(new: &T, best: &T) -> ForkChoice where <T as TotalScoredHeader>::Value: Ord {
+	if new.total_score() > best.total_score() {
+		ForkChoice::New
+	} else {
+		ForkChoice::Old
+	}
 }
 
 /// Common type alias for an engine coupled with an Ethereum-like state machine.
@@ -387,20 +426,39 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	}
 
 	/// Verify a particular transaction is valid.
-	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, Error> {
+	///
+	/// Unordered verification doesn't rely on the transaction execution order,
+	/// i.e. it should only verify stuff that doesn't assume any previous transactions
+	/// has already been verified and executed.
+	///
+	/// NOTE This function consumes an `UnverifiedTransaction` and produces `SignedTransaction`
+	/// which implies that a heavy check of the signature is performed here.
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, transaction::Error> {
 		self.machine().verify_transaction_unordered(t, header)
 	}
 
-	/// Additional verification for transactions in blocks.
-	// TODO: Add flags for which bits of the transaction to check.
-	// TODO: consider including State in the params.
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
+	/// Perform basic/cheap transaction verification.
+	///
+	/// This should include all cheap checks that can be done before
+	/// actually checking the signature, like chain-replay protection.
+	///
+	/// NOTE This is done before the signature is recovered so avoid
+	/// doing any state-touching checks that might be expensive.
+	///
+	/// TODO: Add flags for which bits of the transaction to check.
+	/// TODO: consider including State in the params.
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), transaction::Error> {
 		self.machine().verify_transaction_basic(t, header)
 	}
 
 	/// Additional information.
 	fn additional_params(&self) -> HashMap<String, String> {
 		self.machine().additional_params()
+	}
+
+	/// Performs pre-validation of RLP decoded transaction before other processing
+	fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
+		self.machine().decode_transaction(transaction)
 	}
 }
 

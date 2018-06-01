@@ -306,7 +306,7 @@ impl ClusterSession for SessionImpl {
 				&EncryptionMessage::ConfirmEncryptionInitialization(ref message) =>
 					self.on_confirm_initialization(sender.clone(), message),
 				&EncryptionMessage::EncryptionSessionError(ref message) => {
-					self.on_session_error(sender, Error::Io(message.error.clone().into()));
+					self.on_session_error(sender, message.error.clone());
 					Ok(())
 				},
 			},
@@ -326,7 +326,7 @@ pub fn check_encrypted_data(key_share: Option<&DocumentKeyShare>) -> Result<(), 
 	if let Some(key_share) = key_share {
 		// check that common_point and encrypted_point are still not set yet
 		if key_share.common_point.is_some() || key_share.encrypted_point.is_some() {
-			return Err(Error::CompletedSessionId);
+			return Err(Error::DocumentKeyAlreadyStored);
 		}
 	}
 
@@ -344,5 +344,4 @@ pub fn update_encrypted_data(key_storage: &Arc<KeyStorage>, key_id: ServerKeyId,
 	key_share.common_point = Some(common_point);
 	key_share.encrypted_point = Some(encrypted_point);
 	key_storage.update(key_id, key_share)
-		.map_err(|e| Error::KeyStorage(e.into()))
 }

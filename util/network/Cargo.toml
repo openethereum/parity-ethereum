@@ -3,7 +3,7 @@ description = "Ethcore network library"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-network"
-version = "1.11.0"
+version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
@@ -14,4 +14,9 @@ ethereum-types = "0.3"
 ethkey = { path = "../../ethkey" }
 ipnetwork = "0.12.6"
 rlp = { path = "../rlp" }
+libc = "0.2"
 snappy = { git = "https://github.com/paritytech/rust-snappy" }
+
+
+[dev-dependencies]
+assert_matches = "1.2"

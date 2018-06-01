@@ -31,14 +31,13 @@ pub use self::error::Error;
 pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactResult};
 pub use self::io_message::ClientIoMessage;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
-pub use self::chain_notify::{ChainNotify, ChainMessageType};
+pub use self::chain_notify::{ChainNotify, ChainRoute, ChainRouteType, ChainMessageType};
 pub use self::traits::{
     Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, CallContract, TransactionInfo, RegistryInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
     StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter
 };
-//pub use self::private_notify::PrivateNotify;
 pub use state::StateInfo;
-pub use self::traits::{BlockChainClient, MiningBlockChainClient, EngineClient, ProvingBlockChainClient};
+pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient, IoClient};
 
 pub use types::ids::*;
 pub use types::trace_filter::Filter as TraceFilter;
@@ -48,7 +47,7 @@ pub use types::call_analytics::CallAnalytics;
 pub use executive::{Executed, Executive, TransactOptions};
 pub use vm::{LastHashes, EnvInfo};
 
-pub use error::{BlockImportError, TransactionImportError};
+pub use error::{BlockImportError, BlockImportErrorKind, TransactionImportError};
 pub use verification::VerifierType;
 
 mod traits;

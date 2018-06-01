@@ -16,11 +16,11 @@
 
 //! Encryption schemes supported by RPC layer.
 
-use crypto;
+use crypto::aes_gcm::{Encryptor, Decryptor};
+use ethkey::crypto::ecies;
 use ethereum_types::H256;
 use ethkey::{self, Public, Secret};
 use mem::Memzero;
-use ring::aead::{self, AES_256_GCM, SealingKey, OpeningKey};
 
 /// Length of AES key
 pub const AES_KEY_LEN: usize = 32;
@@ -72,38 +72,15 @@ impl EncryptionInstance {
 	}
 
 	/// Encrypt the supplied plaintext
-	pub fn encrypt(self, plain: &[u8]) -> Vec<u8> {
+	pub fn encrypt(self, plain: &[u8]) -> Option<Vec<u8>> {
 		match self.0 {
 			EncryptionInner::AES(key, nonce, encode) => {
-				let sealing_key = SealingKey::new(&AES_256_GCM, &*key)
-					.expect("key is of correct len; qed");
-
-				let encrypt_plain = move |buf: &mut Vec<u8>| {
-					let out_suffix_capacity = AES_256_GCM.tag_len();
-
-					let prepend_len = buf.len();
-					buf.extend(plain);
-
-					buf.resize(prepend_len + plain.len() + out_suffix_capacity, 0);
-
-					let out_size = aead::seal_in_place(
-						&sealing_key,
-						&nonce,
-						&[], // no authenticated data.
-						&mut buf[prepend_len..],
-						out_suffix_capacity,
-					).expect("key, nonce, buf are valid and out suffix large enough; qed");
-
-					// truncate to the output size and return.
-					buf.truncate(prepend_len + out_size);
-				};
-
 				match encode {
 					AesEncode::AppendedNonce => {
-						let mut buf = Vec::new();
-						encrypt_plain(&mut buf);
+						let mut enc = Encryptor::aes_256_gcm(&*key).ok()?;
+						let mut buf = enc.encrypt(&nonce, plain.to_vec()).ok()?;
 						buf.extend(&nonce[..]);
-						buf
+						Some(buf)
 					}
 					AesEncode::OnTopics(topics) => {
 						let mut buf = Vec::new();
@@ -111,14 +88,16 @@ impl EncryptionInstance {
 							xor(&mut t.0, &key);
 							buf.extend(&t.0);
 						}
-						encrypt_plain(&mut buf);
-						buf
+						let mut enc = Encryptor::aes_256_gcm(&*key).ok()?;
+						enc.offset(buf.len());
+						buf.extend(plain);
+						let ciphertext = enc.encrypt(&nonce, buf).ok()?;
+						Some(ciphertext)
 					}
 				}
 			}
 			EncryptionInner::ECIES(valid_public) => {
-				crypto::ecies::encrypt(&valid_public, &[], plain)
-					.expect("validity of public key an invariant of the type; qed")
+				ecies::encrypt(&valid_public, &[], plain).ok()
 			}
 		}
 	}
@@ -169,58 +148,36 @@ impl DecryptionInstance {
 	pub fn decrypt(self, ciphertext: &[u8]) -> Option<Vec<u8>> {
 		match self.0 {
 			DecryptionInner::AES(extract) => {
-				let decrypt = |
-					key: Memzero<[u8; AES_KEY_LEN]>,
-					nonce: [u8; AES_NONCE_LEN],
-					ciphertext: &[u8]
-				| {
-					if ciphertext.len() < AES_256_GCM.tag_len() { return None }
-
-					let opening_key = OpeningKey::new(&AES_256_GCM, &*key)
-						.expect("key length is valid for mode; qed");
-
-					let mut buf = ciphertext.to_vec();
-
-					// decrypted plaintext always ends up at the
-					// front of the buffer.
-					let maybe_decrypted = aead::open_in_place(
-						&opening_key,
-						&nonce,
-						&[], // no authenticated data
-						0, // no header.
-						&mut buf,
-					).ok().map(|plain_slice| plain_slice.len());
-
-					maybe_decrypted.map(move |len| { buf.truncate(len); buf })
-				};
-
 				match extract {
 					AesExtract::AppendedNonce(key) => {
-						if ciphertext.len() < AES_NONCE_LEN { return None }
-
+						if ciphertext.len() < AES_NONCE_LEN {
+							return None
+						}
 						// nonce is the suffix of ciphertext.
 						let mut nonce = [0; AES_NONCE_LEN];
 						let nonce_offset = ciphertext.len() - AES_NONCE_LEN;
-
 						nonce.copy_from_slice(&ciphertext[nonce_offset..]);
-						decrypt(key, nonce, &ciphertext[..nonce_offset])
+						Decryptor::aes_256_gcm(&*key).ok()?
+							.decrypt(&nonce, Vec::from(&ciphertext[..nonce_offset]))
+							.ok()
 					}
 					AesExtract::OnTopics(num_topics, known_index, known_topic) => {
-						if ciphertext.len() < num_topics * 32 { return None }
-
+						if ciphertext.len() < num_topics * 32 {
+							return None
+						}
 						let mut salted_topic = H256::new();
 						salted_topic.copy_from_slice(&ciphertext[(known_index * 32)..][..32]);
-
 						let key = Memzero::from((salted_topic ^ known_topic).0);
-
 						let offset = num_topics * 32;
-						decrypt(key, BROADCAST_IV, &ciphertext[offset..])
+						Decryptor::aes_256_gcm(&*key).ok()?
+							.decrypt(&BROADCAST_IV, Vec::from(&ciphertext[offset..]))
+							.ok()
 					}
 				}
 			}
 			DecryptionInner::ECIES(secret) => {
 				// secret is checked for validity, so only fails on invalid message.
-				crypto::ecies::decrypt(&secret, &[], ciphertext).ok()
+				ecies::decrypt(&secret, &[], ciphertext).ok()
 			}
 		}
 	}
@@ -231,23 +188,13 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn aes_key_len_should_be_equal_to_constant() {
-		assert_eq!(::ring::aead::AES_256_GCM.key_len(), AES_KEY_LEN);
-	}
-
-	#[test]
-	fn aes_nonce_len_should_be_equal_to_constant() {
-		assert_eq!(::ring::aead::AES_256_GCM.nonce_len(), AES_NONCE_LEN);
-	}
-
-	#[test]
 	fn encrypt_asymmetric() {
 		use ethkey::{Generator, Random};
 
 		let key_pair = Random.generate().unwrap();
 		let test_message = move |message: &[u8]| {
 			let instance = EncryptionInstance::ecies(key_pair.public().clone()).unwrap();
-			let ciphertext = instance.encrypt(&message);
+			let ciphertext = instance.encrypt(&message).unwrap();
 
 			if !message.is_empty() {
 				assert!(&ciphertext[..message.len()] != message)
@@ -273,7 +220,7 @@ mod tests {
 			let key = Memzero::from(rng.gen::<[u8; 32]>());
 
 			let instance = EncryptionInstance::aes(key.clone(), rng.gen());
-			let ciphertext = instance.encrypt(message);
+			let ciphertext = instance.encrypt(message).unwrap();
 
 			if !message.is_empty() {
 				assert!(&ciphertext[..message.len()] != message)
@@ -303,7 +250,7 @@ mod tests {
 			let key = Memzero::from(rng.gen::<[u8; 32]>());
 
 			let instance = EncryptionInstance::broadcast(key, all_topics);
-			let ciphertext = instance.encrypt(message);
+			let ciphertext = instance.encrypt(message).unwrap();
 
 			if !message.is_empty() {
 				assert!(&ciphertext[..message.len()] != message)

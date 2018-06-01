@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2018 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -315,7 +315,7 @@ usage! {
 		["Convenience options"]
 			FLAG flag_unsafe_expose: (bool) = false, or |c: &Config| c.misc.as_ref()?.unsafe_expose,
 			"--unsafe-expose",
-			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --{{ws,jsonrpc,ui,ipfs,secret_store,stratum}}-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
+			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,ui,ipfs-api,secretstore,stratum,dapps,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
 
 			ARG arg_config: (String) = "$BASE/config.toml", or |_| None,
 			"-c, --config=[CONFIG]",
@@ -424,7 +424,7 @@ usage! {
 
 			FLAG flag_no_ancient_blocks: (bool) = false, or |_| None,
 			"--no-ancient-blocks",
-			"Disable downloading old blocks after snapshot restoration or warp sync.",
+			"Disable downloading old blocks after snapshot restoration or warp sync. Not recommended.",
 
 			FLAG flag_no_serve_light: (bool) = false, or |c: &Config| c.network.as_ref()?.no_serve_light.clone(),
 			"--no-serve-light",
@@ -437,6 +437,10 @@ usage! {
 			ARG arg_port: (u16) = 30303u16, or |c: &Config| c.network.as_ref()?.port.clone(),
 			"--port=[PORT]",
 			"Override the port on which the node should listen.",
+
+			ARG arg_interface: (String)  = "all", or |c: &Config| c.network.as_ref()?.interface.clone(),
+			"--interface=[IP]",
+			"Network interfaces. Valid values are 'all', 'local' or the ip of the interface you want parity to listen to.",
 
 			ARG arg_min_peers: (Option<u16>) = None, or |c: &Config| c.network.as_ref()?.min_peers.clone(),
 			"--min-peers=[NUM]",
@@ -721,13 +725,17 @@ usage! {
 			"--gas-cap=[GAS]",
 			"A cap on how large we will raise the gas limit per block due to transaction volume.",
 
-			ARG arg_tx_queue_mem_limit: (u32) = 2u32, or |c: &Config| c.mining.as_ref()?.tx_queue_mem_limit.clone(),
+			ARG arg_tx_queue_mem_limit: (u32) = 4u32, or |c: &Config| c.mining.as_ref()?.tx_queue_mem_limit.clone(),
 			"--tx-queue-mem-limit=[MB]",
 			"Maximum amount of memory that can be used by the transaction queue. Setting this parameter to 0 disables limiting.",
 
-			ARG arg_tx_queue_size: (usize) = 8192usize, or |c: &Config| c.mining.as_ref()?.tx_queue_size.clone(),
+			ARG arg_tx_queue_size: (usize) = 8_192usize, or |c: &Config| c.mining.as_ref()?.tx_queue_size.clone(),
 			"--tx-queue-size=[LIMIT]",
 			"Maximum amount of transactions in the queue (waiting to be included in next block).",
+
+			ARG arg_tx_queue_per_sender: (Option<usize>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_per_sender.clone(),
+			"--tx-queue-per-sender=[LIMIT]",
+			"Maximum number of transactions per sender in the queue. By default it's 1% of the entire queue, but not less than 16.",
 
 			ARG arg_tx_queue_gas: (String) = "off", or |c: &Config| c.mining.as_ref()?.tx_queue_gas.clone(),
 			"--tx-queue-gas=[LIMIT]",
@@ -735,15 +743,7 @@ usage! {
 
 			ARG arg_tx_queue_strategy: (String) = "gas_price", or |c: &Config| c.mining.as_ref()?.tx_queue_strategy.clone(),
 			"--tx-queue-strategy=[S]",
-			"Prioritization strategy used to order transactions in the queue. S may be: gas - Prioritize txs with low gas limit; gas_price - Prioritize txs with high gas price; gas_factor - Prioritize txs using gas price and gas limit ratio.",
-
-			ARG arg_tx_queue_ban_count: (u16) = 1u16, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_count.clone(),
-			"--tx-queue-ban-count=[C]",
-			"Number of times maximal time for execution (--tx-time-limit) can be exceeded before banning sender/recipient/code.",
-
-			ARG arg_tx_queue_ban_time: (u16) = 180u16, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_time.clone(),
-			"--tx-queue-ban-time=[SEC]",
-			"Banning time (in seconds) for offenders of specified execution time limit. Also number of offending actions have to reach the threshold within that time.",
+			"Prioritization strategy used to order transactions in the queue. S may be: gas_price - Prioritize txs with high gas price",
 
 			ARG arg_stratum_interface: (String) = "local", or |c: &Config| c.stratum.as_ref()?.interface.clone(),
 			"--stratum-interface=[IP]",
@@ -775,7 +775,7 @@ usage! {
 
 			ARG arg_tx_time_limit: (Option<u64>) = None, or |c: &Config| c.mining.as_ref()?.tx_time_limit.clone(),
 			"--tx-time-limit=[MS]",
-			"Maximal time for processing single transaction. If enabled senders/recipients/code of transactions offending the limit will be banned from being included in transaction queue for 180 seconds.",
+			"Maximal time for processing single transaction. If enabled senders of transactions offending the limit will get other transactions penalized.",
 
 			ARG arg_extra_data: (Option<String>) = None, or |c: &Config| c.mining.as_ref()?.extra_data.clone(),
 			"--extra-data=[STRING]",
@@ -898,7 +898,7 @@ usage! {
 		["Legacy options"]
 			FLAG flag_warp: (bool) = false, or |_| None,
 			"--warp",
-			"Does nothing; warp sync is enabled by default.",
+			"Does nothing; warp sync is enabled by default. Use --no-warp to disable.",
 
 			FLAG flag_dapps_apis_all: (bool) = false, or |_| None,
 			"--dapps-apis-all",
@@ -1028,6 +1028,13 @@ usage! {
 			"--cache=[MB]",
 			"Equivalent to --cache-size MB.",
 
+			ARG arg_tx_queue_ban_count: (u16) = 1u16, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_count.clone(),
+			"--tx-queue-ban-count=[C]",
+			"Not supported.",
+
+			ARG arg_tx_queue_ban_time: (u16) = 180u16, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_time.clone(),
+			"--tx-queue-ban-time=[SEC]",
+			"Not supported.",
 	}
 }
 
@@ -1116,6 +1123,7 @@ struct Network {
 	warp: Option<bool>,
 	warp_barrier: Option<u64>,
 	port: Option<u16>,
+	interface: Option<String>,
 	min_peers: Option<u16>,
 	max_peers: Option<u16>,
 	snapshot_peers: Option<u16>,
@@ -1232,6 +1240,7 @@ struct Mining {
 	gas_cap: Option<String>,
 	extra_data: Option<String>,
 	tx_queue_size: Option<usize>,
+	tx_queue_per_sender: Option<usize>,
 	tx_queue_mem_limit: Option<u32>,
 	tx_queue_gas: Option<String>,
 	tx_queue_strategy: Option<String>,
@@ -1563,6 +1572,7 @@ mod tests {
 			// -- Networking Options
 			flag_no_warp: false,
 			arg_port: 30303u16,
+			arg_interface: "all".into(),
 			arg_min_peers: Some(25u16),
 			arg_max_peers: Some(50u16),
 			arg_max_pending_peers: 64u16,
@@ -1654,7 +1664,8 @@ mod tests {
 			arg_gas_cap: "6283184".into(),
 			arg_extra_data: Some("Parity".into()),
 			arg_tx_queue_size: 8192usize,
-			arg_tx_queue_mem_limit: 2u32,
+			arg_tx_queue_per_sender: None,
+			arg_tx_queue_mem_limit: 4u32,
 			arg_tx_queue_gas: "off".into(),
 			arg_tx_queue_strategy: "gas_factor".into(),
 			arg_tx_queue_ban_count: 1u16,
@@ -1818,6 +1829,7 @@ mod tests {
 				warp: Some(false),
 				warp_barrier: None,
 				port: None,
+				interface: None,
 				min_peers: Some(10),
 				max_peers: Some(20),
 				max_pending_peers: Some(30),
@@ -1911,6 +1923,7 @@ mod tests {
 				gas_floor_target: None,
 				gas_cap: None,
 				tx_queue_size: Some(8192),
+				tx_queue_per_sender: None,
 				tx_queue_mem_limit: None,
 				tx_queue_gas: Some("off".into()),
 				tx_queue_strategy: None,
