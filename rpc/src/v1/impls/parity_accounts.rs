@@ -318,7 +318,7 @@ impl ParityAccounts for ParityAccountsClient {
 	}
 
 	fn hardware_pin_matrix_ack(&self, path: String, pin: String) -> Result<bool> {
-		Ok(self.accounts.hardware_pin_matrix_ack(&path, &pin).map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
+		self.accounts.hardware_pin_matrix_ack(&path, &pin).map_err(|e| errors::account("Error communicating with hardware wallet.", e))
 	}
 }
 
