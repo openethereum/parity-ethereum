@@ -125,7 +125,7 @@ pub trait Provider: Send + Sync {
 	fn header_proof(&self, req: request::CompleteHeaderProofRequest) -> Option<request::HeaderProofResponse>;
 
 	/// Provide pending transactions.
-	fn ready_transactions(&self) -> Vec<PendingTransaction>;
+	fn ready_transactions(&self, max_len: usize) -> Vec<PendingTransaction>;
 
 	/// Provide a proof-of-execution for the given transaction proof request.
 	/// Returns a vector of all state items necessary to execute the transaction.
@@ -280,8 +280,8 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 			.map(|(_, proof)| ::request::ExecutionResponse { items: proof })
 	}
 
-	fn ready_transactions(&self) -> Vec<PendingTransaction> {
-		BlockChainClient::ready_transactions(self)
+	fn ready_transactions(&self, max_len: usize) -> Vec<PendingTransaction> {
+		BlockChainClient::ready_transactions(self, max_len)
 			.into_iter()
 			.map(|tx| tx.pending().clone())
 			.collect()
@@ -367,9 +367,12 @@ impl<L: AsLightClient + Send + Sync> Provider for LightProvider<L> {
 		None
 	}
 
-	fn ready_transactions(&self) -> Vec<PendingTransaction> {
+	fn ready_transactions(&self, max_len: usize) -> Vec<PendingTransaction> {
 		let chain_info = self.chain_info();
-		self.txqueue.read().ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp)
+		let mut transactions = self.txqueue.read()
+			.ready_transactions(chain_info.best_block_number, chain_info.best_block_timestamp);
+		transactions.truncate(max_len);
+		transactions
 	}
 }
 

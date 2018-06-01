@@ -201,10 +201,10 @@ impl TransactionQueue {
 	/// Returns all transactions in the queue ordered by priority.
 	pub fn all_transactions(&self) -> Vec<Arc<pool::VerifiedTransaction>> {
 		let ready = |_tx: &pool::VerifiedTransaction| txpool::Readiness::Ready;
-		self.pool.read().pending(ready).collect()
+		self.pool.read().unordered_transactions(ready).collect()
 	}
 
-	/// Returns current pneding transactions.
+	/// Returns current pending transactions ordered by priority.
 	///
 	/// NOTE: This may return a cached version of pending transaction set.
 	/// Re-computing the pending set is possible with `#collect_pending` method,

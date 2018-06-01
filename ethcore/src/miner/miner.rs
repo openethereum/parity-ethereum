@@ -807,7 +807,7 @@ impl miner::MinerService for Miner {
 		self.transaction_queue.all_transactions()
 	}
 
-	fn ready_transactions<C>(&self, chain: &C) -> Vec<Arc<VerifiedTransaction>> where
+	fn ready_transactions<C>(&self, chain: &C, max_len: usize) -> Vec<Arc<VerifiedTransaction>> where
 		C: ChainInfo + Nonce + Sync,
 	{
 		let chain_info = chain.chain_info();

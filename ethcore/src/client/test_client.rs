@@ -808,8 +808,8 @@ impl BlockChainClient for TestBlockChainClient {
 		self.traces.read().clone()
 	}
 
-	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
-		self.miner.ready_transactions(self)
+	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>> {
+		self.miner.ready_transactions(self, max_len)
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> { None }

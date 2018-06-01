@@ -1954,8 +1954,8 @@ impl BlockChainClient for Client {
 		(*self.build_last_hashes(&self.chain.read().best_block_hash())).clone()
 	}
 
-	fn ready_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
-		self.importer.miner.ready_transactions(self)
+	fn ready_transactions(&self, max_len: usize) -> Vec<Arc<VerifiedTransaction>> {
+		self.importer.miner.ready_transactions(self, max_len)
 	}
 
 	fn signing_chain_id(&self) -> Option<u64> {

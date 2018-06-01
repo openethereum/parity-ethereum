@@ -114,7 +114,7 @@ impl SyncPropagator {
 			return 0;
 		}
 
-		let transactions = io.chain().ready_transactions();
+		let transactions = io.chain().ready_transactions(MAX_TRANSACTIONS_TO_PROPAGATE);
 		if transactions.is_empty() {
 			return 0;
 		}
