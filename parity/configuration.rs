@@ -1255,6 +1255,7 @@ mod tests {
 	use params::SpecType;
 	use presale::ImportWallet;
 	use rpc::{WsConfiguration, UiConfiguration};
+	use rpc_apis::ApiSet;
 	use run::RunCmd;
 
 	use network::{AllowIP, IpFilter};
