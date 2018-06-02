@@ -65,6 +65,7 @@ pub struct NodeBucket {
 struct PendingRequest {
 	packet_id: u8,
 	sent_at: Instant,
+	packet_hash: H256,
 }
 
 impl Default for NodeBucket {
@@ -228,8 +229,10 @@ impl Discovery {
 				let mut rlp = RlpStream::new_list(2);
 				rlp.append(&self.discovery_id);
 				append_expiration(&mut rlp);
-				self.send_packet(PACKET_FIND_NODE, &r.endpoint.udp_address(), &rlp.drain())
-					.unwrap_or_else(|e| warn!("Error sending node discovery packet for {:?}: {:?}", &r.endpoint, e));
+				match self.send_packet(PACKET_FIND_NODE, &r.endpoint.udp_address(), &rlp.drain()) {
+					Ok(_) => (),
+					Err(e) => warn!("Error sending node discovery packet for {:?}: {:?}", &r.endpoint, e),
+				}
 				self.discovery_nodes.insert(r.id.clone());
 				tried_count += 1;
 				trace!(target: "discovery", "Sent FindNode to {:?}", &r.endpoint);
@@ -282,9 +285,13 @@ impl Discovery {
 		self.public_endpoint.to_rlp_list(&mut rlp);
 		node.endpoint.to_rlp_list(&mut rlp);
 		append_expiration(&mut rlp);
-		self.send_packet(PACKET_PING, &node.endpoint.udp_address(), &rlp.drain())?;
+		let hash = self.send_packet(PACKET_PING, &node.endpoint.udp_address(), &rlp.drain())?;
 
-		let request_info = PendingRequest { packet_id: PACKET_PING, sent_at: Instant::now() };
+		let request_info = PendingRequest {
+			packet_id: PACKET_PING,
+			sent_at: Instant::now(),
+			packet_hash: hash,
+		};
 		self.expiring_pings.push_back((node.id, request_info.sent_at));
 		self.in_flight_requests.insert(node.id, request_info);
 
@@ -292,10 +299,11 @@ impl Discovery {
 		Ok(())
 	}
 
-	fn send_packet(&mut self, packet_id: u8, address: &SocketAddr, payload: &[u8]) -> Result<(), Error> {
+	fn send_packet(&mut self, packet_id: u8, address: &SocketAddr, payload: &[u8]) -> Result<H256, Error> {
 		let packet = assemble_packet(packet_id, payload, &self.secret)?;
+		let hash = H256::from(&packet[0..32]);
 		self.send_to(packet, address.clone());
-		Ok(())
+		Ok(hash)
 	}
 
 	fn nearest_node_entries(&self, target: &NodeId) -> Vec<NodeEntry> {
@@ -424,8 +432,8 @@ impl Discovery {
 
 	fn on_pong(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Pong from {:?}", &from);
-		// TODO: validate pong packet in rlp.val_at(1)
 		let dest = NodeEndpoint::from_rlp(&rlp.at(0)?)?;
+		let echo_hash: H256 = rlp.val_at(1)?;
 		let timestamp: u64 = rlp.val_at(2)?;
 		self.check_timestamp(timestamp)?;
 		let mut node = NodeEntry { id: node_id.clone(), endpoint: dest };
@@ -436,10 +444,14 @@ impl Discovery {
 
 		let is_expected = match self.in_flight_requests.entry(*node_id) {
 			Entry::Occupied(entry) => {
-				if entry.get().packet_id == PACKET_PING {
+				let is_expected = {
+					let request = entry.get();
+					request.packet_id == PACKET_PING && request.packet_hash == echo_hash
+				};
+				if is_expected {
 					entry.remove();
-					true
-				} else { false }
+				}
+				is_expected
 			},
 			Entry::Vacant(_) => false
 		};
@@ -922,6 +934,19 @@ mod tests {
 		let rlp = Rlp::new(&data[1..]);
 		assert_eq!(ping_data.payload[0..32], rlp.val_at::<Vec<u8>>(1).unwrap()[..]);
 
+		// Create a pong packet with incorrect echo hash and assert that it is rejected.
+		let mut incorrect_pong_rlp = RlpStream::new_list(3);
+		ep1.to_rlp_list(&mut incorrect_pong_rlp);
+		incorrect_pong_rlp.append(&H256::default());
+		append_expiration(&mut incorrect_pong_rlp);
+		let incorrect_pong_data = assemble_packet(
+			PACKET_PONG, &incorrect_pong_rlp.drain(), &discovery2.secret
+		).unwrap();
+		if let Some(_) = discovery1.on_packet(&incorrect_pong_data, ep2.address.clone()).unwrap() {
+			panic!("Expected no changes to discovery1's table because pong hash is incorrect");
+		}
+
+		// Delivery of valid pong response should add to routing table.
 		if let Some(table_updates) = discovery1.on_packet(&pong_data.payload, ep2.address.clone()).unwrap() {
 			assert_eq!(table_updates.added.len(), 1);
 			assert_eq!(table_updates.removed.len(), 0);
