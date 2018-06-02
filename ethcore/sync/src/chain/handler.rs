@@ -332,14 +332,6 @@ impl SyncHandler {
 		Ok(())
 	}
 
-	fn on_peer_confirmed(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
-		{
-			let peer = sync.peers.get_mut(&peer_id).expect("Is only called when peer is present in peers");
-			peer.confirmation = ForkConfirmation::Confirmed;
-		}
-		sync.sync_peer(io, peer_id, false);
-	}
-
 	fn on_peer_fork_header(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
 		{
 			let peer = sync.peers.get_mut(&peer_id).expect("Is only called when peer is present in peers");
@@ -349,24 +341,27 @@ impl SyncHandler {
 
 			if item_count == 0 || item_count != 1 {
 				trace!(target: "sync", "{}: Chain is too short to confirm the block", peer_id);
-				io.disable_peer(peer_id);
-				return Ok(());
-			}
+				peer.confirmation = ForkConfirmation::TooShort;
 
-			let header = r.at(0)?.as_raw();
-			if keccak(&header) != fork_hash {
-				trace!(target: "sync", "{}: Fork mismatch", peer_id);
-				io.disable_peer(peer_id);
-				return Ok(());
-			}
+			} else {
+				let header = r.at(0)?.as_raw();
+				if keccak(&header) != fork_hash {
+					trace!(target: "sync", "{}: Fork mismatch", peer_id);
+					io.disable_peer(peer_id);
+					return Ok(());
+				}
 
-			trace!(target: "sync", "{}: Confirmed peer", peer_id);
-			if !io.chain_overlay().read().contains_key(&fork_number) {
-				trace!(target: "sync", "Inserting (fork) block {} header", fork_number);
-				io.chain_overlay().write().insert(fork_number, header.to_vec());
+				trace!(target: "sync", "{}: Confirmed peer", peer_id);
+				peer.confirmation = ForkConfirmation::Confirmed;
+
+				if !io.chain_overlay().read().contains_key(&fork_number) {
+					trace!(target: "sync", "Inserting (fork) block {} header", fork_number);
+					io.chain_overlay().write().insert(fork_number, header.to_vec());
+				}
 			}
 		}
-		SyncHandler::on_peer_confirmed(sync, io, peer_id);
+
+		sync.sync_peer(io, peer_id, false);
 		return Ok(());
 	}
 
@@ -686,7 +681,9 @@ impl SyncHandler {
 				SyncRequester::request_fork_header(sync, io, peer_id, fork_block);
 			},
 			_ => {
-				SyncHandler::on_peer_confirmed(sync, io, peer_id);
+				// when there's no `fork_block` defined we initialize the peer with
+				// `confirmation: ForkConfirmation::Confirmed`.
+				sync.sync_peer(io, peer_id, false);
 			}
 		}
 

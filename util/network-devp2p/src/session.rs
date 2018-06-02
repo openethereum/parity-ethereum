@@ -28,7 +28,7 @@ use connection::{EncryptedConnection, Packet, Connection, MAX_PAYLOAD_SIZE};
 use handshake::Handshake;
 use io::{IoContext, StreamToken};
 use network::{Error, ErrorKind, DisconnectReason, SessionInfo, ProtocolId, PeerCapabilityInfo};
-use network::{SessionCapabilityInfo, HostInfo as HostInfoTrait};
+use network::SessionCapabilityInfo;
 use host::*;
 use node_table::NodeId;
 use snappy;
