@@ -88,10 +88,10 @@ section "install"
 	!insertmacro TerminateApp
 
 	# Files added here should be removed by the uninstaller (see section "uninstall")
-	file /oname=parity.exe ..\target\x86_64-pc-windows-msvc\release\parity.exe
-  file /oname=parity-evm.exe ..\target\x86_64-pc-windows-msvc\release\parity-evm.exe
-  file /oname=ethstore.exe ..\target\x86_64-pc-windows-msvc\release\ethstore.exe
-  file /oname=ethkey.exe ..\target\x86_64-pc-windows-msvc\release\ethkey.exe
+	file /oname=parity.exe ..\artifacts\parity.exe
+  file /oname=parity-evm.exe ..\artifacts\parity-evm.exe
+  file /oname=ethstore.exe ..\artifacts\ethstore.exe
+  file /oname=ethkey.exe ..\artifacts\ethkey.exe
 	file /oname=ptray.exe ..\windows\ptray\x64\Release\ptray.exe
 
 	file "logo.ico"
