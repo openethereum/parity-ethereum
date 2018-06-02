@@ -3,7 +3,7 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 echo "__________Set ENVIROMENT__________"
-DOWNLOAD_PREFIX="https://github.com/General-Beck/parity/releases/download/"$CI_COMMIT_REF_NAME"/"
+DOWNLOAD_PREFIX="https://github.com/paritytech/parity/releases/download/"$CI_COMMIT_REF_NAME"/"
 DESCRIPTION="$(cat CHANGELOG.md)"
 RELEASE_TABLE="$(cat scripts/gitlab/templates/release-table.md)"
 RELEASE_TABLE="$(echo "${RELEASE_TABLE//\$VERSION/${VERSION}}")"
