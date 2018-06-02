@@ -19,7 +19,7 @@ pub struct HardwareWalletManager;
 
 impl HardwareWalletManager {
 	pub fn wallet_info(&self, _: &Address) -> Option<WalletInfo> { 
-	None 
+		None 
 	}
 
 	pub fn list_wallets(&self) -> Vec<WalletInfo> {
@@ -27,11 +27,11 @@ impl HardwareWalletManager {
 	}
 
 	pub fn list_locked_wallets(&self) -> Result<Vec<String>, HardwareError> {
-	Err(HardwareError::NoWallet)
+		Err(HardwareError::NoWallet)
 	}
 
 	pub fn pin_matrix_ack(&self, _: &str, _: &str) -> Result<bool, HardwareError> { 
-	Err(HardwareError::NoWallet)
+		Err(HardwareError::NoWallet)
 	}
 }
 
